@@ -18,7 +18,6 @@ macro (add_example _name)
   endmacro()
   
 
-add_example(multisaw)
 add_example(normalisation_probe)
 add_example(passthrough)
 add_example(sample_and_hold)
