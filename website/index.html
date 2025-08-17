@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workshop Computer - Program Cards</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🖥️ Workshop Computer</h1>
+            <p class="subtitle">Program Cards & Releases</p>
+            <p class="description">
+                Dev material for the Music Thing Workshop Computer. 
+                <a href="https://www.musicthing.co.uk/workshopsystem/" target="_blank">Music Thing Workshop System Homepage</a>
+            </p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="intro">
+            <h2>About</h2>
+            <p>
+                The Workshop Computer is part of the Music Thing Workshop System. This site provides access to all the available program cards,
+                their documentation, and downloadable firmware files (.uf2).
+            </p>
+            <p>
+                For the most up-to-date documentation, see the 
+                <a href="https://docs.google.com/document/d/1NsRewxAu9X8dQMUTdN0eeJeRCr0HmU0pUjpKB4gM-xo/edit?usp=sharing" target="_blank">Google Doc</a>
+                for pinouts and hardware details.
+            </p>
+        </section>
+
+        <section class="releases">
+            <h2>Program Cards</h2>
+            <div class="filter-controls">
+                <label for="status-filter">Filter by Status:</label>
+                <select id="status-filter">
+                    <option value="">All</option>
+                    <option value="Released">Released</option>
+                    <option value="Working">Working</option>
+                    <option value="WIP">Work in Progress</option>
+                    <option value="Beta">Beta</option>
+                    <option value="Proof of concept">Proof of Concept</option>
+                </select>
+                
+                <label for="language-filter">Filter by Language:</label>
+                <select id="language-filter">
+                    <option value="">All</option>
+                    <option value="Arduino-Pico">Arduino-Pico</option>
+                    <option value="Pico SDK">Pico SDK</option>
+                    <option value="C++">C++</option>
+                    <option value="MicroPython">MicroPython</option>
+                    <option value="CircuitPython">CircuitPython</option>
+                    <option value="Rust">Rust</option>
+                </select>
+            </div>
+
+            <div class="releases-grid" id="releases-grid">
+                <!-- Releases will be populated by JavaScript -->
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Music Thing Workshop. Made with ❤️ for the modular community.</p>
+            <p>
+                <a href="https://github.com/TomWhitwell/Workshop_Computer" target="_blank">View on GitHub</a> |
+                <a href="https://www.musicthing.co.uk/workshopsystem/" target="_blank">Workshop System</a>
+            </p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
