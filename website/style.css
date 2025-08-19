@@ -299,6 +299,15 @@ main {
     background: #5a6268;
 }
 
+/* Gold download button */
+.btn-gold {
+    background: linear-gradient(135deg, #c9a227 0%, #a88614 100%);
+    color: #1b1b1b;
+}
+.btn-gold:hover {
+    background: linear-gradient(135deg, #d4b23a 0%, #b6911a 100%);
+}
+
 .btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -347,6 +356,74 @@ footer a:hover {
 
 .release-detail-content {
     padding: 2rem;
+}
+
+/* Detail overview layout */
+.overview-row {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+}
+.overview-aside {
+    position: sticky;
+    top: 1rem;
+}
+.meta-box {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    padding: 1rem;
+}
+.meta-box h4 {
+    margin: 0 0 0.75rem;
+    color: #2e7d32;
+}
+.meta-box ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.meta-box li {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+    border-top: 1px solid #f1f3f5;
+}
+.meta-box li:first-child { border-top: none; }
+.meta-box .meta-key { flex: 0 0 100px; color: #2e7d32; font-weight: 600; }
+.meta-box .meta-value { flex: 1 1 auto; color: #333; }
+
+.meta-box .meta-downloads {
+    margin-top: 0.75rem;
+}
+.meta-box .meta-downloads h5 {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    color: #2e7d32;
+}
+.meta-box .btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+.meta-box .btn:last-child { margin-bottom: 0; }
+.meta-box .no-downloads { color: #666; font-size: 0.9rem; }
+
+/* Float meta box inside README so content wraps around it */
+.meta-float {
+    float: right;
+    width: 320px;
+    margin: 0 0 1rem 1rem; /* left margin to add gutter from text */
+}
+.readme-section::after {
+    content: "";
+    display: block;
+    clear: both; /* clear float after README */
 }
 
 .download-section, .documentation-section, .readme-section {
@@ -439,6 +516,19 @@ footer a:hover {
     
     .release-actions {
         flex-direction: column;
+    }
+
+    .overview-row {
+        grid-template-columns: 1fr;
+    }
+    .overview-aside {
+        position: static;
+    }
+
+    .meta-float {
+        float: none;
+        width: auto;
+        margin: 0 0 1rem 0;
     }
 }
 

@@ -166,7 +166,7 @@ class WorkshopComputerSite {
                             📄 View Details
                         </a>
                         ${release.has_firmware ? `
-                            <button onclick="site.showDownloadOptions('${release.id}')" class="btn btn-secondary">
+                            <button onclick="site.showDownloadOptions('${release.id}')" class="btn btn-gold">
                                 💾 Download
                             </button>
                         ` : ''}
@@ -276,40 +276,60 @@ class ReleaseDetailPage {
         const statusClass = this.getStatusClass(release.status);
         
         container.innerHTML = `
-            <div class="back-button">
-                <a href="index.html" class="btn btn-secondary">← Back to Releases</a>
-            </div>
-            
             <div class="release-detail">
                 <div class="release-detail-header">
                     <h1>${renderSevenSegment(String(release.number).padStart(2,'0'))} <span class="detail-title">${this.escapeHtml(release.title)}</span></h1>
                     <p class="subtitle">${this.escapeHtml(release.description)}</p>
-                    <div class="release-meta">
-                        <p><strong>Creator:</strong> ${this.escapeHtml(release.creator)}</p>
-                        <p><strong>Language:</strong> ${this.escapeHtml(release.language)}</p>
-                        <p><strong>Version:</strong> ${this.escapeHtml(release.version)}</p>
-                        <p><strong>Status:</strong> <span class="status ${statusClass}">${this.escapeHtml(release.status)}</span></p>
-                    </div>
                 </div>
                 
                 <div class="release-detail-content">
-                    ${release.has_firmware ? `
-                        <div class="download-section">
-                            <h3>Downloads</h3>
-                            ${release.uf2_files.map(file => `
-                                <a href="../${file}" download class="btn btn-primary">
-                                    \ud83d\udcbe Download ${file.split('/').pop()}
-                                </a>
-                            `).join(' ')}
-                        </div>
-                    ` : ''}
-
                     ${release.readme_html ? `
                         <div class="readme-section">
+                            <div class="meta-float">
+                                <div class="meta-box">
+                                    <h4>Info</h4>
+                                    <ul>
+                                        <li><span class="meta-key">Creator</span><span class="meta-value">${this.escapeHtml(release.creator) || 'Unknown'}</span></li>
+                                        <li><span class="meta-key">Language</span><span class="meta-value">${this.escapeHtml(release.language) || 'Not specified'}</span></li>
+                                        <li><span class="meta-key">Version</span><span class="meta-value">${this.escapeHtml(release.version) || 'N/A'}</span></li>
+                                        <li><span class="meta-key">Status</span><span class="meta-value"><span class="status ${statusClass}">${this.escapeHtml(release.status) || 'Unknown'}</span></span></li>
+                                    </ul>
+                                    <div class="meta-downloads">
+                                        <h5>Downloads</h5>
+                                        ${release.has_firmware ? `
+                                            ${release.uf2_files.map(file => `
+                                                <a href="../${file}" download class="btn btn-gold btn-block">
+                                                    \ud83d\udcbe Download ${file.split('/').pop()}
+                                                </a>
+                                            `).join('')}
+                                        ` : '<p class="no-downloads">No downloads available.</p>'}
+                                    </div>
+                                </div>
+                            </div>
                             <h3>README</h3>
                             <div class="readme-html">${release.readme_html}</div>
                         </div>
-                    ` : ''}
+                    ` : `
+                        <div class="meta-box" style="margin-bottom: 1rem;">
+                            <h4>Info</h4>
+                            <ul>
+                                <li><span class="meta-key">Creator</span><span class="meta-value">${this.escapeHtml(release.creator) || 'Unknown'}</span></li>
+                                <li><span class="meta-key">Language</span><span class="meta-value">${this.escapeHtml(release.language) || 'Not specified'}</span></li>
+                                <li><span class="meta-key">Version</span><span class="meta-value">${this.escapeHtml(release.version) || 'N/A'}</span></li>
+                                <li><span class="meta-key">Status</span><span class="meta-value"><span class="status ${statusClass}">${this.escapeHtml(release.status) || 'Unknown'}</span></span></li>
+                            </ul>
+                            <div class="meta-downloads">
+                                <h5>Downloads</h5>
+                                ${release.has_firmware ? `
+                                    ${release.uf2_files.map(file => `
+                                        <a href="../${file}" download class="btn btn-primary btn-block">
+                                            \ud83d\udcbe Download ${file.split('/').pop()}
+                                        </a>
+                                    `).join('')}
+                                ` : '<p class="no-downloads">No downloads available.</p>'}
+                            </div>
+                        </div>
+                    `}
 
                     ${release.has_documentation ? `
                         <div class="documentation-section">
