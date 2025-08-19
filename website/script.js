@@ -1,4 +1,54 @@
 // Workshop Computer Website JavaScript
+
+// Seven-segment display rendering (inline SVG)
+function renderSevenSegment(numberStr) {
+    const digits = String(numberStr).split('');
+    return `
+        <span class="seven-seg" role="img" aria-label="${numberStr}">
+            ${digits.map(d => renderSevenSegDigit(d)).join('')}
+        </span>
+    `;
+}
+
+function renderSevenSegDigit(d) {
+    const onColor = '#a18922ff';
+    const offColor = '#a18a2234';
+    const W = 36, H = 64, t = 8, m = 4;
+    const p = 1; // inner padding per segment (inset)
+        const hInset = 4; // extra horizontal inset for A, G, D to shorten bars
+    const vLen = (H - 3*m - 2*t) / 2;
+    const segs = {
+        '0': ['A','B','C','D','E','F'],
+        '1': ['B','C'],
+        '2': ['A','B','G','E','D'],
+        '3': ['A','B','C','D','G'],
+        '4': ['F','G','B','C'],
+        '5': ['A','F','G','C','D'],
+        '6': ['A','F','G','E','C','D'],
+        '7': ['A','B','C'],
+        '8': ['A','B','C','D','E','F','G'],
+        '9': ['A','B','C','D','F','G']
+    };
+    const on = new Set(segs[d] || []);
+    const rect = (name, x, y, w, h) => {
+        const fill = on.has(name) ? onColor : offColor;
+        const x2 = x + p, y2 = y + p;
+        const w2 = Math.max(0, w - 2*p), h2 = Math.max(0, h - 2*p);
+        return `<rect x="${x2}" y="${y2}" width="${w2}" height="${h2}" rx="${t/2}" ry="${t/2}" fill="${fill}" />`;
+    };
+    const parts = [];
+    // A (top), G (middle), D (bottom)
+        // A (top), G (middle), D (bottom) with shortened width
+        parts.push(rect('A', m + hInset, m, W - 2*m - 2*hInset, t));
+        parts.push(rect('G', m + hInset, H/2 - t/2, W - 2*m - 2*hInset, t));
+        parts.push(rect('D', m + hInset, H - m - t, W - 2*m - 2*hInset, t));
+    // F/E left, B/C right
+    parts.push(rect('F', m, m + t, t, vLen));
+    parts.push(rect('E', m, m + t + vLen + t, t, vLen));
+    parts.push(rect('B', W - m - t, m + t, t, vLen));
+    parts.push(rect('C', W - m - t, m + t + vLen + t, t, vLen));
+    return `<svg class="seven-seg-digit" viewBox="0 0 ${W} ${H}" aria-hidden="true">${parts.join('')}</svg>`;
+}
 class WorkshopComputerSite {
     constructor() {
         this.releases = [];
@@ -91,57 +141,36 @@ class WorkshopComputerSite {
     }
 
     createReleaseCard(release) {
-        const statusClass = this.getStatusClass(release.status);
-        const hasDownloads = release.has_documentation || release.has_firmware;
+    const statusClass = this.getStatusClass(release.status);
         
         return `
             <div class="release-card" data-status="${this.normalizeStatus(release.status)}" data-language="${release.language}">
                 <div class="release-header">
-                    <div class="release-number">#${release.number}</div>
                     <div class="release-title">${this.escapeHtml(release.title)}</div>
+                    <div class="release-number">${renderSevenSegment(String(release.number).padStart(2,'0'))}</div>
                 </div>
                 <div class="release-content">
                     <div class="release-description">
                         ${this.escapeHtml(release.description) || 'No description available.'}
                     </div>
                     <div class="release-meta">
-                        <div class="meta-item">
-                            <span class="meta-label">Creator:</span>
-                            <span>${this.escapeHtml(release.creator) || 'Unknown'}</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">Language:</span>
-                            <span>${this.escapeHtml(release.language) || 'Not specified'}</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">Version:</span>
-                            <span>${this.escapeHtml(release.version) || 'N/A'}</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">Status:</span>
-                            <span class="status ${statusClass}">${this.escapeHtml(release.status) || 'Unknown'}</span>
-                        </div>
+                        <ul class="meta-list">
+                            <li><span class="meta-key">Creator</span><span class="meta-value">${this.escapeHtml(release.creator) || 'Unknown'}</span></li>
+                            <li><span class="meta-key">Language</span><span class="meta-value">${this.escapeHtml(release.language) || 'Not specified'}</span></li>
+                            <li><span class="meta-key">Version</span><span class="meta-value">${this.escapeHtml(release.version) || 'N/A'}</span></li>
+                            <li><span class="meta-key">Status</span><span class="meta-value"><span class="status ${statusClass}">${this.escapeHtml(release.status) || 'Unknown'}</span></span></li>
+                        </ul>
                     </div>
-                    ${hasDownloads ? `
-                        <div class="release-actions">
-                            ${release.has_documentation ? `
-                                <a href="release.html?id=${release.id}" class="btn btn-primary">
-                                    📄 View Details
-                                </a>
-                            ` : ''}
-                            ${release.has_firmware ? `
-                                <button onclick="site.showDownloadOptions('${release.id}')" class="btn btn-secondary">
-                                    💾 Download
-                                </button>
-                            ` : ''}
-                        </div>
-                    ` : `
-                        <div class="release-actions">
-                            <button class="btn btn-secondary" disabled>
-                                No downloads available
+                    <div class="release-actions">
+                        <a href="release.html?id=${release.id}" class="btn btn-primary">
+                            📄 View Details
+                        </a>
+                        ${release.has_firmware ? `
+                            <button onclick="site.showDownloadOptions('${release.id}')" class="btn btn-secondary">
+                                💾 Download
                             </button>
-                        </div>
-                    `}
+                        ` : ''}
+                    </div>
                 </div>
             </div>
         `;
@@ -240,7 +269,8 @@ class ReleaseDetailPage {
     renderReleaseDetail(release) {
         document.title = `${release.title} - Workshop Computer`;
         
-        const container = document.querySelector('.container');
+    // Target the main page container, not the header's inner container
+    const container = document.querySelector('main.container');
         if (!container) return;
 
         const statusClass = this.getStatusClass(release.status);
@@ -252,7 +282,7 @@ class ReleaseDetailPage {
             
             <div class="release-detail">
                 <div class="release-detail-header">
-                    <h1>#${release.number}: ${this.escapeHtml(release.title)}</h1>
+                    <h1>${renderSevenSegment(String(release.number).padStart(2,'0'))} <span class="detail-title">${this.escapeHtml(release.title)}</span></h1>
                     <p class="subtitle">${this.escapeHtml(release.description)}</p>
                     <div class="release-meta">
                         <p><strong>Creator:</strong> ${this.escapeHtml(release.creator)}</p>
@@ -268,12 +298,19 @@ class ReleaseDetailPage {
                             <h3>Downloads</h3>
                             ${release.uf2_files.map(file => `
                                 <a href="../${file}" download class="btn btn-primary">
-                                    💾 Download ${file.split('/').pop()}
+                                    \ud83d\udcbe Download ${file.split('/').pop()}
                                 </a>
                             `).join(' ')}
                         </div>
                     ` : ''}
-                    
+
+                    ${release.readme_html ? `
+                        <div class="readme-section">
+                            <h3>README</h3>
+                            <div class="readme-html">${release.readme_html}</div>
+                        </div>
+                    ` : ''}
+
                     ${release.has_documentation ? `
                         <div class="documentation-section">
                             <h3>Documentation</h3>
@@ -288,14 +325,11 @@ class ReleaseDetailPage {
                             `).join('')}
                         </div>
                     ` : '<p>No documentation available for this release.</p>'}
-                    
-                    ${release.readme ? `
-                        <div class="readme-section">
-                            <h3>README</h3>
-                            <pre>${this.escapeHtml(release.readme)}</pre>
-                        </div>
-                    ` : ''}
                 </div>
+            </div>
+
+            <div class="back-button back-bottom">
+                <a href="index.html" class="btn btn-secondary">← Back to Releases</a>
             </div>
         `;
     }
@@ -313,7 +347,8 @@ class ReleaseDetailPage {
     }
 
     showError(message) {
-        const container = document.querySelector('.container');
+    // Target the main page container for error rendering
+    const container = document.querySelector('main.container');
         if (container) {
             container.innerHTML = `
                 <div class="back-button">

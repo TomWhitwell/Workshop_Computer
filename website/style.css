@@ -20,22 +20,22 @@ body {
 
 /* Header */
 header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
     color: white;
-    padding: 2rem 0;
+    padding: 1.1rem 0; /* more compact */
     text-align: center;
 }
 
 header h1 {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
+    font-size: 2rem; /* was 2.5rem */
+    margin-bottom: 0.25rem; /* was 0.5rem */
     font-weight: 700;
 }
 
 .subtitle {
-    font-size: 1.2rem;
+    font-size: 1rem; /* was 1.2rem */
     opacity: 0.9;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem; /* was 1rem */
 }
 
 .description {
@@ -56,19 +56,19 @@ main {
 
 .intro {
     background: white;
-    padding: 2rem;
+    padding: 1rem; /* more compact */
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    margin-bottom: 2rem;
+    margin-bottom: 1rem; /* was 2rem */
 }
 
 .intro h2 {
-    color: #667eea;
-    margin-bottom: 1rem;
+    color: #2e7d32;
+    margin-bottom: 0.5rem; /* tighter */
 }
 
 .intro a {
-    color: #667eea;
+    color: #2e7d32;
 }
 
 /* Filter Controls */
@@ -100,7 +100,7 @@ main {
 
 .filter-controls select:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #2e7d32;
 }
 
 /* Releases Grid */
@@ -116,6 +116,8 @@ main {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     overflow: hidden;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
 }
 
 .release-card:hover {
@@ -124,24 +126,51 @@ main {
 }
 
 .release-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
     color: white;
-    padding: 1.5rem;
+    padding: 1.0rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .release-number {
-    font-size: 2rem;
-    font-weight: bold;
-    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0;
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .release-title {
     font-size: 1.1rem;
     opacity: 0.9;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+/* Seven-segment styles */
+.seven-seg {
+    display: inline-flex;
+    gap: 6px;
+}
+.seven-seg-digit {
+    width: 28px;
+    height: 50px;
+}
+.release-detail-header h1 .seven-seg {
+    vertical-align: middle;
+    margin-right: 0.5rem;
+}
+.release-detail-header h1 .detail-title {
+    vertical-align: middle;
 }
 
 .release-content {
     padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
 }
 
 .release-description {
@@ -150,11 +179,42 @@ main {
 }
 
 .release-meta {
+    /* default layout remains for contexts that rely on it; overridden in card context below */
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
     margin-bottom: 1.5rem;
     font-size: 0.9rem;
+}
+
+/* Card-specific: show release meta as a vertical list on index cards */
+.release-card .release-meta {
+    display: block;
+}
+.release-card .meta-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.release-card .meta-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+    border-top: 1px solid #e9ecef;
+}
+.release-card .meta-list li:first-child {
+    border-top: none;
+}
+.release-card .meta-key {
+    flex: 0 0 110px;
+    color: #2e7d32;
+    font-weight: 600;
+}
+.release-card .meta-value {
+    flex: 1 1 auto;
+    color: #333;
 }
 
 .meta-item {
@@ -204,6 +264,7 @@ main {
 .release-actions {
     display: flex;
     gap: 0.5rem;
+    margin-top: auto; /* push actions to bottom of card */
 }
 
 .btn {
@@ -221,12 +282,12 @@ main {
 }
 
 .btn-primary {
-    background: #667eea;
+    background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
     color: white;
 }
 
 .btn-primary:hover {
-    background: #5a6fd8;
+    background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%);
 }
 
 .btn-secondary {
@@ -271,7 +332,7 @@ footer a:hover {
 }
 
 .release-detail-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
     color: white;
     padding: 2rem;
 }
@@ -293,7 +354,7 @@ footer a:hover {
 }
 
 .download-section h3, .documentation-section h3, .readme-section h3 {
-    color: #667eea;
+    color: #2e7d32;
     margin-bottom: 1rem;
     border-bottom: 2px solid #e9ecef;
     padding-bottom: 0.5rem;
@@ -330,6 +391,10 @@ footer a:hover {
 
 .back-button {
     margin-bottom: 2rem;
+}
+
+.back-bottom {
+    margin-top: 2rem;
 }
 
 .error {
@@ -412,4 +477,54 @@ footer a:hover {
             .25em 0 0 #666,
             .5em 0 0 #666;
     }
+}
+
+/* Markdown/README styling */
+.readme-html {
+    color: #222; /* ensure readable text color */
+    text-align: left; /* force left alignment for README content */
+}
+.readme-html h1, .readme-html h2, .readme-html h3, .readme-html h4, .readme-html h5, .readme-html h6 {
+    color: #333;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+.readme-html p {
+    margin: 0.5rem 0 1rem;
+}
+.readme-html ul, .readme-html ol {
+    margin: 0.5rem 0 1rem 1.25rem;
+}
+.readme-html code {
+    background: #f1f3f5;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+.readme-html pre code {
+    display: block;
+    padding: 1rem;
+    background: #0d1117;
+    color: #e6edf3;
+    border-radius: 6px;
+    overflow-x: auto;
+}
+.readme-html a {
+    color: #2e7d32;
+    text-decoration: underline;
+}
+.readme-html table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+.readme-html th, .readme-html td {
+    border: 1px solid #e9ecef;
+    padding: 0.5rem 0.75rem;
+}
+.readme-html blockquote {
+    border-left: 4px solid #e9ecef;
+    padding-left: 0.75rem;
+    color: #555;
+    margin: 1rem 0;
 }
