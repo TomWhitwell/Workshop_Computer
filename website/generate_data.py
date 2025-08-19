@@ -9,13 +9,20 @@ import json
 import yaml
 import glob
 from pathlib import Path
+import markdown
 
 def find_files(release_dir, patterns):
-    """Find files matching any of the given patterns in the release directory."""
-    found_files = []
+    """Find files matching any of the given patterns in the release directory, recursively, without duplicates."""
+    found: set[str] = set()
+    base = Path(release_dir)
     for pattern in patterns:
-        found_files.extend(glob.glob(os.path.join(release_dir, "**", pattern), recursive=True))
-    return found_files
+        # Use rglob so that patterns like '*.pdf' search recursively
+        for p in base.rglob(pattern):
+            if p.is_file():
+                # Normalize path to avoid duplicate strings from different pattern passes
+                found.add(str(p.resolve()))
+    # Return a stable order by sorting by path
+    return sorted(found)
 
 def extract_release_info(release_path):
     """Extract information from a single release directory."""
@@ -40,27 +47,42 @@ def extract_release_info(release_path):
         except Exception as e:
             print(f"Warning: Could not parse {info_file}: {e}")
     
-    # Find documentation PDFs
-    pdf_patterns = ["*.pdf", "**/*.pdf"]
+    # Find documentation PDFs (recursive)
+    pdf_patterns = ["*.pdf"]
     pdf_files = find_files(release_path, pdf_patterns)
     
-    # Find UF2 files
-    uf2_patterns = ["*.uf2", "**/*.uf2"]
+    # Find UF2 files (recursive)
+    uf2_patterns = ["*.uf2"]
     uf2_files = find_files(release_path, uf2_patterns)
     
     # Read README if it exists
     readme_file = os.path.join(release_path, "README.md")
     readme_content = ""
+    readme_html = ""
     if os.path.exists(readme_file):
         try:
             with open(readme_file, 'r', encoding='utf-8') as f:
                 readme_content = f.read()
+                # Convert Markdown to HTML for web rendering
+                readme_html = markdown.markdown(
+                    readme_content,
+                    extensions=[
+                        'extra',          # tables, footnotes, etc.
+                        'sane_lists',
+                        'toc',
+                        'smarty'
+                    ]
+                )
         except Exception as e:
             print(f"Warning: Could not read {readme_file}: {e}")
     
     # Convert file paths to relative paths for web use
     def make_relative_path(file_path):
         return os.path.relpath(file_path, start=os.path.dirname(os.path.dirname(release_path))).replace("\\", "/")
+
+    # Convert to relative paths and de-duplicate while preserving order
+    rel_pdf_files = list(dict.fromkeys([make_relative_path(pdf) for pdf in pdf_files]))
+    rel_uf2_files = list(dict.fromkeys([make_relative_path(uf2) for uf2 in uf2_files]))
     
     return {
         "id": release_name,
@@ -71,9 +93,10 @@ def extract_release_info(release_path):
         "creator": info.get("Creator", ""),
         "version": str(info.get("Version", "")),
         "status": info.get("Status", ""),
-        "pdf_files": [make_relative_path(pdf) for pdf in pdf_files],
-        "uf2_files": [make_relative_path(uf2) for uf2 in uf2_files],
-        "readme": readme_content,
+    "pdf_files": rel_pdf_files,
+    "uf2_files": rel_uf2_files,
+    "readme": readme_content,
+    "readme_html": readme_html,
         "has_documentation": len(pdf_files) > 0,
         "has_firmware": len(uf2_files) > 0
     }
