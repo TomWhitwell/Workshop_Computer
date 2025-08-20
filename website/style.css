@@ -299,14 +299,6 @@ main {
     background: #5a6268;
 }
 
-/* Gold download button */
-.btn-gold {
-    background: linear-gradient(135deg, #c9a227 0%, #a88614 100%);
-    color: #1b1b1b;
-}
-.btn-gold:hover {
-    background: linear-gradient(135deg, #d4b23a 0%, #b6911a 100%);
-}
 
 .btn:disabled {
     opacity: 0.6;

@@ -15,7 +15,7 @@ function renderSevenSegDigit(d) {
     const offColor = '#a18a2234';
     const W = 36, H = 64, t = 8, m = 4;
     const p = 1; // inner padding per segment (inset)
-        const hInset = 4; // extra horizontal inset for A, G, D to shorten bars
+    const hInset = 4; // extra horizontal inset for A, G, D to shorten bars
     const vLen = (H - 3*m - 2*t) / 2;
     const segs = {
         '0': ['A','B','C','D','E','F'],
@@ -74,39 +74,38 @@ class WorkshopComputerSite {
     }
 
     setupFilters() {
-        const statusFilter = document.getElementById('status-filter');
-        const languageFilter = document.getElementById('language-filter');
+    const statusFilter = document.getElementById('status-filter');
+    const creatorFilter = document.getElementById('creator-filter');
 
         if (statusFilter) {
             statusFilter.addEventListener('change', () => this.applyFilters());
         }
 
-        if (languageFilter) {
-            languageFilter.addEventListener('change', () => this.applyFilters());
-            this.populateLanguageFilter(languageFilter);
+        if (creatorFilter) {
+            creatorFilter.addEventListener('change', () => this.applyFilters());
+            this.populateCreatorFilter(creatorFilter);
         }
     }
 
-    populateLanguageFilter(languageFilter) {
-        const languages = [...new Set(this.releases.map(r => r.language).filter(l => l))].sort();
-        
-        languages.forEach(language => {
+    populateCreatorFilter(creatorFilter) {
+        const creators = [...new Set(this.releases.map(r => r.creator).filter(c => c))].sort();
+        creators.forEach(creator => {
             const option = document.createElement('option');
-            option.value = language;
-            option.textContent = language;
-            languageFilter.appendChild(option);
+            option.value = creator;
+            option.textContent = creator;
+            creatorFilter.appendChild(option);
         });
     }
 
     applyFilters() {
         const statusFilter = document.getElementById('status-filter')?.value || '';
-        const languageFilter = document.getElementById('language-filter')?.value || '';
+        const creatorFilter = document.getElementById('creator-filter')?.value || '';
 
         this.filteredReleases = this.releases.filter(release => {
             const statusMatch = !statusFilter || this.normalizeStatus(release.status).includes(statusFilter.toLowerCase());
-            const languageMatch = !languageFilter || release.language === languageFilter;
+            const creatorMatch = !creatorFilter || release.creator === creatorFilter;
             
-            return statusMatch && languageMatch;
+            return statusMatch && creatorMatch;
         });
 
         this.renderReleases();
@@ -162,11 +161,11 @@ class WorkshopComputerSite {
                         </ul>
                     </div>
                     <div class="release-actions">
-                        <a href="release.html?id=${release.id}" class="btn btn-primary">
+                        <a href="release.html?id=${release.id}" class="btn btn-secondary">
                             📄 View Details
                         </a>
                         ${release.has_firmware ? `
-                            <button onclick="site.showDownloadOptions('${release.id}')" class="btn btn-gold">
+                            <button onclick="site.showDownloadOptions('${release.id}')" class="btn btn-primary">
                                 💾 Download
                             </button>
                         ` : ''}
@@ -298,7 +297,7 @@ class ReleaseDetailPage {
                                         <h5>Downloads</h5>
                                         ${release.has_firmware ? `
                                             ${release.uf2_files.map(file => `
-                                                <a href="../${file}" download class="btn btn-gold btn-block">
+                                                <a href="../${file}" download class="btn btn-primary btn-block">
                                                     \ud83d\udcbe Download ${file.split('/').pop()}
                                                 </a>
                                             `).join('')}
