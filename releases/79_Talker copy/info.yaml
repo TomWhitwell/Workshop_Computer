@@ -1,0 +1,5 @@
+Description: Proof of concept speech synthesizer, based on TalkiePCM, inspired by 1970s LPC speech synths. 
+Language: C (RPi Pico SDK)
+Creator: Chris Johnson
+Version: 0.1
+Status: Proof of concept
