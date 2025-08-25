@@ -27,9 +27,13 @@ class Switch {
   inline bool pressed() const {
     return switch_state_ == 0x00;
   }
+
+  bool buffer_filled() {
+    return init_count_ >= 8;
+  }
    
  private:
-  bool initialized = false;
+  uint8_t init_count_ = 0;
   uint8_t switch_state_;
   
   DISALLOW_COPY_AND_ASSIGN(Switch);

@@ -110,16 +110,29 @@ void UsbWorker::MidiTask()
 	// Read incoming packet if availabie
 	while (tud_midi_available())
 	{
-		uint32_t bytes_read = tud_midi_stream_read(packet_, sizeof(packet_));
+		uint32_t bytesToProcess = tud_midi_stream_read(packet_, sizeof(packet_));
 
-		if (packet_[0] == 0xF0) // If sysex, handle with standard routine
+		uint8_t *bufferPtr = packet_;
+		
+		while (bytesToProcess > 0)
 		{
-			ProcessSysExCommand(packet_);
-		}
-		else //if(midi_in_callback != NULL)
-		{
-			// else pass on to application midi message handler
-			midi_in_callback(packet_);
+			if (packet_[0] == 0xF0) // If sysex, handle with standard routine
+			{
+				ProcessSysExCommand(packet_);
+			}
+			else //if(midi_in_callback != NULL)
+			{
+				// else pass on to application midi message handler
+				midi_in_callback(packet_);
+			}
+
+			// Move pointer to next midi message in buffer, if it exists
+			// by scanning until we see a MIDI command byte (most significant bit set)
+			do 
+			{
+				bufferPtr++;
+				bytesToProcess--;
+			} while (bytesToProcess > 0 && (!(*bufferPtr & 0x80)));			
 		}
 	}
 }

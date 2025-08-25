@@ -1,31 +1,36 @@
+# Generated Cmake Pico project file
+
+cmake_minimum_required(VERSION 3.13)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Initialise pico_sdk from installed location
+# (note this can come from environment, CMake cache etc)
+
 # == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
 if(WIN32)
     set(USERHOME $ENV{USERPROFILE})
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion 2.1.0)
-set(toolchainVersion 13_3_Rel1)
-set(picotoolVersion 2.1.0)
+set(sdkVersion 2.1.1)
+set(toolchainVersion 14_2_Rel1)
+set(picotoolVersion 2.1.1)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-# Set minimum required version of CMake
-cmake_minimum_required(VERSION 3.12)
-
 set(PICO_BOARD "computer")
 
-# Include build functions from Pico SDK
-include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+# Pull in Raspberry Pi Pico SDK (must be before project)
+include(pico_sdk_import.cmake)
 
-# Set name of project (as PROJECT_NAME) and C/C   standards
 project(twists C CXX ASM)
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
 
-# Creates a pico-sdk subdirectory in our project for the libraries
+# Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # Tell CMake where to find the executable source file
@@ -40,10 +45,10 @@ add_executable(${PROJECT_NAME}
     braids/ui.cc
     braids/usb_worker.cc
     braids/usb_descriptors.cc
+    braids/drivers/gate_input.cc
     braids/drivers/dac.cc
     braids/drivers/display.cc
     braids/drivers/switch.cc
-    braids/drivers/cv_out.cc
     stmlib/utils/random.cc
 )
 
@@ -74,3 +79,7 @@ target_link_libraries(${PROJECT_NAME}
 # Enable usb output, disable uart output
 pico_enable_stdio_usb(${PROJECT_NAME} 0)
 pico_enable_stdio_uart(${PROJECT_NAME} 0)
+
+target_compile_definitions(${PROJECT_NAME} 
+  PRIVATE PICO_USE_FASTEST_SUPPORTED_CLOCK=1
+)

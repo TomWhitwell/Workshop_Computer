@@ -8,22 +8,30 @@
 
 namespace braids {
 
+enum UIMode {
+  UNKNOWN,
+  CALIBRATION1,
+  CALIBRATION2,
+  PLAY
+};
+
 class Ui {
  public:
   Ui() { }
   ~Ui() { }
   
   void Init();
-  void Poll(uint16_t switch_val);
+  void Poll(uint32_t now, uint16_t switch_val);
+  UIMode GetMode();
+  void SetMode(UIMode mode);
 
  private:
   void IncrementShape();
-  void UpdateDisplay();
+  void UpdateDisplay(uint32_t now);
   
   Display display_;
   Switch switch_;
-
-  uint8_t selected_shape = 0;
+  UIMode mode_;
 
   DISALLOW_COPY_AND_ASSIGN(Ui);
 };

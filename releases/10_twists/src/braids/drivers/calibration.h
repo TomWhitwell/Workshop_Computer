@@ -22,13 +22,19 @@
 #define CALIBRATION_H
 
 #include "pico/stdlib.h"
+#include "pico/flash.h"
 #include "hardware/i2c.h"
+#include "hardware/flash.h"
 
 #define PIN_EEPROM_SDA  16
 #define PIN_EEPROM_SCL  17
 #define EEPROM_SPEED    400000
 #define CALIBRATION_CONSTANT_M  0
 #define CALIBRATION_CONSTANT_B  1
+#define CALIBRATION_CVIN_MAGIC1 0x72
+#define CALIBRATION_CVIN_MAGIC2 0x77
+#define CALIBRATION_CVIN_SLOPE_DEFAULT      -0.002948224598
+#define CALIBRATION_CVIN_INTERCEPT_DEFAULT  6.144412677
 
 class Calibration {
   public:
@@ -89,7 +95,59 @@ class Calibration {
         return dacValue;
     }
 
+    void readCVInCalibration(float *slope, float *intercept) {
+      uint8_t *flash_data = (uint8_t *) (XIP_BASE + calibrationFlashAddr_);
+      if(flash_data[0] == CALIBRATION_CVIN_MAGIC1 && flash_data[1] == CALIBRATION_CVIN_MAGIC2) {
+        ((uint8_t*)slope)[0] = flash_data[2];
+        ((uint8_t*)slope)[1] = flash_data[3];
+        ((uint8_t*)slope)[2] = flash_data[4];
+        ((uint8_t*)slope)[3] = flash_data[5];
+
+        ((uint8_t*)intercept)[0] = flash_data[6];
+        ((uint8_t*)intercept)[1] = flash_data[7];
+        ((uint8_t*)intercept)[2] = flash_data[8];
+        ((uint8_t*)intercept)[3] = flash_data[9];
+      }
+      else
+      {
+        *slope = CALIBRATION_CVIN_SLOPE_DEFAULT;
+        *intercept = CALIBRATION_CVIN_INTERCEPT_DEFAULT;
+      }
+    }
+
+    void writeCVInCalibration(float slope, float intercept) {
+      uint8_t data[10] = {
+        CALIBRATION_CVIN_MAGIC1,
+        CALIBRATION_CVIN_MAGIC2,
+        ((uint8_t*)&slope)[0],
+        ((uint8_t*)&slope)[1],
+        ((uint8_t*)&slope)[2],
+        ((uint8_t*)&slope)[3],
+        ((uint8_t*)&intercept)[0],
+        ((uint8_t*)&intercept)[1],
+        ((uint8_t*)&intercept)[2],
+        ((uint8_t*)&intercept)[3]
+      };
+
+      // shut down the other core
+			multicore_lockout_start_blocking();
+			// erase page of flash
+			uint32_t ints = save_and_disable_interrupts();
+			flash_range_erase(calibrationFlashAddr_, 4096);
+			restore_interrupts(ints);
+
+			// write config to flash
+			ints = save_and_disable_interrupts();
+			flash_range_program(calibrationFlashAddr_, data, 10);
+			restore_interrupts(ints);
+
+			// restore other core
+			multicore_lockout_end_blocking();
+    }
+
   private:
+    uint32_t calibrationFlashAddr_ = (PICO_FLASH_SIZE_BYTES - 8192) - (PICO_FLASH_SIZE_BYTES - 8192)%4096;
+
     struct CalibrationEntry {
       int8_t targetVoltage; // Voltage x 10 - so -50 = -5V, +25 = +2.5V
       uint32_t dacSetting; // DAC setting value - maximum 20 bits

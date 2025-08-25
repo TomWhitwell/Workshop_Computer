@@ -1,6 +1,7 @@
 #include "tusb.h"
+#include <pico/unique_id.h>
 
-#define USB_PID   0x000A // Pi Pick CDC
+#define USB_PID   0x10C1 // Workshop computer
 #define USB_VID   0x2E8A // Raspberry Pi
 #define USB_BCD   0x0200
 
@@ -83,13 +84,22 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index)
 // String Descriptors
 //--------------------------------------------------------------------+
 
+// String Descriptor Index
+enum {
+  STRING_LANGID = 0,
+  STRING_MANUFACTURER,
+  STRING_PRODUCT,
+  STRING_SERIAL,
+  STRING_LAST,
+};
+
 // array of pointer to string descriptors
 char const* string_desc_arr [] =
 {
-	(const char[]) { 0x09, 0x04 }, // 0: is supported language is English (0x0409)
-	"Music Thing",                     // 1: Manufacturer
-	"Computer", // 2: Product
-	"123456",                      // 3: Serials, should use chip ID
+	(const char[]) { 0x09, 0x04 },	// 0: is supported language is English (0x0409)
+	"Music Thing",                  // 1: Manufacturer
+	"Computer",						          // 2: Product
+  NULL,     						          // 3: Serials, should use chip ID
 };
 
 static uint16_t _desc_str[32];
@@ -101,11 +111,28 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid)
 	(void) langid;
 
 	uint8_t chr_count;
-
-	if (index == 0)
+	memset(_desc_str, 0, sizeof(_desc_str));
+	
+	if (index == STRING_LANGID)
 	{
 		memcpy(&_desc_str[1], string_desc_arr[0], 2);
 		chr_count = 1;
+	}
+	else if (index == STRING_SERIAL)
+	{
+		int id_length = 16;
+
+		// Flash card unique ID
+		char id_string[id_length];
+		pico_get_unique_board_id_string(id_string, id_length + 1);
+		for(int i=0; i<id_length; i++) {
+			_desc_str[i+1] = id_string[i];
+		}
+
+		// Add the ID number for this card
+		_desc_str[id_length + 1] = '1';
+		_desc_str[id_length + 2] = '0';
+		chr_count = id_length + 2;
 	}
 	else
 	{
