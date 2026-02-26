@@ -49,6 +49,8 @@ Filter Out-> Mix
 
 Audio Out -> Filter FM
 
+Pulse out to slopes and then somewhere else is a fun experiment. Oscillator FM? 
+
 Credit and Thanks
 -----------------
 Written by Benjamin Reily // 2026 
