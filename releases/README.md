@@ -13,7 +13,7 @@
 | 12_am_coupler | AM radio transmitter / coupler | 1.0<br>Released | C++ (ComputerCard) | Chris Johnson |
 | 13_noisebox |  |  |  |  |
 | 14_cvmod | Quad CV delay inspired by Make Noise Multimod | 1.0<br>Released | C++ (ComputerCard) | Chris Johnson |
-| 18_chord_organ | Chord Organ - 16 chords, 8 voices, 1V/oct root. Replicates Music Thing Chord-Organ. | 0.1<br>Working | Pico SDK (C++), ComputerCard | Workshop System |
+| 18_chord_organ | Chord Organ-ish - 16 chords, 8 voices, 1V/oct root. Inspired by Music Thing Chord Organ. | 0.1<br>Working | Pico SDK (C++), ComputerCard | Workshop System |
 | 20_reverb | Reverb effect, plus pulse/CV generators and MIDI-to-CV, configurable using web interface.<br>[Web editor](https://www.musicthing.co.uk/web_config/reverb.html) | 1.4<br>Released | C (RPi Pico SDK) | Chris Johnson |
 | 21_resonator |  |  |  |  |
 | 22_sheep | A time-stretching and pitch-shifting granular processor and digital degradation playground with 2 fidelity options. | 1.1<br>Released | Pico SDK | Dune Desormeaux |
