@@ -1,6 +1,6 @@
-# 18 Chord Organ
+# 18 Chord Organ-ish
 
-Chord Organ for the Music Thing Modular Workshop Computer. Replicates the behaviour of the standalone Chord-Organ module: 16 chords, up to 8 voices per chord, 1V/oct root control, and glide.
+Chord Organ-ish for the Music Thing Modular Workshop Computer. Inspired by the behaviour of the standalone Chord Organ module: 16 chords, up to 8 voices per chord, 1V/oct root control, and glide.
 
 ## Controls
 
@@ -82,7 +82,7 @@ cmake ..
 make
 ```
 
-Copy `chord_organ.uf2` to the Workshop Computer when in bootloader mode.
+Copy `chord_organ.uf2` from the Build folder to the Workshop Computer when in bootloader mode.
 
 ## Firmware
 
