@@ -1,5 +1,5 @@
 Description: Chord Organ-ish - 16 chords, 8 voices, 1V/oct root. Inspired by Music Thing Chord Organ.
 Language: Pico SDK (C++), ComputerCard
-Creator: Workshop System
+Creator: jkeyworth
 Version: 0.1
 Status: Working
