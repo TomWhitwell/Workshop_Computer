@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+	<title>Simple MIDI Calibration</title>
+	<meta name="description" content="Web interface for the Simple MIDI card of the Music Thing Workshop System Computer">
+
+	<style>
+	  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+	  body {
+		  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+		  background: #fff;
+		  color: #111;
+		  min-height: 100vh;
+	  }
+	  .instrimg
+	  {
+		  display: block;
+		  max-width: 411px;
+		  margin: 0px auto;
+	  }
+	  #pageHeader {
+		  padding: 48px 64px 32px;
+		  border-bottom: 3px solid #111;
+		  text-align: center;
+	  }
+	  #pageHeader h1 {
+		  font-size: 2rem;
+		  font-weight: 800;
+		  letter-spacing: -0.5px;
+		  line-height: 1;
+	  }
+	  #pageHeader p {
+		  margin-top: 6px;
+		  font-size: 0.85rem;
+		  color: #888;
+		  letter-spacing: 0.5px;
+		  text-transform: uppercase;
+	  }
+
+	  #statusDiv {
+		  position: fixed;
+		  top: 20px;
+		  right: 28px;
+		  font-size: 0.75rem;
+		  font-weight: 700;
+		  letter-spacing: 1px;
+		  text-transform: uppercase;
+		  color: #aaa;
+	  }
+
+	  #content {
+		  max-width: 700px;
+		  margin: 0 auto;
+		  padding: 48px 0px 0px;
+		  display: flex;
+		  flex-direction: column;
+		  gap: 40px;
+	  }
+
+	  .section-label {
+		  font-size: 0.7rem;
+		  font-weight: 800;
+		  letter-spacing: 2px;
+		  text-transform: uppercase;
+		  color: #aaa;
+		  margin-bottom: 12px;
+	  }
+
+	  #oscSection {
+		  display: flex;
+		  flex-direction: column;
+		  gap: 20px;
+	  }
+
+	  .readout {
+		  display: flex;
+		  align-items: baseline;
+		  gap: 16px;
+	  }
+	  .readout-label {
+		  font-size: 0.75rem;
+		  font-weight: 700;
+		  letter-spacing: 1.5px;
+		  text-transform: uppercase;
+		  width: 100px;
+		  flex-shrink: 0;
+	  }
+	  .readout-note {
+		  font-size: 1.6rem;
+		  font-weight: 800;
+		  line-height: 1;
+		  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+		  min-width: 120px;
+	  }
+	  .readout-freq {
+		  font-size: 1rem;
+		  font-weight: 400;
+		  color: #999;
+		  font-variant-numeric: tabular-nums;
+		  font-family: 'SF Mono', 'Fira Mono', 'Consolas', monospace;
+	  }
+
+	  #noteDisplay  { color: #4b0082; }
+	  #noteDisplay2 { color: #c04000; }
+	  #freqDisplay  { color: #999; }
+	  #freqDisplay2 { color: #999; }
+	  .readout-label.top  { color: #4b0082; }
+	  .readout-label.bot  { color: #c04000; }
+
+	  /* ── Calibration panel ── */
+	  .calPanel {
+		  border: 2px solid #111;
+		  padding: 28px 32px;
+		  display: flex;
+		  flex-direction: column;
+		  gap: 20px;
+	  }
+
+	  .cal-header {
+		  display: flex;
+		  align-items: center;
+		  justify-content: space-between;
+		  gap: 16px;
+	  }
+
+	  #calSection-combined {
+		  display: flex;
+		  flex-direction: column;
+		  align-items: center;
+		  gap: 24px;
+		  text-align: center;
+	  }
+
+	  #calInstruction-combined {
+		  text-align: center;
+	  }
+
+	  #calProgress-combined {
+		  width: 100%;
+	  }
+
+	  .calSteps {
+		  font-size: 0.75rem;
+		  font-weight: 700;
+		  letter-spacing: 1.5px;
+		  text-transform: uppercase;
+		  color: #aaa;
+		  margin-bottom: 30px;
+	  }
+
+	  .calInstruction {
+		  font-size: 1.05rem;
+		  line-height: 1.6;
+		  min-height: 2.4em;
+		  color: #333;
+	  }
+
+	  .calProgress {
+		  font-size: 0.8rem;
+		  color: #888;
+		  font-family: 'SF Mono', 'Fira Mono', 'Consolas', monospace;
+		  letter-spacing: 0.5px;
+	  }
+
+	  .eepromPanel, .calNextPanel {
+		  display: none;
+		  align-items: center;
+		  gap: 16px;
+	  }
+
+	  .eepromStatus {
+		  margin-top:1em;
+		  font-size: 0.85rem;
+		  color: #666;
+	  }
+
+	  button {
+		  appearance: none;
+		  background: #111;
+		  color: #fff;
+		  border: none;
+		  font-family: inherit;
+		  font-size: 0.8rem;
+		  font-weight: 800;
+		  letter-spacing: 1.5px;
+		  text-transform: uppercase;
+		  padding: 12px 24px;
+		  cursor: pointer;
+		  transition: background 0.1s;
+	  }
+	  button:hover  { background: #444; }
+	  button:active { background: #000; }
+	  button:disabled { background: #ccc; color: #999; cursor: default; }
+
+	  #graphSection {}
+	  canvas {
+		  display: block;
+	  }
+
+	  #footerNote {
+		  font-size: 0.75rem;
+		  color: #bbb;
+		  letter-spacing: 0.3px;
+	  }
+	</style>
+
+	<script src="interface.js"></script>
+  </head>
+
+  <body>
+
+	<div id="statusDiv">
+	  <div id="connectedStatus">Loading…</div>
+	</div>
+
+	<header id="pageHeader">
+	  <h1>Workshop System Computer</h1>
+	  <p>CV Out and oscillator calibration</p>
+	</header>
+
+	<div id="content">
+
+	  <div id="calSection-combined">
+		<span id="calSteps-combined" class="calSteps"></span>
+		<div id="calInstruction-combined" class="calInstruction">Connect the Workshop System Computer via USB </div>
+		<div id="calProgress-combined" class="calProgress"></div>
+		<button id="startBtn-combined" onclick="startCalibration('combined')">Start Calibration</button>
+		<div id="continuePanel-combined" style="display:none;align-items:center;gap:16px">
+		  <button onclick="continueToCalibration()">Continue</button>
+		</div>
+		<canvas id="graphAtRes-combined" width="500" height="250" style="display:none"></canvas>
+<div id="eepromPanel-combined" class="eepromPanel">
+		  <button onclick="saveCalToEEPROM()">Save to Workshop Computer</button>
+		  <div id="eepromStatus-combined" class="eepromStatus"></div>
+		</div>
+	  </div>
+
+	</div>
+
+  </body>
+</html>
