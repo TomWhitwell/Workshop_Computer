@@ -4378,10 +4378,13 @@ int LuaManager::lua_c_tell(lua_State* L) {
                     hardware_pulse_output_set(pulse_idx + 1, state);
                 }
             } else {
-                // Regular CV outputs (channels 1-4)
+                // Regular CV outputs (channels 1-2 are CV, 3-4 are audio)
+                // Must route through LL_set_volts / slope system so that
+                // ProcessSample() sees the updated slope state instead of
+                // overwriting it with the idle (0V) slope value every sample.
                 float value = (float)luaL_checknumber(L, 3);
-                
-                // User explicitly setting output.volts should always disable noise
+
+                // User explicitly setting output should always disable noise
                 int ch_idx = channel - 1;
                 if (ch_idx >= 0 && ch_idx < 4 && g_noise_active[ch_idx]) {
                     g_noise_active[ch_idx] = false;
@@ -4389,8 +4392,17 @@ int LuaManager::lua_c_tell(lua_State* L) {
                     g_noise_gain[ch_idx] = 0;
                     g_noise_lock_counter[ch_idx] = 0;
                 }
-                
-                hardware_output_set_voltage(channel, value);
+
+                // Route through slope system (like LL_set_volts does) so
+                // ProcessSample's slope loop drives the hardware output.
+                // hardware_output_set_voltage() alone gets clobbered by the
+                // slope loop writing the stale idle value every ~104µs.
+                casl_cleardynamics(ch_idx);
+                casl_describe_to_literal_q16(ch_idx,
+                                             FLOAT_TO_Q16(value),
+                                             FLOAT_TO_Q16(0.0f),  // instant slew
+                                             SHAPE_Linear);
+                casl_action(ch_idx, 1);
             }
     } else {
         // Only 'output' is handled here - all other _c.tell messages (stream, change, window, etc)
