@@ -1,6 +1,6 @@
 # MLRws
 
-![title pic](/docs/images/title.jpg)
+![title pic](docs/images/title.jpg)
 
 MLRws is a remix of the classic MLR [grid](https://monome.org/docs/grid/)-based performance-oriented sample-cutting instrument originally developed by [tehn](https://nnnnnnnn.co) at monome as a Max MSP patch and subsequently ported to [norns](https://github.com/tehn/mlr). MLR has had many generations and was one of the original instruments implemented for the grid interface, as evidenced by this great video of tehn [performing on a grid prototype in 2007](https://hyper8.monome.org/tehn-with-monome-prototype/). In a way that is relatively unique to electronic instruments, MLR also has several virtuoso instrumentalists who have spent years learning its ins and outs such as [Daedelus who you can see absolutely shredding in this KEXP video](https://www.youtube.com/watch?v=Z_zIvFYQWig)
 
@@ -10,11 +10,11 @@ MLRws is my own six-track, grid-optional spin on MLR that works within the const
 
 - [ADPCM](https://en.wikipedia.org/wiki/Adaptive_differential_pulse-code_modulation-based) audio encoding, further reducing the number of bits needed to store a sample of audio (technically MLRws stores 4-bits per sample). This is the same tech that Brian Dorsey's excellent [Backyard Rain](https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/42_backyard_rain) card uses for playback. I also noticed working on this project that ADPCM has additional compression, saturation, and noise-removal characteristics that I kind of love the sound of.
 
-- USB Serial host-mode communication with a monome or DIY grid device via the monome mext [serial protocol](https://monome.org/docs/serialosc/serial.txt). You plug a grid right into the front of the computer. I'm hoping that the code for this problems can be leveraged to create more cards that have grid interfaces. [There is a detailed monome device protocol api doc here for those interested](/docs/Computer_monome_api.md)
+- USB Serial host-mode communication with a monome or DIY grid device via the monome mext [serial protocol](https://monome.org/docs/serialosc/serial.txt). You plug a grid right into the front of the computer. I'm hoping that the code for this problems can be leveraged to create more cards that have grid interfaces. [There is a detailed monome device protocol api doc here for those interested](docs/Computer_monome_api.md)
 
 ## Sample manager web app
 
-![web app](/docs/images/web.png)
+![web app](docs/images/web.png)
 
 You are going to need source materials on your MLRws travels. It is totally possible to record your own sounds via the audio input(s) on the module but you may also want to upload samples from your (non-workshop) computer. For this there is a basic [web app you can find right here](https://dessertplanet.github.io/MLRws-web/).
 
@@ -61,7 +61,7 @@ Once you have your devices communicating, everything else is identical to the US
 
 I wanted to make MLRws fun even for folks who don't have a grid- and also thought it would be interesting to design an interface for 6 tracks of audio using only the things on the Computer panel. For this I consulted the discord community and some very wild ideas came in! Where this mode landed is something like if a minimal MTM Radio Music (thanks Tom!) and a Make Noise RxMx had a baby. It's weird and modulatable and fun! Oh and of course it has a built in Turing Machine since that is of the Workshop idiom (thanks again Tom!)
 
-[Detailed gridless docs are here](/docs/Gridless.md)
+[Detailed gridless docs are here](docs/Gridless.md)
 
 ## Credits / Thank yous
 

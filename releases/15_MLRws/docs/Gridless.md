@@ -5,7 +5,7 @@ device and nothing on the other end is talking to it (no grid, no
 sample manager). The whole six-track instrument is driven from the Computer's
 own panel — switch, three knobs, CV/Audio/Pulse jacks, and the six LEDs.
 
-![gridless ws](/docs/images/MLR_gridless_ws.jpg)
+![gridless ws](images/MLR_gridless_ws.jpg)
 
 ## At a glance
 
