@@ -27,6 +27,10 @@
 #define SAMPLE_READ_CHUNK_SIZE 1024u
 #define SAMPLE_READ_ACK 'A'
 
+#ifndef MLR_FIRMWARE_VERSION
+#define MLR_FIRMWARE_VERSION "1.1.0"
+#endif
+
 typedef enum {
     SAMPLE_RX_WAIT_CMD = 0,
     SAMPLE_RX_WAIT_TRACK,
@@ -175,7 +179,8 @@ static bool __attribute__((section(".flashdata.devmode"))) sample_mgr_send_info(
     char info[512];
     uint32_t used = 0;
 
-    int n = snprintf(info + used, sizeof(info) - used, "MLR1 %d\n", MLR_NUM_CHANNELS);
+    int n = snprintf(info + used, sizeof(info) - used, "MLR1 %d FW %s\n",
+                     MLR_NUM_CHANNELS, MLR_FIRMWARE_VERSION);
     if (n < 0 || (uint32_t)n >= sizeof(info) - used)
         return false;
     used += (uint32_t)n;

@@ -9,7 +9,7 @@
  *   Command byte followed by parameters.
  *
  *   'I' (0x49)         → Info: respond with <len4>, then metadata text
- *                         "MLR1 ...\n" + track info + "END\n"
+ *                         "MLR1 ... FW <version>\n" + track info + "END\n"
  *   'R' <track>        → Read track: respond with <len4>, then stream header
  *                         + ADPCM data in 1024-byte chunks. Host sends 'A'
  *                         after each chunk, then firmware sends "DONE\n".
