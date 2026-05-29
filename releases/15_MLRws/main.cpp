@@ -38,7 +38,7 @@
 #include "tusb.h"
 
 extern "C" {
-#include "monome_mext.h"
+#include "monome_ws.h"
 #include "mlr.h"
 #include "device_mode.h"
 }
@@ -210,13 +210,13 @@ public:
 		/* ---- Mode-specific subsystem init ---- */
 		switch (mode_) {
 		case Mode::HostMLR:
-			mext_init(MEXT_TRANSPORT_HOST, 0);
+			monome_ws_init(MONOME_WS_TRANSPORT_HOST, 0);
 			break;
 		case Mode::DeviceMLR:
-			mext_init(MEXT_TRANSPORT_DEVICE, 0);
-			mext_connect(0);  /* CDC already connected during detection */
+			monome_ws_init(MONOME_WS_TRANSPORT_DEVICE, 0);
+			monome_ws_connect(0);  /* CDC already connected during detection */
 			if (detect_result.has_pending_byte) {
-				mext_rx_feed(&detect_result.first_byte, 1);
+				monome_ws_rx_feed(&detect_result.first_byte, 1);
 			}
 			break;
 		case Mode::DeviceGridless:
@@ -330,7 +330,7 @@ public:
 			board_init();
 			tusb_init();
 			while (true) {
-				mext_task();
+				monome_ws_task();
 				mlr_io_task();
 				service_panel_vu_leds_core1();
 				service_grid_redraw_core1();
@@ -346,10 +346,10 @@ public:
 					if (sample_mgr_wake_byte(peek)) {
 						run_sample_manager_until_disconnect(peek, false);
 					} else {
-						mext_rx_feed(&peek, 1);
+						monome_ws_rx_feed(&peek, 1);
 					}
 				}
-				mext_task();
+				monome_ws_task();
 				mlr_io_task();
 				service_panel_vu_leds_core1();
 				service_grid_redraw_core1();
@@ -1049,8 +1049,8 @@ private:
 	 * piano-key linger overlay just like an empty top-half track row,
 	 * but without any associated track, audio playback, or pattern
 	 * recording. Indexed by (row - 8). */
-	uint64_t   extra_keyboard_linger_until_us_[MEXT_MAX_GRID_Y - 8] = {};
-	uint8_t    extra_keyboard_linger_col_[MEXT_MAX_GRID_Y - 8] = {};
+	uint64_t   extra_keyboard_linger_until_us_[MONOME_WS_GRID_MAX_Y - 8] = {};
+	uint8_t    extra_keyboard_linger_col_[MONOME_WS_GRID_MAX_Y - 8] = {};
 	/* Cut-event-driven CV / pulse outputs (fire on manual cuts and on
 	 * pattern/recall playback via mlr_event_playback_hook). */
 	uint32_t   cv_pulse1_remaining_ = 0;   /* PulseOut1 trigger countdown (samples) */
@@ -1189,7 +1189,7 @@ private:
 
 	void grid_frame_led_max(int x, int y, uint8_t level)
 	{
-		if (x < 0 || y < 0 || x >= MEXT_MAX_GRID_X || y >= MEXT_MAX_GRID_Y) return;
+		if (x < 0 || y < 0 || x >= MONOME_WS_GRID_MAX_X || y >= MONOME_WS_GRID_MAX_Y) return;
 		if (grid.ledGet((uint8_t)x, (uint8_t)y) < level)
 			grid.frameLedUnchecked(x, y, level);
 	}
@@ -2159,7 +2159,7 @@ private:
 	{
 		if (!grid.ready() || grid.rows() <= 8) return false;
 		int rmax = grid.rows();
-		if (rmax > MEXT_MAX_GRID_Y) rmax = MEXT_MAX_GRID_Y;
+		if (rmax > MONOME_WS_GRID_MAX_Y) rmax = MONOME_WS_GRID_MAX_Y;
 		int cs = cut_col_start();
 		int ce = cut_col_end();
 		uint16_t zone_mask = (uint16_t)(((1u << (ce - cs + 1)) - 1u) << cs);
@@ -3049,7 +3049,7 @@ private:
 	{
 		if (!grid.ready() || grid.rows() <= 8) return;
 		int rmax = grid.rows();
-		if (rmax > MEXT_MAX_GRID_Y) rmax = MEXT_MAX_GRID_Y;
+		if (rmax > MONOME_WS_GRID_MAX_Y) rmax = MONOME_WS_GRID_MAX_Y;
 		int cs = cut_col_start();
 		int ce = cut_col_end();
 		uint16_t zone_mask = (uint16_t)(((1u << (ce - cs + 1)) - 1u) << cs);

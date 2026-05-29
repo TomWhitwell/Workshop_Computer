@@ -2,6 +2,7 @@
 /build/
 /build-*/
 *_profile.uf2
+UF2/*_monobright*.uf2
 
 # CMake artifacts (in case someone configures in-tree)
 CMakeCache.txt

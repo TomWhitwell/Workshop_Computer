@@ -196,7 +196,7 @@ void mlr_perf_count_grid_frame_drop(void)
 	mlr_perf_grid_frame_drops++;
 }
 
-void mlr_perf_count_mext_event_drop(void)
+void mlr_perf_count_monome_ws_event_drop(void)
 {
 	mlr_perf.grid_event_drops++;
 	mlr_perf_grid_event_drops++;

@@ -61,7 +61,7 @@ pico_sdk_init()
 
 add_executable(${CARD_NAME}
 	${CMAKE_CURRENT_LIST_DIR}/main.cpp
-	${CMAKE_CURRENT_LIST_DIR}/monome_mext.c
+	${CMAKE_CURRENT_LIST_DIR}/monome_ws.c
 	${CMAKE_CURRENT_LIST_DIR}/mlr.c
 	${CMAKE_CURRENT_LIST_DIR}/device_mode.c
 	${CMAKE_CURRENT_LIST_DIR}/usb_descriptors.c
@@ -71,6 +71,7 @@ target_compile_options(${CARD_NAME} PRIVATE -Wdouble-promotion -Wfloat-conversio
 target_link_options(${CARD_NAME} PRIVATE -Wl,--print-memory-usage)
 
 option(MLR_PERF_PROFILING "Enable debugger-readable performance counters" OFF)
+option(MONOME_WS_FORCE_8X8_MONOBRIGHT "Force modern mext grids to behave like an 8x8 binary monobright grid for testing" OFF)
 option(CARD_STEREO "Deprecated; ignored because MLRws now builds one dual-mono firmware" OFF)
 mark_as_advanced(CARD_STEREO)
 
@@ -83,6 +84,7 @@ target_compile_definitions(${CARD_NAME} PRIVATE
 	MLR_TRACK_FLASH_SIZE=${MLR_TRACK_FLASH_SIZE_BYTES}
 	MLR_SCENE_SECTORS=${MLR_SCENE_SECTORS_COUNT}
 	MLR_SECTOR_SIZE=${MLR_FLASH_SECTOR_BYTES}
+	$<$<BOOL:${MONOME_WS_FORCE_8X8_MONOBRIGHT}>:MONOME_WS_FORCE_8X8_MONOBRIGHT=1>
 	$<$<BOOL:${MLR_PERF_PROFILING}>:MLR_PERF_PROFILING>
 )
 

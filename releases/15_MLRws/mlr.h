@@ -399,7 +399,7 @@ extern volatile uint32_t mlr_perf_adc_mux_resets;
 extern volatile uint32_t mlr_perf_adc_fifo_level_max;
 void mlr_perf_reset(void);
 void mlr_perf_count_grid_frame_drop(void);
-void mlr_perf_count_mext_event_drop(void);
+void mlr_perf_count_monome_ws_event_drop(void);
 void mlr_perf_note_grid_poll(uint32_t processed, uint32_t backlog_before, uint32_t backlog_after);
 void mlr_perf_count_process_sample(void);
 void mlr_perf_note_process_sample_us(uint32_t elapsed_us, bool ui_tick);

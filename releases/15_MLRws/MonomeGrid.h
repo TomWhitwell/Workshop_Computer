@@ -1,12 +1,12 @@
 /**
- * MonomeGrid.h — Friendly C++ wrapper for monome_mext.
+ * MonomeGrid.h — Friendly C++ wrapper for monome_ws.
  *
  * Provides readable methods for common grid interaction patterns.
- * Include this instead of (or alongside) monome_mext.h in your card.
+ * Include this instead of (or alongside) monome_ws.h in your card.
  *
  * Usage:
  *   MonomeGrid grid;          // in your card class
- *   grid.begin();             // in constructor (calls mext_init + launches core 1)
+ *   grid.begin();             // in constructor (calls monome_ws_init + launches core 1)
  *   grid.poll();              // at top of ProcessSample()
  *   grid.led(x, y, 15);      // set an LED
  *   if (grid.keyDown())  ...  // check for key events
@@ -21,7 +21,7 @@
 #include <string.h>
 
 extern "C" {
-#include "monome_mext.h"
+#include "monome_ws.h"
 #ifdef MLR_PERF_PROFILING
 void mlr_perf_count_grid_frame_drop(void);
 void mlr_perf_note_grid_poll(uint32_t processed, uint32_t backlog_before, uint32_t backlog_after);
@@ -38,24 +38,30 @@ public:
 
 	/* ---- lifecycle ---- */
 
-	/** Initialise mext and launch USB host on core 1. */
+	/** Initialise the monome_ws driver and launch USB host on core 1. */
 	void begin()
 	{
-		mext_init(MEXT_TRANSPORT_HOST, 0);
+		monome_ws_init(MONOME_WS_TRANSPORT_HOST, 0);
 		multicore_launch_core1(usb_core);
 	}
 
 	/** True once the grid has reported its dimensions. */
-	bool ready() const { return mext_grid_ready(); }
+	bool ready() const { return monome_ws_grid_ready(); }
 
 	/** True if a grid/arc is physically connected. */
-	bool connected() const { return g_mext.connected; }
+	bool connected() const { return monome_ws_connected(); }
 
 	/** Grid width in columns (0 before discovery). */
-	uint8_t cols() const { return g_mext.grid_x; }
+	uint8_t cols() const { return monome_ws_grid_cols(); }
 
 	/** Grid height in rows (0 before discovery). */
-	uint8_t rows() const { return g_mext.grid_y; }
+	uint8_t rows() const { return monome_ws_grid_rows(); }
+
+	/** True if the attached grid supports 0-15 LED levels. */
+	bool supportsLevels() const { return monome_ws_grid_supports_levels(); }
+
+	/** Protocol backend currently selected for the attached device. */
+	monome_ws_protocol_t protocol() const { return monome_ws_protocol(); }
 
 	/* ---- events ---- */
 
@@ -70,27 +76,27 @@ public:
 		key_up_this_sample   = false;
 
 #ifdef MLR_PERF_PROFILING
-		uint32_t backlog_before = mext_event_backlog();
+		uint32_t backlog_before = monome_ws_event_backlog();
 #endif
-		mext_event_t ev;
+		monome_ws_event_t ev;
 		uint8_t processed = 0;
-		while ((max_events == 0 || processed < max_events) && mext_event_pop(&ev)) {
+		while ((max_events == 0 || processed < max_events) && monome_ws_event_pop(&ev)) {
 			processed++;
-			if (ev.type == MEXT_EVENT_GRID_KEY) {
+			if (ev.type == MONOME_WS_EVENT_GRID_KEY) {
 				last_event_x = ev.grid.x;
 				last_event_y = ev.grid.y;
 
 				if (ev.grid.z) {
 					key_down_this_sample = true;
 					any_key_held_count++;
-					if (ev.grid.x < MEXT_MAX_GRID_X && ev.grid.y < MEXT_MAX_GRID_Y) {
+					if (ev.grid.x < MONOME_WS_GRID_MAX_X && ev.grid.y < MONOME_WS_GRID_MAX_Y) {
 						held_row_mask_[ev.grid.y] |= (uint16_t)(1u << ev.grid.x);
 						held_col_mask_[ev.grid.x] |= (uint16_t)(1u << ev.grid.y);
 					}
 				} else {
 					key_up_this_sample = true;
 					if (any_key_held_count > 0) any_key_held_count--;
-					if (ev.grid.x < MEXT_MAX_GRID_X && ev.grid.y < MEXT_MAX_GRID_Y) {
+					if (ev.grid.x < MONOME_WS_GRID_MAX_X && ev.grid.y < MONOME_WS_GRID_MAX_Y) {
 						held_row_mask_[ev.grid.y] &= (uint16_t)~(1u << ev.grid.x);
 						held_col_mask_[ev.grid.x] &= (uint16_t)~(1u << ev.grid.y);
 					}
@@ -98,7 +104,7 @@ public:
 			}
 		}
 #ifdef MLR_PERF_PROFILING
-		mlr_perf_note_grid_poll(processed, backlog_before, mext_event_backlog());
+		mlr_perf_note_grid_poll(processed, backlog_before, monome_ws_event_backlog());
 #endif
 	}
 
@@ -114,21 +120,21 @@ public:
 	/** True if the key at (x, y) is currently held down. */
 	bool held(uint8_t x, uint8_t y) const
 	{
-		if (x >= MEXT_MAX_GRID_X || y >= MEXT_MAX_GRID_Y) return false;
+		if (x >= MONOME_WS_GRID_MAX_X || y >= MONOME_WS_GRID_MAX_Y) return false;
 		return (held_row_mask_[y] >> x) & 1u;
 	}
 
 	/** Bitmask of held columns in row y (bit x set => (x, y) is held). */
 	uint16_t heldRowMask(uint8_t y) const
 	{
-		if (y >= MEXT_MAX_GRID_Y) return 0;
+		if (y >= MONOME_WS_GRID_MAX_Y) return 0;
 		return held_row_mask_[y];
 	}
 
 	/** Bitmask of held rows in column x (bit y set => (x, y) is held). */
 	uint16_t heldColMask(uint8_t x) const
 	{
-		if (x >= MEXT_MAX_GRID_X) return 0;
+		if (x >= MONOME_WS_GRID_MAX_X) return 0;
 		return held_col_mask_[x];
 	}
 
@@ -143,9 +149,9 @@ public:
 	/** Set a single LED brightness (0–15). */
 	__attribute__((noinline, noclone)) void led(uint8_t x, uint8_t y, uint8_t level)
 	{
-		if (x >= MEXT_MAX_GRID_X || y >= MEXT_MAX_GRID_Y) return;
+		if (x >= MONOME_WS_GRID_MAX_X || y >= MONOME_WS_GRID_MAX_Y) return;
 		if (level > 15) level = 15;
-		frame_[y * MEXT_MAX_GRID_X + x] = level;
+		frame_[y * MONOME_WS_GRID_MAX_X + x] = level;
 		frame_dirty_ = true;
 	}
 
@@ -158,8 +164,8 @@ public:
 	/** Toggle an LED between off and full brightness. */
 	void ledToggle(uint8_t x, uint8_t y)
 	{
-		if (x >= MEXT_MAX_GRID_X || y >= MEXT_MAX_GRID_Y) return;
-		uint8_t cur = frame_[y * MEXT_MAX_GRID_X + x];
+		if (x >= MONOME_WS_GRID_MAX_X || y >= MONOME_WS_GRID_MAX_Y) return;
+		uint8_t cur = frame_[y * MONOME_WS_GRID_MAX_X + x];
 		led(x, y, cur ? 0 : 15);
 	}
 
@@ -173,7 +179,7 @@ public:
 	void all(uint8_t level)
 	{
 		if (level > 15) level = 15;
-		for (int i = 0; i < MEXT_MAX_GRID_X * MEXT_MAX_GRID_Y; i++)
+		for (int i = 0; i < MONOME_WS_GRID_MAX_X * MONOME_WS_GRID_MAX_Y; i++)
 			frame_[i] = level;
 		frame_dirty_ = true;
 	}
@@ -184,15 +190,15 @@ public:
 	/** Fill a rectangular region with a level. */
 	void fill(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t level)
 	{
-		for (uint8_t y = y0; y <= y1 && y < MEXT_MAX_GRID_Y; y++)
-			for (uint8_t x = x0; x <= x1 && x < MEXT_MAX_GRID_X; x++)
+		for (uint8_t y = y0; y <= y1 && y < MONOME_WS_GRID_MAX_Y; y++)
+			for (uint8_t x = x0; x <= x1 && x < MONOME_WS_GRID_MAX_X; x++)
 				led(x, y, level);
 	}
 
 	/** Fill a row with a level. */
 	void row(uint8_t y, uint8_t level)
 	{
-		uint8_t w = cols() > 0 ? cols() : MEXT_MAX_GRID_X;
+		uint8_t w = cols() > 0 ? cols() : MONOME_WS_GRID_MAX_X;
 		for (uint8_t x = 0; x < w; x++)
 			led(x, y, level);
 	}
@@ -200,19 +206,19 @@ public:
 	/** Fill a column with a level. */
 	void col(uint8_t x, uint8_t level)
 	{
-		uint8_t h = rows() > 0 ? rows() : MEXT_MAX_GRID_Y;
+		uint8_t h = rows() > 0 ? rows() : MONOME_WS_GRID_MAX_Y;
 		for (uint8_t y = 0; y < h; y++)
 			led(x, y, level);
 	}
 
 	/** Set global LED intensity (0–15). */
-	void intensity(uint8_t level) { mext_grid_led_intensity(level); }
+	void intensity(uint8_t level) { monome_ws_grid_led_intensity(level); }
 
 	/** Read back the current LED level at (x, y). */
 	uint8_t ledGet(uint8_t x, uint8_t y) const
 	{
-		if (x >= MEXT_MAX_GRID_X || y >= MEXT_MAX_GRID_Y) return 0;
-		return frame_[y * MEXT_MAX_GRID_X + x];
+		if (x >= MONOME_WS_GRID_MAX_X || y >= MONOME_WS_GRID_MAX_Y) return 0;
+		return frame_[y * MONOME_WS_GRID_MAX_X + x];
 	}
 
 	/** Light LEDs under all currently held keys. */
@@ -241,15 +247,15 @@ public:
 	/** Set a local frame LED for redraw code that will submit once at the end. */
 	void frameLed(int x, int y, uint8_t level)
 	{
-		if (x < 0 || y < 0 || x >= MEXT_MAX_GRID_X || y >= MEXT_MAX_GRID_Y) return;
+		if (x < 0 || y < 0 || x >= MONOME_WS_GRID_MAX_X || y >= MONOME_WS_GRID_MAX_Y) return;
 		if (level > 15) level = 15;
-		frame_[y * MEXT_MAX_GRID_X + x] = level;
+		frame_[y * MONOME_WS_GRID_MAX_X + x] = level;
 	}
 
 	/** Set a known-good local frame LED inside a frameClear()/submitFrame() batch. */
 	void frameLedUnchecked(int x, int y, uint8_t level)
 	{
-		frame_[y * MEXT_MAX_GRID_X + x] = level;
+		frame_[y * MONOME_WS_GRID_MAX_X + x] = level;
 	}
 
 	/** Submit the accumulated local frame when core 1 can accept it. */
@@ -259,7 +265,7 @@ public:
 		submitFrameIfPossible();
 	}
 
-	/** Raw pointer to the LED buffer (MEXT_MAX_GRID_X * MEXT_MAX_GRID_Y). */
+	/** Raw pointer to the LED buffer (MONOME_WS_GRID_MAX_X * MONOME_WS_GRID_MAX_Y). */
 	uint8_t *ledBuffer()
 	{
 		frame_dirty_ = true;
@@ -274,7 +280,7 @@ private:
 	{
 		if (!frame_dirty_)
 			return;
-		if (mext_grid_frame_submit(frame_))
+		if (monome_ws_grid_frame_submit(frame_))
 			frame_dirty_ = false;
 #ifdef MLR_PERF_PROFILING
 		else
@@ -287,7 +293,7 @@ private:
 		board_init();
 		tusb_init();
 		while (true) {
-			mext_task();
+			monome_ws_task();
 		}
 	}
 
@@ -299,9 +305,9 @@ private:
 	/* held_row_mask_[y]: bit x set => (x, y) currently held.
 	 * held_col_mask_[x]: bit y set => (x, y) currently held.
 	 * Both are updated together in poll() so they stay coherent. */
-	uint16_t held_row_mask_[MEXT_MAX_GRID_Y] = {};
-	uint16_t held_col_mask_[MEXT_MAX_GRID_X] = {};
-	uint8_t frame_[MEXT_MAX_GRID_X * MEXT_MAX_GRID_Y] = {};
+	uint16_t held_row_mask_[MONOME_WS_GRID_MAX_Y] = {};
+	uint16_t held_col_mask_[MONOME_WS_GRID_MAX_X] = {};
+	uint8_t frame_[MONOME_WS_GRID_MAX_X * MONOME_WS_GRID_MAX_Y] = {};
 	bool    frame_dirty_ = false;
 };
 
