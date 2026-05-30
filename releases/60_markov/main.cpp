@@ -128,7 +128,7 @@ class Markov : public ComputerCard
     // Knob zones (11 total):  0-4 = CCW mutating, 5 = centre free, 6-10 = CW clean.
     // Lengths by zone:  CCW 16,8,4,3,2 | free | CW 16,8,4,3,2
     // (zone 0 = CCW-16, zone 4 = CCW-2, zone 5 = free, zone 6 = CW-16, zone 10 = CW-2)
-    static constexpr int32_t kZoneLengths[11] = {16,8,4,3,2, 0, 16,8,4,3,2};
+    static constexpr int32_t kZoneLengths[11] = {2,3,4,8,16, 0, 16,8,4,3,2};
     // LED for each active length: 16→0, 8→2, 4→4, 3→5, 2→3
     static constexpr uint8_t kLengthLED[17]  = { // index by length, 0-16
         255,255,3,5,4,255,255,255,2,255,255,255,255,255,255,255,0
