@@ -38,28 +38,28 @@ A Markov chain is a probabilistic state machine: the next state depends only on 
 
 Selects one of five MarkoV transition profiles. Fully CCW = profile 0, fully CW = profile 4.
 
-| Zone | Profile | Character |
-|------|---------|-----------|
-| 0 | **Pentatonic Stability** | Root and fifth are strong attractors. Grounded and tonal. |
-| 1 | **Chromatic Tension** | Stepwise motion dominates (±1 state). Snake-like lines. |
-| 2 | **Jazz Tendencies** | Strong pull toward the 7th degree from almost anywhere; resolves back to root. |
-| 3 | **Glacial** | Stays on the current note most of the time. Very slow evolution. |
-| 4 | **Drone** | Overwhelming self-loop weight (~83%). Barely moves unless disturbed. |
+| Zone | LEDs | Profile | Character |
+|------|------|---------|-----------|
+| 0 | `OO`<br>`OO`<br>`OO` | **Pentatonic Stability** | Root and fifth are strong attractors. Grounded and tonal. |
+| 1 | `XO`<br>`OO`<br>`OO` | **Chromatic Tension** | Stepwise motion dominates (±1 state). Snake-like lines. |
+| 2 | `OO`<br>`XO`<br>`OO` | **Jazz Tendencies** | Strong pull toward the 7th degree from almost anywhere; resolves back to root. |
+| 3 | `XO`<br>`XO`<br>`OO` | **Glacial** | Stays on the current note most of the time. Very slow evolution. |
+| 4 | `OO`<br>`OO`<br>`XO` | **Drone** | Overwhelming self-loop weight (~83%). Barely moves unless disturbed. |
 
-While Knob X is being turned, LEDs 0, 2, 4 show the current profile index in 3-bit binary at half brightness. After ~1 second of no movement the LEDs revert to their idle state.
+While Knob X is being turned, LEDs 0, 2, 4 (left column) show the current profile index at half brightness. After ~1 second of no movement the LEDs revert to their idle state.
 
 ### Knob Y — Percussion Profile
 
 Selects one of four MarkovPerc transition profiles. Fully CCW = profile 0, fully CW = profile 3.
 
-| Zone | Profile | Character |
-|------|---------|-----------|
-| 0 | **Steady** | Rock/pop feel. Frequent hits and accented hits; rests are brief. |
-| 1 | **Syncopated** | Funk/Latin feel. Structural rests, frequent flams, Ratchet 2 as a syncopation device. |
-| 2 | **Jazz/Free** | Complex patterns. Ratchets are common fills; accented flams are the signature gesture. |
-| 3 | **Sparse** | Long silences punctuated by single hits. Ratchets and flams nearly absent. |
+| Zone | LEDs | Profile | Character |
+|------|------|---------|-----------|
+| 0 | `OO`<br>`OO`<br>`OO` | **Steady** | Rock/pop feel. Frequent hits and accented hits; rests are brief. |
+| 1 | `OX`<br>`OO`<br>`OO` | **Syncopated** | Funk/Latin feel. Structural rests, frequent flams, Ratchet 2 as a syncopation device. |
+| 2 | `OO`<br>`OX`<br>`OO` | **Jazz/Free** | Complex patterns. Ratchets are common fills; accented flams are the signature gesture. |
+| 3 | `OX`<br>`OX`<br>`OO` | **Sparse** | Long silences punctuated by single hits. Ratchets and flams nearly absent. |
 
-While Knob Y is being turned, LEDs 1, 3, 5 show the current profile index in 3-bit binary at half brightness. After ~1 second the LEDs revert.
+While Knob Y is being turned, LEDs 1, 3, 5 (right column) show the current profile index at half brightness. After ~1 second the LEDs revert.
 
 ### Main Knob (Z) — Switch-Dependent
 
@@ -83,14 +83,14 @@ When the knob moves away from centre, the last N beats already played are captur
 
 A single LED (at half brightness) indicates the active loop length:
 
-| Loop length | LED |
-|-------------|-----|
-| 16 beats | LED 0 |
-| 8 beats | LED 2 |
-| 4 beats | LED 4 |
-| 3 beats | LED 5 |
-| 2 beats | LED 3 |
-| Free (centre) | All off |
+| Loop length | LEDs |
+|-------------|------|
+| **16 beats** | `XO`<br>`OO`<br>`OO` |
+| **8 beats** | `OO`<br>`XO`<br>`OO` |
+| **4 beats** | `OO`<br>`OO`<br>`XO` |
+| **3 beats** | `OO`<br>`OO`<br>`OX` |
+| **2 beats** | `OO`<br>`OX`<br>`OO` |
+| **Free (centre)** | `OO`<br>`OO`<br>`OO` |
 
 #### Switch DOWN — Scale Select *(momentary)*
 
