@@ -122,20 +122,22 @@ In **Dual Melody mode**, the right column (1, 3, 5) shows voice B profile instea
 
 Twelve scales arranged CCW (dark/minor) to CW (bright/ambiguous):
 
-| Index | Scale | Notes | Character |
-|-------|-------|-------|-----------|
-| 0 | **Phrygian** | 7 | Dark, unresolved minor. The flat 2nd gives an ancient or Spanish flavour. |
-| 1 | **Hirajōshi** | 5 | Tense, cinematic minor. A Japanese koto scale with wide leaps. |
-| 2 | **Harmonic Minor** | 7 | Dramatic; the augmented 2nd between ♭6 and 7 is the defining interval. |
-| 3 | **Natural Minor** | 7 | The standard minor centre. Neutral and versatile. *(Default)* |
-| 4 | **Minor Pentatonic** | 5 | Open, classic minor. No semitone steps; very forgiving. |
-| 5 | **m7 Arpeggio** | 4 | Root, ♭3, 5, ♭7 only. Pure minor 7th chord tones. |
-| 6 | **Dorian** | 7 | Minor with a raised 6th. Sophisticated — melancholic but lifted. |
-| 7 | **Major Pentatonic** | 5 | Open, consonant major. Pastoral and unambiguous. |
-| 8 | **Ionian (Major)** | 7 | The standard major scale. Bright and resolved. |
-| 9 | **Maj7 Arpeggio** | 4 | Root, 3, 5, 7. Pure major 7th chord tones. Lush and stable. |
-| 10 | **Whole Tone** | 6 | Dreamy, floating, rootless. Every interval is a tone; no leading-note pull. |
-| 11 | **Chromatic** | 12 | All 12 semitones. The raw Markov output — total ambiguity. |
+LED display shows the scale index in 6-bit binary across all six LEDs (X = lit, O = off). Left column = LEDs 0/2/4 (bits 0/1/2), right column = LEDs 1/3/5 (bits 3/4/5), read top to bottom.
+
+| Index | LEDs | Scale | Notes | Character |
+|-------|------|-------|-------|-----------|
+| 0 | `OO`<br>`OO`<br>`OO` | **Phrygian** | 7 | Dark, unresolved minor. The flat 2nd gives an ancient or Spanish flavour. |
+| 1 | `XO`<br>`OO`<br>`OO` | **Hirajōshi** | 5 | Tense, cinematic minor. A Japanese koto scale with wide leaps. |
+| 2 | `OO`<br>`XO`<br>`OO` | **Harmonic Minor** | 7 | Dramatic; the augmented 2nd between ♭6 and 7 is the defining interval. |
+| 3 | `XO`<br>`XO`<br>`OO` | **Natural Minor** | 7 | The standard minor centre. Neutral and versatile. *(Default)* |
+| 4 | `OO`<br>`OO`<br>`XO` | **Minor Pentatonic** | 5 | Open, classic minor. No semitone steps; very forgiving. |
+| 5 | `XO`<br>`OO`<br>`XO` | **m7 Arpeggio** | 4 | Root, ♭3, 5, ♭7 only. Pure minor 7th chord tones. |
+| 6 | `OO`<br>`XO`<br>`XO` | **Dorian** | 7 | Minor with a raised 6th. Sophisticated — melancholic but lifted. |
+| 7 | `XO`<br>`XO`<br>`XO` | **Major Pentatonic** | 5 | Open, consonant major. Pastoral and unambiguous. |
+| 8 | `OX`<br>`OO`<br>`OO` | **Ionian (Major)** | 7 | The standard major scale. Bright and resolved. |
+| 9 | `XX`<br>`OO`<br>`OO` | **Maj7 Arpeggio** | 4 | Root, 3, 5, 7. Pure major 7th chord tones. Lush and stable. |
+| 10 | `OX`<br>`XO`<br>`OO` | **Whole Tone** | 6 | Dreamy, floating, rootless. Every interval is a tone; no leading-note pull. |
+| 11 | `XX`<br>`XO`<br>`OO` | **Chromatic** | 12 | All 12 semitones. The raw Markov output — total ambiguity. |
 
 ---
 
