@@ -1,35 +1,45 @@
 # Changelog
 
-## v1.1 — Web Manager + Flash Slots + Degradation Fixes
+## v1.3 — Improved UI Feedback & Direct Knob Control
 
-### New features
+- **LED feedback redesign**:
+  - LED 2 & 3: effect intensity brightness + subtle zone pulse (steady = zone 0, slow pulse = zone 1, fast pulse = zone 2). Dark when knob near zero.
+  - LED 4: loop position fade (bright at start, dark at end) instead of wrap flash.
+  - LED 5: clear mode indicator — slow pulse = MIX (YOLO), off = MIX (SLOT), fast flash = DEGRADE, steady on = RECORD / STORE_SLOT.
+- **Removed knob reference tracking** — Big Knob now controls MIX level and DEGRADE rate directly from zero. No pickup/crossing behavior.
+- **SLOT mode LED 5** changed from steady to off in MIX mode.
 
-- **Web-based loop manager** (`web/degenerator_manager.html`): single-page HTML app using WebUSB/Picoboot to upload and download loops from the browser. Upload WAV/MP3 files (resampled to 48 kHz, u-law encoded matching firmware tables), set trim points, rename slots, and flash to up to 4 slots. Download loops as 16-bit WAV.
-- **Flash slot save/load**: persist up to 4 loops in RP2040 flash via STORE_SLOT and SELECT_SLOT modes. Slots survive power cycles.
-  - `STORE_SLOT`: Z Down with Big Knob near zero → select slot 0-3 → Z Down writes
-  - `SELECT_SLOT`: Z Down at boot, or Pulse In 2 while Z Down → select slot 0-3 → release Z loads
-  - Multicore-safe flash writes using atomic handoff + `multicore_lockout` to safely pause core 1
-- **Auto-reset to BOOTSEL**: web manager can send 1200-baud reset signal via WebSerial to enter flash mode without holding the BOOTSEL button
+## v1.2 — YOLO Mode
 
-### Bug fixes
+- **YOLO / SLOT operating modes**: boot behavior split by Z switch position. Z not Down → YOLO mode (instant-on, silence buffer, no flash features). Z Down → SLOT mode (flash save/load, select slot at boot).
+- **SELECT_SLOT**: LEDs changed from binary encoding to 1-of-4 (one LED per slot). Added 20ms settle debounce on Z release.
+- **STORE_SLOT**: Z Up cancels to DEGRADE (not previous mode), with knob reference reset.
+- **MIX knob reference fix**: effective amount correctly computed as `amt - mixKnobReference`.
+- **Oxide shedding re-tuned**: faster damage accumulation, higher patch growth/probability, more aggressive dropouts.
+- **RNG reseed**: triggered on loop wrap instead of periodic timer.
+- **DEGRADE harmonic tracking**: `applyHarmonic` receives `readSample` instead of `audioIn` (processes buffer, not live input).
+- **Boot beacon**: extended from ~4ms to ~1s.
+- **Removed** `loadDefaultLoopFromFlash()` — no automatic flash load at boot.
+- **Flash polling**: core 0 checks flash writes every 100ms (was 1s).
+- **`next_norm_probe` reseed**: static RNG reseeded on first call using a unique magic constant.
 
-- **Oxide shedding**: `damageLevel` was not accumulating, causing dropouts to never appear. Fixed accumulation logic so oxide patches grow progressively over time.
-- **Knob reference tracking**: entering MIX or DEGRADE now records the Big Knob's starting position. The knob must be turned past this reference before the effect engages, preventing accidental loud overdubs or rapid degradation on mode entry.
+## v1.1 — Web Manager, Flash Slots, Oxide Fix, Knob Reference
 
-### Performance & safety
+- **Web manager**: single-file HTML app (`web/degenerator_manager.html`) for uploading/downloading loops via WebUSB.
+- **Flash storage**: 4 flash slots with header-based metadata. STORE_SLOT / SELECT_SLOT mode interface.
+- **Multicore flash writes**: core 0 handles erase/program via atomic handoff flags with `multicore_lockout`.
+- **Oxide shedding bug fix**: persistent patch positions and dropouts across wraps.
+- **Knob reference tracking**: `mixKnobReference` / `degradeKnobReference` prevent accidental loud overdubs or rapid degradation on mode entry.
+- **STORE_SLOT mode**: Z Down with Big Knob near zero enters store mode, slot selectable by Big Knob.
 
-- `__not_in_flash_func` on u-law encode/decode, RNG, and flash write path for deterministic timing
-- Input validation helpers (`validate_knob_value`, `validate_cv_value`, `clamp_audio12`) for runtime bounds checking
-- Atomic cross-core handoff flags for flash save/load prevent concurrent access
-- Core 1 mutes during flash writes; core 0 disables interrupts during erase/program
+## v1.0 — Initial Release
 
-### Documentation
-
-- Added `TESTING.md` — 424-line hardware test plan covering every effect, integration scenarios, bypass behavior, and common failure patterns
-- Updated `README.md` with flash slot modes, STORE_SLOT/SELECT_SLOT instructions
-- Updated `AGENTS.md` with flash layout, multicore lockout details, u-law round-trip
-
-### Infrastructure
-
-- `info.yaml`: version 1.1, added editor URL pointing to the web manager
-- `web/lib/picoflash/`: full Picoboot protocol library (command, connection, UF2, picoboot layers)
+- Core looper with RECORD / MIX / DEGRADE modes.
+- 5.0-second buffer with μ-law companding at 48 kHz.
+- X knob: Saturation, Filter Drift, Tape Hiss with crossfade zones.
+- Y knob: Oxide Shedding, Bit Crush, Bit Rot with crossfade zones.
+- Bypass thresholds for Big Knob (<50) and X/Y knobs.
+- CV inputs for Big Knob and Y knob modulation.
+- Pulse I/O for external sync and recording trigger.
+- CV outputs for loop position and envelope follower.
+- LED output level, knob position, and mode indication.

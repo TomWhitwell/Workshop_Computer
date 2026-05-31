@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Degenerator Manager</title>
+<style>
+:root {
+    --bg: #1a1a1a;
+    --bg2: #242424;
+    --bg3: #2e2e2e;
+    --fg: #e8e0d4;
+    --fg-dim: #9a9088;
+    --accent: #d4770b;
+    --accent-glow: #e8920a;
+    --accent-dim: #8a4e08;
+    --danger: #c0392b;
+    --success: #27ae60;
+    --border: #3a3a3a;
+    --card: #222;
+    --radius: 6px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+a { color: var(--accent-glow); }
+
+h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--fg);
+}
+
+h1 .accent { color: var(--accent); }
+
+h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 24px 0 12px;
+    color: var(--fg);
+}
+
+h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 16px 0 8px;
+    color: var(--fg-dim);
+}
+
+.container {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 24px 20px;
+}
+
+.tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 24px;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    color: var(--fg-dim);
+    font-size: 15px;
+    font-weight: 500;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover { color: var(--fg); }
+
+.tab-btn.active {
+    color: var(--accent-glow);
+    border-bottom-color: var(--accent-glow);
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg2);
+}
+
+.drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(212, 119, 11, 0.08);
+}
+
+.drop-zone p { color: var(--fg-dim); margin-top: 8px; }
+
+.btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg3);
+    color: var(--fg);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+}
+
+.btn:hover { background: #3a3a3a; border-color: var(--fg-dim); }
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-accent {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+}
+
+.btn-accent:hover { background: var(--accent-glow); border-color: var(--accent-glow); }
+
+.btn-accent:disabled { background: var(--accent-dim); border-color: var(--accent-dim); }
+
+.btn-danger {
+    background: transparent;
+    border-color: var(--danger);
+    color: var(--danger);
+    font-size: 12px;
+    padding: 3px 8px;
+}
+
+.btn-danger:hover { background: var(--danger); color: #fff; }
+
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.loop-grid {
+    display: grid;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.loop-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    position: relative;
+}
+
+.loop-card .loop-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.loop-card .loop-index {
+    background: var(--accent-dim);
+    color: var(--accent-glow);
+    font-weight: 700;
+    font-size: 13px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.loop-card .loop-name {
+    font-weight: 600;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.loop-card .loop-name input {
+    background: transparent;
+    border: none;
+    color: var(--fg);
+    font-size: 14px;
+    font-weight: 600;
+    width: 100%;
+    padding: 0;
+    outline: none;
+}
+
+.loop-card .loop-name input::placeholder { color: var(--fg-dim); }
+
+.loop-card .loop-meta {
+    display: flex;
+    gap: 16px;
+    color: var(--fg-dim);
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.waveform-container {
+    position: relative;
+    height: 64px;
+    background: var(--bg);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.waveform-container canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.trim-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--accent-glow);
+    cursor: ew-resize;
+    z-index: 2;
+}
+
+.trim-handle:hover { background: #fff; }
+
+.trim-handle.left { border-radius: 4px 0 0 4px; }
+.trim-handle.right { border-radius: 0 4px 4px 0; }
+
+.loop-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.loop-actions .spacer { flex: 1; }
+
+.storage-bar {
+    background: var(--bg);
+    border-radius: var(--radius);
+    height: 8px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.storage-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-glow));
+    border-radius: var(--radius);
+    transition: width 0.3s;
+}
+
+.status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--fg-dim);
+}
+
+.default-badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.flash-section {
+    margin-top: 24px;
+}
+
+.flash-section .btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.log-area {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    margin-top: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
+    font-size: 12px;
+    color: var(--fg-dim);
+    line-height: 1.6;
+}
+
+.log-area .log-error { color: var(--danger); }
+.log-area .log-success { color: var(--success); }
+.log-area .log-info { color: var(--accent-glow); }
+
+.manual-content h3 { margin-top: 20px; }
+.manual-content ul { margin: 8px 0 8px 20px; }
+.manual-content li { margin: 4px 0; }
+.manual-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+}
+.manual-content th, .manual-content td {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: left;
+    font-size: 13px;
+}
+.manual-content th { background: var(--bg3); }
+
+.manual-content code {
+    background: var(--bg3);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.progress-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.progress-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 32px;
+    text-align: center;
+    min-width: 300px;
+}
+
+.progress-box p { margin-bottom: 12px; }
+
+.progress-box .progress-bar-outer {
+    background: var(--bg);
+    border-radius: 4px;
+    height: 12px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.progress-box .progress-bar-inner {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.1s;
+    width: 0%;
+}
+
+#fileInput { display: none; }
+
+@media (max-width: 600px) {
+    .container { padding: 16px 12px; }
+    h1 { font-size: 22px; }
+    .flash-section .btn-row { flex-direction: column; }
+    .flash-section .btn-row .btn { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1><span class="accent">Degenerator</span> Manager</h1>
+    <p style="color:var(--fg-dim);margin-bottom:16px;">Manage flash loops for the Degenerator Workshop Computer card</p>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="manager">Manager</button>
+        <button class="tab-btn" data-tab="manual">Manual</button>
+    </div>
+
+    <div id="tab-manager" class="tab-content active">
+        <div class="card">
+            <h2 style="margin:0 0 12px;">Add Loops</h2>
+            <div class="drop-zone" id="dropZone">
+                <div style="font-size:28px;color:var(--accent);">&#9654;</div>
+                <div style="font-weight:600;margin-top:4px;">Drop audio files here</div>
+                <p>WAV, MP3, OGG, or FLAC &mdash; mono or stereo, any sample rate<br>
+                Audio will be resampled to 48&nbsp;kHz mono and u-law companded</p>
+                <button class="btn btn-accent" onclick="document.getElementById('fileInput').click()" style="margin-top:12px;">Select Files</button>
+            </div>
+            <input type="file" id="fileInput" accept="audio/*" multiple>
+        </div>
+
+        <div id="loops-section" style="display:none;">
+            <h2>Loops <span id="loop-count" style="color:var(--fg-dim);font-weight:400;font-size:14px;"></span></h2>
+            <div class="storage-bar"><div class="storage-bar-fill" id="storage-fill" style="width:0%;"></div></div>
+            <div class="status-bar">
+                <span id="storage-text">0 / 1,920,000 bytes used</span>
+                <span id="storage-pct">0%</span>
+            </div>
+            <div class="loop-grid" id="loop-grid"></div>
+        </div>
+
+        <div class="flash-section">
+            <h2>Flash</h2>
+            <div class="card" id="uf2-card">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <label style="font-weight:600;">Firmware UF2:</label>
+                    <span id="uf2-status" style="color:var(--fg-dim);font-size:13px;">Not loaded</span>
+                    <button class="btn btn-sm" onclick="window.loadBaseUF2()">Load UF2</button>
+                    <input type="file" id="uf2FileInput" accept=".uf2" style="display:none;">
+                </div>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-accent" id="btn-download-uf2" onclick="window.downloadUF2()">Download UF2</button>
+                <button class="btn" id="btn-flash" onclick="window.flashToDevice()">Flash to Device</button>
+                <button class="btn" id="btn-sync" onclick="window.syncFromDevice()">Sync from Device</button>
+                <button class="btn" id="btn-bootloader" onclick="window.enterBootloader()">Enter Bootloader</button>
+            </div>
+            <div class="log-area" id="log-area"></div>
+        </div>
+    </div>
+
+    <div id="tab-manual" class="tab-content">
+        <div class="manual-content">
+            <h2>Degenerator Manual</h2>
+
+            <h3>Overview</h3>
+            <p>A layered audio looper for the Music Thing Modular Workshop Computer. Record a loop, then shape it by adding and removing material like clay on a spinning wheel. Nothing is ever the same twice. Inspired by <em>William Basinski's The Disintegration Loops</em>.</p>
+
+            <h3>Managing Flash Loops</h3>
+            <p><strong>Uploading loops:</strong> Use the Manager tab to add audio files. Each file is resampled to 48&nbsp;kHz mono and u-law companded (1 byte per sample). You can add up to 4 loops, each up to 5.0 seconds (240,000 samples). Drag to reorder. Click a loop name to rename it. Use the trim handles on the waveform to set start and end points.</p>
+            <p><strong>Connecting your card:</strong> For all flash operations, the card must be in BOOTSEL (flash) mode. You can enter BOOTSEL mode in three ways:</p>
+            <ol style="font-size:0.85rem;margin:8px 0 12px 20px;">
+                <li style="margin-bottom:6px;"><strong>Auto-reset (easiest):</strong> Click "Flash to Device" or "Sync from Device" with the card plugged in normally. If the browser supports WebSerial, it will attempt to reset the card into BOOTSEL mode automatically.</li>
+                <li style="margin-bottom:6px;"><strong>Enter Bootloader button:</strong> Click "Enter Bootloader" to send a 1200-baud reset signal via WebSerial. Wait 1-2 seconds, then use Flash/Sync.</li>
+                <li style="margin-bottom:6px;"><strong>Manual BOOTSEL:</strong> Hold the white BOOTSEL button on the Pico while plugging in USB. The Pico appears as a USB drive. Then use Flash/Sync.</li>
+            </ol>
+            <p><strong>Browsers:</strong> Chrome or Edge required (WebUSB + WebSerial support). Firefox and Safari do not support these APIs.</p>
+            <p><strong>Sync from Device:</strong> Click "Sync from Device" to read loop data back from a connected card. This reads the flash header and all loop data, populating the editor.</p>
+
+            <h3>Saved Slots (On-Card)</h3>
+            <p>The module stores and recalls up to 4 fixed flash slots (0-3) in <strong>SLOT mode</strong> (Z held down at boot). In SLOT mode: enter STORE_SLOT by moving Z down while Big Knob is near zero in MIX or DEGRADE. Turn Big Knob to choose a slot, then press Z down to write. In SELECT_SLOT, hold Z down and turn Big Knob to choose a slot, then release Z to load it.</p>
+
+            <h3>Controls</h3>
+            <table>
+                <tr><th>Control</th><th>Function</th></tr>
+                <tr><td>Big Knob</td><td>Mix level (MIX) / Rate of change (DEGRADE). Full left freezes state</td></tr>
+                <tr><td>Knob X</td><td>Harmonic effects: Saturation &rarr; Filter Drift &rarr; Tape Hiss</td></tr>
+                <tr><td>Knob Y</td><td>Destructive effects: Oxide Shedding &rarr; Bit Crush &rarr; Bit Rot</td></tr>
+                <tr><td>Z Switch</td><td>Down = RECORD (YOLO) or slot modes (SLOT), Middle = MIX, Up = DEGRADE</td></tr>
+                <tr><td>Boot (Z Down)</td><td>Held at boot &rarr; SLOT mode (flash features enabled)</td></tr>
+                <tr><td>Boot (Z not Down)</td><td>Not held at boot &rarr; YOLO mode (instant-on, no flash features)</td></tr>
+            </table>
+
+            <h3>Z Switch Modes</h3>
+            <table>
+                <tr><th>Position</th><th>Mode</th><th>Big Knob</th><th>X</th><th>Y</th></tr>
+                <tr><td>Down (YOLO)</td><td>RECORD</td><td>Not used</td><td>&mdash;</td><td>&mdash;</td></tr>
+                <tr><td>Down (SLOT)</td><td>SELECT_SLOT / STORE_SLOT</td><td>Select slot 0-3</td><td>&mdash;</td><td>&mdash;</td></tr>
+                <tr><td>Middle</td><td>MIX</td><td>Mix level (quadratic)</td><td>Shapes input</td><td>Shapes input</td></tr>
+                <tr><td>Up</td><td>DEGRADE</td><td>Commit rate (quadratic)</td><td>Harmonic FX</td><td>Destructive FX</td></tr>
+            </table>
+
+            <h3>Operating Modes</h3>
+            <p>The module has two operating modes, chosen at boot:</p>
+            <ul>
+                <li><strong>YOLO mode</strong> (Z not held down at boot): instant-on. Buffer starts filled with silence, plays immediately in MIX/DEGRADE. Z Down always starts RECORD. No flash slot features. Pulse In 2 always resets the loop. LED 5 pulses slowly in MIX.</li>
+                <li><strong>SLOT mode</strong> (Z held down at boot): flash save/load enabled. Enters SELECT_SLOT at boot. STORE_SLOT and SELECT_SLOT available. LED 5 is off in MIX.</li>
+            </ul>
+
+            <h3>Slot Modes (SLOT mode only)</h3>
+            <p><strong>SELECT_SLOT:</strong> Hold Z down at boot, or trigger Pulse In 2 while Z is down. Big Knob selects slot 0-3. Release Z to load the selected slot and return to MIX/DEGRADE. If a slot is empty, the module enters RECORD.</p>
+            <p><strong>STORE_SLOT:</strong> From MIX or DEGRADE, move Z down with Big Knob near zero. Big Knob selects slot 0-3. Press Z down to save. Move Z up to cancel back to DEGRADE. During save, audio is muted briefly while flash is written.</p>
+
+            <h3>Big Knob Control</h3>
+            <p>The Big Knob controls mix level (MIX) and degrade rate (DEGRADE) directly from zero. There is no reference tracking or pickup behavior — the effect responds immediately to the current knob position.</p>
+
+            <h3>RECORD (Z down)</h3>
+            <p>Audio input writes directly into the buffer, overwriting whatever was there. Recording runs until the buffer is full (~5.0s) or you flip Z away. When full, auto-switches to MIX. Big Knob has no effect during recording.</p>
+
+            <h3>MIX (Z middle)</h3>
+            <p>The loop plays back while audio input is mixed in on top. Big Knob controls input level using quadratic scaling (<code>knob² &gt;&gt; 16</code>) so the knob must be turned further before overdub becomes audible: full left = nothing added, full right = full level. X and Y knobs shape the incoming audio before mixing. MIX is additive: building up.</p>
+
+            <h3>DEGRADE (Z up)</h3>
+            <p>The loop plays back while effects eat into the buffer: <code>readSample &rarr; X effects &rarr; Y effects &rarr; blend with original &rarr; write back</code>. Big Knob controls commit rate using quadratic scaling (<code>knob² &gt;&gt; 15</code>): below ~1.2% (knob &lt; 50) = bypass/no change, full right = near-instant transformation. DEGRADE is subtractive: carving away. It never grows back.</p>
+
+            <h3>Knob X Zones</h3>
+            <table>
+                <tr><th>Range</th><th>Effect</th><th>Description</th></tr>
+                <tr><td>0&ndash;33%</td><td>Saturation</td><td>Even-harmonic warmth and soft compression</td></tr>
+                <tr><td>33&ndash;67%</td><td>Filter Drift</td><td>Lowpass drifts down each pass, accumulating</td></tr>
+                <tr><td>67&ndash;100%</td><td>Tape Hiss</td><td>White/pink noise shaped by envelope follower</td></tr>
+            </table>
+
+            <h3>Knob Y Zones</h3>
+            <table>
+                <tr><th>Range</th><th>Effect</th><th>Description</th></tr>
+                <tr><td>0&ndash;33%</td><td>Oxide Shedding</td><td>Dropouts that persist across passes</td></tr>
+                <tr><td>33&ndash;67%</td><td>Bit Crush</td><td>Bit depth and sample rate reduction</td></tr>
+                <tr><td>67&ndash;100%</td><td>Bit Rot</td><td>Random single-bit flips, unpredictable glitches</td></tr>
+            </table>
+
+            <h3>Inputs / Outputs</h3>
+            <table>
+                <tr><th>Port</th><th>Function</th></tr>
+                <tr><td>Audio In 1</td><td>Primary audio input (loop source in RECORD, overdub in MIX)</td></tr>
+                <tr><td>Audio In 2</td><td>Secondary audio, mixes with Audio In 1 when connected</td></tr>
+                <tr><td>CV In 1</td><td>Adds to Big Knob (bipolar)</td></tr>
+                <tr><td>CV In 2</td><td>Adds to Y knob (bipolar)</td></tr>
+                <tr><td>Pulse In 1</td><td>Record trigger (rising edge starts recording)</td></tr>
+                <tr><td>Pulse In 2</td><td>Loop reset (YOLO) / enter SELECT_SLOT (SLOT, Z Down)</td></tr>
+                <tr><td>Audio Out 1</td><td>Processed loop output</td></tr>
+                <tr><td>Audio Out 2</td><td>Dry Audio In 1 monitor</td></tr>
+                <tr><td>CV Out 1</td><td>Loop position (0V to ~+2V)</td></tr>
+                <tr><td>CV Out 2</td><td>Output envelope</td></tr>
+                <tr><td>Pulse Out 1</td><td>Loop boundary clock</td></tr>
+                <tr><td>Pulse Out 2</td><td>Record complete pulse</td></tr>
+            </table>
+
+            <h3>Tips</h3>
+            <ul>
+                <li>Default (YOLO) mode: buffer starts with silence playing. Just patch audio in and turn Big Knob to start mixing.</li>
+                <li>Start with Big Knob at zero when recording, so nothing layers in when auto-switching to MIX.</li>
+                <li>Hold Z down at boot for SLOT mode with flash save/load features.</li>
+                <li>In DEGRADE, turn Big Knob all left to freeze the current state.</li>
+                <li>There is no undo. Every change is permanent. That's the point.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="progress-overlay" id="progress-overlay" style="display:none;">
+    <div class="progress-box">
+        <p id="progress-label">Working...</p>
+        <div class="progress-bar-outer"><div class="progress-bar-inner" id="progress-bar"></div></div>
+        <p id="progress-pct" style="margin-top:8px;color:var(--fg-dim);font-size:13px;">0%</p>
+    </div>
+</div>
+
+<script type="module">
+import { Picoboot, UF2_RP2040_FAMILY_ID } from './lib/picoflash/index.js';
+import { uf2ToFlashBuffer } from './lib/picoflash/uf2.js';
+
+const XIP_BASE = 0x10000000;
+const FLASH_LOOPS_OFFSET = 0x100000;
+const FLASH_LOOPS_ADDR = XIP_BASE + FLASH_LOOPS_OFFSET;
+const FLASH_LOOPS_MAGIC = 0x64656772;
+const FLASH_LOOPS_VERSION = 1;
+const MAX_FLASH_LOOPS = 4;
+const MAX_BUF_SIZE = 240000;
+const SAMPLE_RATE = 48000;
+const FLASH_LOOP_SLOT_SIZE = ((MAX_BUF_SIZE + 4095) / 4096) * 4096;
+const FLASH_LOOP_DATA_OFFSET = 0x1000;
+const MAX_READ_CHUNK = 65536;
+const FLASH_READ_ALIGN = 256;
+const HEADER_SIZE = 288;
+const SECTOR_SIZE = 0x1000;
+const LOOP_BASE_OFFSET = FLASH_LOOP_DATA_OFFSET;
+const LOOP_DATA_REGION_SIZE = MAX_FLASH_LOOPS * FLASH_LOOP_SLOT_SIZE;
+const LOOP_DATA_REGION_END = LOOP_BASE_OFFSET + LOOP_DATA_REGION_SIZE;
+
+const ulawDecode = new Int16Array([
+    0, 0, 1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 6, 6, 7, 7,
+    8, 9, 10, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 23,
+    24, 26, 27, 29, 31, 32, 34, 36, 38, 40, 42, 44, 47, 49, 52, 54,
+    57, 60, 63, 66, 70, 73, 77, 81, 85, 89, 93, 98, 102, 107, 112, 118,
+    123, 129, 135, 142, 148, 155, 163, 170, 178, 187, 195, 204, 214, 224, 234, 245,
+    256, 268, 280, 293, 306, 321, 335, 351, 367, 383, 401, 419, 438, 458, 479, 500,
+    523, 547, 572, 597, 624, 653, 682, 713, 745, 779, 814, 851, 889, 929, 971, 1014,
+    1060, 1108, 1157, 1209, 1264, 1321, 1380, 1442, 1507, 1574, 1645, 1719, 1796, 1876, 1960, 2048,
+    0, 0, -1, -1, -2, -2, -2, -3, -3, -4, -4, -5, -6, -6, -7, -7,
+    -8, -9, -10, -10, -11, -12, -13, -14, -15, -16, -17, -18, -19, -20, -22, -23,
+    -24, -26, -27, -29, -31, -32, -34, -36, -38, -40, -42, -44, -47, -49, -52, -54,
+    -57, -60, -63, -66, -70, -73, -77, -81, -85, -89, -93, -98, -102, -107, -112, -118,
+    -123, -129, -135, -142, -148, -155, -163, -170, -178, -187, -195, -204, -214, -224, -234, -245,
+    -256, -268, -280, -293, -306, -321, -335, -351, -367, -383, -401, -419, -438, -458, -479, -500,
+    -523, -547, -572, -597, -624, -653, -682, -713, -745, -779, -814, -851, -889, -929, -971, -1014,
+    -1060, -1108, -1157, -1209, -1264, -1321, -1380, -1442, -1507, -1574, -1645, -1719, -1796, -1876, -1960, -2048
+]);
+
+const ulawEncode = new Uint8Array(4096);
+for (let v = -2048; v <= 2047; v++) {
+    let best = 0, bestDist = Infinity;
+    for (let c = 0; c < 256; c++) {
+        const d = Math.abs(ulawDecode[c] - v);
+        if (d < bestDist) { bestDist = d; best = c; }
+    }
+    ulawEncode[v + 2048] = best;
+}
+
+let loops = [];
+let baseUF2Data = null;
+let baseUF2Address = null;
+let deviceLoopsRead = false;
+
+function log(msg, type = '') {
+    const el = document.getElementById('log-area');
+    const span = document.createElement('div');
+    if (type) span.className = 'log-' + type;
+    span.textContent = msg;
+    el.appendChild(span);
+    el.scrollTop = el.scrollHeight;
+}
+
+function clearLog() {
+    document.getElementById('log-area').innerHTML = '';
+}
+
+function showProgress(label, pct) {
+    const overlay = document.getElementById('progress-overlay');
+    if (pct < 0) {
+        overlay.style.display = 'none';
+        return;
+    }
+    overlay.style.display = 'flex';
+    document.getElementById('progress-label').textContent = label;
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-pct').textContent = Math.round(pct) + '%';
+}
+
+function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+function formatDuration(samples) {
+    const sec = samples / SAMPLE_RATE;
+    return sec.toFixed(2) + 's';
+}
+
+async function loadAudioFile(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const audioCtx = new AudioContext({ sampleRate: SAMPLE_RATE });
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    let channelData;
+    if (audioBuffer.numberOfChannels >= 2) {
+        const left = audioBuffer.getChannelData(0);
+        const right = audioBuffer.getChannelData(1);
+        channelData = new Float32Array(audioBuffer.length);
+        for (let i = 0; i < audioBuffer.length; i++) {
+            channelData[i] = (left[i] + right[i]) * 0.5;
+        }
+    } else {
+        channelData = audioBuffer.getChannelData(0);
+    }
+    let resampled;
+    if (audioBuffer.sampleRate !== SAMPLE_RATE) {
+        const ratio = SAMPLE_RATE / audioBuffer.sampleRate;
+        const newLength = Math.round(audioBuffer.length * ratio);
+        resampled = new Float32Array(newLength);
+        for (let i = 0; i < newLength; i++) {
+            const srcIdx = i / ratio;
+            const idx0 = Math.floor(srcIdx);
+            const idx1 = Math.min(idx0 + 1, channelData.length - 1);
+            const frac = srcIdx - idx0;
+            resampled[i] = channelData[idx0] * (1 - frac) + channelData[idx1] * frac;
+        }
+    } else {
+        resampled = channelData;
+    }
+    const maxSamples = MAX_BUF_SIZE;
+    if (resampled.length > maxSamples) {
+        resampled = resampled.slice(0, maxSamples);
+    }
+    const ulawData = new Uint8Array(resampled.length);
+    for (let i = 0; i < resampled.length; i++) {
+        let s = Math.round(resampled[i] * 2048);
+        s = Math.max(-2048, Math.min(2047, s));
+        ulawData[i] = ulawEncode[s + 2048];
+    }
+    const name = file.name.replace(/\.[^.]+$/, '').substring(0, 24);
+    return {
+        name: name,
+        ulawData: ulawData,
+        numSamples: resampled.length,
+        floatData: resampled,
+        trimStart: 0,
+        trimEnd: resampled.length,
+        id: Date.now() + '_' + Math.random().toString(36).substr(2, 6)
+    };
+}
+
+function writeString(view, offset, str) {
+    for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+    }
+}
+
+function decodeUlawToFloat(ulawBytes) {
+    const result = new Float32Array(ulawBytes.length);
+    for (let i = 0; i < ulawBytes.length; i++) {
+        result[i] = ulawDecode[ulawBytes[i]] / 2048.0;
+    }
+    return result;
+}
+
+function playLoop(loop) {
+    const audioCtx = new AudioContext({ sampleRate: SAMPLE_RATE });
+    const floatData = decodeUlawToFloat(loop.ulawData.slice(loop.trimStart, loop.trimEnd));
+    const buffer = audioCtx.createBuffer(1, floatData.length, SAMPLE_RATE);
+    buffer.getChannelData(0).set(floatData);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start();
+}
+
+function downloadLoopAsWav(loop) {
+    const floatData = decodeUlawToFloat(loop.ulawData.slice(loop.trimStart, loop.trimEnd));
+    const length = floatData.length;
+    const buffer = new ArrayBuffer(44 + length * 2);
+    const view = new DataView(buffer);
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + length * 2, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, SAMPLE_RATE, true);
+    view.setUint32(28, SAMPLE_RATE * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, length * 2, true);
+    for (let i = 0; i < length; i++) {
+        const s = Math.max(-1, Math.min(1, floatData[i]));
+        view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    const blob = new Blob([buffer], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (loop.name || 'loop') + '.wav';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function renderLoops() {
+    const grid = document.getElementById('loop-grid');
+    const section = document.getElementById('loops-section');
+    if (loops.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = 'block';
+    grid.innerHTML = '';
+
+    let totalBytes = 0;
+    loops.forEach((loop, i) => {
+        const loopBytes = loop.numSamples;
+        totalBytes += loopBytes;
+    });
+
+    const maxTotal = MAX_FLASH_LOOPS * MAX_BUF_SIZE;
+    document.getElementById('storage-fill').style.width = Math.min(100, (totalBytes / maxTotal) * 100) + '%';
+    document.getElementById('storage-text').textContent = formatSize(totalBytes) + ' / ' + formatSize(maxTotal) + ' used';
+    document.getElementById('storage-pct').textContent = Math.round((totalBytes / maxTotal) * 100) + '%';
+    document.getElementById('loop-count').textContent = '(' + loops.length + '/' + MAX_FLASH_LOOPS + ')';
+
+    loops.forEach((loop, i) => {
+        const card = document.createElement('div');
+        card.className = 'loop-card';
+        card.draggable = true;
+        card.dataset.index = i;
+
+        const header = document.createElement('div');
+        header.className = 'loop-header';
+
+        const indexBadge = document.createElement('div');
+        indexBadge.className = 'loop-index';
+        indexBadge.textContent = i + 1;
+
+        const nameInput = document.createElement('div');
+        nameInput.className = 'loop-name';
+        const nameField = document.createElement('input');
+        nameField.type = 'text';
+        nameField.value = loop.name;
+        nameField.maxLength = 24;
+        nameField.placeholder = 'Loop ' + (i + 1);
+        nameField.addEventListener('change', () => { loop.name = nameField.value; updateButtons(); });
+        nameInput.appendChild(nameField);
+
+        header.appendChild(indexBadge);
+        header.appendChild(nameInput);
+
+        const meta = document.createElement('div');
+        meta.className = 'loop-meta';
+        const trimLen = loop.trimEnd - loop.trimStart;
+        meta.innerHTML =
+            '<span>' + formatDuration(trimLen) + ' (' + trimLen.toLocaleString() + ' samples)</span>' +
+            '<span>' + formatSize(trimLen) + ' u-law</span>' +
+            '<span>48 kHz mono</span>';
+
+        const waveform = document.createElement('div');
+        waveform.className = 'waveform-container';
+        const canvas = document.createElement('canvas');
+        canvas.width = 760;
+        canvas.height = 64;
+        waveform.appendChild(canvas);
+
+        const trimStart = document.createElement('div');
+        trimStart.className = 'trim-handle left';
+        trimStart.style.left = (loop.trimStart / loop.numSamples * 100) + '%';
+        trimStart.addEventListener('mousedown', (e) => startTrim(e, loop, 'start', trimStart, trimEnd, canvas));
+        waveform.appendChild(trimStart);
+
+        const trimEndHandle = document.createElement('div');
+        trimEndHandle.className = 'trim-handle right';
+        trimEndHandle.style.left = (loop.trimEnd / loop.numSamples * 100) + '%';
+        trimEndHandle.addEventListener('mousedown', (e) => startTrim(e, loop, 'end', trimStart, trimEndHandle, canvas));
+        waveform.appendChild(trimEndHandle);
+
+        const actions = document.createElement('div');
+        actions.className = 'loop-actions';
+        actions.innerHTML =
+            '<button class="btn btn-sm" onclick="window._playLoop(' + i + ')">&#9654; Play</button>' +
+            '<button class="btn btn-sm" onclick="window._downloadLoop(' + i + ')">&#8615; WAV</button>' +
+            '<button class="btn btn-sm" onclick="window._setDefault(' + i + ')">Default</button>' +
+            '<span class="spacer"></span>' +
+            '<button class="btn btn-danger" onclick="window._removeLoop(' + i + ')">&#10005;</button>';
+
+        card.appendChild(header);
+        card.appendChild(meta);
+        card.appendChild(waveform);
+        card.appendChild(actions);
+        grid.appendChild(card);
+
+        const defaultBadge = document.createElement('span');
+        defaultBadge.className = 'default-badge';
+        defaultBadge.textContent = 'DEFAULT';
+        defaultBadge.style.display = (i === (window._defaultIdx || 0)) ? 'inline' : 'none';
+        defaultBadge.style.marginLeft = '8px';
+        header.appendChild(defaultBadge);
+
+        drawWaveform(canvas, loop);
+    });
+
+    updateButtons();
+
+    grid.ondragstart = (e) => {
+        e.dataTransfer.setData('text/plain', e.target.closest('.loop-card').dataset.index);
+        e.target.closest('.loop-card').style.opacity = '0.5';
+    };
+    grid.ondragend = (e) => {
+        document.querySelectorAll('.loop-card').forEach(c => c.style.opacity = '');
+    };
+    grid.ondragover = (e) => { e.preventDefault(); };
+    grid.ondrop = (e) => {
+        e.preventDefault();
+        const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+        const toCard = e.target.closest('.loop-card');
+        if (!toCard) return;
+        const toIdx = parseInt(toCard.dataset.index);
+        if (fromIdx === toIdx) return;
+        const [moved] = loops.splice(fromIdx, 1);
+        loops.splice(toIdx, 0, moved);
+        renderLoops();
+    };
+}
+
+function drawWaveform(canvas, loop) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const floatData = decodeUlawToFloat(loop.ulawData);
+    const step = Math.ceil(floatData.length / w);
+    const mid = h / 2;
+
+    ctx.strokeStyle = '#d4770b';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+
+    const trimStartX = (loop.trimStart / floatData.length) * w;
+    const trimEndX = (loop.trimEnd / floatData.length) * w;
+
+    ctx.fillStyle = 'rgba(212,119,11,0.06)';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = 'rgba(212,119,11,0.15)';
+    ctx.fillRect(trimStartX, 0, trimEndX - trimStartX, h);
+
+    ctx.strokeStyle = '#555';
+    ctx.beginPath();
+    ctx.moveTo(0, mid);
+    ctx.lineTo(w, mid);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#d4770b';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+
+    for (let x = 0; x < w; x++) {
+        let min = 1, max = -1;
+        const start = Math.floor(x * floatData.length / w);
+        const end = Math.min(start + step, floatData.length);
+        for (let j = start; j < end; j++) {
+            const v = floatData[j];
+            if (v < min) min = v;
+            if (v > max) max = v;
+        }
+        const yMin = mid - max * mid;
+        const yMax = mid - min * mid;
+        ctx.moveTo(x, yMin);
+        ctx.lineTo(x, yMax);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = '#fff';
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(trimStartX, 0);
+    ctx.lineTo(trimStartX, h);
+    ctx.moveTo(trimEndX, 0);
+    ctx.lineTo(trimEndX, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+}
+
+function startTrim(e, loop, which, startHandle, endHandle, canvas) {
+    e.preventDefault();
+    const container = startHandle.parentElement;
+    const rect = container.getBoundingClientRect();
+    const onMove = (ev) => {
+        const x = ev.clientX - rect.left;
+        const pct = Math.max(0, Math.min(1, x / rect.width));
+        const sampleIdx = Math.round(pct * loop.numSamples);
+        if (which === 'start') {
+            if (sampleIdx < loop.trimEnd) {
+                loop.trimStart = sampleIdx;
+                startHandle.style.left = (pct * 100) + '%';
+            }
+        } else {
+            if (sampleIdx > loop.trimStart) {
+                loop.trimEnd = sampleIdx;
+                endHandle.style.left = (pct * 100) + '%';
+            }
+        }
+        renderLoops();
+    };
+    const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+}
+
+function updateButtons() {
+    const hasLoops = loops.length > 0;
+    document.getElementById('btn-download-uf2').disabled = !hasLoops;
+    // Flash can write empty header to clear, so always enabled
+}
+
+async function requestPicobootWithFallback(statusCallback) {
+    try {
+        if (statusCallback) statusCallback('Looking for Pico in BOOTSEL mode...');
+        const device = await Picoboot.requestDevice();
+        return device;
+    } catch (err) {
+        if (statusCallback) statusCallback('Not in BOOTSEL mode. Trying WebSerial reset...');
+        if (!navigator.serial) {
+            throw new Error('WebUSB not supported and WebSerial not available. Use Chrome or Edge.\n\nTo connect manually: hold the BOOTSEL button on the Pico while plugging in USB, then try "Flash to Device" again.');
+        }
+        let picoPort = null;
+        try {
+            const ports = await navigator.serial.getPorts();
+            picoPort = ports.find(p => {
+                const info = p.getInfo();
+                return info.usbVendorId === 0x2e8a;
+            });
+        } catch (e) {
+            // No paired ports, proceed to requestPort
+        }
+        if (!picoPort) {
+            try {
+                if (statusCallback) statusCallback('Select the Pico serial port in the browser dialog...');
+                picoPort = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x2e8a }] });
+            } catch (serialFindErr) {
+                throw new Error('No Pico found.\n\nMake sure the card is connected via USB. If it\'s in BOOTSEL mode (UF2 drive visible), try "Flash to Device" directly — it should auto-detect.\n\nOtherwise, try entering BOOTSEL mode manually: hold BOOTSEL while plugging in USB.');
+            }
+        }
+        if (picoPort) {
+            if (statusCallback) statusCallback('Triggering BOOTSEL mode (1200 baud reset)...');
+            try {
+                await picoPort.open({ baudRate: 1200 });
+                await picoPort.close();
+            } catch (e) {
+                try { await picoPort.close(); } catch (_) {}
+            }
+            if (statusCallback) statusCallback('Waiting for reboot...');
+            await new Promise(r => setTimeout(r, 1500));
+            if (statusCallback) statusCallback('Connecting via Picoboot...');
+            try {
+                return await Picoboot.requestDevice();
+            } catch (retryErr) {
+                throw new Error('Connected to serial port but could not enter BOOTSEL mode.\n\nTry holding the BOOTSEL button while plugging in USB, then use "Flash to Device".');
+            }
+        }
+        throw new Error('No Pico found. Connect the card via USB and try again.');
+    }
+}
+
+async function enterBootloader() {
+    if (!navigator.serial) {
+        alert('Your browser does not support WebSerial.\n\nTo enter BOOTSEL mode manually: hold the BOOTSEL button on the Pico while plugging in USB. The Pico will appear as a USB drive. Then use "Flash to Device" to write data.');
+        return;
+    }
+    try {
+        log('Opening serial port dialog...', 'info');
+        const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x2e8a }] });
+        log('Sending 1200 baud reset to trigger BOOTSEL mode...', 'info');
+        await port.open({ baudRate: 1200 });
+        try { await port.close(); } catch (e) {}
+        log('Reset signal sent! Wait ~1.5 seconds, then use "Flash to Device" or "Sync from Device".', 'success');
+    } catch (err) {
+        if (err.name === 'NotFoundError') {
+            log('No serial port selected. Make sure the card is connected via USB and appears in the browser dialog.', 'error');
+        } else {
+            log('Could not trigger bootloader: ' + err.message, 'error');
+        }
+        log('Tip: Hold the BOOTSEL button on the Pico while plugging in USB to enter flash mode manually.', 'info');
+    }
+}
+
+window._playLoop = (i) => playLoop(loops[i]);
+window._downloadLoop = (i) => downloadLoopAsWav(loops[i]);
+window._setDefault = (i) => { window._defaultIdx = i; renderLoops(); };
+window._removeLoop = (i) => { loops.splice(i, 1); renderLoops(); };
+
+window._defaultIdx = 0;
+window.enterBootloader = enterBootloader;
+window.flashToDevice = flashToDevice;
+window.syncFromDevice = syncFromDevice;
+window.downloadUF2 = downloadUF2;
+window.loadBaseUF2 = loadBaseUF2;
+
+function buildLoopData() {
+    const entries = [];
+    const result = new Uint8Array(LOOP_BASE_OFFSET + LOOP_DATA_REGION_SIZE);
+    result.fill(0xFF);
+
+    for (let i = 0; i < MAX_FLASH_LOOPS; i++) {
+        const slotOffset = LOOP_BASE_OFFSET + i * FLASH_LOOP_SLOT_SIZE;
+        if (i < loops.length) {
+            const loop = loops[i];
+            const trimmedData = loop.ulawData.slice(loop.trimStart, loop.trimEnd);
+            const alignedLen = Math.ceil(trimmedData.length / 256) * 256;
+            const paddedData = new Uint8Array(alignedLen);
+            paddedData.set(trimmedData);
+
+            entries.push({
+                offset: slotOffset,
+                length: trimmedData.length,
+                name: loop.name || ('Loop ' + (i + 1))
+            });
+
+            result.set(paddedData, slotOffset);
+        } else {
+            entries.push({
+                offset: slotOffset,
+                length: 0,
+                name: ''
+            });
+        }
+    }
+
+    const headerBuf = new ArrayBuffer(HEADER_SIZE);
+    const view = new DataView(headerBuf);
+    view.setUint32(0, FLASH_LOOPS_MAGIC, true);
+    view.setUint32(4, FLASH_LOOPS_VERSION, true);
+    view.setUint32(8, loops.length, true);
+    view.setUint32(12, window._defaultIdx || 0, true);
+    view.setUint32(16, 0, true);
+    view.setUint32(20, 0, true);
+    view.setUint32(24, 0, true);
+    view.setUint32(28, 0, true);
+
+    for (let i = 0; i < MAX_FLASH_LOOPS; i++) {
+        const entryOff = 32 + i * 32;
+        if (entries[i].length > 0) {
+            view.setUint32(entryOff, entries[i].offset, true);
+            view.setUint32(entryOff + 4, entries[i].length, true);
+            const nameBytes = new TextEncoder().encode(entries[i].name);
+            const nameBuf = new Uint8Array(24);
+            nameBuf.set(nameBytes.slice(0, 24));
+            new Uint8Array(headerBuf, entryOff + 8, 24).set(nameBuf);
+        } else {
+            view.setUint32(entryOff, 0, true);
+            view.setUint32(entryOff + 4, 0, true);
+        }
+    }
+
+    const headerBytes = new Uint8Array(headerBuf);
+    result.set(headerBytes, 0);
+
+    return result;
+}
+
+function createUF2Block(payload, address, blockIdx, totalBlocks, familyId) {
+    const block = new Uint8Array(512);
+    const view = new DataView(block.buffer);
+    view.setUint32(0, 0x0A324655, true);
+    view.setUint32(4, 0x9E5D5157, true);
+    view.setUint32(8, 0x2000, true);
+    view.setUint32(12, address, true);
+    view.setUint32(16, 256, true);
+    view.setUint32(20, blockIdx, true);
+    view.setUint32(24, totalBlocks, true);
+    view.setUint32(28, familyId, true);
+    view.setUint32(32, 0, true);
+
+    const payloadSize = Math.min(256, payload.length - blockIdx * 256);
+    if (payloadSize > 0) {
+        const srcOffset = blockIdx * 256;
+        block.set(payload.slice(srcOffset, srcOffset + payloadSize), 32);
+    }
+    view.setUint32(508, 0x0AB16F30, true);
+    return block;
+}
+
+function dataToUF2(data, startAddress, familyId) {
+    const totalBlocks = Math.ceil(data.length / 256);
+    const uf2 = new Uint8Array(totalBlocks * 512);
+    for (let i = 0; i < totalBlocks; i++) {
+        const block = createUF2Block(data, startAddress + i * 256, i, totalBlocks, familyId);
+        uf2.set(block, i * 512);
+    }
+    return uf2;
+}
+
+function mergeUF2WithBase(baseData, baseAddr, loopData) {
+    const loopAddr = FLASH_LOOPS_ADDR;
+    const baseEnd = baseAddr + baseData.length;
+    const loopEnd = loopAddr + loopData.length;
+
+    const totalSize = Math.max(baseEnd, loopEnd) - Math.min(baseAddr, loopAddr);
+    const merged = new Uint8Array(totalSize);
+    merged.fill(0xFF);
+
+    const baseOffset = baseAddr - Math.min(baseAddr, loopAddr);
+    merged.set(baseData, baseOffset);
+
+    const loopOffset = loopAddr - Math.min(baseAddr, loopAddr);
+    merged.set(loopData, loopOffset);
+
+    return dataToUF2(merged, Math.min(baseAddr, loopAddr), UF2_RP2040_FAMILY_ID);
+}
+
+function dataToStandaloneUF2(loopData) {
+    return dataToUF2(loopData, FLASH_LOOPS_ADDR, UF2_RP2040_FAMILY_ID);
+}
+
+async function loadBaseUF2() {
+    const input = document.getElementById('uf2FileInput');
+    input.onchange = async () => {
+        if (!input.files.length) return;
+        const file = input.files[0];
+        const data = new Uint8Array(await file.arrayBuffer());
+        try {
+            const result = uf2ToFlashBuffer(data);
+            baseUF2Data = result.data;
+            baseUF2Address = result.address;
+            document.getElementById('uf2-status').textContent = file.name + ' (' + formatSize(baseUF2Data.length) + ')';
+            document.getElementById('uf2-status').style.color = 'var(--success)';
+            log('Loaded base UF2: ' + file.name + ', flash range 0x' + baseUF2Address.toString(16) + '-0x' + (baseUF2Address + baseUF2Data.length).toString(16), 'success');
+        } catch (e) {
+            log('Failed to parse UF2: ' + e.message, 'error');
+        }
+        input.value = '';
+    };
+    input.click();
+}
+
+async function downloadUF2() {
+    if (loops.length === 0) { alert('Add at least one loop first.'); return; }
+    const loopData = buildLoopData();
+    log('Built loop data: ' + formatSize(loopData.length) + ' (' + loops.length + ' loop(s))', 'info');
+
+    let uf2;
+    if (baseUF2Data) {
+        log('Merging with base firmware UF2', 'info');
+        uf2 = mergeUF2WithBase(baseUF2Data, baseUF2Address, loopData);
+    } else {
+        log('Generating standalone loop data UF2 (no firmware)', 'info');
+        uf2 = dataToStandaloneUF2(loopData);
+    }
+
+    const blob = new Blob([uf2], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = baseUF2Data ? 'degenerator_with_loops.uf2' : 'degenerator_loops.uf2';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    log('UF2 downloaded: ' + formatSize(uf2.length), 'success');
+}
+
+async function flashToDevice() {
+    let picoboot;
+    try {
+        log('Requesting device...', 'info');
+        picoboot = await requestPicobootWithFallback((msg) => { log(msg, 'info'); showProgress(msg, 0); });
+        log('Device found, connecting...', 'info');
+        await picoboot.connect();
+        log('Connected to ' + picoboot.getTarget().toString(), 'success');
+
+        let loopData;
+        if (loops.length > 0) {
+            loopData = buildLoopData();
+            log('Built loop data: ' + formatSize(loopData.length) + ' (' + loops.length + ' loop(s))', 'info');
+        } else {
+            log('No loops — writing empty header to clear flash.', 'info');
+            const emptyHeader = new Uint8Array(HEADER_SIZE);
+            loopData = emptyHeader;
+        }
+
+        if (!baseUF2Data) {
+            log('WARNING: No firmware UF2 loaded. Only loop data will be flashed. The card needs updated firmware to load loops on boot. Use "Load UF2" to add the firmware first.', 'error');
+        }
+
+        // Merge firmware + loop data into a single UF2, or write loop data standalone
+        let dataToFlash;
+        let flashAddress;
+        if (baseUF2Data) {
+            log('Merging firmware + loop data...', 'info');
+            dataToFlash = mergeUF2WithBase(baseUF2Data, baseUF2Address, loopData);
+            flashAddress = null; // picoboot.flashEraseAndWrite handles the full address from UF2
+        } else {
+            dataToFlash = loopData;
+            flashAddress = FLASH_LOOPS_ADDR;
+        }
+
+        showProgress('Erasing and writing flash...', 0);
+        if (baseUF2Data) {
+            const flashBuf = uf2ToFlashBuffer(dataToFlash);
+            log('Writing ' + formatSize(flashBuf.data.length) + ' to flash (firmware + loops)...', 'info');
+            await picoboot.flashEraseAndWrite(flashBuf.address, flashBuf.data,
+                (pct, msg) => {
+                    showProgress(msg, pct);
+                }
+            );
+        } else {
+            const sectorCount = Math.ceil(loopData.length / SECTOR_SIZE);
+            log('Writing ' + sectorCount + ' sectors at 0x' + FLASH_LOOPS_ADDR.toString(16) + ' (loop data only)...', 'info');
+            await picoboot.flashEraseAndWrite(FLASH_LOOPS_ADDR, loopData,
+                (pct, msg) => {
+                    showProgress(msg, pct);
+                }
+            );
+        }
+
+        showProgress('Complete!', 100);
+        log('Flash complete!', 'success');
+
+        setTimeout(() => {
+            log('Rebooting device...', 'info');
+            picoboot.reboot(100).catch(() => {}).finally(() => {
+                picoboot.disconnect().catch(() => {});
+            });
+        }, 500);
+
+    } catch (e) {
+        log('Error: ' + e.message, 'error');
+        if (picoboot) {
+            try { await picoboot.disconnect(); } catch (_) {}
+        }
+    } finally {
+        setTimeout(() => showProgress('', -1), 1500);
+    }
+}
+
+async function chunkedFlashRead(picoboot, addr, totalSize) {
+    const addrOffset = addr % FLASH_READ_ALIGN;
+    const alignedAddr = addr - addrOffset;
+    const alignedSize = Math.ceil((totalSize + addrOffset) / FLASH_READ_ALIGN) * FLASH_READ_ALIGN;
+
+    const result = new Uint8Array(alignedSize);
+
+    let offset = 0;
+    while (offset < alignedSize) {
+        const chunkSize = Math.min(MAX_READ_CHUNK, alignedSize - offset);
+        const chunk = await picoboot.flashRead(alignedAddr + offset, chunkSize);
+        result.set(chunk, offset);
+        offset += chunkSize;
+    }
+
+    return result.slice(addrOffset, addrOffset + totalSize);
+}
+
+async function syncFromDevice() {
+    let picoboot;
+    try {
+        log('Requesting device...', 'info');
+        picoboot = await requestPicobootWithFallback((msg) => { log(msg, 'info'); showProgress(msg, 0); });
+        log('Device found, connecting...', 'info');
+        await picoboot.connect();
+        log('Connected to ' + picoboot.getTarget().toString(), 'success');
+
+        showProgress('Reading header...', 5);
+        log('Reading flash header at 0x' + FLASH_LOOPS_ADDR.toString(16) + '...', 'info');
+
+        const headerBytes = await picoboot.flashRead(FLASH_LOOPS_ADDR, HEADER_SIZE);
+        const view = new DataView(headerBytes.buffer, headerBytes.byteOffset, HEADER_SIZE);
+
+        const magic = view.getUint32(0, true);
+        const version = view.getUint32(4, true);
+        const count = view.getUint32(8, true);
+        const defaultIdx = view.getUint32(12, true);
+        const safeCount = Math.min(count, MAX_FLASH_LOOPS);
+
+        if (magic !== FLASH_LOOPS_MAGIC) {
+            log('No valid degenerator header found (magic=0x' + magic.toString(16) + ')', 'error');
+            showProgress('', -1);
+            return;
+        }
+        if (version !== FLASH_LOOPS_VERSION) {
+            log('Unknown version: ' + version, 'error');
+            showProgress('', -1);
+            return;
+        }
+
+        if (count > MAX_FLASH_LOOPS) {
+            log('Header count exceeds supported slots; clamping to ' + MAX_FLASH_LOOPS + '.', 'error');
+        }
+
+        log('Found ' + safeCount + ' loop(s), default index ' + defaultIdx, 'success');
+        window._defaultIdx = Math.min(defaultIdx, safeCount > 0 ? safeCount - 1 : 0);
+
+        const entries = [];
+        for (let i = 0; i < safeCount; i++) {
+            const off = 32 + i * 32;
+            const entryOffset = view.getUint32(off, true);
+            const entryLength = view.getUint32(off + 4, true);
+            let nameBytes = [];
+            for (let j = 0; j < 24; j++) {
+                const b = headerBytes[off + 8 + j];
+                if (b === 0) break;
+                nameBytes.push(b);
+            }
+            const name = new TextDecoder().decode(new Uint8Array(nameBytes));
+            if (entryLength === 0) {
+                continue;
+            }
+
+            if (entryLength > MAX_BUF_SIZE) {
+                log('Skipping entry ' + i + ': invalid length ' + entryLength + '.', 'error');
+                continue;
+            }
+
+            const entryEnd = entryOffset + entryLength;
+            const inRange = entryOffset >= LOOP_BASE_OFFSET &&
+                            entryEnd >= entryOffset &&
+                            entryEnd <= LOOP_DATA_REGION_END;
+            if (!inRange) {
+                log('Skipping entry ' + i + ': out-of-range offset/length.', 'error');
+                continue;
+            }
+
+            entries.push({ offset: entryOffset, length: entryLength, name: name });
+        }
+
+        loops = [];
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            showProgress('Reading loop ' + (i + 1) + '/' + entries.length + '...', 10 + (80 * i / entries.length));
+            log('Reading loop "' + entry.name + '" (' + entry.length + ' samples, ' + formatDuration(entry.length) + ')', 'info');
+
+            const ulawData = await chunkedFlashRead(picoboot, FLASH_LOOPS_ADDR + entry.offset, entry.length);
+            const floatData = decodeUlawToFloat(ulawData);
+
+            loops.push({
+                name: entry.name,
+                ulawData: ulawData,
+                numSamples: entry.length,
+                floatData: floatData,
+                trimStart: 0,
+                trimEnd: entry.length,
+                id: Date.now() + '_' + Math.random().toString(36).substr(2, 6)
+            });
+        }
+
+        renderLoops();
+        log('Sync complete!', 'success');
+        showProgress('Complete!', 100);
+
+    } catch (e) {
+        log('Error: ' + e.message, 'error');
+        if (picoboot) {
+            try { await picoboot.disconnect(); } catch (_) {}
+        }
+    } finally {
+        setTimeout(() => showProgress('', -1), 1500);
+    }
+}
+
+async function handleFiles(files) {
+    for (const file of files) {
+        if (loops.length >= MAX_FLASH_LOOPS) {
+            alert('Maximum ' + MAX_FLASH_LOOPS + ' loops reached.');
+            break;
+        }
+        try {
+            log('Loading: ' + file.name, 'info');
+            const loop = await loadAudioFile(file);
+            loops.push(loop);
+            log('Added: ' + file.name + ' (' + formatDuration(loop.numSamples) + ', ' + formatSize(loop.numSamples) + ')', 'success');
+        } catch (e) {
+            log('Error loading ' + file.name + ': ' + e.message, 'error');
+        }
+    }
+    renderLoops();
+}
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', () => {
+    handleFiles(fileInput.files);
+    fileInput.value = '';
+});
+dropZone.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') {
+        fileInput.click();
+    }
+});
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+});
+
+log('Degenerator Manager ready. Drop audio files or use Sync from Device.', 'info');
+
+// Auto-load the bundled firmware UF2 on page load
+(async () => {
+    try {
+        const res = await fetch('./degenerator.uf2');
+        if (!res.ok) throw new Error('Fetch failed');
+        const buf = await res.arrayBuffer();
+        const data = new Uint8Array(buf);
+        const result = uf2ToFlashBuffer(data);
+        baseUF2Data = result.data;
+        baseUF2Address = result.address;
+        const statusEl = document.getElementById('uf2-status');
+        statusEl.textContent = 'degenerator.uf2 (' + formatSize(baseUF2Data.length) + ')';
+        statusEl.style.color = 'var(--success)';
+        log('Auto-loaded firmware: degenerator.uf2, flash 0x' + baseUF2Address.toString(16) + '-0x' + (baseUF2Address + baseUF2Data.length).toString(16), 'success');
+    } catch (e) {
+        const statusEl = document.getElementById('uf2-status');
+        statusEl.textContent = 'degenerator.uf2 not found — upload manually';
+        statusEl.style.color = 'var(--danger)';
+        log('Could not auto-load degenerator.uf2. Use "Load UF2" to select the firmware file.', 'error');
+    }
+})();
+</script>
+
+</body>
+</html>
