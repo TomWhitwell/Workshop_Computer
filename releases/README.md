@@ -53,7 +53,7 @@
 | 74_Wild_Pebble | Playable generative rhythm and melody organism inspired by Pet Rock | 0.9<br>WIP but useable. Currently working on MIDI integration | C++ | Adrian Vos with Vibecode support |
 | 77_Placeholder | Reserved for secret project | 0.0<br>None | None | None |
 | 78_Talker | Proof of concept speech synthesizer, based on TalkiePCM, inspired by 1970s LPC speech synths. | 0.1<br>Proof of concept | C++ (ComputerCard) | Chris Johnson |
-| 82_Computer_Grids | Grids-inspired trigger sequencer with Web MIDI SysEx configuration.<br>[Web editor](https://computergrids.webmidi.cc/) | 0.1.0<br>Released | C++ | Phil Miller |
+| 82_Computer_Grids | Grids-inspired trigger sequencer with Web MIDI SysEx configuration.<br>[Web editor](https://tomwhitwell.github.io/Workshop_Computer/programs/82-computer-grids/web/index.html) | 0.1.0<br>Released | C++ | Phil Miller |
 | 86_tesserae | Tesserae — Variable-voice (2-8) arpeggiated chord generator with 5 patterns, 10 scales, tap tempo, CV/audio transpose inputs, and dual CV + audio pitch outputs. Inspired by Laurie Spiegel's Music Mouse and Patchwork. | 1.0<br>released | C++ (Pico SDK) | Joep Vermaat |
 | 88_Blank | Reserved for blank 88 cards | 0<br>None | None | Tom Whitwell |
 | 98_duo_midi | A duophonic midi device/host interface | 0.1<br>Released | Lua / Blackbird | Dune Desormeaux |

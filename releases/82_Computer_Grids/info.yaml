@@ -3,4 +3,139 @@ Language: C++
 Creator: Phil Miller
 Version: 0.1.0
 Status: Released
-Editor: https://computergrids.webmidi.cc/
+
+tags:
+  - sequencer
+  - trigger
+  - midi-host
+
+demo-link: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+
+manual: |
+  Grids-inspired trigger sequencer for the Workshop Computer. Control pattern map and fill with knobs,
+  or per-lane density when switch Z is **up**. Internal clock with swing, or follow external clock on **PulseIn1**.
+  Configure and save settings via the Web MIDI SysEx editor (Chrome recommended).
+
+panel:
+  inputs:
+    - id: PulseIn1
+      name: Pulse In 1
+      description: External clock; when patched, internal clock is bypassed (swing ignored)
+    - id: PulseIn2
+      name: Pulse In 2
+      description: Reset on rising edge
+    - id: CVIn1
+      name: CV In 1
+      description: Map modulation (X, Y, or XY blend per config). Held off after Z middle↔up flip until X or Y is moved past takeover deadband
+    - id: CVIn2
+      name: CV In 2
+      description: Fill modulation — global in Z middle; all lane densities in Z up (after knob takeover)
+  outputs:
+    - id: PulseOut1
+      name: Pulse Out 1
+      description: Trigger lane 1
+    - id: PulseOut2
+      name: Pulse Out 2
+      description: Trigger lane 2
+    - id: CVOut1
+      name: CV Out 1
+      description: Trigger lane 3 (digital pulse)
+    - id: CVOut2
+      name: CV Out 2
+      description: Aux output (accent, clock, or lane 3 mirror — configurable)
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Main
+        description: Global fill macro (per-lane scale/offset from config)
+      x:
+        name: X
+        description: Pattern map X
+      y:
+        name: Y
+        description: Pattern map Y
+
+    - when: { z: up }
+      main:
+        name: Main
+        description: Lane 1 density (PulseOut1)
+      x:
+        name: X
+        description: Lane 2 density (PulseOut2)
+      y:
+        name: Y
+        description: Lane 3 density (CVOut1). Map X/Y held from last Z middle position until knob takeover
+
+    - when: { z: middle, layer: alt }
+      main:
+        name: Main
+        description: Chaos / randomness (pattern engine)
+      x:
+        name: X
+        description: Internal BPM (bpm10)
+      y:
+        name: Y
+        description: Swing (50% straight … 75% shuffle)
+
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Main
+        description: Tap tempo (internal clock only)
+
+    - when: { z: down, gesture: hold }
+      main:
+        name: Main
+        description: Long press toggles alt layer (knob pickup/catch)
+
+  leds:
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED0
+          name: LED 0
+          description: Beat tick blink
+        - id: LED1
+          name: LED 1
+          description: Fill macro brightness
+        - id: LED2
+          name: LED 2
+          description: Lane 1 trigger activity
+        - id: LED3
+          name: LED 3
+          description: Map X brightness
+        - id: LED4
+          name: LED 4
+          description: Lane 2 trigger activity
+        - id: LED5
+          name: LED 5
+          description: Lane 3 / aux activity or alt-layer indicator
+
+    - when: { z: up }
+      display: list
+      items:
+        - id: LED0
+          name: LED 0
+          description: Beat tick blink
+        - id: LED1
+          name: LED 1
+          description: Lane 1 density
+        - id: LED2
+          name: LED 2
+          description: Lane 1 trigger activity
+        - id: LED3
+          name: LED 3
+          description: Lane 2 density
+        - id: LED4
+          name: LED 4
+          description: Lane 2 trigger activity
+        - id: LED5
+          name: LED 5
+          description: Lane 3 density brightness
+
+host:
+  usb:
+    - name: Web MIDI editor
+      role: editor
+      description: Static app in `web/`

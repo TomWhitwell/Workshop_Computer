@@ -1,3 +1,8 @@
+/** Lowercase info.yaml keys; strip spaces and hyphens for consistent lookup (demo-link → demolink). */
+export function normalizeYamlKey(k) {
+  return String(k || '').toLowerCase().replace(/[\s-]+/g, '');
+}
+
 export function slugify(name) {
   return name
     .toLowerCase()
