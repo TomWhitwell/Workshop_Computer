@@ -1,0 +1,6 @@
+Description: "Dual vactrol-emulating low-pass gate (combined VCA + low-pass filter) with fast-attack/slow-decay 'plong', self-pinging percussion, and per-channel VCA/VCF/LPG modes."
+Name: Vactrol
+Language: "C++ (ComputerCard)"
+Creator: "Jason Moore"
+Version: "0.1"
+Status: "WIP - builds clean, untested on hardware"
