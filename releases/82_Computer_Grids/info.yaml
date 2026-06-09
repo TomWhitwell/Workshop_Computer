@@ -19,123 +19,123 @@ manual: |
 panel:
   inputs:
     - id: PulseIn1
-      name: Pulse In 1
-      description: External clock; when patched, internal clock is bypassed (swing ignored)
+      name: External Clock
+      description: When patched, internal clock is bypassed and swing is ignored; follows external pulse edges
     - id: PulseIn2
-      name: Pulse In 2
-      description: Reset on rising edge
+      name: Pattern Reset
+      description: Rising edge resets pattern phase to the start of the bar
     - id: CVIn1
-      name: CV In 1
-      description: Map modulation (X, Y, or XY blend per config). Held off after Z middle↔up flip until X or Y is moved past takeover deadband
+      name: Map Modulation
+      description: Adds to pattern map X, Y, or XY blend (per config). Held off after Z middle↔up flip until X or Y is moved past takeover deadband
     - id: CVIn2
-      name: CV In 2
-      description: Fill modulation — global in Z middle; all lane densities in Z up (after knob takeover)
+      name: Fill Modulation
+      description: Global fill offset in Z middle; all three lane density offsets in Z up (after knob takeover)
   outputs:
     - id: PulseOut1
-      name: Pulse Out 1
-      description: Trigger lane 1
+      name: Trigger Lane 1
+      description: Grids-style trigger output for drum/voice lane 1
     - id: PulseOut2
-      name: Pulse Out 2
-      description: Trigger lane 2
+      name: Trigger Lane 2
+      description: Grids-style trigger output for drum/voice lane 2
     - id: CVOut1
-      name: CV Out 1
-      description: Trigger lane 3 (digital pulse)
+      name: Trigger Lane 3
+      description: Digital pulse-style trigger for lane 3
     - id: CVOut2
-      name: CV Out 2
-      description: Aux output (accent, clock, or lane 3 mirror — configurable)
+      name: Aux Output
+      description: Configurable accent, clock, or lane 3 mirror output
 
 controls:
   knobs:
     - when: { z: middle }
       main:
-        name: Main
-        description: Global fill macro (per-lane scale/offset from config)
+        name: Global Fill Macro
+        description: Scales all lanes together using per-lane scale/offset from config
       x:
-        name: X
-        description: Pattern map X
+        name: Pattern Map X
+        description: Horizontal position on the Grids pattern map
       y:
-        name: Y
-        description: Pattern map Y
+        name: Pattern Map Y
+        description: Vertical position on the Grids pattern map
 
     - when: { z: up }
       main:
-        name: Main
-        description: Lane 1 density (PulseOut1)
+        name: Lane 1 Density
+        description: Hit probability for trigger lane 1 (PulseOut1)
       x:
-        name: X
-        description: Lane 2 density (PulseOut2)
+        name: Lane 2 Density
+        description: Hit probability for trigger lane 2 (PulseOut2)
       y:
-        name: Y
-        description: Lane 3 density (CVOut1). Map X/Y held from last Z middle position until knob takeover
+        name: Lane 3 Density
+        description: Hit probability for trigger lane 3 (CVOut1). Map X/Y held from last Z middle position until knob takeover
 
     - when: { z: middle, layer: alt }
       main:
-        name: Main
-        description: Chaos / randomness (pattern engine)
+        name: Chaos
+        description: Randomness amount fed into the pattern engine
       x:
-        name: X
-        description: Internal BPM (bpm10)
+        name: Internal BPM
+        description: Tempo for the internal clock (bpm10 parameter in config)
       y:
-        name: Y
-        description: Swing (50% straight … 75% shuffle)
+        name: Swing
+        description: Shuffle amount from 50% straight to 75% shuffle
 
     - when: { z: down, gesture: momentary }
       main:
-        name: Main
-        description: Tap tempo (internal clock only)
+        name: Tap Tempo
+        description: Short press sets internal clock tempo from tap interval
 
     - when: { z: down, gesture: hold }
       main:
-        name: Main
-        description: Long press toggles alt layer (knob pickup/catch)
+        name: Alt Layer Toggle
+        description: Long press toggles alt layer with knob pickup/catch behavior
 
   leds:
     - when: { z: middle }
       display: list
       items:
         - id: LED0
-          name: LED 0
-          description: Beat tick blink
+          name: Beat Tick
+          description: Flashes on each beat tick (1 PPQ)
         - id: LED1
-          name: LED 1
-          description: Fill macro brightness
+          name: Fill Macro Level
+          description: Brightness reflects global fill macro position
         - id: LED2
-          name: LED 2
-          description: Lane 1 trigger activity
+          name: Lane 1 Activity
+          description: Lights on lane 1 trigger events
         - id: LED3
-          name: LED 3
-          description: Map X brightness
+          name: Map X Level
+          description: Brightness reflects pattern map X position
         - id: LED4
-          name: LED 4
-          description: Lane 2 trigger activity
+          name: Lane 2 Activity
+          description: Lights on lane 2 trigger events
         - id: LED5
-          name: LED 5
-          description: Lane 3 / aux activity or alt-layer indicator
+          name: Lane 3 / Aux Activity
+          description: Lane 3 or aux output activity; also indicates when alt layer is active
 
     - when: { z: up }
       display: list
       items:
         - id: LED0
-          name: LED 0
-          description: Beat tick blink
+          name: Beat Tick
+          description: Flashes on each beat tick (1 PPQ)
         - id: LED1
-          name: LED 1
-          description: Lane 1 density
+          name: Lane 1 Density
+          description: Brightness reflects lane 1 density knob position
         - id: LED2
-          name: LED 2
-          description: Lane 1 trigger activity
+          name: Lane 1 Activity
+          description: Lights on lane 1 trigger events
         - id: LED3
-          name: LED 3
-          description: Lane 2 density
+          name: Lane 2 Density
+          description: Brightness reflects lane 2 density knob position
         - id: LED4
-          name: LED 4
-          description: Lane 2 trigger activity
+          name: Lane 2 Activity
+          description: Lights on lane 2 trigger events
         - id: LED5
-          name: LED 5
-          description: Lane 3 density brightness
+          name: Lane 3 Density
+          description: Brightness reflects lane 3 density knob position
 
 host:
   usb:
     - name: Web MIDI editor
       role: editor
-      description: Static app in `web/`
+      description: Browser app in `web/` for reading and writing card config over Web MIDI (Chrome, USB-C data cable, close other MIDI apps)
