@@ -4,9 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { detectRepoFromGit, detectRefFromGit } from './utils/git.js';
 import { makeRawUrl as makeRawUrlExternal } from './links.js';
 import { renderLayout } from './render/layout.js';
-import { sevenSegmentSvg, mapStatusToClass, renderMetaList, renderActionButtons } from './render/components.js';
+import { sevenSegmentSvg, mapStatusToClass, renderMetaList } from './render/components.js';
 import { formatVersion } from './utils/strings.js';
 import { discoverRelease as discoverReleaseMod } from './discover/release.js';
+import { githubPagesBase, copyWebAssets } from './discover/webEditor.js';
 
 // ========== Path & Globals ==========
 const __filename = fileURLToPath(import.meta.url);
@@ -26,6 +27,7 @@ const DEFAULT_BRANCH = 'main';
 // On GitHub, prefer GITHUB_REPOSITORY and GITHUB_SHA (falls back to branch name). Locally, fall back to git.
 const REPO = process.env.GITHUB_REPOSITORY || detectRepoFromGit() || DEFAULT_REPO;
 const BRANCH = process.env.GITHUB_SHA || process.env.GITHUB_REF_NAME || detectRefFromGit() || DEFAULT_BRANCH;
+const PAGES_BASE = githubPagesBase(REPO);
 
 
 // (info parsing handled in discover/release.js)
@@ -36,7 +38,7 @@ function makeRawUrl(relPathFromRepoRoot) {
 
 async function discoverRelease(folderName) {
   const outPrograms = path.join(OUT_DIR, 'programs');
-  return discoverReleaseMod(RELEASES_DIR, folderName, outPrograms, makeRawUrl);
+  return discoverReleaseMod(RELEASES_DIR, folderName, outPrograms, makeRawUrl, PAGES_BASE);
 }
 
 function escapeAttr(s) {
@@ -259,12 +261,16 @@ async function build() {
   });
   await writeFileEnsured(path.join(OUT_DIR, 'index.html'), indexHtml);
 
-  // Each release detail page (no copying of release assets)
   for (const rel of releases) {
     const base = path.join(OUT_DIR, 'programs', rel.slug);
     await ensureDir(base);
     const html = detailPage(rel);
     await writeFileEnsured(path.join(base, 'index.html'), html);
+
+    if (rel.web?.copySrc) {
+      const webDest = path.join(base, rel.web.siteSubdir || 'web');
+      await copyWebAssets(rel.web.copySrc, webDest);
+    }
   }
 
   // 404 fallback

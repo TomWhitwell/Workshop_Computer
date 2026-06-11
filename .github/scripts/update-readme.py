@@ -1,10 +1,15 @@
 import os
-import json
+import sys
 import yaml
+
+sys.path.insert(0, os.path.dirname(__file__))
+from web_editor_resolve import readme_editor_url, github_pages_base
 
 # Define the base folder and README file path
 base_folder = 'releases'
 readme_path = os.path.join(base_folder, 'README.md')
+repo_slug = os.environ.get('GITHUB_REPOSITORY', 'TomWhitwell/Workshop_Computer')
+pages_base = github_pages_base(repo_slug)
 
 
 # Function to read data from a YAML file
@@ -40,8 +45,9 @@ def update_readme(folders_data):
         d = folders_data[folder]
         row = [folder]
         descr = d.get('Description','')
-        if 'Editor' in d:
-            descr += '<br>[Web editor]('+d.get('Editor','')+')'
+        editor_url = readme_editor_url(folder, os.path.join(base_folder, folder), d, pages_base)
+        if editor_url:
+            descr += '<br>[Web editor](' + editor_url + ')'
         row += [descr]
         vers = str(d.get('Version',''))
         if 'Status' in d:

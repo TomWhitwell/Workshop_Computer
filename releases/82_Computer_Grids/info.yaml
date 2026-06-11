@@ -3,4 +3,139 @@ Language: C++
 Creator: Phil Miller
 Version: 0.1.0
 Status: Released
-Editor: https://computergrids.webmidi.cc/
+
+tags:
+  - sequencer
+  - trigger
+  - midi-host
+
+demo-link: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+
+manual: |
+  Grids-inspired trigger sequencer for the Workshop Computer. Control pattern map and fill with knobs,
+  or per-lane density when switch Z is **up**. Internal clock with swing, or follow external clock on **PulseIn1**.
+  Configure and save settings via the Web MIDI SysEx editor (Chrome recommended).
+
+panel:
+  inputs:
+    - id: PulseIn1
+      name: External Clock
+      description: When patched, internal clock is bypassed and swing is ignored; follows external pulse edges
+    - id: PulseIn2
+      name: Pattern Reset
+      description: Rising edge resets pattern phase to the start of the bar
+    - id: CVIn1
+      name: Map Modulation
+      description: Adds to pattern map X, Y, or XY blend (per config). Held off after Z middle↔up flip until X or Y is moved past takeover deadband
+    - id: CVIn2
+      name: Fill Modulation
+      description: Global fill offset in Z middle; all three lane density offsets in Z up (after knob takeover)
+  outputs:
+    - id: PulseOut1
+      name: Trigger Lane 1
+      description: Grids-style trigger output for drum/voice lane 1
+    - id: PulseOut2
+      name: Trigger Lane 2
+      description: Grids-style trigger output for drum/voice lane 2
+    - id: CVOut1
+      name: Trigger Lane 3
+      description: Digital pulse-style trigger for lane 3
+    - id: CVOut2
+      name: Aux Output
+      description: Configurable accent, clock, or lane 3 mirror output
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Global Fill Macro
+        description: Scales all lanes together using per-lane scale/offset from config
+      x:
+        name: Pattern Map X
+        description: Horizontal position on the Grids pattern map
+      y:
+        name: Pattern Map Y
+        description: Vertical position on the Grids pattern map
+
+    - when: { z: up }
+      main:
+        name: Lane 1 Density
+        description: Hit probability for trigger lane 1 (PulseOut1)
+      x:
+        name: Lane 2 Density
+        description: Hit probability for trigger lane 2 (PulseOut2)
+      y:
+        name: Lane 3 Density
+        description: Hit probability for trigger lane 3 (CVOut1). Map X/Y held from last Z middle position until knob takeover
+
+    - when: { z: middle, layer: alt }
+      main:
+        name: Chaos
+        description: Randomness amount fed into the pattern engine
+      x:
+        name: Internal BPM
+        description: Tempo for the internal clock (bpm10 parameter in config)
+      y:
+        name: Swing
+        description: Shuffle amount from 50% straight to 75% shuffle
+
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Tap Tempo
+        description: Short press sets internal clock tempo from tap interval
+
+    - when: { z: down, gesture: hold }
+      main:
+        name: Alt Layer Toggle
+        description: Long press toggles alt layer with knob pickup/catch behavior
+
+  leds:
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED0
+          name: Beat Tick
+          description: Flashes on each beat tick (1 PPQ)
+        - id: LED1
+          name: Fill Macro Level
+          description: Brightness reflects global fill macro position
+        - id: LED2
+          name: Lane 1 Activity
+          description: Lights on lane 1 trigger events
+        - id: LED3
+          name: Map X Level
+          description: Brightness reflects pattern map X position
+        - id: LED4
+          name: Lane 2 Activity
+          description: Lights on lane 2 trigger events
+        - id: LED5
+          name: Lane 3 / Aux Activity
+          description: Lane 3 or aux output activity; also indicates when alt layer is active
+
+    - when: { z: up }
+      display: list
+      items:
+        - id: LED0
+          name: Beat Tick
+          description: Flashes on each beat tick (1 PPQ)
+        - id: LED1
+          name: Lane 1 Density
+          description: Brightness reflects lane 1 density knob position
+        - id: LED2
+          name: Lane 1 Activity
+          description: Lights on lane 1 trigger events
+        - id: LED3
+          name: Lane 2 Density
+          description: Brightness reflects lane 2 density knob position
+        - id: LED4
+          name: Lane 2 Activity
+          description: Lights on lane 2 trigger events
+        - id: LED5
+          name: Lane 3 Density
+          description: Brightness reflects lane 3 density knob position
+
+host:
+  usb:
+    - name: Web MIDI editor
+      role: editor
+      description: Browser app in `web/` for reading and writing card config over Web MIDI (Chrome, USB-C data cable, close other MIDI apps)
