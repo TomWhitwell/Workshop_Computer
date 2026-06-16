@@ -591,6 +591,7 @@ static inline void maybe_start_wrap_preview_xfade(mlr_track_t *tr, uint32_t wrap
 	}
 	tr->seek_xfade_active = true;
 	tr->wrap_preview_ready = false;
+	note_track_wrap((int)(tr - mlr_tracks));
 	transition_update_track_state(tr);
 }
 

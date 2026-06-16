@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.13)
 
 # Name of the firmware/UF2 produced.
 set(CARD_NAME "MLRws" CACHE STRING "ComputerCard firmware name (also the UF2 filename stem)")
-set(MLR_FIRMWARE_VERSION "1.1.4" CACHE STRING "MLRws firmware version reported to the sample-manager web app")
+set(MLR_FIRMWARE_VERSION "1.1.5" CACHE STRING "MLRws firmware version reported to the sample-manager web app")
 
 # USB serial stdio — OFF for this card (USB port is used for host mode).
 set(CARD_STDIO_USB OFF CACHE BOOL "Enable USB stdio")

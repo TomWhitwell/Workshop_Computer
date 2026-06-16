@@ -1,6 +1,6 @@
 Description: A remix of monome's classic MLR sample cutting platform (grid controller encouraged but optional)
 Language: Pico SDK
 Creator: Dune Desormeaux
-Version: 1.1.4
+Version: 1.1.5
 Status: Released
 Editor: https://dessertplanet.github.io/MLRws-web/
