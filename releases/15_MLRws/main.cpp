@@ -1891,7 +1891,7 @@ private:
 			bool pulse_gate_now = PulseIn1() || PulseIn2() || turing_clock;
 
 			if (!gl_record_mode_ && !gl_recording_active_ && (switch_reset || pulse_reset) && gl_active_track_ >= 0)
-				gridless_restart_all_tracks_from_zero();
+				mlr_cut(gl_active_track_, gl_prev_start_col_);
 			if (!gl_record_mode_ && !gl_recording_active_ && turing_clock) {
 				gridless_step_turing();
 				trigger_cv2_envelope();
