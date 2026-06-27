@@ -1,0 +1,82 @@
+<svg width="100%" viewBox="0 0 680 900" xmlns="http://www.w3.org/2000/svg">
+  <title>The Bells — method select LED encoding</title>
+  <style>
+    text { font-family: sans-serif; font-size: 13px; fill: #333; }
+    text.label { font-size: 15px; font-weight: 500; }
+  </style>
+
+  <text class="label" x="40" y="32">Main knob — method select</text>
+
+  <!-- M1: LED 1 (top-left) -->
+  <circle cx="62" cy="56"  r="7" fill="#EFB9C0"/><circle cx="84" cy="56"  r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="76"  r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="76"  r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="96"  r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="96"  r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="76">Plain Hunt Minimus [4]</text>
+
+  <!-- M2: LED 2 (top-right) -->
+  <circle cx="62" cy="126" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="126" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="146" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="146" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="166" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="166" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="146">Grandsire Doubles [5]</text>
+
+  <!-- M3: LED 3 (mid-left) -->
+  <circle cx="62" cy="196" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="196" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="216" r="7" fill="#EFB9C0"/><circle cx="84" cy="216" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="236" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="236" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="216">Plain Bob Doubles [5]</text>
+
+  <!-- M4: LED 4 (mid-right) -->
+  <circle cx="62" cy="266" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="266" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="286" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="286" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="306" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="306" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="286">Plain Hunt Doubles [5]</text>
+
+  <!-- M5: LED 5 (bot-left) -->
+  <circle cx="62" cy="336" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="336" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="356" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="356" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="376" r="7" fill="#EFB9C0"/><circle cx="84" cy="376" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="356">Reverse Canterbury Doubles [5]</text>
+
+  <!-- M6: LED 6 (bot-right) -->
+  <circle cx="62" cy="406" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="406" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="426" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="426" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="446" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="446" r="7" fill="#EFB9C0"/>
+  <text x="106" y="426">St Martins Doubles [5]</text>
+
+  <!-- M7: all pink EXCEPT LED 1 -->
+  <circle cx="62" cy="476" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="476" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="496" r="7" fill="#EFB9C0"/><circle cx="84" cy="496" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="516" r="7" fill="#EFB9C0"/><circle cx="84" cy="516" r="7" fill="#EFB9C0"/>
+  <text x="106" y="496">St Simons Doubles [5]</text>
+
+  <!-- M8: all pink EXCEPT LED 2 -->
+  <circle cx="62" cy="546" r="7" fill="#EFB9C0"/><circle cx="84" cy="546" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="566" r="7" fill="#EFB9C0"/><circle cx="84" cy="566" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="586" r="7" fill="#EFB9C0"/><circle cx="84" cy="586" r="7" fill="#EFB9C0"/>
+  <text x="106" y="566">Stedman Doubles [5]</text>
+
+  <!-- M9: all pink EXCEPT LED 3 -->
+  <circle cx="62" cy="616" r="7" fill="#EFB9C0"/><circle cx="84" cy="616" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="636" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="636" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="656" r="7" fill="#EFB9C0"/><circle cx="84" cy="656" r="7" fill="#EFB9C0"/>
+  <text x="106" y="636">Plain Bob Minor [6]</text>
+
+  <!-- M10: all pink EXCEPT LED 4 -->
+  <circle cx="62" cy="686" r="7" fill="#EFB9C0"/><circle cx="84" cy="686" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="706" r="7" fill="#EFB9C0"/><circle cx="84" cy="706" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="726" r="7" fill="#EFB9C0"/><circle cx="84" cy="726" r="7" fill="#EFB9C0"/>
+  <text x="106" y="706">St Clements Minor [6]</text>
+
+  <!-- M11: all pink EXCEPT LED 5 -->
+  <circle cx="62" cy="756" r="7" fill="#EFB9C0"/><circle cx="84" cy="756" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="776" r="7" fill="#EFB9C0"/><circle cx="84" cy="776" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="796" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="796" r="7" fill="#EFB9C0"/>
+  <text x="106" y="776">Grandsire Triples [7]</text>
+
+  <!-- M12: all pink EXCEPT LED 6 -->
+  <circle cx="62" cy="826" r="7" fill="#EFB9C0"/><circle cx="84" cy="826" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="846" r="7" fill="#EFB9C0"/><circle cx="84" cy="846" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="866" r="7" fill="#EFB9C0"/><circle cx="84" cy="866" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="846">Plain Bob Triples [8]</text>
+
+</svg>
