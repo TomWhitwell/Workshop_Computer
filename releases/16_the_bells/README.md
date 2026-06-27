@@ -30,6 +30,6 @@ For questions or support, email [jamessaundersalloneword@gmail.com](mailto:james
 | Y | Turns covering tenor off (CCW-12) or on (12-CW) |  | Select scale |  |
 |   **LEDs**  |  |  |  |  |
 
-![Main: method](images/leds_method.svg)
-![X: clock divide](images/leds_clock.svg)
-![Y: scale](images/leds_scale.svg)
+![Main: method](./images/leds_method.svg)
+![X: clock divide](./images/leds_clock.svg)
+![Y: scale](./images/leds_scale.svg)
