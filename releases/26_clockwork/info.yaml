@@ -1,0 +1,181 @@
+id: 26_clockwork
+title: Clockwork
+draft: false
+release: 26 / 1.0.0
+Creator: Vincent Maurer
+Editor: https://vincentmaurer.de/clockwork/index.html
+demo-link: https://www.youtube.com/watch?v=WFxAQ-dK7CM
+contact:
+  website: https://vincentmaurer.de
+summary: >-
+  6-channel polyrhythmic clock, gate, and LFO/envelope generator inspired by Pamela's Workout.
+description: >-
+  6-channel polyrhythmic clock, gate, and LFO/envelope generator inspired by Pamela's Workout.
+panel:
+  controls:
+    main:
+      label: Modifier / Shape
+      description: Master modifier or waveform shape select depending on switch tier
+      source: info.yaml
+    x:
+      label: Steps / Level
+      description: Euclidean steps or output level/delay depending on switch tier
+      source: info.yaml
+    'y':
+      label: Context-dependent
+      description: Euclidean Fills (Steps > 0) or LFO Phase Offset (Steps = 0) depending on switch tier
+      source: info.yaml
+    z:
+      label: Mode Selector
+      description: UP selects Sound Shape, MIDDLE selects Rhythm, DOWN (held) selects Advanced settings
+      source: info.yaml
+  inputs:
+    audio_l:
+      label: |-
+        Modifier
+        Mod (Audio 1)
+      description: CV control over active channel modifier (speed division/multiplication) or external Schmitt triggers
+      source: info.yaml
+    audio_r:
+      label: |-
+        Fills
+        Mod (Audio 2)
+      description: CV control over active channel Euclidean fills or external S&H sampling source
+      source: info.yaml
+    cv_1:
+      label: Wave Param Mod
+      description: CV control over the active channel's wave parameter, or external Delay/Math carrier input
+      source: info.yaml
+    cv_2:
+      label: Probability Mod
+      description: CV control over the active channel's trigger probability
+      source: info.yaml
+    pulse_1:
+      label: Clock Sync
+      description: External clock source sync input
+      source: info.yaml
+    pulse_2:
+      label: Reset In
+      description: Clock reset trigger or run gate
+      source: info.yaml
+  outputs:
+    audio_out_l:
+      label: |-
+        Out 1
+        (Audio Out 1)
+      description: Channel 1 CV/Gate output (SPI DAC)
+      source: info.yaml
+    audio_out_r:
+      label: |-
+        Out 2
+        (Audio Out 2)
+      description: Channel 2 CV/Gate output (SPI DAC)
+      source: info.yaml
+    cv_out_1:
+      label: |-
+        Out 3
+        (CV Out 1)
+      description: Channel 3 CV/Gate output (PWM)
+      source: info.yaml
+    cv_out_2:
+      label: |-
+        Out 4
+        (CV Out 2)
+      description: Channel 4 CV/Gate output (PWM)
+      source: info.yaml
+    pulse_out_1:
+      label: |-
+        Out 5
+        (Pulse Out 1)
+      description: Channel 5 Digital Gate output (GPIO)
+      source: info.yaml
+    pulse_out_2:
+      label: |-
+        Out 6
+        (Pulse Out 2)
+      description: Channel 6 Digital Gate output (GPIO)
+      source: info.yaml
+switch_modes:
+  up: 'UP: Sound Shaping (MAIN: Waveform, X: Level/Delay, Y: Wave Parameter). A short flick UP toggles Play/Pause.'
+  middle: 'MIDDLE: Rhythm & performance (MAIN: Modifier, X: Steps, Y: Fills [steps > 0] or LFO Phase Offset [steps = 0]).'
+  down: 'DOWN (Momentary): Tap to cycle pages. Hold down to access Advanced settings (MAIN: Loop length, X: Probability, Y: Step Offset [steps > 0] or Quantizer Scale [steps = 0]).'
+leds:
+  - "Page display: active channel is lit (LED 0-5). On the GLOBAL page, all 6 LEDs pulse gently."
+  - "LED layout on module: Top row (LED 0, 1 = bits 0-1); Middle row (LED 2, 3 = bits 2-3); Bottom row (LED 4, 5 = bits 4-5)."
+  - "Analog shapes 3x2 matrix maps (Top/Mid/Bot): Gate [○○/○○/○○], Ratchet [●○/○○/○○], Sine [○●/○○/○○], Triangle [●●/○○/○○], Saw ↑ [○○/●○/○○], Saw ↓ [●○/●○/○○], Trapezoid [○●/●○/○○], Hump [●●/●○/○○], Envelope [○○/○●/○○], Log Env [●○/○●/○○], S&H [○●/○●/○○], Smooth [●●/○●/○○], Delay [○○/●●/○○], Math [●○/●●/○○]."
+  - "Digital shapes 3x2 matrix maps (Top/Mid/Bot): Gate [○○/○○/○○], Ratchet [●○/○○/○○], Trigger [○●/○○/○○], Burst [●●/○○/○○], Random [○○/●○/○○], Utility [●○/●○/○○]."
+source:
+  - releases/26_clockwork/info.yaml
+  - releases/26_clockwork/README.md
+slug: 26-clockwork
+url: /workshopsystem/program-cards/26-clockwork/
+tags:
+  - clock
+  - trigger
+  - lfo
+  - envelope
+  - sequencer
+  - polyrhythm
+  - quantizer
+source_file: releases/26_clockwork/info.yaml
+source_url: https://github.com/vincentltm/Workshop_Computer/tree/main/releases/26_clockwork
+readme_url: >-
+  https://github.com/vincentltm/Workshop_Computer/blob/main/releases/26_clockwork/README.md
+download_url: >-
+  https://raw.githubusercontent.com/vincentltm/Workshop_Computer/main/releases/26_clockwork/build/clockwork.uf2
+metadata:
+  creator: Vincent Maurer
+  language: C++ (RP2040 Pico SDK)
+  version: 1.0.0
+  status: Released
+  license: MIT
+documentation:
+  intro: |
+    Clockwork is a 6-channel polyrhythmic timing and modulation generator inspired by Pamela's Workout. It turns the Workshop Computer into a central clock, gate sequencer, and LFO generator.
+
+    *   [Clockwork Tutorial Video](https://youtu.be/Pc0wPOAVZmw)
+    *   [Clockwork Demo Video](https://www.youtube.com/watch?v=WFxAQ-dK7CM)
+
+    ### How to control it
+    *   **Toggle UP (Sound Shape)**: MAIN = Waveform, X = Level/Delay, Y = Wave Parameter. A quick flick UP (<400ms) toggles Play/Pause.
+    *   **Toggle MIDDLE (Rhythm)**: MAIN = Modifier (/2048 to x128, with x1 at noon), X = Euclidean Steps (0-16), Y = Fills (steps > 0) or Phase Offset (steps = 0).
+    *   **Toggle DOWN (Momentary)**: Tap to cycle pages (Outputs 1-6 & Global). Hold to edit Advanced Settings (MAIN = Loop length, X = Probability, Y = Step Offset [steps > 0] or Quantizer Scale [steps = 0]).
+
+    ### External CV Inputs (Jacks 1-4)
+    When plugged, overriding behavior occurs:
+    1.  **CV Modulation (Default)**: CV modulates the Wave Parameter (Knob Y in UP mode).
+    2.  **External S&H / Smooth**: Channels sample the input voltage instead of internal random noise.
+    3.  **Delay Input**: Delay shape records and delays the input jack voltage.
+    4.  **Math Carrier**: Math shape carrier signal switches to the input jack voltage.
+    5.  **External Triggers**: Channels set to cross-channel triggers clock their loops from external gate edges.
+
+    ### Special Speed Settings (Right of Wheel)
+    *   **Cross-Channel Triggers**: Clocks loop from another channel (or physical jack if connected).
+    *   **MIDI Mode**: Clocks loop from USB MIDI. Maps Outputs: S&H = 1V/Oct CV, Smooth = Velocity CV, Envelopes = Velocity-scaled decays, Gate = Gate.
+
+    ### LED Wave Shape 3x2 Matrix Chart
+    Row 1: [LED 0] [LED 1], Row 2: [LED 2] [LED 3], Row 3: [LED 4] [LED 5]
+    
+    **Analog Outputs (1-4)**
+    *   `Gate` [○○/○○/○○] - Standard gate. Y = Duty cycle.
+    *   `Ratchet` [●○/○○/○○] - Subdivided trigger. Y = Subdivisions (2-16).
+    *   `Sine` [○●/○○/○○] - Bipolar LFO. Y = Phase offset (0-360°).
+    *   `Triangle` [●●/○○/○○] - Bipolar LFO. Y = Skew (falling saw ↔ tri ↔ rising saw).
+    *   `Saw ↑` [○○/●○/○○] - Bipolar LFO. Y = Curve (log ↔ linear ↔ exp).
+    *   `Saw ↓` [●○/●○/○○] - Bipolar LFO. Y = Curve (log ↔ linear ↔ exp).
+    *   `Trapezoid` [○●/●○/○○] - Bipolar LFO. Y = Peak flat sustain duration.
+    *   `Hump` [●●/●○/○○] - Half-rectified sine. Y = Skew position.
+    *   `Envelope` [○○/○●/○○] - Linear decay envelope. Y = Decay duration.
+    *   `Log Env` [●○/○●/○○] - Exponential decay envelope. Y = Decay duration.
+    *   `S&H` [○●/○●/○○] - Random Sample & Hold. Y = No effect. (calibrated 1V/Oct in MIDI mode).
+    *   `Smooth` [●●/○●/○○] - Smooth Random Walk. Y = Smoothing level. (MIDI velocity in MIDI mode).
+    *   `Delay` [○○/●●/○○] - CV delay processor. Y = Feedback level.
+    *   `Math` [●○/●●/○○] - Cross-channel math/logic. Y = Operator (Mix, Sub, Min, Max, Multiply, AND, OR, XOR).
+
+    **Digital Gate Outputs (5-6)**
+    *   `Gate` [○○/○○/○○] - Standard gate. Y = Pulse width.
+    *   `Ratchet` [●○/○○/○○] - Double trigger. Y = Trigger spacing.
+    *   `Trigger` [○●/○○/○○] - Fixed 10ms trigger. Y = Phase delay.
+    *   `Burst` [●●/○○/○○] - Pulses train. Y = Pulse count (1-8).
+    *   `Random` [○○/●○/○○] - Random gate width. Y = Max width scale.
+    *   `Utility` [●○/●○/○○] - Utility clock output. Y = Mode (1 PPQN, 4 PPQN, 24 PPQN, Run Gate).
