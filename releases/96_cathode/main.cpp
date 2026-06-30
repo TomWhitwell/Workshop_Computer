@@ -138,7 +138,6 @@ struct SharedState {
     volatile int32_t  scope_audio_scale; // Y knob in scope: 0..512 (256 = 1×, max 2×) audio gain
     volatile int32_t  scope_baseline;    // X knob in scope: 0..GREY_H-1 centre-line row
     volatile int32_t  knob_main;     // KnobVal(Main): 0..4095 (far-CCW=etch, else scope speed)
-    volatile int32_t  audio_in2;     // AudioIn2() raw -2048..2047 (CV_FX selector)
     volatile uint8_t  sw_position;   // 0=UP(fade) 1=MID(static) 2=DOWN(effect / menu)
     // Trigger sources (Core 0 latches edges; Core 1 reads, clears the *_rising latches).
     // Three independent: switch-DOWN→cfg_sw, PU1→cfg_pu1, PU2→cfg_pu2.
@@ -355,11 +354,11 @@ static void __not_in_flash_func(roll_step)() {
 // ─── Behaviours (configurable per trigger source: switch-DOWN and Pu2) ────────
 // A "behaviour" is what a trigger source does. Both switch-DOWN and Pulse In 2 pick
 // one of these (set in the config menu). Defaults reproduce the original firmware.
-enum Behaviour { BHV_INVERT, BHV_CLS, BHV_CYCLE_FX, BHV_RANDOM_FX, BHV_CV_FX,
+enum Behaviour { BHV_INVERT, BHV_CLS, BHV_CYCLE_FX, BHV_RANDOM_FX,
                  BHV_FX1_STROBE, BHV_FX2_FADE, BHV_FX3_FADEWHITE, BHV_FX4_SNOW,
                  BHV_FX5_SWAP, BHV_FX6_CORRUPT, BHV_FX7_ROLL, BHV_COUNT };
 static const char *const BHV_NAMES[BHV_COUNT] = {
-    "INVERT","CLS","CYCLE FX","RANDOM FX","CV FX",
+    "INVERT","CLS","CYCLE FX","RANDOM FX",
     "STROBE","FADE","FADEWHITE","SNOW","SWAP","CORRUPT","ROLL" };
 // Menu FX order (FX1..7) → the low-level FX enum (different order).
 static const int BHV_FX_MAP[7] = {
@@ -721,12 +720,7 @@ static bool __not_in_flash_func(apply_behaviour)(int bhv, bool held, bool rising
         case BHV_RANDOM_FX:
             if (rising) { st.fx_index = lcg_rand() % FX_COUNT; st.fx_phase = 0; }
             return run_fx(st.fx_index, st, swap_xy_out);
-        case BHV_CV_FX: {                     // Audio In 2 level selects which FX
-            int idx = (int)(((shared.audio_in2 + 2048) * FX_COUNT) / 4096);
-            idx = clamp(idx, 0, FX_COUNT - 1);
-            return run_fx(idx, st, swap_xy_out);
-        }
-        default:                              // FX1..FX6 = a specific fixed effect
+        default:                              // FX1..FX7 = a specific fixed effect
             return run_fx(BHV_FX_MAP[bhv - BHV_FX1_STROBE], st, swap_xy_out);
     }
 }
@@ -1313,8 +1307,6 @@ public:
         uint32_t aw = audio_write_idx;
         audio_ring[aw & AUDIO_RING_MASK] = (int16_t)shared.audio_y;
         audio_write_idx = aw + 1;
-
-        shared.audio_in2 = AudioIn2();   // CV_FX selector source
 
         // Pulse In 1 is its own trigger source (cfg_pu1). Held + latched rising edge
         // (Core 1 reads-and-clears; a Core 1 poll could miss fast pulses).

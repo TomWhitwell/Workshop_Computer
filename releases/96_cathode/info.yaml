@@ -28,8 +28,8 @@ manual: |
   position offset / scope audio gain & baseline) with pickup hysteresis.
 
   Three independent performance-trigger sources — Switch DOWN, Pulse In 1, Pulse In 2 —
-  each runs a configurable behaviour (invert, clear, cycle/random/CV-selected effect, or
-  one fixed effect: strobe / fade / fade-to-white / snow / swap / corrupt). Hold Switch
+  each runs a configurable behaviour (invert, clear, cycle/random effect, or one fixed
+  effect: strobe / fade / fade-to-white / snow / swap / corrupt / roll). Hold Switch
   DOWN and twist Main/X/Y to open the on-screen config menu and assign each source.
 
   Hold Switch DOWN at power-on for alt-boot mode: Switch UP shows a selector (Main knob
@@ -43,9 +43,6 @@ panel:
     - id: AudioIn1
       name: Scope Input
       description: Oscilloscope trace source; positive voltage deflects up, gain via Knob Y
-    - id: AudioIn2
-      name: FX Select CV
-      description: Selects which effect when a trigger source is set to CV FX
     - id: CVIn1
       name: Draw X
       description: Etch-a-sketch X axis (scaled/offset by Knob X), sampled at 48kHz

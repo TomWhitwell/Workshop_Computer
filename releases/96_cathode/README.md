@@ -123,10 +123,9 @@ There are **three independent trigger sources** — Switch-DOWN, Pulse In 1, Pul
 | CLS | Clear the screen (on each trigger) |
 | CYCLE FX | Advance to the next performance effect on each new trigger; run it while held |
 | RANDOM FX | Pick a random effect on each trigger |
-| CV FX | Audio In 2 level selects which effect |
-| STROBE / FADE / FADEWHITE / SNOW / SWAP / CORRUPT | Run that one fixed effect while held |
+| STROBE / FADE / FADEWHITE / SNOW / SWAP / CORRUPT / ROLL | Run that one fixed effect while held |
 
-The six performance effects: **Strobe** (rapid flash), **Fade** (freeze + fade to black), **Fade-white** (freeze + bloom to white), **Swap** (etch: transpose X/Y · scope: reverse sweep), **Snow** (random static), **Corrupt** (rows shift/tear + noise).
+The seven performance effects: **Strobe** (rapid flash), **Fade** (freeze + fade to black), **Fade-white** (freeze + bloom to white), **Swap** (etch: transpose X/Y · scope: reverse sweep), **Snow** (random static), **Corrupt** (rows shift/tear + noise), **Roll** (vertical screen-roll scroll).
 
 ### Config menu
 
