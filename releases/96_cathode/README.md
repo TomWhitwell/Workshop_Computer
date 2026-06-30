@@ -73,6 +73,8 @@ The signal is **PAL** (50Hz). Displays locked to NTSC-only will not show it; mos
 |------|----------|
 | Pulse Out 1 | Composite video — DAC bit 0 (via 1kΩ). |
 | Pulse Out 2 | Composite video — DAC bit 1 (via 220Ω). |
+| CV Out 1 | Patchteroids pitch (alt boot only) — see Patchteroids below. Unused otherwise. |
+| CV Out 2 | Patchteroids gate (alt boot only) — see Patchteroids below. Unused otherwise. |
 
 Both pulse outputs are consumed by the video DAC and are not available as normal pulse outputs while this firmware runs.
 
@@ -181,7 +183,37 @@ Framebuffer (360×256, 1bpp) ─► PAL word stream ─► PIO/DMA ─► Pu1+Pu
 7. Hold **Switch DOWN** for the performance effect; tap it repeatedly to cycle effects. While holding DOWN, twist Knob X or Y to open the **config menu**.
 8. Gate **Pulse In 1** / **Pulse In 2** to fire their configured effects (set them in the config menu; e.g. PU1 = CLS to clear).
 
-**Alt boot — screensaver:** hold Switch DOWN while powering on to start in screensaver mode — a bouncing block with phosphor trails, to protect a CRT from burn-in. (More screensaver patterns planned.)
+**Alt boot — screensaver / play modes:** hold Switch DOWN while powering on to start in alt-boot mode, a small menu of screen modes that also keep a CRT from burning in.
+
+- **Switch UP** shows the **selector**: a list of modes. Turn the **Main knob** to choose.
+- **Switch MIDDLE or DOWN** runs the selected mode.
+
+| Mode | Type |
+|------|------|
+| **PATCHTEROIDS** | Interactive — a playable, patch-controlled game (see below) |
+| **COMET** | Passive — a bouncing block with phosphor trails (a plain screensaver, included to show the selector working) |
+
+### Patchteroids
+
+A tiny Asteroids-style game played through the modular. A ship cruises forward and wraps around the screen; you steer, fire, and shoot the drifting comets. It is both a screensaver and a simple performance/sequencing source — every hit raises a pitch CV and fires a gate.
+
+**Controls**
+
+| Control | Action |
+|---------|--------|
+| Main knob | Steering — centre = straight ahead; turn CW/CCW to curve (hard over = tight turn) |
+| CV In 1 | Added to the Main knob — patch an LFO/CV to modulate or automate steering |
+| Pulse In 1 | Fire |
+| Switch DOWN (momentary) | Fire (alternative to PU1) |
+
+**Outputs**
+
+| Jack | Action |
+|------|--------|
+| CV Out 1 | Pitch (1V/oct). Rises **one semitone per comet hit**; on a crash it arpeggiates **down to the base note** while the score is shown |
+| CV Out 2 | Gate — a short pulse on **every hit** (and on every step of the crash arpeggio) |
+
+Shooting a large comet splits it into two smaller ones (shoot those to destroy them); the comet count grows the longer you survive. Crash into one and the screen shows **HITS** with your score while the pitch descends. Patch CV Out 1 into an oscillator's v/oct and CV Out 2 into an envelope/gate to play the game as a melodic sequence.
 
 ---
 

@@ -1,4 +1,4 @@
-draft: true
+draft: false
 Name: Cathode Ray
 Description: PAL composite video synthesiser — oscilloscope + etch-a-sketch, greyscale via dithering, performance effects
 Language: C++ (RP2040 Pico SDK)
@@ -32,8 +32,11 @@ manual: |
   one fixed effect: strobe / fade / fade-to-white / snow / swap / corrupt). Hold Switch
   DOWN and twist Main/X/Y to open the on-screen config menu and assign each source.
 
-  Hold Switch DOWN at power-on for screensaver mode (a bouncing block — protects CRTs
-  from burn-in).
+  Hold Switch DOWN at power-on for alt-boot mode: Switch UP shows a selector (Main knob
+  picks), MIDDLE/DOWN plays. PATCHTEROIDS is a patch-controlled Asteroids game — Main
+  knob (+ CV In 1) steers, PU1 / Switch DOWN fire; CV Out 1 = pitch (rises a semitone
+  per hit, arpeggiates down on a crash), CV Out 2 = gate per hit. COMET is a passive
+  bouncing-block screensaver. Both protect CRTs from burn-in.
 
 panel:
   inputs:
@@ -62,6 +65,12 @@ panel:
     - id: PulseOut2
       name: Video DAC bit 1
       description: Composite video via 220Ω (white step); summed into RCA centre pin
+    - id: CVOut1
+      name: Patchteroids Pitch
+      description: Alt-boot Patchteroids only — 1V/oct pitch, +1 semitone per hit (else unused)
+    - id: CVOut2
+      name: Patchteroids Gate
+      description: Alt-boot Patchteroids only — gate pulse on each hit (else unused)
 
 controls:
   modes:

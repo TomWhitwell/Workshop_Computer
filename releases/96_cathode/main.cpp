@@ -155,6 +155,10 @@ struct SharedState {
     volatile uint8_t  cfg_pu2;       // Behaviour for Pulse In 2  (Knob Y; def INVERT)
     volatile bool     menu_active;   // true while the config menu is showing
     volatile bool     alt_mode;      // true if DOWN held at boot → screensaver
+    // Patchteroids CV bridge (game on Core 1 ↔ CV I/O on Core 0).
+    volatile int32_t  ast_note;      // current pitch, semitones above base (Core 1 writes)
+    volatile uint32_t ast_gate_seq;  // bumped by Core 1 on each hit/arp-step → Core 0 gates
+    volatile bool     ast_fire;      // PU1 fire latch: Core 0 sets, Core 1 reads-and-clears
 };
 static SharedState shared;
 
@@ -332,21 +336,34 @@ static void build_frame_words(int back, bool invert) {
 // ─── Performance effects ─────────────────────────────────────────────────────
 // Low-level effect set (the actual visual effects). run_fx() executes one of these.
 enum { FX_STROBE, FX_FREEZE_BLACK, FX_FREEZE_WHITE, FX_SWAP_XY, FX_SNOW, FX_CORRUPT,
-       FX_COUNT };
+       FX_ROLL, FX_COUNT };
 static bool effect_invert = false; // strobe: OR'd into build_frame_words invert
+
+// Screen roll: vertically scroll the whole grey buffer a few rows each frame (a TV with
+// broken vertical hold). Wraps around. Keeps drawing under it.
+static void __not_in_flash_func(roll_step)() {
+    const int SHIFT = 2;                    // rows per frame
+    static uint8_t tmp[GREY_W * 2];         // hold the SHIFT rows that wrap around
+    for (int r = 0; r < SHIFT; r++)
+        for (int c = 0; c < GREY_W; c++) tmp[r*GREY_W + c] = grey_buffer[r*GREY_W + c];
+    memmove(grey_buffer, &grey_buffer[SHIFT*GREY_W], (GREY_H - SHIFT) * GREY_W);
+    for (int r = 0; r < SHIFT; r++)
+        for (int c = 0; c < GREY_W; c++)
+            grey_buffer[(GREY_H - SHIFT + r)*GREY_W + c] = tmp[r*GREY_W + c];
+}
 
 // ─── Behaviours (configurable per trigger source: switch-DOWN and Pu2) ────────
 // A "behaviour" is what a trigger source does. Both switch-DOWN and Pulse In 2 pick
 // one of these (set in the config menu). Defaults reproduce the original firmware.
 enum Behaviour { BHV_INVERT, BHV_CLS, BHV_CYCLE_FX, BHV_RANDOM_FX, BHV_CV_FX,
                  BHV_FX1_STROBE, BHV_FX2_FADE, BHV_FX3_FADEWHITE, BHV_FX4_SNOW,
-                 BHV_FX5_SWAP, BHV_FX6_CORRUPT, BHV_COUNT };
+                 BHV_FX5_SWAP, BHV_FX6_CORRUPT, BHV_FX7_ROLL, BHV_COUNT };
 static const char *const BHV_NAMES[BHV_COUNT] = {
     "INVERT","CLS","CYCLE FX","RANDOM FX","CV FX",
-    "STROBE","FADE","FADEWHITE","SNOW","SWAP","CORRUPT" };
-// Menu FX order (FX1..6) → the low-level FX enum (different order).
-static const int BHV_FX_MAP[6] = {
-    FX_STROBE, FX_FREEZE_BLACK, FX_FREEZE_WHITE, FX_SNOW, FX_SWAP_XY, FX_CORRUPT };
+    "STROBE","FADE","FADEWHITE","SNOW","SWAP","CORRUPT","ROLL" };
+// Menu FX order (FX1..7) → the low-level FX enum (different order).
+static const int BHV_FX_MAP[7] = {
+    FX_STROBE, FX_FREEZE_BLACK, FX_FREEZE_WHITE, FX_SNOW, FX_SWAP_XY, FX_CORRUPT, FX_ROLL };
 
 // Per-trigger-source effect state (so switch-DOWN and Pu2 don't fight each other).
 struct FxState { int fx_index; uint32_t fx_phase; bool strobe_invert; };
@@ -401,6 +418,11 @@ static const uint8_t dither[GREY_LEVELS][4][2] = {
 // Dither orientation index, advanced every 2 frames by Core 1 (see core1_main loop).
 static int dither_orient = 0;
 
+// When set, expand_grey_to_fb() skips white-dilation for this frame. Used for static
+// TEXT screens (menu / charset / death) — dilation is a scope-trace hack that just
+// fattens text and merges glyphs. Set per-frame by the screens that draw text.
+static bool text_mode = false;
+
 // Right-dilate white by WHITE_DILATE pixels: every white pixel also forces the next
 // WHITE_DILATE pixels to its RIGHT white. Exploits the composite DAC's rising-edge
 // slew — the node only reaches full white when several adjacent pixels are white, so a
@@ -418,13 +440,15 @@ static int dither_orient = 0;
 static const uint8_t dilate_amount[GREY_LEVELS] = { 0, 1, 2, 3, WHITE_DILATE };
 
 // Level-aware right-dilation: for each grey cell, extend its lit sub-pixels rightward
-// by dilate_amount[level] pixels. Seeds from a SNAPSHOT of the row's original lit bits
-// (not its own writes) so chained low-level cells don't over-extend. `grow` = grey row.
-static inline void dilate_white_leveled(uint8_t *fb, const uint8_t *grow) {
+// by dilate_amount[level] pixels (capped at `cap`). Seeds from a SNAPSHOT of the row's
+// original lit bits (not its own writes) so chained low-level cells don't over-extend.
+// `grow` = grey row. Text passes a smaller cap so glyphs stay legible but still white.
+static inline void dilate_white_leveled(uint8_t *fb, const uint8_t *grow, int cap) {
     uint8_t src[FB_STRIDE];
     for (int b = 0; b < FB_STRIDE; b++) src[b] = fb[b];   // snapshot original lit bits
     for (int gx = 0; gx < GREY_W; gx++) {
         int amt = dilate_amount[grow[gx]];
+        if (amt > cap) amt = cap;
         if (amt == 0) continue;
         int base_p = gx * GREY_SCALE;
         for (int sx = 0; sx < GREY_SCALE; sx++) {
@@ -459,7 +483,7 @@ static void __not_in_flash_func(expand_grey_to_fb)() {
                 fb[b] = byte;
             }
 #if WHITE_DILATE
-            dilate_white_leveled(fb, grow);
+            dilate_white_leveled(fb, grow, WHITE_DILATE);   // text uses the wider gap below
 #endif
         }
     }
@@ -517,8 +541,8 @@ static const uint8_t font5x7[][7] = {
     {0x07,0x02,0x02,0x02,0x02,0x12,0x0C}, // J
     {0x11,0x12,0x14,0x18,0x14,0x12,0x11}, // K
     {0x10,0x10,0x10,0x10,0x10,0x10,0x1F}, // L
-    {0x11,0x1B,0x15,0x15,0x11,0x11,0x11}, // M
-    {0x11,0x19,0x15,0x13,0x11,0x11,0x11}, // N
+    {0x11,0x1B,0x15,0x11,0x11,0x11,0x11}, // M (inner V near top — distinct from H)
+    {0x1C,0x12,0x11,0x11,0x11,0x11,0x11}, // N (lowercase-n shape — arch at top)
     {0x0E,0x11,0x11,0x11,0x11,0x11,0x0E}, // O
     {0x1E,0x11,0x11,0x1E,0x10,0x10,0x10}, // P
     {0x0E,0x11,0x11,0x11,0x15,0x12,0x0D}, // Q
@@ -527,7 +551,7 @@ static const uint8_t font5x7[][7] = {
     {0x1F,0x04,0x04,0x04,0x04,0x04,0x04}, // T
     {0x11,0x11,0x11,0x11,0x11,0x11,0x0E}, // U
     {0x11,0x11,0x11,0x11,0x11,0x0A,0x04}, // V
-    {0x11,0x11,0x11,0x15,0x15,0x1B,0x11}, // W
+    {0x11,0x11,0x11,0x11,0x15,0x15,0x11}, // W
     {0x11,0x11,0x0A,0x04,0x0A,0x11,0x11}, // X
     {0x11,0x11,0x0A,0x04,0x04,0x04,0x04}, // Y
     {0x1F,0x01,0x02,0x04,0x08,0x10,0x1F}, // Z
@@ -559,7 +583,8 @@ static int font_index(char c) {
 }
 
 // Draw a text string into grey_buffer at grey-cell (gx,gy) top-left, given level.
-// 8 cells per glyph (5px glyph + 3px gap). Clipped to the buffer.
+// 9 cells per glyph advance (monospaced), 5px glyph. Text dilates by 4 (full white), so
+// 5px+4 = ends col8, next glyph at col9 → a clean 1px gap (no merge). Clipped.
 static void draw_text(int gx, int gy, const char *s, uint8_t level) {
     for (; *s; s++) {
         const uint8_t *g = font5x7[font_index(*s)];
@@ -574,9 +599,19 @@ static void draw_text(int gx, int gy, const char *s, uint8_t level) {
                 }
             }
         }
-        gx += 8;   // 5px glyph + 3px gap
+        gx += 9;   // monospaced advance (5px glyph + 4px dilation = 1px gap)
         if (gx >= GREY_W) break;
     }
+}
+
+// Draw a non-negative integer as text at grey-cell (gx,gy).
+[[maybe_unused]] static void draw_number(int gx, int gy, int n, uint8_t level) {
+    char buf[12]; int i = 0;
+    if (n < 0) n = 0;
+    do { buf[i++] = '0' + (n % 10); n /= 10; } while (n && i < 11);
+    char rev[12]; for (int j = 0; j < i; j++) rev[j] = buf[i-1-j];
+    rev[i] = 0;
+    draw_text(gx, gy, rev, level);
 }
 
 static inline int32_t clamp(int32_t v, int32_t lo, int32_t hi) {
@@ -655,6 +690,9 @@ static bool __not_in_flash_func(run_fx)(int fx, FxState &st, bool &swap_xy_out) 
         case FX_SWAP_XY:                // transpose etch / reverse scope; keep drawing
             swap_xy_out = true;
             return false;
+        case FX_ROLL:                   // vertical roll; keep drawing under it
+            roll_step();
+            return false;
     }
     return false;
 }
@@ -695,6 +733,7 @@ static bool __not_in_flash_func(apply_behaviour)(int bhv, bool held, bool rising
 
 // Config menu render (Core 1). X knob = switch-DOWN behaviour, Y = Pu2 behaviour.
 static void __not_in_flash_func(draw_menu)() {
+    text_mode = true;                 // crisp text — no white-dilation this frame
     memset(grey_buffer, 0, GREY_SIZE);
     draw_text(6,  2,  "CONFIG", GREY_LEVELS - 1);
     // Three independent triggers: DOWN (Main knob), PU1 (Knob X), PU2 (Knob Y).
@@ -706,8 +745,8 @@ static void __not_in_flash_func(draw_menu)() {
     draw_text(6, 100, BHV_NAMES[shared.cfg_pu2], GREY_LEVELS - 1);
 }
 
-// Alt-boot screensaver (placeholder): a bouncing block leaving phosphor trails.
-static void __not_in_flash_func(screensaver_step)() {
+// Parked screensaver: a bouncing block leaving phosphor trails (kept; selectable later).
+[[maybe_unused]] static void __not_in_flash_func(screensaver_bounce)() {
     static int sx = GREY_W/2, sy = GREY_H/2, vx = 1, vy = 1;
     fade_step();                                 // trails
     sx += vx; sy += vy;
@@ -718,7 +757,240 @@ static void __not_in_flash_func(screensaver_step)() {
             GREY_SET(grey_buffer, sy + dy, sx + dx, GREY_LEVELS - 1);
 }
 
+// ─── Asteroids screensaver ────────────────────────────────────────────────────
+// Wrap-around play area. A small triangle ship moves forward constantly; the Main knob
+// sets turn rate (centre = straight). Switch DOWN fires a bullet from the nose (no wrap,
+// dies at edge). Parent comets drift and wrap; shooting a parent splits it into two
+// children, shooting a child destroys it. Max parents grows +1 every 3 hits. A ship-
+// comet collision shows the HITS score then resets. Switch UP shows the font charset.
+// Positions are 16.8 fixed point (x256). Heading is 0..255 (256 = full turn).
+#define AST_MAXCOMET 16      // pool size (parents + children)
+#define AST_NBULLET  5
+#define SCR_W256     (GREY_W << 8)
+#define SCR_H256     (GREY_H << 8)
+// sin table, 256 steps, amplitude ±256 (8.8). cos = sin(a+64).
+static const int16_t sin256[256] = {
+   0,6,13,19,25,31,38,44,50,56,62,68,74,80,86,92,98,104,109,115,121,126,132,137,142,
+  147,152,157,162,167,172,177,181,185,190,194,198,202,206,209,213,216,220,223,226,229,
+  231,234,237,239,241,243,245,247,248,250,251,252,253,254,255,255,255,256,255,255,255,
+  254,253,252,251,250,248,247,245,243,241,239,237,234,231,229,226,223,220,216,213,209,
+  206,202,198,194,190,185,181,177,172,167,162,157,152,147,142,137,132,126,121,115,109,
+  104,98,92,86,80,74,68,62,56,50,44,38,31,25,19,13,6,0,-6,-13,-19,-25,-31,-38,-44,-50,
+  -56,-62,-68,-74,-80,-86,-92,-98,-104,-109,-115,-121,-126,-132,-137,-142,-147,-152,
+  -157,-162,-167,-172,-177,-181,-185,-190,-194,-198,-202,-206,-209,-213,-216,-220,-223,
+  -226,-229,-231,-234,-237,-239,-241,-243,-245,-247,-248,-250,-251,-252,-253,-254,-255,
+  -255,-255,-256,-255,-255,-255,-254,-253,-252,-251,-250,-248,-247,-245,-243,-241,-239,
+  -237,-234,-231,-229,-226,-223,-220,-216,-213,-209,-206,-202,-198,-194,-190,-185,-181,
+  -177,-172,-167,-162,-157,-152,-147,-142,-137,-132,-126,-121,-115,-109,-104,-98,-92,
+  -86,-80,-74,-68,-62,-56,-50,-44,-38,-31,-25,-19,-13,-6 };
+static inline int sin_a(uint8_t a){ return sin256[a]; }
+static inline int cos_a(uint8_t a){ return sin256[(uint8_t)(a + 64)]; }
+
+static void __not_in_flash_func(screensaver_asteroids)() {
+    struct Comet  { int32_t x, y, vx, vy; uint8_t active; uint8_t gen; }; // gen 0=parent,1=child
+    struct Bullet { int32_t x, y, vx, vy; int life; };  // life 0 = inactive
+    static bool init = false;
+    static int32_t  shipx, shipy; static uint8_t heading;
+    static Comet  comets[AST_MAXCOMET];
+    static Bullet bullets[AST_NBULLET];
+    static bool   prev_down = false;
+    static int    hits = 0;        // comets shot this life
+    static int    dead = 0;        // >0: showing the death "HITS n" screen (frames)
+    static int    parent_max = 3;  // max parent (gen-0) comets; +1 every 3 hits
+    static int    note = 0;        // current pitch (semitones above base); climbs per hit
+    static int    arp = 0;         // >0: crash arpeggio running (descends note → 0)
+
+    // Bump the CV gate sequence so Core 0 emits a gate pulse (a hit or an arp step).
+    auto gate_pulse = [](){ shared.ast_gate_seq = shared.ast_gate_seq + 1; };
+
+    auto rnd = [](){ return (int)(lcg_rand() & 0x7fffffff); };
+    // initialise a parent comet at a random edge with a random drift
+    auto make_parent = [&](Comet &c){
+        if (rnd() & 1) { c.x = (rnd()%2)?0:SCR_W256-256; c.y = (rnd()%GREY_H)<<8; }
+        else           { c.y = (rnd()%2)?0:SCR_H256-256; c.x = (rnd()%GREY_W)<<8; }
+        c.vx = ((rnd()%128) - 64) * 4;
+        c.vy = ((rnd()%128) - 64) * 4;
+        if (c.vx==0 && c.vy==0) c.vx = 128;
+        c.active = 1; c.gen = 0;
+    };
+    auto count_parents = [&](){ int n=0; for (auto &c:comets) if (c.active && c.gen==0) n++; return n; };
+    auto spawn_slot = [&]()->Comet*{ for (auto &c:comets) if (!c.active) return &c; return nullptr; };
+
+    if (!init) {
+        init = true;
+        note = 0; shared.ast_note = 0;
+        shipx = SCR_W256/2; shipy = SCR_H256/2; heading = 192;  // pointing up
+        for (auto &c : comets) c.active = 0;
+        for (int i = 0; i < parent_max; i++) { Comet *c = spawn_slot(); if (c) make_parent(*c); }
+        for (auto &b : bullets) b.life = 0;
+    }
+
+    // (Switch UP is handled by the alt-boot selector before we get here, so the game
+    //  only runs when the switch is MID or DOWN.)
+
+    // ── Death screen: show HITS while the pitch arpeggiates DOWN to 0 (gate per step),
+    //    then hold briefly and resume. ──
+    if (arp > 0) {
+        text_mode = true;
+        arp++;
+        if (note <= 0) { arp = 0; dead = 60; }        // nothing to descend → hold HITS
+        else if ((arp % 4) == 0) {                    // one step every 4 frames (~80ms)
+            note--; shared.ast_note = note; gate_pulse();
+            if (note == 0) { arp = 0; dead = 60; }    // arp done → hold HITS ~1.2s
+        }
+        memset(grey_buffer, 0, GREY_SIZE);
+        draw_text(40, 40, "HITS", GREY_LEVELS-1);
+        draw_number(60, 56, hits, GREY_LEVELS-1);
+        return;
+    }
+
+    // ── Post-arpeggio hold: keep HITS up briefly, then reset the life. ──
+    if (dead > 0) {
+        text_mode = true;
+        dead--;
+        memset(grey_buffer, 0, GREY_SIZE);
+        draw_text(40, 40, "HITS", GREY_LEVELS-1);
+        draw_number(60, 56, hits, GREY_LEVELS-1);
+        if (dead == 0) {                 // resume: reset life (parent_max back to 3)
+            hits = 0; parent_max = 3;
+            note = 0; shared.ast_note = 0;
+            shipx = SCR_W256/2; shipy = SCR_H256/2; heading = 192;
+            for (auto &c : comets) c.active = 0;
+            for (int i = 0; i < parent_max; i++) { Comet *c = spawn_slot(); if (c) make_parent(*c); }
+            for (auto &b : bullets) b.life = 0;
+        }
+        return;
+    }
+
+    // ── Input: Main knob → turn rate (centre = straight); DOWN edge → fire ──
+    int32_t turn = shared.knob_main - 2048;        // -2048..+2047
+    heading = (uint8_t)(heading + turn / 512);     // hard over ≈ ±4 steps/frame
+
+    bool down = (shared.sw_position == 2);
+    bool fire = (down && !prev_down);              // switch DOWN edge
+    if (shared.ast_fire) { fire = true; shared.ast_fire = false; }  // PU1 fire (read-clear)
+    if (fire) {
+        for (auto &b : bullets) if (!b.life) {
+            b.x = shipx; b.y = shipy;
+            b.vx = cos_a(heading) * 6; b.vy = sin_a(heading) * 6;  // fast, from nose
+            b.life = 1; break;
+        }
+    }
+    prev_down = down;
+
+    // ── Advance ship (constant forward), wrap ──
+    shipx += cos_a(heading) * 2; shipy += sin_a(heading) * 2;      // slow cruise
+    shipx = (shipx + SCR_W256) % SCR_W256;
+    shipy = (shipy + SCR_H256) % SCR_H256;
+
+    // ── Advance comets, wrap (active only) ──
+    for (auto &c : comets) {
+        if (!c.active) continue;
+        c.x = (c.x + c.vx + SCR_W256) % SCR_W256;
+        c.y = (c.y + c.vy + SCR_H256) % SCR_H256;
+    }
+
+    // ── Advance bullets (no wrap; die at edge); check comet hits ──
+    // Parent (gen 0) hit → splits into 2 children (gen 1). Child hit → destroyed.
+    // Hit radius scales with size: parent r≈7 (r²≤49), child r≈4 (r²≤16).
+    for (auto &b : bullets) {
+        if (!b.life) continue;
+        b.x += b.vx; b.y += b.vy;
+        if (b.x < 0 || b.x >= SCR_W256 || b.y < 0 || b.y >= SCR_H256) { b.life = 0; continue; }
+        for (auto &c : comets) {
+            if (!c.active) continue;
+            int dx = (b.x - c.x) >> 8, dy = (b.y - c.y) >> 8;
+            int r2 = (c.gen == 0) ? 49 : 16;
+            if (dx*dx + dy*dy <= r2) {
+                b.life = 0; hits++;
+                note++; shared.ast_note = note; gate_pulse();  // pitch climbs a semitone
+                if (c.gen == 0) {                 // split into two children
+                    int32_t ovx = c.vx, ovy = c.vy;
+                    c.gen = 1;                    // reuse this slot as child 1
+                    c.vx = ovx - ovy/2; c.vy = ovy + ovx/2;   // veer one way
+                    Comet *c2 = spawn_slot();     // child 2 veers the other
+                    if (c2) { *c2 = c; c2->vx = ovx + ovy/2; c2->vy = ovy - ovx/2; }
+                } else {
+                    c.active = 0;                 // child destroyed
+                }
+                break;
+            }
+        }
+    }
+
+    // ── Escalation: max parents = 3 + hits/3 (capped). Top up parents to the max. ──
+    parent_max = 3 + hits/3;
+    if (parent_max > AST_MAXCOMET - 4) parent_max = AST_MAXCOMET - 4;  // leave room for children
+    while (count_parents() < parent_max) { Comet *c = spawn_slot(); if (!c) break; make_parent(*c); }
+
+    // ── Ship vs comet collision → start the crash arpeggio (then HITS screen) ──
+    for (auto &c : comets) {
+        if (!c.active) continue;
+        int dx = (shipx - c.x) >> 8, dy = (shipy - c.y) >> 8;
+        int r2 = (c.gen == 0) ? 49 : 16;
+        if (dx*dx + dy*dy <= r2) { arp = 1; return; }   // arp runs at top of next frame
+    }
+
+    // ── Render ──
+    fade_step();   // light phosphor trails
+    auto plot = [&](int px, int py, uint8_t lvl){
+        px = ((px % GREY_W) + GREY_W) % GREY_W; py = ((py % GREY_H) + GREY_H) % GREY_H;
+        GREY_SET(grey_buffer, py, px, lvl);
+    };
+    // comets: parents ~8×8, children ~4×4
+    for (auto &c : comets) {
+        if (!c.active) continue;
+        int cx = c.x >> 8, cy = c.y >> 8;
+        int lo = (c.gen == 0) ? -3 : -1, hi = (c.gen == 0) ? 4 : 2;
+        for (int dy = lo; dy <= hi; dy++)
+            for (int dx = lo; dx <= hi; dx++)
+                plot(cx+dx, cy+dy, GREY_LEVELS-1);
+    }
+    // bullets
+    for (auto &b : bullets) if (b.life) plot(b.x>>8, b.y>>8, GREY_LEVELS-1);
+    // ship triangle: nose + two back corners (heading-relative)
+    int sx = shipx >> 8, sy = shipy >> 8;
+    int nx = sx + (cos_a(heading)*4>>8),        ny = sy + (sin_a(heading)*4>>8);
+    uint8_t bl = heading + 96, br = heading + 160;   // back corners ±135°-ish
+    int lx = sx + (cos_a(bl)*4>>8), ly = sy + (sin_a(bl)*4>>8);
+    int rx = sx + (cos_a(br)*4>>8), ry = sy + (sin_a(br)*4>>8);
+    // draw the three edges in the grey buffer
+    auto line = [&](int x0,int y0,int x1,int y1){
+        int adx=x1-x0; if(adx<0)adx=-adx; int ady=y1-y0; if(ady<0)ady=-ady;
+        int sgx=x0<x1?1:-1, sgy=y0<y1?1:-1, err=adx-ady;
+        for(;;){ plot(x0,y0,GREY_LEVELS-1); if(x0==x1&&y0==y1)break;
+            int e2=2*err; if(e2>-ady){err-=ady;x0+=sgx;} if(e2<adx){err+=adx;y0+=sgy;} }
+    };
+    line(nx,ny,lx,ly); line(nx,ny,rx,ry); line(lx,ly,rx,ry);
+}
+
+// ── Alt-boot selector ───────────────────────────────────────────────────────────────
+// Alt boot (DOWN held through power-on) offers a menu of performance-tool/screensaver
+// hybrids. Switch UP shows this menu; the Main knob picks one; switch MID/DOWN plays it.
+// Add a hybrid: add its name here and a case in the alt_mode dispatch (update_framebuffer).
+static const char *ALT_NAMES[] = { "PATCHTEROIDS", "COMET" };
+#define ALT_COUNT ((int)(sizeof(ALT_NAMES)/sizeof(ALT_NAMES[0])))
+static int alt_select = 0;   // chosen hybrid index (Core 1 only)
+
+static void __not_in_flash_func(draw_alt_menu)() {
+    text_mode = true;
+    // Main knob (0..4095) → selection index across ALT_COUNT entries.
+    int sel = (shared.knob_main * ALT_COUNT) / 4096;
+    if (sel < 0) sel = 0;
+    if (sel >= ALT_COUNT) sel = ALT_COUNT - 1;
+    alt_select = sel;
+
+    memset(grey_buffer, 0, GREY_SIZE);
+    draw_text(6, 4, "SELECT", GREY_LEVELS - 1);
+    for (int i = 0; i < ALT_COUNT; i++) {
+        int y = 24 + i * 14;
+        if (i == sel) draw_text(2, y, ">", GREY_LEVELS - 1);  // cursor marks the choice
+        draw_text(12, y, ALT_NAMES[i], GREY_LEVELS - 1);
+    }
+}
+
 static void __not_in_flash_func(update_framebuffer)() {
+    text_mode = false;   // default: normal (dilated) rendering; text screens set it true
     // Snapshot volatile shared state once. (CV is read per-sample from the etch
     // ring below, not from this snapshot.)
     int32_t  knob    = shared.knob_main;
@@ -731,8 +1003,20 @@ static void __not_in_flash_func(update_framebuffer)() {
     // (Pulse In 1 is now a configurable trigger source — see below; clearing the screen
     //  is available as the CLS behaviour.)
 
-    // Alt boot mode = screensaver (placeholder), full takeover.
-    if (shared.alt_mode) { screensaver_step(); expand_grey_to_fb(); return; }
+    // Alt boot mode: a selectable set of performance-tool/screensaver hybrids.
+    // Switch UP = selector menu (Main knob picks); MID/DOWN = run the selected hybrid.
+    if (shared.alt_mode) {
+        if (shared.sw_position == 0) {           // UP → selector
+            draw_alt_menu();
+        } else {                                  // MID/DOWN → play selected
+            switch (alt_select) {
+                case 1:  screensaver_bounce();    break;   // COMET (parked example)
+                default: screensaver_asteroids(); break;   // 0 = PATCHTEROIDS
+            }
+        }
+        expand_grey_to_fb();
+        return;
+    }
 
     // Config menu takeover (entered by moving X/Y while DOWN — state owned by Core 0).
     // Force invert off so the menu is always readable (white-on-black).
@@ -1080,6 +1364,33 @@ public:
         }
         if (!seen_release && boot_ctr >= 4800 && !down) seen_release = true;
 
+        // ── Patchteroids CV bridge (alt mode only) ─────────────────────────────
+        // Steering: CV1 (bipolar) adds to the Main knob → game turn. Fire: PU1 rising
+        // edge latches ast_fire (Core 1 reads-and-clears). CV outs: CVOut1 = pitch
+        // (base note + ast_note semitones, calibrated v/oct); CVOut2 = short gate,
+        // (re)triggered whenever ast_gate_seq changes (a hit or an arpeggio step).
+        if (shared.alt_mode) {
+            int32_t steer = shared.knob_main + shared.cv_x;   // cv_x = CVIn1, ±2048
+            if (steer < 0) steer = 0;
+            if (steer > 4095) steer = 4095;
+            shared.knob_main = steer;                          // game reads this as turn
+
+            if (PulseIn1RisingEdge()) shared.ast_fire = true; // PU1 = fire
+
+            // Pitch: MIDI note 36 (C2) + accumulated semitones, calibrated v/oct.
+            int n = 36 + (int)shared.ast_note;
+            if (n < 0) n = 0;
+            if (n > 127) n = 127;
+            CVOut1MIDINote((uint8_t)n);
+
+            // Gate: edge-detect the sequence counter, emit a ~10ms high pulse on CVOut2.
+            static uint32_t gate_seen = 0;
+            static int      gate_ctr  = 0;
+            uint32_t seq = shared.ast_gate_seq;
+            if (seq != gate_seen) { gate_seen = seq; gate_ctr = 480; }  // 480 @48k ≈ 10ms
+            if (gate_ctr > 0) { CVOut2(2047); gate_ctr--; } else CVOut2(-2048);
+        }
+
         bool ui_down = false, ui_down_rising = false;  // signals published to Core 1
         if (!shared.alt_mode && seen_release) {
             bool rising = down && !prev_down;
@@ -1166,9 +1477,18 @@ public:
             }
         };
 
+        // On DOWN release, force both knobs to RE-BIND (captured=false, bind_raw=current)
+        // so any movement during the effect/menu doesn't snap the etch/scope params when
+        // control resumes — the knob must be deliberately moved again to take over.
+        static bool pick_prev_down = false;
+        if (pick_prev_down && !down) {
+            pkX.captured = false; pkX.bind_raw = KnobVal(Knob::X);
+            pkY.captured = false; pkY.bind_raw = KnobVal(Knob::Y);
+        }
+        pick_prev_down = down;
+
         // Only run the etch/scope knob pickup when NOT holding DOWN — while DOWN is held
-        // the knobs belong to the effect/menu, so they must NOT move etch X/Y or scope
-        // params. (The next non-down frame re-binds with captured=false → no jump.)
+        // the knobs belong to the effect/menu, so they must NOT move etch X/Y or scope.
         if (boot_ctr < 4800) {
             boot_ctr++;
         } else if (!down) {
