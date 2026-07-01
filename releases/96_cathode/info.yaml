@@ -1,0 +1,102 @@
+draft: false
+Name: Cathode Ray
+Description: PAL composite video synthesiser — oscilloscope + etch-a-sketch, greyscale via dithering, performance effects
+Language: C++ (RP2040 Pico SDK)
+Creator: Andy Jenkinson (uglifruit)
+Version: 1.0.0
+Status: Released
+License: MIT
+Repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/96_cathode
+
+tags:
+  - video
+  - composite
+  - oscilloscope
+  - visualiser
+  - performance
+
+manual: |
+  Cathode Ray turns the Workshop Computer into a 1-bit PAL composite video synthesiser.
+  Wire a two-resistor DAC from Pulse Out 1 (1kΩ) and Pulse Out 2 (220Ω) into an RCA
+  centre pin (grounds common) and connect to any composite-input TV/monitor.
+
+  Main knob picks the mode: far CCW = etch-a-sketch (draw with CV In 1/2 as X/Y), the
+  rest = oscilloscope (Audio In 1 traces, sweep speed slow→fast across the knob).
+  Greyscale (5 levels) is produced by a 2×2 spatial dither into the 1-bit picture.
+
+  Switch UP = phosphor fade, MIDDLE = static. Knob X/Y are multi-function (CV scale /
+  position offset / scope audio gain & baseline) with pickup hysteresis.
+
+  Three independent performance-trigger sources — Switch DOWN, Pulse In 1, Pulse In 2 —
+  each runs a configurable behaviour (invert, clear, cycle/random effect, or one fixed
+  effect: strobe / fade / fade-to-white / snow / swap / corrupt / roll). Hold Switch
+  DOWN and twist Main/X/Y to open the on-screen config menu and assign each source.
+
+  Hold Switch DOWN at power-on for alt-boot mode: Switch UP shows a selector (Main knob
+  picks), MIDDLE/DOWN plays. PATCHTEROIDS is a patch-controlled Asteroids game — Main
+  knob (+ CV In 1) steers, PU1 / Switch DOWN fire; CV Out 1 = pitch (rises a semitone
+  per hit, arpeggiates down on a crash), CV Out 2 = gate per hit. COMET is a passive
+  bouncing-block screensaver. Both protect CRTs from burn-in.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Scope Input
+      description: Oscilloscope trace source; positive voltage deflects up, gain via Knob Y
+    - id: CVIn1
+      name: Draw X
+      description: Etch-a-sketch X axis (scaled/offset by Knob X), sampled at 48kHz
+    - id: CVIn2
+      name: Draw Y
+      description: Etch-a-sketch Y axis (scaled/offset by Knob Y), sampled at 48kHz
+    - id: PulseIn1
+      name: Trigger 1
+      description: Configurable performance trigger (default cycle FX; set to CLS to clear)
+    - id: PulseIn2
+      name: Trigger 2
+      description: Configurable performance trigger (default invert while held)
+  outputs:
+    - id: PulseOut1
+      name: Video DAC bit 0
+      description: Composite video via 1kΩ (black pedestal); summed into RCA centre pin
+    - id: PulseOut2
+      name: Video DAC bit 1
+      description: Composite video via 220Ω (white step); summed into RCA centre pin
+    - id: CVOut1
+      name: Patchteroids Pitch
+      description: Alt-boot Patchteroids only — 1V/oct pitch, +1 semitone per hit (else unused)
+    - id: CVOut2
+      name: Patchteroids Gate
+      description: Alt-boot Patchteroids only — gate pulse on each hit (else unused)
+
+controls:
+  modes:
+    - name: Oscilloscope
+      activation: Main knob in the upper ~75% of travel
+      main: Sweep speed (slow ~3s to fast ~0.1s per sweep)
+      x: Centre-line (0V) vertical position
+      y: Audio trace gain (0–2×)
+      switch:
+        up: Phosphor fade locked to the sweep
+        middle: Static single clean trace
+        down: Performance trigger / config menu
+    - name: Etch-a-sketch
+      activation: Main knob in the lowest ~25% (far CCW); knob sets fade rate
+      main: Fade rate (0.15s–2s)
+      x: CV In 1 scale (UP) or X position offset (MIDDLE)
+      y: CV In 2 scale (UP) or Y position offset (MIDDLE)
+      switch:
+        up: Knob X/Y scale the CV inputs
+        middle: Knob X/Y offset the drawing position
+        down: Performance trigger / config menu
+  leds:
+    - id: LED0
+      name: Scope mode
+    - id: LED1
+      name: Etch-a-sketch mode
+    - id: LED2
+      name: Config menu open
+    - id: LED3
+      name: Phosphor fade active (Switch UP)
+    - id: LED4
+      name: Switch DOWN held
