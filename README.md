@@ -13,11 +13,6 @@ Further discussion in the Discord - invite in the documentation below.
 
 At the moment, [this Google doc is the most up-to-date shortform documentation](https://docs.google.com/document/d/1NsRewxAu9X8dQMUTdN0eeJeRCr0HmU0pUjpKB4gM-xo/edit?usp=sharing) for pinouts and hardware details
 
-
-### BUILDING, FLASHING & DEBUGGING
-
-
-
 ### Demonstrations+HelloWorlds
 
 Starter code in various platforms - Arduino, Pico SDK, CircuitPython, Micropython
