@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "inputs": [
+    {
+      "id": "cardDir",
+      "type": "promptString",
+      "description": "Card directory to build/flash/debug (relative to the repo root, e.g. releases/04_BYO_Benjolin)",
+      "default": "releases/04_BYO_Benjolin"
+    }
+  ],
+  "configurations": [
+    {
+      "name": "ComputerCard: attach (OpenOCD)",
+      "type": "cortex-debug",
+      "request": "attach",
+      "cwd": "${workspaceFolder}/${input:cardDir}",
+      "servertype": "external",
+      "gdbTarget": "host.docker.internal:3333",
+      "gdbPath": "gdb-multiarch",
+      "executable": "${workspaceFolder}/${input:cardDir}/build/.last.elf",
+      "preLaunchTask": "ComputerCard: build",
+      "runToEntryPoint": "main",
+      "postAttachCommands": ["monitor reset init"]
+    }
+  ]
+}

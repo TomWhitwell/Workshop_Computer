@@ -1,0 +1,29 @@
+{
+  "name": "ComputerCard",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "PICO_SDK_VERSION": "2.2.0",
+      "TINYUSB_VERSION": "0.20.0"
+    }
+  },
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "runArgs": ["--add-host=host.docker.internal:host-gateway"],
+  "remoteEnv": {
+    "PICO_SDK_PATH": "/opt/pico-sdk",
+    "MAKEFILES": "${containerWorkspaceFolder}/scripts/pico_auto_make.mk"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "marus25.cortex-debug",
+        "ms-vscode.cpptools"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "cmake.ignoreCMakeListsMissing": true
+      }
+    }
+  }
+}
+

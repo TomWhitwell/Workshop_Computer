@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "cardDir",
+      "type": "promptString",
+      "description": "Card directory to build/flash/debug (relative to the repo root, e.g. releases/04_BYO_Benjolin)",
+      "default": "releases/04_BYO_Benjolin"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "ComputerCard: build",
+      "type": "shell",
+      "command": "make",
+      "args": ["build"],
+      "options": { "cwd": "${workspaceFolder}/${input:cardDir}" },
+      "problemMatcher": ["$gcc"],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "ComputerCard: flash",
+      "type": "shell",
+      "command": "make",
+      "args": ["flash"],
+      "options": { "cwd": "${workspaceFolder}/${input:cardDir}" },
+      "problemMatcher": []
+    }
+  ]
+}
