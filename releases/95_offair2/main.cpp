@@ -79,7 +79,7 @@ static constexpr int32_t kOnThresh   = 2000;
 // Morse tone (Normal boot + Switch Up): Broadcast 2's audio becomes a ~600Hz CW
 // sidetone keyed by the Pulse In 1 input — a rhythmic signal that's also musical.
 static constexpr int32_t kMorseInc   = 53687091; // 600Hz: 600 * 2^32 / 48000
-static constexpr int32_t kMorseLevel = 1200;     // tone peak (≈ broadcast audio level)
+static constexpr int32_t kMorseLevel = 900;      // tone peak (~75% of broadcast level)
 static constexpr int32_t kMorseRamp  = 6;        // key attack/release smoothing (no click)
 
 // detune → pitch: whistle/shift = |detune| * kWhistleK Hz.

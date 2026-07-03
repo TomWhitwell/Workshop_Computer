@@ -90,11 +90,36 @@ These blocks document I/O, controls, and host connectivity. Author them in `info
 | `manual` | string (Markdown) | Abbreviated operator summary (distinct from `README.md`). |
 | `panel.inputs` | object[] | Panel jacks in. Each item: `id`, `name`, optional `description`, optional `type` (`audio` / `cv` / `pulse` / `other`). |
 | `panel.outputs` | object[] | Panel jacks out; same shape as inputs. |
-| `controls.knobs` | object[] | Knob roles per context. Each row has `when` (`z`, `layer`, `gesture`) and `main` / `x` / `y` entries with `name` and optional `description`. |
+| `controls.knobs` | object[] | Knob metadata per context. Each row has `when` (`z`, `layer`, `gesture`) and `main` / `x` / `y` entries with `name` and optional `description`. Use `when.z` (`up` / `middle` / `down`, or `any` for every position) to give a knob **different metadata per switch position**. Describes knobs only — switch-position meaning lives in `controls.switch`. |
+| `controls.switch` | object | Metadata for the three-position Z switch, independent of the knobs. Keys `up` / `middle` / `down`, each an object with `name` and optional `description`. This is the sole source of switch-position meaning. |
 | `controls.leds` | object[] | LED meaning per context. Each row has `when`, `display` (e.g. `list`), and `items` with `id`, `name`, optional `description`. |
 | `host` | object | Host/USB connectivity (e.g. `usb` list with `name`, `role`, `description`) and optional `notes` (Markdown). |
 
 See [`releases/82_Computer_Grids/info.yaml`](../releases/82_Computer_Grids/info.yaml) for a full structured example.
+
+### Switch and knobs relationship
+
+Switch-position meaning and knob metadata are two independent things:
+
+- **`controls.switch`** documents what each Z position *does*.
+- **`controls.knobs`** documents the knobs, and may optionally give a knob different metadata per position via `when: { z: ... }`. Knob rows never describe the switch itself.
+
+```yaml
+controls:
+  switch:                     # what the switch positions mean
+    up:     { name: Double Length, description: Toggle write cell each clock for a stable double-length loop }
+    middle: { name: Unlock,        description: Write from data input / noise when data exceeds Chaos }
+    down:   { name: Write,         description: Force the write cell to a fixed value }
+  knobs:
+    - when: { z: any }          # knob metadata that applies in every position
+      main: { name: Chaos, description: Lock through Chaos probability }
+      x:    { name: Offset }
+      y:    { name: Chaos VCA }
+    - when: { z: up }           # optional: a knob whose role changes in this position
+      x: { name: Loop Length, description: Sets the loop length while held up }
+```
+
+A card that only needs to describe its switch uses `controls.switch` alone; a card whose knobs change per position adds `when: { z: ... }` knob rows. The two blocks are read independently.
 
 ## Authoring guidance
 

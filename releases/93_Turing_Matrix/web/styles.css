@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   --bg: #0e1411;
   --panel: #16201b;
   --panel-2: #1d2a24;
@@ -7,6 +8,18 @@
   --muted: #aebeb1;
   --accent: #e6b94c;
   --accent-2: #7fd1a7;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f1f5f2;
+  --panel: #ffffff;
+  --panel-2: #e8efea;
+  --line: #a9b9ae;
+  --text: #142019;
+  --muted: #4f6256;
+  --accent: #7b5700;
+  --accent-2: #21704b;
 }
 
 *,
@@ -24,6 +37,8 @@ body {
   color: var(--text);
 }
 
+:root[data-theme="light"] body { background: linear-gradient(180deg, #f8faf8, var(--bg)); }
+
 main {
   max-width: 1080px;
   margin: 0 auto;
@@ -31,8 +46,11 @@ main {
 }
 
 .hero {
+  position: relative;
   padding: 10px 2px 20px;
 }
+
+.theme-toggle { position: absolute; top: 10px; right: 2px; width: auto; }
 
 .eyebrow {
   margin: 0 0 8px;
@@ -114,7 +132,7 @@ button {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #0f1713;
+  background: color-mix(in srgb, var(--panel) 70%, var(--bg));
   color: var(--text);
 }
 
@@ -133,8 +151,11 @@ input[type="range"] {
 
 #status {
   margin: 12px 0 0;
-  color: #c8e9d6;
+  color: var(--accent-2);
 }
+
+.developer-tools { margin-top: 14px; }
+.developer-tools summary { cursor: pointer; color: var(--muted); }
 
 .notes {
   color: var(--muted);
@@ -168,11 +189,16 @@ input[type="range"] {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #0b120e;
-  color: #c8e9d6;
+  background: color-mix(in srgb, var(--bg) 85%, #000);
+  color: var(--accent-2);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.83rem;
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+@media (max-width: 560px) {
+  .hero { padding-top: 58px; }
+  .theme-toggle { left: 2px; right: auto; }
 }

@@ -23,9 +23,9 @@ Wild Pebble listens for USB MIDI realtime clock messages.
 * MIDI Continue `0xFB` resumes MIDI clock following without resetting the step.
 * MIDI Stop `0xFC` stops MIDI clock following and releases any active MIDI note.
 
-MIDI clock is 24 PPQN. Wild Pebble advances one sequencer step every 6 MIDI clock ticks, so each step behaves as a 16th note.
+MIDI clock is 24 PPQN. Wild Pebble advances one sequencer step every 12 MIDI clock ticks, so incoming MIDI clock drives the sequencer at an 8th-note step feel.
 
-When MIDI clock is active it overrides the internal clock, in the same spirit as the pulse clock input. If no MIDI or pulse clock is active, the Main knob controls the internal clock speed.
+When MIDI clock is active it overrides the internal clock. If Pulse Input 1 is active and running faster than MIDI, the pulse clock takes priority. If no MIDI or pulse clock is active, the Main knob controls the internal clock speed.
 
 ## MIDI Note Output
 
@@ -33,10 +33,12 @@ The generated melody is sent over USB MIDI as note events.
 
 * MIDI channel: 1
 * Note source: the current generated `currentMIDINote`
-* Gate source: Pulse Output 1
-* Velocity: derived from the current internal energy value
+* Trigger source: Pulse Output 1
+* Velocity: shaped by internal energy and tension
+* Note length: shaped by the active clock period, energy, and tension
+* Retriggers: become more likely as energy and tension rise
 
-Each Pulse Output 1 gate produces a MIDI note on, followed by a note off when the gate ends. The analogue CV and pulse outputs continue to work as in the original card.
+This keeps the MIDI line feeling connected to the card's internal motion instead of acting like a rigid copy of the raw pulse width. The analogue CV and pulse outputs continue to work as in the original card.
 
 ---
 
@@ -135,15 +137,15 @@ CV Input 2 modulates mutation amount.
 
 ### Up
 
-Stable melodic motion, restrained mutation, slower harmonic movement, and tighter rhythms.
+Steady mode. Stable melodic motion, restrained mutation, slower harmonic movement, and tighter rhythms.
 
 ### Middle
 
-Balanced mutation, moderate swing, evolving melodic variation, and gradual harmonic drift.
+Drift mode. Balanced mutation, moderate swing, evolving melodic variation, and gradual harmonic drift.
 
 ### Down
 
-Aggressive mutation, strongest swing, wider melodic jumps, more active scale changes, and denser companion rhythms.
+Surge mode. Aggressive mutation, strongest swing, wider melodic jumps, more active scale changes, and denser companion rhythms.
 
 ---
 

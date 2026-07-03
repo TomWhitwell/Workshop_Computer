@@ -1,0 +1,10 @@
+{
+  "unwantedRecommendations": [
+    "ms-vscode.makefile-tools",
+    "ms-vscode.cmake-tools",
+    "ms-vscode-remote.remote-containers",
+    "ms-azuretools.vscode-docker",
+    "ms-vscode.cpptools-extension-pack",
+    "twxs.cmake"
+  ]
+}

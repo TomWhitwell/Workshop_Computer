@@ -1,10 +1,20 @@
-draft: true
+draft: false
 Name: BYO Benjolin
 Description: Rungler, Chaotic VCO, Noise Source, Turing Machine, Quantizer
 Language: Pico SDK
 Creator: Dune Desormeaux
-Version: 1.0
+Version: 1.1
 Status: Released
+
+demo-link: https://www.youtube.com/watch?v=YlDGwEaBheQ
+
+contact:
+  email: dessertplanet.dune@gmail.com
+  social:
+    github: https://github.com/dessertplanet
+    instagram: https://instagram.com/dessertplanet_
+    youtube: https://www.youtube.com/@dessertplanet
+    discord: "@dessertplanet"
 
 tags:
   - chaos
@@ -18,85 +28,83 @@ manual: |
   Forward/back clocks can be driven from Pulse In 1 and Pulse In 2.
   The card blends internal randomness with external modulation for probability, offset, and amplitude.
 
-# certainty: low — all panel mappings inferred from main.cpp because this release folder has no README
+  The Z switch sets how shift-register cells are written on each clock:
+    - Up (Double Length): toggles the write cell each clock, producing a stable loop of double length.
+    - Middle (Unlock): writes from the data input (or internal noise) when data exceeds the Chaos threshold.
+    - Down (Write): forces the write cell to a fixed value.
+  The Chaos, Offset, and Chaos VCA knobs behave the same in all switch positions.
+
 panel:
   inputs:
     - id: PulseIn1
-      name: Forward Clock
+      name: FWD Clk In
       description: Rising edge advances the shift register in the forward direction
       type: pulse
     - id: PulseIn2
-      name: Reverse Clock
+      name: Back Clk In
       description: Rising edge advances the shift register in the reverse direction
       type: pulse
     - id: AudioIn1
-      name: External Data Source
-      description: External signal source for shift-register data in middle switch mode
+      name: Data Input
+      description: External data source for shift-register writes in Unlock (middle) switch mode; normalled to internal noise
       type: audio
     - id: AudioIn2
-      name: Probability Modulation
-      description: Modulates Turing probability alongside the Main knob
+      name: Lock CV
+      description: Modulates the Chaos/Lock probability alongside the Chaos knob
       type: cv
     - id: CVIn1
-      name: Offset Modulation
-      description: Modulates X/offset path used in rungler processing
+      name: Offset CV
+      description: Modulates the Offset amount used in rungler processing
       type: cv
     - id: CVIn2
-      name: VCA Modulation
-      description: Modulates Y/VCA depth for LED/output scaling
+      name: VCA CV
+      description: Modulates the Chaos VCA depth for output scaling
       type: cv
   outputs:
     - id: AudioOut1
-      name: Rungler Audio A
-      description: Audio-rate rungler output channel A
+      name: Raw Out 1
+      description: Audio-rate rungler output channel 1
       type: audio
     - id: AudioOut2
-      name: Rungler Audio B
-      description: Audio-rate rungler output channel B
+      name: Raw Out 2
+      description: Audio-rate rungler output channel 2
       type: audio
     - id: CVOut1
-      name: Quantized CV A
-      description: Quantized MIDI-note CV derived from channel A rungler state
+      name: Quant Out 1
+      description: Quantized MIDI-note CV derived from channel 1 rungler state
       type: cv
     - id: CVOut2
-      name: Quantized CV B
-      description: Quantized MIDI-note CV derived from channel B rungler state
+      name: Quant Out 2
+      description: Quantized MIDI-note CV derived from channel 2 rungler state
       type: cv
     - id: PulseOut1
-      name: Bit Pulse A
-      description: Pulse output from shift-register bit state (channel A)
+      name: 1-Bit Out 1
+      description: Single-bit pulse output from the shift-register state (channel 1)
       type: pulse
     - id: PulseOut2
-      name: Bit Pulse B
-      description: Pulse output from shift-register bit state (channel B)
+      name: 1-Bit Out 2
+      description: Single-bit pulse output from the shift-register state (channel 2)
       type: pulse
 
-# certainty: low — controls inferred from switch/knob logic in main.cpp; no user-facing control documentation found in folder
 controls:
+  switch:
+    up:
+      name: Double Length
+      description: Toggles the write cell each clock, producing a stable loop of double length
+    middle:
+      name: Unlock
+      description: Writes from the data input (or internal noise) when data exceeds the Chaos threshold
+    down:
+      name: Write
+      description: Forces the write cell to a fixed value
   knobs:
-    - when: { z: middle }
+    - when: { z: any }
       main:
-        name: Turing Probability
-        description: Sets probability/lock behavior for shift-register updates
+        name: Chaos
+        description: Lock (stable loop) through Chaos (random) probability that shift-register cells change
       x:
         name: Offset
-        description: Sets offset amount (or scale for CV In 1 modulation)
+        description: Sets output offset amount (or depth for Offset CV / CV In 1 modulation)
       y:
-        name: VCA Depth
-        description: Sets output/LED amplitude scaling (or scale for CV In 2 modulation)
-  leds:
-    - when: { z: middle }
-      display: list
-      items:
-        - id: LED0
-          name: Shift Register Cell 1
-        - id: LED1
-          name: Shift Register Cell 4
-        - id: LED2
-          name: Shift Register Cell 2
-        - id: LED3
-          name: Shift Register Cell 5
-        - id: LED4
-          name: Shift Register Cell 3
-        - id: LED5
-          name: Shift Register Cell 6
+        name: Chaos VCA
+        description: Scales rungler output amplitude (or depth for VCA CV / CV In 2 modulation)

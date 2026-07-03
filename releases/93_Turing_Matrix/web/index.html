@@ -5,12 +5,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Turing Matrix Web Config</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=3" />
 </head>
 
 <body>
   <main>
     <header class="hero">
+      <button id="themeBtn" class="theme-toggle" type="button" aria-label="Switch colour theme">Light theme</button>
       <p class="eyebrow">Program Card 93</p>
       <h1>Turing Matrix</h1>
       <p class="lede">
@@ -37,8 +38,11 @@
         <button id="defaultsBtn" type="button">Load Defaults</button>
       </div>
       <p id="status">Not connected.</p>
-      <div class="notes">
-        <p id="ports">No MIDI ports selected.</p>
+      <details id="developerTools" class="developer-tools">
+        <summary>Developer diagnostics</summary>
+        <div class="notes">
+          <p id="ports">No MIDI ports selected.</p>
+          <pre id="portDetails" class="transport-log">Connect MIDI to inspect browser port objects.</pre>
         <div class="transport-log-wrap">
           <div class="transport-log-header">
             <span>Transport Log</span>
@@ -46,7 +50,8 @@
           </div>
           <pre id="transportLog" class="transport-log">No SysEx traffic yet.</pre>
         </div>
-      </div>
+        </div>
+      </details>
     </section>
 
     <section class="layout">
@@ -173,7 +178,7 @@
       </section>
     </section>
   </main>
-  <script src="./app.js"></script>
+  <script src="./app.js?v=3"></script>
 </body>
 
 </html>

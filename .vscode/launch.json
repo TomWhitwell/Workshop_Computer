@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "inputs": [
+    {
+      // Pick-once-and-remember the card folder.
+      //
+      // Uses the "rioj7.command-variable" extension. The first time you
+      // build/flash/debug, a native folder picker opens (starting in
+      // releases/); after that the choice is remembered under the key
+      // "cardDir" (persisted via the "commandvariable.remember.persistent.file"
+      // setting) and reused with no prompt.
+      //
+      // Both launch.json and tasks.json use this same key, so clicking play
+      // resolves the launch config first (which prompts), and the preLaunchTask
+      // reuses the remembered value instead of prompting again.
+      //
+      // To switch cards, run the "ComputerCard: select card" task.
+      "id": "cardDir",
+      "type": "command",
+      "command": "extension.commandvariable.remember",
+      "args": {
+        "key": "cardDir",
+        "default": "${openDialog:cardPick}",
+        "transform": {
+          "openDialog": {
+            "cardPick": {
+              "canSelect": "folders",
+              "defaultUri": "${workspaceFolder}/releases",
+              "openLabel": "Use this card",
+              "title": "Select the ComputerCard folder to build / flash / debug",
+              "keyRemember": "cardDir"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "configurations": [
+    {
+      "name": "ComputerCard: attach (OpenOCD)",
+      "type": "cortex-debug",
+      "request": "attach",
+      "cwd": "${input:cardDir}",
+      "servertype": "external",
+      "gdbTarget": "host.docker.internal:3333",
+      "gdbPath": "gdb-multiarch",
+      "executable": "${input:cardDir}/build/.last.elf",
+      "preLaunchTask": "ComputerCard: build + flash",
+      "runToEntryPoint": "main",
+      "postAttachCommands": ["monitor reset init"],
+      "liveWatch": {
+        "enabled": true,
+        "samplesPerSecond": 4
+      }
+    }
+  ]
+}

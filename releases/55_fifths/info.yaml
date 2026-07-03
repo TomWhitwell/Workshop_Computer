@@ -3,7 +3,7 @@ Name: Fifths
 Description: A quantizer/sequencer that can create harmony and nimbly traverse the circle of fifths in attempts to make jazz
 Language: C++ (RP2040 Pico SDK)
 Creator: Dune Desormeaux
-Version: 1.0
+Version: 1.1
 Status: Released
 
 tags:

@@ -226,6 +226,11 @@ By Andy Jenkinson ([uglifruit](https://github.com/uglifruit)), developed with
 Built on the [Workshop Computer](https://github.com/TomWhitwell/Workshop_Computer)
 platform by Tom Whitwell (Music Thing Modular), using the ComputerCard framework.
 
+The RF PWM transmission path — generating an AM carrier on the DEBUG_1 pin receivable
+by a nearby MW radio — is directly inspired by and based on
+[AM Coupler](https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/12_am_coupler)
+by Chris Johnson.
+
 Inspired by [RadioMusic](https://github.com/TomWhitwell/RadioMusic) by Tom Whitwell
 and the [Music Thing Radio Music workshop](https://dyski.co/Tom-Whitwell-Radio-Music).
 

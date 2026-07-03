@@ -16,6 +16,7 @@
       <div class="transport">
         <button id="audition" type="button" title="Loop browser audition">▶</button>
         <button id="stop" type="button" title="Stop browser audition">■</button>
+        <button id="themeToggle" type="button" role="switch" aria-checked="false" title="Toggle light mode">Dark</button>
         <button id="midiToggle" type="button" title="Connect USB MIDI input">MIDI</button>
       </div>
     </header>
@@ -63,25 +64,35 @@
           </label>
         </div>
 
+        <div class="editor-hint">
+          Drag points on the graph to edit stages, or type exact values below. Factory presets turn into a copy the first time you change them. Bounce is the reset preset.
+        </div>
+
+        <div class="lane-switcher" role="tablist" aria-label="Envelope lane view">
+          <button id="ampView" type="button" class="is-active" role="tab" aria-selected="true">Amplitude</button>
+          <button id="pdView" type="button" role="tab" aria-selected="false">Phase Distortion</button>
+        </div>
+
+        <div class="editor-legend" aria-label="Editor guide">
+          <span><strong>Selected lane:</strong> only the active window can be moved.</span>
+          <span><strong>Point numbers:</strong> when stages stack, only the highest number is shown.</span>
+          <span><strong>Dragging:</strong> move a point to change its level and timing together.</span>
+          <span><strong>Play / Stop:</strong> Play previews the envelope in the browser on a loop. Stop ends the browser preview only.</span>
+        </div>
+
         <div class="curve-panel">
           <canvas id="curveCanvas" width="1200" height="420" aria-label="Amplitude and phase distortion envelope preview"></canvas>
         </div>
 
-        <div class="tables">
-          <section>
-            <div class="lane-title">
-              <h2>Amplitude</h2>
-              <span>level / samples</span>
-            </div>
-            <div id="ampStages" class="stage-grid"></div>
-          </section>
-          <section>
-            <div class="lane-title">
-              <h2>Phase Distortion</h2>
-              <span>level / samples</span>
-            </div>
-            <div id="pdStages" class="stage-grid"></div>
-          </section>
+        <button id="developerToggle" type="button" class="developer-toggle" role="switch" aria-checked="false">Developer tools: Off</button>
+
+        <div class="output-actions editor-actions">
+          <button id="sendSysex" type="button" title="Load this envelope until reset">Load RAM</button>
+          <button id="flashSysex" type="button" title="Save this envelope after reset">Save Slot</button>
+          <button id="deleteSlot" type="button" title="Delete the selected custom slot from card flash">Delete Slot</button>
+          <button id="requestSettings" type="button" title="Load current card settings into the editor">Read Card</button>
+          <button id="sendSettings" type="button">Set Card</button>
+          <button id="resetPreset" type="button">Reset Preset</button>
         </div>
       </section>
 
@@ -118,18 +129,46 @@
             <input id="turingMidiChannel" type="number" min="1" max="16" value="1">
           </label>
         </section>
-        <div class="output-actions">
-          <button id="copyCpp" type="button">Copy C++</button>
-          <button id="copySysex" type="button">SysEx</button>
-          <button id="sendSysex" type="button" title="Load this envelope until reset">Load</button>
-          <button id="flashSysex" type="button" title="Save this envelope after reset">Save</button>
-          <button id="deleteSlot" type="button" title="Delete the selected custom slot from card flash">Delete</button>
-          <button id="requestSettings" type="button" title="Load current card settings into the editor">Read</button>
-          <button id="sendSettings" type="button">Set</button>
-          <button id="downloadJson" type="button">JSON</button>
-          <button id="resetPreset" type="button">Reset</button>
+        <section id="stagePanel" class="stage-panel" aria-label="Selected lane stages">
+          <div class="lane-title">
+            <h2 id="stagePanelTitle">Amplitude</h2>
+            <span id="stagePanelSubtitle">Level / samples</span>
+          </div>
+          <div class="stage-head">
+            <span>Stage</span>
+            <span>Level</span>
+            <span>Samples</span>
+          </div>
+          <div id="ampStages" class="stage-grid"></div>
+          <div id="pdStages" class="stage-grid"></div>
+        </section>
+        <div id="developerPanel" class="developer-panel is-hidden" aria-label="Developer tools">
+          <div class="output-actions developer-actions">
+            <button id="copyCpp" type="button">Copy C++</button>
+            <button id="copySysex" type="button">Copy SysEx</button>
+            <button id="downloadJson" type="button">Export JSON</button>
+          </div>
+          <textarea id="exportText" spellcheck="false" aria-label="Generated firmware preset"></textarea>
+          <div class="developer-log-panel">
+            <div class="developer-log-head">
+              <h3>MIDI Ports Seen By Browser</h3>
+            </div>
+            <pre id="developerPorts" class="developer-log" aria-label="Detected MIDI ports"></pre>
+          </div>
+          <div class="developer-log-panel">
+            <div class="developer-log-head">
+              <h3>Browser Web MIDI Details</h3>
+            </div>
+            <pre id="developerMidiRaw" class="developer-log" aria-label="Raw MIDI access details"></pre>
+          </div>
+          <div class="developer-log-panel">
+            <div class="developer-log-head">
+              <h3>Event Log</h3>
+              <button id="clearDeveloperLog" type="button">Clear log</button>
+            </div>
+            <pre id="developerLog" class="developer-log" aria-label="Developer diagnostics"></pre>
+          </div>
         </div>
-        <textarea id="exportText" spellcheck="false" aria-label="Generated firmware preset"></textarea>
         <p id="status" class="status">Ready.</p>
       </aside>
     </section>

@@ -85,10 +85,43 @@ function setPortsText() {
   const inputName = state.input?.name || "none";
   const outputName = state.output?.name || "none";
   byId("ports").textContent = `Input: ${inputName} | Output: ${outputName}`;
+  const describe = (port) => port ? {
+    id: port.id, name: port.name, manufacturer: port.manufacturer,
+    state: port.state, connection: port.connection, type: port.type,
+  } : null;
+  byId("portDetails").textContent = JSON.stringify({
+    secureContext: window.isSecureContext,
+    input: describe(state.input), output: describe(state.output),
+  }, null, 2);
+}
+
+function portsToArray(collection) {
+  if (!collection) return [];
+  try {
+    if (typeof collection.forEach === "function") {
+      const ports = [];
+      collection.forEach((port) => ports.push(port));
+      if (ports.length) return ports;
+    }
+    if (typeof collection.values === "function") return Array.from(collection.values());
+    if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
+    if (typeof collection.keys === "function" && typeof collection.get === "function") {
+      return Array.from(collection.keys(), (key) => collection.get(key)).filter(Boolean);
+    }
+  } catch (error) {
+    setTransport(`Could not enumerate MIDI ports: ${error.message}`);
+  }
+  return [];
+}
+
+function friendlyMidiError(error) {
+  if (error?.name === "SecurityError" || /permission|not granted/i.test(error?.message || ""))
+    return "MIDI permission was denied. Allow MIDI and SysEx access in the browser, then try again.";
+  return `Could not connect to Web MIDI: ${error?.message || "unknown browser error"}`;
 }
 
 function formatBytes(data) {
-  return [...data].map((value) => value.toString(16).padStart(2, "0")).join(" ");
+  return Array.from(data || []).map((value) => value.toString(16).padStart(2, "0")).join(" ");
 }
 
 function scorePort(port) {
@@ -107,7 +140,7 @@ function selectPreferredPort(ports, previousId) {
       return exact;
     }
   }
-  return [...ports].sort((a, b) => scorePort(b) - scorePort(a))[0] || null;
+  return Array.from(ports || []).sort((a, b) => scorePort(b) - scorePort(a))[0] || null;
 }
 
 function bindRangePair(rangeId, numberId) {
@@ -289,18 +322,23 @@ function decode7Bit(payload) {
 function sendSysEx(command, payload = []) {
   if (!state.output) {
     setStatus("No MIDI output selected.");
-    return;
+    return false;
   }
-  const message = new Uint8Array(5 + payload.length);
-  message[0] = SYSEX_START;
-  message[1] = MANUFACTURER;
-  message[2] = DEVICE;
-  message[3] = command;
-  message.set(payload, 4);
-  message[message.length - 1] = SYSEX_END;
-  state.output.send(message);
-  state.lastTxAt = Date.now();
-  setTransport(`TX cmd 0x${command.toString(16)} (${message.length} bytes): ${formatBytes(message)}`);
+  try {
+    const safePayload = Array.from(payload);
+    const message = new Uint8Array(5 + safePayload.length);
+    message.set([SYSEX_START, MANUFACTURER, DEVICE, command]);
+    message.set(safePayload, 4);
+    message[message.length - 1] = SYSEX_END;
+    state.output.send(message);
+    state.lastTxAt = Date.now();
+    setTransport(`TX cmd 0x${command.toString(16)} (${message.length} bytes): ${formatBytes(message)}`);
+    return true;
+  } catch (error) {
+    setStatus("Could not send to the card. Check the cable and selected output, then reconnect.");
+    setTransport(`Send failed: ${error.message}`);
+    return false;
+  }
 }
 
 function handleLiveStatus(payload) {
@@ -390,8 +428,8 @@ function updatePorts() {
   midiIn.innerHTML = "";
   midiOut.innerHTML = "";
 
-  const inputs = [...state.midiAccess.inputs.values()];
-  const outputs = [...state.midiAccess.outputs.values()];
+  const inputs = portsToArray(state.midiAccess?.inputs);
+  const outputs = portsToArray(state.midiAccess?.outputs);
 
   for (const input of inputs) {
     const option = document.createElement("option");
@@ -416,21 +454,29 @@ function updatePorts() {
     state.input.onmidimessage = handleMIDIMessage;
   }
   setPortsText();
+  if (!state.output && state.input) setStatus("MIDI input found, but no output is available. Check the USB connection.");
+  else if (state.output && !state.input) setStatus("MIDI output found. Reading from the card is unavailable without an input.");
+  else if (!state.output && !state.input) setStatus("No MIDI device found. Connect the card and try again.");
+  else setStatus("MIDI input and output are ready.");
 }
 
 async function connectMIDI() {
   if (!navigator.requestMIDIAccess) {
-    setStatus("Web MIDI is not available in this browser.");
+    setStatus("This browser does not support Web MIDI. Use desktop Chrome or Edge.");
+    return;
+  }
+  if (!window.isSecureContext) {
+    setStatus("Web MIDI requires a secure HTTPS page (localhost is also allowed). ");
     return;
   }
   try {
     state.midiAccess = await navigator.requestMIDIAccess({ sysex: true });
     state.midiAccess.onstatechange = updatePorts;
     updatePorts();
-    setStatus("Web MIDI connected.");
     setTransport("Connected. Press Read From Card to test SysEx.");
   } catch (error) {
-    setStatus(`Web MIDI connection failed: ${error.message}`);
+    setStatus(friendlyMidiError(error));
+    setTransport(`Connection failed: ${error?.name || "Error"}: ${error?.message || "unknown error"}`);
   }
 }
 
@@ -461,16 +507,22 @@ function init() {
   });
 
   byId("readBtn").addEventListener("click", () => {
-    sendSysEx(CMD_GET);
-    setStatus("Requested config from card.");
+    if (sendSysEx(CMD_GET)) setStatus("Requested config from card.");
   });
 
   byId("sendBtn").addEventListener("click", () => {
-    state.config = readFormIntoConfig();
-    const raw = encodeConfig(state.config);
-    const packed = encode7Bit(raw);
-    sendSysEx(CMD_SET, packed);
-    setStatus(`Sent shared Turing settings to card (${raw.length} bytes raw).`);
+    try {
+      const config = readFormIntoConfig();
+      const raw = encodeConfig(config);
+      const packed = encode7Bit(raw);
+      if (sendSysEx(CMD_SET, packed)) {
+        state.config = config;
+        setStatus(`Sent shared Turing settings to card (${raw.length} bytes raw).`);
+      }
+    } catch (error) {
+      setStatus("Could not build the settings message. Check the entered values.");
+      setTransport(`Build failed: ${error.message}`);
+    }
   });
 
   byId("defaultsBtn").addEventListener("click", () => {
@@ -479,6 +531,18 @@ function init() {
     setStatus("Loaded editor defaults locally.");
   });
   byId("clearLogBtn").addEventListener("click", clearTransportLog);
+  const savedTheme = localStorage.getItem("turing-matrix-theme");
+  const initialTheme = savedTheme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  document.documentElement.dataset.theme = initialTheme;
+  const updateThemeLabel = () => byId("themeBtn").textContent =
+    document.documentElement.dataset.theme === "dark" ? "Light theme" : "Dark theme";
+  updateThemeLabel();
+  byId("themeBtn").addEventListener("click", () => {
+    const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("turing-matrix-theme", theme);
+    updateThemeLabel();
+  });
 
   setPortsText();
 }

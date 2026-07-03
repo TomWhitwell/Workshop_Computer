@@ -37,10 +37,22 @@ macro (add_card _name)
   
 add_card(${CARD_NAME})
 
-add_custom_command(
-    TARGET ${CARD_NAME}
-    POST_BUILD
+# Single source of truth for the firmware version (keep in sync with info.yaml).
+set(FIFTHS_VERSION "1.1")
+
+# Embed program metadata into the built artifact (readable via `picotool info`).
+pico_set_program_name(${CARD_NAME} "Fifths")
+pico_set_program_version(${CARD_NAME} "${FIFTHS_VERSION}")
+
+# Rename the default output to a version-stamped UF2 (e.g. fifths.1.1.uf2) and
+# copy that single, versioned artifact into the UF2/ directory.
+add_custom_command(TARGET ${CARD_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E rename
+        "$<TARGET_FILE_DIR:${CARD_NAME}>/${CARD_NAME}.uf2"
+        "$<TARGET_FILE_DIR:${CARD_NAME}>/${CARD_NAME}.${FIFTHS_VERSION}.uf2"
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_SOURCE_DIR}/UF2
     COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_BINARY_DIR}/${CARD_NAME}.uf2
-            ${CMAKE_CURRENT_SOURCE_DIR}/UF2/
-)
+        "$<TARGET_FILE_DIR:${CARD_NAME}>/${CARD_NAME}.${FIFTHS_VERSION}.uf2"
+        ${CMAKE_CURRENT_SOURCE_DIR}/UF2/
+    COMMENT "Creating version-stamped UF2: ${CARD_NAME}.${FIFTHS_VERSION}.uf2"
+    VERBATIM)

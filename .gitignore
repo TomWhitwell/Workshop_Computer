@@ -13,6 +13,13 @@ Icon?
 *.tmp
 *.dmp
 .fseventsd
-.vscode/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/settings.json
 site/
 tools/sitegen/node_modules/
+
+# Build harness output (per-card CMake build dirs)
+**/build/

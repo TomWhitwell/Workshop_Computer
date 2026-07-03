@@ -2,7 +2,7 @@ Name: OffAir
 Description: "OffAir — AM/Shortwave/Longwave radio simulator. Tune between two Stations and interference with authentic heterodyne whistles, SSB pitch-shift detuning, AM envelope detection, swelling per-band static, and triggerable Insta-ference one-shots. Baked recordings or live audio inputs become the Stations."
 Language: C++ (Pico SDK / ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: 1.0.0
+Version: 1.0.1
 Status: released
 License: CC BY-SA 4.0
 Repository: https://github.com/uglifruit/Workshop_Computer

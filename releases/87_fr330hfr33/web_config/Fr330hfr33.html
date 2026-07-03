@@ -5,25 +5,30 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Fr330hfr33 Editor</title>
 <style>
-  :root { color-scheme: dark; font-family: system-ui, sans-serif; }
-  body { margin: 0; background: #14110f; color: #f3e8cf; }
+  :root { color-scheme: dark; font-family: system-ui, sans-serif;
+    --bg:#14110f; --panel:#211b17; --field:#100e0c; --text:#f3e8cf;
+    --muted:#cbb99e; --line:#5c4630; --secondary:#493a2b; --accent:#ffb000; }
+  :root[data-theme="light"] { color-scheme: light; --bg:#f7f1e7;
+    --panel:#fffaf1; --field:#fff; --text:#281d12; --muted:#685744;
+    --line:#b99c75; --secondary:#dfccb0; --accent:#9b6200; }
+  body { margin: 0; background: var(--bg); color: var(--text); }
   main { width: min(920px, calc(100% - 32px)); margin: 40px auto; }
-  h1 { color: #ffb000; letter-spacing: .04em; margin-bottom: 6px; }
-  .panel { background: #211b17; border: 1px solid #5c4630; border-radius: 14px;
+  h1 { color: var(--accent); letter-spacing: .04em; margin-bottom: 6px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
     padding: 22px; display: grid; gap: 18px; }
   label { display: grid; gap: 7px; font-weight: 650; }
   select, input, button { font: inherit; }
-  select, input[type="number"] { background: #100e0c; color: #fff3d5;
-    border: 1px solid #725638; border-radius: 7px; padding: 10px; }
-  input[type="range"] { accent-color: #ffb000; }
+  select, input[type="number"] { background: var(--field); color: var(--text);
+    border: 1px solid var(--line); border-radius: 7px; padding: 10px; }
+  input[type="range"] { accent-color: var(--accent); }
   .check { grid-template-columns: auto 1fr; align-items: center; }
   .check input { width: 20px; height: 20px; accent-color: #ffb000; }
   button { border: 0; border-radius: 8px; padding: 12px 16px; cursor: pointer;
-    background: #ffb000; color: #1b1307; font-weight: 800; }
-  button.secondary { background: #493a2b; color: #fff3d5; }
+    background: var(--accent); color: var(--field); font-weight: 800; }
+  button.secondary { background: var(--secondary); color: var(--text); }
   .actions { display: flex; gap: 10px; flex-wrap: wrap; }
-  .hint, #status { color: #cbb99e; line-height: 1.45; }
-  output { color: #ffca58; }
+  .hint, #status { color: var(--muted); line-height: 1.45; }
+  output, th, .page-title { color: var(--accent); }
   .pattern-wrap { overflow-x: auto; }
   table { border-collapse: collapse; min-width: 720px; width: 100%; }
   th, td { border-bottom: 1px solid #493a2b; padding: 7px 5px;
@@ -40,6 +45,9 @@
   .page-title { color: #ffca58; margin: 2px 0 0; }
   body[data-page="sound"] .sequencer-page,
   body[data-page="sequencer"] .sound-page { display: none; }
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); }
+  pre { overflow:auto; background:var(--field); color:var(--text); padding:10px; border-radius:7px; }
 </style>
 </head>
 <body>
@@ -51,8 +59,13 @@
     <div class="actions">
       <button id="connect" class="secondary">Connect MIDI</button>
       <button id="apply">Apply</button>
+      <button id="theme" type="button" class="secondary">Light theme</button>
     </div>
     <div id="status">Not connected. Choose “Fr330hfr33” in the browser dialog.</div>
+    <details><summary>Developer diagnostics</summary>
+      <pre id="diagnostics">No MIDI diagnostics yet.</pre>
+      <button id="clearDiagnostics" type="button" class="secondary">Clear diagnostics</button>
+    </details>
     <nav class="page-tabs" aria-label="Editor page">
       <button id="showSound" type="button" class="active">Sound</button>
       <button id="showSequencer" type="button">Sequencer</button>
@@ -240,7 +253,54 @@
 <script>
 let outputPort = null;
 let inputPort = null;
+let midiAccess = null;
+let diagnosticLog = [];
+let lastSendAt = 0;
 const $ = id => document.getElementById(id);
+const logDiagnostic = message => {
+  diagnosticLog.push(`[${new Date().toLocaleTimeString()}] ${message}`);
+  diagnosticLog = diagnosticLog.slice(-30);
+  $("diagnostics").textContent = diagnosticLog.join("\n") || "No MIDI diagnostics yet.";
+};
+const portsToArray = collection => {
+  if (!collection) return [];
+  try {
+    if (typeof collection.forEach === "function") {
+      const ports = []; collection.forEach(port => ports.push(port));
+      if (ports.length) return ports;
+    }
+    if (typeof collection.values === "function") return Array.from(collection.values());
+    if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
+    if (typeof collection.keys === "function" && typeof collection.get === "function")
+      return Array.from(collection.keys(), key => collection.get(key)).filter(Boolean);
+  } catch (error) { logDiagnostic(`Port enumeration failed: ${error.message}`); }
+  return [];
+};
+const safeSend = (message, description) => {
+  if (!outputPort) { $("status").textContent = "No MIDI output found. Connect the card and try again."; return false; }
+  try {
+    const sendAt = Math.max(performance.now(), lastSendAt + 50);
+    outputPort.send(message, sendAt);
+    lastSendAt = sendAt;
+    logDiagnostic(`Queued ${description} (${message.length} bytes).`);
+    return true;
+  }
+  catch (error) { $("status").textContent = `Could not send ${description}. Check the cable and reconnect.`;
+    logDiagnostic(`Send failed (${description}): ${error.message}`); return false; }
+};
+const updatePorts = () => {
+  const outputs = portsToArray(midiAccess?.outputs);
+  const inputs = portsToArray(midiAccess?.inputs);
+  outputPort = outputs.find(p => /Fr330hfr33/i.test(p.name || "")) || outputs[0] || null;
+  if (inputPort) inputPort.onmidimessage = null;
+  inputPort = inputs.find(p => /Fr330hfr33/i.test(p.name || "")) || inputs[0] || null;
+  if (inputPort) inputPort.onmidimessage = handleMidiMessage;
+  logDiagnostic(`Inputs: ${inputs.map(p => p.name || p.id).join(", ") || "none"}; outputs: ${outputs.map(p => p.name || p.id).join(", ") || "none"}.`);
+  if (inputPort && outputPort) $("status").textContent = `Connected to ${outputPort.name}; input and output are ready.`;
+  else if (inputPort) $("status").textContent = "MIDI input found, but no output is available.";
+  else if (outputPort) $("status").textContent = `Connected to ${outputPort.name}. Reading slot updates is unavailable.`;
+  else $("status").textContent = "No MIDI device found. Check the data cable and reconnect the card.";
+};
 const showPage = page => {
   document.body.dataset.page = page;
   $("showSound").classList.toggle("active", page === "sound");
@@ -478,21 +538,17 @@ $("tone").addEventListener("input", () =>
   $("toneOut").value = `${$("tone").value}%`);
 
 $("connect").addEventListener("click", async () => {
+  if (!navigator.requestMIDIAccess) { $("status").textContent = "Web MIDI is unavailable. Use desktop Chrome or Edge."; return; }
+  if (!window.isSecureContext) { $("status").textContent = "Web MIDI requires HTTPS (or localhost)."; return; }
   try {
-    const access = await navigator.requestMIDIAccess({sysex: true});
-    const outputs = [...access.outputs.values()];
-    const inputs = [...access.inputs.values()];
-    outputPort = outputs.find(p => /Fr330hfr33/i.test(p.name)) || outputs[0];
-    if (inputPort)
-      inputPort.onmidimessage = null;
-    inputPort = inputs.find(p => /Fr330hfr33/i.test(p.name)) || inputs[0] || null;
-    if (inputPort)
-      inputPort.onmidimessage = handleMidiMessage;
-    $("status").textContent = outputPort
-      ? `Connected to ${outputPort.name}${inputPort ? " and listening for slot updates." : "."}`
-      : "No MIDI output found. Check the cable and reset the card.";
+    midiAccess = await navigator.requestMIDIAccess({sysex: true});
+    midiAccess.onstatechange = updatePorts;
+    updatePorts();
   } catch (error) {
-    $("status").textContent = `Connection failed: ${error.message}`;
+    $("status").textContent = /permission|not granted/i.test(error.message || "")
+      ? "MIDI permission was denied. Allow MIDI and SysEx access, then try again."
+      : `Could not connect to MIDI: ${error.message || "unknown browser error"}`;
+    logDiagnostic(`Connection failed: ${error.name || "Error"}: ${error.message || "unknown"}`);
   }
 });
 
@@ -502,9 +558,9 @@ $("loadSlot").addEventListener("click", () => {
     return;
   }
   const slot = Number($("patternSlot").value);
-  outputPort.send([
+  if (!safeSend([
     0xF0, 0x7D, 0x46, 0x33, 0x30, 0x33, 0x03, slot, 0xF7
-  ]);
+  ], "slot load request")) return;
   $("status").textContent = inputPort
     ? `Loading pattern slot ${slot + 1} from card...`
     : `Loaded pattern slot ${slot + 1}. Reconnect if the page does not update.`;
@@ -518,9 +574,9 @@ $("saveSlot").addEventListener("click", () => {
   const slot = Number($("patternSlot").value);
   savePatternUiSnapshot(slot);
   $("apply").click();
-  outputPort.send([
+  if (!safeSend([
     0xF0, 0x7D, 0x46, 0x33, 0x30, 0x33, 0x04, slot, 0xF7
-  ]);
+  ], "slot save request")) return;
   $("status").textContent =
     `Saved pattern slot ${slot + 1} to card flash.`;
 });
@@ -552,7 +608,7 @@ $("apply").addEventListener("click", () => {
     Number($("swing").value),
     0xF7
   ];
-  outputPort.send(message);
+  if (!safeSend(message, "sound settings")) return;
 
   const pattern = [
     0xF0, 0x7D, 0x46, 0x33, 0x30, 0x33, 0x02,
@@ -581,10 +637,17 @@ $("apply").addEventListener("click", () => {
     Number($("patternSlot").value)
   );
   pattern.push(0xF7);
-  outputPort.send(pattern);
+  if (!safeSend(pattern, "pattern settings")) return;
   $("status").textContent =
     `Applied settings and ${$("patternEnabled").checked ? "editable pattern" : "generator mode"}.`;
 });
+$("clearDiagnostics").addEventListener("click", () => { diagnosticLog = []; $("diagnostics").textContent = "No MIDI diagnostics yet."; });
+const savedTheme = localStorage.getItem("fr330hfr33-theme");
+document.documentElement.dataset.theme = savedTheme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+const updateThemeLabel = () => $("theme").textContent = document.documentElement.dataset.theme === "dark" ? "Light theme" : "Dark theme";
+updateThemeLabel();
+$("theme").addEventListener("click", () => { const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = theme; localStorage.setItem("fr330hfr33-theme", theme); updateThemeLabel(); });
 </script>
 </body>
 </html>

@@ -1,0 +1,75 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      // Pick-once-and-remember the card folder. See launch.json for details.
+      // Reuses the value remembered under "cardDir" and only opens the folder
+      // picker if nothing has been chosen yet.
+      "id": "cardDir",
+      "type": "command",
+      "command": "extension.commandvariable.remember",
+      "args": {
+        "key": "cardDir",
+        "default": "${openDialog:cardPick}",
+        "transform": {
+          "openDialog": {
+            "cardPick": {
+              "canSelect": "folders",
+              "defaultUri": "${workspaceFolder}/releases",
+              "openLabel": "Use this card",
+              "title": "Select the ComputerCard folder to build / flash / debug",
+              "keyRemember": "cardDir"
+            }
+          }
+        }
+      }
+    },
+    {
+      // Always open the folder picker and (re)store the choice. Used by the
+      // "ComputerCard: select card" task to switch the active card.
+      "id": "cardDirPick",
+      "type": "command",
+      "command": "extension.commandvariable.file.openDialog",
+      "args": {
+        "canSelect": "folders",
+        "defaultUri": "${workspaceFolder}/releases",
+        "openLabel": "Use this card",
+        "title": "Select the ComputerCard folder",
+        "keyRemember": "cardDir"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "label": "ComputerCard: build",
+      "type": "shell",
+      "command": "make build && \"${workspaceFolder}/scripts/last_elf.sh\"",
+      "options": { "cwd": "${input:cardDir}" },
+      "problemMatcher": ["$gcc"],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "ComputerCard: flash",
+      "type": "shell",
+      "command": "make",
+      "args": ["flash"],
+      "options": { "cwd": "${input:cardDir}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "ComputerCard: build + flash",
+      "dependsOrder": "sequence",
+      "dependsOn": ["ComputerCard: build", "ComputerCard: flash"],
+      "problemMatcher": [],
+      "detail": "Build the selected card, program it onto the chip, then it's ready to debug."
+    },
+    {
+      "label": "ComputerCard: select card",
+      "type": "shell",
+      "command": "echo",
+      "args": ["Selected card: ${input:cardDirPick}"],
+      "problemMatcher": [],
+      "detail": "Open a folder picker to choose which card the build/flash/debug commands target."
+    }
+  ]
+}

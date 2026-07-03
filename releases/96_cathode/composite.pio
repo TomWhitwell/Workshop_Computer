@@ -1,6 +1,8 @@
-; composite.pio — 2-bit (4-level) PAL video output for RP2040
+; composite.pio — 2-bit (4-level) composite video output for RP2040 (PAL or NTSC)
 ;
-; Single state machine, runs at 144MHz / 20.571 ≈ 7.000 MHz (142.857 ns per pixel).
+; Single state machine, runs at 144MHz / 20.571 ≈ 7.000 MHz (142.857 ns per pixel). The
+; SAME pixel clock serves both PAL (448 px/line, 312 lines) and NTSC (445 px/line, 262
+; lines) — only the C-side line/frame timing (#ifdef TV_NTSC in main.cpp) differs.
 ; Uses autopull (shift-left, 32-bit threshold) so DMA feeds the FIFO continuously.
 ; Each 'out pins, 2' shifts TWO bits to GPIO 8,9: 1 instruction = 1 pixel = 1 SM cycle.
 ;
