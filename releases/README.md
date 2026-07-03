@@ -33,6 +33,7 @@
 | 33_drumdrum | DFAM-style 8-step sequencer<br>[Web editor](https://mohoyt.com/drumdrum.html) | 1.2.0<br>Functional but WIP | C++ (ComputerCard / Pico SDK) | Moses Hoyt |
 | 34_dual_quant |  |  |  |  |
 | 35_FreqShift | Dual Input Frequency Shifter for Feedback Experimentation | 1.1<br>Functional | C++ (ComputerCard) | Ben Regnier |
+| 36_GradualProcess | Sequence generator for process music, currently with Glass (additive process), Reich (phasing) and Pärt (tintinnabulation) | 1.0 Released  | C++ (ComputerCard) | James Saunders |
 | 37_compulidean | Generative Euclidean drum + sample player. | (see source repo)<br>Functional, but WIP | C++/Arduino, with vscode+platformio. | Tristan Rowley |
 | 38_od | Loopable chaotic Lorenz attractor trajectories and zero-crossings as CV and pulses, with sensitivity to initial conditions. | 1.0<br>Released | MicroPython | M. John Mills |
 | 39_knots | Six-engine oscillator firmware for the Music Thing Workshop System | 0.2<br>Released | C++ (RPi Pico SDK / ComputerCard) | Jeff Fletcher |
