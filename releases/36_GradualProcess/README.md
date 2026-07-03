@@ -1,9 +1,10 @@
-GradualProcess
-James Saunders
+# GradualProcess
+
+**James Saunders**
 
 GradualProcess is a CV generator that produces sequences in the style of composers Philip Glass, Steve Reich and Arvo Pärt. It uses simple algorithms to generate material that draw on these composers’ techniques. The card can cycle through multiple modes and more will be added over time.
 
-**ABOUT**
+## ABOUT
 
 GradualProcess is designed to create pitch sequences that are governed by composition techniques of a set of composers for whom an aspect is governed by a process. The original version contains modes for Philip Glass, Steve Reich and Arvo Pärt. 
 
@@ -15,7 +16,7 @@ The Pärt mode creates a harmonised line using his tintinnabulation technique ha
 
 All three modes generate a new pitch sequence each time, drawing on broadly idiomatic types of material appropriate for each composer.
 
-**GENERAL**
+## GENERAL
 
 The card contains three modes which can be selected by turning off the power, moving the main knob to the correct position, and turning it on again:
 
@@ -23,8 +24,9 @@ IMAGE
 All modes have a play (Z-up), stop (Z-mid) and settings function (Z-hold-down). In settings, the X knob controls the clock divide and the Y knob selects the scale. Each mode may have other settings as indicated below.
 
 IMAGE
+## MODES
 
-1. **GLASS / ADDITIVE PROCESS**
+### 1.GLASS / ADDITIVE PROCESS
 
 Glass mode plays a pitch sequence grouped in units of two and three beats, mostly generated through scalic patterns with the occasional leap. 
 
@@ -38,7 +40,7 @@ The Y knob is used to add or subtract units in play mode. Begin at around 1200. 
 
 The LEDs show how many units are present in the loop (1-12).
 
-2. **REICH / PHASING**
+### 2.REICH / PHASING
 
 Reich mode outputs two identical voices which move out of phase with each other, either gradually or in step, generated as groups of two or three pitches with a one beat rest to separate them.
 
@@ -53,7 +55,7 @@ The X knob is used to gradually phase the second voice by one beat in either dir
 The LEDs show how many beats the voice has shifted (1-12).
 
 
-3. **PÄRT / TINTINNABULATION**
+### 3.PÄRT / TINTINNABULATION
 
 Pärt mode outputs two voices, the melodic voice (m-voice) and the tintinnabulation voice (t-voice) which harmonises it in rhythmic unison. The m-voice moves in step movements with occasional leaps and held notes, and the t-voice adds a harmony pitch from the tonic triad following Pärt’s rules. This mode works best with a slow tempo.
 
