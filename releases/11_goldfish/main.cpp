@@ -81,6 +81,15 @@ public:
             x = virtualDetentedKnob(x);
             y = virtualDetentedKnob(y);
 
+            // Hysteresis (backlash) on the main delay-time knob: when the knob is
+            // static, freeze against ADC noise so the squared delay mapping
+            // (cvL*cvL/50) doesn't jitter the read index - the mid-knob "blip".
+            // It still tracks continuously once the knob is actually turned.
+            const int MAIN_HYST = 16;
+            if (main > mainHeld + MAIN_HYST)      mainHeld = main - MAIN_HYST;
+            else if (main < mainHeld - MAIN_HYST) mainHeld = main + MAIN_HYST;
+            main = mainHeld;
+
             // Calculate big knob + audio2 attenuversion parameter. -2048 to 2047.
             if (Connected(Input::Audio2))
             {
@@ -537,6 +546,7 @@ private:
     int x;
     int y;
     int main;
+    int mainHeld = 2048; // hysteresis state for the main (delay-time) knob
     int16_t cv1;
     int16_t cv2;
     int16_t cvMix;
