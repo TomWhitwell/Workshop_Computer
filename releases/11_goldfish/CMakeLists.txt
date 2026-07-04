@@ -31,6 +31,11 @@ target_sources(goldfish PUBLIC
 target_compile_definitions(goldfish PRIVATE PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
 pico_enable_stdio_usb(goldfish 0)
 
+# Run the whole image from RAM: goldfish writes flash during operation, so no
+# code (incl. SDK divider/float routines) may be fetched from flash while core 1
+# is mid-erase. Matches MLRws.
+pico_set_binary_type(goldfish copy_to_ram)
+
 # Single source of truth for the firmware version (keep in sync with info.yaml).
 set(GOLDFISH_VERSION "2.0")
 

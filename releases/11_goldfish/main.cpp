@@ -518,7 +518,10 @@ private:
     int16_t cv2;
     int16_t cvMix;
 
-    static constexpr uint32_t bufSize = 64000;
+    // TEMP: reduced from 64000 so the RAM playback buffers fit alongside the
+    // flash streaming engine under copy_to_ram. Removed once playback moves to
+    // flash and delaybuf/cvBuf go away.
+    static constexpr uint32_t bufSize = 28000;
     int16_t delaybuf[bufSize];
     int16_t cvBuf[bufSize];
     unsigned writeInd, readIndL, readIndR, cvsL, cvsR;
@@ -668,8 +671,10 @@ private:
 
 int main()
 {
-    // Create an instance of the Goldfish class
-    Goldfish gf;
+    // Create an instance of the Goldfish class.
+    // static: keep this large object in .bss, not on main()'s stack, so its
+    // 100+ KB of buffers don't collide with core 1's stack near the top of RAM.
+    static Goldfish gf;
 
     // Enable the normalisation probe for the Goldfish instance
     gf.EnableNormalisationProbe();
