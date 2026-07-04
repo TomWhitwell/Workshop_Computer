@@ -115,15 +115,10 @@ public:
             else if (main < mainHeld - MAIN_HYST) mainHeld = main + MAIN_HYST;
             main = mainHeld;
 
-            // Calculate big knob + audio2 attenuversion parameter. -2048 to 2047.
-            if (Connected(Input::Audio2))
-            {
-                bigKnob_CV = (AudioIn2() * (2048 - main) >> 12) + 1;
-            }
-            else
-            {
-                bigKnob_CV = 2048 - main + 1;
-            }
+            // Big-knob parameter: playback speed in PLAY (in DELAY the delay time
+            // is taken from `main` directly). AudioIn2 is now the right-channel
+            // audio input for stereo, so it no longer attenuverts this.
+            bigKnob_CV = 2048 - main + 1;
 
             // Hainbach says half time is the best time (no really I'm just buying more delay time)
             if (halftime)
@@ -146,7 +141,9 @@ public:
                 // AudioIn1()/AudioIn2() are already 12kHz notch-filtered by
                 // ComputerCard 0.3.0 (notchLeft/notchRight), so the extra notch
                 // that used to live here is removed to avoid double-filtering.
+                // AudioIn1 = left channel, AudioIn2 = right channel (stereo).
                 int32_t audioLf = audioL;
+                int32_t audioRf = audioR;
 
                 int16_t lastSampleL = 0;
                 int16_t lastSampleR = 0;
@@ -177,8 +174,8 @@ public:
                 {
                     runMode = DELAY;
                     goldfish_stream_delay_start();
-                    goldfish_stream_head_init(&playHeadL);
-                    goldfish_stream_head_init(&playHeadR);
+                    goldfish_stream_head_init(&playHeadL, 0);
+                    goldfish_stream_head_init(&playHeadR, 1);
                     goldfish_stream_set_heads(&playHeadL, &playHeadR);
                     internalClockCounter = 0;
                     clockDivider.SetResetPhase(divisor);
@@ -191,12 +188,14 @@ public:
                     goldfish_stream_record_stop();
                     loopLength = goldfish_stream_recorded_samples();
                     if (loopLength < 1) loopLength = 1;
-                    goldfish_stream_head_init(&playHeadL);
-                    goldfish_stream_head_init(&playHeadR);
+                    goldfish_stream_head_init(&playHeadL, 0);
+                    goldfish_stream_head_init(&playHeadR, 1);
                     goldfish_stream_set_heads(&playHeadL, &playHeadR);
-                    calculateStartPos();
-                    phaseL = startPosL;
-                    phaseR = startPosR;
+                    // Start playback from the beginning of the recording. StartPos
+                    // (X/Y knobs) is applied only on an explicit reset, not when
+                    // playback first begins after recording.
+                    phaseL = 0;
+                    phaseR = 0;
                     internalClockCounter = 0;
                     clockDivider.SetResetPhase(divisor);
                     pulseL = true;
@@ -231,79 +230,55 @@ public:
                 {
                 case DELAY:
                 {
-                    
-                    //Delay code is a mutated version of Chris Johnson's Utility Pair delay code
-                    //In delay mode the audio is written to the delay buffer and read back with a delay time set by the big knob
-                    //each output (left and right) is read back with a different delay time, set by the big knob and the CV input
-                    
-                    //CVout2 is set to the quantised CV mix, the quantiser is also from Chris Johnson's Utility Pair project
+                    // Clean stereo delay: AudioIn1 -> L, AudioIn2 -> R, both delayed
+                    // by ONE delay time. Main knob = delay time, SHORT fully CCW
+                    // (main = 0) -> LONG fully CW (main = 4095), across the full
+                    // exponential range (built at boot from capacity).
                     qSample = quantSample(cvMix);
 
-                    // Ping-pong (Option C) delay-time mapping across the FULL
-                    // card-scaled range. k spans 2048(knob left)..0(right); build a
-                    // signed spread so the two heads cross at noon and split to the
-                    // extremes. Both heads index a shared exponential delay curve
-                    // (built at boot from capacity) for even spacing across
-                    // MIN_DELAY..maxDelay (~10 octaves); noon = geometric mean.
-                    int32_t k = (bigKnob_CV + 2048) >> 1; // 2048(left)..1024(noon)..0(right)
-                    int32_t kc = k - 1024;                // +1024(left)..0..-1024(right)
+                    // Main knob position -> exponential delay table position (<<8).
+                    int32_t pos = main * 8; // main 0..4095 -> ~0..(128<<8)
+                    if (pos < 0) pos = 0;
+                    if (pos > (128 << 8)) pos = (128 << 8);
+                    int32_t targ = delayLookup(pos); // delay in samples
 
-                    // Table position <<8 (0..128<<8). Left drives L long / R short.
-                    int32_t posL = 16384 + kc * 16;
-                    int32_t posR = 16384 - kc * 16;
+                    // One-pole smoothing in <<7 delay-sample fixed point.
+                    cvsL = (cvsL * 255 + ((int64_t)targ << 7)) >> 8;
+                    int64_t cvs1 = cvsL >> 7;
+                    int64_t rD   = cvsL & 0x7F;
 
-                    int32_t targL = delayLookup(posL); // delay in samples
-                    int32_t targR = delayLookup(posR);
+                    // Record both channels (high-passed) + mono CV into the wrapping
+                    // flash delay line.
+                    int32_t bufL = highpass_process(&hpf, 200, audioLf);
+                    int32_t bufR = highpass_process(&hpfR, 200, audioRf);
+                    goldfish_stream_record_sample((int16_t)bufL, (int16_t)bufR, cvMix);
 
-                    // One-pole smoothing in <<7 delay-sample fixed point (same time
-                    // constant as before); cvs1 = integer samples, r = fraction.
-                    cvsL = (cvsL * 255 + ((int64_t)targL << 7)) >> 8;
-                    cvsR = (cvsR * 255 + ((int64_t)targR << 7)) >> 8;
+                    // Safety clamp (the exponential table already spans
+                    // MIN_DELAY..maxDelay). MIN_DELAY floor set by record->flush
+                    // backlog; erase-suspend advances flush through erases.
+                    if (cvs1 < (int64_t)MIN_DELAY) cvs1 = MIN_DELAY;
+                    if (cvs1 > (int64_t)maxDelayS) cvs1 = maxDelayS;
 
-                    int64_t cvs1L = cvsL >> 7;
-                    int64_t cvs1R = cvsR >> 7;
-
-                    int64_t rL = cvsL & 0x7F;
-                    int64_t rR = cvsR & 0x7F;
-
-                    // Record the high-passed input into the wrapping flash delay line.
-                    int32_t buf_write = highpass_process(&hpf, 200, audioLf);
-                    goldfish_stream_record_sample((int16_t)buf_write, cvMix);
-
-                    // Safety clamp (the table already spans MIN_DELAY..maxDelay, so
-                    // this only guards transients). The MIN_DELAY floor is set by the
-                    // record->flush backlog (~1 page); with erase-suspend the flush
-                    // frontier advances through erases, so no erase-blackout runway
-                    // is needed. 1536 ~= 64ms at 24kHz.
-                    if (cvs1L < (int64_t)MIN_DELAY) cvs1L = MIN_DELAY;
-                    if (cvs1R < (int64_t)MIN_DELAY) cvs1R = MIN_DELAY;
-                    if (cvs1L > (int64_t)maxDelayS) cvs1L = maxDelayS;
-                    if (cvs1R > (int64_t)maxDelayS) cvs1R = maxDelayS;
-
-                    // Read back at the delay offset behind the write head, via the
-                    // core-1 ring heads (flash is being erased, so no direct reads).
-                    // 4-tap Catmull-Rom cubic interpolation per head; the +1 look-
-                    // ahead tap stays well behind the write head (MIN_DELAY >> 1).
+                    // Read both channels at the SAME delay via 4-tap Catmull-Rom
+                    // cubic. The +1 look-ahead tap stays behind the write head
+                    // (MIN_DELAY >> 1). L reads channel 0, R reads channel 1.
                     uint32_t wi = goldfish_stream_write_index();
                     int32_t fromBufferL = 0;
                     int32_t fromBufferR = 0;
-                    if (wi > (uint32_t)cvs1L + 3u)
+                    if (wi > (uint32_t)cvs1 + 3u)
                     {
-                        uint32_t readL1 = wi - (uint32_t)cvs1L - 1u;
-                        int32_t xm1 = goldfish_stream_head_read(&playHeadL, readL1 - 2u);
-                        int32_t x0  = goldfish_stream_head_read(&playHeadL, readL1 - 1u);
-                        int32_t x1  = goldfish_stream_head_read(&playHeadL, readL1);
-                        int32_t x2  = goldfish_stream_head_read(&playHeadL, readL1 + 1u);
-                        fromBufferL = cubicHermite(xm1, x0, x1, x2, 128 - (int32_t)rL, 7);
-                    }
-                    if (wi > (uint32_t)cvs1R + 3u)
-                    {
-                        uint32_t readR1 = wi - (uint32_t)cvs1R - 1u;
-                        int32_t xm1 = goldfish_stream_head_read(&playHeadR, readR1 - 2u);
-                        int32_t x0  = goldfish_stream_head_read(&playHeadR, readR1 - 1u);
-                        int32_t x1  = goldfish_stream_head_read(&playHeadR, readR1);
-                        int32_t x2  = goldfish_stream_head_read(&playHeadR, readR1 + 1u);
-                        fromBufferR = cubicHermite(xm1, x0, x1, x2, 128 - (int32_t)rR, 7);
+                        uint32_t readInd = wi - (uint32_t)cvs1 - 1u;
+                        int32_t t = 128 - (int32_t)rD;
+                        int32_t l_m1 = goldfish_stream_head_read(&playHeadL, readInd - 2u);
+                        int32_t l_0  = goldfish_stream_head_read(&playHeadL, readInd - 1u);
+                        int32_t l_1  = goldfish_stream_head_read(&playHeadL, readInd);
+                        int32_t l_2  = goldfish_stream_head_read(&playHeadL, readInd + 1u);
+                        fromBufferL = cubicHermite(l_m1, l_0, l_1, l_2, t, 7);
+                        int32_t r_m1 = goldfish_stream_head_read(&playHeadR, readInd - 2u);
+                        int32_t r_0  = goldfish_stream_head_read(&playHeadR, readInd - 1u);
+                        int32_t r_1  = goldfish_stream_head_read(&playHeadR, readInd);
+                        int32_t r_2  = goldfish_stream_head_read(&playHeadR, readInd + 1u);
+                        fromBufferR = cubicHermite(r_m1, r_0, r_1, r_2, t, 7);
                     }
 
                     outL = fromBufferL;
@@ -315,13 +290,13 @@ public:
                 case RECORD:
                 {
 
-                    // in record mode the audio is written to the delay buffer and the CV input is written to the CV buffer
+                    // Record mode: capture both audio channels (L/R) + mono CV.
                     qSample = quantSample(cvMix);
 
-                    goldfish_stream_record_sample((int16_t)audioLf, cvMix);
+                    goldfish_stream_record_sample((int16_t)audioLf, (int16_t)audioRf, cvMix);
 
                     outL = audioLf;
-                    outR = audioLf;
+                    outR = audioRf;
 
                     outCV = cvMix;
 
@@ -352,26 +327,14 @@ public:
                     //Play code is a mutated version of Chris Johnson's Utility Pair Looper
                     //In play mode the audio is read back from the delay buffer with a playback speed set by the big knob
 
+                    // Stereo playback: both channels advance together (L reads
+                    // channel 0, R reads channel 1 at the same position). AudioIn2
+                    // is now an audio input, so the old L/R speed-spread is gone.
                     int32_t k = (2048 - bigKnob_CV) >> 1;
-                    int32_t dphaseL;
-                    int32_t dphaseR;
+                    int32_t dphase = k - 1024;
 
-                    if (Connected(Input::Audio2))
-                    {
-                        dphaseL = k + (bigKnob_CV + 1024);
-                        dphaseR = k + (bigKnob_CV - 1024);
-                    }
-                    else
-                    {
-                        dphaseL = k;
-                        dphaseR = k;
-                    }
-
-                    dphaseL -= 1024;
-                    dphaseR -= 1024;
-
-                    phaseL += dphaseL >> 1;
-                    phaseR += dphaseR >> 1;
+                    phaseL += dphase >> 1;
+                    phaseR += dphase >> 1;
 
                     if (loopLength < 1)
                     {
@@ -602,6 +565,7 @@ private:
     int32_t delayTable[129];                     // exponential delay curve (samples), 0..128
     int32_t ledtimer = 0;
     int32_t hpf = 0;
+    int32_t hpfR = 0;
     bool checkZero = false;
     int64_t phaseL = 0;
     int64_t phaseR = 0;

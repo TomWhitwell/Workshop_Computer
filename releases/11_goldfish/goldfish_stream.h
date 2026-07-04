@@ -49,6 +49,11 @@ extern "C" {
 #define GOLDFISH_KEYFRAME_BUDGET 8192u
 #endif
 
+/* Number of audio channels stored to flash (stereo: L, R). */
+#ifndef GOLDFISH_AUDIO_CHANNELS
+#define GOLDFISH_AUDIO_CHANNELS 2u
+#endif
+
 /* CV decimation: audio runs at 48 kHz; CV is stored every Nth sample (12 kHz). */
 #ifndef GOLDFISH_CV_DECIM
 #define GOLDFISH_CV_DECIM 4u
@@ -86,12 +91,12 @@ void goldfish_stream_init(void);
 void goldfish_stream_record_start(void);
 
 /**
- * Record one audio+CV frame. Called from core 0 at 48 kHz.
- *  audio: -32768..32767 (12-bit Goldfish audio may be pre-scaled by caller)
- *  cv:    -2048..2047   (12-bit)
+ * Record one stereo audio + CV frame. Called from core 0 at the audio rate.
+ *  left, right: -32768..32767 audio samples (L and R channels)
+ *  cv:         -2048..2047 (12-bit), a single mono CV stream
  * Returns false once the recording region is full.
  */
-bool goldfish_stream_record_sample(int16_t audio, int16_t cv);
+bool goldfish_stream_record_sample(int16_t left, int16_t right, int16_t cv);
 
 /** Stop recording: flush partial encoder byte and partial pages. */
 void goldfish_stream_record_stop(void);
@@ -110,52 +115,10 @@ uint32_t goldfish_stream_io_task(void);
 /** True once all staged pages have been written to flash by core 1. */
 bool goldfish_stream_io_idle(void);
 
-/**
- * Persist the recording header (metadata + keyframe index) to flash so the
- * loop survives a power cycle. Runs on core 1; call only when io is idle.
- */
-void goldfish_stream_persist(void);
-
-/**
- * Load a previously persisted recording at boot. Returns true if a valid
- * header was found and the keyframe index restored.
- */
-bool goldfish_stream_load(void);
-
 /* ---- Read-back (random access) ---- */
-
-/** Decode the audio sample at the given absolute index (0..recorded length). */
-int16_t goldfish_stream_read_audio(uint32_t sample_index);
 
 /** Read the CV value (sign-extended back to 12-bit) at the given audio index. */
 int16_t goldfish_stream_read_cv(uint32_t sample_index);
-
-/* ---- Streaming playhead (efficient sequential/varispeed reads) ----
- *
- * A reader decodes ADPCM incrementally (one sample forward per step) and keeps a
- * small ring of recently decoded samples, so forward/varispeed playback and the
- * interpolation neighbour read cost O(1) per sample with no bursts. A full
- * decode-from-keyframe only happens on a backward jump or large seek. Reads
- * flash directly on core 0; only valid when no recording (and thus no flash
- * erase) is in progress. */
-
-/* Look-back window (power of two) covering the interpolation neighbour and
- * slow/repeated reads around the playhead. */
-#define GOLDFISH_READER_HIST 64u
-
-typedef struct {
-	int16_t  predictor;                 /* ADPCM decoder state after `head` */
-	int8_t   step_index;
-	bool     primed;                    /* false until first decode */
-	uint32_t head;                      /* highest sample index decoded */
-	int16_t  hist[GOLDFISH_READER_HIST];/* ring of recently decoded samples */
-} goldfish_reader_t;
-
-/** Reset a reader (forces a decode on the next access). */
-void goldfish_stream_reader_init(goldfish_reader_t *r);
-
-/** Return the decoded audio sample at sample_index via the reader. */
-int16_t goldfish_stream_reader_sample(goldfish_reader_t *r, uint32_t sample_index);
 
 /* ---- Core-1-refilled playback head (forward + reverse, varispeed) ----
  *
@@ -176,6 +139,7 @@ typedef struct {
 	volatile bool     active;    /* core 0: head in use this block */
 	volatile uint32_t lo, hi;    /* core 1: valid window [lo, hi) */
 	int16_t           last;      /* core 0: last good sample (underrun hold) */
+	uint8_t           channel;   /* which audio channel (0 = L, 1 = R) this head reads */
 	/* core 1 private forward-decode state */
 	int16_t           predictor;
 	int8_t            step_index;
@@ -185,7 +149,7 @@ typedef struct {
 } goldfish_head_t;
 
 /** Reset a playback head (core 0). */
-void goldfish_stream_head_init(goldfish_head_t *h);
+void goldfish_stream_head_init(goldfish_head_t *h, uint8_t channel);
 
 /** Read the decoded sample at sample_index from the head's ring (core 0). */
 int16_t goldfish_stream_head_read(goldfish_head_t *h, uint32_t sample_index);
