@@ -90,6 +90,11 @@ bool goldfish_stream_record_sample(int16_t audio, int16_t cv);
 /** Stop recording: flush partial encoder byte and partial pages. */
 void goldfish_stream_record_stop(void);
 
+/** Begin continuous, wrapping record for the flash delay line (DELAY mode).
+ *  Writes lap the whole audio region (distributing wear), and reads trail the
+ *  write position via playback heads. */
+void goldfish_stream_delay_start(void);
+
 /**
  * Core 1 service routine: drains staged pages to flash with erase-ahead.
  * Call frequently from the core 1 loop. Returns the number of pages written.
@@ -194,6 +199,7 @@ uint32_t goldfish_stream_flash_size(void);        /* detected total flash bytes 
 uint32_t goldfish_stream_keyframe_interval(void); /* samples between keyframes  */
 uint32_t goldfish_stream_capacity_samples(void);  /* max recordable audio samples */
 uint32_t goldfish_stream_recorded_samples(void);  /* length of current recording */
+uint32_t goldfish_stream_write_index(void);       /* monotonic samples written (DELAY) */
 uint32_t goldfish_stream_erase_count(void);       /* sectors erased since boot   */
 float    goldfish_stream_capacity_seconds(void);  /* capacity_samples / 48000    */
 

@@ -46,10 +46,6 @@ public:
         startPosL = KnobVal(Knob::X) * bufSize >> 4;
         startPosR = KnobVal(Knob::Y) * bufSize >> 4;
 
-        for (int i = 0; i < bufSize; i++)
-        {
-            delaybuf[i] = 0;
-        }
         writeInd = 0;
         readIndL = 0;
         readIndR = 0;
@@ -157,8 +153,10 @@ public:
                 else if ((s == Switch::Up) && (lastSwitchVal != Switch::Up))
                 {
                     runMode = DELAY;
-                    goldfish_stream_record_stop();
-                    goldfish_stream_set_heads(NULL, NULL);
+                    goldfish_stream_delay_start();
+                    goldfish_stream_head_init(&playHeadL);
+                    goldfish_stream_head_init(&playHeadR);
+                    goldfish_stream_set_heads(&playHeadL, &playHeadR);
                     internalClockCounter = 0;
                     clockDivider.SetResetPhase(divisor);
                     pulseL = true;
@@ -247,30 +245,43 @@ public:
                     int64_t rL = cvsL & 0x7F;
                     int64_t rR = cvsR & 0x7F;
 
-                    readIndL = (writeInd + (bufSize << 1) - (cvs1L)-1) % bufSize;
-                    readIndR = (writeInd + (bufSize << 1) - (cvs1R)-1) % bufSize;
-                    int32_t fromBuffer1L = delaybuf[readIndL];
-                    int32_t fromBuffer1R = delaybuf[readIndR];
-                    int readInd2L = (writeInd + (bufSize << 1) - (cvs1L)-2) % bufSize;
-                    int readInd2R = (writeInd + (bufSize << 1) - (cvs1R)-2) % bufSize;
-                    int32_t fromBuffer2L = delaybuf[readInd2L];
-                    int32_t fromBuffer2R = delaybuf[readInd2R];
+                    // Record the high-passed input into the wrapping flash delay line.
+                    int32_t buf_write = highpass_process(&hpf, 200, audioLf);
+                    goldfish_stream_record_sample((int16_t)buf_write, cvMix);
 
-                    int32_t fromBufferL = (fromBuffer2L * rL + fromBuffer1L * (128 - rL)) >> 7;
-                    int32_t fromBufferR = (fromBuffer2R * rR + fromBuffer1R * (128 - rR)) >> 7;
+                    // Clamp the delay so reads stay safely behind the write head
+                    // (data already flushed to flash) and within the region.
+                    const uint32_t MIN_DELAY = 2560u;
+                    uint32_t capSamp = goldfish_stream_capacity_samples();
+                    uint32_t maxDelay = (capSamp > 8192u) ? (capSamp - 8192u) : MIN_DELAY;
+                    if (cvs1L < (int64_t)MIN_DELAY) cvs1L = MIN_DELAY;
+                    if (cvs1R < (int64_t)MIN_DELAY) cvs1R = MIN_DELAY;
+                    if (cvs1L > (int64_t)maxDelay) cvs1L = maxDelay;
+                    if (cvs1R > (int64_t)maxDelay) cvs1R = maxDelay;
+
+                    // Read back at the delay offset behind the write head, via the
+                    // core-1 ring heads (flash is being erased, so no direct reads).
+                    uint32_t wi = goldfish_stream_write_index();
+                    int32_t fromBufferL = 0;
+                    int32_t fromBufferR = 0;
+                    if (wi > (uint32_t)cvs1L + 1u)
+                    {
+                        uint32_t readL1 = wi - (uint32_t)cvs1L - 1u;
+                        int32_t b1 = goldfish_stream_head_read(&playHeadL, readL1);
+                        int32_t b2 = goldfish_stream_head_read(&playHeadL, readL1 - 1u);
+                        fromBufferL = (b2 * rL + b1 * (128 - rL)) >> 7;
+                    }
+                    if (wi > (uint32_t)cvs1R + 1u)
+                    {
+                        uint32_t readR1 = wi - (uint32_t)cvs1R - 1u;
+                        int32_t b1 = goldfish_stream_head_read(&playHeadR, readR1);
+                        int32_t b2 = goldfish_stream_head_read(&playHeadR, readR1 - 1u);
+                        fromBufferR = (b2 * rR + b1 * (128 - rR)) >> 7;
+                    }
 
                     outL = fromBufferL;
                     outR = fromBufferR;
-
                     outCV = cvMix;
-
-                    int32_t buf_write = highpass_process(&hpf, 200, audioLf);
-
-                    delaybuf[writeInd] = buf_write;
-
-                    writeInd++;
-                    if (writeInd >= bufSize)
-                        writeInd = 0;
 
                     break;
                 }
@@ -280,7 +291,6 @@ public:
                     // in record mode the audio is written to the delay buffer and the CV input is written to the CV buffer
                     qSample = quantSample(cvMix);
 
-                    delaybuf[writeInd] = audioLf;
                     goldfish_stream_record_sample((int16_t)audioLf, cvMix);
 
                     outL = audioLf;
@@ -539,11 +549,9 @@ private:
     int16_t cv2;
     int16_t cvMix;
 
-    // TEMP: reduced from 64000 so the RAM playback buffers fit alongside the
-    // flash streaming engine under copy_to_ram. Removed once playback moves to
-    // flash and delaybuf/cvBuf go away.
-    static constexpr uint32_t bufSize = 28000;
-    int16_t delaybuf[bufSize];
+    // Timing constant only (internal clock rate / knob-position scaling). No
+    // longer backs a RAM audio buffer now that all audio lives in flash.
+    static constexpr uint32_t bufSize = 64000;
     goldfish_head_t playHeadL;
     goldfish_head_t playHeadR;
     unsigned writeInd, readIndL, readIndR, cvsL, cvsR;

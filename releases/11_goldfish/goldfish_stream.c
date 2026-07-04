@@ -74,6 +74,8 @@ static uint32_t s_cv_off;
 static uint32_t s_cv_bytes;
 static uint32_t s_capacity_samples;
 static uint32_t s_keyframe_interval;
+static uint32_t s_kf_slots;          /* keyframe slots = capacity/interval (ring in continuous mode) */
+static bool     s_continuous;        /* DELAY: wrap region + never stop recording */
 
 /* Record state (core 0) */
 static bool         s_rec_active;
@@ -100,6 +102,10 @@ static volatile uint32_t s_erase_count;
 
 static inline uint32_t align_down(uint32_t v, uint32_t a) { return v & ~(a - 1u); }
 static inline uint32_t align_up(uint32_t v, uint32_t a)   { return (v + a - 1u) & ~(a - 1u); }
+
+/* Modular mapping of a logical position onto the (circular) flash regions. */
+static inline uint32_t kf_slot(uint32_t k)          { return k % s_kf_slots; }
+static inline uint32_t audio_byte_wrap(uint32_t b)  { return b % s_audio_bytes; }
 
 static inline uint32_t next_pow2(uint32_t v)
 {
@@ -189,6 +195,11 @@ void goldfish_stream_init(void)
 	                / GOLDFISH_KEYFRAME_BUDGET;
 	s_keyframe_interval = next_pow2(need < 256u ? 256u : need);
 
+	s_kf_slots = s_capacity_samples / s_keyframe_interval;
+	if (s_kf_slots == 0u) s_kf_slots = 1u;
+	if (s_kf_slots > GOLDFISH_KEYFRAME_BUDGET) s_kf_slots = GOLDFISH_KEYFRAME_BUDGET;
+	s_continuous = false;
+
 	s_num_keyframes    = 0u;
 	s_recorded_samples = 0u;
 	s_rec_active       = false;
@@ -217,23 +228,31 @@ void __not_in_flash_func(goldfish_stream_record_start)(void)
 	/* Erase-ahead starts at the base of each region. */
 	s_audio_next_erase = s_audio_off;
 	s_cv_next_erase    = s_cv_off;
+	s_continuous       = false;
+}
+
+void __not_in_flash_func(goldfish_stream_delay_start)(void)
+{
+	/* Continuous, wrapping record for the flash delay line. */
+	goldfish_stream_record_start();
+	s_continuous = true;
 }
 
 bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t audio, int16_t cv)
 {
 	if (!s_rec_active) return false;
-	if (s_write_index >= s_capacity_samples) {
-		return false; /* region full */
+	if (!s_continuous && s_write_index >= s_capacity_samples) {
+		return false; /* region full (fixed recording) */
 	}
 
 	/* Capture keyframe (encoder state *before* encoding this sample) at each
-	 * interval boundary, so a decoder can restart from it. */
-	if ((s_write_index & (s_keyframe_interval - 1u)) == 0u
-	    && s_num_keyframes < GOLDFISH_KEYFRAME_BUDGET) {
-		s_keyframes[s_num_keyframes].predictor  = s_enc.predictor;
-		s_keyframes[s_num_keyframes].step_index = s_enc.step_index;
-		s_keyframes[s_num_keyframes]._pad       = 0;
-		s_num_keyframes++;
+	 * interval boundary. The slot wraps so a continuous stream reuses slots. */
+	if ((s_write_index & (s_keyframe_interval - 1u)) == 0u) {
+		uint32_t slot = kf_slot(s_write_index / s_keyframe_interval);
+		s_keyframes[slot].predictor  = s_enc.predictor;
+		s_keyframes[slot].step_index = s_enc.step_index;
+		s_keyframes[slot]._pad       = 0;
+		if (slot + 1u > s_num_keyframes) s_num_keyframes = slot + 1u;
 	}
 
 	/* Encode audio nybble, pack two per byte. */
@@ -248,6 +267,7 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t audio, int16_t c
 		if (s_audio_fill == GOLDFISH_PAGE_SIZE) {
 			enqueue_page(s_audio_write_off, s_audio_page);
 			s_audio_write_off += GOLDFISH_PAGE_SIZE;
+			if (s_audio_write_off >= s_audio_off + s_audio_bytes) s_audio_write_off = s_audio_off;
 			s_audio_fill = 0u;
 		}
 	}
@@ -261,11 +281,13 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t audio, int16_t c
 		if (s_cv_fill == GOLDFISH_PAGE_SIZE) {
 			enqueue_page(s_cv_write_off, s_cv_page);
 			s_cv_write_off += GOLDFISH_PAGE_SIZE;
+			if (s_cv_write_off >= s_cv_off + s_cv_bytes) s_cv_write_off = s_cv_off;
 			s_cv_fill = 0u;
 		}
 	}
 
 	s_write_index++;
+	if (s_continuous) s_recorded_samples = s_write_index;
 	return true;
 }
 
@@ -302,6 +324,7 @@ void __not_in_flash_func(goldfish_stream_record_stop)(void)
 
 	s_recorded_samples = s_write_index;
 	s_rec_active = false;
+	s_continuous = false;
 }
 
 /* ------------------------------------------------------------------ */
@@ -320,18 +343,15 @@ uint32_t goldfish_stream_io_task(void)
 		uint32_t slot = s_page_r & (GOLDFISH_PAGE_RING_COUNT - 1u);
 		uint32_t off  = s_page_ring[slot].flash_off;
 
-		/* Erase-ahead: erase each sector just before the first page lands in
-		 * it. Writes within a region are strictly sequential. */
-		if (off >= s_audio_off && off < s_cv_off) {
-			while (off >= s_audio_next_erase) {
-				flash_erase_sector(s_audio_next_erase);
-				s_audio_next_erase += FLASH_SECTOR_SIZE;
-			}
+		/* Erase-ahead: erase a sector the moment its first page is about to be
+		 * programmed. Works for the wrapping (continuous DELAY) case too, since
+		 * each lap re-erases the sector before rewriting it. */
+		if (off >= s_audio_off && off < s_audio_off + s_audio_bytes) {
+			if (((off - s_audio_off) % FLASH_SECTOR_SIZE) == 0u)
+				flash_erase_sector(off);
 		} else if (off >= s_cv_off && off < s_cv_off + s_cv_bytes) {
-			while (off >= s_cv_next_erase) {
-				flash_erase_sector(s_cv_next_erase);
-				s_cv_next_erase += FLASH_SECTOR_SIZE;
-			}
+			if (((off - s_cv_off) % FLASH_SECTOR_SIZE) == 0u)
+				flash_erase_sector(off);
 		}
 
 		flash_program_page(off, s_page_ring[slot].data);
@@ -593,11 +613,10 @@ static void head_refill(goldfish_head_t *h)
 	/* Full reseek if the window is empty or no longer contains pos. */
 	if (h->need_seek || h->hi <= h->lo || pos < h->lo || pos >= h->hi) {
 		uint32_t k = want_lo / s_keyframe_interval;
-		if (k >= s_num_keyframes) k = s_num_keyframes ? (s_num_keyframes - 1u) : 0u;
 		uint32_t kstart = k * s_keyframe_interval;
 
-		h->predictor  = s_keyframes[k].predictor;
-		h->step_index = s_keyframes[k].step_index;
+		h->predictor  = s_keyframes[kf_slot(k)].predictor;
+		h->step_index = s_keyframes[kf_slot(k)].step_index;
 		h->fill_next  = kstart;
 		h->lo         = kstart;
 		h->hi         = kstart;
@@ -610,12 +629,11 @@ static void head_refill(goldfish_head_t *h)
 	if (h->fill_next < want_hi) {
 		if (!h->fwd_valid) {
 			uint32_t k = h->fill_next / s_keyframe_interval;
-			if (k >= s_num_keyframes) k = s_num_keyframes ? (s_num_keyframes - 1u) : 0u;
 			adpcm_state_t ps;
-			ps.predictor  = s_keyframes[k].predictor;
-			ps.step_index = s_keyframes[k].step_index;
+			ps.predictor  = s_keyframes[kf_slot(k)].predictor;
+			ps.step_index = s_keyframes[kf_slot(k)].step_index;
 			for (uint32_t i = k * s_keyframe_interval; i < h->fill_next; i++) {
-				uint8_t byte = base[i >> 1];
+				uint8_t byte = base[audio_byte_wrap(i >> 1)];
 				uint8_t nyb  = (i & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
 				                        : (uint8_t)(byte & 0x0Fu);
 				(void)adpcm_decode(nyb, &ps);
@@ -631,7 +649,7 @@ static void head_refill(goldfish_head_t *h)
 		uint32_t budget = 2048u;
 		while (h->fill_next < want_hi && budget-- != 0u) {
 			uint32_t idx = h->fill_next;
-			uint8_t byte = base[idx >> 1];
+			uint8_t byte = base[audio_byte_wrap(idx >> 1)];
 			uint8_t nyb  = (idx & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
 			                          : (uint8_t)(byte & 0x0Fu);
 			h->pcm[idx & GOLDFISH_RING_MASK] = adpcm_decode(nyb, &st);
@@ -649,14 +667,13 @@ static void head_refill(goldfish_head_t *h)
 	while (h->lo > want_lo && bbudget != 0u) {
 		uint32_t span_hi = h->lo;
 		uint32_t k = (span_hi - 1u) / s_keyframe_interval;
-		if (k >= s_num_keyframes) k = s_num_keyframes ? (s_num_keyframes - 1u) : 0u;
 		uint32_t dstart = k * s_keyframe_interval;
 
 		adpcm_state_t bst;
-		bst.predictor  = s_keyframes[k].predictor;
-		bst.step_index = s_keyframes[k].step_index;
+		bst.predictor  = s_keyframes[kf_slot(k)].predictor;
+		bst.step_index = s_keyframes[kf_slot(k)].step_index;
 		for (uint32_t i = dstart; i < span_hi; i++) {
-			uint8_t byte = base[i >> 1];
+			uint8_t byte = base[audio_byte_wrap(i >> 1)];
 			uint8_t nyb  = (i & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
 			                        : (uint8_t)(byte & 0x0Fu);
 			int16_t s = adpcm_decode(nyb, &bst);
@@ -688,5 +705,6 @@ uint32_t goldfish_stream_flash_size(void)        { return s_flash_size; }
 uint32_t goldfish_stream_keyframe_interval(void) { return s_keyframe_interval; }
 uint32_t goldfish_stream_capacity_samples(void)  { return s_capacity_samples; }
 uint32_t goldfish_stream_recorded_samples(void)  { return s_recorded_samples; }
+uint32_t goldfish_stream_write_index(void)       { return s_write_index; }
 uint32_t goldfish_stream_erase_count(void)       { return s_erase_count; }
 float    goldfish_stream_capacity_seconds(void)  { return s_capacity_samples / 48000.0f; }
