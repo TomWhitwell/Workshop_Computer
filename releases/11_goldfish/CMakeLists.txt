@@ -23,8 +23,10 @@ pico_sdk_init()
 
 add_executable(goldfish)
 target_include_directories(goldfish PUBLIC ${CMAKE_CURRENT_LIST_DIR})
-target_link_libraries(goldfish pico_unique_id pico_stdlib hardware_dma hardware_i2c hardware_pwm hardware_adc hardware_spi)
+target_link_libraries(goldfish pico_unique_id pico_stdlib hardware_dma hardware_i2c hardware_pwm hardware_adc hardware_spi hardware_flash)
 pico_add_extra_outputs(goldfish)
-target_sources(goldfish PUBLIC ${CMAKE_CURRENT_LIST_DIR}/main.cpp)
+target_sources(goldfish PUBLIC
+    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/goldfish_stream.c)
 target_compile_definitions(goldfish PRIVATE PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
 pico_enable_stdio_usb(goldfish 0)
