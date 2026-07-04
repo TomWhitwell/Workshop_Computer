@@ -148,6 +148,7 @@ public:
                     loopLength = 0;
                     writeInd = 0;
                     goldfish_stream_record_start();
+                    goldfish_stream_set_heads(NULL, NULL);
                     internalClockCounter = 0;
                     clockDivider.SetResetPhase(divisor);
                     pulseL = true;
@@ -157,6 +158,7 @@ public:
                 {
                     runMode = DELAY;
                     goldfish_stream_record_stop();
+                    goldfish_stream_set_heads(NULL, NULL);
                     internalClockCounter = 0;
                     clockDivider.SetResetPhase(divisor);
                     pulseL = true;
@@ -168,8 +170,9 @@ public:
                     goldfish_stream_record_stop();
                     loopLength = goldfish_stream_recorded_samples();
                     if (loopLength < 1) loopLength = 1;
-                    goldfish_stream_reader_init(&playReaderL);
-                    goldfish_stream_reader_init(&playReaderR);
+                    goldfish_stream_head_init(&playHeadL);
+                    goldfish_stream_head_init(&playHeadR);
+                    goldfish_stream_set_heads(&playHeadL, &playHeadR);
                     calculateStartPos();
                     phaseL = startPosL;
                     phaseR = startPosR;
@@ -388,10 +391,10 @@ public:
                     int32_t readIndR = phaseR >> 8;
 
                     // Decode audio from flash via the per-head streaming readers.
-                    int32_t sL0 = goldfish_stream_reader_sample(&playReaderL, readIndL);
-                    int32_t sL1 = goldfish_stream_reader_sample(&playReaderL, (readIndL + 1) % loopLength);
-                    int32_t sR0 = goldfish_stream_reader_sample(&playReaderR, readIndR);
-                    int32_t sR1 = goldfish_stream_reader_sample(&playReaderR, (readIndR + 1) % loopLength);
+                    int32_t sL0 = goldfish_stream_head_read(&playHeadL, readIndL);
+                    int32_t sL1 = goldfish_stream_head_read(&playHeadL, (readIndL + 1) % loopLength);
+                    int32_t sR0 = goldfish_stream_head_read(&playHeadR, readIndR);
+                    int32_t sR1 = goldfish_stream_head_read(&playHeadR, (readIndR + 1) % loopLength);
 
                     int32_t fadeLength = loopLength; // Adjust this value as needed for the fade length
 
@@ -541,8 +544,8 @@ private:
     // flash and delaybuf/cvBuf go away.
     static constexpr uint32_t bufSize = 28000;
     int16_t delaybuf[bufSize];
-    goldfish_reader_t playReaderL;
-    goldfish_reader_t playReaderR;
+    goldfish_head_t playHeadL;
+    goldfish_head_t playHeadR;
     unsigned writeInd, readIndL, readIndR, cvsL, cvsR;
     int32_t ledtimer = 0;
     int32_t hpf = 0;

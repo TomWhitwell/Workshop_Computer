@@ -146,6 +146,46 @@ void goldfish_stream_reader_init(goldfish_reader_t *r);
 /** Return the decoded audio sample at sample_index via the reader. */
 int16_t goldfish_stream_reader_sample(goldfish_reader_t *r, uint32_t sample_index);
 
+/* ---- Core-1-refilled playback head (forward + reverse, varispeed) ----
+ *
+ * A head is a decoded-PCM window kept filled by core 1 so that core 0 can read
+ * any recently-visited sample in O(1) with no decode work on the audio thread.
+ * This is required whenever recording is in progress (DELAY): core 0 must not
+ * touch the flash bus during a core-1 erase, so all reads come from the ring.
+ * Core 0 publishes the position it wants (req_pos); core 1 slides/refills the
+ * window to keep it covered, seeking from a keyframe on large/backward jumps. */
+
+#define GOLDFISH_RING_BITS 12u
+#define GOLDFISH_RING_SZ   (1u << GOLDFISH_RING_BITS) /* 4096 samples, 8 KB */
+#define GOLDFISH_RING_MASK (GOLDFISH_RING_SZ - 1u)
+
+typedef struct {
+	int16_t           pcm[GOLDFISH_RING_SZ]; /* decoded window, indexed by idx&MASK */
+	volatile uint32_t req_pos;   /* core 0: sample index it is reading */
+	volatile bool     active;    /* core 0: head in use this block */
+	volatile uint32_t lo, hi;    /* core 1: valid window [lo, hi) */
+	int16_t           last;      /* core 0: last good sample (underrun hold) */
+	/* core 1 private forward-decode state */
+	int16_t           predictor;
+	int8_t            step_index;
+	uint32_t          fill_next; /* next sample index core 1 will decode */
+	bool              need_seek; /* core 1 must re-seek before filling */
+} goldfish_head_t;
+
+/** Reset a playback head (core 0). */
+void goldfish_stream_head_init(goldfish_head_t *h);
+
+/** Read the decoded sample at sample_index from the head's ring (core 0). */
+int16_t goldfish_stream_head_read(goldfish_head_t *h, uint32_t sample_index);
+
+/** Read a CV value co-indexed with an audio sample position, via a core-1 ring. */
+int16_t goldfish_stream_cv_read(uint32_t sample_index);
+
+/* Register the heads/CV that core 1 should keep refilled. Pass NULL to disable
+ * a slot. Call when entering a playback mode. */
+void goldfish_stream_set_heads(goldfish_head_t *hL, goldfish_head_t *hR);
+
+
 
 /* ---- Introspection (geometry + instrumentation) ---- */
 

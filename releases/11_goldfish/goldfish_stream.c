@@ -308,6 +308,10 @@ void __not_in_flash_func(goldfish_stream_record_stop)(void)
 /* Core 1 flash I/O                                                   */
 /* ------------------------------------------------------------------ */
 
+/* Playback heads serviced by core 1 (registered via goldfish_stream_set_heads). */
+static goldfish_head_t *s_head[2];
+static void head_refill(goldfish_head_t *h);
+
 uint32_t goldfish_stream_io_task(void)
 {
 	uint32_t written = 0u;
@@ -336,6 +340,10 @@ uint32_t goldfish_stream_io_task(void)
 		s_page_r++;
 		written++;
 	}
+
+	/* Keep the playback heads' decode windows filled. */
+	head_refill(s_head[0]);
+	head_refill(s_head[1]);
 
 	return written;
 }
@@ -522,6 +530,106 @@ int16_t __not_in_flash_func(goldfish_stream_reader_sample)(goldfish_reader_t *r,
 	r->head       = sample_index;
 	r->primed     = true;
 	return s;
+}
+
+/* ------------------------------------------------------------------ */
+/* Core-1-refilled playback heads                                     */
+/* ------------------------------------------------------------------ */
+
+void goldfish_stream_head_init(goldfish_head_t *h)
+{
+	h->req_pos    = 0u;
+	h->active     = false;
+	h->lo         = 0u;
+	h->hi         = 0u;
+	h->last       = 0;
+	h->predictor  = 0;
+	h->step_index = 0;
+	h->fill_next  = 0u;
+	h->need_seek  = true;
+}
+
+void goldfish_stream_set_heads(goldfish_head_t *hL, goldfish_head_t *hR)
+{
+	s_head[0] = hL;
+	s_head[1] = hR;
+}
+
+int16_t __not_in_flash_func(goldfish_stream_head_read)(goldfish_head_t *h, uint32_t sample_index)
+{
+	if (s_recorded_samples == 0u) return 0;
+	if (sample_index >= s_recorded_samples) sample_index = s_recorded_samples - 1u;
+
+	h->req_pos = sample_index;
+	h->active  = true;
+
+	uint32_t lo = h->lo;
+	uint32_t hi = h->hi;
+	if (sample_index >= lo && sample_index < hi) {
+		h->last = h->pcm[sample_index & GOLDFISH_RING_MASK];
+	}
+	/* else: underrun — hold last good sample until core 1 catches up. */
+	return h->last;
+}
+
+/* Core-1: keep one head's window covering its requested position. Forward decode
+ * is incremental; a backward/large jump reseeks from the nearest keyframe. Work
+ * per call is bounded so the io loop stays responsive. */
+static void head_refill(goldfish_head_t *h)
+{
+	if (h == NULL || !h->active || s_recorded_samples == 0u) return;
+
+	uint32_t pos  = h->req_pos;
+	const uint8_t *base = xip_ptr(s_audio_off);
+
+	/* Reseek if the window is empty or pos fell below/way past it. */
+	if (h->need_seek || h->hi == h->lo
+	    || pos < h->lo
+	    || pos >= h->hi + GOLDFISH_RING_SZ) {
+		const uint32_t back = 512u;
+		uint32_t start = (pos > back) ? (pos - back) : 0u;
+		uint32_t k = start / s_keyframe_interval;
+		if (k >= s_num_keyframes) k = s_num_keyframes ? (s_num_keyframes - 1u) : 0u;
+		uint32_t kstart = k * s_keyframe_interval;
+
+		h->predictor  = s_keyframes[k].predictor;
+		h->step_index = s_keyframes[k].step_index;
+		h->fill_next  = kstart;
+		h->lo         = kstart;
+		h->hi         = kstart;
+		h->need_seek  = false;
+	}
+
+	/* Fill forward toward pos + lookahead, bounded. */
+	const uint32_t ahead = 1024u;
+	uint32_t want = pos + ahead;
+	if (want > s_recorded_samples) want = s_recorded_samples;
+
+	adpcm_state_t st;
+	st.predictor  = h->predictor;
+	st.step_index = h->step_index;
+
+	uint32_t budget = 768u;
+	while (h->fill_next < want && budget-- != 0u) {
+		uint32_t idx = h->fill_next;
+		uint8_t byte = base[idx >> 1];
+		uint8_t nyb  = (idx & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
+		                          : (uint8_t)(byte & 0x0Fu);
+		h->pcm[idx & GOLDFISH_RING_MASK] = adpcm_decode(nyb, &st);
+		h->fill_next++;
+		__dmb();
+		h->hi = h->fill_next;
+		if (h->hi - h->lo > GOLDFISH_RING_SZ) h->lo = h->hi - GOLDFISH_RING_SZ;
+	}
+
+	h->predictor  = st.predictor;
+	h->step_index = st.step_index;
+}
+
+int16_t __not_in_flash_func(goldfish_stream_cv_read)(uint32_t sample_index)
+{
+	/* CV is raw + low-rate; direct flash read (valid while no erase in flight). */
+	return goldfish_stream_read_cv(sample_index);
 }
 
 /* ------------------------------------------------------------------ */
