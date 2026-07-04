@@ -1,6 +1,18 @@
 #include "ComputerCard.h"
 #include "quantiser.h"
 #include "divider.h"
+#include "goldfish_stream.h"
+#include "pico/multicore.h"
+
+// Core 1 entry point: continuously service flash streaming I/O (sector
+// erase-ahead + page programming) so the core 0 audio path never blocks.
+static void __not_in_flash_func(goldfish_core1_entry)()
+{
+    while (true)
+    {
+        goldfish_stream_io_task();
+    }
+}
 
 // 12 bit random number generator
 uint32_t __not_in_flash_func(rnd12)()
@@ -50,7 +62,7 @@ public:
     };
 
     /// Main audio processing function called at 48kHz
-    virtual void ProcessSample()
+    virtual void __not_in_flash_func(ProcessSample)()
     {
         halftime = !halftime;
 
@@ -135,6 +147,7 @@ public:
                     runMode = RECORD;
                     loopLength = 0;
                     writeInd = 0;
+                    goldfish_stream_record_start();
                     internalClockCounter = 0;
                     clockDivider.SetResetPhase(divisor);
                     pulseL = true;
@@ -143,6 +156,7 @@ public:
                 else if ((s == Switch::Up) && (lastSwitchVal != Switch::Up))
                 {
                     runMode = DELAY;
+                    goldfish_stream_record_stop();
                     internalClockCounter = 0;
                     clockDivider.SetResetPhase(divisor);
                     pulseL = true;
@@ -151,6 +165,7 @@ public:
                 else if ((s == Switch::Middle) && (lastSwitchVal != Switch::Middle))
                 {
                     runMode = PLAY;
+                    goldfish_stream_record_stop();
                     calculateStartPos();
                     phaseL = startPosL;
                     phaseR = startPosR;
@@ -260,6 +275,7 @@ public:
 
                     cvBuf[writeInd] = cvMix;
                     delaybuf[writeInd] = audioLf;
+                    goldfish_stream_record_sample((int16_t)audioLf, cvMix);
 
                     outL = audioLf;
                     outR = audioLf;
@@ -538,7 +554,7 @@ private:
 
 
     // Calculate the mix of the CV inputs based on which inputs are connected
-    int16_t calcCVMix(int16_t noise)
+    int16_t __not_in_flash_func(calcCVMix)(int16_t noise)
     {
         int16_t result = 0;
         int16_t thing1 = 0;
@@ -593,7 +609,7 @@ private:
         return result;
     };
 
-    void clip(int32_t &a)
+    void __not_in_flash_func(clip)(int32_t &a)
     {
         if (a < -2047)
             a = -2047;
@@ -601,12 +617,12 @@ private:
             a = 2047;
     }
 
-    int32_t cabs(int32_t a)
+    int32_t __not_in_flash_func(cabs)(int32_t a)
     {
         return (a > 0) ? a : -a;
     }
 
-    void calculateStartPos()
+    void __not_in_flash_func(calculateStartPos)()
     {
         if (Connected(Input::CV1) && Connected(Input::CV2))
         {
@@ -630,7 +646,7 @@ private:
         }
     }
 
-    int16_t virtualDetentedKnob(int16_t val)
+    int16_t __not_in_flash_func(virtualDetentedKnob)(int16_t val)
     {
         if (val > 4079)
         {
@@ -657,6 +673,13 @@ int main()
 
     // Enable the normalisation probe for the Goldfish instance
     gf.EnableNormalisationProbe();
+
+    // Detect flash size / compute partition before the audio ISR or core 1
+    // start (the JEDEC probe must run single-core).
+    goldfish_stream_init();
+
+    // Core 1 owns all flash erase/program so the core 0 audio path never blocks.
+    multicore_launch_core1(goldfish_core1_entry);
 
     // Run the main processing loop of the Goldfish instance
     gf.Run();

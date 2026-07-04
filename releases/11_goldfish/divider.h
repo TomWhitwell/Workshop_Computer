@@ -13,20 +13,20 @@ public:
 		divisor = 1;
 		counter = 0;
 	}
-	void Set(uint8_t d)
+	void __not_in_flash_func(Set)(uint8_t d)
 	{
 		divisor = d;
 		if (counter >= divisor)
 			counter = divisor - 1;
 	}
-	void SetResetPhase(uint8_t d)
+	void __not_in_flash_func(SetResetPhase)(uint8_t d)
 	{
 		counter=0;
 		divisor = d;
 		if (counter >= divisor)
 			counter = divisor - 1;
 	}
-	bool Step(bool risingEdge)
+	bool __not_in_flash_func(Step)(bool risingEdge)
 	{
 		if (risingEdge)
 		{

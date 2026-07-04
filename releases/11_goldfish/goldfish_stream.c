@@ -9,6 +9,7 @@
 #include "adpcm.h"
 
 #include <string.h>
+#include "pico/platform.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
 
@@ -132,7 +133,7 @@ static void flash_program_page(uint32_t off, const uint8_t *data)
 
 /* Enqueue a full page for core 1. If the ring is full the frame is dropped
  * (an overrun; should not happen when core 1 keeps up). */
-static void enqueue_page(uint32_t flash_off, const uint8_t *data)
+static void __not_in_flash_func(enqueue_page)(uint32_t flash_off, const uint8_t *data)
 {
 	uint32_t w = s_page_w;
 	if (w - s_page_r >= GOLDFISH_PAGE_RING_COUNT) {
@@ -140,7 +141,9 @@ static void enqueue_page(uint32_t flash_off, const uint8_t *data)
 	}
 	uint32_t slot = w & (GOLDFISH_PAGE_RING_COUNT - 1u);
 	s_page_ring[slot].flash_off = flash_off;
-	memcpy(s_page_ring[slot].data, data, GOLDFISH_PAGE_SIZE);
+	for (uint32_t i = 0u; i < GOLDFISH_PAGE_SIZE; i++) {
+		s_page_ring[slot].data[i] = data[i];
+	}
 	__dmb();
 	s_page_w = w + 1u;
 }
@@ -197,7 +200,7 @@ void goldfish_stream_init(void)
 /* Record path (core 0)                                               */
 /* ------------------------------------------------------------------ */
 
-void goldfish_stream_record_start(void)
+void __not_in_flash_func(goldfish_stream_record_start)(void)
 {
 	s_rec_active   = true;
 	s_write_index  = 0u;
@@ -216,7 +219,7 @@ void goldfish_stream_record_start(void)
 	s_cv_next_erase    = s_cv_off;
 }
 
-bool goldfish_stream_record_sample(int16_t audio, int16_t cv)
+bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t audio, int16_t cv)
 {
 	if (!s_rec_active) return false;
 	if (s_write_index >= s_capacity_samples) {
@@ -266,7 +269,7 @@ bool goldfish_stream_record_sample(int16_t audio, int16_t cv)
 	return true;
 }
 
-void goldfish_stream_record_stop(void)
+void __not_in_flash_func(goldfish_stream_record_stop)(void)
 {
 	if (!s_rec_active) return;
 
@@ -283,7 +286,7 @@ void goldfish_stream_record_stop(void)
 
 	/* Flush partial audio page (pad to a full program page). */
 	if (s_audio_fill > 0u) {
-		memset(s_audio_page + s_audio_fill, 0, GOLDFISH_PAGE_SIZE - s_audio_fill);
+		for (uint32_t i = s_audio_fill; i < GOLDFISH_PAGE_SIZE; i++) s_audio_page[i] = 0u;
 		enqueue_page(s_audio_write_off, s_audio_page);
 		s_audio_write_off += GOLDFISH_PAGE_SIZE;
 		s_audio_fill = 0u;
@@ -291,7 +294,7 @@ void goldfish_stream_record_stop(void)
 
 	/* Flush partial CV page. */
 	if (s_cv_fill > 0u) {
-		memset(s_cv_page + s_cv_fill, 0, GOLDFISH_PAGE_SIZE - s_cv_fill);
+		for (uint32_t i = s_cv_fill; i < GOLDFISH_PAGE_SIZE; i++) s_cv_page[i] = 0u;
 		enqueue_page(s_cv_write_off, s_cv_page);
 		s_cv_write_off += GOLDFISH_PAGE_SIZE;
 		s_cv_fill = 0u;
