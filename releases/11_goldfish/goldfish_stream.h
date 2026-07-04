@@ -119,6 +119,29 @@ int16_t goldfish_stream_read_audio(uint32_t sample_index);
 /** Read the CV value (sign-extended back to 12-bit) at the given audio index. */
 int16_t goldfish_stream_read_cv(uint32_t sample_index);
 
+/* ---- Streaming playhead (efficient sequential/varispeed reads) ----
+ *
+ * A reader caches one decoded keyframe span so that forward or reverse playback
+ * at variable speed is amortised O(1) per sample, only paying a full-span decode
+ * when the playhead crosses a keyframe boundary. Reads flash directly on core 0;
+ * only valid when no recording (and therefore no flash erase) is in progress. */
+
+/* Must be >= the maximum keyframe interval (<=4096 for a 16 MB card). */
+#define GOLDFISH_PLAY_WINDOW 4096u
+
+typedef struct {
+	uint32_t span_start;                 /* first sample index held in buf */
+	uint32_t span_len;                   /* valid samples in buf (0 = empty) */
+	int16_t  buf[GOLDFISH_PLAY_WINDOW];  /* decoded PCM for the current span */
+} goldfish_reader_t;
+
+/** Reset a reader (forces a decode on the next access). */
+void goldfish_stream_reader_init(goldfish_reader_t *r);
+
+/** Return the decoded audio sample at sample_index via the reader's span cache. */
+int16_t goldfish_stream_reader_sample(goldfish_reader_t *r, uint32_t sample_index);
+
+
 /* ---- Introspection (geometry + instrumentation) ---- */
 
 uint32_t goldfish_stream_flash_size(void);        /* detected total flash bytes */

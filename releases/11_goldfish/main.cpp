@@ -166,6 +166,10 @@ public:
                 {
                     runMode = PLAY;
                     goldfish_stream_record_stop();
+                    loopLength = goldfish_stream_recorded_samples();
+                    if (loopLength < 1) loopLength = 1;
+                    goldfish_stream_reader_init(&playReaderL);
+                    goldfish_stream_reader_init(&playReaderR);
                     calculateStartPos();
                     phaseL = startPosL;
                     phaseR = startPosR;
@@ -273,7 +277,6 @@ public:
                     // in record mode the audio is written to the delay buffer and the CV input is written to the CV buffer
                     qSample = quantSample(cvMix);
 
-                    cvBuf[writeInd] = cvMix;
                     delaybuf[writeInd] = audioLf;
                     goldfish_stream_record_sample((int16_t)audioLf, cvMix);
 
@@ -296,6 +299,15 @@ public:
                 }
                 case PLAY:
                 {
+                    // Playback reads the recording from flash. Wait until any
+                    // just-finished recording has flushed (no core-1 erase in
+                    // flight) before touching the flash bus.
+                    if (!goldfish_stream_io_idle())
+                    {
+                        outL = 0;
+                        outR = 0;
+                        break;
+                    }
 
                     //Play code is a mutated version of Chris Johnson's Utility Pair Looper
                     //In play mode the audio is read back from the delay buffer with a playback speed set by the big knob
@@ -375,17 +387,23 @@ public:
                     int32_t rR = phaseR & 0xFF;
                     int32_t readIndR = phaseR >> 8;
 
+                    // Decode audio from flash via the per-head streaming readers.
+                    int32_t sL0 = goldfish_stream_reader_sample(&playReaderL, readIndL);
+                    int32_t sL1 = goldfish_stream_reader_sample(&playReaderL, (readIndL + 1) % loopLength);
+                    int32_t sR0 = goldfish_stream_reader_sample(&playReaderR, readIndR);
+                    int32_t sR1 = goldfish_stream_reader_sample(&playReaderR, (readIndR + 1) % loopLength);
+
                     int32_t fadeLength = loopLength; // Adjust this value as needed for the fade length
 
                     // Apply fade-out at the end of the loop
                     if (phaseL >= (loopLength << 8) - fadeLength)
                     {
                         int32_t fadeOutFactor = ((loopLength << 8) - phaseL) * 256 / fadeLength;
-                        outL = ((delaybuf[readIndL] << 3) * (256 - rL) + (delaybuf[(readIndL + 1) % loopLength] << 3) * (rL)) * fadeOutFactor >> 8;
+                        outL = ((sL0 << 3) * (256 - rL) + (sL1 << 3) * (rL)) * fadeOutFactor >> 8;
                     }
                     else
                     {
-                        outL = (delaybuf[readIndL] << 3) * (256 - rL) + (delaybuf[(readIndL + 1) % loopLength] << 3) * (rL);
+                        outL = (sL0 << 3) * (256 - rL) + (sL1 << 3) * (rL);
                     }
 
                     // Apply fade-in at the beginning of the loop
@@ -398,11 +416,11 @@ public:
                     if (phaseR >= (loopLength << 8) - fadeLength)
                     {
                         int32_t fadeOutFactor = ((loopLength << 8) - phaseR) * 256 / fadeLength;
-                        outR = ((delaybuf[readIndR] << 3) * (256 - rR) + (delaybuf[(readIndR + 1) % loopLength] << 3) * (rR)) * fadeOutFactor >> 8;
+                        outR = ((sR0 << 3) * (256 - rR) + (sR1 << 3) * (rR)) * fadeOutFactor >> 8;
                     }
                     else
                     {
-                        outR = (delaybuf[readIndR] << 3) * (256 - rR) + (delaybuf[(readIndR + 1) % loopLength] << 3) * (rR);
+                        outR = (sR0 << 3) * (256 - rR) + (sR1 << 3) * (rR);
                     }
 
                     if (phaseR < fadeLength)
@@ -413,7 +431,7 @@ public:
 
                     if (loopLength > 0)
                     {
-                        outCV = (cvBuf[readIndL] * (256 - rL) + cvBuf[(readIndL + 1) % loopLength] * rL) >> 8;
+                        outCV = (goldfish_stream_read_cv(readIndL) * (256 - rL) + goldfish_stream_read_cv((readIndL + 1) % loopLength) * rL) >> 8;
                         qSample = quantSample(outCV);
                     }
 
@@ -523,7 +541,8 @@ private:
     // flash and delaybuf/cvBuf go away.
     static constexpr uint32_t bufSize = 28000;
     int16_t delaybuf[bufSize];
-    int16_t cvBuf[bufSize];
+    goldfish_reader_t playReaderL;
+    goldfish_reader_t playReaderR;
     unsigned writeInd, readIndL, readIndR, cvsL, cvsR;
     int32_t ledtimer = 0;
     int32_t hpf = 0;

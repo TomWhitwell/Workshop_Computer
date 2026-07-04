@@ -449,6 +449,57 @@ int16_t goldfish_stream_read_cv(uint32_t sample_index)
 }
 
 /* ------------------------------------------------------------------ */
+/* Streaming playhead                                                 */
+/* ------------------------------------------------------------------ */
+
+void goldfish_stream_reader_init(goldfish_reader_t *r)
+{
+	r->span_start = 0u;
+	r->span_len   = 0u;
+}
+
+int16_t goldfish_stream_reader_sample(goldfish_reader_t *r, uint32_t sample_index)
+{
+	if (s_recorded_samples == 0u) return 0;
+	if (sample_index >= s_recorded_samples) sample_index = s_recorded_samples - 1u;
+
+	/* Cache hit: sample lies in the currently decoded span. */
+	if (r->span_len != 0u
+	    && sample_index >= r->span_start
+	    && sample_index < r->span_start + r->span_len) {
+		return r->buf[sample_index - r->span_start];
+	}
+
+	/* Miss: decode the keyframe span containing sample_index. */
+	uint32_t k = sample_index / s_keyframe_interval;
+	if (k >= s_num_keyframes) k = s_num_keyframes ? (s_num_keyframes - 1u) : 0u;
+
+	uint32_t start = k * s_keyframe_interval;
+	uint32_t n = s_keyframe_interval;
+	if (start + n > s_recorded_samples) n = s_recorded_samples - start;
+	if (n > GOLDFISH_PLAY_WINDOW) n = GOLDFISH_PLAY_WINDOW;
+
+	adpcm_state_t st;
+	st.predictor  = s_keyframes[k].predictor;
+	st.step_index = s_keyframes[k].step_index;
+
+	const uint8_t *base = xip_ptr(s_audio_off);
+	for (uint32_t i = 0u; i < n; i++) {
+		uint32_t idx = start + i;
+		uint8_t byte = base[idx >> 1];
+		uint8_t nyb  = (idx & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
+		                          : (uint8_t)(byte & 0x0Fu);
+		r->buf[i] = adpcm_decode(nyb, &st);
+	}
+
+	r->span_start = start;
+	r->span_len   = n;
+
+	if (sample_index >= start + n) sample_index = start + n - 1u;
+	return r->buf[sample_index - start];
+}
+
+/* ------------------------------------------------------------------ */
 /* Introspection                                                      */
 /* ------------------------------------------------------------------ */
 
