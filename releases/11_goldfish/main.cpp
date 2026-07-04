@@ -109,21 +109,10 @@ public:
                 int16_t audioL = AudioIn1(); // -2048 to 2047
                 int16_t audioR = AudioIn2(); // -2048 to 2047
 
-                // 12kHz notch filter, to remove interference from mux lines (only left channel)
-                //Thank you to Chris Johnson for the notch filter code
-
-                audioL <<= 2;
-
-               int32_t ooa0 = 8192, a2oa0 = 8092; // Q=100;
-                //	int32_t ooa0=7801, a2oa0=7411;//Q=10;
-                int32_t audioLf = (ooa0 * (audioL + audioL2) - a2oa0 * audioLf2) >> 14;
-                audioL2 = audioL1;
-                audioL1 = audioL;
-                audioLf2 = audioLf1;
-                audioLf1 = audioLf;
-
-                audioL >>= 2;
-                audioLf >>= 2;
+                // AudioIn1()/AudioIn2() are already 12kHz notch-filtered by
+                // ComputerCard 0.3.0 (notchLeft/notchRight), so the extra notch
+                // that used to live here is removed to avoid double-filtering.
+                int32_t audioLf = audioL;
 
                 int16_t lastSampleL = 0;
                 int16_t lastSampleR = 0;
@@ -570,14 +559,6 @@ private:
     int internalClockRate;
     bool lastRisingEdge1 = false;
     bool lastRisingEdge2 = false;
-    int audioL1 = 0;
-    int audioL2 = 0;
-    int audioR1 = 0;
-    int audioR2 = 0;
-    int audioLf1 = 0;
-    int audioLf2 = 0;
-    int audioRf1 = 0;
-    int audioRf2 = 0;
 
     int16_t qSample;
 

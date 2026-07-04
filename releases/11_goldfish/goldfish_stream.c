@@ -10,8 +10,12 @@
 
 #include <string.h>
 #include "pico/platform.h"
+#include "pico/bootrom.h"
+#include "pico/time.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
+#include "hardware/structs/ssi.h"
+#include "hardware/structs/ioqspi.h"
 
 #ifndef XIP_BASE
 #define XIP_BASE 0x10000000u
@@ -78,7 +82,7 @@ static uint32_t s_kf_slots;          /* keyframe slots = capacity/interval (ring
 static bool     s_continuous;        /* DELAY: wrap region + never stop recording */
 
 /* Record state (core 0) */
-static bool         s_rec_active;
+static volatile bool s_rec_active;      /* cross-core: gates core1 erase-ahead */
 static uint32_t     s_write_index;      /* audio samples written so far */
 static adpcm_state_t s_enc;
 static uint8_t      s_cur_byte;
@@ -104,6 +108,7 @@ static uint32_t          s_audio_pages_written;
 /* Diagnostics (read via debugger). */
 static volatile uint32_t s_head_underruns;   /* head_read misses (ring not filled) */
 static volatile uint32_t s_max_backlog;      /* peak (write_index - flushed) */
+static volatile uint8_t  s_jedec[4];         /* flash JEDEC ID: mfr, type, capacity */
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
@@ -146,6 +151,212 @@ static void flash_program_page(uint32_t off, const uint8_t *data)
 	restore_interrupts(ints);
 }
 
+/* Account one just-programmed audio page towards the flushed (readable) limit.
+ * CV pages carry no keyframes and don't gate the audio heads, so are ignored. */
+static inline void note_page_flushed(uint32_t off)
+{
+	if (off >= s_audio_off && off < s_audio_off + s_audio_bytes) {
+		s_audio_pages_written++;
+		s_flushed_samples = s_audio_pages_written * (GOLDFISH_PAGE_SIZE * 2u);
+		if (s_continuous) s_recorded_samples = s_flushed_samples;
+	}
+}
+
+/* ------------------------------------------------------------------ */
+/* Low-level QSPI: erase-suspend + program-during-erase                */
+/* ------------------------------------------------------------------ */
+/*
+ * A blocking sector erase freezes core 1 for tens of ms, during which no new
+ * audio can be flushed and the playback heads cannot be refilled — the source
+ * of DELAY-mode underruns. To reach zero underruns we instead:
+ *   1. Erase one region "ahead" of the write head (erase sector M while the
+ *      producer is still filling sector M-1), so pending pages always target
+ *      already-erased sectors.
+ *   2. During each sector erase, repeatedly SUSPEND the erase, program any
+ *      pending pages (advancing the flushed frontier) and refill the heads
+ *      via XIP, then RESUME. The flushed frontier therefore keeps advancing
+ *      right through the erase, so a trailing read head never starves.
+ *
+ * This drives the flash controller directly (bypassing hardware/flash.h) so it
+ * can issue Erase-Suspend (0x75) / Erase-Resume (0x7A). It runs only on core 1
+ * with interrupts masked; correctness relies on core 0 being fully RAM-resident
+ * (copy_to_ram) so it never touches XIP during these windows.
+ */
+
+/* Playback heads serviced by core 1 (registered via goldfish_stream_set_heads). */
+static goldfish_head_t *s_head[2];
+static void head_refill(goldfish_head_t *h);
+
+typedef void (*flash_rom_fn)(void);
+static flash_rom_fn s_rom_connect;   /* connect_internal_flash */
+static flash_rom_fn s_rom_exit_xip;  /* flash_exit_xip         */
+static flash_rom_fn s_rom_flush;     /* flash_flush_cache      */
+static flash_rom_fn s_rom_enter_xip; /* flash_enter_cmd_xip    */
+
+static void qspi_rom_init(void)
+{
+	s_rom_connect   = (flash_rom_fn)rom_func_lookup(rom_table_code('I', 'F'));
+	s_rom_exit_xip  = (flash_rom_fn)rom_func_lookup(rom_table_code('E', 'X'));
+	s_rom_flush     = (flash_rom_fn)rom_func_lookup(rom_table_code('F', 'C'));
+	s_rom_enter_xip = (flash_rom_fn)rom_func_lookup(rom_table_code('C', 'X'));
+}
+
+/* Drive the QSPI chip-select via the pad override (SDK does the same). */
+static void __not_in_flash_func(qspi_cs)(bool high)
+{
+	uint32_t v = high ? IO_QSPI_GPIO_QSPI_SS_CTRL_OUTOVER_VALUE_HIGH
+	                  : IO_QSPI_GPIO_QSPI_SS_CTRL_OUTOVER_VALUE_LOW;
+	hw_write_masked(&ioqspi_hw->io[1].ctrl,
+	                v << IO_QSPI_GPIO_QSPI_SS_CTRL_OUTOVER_LSB,
+	                IO_QSPI_GPIO_QSPI_SS_CTRL_OUTOVER_BITS);
+}
+
+/* One command-mode transaction over the SSI in single-bit (0x03-style) mode.
+ * tx may be NULL (send zeros); rx may be NULL (discard). Mirrors the inner loop
+ * of the SDK's flash_do_cmd, keeping <=14 bytes in flight. */
+static void __not_in_flash_func(qspi_xfer)(const uint8_t *tx, uint8_t *rx, size_t n)
+{
+	qspi_cs(false);
+	size_t tx_rem = n, rx_rem = n;
+	while (tx_rem || rx_rem) {
+		uint32_t sr = ssi_hw->sr;
+		if ((sr & SSI_SR_TFNF_BITS) && tx_rem && (rx_rem - tx_rem) < 14u) {
+			ssi_hw->dr0 = tx ? (uint32_t)*tx++ : 0u;
+			--tx_rem;
+		}
+		if ((sr & SSI_SR_RFNE_BITS) && rx_rem) {
+			uint8_t b = (uint8_t)ssi_hw->dr0;
+			if (rx) *rx++ = b;
+			--rx_rem;
+		}
+	}
+	qspi_cs(true);
+}
+
+/* Read status register 1 (WIP = bit 0). */
+static uint8_t __not_in_flash_func(qspi_status)(void)
+{
+	uint8_t tx[2] = { 0x05u, 0x00u };
+	uint8_t rx[2] = { 0u, 0u };
+	qspi_xfer(tx, rx, 2);
+	return rx[1];
+}
+
+static void __not_in_flash_func(qspi_write_enable)(void)
+{
+	uint8_t c = 0x06u;
+	qspi_xfer(&c, NULL, 1);
+}
+
+/* Program one 256-byte page in command mode (XIP must already be exited).
+ * Blocks on WIP so the caller may safely resume an erase afterwards. */
+static void __not_in_flash_func(qspi_program_page)(uint32_t off, const uint8_t *data)
+{
+	qspi_write_enable();
+	uint8_t hdr[4] = { 0x02u, (uint8_t)(off >> 16), (uint8_t)(off >> 8), (uint8_t)off };
+	uint32_t total = 4u + GOLDFISH_PAGE_SIZE;
+	qspi_cs(false);
+	uint32_t sent = 0u, got = 0u;
+	while (sent < total || got < total) {
+		uint32_t sr = ssi_hw->sr;
+		if ((sr & SSI_SR_TFNF_BITS) && sent < total && (sent - got) < 14u) {
+			uint8_t b = (sent < 4u) ? hdr[sent] : data[sent - 4u];
+			ssi_hw->dr0 = (uint32_t)b;
+			++sent;
+		}
+		if ((sr & SSI_SR_RFNE_BITS) && got < total) {
+			(void)ssi_hw->dr0;
+			++got;
+		}
+	}
+	qspi_cs(true);
+	while (qspi_status() & 0x01u) { /* WIP: page program in progress */ }
+}
+
+/* Erase one 4KB sector, suspending as needed to program pending pages (keeping
+ * the flushed frontier advancing) and refill the heads. Interrupts masked. */
+static void __not_in_flash_func(flash_erase_sector_suspend)(uint32_t off)
+{
+	uint32_t ints = save_and_disable_interrupts();
+	s_rom_connect();
+	s_rom_exit_xip();
+
+	qspi_write_enable();
+	uint8_t er[4] = { 0x20u, (uint8_t)(off >> 16), (uint8_t)(off >> 8), (uint8_t)off };
+	qspi_xfer(er, NULL, 4);
+
+	uint32_t guard = 0u;
+	while (qspi_status() & 0x01u) {          /* WIP set: erase running */
+		if (s_page_r != s_page_w) {
+			/* Suspend so we can program a pending page. It targets a sector
+			 * behind the erase frontier (already erased), so this is safe. */
+			uint8_t sus = 0x75u;
+			qspi_xfer(&sus, NULL, 1);
+			busy_wait_us(20);                /* tSUS: ready for next command */
+
+			uint32_t slot = s_page_r & (GOLDFISH_PAGE_RING_COUNT - 1u);
+			uint32_t poff = s_page_ring[slot].flash_off;
+			qspi_program_page(poff, s_page_ring[slot].data);
+			note_page_flushed(poff);
+			__dmb();
+			s_page_r++;
+
+			/* Refill the heads from freshly flushed data (needs XIP mapped). */
+			s_rom_flush();
+			s_rom_enter_xip();
+			head_refill(s_head[0]);
+			head_refill(s_head[1]);
+			s_rom_connect();
+			s_rom_exit_xip();
+
+			uint8_t res = 0x7Au;
+			qspi_xfer(&res, NULL, 1);
+			busy_wait_us(30);                /* tRES: let erase restart (WIP=1) */
+		}
+		if (++guard > 4000000u) break;       /* safety: never spin forever */
+	}
+
+	s_rom_flush();
+	s_rom_enter_xip();
+	restore_interrupts(ints);
+	s_erase_count++;
+}
+
+/* Region-relative distance the erase frontier leads the write head, modulo the
+ * region size. Kept >= GOLDFISH_ERASE_LOOKAHEAD sectors so pending pages always
+ * land in erased sectors. */
+static void ensure_erase_ahead_audio(void)
+{
+	if (s_audio_bytes == 0u) return;
+	uint32_t wrel = (s_audio_write_off - s_audio_off) % s_audio_bytes;
+	uint32_t guard = 0u;
+	for (;;) {
+		uint32_t erel  = (s_audio_next_erase - s_audio_off) % s_audio_bytes;
+		uint32_t ahead = (erel + s_audio_bytes - wrel) % s_audio_bytes;
+		if (ahead >= GOLDFISH_ERASE_LOOKAHEAD * FLASH_SECTOR_SIZE) break;
+		flash_erase_sector_suspend(s_audio_next_erase);
+		s_audio_next_erase += FLASH_SECTOR_SIZE;
+		if (s_audio_next_erase >= s_audio_off + s_audio_bytes) s_audio_next_erase = s_audio_off;
+		if (++guard >= GOLDFISH_ERASE_LOOKAHEAD + 2u) break;
+	}
+}
+
+static void ensure_erase_ahead_cv(void)
+{
+	if (s_cv_bytes == 0u) return;
+	uint32_t wrel = (s_cv_write_off - s_cv_off) % s_cv_bytes;
+	uint32_t guard = 0u;
+	for (;;) {
+		uint32_t erel  = (s_cv_next_erase - s_cv_off) % s_cv_bytes;
+		uint32_t ahead = (erel + s_cv_bytes - wrel) % s_cv_bytes;
+		if (ahead >= GOLDFISH_ERASE_LOOKAHEAD * FLASH_SECTOR_SIZE) break;
+		flash_erase_sector_suspend(s_cv_next_erase);
+		s_cv_next_erase += FLASH_SECTOR_SIZE;
+		if (s_cv_next_erase >= s_cv_off + s_cv_bytes) s_cv_next_erase = s_cv_off;
+		if (++guard >= GOLDFISH_ERASE_LOOKAHEAD + 2u) break;
+	}
+}
+
 /* Enqueue a full page for core 1. If the ring is full the frame is dropped
  * (an overrun; should not happen when core 1 keeps up). */
 static void __not_in_flash_func(enqueue_page)(uint32_t flash_off, const uint8_t *data)
@@ -169,7 +380,17 @@ static void __not_in_flash_func(enqueue_page)(uint32_t flash_off, const uint8_t 
 
 void goldfish_stream_init(void)
 {
+	qspi_rom_init();
 	s_flash_size = goldfish_detect_flash_size();
+
+	/* Capture the full JEDEC ID for diagnostics / erase-suspend support check. */
+	{
+		uint8_t tx[4] = { 0x9fu, 0u, 0u, 0u };
+		uint8_t rx[4] = { 0u, 0u, 0u, 0u };
+		flash_do_cmd(tx, rx, 4);
+		s_jedec[0] = rx[0]; s_jedec[1] = rx[1];
+		s_jedec[2] = rx[2]; s_jedec[3] = rx[3];
+	}
 
 	uint32_t usable = (s_flash_size > GOLDFISH_FIRMWARE_RESERVE)
 	                      ? (s_flash_size - GOLDFISH_FIRMWARE_RESERVE)
@@ -345,52 +566,33 @@ void __not_in_flash_func(goldfish_stream_record_stop)(void)
 /* Core 1 flash I/O                                                   */
 /* ------------------------------------------------------------------ */
 
-/* Playback heads serviced by core 1 (registered via goldfish_stream_set_heads). */
-static goldfish_head_t *s_head[2];
-static void head_refill(goldfish_head_t *h);
-
 uint32_t goldfish_stream_io_task(void)
 {
 	uint32_t written = 0u;
 
-	/* Top up the playback heads first, so they enter any erase blackout below
-	 * with the most decoded runway. */
+	/* Top up the playback heads first. */
 	head_refill(s_head[0]);
 	head_refill(s_head[1]);
 
+	/* Keep the erase frontier ahead of the write head. These erases suspend to
+	 * program pending pages (advancing flushed) and refill the heads, so the
+	 * flushed frontier keeps advancing right through every erase.
+	 * Gated on s_rec_active: the frontiers are only valid once record_start has
+	 * initialised them. Running before that would erase from flash offset 0
+	 * (the firmware region), so this guard is essential. */
+	if (s_rec_active) {
+		ensure_erase_ahead_audio();
+		ensure_erase_ahead_cv();
+	}
+
+	/* Program any pages not already drained during an erase-suspend above. Their
+	 * sectors were pre-erased by the erase-ahead, so no inline erase is needed. */
 	while (s_page_r != s_page_w) {
 		uint32_t slot = s_page_r & (GOLDFISH_PAGE_RING_COUNT - 1u);
 		uint32_t off  = s_page_ring[slot].flash_off;
 
-		/* Erase-ahead: erase a sector the moment its first page is about to be
-		 * programmed. Works for the wrapping (continuous DELAY) case too, since
-		 * each lap re-erases the sector before rewriting it. */
-		bool erase_now = false;
-		if (off >= s_audio_off && off < s_audio_off + s_audio_bytes) {
-			erase_now = (((off - s_audio_off) % FLASH_SECTOR_SIZE) == 0u);
-		} else if (off >= s_cv_off && off < s_cv_off + s_cv_bytes) {
-			erase_now = (((off - s_cv_off) % FLASH_SECTOR_SIZE) == 0u);
-		}
-
-		if (erase_now) {
-			/* A sector erase blocks core 1 for tens of ms; refill the heads to
-			 * the flushed frontier right before it so playback has maximum
-			 * runway to coast through the blackout. */
-			head_refill(s_head[0]);
-			head_refill(s_head[1]);
-			flash_erase_sector(off);
-		}
-
 		flash_program_page(off, s_page_ring[slot].data);
-
-		/* Track audio samples now safely in flash. Audio pages are programmed in
-		 * logical order, each holding PAGE_SIZE*2 ADPCM samples. In continuous
-		 * (DELAY) mode this becomes the readable limit for the heads. */
-		if (off >= s_audio_off && off < s_audio_off + s_audio_bytes) {
-			s_audio_pages_written++;
-			s_flushed_samples = s_audio_pages_written * (GOLDFISH_PAGE_SIZE * 2u);
-			if (s_continuous) s_recorded_samples = s_flushed_samples;
-		}
+		note_page_flushed(off);
 
 		__dmb();
 		s_page_r++;

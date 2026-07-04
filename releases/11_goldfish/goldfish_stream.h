@@ -63,6 +63,12 @@ extern "C" {
 #define GOLDFISH_PAGE_RING_COUNT 32u
 #endif
 
+/* Sectors the erase frontier leads the write head in continuous (DELAY) mode.
+ * These sectors are pre-erased so pending pages always land in erased flash. */
+#ifndef GOLDFISH_ERASE_LOOKAHEAD
+#define GOLDFISH_ERASE_LOOKAHEAD 2u
+#endif
+
 #define GOLDFISH_STREAM_MAGIC 0x47324653u /* 'G2FS' */
 
 /* ------------------------------------------------------------------ */
