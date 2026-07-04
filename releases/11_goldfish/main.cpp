@@ -690,26 +690,34 @@ private:
 
     void __not_in_flash_func(calculateStartPos)()
     {
+        // Resolve each knob (optionally CV-scaled) to a 0..4095 position, then map
+        // it across loopLength into the phase domain (sample<<8). The loopLength
+        // multiply is done in 64-bit: for long flash recordings loopLength can be
+        // millions of samples, which would overflow a 32-bit (knob * loopLength)
+        // (e.g. 4095 * ~525k > INT32_MAX), corrupting the start position.
+        int32_t px, py;
         if (Connected(Input::CV1) && Connected(Input::CV2))
         {
-            startPosL = (x * (cv1 + 2048) >> 12) * loopLength >> 4;
-            startPosR = (y * (cv2 + 2048) >> 12) * loopLength >> 4;
+            px = x * (cv1 + 2048) >> 12;
+            py = y * (cv2 + 2048) >> 12;
         }
         else if (Connected(Input::CV1))
         {
-            startPosL = (x * (cv1 + 2048) >> 12) * loopLength >> 4;
-            startPosR = y * loopLength >> 4;
+            px = x * (cv1 + 2048) >> 12;
+            py = y;
         }
         else if (Connected(Input::CV2))
         {
-            startPosL = x * loopLength >> 4;
-            startPosR = (y * (cv2 + 2048) >> 12) * loopLength >> 4;
+            px = x;
+            py = y * (cv2 + 2048) >> 12;
         }
         else
         {
-            startPosL = x * loopLength >> 4;
-            startPosR = y * loopLength >> 4;
+            px = x;
+            py = y;
         }
+        startPosL = (uint32_t)(((int64_t)px * loopLength) >> 4);
+        startPosR = (uint32_t)(((int64_t)py * loopLength) >> 4);
     }
 
     int16_t __not_in_flash_func(virtualDetentedKnob)(int16_t val)
