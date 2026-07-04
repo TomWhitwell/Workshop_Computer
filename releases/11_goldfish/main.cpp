@@ -3,6 +3,7 @@
 #include "divider.h"
 #include "goldfish_stream.h"
 #include "pico/multicore.h"
+#include <math.h>
 
 // Core 1 entry point: continuously service flash streaming I/O (sector
 // erase-ahead + page programming) so the core 0 audio path never blocks.
@@ -238,28 +239,26 @@ public:
                     //CVout2 is set to the quantised CV mix, the quantiser is also from Chris Johnson's Utility Pair project
                     qSample = quantSample(cvMix);
 
-                    int32_t k = (bigKnob_CV + 2048) >> 1; //2048 to 0
+                    // Ping-pong (Option C) delay-time mapping across the FULL
+                    // card-scaled range. k spans 2048(knob left)..0(right); build a
+                    // signed spread so the two heads cross at noon and split to the
+                    // extremes. Both heads index a shared exponential delay curve
+                    // (built at boot from capacity) for even spacing across
+                    // MIN_DELAY..maxDelay (~10 octaves); noon = geometric mean.
+                    int32_t k = (bigKnob_CV + 2048) >> 1; // 2048(left)..1024(noon)..0(right)
+                    int32_t kc = k - 1024;                // +1024(left)..0..-1024(right)
 
-                    int32_t kL = 2 * k + 1024;
-                    int32_t kR = -2 * k + 5120;
+                    // Table position <<8 (0..128<<8). Left drives L long / R short.
+                    int32_t posL = 16384 + kc * 16;
+                    int32_t posR = 16384 - kc * 16;
 
-                    int64_t cvL = kL;
-                    int64_t cvR = kR;
+                    int32_t targL = delayLookup(posL); // delay in samples
+                    int32_t targR = delayLookup(posR);
 
-                    if (cvL > 4095)
-                        cvL = 4095;
-                    if (cvL < 0)
-                        cvL = 0;
-
-                    if (cvR > 4095)
-                        cvR = 4095;
-                    if (cvR < 0)
-                        cvR = 0;
-
-                    int64_t cvtargL = cvL * cvL / 50;
-                    int64_t cvtargR = cvR * cvR / 50;
-                    cvsL = (cvsL * 255 + (cvtargL << 4)) >> 8;
-                    cvsR = (cvsR * 255 + (cvtargR << 4)) >> 8;
+                    // One-pole smoothing in <<7 delay-sample fixed point (same time
+                    // constant as before); cvs1 = integer samples, r = fraction.
+                    cvsL = (cvsL * 255 + ((int64_t)targL << 7)) >> 8;
+                    cvsR = (cvsR * 255 + ((int64_t)targR << 7)) >> 8;
 
                     int64_t cvs1L = cvsL >> 7;
                     int64_t cvs1R = cvsR >> 7;
@@ -271,18 +270,15 @@ public:
                     int32_t buf_write = highpass_process(&hpf, 200, audioLf);
                     goldfish_stream_record_sample((int16_t)buf_write, cvMix);
 
-                    // Clamp the delay so reads stay safely behind the write head
-                    // (data already flushed to flash) and within the region. The
-                    // floor also gives the read head enough runway (delay - backlog)
-                    // to coast through a flash sector erase (~tens of ms) without
-                    // the ring underrunning.
-                    const uint32_t MIN_DELAY = 3600u;
-                    uint32_t capSamp = goldfish_stream_capacity_samples();
-                    uint32_t maxDelay = (capSamp > 8192u) ? (capSamp - 8192u) : MIN_DELAY;
+                    // Safety clamp (the table already spans MIN_DELAY..maxDelay, so
+                    // this only guards transients). The MIN_DELAY floor is set by the
+                    // record->flush backlog (~1 page); with erase-suspend the flush
+                    // frontier advances through erases, so no erase-blackout runway
+                    // is needed. 1536 ~= 64ms at 24kHz.
                     if (cvs1L < (int64_t)MIN_DELAY) cvs1L = MIN_DELAY;
                     if (cvs1R < (int64_t)MIN_DELAY) cvs1R = MIN_DELAY;
-                    if (cvs1L > (int64_t)maxDelay) cvs1L = maxDelay;
-                    if (cvs1R > (int64_t)maxDelay) cvs1R = maxDelay;
+                    if (cvs1L > (int64_t)maxDelayS) cvs1L = maxDelayS;
+                    if (cvs1R > (int64_t)maxDelayS) cvs1R = maxDelayS;
 
                     // Read back at the delay offset behind the write head, via the
                     // core-1 ring heads (flash is being erased, so no direct reads).
@@ -598,7 +594,12 @@ private:
     static constexpr uint32_t bufSize = 64000;
     goldfish_head_t playHeadL;
     goldfish_head_t playHeadR;
-    unsigned writeInd, readIndL, readIndR, cvsL, cvsR;
+    unsigned writeInd, readIndL, readIndR;
+    int64_t cvsL = 0;
+    int64_t cvsR = 0;
+    static constexpr uint32_t MIN_DELAY = 1536u; // ~64ms @24kHz; floor set by flush backlog
+    uint32_t maxDelayS = MIN_DELAY;              // capacity-8192, filled in initDelayTable()
+    int32_t delayTable[129];                     // exponential delay curve (samples), 0..128
     int32_t ledtimer = 0;
     int32_t hpf = 0;
     bool checkZero = false;
@@ -723,6 +724,36 @@ private:
         startPosR = ((int64_t)py * loopLength) >> 4;
     }
 
+public:
+    // Build the exponential (constant-ratio) delay-time curve spanning
+    // MIN_DELAY..maxDelay in samples, from the runtime flash capacity. Called
+    // once at boot (single-core). Exponential keeps the ~10-octave delay range
+    // perceptually even, with the geometric mean at the curve centre (noon).
+    void initDelayTable()
+    {
+        uint32_t cap = goldfish_stream_capacity_samples();
+        maxDelayS = (cap > 8192u) ? (cap - 8192u) : MIN_DELAY;
+        double ratio = (double)maxDelayS / (double)MIN_DELAY;
+        for (int i = 0; i <= 128; i++)
+        {
+            delayTable[i] = (int32_t)((double)MIN_DELAY * pow(ratio, (double)i / 128.0) + 0.5);
+        }
+    }
+
+    // Look up a delay (samples) at fractional table position pos (<<8, 0..128<<8),
+    // linearly interpolating between the exponential control points.
+    int32_t __not_in_flash_func(delayLookup)(int32_t pos)
+    {
+        if (pos < 0) pos = 0;
+        if (pos > (128 << 8)) pos = (128 << 8);
+        int32_t idx = pos >> 8;
+        if (idx >= 128) return delayTable[128];
+        int32_t frac = pos & 0xFF;
+        int32_t a = delayTable[idx];
+        int32_t b = delayTable[idx + 1];
+        return a + (int32_t)(((int64_t)(b - a) * frac) >> 8);
+    }
+
     int16_t __not_in_flash_func(virtualDetentedKnob)(int16_t val)
     {
         if (val > 4079)
@@ -763,6 +794,9 @@ int main()
     // Detect flash size / compute partition before the audio ISR or core 1
     // start (the JEDEC probe must run single-core).
     goldfish_stream_init();
+
+    // Build the capacity-scaled delay-time curve (needs capacity from init).
+    gf.initDelayTable();
 
     // Core 1 owns all flash erase/program so the core 0 audio path never blocks.
     multicore_launch_core1(goldfish_core1_entry);
