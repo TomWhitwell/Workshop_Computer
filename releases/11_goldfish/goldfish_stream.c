@@ -454,49 +454,74 @@ int16_t goldfish_stream_read_cv(uint32_t sample_index)
 
 void goldfish_stream_reader_init(goldfish_reader_t *r)
 {
-	r->span_start = 0u;
-	r->span_len   = 0u;
+	r->primed     = false;
+	r->head       = 0u;
+	r->predictor  = 0;
+	r->step_index = 0;
 }
 
-int16_t goldfish_stream_reader_sample(goldfish_reader_t *r, uint32_t sample_index)
+/* Decode one sample at absolute index `idx` given decoder state, store in the
+ * reader's history ring, and advance. */
+static inline int16_t reader_decode_into(goldfish_reader_t *r, const uint8_t *base,
+                                         adpcm_state_t *st, uint32_t idx)
+{
+	uint8_t byte = base[idx >> 1];
+	uint8_t nyb  = (idx & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
+	                          : (uint8_t)(byte & 0x0Fu);
+	int16_t s = adpcm_decode(nyb, st);
+	r->hist[idx & (GOLDFISH_READER_HIST - 1u)] = s;
+	return s;
+}
+
+int16_t __not_in_flash_func(goldfish_stream_reader_sample)(goldfish_reader_t *r, uint32_t sample_index)
 {
 	if (s_recorded_samples == 0u) return 0;
 	if (sample_index >= s_recorded_samples) sample_index = s_recorded_samples - 1u;
 
-	/* Cache hit: sample lies in the currently decoded span. */
-	if (r->span_len != 0u
-	    && sample_index >= r->span_start
-	    && sample_index < r->span_start + r->span_len) {
-		return r->buf[sample_index - r->span_start];
+	/* Cache hit within the look-back window. */
+	if (r->primed
+	    && sample_index <= r->head
+	    && (r->head - sample_index) < GOLDFISH_READER_HIST) {
+		return r->hist[sample_index & (GOLDFISH_READER_HIST - 1u)];
 	}
 
-	/* Miss: decode the keyframe span containing sample_index. */
+	const uint8_t *base = xip_ptr(s_audio_off);
+	adpcm_state_t st;
+
+	/* Small forward advance: decode incrementally from head. */
+	if (r->primed
+	    && sample_index > r->head
+	    && (sample_index - r->head) <= GOLDFISH_READER_HIST) {
+		st.predictor  = r->predictor;
+		st.step_index = r->step_index;
+		while (r->head < sample_index) {
+			reader_decode_into(r, base, &st, ++r->head);
+		}
+		r->predictor  = st.predictor;
+		r->step_index = st.step_index;
+		return r->hist[sample_index & (GOLDFISH_READER_HIST - 1u)];
+	}
+
+	/* Backward or large jump: seek to the nearest keyframe and decode forward.
+	 * In normal forward playback this only happens at a loop wrap (near a
+	 * keyframe, so cheap); backward/random seeks pay up to one interval. */
 	uint32_t k = sample_index / s_keyframe_interval;
 	if (k >= s_num_keyframes) k = s_num_keyframes ? (s_num_keyframes - 1u) : 0u;
 
-	uint32_t start = k * s_keyframe_interval;
-	uint32_t n = s_keyframe_interval;
-	if (start + n > s_recorded_samples) n = s_recorded_samples - start;
-	if (n > GOLDFISH_PLAY_WINDOW) n = GOLDFISH_PLAY_WINDOW;
-
-	adpcm_state_t st;
 	st.predictor  = s_keyframes[k].predictor;
 	st.step_index = s_keyframes[k].step_index;
 
-	const uint8_t *base = xip_ptr(s_audio_off);
-	for (uint32_t i = 0u; i < n; i++) {
-		uint32_t idx = start + i;
-		uint8_t byte = base[idx >> 1];
-		uint8_t nyb  = (idx & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
-		                          : (uint8_t)(byte & 0x0Fu);
-		r->buf[i] = adpcm_decode(nyb, &st);
+	uint32_t i = k * s_keyframe_interval;
+	int16_t s = 0;
+	for (; i <= sample_index; i++) {
+		s = reader_decode_into(r, base, &st, i);
 	}
 
-	r->span_start = start;
-	r->span_len   = n;
-
-	if (sample_index >= start + n) sample_index = start + n - 1u;
-	return r->buf[sample_index - start];
+	r->predictor  = st.predictor;
+	r->step_index = st.step_index;
+	r->head       = sample_index;
+	r->primed     = true;
+	return s;
 }
 
 /* ------------------------------------------------------------------ */

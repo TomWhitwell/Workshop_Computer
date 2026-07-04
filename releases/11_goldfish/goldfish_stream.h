@@ -121,24 +121,29 @@ int16_t goldfish_stream_read_cv(uint32_t sample_index);
 
 /* ---- Streaming playhead (efficient sequential/varispeed reads) ----
  *
- * A reader caches one decoded keyframe span so that forward or reverse playback
- * at variable speed is amortised O(1) per sample, only paying a full-span decode
- * when the playhead crosses a keyframe boundary. Reads flash directly on core 0;
- * only valid when no recording (and therefore no flash erase) is in progress. */
+ * A reader decodes ADPCM incrementally (one sample forward per step) and keeps a
+ * small ring of recently decoded samples, so forward/varispeed playback and the
+ * interpolation neighbour read cost O(1) per sample with no bursts. A full
+ * decode-from-keyframe only happens on a backward jump or large seek. Reads
+ * flash directly on core 0; only valid when no recording (and thus no flash
+ * erase) is in progress. */
 
-/* Must be >= the maximum keyframe interval (<=4096 for a 16 MB card). */
-#define GOLDFISH_PLAY_WINDOW 4096u
+/* Look-back window (power of two) covering the interpolation neighbour and
+ * slow/repeated reads around the playhead. */
+#define GOLDFISH_READER_HIST 64u
 
 typedef struct {
-	uint32_t span_start;                 /* first sample index held in buf */
-	uint32_t span_len;                   /* valid samples in buf (0 = empty) */
-	int16_t  buf[GOLDFISH_PLAY_WINDOW];  /* decoded PCM for the current span */
+	int16_t  predictor;                 /* ADPCM decoder state after `head` */
+	int8_t   step_index;
+	bool     primed;                    /* false until first decode */
+	uint32_t head;                      /* highest sample index decoded */
+	int16_t  hist[GOLDFISH_READER_HIST];/* ring of recently decoded samples */
 } goldfish_reader_t;
 
 /** Reset a reader (forces a decode on the next access). */
 void goldfish_stream_reader_init(goldfish_reader_t *r);
 
-/** Return the decoded audio sample at sample_index via the reader's span cache. */
+/** Return the decoded audio sample at sample_index via the reader. */
 int16_t goldfish_stream_reader_sample(goldfish_reader_t *r, uint32_t sample_index);
 
 
