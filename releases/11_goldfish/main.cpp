@@ -250,8 +250,11 @@ public:
                     goldfish_stream_record_sample((int16_t)buf_write, cvMix);
 
                     // Clamp the delay so reads stay safely behind the write head
-                    // (data already flushed to flash) and within the region.
-                    const uint32_t MIN_DELAY = 2560u;
+                    // (data already flushed to flash) and within the region. The
+                    // floor also gives the read head enough runway (delay - backlog)
+                    // to coast through a flash sector erase (~tens of ms) without
+                    // the ring underrunning.
+                    const uint32_t MIN_DELAY = 3600u;
                     uint32_t capSamp = goldfish_stream_capacity_samples();
                     uint32_t maxDelay = (capSamp > 8192u) ? (capSamp - 8192u) : MIN_DELAY;
                     if (cvs1L < (int64_t)MIN_DELAY) cvs1L = MIN_DELAY;
@@ -701,6 +704,11 @@ private:
 
 int main()
 {
+    // Overclock to 200 MHz (default voltage) for core-1 headroom on flash refill
+    // and future DSP. Must run before the ComputerCard object configures its PWM.
+    // Proven safe with ComputerCard 0.3.0 by Sheep (22_sheep).
+    set_sys_clock_khz(200000, true);
+
     // Create an instance of the Goldfish class.
     // static: keep this large object in .bss, not on main()'s stack, so its
     // 100+ KB of buffers don't collide with core 1's stack near the top of RAM.

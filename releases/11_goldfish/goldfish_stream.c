@@ -101,6 +101,10 @@ static volatile uint32_t s_erase_count;
 static volatile uint32_t s_flushed_samples;
 static uint32_t          s_audio_pages_written;
 
+/* Diagnostics (read via debugger). */
+static volatile uint32_t s_head_underruns;   /* head_read misses (ring not filled) */
+static volatile uint32_t s_max_backlog;      /* peak (write_index - flushed) */
+
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -294,6 +298,10 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t audio, int16_t c
 	}
 
 	s_write_index++;
+	if (s_continuous) {
+		uint32_t backlog = s_write_index - s_flushed_samples;
+		if (backlog > s_max_backlog) s_max_backlog = backlog;
+	}
 	return true;
 }
 
@@ -345,6 +353,11 @@ uint32_t goldfish_stream_io_task(void)
 {
 	uint32_t written = 0u;
 
+	/* Top up the playback heads first, so they enter any erase blackout below
+	 * with the most decoded runway. */
+	head_refill(s_head[0]);
+	head_refill(s_head[1]);
+
 	while (s_page_r != s_page_w) {
 		uint32_t slot = s_page_r & (GOLDFISH_PAGE_RING_COUNT - 1u);
 		uint32_t off  = s_page_ring[slot].flash_off;
@@ -352,12 +365,20 @@ uint32_t goldfish_stream_io_task(void)
 		/* Erase-ahead: erase a sector the moment its first page is about to be
 		 * programmed. Works for the wrapping (continuous DELAY) case too, since
 		 * each lap re-erases the sector before rewriting it. */
+		bool erase_now = false;
 		if (off >= s_audio_off && off < s_audio_off + s_audio_bytes) {
-			if (((off - s_audio_off) % FLASH_SECTOR_SIZE) == 0u)
-				flash_erase_sector(off);
+			erase_now = (((off - s_audio_off) % FLASH_SECTOR_SIZE) == 0u);
 		} else if (off >= s_cv_off && off < s_cv_off + s_cv_bytes) {
-			if (((off - s_cv_off) % FLASH_SECTOR_SIZE) == 0u)
-				flash_erase_sector(off);
+			erase_now = (((off - s_cv_off) % FLASH_SECTOR_SIZE) == 0u);
+		}
+
+		if (erase_now) {
+			/* A sector erase blocks core 1 for tens of ms; refill the heads to
+			 * the flushed frontier right before it so playback has maximum
+			 * runway to coast through the blackout. */
+			head_refill(s_head[0]);
+			head_refill(s_head[1]);
+			flash_erase_sector(off);
 		}
 
 		flash_program_page(off, s_page_ring[slot].data);
@@ -603,6 +624,8 @@ int16_t __not_in_flash_func(goldfish_stream_head_read)(goldfish_head_t *h, uint3
 	uint32_t hi = h->hi;
 	if (sample_index >= lo && sample_index < hi) {
 		h->last = h->pcm[sample_index & GOLDFISH_RING_MASK];
+	} else {
+		s_head_underruns++;
 	}
 	/* else: underrun — hold last good sample until core 1 catches up. */
 	return h->last;
@@ -722,4 +745,6 @@ uint32_t goldfish_stream_capacity_samples(void)  { return s_capacity_samples; }
 uint32_t goldfish_stream_recorded_samples(void)  { return s_recorded_samples; }
 uint32_t goldfish_stream_write_index(void)       { return s_write_index; }
 uint32_t goldfish_stream_erase_count(void)       { return s_erase_count; }
+uint32_t goldfish_stream_head_underruns(void)    { return s_head_underruns; }
+uint32_t goldfish_stream_max_backlog(void)       { return s_max_backlog; }
 float    goldfish_stream_capacity_seconds(void)  { return s_capacity_samples / 48000.0f; }
