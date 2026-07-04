@@ -35,6 +35,30 @@ int32_t __not_in_flash_func(highpass_process)(int32_t *out, int32_t b, int32_t i
     return in - *out;
 }
 
+// 4-tap Catmull-Rom cubic interpolation between x0 and x1. t is the fractional
+// position in [0, 1<<F]. Coefficients are carried at x2 scale (avoids the 0.5
+// factors) and halved at the end. Result clamped to int16 to bound the cubic
+// overshoot that this interpolant can produce on transients.
+static inline int32_t __not_in_flash_func(cubicHermite)(int32_t xm1, int32_t x0,
+                                                        int32_t x1, int32_t x2,
+                                                        int32_t t, int32_t F)
+{
+    int32_t c1 = x1 - xm1;
+    int32_t c2 = 2 * xm1 - 5 * x0 + 4 * x1 - x2;
+    int32_t c3 = x2 - xm1 + 3 * (x0 - x1);
+    int64_t tt = t;
+    int64_t acc = c3;
+    acc = (acc * tt) >> F;
+    acc += c2;
+    acc = (acc * tt) >> F;
+    acc += c1;
+    acc = (acc * tt) >> F;
+    int32_t res = x0 + (int32_t)(acc >> 1);
+    if (res > 32767) res = 32767;
+    if (res < -32768) res = -32768;
+    return res;
+}
+
 /// Goldfish class
 class Goldfish : public ComputerCard
 {
@@ -262,22 +286,28 @@ public:
 
                     // Read back at the delay offset behind the write head, via the
                     // core-1 ring heads (flash is being erased, so no direct reads).
+                    // 4-tap Catmull-Rom cubic interpolation per head; the +1 look-
+                    // ahead tap stays well behind the write head (MIN_DELAY >> 1).
                     uint32_t wi = goldfish_stream_write_index();
                     int32_t fromBufferL = 0;
                     int32_t fromBufferR = 0;
-                    if (wi > (uint32_t)cvs1L + 1u)
+                    if (wi > (uint32_t)cvs1L + 3u)
                     {
                         uint32_t readL1 = wi - (uint32_t)cvs1L - 1u;
-                        int32_t b1 = goldfish_stream_head_read(&playHeadL, readL1);
-                        int32_t b2 = goldfish_stream_head_read(&playHeadL, readL1 - 1u);
-                        fromBufferL = (b2 * rL + b1 * (128 - rL)) >> 7;
+                        int32_t xm1 = goldfish_stream_head_read(&playHeadL, readL1 - 2u);
+                        int32_t x0  = goldfish_stream_head_read(&playHeadL, readL1 - 1u);
+                        int32_t x1  = goldfish_stream_head_read(&playHeadL, readL1);
+                        int32_t x2  = goldfish_stream_head_read(&playHeadL, readL1 + 1u);
+                        fromBufferL = cubicHermite(xm1, x0, x1, x2, 128 - (int32_t)rL, 7);
                     }
-                    if (wi > (uint32_t)cvs1R + 1u)
+                    if (wi > (uint32_t)cvs1R + 3u)
                     {
                         uint32_t readR1 = wi - (uint32_t)cvs1R - 1u;
-                        int32_t b1 = goldfish_stream_head_read(&playHeadR, readR1);
-                        int32_t b2 = goldfish_stream_head_read(&playHeadR, readR1 - 1u);
-                        fromBufferR = (b2 * rR + b1 * (128 - rR)) >> 7;
+                        int32_t xm1 = goldfish_stream_head_read(&playHeadR, readR1 - 2u);
+                        int32_t x0  = goldfish_stream_head_read(&playHeadR, readR1 - 1u);
+                        int32_t x1  = goldfish_stream_head_read(&playHeadR, readR1);
+                        int32_t x2  = goldfish_stream_head_read(&playHeadR, readR1 + 1u);
+                        fromBufferR = cubicHermite(xm1, x0, x1, x2, 128 - (int32_t)rR, 7);
                     }
 
                     outL = fromBufferL;
@@ -401,47 +431,56 @@ public:
                     int32_t rR = phaseR & 0xFF;
                     int32_t readIndR = phaseR >> 8;
 
-                    // Decode audio from flash via the per-head streaming readers.
-                    int32_t sL0 = goldfish_stream_head_read(&playHeadL, readIndL);
-                    int32_t sL1 = goldfish_stream_head_read(&playHeadL, (readIndL + 1) % loopLength);
-                    int32_t sR0 = goldfish_stream_head_read(&playHeadR, readIndR);
-                    int32_t sR1 = goldfish_stream_head_read(&playHeadR, (readIndR + 1) % loopLength);
+                    // Decode audio from flash via the per-head streaming readers,
+                    // with 4-tap Catmull-Rom cubic interpolation (audio only).
+                    int32_t iLm1 = readIndL - 1; if (iLm1 < 0) iLm1 += loopLength;
+                    int32_t iL1  = readIndL + 1; if (iL1 >= loopLength) iL1 -= loopLength;
+                    int32_t iL2  = readIndL + 2; if (iL2 >= loopLength) iL2 -= loopLength;
+                    int32_t sL = cubicHermite(
+                        goldfish_stream_head_read(&playHeadL, iLm1),
+                        goldfish_stream_head_read(&playHeadL, readIndL),
+                        goldfish_stream_head_read(&playHeadL, iL1),
+                        goldfish_stream_head_read(&playHeadL, iL2),
+                        rL, 8);
 
-                    int32_t fadeLength = loopLength; // Adjust this value as needed for the fade length
+                    int32_t iRm1 = readIndR - 1; if (iRm1 < 0) iRm1 += loopLength;
+                    int32_t iR1  = readIndR + 1; if (iR1 >= loopLength) iR1 -= loopLength;
+                    int32_t iR2  = readIndR + 2; if (iR2 >= loopLength) iR2 -= loopLength;
+                    int32_t sR = cubicHermite(
+                        goldfish_stream_head_read(&playHeadR, iRm1),
+                        goldfish_stream_head_read(&playHeadR, readIndR),
+                        goldfish_stream_head_read(&playHeadR, iR1),
+                        goldfish_stream_head_read(&playHeadR, iR2),
+                        rR, 8);
 
-                    // Apply fade-out at the end of the loop
+                    int32_t fadeLength = loopLength; // fade length near loop ends
+                    int32_t baseL = sL << 11; // match the prior <<3 * 256 output scale
+                    int32_t baseR = sR << 11;
+
+                    // Apply fade-out at the end of the loop / fade-in at the start.
                     if (phaseL >= (loopLength << 8) - fadeLength)
                     {
                         int32_t fadeOutFactor = ((loopLength << 8) - phaseL) * 256 / fadeLength;
-                        outL = ((sL0 << 3) * (256 - rL) + (sL1 << 3) * (rL)) * fadeOutFactor >> 8;
+                        baseL = (int32_t)(((int64_t)baseL * fadeOutFactor) >> 8);
                     }
-                    else
-                    {
-                        outL = (sL0 << 3) * (256 - rL) + (sL1 << 3) * (rL);
-                    }
-
-                    // Apply fade-in at the beginning of the loop
                     if (phaseL < fadeLength)
                     {
                         int32_t fadeInFactor = phaseL * 256 / fadeLength;
-                        outL = outL * fadeInFactor >> 8;
+                        baseL = (int32_t)(((int64_t)baseL * fadeInFactor) >> 8);
                     }
+                    outL = baseL;
 
                     if (phaseR >= (loopLength << 8) - fadeLength)
                     {
                         int32_t fadeOutFactor = ((loopLength << 8) - phaseR) * 256 / fadeLength;
-                        outR = ((sR0 << 3) * (256 - rR) + (sR1 << 3) * (rR)) * fadeOutFactor >> 8;
+                        baseR = (int32_t)(((int64_t)baseR * fadeOutFactor) >> 8);
                     }
-                    else
-                    {
-                        outR = (sR0 << 3) * (256 - rR) + (sR1 << 3) * (rR);
-                    }
-
                     if (phaseR < fadeLength)
                     {
                         int32_t fadeInFactor = phaseR * 256 / fadeLength;
-                        outR = outR * fadeInFactor >> 8;
+                        baseR = (int32_t)(((int64_t)baseR * fadeInFactor) >> 8);
                     }
+                    outR = baseR;
 
                     if (loopLength > 0)
                     {
@@ -695,10 +734,12 @@ private:
 
 int main()
 {
-    // Overclock to 200 MHz (default voltage) for core-1 headroom on flash refill
-    // and future DSP. Must run before the ComputerCard object configures its PWM.
-    // Proven safe with ComputerCard 0.3.0 by Sheep (22_sheep).
-    set_sys_clock_khz(200000, true);
+    // Overclock to 192 MHz (default voltage) for core-1 headroom on flash refill
+    // and DSP. 192 MHz = 48 MHz x 4, an integer multiple of the 48 MHz ADC/audio
+    // reference, so audio-rate clock division stays exact (no fractional jitter).
+    // Must run before the ComputerCard object configures its PWM. Same value
+    // MLRws uses; proven safe with ComputerCard 0.3.0.
+    set_sys_clock_khz(192000, true);
 
     // Create an instance of the Goldfish class.
     // static: keep this large object in .bss, not on main()'s stack, so its
