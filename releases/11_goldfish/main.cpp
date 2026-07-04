@@ -382,6 +382,10 @@ public:
                         loopLength = bufSize;
                     }
 
+                    // Phase-domain loop length (sample<<8). 64-bit because on 16MB
+                    // cards loopLength can be ~22M samples, overflowing a 32-bit <<8.
+                    int64_t loopPhase = (int64_t)loopLength << 8;
+
                     calculateStartPos();
 
                     //This is really only a best effort to reduce discontinuities in the audio output that cause clicks on reset
@@ -404,14 +408,14 @@ public:
 
                     if (phaseL < 0)
                     {
-                        phaseL += loopLength << 8;
+                        phaseL += loopPhase;
                         clockDivider.SetResetPhase(divisor);
                         pulseL = true;
                         pulseR = clockDivider.Step(true);
                     }
-                    if (phaseL > (loopLength << 8))
+                    if (phaseL > loopPhase)
                     {
-                        phaseL -= loopLength << 8;
+                        phaseL -= loopPhase;
                         pulseL = true;
                         clockDivider.SetResetPhase(divisor);
                         pulseR = clockDivider.Step(true);
@@ -419,17 +423,17 @@ public:
 
                     if (phaseR < 0)
                     {
-                        phaseR += loopLength << 8;
+                        phaseR += loopPhase;
                     }
-                    if (phaseR > (loopLength << 8))
+                    if (phaseR > loopPhase)
                     {
-                        phaseR -= loopLength << 8;
+                        phaseR -= loopPhase;
                     }
 
-                    int32_t rL = phaseL & 0xFF;
-                    int32_t readIndL = phaseL >> 8;
-                    int32_t rR = phaseR & 0xFF;
-                    int32_t readIndR = phaseR >> 8;
+                    int32_t rL = (int32_t)(phaseL & 0xFF);
+                    int32_t readIndL = (int32_t)(phaseL >> 8);
+                    int32_t rR = (int32_t)(phaseR & 0xFF);
+                    int32_t readIndR = (int32_t)(phaseR >> 8);
 
                     // Decode audio from flash via the per-head streaming readers,
                     // with 4-tap Catmull-Rom cubic interpolation (audio only).
@@ -458,26 +462,26 @@ public:
                     int32_t baseR = sR << 11;
 
                     // Apply fade-out at the end of the loop / fade-in at the start.
-                    if (phaseL >= (loopLength << 8) - fadeLength)
+                    if (phaseL >= loopPhase - fadeLength)
                     {
-                        int32_t fadeOutFactor = ((loopLength << 8) - phaseL) * 256 / fadeLength;
+                        int32_t fadeOutFactor = (int32_t)((loopPhase - phaseL) * 256 / fadeLength);
                         baseL = (int32_t)(((int64_t)baseL * fadeOutFactor) >> 8);
                     }
                     if (phaseL < fadeLength)
                     {
-                        int32_t fadeInFactor = phaseL * 256 / fadeLength;
+                        int32_t fadeInFactor = (int32_t)(phaseL * 256 / fadeLength);
                         baseL = (int32_t)(((int64_t)baseL * fadeInFactor) >> 8);
                     }
                     outL = baseL;
 
-                    if (phaseR >= (loopLength << 8) - fadeLength)
+                    if (phaseR >= loopPhase - fadeLength)
                     {
-                        int32_t fadeOutFactor = ((loopLength << 8) - phaseR) * 256 / fadeLength;
+                        int32_t fadeOutFactor = (int32_t)((loopPhase - phaseR) * 256 / fadeLength);
                         baseR = (int32_t)(((int64_t)baseR * fadeOutFactor) >> 8);
                     }
                     if (phaseR < fadeLength)
                     {
-                        int32_t fadeInFactor = phaseR * 256 / fadeLength;
+                        int32_t fadeInFactor = (int32_t)(phaseR * 256 / fadeLength);
                         baseR = (int32_t)(((int64_t)baseR * fadeInFactor) >> 8);
                     }
                     outR = baseR;
@@ -568,9 +572,8 @@ private:
     int pulseTimer1 = 200;
     int pulseTimer2;
     bool clockPulse = false;
-    uint32_t startPosL;
-    uint32_t startPosR;
-    int lowPassMain = 0;
+    int64_t startPosL;
+    int64_t startPosR;
     int lastLowPassMain = 0;
     int16_t bigKnob_CV;
     int loopLength = 0;
@@ -599,8 +602,8 @@ private:
     int32_t ledtimer = 0;
     int32_t hpf = 0;
     bool checkZero = false;
-    int phaseL = 0;
-    int phaseR = 0;
+    int64_t phaseL = 0;
+    int64_t phaseR = 0;
     bool halftime;
     Divider clockDivider;
     int divisor;
@@ -716,8 +719,8 @@ private:
             px = x;
             py = y;
         }
-        startPosL = (uint32_t)(((int64_t)px * loopLength) >> 4);
-        startPosR = (uint32_t)(((int64_t)py * loopLength) >> 4);
+        startPosL = ((int64_t)px * loopLength) >> 4;
+        startPosR = ((int64_t)py * loopLength) >> 4;
     }
 
     int16_t __not_in_flash_func(virtualDetentedKnob)(int16_t val)
