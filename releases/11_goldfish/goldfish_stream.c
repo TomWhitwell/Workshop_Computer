@@ -546,6 +546,7 @@ void goldfish_stream_head_init(goldfish_head_t *h)
 	h->predictor  = 0;
 	h->step_index = 0;
 	h->fill_next  = 0u;
+	h->fwd_valid  = false;
 	h->need_seek  = true;
 }
 
@@ -572,23 +573,26 @@ int16_t __not_in_flash_func(goldfish_stream_head_read)(goldfish_head_t *h, uint3
 	return h->last;
 }
 
-/* Core-1: keep one head's window covering its requested position. Forward decode
- * is incremental; a backward/large jump reseeks from the nearest keyframe. Work
- * per call is bounded so the io loop stays responsive. */
+/* Core-1: keep one head's window covering its requested position, with margin on
+ * BOTH sides so forward and reverse playback never outrun the decoded region.
+ * Forward growth is an incremental decode; downward growth (for reverse) decodes
+ * the previous keyframe block and prepends it. A full reseek only happens on a
+ * large jump (e.g. loop wrap). Work per call is bounded. */
 static void head_refill(goldfish_head_t *h)
 {
 	if (h == NULL || !h->active || s_recorded_samples == 0u) return;
 
+	const uint32_t MARGIN = 1536u;   /* runway kept each side of the playhead */
 	uint32_t pos  = h->req_pos;
 	const uint8_t *base = xip_ptr(s_audio_off);
 
-	/* Reseek if the window is empty or pos fell below/way past it. */
-	if (h->need_seek || h->hi == h->lo
-	    || pos < h->lo
-	    || pos >= h->hi + GOLDFISH_RING_SZ) {
-		const uint32_t back = 512u;
-		uint32_t start = (pos > back) ? (pos - back) : 0u;
-		uint32_t k = start / s_keyframe_interval;
+	uint32_t want_lo = (pos > MARGIN) ? (pos - MARGIN) : 0u;
+	uint32_t want_hi = pos + MARGIN;
+	if (want_hi > s_recorded_samples) want_hi = s_recorded_samples;
+
+	/* Full reseek if the window is empty or no longer contains pos. */
+	if (h->need_seek || h->hi <= h->lo || pos < h->lo || pos >= h->hi) {
+		uint32_t k = want_lo / s_keyframe_interval;
 		if (k >= s_num_keyframes) k = s_num_keyframes ? (s_num_keyframes - 1u) : 0u;
 		uint32_t kstart = k * s_keyframe_interval;
 
@@ -597,33 +601,77 @@ static void head_refill(goldfish_head_t *h)
 		h->fill_next  = kstart;
 		h->lo         = kstart;
 		h->hi         = kstart;
+		h->fwd_valid  = true;
 		h->need_seek  = false;
 	}
 
-	/* Fill forward toward pos + lookahead, bounded. */
-	const uint32_t ahead = 1024u;
-	uint32_t want = pos + ahead;
-	if (want > s_recorded_samples) want = s_recorded_samples;
+	/* Forward: extend hi up to want_hi. Re-prime the decoder first if a reverse
+	 * drop invalidated it. */
+	if (h->fill_next < want_hi) {
+		if (!h->fwd_valid) {
+			uint32_t k = h->fill_next / s_keyframe_interval;
+			if (k >= s_num_keyframes) k = s_num_keyframes ? (s_num_keyframes - 1u) : 0u;
+			adpcm_state_t ps;
+			ps.predictor  = s_keyframes[k].predictor;
+			ps.step_index = s_keyframes[k].step_index;
+			for (uint32_t i = k * s_keyframe_interval; i < h->fill_next; i++) {
+				uint8_t byte = base[i >> 1];
+				uint8_t nyb  = (i & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
+				                        : (uint8_t)(byte & 0x0Fu);
+				(void)adpcm_decode(nyb, &ps);
+			}
+			h->predictor  = ps.predictor;
+			h->step_index = ps.step_index;
+			h->fwd_valid  = true;
+		}
 
-	adpcm_state_t st;
-	st.predictor  = h->predictor;
-	st.step_index = h->step_index;
-
-	uint32_t budget = 768u;
-	while (h->fill_next < want && budget-- != 0u) {
-		uint32_t idx = h->fill_next;
-		uint8_t byte = base[idx >> 1];
-		uint8_t nyb  = (idx & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
-		                          : (uint8_t)(byte & 0x0Fu);
-		h->pcm[idx & GOLDFISH_RING_MASK] = adpcm_decode(nyb, &st);
-		h->fill_next++;
-		__dmb();
-		h->hi = h->fill_next;
-		if (h->hi - h->lo > GOLDFISH_RING_SZ) h->lo = h->hi - GOLDFISH_RING_SZ;
+		adpcm_state_t st;
+		st.predictor  = h->predictor;
+		st.step_index = h->step_index;
+		uint32_t budget = 2048u;
+		while (h->fill_next < want_hi && budget-- != 0u) {
+			uint32_t idx = h->fill_next;
+			uint8_t byte = base[idx >> 1];
+			uint8_t nyb  = (idx & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
+			                          : (uint8_t)(byte & 0x0Fu);
+			h->pcm[idx & GOLDFISH_RING_MASK] = adpcm_decode(nyb, &st);
+			h->fill_next++;
+			__dmb();
+			h->hi = h->fill_next;
+			if (h->hi - h->lo > GOLDFISH_RING_SZ) h->lo = h->hi - GOLDFISH_RING_SZ;
+		}
+		h->predictor  = st.predictor;
+		h->step_index = st.step_index;
 	}
 
-	h->predictor  = st.predictor;
-	h->step_index = st.step_index;
+	/* Backward: extend lo down to want_lo by decoding whole keyframe blocks. */
+	uint32_t bbudget = 2048u;
+	while (h->lo > want_lo && bbudget != 0u) {
+		uint32_t span_hi = h->lo;
+		uint32_t k = (span_hi - 1u) / s_keyframe_interval;
+		if (k >= s_num_keyframes) k = s_num_keyframes ? (s_num_keyframes - 1u) : 0u;
+		uint32_t dstart = k * s_keyframe_interval;
+
+		adpcm_state_t bst;
+		bst.predictor  = s_keyframes[k].predictor;
+		bst.step_index = s_keyframes[k].step_index;
+		for (uint32_t i = dstart; i < span_hi; i++) {
+			uint8_t byte = base[i >> 1];
+			uint8_t nyb  = (i & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
+			                        : (uint8_t)(byte & 0x0Fu);
+			int16_t s = adpcm_decode(nyb, &bst);
+			if (i >= want_lo) h->pcm[i & GOLDFISH_RING_MASK] = s;
+		}
+		__dmb();
+		h->lo = (dstart > want_lo) ? dstart : want_lo;
+		if (h->hi - h->lo > GOLDFISH_RING_SZ) {
+			h->hi = h->lo + GOLDFISH_RING_SZ;
+			h->fill_next = h->hi;
+			h->fwd_valid = false;   /* forward decoder no longer matches fill_next */
+		}
+		uint32_t did = span_hi - dstart;
+		bbudget = (bbudget > did) ? (bbudget - did) : 0u;
+	}
 }
 
 int16_t __not_in_flash_func(goldfish_stream_cv_read)(uint32_t sample_index)

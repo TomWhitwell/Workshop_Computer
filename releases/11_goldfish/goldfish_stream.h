@@ -168,7 +168,8 @@ typedef struct {
 	/* core 1 private forward-decode state */
 	int16_t           predictor;
 	int8_t            step_index;
-	uint32_t          fill_next; /* next sample index core 1 will decode */
+	uint32_t          fill_next; /* next sample index core 1 will decode forward */
+	bool              fwd_valid; /* forward decoder state matches fill_next */
 	bool              need_seek; /* core 1 must re-seek before filling */
 } goldfish_head_t;
 
