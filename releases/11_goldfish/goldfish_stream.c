@@ -96,6 +96,11 @@ static uint32_t          s_audio_next_erase;
 static uint32_t          s_cv_next_erase;
 static volatile uint32_t s_erase_count;
 
+/* Samples confirmed written to flash (core 1). In continuous (DELAY) mode this
+ * is the readable limit — reads must stay behind it, never in the page ring. */
+static volatile uint32_t s_flushed_samples;
+static uint32_t          s_audio_pages_written;
+
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -229,6 +234,8 @@ void __not_in_flash_func(goldfish_stream_record_start)(void)
 	s_audio_next_erase = s_audio_off;
 	s_cv_next_erase    = s_cv_off;
 	s_continuous       = false;
+	s_flushed_samples     = 0u;
+	s_audio_pages_written = 0u;
 }
 
 void __not_in_flash_func(goldfish_stream_delay_start)(void)
@@ -287,7 +294,6 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t audio, int16_t c
 	}
 
 	s_write_index++;
-	if (s_continuous) s_recorded_samples = s_write_index;
 	return true;
 }
 
@@ -355,6 +361,15 @@ uint32_t goldfish_stream_io_task(void)
 		}
 
 		flash_program_page(off, s_page_ring[slot].data);
+
+		/* Track audio samples now safely in flash. Audio pages are programmed in
+		 * logical order, each holding PAGE_SIZE*2 ADPCM samples. In continuous
+		 * (DELAY) mode this becomes the readable limit for the heads. */
+		if (off >= s_audio_off && off < s_audio_off + s_audio_bytes) {
+			s_audio_pages_written++;
+			s_flushed_samples = s_audio_pages_written * (GOLDFISH_PAGE_SIZE * 2u);
+			if (s_continuous) s_recorded_samples = s_flushed_samples;
+		}
 
 		__dmb();
 		s_page_r++;
