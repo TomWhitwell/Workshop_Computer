@@ -199,7 +199,7 @@ void goldfish_stream_set_heads(goldfish_head_t *hL, goldfish_head_t *hR);
 
 
 
-/* ---- Introspection (geometry + instrumentation) ---- */
+/* ---- Introspection (geometry) ---- */
 
 uint32_t goldfish_stream_flash_size(void);        /* detected total flash bytes */
 uint32_t goldfish_stream_keyframe_interval(void); /* samples between keyframes  */
@@ -207,7 +207,7 @@ uint32_t goldfish_stream_capacity_samples(void);  /* max recordable audio sample
 uint32_t goldfish_stream_recorded_samples(void);  /* length of current recording */
 uint32_t goldfish_stream_write_index(void);       /* monotonic samples written (DELAY) */
 uint32_t goldfish_stream_erase_count(void);       /* sectors erased since boot   */
-float    goldfish_stream_capacity_seconds(void);  /* capacity_samples / 48000    */
+float    goldfish_stream_capacity_seconds(void);  /* capacity_samples / 24000    */
 
 #ifdef __cplusplus
 }

@@ -105,11 +105,6 @@ static volatile uint32_t s_erase_count;
 static volatile uint32_t s_flushed_samples;
 static uint32_t          s_audio_pages_written;
 
-/* Diagnostics (read via debugger). */
-static volatile uint32_t s_head_underruns;   /* head_read misses (ring not filled) */
-static volatile uint32_t s_max_backlog;      /* peak (write_index - flushed) */
-static volatile uint8_t  s_jedec[4];         /* flash JEDEC ID: mfr, type, capacity */
-
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -383,15 +378,6 @@ void goldfish_stream_init(void)
 	qspi_rom_init();
 	s_flash_size = goldfish_detect_flash_size();
 
-	/* Capture the full JEDEC ID for diagnostics / erase-suspend support check. */
-	{
-		uint8_t tx[4] = { 0x9fu, 0u, 0u, 0u };
-		uint8_t rx[4] = { 0u, 0u, 0u, 0u };
-		flash_do_cmd(tx, rx, 4);
-		s_jedec[0] = rx[0]; s_jedec[1] = rx[1];
-		s_jedec[2] = rx[2]; s_jedec[3] = rx[3];
-	}
-
 	uint32_t usable = (s_flash_size > GOLDFISH_FIRMWARE_RESERVE)
 	                      ? (s_flash_size - GOLDFISH_FIRMWARE_RESERVE)
 	                      : 0u;
@@ -519,10 +505,6 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t audio, int16_t c
 	}
 
 	s_write_index++;
-	if (s_continuous) {
-		uint32_t backlog = s_write_index - s_flushed_samples;
-		if (backlog > s_max_backlog) s_max_backlog = backlog;
-	}
 	return true;
 }
 
@@ -826,8 +808,6 @@ int16_t __not_in_flash_func(goldfish_stream_head_read)(goldfish_head_t *h, uint3
 	uint32_t hi = h->hi;
 	if (sample_index >= lo && sample_index < hi) {
 		h->last = h->pcm[sample_index & GOLDFISH_RING_MASK];
-	} else {
-		s_head_underruns++;
 	}
 	/* else: underrun — hold last good sample until core 1 catches up. */
 	return h->last;
@@ -947,6 +927,4 @@ uint32_t goldfish_stream_capacity_samples(void)  { return s_capacity_samples; }
 uint32_t goldfish_stream_recorded_samples(void)  { return s_recorded_samples; }
 uint32_t goldfish_stream_write_index(void)       { return s_write_index; }
 uint32_t goldfish_stream_erase_count(void)       { return s_erase_count; }
-uint32_t goldfish_stream_head_underruns(void)    { return s_head_underruns; }
-uint32_t goldfish_stream_max_backlog(void)       { return s_max_backlog; }
-float    goldfish_stream_capacity_seconds(void)  { return s_capacity_samples / 48000.0f; }
+float    goldfish_stream_capacity_seconds(void)  { return s_capacity_samples / 24000.0f; }
