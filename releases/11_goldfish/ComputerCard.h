@@ -1,6 +1,8 @@
 /*
 ComputerCard  - by Chris Johnson
 
+version 0.3.0   -  12 May 2026
+
 ComputerCard is a header-only C++ library, providing a class that
 manages the hardware aspects of the Music Thing Modular Workshop
 System Computer.
@@ -25,6 +27,9 @@ See examples/ directory
 #define CV_OUT_1 23
 #define CV_OUT_2 22
 
+// USB host status pin
+#define USB_HOST_STATUS 20
+
 class ComputerCard
 {
 	constexpr static int numLeds = 6;
@@ -38,8 +43,10 @@ public:
 	/// Input jack socket, used by Connected and Disconnected
 	enum Input {Audio1, Audio2, CV1, CV2, Pulse1, Pulse2};
 	/// Hardware version
-	enum HardwareVersion {Proto1=0x2a, Proto2_Rev1=0x30, Unknown=0xFF};
-	
+	enum HardwareVersion_t {Proto1=0x2a, Proto2_Rev1=0x30, Rev1_1=0x0C, Unknown=0xFF};
+	/// USB Power state
+	enum USBPowerState_t {DFP, UFP, Unsupported};
+
 	ComputerCard();
 
 	/** \brief Start audio processing.
@@ -56,6 +63,35 @@ public:
 	/// Use before Run() to enable Connected/Disconnected detection
 	void EnableNormalisationProbe() {useNormProbe = true;}
 	
+	static ComputerCard *ThisPtr() {return thisptr;}
+
+protected:
+
+	class NotchFilter
+	{
+	public:
+		NotchFilter()
+		{
+			mix1 = mix2 = mixf1 = mixf2 = 0;
+		}
+		int32_t operator()(int32_t val)
+		{
+			int32_t mixf = (ooa0 * (val + mix2) - a2oa0 * mixf2) >> 14;
+			mix2 = mix1;
+			mix1 = val;
+			mixf2 = mixf1;
+			mixf1 = mixf;
+			return mixf;
+		}
+	private:
+		// 12kHz notch filter, to remove interference from mux lines
+		int32_t mix1, mix2, mixf1, mixf2;
+		static constexpr int32_t ooa0 = 16302, a2oa0 = 16221; // Q = 100, very narrow notch
+		
+	};
+
+	NotchFilter notchLeft, notchRight;
+	
 	/// Callback, called once per sample at 48kHz
 	virtual void ProcessSample() = 0;
 
@@ -66,7 +102,10 @@ public:
 	int32_t __not_in_flash_func(KnobVal)(Knob ind) {return knobs[ind];}
 
 	/// Read switch position
-	Switch __not_in_flash_func(SwitchVal)() {return static_cast<Switch>((knobs[3]>1000) + (knobs[3]>3000));}
+	Switch __not_in_flash_func(SwitchVal)() {return switchVal;}
+
+	/// Read switch position
+	bool __not_in_flash_func(SwitchChanged)() {return switchVal != lastSwitchVal;}
 
 
 	/// Set Audio output (values -2048 to 2047)
@@ -91,38 +130,95 @@ public:
 	/// Set CV output (values -2048 to 2047)
 	void __not_in_flash_func(CVOut)(int i, int16_t val)
 	{
-		pwm_set_gpio_level(CV_OUT_1 - i, (2047-val)>>1);
+		if (val<-2048) val = -2048;
+		if (val > 2047) val = 2047;
+		cvValue[i] = (2047-val)*125;
 	}
 	
 	/// Set CV 1 output (values -2048 to 2047)
 	void __not_in_flash_func(CVOut1)(int16_t val)
 	{
-		pwm_set_gpio_level(CV_OUT_1, (2047-val)>>1);
+		if (val<-2048) val = -2048;
+		if (val > 2047) val = 2047;
+		cvValue[0] = (2047-val)*125;
 	}
 	
 	/// Set CV 2 output (values -2048 to 2047)
 	void __not_in_flash_func(CVOut2)(int16_t val)
 	{
-		pwm_set_gpio_level(CV_OUT_2, (2047-val)>>1);
+		if (val<-2048) val = -2048;
+		if (val > 2047) val = 2047;
+		cvValue[1] = (2047-val)*125;
+	}
+
+		
+	/// Set CV output (values -262144 to 262143)
+	void __not_in_flash_func(CVOutPrecise)(int i, int32_t val)
+	{
+		if (val<-262144) val = -262144;
+		if (val > 262143) val = 262143;
+		cvValue[i] = ((262143-val)*125)>>7;
+	}
+	
+	/// Set CV 1 output (values -262144 to 262143)
+	void __not_in_flash_func(CVOut1Precise)(int32_t val)
+	{
+		if (val<-262144) val = -262144;
+		if (val > 262143) val = 262143;
+		cvValue[0] = ((262143-val)*125)>>7;
+	}
+	
+	/// Set CV 2 output (values -262144 to 262143)
+	void __not_in_flash_func(CVOut2Precise)(int32_t val)
+	{
+		if (val<-262144) val = -262144;
+		if (val > 262143) val = 262143;
+		cvValue[1] = ((262143-val)*125)>>7;
 	}
 
 	/// Set CV 1 output from calibrated MIDI note number (values 0 to 127)
 	void __not_in_flash_func(CVOutMIDINote)(int i, uint8_t noteNum)
 	{
-		pwm_set_gpio_level(CV_OUT_1 - i, MIDIToDac(noteNum, 0) >> 8);
+		cvValue[i] = MIDIToDAC(noteNum, i);
 	}
 	
 	/// Set CV 1 output from calibrated MIDI note number (values 0 to 127)
 	void __not_in_flash_func(CVOut1MIDINote)(uint8_t noteNum)
 	{
-		pwm_set_gpio_level(CV_OUT_1, MIDIToDac(noteNum, 0) >> 8);
+		cvValue[0] = MIDIToDAC(noteNum, 0);
 	}
 	
 	/// Set CV 2 output from calibrated MIDI note number (values 0 to 127)
 	void __not_in_flash_func(CVOut2MIDINote)(uint8_t noteNum)
 	{
-		pwm_set_gpio_level(CV_OUT_2, MIDIToDac(noteNum, 1) >> 8);
+		cvValue[1] = MIDIToDAC(noteNum, 1);
 	}
+
+	
+	/// Set CV 1 output from calibrated MIDI note number (values 0 to 127)
+	bool __not_in_flash_func(CVOutMillivolts)(int i, int32_t millivolts)
+	{
+		bool limited = false;
+		cvValue[i] = MillivoltsToDAC(millivolts, i, limited);
+		return limited;
+	}
+	
+	/// Set CV 1 output from calibrated MIDI note number (values 0 to 127)
+	bool __not_in_flash_func(CVOut1Millivolts)(int32_t millivolts)
+	{
+		bool limited = false;
+		cvValue[0] = MillivoltsToDAC(millivolts, 0, limited);
+		return limited;
+	}
+	
+	/// Set CV 2 output from calibrated MIDI note number (values 0 to 127)
+	bool __not_in_flash_func(CVOut2Millivolts)(int32_t millivolts)
+	{
+		bool limited = false;
+		cvValue[1] = MillivoltsToDAC(millivolts, 1, limited);
+		return limited;
+	}
+
 	
 	/// Set Pulse output (true = on)
 	void __not_in_flash_func(PulseOut)(int i, bool val)
@@ -210,15 +306,41 @@ public:
 		pwm_set_gpio_level(leds[index], 0);
 	}
 
-	
+	// Return power state of USB port
+	USBPowerState_t USBPowerState()
+	{
+		if (HardwareVersion() != Rev1_1)
+			return Unsupported;
+		else if (gpio_get(USB_HOST_STATUS))
+			return UFP;
+		else
+			return DFP;
+	}
 
 	/// Return hardware version
-	HardwareVersion GetHardwareVersion() {return hw;}
+	HardwareVersion_t HardwareVersion() const
+	{
+		return hw;
+	}
 
 	/// Return ID number unique to flash card
-	uint64_t UniqueCardID()	{return uniqueID;}
+	uint64_t UniqueCardID()	const
+	{
+		return uniqueID;
+	}	
+
+	/// Return true iff CV outputs are calibrated.
+	/// Returns false if using default calibration values.
+	bool CVOutsCalibrated() const
+	{
+		return cvOutsCalibrated;
+	}
+
 	
-	static ComputerCard *ThisPtr() {return thisptr;}
+	void Abort();
+
+	uint16_t CRCencode(const uint8_t *data, int length);
+
 private:
 	
 	typedef struct
@@ -235,6 +357,8 @@ private:
 
 	static constexpr int calMaxChannels = 2;
 	static constexpr int calMaxPoints = 10;
+
+	static volatile uint32_t cvValue[2];
 	
 	uint8_t numCalibrationPoints[calMaxChannels];
 	CalPoint calibrationTable[calMaxChannels][calMaxPoints];
@@ -242,15 +366,15 @@ private:
 
 	uint64_t uniqueID;
 	
-	uint8_t ReadByteFromEEPROM(unsigned int eeAddress);
-	int ReadIntFromEEPROM(unsigned int eeAddress);
-	uint16_t CRCencode(const uint8_t *data, int length);
+	uint8_t ReadByteFromEEPROM(unsigned int eeAddress, bool &failed);
+	int ReadIntFromEEPROM(unsigned int eeAddress, bool &failed);
 	void CalcCalCoeffs(int channel);
 	int ReadEEPROM();
-	uint32_t MIDIToDac(int midiNote, int channel);
+	uint32_t MIDIToDAC(int midiNote, int channel);
+	uint32_t MillivoltsToDAC(int millivolts, int channel, bool &limited);
 	
-	HardwareVersion hw;
-	HardwareVersion ProbeHardwareVersion();
+	HardwareVersion_t hw;
+	HardwareVersion_t ProbeHardwareVersion();
 	
 	int16_t dacOut[2];
 	
@@ -266,9 +390,11 @@ private:
 	volatile bool connected[6] = {0,0,0,0,0,0};
 	bool useNormProbe;
 
+	Switch switchVal, lastSwitchVal;
 	
 	volatile uint8_t runADCMode;
 
+	bool cvOutsCalibrated;
 
 // Buffers that DMA reads into / out of
 	uint16_t ADC_Buffer[2][8];
@@ -283,10 +409,15 @@ private:
 	// Convert signed int16 value into data string for DAC output
 	uint16_t __not_in_flash_func(dacval)(int16_t value, uint16_t dacChannel)
 	{
+		if (value<-2048) value = -2048;
+		if (value > 2047) value = 2047;
 		return (dacChannel | 0x3000) | (((uint16_t)((value & 0x0FFF) + 0x800)) & 0x0FFF);
 	}
 	uint32_t next_norm_probe();
 
+	
+    void CorrectADCDNL(uint16_t &value) const;
+	
 	void BufferFull();
 
 	void AudioWorker();
@@ -296,6 +427,21 @@ private:
 		thisptr->BufferFull();
 	}
 	static ComputerCard *thisptr;
+
+	// 19-bit CV outputs
+	static void OnCVPWMWrap()
+	{
+		static int32_t error1 = 0, error2 = 0;
+
+		pwm_clear_irq(pwm_gpio_to_slice_num(CV_OUT_1)); // clear the interrupt flag
+		uint32_t truncated_cv1_val = (cvValue[0]-error1) & 0xFFFFFF00;
+		error1 += truncated_cv1_val - cvValue[0];
+		pwm_set_gpio_level(CV_OUT_1, (truncated_cv1_val>>8));
+		uint32_t truncated_cv2_val = (cvValue[1]-error2) & 0xFFFFFF00;
+		error2 += truncated_cv2_val - cvValue[1];
+		pwm_set_gpio_level(CV_OUT_2, (truncated_cv2_val>>8));
+	}
+
 };
 
 
@@ -322,7 +468,6 @@ private:
 #define AUDIO_R_IN_1 26
 #define MUX_IO_1 28
 #define MUX_IO_2 29
-
 
 #define DAC_CHANNEL_A 0x0000
 #define DAC_CHANNEL_B 0x8000
@@ -364,6 +509,9 @@ private:
 
 #define EEPROM_PAGE_ADDRESS 0x50
 
+
+// Initialise CV output delta-sigma target to half-way (near 0V)
+volatile uint32_t ComputerCard::cvValue[2] = {262144,262144};
 
 
 ComputerCard *ComputerCard::thisptr;
@@ -419,7 +567,16 @@ void __not_in_flash_func(ComputerCard::AudioWorker)()
 	irq_set_exclusive_handler(DMA_IRQ_0, ComputerCard::AudioCallback);
 
 
+	// Turn on IRQ for CV output PWM
+	uint slice_num = pwm_gpio_to_slice_num(CV_OUT_1);
+	pwm_clear_irq(slice_num);
+	pwm_set_irq_enabled(slice_num, true);
+	
+	irq_set_exclusive_handler(PWM_IRQ_WRAP, ComputerCard::OnCVPWMWrap);
+	irq_set_priority(PWM_IRQ_WRAP, 255);
+	irq_set_enabled(PWM_IRQ_WRAP, true);
 
+	
 	// Set up DMA for SPI
 	spi_dmacfg = dma_channel_get_default_config(spi_dma);
 	channel_config_set_transfer_data_size(&spi_dmacfg, DMA_SIZE_16);
@@ -448,20 +605,43 @@ void __not_in_flash_func(ComputerCard::AudioWorker)()
 			adc_set_round_robin(0b0001111U);
 			adc_run(true);
 		}
+		else if (runADCMode == RUN_ADC_MODE_ADC_STOPPED)
+		{
+			// We can't remove the PWM IRQ from within the ADC IRQ callback, so we do it here instead.
+			irq_set_enabled(PWM_IRQ_WRAP, false);
+			pwm_clear_irq(pwm_gpio_to_slice_num(CV_OUT_1)); // reset CV PWM interrupt flag
+			irq_remove_handler(PWM_IRQ_WRAP, ComputerCard::OnCVPWMWrap);
+			break;
+		}
+		   
+
 	}
 }
 
+void ComputerCard::Abort()
+{
+	runADCMode = RUN_ADC_MODE_REQUEST_ADC_STOP;
+}
+
+void __not_in_flash_func(ComputerCard::CorrectADCDNL)(uint16_t &value) const
+{
+	uint16_t adc512 = value + 512;
+	value += ((value & 0x3FF) == 0x1FF) << 2;
+	value += (adc512 >> 10) << 3;
+	value = uint32_t(value * 520349) >> 19; // Multiply by factor that maps 0-4095 input into 0-4095 output
+}
 
 // Per-audio-sample ISR, called when two sets of ADC samples have been collected from all four inputs
 void __not_in_flash_func(ComputerCard::BufferFull)()
 {
+	static int startupCounter = 8; // Decreases by 1 each sample, can do startup things when nonzero.
 	static int mux_state = 0;
 	static int norm_probe_count = 0;
 
 	// Internal variables for IIR filters on knobs/cv
 	static volatile int32_t knobssm[4] = { 0, 0, 0, 0 };
 	static volatile int32_t cvsm[2] = { 0, 0 };
-	static int np = 0, np1 = 0, np2 = 0;
+	__attribute__((unused)) static int np = 0, np1 = 0, np2 = 0;
 
 	adc_select_input(0);
 
@@ -484,21 +664,26 @@ void __not_in_flash_func(ComputerCard::BufferFull)()
 	// Set CV inputs, with ~240Hz LPF on CV input
 	int cvi = mux_state % 2;
 
-	// Attempted compensation of ADC DNL errors. Not really tested.
-	uint16_t adc512=ADC_Buffer[cpuPhase][3]+512;
-	if (!(adc512 % 0x01FF)) ADC_Buffer[cpuPhase][3] += 4;
-	ADC_Buffer[cpuPhase][3] += (adc512>>10) << 3;
+	// Compensation of ADC DNL errors.
+	CorrectADCDNL(ADC_Buffer[cpuPhase][7]); // CV inputs
+	CorrectADCDNL(ADC_Buffer[cpuPhase][0]); // Audio inputs
+	CorrectADCDNL(ADC_Buffer[cpuPhase][4]);
+	CorrectADCDNL(ADC_Buffer[cpuPhase][1]);
+	CorrectADCDNL(ADC_Buffer[cpuPhase][5]);
 	
-	cvsm[cvi] = (15 * (cvsm[cvi]) + 16 * ADC_Buffer[cpuPhase][3]) >> 4;
+	cvsm[cvi] = (15 * (cvsm[cvi]) + 16 * ADC_Buffer[cpuPhase][7]) >> 4;
 	cv[cvi] = 2048 - (cvsm[cvi] >> 4);
 
 
 	// Set audio inputs, by averaging the two samples collected.
 	// Invert to counteract inverting op-amp input configuration
 	adcInR = -(((ADC_Buffer[cpuPhase][0] + ADC_Buffer[cpuPhase][4]) - 0x1000) >> 1);
-
 	adcInL = -(((ADC_Buffer[cpuPhase][1] + ADC_Buffer[cpuPhase][5]) - 0x1000) >> 1);
 
+	// 12kHz notch filters
+	adcInR = notchRight(adcInR);
+	adcInL = notchLeft(adcInL);
+	
 	// Set pulse inputs
 	last_pulse[0] = pulse[0];
 	last_pulse[1] = pulse[1];
@@ -510,7 +695,15 @@ void __not_in_flash_func(ComputerCard::BufferFull)()
 	knobssm[knob] = (127 * (knobssm[knob]) + 16 * ADC_Buffer[cpuPhase][6]) >> 7;
 	knobs[knob] = knobssm[knob] >> 4;
 
-
+	// Set switch value
+	switchVal = static_cast<Switch>((knobs[3]>1000) + (knobs[3]>3000));
+	if (startupCounter)
+	{
+		// Don't detect switch changes in first few cycles
+		lastSwitchVal = switchVal;
+		// Should initialise knob and CV smoothing filters here too
+	}
+	
 	////////////////////////////
 	// Normalisation probe
 
@@ -528,7 +721,7 @@ void __not_in_flash_func(ComputerCard::BufferFull)()
 		// CV sampled at 24kHz comes in over two successive samples
 		if (norm_probe_count == 14 || norm_probe_count == 15)
 		{
-			plug_state[2+cvi] = (plug_state[2+cvi]<<1)+(ADC_Buffer[cpuPhase][3]<1800);
+			plug_state[2+cvi] = (plug_state[2+cvi]<<1)+(ADC_Buffer[cpuPhase][7]<1800);
 		}
 
 		// Audio and pulse measured every sample at 48kHz
@@ -568,56 +761,77 @@ void __not_in_flash_func(ComputerCard::BufferFull)()
 
 	mux_state = next_mux_state;
 
-	// Indicate to usb core that we've finished running this sample.
+	// If Abort called, stop ADC and DMA
 	if (runADCMode == RUN_ADC_MODE_REQUEST_ADC_STOP)
 	{
 		adc_run(false);
 		adc_set_round_robin(0);
 		adc_select_input(0);
 
+		dma_hw->ints0 = 1u << adc_dma; // reset adc interrupt flag
+		dma_channel_cleanup(adc_dma);
+		dma_channel_cleanup(spi_dma);
+		irq_set_enabled(DMA_IRQ_0, false);
+		irq_remove_handler(DMA_IRQ_0, ComputerCard::AudioCallback);
+
+
+		
 		runADCMode = RUN_ADC_MODE_ADC_STOPPED;
 	}
 
 	norm_probe_count = (norm_probe_count + 1) & 0xF;
+
+	lastSwitchVal = switchVal;
+	
+	if (startupCounter) startupCounter--;
 }
 
-ComputerCard::HardwareVersion ComputerCard::ProbeHardwareVersion()
+ComputerCard::HardwareVersion_t ComputerCard::ProbeHardwareVersion()
 {
+	// Enable pull-downs, and measure
 	gpio_set_pulls(BOARD_ID_0, false, true);
 	gpio_set_pulls(BOARD_ID_1, false, true);
 	gpio_set_pulls(BOARD_ID_2, false, true);
 	sleep_us(1);
-	uint8_t pd = gpio_get(BOARD_ID_0) | (gpio_get(BOARD_ID_0) << 2) | (gpio_get(BOARD_ID_2) << 4);
+
+	// Pull-down state in bits 0, 2, 4
+	uint8_t pd = gpio_get(BOARD_ID_0) | (gpio_get(BOARD_ID_1) << 2) | (gpio_get(BOARD_ID_2) << 4);
+	
+	// Enable pull-ups, and measure
 	gpio_set_pulls(BOARD_ID_0, true, false);
 	gpio_set_pulls(BOARD_ID_1, true, false);
 	gpio_set_pulls(BOARD_ID_2, true, false);
 	sleep_us(1);
-	uint8_t pu = (gpio_get(BOARD_ID_0) << 1) | (gpio_get(BOARD_ID_0) << 3) | (gpio_get(BOARD_ID_2) << 5);
+
+	// Pull-up state in bits 1, 3, 5
+	uint8_t pu = (gpio_get(BOARD_ID_0) << 1) | (gpio_get(BOARD_ID_1) << 3) | (gpio_get(BOARD_ID_2) << 5);
+
+	// Combine to give 6-bit ID
+	uint8_t id = pd | pu;
+
+	// Set pull-downs
 	gpio_set_pulls(BOARD_ID_0, false, true);
 	gpio_set_pulls(BOARD_ID_1, false, true);
 	gpio_set_pulls(BOARD_ID_2, false, true);
-	uint8_t id = pd | pu;
 
 	switch (id)
 	{
-	case HardwareVersion::Proto1:
-	case HardwareVersion::Proto2_Rev1:
-		return static_cast<ComputerCard::HardwareVersion>(id);
+	case Proto1:
+	case Proto2_Rev1:
+	case Rev1_1:
+		return static_cast<ComputerCard::HardwareVersion_t>(id);
 	default:
-		return HardwareVersion::Unknown;
+		return Unknown;
 	}
 }
 
 ComputerCard::ComputerCard()
 {
-		
 	runADCMode = RUN_ADC_MODE_RUNNING;
 
 	adc_run(false);
 	adc_select_input(0);
 
-	sleep_ms(50);
-	
 
 	useNormProbe = false;
 	for (int i=0; i<6; i++)
@@ -626,7 +840,8 @@ ComputerCard::ComputerCard()
 	}
 
 	
-	// Initialize PWM for LEDs, in pairs due pinout and PWM hardware
+	////////////////////////////////////////
+	// Initialise LEDs (PWM, set up in pairs due pinout and PWM hardware)
 	for (int i = 0; i < numLeds; i+=2)
 	{	
 		gpio_set_function(leds[i], GPIO_FUNC_PWM);
@@ -647,17 +862,9 @@ ComputerCard::ComputerCard()
 	}
 
 	
-	// Board version ID pins
-	gpio_set_dir(BOARD_ID_0, GPIO_IN);
-	gpio_set_dir(BOARD_ID_1, GPIO_IN);
-	gpio_set_dir(BOARD_ID_2, GPIO_IN);
-	hw = ProbeHardwareVersion();
+	////////////////////////////////////////
+	// Initialise knobs / audio in / CV in (ADC + Mux)
 	
-	// Normalisation probe pin
-	gpio_init(NORMALISATION_PROBE);
-	gpio_set_dir(NORMALISATION_PROBE, GPIO_OUT);
-	gpio_put(NORMALISATION_PROBE, false);
-
 	adc_init(); // Initialize the ADC
 
 	// Set ADC pins
@@ -672,16 +879,21 @@ ComputerCard::ComputerCard()
 	gpio_set_dir(MX_A, GPIO_OUT);
 	gpio_set_dir(MX_B, GPIO_OUT);
 
-	// Initialize pulse out
+	
+	////////////////////////////////////////
+
 	gpio_init(PULSE_1_RAW_OUT);
 	gpio_set_dir(PULSE_1_RAW_OUT, GPIO_OUT);
 	gpio_put(PULSE_1_RAW_OUT, true); // set raw value high (output low)
 
+	
 	gpio_init(PULSE_2_RAW_OUT);
 	gpio_set_dir(PULSE_2_RAW_OUT, GPIO_OUT);
 	gpio_put(PULSE_2_RAW_OUT, true); // set raw value high (output low)
 
-	// Initialize pulse in
+
+	////////////////////////////////////////
+	// Initialise pulse inputs
 	gpio_init(PULSE_1_INPUT);
 	gpio_set_dir(PULSE_1_INPUT, GPIO_IN);
 	gpio_pull_up(PULSE_1_INPUT); // NB Needs pullup to activate transistor on inputs
@@ -690,42 +902,67 @@ ComputerCard::ComputerCard()
 	gpio_set_dir(PULSE_2_INPUT, GPIO_IN);
 	gpio_pull_up(PULSE_2_INPUT); // NB: Needs pullup to activate transistor on inputs
 
-
-	// Setup SPI for DAC output
+	
+	////////////////////////////////////////
+	// Initialise audio outputs (SPI for external DAC)
 	spi_init(SPI_PORT, 15625000);
 	spi_set_format(SPI_PORT, 16, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 	gpio_set_function(DAC_SCK, GPIO_FUNC_SPI);
 	gpio_set_function(DAC_TX, GPIO_FUNC_SPI);
 	gpio_set_function(DAC_CS, GPIO_FUNC_SPI);
 
-	// Setup I2C for EEPROM
-	i2c_init(i2c0, 100 * 1000);
-	gpio_set_function(EEPROM_SDA, GPIO_FUNC_I2C);
-	gpio_set_function(EEPROM_SCL, GPIO_FUNC_I2C);
 
+	////////////////////////////////////////
+	// Initialise CV outputs
+	// We set up the PWM here, and add the IRQ for sigma-delta later one Run() is called
 
-
-	// Setup CV PWM
 	// First, tell the CV pins that the PWM is in charge of the value.
 	gpio_set_function(CV_OUT_1, GPIO_FUNC_PWM);
 	gpio_set_function(CV_OUT_2, GPIO_FUNC_PWM);
 
 	// now create PWM config struct
+	{
 	pwm_config config = pwm_get_default_config();
-	pwm_config_set_wrap(&config, 2047); // 11-bit PWM
-
-
+	pwm_config_set_wrap(&config, 1999); // less than 11-bit PWM
 	// now set this PWM config to apply to the two outputs
 	// NB: CV_A and CV_B share the same PWM slice, which means that they share a PWM config
 	// They have separate 'gpio_level's (output compare unit) though, so they can have different PWM on-times
 	pwm_init(pwm_gpio_to_slice_num(CV_OUT_1), &config, true); // Slice 1, channel A
 	pwm_init(pwm_gpio_to_slice_num(CV_OUT_2), &config, true); // slice 1 channel B (redundant to set up again)
 
+	}
 	// set initial level to half way (0V)
-	pwm_set_gpio_level(CV_OUT_1, 1024);
-	pwm_set_gpio_level(CV_OUT_2, 1024);
+	pwm_set_gpio_level(CV_OUT_1, 1000);
+	pwm_set_gpio_level(CV_OUT_2, 1000);
 
-// If not using UART pins for UART, instead use as debug lines
+
+	////////////////////////////////////////
+	// Miscellaneous pins
+
+	// Initialise board version ID pins
+	gpio_init(BOARD_ID_0);
+	gpio_init(BOARD_ID_1);
+	gpio_init(BOARD_ID_2);
+	gpio_set_dir(BOARD_ID_0, GPIO_IN);
+	gpio_set_dir(BOARD_ID_1, GPIO_IN);
+	gpio_set_dir(BOARD_ID_2, GPIO_IN);
+	
+	// Initialise USB host status pin
+	gpio_init(USB_HOST_STATUS);
+	gpio_disable_pulls(USB_HOST_STATUS);
+
+	// Initialise normalisation probe pin
+	gpio_init(NORMALISATION_PROBE);
+	gpio_set_dir(NORMALISATION_PROBE, GPIO_OUT);
+	gpio_put(NORMALISATION_PROBE, false);
+	
+	// Initialise EEPROM (I2C)
+	i2c_init(i2c0, 100 * 1000);
+	gpio_set_function(EEPROM_SDA, GPIO_FUNC_I2C);
+	gpio_set_function(EEPROM_SCL, GPIO_FUNC_I2C);
+
+	
+	// If not using UART pins for UART, instead use as debug lines
 #ifndef ENABLE_UART_DEBUGGING
 	// Debug pins
 	gpio_init(DEBUG_1);
@@ -735,9 +972,12 @@ ComputerCard::ComputerCard()
 	gpio_set_dir(DEBUG_2, GPIO_OUT);
 #endif
 
+	// Read hardware version
+	hw = ProbeHardwareVersion();
+	
 	// Read EEPROM calibration values
-	ReadEEPROM();
-
+	cvOutsCalibrated = (ReadEEPROM() == 0);
+	
 	// Read unique card ID
 	flash_get_unique_id((uint8_t *) &uniqueID);
 	// Do some mixing up of the bits using full-cycle 64-bit LCG
@@ -752,23 +992,34 @@ ComputerCard::ComputerCard()
 
 
 // Read a byte from EEPROM
-uint8_t ComputerCard::ReadByteFromEEPROM(unsigned int eeAddress)
+uint8_t ComputerCard::ReadByteFromEEPROM(unsigned int eeAddress, bool &failed)
 {
 	uint8_t deviceAddress = EEPROM_PAGE_ADDRESS | ((eeAddress >> 8) & 0x0F);
 	uint8_t data = 0xFF;
 
 	uint8_t addr_low_byte = eeAddress & 0xFF;
-	i2c_write_blocking(i2c0, deviceAddress, &addr_low_byte, 1, false);
+   
+	if (i2c_write_timeout_us(i2c0, deviceAddress, &addr_low_byte, 1, false, 10000) <= 0)
+	{
+		failed = true;
+		return 0;
+	}
 
-	i2c_read_blocking(i2c0, deviceAddress, &data, 1, false);
+	if (i2c_read_timeout_us(i2c0, deviceAddress, &data, 1, false, 10000) <= 0)
+	{
+		failed = true;
+		return 0;
+	}
+
 	return data;
 }
 
 // Read a 16-bit integer from EEPROM
-int ComputerCard::ReadIntFromEEPROM(unsigned int eeAddress)
+int ComputerCard::ReadIntFromEEPROM(unsigned int eeAddress, bool &failed)
 {
-	uint8_t highByte = ReadByteFromEEPROM(eeAddress);
-	uint8_t lowByte = ReadByteFromEEPROM(eeAddress + 1);
+	uint8_t highByte = ReadByteFromEEPROM(eeAddress, failed);
+	uint8_t lowByte = ReadByteFromEEPROM(eeAddress + 1, failed);
+
 	return (highByte << 8) | lowByte;
 }
 
@@ -797,52 +1048,53 @@ uint16_t ComputerCard::CRCencode(const uint8_t *data, int length)
 int ComputerCard::ReadEEPROM()
 {
 	// Set up default values in the calibration table,
-	// to be used if EEPROM read fails
-	calibrationTable[0][0].voltage = -20; // -2V
-	calibrationTable[0][0].dacSetting = 347700;
-	calibrationTable[0][1].voltage = 0; // 0V
-	calibrationTable[0][1].dacSetting = 261200;
-	calibrationTable[0][2].voltage = 20; // +2V
-	calibrationTable[0][2].dacSetting = 174400;
+	// to be used if we can't read valid calibration from EEPROM
+	for (unsigned channel = 0; channel < calMaxChannels; channel++)
+	{	
+		numCalibrationPoints[channel] = 3;
+		calibrationTable[channel][0].voltage = -20; // -2V
+		calibrationTable[channel][0].dacSetting = 347700;
+		calibrationTable[channel][1].voltage = 0; // 0V
+		calibrationTable[channel][1].dacSetting = 261200;
+		calibrationTable[channel][2].voltage = 20; // +2V
+		calibrationTable[channel][2].dacSetting = 174400;
+		CalcCalCoeffs(channel); // calculate the coefficients
+	}
 
-	calibrationTable[1][0].voltage = -20; // -2V
-	calibrationTable[1][0].dacSetting = 347700;
-	calibrationTable[1][1].voltage = 0; // 0V
-	calibrationTable[1][1].dacSetting = 261200;
-	calibrationTable[1][2].voltage = 20; // +2V
-	calibrationTable[1][2].dacSetting = 174400;
-
-	if (ReadIntFromEEPROM(EEPROM_ADDR_ID) != EEPROM_VAL_ID)
+	// Read magic number
+	// Failure here could occur if I2C failed, or if incorrect/no magic number stored in EEPROM
+	bool i2cFailed = false;
+	if (ReadIntFromEEPROM(EEPROM_ADDR_ID, i2cFailed) != EEPROM_VAL_ID)
 	{
 		return 1;
 	}
+
+	// Read the EEPROM into RAM
 	uint8_t buf[EEPROM_NUM_BYTES];
 	for (int i = 0; i < EEPROM_NUM_BYTES; i++)
 	{
-		buf[i] = ReadByteFromEEPROM(i);
+		buf[i] = ReadByteFromEEPROM(i, i2cFailed);
 	}
 
-
+	// Check CRC and fail if incorrect
 	uint16_t calculatedCRC = CRCencode(buf, 86);
 	uint16_t foundCRC = ((uint16_t)buf[EEPROM_ADDR_CRC_H] << 8) | buf[EEPROM_ADDR_CRC_L];
-
 	if (calculatedCRC != foundCRC)
 	{
 		return 1;
 	}
 
-	int bufferIndex = 4;
-
+	// CRC passed, so now read the calibration information
 	for (uint8_t channel = 0; channel < calMaxChannels; channel++)
 	{
-		int channelOffset = bufferIndex + (41 * channel); // channel 0 = 4, channel 1 = 45
+		int channelOffset = 4 + (41 * channel); // channel 0 = 4, channel 1 = 45
 		numCalibrationPoints[channel] = buf[channelOffset++];
 		for (uint8_t point = 0; point < numCalibrationPoints[channel]; point++)
 		{
 			// Unpack Pack targetVoltage (int8_t) from buf
 			int8_t targetVoltage = (int8_t)buf[channelOffset++];
 
-			// Unack dacSetting (uint32_t) from buf (4 bytes)
+			// Unpack dacSetting (uint32_t) from buf (4 bytes)
 			uint32_t dacSetting = 0;
 			dacSetting |= ((uint32_t)buf[channelOffset++]) << 24; // MSB
 			dacSetting |= ((uint32_t)buf[channelOffset++]) << 16;
@@ -853,6 +1105,9 @@ int ComputerCard::ReadEEPROM()
 			calibrationTable[channel][point].voltage = targetVoltage;
 			calibrationTable[channel][point].dacSetting = dacSetting;
 		}
+		
+		// Now calculate the calibration coeffs that are actually used
+		// by the calibrated CVOut functions
 		CalcCalCoeffs(channel);
 	}
 
@@ -869,7 +1124,7 @@ void ComputerCard::CalcCalCoeffs(int channel)
 
 	for (int i = 0; i < N; i++)
 	{
-		float v = calibrationTable[channel][i].voltage * 0.1;
+		float v = calibrationTable[channel][i].voltage * 0.1f;
 		float dac = calibrationTable[channel][i].dacSetting;
 		sumV += v;
 		sumDAC += dac;
@@ -888,17 +1143,38 @@ void ComputerCard::CalcCalCoeffs(int channel)
 	}
 	calCoeffs[channel].b = (sumDAC - calCoeffs[channel].m * sumV) / N;
 
-	calCoeffs[channel].mi = (calCoeffs[channel].m * 1.333333333333333f + 0.5f);
-	calCoeffs[channel].bi = calCoeffs[channel].b + 0.5f;
+	calCoeffs[channel].mi = int32_t(calCoeffs[channel].m * 1.333333333333333f + 0.5f);
+	calCoeffs[channel].bi = int32_t(calCoeffs[channel].b + 0.5f);
 }
 
 
-uint32_t ComputerCard::MIDIToDac(int midiNote, int channel)
+uint32_t ComputerCard::MIDIToDAC(int midiNote, int channel)
 {
 	int32_t dacValue = ((calCoeffs[channel].mi * (midiNote - 60)) >> 4) + calCoeffs[channel].bi;
 	if (dacValue > 524287) dacValue = 524287;
 	if (dacValue < 0) dacValue = 0;
-	return dacValue;
+	return (dacValue*125)>>7;
+}
+
+/// Converts voltage in millivolts to corresponding 19-bit sigma-delta PWM DAC value
+/// Returns true if requested voltage is outside of full range of DAC values
+/// millivolts should be in range -6000 to 6000.
+/// Accuracy is dependent, of course, on the calibration coefficients
+uint32_t ComputerCard::MillivoltsToDAC(int millivolts, int channel, bool &limited)
+{
+	limited = false;
+	int32_t dacValue = ((((calCoeffs[channel].mi * millivolts) >> 9) * 1573) >> 12) + calCoeffs[channel].bi;
+	if (dacValue > 524287)
+	{
+		dacValue = 524287;
+		limited = true;
+	}
+	if (dacValue < 0)
+	{
+		dacValue = 0;
+		limited = true;
+	}
+	return (dacValue*125)>>7;
 }
 
 #endif

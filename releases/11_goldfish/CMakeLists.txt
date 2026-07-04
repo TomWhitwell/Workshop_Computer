@@ -30,3 +30,23 @@ target_sources(goldfish PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/goldfish_stream.c)
 target_compile_definitions(goldfish PRIVATE PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
 pico_enable_stdio_usb(goldfish 0)
+
+# Single source of truth for the firmware version (keep in sync with info.yaml).
+set(GOLDFISH_VERSION "2.0")
+
+# Embed program metadata into the built artifact (readable via `picotool info`).
+pico_set_program_name(goldfish "Goldfish")
+pico_set_program_version(goldfish "${GOLDFISH_VERSION}")
+
+# Rename the default output to a version-stamped UF2 (e.g. goldfish.1.1.uf2) and
+# copy that single, versioned artifact into the UF2/ directory.
+add_custom_command(TARGET goldfish POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E rename
+        "$<TARGET_FILE_DIR:goldfish>/goldfish.uf2"
+        "$<TARGET_FILE_DIR:goldfish>/goldfish.${GOLDFISH_VERSION}.uf2"
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_SOURCE_DIR}/UF2
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "$<TARGET_FILE_DIR:goldfish>/goldfish.${GOLDFISH_VERSION}.uf2"
+        ${CMAKE_CURRENT_SOURCE_DIR}/UF2/
+    COMMENT "Creating version-stamped UF2: goldfish.${GOLDFISH_VERSION}.uf2"
+    VERBATIM)
