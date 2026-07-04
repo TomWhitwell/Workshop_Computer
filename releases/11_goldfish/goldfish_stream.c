@@ -112,6 +112,11 @@ static uint32_t     s_recorded_samples; /* readable length = min(channel flushed
 static uint32_t          s_cv_next_erase;
 static volatile uint32_t s_erase_count;
 
+/* Diagnostics (read via debugger). */
+static volatile uint32_t s_page_drops;      /* enqueue overruns (ring full -> page lost) */
+static volatile uint32_t s_page_max;        /* peak ring occupancy (pages in flight) */
+static volatile uint32_t s_head_underruns;  /* head_read misses (window not filled) */
+
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -277,6 +282,32 @@ static void __not_in_flash_func(qspi_program_page)(uint32_t off, const uint8_t *
 	while (qspi_status() & 0x01u) { /* WIP: page program in progress */ }
 }
 
+/* True if the sector containing flash offset `off` has already been erased by
+ * the erase-ahead for its region, i.e. it is safe to program `off` during an
+ * erase-suspend. The erase frontier leads the write head, so a page is safe once
+ * its region's frontier is at least one sector past it. At record start a
+ * region's frontier still sits at its base, so that region's early pages are
+ * (correctly) reported unsafe until its own erase-ahead has run - this stops the
+ * suspend from programming one channel's pages into flash the OTHER channel's
+ * erase-ahead has not yet erased (which corrupted the second channel's stream). */
+static bool __not_in_flash_func(sector_erased)(uint32_t off)
+{
+	for (uint32_t c = 0u; c < GOLDFISH_AUDIO_CHANNELS; c++) {
+		if (off >= s_ch[c].audio_off && off < s_ch[c].audio_off + s_audio_bytes) {
+			uint32_t d = (s_ch[c].next_erase - off) % s_audio_bytes;
+			/* d small = frontier is that far past off (erased). d >= half the
+			 * region means the frontier is actually BEHIND off (wrapped): the
+			 * sector is NOT erased yet. */
+			return d >= FLASH_SECTOR_SIZE && d < s_audio_bytes / 2u;
+		}
+	}
+	if (s_cv_bytes != 0u && off >= s_cv_off && off < s_cv_off + s_cv_bytes) {
+		uint32_t d = (s_cv_next_erase - off) % s_cv_bytes;
+		return d >= FLASH_SECTOR_SIZE && d < s_cv_bytes / 2u;
+	}
+	return false;
+}
+
 /* Erase one 4KB sector, suspending as needed to program pending pages (keeping
  * the flushed frontier advancing) and refill the heads. Interrupts masked. */
 static void __not_in_flash_func(flash_erase_sector_suspend)(uint32_t off)
@@ -290,22 +321,39 @@ static void __not_in_flash_func(flash_erase_sector_suspend)(uint32_t off)
 	qspi_xfer(er, NULL, 4);
 
 	uint32_t guard = 0u;
+	uint32_t poll  = 0u;
 	while (qspi_status() & 0x01u) {          /* WIP set: erase running */
+		bool     have_page = false;
+		uint32_t slot = 0u, poff = 0u;
 		if (s_page_r != s_page_w) {
-			/* Suspend so we can program a pending page. It targets a sector
-			 * behind the erase frontier (already erased), so this is safe. */
+			slot = s_page_r & (GOLDFISH_PAGE_RING_COUNT - 1u);
+			poff = s_page_ring[slot].flash_off;
+			/* Only program pages whose sector is already erased. A page whose
+			 * region's erase-ahead has not run yet this pass (e.g. the other
+			 * channel at record start) is left for the post-erase page loop,
+			 * once every region's frontier is established. This prevents
+			 * programming into non-erased flash (corrupting that channel). */
+			have_page = sector_erased(poff);
+		}
+
+		/* Suspend to service either a ready page OR - periodically - just to
+		 * refill the playback heads. Without the periodic path a long erase with
+		 * an empty flush queue (common in stereo) would never feed the heads and
+		 * they would starve as the read outran their margin. */
+		if (have_page || ++poll >= 1000u) {
+			poll = 0u;
 			uint8_t sus = 0x75u;
 			qspi_xfer(&sus, NULL, 1);
 			busy_wait_us(20);                /* tSUS: ready for next command */
 
-			uint32_t slot = s_page_r & (GOLDFISH_PAGE_RING_COUNT - 1u);
-			uint32_t poff = s_page_ring[slot].flash_off;
-			qspi_program_page(poff, s_page_ring[slot].data);
-			note_page_flushed(poff);
-			__dmb();
-			s_page_r++;
+			if (have_page) {
+				qspi_program_page(poff, s_page_ring[slot].data);
+				note_page_flushed(poff);
+				__dmb();
+				s_page_r++;
+			}
 
-			/* Refill the heads from freshly flushed data (needs XIP mapped). */
+			/* Refill the heads from flushed data (needs XIP mapped). */
 			s_rom_flush();
 			s_rom_enter_xip();
 			head_refill(s_head[0]);
@@ -338,6 +386,9 @@ static void ensure_erase_ahead_audio(uint32_t c)
 	for (;;) {
 		uint32_t erel  = (ch->next_erase - ch->audio_off) % s_audio_bytes;
 		uint32_t ahead = (erel + s_audio_bytes - wrel) % s_audio_bytes;
+		/* A modular "ahead" of more than half the region means the frontier
+		 * actually fell BEHIND the write head (it wrapped) - force catch-up. */
+		if (ahead > s_audio_bytes / 2u) ahead = 0u;
 		if (ahead >= GOLDFISH_ERASE_LOOKAHEAD * FLASH_SECTOR_SIZE) break;
 		flash_erase_sector_suspend(ch->next_erase);
 		ch->next_erase += FLASH_SECTOR_SIZE;
@@ -354,6 +405,7 @@ static void ensure_erase_ahead_cv(void)
 	for (;;) {
 		uint32_t erel  = (s_cv_next_erase - s_cv_off) % s_cv_bytes;
 		uint32_t ahead = (erel + s_cv_bytes - wrel) % s_cv_bytes;
+		if (ahead > s_cv_bytes / 2u) ahead = 0u;
 		if (ahead >= GOLDFISH_ERASE_LOOKAHEAD * FLASH_SECTOR_SIZE) break;
 		flash_erase_sector_suspend(s_cv_next_erase);
 		s_cv_next_erase += FLASH_SECTOR_SIZE;
@@ -367,7 +419,10 @@ static void ensure_erase_ahead_cv(void)
 static void __not_in_flash_func(enqueue_page)(uint32_t flash_off, const uint8_t *data)
 {
 	uint32_t w = s_page_w;
-	if (w - s_page_r >= GOLDFISH_PAGE_RING_COUNT) {
+	uint32_t used = w - s_page_r;
+	if (used > s_page_max) s_page_max = used;
+	if (used >= GOLDFISH_PAGE_RING_COUNT) {
+		s_page_drops++;
 		return; /* overrun */
 	}
 	uint32_t slot = w & (GOLDFISH_PAGE_RING_COUNT - 1u);
@@ -464,6 +519,11 @@ void __not_in_flash_func(goldfish_stream_record_start)(void)
 	s_cv_next_erase = s_cv_off;
 	s_continuous    = false;
 	s_recorded_samples = 0u;
+
+	/* Reset diagnostics for this session. */
+	s_page_drops     = 0u;
+	s_page_max       = 0u;
+	s_head_underruns = 0u;
 }
 
 void __not_in_flash_func(goldfish_stream_delay_start)(void)
@@ -671,6 +731,8 @@ int16_t __not_in_flash_func(goldfish_stream_head_read)(goldfish_head_t *h, uint3
 	uint32_t hi = h->hi;
 	if (sample_index >= lo && sample_index < hi) {
 		h->last = h->pcm[sample_index & GOLDFISH_RING_MASK];
+	} else {
+		s_head_underruns++;
 	}
 	/* else: underrun — hold last good sample until core 1 catches up. */
 	return h->last;
