@@ -198,6 +198,13 @@ public:
                     // playback first begins after recording.
                     phaseL = 0;
                     phaseR = 0;
+                    // Ask core 1 to (re)decode the loop-start/-end crossfade
+                    // previews for this loop (off the audio path).
+                    goldfish_stream_request_previews((uint32_t)loopLength);
+                    xfBridgeL = 0;
+                    xfBridgeR = 0;
+                    xfBridgeRevL = 0;
+                    xfBridgeRevR = 0;
                     internalClockCounter = 0;
                     clockDivider.SetResetPhase(divisor);
                     pulseL = true;
@@ -352,6 +359,18 @@ public:
                     // cards loopLength can be ~22M samples, overflowing a 32-bit <<8.
                     int64_t loopPhase = (int64_t)loopLength << 8;
 
+                    // Loop-boundary overlap crossfade is used only when the loop
+                    // is comfortably longer than the window AND core 1 has decoded
+                    // the previews; otherwise fall back to declick.
+                    const int16_t *xfStartL = goldfish_stream_preview_start(0);
+                    const int16_t *xfStartR = goldfish_stream_preview_start(1);
+                    const int16_t *xfEndL   = goldfish_stream_preview_end(0);
+                    const int16_t *xfEndR   = goldfish_stream_preview_end(1);
+                    bool xfOK = (loopLength > 2 * XF_LEN) && goldfish_stream_previews_ready();
+                    int64_t xfWrap  = (int64_t)(loopLength - XF_LEN) << 8;
+                    int32_t endBase = loopLength - XF_BUF;   // xfEnd[j] = audio[endBase+j]
+                    bool    reverse = (dphase < 0);
+
                     calculateStartPos();
 
                     //This is really only a best effort to reduce discontinuities in the audio output that cause clicks on reset
@@ -361,39 +380,79 @@ public:
                     lastSampleL = fromBufferL;
                     lastSampleR = fromBufferR;
 
-                    if (reset && ((checkZero && Connected(Input::Audio1)) || !Connected(Input::Audio1)))
+                    // Reset = "cut": jump to startPos with a pre-decoded crossfade
+                    // (like MLRws). Ask core 1 to decode the target and keep playing
+                    // the old position until it is ready; the crossfade starts below.
+                    if (reset)
                     {
                         reset = false;
-                        phaseL = startPosL;
-                        phaseR = startPosR;
+                        int32_t maxT = loopLength - XF_BUF; if (maxT < 0) maxT = 0;
+                        int32_t tL = (int32_t)(startPosL >> 8);
+                        int32_t tR = (int32_t)(startPosR >> 8);
+                        if (tL < 0) tL = 0; else if (tL > maxT) tL = maxT;
+                        if (tR < 0) tR = 0; else if (tR > maxT) tR = maxT;
+                        seekTargetL = tL;
+                        seekTargetR = tR;
+                        if (xfOK && !reverse)
+                        {
+                            goldfish_stream_request_seek((uint32_t)tL, (uint32_t)tR);
+                            seekArmed  = true;
+                            seekActive = false;
+                        }
+                        else
+                        {
+                            // Short loop or reverse: fall back to jump + declick.
+                            phaseL = startPosL; phaseR = startPosR;
+                            declickSrcL = (int16_t)outL; declickCountL = DECLICK_SAMPLES;
+                            declickSrcR = (int16_t)outR; declickCountR = DECLICK_SAMPLES;
+                        }
+                        xfBridgeL = 0; xfBridgeR = 0; xfBridgeRevL = 0; xfBridgeRevR = 0;
                         pulseL = true;
                         pulseR = true;
                         clockDivider.SetResetPhase(divisor);
                         internalClockCounter = 0;
                     };
 
-                    if (phaseL < 0)
+                    // Start the seek crossfade once core 1 has decoded the target.
+                    if (seekArmed && goldfish_stream_seek_ready())
                     {
-                        phaseL += loopPhase;
+                        seekArmed  = false;
+                        seekActive = true;
+                        seekProg   = 0;
+                    }
+
+                    // ---- loop wraps (suspended while a seek crossfade runs) ----
+                    if (!seekActive)
+                    {
+                    // ---- L wrap ----
+                    if (phaseL < 0)   // reverse wrap
+                    {
+                        if (xfOK) { phaseL += xfWrap; xfBridgeRevL = XF_BRIDGE; xfBridgeL = 0; }
+                        else      { phaseL += loopPhase; declickSrcL = (int16_t)outL; declickCountL = DECLICK_SAMPLES; }
                         clockDivider.SetResetPhase(divisor);
                         pulseL = true;
                         pulseR = clockDivider.Step(true);
                     }
-                    if (phaseL > loopPhase)
+                    if (phaseL > loopPhase)   // forward wrap
                     {
-                        phaseL -= loopPhase;
+                        if (xfOK) { phaseL -= xfWrap; xfBridgeL = XF_BRIDGE; xfBridgeRevL = 0; }
+                        else      { phaseL -= loopPhase; declickSrcL = (int16_t)outL; declickCountL = DECLICK_SAMPLES; }
                         pulseL = true;
                         clockDivider.SetResetPhase(divisor);
                         pulseR = clockDivider.Step(true);
                     }
 
+                    // ---- R wrap ----
                     if (phaseR < 0)
                     {
-                        phaseR += loopPhase;
+                        if (xfOK) { phaseR += xfWrap; xfBridgeRevR = XF_BRIDGE; xfBridgeR = 0; }
+                        else      { phaseR += loopPhase; declickSrcR = (int16_t)outR; declickCountR = DECLICK_SAMPLES; }
                     }
                     if (phaseR > loopPhase)
                     {
-                        phaseR -= loopPhase;
+                        if (xfOK) { phaseR -= xfWrap; xfBridgeR = XF_BRIDGE; xfBridgeRevR = 0; }
+                        else      { phaseR -= loopPhase; declickSrcR = (int16_t)outR; declickCountR = DECLICK_SAMPLES; }
+                    }
                     }
 
                     int32_t rL = (int32_t)(phaseL & 0xFF);
@@ -401,64 +460,199 @@ public:
                     int32_t rR = (int32_t)(phaseR & 0xFF);
                     int32_t readIndR = (int32_t)(phaseR >> 8);
 
-                    // Decode audio from flash via the per-head streaming readers,
-                    // with 4-tap Catmull-Rom cubic interpolation (audio only).
-                    int32_t iLm1 = readIndL - 1; if (iLm1 < 0) iLm1 += loopLength;
-                    int32_t iL1  = readIndL + 1; if (iL1 >= loopLength) iL1 -= loopLength;
-                    int32_t iL2  = readIndL + 2; if (iL2 >= loopLength) iL2 -= loopLength;
-                    int32_t sL = cubicHermite(
-                        goldfish_stream_head_read(&playHeadL, iLm1),
-                        goldfish_stream_head_read(&playHeadL, readIndL),
-                        goldfish_stream_head_read(&playHeadL, iL1),
-                        goldfish_stream_head_read(&playHeadL, iL2),
-                        rL, 8);
-
-                    int32_t iRm1 = readIndR - 1; if (iRm1 < 0) iRm1 += loopLength;
-                    int32_t iR1  = readIndR + 1; if (iR1 >= loopLength) iR1 -= loopLength;
-                    int32_t iR2  = readIndR + 2; if (iR2 >= loopLength) iR2 -= loopLength;
-                    int32_t sR = cubicHermite(
-                        goldfish_stream_head_read(&playHeadR, iRm1),
-                        goldfish_stream_head_read(&playHeadR, readIndR),
-                        goldfish_stream_head_read(&playHeadR, iR1),
-                        goldfish_stream_head_read(&playHeadR, iR2),
-                        rR, 8);
-
-                    int32_t fadeLength = loopLength; // fade length near loop ends
-                    int32_t baseL = sL << 11; // match the prior <<3 * 256 output scale
-                    int32_t baseR = sR << 11;
-
-                    // Apply fade-out at the end of the loop / fade-in at the start.
-                    if (phaseL >= loopPhase - fadeLength)
+                    if (seekActive)
                     {
-                        int32_t fadeOutFactor = (int32_t)((loopPhase - phaseL) * 256 / fadeLength);
-                        baseL = (int32_t)(((int64_t)baseL * fadeOutFactor) >> 8);
-                    }
-                    if (phaseL < fadeLength)
-                    {
-                        int32_t fadeInFactor = (int32_t)(phaseL * 256 / fadeLength);
-                        baseL = (int32_t)(((int64_t)baseL * fadeInFactor) >> 8);
-                    }
-                    outL = baseL;
+                        // ---- Reset/cut seek crossfade + handoff ----
+                        seekProg += dphase >> 1;              // target-relative phase
+                        int32_t nIdx  = (int32_t)(seekProg >> 8);
+                        int32_t nFrac = (int32_t)(seekProg & 0xFF);
+                        if (nIdx < 0) { nIdx = 0; nFrac = 0; }
+                        bool done = (nIdx >= XF_BUF - 1);
+                        if (done) { nIdx = XF_BUF - 2; nFrac = 0; }
 
-                    if (phaseR >= loopPhase - fadeLength)
-                    {
-                        int32_t fadeOutFactor = (int32_t)((loopPhase - phaseR) * 256 / fadeLength);
-                        baseR = (int32_t)(((int64_t)baseR * fadeOutFactor) >> 8);
+                        const int16_t *sbL = goldfish_stream_seek_buf(0);
+                        const int16_t *sbR = goldfish_stream_seek_buf(1);
+                        int32_t newL = xfInterp(sbL, nIdx, nFrac);
+                        int32_t newR = xfInterp(sbR, nIdx, nFrac);
+
+                        if (nIdx < XF_LEN && !done)
+                        {
+                            // Crossfade the still-playing old position into the
+                            // pre-decoded target (new gain rising over XF_LEN).
+                            int32_t iLm1 = readIndL - 1; if (iLm1 < 0) iLm1 += loopLength;
+                            int32_t iL1  = readIndL + 1; if (iL1 >= loopLength) iL1 -= loopLength;
+                            int32_t iL2  = readIndL + 2; if (iL2 >= loopLength) iL2 -= loopLength;
+                            int32_t oldL = cubicHermite(
+                                goldfish_stream_head_read(&playHeadL, iLm1),
+                                goldfish_stream_head_read(&playHeadL, readIndL),
+                                goldfish_stream_head_read(&playHeadL, iL1),
+                                goldfish_stream_head_read(&playHeadL, iL2), rL, 8);
+                            int32_t iRm1 = readIndR - 1; if (iRm1 < 0) iRm1 += loopLength;
+                            int32_t iR1  = readIndR + 1; if (iR1 >= loopLength) iR1 -= loopLength;
+                            int32_t iR2  = readIndR + 2; if (iR2 >= loopLength) iR2 -= loopLength;
+                            int32_t oldR = cubicHermite(
+                                goldfish_stream_head_read(&playHeadR, iRm1),
+                                goldfish_stream_head_read(&playHeadR, readIndR),
+                                goldfish_stream_head_read(&playHeadR, iR1),
+                                goldfish_stream_head_read(&playHeadR, iR2), rR, 8);
+                            int32_t ng = nIdx + 1, og = XF_LEN - ng;
+                            outL = (oldL * og + newL * ng) / XF_LEN;
+                            outR = (oldR * og + newR * ng) / XF_LEN;
+                        }
+                        else
+                        {
+                            // Bridge: serve the target buffer while the heads reseek
+                            // to the handoff point (drive them so core 1 refills).
+                            outL = newL;
+                            outR = newR;
+                            (void)goldfish_stream_head_read(&playHeadL, seekTargetL + nIdx);
+                            (void)goldfish_stream_head_read(&playHeadR, seekTargetR + nIdx);
+                        }
+
+                        if (done)
+                        {
+                            phaseL = ((int64_t)seekTargetL << 8) + seekProg;
+                            phaseR = ((int64_t)seekTargetR << 8) + seekProg;
+                            seekActive = false;
+                        }
+
+                        int32_t cvIdx = seekTargetL + nIdx;
+                        if (cvIdx >= loopLength) cvIdx = loopLength - 1;
+                        outCV = goldfish_stream_read_cv(cvIdx);
+
+                        break;
                     }
-                    if (phaseR < fadeLength)
+
+                    // ---- L output ----
+                    int32_t outLs;
+                    bool usedBridgeL = false;
+                    if (xfBridgeL > 0)   // forward post-wrap bridge from loop start
                     {
-                        int32_t fadeInFactor = (int32_t)(phaseR * 256 / fadeLength);
-                        baseR = (int32_t)(((int64_t)baseR * fadeInFactor) >> 8);
+                        xfBridgeL--;
+                        if (readIndL >= XF_LEN && readIndL < XF_BUF - 1)
+                        {
+                            outLs = xfInterp(xfStartL, readIndL, rL);
+                            (void)goldfish_stream_head_read(&playHeadL, readIndL);
+                            usedBridgeL = true;
+                        }
                     }
-                    outR = baseR;
+                    else if (xfBridgeRevL > 0)   // reverse post-wrap bridge from loop end
+                    {
+                        xfBridgeRevL--;
+                        int idx = readIndL - endBase;
+                        if (idx >= 0 && idx < XF_BUF - 1)
+                        {
+                            outLs = xfInterp(xfEndL, idx, rL);
+                            (void)goldfish_stream_head_read(&playHeadL, readIndL);
+                            usedBridgeL = true;
+                        }
+                    }
+                    if (!usedBridgeL)
+                    {
+                        int32_t iLm1 = readIndL - 1; if (iLm1 < 0) iLm1 += loopLength;
+                        int32_t iL1  = readIndL + 1; if (iL1 >= loopLength) iL1 -= loopLength;
+                        int32_t iL2  = readIndL + 2; if (iL2 >= loopLength) iL2 -= loopLength;
+                        int32_t sL = cubicHermite(
+                            goldfish_stream_head_read(&playHeadL, iLm1),
+                            goldfish_stream_head_read(&playHeadL, readIndL),
+                            goldfish_stream_head_read(&playHeadL, iL1),
+                            goldfish_stream_head_read(&playHeadL, iL2),
+                            rL, 8);
+                        if (xfOK && declickCountL == 0 && !reverse && readIndL >= (int32_t)(loopLength - XF_LEN))
+                        {
+                            // Forward tail: blend loop-end tail (out) with loop start (in).
+                            int p = readIndL - (int32_t)(loopLength - XF_LEN); // 0..XF_LEN-1
+                            if (p < 0) p = 0; else if (p > XF_LEN - 1) p = XF_LEN - 1;
+                            int32_t head = xfInterp(xfStartL, p, rL);
+                            int32_t ng = p + 1, og = XF_LEN - ng;
+                            outLs = (sL * og + head * ng) / XF_LEN;
+                        }
+                        else if (xfOK && declickCountL == 0 && reverse && readIndL < XF_LEN)
+                        {
+                            // Reverse tail: blend loop-start tail (out) with loop end (in).
+                            int32_t head = xfInterp(xfEndL, readIndL + (XF_BUF - XF_LEN), rL);
+                            int32_t ng = XF_LEN - readIndL, og = readIndL; // readIndL in 0..XF_LEN-1
+                            outLs = (sL * og + head * ng) / XF_LEN;
+                        }
+                        else
+                        {
+                            outLs = sL;
+                        }
+                    }
+                    if (declickCountL > 0)
+                    {
+                        int32_t alpha = (int32_t)(DECLICK_SAMPLES - declickCountL) + 1;
+                        outLs = (declickSrcL * (DECLICK_SAMPLES - alpha) + outLs * alpha) >> DECLICK_SHIFT;
+                        declickCountL--;
+                    }
+                    outL = outLs;
+
+                    // ---- R output ----
+                    int32_t outRs;
+                    bool usedBridgeR = false;
+                    if (xfBridgeR > 0)
+                    {
+                        xfBridgeR--;
+                        if (readIndR >= XF_LEN && readIndR < XF_BUF - 1)
+                        {
+                            outRs = xfInterp(xfStartR, readIndR, rR);
+                            (void)goldfish_stream_head_read(&playHeadR, readIndR);
+                            usedBridgeR = true;
+                        }
+                    }
+                    else if (xfBridgeRevR > 0)
+                    {
+                        xfBridgeRevR--;
+                        int idx = readIndR - endBase;
+                        if (idx >= 0 && idx < XF_BUF - 1)
+                        {
+                            outRs = xfInterp(xfEndR, idx, rR);
+                            (void)goldfish_stream_head_read(&playHeadR, readIndR);
+                            usedBridgeR = true;
+                        }
+                    }
+                    if (!usedBridgeR)
+                    {
+                        int32_t iRm1 = readIndR - 1; if (iRm1 < 0) iRm1 += loopLength;
+                        int32_t iR1  = readIndR + 1; if (iR1 >= loopLength) iR1 -= loopLength;
+                        int32_t iR2  = readIndR + 2; if (iR2 >= loopLength) iR2 -= loopLength;
+                        int32_t sR = cubicHermite(
+                            goldfish_stream_head_read(&playHeadR, iRm1),
+                            goldfish_stream_head_read(&playHeadR, readIndR),
+                            goldfish_stream_head_read(&playHeadR, iR1),
+                            goldfish_stream_head_read(&playHeadR, iR2),
+                            rR, 8);
+                        if (xfOK && declickCountR == 0 && !reverse && readIndR >= (int32_t)(loopLength - XF_LEN))
+                        {
+                            int p = readIndR - (int32_t)(loopLength - XF_LEN);
+                            if (p < 0) p = 0; else if (p > XF_LEN - 1) p = XF_LEN - 1;
+                            int32_t head = xfInterp(xfStartR, p, rR);
+                            int32_t ng = p + 1, og = XF_LEN - ng;
+                            outRs = (sR * og + head * ng) / XF_LEN;
+                        }
+                        else if (xfOK && declickCountR == 0 && reverse && readIndR < XF_LEN)
+                        {
+                            int32_t head = xfInterp(xfEndR, readIndR + (XF_BUF - XF_LEN), rR);
+                            int32_t ng = XF_LEN - readIndR, og = readIndR;
+                            outRs = (sR * og + head * ng) / XF_LEN;
+                        }
+                        else
+                        {
+                            outRs = sR;
+                        }
+                    }
+                    if (declickCountR > 0)
+                    {
+                        int32_t alpha = (int32_t)(DECLICK_SAMPLES - declickCountR) + 1;
+                        outRs = (declickSrcR * (DECLICK_SAMPLES - alpha) + outRs * alpha) >> DECLICK_SHIFT;
+                        declickCountR--;
+                    }
+                    outR = outRs;
 
                     if (loopLength > 0)
                     {
                         outCV = (goldfish_stream_read_cv(readIndL) * (256 - rL) + goldfish_stream_read_cv((readIndL + 1) % loopLength) * rL) >> 8;
                     }
-
-                    outL >>= 11;
-                    outR >>= 11;
 
                     break;
                 }
@@ -589,6 +783,48 @@ private:
     bool checkZero = false;
     int64_t phaseL = 0;
     int64_t phaseR = 0;
+
+    // Held-value declick: fade from the last output into new-position audio on
+    // a RESET jump (where we have no pre-decoded stream). Loop wraps in both
+    // directions use the two-stream overlap crossfade below.
+    static constexpr int DECLICK_SHIFT   = 5;
+    static constexpr int DECLICK_SAMPLES = 1 << DECLICK_SHIFT; // 32 (~1.3ms @24kHz)
+    int16_t declickSrcL  = 0;   // value to fade from (previous output)
+    int16_t declickSrcR  = 0;
+    uint8_t declickCountL = 0;
+    uint8_t declickCountR = 0;
+
+    // Loop-boundary overlap crossfade (MLRws-style), both directions. The loop
+    // start and loop end are pre-decoded on CORE 1 (goldfish_stream previews) so
+    // there is no decode spike on the audio path. Over the last XF_LEN samples
+    // approaching a boundary the tail (live head, fading out) is crossfaded with
+    // the pre-decoded opposite end (fading in); the phase then wraps early by
+    // XF_LEN and XF_BRIDGE samples are served from the buffer while the head
+    // reseeks. Forward uses the start preview, reverse the end preview.
+    static constexpr int XF_LEN    = 256;   // crossfade window
+    static constexpr int XF_BRIDGE = 128;   // post-wrap samples served from buffer
+    static constexpr int XF_BUF    = (int)GOLDFISH_PREVIEW_LEN; // XF_LEN+XF_BRIDGE+4
+    int     xfBridgeL  = 0;   // >0: forward post-wrap bridge from loop start (L)
+    int     xfBridgeR  = 0;
+    int     xfBridgeRevL = 0; // >0: reverse post-wrap bridge from loop end (L)
+    int     xfBridgeRevR = 0;
+
+    // Reset/cut seek crossfade (MLRws-style): on reset, core 1 decodes the target
+    // (startPos) into the seek buffer; the old position keeps playing until it is
+    // ready, then old is crossfaded into the pre-decoded target and handed off.
+    bool    seekArmed   = false;  // reset latched, waiting for core-1 decode
+    bool    seekActive  = false;  // crossfade/handoff in progress
+    int64_t seekProg    = 0;      // phase advanced from the target (shared L/R)
+    int32_t seekTargetL = 0;
+    int32_t seekTargetR = 0;
+
+    // Linear interpolate buf[idx]..buf[idx+1] at frac/256, clamped to the buffer.
+    static inline int32_t xfInterp(const int16_t *buf, int idx, int frac)
+    {
+        if (idx < 0) idx = 0; else if (idx >= XF_BUF - 1) idx = XF_BUF - 2;
+        return (buf[idx] * (256 - frac) + buf[idx + 1] * frac) >> 8;
+    }
+
     bool halftime;
     Divider clockDivider;
     int divisor;

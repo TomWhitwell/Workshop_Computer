@@ -120,6 +120,37 @@ bool goldfish_stream_io_idle(void);
 /** Read the CV value (sign-extended back to 12-bit) at the given audio index. */
 int16_t goldfish_stream_read_cv(uint32_t sample_index);
 
+/** Decode `count` PCM samples of `channel` from absolute sample `start` into
+ *  `out`. Reads flash directly — only call when goldfish_stream_io_idle(). */
+void goldfish_stream_decode_into(uint8_t channel, uint32_t start, uint32_t count, int16_t *out);
+
+/* ---- Loop-boundary crossfade previews (decoded on core 1) ----
+ * Length of each pre-decoded preview buffer (loop start / loop end), matched by
+ * the PLAY crossfade window in main.cpp. */
+#define GOLDFISH_PREVIEW_LEN 388u
+
+/** Core 0: ask core 1 to (re)decode the loop start + end previews for a loop of
+ *  `loop_len` samples. Clears the ready flag; poll goldfish_stream_previews_ready. */
+void goldfish_stream_request_previews(uint32_t loop_len);
+
+/** True once core 1 has filled the preview buffers for the last request. */
+bool goldfish_stream_previews_ready(void);
+
+/** Pointers to the pre-decoded loop-start / loop-end PCM (GOLDFISH_PREVIEW_LEN
+ *  samples each). Valid only while goldfish_stream_previews_ready() is true. */
+const int16_t *goldfish_stream_preview_start(uint8_t channel);
+const int16_t *goldfish_stream_preview_end(uint8_t channel);
+
+/** Core 0: ask core 1 to decode a seek/cut target (per channel start sample)
+ *  into the seek buffers. Clears the ready flag; poll goldfish_stream_seek_ready. */
+void goldfish_stream_request_seek(uint32_t startL, uint32_t startR);
+
+/** True once core 1 has filled the seek buffers for the last seek request. */
+bool goldfish_stream_seek_ready(void);
+
+/** Pointer to the pre-decoded seek-target PCM (GOLDFISH_PREVIEW_LEN samples). */
+const int16_t *goldfish_stream_seek_buf(uint8_t channel);
+
 /* ---- Core-1-refilled playback head (forward + reverse, varispeed) ----
  *
  * A head is a decoded-PCM window kept filled by core 1 so that core 0 can read

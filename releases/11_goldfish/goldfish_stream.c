@@ -147,6 +147,8 @@ static volatile uint32_t s_erase_count;
 static volatile uint32_t s_page_drops;      /* enqueue overruns (ring full -> page lost) */
 static volatile uint32_t s_page_max;        /* peak ring occupancy (pages in flight) */
 static volatile uint32_t s_head_underruns;  /* head_read misses (window not filled) */
+volatile uint32_t g_play_maxstep;           /* peak ADPCM step_index during playback decode
+                                             * (pegs near 88 on decoder desync = loud/distorted) */
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
@@ -552,10 +554,9 @@ void __not_in_flash_func(goldfish_stream_record_start)(void)
 	s_continuous    = false;
 	s_recorded_samples = 0u;
 
-	/* Reset diagnostics for this session. */
-	s_page_drops     = 0u;
-	s_page_max       = 0u;
-	s_head_underruns = 0u;
+	/* NOTE: s_page_drops / s_page_max / s_head_underruns are intentionally NOT
+	 * reset here so they accumulate across recordings for post-hoc diagnosis of
+	 * the intermittent playback distortion (read via GDB). */
 }
 
 void __not_in_flash_func(goldfish_stream_delay_start)(void)
@@ -718,6 +719,8 @@ void __not_in_flash_func(goldfish_stream_record_stop)(void)
 /* Core 1 flash I/O                                                   */
 /* ------------------------------------------------------------------ */
 
+static void service_preview_request(void);
+
 uint32_t goldfish_stream_io_task(void)
 {
 	uint32_t written = 0u;
@@ -764,6 +767,9 @@ uint32_t goldfish_stream_io_task(void)
 	head_refill(s_head[0]);
 	head_refill(s_head[1]);
 
+	/* Decode the PLAY loop-boundary crossfade previews off the audio path. */
+	service_preview_request();
+
 	return written;
 }
 
@@ -782,6 +788,111 @@ int16_t goldfish_stream_read_cv(uint32_t sample_index)
 	uint32_t cv_index = sample_index / GOLDFISH_CV_DECIM;
 	const int8_t *base = (const int8_t *)xip_ptr(s_cv_off);
 	return (int16_t)((int16_t)base[cv_index] << 4);
+}
+
+/* Decode `count` PCM samples of one channel starting at absolute sample `start`
+ * into `out`. Seeds the ADPCM decoder from the keyframe covering `start` and
+ * decodes forward. Used by PLAY to pre-load the loop-start audio for the
+ * loop-boundary overlap crossfade. Reads flash (XIP): only call when the flash
+ * I/O is idle (no core-1 erase/program in flight). */
+void goldfish_stream_decode_into(uint8_t channel, uint32_t start, uint32_t count, int16_t *out)
+{
+	if (out == NULL || count == 0u) return;
+	if (s_recorded_samples == 0u) {
+		for (uint32_t j = 0u; j < count; j++) out[j] = 0;
+		return;
+	}
+	goldfish_audio_channel_t *ch = &s_ch[channel % GOLDFISH_AUDIO_CHANNELS];
+	const uint8_t *base = xip_ptr(ch->audio_off);
+
+	uint32_t k      = start / s_keyframe_interval;
+	uint32_t kstart = k * s_keyframe_interval;
+	adpcm_state_t st;
+	st.predictor  = ch->keyframes[kf_slot(k)].predictor;
+	st.step_index = ch->keyframes[kf_slot(k)].step_index;
+
+	/* Prime the decoder from the keyframe up to `start`. */
+	for (uint32_t i = kstart; i < start; i++) {
+		uint8_t byte = base[audio_byte_wrap(i >> 1)];
+		uint8_t nyb  = (i & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu) : (uint8_t)(byte & 0x0Fu);
+		(void)adpcm_decode(nyb, &st);
+	}
+	/* Emit `count` samples (clamp at the end of the recording). */
+	int16_t last = 0;
+	for (uint32_t j = 0u; j < count; j++) {
+		uint32_t i = start + j;
+		if (i >= s_recorded_samples) { out[j] = last; continue; }
+		uint8_t byte = base[audio_byte_wrap(i >> 1)];
+		uint8_t nyb  = (i & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu) : (uint8_t)(byte & 0x0Fu);
+		last = adpcm_decode(nyb, &st);
+		out[j] = last;
+	}
+}
+
+/* ---- Loop-boundary crossfade previews (decoded on core 1) ---------- */
+static int16_t         s_prev_start[GOLDFISH_AUDIO_CHANNELS][GOLDFISH_PREVIEW_LEN];
+static int16_t         s_prev_end[GOLDFISH_AUDIO_CHANNELS][GOLDFISH_PREVIEW_LEN];
+static volatile uint32_t s_prev_loop_len;
+static volatile uint32_t s_prev_request;   /* core 0 -> core 1: decode previews */
+static volatile uint32_t s_prev_ready;     /* core 1 -> core 0: buffers valid   */
+
+/* ---- Seek/cut preview (arbitrary target, decoded on core 1) -------- */
+static int16_t         s_seek_buf[GOLDFISH_AUDIO_CHANNELS][GOLDFISH_PREVIEW_LEN];
+static volatile uint32_t s_seek_start[GOLDFISH_AUDIO_CHANNELS];
+static volatile uint32_t s_seek_request;
+static volatile uint32_t s_seek_ready;
+
+void goldfish_stream_request_previews(uint32_t loop_len)
+{
+	s_prev_ready = 0u;
+	__dmb();
+	s_prev_loop_len = loop_len;
+	s_prev_request  = 1u;
+}
+
+bool goldfish_stream_previews_ready(void)          { return s_prev_ready != 0u; }
+const int16_t *goldfish_stream_preview_start(uint8_t ch) { return s_prev_start[ch % GOLDFISH_AUDIO_CHANNELS]; }
+const int16_t *goldfish_stream_preview_end(uint8_t ch)   { return s_prev_end[ch % GOLDFISH_AUDIO_CHANNELS]; }
+
+void goldfish_stream_request_seek(uint32_t startL, uint32_t startR)
+{
+	s_seek_ready = 0u;
+	__dmb();
+	s_seek_start[0] = startL;
+	s_seek_start[1] = startR;
+	s_seek_request  = 1u;
+}
+
+bool goldfish_stream_seek_ready(void)              { return s_seek_ready != 0u; }
+const int16_t *goldfish_stream_seek_buf(uint8_t ch) { return s_seek_buf[ch % GOLDFISH_AUDIO_CHANNELS]; }
+
+/* Core 1: service a pending preview request by decoding the loop start and end
+ * into the preview buffers. Runs off the audio path, so the ~150us of decode is
+ * hidden by the playback heads' margin. Skipped while recording (flash busy). */
+static void __not_in_flash_func(service_preview_request)(void)
+{
+	if (s_rec_active) return;
+	if (s_prev_request) {
+		uint32_t L = s_prev_loop_len;
+		if (L > GOLDFISH_PREVIEW_LEN) {
+			uint32_t end_base = L - GOLDFISH_PREVIEW_LEN;
+			for (uint32_t c = 0u; c < GOLDFISH_AUDIO_CHANNELS; c++) {
+				goldfish_stream_decode_into((uint8_t)c, 0u, GOLDFISH_PREVIEW_LEN, s_prev_start[c]);
+				goldfish_stream_decode_into((uint8_t)c, end_base, GOLDFISH_PREVIEW_LEN, s_prev_end[c]);
+			}
+		}
+		__dmb();
+		s_prev_ready   = 1u;
+		s_prev_request = 0u;
+	}
+	if (s_seek_request) {
+		for (uint32_t c = 0u; c < GOLDFISH_AUDIO_CHANNELS; c++) {
+			goldfish_stream_decode_into((uint8_t)c, s_seek_start[c], GOLDFISH_PREVIEW_LEN, s_seek_buf[c]);
+		}
+		__dmb();
+		s_seek_ready   = 1u;
+		s_seek_request = 0u;
+	}
 }
 
 /* ------------------------------------------------------------------ */
@@ -889,6 +1000,7 @@ static void head_refill(goldfish_head_t *h)
 			uint8_t nyb  = (idx & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
 			                          : (uint8_t)(byte & 0x0Fu);
 			h->pcm[idx & GOLDFISH_RING_MASK] = adpcm_decode(nyb, &st);
+			if ((uint32_t)st.step_index > g_play_maxstep) g_play_maxstep = (uint32_t)st.step_index;
 			h->fill_next++;
 			__dmb();
 			h->hi = h->fill_next;
