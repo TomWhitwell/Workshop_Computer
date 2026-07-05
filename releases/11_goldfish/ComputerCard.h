@@ -20,6 +20,11 @@ See examples/ directory
 
 #include "hardware/gpio.h"
 #include "hardware/pwm.h"
+#include "hardware/timer.h"
+
+/* Diagnostic: max wall-time (us) spent in the CV PWM-wrap ISR, read via GDB. */
+volatile uint32_t g_pwm_max_us = 0;
+volatile uint32_t g_pwm_calls = 0;
 
 #define PULSE_1_RAW_OUT 8
 #define PULSE_2_RAW_OUT 9
@@ -432,6 +437,7 @@ private:
 	static void OnCVPWMWrap()
 	{
 		static int32_t error1 = 0, error2 = 0;
+		uint32_t _pt0 = timer_hw->timerawl;
 
 		pwm_clear_irq(pwm_gpio_to_slice_num(CV_OUT_1)); // clear the interrupt flag
 		uint32_t truncated_cv1_val = (cvValue[0]-error1) & 0xFFFFFF00;
@@ -440,6 +446,10 @@ private:
 		uint32_t truncated_cv2_val = (cvValue[1]-error2) & 0xFFFFFF00;
 		error2 += truncated_cv2_val - cvValue[1];
 		pwm_set_gpio_level(CV_OUT_2, (truncated_cv2_val>>8));
+
+		uint32_t _pdt = timer_hw->timerawl - _pt0;
+		if (_pdt > g_pwm_max_us) g_pwm_max_us = _pdt;
+		g_pwm_calls++;
 	}
 
 };

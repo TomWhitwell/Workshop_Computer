@@ -3,6 +3,7 @@
 #include "divider.h"
 #include "goldfish_stream.h"
 #include "pico/multicore.h"
+#include "hardware/timer.h"
 #include <math.h>
 
 // Core 1 entry point: continuously service flash streaming I/O (sector
@@ -85,6 +86,7 @@ public:
     /// Main audio processing function called at 48kHz
     virtual void __not_in_flash_func(ProcessSample)()
     {
+        uint32_t _t0 = timer_hw->timerawl;
         halftime = !halftime;
 
         // simple startup counter to allow time for initialisation
@@ -234,7 +236,6 @@ public:
                     // by ONE delay time. Main knob = delay time, SHORT fully CCW
                     // (main = 0) -> LONG fully CW (main = 4095), across the full
                     // exponential range (built at boot from capacity).
-                    qSample = quantSample(cvMix);
 
                     // Main knob position -> exponential delay table position (<<8).
                     int32_t pos = main * 8; // main 0..4095 -> ~0..(128<<8)
@@ -291,9 +292,11 @@ public:
                 {
 
                     // Record mode: capture both audio channels (L/R) + mono CV.
-                    qSample = quantSample(cvMix);
 
+                    uint32_t _rt0 = timer_hw->timerawl;
                     goldfish_stream_record_sample((int16_t)audioLf, (int16_t)audioRf, cvMix);
+                    uint32_t _rdt = timer_hw->timerawl - _rt0;
+                    if (_rdt > maxRecUs) maxRecUs = _rdt;
 
                     outL = audioLf;
                     outR = audioRf;
@@ -448,7 +451,6 @@ public:
                     if (loopLength > 0)
                     {
                         outCV = (goldfish_stream_read_cv(readIndL) * (256 - rL) + goldfish_stream_read_cv((readIndL + 1) % loopLength) * rL) >> 8;
-                        qSample = quantSample(outCV);
                     }
 
                     outL >>= 11;
@@ -488,6 +490,11 @@ public:
                     pulseTimer1 = 200;
                     PulseOut1(true);
                     LedOn(4);
+                    // Quantise the (sample-and-held) CV only on the clock edge that
+                    // actually latches it to CV out 2, instead of every sample. In
+                    // every mode the note tracks outCV (DELAY/RECORD set outCV =
+                    // cvMix; PLAY sets outCV from the recorded CV track).
+                    qSample = quantSample(outCV);
                     CVOut2MIDINote(qSample);
                 };
 
@@ -525,7 +532,16 @@ public:
             lastRisingEdge1 = risingEdge1;
             lastRisingEdge2 = risingEdge2;
         }
+
+        uint32_t _dt = timer_hw->timerawl - _t0;
+        if (_dt > maxProcUs) maxProcUs = _dt;
+        if (_dt >= 21u) procOverruns++; // 48kHz period ~= 20.83us
     };
+
+public:
+    volatile uint32_t maxProcUs = 0;
+    volatile uint32_t procOverruns = 0;
+    volatile uint32_t maxRecUs = 0;
 
 private:
     int pulseTimer1 = 200;

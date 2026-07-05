@@ -12,6 +12,7 @@
 #include "pico/platform.h"
 #include "pico/bootrom.h"
 #include "pico/time.h"
+#include "hardware/timer.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
 #include "hardware/structs/ssi.h"
@@ -57,9 +58,25 @@ typedef struct {
 	uint8_t  data[GOLDFISH_PAGE_SIZE];
 } goldfish_page_t;
 
+/* Audio page ring. Core 0 encodes ADPCM bytes DIRECTLY into the slot at s_page_w
+ * (no 256-byte burst copy: a burst write here stalls ~21us whenever it lands
+ * during a core 1 flash write, which the live RECORD monitor turns into a click).
+ * The two audio channels fill in lock-step, so they occupy slots w and w+1 and
+ * publish together (w += 2), keeping the ring contiguous and each channel's pages
+ * in order (required by note_page_flushed / the offset-addressed heads). */
 static goldfish_page_t   s_page_ring[GOLDFISH_PAGE_RING_COUNT];
 static volatile uint32_t s_page_w; /* producer index (core 0) */
 static volatile uint32_t s_page_r; /* consumer index (core 1) */
+
+/* CV page ring. CV is decimated (one byte per GOLDFISH_CV_DECIM samples) so its
+ * pages fill ~4x more rarely and never coincided with the stall in profiling;
+ * it keeps the simple accumulate-then-copy path on its own small ring. */
+#ifndef GOLDFISH_CV_RING_COUNT
+#define GOLDFISH_CV_RING_COUNT 4u
+#endif
+static goldfish_page_t   s_cv_ring[GOLDFISH_CV_RING_COUNT];
+static volatile uint32_t s_cv_ring_w;
+static volatile uint32_t s_cv_ring_r;
 
 /* ------------------------------------------------------------------ */
 /* Module state                                                       */
@@ -74,7 +91,6 @@ typedef struct {
 	adpcm_state_t       enc;
 	uint8_t             cur_byte;
 	bool                nybble_phase;   /* false = expecting low nybble */
-	uint8_t             page[GOLDFISH_PAGE_SIZE];
 	uint32_t            fill;
 	uint32_t            write_off;      /* next flash offset for an audio page */
 	/* keyframes (core 0 writes; both cores read) */
@@ -99,6 +115,21 @@ static uint32_t s_capacity_samples;
 static uint32_t s_keyframe_interval;
 static uint32_t s_kf_slots;          /* keyframe slots = capacity/interval (ring in continuous mode) */
 static bool     s_continuous;        /* DELAY: wrap region + never stop recording */
+
+/* Diagnostics: max wall-time (us) spent in the record_sample encode loop vs CV
+ * block, read via GDB. Localises the XIP-during-flash-write stall. */
+volatile uint32_t g_rec_loop_max;
+volatile uint32_t g_rec_cv_max;
+/* Correlate a slow encode loop with core 1 being mid-flash-erase. */
+volatile uint32_t g_erasing;              /* core 1: 1 while an erase is in flight */
+volatile uint32_t g_rec_loop_max_erasing; /* g_erasing sampled at the worst loop */
+volatile uint32_t g_loop_slow;            /* count of loops > 8 us */
+volatile uint32_t g_loop_slow_erasing;    /* of those, how many with g_erasing set */
+volatile uint32_t g_loop_total;           /* every encode loop */
+volatile uint32_t g_loop_total_erasing;   /* of those, how many with g_erasing set */
+volatile uint32_t g_slow_pagefill;        /* slow loops that did a page enqueue */
+volatile uint32_t g_slow_keyframe;        /* slow loops that wrote a keyframe (no fill) */
+volatile uint32_t g_slow_neither;         /* slow loops with neither */
 
 /* Record state (core 0), shared across channels */
 static volatile bool s_rec_active;      /* cross-core: gates core1 erase-ahead */
@@ -146,7 +177,9 @@ static inline const uint8_t *xip_ptr(uint32_t flash_off)
 static void flash_program_page(uint32_t off, const uint8_t *data)
 {
 	uint32_t ints = save_and_disable_interrupts();
+	g_erasing = 1u;
 	flash_range_program(off, data, GOLDFISH_PAGE_SIZE);
+	g_erasing = 0u;
 	restore_interrupts(ints);
 }
 
@@ -315,6 +348,7 @@ static void __not_in_flash_func(flash_erase_sector_suspend)(uint32_t off)
 	uint32_t ints = save_and_disable_interrupts();
 	s_rom_connect();
 	s_rom_exit_xip();
+	g_erasing = 1u;
 
 	qspi_write_enable();
 	uint8_t er[4] = { 0x20u, (uint8_t)(off >> 16), (uint8_t)(off >> 8), (uint8_t)off };
@@ -322,6 +356,7 @@ static void __not_in_flash_func(flash_erase_sector_suspend)(uint32_t off)
 
 	uint32_t guard = 0u;
 	uint32_t poll  = 0u;
+	bool heads_active = (s_head[0] != NULL) || (s_head[1] != NULL);
 	while (qspi_status() & 0x01u) {          /* WIP set: erase running */
 		bool     have_page = false;
 		uint32_t slot = 0u, poff = 0u;
@@ -336,11 +371,11 @@ static void __not_in_flash_func(flash_erase_sector_suspend)(uint32_t off)
 			have_page = sector_erased(poff);
 		}
 
-		/* Suspend to service either a ready page OR - periodically - just to
-		 * refill the playback heads. Without the periodic path a long erase with
-		 * an empty flush queue (common in stereo) would never feed the heads and
-		 * they would starve as the read outran their margin. */
-		if (have_page || ++poll >= 1000u) {
+		/* Suspend to service either a ready page OR - only when heads are active
+		 * (playback modes) - periodically to refill them so they don't starve
+		 * during a long erase with an empty flush queue (common in stereo).
+		 * In pure RECORD the heads are off, so no periodic suspend is needed. */
+		if (have_page || (heads_active && ++poll >= 1000u)) {
 			poll = 0u;
 			uint8_t sus = 0x75u;
 			qspi_xfer(&sus, NULL, 1);
@@ -370,6 +405,7 @@ static void __not_in_flash_func(flash_erase_sector_suspend)(uint32_t off)
 
 	s_rom_flush();
 	s_rom_enter_xip();
+	g_erasing = 0u;
 	restore_interrupts(ints);
 	s_erase_count++;
 }
@@ -414,24 +450,19 @@ static void ensure_erase_ahead_cv(void)
 	}
 }
 
-/* Enqueue a full page for core 1. If the ring is full the frame is dropped
- * (an overrun; should not happen when core 1 keeps up). */
-static void __not_in_flash_func(enqueue_page)(uint32_t flash_off, const uint8_t *data)
+/* CV page enqueue (own ring). CV pages are rare so the copy here is harmless. */
+static void __not_in_flash_func(enqueue_cv_page)(uint32_t flash_off, const uint8_t *data)
 {
-	uint32_t w = s_page_w;
-	uint32_t used = w - s_page_r;
-	if (used > s_page_max) s_page_max = used;
-	if (used >= GOLDFISH_PAGE_RING_COUNT) {
+	uint32_t w = s_cv_ring_w;
+	if (w - s_cv_ring_r >= GOLDFISH_CV_RING_COUNT) {
 		s_page_drops++;
 		return; /* overrun */
 	}
-	uint32_t slot = w & (GOLDFISH_PAGE_RING_COUNT - 1u);
-	s_page_ring[slot].flash_off = flash_off;
-	for (uint32_t i = 0u; i < GOLDFISH_PAGE_SIZE; i++) {
-		s_page_ring[slot].data[i] = data[i];
-	}
+	uint32_t slot = w & (GOLDFISH_CV_RING_COUNT - 1u);
+	s_cv_ring[slot].flash_off = flash_off;
+	memcpy(s_cv_ring[slot].data, data, GOLDFISH_PAGE_SIZE);
 	__dmb();
-	s_page_w = w + 1u;
+	s_cv_ring_w = w + 1u;
 }
 
 /* ------------------------------------------------------------------ */
@@ -488,6 +519,7 @@ void goldfish_stream_init(void)
 	s_recorded_samples = 0u;
 	s_rec_active       = false;
 	s_page_w = s_page_r = 0u;
+	s_cv_ring_w = s_cv_ring_r = 0u;
 	s_erase_count = 0u;
 }
 
@@ -546,6 +578,13 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t left, int16_t ri
 	bool     kf   = ((s_write_index & (s_keyframe_interval - 1u)) == 0u);
 	uint32_t slot = kf ? kf_slot(s_write_index / s_keyframe_interval) : 0u;
 
+	uint32_t _t_loop0 = timer_hw->timerawl;
+	bool _filled = false;
+	/* Slots the two lock-step channels are currently filling (published together). */
+	goldfish_page_t *slotp[GOLDFISH_AUDIO_CHANNELS];
+	for (uint32_t c = 0u; c < GOLDFISH_AUDIO_CHANNELS; c++)
+		slotp[c] = &s_page_ring[(s_page_w + c) & (GOLDFISH_PAGE_RING_COUNT - 1u)];
+
 	for (uint32_t c = 0u; c < GOLDFISH_AUDIO_CHANNELS; c++) {
 		goldfish_audio_channel_t *ch = &s_ch[c];
 
@@ -557,7 +596,9 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t left, int16_t ri
 			if (slot + 1u > ch->num_keyframes) ch->num_keyframes = slot + 1u;
 		}
 
-		/* Encode audio nybble, pack two per byte. */
+		/* Encode audio nybble, pack two per byte, write the finished byte STRAIGHT
+		 * into the ring slot (spreads the ring write over 512 samples instead of a
+		 * single 256-byte burst that stalls during core 1 flash writes). */
 		uint8_t nyb = adpcm_encode(in[c], &ch->enc);
 		if (!ch->nybble_phase) {
 			ch->cur_byte = nyb;
@@ -565,16 +606,40 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t left, int16_t ri
 		} else {
 			ch->cur_byte |= (uint8_t)(nyb << 4);
 			ch->nybble_phase = false;
-			ch->page[ch->fill++] = ch->cur_byte;
-			if (ch->fill == GOLDFISH_PAGE_SIZE) {
-				enqueue_page(ch->write_off, ch->page);
-				ch->write_off += GOLDFISH_PAGE_SIZE;
-				if (ch->write_off >= ch->audio_off + s_audio_bytes) ch->write_off = ch->audio_off;
-				ch->fill = 0u;
-			}
+			slotp[c]->data[ch->fill++] = ch->cur_byte;
+			if (ch->fill == GOLDFISH_PAGE_SIZE) _filled = true;
 		}
 	}
 
+	/* Both channels reach a full page on the same sample (lock-step). Publish the
+	 * pair: stamp each slot's flash offset, advance the write heads, bump w by 2. */
+	if (_filled) {
+		for (uint32_t c = 0u; c < GOLDFISH_AUDIO_CHANNELS; c++) {
+			goldfish_audio_channel_t *ch = &s_ch[c];
+			slotp[c]->flash_off = ch->write_off;
+			ch->write_off += GOLDFISH_PAGE_SIZE;
+			if (ch->write_off >= ch->audio_off + s_audio_bytes) ch->write_off = ch->audio_off;
+			ch->fill = 0u;
+		}
+		__dmb();
+		s_page_w += GOLDFISH_AUDIO_CHANNELS;
+		uint32_t used = s_page_w - s_page_r;
+		if (used > s_page_max) s_page_max = used;
+		if (used > GOLDFISH_PAGE_RING_COUNT) s_page_drops++; /* overrun (should not happen) */
+	}
+	{
+		uint32_t d = timer_hw->timerawl - _t_loop0;
+		if (d > g_rec_loop_max) { g_rec_loop_max = d; g_rec_loop_max_erasing = g_erasing; }
+		if (d > 8u) {
+			g_loop_slow++; if (g_erasing) g_loop_slow_erasing++;
+			if (_filled) g_slow_pagefill++;
+			else if (kf) g_slow_keyframe++;
+			else g_slow_neither++;
+		}
+		g_loop_total++; if (g_erasing) g_loop_total_erasing++;
+	}
+
+	uint32_t _t_cv0 = timer_hw->timerawl;
 	/* Store one mono decimated 8-bit CV byte per GOLDFISH_CV_DECIM audio samples. */
 	if ((s_write_index % GOLDFISH_CV_DECIM) == 0u) {
 		int16_t cc = cv;
@@ -582,12 +647,13 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t left, int16_t ri
 		if (cc < -2048) cc = -2048;
 		s_cv_page[s_cv_fill++] = (uint8_t)(int8_t)(cc >> 4);
 		if (s_cv_fill == GOLDFISH_PAGE_SIZE) {
-			enqueue_page(s_cv_write_off, s_cv_page);
+			enqueue_cv_page(s_cv_write_off, s_cv_page);
 			s_cv_write_off += GOLDFISH_PAGE_SIZE;
 			if (s_cv_write_off >= s_cv_off + s_cv_bytes) s_cv_write_off = s_cv_off;
 			s_cv_fill = 0u;
 		}
 	}
+	{ uint32_t d = timer_hw->timerawl - _t_cv0; if (d > g_rec_cv_max) g_rec_cv_max = d; }
 
 	s_write_index++;
 	return true;
@@ -597,33 +663,43 @@ void __not_in_flash_func(goldfish_stream_record_stop)(void)
 {
 	if (!s_rec_active) return;
 
+	/* The two channels are lock-step, so they share the pair of slots [w, w+1]
+	 * they were filling. Flush any dangling nybble, then pad + publish the pair. */
+	goldfish_page_t *slotp[GOLDFISH_AUDIO_CHANNELS];
+	for (uint32_t c = 0u; c < GOLDFISH_AUDIO_CHANNELS; c++)
+		slotp[c] = &s_page_ring[(s_page_w + c) & (GOLDFISH_PAGE_RING_COUNT - 1u)];
+
+	bool any_fill = false;
 	for (uint32_t c = 0u; c < GOLDFISH_AUDIO_CHANNELS; c++) {
 		goldfish_audio_channel_t *ch = &s_ch[c];
 
 		/* Flush a dangling nybble (odd sample count) into a full byte. */
 		if (ch->nybble_phase) {
-			ch->page[ch->fill++] = ch->cur_byte;
+			slotp[c]->data[ch->fill++] = ch->cur_byte;
 			ch->nybble_phase = false;
-			if (ch->fill == GOLDFISH_PAGE_SIZE) {
-				enqueue_page(ch->write_off, ch->page);
-				ch->write_off += GOLDFISH_PAGE_SIZE;
-				ch->fill = 0u;
-			}
 		}
-
-		/* Flush partial audio page (pad to a full program page). */
+		/* Pad the partial page. */
 		if (ch->fill > 0u) {
-			for (uint32_t i = ch->fill; i < GOLDFISH_PAGE_SIZE; i++) ch->page[i] = 0u;
-			enqueue_page(ch->write_off, ch->page);
+			for (uint32_t i = ch->fill; i < GOLDFISH_PAGE_SIZE; i++) slotp[c]->data[i] = 0u;
+			any_fill = true;
+		}
+	}
+
+	if (any_fill) {
+		for (uint32_t c = 0u; c < GOLDFISH_AUDIO_CHANNELS; c++) {
+			goldfish_audio_channel_t *ch = &s_ch[c];
+			slotp[c]->flash_off = ch->write_off;
 			ch->write_off += GOLDFISH_PAGE_SIZE;
 			ch->fill = 0u;
 		}
+		__dmb();
+		s_page_w += GOLDFISH_AUDIO_CHANNELS;
 	}
 
 	/* Flush partial CV page. */
 	if (s_cv_fill > 0u) {
 		for (uint32_t i = s_cv_fill; i < GOLDFISH_PAGE_SIZE; i++) s_cv_page[i] = 0u;
-		enqueue_page(s_cv_write_off, s_cv_page);
+		enqueue_cv_page(s_cv_write_off, s_cv_page);
 		s_cv_write_off += GOLDFISH_PAGE_SIZE;
 		s_cv_fill = 0u;
 	}
@@ -670,6 +746,15 @@ uint32_t goldfish_stream_io_task(void)
 		written++;
 	}
 
+	/* Drain CV pages (own ring; not gated by the heads, only read back in PLAY). */
+	while (s_cv_ring_r != s_cv_ring_w) {
+		uint32_t slot = s_cv_ring_r & (GOLDFISH_CV_RING_COUNT - 1u);
+		flash_program_page(s_cv_ring[slot].flash_off, s_cv_ring[slot].data);
+		__dmb();
+		s_cv_ring_r++;
+		written++;
+	}
+
 	/* Keep the playback heads' decode windows filled. */
 	head_refill(s_head[0]);
 	head_refill(s_head[1]);
@@ -679,7 +764,7 @@ uint32_t goldfish_stream_io_task(void)
 
 bool goldfish_stream_io_idle(void)
 {
-	return s_page_r == s_page_w;
+	return s_page_r == s_page_w && s_cv_ring_r == s_cv_ring_w;
 }
 
 /* ------------------------------------------------------------------ */
