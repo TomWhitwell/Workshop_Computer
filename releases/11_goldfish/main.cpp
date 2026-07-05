@@ -264,8 +264,12 @@ public:
                     // cubic. The +1 look-ahead tap stays behind the write head
                     // (MIN_DELAY >> 1). L reads channel 0, R reads channel 1.
                     uint32_t wi = goldfish_stream_write_index();
-                    int32_t fromBufferL = 0;
-                    int32_t fromBufferR = 0;
+                    // Until the delay line has filled (write head past the delay
+                    // time), pass the live input straight through so entering DELAY
+                    // is heard immediately instead of a gap of silence; the delayed
+                    // signal takes over the moment it becomes available.
+                    int32_t fromBufferL = audioLf;
+                    int32_t fromBufferR = audioRf;
                     if (wi > (uint32_t)cvs1 + 3u)
                     {
                         uint32_t readInd = wi - (uint32_t)cvs1 - 1u;

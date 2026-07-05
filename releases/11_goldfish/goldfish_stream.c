@@ -704,7 +704,12 @@ void __not_in_flash_func(goldfish_stream_record_stop)(void)
 		s_cv_fill = 0u;
 	}
 
-	s_recorded_samples = s_write_index;
+	/* Readable loop length = samples written, capped at the buffer capacity. In a
+	 * continuous DELAY session s_write_index keeps counting past capacity as the
+	 * line wraps, so cap it: DELAY -> PLAY loops the time spent in DELAY, or the
+	 * whole buffer once it has wrapped. (Fixed RECORD never exceeds capacity.) */
+	s_recorded_samples = (s_write_index < s_capacity_samples)
+	                   ? s_write_index : s_capacity_samples;
 	s_rec_active = false;
 	s_continuous = false;
 }
