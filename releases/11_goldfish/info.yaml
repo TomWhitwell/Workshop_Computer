@@ -14,18 +14,19 @@ tags:
   - glitch
 
 manual: |
-  Goldfish is a multi-mode delay/looper with synchronized pulse/CV outputs. Switch selects record,
-  delay, and play behaviors; Pulse inputs provide clock/reset; and CV/audio inputs modulate delay time,
-  playback position, and generated CV/pitch material.
+  Goldfish is a multi-mode stereo delay/looper with synchronized pulse/CV outputs. The switch selects
+  record, delay, and play behaviors. Audio is streamed to flash (IMA-ADPCM), so loops/delays run from
+  ~55s on a 2MB card up to ~9min on 16MB. Pulse inputs provide clock/reset (and gated recording); the
+  CV/audio inputs modulate delay time, playback position and speed, and the generated CV/pitch material.
 
 panel:
   inputs:
     - id: AudioIn1
-      name: Audio Input
-      description: Primary audio input for delay/record/play processing
+      name: Left Audio Input
+      description: Left channel audio input for record/delay/play (true stereo)
     - id: AudioIn2
-      name: Mod Main
-      description: Modulates Main control behavior in multiple modes
+      name: Right Audio Input
+      description: Right channel audio input for record/delay/play (true stereo)
     - id: CVIn1
       name: X Mod
       description: Modulates X-dependent CV mix and playback position
@@ -36,21 +37,21 @@ panel:
       name: Sample Trig / clock
       description: Advances divider, triggers S&H
     - id: PulseIn2
-      name: Reset Trigger
-      description: Requests playback/reset actions on rising edge
+      name: Reset / Rec Gate
+      description: In play, a rising edge resets/cuts to the start position; when patched in delay, gates recording (punch in on the rising edge, hand off to play on the falling edge)
   outputs:
     - id: AudioOut1
       name: Left Audio Output
-      description: Main processed audio channel
+      description: Left channel processed audio output
     - id: AudioOut2
       name: Right Audio Output
-      description: Secondary processed audio channel
+      description: Right channel processed audio output (independent stereo channel)
     - id: CVOut1
       name: CV Mix Output
-      description: Mixed output derived from X/Y/CV inputs
+      description: In delay/record, the live CV mix (from X/Y and the CV inputs); in play, the recorded CV track
     - id: CVOut2
       name: Quantized CV Output
-      description: CV material quantized to a major scale
+      description: The CV output quantized to a major scale, sampled/held and latched on each clock pulse
     - id: PulseOut1
       name: Internal Clock Output
       description: Timed pulse output tied to clock/divider events
@@ -72,8 +73,8 @@ controls:
   knobs:
     - when: { z: any }
       main:
-        name: Time / CV Xfade
-        description: Mode-dependent delay/playback macro, modulated by AudioIn2 when connected
+        name: Time / Speed
+        description: Delay time in delay; playback speed and direction (full reverse - stop at noon - full forward) in play; also crossfades the CV mix
       x:
         name: Int Clock Rate
         description: Sets the internal clock rate; also attenuverts CV mix input 1 and maps playback position
