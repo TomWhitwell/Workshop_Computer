@@ -97,6 +97,7 @@ public:
         {
             bool risingEdge1 = PulseIn1RisingEdge();
             bool risingEdge2 = PulseIn2RisingEdge();
+            bool fallingEdge2 = PulseIn2FallingEdge();
 
             // Read knobs
             main = KnobVal(Knob::Main);
@@ -163,6 +164,7 @@ public:
                 if ((s == Switch::Down) && (lastSwitchVal != Switch::Down))
                 {
                     runMode = RECORD;
+                    gateMode = false; gateRec = false;
                     loopLength = 0;
                     writeInd = 0;
                     goldfish_stream_record_start();
@@ -175,10 +177,24 @@ public:
                 else if ((s == Switch::Up) && (lastSwitchVal != Switch::Up))
                 {
                     runMode = DELAY;
-                    goldfish_stream_delay_start();
-                    goldfish_stream_head_init(&playHeadL, 0);
-                    goldfish_stream_head_init(&playHeadR, 1);
-                    goldfish_stream_set_heads(&playHeadL, &playHeadR);
+                    if (Connected(Input::Pulse2))
+                    {
+                        // Gated record: monitor the input now; start recording on
+                        // the Pulse 2 rising edge, hand off to PLAY on the falling
+                        // edge. Don't start the delay line or heads yet.
+                        gateMode = true;
+                        gateRec  = false;
+                        goldfish_stream_set_heads(NULL, NULL);
+                    }
+                    else
+                    {
+                        gateMode = false;
+                        gateRec  = false;
+                        goldfish_stream_delay_start();
+                        goldfish_stream_head_init(&playHeadL, 0);
+                        goldfish_stream_head_init(&playHeadR, 1);
+                        goldfish_stream_set_heads(&playHeadL, &playHeadR);
+                    }
                     internalClockCounter = 0;
                     clockDivider.SetResetPhase(divisor);
                     pulseL = true;
@@ -187,6 +203,8 @@ public:
                 else if ((s == Switch::Middle) && (lastSwitchVal != Switch::Middle))
                 {
                     runMode = PLAY;
+                    gateMode = false; gateRec = false;
+                    reset = false;
                     goldfish_stream_record_stop();
                     loopLength = goldfish_stream_recorded_samples();
                     if (loopLength < 1) loopLength = 1;
@@ -233,12 +251,62 @@ public:
 
                 lastSwitchVal = s;
 
+                // Gated record (DELAY + plug in Pulse 2): the gate arms on DELAY
+                // entry (monitoring). A rising edge starts recording; a falling
+                // edge stops it and hands off to PLAY with the switch still Up.
+                if (runMode == DELAY && gateMode)
+                {
+                    if (!gateRec)
+                    {
+                        if (risingEdge2 || lastRisingEdge2)
+                        {
+                            gateRec = true;
+                            goldfish_stream_record_start();
+                        }
+                    }
+                    else if (fallingEdge2 || lastFallingEdge2)
+                    {
+                        goldfish_stream_record_stop();
+                        gateRec  = false;
+                        gateMode = false;
+                        reset    = false;
+                        runMode  = PLAY;
+                        loopLength = goldfish_stream_recorded_samples();
+                        if (loopLength < 1) loopLength = 1;
+                        goldfish_stream_head_init(&playHeadL, 0);
+                        goldfish_stream_head_init(&playHeadR, 1);
+                        goldfish_stream_set_heads(&playHeadL, &playHeadR);
+                        phaseL = 0;
+                        phaseR = 0;
+                        goldfish_stream_request_previews((uint32_t)loopLength);
+                        xfBridgeL = xfBridgeR = xfBridgeRevL = xfBridgeRevR = 0;
+                        seekActive = false; seekArmed = false;
+                        internalClockCounter = 0;
+                        clockDivider.SetResetPhase(divisor);
+                        pulseL = true;
+                        pulseR = true;
+                    }
+                }
+
 
                 // Main audio processing depending on mode (record, delay, play)
                 switch (runMode)
                 {
                 case DELAY:
                 {
+                    if (gateMode)
+                    {
+                        // Gated record: pass the input through (dry monitor) at all
+                        // times; capture it while the Pulse 2 gate is high. Seamless
+                        // because the monitor is identical armed vs. recording.
+                        if (gateRec)
+                            goldfish_stream_record_sample((int16_t)audioLf, (int16_t)audioRf, cvMix);
+                        outL = audioLf;
+                        outR = audioRf;
+                        outCV = cvMix;
+                        break;
+                    }
+
                     // Clean stereo delay: AudioIn1 -> L, AudioIn2 -> R, both delayed
                     // by ONE delay time. Main knob = delay time, SHORT fully CCW
                     // (main = 0) -> LONG fully CW (main = 4095), across the full
@@ -381,27 +449,43 @@ public:
                     lastSampleR = fromBufferR;
 
                     // Reset = "cut": jump to startPos with a pre-decoded crossfade
-                    // (like MLRws). Ask core 1 to decode the target and keep playing
-                    // the old position until it is ready; the crossfade starts below.
+                    // (like MLRws). Ask core 1 to decode the target region and keep
+                    // playing the old position until it is ready; the crossfade
+                    // starts below. Works in both directions: forward decodes
+                    // [target, target+XF_BUF), reverse decodes the region ending at
+                    // target so the seek plays backward out of the buffer.
                     if (reset)
                     {
                         reset = false;
-                        int32_t maxT = loopLength - XF_BUF; if (maxT < 0) maxT = 0;
-                        int32_t tL = (int32_t)(startPosL >> 8);
-                        int32_t tR = (int32_t)(startPosR >> 8);
-                        if (tL < 0) tL = 0; else if (tL > maxT) tL = maxT;
-                        if (tR < 0) tR = 0; else if (tR > maxT) tR = maxT;
-                        seekTargetL = tL;
-                        seekTargetR = tR;
-                        if (xfOK && !reverse)
+                        bool ok = xfOK && (loopLength > XF_BUF + 4);
+                        if (ok && reverse)
                         {
+                            int32_t lo = XF_BUF - 1, hi = loopLength - 1;
+                            int32_t tL = (int32_t)(startPosL >> 8);
+                            int32_t tR = (int32_t)(startPosR >> 8);
+                            if (tL < lo) tL = lo; else if (tL > hi) tL = hi;
+                            if (tR < lo) tR = lo; else if (tR > hi) tR = hi;
+                            seekTargetL = tL; seekTargetR = tR;
+                            seekBufBaseL = tL - (XF_BUF - 1);
+                            seekBufBaseR = tR - (XF_BUF - 1);
+                            goldfish_stream_request_seek((uint32_t)seekBufBaseL, (uint32_t)seekBufBaseR);
+                            seekArmed = true; seekActive = false;
+                        }
+                        else if (ok)
+                        {
+                            int32_t maxT = loopLength - XF_BUF;
+                            int32_t tL = (int32_t)(startPosL >> 8);
+                            int32_t tR = (int32_t)(startPosR >> 8);
+                            if (tL < 0) tL = 0; else if (tL > maxT) tL = maxT;
+                            if (tR < 0) tR = 0; else if (tR > maxT) tR = maxT;
+                            seekTargetL = tL; seekTargetR = tR;
+                            seekBufBaseL = tL; seekBufBaseR = tR;
                             goldfish_stream_request_seek((uint32_t)tL, (uint32_t)tR);
-                            seekArmed  = true;
-                            seekActive = false;
+                            seekArmed = true; seekActive = false;
                         }
                         else
                         {
-                            // Short loop or reverse: fall back to jump + declick.
+                            // Very short loop: fall back to jump + declick.
                             phaseL = startPosL; phaseR = startPosR;
                             declickSrcL = (int16_t)outL; declickCountL = DECLICK_SAMPLES;
                             declickSrcR = (int16_t)outR; declickCountR = DECLICK_SAMPLES;
@@ -462,20 +546,22 @@ public:
 
                     if (seekActive)
                     {
-                        // ---- Reset/cut seek crossfade + handoff ----
+                        // ---- Reset/cut seek crossfade + handoff (both directions) ----
                         seekProg += dphase >> 1;              // target-relative phase
-                        int32_t nIdx  = (int32_t)(seekProg >> 8);
-                        int32_t nFrac = (int32_t)(seekProg & 0xFF);
-                        if (nIdx < 0) { nIdx = 0; nFrac = 0; }
-                        bool done = (nIdx >= XF_BUF - 1);
-                        if (done) { nIdx = XF_BUF - 2; nFrac = 0; }
+                        int32_t nIdx  = (int32_t)(seekProg >> 8);   // signed (floor)
+                        int32_t nFrac = (int32_t)(seekProg & 0xFF); // 0..255
+                        int32_t prog  = (nIdx < 0) ? -nIdx : nIdx;  // distance from target
+                        bool done = (prog >= XF_BUF - 1);
+                        if (done) { nIdx = (nIdx < 0) ? -(XF_BUF - 1) : (XF_BUF - 1); nFrac = 0; }
 
+                        int32_t absL = seekTargetL + nIdx;   // absolute sample being played
+                        int32_t absR = seekTargetR + nIdx;
                         const int16_t *sbL = goldfish_stream_seek_buf(0);
                         const int16_t *sbR = goldfish_stream_seek_buf(1);
-                        int32_t newL = xfInterp(sbL, nIdx, nFrac);
-                        int32_t newR = xfInterp(sbR, nIdx, nFrac);
+                        int32_t newL = xfInterp(sbL, absL - seekBufBaseL, nFrac);
+                        int32_t newR = xfInterp(sbR, absR - seekBufBaseR, nFrac);
 
-                        if (nIdx < XF_LEN && !done)
+                        if (prog < XF_LEN && !done)
                         {
                             // Crossfade the still-playing old position into the
                             // pre-decoded target (new gain rising over XF_LEN).
@@ -495,7 +581,7 @@ public:
                                 goldfish_stream_head_read(&playHeadR, readIndR),
                                 goldfish_stream_head_read(&playHeadR, iR1),
                                 goldfish_stream_head_read(&playHeadR, iR2), rR, 8);
-                            int32_t ng = nIdx + 1, og = XF_LEN - ng;
+                            int32_t ng = prog + 1, og = XF_LEN - ng;
                             outL = (oldL * og + newL * ng) / XF_LEN;
                             outR = (oldR * og + newR * ng) / XF_LEN;
                         }
@@ -505,19 +591,19 @@ public:
                             // to the handoff point (drive them so core 1 refills).
                             outL = newL;
                             outR = newR;
-                            (void)goldfish_stream_head_read(&playHeadL, seekTargetL + nIdx);
-                            (void)goldfish_stream_head_read(&playHeadR, seekTargetR + nIdx);
+                            (void)goldfish_stream_head_read(&playHeadL, absL);
+                            (void)goldfish_stream_head_read(&playHeadR, absR);
                         }
 
                         if (done)
                         {
-                            phaseL = ((int64_t)seekTargetL << 8) + seekProg;
-                            phaseR = ((int64_t)seekTargetR << 8) + seekProg;
+                            phaseL = (int64_t)absL << 8;
+                            phaseR = (int64_t)absR << 8;
                             seekActive = false;
                         }
 
-                        int32_t cvIdx = seekTargetL + nIdx;
-                        if (cvIdx >= loopLength) cvIdx = loopLength - 1;
+                        int32_t cvIdx = absL;
+                        if (cvIdx < 0) cvIdx = 0; else if (cvIdx >= loopLength) cvIdx = loopLength - 1;
                         outCV = goldfish_stream_read_cv(cvIdx);
 
                         break;
@@ -667,7 +753,7 @@ public:
                 LedBrightness(0, cabs(outL));
                 LedBrightness(1, cabs(outR));
 
-                if (risingEdge2 || lastRisingEdge2)
+                if ((risingEdge2 || lastRisingEdge2) && !gateMode)
                 {
                     reset = true;
                 };
@@ -729,6 +815,25 @@ public:
 
             lastRisingEdge1 = risingEdge1;
             lastRisingEdge2 = risingEdge2;
+            lastFallingEdge2 = fallingEdge2;
+        }
+
+        // Startup LED animation ("blub, blub"): a swell sweeps the LEDs in order
+        // 4,2,0 (left column, rising) then 5,3,1 (right column) over ~2 seconds.
+        // Runs every call and overrides the normal LED output until it finishes.
+        if (bootAnim > 0)
+        {
+            bootAnim--;
+            static const uint8_t seq[6] = {4, 2, 0, 5, 3, 1};
+            int32_t elapsed = BOOT_ANIM_LEN - bootAnim;   // 0 .. BOOT_ANIM_LEN
+            int32_t slot = BOOT_ANIM_LEN / 6;             // ~0.33 s per LED
+            for (int i = 0; i < 6; i++)
+            {
+                int32_t center = i * slot + slot / 2;
+                int32_t d = elapsed - center; if (d < 0) d = -d;
+                int32_t b = (d < slot) ? (slot - d) * 4095 / slot : 0; // triangle swell
+                LedBrightness(seq[i], (uint16_t)b);
+            }
         }
 
         uint32_t _dt = timer_hw->timerawl - _t0;
@@ -755,6 +860,10 @@ private:
     int32_t outR;
     int32_t outCV;
     int startupCounter;
+
+    // Startup LED animation counter (2 s @ 48 kHz, ticked every ProcessSample).
+    static constexpr int32_t BOOT_ANIM_LEN = 96000;
+    int32_t bootAnim = BOOT_ANIM_LEN;
     int lastCV;
 
     Switch lastSwitchVal = Switch::Down;
@@ -817,6 +926,13 @@ private:
     int64_t seekProg    = 0;      // phase advanced from the target (shared L/R)
     int32_t seekTargetL = 0;
     int32_t seekTargetR = 0;
+    int32_t seekBufBaseL = 0;     // absolute sample of seek buffer index 0 (per ch)
+    int32_t seekBufBaseR = 0;
+
+    // Gated record (DELAY mode with a plug in Pulse 2): monitor the input, record
+    // while the Pulse 2 gate is high, hand off to PLAY on the falling edge.
+    bool    gateMode = false;     // in gated-record DELAY (armed or recording)
+    bool    gateRec  = false;     // gate high -> currently recording
 
     // Linear interpolate buf[idx]..buf[idx+1] at frac/256, clamped to the buffer.
     static inline int32_t xfInterp(const int16_t *buf, int idx, int frac)
@@ -832,6 +948,7 @@ private:
     int internalClockRate;
     bool lastRisingEdge1 = false;
     bool lastRisingEdge2 = false;
+    bool lastFallingEdge2 = false;
 
     int16_t qSample;
 
