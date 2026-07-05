@@ -2,6 +2,7 @@
 #include "quantiser.h"
 #include "divider.h"
 #include "goldfish_stream.h"
+#include "goldfish_debug.h"
 #include "pico/multicore.h"
 #include "hardware/timer.h"
 #include <math.h>
@@ -86,7 +87,7 @@ public:
     /// Main audio processing function called at 48kHz
     virtual void __not_in_flash_func(ProcessSample)()
     {
-        uint32_t _t0 = timer_hw->timerawl;
+        GF_DBG(uint32_t _t0 = timer_hw->timerawl;)
         halftime = !halftime;
 
         // simple startup counter to allow time for initialisation
@@ -165,6 +166,11 @@ public:
                 {
                     runMode = RECORD;
                     gateMode = false; gateRec = false;
+                    recExitPending = false; recExitFade = false;
+                    seekArmed = false; seekActive = false;
+                    // Crossfade the previous mode's output (captured tail, faded
+                    // out) into the live input monitor over XF_LEN samples.
+                    recInXf = XF_LEN; recInBase = recTailW;
                     loopLength = 0;
                     writeInd = 0;
                     goldfish_stream_record_start();
@@ -177,6 +183,10 @@ public:
                 else if ((s == Switch::Up) && (lastSwitchVal != Switch::Up))
                 {
                     runMode = DELAY;
+                    delayFadeIn = 0; delayReadyPrev = false;
+                    recExitPending = false; recExitFade = false;
+                    seekArmed = false; seekActive = false;
+                    posSmooth = posSmooth2 = (main * 8) << 7;   // snap (no glide on entry)
                     if (Connected(Input::Pulse2))
                     {
                         // Gated record: monitor the input now; start recording on
@@ -205,6 +215,10 @@ public:
                     runMode = PLAY;
                     gateMode = false; gateRec = false;
                     reset = false;
+                    // Keep monitoring the live input until the recording flushes,
+                    // then crossfade it into the loop start (see PLAY case).
+                    recExitPending = true; recExitFade = false;
+                    seekArmed = false; seekActive = false;
                     goldfish_stream_record_stop();
                     loopLength = goldfish_stream_recorded_samples();
                     if (loopLength < 1) loopLength = 1;
@@ -271,6 +285,9 @@ public:
                         gateMode = false;
                         reset    = false;
                         runMode  = PLAY;
+                        // Keep monitoring the live input until the recording
+                        // flushes, then crossfade it into the loop start.
+                        recExitPending = true; recExitFade = false;
                         loopLength = goldfish_stream_recorded_samples();
                         if (loopLength < 1) loopLength = 1;
                         goldfish_stream_head_init(&playHeadL, 0);
@@ -281,6 +298,7 @@ public:
                         goldfish_stream_request_previews((uint32_t)loopLength);
                         xfBridgeL = xfBridgeR = xfBridgeRevL = xfBridgeRevR = 0;
                         seekActive = false; seekArmed = false;
+                        recExitFade = false;
                         internalClockCounter = 0;
                         clockDivider.SetResetPhase(divisor);
                         pulseL = true;
@@ -312,14 +330,26 @@ public:
                     // (main = 0) -> LONG fully CW (main = 4095), across the full
                     // exponential range (built at boot from capacity).
 
-                    // Main knob position -> exponential delay table position (<<8).
-                    int32_t pos = main * 8; // main 0..4095 -> ~0..(128<<8)
-                    if (pos < 0) pos = 0;
-                    if (pos > (128 << 8)) pos = (128 << 8);
-                    int32_t targ = delayLookup(pos); // delay in samples
+                    // Main knob -> exponential delay position (<<8). Smooth in the
+                    // POSITION (exponential) domain so equal knob steps are equal
+                    // pitch ratios: a sharp turn glides musically instead of
+                    // lurching by a huge number of samples (which tore, worst at
+                    // the long end where a small knob move = a big time change).
+                    int32_t posTarget = main * 8; // main 0..4095 -> ~0..(128<<8)
+                    if (posTarget < 0) posTarget = 0;
+                    if (posTarget > (128 << 8)) posTarget = (128 << 8);
+                    // Two cascaded one-poles = a 2nd-order (S-curve) response, so
+                    // the delay time (and therefore the doppler pitch) eases in and
+                    // out smoothly instead of jumping to a fixed rate. Slow poles
+                    // (2047/2048) keep the peak rate low so hard slams don't tear.
+                    posSmooth  = (int32_t)(((int64_t)posSmooth  * 2047 + ((int64_t)posTarget << 7)) >> 11);
+                    posSmooth2 = (int32_t)(((int64_t)posSmooth2 * 2047 + (int64_t)posSmooth) >> 11);
+                    int32_t targ = delayLookup(posSmooth2 >> 7); // delay in samples
 
-                    // One-pole smoothing in <<7 delay-sample fixed point.
-                    cvsL = (cvsL * 255 + ((int64_t)targ << 7)) >> 8;
+                    // Light, fast sample-domain smoothing only to interpolate the
+                    // integer delay steps into a sub-sample fraction (the S-curve
+                    // above already shapes the rate, so no hard cap is needed).
+                    cvsL = (cvsL * 15 + ((int64_t)targ << 7)) >> 4;
                     int64_t cvs1 = cvsL >> 7;
                     int64_t rD   = cvsL & 0x7F;
 
@@ -342,10 +372,14 @@ public:
                     // Until the delay line has filled (write head past the delay
                     // time), pass the live input straight through so entering DELAY
                     // is heard immediately instead of a gap of silence; the delayed
-                    // signal takes over the moment it becomes available.
+                    // signal then crossfades in so the handoff isn't a click.
+                    bool ready = (wi > (uint32_t)cvs1 + 3u);
+                    if (ready && !delayReadyPrev) delayFadeIn = DELAY_FADE_LEN;
+                    delayReadyPrev = ready;
+
                     int32_t fromBufferL = audioLf;
                     int32_t fromBufferR = audioRf;
-                    if (wi > (uint32_t)cvs1 + 3u)
+                    if (ready)
                     {
                         uint32_t readInd = wi - (uint32_t)cvs1 - 1u;
                         int32_t t = 128 - (int32_t)rD;
@@ -353,12 +387,24 @@ public:
                         int32_t l_0  = goldfish_stream_head_read(&playHeadL, readInd - 1u);
                         int32_t l_1  = goldfish_stream_head_read(&playHeadL, readInd);
                         int32_t l_2  = goldfish_stream_head_read(&playHeadL, readInd + 1u);
-                        fromBufferL = cubicHermite(l_m1, l_0, l_1, l_2, t, 7);
+                        int32_t wetL = cubicHermite(l_m1, l_0, l_1, l_2, t, 7);
                         int32_t r_m1 = goldfish_stream_head_read(&playHeadR, readInd - 2u);
                         int32_t r_0  = goldfish_stream_head_read(&playHeadR, readInd - 1u);
                         int32_t r_1  = goldfish_stream_head_read(&playHeadR, readInd);
                         int32_t r_2  = goldfish_stream_head_read(&playHeadR, readInd + 1u);
-                        fromBufferR = cubicHermite(r_m1, r_0, r_1, r_2, t, 7);
+                        int32_t wetR = cubicHermite(r_m1, r_0, r_1, r_2, t, 7);
+                        if (delayFadeIn > 0)
+                        {
+                            int32_t g = DELAY_FADE_LEN - delayFadeIn; // 0..LEN (dry->wet)
+                            fromBufferL = (audioLf * (DELAY_FADE_LEN - g) + wetL * g) / DELAY_FADE_LEN;
+                            fromBufferR = (audioRf * (DELAY_FADE_LEN - g) + wetR * g) / DELAY_FADE_LEN;
+                            delayFadeIn--;
+                        }
+                        else
+                        {
+                            fromBufferL = wetL;
+                            fromBufferR = wetR;
+                        }
                     }
 
                     outL = fromBufferL;
@@ -372,13 +418,25 @@ public:
 
                     // Record mode: capture both audio channels (L/R) + mono CV.
 
-                    uint32_t _rt0 = timer_hw->timerawl;
+                    GF_DBG(uint32_t _rt0 = timer_hw->timerawl;)
                     goldfish_stream_record_sample((int16_t)audioLf, (int16_t)audioRf, cvMix);
-                    uint32_t _rdt = timer_hw->timerawl - _rt0;
-                    if (_rdt > maxRecUs) maxRecUs = _rdt;
+                    GF_DBG(uint32_t _rdt = timer_hw->timerawl - _rt0;
+                    if (_rdt > maxRecUs) maxRecUs = _rdt;)
 
                     outL = audioLf;
                     outR = audioRf;
+                    // MLRws-style entry crossfade: fade the captured tail of the
+                    // previous output (replayed newest->oldest so it stays
+                    // continuous with the last sample) out under the live monitor.
+                    if (recInXf > 0)
+                    {
+                        int p  = XF_LEN - recInXf;                          // 0..XF_LEN-1
+                        int ti = (recInBase + (XF_LEN - 1) - p) & (XF_LEN - 1);
+                        int32_t ng = p + 1, og = XF_LEN - ng;
+                        outL = (recTailL[ti] * og + outL * ng) / XF_LEN;
+                        outR = (recTailR[ti] * og + outR * ng) / XF_LEN;
+                        recInXf--;
+                    }
 
                     outCV = cvMix;
 
@@ -396,10 +454,38 @@ public:
                 }
                 case PLAY:
                 {
+                    // Just left RECORD: keep monitoring the live input (the
+                    // outgoing stream) until the recording has flushed, then arm a
+                    // seek-style crossfade from the monitor into the loop start.
+                    if (recExitPending)
+                    {
+                        if (!goldfish_stream_io_idle())
+                        {
+                            outL = audioLf; outR = audioRf; outCV = cvMix;
+                            break;
+                        }
+                        recExitPending = false;
+                        if (loopLength > XF_BUF + 4)
+                        {
+                            seekTargetL = 0; seekTargetR = 0;
+                            seekBufBaseL = 0; seekBufBaseR = 0;
+                            goldfish_stream_request_seek(0u, 0u);
+                            seekArmed = true; seekActive = false;
+                            recExitFade = true;
+                            xfBridgeL = xfBridgeR = xfBridgeRevL = xfBridgeRevR = 0;
+                        }
+                        else
+                        {
+                            // Loop too short to buffer a crossfade: quick declick.
+                            phaseL = 0; phaseR = 0;
+                            declickSrcL = (int16_t)outL; declickCountL = DECLICK_SAMPLES;
+                            declickSrcR = (int16_t)outR; declickCountR = DECLICK_SAMPLES;
+                        }
+                    }
                     // Playback reads the recording from flash. Wait until any
                     // just-finished recording has flushed (no core-1 erase in
                     // flight) before touching the flash bus.
-                    if (!goldfish_stream_io_idle())
+                    else if (!goldfish_stream_io_idle())
                     {
                         outL = 0;
                         outR = 0;
@@ -505,6 +591,14 @@ public:
                         seekProg   = 0;
                     }
 
+                    // Record-exit: keep monitoring the live input until core 1 has
+                    // decoded the loop start and the crossfade actually begins.
+                    if (recExitFade && !seekActive)
+                    {
+                        outL = audioLf; outR = audioRf; outCV = cvMix;
+                        break;
+                    }
+
                     // ---- loop wraps (suspended while a seek crossfade runs) ----
                     if (!seekActive)
                     {
@@ -563,24 +657,34 @@ public:
 
                         if (prog < XF_LEN && !done)
                         {
-                            // Crossfade the still-playing old position into the
-                            // pre-decoded target (new gain rising over XF_LEN).
-                            int32_t iLm1 = readIndL - 1; if (iLm1 < 0) iLm1 += loopLength;
-                            int32_t iL1  = readIndL + 1; if (iL1 >= loopLength) iL1 -= loopLength;
-                            int32_t iL2  = readIndL + 2; if (iL2 >= loopLength) iL2 -= loopLength;
-                            int32_t oldL = cubicHermite(
-                                goldfish_stream_head_read(&playHeadL, iLm1),
-                                goldfish_stream_head_read(&playHeadL, readIndL),
-                                goldfish_stream_head_read(&playHeadL, iL1),
-                                goldfish_stream_head_read(&playHeadL, iL2), rL, 8);
-                            int32_t iRm1 = readIndR - 1; if (iRm1 < 0) iRm1 += loopLength;
-                            int32_t iR1  = readIndR + 1; if (iR1 >= loopLength) iR1 -= loopLength;
-                            int32_t iR2  = readIndR + 2; if (iR2 >= loopLength) iR2 -= loopLength;
-                            int32_t oldR = cubicHermite(
-                                goldfish_stream_head_read(&playHeadR, iRm1),
-                                goldfish_stream_head_read(&playHeadR, readIndR),
-                                goldfish_stream_head_read(&playHeadR, iR1),
-                                goldfish_stream_head_read(&playHeadR, iR2), rR, 8);
+                            // Crossfade the still-playing old stream into the
+                            // pre-decoded target (new gain rising over XF_LEN). On
+                            // a record exit the "old" stream is the live monitor.
+                            int32_t oldL, oldR;
+                            if (recExitFade)
+                            {
+                                oldL = audioLf;
+                                oldR = audioRf;
+                            }
+                            else
+                            {
+                                int32_t iLm1 = readIndL - 1; if (iLm1 < 0) iLm1 += loopLength;
+                                int32_t iL1  = readIndL + 1; if (iL1 >= loopLength) iL1 -= loopLength;
+                                int32_t iL2  = readIndL + 2; if (iL2 >= loopLength) iL2 -= loopLength;
+                                oldL = cubicHermite(
+                                    goldfish_stream_head_read(&playHeadL, iLm1),
+                                    goldfish_stream_head_read(&playHeadL, readIndL),
+                                    goldfish_stream_head_read(&playHeadL, iL1),
+                                    goldfish_stream_head_read(&playHeadL, iL2), rL, 8);
+                                int32_t iRm1 = readIndR - 1; if (iRm1 < 0) iRm1 += loopLength;
+                                int32_t iR1  = readIndR + 1; if (iR1 >= loopLength) iR1 -= loopLength;
+                                int32_t iR2  = readIndR + 2; if (iR2 >= loopLength) iR2 -= loopLength;
+                                oldR = cubicHermite(
+                                    goldfish_stream_head_read(&playHeadR, iRm1),
+                                    goldfish_stream_head_read(&playHeadR, readIndR),
+                                    goldfish_stream_head_read(&playHeadR, iR1),
+                                    goldfish_stream_head_read(&playHeadR, iR2), rR, 8);
+                            }
                             int32_t ng = prog + 1, og = XF_LEN - ng;
                             outL = (oldL * og + newL * ng) / XF_LEN;
                             outR = (oldR * og + newR * ng) / XF_LEN;
@@ -600,6 +704,7 @@ public:
                             phaseL = (int64_t)absL << 8;
                             phaseR = (int64_t)absR << 8;
                             seekActive = false;
+                            recExitFade = false;
                         }
 
                         int32_t cvIdx = absL;
@@ -746,6 +851,14 @@ public:
 
                 clip(outL);
                 clip(outR);
+                // Rolling capture of the output, used as the fading-out tail when
+                // entering RECORD (frozen while that crossfade replays the tail).
+                if (recInXf == 0)
+                {
+                    recTailL[recTailW] = (int16_t)outL;
+                    recTailR[recTailW] = (int16_t)outR;
+                    recTailW = (recTailW + 1) & (XF_LEN - 1);
+                }
                 AudioOut1(outL);
                 AudioOut2(outR);
                 CVOut1(outCV);
@@ -836,15 +949,15 @@ public:
             }
         }
 
-        uint32_t _dt = timer_hw->timerawl - _t0;
+        GF_DBG(uint32_t _dt = timer_hw->timerawl - _t0;
         if (_dt > maxProcUs) maxProcUs = _dt;
-        if (_dt >= 21u) procOverruns++; // 48kHz period ~= 20.83us
+        if (_dt >= 21u) procOverruns++;) // 48kHz period ~= 20.83us
     };
 
 public:
-    volatile uint32_t maxProcUs = 0;
-    volatile uint32_t procOverruns = 0;
-    volatile uint32_t maxRecUs = 0;
+    GF_DBG(volatile uint32_t maxProcUs = 0;)
+    GF_DBG(volatile uint32_t procOverruns = 0;)
+    GF_DBG(volatile uint32_t maxRecUs = 0;)
 
 private:
     int pulseTimer1 = 200;
@@ -889,6 +1002,14 @@ private:
     int32_t ledtimer = 0;
     int32_t hpf = 0;
     int32_t hpfR = 0;
+    // DELAY dry->wet handoff crossfade: when the delay line fills, blend the dry
+    // passthrough into the delayed signal over DELAY_FADE_LEN samples instead of
+    // switching hard (which was an audible discontinuity a moment after entry).
+    static constexpr int DELAY_FADE_LEN = 256;
+    int  delayFadeIn = 0;
+    bool delayReadyPrev = false;
+    int32_t posSmooth  = 0;   // smoothed delay knob position (<<7), exp domain
+    int32_t posSmooth2 = 0;   // 2nd cascaded pole -> S-curve (eased pitch glide)
     bool checkZero = false;
     int64_t phaseL = 0;
     int64_t phaseR = 0;
@@ -928,6 +1049,20 @@ private:
     int32_t seekTargetR = 0;
     int32_t seekBufBaseL = 0;     // absolute sample of seek buffer index 0 (per ch)
     int32_t seekBufBaseR = 0;
+
+    // MLRws-style record-transition crossfades (real two-stream overlaps, not a
+    // held value). Entering RECORD: the loop/delay being left is about to be
+    // erased, so a rolling capture of recent OUTPUT is replayed newest->oldest
+    // (continuous with the last sample) and faded out under the rising live-input
+    // monitor. Exiting RECORD->PLAY: the live monitor keeps running (fading out)
+    // and is crossfaded into the pre-decoded loop start through the seek engine.
+    int16_t  recTailL[XF_LEN];
+    int16_t  recTailR[XF_LEN];
+    uint16_t recTailW  = 0;      // next capture slot (== oldest sample once full)
+    int      recInXf   = 0;      // >0: entering-RECORD crossfade in progress
+    uint16_t recInBase = 0;      // recTailW snapshot at RECORD entry
+    bool     recExitPending = false; // left RECORD: monitor until the flush ends
+    bool     recExitFade    = false; // seek crossfade uses the live monitor as "old"
 
     // Gated record (DELAY mode with a plug in Pulse 2): monitor the input, record
     // while the Pulse 2 gate is high, hand off to PLAY on the falling edge.

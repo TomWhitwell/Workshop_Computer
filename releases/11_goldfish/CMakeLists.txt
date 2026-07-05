@@ -31,6 +31,13 @@ target_sources(goldfish PUBLIC
 target_compile_definitions(goldfish PRIVATE PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
 pico_enable_stdio_usb(goldfish 0)
 
+# Diagnostics/instrumentation (timing counters read via GDB) are compiled out of
+# release builds. Configure with -DGOLDFISH_DEBUG=ON to build an instrumented image.
+option(GOLDFISH_DEBUG "Enable Goldfish diagnostics/instrumentation" OFF)
+if(GOLDFISH_DEBUG)
+    target_compile_definitions(goldfish PRIVATE GOLDFISH_DEBUG=1)
+endif()
+
 # Run the whole image from RAM: goldfish writes flash during operation, so no
 # code (incl. SDK divider/float routines) may be fetched from flash while core 1
 # is mid-erase. Matches MLRws.

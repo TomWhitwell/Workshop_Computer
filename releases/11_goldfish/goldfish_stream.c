@@ -5,6 +5,7 @@
  */
 
 #include "goldfish_stream.h"
+#include "goldfish_debug.h"
 #include "flash_size.h"
 #include "adpcm.h"
 
@@ -68,11 +69,13 @@ static goldfish_page_t   s_page_ring[GOLDFISH_PAGE_RING_COUNT];
 static volatile uint32_t s_page_w; /* producer index (core 0) */
 static volatile uint32_t s_page_r; /* consumer index (core 1) */
 
-/* CV page ring. CV is decimated (one byte per GOLDFISH_CV_DECIM samples) so its
- * pages fill ~4x more rarely and never coincided with the stall in profiling;
- * it keeps the simple accumulate-then-copy path on its own small ring. */
+/* CV page ring. CV is decimated (one byte per GOLDFISH_CV_DECIM samples) so a
+ * page fills every 256*GOLDFISH_CV_DECIM samples (~43ms at 24kHz). It is drained
+ * only in the post-erase pass, so it must be deep enough to hold every page that
+ * fills during the longest erase block - the ~268ms multi-sector erase at
+ * DELAY/record entry (~6-7 pages) plus margin. 16 pages ~= 680ms. Power of two. */
 #ifndef GOLDFISH_CV_RING_COUNT
-#define GOLDFISH_CV_RING_COUNT 4u
+#define GOLDFISH_CV_RING_COUNT 16u
 #endif
 static goldfish_page_t   s_cv_ring[GOLDFISH_CV_RING_COUNT];
 static volatile uint32_t s_cv_ring_w;
@@ -116,6 +119,7 @@ static uint32_t s_keyframe_interval;
 static uint32_t s_kf_slots;          /* keyframe slots = capacity/interval (ring in continuous mode) */
 static bool     s_continuous;        /* DELAY: wrap region + never stop recording */
 
+#if GOLDFISH_DEBUG
 /* Diagnostics: max wall-time (us) spent in the record_sample encode loop vs CV
  * block, read via GDB. Localises the XIP-during-flash-write stall. */
 volatile uint32_t g_rec_loop_max;
@@ -130,6 +134,7 @@ volatile uint32_t g_loop_total_erasing;   /* of those, how many with g_erasing s
 volatile uint32_t g_slow_pagefill;        /* slow loops that did a page enqueue */
 volatile uint32_t g_slow_keyframe;        /* slow loops that wrote a keyframe (no fill) */
 volatile uint32_t g_slow_neither;         /* slow loops with neither */
+#endif
 
 /* Record state (core 0), shared across channels */
 static volatile bool s_rec_active;      /* cross-core: gates core1 erase-ahead */
@@ -143,12 +148,14 @@ static uint32_t     s_recorded_samples; /* readable length = min(channel flushed
 static uint32_t          s_cv_next_erase;
 static volatile uint32_t s_erase_count;
 
+#if GOLDFISH_DEBUG
 /* Diagnostics (read via debugger). */
 static volatile uint32_t s_page_drops;      /* enqueue overruns (ring full -> page lost) */
 static volatile uint32_t s_page_max;        /* peak ring occupancy (pages in flight) */
 static volatile uint32_t s_head_underruns;  /* head_read misses (window not filled) */
 volatile uint32_t g_play_maxstep;           /* peak ADPCM step_index during playback decode
                                              * (pegs near 88 on decoder desync = loud/distorted) */
+#endif
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
@@ -179,9 +186,9 @@ static inline const uint8_t *xip_ptr(uint32_t flash_off)
 static void flash_program_page(uint32_t off, const uint8_t *data)
 {
 	uint32_t ints = save_and_disable_interrupts();
-	g_erasing = 1u;
+	GF_DBG(g_erasing = 1u;)
 	flash_range_program(off, data, GOLDFISH_PAGE_SIZE);
-	g_erasing = 0u;
+	GF_DBG(g_erasing = 0u;)
 	restore_interrupts(ints);
 }
 
@@ -350,7 +357,7 @@ static void __not_in_flash_func(flash_erase_sector_suspend)(uint32_t off)
 	uint32_t ints = save_and_disable_interrupts();
 	s_rom_connect();
 	s_rom_exit_xip();
-	g_erasing = 1u;
+	GF_DBG(g_erasing = 1u;)
 
 	qspi_write_enable();
 	uint8_t er[4] = { 0x20u, (uint8_t)(off >> 16), (uint8_t)(off >> 8), (uint8_t)off };
@@ -407,7 +414,7 @@ static void __not_in_flash_func(flash_erase_sector_suspend)(uint32_t off)
 
 	s_rom_flush();
 	s_rom_enter_xip();
-	g_erasing = 0u;
+	GF_DBG(g_erasing = 0u;)
 	restore_interrupts(ints);
 	s_erase_count++;
 }
@@ -457,7 +464,7 @@ static void __not_in_flash_func(enqueue_cv_page)(uint32_t flash_off, const uint8
 {
 	uint32_t w = s_cv_ring_w;
 	if (w - s_cv_ring_r >= GOLDFISH_CV_RING_COUNT) {
-		s_page_drops++;
+		GF_DBG(s_page_drops++;)
 		return; /* overrun */
 	}
 	uint32_t slot = w & (GOLDFISH_CV_RING_COUNT - 1u);
@@ -579,7 +586,7 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t left, int16_t ri
 	bool     kf   = ((s_write_index & (s_keyframe_interval - 1u)) == 0u);
 	uint32_t slot = kf ? kf_slot(s_write_index / s_keyframe_interval) : 0u;
 
-	uint32_t _t_loop0 = timer_hw->timerawl;
+	GF_DBG(uint32_t _t_loop0 = timer_hw->timerawl;)
 	bool _filled = false;
 	/* Slots the two lock-step channels are currently filling (published together). */
 	goldfish_page_t *slotp[GOLDFISH_AUDIO_CHANNELS];
@@ -624,11 +631,13 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t left, int16_t ri
 		}
 		__dmb();
 		s_page_w += GOLDFISH_AUDIO_CHANNELS;
+		GF_DBG(
 		uint32_t used = s_page_w - s_page_r;
 		if (used > s_page_max) s_page_max = used;
-		if (used > GOLDFISH_PAGE_RING_COUNT) s_page_drops++; /* overrun (should not happen) */
+		if (used > GOLDFISH_PAGE_RING_COUNT) s_page_drops++;
+		)
 	}
-	{
+	GF_DBG({
 		uint32_t d = timer_hw->timerawl - _t_loop0;
 		if (d > g_rec_loop_max) { g_rec_loop_max = d; g_rec_loop_max_erasing = g_erasing; }
 		if (d > 8u) {
@@ -638,9 +647,9 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t left, int16_t ri
 			else g_slow_neither++;
 		}
 		g_loop_total++; if (g_erasing) g_loop_total_erasing++;
-	}
+	})
 
-	uint32_t _t_cv0 = timer_hw->timerawl;
+	GF_DBG(uint32_t _t_cv0 = timer_hw->timerawl;)
 	/* Store one mono decimated 8-bit CV byte per GOLDFISH_CV_DECIM audio samples. */
 	if ((s_write_index % GOLDFISH_CV_DECIM) == 0u) {
 		int16_t cc = cv;
@@ -654,7 +663,7 @@ bool __not_in_flash_func(goldfish_stream_record_sample)(int16_t left, int16_t ri
 			s_cv_fill = 0u;
 		}
 	}
-	{ uint32_t d = timer_hw->timerawl - _t_cv0; if (d > g_rec_cv_max) g_rec_cv_max = d; }
+	GF_DBG({ uint32_t d = timer_hw->timerawl - _t_cv0; if (d > g_rec_cv_max) g_rec_cv_max = d; })
 
 	s_write_index++;
 	return true;
@@ -933,7 +942,7 @@ int16_t __not_in_flash_func(goldfish_stream_head_read)(goldfish_head_t *h, uint3
 	if (sample_index >= lo && sample_index < hi) {
 		h->last = h->pcm[sample_index & GOLDFISH_RING_MASK];
 	} else {
-		s_head_underruns++;
+		GF_DBG(s_head_underruns++;)
 	}
 	/* else: underrun — hold last good sample until core 1 catches up. */
 	return h->last;
@@ -1000,7 +1009,7 @@ static void head_refill(goldfish_head_t *h)
 			uint8_t nyb  = (idx & 1u) ? (uint8_t)((byte >> 4) & 0x0Fu)
 			                          : (uint8_t)(byte & 0x0Fu);
 			h->pcm[idx & GOLDFISH_RING_MASK] = adpcm_decode(nyb, &st);
-			if ((uint32_t)st.step_index > g_play_maxstep) g_play_maxstep = (uint32_t)st.step_index;
+			GF_DBG(if ((uint32_t)st.step_index > g_play_maxstep) g_play_maxstep = (uint32_t)st.step_index;)
 			h->fill_next++;
 			__dmb();
 			h->hi = h->fill_next;
