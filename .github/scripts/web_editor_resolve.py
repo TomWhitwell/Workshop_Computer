@@ -27,6 +27,24 @@ def _normalize_info(data):
     return {_key(k): v for k, v in data.items()}
 
 
+def normalize_card_info(data):
+    """Flatten info.yaml to canonical lowercase keys (mirrors sitegen + metadata block)."""
+    if not data or not isinstance(data, dict):
+        return {}
+    out = _normalize_info(data)
+    meta = out.get('metadata')
+    if isinstance(meta, dict):
+        for k, v in _normalize_info(meta).items():
+            if k not in out or out[k] in (None, ''):
+                out[k] = v
+    if not out.get('editor'):
+        for alias in ('editorurl', 'editor_url'):
+            if out.get(alias):
+                out['editor'] = out[alias]
+                break
+    return out
+
+
 def _is_url(s):
     return bool(re.match(r'^https?://', str(s or '').strip(), re.I))
 
@@ -51,19 +69,15 @@ def _local_url(card_path, slug, rel_folder, web_entry, pages_base):
 
 
 def _editor_from_data(data):
-    """Raw Editor value from info.yaml (any key casing)."""
-    if not data:
-        return ''
-    for key, val in data.items():
-        if _key(key) == 'editor':
-            return str(val or '').strip()
-    return ''
+    """Raw Editor value from info.yaml (any key casing, including metadata.editor_url)."""
+    info = normalize_card_info(data)
+    return str(info.get('editor') or '').strip()
 
 
 def resolve_editor_url(folder_name, card_path, data, pages_base=None):
     """Return editor URL for sitegen (external, local path, or auto web/)."""
     pages_base = pages_base or DEFAULT_PAGES_BASE
-    info = _normalize_info(data)
+    info = normalize_card_info(data)
     slug = slugify(folder_name)
     editor = str(info.get('editor') or '').strip()
     web_entry = str(info.get('webentry') or '').strip()
@@ -88,4 +102,10 @@ def readme_editor_url(folder_name, card_path, data, pages_base=None):
         return ''
     if editor and _is_url(editor):
         return editor
+    if editor and not _is_url(editor):
+        editor_path = os.path.normpath(os.path.join(card_path, editor))
+        if os.path.isfile(editor_path):
+            repo = os.environ.get('GITHUB_REPOSITORY', 'TomWhitwell/Workshop_Computer')
+            rel = os.path.relpath(editor_path, '.').replace(os.sep, '/')
+            return f'https://github.com/{repo}/blob/main/{rel}'
     return resolve_editor_url(folder_name, card_path, data, pages_base)
