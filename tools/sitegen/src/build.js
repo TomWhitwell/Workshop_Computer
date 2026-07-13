@@ -262,14 +262,18 @@ async function build() {
   await writeFileEnsured(path.join(OUT_DIR, 'index.html'), indexHtml);
 
   for (const rel of releases) {
-    const base = path.join(OUT_DIR, 'programs', rel.slug);
-    await ensureDir(base);
-    const html = detailPage(rel);
-    await writeFileEnsured(path.join(base, 'index.html'), html);
+    try {
+      const base = path.join(OUT_DIR, 'programs', rel.slug);
+      await ensureDir(base);
+      const html = detailPage(rel);
+      await writeFileEnsured(path.join(base, 'index.html'), html);
 
-    if (rel.web?.copySrc) {
-      const webDest = path.join(base, rel.web.siteSubdir || 'web');
-      await copyWebAssets(rel.web.copySrc, webDest);
+      if (rel.web?.copySrc) {
+        const webDest = path.join(base, rel.web.siteSubdir || 'web');
+        await copyWebAssets(rel.web.copySrc, webDest);
+      }
+    } catch (err) {
+      console.warn(`Card '${rel.slug}' failed due to: ${err.message}`);
     }
   }
 
