@@ -165,7 +165,7 @@ LEDs:
 
 ## Web MIDI editor
 
-[Launch the hosted Fr330hfr33 editor](https://soveda.github.io/303bass/web_config/Fr330hfr33.html)
+[Launch the hosted Fr330hfr33 editor](https://tomwhitwell.github.io/Workshop_Computer/programs/87-fr330hfr33/web/index.html)
 
 Use Chrome or Edge with Web MIDI and SysEx enabled. Connect with a USB-C data
 cable, close other applications using the MIDI port, select **Fr330hfr33**, and
@@ -174,13 +174,13 @@ press **Apply**.
 To serve the editor locally:
 
 ```sh
-python3 -m http.server 5173 --directory web_config
+python3 -m http.server 5173 --directory web
 ```
 
 Then open:
 
 ```text
-http://localhost:5173/Fr330hfr33.html
+http://localhost:5173
 ```
 
 ## Building

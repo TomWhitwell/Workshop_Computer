@@ -83,7 +83,7 @@ knob is swept through the current setting.
 Hosted editor:
 
 ```text
-https://soveda.github.io/CozmikC1zzl3/web-midi/editor/
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
 ```
 
 Use Chrome or another browser with Web MIDI and SysEx support. Press `MIDI`,

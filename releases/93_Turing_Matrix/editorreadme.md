@@ -45,7 +45,7 @@ The Turing Matrix editor and card build on ideas and code from **Tom Whitwell** 
 
 The GitHub Pages editor is here:
 
-`https://soveda.github.io/Turing_Matrix_Editor/web`
+`https://tomwhitwell.github.io/Workshop_Computer/programs/93-turing-matrix/web/index.html`
 
 ## Files
 

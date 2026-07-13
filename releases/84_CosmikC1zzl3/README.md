@@ -95,13 +95,13 @@ takes over again.
 Hosted editor:
 
 ```text
-https://soveda.github.io/CozmikC1zzl3/web-midi/editor/
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
 ```
 
 Local editor from this release folder:
 
 ```sh
-python3 -m http.server 5173 --directory editor
+python3 -m http.server 5173 --directory web
 ```
 
 Open:
@@ -117,12 +117,13 @@ Use Chrome or another browser with Web MIDI and SysEx support.
 Hosted import lab:
 
 ```text
-https://soveda.github.io/CozmikC1zzl3/experiments/cz-import/
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/index.html
 ```
 
-This release folder does not include the Import Lab files locally. Use the
-hosted page to decode Casio CZ `.syx` patches into C1ZZL3 drafts, then open the
-result in Envelope Lab for final editing and sending.
+The Import Lab is included at `web/import/index.html`. It decodes Casio CZ
+`.syx` patches into C1ZZL3 drafts, then hands the result to Envelope Lab for
+final editing and sending. The navigation buttons at the top of both pages
+switch between the two labs.
 
 Current Import Lab features:
 

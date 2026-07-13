@@ -56,10 +56,10 @@ LED 6 marks custom slots; LEDs 1-3 show custom slot number.
 Web MIDI
 --------
 Hosted editor:
-https://soveda.github.io/CozmikC1zzl3/web-midi/editor/
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
 
 Run editor:
-python3 -m http.server 5173 --directory web-midi/editor
+python3 -m http.server 5173 --directory web
 
 Open:
 http://localhost:5173

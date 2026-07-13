@@ -141,8 +141,8 @@ metadata:
   version: 1.1
   status: Released
   license: MIT
-  editor_url: https://soveda.github.io/CozmikC1zzl3/web-midi/editor/
-  editor_note: Configure this card in your browser; use the hosted C1ZZL3 Import Lab for CZ patch translation.
+  editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
+  editor_note: Configure this card in Envelope Lab; use web/import/index.html for CZ patch translation.
 documentation:
   intro: >
     Phase-distortion synth card with Turing machine mode, USB MIDI, and browser

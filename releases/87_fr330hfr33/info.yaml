@@ -114,7 +114,7 @@ notes:
   - "Hardware testing confirms that RAT-style and Tube Screamer-style clipping sound clearly different with the saw but can sound similar with the square. The square is already a two-level, rail-shaped waveform, so additional symmetrical clipping changes its level more than its shape; both tone controls remain active."
   - "The default sequencer base is MIDI note 36 (C2); the editor can select C1, C2, C3, or C4 before root-note transposition."
   - "The note generator remembers recent scale positions to reduce repetition while retaining occasional melodic and octave jumps."
-  - "Open web_config/Fr330hfr33.html in Chrome or Edge, connect to the Fr330hfr33 MIDI output, then use Apply to send settings."
+  - "Open web/index.html in Chrome or Edge, connect to the Fr330hfr33 MIDI output, then use Apply to send settings."
   - "Editor settings and four pattern slots persist across power cycles."
   - "MIDI velocity 112-127 produces an accent."
   - "Each articulated note fires a decaying filter contour; accent pushes that contour much harder and adds post-filter gain for a brighter, louder, punchier note."
@@ -131,7 +131,7 @@ source:
   - computercard.h
   - usb_descriptors.c
   - tusb_config.h
-  - web_config/Fr330hfr33.html
+  - web/index.html
   - README.md
 slug: fr330hfr33
 url: /workshopsystem/program-cards/fr330hfr33/
@@ -168,4 +168,4 @@ metadata:
   language: Pico SDK
   version: 0.9.3
   status: Stable
-  editor_url: web_config/Fr330hfr33.html
+  editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/87-fr330hfr33/web/index.html

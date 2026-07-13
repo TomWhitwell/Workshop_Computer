@@ -72,7 +72,7 @@ let envelopeReadSession = null;
 let envelopeReadTimer = null;
 let envelopeReadSupported = null;
 const CZ_IMPORT_HANDOFF_KEY = "c1zzl3-cz-import-draft";
-const HOSTED_EDITOR_URL = "https://soveda.github.io/CozmikC1zzl3/web-midi/editor/index.html";
+const HOSTED_EDITOR_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html";
 let messageImportedDraft = null;
 const WAVE_FAMILIES = [
   "Saw",

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>C1ZZL3 Import Lab</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="hero-copy">
+        <p class="eyebrow">Import Workflow</p>
+        <h1>C1ZZL3 Import Lab</h1>
+        <p class="top-note">
+          Bring in a Casio CZ SysEx patch, translate it into a C1ZZL3 draft,
+          and then move into Envelope Lab for the final review and send stage.
+        </p>
+        <div class="hero-panels">
+          <div class="hero-panel">
+            <span class="hero-label">What it does</span>
+            <strong>Decodes CZ patch data into a browser draft</strong>
+            <p>Wave family, amplitude envelope, PD envelope, and performance values are mapped into a C1ZZL3 starting point.</p>
+          </div>
+          <div class="hero-panel">
+            <span class="hero-label">How to use it</span>
+            <strong>Import here, refine in Envelope Lab</strong>
+            <p>Choose or drop a `.syx` file, inspect the draft, then open the result in Envelope Lab for editing and card transfer.</p>
+          </div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="themeToggle" type="button" role="switch" aria-checked="false" title="Toggle light mode">Dark</button>
+        <a class="pill pill-link" href="../index.html">Envelope Lab</a>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <article class="card">
+        <div class="card-head">
+          <h2>Import</h2>
+          <span class="meta">Select a CZ `.syx` file</span>
+        </div>
+        <div class="card-body stack">
+          <label class="dropzone" for="czFile">
+            <div>
+              <strong>Drop a Casio CZ patch here</strong>
+              <div>Or choose a `.syx` file to validate and turn into a draft</div>
+            </div>
+          </label>
+          <input id="czFile" type="file" accept=".syx,.mid,.sysex,application/octet-stream">
+          <div id="importStatus" class="status-chip">Waiting for a file</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Validation</label>
+              <div id="validationBox" class="value-box">Waiting for file</div>
+            </div>
+            <div class="field">
+              <label>Patch type</label>
+              <div id="patchTypeBox" class="value-box">No patch loaded</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>File summary</label>
+            <div id="summaryBox" class="value-box">Name, size, and patch confidence will appear here.</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h2>Summary</h2>
+          <span class="meta">What the browser found</span>
+        </div>
+        <div class="card-body stack">
+          <div class="field">
+            <label>Decoded patch</label>
+            <div id="decodedPatchBox" class="value-box">No decoded patch yet.</div>
+          </div>
+          <div class="field">
+            <label>Mapped draft</label>
+            <div id="mappedDraftBox" class="value-box">Amplitude, PD, and 8-wave family mapping will be previewed here.</div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Confidence</label>
+              <div id="confidenceBox" class="value-box">High / Medium / Low</div>
+            </div>
+            <div class="field">
+              <label>Supported output</label>
+              <div id="supportedOutputBox" class="value-box">Draft preset for Envelope Lab</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Draft preset name</label>
+            <div id="draftNameBox" class="value-box">No draft created yet.</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h2>Decoded Data</h2>
+          <span class="meta">Detailed readout</span>
+        </div>
+        <div class="card-body">
+          <pre id="decodedBox">Raw parameter bytes, interpreted envelopes, waveform family, and unsupported features will appear here.</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h2>Warnings</h2>
+          <span class="meta">What may not translate cleanly</span>
+        </div>
+        <div class="card-body">
+          <ul>
+            <li>Waveform behavior is approximate.</li>
+            <li>Pitch envelope may be simplified or ignored.</li>
+            <li>Dual-oscillator structure may not map exactly.</li>
+            <li>Modulation details may be dropped in the first pass.</li>
+            <li>Only files that pass the CZ frame checks are treated as draft candidates.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h2>Draft Mapping</h2>
+          <span class="meta">C1ZZL3 values</span>
+        </div>
+        <div class="card-body stack">
+          <div class="grid-2">
+            <div class="field">
+              <label>Wave family start</label>
+              <div id="waveBox" class="value-box">No draft yet.</div>
+            </div>
+            <div class="field">
+              <label>Performance defaults</label>
+              <div id="perfBox" class="value-box">No draft yet.</div>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Amplitude envelope</label>
+              <pre id="ampDraftBox">No draft yet.</pre>
+            </div>
+            <div class="field">
+              <label>Phase distortion envelope</label>
+              <pre id="pdDraftBox">No draft yet.</pre>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card full-span">
+        <div class="card-head">
+          <h2>Next Step</h2>
+          <span class="meta">Send the decoded draft into Envelope Lab for final editing</span>
+        </div>
+        <div class="card-body stack">
+          <div class="top-actions start">
+            <button id="openDraft" class="primary" type="button">Open In Envelope Lab</button>
+          </div>
+          <div class="banner">
+            <strong>Note:</strong>
+            <span>This page only decodes the CZ patch and prepares a draft. Use Envelope Lab to review it and send it to the card.</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="footer">
+      Import Lab prepares the draft. Envelope Lab is where you edit, audition, and send it.
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -9,7 +9,7 @@ Turing Matrix Card Quickstart
 7. Open the web editor in Chrome if you want to change saved settings.
 
 Web editor:
-https://soveda.github.io/Turing_Matrix_Editor/web
+https://tomwhitwell.github.io/Workshop_Computer/programs/93-turing-matrix/web/index.html
 
 Notes:
 - Z middle: Random / Write, Loop Length, Div / Mult
