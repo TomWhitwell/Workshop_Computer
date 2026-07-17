@@ -1,16 +1,18 @@
 id: 84_CosmikC1zzl3
 title: Cosmik C1ZZL3
 draft: false
-release: 84 / 1.1
-date: 2026-06-24
+release: 84 / 1.3
+date: 2026-07-17
 summary: >-
-  Stable phase-distortion synthesiser and Turing machine firmware with Web MIDI
-  envelope readback, PD, detune, eight waveform families, hosted CZ patch
-  import, USB MIDI device/host operation, and optional Turing MIDI output.
+  Stable phase-distortion synthesiser and Turing machine firmware with gate-held
+  looping Web MIDI envelopes, envelope readback, PD, detune, eight waveform
+  families, hosted CZ patch import, USB MIDI device/host operation, and optional
+  Turing MIDI output.
 description: >-
-  Stable phase-distortion synthesiser and Turing machine firmware with Web MIDI
-  envelope readback, PD, detune, eight waveform families, hosted CZ patch
-  import, USB MIDI device/host operation, and optional Turing MIDI output.
+  Stable phase-distortion synthesiser and Turing machine firmware with gate-held
+  looping Web MIDI envelopes, envelope readback, PD, detune, eight waveform
+  families, hosted CZ patch import, USB MIDI device/host operation, and optional
+  Turing MIDI output.
 panel:
   controls:
     main:
@@ -61,8 +63,8 @@ panel:
         Envelope
         Trig
       description: >-
-        Triggers selected envelope and oscillator sync in synth mode when preset is
-        active
+        Triggers selected envelope and oscillator sync in synth mode; held gates loop
+        supported envelopes and gate-off lets them complete
       source: info.yaml
   outputs:
     audio_out_l:
@@ -139,18 +141,20 @@ download_url: >-
 metadata:
   creator: Adrian Vos
   language: C++ (Pico SDK)
-  version: 1.1
+  version: 1.3
   status: Released
   license: MIT
   editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
   editor_note: Configure this card in Envelope Lab; use web/import/index.html for CZ patch translation.
 documentation:
   intro: >
-    Phase-distortion synth card with Turing machine mode, USB MIDI, and browser
-    editor tools.
+    Phase-distortion synth card with Turing machine mode, USB MIDI, browser
+    editor tools, CZ Import Lab handoff, gate-held envelope looping, natural
+    trigger completion, and audio smoothing for high-PD tones.
 
     Switch middle is PD synth mode (Main = pitch, X = phase distortion, Y = waveform
-    morph).
+    morph). Pulse In 2 and MIDI note-on loop supported envelopes while held;
+    gate/note-off lets the envelope complete naturally.
 
     Hold switch down from middle for performance edit (detune, ring modulation,
     noise/grit) and save.

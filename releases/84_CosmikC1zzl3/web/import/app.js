@@ -23,6 +23,8 @@ let currentDraft = null;
 let themeMode = loadThemeMode();
 const HANDOFF_KEY = "c1zzl3-cz-import-draft";
 const THEME_KEY = "c1zzl3-theme-mode";
+const LOCAL_EDITOR_URL = "../index.html";
+const HOSTED_EDITOR_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html";
 const ENVELOPE_LAB_WINDOW_NAME = "c1zzl3-envelope-lab";
 const WAVE_FAMILIES = [
   { label: "Saw", value: 0, hint: "lower CC23 range" },
@@ -36,6 +38,8 @@ const WAVE_FAMILIES = [
 ];
 const MIN_DECODED_PATCH_BYTES = 48;
 const MAX_DECODED_PATCH_BYTES = 512;
+const CZ_SEND_PATCH_COMMAND = 0x20;
+const CZ_REQUEST_PATCH_COMMAND = 0x10;
 
 function loadThemeMode() {
   try {
@@ -63,7 +67,9 @@ function renderThemeMode() {
 }
 
 function getEditorUrl() {
-  return new URL("../index.html", window.location.href).href;
+  const host = window.location.hostname;
+  const isLocalDev = host === "localhost" || host === "127.0.0.1" || host === "::1";
+  return isLocalDev ? LOCAL_EDITOR_URL : HOSTED_EDITOR_URL;
 }
 
 function setStatus(text, tone = "ok") {
@@ -92,15 +98,124 @@ function unpackNibbles(payload) {
   return bytes;
 }
 
-function summarizeDecodedBytes(bytes) {
+function isNibblePayload(payload) {
+  return Array.from(payload).every((b) => b >= 0 && b <= 15);
+}
+
+function commandName(command) {
+  if (command === CZ_SEND_PATCH_COMMAND) return "send patch data";
+  if (command === CZ_REQUEST_PATCH_COMMAND) return "request patch data";
+  return `unknown command 0x${command.toString(16).padStart(2, "0")}`;
+}
+
+function locationName(location) {
+  if (location === 0x60) return "current sound / edit buffer";
+  if (location >= 0x20 && location <= 0x2f) return `internal memory ${location - 0x1f}`;
+  if (location >= 0x00 && location <= 0x0f) return `preset memory ${location + 1}`;
+  if (location >= 0x40 && location <= 0x4f) return `cartridge memory ${location - 0x3f}`;
+  return `location 0x${location.toString(16).padStart(2, "0")}`;
+}
+
+function decodedLengthSupported(length) {
+  return length >= MIN_DECODED_PATCH_BYTES && length <= MAX_DECODED_PATCH_BYTES;
+}
+
+function analyzePayloadCandidate(frame, offset, label) {
+  const payload = frame.slice(offset, -1);
+  const nibblePayload = isNibblePayload(payload);
+  const evenNibbleCount = payload.length % 2 === 0;
+  const decodedBytes = nibblePayload ? unpackNibbles(payload) : [];
+  const decodedLengthOk = decodedLengthSupported(decodedBytes.length);
+
+  return {
+    offset,
+    label,
+    payload,
+    nibblePayload,
+    evenNibbleCount,
+    decodedBytes,
+    decodedLengthOk,
+    supported: nibblePayload && evenNibbleCount && decodedLengthOk
+  };
+}
+
+function analyzeCzFrame(frame) {
+  const manufacturer = frame[1];
+  const familyA = frame[2];
+  const familyB = frame[3];
+  const channelByte = frame[4];
+  const command = frame[5] ?? 0;
+  const location = frame[6] ?? 0;
+  const looksCasio = manufacturer === 0x44;
+  const looksCz =
+    looksCasio &&
+    familyA === 0x00 &&
+    familyB === 0x00 &&
+    channelByte >= 0x70 &&
+    channelByte <= 0x7f;
+  const channel = looksCz ? (channelByte - 0x70) + 1 : null;
+  const candidates = [];
+
+  if (frame.length > 9) {
+    candidates.push(analyzePayloadCandidate(frame, 9, "CZ-101/CZ-1000 style data after two send bytes"));
+  }
+  if (frame.length > 7) {
+    candidates.push(analyzePayloadCandidate(frame, 7, "short CZ send data after location byte"));
+  }
+
+  const preferred =
+    candidates.find((candidate) => command === CZ_SEND_PATCH_COMMAND && candidate.offset === 9 && candidate.supported) ||
+    candidates.find((candidate) => candidate.supported) ||
+    candidates[0] ||
+    analyzePayloadCandidate(frame, 7, "fallback data after location byte");
+
+  return {
+    manufacturer,
+    familyA,
+    familyB,
+    channelByte,
+    channel,
+    command,
+    location,
+    looksCasio,
+    looksCz,
+    commandSupported: command === CZ_SEND_PATCH_COMMAND,
+    candidates,
+    preferred,
+    headerBytes: Array.from(frame.slice(0, Math.min(frame.length, preferred.offset)))
+  };
+}
+
+function summarizeDecodedBytes(bytes, czInfo) {
   const header = bytes.slice(0, 16);
   const tail = bytes.slice(-16);
-  return [
+  const lines = [
     `Decoded bytes: ${bytes.length}`,
     `Head: ${toHex(header, 16)}`,
     `Tail: ${toHex(tail, 16)}`,
     `Non-zero count: ${bytes.filter((b) => b !== 0).length}`,
-  ].join("\n");
+  ];
+
+  if (czInfo) {
+    lines.unshift(
+      `CZ header bytes: ${toHex(czInfo.headerBytes, czInfo.headerBytes.length)}`,
+      `CZ channel: ${czInfo.channel ?? "not detected"}`,
+      `CZ command: ${commandName(czInfo.command)}`,
+      `CZ location: ${locationName(czInfo.location)}`,
+      `Patch data offset: ${czInfo.preferred.offset} (${czInfo.preferred.label})`
+    );
+
+    lines.push(
+      "",
+      "Payload candidates:",
+      ...czInfo.candidates.map((candidate) => {
+        const status = candidate.supported ? "usable" : "not selected";
+        return `- offset ${candidate.offset}: ${candidate.payload.length} payload bytes, ${candidate.decodedBytes.length} decoded bytes, ${status}`;
+      })
+    );
+  }
+
+  return lines.join("\n");
 }
 
 function clamp(value, min, max) {
@@ -166,17 +281,23 @@ function buildDraftPreset(decodedBytes, patchName) {
     .trim() || "Imported CZ patch";
 
   const wave = classifyWave(decodedBytes);
-  const amp = buildStagesFromBytes(decodedBytes, 0, 0, 140, 14000);
-  const pd = buildStagesFromBytes(decodedBytes, 16, 0, 120, 18000);
-  const detune = clamp(Math.round((decodedBytes[32] ?? 128) / 255 * 4095), 0, 4095);
-  const ring = clamp(Math.round((decodedBytes[33] ?? 0) / 255 * 1200), 0, 4095);
-  const noise = clamp(Math.round((decodedBytes[34] ?? 0) / 255 * 700), 0, 4095);
+  const pitchEnvelope = buildStagesFromBytes(decodedBytes, 0, 0, 120, 18000);
+  const dcwEnvelope = buildStagesFromBytes(decodedBytes, 16, 0, 120, 18000);
+  const ampEnvelope = buildStagesFromBytes(decodedBytes, 32, 0, 140, 14000);
+  const detune = clamp(Math.round((decodedBytes[48] ?? 128) / 255 * 4095), 0, 4095);
+  const ring = clamp(Math.round((decodedBytes[49] ?? 0) / 255 * 1200), 0, 4095);
+  const noise = clamp(Math.round((decodedBytes[50] ?? 0) / 255 * 700), 0, 4095);
 
   return {
     name: `${baseName} draft`,
     wave,
-    amp,
-    pd,
+    amp: ampEnvelope,
+    pd: dcwEnvelope,
+    sourceEnvelopes: {
+      pitch: pitchEnvelope,
+      dcw: dcwEnvelope,
+      amp: ampEnvelope
+    },
     performance: { detune, ring, noise },
     confidence: "medium"
   };
@@ -201,7 +322,7 @@ function renderDraft(draft) {
   }
 
   el.decodedPatchBox.textContent = `${draft.name} decoded and unpacked into a draft preset.`;
-  el.mappedDraftBox.textContent = `8-wave family ${draft.wave.label}, translated amplitude envelope, and translated phase distortion envelope are ready for review.`;
+  el.mappedDraftBox.textContent = `8-wave family ${draft.wave.label}, CZ DCW envelope -> C1ZZL3 phase distortion, and CZ amplitude envelope -> C1ZZL3 amplitude are ready for review. Pitch envelope is decoded but not assigned yet.`;
   el.confidenceBox.textContent = draft.confidence;
   el.supportedOutputBox.textContent = "Envelope Lab draft handoff";
   el.draftNameBox.textContent = `${draft.name} (${draft.confidence} confidence)`;
@@ -270,24 +391,25 @@ function decodePatch(buffer, fileName) {
     };
   }
 
-  const manufacturer = frame[1];
-  const deviceId = frame[2];
-  const modelBytes = Array.from(frame.slice(3, 7));
-  const payload = frame.slice(7, -1);
-  const nibblePayload = Array.from(payload).every((b) => b >= 0 && b <= 15);
-  const decodedBytes = nibblePayload ? unpackNibbles(payload) : [];
-  const evenNibbleCount = payload.length % 2 === 0;
-  const decodedLengthOk =
-    decodedBytes.length >= MIN_DECODED_PATCH_BYTES &&
-    decodedBytes.length <= MAX_DECODED_PATCH_BYTES;
-  const looksCasio = manufacturer === 0x44;
-  const supportedCandidate = looksCasio && nibblePayload && evenNibbleCount && decodedLengthOk;
+  const czInfo = analyzeCzFrame(frame);
+  const manufacturer = czInfo.manufacturer;
+  const payload = czInfo.preferred.payload;
+  const nibblePayload = czInfo.preferred.nibblePayload;
+  const decodedBytes = czInfo.preferred.decodedBytes;
+  const evenNibbleCount = czInfo.preferred.evenNibbleCount;
+  const decodedLengthOk = czInfo.preferred.decodedLengthOk;
+  const supportedCandidate =
+    czInfo.looksCz &&
+    czInfo.commandSupported &&
+    czInfo.preferred.supported;
   const patchName = fileName.replace(/\.(syx|mid|sysex)$/i, "");
   const confidence = supportedCandidate ? "medium" : "low";
   const draft = supportedCandidate ? buildDraftPreset(decodedBytes, patchName) : null;
 
   const validationReasons = [];
-  if (!looksCasio) validationReasons.push("manufacturer was not Casio `0x44`");
+  if (!czInfo.looksCasio) validationReasons.push("manufacturer was not Casio `0x44`");
+  if (czInfo.looksCasio && !czInfo.looksCz) validationReasons.push("header did not match the common CZ family form `F0 44 00 00 7n`");
+  if (czInfo.looksCz && !czInfo.commandSupported) validationReasons.push(`command was ${commandName(czInfo.command)}, not send patch data`);
   if (!nibblePayload) validationReasons.push("payload was not nibble-packed");
   if (nibblePayload && !evenNibbleCount) validationReasons.push("nibble payload length was uneven");
   if (nibblePayload && !decodedLengthOk) {
@@ -298,17 +420,20 @@ function decodePatch(buffer, fileName) {
     ok: supportedCandidate,
     tone: supportedCandidate ? "ok" : "warn",
     validation: supportedCandidate
-      ? `Casio-style nibble-packed patch candidate found (${frame.length} bytes, device id ${deviceId}).`
+      ? `Casio CZ ${commandName(czInfo.command)} frame found (${frame.length} bytes, ${locationName(czInfo.location)}, data offset ${czInfo.preferred.offset}).`
       : `This file does not look like a supported Casio CZ single-patch draft candidate: ${validationReasons.join("; ")}.`,
     patchType: supportedCandidate
-      ? "Casio CZ-style single-patch draft candidate"
+      ? "Casio CZ single-patch send frame"
       : "Unsupported or different synth family",
     summary: [
       `File: ${fileName}`,
       `Frame length: ${frame.length} bytes`,
       `Manufacturer: 0x${manufacturer.toString(16).padStart(2, "0")}`,
-      `Device ID: ${deviceId}`,
-      `Model bytes: ${modelBytes.map((b) => `0x${b.toString(16).padStart(2, "0")}`).join(" ")}`,
+      `CZ family bytes: 0x${czInfo.familyA.toString(16).padStart(2, "0")} 0x${czInfo.familyB.toString(16).padStart(2, "0")}`,
+      `MIDI channel byte: 0x${czInfo.channelByte.toString(16).padStart(2, "0")}${czInfo.channel ? ` (channel ${czInfo.channel})` : ""}`,
+      `Command: ${commandName(czInfo.command)}`,
+      `Location: ${locationName(czInfo.location)}`,
+      `Selected data offset: ${czInfo.preferred.offset}`,
       `Payload bytes: ${payload.length}`,
       `Nibble-packed payload: ${nibblePayload ? "yes" : "no"}`,
       `Even nibble count: ${evenNibbleCount ? "yes" : "no"}`,
@@ -317,7 +442,7 @@ function decodePatch(buffer, fileName) {
       `Confidence: ${confidence}`
     ].join("\n"),
     decoded: nibblePayload
-      ? summarizeDecodedBytes(decodedBytes)
+      ? summarizeDecodedBytes(decodedBytes, czInfo)
       : [
           "Payload was not nibble-packed.",
           `Raw frame head: ${toHex(frame, 24)}`,

@@ -23,7 +23,9 @@ Put the switch in the middle.
 - `Audio/CV In 1` adds pitch at 1V/oct.
 - `CV In 1` adds phase distortion.
 - `CV In 2` adds wave control.
-- `Pulse In 2` triggers the selected envelope and oscillator sync.
+- `Pulse In 2` triggers the selected envelope, loops supported envelopes while
+  the gate is high, exits the loop when the gate falls, and syncs the
+  oscillators.
 
 The Turing CV and pulse outputs continue running in synth mode, so they can be
 used while playing the synth.
@@ -78,7 +80,11 @@ MIDI CC controls on the selected input channel:
 Physical knobs use pickup after MIDI changes, so values do not jump until the
 knob is swept through the current setting.
 
-## Web MIDI Editor
+MIDI note-on behaves like a held gate. It triggers the selected envelope and
+keeps loop-capable envelopes cycling until MIDI note-off lets the envelope
+complete naturally.
+
+## Envelope Lab
 
 Hosted editor:
 
@@ -94,7 +100,7 @@ choose the C1ZZL3 output, then:
 3. Drag points on the graph to change both level and timing.
 4. Watch the point numbers. Matching numbers mean the stages are stacked at the same spot.
 5. Use the tables below the graph for exact values when you want precise edits.
-6. Use the action buttons on the right when you want to send, save, read, or export.
+6. Use the action buttons on the right when you want to send, save, read, or reset.
 
 Button quick reference:
 
@@ -106,7 +112,6 @@ Button quick reference:
 - `Read Envelopes from Card` to load saved card envelopes into the editor.
 - `Read Settings from Card` to load the current card settings into the editor.
 - `Send Settings` to send performance settings until reset.
-- `Export JSON` to download all editor presets.
 - `Reset Preset` to restore the selected preset to its factory value.
 
 The card can save up to eight custom envelopes. Factory presets are not
