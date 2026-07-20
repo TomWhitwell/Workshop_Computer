@@ -46,7 +46,7 @@ panel:
     - id: PulseIn1
       name: External Clock
       type: pulse
-      description: One step per rising edge, overrides the internal tempo
+      description: One step per rising edge, overrides the internal tempo. When connected, X selects Pulse Out 1 clock division from /1 (CCW) through /8 (CW); the divided pulse fires on pattern steps 0, N, 2N, etc.
     - id: PulseIn2
       name: Reset
       type: pulse
@@ -71,11 +71,11 @@ panel:
     - id: PulseOut1
       name: Clock
       type: pulse
-      description: Internal clock pulses, or the external clock when Pulse In 1 is connected
+      description: Internal clock pulses, or a divided external clock when Pulse In 1 is connected. X selects /1 through /8; output pulses are phase-locked to pattern steps 0, N, 2N, etc., and Y sets the pulse width up to almost the full divided interval.
     - id: PulseOut2
       name: Accent Trigger
       type: pulse
-      description: ~2ms trigger on accented steps
+      description: ~2ms trigger on accented steps. With Pulse In 1 connected, Y sets the gate width from the short trigger up to almost the external clock period.
 
 controls:
   switch:
@@ -95,17 +95,17 @@ controls:
         description: Sequence length, 1-16 steps
       x:
         name: Swing
-        description: Swing amount from 0% to ~33%
+        description: Swing amount from 0% to ~33%; with Pulse In 1 connected, selects Pulse Out 1 division /1 to /8
       y:
         name: Tempo
-        description: Internal tempo
+        description: Internal tempo; with Pulse In 1 connected, sets Pulse Out 1 and Pulse Out 2 gate width
     - when: { z: middle }
       main:
         name: Note
         description: Semitone within the octave (0-11) for the step under the cursor
       x:
         name: Octave
-        description: Octave offset (-2..+2) for the step under the cursor
+        description: Octave offset (-1..+1, 0 = default) for the step under the cursor
       y:
         name: Step Mode
         description: Step type for the step under the cursor - rest / normal / accent / slide

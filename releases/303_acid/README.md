@@ -10,12 +10,16 @@ The sequencer reuses the core of Moses Hoyt's
 [drumdrum](../33_drumdrum/) card — its tempo curve, clock/reset handling, knob pickup,
 momentary-switch timing and calibrated 1V/oct pitch output.
 
+## Tutorial
+
+[Tutorial walkthrough video](https://youtu.be/tm398GD3ePs)
+
 ## Controls
 
 | Switch | Main knob | X knob | Y knob |
 |---|---|---|---|
 | **Up** (play) | Sequence length (1–16) | Swing (0–33%) | Tempo |
-| **Middle** (edit) | Note within octave (semitone, 0–11) | Octave (-2..+2) | Step mode (rest / normal / accent / slide) |
+| **Middle** (edit) | Note within octave (semitone, 0–11) | Octave (-1..+1, 0 = default) | Step mode (rest / normal / accent / slide) |
 | **Down** (short flick) | Advance the edit cursor to the next step | | |
 | **Down** (hold ≥1s) | Change reset mode | Randomise pitches (large turn) | Randomise step types (large turn) |
 
@@ -44,14 +48,19 @@ program it:
 
 | Y position | Mode | Gate | LED 4 | LED 5 |
 |---|---|---|---|---|
-| Full CCW (0–25%) | **Rest** | none | ● | ● |
-| Centre-left (25–50%) | **Normal** | ~2 ms trigger | ○ | ○ |
-| Centre-right (50–75%) | **Accent** | ~2 ms trigger + accent CV/trigger | ● | ○ |
-| Full CW (75–100%) | **Slide** | held full step length (legato) | ○ | ● |
+| Full CCW (0–20%) | **Rest** | none | off | off |
+| 20–40% | **Normal** | ~2 ms trigger | half | off |
+| 40–60% | **Accent** | ~2 ms trigger + accent CV/trigger | full | off |
+| 60–80% | **Slide** | held full step length (legato) | half | full |
+| Full CW (80–100%) | **Accent + Slide** | held full step length + accent CV/trigger | full | full |
+
+LED 4 tracks "note level" (off = rest, half = normal, full = accented) and LED 5 is the
+slide flag (off/full) — so all five step types read as a distinct brightness combination.
 
 - **Rest**: no gate output.
 - **Accent**: CV Out 2 goes high, Pulse Out 2 fires a ~2 ms trigger.
 - **Slide**: the gate stays high for the entire step duration. CV Out 1 pitch/Audio Out 1 sawtooth slides to next step pitch value on the subsequent step.
+- **Accent + Slide**: combines both — the gate is held for the full step (legato slide) while also driving CV Out 2 and Pulse Out 2's accent trigger.
 
 ### Play mode
 
@@ -63,6 +72,25 @@ When the Z switch is in the up position the sequence runs, looping the active st
 - **Y** sets the internal tempo (overridden when a clock is patched to Pulse In 1).
 - **CV In 1** transposes the whole pattern — ±2V gives the full ±12 semitones (tuned to roughly match
   the range of the Four Voltages module), voltage beyond ±2V loops back through the range.
+
+#### Play mode, external clock connected (Pulse In 1 patched)
+
+Patching a clock into Pulse In 1 changes the behaviour of the X and Y knobs to now shape the 
+Pulse Out 1/2 clock output instead of swing/tempo:
+
+- **X** — Clock output division: pickup behavior. Divides the Pulse Out 1 clock output:
+  /1 (CCW), /2, /3, /4, /5, /6, /7, /8 (CW). The divided pulse always fires on pattern
+  step 0 and every Nth step after it (steps 0, N, 2N, ... — e.g. 0, 4, 8, 12 for /4), so
+  it's locked to the pattern's own loop start rather than free-running.
+- **Y** — Pulse width: pickup behavior. Sets the gate width of Pulse Out 2 (accent
+  trigger), from the default short trigger (CCW) up to a longer sustained gate (almost
+  full step duration, CW). Pulse Out 1's gate width scales the same way but relative to
+  the divided step interval — at full CW with a /4 division, the gate spans almost the
+  entire 4-step interval rather than just one step.
+
+Unplugging the clock hands X and Y back to swing/tempo. Whatever clock division and pulse
+width you'd dialled in are kept and remain active for the clock and accent outputs while
+the internal clock runs, and come back as soon as you patch a clock in again.
 
 #### Play Mode LEDs
 
@@ -79,9 +107,10 @@ during playback they can behave as two independent sequences:
 
 - **Audio In 1** phase-shifts the pitch sequence's read position, up to 15 steps ahead
   on +2V, up to 15 steps behind on -2V (0V/unplugged = no shift), looping back through
-  the range beyond ±2V.
+  all 16 programmed steps, even when the play length is truncated; voltages beyond ±2V
+  continue looping through that range.
 - **Audio In 2** does the same for the step-type sequence (rest/normal/accent/slide),
-  independently of the pitch shift.
+  independently of the pitch shift, also across all 16 programmed steps.
 - The result: patch a Four Voltages output to shift the pitch or step type for pattern variation.
 
 ### Portamento (slide)
@@ -129,8 +158,8 @@ Release the switch to exit the menu and resume normal operation. A rising edge o
 | **CV Out 2** | Accent CV — ~5V on accented steps, 0V otherwise |
 | **Pulse In 1** | External clock — one step per rising edge, overrides the internal tempo |
 | **Pulse In 2** | Reset — behaviour set by the reset-mode config menu |
-| **Pulse Out 1** | Clock — internal clock pulses, or the external clock mirrored straight through when Pulse In 1 is connected |
-| **Pulse Out 2** | Accent trigger — ~2 ms on accented steps |
+| **Pulse Out 1** | Clock — internal clock pulses, or a divided/width-adjustable copy of the external clock (X/Y, see Play mode above) when Pulse In 1 is connected |
+| **Pulse Out 2** | Accent trigger — ~2 ms on accented steps, width-adjustable via Y when Pulse In 1 is connected |
 
 ## Patch starters
 
