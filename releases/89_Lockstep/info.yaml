@@ -1,0 +1,95 @@
+draft: true
+Name: Lockstep
+Description: Dual quantized pitch-mover — two CV outs walk together through a scale to drive two oscillators in parallel
+Language: C++ (Pico SDK)
+Creator: Jason Moore
+Version: 1.0
+Status: Draft
+License: MIT
+date: 2026-07-16
+
+summary: |
+  Two CV outputs wander together through a scale (parallel motion): you tune two
+  oscillators by hand to set the interval and the card moves them in lockstep, clocked
+  and quantized. X sets how often it moves (clock division when clocked, internal rate
+  when free), Y sets how far (frozen single note up to +/- one octave). Switch DOWN
+  (momentary) selects the scale via the Main knob; UP freezes the current pitches;
+  MIDDLE runs. Main knob is a resonant low-pass filter processing the two oscillators
+  returned through Audio In 1/2, out Audio Out 1/2. Pulse In 1 clocks it, Pulse In 2
+  re-seeds. The walk is centered high and floored so the pitch CV never goes negative.
+
+panel:
+  inputs:
+    - id: PulseIn1
+      name: Clock
+      description: Rising edge advances the walk (divided by X); internal clock when unpatched
+    - id: PulseIn2
+      name: Re-seed
+      description: Rising edge jumps the walk to a fresh pattern
+    - id: AudioIn1
+      name: Oscillator A Return
+      description: Oscillator A fed back in for filtering
+    - id: AudioIn2
+      name: Oscillator B Return
+      description: Oscillator B fed back in for filtering
+    - id: CVIn1
+      name: Unused
+      description: Not used in this version
+    - id: CVIn2
+      name: Unused
+      description: Not used in this version
+  outputs:
+    - id: CVOut1
+      name: Voice A Pitch
+      description: Quantized V/Oct pitch CV for oscillator A
+    - id: CVOut2
+      name: Voice B Pitch
+      description: Quantized V/Oct pitch CV for oscillator B (parallel, identical walk)
+    - id: PulseOut1
+      name: Voice A Gate
+      description: 10 ms gate on each note change for voice A
+    - id: PulseOut2
+      name: Voice B Gate
+      description: 10 ms gate on each note change for voice B
+    - id: AudioOut1
+      name: Voice A Filtered
+      description: Oscillator A through the resonant low-pass
+    - id: AudioOut2
+      name: Voice B Filtered
+      description: Oscillator B through the resonant low-pass
+
+controls:
+  knobs:
+    - when: { z: any }
+      main:
+        name: Filter Cutoff / Scale Select
+        description: Resonant low-pass cutoff for the returned oscillators; selects the scale while switch is held DOWN
+      x:
+        name: Movement Rate
+        description: Clock division when clocked, internal rate when free-running
+      y:
+        name: Movement Range
+        description: How far the walk wanders, from a single held note to plus/minus one octave
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Position / Scale bit 0
+          description: Walk position bar in Run; scale-index bit while selecting
+        - id: LED1
+          name: Position / Scale bit 1
+          description: Walk position bar in Run; scale-index bit while selecting
+        - id: LED2
+          name: Position / Scale bit 2
+          description: Walk position bar in Run; scale-index bit while selecting
+        - id: LED3
+          name: Position / Scale bit 3
+          description: Walk position bar in Run; scale-index bit while selecting
+        - id: LED4
+          name: Position / Scale bit 4
+          description: Walk position bar in Run; scale-index bit while selecting
+        - id: LED5
+          name: Position / Scale bit 5
+          description: Walk position bar in Run; scale-index bit while selecting
