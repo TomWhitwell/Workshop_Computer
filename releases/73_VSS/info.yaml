@@ -1,0 +1,106 @@
+draft: true
+Name: VSS
+Description: 6-voice polyphonic µ-law sampler inspired by the Yamaha VSS-30
+Language: C++ (ComputerCard)
+Creator: "@kjnilsson"
+Version: 1.0.0
+Status: Released
+Repository: https://github.com/kjnilsson/ws
+date: 2025-10-02
+
+tags:
+  - sampler
+  - polyphonic
+  - midi-host
+  - effect
+
+summary: |
+  6-voice polyphonic sampler inspired by the Yamaha VSS-30. Record any audio source at 24 kHz µ-law
+  (up to 6 s, 6 independent flash-saved banks), then play it back chromatically over USB MIDI with
+  looping, ADSR envelope shaping, per-voice vibrato, a tape-style echo, an arpeggiator, and a built-in
+  tuner.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Sample / Tuner Input
+      description: Recorded into the sample buffer while Z is held down. In tuner mode (Audio In 2 connected) this is instead monitored for pitch and passed through to Audio Out 1
+    - id: AudioIn2
+      name: Tuner Mode Enable
+      description: Insert any cable to activate the built-in tuner; normal sampler operation resumes when removed
+    - id: PulseIn2
+      name: Arpeggiator Clock (Gate In 2)
+      description: Rising edge advances the arpeggiator step; takes priority over incoming MIDI clock and the internal Y-knob-synced timer
+  outputs:
+    - id: AudioOut1
+      name: Dry Mix
+      description: Dry polyphonic sample mix (or Audio In 1 passthrough in tuner mode)
+    - id: AudioOut2
+      name: Tape Echo
+      description: Tape-style low-pass-filtered delay, wet only; time set by Y knob at each note-on
+    - id: CVOut1
+      name: Lowest Note CV
+      description: 1V/oct pitch of the lowest currently held MIDI note, one octave down (or middle C reference in tuner mode)
+    - id: PulseOut1
+      name: Lowest Note Gate (Gate Out 1)
+      description: High while the tracked lowest-note voice is active
+    - id: CVOut2
+      name: Arpeggiator CV
+      description: 1V/oct pitch of the current arpeggiator step; each step has a 50% chance of an octave-down shift
+    - id: PulseOut2
+      name: Arpeggiator Gate (Gate Out 2)
+      description: ~50 ms gate pulse on each arpeggiator step
+
+controls:
+  switch:
+    down:  { name: Record, description: Hold to record Audio In 1 into the sample buffer (~6 s at 24 kHz); release, or let the buffer fill, to stop. Starting a new recording silences and resets all voices. Holding down at power-on instead enters configuration mode. }
+    middle: { name: Play, description: Normal position — MIDI-triggered polyphonic sampler playback }
+    up:    { name: Save to Bank, description: After recording, flip up to save the sample to the currently selected flash bank (only takes effect once per new recording) }
+
+  knobs:
+    - when: { z: any }
+      main:
+        name: ADSR Envelope Preset
+        description: Selects one of 11 envelope presets, from Pluck (fully CCW) to Rhubarb (fully CW) — see README preset table
+      x:
+        name: Sample Bank Select
+        description: Selects active bank 0-5 (shown as a dimly lit LED); the bank is loaded on power-on and does not change the playing sample mid-session
+      y:
+        name: Delay Time
+        description: Sets the Audio Out 2 echo time, sampled at each note-on — ~50 ms slapback (fully CCW) to ~750 ms long echo (fully CW). Also sets the arpeggiator's internal step period when no external clock is present
+    - when: { z: down, gesture: hold }
+      main:
+        name: MIDI Channel Select (configuration mode)
+        description: Hold Z down while powering on to enter configuration mode; Main knob selects the MIDI receive channel (LEDs 0-4 show it in binary, all off = omni). Release Z to save and exit
+      x:
+        name: Vibrato Rate (configuration mode)
+        description: In configuration mode, sets the mod-wheel vibrato LFO rate, ~2-10 Hz
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Voice 1 Activity / Bank 0
+          description: Envelope-brightness voice activity, or dimly lit if bank 0 is selected and idle; all 6 LEDs light together while recording. In tuner mode shows the sharp indicator instead
+        - id: LED1
+          name: Voice 2 Activity / Bank 1
+          description: Envelope-brightness voice activity, or dimly lit if bank 1 is selected and idle; all 6 LEDs light together while recording
+        - id: LED2
+          name: Voice 3 Activity / Bank 2
+          description: Envelope-brightness voice activity, or dimly lit if bank 2 is selected and idle; all 6 LEDs light together while recording. In tuner mode shows the in-tune indicator instead
+        - id: LED3
+          name: Voice 4 Activity / Bank 3
+          description: Envelope-brightness voice activity, or dimly lit if bank 3 is selected and idle; all 6 LEDs light together while recording
+        - id: LED4
+          name: Voice 5 Activity / Bank 4
+          description: Envelope-brightness voice activity, or dimly lit if bank 4 is selected and idle; all 6 LEDs light together while recording. In tuner mode shows the flat indicator instead
+        - id: LED5
+          name: Voice 6 Activity / Bank 5 / Preset Flash
+          description: Envelope-brightness voice activity, dimly lit if bank 5 is selected and idle, or flashes briefly when the ADSR preset changes; all 6 LEDs light together while recording. Blinks slowly while a save is pending, and slowly during configuration mode
+
+host:
+  usb:
+    - name: USB MIDI
+      role: host-or-device
+      description: Auto-detects whether it is USB MIDI host (keyboard plugged directly into the Computer) or device (Computer plugged into a laptop/sequencer). Base pitch is MIDI note 60 (C4); ±2 semitone pitch bend; mod wheel (CC1) drives per-voice triangle-LFO vibrato; incoming MIDI clock can drive the arpeggiator

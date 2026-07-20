@@ -64,6 +64,7 @@
 | 69_trace | Oscillograph stereo oscillator | 0.1<br>Functional but WIP | C++ (ComputerCard) | Ruiyang Wang |
 | 71_degenerator | Degenerator — Disintegrating Looper. Capture audio loops and apply irreversible degradation with 6 algorithms (Saturation, Filter Drift, Tape Hiss, Oxide Shedding, Bit Crush, Bit Rot) via preview/apply workflow. Inspired by William Basinski's The Disintegration Loops.<br>[Web editor](https://degenerator-web.netlify.app/) | 1.3<br>Released | C++ (Pico SDK) | Joep Vermaat |
 | 72_motorik | Motorik drum machine — kick/snare/hihat with bass and melody CV, classic Krautrock grooves | 1.0<br>Released | C++ (Pico SDK) | Joep Vermaat |
+| 73_VSS | 6-voice polyphonic µ-law sampler inspired by the Yamaha VSS-30 | 1.0.0<br>Released | C++ (ComputerCard) | @kjnilsson |
 | 74_Wild_Pebble | MIDI-clockable generative rhythm and melody organism inspired by Pet Rock | 1<br>Beta. USB MIDI clock input and sequencer note output tested | C++ | Adrian Vos with Vibecode support |
 | 75_Turing_Clouds | Turing Machine-driven granular texture generator and rhythmic delay for the Workshop Computer | 1.0<br>Released | C++ (Pico SDK) | Ainews |
 | 76_hot_fuzz | A stereo fuzz/distortion + resonant wah effects processor with manual and auto-wah modes, built on fixed-point DSP. | 1.0<br>Released | C++ (ComputerCard) | Joep Vermaat |
