@@ -1,6 +1,6 @@
 draft: true
 Name: Twists
-Description: A port of Mutable Instruments Braids with a web editor
+short-description: A port of Mutable Instruments Braids with a web editor
 Language: C (RPi Pico SDK)
 Creator: Random Works
 Version: 0.1

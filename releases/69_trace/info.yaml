@@ -1,6 +1,6 @@
 draft: true
 Name: Trace
-Description: Oscillograph stereo oscillator
+short-description: Oscillograph stereo oscillator
 Language: C++ (ComputerCard)
 Creator: Ruiyang Wang
 Version: 0.1

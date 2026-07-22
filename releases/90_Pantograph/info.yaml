@@ -1,6 +1,6 @@
 draft: false
 Name: Pantograph
-Description: Trace and record CV — record knob movements, loop them at bipolar speed
+short-description: Trace and record CV — record knob movements, loop them at bipolar speed
 Language: Pico SDK
 Creator: Kenny Shen
 Version: 1.1

@@ -1,6 +1,6 @@
 draft: true
 Name: AM Coupler
-Description: AM radio transmitter / coupler
+short-description: AM radio transmitter / coupler
 Language: C++ (ComputerCard)
 Creator: Chris Johnson
 Version: 1.0

@@ -1,6 +1,6 @@
 draft: false
 Name: Acid
-Description: A 303-style step sequencer
+short-description: A 303-style step sequencer
 Language: C++ (ComputerCard)
 Creator: Samuel Smith
 Version: 1.0.0

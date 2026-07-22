@@ -1,6 +1,6 @@
 draft: false
 Name: BYO Benjolin
-Description: Rungler, Chaotic VCO, Noise Source, Turing Machine, Quantizer
+short-description: Rungler, Chaotic VCO, Noise Source, Turing Machine, Quantizer
 Language: Pico SDK
 Creator: Dune Desormeaux
 Version: 1.1

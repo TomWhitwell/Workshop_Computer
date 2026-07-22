@@ -1,6 +1,6 @@
 draft: true
 Name: Birds
-Description: Two birds sing to each other controlled by a Turing-style shift register sequencer with clock in and CV/pulse out.
+short-description: Two birds sing to each other controlled by a Turing-style shift register sequencer with clock in and CV/pulse out.
 Language: C++ (Pico SDK / ComputerCard)
 Creator: Tom Whitwell
 Version: 0.5.0

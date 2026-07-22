@@ -1,6 +1,6 @@
 draft: true
 Name: NZT
-Description: Grain Noise and Noise Tools
+short-description: Grain Noise and Noise Tools
 Language: C++ (ComputerCard)
 Creator: "@kjnilsson"
 Version: 1.0.0

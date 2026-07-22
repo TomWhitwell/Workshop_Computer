@@ -1,6 +1,6 @@
 draft: true
 Name: Two Tracks
-Description: "Two Tracks — Dual-read-head phase looper. Record a mono loop to flash (IMA-ADPCM) and play it through two independent heads with separately controllable positions and loop lengths for evolving phase patterns and interference textures."
+short-description: "Two Tracks — Dual-read-head phase looper. Record a mono loop to flash (IMA-ADPCM) and play it through two independent heads with separately controllable positions and loop lengths for evolving phase patterns and interference textures."
 Language: C++ (Pico SDK)
 Creator: Joep Vermaat
 Version: 1.1

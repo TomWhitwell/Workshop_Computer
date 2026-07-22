@@ -1,6 +1,6 @@
 draft: true
 Name: The Bells
-Description: Bellringing methods sequencer — 12 change-ringing methods with tempo and jitter, quantised to six scales
+short-description: Bellringing methods sequencer — 12 change-ringing methods with tempo and jitter, quantised to six scales
 Language: C++ (ComputerCard)
 Creator: James Saunders
 Version: 1.0.0

@@ -1,6 +1,6 @@
 draft: true
 Name: Flux
-Description: Effects, Synthesizer and Utility
+short-description: Effects, Synthesizer and Utility
 Language: C++ (RP2040 Pico SDK)
 Creator: Vincent Maurer
 Version: 1.0

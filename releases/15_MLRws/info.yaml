@@ -1,6 +1,6 @@
 draft: false
 Name: MLRws
-Description: "A remix of monome's classic MLR sample cutting platform (grid controller encouraged but optional). Diagrams here are for Gridless mode."
+short-description: "A remix of monome's classic MLR sample cutting platform (grid controller encouraged but optional). Diagrams here are for Gridless mode."
 Language: Pico SDK
 Creator: Dune Desormeaux
 Version: 1.1.5

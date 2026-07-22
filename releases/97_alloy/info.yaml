@@ -1,6 +1,6 @@
 draft: false
 Name: Alloy
-Description: Fixed-point 15-zone cross-modulator with a clocked Turing CV and gate companion.
+short-description: Fixed-point 15-zone cross-modulator with a clocked Turing CV and gate companion.
 Language: C++ (RP2040 Pico SDK)
 Creator: Eric Gao
 Version: 0.2.0

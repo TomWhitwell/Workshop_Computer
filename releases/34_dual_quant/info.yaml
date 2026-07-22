@@ -3,7 +3,7 @@ title: DualQuant
 draft: false
 release: 34 / 1.0
 summary: Dual quantised granular pitch shifter with calibrated 1V/oct CV outputs
-description: Dual quantised granular pitch shifter with calibrated 1V/oct CV outputs
+short-description: Dual quantised granular pitch shifter with calibrated 1V/oct CV outputs
 date: 2026-06-14
 panel:
   controls:

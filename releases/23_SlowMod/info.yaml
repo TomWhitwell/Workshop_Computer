@@ -1,6 +1,6 @@
 draft: true
 Name: SlowMod
-Description: Chaotic quad-LFO with VCAs
+short-description: Chaotic quad-LFO with VCAs
 Language: C++ (RPi Pico SDK) compat. w/ cmake and Arduino IDE.
 Creator: divmod
 Version: 0.1

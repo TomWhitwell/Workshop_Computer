@@ -1,6 +1,6 @@
 # Releases  
-| Folder Name | Description | Version | Language | Creator |
-| ----------- | ----------- | ------- | -------- | ------- |
+| Folder Name | Short Description | Version | Language | Creator |
+| ----------- | ----------------- | ------- | -------- | ------- |
 | 00_Simple_MIDI | Takes USB midi, sends it to pulse and CV outputs, also sends knob positions and CV inputs back to the computer as CC values. | 0.6.6<br>Working but simple | Arduino-Pico | Tom Whitwell |
 | 02_comingsoon | Reserved for upcoming project | 0.0<br>None | None | None |
 | 03_Turing_Machine | Turing Machine with tap tempo clock, 2 x pulse outputs, 4 x CV outputs<br>[Web editor](https://www.musicthing.co.uk/web_config/turing.html) | 1.5.3<br>Working but Simple | C++ (ComputerCard) | Tom Whitwell |

@@ -1,6 +1,6 @@
 draft: true
 Name: Toolbox
-Description: Mixer, VCA, noise, S&H, clock generator, etc.
+short-description: Mixer, VCA, noise, S&H, clock generator, etc.
 Language: C++ (ComputerCard)
 Creator: divmod
 Version: 0.1.1

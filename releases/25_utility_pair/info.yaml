@@ -1,6 +1,6 @@
 draft: true
 Name: Utility Pair
-Description: 25 small utilities, which can be combined in pairs
+short-description: 25 small utilities, which can be combined in pairs
 Language: C++ (ComputerCard)
 Creator: Chris Johnson
 Version: 1.0

@@ -1,6 +1,6 @@
 draft: false
 Name: Cathode Ray
-Description: Composite video synthesiser (PAL + NTSC builds) — oscilloscope, etch-a-sketch & spectrum analyser, greyscale via dithering, performance effects, 8 alt-boot screensaver/game modes
+short-description: Composite video synthesiser (PAL + NTSC builds) — oscilloscope, etch-a-sketch & spectrum analyser, greyscale via dithering, performance effects, 8 alt-boot screensaver/game modes
 Language: C++ (RP2040 Pico SDK)
 Creator: Andy Jenkinson (uglifruit)
 Version: 1.2.0

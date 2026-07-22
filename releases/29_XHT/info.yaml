@@ -1,6 +1,6 @@
 draft: false
 Name: XHT Card
-Description: A playable deep-note-inspired stereo chord swarm with manual scrubbing, one-shot movement, delay, reverb, CV, pulse, and optional MIDI control.
+short-description: A playable deep-note-inspired stereo chord swarm with manual scrubbing, one-shot movement, delay, reverb, CV, pulse, and optional MIDI control.
 Language: C++ (Pico SDK)
 Creator: Adrian Vos
 Version: 0.1.0

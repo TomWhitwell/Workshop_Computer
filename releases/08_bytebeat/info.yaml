@@ -1,6 +1,6 @@
 draft: true
 Name: Bytebeat
-Description: Generates and mangles bytebeats
+short-description: Generates and mangles bytebeats
 Language: C++/Arduino-Pico
 Creator: Matt Kuebrich
 Version: 0.1

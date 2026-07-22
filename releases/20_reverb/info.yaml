@@ -1,6 +1,6 @@
 draft: true
 Name: Reverb+
-Description: Reverb effect, plus pulse/CV generators and MIDI-to-CV, configurable using web interface.
+short-description: Reverb effect, plus pulse/CV generators and MIDI-to-CV, configurable using web interface.
 Language: C (RPi Pico SDK)
 Creator: Chris Johnson
 Version: 1.5

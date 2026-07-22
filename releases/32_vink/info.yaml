@@ -1,6 +1,6 @@
 draft: true
 Name: Vink
-Description: Dual delay loops with sigmoid saturation for Jaap Vink / Roland Kayn style feedback patching
+short-description: Dual delay loops with sigmoid saturation for Jaap Vink / Roland Kayn style feedback patching
 Language: C++ (ComputerCard)
 Creator: Ben Regnier
 Version: 1.1

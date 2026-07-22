@@ -1,6 +1,6 @@
 draft: true
 Name: Cirpy Wavetable
-Description: Wavetable oscillator that using wavetables from Plaits, Braids, and Microwave,
+short-description: Wavetable oscillator that using wavetables from Plaits, Braids, and Microwave,
 Language: CircuitPython
 Creator: Tod Kurt (@todbot)
 Version: 0.1

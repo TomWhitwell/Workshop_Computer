@@ -8,7 +8,7 @@ summary: >-
   looping Web MIDI envelopes, envelope readback, PD, detune, eight waveform
   families, hosted CZ patch import, USB MIDI device/host operation, and optional
   Turing MIDI output.
-description: >-
+short-description: >-
   Stable phase-distortion synthesiser and Turing machine firmware with gate-held
   looping Web MIDI envelopes, envelope readback, PD, detune, eight waveform
   families, hosted CZ patch import, USB MIDI device/host operation, and optional

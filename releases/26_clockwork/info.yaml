@@ -10,7 +10,7 @@ contact:
   website: https://vincentmaurer.de
 summary: >-
   6-channel polyrhythmic clock, gate, and LFO/envelope generator inspired by Pamela's Workout.
-description: >-
+short-description: >-
   6-channel polyrhythmic clock, gate, and LFO/envelope generator inspired by Pamela's Workout.
 panel:
   controls:
@@ -130,7 +130,7 @@ metadata:
   version: 1.0.0
   status: Released
   license: MIT
-manual: |
+readme: |
     Clockwork is a 6-channel polyrhythmic timing and modulation generator inspired by Pamela's Workout. It turns the Workshop Computer into a central clock, gate sequencer, and LFO generator.
 
     *   [Clockwork Tutorial Video](https://youtu.be/Pc0wPOAVZmw)

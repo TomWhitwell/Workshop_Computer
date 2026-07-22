@@ -1,6 +1,6 @@
 draft: true
 Name: Grains
-Description: Granular Sampler and Effect
+short-description: Granular Sampler and Effect
 Language: C++ (RP2040 Pico SDK)
 Creator: Vincent Maurer
 Version: 1.0

@@ -57,7 +57,7 @@ function typeKey(raw) {
 
 function releaseCard(rel) {
   const { info, slug, display } = rel;
-  const desc = info.description ? String(info.description) : 'No description available.';
+  const desc = info.shortdescription ? String(info.shortdescription) : 'No description available.';
   const num = display.number;
   const creator = info.creator || 'Unknown';
   const version = formatVersion(info.version || 'unknown');
@@ -92,7 +92,7 @@ function releaseCard(rel) {
 
 function detailPage(rel) {
   const { info, slug, display, downloads, docs, readmeHtml } = rel;
-  const desc = info.description ? String(info.description) : 'No description available.';
+  const desc = info.summary ? String(info.summary) : 'No summary available.';
   const creator = info.creator || 'unknown';
   const version = formatVersion(info.version || 'unknown');
   const language = info.language || 'unknown';

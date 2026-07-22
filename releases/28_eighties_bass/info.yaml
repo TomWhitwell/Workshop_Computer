@@ -1,6 +1,6 @@
 draft: true
 Name: Eighties Bass
-Description: Bass-oriented complete monosynth voice consisting of five detuned saw wave oscillators with mixable white noise and adjustable resonant filter.
+short-description: Bass-oriented complete monosynth voice consisting of five detuned saw wave oscillators with mixable white noise and adjustable resonant filter.
 Language: Arduino (arduino-pico) with Mozzi 2
 Creator: Tod Kurt (@todbot)
 Version: 0.1

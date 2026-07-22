@@ -1,4 +1,4 @@
-Description: Karplus-Strong sympathetic resonator for droning and plucked textures, with chord & tanpura tunings, arpeggiator, pitch tracking and web-configurable CV/pulse outputs.
+short-description: Karplus-Strong sympathetic resonator for droning and plucked textures, with chord & tanpura tunings, arpeggiator, pitch tracking and web-configurable CV/pulse outputs.
 draft: true
 Name: Resonator
 Language: C++ (ComputerCard)

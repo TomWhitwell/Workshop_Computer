@@ -1,4 +1,5 @@
-Description: Six-slot audio recorder and clocked fragment sequencer with browser librarian, MIDI pitch control, random CV outputs, and an alternate long-sample variation mode.
+short-description: Six-slot audio recorder and clocked fragment sequencer with browser librarian, MIDI pitch control, random CV outputs, and an alternate long-sample variation mode.
+summary: Six-slot audio recorder and clocked fragment sequencer with browser librarian, MIDI pitch control, random CV outputs, and an alternate long-sample variation mode.
 Name: Fragments
 Language: C++ (RPi Pico SDK)
 Creator: Max Harnishfeger

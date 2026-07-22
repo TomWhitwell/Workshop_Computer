@@ -1,6 +1,6 @@
 draft: true
 Name: Od
-Description: Loopable chaotic Lorenz attractor trajectories and zero-crossings as CV and pulses, with sensitivity to initial conditions.
+short-description: Loopable chaotic Lorenz attractor trajectories and zero-crossings as CV and pulses, with sensitivity to initial conditions.
 Language: MicroPython
 Creator: M. John Mills
 Version: 1.0

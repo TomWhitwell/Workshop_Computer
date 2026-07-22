@@ -3,7 +3,7 @@ title: Turing Matrix
 draft: false
 release: 93 / 0.1.0-beta
 summary: Turing Machine sequencer with a switchable mixer layer inspired by the Music Thing Modular Turing Machine and Vactrol Mix combination
-description: Turing Machine sequencer with a switchable mixer layer inspired by the Music Thing Modular Turing Machine and Vactrol Mix combination
+short-description: Turing Machine sequencer with a switchable mixer layer inspired by the Music Thing Modular Turing Machine and Vactrol Mix combination
 date: 2026-06-26
 panel:
   controls:

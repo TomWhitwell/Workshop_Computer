@@ -2,7 +2,7 @@ id: Fr330hfr33
 title: Fr330hfr33
 release: 87 / 0.9.3
 summary: Performance-focused acid voice with diode filtering, distortion, MIDI, and a persistent sequencer
-description: Hardware-tested acid bass synthesiser with selectable saw or square oscillator, switchable 18 or 24 dB diode-style filtering, accent and glide, distortion, USB MIDI device/host operation, and a persistent editable sequencer.
+short-description: Hardware-tested acid bass synthesiser with selectable saw or square oscillator, switchable 18 or 24 dB diode-style filtering, accent and glide, distortion, USB MIDI device/host operation, and a persistent editable sequencer.
 date: 2026-06-21
 panel:
   controls:

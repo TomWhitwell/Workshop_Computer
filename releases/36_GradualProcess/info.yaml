@@ -1,6 +1,6 @@
 draft: true
 Name: GradualProcess
-Description: Three generative composition processes (Glass, Reich, Tintinnabuli) in one card, chosen by Main's position at power-on
+short-description: Three generative composition processes (Glass, Reich, Tintinnabuli) in one card, chosen by Main's position at power-on
 Language: C++ (ComputerCard)
 Creator: James Saunders
 Version: 1.0.0

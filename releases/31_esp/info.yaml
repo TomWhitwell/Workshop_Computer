@@ -1,6 +1,6 @@
 draft: true
 Name: ESP
-Description: A MS-20-style External Signal Processor that includes a preamp, bandpass filter, envelope follower, gate, and 1v/oct pitch outs.
+short-description: A MS-20-style External Signal Processor that includes a preamp, bandpass filter, envelope follower, gate, and 1v/oct pitch outs.
 Language: C++ (ComputerCard)
 Creator: Ben Regnier
 Version: 1.0

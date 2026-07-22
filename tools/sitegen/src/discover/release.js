@@ -16,7 +16,10 @@ export function normalizeInfo(raw, fallbackTitle) {
   return {
     draft: normalizeDraft(out.draft),
     title: out.title || out.name || fallbackTitle,
-    description: out.description || '',
+    // `Description` was split into a concise discovery label and a longer
+    // detail-page overview. Keep the old value only as an import fallback.
+    shortdescription: out.shortdescription || out.description || '',
+    summary: out.summary || out.description || '',
     language: out.language || '',
     creator: out.creator || '',
     version: out.version || '',

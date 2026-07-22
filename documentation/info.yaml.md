@@ -9,7 +9,8 @@ Keys are case-insensitive. Hyphens and spaces in key names are equivalent (`audi
 ```yaml
 draft: true
 Name: Card Display Name
-Description: One-line summary of what the card does
+short-description: One-line catalog tagline
+summary: Longer operator overview of what the card does and how it is used
 Language: C++ (Pico SDK)
 Creator: Your Name
 Version: 1.0
@@ -23,13 +24,13 @@ License: MIT
 |-------|----------|------|-------------|
 | `draft` | no | boolean | When `true`, structured metadata in this file is still under author review. Set to `false` when `Name`, `contact`, `License`, `panel`, and related fields are confirmed. Not rendered on detail pages yet; parsed for tooling and future site UI. |
 | `Name` | yes | string | Display title on the site index and detail page (see sitegen). |
-| `Description` | yes | string | Short blurb shown on the index and detail aside. |
-| `summary` | no | string | Short operator summary shown in the card header. |
+| `short-description` | yes | string | Concise catalog tagline shown on index tiles, discovery shelves, and archive rows. |
+| `summary` | yes | string | Longer operator overview shown beneath the title on the card detail page. |
 | `Language` | yes | string | Implementation language or stack (e.g. `C++ (Pico SDK)`, `Lua / Blackbird`). |
 | `Creator` | yes | string | Author or maintainer name. |
 | `Version` | yes | string | Semantic or project version string. |
 | `Status` | yes | string | Release state (e.g. `Released`, `Beta`, `WIP`). Shown with version on the index. |
-| `License` | no | string | SPDX identifier or short license name (e.g. `MIT`, `GPL-3.0`, `GPLv3 or later`). Use the license stated in the card's `README.md` or `LICENSE` file. Not rendered on detail pages yet; parsed for tooling and future site UI. |
+| `License` | no | string | Recommended. SPDX identifier or short license name (e.g. `MIT`, `GPL-3.0`, `GPLv3 or later`). Use the license stated in the card's `README.md` or `LICENSE` file. A missing license produces a warning when `draft: false`. |
 | `date` | no | string | Last-update date (`YYYY-MM-DD`). If omitted, sitegen uses the last git commit date for the card folder. |
 
 ## Contact
@@ -73,46 +74,103 @@ contact:
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
 | `repository` | no | string (URL) | Upstream source repo when firmware or docs live outside this monorepo. Example: [64_voices_of_sid](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/64_voices_of_sid/info.yaml) points at Codeberg. |
+| `discussion` | no | string (URL) | Card-specific feedback or support destination, normally a Discord thread. This replaces the site's general discussion link on that card's detail page. |
 | `tags` | no | string[] | Labels for card type and function. Use lowercase kebab-case (e.g. `sequencer`, `midi-host`, `effect`, `synthesizer`, `polyphonic`, `utility`). Sitegen normalizes and deduplicates. A single comma-separated string is also accepted. |
+
+```yaml
+discussion: https://discord.com/channels/SERVER_ID/CHANNEL_OR_THREAD_ID
+```
+
+## Firmware downloads
+
+By default the site auto-discovers download links from every committed (git-tracked) `.uf2` under the card folder, excluding a `web/` copy when an identically-named file exists elsewhere. Each link is labelled with the firmware filename.
+
+Add an optional `uf2:` list to curate this. **When `uf2:` is present it fully replaces auto-discovery for that card**, so you can trim noise, control ordering, and annotate firmware. Each entry needs **either** a `path` (repo firmware) **or** a `download.url` (external link):
+
+| Field | Required | Type | Description |
+|-------|----------|------|-------------|
+| `path` | either path or download | string | Path to the `.uf2` relative to the card folder (e.g. `UF2/goldfish.2.0.2mb.uf2`), matched case-insensitively. The build errors if the file is missing. |
+| `name` | no | string | Friendly label shown on the download tile instead of the filename. |
+| `download` | either path or download | object | `{ url, sha256 }` (both required when `download` is present). `url` is an external link (mirror, or a store/purchase page) — it opens in a new tab, shows its host, is tagged "External", and is never treated as flashable firmware. `sha256` is a mandatory hex digest of the firmware (`shasum -a 256 file.uf2` on macOS). For repo-hosted firmware (via `path`) the build computes the sha256 automatically. |
+
+```yaml
+uf2:
+  - path: UF2/goldfish.2.0.2mb.uf2
+    name: Goldfish 2.0 (2MB)
+  - name: Buy a pre-flashed card
+    download:
+      url: https://example.com/store/goldfish
+      sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+```
 
 ## Media
 
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
-| `demo-link` | no | string (URL) | Optional YouTube URL (`watch`, `youtu.be`, `/shorts/`, `/embed/`). Detail-page embed UI is not wired yet; README YouTube links still get inline embeds when present. |
-| `audio-sample` | no | string (path or URL) | Demo audio clip. **External:** full `http(s)://` URL. **Relative:** path under the card folder (e.g. `samples/demo.wav`); sitegen resolves it to a raw GitHub URL for the built site. Detail-page playback is not wired yet; the field is parsed for future use. |
+| `demo-link` | no | string (URL) | Optional YouTube URL (`watch`, `youtu.be`, `/shorts/`, `/embed/`). Rendered as a demo-video thumbnail on the detail page that plays inline when clicked. README YouTube links also get inline embeds. |
+| `audio-sample` | no | string or list | Demo audio. Accepts a single value or a list. Each value may be: a **repo-relative file** (e.g. `samples/demo.wav`, resolved to a raw URL and rendered with an `<audio>` player); a **SoundCloud** track/set URL (embedded as a player, derived from the URL — no API key); a **Bandcamp** *EmbeddedPlayer* URL (the iframe `src` from Bandcamp's Share → Embed dialog); or any other URL (shown as a link). You may also paste a whole embed `<iframe>` snippet (we extract the player `src` + height), but you must single-quote it in YAML. List items may also be `{ url, title }` objects (`title` shows above the player). |
+```yaml
+# single file
+audio-sample: samples/demo.wav
 
-## Structured metadata *(author now; detail-page UI later)*
+# or a list mixing sources. For SoundCloud/Bandcamp, paste the player src URL:
+audio-sample:
+  - samples/demo.wav
+  - https://soundcloud.com/artist/my-demo
+  - https://bandcamp.com/EmbeddedPlayer/track=123456789/size=large/
 
-These blocks document I/O, controls, and host connectivity. Author them in `info.yaml` for tooling and future sitegen sections; they are **not** rendered on program detail pages today.
+# with titles:
+audio-sample:
+  - url: https://soundcloud.com/artist/patch-1
+    title: Patch 1 — generative drone
+```
+
+> Bandcamp: use the `EmbeddedPlayer` URL — it is the `src` of the iframe in Bandcamp's **Share → Embed** dialog. A plain album or track page URL cannot be embedded on its own and will render as a link.
+
+## Structured metadata
+
+These blocks document the primary inline documentation, I/O, controls, and host connectivity. Panel metadata is rendered on program detail pages. Unconditioned entries form the shared base; entries conditioned with `when.z` override that base for the selected switch position.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `manual` | string (Markdown) | Full operator manual. Intended to override the README section in card details (not yet rendered). |
-| `panel.inputs` | object[] | Panel jacks in. Each item: `id`, `name`, optional `description`, optional `type` (`audio` / `cv` / `pulse` / `other`). |
-| `panel.outputs` | object[] | Panel jacks out; same shape as inputs. |
-| `controls.knobs` | object[] | Knob metadata per context. Each row has `when` (`z`, `layer`, `gesture`) and `main` / `x` / `y` entries with `name` and optional `description`. Use `when.z` (`up` / `middle` / `down`, or `any` for every position) to give a knob **different metadata per switch position**. Describes knobs only — switch-position meaning lives in `controls.switch`. |
-| `controls.switch` | object | Metadata for the three-position Z switch, independent of the knobs. Keys `up` / `middle` / `down`, each an object with `name` and optional `description`. This is the sole source of switch-position meaning. |
-| `controls.leds` | object[] | LED meaning per context. Each row has `when`, `display` (e.g. `list`), and `items` with `id`, `name`, optional `description`. |
+| `readme` | string (Markdown) | Full inline operator documentation. When present, it replaces the rendered `README.md` section on the card detail page. It is Markdown content, not a path. Supplementary PDF documentation remains visible. |
+| `panel.inputs` | object[] | Panel jacks in. Each item has `id`, `name`, optional `description`, optional `type` (`audio` / `cv` / `pulse` / `other`), and optional `when: { z: up \| middle \| down }`. Entries with the same `id` override the shared entry in that position. |
+| `panel.outputs` | object[] | Panel jacks out; same shape and position-override behavior as inputs. |
+| `controls.knobs` | object[] | Knob metadata rows containing `main` / `x` / `y` entries with `name` and optional `description`. Omit `when` for controls shared by every position; use `when: { z: up \| middle \| down }` only when a role changes. |
+| `controls.switch` | object | Switch metadata keyed by `up`, `middle`, `down`, and optional `tap`. The three physical positions may produce panel views. `tap` describes a brief Down-switch action and never produces a panel view. |
+| `controls.leds` | object[] | LED meaning rows. Each has optional `when: { z: up \| middle \| down }`, `display` (e.g. `list`), and `items` with `id`, `name`, and optional `description`. Items override shared LEDs by `id`. |
 | `host` | object | Host/USB connectivity (e.g. `usb` list with `name`, `role`, `description`) and optional `notes` (Markdown). |
+
+```yaml
+readme: |
+  # Operating instructions
+
+  Patch an audio signal to **Audio In 1**, then use Main to set the amount.
+```
+
+`readme` replaces the former `manual` field. Existing authored `manual` content should be migrated to `readme`; `summary` remains the operator overview shown in the card detail header.
 
 See [`releases/82_Computer_Grids/info.yaml`](../releases/82_Computer_Grids/info.yaml) for a full structured example.
 
 ### Switch and knobs relationship
 
-Switch-position meaning and knob metadata are two independent things:
+Switch-position meaning and panel metadata are related but remain independently authored:
 
-- **`controls.switch`** documents what each Z position *does*.
-- **`controls.knobs`** documents the knobs, and may optionally give a knob different metadata per position via `when: { z: ... }`. Knob rows never describe the switch itself.
+- **`controls.switch`** documents what each Z position does and may document a Down-switch `tap` action.
+- Unconditioned knobs, sockets, and LEDs are the base inherited by Up, Middle, and Down.
+- A `when: { z: ... }` row supplies only the properties that change in that position.
+- Down already means the switch is being held down. There is no separate Hold position or gesture condition.
+- Tap never changes knob, socket, or LED meanings, so `tap` is invalid in a `when` clause.
 
 ```yaml
 controls:
   switch:                     # what the switch positions mean
     up:     { name: Double Length, description: Toggle write cell each clock for a stable double-length loop }
     middle: { name: Unlock,        description: Write from data input / noise when data exceeds Chaos }
-    down:   { name: Write,         description: Force the write cell to a fixed value }
+    down:   { name: Write,         description: Hold down to force the write cell to a fixed value }
+    tap:    { name: Reset,         description: Briefly press and release Down to reset the sequence }
   knobs:
-    - when: { z: any }          # knob metadata that applies in every position
+    -                            # no condition: applies in every position
       main: { name: Chaos, description: Lock through Chaos probability }
       x:    { name: Offset }
       y:    { name: Chaos VCA }
@@ -120,7 +178,9 @@ controls:
       x: { name: Loop Length, description: Sets the loop length while held up }
 ```
 
-A card that only needs to describe its switch uses `controls.switch` alone; a card whose knobs change per position adds `when: { z: ... }` knob rows. The two blocks are read independently.
+A card that only needs to describe its switch uses `controls.switch` alone. A card whose panel changes by position adds conditioned knob, socket, or LED rows. Sitegen resolves at most three complete views as `base + up`, `base + middle`, and `base + down`; Middle is the default when present.
+
+Legacy `when: { z: any }` rows are still read as shared base metadata but should be written without `when`. Legacy `gesture` conditions produce validation warnings while existing cards are reviewed.
 
 ## Authoring guidance
 
@@ -151,9 +211,9 @@ controls:
   knobs: ...
 ```
 
-**Preserve** existing `Description`, `Language`, `Creator`, `Version`, `Status`, `License`, `Editor`, and `Repository` values unless deployment rules require a change.
+**Preserve** existing `short-description`, `summary`, `Language`, `Creator`, `Version`, `Status`, `License`, `Editor`, and `Repository` values unless deployment rules require a change.
 
-Every card must include **`Name`** — the site index and detail page title come from this field (not `Description`). Legacy `Title` is still read as a fallback if `Name` is absent.
+Every card must include **`Name`** — the site index and detail page title come from this field. Legacy `Title` is still read as a fallback if `Name` is absent.
 
 ## Automation
 

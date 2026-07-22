@@ -10,6 +10,9 @@ concurrency:
   group: update-readme
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   update-readme:
     runs-on: ubuntu-latest
@@ -19,7 +22,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
 
@@ -36,10 +39,10 @@ jobs:
       run: |
         if git diff --exit-code releases/README.md; then
           echo "No changes in README.md"
-          echo "::set-output name=changed::false"
+          echo "changed=false" >> "$GITHUB_OUTPUT"
         else
           echo "README.md has changed"
-          echo "::set-output name=changed::true"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Commit changes

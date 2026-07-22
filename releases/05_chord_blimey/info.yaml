@@ -1,6 +1,6 @@
 draft: true
 Name: Chord Blimey!
-Description: Generates CV/Pulse arpeggios
+short-description: Generates CV/Pulse arpeggios
 Language: C (RPi Pico SDK)
 Creator: Tom Waters
 Version: 0.9

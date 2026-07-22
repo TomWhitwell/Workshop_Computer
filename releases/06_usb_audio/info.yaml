@@ -1,6 +1,6 @@
 draft: true
 Name: USB Audio & MIDI
-Description: 6-Channel USB Audio & MIDI firmware with CV/Gate support
+short-description: 6-Channel USB Audio & MIDI firmware with CV/Gate support
 Language: C++ (RPi Pico SDK)
 Creator: Vincent Maurer (vincentmaurer.de)
 Version: 1.0

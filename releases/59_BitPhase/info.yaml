@@ -3,7 +3,7 @@ title: BitPhase
 draft: false
 release: 59 / 0.1.0
 summary: Resonant 4-stage phaser with wide modulation sweeps, tremolo blending, and Burst-mode degradation
-description: Resonant 4-stage phaser for the Workshop Computer with deep notch filtering, wide modulation sweeps, controllable resonance, tremolo blending, and digital Burst-mode degradation.
+short-description: Resonant 4-stage phaser for the Workshop Computer with deep notch filtering, wide modulation sweeps, controllable resonance, tremolo blending, and digital Burst-mode degradation.
 date: 2026-06-24
 
 panel:

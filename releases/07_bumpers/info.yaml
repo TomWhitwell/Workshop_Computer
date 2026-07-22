@@ -1,6 +1,6 @@
 draft: true
 Name: Bumpers
-Description: "'Bouncing ball' style delay and trigger generators"
+short-description: "'Bouncing ball' style delay and trigger generators"
 Language: C++ (ComputerCard)
 Creator: Chris Johnson
 Version: 1.0

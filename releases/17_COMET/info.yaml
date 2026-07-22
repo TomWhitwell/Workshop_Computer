@@ -1,6 +1,7 @@
 draft: False
 Name: COMET
-Description: Clocked lo-fi reverb and delay
+short-description: Clocked lo-fi reverb and delay
+summary: Clocked lo-fi reverb and delay
 Language: C++ (Pico SDK, ComputerCard)
 Creator: EME
 Version: 1.0

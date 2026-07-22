@@ -1,6 +1,6 @@
 draft: true
 Name: VSS
-Description: 6-voice polyphonic µ-law sampler inspired by the Yamaha VSS-30
+short-description: 6-voice polyphonic µ-law sampler inspired by the Yamaha VSS-30
 Language: C++ (ComputerCard)
 Creator: "@kjnilsson"
 Version: 1.0.0

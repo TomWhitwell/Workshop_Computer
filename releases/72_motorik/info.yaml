@@ -1,6 +1,6 @@
 draft: true
 Name: Motorik
-Description: Motorik drum machine — kick/snare/hihat with bass and melody CV, classic Krautrock grooves
+short-description: Motorik drum machine — kick/snare/hihat with bass and melody CV, classic Krautrock grooves
 Language: C++ (Pico SDK)
 Creator: Joep Vermaat
 Version: 1.0

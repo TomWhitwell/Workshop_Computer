@@ -1,4 +1,5 @@
-Description: Turing Machine-driven granular texture generator and rhythmic delay for the Workshop Computer
+short-description: Turing Machine-driven granular texture generator and rhythmic delay for the Workshop Computer
+summary: Turing Machine-driven granular texture generator and rhythmic delay for the Workshop Computer
 Name: Turing Clouds
 Language: C++ (Pico SDK)
 Creator: Ainews
