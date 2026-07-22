@@ -1,0 +1,85 @@
+C1ZZL3 Gnarly Quick Reference
+=============================
+
+Release candidate: 85 / Gnarly protocol v11
+UF2: uf2/C1ZZL3_GNARLY_V11.uf2
+Checksum: 0f79ef99d8485da4180e049c98085296cb36402e0dd11255db99e4f27fbe5fa5
+
+Important identity
+------------------
+- Gnarly is the no-Turing C1ZZL3 branch.
+- Core remains the simpler production C1ZZL3 card 84.
+- Rad can be added to card 84 later as the advanced-with-Turing version.
+
+Switch middle: oscillator 1
+---------------------------
+Main: shared pitch
+X: oscillator 1 phase distortion
+Y: oscillator 1 recipe slot
+Audio/CV In 1: 1V/oct pitch
+CV In 1: adds phase distortion
+CV In 2: adds recipe-slot/wave modulation
+Pulse In 2: trigger envelopes; held gate loops/sustains; gate-off releases
+
+Switch up: oscillator 2
+-----------------------
+Main: oscillator 2 interval/spread, centred at unison
+X: oscillator 2 phase distortion
+Y: oscillator 2 recipe slot
+
+Switch down hold: performance and bank
+--------------------------------------
+Main: recipe bank
+X: ring modulation
+Y: noise/grit
+Hold switch down from middle to save current performance settings.
+
+Recipe banks
+------------
+Bank 1: simple single-wave families
+Bank 2: warm compound pairings
+Bank 3: bright resonant/windowed pairings
+Bank 4: odd/import-faithful CZ-style pairings
+
+Bank LEDs on switch-down page
+-----------------------------
+Bank 1: LEDs 1 and 2 off
+Bank 2: LED 1 on
+Bank 3: LED 2 on
+Bank 4: LEDs 1 and 2 on
+
+MIDI CC
+-------
+CC1: oscillator 1 phase distortion, mod-wheel friendly
+CC20: oscillator 1 recipe slot
+CC21: oscillator 2 recipe slot
+CC22: ring modulation
+CC23: recipe bank
+CC24: oscillator 2 interval/spread
+CC25: oscillator 2 phase distortion
+CC26: noise/grit
+CC27: oscillator 1 phase distortion for eight-knob controllers
+
+Web MIDI
+--------
+Hosted editor after deployment:
+https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/index.html
+
+Hosted import lab after deployment:
+https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/import/index.html
+
+Run editor:
+python3 -m http.server 5177 --directory web
+
+Open:
+http://localhost:5177
+
+Editor supports:
+- Amp1/Amp2, PD1/PD2, Pitch1/Pitch2
+- named sound presets
+- Save Envelope Only
+- Save Sound Preset
+- Read Envelopes from Card
+- Read Settings from Card
+- recipe bank setting
+- CZ .syx import handoff

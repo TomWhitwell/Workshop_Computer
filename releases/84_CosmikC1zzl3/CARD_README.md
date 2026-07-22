@@ -2,13 +2,15 @@
 
 C1ZZL3 is a phase-distortion synth card for the Music Thing Modular Workshop
 Computer. It combines a playable digital synth voice, a Turing machine, USB
-MIDI, and a browser editor for custom envelopes.
+MIDI, and a browser editor for custom amplitude, phase-distortion, and pitch
+envelopes.
 
 ## What It Does
 
 - Plays as a phase-distortion synth voice.
 - Responds to USB MIDI notes from a DAW or class-compliant controller.
-- Lets you design and save custom envelopes from a browser.
+- Lets you design and save custom amplitude, phase-distortion, and pitch
+  envelopes from a browser.
 - Runs a Turing machine mode with stepped CV, smoothed CV, two pulse outputs,
   and optional MIDI note output.
 - Keeps factory envelope presets safe; custom envelopes use separate slots.
@@ -25,7 +27,7 @@ Put the switch in the middle.
 - `CV In 2` adds wave control.
 - `Pulse In 2` triggers the selected envelope, loops supported envelopes while
   the gate is high, exits the loop when the gate falls, and syncs the
-  oscillators.
+  oscillators when the envelope starts from inactive.
 
 The Turing CV and pulse outputs continue running in synth mode, so they can be
 used while playing the synth.
@@ -58,6 +60,7 @@ Put the switch up.
 - Audio outputs carry the self-playing Turing oscillator voice.
 
 Tap tempo has been removed. Y is the internal Turing clock-speed control.
+Turing MIDI output is optional and defaults off.
 
 ## USB MIDI
 
@@ -84,7 +87,7 @@ MIDI note-on behaves like a held gate. It triggers the selected envelope and
 keeps loop-capable envelopes cycling until MIDI note-off lets the envelope
 complete naturally.
 
-## Envelope Lab
+## Web MIDI Editor
 
 Hosted editor:
 
@@ -96,11 +99,12 @@ Use Chrome or another browser with Web MIDI and SysEx support. Press `MIDI`,
 choose the C1ZZL3 output, then:
 
 1. Pick a preset on the left, or add a custom one.
-2. Choose `Amplitude` or `Phase Distortion` to focus on one lane at a time.
-3. Drag points on the graph to change both level and timing.
-4. Watch the point numbers. Matching numbers mean the stages are stacked at the same spot.
-5. Use the tables below the graph for exact values when you want precise edits.
-6. Use the action buttons on the right when you want to send, save, read, or reset.
+2. Choose `Amplitude` or `Phase Distortion` to focus the main graph lane.
+3. Use the Pitch Envelope graph below it to adjust pitch movement.
+4. Drag points on the graphs to change both level and timing.
+5. Watch the point numbers. When stages stack, only the highest number is shown.
+6. Use the tables below the graphs for exact values when you want precise edits.
+7. Use the action buttons when you want to send, save, read, or reset.
 
 Button quick reference:
 
@@ -119,6 +123,17 @@ overwritten. Temporary envelope and settings changes are lost at restart. Use
 `Save Envelope` for the envelope, then hold the hardware switch down from the
 middle position to save the current performance settings as the startup
 baseline.
+
+## C1ZZL3 Import Lab
+
+Hosted import lab:
+
+```text
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/index.html
+```
+
+Use Import Lab to decode Casio CZ `.syx` patches into pitch-aware C1ZZL3 drafts,
+then open the result in Envelope Lab for final editing and sending.
 
 ## Envelope Presets
 
