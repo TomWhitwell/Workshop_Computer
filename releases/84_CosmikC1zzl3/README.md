@@ -24,24 +24,25 @@ uf2/C1ZZL3.uf2
 Checksum:
 
 ```text
-12c356ad75d6d25fccab5060dbb057f1e3ed86169c2429a798c66f835825ed61
+254fa4e525b8c66201a4bfe944b4cdcd2909a61caff440e383ef23d9b3e1890a
 ```
 
-This is hardware-tested production release 1.1, promoted on 2026-07-06.
+This is hardware-tested production release 1.3, promoted on 2026-07-17.
 
-Release 1.1 works with Envelope Lab and C1ZZL3 Import Lab and includes Web
+Release 1.3 works with Envelope Lab and C1ZZL3 Import Lab and includes Web
 MIDI PD, detune, eight waveform families, card-to-editor envelope readback,
-and browser CZ patch import handoff.
+browser CZ patch import handoff, gate-held envelope looping with natural
+completion on gate/note release, corrected CZ DCW-to-PD and DCA-to-amplitude
+import mapping, and the audio smoothing pass for high-PD tones.
 
 ## Current Stable Feature Set
 
 - Phase-distortion synth voice.
 - Factory envelopes plus eight protected custom envelope slots.
 - Web MIDI envelope editor.
-- Hosted CZ patch import workflow.
 - USB MIDI device mode for DAW/browser use.
 - USB MIDI host mode for class-compliant controllers.
-- MIDI notes with envelope triggering.
+- MIDI notes with gate-held envelope sustain/release.
 - MIDI CC control with knob pickup handoff.
 - Turing machine audio, CV, pulse, and optional MIDI note output.
 - Turing CV and pulse outputs continue running in synth mode.
@@ -57,7 +58,7 @@ Switch middle: synth mode.
 - Y: waveform
 - `CV In 1`: phase-distortion modulation
 - `CV In 2`: waveform modulation
-- `Pulse In 2`: envelope trigger and oscillator sync
+- `Pulse In 2`: gate-held envelope trigger/release and oscillator sync
 
 Switch down from middle: performance edit and save.
 
@@ -120,10 +121,20 @@ Hosted import lab:
 https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/index.html
 ```
 
-The Import Lab is included at `web/import/index.html`. It decodes Casio CZ
-`.syx` patches into C1ZZL3 drafts, then hands the result to Envelope Lab for
-final editing and sending. The navigation buttons at the top of both pages
-switch between the two labs.
+Local import lab from this release folder:
+
+```sh
+python3 -m http.server 5174 --directory web/import
+```
+
+Open:
+
+```text
+http://localhost:5174
+```
+
+Use this page to decode Casio CZ `.syx` patches into C1ZZL3 drafts, then open
+the result in Envelope Lab for final editing and sending.
 
 Current Import Lab features:
 
@@ -131,6 +142,11 @@ Current Import Lab features:
 - Larger `C1ZZL3 Import Lab` header and a clearer guided import workflow.
 - Drag-and-drop or file-picker import for Casio CZ `.syx` files.
 - Browser-side validation, patch summary, decoded data, and draft mapping.
+- CZ frame awareness for common patch-send SysEx files, including command,
+  location, channel, selected data offset, and payload candidates.
+- Correct first-pass envelope assignment: CZ DCW maps to C1ZZL3 phase
+  distortion, CZ DCA maps to C1ZZL3 amplitude, and CZ pitch is decoded but not
+  assigned.
 - Draft handoff into Envelope Lab in a new tab for final editing and card send.
 - Separate import page so CZ translation and envelope editing stay distinct.
 
@@ -169,27 +185,23 @@ Use `Save Envelope` to retain an envelope in flash. To make the current
 performance settings the startup baseline, move the hardware switch from
 middle to down and hold it until the card confirms the save.
 
-The card can save up to eight custom envelopes. The browser can retain
-additional local drafts. Factory presets are not overwritten.
+The card can save up to eight custom envelopes. The browser can retain additional
+local drafts. Factory presets are not overwritten.
 Custom presets are labelled `Local only`, `Saved - slot N`, or `Changed - slot N`.
-Envelope readback confirms which custom slots are occupied and verifies saves
-and deletions when supported by the firmware.
+Envelope readback confirms which custom slots are occupied and verifies saves and
+deletions when supported by the firmware.
 
-`Play` loops a browser preview of the envelope.
-`Stop` stops the browser preview only. It does not send a stop command to the
-hardware.
-`Bounce` is the reset preset because it shows the envelope shape clearly.
+Envelope behaviour:
 
-## Mobile Web MIDI Notes
-
-- Mobile browser support is less consistent than desktop support.
-- If `MIDI` connects but no output appears, open `Developer tools` in the editor
-  and check `MIDI Ports Seen By Browser`.
-- Some mobile browsers report MIDI access but expose ports in a non-standard
-  way. The editor tries several detection paths, but browser/device support can
-  still vary.
-- If ports still do not appear, reconnect the device, reload the page, and try
-  another USB adapter, hub, or browser.
+- Pulse In 2 and MIDI note-on trigger the selected envelope and sync the
+  oscillators.
+- While the gate or MIDI note is held, loop-capable envelopes cycle their middle
+  stages.
+- A short trigger runs the envelope through to completion.
+- Pulse In 2 gate-off or MIDI note-off exits the loop and lets the envelope
+  complete naturally from its current point.
+- Turing-triggered envelopes continue to run through without waiting for a gate
+  release.
 
 ## Build
 
@@ -207,8 +219,8 @@ build/C1ZZL3.uf2
 The production source build currently reports:
 
 ```text
-FLASH: 138160 B
-RAM: 146500 B
+FLASH: 139072 B
+RAM: 147412 B
 ```
 
 ## Stability Notes
@@ -225,3 +237,4 @@ Possible future optimisation notes are kept in:
 ```text
 FUTURE_NOTES.md
 ```
+

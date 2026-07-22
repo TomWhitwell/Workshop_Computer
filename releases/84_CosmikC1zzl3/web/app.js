@@ -36,8 +36,8 @@ const factoryPresets = [
     [[4095, 240], [2600, 12000], [1200, 24000], [0, 36000], [0, 1], [0, 1], [0, 1], [0, 1]],
     [[2048, 240], [1600, 6000], [700, 24000], [0, 42000], [0, 1], [0, 1], [0, 1], [0, 1]]),
   preset("Brass",
-    [[4095, 4800], [3400, 30000], [0, 18000], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1]],
-    [[1792, 4800], [900, 30000], [0, 18000], [0, 1], [0, 1], [0, 1], [0, 1], [0, 1]]),
+    [[4095, 4800], [3400, 30000], [3200, 18000], [3000, 18000], [3300, 18000], [3100, 18000], [1600, 18000], [0, 24000]],
+    [[1792, 4800], [900, 30000], [1200, 18000], [1000, 18000], [1300, 18000], [900, 18000], [500, 18000], [0, 24000]]),
   preset("Strings",
     [[2200, 24000], [3600, 24000], [3800, 48000], [3600, 48000], [3400, 48000], [3000, 48000], [1800, 48000], [0, 96000]],
     [[400, 12000], [900, 36000], [1200, 36000], [900, 48000], [700, 48000], [500, 48000], [400, 48000], [300, 96000]]),
@@ -73,6 +73,8 @@ let envelopeReadTimer = null;
 let envelopeReadSupported = null;
 const CZ_IMPORT_HANDOFF_KEY = "c1zzl3-cz-import-draft";
 const HOSTED_EDITOR_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html";
+const HOSTED_IMPORT_LAB_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/";
+const LOCAL_IMPORT_LAB_URL = "import/index.html";
 let messageImportedDraft = null;
 const WAVE_FAMILIES = [
   "Saw",
@@ -101,6 +103,7 @@ const el = {
   canvas: document.querySelector("#curveCanvas"),
   themeToggle: document.querySelector("#themeToggle"),
   onlineEditorLink: document.querySelector("#onlineEditorLink"),
+  importLabLink: document.querySelector("#importLabLink"),
   ampStages: document.querySelector("#ampStages"),
   pdStages: document.querySelector("#pdStages"),
   ampView: document.querySelector("#ampView"),
@@ -403,6 +406,11 @@ function renderThemeMode() {
     const host = window.location.hostname;
     const isLocalDev = host === "localhost" || host === "127.0.0.1" || host === "::1";
     el.onlineEditorLink.classList.toggle("is-active", !isLocalDev && window.location.href.startsWith(HOSTED_EDITOR_URL));
+  }
+  if (el.importLabLink) {
+    const host = window.location.hostname;
+    const isLocalDev = host === "localhost" || host === "127.0.0.1" || host === "::1";
+    el.importLabLink.href = isLocalDev ? LOCAL_IMPORT_LAB_URL : HOSTED_IMPORT_LAB_URL;
   }
   drawCurves();
 }
