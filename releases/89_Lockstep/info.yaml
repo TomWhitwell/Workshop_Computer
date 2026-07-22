@@ -1,6 +1,6 @@
 draft: true
 Name: Lockstep
-Description: Dual quantized pitch-mover — two CV outs walk together through a scale to drive two oscillators in parallel
+short-description: Dual quantized pitch-mover — two CV outs walk together through a scale to drive two oscillators in parallel
 Language: C++ (Pico SDK)
 Creator: Jason Moore
 Version: 1.0
