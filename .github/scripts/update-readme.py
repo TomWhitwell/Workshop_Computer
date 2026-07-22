@@ -28,7 +28,7 @@ def read_card_info(folder_path):
 # Function to update the README file
 def update_readme(folders_data):
     # Define the desired order of columns
-    desired_order = ['Description', 'Version', 'Language', 'Creator']
+    desired_order = ['Short Description', 'Version', 'Language', 'Creator']
 
     # Standard table columns
     ordered_keys = desired_order
@@ -46,7 +46,7 @@ def update_readme(folders_data):
         raw = folders_data[folder]
         d = normalize_card_info(raw)
         row = [folder]
-        descr = str(d.get('description') or d.get('summary') or '')
+        descr = str(d.get('short-description') or '')
         editor_url = readme_editor_url(folder, os.path.join(base_folder, folder), raw, pages_base)
         if editor_url:
             descr += '<br>[Web editor](' + editor_url + ')'

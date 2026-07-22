@@ -20,9 +20,14 @@ the toolchain and `make` behavior.
    make            # configure + build into ./build/, and stage *.uf2 into ./UF2/
    ```
 
-The container ships CMake, Ninja, the ARM GCC toolchain, a pinned Pico SDK at
-`/opt/pico-sdk`, and picotool. The Pico SDK / TinyUSB versions are selected at
-build time in [devcontainer.json](devcontainer.json) under `build.args`.
+The container ships CMake, Ninja, the ARM GCC toolchain, Node.js 20 with npm,
+a pinned Pico SDK at `/opt/pico-sdk`, and picotool. The Pico SDK / TinyUSB
+versions are selected at build time in [devcontainer.json](devcontainer.json)
+under `build.args`.
+
+Node.js is included so the program-card metadata site under `tools/sitegen/`
+can be built and validated inside the same Codespace/container as the firmware
+toolchain.
 
 ## How `make` works without a per-card Makefile
 

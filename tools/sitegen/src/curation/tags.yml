@@ -1,0 +1,300 @@
+# Tag administration for generated card pages.
+# Edit this file to add, rename, remove, or reassign flairs.
+# `available_tags` defines the vocabulary; `assignments` maps card IDs to tag labels.
+
+available_tags:
+  - id: "included"
+    label: "Included"
+    description: "Ships with the Workshop Computer as an included Program Card."
+    color: "#27743a"
+    text_color: "#ffffff"
+
+  - id: "new"
+    label: "New"
+    description: "Recently added or worth drawing attention to."
+    color: "#f3c338"
+    text_color: "#111111"
+
+  - id: "recommended"
+    label: "Recommended"
+    description: "Good starting points or especially useful cards."
+    color: "#f28c38"
+    text_color: "#111111"
+
+  - id: "classic"
+    label: "Classic"
+    description: "Established core cards or familiar references."
+    color: "#e7dd64"
+    text_color: "#111111"
+
+  - id: "updated"
+    label: "Updated"
+    description: "Recently revised firmware or documentation."
+    color: "#91c7b1"
+    text_color: "#111111"
+
+  - id: "tom"
+    label: "Monkey"
+    description: "Recommended by Tom Whitwell."
+    color: "#c8b3e6"
+    text_color: "#111111"
+
+  - id: "wild"
+    label: "Wild"
+    description: "Unexpected crazy cards"
+    color: "#0FFF50"
+    text_color: "#111111"
+
+
+assignments:
+  # 00 Simple Midi
+  "00_Simple_MIDI":
+    - "Included"
+
+  # 02 Comingsoon
+  "02_comingsoon": []
+
+  # 03 Turing Machine
+  "03_Turing_Machine":
+    - "Included"
+
+  # 04 Byo Benjolin
+  "04_BYO_Benjolin":
+    - "Classic"
+    - "wild"
+
+  # 05 Chord Blimey!
+  "05_chord_blimey": []
+
+  # 06 USB Audio & MIDI
+  "06_usb_audio": []
+
+  # 07 Bumpers
+  "07_bumpers": []
+
+  # 08 08 - bytebeat
+  "08_bytebeat": []
+
+  # 09 Divcom
+  "09_DivCom":
+    - "wild"
+
+  # 10 twists
+  "10_twists": []
+
+  # 11 Goldfish
+  "11_goldfish":
+    - "classic"
+    - "recommended"
+
+  # 12 AM Coupler
+  "12_am_coupler":
+    - "wild"
+
+  # 13 13 Noisebox
+  "13_noisebox":
+    - "wild"
+
+  # 14 CVMod
+  "14_cvmod": []
+
+  # 18 18 Chord Organ-ish
+  "18_chord_organ": []
+
+  # 20 Reverb+
+  "20_reverb":
+    - "Included"
+
+  # 21 Resonator
+  "21_resonator":
+    - "Classic"
+
+  # 22 Sheep
+  "22_sheep":
+    - "Classic"
+    
+  # 23 Slowmod
+  "23_SlowMod": []
+
+  # 24 Crafted Volts
+  "24_crafted_volts": []
+
+  # 25 Utility Pair
+  "25_utility_pair":
+    - "Classic"
+
+  # 27 Siren
+  "27_Siren": []
+
+  # 28 30 - eighties_bass
+  "28_eighties_bass": []
+
+  # 30 30 - cirpy_wavetable
+  "30_cirpy_wavetable": []
+
+  # 31 ESP
+  "31_esp": []
+
+  # 32 Vink
+  "32_vink":
+    - "wild"
+    - "recommended"
+
+  # 33 drumdrum
+  "33_drumdrum": []
+
+  # 34 DualQuantPitch
+  "34_dual_quant": []
+
+  # 37 Compulidean
+  "37_compulidean":
+    - "New"
+
+  # 38 Od
+  "38_od":
+    - "Classic"
+
+  # 39 Knots
+  "39_knots":
+    - "New"
+
+  # 41 Blackbird v1.1
+  "41_blackbird": []
+
+  # 42 Backyard Rain Soundscape
+  "42_backyard_rain":
+    - "Recommended"
+    - "Classic"
+
+  # 47 Grain Noise and Tools (NZT)
+  "47_NZT": []
+
+  # 50 Flux
+  "50_flux": []
+
+  # 51 Grains
+  "51_grains": []
+
+  # 53 Glitter
+  "53_glitter": []
+
+  # 55 Fifths
+  "55_fifths": []
+
+  # 56 Krell
+  "56_Krell": []
+
+  # 57 Glitch
+  "57_glitch":
+    - "Recommended"
+
+  # 69 69 - trace
+  "69_trace": []
+
+  # 71 Degenerator
+  "71_degenerator":
+    - "New"
+    - "Recommended"
+
+  # 72 Motorik
+  "72_motorik": []
+
+  # 74 Wild Pebble
+  "74_Wild_Pebble": []
+
+  # 77 Placeholder
+  "77_Placeholder":
+    - "Updated"
+
+  # 78 Talker
+  "78_Talker":
+    - "Recommended"
+
+  # 82 Computer Grids
+  "82_Computer_Grids":
+    - "New"
+
+  # 86 Tesserae — Arpeggiated Harmonic Generator
+  "86_tesserae": []
+
+  # 88 Blank
+  "88_Blank": []
+
+  # 98 Duo MIDI
+  "98_duo_midi":
+    - "Updated"
+
+  # 99 Toolbox
+  "99_toolbox": []
+
+  # 15 MLRws
+  "15_MLRws": []
+
+  # 44 Birds
+  "44_Birds": []
+
+  # 54 Tapegrade
+  "54_Tapegrade": []
+
+  # 58 LoCho Vibes
+  "58_LoChoVibes": []
+
+  # 60 Markov
+  "60_markov": []
+
+  # 66 Stretchcore
+  "66_stretchcore": []
+
+  # 35 FreqShift
+  "35_FreqShift": []
+
+  # 59 BitPhase
+  "59_BitPhase": []
+
+  # 64 Voices of SID
+  "64_voices_of_sid": []
+
+  # 84 Cosmik C1ZZL3
+  "84_CosmikC1zzl3": []
+
+  # 87 Fr330hfr33
+  "87_fr330hfr33": []
+
+  # 91 Chorgan
+  "91_chorgan": []
+
+  # 26 Clockwork
+  "26_clockwork": []
+
+  # 43 Castle Process
+  "43_Castle_Process": []
+
+  # 43 Clockwork
+  "43_clockwork": []
+
+  # 81 West Coast LPG
+  "81_West_Coast_LPG": []
+
+  # 93 Turing Matrix
+  "93_Turing_Matrix": []
+
+  # 95 OffAir
+  "95_offair2": []
+
+  # 16 The Bells
+  "16_the_bells": []
+
+  # 36 GradualProcess
+  "36_GradualProcess": []
+
+  # 76 Hot Fuzz
+  "76_hot_fuzz": []
+
+  # 83 Origami
+  "83_Origami": []
+
+  # 90 Pantograph
+  "90_Pantograph": []
+
+  # 96 Cathode Ray
+  "96_cathode": []

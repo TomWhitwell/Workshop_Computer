@@ -1,6 +1,6 @@
 # Releases  
-| Folder Name | Description | Version | Language | Creator |
-| ----------- | ----------- | ------- | -------- | ------- |
+| Folder Name | Short Description | Version | Language | Creator |
+| ----------- | ----------------- | ------- | -------- | ------- |
 | 00_Simple_MIDI | USB MIDI utility firmware for routing incoming MIDI notes to CV/Gate outputs.
 Knob and CV positions are transmitted back to the host as MIDI CC values.
 Hold the switch during boot to enter calibration mode for the two pitch/CV channels.

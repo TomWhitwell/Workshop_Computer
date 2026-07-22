@@ -1,0 +1,110 @@
+# Program card discovery page curation.
+#
+# Page:
+# - `page.title` sets the main heading.
+# - Top-right section navigation is shared by the templates.
+#
+# Hero:
+# - `hero.featured` is a short, fixed list of card IDs shown before shelves.
+# - `hero.layout` uses the same grid layout names documented for shelves below.
+# - Use `hero.text` for practical context only; leave blank if it feels like filler.
+#
+# Shelves:
+# - `id` is a stable admin key; `title` is the visible heading.
+# - `intro` is optional. Most shelves read better without one.
+# - Use either `cards` for an explicit card-ID list, or `cards_from_tags` to pull from tags.yml.
+# - `limit` caps tag-driven shelves.
+# - `hide_tags` suppresses redundant badges inside that shelf, e.g. hide `recommended` on a Recommended shelf.
+# - `layout` is optional:
+#   - omit it for the normal 3-column card grid
+#   - `list` for a tighter 2-column editorial list
+#   - `lead` for one larger first card plus smaller supporting cards
+#   - `video-lead` for one prominent demo thumbnail plus supporting cards
+#   - `video-strip` for a compact row of cards with demo thumbnails
+#
+# Card IDs must match `_data/program_cards/cards.yml`.
+page:
+  title: Program Cards
+  intro: ''
+embeds:
+  computer_program_cards:
+    title: Try new cards
+    link_text: Explore all cards
+    link: /workshopsystem/program-cards/
+    cards:
+      - 39_knots
+      - 71_degenerator
+      - 82_Computer_Grids
+hero:
+  title: Included cards
+  layout: grid
+  featured:
+    - 03_Turing_Machine
+    - 20_reverb
+    - 00_Simple_MIDI
+shelves:
+  - id: start-here
+    title: Try these first
+    layout: video-lead
+    cards:
+      - 15_MLRws
+      - 71_degenerator
+      - 25_utility_pair
+      - 04_BYO_Benjolin
+  - id: recommended
+    title: Recommended
+    layout: list
+    cards_from_tags:
+      - recommended
+    hide_tags:
+      - recommended
+    limit: 6
+  - id: demo-videos
+    title: Essentials
+    layout: video-strip
+    cards:
+      - 30_cirpy_wavetable
+      - 26_clockwork
+      - 28_eighties_bass
+      - 41_blackbird
+  - id: new
+    title: New
+    layout: list
+    cards_from_tags:
+      - new
+    hide_tags:
+      - new
+    limit: 6
+  - id: make-sound
+    title: Make sound
+    cards:
+      - 10_twists
+      - 27_Siren
+      - 28_eighties_bass
+      - 30_cirpy_wavetable
+      - 78_Talker
+      - 08_bytebeat
+  - id: external-audio
+    title: Process audio
+    cards:
+      - 20_reverb
+      - 53_glitter
+      - 71_degenerator
+      - 14_cvmod
+      - 12_am_coupler
+  - id: strange
+    title: Strange
+    cards_from_tags:
+      - wild
+    hide_tags:
+      - wild
+    limit: 3
+  - id: deep-cuts
+    title: Deep cuts
+    cards:
+      - 42_backyard_rain
+      - 47_NZT
+      - 69_trace
+      - 38_od
+      - 24_crafted_volts
+

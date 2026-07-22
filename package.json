@@ -1,0 +1,9 @@
+{
+  "name": "workshop-computer",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix tools/sitegen run build",
+    "validate-info": "npm --prefix tools/sitegen run validate-info"
+  }
+}

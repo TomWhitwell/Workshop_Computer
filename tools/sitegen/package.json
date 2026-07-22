@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node ./src/build.js"
+    "build": "node ./src/build.js",
+    "validate-info": "node ./src/validate/cli.js"
   },
   "dependencies": {
     "marked": "^12.0.2",

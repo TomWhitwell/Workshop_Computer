@@ -23,6 +23,10 @@ export function normalizeRepository(raw) {
   return String(raw || '').trim();
 }
 
+export function normalizeDiscussion(raw) {
+  return String(raw || '').trim();
+}
+
 /** Card metadata still under author review; defaults to false when omitted. */
 export function normalizeDraft(raw) {
   if (raw === true || raw === 1) return true;
