@@ -16,18 +16,18 @@ CARD_README.md
 
 ## Status
 
-This folder is prepared for a separate Workshop Computer PR as card 85.
+This folder contains the stable Gnarly card 85 build.
 
 ```text
-release: 85 / Gnarly protocol v11 candidate
-draft: true
+release: 85 / Gnarly protocol v11 stable
+draft: false
 ```
 
 Core C1ZZL3 remains card 84. Rad can be added to card 84 in due course as an
 additional version. Gnarly is prepared here as a separate card identity because
 its hardware behaviour is substantially different.
 
-## Stable Test Build
+## Stable Build
 
 Current Gnarly UF2:
 
@@ -38,7 +38,7 @@ uf2/C1ZZL3_GNARLY_V11.uf2
 Checksum:
 
 ```text
-5782a8a0f77ef2d8ebd0433f6da3b7d5b1398627d82b163600f586a5cbf6bf4e
+b2d10ee755d1d8bd470a52bea9cd6a56306a5662100ef517ee5e5e9741423cb9
 ```
 
 ## What It Does
@@ -124,7 +124,7 @@ Open:
 http://localhost:5177
 ```
 
-Use Chrome or another browser with Web MIDI and SysEx support.
+Use Chrome or another browser with Web MIDI and SysEx support. When Web MIDI connects, the editor automatically checks card settings and saved envelope slots so the detected firmware type is shown without requiring a manual read first.
 
 ## C1ZZL3 Import Lab
 

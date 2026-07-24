@@ -1,7 +1,7 @@
 id: 85_Gnarly_C1ZZL3
 title: C1ZZL3 Gnarly
-draft: true
-release: 85 / Gnarly protocol v11 candidate
+draft: false
+release: 85 / Gnarly protocol v11 stable
 date: 2026-07-22
 summary: >-
   No-Turing dual-oscillator C1ZZL3 branch with recipe wave banks, named Web MIDI
@@ -115,7 +115,7 @@ tags:
   - web-midi
   - phase-distortion
   - dual-oscillator
-  - beta
+  - stable
 source_file: releases/85_Gnarly_C1ZZL3/info.yaml
 source_url: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/85_Gnarly_C1ZZL3
 readme_url: >-
@@ -125,8 +125,8 @@ download_url: >-
 metadata:
   creator: Adrian Vos
   language: C++ (Pico SDK)
-  version: Gnarly protocol v11 candidate
-  status: Beta
+  version: Gnarly protocol v11 stable
+  status: Stable
   license: MIT
   editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/index.html
   editor_note: Use the Gnarly Lab and its Import Lab for recipe-bank sound presets.
