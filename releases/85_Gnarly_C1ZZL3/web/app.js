@@ -568,7 +568,8 @@ function makeImportedPreset(draft) {
     importedPitch2Stages(draft),
     importedPd2Stages(draft),
     draft.amp2 || draft.sourceEnvelopes?.amp2 || draft.amp,
-    draft.sustain || draft.sourceEnvelopes?.sustain
+    draft.sustain || draft.sourceEnvelopes?.sustain,
+    normalizePerformanceSettings(draft.performance)
   );
 }
 
@@ -583,8 +584,13 @@ function applyImportedPerformanceSettings(draft) {
   else if (draft?.wave?.value != null) nextSettings.waveform = clampInt(draft.wave.value, 0, 7);
   if (performance.waveform2 != null) nextSettings.waveform2 = clampInt(performance.waveform2, 0, 7);
   else nextSettings.waveform2 = nextSettings.waveform;
+  if (performance.recipeBank != null) nextSettings.recipeBank = clampInt(performance.recipeBank, 0, 3);
   if (performance.ring != null) nextSettings.ring = clampInt(performance.ring, 0, MAX_LEVEL);
   if (performance.noise != null) nextSettings.noise = clampInt(performance.noise, 0, MAX_LEVEL);
+  if (performance.midiInChannel != null) nextSettings.midiInChannel = clampInt(performance.midiInChannel, 1, 16);
+  if (performance.turingRange != null) nextSettings.turingRange = clampInt(performance.turingRange, 1, 8);
+  if (performance.turingMidiOut != null) nextSettings.turingMidiOut = performance.turingMidiOut === true;
+  if (performance.turingMidiChannel != null) nextSettings.turingMidiChannel = clampInt(performance.turingMidiChannel, 1, 16);
 
   performanceSettings = nextSettings;
   savePerformanceSettings();
@@ -603,7 +609,9 @@ function addImportedDraft(draft) {
     selected = presets.length - 1;
   }
 
-  applyImportedPerformanceSettings(draft);
+  if (applyImportedPerformanceSettings(draft)) {
+    presets[selected].performance = normalizePerformanceSettings(performanceSettings);
+  }
   savePresets();
   clearImportedDraftSources();
   return true;
@@ -935,7 +943,8 @@ function duplicateFactoryPreset() {
   }
 
   const source = presets[selected];
-  presets.push(preset(`${source.name} copy`, source.amp, source.pd, null, false, source.pitch, source.pitchSource, source.pitch2, source.pd2, source.amp2, source.sustain, source.performance));
+  const copiedPerformance = source.performance || performanceSettings;
+  presets.push(preset(`${source.name} copy`, source.amp, source.pd, null, false, source.pitch, source.pitchSource, source.pitch2, source.pd2, source.amp2, source.sustain, copiedPerformance));
   selected = presets.length - 1;
   savePresets();
   render();
@@ -3311,7 +3320,9 @@ el.addPreset.addEventListener("click", () => {
     return;
   }
 
-  presets.push(defaultCustomPreset());
+  const draft = defaultCustomPreset();
+  draft.performance = normalizePerformanceSettings(performanceSettings);
+  presets.push(draft);
   selected = presets.length - 1;
   savePresets();
   render();
