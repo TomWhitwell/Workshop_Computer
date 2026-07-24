@@ -25,7 +25,7 @@ uf2/C1ZZL3.uf2
 Checksum:
 
 ```text
-a9297f7d5d7fd7c2262d27ff6e8afa0ecd026ebe05aea205d9444b0985e8d7d6
+47f7d71ba1049149bd17fb0de495351da27f91fbfeb8b5fefebb5adb95b52645
 ```
 
 This is hardware-tested production release 1.4.
@@ -170,7 +170,8 @@ Import Lab flow:
 4. Drag points on the graphs to change both level and timing.
 5. Watch the point numbers. When stages stack, only the highest number is shown.
 6. Use the tables below the graphs for exact values when you want precise edits.
-7. Use the action buttons when you want to send, save, read, or reset.
+7. Connect Web MIDI. The editor automatically checks the card firmware type and saved envelope slots.
+8. Use the action buttons when you want to send, save, refresh, or reset.
 
 Button quick reference:
 
@@ -193,7 +194,7 @@ hold it until the card confirms the save.
 The card can save up to eight custom envelopes. Factory presets are not
 overwritten. Custom presets are labelled `Local only`, `Saved - slot N`, or
 `Changed - slot N`. Envelope readback confirms which custom slots are occupied
-and verifies saves and deletions when supported by the firmware.
+and verifies saves and deletions when supported by the firmware. The editor also runs a quiet settings/envelope check automatically when MIDI connects or ports change, so the firmware type is visible without first pressing the read buttons.
 
 Envelope behaviour:
 
