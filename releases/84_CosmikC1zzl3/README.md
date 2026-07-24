@@ -25,7 +25,7 @@ uf2/C1ZZL3.uf2
 Checksum:
 
 ```text
-a9297f7d5d7fd7c2262d27ff6e8afa0ecd026ebe05aea205d9444b0985e8d7d6
+47f7d71ba1049149bd17fb0de495351da27f91fbfeb8b5fefebb5adb95b52645
 ```
 
 Alternate advanced release-84 package:
