@@ -6,10 +6,12 @@ const MAX_BROWSER_CUSTOM_PRESETS = 32;
 const AUDITION_TIME_SCALE = 4;
 const EDITOR_VIEW_SAMPLES = SAMPLE_RATE * 4;
 const MIN_SEND_SAMPLES = 960;
+const SETTINGS_READ_TIMEOUT_MS = 3000;
 const ENVELOPE_READ_TIMEOUT_MS = 7000;
 const ENVELOPE_READ_RETRIES = 2;
 const SAVE_VERIFY_DELAY_MS = 2500;
 const DELETE_VERIFY_DELAY_MS = 500;
+const AUX_ENVELOPE_REQUEST_DELAY_MS = 120;
 const SYSEX_MANUFACTURER = 0x7d;
 const SYSEX_ID = [0x43, 0x31, 0x5a, 0x33];
 const SYSEX_COMMAND_PREVIEW = 0x01;
@@ -25,7 +27,12 @@ const SYSEX_COMMAND_REQUEST_ENVELOPE = 0x0a;
 const SYSEX_COMMAND_ENVELOPE_RESPONSE = 0x0b;
 const SYSEX_COMMAND_REQUEST_PITCH_ENVELOPE = 0x0c;
 const SYSEX_COMMAND_PITCH_ENVELOPE_RESPONSE = 0x0d;
-const ENVELOPE_PROTOCOL_VERSION = 2;
+const SYSEX_COMMAND_PD2_ENVELOPE_RESPONSE = 0x0e;
+const SYSEX_COMMAND_AMP2_ENVELOPE_RESPONSE = 0x0f;
+const SYSEX_COMMAND_REQUEST_PD2_ENVELOPE = 0x10;
+const SYSEX_COMMAND_REQUEST_AMP2_ENVELOPE = 0x11;
+const ENVELOPE_PROTOCOL_VERSION = 9;
+const MAX_READABLE_ENVELOPE_PROTOCOL_VERSION = 11;
 
 const factoryPresets = [
   preset("Off", fill(0, 1), fill(0, 1)),
@@ -57,6 +64,16 @@ const factoryPresets = [
 
 const FACTORY_PRESET_COUNT = factoryPresets.length;
 
+const PRESET_STORAGE_KEY = "c1zzl3-full-dual-oscillators-envelope-presets";
+const PERFORMANCE_STORAGE_KEY = "c1zzl3-full-dual-oscillators-performance-settings";
+const CZ_IMPORT_HANDOFF_KEY = "c1zzl3-full-dual-oscillators-import-draft";
+const CZ_IMPORT_QUEUE_KEY = "c1zzl3-full-dual-oscillators-import-queue";
+const ENVELOPE_LAB_HEARTBEAT_KEY = "c1zzl3-full-dual-oscillators-envelope-lab-heartbeat";
+const HANDOFF_CHANNEL_NAME = "c1zzl3-full-dual-oscillators-handoff";
+const HOSTED_EDITOR_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html";
+const HOSTED_IMPORT_LAB_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/";
+const LOCAL_IMPORT_LAB_URL = "import/index.html";
+
 let presets = loadPresets();
 let selected = 3;
 let audioCtx;
@@ -69,20 +86,25 @@ let dragTarget = null;
 let pitchDragTarget = null;
 let performanceSettings = loadPerformanceSettings();
 let activeLaneView = "amp";
+let activePitchLane = "pitch";
 let developerMode = false;
 let themeMode = loadThemeMode();
 let developerLogLines = [];
 let settingsProtocol = "unknown";
 let settingsRequestPending = false;
 let settingsRequestTimer = null;
+let settingsRequestResolver = null;
 let envelopeReadSession = null;
 let envelopeReadTimer = null;
 let envelopeReadSupported = null;
-const CZ_IMPORT_HANDOFF_KEY = "c1zzl3-cz-import-draft";
-const HOSTED_EDITOR_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html";
-const HOSTED_IMPORT_LAB_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/";
-const LOCAL_IMPORT_LAB_URL = "import/index.html";
+let detectedEnvelopeProtocol = null;
+let auxiliaryEnvelopeRequestTimer = null;
+let lastLoggedSysexAt = 0;
 let messageImportedDraft = null;
+let lastConsumedHandoffId = null;
+const handoffChannel = typeof BroadcastChannel === "function"
+  ? new BroadcastChannel(HANDOFF_CHANNEL_NAME)
+  : null;
 const WAVE_FAMILIES = [
   "Saw",
   "Square",
@@ -93,10 +115,41 @@ const WAVE_FAMILIES = [
   "Resonant triangle window",
   "Resonant trapezoid window"
 ];
+const RECIPE_BANKS = [
+  "Simple",
+  "Warm compound",
+  "Bright resonant",
+  "CZ import"
+];
+const GNARLY_CC_TESTS = [
+  { cc: 20, label: "CC20 Osc 1 recipe" },
+  { cc: 21, label: "CC21 Osc 2 recipe" },
+  { cc: 22, label: "CC22 Ring" },
+  { cc: 23, label: "CC23 Recipe bank" },
+  { cc: 24, label: "CC24 Osc 2 interval" },
+  { cc: 25, label: "CC25 Osc 2 PD" },
+  { cc: 26, label: "CC26 Noise" },
+  { cc: 27, label: "CC27 Osc 1 PD" }
+];
 
 window.addEventListener("message", (event) => {
   if (event.data?.type === "cz-import-handoff" && event.data?.payload) {
-    messageImportedDraft = event.data.payload;
+    handleLiveImportedDraft(event.data.payload);
+  }
+});
+
+handoffChannel?.addEventListener("message", (event) => {
+  if (event.data?.type === "cz-import-handoff" && event.data?.payload) {
+    handleLiveImportedDraft(event.data.payload);
+  }
+});
+
+window.addEventListener("storage", (event) => {
+  if (event.key !== CZ_IMPORT_QUEUE_KEY || !event.newValue) return;
+  try {
+    handleLiveImportedDraft(JSON.parse(event.newValue));
+  } catch {
+    /* Ignore unrelated or partial storage writes. */
   }
 });
 
@@ -111,14 +164,21 @@ const el = {
   pitchCanvas: document.querySelector("#pitchCanvas"),
   pitchSourceLabel: document.querySelector("#pitchSourceLabel"),
   spreadPitchPoints: document.querySelector("#spreadPitchPoints"),
+  pitch1View: document.querySelector("#pitch1View"),
+  pitch2View: document.querySelector("#pitch2View"),
+  pitchStageTitle: document.querySelector("#pitchStageTitle"),
   themeToggle: document.querySelector("#themeToggle"),
   onlineEditorLink: document.querySelector("#onlineEditorLink"),
   importLabLink: document.querySelector("#importLabLink"),
   ampStages: document.querySelector("#ampStages"),
+  amp2Stages: document.querySelector("#amp2Stages"),
   pdStages: document.querySelector("#pdStages"),
+  pd2Stages: document.querySelector("#pd2Stages"),
   pitchStages: document.querySelector("#pitchStages"),
   ampView: document.querySelector("#ampView"),
+  amp2View: document.querySelector("#amp2View"),
   pdView: document.querySelector("#pdView"),
+  pd2View: document.querySelector("#pd2View"),
   developerToggle: document.querySelector("#developerToggle"),
   stagePanel: document.querySelector("#stagePanel"),
   stagePanelTitle: document.querySelector("#stagePanelTitle"),
@@ -128,6 +188,10 @@ const el = {
   developerPorts: document.querySelector("#developerPorts"),
   developerMidiRaw: document.querySelector("#developerMidiRaw"),
   developerLog: document.querySelector("#developerLog"),
+  ccTestGrid: document.querySelector("#ccTestGrid"),
+  ccTestNeutral: document.querySelector("#ccTestNeutral"),
+  ccTestSweep: document.querySelector("#ccTestSweep"),
+  ccTestModWheel: document.querySelector("#ccTestModWheel"),
   resetBrowserState: document.querySelector("#resetBrowserState"),
   clearDeveloperLog: document.querySelector("#clearDeveloperLog"),
   status: document.querySelector("#status"),
@@ -135,13 +199,20 @@ const el = {
   stop: document.querySelector("#stop"),
   midiToggle: document.querySelector("#midiToggle"),
   pdControl: document.querySelector("#pdControl"),
+  pd2Setting: document.querySelector("#pd2Setting"),
+  pd2Control: document.querySelector("#pd2Control"),
+  pd2SettingHint: document.querySelector("#pd2SettingHint"),
   detuneControl: document.querySelector("#detuneControl"),
   performanceWaveSelect: document.querySelector("#performanceWaveSelect"),
+  performanceWave2Select: document.querySelector("#performanceWave2Select"),
+  recipeBankSetting: document.querySelector("#recipeBankSetting"),
+  recipeBankSelect: document.querySelector("#recipeBankSelect"),
   midiOutput: document.querySelector("#midiOutput"),
   copyCpp: document.querySelector("#copyCpp"),
   copySysex: document.querySelector("#copySysex"),
   sendSysex: document.querySelector("#sendSysex"),
   loadEnvelopeAndSettings: document.querySelector("#loadEnvelopeAndSettings"),
+  saveEnvelopeOnly: document.querySelector("#saveEnvelopeOnly"),
   flashSysex: document.querySelector("#flashSysex"),
   deleteSlot: document.querySelector("#deleteSlot"),
   requestSettings: document.querySelector("#requestSettings"),
@@ -154,15 +225,24 @@ const el = {
   midiInChannel: document.querySelector("#midiInChannel"),
   turingRange: document.querySelector("#turingRange"),
   turingMidiOut: document.querySelector("#turingMidiOut"),
-  turingMidiChannel: document.querySelector("#turingMidiChannel")
+  turingMidiChannel: document.querySelector("#turingMidiChannel"),
+  soundPresetSettingsStatus: document.querySelector("#soundPresetSettingsStatus")
 };
 
-function preset(name, amp, pd, slot = null, cardDirty = false, pitch = null, pitchSource = null) {
+function preset(name, amp, pd, slot = null, cardDirty = false, pitch = null, pitchSource = null, pitch2 = null, pd2 = null, amp2 = null, sustain = null, performance = null) {
+  const pitchLane = normalizePitchStages(pitch);
+  const ampLane = normalizeStages(amp);
+  const pdLane = normalizeStages(pd);
   return {
     name,
-    amp: normalizeStages(amp),
-    pd: normalizeStages(pd),
-    pitch: normalizePitchStages(pitch),
+    amp: ampLane,
+    amp2: normalizeStages(amp2 || ampLane),
+    pd: pdLane,
+    pd2: normalizeStages(pd2 || pdLane),
+    pitch: pitchLane,
+    pitch2: normalizePitchStages(pitch2 || pitchLane),
+    sustain: normalizeSustainStages(sustain),
+    performance: normalizePerformanceSettings(performance),
     pitchSource: pitchSource || null,
     slot: Number.isInteger(slot) ? clampInt(slot, 0, CUSTOM_SLOT_COUNT - 1) : null,
     cardDirty: Boolean(cardDirty)
@@ -193,18 +273,34 @@ function normalizePitchStages(stages) {
   }));
 }
 
+function normalizeSustainStages(sustain) {
+  return Array.from({ length: 6 }, (_, index) => {
+    const value = Array.isArray(sustain) ? sustain[index] : undefined;
+    const stage = Number(value);
+    return Number.isInteger(stage) && stage >= 0 && stage < STAGES ? stage : 0x7f;
+  });
+}
+
 function envelopeMaxSamples(presetItem) {
   return Math.max(
     totalSamples(normalizeStages(presetItem.amp)),
+    totalSamples(normalizeStages(presetItem.amp2 || presetItem.amp)),
     totalSamples(normalizeStages(presetItem.pd)),
+    totalSamples(normalizeStages(presetItem.pd2 || presetItem.pd)),
     1
   );
 }
 
 function constrainPitchToEnvelope(presetItem) {
   const maxSamples = envelopeMaxSamples(presetItem);
+  presetItem.pitch = constrainPitchLaneToSamples(presetItem.pitch, maxSamples);
+  presetItem.pitch2 = constrainPitchLaneToSamples(presetItem.pitch2 || presetItem.pitch, maxSamples);
+  return presetItem;
+}
+
+function constrainPitchLaneToSamples(stages, maxSamples) {
   let remaining = maxSamples;
-  presetItem.pitch = normalizePitchStages(presetItem.pitch).map((stage, index) => {
+  return normalizePitchStages(stages).map((stage, index) => {
     const stagesLeft = STAGES - index - 1;
     const reserve = stagesLeft;
     const time = Math.max(1, Math.min(stage.time, Math.max(1, remaining - reserve)));
@@ -214,7 +310,21 @@ function constrainPitchToEnvelope(presetItem) {
       time
     };
   });
-  return presetItem;
+}
+
+function pitchLaneLabel(lane = activePitchLane) {
+  return lane === "pitch2" ? "Pitch 2 / Oscillator 2" : "Pitch 1 / Oscillator 1";
+}
+
+function mainLaneLabel(lane = activeLaneView) {
+  if (lane === "amp2") return "Amp 2 / Oscillator 2";
+  if (lane === "pd") return "PD 1 / Oscillator 1";
+  if (lane === "pd2") return "PD 2 / Oscillator 2";
+  return "Amp 1 / Oscillator 1";
+}
+
+function activePitchStages(current = presets[selected]) {
+  return current[activePitchLane] || current.pitch;
 }
 
 function spreadPitchPoints() {
@@ -227,7 +337,8 @@ function spreadPitchPoints() {
   const baseTime = Math.max(1, Math.floor(maxSamples / STAGES));
   let remainder = Math.max(0, maxSamples - (baseTime * STAGES));
 
-  current.pitch = normalizePitchStages(current.pitch).map((stage) => {
+  const lane = activePitchLane;
+  current[lane] = normalizePitchStages(current[lane] || current.pitch).map((stage) => {
     const extra = remainder > 0 ? 1 : 0;
     if (remainder > 0) remainder--;
     return { level: stage.level, time: baseTime + extra };
@@ -236,22 +347,22 @@ function spreadPitchPoints() {
   if (current.slot !== null) current.cardDirty = true;
   savePresets();
   render();
-  setStatus("Pitch points spread across the current amplitude/PD envelope length.");
+  setStatus(`${pitchLaneLabel(lane)} points spread across the current amplitude/PD envelope length.`);
 }
 
 function loadPresets() {
   try {
-    const saved = JSON.parse(localStorage.getItem("c1zzl3-envelope-presets"));
+    const saved = JSON.parse(localStorage.getItem(PRESET_STORAGE_KEY));
     if (Array.isArray(saved)) {
       const custom = saved
         .slice(FACTORY_PRESET_COUNT)
-        .map((item) => constrainPitchToEnvelope(preset(item.name || "Custom preset", item.amp, item.pd, item.slot, item.cardDirty, item.pitch, item.pitchSource)))
+        .map((item) => constrainPitchToEnvelope(preset(item.name || "Custom preset", item.amp, item.pd, item.slot, item.cardDirty, item.pitch, item.pitchSource, item.pitch2, item.pd2, item.amp2, item.sustain, item.performance)))
         .slice(0, MAX_BROWSER_CUSTOM_PRESETS);
       return [...structuredClone(factoryPresets), ...custom];
     }
     if (Array.isArray(saved?.customPresets)) {
       const custom = saved.customPresets
-        .map((item) => constrainPitchToEnvelope(preset(item.name || "Custom preset", item.amp, item.pd, item.slot, item.cardDirty, item.pitch, item.pitchSource)))
+        .map((item) => constrainPitchToEnvelope(preset(item.name || "Custom preset", item.amp, item.pd, item.slot, item.cardDirty, item.pitch, item.pitchSource, item.pitch2, item.pd2, item.amp2, item.sustain, item.performance)))
         .slice(0, MAX_BROWSER_CUSTOM_PRESETS);
       return [...structuredClone(factoryPresets), ...custom];
     }
@@ -262,14 +373,19 @@ function loadPresets() {
 }
 
 function savePresets() {
-  localStorage.setItem("c1zzl3-envelope-presets", JSON.stringify({
+  localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify({
     customPresets: presets
       .slice(FACTORY_PRESET_COUNT, FACTORY_PRESET_COUNT + MAX_BROWSER_CUSTOM_PRESETS)
       .map((item) => ({
         name: item.name,
         amp: item.amp,
+        amp2: item.amp2 || item.amp,
         pd: item.pd,
+        pd2: item.pd2 || item.pd,
         pitch: item.pitch,
+        pitch2: item.pitch2,
+        sustain: normalizeSustainStages(item.sustain),
+        performance: normalizePerformanceSettings(item.performance),
         pitchSource: item.pitchSource || null,
         slot: Number.isInteger(item.slot) ? item.slot : null,
         cardDirty: Boolean(item.cardDirty)
@@ -279,17 +395,20 @@ function savePresets() {
 
 function loadPerformanceSettings() {
   try {
-    const saved = JSON.parse(localStorage.getItem("c1zzl3-performance-settings"));
+    const saved = JSON.parse(localStorage.getItem(PERFORMANCE_STORAGE_KEY));
     if (saved && typeof saved === "object") {
       return {
         pd: clampInt(saved.pd ?? 0, 0, MAX_LEVEL),
+        pd2: clampInt(saved.pd2 ?? saved.pd ?? 0, 0, MAX_LEVEL),
         detune: clampInt(saved.detune ?? 2048, 0, MAX_LEVEL),
         waveform: clampInt(saved.waveform ?? 0, 0, 7),
+        waveform2: clampInt(saved.waveform2 ?? saved.waveform ?? 0, 0, 7),
+        recipeBank: clampInt(saved.recipeBank ?? 0, 0, 3),
         ring: clampInt(saved.ring, 0, MAX_LEVEL),
         noise: clampInt(saved.noise, 0, MAX_LEVEL),
         midiInChannel: clampInt(saved.midiInChannel, 1, 16),
         turingRange: clampInt(saved.turingRange ?? 2, 1, 8),
-        turingMidiOut: saved.turingMidiOut !== false,
+        turingMidiOut: saved.turingMidiOut === true,
         turingMidiChannel: clampInt(saved.turingMidiChannel ?? 1, 1, 16)
       };
     }
@@ -299,27 +418,108 @@ function loadPerformanceSettings() {
 
   return {
     pd: 0,
+    pd2: 0,
     detune: 2048,
     waveform: 0,
+    waveform2: 0,
+    recipeBank: 0,
     ring: 0,
     noise: 0,
     midiInChannel: 1,
     turingRange: 2,
-    turingMidiOut: true,
+    turingMidiOut: false,
     turingMidiChannel: 1
   };
 }
 
+function normalizePerformanceSettings(settings = null) {
+  if (!settings || typeof settings !== "object") return null;
+  return {
+    pd: clampInt(settings.pd ?? 0, 0, MAX_LEVEL),
+    pd2: clampInt(settings.pd2 ?? settings.pd ?? 0, 0, MAX_LEVEL),
+    detune: clampInt(settings.detune ?? 2048, 0, MAX_LEVEL),
+    waveform: clampInt(settings.waveform ?? 0, 0, 7),
+    waveform2: clampInt(settings.waveform2 ?? settings.waveform ?? 0, 0, 7),
+    recipeBank: clampInt(settings.recipeBank ?? 0, 0, 3),
+    ring: clampInt(settings.ring ?? 0, 0, MAX_LEVEL),
+    noise: clampInt(settings.noise ?? 0, 0, MAX_LEVEL),
+    midiInChannel: clampInt(settings.midiInChannel ?? 1, 1, 16),
+    turingRange: clampInt(settings.turingRange ?? 2, 1, 8),
+    turingMidiOut: settings.turingMidiOut === true,
+    turingMidiChannel: clampInt(settings.turingMidiChannel ?? 1, 1, 16)
+  };
+}
+
+function applyPerformanceSettings(settings) {
+  const next = normalizePerformanceSettings(settings);
+  if (!next) return false;
+  performanceSettings = next;
+  savePerformanceSettings();
+  renderPerformanceSettings();
+  return true;
+}
+
+function performanceSettingsMatch(left, right) {
+  const a = normalizePerformanceSettings(left);
+  const b = normalizePerformanceSettings(right);
+  if (!a || !b) return false;
+  return a.pd === b.pd &&
+    a.pd2 === b.pd2 &&
+    a.detune === b.detune &&
+    a.waveform === b.waveform &&
+    a.waveform2 === b.waveform2 &&
+    a.recipeBank === b.recipeBank &&
+    a.ring === b.ring &&
+    a.noise === b.noise &&
+    a.midiInChannel === b.midiInChannel &&
+    a.turingRange === b.turingRange &&
+    a.turingMidiOut === b.turingMidiOut &&
+    a.turingMidiChannel === b.turingMidiChannel;
+}
+
+function renderSoundPresetSettingsStatus() {
+  if (!el.soundPresetSettingsStatus) return;
+  const current = presets[selected];
+  const savedSettings = normalizePerformanceSettings(current?.performance);
+  el.soundPresetSettingsStatus.className = "sound-preset-settings-status";
+
+  if (selected < FACTORY_PRESET_COUNT) {
+    el.soundPresetSettingsStatus.textContent =
+      "Factory presets use the current visible settings. Save Sound Preset to attach settings to a custom card slot.";
+    return;
+  }
+
+  if (!savedSettings) {
+    el.soundPresetSettingsStatus.classList.add("is-local");
+    el.soundPresetSettingsStatus.textContent =
+      "This draft has no saved settings attached. Save Sound Preset will store the visible settings with it.";
+    return;
+  }
+
+  if (performanceSettingsMatch(performanceSettings, savedSettings)) {
+    el.soundPresetSettingsStatus.classList.add("is-matched");
+    el.soundPresetSettingsStatus.textContent = Number.isInteger(current.slot)
+      ? `Visible settings match saved card slot ${current.slot + 1}.`
+      : "Visible settings match this draft's attached settings.";
+    return;
+  }
+
+  el.soundPresetSettingsStatus.classList.add("is-warning");
+  el.soundPresetSettingsStatus.textContent = Number.isInteger(current.slot)
+    ? `Visible settings differ from saved slot ${current.slot + 1}. Save Sound Preset will overwrite that slot's saved settings; select this preset again to restore them.`
+    : "Visible settings differ from this draft's attached settings. Save Sound Preset will store the visible settings.";
+}
+
 function savePerformanceSettings() {
-  localStorage.setItem("c1zzl3-performance-settings", JSON.stringify(performanceSettings));
+  localStorage.setItem(PERFORMANCE_STORAGE_KEY, JSON.stringify(performanceSettings));
 }
 
 function resetBrowserState() {
-  localStorage.removeItem("c1zzl3-envelope-presets");
-  localStorage.removeItem("c1zzl3-performance-settings");
+  localStorage.removeItem(PRESET_STORAGE_KEY);
+  localStorage.removeItem(PERFORMANCE_STORAGE_KEY);
   localStorage.removeItem(CZ_IMPORT_HANDOFF_KEY);
   setStatus("Browser state cleared. Reloading baseline editor...");
-  window.setTimeout(() => window.location.reload(), 120);
+  window.setTimeout(() => window.location.reload(), 450);
 }
 
 function loadThemeMode() {
@@ -339,19 +539,16 @@ function saveThemeMode() {
 function clearImportedDraftSources() {
   messageImportedDraft = null;
   localStorage.removeItem(CZ_IMPORT_HANDOFF_KEY);
+  localStorage.removeItem(CZ_IMPORT_QUEUE_KEY);
   window.history.replaceState(null, "", window.location.pathname);
 }
 
-function applyImportedPerformance(draft) {
-  if (!draft || typeof draft !== "object") return;
-
-  performanceSettings = {
-    ...performanceSettings,
-    detune: clampInt(draft.performance?.detune ?? performanceSettings.detune, 0, MAX_LEVEL),
-    ring: clampInt(draft.performance?.ring ?? performanceSettings.ring, 0, MAX_LEVEL),
-    noise: clampInt(draft.performance?.noise ?? performanceSettings.noise, 0, MAX_LEVEL),
-    waveform: clampInt(draft.wave?.value ?? performanceSettings.waveform, 0, 7)
-  };
+function markEnvelopeLabActive() {
+  try {
+    localStorage.setItem(ENVELOPE_LAB_HEARTBEAT_KEY, String(Date.now()));
+  } catch {
+    /* Heartbeat is only used to avoid reloading an already-open lab. */
+  }
 }
 
 function importedPitchStages(draft) {
@@ -359,12 +556,24 @@ function importedPitchStages(draft) {
   return Array.isArray(directPitch) ? directPitch : null;
 }
 
+function importedPitch2Stages(draft) {
+  const directPitch = draft?.pitch2 || draft?.sourceEnvelopes?.pitch2;
+  return Array.isArray(directPitch) ? directPitch : importedPitchStages(draft);
+}
+
+function importedPd2Stages(draft) {
+  const directPd = draft?.pd2 || draft?.sourceEnvelopes?.pd2;
+  return Array.isArray(directPd) ? directPd : draft?.pd;
+}
+
 function importedPitchSource(draft) {
   const cz = draft?.sourceEnvelopes?.cz;
   if (!cz) return null;
   return {
     dco1Pitch: cz.dco1Pitch || null,
-    dco2Pitch: cz.dco2Pitch || null
+    dco2Pitch: cz.dco2Pitch || null,
+    pitchMapping: draft?.sourceEnvelopes?.pitchMapping || null,
+    pitchAlternatives: draft?.sourceEnvelopes?.pitchAlternatives || null
   };
 }
 
@@ -376,30 +585,81 @@ function makeImportedPreset(draft) {
     null,
     false,
     importedPitchStages(draft),
-    importedPitchSource(draft)
+    importedPitchSource(draft),
+    importedPitch2Stages(draft),
+    importedPd2Stages(draft),
+    draft.amp2 || draft.sourceEnvelopes?.amp2 || draft.amp,
+    draft.sustain || draft.sourceEnvelopes?.sustain,
+    normalizePerformanceSettings(draft.performance)
   );
+}
+
+function applyImportedPerformanceSettings(draft) {
+  const performance = draft?.performance;
+  if (!performance || typeof performance !== "object") return false;
+
+  const nextSettings = { ...performanceSettings };
+  if (performance.pd != null) nextSettings.pd = clampInt(performance.pd, 0, MAX_LEVEL);
+  if (performance.pd2 != null) nextSettings.pd2 = clampInt(performance.pd2, 0, MAX_LEVEL);
+  else nextSettings.pd2 = nextSettings.pd;
+  if (performance.detune != null) nextSettings.detune = clampInt(performance.detune, 0, MAX_LEVEL);
+  if (performance.waveform != null) nextSettings.waveform = clampInt(performance.waveform, 0, 7);
+  else if (draft?.wave?.value != null) nextSettings.waveform = clampInt(draft.wave.value, 0, 7);
+  if (performance.waveform2 != null) nextSettings.waveform2 = clampInt(performance.waveform2, 0, 7);
+  else nextSettings.waveform2 = nextSettings.waveform;
+  if (performance.recipeBank != null) nextSettings.recipeBank = clampInt(performance.recipeBank, 0, 3);
+  if (performance.ring != null) nextSettings.ring = clampInt(performance.ring, 0, MAX_LEVEL);
+  if (performance.noise != null) nextSettings.noise = clampInt(performance.noise, 0, MAX_LEVEL);
+  if (performance.midiInChannel != null) nextSettings.midiInChannel = clampInt(performance.midiInChannel, 1, 16);
+  if (performance.turingRange != null) nextSettings.turingRange = clampInt(performance.turingRange, 1, 8);
+  if (performance.turingMidiOut != null) nextSettings.turingMidiOut = performance.turingMidiOut === true;
+  if (performance.turingMidiChannel != null) nextSettings.turingMidiChannel = clampInt(performance.turingMidiChannel, 1, 16);
+
+  performanceSettings = nextSettings;
+  savePerformanceSettings();
+  return true;
+}
+
+function addImportedDraft(draft) {
+  if (!draft || !Array.isArray(draft.amp) || !Array.isArray(draft.pd)) return false;
+  const imported = makeImportedPreset(draft);
+  if (customPresetCount() >= MAX_BROWSER_CUSTOM_PRESETS) {
+    clearImportedDraftSources();
+    setStatus(`Browser draft limit reached (${MAX_BROWSER_CUSTOM_PRESETS}). Delete an envelope draft before importing another CZ patch.`);
+    return false;
+  } else {
+    presets.push(imported);
+    selected = presets.length - 1;
+  }
+
+  if (applyImportedPerformanceSettings(draft)) {
+    presets[selected].performance = normalizePerformanceSettings(performanceSettings);
+  }
+  savePresets();
+  clearImportedDraftSources();
+  return true;
+}
+
+function handleLiveImportedDraft(payload) {
+  const handoffId = payload?.id || payload?.createdAt || null;
+  if (!payload || handoffId === lastConsumedHandoffId) return false;
+  messageImportedDraft = payload;
+  if (!consumeImportedDraft()) return false;
+  lastConsumedHandoffId = handoffId;
+  render();
+  setStatus("Imported CZ draft added without reloading the Envelope Lab.");
+  return true;
 }
 
 function consumeImportedDraft() {
   try {
     if (messageImportedDraft) {
       const payload = messageImportedDraft;
+      const handoffId = payload?.id || payload?.createdAt || null;
+      if (handoffId && handoffId === lastConsumedHandoffId) return false;
       const draft = payload?.draft;
-      if (draft && Array.isArray(draft.amp) && Array.isArray(draft.pd)) {
-        const imported = makeImportedPreset(draft);
-        if (customPresetCount() >= MAX_BROWSER_CUSTOM_PRESETS) {
-          presets[FACTORY_PRESET_COUNT + MAX_BROWSER_CUSTOM_PRESETS - 1] = imported;
-          selected = FACTORY_PRESET_COUNT + MAX_BROWSER_CUSTOM_PRESETS - 1;
-        } else {
-          presets.push(imported);
-          selected = presets.length - 1;
-        }
-
-        applyImportedPerformance(draft);
-
-        savePresets();
-        savePerformanceSettings();
-        clearImportedDraftSources();
+      if (addImportedDraft(draft)) {
+        lastConsumedHandoffId = handoffId;
         return true;
       }
     }
@@ -409,75 +669,36 @@ function consumeImportedDraft() {
     if (queryPayload) {
       const payload = JSON.parse(decodeURIComponent(queryPayload));
       const draft = payload?.draft;
-      if (draft && Array.isArray(draft.amp) && Array.isArray(draft.pd)) {
-        const imported = makeImportedPreset(draft);
-        if (customPresetCount() >= MAX_BROWSER_CUSTOM_PRESETS) {
-          presets[FACTORY_PRESET_COUNT + MAX_BROWSER_CUSTOM_PRESETS - 1] = imported;
-          selected = FACTORY_PRESET_COUNT + MAX_BROWSER_CUSTOM_PRESETS - 1;
-        } else {
-          presets.push(imported);
-          selected = presets.length - 1;
-        }
-
-        applyImportedPerformance(draft);
-
-        savePresets();
-        savePerformanceSettings();
-        clearImportedDraftSources();
-        return true;
-      }
+      if (addImportedDraft(draft)) return true;
     }
 
     const hashMatch = window.location.hash.match(/(?:^|&)cz-import=([^&]+)/);
     if (hashMatch) {
       const payload = JSON.parse(decodeURIComponent(hashMatch[1]));
       const draft = payload?.draft;
-      if (draft && Array.isArray(draft.amp) && Array.isArray(draft.pd)) {
-        const imported = makeImportedPreset(draft);
-        if (customPresetCount() >= MAX_BROWSER_CUSTOM_PRESETS) {
-          presets[FACTORY_PRESET_COUNT + MAX_BROWSER_CUSTOM_PRESETS - 1] = imported;
-          selected = FACTORY_PRESET_COUNT + MAX_BROWSER_CUSTOM_PRESETS - 1;
-        } else {
-          presets.push(imported);
-          selected = presets.length - 1;
-        }
-
-        applyImportedPerformance(draft);
-
-        savePresets();
-        savePerformanceSettings();
-        clearImportedDraftSources();
-        return true;
-      }
+      if (addImportedDraft(draft)) return true;
     }
 
     const raw = localStorage.getItem(CZ_IMPORT_HANDOFF_KEY);
-    if (!raw) return false;
+    const queueRaw = localStorage.getItem(CZ_IMPORT_QUEUE_KEY);
+    if (!raw && !queueRaw) return false;
 
-    const payload = JSON.parse(raw);
+    const payload = JSON.parse(raw || queueRaw);
+    const handoffId = payload?.id || payload?.createdAt || null;
+    if (handoffId && handoffId === lastConsumedHandoffId) return false;
     const draft = payload?.draft;
     if (!draft || !Array.isArray(draft.amp) || !Array.isArray(draft.pd)) {
       localStorage.removeItem(CZ_IMPORT_HANDOFF_KEY);
+      localStorage.removeItem(CZ_IMPORT_QUEUE_KEY);
       return false;
     }
 
-    const imported = makeImportedPreset(draft);
-    if (customPresetCount() >= MAX_BROWSER_CUSTOM_PRESETS) {
-      presets[FACTORY_PRESET_COUNT + MAX_BROWSER_CUSTOM_PRESETS - 1] = imported;
-      selected = FACTORY_PRESET_COUNT + MAX_BROWSER_CUSTOM_PRESETS - 1;
-    } else {
-      presets.push(imported);
-      selected = presets.length - 1;
-    }
-
-    applyImportedPerformance(draft);
-
-    savePresets();
-    savePerformanceSettings();
-    clearImportedDraftSources();
+    if (!addImportedDraft(draft)) return false;
+    lastConsumedHandoffId = handoffId;
     return true;
   } catch {
     localStorage.removeItem(CZ_IMPORT_HANDOFF_KEY);
+    localStorage.removeItem(CZ_IMPORT_QUEUE_KEY);
     return false;
   }
 }
@@ -492,12 +713,15 @@ function render() {
   el.presetName.disabled = selected < FACTORY_PRESET_COUNT;
   el.addPreset.disabled = customPresetCount() >= MAX_BROWSER_CUSTOM_PRESETS;
   renderStages("amp", el.ampStages);
+  renderStages("amp2", el.amp2Stages);
   renderStages("pd", el.pdStages);
-  renderStages("pitch", el.pitchStages);
+  renderStages("pd2", el.pd2Stages);
+  renderStages(activePitchLane, el.pitchStages);
   renderPitchSource(current);
   renderPerformanceSettings();
   renderThemeMode();
   renderLaneView();
+  renderPitchLaneView();
   renderDeveloperMode();
   drawCurves();
   drawPitchCurve();
@@ -525,23 +749,44 @@ function renderThemeMode() {
 
 function renderLaneView() {
   const ampActive = activeLaneView === "amp";
+  const amp2Active = activeLaneView === "amp2";
+  const pd1Active = activeLaneView === "pd";
+  const pd2Active = activeLaneView === "pd2";
   el.ampView.classList.toggle("is-active", ampActive);
   el.ampView.setAttribute("aria-selected", String(ampActive));
-  el.pdView.classList.toggle("is-active", !ampActive);
-  el.pdView.setAttribute("aria-selected", String(!ampActive));
-  el.stagePanelTitle.textContent = ampActive ? "Amplitude" : "Phase Distortion";
+  el.amp2View.classList.toggle("is-active", amp2Active);
+  el.amp2View.setAttribute("aria-selected", String(amp2Active));
+  el.pdView.classList.toggle("is-active", pd1Active);
+  el.pdView.setAttribute("aria-selected", String(pd1Active));
+  el.pd2View.classList.toggle("is-active", pd2Active);
+  el.pd2View.setAttribute("aria-selected", String(pd2Active));
+  el.stagePanelTitle.textContent = mainLaneLabel(activeLaneView);
   el.stagePanelSubtitle.textContent = "Level / samples";
   el.ampStages.classList.toggle("is-hidden", !ampActive);
-  el.pdStages.classList.toggle("is-hidden", ampActive);
+  el.amp2Stages.classList.toggle("is-hidden", !amp2Active);
+  el.pdStages.classList.toggle("is-hidden", !pd1Active);
+  el.pd2Stages.classList.toggle("is-hidden", !pd2Active);
   el.ampStages.setAttribute("aria-hidden", String(!ampActive));
-  el.pdStages.setAttribute("aria-hidden", String(ampActive));
+  el.amp2Stages.setAttribute("aria-hidden", String(!amp2Active));
+  el.pdStages.setAttribute("aria-hidden", String(!pd1Active));
+  el.pd2Stages.setAttribute("aria-hidden", String(!pd2Active));
+}
+
+function renderPitchLaneView() {
+  const pitch1Active = activePitchLane === "pitch";
+  el.pitch1View.classList.toggle("is-active", pitch1Active);
+  el.pitch1View.setAttribute("aria-selected", String(pitch1Active));
+  el.pitch2View.classList.toggle("is-active", !pitch1Active);
+  el.pitch2View.setAttribute("aria-selected", String(!pitch1Active));
+  el.pitchStageTitle.textContent = pitchLaneLabel(activePitchLane);
 }
 
 function renderPitchSource(current) {
   if (!el.pitchSourceLabel) return;
   const hasSource = Boolean(current.pitchSource?.dco1Pitch || current.pitchSource?.dco2Pitch);
+  const mappingLabel = current.pitchSource?.pitchMapping?.label;
   el.pitchSourceLabel.textContent = hasSource
-    ? "CZ DCO1/DCO2 pitch source loaded"
+    ? `CZ pitch source: ${mappingLabel || "DCO1/DCO2 loaded"}`
     : "No CZ pitch source loaded";
 }
 
@@ -556,15 +801,26 @@ function renderDeveloperMode() {
 }
 
 function renderPerformanceSettings() {
+  const separatePd2 = supportsSeparatePd2Settings();
   el.pdControl.value = performanceSettings.pd;
+  el.pd2Control.value = separatePd2 ? performanceSettings.pd2 : performanceSettings.pd;
+  el.pd2Control.disabled = !separatePd2;
+  el.pd2Setting.classList.toggle("is-disabled", !separatePd2);
+  el.pd2SettingHint.textContent = separatePd2
+    ? "This firmware stores and sends PD2 separately."
+    : "PD2 is linked to PD1 in compatibility mode.";
   el.detuneControl.value = performanceSettings.detune;
   el.performanceWaveSelect.value = performanceSettings.waveform;
+  el.performanceWave2Select.value = performanceSettings.waveform2;
+  el.recipeBankSelect.value = performanceSettings.recipeBank;
+  el.recipeBankSetting.classList.toggle("is-hidden", !supportsRecipeBankSettings());
   el.ringControl.value = performanceSettings.ring;
   el.noiseControl.value = performanceSettings.noise;
   el.midiInChannel.value = performanceSettings.midiInChannel;
   el.turingRange.value = performanceSettings.turingRange;
   el.turingMidiOut.checked = performanceSettings.turingMidiOut;
   el.turingMidiChannel.value = performanceSettings.turingMidiChannel;
+  renderSoundPresetSettingsStatus();
 }
 
 function renderPresetList() {
@@ -594,6 +850,10 @@ function renderPresetList() {
     button.addEventListener("click", () => {
       selected = index;
       if (Number.isInteger(item.slot)) el.customSlot.value = String(item.slot);
+      if (index >= FACTORY_PRESET_COUNT && item.performance) {
+        applyPerformanceSettings(item.performance);
+        setStatus(`Selected ${item.name}; restored its saved sound-preset settings.`);
+      }
       render();
     });
     row.append(button);
@@ -640,6 +900,24 @@ function bindSelectedPresetToSlot(slot) {
   renderPresetList();
 }
 
+function savedPresetForSlot(slot) {
+  return presets.find((item, index) =>
+    index >= FACTORY_PRESET_COUNT && item.slot === slot) || null;
+}
+
+function confirmCustomSlotOverwrite(slot, includePerformance) {
+  const existing = savedPresetForSlot(slot);
+  if (!existing) return true;
+  const action = includePerformance
+    ? "overwrite the envelope, slot name, and saved settings"
+    : "overwrite the envelope and slot name; saved settings are left unchanged when the card supports sound presets";
+  const name = existing.name || `Custom ${slot + 1}`;
+  return window.confirm(
+    `Custom slot ${slot + 1} already contains "${name}".\n\n` +
+    `Saving now will ${action}.\n\nContinue?`
+  );
+}
+
 function renderStages(lane, container) {
   container.innerHTML = "";
   presets[selected][lane].forEach((stage, index) => {
@@ -666,7 +944,8 @@ function updateStage(lane, index, key, value) {
 
   const current = presets[selected];
   const before = key === "time" ? samplesBeforeStage(current[lane], index) : 0;
-  const pitchMax = lane === "pitch" && key === "time"
+  const isPitchLane = lane === "pitch" || lane === "pitch2";
+  const pitchMax = isPitchLane && key === "time"
     ? Math.max(1, envelopeMaxSamples(current) - before)
     : 192000;
   const max = key === "level" ? MAX_LEVEL : pitchMax;
@@ -677,11 +956,11 @@ function updateStage(lane, index, key, value) {
   savePresets();
   renderPresetList();
   syncStageInputs(lane, index);
-  if (lane === "pitch") drawPitchCurve();
+  if (isPitchLane) drawPitchCurve();
   else {
     drawCurves();
     drawPitchCurve();
-    renderStages("pitch", el.pitchStages);
+    renderStages(activePitchLane, el.pitchStages);
   }
   updateExport();
 }
@@ -694,7 +973,8 @@ function duplicateFactoryPreset() {
   }
 
   const source = presets[selected];
-  presets.push(preset(`${source.name} copy`, source.amp, source.pd, null, false, source.pitch, source.pitchSource));
+  const copiedPerformance = source.performance || performanceSettings;
+  presets.push(preset(`${source.name} copy`, source.amp, source.pd, null, false, source.pitch, source.pitchSource, source.pitch2, source.pd2, source.amp2, source.sustain, copiedPerformance));
   selected = presets.length - 1;
   savePresets();
   render();
@@ -728,16 +1008,24 @@ function drawCurves() {
   }
 
   const viewSamples = editorViewSamples();
+  drawLane(ctx, presets[selected].amp2 || presets[selected].amp, theme.amp2, w, h, viewSamples);
+  drawLane(ctx, presets[selected].pd2 || presets[selected].pd, theme.pd2, w, h, viewSamples);
   drawLane(ctx, presets[selected].amp, theme.amp, w, h, viewSamples);
   drawLane(ctx, presets[selected].pd, theme.pd, w, h, viewSamples);
+  drawHandles(ctx, presets[selected].amp2 || presets[selected].amp, theme.amp2, w, h, viewSamples, activeLaneView === "amp2", theme);
+  drawHandles(ctx, presets[selected].pd2 || presets[selected].pd, theme.pd2, w, h, viewSamples, activeLaneView === "pd2", theme);
   drawHandles(ctx, presets[selected].amp, theme.amp, w, h, viewSamples, activeLaneView === "amp", theme);
   drawHandles(ctx, presets[selected].pd, theme.pd, w, h, viewSamples, activeLaneView === "pd", theme);
 
-  ctx.fillStyle = theme.muted;
+  ctx.fillStyle = theme.amp;
   ctx.font = "12px system-ui";
-  ctx.fillText(`Amp`, 14, 22);
+  ctx.fillText(`Amp1`, 14, 22);
+  ctx.fillStyle = theme.amp2;
+  ctx.fillText(`Amp2`, 62, 22);
   ctx.fillStyle = theme.pd;
-  ctx.fillText(`PD`, 62, 22);
+  ctx.fillText(`PD1`, 112, 22);
+  ctx.fillStyle = theme.pd2;
+  ctx.fillText(`PD2`, 156, 22);
   ctx.fillStyle = theme.muted;
   ctx.fillText(`${(totalSamples(presets[selected].amp) / SAMPLE_RATE).toFixed(2)}s / ${(viewSamples / SAMPLE_RATE).toFixed(0)}s`, w - 94, h - 16);
 }
@@ -780,15 +1068,20 @@ function drawPitchCurve() {
 
   const current = presets[selected];
   const viewSamples = envelopeMaxSamples(current);
+  const pitch2Color = theme.pitch2 || theme.pd;
+  drawLane(ctx, current.pitch2 || current.pitch, pitch2Color, w, h, viewSamples);
   drawLane(ctx, current.pitch, theme.pitch, w, h, viewSamples);
-  drawHandles(ctx, current.pitch, theme.pitch, w, h, viewSamples, true, theme);
+  drawHandles(ctx, current.pitch2 || current.pitch, pitch2Color, w, h, viewSamples, activePitchLane === "pitch2", theme);
+  drawHandles(ctx, current.pitch, theme.pitch, w, h, viewSamples, activePitchLane === "pitch", theme);
 
   ctx.fillStyle = theme.pitch;
   ctx.font = "12px system-ui";
-  ctx.fillText("Pitch", 14, 22);
+  ctx.fillText("Pitch 1", 14, 22);
+  ctx.fillStyle = pitch2Color;
+  ctx.fillText("Pitch 2", 74, 22);
   ctx.fillStyle = theme.muted;
-  ctx.fillText("center = no pitch offset", 64, 22);
-  ctx.fillText(`${(totalSamples(current.pitch) / SAMPLE_RATE).toFixed(2)}s / max ${(viewSamples / SAMPLE_RATE).toFixed(2)}s`, w - 128, h - 16);
+  ctx.fillText("center = no pitch offset", 136, 22);
+  ctx.fillText(`${pitchLaneLabel(activePitchLane)} ${(totalSamples(activePitchStages(current)) / SAMPLE_RATE).toFixed(2)}s / max ${(viewSamples / SAMPLE_RATE).toFixed(2)}s`, w - 238, h - 16);
 }
 
 function drawHandles(ctx, stages, color, w, h, viewSamples, active, theme) {
@@ -803,8 +1096,14 @@ function drawHandles(ctx, stages, color, w, h, viewSamples, active, theme) {
   points.forEach((point, index) => {
     const pointColor = color === theme.amp
       ? theme.ampPoint
+      : color === theme.amp2
+        ? theme.amp2Point
+      : color === theme.pd2
+        ? theme.pd2Point
       : color === theme.pitch
         ? theme.pitchPoint
+        : color === theme.pitch2
+          ? theme.pitch2Point
         : theme.pdPoint;
     ctx.fillStyle = pointColor;
     ctx.beginPath();
@@ -833,11 +1132,17 @@ function getThemeColors() {
     canvasBg: styles.getPropertyValue("--canvas-bg").trim() || "#0c0e10",
     grid: styles.getPropertyValue("--line").trim() || "#242932",
     amp: styles.getPropertyValue("--graph-amp").trim() || styles.getPropertyValue("--amp").trim() || "#ffcc66",
+    amp2: styles.getPropertyValue("--graph-amp-2").trim() || styles.getPropertyValue("--graph-amp").trim() || "#ffd84d",
     pd: styles.getPropertyValue("--graph-pd").trim() || styles.getPropertyValue("--pd").trim() || "#6ee7c8",
+    pd2: styles.getPropertyValue("--graph-pd-2").trim() || "#ffb347",
     pitch: styles.getPropertyValue("--graph-pitch").trim() || "#b38cff",
+    pitch2: styles.getPropertyValue("--graph-pitch-2").trim() || styles.getPropertyValue("--graph-pd").trim() || "#49d7ff",
     ampPoint: styles.getPropertyValue("--graph-amp-point").trim() || styles.getPropertyValue("--amp").trim() || "#ffcc66",
+    amp2Point: styles.getPropertyValue("--graph-amp-2-point").trim() || styles.getPropertyValue("--graph-amp-2").trim() || "#fff0a8",
     pdPoint: styles.getPropertyValue("--graph-pd-point").trim() || styles.getPropertyValue("--pd").trim() || "#6ee7c8",
+    pd2Point: styles.getPropertyValue("--graph-pd-2-point").trim() || styles.getPropertyValue("--graph-pd-2").trim() || "#ffe0ad",
     pitchPoint: styles.getPropertyValue("--graph-pitch-point").trim() || styles.getPropertyValue("--graph-pitch").trim() || "#d8c7ff",
+    pitch2Point: styles.getPropertyValue("--graph-pitch-2-point").trim() || styles.getPropertyValue("--graph-pitch-2").trim() || "#b7efff",
     pitchCenter: styles.getPropertyValue("--graph-pitch-center").trim() || styles.getPropertyValue("--muted").trim() || "#a5adba",
     muted: styles.getPropertyValue("--muted").trim() || "#a5adba",
     text: styles.getPropertyValue("--text").trim() || "#f4f0e8"
@@ -875,8 +1180,11 @@ function editorViewSamples() {
   const longest = Math.max(
     EDITOR_VIEW_SAMPLES,
     totalSamples(current.amp),
+    totalSamples(current.amp2 || current.amp),
     totalSamples(current.pd),
-    totalSamples(current.pitch));
+    totalSamples(current.pd2 || current.pd),
+    totalSamples(current.pitch),
+    totalSamples(current.pitch2 || current.pitch));
   return Math.ceil(longest / SAMPLE_RATE) * SAMPLE_RATE;
 }
 
@@ -891,7 +1199,7 @@ function updateExport() {
   }
   const current = presets[selected];
   const className = cppName(current.name);
-  el.exportText.value = `case EnvelopePreset::${className}:\n    return {{\n${cppLane(current.amp)}\n    }, {\n${cppLane(current.pd)}\n    }};`;
+  el.exportText.value = `case EnvelopePreset::${className}:\n    return {{\n${cppLane(current.amp)}\n    }, {\n${cppLane(current.pd)}\n    }, {\n${cppLane(current.pitch)}\n    }, {\n${cppLane(current.pitch2 || current.pitch)}\n    }, {\n${cppLane(current.pd2 || current.pd)}\n    }, {\n${cppLane(current.amp2 || current.amp)}\n    }};`;
 }
 
 function cppLane(stages) {
@@ -1000,7 +1308,7 @@ function scaledSamples(stages) {
 }
 
 function longestAuditionLane(current) {
-  return [current.amp, current.pd, current.pitch]
+  return [current.amp, current.amp2 || current.amp, current.pd, current.pd2 || current.pd, current.pitch, current.pitch2 || current.pitch]
     .sort((a, b) => totalSamples(b) - totalSamples(a))[0];
 }
 
@@ -1110,6 +1418,7 @@ function renderDeveloperMidiRaw() {
     `MIDIAccess: ${constructorName(midiAccess)}`,
     `Settings protocol: ${describeSettingsProtocol()}`,
     `Envelope readback: ${describeEnvelopeReadback()}`,
+    `Envelope send mode: ${envelopePayloadModeLabel()}`,
     "",
     "Inputs map",
     inspectPortMap(midiAccess.inputs),
@@ -1144,20 +1453,69 @@ function renderDeveloperPorts() {
     ? outputs.map((port, index) => formatPort(port, index, "Output")).join("\n\n")
     : "None detected";
 
-  el.developerPorts.textContent = `Settings protocol: ${describeSettingsProtocol()}\nEnvelope readback: ${describeEnvelopeReadback()}\n\nInputs (${inputs.length})\n${inputText}\n\nOutputs (${outputs.length})\n${outputText}`;
+  el.developerPorts.textContent = `Settings protocol: ${describeSettingsProtocol()}\nEnvelope readback: ${describeEnvelopeReadback()}\nEnvelope send mode: ${envelopePayloadModeLabel()}\n\nInputs (${inputs.length})\n${inputText}\n\nOutputs (${outputs.length})\n${outputText}`;
   renderDeveloperMidiRaw();
 }
 
 function describeSettingsProtocol() {
   if (settingsProtocol === "stable") return "Stable firmware";
   if (settingsProtocol === "extended") return "Extended firmware";
+  if (settingsProtocol === "dual-oscillator") return "Full dual-oscillator firmware";
+  if (settingsProtocol === "recipe-bank") return "Recipe-bank firmware";
   return "Not detected yet";
 }
 
 function describeEnvelopeReadback() {
-  if (envelopeReadSupported === true) return "Supported";
+  if (envelopeReadSupported === true) {
+    return detectedEnvelopeProtocol
+      ? `Supported, protocol v${detectedEnvelopeProtocol}`
+      : "Supported";
+  }
   if (envelopeReadSupported === false) return "No response";
   return "Not checked yet";
+}
+
+function cardCapabilityLabel() {
+  if (settingsProtocol === "recipe-bank" || (settingsProtocol === "unknown" && detectedEnvelopeProtocol !== null && detectedEnvelopeProtocol >= 11)) {
+    return "recipe-bank firmware";
+  }
+  if (settingsProtocol === "dual-oscillator" || (settingsProtocol === "unknown" && detectedEnvelopeProtocol !== null && detectedEnvelopeProtocol >= 9)) {
+    return "dual-lane firmware";
+  }
+  if (settingsProtocol === "extended") return "extended firmware";
+  if (settingsProtocol === "stable") return "stable firmware";
+  return "undetected";
+}
+
+function supportsDualOscillatorEnvelopePayload() {
+  return settingsProtocol === "recipe-bank" || settingsProtocol === "dual-oscillator" || (detectedEnvelopeProtocol !== null && detectedEnvelopeProtocol >= 5);
+}
+
+function supportsSoundPresetPayload() {
+  return settingsProtocol === "recipe-bank" || settingsProtocol === "dual-oscillator" || (settingsProtocol === "unknown" && detectedEnvelopeProtocol !== null && detectedEnvelopeProtocol >= 9);
+}
+
+function supportsRecipeBankSettings() {
+  return settingsProtocol === "recipe-bank" || (settingsProtocol === "unknown" && detectedEnvelopeProtocol !== null && detectedEnvelopeProtocol >= 11);
+}
+
+function supportsSeparatePd2Settings() {
+  return settingsProtocol === "recipe-bank" || (settingsProtocol === "unknown" && detectedEnvelopeProtocol !== null && detectedEnvelopeProtocol >= 11);
+}
+
+function envelopePayloadMode() {
+  if (settingsProtocol === "extended") return "core";
+  if (supportsDualOscillatorEnvelopePayload()) return "dual";
+  if (settingsProtocol === "stable" || (settingsProtocol === "unknown" && detectedEnvelopeProtocol === 1)) {
+    return "legacy";
+  }
+  return "core";
+}
+
+function envelopePayloadModeLabel(mode = envelopePayloadMode()) {
+  if (mode === "dual") return "dual-lane";
+  if (mode === "legacy") return "legacy Amp/PD";
+  return "Core Amp/PD/Pitch";
 }
 
 function clearDeveloperLog() {
@@ -1219,9 +1577,10 @@ async function connectMidi() {
 
   try {
     midiAccess = await navigator.requestMIDIAccess({ sysex: true });
-    refreshMidiPorts();
+    await prepareMidiPorts();
     midiAccess.onstatechange = refreshMidiPorts;
     el.midiToggle.classList.add("is-active");
+    pulseButton(el.midiToggle, "On");
     logDeveloper("Web MIDI connected.", {
       inputs: midiAccess.inputs?.size ?? 0,
       outputs: midiAccess.outputs?.size ?? 0
@@ -1233,6 +1592,30 @@ async function connectMidi() {
     });
     setStatus(`MIDI access denied or unavailable: ${error.message}`);
   }
+}
+
+async function openMidiPort(port, kind) {
+  if (!port || typeof port.open !== "function" || port.connection === "open") return;
+  try {
+    await port.open();
+  } catch (error) {
+    logDeveloper(`Could not explicitly open MIDI ${kind}.`, {
+      port: port.name || port.id || "Unnamed port",
+      message: error?.message || "Unknown error"
+    });
+  }
+}
+
+async function prepareMidiPorts() {
+  if (!midiAccess) return;
+  refreshMidiPorts();
+  const inputs = collectMidiPorts(midiAccess.inputs);
+  const outputs = collectMidiPorts(midiAccess.outputs);
+  await Promise.allSettled([
+    ...inputs.map((input) => openMidiPort(input, "input")),
+    ...outputs.map((output) => openMidiPort(output, "output"))
+  ]);
+  refreshMidiPorts();
 }
 
 function refreshMidiPorts() {
@@ -1272,6 +1655,7 @@ function refreshMidiPorts() {
   });
   if (outputs.length === 0) {
     settingsProtocol = "unknown";
+    detectedEnvelopeProtocol = null;
   }
   setStatus(`MIDI ready: ${inputs.length} input${inputs.length === 1 ? "" : "s"}, ${outputs.length} output${outputs.length === 1 ? "" : "s"}.`);
 }
@@ -1285,7 +1669,74 @@ function selectedMidiOutput() {
   return collectMidiPorts(midiAccess.outputs)[0] || null;
 }
 
-async function sendSysex(command = SYSEX_COMMAND_PREVIEW) {
+function midiStatusByteForEditorChannel() {
+  const channel = clampInt(performanceSettings.midiInChannel, 1, 16) - 1;
+  return 0xb0 | (channel & 0x0f);
+}
+
+async function sendDeveloperCc(cc, value, label = "") {
+  if (!midiAccess) {
+    await connectMidi();
+  }
+
+  const output = selectedMidiOutput();
+  if (!output) {
+    setStatus("No MIDI output found for CC test.");
+    return false;
+  }
+
+  const controller = clampInt(cc, 0, 127);
+  const amount = clampInt(value, 0, 127);
+  const channel = clampInt(performanceSettings.midiInChannel, 1, 16);
+  const message = [midiStatusByteForEditorChannel(), controller, amount];
+
+  try {
+    output.send(message);
+  } catch (error) {
+    logDeveloper("MIDI CC test send failed.", {
+      cc: controller,
+      value: amount,
+      channel,
+      output: output.name || output.id || "Unknown output",
+      message: error?.message || "Unknown error",
+      stack: error?.stack || "No stack trace"
+    });
+    setStatus("MIDI CC test failed. Open Developer tools for details.");
+    return false;
+  }
+
+  logDeveloper("MIDI CC test sent.", {
+    cc: controller,
+    value: amount,
+    channel,
+    output: output.name || output.id || "Unknown output",
+    rawHex: message.map((byte) => byte.toString(16).padStart(2, "0").toUpperCase()).join(" "),
+    rawDecimal: message,
+    label
+  });
+  setStatus(`Sent ${label || `CC${controller}`} value ${amount} on MIDI ch ${channel}.`);
+  return true;
+}
+
+async function runDeveloperCcSequence(steps, button, label) {
+  if (!Array.isArray(steps) || steps.length === 0) return;
+  if (button) button.disabled = true;
+
+  try {
+    for (const step of steps) {
+      const sent = await sendDeveloperCc(step.cc, step.value, step.label);
+      if (!sent) break;
+      await new Promise((resolve) => window.setTimeout(resolve, step.delay ?? 160));
+    }
+    pulseButton(button, "Sent");
+    setStatus(`${label} complete.`);
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function sendSysex(command = SYSEX_COMMAND_PREVIEW, options = {}) {
+  const includePerformance = options.includePerformance !== false;
   if (sendingSysex) {
     setStatus("SysEx send already in progress.");
     return;
@@ -1306,9 +1757,20 @@ async function sendSysex(command = SYSEX_COMMAND_PREVIEW) {
     return;
   }
 
+  const isFlash = command === SYSEX_COMMAND_SAVE;
+  const slot = clampInt(el.customSlot.value, 0, CUSTOM_SLOT_COUNT - 1);
+  if (isFlash && !confirmCustomSlotOverwrite(slot, includePerformance)) {
+    setStatus(`Save cancelled. Custom slot ${slot + 1} was left unchanged.`);
+    return;
+  }
+
+  if (settingsProtocol === "unknown" && includePerformance) {
+    await requestPerformanceSettings(true);
+  }
+
   let frame;
   try {
-    frame = buildSysex(command);
+    frame = buildSysex(command, { includePerformance });
   } catch (error) {
     logDeveloper("SysEx build failed.", {
       command,
@@ -1321,14 +1783,16 @@ async function sendSysex(command = SYSEX_COMMAND_PREVIEW) {
     setStatus("Web MIDI send failed. Open Developer tools for details.");
     return;
   }
-  const isFlash = command === SYSEX_COMMAND_SAVE;
-  const slot = clampInt(el.customSlot.value, 0, CUSTOM_SLOT_COUNT - 1);
-  const expectedEnvelope = isFlash ? structuredClone(presets[selected]) : null;
+  const payloadMode = envelopePayloadMode();
+  const expectedEnvelope = isFlash
+    ? expectedEnvelopeForPayloadMode(payloadMode, includePerformance)
+    : null;
   const sendCooldownMs = isFlash ? 1800 : 250;
   const summary = frameSummary();
   sendingSysex = true;
   el.sendSysex.disabled = true;
   el.loadEnvelopeAndSettings.disabled = true;
+  el.saveEnvelopeOnly.disabled = true;
   el.flashSysex.disabled = true;
   el.deleteSlot.disabled = true;
   try {
@@ -1344,27 +1808,44 @@ async function sendSysex(command = SYSEX_COMMAND_PREVIEW) {
     sendingSysex = false;
     el.sendSysex.disabled = false;
     el.loadEnvelopeAndSettings.disabled = false;
+    el.saveEnvelopeOnly.disabled = false;
     el.flashSysex.disabled = false;
     el.deleteSlot.disabled = false;
     setStatus("Web MIDI send failed. Open Developer tools for details.");
     return;
   }
   const slotLabel = `Custom ${slot + 1}`;
+  const compatibilityNote = compatibilityStatusNote(payloadMode, includePerformance);
+  const soundPresetConfirmed = includePerformance && supportsSoundPresetPayload();
   const status = isFlash
-    ? `Saved ${slotLabel}; after reset it appears after the factory presets. Amp max ${summary.ampMax}, ${summary.seconds}s.`
+    ? soundPresetConfirmed
+      ? `Saved sound preset ${slotLabel}; after reset it appears after the factory presets. Amp max ${summary.ampMax}, ${summary.seconds}s.`
+      : includePerformance
+        ? settingsProtocol === "unknown"
+          ? `Saved ${slotLabel}; card capability was not confirmed before this save, so the editor used the safe compatibility payload. Amp max ${summary.ampMax}, ${summary.seconds}s.`
+          : `Saved envelope ${slotLabel}; ${cardCapabilityLabel()} stores the envelope shape only in this compatibility mode, not full sound-preset settings. Amp max ${summary.ampMax}, ${summary.seconds}s.`
+        : `Saved envelope only ${slotLabel}; saved settings for this slot were left unchanged when the card supports sound presets. Amp max ${summary.ampMax}, ${summary.seconds}s.`
     : `Loaded ${slotLabel} until reset. Amp max ${summary.ampMax}, ${summary.seconds}s.`;
   if (isFlash) {
+    if (includePerformance) {
+      presets[selected].performance = normalizePerformanceSettings(performanceSettings);
+    }
     bindSelectedPresetToSlot(slot);
     if (envelopeReadSupported === true) {
       window.setTimeout(() => requestCardEnvelopes("save", slot, expectedEnvelope), SAVE_VERIFY_DELAY_MS);
     }
   }
-  setStatus(`${status} ${frame.length} byte SysEx to ${output.name || "MIDI output"}.`);
+  const pulseTarget = isFlash
+    ? includePerformance ? el.flashSysex : el.saveEnvelopeOnly
+    : el.sendSysex;
+  pulseButton(pulseTarget, isFlash ? "Saved" : "Loaded");
+  setStatus(`${status} ${frame.length} byte ${envelopePayloadModeLabel(payloadMode)} SysEx to ${output.name || "MIDI output"}.${compatibilityNote}`);
 
   window.setTimeout(() => {
     sendingSysex = false;
     el.sendSysex.disabled = false;
     el.loadEnvelopeAndSettings.disabled = false;
+    el.saveEnvelopeOnly.disabled = false;
     el.flashSysex.disabled = false;
     el.deleteSlot.disabled = false;
   }, sendCooldownMs);
@@ -1387,16 +1868,20 @@ async function loadEnvelopeAndSettings() {
   }
 
   try {
-    const envelopeFrame = buildSysex(SYSEX_COMMAND_PREVIEW);
+    const usedStoredSettings = applyPerformanceSettings(presets[selected].performance);
+    const payloadMode = envelopePayloadMode();
+    const envelopeFrame = buildSysex(SYSEX_COMMAND_PREVIEW, { includePerformance: true });
     sendingSysex = true;
-    el.sendSysex.disabled = true;
-    el.loadEnvelopeAndSettings.disabled = true;
-    el.flashSysex.disabled = true;
+  el.sendSysex.disabled = true;
+  el.loadEnvelopeAndSettings.disabled = true;
+  el.saveEnvelopeOnly.disabled = true;
+  el.flashSysex.disabled = true;
     el.deleteSlot.disabled = true;
     output.send(envelopeFrame);
     sendSettingsFrames(output, SYSEX_COMMAND_SETTINGS, 60);
     const slot = clampInt(el.customSlot.value, 0, CUSTOM_SLOT_COUNT - 1);
-    setStatus(`Loaded ${presets[selected].name} into RAM slot ${slot + 1} and sent the current settings. Both are temporary until saved.`);
+    pulseButton(el.loadEnvelopeAndSettings, "Loaded");
+    setStatus(`Loaded sound preset ${presets[selected].name} into RAM slot ${slot + 1} with a ${envelopePayloadModeLabel(payloadMode)} envelope payload and sent ${usedStoredSettings ? "its saved settings" : "the current settings"}. Nothing has been saved to card flash yet.${temporaryLoadSaveHint(payloadMode)}${compatibilityStatusNote(payloadMode, true)}`);
   } catch (error) {
     logDeveloper("Combined envelope and settings load failed.", {
       preset: presets[selected]?.name,
@@ -1411,6 +1896,7 @@ async function loadEnvelopeAndSettings() {
     sendingSysex = false;
     el.sendSysex.disabled = false;
     el.loadEnvelopeAndSettings.disabled = false;
+    el.saveEnvelopeOnly.disabled = false;
     el.flashSysex.disabled = false;
     el.deleteSlot.disabled = false;
   }, 350);
@@ -1461,6 +1947,7 @@ async function deleteCustomSlot() {
     sendingSysex = false;
     el.sendSysex.disabled = false;
     el.loadEnvelopeAndSettings.disabled = false;
+    el.saveEnvelopeOnly.disabled = false;
     el.flashSysex.disabled = false;
     el.deleteSlot.disabled = false;
     setStatus("Delete failed. Open Developer tools for details.");
@@ -1470,8 +1957,10 @@ async function deleteCustomSlot() {
     removeCardSlotDraft(slot);
     savePresets();
     render();
+    pulseButton(el.deleteSlot, "Sent");
     setStatus(`Delete sent for card slot ${slot + 1}. Use Read Envelopes from Card to confirm it.`);
   } else {
+    pulseButton(el.deleteSlot, "Sent");
     setStatus(`Delete sent for card slot ${slot + 1}; checking the card...`);
     window.setTimeout(() => requestCardEnvelopes("delete", slot), DELETE_VERIFY_DELAY_MS);
   }
@@ -1485,22 +1974,114 @@ async function deleteCustomSlot() {
   }, 1800);
 }
 
-function buildSysex(command) {
+function buildSysex(command, options = {}) {
+  const includePerformance = options.includePerformance !== false;
   if (!canSendSelectedEnvelope()) {
     throw new Error("Cannot build SysEx for preset 0, a silent envelope, or a very short envelope.");
   }
 
   const slot = clampInt(el.customSlot.value, 0, CUSTOM_SLOT_COUNT - 1);
+  const mode = envelopePayloadMode();
+  if (mode === "legacy") return buildLegacyEnvelopeSysex(command, slot);
+  if (mode === "core") return buildCoreEnvelopeSysex(command, slot);
+  return buildDualEnvelopeSysex(command, slot, includePerformance);
+}
+
+function buildLegacyEnvelopeSysex(command, slot) {
+  const payload = [slot & 0x7f];
+  appendStages(payload, presets[selected].amp);
+  appendStages(payload, presets[selected].pd);
+  return [0xf0, SYSEX_MANUFACTURER, ...ensureArray(SYSEX_ID, "SYSEX_ID"), command, ...ensureArray(payload, "legacy envelope payload"), 0xf7];
+}
+
+function buildCoreEnvelopeSysex(command, slot) {
   const nameBytes = ensureArray(encodeName(presets[selected].name), "encodeName()");
   const payload = [slot & 0x7f, ...nameBytes];
   constrainPitchToEnvelope(presets[selected]);
   appendStages(payload, presets[selected].amp);
   appendStages(payload, presets[selected].pd);
   appendStages(payload, presets[selected].pitch);
+  return [0xf0, SYSEX_MANUFACTURER, ...ensureArray(SYSEX_ID, "SYSEX_ID"), command, ...ensureArray(payload, "Core envelope payload"), 0xf7];
+}
+
+function buildDualEnvelopeSysex(command, slot, includePerformance) {
+  const nameBytes = ensureArray(encodeName(presets[selected].name), "encodeName()");
+  const shouldIncludePerformance = includePerformance && supportsSoundPresetPayload();
+  const performanceBytes = shouldIncludePerformance
+    ? ensureArray(encodePerformanceSettings(performanceSettings), "encodePerformanceSettings()")
+    : [];
+  const payload = [slot & 0x7f, ...nameBytes, ...performanceBytes];
+  constrainPitchToEnvelope(presets[selected]);
+  appendStages(payload, presets[selected].amp);
+  appendStages(payload, presets[selected].pd);
+  appendStages(payload, presets[selected].pitch);
+  appendStages(payload, presets[selected].pitch2 || presets[selected].pitch);
+  appendStages(payload, presets[selected].pd2 || presets[selected].pd);
+  appendStages(payload, presets[selected].amp2 || presets[selected].amp);
+  payload.push(...normalizeSustainStages(presets[selected].sustain));
   return [0xf0, SYSEX_MANUFACTURER, ...ensureArray(SYSEX_ID, "SYSEX_ID"), command, ...ensureArray(payload, "payload"), 0xf7];
 }
 
+function expectedEnvelopeForPayloadMode(mode, includePerformance) {
+  const source = structuredClone(presets[selected]);
+  if (mode === "legacy") {
+    return {
+      ...source,
+      name: "",
+      amp2: source.amp,
+      pd2: source.pd,
+      pitch: normalizePitchStages(null),
+      pitch2: normalizePitchStages(null),
+      sustain: normalizeSustainStages(null),
+      performance: null
+    };
+  }
+  if (mode === "core") {
+    return {
+      ...source,
+      amp2: source.amp,
+      pd2: source.pd,
+      pitch2: source.pitch,
+      sustain: normalizeSustainStages(null),
+      performance: null
+    };
+  }
+  return {
+    ...source,
+    performance: includePerformance && supportsSoundPresetPayload()
+      ? normalizePerformanceSettings(performanceSettings)
+      : normalizePerformanceSettings(source.performance)
+  };
+}
+
+function compatibilityStatusNote(mode, includePerformance) {
+  const capability = cardCapabilityLabel();
+  if (mode === "dual") {
+    return ` Card capability: ${capability}.`;
+  }
+  if (mode === "core") {
+    return ` Card capability: ${capability}; dual lanes/settings are collapsed to the compatible Amp/PD/Pitch format.`;
+  }
+  if (includePerformance && !supportsSoundPresetPayload()) {
+    return ` Card capability: ${capability}; the editor could not confirm dual-lane support before sending, so it used the safe compatibility format. Read Settings from Card or Read Envelopes from Card to refresh the capability display.`;
+  }
+  return ` Card capability: ${capability}; dual lanes are collapsed for compatibility.`;
+}
+
+function temporaryLoadSaveHint(mode) {
+  if (mode === "dual") {
+    return " This is temporary; use Save Sound Preset to write the envelope, name, and settings to card flash.";
+  }
+  return " This is temporary; use Save Envelope Only or Save Sound Preset to write the compatible envelope to card flash. Older firmware does not store full sound-preset settings in the slot.";
+}
+
 function buildSettingsSysex(command) {
+  if (settingsProtocol === "recipe-bank") {
+    return buildRecipeBankSettingsSysex(command);
+  }
+  if (settingsProtocol === "dual-oscillator") {
+    return buildDualOscillatorSettingsSysex(command);
+  }
   if (settingsProtocol === "extended") {
     return buildExtendedSettingsSysex(command);
   }
@@ -1533,6 +2114,38 @@ function buildExtendedSettingsSysex(command) {
   return [0xf0, SYSEX_MANUFACTURER, ...ensureArray(SYSEX_ID, "SYSEX_ID"), command, ...ensureArray(payload, "extended settings payload"), 0xf7];
 }
 
+function buildDualOscillatorSettingsSysex(command) {
+  const payload = [];
+  payload.push(...ensureArray(packUint14(performanceSettings.ring), "packUint14(ring)"));
+  payload.push(...ensureArray(packUint14(performanceSettings.noise), "packUint14(noise)"));
+  payload.push(...ensureArray(packUint14(performanceSettings.pd), "packUint14(pd)"));
+  payload.push(...ensureArray(packUint14(performanceSettings.detune), "packUint14(detune)"));
+  payload.push(...ensureArray(packUint14(waveFamilyToControl(performanceSettings.waveform)), "packUint14(waveform)"));
+  payload.push(...ensureArray(packUint14(waveFamilyToControl(performanceSettings.waveform2)), "packUint14(waveform2)"));
+  payload.push(clampInt(performanceSettings.midiInChannel, 1, 16) - 1);
+  payload.push(clampInt(performanceSettings.turingRange, 1, 8));
+  payload.push(performanceSettings.turingMidiOut ? 1 : 0);
+  payload.push(clampInt(performanceSettings.turingMidiChannel, 1, 16) - 1);
+  return [0xf0, SYSEX_MANUFACTURER, ...ensureArray(SYSEX_ID, "SYSEX_ID"), command, ...ensureArray(payload, "dual oscillator settings payload"), 0xf7];
+}
+
+function buildRecipeBankSettingsSysex(command) {
+  const payload = [];
+  payload.push(...ensureArray(packUint14(performanceSettings.ring), "packUint14(ring)"));
+  payload.push(...ensureArray(packUint14(performanceSettings.noise), "packUint14(noise)"));
+  payload.push(...ensureArray(packUint14(performanceSettings.pd), "packUint14(pd)"));
+  payload.push(...ensureArray(packUint14(performanceSettings.pd2), "packUint14(pd2)"));
+  payload.push(...ensureArray(packUint14(performanceSettings.detune), "packUint14(detune)"));
+  payload.push(...ensureArray(packUint14(waveFamilyToControl(performanceSettings.waveform)), "packUint14(waveform)"));
+  payload.push(...ensureArray(packUint14(waveFamilyToControl(performanceSettings.waveform2)), "packUint14(waveform2)"));
+  payload.push(clampInt(performanceSettings.recipeBank, 0, 3));
+  payload.push(clampInt(performanceSettings.midiInChannel, 1, 16) - 1);
+  payload.push(clampInt(performanceSettings.turingRange, 1, 8));
+  payload.push(performanceSettings.turingMidiOut ? 1 : 0);
+  payload.push(clampInt(performanceSettings.turingMidiChannel, 1, 16) - 1);
+  return [0xf0, SYSEX_MANUFACTURER, ...ensureArray(SYSEX_ID, "SYSEX_ID"), command, ...ensureArray(payload, "recipe bank settings payload"), 0xf7];
+}
+
 function buildDeleteSlotSysex(slot) {
   return [0xf0, SYSEX_MANUFACTURER, ...SYSEX_ID, SYSEX_COMMAND_DELETE, slot & 0x7f, 0xf7];
 }
@@ -1551,6 +2164,14 @@ function buildRequestEnvelopeSysex(slot) {
 
 function buildRequestPitchEnvelopeSysex(slot) {
   return [0xf0, SYSEX_MANUFACTURER, ...SYSEX_ID, SYSEX_COMMAND_REQUEST_PITCH_ENVELOPE, slot & 0x07, 0xf7];
+}
+
+function buildRequestPd2EnvelopeSysex(slot) {
+  return [0xf0, SYSEX_MANUFACTURER, ...SYSEX_ID, SYSEX_COMMAND_REQUEST_PD2_ENVELOPE, slot & 0x07, 0xf7];
+}
+
+function buildRequestAmp2EnvelopeSysex(slot) {
+  return [0xf0, SYSEX_MANUFACTURER, ...SYSEX_ID, SYSEX_COMMAND_REQUEST_AMP2_ENVELOPE, slot & 0x07, 0xf7];
 }
 
 function canSendSelectedEnvelope() {
@@ -1609,6 +2230,54 @@ function encodeName(name) {
   });
 }
 
+function decodeNameBytes(data, offset) {
+  return Array.from({ length: 16 }, (_, index) => {
+    const code = data[offset + index] & 0x7f;
+    return code >= 32 && code <= 126 ? String.fromCharCode(code) : " ";
+  }).join("").trim();
+}
+
+function encodePerformanceSettings(settings = performanceSettings, includePd2 = supportsSeparatePd2Settings()) {
+  const normalized = normalizePerformanceSettings(settings) || normalizePerformanceSettings(performanceSettings);
+  const payload = [
+    ...packUint14(normalized.pd),
+    ...packUint14(normalized.detune),
+    ...packUint14(waveFamilyToControl(normalized.waveform)),
+    ...packUint14(waveFamilyToControl(normalized.waveform2)),
+    ...packUint14(normalized.ring),
+    ...packUint14(normalized.noise),
+    clampInt(normalized.midiInChannel, 1, 16) - 1,
+    clampInt(normalized.turingRange, 1, 8),
+    normalized.turingMidiOut ? 1 : 0,
+    supportsRecipeBankSettings()
+      ? clampInt(normalized.recipeBank, 0, 3)
+      : clampInt(normalized.turingMidiChannel, 1, 16) - 1
+  ];
+  if (includePd2) payload.splice(2, 0, ...packUint14(normalized.pd2));
+  return payload;
+}
+
+function decodePerformanceSettingsBytes(data, offset, protocolVersion = detectedEnvelopeProtocol, hasPd2 = false) {
+  const recipeBankCapable = protocolVersion >= 11 || supportsRecipeBankSettings();
+  const pd = unpackUint14(data, offset);
+  const pd2 = hasPd2 ? unpackUint14(data, offset + 2) : pd;
+  const detuneOffset = offset + (hasPd2 ? 4 : 2);
+  return normalizePerformanceSettings({
+    pd,
+    pd2,
+    detune: unpackUint14(data, detuneOffset),
+    waveform: waveControlToFamily(unpackUint14(data, detuneOffset + 2)),
+    waveform2: waveControlToFamily(unpackUint14(data, detuneOffset + 4)),
+    ring: unpackUint14(data, detuneOffset + 6),
+    noise: unpackUint14(data, detuneOffset + 8),
+    midiInChannel: (data[detuneOffset + 10] & 0x0f) + 1,
+    turingRange: data[detuneOffset + 11],
+    turingMidiOut: (data[detuneOffset + 12] & 0x01) !== 0,
+    turingMidiChannel: (data[detuneOffset + 13] & 0x0f) + 1,
+    recipeBank: recipeBankCapable ? (data[detuneOffset + 13] & 0x03) : performanceSettings.recipeBank
+  });
+}
+
 function sysexHex() {
   return Array.from(ensureArray(buildSysex(SYSEX_COMMAND_PREVIEW), "buildSysex()"))
     .map((byte) => byte.toString(16).toUpperCase().padStart(2, "0"))
@@ -1622,8 +2291,12 @@ function stagesMatch(a, b) {
 
 function envelopesMatch(a, b) {
   return stagesMatch(a.amp, b.amp) &&
+    stagesMatch(normalizeStages(a.amp2 || a.amp), normalizeStages(b.amp2 || b.amp)) &&
     stagesMatch(a.pd, b.pd) &&
-    stagesMatch(normalizePitchStages(a.pitch), normalizePitchStages(b.pitch));
+    stagesMatch(normalizeStages(a.pd2 || a.pd), normalizeStages(b.pd2 || b.pd)) &&
+    stagesMatch(normalizePitchStages(a.pitch), normalizePitchStages(b.pitch)) &&
+    stagesMatch(normalizePitchStages(a.pitch2 || a.pitch), normalizePitchStages(b.pitch2 || b.pitch)) &&
+    normalizeSustainStages(a.sustain).every((stage, index) => stage === normalizeSustainStages(b.sustain)[index]);
 }
 
 function markCardSlotLocal(slot) {
@@ -1674,16 +2347,22 @@ function reconcileCardEnvelopes(mask, cardEnvelopes) {
         existing.cardDirty = false;
         preservedChanges++;
       } else {
+        existing.name = cardEnvelope.name || existing.name || `Card Envelope ${slot + 1}`;
         existing.amp = normalizeStages(cardEnvelope.amp);
+        existing.amp2 = normalizeStages(cardEnvelope.amp2 || cardEnvelope.amp);
         existing.pd = normalizeStages(cardEnvelope.pd);
+        existing.pd2 = normalizeStages(cardEnvelope.pd2 || cardEnvelope.pd);
         existing.pitch = normalizePitchStages(cardEnvelope.pitch);
+        existing.pitch2 = normalizePitchStages(cardEnvelope.pitch2 || cardEnvelope.pitch);
+        existing.sustain = normalizeSustainStages(cardEnvelope.sustain);
+        existing.performance = normalizePerformanceSettings(cardEnvelope.performance);
         constrainPitchToEnvelope(existing);
         existing.cardDirty = false;
         return;
       }
     }
 
-    const cardPreset = constrainPitchToEnvelope(preset(`Card Envelope ${slot + 1}`, cardEnvelope.amp, cardEnvelope.pd, slot, false, cardEnvelope.pitch));
+    const cardPreset = constrainPitchToEnvelope(preset(cardEnvelope.name || `Card Envelope ${slot + 1}`, cardEnvelope.amp, cardEnvelope.pd, slot, false, cardEnvelope.pitch, null, cardEnvelope.pitch2, cardEnvelope.pd2 || cardEnvelope.pd, cardEnvelope.amp2 || cardEnvelope.amp, cardEnvelope.sustain, cardEnvelope.performance));
     if (customPresetCount() >= MAX_BROWSER_CUSTOM_PRESETS) {
       const replacementIndex = presets.findIndex((item, index) =>
         index >= FACTORY_PRESET_COUNT && item.slot === null);
@@ -1718,6 +2397,43 @@ function clearEnvelopeReadTimer() {
   }
 }
 
+function clearAuxiliaryEnvelopeRequestTimer() {
+  if (auxiliaryEnvelopeRequestTimer !== null) {
+    window.clearTimeout(auxiliaryEnvelopeRequestTimer);
+    auxiliaryEnvelopeRequestTimer = null;
+  }
+}
+
+function scheduleAuxiliaryEnvelopeRequest(label, slot, buildRequest, applyWaitingState) {
+  if (!envelopeReadSession) return;
+  const output = selectedMidiOutput();
+  if (!output) return;
+
+  clearAuxiliaryEnvelopeRequestTimer();
+  auxiliaryEnvelopeRequestTimer = window.setTimeout(() => {
+    auxiliaryEnvelopeRequestTimer = null;
+    if (!envelopeReadSession) return;
+
+    applyWaitingState();
+    try {
+      const request = buildRequest(slot);
+      output.send(request);
+      logDeveloper(`${label} envelope request sent.`, {
+        slot: slot + 1,
+        output: output.name || output.id || "Unknown output",
+        bytes: request
+      });
+      armEnvelopeReadTimeout();
+    } catch (error) {
+      logDeveloper(`${label} envelope request failed.`, {
+        slot: slot + 1,
+        message: error?.message || "Unknown error",
+        stack: error?.stack || "No stack trace"
+      });
+    }
+  }, AUX_ENVELOPE_REQUEST_DELAY_MS);
+}
+
 function armEnvelopeReadTimeout() {
   clearEnvelopeReadTimer();
   envelopeReadTimer = window.setTimeout(() => {
@@ -1727,7 +2443,16 @@ function armEnvelopeReadTimeout() {
       session.retriesRemaining--;
       envelopeReadTimer = null;
       try {
-        if (session.waitingForSlot !== null) {
+        if (session.waitingForAmp2Slot !== null) {
+          output.send(buildRequestAmp2EnvelopeSysex(session.waitingForAmp2Slot));
+          setStatus(`Still waiting for card Amp2 envelope slot ${session.waitingForAmp2Slot + 1}; retrying readback...`);
+        } else if (session.waitingForPd2Slot !== null) {
+          output.send(buildRequestPd2EnvelopeSysex(session.waitingForPd2Slot));
+          setStatus(`Still waiting for card PD2 envelope slot ${session.waitingForPd2Slot + 1}; retrying readback...`);
+        } else if (session.waitingForPitchSlot !== null) {
+          output.send(buildRequestPitchEnvelopeSysex(session.waitingForPitchSlot));
+          setStatus(`Still waiting for card pitch envelope slot ${session.waitingForPitchSlot + 1}; retrying readback...`);
+        } else if (session.waitingForSlot !== null) {
           output.send(buildRequestEnvelopeSysex(session.waitingForSlot));
           setStatus(`Still waiting for card envelope slot ${session.waitingForSlot + 1}; retrying readback...`);
         } else {
@@ -1758,6 +2483,7 @@ function armEnvelopeReadTimeout() {
 
     envelopeReadSession = null;
     envelopeReadTimer = null;
+    clearAuxiliaryEnvelopeRequestTimer();
     envelopeReadSupported = false;
     el.requestEnvelopes.disabled = false;
     renderDeveloperPorts();
@@ -1788,7 +2514,13 @@ function sendNextEnvelopeRequest() {
   envelopeReadSession.waitingForSlot = slot;
   envelopeReadSession.retriesRemaining = ENVELOPE_READ_RETRIES;
   try {
-    output.send(buildRequestEnvelopeSysex(slot));
+    const request = buildRequestEnvelopeSysex(slot);
+    output.send(request);
+    logDeveloper("Envelope slot request sent.", {
+      slot: slot + 1,
+      output: output.name || output.id || "Unknown output",
+      bytes: request
+    });
     armEnvelopeReadTimeout();
   } catch (error) {
     envelopeReadSession = null;
@@ -1819,6 +2551,7 @@ function finishEnvelopeRead() {
       index >= FACTORY_PRESET_COUNT && item.slot === firstSlot);
     if (loadedIndex >= FACTORY_PRESET_COUNT) {
       selected = loadedIndex;
+      applyPerformanceSettings(presets[loadedIndex].performance);
       render();
     }
   }
@@ -1826,15 +2559,22 @@ function finishEnvelopeRead() {
     const cardEnvelope = session.cardEnvelopes.get(session.slot);
     const verified = cardEnvelope && session.expectedEnvelope &&
       envelopesMatch(cardEnvelope, session.expectedEnvelope);
+    if (cardEnvelope?.performance) {
+      const loadedIndex = presets.findIndex((item, index) =>
+        index >= FACTORY_PRESET_COUNT && item.slot === session.slot);
+      if (loadedIndex >= FACTORY_PRESET_COUNT) selected = loadedIndex;
+      applyPerformanceSettings(cardEnvelope.performance);
+      render();
+    }
     setStatus(verified
-      ? `Verified envelope saved in card slot ${session.slot + 1}.`
-      : `The envelope in card slot ${session.slot + 1} did not match the saved draft.`);
+      ? `Verified sound preset saved in card slot ${session.slot + 1}.`
+      : `The sound preset in card slot ${session.slot + 1} did not match the saved draft.`);
     return;
   }
   if (session.reason === "delete") {
     const deleted = (session.mask & (1 << session.slot)) === 0;
     setStatus(deleted
-      ? `Verified card slot ${session.slot + 1} is empty. Any matching card-slot draft was removed from the browser list.`
+      ? `Verified card slot ${session.slot + 1} is empty. Any matching card-slot draft was removed.`
       : `Card slot ${session.slot + 1} still reports a saved envelope.`);
     return;
   }
@@ -1843,8 +2583,11 @@ function finishEnvelopeRead() {
   if (result.preservedChanges) notes.push(`${result.preservedChanges} changed local draft${result.preservedChanges === 1 ? " was" : "s were"} preserved`);
   if (result.replacedLocal) notes.push(`${result.replacedLocal} local draft${result.replacedLocal === 1 ? " was" : "s were"} replaced to show card data`);
   if (result.skipped) notes.push(`${result.skipped} card envelope${result.skipped === 1 ? " was" : "s were"} not added because the browser list is full`);
+  const browserDraftLabel = envelopePayloadMode() === "dual"
+    ? "dual-lane browser drafts"
+    : "local browser drafts for the current compatibility mode";
   const emptyNote = count === 0
-    ? " No saved card envelopes were reported; any remaining custom presets are browser-local drafts."
+    ? ` No saved card envelopes were reported; any remaining presets are ${browserDraftLabel}.`
     : "";
   if (count === 0 && session.reason === "manual") {
     selected = Math.min(3, presets.length - 1);
@@ -1859,6 +2602,7 @@ async function requestCardEnvelopes(reason = "manual", slot = null, expectedEnve
     return;
   }
   if (!midiAccess) await connectMidi();
+  await prepareMidiPorts();
   const output = selectedMidiOutput();
   if (!output) {
     setStatus("No MIDI output found for envelope readback.");
@@ -1872,16 +2616,27 @@ async function requestCardEnvelopes(reason = "manual", slot = null, expectedEnve
     mask: 0,
     pendingSlots: [],
     waitingForSlot: null,
+    waitingForAmp2Slot: null,
+    waitingForPd2Slot: null,
     waitingForPitchSlot: null,
     lastEnvelopeSlot: null,
+    protocolVersion: null,
     cardEnvelopes: new Map(),
     retriesRemaining: ENVELOPE_READ_RETRIES
   };
   el.requestEnvelopes.disabled = true;
   try {
-    output.send(buildRequestEnvelopeSlotsSysex());
+    const request = buildRequestEnvelopeSlotsSysex();
+    output.send(request);
+    logDeveloper("Envelope slot list request sent.", {
+      output: output.name || output.id || "Unknown output",
+      bytes: request
+    });
     armEnvelopeReadTimeout();
-    if (reason === "manual") setStatus("Reading saved envelopes from the card...");
+    if (reason === "manual") {
+      pulseButton(el.requestEnvelopes, "Read");
+      setStatus("Reading saved envelopes from the card...");
+    }
   } catch (error) {
     envelopeReadSession = null;
     clearEnvelopeReadTimer();
@@ -1897,7 +2652,7 @@ async function requestCardEnvelopes(reason = "manual", slot = null, expectedEnve
 function handleEnvelopeSlotsResponse(data) {
   if (!envelopeReadSession || data.length !== 11) return;
   const version = data[7] & 0x7f;
-  if (version < 1 || version > ENVELOPE_PROTOCOL_VERSION) {
+  if (version < 1 || version > MAX_READABLE_ENVELOPE_PROTOCOL_VERSION) {
     clearEnvelopeReadTimer();
     envelopeReadSession = null;
     envelopeReadSupported = false;
@@ -1908,11 +2663,14 @@ function handleEnvelopeSlotsResponse(data) {
   }
 
   envelopeReadSupported = true;
+  detectedEnvelopeProtocol = version;
   renderDeveloperPorts();
+  envelopeReadSession.protocolVersion = version;
   envelopeReadSession.mask = unpackUint14(data, 8) & 0xff;
   envelopeReadSession.pendingSlots = Array.from({ length: CUSTOM_SLOT_COUNT }, (_, slot) => slot)
     .filter((slot) => (envelopeReadSession.mask & (1 << slot)) !== 0);
   logDeveloper("Envelope slot list received.", {
+    protocolVersion: version,
     mask: envelopeReadSession.mask,
     pendingSlots: envelopeReadSession.pendingSlots.map((slot) => slot + 1)
   });
@@ -1921,11 +2679,22 @@ function handleEnvelopeSlotsResponse(data) {
 }
 
 function handleEnvelopeResponse(data) {
-  if (!envelopeReadSession || (data.length !== 89 && data.length !== 129)) return;
+  if (!envelopeReadSession || (data.length !== 89 && data.length !== 105 && data.length !== 121 && data.length !== 123 && data.length !== 129 && data.length !== 145 && data.length !== 161)) return;
   const slot = data[7] & 0x07;
   if (!envelopeReadSession.pendingSlots.includes(slot)) return;
+  const protocolVersion = envelopeReadSession.protocolVersion || 1;
 
   let offset = 8;
+  const hasNameFrame = protocolVersion >= 8 && (data.length === 105 || data.length === 121 || data.length === 123 || data.length === 145 || data.length === 161);
+  const name = hasNameFrame
+    ? decodeNameBytes(data, offset)
+    : "";
+  if (hasNameFrame) offset += 16;
+  const hasPerformanceFrame = protocolVersion >= 9 && (data.length === 121 || data.length === 123 || data.length === 161);
+  const performance = hasPerformanceFrame
+    ? decodePerformanceSettingsBytes(data, offset, protocolVersion, data.length === 123)
+    : null;
+  if (hasPerformanceFrame) offset += data.length === 123 ? 18 : 16;
   const readStages = () => Array.from({ length: STAGES }, () => {
     const stage = {
       level: clampInt(unpackUint14(data, offset), 0, MAX_LEVEL),
@@ -1936,42 +2705,76 @@ function handleEnvelopeResponse(data) {
   });
   const amp = readStages();
   const pd = readStages();
-  const pitch = data.length === 129 ? readStages() : normalizePitchStages(null);
-  envelopeReadSession.cardEnvelopes.set(slot, { amp, pd, pitch });
+  const thirdLane = data.length === 129 || data.length === 145 || data.length === 161 ? readStages() : null;
+  const pd2 = protocolVersion >= 4 && thirdLane ? thirdLane : pd;
+  const amp2 = amp;
+  const pitch = protocolVersion >= 4 ? normalizePitchStages(null) : (thirdLane || normalizePitchStages(null));
+  envelopeReadSession.cardEnvelopes.set(slot, {
+    name,
+    performance,
+    amp,
+    amp2,
+    pd,
+    pd2,
+    pitch,
+    amp2Read: protocolVersion < 5,
+    pd2Read: protocolVersion < 4 || Boolean(thirdLane),
+    pitchRead: protocolVersion < 4
+  });
   envelopeReadSession.waitingForSlot = null;
   envelopeReadSession.lastEnvelopeSlot = slot;
 
   logDeveloper("Envelope slot response received.", {
     slot: slot + 1,
     length: data.length,
-    responseType: data.length === 129 ? "amp/pd/pitch" : "amp/pd standard; pitch may follow separately"
+    protocolVersion,
+    responseType: (data.length === 129 || data.length === 145 || data.length === 161) && protocolVersion >= 4
+      ? "amp/pd1/pd2; pitch follows separately"
+      : data.length === 129 || data.length === 145 || data.length === 161
+        ? "amp/pd/pitch"
+        : performance
+          ? "name/settings/amp/pd standard; pitch may follow separately"
+        : name
+          ? "name/amp/pd standard; pitch may follow separately"
+          : "amp/pd standard; pitch may follow separately"
   });
+  if (protocolVersion >= 5) {
+    requestAmp2EnvelopeForSlot(slot);
+    armEnvelopeReadTimeout();
+    return;
+  }
+  if (data.length === 89 || protocolVersion >= 4) {
+    requestPitchEnvelopeForSlot(slot);
+    armEnvelopeReadTimeout();
+    return;
+  }
   completeEnvelopeSlotRead(slot);
 }
 
-function requestPitchEnvelopeForSlot(slot) {
-  if (!envelopeReadSession) return;
-  const output = selectedMidiOutput();
-  if (!output) return;
-
-  envelopeReadSession.waitingForPitchSlot = slot;
-  try {
-    output.send(buildRequestPitchEnvelopeSysex(slot));
-  } catch (error) {
-    logDeveloper("Pitch envelope request failed.", {
-      slot: slot + 1,
-      message: error?.message || "Unknown error",
-      stack: error?.stack || "No stack trace"
-    });
-  }
+function requestAmp2EnvelopeForSlot(slot) {
+  scheduleAuxiliaryEnvelopeRequest("Amp2", slot, buildRequestAmp2EnvelopeSysex, () => {
+    envelopeReadSession.waitingForAmp2Slot = slot;
+  });
 }
 
-function handlePitchEnvelopeResponse(data) {
+function requestPd2EnvelopeForSlot(slot) {
+  scheduleAuxiliaryEnvelopeRequest("PD2", slot, buildRequestPd2EnvelopeSysex, () => {
+    envelopeReadSession.waitingForPd2Slot = slot;
+  });
+}
+
+function requestPitchEnvelopeForSlot(slot) {
+  scheduleAuxiliaryEnvelopeRequest("Pitch", slot, buildRequestPitchEnvelopeSysex, () => {
+    envelopeReadSession.waitingForPitchSlot = slot;
+  });
+}
+
+function handlePd2EnvelopeResponse(data) {
   if (data.length !== 49) return;
   const slot = data[7] & 0x07;
 
   let offset = 8;
-  const pitch = Array.from({ length: STAGES }, () => {
+  const pd2 = Array.from({ length: STAGES }, () => {
     const stage = {
       level: clampInt(unpackUint14(data, offset), 0, MAX_LEVEL),
       time: clampInt(unpackUint21(data, offset + 2), 1, 192000)
@@ -1981,29 +2784,167 @@ function handlePitchEnvelopeResponse(data) {
   });
 
   if (!envelopeReadSession) {
-    applyLatePitchReadback(slot, pitch);
+    const existingIndex = presets.findIndex((item, index) =>
+      index >= FACTORY_PRESET_COUNT && item.slot === slot);
+    if (existingIndex >= FACTORY_PRESET_COUNT) {
+      presets[existingIndex].pd2 = normalizeStages(pd2);
+      presets[existingIndex].cardDirty = false;
+      savePresets();
+      render();
+    }
+    return;
+  }
+
+  const existing = envelopeReadSession.cardEnvelopes.get(slot);
+  if (existing) {
+    existing.pd2 = pd2;
+    existing.pd2Read = true;
+  }
+  if (slot === envelopeReadSession.waitingForPd2Slot) {
+    envelopeReadSession.waitingForPd2Slot = null;
+  }
+
+  logDeveloper("PD2 envelope response received.", {
+    slot: slot + 1,
+    length: data.length,
+    responseType: "pd2"
+  });
+  if ((envelopeReadSession.protocolVersion || 1) >= 5 && slot === envelopeReadSession.lastEnvelopeSlot) {
+    requestPitchEnvelopeForSlot(slot);
+    armEnvelopeReadTimeout();
+    return;
+  }
+  maybeCompleteProtocol5SlotRead(slot);
+}
+
+function handleAmp2EnvelopeResponse(data) {
+  if (data.length !== 49) return;
+  const slot = data[7] & 0x07;
+
+  let offset = 8;
+  const amp2 = Array.from({ length: STAGES }, () => {
+    const stage = {
+      level: clampInt(unpackUint14(data, offset), 0, MAX_LEVEL),
+      time: clampInt(unpackUint21(data, offset + 2), 1, 192000)
+    };
+    offset += 5;
+    return stage;
+  });
+
+  if (!envelopeReadSession) {
+    const existingIndex = presets.findIndex((item, index) =>
+      index >= FACTORY_PRESET_COUNT && item.slot === slot);
+    if (existingIndex >= FACTORY_PRESET_COUNT) {
+      presets[existingIndex].amp2 = normalizeStages(amp2);
+      presets[existingIndex].cardDirty = false;
+      savePresets();
+      render();
+    }
+    return;
+  }
+
+  const existing = envelopeReadSession.cardEnvelopes.get(slot);
+  if (existing) {
+    existing.amp2 = amp2;
+    existing.amp2Read = true;
+  }
+  if (slot === envelopeReadSession.waitingForAmp2Slot) {
+    envelopeReadSession.waitingForAmp2Slot = null;
+  }
+
+  logDeveloper("Amp2 envelope response received.", {
+    slot: slot + 1,
+    length: data.length,
+    responseType: "amp2"
+  });
+  if ((envelopeReadSession.protocolVersion || 1) >= 5 && slot === envelopeReadSession.lastEnvelopeSlot) {
+    requestPd2EnvelopeForSlot(slot);
+    armEnvelopeReadTimeout();
+    return;
+  }
+  maybeCompleteProtocol5SlotRead(slot);
+}
+
+function handlePitchEnvelopeResponse(data) {
+  if (data.length !== 49 && data.length !== 89 && data.length !== 95) return;
+  const slot = data[7] & 0x07;
+
+  let offset = 8;
+  const readPitchStages = () => Array.from({ length: STAGES }, () => {
+    const stage = {
+      level: clampInt(unpackUint14(data, offset), 0, MAX_LEVEL),
+      time: clampInt(unpackUint21(data, offset + 2), 1, 192000)
+    };
+    offset += 5;
+    return stage;
+  });
+  const pitch = readPitchStages();
+  const pitch2 = data.length === 89 || data.length === 95 ? readPitchStages() : pitch;
+  const sustain = data.length === 95
+    ? Array.from({ length: 6 }, () => clampInt(data[offset++] & 0x7f, 0, 0x7f))
+    : null;
+
+  if (!envelopeReadSession) {
+    applyLatePitchReadback(slot, pitch, pitch2, sustain);
     return;
   }
 
   if (slot !== envelopeReadSession.waitingForPitchSlot &&
       slot !== envelopeReadSession.lastEnvelopeSlot) {
     const existingSlot = envelopeReadSession.cardEnvelopes.get(slot);
-    if (existingSlot) existingSlot.pitch = pitch;
+    if (existingSlot) {
+      existingSlot.pitch = pitch;
+      existingSlot.pitch2 = pitch2;
+      if (sustain) existingSlot.sustain = normalizeSustainStages(sustain);
+    }
     return;
   }
 
   const existing = envelopeReadSession.cardEnvelopes.get(slot);
-  if (existing) existing.pitch = pitch;
-  logDeveloper("Pitch envelope response received.", { slot: slot + 1 });
+  if (existing) {
+    existing.pitch = pitch;
+    existing.pitch2 = pitch2;
+    if (sustain) existing.sustain = normalizeSustainStages(sustain);
+    else if (envelopeReadSession.reason === "save" &&
+        envelopeReadSession.slot === slot &&
+        envelopeReadSession.expectedEnvelope?.sustain) {
+      existing.sustain = normalizeSustainStages(envelopeReadSession.expectedEnvelope.sustain);
+    }
+    existing.pitchRead = true;
+  }
+  logDeveloper("Pitch envelope response received.", {
+    slot: slot + 1,
+    length: data.length,
+    responseType: data.length === 95 ? "pitch osc1/osc2 + sustain" : data.length === 89 ? "pitch osc1/osc2" : "single pitch"
+  });
   envelopeReadSession.waitingForPitchSlot = null;
   envelopeReadSession.lastEnvelopeSlot = null;
+  completeEnvelopeSlotRead(slot);
 }
 
-function applyLatePitchReadback(slot, pitch) {
+function maybeCompleteProtocol5SlotRead(slot) {
+  if (!envelopeReadSession || (envelopeReadSession.protocolVersion || 1) < 5) return;
+  if (slot !== envelopeReadSession.waitingForPitchSlot &&
+      slot !== envelopeReadSession.lastEnvelopeSlot) return;
+
+  const existing = envelopeReadSession.cardEnvelopes.get(slot);
+  if (!existing?.amp2Read || !existing?.pd2Read) return;
+  if ((envelopeReadSession.protocolVersion || 1) >= 6 && !existing.pitchRead) return;
+
+  logDeveloper("Dual-amplitude envelope readback completed from Amp2/PD2 responses.", {
+    slot: slot + 1,
+    pitchRead: Boolean(existing.pitchRead)
+  });
+  completeEnvelopeSlotRead(slot);
+}
+
+function applyLatePitchReadback(slot, pitch, pitch2 = pitch, sustain = null) {
   let updated = false;
   presets.forEach((item, index) => {
     if (index >= FACTORY_PRESET_COUNT && item.slot === slot) {
       item.pitch = normalizePitchStages(pitch);
+      item.pitch2 = normalizePitchStages(pitch2);
+      if (sustain) item.sustain = normalizeSustainStages(sustain);
       constrainPitchToEnvelope(item);
       item.cardDirty = false;
       updated = true;
@@ -2021,7 +2962,10 @@ function completeEnvelopeSlotRead(slot) {
   if (slot === undefined) envelopeReadSession.pendingSlots.shift();
   else envelopeReadSession.pendingSlots =
     envelopeReadSession.pendingSlots.filter((pendingSlot) => pendingSlot !== slot);
+  clearAuxiliaryEnvelopeRequestTimer();
   envelopeReadSession.waitingForSlot = null;
+  envelopeReadSession.waitingForAmp2Slot = null;
+  envelopeReadSession.waitingForPd2Slot = null;
   envelopeReadSession.waitingForPitchSlot = null;
   envelopeReadSession.lastEnvelopeSlot = null;
   clearEnvelopeReadTimer();
@@ -2030,6 +2974,15 @@ function completeEnvelopeSlotRead(slot) {
 
 function handleMidi(event) {
   if (event.data[0] === 0xf0) {
+    const now = Date.now();
+    if (now - lastLoggedSysexAt > 50) {
+      logDeveloper("Incoming SysEx received.", {
+        length: event.data.length,
+        command: event.data.length > 6 ? event.data[6] : "n/a",
+        bytes: Array.from(event.data).slice(0, 16)
+      });
+      lastLoggedSysexAt = now;
+    }
     handleSysexResponse(event.data);
     return;
   }
@@ -2053,6 +3006,10 @@ function handleSysexResponse(data) {
       data[4] !== SYSEX_ID[2] ||
       data[5] !== SYSEX_ID[3] ||
       data[data.length - 1] !== 0xf7) {
+    logDeveloper("Ignored non-C1ZZL3 SysEx frame.", {
+      length: data.length,
+      bytes: Array.from(data).slice(0, 16)
+    });
     return;
   }
 
@@ -2068,7 +3025,22 @@ function handleSysexResponse(data) {
     handlePitchEnvelopeResponse(data);
     return;
   }
-  if (data[6] !== SYSEX_COMMAND_SETTINGS_RESPONSE) return;
+  if (data[6] === SYSEX_COMMAND_PD2_ENVELOPE_RESPONSE) {
+    handlePd2EnvelopeResponse(data);
+    return;
+  }
+  if (data[6] === SYSEX_COMMAND_AMP2_ENVELOPE_RESPONSE) {
+    handleAmp2EnvelopeResponse(data);
+    return;
+  }
+  if (data[6] !== SYSEX_COMMAND_SETTINGS_RESPONSE) {
+    logDeveloper("Ignored unhandled C1ZZL3 SysEx command.", {
+      command: data[6],
+      length: data.length,
+      bytes: Array.from(data).slice(0, 16)
+    });
+    return;
+  }
 
   if (!settingsRequestPending) {
     logDeveloper("Ignored unsolicited settings response.", {
@@ -2102,12 +3074,37 @@ function handleSysexResponse(data) {
       ring: clampInt(unpackUint14(data, 7), 0, MAX_LEVEL),
       noise: clampInt(unpackUint14(data, 9), 0, MAX_LEVEL),
       pd: clampInt(unpackUint14(data, 11), 0, MAX_LEVEL),
+      pd2: clampInt(unpackUint14(data, 11), 0, MAX_LEVEL),
       detune: clampInt(unpackUint14(data, 13), 0, MAX_LEVEL),
       waveform: waveControlToFamily(unpackUint14(data, 15)),
+      waveform2: waveControlToFamily(unpackUint14(data, 15)),
       midiInChannel: clampInt((data[17] & 0x0f) + 1, 1, 16),
       turingRange: clampInt(data[18], 1, 8),
       turingMidiOut: (data[19] & 0x01) !== 0,
       turingMidiChannel: clampInt((data[20] & 0x0f) + 1, 1, 16)
+    };
+  } else if (data.length === 24 || data.length === 25 || data.length === 27) {
+    const hasRecipeBank = data.length === 25 || data.length === 27;
+    const hasPd2 = data.length === 27;
+    const detuneOffset = hasPd2 ? 15 : 13;
+    settingsProtocol = "dual-oscillator";
+    if (hasRecipeBank) settingsProtocol = "recipe-bank";
+    performanceSettings = {
+      ...performanceSettings,
+      ring: clampInt(unpackUint14(data, 7), 0, MAX_LEVEL),
+      noise: clampInt(unpackUint14(data, 9), 0, MAX_LEVEL),
+      pd: clampInt(unpackUint14(data, 11), 0, MAX_LEVEL),
+      pd2: hasPd2
+        ? clampInt(unpackUint14(data, 13), 0, MAX_LEVEL)
+        : clampInt(unpackUint14(data, 11), 0, MAX_LEVEL),
+      detune: clampInt(unpackUint14(data, detuneOffset), 0, MAX_LEVEL),
+      waveform: waveControlToFamily(unpackUint14(data, detuneOffset + 2)),
+      waveform2: waveControlToFamily(unpackUint14(data, detuneOffset + 4)),
+      recipeBank: hasRecipeBank ? clampInt(data[detuneOffset + 6] & 0x03, 0, 3) : performanceSettings.recipeBank,
+      midiInChannel: clampInt((data[detuneOffset + (hasRecipeBank ? 7 : 6)] & 0x0f) + 1, 1, 16),
+      turingRange: clampInt(data[detuneOffset + (hasRecipeBank ? 8 : 7)], 1, 8),
+      turingMidiOut: (data[detuneOffset + (hasRecipeBank ? 9 : 8)] & 0x01) !== 0,
+      turingMidiChannel: clampInt((data[detuneOffset + (hasRecipeBank ? 10 : 9)] & 0x0f) + 1, 1, 16)
     };
   } else {
     logDeveloper("Ignored unexpected settings response.", {
@@ -2119,7 +3116,11 @@ function handleSysexResponse(data) {
   savePerformanceSettings();
   renderPerformanceSettings();
   renderDeveloperPorts();
-  setStatus(`Loaded settings from card: PD ${performanceSettings.pd}, detune ${performanceSettings.detune}, wave ${WAVE_FAMILIES[performanceSettings.waveform] || performanceSettings.waveform}, ring ${performanceSettings.ring}, noise ${performanceSettings.noise}, MIDI in ch ${performanceSettings.midiInChannel}, Turing ${performanceSettings.turingRange} oct, Turing MIDI ${performanceSettings.turingMidiOut ? "on" : "off"} ch ${performanceSettings.turingMidiChannel}.`);
+  if (settingsRequestResolver) {
+    settingsRequestResolver(true);
+    settingsRequestResolver = null;
+  }
+  setStatus(`Loaded settings from card: PD1 ${performanceSettings.pd}, PD2 ${performanceSettings.pd2}, detune ${performanceSettings.detune}, osc1 wave ${WAVE_FAMILIES[performanceSettings.waveform] || performanceSettings.waveform}, osc2 wave ${WAVE_FAMILIES[performanceSettings.waveform2] || performanceSettings.waveform2}${supportsRecipeBankSettings() ? `, recipe bank ${RECIPE_BANKS[performanceSettings.recipeBank] || performanceSettings.recipeBank}` : ""}, ring ${performanceSettings.ring}, noise ${performanceSettings.noise}, MIDI in ch ${performanceSettings.midiInChannel}, Turing ${performanceSettings.turingRange} oct, Turing MIDI ${performanceSettings.turingMidiOut ? "on" : "off"} ch ${performanceSettings.turingMidiChannel}.`);
 }
 
 function downloadJson() {
@@ -2150,6 +3151,18 @@ function escapeHtml(value) {
 
 function setStatus(message) {
   el.status.textContent = message;
+}
+
+function pulseButton(button, label = "Done") {
+  if (!button) return;
+  button.dataset.activatedLabel = label;
+  button.classList.remove("was-activated");
+  void button.offsetWidth;
+  button.classList.add("was-activated");
+  window.setTimeout(() => {
+    button.classList.remove("was-activated");
+    delete button.dataset.activatedLabel;
+  }, 1200);
 }
 
 function canvasPoint(event) {
@@ -2196,15 +3209,17 @@ function findDragTarget(point) {
 function findPitchDragTarget(point) {
   const current = presets[selected];
   let best = null;
-  const viewSamples = editorViewSamples();
+  const viewSamples = envelopeMaxSamples(current);
   let x = 0;
+  const lane = activePitchLane;
+  const stages = current[lane] || current.pitch;
 
-  current.pitch.forEach((stage, index) => {
+  stages.forEach((stage, index) => {
     x = Math.min(point.width, x + (stage.time / viewSamples) * point.width);
     const y = levelY(stage.level, point.height);
     const distance = Math.hypot(point.x - x, point.y - y);
     if (!best || distance < best.distance) {
-      best = { lane: "pitch", index, distance };
+      best = { lane, index, distance };
     }
   });
 
@@ -2247,7 +3262,7 @@ function updateDraggedPitchStage(event) {
   }
 
   const level = Math.round((1 - ((point.y - 18) / Math.max(1, point.height - 36))) * MAX_LEVEL);
-  const stages = presets[selected].pitch;
+  const stages = presets[selected][pitchDragTarget.lane] || presets[selected].pitch;
   const stage = stages[pitchDragTarget.index];
   const before = samplesBeforeStage(stages, pitchDragTarget.index);
   const pitchMaxSamples = envelopeMaxSamples(presets[selected]);
@@ -2257,15 +3272,17 @@ function updateDraggedPitchStage(event) {
   stage.level = clampInt(level, 0, MAX_LEVEL);
   stage.time = clampInt(targetEnd - before, 1, maxStageTime);
   constrainPitchToEnvelope(presets[selected]);
+  if (presets[selected].slot !== null) presets[selected].cardDirty = true;
   savePresets();
   renderPresetList();
-  syncStageInputs("pitch", pitchDragTarget.index);
+  syncStageInputs(pitchDragTarget.lane, pitchDragTarget.index);
   drawPitchCurve();
   updateExport();
 }
 
 function syncStageInputs(lane, index) {
-  const row = el[`${lane}Stages`].querySelector(`[data-lane="${lane}"][data-index="${index}"]`);
+  const container = lane === "pitch2" ? el.pitchStages : el[`${lane}Stages`];
+  const row = container.querySelector(`[data-lane="${lane}"][data-index="${index}"]`);
   if (!row) return;
   const [levelInput, timeInput] = row.querySelectorAll("input");
   const stage = presets[selected][lane][index];
@@ -2284,11 +3301,18 @@ function updatePerformanceSetting(key, value) {
     performanceSettings[key] = clampInt(value, 1, 16);
   } else if (key === "ring" || key === "noise" || key === "pd" || key === "detune") {
     performanceSettings[key] = clampInt(value, 0, MAX_LEVEL);
+  } else if (key === "pd2") {
+    performanceSettings.pd2 = clampInt(value, 0, MAX_LEVEL);
   } else if (key === "waveform") {
     performanceSettings.waveform = clampInt(value, 0, 7);
+  } else if (key === "waveform2") {
+    performanceSettings.waveform2 = clampInt(value, 0, 7);
+  } else if (key === "recipeBank") {
+    performanceSettings.recipeBank = clampInt(value, 0, 3);
   }
 
   savePerformanceSettings();
+  renderSoundPresetSettingsStatus();
 }
 
 async function sendPerformanceSettings(command = SYSEX_COMMAND_SETTINGS) {
@@ -2316,7 +3340,8 @@ async function sendPerformanceSettings(command = SYSEX_COMMAND_SETTINGS) {
   }
   const action = command === SYSEX_COMMAND_SAVE_SETTINGS ? "Saved to card" : "Sent to card";
   const protocolLabel = settingsProtocol === "unknown" ? "Protocol not confirmed yet." : `Protocol: ${describeSettingsProtocol()}.`;
-  setStatus(`${action}: PD ${performanceSettings.pd}, detune ${performanceSettings.detune}, wave ${WAVE_FAMILIES[performanceSettings.waveform] || performanceSettings.waveform}, ring ${performanceSettings.ring}, noise ${performanceSettings.noise}, MIDI in ch ${performanceSettings.midiInChannel}, Turing ${performanceSettings.turingRange} oct, Turing MIDI ${performanceSettings.turingMidiOut ? "on" : "off"} ch ${performanceSettings.turingMidiChannel} on ${output.name || "MIDI output"}. ${protocolLabel}`);
+  pulseButton(command === SYSEX_COMMAND_SAVE_SETTINGS ? null : el.sendSettings, command === SYSEX_COMMAND_SAVE_SETTINGS ? "Saved" : "Sent");
+  setStatus(`${action}: PD1 ${performanceSettings.pd}, PD2 ${performanceSettings.pd2}, detune ${performanceSettings.detune}, osc1 wave ${WAVE_FAMILIES[performanceSettings.waveform] || performanceSettings.waveform}, osc2 wave ${WAVE_FAMILIES[performanceSettings.waveform2] || performanceSettings.waveform2}${supportsRecipeBankSettings() ? `, recipe bank ${RECIPE_BANKS[performanceSettings.recipeBank] || performanceSettings.recipeBank}` : ""}, ring ${performanceSettings.ring}, noise ${performanceSettings.noise}, MIDI in ch ${performanceSettings.midiInChannel}, Turing ${performanceSettings.turingRange} oct, Turing MIDI ${performanceSettings.turingMidiOut ? "on" : "off"} ch ${performanceSettings.turingMidiChannel} on ${output.name || "MIDI output"}. ${protocolLabel}`);
 }
 
 function sendSettingsFrames(output, command, delayMs = 0) {
@@ -2326,7 +3351,11 @@ function sendSettingsFrames(output, command, delayMs = 0) {
     else output.send(frame);
   };
 
-  if (settingsProtocol === "extended") {
+  if (settingsProtocol === "recipe-bank") {
+    sendAt(buildRecipeBankSettingsSysex(command));
+  } else if (settingsProtocol === "dual-oscillator") {
+    sendAt(buildDualOscillatorSettingsSysex(command));
+  } else if (settingsProtocol === "extended") {
     sendAt(buildExtendedSettingsSysex(command));
   } else if (settingsProtocol === "stable") {
     sendAt(buildStableSettingsSysex(command));
@@ -2334,6 +3363,8 @@ function sendSettingsFrames(output, command, delayMs = 0) {
     sendAt(buildStableSettingsSysex(command));
     if (command === SYSEX_COMMAND_SETTINGS) {
       sendAt(buildExtendedSettingsSysex(command), 40);
+      sendAt(buildDualOscillatorSettingsSysex(command), 90);
+      sendAt(buildRecipeBankSettingsSysex(command), 140);
     }
   }
 }
@@ -2342,39 +3373,60 @@ async function requestPerformanceSettings(isProbe = false) {
   if (!midiAccess) {
     await connectMidi();
   }
+  await prepareMidiPorts();
 
   const output = selectedMidiOutput();
   if (!output) {
-    setStatus("No MIDI output found for settings request.");
-    return;
+    if (!isProbe) setStatus("No MIDI output found for settings request.");
+    return false;
   }
 
-  try {
+  const result = new Promise((resolve) => {
+    settingsRequestResolver = resolve;
     settingsRequestPending = true;
     if (settingsRequestTimer !== null) window.clearTimeout(settingsRequestTimer);
     settingsRequestTimer = window.setTimeout(() => {
       settingsRequestPending = false;
       settingsRequestTimer = null;
-      setStatus("The card did not reply to Read Settings from Card.");
-    }, 1500);
-    output.send(buildRequestSettingsSysex());
+      if (settingsRequestResolver) {
+        settingsRequestResolver(false);
+        settingsRequestResolver = null;
+      }
+      if (!isProbe) setStatus("The card did not reply to Read Settings from Card.");
+    }, SETTINGS_READ_TIMEOUT_MS);
+  });
+
+  try {
+    const request = buildRequestSettingsSysex();
+    output.send(request);
+    logDeveloper("Settings request sent.", {
+      output: output.name || output.id || "Unknown output",
+      probe: isProbe,
+      bytes: request
+    });
   } catch (error) {
     settingsRequestPending = false;
     if (settingsRequestTimer !== null) {
       window.clearTimeout(settingsRequestTimer);
       settingsRequestTimer = null;
     }
+    if (settingsRequestResolver) {
+      settingsRequestResolver(false);
+      settingsRequestResolver = null;
+    }
     logDeveloper("Settings request failed.", {
       output: output.name || output.id || "Unknown output",
       message: error?.message || "Unknown error",
       stack: error?.stack || "No stack trace"
     });
-    setStatus("Settings request failed. Open Developer tools for details.");
-    return;
+    if (!isProbe) setStatus("Settings request failed. Open Developer tools for details.");
+    return false;
   }
   if (!isProbe) {
+    pulseButton(el.requestSettings, "Read");
     setStatus(`Requested settings from ${output.name || "MIDI output"}.`);
   }
+  return result;
 }
 
 el.addPreset.addEventListener("click", () => {
@@ -2383,10 +3435,13 @@ el.addPreset.addEventListener("click", () => {
     return;
   }
 
-  presets.push(defaultCustomPreset());
+  const draft = defaultCustomPreset();
+  draft.performance = normalizePerformanceSettings(performanceSettings);
+  presets.push(draft);
   selected = presets.length - 1;
   savePresets();
   render();
+  pulseButton(el.addPreset, "Added");
 });
 
 el.presetName.addEventListener("input", () => {
@@ -2397,48 +3452,132 @@ el.presetName.addEventListener("input", () => {
   updateExport();
 });
 
-el.audition.addEventListener("click", () => audition());
-el.stop.addEventListener("click", stopAudio);
+el.audition.addEventListener("click", () => {
+  audition();
+  pulseButton(el.audition, "Play");
+});
+el.stop.addEventListener("click", () => {
+  stopAudio();
+  pulseButton(el.stop, "Stop");
+});
 el.midiToggle.addEventListener("click", connectMidi);
 el.themeToggle.addEventListener("click", () => {
   themeMode = themeMode === "light" ? "dark" : "light";
   saveThemeMode();
   renderThemeMode();
+  pulseButton(el.themeToggle, themeMode === "light" ? "Light" : "Dark");
 });
 el.midiOutput.addEventListener("change", () => {
   const output = selectedMidiOutput();
   setStatus(output ? `Selected ${output.name || "MIDI output"}.` : "No MIDI output selected.");
 });
-el.downloadJson.addEventListener("click", downloadJson);
+el.downloadJson.addEventListener("click", () => {
+  downloadJson();
+  pulseButton(el.downloadJson, "Exported");
+});
 el.resetPreset.addEventListener("click", () => {
   const factory = factoryPresets.find((preset) => preset.name === "Bounce") || factoryPresets[0];
   presets[selected] = structuredClone(factory);
   savePresets();
   render();
+  pulseButton(el.resetPreset, "Reset");
   setStatus("Preset restored to Bounce.");
 });
 el.ampView.addEventListener("click", () => {
   activeLaneView = "amp";
   renderLaneView();
   drawCurves();
+  pulseButton(el.ampView, "Shown");
+});
+el.amp2View.addEventListener("click", () => {
+  activeLaneView = "amp2";
+  renderLaneView();
+  drawCurves();
+  pulseButton(el.amp2View, "Shown");
 });
 el.pdView.addEventListener("click", () => {
   activeLaneView = "pd";
   renderLaneView();
   drawCurves();
+  pulseButton(el.pdView, "Shown");
+});
+el.pd2View.addEventListener("click", () => {
+  activeLaneView = "pd2";
+  renderLaneView();
+  drawCurves();
+  pulseButton(el.pd2View, "Shown");
+});
+el.pitch1View.addEventListener("click", () => {
+  activePitchLane = "pitch";
+  renderPitchLaneView();
+  renderStages(activePitchLane, el.pitchStages);
+  drawPitchCurve();
+  pulseButton(el.pitch1View, "Shown");
+});
+el.pitch2View.addEventListener("click", () => {
+  activePitchLane = "pitch2";
+  renderPitchLaneView();
+  renderStages(activePitchLane, el.pitchStages);
+  drawPitchCurve();
+  pulseButton(el.pitch2View, "Shown");
 });
 el.developerToggle.addEventListener("click", () => {
   developerMode = !developerMode;
   renderDeveloperMode();
   updateExport();
+  pulseButton(el.developerToggle, developerMode ? "On" : "Off");
 });
 el.clearDeveloperLog.addEventListener("click", () => {
   clearDeveloperLog();
+  pulseButton(el.clearDeveloperLog, "Cleared");
   setStatus("Developer diagnostics cleared.");
 });
-el.resetBrowserState.addEventListener("click", resetBrowserState);
+el.resetBrowserState.addEventListener("click", () => {
+  pulseButton(el.resetBrowserState, "Cleared");
+  resetBrowserState();
+});
+el.ccTestGrid?.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-cc]");
+  if (!button) return;
+  const cc = clampInt(button.dataset.cc, 0, 127);
+  const value = clampInt(button.dataset.value, 0, 127);
+  sendDeveloperCc(cc, value, button.textContent.trim()).then((sent) => {
+    if (sent) pulseButton(button, "Sent");
+  });
+});
+el.ccTestNeutral?.addEventListener("click", () => {
+  const neutralSteps = [
+    { cc: 1, value: 0, label: "CC1 Osc 1 PD neutral" },
+    { cc: 20, value: 0, label: "CC20 Osc 1 recipe neutral" },
+    { cc: 21, value: 0, label: "CC21 Osc 2 recipe neutral" },
+    { cc: 22, value: 0, label: "CC22 Ring neutral" },
+    { cc: 23, value: 0, label: "CC23 Recipe bank 1" },
+    { cc: 24, value: 64, label: "CC24 Osc 2 interval centre" },
+    { cc: 25, value: 0, label: "CC25 Osc 2 PD neutral" },
+    { cc: 26, value: 0, label: "CC26 Noise neutral" },
+    { cc: 27, value: 0, label: "CC27 Osc 1 PD neutral" }
+  ];
+  runDeveloperCcSequence(neutralSteps, el.ccTestNeutral, "Neutral CC reset");
+});
+el.ccTestSweep?.addEventListener("click", () => {
+  const sweepSteps = GNARLY_CC_TESTS.flatMap((item) => [
+    { ...item, value: 0 },
+    { ...item, value: 64 },
+    { ...item, value: 127 }
+  ]);
+  runDeveloperCcSequence(sweepSteps, el.ccTestSweep, "CC20-27 sweep");
+});
+el.ccTestModWheel?.addEventListener("click", () => {
+  const modWheelSteps = [0, 32, 64, 96, 127, 0].map((value) => ({
+    cc: 1,
+    value,
+    label: "CC1 Osc 1 PD"
+  }));
+  runDeveloperCcSequence(modWheelSteps, el.ccTestModWheel, "CC1 sweep");
+});
 el.copyCpp.addEventListener("click", async () => {
   await navigator.clipboard.writeText(el.exportText.value);
+  pulseButton(el.copyCpp, "Copied");
   setStatus("C++ preset copied.");
 });
 el.copySysex.addEventListener("click", async () => {
@@ -2458,19 +3597,27 @@ el.copySysex.addEventListener("click", async () => {
     setStatus("Copy SysEx failed. Open Developer tools for details.");
     return;
   }
+  pulseButton(el.copySysex, "Copied");
   setStatus(`SysEx preview frame copied for Custom ${Number(el.customSlot.value) + 1}.`);
 });
 el.sendSysex.addEventListener("click", () => sendSysex(SYSEX_COMMAND_PREVIEW));
 el.loadEnvelopeAndSettings.addEventListener("click", loadEnvelopeAndSettings);
+el.saveEnvelopeOnly.addEventListener("click", () => sendSysex(SYSEX_COMMAND_SAVE, { includePerformance: false }));
 el.flashSysex.addEventListener("click", () => sendSysex(SYSEX_COMMAND_SAVE));
 el.deleteSlot.addEventListener("click", deleteCustomSlot);
 el.requestEnvelopes.addEventListener("click", () => requestCardEnvelopes());
 el.requestSettings.addEventListener("click", requestPerformanceSettings);
 el.sendSettings.addEventListener("click", () => sendPerformanceSettings(SYSEX_COMMAND_SETTINGS));
-el.spreadPitchPoints.addEventListener("click", spreadPitchPoints);
+el.spreadPitchPoints.addEventListener("click", () => {
+  spreadPitchPoints();
+  pulseButton(el.spreadPitchPoints, "Spread");
+});
 el.pdControl.addEventListener("input", () => updatePerformanceSetting("pd", el.pdControl.value));
+el.pd2Control.addEventListener("input", () => updatePerformanceSetting("pd2", el.pd2Control.value));
 el.detuneControl.addEventListener("input", () => updatePerformanceSetting("detune", el.detuneControl.value));
 el.performanceWaveSelect.addEventListener("change", () => updatePerformanceSetting("waveform", el.performanceWaveSelect.value));
+el.performanceWave2Select.addEventListener("change", () => updatePerformanceSetting("waveform2", el.performanceWave2Select.value));
+el.recipeBankSelect.addEventListener("change", () => updatePerformanceSetting("recipeBank", el.recipeBankSelect.value));
 el.ringControl.addEventListener("input", () => updatePerformanceSetting("ring", el.ringControl.value));
 el.noiseControl.addEventListener("input", () => updatePerformanceSetting("noise", el.noiseControl.value));
 el.midiInChannel.addEventListener("input", () => updatePerformanceSetting("midiInChannel", el.midiInChannel.value));
@@ -2511,6 +3658,8 @@ window.addEventListener("resize", () => {
   drawCurves();
   drawPitchCurve();
 });
+markEnvelopeLabActive();
+window.setInterval(markEnvelopeLabActive, 2000);
 renderDeveloperLog();
 consumeImportedDraft();
 render();
