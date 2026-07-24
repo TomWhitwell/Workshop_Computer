@@ -42,7 +42,7 @@ const ENVELOPE_LAB_HEARTBEAT_KEY = "c1zzl3-full-dual-oscillators-envelope-lab-he
 const HANDOFF_CHANNEL_NAME = "c1zzl3-full-dual-oscillators-handoff";
 const THEME_KEY = "c1zzl3-theme-mode";
 const LOCAL_EDITOR_URL = "../index.html";
-const HOSTED_EDITOR_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/index.html";
+const HOSTED_EDITOR_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/index.html";
 const ENVELOPE_LAB_WINDOW_NAME = "c1zzl3-full-dual-oscillators-envelope-lab";
 const HANDOFF_ACTIVE_WINDOW_MS = 5000;
 const handoffChannel = typeof BroadcastChannel === "function"

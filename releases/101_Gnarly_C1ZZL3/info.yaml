@@ -1,7 +1,7 @@
-id: 85_Gnarly_C1ZZL3
+id: 101_Gnarly_C1ZZL3
 title: C1ZZL3 Gnarly
 draft: false
-release: 85 / Gnarly protocol v11 stable
+release: 101 / Gnarly protocol v11 stable
 date: 2026-07-22
 summary: >-
   No-Turing dual-oscillator C1ZZL3 branch with recipe wave banks, named Web MIDI
@@ -105,10 +105,10 @@ notes:
     CC24 = oscillator 2 interval/spread; CC25 = oscillator 2 phase distortion;
     CC26 = noise/grit; CC27 = oscillator 1 phase distortion for eight-knob controllers.
 source:
-  - releases/85_Gnarly_C1ZZL3/info.yaml
-  - releases/85_Gnarly_C1ZZL3/README.md
-slug: 85-gnarly-c1zzl3
-url: /workshopsystem/program-cards/85-gnarly-c1zzl3/
+  - releases/101_Gnarly_C1ZZL3/info.yaml
+  - releases/101_Gnarly_C1ZZL3/README.md
+slug: 101-gnarly-c1zzl3
+url: /workshopsystem/program-cards/101-gnarly-c1zzl3/
 tags:
   - synth
   - midi
@@ -116,19 +116,19 @@ tags:
   - phase-distortion
   - dual-oscillator
   - stable
-source_file: releases/85_Gnarly_C1ZZL3/info.yaml
-source_url: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/85_Gnarly_C1ZZL3
+source_file: releases/101_Gnarly_C1ZZL3/info.yaml
+source_url: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/101_Gnarly_C1ZZL3
 readme_url: >-
-  https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/85_Gnarly_C1ZZL3/README.md
+  https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/101_Gnarly_C1ZZL3/README.md
 download_url: >-
-  https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/85_Gnarly_C1ZZL3/uf2/C1ZZL3_GNARLY_V11.uf2
+  https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/101_Gnarly_C1ZZL3/uf2/C1ZZL3_GNARLY_V11.uf2
 metadata:
   creator: Adrian Vos
   language: C++ (Pico SDK)
   version: Gnarly protocol v11 stable
   status: Stable
   license: MIT
-  editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/index.html
+  editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/index.html
   editor_note: Use the Gnarly Lab and its Import Lab for recipe-bank sound presets.
 documentation:
   intro: >

@@ -88,7 +88,7 @@ MIDI CC controls:
 Hosted editor path after Workshop deployment:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/index.html
 ```
 
 The editor can load to RAM, save envelope-only changes, save full sound presets,

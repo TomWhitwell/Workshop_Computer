@@ -1,7 +1,7 @@
 C1ZZL3 Gnarly Quick Reference
 =============================
 
-Stable release: 85 / Gnarly protocol v11
+Stable release: 101 / Gnarly protocol v11
 UF2: uf2/C1ZZL3_GNARLY_V11.uf2
 Checksum: 5782a8a0f77ef2d8ebd0433f6da3b7d5b1398627d82b163600f586a5cbf6bf4e
 
@@ -63,10 +63,10 @@ CC27: oscillator 1 phase distortion for eight-knob controllers
 Web MIDI
 --------
 Hosted editor after deployment:
-https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/index.html
 
 Hosted import lab after deployment:
-https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/import/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/import/index.html
 
 Run editor:
 python3 -m http.server 5177 --directory web

@@ -86,3 +86,4 @@
 | 97_alloy | Fixed-point 15-zone cross-modulator with a clocked Turing CV and gate companion. | 0.2.0<br>Beta | C++ (RP2040 Pico SDK) | Eric Gao |
 | 98_duo_midi | A duophonic midi device/host interface | 0.1<br>Released | Lua / Blackbird | Dune Desormeaux |
 | 99_toolbox | Mixer, VCA, noise, S&H, clock generator, etc. | 0.1.1<br>Released | C++ (ComputerCard) | divmod |
+| 101_Gnarly_C1ZZL3 | Stable no-Turing dual-oscillator synth with recipe wave banks, full sound presets, CZ import handoff, and the shared advanced Web MIDI editor.<br>[Web editor](https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/index.html) | Gnarly protocol v11 stable<br>Released | C++ (Pico SDK) | Adrian Vos |

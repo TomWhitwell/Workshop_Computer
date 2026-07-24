@@ -16,10 +16,10 @@ CARD_README.md
 
 ## Status
 
-This folder contains the stable Gnarly card 85 build.
+This folder contains the stable Gnarly card 101 build.
 
 ```text
-release: 85 / Gnarly protocol v11 stable
+release: 101 / Gnarly protocol v11 stable
 draft: false
 ```
 
@@ -109,7 +109,7 @@ The C1ZZL3 Envelope Lab has a hidden Developer-mode MIDI CC Test Suite for check
 Hosted editor path after Workshop deployment:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/index.html
 ```
 
 Local editor from this release folder:
@@ -131,7 +131,7 @@ Use Chrome or another browser with Web MIDI and SysEx support. When Web MIDI con
 Hosted import lab path after Workshop deployment:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/import/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/import/index.html
 ```
 
 Local import lab from this release folder:
