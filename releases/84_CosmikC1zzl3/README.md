@@ -25,10 +25,10 @@ uf2/C1ZZL3.uf2
 Checksum:
 
 ```text
-d31f2dbf25c633cf6a5943cf288231f32702d255e42f7b70059e9d2804de705a
+fb3cb4d83497be6cfb94a56007120d15f310c184d813a1c8bb76fa304dd28733
 ```
 
-This branch packages C1ZZL3 Rad, the hardware-tested protocol v9 full-dual-oscillator beta, as a separate release-84 proposal.
+This branch packages C1ZZL3 Rad, the hardware-tested protocol v9 full-dual-oscillator stable advanced version, as a separate release-84 proposal.
 
 Rad v9 keeps the Turing machine hardware interface from Core while adding full dual-oscillator Web MIDI support: Amp1/Amp2, PD1/PD2, Pitch1/Pitch2, separate oscillator wave-family settings, slot names, saved sound-preset settings, card-to-editor readback, CZ Import Lab handoff, pitch envelopes, gate-held envelope looping with natural completion, high-PD audio smoothing, and rapid-retrigger oscillator phase continuity.
 
@@ -165,7 +165,8 @@ Import Lab flow:
 4. Drag points on the graphs to change both level and timing.
 5. Watch the point numbers. When stages stack, only the highest number is shown.
 6. Use the tables below the graphs for exact values when you want precise edits.
-7. Use the action buttons when you want to send, save, read, or reset.
+7. Connect Web MIDI. The editor automatically checks the card firmware type and saved envelope slots.
+8. Use the action buttons when you want to send, save, refresh, or reset.
 
 Button quick reference:
 
@@ -188,7 +189,7 @@ hold it until the card confirms the save.
 The card can save up to eight custom envelopes. Factory presets are not
 overwritten. Custom presets are labelled `Local only`, `Saved - slot N`, or
 `Changed - slot N`. Envelope readback confirms which custom slots are occupied
-and verifies saves and deletions when supported by the firmware.
+and verifies saves and deletions when supported by the firmware. The editor also runs a quiet settings/envelope check automatically when MIDI connects or ports change, so the firmware type is visible without first pressing the read buttons.
 
 Envelope behaviour:
 

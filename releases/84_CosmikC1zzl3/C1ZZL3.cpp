@@ -1730,7 +1730,7 @@ private:
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1}
-        }, {}, {}, {}, {NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage}};
+        }, {}, {}, {}, {1, 1, 1, 1, 1, 1}};
 
         static const EnvelopeProgram doublePluck = {{
             {4095, 180}, {700, 4800}, {0, 2400}, {3600, 180},
@@ -1743,7 +1743,7 @@ private:
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1}
-        }, {}, {}, {}, {NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage}};
+        }, {}, {}, {}, {6, 6, 6, 6, 6, 6}};
 
         static const EnvelopeProgram bounce = {{
             {4095, 120}, {1200, 3600}, {3300, 3600}, {1700, 4800},
@@ -1756,7 +1756,7 @@ private:
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1}
-        }, {}, {}, {}, {NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage}};
+        }, {}, {}, {}, {6, 6, 6, 6, 6, 6}};
 
         static const EnvelopeProgram bell = {{
             {4095, 240}, {2600, 12000}, {1200, 24000}, {0, 36000},
@@ -1769,7 +1769,7 @@ private:
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1}
-        }, {}, {}, {}, {NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage}};
+        }, {}, {}, {}, {3, 3, 3, 3, 3, 3}};
 
         static const EnvelopeProgram brass = {{
             {4095, 4800}, {3400, 30000}, {3200, 18000}, {3000, 18000},
@@ -1782,7 +1782,7 @@ private:
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1}
-        }, {}, {}, {}, {NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage}};
+        }, {}, {}, {}, {5, 5, 5, 5, 5, 5}};
 
         static const EnvelopeProgram strings = {{
             {2200, 24000}, {3600, 24000}, {3800, 48000}, {3600, 48000},
@@ -1795,7 +1795,7 @@ private:
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1}
-        }, {}, {}, {}, {NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage}};
+        }, {}, {}, {}, {6, 6, 6, 6, 6, 6}};
 
         static const EnvelopeProgram reverseSwell = {{
             {200, 12000}, {900, 18000}, {1800, 18000}, {3000, 18000},
@@ -1808,7 +1808,7 @@ private:
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1}
-        }, {}, {}, {}, {NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage}};
+        }, {}, {}, {}, {4, 4, 4, 4, 4, 4}};
 
         static const EnvelopeProgram evolvingDigital = {{
             {4095, 480}, {3900, 12000}, {3800, 12000}, {3600, 12000},
@@ -1821,7 +1821,7 @@ private:
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1},
             {PitchEnvelopeCenter, 1}, {PitchEnvelopeCenter, 1}
-        }, {}, {}, {}, {NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage, NoSustainStage}};
+        }, {}, {}, {}, {6, 6, 6, 6, 6, 6}};
 
         static const EnvelopeProgram off = {{
             {0, 1}, {0, 1}, {0, 1}, {0, 1},
