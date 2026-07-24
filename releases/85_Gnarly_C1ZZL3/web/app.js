@@ -32,7 +32,7 @@ const SYSEX_COMMAND_AMP2_ENVELOPE_RESPONSE = 0x0f;
 const SYSEX_COMMAND_REQUEST_PD2_ENVELOPE = 0x10;
 const SYSEX_COMMAND_REQUEST_AMP2_ENVELOPE = 0x11;
 const ENVELOPE_PROTOCOL_VERSION = 9;
-const MAX_READABLE_ENVELOPE_PROTOCOL_VERSION = 9;
+const MAX_READABLE_ENVELOPE_PROTOCOL_VERSION = 11;
 
 const factoryPresets = [
   preset("Off", fill(0, 1), fill(0, 1)),
@@ -72,7 +72,7 @@ const ENVELOPE_LAB_HEARTBEAT_KEY = "c1zzl3-full-dual-oscillators-envelope-lab-he
 const HANDOFF_CHANNEL_NAME = "c1zzl3-full-dual-oscillators-handoff";
 const HOSTED_EDITOR_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/index.html";
 const HOSTED_IMPORT_LAB_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/85-gnarly-c1zzl3/web/import/";
-const LOCAL_IMPORT_LAB_URL = "import-lab/index.html";
+const LOCAL_IMPORT_LAB_URL = "import/index.html";
 
 let presets = loadPresets();
 let selected = 3;
@@ -2066,7 +2066,8 @@ function encodePerformanceSettings(settings = performanceSettings) {
   ];
 }
 
-function decodePerformanceSettingsBytes(data, offset) {
+function decodePerformanceSettingsBytes(data, offset, protocolVersion = detectedEnvelopeProtocol) {
+  const recipeBankCapable = protocolVersion >= 11 || supportsRecipeBankSettings();
   return normalizePerformanceSettings({
     pd: unpackUint14(data, offset),
     detune: unpackUint14(data, offset + 2),
@@ -2078,7 +2079,7 @@ function decodePerformanceSettingsBytes(data, offset) {
     turingRange: data[offset + 13],
     turingMidiOut: (data[offset + 14] & 0x01) !== 0,
     turingMidiChannel: (data[offset + 15] & 0x0f) + 1,
-    recipeBank: supportsRecipeBankSettings() ? (data[offset + 15] & 0x03) : performanceSettings.recipeBank
+    recipeBank: recipeBankCapable ? (data[offset + 15] & 0x03) : performanceSettings.recipeBank
   });
 }
 
@@ -2363,6 +2364,13 @@ function finishEnvelopeRead() {
     const cardEnvelope = session.cardEnvelopes.get(session.slot);
     const verified = cardEnvelope && session.expectedEnvelope &&
       envelopesMatch(cardEnvelope, session.expectedEnvelope);
+    if (cardEnvelope?.performance) {
+      const loadedIndex = presets.findIndex((item, index) =>
+        index >= FACTORY_PRESET_COUNT && item.slot === session.slot);
+      if (loadedIndex >= FACTORY_PRESET_COUNT) selected = loadedIndex;
+      applyPerformanceSettings(cardEnvelope.performance);
+      render();
+    }
     setStatus(verified
       ? `Verified sound preset saved in card slot ${session.slot + 1}.`
       : `The sound preset in card slot ${session.slot + 1} did not match the saved draft.`);
@@ -2489,7 +2497,7 @@ function handleEnvelopeResponse(data) {
   if (hasNameFrame) offset += 16;
   const hasPerformanceFrame = protocolVersion >= 9 && (data.length === 121 || data.length === 161);
   const performance = hasPerformanceFrame
-    ? decodePerformanceSettingsBytes(data, offset)
+    ? decodePerformanceSettingsBytes(data, offset, protocolVersion)
     : null;
   if (hasPerformanceFrame) offset += 16;
   const readStages = () => Array.from({ length: STAGES }, () => {

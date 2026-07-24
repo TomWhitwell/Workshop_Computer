@@ -1596,9 +1596,8 @@ private:
         state.turingRange = 0u;
         offset++;
         state.turingMidiEnabled = 0u;
-        offset++;
+        state.recipeBank = sysexBuffer[offset++] & 0x03u;
         state.turingMidiChannel = 0u;
-        state.recipeBank = controlToRecipeBank(recipeBankControl);
         state.reserved = 0u;
         return state;
     }
