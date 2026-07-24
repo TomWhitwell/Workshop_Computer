@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>C1ZZL3 Rad Import Lab</title>
+  <title>C1ZZL3 Import Lab</title>
   <link rel="stylesheet" href="styles.css?v=20260719-button-feedback">
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
       <div class="hero-copy">
-        <p class="eyebrow">C1ZZL3 Rad</p>
-        <h1>C1ZZL3 Rad Import Lab</h1>
+        <p class="eyebrow">Universal patch translator</p>
+        <h1>C1ZZL3 Import Lab</h1>
         <p class="top-note">
           Bring in a Casio CZ SysEx patch, decode its amplitude, DCW, and DCO
-          pitch envelopes, then map DCW1/DCW2 and DCO1/DCO2 into the stable
-          beta full-dual Envelope Lab.
+          pitch envelopes, then map DCW1/DCW2 and DCO1/DCO2 into the shared
+          C1ZZL3 Envelope Lab.
         </p>
         <div class="hero-panels">
           <div class="hero-panel">
@@ -26,13 +26,13 @@
           <div class="hero-panel">
             <span class="hero-label">How to use it</span>
             <strong>Send separate oscillator lanes</strong>
-            <p>DCA1/Amp1, DCW1/PD1, DCO1 pitch, and Line 1 wave type drive oscillator 1; DCA2/Amp2, DCW2/PD2, DCO2 pitch, and Line 2 wave type drive oscillator 2 for the protocol v9 stable beta.</p>
+            <p>DCA1/Amp1, DCW1/PD1, DCO1 pitch, and Line 1 wave type drive oscillator 1; DCA2/Amp2, DCW2/PD2, DCO2 pitch, and Line 2 wave type drive oscillator 2 where the connected card supports dual lanes. Older firmware receives a safe collapsed version.</p>
           </div>
         </div>
       </div>
       <div class="top-actions">
         <button id="themeToggle" type="button" role="switch" aria-checked="false" title="Toggle light mode">Dark</button>
-        <a class="pill pill-link" href="../index.html" target="_blank" rel="noopener noreferrer">Open Rad Lab</a>
+        <a class="pill pill-link" href="../index.html" target="_blank" rel="noopener noreferrer">Open Envelope Lab</a>
       </div>
     </header>
 
@@ -213,22 +213,22 @@
       <article class="card full-span">
         <div class="card-head">
           <h2>Next Step</h2>
-          <span class="meta">Send the decoded draft into the full dual-oscillator Envelope Lab</span>
+          <span class="meta">Send the decoded draft into the shared Envelope Lab</span>
         </div>
         <div class="card-body stack">
           <div class="top-actions start">
-            <button id="openDraft" class="primary" type="button">Open In Rad Lab</button>
+            <button id="openDraft" class="primary" type="button">Open In Envelope Lab</button>
           </div>
           <div class="banner">
             <strong>Note:</strong>
-            <span>This page decodes CZ DCA, DCW, DCO pitch envelopes, and separate Line 1/Line 2 oscillator wave types. Use the full dual-oscillator Envelope Lab with the protocol v9 stable beta UF2.</span>
+            <span>This page decodes CZ DCA, DCW, DCO pitch envelopes, and separate Line 1/Line 2 oscillator wave types. The shared Envelope Lab detects the connected card and chooses the safest send mode.</span>
           </div>
         </div>
       </article>
     </section>
 
     <div class="footer">
-      Full dual-oscillator stable beta: requires the protocol v9 stable beta firmware and sends two amplitude lanes, two PD lanes, two pitch lanes, separate oscillator wave-family settings, CZ END/hold markers, slot names, and performance settings to the card.
+      Shared C1ZZL3 Import Lab: sends the richest decoded draft to the Envelope Lab, then the editor collapses or expands the payload to match the connected firmware.
     </div>
   </main>
 

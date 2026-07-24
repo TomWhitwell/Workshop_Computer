@@ -620,7 +620,8 @@ canvas {
 
 .stage-panel.is-hidden,
 .developer-panel.is-hidden,
-.stage-grid.is-hidden {
+.stage-grid.is-hidden,
+.recipe-bank-setting.is-hidden {
   display: none;
 }
 
@@ -759,6 +760,33 @@ canvas {
   color: var(--text);
 }
 
+.sound-preset-settings-status {
+  grid-column: 1 / -1;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--legend-bg) 78%, var(--panel));
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.sound-preset-settings-status.is-matched {
+  border-color: color-mix(in srgb, var(--pd) 62%, var(--line));
+  color: var(--pd);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--pd) 18%, transparent);
+}
+
+.sound-preset-settings-status.is-warning {
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
+  color: var(--accent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.sound-preset-settings-status.is-local {
+  border-color: color-mix(in srgb, var(--amp) 48%, var(--line));
+}
+
 .output-actions button {
   min-height: 32px;
   padding: 0 6px;
@@ -807,6 +835,36 @@ textarea {
   justify-content: flex-end;
 }
 
+.developer-help {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.developer-help code {
+  color: var(--code-text);
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.cc-test-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+}
+
+.cc-test-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cc-test-grid button,
+.cc-test-actions button {
+  min-height: 32px;
+}
+
 .developer-log {
   min-height: 140px;
   margin: 0;
@@ -841,9 +899,29 @@ textarea {
   gap: 4px;
 }
 
+.performance-panel label.is-disabled {
+  opacity: 0.72;
+}
+
 .performance-panel input,
 .performance-panel select {
   height: 32px;
+}
+
+.performance-panel input:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.45);
+}
+
+.setting-hint {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.setting-hint-wide {
+  grid-column: 1 / -1;
+  margin-top: -4px;
 }
 
 .performance-panel input[type="range"] {
