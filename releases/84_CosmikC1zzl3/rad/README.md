@@ -1,10 +1,10 @@
-# C1ZZL3
+# C1ZZL3 Rad
 
-Stable production firmware for the Cosmik C1ZZL3 Music Thing Modular Workshop
+C1ZZL3 Rad firmware for the Cosmik C1ZZL3 Music Thing Modular Workshop
 Computer card.
 
-C1ZZL3 is a dual phase-distortion synthesiser with browser-editable amplitude,
-phase-distortion, and pitch envelopes, USB MIDI device/host support, optional
+C1ZZL3 Rad is a dual phase-distortion synthesiser with browser-editable Amp1/Amp2,
+PD1/PD2, and Pitch1/Pitch2 envelopes, USB MIDI device/host support, optional
 Turing MIDI output, and a Turing machine mode with CV and pulse outputs. Turing
 MIDI output defaults to off and must be enabled deliberately.
 
@@ -14,41 +14,29 @@ For the user-facing card guide, see:
 CARD_README.md
 ```
 
-## Stable Build
+## Rad Build
 
-Current stable UF2:
+Current Rad UF2 in the shared `84` UF2 folder:
 
 ```text
-uf2/C1ZZL3.uf2
+../uf2/C1ZZL3_RAD.uf2
 ```
 
 Checksum:
 
 ```text
-a9297f7d5d7fd7c2262d27ff6e8afa0ecd026ebe05aea205d9444b0985e8d7d6
+fb3cb4d83497be6cfb94a56007120d15f310c184d813a1c8bb76fa304dd28733
 ```
 
-Alternate advanced release-84 package:
+This folder packages C1ZZL3 Rad, the hardware-tested protocol v9 full-dual-oscillator stable advanced version, as an alternate package inside release 84 without replacing Core 1.4.
 
-```text
-rad/README.md
-uf2/C1ZZL3_RAD.uf2
-```
+Rad v9 keeps the Turing machine hardware interface from Core while adding full dual-oscillator Web MIDI support: Amp1/Amp2, PD1/PD2, Pitch1/Pitch2, separate oscillator wave-family settings, slot names, saved sound-preset settings, card-to-editor readback, CZ Import Lab handoff, pitch envelopes, gate-held envelope looping with natural completion, high-PD audio smoothing, and rapid-retrigger oscillator phase continuity.
 
-This is hardware-tested production release 1.4.
-
-Release 1.4 works with Envelope Lab and C1ZZL3 Import Lab and includes Web MIDI
-PD, detune, eight waveform families, card-to-editor envelope readback, browser
-CZ patch import handoff, pitch envelopes, gate-held envelope looping with
-natural completion on gate/note release, corrected CZ DCW-to-PD,
-DCA-to-amplitude, and DCO-to-pitch import mapping, high-PD audio smoothing, and
-rapid-retrigger oscillator phase continuity.
-
-## Current Stable Feature Set
+## Rad Feature Set
 
 - Phase-distortion synth voice.
 - Factory envelopes plus eight protected custom envelope slots.
-- Web MIDI envelope editor with amplitude, phase-distortion, and pitch lanes.
+- Rad Web MIDI editor with Amp1/Amp2, PD1/PD2, Pitch1/Pitch2, and separate oscillator wave-family settings.
 - USB MIDI device mode for DAW/browser use.
 - USB MIDI host mode for class-compliant controllers.
 - MIDI notes with gate-held envelope sustain/release.
@@ -56,7 +44,7 @@ rapid-retrigger oscillator phase continuity.
 - Turing machine audio, CV, pulse, and optional MIDI note output.
 - Turing CV and pulse outputs continue running in synth mode.
 - Settings readback from the card into the Web MIDI editor.
-- Saved envelope readback from the card, including pitch envelope data.
+- Saved sound-preset readback from the card, including slot names, performance settings, and dual pitch envelope data.
 - Ring, noise, MIDI channel, Turing range, and Turing MIDI settings persist;
   the baseline for Turing MIDI output is off.
 
@@ -107,7 +95,7 @@ takes over again.
 Hosted editor:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/index.html
 ```
 
 Local editor from this release folder:
@@ -129,7 +117,7 @@ Use Chrome or another browser with Web MIDI and SysEx support.
 Hosted import lab:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/import/index.html
 ```
 
 Local import lab from this release folder:
@@ -177,7 +165,8 @@ Import Lab flow:
 4. Drag points on the graphs to change both level and timing.
 5. Watch the point numbers. When stages stack, only the highest number is shown.
 6. Use the tables below the graphs for exact values when you want precise edits.
-7. Use the action buttons when you want to send, save, read, or reset.
+7. Connect Web MIDI. The editor automatically checks the card firmware type and saved envelope slots.
+8. Use the action buttons when you want to send, save, refresh, or reset.
 
 Button quick reference:
 
@@ -200,7 +189,7 @@ hold it until the card confirms the save.
 The card can save up to eight custom envelopes. Factory presets are not
 overwritten. Custom presets are labelled `Local only`, `Saved - slot N`, or
 `Changed - slot N`. Envelope readback confirms which custom slots are occupied
-and verifies saves and deletions when supported by the firmware.
+and verifies saves and deletions when supported by the firmware. The editor also runs a quiet settings/envelope check automatically when MIDI connects or ports change, so the firmware type is visible without first pressing the read buttons.
 
 Envelope behaviour:
 
