@@ -1,33 +1,34 @@
 C1ZZL3 Quick Reference
 ======================
 
-Production candidate: Web MIDI build promoted 2026-06-13
+Release: 84 / 1.4
 UF2: uf2/C1ZZL3.uf2
-Tap-tempo rollback UF2: uf2/C1ZZL3_with_tap_tempo_rollback_20260615.uf2
+Checksum: a9297f7d5d7fd7c2262d27ff6e8afa0ecd026ebe05aea205d9444b0985e8d7d6
 
 Stability boundary
 ------------------
-- This build is at the practical stable limit for the RP2040 card format.
-- Turing MIDI output is intentionally absent.
-- Turing clock does not continue running in synth mode.
-- When leaving Turing mode, CV/pulse outputs hold their last values.
+- Turing MIDI output is optional and defaults off.
+- Turing CV and pulse outputs continue running in synth mode.
+- Tap tempo is removed; Y is the Turing internal clock-speed control.
+- Rapid retriggers keep oscillator phase continuous while an envelope is active.
 
 Switch middle: PD synth
 -----------------------
 Main: pitch
 X: phase distortion
-Y: wave shape
+Y: waveform
 Audio/CV In 1: 1V/oct pitch
 CV In 1: adds phase distortion
 CV In 2: adds wave control
 Audio In 2: unused
-Pulse In 2: trigger selected envelope and oscillator sync
+Pulse In 2: trigger selected envelope, held gate loop/sustain, gate-off release
 
-Switch down: performance edit
------------------------------
+Switch down from middle: performance edit
+-----------------------------------------
 Main: oscillator 2 detune
 X: ring modulation
 Y: noise/grit
+Hold switch down from middle to save current performance settings.
 Ring/noise start neutral after reset.
 If powered with switch down, ring/noise edit is locked until the switch leaves down.
 
@@ -37,13 +38,10 @@ Main: mutation
 X: sequence length, 2-16 steps
 Y: clock speed
 Pulse In 1: external clock
-Tap tempo: removed
 CV Out 1: stepped Turing CV
 CV Out 2: smoothed Turing CV
 Pulse Out 1: main Turing pulse
 Pulse Out 2: alternate bit pulse
-CV In 1: clamped PD modulation
-CV In 2: clamped wave modulation
 
 Startup envelope select
 -----------------------
@@ -58,6 +56,9 @@ Web MIDI
 Hosted editor:
 https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
 
+Hosted import lab:
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/index.html
+
 Run editor:
 python3 -m http.server 5173 --directory web
 
@@ -65,12 +66,25 @@ Open:
 http://localhost:5173
 
 Editor supports:
+- amplitude, phase-distortion, and pitch envelopes
 - eight custom envelope slots
-- Load to RAM
-- Save to card flash
-- ring/noise/channel Set
+- Load RAM
+- Load Envelope + Settings
+- Save Envelope
+- Delete Envelope Slot
+- Read Envelopes from Card
+- Read Settings from Card
+- Send Settings
 - browser audition
-- SysEx/C++ copy
+
+MIDI CC
+-------
+CC1: phase distortion
+CC20: oscillator 2 detune
+CC21: ring modulation
+CC22: noise amount
+CC23: waveform
+CC24: Turing CV octave range, 1-8 octaves
 
 Factory envelopes
 -----------------
