@@ -18,8 +18,11 @@
   --pd: #37ffd1;
   --graph-amp: #ff5bd1;
   --graph-pd: #34f5ff;
+  --graph-pitch: #9b7cff;
   --graph-amp-point: #ffb3ec;
   --graph-pd-point: #b5fcff;
+  --graph-pitch-point: #e2d7ff;
+  --graph-pitch-center: rgba(180, 195, 255, 0.72);
   --accent: #ff49c7;
   --blue: #72a6ff;
   --hint-bg: linear-gradient(180deg, rgba(255, 73, 199, 0.12), rgba(55, 255, 209, 0.08));
@@ -55,8 +58,11 @@ body.theme-light {
   --pd: #0a9382;
   --graph-amp: #c46a00;
   --graph-pd: #007d6f;
+  --graph-pitch: #5b4fc4;
   --graph-amp-point: #ffcf7a;
   --graph-pd-point: #78dacc;
+  --graph-pitch-point: #d7d1ff;
+  --graph-pitch-center: rgba(74, 60, 142, 0.48);
   --accent: #d24f2e;
   --blue: #3a63c9;
   --hint-bg: linear-gradient(180deg, rgba(210, 79, 46, 0.12), rgba(204, 122, 0, 0.08));
@@ -427,6 +433,71 @@ select {
   background: var(--panel-glow), var(--panel-gradient);
 }
 
+.pitch-editor {
+  margin: 0 16px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--graph-pitch) 16%, transparent), transparent 34%),
+    var(--legend-bg);
+  overflow: hidden;
+}
+
+.pitch-editor-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pitch-editor-head h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.pitch-editor-head p,
+.pitch-editor-head span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pitch-editor-head span {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--graph-pitch) 45%, var(--line));
+  border-radius: 999px;
+  color: var(--graph-pitch);
+}
+
+.pitch-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pitch-tools button {
+  border-color: color-mix(in srgb, var(--graph-pitch) 55%, var(--line));
+  color: var(--graph-pitch);
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--graph-pitch) 18%, var(--panel)),
+      color-mix(in srgb, var(--panel) 88%, transparent));
+}
+
+.pitch-curve-panel {
+  padding-bottom: 8px;
+}
+
+.pitch-stage-panel {
+  margin: 0 16px 16px;
+}
+
 canvas {
   width: 100%;
   height: min(36vh, 360px);
@@ -440,6 +511,11 @@ canvas {
   cursor: crosshair;
   touch-action: none;
   box-shadow: 0 0 0 1px rgba(255, 73, 199, 0.08), 0 0 32px rgba(55, 255, 209, 0.06);
+}
+
+#pitchCanvas {
+  height: 260px;
+  min-height: 180px;
 }
 
 .tables {
@@ -603,6 +679,13 @@ textarea {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.developer-log-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .developer-log {

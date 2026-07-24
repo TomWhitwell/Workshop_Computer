@@ -14,8 +14,8 @@
         <h1>Envelope Lab</h1>
       </div>
       <div class="transport">
-        <a id="onlineEditorLink" href="https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html" target="_blank" rel="noopener noreferrer" class="transport-link">Online</a>
-        <a id="importLabLink" href="https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/" target="_blank" rel="noopener noreferrer" class="transport-link">Import Lab</a>
+        <a id="onlineEditorLink" href="index.html" target="_blank" rel="noopener noreferrer" class="transport-link">Envelope Lab</a>
+        <a id="importLabLink" href="import/index.html" target="_blank" rel="noopener noreferrer" class="transport-link">Import Lab</a>
         <button id="audition" type="button" title="Loop browser audition">▶</button>
         <button id="stop" type="button" title="Stop browser audition">■</button>
         <button id="themeToggle" type="button" role="switch" aria-checked="false" title="Toggle light mode">Dark</button>
@@ -71,7 +71,7 @@
         </div>
 
         <div class="editor-hint">
-          Drag points on the graph to edit stages, or type exact values below. Factory presets turn into a copy the first time you change them. Bounce is the reset preset.
+          Drag points on either graph to edit stages, or type exact values below. Factory presets turn into a copy the first time you change them. Bounce is the reset preset.
         </div>
 
         <div class="lane-switcher" role="tablist" aria-label="Envelope lane view">
@@ -90,6 +90,34 @@
         <div class="curve-panel">
           <canvas id="curveCanvas" width="1200" height="420" aria-label="Amplitude and phase distortion envelope preview"></canvas>
         </div>
+
+        <section class="pitch-editor" aria-label="Pitch envelope editor">
+          <div class="pitch-editor-head">
+            <div>
+              <h2>Pitch Envelope</h2>
+              <p>Pitch points are capped to the amplitude/PD envelope length.</p>
+            </div>
+            <div class="pitch-tools">
+              <span id="pitchSourceLabel">No CZ pitch source loaded</span>
+              <button id="spreadPitchPoints" type="button">Spread Pitch Points</button>
+            </div>
+          </div>
+          <div class="curve-panel pitch-curve-panel">
+            <canvas id="pitchCanvas" width="1200" height="260" aria-label="Pitch envelope preview"></canvas>
+          </div>
+          <div class="stage-panel pitch-stage-panel" aria-label="Pitch envelope stages">
+            <div class="lane-title">
+              <h2>Pitch</h2>
+              <span>Offset / samples</span>
+            </div>
+            <div class="stage-head">
+              <span>Stage</span>
+              <span>Offset</span>
+              <span>Samples</span>
+            </div>
+            <div id="pitchStages" class="stage-grid"></div>
+          </div>
+        </section>
 
         <button id="developerToggle" type="button" class="developer-toggle" role="switch" aria-checked="false">Developer tools: Off</button>
 
@@ -201,7 +229,10 @@
           <div class="developer-log-panel">
             <div class="developer-log-head">
               <h3>Event Log</h3>
-              <button id="clearDeveloperLog" type="button">Clear log</button>
+              <div class="developer-log-actions">
+                <button id="resetBrowserState" type="button">Reset browser state</button>
+                <button id="clearDeveloperLog" type="button">Clear log</button>
+              </div>
             </div>
             <pre id="developerLog" class="developer-log" aria-label="Developer diagnostics"></pre>
           </div>
@@ -211,6 +242,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=20260717-1"></script>
+  <script src="app.js?v=20260718-ghost-read-fix"></script>
 </body>
 </html>
