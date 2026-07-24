@@ -121,6 +121,16 @@ const RECIPE_BANKS = [
   "Bright resonant",
   "CZ import"
 ];
+const GNARLY_CC_TESTS = [
+  { cc: 20, label: "CC20 Osc 1 recipe" },
+  { cc: 21, label: "CC21 Osc 2 recipe" },
+  { cc: 22, label: "CC22 Ring" },
+  { cc: 23, label: "CC23 Recipe bank" },
+  { cc: 24, label: "CC24 Osc 2 interval" },
+  { cc: 25, label: "CC25 Osc 2 PD" },
+  { cc: 26, label: "CC26 Noise" },
+  { cc: 27, label: "CC27 Osc 1 PD" }
+];
 
 window.addEventListener("message", (event) => {
   if (event.data?.type === "cz-import-handoff" && event.data?.payload) {
@@ -178,6 +188,10 @@ const el = {
   developerPorts: document.querySelector("#developerPorts"),
   developerMidiRaw: document.querySelector("#developerMidiRaw"),
   developerLog: document.querySelector("#developerLog"),
+  ccTestGrid: document.querySelector("#ccTestGrid"),
+  ccTestNeutral: document.querySelector("#ccTestNeutral"),
+  ccTestSweep: document.querySelector("#ccTestSweep"),
+  ccTestModWheel: document.querySelector("#ccTestModWheel"),
   resetBrowserState: document.querySelector("#resetBrowserState"),
   clearDeveloperLog: document.querySelector("#clearDeveloperLog"),
   status: document.querySelector("#status"),
@@ -793,8 +807,8 @@ function renderPerformanceSettings() {
   el.pd2Control.disabled = !separatePd2;
   el.pd2Setting.classList.toggle("is-disabled", !separatePd2);
   el.pd2SettingHint.textContent = separatePd2
-    ? "Gnarly v11 stores and sends PD2 separately."
-    : "PD2 is linked to PD1 on Core/Rad compatibility modes.";
+    ? "This firmware stores and sends PD2 separately."
+    : "PD2 is linked to PD1 in compatibility mode.";
   el.detuneControl.value = performanceSettings.detune;
   el.performanceWaveSelect.value = performanceSettings.waveform;
   el.performanceWave2Select.value = performanceSettings.waveform2;
@@ -1463,13 +1477,13 @@ function describeEnvelopeReadback() {
 
 function cardCapabilityLabel() {
   if (settingsProtocol === "recipe-bank" || (settingsProtocol === "unknown" && detectedEnvelopeProtocol !== null && detectedEnvelopeProtocol >= 11)) {
-    return "Gnarly recipe-bank";
+    return "recipe-bank firmware";
   }
   if (settingsProtocol === "dual-oscillator" || (settingsProtocol === "unknown" && detectedEnvelopeProtocol !== null && detectedEnvelopeProtocol >= 9)) {
-    return "Rad/Gnarly dual-oscillator";
+    return "dual-lane firmware";
   }
-  if (settingsProtocol === "extended") return "Core extended";
-  if (settingsProtocol === "stable") return "Core stable";
+  if (settingsProtocol === "extended") return "extended firmware";
+  if (settingsProtocol === "stable") return "stable firmware";
   return "undetected";
 }
 
@@ -1499,7 +1513,7 @@ function envelopePayloadMode() {
 }
 
 function envelopePayloadModeLabel(mode = envelopePayloadMode()) {
-  if (mode === "dual") return "full-dual";
+  if (mode === "dual") return "dual-lane";
   if (mode === "legacy") return "legacy Amp/PD";
   return "Core Amp/PD/Pitch";
 }
@@ -1653,6 +1667,72 @@ function selectedMidiOutput() {
     : null;
   if (selectedOutput) return selectedOutput;
   return collectMidiPorts(midiAccess.outputs)[0] || null;
+}
+
+function midiStatusByteForEditorChannel() {
+  const channel = clampInt(performanceSettings.midiInChannel, 1, 16) - 1;
+  return 0xb0 | (channel & 0x0f);
+}
+
+async function sendDeveloperCc(cc, value, label = "") {
+  if (!midiAccess) {
+    await connectMidi();
+  }
+
+  const output = selectedMidiOutput();
+  if (!output) {
+    setStatus("No MIDI output found for CC test.");
+    return false;
+  }
+
+  const controller = clampInt(cc, 0, 127);
+  const amount = clampInt(value, 0, 127);
+  const channel = clampInt(performanceSettings.midiInChannel, 1, 16);
+  const message = [midiStatusByteForEditorChannel(), controller, amount];
+
+  try {
+    output.send(message);
+  } catch (error) {
+    logDeveloper("MIDI CC test send failed.", {
+      cc: controller,
+      value: amount,
+      channel,
+      output: output.name || output.id || "Unknown output",
+      message: error?.message || "Unknown error",
+      stack: error?.stack || "No stack trace"
+    });
+    setStatus("MIDI CC test failed. Open Developer tools for details.");
+    return false;
+  }
+
+  logDeveloper("MIDI CC test sent.", {
+    cc: controller,
+    value: amount,
+    channel,
+    output: output.name || output.id || "Unknown output",
+    rawHex: message.map((byte) => byte.toString(16).padStart(2, "0").toUpperCase()).join(" "),
+    rawDecimal: message,
+    label
+  });
+  setStatus(`Sent ${label || `CC${controller}`} value ${amount} on MIDI ch ${channel}.`);
+  return true;
+}
+
+async function runDeveloperCcSequence(steps, button, label) {
+  if (!Array.isArray(steps) || steps.length === 0) return;
+  if (button) button.disabled = true;
+
+  try {
+    for (const step of steps) {
+      const sent = await sendDeveloperCc(step.cc, step.value, step.label);
+      if (!sent) break;
+      await new Promise((resolve) => window.setTimeout(resolve, step.delay ?? 160));
+    }
+    pulseButton(button, "Sent");
+    setStatus(`${label} complete.`);
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 async function sendSysex(command = SYSEX_COMMAND_PREVIEW, options = {}) {
@@ -1980,10 +2060,10 @@ function compatibilityStatusNote(mode, includePerformance) {
     return ` Card capability: ${capability}.`;
   }
   if (mode === "core") {
-    return ` Card capability: ${capability}; dual lanes/settings are collapsed to the Core Amp/PD/Pitch format.`;
+    return ` Card capability: ${capability}; dual lanes/settings are collapsed to the compatible Amp/PD/Pitch format.`;
   }
   if (includePerformance && !supportsSoundPresetPayload()) {
-    return ` Card capability: ${capability}; the editor could not confirm Rad/Gnarly before sending, so it used the safe compatibility format. Read Settings from Card or Read Envelopes from Card to refresh the capability display.`;
+    return ` Card capability: ${capability}; the editor could not confirm dual-lane support before sending, so it used the safe compatibility format. Read Settings from Card or Read Envelopes from Card to refresh the capability display.`;
   }
   return ` Card capability: ${capability}; dual lanes are collapsed for compatibility.`;
 }
@@ -1992,7 +2072,7 @@ function temporaryLoadSaveHint(mode) {
   if (mode === "dual") {
     return " This is temporary; use Save Sound Preset to write the envelope, name, and settings to card flash.";
   }
-  return " This is temporary; use Save Envelope Only or Save Sound Preset to write the collapsed Core-compatible envelope to card flash. Core firmware does not store full-dual sound-preset settings in the slot.";
+  return " This is temporary; use Save Envelope Only or Save Sound Preset to write the compatible envelope to card flash. Older firmware does not store full sound-preset settings in the slot.";
 }
 
 function buildSettingsSysex(command) {
@@ -2494,7 +2574,7 @@ function finishEnvelopeRead() {
   if (session.reason === "delete") {
     const deleted = (session.mask & (1 << session.slot)) === 0;
     setStatus(deleted
-      ? `Verified card slot ${session.slot + 1} is empty. Any matching full-dual-oscillator card-slot draft was removed.`
+      ? `Verified card slot ${session.slot + 1} is empty. Any matching card-slot draft was removed.`
       : `Card slot ${session.slot + 1} still reports a saved envelope.`);
     return;
   }
@@ -2504,7 +2584,7 @@ function finishEnvelopeRead() {
   if (result.replacedLocal) notes.push(`${result.replacedLocal} local draft${result.replacedLocal === 1 ? " was" : "s were"} replaced to show card data`);
   if (result.skipped) notes.push(`${result.skipped} card envelope${result.skipped === 1 ? " was" : "s were"} not added because the browser list is full`);
   const browserDraftLabel = envelopePayloadMode() === "dual"
-    ? "full-dual-oscillator browser drafts"
+    ? "dual-lane browser drafts"
     : "local browser drafts for the current compatibility mode";
   const emptyNote = count === 0
     ? ` No saved card envelopes were reported; any remaining presets are ${browserDraftLabel}.`
@@ -3048,7 +3128,7 @@ function downloadJson() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "c1zzl3-full-dual-oscillators-presets.json";
+  link.download = "c1zzl3-envelope-presets.json";
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -3455,6 +3535,45 @@ el.clearDeveloperLog.addEventListener("click", () => {
 el.resetBrowserState.addEventListener("click", () => {
   pulseButton(el.resetBrowserState, "Cleared");
   resetBrowserState();
+});
+el.ccTestGrid?.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-cc]");
+  if (!button) return;
+  const cc = clampInt(button.dataset.cc, 0, 127);
+  const value = clampInt(button.dataset.value, 0, 127);
+  sendDeveloperCc(cc, value, button.textContent.trim()).then((sent) => {
+    if (sent) pulseButton(button, "Sent");
+  });
+});
+el.ccTestNeutral?.addEventListener("click", () => {
+  const neutralSteps = [
+    { cc: 1, value: 0, label: "CC1 Osc 1 PD neutral" },
+    { cc: 20, value: 0, label: "CC20 Osc 1 recipe neutral" },
+    { cc: 21, value: 0, label: "CC21 Osc 2 recipe neutral" },
+    { cc: 22, value: 0, label: "CC22 Ring neutral" },
+    { cc: 23, value: 0, label: "CC23 Recipe bank 1" },
+    { cc: 24, value: 64, label: "CC24 Osc 2 interval centre" },
+    { cc: 25, value: 0, label: "CC25 Osc 2 PD neutral" },
+    { cc: 26, value: 0, label: "CC26 Noise neutral" },
+    { cc: 27, value: 0, label: "CC27 Osc 1 PD neutral" }
+  ];
+  runDeveloperCcSequence(neutralSteps, el.ccTestNeutral, "Neutral CC reset");
+});
+el.ccTestSweep?.addEventListener("click", () => {
+  const sweepSteps = GNARLY_CC_TESTS.flatMap((item) => [
+    { ...item, value: 0 },
+    { ...item, value: 64 },
+    { ...item, value: 127 }
+  ]);
+  runDeveloperCcSequence(sweepSteps, el.ccTestSweep, "CC20-27 sweep");
+});
+el.ccTestModWheel?.addEventListener("click", () => {
+  const modWheelSteps = [0, 32, 64, 96, 127, 0].map((value) => ({
+    cc: 1,
+    value,
+    label: "CC1 Osc 1 PD"
+  }));
+  runDeveloperCcSequence(modWheelSteps, el.ccTestModWheel, "CC1 sweep");
 });
 el.copyCpp.addEventListener("click", async () => {
   await navigator.clipboard.writeText(el.exportText.value);

@@ -835,6 +835,36 @@ textarea {
   justify-content: flex-end;
 }
 
+.developer-help {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.developer-help code {
+  color: var(--code-text);
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.cc-test-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+}
+
+.cc-test-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cc-test-grid button,
+.cc-test-actions button {
+  min-height: 32px;
+}
+
 .developer-log {
   min-height: 140px;
   margin: 0;

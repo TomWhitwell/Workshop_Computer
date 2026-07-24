@@ -4,28 +4,29 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>C1ZZL3 Import Lab</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260719-button-feedback">
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
       <div class="hero-copy">
-        <p class="eyebrow">Import Workflow</p>
+        <p class="eyebrow">Universal patch translator</p>
         <h1>C1ZZL3 Import Lab</h1>
         <p class="top-note">
           Bring in a Casio CZ SysEx patch, decode its amplitude, DCW, and DCO
-          pitch envelopes, then move into Envelope Lab.
+          pitch envelopes, then map DCW1/DCW2 and DCO1/DCO2 into the shared
+          C1ZZL3 Envelope Lab.
         </p>
         <div class="hero-panels">
           <div class="hero-panel">
             <span class="hero-label">What it does</span>
-            <strong>Decodes CZ patch data including pitch envelopes</strong>
-            <p>Amplitude, DCW, DCO1 pitch, DCO2 pitch, waveform family, and performance values are mapped into a C1ZZL3 draft.</p>
+            <strong>Decodes CZ patch data including separate DCW and DCO envelopes</strong>
+            <p>Amplitude, DCW1, DCW2, DCO1 pitch, DCO2 pitch, separate Line 1/Line 2 oscillator wave types, and performance values are mapped into a full dual-oscillator C1ZZL3 draft. Single-line CZ patches are detected and mirrored into both C1ZZL3 oscillator lanes.</p>
           </div>
           <div class="hero-panel">
             <span class="hero-label">How to use it</span>
-            <strong>Import here, refine in Envelope Lab</strong>
-            <p>Choose or drop a `.syx` file, inspect the decoded envelopes, then open the result in Envelope Lab.</p>
+            <strong>Send separate oscillator lanes</strong>
+            <p>DCA1/Amp1, DCW1/PD1, DCO1 pitch, and Line 1 wave type drive oscillator 1; DCA2/Amp2, DCW2/PD2, DCO2 pitch, and Line 2 wave type drive oscillator 2 where the connected card supports dual lanes. Older firmware receives a safe collapsed version.</p>
           </div>
         </div>
       </div>
@@ -98,17 +99,29 @@
           <div class="field">
             <label for="ampMode">Amplitude mapping</label>
             <select id="ampMode">
-              <option value="merged">Merged DCA1 + DCA2 average</option>
-              <option value="line1">DCA1 amplitude only</option>
-              <option value="line2">DCA2 amplitude only</option>
+              <option value="dual">DCA1 -> Amp1, DCA2 -> Amp2</option>
+              <option value="merged">Merged DCA1 + DCA2 copied to both amps</option>
+              <option value="line1">DCA1 copied to both amps</option>
+              <option value="line2">DCA2 copied to both amps</option>
             </select>
           </div>
           <div class="field">
             <label for="pdMode">Phase distortion mapping</label>
             <select id="pdMode">
+              <option value="dual">DCW1 -> PD1, DCW2 -> PD2</option>
               <option value="merged">Merged DCW1 + DCW2 average</option>
               <option value="line1">DCW1 phase distortion only</option>
               <option value="line2">DCW2 phase distortion only</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pitchMode">Pitch mapping</label>
+            <select id="pitchMode">
+              <option value="dual">DCO1 -> osc 1, DCO2 -> osc 2</option>
+              <option value="merged">Merged DCO1 + DCO2 average</option>
+              <option value="dco1">DCO1 pitch only</option>
+              <option value="dco2">DCO2 pitch only</option>
+              <option value="difference">Advanced: DCO1 / DCO2 difference emphasis</option>
             </select>
           </div>
         </div>
@@ -156,14 +169,28 @@
               <div id="perfBox" class="value-box">No draft yet.</div>
             </div>
           </div>
+          <div class="field">
+            <label>CZ envelope END / hold summary</label>
+            <pre id="czEnvelopeSummaryBox">No draft yet.</pre>
+          </div>
           <div class="grid-2">
             <div class="field">
-              <label>Amplitude envelope</label>
+              <label>Amp1 / DCA1 envelope</label>
               <pre id="ampDraftBox">No draft yet.</pre>
             </div>
             <div class="field">
-              <label>Phase distortion envelope</label>
+              <label>Amp2 / DCA2 envelope</label>
+              <pre id="amp2DraftBox">No draft yet.</pre>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>PD1 / DCW1 envelope</label>
               <pre id="pdDraftBox">No draft yet.</pre>
+            </div>
+            <div class="field">
+              <label>PD2 / DCW2 envelope</label>
+              <pre id="pd2DraftBox">No draft yet.</pre>
             </div>
           </div>
           <div class="grid-2">
@@ -176,13 +203,17 @@
               <pre id="pitchDco2Box">No draft yet.</pre>
             </div>
           </div>
+          <div class="field">
+            <label>Selected C1ZZL3 pitch lane 1</label>
+            <pre id="pitchSelectedBox">No draft yet.</pre>
+          </div>
         </div>
       </article>
 
       <article class="card full-span">
         <div class="card-head">
           <h2>Next Step</h2>
-          <span class="meta">Send the decoded draft into Envelope Lab</span>
+          <span class="meta">Send the decoded draft into the shared Envelope Lab</span>
         </div>
         <div class="card-body stack">
           <div class="top-actions start">
@@ -190,17 +221,17 @@
           </div>
           <div class="banner">
             <strong>Note:</strong>
-            <span>This page decodes the CZ patch, including DCO pitch envelopes. Use Envelope Lab for review and card transfer.</span>
+            <span>This page decodes CZ DCA, DCW, DCO pitch envelopes, and separate Line 1/Line 2 oscillator wave types. The shared Envelope Lab detects the connected card and chooses the safest send mode.</span>
           </div>
         </div>
       </article>
     </section>
 
     <div class="footer">
-      Import Lab prepares the pitch-aware draft. Envelope Lab is where you edit, audition, and send it.
+      Shared C1ZZL3 Import Lab: sends the richest decoded draft to the Envelope Lab, then the editor collapses or expands the payload to match the connected firmware.
     </div>
   </main>
 
-  <script src="app.js?v=20260719-line-mapping"></script>
+  <script src="app.js?v=20260720-pitch-end-cleanup-v6"></script>
 </body>
 </html>

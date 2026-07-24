@@ -154,8 +154,8 @@ function renderThemeMode() {
 
 function getEditorUrl() {
   const path = window.location.pathname;
-  const isDualPitchImportLab = path.includes("/programs/85-gnarly-c1zzl3/web/import/");
-  if (isDualPitchImportLab && window.location.protocol === "file:") return LOCAL_EDITOR_URL;
+  const isProductionImportLab = path.includes("/web/import/");
+  if (isProductionImportLab && window.location.protocol === "file:") return LOCAL_EDITOR_URL;
 
   const host = window.location.hostname;
   const isLocalDev = host === "localhost" || host === "127.0.0.1" || host === "::1";

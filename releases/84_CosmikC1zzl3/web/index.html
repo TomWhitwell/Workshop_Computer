@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>C1ZZL3 Envelope Lab</title>
-  <link rel="stylesheet" href="styles.css?v=20260706-8">
+  <link rel="stylesheet" href="styles.css?v=20260719-dual-amp-draft">
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">C1ZZL3</p>
-        <h1>Envelope Lab</h1>
+        <p class="eyebrow">Universal Web MIDI editor</p>
+        <h1>C1ZZL3 Envelope Lab</h1>
       </div>
       <div class="transport">
         <a id="onlineEditorLink" href="index.html" target="_blank" rel="noopener noreferrer" class="transport-link">Envelope Lab</a>
@@ -75,8 +75,10 @@
         </div>
 
         <div class="lane-switcher" role="tablist" aria-label="Envelope lane view">
-          <button id="ampView" type="button" class="is-active" role="tab" aria-selected="true">Amplitude</button>
-          <button id="pdView" type="button" role="tab" aria-selected="false">Phase Distortion</button>
+          <button id="ampView" type="button" class="is-active" role="tab" aria-selected="true">Amp 1 / Osc 1</button>
+          <button id="amp2View" type="button" role="tab" aria-selected="false">Amp 2 / Osc 2</button>
+          <button id="pdView" type="button" role="tab" aria-selected="false">PD 1 / Osc 1</button>
+          <button id="pd2View" type="button" role="tab" aria-selected="false">PD 2 / Osc 2</button>
         </div>
 
         <div class="editor-legend" aria-label="Editor guide">
@@ -94,20 +96,24 @@
         <section class="pitch-editor" aria-label="Pitch envelope editor">
           <div class="pitch-editor-head">
             <div>
-              <h2>Pitch Envelope</h2>
-              <p>Pitch points are capped to the amplitude/PD envelope length.</p>
+              <h2>Pitch Envelopes</h2>
+              <p>Pitch points are capped to the amplitude/PD envelope length. Pitch 1 drives oscillator 1 and Pitch 2 drives oscillator 2 with the full dual-oscillator test firmware.</p>
             </div>
             <div class="pitch-tools">
               <span id="pitchSourceLabel">No CZ pitch source loaded</span>
               <button id="spreadPitchPoints" type="button">Spread Pitch Points</button>
             </div>
           </div>
+          <div class="pitch-lane-switcher" role="tablist" aria-label="Pitch envelope lane">
+            <button id="pitch1View" type="button" class="is-active" role="tab" aria-selected="true">Pitch 1 / Osc 1</button>
+            <button id="pitch2View" type="button" role="tab" aria-selected="false">Pitch 2 / Osc 2</button>
+          </div>
           <div class="curve-panel pitch-curve-panel">
             <canvas id="pitchCanvas" width="1200" height="260" aria-label="Pitch envelope preview"></canvas>
           </div>
           <div class="stage-panel pitch-stage-panel" aria-label="Pitch envelope stages">
             <div class="lane-title">
-              <h2>Pitch</h2>
+              <h2 id="pitchStageTitle">Pitch 1 / Oscillator 1</h2>
               <span>Offset / samples</span>
             </div>
             <div class="stage-head">
@@ -123,16 +129,20 @@
 
         <div class="output-actions editor-actions">
           <button id="sendSysex" type="button" title="Load this envelope until reset">Load RAM</button>
-          <button id="loadEnvelopeAndSettings" type="button" title="Load this envelope and send the current settings until reset">Load Envelope + Settings</button>
-          <button id="flashSysex" type="button" title="Save this envelope after reset">Save Envelope</button>
-          <button id="deleteSlot" type="button" title="Delete the selected custom slot from card flash">Delete Envelope Slot</button>
+          <button id="loadEnvelopeAndSettings" type="button" title="Load this sound preset until reset">Load Sound Preset</button>
           <button id="requestEnvelopes" type="button" title="Load saved card envelopes into the editor">Read Envelopes from Card</button>
           <button id="requestSettings" type="button" title="Load current card settings into the editor">Read Settings from Card</button>
-          <button id="sendSettings" type="button" title="Send these settings to the card">Send Settings</button>
           <button id="resetPreset" type="button">Reset Preset</button>
+          <button id="flashSysex" type="button" title="Save this envelope, name, and current settings after reset">Save Sound Preset</button>
+          <button id="saveEnvelopeOnly" type="button" title="Save only the envelope and slot name, leaving this slot's saved settings unchanged">Save Envelope Only</button>
+          <button id="sendSettings" type="button" title="Send these settings to the card">Send Settings</button>
+          <button id="deleteSlot" type="button" title="Delete the selected custom slot from card flash">Delete Envelope Slot</button>
         </div>
         <div class="volatility-warning" role="note">
-          <strong>Temporary changes:</strong> Load RAM, Load Envelope + Settings, and Send Settings are lost when the card restarts. Use Save Envelope to keep the envelope. To make the current settings the hardware baseline, move the switch from middle to down and hold it until the card confirms the save.
+          <strong>Temporary changes:</strong> Load RAM, Load Sound Preset, and Send Settings are lost when the card restarts. Save Envelope Only writes the envelope to the selected card slot. Save Sound Preset stores the envelope, slot name, and current settings together when the card supports sound presets; on older firmware it safely falls back to a compatible envelope save. Read Envelopes from Card also restores saved settings when the card supports them. To make the global hardware startup baseline, use the hardware save gesture for your firmware version.
+        </div>
+        <div class="volatility-warning" role="note">
+          <strong>Version compatibility:</strong> This lab detects the connected C1ZZL3 firmware and chooses the safest send mode. The editor auto-checks capability before sound-preset saves when needed; Read Settings from Card and Read Envelopes from Card can also refresh the displayed capability. Older firmware receives a collapsed Amp/PD/Pitch payload; newer dual-lane firmware receives the full oscillator lanes and sound-preset data.
         </div>
       </section>
 
@@ -146,9 +156,16 @@
         <section class="performance-panel" aria-label="Performance settings">
           <h2 class="performance-title">Settings:</h2>
           <label>
-            PD amount
+            PD 1 amount
             <input id="pdControl" type="range" min="0" max="4095" value="0">
           </label>
+          <label id="pd2Setting" class="pd2-setting">
+            PD 2 amount
+            <input id="pd2Control" type="range" min="0" max="4095" value="0">
+          </label>
+          <div id="pd2SettingHint" class="setting-hint setting-hint-wide">
+            PD2 is linked to PD1 until separate-PD firmware is detected.
+          </div>
           <label class="detune-setting">
             Detune
             <span class="detune-control">
@@ -157,7 +174,7 @@
             </span>
           </label>
           <label>
-            Wave family
+            Oscillator 1 wave family
             <select id="performanceWaveSelect">
               <option value="0">Saw</option>
               <option value="1">Square</option>
@@ -167,6 +184,28 @@
               <option value="5">Resonant saw window</option>
               <option value="6">Resonant triangle window</option>
               <option value="7">Resonant trapezoid window</option>
+            </select>
+          </label>
+          <label>
+            Oscillator 2 wave family
+            <select id="performanceWave2Select">
+              <option value="0">Saw</option>
+              <option value="1">Square</option>
+              <option value="2">Narrow pulse</option>
+              <option value="3">Double sine</option>
+              <option value="4">Saw pulse</option>
+              <option value="5">Resonant saw window</option>
+              <option value="6">Resonant triangle window</option>
+              <option value="7">Resonant trapezoid window</option>
+            </select>
+          </label>
+          <label id="recipeBankSetting" class="recipe-bank-setting is-hidden">
+            Recipe bank
+            <select id="recipeBankSelect">
+              <option value="0">Bank 1: Simple</option>
+              <option value="1">Bank 2: Warm compound</option>
+              <option value="2">Bank 3: Bright resonant</option>
+              <option value="3">Bank 4: CZ import</option>
             </select>
           </label>
           <label>
@@ -187,12 +226,15 @@
           </label>
           <label>
             Turing MIDI out
-            <input id="turingMidiOut" type="checkbox" checked>
+            <input id="turingMidiOut" type="checkbox">
           </label>
           <label>
             Turing MIDI ch
             <input id="turingMidiChannel" type="number" min="1" max="16" value="1">
           </label>
+          <div id="soundPresetSettingsStatus" class="sound-preset-settings-status" role="note">
+            Select a saved sound preset to restore its attached settings.
+          </div>
         </section>
         <section id="stagePanel" class="stage-panel" aria-label="Selected lane stages">
           <div class="lane-title">
@@ -205,7 +247,9 @@
             <span>Samples</span>
           </div>
           <div id="ampStages" class="stage-grid"></div>
+          <div id="amp2Stages" class="stage-grid"></div>
           <div id="pdStages" class="stage-grid"></div>
+          <div id="pd2Stages" class="stage-grid"></div>
         </section>
         <div id="developerPanel" class="developer-panel is-hidden" aria-label="Developer tools">
           <div class="output-actions developer-actions">
@@ -228,6 +272,31 @@
           </div>
           <div class="developer-log-panel">
             <div class="developer-log-head">
+              <h3>MIDI CC Test Suite</h3>
+            </div>
+            <p class="developer-help">
+              Sends standard MIDI CC messages to the selected output on the editor MIDI channel. Use this to test CC1 and CC20-27 without a controller.
+              Example channel 1 messages: CC1 value 96 = <code>B0 01 60</code>, CC23 value 96 = <code>B0 17 60</code>, decimal <code>[176, 23, 96]</code>.
+            </p>
+            <div class="cc-test-grid" id="ccTestGrid">
+              <button type="button" data-cc="1" data-value="96">CC1 Osc 1 PD</button>
+              <button type="button" data-cc="20" data-value="96">CC20 Osc 1 recipe</button>
+              <button type="button" data-cc="21" data-value="96">CC21 Osc 2 recipe</button>
+              <button type="button" data-cc="22" data-value="96">CC22 Ring</button>
+              <button type="button" data-cc="23" data-value="96">CC23 Recipe bank</button>
+              <button type="button" data-cc="24" data-value="96">CC24 Osc 2 interval</button>
+              <button type="button" data-cc="25" data-value="96">CC25 Osc 2 PD</button>
+              <button type="button" data-cc="26" data-value="96">CC26 Noise</button>
+              <button type="button" data-cc="27" data-value="96">CC27 Osc 1 PD</button>
+            </div>
+            <div class="cc-test-actions">
+              <button id="ccTestNeutral" type="button">Send neutral CCs</button>
+              <button id="ccTestSweep" type="button">Run CC20-27 sweep</button>
+              <button id="ccTestModWheel" type="button">Run CC1 sweep</button>
+            </div>
+          </div>
+          <div class="developer-log-panel">
+            <div class="developer-log-head">
               <h3>Event Log</h3>
               <div class="developer-log-actions">
                 <button id="resetBrowserState" type="button">Reset browser state</button>
@@ -242,6 +311,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=20260718-ghost-read-fix"></script>
+  <script src="app.js?v=20260724-cc-test"></script>
 </body>
 </html>

@@ -50,7 +50,7 @@ Checksum:
   settings.
 - Uses four recipe wave banks for simple and CZ-like oscillator pairings.
 - Reads and writes settings through the Gnarly Web MIDI Lab.
-- Imports Casio CZ `.syx` patches through the matching Gnarly Import Lab.
+- Imports Casio CZ `.syx` patches through the shared C1ZZL3 Import Lab.
 - Removes Turing CV, Turing pulse, and generated Turing MIDI behaviour.
 
 ## Hardware Controls
@@ -102,6 +102,8 @@ kept as oscillator 1 phase distortion so a mod wheel remains useful.
 - `CC26`: noise/grit amount.
 - `CC27`: oscillator 1 phase distortion, for eight-knob controllers.
 
+The C1ZZL3 Envelope Lab has a hidden Developer-mode MIDI CC Test Suite for checking these messages without a hardware controller. It sends individual CC values, a neutral reset, and sweep tests through the selected Web MIDI output.
+
 ## Web MIDI Editor
 
 Hosted editor path after Workshop deployment:
@@ -124,7 +126,7 @@ http://localhost:5177
 
 Use Chrome or another browser with Web MIDI and SysEx support.
 
-## Gnarly Import Lab
+## C1ZZL3 Import Lab
 
 Hosted import lab path after Workshop deployment:
 
@@ -144,7 +146,7 @@ Open:
 http://localhost:5178
 ```
 
-Use this page to decode Casio CZ `.syx` patches into Gnarly drafts with separate
+Use this page to decode Casio CZ `.syx` patches into C1ZZL3 drafts with separate
 oscillator envelopes, pitch lanes, oscillator wave choices, performance values,
 and recipe-bank-compatible settings.
 
