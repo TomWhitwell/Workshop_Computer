@@ -1,0 +1,172 @@
+id: 84_CosmikC1zzl3_Rad
+title: Cosmik C1ZZL3 Rad
+draft: false
+release: 84 / Rad v9 package
+date: 2026-07-22
+summary: >-
+  Rad phase-distortion synthesiser and Turing machine firmware with
+  full dual-oscillator Web MIDI envelopes, envelope readback, PD, detune, eight waveform
+  families, hosted CZ patch import, USB MIDI device/host operation, and optional
+  Turing MIDI output that defaults off.
+short-description: >-
+  Rad phase-distortion synthesiser and Turing machine firmware with
+  full dual-oscillator Web MIDI envelopes, envelope readback, PD, detune, eight waveform
+  families, hosted CZ patch import, USB MIDI device/host operation, and optional
+  Turing MIDI output that defaults off.
+panel:
+  controls:
+    main:
+      label: Pitch
+      description: Oscillator pitch in synth mode
+      source: info.yaml
+    x:
+      label: |-
+        Phase
+        Distortion
+      description: Phase-distortion amount
+      source: info.yaml
+    'y':
+      label: |-
+        Waveform
+        Morph
+      description: Waveform selection/morph
+      source: info.yaml
+    z:
+      label: Detune
+      description: Oscillator 2 detune in performance edit
+      source: info.yaml
+  inputs:
+    audio_l:
+      label: Pitch CV
+      description: 1V/oct pitch modulation in PD synth mode
+      source: info.yaml
+    cv_1:
+      label: |-
+        Phase
+        Distortion
+      description: Adds phase-distortion amount in synth and Turing modes
+      source: info.yaml
+    cv_2:
+      label: |-
+        Wave Control
+        CV
+      description: Adds wave control in synth and Turing modes
+      source: info.yaml
+    pulse_1:
+      label: |-
+        Ext Turing
+        Clock
+      description: External Turing clock in switch-up mode
+      source: info.yaml
+    pulse_2:
+      label: |-
+        Envelope
+        Trig
+      description: >-
+        Triggers selected envelope and oscillator sync in synth mode; held gates loop
+        supported envelopes and gate-off lets them complete
+      source: info.yaml
+  outputs:
+    audio_out_l:
+      label: |-
+        Oscillator 1
+        / Turing
+      description: Oscillator 1 in synth mode; self-playing stepped oscillator 1 in Turing mode
+      source: info.yaml
+    audio_out_r:
+      label: |-
+        Oscillator 2
+        / Turing
+      description: Oscillator 2 in synth mode; self-playing stepped oscillator 2 in Turing mode
+      source: info.yaml
+    cv_out_1:
+      label: |-
+        Stepped
+        Turing CV
+      description: Scaled stepped Turing CV; continues updating in synth mode
+      source: info.yaml
+    cv_out_2:
+      label: |-
+        Smoothed
+        Turing CV
+      description: Smoothed Turing CV; continues updating in synth mode
+      source: info.yaml
+    pulse_out_1:
+      label: |-
+        Main Turing
+        Pulse
+      description: Main Turing pulse; continues updating in synth mode
+      source: info.yaml
+    pulse_out_2:
+      label: |-
+        Alternate
+        Turing Pulse
+      description: Alternate Turing bit pulse; continues updating in synth mode
+      source: info.yaml
+switch_modes:
+  up: 'Z up: MAIN: Mutation; X: Sequence Length; Y: Clock Speed.'
+  middle: 'Z middle: MAIN: Pitch; X: Phase Distortion; Y: Waveform Morph.'
+  down: 'Z down, hold: MAIN: Detune; X: Ring Modulation; Y: Noise/Grit.'
+leds:
+  - "In synth mode: LED 1 shows phase-distortion amount, LED 2 shows waveform position, LED 3 shows oscillator 2 level, LED 4 shows ring modulation amount, LED 5 shows noise amount, and LED 6 lights while the switch is held down."
+  - "In Turing mode: LEDs 1-3 show low bits of the Turing pattern, LED 4 follows Pulse In 1, LED 5 shows sequence length, and LED 6 flashes on each Turing clock step."
+  - "In startup envelope selection: factory presets use the binary LED display, and custom slots light LED 6 and use LEDs 1-3 for the custom slot number."
+notes:
+  - >-
+    Rad Envelope Lab: Browser editor for Amp1/Amp2, PD1/PD2, and Pitch1/Pitch2
+    envelopes, envelope readback, and performance settings.
+  - >-
+    C1ZZL3 Import Lab: Hosted browser translator for Casio CZ `.syx` patches,
+    with pitch-aware handoff into Envelope Lab for final editing and sending.
+  - |
+    MIDI CC1 controls phase distortion, CC20 detune, CC21 ring modulation, CC22 noise,
+    CC23 waveform, and CC24 Turing CV octave range. Turing MIDI output defaults off.
+source:
+  - releases/84_CosmikC1zzl3/rad/info.yaml
+  - releases/84_CosmikC1zzl3/rad/README.md
+slug: 84-cosmikc1zzl3-rad
+url: /workshopsystem/program-cards/84-cosmikc1zzl3/rad/
+tags:
+  - synth
+  - midi
+  - web-midi
+  - turing-machine
+  - phase-distortion
+source_file: releases/84_CosmikC1zzl3/rad/info.yaml
+source_url: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/84_CosmikC1zzl3/rad
+readme_url: >-
+  https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/84_CosmikC1zzl3/rad/README.md
+download_url: >-
+  https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/84_CosmikC1zzl3/uf2/C1ZZL3_RAD.uf2
+metadata:
+  creator: Adrian Vos
+  language: C++ (Pico SDK)
+  version: Rad v9
+  status: Released
+  license: MIT
+  editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/index.html
+  editor_note: Configure this card in Rad Envelope Lab inside the release-84 rad package; use rad/web/import/index.html for CZ patch translation.
+documentation:
+  intro: >
+    Phase-distortion synth card with Turing machine mode, USB MIDI, browser
+    editor tools, CZ Import Lab handoff, pitch envelopes, gate-held envelope
+    looping, natural trigger completion, and audio smoothing for high-PD tones.
+
+    Switch middle is PD synth mode (Main = pitch, X = phase distortion, Y = waveform
+    morph). Pulse In 2 and MIDI note-on loop supported envelopes while held;
+    gate/note-off lets the envelope complete naturally.
+
+    Hold switch down from middle for performance edit (detune, ring modulation,
+    noise/grit) and save.
+
+    Switch up is Turing mode (Main = mutation, X = length, Y = clock speed).
+
+    Turing CV and pulse outputs continue running in synth mode. Turing MIDI
+    output is optional and defaults off.
+
+    Factory envelope presets are never overwritten; custom envelopes use separate
+    browser-stored slots.
+
+    Rad Envelope Lab edits and reads back dual-oscillator envelopes and settings. C1ZZL3 Import Lab
+    prepares translated Casio CZ drafts, including pitch envelopes, for review
+    before sending them on to the card.

@@ -1,0 +1,99 @@
+C1ZZL3 Quick Reference
+======================
+
+Release: 84 / Rad v9
+UF2: ../uf2/C1ZZL3_RAD.uf2
+Checksum: d31f2dbf25c633cf6a5943cf288231f32702d255e42f7b70059e9d2804de705a
+
+Stability boundary
+------------------
+- Turing MIDI output is optional and defaults off.
+- Turing CV and pulse outputs continue running in synth mode.
+- Tap tempo is removed; Y is the Turing internal clock-speed control.
+- Rapid retriggers keep oscillator phase continuous while an envelope is active.
+
+Switch middle: PD synth
+-----------------------
+Main: pitch
+X: phase distortion
+Y: waveform
+Audio/CV In 1: 1V/oct pitch
+CV In 1: adds phase distortion
+CV In 2: adds wave control
+Audio In 2: unused
+Pulse In 2: trigger selected envelope, held gate loop/sustain, gate-off release
+
+Switch down from middle: performance edit
+-----------------------------------------
+Main: oscillator 2 detune
+X: ring modulation
+Y: noise/grit
+Hold switch down from middle to save current performance settings.
+Ring/noise start neutral after reset.
+If powered with switch down, ring/noise edit is locked until the switch leaves down.
+
+Switch up: Turing
+-----------------
+Main: mutation
+X: sequence length, 2-16 steps
+Y: clock speed
+Pulse In 1: external clock
+CV Out 1: stepped Turing CV
+CV Out 2: smoothed Turing CV
+Pulse Out 1: main Turing pulse
+Pulse Out 2: alternate bit pulse
+
+Startup envelope select
+-----------------------
+Hold switch down during startup.
+Main selects factory presets and saved custom slots.
+Short down press exits.
+Long down hold saves selected preset.
+LED 6 marks custom slots; LEDs 1-3 show custom slot number.
+
+Web MIDI
+--------
+Hosted editor:
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/index.html
+
+Hosted import lab:
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/import/index.html
+
+Run editor:
+python3 -m http.server 5173 --directory web
+
+Open:
+http://localhost:5173
+
+Editor supports:
+- amplitude, phase-distortion, and pitch envelopes
+- eight custom envelope slots
+- Load RAM
+- Load Envelope + Settings
+- Save Envelope
+- Delete Envelope Slot
+- Read Envelopes from Card
+- Read Settings from Card
+- Send Settings
+- browser audition
+
+MIDI CC
+-------
+CC1: phase distortion
+CC20: oscillator 2 detune
+CC21: ring modulation
+CC22: noise amount
+CC23: waveform
+CC24: Turing CV octave range, 1-8 octaves
+
+Factory envelopes
+-----------------
+0 Off
+1 Pluck
+2 Double pluck
+3 Bounce
+4 Bell
+5 Brass
+6 Strings
+7 Reverse swell
+8 Evolving digital
