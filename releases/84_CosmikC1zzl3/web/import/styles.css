@@ -226,6 +226,30 @@ button.is-active,
   border-color: var(--accent);
 }
 
+button.was-activated {
+  animation: button-activated 900ms ease-out;
+  border-color: var(--accent-2);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent-2) 24%, transparent),
+    0 0 22px color-mix(in srgb, var(--accent-2) 34%, transparent);
+}
+
+button.was-activated::after {
+  content: attr(data-activated-label);
+  margin-left: 8px;
+  color: var(--accent-2);
+  font-size: 0.78em;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes button-activated {
+  0% { transform: translateY(0) scale(1); }
+  18% { transform: translateY(-1px) scale(1.035); }
+  100% { transform: translateY(0) scale(1); }
+}
+
 #themeToggle {
   min-width: 82px;
   font-weight: 700;

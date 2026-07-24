@@ -59,20 +59,10 @@ Possible future optimisations:
 
 Any optimisation should be tested against audible behaviour before promotion.
 
-## Code Cleanup
+## Fully Separate Oscillator Paths
 
-The code has grown through hardware-led iteration. If future work becomes
-difficult, consider a cleanup pass after creating a rollback UF2 and source
-snapshot.
+The dual-pitch envelope experiment is intended to sit alongside the stable main
+build rather than replace it. If the protocol v3 test passes, the next deeper
+experiment is not simply "more pitch lanes" but a fuller split of the two
+oscillator paths.
 
-Possible cleanup areas:
-
-- Separate MIDI parsing, Web MIDI SysEx, persistence, oscillator rendering, and
-  Turing machine logic into smaller sections or files.
-- Make inter-core shared state explicit in one struct.
-- Document which values are written by the USB/MIDI core and read by the audio
-  core.
-- Keep the production behaviour unchanged during cleanup.
-
-Do not combine cleanup with new audio/MIDI features. Make one kind of change at
-a time and hardware-test before promotion.

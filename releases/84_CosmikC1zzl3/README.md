@@ -1,11 +1,12 @@
 # C1ZZL3
 
-Stable production firmware for the Cosmik C1ZZL3 Music Thing Modular Workshop
+C1ZZL3 Rad firmware for the Cosmik C1ZZL3 Music Thing Modular Workshop
 Computer card.
 
-C1ZZL3 is a dual phase-distortion synthesiser with custom Web MIDI envelopes,
-USB MIDI device/host support, optional Turing MIDI output, and a Turing machine
-mode with CV and pulse outputs.
+C1ZZL3 Rad is a dual phase-distortion synthesiser with browser-editable Amp1/Amp2,
+PD1/PD2, and Pitch1/Pitch2 envelopes, USB MIDI device/host support, optional
+Turing MIDI output, and a Turing machine mode with CV and pulse outputs. Turing
+MIDI output defaults to off and must be enabled deliberately.
 
 For the user-facing card guide, see:
 
@@ -13,9 +14,9 @@ For the user-facing card guide, see:
 CARD_README.md
 ```
 
-## Stable Build
+## Rad Build
 
-Current stable UF2:
+Current Rad UF2:
 
 ```text
 uf2/C1ZZL3.uf2
@@ -24,22 +25,18 @@ uf2/C1ZZL3.uf2
 Checksum:
 
 ```text
-254fa4e525b8c66201a4bfe944b4cdcd2909a61caff440e383ef23d9b3e1890a
+d31f2dbf25c633cf6a5943cf288231f32702d255e42f7b70059e9d2804de705a
 ```
 
-This is hardware-tested production release 1.3, promoted on 2026-07-17.
+This branch packages C1ZZL3 Rad, the hardware-tested protocol v9 full-dual-oscillator beta, as a separate release-84 proposal.
 
-Release 1.3 works with Envelope Lab and C1ZZL3 Import Lab and includes Web
-MIDI PD, detune, eight waveform families, card-to-editor envelope readback,
-browser CZ patch import handoff, gate-held envelope looping with natural
-completion on gate/note release, corrected CZ DCW-to-PD and DCA-to-amplitude
-import mapping, and the audio smoothing pass for high-PD tones.
+Rad v9 keeps the Turing machine hardware interface from Core while adding full dual-oscillator Web MIDI support: Amp1/Amp2, PD1/PD2, Pitch1/Pitch2, separate oscillator wave-family settings, slot names, saved sound-preset settings, card-to-editor readback, CZ Import Lab handoff, pitch envelopes, gate-held envelope looping with natural completion, high-PD audio smoothing, and rapid-retrigger oscillator phase continuity.
 
-## Current Stable Feature Set
+## Rad Feature Set
 
 - Phase-distortion synth voice.
 - Factory envelopes plus eight protected custom envelope slots.
-- Web MIDI envelope editor.
+- Rad Web MIDI editor with Amp1/Amp2, PD1/PD2, Pitch1/Pitch2, and separate oscillator wave-family settings.
 - USB MIDI device mode for DAW/browser use.
 - USB MIDI host mode for class-compliant controllers.
 - MIDI notes with gate-held envelope sustain/release.
@@ -47,7 +44,9 @@ import mapping, and the audio smoothing pass for high-PD tones.
 - Turing machine audio, CV, pulse, and optional MIDI note output.
 - Turing CV and pulse outputs continue running in synth mode.
 - Settings readback from the card into the Web MIDI editor.
-- Ring, noise, MIDI channel, Turing range, and Turing MIDI settings persist.
+- Saved sound-preset readback from the card, including slot names, performance settings, and dual pitch envelope data.
+- Ring, noise, MIDI channel, Turing range, and Turing MIDI settings persist;
+  the baseline for Turing MIDI output is off.
 
 ## Controls
 
@@ -91,7 +90,7 @@ The physical knobs and MIDI CC controls share the same control values. After a
 CC change, the related knob must be swept through the current value before it
 takes over again.
 
-## Envelope Lab
+## Web MIDI Editor
 
 Hosted editor:
 
@@ -144,9 +143,9 @@ Current Import Lab features:
 - Browser-side validation, patch summary, decoded data, and draft mapping.
 - CZ frame awareness for common patch-send SysEx files, including command,
   location, channel, selected data offset, and payload candidates.
-- Correct first-pass envelope assignment: CZ DCW maps to C1ZZL3 phase
-  distortion, CZ DCA maps to C1ZZL3 amplitude, and CZ pitch is decoded but not
-  assigned.
+- CZ envelope assignment: choose merged, line 1, or line 2 mapping for CZ DCA
+  amplitude and DCW phase-distortion envelopes; CZ DCO pitch envelopes map to
+  the pitch lane.
 - Draft handoff into Envelope Lab in a new tab for final editing and card send.
 - Separate import page so CZ translation and envelope editing stay distinct.
 
@@ -161,11 +160,12 @@ Import Lab flow:
 ## How To Use The Editor
 
 1. Pick a preset on the left, or add a custom one.
-2. Choose `Amplitude` or `Phase Distortion` to focus on one lane at a time.
-3. Drag points on the graph to change both level and timing.
-4. Watch the point numbers. Matching numbers mean the stages are stacked at the same spot.
-5. Use the tables below the graph for exact values when you want precise edits.
-6. Use the action buttons on the right when you want to send, save, read, or reset.
+2. Choose `Amplitude` or `Phase Distortion` to focus the main graph lane.
+3. Use the Pitch Envelope graph below it to adjust pitch movement.
+4. Drag points on the graphs to change both level and timing.
+5. Watch the point numbers. When stages stack, only the highest number is shown.
+6. Use the tables below the graphs for exact values when you want precise edits.
+7. Use the action buttons when you want to send, save, read, or reset.
 
 Button quick reference:
 
@@ -180,21 +180,20 @@ Button quick reference:
 - `Send Settings`: send the current performance settings to the card.
 - `Reset Preset`: restore the selected preset to its factory value.
 
-`Load RAM`, `Load Envelope + Settings`, and `Send Settings` are temporary.
-Use `Save Envelope` to retain an envelope in flash. To make the current
-performance settings the startup baseline, move the hardware switch from
-middle to down and hold it until the card confirms the save.
+`Load RAM`, `Load Envelope + Settings`, and `Send Settings` are temporary. Use
+`Save Envelope` to retain an envelope in flash. To make the current performance
+settings the startup baseline, move the hardware switch from middle to down and
+hold it until the card confirms the save.
 
-The card can save up to eight custom envelopes. The browser can retain additional
-local drafts. Factory presets are not overwritten.
-Custom presets are labelled `Local only`, `Saved - slot N`, or `Changed - slot N`.
-Envelope readback confirms which custom slots are occupied and verifies saves and
-deletions when supported by the firmware.
+The card can save up to eight custom envelopes. Factory presets are not
+overwritten. Custom presets are labelled `Local only`, `Saved - slot N`, or
+`Changed - slot N`. Envelope readback confirms which custom slots are occupied
+and verifies saves and deletions when supported by the firmware.
 
 Envelope behaviour:
 
 - Pulse In 2 and MIDI note-on trigger the selected envelope and sync the
-  oscillators.
+  oscillators when the envelope starts from inactive.
 - While the gate or MIDI note is held, loop-capable envelopes cycle their middle
   stages.
 - A short trigger runs the envelope through to completion.
@@ -202,6 +201,8 @@ Envelope behaviour:
   complete naturally from its current point.
 - Turing-triggered envelopes continue to run through without waiting for a gate
   release.
+- Rapid retriggers keep oscillator phase continuous while the envelope is active
+  to reduce clicks.
 
 ## Build
 
@@ -219,22 +220,20 @@ build/C1ZZL3.uf2
 The production source build currently reports:
 
 ```text
-FLASH: 139072 B
-RAM: 147412 B
+FLASH: 146736 B
+RAM: 155644 B
 ```
 
 ## Stability Notes
 
-This build is close to the practical processing limit of this RP2040 card
-format, so future changes should be tested carefully at maximum settings.
-
 The stable version includes the lookup-table oscillator optimisation, 192 MHz
-clock, Turing MIDI output, settings readback, and full CC/knob pickup handoff.
-Tap tempo remains removed; Y is the Turing internal clock control.
+clock, optional Turing MIDI output, settings readback, and full CC/knob pickup
+handoff. Turing MIDI output defaults off across current builds with Turing MIDI
+support, and should be enabled deliberately when needed. Tap tempo remains
+removed; Y is the Turing internal clock control.
 
-Possible future optimisation notes are kept in:
+## License Notes
 
-```text
-FUTURE_NOTES.md
-```
-
+This project is released under the MIT License. The included `computercard.h`
+hardware helper is ComputerCard by Chris Johnson and is also MIT licensed; keep
+its MIT notice present when copying firmware files into releases or experiments.
