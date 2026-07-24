@@ -185,6 +185,8 @@ const el = {
   stop: document.querySelector("#stop"),
   midiToggle: document.querySelector("#midiToggle"),
   pdControl: document.querySelector("#pdControl"),
+  pd2Setting: document.querySelector("#pd2Setting"),
+  pd2Control: document.querySelector("#pd2Control"),
   detuneControl: document.querySelector("#detuneControl"),
   performanceWaveSelect: document.querySelector("#performanceWaveSelect"),
   performanceWave2Select: document.querySelector("#performanceWave2Select"),
@@ -382,6 +384,7 @@ function loadPerformanceSettings() {
     if (saved && typeof saved === "object") {
       return {
         pd: clampInt(saved.pd ?? 0, 0, MAX_LEVEL),
+        pd2: clampInt(saved.pd2 ?? saved.pd ?? 0, 0, MAX_LEVEL),
         detune: clampInt(saved.detune ?? 2048, 0, MAX_LEVEL),
         waveform: clampInt(saved.waveform ?? 0, 0, 7),
         waveform2: clampInt(saved.waveform2 ?? saved.waveform ?? 0, 0, 7),
@@ -400,6 +403,7 @@ function loadPerformanceSettings() {
 
   return {
     pd: 0,
+    pd2: 0,
     detune: 2048,
     waveform: 0,
     waveform2: 0,
@@ -417,6 +421,7 @@ function normalizePerformanceSettings(settings = null) {
   if (!settings || typeof settings !== "object") return null;
   return {
     pd: clampInt(settings.pd ?? 0, 0, MAX_LEVEL),
+    pd2: clampInt(settings.pd2 ?? settings.pd ?? 0, 0, MAX_LEVEL),
     detune: clampInt(settings.detune ?? 2048, 0, MAX_LEVEL),
     waveform: clampInt(settings.waveform ?? 0, 0, 7),
     waveform2: clampInt(settings.waveform2 ?? settings.waveform ?? 0, 0, 7),
@@ -444,6 +449,7 @@ function performanceSettingsMatch(left, right) {
   const b = normalizePerformanceSettings(right);
   if (!a || !b) return false;
   return a.pd === b.pd &&
+    a.pd2 === b.pd2 &&
     a.detune === b.detune &&
     a.waveform === b.waveform &&
     a.waveform2 === b.waveform2 &&
@@ -579,6 +585,8 @@ function applyImportedPerformanceSettings(draft) {
 
   const nextSettings = { ...performanceSettings };
   if (performance.pd != null) nextSettings.pd = clampInt(performance.pd, 0, MAX_LEVEL);
+  if (performance.pd2 != null) nextSettings.pd2 = clampInt(performance.pd2, 0, MAX_LEVEL);
+  else nextSettings.pd2 = nextSettings.pd;
   if (performance.detune != null) nextSettings.detune = clampInt(performance.detune, 0, MAX_LEVEL);
   if (performance.waveform != null) nextSettings.waveform = clampInt(performance.waveform, 0, 7);
   else if (draft?.wave?.value != null) nextSettings.waveform = clampInt(draft.wave.value, 0, 7);
@@ -779,6 +787,8 @@ function renderDeveloperMode() {
 
 function renderPerformanceSettings() {
   el.pdControl.value = performanceSettings.pd;
+  el.pd2Control.value = performanceSettings.pd2;
+  el.pd2Setting.classList.toggle("is-hidden", !supportsSeparatePd2Settings());
   el.detuneControl.value = performanceSettings.detune;
   el.performanceWaveSelect.value = performanceSettings.waveform;
   el.performanceWave2Select.value = performanceSettings.waveform2;
@@ -1469,6 +1479,10 @@ function supportsRecipeBankSettings() {
   return settingsProtocol === "recipe-bank" || (settingsProtocol === "unknown" && detectedEnvelopeProtocol !== null && detectedEnvelopeProtocol >= 11);
 }
 
+function supportsSeparatePd2Settings() {
+  return settingsProtocol === "recipe-bank" || (settingsProtocol === "unknown" && detectedEnvelopeProtocol !== null && detectedEnvelopeProtocol >= 11);
+}
+
 function envelopePayloadMode() {
   if (settingsProtocol === "extended") return "core";
   if (supportsDualOscillatorEnvelopePayload()) return "dual";
@@ -2034,6 +2048,7 @@ function buildRecipeBankSettingsSysex(command) {
   payload.push(...ensureArray(packUint14(performanceSettings.ring), "packUint14(ring)"));
   payload.push(...ensureArray(packUint14(performanceSettings.noise), "packUint14(noise)"));
   payload.push(...ensureArray(packUint14(performanceSettings.pd), "packUint14(pd)"));
+  payload.push(...ensureArray(packUint14(performanceSettings.pd2), "packUint14(pd2)"));
   payload.push(...ensureArray(packUint14(performanceSettings.detune), "packUint14(detune)"));
   payload.push(...ensureArray(packUint14(waveFamilyToControl(performanceSettings.waveform)), "packUint14(waveform)"));
   payload.push(...ensureArray(packUint14(waveFamilyToControl(performanceSettings.waveform2)), "packUint14(waveform2)"));
@@ -2136,9 +2151,9 @@ function decodeNameBytes(data, offset) {
   }).join("").trim();
 }
 
-function encodePerformanceSettings(settings = performanceSettings) {
+function encodePerformanceSettings(settings = performanceSettings, includePd2 = supportsSeparatePd2Settings()) {
   const normalized = normalizePerformanceSettings(settings) || normalizePerformanceSettings(performanceSettings);
-  return [
+  const payload = [
     ...packUint14(normalized.pd),
     ...packUint14(normalized.detune),
     ...packUint14(waveFamilyToControl(normalized.waveform)),
@@ -2152,22 +2167,28 @@ function encodePerformanceSettings(settings = performanceSettings) {
       ? clampInt(normalized.recipeBank, 0, 3)
       : clampInt(normalized.turingMidiChannel, 1, 16) - 1
   ];
+  if (includePd2) payload.splice(2, 0, ...packUint14(normalized.pd2));
+  return payload;
 }
 
-function decodePerformanceSettingsBytes(data, offset, protocolVersion = detectedEnvelopeProtocol) {
+function decodePerformanceSettingsBytes(data, offset, protocolVersion = detectedEnvelopeProtocol, hasPd2 = false) {
   const recipeBankCapable = protocolVersion >= 11 || supportsRecipeBankSettings();
+  const pd = unpackUint14(data, offset);
+  const pd2 = hasPd2 ? unpackUint14(data, offset + 2) : pd;
+  const detuneOffset = offset + (hasPd2 ? 4 : 2);
   return normalizePerformanceSettings({
-    pd: unpackUint14(data, offset),
-    detune: unpackUint14(data, offset + 2),
-    waveform: waveControlToFamily(unpackUint14(data, offset + 4)),
-    waveform2: waveControlToFamily(unpackUint14(data, offset + 6)),
-    ring: unpackUint14(data, offset + 8),
-    noise: unpackUint14(data, offset + 10),
-    midiInChannel: (data[offset + 12] & 0x0f) + 1,
-    turingRange: data[offset + 13],
-    turingMidiOut: (data[offset + 14] & 0x01) !== 0,
-    turingMidiChannel: (data[offset + 15] & 0x0f) + 1,
-    recipeBank: recipeBankCapable ? (data[offset + 15] & 0x03) : performanceSettings.recipeBank
+    pd,
+    pd2,
+    detune: unpackUint14(data, detuneOffset),
+    waveform: waveControlToFamily(unpackUint14(data, detuneOffset + 2)),
+    waveform2: waveControlToFamily(unpackUint14(data, detuneOffset + 4)),
+    ring: unpackUint14(data, detuneOffset + 6),
+    noise: unpackUint14(data, detuneOffset + 8),
+    midiInChannel: (data[detuneOffset + 10] & 0x0f) + 1,
+    turingRange: data[detuneOffset + 11],
+    turingMidiOut: (data[detuneOffset + 12] & 0x01) !== 0,
+    turingMidiChannel: (data[detuneOffset + 13] & 0x0f) + 1,
+    recipeBank: recipeBankCapable ? (data[detuneOffset + 13] & 0x03) : performanceSettings.recipeBank
   });
 }
 
@@ -2572,22 +2593,22 @@ function handleEnvelopeSlotsResponse(data) {
 }
 
 function handleEnvelopeResponse(data) {
-  if (!envelopeReadSession || (data.length !== 89 && data.length !== 105 && data.length !== 121 && data.length !== 129 && data.length !== 145 && data.length !== 161)) return;
+  if (!envelopeReadSession || (data.length !== 89 && data.length !== 105 && data.length !== 121 && data.length !== 123 && data.length !== 129 && data.length !== 145 && data.length !== 161)) return;
   const slot = data[7] & 0x07;
   if (!envelopeReadSession.pendingSlots.includes(slot)) return;
   const protocolVersion = envelopeReadSession.protocolVersion || 1;
 
   let offset = 8;
-  const hasNameFrame = protocolVersion >= 8 && (data.length === 105 || data.length === 121 || data.length === 145 || data.length === 161);
+  const hasNameFrame = protocolVersion >= 8 && (data.length === 105 || data.length === 121 || data.length === 123 || data.length === 145 || data.length === 161);
   const name = hasNameFrame
     ? decodeNameBytes(data, offset)
     : "";
   if (hasNameFrame) offset += 16;
-  const hasPerformanceFrame = protocolVersion >= 9 && (data.length === 121 || data.length === 161);
+  const hasPerformanceFrame = protocolVersion >= 9 && (data.length === 121 || data.length === 123 || data.length === 161);
   const performance = hasPerformanceFrame
-    ? decodePerformanceSettingsBytes(data, offset, protocolVersion)
+    ? decodePerformanceSettingsBytes(data, offset, protocolVersion, data.length === 123)
     : null;
-  if (hasPerformanceFrame) offset += 16;
+  if (hasPerformanceFrame) offset += data.length === 123 ? 18 : 16;
   const readStages = () => Array.from({ length: STAGES }, () => {
     const stage = {
       level: clampInt(unpackUint14(data, offset), 0, MAX_LEVEL),
@@ -2967,6 +2988,7 @@ function handleSysexResponse(data) {
       ring: clampInt(unpackUint14(data, 7), 0, MAX_LEVEL),
       noise: clampInt(unpackUint14(data, 9), 0, MAX_LEVEL),
       pd: clampInt(unpackUint14(data, 11), 0, MAX_LEVEL),
+      pd2: clampInt(unpackUint14(data, 11), 0, MAX_LEVEL),
       detune: clampInt(unpackUint14(data, 13), 0, MAX_LEVEL),
       waveform: waveControlToFamily(unpackUint14(data, 15)),
       waveform2: waveControlToFamily(unpackUint14(data, 15)),
@@ -2975,8 +2997,10 @@ function handleSysexResponse(data) {
       turingMidiOut: (data[19] & 0x01) !== 0,
       turingMidiChannel: clampInt((data[20] & 0x0f) + 1, 1, 16)
     };
-  } else if (data.length === 24 || data.length === 25) {
-    const hasRecipeBank = data.length === 25;
+  } else if (data.length === 24 || data.length === 25 || data.length === 27) {
+    const hasRecipeBank = data.length === 25 || data.length === 27;
+    const hasPd2 = data.length === 27;
+    const detuneOffset = hasPd2 ? 15 : 13;
     settingsProtocol = "dual-oscillator";
     if (hasRecipeBank) settingsProtocol = "recipe-bank";
     performanceSettings = {
@@ -2984,14 +3008,17 @@ function handleSysexResponse(data) {
       ring: clampInt(unpackUint14(data, 7), 0, MAX_LEVEL),
       noise: clampInt(unpackUint14(data, 9), 0, MAX_LEVEL),
       pd: clampInt(unpackUint14(data, 11), 0, MAX_LEVEL),
-      detune: clampInt(unpackUint14(data, 13), 0, MAX_LEVEL),
-      waveform: waveControlToFamily(unpackUint14(data, 15)),
-      waveform2: waveControlToFamily(unpackUint14(data, 17)),
-      recipeBank: hasRecipeBank ? clampInt(data[19] & 0x03, 0, 3) : performanceSettings.recipeBank,
-      midiInChannel: clampInt((data[hasRecipeBank ? 20 : 19] & 0x0f) + 1, 1, 16),
-      turingRange: clampInt(data[hasRecipeBank ? 21 : 20], 1, 8),
-      turingMidiOut: (data[hasRecipeBank ? 22 : 21] & 0x01) !== 0,
-      turingMidiChannel: clampInt((data[hasRecipeBank ? 23 : 22] & 0x0f) + 1, 1, 16)
+      pd2: hasPd2
+        ? clampInt(unpackUint14(data, 13), 0, MAX_LEVEL)
+        : clampInt(unpackUint14(data, 11), 0, MAX_LEVEL),
+      detune: clampInt(unpackUint14(data, detuneOffset), 0, MAX_LEVEL),
+      waveform: waveControlToFamily(unpackUint14(data, detuneOffset + 2)),
+      waveform2: waveControlToFamily(unpackUint14(data, detuneOffset + 4)),
+      recipeBank: hasRecipeBank ? clampInt(data[detuneOffset + 6] & 0x03, 0, 3) : performanceSettings.recipeBank,
+      midiInChannel: clampInt((data[detuneOffset + (hasRecipeBank ? 7 : 6)] & 0x0f) + 1, 1, 16),
+      turingRange: clampInt(data[detuneOffset + (hasRecipeBank ? 8 : 7)], 1, 8),
+      turingMidiOut: (data[detuneOffset + (hasRecipeBank ? 9 : 8)] & 0x01) !== 0,
+      turingMidiChannel: clampInt((data[detuneOffset + (hasRecipeBank ? 10 : 9)] & 0x0f) + 1, 1, 16)
     };
   } else {
     logDeveloper("Ignored unexpected settings response.", {
@@ -3007,7 +3034,7 @@ function handleSysexResponse(data) {
     settingsRequestResolver(true);
     settingsRequestResolver = null;
   }
-  setStatus(`Loaded settings from card: PD ${performanceSettings.pd}, detune ${performanceSettings.detune}, osc1 wave ${WAVE_FAMILIES[performanceSettings.waveform] || performanceSettings.waveform}, osc2 wave ${WAVE_FAMILIES[performanceSettings.waveform2] || performanceSettings.waveform2}${supportsRecipeBankSettings() ? `, recipe bank ${RECIPE_BANKS[performanceSettings.recipeBank] || performanceSettings.recipeBank}` : ""}, ring ${performanceSettings.ring}, noise ${performanceSettings.noise}, MIDI in ch ${performanceSettings.midiInChannel}, Turing ${performanceSettings.turingRange} oct, Turing MIDI ${performanceSettings.turingMidiOut ? "on" : "off"} ch ${performanceSettings.turingMidiChannel}.`);
+  setStatus(`Loaded settings from card: PD1 ${performanceSettings.pd}, PD2 ${performanceSettings.pd2}, detune ${performanceSettings.detune}, osc1 wave ${WAVE_FAMILIES[performanceSettings.waveform] || performanceSettings.waveform}, osc2 wave ${WAVE_FAMILIES[performanceSettings.waveform2] || performanceSettings.waveform2}${supportsRecipeBankSettings() ? `, recipe bank ${RECIPE_BANKS[performanceSettings.recipeBank] || performanceSettings.recipeBank}` : ""}, ring ${performanceSettings.ring}, noise ${performanceSettings.noise}, MIDI in ch ${performanceSettings.midiInChannel}, Turing ${performanceSettings.turingRange} oct, Turing MIDI ${performanceSettings.turingMidiOut ? "on" : "off"} ch ${performanceSettings.turingMidiChannel}.`);
 }
 
 function downloadJson() {
@@ -3188,6 +3215,8 @@ function updatePerformanceSetting(key, value) {
     performanceSettings[key] = clampInt(value, 1, 16);
   } else if (key === "ring" || key === "noise" || key === "pd" || key === "detune") {
     performanceSettings[key] = clampInt(value, 0, MAX_LEVEL);
+  } else if (key === "pd2") {
+    performanceSettings.pd2 = clampInt(value, 0, MAX_LEVEL);
   } else if (key === "waveform") {
     performanceSettings.waveform = clampInt(value, 0, 7);
   } else if (key === "waveform2") {
@@ -3226,7 +3255,7 @@ async function sendPerformanceSettings(command = SYSEX_COMMAND_SETTINGS) {
   const action = command === SYSEX_COMMAND_SAVE_SETTINGS ? "Saved to card" : "Sent to card";
   const protocolLabel = settingsProtocol === "unknown" ? "Protocol not confirmed yet." : `Protocol: ${describeSettingsProtocol()}.`;
   pulseButton(command === SYSEX_COMMAND_SAVE_SETTINGS ? null : el.sendSettings, command === SYSEX_COMMAND_SAVE_SETTINGS ? "Saved" : "Sent");
-  setStatus(`${action}: PD ${performanceSettings.pd}, detune ${performanceSettings.detune}, osc1 wave ${WAVE_FAMILIES[performanceSettings.waveform] || performanceSettings.waveform}, osc2 wave ${WAVE_FAMILIES[performanceSettings.waveform2] || performanceSettings.waveform2}${supportsRecipeBankSettings() ? `, recipe bank ${RECIPE_BANKS[performanceSettings.recipeBank] || performanceSettings.recipeBank}` : ""}, ring ${performanceSettings.ring}, noise ${performanceSettings.noise}, MIDI in ch ${performanceSettings.midiInChannel}, Turing ${performanceSettings.turingRange} oct, Turing MIDI ${performanceSettings.turingMidiOut ? "on" : "off"} ch ${performanceSettings.turingMidiChannel} on ${output.name || "MIDI output"}. ${protocolLabel}`);
+  setStatus(`${action}: PD1 ${performanceSettings.pd}, PD2 ${performanceSettings.pd2}, detune ${performanceSettings.detune}, osc1 wave ${WAVE_FAMILIES[performanceSettings.waveform] || performanceSettings.waveform}, osc2 wave ${WAVE_FAMILIES[performanceSettings.waveform2] || performanceSettings.waveform2}${supportsRecipeBankSettings() ? `, recipe bank ${RECIPE_BANKS[performanceSettings.recipeBank] || performanceSettings.recipeBank}` : ""}, ring ${performanceSettings.ring}, noise ${performanceSettings.noise}, MIDI in ch ${performanceSettings.midiInChannel}, Turing ${performanceSettings.turingRange} oct, Turing MIDI ${performanceSettings.turingMidiOut ? "on" : "off"} ch ${performanceSettings.turingMidiChannel} on ${output.name || "MIDI output"}. ${protocolLabel}`);
 }
 
 function sendSettingsFrames(output, command, delayMs = 0) {
@@ -3459,6 +3488,7 @@ el.spreadPitchPoints.addEventListener("click", () => {
   pulseButton(el.spreadPitchPoints, "Spread");
 });
 el.pdControl.addEventListener("input", () => updatePerformanceSetting("pd", el.pdControl.value));
+el.pd2Control.addEventListener("input", () => updatePerformanceSetting("pd2", el.pd2Control.value));
 el.detuneControl.addEventListener("input", () => updatePerformanceSetting("detune", el.detuneControl.value));
 el.performanceWaveSelect.addEventListener("change", () => updatePerformanceSetting("waveform", el.performanceWaveSelect.value));
 el.performanceWave2Select.addEventListener("change", () => updatePerformanceSetting("waveform2", el.performanceWave2Select.value));

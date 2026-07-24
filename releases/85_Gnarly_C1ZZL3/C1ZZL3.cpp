@@ -30,6 +30,7 @@ static constexpr uint8_t WebMidiEnvelopeProtocolVersion = 11u;
 static constexpr uint32_t WebMidiSettingsPayloadLength = 14u;
 static constexpr uint32_t WebMidiDualOscSettingsPayloadLength = 16u;
 static constexpr uint32_t WebMidiRecipeBankSettingsPayloadLength = 17u;
+static constexpr uint32_t WebMidiRecipeBankPd2SettingsPayloadLength = 19u;
 static constexpr uint32_t WebMidiStableSettingsPayloadLength = 8u;
 static constexpr uint32_t WebMidiRangeSettingsPayloadLength = 6u;
 static constexpr uint32_t WebMidiLegacySettingsPayloadLength = 5u;
@@ -40,6 +41,7 @@ static constexpr uint32_t WebMidiDualOscEnvelopePayloadLength = 217u;
 static constexpr uint32_t WebMidiDualAmpEnvelopePayloadLength = 257u;
 static constexpr uint32_t WebMidiDualAmpSustainEnvelopePayloadLength = 263u;
 static constexpr uint32_t WebMidiSoundPresetEnvelopePayloadLength = 279u;
+static constexpr uint32_t WebMidiSoundPresetPd2EnvelopePayloadLength = 281u;
 static constexpr uint32_t WebMidiDeleteEnvelopePayloadLength = 1u;
 static constexpr uint32_t WebMidiMaxSysexLength = 300u;
 
@@ -374,7 +376,8 @@ private:
     static constexpr uint16_t DualAmpCustomEnvelopeSaveVersion = 5;
     static constexpr uint16_t NamedCustomEnvelopeSaveVersion = 7;
     static constexpr uint16_t SoundPresetCustomEnvelopeSaveVersion = 8;
-    static constexpr uint16_t CustomEnvelopeSaveVersion = 8;
+    static constexpr uint16_t SoundPresetPd2CustomEnvelopeSaveVersion = 9;
+    static constexpr uint16_t CustomEnvelopeSaveVersion = 9;
     static constexpr uint32_t CustomEnvelopeFlashOffset =
         SaveFlashOffset - FLASH_SECTOR_SIZE;
     static constexpr uint32_t SaveHoldSamples = 384000u;
@@ -398,6 +401,23 @@ private:
     };
 
     struct SavedSlotPerformanceState
+    {
+        uint16_t pdControl;
+        uint16_t pd2Control;
+        uint16_t detuneControl;
+        uint16_t waveControl;
+        uint16_t wave2Control;
+        uint16_t ring;
+        uint16_t noise;
+        uint8_t midiInChannel;
+        uint8_t turingRange;
+        uint8_t turingMidiEnabled;
+        uint8_t turingMidiChannel;
+        uint8_t recipeBank;
+        uint8_t reserved;
+    };
+
+    struct SavedSlotPerformanceStateV8
     {
         uint16_t pdControl;
         uint16_t detuneControl;
@@ -467,6 +487,19 @@ private:
         uint8_t loadedMask;
         uint8_t reserved[7];
         uint8_t names[CustomEnvelopeSlotCount][16];
+        SavedEnvelopeProgram slots[CustomEnvelopeSlotCount];
+        uint32_t checksum;
+    };
+
+    struct SavedCustomEnvelopeStateV8
+    {
+        uint32_t magic;
+        uint16_t version;
+        uint16_t size;
+        uint8_t loadedMask;
+        uint8_t reserved[7];
+        uint8_t names[CustomEnvelopeSlotCount][16];
+        SavedSlotPerformanceStateV8 performances[CustomEnvelopeSlotCount];
         SavedEnvelopeProgram slots[CustomEnvelopeSlotCount];
         uint32_t checksum;
     };
@@ -1086,7 +1119,8 @@ private:
 
     void handleWebMidiSettings(bool persist)
     {
-        if (sysexLength != WebMidiRecipeBankSettingsPayloadLength + 6u &&
+        if (sysexLength != WebMidiRecipeBankPd2SettingsPayloadLength + 6u &&
+            sysexLength != WebMidiRecipeBankSettingsPayloadLength + 6u &&
             sysexLength != WebMidiDualOscSettingsPayloadLength + 6u &&
             sysexLength != WebMidiSettingsPayloadLength + 6u &&
             sysexLength != WebMidiStableSettingsPayloadLength + 6u &&
@@ -1098,6 +1132,7 @@ private:
         int32_t ring = decodeWebMidiUint14(offset);
         int32_t noise = decodeWebMidiUint14(offset);
         int32_t pd = pdControl;
+        int32_t pd2 = pd2Control;
         int32_t detune = osc2Detune + 2048;
         int32_t wave = waveControl;
         int32_t wave2 = wave2Control;
@@ -1105,17 +1140,24 @@ private:
         bool extendedSettings =
             sysexLength == WebMidiSettingsPayloadLength + 6u ||
             sysexLength == WebMidiDualOscSettingsPayloadLength + 6u ||
-            sysexLength == WebMidiRecipeBankSettingsPayloadLength + 6u;
+            sysexLength == WebMidiRecipeBankSettingsPayloadLength + 6u ||
+            sysexLength == WebMidiRecipeBankPd2SettingsPayloadLength + 6u;
         if (extendedSettings)
         {
             pd = decodeWebMidiUint14(offset);
+            if (sysexLength == WebMidiRecipeBankPd2SettingsPayloadLength + 6u)
+                pd2 = decodeWebMidiUint14(offset);
+            else
+                pd2 = pd;
             detune = decodeWebMidiUint14(offset);
             wave = decodeWebMidiUint14(offset);
             wave2 = wave;
             if (sysexLength == WebMidiDualOscSettingsPayloadLength + 6u ||
-                sysexLength == WebMidiRecipeBankSettingsPayloadLength + 6u)
+                sysexLength == WebMidiRecipeBankSettingsPayloadLength + 6u ||
+                sysexLength == WebMidiRecipeBankPd2SettingsPayloadLength + 6u)
                 wave2 = decodeWebMidiUint14(offset);
-            if (sysexLength == WebMidiRecipeBankSettingsPayloadLength + 6u)
+            if (sysexLength == WebMidiRecipeBankSettingsPayloadLength + 6u ||
+                sysexLength == WebMidiRecipeBankPd2SettingsPayloadLength + 6u)
                 recipeBank = recipeBankToControl(sysexBuffer[offset++] & 0x03u);
         }
         uint8_t channel = sysexBuffer[offset] & 0x0Fu;
@@ -1124,6 +1166,7 @@ private:
         osc2Ring = ring;
         osc2Noise = noise;
         pdControl = clamp12(pd);
+        pd2Control = clamp12(pd2);
         setDetuneFromControl(detune);
         waveControl = clamp12(wave);
         wave2Control = clamp12(wave2);
@@ -1162,7 +1205,7 @@ private:
         if (sysexLength != 6u)
             return;
 
-        uint8_t frame[25] = {
+        uint8_t frame[27] = {
             0xF0u,
             WebMidiManufacturer,
             WebMidiId[0],
@@ -1175,6 +1218,7 @@ private:
         appendWebMidiUint14(frame, offset, clamp12(osc2Ring));
         appendWebMidiUint14(frame, offset, clamp12(osc2Noise));
         appendWebMidiUint14(frame, offset, clamp12(pdControl));
+        appendWebMidiUint14(frame, offset, clamp12(pd2Control));
         appendWebMidiUint14(frame, offset, clamp12(osc2Detune + 2048));
         appendWebMidiUint14(frame, offset, clamp12(waveControl));
         appendWebMidiUint14(frame, offset, clamp12(wave2Control));
@@ -1218,7 +1262,7 @@ private:
         if (!customEnvelopePersist[slot])
             return;
 
-        uint8_t frame[121] = {
+        uint8_t frame[123] = {
             0xF0u,
             WebMidiManufacturer,
             WebMidiId[0],
@@ -1364,7 +1408,9 @@ private:
         bool dualOscPayload = sysexLength == WebMidiDualOscEnvelopePayloadLength + 6u;
         bool dualAmpPayload = sysexLength == WebMidiDualAmpEnvelopePayloadLength + 6u;
         bool dualAmpSustainPayload = sysexLength == WebMidiDualAmpSustainEnvelopePayloadLength + 6u;
-        bool soundPresetPayload = sysexLength == WebMidiSoundPresetEnvelopePayloadLength + 6u;
+        bool legacySoundPresetPayload = sysexLength == WebMidiSoundPresetEnvelopePayloadLength + 6u;
+        bool soundPresetPayload = legacySoundPresetPayload ||
+            sysexLength == WebMidiSoundPresetPd2EnvelopePayloadLength + 6u;
         if (!legacyPayload && !singlePitchPayload && !dualPitchPayload && !dualOscPayload && !dualAmpPayload && !dualAmpSustainPayload && !soundPresetPayload)
             return;
 
@@ -1374,7 +1420,7 @@ private:
         readWebMidiName(offset, incomingName);
         SavedSlotPerformanceState incomingPerformance = currentSlotPerformanceState();
         if (soundPresetPayload)
-            incomingPerformance = readWebMidiSlotPerformance(offset);
+            incomingPerformance = readWebMidiSlotPerformance(offset, !legacySoundPresetPayload);
         else if (customEnvelopePersist[slot])
             incomingPerformance = customEnvelopeSavedPerformances[slot];
 
@@ -1568,6 +1614,7 @@ private:
     {
         SavedSlotPerformanceState state = {};
         state.pdControl = (uint16_t)clamp12(pdControl);
+        state.pd2Control = (uint16_t)clamp12(pd2Control);
         state.detuneControl = (uint16_t)clamp12(osc2Detune + 2048);
         state.waveControl = (uint16_t)clamp12(waveControl);
         state.wave2Control = (uint16_t)clamp12(wave2Control);
@@ -1582,10 +1629,13 @@ private:
         return state;
     }
 
-    SavedSlotPerformanceState readWebMidiSlotPerformance(uint32_t& offset)
+    SavedSlotPerformanceState readWebMidiSlotPerformance(uint32_t& offset, bool hasPd2Control)
     {
         SavedSlotPerformanceState state = {};
         state.pdControl = (uint16_t)decodeWebMidiUint14(offset);
+        state.pd2Control = hasPd2Control
+            ? (uint16_t)decodeWebMidiUint14(offset)
+            : state.pdControl;
         state.detuneControl = (uint16_t)decodeWebMidiUint14(offset);
         state.waveControl = (uint16_t)decodeWebMidiUint14(offset);
         state.wave2Control = (uint16_t)decodeWebMidiUint14(offset);
@@ -1608,6 +1658,7 @@ private:
         const SavedSlotPerformanceState& state)
     {
         appendWebMidiUint14(buffer, offset, state.pdControl);
+        appendWebMidiUint14(buffer, offset, state.pd2Control);
         appendWebMidiUint14(buffer, offset, state.detuneControl);
         appendWebMidiUint14(buffer, offset, state.waveControl);
         appendWebMidiUint14(buffer, offset, state.wave2Control);
@@ -1619,9 +1670,30 @@ private:
         buffer[offset++] = state.recipeBank & 0x03u;
     }
 
+    SavedSlotPerformanceState upgradeSlotPerformanceState(
+        const SavedSlotPerformanceStateV8& oldState)
+    {
+        SavedSlotPerformanceState state = {};
+        state.pdControl = oldState.pdControl;
+        state.pd2Control = oldState.pdControl;
+        state.detuneControl = oldState.detuneControl;
+        state.waveControl = oldState.waveControl;
+        state.wave2Control = oldState.wave2Control;
+        state.ring = oldState.ring;
+        state.noise = oldState.noise;
+        state.midiInChannel = oldState.midiInChannel;
+        state.turingRange = oldState.turingRange;
+        state.turingMidiEnabled = oldState.turingMidiEnabled;
+        state.turingMidiChannel = oldState.turingMidiChannel;
+        state.recipeBank = oldState.recipeBank;
+        state.reserved = oldState.reserved;
+        return state;
+    }
+
     void applySlotPerformanceState(const SavedSlotPerformanceState& state)
     {
         pdControl = clamp12(state.pdControl);
+        pd2Control = clamp12(state.pd2Control);
         setDetuneFromControl(state.detuneControl);
         waveControl = clamp12(state.waveControl);
         wave2Control = clamp12(state.wave2Control);
@@ -2712,6 +2784,20 @@ private:
         return checksum;
     }
 
+    uint32_t checksumCustomEnvelopeStateV8(const SavedCustomEnvelopeStateV8& state)
+    {
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&state);
+        uint32_t checksum = 2166136261u;
+
+        for (uint32_t i = 0; i < sizeof(SavedCustomEnvelopeStateV8) - sizeof(uint32_t); ++i)
+        {
+            checksum ^= bytes[i];
+            checksum *= 16777619u;
+        }
+
+        return checksum;
+    }
+
     const SavedPerformanceState& flashPerformanceState()
     {
         return *reinterpret_cast<const SavedPerformanceState*>(
@@ -2745,6 +2831,12 @@ private:
     const SavedCustomEnvelopeStateV7& flashCustomEnvelopeStateV7()
     {
         return *reinterpret_cast<const SavedCustomEnvelopeStateV7*>(
+            XIP_BASE + CustomEnvelopeFlashOffset);
+    }
+
+    const SavedCustomEnvelopeStateV8& flashCustomEnvelopeStateV8()
+    {
+        return *reinterpret_cast<const SavedCustomEnvelopeStateV8*>(
             XIP_BASE + CustomEnvelopeFlashOffset);
     }
 
@@ -2800,6 +2892,15 @@ private:
             state.version == NamedCustomEnvelopeSaveVersion &&
             state.size == sizeof(SavedCustomEnvelopeStateV7) &&
             state.checksum == checksumCustomEnvelopeStateV7(state);
+    }
+
+    bool isValidCustomEnvelopeStateV8(const SavedCustomEnvelopeStateV8& state)
+    {
+        return
+            state.magic == CustomEnvelopeMagic &&
+            state.version == SoundPresetCustomEnvelopeSaveVersion &&
+            state.size == sizeof(SavedCustomEnvelopeStateV8) &&
+            state.checksum == checksumCustomEnvelopeStateV8(state);
     }
 
     bool customEnvelopeStateMatches(
@@ -2888,6 +2989,24 @@ private:
                 customEnvelopeSavedPerformances[i] = state.performances[i];
                 customEnvelopePerformances[i] = customEnvelopeSavedPerformances[i];
                 customEnvelopeLoaded[i] = (state.loadedMask & (1u << i)) != 0;
+                customEnvelopePersist[i] = customEnvelopeLoaded[i];
+            }
+
+            return;
+        }
+
+        const SavedCustomEnvelopeStateV8& soundPresetState = flashCustomEnvelopeStateV8();
+        if (isValidCustomEnvelopeStateV8(soundPresetState))
+        {
+            for (uint32_t i = 0; i < CustomEnvelopeSlotCount; ++i)
+            {
+                customEnvelopeSaved[i] = runtimeEnvelopeFromSaved(soundPresetState.slots[i]);
+                customEnvelopes[i] = customEnvelopeSaved[i];
+                copyEnvelopeName(customEnvelopeNames[i], soundPresetState.names[i]);
+                customEnvelopeSavedPerformances[i] =
+                    upgradeSlotPerformanceState(soundPresetState.performances[i]);
+                customEnvelopePerformances[i] = customEnvelopeSavedPerformances[i];
+                customEnvelopeLoaded[i] = (soundPresetState.loadedMask & (1u << i)) != 0;
                 customEnvelopePersist[i] = customEnvelopeLoaded[i];
             }
 

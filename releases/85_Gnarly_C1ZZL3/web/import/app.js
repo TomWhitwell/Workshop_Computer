@@ -154,7 +154,7 @@ function renderThemeMode() {
 
 function getEditorUrl() {
   const path = window.location.pathname;
-  const isDualPitchImportLab = path.includes("/web/import/");
+  const isDualPitchImportLab = path.includes("/programs/85-gnarly-c1zzl3/web/import/");
   if (isDualPitchImportLab && window.location.protocol === "file:") return LOCAL_EDITOR_URL;
 
   const host = window.location.hostname;
@@ -789,7 +789,7 @@ function buildDraftPreset(
       sustain,
       cz: czPatch
     },
-    performance: { pd, detune, waveform: wave.value, waveform2: wave2.value, ring, noise },
+    performance: { pd, pd2: pd, detune, waveform: wave.value, waveform2: wave2.value, ring, noise },
     confidence: "medium"
   };
 }
@@ -881,7 +881,7 @@ function renderDraft(draft) {
     formatCzWaveSpec("Line 1 / Osc 1", draft.sourceEnvelopes.cz.line1Wave),
     formatCzWaveSpec("Line 2 / Osc 2", draft.sourceEnvelopes.cz.line2Wave)
   ].join("\n");
-  el.perfBox.textContent = `PD ${draft.performance.pd}, osc1 wave ${draft.wave.label}, osc2 wave ${draft.wave2.label}, detune ${draft.performance.detune}, ring ${draft.performance.ring}, noise ${draft.performance.noise}`;
+  el.perfBox.textContent = `PD1 ${draft.performance.pd}, PD2 ${draft.performance.pd2}, osc1 wave ${draft.wave.label}, osc2 wave ${draft.wave2.label}, detune ${draft.performance.detune}, ring ${draft.performance.ring}, noise ${draft.performance.noise}`;
   el.czEnvelopeSummaryBox.textContent = formatCzEnvelopeSummary(draft.sourceEnvelopes.cz);
   el.ampDraftBox.textContent = formatStages(draft.amp);
   el.amp2DraftBox.textContent = formatStages(draft.amp2 || draft.sourceEnvelopes.amp2 || draft.amp);
