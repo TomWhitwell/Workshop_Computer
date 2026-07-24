@@ -869,9 +869,29 @@ textarea {
   gap: 4px;
 }
 
+.performance-panel label.is-disabled {
+  opacity: 0.72;
+}
+
 .performance-panel input,
 .performance-panel select {
   height: 32px;
+}
+
+.performance-panel input:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.45);
+}
+
+.setting-hint {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.setting-hint-wide {
+  grid-column: 1 / -1;
+  margin-top: -4px;
 }
 
 .performance-panel input[type="range"] {

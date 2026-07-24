@@ -187,6 +187,7 @@ const el = {
   pdControl: document.querySelector("#pdControl"),
   pd2Setting: document.querySelector("#pd2Setting"),
   pd2Control: document.querySelector("#pd2Control"),
+  pd2SettingHint: document.querySelector("#pd2SettingHint"),
   detuneControl: document.querySelector("#detuneControl"),
   performanceWaveSelect: document.querySelector("#performanceWaveSelect"),
   performanceWave2Select: document.querySelector("#performanceWave2Select"),
@@ -786,9 +787,14 @@ function renderDeveloperMode() {
 }
 
 function renderPerformanceSettings() {
+  const separatePd2 = supportsSeparatePd2Settings();
   el.pdControl.value = performanceSettings.pd;
-  el.pd2Control.value = performanceSettings.pd2;
-  el.pd2Setting.classList.toggle("is-hidden", !supportsSeparatePd2Settings());
+  el.pd2Control.value = separatePd2 ? performanceSettings.pd2 : performanceSettings.pd;
+  el.pd2Control.disabled = !separatePd2;
+  el.pd2Setting.classList.toggle("is-disabled", !separatePd2);
+  el.pd2SettingHint.textContent = separatePd2
+    ? "Gnarly v11 stores and sends PD2 separately."
+    : "PD2 is linked to PD1 on Core/Rad compatibility modes.";
   el.detuneControl.value = performanceSettings.detune;
   el.performanceWaveSelect.value = performanceSettings.waveform;
   el.performanceWave2Select.value = performanceSettings.waveform2;
