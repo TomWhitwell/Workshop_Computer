@@ -208,7 +208,8 @@ const el = {
   midiInChannel: document.querySelector("#midiInChannel"),
   turingRange: document.querySelector("#turingRange"),
   turingMidiOut: document.querySelector("#turingMidiOut"),
-  turingMidiChannel: document.querySelector("#turingMidiChannel")
+  turingMidiChannel: document.querySelector("#turingMidiChannel"),
+  soundPresetSettingsStatus: document.querySelector("#soundPresetSettingsStatus")
 };
 
 function preset(name, amp, pd, slot = null, cardDirty = false, pitch = null, pitchSource = null, pitch2 = null, pd2 = null, amp2 = null, sustain = null, performance = null) {
@@ -436,6 +437,56 @@ function applyPerformanceSettings(settings) {
   savePerformanceSettings();
   renderPerformanceSettings();
   return true;
+}
+
+function performanceSettingsMatch(left, right) {
+  const a = normalizePerformanceSettings(left);
+  const b = normalizePerformanceSettings(right);
+  if (!a || !b) return false;
+  return a.pd === b.pd &&
+    a.detune === b.detune &&
+    a.waveform === b.waveform &&
+    a.waveform2 === b.waveform2 &&
+    a.recipeBank === b.recipeBank &&
+    a.ring === b.ring &&
+    a.noise === b.noise &&
+    a.midiInChannel === b.midiInChannel &&
+    a.turingRange === b.turingRange &&
+    a.turingMidiOut === b.turingMidiOut &&
+    a.turingMidiChannel === b.turingMidiChannel;
+}
+
+function renderSoundPresetSettingsStatus() {
+  if (!el.soundPresetSettingsStatus) return;
+  const current = presets[selected];
+  const savedSettings = normalizePerformanceSettings(current?.performance);
+  el.soundPresetSettingsStatus.className = "sound-preset-settings-status";
+
+  if (selected < FACTORY_PRESET_COUNT) {
+    el.soundPresetSettingsStatus.textContent =
+      "Factory presets use the current visible settings. Save Sound Preset to attach settings to a custom card slot.";
+    return;
+  }
+
+  if (!savedSettings) {
+    el.soundPresetSettingsStatus.classList.add("is-local");
+    el.soundPresetSettingsStatus.textContent =
+      "This draft has no saved settings attached. Save Sound Preset will store the visible settings with it.";
+    return;
+  }
+
+  if (performanceSettingsMatch(performanceSettings, savedSettings)) {
+    el.soundPresetSettingsStatus.classList.add("is-matched");
+    el.soundPresetSettingsStatus.textContent = Number.isInteger(current.slot)
+      ? `Visible settings match saved card slot ${current.slot + 1}.`
+      : "Visible settings match this draft's attached settings.";
+    return;
+  }
+
+  el.soundPresetSettingsStatus.classList.add("is-warning");
+  el.soundPresetSettingsStatus.textContent = Number.isInteger(current.slot)
+    ? `Visible settings differ from saved slot ${current.slot + 1}. Save Sound Preset will overwrite that slot's saved settings; select this preset again to restore them.`
+    : "Visible settings differ from this draft's attached settings. Save Sound Preset will store the visible settings.";
 }
 
 function savePerformanceSettings() {
@@ -731,6 +782,7 @@ function renderPerformanceSettings() {
   el.turingRange.value = performanceSettings.turingRange;
   el.turingMidiOut.checked = performanceSettings.turingMidiOut;
   el.turingMidiChannel.value = performanceSettings.turingMidiChannel;
+  renderSoundPresetSettingsStatus();
 }
 
 function renderPresetList() {
@@ -760,6 +812,10 @@ function renderPresetList() {
     button.addEventListener("click", () => {
       selected = index;
       if (Number.isInteger(item.slot)) el.customSlot.value = String(item.slot);
+      if (index >= FACTORY_PRESET_COUNT && item.performance) {
+        applyPerformanceSettings(item.performance);
+        setStatus(`Selected ${item.name}; restored its saved sound-preset settings.`);
+      }
       render();
     });
     row.append(button);
@@ -804,6 +860,24 @@ function bindSelectedPresetToSlot(slot) {
   presets[selected].cardDirty = false;
   savePresets();
   renderPresetList();
+}
+
+function savedPresetForSlot(slot) {
+  return presets.find((item, index) =>
+    index >= FACTORY_PRESET_COUNT && item.slot === slot) || null;
+}
+
+function confirmCustomSlotOverwrite(slot, includePerformance) {
+  const existing = savedPresetForSlot(slot);
+  if (!existing) return true;
+  const action = includePerformance
+    ? "overwrite the envelope, slot name, and saved settings"
+    : "overwrite the envelope and slot name; saved settings are left unchanged when the card supports sound presets";
+  const name = existing.name || `Custom ${slot + 1}`;
+  return window.confirm(
+    `Custom slot ${slot + 1} already contains "${name}".\n\n` +
+    `Saving now will ${action}.\n\nContinue?`
+  );
 }
 
 function renderStages(lane, container) {
@@ -1574,6 +1648,13 @@ async function sendSysex(command = SYSEX_COMMAND_PREVIEW, options = {}) {
     return;
   }
 
+  const isFlash = command === SYSEX_COMMAND_SAVE;
+  const slot = clampInt(el.customSlot.value, 0, CUSTOM_SLOT_COUNT - 1);
+  if (isFlash && !confirmCustomSlotOverwrite(slot, includePerformance)) {
+    setStatus(`Save cancelled. Custom slot ${slot + 1} was left unchanged.`);
+    return;
+  }
+
   if (settingsProtocol === "unknown" && includePerformance) {
     await requestPerformanceSettings(true);
   }
@@ -1593,8 +1674,6 @@ async function sendSysex(command = SYSEX_COMMAND_PREVIEW, options = {}) {
     setStatus("Web MIDI send failed. Open Developer tools for details.");
     return;
   }
-  const isFlash = command === SYSEX_COMMAND_SAVE;
-  const slot = clampInt(el.customSlot.value, 0, CUSTOM_SLOT_COUNT - 1);
   const payloadMode = envelopePayloadMode();
   const expectedEnvelope = isFlash
     ? expectedEnvelopeForPayloadMode(payloadMode, includePerformance)
@@ -3108,13 +3187,8 @@ function updatePerformanceSetting(key, value) {
     performanceSettings.recipeBank = clampInt(value, 0, 3);
   }
 
-  if (selected >= FACTORY_PRESET_COUNT) {
-    presets[selected].performance = normalizePerformanceSettings(performanceSettings);
-    if (presets[selected].slot !== null) presets[selected].cardDirty = true;
-    savePresets();
-    renderPresetList();
-  }
   savePerformanceSettings();
+  renderSoundPresetSettingsStatus();
 }
 
 async function sendPerformanceSettings(command = SYSEX_COMMAND_SETTINGS) {

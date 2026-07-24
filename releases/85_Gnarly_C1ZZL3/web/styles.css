@@ -760,6 +760,33 @@ canvas {
   color: var(--text);
 }
 
+.sound-preset-settings-status {
+  grid-column: 1 / -1;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--legend-bg) 78%, var(--panel));
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.sound-preset-settings-status.is-matched {
+  border-color: color-mix(in srgb, var(--pd) 62%, var(--line));
+  color: var(--pd);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--pd) 18%, transparent);
+}
+
+.sound-preset-settings-status.is-warning {
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
+  color: var(--accent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.sound-preset-settings-status.is-local {
+  border-color: color-mix(in srgb, var(--amp) 48%, var(--line));
+}
+
 .output-actions button {
   min-height: 32px;
   padding: 0 6px;

@@ -15,7 +15,7 @@
       </div>
       <div class="transport">
         <a id="onlineEditorLink" href="index.html" target="_blank" rel="noopener noreferrer" class="transport-link">Gnarly Lab</a>
-        <a id="importLabLink" href="import-lab/index.html" target="_blank" rel="noopener noreferrer" class="transport-link">Gnarly Import Lab</a>
+        <a id="importLabLink" href="import/index.html" target="_blank" rel="noopener noreferrer" class="transport-link">Gnarly Import Lab</a>
         <button id="audition" type="button" title="Loop browser audition">▶</button>
         <button id="stop" type="button" title="Stop browser audition">■</button>
         <button id="themeToggle" type="button" role="switch" aria-checked="false" title="Toggle light mode">Dark</button>
@@ -225,6 +225,9 @@
             Turing MIDI ch
             <input id="turingMidiChannel" type="number" min="1" max="16" value="1">
           </label>
+          <div id="soundPresetSettingsStatus" class="sound-preset-settings-status" role="note">
+            Select a saved sound preset to restore its attached settings.
+          </div>
         </section>
         <section id="stagePanel" class="stage-panel" aria-label="Selected lane stages">
           <div class="lane-title">
