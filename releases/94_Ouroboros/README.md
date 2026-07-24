@@ -17,7 +17,7 @@ performance moves before the razor blades come out.
 | Control | Function |
 | --- | --- |
 | **Main knob** | Feedback, 0 → ~112%. Unity is around 3 o'clock; the last stretch of the knob makes the loop *grow* each rotation until tape saturation catches it. |
-| **X knob** | Tape length, ~100ms → ~4s (square law — the bottom half is slapback territory). Length changes glide, so the splice moves rather than teleports. |
+| **X knob** | Tape length, ~100ms → ~4s (square law — the bottom half is slapback territory). Length changes glide, so the splice moves rather than teleports, and lengthening splices in a *copy* of the loop — the bed keeps playing and just takes longer to come round. |
 | **Y knob** | Tape speed: varispeed, ±1 octave, centre = normal. Turning it Doppler-shifts everything already on the tape, then new material settles back at unity — like grabbing the reel. Slow tape is longer *and* darker. |
 | **Switch up** | **Freeze** — the record head lifts; the loop just spins, forever. Input is ignored. |
 | **Switch middle** | Echo — sound-on-sound with regeneration. |

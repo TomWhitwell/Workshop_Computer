@@ -124,8 +124,16 @@ class Ouroboros : public ComputerCard
 		// Square law: the bottom half of the knob covers slapback territory.
 		int32_t k = KnobVal(X);
 		Ltarget = LMIN + ((((k * k) >> 12) * 5990) >> 8);  // 2400..~98200
-		L += (Ltarget - L) >> 5;                // ~10ms glide; the splice moves,
-		if (L < LMIN) L = LMIN;                 // it doesn't teleport
+		int32_t d = (Ltarget - L) >> 5;         // ~10ms glide; the splice moves,
+		if (d > 512) d = 512;                   // it doesn't teleport
+		int32_t Lprev = L;
+		L += d;
+		if (L < LMIN) L = LMIN;
+		// Lengthening splices in a *copy* of the loop, not whatever stale tape
+		// lies beyond the old splice: extend periodically, so the bed keeps
+		// playing and just takes longer to come round. (The head is always
+		// below Lprev, so it never sees this region mid-copy.)
+		for (int c = Lprev; c < L; c++) buf[c] = buf[c - Lprev];
 		if (wcell >= L) { wcell = 0; spliceTimer = SPLICE_TICKS; }
 
 		// ---- feedback ----

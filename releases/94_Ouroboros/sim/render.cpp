@@ -146,9 +146,38 @@ static void testFreezeHolds()
 	CHECK(late > 0.9 * early, "no decay while frozen (rms %.0f -> %.0f)", early, late);
 }
 
+static void testGrowSplicesACopy()
+{
+	printf("[3] lengthening live splices in a copy, not stale tape\n");
+	Ouroboros card;
+	card.simConnected[ComputerCard::Audio1] = true;
+	card.simKnob[ComputerCard::Main] = 0;
+	card.simKnob[ComputerCard::X] = 0;                 // shortest tape: 2400 cells
+	for (int i = 0; i < SR; i++) card.simStep();
+
+	const int rot = 2 * 2400;
+	for (int i = 0; i < rot; i++)                      // one rotation of tone
+	{
+		card.simAudioIn[0] = (int16_t)(1200.0f * sinf(2.0f * 3.14159265f * 440.0f * i / SR));
+		card.simStep();
+	}
+	card.simSwitch = ComputerCard::Up;                 // freeze
+	card.simAudioIn[0] = 0;
+	std::vector<int32_t> wet;
+	for (int i = 0; i < 2 * rot; i++) { card.simStep(); wet.push_back(card.simAudioOut[0]); }
+	double before = rms(wet, 0, wet.size());
+
+	card.simKnob[ComputerCard::X] = 2048;              // grow to ~26k cells, live
+	for (int i = 0; i < SR / 2; i++) card.simStep();   // let the glide finish
+	wet.clear();
+	for (int i = 0; i < 60000; i++) { card.simStep(); wet.push_back(card.simAudioOut[0]); }
+	double after = rms(wet, 0, wet.size());
+	CHECK(after > 0.85 * before, "loop level holds through growth (rms %.0f -> %.0f)", before, after);
+}
+
 static void testReverse()
 {
-	printf("[3] reverse plays the tape backwards\n");
+	printf("[4] reverse plays the tape backwards\n");
 	Ouroboros card;
 	card.simConnected[ComputerCard::Audio1] = true;
 	card.simKnob[ComputerCard::Main] = 0;
@@ -177,7 +206,7 @@ static void testReverse()
 
 static void testRunawayBoundedAndDecays()
 {
-	printf("[4] runaway feedback saturates, then dies with the knob down\n");
+	printf("[5] runaway feedback saturates, then dies with the knob down\n");
 	Ouroboros card;
 	card.simConnected[ComputerCard::Audio1] = true;
 	card.simKnob[ComputerCard::Main] = 4095;           // ~112%
@@ -242,6 +271,7 @@ int main(int, char **argv)
 	printf("Ouroboros offline render\n\nself-checks:\n");
 	testEchoPeriod();
 	testFreezeHolds();
+	testGrowSplicesACopy();
 	testReverse();
 	testRunawayBoundedAndDecays();
 	printf("\ndemos:\n");

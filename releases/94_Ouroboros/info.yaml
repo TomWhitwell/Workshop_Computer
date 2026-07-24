@@ -1,7 +1,68 @@
-Description: "A tape loop, eating its own tail. The buffer is the tape: one head assembly records input + feedback over what came round from the last rotation. Tape length, varispeed (repitches the whole loop), freeze, momentary reverse, splice-tick pulse out, position-ramp CV out. Companion prototype for a physical 1/4\" tape loop rig."
+summary: "A tape loop, eating its own tail. The buffer is the tape: one head assembly records input + feedback over what came round from the last rotation. Tape length, varispeed (repitches the whole loop), freeze, momentary reverse, splice-tick pulse out, position-ramp CV out. Companion prototype for a physical 1/4\" tape loop rig."
+short-description: A tape loop, eating its own tail.
 Name: Ouroboros
 Language: "C++ (ComputerCard)"
 Creator: "Jason Moore"
 Version: "0.1"
 Status: "Working"
 date: 2026-07-24
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio Input
+      description: Input to the record head
+    - id: CVIn1
+      name: Tape Speed CV
+      description: Varispeed, 1V/oct, adds to Y (total range +/-2 octaves)
+    - id: CVIn2
+      name: Feedback CV
+      description: Adds to the main knob
+    - id: PulseIn1
+      name: Freeze Gate
+      description: High = freeze — the record head lifts and the loop just spins
+    - id: PulseIn2
+      name: Reverse Gate
+      description: High = the tape runs backwards (playback only)
+  outputs:
+    - id: AudioOut1
+      name: Wet Output
+      description: The playback head
+    - id: AudioOut2
+      name: Dry Output
+      description: Input thru — mix with the wet output yourself, or hard-pan
+    - id: CVOut1
+      name: Envelope Output
+      description: Envelope follower of the wet output, 0..+6V
+    - id: CVOut2
+      name: Tape Position
+      description: A 0..+6V ramp once per rotation — a loop-synced LFO
+    - id: PulseOut1
+      name: Splice Tick
+      description: A 10ms pulse each time the splice passes the head — clock things to the tape rotation
+    - id: PulseOut2
+      name: Freeze State
+      description: High while frozen
+
+controls:
+  switch:
+    up:
+      name: Freeze
+      description: The record head lifts; the loop spins forever and input is ignored
+    middle:
+      name: Echo
+      description: Sound-on-sound with regeneration
+    down:
+      name: Reverse
+      description: Momentary — the tape runs backwards while held, playback only
+  knobs:
+    - when: { z: any }
+      main:
+        name: Feedback
+        description: 0 to ~112% — unity around 3 o'clock, the last stretch runs away into tape saturation
+      x:
+        name: Tape Length
+        description: ~100ms to ~4s at centre speed, square law; lengthening splices in a copy of the loop so the bed keeps playing
+      y:
+        name: Tape Speed
+        description: Varispeed, +/-1 octave, centre = normal — Doppler-shifts everything already on the tape; slow tape is longer and darker
