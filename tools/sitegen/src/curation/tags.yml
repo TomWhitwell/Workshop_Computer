@@ -218,7 +218,8 @@ assignments:
   "86_tesserae": []
 
   # 88 Blank
-  "88_Blank": []
+  "88_Blank":
+    - "Included"
 
   # 98 Duo MIDI
   "98_duo_midi":

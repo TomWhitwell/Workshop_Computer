@@ -1,4 +1,4 @@
-export function renderLayout({ title, content, relativeRoot = '.', repoUrl = 'https://github.com/TomWhitwell/Workshop_Computer', showProgramIdentity = false }) {
+export function renderLayout({ title, content, relativeRoot = '.', repoUrl = 'https://github.com/TomWhitwell/Workshop_Computer', showProgramIdentity = false, programCardCount = null }) {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -31,7 +31,7 @@ export function renderLayout({ title, content, relativeRoot = '.', repoUrl = 'ht
         <span class="program-cards__identity-name">Program Cards</span>
       </a>
       <nav class="program-cards__links" aria-label="Program card links">
-        <a href="${relativeRoot}/archive/">All cards</a>
+        <a href="${relativeRoot}/archive/">All cards${Number.isFinite(Number(programCardCount)) ? ` (${Number(programCardCount)})` : ''}</a>
         <a href="https://www.musicthing.co.uk/workshopsystem/program-cards/install/">Installation</a>
         <a href="${repoUrl}">Make a card</a>
       </nav>
@@ -55,6 +55,14 @@ import { uf2ToFlashBuffer } from '${relativeRoot}/assets/js/uf2.js';
 var connectBtn = document.getElementById('connectToggle');
 var pb = null;
 var RECONNECT_KEY = 'workshop-computer-picoboot-reconnect';
+
+// Physical blank cards ship in five colors. Give the catalogue's blank card a
+// fresh color on each page load while keeping the future label overlay intact.
+var blankCardColors = ['#6c2a83', '#b08a2e', '#b52c30', '#173f82', '#27743a'];
+document.querySelectorAll('[data-random-blank-card]').forEach(function(card) {
+  var index = Math.floor(Math.random() * blankCardColors.length);
+  card.style.color = blankCardColors[index];
+});
 
 // Reveal a firmware's SHA256 beneath the tiles when its download is clicked.
 document.addEventListener('click', function(e) {

@@ -10,6 +10,15 @@ const CARD_ARTWORK = {
   '00_Simple_MIDI': '00-simple-midi.svg',
   '03_Turing_Machine': '03-turing-machine.svg',
   '20_reverb': '20-reverb.svg',
+  '88_Blank': '88-blank.svg',
+};
+
+const FEATURED_COPY = {
+  '88_Blank': {
+    text: 'A blank card is a blank canvas. Install any card firmware you want from this site.',
+    linkText: 'Learn how',
+    link: 'https://www.musicthing.co.uk/workshopsystem/program-cards/install/',
+  },
 };
 
 function esc(value) {
@@ -73,14 +82,17 @@ export function renderTile(card, opts = {}) {
   const summary = card.short_description || '';
   const metadata = card.metadata || {};
   const firstVideo = Array.isArray(card.videos) && card.videos[0];
+  const featuredCopy = showArtwork ? FEATURED_COPY[card.id] : null;
 
   const media = showVideo && firstVideo
     ? `<span class="program-card-tile__media" data-youtube-id="${esc(firstVideo.id)}" aria-hidden="true"><img src="https://img.youtube.com/vi/${esc(firstVideo.id)}/hqdefault.jpg" alt="" loading="lazy"></span>`
     : '';
   const artworkFile = showArtwork ? CARD_ARTWORK[card.id] : '';
-  const artwork = artworkFile
-    ? `<span class="program-card-tile__artwork" aria-hidden="true"><img src="${root}/assets/program_cards/${artworkFile}" alt="" loading="lazy"></span>`
-    : '';
+  const artwork = card.id === '88_Blank' && showArtwork
+    ? `<span class="program-card-tile__artwork program-card-tile__artwork--blank" aria-hidden="true" data-random-blank-card><svg viewBox="0 0 306 178"><g transform="translate(0 178) scale(1 -1)"><path fill="currentColor" d="M16 0h132l11 12h11l11-12h20l28 22h64c7 0 13 6 13 13v130c0 7-6 13-13 13H40c-22 0-40-18-40-40V16C0 7 7 0 16 0Z"/><circle cx="39" cy="138" r="27" fill="#fdfdfd"/></g></svg></span>`
+    : artworkFile
+      ? `<span class="program-card-tile__artwork" aria-hidden="true"><img src="${root}/assets/program_cards/${artworkFile}" alt="" loading="lazy"></span>`
+      : '';
 
   const searchText = [
     number, card.title, summary, metadata.creator, metadata.language,
@@ -97,11 +109,12 @@ export function renderTile(card, opts = {}) {
     ` data-type="${escapeAttr(metadata.status || '')}" data-date="${escapeAttr(metadata.updated || '')}"` +
     ` data-name="${escapeAttr(String(card.title || card.id || '').toLowerCase())}" data-num="${escapeAttr(String(parseInt(number, 10) || 0))}"` +
     ` data-tags="${escapeAttr(tagFilter)}" data-search="${escapeAttr(searchText)}">
-    <a class="program-card-tile__link" href="${root}/programs/${card.slug}/">
+    <a class="program-card-tile__link" href="${card.id === '88_Blank' && showArtwork ? `${root}/random/` : `${root}/programs/${card.slug}/`}">
       ${media}
       <span class="program-card-tile__head"><span class="program-card-tile__title">${artwork || `<span class="program-card-tile__number">${esc(number)}</span>`}<span class="program-card-tile__name">${esc(truncate(card.title || card.id || 'Untitled card', 48))}</span>${showCreator && metadata.creator ? `<span class="program-card-tile__byline">by ${esc(metadata.creator)}</span>` : ''}</span></span>
-      ${summary ? `<span class="program-card-tile__summary">${esc(truncate(summary, 190))}</span>` : ''}
+      ${!featuredCopy && summary ? `<span class="program-card-tile__summary">${esc(truncate(summary, 190))}</span>` : ''}
     </a>
+    ${featuredCopy ? `<span class="program-card-tile__summary">${esc(featuredCopy.text)}<a class="program-card-tile__inline-link" href="${esc(featuredCopy.link)}" target="_blank" rel="noopener noreferrer">${esc(featuredCopy.linkText)} <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a></span>` : ''}
     ${showAllTags ? renderAllTagBadges(card, flair, root) : renderTagBadges(flair, hideTags, root)}
   </article>`;
 }

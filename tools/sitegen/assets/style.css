@@ -12,6 +12,7 @@
 }
 
 * { box-sizing: border-box; }
+.sr-only { clip: rect(0, 0, 0, 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
 html, body { background: var(--bg); color: var(--text); font: 700 18px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
 .container { margin: 0 auto; max-width: 900px; padding-left: 30px; padding-right: 30px; }
 main.container { padding-top: 30px; }

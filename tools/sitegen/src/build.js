@@ -237,6 +237,7 @@ async function build() {
     title: 'Workshop Computer Program Cards',
     relativeRoot: '.',
     showProgramIdentity: true,
+    programCardCount: normalizedCards.length,
   repoUrl: `https://github.com/${REPO}`,
     content: `
 <section class="filter-bar" aria-label="Filter programs">
@@ -286,6 +287,31 @@ async function build() {
 </div>`
   });
   await writeFileEnsured(path.join(OUT_DIR, 'index.html'), indexHtml);
+
+  const randomCandidates = normalizedCards
+    .filter(card => !['02_comingsoon', '77_Placeholder', '88_Blank'].includes(card.id))
+    .map(card => ({ slug: card.slug, title: card.title }));
+  const randomHtml = renderLayout({
+    title: 'Finding a random card – Workshop Computer',
+    relativeRoot: '..',
+    repoUrl: `https://github.com/${REPO}`,
+    content: `
+<section class="program-card-random" aria-live="polite">
+  <span class="program-card-random__spinner" aria-hidden="true"></span>
+  <h1>Taking you to a random card</h1>
+  <p>Choosing from ${normalizedCards.length} program cards.</p>
+  <noscript><p>JavaScript is required to choose a random card. <a href="../index.html">Return to Program Cards</a>.</p></noscript>
+</section>
+<script>
+(function(){
+  var cards=${JSON.stringify(randomCandidates).replace(/</g, '\\u003c')};
+  if(!cards.length){window.location.replace('../index.html');return;}
+  var card=cards[Math.floor(Math.random()*cards.length)];
+  window.setTimeout(function(){window.location.replace('../programs/'+encodeURIComponent(card.slug)+'/');},2000);
+})();
+</script>`
+  });
+  await writeFileEnsured(path.join(OUT_DIR, 'random', 'index.html'), randomHtml);
 
   // Archive page (complete one-line index, with search + sort)
   const archiveHtml = renderLayout({

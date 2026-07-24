@@ -42,6 +42,7 @@ hero:
     - 03_Turing_Machine
     - 20_reverb
     - 00_Simple_MIDI
+    - 88_Blank
 shelves:
   - id: start-here
     title: Try these first
