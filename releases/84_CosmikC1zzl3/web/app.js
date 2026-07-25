@@ -9,6 +9,7 @@ const MIN_SEND_SAMPLES = 960;
 const SETTINGS_READ_TIMEOUT_MS = 3000;
 const ENVELOPE_READ_TIMEOUT_MS = 7000;
 const ENVELOPE_READ_RETRIES = 2;
+const AUTO_CAPABILITY_CHECK_DELAY_MS = 250;
 const SAVE_VERIFY_DELAY_MS = 2500;
 const DELETE_VERIFY_DELAY_MS = 500;
 const AUX_ENVELOPE_REQUEST_DELAY_MS = 120;
@@ -94,11 +95,14 @@ let settingsProtocol = "unknown";
 let settingsRequestPending = false;
 let settingsRequestTimer = null;
 let settingsRequestResolver = null;
+let settingsRequestQuiet = false;
 let envelopeReadSession = null;
 let envelopeReadTimer = null;
 let envelopeReadSupported = null;
 let detectedEnvelopeProtocol = null;
 let auxiliaryEnvelopeRequestTimer = null;
+let autoCapabilityCheckTimer = null;
+let autoCapabilityCheckInProgress = false;
 let lastLoggedSysexAt = 0;
 let messageImportedDraft = null;
 let lastConsumedHandoffId = null;
@@ -1578,13 +1582,17 @@ async function connectMidi() {
   try {
     midiAccess = await navigator.requestMIDIAccess({ sysex: true });
     await prepareMidiPorts();
-    midiAccess.onstatechange = refreshMidiPorts;
+    midiAccess.onstatechange = () => {
+      refreshMidiPorts();
+      scheduleAutoCapabilityCheck("statechange");
+    };
     el.midiToggle.classList.add("is-active");
     pulseButton(el.midiToggle, "On");
     logDeveloper("Web MIDI connected.", {
       inputs: midiAccess.inputs?.size ?? 0,
       outputs: midiAccess.outputs?.size ?? 0
     });
+    scheduleAutoCapabilityCheck("connect");
   } catch (error) {
     logDeveloper("Web MIDI connection failed.", {
       message: error?.message || "Unknown error",
@@ -1656,8 +1664,32 @@ function refreshMidiPorts() {
   if (outputs.length === 0) {
     settingsProtocol = "unknown";
     detectedEnvelopeProtocol = null;
+    envelopeReadSupported = null;
   }
   setStatus(`MIDI ready: ${inputs.length} input${inputs.length === 1 ? "" : "s"}, ${outputs.length} output${outputs.length === 1 ? "" : "s"}.`);
+}
+
+function scheduleAutoCapabilityCheck(reason = "connect") {
+  if (!midiAccess || selectedMidiOutput() === null) return;
+  if (autoCapabilityCheckTimer !== null) window.clearTimeout(autoCapabilityCheckTimer);
+  autoCapabilityCheckTimer = window.setTimeout(() => {
+    autoCapabilityCheckTimer = null;
+    autoDetectCardCapabilities(reason);
+  }, AUTO_CAPABILITY_CHECK_DELAY_MS);
+}
+
+async function autoDetectCardCapabilities(reason = "connect") {
+  if (autoCapabilityCheckInProgress || !midiAccess || selectedMidiOutput() === null) return;
+  autoCapabilityCheckInProgress = true;
+  setStatus("MIDI connected. Checking card settings and saved envelopes...");
+  logDeveloper("Automatic card capability check started.", { reason });
+
+  try {
+    await requestPerformanceSettings(true, { quiet: true });
+    await requestCardEnvelopes("auto");
+  } finally {
+    autoCapabilityCheckInProgress = false;
+  }
 }
 
 function selectedMidiOutput() {
@@ -2445,19 +2477,19 @@ function armEnvelopeReadTimeout() {
       try {
         if (session.waitingForAmp2Slot !== null) {
           output.send(buildRequestAmp2EnvelopeSysex(session.waitingForAmp2Slot));
-          setStatus(`Still waiting for card Amp2 envelope slot ${session.waitingForAmp2Slot + 1}; retrying readback...`);
+          if (session.reason !== "auto") setStatus(`Still waiting for card Amp2 envelope slot ${session.waitingForAmp2Slot + 1}; retrying readback...`);
         } else if (session.waitingForPd2Slot !== null) {
           output.send(buildRequestPd2EnvelopeSysex(session.waitingForPd2Slot));
-          setStatus(`Still waiting for card PD2 envelope slot ${session.waitingForPd2Slot + 1}; retrying readback...`);
+          if (session.reason !== "auto") setStatus(`Still waiting for card PD2 envelope slot ${session.waitingForPd2Slot + 1}; retrying readback...`);
         } else if (session.waitingForPitchSlot !== null) {
           output.send(buildRequestPitchEnvelopeSysex(session.waitingForPitchSlot));
-          setStatus(`Still waiting for card pitch envelope slot ${session.waitingForPitchSlot + 1}; retrying readback...`);
+          if (session.reason !== "auto") setStatus(`Still waiting for card pitch envelope slot ${session.waitingForPitchSlot + 1}; retrying readback...`);
         } else if (session.waitingForSlot !== null) {
           output.send(buildRequestEnvelopeSysex(session.waitingForSlot));
-          setStatus(`Still waiting for card envelope slot ${session.waitingForSlot + 1}; retrying readback...`);
+          if (session.reason !== "auto") setStatus(`Still waiting for card envelope slot ${session.waitingForSlot + 1}; retrying readback...`);
         } else {
           output.send(buildRequestEnvelopeSlotsSysex());
-          setStatus("Still waiting for the card envelope list; retrying readback...");
+          if (session.reason !== "auto") setStatus("Still waiting for the card envelope list; retrying readback...");
         }
         armEnvelopeReadTimeout();
         return;
@@ -2492,7 +2524,11 @@ function armEnvelopeReadTimeout() {
       savePresets();
       render();
     }
-    setStatus("The card did not reply to the envelope read request. This firmware may not support envelope readback.");
+    if (session?.reason === "auto") {
+      setStatus(`Detected ${describeSettingsProtocol()}. Envelope readback did not reply automatically.`);
+    } else {
+      setStatus("The card did not reply to the envelope read request. This firmware may not support envelope readback.");
+    }
   }, ENVELOPE_READ_TIMEOUT_MS);
 }
 
@@ -2589,6 +2625,10 @@ function finishEnvelopeRead() {
   const emptyNote = count === 0
     ? ` No saved card envelopes were reported; any remaining presets are ${browserDraftLabel}.`
     : "";
+  if (session.reason === "auto") {
+    setStatus(`Detected ${describeSettingsProtocol()} with envelope protocol v${detectedEnvelopeProtocol || session.protocolVersion || "?"}. Loaded ${count} card envelope${count === 1 ? "" : "s"}.${emptyNote}`);
+    return;
+  }
   if (count === 0 && session.reason === "manual") {
     selected = Math.min(3, presets.length - 1);
     render();
@@ -2598,15 +2638,15 @@ function finishEnvelopeRead() {
 
 async function requestCardEnvelopes(reason = "manual", slot = null, expectedEnvelope = null) {
   if (envelopeReadSession) {
-    setStatus("An envelope read is already in progress.");
-    return;
+    if (reason !== "auto") setStatus("An envelope read is already in progress.");
+    return false;
   }
   if (!midiAccess) await connectMidi();
   await prepareMidiPorts();
   const output = selectedMidiOutput();
   if (!output) {
-    setStatus("No MIDI output found for envelope readback.");
-    return;
+    if (reason !== "auto") setStatus("No MIDI output found for envelope readback.");
+    return false;
   }
 
   envelopeReadSession = {
@@ -2637,6 +2677,7 @@ async function requestCardEnvelopes(reason = "manual", slot = null, expectedEnve
       pulseButton(el.requestEnvelopes, "Read");
       setStatus("Reading saved envelopes from the card...");
     }
+    return true;
   } catch (error) {
     envelopeReadSession = null;
     clearEnvelopeReadTimer();
@@ -2645,7 +2686,8 @@ async function requestCardEnvelopes(reason = "manual", slot = null, expectedEnve
       message: error?.message || "Unknown error",
       stack: error?.stack || "No stack trace"
     });
-    setStatus("Envelope read request failed. Open Developer tools for details.");
+    if (reason !== "auto") setStatus("Envelope read request failed. Open Developer tools for details.");
+    return false;
   }
 }
 
@@ -3051,6 +3093,8 @@ function handleSysexResponse(data) {
   }
 
   settingsRequestPending = false;
+  const quietSettingsResponse = settingsRequestQuiet;
+  settingsRequestQuiet = false;
   if (settingsRequestTimer !== null) {
     window.clearTimeout(settingsRequestTimer);
     settingsRequestTimer = null;
@@ -3120,7 +3164,9 @@ function handleSysexResponse(data) {
     settingsRequestResolver(true);
     settingsRequestResolver = null;
   }
-  setStatus(`Loaded settings from card: PD1 ${performanceSettings.pd}, PD2 ${performanceSettings.pd2}, detune ${performanceSettings.detune}, osc1 wave ${WAVE_FAMILIES[performanceSettings.waveform] || performanceSettings.waveform}, osc2 wave ${WAVE_FAMILIES[performanceSettings.waveform2] || performanceSettings.waveform2}${supportsRecipeBankSettings() ? `, recipe bank ${RECIPE_BANKS[performanceSettings.recipeBank] || performanceSettings.recipeBank}` : ""}, ring ${performanceSettings.ring}, noise ${performanceSettings.noise}, MIDI in ch ${performanceSettings.midiInChannel}, Turing ${performanceSettings.turingRange} oct, Turing MIDI ${performanceSettings.turingMidiOut ? "on" : "off"} ch ${performanceSettings.turingMidiChannel}.`);
+  if (!quietSettingsResponse) {
+    setStatus(`Loaded settings from card: PD1 ${performanceSettings.pd}, PD2 ${performanceSettings.pd2}, detune ${performanceSettings.detune}, osc1 wave ${WAVE_FAMILIES[performanceSettings.waveform] || performanceSettings.waveform}, osc2 wave ${WAVE_FAMILIES[performanceSettings.waveform2] || performanceSettings.waveform2}${supportsRecipeBankSettings() ? `, recipe bank ${RECIPE_BANKS[performanceSettings.recipeBank] || performanceSettings.recipeBank}` : ""}, ring ${performanceSettings.ring}, noise ${performanceSettings.noise}, MIDI in ch ${performanceSettings.midiInChannel}, Turing ${performanceSettings.turingRange} oct, Turing MIDI ${performanceSettings.turingMidiOut ? "on" : "off"} ch ${performanceSettings.turingMidiChannel}.`);
+  }
 }
 
 function downloadJson() {
@@ -3369,7 +3415,7 @@ function sendSettingsFrames(output, command, delayMs = 0) {
   }
 }
 
-async function requestPerformanceSettings(isProbe = false) {
+async function requestPerformanceSettings(isProbe = false, options = {}) {
   if (!midiAccess) {
     await connectMidi();
   }
@@ -3381,6 +3427,7 @@ async function requestPerformanceSettings(isProbe = false) {
     return false;
   }
 
+  settingsRequestQuiet = Boolean(options.quiet);
   const result = new Promise((resolve) => {
     settingsRequestResolver = resolve;
     settingsRequestPending = true;
@@ -3392,6 +3439,7 @@ async function requestPerformanceSettings(isProbe = false) {
         settingsRequestResolver(false);
         settingsRequestResolver = null;
       }
+      settingsRequestQuiet = false;
       if (!isProbe) setStatus("The card did not reply to Read Settings from Card.");
     }, SETTINGS_READ_TIMEOUT_MS);
   });
@@ -3406,6 +3454,7 @@ async function requestPerformanceSettings(isProbe = false) {
     });
   } catch (error) {
     settingsRequestPending = false;
+    settingsRequestQuiet = false;
     if (settingsRequestTimer !== null) {
       window.clearTimeout(settingsRequestTimer);
       settingsRequestTimer = null;

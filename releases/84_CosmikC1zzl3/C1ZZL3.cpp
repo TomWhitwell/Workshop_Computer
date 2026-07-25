@@ -653,6 +653,7 @@ private:
             envelopeHeld,
             envelopeReleaseRequested,
             loopEnabled,
+            defaultSustainStageFor(program.amp),
             true);
 
         bool pdDone = updateEnvelopeRunner(
@@ -664,6 +665,7 @@ private:
             envelopeHeld,
             envelopeReleaseRequested,
             loopEnabled,
+            defaultSustainStageFor(program.pd),
             false);
 
         bool pitchDone = updateEnvelopeRunner(
@@ -675,10 +677,14 @@ private:
             envelopeHeld,
             envelopeReleaseRequested,
             loopEnabled,
+            defaultSustainStageFor(program.pitch),
             false);
 
         if (ampDone && pdDone && pitchDone)
         {
+            if (envelopeHeld && !envelopeReleaseRequested)
+                return clamp12(ampEnvelopeLevel);
+
             envelopeActive = false;
             envelopeHeld = false;
             envelopeReleaseRequested = false;
@@ -1355,6 +1361,17 @@ private:
         }
     }
 
+    uint8_t defaultSustainStageFor(const EnvelopeStage* stages)
+    {
+        for (int32_t i = 7; i >= 0; --i)
+        {
+            if (stages[i].level > 0)
+                return (uint8_t)i;
+        }
+
+        return 8u;
+    }
+
     bool updateEnvelopeRunner(
         const EnvelopeStage* stages,
         uint8_t& stage,
@@ -1364,10 +1381,14 @@ private:
         bool held,
         bool releaseRequested,
         bool loopEnabled,
+        uint8_t sustainStage,
         bool deClickOnLoop)
     {
         if (stage >= 8)
             return true;
+
+        if (held && !releaseRequested && sustainStage < 8u && stage > sustainStage)
+            return false;
 
         if (loopEnabled && stage > EnvelopeLoopEndStage && held && !releaseRequested)
         {
@@ -1404,7 +1425,8 @@ private:
 
     bool envelopeLoopEnabled(const EnvelopeProgram& program)
     {
-        return laneHasLoopBody(program.amp) || laneHasLoopBody(program.pd);
+        (void)program;
+        return false;
     }
 
     bool laneHasLoopBody(const EnvelopeStage* stages)
