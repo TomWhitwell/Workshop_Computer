@@ -165,7 +165,7 @@ tag_labels:
   - Acid
 source_file: data/cards/Fr330hfr33.yml
 metadata:
-  creator: Adrian Vos
+  creator: Adrian Vos with LLM/AI assistance
   language: Pico SDK
   version: 0.9.3
   status: Stable

@@ -115,7 +115,7 @@ readme_url: >-
 download_url: >-
   https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/58_LoChoVibes/UF2/LoChoVibes.uf2
 metadata:
-  creator: Adrian Vos
+  creator: Adrian Vos with LLM/AI assistance
   language: C++
   version: 0.1.0
   status: released

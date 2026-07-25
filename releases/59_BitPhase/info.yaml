@@ -111,7 +111,7 @@ readme_url: >-
 download_url: >-
   https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/59_BitPhase/UF2/BitPhase.uf2
 metadata:
-  creator: Adrian Vos
+  creator: Adrian Vos with LLM/AI assistance
   language: C++ (Pico SDK)
   version: 0.1.0
   status: Beta

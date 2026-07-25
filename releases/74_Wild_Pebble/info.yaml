@@ -98,7 +98,7 @@ readme_url: >-
 download_url: >-
   https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/74_Wild_Pebble/UF2/WildPebble.uf2
 metadata:
-  creator: Adrian Vos with Vibecode support
+  creator: Adrian Vos with LLM/AI assistance and Vibecode support
   language: C++
   version: 1
   status: Beta. USB MIDI clock input and sequencer note output tested

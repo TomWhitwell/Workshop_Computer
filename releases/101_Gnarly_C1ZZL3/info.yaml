@@ -123,7 +123,7 @@ readme_url: >-
 download_url: >-
   https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/101_Gnarly_C1ZZL3/uf2/C1ZZL3_GNARLY_V11.uf2
 metadata:
-  creator: Adrian Vos
+  creator: Adrian Vos with LLM/AI assistance
   language: C++ (Pico SDK)
   version: Gnarly protocol v11 stable
   status: Stable

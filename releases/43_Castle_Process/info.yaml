@@ -8,7 +8,7 @@ summary: >-
   bass pulse layer. It is designed as a playable sound-destruction tool rather than
   a clean effect or faithful clone.
 Language: C++
-Creator: Adrian Vos
+Creator: Adrian Vos with LLM/AI assistance
 release: 43 / 0.9.0
 License: MIT
 date: 2026-06-26
@@ -134,7 +134,7 @@ tag_labels:
   - Lo-Fi
 source_file: releases/43_Castle_Process/info.yaml
 metadata:
-  creator: Adrian Vos
+  creator: Adrian Vos with LLM/AI assistance
   language: C++
   version: 1.0
   status: Release Candidate

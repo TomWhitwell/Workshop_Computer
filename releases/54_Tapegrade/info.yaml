@@ -121,7 +121,7 @@ readme_url: >-
 download_url: >-
   https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/54_Tapegrade/UF2/Tapegrade.uf2
 metadata:
-  creator: Adrian Vos
+  creator: Adrian Vos with LLM/AI assistance
   language: C++ (RP2040 Pico SDK)
   version: 0.8.0
   status: WIP (functional)

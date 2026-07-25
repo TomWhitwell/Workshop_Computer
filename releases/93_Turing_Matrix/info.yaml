@@ -133,7 +133,7 @@ readme_url: >-
 download_url: >-
   https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/93_Turing_Matrix/uf2/TuringMatrix.uf2
 metadata:
-  creator: Adrian Vos from initial code by Tom Whitwell / Music Thing Modular / Chris Johnson
+  creator: Adrian Vos with LLM/AI assistance; based on initial code by Tom Whitwell / Music Thing Modular / Chris Johnson
   language: C++ (ComputerCard)
   version: 0.1.0-beta
   status: Beta release candidate

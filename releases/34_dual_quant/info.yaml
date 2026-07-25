@@ -80,7 +80,7 @@ readme_url: >-
 download_url: >-
   https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/34_dual_quant/UF2/dual_quant_pitch.uf2
 metadata:
-  creator: Adrian Vos
+  creator: Adrian Vos with LLM/AI assistance
   language: C++ (ComputerCard / Pico SDK)
   version: 1
   status: Beta
