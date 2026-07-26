@@ -122,9 +122,9 @@ Start from it. (`snapshots/bakedasm.z80` is the assembled version that gets bake
 
 USB-MIDI / WebMIDI SysEx — **Chrome or Edge**, no install.
 
-> **The web app is the file [`interface.html`](interface.html)** (repo root). Open it
-> in Chrome/Edge, plug the card into USB, and click **Connect**. (Pause the card —
-> switch Up — while uploading.)
+> **Open the web app: <https://uglifruit.github.io/WorkshopZX/interface.html>**
+> (or the local [`interface.html`](interface.html) copy). Chrome/Edge, plug the card
+> into USB, click **Connect**. Pause the card (switch Up) while uploading.
 
 - **Upload** `.z80` / `.sna` / `.ay` / `.pt3`.
 - **Remap** inputs on a clickable QWERTY keyboard, with **Kempston**, **→ Port** and
