@@ -3028,16 +3028,6 @@ function handleMidi(event) {
     handleSysexResponse(event.data);
     return;
   }
-
-  const [status, note, velocity] = event.data;
-  const type = status & 0xf0;
-  if (type === 0x90 && velocity > 0) {
-    el.pitchInput.value = note;
-    audition(note);
-  }
-  if (type === 0x80 || (type === 0x90 && velocity === 0)) {
-    stopAudio();
-  }
 }
 
 function handleSysexResponse(data) {

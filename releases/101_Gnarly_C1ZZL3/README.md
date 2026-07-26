@@ -80,6 +80,52 @@ Switch down hold: performance and bank page.
 - Bank 3: brighter resonant/windowed pairings.
 - Bank 4: odd/import-faithful CZ-style pairings for translated patches.
 
+Each oscillator recipe slot chooses one entry from the current bank. In Bank 1
+the slots are the eight plain C1ZZL3 wave families. In Banks 2 to 4 the slots
+become fixed compound recipes:
+
+- Bank 1:
+  Slot 1 `Saw`
+  Slot 2 `Square`
+  Slot 3 `Narrow pulse`
+  Slot 4 `Double sine`
+  Slot 5 `Saw pulse`
+  Slot 6 `Resonant saw window`
+  Slot 7 `Resonant triangle window`
+  Slot 8 `Resonant trapezoid window`
+- Bank 2:
+  Slot 1 `Double sine + Saw`
+  Slot 2 `Double sine + Square`
+  Slot 3 `Saw + Double sine`
+  Slot 4 `Square + Double sine`
+  Slot 5 `Narrow pulse + Double sine`
+  Slot 6 `Saw pulse + Double sine`
+  Slot 7 `Resonant triangle window + Double sine`
+  Slot 8 `Resonant trapezoid window + Double sine`
+- Bank 3:
+  Slot 1 `Resonant saw window + Saw`
+  Slot 2 `Resonant triangle window + Square`
+  Slot 3 `Resonant trapezoid window + Narrow pulse`
+  Slot 4 `Resonant saw window + Saw pulse`
+  Slot 5 `Resonant triangle window + Saw pulse`
+  Slot 6 `Resonant trapezoid window + Saw pulse`
+  Slot 7 `Resonant saw window + Narrow pulse`
+  Slot 8 `Resonant trapezoid window + Square`
+- Bank 4:
+  Slot 1 `Saw pulse + Double sine`
+  Slot 2 `Resonant triangle window + Double sine`
+  Slot 3 `Saw pulse + Narrow pulse`
+  Slot 4 `Resonant trapezoid window + Double sine`
+  Slot 5 `Resonant saw window + Saw pulse`
+  Slot 6 `Narrow pulse + Resonant trapezoid window`
+  Slot 7 `Square + Resonant saw window`
+  Slot 8 `Resonant triangle window + Narrow pulse`
+
+These are not equal 50/50 blends. Each recipe leans toward its first waveform,
+with the second waveform mixed in at a fixed amount chosen in the firmware.
+That is why some pairings feel like a coloured version of one family rather
+than a completely even hybrid.
+
 On the switch-down page, LEDs 1 and 2 show the selected recipe bank:
 
 - Bank 1: LEDs 1 and 2 off.

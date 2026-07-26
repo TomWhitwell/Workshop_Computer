@@ -41,6 +41,15 @@ Bank 2: warm compound pairings
 Bank 3: bright resonant/windowed pairings
 Bank 4: odd/import-faithful CZ-style pairings
 
+Recipe slot examples
+--------------------
+Bank 1: Saw, Square, Narrow pulse, Double sine, Saw pulse, Resonant saw, Resonant triangle, Resonant trapezoid
+Bank 2: Double sine + Saw, Double sine + Square, Saw + Double sine, Square + Double sine, Narrow pulse + Double sine, Saw pulse + Double sine, Resonant triangle + Double sine, Resonant trapezoid + Double sine
+Bank 3: Resonant saw + Saw, Resonant triangle + Square, Resonant trapezoid + Narrow pulse, Resonant saw + Saw pulse, Resonant triangle + Saw pulse, Resonant trapezoid + Saw pulse, Resonant saw + Narrow pulse, Resonant trapezoid + Square
+Bank 4: Saw pulse + Double sine, Resonant triangle + Double sine, Saw pulse + Narrow pulse, Resonant trapezoid + Double sine, Resonant saw + Saw pulse, Narrow pulse + Resonant trapezoid, Square + Resonant saw, Resonant triangle + Narrow pulse
+
+Recipes are weighted blends, not exact 50/50 mixes.
+
 Bank LEDs on switch-down page
 -----------------------------
 Bank 1: LEDs 1 and 2 off
