@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZX — Workshop Computer Web UI</title>
+<style>
+  :root { --bg:#12131a; --fg:#e8e8ef; --dim:#9aa0b4; --accent:#e03030; --panel:#1c1e28; --line:#2c2f3d; --ok:#38d66b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--fg); line-height:1.5; }
+  header { padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  h1 { font-size:20px; margin:0; letter-spacing:0.5px; }
+  h1 span { color:var(--accent); }
+  /* ZX Spectrum diagonal flash stripes: ONE each of red / yellow / green / cyan */
+  .zxstripes {
+    width:56px; height:34px; border-radius:4px; flex:0 0 auto;
+    background: linear-gradient(
+      -45deg,
+      #00d0d0 0, #00d0d0 25%,
+      #00d000 25%, #00d000 50%,
+      #d0d000 50%, #d0d000 75%,
+      #d00000 75%, #d00000 100% );
+  }
+  .status { margin-left:auto; font-size:13px; color:var(--dim); }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:#555; margin-right:6px; vertical-align:middle; }
+  .dot.on { background:var(--ok); }
+  main { max-width:860px; margin:0 auto; padding:20px; display:grid; gap:20px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  .panel h2 { margin:0 0 12px; font-size:15px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; }
+  button { background:#262a38; color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:9px 14px; font-size:14px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button:disabled { opacity:0.4; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  progress { width:100%; height:10px; }
+  .hint { font-size:13px; color:var(--dim); }
+  /* keyboard */
+  .kb { display:grid; gap:6px; }
+  .kbrow { display:flex; gap:6px; justify-content:center; }
+  .key { min-width:42px; height:44px; background:#262a38; border:1px solid var(--line); border-radius:6px;
+         display:flex; align-items:center; justify-content:center; font-size:13px; cursor:pointer; user-select:none; }
+  .key:hover { border-color:var(--accent); }
+  .key.assigned { background:#2a3550; border-color:#4a6; }
+  .key.picking { outline:2px solid var(--accent); }
+  /* mapping layout: compact table on the left, keyboard on the right */
+  .maplayout { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+  table { border-collapse:collapse; flex:0 0 auto; }
+  td { padding:5px 4px; border-bottom:1px solid var(--line); font-size:13px; white-space:nowrap; }
+  td.name { color:var(--dim); padding-right:12px; }
+  .kb { flex:1 1 380px; }
+  .srckey { display:inline-block; min-width:52px; padding:4px 8px; background:#2a3550; border-radius:5px;
+            text-align:center; cursor:pointer; }
+  .srckey:hover { outline:1px solid var(--accent); }
+  /* connection banner */
+  .banner { display:flex; align-items:center; justify-content:center; gap:20px; padding:16px;
+            font-size:18px; font-weight:700; letter-spacing:0.5px; }
+  .banner.off { background:#3a1414; color:#ff8080; }
+  .banner.on  { background:#123322; color:var(--ok); }
+  .banner button { font-size:15px; }
+  main.locked .panel:not(.always) { opacity:0.35; pointer-events:none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="zxstripes"></div>
+  <h1>Z<span>X</span> · Workshop Computer</h1>
+</header>
+
+<!-- Big, unmistakable connection banner -->
+<div id="banner" class="banner off">
+  <div id="bannerText">● NOT CONNECTED</div>
+  <button id="connectBtn" class="primary">Connect to card</button>
+</div>
+
+<main>
+  <p class="hint" style="text-align:center">
+    Use <b>Chrome</b> or <b>Edge</b>. Snapshot upload needs the card switch <b>Up</b> (Pause);
+    key remapping works any time.
+  </p>
+
+  <div class="panel">
+    <h2>Snapshot / music upload (.z80 / .sna / .ay / .pt3)</h2>
+    <div class="row">
+      <input type="file" id="fileInput" accept=".z80,.sna,.ay,.pt3">
+      <button id="uploadBtn" disabled>Upload to card</button>
+    </div>
+    <p class="hint">Accepts <b>.z80</b> (v1/v2/v3), <b>.sna</b> (48K/128K) snapshots, and <b>.ay</b> / <b>.pt3</b> (Vortex Tracker) chip-music. Upload with the card switch <b>Up</b> (Pause).</p>
+    <progress id="prog" value="0" max="1" style="display:none"></progress>
+    <div id="uploadStatus" class="hint"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Input mapping</h2>
+    <p class="hint">Click an <b>input</b> on the left, then click a <b>key</b> to assign it.</p>
+    <div class="maplayout">
+      <table id="mapTable">
+        <tbody></tbody>
+      </table>
+      <div id="kb" class="kb"></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button id="getMapBtn" disabled>Read from card</button>
+      <button id="setMapBtn" class="primary" disabled>Send to card</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>CV Out 2 — memory probe</h2>
+    <div class="row">
+      <label>Address <input type="number" id="probeAddr" min="0" max="65535" value="16384" style="width:8em"></label>
+      <button id="probeBtn" disabled>Send</button>
+      <span class="hint">Outputs RAM[address] (0–255) as 0–5V on CV Out 2. Default 16384 = screen memory (flickers with the display). Try a game variable for a live CV.</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Keyboard passthrough</h2>
+    <div class="row">
+      <label class="row" style="gap:8px; cursor:pointer">
+        <input type="checkbox" id="passBox"> <b>Type on your laptop → the Spectrum</b>
+      </label>
+      <span id="passState" class="hint">off</span>
+    </div>
+    <p class="hint">While on, your keystrokes are sent as Spectrum keypresses. Letters, digits,
+      Enter and Space map directly; use <b>Shift</b> for CAPS SHIFT and <b>Alt</b> for SYMBOL SHIFT.
+      Shift+0 (or Backspace) = DELETE. (Click back on the page if focus is lost.)</p>
+  </div>
+</main>
+
+<script>
+// ---- protocol (must match webui.h) ----------------------------------------
+const MANUF = 0x7D;
+const MSG = { HELLO:0x01, INFO:0x02, MAP_GET:0x20, MAP_REPORT:0x21, MAP_SET:0x22,
+              KEY:0x40, KEY_RESET:0x41, SET_PROBE:0x60,
+              LOAD_BEGIN:0x50, LOAD_PAGE:0x51, LOAD_END:0x52, STATUS:0x30 };
+
+// Spectrum matrix order (must match kKeyTable in spectrum.cpp). This defines the
+// INDEX (0..39) each key maps to — the value the firmware expects.
+const MATRIX = [
+  ["CAPS","Z","X","C","V"],
+  ["A","S","D","F","G"],
+  ["Q","W","E","R","T"],
+  ["1","2","3","4","5"],
+  ["0","9","8","7","6"],
+  ["P","O","I","U","Y"],
+  ["ENTER","L","K","J","H"],
+  ["SPACE","SYM","M","N","B"],
+];
+const KEYLABELS = [];               // index -> label
+MATRIX.forEach(r => r.forEach(k => KEYLABELS.push(k)));
+const IDX = {};                     // label -> index
+KEYLABELS.forEach((l,i)=>IDX[l]=i);
+const KEY_NONE = 0xFF;
+
+// QWERTY DISPLAY layout — the familiar arrangement the user sees. Each entry is
+// a label that resolves to its matrix index via IDX. (SYM = symbol shift.)
+const QWERTY = [
+  ["1","2","3","4","5","6","7","8","9","0"],
+  ["Q","W","E","R","T","Y","U","I","O","P"],
+  ["A","S","D","F","G","H","J","K","L","ENTER"],
+  ["CAPS","Z","X","C","V","B","N","M","SYM","SPACE"],
+];
+
+// Input sources, matching enum Source in mapping.h.
+const SOURCES = ["Pulse In 1","Pulse In 2","CV In 1","CV In 2","Audio In 1","Audio In 2","Switch Down"];
+const TGT_NONE = 0, TGT_KEY = 1, TGT_KEMPSTON = 2, TGT_PORT = 3;
+// Fixed Z80 port (low byte) each source appears on when mapped to Port, matching
+// kSourcePort in mapping.h. Index = source.
+const SRC_PORT = [0xAF, 0xBF, 0x6F, 0x7F, 0x8F, 0x9F, 0xCF];
+// Kempston bits (port 0x1F: 000FUDLR), matching mapping.h.
+const KEMP = { RIGHT:0x01, LEFT:0x02, DOWN:0x04, UP:0x08, FIRE:0x10 };
+const KEMP_LABEL = { 0x08:"K:Up", 0x04:"K:Down", 0x02:"K:Left", 0x01:"K:Right", 0x10:"K:Fire" };
+
+let midiOut = null, midiIn = null;
+// mapping[s] = {kind, key, kemp}. key = matrix index (TGT_KEY); kemp = bitmask (TGT_KEMPSTON).
+let mapping = SOURCES.map(()=>({kind:TGT_KEY, key:KEY_NONE, kemp:0}));
+let pickingSource = null;
+
+// ---- 7-bit encode (matches Encode7bit) ------------------------------------
+function encode7(bytes){
+  const out = [];
+  for(let i=0;i<bytes.length;i+=7){
+    const n = Math.min(7, bytes.length-i);
+    let high=0;
+    for(let j=0;j<n;j++) if(bytes[i+j]&0x80) high|=(1<<j);
+    out.push(high);
+    for(let j=0;j<n;j++) out.push(bytes[i+j]&0x7F);
+  }
+  return out;
+}
+
+function sendSysex(payload){
+  if(!midiOut) return;
+  midiOut.send([0xF0, MANUF, ...payload, 0xF7]);
+}
+
+// ---- WebMIDI connect ------------------------------------------------------
+document.getElementById('connectBtn').onclick = async () => {
+  try {
+    const midi = await navigator.requestMIDIAccess({sysex:true});
+    for(const o of midi.outputs.values()) if(/ZX|Workshop|MTM/i.test(o.name)) midiOut=o;
+    for(const i of midi.inputs.values()) if(/ZX|Workshop|MTM/i.test(i.name)) midiIn=i;
+    if(!midiOut){ // fall back to first available
+      midiOut = [...midi.outputs.values()][0];
+      midiIn  = [...midi.inputs.values()][0];
+    }
+    if(midiIn) midiIn.onmidimessage = onMidi;
+    if(midiOut){
+      setStatus(true, "CONNECTED — "+midiOut.name);
+      ['getMapBtn','setMapBtn','probeBtn'].forEach(id=>document.getElementById(id).disabled=false);
+      sendSysex([MSG.HELLO]);
+      sendSysex([MSG.MAP_GET]);
+    } else setStatus(false,"No card found — is it plugged in?");
+  } catch(e){ setStatus(false,"WebMIDI failed: "+e.message); }
+};
+
+function setStatus(on, text){
+  const banner = document.getElementById('banner');
+  banner.className = 'banner ' + (on?'on':'off');
+  document.getElementById('bannerText').textContent = (on?'● ':'● ') + text;
+  document.getElementById('connectBtn').textContent = on ? 'Reconnect' : 'Connect to card';
+  document.querySelector('main').classList.toggle('locked', !on);
+}
+setStatus(false, "NOT CONNECTED");
+
+// ---- incoming ------------------------------------------------------------
+function onMidi(ev){
+  const d = ev.data;
+  if(d[0]!==0xF0 || d[1]!==MANUF) return;
+  const p = d.slice(2, d[d.length-1]===0xF7 ? -1 : undefined);
+  const id = p[0];
+  if(id===MSG.INFO){
+    setStatus(true, `Connected — firmware v${p[1]}.${p[2]}.${p[3]}`);
+  } else if(id===MSG.MAP_REPORT){
+    const count = p[1];
+    for(let s=0;s<count;s++){
+      const base = 2+s*3;
+      { const kind=p[base], arg=p[base+1];
+        mapping[s] = (kind===TGT_KEMPSTON)
+          ? { kind, key:KEY_NONE, kemp:arg }
+          : { kind, key:arg, kemp:0 }; }
+    }
+    renderMapping(); renderKeyboard();   // refresh QWERTY highlights too
+  } else if(id===MSG.STATUS){
+    document.getElementById('uploadStatus').textContent =
+      p[1]===1 ? "✓ Loaded — flick switch to Middle to run." :
+      p[1]===2 ? "Mapping updated." :
+      p[1]===4 ? "Sending RAM…" :
+      "Status "+p[1];
+  }
+}
+
+// ---- snapshot decode (in the BROWSER) ------------------------------------
+// Parse a .z80 (v1/v2/v3) or .sna (48K/128K) into { state[30 bytes], ram: 8x
+// Uint8Array(16384) } — the firmware then just stores it (no parsing on the MCU).
+// state layout matches ApplyDecoded() in webui.cpp.
+
+function rleDecompress(src, si, end, dst, dstMax){
+  let di=0;
+  while(si<end && di<dstMax){
+    if(si+3<end && src[si]===0xED && src[si+1]===0xED){
+      let count=src[si+2], val=src[si+3]; si+=4;
+      for(let k=0;k<count && di<dstMax;k++) dst[di++]=val;
+    } else dst[di++]=src[si++];
+  }
+  return di;
+}
+function makeState(){ return new Uint8Array(30); }
+function emptyRam(){ return [0,1,2,3,4,5,6,7].map(()=>new Uint8Array(16384)); }
+
+function parseZ80(d){
+  const st = makeState(); const ram = emptyRam();
+  const pc1 = d[6] | (d[7]<<8);
+  // common v1 registers
+  st[0]=d[0]; st[1]=d[1]; st[2]=d[2]; st[3]=d[3]; st[4]=d[13]; st[5]=d[14];
+  st[6]=d[4]; st[7]=d[5]; st[10]=d[8]; st[11]=d[9]; st[12]=d[10];
+  st[13]=(d[11]&0x7F)|((d[12]&1)<<7);
+  const byte12 = d[12]===255?1:d[12];
+  st[15] = (byte12>>1)&7; // border
+  st[14] = (d[29]&3) | ((d[27]?1:0)<<2) | ((d[28]?1:0)<<3); // IM + IFF1/2
+  st[18]=d[21]; st[19]=d[22]; st[20]=d[15]; st[21]=d[16];
+  st[22]=d[17]; st[23]=d[18]; st[24]=d[19]; st[25]=d[20];
+  st[26]=d[25]; st[27]=d[26]; st[28]=d[23]; st[29]=d[24];
+
+  function put48(flat){ // flat = 48KB at 0x4000..: banks 5,2,0
+    ram[5].set(flat.subarray(0,16384));
+    ram[2].set(flat.subarray(16384,32768));
+    ram[0].set(flat.subarray(32768,49152));
+  }
+
+  if(pc1!==0){
+    // v1: 48K, PC in header, single (maybe compressed) 48KB block from offset 30
+    st[8]=d[6]; st[9]=d[7]; st[16]=0x10; st[17]=0;
+    const flat=new Uint8Array(49152);
+    if(byte12 & 0x20) rleDecompress(d,30,d.length,flat,49152);
+    else flat.set(d.subarray(30, Math.min(d.length,30+49152)));
+    put48(flat);
+    return {st,ram,is128:false};
+  }
+  // v2/v3
+  const extLen = d[30]|(d[31]<<8);
+  const hdrEnd = 32+extLen;
+  st[8]=d[32]; st[9]=d[33];
+  const hw=d[34];
+  const is128 = (extLen===23)? hw>=3 : hw>=4;
+  st[16] = is128 ? d[35] : 0x10; st[17]= is128?1:0;
+  let off=hdrEnd;
+  while(off+3<=d.length){
+    const blen=d[off]|(d[off+1]<<8); const page=d[off+2]; off+=3;
+    const uncompressed = blen===0xFFFF; const dl = uncompressed?0x4000:blen;
+    const tmp=new Uint8Array(16384);
+    if(uncompressed) tmp.set(d.subarray(off,off+0x4000));
+    else rleDecompress(d,off,off+dl,tmp,16384);
+    off+=dl;
+    // page->bank
+    let bank=-1;
+    if(is128){ if(page>=3&&page<=10) bank=page-3; }
+    else { if(page===8)bank=5; else if(page===4)bank=2; else if(page===5)bank=0; }
+    if(bank>=0&&bank<8) ram[bank].set(tmp);
+  }
+  return {st,ram,is128};
+}
+
+function parseSNA(d){
+  const st=makeState(); const ram=emptyRam();
+  st[12]=d[0]; st[24]=d[1]; st[25]=d[2]; st[22]=d[3]; st[23]=d[4];
+  st[20]=d[5]; st[21]=d[6]; st[19]=d[7]; st[18]=d[8];
+  st[6]=d[9]; st[7]=d[10]; st[4]=d[11]; st[5]=d[12]; st[2]=d[13]; st[3]=d[14];
+  st[28]=d[15]; st[29]=d[16]; st[26]=d[17]; st[27]=d[18];
+  const iff2=(d[19]&0x04)?1:0;
+  st[13]=d[20]; st[1]=d[21]; st[0]=d[22];
+  st[10]=d[23]; st[11]=d[24]; st[14]=(d[25]&3)|(iff2<<2)|(iff2<<3); st[15]=d[26]&7;
+  st[16]=0x10; st[17]=0;
+  const flat=d.subarray(27,27+49152);
+  ram[5].set(flat.subarray(0,16384));
+  ram[2].set(flat.subarray(16384,32768));
+  ram[0].set(flat.subarray(32768,49152));
+  if(d.length>=27+49152+4){
+    // 128K tail: PC(2), 0x7FFD(1), TRDOS(1), then extra banks
+    const t=27+49152;
+    st[8]=d[t]; st[9]=d[t+1]; st[16]=d[t+2]; st[17]=1;
+    let bi=t+4; const pagedIn=d[t+2]&7;
+    for(let page=0;page<8 && bi+16384<=d.length;page++){
+      if(page===5||page===2||page===pagedIn) continue;
+      ram[page].set(d.subarray(bi,bi+16384)); bi+=16384;
+    }
+  } else {
+    // 48K: PC popped from stack
+    const sp=st[10]|(st[11]<<8);
+    const addr=sp-0x4000;
+    const lo=flat[addr], hi=flat[addr+1];
+    st[8]=lo; st[9]=hi;
+    const nsp=(sp+2)&0xFFFF; st[10]=nsp&0xFF; st[11]=nsp>>8;
+  }
+  return {st,ram,is128:d.length>27+49152};
+}
+
+// Parse an .ay music file (ZXAY/EMUL) into {st, ram, is128:false, isAY:true}.
+// Lays out the 48K memory with the song's blocks + a small player stub, and sets
+// the state block so the machine runs the stub (which calls Init then, each 50Hz
+// interrupt, calls the song's Interrupt routine). Needs the 48K ROM (firmware
+// pages it in for AY mode). Multi-byte fields are BIG-ENDIAN; pointers are signed
+// BE16 offsets relative to their own address.
+function parseAY(d, songIndex=0){
+  const A=(s)=>String.fromCharCode(d[s],d[s+1],d[s+2],d[s+3]);
+  if(A(0)!=='ZXAY') throw new Error('not a ZXAY file');
+  const be16=(o)=>(d[o]<<8)|d[o+1];
+  const sbe16=(o)=>{const v=be16(o); return v>=0x8000?v-0x10000:v;};
+  const rel=(o)=>o+sbe16(o);                 // pointer = offset relative to field
+  const numSongs=d[16]+1;
+  let idx=Math.max(0,Math.min(songIndex,numSongs-1));
+  const pSongs=rel(18);
+  const sData=rel(pSongs+idx*4+2);
+  const pPoints=rel(sData+10), pAddr=rel(sData+12);
+  const stack=be16(pPoints), init=be16(pPoints+2), interrupt=be16(pPoints+4);
+
+  const ram=emptyRam();                       // 8x16KB (only 5,2,0 used in 48K map)
+  const flat=new Uint8Array(0x10000);         // full 64K address image (0..FFFF)
+  // Player version 2/3: fill 0x0000-0x00FF with 0xC9 (RET) is done in ROM area,
+  // but our 0x0000-0x3FFF is ROM — the .ay player relies on the 48K ROM there.
+  // Load the song's memory blocks.
+  let o=pAddr;
+  while(be16(o)!==0){
+    const addr=be16(o), len=be16(o+2), pdata=rel(o+4);
+    for(let i=0;i<len && addr+i<=0xFFFF && pdata+i<d.length;i++)
+      flat[addr+i]=d[pdata+i];
+    o+=6;
+  }
+
+  // --- Self-contained player harness (no ROM dependency) --------------------
+  // The .ay player provides Init and Interrupt but does NOT set up interrupts
+  // itself. We drive it with IM2 so we don't rely on the 48K ROM's 0x38 handler
+  // (which needs the system-variables area / IY set up). Layout in free RAM:
+  //   0x5D00        : driver code (PC starts here)
+  //   0x5E00        : trivial INT handler (EI; RET)  -> just wakes HALT
+  //   0x5F00..0x6000: 257-byte IM2 vector table, all bytes = 0x5E (-> handler
+  //                   at 0x5E5E). I register = 0x5F.
+  const HANDLER=0x5E5E, TABLE=0x5F00, IREG=0x5F, DRIVER=0x5D00;
+
+  // IM2 vector table: 257 bytes all = 0x5E so any vector -> 0x5E5E.
+  for(let i=0;i<=256;i++) flat[TABLE+i]=0x5E;
+  // INT handler at 0x5E5E: EI; RET  (the frame INT just wakes HALT).
+  flat[HANDLER+0]=0xFB; flat[HANDLER+1]=0xC9;
+
+  // Driver at 0x5D00:
+  //   DI; IM2; LD A,0x5F; LD I,A;
+  //   LD HL,songnum; LD DE,0; LD A,songnum; CALL Init;
+  //   EI
+  // loop: HALT; CALL Interrupt; JR loop
+  const drv=[
+    0xF3,                             // DI
+    0xED,0x5E,                        // IM2
+    0x3E, IREG, 0xED,0x47,            // LD A,0x5F ; LD I,A
+    0x21, idx&0xFF,(idx>>8)&0xFF,     // LD HL,songnum
+    0x11, 0x00,0x00,                  // LD DE,0
+    0x3E, idx&0xFF,                   // LD A,songnum
+    0xCD, init&0xFF,(init>>8)&0xFF,   // CALL Init
+    0xFB,                             // EI
+    0x76,                             // HALT   <- loop
+    0xCD, interrupt&0xFF,(interrupt>>8)&0xFF, // CALL Interrupt
+    0x18, 0xFA,                       // JR loop (-6)
+  ];
+  for(let i=0;i<drv.length;i++) flat[DRIVER+i]=drv[i];
+
+  // Map flat 0x4000-0xFFFF into RAM banks 5,2,0 (the 48K layout).
+  ram[5].set(flat.subarray(0x4000,0x8000));
+  ram[2].set(flat.subarray(0x8000,0xC000));
+  ram[0].set(flat.subarray(0xC000,0x10000));
+
+  // State block: PC=driver, SP=stack (or 0xFFFF), IM handled by the driver.
+  const st=makeState();
+  st[8]=DRIVER&0xFF; st[9]=(DRIVER>>8)&0xFF;    // PC = driver
+  const sp = stack||0xFFFF; st[10]=sp&0xFF; st[11]=(sp>>8)&0xFF;
+  st[12]=IREG;                                   // I register (for IM2 table page)
+  st[14]=2 | (1<<2) | (1<<3);                    // IM2, IFF1+IFF2 on
+  st[15]=0;                                       // border black
+  st[16]=0x10;                                    // 48K paging (ROM1 = 48 BASIC)
+  st[17]=2;                                        // mode 2 = AY
+  return {st, ram, is128:false, isAY:true};
+}
+
+// ---- PT3 (Vortex Tracker) playback ---------------------------------------
+// A .pt3 is just module DATA; we embed a PT3 player (PT3PLAYER.bin, origin
+// 0xC000) and drop the module at 0xC86E, then run: CALL 0xC000 (init — the
+// player loads HL=module itself) then HALT + CALL 0xC005 each 50Hz frame.
+// Same self-contained IM2 harness as .ay. Player is base64-embedded below.
+const PT3PLAYER_B64 = "IW7IGDrDucQYKQAAAD1WVElJIFBUMyBQbGF5ZXIgci43PSEKwMv+y0bI4SGoxjQhbMY0r2dvMrbGIrfGw6vFIqjBIj7D5RFkABl+MkXF5d3hGSILwN1eAhkjIufE0d1uA91mBBki9MQhqQAZIjfDIWkAGSKhwSEKwMu+ERzGAR/HGhP+HjAGZxpvExgH1RYAXxkZ0XwCC30CC9bwIOMhUcZ3EVLGAWwA7bA8MqjGIQHwImzGIonGIqbGIRjGItHEIl7GInvGIpjGImDGIn3GIprG3X6p1jA4BP4KOAI+BjKNwvX+BN1+/xfmByHIxdVQh18ZXiPLO5/mpzIgwevBCRrG2E/OxZFHxRGux9UGDMVOI+VG1esRFwDdJgjLOMsZGXmKdyN4incZ3SUg79ETE+EjwRDa4dF7/uQgBT79MtzHGqcoER/1h08J8TACNTU0p+1CExjr8f4FIREAVFw+FzADLV2vMnTB3SG+xg4Q5Rnr7WJ9fXzOAN13AN0jGQx55g8g7+F7/ncgARx5pyDfw6vF3TYIAM0vwwoDD4dfFgAhISEZXiNWISEhGd11A910BBhBBwcHB913EBg73XcI3Xf0GDM9IAcKA913BRgpzRPDGCTNL8MYHN13CN139MQTwwoDGLjdfgYyccLdbvrdZvsik8IRECAKA4M4loIoSTibgyglOK2DKLM4ucZgOCCDOMGCOA+DOMCHXyFoohleI1bVGNAyrMYYzt3LCYYYCN13Bt3LCcav7XNGwt35Z2/l5eXl5eUxMTHdfgXddw/J3csJlgoDAwPddwrdd/kRrsfdfgbddweHbyYAGX4jZm/lPj7ddwaHbyYAGV4jVuHtUt11Dd10Dt1e+t1W+z4+/gY4CREREd1z+t1y+woDCAoDpygB6+1S8q7CLwjtRAjddwwI3XcL3Tb+AMndywnWCgPddwqnIAc6jcL+B5883Xf5CgMICgMY1woD3Xf1yQoD3Xf0yQoD3Xf/3Xf+CgPddwCv3Xf53Xf63Xf7yQoDMqHFMqvGCgNvCgNnIqTFyQoDMkXFyd1zCDK7xgoDZwoDbyK8xq/dd/Qyq8ZnbyKpxsmHXxYA3XL0ISEhGV4jViEhIRnddQHddALJLsO6wk/C18LdwuPCLsMuw/vCDcMuwy7DLsMuwy7DLsOvMrjG3csVRuXKlsTtc+HD3W4N3WYO+dFn3X4Abzk8ujgBe913AN1+EobylsOv/mA4Aj5fhwjdbg/dZhD50SYA3X4BR4eHbzn5eDy6OAF73XcBweHdXgjdVgkZy3AoBt11CN10CesIbyYAMa7HOfnhGd1eBt1WBxkxMTHjr922BSg+3TUFIDndfhbddwXdbhfdZhh8Gd11Bt10B93LFVYgH91eGd1WGqcoAevtUvooxN1+E913Eq/ddwXddwbddwfdfgLLeSgTy3EoB/4PKAs8GAX+8SgEPd13Am945g+F8kvEr/4QOAI+D922HG8mABGuxhl+y0EgA922FDK4xst4eSgZFxfLL8svyy/dhgTLaCgD3XcEIYXFhncYDh/dhgMyrcbLaCgD3XcDeB/mSCG1xrYPd+Gv3bYKyN01CsDdrhXddxUf3X4LOAPdfgzddwrJrzKFxTK1xj0yu8YhqMY1IH8hbMY1IEwBAQEKpyA6VzKsxioLwCN+PCAIzSLAISEhfjwiC8A9h1/LEiEhIRntW6jB7XMPxfnhGURN4RkiJ8XhGSI7xTExMd0hXcbN5cHtQ9HEIYnGNSAO3SF6xgEBAc3lwe1DJ8UhpsY1IA7dIZfGAQEBzeXB7UM7xT4+MqjG3SFRxiquxs1owyKuxjq4xjK2xt0hbsYqsMbNaMMisMY6uMYyt8bdIYvGKrLGzWjDIrLGKqzGfIUytMY+Pl+Hn1cqvMYZ7VupxhkiucavIavGtigONSAKPj53ISEhGSKpxq8Rv/8B/f8hrsbteUPto0I8/g0g9e15fqf4Q+15yWQqZQABDAEMlDUwDmAgYCEBBQkLDQ8TFRklPQBdADE3TVNfcYKMnJ6gpqiqrK6uAFcfIyUpLS8zvwAdISMnKy0xVb2/ABshJSkrO01fu72/AAEAkA3YaXB2fYWNlZ2osbsM2mJobXV7g4qSnKSvuA4IanJ4foaQlqCqtL4PwHiIgJCYoLCo4LDo";
+function b64bytes(s){ const bin=atob(s); const u=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
+
+function parsePT3(d){
+  const PLAYER=0xC000, MODULE=0xC86E;
+  const ram=emptyRam();
+  const flat=new Uint8Array(0x10000);
+
+  // Player code at 0xC000, module data at 0xC86E.
+  const player=b64bytes(PT3PLAYER_B64);
+  flat.set(player, PLAYER);
+  for(let i=0;i<d.length && MODULE+i<=0xFFFF;i++) flat[MODULE+i]=d[i];
+
+  // IM2 harness (same as .ay): table 0x5F00 -> handler 0x5E5E (EI;RET); driver
+  // 0x5D00: DI; IM2; I=0x5F; CALL init(player); EI; loop HALT; CALL play; JR.
+  const HANDLER=0x5E5E, TABLE=0x5F00, IREG=0x5F, DRIVER=0x5D00;
+  for(let i=0;i<=256;i++) flat[TABLE+i]=0x5E;
+  flat[HANDLER+0]=0xFB; flat[HANDLER+1]=0xC9;
+  const drv=[
+    0xF3,                        // DI
+    0xED,0x5E,                   // IM2
+    0x3E,IREG,0xED,0x47,         // LD A,0x5F; LD I,A
+    0xCD,PLAYER&0xFF,(PLAYER>>8)&0xFF,       // CALL 0xC000 (init)
+    0xFB,                        // EI
+    0x76,                        // HALT  <- loop
+    0xCD,(PLAYER+5)&0xFF,((PLAYER+5)>>8)&0xFF, // CALL 0xC005 (play)
+    0x18,0xFA,                   // JR loop (-6)
+  ];
+  for(let i=0;i<drv.length;i++) flat[DRIVER+i]=drv[i];
+
+  ram[5].set(flat.subarray(0x4000,0x8000));
+  ram[2].set(flat.subarray(0x8000,0xC000));
+  ram[0].set(flat.subarray(0xC000,0x10000));
+
+  const st=makeState();
+  st[8]=DRIVER&0xFF; st[9]=(DRIVER>>8)&0xFF;   // PC = driver
+  st[10]=0xFF; st[11]=0xFF;                      // SP = 0xFFFF
+  st[12]=IREG; st[14]=2|(1<<2)|(1<<3);           // I; IM2; IFF on
+  st[15]=0; st[16]=0x10; st[17]=2;               // border; 48K ROM; mode = AY
+  return {st, ram, is128:false, isAY:true};
+}
+
+document.getElementById('fileInput').onchange = e => {
+  document.getElementById('uploadBtn').disabled = !(e.target.files.length && midiOut);
+};
+document.getElementById('uploadBtn').onclick = async () => {
+  const f = document.getElementById('fileInput').files[0]; if(!f) return;
+  const d = new Uint8Array(await f.arrayBuffer());
+  const isSNA = /\.sna$/i.test(f.name) || d.length===49179 || d.length===131103 || d.length===147499;
+  const isAY  = /\.ay$/i.test(f.name) || (d.length>8 && d[0]===0x5A&&d[1]===0x58&&d[2]===0x41&&d[3]===0x59); // 'ZXAY'
+  const isPT3 = /\.pt3$/i.test(f.name) || (d.length>13 && String.fromCharCode(...d.slice(0,13))==='ProTracker 3.'); // PT3 magic
+  let parsed;
+  try { parsed = isPT3 ? parsePT3(d) : isAY ? parseAY(d) : isSNA ? parseSNA(d) : parseZ80(d); }
+  catch(err){ document.getElementById('uploadStatus').textContent = "Parse error: "+err.message; return; }
+
+  const prog = document.getElementById('prog'); prog.style.display='block';
+  const totalBytes = parsed.ram.length*16384; let sent=0; prog.max=totalBytes; prog.value=0;
+  document.getElementById('uploadStatus').textContent = "Decoded in browser — sending…";
+
+  // 1) state block
+  sendSysex([MSG.LOAD_BEGIN, ...encode7(parsed.st)]);
+  await new Promise(r=>setTimeout(r,4));
+
+  // 2) RAM pages, chunked (35 raw bytes/chunk -> under the 64-byte MIDI FIFO)
+  const CHUNK=35;
+  for(let bank=0;bank<8;bank++){
+    const page=parsed.ram[bank];
+    for(let off=0;off<16384;off+=CHUNK){
+      const slice=page.subarray(off, Math.min(off+CHUNK,16384));
+      sendSysex([MSG.LOAD_PAGE, bank, (off>>7)&0x7F, off&0x7F, ...encode7(slice)]);
+      sent+=slice.length; prog.value=sent;
+      if((off & 0x3FF)===0) await new Promise(r=>setTimeout(r,1)); // periodic drain
+    }
+  }
+  sendSysex([MSG.LOAD_END]);
+  // Don't tell the user to flick the switch yet — wait for the card's load-complete
+  // (MSG_STATUS,1), which sets that message in onMidi(). Just show it's finishing.
+  document.getElementById('uploadStatus').textContent = "Sent — waiting for card…";
+};
+
+// ---- mapping UI ----------------------------------------------------------
+function mapLabel(m,s){
+  if(m.kind===TGT_KEMPSTON) return KEMP_LABEL[m.kemp] || 'K:?';
+  if(m.kind===TGT_PORT) return 'Port 0x'+SRC_PORT[s].toString(16).toUpperCase();
+  if(m.kind===TGT_KEY && m.key!==KEY_NONE) return KEYLABELS[m.key];
+  return '—';
+}
+function renderMapping(){
+  const tb = document.querySelector('#mapTable tbody'); tb.innerHTML='';
+  SOURCES.forEach((name,s)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td class="name">${name}</td><td><span class="srckey" data-src="${s}">${mapLabel(mapping[s],s)}</span></td>`;
+    tr.querySelector('.srckey').onclick = ()=>{ pickingSource=s; highlightPicking(); };
+    tb.appendChild(tr);
+  });
+  highlightPicking();
+}
+function highlightPicking(){
+  document.querySelectorAll('.srckey').forEach(e=>e.style.outline = (+e.dataset.src===pickingSource)?'2px solid var(--accent)':'');
+}
+function renderKeyboard(){
+  const kb=document.getElementById('kb'); kb.innerHTML='';
+  QWERTY.forEach(row=>{
+    const div=document.createElement('div'); div.className='kbrow';
+    row.forEach(label=>{
+      const myIdx = IDX[label];               // resolve QWERTY label -> matrix index
+      const k=document.createElement('div'); k.className='key'; k.textContent=label;
+      if(mapping.some(m=>m.kind===TGT_KEY && m.key===myIdx)) k.classList.add('assigned');
+      k.onclick=()=>{
+        if(pickingSource===null) return;      // pick a source first
+        mapping[pickingSource]={kind:TGT_KEY, key:myIdx, kemp:0};
+        pickingSource=null; renderMapping(); renderKeyboard();
+      };
+      div.appendChild(k);
+    });
+    kb.appendChild(div);
+  });
+  // Kempston joystick target row.
+  const jrow=document.createElement('div'); jrow.className='kbrow'; jrow.style.marginTop='8px';
+  [["Up",KEMP.UP],["Down",KEMP.DOWN],["Left",KEMP.LEFT],["Right",KEMP.RIGHT],["Fire",KEMP.FIRE]].forEach(([lbl,bit])=>{
+    const k=document.createElement('div'); k.className='key'; k.textContent='⤨'+lbl;
+    k.style.background='#3a2a50';
+    if(mapping.some(m=>m.kind===TGT_KEMPSTON && m.kemp===bit)) k.classList.add('assigned');
+    k.onclick=()=>{
+      if(pickingSource===null) return;
+      mapping[pickingSource]={kind:TGT_KEMPSTON, key:KEY_NONE, kemp:bit};
+      pickingSource=null; renderMapping(); renderKeyboard();
+    };
+    jrow.appendChild(k);
+  });
+  // "Port" target: expose the source's analog value at its fixed Z80 port.
+  const kp=document.createElement('div'); kp.className='key'; kp.textContent='→ Port';
+  kp.style.background='#2a4a3a'; kp.style.minWidth='72px';
+  if(mapping.some(m=>m.kind===TGT_PORT)) kp.classList.add('assigned');
+  kp.onclick=()=>{
+    if(pickingSource===null) return;
+    mapping[pickingSource]={kind:TGT_PORT, key:KEY_NONE, kemp:0};
+    pickingSource=null; renderMapping(); renderKeyboard();
+  };
+  jrow.appendChild(kp);
+  // "None": unassign the picked source (TGT_NONE).
+  const kn=document.createElement('div'); kn.className='key'; kn.textContent='✕ None';
+  kn.style.background='#4a2a2a'; kn.style.minWidth='72px';
+  kn.onclick=()=>{
+    if(pickingSource===null) return;
+    mapping[pickingSource]={kind:TGT_NONE, key:KEY_NONE, kemp:0};
+    pickingSource=null; renderMapping(); renderKeyboard();
+  };
+  jrow.appendChild(kn);
+  kb.appendChild(jrow);
+}
+document.getElementById('probeBtn').onclick = ()=>{
+  const a = (parseInt(document.getElementById('probeAddr').value)||0) & 0xFFFF;
+  sendSysex([MSG.SET_PROBE, a&0x7F, (a>>7)&0x7F, (a>>14)&0x7F]);
+};
+document.getElementById('getMapBtn').onclick = ()=> sendSysex([MSG.MAP_GET]);
+document.getElementById('setMapBtn').onclick = ()=>{
+  const payload=[MSG.MAP_SET, SOURCES.length];
+  mapping.forEach(m=>{
+    // arg = matrix key index (TGT_KEY) or Kempston bitmask (TGT_KEMPSTON).
+    const arg = (m.kind===TGT_KEMPSTON) ? m.kemp : (m.key===KEY_NONE ? KEY_NONE : m.key);
+    payload.push(m.kind & 0x7F, arg & 0x7F, 0x00); // threshold coarse=0
+  });
+  sendSysex(payload);
+};
+
+// ---- keyboard passthrough ------------------------------------------------
+// Map a browser KeyboardEvent to Spectrum matrix indices (shifted keys add CAPS).
+// Key off e.code (the PHYSICAL key) not e.key: Shift+0 gives e.key ')' (or a
+// layout-dependent symbol), so testing e.key would drop the digit. e.code stays
+// 'Digit0' regardless of Shift, so Shift+0 -> CAPS + 0 (= Spectrum DELETE) works.
+function eventToKeys(e){
+  const out=[];
+  const code = e.code;
+  // Shift -> CAPS SHIFT; Alt -> SYMBOL SHIFT. (Ctrl is avoided: Ctrl+N/T/W are
+  // browser shortcuts the page can't reliably preventDefault.)
+  if(e.getModifierState && e.getModifierState('Shift')) out.push(IDX['CAPS']);
+  if(e.getModifierState && (e.getModifierState('Alt') || e.getModifierState('AltGraph'))) out.push(IDX['SYM']);
+  let m;
+  if((m=/^Key([A-Z])$/.exec(code)))    { out.push(IDX[m[1]]); return out; }
+  if((m=/^Digit([0-9])$/.exec(code)))  { out.push(IDX[m[1]]); return out; }
+  if(code==='Enter'||code==='NumpadEnter'){ out.push(IDX['ENTER']); return out; }
+  if(code==='Space'){ out.push(IDX['SPACE']); return out; }
+  // Backspace -> Spectrum DELETE (CAPS + 0). Add CAPS if not already there.
+  if(code==='Backspace'){ if(!out.includes(IDX['CAPS'])) out.push(IDX['CAPS']); out.push(IDX['0']); return out; }
+  return out; // may be just a modifier (Shift/Ctrl alone)
+}
+const heldKeys = new Map(); // event.code -> [matrix indices] currently held
+let passthrough = false;
+const passBox = document.getElementById('passBox');
+passBox.onchange = ()=>{
+  passthrough = passBox.checked;
+  document.getElementById('passState').textContent =
+    passthrough ? 'ON — typing goes to the Spectrum' : 'off';
+  if(!passthrough && midiOut){ sendSysex([MSG.KEY_RESET]); heldKeys.clear(); }
+};
+window.addEventListener('keydown', e=>{
+  if(!passthrough || !midiOut) return;
+  if(heldKeys.has(e.code)){ e.preventDefault(); return; } // ignore auto-repeat
+  const keys = eventToKeys(e);
+  if(keys.length===0) return;
+  heldKeys.set(e.code, keys);
+  keys.forEach(idx=> sendSysex([MSG.KEY, idx & 0x7F, 1]));
+  e.preventDefault();
+});
+window.addEventListener('keyup', e=>{
+  if(!passthrough || !midiOut) return;
+  const keys = heldKeys.get(e.code);
+  if(!keys) return;
+  heldKeys.delete(e.code);
+  keys.forEach(idx=> sendSysex([MSG.KEY, idx & 0x7F, 0]));
+  e.preventDefault();
+});
+
+renderMapping(); renderKeyboard();
+</script>
+</body>
+</html>
