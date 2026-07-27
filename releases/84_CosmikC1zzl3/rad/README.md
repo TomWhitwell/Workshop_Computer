@@ -25,7 +25,7 @@ Current Rad UF2 in the shared `84` UF2 folder:
 Checksum:
 
 ```text
-fb3cb4d83497be6cfb94a56007120d15f310c184d813a1c8bb76fa304dd28733
+a425adb8f71686a3cd85cec2b4368a5a5fb61b421e196abc5a25cdcbd91eb0b0
 ```
 
 This folder packages C1ZZL3 Rad, the hardware-tested protocol v9 full-dual-oscillator stable advanced version, as an alternate package inside release 84 without replacing Core 1.4.
