@@ -38,7 +38,7 @@ uf2/C1ZZL3_GNARLY_V11.uf2
 Checksum:
 
 ```text
-b2d10ee755d1d8bd470a52bea9cd6a56306a5662100ef517ee5e5e9741423cb9
+376b856daf2b7ddc2dc5a75728882b27e9423802b33d23ea2a040e5989c5bc94
 ```
 
 ## What It Does
