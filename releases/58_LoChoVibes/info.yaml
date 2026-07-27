@@ -2,7 +2,7 @@ id: 58_LoChoVibes
 title: LoCho Vibes
 draft: false
 release: 58 / 0.1.0
-date: 2026-06-14
+date-created: 2026-06-14
 summary: >-
   Stereo chorus and vibrato effect featuring triangle, sine, and slow drift LFO modes,
   modulation-based delay movement, and tape-style saturation.

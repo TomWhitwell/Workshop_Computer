@@ -16,6 +16,8 @@ Creator: Your Name
 Version: 1.0
 Status: Released
 License: MIT
+date-created: 2025-02-14
+date-updated: 2026-06-21
 ```
 
 ## Core fields
@@ -31,7 +33,10 @@ License: MIT
 | `Version` | yes | string | Semantic or project version string. |
 | `Status` | yes | string | Release state (e.g. `Released`, `Beta`, `WIP`). Shown with version on the index. |
 | `License` | no | string | Recommended. SPDX identifier or short license name (e.g. `MIT`, `GPL-3.0`, `GPLv3 or later`). Use the license stated in the card's `README.md` or `LICENSE` file. A missing license produces a warning when `draft: false`. |
-| `date` | no | string | Last-update date (`YYYY-MM-DD`). If omitted, sitegen uses the last git commit date for the card folder. |
+| `date-created` | no | string | Original publication or creation date (`YYYY-MM-DD`). |
+| `date-updated` | no | string | Date of the most recent substantial release update (`YYYY-MM-DD`). |
+
+`date-created` and `date-updated` are independently optional. Authors should omit either date when it is unknown rather than estimate it.
 
 ## Contact
 

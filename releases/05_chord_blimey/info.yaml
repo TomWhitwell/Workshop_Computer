@@ -5,7 +5,7 @@ Language: C (RPi Pico SDK)
 Creator: Tom Waters
 Version: 0.9
 Status: Mostly complete (for now)
-date: 2024-11-30
+date-created: 2024-11-30
 
 tags:
   - arpeggiator

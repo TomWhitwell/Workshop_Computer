@@ -5,7 +5,7 @@ Language: "C++ (ComputerCard)"
 Creator: "Jason Moore"
 Version: "0.1"
 Status: "Working"
-date: 2026-07-24
+date-created: 2026-07-24
 
 panel:
   inputs:

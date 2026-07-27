@@ -2,7 +2,7 @@ id: Tapegrade
 title: Tapegrade
 draft: false
 release: 54 / 0.8.0
-date: 2026-06-14
+date-created: 2026-06-14
 summary: >-
   Mono-input stereo cassette warble processor with wow, flutter, hiss, crackle, and tape
   wear morphing.

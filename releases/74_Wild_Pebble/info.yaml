@@ -4,7 +4,7 @@ draft: false
 release: 74 / 1.0
 summary: MIDI-clockable generative rhythm and melody organism inspired by Pet Rock
 short-description: MIDI-clockable generative rhythm and melody organism inspired by Pet Rock
-date: 2026-06-14
+date-created: 2026-06-14
 panel:
   controls:
     main:
