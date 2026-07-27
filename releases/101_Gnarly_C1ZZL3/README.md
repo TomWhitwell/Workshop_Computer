@@ -206,7 +206,7 @@ cmake --build build -j2
 The build creates:
 
 ```text
-build/C1ZZL3_CZ_RECIPE_WAVE_BANKS_V11.uf2
+build/C1ZZL3_GNARLY_V11.uf2
 ```
 
 ## License Notes
