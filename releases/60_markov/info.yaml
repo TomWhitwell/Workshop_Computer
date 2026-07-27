@@ -6,6 +6,7 @@ Creator: Andy Jenkinson (uglifruit)
 Version: 1.0.0
 Status: Released
 date-created: 2026-05-30
+date-updated: 2026-05-30
 
 summary: |
   Dual Markov-chain generator with melody on voice A and rhythm/percussion on voice B.

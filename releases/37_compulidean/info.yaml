@@ -7,6 +7,7 @@ Version: (see source repo)
 Status: Functional, but WIP
 Repository: https://github.com/doctea/compulidian
 date-created: 2025-04-27
+date-updated: 2025-04-27
 
 summary: |
   Drum-machine card built around Euclidean pattern generation and sample playback.

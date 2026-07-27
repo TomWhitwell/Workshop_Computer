@@ -3,6 +3,7 @@ title: Cosmik C1ZZL3
 draft: false
 release: 84 / 1.4
 date-created: 2026-07-22
+date-updated: 2026-07-24
 summary: >-
   Stable phase-distortion synthesiser and Turing machine firmware with
   pitch-aware Web MIDI envelopes, envelope readback, PD, detune, eight waveform

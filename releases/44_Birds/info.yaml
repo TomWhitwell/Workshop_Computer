@@ -6,6 +6,7 @@ Creator: Tom Whitwell
 Version: 0.5.0
 Status: Beta
 date-created: 2026-05-25
+date-updated: 2026-05-25
 
 summary: |
   Two interacting birds are generated from a Turing-style looped random sequencer.
