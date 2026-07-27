@@ -3,7 +3,7 @@
 | ----------- | ----------------- | ------- | -------- | ------- |
 | 00_Simple_MIDI | USB MIDI interface and Computer calibrator. | 0.6.6<br>Working but simple | Arduino-Pico | Tom Whitwell |
 | 02_comingsoon | Reserved for upcoming project | 0.0<br>None | None | None |
-| 03_Turing_Machine | Turing Machine with tap tempo clock, 2 x pulse outputs, 4 x CV outputs<br>[Web editor](https://www.musicthing.co.uk/web_config/turing.html) | 1.5.3<br>Working but Simple | C++ (ComputerCard) | Tom Whitwell |
+| 03_Turing_Machine | Dual Turing Machine with quantized outputs and tap tempo<br>[Web editor](https://www.musicthing.co.uk/web_config/turing.html) | 1.5.3<br>Live | C++ (ComputerCard) | Tom Whitwell |
 | 04_BYO_Benjolin | Rungler, Chaotic VCO, Noise Source, Turing Machine, Quantizer | 1.1<br>Released | Pico SDK | Dune Desormeaux |
 | 05_chord_blimey | Generates CV/Pulse arpeggios | 0.9<br>Mostly complete (for now) | C (RPi Pico SDK) | Tom Waters |
 | 06_usb_audio | 6-Channel USB Audio & MIDI firmware with CV/Gate support<br>[Web editor](https://vincentmaurer.de/usb-audio/midi_config.html) | 1.0<br>Release | C++ (RPi Pico SDK) | Vincent Maurer (vincentmaurer.de) |
