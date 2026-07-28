@@ -34,7 +34,7 @@ every knob and jack for the mode. The panels below are the quick reference.
 
 | ZX Spectrum mode | OneBit mode |
 |:---:|:---:|
-| ![ZX Spectrum overlay](panels/ZX%20Spectrum%20mode%20overlay.png) | ![OneBit overlay](panels/OneBit%20mode%20overlay.png) |
+| ![ZX Spectrum overlay](panels/zx_spectrum_overlay.png) | ![OneBit overlay](panels/onebit_overlay.png) |
 
 ---
 

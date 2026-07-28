@@ -6,9 +6,10 @@ A dual-read-head audio looper inspired by Steve Reich's phase music. Record a mo
 
 1. **Audio In** — plug your instrument or audio source into **CV/Audio 1** (leftmost jack). Recording is mono; only this input is sampled
 2. **Audio Out** — the card's main output carries the mixed playback of both read heads. Patch it to your mixer / module input
-3. **First boot** — the card starts in PLAY with an empty (silent) loop. LED 0 glows dim as an "alive" indicator
-4. **Quick start** — press **Z Down** to arm recording. After the 3-second countdown, play your instrument. Press **Z Down** again to stop. Turn knobs to hear the two heads drift apart
-5. **Persistence** — the recorded loop is stored in flash memory. It survives restarting the card and powering off/on. To record a new loop, just press **Z Down** and record over it
+3. **Power** — the card is powered through the 10-pin ribbon cable from the Workshop System backplane. No external power needed
+4. **First boot** — the card starts in PLAY with an empty (silent) loop. LED 0 glows dim as an "alive" indicator
+5. **Quick start** — press **Z Down** to arm recording. After the 3-second countdown, play your instrument. Press **Z Down** again to stop. Turn knobs to hear the two heads drift apart
+6. **Persistence** — the recorded loop is stored in flash memory. It survives restarting the card and powering off/on. To record a new loop, just press **Z Down** and record over it
 
 ## Recording Workflow
 
@@ -47,15 +48,15 @@ Notes:
 
 ## Controls
 
-| Control | Z Middle (Offset) | Z Up (Phasing) |
-|---------|-------------------|----------------|
-| Big Knob | Loop window (tiny → full) | Right loop length (short → full) |
-| Knob X | Left position offset | Right loop window start |
-| Knob Y | Right position offset | Right playback speed (0.9×–1.1×, centre = 1.0×) |
-| CV In 1 | Modulate left offset | Modulate right loop length |
-| CV In 2 | Modulate right offset | Modulate right speed (Y) |
-| Pulse In 1 | Reset left head to loop start | Reset left head to loop start |
-| Pulse In 2 | Reset right head to loop start | Reset right head to loop start |
+| Control | Z Down | Z Middle (Offset) | Z Up (Phasing) |
+|---------|--------|-------------------|----------------|
+| Big Knob | — | Loop window (tiny → full) | Right loop length (short → full) |
+| Knob X | — | Left position offset | Right loop window start |
+| Knob Y | — | Right position offset | Right playback speed (0.9×–1.1×, centre = 1.0×) |
+| CV In 1 | — | Modulate left offset | Modulate right loop length |
+| CV In 2 | — | Modulate right offset | Modulate right speed (Y) |
+| Pulse In 1 | — | Reset left head to loop start | Reset left head to loop start |
+| Pulse In 2 | — | Reset right head to loop start | Reset right head to loop start |
 
 **Z Down behaviour by state:**
 - **PLAY** → ARMED (start the 3-second countdown)
@@ -64,33 +65,20 @@ Notes:
 
 ## LED Feedback
 
-Six LEDs in three rows of two. What they show per mode:
-
 ```
-  Armed (3-second countdown)
-
-    ●   ●        top row         turns off when recording starts
-    ●   ●        middle row      turns off at 2 s remaining
-    ●   ●        bottom row      turns off at 3 s remaining
-
-  Record
-
-    ●   ●        top row         level meter — lights on loud signals
-    ●   ●        middle row      level meter — lights on medium signals
-    ●   ●        bottom row      level meter — lights on soft signals
-
-  Play — Offset mode (Z Middle)
-
-    ●   ●        L output        R output
-    ●   ●        L offset        R offset
-    ●   ●        L position      R position
-
-  Play — Phasing mode (Z Up)
-
-    ●   ●        L output        R output
-    ●   ●        R window (X)    R speed
-    ●   ●        L position      R position
+0 1
+2 3
+4 5
 ```
+
+| LED | Armed | Record | Play (Offset) | Play (Phasing) |
+|-----|-------|--------|---------------|----------------|
+| 0 | On → off at countdown end (top row) | Level meter (top, loud) | Left output level | Left output level |
+| 1 | On → off at countdown end (top row) | Level meter (top, loud) | Right output level | Right output level |
+| 2 | On → off at ~2s remaining (middle row) | Level meter (middle, medium) | Left offset indicator | Right loop window start (X) |
+| 3 | On → off at ~2s remaining (middle row) | Level meter (middle, medium) | Right offset indicator | Right speed deviation |
+| 4 | On → off at ~3s remaining (bottom row) | Level meter (bottom, soft) | Left loop position | Left loop position |
+| 5 | On → off at ~3s remaining (bottom row) | Level meter (bottom, soft) | Right loop position | Right loop position |
 
 During the armed countdown all 6 LEDs start on. The bottom row turns off at the 3-second tick, the middle row at the 2-second tick, and the top row when recording begins — so the display shrinks toward zero as the take approaches. When recording starts, all 6 LEDs flash briefly (the "GO" signal), then become a 3-tier audio level meter: soft sounds light only the bottom row, louder sounds add the middle row, and the loudest sounds light the top row.
 
@@ -104,12 +92,6 @@ In play mode, LEDs 4 and 5 show actual read position in the loop (bright = start
 | CV Out 2 | 0 | Recording length so far | Right phase position | Right phase position |
 
 In PLAY, phase position maps across the full bipolar CV range relative to each head's loop window: window start ≈ −6 V, window end ≈ +6 V. In RECORD, both CV outputs rise as the recording progresses (showing how full the buffer is and how long the take has run).
-
-## Source
-
-Full source code, build instructions, and the `ComputerCard.h` framework are at:
-
-**https://codeberg.org/johantv/two-tracks**
 
 ## Flash
 
@@ -140,6 +122,10 @@ Hold BOOTSEL on the Pico, plug in USB, mount the RPI-RP2 drive, then copy `two_t
 - **`PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64`** for reliable reset behaviour
 
 ## Source
+
+Full source code, build instructions, and the `ComputerCard.h` framework are at:
+
+**https://codeberg.org/johantv/two-tracks**
 
 - **Storage engine**: `two_tracks_stream.c/.h` — forked from Goldfish 2.0 (releases/11_goldfish) by Dune Desormeaux, adapted for mono, no CV stream, and no delay mode. Erase-suspend programming, page ring, keyframe snapshots, and per-head ring refill preserved verbatim
 - **ADPCM codec**: `adpcm.h` from the Music Thing MLRws card (releases/15_MLRws)
