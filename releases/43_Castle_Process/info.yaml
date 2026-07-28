@@ -11,7 +11,8 @@ Language: C++
 Creator: Adrian Vos with LLM/AI assistance
 release: 43 / 0.9.0
 License: MIT
-date: 2026-06-26
+date-created: 2026-06-25
+date-updated: 2026-06-25
 
 panel:
   controls:

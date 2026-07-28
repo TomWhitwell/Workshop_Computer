@@ -101,7 +101,12 @@
     <div class="row" style="margin-top:14px">
       <button id="getMapBtn" disabled>Read from card</button>
       <button id="setMapBtn" class="primary" disabled>Send to card</button>
+      <span style="flex:1"></span>
+      <button id="saveMapBtn">Save to file…</button>
+      <button id="loadMapBtn">Load from file…</button>
+      <input type="file" id="mapFileInput" accept=".json" style="display:none">
     </div>
+    <p class="hint">Save your input mapping + memory-probe address to a <code>.json</code> file on your computer, and load it back later.</p>
   </div>
 
   <div class="panel">
@@ -609,6 +614,45 @@ document.getElementById('setMapBtn').onclick = ()=>{
     payload.push(m.kind & 0x7F, arg & 0x7F, 0x00); // threshold coarse=0
   });
   sendSysex(payload);
+};
+
+// ---- save / load mapping + probe to a file -------------------------------
+document.getElementById('saveMapBtn').onclick = ()=>{
+  const data = {
+    format: "zx-workshop-mapping",
+    version: 1,
+    sources: SOURCES,               // names, for readability
+    mapping: mapping.map(m=>({kind:m.kind, key:m.key, kemp:m.kemp})),
+    probeAddr: (parseInt(document.getElementById('probeAddr').value)||0) & 0xFFFF,
+  };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = "zx-mapping.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+document.getElementById('loadMapBtn').onclick = ()=> document.getElementById('mapFileInput').click();
+document.getElementById('mapFileInput').onchange = async e=>{
+  const f = e.target.files[0]; if(!f) return;
+  let data;
+  try { data = JSON.parse(await f.text()); }
+  catch(err){ document.getElementById('uploadStatus').textContent = "Bad mapping file: "+err.message; return; }
+  if(data.format !== "zx-workshop-mapping" || !Array.isArray(data.mapping)){
+    document.getElementById('uploadStatus').textContent = "Not a ZX mapping file."; return;
+  }
+  // Load the mapping (guard against wrong length / stray fields).
+  for(let s=0; s<SOURCES.length; s++){
+    const m = data.mapping[s];
+    mapping[s] = m ? {kind:m.kind|0, key:(m.key===undefined?KEY_NONE:m.key), kemp:m.kemp|0}
+                   : {kind:TGT_NONE, key:KEY_NONE, kemp:0};
+  }
+  if(typeof data.probeAddr === 'number')
+    document.getElementById('probeAddr').value = data.probeAddr & 0xFFFF;
+  renderMapping(); renderKeyboard();
+  document.getElementById('uploadStatus').textContent =
+    "Mapping loaded from file. Click 'Send to card' (and 'Send' on the probe) to apply.";
+  e.target.value = "";   // allow re-loading the same file
 };
 
 // ---- keyboard passthrough ------------------------------------------------

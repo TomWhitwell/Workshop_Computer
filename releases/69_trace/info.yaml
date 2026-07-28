@@ -6,7 +6,8 @@ Creator: Ruiyang Wang
 Version: 0.1
 Status: Functional but WIP
 Repository: https://github.com/indiepaleale/Trace-Workshop-Computer
-date: 2026-01-18
+date-created: 2026-01-18
+date-updated: 2026-01-18
 
 summary: |
   Oscillograph-focused dual-output oscillator bank for X/Y scope visuals. Main controls

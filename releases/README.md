@@ -1,9 +1,9 @@
 # Releases  
 | Folder Name | Short Description | Version | Language | Creator |
 | ----------- | ----------------- | ------- | -------- | ------- |
-| 00_Simple_MIDI | Takes USB midi, sends it to pulse and CV outputs, also sends knob positions and CV inputs back to the computer as CC values. | 0.6.6<br>Working but simple | Arduino-Pico | Tom Whitwell |
+| 00_Simple_MIDI | USB MIDI interface and Computer calibrator. | 0.6.6<br>Working but simple | Arduino-Pico | Tom Whitwell |
 | 02_comingsoon | Reserved for upcoming project | 0.0<br>None | None | None |
-| 03_Turing_Machine | Turing Machine with tap tempo clock, 2 x pulse outputs, 4 x CV outputs<br>[Web editor](https://www.musicthing.co.uk/web_config/turing.html) | 1.5.3<br>Working but Simple | C++ (ComputerCard) | Tom Whitwell |
+| 03_Turing_Machine | Dual Turing Machine with quantized outputs and tap tempo<br>[Web editor](https://www.musicthing.co.uk/web_config/turing.html) | 1.5.3<br>Live | C++ (ComputerCard) | Tom Whitwell |
 | 04_BYO_Benjolin | Rungler, Chaotic VCO, Noise Source, Turing Machine, Quantizer | 1.1<br>Released | Pico SDK | Dune Desormeaux |
 | 05_chord_blimey | Generates CV/Pulse arpeggios | 0.9<br>Mostly complete (for now) | C (RPi Pico SDK) | Tom Waters |
 | 06_usb_audio | 6-Channel USB Audio & MIDI firmware with CV/Gate support<br>[Web editor](https://vincentmaurer.de/usb-audio/midi_config.html) | 1.0<br>Release | C++ (RPi Pico SDK) | Vincent Maurer (vincentmaurer.de) |
@@ -47,7 +47,7 @@
 | 43_Castle_Process | Fort Processor-inspired harsh noise processor with chopped external audio and a bass pulse voice | 1.0<br>Release Candidate | C++ | Adrian Vos |
 | 44_Birds | Two birds sing to each other controlled by a Turing-style shift register sequencer with clock in and CV/pulse out. | 0.5.0<br>Beta | C++ (Pico SDK / ComputerCard) | Tom Whitwell |
 | 47_NZT | Grain Noise and Noise Tools | 1.0.0<br>Released | C++ (ComputerCard) | @kjnilsson |
-| 48_two_tracks | Two Tracks — Dual-read-head phase looper. Record a mono loop to flash (IMA-ADPCM) and play it through two independent heads with separately controllable positions and loop lengths for evolving phase patterns and interference textures. | 1.1<br>Released | C++ (Pico SDK) | Joep Vermaat |
+| 48_two_tracks | Two Tracks — Dual-read-head phase looper. Record a mono loop to flash (IMA-ADPCM) and play it through two independent heads with separately controllable positions and loop lengths for evolving phase patterns and interference textures. | 1.2<br>Released | C++ (Pico SDK) | Joep Vermaat |
 | 50_flux | Effects, Synthesizer and Utility<br>[Web editor](https://vincentmaurer.de/flux/flux_manager.html) | 1.0<br>Released | C++ (RP2040 Pico SDK) | Vincent Maurer |
 | 51_grains | Granular Sampler and Effect<br>[Web editor](https://vincentmaurer.de/grains/grains_manager.html) | 1.0<br>Released | C++ (RP2040 Pico SDK) | Vincent Maurer |
 | 53_glitter | Granular Looping Sampler | 0.1.2-beta<br>Beta | C++ (Pico SDK 2.1.1, UF2 release) | Steve Jones |
@@ -78,6 +78,7 @@
 | 86_tesserae | Tesserae — Variable-voice (2-8) arpeggiated chord generator with 5 patterns, 10 scales, tap tempo, CV/audio transpose inputs, and dual CV + audio pitch outputs. Inspired by Laurie Spiegel's Music Mouse and Patchwork. | 1.0<br>released | C++ (Pico SDK) | Joep Vermaat |
 | 87_fr330hfr33 | Hardware-tested acid bass synthesiser with selectable saw or square oscillator, switchable 18 or 24 dB diode-style filtering, accent and glide, distortion, USB MIDI device/host operation, and a persistent editable sequencer.<br>[Web editor](https://tomwhitwell.github.io/Workshop_Computer/programs/87-fr330hfr33/web/index.html) | 0.9.3<br>Stable | Pico SDK | Adrian Vos |
 | 88_Blank | Reserved for blank 88 cards | 0<br>None | None | Tom Whitwell |
+| 89_Lockstep | Dual quantized pitch-mover — two CV outs walk together through a scale to drive two oscillators in parallel | 1.0<br>Draft | C++ (Pico SDK) | Jason Moore |
 | 90_Pantograph | Trace and record CV — record knob movements, loop them at bipolar speed | 1.1<br>Ready | Pico SDK | Kenny Shen |
 | 91_chorgan | Chorgan — 6-voice chord synthesizer with morphing timbre, chord extension presets, and built-in chord sequencer. Two modes: normal (detune/chorus) and slew (portamento chord changes). Inspired by the Music Thing Modular Chord Organ. | 1.1.0<br>released | C++ (Pico SDK / ComputerCard) | Andy Jenkinson (uglifruit) |
 | 93_Turing_Matrix | Turing Machine sequencer with a switchable mixer layer inspired by the Music Thing Modular Turing Machine and Vactrol Mix combination<br>[Web editor](https://tomwhitwell.github.io/Workshop_Computer/programs/93-turing-matrix/web/index.html) | 0.1.0-beta<br>Beta release candidate | C++ (ComputerCard) | Adrian Vos from initial code by Tom Whitwell / Music Thing Modular / Chris Johnson |
