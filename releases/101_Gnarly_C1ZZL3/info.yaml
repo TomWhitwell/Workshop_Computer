@@ -2,7 +2,7 @@ id: 101_Gnarly_C1ZZL3
 title: C1ZZL3 Gnarly
 draft: false
 release: 101 / Gnarly protocol v11 stable
-date: 2026-07-22
+date-created: 2026-07-22
 summary: >-
   No-Turing dual-oscillator C1ZZL3 branch with recipe wave banks, named Web MIDI
   sound presets, separate oscillator amplitude/phase-distortion/pitch envelopes,
