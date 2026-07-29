@@ -13,7 +13,7 @@ short-description: One-line catalog tagline
 summary: Longer operator overview of what the card does and how it is used
 Language: C++ (Pico SDK)
 Creator: Your Name
-Version: 1.0
+Version: "1.0"
 Status: Released
 License: MIT
 date-created: 2025-02-14
@@ -27,7 +27,7 @@ date-updated: 2026-06-21
 | `draft` | no | boolean | When `true`, structured metadata in this file is still under author review. Set to `false` when `Name`, `contact`, `License`, `panel`, and related fields are confirmed. Not rendered on detail pages yet; parsed for tooling and future site UI. |
 | `Name` | yes | string | Display title on the site index and detail page (see sitegen). |
 | `short-description` | yes | string | Concise catalog tagline shown on index tiles, discovery shelves, and archive rows. |
-| `summary` | yes | string | Longer operator overview shown beneath the title on the card detail page. |
+| `summary` | yes | string | Longer operator overview shown beneath the title on the card detail page. Inline Markdown is supported, including links, emphasis, and code. |
 | `Language` | yes | string | Implementation language or stack (e.g. `C++ (Pico SDK)`, `Lua / Blackbird`). |
 | `Creator` | yes | string | Author or maintainer name. |
 | `Version` | yes | string | Semantic or project version string. |
@@ -37,6 +37,8 @@ date-updated: 2026-06-21
 | `date-updated` | no | string | Date of the most recent substantial release update (`YYYY-MM-DD`). |
 
 `date-created` and `date-updated` are independently optional. Authors should omit either date when it is unknown rather than estimate it.
+
+Text fields should be quoted when a value could otherwise be interpreted by YAML as a boolean. Numeric YAML scalars remain accepted for compatibility with historical unquoted `Version` values, but new metadata should quote version strings as shown above.
 
 ## Contact
 
@@ -65,7 +67,7 @@ contact:
 | `Editor` | no | string | Controls the **Web Editor** button and static deploy. See values below. |
 | `web-entry` | no | string | Entry HTML file when not `index.html` (e.g. `app.html`). |
 
-**`Editor` values**
+### `Editor` values
 
 | Value | Behavior |
 |-------|----------|
@@ -96,7 +98,9 @@ Add an optional `uf2:` list to curate this. **When `uf2:` is present it fully re
 |-------|----------|------|-------------|
 | `path` | either path or download | string | Path to the `.uf2` relative to the card folder (e.g. `UF2/goldfish.2.0.2mb.uf2`), matched case-insensitively. The build errors if the file is missing. |
 | `name` | no | string | Friendly label shown on the download tile instead of the filename. |
-| `download` | either path or download | object | `{ url, sha256 }` (both required when `download` is present). `url` is an external link (mirror, or a store/purchase page) — it opens in a new tab, shows its host, is tagged "External", and is never treated as flashable firmware. `sha256` is a mandatory hex digest of the firmware (`shasum -a 256 file.uf2` on macOS). For repo-hosted firmware (via `path`) the build computes the sha256 automatically. |
+| `download` | either path or download | object | `{ url, sha256, flashable? }` (`url` and `sha256` are required). `url` is an external mirror, direct firmware URL, or store/purchase page. It opens in a new tab, shows its host, and is tagged "External". Set `flashable: true` only for a direct UF2 URL whose host permits cross-origin browser requests (CORS); the site verifies `sha256` before erasing or writing the connected card. `sha256` is the firmware's hex digest (`shasum -a 256 file.uf2` on macOS). For repo-hosted firmware (via `path`) the build computes it automatically. |
+
+Do not add `sha256` beside a repository-hosted `path`; the build calculates that hash from the tracked file. Validation accepts it only to provide a warning that it is unnecessary.
 
 ```yaml
 uf2:
@@ -106,6 +110,11 @@ uf2:
     download:
       url: https://example.com/store/goldfish
       sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - name: External firmware mirror
+    download:
+      url: https://downloads.example.com/goldfish.uf2
+      sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      flashable: true
 ```
 
 ## Media
@@ -139,11 +148,11 @@ These blocks document the primary inline documentation, I/O, controls, and host 
 | Field | Type | Description |
 |-------|------|-------------|
 | `readme` | string (Markdown) | Full inline operator documentation. When present, it replaces the rendered `README.md` section on the card detail page. It is Markdown content, not a path. Supplementary PDF documentation remains visible. |
-| `panel.inputs` | object[] | Panel jacks in. Each item has `id`, `name`, optional `description`, optional `type` (`audio` / `cv` / `pulse` / `other`), and optional `when: { z: up \| middle \| down }`. Entries with the same `id` override the shared entry in that position. |
+| `panel.inputs` | object[] | Panel jacks in. Each item has `id`, `name`, optional `description`, optional `type` (`audio` / `cv` / `pulse` / `other`), and optional `when.z` or `when.panel` context. Entries with the same `id` override the shared entry in that view. |
 | `panel.outputs` | object[] | Panel jacks out; same shape and position-override behavior as inputs. |
-| `controls.knobs` | object[] | Knob metadata rows containing `main` / `x` / `y` entries with `name` and optional `description`. Omit `when` for controls shared by every position; use `when: { z: up \| middle \| down }` only when a role changes. |
-| `controls.switch` | object | Switch metadata keyed by `up`, `middle`, `down`, and optional `tap`. The three physical positions may produce panel views. `tap` describes a brief Down-switch action and never produces a panel view. |
-| `controls.leds` | object[] | LED meaning rows. Each has optional `when: { z: up \| middle \| down }`, `display` (e.g. `list`), and `items` with `id`, `name`, and optional `description`. Items override shared LEDs by `id`. |
+| `controls.knobs` | object[] | Knob metadata rows containing `main` / `x` / `y` entries with `name` and optional `description`. Omit `when` for shared controls; use `when.z` for generated positions or `when.panel` for custom manifest IDs. |
+| `controls.switch` | object | Switch metadata keyed by optional `up`, `middle`, `down`, and `tap` entries. The three physical positions may produce panel views. `tap` describes a brief Down-switch action, never produces a panel view, and may be authored without `down`. |
+| `controls.leds` | object[] | LED meaning rows. Each has optional `when.z` or `when.panel`, `display` (e.g. `list`), and `items` with `id`, `name`, and optional `description`. Items override shared LEDs by `id`. |
 | `host` | object | Host/USB connectivity (e.g. `usb` list with `name`, `role`, `description`) and optional `notes` (Markdown). |
 
 ```yaml
@@ -161,7 +170,7 @@ See [`releases/82_Computer_Grids/info.yaml`](../releases/82_Computer_Grids/info.
 
 Switch-position meaning and panel metadata are related but remain independently authored:
 
-- **`controls.switch`** documents what each Z position does and may document a Down-switch `tap` action.
+- **`controls.switch`** documents any relevant Z positions and may independently document a Down-switch `tap` action; `tap` does not require a `down` entry.
 - Unconditioned knobs, sockets, and LEDs are the base inherited by Up, Middle, and Down.
 - A `when: { z: ... }` row supplies only the properties that change in that position.
 - Down already means the switch is being held down. There is no separate Hold position or gesture condition.
@@ -183,9 +192,60 @@ controls:
       x: { name: Loop Length, description: Sets the loop length while held up }
 ```
 
-A card that only needs to describe its switch uses `controls.switch` alone. A card whose panel changes by position adds conditioned knob, socket, or LED rows. Sitegen resolves at most three complete views as `base + up`, `base + middle`, and `base + down`; Middle is the default when present.
+A card that only needs to describe its switch uses `controls.switch` alone. A card whose automatically generated panel changes by position adds conditioned knob, socket, or LED rows. Sitegen resolves at most three generated views as `base + up`, `base + middle`, and `base + down`; Middle is the default when present.
 
 Legacy `when: { z: any }` rows are still read as shared base metadata but should be written without `when`. Legacy `gesture` conditions produce validation warnings while existing cards are reviewed.
+
+### Custom panel presentations
+
+Complex cards may provide a lowercase `panels/` directory beside `info.yaml`. A `panels/manifest.yaml` file activates the custom presentation override: the site does not publish the automatically generated Up/Middle/Down panels when a manifest exists, even when that manifest is invalid or incomplete. A `panels/` directory without a manifest is treated as an ordinary asset directory and does not activate custom panels. Structured controls, sockets, LEDs, and switch metadata remain available as machine-readable card data.
+
+`panels/manifest.yaml` defines any number of ordered, arbitrarily named presentations:
+
+```yaml
+version: 1
+default: performance
+
+panels:
+  - id: overview
+    name: Overview
+    image: overview.svg
+    content: overview.md
+  - id: performance
+    name: Performance Mode
+    image: performance.svg
+    content: performance.md
+  - id: slice-editor
+    name: Slice Editor
+    image: slice-editor.svg
+    content: slice-editor.md
+```
+
+- `id` is a stable, unique lowercase kebab-case identifier used by `when.panel` and direct panel links.
+- `name` is arbitrary display text and may be changed without changing the ID.
+- `image` and `content` are safe paths relative to `panels/`; absolute paths, traversal, and symbolic links are rejected.
+- `default` must name a valid panel ID. Manifest order is display order.
+- Every image must be a self-contained SVG with `viewBox="0 0 560 1785"`. Generated/downloaded SVGs use the documentation-default intrinsic viewport of `width="280"` and `height="892.5"`. Scripts, `foreignObject`, event handlers, and external resources are rejected.
+- Every presentation requires companion Markdown. It is rendered beside the image instead of the generated controls/I/O/LED reference, and provides the accessible textual explanation of text embedded in the image.
+- Relative images and links in the Markdown resolve inside `panels/`.
+
+Physical component IDs do not change. Use `main`, `x`, `y`, ComputerCard jack IDs, and LED IDs as usual; use a manifest panel ID only as the condition:
+
+```yaml
+controls:
+  knobs:
+    - main: { name: Level }       # shared by every custom panel
+    - when: { panel: performance }
+      x: { name: Density }
+      y: { name: Spread }
+    - when: { panel: slice-editor }
+      x: { name: Slice Start }
+      y: { name: Slice Length }
+```
+
+Sockets and LED rows support the same `when.panel` condition. Unconditioned rows form the shared base and matching rows override it. A condition must use either `when.z` or `when.panel`, never both. `when.panel` requires a custom manifest and must exactly match one of its IDs.
+
+The Author page and standalone panel-design skill use the shared browser-side vector renderer and produce self-contained SVGs with the canonical 560 × 1785 viewBox. Run `npm run setup-panel-renderer` once when the skill reports that its pinned headless Chromium runtime or Linux dependencies are missing. Add the approved SVG and companion Markdown to `panels/`, then reference them from the manifest.
 
 ## Authoring guidance
 

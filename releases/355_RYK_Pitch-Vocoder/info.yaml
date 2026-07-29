@@ -1,0 +1,103 @@
+draft: true
+Name: RYK 355 Pitch to Voltage / 350 Vocoder
+short-description: Monophonic pitch tracker and 14-band vocoder with an internal chord synth
+Language: Unknown
+Creator: RYK Modular
+Version: unknown
+Status: Released
+contact:
+  website: https://www.ryk-modular.com/contact
+
+tags:
+- pitch-tracker
+- vocoder
+- envelope-follower
+- oscillator
+- effect
+- cv
+
+summary: |
+  Two switchable audio processors on one Program Card.
+  Model 355 tracks monophonic pitch and dynamics; Model 350 is a 14-band vocoder with an internal four-note chord synthesizer.
+
+panel:
+  inputs:
+  - id: AudioIn1
+    name: Pitch Input / Modulator
+    description: Monophonic tracking input in Model 355; vocoder modulator input in Model 350
+    type: audio
+  - id: AudioIn2
+    name: Carrier
+    description: External vocoder carrier in Model 350; leave unplugged to use the internal chord synthesizer
+    type: audio
+  - id: CVIn1
+    name: Carrier Pitch CV
+    description: 1V/oct pitch control for the internal vocoder carrier in Model 350
+    type: cv
+  - id: CVIn2
+    name: Chord Select CV
+    description: Voltage control of the internal carrier chord in Model 350
+    type: cv
+  - id: PulseIn1
+    name: Carrier Freeze
+    description: Freezes the vocoder carrier in Model 350
+    type: pulse
+
+  outputs:
+  - id: AudioOut1
+    name: Oscillator / Mix
+    description: Raw tracked oscillator in Model 355; modulator and vocoded carrier mix in Model 350
+    type: audio
+  - id: AudioOut2
+    name: Shaped Osc / Vocoder
+    description: Envelope-shaped tracked oscillator in Model 355; vocoded carrier in Model 350
+    type: audio
+  - id: CVOut1
+    name: Pitch / Envelope CV
+    description: Tracked 1V/oct pitch in Model 355; modulator envelope follower in Model 350
+    type: cv
+  - id: CVOut2
+    name: Envelope CV
+    description: Envelope follower output in Model 355
+    type: cv
+  - id: PulseOut1
+    name: Tracker Gate
+    description: High while the Model 355 input exceeds the threshold set by X
+    type: pulse
+  - id: PulseOut2
+    name: Tracker Trigger
+    description: Short pulse when the Model 355 input crosses the threshold set by X
+    type: pulse
+
+controls:
+  switch:
+    up:
+      name: Freeze Carrier
+      description: Freezes the current carrier state in Model 350
+    middle:
+      name: Normal
+      description: Normal operation
+    down:
+      name: Next Waveform
+      description: Cycles the tracked oscillator waveform in Model 355 or carrier waveform in Model 350; hold down while pressing Reset to change models
+    tap:
+      name: Next Waveform
+      description: Tap down to select the next oscillator or carrier waveform
+
+  knobs:
+  - main:
+      name: Pitch Offset / Mix
+      description: Sets pitch offset from one octave down to one octave up in Model 355; sets modulator and vocoded carrier mix in Model 350
+    x:
+      name: Threshold / Pitch
+      description: Sets the Model 355 tracking threshold or the Model 350 internal carrier pitch
+    y:
+      name: Slew / Chord
+      description: Sets Model 355 pitch slew or selects the Model 350 internal carrier chord
+
+  leds:
+  - display: list
+    items:
+    - id: LED0
+      name: Input Level
+      description: Shows input level; in Model 355 it should peak at note attacks and in Model 350 it should peak only occasionally

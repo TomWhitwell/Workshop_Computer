@@ -1,9 +1,10 @@
 import path from 'node:path';
-import { fsAsync as fs, ensureDir, fileExists } from '../utils/fs.js';
+import { fsAsync as fs, ensureDir } from '../utils/fs.js';
 import { normalizeYamlKey } from '../utils/strings.js';
 
 const SKIP_DIRS = new Set(['node_modules', '.git', '.github']);
 const SKIP_FILES = new Set(['package-lock.json', 'tsconfig.json', 'vite.config.ts', 'vite.config.js']);
+const LOCAL_EDITOR_DIRS = new Set(['web', 'dist']);
 
 /** GitHub Pages base URL for a user/org project site. */
 export function githubPagesBase(repoSlug) {
@@ -18,31 +19,64 @@ function normalizeRelFolder(loc) {
 }
 
 function isExternalUrl(s) {
-  return /^https?:\/\//i.test(String(s || '').trim());
+  try {
+    return new URL(String(s || '').trim()).protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 async function folderExists(dir) {
-  return fileExists(dir);
+  try {
+    const stat = await fs.lstat(dir);
+    return stat.isDirectory() && !stat.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+function safeRelativeFile(value) {
+  const raw = String(value || '').trim().replaceAll('\\', '/');
+  if (!raw || raw.includes('\0') || path.posix.isAbsolute(raw)) return '';
+  const normalized = path.posix.normalize(raw);
+  if (normalized === '..' || normalized.startsWith('../') || normalized.includes('/../')) return '';
+  return normalized;
+}
+
+async function containedRegularFile(root, relative) {
+  const safe = safeRelativeFile(relative);
+  if (!safe) return null;
+  const candidate = path.join(root, ...safe.split('/'));
+  try {
+    const stat = await fs.lstat(candidate);
+    if (!stat.isFile() || stat.isSymbolicLink()) return null;
+    const [realRoot, realFile] = await Promise.all([fs.realpath(root), fs.realpath(candidate)]);
+    if (realFile !== realRoot && !realFile.startsWith(realRoot + path.sep)) return null;
+    return safe;
+  } catch {
+    return null;
+  }
 }
 
 async function resolveEntryFile(srcDir, webEntry) {
-  if (webEntry) {
-    const p = path.join(srcDir, webEntry);
-    if (await fileExists(p)) return webEntry;
-  }
-  if (await fileExists(path.join(srcDir, 'index.html'))) return 'index.html';
-  return webEntry || '';
+  if (webEntry) return (await containedRegularFile(srcDir, webEntry)) || '';
+  return (await containedRegularFile(srcDir, 'index.html')) || '';
 }
 
 async function resolveLocal(cardAbsPath, slug, pagesBaseUrl, relFolder, webEntry, externalFallback) {
-  const copySrc = path.join(cardAbsPath, normalizeRelFolder(relFolder));
+  const folder = normalizeRelFolder(relFolder).toLowerCase();
+  if (!LOCAL_EDITOR_DIRS.has(folder)) {
+    throw new Error(`Local Editor must be "web" or "dist", got "${relFolder}".`);
+  }
+  const copySrc = path.join(cardAbsPath, folder);
   if (!(await folderExists(copySrc))) {
     return { mode: 'none', editorUrl: '', copySrc: null, siteSubdir: 'web', entry: '' };
   }
+  const [realCard, realSource] = await Promise.all([fs.realpath(cardAbsPath), fs.realpath(copySrc)]);
+  if (!realSource.startsWith(realCard + path.sep)) throw new Error(`Local Editor folder escapes its release directory: ${relFolder}`);
   const entry = await resolveEntryFile(copySrc, webEntry);
-  if (!entry && externalFallback && isExternalUrl(externalFallback)) {
-    return { mode: 'external', editorUrl: externalFallback, copySrc: null, siteSubdir: 'web', entry: '' };
-  }
+  if (webEntry && !entry) throw new Error(`Web entry must be a contained regular file: ${webEntry}`);
+  if (!entry && externalFallback && isExternalUrl(externalFallback)) return { mode: 'external', editorUrl: externalFallback, copySrc: null, siteSubdir: 'web', entry: '' };
   const editorUrl = entry ? `${pagesBaseUrl}programs/${slug}/web/${entry}` : '';
   return { mode: 'local', editorUrl, copySrc, siteSubdir: 'web', entry };
 }
@@ -67,6 +101,7 @@ export async function resolveWebConfig(raw, cardAbsPath, slug, pagesBaseUrl) {
   }
 
   if (editor && !isExternalUrl(editor)) {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(editor)) throw new Error(`Editor URL must use HTTPS: ${editor}`);
     return resolveLocal(cardAbsPath, slug, pagesBaseUrl, editor, webEntry, '');
   }
 
@@ -87,16 +122,22 @@ function shouldSkipEntry(name, isDir) {
 }
 
 /** Recursively copy static web assets with dev-only paths skipped. */
-export async function copyWebAssets(src, dest) {
+export async function copyWebAssets(src, dest, sourceRoot = null) {
+  const root = sourceRoot || await fs.realpath(src);
+  const realSrc = await fs.realpath(src);
+  if (realSrc !== root && !realSrc.startsWith(root + path.sep)) throw new Error(`Web asset directory escapes source root: ${src}`);
   await ensureDir(dest);
   const entries = await fs.readdir(src, { withFileTypes: true });
   for (const ent of entries) {
+    if (ent.isSymbolicLink()) throw new Error(`Web assets must not contain symbolic links: ${path.join(src, ent.name)}`);
     if (shouldSkipEntry(ent.name, ent.isDirectory())) continue;
     const from = path.join(src, ent.name);
     const to = path.join(dest, ent.name);
     if (ent.isDirectory()) {
-      await copyWebAssets(from, to);
+      await copyWebAssets(from, to, root);
     } else {
+      const stat = await fs.lstat(from);
+      if (!stat.isFile()) continue;
       await ensureDir(path.dirname(to));
       await fs.copyFile(from, to);
     }

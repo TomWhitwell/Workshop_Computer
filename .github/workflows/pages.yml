@@ -18,6 +18,10 @@ jobs:
   build:
     if: github.event.repository.fork != true || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    env:
+      # Fork previews retain their own github.io project URL. The upstream
+      # production build emits canonical web-editor links on the custom domain.
+      SITE_BASE_URL: ${{ github.repository == 'TomWhitwell/Workshop_Computer' && 'https://computer.musicthing.co.uk/' || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,12 +34,15 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: |
-          npm ci --prefix tools/sitegen || npm install --prefix tools/sitegen
+        run: npm ci --prefix tools/sitegen
 
-      - name: Build site
+      - name: Check site curation
         run: |
-          npm run build --prefix tools/sitegen
+          npm run check-curation
+
+      - name: Build and test site
+        run: |
+          npm test --prefix tools/sitegen
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
