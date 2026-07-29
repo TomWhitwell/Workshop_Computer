@@ -1,9 +1,13 @@
 id: 93_Turing_Matrix
-title: Turing Matrix
+Name: Turing Matrix
 draft: false
 release: 93 / 0.1.0-beta
 summary: Turing Machine sequencer with a switchable mixer layer inspired by the Music Thing Modular Turing Machine and Vactrol Mix combination
 short-description: Turing Machine sequencer with a switchable mixer layer inspired by the Music Thing Modular Turing Machine and Vactrol Mix combination
+Language: C++ (ComputerCard)
+Creator: Adrian Vos
+Version: "0.1.0-beta"
+Status: Beta release candidate
 date-created: 2026-06-26
 date-updated: 2026-07-13
 panel:
@@ -134,7 +138,7 @@ readme_url: >-
 download_url: >-
   https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/93_Turing_Matrix/uf2/TuringMatrix.uf2
 metadata:
-  creator: Adrian Vos from initial code by Tom Whitwell / Music Thing Modular / Chris Johnson
+  creator: Adrian Vos
   language: C++ (ComputerCard)
   version: 0.1.0-beta
   status: Beta release candidate
