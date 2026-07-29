@@ -218,3 +218,9 @@ The MIDI implementation is intentionally small:
 * no configurable MIDI channel yet
 
 The analogue behavior remains the same unless MIDI clock is connected and running.
+
+## Attribution
+
+Wild Pebble uses the ComputerCard hardware framework by Chris Johnson and the
+TinyUSB components supplied with the Raspberry Pi Pico SDK. Their respective
+licence notices remain with the source dependencies.

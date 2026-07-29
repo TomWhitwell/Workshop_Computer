@@ -128,3 +128,7 @@ interpolated to the Workshop Computer's 48 kHz audio rate, then sent through the
 integer Dattorro-style reverb from Reverb+. The X control deliberately avoids the
 near-freeze end of the reverb algorithm so the largest setting remains musical
 rather than turning the quiet ambience into noise.
+
+The integer reverb implementation is based on Jon Dattorro's reverb design and
+the [el-visio/dattorro-verb](https://github.com/el-visio/dattorro-verb)
+reference implementation; the source retains its attribution comment.
