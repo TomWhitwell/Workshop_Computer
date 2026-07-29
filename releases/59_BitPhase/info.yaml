@@ -7,7 +7,7 @@ short-description: Resonant 4-stage phaser for the Workshop Computer with deep n
 Language: C++ (Pico SDK)
 Creator: Adrian Vos
 Version: "0.1.0"
-Status: Beta
+Status: Beta - stable in single-developer testing
 License: MIT
 date-created: 2026-06-24
 date-updated: 2026-07-09
@@ -120,7 +120,7 @@ metadata:
   creator: Adrian Vos
   language: C++ (Pico SDK)
   version: 0.1.0
-  status: Beta
+  status: Beta - stable in single-developer testing
   license: MIT
 documentation:
   intro: >
