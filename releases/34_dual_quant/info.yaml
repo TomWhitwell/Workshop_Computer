@@ -7,7 +7,7 @@ short-description: Dual quantised granular pitch shifter with calibrated 1V/oct 
 Language: C++ (ComputerCard / Pico SDK)
 Creator: Adrian Vos
 Version: "1.0"
-Status: Beta
+Status: Beta - stable in single-developer testing
 License: MIT
 date-created: 2026-06-14
 date-updated: 2026-06-15
@@ -89,7 +89,7 @@ metadata:
   creator: Adrian Vos with LLM/AI assistance
   language: C++ (ComputerCard / Pico SDK)
   version: 1
-  status: Beta
+  status: Beta - stable in single-developer testing
   license: MIT
 documentation:
   intro: >

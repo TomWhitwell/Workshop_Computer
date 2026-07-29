@@ -6,7 +6,7 @@ short-description: Hardware-tested acid bass synthesiser with selectable saw or 
 Language: Pico SDK
 Creator: Adrian Vos
 Version: "0.9.3"
-Status: Stable
+Status: Beta - stable in single-developer testing
 date-created: 2026-06-21
 date-updated: 2026-07-13
 panel:
@@ -173,5 +173,5 @@ metadata:
   creator: Adrian Vos with LLM/AI assistance
   language: Pico SDK
   version: 0.9.3
-  status: Stable
+  status: Beta - stable in single-developer testing
   editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/87-fr330hfr33/web/index.html

@@ -13,7 +13,7 @@ short-description: >-
 Language: C++ (RP2040 Pico SDK)
 Creator: Adrian Vos
 Version: "0.8.0"
-Status: WIP
+Status: Beta - stable in single-developer testing
 License: MIT
 
 panel:
@@ -130,7 +130,7 @@ metadata:
   creator: Adrian Vos with LLM/AI assistance
   language: C++ (RP2040 Pico SDK)
   version: 0.8.0
-  status: WIP (functional)
+  status: Beta - stable in single-developer testing
   license: MIT
 documentation:
   intro: >

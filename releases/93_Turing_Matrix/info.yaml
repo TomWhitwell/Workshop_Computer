@@ -7,7 +7,7 @@ short-description: Turing Machine sequencer with a switchable mixer layer inspir
 Language: C++ (ComputerCard)
 Creator: Adrian Vos
 Version: "0.1.0-beta"
-Status: Beta release candidate
+Status: Beta - stable in single-developer testing
 date-created: 2026-06-26
 date-updated: 2026-07-13
 panel:
@@ -141,7 +141,7 @@ metadata:
   creator: Adrian Vos
   language: C++ (ComputerCard)
   version: 0.1.0-beta
-  status: Beta release candidate
+  status: Beta - stable in single-developer testing
   editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/93-turing-matrix/web/index.html
   editor_note: Configure this card in your browser
 documentation:
