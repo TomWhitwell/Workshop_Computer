@@ -1,4 +1,3 @@
-draft: true
 Name: Computer Grids
 short-description: Grids-inspired trigger sequencer with Web MIDI SysEx configuration.
 Language: C++
@@ -17,8 +16,7 @@ tags:
   - sequencer
   - trigger
   - midi-host
-
-demo-link: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+  - drums
 
 summary: |
   Grids-inspired trigger sequencer for the Workshop Computer. Control pattern map and fill with knobs,
@@ -54,6 +52,20 @@ panel:
       description: Configurable accent, clock, or lane 3 mirror output
 
 controls:
+  switch:
+    up:
+      name: Per-Lane Density
+      description: Main / X / Y set density for lanes 1–3; pattern map is held from the last middle position
+    middle:
+      name: Pattern Map
+      description: X / Y set pattern map position; Main is the global fill macro
+    down:
+      name: Alt Layer Toggle
+      description: Hold down to toggle the alt layer (knob pickup/catch). While alt is active and Z is middle, Main / X / Y edit chaos, BPM, and swing
+    tap:
+      name: Tap Tempo
+      description: Briefly press and release Down to set internal clock tempo from the tap interval (ignored when an external clock is patched)
+
   knobs:
     - when: { z: middle }
       main:
@@ -77,26 +89,16 @@ controls:
         name: Lane 3 Density
         description: Hit probability for trigger lane 3 (CVOut1). Map X/Y held from last Z middle position until knob takeover
 
-    - when: { z: middle, layer: alt }
+    - when: { z: down }
       main:
         name: Chaos
-        description: Randomness amount fed into the pattern engine
+        description: Randomness amount fed into the pattern engine (active after long-press toggles alt layer on, with Z back in middle)
       x:
         name: Internal BPM
-        description: Tempo for the internal clock (bpm10 parameter in config)
+        description: Tempo for the internal clock (bpm10 in config; active after alt layer is toggled on)
       y:
         name: Swing
-        description: Shuffle amount from 50% straight to 75% shuffle
-
-    - when: { z: down, gesture: momentary }
-      main:
-        name: Tap Tempo
-        description: Short press sets internal clock tempo from tap interval
-
-    - when: { z: down, gesture: hold }
-      main:
-        name: Alt Layer Toggle
-        description: Long press toggles alt layer with knob pickup/catch behavior
+        description: Shuffle amount from 50% straight to 75% shuffle (active after alt layer is toggled on)
 
   leds:
     - when: { z: middle }
