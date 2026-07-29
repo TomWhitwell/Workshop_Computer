@@ -1,5 +1,5 @@
 id: 101_Gnarly_C1ZZL3
-title: C1ZZL3 Gnarly
+Name: C1ZZL3 Gnarly
 draft: false
 release: 101 / Gnarly protocol v11 stable
 date-created: 2026-07-22
@@ -11,6 +11,11 @@ short-description: >-
   No-Turing dual-oscillator C1ZZL3 branch with recipe wave banks, named Web MIDI
   sound presets, separate oscillator envelopes, CZ patch import support, and an
   eight-knob MIDI CC performance block.
+Language: C++ (Pico SDK)
+Creator: Adrian Vos
+Version: "Gnarly protocol v11 stable"
+Status: Beta - stable in single-developer testing
+License: MIT
 panel:
   controls:
     main:
@@ -126,7 +131,7 @@ metadata:
   creator: Adrian Vos
   language: C++ (Pico SDK)
   version: Gnarly protocol v11 stable
-  status: Stable
+  status: Beta - stable in single-developer testing
   license: MIT
   editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/index.html
   editor_note: Use the Gnarly Lab and its Import Lab for recipe-bank sound presets.
