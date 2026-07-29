@@ -54,3 +54,9 @@ MIDI build additions:
 - In current active builds, `CV Out 1` mirrors note position unless `CV1` is patched, when it becomes pitch; `CV Out 2` always mirrors note position.
 - In current active builds, analog `CV2` is scaled so 0-5V controller/mod-wheel sources can cover the full note-position travel.
 - Pulse Out 1 mirrors note gate behavior and Pulse Out 2 mirrors the `P2` input pulse.
+
+## Attribution
+
+This card uses the ComputerCard hardware framework by Chris Johnson. Its USB
+MIDI host support includes the MIT-licensed rppicomidi files, copyright 2023
+rppicomidi; their copyright and licence notices are retained in the source.

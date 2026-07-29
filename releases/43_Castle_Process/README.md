@@ -110,3 +110,7 @@ Internal chop pulse output.
 * trigger `Pulse In 1` from a sequencer or clock divider for controlled bass rhythms
 * use switch `Down` as a manual performance accent
 
+## Attribution
+
+Castle Process uses the ComputerCard hardware framework by Chris Johnson. The
+framework's original notice is retained in `ComputerCard.h`.

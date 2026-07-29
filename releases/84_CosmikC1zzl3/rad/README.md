@@ -1,10 +1,10 @@
-# C1ZZL3
+# C1ZZL3 Rad
 
-Stable production firmware for the Cosmik C1ZZL3 Music Thing Modular Workshop
+C1ZZL3 Rad firmware for the Cosmik C1ZZL3 Music Thing Modular Workshop
 Computer card.
 
-C1ZZL3 is a dual phase-distortion synthesiser with browser-editable amplitude,
-phase-distortion, and pitch envelopes, USB MIDI device/host support, optional
+C1ZZL3 Rad is a dual phase-distortion synthesiser with browser-editable Amp1/Amp2,
+PD1/PD2, and Pitch1/Pitch2 envelopes, USB MIDI device/host support, optional
 Turing MIDI output, and a Turing machine mode with CV and pulse outputs. Turing
 MIDI output defaults to off and must be enabled deliberately.
 
@@ -14,34 +14,29 @@ For the user-facing card guide, see:
 CARD_README.md
 ```
 
-## Stable Build
+## Rad Build
 
-Current stable UF2:
+Current Rad UF2 in the shared `84` UF2 folder:
 
 ```text
-uf2/C1ZZL3.uf2
+../uf2/C1ZZL3_RAD.uf2
 ```
 
 Checksum:
 
 ```text
-47383c4ff54160a4d8fbfd5ee799b42f142def7ddd0a95de47eeb97d8617a6b0
+a425adb8f71686a3cd85cec2b4368a5a5fb61b421e196abc5a25cdcbd91eb0b0
 ```
 
-This is hardware-tested production release 1.4.
+This folder packages C1ZZL3 Rad, the hardware-tested protocol v9 full-dual-oscillator stable advanced version, as an alternate package inside release 84 without replacing Core 1.4.
 
-Release 1.4 works with Envelope Lab and C1ZZL3 Import Lab and includes Web MIDI
-PD, detune, eight waveform families, card-to-editor envelope readback, browser
-CZ patch import handoff, pitch envelopes, gate-held envelope looping with
-natural completion on gate/note release, corrected CZ DCW-to-PD,
-DCA-to-amplitude, and DCO-to-pitch import mapping, high-PD audio smoothing, and
-rapid-retrigger oscillator phase continuity.
+Rad v9 keeps the Turing machine hardware interface from Core while adding full dual-oscillator Web MIDI support: Amp1/Amp2, PD1/PD2, Pitch1/Pitch2, separate oscillator wave-family settings, slot names, saved sound-preset settings, card-to-editor readback, CZ Import Lab handoff, pitch envelopes, gate-held envelope looping with natural completion, high-PD audio smoothing, and rapid-retrigger oscillator phase continuity.
 
-## Current Stable Feature Set
+## Rad Feature Set
 
 - Phase-distortion synth voice.
 - Factory envelopes plus eight protected custom envelope slots.
-- Web MIDI envelope editor with amplitude, phase-distortion, and pitch lanes.
+- Rad Web MIDI editor with Amp1/Amp2, PD1/PD2, Pitch1/Pitch2, and separate oscillator wave-family settings.
 - USB MIDI device mode for DAW/browser use.
 - USB MIDI host mode for class-compliant controllers.
 - MIDI notes with gate-held envelope sustain/release.
@@ -49,7 +44,7 @@ rapid-retrigger oscillator phase continuity.
 - Turing machine audio, CV, pulse, and optional MIDI note output.
 - Turing CV and pulse outputs continue running in synth mode.
 - Settings readback from the card into the Web MIDI editor.
-- Saved envelope readback from the card, including pitch envelope data.
+- Saved sound-preset readback from the card, including slot names, performance settings, and dual pitch envelope data.
 - Ring, noise, MIDI channel, Turing range, and Turing MIDI settings persist;
   the baseline for Turing MIDI output is off.
 
@@ -100,7 +95,7 @@ takes over again.
 Hosted editor:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/index.html
 ```
 
 Local editor from this release folder:
@@ -122,7 +117,7 @@ Use Chrome or another browser with Web MIDI and SysEx support.
 Hosted import lab:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/import/index.html
 ```
 
 Local import lab from this release folder:
@@ -243,7 +238,3 @@ removed; Y is the Turing internal clock control.
 This project is released under the MIT License. The included `computercard.h`
 hardware helper is ComputerCard by Chris Johnson and is also MIT licensed; keep
 its MIT notice present when copying firmware files into releases or experiments.
-
-USB MIDI host support includes the MIT-licensed rppicomidi files, copyright
-2023 rppicomidi. Their copyright and licence notices are retained in the
-corresponding source files.
