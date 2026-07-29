@@ -1,0 +1,45 @@
+name: Feature request
+description: Suggest an improvement to the metadata site, tooling, docs, or shared developer setup
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement.
+
+        **New program cards** belong under `releases/` via a pull request — see the [README](https://github.com/TomWhitwell/Workshop_Computer/blob/main/README.md). Do not use this template to propose a new card.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: A short description of the idea
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem does this solve, or what opportunity does it open up?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed idea
+      description: How might this work? Rough sketches are fine.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the project would this affect?
+      options:
+        - Metadata site
+        - Tooling / CI
+        - Documentation
+        - DevContainer
+        - Other
+    validations:
+      required: true
