@@ -1,0 +1,89 @@
+draft: true
+Name: RYK 910 Pitched Delay
+short-description: Pitch-shifting delay with feedback, freeze and voltage control
+Language: Unknown
+Creator: RYK Modular
+Version: unknown
+Status: Released
+contact:
+  website: https://www.ryk-modular.com/contact
+
+tags:
+- delay
+- pitch-shifter
+- effect
+- freeze
+- feedback
+- cv
+
+summary: |
+  A pitch-shifting delay with a range of one octave down to one octave up.
+  Create harmonised repeats, rising or falling feedback cascades, and frozen audio textures.
+
+panel:
+  inputs:
+  - id: AudioIn1
+    name: Audio Input
+    description: Audio sent to the pitched delay; adjust the source so the top LED peaks only occasionally
+    type: audio
+  - id: CVIn1
+    name: Pitch CV
+    description: 1V/oct control of the delay pitch shift
+    type: cv
+  - id: CVIn2
+    name: Delay Time CV
+    description: Voltage control of delay time
+    type: cv
+  - id: PulseIn1
+    name: Freeze
+    description: Freezes the current audio buffer
+    type: pulse
+  - id: PulseIn2
+    name: Effect Send Gate
+    description: Gates audio into the delay effect; leave unplugged when it is not required
+    type: pulse
+
+  outputs:
+  - id: AudioOut1
+    name: Mix Output
+    description: Adjustable mix of the dry input and pitched delay
+    type: audio
+  - id: AudioOut2
+    name: Effect Output
+    description: Pitched delay signal without the dry input
+    type: audio
+
+controls:
+  switch:
+    up:
+      name: Set Output Mix
+      description: Hold up and turn Main to balance the dry input and pitched delay
+    middle:
+      name: Normal
+      description: Main controls pitch shift
+    down:
+      name: Mute Delay Send
+      description: Stops new audio entering the delay while existing repeats continue
+
+  knobs:
+  - when: { z: middle }
+    main:
+      name: Pitch Shift
+      description: Sets the delayed signal from one octave down to one octave up
+    x:
+      name: Feedback
+      description: Sets how much delayed signal is fed back into the effect
+    y:
+      name: Delay Time
+      description: Sets the delay time
+  - when: { z: up }
+    main:
+      name: Output Mix
+      description: Sets the balance between the dry input and pitched delay
+
+  leds:
+  - display: list
+    items:
+    - id: LED0
+      name: Input Level
+      description: Shows input level; it should peak only occasionally

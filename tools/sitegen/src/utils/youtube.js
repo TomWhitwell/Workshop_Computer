@@ -23,6 +23,6 @@ export function youtubeEmbedHtml(urlOrId) {
     /^[A-Za-z0-9_-]{6,}$/.test(String(urlOrId || '').trim()) ? String(urlOrId).trim() : null
   );
   if (!id) return '';
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
+  const embedUrl = `https://www.youtube.com/embed/${id}?rel=0`;
   return `<div class="video-embed"><iframe src="${embedUrl}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen title="YouTube video"></iframe></div>`;
 }

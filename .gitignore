@@ -19,6 +19,7 @@ Icon?
 !.vscode/extensions.json
 !.vscode/settings.json
 site/
+/node_modules/
 tools/sitegen/node_modules/
 
 # Build harness output (per-card CMake build dirs)

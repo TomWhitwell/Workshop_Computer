@@ -165,16 +165,20 @@ test('author preview permits AJV schema compilation without weakening published 
   const published = renderLayout({ title: 'Published', content: '' });
   const publishedPolicy = published.match(/Content-Security-Policy" content="([^"]+)/)?.[1] || '';
   assert.match(previewPolicy.match(/script-src[^;]*/)?.[0] || '', /unsafe-eval/);
+  assert.match(previewPolicy, /worker-src 'self' blob:/);
   assert.doesNotMatch(publishedPolicy.match(/script-src[^;]*/)?.[0] || '', /unsafe-eval/);
+  assert.doesNotMatch(publishedPolicy, /worker-src/);
 });
 
 test('advanced author editor includes highlighting, diagnostics, and YAML formatting controls', () => {
   const preview = renderAuthorPage();
   assert.match(preview, /id="format-yaml"/);
   assert.match(preview, /id="toggle-whitespace" type="checkbox"/);
-  assert.match(preview, /id="yaml-highlight"/);
-  assert.match(preview, /id="yaml-diagnostic-markers"/);
-  assert.match(preview, /AJV schema diagnostics update as you type/);
+  assert.match(preview, /id="yaml-monaco"/);
+  assert.match(preview, /monaco-editor\.css/);
+  assert.match(preview, /id="yaml-source" hidden/);
+  assert.doesNotMatch(preview, /<script[^>]+src="\.\/monaco-editor\.js/);
+  assert.match(preview, /YAML language and Workshop schema diagnostics update as you type/);
   assert.match(preview, /data-field="date-created" type="date"/);
   assert.match(preview, /data-field="date-updated" type="date"/);
 });

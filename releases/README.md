@@ -36,6 +36,7 @@
 | 32_vink | Dual delay loops with sigmoid saturation for Jaap Vink / Roland Kayn style feedback patching | 1.1<br>Functional | C++ (ComputerCard) | Ben Regnier |
 | 33_drumdrum | DFAM-style 8-step sequencer<br>[Web editor](https://mohoyt.com/drumdrum.html) | 1.2.0<br>Functional but WIP | C++ (ComputerCard / Pico SDK) | Moses Hoyt |
 | 34_dual_quant | Dual quantised granular pitch shifter with calibrated 1V/oct CV outputs | 1<br>Beta | C++ (ComputerCard / Pico SDK) | Adrian Vos |
+| 355_RYK_Pitch-Vocoder | Monophonic pitch tracker and 14-band vocoder with an internal chord synth | unknown<br>Released | Unknown | RYK Modular |
 | 35_FreqShift | Dual Input Frequency Shifter for Feedback Experimentation | 1.1<br>Functional | C++ (ComputerCard) | Ben Regnier |
 | 36_GradualProcess | Three generative composition processes (Glass, Reich, Tintinnabuli) in one card, chosen by Main's position at power-on | 1.0.0<br>Released | C++ (ComputerCard) | James Saunders |
 | 37_compulidean | Generative Euclidean drum + sample player. | (see source repo)<br>Functional, but WIP | C++/Arduino, with vscode+platformio. | Tristan Rowley |
@@ -76,10 +77,12 @@
 | 83_Origami | Dual oversampled wavefolder — triangle / sine / hard-clip folding with bias (even-harmonic) control and CV over fold depth, band-limited via 4x oversampling. | 0.1<br>Working | C++ (ComputerCard) | Jason Moore |
 | 84_CosmikC1zzl3 | Stable phase-distortion synthesiser and Turing machine firmware with pitch-aware Web MIDI envelopes, envelope readback, PD, detune, eight waveform families, hosted CZ patch import, USB MIDI device/host operation, and optional Turing MIDI output that defaults off.<br>[Web editor](https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html) | 1.4<br>Released | C++ (Pico SDK) | Adrian Vos |
 | 86_tesserae | Tesserae — Variable-voice (2-8) arpeggiated chord generator with 5 patterns, 10 scales, tap tempo, CV/audio transpose inputs, and dual CV + audio pitch outputs. Inspired by Laurie Spiegel's Music Mouse and Patchwork. | 1.0<br>released | C++ (Pico SDK) | Joep Vermaat |
+| 877_RYK_Tape-Sampler | Two-track tape sampler with variable-speed playback and CV crossfading | unknown<br>Released | Unknown | RYK Modular |
 | 87_fr330hfr33 | Hardware-tested acid bass synthesiser with selectable saw or square oscillator, switchable 18 or 24 dB diode-style filtering, accent and glide, distortion, USB MIDI device/host operation, and a persistent editable sequencer.<br>[Web editor](https://tomwhitwell.github.io/Workshop_Computer/programs/87-fr330hfr33/web/index.html) | 0.9.3<br>Stable | Pico SDK | Adrian Vos |
 | 88_Blank | Reserved for blank 88 cards | 0<br>None | None | Tom Whitwell |
 | 89_Lockstep | Dual quantized pitch-mover — two CV outs walk together through a scale to drive two oscillators in parallel | 1.0<br>Draft | C++ (Pico SDK) | Jason Moore |
 | 90_Pantograph | Trace and record CV — record knob movements, loop them at bipolar speed | 1.1<br>Ready | Pico SDK | Kenny Shen |
+| 910_RYK_Pitched-Delay | Pitch-shifting delay with feedback, freeze and voltage control | unknown<br>Released | Unknown | RYK Modular |
 | 91_chorgan | Chorgan — 6-voice chord synthesizer with morphing timbre, chord extension presets, and built-in chord sequencer. Two modes: normal (detune/chorus) and slew (portamento chord changes). Inspired by the Music Thing Modular Chord Organ. | 1.1.0<br>released | C++ (Pico SDK / ComputerCard) | Andy Jenkinson (uglifruit) |
 | 93_Turing_Matrix | Turing Machine sequencer with a switchable mixer layer inspired by the Music Thing Modular Turing Machine and Vactrol Mix combination<br>[Web editor](https://tomwhitwell.github.io/Workshop_Computer/programs/93-turing-matrix/web/index.html) | 0.1.0-beta<br>Beta release candidate | C++ (ComputerCard) | Adrian Vos from initial code by Tom Whitwell / Music Thing Modular / Chris Johnson |
 | 94_Ouroboros | A tape loop, eating its own tail. | 0.1<br>Working | C++ (ComputerCard) | Jason Moore |

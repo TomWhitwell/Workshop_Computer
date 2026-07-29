@@ -20,9 +20,41 @@ the toolchain and `make` behavior.
    make            # configure + build into ./build/, and stage *.uf2 into ./UF2/
    ```
 
-The container ships CMake, Ninja, the ARM GCC toolchain, a pinned Pico SDK at
-`/opt/pico-sdk`, and picotool. The Pico SDK / TinyUSB versions are selected at
-build time in [devcontainer.json](devcontainer.json) under `build.args`.
+The container ships CMake, Ninja, the ARM GCC toolchain, Node.js 20 with npm,
+a pinned Pico SDK at `/opt/pico-sdk`, and picotool. The Pico SDK / TinyUSB
+versions are selected at build time in [devcontainer.json](devcontainer.json)
+under `build.args`.
+
+Node.js is included so the program-card metadata site under `tools/sitegen/`
+can be built and validated inside the same Codespace/container as the firmware
+toolchain.
+
+## Program card pre-commit validation
+
+The Dev Container automatically installs the site-generator dependencies and
+enables this repository's pre-commit hook for the clone. The hook runs only
+when staged changes touch `releases/` and validates the exact staged snapshot,
+so other unstaged edits do not affect its result.
+
+To install the same hook manually outside the Dev Container:
+
+```sh
+npm ci --prefix tools/sitegen
+npm run hooks:install
+```
+
+Run the staged checks manually at any time with:
+
+```sh
+npm run validate-staged
+```
+
+The hook reports advisory warnings and blocks a commit only for malformed YAML,
+missing or invalid required core metadata, or an internal validation-rule
+crash. Installation changes only this clone's `core.hooksPath`. If another hook
+manager is already configured, invoke `npm run validate-staged` from that
+manager instead. `git commit --no-verify` bypasses the local hook, but pull
+request validation still runs in CI.
 
 ## How `make` works without a per-card Makefile
 

@@ -1,0 +1,87 @@
+draft: true
+Name: RYK B77 Tape Sampler
+short-description: Two-track tape sampler with variable-speed playback and CV crossfading
+Language: Unknown
+Creator: RYK Modular
+Version: unknown
+Status: Released
+contact:
+  website: https://www.ryk-modular.com/contact
+
+tags:
+- sampler
+- tape
+- recorder
+- looper
+- reverse
+- cv
+
+summary: |
+  A two-track mono tape sampler with about 90 seconds of recording time.
+  Recordings survive power cycles and can be played forwards or backwards, retriggered, and mixed under CV control.
+
+panel:
+  inputs:
+  - id: AudioIn1
+    name: Record Input
+    description: Mono audio recording input; adjust the source so the top LED peaks only occasionally
+    type: audio
+  - id: CVIn1
+    name: Speed CV
+    description: 1V/oct control of playback speed
+    type: cv
+  - id: CVIn2
+    name: Track Mix CV
+    description: Voltage control of the mix between Track A and Track B
+    type: cv
+  - id: PulseIn1
+    name: Retrigger
+    description: Restarts playback from the position set by X
+    type: pulse
+  - id: PulseIn2
+    name: Gated Playback
+    description: Plays from the start position while the gate is active
+    type: pulse
+
+  outputs:
+  - id: AudioOut1
+    name: A / B Mix
+    description: Crossfade from Track A to Track B
+    type: audio
+  - id: AudioOut2
+    name: B / A Mix
+    description: Complementary crossfade from Track B to Track A
+    type: audio
+
+controls:
+  switch:
+    up:
+      name: Record
+      description: Records onto the track selected by Y from the current tape position
+    middle:
+      name: Stop Recording
+      description: Ends recording
+    down:
+      name: Playback / Reset
+      description: Tap to start or stop playback; hold to start or stop and reset to the start position; hold down at startup to erase the track or tracks selected by Y
+    tap:
+      name: Play / Stop
+      description: Tap down to start or stop playback
+
+  knobs:
+  - main:
+      name: Speed / Direction
+      description: Sets playback speed and direction; the centre position stops the tape
+    x:
+      name: Start Position
+      description: Sets the tape position used by reset and retrigger
+    y:
+      name: Track Mix / Record
+      description: Crossfades the two tracks and selects the track to record or erase
+
+  leds:
+  - display: list
+    items:
+    - id: LED0
+      name: Input Level
+      description: Shows recording input level; it should peak only occasionally

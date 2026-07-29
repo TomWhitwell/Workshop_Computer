@@ -7,13 +7,18 @@
       "TINYUSB_VERSION": "0.20.0"
     }
   },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "runArgs": ["--add-host=host.docker.internal:host-gateway"],
   "remoteEnv": {
     "PICO_SDK_PATH": "/opt/pico-sdk",
     "MAKEFILES": "${containerWorkspaceFolder}/scripts/pico_auto_make.mk"
   },
-  "postCreateCommand": "git config -f .gitmodules --get-regexp path | awk '{ print $2 }' | xargs -r git submodule update --init --recursive --",
+  "postCreateCommand": "git config -f .gitmodules --get-regexp path | awk '{ print $2 }' | xargs -r git submodule update --init --recursive -- && npm ci --prefix tools/sitegen && npm run hooks:install",
   "customizations": {
     "vscode": {
       "extensions": [
