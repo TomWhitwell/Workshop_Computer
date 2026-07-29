@@ -1,8 +1,12 @@
 id: Fr330hfr33
-title: Fr330hfr33
+Name: Fr330hfr33
 release: 87 / 0.9.3
 summary: Performance-focused acid voice with diode filtering, distortion, MIDI, and a persistent sequencer
 short-description: Hardware-tested acid bass synthesiser with selectable saw or square oscillator, switchable 18 or 24 dB diode-style filtering, accent and glide, distortion, USB MIDI device/host operation, and a persistent editable sequencer.
+Language: Pico SDK
+Creator: Adrian Vos
+Version: "0.9.3"
+Status: Stable
 date-created: 2026-06-21
 date-updated: 2026-07-13
 panel:

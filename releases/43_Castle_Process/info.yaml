@@ -1,5 +1,5 @@
 id: 43_Castle_Process
-title: Castle Process
+Name: Castle Process
 draft: false
 short-description: Fort Processor-inspired harsh noise processor with chopped external audio and a bass pulse voice
 summary: >-
@@ -8,7 +8,9 @@ summary: >-
   bass pulse layer. It is designed as a playable sound-destruction tool rather than
   a clean effect or faithful clone.
 Language: C++
-Creator: Adrian Vos with LLM/AI assistance
+Creator: Adrian Vos
+Version: "1.0"
+Status: Release Candidate
 release: 43 / 0.9.0
 License: MIT
 date-created: 2026-06-25
