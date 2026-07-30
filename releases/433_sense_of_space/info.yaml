@@ -38,6 +38,16 @@ panel:
       description: Right stereo output
 
 controls:
+  switch:
+    up:
+      name: Stop / Arm
+      description: Stop playback, reset to the beginning, and light all three countdown LEDs.
+    middle:
+      name: Start
+      description: Start a three-loop 4'33" performance from the beginning.
+    down:
+      name: Seat Creak
+      description: Trigger a short chair/stool creak one-shot.
   knobs:
     - when: { z: any }
       main:
@@ -49,18 +59,6 @@ controls:
       y:
         name: Amount
         description: Dry/wet reverb amount
-    - when: { z: down, gesture: momentary }
-      main:
-        name: Seat Creak
-        description: Trigger a short chair/stool creak one-shot
-    - when: { z: up }
-      main:
-        name: Stop / Arm
-        description: Stop playback, reset to the beginning, and light all three countdown LEDs
-    - when: { z: middle }
-      main:
-        name: Start
-        description: Start a three-loop 4'33" performance from the beginning
   pulse:
     - input: Pulse1
       name: Seat Creak
