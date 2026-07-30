@@ -7,7 +7,10 @@ Status: Beta - stable in single-developer testing
 License: Mixed - source code/reverb components follow their original project licences; embedded BBC Sound Effects audio is subject to BBC Sound Effects Archive licensing
 date-created: 2026-07-14
 date-updated: 2026-07-16
-license-notes: Embedded BBC Sound Effects Archive audio is for non-commercial, personal or research purposes unless separately licensed from the BBC.
+
+contact:
+  social:
+    github: https://github.com/soveda
 
 tags:
   - ambience
@@ -20,6 +23,8 @@ summary: |
   433 Sense of Space is supplied as 2 MB and 16 MB builds. The 2 MB build uses a
   compact 10 kHz stereo 8-bit ambience asset, while the 16 MB build uses a cleaner
   24 kHz stereo 16-bit ambience asset.
+  It is not a recording or reconstruction of a 4'33" performance, but a sound work
+  about the anticipation, room tone, and incidental activity around one.
   Switch Up stops and arms the performance, Switch Middle starts three 91 second
   loops sourced from 1:30-3:01 of the BBC recording, and the left column LEDs count
   down from three loops to zero. Switch Down or Pulse In 1 triggers a short
@@ -27,6 +32,15 @@ summary: |
   Pulse In 2 restarts the full performance from the beginning.
 
 panel:
+  inputs:
+    - id: PulseIn1
+      name: Seat Creak
+      type: pulse
+      description: Trigger a chair/stool creak one-shot on a rising edge
+    - id: PulseIn2
+      name: Restart
+      type: pulse
+      description: Restart the three-loop sound work from the beginning on a rising edge
   outputs:
     - id: AudioOut1
       name: Left
@@ -38,9 +52,18 @@ panel:
       description: Right stereo output
 
 controls:
+  switch:
+    up:
+      name: Stop / Arm
+      description: Stop playback, reset to the beginning, and light all three countdown LEDs.
+    middle:
+      name: Start
+      description: Start a three-loop 4'33" performance from the beginning.
+    down:
+      name: Seat Creak
+      description: Trigger a short chair/stool creak one-shot.
   knobs:
-    - when: { z: any }
-      main:
+    - main:
         name: Restlessness
         description: Adds occasional quieter automatic chair/stool creaks
       x:
@@ -49,28 +72,8 @@ controls:
       y:
         name: Amount
         description: Dry/wet reverb amount
-    - when: { z: down, gesture: momentary }
-      main:
-        name: Seat Creak
-        description: Trigger a short chair/stool creak one-shot
-    - when: { z: up }
-      main:
-        name: Stop / Arm
-        description: Stop playback, reset to the beginning, and light all three countdown LEDs
-    - when: { z: middle }
-      main:
-        name: Start
-        description: Start a three-loop 4'33" performance from the beginning
-  pulse:
-    - input: Pulse1
-      name: Seat Creak
-      description: Trigger a chair/stool creak one-shot on rising edge
-    - input: Pulse2
-      name: Restart
-      description: Restart the three-loop performance from the beginning on rising edge
   leds:
-    - when: { z: any }
-      display: list
+    - display: list
       items:
         - id: LED0
           name: Loop 1 remaining

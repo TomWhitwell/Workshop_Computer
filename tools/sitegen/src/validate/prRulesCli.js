@@ -3,7 +3,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import YAML from 'yaml';
 import { evaluatePrRules, parseNameStatusZ, summarizePrTrigger } from './prRules.js';
 
 const output = process.argv[2];
@@ -14,7 +16,19 @@ if (!output) {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const input = fs.readFileSync(0);
 const changes = parseNameStatusZ(input);
-const diagnostics = await evaluatePrRules(changes, { root });
+let baseFlairs = null;
+if (process.env.BASE_SHA && changes.some(change =>
+  change.path === 'tools/sitegen/src/curation/flairs.yml'
+  || change.oldPath === 'tools/sitegen/src/curation/flairs.yml'
+)) {
+  try {
+    const source = execFileSync('git', [
+      'show', `${process.env.BASE_SHA}:tools/sitegen/src/curation/flairs.yml`,
+    ], { cwd: root, encoding: 'utf8' });
+    baseFlairs = YAML.parse(source) || {};
+  } catch {}
+}
+const diagnostics = await evaluatePrRules(changes, { root, baseFlairs });
 const trigger = summarizePrTrigger(changes);
 const errorCount = diagnostics.filter(item => item.severity === 'error').length;
 const warningCount = diagnostics.filter(item => item.severity === 'warning').length;

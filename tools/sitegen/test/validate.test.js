@@ -77,6 +77,7 @@ test('PR Markdown report groups diagnostics by changed info.yaml', () => {
       changedPaths: [
         { status: 'M', path: 'releases/42_test/info.yaml' },
         { status: 'A', path: 'releases/43_clean/info.yaml' },
+        { status: 'A', path: 'releases/43_clean/firmware/', filesUnder: true },
       ],
     },
     diagnostics: [
@@ -93,6 +94,7 @@ test('PR Markdown report groups diagnostics by changed info.yaml', () => {
   assert.match(markdown, /## Other rules/);
   assert.match(markdown, /\*\*Triggered by:\*\*/);
   assert.match(markdown, /`M releases\/42_test\/info.yaml`/);
+  assert.match(markdown, /`A files under releases\/43_clean\/firmware\/`/);
   assert.match(markdown, /\*\*Affected release directories:\*\* `42_test`, `43_clean`/);
   assert.ok(markdown.indexOf('**Triggered by:**') < markdown.indexOf('### `42_test/info.yaml`'));
   assert.ok(markdown.indexOf('**Triggered by:**') < markdown.indexOf('## Other rules'));
