@@ -113,7 +113,9 @@ export function reportMarkdown(results, otherRules = null) {
   if (trigger?.changedPaths?.length) {
     lines.push('**Triggered by:**', '');
     for (const change of trigger.changedPaths) {
-      const label = change.oldPath
+      const label = change.filesUnder
+        ? `${change.status} files under ${change.path}`
+        : change.oldPath
         ? `${change.status} ${change.oldPath} → ${change.path}`
         : `${change.status} ${change.path}`;
       lines.push(`- ${code(label)}`);
