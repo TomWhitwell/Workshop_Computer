@@ -37,6 +37,27 @@ natural completion on gate/note release, corrected CZ DCW-to-PD,
 DCA-to-amplitude, and DCO-to-pitch import mapping, high-PD audio smoothing, and
 rapid-retrigger oscillator phase continuity.
 
+## Alternate RAD Build
+
+This release also includes the alternate C1ZZL3 RAD v9 firmware:
+
+```text
+uf2/C1ZZL3_RAD.uf2
+```
+
+Checksum:
+
+```text
+a425adb8f71686a3cd85cec2b4368a5a5fb61b421e196abc5a25cdcbd91eb0b0
+```
+
+RAD is an alternative firmware image, not an update layered on top of Core 1.4;
+flash one version at a time. It retains the same physical controls, Turing
+machine interface, USB MIDI modes, and shared hosted Web MIDI editor and Import
+Lab. RAD v9 adds independently editable Amp1/Amp2, PD1/PD2, and Pitch1/Pitch2
+envelopes, separate oscillator waveform-family settings, named sound-preset
+slots, saved sound-preset settings, and editor readback for those settings.
+
 ## Current Stable Feature Set
 
 - Phase-distortion synth voice.

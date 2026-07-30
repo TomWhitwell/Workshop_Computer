@@ -2,19 +2,23 @@ Name: Cosmik C1ZZL3
 draft: false
 date-created: 2026-07-22
 date-updated: 2026-07-24
-summary: Stable phase-distortion synthesiser and Turing machine firmware with
-  pitch-aware Web MIDI envelopes, envelope readback, PD, detune, eight waveform
-  families, hosted CZ patch import, USB MIDI device/host operation, and optional
-  Turing MIDI output that defaults off.
-short-description: Stable phase-distortion synthesiser and Turing machine
-  firmware with pitch-aware Web MIDI envelopes, envelope readback, PD, detune,
-  eight waveform families, hosted CZ patch import, USB MIDI device/host
-  operation, and optional Turing MIDI output that defaults off.
+summary: Dual phase-distortion synthesiser and Turing machine release with Core
+  1.4 and alternate Rad v9 firmware. Both support USB MIDI, a shared browser
+  editor and CZ patch Import Lab, optional Turing MIDI output, and Turing CV and
+  pulse outputs. Rad v9 adds independently editable envelopes, pitch envelopes,
+  and waveform families for both oscillators.
+short-description: Core 1.4 and Rad v9 dual phase-distortion synth and Turing
+  machine firmware with shared Web MIDI editing and CZ patch import.
 Language: C++ (Pico SDK)
 Creator: Adrian Vos
 Version: "1.4"
 Status: Beta - stable in single-developer testing
 License: MIT
+uf2:
+  - path: uf2/C1ZZL3_CORE.uf2
+    name: Core 1.4
+  - path: uf2/C1ZZL3_RAD.uf2
+    name: Rad v9
 panel:
   inputs:
     - id: AudioIn1
@@ -137,9 +141,16 @@ controls:
             custom slot number."
 host:
   notes: >
-    Phase-distortion synth card with Turing machine mode, USB MIDI, browser
-    editor tools, CZ Import Lab handoff, pitch envelopes, gate-held envelope
-    looping, natural trigger completion, and audio smoothing for high-PD tones.
+    Core 1.4 is the standard firmware. Rad v9 is an alternate firmware image
+    with independently editable Amp1/Amp2, PD1/PD2, and Pitch1/Pitch2 envelopes,
+    separate oscillator waveform families, slot names, and saved sound-preset
+    settings. Flash one firmware image at a time; both use the same hosted
+    Envelope Lab and C1ZZL3 Import Lab.
+
+    Both firmware variants provide a phase-distortion synth card with Turing
+    machine mode, USB MIDI, browser editor tools, CZ Import Lab handoff,
+    gate-held envelope looping, natural trigger completion, and audio smoothing
+    for high-PD tones.
 
     Switch middle is PD synth mode (Main = pitch, X = phase distortion, Y =
     waveform morph). Pulse In 2 and MIDI note-on loop supported envelopes while

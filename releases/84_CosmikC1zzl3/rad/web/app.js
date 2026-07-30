@@ -71,8 +71,8 @@ const CZ_IMPORT_HANDOFF_KEY = "c1zzl3-full-dual-oscillators-import-draft";
 const CZ_IMPORT_QUEUE_KEY = "c1zzl3-full-dual-oscillators-import-queue";
 const ENVELOPE_LAB_HEARTBEAT_KEY = "c1zzl3-full-dual-oscillators-envelope-lab-heartbeat";
 const HANDOFF_CHANNEL_NAME = "c1zzl3-full-dual-oscillators-handoff";
-const HOSTED_EDITOR_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/index.html";
-const HOSTED_IMPORT_LAB_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/import/";
+const HOSTED_EDITOR_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html";
+const HOSTED_IMPORT_LAB_URL = "https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/index.html";
 const LOCAL_IMPORT_LAB_URL = "import/index.html";
 
 let presets = loadPresets();
