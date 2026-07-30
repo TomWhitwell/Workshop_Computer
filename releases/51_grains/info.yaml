@@ -1,112 +1,157 @@
-draft: true
 Name: Grains
-short-description: Granular Sampler and Effect
+short-description: Granular sampler, live audio cloud processor, and scrubbable tape player.
 Language: C++ (RP2040 Pico SDK)
 Creator: Vincent Maurer
-Version: 1.0
+Version: "1.0.0"
 Status: Released
+License: MIT
 Editor: https://vincentmaurer.de/grains/grains_manager.html
-date-created: 2026-05-14
-date-updated: 2026-05-14
+demo-link: https://www.youtube.com/watch?v=eWROkerT890
+
+uf2:
+  - path: build/grains.uf2
+    name: Grains Firmware
+
+contact:
+  website: https://vincentmaurer.de
+  social:
+    github: https://github.com/vincentltm
+    youtube: https://www.youtube.com/@vincentltm
 
 tags:
   - granular
   - sampler
-  - freeze
-  - live-processing
-  - tape-mode
+  - lfo
+  - reverb
+  - tape
 
 summary: |
-  Grains records and replays granular audio from a live buffer or stored sample slots. The interface is page-based:
-  page 1 (position/density/size), page 2 (envelope/tone/pitch), page 3 (mix/spread/feedback-diffusion), and page 4
-  (reverb). Flick/hold gestures control page changes, freeze, and load/save menus. Tape Mode is available at power-up
-  for scrub-style sample playback from the same slot system.
+  Grains is a granular sampler, live audio buffer processor, and scrubbable tape player for the Workshop Computer. It splits live or stored audio into micro-grains, with real-time control over density, grain size, playhead position, pitch, window envelopes, feedback diffusion, stereo spread, and onboard reverb.
+
+  The card features 16 flash sample slots (slots 1–4 for persistent live-recorded buffers, slots 5–16 for custom audio files), a dedicated browser-based Grains Sample Manager for sample uploading/normalizing/flashing, and a special power-up Tape Mode for manual scrub-style loop playback.
 
 panel:
   inputs:
     - id: AudioIn1
-      name: Audio Input Left / Mono
-      description: Source audio for granular recording and processing
+      name: Audio Input 1 (Left / Mono)
+      description: Audio source for granular recording, live processing, and delay feedback
+      type: audio
+
     - id: AudioIn2
-      name: Audio Input Right
-      description: CV/audio modulation for grain density behavior
+      name: Audio Input 2 (Right / Density Mod)
+      description: Right audio input or CV modulation for grain density
+      type: audio
+
     - id: CVIn1
       name: Pitch CV
-      description: 1V/oct style control for grain or tape playback pitch
+      description: 1V/Octave calibrated tracking for grain or tape playback pitch
+      type: cv
+
     - id: CVIn2
       name: Position CV
-      description: Grain playhead offset or tape scrub position modulation
+      description: Granular playhead position offset or tape scrub position modulation
+      type: cv
+
     - id: PulseIn1
-      name: Grain Trigger
-      description: External trigger for grain spawning or tape play/pause gating
+      name: Grain Trigger / Play Gate
+      description: External pulse trigger to spawn grains, or play/pause gate in tape mode
+      type: pulse
+
     - id: PulseIn2
       name: Freeze / Reset
-      description: Freeze control in granular mode; playhead reset in tape mode
+      description: Toggles live buffer freeze in granular mode; resets playhead to start in tape mode
+      type: pulse
+
   outputs:
     - id: AudioOut1
-      name: Stereo Out Left
-      description: Main processed left output
+      name: Output 1 (Left)
+      description: Main processed left audio output (Dry/Wet blend)
+      type: cv
+
     - id: AudioOut2
-      name: Stereo Out Right
-      description: Main processed right output
+      name: Output 2 (Right)
+      description: Main processed right audio output (Stereo Spread)
+      type: cv
+
     - id: CVOut1
-      name: Envelope / Playhead Ramp
-      description: Looping ramp CV tied to buffer/playhead progress
+      name: Playhead Ramp CV
+      description: Looping 0–5V ramp CV output synced to buffer length or tape playhead progress
+      type: cv
+
     - id: CVOut2
-      name: Random / Motion CV
-      description: Grain-randomness or movement/speed CV output
+      name: Grain Motion / Speed CV
+      description: Random 0–5V CV per grain in granular mode; bipolar movement speed CV in tape mode
+      type: cv
+
     - id: PulseOut1
-      name: Grain / End-of-Cycle Trigger
-      description: Trigger output for grain timing or tape EOC
+      name: Grain Spawn / EOC Trigger
+      description: Gate output fired on grain spawning, or End-of-Cycle pulse in tape mode
+      type: pulse
+
     - id: PulseOut2
-      name: Freeze / Midpoint Trigger
-      description: High when frozen in granular mode or midpoint trigger in tape mode
+      name: Freeze State / Midpoint Trigger
+      description: HIGH when live buffer is frozen in granular mode, or midpoint pulse in tape mode
+      type: pulse
 
 controls:
+  switch:
+    up:
+      name: Toggle Freeze
+      description: "Flick UP to freeze/unfreeze live audio buffer (LED 5 lights when frozen). Hold DOWN in freeze mode to save to persistent slots 1–4."
+    middle:
+      name: Live Mode & Page Selection
+      description: "Normal granular operation. Tap DOWN to cycle through 4 control pages (Page 1: Grain Control, Page 2: Tone & Pitch, Page 3: Mix & Spread, Page 4: Reverb)."
+    down:
+      name: Menu Access & Tape Mode
+      description: "Tap DOWN to cycle pages. Hold DOWN 2s for Load Menu (unfrozen) or Save Menu (frozen). Hold DOWN during power-up to enter Tape Mode."
+
   knobs:
-    - when: { page: 1 }
+    - when: { z: middle }
       main:
-        name: Position
-        description: Grain read position in the captured buffer/sample
+        name: Position (P1) / Pitch (P2) / Mix (P3) / Reverb (P4)
+        description: "Page 1: Read Position; Page 2: Pitch; Page 3: Wet/Dry Mix; Page 4: Reverb Level"
       x:
-        name: Density
-        description: Grain generation density
+        name: Density (P1) / Jitter (P2) / Feedback (P3) / Room (P4)
+        description: "Page 1: Density; Page 2: Jitter & Chords; Page 3: Feedback & Diffusion; Page 4: Room Size"
       y:
-        name: Size
-        description: Maximum grain size
-    - when: { page: 2 }
+        name: Size (P1) / Window (P2) / Spread (P3) / Damping (P4)
+        description: "Page 1: Grain Size; Page 2: Window Envelope; Page 3: Stereo Spread; Page 4: Damping"
+
+    - when: { z: down }
       main:
-        name: Envelope Shape
-        description: Grain window shape selection
+        name: Scrub Position / Slot Select
+        description: "Tape Mode: Manual playhead scrubbing position. Load/Save Menu: Select sample slot 1–16"
       x:
-        name: Jitter / Chords / Reverse Chance
-        description: Behavior control across left/center/right regions
+        name: Playback Speed / Action
+        description: "Tape Mode: Playback speed (noon = 1.0x). Load/Save Menu: Turn knob to select slot"
       y:
-        name: Pitch
-        description: Grain pitch control
-    - when: { page: 3 }
-      main:
-        name: Wet/Dry
-        description: Blend between live signal and granular output
-      x:
-        name: Feedback / Diffusion
-        description: Feedback in live mode, diffusion in freeze mode
-      y:
-        name: Stereo Spread
-        description: Width of stereo grain field
-    - when: { page: 4 }
-      main:
-        name: Reverb Mix
-        description: Reverb amount
-      x:
-        name: Room Size
-        description: Reverb size
-      y:
-        name: Damping
-        description: Reverb high-frequency damping
+        name: Loop Length
+        description: "Tape Mode: Sets playhead loop segment length"
+
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Page 1 Indicator / Playhead Bit 0
+          description: Lights on Page 1; circular progress bar bit in Tape Mode
+        - id: LED1
+          name: Page 2 Indicator / Playhead Bit 1
+          description: Lights on Page 2; 4-bit binary slot indicator in Load/Save menu
+        - id: LED2
+          name: Page 3 Indicator / Playhead Bit 2
+          description: Lights on Page 3; 4-bit binary slot indicator in Load/Save menu
+        - id: LED3
+          name: Page 4 Indicator / Playhead Bit 3
+          description: Lights on Page 4; 4-bit binary slot indicator in Load/Save menu
+        - id: LED4
+          name: Tape Mode Indicator / Save Menu
+          description: Lights when Tape Mode is active or Save Menu is selected
+        - id: LED5
+          name: Freeze State / Load Menu
+          description: Lights when live audio buffer is frozen or Load Menu is selected
 
 host:
   usb:
-    - name: Grains Manager
+    - name: Grains Sample Manager & Web Sync (Device Mode)
       role: editor
-      description: Browser editor in `web/` and hosted online for managing sample slots and module settings
+      description: Browser Web MIDI & USB app (`web/grains_sample_manager.html` or online) for managing, editing start/end points, normalizing, and flashing 16 sample slots directly to RP2040 flash memory

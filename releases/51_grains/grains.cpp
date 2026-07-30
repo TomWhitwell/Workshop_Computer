@@ -6,15 +6,15 @@
 #include "hardware/vreg.h"
 #include "pico/multicore.h"
 #include "pico/stdlib.h"
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 #define SAMPLE_RATE 48000
 #define GRAIN_BUF_SAMPLES 72000
 #define SWITCH_TAP_MAX_SAMPLES 6000u
 #define DENSITY_DEADZONE_Q15 2400
-#define MAX_GRAINS 48
+#define MAX_GRAINS 32
 volatile bool tapeMode = false;
 
 uint32_t fast_rand_seed0 = 12345, fast_rand_seed1 = 67890;
@@ -42,17 +42,14 @@ void initHannLUT() {
   }
 }
 inline int32_t __not_in_flash_func(hannEnvelope)(uint32_t phase_q16) {
-  uint32_t i0 = (phase_q16 >> 6) & 1023;
-  uint32_t i1 = (i0 + 1) & 1023;
-  int32_t f = (phase_q16 & 0x3F) << 10;
-  int32_t v0 = hannLUT[i0], v1 = hannLUT[i1];
-  return v0 + (((v1 - v0) * f) >> 16);
+  return hannLUT[phase_q16 >> 6];
 }
 uint32_t __not_in_flash_func(exp2_q16)(int32_t x_q16) {
-  int32_t i = x_q16 >> 16, f = x_q16 & 0xFFFF,
-          f2 = (int32_t)(((int64_t)f * f) >> 16);
-  int32_t fp1 = (int32_t)(((int64_t)f * 45426) >> 16),
-          fp2 = (int32_t)(((int64_t)f2 * 15746) >> 16);
+  int32_t i = x_q16 >> 16;
+  uint32_t f = (uint32_t)(x_q16 & 0xFFFF);
+  uint32_t f2 = (f * f) >> 16;
+  uint32_t fp1 = (f * 45426) >> 16;
+  uint32_t fp2 = (f2 * 15746) >> 16;
   uint32_t res = 65536 + fp1 + fp2;
   if (i >= 15)
     return 0x7FFFFFFF;
@@ -367,10 +364,10 @@ void loadFlashSampleToRam(int idx) {
 volatile uint32_t densityCounter = 0, currentDensityThreshold = 0;
 volatile uint32_t spawnCounter = 0;
 static const int8_t SCALES[4][6] = {
-    {0, 7, 12, -12, -5, 0}, // 5ths & Octs
-    {0, 2, 4, 7, 9, 12},    // Major
-    {0, 2, 3, 7, 8, 12},    // Minor
-    {0, 3, 5, 7, 10, 12}    // Pentatonic
+    {0, 7, 12, -12, -5, 19}, // 5ths & Octs (Adds higher octave fifth)
+    {0, 4, 7, 11, 12, 16},   // Major 7th / 9th (0, E, G, B, C, E)
+    {0, 3, 7, 10, 12, 15},   // Minor 7th (0, Eb, G, Bb, C, Eb)
+    {0, 2, 5, 7, 9, 12}      // Clean Pentatonic
 };
 
 class Grains : public ComputerCard {
@@ -403,37 +400,55 @@ public:
   volatile int16_t cachedKnobX = 0;
   volatile int16_t cachedKnobY = 0;
 
+  int activeGrainsIdx[MAX_GRAINS];
+  int numActiveGrains = 0;
+
   void __not_in_flash_func(spawnGrain)() {
     if (activeGrainsCount >= MAX_GRAINS)
       return;
     int32_t pP = params[0].pMain + (CVIn2() << 4), sP = params[0].pY,
-            shP = params[1].pMain, smP = params[1].pX, piP = params[1].pY;
+            shP = params[1].pY, smP = params[1].pX, piP = params[1].pMain;
     pOT = 480;
     tFT = 2400;
     uint32_t gS = 120 + ((sP * 11880) >> 15);
-    pP &= 32767; // Infinite wrap-around for position
 
+    // Add a small deadzone at the bottom of the knob (e.g., ~1.5% of the
+    // 0-32767 range) This ensures that fully-left strictly guarantees 0 delay
+    // despite ADC noise.
+    if (pP < 500) {
+      pP = 0;
+    } else {
+      // Optional: Rescale the remainder so you don't lose resolution,
+      // or just leave it as-is for a simple cutoff.
+      pP = ((pP - 500) * 32767) / (32767 - 500);
+    }
+
+    // Hard clamp to prevent any back or forward wrap-around
+    if (pP < 0)
+      pP = 0;
+    if (pP > 32767)
+      pP = 32767;
     int32_t posJitter = 0, pitchJitter = 0;
     bool rev = false;
     if (smP < 10922) {
       // Left Third: Position Jitter (Smear) with quadratic curve
       uint32_t relX = (smP * 32767) / 10922;
-      uint32_t curvedX = (relX >> 1) + (((uint64_t)relX * relX) >> 16);
+      uint32_t curvedX = (relX >> 1) + ((relX * relX) >> 16);
       posJitter = curvedX;
     } else if (smP < 21845) {
-      // Middle Third: Harmonic Cloud (Quantized Pitch Jitter)
-      int mode = (smP - 10922) * 4 / 10923;
+      // Middle Third: Reverse Probability
+      int32_t prob = (smP - 10922) * 32767 / 10923;
+      if (fast_rand_q15(1) < prob)
+        rev = true;
+      posJitter = 2000;
+    } else {
+      // Right Third: Harmonic Cloud (Quantized Pitch Jitter)
+      int mode = (smP - 21845) * 4 / 10923;
       if (mode > 3)
         mode = 3;
       int note = SCALES[mode][fast_rand(1) % 6];
       pitchJitter = note * 5461; // 5461 = 65536 / 12 (one semitone in Q16)
       posJitter = 2000;          // Small fixed smear in harmonic mode
-    } else {
-      // Right Third: Reverse Probability
-      int32_t prob = (smP - 21845) * 32767 / 10922;
-      if (fast_rand_q15(1) < prob)
-        rev = true;
-      posJitter = 2000;
     }
 
     int32_t jit = pP + ((fast_rand_q15_sym(1) * posJitter) >> 15);
@@ -441,7 +456,7 @@ public:
       jit = 0;
     if (jit > 32767)
       jit = 32767;
-    uint32_t pJ = (uint32_t)(((uint64_t)jit * (activeBufferSize - 1)) >> 15);
+    uint32_t pJ = (uint32_t)(((uint32_t)jit * (activeBufferSize - 1)) >> 15);
     if (!synthMode) {
       // Live mode: Relative to write head. pJ=0 is now (newest), pJ=max is
       // oldest.
@@ -459,11 +474,11 @@ public:
 
     int32_t pR = ((piP - 16384) << 3) + pitchJitter, cvP = CV1_acc >> 4;
     uint32_t mM = exp2_q16(pR + cvP);
-    uint32_t phaseInc = (uint32_t)(((uint64_t)65536 * mM) >> 16);
+    uint32_t phaseInc = mM;
 
     // Nudge grains to ensure they can play to the end in Synth/Freeze mode
     if (synthMode || freezeMode) {
-      uint32_t needed = (uint32_t)(((uint64_t)gS * phaseInc) >> 16) + 2;
+      uint32_t needed = (((uint32_t)gS * phaseInc) >> 16) + 2;
       if (rev) {
         if (pJ < needed)
           pJ = needed;
@@ -532,14 +547,16 @@ public:
     g.panL = 32768 - g.panR;
     g.active = true;
     activeGrainsCount++;
+    activeGrainsIdx[numActiveGrains++] = slot;
     spawnCounter++;
   }
   Grains() {
+    numActiveGrains = 0;
     initHannLUT();
     fDL.init();
     fDR.init();
     params[0] = {0, 26214, 16384};
-    params[1] = {0, 0, 16384};
+    params[1] = {16384, 0, 0};
     params[2] = {16384, 0, 0};
     params[3] = {0, 16384, 16384};
   }
@@ -647,7 +664,7 @@ public:
       }
     }
   }
-  void ProcessSample() override {
+  void __not_in_flash_func(ProcessSample)() override {
     static uint32_t uiBlinkTimer = 0;
     uiBlinkTimer++;
     static int32_t gL48 = 0, gR48 = 0;
@@ -761,28 +778,30 @@ public:
 
       if (++gPh >= 2) {
         gPh = 0;
-        multicore_fifo_push_blocking(0x80000000); // Special bit for Tape Mode
-        int32_t sL = (int32_t)multicore_fifo_pop_blocking();
-        int32_t sR = (int32_t)multicore_fifo_pop_blocking();
-        int32_t speedCV = ((int32_t)multicore_fifo_pop_blocking()) / 2;
+        if (multicore_fifo_rvalid()) {
+          int32_t sL = (int32_t)multicore_fifo_pop_blocking();
+          int32_t sR = (int32_t)multicore_fifo_pop_blocking();
+          int32_t speedCV = ((int32_t)multicore_fifo_pop_blocking()) / 2;
+          multicore_fifo_push_blocking(0x80000000); // Special bit for Tape Mode
 
-        // Tape Saturation (Refined Soft Clipping)
-        auto saturate = [](int32_t x) {
-          if (x > 12000)
-            x = 12000 + ((x - 12000) >> 2);
-          if (x < -12000)
-            x = -12000 + ((x + 12000) >> 2);
-          return x;
-        };
-        gL48 = saturate(sL);
-        gR48 = saturate(sR);
+          // Tape Saturation (Refined Soft Clipping)
+          auto saturate = [](int32_t x) {
+            if (x > 12000)
+              x = 12000 + ((x - 12000) >> 2);
+            if (x < -12000)
+              x = -12000 + ((x + 12000) >> 2);
+            return x;
+          };
+          gL48 = saturate(sL);
+          gR48 = saturate(sR);
 
-        // CV2 Out: Movement/Speed CV (-2048 to 2047)
-        if (speedCV > 2047)
-          speedCV = 2047;
-        if (speedCV < -2048)
-          speedCV = -2048;
-        CVOut2((int16_t)speedCV);
+          // CV2 Out: Movement/Speed CV (-2048 to 2047)
+          if (speedCV > 2047)
+            speedCV = 2047;
+          if (speedCV < -2048)
+            speedCV = -2048;
+          CVOut2((int16_t)speedCV);
+        }
       }
 
       // CV1 Out: Playhead Position Ramp (-2048 to 2047)
@@ -790,7 +809,8 @@ public:
       if (bS == 0)
         getFlashSamplePtr(currentTapeSample - 4, bS);
       if (bS > 0) {
-        int16_t cv1Val = (int16_t)((tapePlayhead / (double)bS) * 4095.0 - 2048.0);
+        int16_t cv1Val =
+            (int16_t)((tapePlayhead / (double)bS) * 4095.0 - 2048.0);
         CVOut1(cv1Val);
 
         // Pulse Out 1: End of Cycle (EOC) Trigger
@@ -955,12 +975,45 @@ public:
 
     if (++gPh >= 2) {
       gPh = 0;
-      uint32_t trig = 1;
-      if (trigger1Buffered) {
-        trig |= 2;
-        trigger1Buffered = false;
+      if (multicore_fifo_rvalid()) {
+        uint32_t trig = 1;
+        if (trigger1Buffered) {
+          trig |= 2;
+          trigger1Buffered = false;
+        }
+        int32_t sL = (int32_t)multicore_fifo_pop_blocking(),
+                sR = (int32_t)multicore_fifo_pop_blocking(),
+                __attribute__((unused)) eS =
+                    (int32_t)multicore_fifo_pop_blocking();
+        int32_t fA = params[2].pX, smL = fDL.process(sL), smR = fDR.process(sR);
+        if (freezeMode || synthMode) {
+          // Freeze: Knob X is ONLY Diffusion (Smear). NO buffer writing.
+          gL48 =
+              (int32_t)(((int64_t)sL * (32767 - fA) + (int64_t)smL * fA) >> 15);
+          gR48 =
+              (int32_t)(((int64_t)sR * (32767 - fA) + (int64_t)smR * fA) >> 15);
+        } else {
+          // Live mode: Knob X is ONLY Feedback.
+          gL48 = sL;
+          gR48 = sR;
+        }
+        multicore_fifo_push_blocking(trig);
       }
-      multicore_fifo_push_blocking(trig);
+      if (!(freezeMode || synthMode)) {
+        // Live mode: Knob X is ONLY Feedback.
+        int32_t fM = (gL48 + gR48) >> 1;
+        int32_t fA = params[2].pX;
+        int32_t mix = atr + ((fM * fA) >> 15);
+        // DC block the feedback to prevent drift
+        mix = dc_block(mix, fb_dc_x, fb_dc_y);
+        if (mix > 32767)
+          mix = 32767;
+        if (mix < -32768)
+          mix = -32768;
+        grainBuffer[grainWritePos] = (int16_t)mix;
+        if (++grainWritePos >= GRAIN_BUF_SAMPLES)
+          grainWritePos = 0;
+      }
       int32_t wetDry = synthMode ? 32767 : params[2].pMain;
       int32_t oL = ((aiL * (32768 - wetDry)) >> 15) + ((gL48 * wetDry) >> 15),
               oR = ((aiR * (32768 - wetDry)) >> 15) + ((gR48 * wetDry) >> 15);
@@ -979,32 +1032,6 @@ public:
       AudioOut1(fL);
       AudioOut2(fR);
       CVOut2(nextCV2);
-      int32_t sL = (int32_t)multicore_fifo_pop_blocking(),
-              sR = (int32_t)multicore_fifo_pop_blocking(),
-              eS = (int32_t)multicore_fifo_pop_blocking();
-      int32_t fA = params[2].pX, smL = fDL.process(sL), smR = fDR.process(sR);
-      if (freezeMode || synthMode) {
-        // Freeze: Knob X is ONLY Diffusion (Smear). NO buffer writing.
-        gL48 =
-            (int32_t)(((int64_t)sL * (32767 - fA) + (int64_t)smL * fA) >> 15);
-        gR48 =
-            (int32_t)(((int64_t)sR * (32767 - fA) + (int64_t)smR * fA) >> 15);
-      } else {
-        // Live mode: Knob X is ONLY Feedback.
-        gL48 = sL;
-        gR48 = sR;
-        int32_t fM = (gL48 + gR48) >> 1;
-        int32_t mix = atr + ((fM * fA) >> 15);
-        // DC block the feedback to prevent drift
-        mix = dc_block(mix, fb_dc_x, fb_dc_y);
-        if (mix > 32767)
-          mix = 32767;
-        if (mix < -32768)
-          mix = -32768;
-        grainBuffer[grainWritePos] = (int16_t)mix;
-        if (++grainWritePos >= GRAIN_BUF_SAMPLES)
-          grainWritePos = 0;
-      }
       static uint32_t cv1Phase = 0;
       int32_t mixKnob = params[2].pMain;
       // Calculate base phase increment for exactly 1x playback speed
@@ -1027,6 +1054,12 @@ public:
 void __not_in_flash_func(core1_worker)() {
   while (multicore_fifo_rvalid())
     multicore_fifo_pop_blocking();
+
+  // Prime the pipeline with 3 initial dummy frames
+  multicore_fifo_push_blocking(0);
+  multicore_fifo_push_blocking(0);
+  multicore_fifo_push_blocking(0);
+
   while (1) {
     if (core1_paused) {
       core1_is_paused = true;
@@ -1035,6 +1068,10 @@ void __not_in_flash_func(core1_worker)() {
       core1_is_paused = false;
       while (multicore_fifo_rvalid())
         multicore_fifo_pop_blocking();
+      // Re-prime the pipeline after flash-pause resume
+      multicore_fifo_push_blocking(0);
+      multicore_fifo_push_blocking(0);
+      multicore_fifo_push_blocking(0);
     }
     uint32_t trig = multicore_fifo_pop_blocking();
     bool isTape = (trig & 0x80000000);
@@ -1058,12 +1095,16 @@ void __not_in_flash_func(core1_worker)() {
       if (sY > 16184 && sY < 16584)
         sY = 16384;
 
-      // Pitch Mod and Speed are matched mappings: linear from 0.0x to 2.0x, center is 1.0x
+      // Pitch Mod and Speed are matched mappings: linear from 0.0x to 2.0x,
+      // center is 1.0x
       int32_t effY = sY + (gptr->CV1_acc >> 5); // Allow CV1 to modulate pitch
-      if (effY < 0) effY = 0;
-      if (effY > 32767) effY = 32767;
-      
-      // Mapping: center (16384) results in 2.0 (normal speed for 48kHz output at 24kHz rate)
+      if (effY < 0)
+        effY = 0;
+      if (effY > 32767)
+        effY = 32767;
+
+      // Mapping: center (16384) results in 2.0 (normal speed for 48kHz output
+      // at 24kHz rate)
       double pitchModBase = (double)effY / 8192.0;
       if (pitchModBase < 0.01)
         pitchModBase = 0.01;
@@ -1071,11 +1112,13 @@ void __not_in_flash_func(core1_worker)() {
       // Wow & Flutter: Subtle random fluctuations for analog character
       static int32_t wfSeed = 123;
       wfSeed = (wfSeed * 1103515245 + 12345);
-      double flutter = ((double)((wfSeed >> 16) & 0xFFFF) / 65535.0 - 0.5) * 0.0005;
-      
+      double flutter =
+          ((double)((wfSeed >> 16) & 0xFFFF) / 65535.0 - 0.5) * 0.0005;
+
       static double smoothedSpeed = 2.0;
       double speed = ((double)sX / 8192.0) + flutter;
-      smoothedSpeed += (speed - smoothedSpeed) * 0.02; // More inertia on speed changes
+      smoothedSpeed +=
+          (speed - smoothedSpeed) * 0.02; // More inertia on speed changes
 
       // Manual position for scrubbing / nudging with heavy noise filtering
       static float sCV2 = 0;
@@ -1086,8 +1129,10 @@ void __not_in_flash_func(core1_worker)() {
       double currentManualPos = (double)sM / 32768.0;
       currentManualPos += (double)sCV2 / 4096.0;
       // Wrap currentManualPos to 0..1
-      while(currentManualPos >= 1.0) currentManualPos -= 1.0;
-      while(currentManualPos < 0) currentManualPos += 1.0;
+      while (currentManualPos >= 1.0)
+        currentManualPos -= 1.0;
+      while (currentManualPos < 0)
+        currentManualPos += 1.0;
 
       if (lastManualPos < 0)
         lastManualPos = currentManualPos;
@@ -1103,7 +1148,7 @@ void __not_in_flash_func(core1_worker)() {
       } else {
         lastManualPos = currentManualPos;
       }
-      
+
       uint32_t bS = 0;
       const int16_t *buf = nullptr;
       if (gptr->currentTapeSample < 4) {
@@ -1112,7 +1157,7 @@ void __not_in_flash_func(core1_worker)() {
       } else {
         buf = getFlashSamplePtr(gptr->currentTapeSample - 4, bS);
       }
-      
+
       if (buf && bS > 0) {
         double delta = 0;
         if (gptr->tapeAutoPlay) {
@@ -1120,13 +1165,16 @@ void __not_in_flash_func(core1_worker)() {
         } else {
           delta = manualDelta * (double)bS;
         }
-        
-        smoothedDelta += (delta - smoothedDelta) * 0.01; // Heavy tape inertia for scrubbing
+
+        smoothedDelta +=
+            (delta - smoothedDelta) * 0.01; // Heavy tape inertia for scrubbing
         delta = smoothedDelta;
         gptr->tapePlayhead += delta;
-        
-        while (gptr->tapePlayhead >= bS) gptr->tapePlayhead -= bS;
-        while (gptr->tapePlayhead < 0) gptr->tapePlayhead += bS;
+
+        while (gptr->tapePlayhead >= bS)
+          gptr->tapePlayhead -= bS;
+        while (gptr->tapePlayhead < 0)
+          gptr->tapePlayhead += bS;
 
         // Support reverse playback when moving backwards
         bool reverseGrains = (delta < 0);
@@ -1134,7 +1182,8 @@ void __not_in_flash_func(core1_worker)() {
 
         auto renderGrain = [&](uint32_t &ph, double &spawnPos) {
           float totalPh = (float)ph * (1.0f / 65536.0f);
-          float p = reverseGrains ? ((float)spawnPos - totalPh) : ((float)spawnPos + totalPh);
+          float p = reverseGrains ? ((float)spawnPos - totalPh)
+                                  : ((float)spawnPos + totalPh);
 
           float fbS = (float)bS;
           while (p < 0)
@@ -1143,15 +1192,19 @@ void __not_in_flash_func(core1_worker)() {
             p -= fbS;
 
           // Safety clamp for index
-          if (p < 0) p = 0;
-          if (p >= fbS) p = fbS - 1.001f;
+          if (p < 0)
+            p = 0;
+          if (p >= fbS)
+            p = fbS - 1.001f;
 
           uint32_t i0 = (uint32_t)p;
           uint32_t i1 = i0 + 1;
-          if (i1 >= bS) i1 = 0;
+          if (i1 >= bS)
+            i1 = 0;
           float frac = p - (float)i0;
 
-          int32_t v = (int32_t)((float)buf[i0] + (float)(buf[i1] - buf[i0]) * frac);
+          int32_t v =
+              (int32_t)((float)buf[i0] + (float)(buf[i1] - buf[i0]) * frac);
 
           uint32_t envPhase = (ph >> 12) & 0xFFFF;
           int32_t env = hannEnvelope(envPhase);
@@ -1176,12 +1229,15 @@ void __not_in_flash_func(core1_worker)() {
           targetVol = 0.0f;
         tapeVol += (targetVol - tapeVol) * 0.1f;
 
-        int32_t out = renderGrain(tapePhaseA, spawnPosA) + renderGrain(tapePhaseB, spawnPosB);
+        int32_t out = renderGrain(tapePhaseA, spawnPosA) +
+                      renderGrain(tapePhaseB, spawnPosB);
         out = (int32_t)((float)out * tapeVol);
 
         multicore_fifo_push_blocking((uint32_t)out);
         multicore_fifo_push_blocking((uint32_t)out);
-        multicore_fifo_push_blocking((uint32_t)((int32_t)(smoothedDelta * 1024.0))); // Pass scaled speed for CV2 output
+        multicore_fifo_push_blocking(
+            (uint32_t)((int32_t)(smoothedDelta *
+                                 1024.0))); // Pass scaled speed for CV2 output
       } else {
         multicore_fifo_push_blocking(0);
         multicore_fifo_push_blocking(0);
@@ -1198,7 +1254,6 @@ void __not_in_flash_func(core1_worker)() {
       int32_t sL = 0, sR = 0;
 
       if (!isSave) {
-        int totalSlots = 4 + numFlashSamples;
         int slot = gptr->menuSelectedSlot;
 
         if (slot != lastSlot) {
@@ -1247,11 +1302,20 @@ void __not_in_flash_func(core1_worker)() {
       uint32_t x = ((amt - 400) * 32767) / 15983;
 
       // Quadratic blend for x: provides more control in the mid-range densities
-      // by slowing down the curve at the start, while keeping exponential precision 
-      // at the extreme high densities.
+      // by slowing down the curve at the start, while keeping exponential
+      // precision at the extreme high densities.
       uint32_t x_curved = (x >> 1) + (((uint64_t)x * x) >> 16);
 
-      dPr = exp2_q16(871550 - (int32_t)x_curved * 13 - ((int32_t)x_curved * 55 >> 7)) >> 16;
+      dPr = exp2_q16(871550 - (int32_t)x_curved * 13 -
+                     ((int32_t)x_curved * 55 >> 7)) >>
+            16;
+    }
+
+    if (dPr > 0) {
+      uint32_t current_gS = 120 + ((params[0].pY * 11880) >> 15);
+      uint32_t min_dPr = current_gS / 30; // Limit to maximum 30 active grains on average
+      if (dPr < min_dPr)
+        dPr = min_dPr;
     }
 
     int32_t smP = params[1].pX;
@@ -1285,97 +1349,103 @@ void __not_in_flash_func(core1_worker)() {
     int32_t sL = 0, sR = 0, eS = 0;
     uint32_t bS = activeBufferSize;
     const int16_t *buf = activeBuffer;
-    for (int i = 0; i < MAX_GRAINS; i++) {
+    const bool isFrozenOrSynth = (synthMode || freezeMode);
+    for (int idx = 0; idx < gptr->numActiveGrains;) {
+      int i = gptr->activeGrainsIdx[idx];
       Grain &g = grains_pool[i];
-      if (!g.active)
-        continue;
+      bool deactivate = false;
 
       // --- Optimized Branchless Envelope Math ---
       int32_t env = 0;
       uint32_t ep = g.envPhase;
       int32_t sFrac = g.envSFrac;
 
-      int32_t decayEnv = (65535 - ep) >> 2;
-      int32_t attackEnv = ep >> 2;
-      int32_t att = ep << 4;
-      int32_t rel = (65535 - ep) << 4;
-      int32_t sqEnv = att < rel ? att : rel;
-      if (sqEnv > 16384)
-        sqEnv = 16384;
-
       if (g.envSIdx == 0) {
-        int32_t hann = hannEnvelope(ep);
+        int32_t hann = hannLUT[ep >> 6];
+        int32_t decayEnv = (65535 - ep) >> 2;
         env = (hann * (32768 - sFrac) + decayEnv * sFrac) >> 15;
       } else if (g.envSIdx == 1) {
+        int32_t decayEnv = (65535 - ep) >> 2;
+        int32_t att = ep << 4;
+        int32_t rel = (65535 - ep) << 4;
+        int32_t sqEnv = att < rel ? att : rel;
+        if (sqEnv > 16384)
+          sqEnv = 16384;
         env = (decayEnv * (32768 - sFrac) + sqEnv * sFrac) >> 15;
       } else {
+        int32_t attackEnv = ep >> 2;
+        int32_t att = ep << 4;
+        int32_t rel = (65535 - ep) << 4;
+        int32_t sqEnv = att < rel ? att : rel;
+        if (sqEnv > 16384)
+          sqEnv = 16384;
         env = (sqEnv * (32768 - sFrac) + attackEnv * sFrac) >> 15;
       }
 
       // --- 32-bit Position Processing ---
-      if (synthMode || freezeMode) {
+      if (isFrozenOrSynth) {
         if (g.reverse) {
           if (g.posInt == 0) {
-            g.active = false;
-            activeGrainsCount--;
-            continue;
+            deactivate = true;
           }
         } else {
           if (g.posInt >= bS - 1) {
-            g.active = false;
-            activeGrainsCount--;
-            continue;
+            deactivate = true;
           }
         }
       } else {
-        while (g.posInt >= bS)
+        if (g.posInt >= bS)
           g.posInt -= bS;
       }
 
-      uint32_t p0 = g.posInt;
-      uint32_t p1;
-      if (g.reverse) {
-        if (p0 == 0)
-          p1 = (synthMode || freezeMode) ? 0 : (bS - 1);
-        else
-          p1 = p0 - 1;
-      } else {
-        p1 = p0 + 1;
-        if (p1 >= bS)
-          p1 = (synthMode || freezeMode) ? p0 : (p1 % bS);
-      }
-
-      int32_t f = g.posFrac;
-      int32_t x0 = buf[p0], x1 = buf[p1];
-      int32_t v = x0 + (int32_t)(((int64_t)(x1 - x0) * f) >> 16);
-
-      int32_t o = (v * env) >> 15;
-      sL += (o * g.panL) >> 15;
-      sR += (o * g.panR) >> 15;
-      eS += env;
-
-      // --- Fast 32-bit Phase Accumulation ---
-      g.posFrac += g.phaseInc;
-      uint32_t shift = (g.posFrac >> 16);
-      g.posFrac &= 0xFFFF;
-
-      if (g.reverse) {
-        if (shift > 0) {
-          while (shift >= bS)
-            shift -= bS;
-          if (g.posInt < shift)
-            g.posInt = g.posInt + bS - shift;
-          else
-            g.posInt -= shift;
+      if (!deactivate) {
+        uint32_t p0 = g.posInt;
+        uint32_t p1 = p0 + 1;
+        if (g.reverse) {
+          p1 = (p0 == 0) ? (isFrozenOrSynth ? 0 : (bS - 1)) : (p0 - 1);
+        } else {
+          if (p1 >= bS)
+            p1 = isFrozenOrSynth ? p0 : 0;
         }
-      } else {
-        g.posInt += shift;
+
+        int32_t f = g.posFrac;
+        int32_t x0 = buf[p0], x1 = buf[p1];
+        int32_t v = x0 + (((x1 - x0) * (int32_t)(f >> 1)) >> 15);
+
+        int32_t o = (v * env) >> 15;
+        sL += (o * g.panL) >> 15;
+        sR += (o * g.panR) >> 15;
+        eS += env;
+
+        // --- Fast 32-bit Phase Accumulation ---
+        g.posFrac += g.phaseInc;
+        uint32_t shift = (g.posFrac >> 16);
+        g.posFrac &= 0xFFFF;
+
+        if (g.reverse) {
+          if (shift > 0) {
+            if (g.posInt < shift)
+              g.posInt = g.posInt + bS - shift;
+            else
+              g.posInt -= shift;
+          }
+        } else {
+          g.posInt += shift;
+        }
+
+        g.envPhase += g.envPhaseInc;
+        if (g.envPhase >= 65535) {
+          deactivate = true;
+        }
       }
 
-      g.envPhase += g.envPhaseInc;
-      if (g.envPhase >= 65535) {
+      if (deactivate) {
         g.active = false;
         activeGrainsCount--;
+        gptr->activeGrainsIdx[idx] =
+            gptr->activeGrainsIdx[--gptr->numActiveGrains];
+      } else {
+        idx++;
       }
     }
     int ac = activeGrainsCount;
