@@ -20,6 +20,8 @@ summary: |
   433 Sense of Space is supplied as 2 MB and 16 MB builds. The 2 MB build uses a
   compact 10 kHz stereo 8-bit ambience asset, while the 16 MB build uses a cleaner
   24 kHz stereo 16-bit ambience asset.
+  It is not a recording or reconstruction of a 4'33" performance, but a sound work
+  about the anticipation, room tone, and incidental activity around one.
   Switch Up stops and arms the performance, Switch Middle starts three 91 second
   loops sourced from 1:30-3:01 of the BBC recording, and the left column LEDs count
   down from three loops to zero. Switch Down or Pulse In 1 triggers a short

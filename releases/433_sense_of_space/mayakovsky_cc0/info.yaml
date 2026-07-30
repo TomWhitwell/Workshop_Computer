@@ -20,6 +20,8 @@ summary: |
   compact 10 kHz stereo 8-bit ambience asset, while the 16 MB build uses a cleaner
   24 kHz stereo 16-bit ambience asset. Both are sourced from approximately 4:45-6:16
   of the Mayakovsky Theatre CC0 recording.
+  It is not a recording or reconstruction of a 4'33" performance, but a sound work
+  about the anticipation, room tone, and incidental activity around one.
   Switch Up stops and arms the performance, Switch Middle starts three 91 second
   loops sourced from 4:45-6:16 of the Mayakovsky Theatre recording, and the left column LEDs count
   down from three loops to zero. Switch Down or Pulse In 1 triggers a short

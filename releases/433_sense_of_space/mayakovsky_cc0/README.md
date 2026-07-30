@@ -7,6 +7,10 @@ seconds and placed in imaginary performance spaces.
 It is not silence. It is the room, the audience, the building, and the slightly
 ridiculous act of listening very hard.
 
+It is not a recording or reconstruction of a 4'33" performance. It is a small
+sound work about the anticipation, room tone, and incidental human activity around
+the idea of a performance.
+
 ## Controls
 
 | Control | Function |
