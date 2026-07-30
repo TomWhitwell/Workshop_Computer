@@ -31,18 +31,36 @@ jobs:
         uses: actions/github-script@v8
         env:
           REPORT_DIR: validation-report
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
         with:
           script: |
             const fs = require('fs');
-            const artifact = fs.readdirSync(process.env.REPORT_DIR)
-              .find(name => /^validation-report-\d+$/.test(name));
+            const path = require('path');
+            const { owner, repo } = context.repo;
+            const artifacts = await github.paginate(
+              github.rest.actions.listWorkflowRunArtifacts,
+              { owner, repo, run_id: Number(process.env.WORKFLOW_RUN_ID), per_page: 100 },
+            );
+            const artifact = artifacts.find(item => /^validation-report-\d+$/.test(item.name));
             if (!artifact) throw new Error('Validation report artifact was not found');
-            const issue_number = Number(artifact.slice('validation-report-'.length));
-            const reportFile = `${process.env.REPORT_DIR}/${artifact}/validation-comment.md`;
+            const issue_number = Number(artifact.name.slice('validation-report-'.length));
+            const findReport = directory => {
+              for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+                const candidate = path.join(directory, entry.name);
+                if (entry.isDirectory()) {
+                  const nested = findReport(candidate);
+                  if (nested) return nested;
+                } else if (entry.name === 'validation-comment.md') {
+                  return candidate;
+                }
+              }
+              return '';
+            };
+            const reportFile = findReport(process.env.REPORT_DIR);
+            if (!reportFile) throw new Error('Downloaded validation report was not found');
             const marker = '<!-- workshop-computer-info-yaml-validation -->';
             const report = fs.readFileSync(reportFile, 'utf8');
             const body = `${marker}\n${report}`;
-            const { owner, repo } = context.repo;
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner, repo, issue_number, per_page: 100,
             });
