@@ -149,7 +149,7 @@ metadata:
   version: Rad v9
   status: Beta - stable in single-developer testing
   license: MIT
-  editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/index.html
+  editor_url: https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
   editor_note: Configure this card in Rad Envelope Lab inside the release-84 rad package; use rad/web/import/index.html for CZ patch translation.
 documentation:
   intro: >

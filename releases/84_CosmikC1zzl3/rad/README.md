@@ -95,7 +95,7 @@ takes over again.
 Hosted editor:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
 ```
 
 Local editor from this release folder:
@@ -117,7 +117,7 @@ Use Chrome or another browser with Web MIDI and SysEx support.
 Hosted import lab:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/import/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/index.html
 ```
 
 Local import lab from this release folder:

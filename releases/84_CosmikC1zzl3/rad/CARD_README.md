@@ -92,7 +92,7 @@ complete naturally.
 Hosted editor:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
 ```
 
 Use Chrome or another browser with Web MIDI and SysEx support. Press `MIDI`,
@@ -129,7 +129,7 @@ baseline.
 Hosted import lab:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/rad/web/import/index.html
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/index.html
 ```
 
 Use Import Lab to decode Casio CZ `.syx` patches into pitch-aware C1ZZL3 drafts,
