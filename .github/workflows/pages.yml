@@ -36,8 +36,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefix tools/sitegen
 
-      - name: Check site curation
+      - name: Synchronize and check site curation
         run: |
+          npm run sync-curation
           npm run check-curation
 
       - name: Build and test site

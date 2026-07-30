@@ -30,7 +30,7 @@ test('release scope rules are advisory warnings', async t => {
   const diagnostics = await evaluatePrRules([
     { status: 'M', path: 'releases/04_card/info.yaml' },
     { status: 'M', path: 'releases/05_card/README.md' },
-    { status: 'M', path: 'releases/README.md' },
+    { status: 'M', path: 'releases/catalog.md' },
     { status: 'M', path: 'documentation/info.yaml.md' },
   ], { root });
   const byRule = rule => diagnostics.filter(item => item.ruleId === rule);

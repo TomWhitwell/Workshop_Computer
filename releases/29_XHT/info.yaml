@@ -4,7 +4,7 @@ short-description: A playable deep-note-inspired stereo chord swarm with manual
   scrubbing, one-shot movement, delay, reverb, CV, pulse, and optional MIDI
   control.
 Language: C++ (Pico SDK)
-Creator: Adrian Vos
+Creator: Adrian Vos with LLM/AI assistance
 Version: 0.1.0
 Status: Beta - stable in single-developer testing
 License: GPL-3.0

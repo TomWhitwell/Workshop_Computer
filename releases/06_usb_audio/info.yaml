@@ -1,14 +1,17 @@
-draft: true
 Name: USB Audio & MIDI
-short-description: 6-Channel USB Audio & MIDI firmware with CV/Gate support
+short-description: 6-channel USB audio interface and USB MIDI device with configurable CV/gate mapping.
 Language: C++ (RPi Pico SDK)
-Creator: Vincent Maurer (vincentmaurer.de)
-Version: 1.0
-Status: Release
-License: GPL-3.0
-date-created: 2026-01-23
-date-updated: 2026-01-23
+Creator: Vincent Maurer
+Version: "1.0"
+Status: Released
+License: GPL-3.0-or-later
 Editor: https://vincentmaurer.de/usb-audio/midi_config.html
+
+contact:
+  website: https://vincentmaurer.de
+  social:
+    github: https://github.com/vincentltm
+    youtube: https://www.youtube.com/@vincentltm
 
 tags:
   - usb-audio
@@ -18,104 +21,123 @@ tags:
   - gate
 
 summary: |
-  Class-compliant USB composite firmware providing multichannel USB audio plus USB MIDI.
-  Middle switch mode runs standard audio interface behavior; up switch mode enables configurable MIDI/CV/Gate mapping;
-  down switch mode disables MIDI for audio-only operation.
-  Routing, channel count, sample rate, and CV/Pulse behaviors are configurable via the web interface and can be saved to flash.
+  Class-compliant USB audio and MIDI interface for the Workshop Computer. Maps 6 hardware channels to USB audio streams (Normal Mode), or switches to Alt Mode for 1V/Oct CV, Gate, and Clock MIDI routing. Configurable via the Web MIDI editor and saved directly to flash memory.
 
 panel:
   inputs:
     - id: AudioIn1
-      name: Audio Input 1
-      description: Physical input channel routable to USB audio and/or MIDI processing
+      name: Audio Input 1 / USB 1
+      description: "Hardware Audio Input 1 (Normal mode: USB Audio Stream Ch 1; Alt mode: Audio In L)"
       type: audio
+
     - id: AudioIn2
-      name: Audio Input 2
-      description: Physical input channel routable to USB audio and/or MIDI processing
+      name: Audio Input 2 / USB 2
+      description: "Hardware Audio Input 2 (Normal mode: USB Audio Stream Ch 2; Alt mode: Audio In R)"
       type: audio
+
     - id: CVIn1
-      name: CV Input 1
-      description: Configurable as pitch or CC source in alt mode
+      name: CV Input 1 / USB 3
+      description: "Hardware CV Input 1 (Normal mode: USB Audio Stream Ch 3; Alt mode: 1V/Oct pitch CV input)"
       type: cv
+
     - id: CVIn2
-      name: CV Input 2
-      description: Configurable as pitch or CC source in alt mode
+      name: CV Input 2 / USB 4
+      description: "Hardware CV Input 2 (Normal mode: USB Audio Stream Ch 4; Alt mode: CC modulation CV input)"
       type: cv
+
     - id: PulseIn1
-      name: Pulse Input 1
-      description: Configurable gate input (default associated with CV 1)
+      name: Pulse Input 1 / USB 5
+      description: "Hardware Pulse Input 1 (Normal mode: USB Audio Stream Ch 5; Alt mode: Note Gate input)"
       type: pulse
+
     - id: PulseIn2
-      name: Pulse Input 2
-      description: Configurable gate/clock input (default clock/run role)
+      name: Pulse Input 2 / USB 6
+      description: "Hardware Pulse Input 2 (Normal mode: USB Audio Stream Ch 6; Alt mode: Clock / Run gate input)"
       type: pulse
+
   outputs:
     - id: AudioOut1
-      name: Audio Output 1
-      description: Physical output channel routable from USB stream or mode logic
+      name: Audio Output 1 / USB 1
+      description: "Hardware Audio Output 1 (Normal mode: USB Audio Stream Ch 1; Alt mode: Audio Out L)"
       type: audio
+
     - id: AudioOut2
-      name: Audio Output 2
-      description: Physical output channel routable from USB stream or mode logic
+      name: Audio Output 2 / USB 2
+      description: "Hardware Audio Output 2 (Normal mode: USB Audio Stream Ch 2; Alt mode: Audio Out R)"
       type: audio
+
     - id: CVOut1
-      name: CV Output 1
-      description: Configurable pitch/CV destination in alt mode
+      name: CV Output 1 / USB 3
+      description: "Hardware CV Output 1 (Normal mode: USB Audio Stream Ch 3; Alt mode: 1V/Oct pitch CV output)"
       type: cv
+
     - id: CVOut2
-      name: CV Output 2
-      description: Configurable CC/CV destination in alt mode
+      name: CV Output 2 / USB 4
+      description: "Hardware CV Output 2 (Normal mode: USB Audio Stream Ch 4; Alt mode: CC modulation CV output)"
       type: cv
+
     - id: PulseOut1
-      name: Pulse Output 1
-      description: Configurable gate/trigger/clock output
+      name: Pulse Output 1 / USB 5
+      description: "Hardware Pulse Output 1 (Normal mode: USB Audio Stream Ch 5; Alt mode: Note Gate / Trigger output)"
       type: pulse
+
     - id: PulseOut2
-      name: Pulse Output 2
-      description: Configurable gate/trigger/clock output
+      name: Pulse Output 2 / USB 6
+      description: "Hardware Pulse Output 2 (Normal mode: USB Audio Stream Ch 6; Alt mode: Clock / Run output)"
       type: pulse
 
 controls:
-  knobs:
-    - when: { z: middle }
-      main:
-        name: MIDI CC Source (Main)
-        description: Sends configurable CC number (default CC1) in MIDI-enabled modes
-      x:
-        name: MIDI CC Source (X)
-        description: Sends configurable CC number (default CC2) in MIDI-enabled modes
-      y:
-        name: MIDI CC Source (Y)
-        description: Sends configurable CC number (default CC3) in MIDI-enabled modes
+  switch:
+    up:
+      name: Alt Mode (MIDI + Audio)
+      description: Enables CV, Gate, and Clock MIDI conversion on jacks 3–6 while keeping stereo audio on channels 1 & 2
+    middle:
+      name: Normal Mode (6-Channel Audio)
+      description: Maps all 6 hardware jacks directly to 6 USB audio streaming channels in your DAW
+    down:
+      name: Audio Only Mode
+      description: Disables USB MIDI processing to dedicate maximum USB bandwidth strictly to audio streams
 
-# certainty: low — per-LED meanings inferred from src/main.cpp LED status logic, not explicitly documented in README
+  knobs:
+    - main:
+        name: Main CC
+        description: Transmits configurable MIDI CC (default CC1 Modulation) when MIDI is enabled
+      x:
+        name: Knob X CC
+        description: Transmits configurable MIDI CC (default CC2 Breath) when MIDI is enabled
+      y:
+        name: Knob Y CC
+        description: Transmits configurable MIDI CC (default CC3 Expressive) when MIDI is enabled
+
   leds:
-    - when: { z: middle }
-      display: list
+    - display: list
       items:
         - id: LED0
           name: USB Mounted
+          description: Lights solid when USB host mounts the device
+
         - id: LED1
-          name: Config Status
-          description: Flashes after config operations; otherwise indicates USB ready state
+          name: Config Status / SysEx
+          description: Flashes when SysEx configuration updates are received; indicates USB ready state
+
         - id: LED2
-          name: Speaker Stream Activity
+          name: Audio Out Activity
+          description: Lights on USB audio playback stream activity
+
         - id: LED3
-          name: Mic Stream Activity
+          name: Audio In Activity
+          description: Lights on USB audio capture stream activity
+
         - id: LED4
           name: USB Ready
+          description: Lights when TinyUSB hardware stack is initialized and ready
+
         - id: LED5
-          name: Sample Rate Indicator
-          description: Lit when running the 48 kHz sample-rate index
+          name: 48 kHz Indicator
+          description: Lights when operating at 48 kHz sample rate (off at 44.1 kHz)
 
 host:
   usb:
-    - name: USB audio interface
-      role: audio
-      description: Class-compliant multichannel USB audio input/output
-    - name: USB MIDI interface
-      role: midi
-      description: Class-compliant USB MIDI device with configurable CV/Pulse mapping in alt mode
-    - name: Web MIDI configuration tool
+    - name: Web MIDI editor
       role: editor
-      description: External browser editor for routing and persistent settings
+      description: Web browser app for channel routing, sample rate selection, and flash config storage

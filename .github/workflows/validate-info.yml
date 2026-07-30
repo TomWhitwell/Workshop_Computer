@@ -99,6 +99,14 @@ jobs:
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
 
+      - name: Save validation report for fork PR
+        if: always() && github.event.pull_request.head.repo.full_name != github.repository && hashFiles('validation-comment.md') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report-${{ github.event.pull_request.number }}
+          path: validation-comment.md
+          retention-days: 1
+
       - name: Fail on validation errors
         if: always() && steps.validate.outputs.status != '0'
         run: exit 1

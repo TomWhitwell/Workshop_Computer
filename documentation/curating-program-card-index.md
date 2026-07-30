@@ -218,7 +218,7 @@ Then serve the generated `site/` directory with the usual local preview and insp
 - the **Browse all cards** archive
 - tag filtering under **Advanced search**
 
-The GitHub Pages workflow runs `check-curation` before building. A pull request that adds a release without synchronizing `flairs.yml`, or references a nonexistent card or flair, will fail with an actionable error.
+The GitHub Pages workflow synchronizes missing empty assignments before checking and building. After a card is merged to `main`, the curation workflow commits the synchronized `flairs.yml`. Invalid references, stale assignments, unknown flairs, and malformed curation still fail with an actionable error.
 
 ## Safe editing rules
 

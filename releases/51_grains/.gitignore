@@ -1,0 +1,5 @@
+# Ignore all files under build directory
+build/
+
+# Except for the .uf2 binary
+!build/**/*.uf2
