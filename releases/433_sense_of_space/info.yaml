@@ -7,7 +7,10 @@ Status: Beta - stable in single-developer testing
 License: Mixed - source code/reverb components follow their original project licences; embedded BBC Sound Effects audio is subject to BBC Sound Effects Archive licensing
 date-created: 2026-07-14
 date-updated: 2026-07-16
-license-notes: Embedded BBC Sound Effects Archive audio is for non-commercial, personal or research purposes unless separately licensed from the BBC.
+
+contact:
+  social:
+    github: https://github.com/soveda
 
 tags:
   - ambience
@@ -29,6 +32,15 @@ summary: |
   Pulse In 2 restarts the full performance from the beginning.
 
 panel:
+  inputs:
+    - id: PulseIn1
+      name: Seat Creak
+      type: pulse
+      description: Trigger a chair/stool creak one-shot on a rising edge
+    - id: PulseIn2
+      name: Restart
+      type: pulse
+      description: Restart the three-loop sound work from the beginning on a rising edge
   outputs:
     - id: AudioOut1
       name: Left
@@ -51,8 +63,7 @@ controls:
       name: Seat Creak
       description: Trigger a short chair/stool creak one-shot.
   knobs:
-    - when: { z: any }
-      main:
+    - main:
         name: Restlessness
         description: Adds occasional quieter automatic chair/stool creaks
       x:
@@ -61,16 +72,8 @@ controls:
       y:
         name: Amount
         description: Dry/wet reverb amount
-  pulse:
-    - input: Pulse1
-      name: Seat Creak
-      description: Trigger a chair/stool creak one-shot on rising edge
-    - input: Pulse2
-      name: Restart
-      description: Restart the three-loop performance from the beginning on rising edge
   leds:
-    - when: { z: any }
-      display: list
+    - display: list
       items:
         - id: LED0
           name: Loop 1 remaining
