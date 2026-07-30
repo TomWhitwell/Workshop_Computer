@@ -1,13 +1,19 @@
-draft: true
 Name: Reverb+
-short-description: Reverb effect, plus pulse/CV generators and MIDI-to-CV, configurable using web interface.
+short-description: Reverb, plus a configurable toolkit of MIDI/pulse/CV utilities
+summary: "**Reverb+** combines a CV-controllable Hall Reverb algorithm with a flexible range of other utilities: MIDI to gate/CV, Bernoulli gate, Turing Machine, sample & hold, and two internal clock sources, all with associated clock dividers. These utilities are configured through a browser-based editor."
 Language: C (RPi Pico SDK)
 Creator: Chris Johnson
 Version: 1.5
+License: MIT
 Status: Released
 Editor: https://www.musicthing.co.uk/web_config/reverb.html
+discussion: https://discord.com/channels/1210238368898879569/1484231452697694401
 date-created: 2024-11-30
 date-updated: 2026-04-11
+contact:
+  social:
+    instagram: https://www.instagram.com/plus.minus.audio/
+    github: https://github.com/chrisgjohnson
 
 tags:
   - effect
@@ -15,100 +21,93 @@ tags:
   - midi-host
   - utility
   - clock
-
-summary: |
-  Stereo reverb card with configurable utility routing for CV, pulse, clocks, Turing Machine, and Bernoulli gate.
-  Top audio jacks are fixed to reverb I/O; most other controls and jacks are assignable in the web editor.
-  Z up passes input normally, Z middle enables input noise gate, Z down freezes the reverb.
-  Hold Z down while loading to restore default configuration.
+  
 
 panel:
   inputs:
     - id: AudioIn1
-      name: Reverb Input Left
-      description: Fixed reverb input; mixed with inverted AudioIn2 to mono reverb feed
+      name: Reverb In+ 
+      description: Summed with inverted IN- to form mono reverb input
     - id: AudioIn2
-      name: Reverb Input Right (Inverted)
+      name: Reverb In-
       description: Fixed reverb input contribution, summed into mono reverb input
     - id: CVIn1
-      name: Configurable CV Input 1
-      description: Assignable modulation source via web editor (default adds to decay)
+      name: CV In 1
+      description: "Default: adds to reverb decay"
     - id: CVIn2
-      name: Configurable CV Input 2
-      description: Assignable modulation source via web editor (default adds to wet/dry)
+      name: CV In 2
+      description: "Default: adds to reverb wet/dry"
     - id: PulseIn1
-      name: Configurable Pulse Input 1
-      description: Assignable pulse source via web editor (default freeze gate)
+      name: Pulse In 1
+      description: "Default: freeze reverb"
     - id: PulseIn2
-      name: Configurable Pulse Input 2
-      description: Assignable pulse source via web editor (default Turing clock)
+      name: Pulse In 2
+      description: "Default: clock Turing machine"
   outputs:
     - id: AudioOut1
-      name: Reverb Output Left
+      name: Reverb Out Left
       description: Stereo reverb output (left)
     - id: AudioOut2
-      name: Reverb Output Right
+      name: Reverb Out Right
       description: Stereo reverb output (right)
     - id: CVOut1
-      name: Configurable CV Output 1
-      description: Assignable utility output (noise, MIDI/CV, Turing, clocked gate, and more)
+      name: CV Out 1
+      description: "Default: stepped random noise at 60BPM"
     - id: CVOut2
-      name: Configurable CV Output 2
-      description: Assignable utility output (noise, MIDI/CV, Turing, clocked gate, and more)
+      name: CV Out 2
+      description: "Default: the analogue output of an 8-step Turing Machine, with 10% chance of flipping each bit"
     - id: PulseOut1
-      name: Configurable Pulse Output 1
-      description: Assignable trigger/gate utility output
+      name: Pulse Out 1
+      description: "Default: outputs a short (~2ms) trigger pulse at a fixed 120bpm"
     - id: PulseOut2
-      name: Configurable Pulse Output 2
-      description: Assignable trigger/gate utility output
+      name: Pulse Out 2
+      description: "Default: output of a Bernoulli gate, that toggles between high and low with a 10% probability at each trigger pulse"
+   
 
 controls:
+  switch:
+    up:
+      name: Noise gate off
+      description: The input signal passes directly into the reverberator
+    middle:
+      name: Noise gate on
+      description: A noise gate is applied to the combined reverb input, useful for noisy input signals with long periods of silence.
+    down:
+      name: Reverb Freeze
+      description: "The reverb is frozen: the input to the reverb is muted and the reverb decay is extended to infinity."
   knobs:
-    - when: { z: any }
+    -
       main:
-        name: Configurable Parameter A
-        description: Source selectable in web editor (default reverb wet/dry)
+        name: Reverb wet/dry
+        description: Can be re-assigned in the web editor
       x:
-        name: Configurable Parameter B
-        description: Source selectable in web editor (default reverb decay)
+        name: Reverb decay
+        description: Can be re-assigned in the web editor
       y:
-        name: Configurable Parameter C
-        description: Source selectable in web editor (default reverb tone)
-    - when: { z: up }
-      main:
-        name: Reverb Open Input
-        description: Reverb input passes without noise gate
-    - when: { z: middle }
-      main:
-        name: Reverb Input Gated
-        description: Noise gate applied to reverb input
-    - when: { z: down, gesture: momentary }
-      main:
-        name: Reverb Freeze
-        description: Freezes reverb tail while switch is held down
-
+        name: Reverb tone
+        description: Can be re-assigned in the web editor
+        
   leds:
-    - when: { z: any }
-      display: list
+    -
       items:
         - id: LED0
-          name: Wet Level Low
-          description: Lower segment of wet-output VU meter
+          name: Wet Level High
+          description: Upper segment of wet-output VU meter
         - id: LED2
           name: Wet Level Mid
           description: Middle segment of wet-output VU meter
         - id: LED4
-          name: Wet Level High
-          description: Upper segment of wet-output VU meter
+          name: Wet Level Low
+          description: Lower segment of wet-output VU meter
         - id: LED1
           name: Input Clip
           description: Indicates clipping on reverb input path
         - id: LED3
           name: Pulse Out 1 State
-          description: Mirrors PulseOut1 gate/trigger activity
+          description: Mirrors Pulse Out 1 gate/trigger activity
         - id: LED5
           name: Pulse Out 2 State
-          description: Mirrors PulseOut2 gate/trigger activity
+          description: Mirrors Pulse Out 2 gate/trigger activity
 
 host:
   usb:
@@ -117,4 +116,50 @@ host:
       description: Web MIDI config editor for assigning knob/CV/pulse routing and utility behavior
     - name: USB MIDI Device/Host
       role: midi
-      description: Supports USB MIDI device mode and, on newer hardware, automatic USB host mode
+      description: Supports USB MIDI device and host modes (USB device only on 2024 Workshop Systems)
+
+readme: |
+
+
+  The top row of jacks, the **Z** switch, and the LEDs have fixed functions, while the knobs and the CV and pulse inputs and outputs are configurable with the web configuration editor. 
+
+  #### Web Configuration Editor
+
+  Connect the Workshop Computer to a desktop or laptop via USB and open the Reverb+ configuration editor in a WebMIDI-compatible browser (such as Google Chrome).
+
+  The editor presents a series of editable sentences describing the module's behaviour. Clicking highlighted words changes the configuration immediately. Settings are previewed immediately but are only written to the card after clicking "Save to flash card". The configurable parameters are:
+
+  - Wet/Dry
+  - Decay
+  - Tone
+  - Freeze
+  - Pulse Out 1
+  - Pulse Out 2
+  - CV Out 1
+  - CV Out 2
+
+  Additional parameters appear automatically when clocks, the Turing Machine, or the Bernoulli Gate require configuration.
+
+  ##### Restore Defaults
+
+  Hold the **Z** switch down while powering on or rebooting the card to restore the factory configuration.
+
+  #### Reverb+ Patch Tips
+
+  - The most straightforward role of Reverb+ is at both the start and end of the signal chain. CV and gate generation from Reverb+ modulates analogue filters and oscillators, which feed into the reverb. The stereo reverb outputs are connected to Mix channels 1 and 2, panned hard left and right.
+  - Reverb+ benefits from a bit of effort with gain staging. The top right LED is an input clipping indicator. The left column of LEDs is a wet reverb output VU meter, with the top LED solidly on meaning output clipping.
+  - Reverb+ is designed to be fed back into itself, with tones ranging from a tonally coloured 'halo' around the input signal, through sustained metallic timbres to outright distortion, depending on the amplitude of feedback. Try feedback through both the normal and inverting inputs, which may give different tones, or add filters, ring mod, or other effects into the feedback path.
+  - Modulating the Reverb Decay parameter causes a pitch shift, which can be exploited for unusual effects or even to create melodic patterns.
+  - CV and gate outputs can be fed back into CV and gate inputs, allowing a Sample & Hold triggered by the output of a Bernoulli Gate, clocks with randomly varying frequency, self-modulated reverb parameters, and other feedback patches.
+  - When the noise Sample & Hold is run continuously, the resulting white noise output reaches well into the audible range, making it useful as an audio source for percussion or for subsequent shaping with filters.
+  - Up to four independent pulse outputs at different frequencies can be generated - useful for exploring polyrhythms and phasing.
+
+
+  #### Configuration Notes
+
+  - The configuration interface and MIDI input connect through USB. The Reverb+ card acts as a USB MIDI device (which is connected to USB MIDI host, such as a laptop). On Workshop System Computers made in 2025 onwards (PCB revision >= 1.1), it can also act as a USB MIDI host (connected to a USB MIDI device, such as an Android phone or MIDI controller/keyboard).
+     - On Android, you may need to go to `Settings` → `Default USB Configuration` and select MIDI. Connect the Android device when the Workshop System is powered off, then turn on the Workshop System power.
+  - MIDI note pitches use CV output calibration set by the *00 Simple MIDI* card.
+  - Pulse outputs have gate and trigger mode: the trigger mode generates a ~2ms pulse at a rising edge of the chosen gate source, useful for triggering the Slopes module on the Workshop System.
+  - The clock dividers for each output are independent (not synchronised)
+  - The Bernoulli Gate is based loosely on Mutable Instruments Branches, and the Turing Machine on the Music Thing Modular module, with similar inputs, outputs and parameters.

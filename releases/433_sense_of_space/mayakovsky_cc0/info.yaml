@@ -1,10 +1,9 @@
 Name: 433 Sense of Space - Mayakovsky CC0 Version
 short-description: "CC0 variant using Mayakovsky Theatre audience ambience with the same three-loop 4'33\" transport and controls."
-Description: "CC0 variant using Mayakovsky Theatre audience ambience from approximately 4:45, with the same three-loop 4'33\" transport and controls."
 Language: C++ (Pico SDK / ComputerCard)
-Creator: Music Thing Modular / AI-assisted
+Creator: Adrian Vos
 Version: 0.2.1-mayakovsky-cc0
-Status: stable
+Status: Beta - stable in single-developer testing
 License: Mixed - embedded ambience and seat creak audio are Creative Commons 0; source code/reverb components follow their original project licences
 license-notes: Embedded ambience is derived from Freesound sound 347832 by gladkiy, licensed CC0.
 

@@ -1,6 +1,6 @@
 # `info.yaml` schema
 
-Each program card under `releases/NN_name/` includes an `info.yaml` beside `README.md` and its `.uf2` firmware. Sitegen and `update-readme.py` read these files when building the GitHub Pages site and `releases/README.md`.
+Each program card under `releases/NN_name/` includes an `info.yaml` beside `README.md` and its `.uf2` firmware. Sitegen reads these files when building the GitHub Pages site.
 
 Keys are case-insensitive. Hyphens and spaces in key names are equivalent (`audio-sample`, `Audio Sample`, and `audiosample` all map to the same field).
 
@@ -282,7 +282,7 @@ Every card must include **`Name`** — the site index and detail page title come
 
 ## Automation
 
-- **`pages.yml`** — runs `tools/sitegen`, deploys `site/` (including copied `web/` folders).
-- **`update-readme.yml`** — regenerates `releases/README.md` from each card’s `info.yaml`.
+- **`pages.yml`** — synchronizes curation, runs `tools/sitegen`, and deploys `site/` (including copied `web/` folders).
+- **`sync-curation.yml`** — after changes land on `main`, synchronizes `tools/sitegen/src/curation/flairs.yml` and commits any update.
 
 **Future:** per-card `npm` builds in CI before copying `dist/` to Pages; commit built assets and set `Editor: dist` (or whatever your output folder is) until then.

@@ -25,7 +25,7 @@ uf2/C1ZZL3.uf2
 Checksum:
 
 ```text
-47f7d71ba1049149bd17fb0de495351da27f91fbfeb8b5fefebb5adb95b52645
+47383c4ff54160a4d8fbfd5ee799b42f142def7ddd0a95de47eeb97d8617a6b0
 ```
 
 This is hardware-tested production release 1.4.
@@ -243,3 +243,7 @@ removed; Y is the Turing internal clock control.
 This project is released under the MIT License. The included `computercard.h`
 hardware helper is ComputerCard by Chris Johnson and is also MIT licensed; keep
 its MIT notice present when copying firmware files into releases or experiments.
+
+USB MIDI host support includes the MIT-licensed rppicomidi files, copyright
+2023 rppicomidi. Their copyright and licence notices are retained in the
+corresponding source files.

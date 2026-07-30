@@ -1,110 +1,130 @@
 # Grains
 
-A granular synthesizer and live-processing effect for the Workshop System Computer. 
+A granular sampler, live audio cloud processor, and scrubbable tape player for the **Workshop Computer**.
 
-## Controls
+Grains captures live audio input or streams stored audio from 16 internal flash memory slots, slicing the audio into micro-grains. It provides real-time control over grain density, grain size, read position, pitch, continuous window envelopes, feedback diffusion, stereo spread, and onboard reverb.
 
+- **4 Control Pages**: Page 1 (Grain Control), Page 2 (Tone & Pitch), Page 3 (Mix & Spread), Page 4 (Reverb).
+- **Freeze Mode**: Lock the active audio buffer live and save persistent recordings into memory slots.
+- **16 Sample Slots**: Slots 1–4 store persistent live-recorded buffers; Slots 5–16 store custom user audio files streamed directly from flash with zero latency.
+- **Tape Mode**: Special power-up mode transforming the card into a scrubbable tape player with manual position scrubbing and playhead CV.
+- **Grains Sample Manager**: Web browser app (`web/grains_sample_manager.html`) for editing sample start/end points, normalizing audio, auto-looping single cycles, and flashing samples directly to the RP2040 card.
 
-**Switch Actions**
-- **Down (Flick):** Cycle forward a page.
-- **Down (Short):** Cycle back a page.
-- **Up (Flick):** Toggle Freeze.
-- **Down (Hold 2s):** Live mode: Load buffer/ sample. Freeze mode: Save Buffer.
+---
 
+## Videos & Media
 
-**Page 1: Grain Control**
-- Main: Position
-- X: Density
-- Y: Size
+- **Tutorial Walkthrough**: [Grains Tutorial Video](https://www.youtube.com/watch?v=eWROkerT890)
 
-**Page 2: Grain Tone**
-- Main: Envelope Shape (Hamm, Decay, Square, Inverse, Gauss)
-- X: Left: Jitter, Middle: Chords, Right: Random Reverse
-- Y: Pitch
+---
 
-**Page 3: Mix & Spread**
-- Main: Wet / Dry Mix
-- X: Feedback (Live Mode) / Diffusion (Freeze Mode)
-- Y: Stereo Spread
+## Operating Modes & Switch Controls
 
-**Page 4: Reverb**
-- Main: Reverb Mix
-- X: Room Size
-- Y: Damping
+Grains uses **Switch Z** (Up, Middle, and spring-loaded momentary Down) to navigate pages and manage memory:
 
-## IO
+| Switch Position | Mode Name | Description |
+|:---:|---|---|
+| **Middle** | **Live Mode** | Normal granular operation. Navigate through the 4 control pages using tap DOWN. |
+| **Up** | **Toggle Freeze** | Flick UP to freeze the current live audio buffer (LED 5 lights). Flick UP again to unfreeze. |
+| **Down (Tap)** | **Page Cycle** | Tap briefly to step forward through Page 1 (Grain Control), Page 2 (Tone/Pitch), Page 3 (Mix/Spread), and Page 4 (Reverb). |
+| **Down (Hold 2s)** | **Slot Menu** | **Unfrozen**: Opens Load Menu (LED 5 lights). **Frozen**: Opens Save Menu (LED 4 lights). Turn Main knob to select slot 1–16 (displayed in 4-bit binary on LEDs 1–4). Release switch to execute. |
+| **Down (Power-Up)** | **Tape Mode** | Hold Switch DOWN during power-up LED chase sequence to enter Tape Mode (LED 4 remains lit). |
 
-- **Audio In 1 (L/Mono):** Audio input for granular recording.
-- **Audio In 2 (R):** CV input for Grain Density.
-- **CV 1 In (Pitch):** 1V/Octave tracking for granular pitch.
-- **CV 2 In (Position):** Granular playhead offset.
-- **Pulse 1 In (Trigger):** External grain spawn trigger.
-- **Pulse 2 In (Freeze):** Toggles granular buffer recording.
+---
 
-- **Audio Out 1/2:** Main stereo output (Mixed or Wet).
-- **CV 1 Out (Envelope):** Looping Ramp 0-5V synced to buffer length.
-- **CV 2 Out (Playhead):** Random CV per grain (0-5V).
-- **Pulse 1 Out (Grain Gate):** Fires a gate synced to grain spawning.
-- **Pulse 2 Out (Freeze State):** HIGH when the buffer is frozen.
+## Control Pages
 
-## Sample Management
+### Page 1: Grain Control
+- **Main Knob**: Position (Grain read position in captured buffer/sample).
+- **X Knob**: Density (Anti-clockwise = random grain spawning; Clockwise = periodic grain spawning).
+- **Y Knob**: Size (Grain window duration, from short clicks to long overlapping clouds).
 
-The module features **16 internal slots** for audio storage. Samples are streamed directly from flash memory with zero latency.
+### Page 2: Grain Tone & Pitch
+- **Main Knob**: Pitch (Grain pitch transposition and detuning).
+- **X Knob**: Jitter / Chords / Reverse Chance (Left = timing jitter; Center = pitch chords; Right = reverse playback chance).
+- **Y Knob**: Window Envelope Shape (Continuous blend across Hann, Decay, Square, Gauss, and Inverted Decay).
 
-- **Slots 1-4 (Persistent Recordings):** These slots hold audio captured directly on the module using the Freeze/Record function. They survive power cycles.
-- **Slots 5-16 (User Samples):** These slots are reserved for custom audio files loaded via the `web/grains_sample_manager.html`.
+### Page 3: Mix & Spread
+- **Main Knob**: Wet / Dry Mix (Blend between live input signal and granular engine output).
+- **X Knob**: Feedback / Diffusion (Feedback level in live mode; grain diffusion in freeze mode).
+- **Y Knob**: Stereo Spread (Stereo field width and random grain spatial panning).
 
-Also available under:
-https://vincentmaurer.de/grains/grains_manager.html
+### Page 4: Reverb
+- **Main Knob**: Reverb Mix (Wet level for the built-in reverb effect).
+- **X Knob**: Room Size (Reverb decay time and space size).
+- **Y Knob**: Damping (High-frequency damping filter for the reverb tail).
 
-### The Save Menu
-To save a buffer into a slot:
-1. Ensure you're in freeze mode (LED 6 is ON).
-2. Hold the momentary switch **DOWN** for 2 seconds.
-3. **LED 5** will be on to indicate the Save Menu is active.
-4. Use the **Main Knob** to scroll through slots 1-4.
-5. LEDs 1-4 display the slot number in **4-bit binary**.
-6. Let go of the switch to save the buffer and exit.
+---
 
-### The Load Menu
-To load a sample into the engine:
-1. Ensure you're not in freeze mode (LED 6 is OFF).
-2. Hold the momentary switch **DOWN** for 2 seconds.
-3. **LED 6** will be on to indicate the Load Menu is active.
-4. Use the **Main Knob** to scroll through slots 1-16.
-5. LEDs 1-4 display the slot number in **4-bit binary**.
-6. Let go of the switch to load the sample and exit.
+## Panel Jack Reference
+
+### Inputs
+- **Audio In 1 (Audio Input 1 / Left)**: Source audio for granular recording, live processing, and delay feedback.
+- **Audio In 2 (Audio Input 2 / Right)**: Right channel audio input or CV modulation for grain density.
+- **CV In 1 (Pitch CV)**: 1V/Octave calibrated tracking for grain pitch or tape playback pitch.
+- **CV In 2 (Position CV)**: Granular playhead position offset or tape scrub position modulation.
+- **Pulse In 1 (Grain Trigger / Play Gate)**: External pulse trigger to spawn grains, or play/pause gate in tape mode.
+- **Pulse In 2 (Freeze / Reset)**: Toggles live buffer freeze in granular mode; resets playhead to start in tape mode.
+
+### Outputs
+- **Audio Out 1 (Output 1 / Left)**: Main processed left audio output (Wet/Dry blend).
+- **Audio Out 2 (Output 2 / Right)**: Main processed right audio output (Stereo Spread).
+- **CV Out 1 (Playhead Ramp CV)**: Looping 0–5V ramp CV output synced to buffer length or tape playhead progress.
+- **CV Out 2 (Grain Motion / Speed CV)**: Random 0–5V CV per grain in granular mode; bipolar movement speed CV in tape mode.
+- **Pulse Out 1 (Grain Spawn / EOC Trigger)**: Gate output fired on grain spawning, or End-of-Cycle pulse in tape mode.
+- **Pulse Out 2 (Freeze State / Midpoint Trigger)**: HIGH when live buffer is frozen in granular mode, or midpoint pulse in tape mode.
+
+---
 
 ## Tape Mode
 
-Tape Mode is a sample player engine that transforms the Grains module into a sample player with manual scrubbin
+Hold Switch DOWN during power-up to activate Tape Mode (indicated by lit LED 4). Tape Mode turns Grains into a manual scrubbable tape player.
 
-### Activation
-To enter Tape Mode, hold the momentary switch **DOWN** during the power-up sequence (while the LEDs are chasing). LED 5 will remain ON to indicate the mode is active.
+- **Main Knob**: Manual playhead position scrubbing and offset.
+- **X Knob**: Playback speed (noon = 1.0x normal speed).
+- **Y Knob**: Loop segment length.
+- **Switch UP**: Momentary pause.
+- **Switch DOWN (Hold 2s)**: Open Slot Selection Menu (slots 1–16).
+- **Pulse In 1**: Play / Pause Gate (HIGH = Play, LOW = Pause).
+- **Pulse In 2**: Playhead reset trigger.
+- **Pulse Out 1**: End-of-Cycle (EOC) trigger output.
+- **Pulse Out 2**: Midpoint trigger output.
 
-### Controls
-- **Main Knob:** Manual position scrubbing and playhead offset.
-- **X Knob:** Playback Speed (Center is 1.0x).
-- **Y Knob:** Pitch control (Center is 1.0x).
-- **Switch UP:** Momentary pause.
-- **Switch DOWN (Hold):** Open the Slot Selection menu. Use the **Main Knob** to select a slot (1-16).
+---
 
-### IO
-- **CV 1 In (Pitch):** 1V/Octave tracking for playback pitch.
-- **CV 2 In (Position):** Playhead position offset / scrubbing.
-- **Pulse 1 In:** Play/Pause Gate (HIGH = Play, LOW = Pause).
-- **Pulse 2 In:** Resets the playhead to the beginning of the sample.
-- **Audio Out 1/2:** Main stereo output.
-- **CV 1 Out:** Playhead Position Ramp (0-5V).
-- **CV 2 Out:** Movement/Speed CV (Bipolar).
-- **Pulse 1 Out:** Fires a trigger at the **End of Cycle (EOC)**.
-- **Pulse 2 Out:** Fires a trigger at the **Midpoint** of the sample.
+## Patch Ideas
 
-### Visuals
-- **LED 5:** Indicates Tape Mode is active.
-- **LEDs 0, 1, 3, 2:** Circular progress bar showing the current playhead position.
-- **Slot Menu:** Displays the current slot in 4-bit binary (LEDs 1-4) while the switch is held down.
+- **Granular Pitch-Shift Delay**: Set Wet/Dry mix on Page 3 to 50%, increase Feedback (X knob), and adjust Pitch on Page 2 to create pitch-shifting delay tails that cascade upwards or downwards.
+- **Scattered Clouds & Ambient Swells**: Set Density (X knob on Page 1) to random spawning, turn up Stereo Spread and Diffusion on Page 3, add Reverb on Page 4, and increase Grain Size for evolving atmospheric clouds.
+- **Scrubbable Tape Loops**: Enter Tape Mode at bootup, load a sample slot, and patch a LFO or envelope into CV In 2 (Position) to scrub back and forth through sample slices.
+- **Frozen Texture Drones**: Feed live audio into Audio In 1, flick Switch UP to freeze the buffer, turn up Diffusion on Page 3, and hold Switch DOWN to store the frozen texture into persistent memory slots 1–4.
 
-Created for the Music Thing Modular Workshop System by Vincent Maurer (https://github.com/vincent-maurer/) with assistance from Google Gemini.
+---
 
-Thank you to everyone on the Workshop System Discord server and especially to Tom Whitwell for the module and Chris Johnson (https://github.com/chrisgjohnson) for the ComputerCard library and the great support.
+## Grains Sample Manager
+
+Open `web/grains_sample_manager.html` in Chrome or Edge, or visit the online [Grains Sample Manager](https://vincentmaurer.de/grains/grains_manager.html).
+
+![Grains Sample Manager](webui_screenshot.png)
+
+- **Sample Slot Organization**: Visual management of all 16 internal sample slots (Slots 1–4 persistent live recordings; Slots 5–16 custom user samples).
+- **Audio Trimming & Normalization**: Set custom start/end points, normalize quiet samples, and enable auto-looping for single-cycle waveforms.
+- **Direct Flash Synchronization**: Connect to the card via Web USB/MIDI to erase, upload, and synchronize samples and firmware directly to the RP2040 flash memory.
+- **Storage Bar Indicator**: Live byte counter displaying remaining flash memory space on your card.
+
+---
+
+## Building from Source (Developer Info)
+
+```bash
+mkdir build
+cd build
+cmake ..
+make
+```
+
+Flash the generated `grains.uf2` by holding **BOOTSEL** while connecting the card via USB-C.
+
+---
+
+Created for the Music Thing Modular Workshop System by Vincent Maurer with assistance from Google Gemini. Special thanks to Tom Whitwell and Chris Johnson.

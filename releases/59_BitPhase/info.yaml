@@ -1,129 +1,122 @@
-id: BitPhase
-title: BitPhase
+Name: BitPhase
 draft: false
-release: 59 / 0.1.0
-summary: Resonant 4-stage phaser with wide modulation sweeps, tremolo blending, and Burst-mode degradation
-short-description: Resonant 4-stage phaser for the Workshop Computer with deep notch filtering, wide modulation sweeps, controllable resonance, tremolo blending, and digital Burst-mode degradation.
+summary: Resonant 4-stage phaser with wide modulation sweeps, tremolo blending,
+  and Burst-mode degradation
+short-description: Resonant 4-stage phaser for the Workshop Computer with deep
+  notch filtering, wide modulation sweeps, controllable resonance, tremolo
+  blending, and digital Burst-mode degradation.
+Language: C++ (Pico SDK)
+Creator: Adrian Vos
+Version: 0.1.0
+Status: Beta - stable in single-developer testing
+License: MIT
 date-created: 2026-06-24
 date-updated: 2026-07-09
-
 panel:
-  controls:
-    main:
-      label: Rate
-      description: Speed of the internal phaser and tremolo LFOs
-      source: info.yaml
-    x:
-      label: Sweep Depth
-      description: Phaser modulation depth from narrow movement to wide sweeping notches
-      source: info.yaml
-    y:
-      label: Resonance
-      description: Phaser feedback amount from smooth phasing to edge-of-self-oscillation
-      source: info.yaml
-    z:
-      label: Mode
-      description: Up is pure phaser, middle blends phaser with tremolo, and down enables Burst degradation.
-      source: info.yaml
   inputs:
-    audio_l:
-      label: Main Audio Input
+    - id: AudioIn1
+      name: Main Audio Input
       description: Main audio input for the phaser engine
-      source: info.yaml
-    audio_r:
-      label: Secondary Audio Input
+      type: audio
+    - id: AudioIn2
+      name: Secondary Audio Input
       description: Secondary audio input if used by firmware or patch
-      source: info.yaml
-    cv_1:
-      label: Rate CV
+      type: audio
+    - id: CVIn1
+      name: Rate CV
       description: Modulates phaser and tremolo speed
-      source: info.yaml
-    cv_2:
-      label: Resonance CV
+      type: cv
+    - id: CVIn2
+      name: Resonance CV
       description: Modulates phaser feedback amount
-      source: info.yaml
-    pulse_1:
-      label: LFO Reset
+      type: cv
+    - id: PulseIn1
+      name: LFO Reset
       description: Resets phaser LFO so sweep can be clock-synchronised
-      source: info.yaml
+      type: pulse
   outputs:
-    audio_out_1:
-      label: Processed Output A
+    - id: AudioOut1
+      name: Processed Output A
       description: Dual mono output of processed signal
-      source: info.yaml
-    audio_out_2:
-      label: Processed Output B
+      type: audio
+    - id: AudioOut2
+      name: Processed Output B
       description: Dual mono output of processed signal
-      source: info.yaml
-    cv_out_1:
-      label: Phaser LFO CV
+      type: audio
+    - id: CVOut1
+      name: Phaser LFO CV
       description: Phaser LFO waveform output
-      source: info.yaml
-    cv_out_2:
-      label: Tremolo LFO CV
+      type: cv
+    - id: CVOut2
+      name: Tremolo LFO CV
       description: Tremolo LFO waveform output
-      source: info.yaml
-    pulse_out_1:
-      label: Burst Active
+      type: cv
+    - id: PulseOut1
+      name: Burst Active
       description: High while Burst mode is active
-      source: info.yaml
-    pulse_out_2:
-      label: Phaser LFO Phase
+      type: pulse
+    - id: PulseOut2
+      name: Phaser LFO Phase
       description: Phaser LFO phase indicator for synchronising external events
-      source: info.yaml
-
-switch_modes:
-  up: Pure resonant 4-stage all-pass phaser with the cleanest signal path.
-  middle: Blends phasing with tremolo for animated pulsing movement.
-  down: Adds sample-and-hold reduction, bit-depth reduction, and unstable lo-fi texture.
-
-leds:
-  - "LED 1 follows the rate position."
-  - "LED 2 follows the phaser LFO position."
-  - "LED 3 follows sweep position."
-  - "LED 4 follows Burst intensity."
-  - "LED 5 indicates Burst mode status."
-  - "LED 6 monitors Pulse In 1."
-
-source:
-  - releases/59_BitPhase/BitPhase.cpp
-  - releases/59_BitPhase/README.md
-slug: 59-bitphase
-url: /workshopsystem/program-cards/59-bitphase/
+      type: pulse
 tags:
   - effect
   - phaser
   - tremolo
   - lo-fi
-tag_ids:
-  - effect
-  - phaser
-  - tremolo
-  - lo-fi
-tag_labels:
-  - Effect
-  - Phaser
-  - Tremolo
-  - Lo-Fi
-source_file: releases/59_BitPhase/info.yaml
-source_url: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/59_BitPhase
-readme_url: >-
-  https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/59_BitPhase/README.md
-download_url: >-
-  https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/59_BitPhase/UF2/BitPhase.uf2
-metadata:
-  creator: Adrian Vos
-  language: C++ (Pico SDK)
-  version: 0.1.0
-  status: Beta
-  license: MIT
-documentation:
-  intro: >
+controls:
+  switch:
+    up:
+      name: Z up
+      description: Pure resonant 4-stage all-pass phaser with the cleanest signal path.
+    middle:
+      name: Z middle
+      description: Blends phasing with tremolo for animated pulsing movement.
+    down:
+      name: Z down
+      description: Adds sample-and-hold reduction, bit-depth reduction, and unstable
+        lo-fi texture.
+  knobs:
+    - main:
+        name: Rate
+        description: Speed of the internal phaser and tremolo LFOs
+      x:
+        name: Sweep Depth
+        description: Phaser modulation depth from narrow movement to wide sweeping notches
+      y:
+        name: Resonance
+        description: Phaser feedback amount from smooth phasing to edge-of-self-oscillation
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: LED 1
+          description: LED 1 follows the rate position.
+        - id: LED1
+          name: LED 2
+          description: LED 2 follows the phaser LFO position.
+        - id: LED2
+          name: LED 3
+          description: LED 3 follows sweep position.
+        - id: LED3
+          name: LED 4
+          description: LED 4 follows Burst intensity.
+        - id: LED4
+          name: LED 5
+          description: LED 5 indicates Burst mode status.
+        - id: LED5
+          name: LED 6
+          description: LED 6 monitors Pulse In 1.
+host:
+  notes: >
     BitPhase combines a resonant 4-stage all-pass phaser, independent phaser and
     tremolo LFOs, CV control of rate and resonance, and a Burst-mode digital
     degradation path.
 
-    Main controls LFO rate, X controls phaser sweep depth, and Y controls resonance/
-    feedback. Switch up is pure phaser, middle blends phaser with tremolo, and down
-    enables Burst degradation. Pulse In 1 resets the phaser LFO for clock-synchronised
-    sweeps.
+    Main controls LFO rate, X controls phaser sweep depth, and Y controls
+    resonance/ feedback. Switch up is pure phaser, middle blends phaser with
+    tremolo, and down enables Burst degradation. Pulse In 1 resets the phaser
+    LFO for clock-synchronised sweeps.
+contact:
+  social:
+    github: https://github.com/soveda

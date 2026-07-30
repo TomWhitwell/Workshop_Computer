@@ -30,7 +30,7 @@ test('release scope rules are advisory warnings', async t => {
   const diagnostics = await evaluatePrRules([
     { status: 'M', path: 'releases/04_card/info.yaml' },
     { status: 'M', path: 'releases/05_card/README.md' },
-    { status: 'M', path: 'releases/README.md' },
+    { status: 'M', path: 'releases/catalog.md' },
     { status: 'M', path: 'documentation/info.yaml.md' },
   ], { root });
   const byRule = rule => diagnostics.filter(item => item.ruleId === rule);
@@ -104,8 +104,65 @@ test('NUL name-status parsing preserves renames and spaces', () => {
   ]);
   assert.deepEqual(summarizePrTrigger(parsed), {
     affectedReleases: ['04 card'],
-    changedPaths: parsed,
+    changedPaths: [
+      { status: 'M', path: 'releases/04 card/info.yaml' },
+      { status: 'D', path: 'old/file.uf2' },
+      { status: 'A', path: 'releases/04 card/', filesUnder: true },
+    ],
   });
+});
+
+test('PR trigger keeps metadata and outside files but condenses release files by directory', () => {
+  assert.deepEqual(summarizePrTrigger([
+    { status: 'M', path: 'releases/42_card/info.yaml' },
+    { status: 'A', path: 'releases/42_card/firmware/card.uf2' },
+    { status: 'A', path: 'releases/42_card/firmware/source.elf' },
+    { status: 'D', path: 'releases/42_card/firmware/old.uf2' },
+    { status: 'M', path: 'documentation/info.yaml.md' },
+  ]), {
+    affectedReleases: ['42_card'],
+    changedPaths: [
+      { status: 'M', path: 'releases/42_card/info.yaml' },
+      { status: 'M', path: 'documentation/info.yaml.md' },
+      { status: 'A', path: 'releases/42_card/firmware/', filesUnder: true },
+      { status: 'D', path: 'releases/42_card/firmware/', filesUnder: true },
+    ],
+  });
+});
+
+test('sync-curation additions for newly added cards are the only allowed flair change', async t => {
+  const root = await fixture(t);
+  await write(root, 'releases/42_card/info.yaml', 'Name: Card');
+  await write(root, 'releases/42_card/README.md', '# Card');
+  await write(root, 'releases/42_card/card.uf2', 'firmware');
+  const baseFlairs = { available_flairs: [{ id: 'new' }], assignments: { '03_old': ['new'] } };
+  await write(root, 'tools/sitegen/src/curation/flairs.yml', `
+available_flairs:
+  - id: new
+assignments:
+  03_old: [new]
+  42_card: []
+`);
+  const changes = [
+    { status: 'A', path: 'releases/42_card/info.yaml' },
+    { status: 'M', path: 'tools/sitegen/src/curation/flairs.yml' },
+  ];
+  const allowed = await evaluatePrRules(changes, { root, baseFlairs });
+  assert.ok(!allowed.some(item =>
+    item.ruleId === 'change-outside-release-directory'
+    && item.file === 'tools/sitegen/src/curation/flairs.yml'));
+
+  await write(root, 'tools/sitegen/src/curation/flairs.yml', `
+available_flairs:
+  - id: new
+assignments:
+  03_old: []
+  42_card: []
+`);
+  const changedExisting = await evaluatePrRules(changes, { root, baseFlairs });
+  assert.ok(changedExisting.some(item =>
+    item.ruleId === 'change-outside-release-directory'
+    && item.file === 'tools/sitegen/src/curation/flairs.yml'));
 });
 
 test('deleting a complete release reports an explicit warning', async t => {

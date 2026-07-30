@@ -847,7 +847,6 @@ private:
 
         int32_t units = midiNotePitchUnits(midiNote);
         units += (midiPitchBend * PitchUnitsPerOctave) / (8192 * 6);
-        units += (pitchInput * PitchUnitsPerOctave) / PitchInputCountsPerVolt;
         return units;
     }
 

@@ -5,6 +5,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import YAML from 'yaml';
 import { discoverCustomPanels, validateCustomPanelReferences } from '../discover/customPanels.js';
 
@@ -23,19 +24,56 @@ function diagnostic(severity, ruleId, file, message) {
 export function summarizePrTrigger(changes) {
   const affectedReleases = new Set();
   const changedPaths = [];
+  const directoryChanges = new Map();
+  const addChangedPath = (status, file) => {
+    const normalized = posix(file);
+    const release = releaseFromPath(normalized);
+    if (!release || normalized === `releases/${release}/info.yaml`) {
+      changedPaths.push({ status, path: normalized });
+      return;
+    }
+    const directory = `${path.posix.dirname(normalized)}/`;
+    const normalizedStatus = status[0];
+    directoryChanges.set(`${normalizedStatus}\0${directory}`, {
+      status: normalizedStatus, path: directory, filesUnder: true,
+    });
+  };
   for (const change of changes) {
     const paths = change.oldPath ? [change.oldPath, change.path] : [change.path];
     for (const file of paths) {
       const release = releaseFromPath(file);
       if (release) affectedReleases.add(release);
     }
-    changedPaths.push({
-      status: change.status,
-      ...(change.oldPath ? { oldPath: posix(change.oldPath) } : {}),
-      path: posix(change.path),
-    });
+    if (change.oldPath) {
+      addChangedPath('D', change.oldPath);
+      addChangedPath('A', change.path);
+    } else {
+      addChangedPath(change.status, change.path);
+    }
   }
+  changedPaths.push(...directoryChanges.values());
   return { affectedReleases: [...affectedReleases].sort(), changedPaths };
+}
+
+function allowsSynchronizedFlairs(changes, currentFlairs, baseFlairs) {
+  if (!currentFlairs || !baseFlairs) return false;
+  const addedCards = new Set(changes
+    .filter(change => change.status.startsWith('A'))
+    .map(change => posix(change.path).match(/^releases\/([^/]+)\/info\.yaml$/)?.[1])
+    .filter(Boolean));
+  const currentAssignments = currentFlairs.assignments;
+  const baseAssignments = baseFlairs.assignments;
+  if (!currentAssignments || typeof currentAssignments !== 'object' || Array.isArray(currentAssignments)
+      || !baseAssignments || typeof baseAssignments !== 'object' || Array.isArray(baseAssignments)) return false;
+  const withoutAssignments = value => Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'assignments'));
+  if (!isDeepStrictEqual(withoutAssignments(currentFlairs), withoutAssignments(baseFlairs))) return false;
+  for (const [card, assignment] of Object.entries(baseAssignments)) {
+    if (!Object.hasOwn(currentAssignments, card) || !isDeepStrictEqual(currentAssignments[card], assignment)) return false;
+  }
+  const additions = Object.entries(currentAssignments).filter(([card]) => !Object.hasOwn(baseAssignments, card));
+  return additions.length > 0 && additions.every(([card, assignment]) =>
+    addedCards.has(card) && Array.isArray(assignment) && assignment.length === 0
+  );
 }
 
 function walkFiles(dir) {
@@ -134,7 +172,7 @@ function customBoardHasXosc64(cmakeSource, releaseFiles) {
  * Evaluate PR policy over parsed Git changes.
  * Change shape: { status, oldPath?, path }. `path` is the final/destination path.
  */
-export async function evaluatePrRules(changes, { root }) {
+export async function evaluatePrRules(changes, { root, baseFlairs = null }) {
   const diagnostics = [];
   const endpoints = [];
   for (const change of changes) {
@@ -148,9 +186,19 @@ export async function evaluatePrRules(changes, { root }) {
       `Changes affect ${releases.length} release directories: ${releases.join(', ')}.`));
   }
 
+  const flairsPath = 'tools/sitegen/src/curation/flairs.yml';
+  const flairsChanged = endpoints.map(posix).includes(flairsPath);
+  let synchronizedFlairs = false;
+  if (flairsChanged) {
+    try {
+      const currentFlairs = YAML.parse(fs.readFileSync(path.join(root, flairsPath), 'utf8')) || {};
+      synchronizedFlairs = allowsSynchronizedFlairs(changes, currentFlairs, baseFlairs);
+    } catch {}
+  }
   for (const file of [...new Set(endpoints.map(posix))].sort()) {
     const parts = file.split('/').filter(Boolean);
     if (parts[0] !== 'releases') {
+      if (file === flairsPath && synchronizedFlairs) continue;
       diagnostics.push(diagnostic('warning', 'change-outside-release-directory', file,
         'Card submissions must not include changes outside releases/<card>/ directories.'));
     } else if (parts.length < 3) {
