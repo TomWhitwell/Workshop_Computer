@@ -95,9 +95,23 @@ controls:
     - display: list
       items:
         - id: LED0
-          name: LED 1
-          description: "Z any: Primary Trigger; Density Amount; Mutation Amount; Energy
-            State; Clock Source; Tension State."
+          name: Main Trigger
+          description: Flashes when Pulse Out 1 fires.
+        - id: LED1
+          name: Density
+          description: Brightness follows Density control, including CV In 1 modulation.
+        - id: LED2
+          name: Mutation
+          description: Brightness follows Mutation amount, including CV In 2 modulation.
+        - id: LED3
+          name: Energy
+          description: Displays the smoothed internal energy/modulation level.
+        - id: LED4
+          name: Clock Source
+          description: Fully lit when external pulse clock or MIDI clock is active.
+        - id: LED5
+          name: Tension
+          description: Displays the evolving internal tension state.
 host:
   notes: >
     Generative rhythm/melody organism with coupled trigger streams, quantized

@@ -58,17 +58,23 @@ controls:
   switch:
     up:
       name: Z up
-      description: "Z up: MAIN: Global Pitch Offset; X: Output A Offset; Y: Output B
-        Offset."
+      description: Continuous unquantized pitch shifting.
     middle:
       name: Z middle
-      description: "Z middle: MAIN: Quantize Enable."
+      description: Enable chromatic semitone quantization for both outputs.
+    down:
+      name: Z down
+      description: Continuous unquantized pitch shifting.
   knobs:
     - main:
-        name: |-
-          Quantize
-          Enable
-        description: Enables chromatic semitone quantization for both outputs
+        name: Global Pitch Offset
+        description: Global pitch offset applied to both outputs
+      x:
+        name: Output A Offset
+        description: Additional pitch offset for output A
+      y:
+        name: Output B Offset
+        description: Additional pitch offset for output B
   leds:
     - display: list
       items:
