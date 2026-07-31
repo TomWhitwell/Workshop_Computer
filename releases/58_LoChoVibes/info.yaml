@@ -72,16 +72,6 @@ tags: []
 controls:
   switch:
     up:
-<<<<<<< Updated upstream
-      name: Z up
-      description: Vibrato mode.
-    middle:
-      name: Z middle
-      description: Chorus mode.
-    down:
-      name: Z down
-      description: Momentary LFO shape select.
-=======
       name: Vibrato
       description: "Z up: Vibrato mode."
     middle:
@@ -90,7 +80,6 @@ controls:
     down:
       name: Change LFO shape
       description: "Z down, momentary: LFO Shape Select."
->>>>>>> Stashed changes
   knobs:
     - main:
         name: Mod Rate
