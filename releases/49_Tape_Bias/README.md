@@ -38,5 +38,6 @@ and hiss vary with the virtual bias calibration.
 
 ## Status
 
-This is a first DSP pass. It is intended as a playable starting point for listening
-tests, not as a calibrated emulation of a particular recorder or tape formulation.
+Version 0.1.1 is the current stable fallback build, hardware-tested by one person
+with sine, square, bass-loop, bias-CV, tape-type, and erase-input checks. It remains
+Beta rather than a calibrated emulation of a particular recorder or tape formulation.

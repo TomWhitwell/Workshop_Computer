@@ -116,8 +116,9 @@ public:
         fluxMemory += (recorded - fluxMemory) >> (7 + (formulation >> 11));
         output += fluxMemory >> 6;
 
-        // Low-output ferric tape is noisier; under-bias raises the residual noise.
-        int32_t hiss = (Noise() * (256 + (4095 - formulation) / 6 + (underBias >> 2))) >> 11;
+        // Low-output ferric tape is slightly noisier; under-bias raises it gently.
+        // This is a maintained reel-to-reel model, not a damaged-tape effect.
+        int32_t hiss = (Noise() * (8 + (4095 - formulation) / 64 + (underBias >> 7))) >> 12;
         output += hiss;
 
         output = ClampAudio(output);

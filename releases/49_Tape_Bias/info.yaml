@@ -1,6 +1,6 @@
-draft: true
+draft: false
 Name: Tape Bias
-short-description: Experimental 1960s-inspired reel-to-reel record/replay simulator with virtual bias calibration.
+short-description: 1960s-inspired reel-to-reel record/replay simulator with virtual bias calibration.
 summary: >
   Tape Bias is a first-pass mono record/replay processor inspired by 1960s
   reel-to-reel machines. It models record drive, virtual AC-bias calibration,
@@ -8,10 +8,14 @@ summary: >
   without generating an ultrasonic bias carrier at the 48 kHz audio rate.
 Language: C++ (Pico SDK)
 Creator: Adrian Vos
-Version: "0.1.0"
-Status: Experimental - first DSP pass, untested on hardware
+Version: "0.1.1"
+Status: Beta - stable in single-developer testing
 License: MIT
 date-created: 2026-07-30
+date-updated: 2026-07-31
+uf2:
+  - path: uf2/TapeBias.uf2
+    name: Tape Bias 0.1.1 (current stable)
 tags:
   - effect
   - tape
