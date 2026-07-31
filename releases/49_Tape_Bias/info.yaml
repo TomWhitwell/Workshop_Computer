@@ -27,7 +27,7 @@ panel:
     - id: CVIn1
       name: Bias CV
       type: cv
-      description: Modulates bias calibration around the X control
+      description: Strong bipolar modulation of bias calibration around the X control
     - id: CVIn2
       name: Tape CV
       type: cv
@@ -48,7 +48,7 @@ panel:
     - id: CVOut1
       name: Bias Offset
       type: cv
-      description: Effective bias calibration relative to nominal bias
+      description: Full-scale effective bias calibration relative to nominal bias
     - id: CVOut2
       name: Tape Flux
       type: cv

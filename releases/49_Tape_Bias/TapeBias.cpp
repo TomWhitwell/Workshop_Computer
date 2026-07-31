@@ -47,16 +47,21 @@ public:
     {
         // This averaged curve stands in for the ultrasonic AC-bias cycle at 48 kHz.
         int32_t x = (input * drive) >> 11;
-        int32_t magnitude = Absolute(x);
-        x -= (x * magnitude) >> 12;
+        if (x > 4095) x = 4095;
+        if (x < -4095) x = -4095;
 
-        // Under-bias leaves a rougher, more asymmetric record characteristic.
+        int32_t magnitude = Absolute(x);
+        int32_t soft = x - ((x * magnitude) >> 13);
+
+        // Under-bias moves toward the less-compressed record characteristic
+        // without allowing the transfer curve to fold back on itself.
         if (biasError < 0)
         {
-            x += ((x * magnitude) >> 13) * (-biasError) / 2048;
+            int32_t hard = ClampAudio(x);
+            soft += ((hard - soft) * (-biasError)) >> 11;
         }
 
-        return ClampAudio(x);
+        return ClampAudio(soft);
     }
 
     virtual void ProcessSample() override
@@ -65,7 +70,7 @@ public:
         int32_t bias = KnobVal(Knob::X);
         int32_t formulation = KnobVal(Knob::Y);
 
-        if (Connected(Input::CV1)) bias += CVIn1() >> 1;
+        if (Connected(Input::CV1)) bias += CVIn1() << 1;
         if (Connected(Input::CV2)) formulation += CVIn2() >> 1;
 
         if (bias < 0) bias = 0;
@@ -114,6 +119,7 @@ public:
         // Low-output ferric tape is noisier; under-bias raises the residual noise.
         int32_t hiss = (Noise() * (256 + (4095 - formulation) / 6 + (underBias >> 2))) >> 11;
         output += hiss;
+
         output = ClampAudio(output);
 
         if (PulseIn1RisingEdge())
@@ -125,7 +131,7 @@ public:
 
         AudioOut1(output);
         AudioOut2(output);
-        CVOut1((bias - 2048) >> 1);
+        CVOut1(bias - 2048);
         CVOut2(fluxMemory);
 
         LedBrightness(0, recordLevel);
