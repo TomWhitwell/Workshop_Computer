@@ -98,27 +98,27 @@ tags:
 controls:
   switch:
     up:
-      name: Z up
+      name: Turing machine mode
       description: "Z up: MAIN: Mutation; X: Sequence Length; Y: Clock Speed."
     middle:
-      name: Z middle
+      name: Synthesiser mode
       description: "Z middle: MAIN: Pitch; X: Phase Distortion; Y: Waveform Morph."
     down:
-      name: Z down
+      name: Edit/save
       description: "Z down, hold: MAIN: Detune; X: Ring Modulation; Y: Noise/Grit."
   knobs:
     - main:
-        name: Pitch
+        name: Pitch/Mutation
         description: Oscillator pitch in synth mode
       x:
         name: |-
           Phase
-          Distortion
+          Distortion/Length
         description: Phase-distortion amount
       y:
         name: |-
           Waveform
-          Morph
+          Morph/clock
         description: Waveform selection/morph
   leds:
     - display: list

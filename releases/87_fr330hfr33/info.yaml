@@ -78,20 +78,20 @@ tags:
 controls:
   switch:
     up:
-      name: Z up
+      name: Synth mode
       description: External CV/gate or USB MIDI mode. CV In 1 controls pitch, Pulse In
         1 controls gate, and holding Pulse In 2 high enables manual glide;
         overlapping MIDI notes glide automatically without retriggering the
         envelope.
     middle:
-      name: Z middle
+      name: Generative mode
       description: History-aware generative sequencer that avoids recent repeats,
         favors nearby scale motion, and occasionally makes wider or octave
         jumps. Pulse In 2 supplies an exact external clock; otherwise the
         configured internal tempo or optional MIDI clock can use adjustable
         swing.
     down:
-      name: Z down
+      name: Battery sag
       description: Momentary battery pull. The gate falls, the current VCA level is
         held briefly, then pitch, filter, resonance, and both audio outputs
         collapse with the virtual supply.

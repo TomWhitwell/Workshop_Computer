@@ -67,15 +67,15 @@ tags: []
 controls:
   switch:
     up:
-      name: Z up
+      name: Steady
       description: "Z up: Steady mode. Restrained mutation, tighter rhythms, and the
         calmest phrasing feel."
     middle:
-      name: Z middle
+      name: Swaying
       description: "Z middle: Drift mode. Balanced mutation, moderate swing, and
         gradual harmonic movement."
     down:
-      name: Z down
+      name: Rocking
       description: "Z down: Surge mode. Strongest swing, wider melodic leaps, and the
         most animated behavior."
   knobs:

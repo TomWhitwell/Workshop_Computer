@@ -57,6 +57,7 @@ tags:
 controls:
   switch:
     up:
+<<<<<<< Updated upstream
       name: Z up
       description: Continuous unquantized pitch shifting.
     middle:
@@ -65,6 +66,14 @@ controls:
     down:
       name: Z down
       description: Continuous unquantized pitch shifting.
+=======
+      name: Unquantised
+      description: "Z up: MAIN: Global Pitch Offset; X: Output A Offset; Y: Output B
+        Offset."
+    middle:
+      name: Quantised semitones
+      description: "Z middle: MAIN: Quantize Enable."
+>>>>>>> Stashed changes
   knobs:
     - main:
         name: Global Pitch Offset
