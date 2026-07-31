@@ -1,0 +1,89 @@
+//
+// Copyright(C) 1993-1996 Id Software, Inc.
+// Copyright(C) 2005-2014 Simon Howard
+// Copyright(C) 2021-2022 Graham Sanderson
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// DESCRIPTION:
+//	Savegame I/O, archiving, persistence.
+//
+
+
+#ifndef __P_SAVEG__
+#define __P_SAVEG__
+
+#include <stdio.h>
+
+#define SAVEGAME_EOF 0x1d
+#define VERSIONSIZE 16
+
+// maximum size of a savegame description
+
+#define SAVESTRINGSIZE 24
+
+// temporary filename to use while saving.
+
+#if !NO_FILE_ACCESS
+char *P_TempSaveGameFile(void);
+
+// filename to use for a savegame slot
+
+#endif
+#if PICO_ON_DEVICE
+typedef struct {
+    const uint8_t *data; // null for empty slot
+    int size;
+} flash_slot_info_t;
+
+void P_SaveGameGetExistingFlashSlotAddresses(flash_slot_info_t *slots, int count);
+// can pass null to clear a slot
+boolean P_SaveGameWriteFlashSlot(int slot, const uint8_t *buffer, uint size, uint8_t *buffer4k);
+#endif
+char *P_SaveGameFile(int slot);
+
+// Savegame file header read/write functions
+
+boolean P_ReadSaveGameHeader(void);
+void P_WriteSaveGameHeader(char *description);
+
+// Savegame end-of-file read/write functions
+
+boolean P_ReadSaveGameEOF(void);
+void P_WriteSaveGameEOF(void);
+
+// Persistent storage/archiving.
+// These are the load / save game routines.
+void P_ArchivePlayers (void);
+void P_UnArchivePlayers (void);
+void P_ArchiveWorld (void);
+void P_UnArchiveWorld (void);
+void P_ArchiveThinkers (void);
+void P_UnArchiveThinkers (void);
+void P_ArchiveSpecials (void);
+void P_UnArchiveSpecials (void);
+
+#if !NO_FILE_ACCESS
+extern FILE *save_stream;
+#endif
+#if SAVE_COMPRESSED || LOAD_COMPRESSED
+#include "tiny_huff.h"
+#endif
+#if LOAD_COMPRESSED
+extern th_bit_input  *sg_bi;
+#endif
+#if SAVE_COMPRESSED
+extern th_bit_output *sg_bo;
+#endif
+extern boolean savegame_error;
+
+
+#endif

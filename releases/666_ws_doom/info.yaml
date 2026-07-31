@@ -1,0 +1,130 @@
+Name: WS-DOOM
+short-description: Doom, running entirely on the Computer — play it by ear with knobs, CV and the enemy-panned stereo mix
+Language: C (RPi Pico SDK)
+Creator: incomputable.io
+Version: 1.0
+License: GPL-2.0
+Status: Released
+Editor: https://ws-doom.incomputable.io
+date-created: 2026-07-24
+date-updated: 2026-07-24
+demo-link: https://youtube.com/shorts/2zyUSOgpoc4
+contact:
+  social:
+    github: https://github.com/chicoe
+
+tags:
+  - game
+  - doom
+
+summary: |
+  The full shareware DOOM (via kilograham's rp2040-doom) as a program card,
+  played standalone from the panel — no screen needed. The stereo audio outs
+  carry the game mix with enemies panned left/right, and the soundtrack
+  itself swells and pans toward the nearest enemy: a beacon you hunt by ear.
+  The LEDs are an enemy radar, CV outs track health and ammo, pulse outs
+  fire on shots and damage, and the game starts at a random E1 level with a
+  spawn director keeping one enemy within earshot.
+
+  An optional web display (Chrome, WebSerial over USB-C) streams the actual
+  320x200 game video onto a CRT-styled screen, with level warp, volume and
+  sensitivity settings (saved to the card), and classic cheat codes. The
+  game never depends on the page.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Music Replace
+      description: When patched, replaces the game soundtrack (same enemy-beacon panning applies)
+    - id: AudioIn2
+      name: Shot Gate
+      description: When patched, gates open for ~0.7s on every shot you fire, replacing the gunshot sample
+    - id: CVIn1
+      name: Turn
+      description: Bipolar turn rate, sums with the Main knob
+    - id: CVIn2
+      name: Move
+      description: Bipolar forward/back, sums with the X knob
+    - id: PulseIn1
+      name: Fire
+      description: Fire trigger — sequence your trigger finger
+    - id: PulseIn2
+      name: Use
+      description: Open doors / press switches
+  outputs:
+    - id: AudioOut1
+      name: Game Audio L
+      description: Game mix left — sound effects panned by enemy position, music swelling toward the nearest enemy
+    - id: AudioOut2
+      name: Game Audio R
+      description: Game mix right
+    - id: CVOut1
+      name: Health
+      description: Player health, 0-5V
+    - id: CVOut2
+      name: Ammo
+      description: Ammo of the current weapon, 0-5V
+    - id: PulseOut1
+      name: Shot
+      description: Trigger when the player fires
+    - id: PulseOut2
+      name: Damage
+      description: Trigger when the player takes damage
+
+controls:
+  switch:
+    up:
+      name: Auto-aim
+      description: View tracks the nearest enemy and doors open automatically (latched)
+    middle:
+      name: Manual aim
+      description: Normal play
+    down:
+      name: Fire
+      description: Fire the current weapon (momentary); after death, respawns (automatic after 10s)
+  knobs:
+    -
+      main:
+        name: Turn
+        description: Analog turn rate, centre = straight ahead
+      x:
+        name: Move
+        description: Forward / back, centre = stop
+      y:
+        name: Weapon
+        description: Selects weapon 1-7; fires one confirmation shot after each change
+  leds:
+    - display: "Enemy radar: row = distance (bottom = close), column = bearing (left/right, both = ahead), all dim = behind you. Slow blink = dead, chase = attract mode."
+      items:
+        - id: LED0
+          name: Enemy far, bearing left
+          description: "Enemy radar: rows show distance to the nearest enemy (bottom = close), columns show bearing (both lit = ahead, all dim = behind you). All LEDs slow-blink when dead, chase pattern in attract mode."
+        - id: LED1
+          name: Enemy far, bearing right
+        - id: LED2
+          name: Enemy mid, bearing left
+        - id: LED3
+          name: Enemy mid, bearing right
+        - id: LED4
+          name: Enemy close, bearing left
+        - id: LED5
+          name: Enemy close, bearing right
+
+host:
+  usb:
+    - name: WS-DOOM Web Display
+      role: display
+      description: WebSerial (Chrome) page streaming the real game video onto a CRT-styled screen, plus level warp, volume/sensitivity settings and cheat codes. Hosted at https://ws-doom.incomputable.io or open index.html from this folder.
+
+readme: |
+  Flash `ws-doom-full.uf2` to a blank
+  2MB program card. macOS Finder sometimes truncates the copy — if the card
+  boots to LEDs but no game, copy from Terminal
+  (`cp ws-doom-full.uf2 /Volumes/RPI-RP2/`) or use
+  `picotool load -f -v ws-doom-full.uf2`.
+
+  The game boots straight into a random E1 level. Everything is playable
+  from the panel; the web display is optional eyes. Music and effects
+  volume and control sensitivity are set from the web page and can be
+  saved to the card.
+

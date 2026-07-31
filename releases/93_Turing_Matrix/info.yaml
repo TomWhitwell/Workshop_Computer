@@ -30,21 +30,21 @@ panel:
       description: Pitch offset in middle mode; mix input 2 in up mode
       type: cv
     - id: AudioIn1
-      name: Audio Out 1
-      description: Audio pass-through in middle mode; mixed audio output 1 in up mode
+      name: Audio/CV In 1
+      description: Mixer input 1 in up mode; direct audio pass-through source in middle mode
       type: audio
     - id: AudioIn2
-      name: Audio Out 2
-      description: Audio pass-through in middle mode; mixed audio output 2 in up mode
+      name: Audio/CV In 2
+      description: Mixer input 2 in up mode; direct audio pass-through source in middle mode
       type: audio
   outputs:
     - id: PulseOut1
-      name: Chan 1 Pulse
-      description: Clock or Turing-bit pulse behavior depending on pulse mode configuration
+      name: Matrix Gate 1
+      description: Channel 1 matrix gate / pulse output in both layers
       type: pulse
     - id: PulseOut2
-      name: Chan 2 Pulse
-      description: Clock or Turing-bit pulse behavior depending on pulse mode configuration
+      name: Matrix Gate 2
+      description: Channel 2 matrix gate / pulse output in both layers
       type: pulse
     - id: CVOut1
       name: |-

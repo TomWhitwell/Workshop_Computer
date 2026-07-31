@@ -73,13 +73,13 @@ controls:
   switch:
     up:
       name: Z up
-      description: "Z up: MAIN: Modulation Rate; X: Modulation Depth; Y: Character."
+      description: Vibrato mode.
     middle:
       name: Z middle
-      description: "Z middle: MAIN: Modulation Rate; X: Modulation Depth; Y: Character."
+      description: Chorus mode.
     down:
       name: Z down
-      description: "Z down, momentary: MAIN: LFO Shape Select."
+      description: Momentary LFO shape select.
   knobs:
     - main:
         name: Mod Rate

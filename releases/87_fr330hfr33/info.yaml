@@ -60,6 +60,14 @@ panel:
         Out
       description: Gate output following external, MIDI, or sequencer notes.
       type: pulse
+    - id: CVOut2
+      name: Unused
+      description: Unused in this build.
+      type: cv
+    - id: PulseOut2
+      name: Unused
+      description: Unused in this build.
+      type: pulse
 tags:
   - synth
   - midi
@@ -118,15 +126,16 @@ controls:
           description: LED 2 follows the current gate, with a dim idle level.
         - id: LED2
           name: LED 3
-          description: LED 4 indicates accented notes.
+          description: LED 3 indicates sequencer mode and pulses one to four times to identify the active pattern slot.
         - id: LED3
           name: LED 4
-          description: In sequencer mode LED 3 pulses one to four times to identify the
-            active pattern slot.
+          description: LED 4 indicates accented notes.
         - id: LED4
           name: LED 5
-          description: LED 6 displays note brightness, or stays fully lit in 18 dB
-            three-pole mode.
+          description: LED 5 indicates battery-pull mode.
+        - id: LED5
+          name: LED 6
+          description: LED 6 displays note brightness, or stays fully lit in 18 dB three-pole mode.
 host:
   notes: >-
     The Web MIDI editor configures major pentatonic, minor pentatonic, Ionian,
