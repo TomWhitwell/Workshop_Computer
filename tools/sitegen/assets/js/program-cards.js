@@ -292,9 +292,13 @@ async function flash(url, el) {
     }
     var parsed = uf2ToFlashBuffer(uf2Bytes);
     setFirmwareActionLabel(el, 'Flashing…');
-    await pb.flashEraseAndWrite(parsed.address, parsed.data);
+    await pb.flashEraseAndWrite(parsed.address, parsed.data, function(done, total) {
+      setFirmwareActionLabel(el, 'Flashing… ' + Math.round(100 * done / total) + '%');
+    });
     setFirmwareActionLabel(el, 'Verifying…');
-    var readback = await pb.flashRead(parsed.address, parsed.data.length);
+    var readback = await pb.flashRead(parsed.address, parsed.data.length, function(done, total) {
+      setFirmwareActionLabel(el, 'Verifying… ' + Math.round(100 * done / total) + '%');
+    });
     for (var i = 0; i < parsed.data.length; i++) {
       if (readback[i] !== parsed.data[i]) throw new Error('Verify failed at byte ' + i);
     }
