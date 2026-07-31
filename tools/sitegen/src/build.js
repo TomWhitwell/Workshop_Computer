@@ -9,7 +9,8 @@ import { githubPagesBase, copyWebAssets } from './discover/webEditor.js';
 import { getInfoYamlSchemaAdapter } from './schema/schemaAdapter.js';
 import { infoYamlJsonSchema } from './schema/infoYamlJsonSchema.js';
 import { renderCardArticle, renderReadmeAndDocs } from './render/cardPage.js';
-import { renderDiscovery, renderArchive, renderTile } from './render/discovery.js';
+import { renderDiscovery, renderArchive, renderArchiveRows } from './render/discovery.js';
+import { renderFilterBar } from './render/filterBar.js';
 import { curation } from './curation/index.js';
 import { parseSource } from './validate/parseSource.js';
 import { validateInfoYaml } from './validate/validateInfoYaml.js';
@@ -75,6 +76,7 @@ function detailPage(rel) {
     card,
     flairs: curation.resolveFlair(card.id),
     panelImg: '../../assets/program_cards/Standalone_computer_rev1.svg',
+    root: '../..',
     yamlUrl,
     uf2Url,
     extraDocs: renderReadmeAndDocs({ readmeHtml, docs, includeReadme: !card.documentation?.intro }),
@@ -91,10 +93,10 @@ function detailPage(rel) {
   <a class="program-card-author-link" href="../../preview/#${encodeURIComponent(rel.slug)}">Author Metadata ↗</a>
 </nav>
 ${article}
-<div class="actions actions-duo">
-  <a class="program-card-nav-link" href="../../index.html">Back to all programs</a>
-  <a class="program-card-nav-link" href="#page-top">Back to top</a>
-</div>
+<nav class="program-card-top-nav program-card-top-nav--footer" aria-label="Card navigation">
+  <a href="../../index.html">← BACK TO PROGRAM CARDS</a>
+  <a href="#page-top">Top ↑</a>
+</nav>
 `
   });
 }
@@ -146,11 +148,18 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
       path.join(faviconDestDir, 'favicon.png')
     );
   }
-  if (!incremental) await ensureDir(path.join(OUT_DIR, 'assets', 'fonts'));
-  if (!incremental) await fs.copyFile(
-    path.join(ROOT, 'tools', 'sitegen', 'node_modules', '@fontsource', 'inter', 'files', 'inter-latin-800-normal.woff2'),
-    path.join(OUT_DIR, 'assets', 'fonts', 'inter-latin-800-normal.woff2')
-  );
+  if (!incremental) {
+    const fontsDir = path.join(OUT_DIR, 'assets', 'fonts');
+    const nodeModules = path.join(ROOT, 'tools', 'sitegen', 'node_modules');
+    await ensureDir(fontsDir);
+    // Variable Inter (weight axis 100-900) is the only self-hosted face; it
+    // backs both the body text and the "Workshop Panel" font (panel rendering
+    // and SVG export select their weight from its axis).
+    await fs.copyFile(
+      path.join(nodeModules, '@fontsource-variable', 'inter', 'files', 'inter-latin-wght-normal.woff2'),
+      path.join(fontsDir, 'inter-latin-wght-normal.woff2')
+    );
+  }
 
   // Copy program-card panel diagram asset
   const panelSrcDir = path.join(ROOT, 'tools', 'sitegen', 'assets', 'program_cards');
@@ -279,7 +288,8 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
 
   // Index page
   const discoveryHtml = renderDiscovery(normalizedCards, '.');
-  const resultsTiles = normalizedCards.map(card => renderTile(card, { root: '.', showAllTags: true, showCreator: true })).join('');
+  // Results use the same one-line rows as the archive page.
+  const resultsRows = renderArchiveRows(normalizedCards, '.');
   const creatorOptions = ['<option value="">All</option>'].concat(
     Array.from(creatorSet).sort((a,b)=>a.localeCompare(b)).map(v=>`<option value="${escapeAttr(v)}">${v}</option>`)
   ).join('');
@@ -296,8 +306,14 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
     })
     .map(([id, label])=>{
       const flair = curation.availableFlairs.find(candidate => candidate.id === id);
-      const style = flair?.color ? ` style="--tag-selected-bg:${escapeAttr(flair.color)}"` : '';
-      return `<label class="tag-filter-option" data-tag-option data-tag-label="${escapeAttr(label.toLowerCase())}" data-tag-source="${flair ? 'flair' : 'author'}"${flair ? '' : ' hidden'}${style}><input type="checkbox" name="filter-tag" value="${escapeAttr(id)}"> <span>${escapeAttr(label)}</span></label>`;
+      // Match the badge styling used on tiles and rows (see renderFlairBadges).
+      const tagStyle = [
+        flair?.color ? `--program-card-tag-bg: ${flair.color}; --program-card-tag-border: ${flair.color};` : '',
+        flair?.textColor ? ` --program-card-tag-ink: ${flair.textColor};` : '',
+      ].join('').trim();
+      const style = tagStyle ? ` style="${escapeAttr(tagStyle)}"` : '';
+      const tagClass = flair ? `program-card-tag--${escapeAttr(id)}` : 'program-card-tag--author';
+      return `<label class="tag-filter-option program-card-tag ${tagClass}" data-tag-option data-tag-label="${escapeAttr(label.toLowerCase())}" data-tag-source="${flair ? 'flair' : 'author'}"${flair ? '' : ' hidden'}${style}><input type="checkbox" name="filter-tag" value="${escapeAttr(id)}"> <span>${escapeAttr(label)}</span></label>`;
     }).join('');
   const sortOptions = [
     ['', 'Card number'],
@@ -311,50 +327,15 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
     title: 'Workshop Computer Program Cards',
     relativeRoot: '.',
     showProgramIdentity: true,
-    programCardCount: normalizedCards.length,
   repoUrl: `https://github.com/${REPO}`,
     content: `
-<section class="filter-bar" aria-label="Filter programs">
-    <div class="search-bar-row">
-      <div class="search-wrapper">
-        <div class="search-control">
-          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg>
-          <input type="text" id="filter-search" placeholder="Search by name, creator, function or tag…" class="search-input" aria-label="Search cards">
-          <button id="search-clear" class="search-clear" aria-label="Clear search" type="button">✕</button>
-        </div>
-      </div>
-    </div>
-    <div class="search-tools-row">
-      <details class="advanced-options">
-        <summary>Advanced search</summary>
-        <div class="filter-row">
-          <div class="filter-group">
-            <label for="filter-creator">Creator</label>
-            <select id="filter-creator">${creatorOptions}</select>
-          </div>
-          <div class="filter-group">
-            <label for="sort-mode">Sort</label>
-            <select id="sort-mode">${sortOptions}</select>
-          </div>
-          <fieldset class="filter-group tag-filter-group">
-            <legend class="tag-filter-heading"><span>Tags</span><span class="tag-filter-heading__actions"><button id="clear-tags" type="button" hidden>Clear</button><button id="toggle-all-tags" type="button" aria-pressed="false">Show all</button></span></legend>
-            <input id="filter-tag-search" class="tag-filter-search" type="search" placeholder="Search all tags…" aria-label="Search all tags" autocomplete="off">
-            <div id="filter-tags" class="tag-filter-options">${tagOptions}</div>
-          </fieldset>
-        </div>
-      </details>
-      <a class="filter-link" href="archive/">Browse all cards</a>
-      <button id="connectToggle" class="connect-toggle connect-toggle--search" type="button" role="switch" aria-checked="false" aria-label="Connect to RP2040 via WebUSB" title="Reboot computer into programming mode before connecting">
-        <span class="c-status" aria-hidden="true"></span><span class="c-label">Connect workshop computer</span>
-      </button>
-    </div>
-</section>
+${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/', linkText: `Browse all ${normalizedCards.length} cards`, linkId: 'all-cards-toggle' })}
 <div class="program-cards program-cards--index">
   ${discoveryHtml}
   <div id="search-results" hidden>
-    <section class="program-card-shelf">
-      <header class="program-card-shelf__header"><h2>Results <span id="cards-count"></span></h2></header>
-      <div class="program-card-grid program-card-grid--list">${resultsTiles}</div>
+    <section class="program-card-archive">
+      <header class="program-card-shelf__header"><h2 id="cards-count"></h2></header>
+      <div class="program-card-archive-list">${resultsRows}</div>
       <p id="no-results" class="program-card-empty" hidden>No matching cards.</p>
     </section>
   </div>
@@ -398,25 +379,11 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
     <h1>All cards</h1>
     <nav class="program-cards__links" aria-label="Program card links">
       <a href="../index.html">Program cards home</a>
-      <a href="https://www.musicthing.co.uk/workshopsystem/program-cards/install/">Installation</a>
-      <a href="https://github.com/${REPO}">Make a card</a>
+      <a href="https://www.musicthing.co.uk/workshopsystem/program-cards/install/" target="_blank" rel="noopener noreferrer">Installation <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a>
+      <a href="https://github.com/${REPO}" target="_blank" rel="noopener noreferrer">Make a card <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a>
     </nav>
   </header>
-  <section class="filter-bar" aria-label="Search cards">
-      <div class="search-wrapper">
-        <div class="search-control">
-          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg>
-          <input type="text" id="filter-search" placeholder="Search by name, creator, function or tag…" class="search-input" aria-label="Search cards">
-          <button id="search-clear" class="search-clear" aria-label="Clear search" type="button">✕</button>
-        </div>
-      </div>
-      <div class="filter-actions">
-        <div class="filter-group">
-          <label for="sort-mode">Sort</label>
-          <select id="sort-mode">${sortOptions}</select>
-        </div>
-      </div>
-  </section>
+  ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: '../index.html', linkText: 'Program cards home', label: 'Search cards' })}
   ${renderArchive(normalizedCards, '..')}
 </div>`
   });

@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a problem with the metadata site, tooling, docs, or shared developer setup
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+        **New program cards** belong under `releases/` via a pull request — see the [README](https://github.com/TomWhitwell/Workshop_Computer/blob/main/README.md). Do not use this template to propose a new card.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: A short description of the problem
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What went wrong? Include relevant context, logs, or screenshots.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can someone else reproduce this?
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the project is affected?
+      options:
+        - Metadata site
+        - Tooling / CI
+        - Documentation
+        - DevContainer
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser, Node version, DevContainer, or other relevant details
+      placeholder: |
+        - OS:
+        - Browser / Node / tooling:

@@ -50,19 +50,23 @@ function cardNumber(card) {
   return Number.isNaN(number) ? raw : String(number).padStart(2, '0');
 }
 
-function renderTags(card, flairs = []) {
+// Tags link back to the index filtered by that tag, as they do on tiles and
+// archive rows (see renderFlairBadges in render/discovery.js).
+function renderTags(card, flairs = [], root = '../..') {
   const slugify = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const tagHref = id => `${root}/?tag=${encodeURIComponent(id)}`;
   const validFlairs = Array.isArray(flairs) ? flairs.filter(flair => flair?.id && flair?.label) : [];
   const flairIds = new Set(validFlairs.map(flair => slugify(flair.id)));
   const authorTags = (Array.isArray(card.tags) ? card.tags.filter(Boolean) : [])
     .filter(tag => !flairIds.has(slugify(tag)));
   if (!validFlairs.length && !authorTags.length) return '';
   const flairMarkup = validFlairs.map(flair => {
+    const id = slugify(flair.id);
     const style = `${flair.color ? `--program-card-tag-bg:${flair.color};` : ''}${flair.textColor ? `--program-card-tag-ink:${flair.textColor};` : ''}`;
-    return `<span class="program-card-tag program-card-tag--${esc(slugify(flair.id))}"${style ? ` style="${esc(style)}"` : ''}>${esc(flair.label)}</span>`;
+    return `<a class="program-card-tag program-card-tag--${esc(id)}" href="${esc(tagHref(id))}"${style ? ` style="${esc(style)}"` : ''}>${esc(flair.label)}</a>`;
   }).join('');
   const authorMarkup = authorTags
-    .map(tag => `<span class="program-card-tag program-card-tag--author program-card-tag--${esc(slugify(tag))}">${esc(tag)}</span>`)
+    .map(tag => `<a class="program-card-tag program-card-tag--author program-card-tag--${esc(slugify(tag))}" href="${esc(tagHref(slugify(tag)))}">${esc(tag)}</a>`)
     .join('');
   return `<span class="program-card-tags">${flairMarkup}${authorMarkup}</span>`;
 }
@@ -355,8 +359,9 @@ function renderAudio(samples) {
  * @param {string} [opts.uf2Url]     direct .uf2 download URL (enables WebUSB)
  * @param {string} [opts.extraDocs]  extra HTML appended into the documentation area (README/PDFs)
  * @param {boolean} [opts.basic]    draft mode: render only basic fields + README/PDFs (skip the generated model sections)
+ * @param {string} [opts.root]      path back to the site root, used for tag links (card pages sit two levels down)
  */
-export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs = '', flairs = [], basic = false }) {
+export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs = '', flairs = [], basic = false, root = '../..' }) {
   const metadata = card.metadata || {};
   const summary = card.summary || '';
   const sourceUrl = card.source_url || '';
@@ -409,9 +414,9 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
 
   const hero = `<header class="program-card-hero">
     <div class="program-card-hero__main">
-      ${basic ? '' : renderTags(card, flairs)}
       <h1><span class="program-card-page__number">${esc(cardNumber(card))}</span> ${esc(inline(card.title || card.id || 'Untitled card'))}</h1>
       ${metadata.creator ? `<div class="program-card-hero__byline">By ${esc(metadata.creator)}</div>` : ''}
+      ${basic ? '' : renderTags(card, flairs, root)}
       ${summary ? `<p class="program-card-hero__summary">${markdownInline(summary)}</p>` : ''}
       ${basic || !memoryMarkup ? '' : `<div class="program-card-hero__meta">${memoryMarkup}</div>`}
       <div class="program-card-actions" aria-label="Card actions">${downloadActions}${editorAction}</div>

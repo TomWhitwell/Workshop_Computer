@@ -423,6 +423,7 @@ function renderPreview() {
     els.preview.innerHTML = renderCardArticle({
       card,
       panelImg: '../assets/program_cards/Standalone_computer_rev1.svg',
+      root: '..',
       yamlUrl: currentEntry?.yamlUrl || '#', uf2Url: card.uf2_downloads?.[0]?.url || '',
       extraDocs: currentEntry?.extras ? renderReadmeAndDocs({ ...currentEntry.extras, inlinePdf: false, includeReadme: !card.documentation?.intro }) : '',
     });

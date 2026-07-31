@@ -1,9 +1,9 @@
 @font-face {
   font-family: "Workshop Panel";
   font-style: normal;
-  font-weight: 800;
+  font-weight: 100 900;
   font-display: block;
-  src: url("fonts/inter-latin-800-normal.woff2") format("woff2");
+  src: url("fonts/inter-latin-wght-normal.woff2") format("woff2");
 }
 
 /*
@@ -23,7 +23,9 @@
   margin: 8px 0 24px;
 }
 
-.program-card-page a {
+/* Tag badges and buttons carry their own ink colour: this rule is more specific
+   than the button rules below, so it has to opt them out explicitly. */
+.program-card-page a:not(.program-card-tag):not(.program-card-action):not(.btn) {
   color: var(--program-card-link);
 }
 
@@ -32,6 +34,10 @@
   display: flex;
   justify-content: space-between;
   margin: 0 0 14px;
+}
+
+.program-card-top-nav--footer {
+  margin: 30px 0 0;
 }
 
 .program-card-top-nav .program-card-author-link {
@@ -44,7 +50,7 @@
   border-bottom: 2px solid var(--program-card-ink, #111);
   color: var(--program-card-ink, #111);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   padding-bottom: 4px;
   text-decoration: none;
   text-transform: uppercase;
@@ -67,7 +73,7 @@
 .program-card-hero h1 {
   color: var(--program-card-muted);
   font-size: clamp(34px, 5vw, 58px);
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   letter-spacing: -0.01em;
   line-height: 0.95;
   margin: 7px 0 0;
@@ -75,22 +81,22 @@
 
 .program-card-page__number {
   color: var(--program-card-muted);
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
 }
 
 .program-card-hero p {
   color: var(--program-card-ink);
   font-size: 19px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   line-height: 1.23;
-  margin: 10px 0 0;
+  margin: 1.5em 0;
   max-width: 44rem;
 }
 
 .program-card-hero__byline {
   color: var(--program-card-muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1.1;
   margin-top: 7px;
   text-transform: uppercase;
@@ -101,7 +107,7 @@
   display: flex;
   flex-wrap: wrap;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   gap: 7px 12px;
   line-height: 1.1;
   margin-top: 11px;
@@ -115,6 +121,7 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 18px;
+  margin-bottom: 18px;
 }
 
 .program-card-action {
@@ -129,14 +136,14 @@
 }
 
 .program-card-action__host {
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   opacity: 0.72;
   text-transform: none;
 }
 
 .program-card-action__tag {
   font-size: 10px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   letter-spacing: 0.04em;
   opacity: 0.85;
 }
@@ -211,7 +218,7 @@
 .program-card-audio h2 {
   color: var(--program-card-ink);
   font-size: clamp(24px, 3.2vw, 38px);
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   letter-spacing: -0.01em;
   line-height: 0.98;
   margin: 0 0 12px;
@@ -222,7 +229,7 @@
 }
 
 .program-card-audio__title {
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   margin: 0 0 6px;
 }
 
@@ -238,20 +245,20 @@
 
 .program-card-audio__link {
   color: var(--program-card-link);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   text-decoration: none;
 }
 
 .program-card-action span {
   font-size: 15px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1;
 }
 
 .program-card-action small {
   color: rgba(255, 255, 255, 0.72);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1.1;
 }
 
@@ -308,7 +315,7 @@
   border-bottom: 2px solid var(--program-card-rule);
   color: var(--program-card-muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1;
   padding-bottom: 3px;
   text-decoration: none;
@@ -339,12 +346,13 @@
   color: #fff;
   display: inline-block;
   font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-weight: var(--weight-heavy);
+  letter-spacing: 0.035em;
   line-height: 1;
   padding: 4px 7px 3px;
   text-decoration: none;
   text-transform: uppercase;
+  opacity: 0.75;
 }
 
 .program-card-tag:hover,
@@ -358,10 +366,8 @@
   background: #707070;
 }
 
-.program-cards--index a.program-card-tag,
-.program-cards--archive a.program-card-tag,
-.program-cards--index a.program-card-tag:visited,
-.program-cards--archive a.program-card-tag:visited {
+a.program-card-tag,
+a.program-card-tag:visited {
   color: var(--program-card-tag-ink, #fff);
   text-decoration: none;
 }
@@ -378,18 +384,18 @@
 
 .program-card-draft-bar__message {
   font-size: 15px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   line-height: 1.22;
 }
 
 .program-card-draft-bar__message strong {
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   text-transform: uppercase;
 }
 
 .program-card-draft-bar__details {
   font-size: 12px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   line-height: 1.3;
 }
 
@@ -397,7 +403,7 @@
   color: var(--program-card-ink);
   cursor: pointer;
   display: inline;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 2px;
@@ -405,7 +411,7 @@
 
 .program-card-draft-bar__details p {
   font-size: 12px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   line-height: 1.35;
   margin: 8px 0 0;
   max-width: 46rem;
@@ -413,7 +419,7 @@
 
 .program-card-draft-bar__details a {
   color: var(--program-card-ink);
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
 }
 
 .program-card-draft-bar__details code {
@@ -487,7 +493,7 @@
 .program-card-demo__text span {
   color: var(--program-card-muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1;
   text-transform: uppercase;
 }
@@ -495,7 +501,7 @@
 .program-card-demo__text strong {
   color: var(--program-card-ink);
   font-size: clamp(24px, 3.2vw, 38px);
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   letter-spacing: -0.01em;
   line-height: 0.98;
 }
@@ -513,7 +519,7 @@
 .program-card-quick-start h2 {
   color: var(--program-card-muted);
   font-size: 24px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1;
   margin: 0;
 }
@@ -530,7 +536,7 @@
 .program-card-quick-start li {
   color: var(--program-card-ink);
   font-size: 15px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   line-height: 1.28;
   padding-left: 2.2em;
   position: relative;
@@ -540,7 +546,7 @@
   color: var(--program-card-muted);
   content: counter(quick-start, decimal-leading-zero);
   counter-increment: quick-start;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   left: 0;
   position: absolute;
   top: 0;
@@ -573,7 +579,7 @@
   cursor: pointer;
   font: inherit;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   min-width: 88px;
   padding: 8px 12px;
   width: 100%;
@@ -619,7 +625,7 @@
   cursor: pointer;
   font: inherit;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   padding: 8px 14px;
 }
 
@@ -627,7 +633,7 @@
   align-self: center;
   color: var(--program-card-muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   text-transform: uppercase;
 }
 
@@ -646,7 +652,7 @@
 .program-card-panel-error {
   border: 2px solid var(--program-card-ink);
   padding: 16px;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .program-card-switch-action {
@@ -657,7 +663,7 @@
 .program-card-use__title {
   color: var(--program-card-ink);
   font-size: clamp(24px, 3.2vw, 38px);
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   letter-spacing: -0.01em;
   line-height: 0.98;
   margin: 0 0 16px;
@@ -749,34 +755,30 @@
   background: #fdfdfd;
   box-sizing: border-box;
   color: var(--program-card-ink);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: var(--weight-heavy);
   left: 0;
-  line-height: 0.9;
-  max-width: 20%;
+  line-height: 1.05;
+  max-width: 24%;
   min-height: 18px;
   overflow-wrap: normal;
-  padding: 4px 4px 3px;
+  padding: 4px 1px;
+  border-radius:3px;
   position: absolute;
   text-align: center;
-  text-transform: uppercase;
   transform: translate(-50%, -50%);
   white-space: normal;
-  width: 20%;
+  width: 24%;
   word-break: normal;
 }
 
 .program-card-panel-text--long {
-  line-height: 1;
   overflow-wrap: anywhere;
-  padding-bottom: 4px;
-  padding-top: 5px;
-  word-break: normal;
 }
 
 .program-card-panel__label--control {
-  max-width: 24%;
-  width: 24%;
+  max-width: 30%;
+  width: 30%;
 }
 
 .program-card-panel__label--output {
@@ -791,7 +793,7 @@
   position: absolute;
   top: 28.2%;
   transform: translateX(-50%);
-  width: 24%;
+  width: 30%;
   z-index: 2;
 }
 
@@ -805,18 +807,18 @@
   display: flex;
   flex-direction: column;
   font: inherit;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: var(--weight-heavy);
   gap: 3px;
   justify-content: center;
-  line-height: 0.9;
+  line-height: 1.05;
   min-height: 18px;
   padding: 4px 4px 3px;
   text-align: center;
-  text-transform: uppercase;
   white-space: normal;
   width: 100%;
   word-break: normal;
+  border-radius: 3px;
 }
 
 .program-card-panel-switch-position:not(.has-value) {
@@ -827,15 +829,11 @@
   color: #666;
   flex: 0 0 auto;
   font: inherit;
-  font-size: 11px;
-  line-height: 1;
 }
 
 .program-card-panel-switch-position strong {
   display: block;
   font: inherit;
-  font-size: 11px;
-  line-height: 1;
   min-width: 0;
   overflow-wrap: normal;
   width: 100%;
@@ -874,7 +872,7 @@
 .program-card-panel-position-label {
   color: #fff;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   justify-self: end;
   line-height: 1.05;
   text-align: right;
@@ -899,7 +897,7 @@
   cursor: pointer;
   font: inherit;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1;
   min-width: 0;
   padding: 5px 6px;
@@ -948,7 +946,7 @@
 .program-card-section h3 {
   color: var(--program-card-muted);
   font-size: 20px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1;
   margin: 0 0 8px;
 }
@@ -1013,7 +1011,7 @@
 .program-card-section p {
   color: var(--program-card-ink);
   font-size: 14px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   line-height: 1.3;
   margin: 0 0 6px;
   overflow-wrap: anywhere;
@@ -1022,7 +1020,7 @@
 .program-card-section code {
   display: inline-block;
   font-size: 12px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   max-width: 100%;
   overflow-wrap: anywhere;
 }
@@ -1068,7 +1066,7 @@
   color: var(--program-card-ink);
   display: block;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
@@ -1258,14 +1256,14 @@
 .program-card-about dt {
   color: var(--program-card-muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1.15;
   text-transform: uppercase;
 }
 
 .program-card-about dd {
   font-size: 13px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   line-height: 1.25;
   margin: 0;
   min-width: 0;
@@ -1294,7 +1292,7 @@
 
 .program-card-data-sources summary {
   cursor: pointer;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   text-transform: uppercase;
 }
 
@@ -1493,8 +1491,9 @@
   margin: 8px 0 24px;
 }
 
-.program-cards--index a,
-.program-cards--archive a {
+/* Tag badges carry their own ink colour and must not pick up the link colour. */
+.program-cards--index a:not(.program-card-tag),
+.program-cards--archive a:not(.program-card-tag) {
   color: var(--program-card-link);
 }
 
@@ -1533,7 +1532,7 @@
 .program-cards__identity-name {
   color: var(--program-card-ink, #111);
   font-size: clamp(28px, 4vw, 46px);
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   letter-spacing: -0.01em;
   line-height: 0.95;
 }
@@ -1541,7 +1540,7 @@
 .program-cards__title h1 {
   color: var(--program-card-muted);
   font-size: clamp(28px, 4vw, 46px);
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   letter-spacing: -0.01em;
   line-height: 0.95;
   margin: 0;
@@ -1561,7 +1560,7 @@
   border-bottom: 2px solid var(--program-card-ink);
   color: var(--program-card-ink);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1;
   padding-bottom: 4px;
   text-decoration: none;
@@ -1574,7 +1573,7 @@
 
 /* Shelves */
 .program-card-shelf {
-  margin-top: 30px;
+  margin-top: 40px;
 }
 
 .program-card-shelf:first-child {
@@ -1589,7 +1588,7 @@
 .program-card-shelf__header h2 {
   color: var(--program-card-muted);
   font-size: clamp(22px, 2.4vw, 32px);
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   letter-spacing: -0.01em;
   line-height: 0.98;
   margin: 0;
@@ -1598,7 +1597,7 @@
 .program-card-shelf__header p {
   color: var(--program-card-ink);
   font-size: 15px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   line-height: 1.3;
   margin: 5px 0 0;
   max-width: 36rem;
@@ -1680,7 +1679,7 @@
   border-top: 1px solid var(--program-card-rule);
   color: var(--program-card-ink);
   display: block;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   min-width: 0;
   overflow: hidden;
   padding-top: 10px;
@@ -1704,7 +1703,7 @@
   gap: 0.35em;
   grid-template-columns: 1.8em minmax(0, 1fr);
   font-size: 20px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   letter-spacing: -0.01em;
   line-height: 1.02;
   min-width: 0;
@@ -1722,8 +1721,9 @@
 
 .program-card-tile__number {
   color: var(--program-card-muted);
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   display: inline-block;
+  overflow-wrap: normal;
 }
 
 .program-card-tile__name {
@@ -1733,10 +1733,10 @@
 .program-card-tile__byline {
   color: var(--program-card-muted);
   font-size: 11px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   grid-column: 2;
   line-height: 1.2;
-  margin-top: 3px;
+  margin-bottom: 3px;
 }
 
 .program-card-tile__link:hover .program-card-tile__name,
@@ -1753,7 +1753,7 @@
   color: var(--program-card-ink);
   display: -webkit-box;
   font-size: 14px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   line-height: 1.25;
   margin-top: 9px;
   min-width: 0;
@@ -1763,8 +1763,7 @@
 
 .program-card-tile__inline-link {
   color: var(--program-card-link);
-  display: block;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   margin-top: 5px;
 }
 
@@ -1909,7 +1908,7 @@
 .program-card-archive-row__number {
   color: var(--program-card-muted);
   font-size: 16px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1;
 }
 
@@ -1921,7 +1920,7 @@
 
 .program-card-archive-row__title {
   font-size: 17px;
-  font-weight: 800;
+  font-weight: var(--weight-heavy);
   line-height: 1.05;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1939,7 +1938,7 @@
   color: var(--program-card-muted);
   flex: 0 1 auto;
   font-size: 11px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   line-height: 1.1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1949,7 +1948,7 @@
 .program-card-archive-row__summary {
   color: var(--program-card-ink);
   font-size: 12px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1973,7 +1972,7 @@
 
 .program-card-empty {
   color: var(--program-card-muted);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   margin-top: 16px;
 }
 
@@ -2007,13 +2006,14 @@
 .program-card-random h1 {
   color: var(--program-card-muted, #828282);
   font-size: clamp(30px, 5vw, 52px);
+  font-weight: var(--weight-bold);
   line-height: 1;
   margin: 0;
 }
 
 .program-card-random p {
   font-size: 14px;
-  font-weight: 400;
+  font-weight: var(--weight-normal);
   margin-top: 12px;
 }
 

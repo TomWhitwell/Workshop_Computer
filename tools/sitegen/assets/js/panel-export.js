@@ -6,7 +6,7 @@ export const PANEL_EXPORT_WIDTH = 560;
 export const PANEL_EXPORT_HEIGHT = 1785;
 export const PANEL_DISPLAY_WIDTH = 280;
 export const PANEL_DISPLAY_HEIGHT = PANEL_EXPORT_HEIGHT * PANEL_DISPLAY_WIDTH / PANEL_EXPORT_WIDTH;
-const PANEL_FONT_URL = new URL('./fonts/inter-latin-800-normal.woff2', import.meta.url);
+const PANEL_FONT_URL = new URL('../fonts/inter-latin-wght-normal.woff2', import.meta.url);
 
 function escapeXml(value) {
   return String(value ?? '')
@@ -98,12 +98,20 @@ function labelSvg(panelRect, element, measure, scaleX, scaleY) {
   const neutralSwitchPosition = element.matches('.program-card-panel-switch-position[aria-pressed="true"]');
   const backgroundColor = neutralSwitchPosition ? '#fdfdfd' : style.backgroundColor;
   const borderWidth = neutralSwitchPosition ? 0 : Number.parseFloat(style.borderTopWidth) || 0;
+  // Corner rounding is not one of the properties SVG carries implicitly; read
+  // the computed radius and scale it per-axis (the panel can stretch unevenly).
+  const cornerRadius = Number.parseFloat(style.borderTopLeftRadius) || 0;
+  const rx = cornerRadius * scaleX;
+  const ry = cornerRadius * scaleY;
   const rectMarkup = backgroundColor === 'rgba(0, 0, 0, 0)'
     ? ''
-    : `<rect x="${x}" y="${y}" width="${width}" height="${scaledHeight}" fill="${escapeXml(backgroundColor)}"${borderWidth && style.borderTopColor !== 'rgba(0, 0, 0, 0)' ? ` stroke="${escapeXml(style.borderTopColor)}" stroke-width="${borderWidth * scaleX}"` : ''}/>`;
+    : `<rect x="${x}" y="${y}" width="${width}" height="${scaledHeight}"${rx ? ` rx="${rx}" ry="${ry}"` : ''} fill="${escapeXml(backgroundColor)}"${borderWidth && style.borderTopColor !== 'rgba(0, 0, 0, 0)' ? ` stroke="${escapeXml(style.borderTopColor)}" stroke-width="${borderWidth * scaleX}"` : ''}/>`;
   const fontSize = (Number.parseFloat(textStyle.fontSize) || 11) * scaleY;
+  // Use the label's actual computed weight so the export matches the page,
+  // rather than assuming the old fixed 800.
+  const fontWeight = textStyle.fontWeight || '400';
   const tspans = lines.map((line, index) => `<tspan x="${centerX}" y="${firstBaseline + index * lineHeight * scaleY}">${escapeXml(line)}</tspan>`).join('');
-  return `${rectMarkup}<text text-anchor="middle" font-family="Workshop Panel" font-size="${fontSize}" font-weight="800" fill="${escapeXml(textStyle.color)}">${tspans}</text>`;
+  return `${rectMarkup}<text text-anchor="middle" font-family="Workshop Panel" font-size="${fontSize}" font-weight="${escapeXml(fontWeight)}" fill="${escapeXml(textStyle.color)}">${tspans}</text>`;
 }
 
 function serializeBaseSvg(source) {
@@ -142,7 +150,7 @@ export async function renderPanelElementToSvg(panel) {
     .map(element => labelSvg(panelRect, element, measure, scaleX, scaleY))
     .join('');
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${PANEL_DISPLAY_WIDTH}" height="${PANEL_DISPLAY_HEIGHT}" viewBox="0 0 ${PANEL_EXPORT_WIDTH} ${PANEL_EXPORT_HEIGHT}"><style>@font-face{font-family:"Workshop Panel";font-style:normal;font-weight:800;src:url(data:font/woff2;base64,${fontBase64}) format("woff2")}text{font-family:"Workshop Panel",sans-serif}</style>${serializeBaseSvg(artwork)}<g>${labels}</g></svg>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${PANEL_DISPLAY_WIDTH}" height="${PANEL_DISPLAY_HEIGHT}" viewBox="0 0 ${PANEL_EXPORT_WIDTH} ${PANEL_EXPORT_HEIGHT}"><style>@font-face{font-family:"Workshop Panel";font-style:normal;font-weight:100 900;src:url(data:font/woff2;base64,${fontBase64}) format("woff2")}text{font-family:"Workshop Panel",sans-serif}</style>${serializeBaseSvg(artwork)}<g>${labels}</g></svg>`;
 }
 
 export async function renderPanelElementToSvgBlob(panel) {

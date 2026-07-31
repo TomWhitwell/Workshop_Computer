@@ -25,7 +25,7 @@ panel:
       description: Adds to the X knob to control bird voice oscillator pitch
 
     - id: CVIn2
-      name: Speed CV Modulation
+      name: Speed CV 
       description: Adds to the Y knob to control sequence playback timing
 
     - id: PulseIn1
