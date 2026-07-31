@@ -7,6 +7,7 @@
 # Hero:
 # - `hero.featured` is a short, fixed list of card IDs shown before shelves.
 # - `hero.layout` uses the same grid layout names documented for shelves below.
+# - `hero.hide_flairs` works like the shelf option below, e.g. hide `included` on the included shelf.
 # - Use `hero.text` for practical context only; leave blank if it feels like filler.
 #
 # Shelves:
@@ -38,6 +39,8 @@ embeds:
 hero:
   title: Included cards
   layout: grid
+  hide_flairs:
+    - included
   featured:
     - 03_Turing_Machine
     - 20_reverb

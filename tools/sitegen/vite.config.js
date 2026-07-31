@@ -63,6 +63,11 @@ function rebuildSite() {
     child.on('exit', code => {
       running = false;
       if (code === 0) {
+        // Vite ignores SITE_DIR (see server.watch.ignored) to avoid looping on
+        // its own build output, so it never invalidates its cached transform of
+        // the regenerated files. Clear the module graph before reloading so the
+        // browser gets the freshly built HTML/CSS/JS instead of stale copies.
+        server.moduleGraph.invalidateAll();
         console.log('[sitegen] Rebuild complete; refreshing browsers.');
         server.ws.send({ type: 'full-reload', path: '*' });
       } else {

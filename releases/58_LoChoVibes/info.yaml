@@ -72,14 +72,14 @@ tags: []
 controls:
   switch:
     up:
-      name: Z up
-      description: Vibrato mode.
+      name: Vibrato
+      description: "Z up: Vibrato mode."
     middle:
-      name: Z middle
-      description: Chorus mode.
+      name: Chorus
+      description: "Z middle: Chorus mode."
     down:
-      name: Z down
-      description: Momentary LFO shape select.
+      name: Change LFO shape
+      description: "Z down, momentary: LFO Shape Select."
   knobs:
     - main:
         name: Mod Rate

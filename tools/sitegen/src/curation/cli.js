@@ -110,6 +110,9 @@ function validate(flairs, discovery, cards) {
   };
   addCards(discovery?.hero?.featured, 'discovery.yml: hero.featured');
   if (discovery?.hero?.layout && !VALID_LAYOUTS.has(discovery.hero.layout)) errors.push(`discovery.yml: hero has unknown layout "${discovery.hero.layout}"`);
+  for (const flair of discovery?.hero?.hide_flairs || []) {
+    if (!vocabulary.has(slugify(flair))) errors.push(`discovery.yml: hero.hide_flairs uses unknown flair "${flair}"`);
+  }
   for (const [name, embed] of Object.entries(discovery?.embeds || {})) addCards(embed?.cards, `discovery.yml: embeds.${name}.cards`);
 
   const shelfIds = new Set();

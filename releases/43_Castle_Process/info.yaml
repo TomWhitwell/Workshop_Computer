@@ -81,14 +81,14 @@ tags:
 controls:
   switch:
     up:
-      name: Z up
+      name: Z mild
       description: Alternate latched mode with a little more body and more squarewave
         colour.
     middle:
-      name: Z middle
+      name: Z moderate
       description: Default tighter and more direct chopped mode.
     down:
-      name: Z down
+      name: Z Chaos
       description: Momentary bend / chaos gesture while held for live performance accents.
   knobs:
     - main:

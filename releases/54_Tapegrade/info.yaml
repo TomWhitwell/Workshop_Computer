@@ -84,13 +84,13 @@ tags:
 controls:
   switch:
     up:
-      name: Z up
+      name: New
       description: Brighter and more stable tape response.
     middle:
-      name: Z middle
+      name: Old
       description: Darker tone with moderate hiss and instability.
     down:
-      name: Z down
+      name: Damaged
       description: Strong hiss, crackle, and unstable behavior.
   knobs:
     - main:

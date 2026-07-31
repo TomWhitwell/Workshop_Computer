@@ -34,4 +34,8 @@ Release documentation: I've been making [little](https://docs.google.com/present
 The public site is hosted at https://computer.musicthing.co.uk/
 [Read about how to run and use the metadata site locally here](documentation/metadata-site-development.md)
 
+### Community
 
+- [Contributing](CONTRIBUTING.md) — improving shared tooling, docs, and the metadata site
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security](SECURITY.md)

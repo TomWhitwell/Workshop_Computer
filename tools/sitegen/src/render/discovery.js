@@ -15,7 +15,7 @@ const CARD_ARTWORK = {
 
 const FEATURED_COPY = {
   '88_Blank': {
-    text: 'A blank card is a blank canvas. Install any card firmware you want from this site.',
+    text: 'A blank card is a blank canvas. Install any card firmware you want from this site. ',
     linkText: 'Learn how',
     link: 'https://www.musicthing.co.uk/workshopsystem/program-cards/install/',
   },
@@ -159,7 +159,7 @@ export function renderDiscovery(cards, root = '.') {
   const cfg = curation.discovery || {};
   const hero = cfg.hero || {};
   const heroShelf = Array.isArray(hero.featured) && hero.featured.length
-    ? renderShelf({ title: hero.title || 'Included cards', intro: hero.text, cards: hero.featured, layout: hero.layout || 'grid' }, cardsById, { featured: true, root })
+    ? renderShelf({ title: hero.title || 'Included cards', intro: hero.text, cards: hero.featured, layout: hero.layout || 'grid', hide_flairs: hero.hide_flairs }, cardsById, { featured: true, root })
     : '';
   const shelves = (cfg.shelves || []).map(shelf => renderShelf(shelf, cardsById, { root })).join('');
   return `<div id="discovery">${heroShelf}${shelves}</div>`;
@@ -175,7 +175,7 @@ function renderArchiveRow(card, root) {
   const flairFilter = flair.map(f => f.id);
   const authorTagFilter = (Array.isArray(card.tags) ? card.tags : []).map(tag => curation.slugify(tag)).filter(Boolean);
   const tagFilter = [...new Set([...flairFilter, ...authorTagFilter])].join(' ');
-  return `<article class="program-card-archive-row" data-date="${escapeAttr(date)}" data-name="${escapeAttr(String(card.title || '').toLowerCase())}" data-num="${escapeAttr(String(parseInt(number, 10) || 0))}" data-tags="${escapeAttr(tagFilter)}" data-search="${escapeAttr(searchText)}">
+  return `<article class="program-card-archive-row" data-creator="${escapeAttr(card.metadata?.creator || '')}" data-date="${escapeAttr(date)}" data-name="${escapeAttr(String(card.title || '').toLowerCase())}" data-num="${escapeAttr(String(parseInt(number, 10) || 0))}" data-tags="${escapeAttr(tagFilter)}" data-search="${escapeAttr(searchText)}">
     <a class="program-card-archive-row__link" href="${root}/programs/${card.slug}/">
       <span class="program-card-archive-row__number">${esc(number)}</span>
       <span class="program-card-archive-row__main"><span class="program-card-archive-row__heading"><span class="program-card-archive-row__title">${esc(card.title)}</span>${card.metadata?.creator ? `<span class="program-card-archive-row__byline">by ${esc(card.metadata.creator)}</span>` : ''}</span>${summary ? `<span class="program-card-archive-row__summary">${esc(truncate(summary, 120))}</span>` : ''}</span>
@@ -184,8 +184,14 @@ function renderArchiveRow(card, root) {
   </article>`;
 }
 
+// The index search results reuse these rows verbatim, so both pages present a
+// single-column list in the same format.
+export function renderArchiveRows(cards, root = '..') {
+  return cards.map(card => renderArchiveRow(card, root)).join('');
+}
+
 export function renderArchive(cards, root = '..') {
-  const rows = cards.map(card => renderArchiveRow(card, root)).join('');
+  const rows = renderArchiveRows(cards, root);
   return `<section class="program-card-archive">
     <header class="program-card-shelf__header"><h2>Complete index</h2></header>
     <div class="program-card-archive-list">${rows}</div>

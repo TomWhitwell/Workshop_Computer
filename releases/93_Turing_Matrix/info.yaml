@@ -80,15 +80,15 @@ tags:
 controls:
   switch:
     up:
-      name: Z up
+      name: Mixer mode
       description: "Z up: MAIN: Mixer Lag; X: Mix Depth 1; Y: Mix Depth 2. Mixer mode
         active."
     middle:
-      name: Z middle
+      name: Turing Mode
       description: "Z middle: MAIN: Randomness / Write; X: Loop Length; Y: Div / Mult.
         Turing mode active."
     down:
-      name: Z down
+      name: Tap tempo
       description: "Z down, momentary: MAIN: Tap Tempo."
   knobs:
     - main:
