@@ -3,14 +3,13 @@
 F1shnet is an FSH-1-inspired filter/sample-hold effect card for the Music Thing
 Modular Workshop Computer.
 
-It is not a schematic clone. The card takes the useful performance shape of the
-Maestro FSH-1 / F1shy idea and turns it into a simple Workshop Computer effect:
-a resonant low-pass filter animated either by an envelope follower or by stepped
-sample-and-hold movement.
+It is not a schematic clone. The card is a Workshop Computer interpretation of
+the Maestro FSH-1 filter/sample-hold effect: a resonant low-pass filter animated
+either by an envelope follower or by stepped sample-and-hold movement.
 
 The current stable behaviour is tuned for Workshop/euro-level synth signals.
-Normal 5-6Vpp oscillators and drum machines should move the envelope without
-immediately pinning it open, and the output trim starts safely low on boot.
+Normal 5-6Vpp oscillators should move the envelope without immediately pinning
+it open, and the output trim starts safely low on boot.
 
 ## Modes
 
