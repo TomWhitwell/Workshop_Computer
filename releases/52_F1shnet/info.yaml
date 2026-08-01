@@ -9,7 +9,7 @@ summary: |
   In the S&H gesture, random values move the filter frequency around the stored middle-page range with a wide pitch-style response rather than changing the envelope, with a moderate lower S&H cutoff floor, moderately damped resonance, and click-reduced ping-pong movement between the two audio outputs.
   Audio In 2, CV 1, and CV 2 all influence parameters, with CV 1 and CV 2 keeping the same jobs in every switch position. Pulse In 1 acts as an external clock / retrigger, and Pulse In 2 can also force the sample-and-hold gesture high.
   CV Out 1 always emits the stepped sample-and-hold voltage, CV Out 2 always emits the envelope follower, Pulse Out 1 mirrors the clock, and Pulse Out 2 emits the sample trigger pulse.
-  Knobs use soft pickup when switching between middle and up so parameters do not jump until the physical control crosses the stored value for that page. Up exposes the setup parameters without recalculating the middle-page filter range, depth, or resonance.
+  Knobs use soft pickup when switching between middle and up so parameters do not jump until the physical control crosses the stored value for that page. Up exposes output trim and envelope sensitivity while Y remains the shared resonance control from the middle page.
 Language: C++ (Pico SDK)
 Creator: Adrian Vos with OpenAI Codex
 Version: 0.1.1
@@ -42,14 +42,14 @@ readme: |
   ## Controls
 
   - **Middle**: Main = filter range, X = envelope/S&H depth, Y = resonance.
-  - **Up**: Main = output trim, X = envelope sensitivity, Y = envelope decay.
+  - **Up**: Main = output trim, X = envelope sensitivity, Y = shared resonance.
   - **Down (held)**: Main = internal S&H clock speed with soft pickup.
 
   ## Performance patching
 
   - Patch **Pulse In 1** as an external retrigger / clock.
   - Patch **Pulse In 2** to force the sample-and-hold gesture high without touching the switch.
-  - **CV Out 1** is always the stepped S&H voltage and **CV Out 2** is always the triggered envelope voltage, so both can patch elsewhere even when the audio voice is doing something different.
+  - **CV Out 1** is always the stepped S&H voltage and **CV Out 2** is always the envelope follower voltage, so both can patch elsewhere even when the audio voice is doing something different.
   - **CV In 2** modulates depth strongly enough to be audible: positive CV widens the sweep and negative CV narrows it.
 
 panel:
@@ -131,10 +131,10 @@ controls:
         description: Post-filter output level trim for taming hot modular signals before the output clips; it is not an input attenuator and does not change envelope sensitivity; stored startup value is minimum trim.
       x:
         name: Envelope Sensitivity
-        description: Input threshold and trigger strength for the internal envelope sweep.
+        description: Input sensitivity for synth dynamics.
       y:
-        name: Envelope Decay
-        description: Internal envelope decay in normal play; minimum is longest, maximum is shortest, with a wide audible tail range.
+        name: Resonance
+        description: Shared resonance control for the core filter voice; same stored setting as middle Y, with soft pickup on page changes.
     - when: { z: down }
       main:
         name: S&H Speed
