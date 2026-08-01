@@ -41,7 +41,8 @@ soft pickup for the page you return to.
   attenuator, so it does not change envelope sensitivity or filter drive.
 - `X`: envelope sensitivity. The range is tuned for euro-level oscillators,
   drum machines, and other modular signals.
-- `Y`: envelope decay. Minimum is longest, maximum is shortest.
+- `Y`: envelope decay. Minimum is longest, maximum is shortest, with a wide
+  enough range to hear the envelope tail on plucks and drum hits.
 
 `Down` momentary gesture:
 

@@ -134,7 +134,7 @@ controls:
         description: Input sensitivity for synth dynamics.
       y:
         name: Envelope Decay
-        description: Envelope decay in normal play; minimum is longest, maximum is shortest.
+        description: Envelope decay in normal play; minimum is longest, maximum is shortest, with a wide audible tail range.
     - when: { z: down }
       main:
         name: S&H Speed
