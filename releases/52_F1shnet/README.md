@@ -36,7 +36,8 @@ soft pickup for the page you return to.
 `Up` setup page:
 
 - `Main`: output trim. This is scaled for hot modular signals and boots at
-  minimum trim.
+  minimum trim. It is a post-filter output level control, not an input
+  attenuator, so it does not change envelope sensitivity or filter drive.
 - `X`: envelope sensitivity. The range is tuned for euro-level oscillators,
   drum machines, and other modular signals.
 - `Y`: envelope decay. Minimum is longest, maximum is shortest.

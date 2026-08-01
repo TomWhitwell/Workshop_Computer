@@ -128,7 +128,7 @@ controls:
     - when: { z: up }
       main:
         name: Output Trim
-        description: Output level trim for taming hot modular signals before the filtered signal clips; stored startup value is minimum trim.
+        description: Post-filter output level trim for taming hot modular signals before the output clips; it is not an input attenuator and does not change envelope sensitivity; stored startup value is minimum trim.
       x:
         name: Envelope Sensitivity
         description: Input sensitivity for synth dynamics.
