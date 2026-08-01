@@ -20,7 +20,7 @@ damage effect; Tape Bias is a steadier record/replay machine model.
 | Switch Down | 15 ips: wider bandwidth and less head loss |
 | CV In 1 | Bias modulation |
 | CV In 2 | Tape-formulation modulation |
-| Pulse In 1 | Erase the virtual tape and reset magnetic memory |
+| Pulse In 1 | Erase tape state, reset magnetic memory, and create a brief replay dropout |
 
 Audio In 1 is a mono input. Audio Out 1 and Audio Out 2 carry the replay signal.
 CV Out 1 reports the effective bias offset and CV Out 2 reports slow magnetic flux.

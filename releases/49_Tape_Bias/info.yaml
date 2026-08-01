@@ -39,7 +39,7 @@ panel:
     - id: PulseIn1
       name: Erase
       type: pulse
-      description: Clears the virtual tape buffer and magnetic memory on a rising edge
+      description: Clears tape state and creates a brief replay dropout on a rising edge
   outputs:
     - id: AudioOut1
       name: Replay Out

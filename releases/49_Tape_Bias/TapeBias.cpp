@@ -15,6 +15,9 @@ public:
     int32_t replayLowpass = 0;
     int32_t fluxMemory = 0;
     int32_t noiseState = 1;
+    int32_t eraseSamples = 0;
+
+    static constexpr int ERASE_SAMPLES = 2880; // 60 ms at 48 kHz
 
     inline int32_t ClampAudio(int32_t value)
     {
@@ -78,18 +81,39 @@ public:
         if (formulation < 0) formulation = 0;
         if (formulation > 4095) formulation = 4095;
 
-        int32_t input = AudioIn1();
+        if (PulseIn1RisingEdge())
+        {
+            fluxMemory = 0;
+            replayLowpass = 0;
+            for (int i = 0; i < BUFFER_SIZE; ++i) tape[i] = 0;
+            eraseSamples = ERASE_SAMPLES;
+        }
+
+        // The erase head clears the short tape path, then leaves a brief dropout
+        // while new material is recorded. This makes a trigger useful in performance.
+        bool erasing = eraseSamples > 0;
+        int32_t input = erasing ? 0 : AudioIn1();
         int32_t biasError = bias - 2048;
         int32_t underBias = biasError < 0 ? -biasError : 0;
         int32_t overBias = biasError > 0 ? biasError : 0;
 
         // The three transport speeds determine the record/replay bandwidth.
         int32_t speedShift = 5;
+        int32_t speedHighRetention = 1664;
         switch (SwitchVal())
         {
-            case Switch::Up: speedShift = 6; break;      // 3.75 ips
-            case Switch::Middle: speedShift = 5; break;  // 7.5 ips
-            case Switch::Down: speedShift = 4; break;    // 15 ips
+            case Switch::Up:
+                speedShift = 6;
+                speedHighRetention = 1280;
+                break;  // 3.75 ips
+            case Switch::Middle:
+                speedShift = 5;
+                speedHighRetention = 1664;
+                break;  // 7.5 ips
+            case Switch::Down:
+                speedShift = 4;
+                speedHighRetention = 2048;
+                break;  // 15 ips
         }
 
         // Record EQ: faster transport and higher-output tape retain more treble.
@@ -105,12 +129,14 @@ public:
         int32_t replayed = tape[(writePosition - 48) & BUFFER_MASK];
         writePosition = (writePosition + 1) & BUFFER_MASK;
 
-        // Over-bias reduces replay treble; under-bias retains it but adds roughness.
+        // Transport speed and over-bias both reduce replay treble.
         int32_t replayShift = speedShift + (overBias >> 10);
         if (replayShift > 8) replayShift = 8;
         replayLowpass += (replayed - replayLowpass) >> replayShift;
         int32_t replayHigh = replayed - replayLowpass;
-        int32_t output = replayLowpass + ((replayHigh * (2048 - (overBias >> 1))) >> 11);
+        int32_t highRetention =
+            (speedHighRetention * (2048 - (overBias >> 1))) >> 11;
+        int32_t output = replayLowpass + ((replayHigh * highRetention) >> 11);
 
         // Magnetic memory gives repeated material a small, slowly changing imprint.
         fluxMemory += (recorded - fluxMemory) >> (7 + (formulation >> 11));
@@ -123,12 +149,7 @@ public:
 
         output = ClampAudio(output);
 
-        if (PulseIn1RisingEdge())
-        {
-            fluxMemory = 0;
-            replayLowpass = 0;
-            for (int i = 0; i < BUFFER_SIZE; ++i) tape[i] = 0;
-        }
+        if (eraseSamples > 0) --eraseSamples;
 
         AudioOut1(output);
         AudioOut2(output);
@@ -137,7 +158,7 @@ public:
 
         LedBrightness(0, recordLevel);
         LedBrightness(1, bias);
-        LedBrightness(2, ClampLed(Absolute(fluxMemory) << 1));
+        LedBrightness(2, erasing ? 4095 : ClampLed(Absolute(fluxMemory) << 1));
         LedBrightness(3, ClampLed(4095 - (overBias << 1)));
         LedBrightness(4, formulation);
         LedBrightness(5, ClampLed((2 << speedShift) * 16));
