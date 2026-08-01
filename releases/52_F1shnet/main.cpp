@@ -158,6 +158,8 @@ private:
     int32_t gateOutCounter_ = 0;
     int32_t samplePulseDivider_ = 0;
     int32_t shGateHighCounter_ = 0;
+    int32_t shPan_ = 0;
+    int32_t shPanTarget_ = 0;
     int32_t rng_ = 0x13579BDF;
     bool lastClockIn_ = false;
     bool controlsInitialised_ = false;
@@ -176,6 +178,7 @@ private:
     static constexpr int32_t kPickupThreshold = 96;
     static constexpr int32_t kGateQualifySamples = 240;
     static constexpr int32_t kPingPongQuietGain = 1024;
+    static constexpr int32_t kPingPongSlewStep = 48;
 
     struct SoftPickup
     {
@@ -322,20 +325,30 @@ private:
         return Clamp(resonance + 192, 384, 1800);
     }
 
-    void ApplySampleHoldPingPong(int32_t &left, int32_t &right) const
+    void ApplySampleHoldPingPong(int32_t &left, int32_t &right)
     {
         int32_t active = left;
-        int32_t quiet = (active * kPingPongQuietGain) >> 12;
-        if (shPingPongRight_)
+        if (shPan_ < shPanTarget_)
         {
-            left = quiet;
-            right = active;
+            shPan_ += kPingPongSlewStep;
+            if (shPan_ > shPanTarget_)
+            {
+                shPan_ = shPanTarget_;
+            }
         }
-        else
+        else if (shPan_ > shPanTarget_)
         {
-            left = active;
-            right = quiet;
+            shPan_ -= kPingPongSlewStep;
+            if (shPan_ < shPanTarget_)
+            {
+                shPan_ = shPanTarget_;
+            }
         }
+
+        int32_t leftGain = 4095 - (((4095 - kPingPongQuietGain) * shPan_) >> 12);
+        int32_t rightGain = kPingPongQuietGain + (((4095 - kPingPongQuietGain) * shPan_) >> 12);
+        left = (active * leftGain) >> 12;
+        right = (active * rightGain) >> 12;
     }
 
     bool UpdateSampleHoldGate(bool gateIn)
@@ -404,6 +417,7 @@ private:
             sampleCounter_ = 0;
             heldValue_ = NextRandomSigned();
             shPingPongRight_ = !shPingPongRight_;
+            shPanTarget_ = shPingPongRight_ ? 4095 : 0;
             ++samplePulseDivider_;
             if (samplePulseDivider_ >= 4)
             {

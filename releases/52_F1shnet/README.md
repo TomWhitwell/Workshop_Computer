@@ -60,7 +60,8 @@ with opposite envelope directions:
 Holding `Down` or holding `Pulse In 2` replaces the envelope movement with the
 sample-and-hold gesture. In S&H mode, the stepped low-pass voice ping-pongs
 between the two audio outputs on each new S&H sample. The active side is full
-level and the opposite side stays quietly present rather than hard muted.
+level and the opposite side stays quietly present rather than hard muted. The
+pan movement uses a short crossfade to avoid clicks at the start of each step.
 
 The S&H path has:
 
