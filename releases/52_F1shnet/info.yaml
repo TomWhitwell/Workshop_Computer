@@ -6,17 +6,17 @@ summary: |
   Envelope mode uses ratio-style low-pass cutoff movement with a low base range so dynamics move the filter like a low-pass auto-wah rather than adding a simple linear cutoff offset.
   Envelope sensitivity and output trim are scaled for modular/euro-level sources, so 5-6Vpp oscillators and drum machines should move the filter without immediately pinning the envelope open or clipping the output.
   The card now uses one core synth-friendly filter voice with two control pages: middle is the main page, up is an alternate parameter page, and the momentary down position becomes a pitch-like held sample-and-hold performance gesture with soft-pickup Main control over the S&H clock.
-  In the S&H gesture, random values move the filter frequency around the stored middle-page range with an octave-style response rather than changing the envelope, with a moderate lower S&H cutoff floor and moderately damped resonance to keep low Main settings articulate without harsh spikes.
+  In the S&H gesture, random values move the filter frequency around the stored middle-page range with an octave-style response rather than changing the envelope, with a moderate lower S&H cutoff floor, moderately damped resonance, and ping-pong movement between the two audio outputs.
   Audio In 2, CV 1, and CV 2 all influence parameters, with CV 1 and CV 2 keeping the same jobs in every switch position. Pulse In 1 acts as an external clock / retrigger, and Pulse In 2 can also force the sample-and-hold gesture high.
   CV Out 1 always emits the stepped sample-and-hold voltage, CV Out 2 always emits the envelope follower, Pulse Out 1 mirrors the clock, and Pulse Out 2 emits the sample trigger pulse.
   Knobs use soft pickup when switching between middle and up so parameters do not jump until the physical control crosses the stored value for that page. Up exposes the setup parameters without recalculating the middle-page filter range, depth, or resonance.
 Language: C++ (Pico SDK)
 Creator: Adrian Vos with OpenAI Codex
-Version: 0.1.0
+Version: 0.1.1
 Status: Prototype
 License: MIT
 date-created: 2026-07-28
-date-updated: 2026-07-31
+date-updated: 2026-08-01
 tags:
   - effect
   - filter
@@ -80,12 +80,12 @@ panel:
       type: pulse
   outputs:
     - id: AudioOut1
-      name: LP Up Out
-      description: Fully wet envelope-up low-pass output; transients open the filter upward. During S&H gesture this carries the shared pitch-like S&H low-pass voice.
+      name: LP Up / Ping Out
+      description: Fully wet envelope-up low-pass output; transients open the filter upward. During S&H gesture this is the left side of the ping-pong S&H low-pass voice.
       type: audio
     - id: AudioOut2
-      name: LP Down Out
-      description: Fully wet envelope-down low-pass output; transients close the filter from the stored range. During S&H gesture this carries the shared pitch-like S&H low-pass voice.
+      name: LP Down / Pong Out
+      description: Fully wet envelope-down low-pass output; transients close the filter from the stored range. During S&H gesture this is the right side of the ping-pong S&H low-pass voice.
       type: audio
     - id: CVOut1
       name: S&H CV

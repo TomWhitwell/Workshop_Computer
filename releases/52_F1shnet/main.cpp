@@ -118,6 +118,10 @@ public:
         int32_t filteredDown = ProcessFilter(input, downCutoff, filterResonance, lowDown_, bandDown_);
         int32_t wetUp = (filteredUp * params.outputGain) >> 12;
         int32_t wetDown = (filteredDown * params.outputGain) >> 12;
+        if (shGesture)
+        {
+            ApplySampleHoldPingPong(wetUp, wetDown);
+        }
 
         AudioOut1(SoftClip12(wetUp));
         AudioOut2(SoftClip12(wetDown));
@@ -160,6 +164,7 @@ private:
     bool previousAltPage_ = false;
     bool previousDownPage_ = false;
     bool shGateSeenLow_ = false;
+    bool shPingPongRight_ = false;
     int32_t downMain_ = 2048;
 
     int32_t lowUp_ = 0;
@@ -170,6 +175,7 @@ private:
     static constexpr int32_t kGateLength = 1600;
     static constexpr int32_t kPickupThreshold = 96;
     static constexpr int32_t kGateQualifySamples = 240;
+    static constexpr int32_t kPingPongQuietGain = 1024;
 
     struct SoftPickup
     {
@@ -316,6 +322,22 @@ private:
         return Clamp(resonance + 192, 384, 1800);
     }
 
+    void ApplySampleHoldPingPong(int32_t &left, int32_t &right) const
+    {
+        int32_t active = left;
+        int32_t quiet = (active * kPingPongQuietGain) >> 12;
+        if (shPingPongRight_)
+        {
+            left = quiet;
+            right = active;
+        }
+        else
+        {
+            left = active;
+            right = quiet;
+        }
+    }
+
     bool UpdateSampleHoldGate(bool gateIn)
     {
         if (!gateIn)
@@ -381,6 +403,7 @@ private:
         {
             sampleCounter_ = 0;
             heldValue_ = NextRandomSigned();
+            shPingPongRight_ = !shPingPongRight_;
             ++samplePulseDivider_;
             if (samplePulseDivider_ >= 4)
             {
