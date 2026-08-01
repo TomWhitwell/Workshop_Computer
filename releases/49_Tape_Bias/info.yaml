@@ -83,16 +83,22 @@ controls:
       items:
         - id: LED0
           name: Record Level
+          description: Follows the Main record-level control.
         - id: LED1
-          name: Bias Setting
+          name: Effective Bias
+          description: Follows the X Bias control after Bias CV modulation.
         - id: LED2
           name: Magnetic Flux
+          description: Shows the magnitude of magnetic memory and flashes fully during an erase pulse.
         - id: LED3
-          name: Replay Treble Retention
+          name: Over-Bias Treble
+          description: Full brightness at under-bias or nominal bias; dims as over-bias reduces replay treble.
         - id: LED4
-          name: Tape Type
+          name: Effective Tape Type
+          description: Follows the Y Tape Type control after Tape CV modulation.
         - id: LED5
           name: Transport Speed
+          description: "Indicates switch position: brightest at 3.75 ips, medium at 7.5 ips, and dimmest at 15 ips."
 contact:
   social:
     github: https://github.com/soveda
