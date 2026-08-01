@@ -239,7 +239,7 @@ private:
     {
         Parameters params {};
 
-        params.rangeBase = 32 + ((filterMainKnob * 3488) >> 12) + (cv1 >> 2) + (auxAudio >> 3);
+        params.rangeBase = 64 + ((filterMainKnob * 3488) >> 12) + (cv1 >> 2) + (auxAudio >> 3);
         params.depth = 256 + ((filterXKnob * 3200) >> 12) + cv2;
         params.resonance = 1800 - ((filterYKnob * 1500) >> 12) - (absAux >> 4);
         params.envelopeSensitivity = 256 + ((setupXKnob * 2816) >> 12) + (cv1 >> 2);

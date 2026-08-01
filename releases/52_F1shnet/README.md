@@ -29,7 +29,8 @@ soft pickup for the page you return to.
 
 `Middle` main page:
 
-- `Main`: filter range / base cutoff.
+- `Main`: filter range / base cutoff. The panel minimum is raised to keep the
+  lowest part of the range usable with synth sources.
 - `X`: envelope and S&H depth.
 - `Y`: resonance.
 
