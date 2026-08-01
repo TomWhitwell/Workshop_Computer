@@ -1,4 +1,4 @@
-draft: true
+draft: false
 Name: F1shnet
 short-description: Fishy filter/sample-hold card with synth-friendly envelope follower motion and random stepped filter gestures.
 summary: |
