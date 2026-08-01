@@ -66,7 +66,7 @@ pan movement uses a short crossfade to avoid clicks at the start of each step.
 
 The S&H path has:
 
-- an octave-style cutoff response around the stored Middle `Main` range.
+- a wider pitch-style cutoff response around the stored Middle `Main` range.
 - a moderate lower cutoff floor so low `Main` settings stay articulate.
 - moderately damped resonance to avoid harsh ringing spikes without making the
   steps too dull.

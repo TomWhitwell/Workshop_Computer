@@ -300,9 +300,9 @@ private:
     {
         baseCutoff = Clamp(baseCutoff, 256, 3900);
         int32_t holdUnipolar = heldValue_ + 2048;
-        int32_t ratio = 2048 + holdUnipolar;
+        int32_t ratio = 1024 + ((holdUnipolar * 6144) >> 12);
         int32_t octaveCutoff = (baseCutoff * ratio) >> 12;
-        int32_t pitchDepth = 512 + ((depth * 3584) >> 12);
+        int32_t pitchDepth = 640 + ((depth * 3456) >> 12);
         return baseCutoff + (((octaveCutoff - baseCutoff) * pitchDepth) >> 12);
     }
 
