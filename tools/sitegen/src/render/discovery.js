@@ -5,6 +5,7 @@
 // adapted to the canonical card model and the local curation layer.
 
 import { curation, resolveFlair } from '../curation/index.js';
+import { externalLinkArrow } from './icons.js';
 
 const CARD_ARTWORK = {
   '00_Simple_MIDI': '00-simple-midi.svg',
@@ -114,7 +115,7 @@ export function renderTile(card, opts = {}) {
       <span class="program-card-tile__head"><span class="program-card-tile__title">${artwork || `<span class="program-card-tile__number">${esc(number)}</span>`}<span class="program-card-tile__name">${esc(truncate(card.title || card.id || 'Untitled card', 48))}</span>${showCreator && metadata.creator ? `<span class="program-card-tile__byline">by ${esc(metadata.creator)}</span>` : ''}</span></span>
       ${!featuredCopy && summary ? `<span class="program-card-tile__summary">${esc(truncate(summary, 190))}</span>` : ''}
     </a>
-    ${featuredCopy ? `<span class="program-card-tile__summary">${esc(featuredCopy.text)}<a class="program-card-tile__inline-link" href="${esc(featuredCopy.link)}" target="_blank" rel="noopener noreferrer">${esc(featuredCopy.linkText)} <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a></span>` : ''}
+    ${featuredCopy ? `<span class="program-card-tile__summary">${esc(featuredCopy.text)}<a class="program-card-tile__inline-link" href="${esc(featuredCopy.link)}" target="_blank" rel="noopener noreferrer">${esc(featuredCopy.linkText)}${externalLinkArrow()}<span class="sr-only"> (opens in a new tab)</span></a></span>` : ''}
     ${showAllTags ? renderAllTagBadges(card, flair, root) : renderFlairBadges(flair, hideFlairs, root)}
   </article>`;
 }

@@ -11,6 +11,7 @@ import { infoYamlJsonSchema } from './schema/infoYamlJsonSchema.js';
 import { renderCardArticle, renderReadmeAndDocs } from './render/cardPage.js';
 import { renderDiscovery, renderArchive, renderArchiveRows } from './render/discovery.js';
 import { renderFilterBar } from './render/filterBar.js';
+import { externalLinkArrow } from './render/icons.js';
 import { curation } from './curation/index.js';
 import { parseSource } from './validate/parseSource.js';
 import { validateInfoYaml } from './validate/validateInfoYaml.js';
@@ -90,7 +91,7 @@ function detailPage(rel) {
     content: `
 <nav class="program-card-top-nav" aria-label="Card navigation">
   <a href="../../index.html">← BACK TO PROGRAM CARDS</a>
-  <a class="program-card-author-link" href="../../preview/#${encodeURIComponent(rel.slug)}">Author Metadata ↗</a>
+  <a class="program-card-author-link" href="../../preview/#${encodeURIComponent(rel.slug)}">Author Metadata${externalLinkArrow()}</a>
 </nav>
 ${article}
 <nav class="program-card-top-nav program-card-top-nav--footer" aria-label="Card navigation">
@@ -379,8 +380,8 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
     <h1>All cards</h1>
     <nav class="program-cards__links" aria-label="Program card links">
       <a href="../index.html">Program cards home</a>
-      <a href="https://www.musicthing.co.uk/workshopsystem/program-cards/install/" target="_blank" rel="noopener noreferrer">Installation <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a>
-      <a href="https://github.com/${REPO}" target="_blank" rel="noopener noreferrer">Make a card <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a>
+      <a href="https://www.musicthing.co.uk/workshopsystem/program-cards/install/" target="_blank" rel="noopener noreferrer">Installation${externalLinkArrow()}<span class="sr-only"> (opens in a new tab)</span></a>
+      <a href="https://github.com/${REPO}" target="_blank" rel="noopener noreferrer">Make a card${externalLinkArrow()}<span class="sr-only"> (opens in a new tab)</span></a>
     </nav>
   </header>
   ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: '../index.html', linkText: 'Program cards home', label: 'Search cards' })}
@@ -488,6 +489,7 @@ const PREVIEW_LIB_FILES = [
   'validate/rules/index.js',
   'model/card.js',
   'render/panelPositions.js',
+  'render/icons.js',
   'render/cardPage.js',
 ];
 

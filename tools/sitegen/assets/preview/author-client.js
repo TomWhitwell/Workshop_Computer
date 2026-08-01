@@ -5,6 +5,7 @@ import { buildCanonicalCardModel } from './lib/model/card.js';
 import { renderCardArticle } from './lib/render/cardPage.js';
 import { renderReadmeAndDocs } from './lib/render/cardPage.js';
 import { panelPositions } from './lib/render/panelPositions.js';
+import { externalLinkArrow } from './lib/render/icons.js';
 import { resolveAudioSamples, getAudioField } from './lib/utils/audio.js';
 import { getInfoYamlSchemaAdapter } from './lib/schema/schemaAdapter.js';
 import { arrayOrEmpty } from './lib/utils/strings.js';
@@ -1079,9 +1080,9 @@ function licenseFileGuidance(id) {
   };
   const item = guidance[id];
   if (!item) {
-    return `<div class="author-license-file-guidance"><strong>Include the license file</strong><p>Add the complete authoritative license text as <code>LICENSE</code> beside <code>info.yaml</code>, and preserve all third-party notices.</p><a href="https://choosealicense.com/licenses/" target="_blank" rel="noopener noreferrer">Find official license text ↗</a></div>`;
+    return `<div class="author-license-file-guidance"><strong>Include the license file</strong><p>Add the complete authoritative license text as <code>LICENSE</code> beside <code>info.yaml</code>, and preserve all third-party notices.</p><a href="https://choosealicense.com/licenses/" target="_blank" rel="noopener noreferrer">Find official license text${externalLinkArrow()}</a></div>`;
   }
-  return `<div class="author-license-file-guidance"><strong>Include the license file</strong><p>${escapeHtml(item.text)}</p><a href="${item.url}" target="_blank" rel="noopener noreferrer">Get the ${escapeHtml(id)} license text ↗</a></div>`;
+  return `<div class="author-license-file-guidance"><strong>Include the license file</strong><p>${escapeHtml(item.text)}</p><a href="${item.url}" target="_blank" rel="noopener noreferrer">Get the ${escapeHtml(id)} license text${externalLinkArrow()}</a></div>`;
 }
 
 function chooseLicense(id, explanation, { manual = false, provisional = false } = {}) {

@@ -1,6 +1,7 @@
 // Unified visual/YAML author page for new and existing cards.
 
 import { applyContentSecurityPolicy, CSP_PLACEHOLDER } from './csp.js';
+import { externalLinkArrow } from './icons.js';
 
 export function renderAuthorPage({ documentKind = 'new', suggestions = {} } = {}) {
   const existing = documentKind === 'existing';
@@ -41,7 +42,7 @@ export function renderAuthorPage({ documentKind = 'new', suggestions = {} } = {}
       </div>
       <div class="author-toolbar__actions">
         <div class="author-toolbar__primary">
-          <label class="author-document-picker">Card <select id="card-select" aria-label="Card"><option value="new">＋ NEW</option></select></label>${existing ? '<a id="production-card-link" class="author-production-link" href="#" target="_blank" rel="noopener noreferrer">View card page ↗</a><span id="editor-status" class="author-progress" aria-live="polite"></span>' : '<a class="author-production-link" href="../index.html">Program cards home</a>'}
+          <label class="author-document-picker">Card <select id="card-select" aria-label="Card"><option value="new">＋ NEW</option></select></label>${existing ? `<a id="production-card-link" class="author-production-link" href="#" target="_blank" rel="noopener noreferrer">View card page${externalLinkArrow()}</a><span id="editor-status" class="author-progress" aria-live="polite"></span>` : '<a class="author-production-link" href="../index.html">Program cards home</a>'}
           <span id="required-progress" class="author-progress" aria-live="polite"></span>
           <div class="author-mode-switch" role="group" aria-label="Editing mode">
             <button type="button"${existing ? ' disabled title="Basic availability is checked after the card loads"' : ' class="is-active"'} data-mode="author" aria-pressed="${existing ? 'false' : 'true'}">Basic</button>
@@ -49,7 +50,7 @@ export function renderAuthorPage({ documentKind = 'new', suggestions = {} } = {}
           </div>
         </div>
         <div class="author-toolbar__downloads">
-          <a class="btn secondary" href="https://github.com/TomWhitwell/Workshop_Computer/blob/main/documentation/info.yaml.md" target="_blank" rel="noopener noreferrer">Schema documentation ↗</a>
+          <a class="btn secondary" href="https://github.com/TomWhitwell/Workshop_Computer/blob/main/documentation/info.yaml.md" target="_blank" rel="noopener noreferrer">Schema documentation${externalLinkArrow()}</a>
           <button id="download-source" class="btn download" type="button">Download info.yaml</button>
           <button id="download-panel-image" class="btn secondary" type="button">Download panel SVG</button>
           <button id="start-fresh" class="btn secondary" type="button">Start fresh</button>
@@ -66,8 +67,8 @@ export function renderAuthorPage({ documentKind = 'new', suggestions = {} } = {}
           <header><div><span class="author-step">Start here</span><h2>Card details</h2></div><span class="author-required-key">Required</span></header>
           <div class="author-form-grid">
             <label class="author-field author-field--wide"><span>Name <strong>Required</strong></span><input data-field="Name" required placeholder="Card display name"></label>
-            <label class="author-field author-field--wide"><span>Short description <strong>Required</strong> <small class="author-field-guidance">(used in card search and the all cards index; <a href="../archive/" target="_blank" rel="noopener noreferrer">see example ↗</a>)</small></span><textarea data-field="short-description" required rows="2" placeholder="A concise tagline for indexes, shelves, and archive rows"></textarea></label>
-            <label class="author-field author-field--wide"><span>Summary <strong>Required</strong> <small class="author-field-guidance">(used beneath the title on card pages; <a href="../programs/15-mlrws/" target="_blank" rel="noopener noreferrer">see example ↗</a>)</small></span><textarea data-field="summary" required rows="4" placeholder="A longer operator overview for the card detail page"></textarea><small>Markdown is supported, including links, emphasis, and inline code.</small></label>
+            <label class="author-field author-field--wide"><span>Short description <strong>Required</strong> <small class="author-field-guidance">(used in card search and the all cards index; <a href="../archive/" target="_blank" rel="noopener noreferrer">see example${externalLinkArrow()}</a>)</small></span><textarea data-field="short-description" required rows="2" placeholder="A concise tagline for indexes, shelves, and archive rows"></textarea></label>
+            <label class="author-field author-field--wide"><span>Summary <strong>Required</strong> <small class="author-field-guidance">(used beneath the title on card pages; <a href="../programs/15-mlrws/" target="_blank" rel="noopener noreferrer">see example${externalLinkArrow()}</a>)</small></span><textarea data-field="summary" required rows="4" placeholder="A longer operator overview for the card detail page"></textarea><small>Markdown is supported, including links, emphasis, and inline code.</small></label>
             <label class="author-field"><span>Creator <strong>Required</strong></span><input data-field="Creator" required list="creator-suggestions" placeholder="Your name or handle"></label>
             <label class="author-field"><span>Language <strong>Required</strong></span><input data-field="Language" required list="language-suggestions" placeholder="ie. Pico SDK"></label>
             <label class="author-field"><span>Version <strong>Required</strong></span><input data-field="Version" required placeholder="For example, 1.0.0"></label>
@@ -122,7 +123,7 @@ export function renderAuthorPage({ documentKind = 'new', suggestions = {} } = {}
   <dialog id="license-dialog" class="author-license-dialog" aria-labelledby="license-title">
     <form method="dialog">
       <header><div><span class="author-step">License assistant</span><h2 id="license-title">How may others use your work?</h2></div><button value="cancel" aria-label="Close">×</button></header>
-      <p class="author-legal-note">This assistant explains common choices and records your selection. It is not legal advice. Confirm that third-party code and assets are compatible. For more guidance, visit <a href="https://choosealicense.com/" target="_blank" rel="noopener noreferrer">Choose a License ↗</a>.</p>
+      <p class="author-legal-note">This assistant explains common choices and records your selection. It is not legal advice. Confirm that third-party code and assets are compatible. For more guidance, visit <a href="https://choosealicense.com/" target="_blank" rel="noopener noreferrer">Choose a License${externalLinkArrow()}</a>.</p>
       <div class="author-license-boundary author-license-boundary--legal"><strong>Legal license</strong><span>The choices in this section determine the legal permissions and obligations attached to the source code.</span></div>
       <div class="author-license-quick">
         <h3>Choose a legal license directly</h3>

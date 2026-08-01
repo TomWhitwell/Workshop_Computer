@@ -8,6 +8,7 @@
 
 import { panelPositions } from './panelPositions.js';
 import { renderMarkdownBlock, renderMarkdownInline, sanitizeAuthoredHtml } from '../utils/markdown.js';
+import { externalLinkArrow } from './icons.js';
 
 const DEFAULT_DISCUSSION = 'https://discord.com/channels/1210238368898879569/1484219323039092938';
 
@@ -344,7 +345,7 @@ function renderAudio(samples) {
       const height = s.height || (s.kind === 'soundcloud' ? 166 : 120);
       return `<div class="program-card-audio__item">${title}<iframe class="program-card-audio__embed program-card-audio__embed--${esc(s.kind)}" src="${esc(s.embedUrl)}" width="100%" height="${height}" loading="lazy" frameborder="0" allow="autoplay" title="${esc(s.title || (s.kind + ' player'))}"></iframe></div>`;
     }
-    return `<div class="program-card-audio__item">${title}<a class="program-card-audio__link" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.host || s.url)} ↗</a></div>`;
+    return `<div class="program-card-audio__item">${title}<a class="program-card-audio__link" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.host || s.url)}${externalLinkArrow()}</a></div>`;
   }).join('');
   return `<section class="program-card-audio"><h2>Audio samples</h2>${items}</section>`;
 }

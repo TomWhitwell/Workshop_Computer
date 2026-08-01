@@ -28,6 +28,9 @@
 
 * { box-sizing: border-box; }
 .sr-only { clip: rect(0, 0, 0, 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
+/* Decorative "leaves the site" marker; scales with the surrounding text. The
+   margin stands in for the space that used to precede the old arrow glyph. */
+.external-link-arrow { display: inline-block; height: 0.72em; margin-left: 0.3em; vertical-align: baseline; width: 0.72em; }
 html, body { background: var(--bg); color: var(--text); font: var(--weight-normal) 18px/1.5 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
 .container { margin: 0 auto; max-width: 900px; padding-left: 30px; padding-right: 30px; }
 main.container { padding-top: 30px; }
@@ -90,7 +93,9 @@ a { color: var(--link); }
 /* Filter tags are .program-card-tag badges, so appearance comes from program-cards.css;
    these rules add only the checkbox affordances. */
 .tag-filter-option { cursor: pointer; transition: box-shadow .15s,filter .15s; }
-.tag-filter-option[hidden] { display: none; }
+/* Specificity must beat the narrow-viewport .filter-bar .tag-filter-option rule
+   below, or the hidden attribute stops hiding tags on mobile. */
+.filter-bar .tag-filter-option[hidden] { display: none; }
 .tag-filter-option:has(input:focus-visible) { outline: 2px solid var(--text); outline-offset: 2px; }
 .tag-filter-option:has(input:checked) { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
 .tag-filter-option input { height: 1px; opacity: 0; position: absolute; width: 1px; }
