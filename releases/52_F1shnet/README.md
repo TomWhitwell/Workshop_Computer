@@ -5,8 +5,8 @@ Modular Workshop Computer.
 
 It is not a schematic clone. The card takes the useful performance shape of the
 Maestro FSH-1 / F1shy idea and turns it into a simple Workshop Computer effect:
-a resonant low-pass filter animated either by an envelope follower or by stepped
-sample-and-hold movement.
+a resonant low-pass filter animated either by a triggered envelope sweep or by
+stepped sample-and-hold movement.
 
 The current stable behaviour is tuned for Workshop/euro-level synth signals.
 Normal 5-6Vpp oscillators and drum machines should move the envelope without
@@ -52,7 +52,9 @@ soft pickup for the page you return to.
 
 ## Audio Behaviour
 
-In normal envelope mode, the card is a wet low-pass auto-wah style effect.
+In normal envelope mode, the card is a wet low-pass auto-wah style effect. The
+input amplitude triggers the sweep, but the sweep then uses the card's internal
+envelope decay rather than simply tracing the input pulse shape.
 `Audio Out 1` and `Audio Out 2` use the same input and filter core settings, but
 with opposite envelope directions:
 

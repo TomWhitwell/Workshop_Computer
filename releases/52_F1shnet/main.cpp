@@ -158,6 +158,7 @@ private:
     int32_t gateOutCounter_ = 0;
     int32_t samplePulseDivider_ = 0;
     int32_t shGateHighCounter_ = 0;
+    int32_t envelopeGateLowCounter_ = 0;
     int32_t shPan_ = 0;
     int32_t shPanTarget_ = 0;
     int32_t rng_ = 0x13579BDF;
@@ -165,6 +166,7 @@ private:
     bool controlsInitialised_ = false;
     bool previousAltPage_ = false;
     bool previousDownPage_ = false;
+    bool envelopeGate_ = false;
     bool shGateSeenLow_ = false;
     bool shPingPongRight_ = false;
     int32_t downMain_ = 2048;
@@ -177,6 +179,9 @@ private:
     static constexpr int32_t kGateLength = 1600;
     static constexpr int32_t kPickupThreshold = 96;
     static constexpr int32_t kGateQualifySamples = 240;
+    static constexpr int32_t kEnvelopeTriggerThreshold = 192;
+    static constexpr int32_t kEnvelopeReleaseThreshold = 96;
+    static constexpr int32_t kEnvelopeGateLowSamples = 240;
     static constexpr int32_t kPingPongQuietGain = 1024;
     static constexpr int32_t kPingPongSlewStep = 48;
 
@@ -381,11 +386,35 @@ private:
         int32_t driven = (absInput * sensitivityControl) >> 10;
         driven = Clamp(driven, 0, 4095);
 
-        if (driven > envelope_)
+        bool trigger = false;
+        if (driven >= kEnvelopeTriggerThreshold)
         {
-            envelope_ += (driven - envelope_) >> 3;
+            envelopeGateLowCounter_ = 0;
+            if (!envelopeGate_)
+            {
+                envelopeGate_ = true;
+                trigger = true;
+            }
         }
-        else
+        else if (driven <= kEnvelopeReleaseThreshold)
+        {
+            if (envelopeGateLowCounter_ < kEnvelopeGateLowSamples)
+            {
+                ++envelopeGateLowCounter_;
+            }
+            else
+            {
+                envelopeGate_ = false;
+            }
+        }
+
+        if (trigger)
+        {
+            int32_t triggerLevel = 1024 + driven;
+            envelope_ = Clamp(triggerLevel, envelope_, 4095);
+        }
+
+        if (!trigger)
         {
             int32_t difference = envelope_;
             int32_t releaseShift = 2 + (((4095 - releaseControl) * 15) >> 12);
