@@ -2,18 +2,17 @@ draft: true
 Name: F1shnet
 short-description: Fishy filter/sample-hold card with synth-friendly envelope follower motion and random stepped filter gestures.
 summary: |
-  A Workshop Computer interpretation of the Maestro FSH-1 and modern F1shy-style filter/sample-hold effect.
+  A Workshop Computer interpretation of the Maestro FSH-1 filter/sample-hold effect.
   Envelope mode uses an envelope follower and ratio-style low-pass cutoff movement with a low base range, so rectified input dynamics move the filter like a low-pass auto-wah rather than adding a simple linear cutoff offset.
-  Envelope sensitivity and output trim are scaled for modular/euro-level sources, so 5-6Vpp oscillators and drum machines should move the filter without immediately pinning the envelope open or clipping the output.
-  The card now uses one core synth-friendly filter voice with two control pages: middle is the main page, up is an alternate parameter page, and the momentary down position becomes a pitch-like held sample-and-hold performance gesture with soft-pickup Main control over the S&H clock.
+  Envelope sensitivity and output trim are scaled for modular/euro-level sources, so 5-6Vpp oscillators should move the filter without immediately pinning the envelope open or clipping the output.
   In the S&H gesture, random values move the filter frequency around the stored middle-page range with a wide pitch-style response rather than changing the envelope, with a moderate lower S&H cutoff floor, moderately damped resonance, and click-reduced ping-pong movement between the two audio outputs.
   Audio In 2, CV 1, and CV 2 all influence parameters, with CV 1 and CV 2 keeping the same jobs in every switch position. Pulse In 1 acts as an external clock / retrigger, and Pulse In 2 can also force the sample-and-hold gesture high.
   CV Out 1 always emits the stepped sample-and-hold voltage, CV Out 2 always emits the envelope follower, Pulse Out 1 mirrors the clock, and Pulse Out 2 emits the sample trigger pulse.
   Knobs use soft pickup when switching between middle and up so parameters do not jump until the physical control crosses the stored value for that page. Up exposes output trim and envelope sensitivity while Y remains the shared resonance control from the middle page; envelope release is fixed internally rather than user-facing.
 Language: C++ (Pico SDK)
-Creator: Adrian Vos with OpenAI Codex
+Creator: Adrian Vos
 Version: 0.1.1
-Status: Prototype
+Status: Beta Stable in testing by one individual
 License: MIT
 date-created: 2026-07-28
 date-updated: 2026-08-01
@@ -29,9 +28,9 @@ contact:
 readme: |
   # F1shnet
 
-  A fishy FSH-1-inspired filter/sample-hold effect card for the Music Thing Modular Workshop Computer.
+  An FSH-1-inspired filter/sample-hold effect card for the Music Thing Modular Workshop Computer.
 
-  This version is an interpretation rather than a verified clone. It focuses on the core idea shared by the Maestro FSH-1 and recent descendants: a low-pass filter moved either by your playing dynamics or by random stepped voltages.
+  This version is an interpretation focusing on the core idea shared by the Maestro FSH-1 and recent descendants: a low-pass filter moved either by your playing dynamics or by random stepped voltages.
 
   ## Modes
 
