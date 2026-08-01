@@ -387,8 +387,8 @@ private:
         }
         else
         {
-            int32_t difference = envelope_ - driven;
-            int32_t releaseShift = 3 + (((4095 - releaseControl) * 12) >> 12);
+            int32_t difference = envelope_;
+            int32_t releaseShift = 2 + (((4095 - releaseControl) * 15) >> 12);
             int32_t fall = difference >> releaseShift;
             if (fall < 1 && difference > 0)
             {
