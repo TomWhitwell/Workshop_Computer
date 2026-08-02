@@ -83,7 +83,6 @@ export function renderTile(card, opts = {}) {
   const summary = card.short_description || '';
   const metadata = card.metadata || {};
   const sortDate = metadata.created || '';
-  const inferredDate = metadata.created_inferred ? 'true' : 'false';
   const firstVideo = Array.isArray(card.videos) && card.videos[0];
   const featuredCopy = showArtwork ? FEATURED_COPY[card.id] : null;
 
@@ -109,7 +108,7 @@ export function renderTile(card, opts = {}) {
 
   return `<article class="program-card-tile${media ? ' program-card-tile--video' : ''}${artwork ? ' program-card-tile--artwork' : ''}"` +
     ` data-creator="${escapeAttr(metadata.creator || '')}" data-language="${escapeAttr(metadata.language || '')}"` +
-    ` data-type="${escapeAttr(metadata.status || '')}" data-date="${escapeAttr(sortDate)}" data-date-inferred="${inferredDate}"` +
+    ` data-type="${escapeAttr(metadata.status || '')}" data-date="${escapeAttr(sortDate)}"` +
     ` data-name="${escapeAttr(String(card.title || card.id || '').toLowerCase())}" data-num="${escapeAttr(String(parseInt(number, 10) || 0))}"` +
     ` data-tags="${escapeAttr(tagFilter)}" data-search="${escapeAttr(searchText)}">
     <a class="program-card-tile__link" href="${card.id === '88_Blank' && showArtwork ? `${root}/random/` : `${root}/programs/${card.slug}/`}">
@@ -175,11 +174,10 @@ function renderArchiveRow(card, root) {
   const searchText = [number, card.title, summary, card.metadata?.creator, ...(Array.isArray(card.tags) ? card.tags : []), ...flair.map(f => f.label)]
     .filter(Boolean).join(' ').toLowerCase();
   const date = card.metadata?.created || '';
-  const inferredDate = card.metadata?.created_inferred ? 'true' : 'false';
   const flairFilter = flair.map(f => f.id);
   const authorTagFilter = (Array.isArray(card.tags) ? card.tags : []).map(tag => curation.slugify(tag)).filter(Boolean);
   const tagFilter = [...new Set([...flairFilter, ...authorTagFilter])].join(' ');
-  return `<article class="program-card-archive-row" data-creator="${escapeAttr(card.metadata?.creator || '')}" data-date="${escapeAttr(date)}" data-date-inferred="${inferredDate}" data-name="${escapeAttr(String(card.title || '').toLowerCase())}" data-num="${escapeAttr(String(parseInt(number, 10) || 0))}" data-tags="${escapeAttr(tagFilter)}" data-search="${escapeAttr(searchText)}">
+  return `<article class="program-card-archive-row" data-creator="${escapeAttr(card.metadata?.creator || '')}" data-date="${escapeAttr(date)}" data-name="${escapeAttr(String(card.title || '').toLowerCase())}" data-num="${escapeAttr(String(parseInt(number, 10) || 0))}" data-tags="${escapeAttr(tagFilter)}" data-search="${escapeAttr(searchText)}">
     <a class="program-card-archive-row__link" href="${root}/programs/${card.slug}/">
       <span class="program-card-archive-row__number">${esc(number)}</span>
       <span class="program-card-archive-row__main"><span class="program-card-archive-row__heading"><span class="program-card-archive-row__title">${esc(card.title)}</span>${card.metadata?.creator ? `<span class="program-card-archive-row__byline">by ${esc(card.metadata.creator)}</span>` : ''}</span>${summary ? `<span class="program-card-archive-row__summary">${esc(truncate(summary, 120))}</span>` : ''}</span>
