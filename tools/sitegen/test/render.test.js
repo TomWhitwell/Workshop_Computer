@@ -21,7 +21,7 @@ test('card renderer exposes accessible generated panel tabs and default state', 
     panel_views: {
       source: 'generated', default: 'middle', items: [
         { id: 'up', name: 'Up', panel: { controls: { main: { label: 'Upper\nmode' } } }, switch_modes: {}, leds: [] },
-        { id: 'middle', name: 'Middle', panel: { controls: { main: { label: 'Normal' } } }, switch_modes: {}, leds: [] },
+        { id: 'middle', name: 'Middle', panel: { controls: { main: { label: 'Normal' } } }, switch_modes: { tap: 'Set tempo' }, leds: [] },
       ],
     },
   });
@@ -31,6 +31,8 @@ test('card renderer exposes accessible generated panel tabs and default state', 
   assert.match(html, /data-panel-position-view="up" hidden aria-hidden="true"/);
   assert.match(html, /data-panel-position-view="middle"/);
   assert.match(html, /Upper<br>mode/);
+  assert.match(html, /program-card-switch-position--tap">\s*<button type="button" class="program-card-position-button" disabled>Tap<\/button>\s*<p>Set tempo<\/p>/);
+  assert.doesNotMatch(html, /data-panel-position-button="tap"/);
   assert.match(html, /Test &amp; &quot;Card&quot;/);
   assert.match(html, /By A &amp; B/);
 });
@@ -49,6 +51,19 @@ test('generated socket descriptions preserve unused physical jack positions', ()
   });
   const html = renderCardArticle({ card: generated, panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
   assert.match(html, /Audio 1[\s\S]*program-card-socket--empty" aria-hidden="true"><span>Unused<\/span>[\s\S]*CV 1/);
+});
+
+test('tap labels the panel down position only when no down mode is provided', () => {
+  const tapOnly = renderPanelArtwork({ panel: {}, switch_modes: { tap: 'Tap Tempo: Set the clock' } }, 'panel.svg');
+  assert.match(tapOnly, /program-card-panel-switch-position--down[^>]*aria-label="down switch position: Tap Tempo"[^>]*>[\s\S]*<strong>Tap Tempo<\/strong>/);
+  assert.doesNotMatch(tapOnly, /data-panel-position-button="tap"/);
+
+  const withDown = renderPanelArtwork({
+    panel: {},
+    switch_modes: { down: 'Reset: Hold to clear', tap: 'Tap Tempo: Set the clock' },
+  }, 'panel.svg');
+  assert.match(withDown, /program-card-panel-switch-position--down[^>]*aria-label="down switch position: Reset"[^>]*>[\s\S]*<strong>Reset<\/strong>/);
+  assert.doesNotMatch(withDown, /aria-label="down switch position: Tap Tempo"/);
 });
 
 test('custom panel rendering sanitizes authored content and escapes image metadata', () => {

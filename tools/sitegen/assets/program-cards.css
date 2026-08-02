@@ -589,6 +589,12 @@ a.program-card-tag:visited {
   border-color: var(--program-card-ink);
 }
 
+.program-card-position-button:disabled {
+  border-color: #aaa;
+  cursor: default;
+  opacity: 1;
+}
+
 .program-card-position-button:focus-visible {
   outline: 3px solid var(--program-card-rule);
   outline-offset: 2px;
@@ -653,11 +659,6 @@ a.program-card-tag:visited {
   border: 2px solid var(--program-card-ink);
   padding: 16px;
   font-weight: var(--weight-bold);
-}
-
-.program-card-switch-action {
-  border-left: 3px solid var(--program-card-rule);
-  padding-left: 10px;
 }
 
 .program-card-use__title {

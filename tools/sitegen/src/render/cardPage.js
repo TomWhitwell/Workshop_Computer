@@ -103,7 +103,9 @@ function renderPanelSwitchPositions(switchModes = {}, positionControl = null) {
   const selected = positionControl?.activeId || 'middle';
   const selectable = new Set((positionControl?.items || []).map(item => item.id));
   const positions = ['up', 'middle', 'down'].map(position => {
-    const role = switchModeName(switchModes[position]);
+    const hasDownPosition = selectable.has('down') || Boolean(switchModes.down);
+    const mode = position === 'down' && !hasDownPosition ? switchModes.tap : switchModes[position];
+    const role = switchModeName(mode);
     const selectAttrs = selectable.has(position)
       ? ` data-panel-position-button="${position}" aria-pressed="${position === selected}" title="Select ${position} switch position"`
       : ` aria-pressed="false" title="${role ? 'Edit' : 'Add'} ${position} switch position"`;
@@ -138,7 +140,10 @@ function renderSwitchSection(snapshot, positionControl = null) {
       </div>`;
     }).join('');
     const tap = switchModes.tap
-      ? `<div class="program-card-switch-position program-card-switch-action"><strong>Tap</strong><p>${esc(truncate(switchModes.tap, 240))}</p></div>`
+      ? `<div class="program-card-switch-position program-card-switch-position--tap">
+        <button type="button" class="program-card-position-button" disabled>Tap</button>
+        <p>${esc(truncate(switchModes.tap, 240))}</p>
+      </div>`
       : '';
     if (!rows && !tap) return '';
     return `<div class="program-card-control program-card-control--switch">
@@ -147,16 +152,18 @@ function renderSwitchSection(snapshot, positionControl = null) {
     </div>`;
   }
 
-  const entries = Object.entries(switchModes).filter(entry => entry[1]);
-  if (!entries.length) return '';
+  const entries = Object.entries(switchModes).filter(([key, value]) => key !== 'tap' && value);
+  const tap = switchModes.tap
+    ? `<p class="program-card-switch-action"><strong>Tap</strong> ${esc(truncate(switchModes.tap, 240))}</p>`
+    : '';
+  if (!entries.length && !tap) return '';
   const markup = entries.map(([key, value]) => {
-    const label = key === 'tap' ? 'Tap (Down)' : key.charAt(0).toUpperCase() + key.slice(1);
-    const className = key === 'tap' ? ' class="program-card-switch-action"' : '';
-    return `<p${className}><strong>${esc(label)}</strong> ${esc(truncate(value, 240))}</p>`;
+    const label = key.charAt(0).toUpperCase() + key.slice(1);
+    return `<p><strong>${esc(label)}</strong> ${esc(truncate(value, 240))}</p>`;
   }).join('');
   return `<div class="program-card-control program-card-control--switch">
     <strong class="program-card-component-key">Switch</strong>
-    <div class="program-card-switch-positions">${markup}</div>
+    <div class="program-card-switch-positions">${markup}</div>${tap}
   </div>`;
 }
 
