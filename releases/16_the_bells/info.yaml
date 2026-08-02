@@ -1,4 +1,4 @@
-draft: true
+draft: false
 Name: The Bells
 short-description: Bellringing methods sequencer — 12 change-ringing methods with tempo and jitter, quantised to six scales
 Language: C++ (ComputerCard)
@@ -10,7 +10,7 @@ date-updated: 2026-06-30
 
 tags:
   - sequencer
-  - campanology
+  - bellringing
   - permutation
   - cv
   - scale
