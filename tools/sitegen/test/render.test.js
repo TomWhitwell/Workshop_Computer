@@ -160,7 +160,7 @@ test('discovery renderers escape searchable attributes and ignore absent shelf c
   });
   const tile = renderTile(testCard, { showCreator: true });
   assert.match(tile, /data-creator="A&amp;B &lt;maker&gt;"/);
-  assert.match(tile, /data-date="2025-01-01"/);
+  assert.match(tile, /data-date="2025-01-01" data-date-inferred="false"/);
   assert.match(tile, /data-name="a &quot;quoted&quot; &lt;card&gt;"/);
   assert.match(tile, /…/);
   assert.match(renderArchive([testCard]), /\.\.\/programs\/safe-slug\//);
@@ -173,8 +173,8 @@ test('catalogue sorting uses inferred creation dates', () => {
   const inferred = card({
     metadata: { created: '2026-07-29', created_inferred: true },
   });
-  assert.match(renderTile(inferred), /data-date="2026-07-29"/);
-  assert.match(renderArchive([inferred]), /data-date="2026-07-29"/);
+  assert.match(renderTile(inferred), /data-date="2026-07-29" data-date-inferred="true"/);
+  assert.match(renderArchive([inferred]), /data-date="2026-07-29" data-date-inferred="true"/);
 });
 
 test('featured blank card overlays its label artwork on the randomized card icon', () => {

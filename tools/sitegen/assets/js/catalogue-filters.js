@@ -114,13 +114,17 @@
     var items = Array.from(sortContainer.children);
     function idx(el){ return Number(el.getAttribute('data-idx'))||0; }
     function dv(el){ var d=el.getAttribute('data-date')||''; return d==='n/a'?'':d; }
+    // Authored dates are authoritative. Git-inferred dates still order cards
+    // that lack authored metadata, but cannot make a newly imported placeholder
+    // appear newer than cards with real release dates.
+    function dr(el){ return !dv(el)?2:(el.getAttribute('data-date-inferred')==='true'?1:0); }
     function nv(el){ return Number(el.getAttribute('data-num'))||0; }
     function nm(el){ return el.getAttribute('data-name')||''; }
     items.sort(function(a,b){
       var da, db;
       switch(mode){
-        case 'created-desc': da=dv(a); db=dv(b); if(!da&&!db) return idx(a)-idx(b); if(!da) return 1; if(!db) return -1; return db.localeCompare(da);
-        case 'created-asc': da=dv(a); db=dv(b); if(!da&&!db) return idx(a)-idx(b); if(!da) return 1; if(!db) return -1; return da.localeCompare(db);
+        case 'created-desc': if(dr(a)!==dr(b)) return dr(a)-dr(b); da=dv(a); db=dv(b); if(!da&&!db) return idx(a)-idx(b); return db.localeCompare(da);
+        case 'created-asc': if(dr(a)!==dr(b)) return dr(a)-dr(b); da=dv(a); db=dv(b); if(!da&&!db) return idx(a)-idx(b); return da.localeCompare(db);
         case 'name-asc': return nm(a).localeCompare(nm(b));
         case 'name-desc': return nm(b).localeCompare(nm(a));
         case 'number-asc': return nv(a)-nv(b);
