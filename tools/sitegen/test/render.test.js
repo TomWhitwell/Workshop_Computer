@@ -35,6 +35,22 @@ test('card renderer exposes accessible generated panel tabs and default state', 
   assert.match(html, /By A &amp; B/);
 });
 
+test('generated socket descriptions preserve unused physical jack positions', () => {
+  const generated = card({
+    panel_views: {
+      source: 'generated', default: 'middle', items: [{
+        id: 'middle', name: 'Middle', switch_modes: {}, leds: [],
+        panel: { inputs: {
+          audio_l: { label: 'Audio input' },
+          cv_1: { label: 'Speed CV' },
+        } },
+      }],
+    },
+  });
+  const html = renderCardArticle({ card: generated, panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
+  assert.match(html, /Audio 1[\s\S]*program-card-socket--empty" aria-hidden="true"><span>Unused<\/span>[\s\S]*CV 1/);
+});
+
 test('custom panel rendering sanitizes authored content and escapes image metadata', () => {
   const custom = card({ panel_views: {
     source: 'custom', default: 'face-a', items: [{

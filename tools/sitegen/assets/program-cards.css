@@ -1143,6 +1143,15 @@ a.program-card-tag:visited {
   overflow: hidden;
 }
 
+.program-card-socket--empty {
+  color: var(--program-card-muted);
+  font-size: 0.82rem;
+  font-family: inherit;
+  font-style: normal;
+  grid-template-rows: 1fr;
+  place-items: center;
+}
+
 .program-card-socket .program-card-component-key {
   background: var(--program-card-soft);
   border-bottom: 1px solid var(--program-card-rule);
@@ -1442,6 +1451,10 @@ a.program-card-tag:visited {
 
   .program-card-socket-list {
     grid-template-columns: 1fr;
+  }
+
+  .program-card-socket--empty {
+    display: none;
   }
 
   .program-card-io-columns {

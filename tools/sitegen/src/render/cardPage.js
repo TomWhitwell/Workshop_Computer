@@ -250,13 +250,15 @@ function renderSocketList(title, sockets, positions) {
   if (!sockets) return '';
   const items = (positions || []).map(pos => {
     const socket = sockets[pos.key];
-    if (!socket || (!socket.description && !socket.label)) return '';
+    if (!socket || (!socket.description && !socket.label)) {
+      return '<div class="program-card-socket program-card-socket--empty" aria-hidden="true"><span>Unused</span></div>';
+    }
     return `<div class="program-card-socket">
       <strong class="program-card-component-key">${esc(pos.name || pos.key)}</strong>
       ${socket.label || socket.description ? `<p>${socket.label ? `<span class="program-card-component-role">${esc(inline(socket.label))}</span>` : ''}${socket.label && socket.description ? '<br>' : ''}${socket.description ? esc(truncate(socket.description, 220)) : ''}</p>` : ''}
     </div>`;
   }).join('');
-  if (!items.trim()) return '';
+  if (!Object.values(sockets).some(socket => socket && (socket.description || socket.label))) return '';
   return `<section class="program-card-socket-section program-card-socket-section--${esc(title.toLowerCase())}"><h4 class="program-card-socket-section__heading">${esc(title)}</h4><div class="program-card-socket-list">${items}</div></section>`;
 }
 
