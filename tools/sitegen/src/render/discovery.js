@@ -39,13 +39,14 @@ function renderTileMedia(video) {
   const provider = video.provider || 'youtube';
   const portrait = provider === 'instagram' || video.aspect === 'portrait';
   const kindAttr = video.kind ? ` data-video-kind="${esc(video.kind)}"` : '';
+  const startAttr = video.start ? ` data-video-start="${esc(String(video.start))}"` : '';
   const thumb = provider === 'youtube'
     ? `<img src="https://img.youtube.com/vi/${esc(video.id)}/hqdefault.jpg" alt="" loading="lazy">`
     : '<span class="program-card-tile__placeholder"></span>';
   const mediaClass = portrait
     ? 'program-card-tile__media program-card-tile__media--portrait'
     : 'program-card-tile__media';
-  return `<span class="${mediaClass}" data-video-provider="${esc(provider)}" data-video-id="${esc(video.id)}"${kindAttr} aria-hidden="true">${thumb}</span>`;
+  return `<span class="${mediaClass}" data-video-provider="${esc(provider)}" data-video-id="${esc(video.id)}"${kindAttr}${startAttr} aria-hidden="true">${thumb}</span>`;
 }
 
 function stripTags(value) {

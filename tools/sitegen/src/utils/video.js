@@ -1,4 +1,4 @@
-import { parseYoutubeId, youtubeEmbedHtml } from './youtube.js';
+import { parseYoutubeId, parseYoutubeStartSeconds, youtubeEmbedHtml } from './youtube.js';
 import { parseInstagram, instagramEmbedHtml } from './instagram.js';
 
 /**
@@ -11,7 +11,10 @@ export function classifyDemoVideo(url) {
 
   const youtubeId = parseYoutubeId(u);
   if (youtubeId) {
-    return { provider: 'youtube', id: youtubeId, url: u, aspect: 'landscape' };
+    const video = { provider: 'youtube', id: youtubeId, url: u, aspect: 'landscape' };
+    const start = parseYoutubeStartSeconds(u);
+    if (start != null && start > 0) video.start = start;
+    return video;
   }
 
   const ig = parseInstagram(u);

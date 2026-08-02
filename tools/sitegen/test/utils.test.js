@@ -7,6 +7,7 @@ import { normalizeTags, normalizeDraft, normalizeContact, resolveAudioSample } f
 import { extractIframeSrc, classifyAudioUrl, resolveAudioSamples } from '../src/utils/audio.js';
 import { parseInstagram, instagramEmbedHtml } from '../src/utils/instagram.js';
 import { classifyDemoVideo, videoEmbedHtml } from '../src/utils/video.js';
+import { parseYoutubeId, parseYoutubeStartSeconds, youtubeEmbedHtml } from '../src/utils/youtube.js';
 
 test('normalizeYamlKey strips spaces and hyphens, lowercases', () => {
   assert.equal(normalizeYamlKey('demo-link'), 'demolink');
@@ -110,6 +111,10 @@ test('classifyDemoVideo and videoEmbedHtml cover YouTube and Instagram', () => {
   assert.equal(yt.id, 'dQw4w9WgXcQ');
   assert.match(videoEmbedHtml(yt.url), /youtube\.com\/embed\/dQw4w9WgXcQ/);
 
+  const ytOffset = classifyDemoVideo('https://youtu.be/ABbWmZOtmig?t=1772');
+  assert.equal(ytOffset.start, 1772);
+  assert.match(videoEmbedHtml(ytOffset.url), /start=1772/);
+
   const ig = classifyDemoVideo('https://www.instagram.com/reel/DMKkotPsItQ/');
   assert.equal(ig.provider, 'instagram');
   assert.equal(ig.kind, 'reel');
@@ -118,4 +123,47 @@ test('classifyDemoVideo and videoEmbedHtml cover YouTube and Instagram', () => {
 
   assert.equal(classifyDemoVideo('https://example.com/video'), null);
   assert.equal(videoEmbedHtml('https://example.com/video'), '');
+});
+
+test('parseYoutubeId handles watch, youtu.be, shorts, and embed URLs', () => {
+  assert.equal(parseYoutubeId('https://www.youtube.com/watch?v=dQw4w9WgXcQ'), 'dQw4w9WgXcQ');
+  assert.equal(parseYoutubeId('https://youtu.be/ABbWmZOtmig?t=1772'), 'ABbWmZOtmig');
+  assert.equal(parseYoutubeId('https://www.youtube.com/shorts/abcdef12345'), 'abcdef12345');
+  assert.equal(parseYoutubeId('https://www.youtube.com/embed/abcdef12345'), 'abcdef12345');
+  assert.equal(parseYoutubeId('https://example.com/watch?v=nope'), null);
+});
+
+test('parseYoutubeStartSeconds preserves t= and start= offsets', () => {
+  assert.equal(parseYoutubeStartSeconds('https://youtu.be/ABbWmZOtmig?si=x&t=1772'), 1772);
+  assert.equal(parseYoutubeStartSeconds('https://www.youtube.com/watch?v=ABbWmZOtmig&t=1331s'), 1331);
+  assert.equal(parseYoutubeStartSeconds('https://www.youtube.com/watch?v=ABbWmZOtmig&t=1h2m3s'), 3723);
+  assert.equal(parseYoutubeStartSeconds('https://www.youtube.com/embed/ABbWmZOtmig?start=90'), 90);
+  assert.equal(parseYoutubeStartSeconds('https://www.youtube.com/watch?v=ABbWmZOtmig#t=45s'), 45);
+  assert.equal(parseYoutubeStartSeconds('https://www.youtube.com/watch?v=ABbWmZOtmig'), null);
+});
+
+test('parseYoutubeStartSeconds tolerates &amp; from sanitized README hrefs', () => {
+  // sanitize-html encodes & in attributes; t= after another param becomes &amp;t=
+  assert.equal(
+    parseYoutubeStartSeconds('https://youtu.be/ABbWmZOtmig?si=bKNxzY5MFJ0kZ6UB&amp;t=1772'),
+    1772,
+  );
+  assert.equal(
+    parseYoutubeStartSeconds('https://www.youtube.com/watch?v=VFnUbPqJ7lY&amp;t=65s'),
+    65,
+  );
+  assert.equal(
+    parseYoutubeStartSeconds('https://youtu.be/D0H_VsJ15go?t=4819&amp;si=7J1yqLwJx2xuIX9x'),
+    4819,
+  );
+});
+
+test('youtubeEmbedHtml includes start= when the source URL has a time offset', () => {
+  const html = youtubeEmbedHtml('https://youtu.be/ABbWmZOtmig?t=1772');
+  assert.match(html, /youtube\.com\/embed\/ABbWmZOtmig\?rel=0&start=1772/);
+  assert.match(
+    youtubeEmbedHtml('https://youtu.be/ABbWmZOtmig?si=x&amp;t=1772'),
+    /start=1772/,
+  );
+  assert.doesNotMatch(youtubeEmbedHtml('https://youtu.be/ABbWmZOtmig'), /start=/);
 });

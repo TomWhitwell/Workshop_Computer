@@ -33,7 +33,8 @@ function renderDemoSection(video) {
   if (provider === 'instagram') {
     return `<section class="program-card-demo program-card-demo--instagram">${instagramEmbedHtml(video.url)}${label}</section>`;
   }
-  return `<section class="program-card-demo"><a href="${esc(video.url)}" data-video-provider="youtube" data-video-id="${esc(video.id)}"><span class="program-card-demo__media" aria-hidden="true"><img src="https://img.youtube.com/vi/${esc(video.id)}/hqdefault.jpg" alt="" loading="lazy"></span>${label}</a></section>`;
+  const startAttr = video.start ? ` data-video-start="${esc(String(video.start))}"` : '';
+  return `<section class="program-card-demo"><a href="${esc(video.url)}" data-video-provider="youtube" data-video-id="${esc(video.id)}"${startAttr}><span class="program-card-demo__media" aria-hidden="true"><img src="https://img.youtube.com/vi/${esc(video.id)}/hqdefault.jpg" alt="" loading="lazy"></span>${label}</a></section>`;
 }
 
 function stripTags(value) {

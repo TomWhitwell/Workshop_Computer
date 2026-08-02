@@ -121,7 +121,7 @@ uf2:
 
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
-| `demo-link` | no | string (URL) | Optional demo video URL: YouTube (`watch`, `youtu.be`, `/shorts/`, `/embed/`) or Instagram (`/reel/`, `/reels/`, `/p/`, `/tv/`). Rendered as a demo-video thumbnail on the detail page that plays inline when clicked. Matching YouTube and Instagram links in README.md also get inline embeds (Instagram embeds use a portrait frame). |
+| `demo-link` | no | string (URL) | Optional demo video URL: YouTube (`watch`, `youtu.be`, `/shorts/`, `/embed/`) or Instagram (`/reel/`, `/reels/`, `/p/`, `/tv/`). Rendered as a demo-video thumbnail on the detail page that plays inline when clicked. YouTube time offsets (`t=` / `start=`, including `1331s` / `1h2m3s`) are preserved so playback starts at that point. Matching YouTube and Instagram links in README.md also get inline embeds (Instagram embeds use a portrait frame). |
 | `audio-sample` | no | string or list | Demo audio. Accepts a single value or a list. Each value may be: a **repo-relative file** (e.g. `samples/demo.wav`, resolved to a raw URL and rendered with an `<audio>` player); a **SoundCloud** track/set URL (embedded as a player, derived from the URL — no API key); a **Bandcamp** *EmbeddedPlayer* URL (the iframe `src` from Bandcamp's Share → Embed dialog); or any other URL (shown as a link). You may also paste a whole embed `<iframe>` snippet (we extract the player `src` + height), but you must single-quote it in YAML. List items may also be `{ url, title }` objects (`title` shows above the player). |
 ```yaml
 # single file

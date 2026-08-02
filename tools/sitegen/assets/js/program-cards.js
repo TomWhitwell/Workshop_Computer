@@ -57,13 +57,14 @@ function loadInstagramEmbedScript() {
   document.body.appendChild(s);
 }
 
-function demoEmbedIframe(provider, id, kind, autoplay) {
+function demoEmbedIframe(provider, id, kind, autoplay, start) {
   if (provider === 'instagram') {
     var igKind = kind || 'reel';
     var permalink = 'https://www.instagram.com/' + encodeURIComponent(igKind) + '/' + encodeURIComponent(id) + '/';
     return '<blockquote class="instagram-media" data-instgrm-permalink="' + permalink + '" data-instgrm-version="14"><a href="' + permalink + '" target="_blank" rel="noopener noreferrer">View this ' + (igKind === 'reel' ? 'reel' : 'post') + ' on Instagram</a></blockquote>';
   }
   var qs = autoplay ? '?rel=0&autoplay=1' : '?rel=0';
+  if (start) qs += '&start=' + encodeURIComponent(start);
   return '<iframe src="https://www.youtube.com/embed/' + encodeURIComponent(id) + qs + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen title="YouTube video"></iframe>';
 }
 
@@ -76,9 +77,10 @@ document.addEventListener('click', function(e) {
   var provider = a.getAttribute('data-video-provider') || 'youtube';
   var id = a.getAttribute('data-video-id');
   var kind = a.getAttribute('data-video-kind');
+  var start = a.getAttribute('data-video-start');
   var wrap = document.createElement('div');
   wrap.className = provider === 'instagram' ? 'instagram-embed' : 'video-embed';
-  wrap.innerHTML = demoEmbedIframe(provider, id, kind, provider === 'youtube');
+  wrap.innerHTML = demoEmbedIframe(provider, id, kind, provider === 'youtube', start);
   a.replaceWith(wrap);
   if (provider === 'instagram') loadInstagramEmbedScript();
 });
@@ -92,12 +94,14 @@ document.addEventListener('click', function(e) {
   var provider = media.getAttribute('data-video-provider') || 'youtube';
   var id = media.getAttribute('data-video-id');
   var kind = media.getAttribute('data-video-kind');
+  var start = media.getAttribute('data-video-start');
   media.classList.add('program-card-tile__media--playing');
   media.removeAttribute('data-video-provider');
   media.removeAttribute('data-video-id');
   media.removeAttribute('data-video-kind');
+  media.removeAttribute('data-video-start');
   media.removeAttribute('aria-hidden');
-  media.innerHTML = demoEmbedIframe(provider, id, kind, provider === 'youtube');
+  media.innerHTML = demoEmbedIframe(provider, id, kind, provider === 'youtube', start);
   if (provider === 'instagram') loadInstagramEmbedScript();
 });
 

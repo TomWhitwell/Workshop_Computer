@@ -118,6 +118,21 @@ test('demo section renders YouTube thumbnails and Instagram official embeds', ()
   assert.doesNotMatch(instagram, /program-card-demo__placeholder/);
 });
 
+test('demo video markup preserves YouTube start offset', () => {
+  const html = renderCardArticle({
+    card: card({ videos: [{ id: 'ABbWmZOtmig', url: 'https://youtu.be/ABbWmZOtmig?t=1772', start: 1772, title: 'Demo video', provider: 'youtube', aspect: 'landscape' }] }),
+    panelImg: 'panel.svg', yamlUrl: 'source.yaml',
+  });
+  assert.match(html, /data-video-id="ABbWmZOtmig"/);
+  assert.match(html, /data-video-start="1772"/);
+
+  const tile = renderTile(card({ videos: [{ id: 'ABbWmZOtmig', url: 'https://youtu.be/ABbWmZOtmig?t=1772', start: 1772, provider: 'youtube', aspect: 'landscape' }] }), {
+    showVideo: true,
+  });
+  assert.match(tile, /data-video-id="ABbWmZOtmig"/);
+  assert.match(tile, /data-video-start="1772"/);
+});
+
 test('cards without generated or custom panels omit both panel regions', () => {
   const html = renderCardArticle({ card: card(), panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
   assert.doesNotMatch(html, /program-card-use-section/);

@@ -102,6 +102,14 @@ test('demo-link YouTube URL produces a videos entry', () => {
   assert.equal(card.videos.length, 1);
   assert.equal(card.videos[0].id, 'dQw4w9WgXcQ');
   assert.equal(card.videos[0].provider, 'youtube');
+  assert.equal(card.videos[0].start, undefined);
+});
+
+test('demo-link YouTube URL preserves time offset as videos[].start', () => {
+  const card = build({ 'demo-link': 'https://youtu.be/ABbWmZOtmig?si=bKNxzY5MFJ0kZ6UB&t=1772' });
+  assert.equal(card.videos[0].id, 'ABbWmZOtmig');
+  assert.equal(card.videos[0].provider, 'youtube');
+  assert.equal(card.videos[0].start, 1772);
 });
 
 test('demo-link Instagram reel URL produces a videos entry', () => {

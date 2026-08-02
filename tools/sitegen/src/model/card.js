@@ -698,6 +698,7 @@ export function buildCanonicalCardModel({
       aspect: demoVideo.aspect,
     };
     if (demoVideo.kind) video.kind = demoVideo.kind;
+    if (demoVideo.start != null && demoVideo.start > 0) video.start = demoVideo.start;
     card.videos = [video];
   }
 
