@@ -1,0 +1,54 @@
+433 Sense of Space - Mayakovsky CC0 Version
+===========================================
+
+This folder contains the Mayakovsky CC0 audio variant of 433 Sense of Space.
+
+Embedded Ambience Audio
+-----------------------
+
+The ambience loop assets:
+
+- `433_loop_10k_s8_stereo.bin`
+- `433_loop_24k_s16_stereo.bin`
+- the UF2 firmware images that embed those assets
+
+are derived from:
+
+- `Mayakovsky theatre main stage - spectators walking in, taking their seats, ambience OMNI mics.wav`
+- Creator: `gladkiy`
+- URL: https://freesound.org/people/gladkiy/sounds/347832/
+- Licence: Creative Commons 0 / Public Domain Dedication
+
+Seat Creak Audio
+----------------
+
+The seat creak asset:
+
+- `seat_creak_12k_s8_stereo.bin`
+
+is derived from:
+
+- `Chair creaking back and forth 01.wav`
+- Creator: `unkleceeg`
+- URL: https://freesound.org/people/unkleceeg/sounds/276473/
+- Licence: Creative Commons 0 / Public Domain Dedication
+
+See `SEAT_CREAK_SOURCE.md` for the exact source notes and conversion details.
+
+Firmware Source Code
+--------------------
+
+New project-specific source code in this folder may be used, modified, and shared
+for any purpose.
+
+Some source files are copied or adapted from existing Music Thing Modular Workshop
+Computer / Pico SDK project material and retain their original notices and licence
+status where applicable, including:
+
+- `ComputerCard.h`
+- `pico_sdk_import.cmake`
+- `reverb_dsp.c`
+- `reverb_dsp.h`
+
+The embedded audio assets listed above are CC0 according to their Freesound source
+pages.

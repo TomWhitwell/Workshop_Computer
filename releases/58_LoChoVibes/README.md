@@ -322,3 +322,8 @@ LED brightness reflects both parameter values and modulation movement, providing
 # Current Status
 
 Actively under development and testing.
+
+## Attribution
+
+LoCho Vibes uses the ComputerCard hardware framework by Chris Johnson. The
+framework's original notice is retained in `ComputerCard.h`.

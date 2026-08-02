@@ -1,11 +1,13 @@
 draft: true
 Name: NZT
-Description: Grain Noise and Noise Tools
+short-description: Grain Noise and Noise Tools
 Language: C++ (ComputerCard)
 Creator: "@kjnilsson"
 Version: 1.0.0
 Status: Released
 Repository: https://github.com/kjnilsson/ws
+date-created: 2025-10-01
+date-updated: 2025-10-01
 
 summary: |
   Grain-noise generator and noise utility card with density control, seed modulation, CV utilities,

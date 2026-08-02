@@ -1,12 +1,73 @@
-draft: true
+draft: false
 Name: Backyard Rain
-Description: Nature soundscape audio. A cozy rain ambience mix for background listening. You control the intensity. This card plays rain ambience which was recorded in my backyard.
+short-description: Nature soundscape audio. A cozy rain ambience mix for background listening. You control the intensity. This card plays rain ambience which was recorded in my backyard.
 Language: Rust (Embassy framework)
 Creator: Brian Dorsey
-Version: (see source repo)
+Version: V2.0
 Status: Released
-Repository: https://codeberg.org/briandorsey/mtmws_cards
+Repository: https://codeberg.org/briandorsey/mtmws_cards/src/branch/main/backyard_rain
+License: MIT OR Apache-2.0
+
+date-created: 2025-01-05
+date-updated: 2026-04-08
+
+contact:
+  email: brian@dorseys.org
+  website: https://til.cafe
+  social:
+    mastodon: https://hachyderm.io/@briandorsey
 
 summary: |
-  Ambient backyard rain playback card with user-controlled intensity.
-  This release folder is a stub; docs and release UF2 files are maintained in the external repository.
+  Nature soundscape audio. A cozy rain ambience mix for background listening. You control the intensity. This card plays rain ambience which was recorded in my backyard.
+
+tags: 
+  - classic
+  - toms-pick
+  - instant-win
+  - ambience
+  - lfo
+  - noise
+  - stereo
+  - field-recording
+
+uf2:
+  - name: Backyard Rain V2.0 - for 2MB cards 
+    path: backyard_rain_2M_2_0_0.uf2
+  - name: Backyard Rain V2.0 - for 16MB cards 
+    path: backyard_rain_16M_2_0_0.uf2
+
+demo-link: https://youtu.be/ABbWmZOtmig?si=bKNxzY5MFJ0kZ6UB&t=1772
+
+controls:
+  switch:
+    tap:
+      name: Thunder!
+      description: (16MB cards only) Momentary/down triggers thunder. Randomly chooses between three recordings.
+  knobs:
+    - main:
+        name: Rain Intensity (RI)
+        description: Intensity. Fully clockwise/right is heavy rain, center is medium, fully left is light rain. Every point in between is a cross fade between two recordings. For example, halfway between center and max would be a 50/50 mix of medium and heavy rain.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: RI CV
+      description: (if any) is mixed with Main knob position, Main knob acts as offset to incomming signal.
+    - id: PulseIn1
+      name: Thunder
+      description: Same as Z switch, but driven by **electricity!**. Very small "lightning" signals cause thunder.
+  outputs:
+    - id: AudioOut1
+      name: Rain Audio (left)
+      description: Backyard rain audio (left). Use either for mono audio. 
+    - id: AudioOut2
+      name: Rain Audio (right)
+      description: Backyard rain audio (right). Use either for mono audio. 
+    - id: CVOut1
+      name: RI CV
+      description: Current intensity value as CV, about -6v to +6v
+    - id: CVOut2
+      name: LFO
+      description: Very slow triangle LFO, cyling approximately once every 10 minutes between about +25% and -25% amplitude. Mixed with intensity unless CV input 1 is used. 
+
+

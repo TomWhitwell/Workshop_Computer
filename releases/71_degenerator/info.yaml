@@ -1,11 +1,13 @@
 draft: true
 Name: Degenerator
-Description: "Degenerator — Disintegrating Looper. Capture audio loops and apply irreversible degradation with 6 algorithms (Saturation, Filter Drift, Tape Hiss, Oxide Shedding, Bit Crush, Bit Rot) via preview/apply workflow. Inspired by William Basinski's The Disintegration Loops."
+short-description: "Degenerator — Disintegrating Looper. Capture audio loops and apply irreversible degradation with 6 algorithms (Saturation, Filter Drift, Tape Hiss, Oxide Shedding, Bit Crush, Bit Rot) via preview/apply workflow. Inspired by William Basinski's The Disintegration Loops."
 Language: C++ (Pico SDK)
 Creator: Joep Vermaat
 Version: 1.3
 Status: Released
 License: MIT
+date-created: 2026-05-08
+date-updated: 2026-05-31
 Editor: https://degenerator-web.netlify.app/
 Repository: https://codeberg.org/johantv/Degenerator
 

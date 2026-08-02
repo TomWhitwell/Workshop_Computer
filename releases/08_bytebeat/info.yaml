@@ -1,10 +1,12 @@
 draft: true
 Name: Bytebeat
-Description: Generates and mangles bytebeats
+short-description: Generates and mangles bytebeats
 Language: C++/Arduino-Pico
 Creator: Matt Kuebrich
 Version: 0.1
 Status: Functional but WIP
+date-created: 2024-11-30
+date-updated: 2024-12-10
 
 tags:
   - bytebeat

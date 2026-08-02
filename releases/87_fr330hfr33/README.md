@@ -210,3 +210,9 @@ optional.
 
 The Web MIDI SysEx format is documented in
 [`protocol.md`](protocol.md).
+
+## Attribution
+
+Fr330hfr33 uses the ComputerCard hardware framework by Chris Johnson. Its USB
+MIDI host support includes the MIT-licensed rppicomidi files, copyright 2023
+rppicomidi; their copyright and licence notices are retained in the source.

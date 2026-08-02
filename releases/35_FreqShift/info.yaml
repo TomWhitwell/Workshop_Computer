@@ -1,10 +1,12 @@
 draft: true
 Name: FreqShift
-Description: Dual Input Frequency Shifter for Feedback Experimentation
+short-description: Dual Input Frequency Shifter for Feedback Experimentation
 Language: C++ (ComputerCard)
 Creator: Ben Regnier
 Version: 1.1
 Status: Functional
+date-created: 2026-06-14
+date-updated: 2026-06-14
 
 tags:
   - frequency-shifter

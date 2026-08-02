@@ -1,6 +1,9 @@
-Description: "Dual vactrol-emulating low-pass gate (combined VCA + low-pass filter) with fast-attack/slow-decay 'plong', self-pinging percussion, and per-channel VCA/VCF/LPG modes."
+short-description: "Dual vactrol-emulating low-pass gate (combined VCA + low-pass filter) with fast-attack/slow-decay 'plong', self-pinging percussion, and per-channel VCA/VCF/LPG modes."
+summary: "Dual vactrol-emulating low-pass gate (combined VCA + low-pass filter) with fast-attack/slow-decay 'plong', self-pinging percussion, and per-channel VCA/VCF/LPG modes."
 Name: West Coast LPG
 Language: "C++ (ComputerCard)"
 Creator: "Jason Moore"
 Version: "0.1"
 Status: "Working"
+date-created: 2026-06-08
+date-updated: 2026-06-25

@@ -1,11 +1,13 @@
 draft: true
 Name: Glitch
-Description: Clock-synced beat-repeater with ratcheting, reversal and audio degradation
+short-description: Clock-synced beat-repeater with ratcheting, reversal and audio degradation
 Language: C++ (RP2040 Pico SDK)
 Creator: Andy Jenkinson (uglifruit)
 Version: 1.4.0
 Status: Released
 License: MIT
+date-created: 2026-05-20
+date-updated: 2026-05-27
 Repository: https://github.com/uglifruit/Workshop_Computer/tree/main/Demonstrations%2BHelloWorlds/PicoSDK/ComputerCard/examples/glitch
 
 tags:

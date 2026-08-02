@@ -1,11 +1,13 @@
 draft: true
 Name: Glitter
-Description: Granular Looping Sampler
+short-description: Granular Looping Sampler
 Language: C++ (Pico SDK 2.1.1, UF2 release)
 Creator: Steve Jones
 Version: 0.1.2-beta
 Status: Beta
 License: MIT
+date-created: 2025-04-04
+date-updated: 2025-05-02
 Repository: https://github.com/sdrjones/mtws/tree/main/53_glitter
 
 tags:

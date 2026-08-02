@@ -1,11 +1,22 @@
-draft: true
+draft: false
 Name: Turing Machine
-Description: Turing Machine with tap tempo clock, 2 x pulse outputs, 4 x CV outputs
+short-description: Dual Turing Machine with quantized outputs and tap tempo
 Language: C++ (ComputerCard)
 Creator: Tom Whitwell
-Version: 1.5.3
-Status: Working but Simple
+Version: "1.5.3"
+Status: Live
+License: GPL-3.0-or-later
 Editor: https://www.musicthing.co.uk/web_config/turing.html
+date-created: 2024-11-30
+date-updated: 2026-07-27
+demo-link: https://www.youtube.com/watch?v=ABbWmZOtmig&t=1331s
+
+contact:
+  email: tom@musicthing.co.uk
+  website: https://www.musicthing.co.uk/
+  social:
+    github: https://github.com/TomWhitwell
+    instagram: https://www.instagram.com/musicthingmodular
 
 tags:
   - sequencer
@@ -15,10 +26,9 @@ tags:
   - cv
 
 summary: |
-  Dual Turing-style random sequencer with tap tempo or external clocking.
-  Pulse In 1 overrides tap tempo as the main clock; Pulse In 2 can clock channel 2 independently.
-  CV In 1 controls divide/multiply on channel 2, CV In 2 applies quantized pitch offset.
-  Audio/CV In 1 can reset sequences; Audio/CV In 2 can CV-switch between the two presets.
+  Turing Machine turns the Workshop Computer into a random looping sequencer with two channels, configurable presets and multiple scales.  
+  
+  The Turing Machine was launched by Music Thing Modular in 2012, and is a very popular DIY synth project.
 
 panel:
   inputs:
@@ -26,88 +36,111 @@ panel:
       name: External Clock 1
       description: Replaces tap tempo and drives the main clock
       type: pulse
+
     - id: PulseIn2
       name: External Clock 2
-      description: Overrides channel 2 diviply clock for independently clocked channel 2
+      description: Overrides the Channel 2 divide/multiply clock and clocks Channel 2 independently
       type: pulse
+
     - id: CVIn1
       name: Diviply CV
-      description: Positive/negative control for divide-multiply rate on channel 2
+      description: Positive or negative control of the divide/multiply rate for Channel 2
       type: cv
+
     - id: CVIn2
       name: Pitch Offset CV
-      description: Experimental quantized offset applied to both channels
+      description: Experimental quantized pitch offset applied to both channels
       type: cv
+
     - id: AudioIn1
       name: Reset
-      description: Rising edge resets all sequence states to step 1
+      description: A rising edge resets both sequences to their first step
       type: other
+
     - id: AudioIn2
       name: Preset Select CV
-      description: Experimental CV control of the two-preset mode switch
+      description: Experimental CV control for selecting between the two presets
       type: cv
+
   outputs:
     - id: PulseOut1
       name: Channel 1 Pulse
-      description: Clock or Turing-bit pulse behavior depending on pulse mode configuration
+      description: Clock or Turing-bit pulse, depending on the pulse mode selected in the editor
       type: pulse
+
     - id: PulseOut2
       name: Channel 2 Pulse
-      description: Clock or Turing-bit pulse behavior depending on pulse mode configuration
+      description: Clock or Turing-bit pulse, depending on the pulse mode selected in the editor
       type: pulse
+
     - id: CVOut1
-      name: Channel 1 Quantized CV
-      description: Quantized pitch CV output for channel 1
-      type: cv
-    - id: CVOut2
-      name: Channel 2 Quantized CV
-      description: Quantized pitch CV output for channel 2
-      type: cv
-    - id: AudioOut1
-      name: Channel 1 DAC CV
-      description: Scaled DAC signal for channel 1; output range configurable in editor
-      type: cv
-    - id: AudioOut2
-      name: Channel 2 DAC CV
-      description: Scaled DAC signal for channel 2; output range configurable in editor
+      name: Channel 1 Note CV
+      description: Quantized pitch CV output for Channel 1
       type: cv
 
-# certainty: low — knob roles inferred from Rev_1_5_Code UI/MainApp implementation; README focuses on I/O and editor options
+    - id: CVOut2
+      name: Channel 2 Note CV
+      description: Quantized pitch CV output for Channel 2
+      type: cv
+
+    - id: AudioOut1
+      name: Channel 1 CV
+      description: Scaled DAC signal for Channel 1; output range is configurable in the editor
+      type: cv
+
+    - id: AudioOut2
+      name: Channel 2 CV
+      description: Scaled DAC signal for Channel 2; output range is configurable in the editor
+      type: cv
+
 controls:
+  switch:
+    up:
+      name: Preset 1
+      description: Selects the first configured output preset
+
+    middle:
+      name: Preset 2
+      description: Selects the second configured output preset
+
+    tap:
+      name: Tap Tempo
+      description: Tap the switch down to set the internal tempo when no external clock is connected
+
   knobs:
-    - when: { z: middle }
-      main:
-        name: Randomness / Write
-        description: Drives the main Turing machine write behavior for both channels
+    - main:
+        name: Random / Loop
+        description: Controls randomization and looping for both Turing Machine channels
       x:
         name: Loop Length
-        description: Sets channel 1 sequence length; channel 2 length can be offset
+        description: Sets the main sequence loop length - 2,3,4,5,6,8,12 or 16
       y:
-        name: Divide/Multiply
-        description: Sets channel 2 divide/multiply clock relationship
-    - when: { z: down, gesture: momentary }
-      main:
-        name: Tap Tempo
-        description: Tap switch sets internal BPM when no external clock is present
+        name: Diviply
+        description: Sets the clock division or multiplication for Channel 2, in relation to Channel 1
+
   leds:
-    - when: { z: middle }
-      display: list
+    - display: list
       items:
         - id: LED0
-          name: Channel 1 DAC Level
+          name: Channel 1 CV Level
+
         - id: LED1
-          name: Channel 2 DAC Level
+          name: Channel 2 CV Level
+
         - id: LED2
-          name: Channel 1 Turing Level
+          name: Channel 1 Note Level
+
         - id: LED3
-          name: Channel 2 Turing Level
+          name: Channel 2 Note Level
+
         - id: LED4
           name: Pulse 1 Activity
+
         - id: LED5
           name: Pulse 2 Activity
 
 host:
   usb:
-    - name: Web editor via MIDI SysEx
+    - name: Web editor
       role: editor
-      description: Browser editor reads/writes settings over USB MIDI SysEx (Chrome recommended)
+      description: Browser editor to calibrate various functions of the card. Chrome is recommended

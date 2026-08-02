@@ -1,226 +1,153 @@
-/* =====================================================================
-  Variables & Themes
-  ===================================================================== */
-:root{
-  --bg: #0b0d10;
-  --card: #11151a;
-  --muted: #9aa6b2;
-  --text: #e6edf3;
-  --accent: #2f81f7;
-  --border: #27313b;
-  --ok: #3fb950;
-  --toggle-track: #0e1217;
-  --toggle-thumb: #ffffff;
-  --pcb-start: #2d7c30;
-  --pcb-end: #195f20;
-  --editor-start: #7c2d30;
-  --editor-end: #5f1920;
-  --dark-bg: #1b222b;   /* inputs in dark mode */
-  --light-bg: #fff;     /* inputs in light mode */
-  --light-text: #0b1220;
-}
-.theme-dark{ --thumb-x: 23px }
-.theme-light{
-  --bg: #f7f8fa;
-  --card: #ffffff;
-  --muted: #5b6875;
-  --text: #0b1220;
-  --accent: #0969da;
-  --border: #d0d7de;
-  --ok: #1a7f37;
-  --toggle-track: #e9eef3;
-  --toggle-thumb: #0b1220;
-  --thumb-x: 0px;
-  --light-bg: #fff;
-  --light-text: #0b1220;
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/inter-latin-wght-normal.woff2") format("woff2");
 }
 
-/* =====================================================================
-  Base, Typography & Layout
-  ===================================================================== */
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
-.container{max-width:1100px;margin:0 auto;padding:20px}
-.markdown-body{font-family:"Inter",Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
-.section{margin:24px 0}
-.section h2{margin:0 0 8px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
-
-/* =====================================================================
-  Header & Footer
-  ===================================================================== */
-.site-header{border-bottom:1px solid var(--border);background:linear-gradient(90deg,var(--pcb-start),var(--pcb-end));color:#fff}
-.header-bar{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.site-title{font-size:20px;margin:0}
-.site-header a{color:#fff;text-decoration:none}
-.site-footer{border-top:1px solid var(--border);background:color-mix(in srgb, var(--bg), #000 10%);margin-top:40px}
-.site-footer .container{text-align:center}
-
-/* =====================================================================
-  Cards (generic, intro, large)
-  ===================================================================== */
-.card{background:var(--card);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
-.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:linear-gradient(90deg,var(--pcb-start),var(--pcb-end));color:#fff}
-.card-title{margin:0;font-size:18px}
-.card-num{display:flex;align-items:center}
-.card-num svg{height:42px;width:auto;display:block}
-.card-body{padding:16px;display:flex;flex-direction:column;flex:1}
-
-/* Intro (About) card */
-.intro-card{background:#212830;color:#fff;margin-bottom:16px;margin-top:-20px;border-top-left-radius:0;border-top-right-radius:0;border-top:0}
-.intro-card a{color:#fff}
-/* Light-mode: match other cards */
-.theme-light .intro-card{background:var(--card) !important;color:var(--text) !important}
-.theme-light .intro-card a{color:var(--text) !important}
-
-/* Large detail card */
-.card.large{width:100%;margin:40px 0;font-size:20px}
-.card.large .card-title{font-size:28px}
-.card.large .card-num svg{height:64px}
-.card.large .card-body{padding:28px}
-.card.large .meta-list li{font-size:18px}
-.card.large .actions .btn{font-size:18px;padding:14px 20px}
-.card.large .markdown-body{font-size:16px;font-family:"Inter",system-ui,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
-.card.large .markdown-body h1{font-size:28px}
-.card.large .markdown-body h2{font-size:24px}
-.card.large .markdown-body h3{font-size:20px}
-
-/* Dark theme card surface */
-.theme-dark .card{background:#212830}
-
-/* =====================================================================
-  Buttons & Actions
-  ===================================================================== */
-.btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;padding:10px 14px;border-radius:8px}
-.btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text)}
-.btn.download{background:linear-gradient(90deg,var(--pcb-start),var(--pcb-end));color:#fff}
-.btn.editor{background:linear-gradient(90deg,var(--editor-start),var(--editor-end));color:#fff;border:none}
-.btn:hover{opacity:.8}
-.btn.disabled{opacity:.4;cursor:not-allowed;background:transparent;border:1px dashed var(--border);color:var(--muted)}
-
-/* Action containers */
-.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;justify-content:center}
-.actions-grid{display:grid;gap:10px;grid-template-columns:1fr 1fr}
-.actions-grid .btn,.actions-grid .btn.disabled{display:block;width:100%;text-align:center;white-space:nowrap}
-.actions-grid .wide{grid-column:1 / 3}
-
-/* Two-button row at bottom of detail page */
-.actions-duo{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px auto 24px;padding:0 12px;max-width:840px}
-.actions-duo .btn{display:block;width:100%;text-align:center;white-space:nowrap}
-
-/* =====================================================================
-  Filters (index page)
-  ===================================================================== */
-.search-wrapper{position:relative;width:100%}
-.search-input{width:100%;padding:8px 36px 8px 8px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);margin-top:0;appearance:none}
-.theme-dark .search-input{background:var(--dark-bg);color:var(--toggle-thumb)}
-.theme-light .search-input{background:var(--light-bg);color:var(--light-text)}
-.search-input::placeholder{color:var(--muted)}
-.search-input:focus{outline:2px solid var(--accent);border-color:transparent}
-.search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;width:24px;height:24px;border-radius:50%;display:none;align-items:center;justify-content:center;padding:0}
-.search-clear:hover{background:rgba(128,128,128,0.2);color:var(--text)}
-
-.filter-bar label{font-weight:600;color:var(--muted)}
-.filter-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end}
-.filter-group{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center}
-.filter-group label{white-space:nowrap}
-.filter-bar select{appearance:none;background:transparent;border:1px solid var(--border);color:var(--text);padding:8px;border-radius:8px;width:100%}
-/* theme inputs */
-.theme-dark .filter-bar select{background:var(--dark-bg);color:var(--toggle-thumb)}
-.theme-light .filter-bar select{background:var(--light-bg);color:var(--light-text)}
-/* attempt to style dropdown options (support varies) */
-.theme-dark .filter-bar option{background:#1b222b;color:#fff}
-.theme-light .filter-bar option{background:#fff;color:#0b1220}
-
-@media (max-width: 900px){
-  .filter-row{grid-template-columns:repeat(2,minmax(200px,1fr))}
-}
-@media (max-width: 560px){
-  .filter-row{grid-template-columns:1fr}
+:root {
+  /* Inter is a variable font (weight axis 100-900), so these can be any value.
+     Kept as four separate knobs (originally 400/600/700/800) so each tier can
+     be tuned independently; body/normal text uses --weight-normal. */
+  --weight-normal: 375;
+  --weight-semibold: 650;
+  --weight-bold: 650;
+  --weight-heavy: 650;
+  --bg: #fdfdfd;
+  --card: #fff;
+  --muted: #828282;
+  --text: #111;
+  --accent: #878ed4;
+  --border: #d8d8d8;
+  --ok: #27743a;
+  --gold: #d7ae3d;
+  --link: #878ed4;
+  --gutter-bg: #f6f8fa;
 }
 
-/* =====================================================================
-  Meta list & Status pills
-  ===================================================================== */
-.meta-list{list-style:none;padding:0;margin:8px 0 0}
-.meta-list li{margin:6px 0;display:grid;grid-template-columns:140px 1fr;align-items:baseline;column-gap:12px;border-bottom:1px solid var(--border);padding-bottom:6px}
-.meta-list{margin-top:auto}
-.meta-list .label{color:var(--pcb-start);font-weight:700}
-.meta-list .value{color:var(--text)}
-.theme-dark .meta-list .value{color:#fff}
-.theme-light .meta-list .value{color:#000}
+* { box-sizing: border-box; }
+.sr-only { clip: rect(0, 0, 0, 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
+/* Decorative "leaves the site" marker; scales with the surrounding text. The
+   margin stands in for the space that used to precede the old arrow glyph. */
+.external-link-arrow { display: inline-block; height: 0.72em; margin-left: 0.3em; vertical-align: baseline; width: 0.72em; }
+html, body { background: var(--bg); color: var(--text); font: var(--weight-normal) 18px/1.5 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
+.container { margin: 0 auto; max-width: 900px; padding-left: 30px; padding-right: 30px; }
+main.container { padding-top: 30px; }
+a { color: var(--link); }
+.markdown-body { color: var(--text); font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: var(--weight-normal); }
 
-.status-pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;border:1px solid var(--border);background:#dde3ea;color:#0b1220}
-.status-pill.status-stable{background:#c8f7c5}
-.status-pill.status-beta{background:#ffe6b3}
-.status-pill.status-alpha{background:#ffd1dc}
-.status-pill.status-rc{background:#d8f0ff}
-.status-pill.status-release-candidate{background:#d8f0ff}
-.status-pill.status-experimental{background:#e3d7ff}
-.status-pill.status-draft{background:#e6eef7}
-.status-pill.status-wip{background:#fff3b0}
-.status-pill.status-deprecated{background:#ffd6d6}
-.status-pill.status-maintenance{background:#d9f0e6}
-.status-pill.status-archived{background:#e0e0e0}
-.status-pill.status-unknown{background:#dde3ea}
+/* MTM site shell */
+.site-header { background: var(--bg); }
+.header-bar { align-items: flex-start; display: flex; justify-content: space-between; min-height: 66px; }
+.site-wordmark { display: block; height: 66px; max-width: 400px; width: 50vw; }
+.site-wordmark img { display: block; height: auto; max-width: 100%; padding-top: 15px; width: 400px; }
+.site-header-actions { align-items: flex-end; display: flex; flex-direction: column; padding-top: 19px; }
+.site-nav { display: flex; flex-wrap: wrap; gap: 24px; line-height: 1.25; }
+.site-nav a { color: var(--text); font-size: 18px; font-weight: var(--weight-bold); text-decoration: none; }
+.site-nav a:hover { text-decoration: underline; }
+.site-menu-toggle { align-items: center; background: transparent; border: 0; color: var(--text); cursor: pointer; display: none; font: var(--weight-heavy) 12px/1 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; gap: 8px; justify-content: flex-end; min-height: 44px; min-width: 44px; padding: 8px 0; text-transform: uppercase; }
+.site-menu-toggle__icon { display: grid; gap: 3px; width: 17px; }
+.site-menu-toggle__icon span { background: currentColor; display: block; height: 2px; width: 100%; }
+.site-footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 15px; font-weight: var(--weight-normal); margin-top: 60px; padding: 30px 0; }
+.site-footer h2 { color: var(--muted); font-size: 18px; margin: 0 0 14px; }
+.site-footer p { margin: 0; }
+.site-footer a { color: var(--muted); }
+.footer-grid { display: grid; gap: 20px; grid-template-columns: 1fr 0.7fr 1.5fr; }
 
-/* =====================================================================
-  Media embeds
-  ===================================================================== */
-.video-embed{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb, var(--bg), #000 8%);margin:16px 0}
-.video-embed iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}
+/* Flat search and filtering */
+.filter-bar { border-top: 1px solid var(--text); margin: 20px 0 0; padding: 12px 0 0; }
+.search-bar-row { display: block; }
+.search-wrapper { flex: 1 1 auto; min-width: 0; }
+.search-control { background: #fff; border: 2px solid var(--text); display: flex; position: relative; }
+.search-icon { align-self: center; fill: none; flex: 0 0 auto; height: 21px; margin-left: 10px; stroke: var(--text); stroke-linecap: round; stroke-width: 2; width: 21px; }
+.search-input { appearance: none; background: transparent; border: 0; color: var(--text); font: var(--weight-normal) 16px/1.3 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; min-width: 0; padding: 10px 36px 10px 9px; width: 100%; }
+.search-input:focus { outline: 0; }
+.search-control:focus-within { border-color: var(--text); }
+.search-clear { background: none; border: 0; color: var(--muted); cursor: pointer; display: none; font: inherit; padding: 5px 10px; position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+.search-tools-row { align-items: baseline; min-height: 52px; position: relative; }
+.search-tools-row .filter-link { left: 50%; position: absolute; top: 20px; transform: translateX(-50%); }
+.filter-bar select { appearance: none; background: transparent; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; color: var(--text); font: var(--weight-normal) 14px/1.3 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; padding: 7px 30px 7px 0; width: 100%; }
+.filter-bar select:focus { border-bottom-color: var(--text); outline: 0; }
+.filter-link { align-self: center; border-bottom: 2px solid var(--text); color: var(--text); font-size: 13px; font-weight: var(--weight-bold); line-height: 16px; padding-bottom: 2px; text-decoration: none; text-transform: uppercase; white-space: nowrap; }
+.advanced-options { flex: 1 1 auto; margin-top: 0; min-width: 0; padding-top: 15px; }
+.advanced-options > summary { color: var(--muted); cursor: pointer; display: inline-block; font-size: 13px; font-weight: var(--weight-bold); line-height: 20px; list-style: none; text-transform: uppercase; }
+.advanced-options > summary::-webkit-details-marker { display: none; }
+.advanced-options > summary::before { content: "+ "; }
+.advanced-options[open] > summary::before { content: "− "; }
+.filter-row { align-items: start; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 3fr); margin-top: 14px; }
+.filter-group { display: grid; gap: 3px; }
+.tag-filter-group { border: 0; margin: 0; min-width: 0; padding: 0; }
+.tag-filter-group.is-showing-all { grid-column: 1/-1; }
+.tag-filter-group legend { color: var(--muted); font-size: 10px; font-weight: var(--weight-bold); padding: 0; text-transform: uppercase; }
+.tag-filter-heading { align-items: baseline; display: flex; justify-content: space-between; width: 100%; }
+.tag-filter-heading__actions { align-items: baseline; display: flex; gap: 10px; }
+.tag-filter-heading button,.tag-filter-toggle-all { background: transparent; border: 0; border-bottom: 1px solid currentColor; color: var(--text); cursor: pointer; font: var(--weight-heavy) 10px/1.2 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; padding: 0 0 2px; text-transform: uppercase; }
+.tag-filter-heading button:hover,.tag-filter-heading button:focus-visible,.tag-filter-toggle-all:hover,.tag-filter-toggle-all:focus-visible { color: var(--accent); }
+/* Square-cornered like .search-control, a hair thinner, and unchanged on focus. */
+.tag-filter-search { appearance: none; background: #fff; border: 1px solid var(--text); border-radius: 0; color: var(--text); font: var(--weight-normal) 12px/1.2 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; margin-top: 4px; padding: 7px 10px; width: 100%; }
+.tag-filter-search:focus { outline: 0; }
+.tag-filter-options { align-items: baseline; display: flex; flex-wrap: wrap; gap: 6px; }
+/* Sits at the end of the badge list, wrapping with it and sharing its baseline. */
+.tag-filter-toggle-all { align-self: baseline; }
+/* Filter tags are .program-card-tag badges, so appearance comes from program-cards.css;
+   these rules add only the checkbox affordances. */
+.tag-filter-option { cursor: pointer; transition: box-shadow .15s,filter .15s; }
+/* Specificity must beat the narrow-viewport .filter-bar .tag-filter-option rule
+   below, or the hidden attribute stops hiding tags on mobile. */
+.filter-bar .tag-filter-option[hidden] { display: none; }
+.tag-filter-option:has(input:focus-visible) { outline: 2px solid var(--text); outline-offset: 2px; }
+.tag-filter-option:has(input:checked) { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
+.tag-filter-option input { height: 1px; opacity: 0; position: absolute; width: 1px; }
+.filter-bar label:not(.tag-filter-option) { color: var(--muted); font-size: 10px; font-weight: var(--weight-bold); text-transform: uppercase; }
 
-/* =====================================================================
-  Detail page aside (sticky info/downloads card)
-  ===================================================================== */
-@media (min-width: 900px) {
-  .card.large .card-body { position: relative; display: block }
-  .detail-aside { position: sticky; top: 16px; float: right; width: 360px; margin: 0 0 16px 16px; z-index: 1 }
-  .card.large .readme, .card.large .docs-section { overflow: visible }
-  .card.large .docs-section { clear: both }
+/* Shared functional controls */
+.btn { background: var(--text); border: 1px solid var(--text); border-radius: 0; color: #fff; cursor: pointer; display: inline-block; font: var(--weight-heavy) 12px/1.1 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; padding: 9px 12px; text-decoration: none; text-transform: uppercase; }
+.btn.secondary { background: transparent; color: var(--text); }
+.btn:hover { background: var(--accent); border-color: var(--accent); }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 22px; }
+.actions-duo { display: grid; grid-template-columns: 1fr 1fr; margin: 30px 0; }
+.program-card-nav-link { border-bottom: 2px solid var(--text); color: var(--text); font-size: 13px; font-weight: var(--weight-bold); padding: 8px 0 5px; text-align: center; text-decoration: none; text-transform: uppercase; }
+.video-embed { background: #000; height: 0; margin: 16px 0; overflow: hidden; padding-bottom: 56.25%; position: relative; }
+.video-embed iframe { border: 0; height: 100%; inset: 0; position: absolute; width: 100%; }
+.connect-toggle { align-items: center; appearance: none; background: transparent; border: 2px solid var(--text); border-radius: 0; color: var(--text); cursor: pointer; display: inline-flex; font: var(--weight-heavy) 12px/1 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; gap: 6px; padding: 6px 10px; text-transform: uppercase; }
+.connect-toggle:hover { background: var(--text); color: var(--bg); }
+.connect-toggle:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+.connect-toggle--search { position: absolute; right: 0; top: 16px; }
+.connect-toggle .c-status { background: var(--muted); border-radius: 50%; height: 7px; width: 7px; }
+.connect-toggle.active .c-status { background: var(--ok); }
+.connect-toggle:disabled { cursor: not-allowed; opacity: 0.4; }
+.docs-list { list-style: none; margin: 8px 0; padding: 0; }
+.docs-list li { margin: 6px 0; }
+
+@media (max-width: 700px) {
+  .container { padding-left: 15px; padding-right: 15px; }
+  .header-bar { align-items: flex-start; display: flex; gap: 10px; padding-bottom: 14px; position: relative; }
+  .site-wordmark { width: min(68vw, 400px); }
+  .site-header-actions { align-items: flex-end; margin-left: auto; padding-top: 10px; }
+  .site-menu-toggle { display: inline-flex; }
+  .site-nav { align-items: flex-end; background: var(--bg); border-bottom: 1px solid var(--border); flex-direction: column; gap: 0; left: 0; margin-top: -14px; padding: 2px 15px 8px; position: absolute; right: 0; top: 100%; z-index: 20; }
+  .site-menu-enabled .site-nav:not(.is-open) { display: none; }
+  .site-nav a { align-items: center; display: flex; font-size: 14px; min-height: 44px; padding: 6px 0; text-align: right; white-space: nowrap; }
+  .filter-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tag-filter-group { grid-column: 1/-1; }
+  .footer-grid { grid-template-columns: 1fr; }
+  .search-tools-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; padding-top: 10px; }
+  .search-tools-row .advanced-options { flex-basis: 100%; margin-top: 0; }
+  .search-tools-row .filter-link,
+  .connect-toggle--search { margin-top: 0; position: static; transform: none; }
+  .advanced-options > summary,
+  .filter-link { align-items: center; display: inline-flex; min-height: 33px; }
+  .search-clear { min-height: 33px; min-width: 44px; }
+  /* inline-flex (not the badge's inline-block) so the label centres in the 44px target */
+  .filter-bar .tag-filter-option { align-items: center; display: inline-flex; min-height: 25px; padding: 3px 12px; }
+  .btn,
+  .connect-toggle { align-items: center; display: inline-flex; min-height: 33px; }
 }
-@media (max-width: 899.98px) { .detail-aside { float: none; width: auto; position: static; margin: 16px 0 } }
-.aside-actions .btn{width:100%;display:block;text-align:center}
-.aside-actions .btn + .btn{margin-top:8px}
-.aside-desc{margin-top:0;margin-bottom:12px;color:var(--muted)}
-/* Theme-specific background for the small info card */
-.theme-dark .detail-aside.card{background:color-mix(in srgb, var(--bg), #ffffff 8%)}
-.theme-light .detail-aside.card{background:color-mix(in srgb, var(--light-bg), #000000 6%)}
 
-/* =====================================================================
-  Theming helpers
-  ===================================================================== */
-/* Make all links in dark mode readable blue */
-.theme-dark a{color:#4ea1ff}
-/* Keep site title/header link white in dark mode */
-.theme-dark .site-header a{color:#fff !important}
-/* But keep button text white for contrast on button backgrounds */
-.theme-dark .btn{color:#fff !important}
-
-/* =====================================================================
-  Misc
-  ===================================================================== */
-.docs-list li{margin:6px 0}
-.downloads a{display:inline-block;margin-right:10px;margin-bottom:10px}
-
-/* =====================================================================
-  Theme toggle control
-  ===================================================================== */
-.theme-toggle{appearance:none;-webkit-appearance:none;border:0;background:transparent;cursor:pointer}
-.theme-toggle .track{position:relative;display:inline-flex;align-items:center;width:47px;height:26px;border-radius:999px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.35);padding:3px}
-.theme-toggle .thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:999px;background:#fff;transition:transform .2s ease}
-.theme-toggle .thumb{transform:translateX(var(--thumb-x,23px))}
-.theme-toggle .icons{font-size:12px;line-height:1;width:100%;display:flex;justify-content:space-between;color:var(--muted)}
-.theme-toggle .gap{width:3px;display:inline-block}
-
-/* =====================================================================
-  Connect toggle (WebUSB programmer)
-  ===================================================================== */
-.connect-toggle{appearance:none;-webkit-appearance:none;border:0;background:transparent;cursor:pointer;display:flex;align-items:center;gap:7px;color:rgba(255,255,255,0.85);font-size:13px;white-space:nowrap}
-.connect-toggle .c-track{position:relative;display:inline-flex;align-items:center;width:47px;height:26px;border-radius:999px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.35);flex-shrink:0;transition:background .2s,border-color .2s;padding:3px}
-.connect-toggle .c-icons{font-size:12px;line-height:1;width:100%;display:flex;justify-content:space-between}
-.connect-toggle .c-gap{width:3px;display:inline-block}
-.connect-toggle .c-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:999px;background:#fff;transition:transform .2s ease}
-.connect-toggle.active .c-track{background:#3fb950;border-color:#3fb950}
-.connect-toggle.active .c-thumb{transform:translateX(23px)}
-.connect-toggle:disabled{opacity:.4;cursor:not-allowed}
+@media (max-width: 480px) {
+  .search-bar-row { display: block; }
+  .filter-row { grid-template-columns: 1fr; }
+  .tag-filter-group { grid-column: 1/-1; }
+  .actions-duo { grid-template-columns: 1fr; }
+}

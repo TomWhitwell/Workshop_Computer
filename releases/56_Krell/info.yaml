@@ -1,10 +1,12 @@
 draft: true
 Name: Krell
-Description: Krell
+short-description: Krell
 Language: Blackbird Lua
 Creator: Benjamin Reily
 Version: 1.0
 Status: Mostly complete
+date-created: 2026-02-26
+date-updated: 2026-02-26
 
 tags:
   - generative

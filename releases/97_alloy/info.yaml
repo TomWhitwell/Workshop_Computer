@@ -1,11 +1,13 @@
 draft: false
 Name: Alloy
-Description: Fixed-point 15-zone cross-modulator with a clocked Turing CV and gate companion.
+short-description: Fixed-point 15-zone cross-modulator with a clocked Turing CV and gate companion.
 Language: C++ (RP2040 Pico SDK)
 Creator: Eric Gao
 Version: 0.2.0
 Status: Beta
 License: MIT
+date-created: 2026-07-08
+date-updated: 2026-07-13
 Repository: https://github.com/Ericxgao/Workshop_Computer/tree/eric/warps-port/releases/97_alloy
 
 tags:

@@ -1,128 +1,135 @@
-id: 58_LoChoVibes
-title: LoCho Vibes
+Name: LoCho Vibes
 draft: false
-release: 58 / 0.1.0
-summary: >-
-  Stereo chorus and vibrato effect featuring triangle, sine, and slow drift LFO modes,
-  modulation-based delay movement, and tape-style saturation.
-description: >-
-  Stereo chorus and vibrato effect featuring triangle, sine, and slow drift LFO modes,
-  modulation-based delay movement, and tape-style saturation.
+date-created: 2026-06-14
+date-updated: 2026-07-09
+summary: Stereo chorus and vibrato effect featuring triangle, sine, and slow
+  drift LFO modes, modulation-based delay movement, and tape-style saturation.
+short-description: Stereo chorus and vibrato effect featuring triangle, sine,
+  and slow drift LFO modes, modulation-based delay movement, and tape-style
+  saturation.
+Language: C++
+Creator: Adrian Vos
+Version: 0.1.0
+Status: Beta - stable in single-developer testing
+License: MIT
 panel:
-  controls:
-    main:
-      label: Mod Rate
-      description: LFO speed for chorus/vibrato movement
-      source: info.yaml
-    x:
-      label: Mod Depth
-      description: LFO pitch/modulation depth amount
-      source: info.yaml
-    'y':
-      label: Character
-      description: >-
-        Bipolar character shaping from lo-fi degradation to compression/saturation
-        coloration
-      source: info.yaml
-    z:
-      label: |-
-        LFO Shape
-        Select
-      description: Momentary down action advances waveform triangle -> sine -> random drift
-      source: info.yaml
   inputs:
-    audio_l:
-      label: |-
+    - id: AudioIn1
+      name: |-
         Audio In
         Left
-      description: >-
-        Left input channel; summed with AudioIn2 to mono before stereo modulation
-        processing
-      source: info.yaml
-    audio_r:
-      label: |-
+      description: Left input channel; summed with AudioIn2 to mono before stereo
+        modulation processing
+      type: audio
+    - id: AudioIn2
+      name: |-
         Audio In
         Right
-      description: >-
-        Right input channel; summed with AudioIn1 to mono before stereo modulation
-        processing
-      source: info.yaml
-    cv_1:
-      label: Depth Mod
+      description: Right input channel; summed with AudioIn1 to mono before stereo
+        modulation processing
+      type: audio
+    - id: CVIn1
+      name: Depth Mod
       description: Bipolar CV modulation for X depth control
-      source: info.yaml
-    cv_2:
-      label: |-
+      type: cv
+    - id: CVIn2
+      name: |-
         Character
         Mod
       description: Bipolar CV modulation for Y Character control
-      source: info.yaml
-    pulse_1:
-      label: |-
+      type: cv
+    - id: PulseIn1
+      name: |-
         Ext LFO
         Clock
-      description: >-
-        Rising edges sync LFO timing to external pulse source with internal fallback
-        when pulses stop
-      source: info.yaml
+      description: Rising edges sync LFO timing to external pulse source with internal
+        fallback when pulses stop
+      type: pulse
   outputs:
-    audio_out_l:
-      label: |-
+    - id: AudioOut1
+      name: |-
         Audio Out
         Left
       description: Left processed output
-      source: info.yaml
-    audio_out_r:
-      label: |-
+      type: audio
+    - id: AudioOut2
+      name: |-
         Audio Out
         Right
       description: Right processed output
-      source: info.yaml
-    cv_out_1:
-      label: LFO CV
+      type: audio
+    - id: CVOut1
+      name: LFO CV
       description: Main internal LFO waveform as CV
-      source: info.yaml
-    cv_out_2:
-      label: |-
+      type: cv
+    - id: CVOut2
+      name: |-
         Inverted LFO
         CV
       description: Inverted version of the internal LFO waveform
-      source: info.yaml
-switch_modes:
-  up: 'Z up: MAIN: Modulation Rate; X: Modulation Depth; Y: Character.'
-  middle: 'Z middle: MAIN: Modulation Rate; X: Modulation Depth; Y: Character.'
-  down: 'Z down, momentary: MAIN: LFO Shape Select.'
-leds:
-  - "LED 1 follows clock / rate indication."
-  - "LED 2 follows modulation activity and depth."
-  - "LED 3 follows lo-fi amount."
-  - "LED 4 follows compression amount."
-  - "LED 5 follows shape animation A."
-  - "LED 6 follows shape animation B."
-  - "When the switch is tapped down, LEDs 1-2 show triangle, LEDs 3-4 show sine, and LEDs 5-6 show random drift."
-  
-source:
-  - releases/58_LoChoVibes/info.yaml
-  - releases/58_LoChoVibes/README.md
-slug: 58-lochovibes
-url: /workshopsystem/program-cards/58-lochovibes/
+      type: cv
 tags: []
-source_file: releases/58_LoChoVibes/info.yaml
-source_url: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/58_LoChoVibes
-readme_url: >-
-  https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/58_LoChoVibes/README.md
-download_url: >-
-  https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/58_LoChoVibes/UF2/LoChoVibes.uf2
-metadata:
-  creator: Adrian Vos
-  language: C++
-  version: 0.1.0
-  status: released
-  license: MIT
-documentation:
-  intro: |
+controls:
+  switch:
+    up:
+      name: Vibrato
+      description: "Z up: Vibrato mode."
+    middle:
+      name: Chorus
+      description: "Z middle: Chorus mode."
+    down:
+      name: Change LFO shape
+      description: "Z down, momentary: LFO Shape Select."
+  knobs:
+    - main:
+        name: Mod Rate
+        description: LFO speed for chorus/vibrato movement
+      x:
+        name: Mod Depth
+        description: LFO pitch/modulation depth amount
+      y:
+        name: Character
+        description: Bipolar character shaping from lo-fi degradation to
+          compression/saturation coloration
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: LED 1
+          description: LED 1 follows clock / rate indication.
+        - id: LED1
+          name: LED 2
+          description: LED 2 follows modulation activity and depth.
+        - id: LED2
+          name: LED 3
+          description: LED 3 follows lo-fi amount.
+        - id: LED3
+          name: LED 4
+          description: LED 4 follows compression amount.
+        - id: LED4
+          name: LED 5
+          description: LED 5 follows shape animation A.
+        - id: LED5
+          name: LED 6
+          description: LED 6 follows shape animation B.
+        - id: LED6
+          name: LED 7
+          description: When the switch is tapped down, LEDs 1-2 show triangle, LEDs 3-4
+            show sine, and LEDs 5-6 show random drift.
+host:
+  notes: >
     Stereo lo-fi chorus/vibrato with clockable LFO and character shaping.
-    Main controls modulation rate, X controls modulation depth, Y controls Character
-    (lo-fi degradation <-> compression coloration). Switch up selects vibrato mode
-    (fully wet), middle selects chorus mode (dry/wet blend), and a momentary move
+
+    Main controls modulation rate, X controls modulation depth, Y controls
+    Character
+
+    (lo-fi degradation <-> compression coloration). Switch up selects vibrato
+    mode
+
+    (fully wet), middle selects chorus mode (dry/wet blend), and a momentary
+    move
+
     to down cycles LFO shape (triangle, sine, random drift).
+contact:
+  social:
+    github: https://github.com/soveda
