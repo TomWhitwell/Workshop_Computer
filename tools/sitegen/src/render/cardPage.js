@@ -233,9 +233,16 @@ function renderPanelViews(card, panelImg) {
 
   const selected = items.find(item => item.id === card.panel_views.default) || items[0];
   const groupId = `panel-views-${card.slug || card.id || 'card'}`;
-  const views = items.map(item => `<div id="${esc(groupId)}-${esc(item.id)}" class="program-card-position-view" data-panel-position-view="${esc(item.id)}"${item.id === selected.id ? '' : ' hidden aria-hidden="true"'}>
-    ${custom ? renderCustomPanelReference(item) : renderPanelReference(item, panelImg, { items, groupId, activeId: item.id })}
-  </div>`).join('');
+  const views = items.map(item => {
+    const isCustom = item.kind === 'custom' || Boolean(item.content_html);
+    const itemSvg = item.image?.url || panelImg;
+    const viewInner = isCustom
+      ? renderCustomPanelReference(item)
+      : renderPanelReference(item.panel ? item : { panel: card.panel || {}, switch_modes: card.switch_modes, leds: card.leds }, itemSvg, custom ? null : { items, groupId, activeId: item.id });
+    return `<div id="${esc(groupId)}-${esc(item.id)}" class="program-card-position-view" data-panel-position-view="${esc(item.id)}"${item.id === selected.id ? '' : ' hidden aria-hidden="true"'}>
+    ${viewInner}
+  </div>`;
+  }).join('');
   return `<div class="program-card-panel-views${custom ? ' program-card-panel-views--custom' : ''}">${renderPanelSelector(items, selected, groupId, custom ? '' : 'Switch')}${views}</div>`;
 }
 

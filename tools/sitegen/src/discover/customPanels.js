@@ -126,17 +126,19 @@ export async function readCustomPanelManifest(absReleaseDir) {
     const id = typeof raw.id === 'string' ? raw.id.trim() : '';
     const name = typeof raw.name === 'string' ? raw.name.trim() : '';
     const image = safeRelativePath(raw.image);
-    const content = safeRelativePath(raw.content);
+    const contentRaw = typeof raw.content === 'string' ? raw.content.trim() : '';
+    const isAuto = !contentRaw || contentRaw.toLowerCase() === 'auto';
+    const content = isAuto ? 'auto' : safeRelativePath(raw.content);
     let valid = true;
     if (!PANEL_ID.test(id)) { diagnostics.push(diagnostic('error', `${at}.id`, 'id must be unique lowercase kebab-case.')); valid = false; }
     if (ids.has(id.toLowerCase())) { diagnostics.push(diagnostic('error', `${at}.id`, `Duplicate panel id "${id}".`)); valid = false; }
     if (!name) { diagnostics.push(diagnostic('error', `${at}.name`, 'name must be non-empty text.')); valid = false; }
     if (!image) { diagnostics.push(diagnostic('error', `${at}.image`, 'image must be a safe relative SVG path.')); valid = false; }
-    if (!content) { diagnostics.push(diagnostic('error', `${at}.content`, 'content must be a safe relative Markdown path.')); valid = false; }
+    if (!isAuto && !content) { diagnostics.push(diagnostic('error', `${at}.content`, 'content must be a safe relative Markdown path or "auto".')); valid = false; }
     if (image && path.posix.extname(image).toLowerCase() !== '.svg') { diagnostics.push(diagnostic('error', `${at}.image`, 'image must be an SVG file.')); valid = false; }
-    if (content && path.posix.extname(content).toLowerCase() !== '.md') { diagnostics.push(diagnostic('error', `${at}.content`, 'content must be a Markdown file.')); valid = false; }
+    if (!isAuto && content && path.posix.extname(content).toLowerCase() !== '.md') { diagnostics.push(diagnostic('error', `${at}.content`, 'content must be a Markdown file or "auto".')); valid = false; }
     if (id) ids.add(id.toLowerCase());
-    if (valid) items.push({ id, name, image, content, index, at });
+    if (valid) items.push({ id, name, image, content, index, at, isAuto });
   }
 
   const requestedDefault = typeof manifest.default === 'string' ? manifest.default.trim() : '';
@@ -160,14 +162,14 @@ export async function discoverCustomPanels(absReleaseDir, outProgramDir, { copyA
   if (!source.manifest || !source.items.length) return { present: true, panels: empty, diagnostics };
   const items = [];
   for (const declared of source.items) {
-    const { id, name, at } = declared;
+    const { id, name, at, isAuto } = declared;
     const imagePath = declared.image;
     const contentPath = declared.content;
     let valid = true;
     const imageFile = await regularFileInside(panelsDir, imagePath);
-    const contentFile = await regularFileInside(panelsDir, contentPath);
+    const contentFile = isAuto ? null : await regularFileInside(panelsDir, contentPath);
     if (!imageFile) { diagnostics.push(diagnostic('error', `${at}.image`, `Missing or unsafe file "${imagePath}".`)); valid = false; }
-    if (!contentFile) { diagnostics.push(diagnostic('error', `${at}.content`, `Missing or unsafe file "${contentPath}".`)); valid = false; }
+    if (!isAuto && !contentFile) { diagnostics.push(diagnostic('error', `${at}.content`, `Missing or unsafe file "${contentPath}".`)); valid = false; }
     if (!valid) continue;
 
     const metadata = await svgMetadata(imageFile);
@@ -175,16 +177,27 @@ export async function discoverCustomPanels(absReleaseDir, outProgramDir, { copyA
       diagnostics.push(diagnostic('error', `${at}.image`, `"${imagePath}" ${metadata.error}`));
       continue;
     }
-    const markdown = await fs.readFile(contentFile, 'utf8');
-    if (!markdown.trim()) diagnostics.push(diagnostic('warning', `${at}.content`, `"${contentPath}" is empty.`));
-    items.push({
-      id,
-      name,
-      kind: 'custom',
-      image: { url: assetUrl(imagePath), format: 'svg', width: metadata.width, height: metadata.height },
-      content_html: rewritePanelHtmlLinks(renderMarkdownBlock(markdown), contentPath),
-      source: { image: `panels/${imagePath}`, content: `panels/${contentPath}` },
-    });
+    if (isAuto) {
+      items.push({
+        id,
+        name,
+        kind: 'generated',
+        image: { url: assetUrl(imagePath), format: 'svg', width: metadata.width, height: metadata.height },
+        content_html: null,
+        source: { image: `panels/${imagePath}` },
+      });
+    } else {
+      const markdown = await fs.readFile(contentFile, 'utf8');
+      if (!markdown.trim()) diagnostics.push(diagnostic('warning', `${at}.content`, `"${contentPath}" is empty.`));
+      items.push({
+        id,
+        name,
+        kind: 'custom',
+        image: { url: assetUrl(imagePath), format: 'svg', width: metadata.width, height: metadata.height },
+        content_html: rewritePanelHtmlLinks(renderMarkdownBlock(markdown), contentPath),
+        source: { image: `panels/${imagePath}`, content: `panels/${contentPath}` },
+      });
+    }
   }
 
   const requestedDefault = source.default;

@@ -223,10 +223,11 @@ panels:
 
 - `id` is a stable, unique lowercase kebab-case identifier used by `when.panel` and direct panel links.
 - `name` is arbitrary display text and may be changed without changing the ID.
-- `image` and `content` are safe paths relative to `panels/`; absolute paths, traversal, and symbolic links are rejected.
+- `image` is a safe path relative to `panels/`; absolute paths, traversal, and symbolic links are rejected.
+- `content` is a safe relative Markdown path, or `auto` (or omitted).
 - `default` must name a valid panel ID. Manifest order is display order.
 - Every image must be a self-contained SVG with `viewBox="0 0 560 1785"`. Generated/downloaded SVGs use the documentation-default intrinsic viewport of `width="280"` and `height="892.5"`. Scripts, `foreignObject`, event handlers, and external resources are rejected.
-- Every presentation requires companion Markdown. It is rendered beside the image instead of the generated controls/I/O/LED reference, and provides the accessible textual explanation of text embedded in the image.
+- When companion Markdown is supplied for `content`, it is rendered beside the image. When `content: auto` is specified (or omitted), sitegen automatically renders the classic 2-column socket cards, control lists, and LEDs from `info.yaml` for that tab.
 - Relative images and links in the Markdown resolve inside `panels/`.
 
 Physical component IDs do not change. Use `main`, `x`, `y`, ComputerCard jack IDs, and LED IDs as usual; use a manifest panel ID only as the condition:

@@ -185,3 +185,32 @@ panels:
   }, result.panels);
   assert.ok(references.some(diagnostic => diagnostic.path === 'controls.knobs[0].when.panel'));
 });
+
+test('custom panel discovery accepts content: auto for generated presentation tabs', async t => {
+  const release = await fixture(t);
+  const output = path.join(release, '..', 'output');
+  await write(path.join(release, 'panels', 'manifest.yaml'), `
+version: 1
+default: main
+panels:
+  - id: main
+    name: Main panel
+    image: main.svg
+    content: auto
+  - id: alternate
+    name: Alternate
+    image: alternate.svg
+    content: alternate.md
+`);
+  const svg = '<svg viewBox="0 0 560 1785"><rect width="560" height="1785"/></svg>';
+  await write(path.join(release, 'panels', 'main.svg'), svg);
+  await write(path.join(release, 'panels', 'alternate.svg'), svg);
+  await write(path.join(release, 'panels', 'alternate.md'), '# Alternate');
+
+  const result = await discoverCustomPanels(release, output);
+  assert.equal(result.present, true);
+  assert.equal(result.panels.items[0].kind, 'generated');
+  assert.equal(result.panels.items[0].content_html, null);
+  assert.equal(result.panels.items[1].kind, 'custom');
+  assert.deepEqual(result.diagnostics, []);
+});
