@@ -44,31 +44,65 @@ document.addEventListener('click', function(e) {
   if (e.target.matches('.verify-modal')) e.target.close(); // click outside the body
 });
 
+function loadInstagramEmbedScript() {
+  if (window.instgrm && window.instgrm.Embeds) {
+    window.instgrm.Embeds.process();
+    return;
+  }
+  if (document.querySelector('script[data-instagram-embed]')) return;
+  var s = document.createElement('script');
+  s.src = 'https://www.instagram.com/embed.js';
+  s.async = true;
+  s.setAttribute('data-instagram-embed', '1');
+  document.body.appendChild(s);
+}
+
+function demoEmbedIframe(provider, id, kind, autoplay) {
+  if (provider === 'instagram') {
+    var igKind = kind || 'reel';
+    var permalink = 'https://www.instagram.com/' + encodeURIComponent(igKind) + '/' + encodeURIComponent(id) + '/';
+    return '<blockquote class="instagram-media" data-instgrm-permalink="' + permalink + '" data-instgrm-version="14"><a href="' + permalink + '" target="_blank" rel="noopener noreferrer">View this ' + (igKind === 'reel' ? 'reel' : 'post') + ' on Instagram</a></blockquote>';
+  }
+  var qs = autoplay ? '?rel=0&autoplay=1' : '?rel=0';
+  return '<iframe src="https://www.youtube.com/embed/' + encodeURIComponent(id) + qs + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen title="YouTube video"></iframe>';
+}
+
 // Play the demo video inline (swap the thumbnail for an autoplay embed) instead
-// of navigating to YouTube. Falls back to the link when JS is unavailable.
+// of navigating away. Falls back to the link when JS is unavailable.
 document.addEventListener('click', function(e) {
-  var a = e.target.closest('.program-card-demo a[data-youtube-id]');
+  var a = e.target.closest('.program-card-demo a[data-video-provider][data-video-id]');
   if (!a) return;
   e.preventDefault();
-  var id = a.getAttribute('data-youtube-id');
+  var provider = a.getAttribute('data-video-provider') || 'youtube';
+  var id = a.getAttribute('data-video-id');
+  var kind = a.getAttribute('data-video-kind');
   var wrap = document.createElement('div');
-  wrap.className = 'video-embed';
-  wrap.innerHTML = '<iframe src="https://www.youtube.com/embed/' + encodeURIComponent(id) + '?rel=0&autoplay=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen title="YouTube video"></iframe>';
+  wrap.className = provider === 'instagram' ? 'instagram-embed' : 'video-embed';
+  wrap.innerHTML = demoEmbedIframe(provider, id, kind, provider === 'youtube');
   a.replaceWith(wrap);
+  if (provider === 'instagram') loadInstagramEmbedScript();
 });
 
 // Play videos shown on the landing page without leaving the card index. The
 // rest of each tile remains a link to the program's detail page.
 document.addEventListener('click', function(e) {
-  var media = e.target.closest('.program-card-tile__media[data-youtube-id]');
+  var media = e.target.closest('.program-card-tile__media[data-video-provider][data-video-id]');
   if (!media) return;
   e.preventDefault();
-  var id = media.getAttribute('data-youtube-id');
+  var provider = media.getAttribute('data-video-provider') || 'youtube';
+  var id = media.getAttribute('data-video-id');
+  var kind = media.getAttribute('data-video-kind');
   media.classList.add('program-card-tile__media--playing');
-  media.removeAttribute('data-youtube-id');
+  media.removeAttribute('data-video-provider');
+  media.removeAttribute('data-video-id');
+  media.removeAttribute('data-video-kind');
   media.removeAttribute('aria-hidden');
-  media.innerHTML = '<iframe src="https://www.youtube.com/embed/' + encodeURIComponent(id) + '?rel=0&autoplay=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen title="YouTube video"></iframe>';
+  media.innerHTML = demoEmbedIframe(provider, id, kind, provider === 'youtube');
+  if (provider === 'instagram') loadInstagramEmbedScript();
 });
+
+// README Instagram embeds use Instagram's official embed.js for correct sizing.
+if (document.querySelector('.instagram-media')) loadInstagramEmbedScript();
 
 document.addEventListener('click', function(e) {
   var button = e.target.closest('[data-panel-position-button]');

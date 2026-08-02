@@ -97,6 +97,27 @@ test('basic rendering omits generated features but keeps actions, metadata, and 
   assert.doesNotMatch(html, /program-card-audio/);
 });
 
+test('demo section renders YouTube thumbnails and Instagram official embeds', () => {
+  const youtube = renderCardArticle({
+    card: card({ videos: [{ id: 'abc123', url: 'https://youtu.be/abc123', provider: 'youtube', aspect: 'landscape' }] }),
+    panelImg: 'panel.svg', yamlUrl: 'source.yaml',
+  });
+  assert.match(youtube, /data-video-provider="youtube"/);
+  assert.match(youtube, /data-video-id="abc123"/);
+  assert.match(youtube, /img\.youtube\.com\/vi\/abc123\/hqdefault\.jpg/);
+
+  const instagram = renderCardArticle({
+    card: card({ videos: [{ id: 'DMKkotPsItQ', url: 'https://www.instagram.com/reel/DMKkotPsItQ/', provider: 'instagram', kind: 'reel', aspect: 'portrait' }] }),
+    panelImg: 'panel.svg', yamlUrl: 'source.yaml',
+  });
+  assert.match(instagram, /program-card-demo--instagram/);
+  assert.match(instagram, /class="instagram-media"/);
+  assert.match(instagram, /data-instgrm-permalink="https:\/\/www\.instagram\.com\/reel\/DMKkotPsItQ\/"/);
+  assert.match(instagram, /program-card-demo__text/);
+  assert.match(instagram, /<strong>Demo video<\/strong>/);
+  assert.doesNotMatch(instagram, /program-card-demo__placeholder/);
+});
+
 test('cards without generated or custom panels omit both panel regions', () => {
   const html = renderCardArticle({ card: card(), panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
   assert.doesNotMatch(html, /program-card-use-section/);

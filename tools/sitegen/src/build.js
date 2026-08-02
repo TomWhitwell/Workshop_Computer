@@ -476,6 +476,8 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
 const PREVIEW_LIB_FILES = [
   'utils/strings.js',
   'utils/youtube.js',
+  'utils/instagram.js',
+  'utils/video.js',
   'utils/audio.js',
   'utils/markdown.js',
   'utils/previewFirmware.js',

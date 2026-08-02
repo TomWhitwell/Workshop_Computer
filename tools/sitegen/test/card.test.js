@@ -101,4 +101,14 @@ test('demo-link YouTube URL produces a videos entry', () => {
   const card = build({ 'demo-link': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
   assert.equal(card.videos.length, 1);
   assert.equal(card.videos[0].id, 'dQw4w9WgXcQ');
+  assert.equal(card.videos[0].provider, 'youtube');
+});
+
+test('demo-link Instagram reel URL produces a videos entry', () => {
+  const card = build({ 'demo-link': 'https://www.instagram.com/reel/DMKkotPsItQ/?utm_source=ig_web_copy_link' });
+  assert.equal(card.videos.length, 1);
+  assert.equal(card.videos[0].id, 'DMKkotPsItQ');
+  assert.equal(card.videos[0].provider, 'instagram');
+  assert.equal(card.videos[0].kind, 'reel');
+  assert.equal(card.videos[0].aspect, 'portrait');
 });

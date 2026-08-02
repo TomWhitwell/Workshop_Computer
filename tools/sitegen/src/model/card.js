@@ -9,7 +9,7 @@
 // Field extraction is deliberately case/space/underscore-insensitive to match
 // the importer, so `Name`, `name`, and `NAME` all resolve to the same value.
 
-import { parseYoutubeId } from '../utils/youtube.js';
+import { classifyDemoVideo } from '../utils/video.js';
 
 // API jack id -> physical panel slot key (ported from the importer constants).
 const API_INPUT_KEYS = {
@@ -574,7 +574,7 @@ export function buildCanonicalCardModel({
   if (created !== 'n/a' && updated !== 'n/a' && updated < created) updated = created;
 
   const demoLink = optionalText(field(info, 'demo-link'), warnings, 'demo-link');
-  const videoId = demoLink ? parseYoutubeId(demoLink) : null;
+  const demoVideo = demoLink ? classifyDemoVideo(demoLink) : null;
   const editor = (web && web.editorUrl) || (normalizedInfo && normalizedInfo.editor) || '';
   const downloadUrl = latestUf2?.url || sourceUrl;
   const uf2Metadata = field(info, 'uf2');
@@ -689,8 +689,16 @@ export function buildCanonicalCardModel({
   if (inlineReadme) documentation.intro = inlineReadme;
   if (Object.keys(documentation).length) card.documentation = documentation;
 
-  if (demoLink && videoId) {
-    card.videos = [{ title: 'Demo video', url: demoLink, id: videoId }];
+  if (demoVideo) {
+    const video = {
+      title: 'Demo video',
+      url: demoVideo.url,
+      id: demoVideo.id,
+      provider: demoVideo.provider,
+      aspect: demoVideo.aspect,
+    };
+    if (demoVideo.kind) video.kind = demoVideo.kind;
+    card.videos = [video];
   }
 
   // Presentation extras the site build needs but the importer did not carry.

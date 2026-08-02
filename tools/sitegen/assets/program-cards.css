@@ -445,11 +445,32 @@ a.program-card-tag:visited {
   text-decoration: none;
 }
 
+.program-card-demo--instagram {
+  align-items: end;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(280px, 400px) minmax(160px, 1fr);
+}
+
+.program-card-demo--instagram .instagram-embed {
+  margin: 0;
+  max-width: none;
+  min-width: 0;
+}
+
 .program-card-demo__media {
   background: var(--program-card-soft);
   display: block;
   overflow: hidden;
   position: relative;
+}
+
+.program-card-tile__placeholder {
+  aspect-ratio: 9 / 16;
+  background:
+    linear-gradient(160deg, #1c1c1c 0%, #3a3a3a 55%, #222 100%);
+  display: block;
+  width: 100%;
 }
 
 .program-card-demo__media::before {
@@ -1375,7 +1396,8 @@ a.program-card-tag:visited {
 
   .program-card-quick-start,
   .program-card-use__reference,
-  .program-card-demo a {
+  .program-card-demo a,
+  .program-card-demo--instagram {
     grid-template-columns: 1fr;
   }
 
@@ -1843,6 +1865,19 @@ a.program-card-tag:visited {
   height: auto;
   object-fit: cover;
   width: 100%;
+}
+
+.program-card-tile__media--portrait {
+  max-width: 220px;
+}
+
+.program-card-tile__media--portrait img,
+.program-card-tile__media--portrait .program-card-tile__placeholder {
+  aspect-ratio: 9 / 16;
+}
+
+.program-card-tile__media--portrait.program-card-tile__media--playing iframe {
+  aspect-ratio: 9 / 16;
 }
 
 .program-card-tile__media--playing {

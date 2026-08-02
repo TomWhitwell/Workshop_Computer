@@ -110,6 +110,16 @@ a { color: var(--link); }
 .program-card-nav-link { border-bottom: 2px solid var(--text); color: var(--text); font-size: 13px; font-weight: var(--weight-bold); padding: 8px 0 5px; text-align: center; text-decoration: none; text-transform: uppercase; }
 .video-embed { background: #000; height: 0; margin: 16px 0; overflow: hidden; padding-bottom: 56.25%; position: relative; }
 .video-embed iframe { border: 0; height: 100%; inset: 0; position: absolute; width: 100%; }
+/* Instagram official embeds (blockquote + embed.js) size their own iframe.
+   Keep this class separate from .video-embed so YouTube's 16:9 absolute box
+   never constrains Instagram's measured height. */
+.instagram-embed {
+  margin: 16px 0;
+  max-width: 540px;
+}
+.instagram-embed .instagram-media {
+  margin: 0 !important;
+}
 .connect-toggle { align-items: center; appearance: none; background: transparent; border: 2px solid var(--text); border-radius: 0; color: var(--text); cursor: pointer; display: inline-flex; font: var(--weight-heavy) 12px/1 "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; gap: 6px; padding: 6px 10px; text-transform: uppercase; }
 .connect-toggle:hover { background: var(--text); color: var(--bg); }
 .connect-toggle:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }

@@ -8,6 +8,7 @@
 
 import { panelPositions } from './panelPositions.js';
 import { renderMarkdownBlock, renderMarkdownInline, sanitizeAuthoredHtml } from '../utils/markdown.js';
+import { instagramEmbedHtml } from '../utils/instagram.js';
 import { externalLinkArrow } from './icons.js';
 
 const DEFAULT_DISCUSSION = 'https://discord.com/channels/1210238368898879569/1484219323039092938';
@@ -18,6 +19,21 @@ function esc(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/**
+ * Demo block: YouTube stays click-to-play (thumbnail → iframe).
+ * Instagram has no public thumbnail API, so render the official embed immediately
+ * (same blockquote + embed.js path used for README links), with the same Watch label.
+ */
+function renderDemoSection(video) {
+  const provider = video.provider || 'youtube';
+  const title = video.title || 'Demo video';
+  const label = `<span class="program-card-demo__text"><span>Watch</span><strong>${esc(title)}</strong></span>`;
+  if (provider === 'instagram') {
+    return `<section class="program-card-demo program-card-demo--instagram">${instagramEmbedHtml(video.url)}${label}</section>`;
+  }
+  return `<section class="program-card-demo"><a href="${esc(video.url)}" data-video-provider="youtube" data-video-id="${esc(video.id)}"><span class="program-card-demo__media" aria-hidden="true"><img src="https://img.youtube.com/vi/${esc(video.id)}/hqdefault.jpg" alt="" loading="lazy"></span>${label}</a></section>`;
 }
 
 function stripTags(value) {
@@ -438,9 +454,7 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
     </div>
   </header>`;
 
-  const demo = !basic && firstVideo
-    ? `<section class="program-card-demo"><a href="${esc(firstVideo.url)}" data-youtube-id="${esc(firstVideo.id)}"><span class="program-card-demo__media" aria-hidden="true"><img src="https://img.youtube.com/vi/${esc(firstVideo.id)}/hqdefault.jpg" alt="" loading="lazy"></span><span class="program-card-demo__text"><span>Watch</span><strong>${esc(firstVideo.title || 'Demo video')}</strong></span></a></section>`
-    : '';
+  const demo = !basic && firstVideo ? renderDemoSection(firstVideo) : '';
 
   const audio = basic ? '' : renderAudio(card.audio_samples);
 

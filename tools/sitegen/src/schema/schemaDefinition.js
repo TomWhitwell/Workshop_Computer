@@ -20,7 +20,7 @@ export const infoYamlSchema = {
     { path: 'repository', type: 'string', required: false, description: 'Upstream source repository.' },
     { path: 'discussion', type: 'string', required: false, description: 'Card-specific feedback or discussion URL, such as a Discord thread.' },
     { path: 'tags', type: 'array|string', required: false, description: 'Discovery tags.' },
-    { path: 'demo-link', type: 'string', required: false, description: 'Demo video URL.' },
+    { path: 'demo-link', type: 'string', required: false, description: 'Demo video URL (YouTube or Instagram reel/post).' },
     { path: 'audio-sample', type: 'array|string', required: false, description: 'Demo audio sample(s): a repo-relative file path, a SoundCloud URL, a Bandcamp EmbeddedPlayer URL, or a list of these.' },
     { path: 'readme', type: 'string', required: false, description: 'Full inline README in Markdown; replaces the rendered README.md section.' },
     { path: 'panel', type: 'object', required: false, description: 'Panel jack metadata. Unconditioned entries form the base; when.z targets generated physical-position panels and when.panel targets an id from panels/manifest.yaml.' },

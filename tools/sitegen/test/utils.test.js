@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 import { arrayOrEmpty, normalizeYamlKey, slugify } from '../src/utils/strings.js';
 import { normalizeTags, normalizeDraft, normalizeContact, resolveAudioSample } from '../src/discover/infoFields.js';
 import { extractIframeSrc, classifyAudioUrl, resolveAudioSamples } from '../src/utils/audio.js';
+import { parseInstagram, instagramEmbedHtml } from '../src/utils/instagram.js';
+import { classifyDemoVideo, videoEmbedHtml } from '../src/utils/video.js';
 
 test('normalizeYamlKey strips spaces and hyphens, lowercases', () => {
   assert.equal(normalizeYamlKey('demo-link'), 'demolink');
@@ -72,4 +74,44 @@ test('resolveAudioSamples handles strings, objects, and pasted iframes', () => {
   assert.equal(items.length, 2);
   assert.deepEqual(items[0], { kind: 'file', url: 'https://x.com/a.mp3', host: 'x.com', title: 'Demo' });
   assert.equal(items[1].url, 'https://raw.test/local.wav');
+});
+
+test('parseInstagram handles reel, post, and tv URLs', () => {
+  assert.deepEqual(
+    parseInstagram('https://www.instagram.com/reel/DMKkotPsItQ/?utm_source=ig_web_copy_link'),
+    { kind: 'reel', shortcode: 'DMKkotPsItQ' },
+  );
+  assert.deepEqual(
+    parseInstagram('https://instagram.com/p/AbCdEfGhIjK/'),
+    { kind: 'p', shortcode: 'AbCdEfGhIjK' },
+  );
+  assert.deepEqual(
+    parseInstagram('https://www.instagram.com/tv/XyZ12345/embed'),
+    { kind: 'tv', shortcode: 'XyZ12345' },
+  );
+  assert.equal(parseInstagram('https://www.instagram.com/musicthingmodular/'), null);
+  assert.equal(parseInstagram('https://youtu.be/dQw4w9WgXcQ'), null);
+});
+
+test('instagramEmbedHtml builds an official Instagram blockquote embed', () => {
+  const html = instagramEmbedHtml('https://www.instagram.com/reel/DMKkotPsItQ/');
+  assert.match(html, /class="instagram-embed"/);
+  assert.match(html, /class="instagram-media"/);
+  assert.match(html, /data-instgrm-permalink="https:\/\/www\.instagram\.com\/reel\/DMKkotPsItQ\/"/);
+});
+
+test('classifyDemoVideo and videoEmbedHtml cover YouTube and Instagram', () => {
+  const yt = classifyDemoVideo('https://youtu.be/dQw4w9WgXcQ');
+  assert.equal(yt.provider, 'youtube');
+  assert.equal(yt.id, 'dQw4w9WgXcQ');
+  assert.match(videoEmbedHtml(yt.url), /youtube\.com\/embed\/dQw4w9WgXcQ/);
+
+  const ig = classifyDemoVideo('https://www.instagram.com/reel/DMKkotPsItQ/');
+  assert.equal(ig.provider, 'instagram');
+  assert.equal(ig.kind, 'reel');
+  assert.match(videoEmbedHtml(ig.url), /instagram-media/);
+  assert.match(videoEmbedHtml(ig.url), /data-instgrm-permalink="https:\/\/www\.instagram\.com\/reel\/DMKkotPsItQ\/"/);
+
+  assert.equal(classifyDemoVideo('https://example.com/video'), null);
+  assert.equal(videoEmbedHtml('https://example.com/video'), '');
 });

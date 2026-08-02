@@ -14,12 +14,12 @@ export function applyContentSecurityPolicy(html, { preview = false } = {}) {
   const scriptSources = ["'self'", ...(preview ? ["'unsafe-eval'"] : []), ...new Set(hashes)];
   const directives = [
     "default-src 'self'",
-    `script-src ${scriptSources.join(' ')}`,
+    `script-src ${scriptSources.join(' ')} https://www.instagram.com`,
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
     "img-src 'self' data: https:",
     "media-src 'self' https:",
-    "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
+    "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://www.instagram.com",
     "object-src 'self'",
     "connect-src 'self' https:",
     "base-uri 'self'",
