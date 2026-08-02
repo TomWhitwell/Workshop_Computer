@@ -16,7 +16,7 @@ contact:
 tags:
   - sequencer
   - acid
-  - 303
+  - "303"
   - cv
 
 summary: |
@@ -88,6 +88,9 @@ controls:
     down:
       name: Advance / Config
       description: flick advances the edit cursor to next step; hold 1s to enter reset-mode
+    tap:
+      name: Advance
+      description: Briefly press and release to advance the edit cursor to the next step
   knobs:
     - when: { z: up }
       main:
@@ -141,7 +144,7 @@ controls:
         - id: LED5
           name: Slide / Rest
           description: Lit when the current step is slide or rest
-    - when: { gesture: reset-config }
+    - when: { z: down }
       display: list
       items:
         - id: LED0-2
