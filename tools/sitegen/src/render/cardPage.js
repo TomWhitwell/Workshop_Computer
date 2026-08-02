@@ -145,7 +145,7 @@ function renderSwitchSection(snapshot, positionControl = null) {
     const tap = switchModes.tap
       ? `<div class="program-card-switch-position program-card-switch-position--tap">
         <button type="button" class="program-card-position-button" disabled>Tap</button>
-        <p>${esc(truncate(switchModes.tap, 240))}</p>
+        <p>${esc(truncate(switchModes.tap, PANEL_DESCRIPTION_THRESHOLD))}</p>
       </div>`
       : '';
     if (!rows && !tap) return '';
@@ -157,7 +157,7 @@ function renderSwitchSection(snapshot, positionControl = null) {
 
   const entries = Object.entries(switchModes).filter(([key, value]) => key !== 'tap' && value);
   const tap = switchModes.tap
-    ? `<p class="program-card-switch-action"><strong>Tap</strong> ${esc(truncate(switchModes.tap, 240))}</p>`
+    ? `<p class="program-card-switch-action"><strong>Tap</strong> ${esc(truncate(switchModes.tap, PANEL_DESCRIPTION_THRESHOLD))}</p>`
     : '';
   if (!entries.length && !tap) return '';
   const markup = entries.map(([key, value]) => {
