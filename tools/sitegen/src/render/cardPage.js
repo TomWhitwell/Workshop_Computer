@@ -129,6 +129,9 @@ export function renderPanelArtwork(snapshot, panelImg) {
   return renderPanel(snapshot?.panel || {}, panelImg, null, snapshot?.switch_modes || {});
 }
 
+// Limit length of panel description text, just in case it's huge. 
+const PANEL_DESCRIPTION_THRESHOLD = 500;
+
 function renderSwitchSection(snapshot, positionControl = null) {
   const switchModes = snapshot.switch_modes || {};
   if (positionControl) {
@@ -136,7 +139,7 @@ function renderSwitchSection(snapshot, positionControl = null) {
       const value = switchModes[item.id];
       return `<div class="program-card-switch-position">
         <button type="button" class="program-card-position-button" data-panel-position-button="${esc(item.id)}" aria-controls="${esc(positionControl.groupId)}-${esc(item.id)}" aria-pressed="${item.id === positionControl.activeId}">${esc(item.name)}</button>
-        ${value ? `<p>${esc(truncate(value, 240))}</p>` : ''}
+        ${value ? `<p>${esc(truncate(value, PANEL_DESCRIPTION_THRESHOLD))}</p>` : ''}
       </div>`;
     }).join('');
     const tap = switchModes.tap
@@ -159,7 +162,7 @@ function renderSwitchSection(snapshot, positionControl = null) {
   if (!entries.length && !tap) return '';
   const markup = entries.map(([key, value]) => {
     const label = key.charAt(0).toUpperCase() + key.slice(1);
-    return `<p><strong>${esc(label)}</strong> ${esc(truncate(value, 240))}</p>`;
+    return `<p><strong>${esc(label)}</strong> ${esc(truncate(value, PANEL_DESCRIPTION_THRESHOLD))}</p>`;
   }).join('');
   return `<div class="program-card-control program-card-control--switch">
     <strong class="program-card-component-key">Switch</strong>
@@ -175,7 +178,7 @@ function renderPanelReference(snapshot, panelImg, positionControl = null) {
     if (!control || (!control.label && !control.description)) return '';
     return `<div class="program-card-control program-card-control--${esc(pos.key)}">
       <strong class="program-card-component-key">${esc(pos.name)}</strong>
-      ${control.label || control.description ? `<p>${control.label ? `<span class="program-card-component-role">${esc(inline(control.label))}</span>` : ''}${control.label && control.description ? '<br>' : ''}${control.description ? esc(truncate(control.description, 220)) : ''}</p>` : ''}
+      ${control.label || control.description ? `<p>${control.label ? `<span class="program-card-component-role">${esc(inline(control.label))}</span>` : ''}${control.label && control.description ? '<br>' : ''}${control.description ? esc(truncate(control.description, PANEL_DESCRIPTION_THRESHOLD)) : ''}</p>` : ''}
     </div>`;
   }).join('');
   const switchMarkup = renderSwitchSection(snapshot, positionControl);
@@ -262,7 +265,7 @@ function renderSocketList(title, sockets, positions) {
     }
     return `<div class="program-card-socket">
       <strong class="program-card-component-key">${esc(pos.name || pos.key)}</strong>
-      ${socket.label || socket.description ? `<p>${socket.label ? `<span class="program-card-component-role">${esc(inline(socket.label))}</span>` : ''}${socket.label && socket.description ? '<br>' : ''}${socket.description ? esc(truncate(socket.description, 220)) : ''}</p>` : ''}
+      ${socket.label || socket.description ? `<p>${socket.label ? `<span class="program-card-component-role">${esc(inline(socket.label))}</span>` : ''}${socket.label && socket.description ? '<br>' : ''}${socket.description ? esc(truncate(socket.description, PANEL_DESCRIPTION_THRESHOLD)) : ''}</p>` : ''}
     </div>`;
   }).join('');
   if (!Object.values(sockets).some(socket => socket && (socket.description || socket.label))) return '';
@@ -278,7 +281,7 @@ function renderLedList(leds) {
     const key = match ? `LED ${Number(match[1]) + 1}` : (item.id || 'LED note');
     return `<div class="program-card-led">
       <strong class="program-card-component-key">${esc(key)}</strong>
-      ${item.label || item.description ? `<p>${item.label ? `<span class="program-card-component-role">${esc(inline(item.label))}</span>` : ''}${item.label && item.description ? '<br>' : ''}${item.description ? esc(truncate(item.description, 220)) : ''}</p>` : ''}
+      ${item.label || item.description ? `<p>${item.label ? `<span class="program-card-component-role">${esc(inline(item.label))}</span>` : ''}${item.label && item.description ? '<br>' : ''}${item.description ? esc(truncate(item.description, PANEL_DESCRIPTION_THRESHOLD)) : ''}</p>` : ''}
     </div>`;
   }).join('');
   if (!items.trim()) return '';
