@@ -1,0 +1,162 @@
+draft: false
+Name: C1ZZL3 Gnarly
+short-description: >-
+  No-Turing dual-oscillator C1ZZL3 branch with recipe wave banks, named Web MIDI
+  sound presets, separate oscillator envelopes, CZ patch import support, and an
+  eight-knob MIDI CC performance block.
+summary: >-
+  No-Turing dual-oscillator C1ZZL3 branch with recipe wave banks, named Web MIDI
+  sound presets, separate oscillator amplitude/phase-distortion/pitch envelopes,
+  CZ patch import support, and an eight-knob MIDI CC performance block.
+Language: C++ (Pico SDK)
+Creator: Adrian Vos
+Version: "Gnarly protocol v11 stable"
+Status: Beta - stable in single-developer testing
+License: MIT
+date-created: 2026-07-22
+Editor: https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/index.html
+
+tags:
+  - synth
+  - midi
+  - web-midi
+  - phase-distortion
+  - dual-oscillator
+  - stable
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Pitch CV
+      type: audio
+      description: 1V/oct pitch modulation in synth mode.
+    - id: CVIn1
+      name: PD CV
+      type: cv
+      description: Adds phase-distortion modulation to the active synth voice.
+    - id: CVIn2
+      name: Wave CV
+      type: cv
+      description: Adds recipe-slot or wave modulation to the active synth voice.
+    - id: PulseIn1
+      name: Unused
+      type: pulse
+      description: Unused in this no-Turing Gnarly branch.
+    - id: PulseIn2
+      name: Envelope Trig
+      type: pulse
+      description: Triggers selected envelopes; held gates sustain or loop supported envelopes and gate-off lets the envelope complete.
+  outputs:
+    - id: AudioOut1
+      name: Oscillator 1
+      type: audio
+      description: Phase-distortion oscillator 1 using Amp1, PD1, Pitch1, and oscillator 1 recipe settings.
+    - id: AudioOut2
+      name: Oscillator 2
+      type: audio
+      description: Phase-distortion oscillator 2 using Amp2, PD2, Pitch2, and oscillator 2 recipe settings.
+    - id: CVOut1
+      name: Off
+      type: cv
+      description: Held low in this no-Turing Gnarly branch.
+    - id: CVOut2
+      name: Off
+      type: cv
+      description: Held low in this no-Turing Gnarly branch.
+    - id: PulseOut1
+      name: Off
+      type: pulse
+      description: Held low in this no-Turing Gnarly branch.
+    - id: PulseOut2
+      name: Off
+      type: pulse
+      description: Held low in this no-Turing Gnarly branch.
+
+controls:
+  switch:
+    up:
+      name: Oscillator 2 Page
+      description: Edit oscillator 2. Main sets oscillator 2 interval or spread around unison, X sets oscillator 2 phase distortion, and Y selects oscillator 2 recipe slot in the current bank.
+    middle:
+      name: Oscillator 1 Page
+      description: Edit oscillator 1. Main sets shared pitch, X sets oscillator 1 phase distortion, and Y selects oscillator 1 recipe slot in the current bank.
+    down:
+      name: Performance / Bank Page
+      description: Hold down to edit performance controls. Main selects recipe bank, X sets ring modulation, and Y sets noise or grit.
+  knobs:
+    - when:
+        z: middle
+      main:
+        name: Shared Pitch
+        description: Shared pitch for both oscillators.
+      x:
+        name: Oscillator 1 Phase Distortion
+        description: Phase distortion amount for oscillator 1.
+      y:
+        name: Oscillator 1 Recipe Slot
+        description: Selects oscillator 1 recipe slot in the current bank.
+    - when:
+        z: up
+      main:
+        name: Oscillator 2 Interval / Spread
+        description: Oscillator 2 base interval or spread, centered at unison.
+      x:
+        name: Oscillator 2 Phase Distortion
+        description: Phase distortion amount for oscillator 2.
+      y:
+        name: Oscillator 2 Recipe Slot
+        description: Selects oscillator 2 recipe slot in the current bank.
+    - when:
+        z: down
+      main:
+        name: Recipe Bank
+        description: Selects one of the four recipe banks.
+      x:
+        name: Ring Modulation
+        description: Ring modulation amount.
+      y:
+        name: Noise / Grit
+        description: Noise and grit amount.
+  leds:
+    - when:
+        z: down
+      display: list
+      items:
+        - id: LED0
+          name: Bank 1 / 2
+          description: With LED1, encodes the selected recipe bank. Both LEDs off = bank 1; LED 1 on = bank 2; LED 2 on = bank 3; both on = bank 4.
+        - id: LED1
+          name: Bank 1 / 2
+          description: With LED0, encodes the selected recipe bank. Both LEDs off = bank 1; LED 1 on = bank 2; LED 2 on = bank 3; both on = bank 4.
+        - id: LED2
+          name: Oscillator 2 Interval / Spread
+          description: Shows oscillator 2 interval or spread as a bipolar brightness from center.
+        - id: LED3
+          name: Ring Modulation
+          description: Shows ring modulation amount.
+        - id: LED4
+          name: Noise / Grit
+          description: Shows noise or grit amount.
+        - id: LED5
+          name: Current Edit Page
+          description: Shows the current edit page at off, medium, or full brightness.
+
+host:
+  notes: >-
+    This branch intentionally removes Turing CV, pulse, and generated MIDI
+    output so the physical panel can focus on dual-oscillator tone controls.
+
+
+    Web MIDI: use the Gnarly Lab for Amp1/Amp2, PD1/PD2, Pitch1/Pitch2,
+    recipe bank, named sound presets, and CZ Import Lab handoff.
+
+
+    MIDI CC map: CC1 = oscillator 1 phase distortion; CC20 = oscillator 1
+    recipe slot; CC21 = oscillator 2 recipe slot; CC22 = ring modulation;
+    CC23 = recipe bank; CC24 = oscillator 2 interval/spread; CC25 = oscillator
+    2 phase distortion; CC26 = noise/grit; CC27 = oscillator 1 phase
+    distortion for eight-knob controllers.
+
+contact:
+  social:
+    github: https://github.com/soveda

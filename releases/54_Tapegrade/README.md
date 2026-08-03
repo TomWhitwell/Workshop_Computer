@@ -173,3 +173,8 @@ Heavy degradation with strong hiss, crackle, and unstable tape behaviour.
 * Pulse inputs can be clocked or triggered rhythmically
 * CV outputs operate independently from the audio path
 * Optimised for Workshop Computer hardware
+
+## Attribution
+
+Tapegrade uses the ComputerCard hardware framework by Chris Johnson. The
+framework's original notice is retained in `ComputerCard.h`.

@@ -1,11 +1,13 @@
 draft: true
 Name: Siren
-Description: Multi-algorithm drone oscillator. Inspired by the Forge TME Vhikk X.
+short-description: Multi-algorithm drone oscillator. Inspired by the Forge TME Vhikk X.
 Language: C++ (ComputerCard / Pico SDK)
 Creator: Moses Hoyt
 Version: 0.2
 Status: Functional but WIP
 License: MIT
+date-created: 2026-03-25
+date-updated: 2026-03-26
 
 tags:
   - drone
@@ -16,7 +18,7 @@ tags:
 
 demo-link: https://youtu.be/DORHEYpUqWU
 
-manual: |
+summary: |
   Siren is a drone source with 6 oscillator banks (SINE, CLST, DTON, ANLG, WSHP, WAVE).
   Use switch up for WARP/SPAN/MORPH and switch middle for SEED/SCAN/BASIS.
   Switch down (momentary) cycles banks with a smoothed crossfade.

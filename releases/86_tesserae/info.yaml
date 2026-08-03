@@ -1,11 +1,13 @@
 draft: true
 Name: Tesserae
-Description: "Tesserae — Variable-voice (2-8) arpeggiated chord generator with 5 patterns, 10 scales, tap tempo, CV/audio transpose inputs, and dual CV + audio pitch outputs. Inspired by Laurie Spiegel's Music Mouse and Patchwork."
+short-description: "Tesserae — Variable-voice (2-8) arpeggiated chord generator with 5 patterns, 10 scales, tap tempo, CV/audio transpose inputs, and dual CV + audio pitch outputs. Inspired by Laurie Spiegel's Music Mouse and Patchwork."
 Language: C++ (Pico SDK)
 Creator: Joep Vermaat
 Version: 1.0
 Status: released
 License: MIT
+date-created: 2026-05-08
+date-updated: 2026-05-08
 Repository: https://codeberg.org/johantv/Tesserae
 
 tags:
@@ -14,7 +16,7 @@ tags:
   - cv
   - utility
 
-manual: |
+summary: |
   Variable-voice arpeggiated harmonic generator with 5 patterns and 10 scales. X sets melody
   position, Y sets chord spacing, and Main changes by Z mode (pattern select, root note, or held
   scale/voice selection). Supports tap tempo, external clock/reset, and dual transpose inputs.

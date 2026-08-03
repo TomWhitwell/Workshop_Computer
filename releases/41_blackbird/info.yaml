@@ -1,15 +1,17 @@
 draft: false
 Name: Blackbird
-Description: "A scriptable, live-codable, USB-serial-to-CV device implementing monome crow's protocol"
+short-description: "A scriptable, live-codable, USB-serial-to-CV device implementing monome crow's protocol"
 Language: Pico SDK + Lua
 Creator: Dune Desormeaux
 Version: 1.1
 Status: Released
 License: GPLv3 or later
+date-created: 2025-11-10
+date-updated: 2026-01-19
 Editor: https://dessertplanet.github.io/web-druid/
 demo-link: https://youtu.be/V9HAspnpEWU
 
-manual: |
+summary: |
   Blackbird runs crow-compatible Lua scripts over USB serial and can also store scripts on card flash.
   Panel control behavior is script-defined: Lua code reads `bb.knob.*`, `bb.switch.position`, and inputs,
   then decides how outputs respond. LEDs always reflect positive output voltages on the six outputs.

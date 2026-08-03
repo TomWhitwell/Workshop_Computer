@@ -1,10 +1,12 @@
 draft: true
 Name: GradualProcess
-Description: Three generative composition processes (Glass, Reich, Tintinnabuli) in one card, chosen by Main's position at power-on
+short-description: Three generative composition processes (Glass, Reich, Tintinnabuli) in one card, chosen by Main's position at power-on
 Language: C++ (ComputerCard)
 Creator: James Saunders
 Version: 1.0.0
 Status: Released
+date-created: 2026-07-04
+date-updated: 2026-07-06
 
 tags:
   - generative
@@ -14,7 +16,7 @@ tags:
   - harmony
   - multi-mode
 
-manual: |
+summary: |
   A multi-process card: three independent generative composition processes live in one
   firmware image, and which one runs is chosen by the Main knob's position at power-on
   (or reset) — CCW third = Glass, middle third = Reich, CW third = Tintinnabuli. LEDs

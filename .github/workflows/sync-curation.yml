@@ -1,0 +1,48 @@
+name: Synchronize site curation
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: sync-site-curation
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  sync-curation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: tools/sitegen/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefix tools/sitegen
+
+      - name: Synchronize site curation
+        run: npm run sync-curation
+
+      - name: Commit synchronized curation
+        run: |
+          if git diff --quiet -- tools/sitegen/src/curation/flairs.yml; then
+            echo "Site curation is already synchronized"
+            exit 0
+          fi
+          git config user.name 'github-actions'
+          git config user.email 'github-actions@github.com'
+          git add tools/sitegen/src/curation/flairs.yml
+          git commit -m 'Synchronize site curation'
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

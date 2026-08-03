@@ -1,0 +1,113 @@
+name: Validate info.yaml
+
+on:
+  pull_request:
+    branches:
+      - main
+      - workshop-ops
+    paths:
+      - 'releases/**'
+      - 'tools/sitegen/src/curation/flairs.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: validate-info-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate changed card metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: tools/sitegen/package-lock.json
+
+      - name: Install validator dependencies
+        run: npm ci --prefix tools/sitegen
+
+      - name: Validate complete changed info.yaml files
+        id: validate
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mapfile -d '' files < <(
+            git diff --name-only --diff-filter=ACMR -z \
+              "$BASE_SHA...$HEAD_SHA" -- ':(glob)releases/**/info.yaml'
+          )
+
+          set +e
+          if (( ${#files[@]} )); then
+            printf 'Validating %s\n' "${files[@]}"
+            node tools/sitegen/src/validate/cli.js --json "${files[@]}" > current-validation.json
+            info_status=$?
+          else
+            printf '{"summary":{"errors":0,"warnings":0,"files":0,"failed":0},"results":[]}\n' > current-validation.json
+            info_status=0
+          fi
+
+          git diff --name-status -z "$BASE_SHA...$HEAD_SHA" | \
+            node tools/sitegen/src/validate/prRulesCli.js other-rules.json
+          rules_status=$?
+          set -e
+
+          node tools/sitegen/src/validate/githubReportCli.js \
+            current-validation.json other-rules.json validation-comment.md
+          cat validation-comment.md >> "$GITHUB_STEP_SUMMARY"
+          if (( info_status || rules_status )); then
+            echo 'status=1' >> "$GITHUB_OUTPUT"
+          else
+            echo 'status=0' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post validation report on PR
+        if: always() && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('validation-comment.md') != ''
+        uses: actions/github-script@v8
+        env:
+          REPORT_FILE: validation-comment.md
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- workshop-computer-info-yaml-validation -->';
+            const report = fs.readFileSync(process.env.REPORT_FILE, 'utf8');
+            const body = `${marker}\n${report}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const previous = comments.find(comment =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker)
+            );
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: previous.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Save validation report for fork PR
+        if: always() && github.event.pull_request.head.repo.full_name != github.repository && hashFiles('validation-comment.md') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report-${{ github.event.pull_request.number }}
+          path: validation-comment.md
+          retention-days: 1
+
+      - name: Fail on validation errors
+        if: always() && steps.validate.outputs.status != '0'
+        run: exit 1

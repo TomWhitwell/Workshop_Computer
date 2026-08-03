@@ -1,10 +1,12 @@
 draft: true
 Name: The Bells
-Description: Bellringing methods sequencer — 12 change-ringing methods with tempo and jitter, quantised to six scales
+short-description: Bellringing methods sequencer — 12 change-ringing methods with tempo and jitter, quantised to six scales
 Language: C++ (ComputerCard)
 Creator: James Saunders
 Version: 1.0.0
 Status: Released
+date-created: 2026-06-27
+date-updated: 2026-06-30
 
 tags:
   - sequencer
@@ -14,7 +16,7 @@ tags:
   - scale
   - generative
 
-manual: |
+summary: |
   A bellringing methods sequencer: plays 12 traditional English change-ringing methods
   (Plain Hunt Minimus through Plain Bob Triples, 4-7 bells), sending each row of the
   method as a v/oct pitch sequence quantised to one of six scales, with a synchronised

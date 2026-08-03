@@ -1,13 +1,15 @@
 draft: true
 Name: Stretchcore
-Description: A card for playing and manipulating samples with tempo control, timestretch with browser-based audio loading (infinitedigits.com/stretchcore/)
+short-description: A card for playing and manipulating samples with tempo control, timestretch with browser-based audio loading (infinitedigits.com/stretchcore/)
 Language: C++ (Pico SDK)
 Creator: Infinite Digits
 Version: 1.0
 Status: Ready%
 Editor: https://infinitedigits.co/stretchcore/
+date-created: 2026-06-02
+date-updated: 2026-07-02
 
-manual: |
+summary: |
   Mono sample-loop player with browser-loaded sample bank, tempo control, timestretch,
   and jump/selection gestures. Main knob targets playback position or sample index
   depending on switch gesture, X sets internal tempo when not externally clocked, and

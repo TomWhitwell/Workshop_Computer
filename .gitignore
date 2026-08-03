@@ -19,7 +19,15 @@ Icon?
 !.vscode/extensions.json
 !.vscode/settings.json
 site/
+/node_modules/
 tools/sitegen/node_modules/
 
 # Build harness output (per-card CMake build dirs)
 **/build/
+
+# Local-only upstream design references and experiments (not for the public repo)
+releases/97_alloy/warps/
+releases/97_alloy/stmlib/
+Demonstrations+HelloWorlds/PicoSDK/ComputerCard/examples/warps/
+Demonstrations+HelloWorlds/PicoSDK/ComputerCard/examples/fold_int/
+Demonstrations+HelloWorlds/PicoSDK/ComputerCard/examples/pico_sdk_import.cmake

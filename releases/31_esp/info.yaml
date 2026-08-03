@@ -1,10 +1,12 @@
 draft: true
 Name: ESP
-Description: A MS-20-style External Signal Processor that includes a preamp, bandpass filter, envelope follower, gate, and 1v/oct pitch outs.
+short-description: A MS-20-style External Signal Processor that includes a preamp, bandpass filter, envelope follower, gate, and 1v/oct pitch outs.
 Language: C++ (ComputerCard)
 Creator: Ben Regnier
 Version: 1.0
 Status: Released
+date-created: 2025-12-01
+date-updated: 2026-02-09
 
 tags:
   - external-signal-processor
@@ -13,7 +15,7 @@ tags:
   - gate-extractor
   - filter
 
-manual: |
+summary: |
   ESP processes incoming audio through a gain stage and bandpass section, then derives envelope, gate, trigger, and pitch control signals.
   Main controls preamp gain, X sets lower cutoff, and Y sets upper cutoff.
   In switch middle, pitch updates are held unless gate is high; otherwise pitch tracks continuously.

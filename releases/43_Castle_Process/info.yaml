@@ -1,143 +1,132 @@
-id: 43_Castle_Process
-title: Castle Process
+Name: Castle Process
 draft: false
-Description: Fort Processor-inspired harsh noise processor with chopped external audio and a bass pulse voice
+short-description: Fort Processor-inspired harsh noise processor with chopped
+  external audio and a bass pulse voice
+summary: Castle Process is a performance card built around chopped external
+  audio, crude internal squarewave energy, aggressive switching between sources,
+  and a separate bass pulse layer. It is designed as a playable
+  sound-destruction tool rather than a clean effect or faithful clone.
 Language: C++
 Creator: Adrian Vos
-release: 43 / 0.9.0
+Version: "1.0"
+Status: Beta - stable in single-developer testing
 License: MIT
-date: 2026-06-26
-
+date-created: 2026-06-25
+date-updated: 2026-06-25
 panel:
-  controls:
-    main:
-      label: |-
-        Drive /
-        Voicing
-      description: Controls overall drive and voicing
-      source: info.yaml
-    x:
-      label: |-
-        Chopping /
-        Motion
-      description: Controls chopping behaviour and motion
-      source: info.yaml
-    y:
-      label: |-
-        Tuning /
-        Interaction
-      description: Controls tuning and internal interaction
-      source: info.yaml
-    z:
-      label: Mode
-      description: Up is fuller and more squarewave-forward, middle is the tighter chopped default, and down is a momentary bend/chaos gesture while held.
-      source: info.yaml
   inputs:
-    audio_l:
-      label: |-
+    - id: AudioIn1
+      name: |-
         Audio
         In 1
-      description: Main external audio input to be broken up, gated, and forced into the processor rather than passed through cleanly
-      source: info.yaml
-    cv_1:
-      label: |-
+      description: Main external audio input to be broken up, gated, and forced into
+        the processor rather than passed through cleanly
+      type: audio
+    - id: CVIn1
+      name: |-
         CV
         1
       description: Internal control modulation input
-      source: info.yaml
-    cv_2:
-      label: |-
+      type: cv
+    - id: CVIn2
+      name: |-
         CV
         2
       description: Internal control modulation input
-      source: info.yaml
-    pulse_1:
-      label: |-
+      type: cv
+    - id: PulseIn1
+      name: |-
         Bass
         Trigger
-      description: External bass trigger input that takes over bass timing and suppresses the internal bass trigger behaviour
-      source: info.yaml
-    pulse_2:
-      label: |-
+      description: External bass trigger input that takes over bass timing and
+        suppresses the internal bass trigger behaviour
+      type: pulse
+    - id: PulseIn2
+      name: |-
         Pulse
         2
       description: Reserved for further interaction
-      source: info.yaml
+      type: pulse
   outputs:
-    audio_out_l:
-      label: |-
+    - id: AudioOut1
+      name: |-
         Chopped
         Output
       description: Primary chopped external-input output
-      source: info.yaml
-    audio_out_r:
-      label: |-
+      type: audio
+    - id: AudioOut2
+      name: |-
         Bass +
         Texture
       description: Bass-focused output with supporting noise texture
-      source: info.yaml
-    pulse_out_1:
-      label: |-
+      type: audio
+    - id: PulseOut1
+      name: |-
         Bass
         Activity
       description: Bass activity pulse output
-      source: info.yaml
-    pulse_out_2:
-      label: |-
+      type: pulse
+    - id: PulseOut2
+      name: |-
         Chop
         Pulse
       description: Internal chop pulse output
-      source: info.yaml
-
-switch_modes:
-  up: Alternate latched mode with a little more body and more squarewave colour.
-  middle: Default tighter and more direct chopped mode.
-  down: Momentary bend / chaos gesture while held for live performance accents.
-
-leds:
-  - "LED 0 follows input presence."
-  - "LED 1 follows drive."
-  - "LED 2 follows chopping."
-  - "LED 3 follows tuning."
-  - "LED 4 reflects output level."
-  - "LED 5 shows switch state, with switch down driving it fully bright."
-
-source:
-  - releases/43_Castle_Process/CastleProcess.cpp
-  - releases/43_Castle_Process/README.md
-  - releases/43_Castle_Process/instructions.txt
-  - releases/43_Castle_Process/CMakeLists.txt
-slug: castle-process
-url: /workshopsystem/program-cards/castle-process/
+      type: pulse
 tags:
   - harsh-noise
   - performance
   - chopped-audio
   - bass
   - lo-fi
-tag_ids:
-  - harsh-noise
-  - performance
-  - chopped-audio
-  - bass
-  - lo-fi
-tag_labels:
-  - Harsh Noise
-  - Performance
-  - Chopped Audio
-  - Bass
-  - Lo-Fi
-source_file: releases/43_Castle_Process/info.yaml
-metadata:
-  creator: Adrian Vos
-  language: C++
-  version: 1.0
-  status: Release Candidate
-documentation:
-  intro: >
-    Castle Process is a performance card built around chopped external audio,
-    crude internal squarewave energy, aggressive switching between sources,
-    and a separate bass pulse layer.
-
-    It is designed as a playable sound-destruction tool rather than a clean
-    effect or faithful clone.
+controls:
+  switch:
+    up:
+      name: Z mild
+      description: Alternate latched mode with a little more body and more squarewave
+        colour.
+    middle:
+      name: Z moderate
+      description: Default tighter and more direct chopped mode.
+    down:
+      name: Z Chaos
+      description: Momentary bend / chaos gesture while held for live performance accents.
+  knobs:
+    - main:
+        name: |-
+          Drive /
+          Voicing
+        description: Controls overall drive and voicing
+      x:
+        name: |-
+          Chopping /
+          Motion
+        description: Controls chopping behaviour and motion
+      y:
+        name: |-
+          Tuning /
+          Interaction
+        description: Controls tuning and internal interaction
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: LED 1
+          description: LED 0 follows input presence.
+        - id: LED1
+          name: LED 2
+          description: LED 1 follows drive.
+        - id: LED2
+          name: LED 3
+          description: LED 2 follows chopping.
+        - id: LED3
+          name: LED 4
+          description: LED 3 follows tuning.
+        - id: LED4
+          name: LED 5
+          description: LED 4 reflects output level.
+        - id: LED5
+          name: LED 6
+          description: LED 5 shows switch state, with switch down driving it fully bright.
+contact:
+  social:
+    github: https://github.com/soveda

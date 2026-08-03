@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 306 178" role="img" aria-labelledby="title">
+  <title id="title">Workshop Computer program card</title>
+  <path fill="#27743a" d="M16 0h132l11 12h11l11-12h20l28 22h64c7 0 13 6 13 13v130c0 7-6 13-13 13H40c-22 0-40-18-40-40V16C0 7 7 0 16 0Z"/>
+  <circle cx="39" cy="138" r="27" fill="#fdfdfd"/>
+  <g fill="#d7ae3d">
+    <rect x="232" y="32" width="68" height="12" rx="2"/>
+    <rect x="232" y="50" width="59" height="12" rx="2"/>
+    <rect x="232" y="68" width="59" height="12" rx="2"/>
+    <rect x="232" y="86" width="68" height="12" rx="2"/>
+    <rect x="232" y="104" width="68" height="12" rx="2"/>
+    <rect x="232" y="122" width="59" height="12" rx="2"/>
+    <rect x="232" y="140" width="59" height="12" rx="2"/>
+    <rect x="232" y="158" width="59" height="12" rx="2"/>
+  </g>
+</svg>

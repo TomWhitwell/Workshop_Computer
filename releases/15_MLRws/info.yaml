@@ -1,11 +1,13 @@
 draft: false
 Name: MLRws
-Description: "A remix of monome's classic MLR sample cutting platform (grid controller encouraged but optional). Diagrams here are for Gridless mode."
+short-description: "A remix of monome's classic MLR sample cutting platform (grid controller encouraged but optional). Diagrams here are for Gridless mode."
 Language: Pico SDK
 Creator: Dune Desormeaux
 Version: 1.1.5
 Status: Released
 License: GPL-3.0
+date-created: 2026-05-26
+date-updated: 2026-07-02
 Editor: https://dessertplanet.github.io/MLRws-web/
 demo-link: https://youtu.be/fhHJykM1GWk
 
@@ -16,7 +18,7 @@ tags:
   - usb-host
   - grid-controller
 
-manual: |
+summary: |
   MLRws is a six-track sample-cutting instrument with grid and gridless workflows. It supports on-card
   sample storage, recording/playback, and USB grid interaction. In gridless mode, Main/X/Y plus switch
   manage track selection, level/speed/start-position/radiate behavior, while pulse/CV I/O provides

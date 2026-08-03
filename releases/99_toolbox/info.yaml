@@ -1,11 +1,13 @@
 draft: true
 Name: Toolbox
-Description: Mixer, VCA, noise, S&H, clock generator, etc.
+short-description: Mixer, VCA, noise, S&H, clock generator, etc.
 Language: C++ (ComputerCard)
 Creator: divmod
 Version: 0.1.1
 Status: Released
 Repository: https://github.com/divmod-audio/toolbox
+date-created: 2025-10-01
+date-updated: 2026-04-17
 
 tags:
   - utility
@@ -14,7 +16,7 @@ tags:
   - clock
   - noise
 
-manual: |
+summary: |
   Utility-focused card inspired by the 0-Coast utility section. Includes a mixer/VCA with
   attenuverter, secondary VCA, sample-and-hold, clock generation with probability, and selectable
   noise types.

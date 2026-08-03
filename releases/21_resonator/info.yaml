@@ -1,4 +1,4 @@
-Description: Karplus-Strong sympathetic resonator for droning and plucked textures, with chord & tanpura tunings, arpeggiator, pitch tracking and web-configurable CV/pulse outputs.
+short-description: Karplus-Strong sympathetic resonator for droning and plucked textures, with chord & tanpura tunings, arpeggiator, pitch tracking and web-configurable CV/pulse outputs.
 draft: true
 Name: Resonator
 Language: C++ (ComputerCard)
@@ -6,6 +6,8 @@ Creator: Johan Eklund
 Version: 1.2
 Status: Released
 Editor: https://johaneklund.io/resonator
+date-created: 2026-04-10
+date-updated: 2026-07-09
 
 tags:
   - effect
@@ -14,7 +16,7 @@ tags:
   - drone
   - plucked
 
-manual: |
+summary: |
   Four-string sympathetic resonator inspired by Rings/tanpura techniques.
   Feed audio to excite resonant strings, or trigger plucks with PulseIn1.
   X sets base pitch (or fine tune with CV1 connected), Y sets damping, Main sets wet/dry mix.

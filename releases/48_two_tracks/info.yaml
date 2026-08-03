@@ -1,0 +1,98 @@
+draft: true
+Name: Two Tracks
+short-description: "Two Tracks — Dual-read-head phase looper. Record a mono loop to flash (IMA-ADPCM) and play it through two independent heads with separately controllable positions and loop lengths for evolving phase patterns and interference textures."
+Language: C++ (Pico SDK)
+Creator: Joep Vermaat
+Version: 1.2
+Status: Released
+License: MIT
+date-created: 2026-07-11
+date-updated: 2026-07-27
+Repository: https://codeberg.org/johantv/two-tracks
+
+tags:
+  - looper
+  - phase
+  - delay
+  - dual-head
+
+summary: |
+  A dual-read-head audio looper inspired by Steve Reich's phase music.
+  Record a loop and play it through two independent outputs with separately
+  controllable read positions and loop lengths, creating evolving phase
+  patterns and interference effects.
+
+  Recording uses a hands-free three-state machine: PLAY -> ARMED -> RECORD -> PLAY.
+  Z Down arms recording; a 3-second countdown with audible ticks begins; recording
+  starts automatically when the countdown expires; Z Down again stops recording.
+
+  Two play modes (Z switch selects after recording):
+    Offset mode (Z Middle): each knob sets position offset within the loop.
+    Phasing mode (Z Up): right loop is shorter than left, creating natural periodic
+    phasing. Knob Y adds a speed offset on the right head.
+
+  Audio is stored in flash as IMA-ADPCM (4 bits per sample). Capacity depends on
+  the card: about 70 seconds on a 2 MB card, 11 minutes on a 16 MB card.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio In
+      description: Mono audio input — recorded to the flash loop. Both read heads play back this single loop.
+    - id: AudioIn2
+      name: Audio In 2
+      description: Unused (recording is mono).
+    - id: CVIn1
+      name: CV 1
+      description: In Offset mode modulates left offset; in Phasing mode modulates right loop length.
+    - id: CVIn2
+      name: CV 2
+      description: In Offset mode modulates right offset; in Phasing mode modulates right speed.
+    - id: PulseIn1
+      name: Pulse 1
+      description: Resets the left read head to the loop start.
+    - id: PulseIn2
+      name: Pulse 2
+      description: Resets the right read head to the loop start.
+  outputs:
+    - id: AudioOut1
+      name: Left Out
+      description: Left read head output.
+    - id: AudioOut2
+      name: Right Out
+      description: Right read head output.
+    - id: CVOut1
+      name: CV 1
+      description: Left head phase position (play), buffer fill (record), 0 (armed).
+    - id: CVOut2
+      name: CV 2
+      description: Right head phase position (play), loop length (record), 0 (armed).
+    - id: PulseOut1
+      name: Pulse 1
+      description: Unused.
+    - id: PulseOut2
+      name: Pulse 2
+      description: Unused.
+
+controls:
+  switch:
+    up:
+      name: Phasing mode
+      description: Right loop shorter than left, creating natural phasing. Y knob adds speed offset.
+    middle:
+      name: Offset mode
+      description: Each knob sets position offset within the loop.
+    down:
+      name: Record arm / stop
+      description: In PLAY arms recording (3s countdown); in RECORD stops and returns to PLAY.
+  knobs:
+    - when: { z: any }
+      main:
+        name: Loop window / Right loop length
+        description: In Offset mode controls the loop window length (tiny fragment -> full loop). In Phasing mode controls how much shorter the right loop is (short -> full).
+      x:
+        name: Left position offset / Right window start
+        description: In Offset mode sets left head position offset. In Phasing mode sets where the shortened right window starts within the loop.
+      y:
+        name: Right position offset / Right speed
+        description: In Offset mode sets right head position offset. In Phasing mode sets right playback speed (0.9x - 1.1x, centre = 1.0x).

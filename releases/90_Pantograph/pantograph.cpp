@@ -20,13 +20,11 @@ public:
       if (switchChanged) {
         // Record
         buffer_.Reset();
+        decim_.Reset();
       }
 
-      tick_++;
-
-      if (tick_ == 192) {
+      if (decim_.Tick()) {
         buffer_.Push({static_cast<int16_t>(KnobToCV(knobX)), static_cast<int16_t>(KnobToCV(knobY))});
-        tick_ = 0;
       }
 
       uint32_t count = (buffer_.Length() * 6) / buffer_.Capacity();
@@ -52,7 +50,7 @@ public:
         phasor_.Trigger();
       }
 
-      bool wrapped = phasor_.Advance(KnobToSpeed(KnobVal(Knob::Main)) / 192, !pulseIn);
+      bool wrapped = phasor_.Advance(KnobToSpeed(KnobVal(Knob::Main)) / kFramePeriod, !pulseIn);
       bool finished = phasor_.Finished();
       bool isEdge = finished && !lastFinished_;
       lastFinished_ = finished;
@@ -93,6 +91,11 @@ private:
     CVOut1(out1);
     CVOut2(out2);
 
+    // Playback gates are meaningless outside Middle; without this they
+    // would freeze at whatever state they had when the switch left Play.
+    PulseOut1(false);
+    PulseOut2(false);
+
     lastOut1_ = out1;
     lastOut2_ = out2;
   }
@@ -115,7 +118,7 @@ private:
   Phasor phasor_;
   TriggerOut trigger_;
   Schmitt schmitt_;
-  uint32_t tick_ = 0;
+  Decimator decim_{kFramePeriod};
   int lastOut1_ = 0;
   int lastOut2_ = 0;
   bool lastFinished_ = false;

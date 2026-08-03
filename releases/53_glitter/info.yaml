@@ -1,11 +1,13 @@
 draft: true
 Name: Glitter
-Description: Granular Looping Sampler
+short-description: Granular Looping Sampler
 Language: C++ (Pico SDK 2.1.1, UF2 release)
 Creator: Steve Jones
 Version: 0.1.2-beta
 Status: Beta
 License: MIT
+date-created: 2025-04-04
+date-updated: 2025-05-02
 Repository: https://github.com/sdrjones/mtws/tree/main/53_glitter
 
 tags:
@@ -17,7 +19,7 @@ tags:
 
 demo-link: https://youtu.be/JW8Z_I-ub2A
 
-manual: |
+summary: |
   Glitter continuously plays a 2-second stereo loop while up to six grains read random snippets from it.
   Switch up/down records into the loop (up for continuous record, down for punch-in style). Main blends
   plain loop vs granulated output, X controls repitch behavior in play and overdub balance in record, and

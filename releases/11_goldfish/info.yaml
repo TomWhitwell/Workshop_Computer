@@ -1,11 +1,13 @@
 draft: false
 Name: Goldfish
-Description: Weird delay/looper for audio and CV
+short-description: Weird delay/looper for audio and CV
 Language: Pico SDK
 Creator: Dune Desormeaux
 Version: 2.0
 Status: Released
 demo-link: https://youtu.be/pdzMC6afrHY
+date-created: 2025-01-25
+date-updated: 2026-07-06
 
 tags:
   - delay
@@ -13,7 +15,7 @@ tags:
   - cv
   - glitch
 
-manual: |
+summary: |
   Goldfish is a multi-mode stereo delay/looper with synchronized pulse/CV outputs. The switch selects
   record, delay, and play behaviors. Audio is streamed to flash (IMA-ADPCM), so loops/delays run from
   ~55s on a 2MB card up to ~9min on 16MB. Pulse inputs provide clock/reset (and gated recording); the

@@ -1,11 +1,13 @@
 draft: true
 Name: Voices of SID
-Description: "Dual MOS 6581 SID emulation (reSID engine) with CV/gate control, stereo output, waveform selection, and randomize"
+short-description: "Dual MOS 6581 SID emulation (reSID engine) with CV/gate control, stereo output, waveform selection, and randomize"
 Language: C++ (Pico SDK)
 Creator: Joep Vermaat
 Version: 1.1
 Status: Released
 License: MIT
+date-created: 2026-06-07
+date-updated: 2026-06-08
 Repository: https://codeberg.org/johantv/voices-of-sid
 
 tags:
@@ -15,7 +17,7 @@ tags:
   - dual-voice
   - cv-gate
 
-manual: |
+summary: |
   Two emulated MOS 6581 SID chips run in parallel on separate audio outputs.
   Switch middle is Play mode (CV/gate, Main = decay/release, X = resonance, Y = pulse width).
   Switch up is Sound Edit (X/Y select waveforms for each voice; gates open for drone/tuning).

@@ -1,11 +1,13 @@
 draft: true
 Name: Hot Fuzz
-Description: A stereo fuzz/distortion + resonant wah effects processor with manual and auto-wah modes, built on fixed-point DSP.
+short-description: A stereo fuzz/distortion + resonant wah effects processor with manual and auto-wah modes, built on fixed-point DSP.
 Language: C++ (ComputerCard)
 Creator: Joep Vermaat
 Version: 1.0
 Status: Released
 License: MIT
+date-created: 2026-07-04
+date-updated: 2026-07-04
 Repository: https://codeberg.org/johantv/hot-fuzz
 
 tags:
@@ -16,7 +18,7 @@ tags:
   - effects-processor
   - envelope-follower
 
-manual: |
+summary: |
   Hot Fuzz is a stereo fuzz/wah effects card. It combines a clipper (soft/hard/asymmetric/foldback)
   with a resonant state-variable filter for the wah sweep, and supports both manual
   and auto-wah modes.

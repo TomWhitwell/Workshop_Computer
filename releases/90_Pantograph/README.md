@@ -1,10 +1,10 @@
 # Pantograph
 
-Trace and record CV — record knob movements, loop them at bipolar speed. For the
-Music Thing Workshop System Computer.
+Trace and record CV — record knob movements, loop them at bipolar speed. A program
+card for the [Music Thing Workshop System Computer](https://www.musicthing.co.uk/workshopsystem/).
 
 Pantograph lets you trace a performance on the X and Y knobs (e.g. oscillator pitch
-+ filter cutoff), record it, then loop it back out the two CV outputs at variable
+and filter cutoff), record it, then loop it back out the two CV outputs at variable
 speeds.
 
 Switch **UP** auditions live; hold **DOWN** to record (monitored, so you hear it as

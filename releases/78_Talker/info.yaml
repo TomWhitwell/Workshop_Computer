@@ -1,11 +1,13 @@
 draft: true
 Name: Talker
-Description: Proof of concept speech synthesizer, based on TalkiePCM, inspired by 1970s LPC speech synths.
+short-description: Proof of concept speech synthesizer, based on TalkiePCM, inspired by 1970s LPC speech synths.
 Language: C++ (ComputerCard)
 Creator: Chris Johnson
 Version: 0.1
 Status: Proof of concept
 License: GPL-3.0
+date-created: 2024-11-30
+date-updated: 2025-02-04
 
 tags:
   - speech
@@ -13,7 +15,7 @@ tags:
   - lpc
   - audio-processing
 
-manual: |
+summary: |
   Early proof-of-concept LPC speech card that babbles randomized words. Z switch sets continuous,
   off, or single-word behavior. Main + CVIn1 set pitch (with X as attenuverter), while Y + CVIn2
   set speaking speed. AudioOut1 is speech, AudioOut2 exposes the LPC exciter components.

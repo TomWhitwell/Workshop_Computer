@@ -1,11 +1,13 @@
 draft: true
 Name: Utility Pair
-Description: 25 small utilities, which can be combined in pairs
+short-description: 25 small utilities, which can be combined in pairs
 Language: C++ (ComputerCard)
 Creator: Chris Johnson
 Version: 1.0
 Status: Released
 License: MIT
+date-created: 2025-01-21
+date-updated: 2025-05-29
 Repository: https://github.com/chrisgjohnson/Utility-Pair
 
 tags:
@@ -14,7 +16,7 @@ tags:
   - modulation
   - effects
 
-manual: |
+summary: |
   Utility Pair splits the card into independent left and right utility engines.
   Each side owns one knob/control and one column of input/output jacks, letting two utilities run at once.
   In the 2025 multi-pack firmware, hold Z down at power/reset to enter utility selection mode, then choose left and right utilities and start.
