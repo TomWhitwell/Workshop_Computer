@@ -3,9 +3,12 @@ export function parseInstagram(url) {
   const u = String(url || '').trim();
   if (!u || !/instagram\.com\//i.test(u)) return null;
 
-  // /reel|p|tv/SHORTCODE[/embed[/captioned]]
-  let m = u.match(/instagram\.com\/(?:[^/?#]+\/)?(reel|p|tv)\/([A-Za-z0-9_-]{5,})/i);
-  if (m) return { kind: m[1].toLowerCase(), shortcode: m[2] };
+  // /reel|reels|p|tv/SHORTCODE[/embed[/captioned]]
+  const m = u.match(/instagram\.com\/(?:[^/?#]+\/)?(reels?|p|tv)\/([A-Za-z0-9_-]{5,})/i);
+  if (m) {
+    const kind = m[1].toLowerCase() === 'reels' ? 'reel' : m[1].toLowerCase();
+    return { kind, shortcode: m[2] };
+  }
 
   return null;
 }

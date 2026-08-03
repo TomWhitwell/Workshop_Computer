@@ -82,6 +82,10 @@ test('parseInstagram handles reel, post, and tv URLs', () => {
     { kind: 'reel', shortcode: 'DMKkotPsItQ' },
   );
   assert.deepEqual(
+    parseInstagram('https://www.instagram.com/reels/DZJV1E0Pc8l'),
+    { kind: 'reel', shortcode: 'DZJV1E0Pc8l' },
+  );
+  assert.deepEqual(
     parseInstagram('https://instagram.com/p/AbCdEfGhIjK/'),
     { kind: 'p', shortcode: 'AbCdEfGhIjK' },
   );

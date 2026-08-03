@@ -150,7 +150,7 @@ export function renderAuthorPage({ documentKind = 'new', suggestions = {} } = {}
     </form>
   </dialog>
 
-  <script type="module" src="./author-client.js?v=49"></script>
+  <script type="module" src="./author-client.js?v=50"></script>
 </body>
 </html>`;
   return applyContentSecurityPolicy(html, { preview: true });
