@@ -126,8 +126,9 @@ export async function readCustomPanelManifest(absReleaseDir) {
     const id = typeof raw.id === 'string' ? raw.id.trim() : '';
     const name = typeof raw.name === 'string' ? raw.name.trim() : '';
     const image = safeRelativePath(raw.image);
+    const contentOmitted = !Object.hasOwn(raw, 'content');
     const contentRaw = typeof raw.content === 'string' ? raw.content.trim() : '';
-    const isAuto = !contentRaw || contentRaw.toLowerCase() === 'auto';
+    const isAuto = contentOmitted || contentRaw.toLowerCase() === 'auto';
     const content = isAuto ? 'auto' : safeRelativePath(raw.content);
     let valid = true;
     if (!PANEL_ID.test(id)) { diagnostics.push(diagnostic('error', `${at}.id`, 'id must be unique lowercase kebab-case.')); valid = false; }

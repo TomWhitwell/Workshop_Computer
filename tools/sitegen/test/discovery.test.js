@@ -186,7 +186,7 @@ panels:
   assert.ok(references.some(diagnostic => diagnostic.path === 'controls.knobs[0].when.panel'));
 });
 
-test('custom panel discovery accepts content: auto for generated presentation tabs', async t => {
+test('custom panel discovery accepts multiple generated and hybrid presentation tabs', async t => {
   const release = await fixture(t);
   const output = path.join(release, '..', 'output');
   await write(path.join(release, 'panels', 'manifest.yaml'), `
@@ -197,6 +197,9 @@ panels:
     name: Main panel
     image: main.svg
     content: auto
+  - id: secondary
+    name: Secondary panel
+    image: secondary.svg
   - id: alternate
     name: Alternate
     image: alternate.svg
@@ -204,6 +207,7 @@ panels:
 `);
   const svg = '<svg viewBox="0 0 560 1785"><rect width="560" height="1785"/></svg>';
   await write(path.join(release, 'panels', 'main.svg'), svg);
+  await write(path.join(release, 'panels', 'secondary.svg'), svg);
   await write(path.join(release, 'panels', 'alternate.svg'), svg);
   await write(path.join(release, 'panels', 'alternate.md'), '# Alternate');
 
@@ -211,6 +215,23 @@ panels:
   assert.equal(result.present, true);
   assert.equal(result.panels.items[0].kind, 'generated');
   assert.equal(result.panels.items[0].content_html, null);
-  assert.equal(result.panels.items[1].kind, 'custom');
+  assert.equal(result.panels.items[1].kind, 'generated');
+  assert.equal(result.panels.items[1].content_html, null);
+  assert.equal(result.panels.items[2].kind, 'custom');
   assert.deepEqual(result.diagnostics, []);
+});
+
+test('custom panel discovery rejects blank and non-string content values', async t => {
+  const release = await fixture(t);
+  await write(path.join(release, 'panels', 'manifest.yaml'), `
+version: 1
+default: blank
+panels:
+  - { id: blank, name: Blank, image: blank.svg, content: "" }
+  - { id: numeric, name: Numeric, image: numeric.svg, content: 42 }
+`);
+
+  const result = await discoverCustomPanels(release, path.join(release, '..', 'output'));
+  assert.deepEqual(result.panels.items, []);
+  assert.equal(result.diagnostics.filter(diagnostic => diagnostic.path.endsWith('.content')).length, 2);
 });
