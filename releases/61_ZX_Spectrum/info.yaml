@@ -3,29 +3,38 @@ Name: ZX
 short-description: A cycle-accurate ZX Spectrum 128K that turns the modular jacks/knobs/switch into a patchable control surface — plus OneBit (1-bit beeper synth) as an alternate boot mode.
 Language: C++ (Pico SDK / ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: 1.0.0
+Version: "1.2.1"
 Status: Released
 License: MIT (card source); vendored components keep their own licences
-Repository: https://github.com/uglifruit/WorkshopZX
 Editor: https://uglifruit.github.io/WorkshopZX/interface.html
+web-entry: interface.html
+repository: https://github.com/uglifruit/WorkshopZX
+discussion: https://discord.com/channels/1210238368898879569/1530739124703723691
 date-created: 2026-07-26
+date-updated: 2026-08-04
+
+contact:
+  email: andyuglifruit@hotmail.com
+  website: https://github.com/uglifruit/WorkshopZX
 
 tags:
   - emulator
   - zx-spectrum
   - z80
   - ay-3-8912
+  - pt3
+  - 1bit
   - chiptune
 
-summary: |
-  Two instruments in one firmware, chosen at power-on.
 
-  ZX SPECTRUM (normal boot): a cycle-accurate ZX Spectrum 128K (instruction-stepped
-  Z80, ULA, banked memory, AY-3-8912 with the measured real-chip volume curve),
-  running across both RP2040 cores. Load .z80/.sna snapshots and .ay/.pt3 chip-music
+summary: |
+  A ZX Spectrum in Eurorack.  The instrument you never needed.
+
+  ZX SPECTRUM (normal boot): a ZX Spectrum 128K. Load .z80/.sna snapshots and .ay/.pt3 chip-music
   over a browser Web UI (interface.html, WebMIDI/SysEx) or baked in. Each jack/switch
   is mappable to a Spectrum key, Kempston joystick direction, or a Z80-readable port,
-  so a Spectrum program can read patched CV/gates as data. Outputs: beeper (Pulse
+  so a Spectrum program can read patched CV/gates as data. While an .ay/.pt3 plays,
+  jacks instead mangle the AY live. Outputs: beeper (Pulse
   Out 1), border voltage (CV Out 1), AY music (Audio Out 2), a reverb of the
   beeper+AY mix (Audio Out 1, wet/dry on Knob X), and a memory-probe CV — any RAM
   byte out as 0-5V (CV Out 2). Knob Main sets emulation speed (centre deadzone =
@@ -36,54 +45,63 @@ summary: |
   ONEBIT (hold the momentary switch DOWN at power-on): a 1-bit "beeper synth" with
   seven selectable engines (ports of classic ZX-Spectrum beeper routines) and drums.
   Pitch CV, gate, duophony, and a cycleable drum kit. Its jack map is different from
-  ZX mode (pitch/gate/drum, not keyboard/CV-data) — see the panel overlay.
-
-  Panel overlays for both modes are in panels/. Full credits in README.md.
+  ZX mode (pitch/gate/drum, not keyboard/CV-data).
 
 panel:
   inputs:
     - id: CVIn1
       name: Mapped input (ZX) / Voice 1 pitch (OneBit)
-      description: ZX — mappable to a key/Kempston/port (comparator; read at port 0x6F). OneBit — Voice 1 pitch, 1V/oct.
+      type: cv
+      description: ZX — mappable to a key/Kempston/port (comparator; read at port 0x2B / 43). OneBit — Voice 1 pitch, 1V/oct.
     - id: CVIn2
       name: Mapped input (ZX) / Voice 2 pitch (OneBit)
-      description: ZX — mappable input (port 0x7F). OneBit — Voice 2 pitch, 1V/oct (Switch Middle).
+      type: cv
+      description: ZX — mappable input (port 0x2F / 47). OneBit — Voice 2 pitch, 1V/oct (Switch Middle).
     - id: AudioIn1
       name: Mapped input (ZX) / Duty & drum-pick (OneBit)
-      description: ZX — mappable input (port 0x8F). OneBit — duty mod; latches drum select at each Pulse In 2 edge.
+      type: audio
+      description: ZX — mappable input (port 0x33 / 51). OneBit — duty mod; latches drum select at each Pulse In 2 edge.
     - id: AudioIn2
       name: Mapped input (ZX) / Duty mod (OneBit)
-      description: ZX — mappable input (port 0x9F). OneBit — duty / timbre mod.
+      type: audio
+      description: ZX — mappable input (port 0x63 / 99). OneBit — duty / timbre mod.
     - id: PulseIn1
       name: Mapped gate (ZX) / Note gate (OneBit)
-      description: ZX — mappable gate (port 0xAF). OneBit — note gate; held sustains.
+      type: pulse
+      description: ZX — mappable gate (port 0x23 / 35). OneBit — note gate; held sustains.
     - id: PulseIn2
       name: Mapped gate (ZX) / Drum trigger (OneBit)
-      description: ZX — mappable gate (port 0xBF). OneBit — drum trigger (drum chosen by Audio In 1).
+      type: pulse
+      description: ZX — mappable gate (port 0x27 / 39). OneBit — drum trigger (drum chosen by Audio In 1).
   outputs:
     - id: PulseOut1
       name: Beeper (ZX) / 1-bit tone (OneBit)
+      type: pulse
       description: ZX — ULA beeper (port 0xFE bit 4). OneBit — the 1-bit bitbanged tone.
     - id: PulseOut2
       name: MIC/tape (ZX) / 1-bit drum (OneBit)
+      type: pulse
       description: ZX — ULA MIC/tape line. OneBit — the 1-bit drum lane.
     - id: CVOut1
       name: Border voltage (ZX) / Tone density (OneBit)
+      type: cv
       description: ZX — border colour (0-7) as a stepped CV. OneBit — PCM-density monitor of the tone.
     - id: CVOut2
       name: Memory probe (ZX) / Drum density (OneBit)
+      type: cv
       description: ZX — value of a Web-UI-selected RAM address (0-255) as 0-5V. OneBit — drum density.
     - id: AudioOut1
       name: Reverb (ZX) / Audio out (OneBit)
+      type: audio
       description: ZX — reverb of the beeper+AY mix, wet/dry on Knob X. OneBit — tone density audio.
     - id: AudioOut2
       name: AY sound (ZX) / Drum audio (OneBit)
+      type: audio
       description: ZX — AY-3-8912 output (128K/AY/PT3 music). OneBit — drum density audio.
 
 controls:
   knobs:
-    - when: { z: any }
-      main:
+    - main:
         name: Speed (ZX) / Engine (OneBit)
         description: ZX — emulation speed, centre deadzone = exactly 100%. OneBit — engine select x note-decay.
       x:
@@ -92,21 +110,22 @@ controls:
       y:
         name: Port 0x5F (ZX) / Interval (OneBit)
         description: ZX — readable by the Z80 at port 0x5F (IN 95). OneBit — voice-2 interval / per-engine timbre.
-  switches:
-    - id: Z
-      up:
-        name: Pause (ZX) / Duophonic (OneBit)
-        description: ZX — pause the emulator (use the Web UI here). OneBit — duophonic voicing (Knob Y interval).
-      middle:
-        name: Run (ZX) / Duophonic-CV2 (OneBit)
-        description: ZX — run. OneBit — voice 2 = CV In 2; Knob Y = timbre.
-      down:
-        name: Keypress (ZX) / Cycle kit (OneBit)
-        description: ZX — mappable momentary keypress. OneBit — momentary tap cycles the drum kit. HOLD at power-on to boot OneBit.
+  switch:
+    up:
+      name: Pause (ZX) / Duophonic (OneBit)
+      description: ZX — pause the emulator (use the Web UI here). OneBit — duophonic voicing (Knob Y interval).
+    middle:
+      name: Run (ZX) / Duophonic-CV2 (OneBit)
+      description: ZX — run. OneBit — voice 2 = CV In 2; Knob Y = timbre.
+    down:
+      name: Keypress (ZX) / Cycle kit (OneBit)
+      description: ZX — mappable momentary keypress. HOLD at power-on to boot OneBit instead of the Spectrum.
+    tap:
+      name: Keypress (ZX) / Cycle kit (OneBit)
+      description: ZX — momentary mappable keypress. OneBit — a brief tap cycles the drum kit.
 
   leds:
-    - when: { z: any }
-      display: list
+    - display: list
       items:
         - id: LED0
           name: Mode / status
@@ -114,9 +133,19 @@ controls:
 
 host:
   notes: |
-    v1.0 released. Snapshots and music decode in the browser and stream to the card,
-    so any size fits with no large buffer on the RP2040. Hold the momentary switch
-    DOWN at power-on to boot OneBit instead of the Spectrum.
+    v1.2.1 — fixes the mapping read-back in the Web UI: longer SysEx replies from
+    the card could arrive split across several WebMIDI events, and the UI dropped
+    every fragment after the first, so reading the mapping back showed only a
+    couple of inputs assigned and the rest blank.
+
+    v1.2 — live AY mangling while .ay/.pt3 music plays: per-channel square duty
+    (PWM the real chip can't do), envelope and noise period bend, and gate-mute,
+    each with its own depth control. Also moves the Z80-readable input ports to a
+    decode-safe set (0x23/0x27/0x2B/0x2F/0x33/0x63/0x67) that the ULA, Kempston
+    and 128K paging latch can never claim. Snapshots and music decode in the
+    browser and stream to the card, so any size fits with no large buffer on the
+    RP2040. Hold the momentary switch DOWN at power-on to boot OneBit instead of
+    the Spectrum.
 
     CREDITS — ComputerCard by Chris Johnson (Music Thing Modular). Z80 core:
     superzazu/z80 (Nicolas Allemand, MIT). Sinclair ROMs (c) Amstrad, used by

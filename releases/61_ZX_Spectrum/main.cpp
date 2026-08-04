@@ -220,12 +220,14 @@ public:
 		// centre ~128). Pulses/switch are 0/255. Used when mapped to a Z80 port.
 		auto to255 = [](int32_t v){ v = (v + 2048) >> 4; return uint8_t(v < 0 ? 0 : v > 255 ? 255 : v); };
 		uint8_t srcValue[SRC_COUNT];
+		// Unpatched analog jacks read a floating voltage; force them to the neutral
+		// centre (128) so an unconnected input drives no AY mangle / a stable port.
 		srcValue[SRC_PULSE1] = PulseIn1() ? 255 : 0;
 		srcValue[SRC_PULSE2] = PulseIn2() ? 255 : 0;
-		srcValue[SRC_CV1]    = to255(CVIn1());
-		srcValue[SRC_CV2]    = to255(CVIn2());
-		srcValue[SRC_AUDIO1] = to255(AudioIn1());
-		srcValue[SRC_AUDIO2] = to255(AudioIn2());
+		srcValue[SRC_CV1]    = Connected(Input::CV1)    ? to255(CVIn1())    : 128;
+		srcValue[SRC_CV2]    = Connected(Input::CV2)    ? to255(CVIn2())    : 128;
+		srcValue[SRC_AUDIO1] = Connected(Input::Audio1) ? to255(AudioIn1()) : 128;
+		srcValue[SRC_AUDIO2] = Connected(Input::Audio2) ? to255(AudioIn2()) : 128;
 		srcValue[SRC_SWITCH] = (sw == Switch::Down) ? 255 : 0;
 		gMapper.Apply(srcActive, srcValue, gSpectrum);
 
