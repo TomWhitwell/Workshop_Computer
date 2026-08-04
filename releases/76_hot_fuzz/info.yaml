@@ -1,4 +1,3 @@
-draft: true
 Name: Hot Fuzz
 short-description: A stereo fuzz/distortion + resonant wah effects processor with manual and auto-wah modes, built on fixed-point DSP.
 Language: C++ (ComputerCard)
