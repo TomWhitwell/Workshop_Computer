@@ -27,109 +27,200 @@ tags:
   - chiptune
 
 
+# The summary renders through an inline Markdown pass, which flattens blank-line
+# paragraph breaks — hence the explicit <br> tags. `br` is on the sanitiser's
+# allowed inline-tag list, so they survive to the page.
 summary: |
-  A ZX Spectrum in Eurorack.  The instrument you never needed.
+  A ZX Spectrum in Eurorack.  The instrument you never needed.<br><br>
+  ZX SPECTRUM (normal boot): a ZX Spectrum 128K in your Workshop Computer. Load .z80/.sna snapshots and .ay/.pt3 chip-music
+  over a browser Web UI (interface.html, WebMIDI/SysEx).<br>Each jack/switch
+  is mappable to a Spectrum key, joystick direction, or a Z80-readable port,
+  so a Spectrum program can read patched CV/gates as data.<br>Type into the Spectrum from a laptop via
+  the Web UI. The baked-in demo's source is a worked example of a
+  Spectrum program interfacing with the CV world. <br>
 
-  ZX SPECTRUM (normal boot): a ZX Spectrum 128K. Load .z80/.sna snapshots and .ay/.pt3 chip-music
-  over a browser Web UI (interface.html, WebMIDI/SysEx) or baked in. Each jack/switch
-  is mappable to a Spectrum key, Kempston joystick direction, or a Z80-readable port,
-  so a Spectrum program can read patched CV/gates as data. While an .ay/.pt3 plays,
-  jacks instead mangle the AY live. Outputs: beeper (Pulse
-  Out 1), border voltage (CV Out 1), AY music (Audio Out 2), a reverb of the
-  beeper+AY mix (Audio Out 1, wet/dry on Knob X), and a memory-probe CV — any RAM
-  byte out as 0-5V (CV Out 2). Knob Main sets emulation speed (centre deadzone =
-  100%); Knob Y is readable at port 0x5F. Type into the Spectrum from a laptop via
-  the Web UI. The baked demo's source (BakedASM.asm) is a worked example of a
-  Spectrum program interfacing with the CV world.
+  <br>Alternatively CV mangle .ay/.pt3 file playback.<br><br>
 
   ONEBIT (hold the momentary switch DOWN at power-on): a 1-bit "beeper synth" with
   seven selectable engines (ports of classic ZX-Spectrum beeper routines) and drums.
-  Pitch CV, gate, duophony, and a cycleable drum kit. Its jack map is different from
-  ZX mode (pitch/gate/drum, not keyboard/CV-data).
+  Pitch CV, gate, duophony, and a cycleable 'drum kit'.
 
+# Two boot modes, two panels (see panels/manifest.yaml). ZX Spectrum is the normal
+# boot and the default view, so its labels are the UNCONDITIONED base rows below.
+# OneBit is the alternate boot: it only needs `when: { panel: onebit }` rows for
+# the sockets and knobs whose meaning actually changes, which then override the
+# base in that view. Same shape as 45_bends, which conditions only its knobs.
 panel:
   inputs:
     - id: CVIn1
-      name: Mapped input (ZX) / Voice 1 pitch (OneBit)
+      name: Mapped input
       type: cv
-      description: ZX — mappable to a key/Kempston/port (comparator; read at port 0x2B / 43). OneBit — Voice 1 pitch, 1V/oct.
+      description: Mappable to a Spectrum key, a joystick direction, or a Z80-readable port (comparator; read at port 0x2B / 43).
     - id: CVIn2
-      name: Mapped input (ZX) / Voice 2 pitch (OneBit)
+      name: Mapped input
       type: cv
-      description: ZX — mappable input (port 0x2F / 47). OneBit — Voice 2 pitch, 1V/oct (Switch Middle).
+      description: Mappable input; also the memory-probe source. Read at port 0x2F / 47.
     - id: AudioIn1
-      name: Mapped input (ZX) / Duty & drum-pick (OneBit)
+      name: Mapped input
       type: audio
-      description: ZX — mappable input (port 0x33 / 51). OneBit — duty mod; latches drum select at each Pulse In 2 edge.
+      description: Mappable input, audio-rate (comparator). Read at port 0x33 / 51.
     - id: AudioIn2
-      name: Mapped input (ZX) / Duty mod (OneBit)
+      name: Mapped input
       type: audio
-      description: ZX — mappable input (port 0x63 / 99). OneBit — duty / timbre mod.
+      description: Mappable input, audio-rate (comparator). Read at port 0x63 / 99.
     - id: PulseIn1
-      name: Mapped gate (ZX) / Note gate (OneBit)
+      name: Mapped gate
       type: pulse
-      description: ZX — mappable gate (port 0x23 / 35). OneBit — note gate; held sustains.
+      description: Mappable gate — a key, a joystick direction, or a port. Read at port 0x23 / 35.
     - id: PulseIn2
-      name: Mapped gate (ZX) / Drum trigger (OneBit)
+      name: Mapped gate
       type: pulse
-      description: ZX — mappable gate (port 0x27 / 39). OneBit — drum trigger (drum chosen by Audio In 1).
+      description: Mappable gate. Read at port 0x27 / 39.
+
+    # OneBit overrides — pitch/gate/drum instead of keyboard and CV-as-data.
+    - id: CVIn1
+      when: { panel: onebit }
+      name: Voice 1 pitch
+      type: cv
+      description: Voice 1 pitch, 1V/oct (offset by Knob X).
+    - id: CVIn2
+      when: { panel: onebit }
+      name: Voice 2 pitch
+      type: cv
+      description: Voice 2 pitch, 1V/oct, when the switch is in the Middle position.
+    - id: AudioIn1
+      when: { panel: onebit }
+      name: Duty & drum pick
+      type: audio
+      description: Duty modulation; also latches the drum selection at each Pulse In 2 edge.
+    - id: AudioIn2
+      when: { panel: onebit }
+      name: Duty mod
+      type: audio
+      description: Duty / timbre modulation.
+    - id: PulseIn1
+      when: { panel: onebit }
+      name: Note gate
+      type: pulse
+      description: Note gate — held gates sustain the note.
+    - id: PulseIn2
+      when: { panel: onebit }
+      name: Drum trigger
+      type: pulse
+      description: Drum trigger; the drum played is chosen by Audio In 1.
+
   outputs:
     - id: PulseOut1
-      name: Beeper (ZX) / 1-bit tone (OneBit)
+      name: Beeper
       type: pulse
-      description: ZX — ULA beeper (port 0xFE bit 4). OneBit — the 1-bit bitbanged tone.
+      description: The ULA beeper (port 0xFE bit 4) — the Spectrum's 1-bit speaker line.
     - id: PulseOut2
-      name: MIC/tape (ZX) / 1-bit drum (OneBit)
+      name: MIC / tape
       type: pulse
-      description: ZX — ULA MIC/tape line. OneBit — the 1-bit drum lane.
+      description: The ULA MIC/tape output line.
     - id: CVOut1
-      name: Border voltage (ZX) / Tone density (OneBit)
+      name: Border voltage
       type: cv
-      description: ZX — border colour (0-7) as a stepped CV. OneBit — PCM-density monitor of the tone.
+      description: The border colour (0-7) as a stepped CV — the classic loading-stripe signal as modulation.
     - id: CVOut2
-      name: Memory probe (ZX) / Drum density (OneBit)
+      name: Memory probe
       type: cv
-      description: ZX — value of a Web-UI-selected RAM address (0-255) as 0-5V. OneBit — drum density.
+      description: Any RAM address, picked in the Web UI, as 0-5V (byte value 0-255).
     - id: AudioOut1
-      name: Reverb (ZX) / Audio out (OneBit)
+      name: Reverb
       type: audio
-      description: ZX — reverb of the beeper+AY mix, wet/dry on Knob X. OneBit — tone density audio.
+      description: Reverb of the beeper + AY mix; wet/dry on Knob X.
     - id: AudioOut2
-      name: AY sound (ZX) / Drum audio (OneBit)
+      name: AY sound
       type: audio
-      description: ZX — AY-3-8912 output (128K/AY/PT3 music). OneBit — drum density audio.
+      description: The AY-3-8912 output — 128K game audio and .ay/.pt3 music.
+
+    # OneBit overrides — the two 1-bit lanes and their density monitors.
+    - id: PulseOut1
+      when: { panel: onebit }
+      name: 1-bit tone
+      type: pulse
+      description: The bitbanged 1-bit tone, straight from the beeper engine.
+    - id: PulseOut2
+      when: { panel: onebit }
+      name: 1-bit drum
+      type: pulse
+      description: The 1-bit drum lane.
+    - id: CVOut1
+      when: { panel: onebit }
+      name: Tone density
+      type: cv
+      description: PCM-density monitor of the tone lane.
+    - id: CVOut2
+      when: { panel: onebit }
+      name: Drum density
+      type: cv
+      description: PCM-density monitor of the drum lane.
+    - id: AudioOut1
+      when: { panel: onebit }
+      name: Tone audio
+      type: audio
+      description: Tone-density audio output.
+    - id: AudioOut2
+      when: { panel: onebit }
+      name: Drum audio
+      type: audio
+      description: Drum-density audio output.
 
 controls:
   knobs:
     - main:
-        name: Speed (ZX) / Engine (OneBit)
-        description: ZX — emulation speed, centre deadzone = exactly 100%. OneBit — engine select x note-decay.
+        name: Speed
+        description: Emulation speed, with a centre deadzone at exactly 100%.
       x:
-        name: Reverb (ZX) / Pitch (OneBit)
-        description: ZX — reverb wet/dry. OneBit — root pitch (+ CV In 1).
+        name: Reverb
+        description: Reverb wet/dry on Audio Out 1.
       y:
-        name: Port 0x5F (ZX) / Interval (OneBit)
-        description: ZX — readable by the Z80 at port 0x5F (IN 95). OneBit — voice-2 interval / per-engine timbre.
+        name: Port 0x5F
+        description: Readable by the running Z80 program at port 0x5F (IN 95) — a knob the Spectrum itself can see.
+
+    - when: { panel: onebit }
+      main:
+        name: Engine
+        description: Engine select x note decay — seven beeper engines.
+      x:
+        name: Pitch
+        description: Root pitch, summed with CV In 1.
+      y:
+        name: Interval
+        description: Voice-2 interval, or per-engine timbre depending on the engine.
+
+  # The switch can't be split per panel — the schema allows only name/description
+  # here, no `when`. So these carry the ZX (default boot) meaning, with a trailing
+  # asterisk marking each position that does something else in OneBit; the last
+  # line of `down` explains what the asterisk means. The switch is also what
+  # selects the mode at boot, so it belongs to both views regardless.
   switch:
     up:
-      name: Pause (ZX) / Duophonic (OneBit)
-      description: ZX — pause the emulator (use the Web UI here). OneBit — duophonic voicing (Knob Y interval).
+      name: Pause *
+      description: Pause the emulator — the position for uploading snapshots and editing the mapping from the Web UI. (* OneBit — duophonic voicing, interval on Knob Y.)
     middle:
-      name: Run (ZX) / Duophonic-CV2 (OneBit)
-      description: ZX — run. OneBit — voice 2 = CV In 2; Knob Y = timbre.
+      name: Run *
+      description: Run the machine. (* OneBit — voice 2 follows CV In 2, with Knob Y as timbre.)
     down:
-      name: Keypress (ZX) / Cycle kit (OneBit)
-      description: ZX — mappable momentary keypress. HOLD at power-on to boot OneBit instead of the Spectrum.
+      name: Keypress *
+      description: A mappable momentary keypress. HOLD at power-on to boot OneBit instead of the Spectrum. (* OneBit — cycles the drum kit. Positions marked * do something different in OneBit, the alternate boot mode.)
     tap:
-      name: Keypress (ZX) / Cycle kit (OneBit)
-      description: ZX — momentary mappable keypress. OneBit — a brief tap cycles the drum kit.
+      name: Momentary *
+      description: A brief tap — a mappable momentary keypress. (* OneBit — cycles the drum kit.)
 
   leds:
     - display: list
       items:
         - id: LED0
           name: Mode / status
-          description: ZX — left column = mode (128K/48K/AY), right = heartbeat/correct-speed/beeper. OneBit — left = engine number in binary, right = note-decay/kit/drum activity.
+          description: Left column shows the machine mode (128K / 48K / AY); right column shows heartbeat, correct-speed lock, and beeper activity.
+    - display: list
+      when: { panel: onebit }
+      items:
+        - id: LED0
+          name: Engine / activity
+          description: Left column shows the engine number in binary; right column shows note decay, kit selection and drum activity.
 
 host:
   notes: |
