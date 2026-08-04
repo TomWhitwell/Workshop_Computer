@@ -233,4 +233,4 @@ V/oct lookup table (`voct_vals`) from [Utility Pair](https://github.com/chrisgjo
 
 Waveform morphing concept inspired by [Mutable Instruments Braids](https://mutable-instruments.net/modules/braids/) (Émilie Gillet).
 
-Licensed under [Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+Licensed under the [MIT License](https://opensource.org/licenses/MIT). The `voct_vals` lookup table retains its original licence from Utility Pair (MIT).
