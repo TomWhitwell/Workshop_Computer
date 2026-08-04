@@ -99,7 +99,11 @@ void Spectrum::Reset()
 	xc.earIn = false;
 	xc.kempston = 0;
 	xc.knobY = 0;
-	for (int i = 0; i < 8; i++) xc.portVal[i] = 0;
+	// Idle at 0xFF, not 0x00: an unmapped source's port must look like the
+	// floating bus (which idles high), or a program polling it waits forever for
+	// a bit that never goes high. 0x00 is the Kempston convention and is wrong
+	// here. Mapper::Apply overwrites this for sources actually mapped to a port.
+	for (int i = 0; i < 8; i++) xc.portVal[i] = 0xFF;
 	xc.probeAddr = 0x4000;   // default probe = start of screen memory (16384)
 	xc.probeVal = 0;
 	xc.sampleCount = 0;
@@ -108,6 +112,12 @@ void Spectrum::Reset()
 	xc.mode = MODE_128K; // default; load path sets 48K/AY
 	xc.tsPerFrame  = kTStatesPerFrame;      // 128K timing by default
 	xc.tsPerSample = kCpuHz / 48000;
+	// AY live-mangling controls default to "no effect" (duty 128 = 50% square,
+	// no period bend, nothing muted) so playback is untouched until CV is patched.
+	xc.ayDuty[0] = xc.ayDuty[1] = xc.ayDuty[2] = 128;
+	xc.ayEnvMod = 0;
+	xc.ayNoiseMod = 0;
+	xc.ayMuteMask = 0;
 	frameTStates = 0;
 	intPending = false;
 }
@@ -158,6 +168,9 @@ uint8_t Spectrum::PortRead(uint16_t port)
 	if ((port & 0x00FF) == 0x5F)
 		return xc.knobY;
 	// Per-source input ports (TGT_PORT): a CV/Audio/etc. value at its fixed port.
+	// These low bytes have bit0/bit1/bit5 set (see kSourcePort), so they can never
+	// collide with the ULA, Kempston or 128K paging decodes. Sources not mapped to
+	// a port read 0xFF here, matching the floating bus a real machine would show.
 	{
 		uint8_t low = port & 0x00FF;
 		for (int s = 0; s < SRC_COUNT; s++)

@@ -245,6 +245,8 @@ personal and educational use only. *Protect and Survive* material is Crown Copyr
 redistribution. If you build a derivative work for release, replace these recordings
 with material you have the rights to use.
 
-Licensed under
-[Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
-— except where third-party copyright applies as noted above.
+The firmware and conversion tooling are licensed under the
+[MIT License](https://opensource.org/licenses/MIT) — except where third-party copyright
+applies as noted above. The baked-in Station recordings are **not** covered by that licence
+and are not redistributable; replace them with material you have the rights to use if you
+release a derivative work.

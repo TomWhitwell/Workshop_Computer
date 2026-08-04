@@ -91,8 +91,20 @@ void Machine::Run(uint32_t tstates)
 
 	// Advance the AY by this batch's worth of T-states and publish the current
 	// mixed sample for core 0 to send to Audio Out 2. A batch is ~one 48kHz
-	// sample of emulated time, so this produces AY audio at ~48kHz.
-	spec_->xc.aySample = spec_->ay.Render(tstates);
+	// sample of emulated time, so this produces AY audio at ~48kHz. In AY/PT3
+	// mode, snapshot the live mangling controls (written by core 0 from CV/gate)
+	// into a local AYMod and apply them; other modes leave the AY untouched.
+	AYMod aymod;
+	if (spec_->xc.mode == MODE_AY)
+	{
+		aymod.duty[0]  = spec_->xc.ayDuty[0];
+		aymod.duty[1]  = spec_->xc.ayDuty[1];
+		aymod.duty[2]  = spec_->xc.ayDuty[2];
+		aymod.envMod   = spec_->xc.ayEnvMod;
+		aymod.noiseMod = spec_->xc.ayNoiseMod;
+		aymod.muteMask = spec_->xc.ayMuteMask;
+	}
+	spec_->xc.aySample = spec_->ay.Render(tstates, aymod);
 
 	// Sample the CV2 memory-probe byte here (core 1 owns the memory), for core 0
 	// to output on CV2. Reading via MemRead honours the current paging.

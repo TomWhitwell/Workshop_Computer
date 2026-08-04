@@ -46,24 +46,35 @@ uint32_t Decode7bit(const uint8_t *src, uint32_t srcLen, uint8_t *dst, uint32_t 
 }
 
 // --- USB send ---------------------------------------------------------------
+// The TX FIFO is CFG_TUD_MIDI_TX_BUFSIZE (64 bytes at full speed, which is what
+// the RP2040 is), and tud_midi_stream_write expands each 3 SysEx bytes into a
+// 4-byte USB-MIDI event packet — so it holds only ~48 bytes of message. Anything
+// longer must be drained mid-write by tud_task(). Call it on EVERY iteration,
+// not just when a write returns 0: a partial write leaves a full FIFO, and
+// looping straight back into another write without draining just spins.
 static void MidiWriteBlocking(const uint8_t *data, uint32_t size)
 {
 	uint32_t sent = 0;
 	while (sent < size)
 	{
-		uint32_t n = tud_midi_stream_write(0, data + sent, size - sent);
-		sent += n;
-		if (!n) tud_task();
+		sent += tud_midi_stream_write(0, data + sent, size - sent);
+		tud_task();
 	}
 }
 
+// Emit F0 <manuf> <payload> F7 as ONE stream write. Writing the header, body and
+// footer as three separate calls let the FIFO flush between them, so the host saw
+// the message split across several WebMIDI events — and a continuation fragment
+// carries no 0xF0 for the browser to recognise.
 void WebUI::SendSysEx(const uint8_t *data, uint32_t size)
 {
-	uint8_t header[] = { 0xF0, ZX_MANUFACTURER_ID };
-	uint8_t footer[] = { 0xF7 };
-	MidiWriteBlocking(header, 2);
-	MidiWriteBlocking(data, size);
-	MidiWriteBlocking(footer, 1);
+	uint8_t frame[2 + kTxMsgMax + 1];
+	if (size > kTxMsgMax) return;            // caller bug; never silently truncate
+	frame[0] = 0xF0;
+	frame[1] = ZX_MANUFACTURER_ID;
+	memcpy(frame + 2, data, size);
+	frame[2 + size] = 0xF7;
+	MidiWriteBlocking(frame, 2 + size + 1);
 }
 
 // --- Init / task ------------------------------------------------------------
@@ -184,7 +195,9 @@ void WebUI::OnSysEx(const uint8_t *data, uint32_t size)
 	{
 	case MSG_HELLO:
 	{
-		uint8_t info[] = { MSG_INFO, 0, 3, 0 }; // version 0.3.0
+		// Keep in sync with Version: in info.yaml — the Web UI shows this in its
+		// connected banner, so a stale value here misreports the running firmware.
+		uint8_t info[] = { MSG_INFO, 1, 2, 1 }; // version 1.2.1
 		SendSysEx(info, sizeof(info));
 		break;
 	}
@@ -226,9 +239,9 @@ void WebUI::OnSysEx(const uint8_t *data, uint32_t size)
 
 	case MSG_MAP_GET:
 	{
-		// Report the mapping table: for each of SRC_COUNT sources, 3 bytes:
-		// kind, arg, threshold-high-nibble packed (kept simple/7-bit safe).
-		uint8_t rep[2 + SRC_COUNT * 3];
+		// Report the mapping table: for each of SRC_COUNT sources, 4 bytes:
+		// kind, arg, threshold-high-nibble, depth7 (all 7-bit safe for SysEx).
+		uint8_t rep[2 + SRC_COUNT * 4];
 		uint32_t p = 0;
 		rep[p++] = MSG_MAP_REPORT;
 		rep[p++] = SRC_COUNT;
@@ -238,6 +251,7 @@ void WebUI::OnSysEx(const uint8_t *data, uint32_t size)
 			rep[p++] = mp.kind & 0x7F;
 			rep[p++] = mp.arg & 0x7F;
 			rep[p++] = uint8_t((mp.threshold >> 4) & 0x7F); // coarse threshold
+			rep[p++] = uint8_t((mp.depth >> 1) & 0x7F);     // AY mangle depth (7-bit)
 		}
 		SendSysEx(rep, p);
 		break;
@@ -245,17 +259,25 @@ void WebUI::OnSysEx(const uint8_t *data, uint32_t size)
 
 	case MSG_MAP_SET:
 	{
-		// payload: id, count, then count*(kind,arg,threshold7) triples.
+		// payload: id, count, then count*(kind,arg,threshold7[,depth7]) records.
+		// The depth byte is optional (older UIs send 3-byte records) — detect the
+		// record width from the payload length so the last record isn't misread.
 		if (size < 2) break;
 		uint8_t count = data[1];
 		uint32_t p = 2;
-		for (int s = 0; s < count && s < SRC_COUNT && p + 2 < size; s++)
+		uint32_t recBytes = count ? (size - 2) / count : 0;
+		bool hasDepth = (recBytes >= 4);
+		// Need a whole record left: 3 bytes, or 4 when a depth byte is present.
+		uint32_t need = hasDepth ? 4 : 3;
+		for (int s = 0; s < count && s < SRC_COUNT && p + need <= size; s++)
 		{
 			Mapping mp;
 			mp.kind      = (TargetKind)data[p++];
 			mp.arg       = data[p++];
 			mp.threshold = int16_t(data[p++]) << 4;
 			mp.invert    = false;
+			// 4th byte (when present) = depth (0..127 -> 0..254); else full.
+			mp.depth     = hasDepth ? uint8_t(data[p++] << 1) : 255;
 			mapper_->SetMapping((Source)s, mp);
 		}
 		uint8_t st[] = { MSG_STATUS, 2 }; // 2 = mapping updated

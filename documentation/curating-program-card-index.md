@@ -18,6 +18,7 @@ Every release with an `info.yaml` is automatically included in the complete inde
 From the repository root, synchronize the card list:
 
 ```sh
+npm install --prefix tools/sitegen
 npm run sync-curation
 ```
 

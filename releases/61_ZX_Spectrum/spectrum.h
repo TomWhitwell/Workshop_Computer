@@ -88,6 +88,17 @@ extern const Key kKeyTable[]; // indexed by an enum shared with the Web UI
 // AY-3-8912: 16 registers, 3 square channels + noise + envelope.
 // Rendered to a single mono sample on demand (core 0 pulls the latest value).
 // ---------------------------------------------------------------------------
+// Live AY mangling parameters (AY/PT3 mode). Filled by core 0 from CV/gate inputs
+// and passed into AY::Render each batch. The default-constructed values are all
+// "no effect", so playback is bit-identical when nothing is patched.
+struct AYMod
+{
+	uint8_t  duty[3]  = { 128, 128, 128 }; // per-channel duty threshold (128 = 50%)
+	int16_t  envMod   = 0;                 // envelope period exponent: x2^(envMod/64)
+	int16_t  noiseMod = 0;                 // signed offset on the noise period
+	uint8_t  muteMask = 0;                 // bit c set = force-mute channel c
+};
+
 struct AY
 {
 	uint8_t reg[16];
@@ -96,7 +107,7 @@ struct AY
 	// Generator state. The AY is clocked at CPU/2 (~1.7734MHz on the 128K); the
 	// tone/noise/envelope dividers count in AY cycles. We accumulate emulated
 	// T-states and step the generators in AY-clock units.
-	uint32_t toneCounter[3];   // per-channel tone divider counters
+	uint32_t toneCounter[3];   // per-channel tone phase (AY cycles into full period)
 	uint8_t  toneOut[3];       // per-channel square state (0/1)
 	uint32_t noiseCounter;     // noise divider counter
 	uint8_t  noiseOut;         // current noise bit
@@ -111,8 +122,9 @@ struct AY
 	void Write(uint8_t r, uint8_t v);
 	uint8_t Read(uint8_t r) const { return reg[r & 15]; }
 	// Advance the generators by `tstates` of emulated CPU time and return the
-	// current mixed output as a signed 12-bit sample for AudioOut.
-	int16_t Render(uint32_t tstates);
+	// current mixed output as a signed 12-bit sample for AudioOut. `mod` applies
+	// live CV/gate mangling (AY mode); the default AYMod{} leaves output unchanged.
+	int16_t Render(uint32_t tstates, const AYMod &mod = AYMod{});
 };
 
 // ---------------------------------------------------------------------------
@@ -167,6 +179,13 @@ struct CrossCore
 
 	// --- machine mode, written by core 1 (load path), read by core 0 (LEDs) ---
 	volatile uint8_t  mode;        // 0 = 128K, 1 = 48K, 2 = AY file (see MachineMode)
+
+	// --- AY live mangling (AY/PT3 mode): written by core 0 from CV/gate inputs,
+	// read by core 1 in AY::Render. "No effect" values leave playback identical. ---
+	volatile uint8_t  ayDuty[3];   // per-channel duty threshold 0-255 (128 = 50% square)
+	volatile int16_t  ayEnvMod;    // envelope period exponent, x2^(n/64) (0 = none)
+	volatile int16_t  ayNoiseMod;  // signed offset on the noise period (0 = none)
+	volatile uint8_t  ayMuteMask;  // bit c set = force-mute channel c (0 = none)
 };
 
 enum MachineMode : uint8_t { MODE_128K = 0, MODE_48K = 1, MODE_AY = 2 };

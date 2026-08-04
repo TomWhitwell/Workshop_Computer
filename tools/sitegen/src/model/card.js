@@ -9,7 +9,7 @@
 // Field extraction is deliberately case/space/underscore-insensitive to match
 // the importer, so `Name`, `name`, and `NAME` all resolve to the same value.
 
-import { parseYoutubeId } from '../utils/youtube.js';
+import { classifyDemoVideo } from '../utils/video.js';
 
 // API jack id -> physical panel slot key (ported from the importer constants).
 const API_INPUT_KEYS = {
@@ -377,7 +377,7 @@ function normalizeControls(info, warnings, position, panelId = '') {
   return controls;
 }
 
-function normalizeSwitchModes(info, warnings) {
+function normalizeSwitchModes(info, warnings, { inferFromRows = true } = {}) {
   const modes = { up: '', middle: '', down: '', tap: '' };
 
   const controlsSwitch = field(field(info, 'controls'), 'switch');
@@ -394,6 +394,8 @@ function normalizeSwitchModes(info, warnings) {
     }
     return modes;
   }
+
+  if (!inferFromRows) return modes;
 
   const rows = listValue(field(field(info, 'controls'), 'knobs'), warnings, 'controls.knobs');
   for (const mode of Z_MODES) {
@@ -574,14 +576,14 @@ export function buildCanonicalCardModel({
   if (created !== 'n/a' && updated !== 'n/a' && updated < created) updated = created;
 
   const demoLink = optionalText(field(info, 'demo-link'), warnings, 'demo-link');
-  const videoId = demoLink ? parseYoutubeId(demoLink) : null;
+  const demoVideo = demoLink ? classifyDemoVideo(demoLink) : null;
   const editor = (web && web.editorUrl) || (normalizedInfo && normalizedInfo.editor) || '';
   const downloadUrl = latestUf2?.url || sourceUrl;
   const uf2Metadata = field(info, 'uf2');
   const hasUf2Metadata = uf2Metadata != null
     && (!Array.isArray(uf2Metadata) || uf2Metadata.length > 0);
 
-  const switchModes = normalizeSwitchModes(info, warnings);
+  const switchModes = normalizeSwitchModes(info, warnings, { inferFromRows: !customPanels });
   const panelViews = Z_MODES
     .filter(position => hasPositionMetadata(info, position))
     .map(position => resolvePanelView(info, warnings, position, switchModes));
@@ -689,8 +691,17 @@ export function buildCanonicalCardModel({
   if (inlineReadme) documentation.intro = inlineReadme;
   if (Object.keys(documentation).length) card.documentation = documentation;
 
-  if (demoLink && videoId) {
-    card.videos = [{ title: 'Demo video', url: demoLink, id: videoId }];
+  if (demoVideo) {
+    const video = {
+      title: 'Demo video',
+      url: demoVideo.url,
+      id: demoVideo.id,
+      provider: demoVideo.provider,
+      aspect: demoVideo.aspect,
+    };
+    if (demoVideo.kind) video.kind = demoVideo.kind;
+    if (demoVideo.start != null && demoVideo.start > 0) video.start = demoVideo.start;
+    card.videos = [video];
   }
 
   // Presentation extras the site build needs but the importer did not carry.

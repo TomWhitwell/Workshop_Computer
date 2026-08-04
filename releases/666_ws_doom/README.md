@@ -11,14 +11,16 @@ Built by [incomputable.io](https://incomputable.io).
 
 ## Flashing
 
-Flash `ws-doom-full.uf2` (engine + WAD in one file) to a blank
-**2 MB** program card: hold the card's boot button while powering up, then
-copy the file onto the `RPI-RP2` drive.
+The easiest way is the *Program* button on the
+[card's page](https://computer.musicthing.co.uk/programs/666-ws-doom/):
+connect USB-C → remove the program card → press the boot/reset button on
+the Computer Module → insert a blank program card (2 MB is ok) → press
+*Program*. It flashes straight from the browser (Chrome).
 
-> **macOS note:** Finder sometimes truncates large UF2 copies (the card
-> then boots to LEDs but no game). Copy from Terminal instead:
-> `cp ws-doom-full.uf2 /Volumes/RPI-RP2/` — or use
-> `picotool load -f -v ws-doom-full.uf2`.
+The same page has the `.uf2` download (engine + WAD in one file) for
+flashing by drag-and-drop onto the `RPI-RP2` drive or with picotool.
+Heads-up if you drag-and-drop on macOS: Finder sometimes truncates large
+UF2 copies (LEDs but no game) — the browser flasher avoids that entirely.
 
 ## Panel
 

@@ -102,6 +102,15 @@ test('custom panels preserve order, select their default, and suppress generated
   assert.equal(card.panel_views.items[0].panel.controls.main.label, 'Shared');
   assert.equal(card.panel_views.items[1].panel.controls.main.label, 'Alternate main');
   assert.ok(!card.panel_views.items.some(item => item.id === 'up'));
+  assert.deepEqual(card.switch_modes, { up: '', middle: '', down: '', tap: '' });
+  assert.deepEqual(card.panel_views.items[0].switch_modes, card.switch_modes);
+
+  const explicitSwitch = build({
+    Name: 'Panel Test',
+    controls: { switch: { up: 'Freeze', middle: 'Run', down: 'Reset' } },
+  }, { customPanels });
+  assert.equal(explicitSwitch.switch_modes.up, 'Freeze');
+  assert.equal(explicitSwitch.panel_views.items[0].switch_modes.down, 'Reset');
 
   const invalidOverride = build({ Name: 'Panel Test', controls: { switch: { up: 'Up' } } }, {
     customPanels: { source: 'custom', default: '', items: [] },

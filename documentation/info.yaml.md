@@ -121,7 +121,7 @@ uf2:
 
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
-| `demo-link` | no | string (URL) | Optional YouTube URL (`watch`, `youtu.be`, `/shorts/`, `/embed/`). Rendered as a demo-video thumbnail on the detail page that plays inline when clicked. README YouTube links also get inline embeds. |
+| `demo-link` | no | string (URL) | Optional demo video URL: YouTube (`watch`, `youtu.be`, `/shorts/`, `/embed/`) or Instagram (`/reel/`, `/reels/`, `/p/`, `/tv/`). Rendered as a demo-video thumbnail on the detail page that plays inline when clicked. YouTube time offsets (`t=` / `start=`, including `1331s` / `1h2m3s`) are preserved so playback starts at that point. Matching YouTube and Instagram links in README.md also get inline embeds (Instagram embeds use a portrait frame). |
 | `audio-sample` | no | string or list | Demo audio. Accepts a single value or a list. Each value may be: a **repo-relative file** (e.g. `samples/demo.wav`, resolved to a raw URL and rendered with an `<audio>` player); a **SoundCloud** track/set URL (embedded as a player, derived from the URL — no API key); a **Bandcamp** *EmbeddedPlayer* URL (the iframe `src` from Bandcamp's Share → Embed dialog); or any other URL (shown as a link). You may also paste a whole embed `<iframe>` snippet (we extract the player `src` + height), but you must single-quote it in YAML. List items may also be `{ url, title }` objects (`title` shows above the player). |
 ```yaml
 # single file
@@ -223,10 +223,11 @@ panels:
 
 - `id` is a stable, unique lowercase kebab-case identifier used by `when.panel` and direct panel links.
 - `name` is arbitrary display text and may be changed without changing the ID.
-- `image` and `content` are safe paths relative to `panels/`; absolute paths, traversal, and symbolic links are rejected.
+- `image` is a safe path relative to `panels/`; absolute paths, traversal, and symbolic links are rejected.
+- `content` is a safe relative Markdown path, or `auto` (or omitted).
 - `default` must name a valid panel ID. Manifest order is display order.
 - Every image must be a self-contained SVG with `viewBox="0 0 560 1785"`. Generated/downloaded SVGs use the documentation-default intrinsic viewport of `width="280"` and `height="892.5"`. Scripts, `foreignObject`, event handlers, and external resources are rejected.
-- Every presentation requires companion Markdown. It is rendered beside the image instead of the generated controls/I/O/LED reference, and provides the accessible textual explanation of text embedded in the image.
+- When companion Markdown is supplied for `content`, it is rendered beside the image. When `content: auto` is specified (or omitted), sitegen automatically renders the classic 2-column socket cards, control lists, and LEDs from `info.yaml` for that tab.
 - Relative images and links in the Markdown resolve inside `panels/`.
 
 Physical component IDs do not change. Use `main`, `x`, `y`, ComputerCard jack IDs, and LED IDs as usual; use a manifest panel ID only as the condition:

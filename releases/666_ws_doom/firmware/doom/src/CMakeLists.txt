@@ -692,6 +692,9 @@ if (PICO_SDK)
                 TINY_WAD_ADDR=0x10048000
                 CFG_TUSB_CONFIG_FILE="ws_tusb_config.h"
                 PICO_PANIC_FUNCTION=ws_panic_fmt
+                # some Computers' crystals start slowly; wait 64x longer so
+                # power-up never hangs (recommended for Workshop cards)
+                PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64
                 )
     endif()
 endif()

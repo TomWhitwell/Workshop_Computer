@@ -1,10 +1,11 @@
-draft: true
+draft: false
+contact: { email: "casconed@gmail.com" }
 Name: Lockstep
 short-description: Dual quantized pitch-mover — two CV outs walk together through a scale to drive two oscillators in parallel
 Language: C++ (Pico SDK)
 Creator: Jason Moore
 Version: 1.0
-Status: Draft
+Status: Working
 License: MIT
 date-created: 2026-07-16
 
@@ -60,8 +61,7 @@ panel:
 
 controls:
   knobs:
-    - when: { z: any }
-      main:
+    - main:
         name: Filter Cutoff / Scale Select
         description: Resonant low-pass cutoff for the returned oscillators; selects the scale while switch is held DOWN
       x:
@@ -72,8 +72,7 @@ controls:
         description: How far the walk wanders, from a single held note to plus/minus one octave
 
   leds:
-    - when: { z: any }
-      display: list
+    - display: list
       items:
         - id: LED0
           name: Position / Scale bit 0

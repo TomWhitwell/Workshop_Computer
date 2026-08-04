@@ -8,6 +8,7 @@
 
 import { panelPositions } from './panelPositions.js';
 import { renderMarkdownBlock, renderMarkdownInline, sanitizeAuthoredHtml } from '../utils/markdown.js';
+import { instagramEmbedHtml } from '../utils/instagram.js';
 import { externalLinkArrow } from './icons.js';
 
 const DEFAULT_DISCUSSION = 'https://discord.com/channels/1210238368898879569/1484219323039092938';
@@ -18,6 +19,22 @@ function esc(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/**
+ * Demo block: YouTube stays click-to-play (thumbnail → iframe).
+ * Instagram has no public thumbnail API, so render the official embed immediately
+ * (same blockquote + embed.js path used for README links), with the same Watch label.
+ */
+function renderDemoSection(video) {
+  const provider = video.provider || 'youtube';
+  const title = video.title || 'Demo video';
+  const label = `<span class="program-card-demo__text"><span>Watch</span><strong>${esc(title)}</strong></span>`;
+  if (provider === 'instagram') {
+    return `<section class="program-card-demo program-card-demo--instagram">${instagramEmbedHtml(video.url)}${label}</section>`;
+  }
+  const startAttr = video.start ? ` data-video-start="${esc(String(video.start))}"` : '';
+  return `<section class="program-card-demo"><a href="${esc(video.url)}" data-video-provider="youtube" data-video-id="${esc(video.id)}"${startAttr}><span class="program-card-demo__media" aria-hidden="true"><img src="https://img.youtube.com/vi/${esc(video.id)}/hqdefault.jpg" alt="" loading="lazy"></span>${label}</a></section>`;
 }
 
 function stripTags(value) {
@@ -129,6 +146,9 @@ export function renderPanelArtwork(snapshot, panelImg) {
   return renderPanel(snapshot?.panel || {}, panelImg, null, snapshot?.switch_modes || {});
 }
 
+// Limit length of panel description text, just in case it's huge. 
+const PANEL_DESCRIPTION_THRESHOLD = 500;
+
 function renderSwitchSection(snapshot, positionControl = null) {
   const switchModes = snapshot.switch_modes || {};
   if (positionControl) {
@@ -136,13 +156,13 @@ function renderSwitchSection(snapshot, positionControl = null) {
       const value = switchModes[item.id];
       return `<div class="program-card-switch-position">
         <button type="button" class="program-card-position-button" data-panel-position-button="${esc(item.id)}" aria-controls="${esc(positionControl.groupId)}-${esc(item.id)}" aria-pressed="${item.id === positionControl.activeId}">${esc(item.name)}</button>
-        ${value ? `<p>${esc(truncate(value, 240))}</p>` : ''}
+        ${value ? `<p>${esc(truncate(value, PANEL_DESCRIPTION_THRESHOLD))}</p>` : ''}
       </div>`;
     }).join('');
     const tap = switchModes.tap
       ? `<div class="program-card-switch-position program-card-switch-position--tap">
         <button type="button" class="program-card-position-button" disabled>Tap</button>
-        <p>${esc(truncate(switchModes.tap, 240))}</p>
+        <p>${esc(truncate(switchModes.tap, PANEL_DESCRIPTION_THRESHOLD))}</p>
       </div>`
       : '';
     if (!rows && !tap) return '';
@@ -154,12 +174,12 @@ function renderSwitchSection(snapshot, positionControl = null) {
 
   const entries = Object.entries(switchModes).filter(([key, value]) => key !== 'tap' && value);
   const tap = switchModes.tap
-    ? `<p class="program-card-switch-action"><strong>Tap</strong> ${esc(truncate(switchModes.tap, 240))}</p>`
+    ? `<p class="program-card-switch-action"><strong>Tap</strong> ${esc(truncate(switchModes.tap, PANEL_DESCRIPTION_THRESHOLD))}</p>`
     : '';
   if (!entries.length && !tap) return '';
   const markup = entries.map(([key, value]) => {
     const label = key.charAt(0).toUpperCase() + key.slice(1);
-    return `<p><strong>${esc(label)}</strong> ${esc(truncate(value, 240))}</p>`;
+    return `<p><strong>${esc(label)}</strong> ${esc(truncate(value, PANEL_DESCRIPTION_THRESHOLD))}</p>`;
   }).join('');
   return `<div class="program-card-control program-card-control--switch">
     <strong class="program-card-component-key">Switch</strong>
@@ -167,7 +187,7 @@ function renderSwitchSection(snapshot, positionControl = null) {
   </div>`;
 }
 
-function renderPanelReference(snapshot, panelImg, positionControl = null) {
+function renderGeneratedPanelCopy(snapshot, positionControl = null) {
   const panel = snapshot.panel || {};
   const controls = panel.controls || {};
   const controlsMarkup = panelPositions.controls.filter(pos => pos.key !== 'z').map(pos => {
@@ -175,7 +195,7 @@ function renderPanelReference(snapshot, panelImg, positionControl = null) {
     if (!control || (!control.label && !control.description)) return '';
     return `<div class="program-card-control program-card-control--${esc(pos.key)}">
       <strong class="program-card-component-key">${esc(pos.name)}</strong>
-      ${control.label || control.description ? `<p>${control.label ? `<span class="program-card-component-role">${esc(inline(control.label))}</span>` : ''}${control.label && control.description ? '<br>' : ''}${control.description ? esc(truncate(control.description, 220)) : ''}</p>` : ''}
+      ${control.label || control.description ? `<p>${control.label ? `<span class="program-card-component-role">${esc(inline(control.label))}</span>` : ''}${control.label && control.description ? '<br>' : ''}${control.description ? esc(truncate(control.description, PANEL_DESCRIPTION_THRESHOLD)) : ''}</p>` : ''}
     </div>`;
   }).join('');
   const switchMarkup = renderSwitchSection(snapshot, positionControl);
@@ -183,14 +203,11 @@ function renderPanelReference(snapshot, panelImg, positionControl = null) {
   const outputsMarkup = renderSocketList('Outputs', panel.outputs, panelPositions.outputs);
   const ledsMarkup = renderLedList(snapshot.leds);
 
-  return `<div class="program-card-use">
-    <div class="program-card-use__panel">${renderPanel(panel, panelImg, positionControl, snapshot.switch_modes)}</div>
-    <div class="program-card-use__reference">
+  return `<div class="program-card-use__reference">
       ${controlsMarkup || switchMarkup ? `<details class="program-card-section program-card-collapsible program-card-controls-section" open><summary><h3>Controls</h3></summary><div class="program-card-control-list">${controlsMarkup}${switchMarkup}</div></details>` : ''}
       ${inputsMarkup || outputsMarkup ? `<details class="program-card-section program-card-collapsible program-card-io-section" open><summary class="program-card-io-summary"><h3 class="program-card-io-mobile-heading">${inputsMarkup && outputsMarkup ? 'Inputs &amp; Outputs' : inputsMarkup ? 'Inputs' : 'Outputs'}</h3><span class="program-card-io-headings">${inputsMarkup ? '<h3>Inputs</h3>' : '<span></span>'}${outputsMarkup ? '<h3>Outputs</h3>' : ''}</span></summary><div class="program-card-io-columns">${inputsMarkup}${outputsMarkup}</div></details>` : ''}
       ${ledsMarkup}
-    </div>
-  </div>`;
+    </div>`;
 }
 
 function renderCustomPanelImage(item) {
@@ -201,9 +218,22 @@ function renderCustomPanelImage(item) {
   return `<figure class="program-card-panel program-card-panel--custom"><img src="${esc(image.url)}" width="${width}" height="${height}" alt="${esc(item.name || 'Custom panel')} panel"></figure>`;
 }
 
-function renderCustomPanelReference(item) {
+function renderPanelVisual(item, panelImg, positionControl = null) {
+  return item?.image?.url
+    ? renderCustomPanelImage(item)
+    : renderPanel(item?.panel || {}, panelImg, positionControl, item?.switch_modes || {});
+}
+
+function renderPanelReference(item, panelImg, positionControl = null) {
+  return `<div class="program-card-use">
+    <div class="program-card-use__panel">${renderPanelVisual(item, panelImg, positionControl)}</div>
+    ${renderGeneratedPanelCopy(item, positionControl)}
+  </div>`;
+}
+
+function renderCustomPanelReference(item, panelImg) {
   return `<div class="program-card-use program-card-use--custom">
-    <div class="program-card-use__panel">${renderCustomPanelImage(item)}</div>
+    <div class="program-card-use__panel">${renderPanelVisual(item, panelImg)}</div>
     <div class="program-card-use__reference program-card-custom-panel-copy markdown-body">${sanitizeAuthoredHtml(item.content_html || '')}</div>
   </div>`;
 }
@@ -233,9 +263,16 @@ function renderPanelViews(card, panelImg) {
 
   const selected = items.find(item => item.id === card.panel_views.default) || items[0];
   const groupId = `panel-views-${card.slug || card.id || 'card'}`;
-  const views = items.map(item => `<div id="${esc(groupId)}-${esc(item.id)}" class="program-card-position-view" data-panel-position-view="${esc(item.id)}"${item.id === selected.id ? '' : ' hidden aria-hidden="true"'}>
-    ${custom ? renderCustomPanelReference(item) : renderPanelReference(item, panelImg, { items, groupId, activeId: item.id })}
-  </div>`).join('');
+  const views = items.map(item => {
+    const hasCustomContent = item.content_kind === 'custom' || (!item.content_kind && (item.kind === 'custom' || Boolean(item.content_html)));
+    const snapshot = item.panel ? item : { ...item, panel: card.panel || {}, switch_modes: card.switch_modes, leds: card.leds };
+    const viewInner = hasCustomContent
+      ? renderCustomPanelReference(snapshot, panelImg)
+      : renderPanelReference(snapshot, panelImg, custom ? null : { items, groupId, activeId: item.id });
+    return `<div id="${esc(groupId)}-${esc(item.id)}" class="program-card-position-view" data-panel-position-view="${esc(item.id)}"${item.id === selected.id ? '' : ' hidden aria-hidden="true"'}>
+    ${viewInner}
+  </div>`;
+  }).join('');
   return `<div class="program-card-panel-views${custom ? ' program-card-panel-views--custom' : ''}">${renderPanelSelector(items, selected, groupId, custom ? '' : 'Switch')}${views}</div>`;
 }
 
@@ -249,7 +286,7 @@ function renderPanelRail(card, panelImg) {
 
   const selected = items.find(item => item.id === card.panel_views.default) || items[0];
   const groupId = `panel-views-${card.slug || card.id || 'card'}`;
-  const panels = items.map(item => `<div class="program-card-rail-view" data-panel-position-panel="${esc(item.id)}"${item.id === selected.id ? '' : ' hidden aria-hidden="true"'}>${custom ? renderCustomPanelImage(item) : renderPanel(item.panel || {}, panelImg, { items, groupId, activeId: item.id }, item.switch_modes)}</div>`).join('');
+  const panels = items.map(item => `<div class="program-card-rail-view" data-panel-position-panel="${esc(item.id)}"${item.id === selected.id ? '' : ' hidden aria-hidden="true"'}>${renderPanelVisual(item, panelImg, custom ? null : { items, groupId, activeId: item.id })}</div>`).join('');
   return `<aside class="program-card-panel-rail" aria-label="Panel visualization">${panels}</aside>`;
 }
 
@@ -262,7 +299,7 @@ function renderSocketList(title, sockets, positions) {
     }
     return `<div class="program-card-socket">
       <strong class="program-card-component-key">${esc(pos.name || pos.key)}</strong>
-      ${socket.label || socket.description ? `<p>${socket.label ? `<span class="program-card-component-role">${esc(inline(socket.label))}</span>` : ''}${socket.label && socket.description ? '<br>' : ''}${socket.description ? esc(truncate(socket.description, 220)) : ''}</p>` : ''}
+      ${socket.label || socket.description ? `<p>${socket.label ? `<span class="program-card-component-role">${esc(inline(socket.label))}</span>` : ''}${socket.label && socket.description ? '<br>' : ''}${socket.description ? esc(truncate(socket.description, PANEL_DESCRIPTION_THRESHOLD)) : ''}</p>` : ''}
     </div>`;
   }).join('');
   if (!Object.values(sockets).some(socket => socket && (socket.description || socket.label))) return '';
@@ -278,7 +315,7 @@ function renderLedList(leds) {
     const key = match ? `LED ${Number(match[1]) + 1}` : (item.id || 'LED note');
     return `<div class="program-card-led">
       <strong class="program-card-component-key">${esc(key)}</strong>
-      ${item.label || item.description ? `<p>${item.label ? `<span class="program-card-component-role">${esc(inline(item.label))}</span>` : ''}${item.label && item.description ? '<br>' : ''}${item.description ? esc(truncate(item.description, 220)) : ''}</p>` : ''}
+      ${item.label || item.description ? `<p>${item.label ? `<span class="program-card-component-role">${esc(inline(item.label))}</span>` : ''}${item.label && item.description ? '<br>' : ''}${item.description ? esc(truncate(item.description, PANEL_DESCRIPTION_THRESHOLD)) : ''}</p>` : ''}
     </div>`;
   }).join('');
   if (!items.trim()) return '';
@@ -435,9 +472,7 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
     </div>
   </header>`;
 
-  const demo = !basic && firstVideo
-    ? `<section class="program-card-demo"><a href="${esc(firstVideo.url)}" data-youtube-id="${esc(firstVideo.id)}"><span class="program-card-demo__media" aria-hidden="true"><img src="https://img.youtube.com/vi/${esc(firstVideo.id)}/hqdefault.jpg" alt="" loading="lazy"></span><span class="program-card-demo__text"><span>Watch</span><strong>${esc(firstVideo.title || 'Demo video')}</strong></span></a></section>`
-    : '';
+  const demo = !basic && firstVideo ? renderDemoSection(firstVideo) : '';
 
   const audio = basic ? '' : renderAudio(card.audio_samples);
 

@@ -52,7 +52,7 @@ shelves:
     title: Essentials 
     layout: video-lead
     cards:
-      - 22_sheep
+      - 44_Birds
       - 21_resonator
       - 42_backyard_rain
       - 66_stretchcore
@@ -86,6 +86,16 @@ shelves:
       - 60_markov
       - 74_Wild_Pebble
       - 82_Computer_Grids
+
+
+  - id: vincent-collection
+    title: The Vincent collection
+    layout: video-strip
+    cards:
+      - 26_clockwork
+      - 45_bends
+      - 50_flux
+      - 51_grains
 
       
   - id: properly-useful

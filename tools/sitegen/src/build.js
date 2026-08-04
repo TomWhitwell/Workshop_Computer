@@ -457,6 +457,7 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
   };
   if (!incremental) await buildPreviewTool(suggestions);
   else if (!incrementalCuration || incrementalCuration === 'flairs') await buildPreviewPages(suggestions);
+  if (!incremental || incrementalCuration === 'flairs') await buildCurationEditor(normalizedCards);
 
   if (!incrementalCuration) await writeDevCache(releases);
 
@@ -476,6 +477,8 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
 const PREVIEW_LIB_FILES = [
   'utils/strings.js',
   'utils/youtube.js',
+  'utils/instagram.js',
+  'utils/video.js',
   'utils/audio.js',
   'utils/markdown.js',
   'utils/previewFirmware.js',
@@ -594,6 +597,45 @@ async function buildPreviewPages(suggestions = {}) {
   await writeFileEnsured(path.join(previewDir, 'new', 'index.html'), renderAuthorPage({ documentKind: 'new', suggestions }));
 }
 
+/** Build the self-contained flair editor under site/documentation/. */
+async function buildCurationEditor(cards = []) {
+  const editorDir = path.join(OUT_DIR, 'documentation');
+  await ensureDir(editorDir);
+
+  const cardRows = cards
+    .map(card => ({
+      id: card.id,
+      title: card.title || card.id,
+      shortDescription: card.short_description || '',
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+  const shelfReferences = {};
+  for (const shelf of curation.discovery?.shelves || []) {
+    for (const flairId of [...(shelf.cards_from_flairs || []), ...(shelf.hide_flairs || [])]) {
+      const id = curation.slugify(flairId);
+      if (!id) continue;
+      if (!shelfReferences[id]) shelfReferences[id] = [];
+      shelfReferences[id].push(shelf.title || shelf.id || 'Unnamed shelf');
+    }
+  }
+
+  const data = JSON.stringify({
+    cards: cardRows,
+    availableTags: curation.availableFlairs,
+    assignments: curation.assignments,
+    shelfReferences,
+  }).replaceAll('<', '\\u003c');
+  const template = await fs.readFile(path.join(ROOT, 'documentation', 'flair-editor.html'), 'utf8');
+  if (!template.includes('__CURATION_DATA_JSON__')) {
+    throw new Error('documentation/flair-editor.html is missing its data placeholder');
+  }
+  await writeFileEnsured(
+    path.join(editorDir, 'flair-editor.html'),
+    template.replace('__CURATION_DATA_JSON__', data),
+  );
+}
+
 /** Print a concise, non-fatal summary of the info.yaml conformance pass. */
 function reportValidation(results) {
   if (!results.length) return;
@@ -634,4 +676,3 @@ build(options).catch(err => {
   console.error(err);
   process.exit(1);
 });
-

@@ -185,3 +185,66 @@ panels:
   }, result.panels);
   assert.ok(references.some(diagnostic => diagnostic.path === 'controls.knobs[0].when.panel'));
 });
+
+test('custom panel discovery accepts multiple generated and hybrid presentation tabs', async t => {
+  const release = await fixture(t);
+  const output = path.join(release, '..', 'output');
+  await write(path.join(release, 'panels', 'manifest.yaml'), `
+version: 1
+default: main
+panels:
+  - id: main
+    name: Main panel
+    image: main.svg
+    content: auto
+  - id: secondary
+    name: Secondary panel
+  - id: alternate
+    name: Alternate
+    image: alternate.svg
+    content: alternate.md
+  - id: textual
+    name: Textual
+    image: auto
+    content: textual.md
+`);
+  const svg = '<svg viewBox="0 0 560 1785"><rect width="560" height="1785"/></svg>';
+  await write(path.join(release, 'panels', 'main.svg'), svg);
+  await write(path.join(release, 'panels', 'alternate.svg'), svg);
+  await write(path.join(release, 'panels', 'alternate.md'), '# Alternate');
+  await write(path.join(release, 'panels', 'textual.md'), '# Textual');
+
+  const result = await discoverCustomPanels(release, output);
+  assert.equal(result.present, true);
+  assert.equal(result.panels.items[0].kind, 'generated');
+  assert.equal(result.panels.items[0].image_kind, 'custom');
+  assert.equal(result.panels.items[0].content_html, null);
+  assert.equal(result.panels.items[1].kind, 'generated');
+  assert.equal(result.panels.items[1].image_kind, 'generated');
+  assert.equal(result.panels.items[1].image, undefined);
+  assert.equal(result.panels.items[1].content_html, null);
+  assert.equal(result.panels.items[2].kind, 'custom');
+  assert.equal(result.panels.items[2].image_kind, 'custom');
+  assert.equal(result.panels.items[3].content_kind, 'custom');
+  assert.equal(result.panels.items[3].image_kind, 'generated');
+  assert.equal(result.panels.items[3].image, undefined);
+  assert.deepEqual(result.diagnostics, []);
+});
+
+test('custom panel discovery rejects blank and non-string auto-capable values', async t => {
+  const release = await fixture(t);
+  await write(path.join(release, 'panels', 'manifest.yaml'), `
+version: 1
+default: blank
+panels:
+  - { id: blank, name: Blank, image: blank.svg, content: "" }
+  - { id: numeric, name: Numeric, image: numeric.svg, content: 42 }
+  - { id: blank-image, name: Blank image, image: "", content: auto }
+  - { id: numeric-image, name: Numeric image, image: 42, content: auto }
+`);
+
+  const result = await discoverCustomPanels(release, path.join(release, '..', 'output'));
+  assert.deepEqual(result.panels.items, []);
+  assert.equal(result.diagnostics.filter(diagnostic => diagnostic.path.endsWith('.content')).length, 2);
+  assert.equal(result.diagnostics.filter(diagnostic => diagnostic.path.endsWith('.image')).length, 2);
+});

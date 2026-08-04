@@ -78,8 +78,14 @@ test('generated panel views and firmware fingerprints satisfy site invariants', 
       assert.equal(source, 'custom');
       assert.ok(itemIds.every(id => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)));
       for (const item of items) {
-        assert.equal(item.image?.format, 'svg');
-        assert.ok(item.image?.url && item.image.width > 0 && item.image.height > 0);
+        assert.ok(['custom', 'generated'].includes(item.image_kind));
+        assert.ok(['custom', 'generated'].includes(item.content_kind));
+        if (item.image_kind === 'custom') {
+          assert.equal(item.image?.format, 'svg');
+          assert.ok(item.image?.url && item.image.width > 0 && item.image.height > 0);
+        } else {
+          assert.equal(item.image, undefined);
+        }
       }
     }
   }

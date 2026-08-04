@@ -414,6 +414,25 @@ function buildCard() {
   });
 }
 
+function processPreviewInstagramEmbeds() {
+  if (!els.preview.querySelector('.instagram-media')) return;
+  const process = () => window.instgrm?.Embeds?.process();
+  if (window.instgrm?.Embeds) {
+    process();
+    return;
+  }
+
+  let script = document.querySelector('script[data-instagram-embed]');
+  if (!script) {
+    script = document.createElement('script');
+    script.src = 'https://www.instagram.com/embed.js';
+    script.async = true;
+    script.dataset.instagramEmbed = '1';
+    document.body.appendChild(script);
+  }
+  script.addEventListener('load', process, { once: true });
+}
+
 function renderPreview() {
   try {
     const card = buildCard();
@@ -428,6 +447,7 @@ function renderPreview() {
       yamlUrl: currentEntry?.yamlUrl || '#', uf2Url: card.uf2_downloads?.[0]?.url || '',
       extraDocs: currentEntry?.extras ? renderReadmeAndDocs({ ...currentEntry.extras, inlinePdf: false, includeReadme: !card.documentation?.intro }) : '',
     });
+    processPreviewInstagramEmbeds();
     if (!cleanText(data.summary)) {
       const summary = els.preview.querySelector('.program-card-hero__main > p');
       if (summary) summary.textContent = 'Add an operator summary to introduce this card.';

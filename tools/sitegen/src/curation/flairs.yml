@@ -1,253 +1,237 @@
 # Flair administration for generated card pages.
-# Edit this file to add, rename, remove, or reassign flairs.
 # `available_flairs` defines the vocabulary; `assignments` maps card IDs to flair IDs.
 
 available_flairs:
   - id: included
-    label: Included
-    description: Ships with the Workshop Computer as an included Program Card.
+    label: "Included"
+    description: "Ships with the Workshop Computer as an included Program Card."
     color: "#087a34"
     text_color: "#ffffff"
 
   - id: new
-    label: New
-    description: Recently added highlight.
+    label: "New"
+    description: "Recently added highlight."
     color: "#8a5a00"
     text_color: "#ffffff"
 
   - id: classic
-    label: Classic
-    description: Loved and used by Workshop owners and players.
+    label: "Classic"
+    description: "Loved and used by Workshop owners and players."
     color: "#a63d00"
     text_color: "#ffffff"
 
   - id: start-here
-    label: Start Here
-    description: Classic cards recommended for new users and everyone else.
+    label: "Start Here"
+    description: "Classic cards recommended for new users and everyone else."
     color: "#706000"
     text_color: "#ffffff"
 
   - id: updated
-    label: Updated
-    description: Recently revised firmware or documentation.
+    label: "Updated"
+    description: "Recently revised firmware or documentation."
     color: "#007064"
     text_color: "#ffffff"
 
   - id: toms-pick
-    label: Tom's Pick
-    description: Recommended by Tom Whitwell of Music Thing Modular.
+    label: "Tom's Pick"
+    description: "Recommended by Tom Whitwell of Music Thing Modular."
     color: "#6b3fa0"
     text_color: "#ffffff"
 
   - id: chris-pick
-    label: Chris's Pick
-    description: Recommended by Chris Johnson of ComputerCard and Plus Minus Audio.
+    label: "Chris's Pick"
+    description: "Recommended by Chris Johnson of ComputerCard and Plus Minus Audio."
     color: "#365f9d"
     text_color: "#ffffff"
 
   - id: wild
-    label: Wild
-    description: Chaotic, unpredictable, or aggressive cards.
+    label: "Wild"
+    description: "Chaotic, unpredictable, or aggressive cards."
     color: "#9a294f"
     text_color: "#ffffff"
 
   - id: useful
-    label: Useful
-    description: Properly useful cards that solve problems and make the system easier.
+    label: "Useful"
+    description: "Properly useful cards that solve problems and make the system easier."
     color: "#336b3f"
     text_color: "#ffffff"
 
   - id: deep
-    label: Deep
-    description: Intricate and ambitious cards you can get lost in.
+    label: "Deep"
+    description: "Intricate and ambitious cards you can get lost in."
     color: "#354a78"
     text_color: "#ffffff"
 
   - id: magic
-    label: Magic
-    description: Extraordinary cards that should be impossible.
+    label: "Magic"
+    description: "Extraordinary cards that should be impossible."
     color: "#7a3f75"
     text_color: "#ffffff"
 
   - id: instant-win
-    label: Instant Win
-    description: Simple and satisfying cards for people with short attention spans.
+    label: "Instant Win"
+    description: "Simple and satisfying cards for people with short attention spans."
     color: "#ad4d16"
     text_color: "#ffffff"
+
 assignments:
-  00_Simple_MIDI:
+  "00_Simple_MIDI":
     - included
-  02_comingsoon: []
-  03_Turing_Machine:
+  "02_PatcherPlus": []
+  "03_Turing_Machine":
     - included
-  04_BYO_Benjolin:
+  "04_BYO_Benjolin":
     - wild
     - classic
-  05_chord_blimey: []
-  06_usb_audio:
+  "05_chord_blimey": []
+  "06_usb_audio":
     - useful
-  07_bumpers: []
-  08_bytebeat: []
-  09_DivCom:
+  "07_bumpers": []
+  "08_bytebeat": []
+  "09_DivCom":
     - wild
     - deep
-  10_twists:
+  "10_twists":
     - start-here
-  11_goldfish:
+  "11_goldfish":
     - classic
-  12_am_coupler:
+  "12_am_coupler":
     - magic
-  13_noisebox:
+  "13_noisebox":
     - wild
-  14_cvmod: []
-  15_MLRws:
+  "14_cvmod": []
+  "15_MLRws":
     - deep
     - toms-pick
-  16_the_bells:
+  "16_the_bells":
     - toms-pick
-  17_COMET: []
-  18_chord_organ: []
-  19_CA_Sequencer: []
-  20_reverb:
+  "17_COMET": []
+  "18_chord_organ": []
+  "19_CA_Sequencer": []
+  "20_reverb":
     - included
-  21_resonator:
+  "21_resonator":
     - classic
     - start-here
-  22_sheep:
+  "22_sheep":
     - classic
-  23_SlowMod: []
-  24_crafted_volts: []
-  25_utility_pair:
+  "23_SlowMod": []
+  "24_crafted_volts": []
+  "25_utility_pair":
     - classic
     - start-here
     - useful
-  26_clockwork:
+  "26_clockwork":
     - new
     - deep
-  27_Siren:
+  "27_Siren":
     - start-here
     - instant-win
-  28_eighties_bass: []
-  29_XHT:
+  "28_eighties_bass": []
+  "29_XHT":
     - new
-  30_cirpy_wavetable: []
-  31_esp:
+  "30_cirpy_wavetable": []
+  "31_esp":
     - useful
-  32_vink:
+  "32_vink":
     - wild
-  33_drumdrum: []
-  34_dual_quant: []
-  35_FreqShift:
+  "33_drumdrum": []
+  "34_dual_quant": []
+  "35_FreqShift":
     - wild
-    - new
-  36_GradualProcess:
-    - new
-  37_compulidean: []
-  38_od: []
-  39_knots: []
-  41_blackbird:
+  "36_GradualProcess": []
+  "37_compulidean": []
+  "38_od": []
+  "39_knots": []
+  "41_blackbird":
     - deep
     - useful
-  42_backyard_rain:
+  "42_backyard_rain":
     - classic
     - toms-pick
     - instant-win
-  43_Castle_Process:
+  "43_Castle_Process":
     - wild
-    - new
-  44_Birds:
+  "44_Birds":
     - instant-win
+  "45_bends": 
     - new
-  47_NZT: []
-  48_two_tracks:
+  "47_NZT": []
+  "48_two_tracks":
     - new
-  50_flux:
+  "49_Tape_Bias": []
+  "50_flux":
     - classic
     - deep
-  51_grains: []
-  53_glitter: []
-  54_Tapegrade:
+  "51_grains": []
+  "52_F1shnet": []
+  "53_glitter": []
+  "54_Tapegrade":
     - start-here
     - wild
-  55_fifths: []
-  56_Krell: []
-  57_glitch: []
-  58_LoChoVibes: []
-  59_BitPhase: []
-  60_markov:
-    - new
-  61_ZX_Spectrum:
+  "55_fifths": []
+  "56_Krell": []
+  "57_glitch": []
+  "58_LoChoVibes": []
+  "59_BitPhase": []
+  "60_markov": []
+  "61_ZX_Spectrum":
     - magic
     - deep
     - new
-  64_voices_of_sid:
+  "64_voices_of_sid":
     - magic
-    - new
-  66_stretchcore:
+  "66_stretchcore":
     - classic
     - wild
     - new
-  67_Fragments: []
-  69_trace:
-    - magic
-  71_degenerator: []
-  72_motorik: []
-  73_VSS:
-    - toms-pick
-    - instant-win
-  74_Wild_Pebble: []
-  75_Turing_Clouds: []
-  76_hot_fuzz: []
-  77_Placeholder: []
-  78_Talker: []
-  81_West_Coast_LPG: []
-  82_Computer_Grids:
+  "67_Fragments":
     - new
-  83_Origami: []
-  84_CosmikC1zzl3:
+  "69_trace":
+    - magic
+  "71_degenerator": []
+  "72_motorik":
+    - toms-pick
+  "73_VSS":
+    - instant-win
+  "74_Wild_Pebble": []
+  "75_Turing_Clouds": []
+  "76_hot_fuzz": []
+  "77_Placeholder": []
+  "78_Talker": []
+  "81_West_Coast_LPG": []
+  "82_Computer_Grids": []
+  "83_Origami": []
+  "84_CosmikC1zzl3":
     - deep
     - new
-  86_tesserae: []
-  87_fr330hfr33: []
-  88_Blank:
+  "86_tesserae": []
+  "87_fr330hfr33": []
+  "88_Blank":
     - included
-  90_Pantograph:
-    - new
-  91_chorgan:
+  "89_Lockstep": []
+  "90_Pantograph": []
+  "91_chorgan":
     - instant-win
+  "93_Turing_Matrix": []
+  "94_Ouroboros": []
+  "95_offair2":
     - new
-  93_Turing_Matrix: []
-  94_Ouroboros:
-    - new
-  95_offair2:
-    - new
-  96_cathode:
+  "96_cathode":
     - magic
     - new
-  97_alloy:
+  "97_alloy": []
+  "98_duo_midi": []
+  "99_toolbox": []
+  "101_Gnarly_C1ZZL3": []
+  "303_acid":
     - new
-  98_duo_midi: []
-  99_toolbox: []
-  303_acid:
-    - new
-  433_sense_of_space:
+  "355_RYK_Pitch-Vocoder": []
+  "433_sense_of_space":
     - magic
+  "666_ws_doom":
+    - toms-pick
     - new
-  # Lockstep
-  89_Lockstep: []
-  # RYK 355 Pitch to Voltage / 350 Vocoder
-  355_RYK_Pitch-Vocoder: []
-  # RYK B77 Tape Sampler
-  877_RYK_Tape-Sampler: []
-  # RYK 910 Pitched Delay
-  910_RYK_Pitched-Delay: []
-  # C1ZZL3 Gnarly
-  101_Gnarly_C1ZZL3: []
-  # WS-DOOM
-  666_ws_doom: []
-  # F1shnet
-  52_F1shnet: []
-  # Tape Bias
-  49_Tape_Bias: []
-  # Bends
-  45_bends: []
+  "877_RYK_Tape-Sampler": []
+  "910_RYK_Pitched-Delay":
+    - classic

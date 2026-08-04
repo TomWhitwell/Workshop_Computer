@@ -9,7 +9,7 @@ import { discoverDownloads, curateUf2Downloads } from './downloads.js';
 import { getCommitDates, getOldestBlameDate, getContentUpdatedDate } from '../utils/git.js';
 import { resolveWebConfig } from './webEditor.js';
 import { normalizeTags, normalizeRepository, normalizeDiscussion, normalizeContact, normalizeDraft, resolveAudioSample } from './infoFields.js';
-import { parseYoutubeId, youtubeEmbedHtml } from '../utils/youtube.js';
+import { videoEmbedHtml } from '../utils/video.js';
 import { resolveAudioSamples, getAudioField } from '../utils/audio.js';
 import { buildCanonicalCardModel } from '../model/card.js';
 import { renderMarkdownBlock } from '../utils/markdown.js';
@@ -113,8 +113,8 @@ export async function discoverRelease(rootReleasesDir, folderName, outDirProgram
   const repoRelBase = path.join('releases', folderName);
   // Rewrite relative links in README HTML to raw GitHub URLs
   readmeHtml = rewriteHtmlLinksToRaw(readmeHtml, repoRelBase);
-  // Inject YouTube embeds after links, preserving the links (minimal logic)
-  readmeHtml = injectYouTubeEmbeds(readmeHtml);
+  // Inject YouTube / Instagram embeds after links, preserving the links
+  readmeHtml = injectVideoEmbeds(readmeHtml);
   
   // downloads
   const { downloads, latestUf2, uf2Downloads, availableUf2Downloads, trackedUf2 } = await discoverDownloads(abs, repoRelBase, makeRawUrl);
@@ -194,13 +194,46 @@ export async function discoverRelease(rootReleasesDir, folderName, outDirProgram
   };
 }
 
-// Append an embed after YouTube links in README HTML, keep link text
-function injectYouTubeEmbeds(html) {
+// Append embeds after YouTube / Instagram links in README HTML, keeping the
+// link text. When a link sits mid-sentence inside a block (e.g. a list item),
+// place the embed after that block so trailing prose isn't split in half.
+function injectVideoEmbeds(html) {
   if (!html) return html;
   const anchorRe = /<a\s+[^>]*href=(['"])([^'"#]+)\1[^>]*>([\s\S]*?)<\/a>/gi;
-  return html.replace(anchorRe, (full, q, href) => {
-    const embed = youtubeEmbedHtml(href);
-    if (!embed || !parseYoutubeId(href)) return full;
-    return `${full}${embed}`;
-  });
+  let out = '';
+  let last = 0;
+  const pending = [];
+  for (const match of html.matchAll(anchorRe)) {
+    const full = match[0];
+    const href = match[2];
+    const embed = videoEmbedHtml(href);
+    const start = match.index;
+    out += html.slice(last, start);
+    out += full;
+    last = start + full.length;
+    if (!embed) continue;
+    pending.push({ after: last, embed });
+  }
+  out += html.slice(last);
+  if (!pending.length) return out;
+
+  // Re-scan the rebuilt string and move each embed to the end of its block.
+  let rebuilt = '';
+  let cursor = 0;
+  // Work from the original pending offsets in `out` (same prefix lengths).
+  let source = out;
+  for (const { after, embed } of pending) {
+    const blockClose = source.slice(after).search(/<\/(li|p|td|blockquote)>/i);
+    if (blockClose === -1) {
+      // No block boundary: keep embed immediately after the anchor.
+      rebuilt += source.slice(cursor, after) + embed;
+      cursor = after;
+      continue;
+    }
+    const insertAt = after + blockClose;
+    rebuilt += source.slice(cursor, insertAt) + embed;
+    cursor = insertAt;
+  }
+  rebuilt += source.slice(cursor);
+  return rebuilt;
 }

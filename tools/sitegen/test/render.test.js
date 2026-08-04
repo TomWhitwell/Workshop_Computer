@@ -83,6 +83,41 @@ test('custom panel rendering sanitizes authored content and escapes image metada
   assert.doesNotMatch(html, /program-card-panel-switch-position/);
 });
 
+test('hybrid panel rendering selects generated or authored visuals and content independently', () => {
+  const hybrid = card({ panel_views: {
+    source: 'custom', default: 'generated', items: [
+      {
+        id: 'generated', name: 'Generated', kind: 'generated', image_kind: 'custom', content_kind: 'generated',
+        image: { url: 'panels/generated.svg', width: 560, height: 1785 },
+        panel: { controls: { main: { label: 'Generated role' } } },
+        switch_modes: {}, leds: [], content_html: null,
+      },
+      {
+        id: 'authored', name: 'Authored', kind: 'custom', image_kind: 'custom', content_kind: 'custom',
+        image: { url: 'panels/authored.svg', width: 560, height: 1785 },
+        panel: {}, switch_modes: {}, leds: [], content_html: '<p>Authored explanation</p>',
+      },
+      {
+        id: 'auto-visual', name: 'Auto visual', kind: 'custom', image_kind: 'generated', content_kind: 'custom',
+        panel: { controls: { x: { label: 'Automatic visual role' } } },
+        switch_modes: { up: 'Freeze', middle: 'Run', down: 'Reset' }, leds: [],
+        content_html: '<p>Automatic visual explanation</p>',
+      },
+    ],
+  } });
+  const html = renderCardArticle({ card: hybrid, panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
+  assert.match(html, /data-panel-position-view="generated"/);
+  assert.match(html, /src="panels\/generated\.svg"/);
+  assert.match(html, /Generated role/);
+  assert.match(html, /data-panel-position-view="authored" hidden aria-hidden="true"/);
+  assert.match(html, /src="panels\/authored\.svg"/);
+  assert.match(html, /Authored explanation/);
+  assert.match(html, /data-panel-position-view="auto-visual" hidden aria-hidden="true"/);
+  assert.match(html, /src="panel\.svg"/);
+  assert.match(html, /Automatic visual role/);
+  assert.match(html, /Automatic visual explanation/);
+});
+
 test('basic rendering omits generated features but keeps actions, metadata, and extra docs', () => {
   const html = renderCardArticle({
     card: card({ videos: [{ id: 'abc', url: 'https://youtu.be/abc' }], audio_samples: [{ kind: 'file', url: 'demo.mp3' }] }),
@@ -95,6 +130,42 @@ test('basic rendering omits generated features but keeps actions, metadata, and 
   assert.doesNotMatch(html, /data-panel-views/);
   assert.doesNotMatch(html, /program-card-demo/);
   assert.doesNotMatch(html, /program-card-audio/);
+});
+
+test('demo section renders YouTube thumbnails and Instagram official embeds', () => {
+  const youtube = renderCardArticle({
+    card: card({ videos: [{ id: 'abc123', url: 'https://youtu.be/abc123', provider: 'youtube', aspect: 'landscape' }] }),
+    panelImg: 'panel.svg', yamlUrl: 'source.yaml',
+  });
+  assert.match(youtube, /data-video-provider="youtube"/);
+  assert.match(youtube, /data-video-id="abc123"/);
+  assert.match(youtube, /img\.youtube\.com\/vi\/abc123\/hqdefault\.jpg/);
+
+  const instagram = renderCardArticle({
+    card: card({ videos: [{ id: 'DMKkotPsItQ', url: 'https://www.instagram.com/reel/DMKkotPsItQ/', provider: 'instagram', kind: 'reel', aspect: 'portrait' }] }),
+    panelImg: 'panel.svg', yamlUrl: 'source.yaml',
+  });
+  assert.match(instagram, /program-card-demo--instagram/);
+  assert.match(instagram, /class="instagram-media"/);
+  assert.match(instagram, /data-instgrm-permalink="https:\/\/www\.instagram\.com\/reel\/DMKkotPsItQ\/"/);
+  assert.match(instagram, /program-card-demo__text/);
+  assert.match(instagram, /<strong>Demo video<\/strong>/);
+  assert.doesNotMatch(instagram, /program-card-demo__placeholder/);
+});
+
+test('demo video markup preserves YouTube start offset', () => {
+  const html = renderCardArticle({
+    card: card({ videos: [{ id: 'ABbWmZOtmig', url: 'https://youtu.be/ABbWmZOtmig?t=1772', start: 1772, title: 'Demo video', provider: 'youtube', aspect: 'landscape' }] }),
+    panelImg: 'panel.svg', yamlUrl: 'source.yaml',
+  });
+  assert.match(html, /data-video-id="ABbWmZOtmig"/);
+  assert.match(html, /data-video-start="1772"/);
+
+  const tile = renderTile(card({ videos: [{ id: 'ABbWmZOtmig', url: 'https://youtu.be/ABbWmZOtmig?t=1772', start: 1772, provider: 'youtube', aspect: 'landscape' }] }), {
+    showVideo: true,
+  });
+  assert.match(tile, /data-video-id="ABbWmZOtmig"/);
+  assert.match(tile, /data-video-start="1772"/);
 });
 
 test('cards without generated or custom panels omit both panel regions', () => {
@@ -167,6 +238,34 @@ test('discovery renderers escape searchable attributes and ignore absent shelf c
   const shelf = renderShelf({ title: 'Shelf <One>', cards: ['missing', testCard.id] }, new Map([[testCard.id, testCard]]));
   assert.match(shelf, /Shelf &lt;One&gt;/);
   assert.equal((shelf.match(/program-card-tile__link/g) || []).length, 1);
+});
+
+test('video shelf layouts show media on the intended cards', () => {
+  const cards = [
+    card({ id: '01_lead', slug: '01-lead', videos: [{ id: 'lead-video' }] }),
+    card({ id: '02_support', slug: '02-support', videos: [{ id: 'support-video' }] }),
+    card({ id: '03_support', slug: '03-support', videos: [{ id: 'another-video' }] }),
+  ];
+  const cardsById = new Map(cards.map(item => [item.id, item]));
+  const shelf = { title: 'Videos', cards: cards.map(item => item.id) };
+
+  const lead = renderShelf({ ...shelf, layout: 'video-lead' }, cardsById);
+  assert.equal((lead.match(/program-card-tile__media/g) || []).length, 1);
+  assert.match(lead, /data-video-id="lead-video"/);
+  assert.doesNotMatch(lead, /data-video-id="support-video"|data-video-id="another-video"/);
+  assert.equal((lead.match(/program-card-tile--video/g) || []).length, 1);
+
+  const strip = renderShelf({ ...shelf, layout: 'video-strip' }, cardsById);
+  assert.equal((strip.match(/program-card-tile__media/g) || []).length, 3);
+  assert.match(strip, /data-video-id="lead-video"/);
+  assert.match(strip, /data-video-id="support-video"/);
+  assert.match(strip, /data-video-id="another-video"/);
+
+  const leadWithoutVideo = renderShelf(
+    { ...shelf, layout: 'video-lead' },
+    new Map(cards.map((item, index) => [item.id, index === 0 ? { ...item, videos: [] } : item])),
+  );
+  assert.doesNotMatch(leadWithoutVideo, /program-card-tile__media|program-card-tile--video/);
 });
 
 test('catalogue sorting uses inferred creation dates', () => {
