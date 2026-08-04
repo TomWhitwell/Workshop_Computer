@@ -1,14 +1,26 @@
-draft: true
+draft: false
 Name: Motorik
 short-description: Motorik drum machine — kick/snare/hihat with bass and melody CV, classic Krautrock grooves
 Language: C++ (Pico SDK)
 Creator: Joep Vermaat
+contact:
+  email: joep@joep-i.nl
+  website: https://codeberg.org/johantv/
 Version: 1.0
 Status: Released
 License: MIT
 date-created: 2026-05-17
 date-updated: 2026-05-17
 Repository: https://codeberg.org/johantv/motorik
+
+tags:
+  - motorik
+  - krautrock
+  - rhythm
+  - drum
+  - simple
+  - drive
+  - endless
 
 summary: |
   Generative motorik drum machine with synchronized two-voice bass CV/gate outputs.
@@ -92,8 +104,7 @@ controls:
         description: Per-trigger micro-delay randomization depth
 
   leds:
-    - when: { z: any }
-      display: list
+    - display: list
       items:
         - id: LED0
           name: Beat Position 1
