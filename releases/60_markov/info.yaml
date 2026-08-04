@@ -108,10 +108,10 @@ controls:
       y:
         name: Percussion Profile
         description: Selects one of four percussion transition profiles — Steady, Syncopated, Jazz/Free, Sparse (voice B melodic profile in Dual Melody mode)
-    - when: { z: down, gesture: hold }
+    - when: { z: down }
       main:
         name: Scale Select
-        description: Selects the quantisation scale index from 0 to 11 while the switch is held; the new scale takes effect on the next clock pulse
+        description: Selects the quantisation scale index from 0 to 11 while the switch is held down; the new scale takes effect on the next clock pulse
       x:
         name: Melody Profile
         description: Profile selection remains available outside the momentary scale-select gesture
