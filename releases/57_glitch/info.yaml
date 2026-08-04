@@ -1,6 +1,12 @@
-draft: true
+draft: false
 Name: Glitch
 short-description: Clock-synced beat-repeater with ratcheting, reversal and audio degradation
+summary: >-
+  A clock-synced beat-repeater with two power-on modes sharing one 2.33-second circular buffer.
+  Glitch mode loops ratcheted sub-slices of the last beat with optional reverse, decimation and
+  bitcrush; Stutter mode slices the beat and shuffles or repeats slices in real time. Pulse In 1
+  sets beat length, CV In 1 freezes recording while playback continues, and Audio Out 2 stays dry
+  for parallel routing.
 Language: C++ (RP2040 Pico SDK)
 Creator: Andy Jenkinson (uglifruit)
 Version: 1.4.0
@@ -8,7 +14,7 @@ Status: Released
 License: MIT
 date-created: 2026-05-20
 date-updated: 2026-05-27
-Repository: https://github.com/uglifruit/Workshop_Computer/tree/main/Demonstrations%2BHelloWorlds/PicoSDK/ComputerCard/examples/glitch
+repository: https://github.com/uglifruit/Workshop_Computer/tree/main/Demonstrations%2BHelloWorlds/PicoSDK/ComputerCard/examples/glitch
 
 tags:
   - beat-repeat
@@ -17,73 +23,123 @@ tags:
   - clocked
   - lo-fi
 
-summary: |
-  Glitch records into a shared 2.33-second circular buffer and runs in two power-on modes. Glitch mode loops
-  ratcheted sub-slices with optional reverse, decimation, and bitcrush; Stutter mode slices beats, shuffles order,
-  and can repeat slices before advancing. Pulse In 1 sets beat timing, CV In 1 freezes recording while playback
-  continues, and Audio Out 2 stays dry for parallel routing.
+uf2:
+  - path: glitch.uf2
+    name: Glitch v1.4.0
+
+readme: |
+  Glitch records into a shared 2.33-second circular buffer and runs in one of two modes, chosen at
+  power-on by the switch position.
+
+  **Choosing a mode.** Hold the switch in the desired position while the card powers on or resets:
+  Middle or Up (or not held) loads Glitch mode; Down loads Stutter mode. A boot animation confirms
+  the mode — Glitch flashes LEDs 0, 2, 4 in sequence three times; Stutter flashes LEDs 5, 3, 1 in
+  reverse three times. Once the mode has latched (about 100 ms after power-on) the switch reverts to
+  its live performance role in both modes.
+
+  **Glitch mode.** On each clock pulse the beat length is measured and a ratcheted sub-slice of that
+  beat is replayed, optionally reversed and degraded with sample-rate reduction then bitcrushing.
+  Main selects the ratchet zone (1, 2, 3, 4, 6) and the reverse probability within that zone; X sets
+  the degradation amount and Y the degradation probability. CV In 2 adds bipolar modulation to both
+  X and Y. When not glitching, live audio passes through unaffected.
+
+  **Stutter mode.** A live breakbeat slicer. Main selects the slice zone (1, 2, 3, 4, 8) and the
+  drift probability within that zone; X sets the shuffle probability and Y the repeat probability,
+  which governs how often a slice repeats before advancing. CV In 2 adds bipolar modulation to X
+  only.
+
+  **Shared behaviour.** In both modes the switch selects how the effect is triggered: Up is
+  probabilistic, Middle is gated from Pulse In 2, and Down forces the effect on every slice. CV In 1
+  above roughly 0 V freezes recording so the buffer contents loop while playback continues. Audio
+  Out 2 is always a dry pass-through of Audio In 1, allowing parallel wet/dry routing.
 
 panel:
   inputs:
     - id: AudioIn1
       name: Main Audio Input
+      type: audio
       description: Source audio for buffering and processing
     - id: PulseIn1
       name: Clock Input
+      type: pulse
       description: Rising edge defines beat length (max 2.33 seconds)
     - id: PulseIn2
       name: External Gate
-      description: Gate control for switch-middle trigger behavior in both modes
+      type: pulse
+      description: Gate control for switch-middle trigger behaviour in both modes
     - id: CVIn1
       name: Freeze CV
+      type: cv
       description: Above approximately 0V stops recording and loops frozen buffer content
     - id: CVIn2
       name: Mod CV
-      description: Bipolar modulation added to performance knobs (mode-dependent mapping)
+      type: cv
+      description: Bipolar modulation added to performance knobs — Glitch mode adds to X and Y, Stutter mode adds to X only
   outputs:
     - id: AudioOut1
       name: Processed Output
-      description: Glitched/stuttered output or pass-through when effect inactive
+      type: audio
+      description: Glitched/stuttered output, or pass-through when the effect is inactive
     - id: AudioOut2
       name: Dry Output
-      description: Always dry pass-through of Audio In 1
+      type: audio
+      description: Always a dry pass-through of Audio In 1
     - id: PulseOut1
       name: Slice Clock
+      type: pulse
       description: Pulse at each ratchet/slice boundary
     - id: PulseOut2
       name: Clock Mirror
+      type: pulse
       description: Direct mirror of Pulse In 1
     - id: CVOut1
       name: Activity Gate
+      type: cv
       description: High while glitch/shuffle is active, low during pass-through
     - id: CVOut2
       name: Descending Ramp
-      description: Falls across each slice and resets at slice boundary
+      type: cv
+      description: Falls across each slice and resets at the slice boundary
 
 controls:
-  modes:
-    - name: Glitch Mode
-      activation: Power on with switch up/middle or not held
-      main: Selects ratchet zones (1,2,3,4,6) and probability threshold within zone
-      x: Sets degradation amount (decimation then bitcrush)
-      y: Sets degradation probability
-      switch:
-        up: Probabilistic glitch trigger
-        middle: Gate-triggered glitch from Pulse In 2
-        down: Force glitch every slice
-    - name: Stutter Mode
-      activation: Power on with switch held down
-      main: Selects slice zones (1,2,3,4,8) and drift probability within zone
-      x: Sets shuffle probability
-      y: Sets repeat/stutter probability
-      switch:
-        up: Probabilistic shuffle per slice
-        middle: Gate-triggered shuffle from Pulse In 2
-        down: Force shuffle every slice
+  switch:
+    up:
+      name: Probabilistic
+      description: Effect triggers randomly against the probability threshold. Held at power-on (or left unheld) this also selects Glitch mode.
+    middle:
+      name: External Gate
+      description: Effect triggers while Pulse In 2 is high. Held at power-on this also selects Glitch mode.
+    down:
+      name: Force
+      description: Effect applies to every slice. Held at power-on this selects Stutter mode instead of Glitch mode.
+  knobs:
+    - main:
+        name: Zone / Probability
+        description: Selects the ratchet zone (Glitch — 1, 2, 3, 4, 6) or slice zone (Stutter — 1, 2, 3, 4, 8), with position within the zone setting reverse probability (Glitch) or drift probability (Stutter)
+      x:
+        name: Degrade / Shuffle
+        description: Glitch mode sets the degradation amount (decimation then bitcrush); Stutter mode sets the shuffle probability
+      y:
+        name: Degrade Probability / Repeat
+        description: Glitch mode sets the degradation probability; Stutter mode sets the repeat probability before a slice advances
   leds:
-    - id: LED0-LED4
-      name: Zone Indicator
-      description: One LED indicates current ratchet/slice zone
-    - id: LED5
-      name: Probability Indicator
-      description: Brightness indicates probability threshold (glitch reverse or stutter drift)
+    - display: list
+      items:
+        - id: led0
+          name: Zone Indicator
+          description: Lit when the first ratchet/slice zone is selected
+        - id: led1
+          name: Zone Indicator
+          description: Lit when the second ratchet/slice zone is selected
+        - id: led2
+          name: Zone Indicator
+          description: Lit when the third ratchet/slice zone is selected
+        - id: led3
+          name: Zone Indicator
+          description: Lit when the fourth ratchet/slice zone is selected
+        - id: led4
+          name: Zone Indicator
+          description: Lit when the fifth ratchet/slice zone is selected
+        - id: led5
+          name: Probability Indicator
+          description: Brightness indicates the probability threshold — reverse in Glitch mode, drift in Stutter mode
