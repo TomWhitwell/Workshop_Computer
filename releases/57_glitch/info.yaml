@@ -16,6 +16,11 @@ date-created: 2026-05-20
 date-updated: 2026-05-27
 repository: https://github.com/uglifruit/Workshop_Computer/tree/main/Demonstrations%2BHelloWorlds/PicoSDK/ComputerCard/examples/glitch
 
+contact:
+  email: andyuglifruit@hotmail.com
+  social:
+    github: https://github.com/uglifruit
+
 tags:
   - beat-repeat
   - stutter
