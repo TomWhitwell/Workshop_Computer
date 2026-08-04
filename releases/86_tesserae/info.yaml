@@ -94,7 +94,7 @@ controls:
         description: Sets root note across C1-C7
       x:
         name: Melody Position
-      :
+      y:
         name: Chord Spacing
     - when: { z: down }
       main:
