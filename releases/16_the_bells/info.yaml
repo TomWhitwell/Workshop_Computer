@@ -10,7 +10,7 @@ date-updated: 2026-06-30
 
 tags:
   - sequencer
-  - bellringing
+  - campanology
   - permutation
   - cv
   - scale
@@ -29,6 +29,12 @@ summary: |
 
 panel:
   outputs:
+    - id: AudioOut1
+      name: Bell Out 1
+      description: Bell sample playback, alternating with Bell Out 2. Patch both to hear a complete sequence.
+    - id: AudioOut2
+      name: Bell Out 2
+      description: Bell sample playback, alternating with Bell Out 1. Patch both to hear a complete sequence.
     - id: CVOut1
       name: Pitch
       description: Calibrated v/oct output, one bell at a time, quantised to the active scale (tenor bell = root note)
@@ -58,7 +64,7 @@ controls:
       y:
         name: Covering Tenor
         description: Same as Play
-    - when: { z: down, gesture: hold }
+    - when: { z: down}
       main:
         name: Method Select
         description: Chooses one of 12 change-ringing methods (see manual for full list); takes effect at the next row boundary
@@ -71,8 +77,19 @@ controls:
 
   leds:
     - when: { z: up }
+      display: list
+      items:
+        - id: LED0
+          name: Bell 1 sounding
+        - id: LED1
+          name: Bell 2 sounding
+        - id: LED2
+          name: Bell 3 sounding
+        - id: LED3
+          name: Bell 4 sounding
+        - id: LED4
+          name: Bell 5 sounding
+        - id: LED5
+          name: Bell 6 sounding
+    - when: { z: down}
       display: custom
-      description: Bells 1-6 shown as a single lit LED matching the bell number; bells 7-8 shown as a single unlit LED among the rest (mirrored), since only 6 LEDs are available
-    - when: { z: down, gesture: hold }
-      display: custom
-      description: Same 1-6-lit / 7-12-mirrored scheme, showing the currently selected method (1-12), clock divide step, or scale, depending on which knob last moved
