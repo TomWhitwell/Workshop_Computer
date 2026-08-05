@@ -6,17 +6,8 @@ BioMimicry uses **six distinct mathematical physics engines** to generate trigge
 audio that feel organically alive.
 
 It was built to capture the semi-random behaviours of the natural world: the polyrhythmic clopping of horses on a road, the cascading panic of a flock of geese, the rushing
-accumulator of a waterfall walk, and the sudden silent clustering of a meteor shower overhead.
+accumulator of a waterfall walk, and the sudden silent clustering of a meteor shower overhead.  (I didn't hear frogs, but the swamp mathematics were too good to leave out.)
 
-*I didn't hear frogs, but the swamp mathematics were too good to leave out.*
-
-Runs on a Music Thing Modular Workshop System Computer. Built on the RP2040 with
-[ComputerCard](https://github.com/TomWhitwell/Workshop_Computer).
-
-Why the card is the way it is — including the things that were wrong first — is in
-[docs/DEVLOG.md](docs/DEVLOG.md). Questions, bugs and patches:
-[**the BioMimicry thread**](https://discord.com/channels/1210238368898879569/1533895615442849812)
-on the Music Thing Discord.
 
 ---
 
@@ -26,14 +17,14 @@ Tap the momentary switch (Down) to cycle habitats. Each has its own internal log
 
 | Mode | Model | Behaviour |
 |---|---|---|
-| **Horses** | Real equine gaits | A **herd**: each horse has its own stride clock driving four hooves at their true footfall offsets, and the animals slide in and out of step the way real horses travelling together never quite match pace. Walk, trot, canter and gallop are the actual biomechanical patterns — including the suspension phase where all four feet leave the ground. |
+| **Horses** | Equine gaits | A **herd**: each horse has its own stride clock driving four hooves at their true footfall offsets, and the animals slide in and out of step the way real horses travelling together never quite match pace. Walk, trot, canter and gallop are the actual biomechanical patterns — including the suspension phase where all four feet leave the ground. |
 | **Geese** | Stochastic contagion | A cascading probability network across a **flock of twelve**. One bird honking raises the odds for all the others, creating tight reactive clusters that erupt and fade. |
 | **Frogs** | Coupled oscillators | The Kuramoto model. Voices pull on each other's timing, fighting between perfect metronomic synchronisation and chaotic swarms — and they'll entrain to an external clock if you give them one. |
 | **Rain** | Leaky integrate-and-fire | Buckets fill with noise and constantly leak. An overflow **splashes downstream** into the next bucket, so drips pull each other along into rushing clusters, then fall apart. |
 | **Meteors** | Inhomogeneous Poisson | An invisible slow-moving weather system dictates the density of a **swarm of twelve**. Long eerie silences swell smoothly into heavy overlapping barrages. |
 | **Cicadas** | Amplitude feedback | Twelve insects in **four patches**, each hearing mostly its own neighbours. They call faster the louder their patch already is, and tire from being in it. Patches swell out of step with each other, so the field surges and subsides irregularly. Where Frogs couple on *phase* and Geese on *events*, Cicadas couple on *loudness*. |
 
-### The gaits are real
+### The gaits are based on real horses
 
 Horses mode is clocked with each hoof landing at its correct point in the stride:
 
@@ -124,19 +115,8 @@ physical trigger.
 glow and flares to full on every trigger, so one light carries both meanings.
 
 Both tables above describe the **Rhythm** boot. Tuned routes differently — see
-[Two instruments](#two-instruments-rhythm-and-tuned).
+[Two Modes](#two-modes-rhythm-and-tuned).
 
-## Voices
-
-**The fallback — synthesized.** Recordings are the normal case; this is what plays if a
-card is built with no PCM baked in and nothing uploaded. Each mode has its own DSP
-timbre, built around whatever
-detail actually identifies the sound: hooves get a pitch-dropping body *plus a sharp
-band-passed noise transient* for shoe-on-stone; honks are a saw whose filter opens at the
-attack for that nasal kink; ribbits are Karplus-Strong; **drips rise in pitch as they
-decay**, which is the acoustic signature of a bubble collapsing in liquid and the reason a
-drip sounds like a drip; meteors are noise swept by a closing filter; cicadas are a high
-tone ring-modulated by a wing-beat buzz.
 
 ### Round robins
 
@@ -169,7 +149,7 @@ Panning comes from the ecosystem, not from a knob:
   birds occupy twelve positions and a cascade sweeps across the field.
 - **Random** (Rain, Meteors) — each hit lands somewhere new, because each is a new object.
 
-## Two instruments: Rhythm and Tuned
+## Two Modes: Rhythm and Tuned
 
 Hold the momentary switch **Down at power-on** to boot **TUNED** instead of the normal
 **RHYTHM** card. On power-up the LEDs announce which you got: Rhythm lights the left
@@ -229,6 +209,9 @@ takes a few seconds.
 Flash layout: firmware and baked samples occupy the first 1&nbsp;MB, user samples the
 second. The build fails loudly if the firmware ever grows into the user region, because
 that would make flashing destroy uploads and uploads destroy the firmware.
+
+
+## Advanced Use
 
 ## PCM samples (baked at build time)
 
@@ -303,6 +286,17 @@ whole path works before you have a single recording.
 
 ---
 
+## Voices
+
+**The fallback — synthesized.** Recordings are the normal case; this is what plays if a
+card is built with no PCM baked in and nothing uploaded. Each mode has its own DSP
+timbre, built around whatever detail actually identifies the sound: hooves get a pitch-dropping body *plus a sharp band-passed noise transient* for shoe-on-stone; honks are a saw whose filter opens at the
+attack for that nasal kink; ribbits are Karplus-Strong; **drips rise in pitch as they
+decay**, which is the acoustic signature of a bubble collapsing in liquid and the reason a
+drip sounds like a drip; meteors are noise swept by a closing filter; cicadas are a high
+tone ring-modulated by a wing-beat buzz.
+
+
 ## Under the hood
 
 `ProcessSample()` runs at 48 kHz, but the physics don't need audio rate: engines tick at
@@ -372,7 +366,18 @@ the mounted drive. On Windows, `cmake`/`ninja` live in `~/.pico-sdk/` and are no
 default PATH — see [CLAUDE.md](CLAUDE.md) for the exact invocation.
 
 ---
+## Use
 
+Runs on a Music Thing Modular Workshop System Computer. Built on the RP2040 with
+[ComputerCard](https://github.com/TomWhitwell/Workshop_Computer).
+
+Why the card is the way it is — including the things that were wrong first — is in
+[docs/DEVLOG.md](docs/DEVLOG.md). Questions, bugs and patches:
+[**the BioMimicry thread**](https://discord.com/channels/1210238368898879569/1533895615442849812)
+on the Music Thing Discord.
+
+
+---
 ## Credits
 
 - **Music Thing Modular Workshop System Computer** — Tom Whitwell / Music Thing Modular.
@@ -432,7 +437,7 @@ the worst mode went from **334% of budget to 70%, with zero overruns**. The
 clock is 192 MHz. USB is modal — hold the switch to hand the card over, hold
 again to go back to playing — so nothing of TinyUSB runs while you perform.
 
-Audibly: samples no longer truncate when hits overlap (eight voices, and a
+Audibly: samples less audibly truncate when hits overlap (eight voices, and a
 steal is a crossfade rather than a cut), the library is re-baked ~1 bit louder
 with dither, and the round robins finally produce as many distinct sounds as
 they claim — panning no longer collapses eight variants to four, and Meteors
