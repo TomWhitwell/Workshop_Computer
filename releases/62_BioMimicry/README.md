@@ -363,10 +363,11 @@ cmake --build build
 
 Produces `build/biomimicry.uf2`. Hold **BOOTSEL** while plugging in USB and drop it on
 the mounted drive. On Windows, `cmake`/`ninja` live in `~/.pico-sdk/` and are not on the
-default PATH — see [CLAUDE.md](CLAUDE.md) for the exact invocation.
+default PATH — see the build notes in the
+[upstream repo](https://github.com/uglifruit/WorkshopBio) for the exact invocation.
 
 ---
-## Use
+## Requirements and Help
 
 Runs on a Music Thing Modular Workshop System Computer. Built on the RP2040 with
 [ComputerCard](https://github.com/TomWhitwell/Workshop_Computer).
