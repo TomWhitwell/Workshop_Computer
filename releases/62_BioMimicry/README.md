@@ -13,47 +13,10 @@ accumulator of a waterfall walk, and the sudden silent clustering of a meteor sh
 Runs on a Music Thing Modular Workshop System Computer. Built on the RP2040 with
 [ComputerCard](https://github.com/TomWhitwell/Workshop_Computer).
 
-> **v1.1.0** — six ecosystems, two boot modes, a full library of real animal
-> recordings, and a browser app for swapping them over USB.
->
-> **The card now runs inside its timing budget.** The physics moved to the second
-> core, so the engine and the voices no longer land in the same 20.83 µs sample:
-> the worst mode went from **334% of budget to 70%, with zero overruns**. The
-> clock is 192 MHz. USB is modal — hold the switch to hand the card over, hold
-> again to go back to playing — so nothing of TinyUSB runs while you perform.
->
-> Audibly: samples no longer truncate when hits overlap (eight voices, and a
-> steal is a crossfade rather than a cut), the library is re-baked ~1 bit louder
-> with dither, and the round robins finally produce as many distinct sounds as
-> they claim — panning no longer collapses eight variants to four, and Meteors
-> stops playing its first three swooshes twice as often as the rest.
->
-> **v1.2.0** — alt boot is now **TUNED**: the same one-shot voices as Rhythm, but
-> played at their recorded pitch with no per-animal or per-hit detuning, so
-> uploaded notes gallop or drip instead of being smeared across ±3 semitones. Its
-> Summed routing puts **1 V/oct on CV 2** telling you which round-robin slot just
-> fired. The granular renderer is gone.
->
-> The browser editor now maps a **pool** of uploaded files onto slots, so one
-> recording can be reused across ecosystems without being sent twice.
->
-> Both audio inputs now work on hardware — and Audio In 1 never had, in any
-> firmware: its envelope was computed on one core and read on the other, with
-> nothing writing it across. Patch a pad into **Loudness** and the cicadas
-> recede while the geese get agitated; patch a drum into **Disturb** and every
-> ecosystem flinches on the transient.
->
-> **Frogs synchronise again.** The knob mapped almost its whole travel to
-> coupling strengths that were already locked, so the chorus sounded the same
-> everywhere; the sync/chaos transition now sits in the middle of the sweep where
-> it can be played. And a footstep in the grass genuinely silences the cicadas
-> rather than thinning them.
->
-> Why the card is the way it is — including the things that were wrong first — is
-> in [docs/DEVLOG.md](docs/DEVLOG.md).
->
-> Questions, bugs and patches: [**the BioMimicry thread**](https://discord.com/channels/1210238368898879569/1533895615442849812)
-> on the Music Thing Discord.
+Why the card is the way it is — including the things that were wrong first — is in
+[docs/DEVLOG.md](docs/DEVLOG.md). Questions, bugs and patches:
+[**the BioMimicry thread**](https://discord.com/channels/1210238368898879569/1533895615442849812)
+on the Music Thing Discord.
 
 ---
 
@@ -435,3 +398,42 @@ Two things in this repository are not mine to relicense and keep their own terms
 | [`samples/*.raw`](samples/) | Recordings from [Pixabay](https://pixabay.com), under the Pixabay Content License — see [samples/README.md](samples/README.md) |
 | `ComputerCard.h` | The Music Thing card library by Chris Johnson, MIT |
 
+---
+
+## Release notes
+
+**v1.2.0** — alt boot is now **TUNED**: the same one-shot voices as Rhythm, but
+played at their recorded pitch with no per-animal or per-hit detuning, so
+uploaded notes gallop or drip instead of being smeared across ±3 semitones. Its
+Summed routing puts **1 V/oct on CV 2** telling you which round-robin slot just
+fired. The granular renderer is gone.
+
+The browser editor now maps a **pool** of uploaded files onto slots, so one
+recording can be reused across ecosystems without being sent twice.
+
+Both audio inputs now work on hardware — and Audio In 1 never had, in any
+firmware: its envelope was computed on one core and read on the other, with
+nothing writing it across. Patch a pad into **Loudness** and the cicadas
+recede while the geese get agitated; patch a drum into **Disturb** and every
+ecosystem flinches on the transient.
+
+**Frogs synchronise again.** The knob mapped almost its whole travel to
+coupling strengths that were already locked, so the chorus sounded the same
+everywhere; the sync/chaos transition now sits in the middle of the sweep where
+it can be played. And a footstep in the grass genuinely silences the cicadas
+rather than thinning them.
+
+**v1.1.0** — six ecosystems, two boot modes, a full library of real animal
+recordings, and a browser app for swapping them over USB.
+
+**The card now runs inside its timing budget.** The physics moved to the second
+core, so the engine and the voices no longer land in the same 20.83 µs sample:
+the worst mode went from **334% of budget to 70%, with zero overruns**. The
+clock is 192 MHz. USB is modal — hold the switch to hand the card over, hold
+again to go back to playing — so nothing of TinyUSB runs while you perform.
+
+Audibly: samples no longer truncate when hits overlap (eight voices, and a
+steal is a crossfade rather than a cut), the library is re-baked ~1 bit louder
+with dither, and the round robins finally produce as many distinct sounds as
+they claim — panning no longer collapses eight variants to four, and Meteors
+stops playing its first three swooshes twice as often as the rest.
