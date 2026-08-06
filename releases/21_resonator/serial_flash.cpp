@@ -342,30 +342,43 @@ bool ResonatingStrings::loadProgressionFromFlash() {
     progressionBuffers[0].length = len;
     progressionBuffers[1].length = len;
 
-    // Load arp division (byte 20), default to 4 if invalid (old flash has 0x00)
+    // Detect pre-v1.2 flash: v1.2 always writes a valid arp division (1/2/4/8) at byte 20,
+    // while v1.1 zero-fills bytes 20+. A zero-filled settings block would otherwise decode
+    // to non-factory values (notably CV Out 2 = arpeggio instead of input envelope), so on
+    // migration apply the full factory I/O defaults instead — the progression is kept.
     uint8_t arpVal = flash_data[20];
-    if (arpVal == 1 || arpVal == 2 || arpVal == 4 || arpVal == 8) {
-        arpDivision = arpVal;
-    } else {
+    bool v2format = (arpVal == 1 || arpVal == 2 || arpVal == 4 || arpVal == 8);
+
+    if (!v2format) {
+        // Migrating from v1.1 (or unrecognised settings): factory I/O defaults
         arpDivision = 4;
-    }
-
-    // Load arp pattern (byte 21), default to 0 if invalid (old flash has 0x00)
-    uint8_t patVal = flash_data[21];
-    if (patVal <= 5) {
-        arpPattern = patVal;
-    } else {
         arpPattern = 0;
+        arpLoop = false;
+        rootString = 0;
+        cv1Mode = CVOUT_ARP;
+        cv2Mode = CVOUT_IN_ENV;
+        p1Mode = P1_AUDIO_TRIG;
+        p2Mode = P2_CHORD_TRIG;
+        pi1Mode = PI1_PLUCK;
+        pi2Mode = PI2_ADVANCE;
+        clockDivRatio = 2;
+        ao2Mode = AO2_AUDIO;
+        ci1Mode = CI1_VOCT;
+        ci2Mode = CI2_DAMPING;
+        return true;
     }
 
-    // Load arp loop (byte 32); old flash zero-fills it, so default is one-shot (off)
+    // v1.2 settings block: decode each field (clamp invalid values to a safe default)
+    arpDivision = arpVal;
+
+    uint8_t patVal = flash_data[21];
+    arpPattern = (patVal <= 5) ? patVal : 0;
+
     arpLoop = (flash_data[32] == 1);
 
-    // Load root-pitch string select (byte 33); old flash zero-fills it -> string 0 (root)
     uint8_t rootVal = flash_data[33];
     rootString = (rootVal <= 3) ? rootVal : 0;
 
-    // Load output modes (bytes 22-27), default to 0 if invalid (old flash)
     uint8_t cv1Val = flash_data[22];
     cv1Mode = (cv1Val <= 6) ? cv1Val : 0;
     uint8_t cv2Val = flash_data[23];
@@ -379,23 +392,13 @@ bool ResonatingStrings::loadProgressionFromFlash() {
     uint8_t pi2Val = flash_data[27];
     pi2Mode = (pi2Val <= 3) ? pi2Val : 0;
 
-    // Load clock divider ratio (byte 28), default to 2 if invalid
     uint8_t divVal = flash_data[28];
-    if (divVal == 2 || divVal == 3 || divVal == 4 || divVal == 8) {
-        clockDivRatio = divVal;
-    } else {
-        clockDivRatio = 2;
-    }
+    clockDivRatio = (divVal == 2 || divVal == 3 || divVal == 4 || divVal == 8) ? divVal : 2;
 
-    // Load Audio Out 2 mode (byte 29), default to 0 (audio) if invalid
     uint8_t ao2Val = flash_data[29];
     ao2Mode = (ao2Val <= 2) ? ao2Val : 0;
-
-    // Load CV Input 1 mode (byte 30), default to 0 (1V/oct) if invalid
     uint8_t ci1Val = flash_data[30];
     ci1Mode = (ci1Val <= 1) ? ci1Val : 0;
-
-    // Load CV Input 2 mode (byte 31), default to 0 (damping) if invalid
     uint8_t ci2Val = flash_data[31];
     ci2Mode = (ci2Val <= 1) ? ci2Val : 0;
 
