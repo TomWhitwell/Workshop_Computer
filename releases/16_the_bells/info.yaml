@@ -1,23 +1,7 @@
 draft: false
 Name: The Bells
 short-description: Bellringing methods sequencer — 12 change-ringing methods with tempo and jitter, quantised to six scales
-Language: C++ (ComputerCard)
-Creator: James Saunders
-Version: 1.0.0
-Status: Released
-date-created: 2026-06-27
-date-updated: 2026-06-30
-
-tags:
-  - sequencer
-  - campanology
-  - permutation
-  - cv
-  - scale
-  - generative
-
-summary: |
-  A bellringing methods sequencer: plays 12 traditional English change-ringing methods
+summary: A bellringing methods sequencer: plays 12 traditional English change-ringing methods
   (Plain Hunt Minimus through Plain Bob Triples, 4-7 bells), sending each row of the
   method as a v/oct pitch sequence quantised to one of six scales, with a synchronised
   gate pulse per bell strike. Intended to drive oscillators or other CV inputs that can
@@ -26,70 +10,16 @@ summary: |
   Z switch selects mode: Up = Play, Middle = Stop, Down (hold) = Edit. While held down,
   turning a knob selects that knob's edit-mode parameter (method / clock divide / scale);
   releasing Z returns to Play/Stop with the new parameter applied.
-
-panel:
-  outputs:
-    - id: AudioOut1
-      name: Bell Out 1
-      description: Bell sample playback, alternating with Bell Out 2. Patch both to hear a complete sequence.
-    - id: AudioOut2
-      name: Bell Out 2
-      description: Bell sample playback, alternating with Bell Out 1. Patch both to hear a complete sequence.
-    - id: CVOut1
-      name: Pitch
-      description: Calibrated v/oct output, one bell at a time, quantised to the active scale (tenor bell = root note)
-    - id: PulseOut1
-      name: Bell Gate
-      description: ~10ms trigger pulse on each bell strike
-
-controls:
-  knobs:
-    - when: { z: up }
-      main:
-        name: Tempo
-        description: Raw tempo, 5-300 BPM (individual bell strikes per minute)
-      x:
-        name: Jitter
-        description: Random timing variation, 0-40% of the beat gap
-      y:
-        name: Covering Tenor
-        description: CCW half = off, CW half = on — adds an extra covering bell above the method's bells
-    - when: { z: middle }
-      main:
-        name: Tempo
-        description: Same as Play — Stop halts the sequence but tempo/jitter/tenor remain live
-      x:
-        name: Jitter
-        description: Same as Play
-      y:
-        name: Covering Tenor
-        description: Same as Play
-    - when: { z: down}
-      main:
-        name: Method Select
-        description: Chooses one of 12 change-ringing methods (see manual for full list); takes effect at the next row boundary
-      x:
-        name: Clock Divide/Multiply
-        description: Seven steps, /8 /4 /2 x1 x2 x4 x8, applied to the tempo
-      y:
-        name: Scale Select
-        description: Six scales — Major, Minor, Pentatonic Major, Pentatonic Minor, Blues, Chromatic
-
-  leds:
-    - when: { z: up }
-      display: list
-      items:
-        - id: LED0
-          name: Bell 1 sounding
-        - id: LED1
-          name: Bell 2 sounding
-        - id: LED2
-          name: Bell 3 sounding
-        - id: LED3
-          name: Bell 4 sounding
-        - id: LED4
-          name: Bell 5 sounding
-        - id: LED5
-          name: Bell 6 sounding
-    - when: { z: down}
-      display: custom
+Language: C++ (ComputerCard)
+Creator: James Saunders
+Version: 1.0.0
+Status: Released
+date-created: 2026-06-27
+date-updated: 2026-06-30
+tags:
+  - sequencer
+  - campanology
+  - permutation
+  - cv
+  - scale
+  - generative
