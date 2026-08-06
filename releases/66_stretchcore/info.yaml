@@ -1,104 +1,129 @@
-draft: true
-Name: Stretchcore
-short-description: A card for playing and manipulating samples with tempo control, timestretch with browser-based audio loading (infinitedigits.com/stretchcore/)
+draft: false
+Name: stretchcore
+short-description: Mono sample-loop player with tempo control, timestretch, position jumps, and browser-based sample loading
+summary: |
+  stretchcore plays uploaded mono sample loops with internal or external tempo control,
+  granular timestretch, position jumps, sample selection, and two independent slow random
+  CV outputs. Its Web Serial sample manager can preview, crop, read back, and replace the
+  sample bank without reflashing the firmware.
 Language: C++ (Pico SDK)
 Creator: Infinite Digits
-Version: 1.0
-Status: Ready%
+Version: "1.0"
+Status: Ready
 Editor: https://infinitedigits.co/stretchcore/
 date-created: 2026-06-02
 date-updated: 2026-07-02
+demo-link: https://www.youtube.com/watch?v=2qQBaFxhDwc
 
-summary: |
-  Mono sample-loop player with browser-loaded sample bank, tempo control, timestretch,
-  and jump/selection gestures. Main knob targets playback position or sample index
-  depending on switch gesture, X sets internal tempo when not externally clocked, and
-  Y sets timestretch amount (with optional CV1 modulation). Switch down jumps to Main
-  position and emits Pulse Out 1; switch up selects sample from Main position and emits
-  Pulse Out 2. Pulse In 1 provides external clock, and Pulse In 2 triggers CV2-position
-  jumps (or loop start when CV2 is unpatched).
+tags:
+  - sampler
+  - looper
+  - timestretch
+  - web-serial
 
 panel:
   inputs:
+    - id: CVIn1
+      name: Timestretch Mod
+      description: Adds bipolar modulation to the Main knob's timestretch amount when patched
+      type: cv
+    - id: CVIn2
+      name: Position Offset
+      description: Adds a bipolar offset to the Y position when Pulse In 2 triggers a jump
+      type: cv
     - id: PulseIn1
-      name: External Clock
-      description: Rising-edge external clock; internal tempo is used when external clock is absent
+      name: External Tempo Clock
+      description: Two-pulses-per-quarter-note tempo clock; overrides the X knob while active
+      type: pulse
     - id: PulseIn2
       name: Jump Trigger
-      description: Rising edge jumps to CVIn2-defined loop position, or loop start when CVIn2 is unpatched
-    - id: CVIn1
-      name: Timestretch Modulation
-      description: Adds bipolar modulation to Y timestretch control when patched
-    - id: CVIn2
-      name: Jump Position CV
-      description: Position source for PulseIn2 jumps
+      description: Jumps playback to the Y position, offset by CV In 2 when patched
+      type: pulse
   outputs:
     - id: AudioOut1
-      name: Audio Output Left
-      description: Left audio output from current sample loop playback
+      name: Loop Output 1
+      description: Mono playback of the selected sample loop
+      type: audio
     - id: AudioOut2
-      name: Audio Output Right
-      description: Right audio output from current sample loop playback
+      name: Loop Output 2
+      description: Duplicate mono playback of the selected sample loop
+      type: audio
     - id: CVOut1
       name: Random CV 1
       description: Smooth slow bipolar random modulation output
+      type: cv
     - id: CVOut2
       name: Random CV 2
-      description: Smooth slow bipolar random modulation output
+      description: Independent smooth slow bipolar random modulation output
+      type: cv
     - id: PulseOut1
-      name: Jump Gesture Trigger
-      description: Trigger pulse emitted after debounced switch-down jump action
+      name: Jump Pulse
+      description: 20 ms trigger emitted when the switch is moved down to jump playback
+      type: pulse
     - id: PulseOut2
-      name: Sample-Select Gesture Trigger
-      description: Trigger pulse emitted after debounced switch-up sample-select action
+      name: Select Pulse
+      description: 20 ms trigger emitted when the switch is moved up to select a sample
+      type: pulse
 
-# certainty: low — LED meanings are inferred from firmware update_leds() behavior; README does not document per-LED semantics
 controls:
+  switch:
+    up:
+      name: Select Sample
+      description: Selects a sample according to the Y knob position and fires Pulse Out 2
+    middle:
+      name: Loop Playback
+      description: Normal playback; Main controls timestretch, X controls internal tempo, and Y sets the next jump position
+    down:
+      name: Jump Position
+      description: Jumps playback to the position selected by Y and fires Pulse Out 1
   knobs:
-    - when: { z: middle }
-      main:
-        name: Position / Sample Target
-        description: Target position for switch-down jump and sample index source for switch-up sample selection
+    - main:
+        name: Timestretch
+        description: Sets the timestretch amount; CV In 1 adds bipolar modulation when patched
       x:
         name: Internal Tempo
-        description: Internal playback tempo control when external clock is not active
+        description: Sets playback tempo from 100 to 200 BPM when no external clock is active
+    - when: { z: middle }
       y:
-        name: Timestretch Amount
-        description: Timestretch depth with cubic easing; CVIn1 can modulate when patched
-    - when: { z: down, gesture: hold }
-      main:
-        name: Jump To Main Position
-        description: Debounced hold in down position jumps playback to Main-selected loop position and fires PulseOut1
-    - when: { z: up, gesture: hold }
-      main:
-        name: Select Sample By Main Position
-        description: Debounced hold in up position changes active sample using Main-selected index and fires PulseOut2
+        name: Jump Position
+        description: Sets the position used by the next switch-down or Pulse In 2 jump
+    - when: { z: up }
+      y:
+        name: Sample Select
+        description: Selects one of the uploaded samples according to knob position
+    - when: { z: down }
+      y:
+        name: Jump Position
+        description: Selects the loop position to jump to
 
+  # certainty: low — README documents overall feedback; per-LED roles are inferred from update_leds() in src/main.cpp
   leds:
-    - when: { z: any }
-      display: list
+    - display: list
       items:
         - id: LED0
-          name: Position Segment / External Clock Marker A
-          description: In free-run mode shows loop-position segment; in external-clock mode remains lit as edge marker
+          name: Playhead / Clock Edge
+          description: First playhead segment in free-run mode; remains lit as the left edge marker with external clock
         - id: LED1
-          name: Position Segment 1
-          description: Scanning segment indicator in free-run mode, or inner quarter-step indicator in external-clock mode
+          name: Playhead Segment 2
+          description: Playhead segment in free-run mode; first inner position segment with external clock
         - id: LED2
-          name: Position Segment 2
-          description: Scanning segment indicator in free-run mode, or inner quarter-step indicator in external-clock mode
+          name: Playhead Segment 3
+          description: Playhead segment in free-run mode; second inner position segment with external clock
         - id: LED3
-          name: Position Segment 3
-          description: Scanning segment indicator in free-run mode, or inner quarter-step indicator in external-clock mode
+          name: Playhead Segment 4
+          description: Playhead segment in free-run mode; third inner position segment with external clock
         - id: LED4
-          name: Position Segment 4
-          description: Scanning segment indicator in free-run mode, or inner quarter-step indicator in external-clock mode
+          name: Playhead Segment 5
+          description: Playhead segment in free-run mode; fourth inner position segment with external clock
         - id: LED5
-          name: Position Segment / External Clock Marker B
-          description: In free-run mode shows loop-position segment; in external-clock mode remains lit as edge marker
+          name: Playhead / Clock Edge
+          description: Final playhead segment in free-run mode; remains lit as the right edge marker with external clock
 
 host:
   usb:
-    - name: Stretchcore Sample Manager
+    - name: stretchcore Sample Manager
       role: editor
-      description: Browser-based loader at the Editor URL uploads and manages sample banks over Web Serial
+      description: Browser loader for previewing, cropping, reading back, and uploading sample banks over Web Serial
+  notes: |
+    The firmware exposes its sample manager over USB serial. Sample banks contain up to
+    64 mono samples stored in flash as 48 kHz signed 8-bit PCM.
