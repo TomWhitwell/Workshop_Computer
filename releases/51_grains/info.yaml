@@ -1,0 +1,110 @@
+draft: true
+Name: Grains
+Description: Granular Sampler and Effect
+Language: C++ (RP2040 Pico SDK)
+Creator: Vincent Maurer
+Version: 1.0
+Status: Released
+Editor: https://vincentmaurer.de/grains/grains_manager.html
+
+tags:
+  - granular
+  - sampler
+  - freeze
+  - live-processing
+  - tape-mode
+
+manual: |
+  Grains records and replays granular audio from a live buffer or stored sample slots. The interface is page-based:
+  page 1 (position/density/size), page 2 (envelope/tone/pitch), page 3 (mix/spread/feedback-diffusion), and page 4
+  (reverb). Flick/hold gestures control page changes, freeze, and load/save menus. Tape Mode is available at power-up
+  for scrub-style sample playback from the same slot system.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio Input Left / Mono
+      description: Source audio for granular recording and processing
+    - id: AudioIn2
+      name: Audio Input Right
+      description: CV/audio modulation for grain density behavior
+    - id: CVIn1
+      name: Pitch CV
+      description: 1V/oct style control for grain or tape playback pitch
+    - id: CVIn2
+      name: Position CV
+      description: Grain playhead offset or tape scrub position modulation
+    - id: PulseIn1
+      name: Grain Trigger
+      description: External trigger for grain spawning or tape play/pause gating
+    - id: PulseIn2
+      name: Freeze / Reset
+      description: Freeze control in granular mode; playhead reset in tape mode
+  outputs:
+    - id: AudioOut1
+      name: Stereo Out Left
+      description: Main processed left output
+    - id: AudioOut2
+      name: Stereo Out Right
+      description: Main processed right output
+    - id: CVOut1
+      name: Envelope / Playhead Ramp
+      description: Looping ramp CV tied to buffer/playhead progress
+    - id: CVOut2
+      name: Random / Motion CV
+      description: Grain-randomness or movement/speed CV output
+    - id: PulseOut1
+      name: Grain / End-of-Cycle Trigger
+      description: Trigger output for grain timing or tape EOC
+    - id: PulseOut2
+      name: Freeze / Midpoint Trigger
+      description: High when frozen in granular mode or midpoint trigger in tape mode
+
+controls:
+  knobs:
+    - when: { page: 1 }
+      main:
+        name: Position
+        description: Grain read position in the captured buffer/sample
+      x:
+        name: Density
+        description: Grain generation density
+      y:
+        name: Size
+        description: Maximum grain size
+    - when: { page: 2 }
+      main:
+        name: Envelope Shape
+        description: Grain window shape selection
+      x:
+        name: Jitter / Chords / Reverse Chance
+        description: Behavior control across left/center/right regions
+      y:
+        name: Pitch
+        description: Grain pitch control
+    - when: { page: 3 }
+      main:
+        name: Wet/Dry
+        description: Blend between live signal and granular output
+      x:
+        name: Feedback / Diffusion
+        description: Feedback in live mode, diffusion in freeze mode
+      y:
+        name: Stereo Spread
+        description: Width of stereo grain field
+    - when: { page: 4 }
+      main:
+        name: Reverb Mix
+        description: Reverb amount
+      x:
+        name: Room Size
+        description: Reverb size
+      y:
+        name: Damping
+        description: Reverb high-frequency damping
+
+host:
+  usb:
+    - name: Grains Manager
+      role: editor
+      description: Browser editor in `web/` and hosted online for managing sample slots and module settings

@@ -1,7 +1,118 @@
-Description: Reverb effect, plus pulse/CV generators and MIDI-to-CV, configurable using web interface. 
+draft: true
 Name: Reverb+
+Description: Reverb effect, plus pulse/CV generators and MIDI-to-CV, configurable using web interface.
 Language: C (RPi Pico SDK)
 Creator: Chris Johnson
-Version: 1.4
+Version: 1.5
 Status: Released
 Editor: https://www.musicthing.co.uk/web_config/reverb.html
+
+tags:
+  - effect
+  - reverb
+  - midi-host
+  - utility
+  - clock
+
+manual: |
+  Stereo reverb card with configurable utility routing for CV, pulse, clocks, Turing Machine, and Bernoulli gate.
+  Top audio jacks are fixed to reverb I/O; most other controls and jacks are assignable in the web editor.
+  Z up passes input normally, Z middle enables input noise gate, Z down freezes the reverb.
+  Hold Z down while loading to restore default configuration.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Reverb Input Left
+      description: Fixed reverb input; mixed with inverted AudioIn2 to mono reverb feed
+    - id: AudioIn2
+      name: Reverb Input Right (Inverted)
+      description: Fixed reverb input contribution, summed into mono reverb input
+    - id: CVIn1
+      name: Configurable CV Input 1
+      description: Assignable modulation source via web editor (default adds to decay)
+    - id: CVIn2
+      name: Configurable CV Input 2
+      description: Assignable modulation source via web editor (default adds to wet/dry)
+    - id: PulseIn1
+      name: Configurable Pulse Input 1
+      description: Assignable pulse source via web editor (default freeze gate)
+    - id: PulseIn2
+      name: Configurable Pulse Input 2
+      description: Assignable pulse source via web editor (default Turing clock)
+  outputs:
+    - id: AudioOut1
+      name: Reverb Output Left
+      description: Stereo reverb output (left)
+    - id: AudioOut2
+      name: Reverb Output Right
+      description: Stereo reverb output (right)
+    - id: CVOut1
+      name: Configurable CV Output 1
+      description: Assignable utility output (noise, MIDI/CV, Turing, clocked gate, and more)
+    - id: CVOut2
+      name: Configurable CV Output 2
+      description: Assignable utility output (noise, MIDI/CV, Turing, clocked gate, and more)
+    - id: PulseOut1
+      name: Configurable Pulse Output 1
+      description: Assignable trigger/gate utility output
+    - id: PulseOut2
+      name: Configurable Pulse Output 2
+      description: Assignable trigger/gate utility output
+
+controls:
+  knobs:
+    - when: { z: any }
+      main:
+        name: Configurable Parameter A
+        description: Source selectable in web editor (default reverb wet/dry)
+      x:
+        name: Configurable Parameter B
+        description: Source selectable in web editor (default reverb decay)
+      y:
+        name: Configurable Parameter C
+        description: Source selectable in web editor (default reverb tone)
+    - when: { z: up }
+      main:
+        name: Reverb Open Input
+        description: Reverb input passes without noise gate
+    - when: { z: middle }
+      main:
+        name: Reverb Input Gated
+        description: Noise gate applied to reverb input
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Reverb Freeze
+        description: Freezes reverb tail while switch is held down
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Wet Level Low
+          description: Lower segment of wet-output VU meter
+        - id: LED2
+          name: Wet Level Mid
+          description: Middle segment of wet-output VU meter
+        - id: LED4
+          name: Wet Level High
+          description: Upper segment of wet-output VU meter
+        - id: LED1
+          name: Input Clip
+          description: Indicates clipping on reverb input path
+        - id: LED3
+          name: Pulse Out 1 State
+          description: Mirrors PulseOut1 gate/trigger activity
+        - id: LED5
+          name: Pulse Out 2 State
+          description: Mirrors PulseOut2 gate/trigger activity
+
+host:
+  usb:
+    - name: Reverb+ Web Editor
+      role: editor
+      description: Web MIDI config editor for assigning knob/CV/pulse routing and utility behavior
+    - name: USB MIDI Device/Host
+      role: midi
+      description: Supports USB MIDI device mode and, on newer hardware, automatic USB host mode

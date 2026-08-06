@@ -281,6 +281,8 @@ void tuh_midi_tx_cb(uint8_t dev_addr)
 
 int main()
 {
+	set_sys_clock_khz(144000, true);
+
 	MIDIDeviceHost mdh;
 	mdh.Run();
 }

@@ -1,0 +1,85 @@
+C1ZZL3 Quick Reference
+======================
+
+Production candidate: Web MIDI build promoted 2026-06-13
+UF2: uf2/C1ZZL3.uf2
+Tap-tempo rollback UF2: uf2/C1ZZL3_with_tap_tempo_rollback_20260615.uf2
+
+Stability boundary
+------------------
+- This build is at the practical stable limit for the RP2040 card format.
+- Turing MIDI output is intentionally absent.
+- Turing clock does not continue running in synth mode.
+- When leaving Turing mode, CV/pulse outputs hold their last values.
+
+Switch middle: PD synth
+-----------------------
+Main: pitch
+X: phase distortion
+Y: wave shape
+Audio/CV In 1: 1V/oct pitch
+CV In 1: adds phase distortion
+CV In 2: adds wave control
+Audio In 2: unused
+Pulse In 2: trigger selected envelope and oscillator sync
+
+Switch down: performance edit
+-----------------------------
+Main: oscillator 2 detune
+X: ring modulation
+Y: noise/grit
+Ring/noise start neutral after reset.
+If powered with switch down, ring/noise edit is locked until the switch leaves down.
+
+Switch up: Turing
+-----------------
+Main: mutation
+X: sequence length, 2-16 steps
+Y: clock speed
+Pulse In 1: external clock
+Tap tempo: removed
+CV Out 1: stepped Turing CV
+CV Out 2: smoothed Turing CV
+Pulse Out 1: main Turing pulse
+Pulse Out 2: alternate bit pulse
+CV In 1: clamped PD modulation
+CV In 2: clamped wave modulation
+
+Startup envelope select
+-----------------------
+Hold switch down during startup.
+Main selects factory presets and saved custom slots.
+Short down press exits.
+Long down hold saves selected preset.
+LED 6 marks custom slots; LEDs 1-3 show custom slot number.
+
+Web MIDI
+--------
+Hosted editor:
+https://soveda.github.io/CozmikC1zzl3/web-midi/editor/
+
+Run editor:
+python3 -m http.server 5173 --directory web-midi/editor
+
+Open:
+http://localhost:5173
+
+Editor supports:
+- eight custom envelope slots
+- Load to RAM
+- Save to card flash
+- ring/noise/channel Set
+- browser audition
+- SysEx/C++ copy
+
+Factory envelopes
+-----------------
+0 Off
+1 Pluck
+2 Double pluck
+3 Bounce
+4 Bell
+5 Brass
+6 Strings
+7 Reverse swell
+8 Evolving digital

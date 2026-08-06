@@ -20,6 +20,8 @@ public:
 
 int main()
 {
+	set_sys_clock_khz(144000, true);
+
 	NormalisationProbeTest npt;
 
 	// Turn on the normalisation probe

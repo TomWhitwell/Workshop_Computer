@@ -1,5 +1,101 @@
+draft: true
+Name: Vink
 Description: Dual delay loops with sigmoid saturation for Jaap Vink / Roland Kayn style feedback patching
-Language: C++(ComputerCard)
+Language: C++ (ComputerCard)
 Creator: Ben Regnier
 Version: 1.1
 Status: Functional
+
+tags:
+  - delay
+  - feedback
+  - saturation
+  - dual-tap
+  - experimental
+
+demo-link: https://www.youtube.com/watch?v=X_Bcr_HS9XM
+
+manual: |
+  Vink provides two independently time-modulated delay taps with optional sigmoid saturation blend.
+  Main controls base delay time, X controls tap 2 offset, and Y crossfades dry to saturated output.
+  In switch up, outputs are split per tap; in middle/down, taps are mixed to mono on both outputs.
+  CV In 1 and CV In 2 modulate tap times. Pulse outputs track tap periods.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio Input 1
+      description: Delay source input (or left source in split mode)
+    - id: AudioIn2
+      name: Audio Input 2
+      description: Optional second source; summed in shared mode or routed to tap 2 in split mode
+    - id: CVIn1
+      name: Tap 1 Time Mod
+      description: Modulates delay time for tap 1, averaged with Main knob target
+    - id: CVIn2
+      name: Tap 2 Time Mod
+      description: Modulates delay time for tap 2, averaged with Main+X target
+  outputs:
+    - id: AudioOut1
+      name: Delay Tap 1 / Mono Mix
+      description: Tap 1 output in split mode, or mono sum in shared mode
+    - id: AudioOut2
+      name: Delay Tap 2 / Mono Mix
+      description: Tap 2 output in split mode, or mono sum in shared mode
+    - id: CVOut1
+      name: Chaos CV A
+      description: Slow chaotic CV from internal logistic-map LFO
+    - id: CVOut2
+      name: Chaos CV B
+      description: Slow chaotic CV from second logistic-map LFO
+    - id: PulseOut1
+      name: Tap 1 Period Pulse
+      description: Pulse train based on tap 1 delay period
+    - id: PulseOut2
+      name: Tap 2 Period Pulse
+      description: Pulse train based on tap 2 delay period
+
+controls:
+  knobs:
+    - when: { z: up }
+      main:
+        name: Base Delay Time
+        description: Sets shared center delay time for both taps
+      x:
+        name: Tap 2 Offset
+        description: Offsets tap 2 delay relative to tap 1
+      y:
+        name: Saturation Mix
+        description: Crossfades dry delayed signal to sigmoid-saturated signal
+  switch:
+    up:
+      name: Split Routing
+      description: Independent input/output routing per tap
+    middle:
+      name: Shared Routing
+      description: Mixed dual-delay output on both outputs
+    down:
+      name: Shared Routing
+      description: Same routing behavior as middle # certainty: high (code groups center/down)
+  leds:
+    - when: { mode: activity }
+      display: list
+      items:
+        - id: LED0
+          name: Audio Out 1 Level
+          description: Brightness follows output 1 level
+        - id: LED1
+          name: Audio Out 2 Level
+          description: Brightness follows output 2 level
+        - id: LED2
+          name: Chaos CV A
+          description: Brightness reflects CV Out 1 state
+        - id: LED3
+          name: Chaos CV B
+          description: Brightness reflects CV Out 2 state
+        - id: LED4
+          name: Tap 1 Pulse
+          description: Lit while Pulse Out 1 is high
+        - id: LED5
+          name: Tap 2 Pulse
+          description: Lit while Pulse Out 2 is high

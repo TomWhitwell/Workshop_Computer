@@ -1,6 +1,89 @@
-Description: Quad CV delay inspired by Make Noise Multimod
+draft: true
 Name: CVMod
+Description: Quad CV delay inspired by Make Noise Multimod
 Language: C++ (ComputerCard)
 Creator: Chris Johnson
 Version: 1.0
 Status: Released
+License: MIT
+
+tags:
+  - cv
+  - delay
+  - modulation
+  - looper
+
+manual: |
+  CVMod records one CV stream into a loop and reads it out through four moving heads. X + `CVIn1`
+  sets loop duration, Main + `AudioIn2` sets head speed, and Y + `CVIn2` sets head phase offset.
+  Switch down (or `PulseIn1`) resets read-head position; switch up cycles motion function.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Record CV Input
+      description: Source CV recorded into the loop (internal ramp used when unpatched)
+    - id: AudioIn2
+      name: Speed Modulation
+      description: Modulates read-head speed around Main knob center
+    - id: CVIn1
+      name: Loop Time Modulation
+      description: Modulates loop duration with Knob X
+    - id: CVIn2
+      name: Phase Modulation
+      description: Modulates read-head phase offset with Knob Y
+    - id: PulseIn1
+      name: Reset Trigger
+      description: Rising edge resets playback heads to record phase
+  outputs:
+    - id: AudioOut1
+      name: Read Head 1
+      description: Output of first playback head
+    - id: AudioOut2
+      name: Read Head 2
+      description: Output of second playback head
+    - id: CVOut1
+      name: Read Head 3
+      description: Output of third playback head
+    - id: CVOut2
+      name: Read Head 4
+      description: Output of fourth playback head
+
+controls:
+  knobs:
+    - main:
+        name: Head Speed
+        description: Read-head speed ratio; center tracks record head speed
+      x:
+        name: Loop Duration
+        description: Sets record-loop length
+      y:
+        name: Phase Offset
+        description: Offsets read heads from record position
+    - when: { z: down }
+      main:
+        name: Reset Heads
+        description: Switch-down edge resets playback heads
+    - when: { z: up }
+      main:
+        name: Next Motion Function
+        description: Cycles Ramp, Saw, Triangle, Sin, and Steps read-head motion
+  leds:
+    - display: list
+      items:
+        - id: LED1
+          name: Unity Speed
+          description: Lit when speed is centered at record-head rate
+        # certainty: low — function LED bit mapping inferred from cvmod.cpp
+        - id: LED0
+          name: Function Bit 0
+          description: Motion function indicator bit 0
+        - id: LED2
+          name: Function Bit 1
+          description: Motion function indicator bit 1
+        - id: LED4
+          name: Function Bit 2
+          description: Motion function indicator bit 2
+        - id: LED5
+          name: Loop Wrap Pulse
+          description: Briefly lights when loop index wraps

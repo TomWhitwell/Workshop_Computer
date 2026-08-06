@@ -1,0 +1,29 @@
+# Build output
+build/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# macOS
+.DS_Store
+._*
+
+# Compiled binaries
+*.elf
+*.bin
+*.hex
+*.uf2
+*.map
+*.dis
+
+# Object files
+*.o
+*.obj
+
+# Editor backups
+*~
+*.swp
+*.bak
+*.tmp

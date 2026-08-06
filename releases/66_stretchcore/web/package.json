@@ -1,0 +1,26 @@
+{
+  "name": "stretchcore-loader",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "copy-uf2": "mkdir -p public && cp ../UF2/stretchcore.uf2 public/stretchcore.uf2",
+    "build": "npm run copy-uf2 && tsc && vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "driver.js": "^1.4.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "vite": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.8"
+  }
+}

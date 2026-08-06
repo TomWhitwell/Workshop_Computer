@@ -1,5 +1,76 @@
+draft: true
+Name: Glitter
 Description: Granular Looping Sampler
-Language: Pico SDK 2.1.1
+Language: C++ (Pico SDK 2.1.1, UF2 release)
 Creator: Steve Jones
-Version: 0.1.0
-Status: Beta Test
+Version: 0.1.2-beta
+Status: Beta
+License: MIT
+Repository: https://github.com/sdrjones/mtws/tree/main/53_glitter
+
+tags:
+  - granular
+  - looper
+  - stereo
+  - glitch
+  - sampler
+
+demo-link: https://youtu.be/JW8Z_I-ub2A
+
+manual: |
+  Glitter continuously plays a 2-second stereo loop while up to six grains read random snippets from it.
+  Switch up/down records into the loop (up for continuous record, down for punch-in style). Main blends
+  plain loop vs granulated output, X controls repitch behavior in play and overdub balance in record, and
+  Y sets maximum grain size. CV inputs influence grain repeat/sleep behavior and Pulse In 1 can quantize
+  grain length/position against a clock.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio Input Left
+      description: Left channel input for loop recording
+    - id: AudioIn2
+      name: Audio Input Right
+      description: Right channel input for loop recording
+    - id: CVIn1
+      name: Grain Repeat Chance CV
+      description: Higher at lower voltage, decreases with positive CV
+    - id: CVIn2
+      name: Grain Sleep Chance CV
+      description: Higher at lower voltage, decreases with positive CV
+    - id: PulseIn1
+      name: Clock Input
+      description: Steady clock quantizes grain size/position behavior
+  outputs:
+    - id: AudioOut1
+      name: Audio Out Left
+      description: Processed loop/granular output
+    - id: AudioOut2
+      name: Audio Out Right
+      description: Processed loop/granular output
+
+controls:
+  knobs:
+    - when: { z: any }
+      main:
+        name: Loop vs Grains Blend
+        description: Clockwise favors plain loop, counter-clockwise favors granulated output
+      y:
+        name: Max Grain Size
+        description: Longer grains clockwise, shorter grains counter-clockwise
+    - when: { z: middle }
+      x:
+        name: Repitch Chance
+        description: Controls octave/fifth variation probability for grains during playback
+    - when: { z: up_or_down_record }
+      x:
+        name: Overdub Mix
+        description: Balance old loop material vs newly recorded audio
+  switches:
+    - id: Z
+      up:
+        name: Continuous Record
+        description: Hands-free ongoing recording while grains play previous loop material
+      down:
+        name: Punch Record
+        description: Momentary overwrite recording for short captured snippets

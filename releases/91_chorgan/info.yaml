@@ -1,0 +1,121 @@
+Name: Chorgan
+Description: "Chorgan — 6-voice chord synthesizer with morphing timbre, chord extension presets, and built-in chord sequencer. Two modes: normal (detune/chorus) and slew (portamento chord changes). Inspired by the Music Thing Modular Chord Organ."
+Language: C++ (Pico SDK / ComputerCard)
+Creator: Andy Jenkinson (uglifruit)
+Version: 1.1.0
+Status: released
+
+tags:
+  - synthesizer
+  - chord
+  - sequencer
+  - polyphonic
+  - portamento
+
+manual: |
+  Six-voice morphing chord synthesizer with built-in chord sequencer.
+  Knob X and CV In 1 set root pitch; Knob Y selects interval above root (0–12 semitones).
+  Main knob morphs all six voices through sine, triangle, saw, and narrow pulse; CV In 2 offsets timbre.
+  Audio In 1 controls slew speed (0V=instant, +5V=approx 1 min glide). Audio In 2 shifts chord voicing through octave inversions (bipolar, +/-6 steps).
+  Tap Switch Down to cycle chord extension presets; hold one second to store a chord in the sequencer.
+  Pulse In 1 advances preset; Pulse In 2 recalls the next stored chord on rising edges.
+  Boot with Switch Down held for slew mode (portamento chord changes instead of detune).
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Root Pitch CV
+      description: Root pitch 1V/oct (0V = C4), summed with Knob X
+    - id: CVIn2
+      name: Timbre Offset CV
+      description: Bipolar offset to Main knob timbre position
+    - id: AudioIn1
+      name: Slew Speed CV
+      description: 0V=instant, +5V=approx 1 min glide; negative shortens slew in slew mode
+    - id: AudioIn2
+      name: Chord Inversion CV
+      description: Bipolar +/-6 octave inversion steps; shifts lowest/highest voice up or down
+    - id: PulseIn1
+      name: Preset Advance
+      description: Rising edge advances chord extension preset
+    - id: PulseIn2
+      name: Chord Recall Clock
+      description: Rising edge recalls next stored chord in sequencer
+  outputs:
+    - id: AudioOut1
+      name: Six-Voice Mix
+      description: Six-voice chord mix output
+    - id: AudioOut2
+      name: Phase-Offset Mix
+      description: Same voices with per-voice phase offsets for stereo width
+    - id: PulseOut1
+      name: Sub-Octave Square
+      description: Square wave one octave below root
+    - id: PulseOut2
+      name: Chord Event PWM
+      description: PWM envelope resetting on each chord event
+    - id: CVOut1
+      name: Voiced Pitch CV
+      description: Root pitch plus voiced interval (1V/oct)
+    - id: CVOut2
+      name: Chord Event Ramp
+      description: Unipolar downward ramp (+5V to 0V) on each chord event
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Timbre
+        description: Morphs waveform of all six voices (pulse → sine → saw → sine → pulse)
+      x:
+        name: Root Pitch
+        description: Root pitch from C3 to C6, summed with CV In 1
+      y:
+        name: Interval
+        description: Semitone interval between root and voice 2 (0–12)
+    - when: { z: up }
+      main:
+        name: Timbre
+        description: Same timbre morph with detune zone selected by switch/knob quadrant
+      x:
+        name: Root Pitch
+        description: Root pitch control
+      y:
+        name: Interval
+        description: Semitone interval control
+  switches:
+    - id: Z
+      up:
+        name: Detune Zone B
+        description: Higher detune level selected by knob quadrant
+      middle:
+        name: Detune Zone A
+        description: Lower detune level selected by knob quadrant
+      down:
+        name: Preset Cycle / Store
+        description: Short tap cycles preset; one-second hold stores current chord to sequencer
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Interval Position A
+          description: Part of interval position display across LEDs 0–4
+        - id: LED1
+          name: Store/Recall Bit A
+          description: Binary slot indicator during store/recall gestures
+        - id: LED2
+          name: Interval Position B
+        - id: LED3
+          name: Store/Recall Bit B
+        - id: LED4
+          name: Interval Position C
+        - id: LED5
+          name: Preset Brightness
+          description: Brightness indicates current extension preset (0–5)
+
+host:
+  notes: |
+    Slew mode boots when Switch Down is held at power-on until LEDs flash.
+    Up to eight chords can be stored; storing more than eight overwrites from the beginning.

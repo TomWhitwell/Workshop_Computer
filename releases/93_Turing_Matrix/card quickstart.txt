@@ -1,0 +1,44 @@
+Turing Matrix Card Quickstart
+
+1. Power up the card.
+2. Use Z middle for the Turing layer.
+3. Use Z up for the mixer layer.
+4. Use Z down for tap tempo.
+5. Patch Pulse In 1 for external clock if needed.
+6. Patch Audio In 1 and Audio In 2 for mixer mode.
+7. Open the web editor in Chrome if you want to change saved settings.
+
+Web editor:
+https://soveda.github.io/Turing_Matrix_Editor/web
+
+Notes:
+- Z middle: Random / Write, Loop Length, Div / Mult
+- Z up: Mixer Lag, Mix Depth 1, Mix Depth 2
+- Pickup is active when switching between layers.
+
+Inputs:
+- Pulse In 1: external clock for the main Turing channel
+- Pulse In 2: independent clock for channel 2
+- CV In 1: divide/multiply modulation in Z middle, mix input 1 in Z up
+- CV In 2: pitch offset in Z middle, mix input 2 in Z up
+- Audio In 1: mixer input 1 in Z up, direct pass-through in Z middle
+- Audio In 2: mixer input 2 in Z up, direct pass-through in Z middle
+
+Outputs:
+- Pulse Out 1: channel 1 pulse
+- Pulse Out 2: channel 2 pulse
+- CV Out 1: channel 1 quantized CV in Z middle, crossfaded CV output 1 in Z up
+- CV Out 2: channel 2 quantized CV in Z middle, crossfaded CV output 2 in Z up
+- Audio Out 1: direct pass-through in Z middle, mixed audio output 1 in Z up
+- Audio Out 2: direct pass-through in Z middle, mixed audio output 2 in Z up
+
+Quickstart patch:
+1. Tune oscillator 1 and oscillator 2 to a fifth interval.
+2. Patch the two oscillators into Audio In 1 and Audio In 2.
+3. Patch Audio Out 1 and Audio Out 2 to two mixer channels and pan them hard left and right.
+4. Switch to Z up.
+5. Turn X and Y to maximum.
+6. Listen first to the two oscillators without any CV patched so you can hear the basic stereo mix movement.
+7. Patch Slopes output to CV In 1 and CV In 2 and set Slopes to a slow loop.
+8. Patch CV Out 1 and CV Out 2 to the pitch inputs of oscillator 1 and oscillator 2.
+9. Listen on headphones and adjust the Slopes speed to hear the changes more clearly.

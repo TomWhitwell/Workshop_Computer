@@ -1,5 +1,82 @@
-Description: Takes USB midi, sends it to pulse and CV outputs, also sends knob positions and CV inputs back to the computer as CC values. 
+draft: true
+Name: Simple MIDI
+Description: Takes USB midi, sends it to pulse and CV outputs, also sends knob positions and CV inputs back to the computer as CC values.
 Language: Arduino-Pico
 Creator: Tom Whitwell
 Version: 0.6.6
 Status: Working but simple
+
+tags:
+  - midi
+  - utility
+  - cv
+  - gate
+
+manual: |
+  USB MIDI utility firmware for routing incoming MIDI notes to CV/Gate outputs.
+  Knob and CV positions are transmitted back to the host as MIDI CC values.
+  Hold the switch during boot to enter calibration mode for the two pitch/CV channels.
+
+# certainty: low — API jack ids and per-jack behavior inferred from Arduino source pin mappings and handlers
+panel:
+  inputs:
+    - id: CVIn1
+      name: CV CC Source 1
+      description: CV input sampled and sent to host as MIDI CC data
+      type: cv
+    - id: CVIn2
+      name: CV CC Source 2
+      description: CV input sampled and sent to host as MIDI CC data
+      type: cv
+  outputs:
+    - id: CVOut1
+      name: MIDI Pitch CV 1
+      description: Channel 1 MIDI notes are converted to calibrated pitch CV
+      type: cv
+    - id: CVOut2
+      name: MIDI Pitch CV 2
+      description: Channel 2 MIDI notes are converted to calibrated pitch CV
+      type: cv
+    - id: PulseOut1
+      name: Gate 1
+      description: Gate output for MIDI note events on channel 1
+      type: pulse
+    - id: PulseOut2
+      name: Gate 2
+      description: Gate output for MIDI note events on channel 2
+      type: pulse
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: MIDI CC Source (Main)
+        description: Main knob position is sent to host as MIDI CC
+      x:
+        name: MIDI CC Source (X)
+        description: X knob position is sent to host as MIDI CC
+      y:
+        name: MIDI CC Source (Y)
+        description: Y knob position is sent to host as MIDI CC
+    - when: { z: down, gesture: hold }
+      main:
+        name: Enter Calibration
+        description: Hold switch at startup to enter CV output calibration mode
+
+# certainty: low — LED meanings mostly inferred from calibration and MIDI handlers in source
+  leds:
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED4
+          name: Gate 1 Activity
+          description: Indicates pulse/gate output activity for channel 1
+        - id: LED5
+          name: Gate 2 Activity
+          description: Indicates pulse/gate output activity for channel 2
+
+host:
+  usb:
+    - name: USB MIDI device
+      role: midi
+      description: Enumerates as "Music Thing Workshop System MIDI" for MIDI in/out with a DAW or browser tools

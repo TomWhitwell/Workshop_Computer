@@ -1,0 +1,26 @@
+GNU General Public License notice, applying to 82_Computer_Grids/ folder only
+
+This license file applies ONLY to files within:
+`Workshop_Computer/releases/82_Computer_Grids/`
+
+It does not alter, replace, or extend the license terms of any other folder
+or file in this repository.
+
+SPDX license identifier for this folder's firmware sources:
+GPL-3.0-or-later
+
+This project contains adaptations derived from Mutable Instruments Grids,
+whose source is distributed under the GNU General Public License, version 3
+or (at your option) any later version.
+
+You may redistribute and/or modify the files in this folder under the terms of
+the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+The full GPLv3 license text is available from the Free Software Foundation:
+https://www.gnu.org/licenses/gpl-3.0.txt
+
+Original upstream references:
+- https://github.com/pichenettes/eurorack/tree/master/grids
+- https://pichenettes.github.io/mutable-instruments-documentation/modules/grids/
+

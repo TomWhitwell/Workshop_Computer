@@ -1,0 +1,152 @@
+draft: true
+Name: GradualProcess
+Description: Three generative composition processes (Glass, Reich, Tintinnabuli) in one card, chosen by Main's position at power-on
+Language: C++ (ComputerCard)
+Creator: James Saunders
+Version: 1.0.0
+Status: Released
+
+tags:
+  - generative
+  - sequencer
+  - minimalism
+  - phase
+  - harmony
+  - multi-mode
+
+manual: |
+  A multi-process card: three independent generative composition processes live in one
+  firmware image, and which one runs is chosen by the Main knob's position at power-on
+  (or reset) — CCW third = Glass, middle third = Reich, CW third = Tintinnabuli. LEDs
+  briefly flash to confirm the selection (~0.5s) before it starts. The choice latches for
+  that session; to switch, set Main to a different zone and power-cycle/reset again.
+
+  All three processes share the same Z-switch convention (Up = Play, Middle = Stop, Down
+  held = Settings), the same 6-scale system (Major, Minor, Pentatonic Major, Pentatonic
+  Minor, Blues, Chromatic) on Y while Z is held, and the same 7-step clock divide/multiply
+  (/8 /4 /2 x1 x2 x4 x8) on X while Z is held — only the Play-mode controls and outputs
+  differ between them, described per-process below.
+
+# This card runs three independent processes rather than one fixed control layout, so
+# the usual single "controls:" block doesn't apply cleanly — each process's controls,
+# outputs and LED behaviour are listed under its own entry below instead.
+processes:
+  - id: Glass
+    description: >
+      Additive-process pitch sequencer after Philip Glass's "Music in Similar Motion".
+      A phrase is built from short melodic cells drawn from the piece's own vocabulary
+      (steps, runs, and one characteristic leap), concatenated into a looping contour
+      that grows or shrinks one unit at a time.
+    outputs:
+      - id: CVOut1
+        name: Pitch
+        description: v/oct pitch of the current phrase
+      - id: CVOut2
+        name: Inversion
+        description: Tonal inversion of CV Out 1 (each scale degree mirrored around the tonic), in rhythmic unison with CV Out 1
+      - id: PulseOut1
+        name: Gate
+        description: ~10ms trigger, shared by both CV outputs since they always change together
+      - id: PulseOut2
+        name: Phrase Sync
+        description: ~10ms pulse once at the start of each loop of the current phrase
+    controls:
+      - when: { z: up }
+        main: { name: Tempo, description: Always active }
+        x: { name: unassigned }
+        y:
+          name: Add/Remove Unit
+          description: Zone gesture — flick CW past ~2/3 travel and back to centre to add a unit; flick CCW past ~1/3 and back to remove one
+        pulseIn1: { name: Remove Unit, description: Debounced trigger; removes the most recently added unit (minimum 1 unit) }
+        pulseIn2: { name: Add Unit, description: Debounced trigger; appends a freshly-generated unit }
+      - when: { z: down, gesture: hold }
+        x: { name: Clock Divide/Multiply, description: /8 /4 /2 x1 x2 x4 x8 }
+        y: { name: Scale Select, description: Six scales }
+    leds:
+      - when: { z: any }
+        display: custom
+        description: Current unit count, 1-6-lit / 7-12-mirrored scheme (7-12 possible since each unit is 1-4 notes); scale/clock-divide shown instead while Z is held
+
+  - id: Reich
+    description: >
+      Discrete-and-gradual phasing sequencer after Steve Reich's phase pieces (Piano
+      Phase, Clapping Music). A fixed-length pattern (4-20 beats, default 12) built from
+      1/2/3-beat note groups each followed by a rest is read by two independent,
+      normally-synchronised clocks, whose relationship can be shifted instantly or
+      drifted gradually.
+    outputs:
+      - id: CVOut1
+        name: Voice 1 Pitch
+        description: v/oct pitch, read from beat position `currentBeat`
+      - id: CVOut2
+        name: Voice 2 Pitch
+        description: v/oct pitch, same pattern, read from its own independently-clocked beat position
+      - id: PulseOut1
+        name: Voice 1 Gate
+        description: ~10ms trigger on each Voice 1 note
+      - id: PulseOut2
+        name: Voice 2 Gate
+        description: ~10ms trigger on each Voice 2 note — independent of Pulse Out 1 whenever the voices land on different beats
+    controls:
+      - when: { z: up }
+        main: { name: Tempo, description: Always active }
+        x:
+          name: Gradual Phase Drift
+          description: >
+            Three zones (CCW/centre/CW). CW makes Voice 2's clock run very slightly
+            faster than Voice 1's, gradually drifting a full beat out of phase every
+            ~8-12 phrase repeats; CCW mirrors this, drifting the other way. The drift
+            is "sticky" through the current beat regardless of where X moves in the
+            meantime, and is only re-evaluated against X's zone once that beat
+            completes (continues if X is still off-centre, locks if centred).
+        y:
+          name: Stepped Phase Shift
+          description: >
+            Zone gesture — flick CW and back to centre to step Voice 2 one beat later;
+            flick CCW and back to step it one beat earlier. If a gradual X drift is
+            still running when Y is flicked, that flick is a "quick lock": it completes
+            the in-progress drift immediately and locks there, rather than performing
+            its own independent step.
+      - when: { z: down, gesture: hold }
+        main: { name: Phrase Length, description: 4-20 beats, preset only (not live during playback); takes effect on the next fresh Play }
+        x: { name: Clock Divide/Multiply, description: /8 /4 /2 x1 x2 x4 x8 }
+        y: { name: Scale Select, description: Six scales }
+    leds:
+      - when: { z: any }
+        display: bar_graph
+        description: How far Voice 2 has drifted from unison with Voice 1 — more LEDs lit the further out of phase, symmetric in both directions, 0 lit at unison; phrase length/clock-divide/scale shown instead while Z is held
+
+  - id: Tintinnabuli
+    description: >
+      Melody-and-harmony generator after Arvo Part's tintinnabuli technique. An M-voice
+      (melody) walks mostly stepwise through the active mode with occasional held notes;
+      a T-voice (tintinnabuli) sounds a note from the fixed tonic triad at every melody
+      attack, chosen by its position relative to the melody pitch.
+    outputs:
+      - id: CVOut1
+        name: M-Voice Pitch
+        description: v/oct melody pitch
+      - id: CVOut2
+        name: T-Voice Pitch
+        description: v/oct harmony pitch, derived from the M-voice per the current harmonisation type — never in unison with the melody
+      - id: PulseOut1
+        name: M-Voice Gate
+        description: Sustained high for the note's full held duration, with a brief ~5ms low retrigger blip at the start of every new note
+      - id: PulseOut2
+        name: T-Voice Gate
+        description: Identical timing to Pulse Out 1 — the two voices always attack and release together
+    controls:
+      - when: { z: up }
+        main: { name: Tempo, description: Always active }
+        x: { name: unassigned }
+        y: { name: unassigned }
+      - when: { z: down, gesture: hold }
+        main:
+          name: Harmonisation Type
+          description: Six zones, CCW to CW — inf-2nd, inf-1st, alt-2nd, alt-1st, sup-1st, sup-2nd (inferior/alternating/superior direction, x 1st/2nd triad position)
+        x: { name: Clock Divide/Multiply, description: /8 /4 /2 x1 x2 x4 x8 }
+        y: { name: Scale Select, description: Six scales — also sets the tonic triad (major-family scales use a major triad, minor-family and blues use a minor triad) }
+    leds:
+      - when: { z: any }
+        display: custom
+        description: Current harmonisation type (single LED, 1-6); clock-divide/scale shown instead while Z is held

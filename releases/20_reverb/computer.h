@@ -71,12 +71,12 @@ uint8_t GetBoardID()
 	gpio_set_pulls(BOARD_ID_1, false, true);
 	gpio_set_pulls(BOARD_ID_2, false, true);
 	sleep_us(1);
-	uint8_t pd = gpio_get(BOARD_ID_0) | (gpio_get(BOARD_ID_0) << 2) | (gpio_get(BOARD_ID_2) << 4);
+	uint8_t pd = gpio_get(BOARD_ID_0) | (gpio_get(BOARD_ID_1) << 2) | (gpio_get(BOARD_ID_2) << 4);
 	gpio_set_pulls(BOARD_ID_0, true, false);
 	gpio_set_pulls(BOARD_ID_1, true, false);
 	gpio_set_pulls(BOARD_ID_2, true, false);
 	sleep_us(1);
-	uint8_t pu = (gpio_get(BOARD_ID_0) << 1) | (gpio_get(BOARD_ID_0) << 3) | (gpio_get(BOARD_ID_2) << 5);
+	uint8_t pu = (gpio_get(BOARD_ID_0) << 1) | (gpio_get(BOARD_ID_1) << 3) | (gpio_get(BOARD_ID_2) << 5);
 	gpio_set_pulls(BOARD_ID_0, false, true);
 	gpio_set_pulls(BOARD_ID_1, false, true);
 	gpio_set_pulls(BOARD_ID_2, false, true);
@@ -209,20 +209,17 @@ int ReadEEPROM()
 {
 	// Set up default values in the calibration table,
 	// to be used if EEPROM read fails
-	calibrationTable[0][0].voltage = -20; // -2V
-	calibrationTable[0][0].dacSetting = 347700;
-	calibrationTable[0][1].voltage = 0; // 0V
-	calibrationTable[0][1].dacSetting = 261200;
-	calibrationTable[0][2].voltage = 20; // +2V
-	calibrationTable[0][2].dacSetting = 174400;
-
-	calibrationTable[1][0].voltage = -20; // -2V
-	calibrationTable[1][0].dacSetting = 347700;
-	calibrationTable[1][1].voltage = 0; // 0V
-	calibrationTable[1][1].dacSetting = 261200;
-	calibrationTable[1][2].voltage = 20; // +2V
-	calibrationTable[1][2].dacSetting = 174400;
-
+	for (int channel = 0; channel < CAL_MAX_CHANNELS; channel++)
+	{
+		numCalibrationPoints[channel] = 3;
+		calibrationTable[channel][0].voltage = -20; // -2V
+		calibrationTable[channel][0].dacSetting = 347700;
+		calibrationTable[channel][1].voltage = 0; // 0V
+		calibrationTable[channel][1].dacSetting = 261200;
+		calibrationTable[channel][2].voltage = 20; // +2V
+		calibrationTable[channel][2].dacSetting = 174400;
+		CalcCalCoeffs(channel);
+	}
 	if (ReadIntFromEEPROM(EEPROM_ADDR_ID) != EEPROM_VAL_ID)
 	{
 		debugp("Failed to read EEPROM ID\n");

@@ -19,7 +19,7 @@
   --light-bg: #fff;     /* inputs in light mode */
   --light-text: #0b1220;
 }
-.theme-dark{ --thumb-x: 28px }
+.theme-dark{ --thumb-x: 23px }
 .theme-light{
   --bg: #f7f8fa;
   --card: #ffffff;
@@ -207,8 +207,20 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:16px/1.
   Theme toggle control
   ===================================================================== */
 .theme-toggle{appearance:none;-webkit-appearance:none;border:0;background:transparent;cursor:pointer}
-.theme-toggle .track{position:relative;display:inline-flex;align-items:center;gap:6px;width:58px;height:28px;border-radius:999px;background:var(--toggle-track);border:1px solid var(--border);padding:2px}
-.theme-toggle .thumb{position:absolute;top:1px;left:2px;width:24px;height:24px;border-radius:999px;background:var(--toggle-thumb);transition:transform .2s ease}
-.theme-toggle .thumb{transform:translateX(var(--thumb-x,26px))}
+.theme-toggle .track{position:relative;display:inline-flex;align-items:center;width:47px;height:26px;border-radius:999px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.35);padding:3px}
+.theme-toggle .thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:999px;background:#fff;transition:transform .2s ease}
+.theme-toggle .thumb{transform:translateX(var(--thumb-x,23px))}
 .theme-toggle .icons{font-size:12px;line-height:1;width:100%;display:flex;justify-content:space-between;color:var(--muted)}
-.theme-toggle .gap{width:6px;display:inline-block}
+.theme-toggle .gap{width:3px;display:inline-block}
+
+/* =====================================================================
+  Connect toggle (WebUSB programmer)
+  ===================================================================== */
+.connect-toggle{appearance:none;-webkit-appearance:none;border:0;background:transparent;cursor:pointer;display:flex;align-items:center;gap:7px;color:rgba(255,255,255,0.85);font-size:13px;white-space:nowrap}
+.connect-toggle .c-track{position:relative;display:inline-flex;align-items:center;width:47px;height:26px;border-radius:999px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.35);flex-shrink:0;transition:background .2s,border-color .2s;padding:3px}
+.connect-toggle .c-icons{font-size:12px;line-height:1;width:100%;display:flex;justify-content:space-between}
+.connect-toggle .c-gap{width:3px;display:inline-block}
+.connect-toggle .c-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:999px;background:#fff;transition:transform .2s ease}
+.connect-toggle.active .c-track{background:#3fb950;border-color:#3fb950}
+.connect-toggle.active .c-thumb{transform:translateX(23px)}
+.connect-toggle:disabled{opacity:.4;cursor:not-allowed}

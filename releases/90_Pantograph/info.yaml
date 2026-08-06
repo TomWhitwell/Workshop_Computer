@@ -1,0 +1,97 @@
+draft: false
+Name: Pantograph
+Description: Trace and record CV — record knob movements, loop them at bipolar speed
+Language: Pico SDK
+Creator: Kenny Shen
+Version: 1.0
+Status: Ready
+
+tags:
+  - cv
+  - recorder
+  - looper
+  - lfo
+  - envelope
+  - modulation
+
+manual: |
+  Pantograph lets you trace a performance on the X and Y knobs (e.g. oscillator pitch + filter
+  cutoff), record it, then loop it back out the two CV outputs at variable speeds.
+
+  Switch UP auditions live; hold DOWN to record (monitored, so you hear it as you play);
+  release to MIDDLE and it loops exactly that length. The Main
+  knob sets playback speed: centre = freeze, left = reverse, right = faster.
+
+  Patch a gate into PULSE IN 1 and MIDDLE becomes a triggered enveloped; unpatched it free-loops.
+  PULSE OUT 1 fires a trigger at the end of a recording.
+  PULSE OUT 2 runs a gate from the shape of the recording.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: X Mod
+      description: Live CV summed onto the CV1 output
+    - id: CVIn2
+      name: Y Mod
+      description: Live CV summed onto the CV2 output
+    - id: PulseIn1
+      name: Trigger
+      description: >-
+        When patched, Play (Middle) becomes a one-shot: each rising edge retriggers. Unpatched = loop.
+    - id: PulseIn2
+      name: (unused)
+      description: Not used
+    - id: AudioIn1
+      name: (unused)
+      description: Not used
+    - id: AudioIn2
+      name: (unused)
+      description: Not used
+  outputs:
+    - id: CVOut1
+      name: Trace X CV
+      description: Trace X playback
+    - id: CVOut2
+      name: Trace Y CV
+      description: Trace Y playback
+    - id: PulseOut1
+      name: End of cycle
+      description: Trigger on every trace wraparound
+    - id: PulseOut2
+      name: Contour Gate
+      description: Gates high on trace X's recorded shape
+    - id: AudioOut1
+      name: (unused)
+      description: Not used
+    - id: AudioOut2
+      name: (unused)
+      description: Not used
+
+controls:
+  switch:
+    up:
+      name: Live
+      description: Audition — X/Y play live to the CV outs, CV-in summed on top
+    middle:
+      name: Play
+      description: Loop the recorded trace at Main-knob speed; X/Y knobs used to attenuate
+    down:
+      name: Record
+      description: Hold to record a fresh trace; release to Middle to loop it
+  knobs:
+    - when: { z: any }
+      main:
+        name: Speed
+        description: Playback speed, bipolar — centre = freeze, left = reverse, right = faster
+      x:
+        name: Trace X
+        description: Performance value in Live/Record; playback depth (attenuation) in Play
+      y:
+        name: Trace Y
+        description: Performance value in Live/Record; playback depth (attenuation) in Play
+
+leds: |
+  Live: two 3-LED level bars (brightness = |output| per X/Y).
+  Record: buffer-fill gauge (LEDs fill 1->6 as recording approaches the ~75s cap).
+  Play: a moving position dot — reverses and freezes with speed,
+  and holds on the last LED when a trigger finishes.

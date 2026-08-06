@@ -1,0 +1,47 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "MLRws: Build firmware",
+			"type": "shell",
+			"command": "make firmware",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": "build",
+			"problemMatcher": "$gcc",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "MLRws: Build all",
+			"type": "shell",
+			"command": "make all",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": "build",
+			"problemMatcher": "$gcc",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "MLRws: Build profiling",
+			"type": "shell",
+			"command": "SDK=\"$PICO_SDK_PATH\"; if [ -z \"$SDK\" ]; then SDK=/opt/pico-sdk; fi && mkdir -p build-profile && cd build-profile && cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPICO_BOARD=pico -DPICO_SDK_PATH=\"$SDK\" -DCARD_NAME=MLRws_profile -DMLR_PERF_PROFILING=ON && ninja -j4",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": "build",
+			"problemMatcher": "$gcc",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		}
+	]
+}

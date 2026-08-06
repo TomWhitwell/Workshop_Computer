@@ -1,0 +1,104 @@
+draft: true
+Name: drumdrum
+Description: DFAM-style 8-step sequencer
+Language: C++ (ComputerCard / Pico SDK)
+Creator: Moses Hoyt
+Version: 1.2.0
+Status: Functional but WIP
+License: MIT
+Editor: https://mohoyt.com/drumdrum.html
+
+tags:
+  - sequencer
+  - percussion
+  - cv
+  - usb-host
+  - webmidi
+
+manual: |
+  drumdrum is an 8-step DFAM-inspired sequencer card.
+  Switch up is play (tempo, length, VCO2 offset), switch middle is edit (step pitch and velocity),
+  and switch down supports short press cursor advance / long press play-pause.
+  Sequence data is randomized on reset and shared across panel, Monome Grid, 8mu, and browser editor workflows.
+  Pulse In 1 is external clock and Pulse In 2 resets to step 1.
+
+panel:
+  inputs:
+    - id: PulseIn1
+      name: External Clock
+      description: Rising edge advances one sequencer step, overriding internal clock
+    - id: PulseIn2
+      name: Reset
+      description: Rising edge resets playback step to step 1
+    - id: CVIn1
+      name: Velocity Mod
+      description: Summed into velocity CV output (decay modulation use-case)
+    - id: CVIn2
+      name: Global Transpose
+      description: Global pitch transpose applied to both pitch outputs
+  outputs:
+    - id: CVOut1
+      name: VCO 1 Pitch CV
+      description: Calibrated 1V/oct pitch from current step
+    - id: CVOut2
+      name: Velocity CV
+      description: Step velocity-derived CV with CV In 1 modulation
+    - id: AudioOut1
+      name: White Noise
+      description: Continuous white noise output
+    - id: AudioOut2
+      name: VCO 2 Pitch CV
+      description: Pitch CV mirror with Y offset (via audio DAC path, uncalibrated)
+    - id: PulseOut1
+      name: Step Trigger
+      description: Trigger pulse every step (also preview trigger while paused in edit mode)
+    - id: PulseOut2
+      name: End-of-Cycle Trigger
+      description: Trigger pulse when sequence wraps from last step to first
+
+controls:
+  knobs:
+    - when: { z: up }
+      main:
+        name: Tempo
+        description: Internal tempo (ignored when external clock is patched)
+      x:
+        name: Sequence Length
+        description: Active steps (1-8) with pickup behavior
+      y:
+        name: VCO 2 Offset
+        description: VCO 2 pitch offset relative to VCO 1 (semitones)
+    - when: { z: middle }
+      main:
+        name: Tempo
+        description: Internal tempo while editing
+      x:
+        name: Step Pitch
+        description: Pitch for selected edit step (with pickup)
+      y:
+        name: Step Velocity
+        description: Velocity for selected edit step (with pickup)
+    - when: { z: down, gesture: short-press }
+      main:
+        name: Advance Edit Cursor
+        description: Moves edit cursor to next step
+    - when: { z: down, gesture: long-press }
+      main:
+        name: Play/Pause Toggle
+        description: Toggles sequencer running state
+  leds:
+    - when: { mode: step-encoding }
+      display: grid
+      description: Six LEDs encode current step (play mode) or edit cursor (edit mode) using binary-like 1..8 patterns
+
+host:
+  usb:
+    - name: Monome Grid
+      role: host-controller
+      description: 16x8 grid editing and transport control when connected at boot
+    - name: Music Thing 8mu
+      role: host-controller
+      description: MIDI fader/button control of per-step pitch and velocity workflows
+    - name: Browser Editor
+      role: usb-midi-device
+      description: WebMIDI SysEx editor (`editor.html` or hosted Editor URL) for full pattern editing

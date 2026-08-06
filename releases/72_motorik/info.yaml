@@ -1,0 +1,113 @@
+draft: true
+Name: Motorik
+Description: Motorik drum machine — kick/snare/hihat with bass and melody CV, classic Krautrock grooves
+Language: C++ (Pico SDK)
+Creator: Joep Vermaat
+Version: 1.0
+Status: Released
+License: MIT
+Repository: https://codeberg.org/johantv/motorik
+
+manual: |
+  Generative motorik drum machine with synchronized two-voice bass CV/gate outputs.
+  Z middle is main drum-performance mode (energy/transpose/fill), Z down is tilt and
+  bass pattern shift, Z up is texture/decimation and variation/humanize. Pulse In 1
+  clocks the engine externally; otherwise a fixed internal 120 BPM engine runs. Pulse
+  In 2 triggers one-bar fills. AudioOut1/2 carry drum mix, while CV/Pulse outputs carry
+  root and mirrored (+12) bassline voices.
+
+panel:
+  inputs:
+    - id: PulseIn1
+      name: External Clock
+      description: Rising-edge external clock source; falls back to internal 120 BPM when absent
+    - id: PulseIn2
+      name: Fill Trigger
+      description: Rising edge triggers one-bar fill
+    - id: AudioIn1
+      name: Energy Override Input
+      description: Envelope-followed override source for drum energy zoning
+    - id: AudioIn2
+      name: Texture Override Input
+      description: Envelope-followed override source for texture filter depth
+    - id: CVIn1
+      name: Bass Root Transpose CV
+      description: Adds semitone transpose to bass root
+    - id: CVIn2
+      name: Bass Pattern Shift CV
+      description: Modulates bass timing shift amount
+  outputs:
+    - id: AudioOut1
+      name: Drum Mix Output A
+      description: Main drum mix output
+    - id: AudioOut2
+      name: Drum Mix Output B
+      description: Duplicate drum mix output
+    - id: PulseOut1
+      name: Bass Root Gate
+      description: Gate for root bassline voice
+    - id: PulseOut2
+      name: Bass Mirror Gate
+      description: Gate for mirrored (+12) bassline voice
+    - id: CVOut1
+      name: Bass Root Pitch CV
+      description: Root bassline pitch CV
+    - id: CVOut2
+      name: Bass Mirror Pitch CV
+      description: Mirrored (+12) bassline pitch CV
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Pattern Energy
+        description: Progressive drum layer density from kick-only to full pattern and double-time hihat
+      x:
+        name: Bass Root Transpose
+        description: Semitone transpose offset for bass root/mirror pitch generation
+      y:
+        name: Fill Probability
+        description: Probability of automatic one-bar fills
+    - when: { z: down }
+      main:
+        name: Spectral Tilt
+        description: Crossfade between kick-heavy and hihat-heavy balance while keeping snare level stable
+      x:
+        name: Bass Root Pattern Shift
+        description: Time-shift amount for bar 1 bass pattern
+      y:
+        name: Bass Mirror Pattern Shift
+        description: Time-shift amount for bar 2 mirrored bass pattern
+    - when: { z: up }
+      main:
+        name: Texture / Decimation
+        description: Filter wash depth when AudioIn2 is unpatched, or sample-rate decimation when AudioIn2 is patched
+      x:
+        name: Pattern Variation
+        description: Ephemeral per-bar mutation amount of drum bitmasks
+      y:
+        name: Humanize Range
+        description: Per-trigger micro-delay randomization depth
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Beat Position 1
+          description: Quarter-note beat position indicator segment
+        - id: LED1
+          name: Beat Position 2
+          description: Quarter-note beat position indicator segment
+        - id: LED2
+          name: Beat Position 3
+          description: Quarter-note beat position indicator segment
+        - id: LED3
+          name: Beat Position 4
+          description: Quarter-note beat position indicator segment
+        - id: LED4
+          name: Bass Activity
+          description: Lit when bass note gate is active
+        - id: LED5
+          name: Fill Active
+          description: Lit while fill logic is active

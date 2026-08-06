@@ -1,0 +1,86 @@
+draft: true
+Name: DivCom
+Description: Comparator and VC clock divider, inspired by Serge NCOM
+Language: C++ (RPi Pico SDK) compat. cmake.
+Creator: divmod
+Version: 0.1
+Status: Released
+Repository: https://github.com/divmod-audio/divcom
+
+tags:
+  - comparator
+  - clock-divider
+  - logic
+  - utility
+
+manual: |
+  DivCom combines a comparator and a clock divider. The comparator compares `AudioIn1` against
+  `Offset + Scale * AudioIn2`, while the divider counts incoming clocks and emits divided gates,
+  flip-flop, XOR, and counter CV outputs.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Comparator Signal
+      description: Signal tested against scaled/offset reference
+    - id: AudioIn2
+      name: Comparator Reference
+      description: Reference signal for comparator thresholding
+    - id: CVIn1
+      name: Divider Amount CV
+      description: Scales divider value selected by Main knob
+    - id: CVIn2
+      name: Count Direction Invert
+      description: Inverts ascending/descending pitch mapping set by switch
+    - id: PulseIn1
+      name: Divider Clock
+      description: External clock for divider; breaks comparator normal
+    - id: PulseIn2
+      name: Divider Reset
+      description: Resets divider phase/counter on rising edge
+  outputs:
+    - id: AudioOut1
+      name: Comparator Gate
+      description: High when signal is above threshold
+    - id: AudioOut2
+      name: Divider Gate
+      description: Gate high when counter reaches divider value
+    - id: PulseOut1
+      name: Divider Flip-Flop
+      description: Toggles state every divider reset cycle
+    - id: PulseOut2
+      name: Comparator XOR Divider
+      description: High when comparator and divider gate states differ
+    - id: CVOut1
+      name: Counter Pitch CV
+      description: Current divider counter value as whole-tone steps
+    - id: CVOut2
+      name: Divider Value CV
+      description: Current effective divider value as whole-tone steps
+
+controls:
+  knobs:
+    - main:
+        name: Divider Value
+        description: Selects clock division amount from 1 to 31
+      x:
+        name: Comparator Scale
+        description: Sets reference signal scale factor
+      y:
+        name: Comparator Offset
+        description: Sets threshold offset
+    - when: { z: up }
+      main:
+        name: Divider Value
+        description: Divider value stays active while switch selects pitch mapping
+      x:
+        name: Comparator Scale
+      y:
+        name: Comparator Offset
+    - when: { z: middle }
+      main:
+        name: Divider Value
+      x:
+        name: Comparator Scale
+      y:
+        name: Comparator Offset

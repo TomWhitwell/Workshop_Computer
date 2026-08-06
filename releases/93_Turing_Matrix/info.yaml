@@ -1,0 +1,154 @@
+id: 93_Turing_Matrix
+title: Turing Matrix
+draft: false
+release: 93 / 0.1.0-beta
+summary: Turing Machine sequencer with a switchable mixer layer inspired by the Music Thing Modular Turing Machine and Vactrol Mix combination
+description: Turing Machine sequencer with a switchable mixer layer inspired by the Music Thing Modular Turing Machine and Vactrol Mix combination
+panel:
+  controls:
+    main:
+      label: |-
+        Random / Write
+        Mixer Lag
+      description: Drives the main Turing machine write behavior in middle mode and sets mixer lag in up mode
+      source: info.yaml
+    x:
+      label: |-
+        Loop Length
+        Mixer Depth 1
+      description: Sets channel 1 sequence length in middle mode and mixer depth 1 in up mode
+      source: info.yaml
+    'y':
+      label: |-
+        Div / Mult
+        Mixer Depth 2
+      description: Sets channel 2 divide/multiply clock relationship in middle mode and mixer depth 2 in up mode
+      source: info.yaml
+    z:
+      label: Tap Tempo / Mode
+      description: Tap switch sets internal BPM when no external clock is present; switch position selects the active layer
+      source: info.yaml
+  inputs:
+    pulse_1:
+      label: Ext Clock 1
+      description: Replaces tap tempo and drives the main Turing clock
+      source: info.yaml
+      type: pulse
+    pulse_2:
+      label: Ext Clock 2
+      description: Independently clocks channel 2 when patched
+      source: info.yaml
+      type: pulse
+    cv_1:
+      label: CV Input 1
+      description: Divide/multiply modulation in middle mode; mix input 1 in up mode
+      source: info.yaml
+      type: cv
+    cv_2:
+      label: CV Input 2
+      description: Pitch offset in middle mode; mix input 2 in up mode
+      source: info.yaml
+      type: cv
+    audio_l:
+      label: Audio Out 1
+      description: Audio pass-through in middle mode; mixed audio output 1 in up mode
+      source: info.yaml
+      type: audio
+    audio_r:
+      label: Audio Out 2
+      description: Audio pass-through in middle mode; mixed audio output 2 in up mode
+      source: info.yaml
+      type: audio
+  outputs:
+    pulse_out_1:
+      label: Chan 1 Pulse
+      description: Clock or Turing-bit pulse behavior depending on pulse mode configuration
+      source: info.yaml
+      type: pulse
+    pulse_out_2:
+      label: Chan 2 Pulse
+      description: Clock or Turing-bit pulse behavior depending on pulse mode configuration
+      source: info.yaml
+      type: pulse
+    cv_out_1:
+      label: |-
+        Chan 1 Quant
+        CV
+      description: Quantized pitch CV in middle mode; crossfaded CV output 1 in up mode
+      source: info.yaml
+      type: cv
+    cv_out_2:
+      label: |-
+        Chan 2 Quant
+        CV
+      description: Quantized pitch CV in middle mode; crossfaded CV output 2 in up mode
+      source: info.yaml
+      type: cv
+    audio_out_l:
+      label: |-
+        Audio Out 1
+        Pass-through
+      description: Audio pass-through in middle mode; mixed audio output 1 in up mode
+      source: info.yaml
+      type: audio
+    audio_out_r:
+      label: |-
+        Audio Out 2
+        Pass-through
+      description: Audio pass-through in middle mode; mixed audio output 2 in up mode
+      source: info.yaml
+      type: audio
+switch_modes:
+  up: 'Z up: MAIN: Mixer Lag; X: Mix Depth 1; Y: Mix Depth 2. Mixer mode active.'
+  middle: 'Z middle: MAIN: Randomness / Write; X: Loop Length; Y: Div / Mult. Turing mode active.'
+  down: 'Z down, momentary: MAIN: Tap Tempo.'
+leds:
+  - >-
+    Z middle: Channel 1 DAC Level; Channel 2 DAC Level; Channel 1 Turing Level; Channel
+    2 Turing Level; Pulse 1 Activity; Pulse 2 Activity.
+  - >-
+    Z up: Mixer position 1; Mixer position 2; Mix depth 1; Mix depth 2; Pulse 1 Activity;
+    Pulse 2 Activity.
+notes:
+  - >-
+    Web editor via MIDI SysEx: Browser editor reads and writes Turing and mixer settings over USB
+    MIDI SysEx (Chrome recommended)
+source:
+  - releases/93_Turing_Matrix/info.yaml
+  - releases/93_Turing_Matrix/README.md
+slug: 93-turing-matrix
+url: /workshopsystem/program-cards/93-turing-matrix/
+tags:
+  - sequencer
+  - turing-machine
+  - random
+  - clock
+  - cv
+  - mixer
+source_file: releases/93_Turing_Matrix/info.yaml
+source_url: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/93_Turing_Matrix
+readme_url: >-
+  https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/93_Turing_Matrix/README.md
+download_url: >-
+  https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/93_Turing_Matrix/uf2/TuringMatrix.uf2
+metadata:
+  creator: Adrian Vos from initial code by Tom Whitwell / Music Thing Modular / Chris Johnson
+  language: C++ (ComputerCard)
+  version: 0.1.0-beta
+  status: Beta release candidate
+  editor_url: https://soveda.github.io/Turing_Matrix_Editor/web
+  editor_note: Configure this card in your browser
+documentation:
+  intro: >
+    Dual-layer Turing-style random sequencer with a switchable mixer layer and tap tempo or external
+    clocking.
+
+    The beta card builds on ideas and code from Tom Whitwell and Chris Johnson, with the Workshop
+    Computer port adapting those concepts into a two-layer panel workflow.
+
+    Pulse In 1 overrides tap tempo as the main clock; Pulse In 2 can clock channel 2 independently.
+
+    CV In 1 controls divide/multiply on channel 2 in middle mode and mix input 1 in up mode. CV In 2
+    applies quantized pitch offset in middle mode and mix input 2 in up mode.
+
+    Audio In 1 and Audio In 2 pass through in middle mode and become the mixer inputs in up mode.

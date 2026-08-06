@@ -1,5 +1,75 @@
+draft: true
+Name: SlowMod
 Description: Chaotic quad-LFO with VCAs
 Language: C++ (RPi Pico SDK) compat. w/ cmake and Arduino IDE.
-Creator: divmod/@olt
+Creator: divmod
 Version: 0.1
 Status: Released
+Repository: https://github.com/divmod-audio/slowmod
+
+tags:
+  - modulation
+  - lfo
+  - utility
+  - cv
+
+manual: |
+  Four related LFO channels with cross-modulation and per-channel VCA behavior.
+  Main sets global LFO rate from very slow to low audio range (AudioOut1 fastest, CVOut2 slowest).
+  X sets cross-modulation intensity; Y crossfades each output with an inverted neighboring channel.
+  PulseIn1 or Z up pauses motion; PulseIn2 or Z down randomizes phases.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: VCA Control A
+      description: Controls amplitude of AudioOut1 modulation signal
+    - id: AudioIn2
+      name: VCA Control B
+      description: Controls amplitude of AudioOut2 modulation signal
+    - id: CVIn1
+      name: VCA Control C
+      description: Controls amplitude of CVOut1 modulation signal
+    - id: CVIn2
+      name: VCA Control D
+      description: Controls amplitude of CVOut2 modulation signal
+    - id: PulseIn1
+      name: Pause Trigger
+      description: Pauses all LFO channels
+    - id: PulseIn2
+      name: Randomize Trigger
+      description: Randomizes phase of all LFO channels
+  outputs:
+    - id: AudioOut1
+      name: Fast LFO
+      description: Fastest modulation output channel
+    - id: AudioOut2
+      name: Mid Fast LFO
+      description: Second modulation output channel
+    - id: CVOut1
+      name: Mid Slow LFO
+      description: Third modulation output channel
+    - id: CVOut2
+      name: Slow LFO
+      description: Slowest modulation output channel
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Global LFO Rate
+        description: Sets all channel rates from minutes-long cycles to low audio range
+      x:
+        name: Cross Mod Amount
+        description: Intensity of cross-modulation between LFO channels
+      y:
+        name: Neighbor Invert Crossfade
+        description: Crossfades each output toward an inverted neighboring output
+    - when: { z: up }
+      main:
+        name: Pause
+        description: Pauses LFO phase movement
+    - when: { z: down }
+      main:
+        name: Phase Randomize
+        description: Randomizes phase of all LFOs

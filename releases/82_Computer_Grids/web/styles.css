@@ -1,0 +1,149 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #111827;
+  color: #f3f4f6;
+}
+
+main {
+  max-width: 900px;
+  margin: 24px auto;
+  padding: 0 16px 24px;
+}
+
+h1 {
+  margin: 0 0 8px;
+}
+
+.hint {
+  color: #9ca3af;
+}
+
+.card {
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  padding: 14px;
+  margin: 14px 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.grid {
+  display: grid;
+  gap: 14px 18px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+}
+
+.grid > label {
+  min-width: 0;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.5rem;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+input[type="range"] {
+  padding: 0;
+  width: 100%;
+  min-width: 0;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  gap: 6px;
+}
+
+label > select {
+  width: 100%;
+  min-width: 0;
+}
+
+.pair input[type="number"] {
+  width: 100%;
+  min-width: 0;
+}
+
+#midiIn,
+#midiOut {
+  min-width: 12rem;
+  max-width: 100%;
+}
+
+input,
+select,
+button {
+  border-radius: 8px;
+  border: 1px solid #4b5563;
+  background: #111827;
+  color: #f3f4f6;
+  padding: 8px;
+}
+
+button {
+  cursor: pointer;
+}
+
+.row--actions {
+  gap: 10px 12px;
+}
+
+.midi-action.is-pending {
+  border-color: #f59e0b;
+  color: #fde68a;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35);
+}
+
+.midi-action.is-done {
+  border-color: #34d399;
+  color: #d1fae5;
+  background: #064e3b;
+}
+
+.monitor-line {
+  margin: 8px 0 6px;
+  line-height: 1.45;
+}
+
+.monitor-dump {
+  margin: 0;
+  padding: 12px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  border-radius: 8px;
+  border: 1px solid #374151;
+  background: #0f172a;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+#status {
+  color: #93c5fd;
+}
+
+#monitorState {
+  color: #a7f3d0;
+  font-weight: 600;
+}
+

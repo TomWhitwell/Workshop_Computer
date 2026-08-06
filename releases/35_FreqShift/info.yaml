@@ -1,0 +1,92 @@
+draft: true
+Name: FreqShift
+Description: Dual Input Frequency Shifter for Feedback Experimentation
+Language: C++ (ComputerCard)
+Creator: Ben Regnier
+Version: 1.1
+Status: Functional
+
+tags:
+  - frequency-shifter
+  - feedback
+  - experimental
+  - dual-sideband
+
+manual: |
+  Dual-input frequency shifter designed for feedback patching and experimental use.
+  Main sets shift amount (center = 0 Hz). Switch up uses a wide log-scaled bipolar range (±7000 Hz);
+  middle uses a narrower linear range (±440 Hz). X sets internal feedback amount and Y crossfades the audio inputs.
+  CV In 1 modulates shift (added to Main). CV In 2 blends the combined feedback path.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Primary Audio Input
+      description: Primary audio input for frequency shifting
+    - id: AudioIn2
+      name: Secondary Audio Input
+      description: Secondary audio input crossfaded with Audio In 1
+    - id: CVIn1
+      name: Shift Modulation
+      description: Shift modulation added to Main knob amount
+    - id: CVIn2
+      name: Feedback Path Blend
+      description: Blends combined feedback path down/up balance
+  outputs:
+    - id: AudioOut1
+      name: Low Sideband Output
+      description: Lower sideband frequency-shifted output
+    - id: AudioOut2
+      name: High Sideband Output
+      description: Upper sideband frequency-shifted output
+    - id: CVOut1
+      name: -5V Reference
+      description: Fixed -5V reference useful for CV In 2 patching
+    - id: CVOut2
+      name: +5V Reference
+      description: Fixed +5V reference useful for CV In 2 patching
+
+controls:
+  knobs:
+    - when: { z: up }
+      main:
+        name: Shift Amount
+        description: Wide log-scaled bipolar range (±7000 Hz)
+      x:
+        name: Feedback Amount
+        description: Internal feedback amount
+      y:
+        name: Input Crossfade
+        description: Crossfade between audio inputs
+    - when: { z: middle }
+      main:
+        name: Shift Amount
+        description: Narrower bipolar linear range (±440 Hz)
+      x:
+        name: Feedback Amount
+        description: Internal feedback amount
+      y:
+        name: Input Crossfade
+        description: Crossfade between audio inputs
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Input Level A
+          description: Input level indicator
+        - id: LED1
+          name: Output Level
+          description: Output level indicator
+        - id: LED2
+          name: Positive Shift
+          description: Positive shift amount indicator
+        - id: LED3
+          name: Negative Shift
+          description: Negative shift amount indicator
+        - id: LED4
+          name: Upper Sideband
+          description: Upper sideband activity indicator
+        - id: LED5
+          name: Lower Sideband
+          description: Lower sideband activity indicator

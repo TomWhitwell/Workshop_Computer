@@ -1,0 +1,143 @@
+id: 43_Castle_Process
+title: Castle Process
+draft: false
+Description: Fort Processor-inspired harsh noise processor with chopped external audio and a bass pulse voice
+Language: C++
+Creator: Adrian Vos
+release: 43 / 0.9.0
+License: MIT
+date: 2026-06-26
+
+panel:
+  controls:
+    main:
+      label: |-
+        Drive /
+        Voicing
+      description: Controls overall drive and voicing
+      source: info.yaml
+    x:
+      label: |-
+        Chopping /
+        Motion
+      description: Controls chopping behaviour and motion
+      source: info.yaml
+    y:
+      label: |-
+        Tuning /
+        Interaction
+      description: Controls tuning and internal interaction
+      source: info.yaml
+    z:
+      label: Mode
+      description: Up is fuller and more squarewave-forward, middle is the tighter chopped default, and down is a momentary bend/chaos gesture while held.
+      source: info.yaml
+  inputs:
+    audio_l:
+      label: |-
+        Audio
+        In 1
+      description: Main external audio input to be broken up, gated, and forced into the processor rather than passed through cleanly
+      source: info.yaml
+    cv_1:
+      label: |-
+        CV
+        1
+      description: Internal control modulation input
+      source: info.yaml
+    cv_2:
+      label: |-
+        CV
+        2
+      description: Internal control modulation input
+      source: info.yaml
+    pulse_1:
+      label: |-
+        Bass
+        Trigger
+      description: External bass trigger input that takes over bass timing and suppresses the internal bass trigger behaviour
+      source: info.yaml
+    pulse_2:
+      label: |-
+        Pulse
+        2
+      description: Reserved for further interaction
+      source: info.yaml
+  outputs:
+    audio_out_l:
+      label: |-
+        Chopped
+        Output
+      description: Primary chopped external-input output
+      source: info.yaml
+    audio_out_r:
+      label: |-
+        Bass +
+        Texture
+      description: Bass-focused output with supporting noise texture
+      source: info.yaml
+    pulse_out_1:
+      label: |-
+        Bass
+        Activity
+      description: Bass activity pulse output
+      source: info.yaml
+    pulse_out_2:
+      label: |-
+        Chop
+        Pulse
+      description: Internal chop pulse output
+      source: info.yaml
+
+switch_modes:
+  up: Alternate latched mode with a little more body and more squarewave colour.
+  middle: Default tighter and more direct chopped mode.
+  down: Momentary bend / chaos gesture while held for live performance accents.
+
+leds:
+  - "LED 0 follows input presence."
+  - "LED 1 follows drive."
+  - "LED 2 follows chopping."
+  - "LED 3 follows tuning."
+  - "LED 4 reflects output level."
+  - "LED 5 shows switch state, with switch down driving it fully bright."
+
+source:
+  - releases/43_Castle_Process/CastleProcess.cpp
+  - releases/43_Castle_Process/README.md
+  - releases/43_Castle_Process/instructions.txt
+  - releases/43_Castle_Process/CMakeLists.txt
+slug: castle-process
+url: /workshopsystem/program-cards/castle-process/
+tags:
+  - harsh-noise
+  - performance
+  - chopped-audio
+  - bass
+  - lo-fi
+tag_ids:
+  - harsh-noise
+  - performance
+  - chopped-audio
+  - bass
+  - lo-fi
+tag_labels:
+  - Harsh Noise
+  - Performance
+  - Chopped Audio
+  - Bass
+  - Lo-Fi
+source_file: releases/43_Castle_Process/info.yaml
+metadata:
+  creator: Adrian Vos
+  language: C++
+  version: 1.0
+  status: Release Candidate
+documentation:
+  intro: >
+    Castle Process is a performance card built around chopped external audio,
+    crude internal squarewave energy, aggressive switching between sources,
+    and a separate bass pulse layer.
+
+    It is designed as a playable sound-destruction tool rather than a clean
+    effect or faithful clone.

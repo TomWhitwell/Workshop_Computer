@@ -1,5 +1,12 @@
+draft: true
+Name: Backyard Rain
 Description: Nature soundscape audio. A cozy rain ambience mix for background listening. You control the intensity. This card plays rain ambience which was recorded in my backyard.
 Language: Rust (Embassy framework)
 Creator: Brian Dorsey
 Version: (see source repo)
 Status: Released
+Repository: https://codeberg.org/briandorsey/mtmws_cards
+
+manual: |
+  Ambient backyard rain playback card with user-controlled intensity.
+  This release folder is a stub; docs and release UF2 files are maintained in the external repository.

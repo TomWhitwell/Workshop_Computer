@@ -1,0 +1,102 @@
+draft: true
+Name: Stretchcore
+Description: A card for playing and manipulating samples with tempo control, timestretch with browser-based audio loading (infinitedigits.com/stretchcore/)
+Language: C++ (Pico SDK)
+Creator: Infinite Digits
+Version: 1.0
+Status: Ready%
+Editor: https://infinitedigits.co/stretchcore/
+
+manual: |
+  Mono sample-loop player with browser-loaded sample bank, tempo control, timestretch,
+  and jump/selection gestures. Main knob targets playback position or sample index
+  depending on switch gesture, X sets internal tempo when not externally clocked, and
+  Y sets timestretch amount (with optional CV1 modulation). Switch down jumps to Main
+  position and emits Pulse Out 1; switch up selects sample from Main position and emits
+  Pulse Out 2. Pulse In 1 provides external clock, and Pulse In 2 triggers CV2-position
+  jumps (or loop start when CV2 is unpatched).
+
+panel:
+  inputs:
+    - id: PulseIn1
+      name: External Clock
+      description: Rising-edge external clock; internal tempo is used when external clock is absent
+    - id: PulseIn2
+      name: Jump Trigger
+      description: Rising edge jumps to CVIn2-defined loop position, or loop start when CVIn2 is unpatched
+    - id: CVIn1
+      name: Timestretch Modulation
+      description: Adds bipolar modulation to Y timestretch control when patched
+    - id: CVIn2
+      name: Jump Position CV
+      description: Position source for PulseIn2 jumps
+  outputs:
+    - id: AudioOut1
+      name: Audio Output Left
+      description: Left audio output from current sample loop playback
+    - id: AudioOut2
+      name: Audio Output Right
+      description: Right audio output from current sample loop playback
+    - id: CVOut1
+      name: Random CV 1
+      description: Smooth slow bipolar random modulation output
+    - id: CVOut2
+      name: Random CV 2
+      description: Smooth slow bipolar random modulation output
+    - id: PulseOut1
+      name: Jump Gesture Trigger
+      description: Trigger pulse emitted after debounced switch-down jump action
+    - id: PulseOut2
+      name: Sample-Select Gesture Trigger
+      description: Trigger pulse emitted after debounced switch-up sample-select action
+
+# certainty: low — LED meanings are inferred from firmware update_leds() behavior; README does not document per-LED semantics
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Position / Sample Target
+        description: Target position for switch-down jump and sample index source for switch-up sample selection
+      x:
+        name: Internal Tempo
+        description: Internal playback tempo control when external clock is not active
+      y:
+        name: Timestretch Amount
+        description: Timestretch depth with cubic easing; CVIn1 can modulate when patched
+    - when: { z: down, gesture: hold }
+      main:
+        name: Jump To Main Position
+        description: Debounced hold in down position jumps playback to Main-selected loop position and fires PulseOut1
+    - when: { z: up, gesture: hold }
+      main:
+        name: Select Sample By Main Position
+        description: Debounced hold in up position changes active sample using Main-selected index and fires PulseOut2
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Position Segment / External Clock Marker A
+          description: In free-run mode shows loop-position segment; in external-clock mode remains lit as edge marker
+        - id: LED1
+          name: Position Segment 1
+          description: Scanning segment indicator in free-run mode, or inner quarter-step indicator in external-clock mode
+        - id: LED2
+          name: Position Segment 2
+          description: Scanning segment indicator in free-run mode, or inner quarter-step indicator in external-clock mode
+        - id: LED3
+          name: Position Segment 3
+          description: Scanning segment indicator in free-run mode, or inner quarter-step indicator in external-clock mode
+        - id: LED4
+          name: Position Segment 4
+          description: Scanning segment indicator in free-run mode, or inner quarter-step indicator in external-clock mode
+        - id: LED5
+          name: Position Segment / External Clock Marker B
+          description: In free-run mode shows loop-position segment; in external-clock mode remains lit as edge marker
+
+host:
+  usb:
+    - name: Stretchcore Sample Manager
+      role: editor
+      description: Browser-based loader at the Editor URL uploads and manages sample banks over Web Serial

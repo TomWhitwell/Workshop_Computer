@@ -1,0 +1,62 @@
+┌────────────────────────────────────────────┐
+│  73                                        │
+│                                            │
+│              WILD PEBBLE                   │
+│                                            │
+│    Generative rhythm + melody organism     │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ CONTROLS                                   │
+│                                            │
+│ MAIN  → Tempo                              │
+│ X     → Density                            │
+│ Y     → Mutation                           │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ SWITCH MODES                               │
+│                                            │
+│ UP      Hypnotic / repetitive              │
+│ MID     Curious / evolving                 │
+│ DOWN    Nervous / glitchy                  │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ INPUTS                                     │
+│                                            │
+│ Pulse 1  → External clock                  │
+│ Pulse 2  → Freeze evolution                │
+│ CV 1     → Density modulation              │
+│ CV 2     → Mutation modulation             │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ OUTPUTS                                    │
+│                                            │
+│ Pulse 1 → Main groove                      │
+│ Pulse 2 → Companion rhythm                 │
+│ CV 1    → Quantised melody                 │
+│ CV 2    → Energy contour                   │
+│ Audio 1 → Percussive click                 │
+│ Audio 2 → Noise texture                    │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ PATCH IDEAS                                │
+│                                            │
+│ CV1 → Oscillator pitch                     │
+│ CV2 → Filter cutoff                        │
+│ P1  → Envelope trigger                     │
+│ P2  → Clock reset / percussion             │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ NOTES                                      │
+│                                            │
+│ ________________________________________   │
+│ ________________________________________   │
+│ ________________________________________   │
+│ ________________________________________   │
+│                                            │
+└────────────────────────────────────────────┘

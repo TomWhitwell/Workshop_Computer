@@ -1,0 +1,113 @@
+Name: OffAir
+Description: "OffAir — AM/Shortwave/Longwave radio simulator. Tune between two Stations and interference with authentic heterodyne whistles, SSB pitch-shift detuning, AM envelope detection, swelling per-band static, and triggerable Insta-ference one-shots. Baked recordings or live audio inputs become the Stations."
+Language: C++ (Pico SDK / ComputerCard)
+Creator: Andy Jenkinson (uglifruit)
+Version: 1.0.1
+Status: released
+License: CC BY-SA 4.0
+Repository: https://github.com/uglifruit/Workshop_Computer
+
+tags:
+  - radio
+  - sampler
+  - noise
+  - effect
+  - generative
+
+manual: |
+  Tune across a virtual shortwave band with the Main knob. Two Stations (live audio
+  inputs, or baked recordings in baked-in audio mode) plus three interference signals
+  are scattered across the dial and re-randomised on each band change. Approaching a
+  Station you hear a sliding heterodyne whistle, the audio pulls into tune and the
+  static ducks away; off-tune it pitch-shifts (SW/LW) or distorts (AM). Knob X sets IF
+  bandwidth/brightness, Knob Y the noise level. Tap Switch Down to cycle AM/SW/LW.
+  Hold Switch Up for dead-air (baked-in mode) or a Pulse In 1-keyed morse Station 2
+  (audio-input mode). Pulse In 2 fires curated "Insta-ference" one-shots.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Station 1 In
+      type: audio
+      description: Station 1 source (live audio, in audio-input mode)
+    - id: AudioIn2
+      name: Station 2 In
+      type: audio
+      description: Station 2 source (live audio, in audio-input mode)
+    - id: CVIn1
+      name: Tuner
+      type: cv
+      description: Tuning offset added to the Main knob (1:1, ±5V ≈ ±half the dial)
+    - id: CVIn2
+      name: Noise
+      type: cv
+      description: Adds to the Knob Y noise level (voltage-controlled static)
+    - id: PulseIn1
+      name: Shuffle Signals
+      type: pulse
+      description: Rising edge re-randomises the Station/interference layout. In audio-input mode with Switch Up it is the Morse In key instead.
+    - id: PulseIn2
+      name: Insta-ference
+      type: pulse
+      description: Rising edge fires a one-shot event from the curated Insta-ference bank
+  outputs:
+    - id: CVOut1
+      name: Signal Strength
+      type: cv
+      description: Envelope that rises as you tune onto a Station
+    - id: CVOut2
+      name: Station 1 CV Offset
+      type: cv
+      description: Station 1's offset from the Main knob — slew into CV In 1 to tune onto Station 1
+    - id: AudioOut1
+      name: Output
+      type: audio
+      description: Full mix — tuned audio, whistles, static, Insta-ference
+    - id: AudioOut2
+      name: Just Noise
+      type: audio
+      description: Noise / static only
+    - id: PulseOut1
+      name: Station 1 Tuned Gate
+      type: pulse
+      description: HIGH while tuned to Station 1
+    - id: PulseOut2
+      name: Station 2 Tuned Gate
+      type: pulse
+      description: HIGH while tuned to Station 2
+
+controls:
+  knobs:
+    - when: { z: any }
+      main:
+        name: Tuning
+        description: Scans across the dial (sums with CV In 1)
+      x:
+        name: Brightness
+        description: IF bandwidth — capture width + audio brightness (CCW narrow/muffled, CW wide/bright)
+      y:
+        name: Noise Level
+        description: Static floor (silent fully CCW); slowly swells and swishes, heaviest on LW
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Cycle Band
+        description: Tap to cycle AM → SW → LW, re-randomising the layout each time
+    - when: { z: up, gesture: hold }
+      main:
+        name: Dead-air / Morse
+        description: Baked-in mode — mutes both Stations (static remains). Audio-input mode — Station 2 becomes a ~600Hz morse tone keyed by Pulse In 1.
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Station 1 signal strength
+        - id: LED1
+          name: Station 2 signal strength
+        - id: LED2
+          name: SW band
+          description: Lit on SW (with LED3 off = AM, LED3 on = LW)
+        - id: LED3
+          name: LW band
+        - id: LED5
+          name: Tuning position

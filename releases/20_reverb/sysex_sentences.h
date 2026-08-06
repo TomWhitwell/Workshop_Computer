@@ -232,7 +232,7 @@
 #define OPT_BERNOULLI_GATE_OUT_B 7
 #define OPT_THE_GATE_OF 0
 #define OPT_CONTINUOUS 5
-#define OPT_OFF 5
+#define OPT_NOTHING 5
 #define OPT_WITH_NO_DIVIDER 0
 #define OPT_DIVIDED_BY_2 1
 #define OPT_DIVIDED_BY_3 2
@@ -287,4 +287,4 @@
 #define CARD_ID_LOW 20
 #define CARD_ID_HIGH 0
 #define CARD_VER_MAJOR 1
-#define CARD_VER_MINOR 3
+#define CARD_VER_MINOR 5

@@ -1,5 +1,12 @@
+draft: true
+Name: Compulidean
 Description: Generative Euclidean drum + sample player.
 Language: C++/Arduino, with vscode+platformio.
 Creator: Tristan Rowley
 Version: (see source repo)
 Status: Functional, but WIP
+Repository: https://github.com/doctea/compulidian
+
+manual: |
+  Drum-machine card built around Euclidean pattern generation and sample playback.
+  This release folder is a stub; code, full documentation, and UF2 downloads live in the external repository.

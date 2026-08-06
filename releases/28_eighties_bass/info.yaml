@@ -1,5 +1,74 @@
-Description: Bass-oriented complete monosynth voice consisting of five detuned saw wave oscillators with mixable white noise and adjustable resonant filter. 
-Language: arduino-pico core and Mozzi 2 library
-Creator:  '@todbot / Tod Kurt' 
+draft: true
+Name: Eighties Bass
+Description: Bass-oriented complete monosynth voice consisting of five detuned saw wave oscillators with mixable white noise and adjustable resonant filter.
+Language: Arduino (arduino-pico) with Mozzi 2
+Creator: Tod Kurt (@todbot)
 Version: 0.1
 Status: Functional but WIP
+
+tags:
+  - bass
+  - monosynth
+  - filter
+  - detune
+  - mozzi
+
+demo-link: https://youtu.be/nrKnOlx8B3g
+
+manual: |
+  Eighties Bass is a complete mono bass voice using 5 saw oscillators plus optional white noise.
+  Main sets filter cutoff, X sets pitch offset, and Y sets resonance.
+  Press switch down to cycle filter mode (LPF/BPF/HPF).
+  CV In 1 provides pitch CV, CV In 2 offsets cutoff, Audio In 1 modulates detune, and Audio In 2 modulates noise amount.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Pitch CV
+      description: Added to X knob offset for oscillator pitch (intended V/oct behavior) # certainty: medium (README says "maybe")
+    - id: CVIn2
+      name: Cutoff Modulation
+      description: Bipolar additive modulation of filter cutoff
+    - id: AudioIn1
+      name: Detune Modulation
+      description: Controls oscillator detune spread amount
+    - id: AudioIn2
+      name: Noise Mix Modulation
+      description: Controls amount of white noise mixed with oscillator signal
+  outputs:
+    - id: AudioOut1
+      name: Audio Left
+      description: Main synthesized output (mirrored)
+    - id: AudioOut2
+      name: Audio Right
+      description: Main synthesized output (mirrored)
+
+controls:
+  knobs:
+    - when: { z: up }
+      main:
+        name: Filter Cutoff
+        description: Cutoff frequency for selected filter mode
+      x:
+        name: Pitch Offset
+        description: Pitch transpose offset summed with CV In 1
+      y:
+        name: Filter Resonance
+        description: Resonance/Q amount for selected filter mode
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Filter Mode Cycle
+        description: Press switch to cycle LPF, BPF, and HPF modes
+  leds:
+    - when: { mode: filter-indicator }
+      display: list
+      items:
+        - id: LED1
+          name: LPF Indicator
+          description: Lit when low-pass mode is selected
+        - id: LED3
+          name: BPF Indicator
+          description: Lit when band-pass mode is selected
+        - id: LED5
+          name: HPF Indicator
+          description: Lit when high-pass mode is selected

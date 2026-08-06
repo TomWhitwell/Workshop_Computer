@@ -114,7 +114,7 @@ public:
 				// Read MIDI input.
 				// Result can be no data, part of a message (particularly a long SysEx),
 				// one message, or multiple messages. 
-				uint32_t bytesReceived = tud_midi_stream_read(rxBuf, sizeof(rxBuf));
+				uint32_t bytesReceived = tud_midi_stream_read(rxBuf, rxBufSize);
 				if (bytesReceived > 0)
 				{
 					ParseMIDIBytes(rxBuf, bytesReceived);
@@ -278,6 +278,8 @@ private:
 
 int main()
 {
+	set_sys_clock_khz(144000, true);
+
 	WebInterfaceDemo wid;
 	wid.Run();
 }

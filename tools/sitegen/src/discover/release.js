@@ -2,41 +2,59 @@ import path from 'node:path';
 import YAML from 'yaml';
 import { marked } from 'marked';
 import { fsAsync as fs, fileExists } from '../utils/fs.js';
-import { slugify, parseDisplayFromFolder, formatDisplayTitle } from '../utils/strings.js';
+import { slugify, parseDisplayFromFolder, formatDisplayTitle, normalizeYamlKey } from '../utils/strings.js';
 import { discoverDocs } from './docs.js';
 import { discoverDownloads } from './downloads.js';
 import { getLastCommitDate } from '../utils/git.js';
+import { resolveWebConfig } from './webEditor.js';
+import { normalizeTags, normalizeRepository, normalizeContact, normalizeDraft, resolveAudioSample } from './infoFields.js';
+import { parseYoutubeId, youtubeEmbedHtml } from '../utils/youtube.js';
 
 export function normalizeInfo(raw, fallbackTitle) {
   const out = {};
-  const mapKey = k => String(k || '').toLowerCase().replace(/\s+/g, '');
-  for (const [k, v] of Object.entries(raw || {})) out[mapKey(k)] = v;
+  for (const [k, v] of Object.entries(raw || {})) out[normalizeYamlKey(k)] = v;
   return {
+    draft: normalizeDraft(out.draft),
     title: out.title || out.name || fallbackTitle,
     description: out.description || '',
     language: out.language || '',
     creator: out.creator || '',
     version: out.version || '',
     status: out.status || '',
+    license: String(out.license || '').trim(),
     editor: out.editor || '',
     date: out.date || out.releasedate || '',
+    audiosample: String(out.audiosample || '').trim(),
+    audiosampleurl: '',
+    tags: normalizeTags(out.tags),
+    repository: normalizeRepository(out.repository),
+    contact: normalizeContact(out.contact),
   };
 }
 
-export async function discoverRelease(rootReleasesDir, folderName, outDirPrograms, makeRawUrl) {
+export async function discoverRelease(rootReleasesDir, folderName, outDirPrograms, makeRawUrl, pagesBaseUrl) {
   const abs = path.join(rootReleasesDir, folderName);
   const slug = slugify(folderName);
 
   // info.yaml
   const infoPath = path.join(abs, 'info.yaml');
+  let rawYaml = {};
   let info = { title: folderName };
   if (await fileExists(infoPath)) {
     const raw = await fs.readFile(infoPath, 'utf8');
-    try { info = normalizeInfo(YAML.parse(raw), folderName); }
-    catch { info = normalizeInfo({}, folderName); }
+    try {
+      rawYaml = YAML.parse(raw) || {};
+      info = normalizeInfo(rawYaml, folderName);
+    } catch {
+      info = normalizeInfo({}, folderName);
+    }
   } else {
     info = normalizeInfo({}, folderName);
   }
+
+  const web = await resolveWebConfig(rawYaml, abs, slug, pagesBaseUrl);
+  if (web.editorUrl) info.editor = web.editorUrl;
+  else if (web.mode === 'none') info.editor = '';
 
   // Fallback date from git if not specified in YAML
   if (!info.date) {
@@ -86,6 +104,9 @@ export async function discoverRelease(rootReleasesDir, folderName, outDirProgram
 
   // downloads and README asset link rewriting base
   const repoRelBase = path.join('releases', folderName);
+  if (info.audiosample) {
+    info.audiosampleurl = resolveAudioSample(info.audiosample, repoRelBase, makeRawUrl);
+  }
   // Rewrite relative links in README HTML to raw GitHub URLs
   readmeHtml = rewriteHtmlLinksToRaw(readmeHtml, repoRelBase);
   // Inject YouTube embeds after links, preserving the links (minimal logic)
@@ -108,32 +129,17 @@ export async function discoverRelease(rootReleasesDir, folderName, outDirProgram
     downloads,
     latestUf2,
     display,
+    web,
   };
 }
 
-// Minimal YouTube embed injector: append an embed after YouTube links, keep link text
+// Append an embed after YouTube links in README HTML, keep link text
 function injectYouTubeEmbeds(html) {
   if (!html) return html;
   const anchorRe = /<a\s+[^>]*href=(['"])([^'"#]+)\1[^>]*>([\s\S]*?)<\/a>/gi;
-  return html.replace(anchorRe, (full, q, href, text) => {
-    const u = String(href);
-    let id = null;
-    // youtu.be/<id>
-    let m = u.match(/(?:^|\b)youtu\.be\/([A-Za-z0-9_-]{6,})/i);
-    if (m) id = m[1];
-    // youtube.com/watch?v=<id>
-    if (!id) {
-      m = u.match(/[?&]v=([A-Za-z0-9_-]{6,})/i);
-      if (m && /youtube\.com\//i.test(u)) id = m[1];
-    }
-    // youtube.com/shorts/<id>
-    if (!id) {
-      m = u.match(/youtube\.com\/shorts\/([A-Za-z0-9_-]{6,})/i);
-      if (m) id = m[1];
-    }
-    if (!id) return full; // not a YouTube link
-    const embedUrl = `https://www.youtube-nocookie.com/embed/${id}?rel=0`;
-    const embed = `<div class=\"video-embed\"><iframe src=\"${embedUrl}\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" allowfullscreen title=\"YouTube video\"></iframe></div>`;
+  return html.replace(anchorRe, (full, q, href) => {
+    const embed = youtubeEmbedHtml(href);
+    if (!embed || !parseYoutubeId(href)) return full;
     return `${full}${embed}`;
   });
 }

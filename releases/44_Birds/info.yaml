@@ -1,0 +1,92 @@
+draft: true
+Name: Birds
+Description: Two birds sing to each other controlled by a Turing-style shift register sequencer with clock in and CV/pulse out.
+Language: C++ (Pico SDK / ComputerCard)
+Creator: Tom Whitwell
+Version: 0.5.0
+Status: Beta
+
+manual: |
+  Two interacting birds are generated from a Turing-style looped random sequencer.
+  Main controls lock/change behavior, X shifts bird pitch, Y controls phrase speed,
+  Z selects normal/wild/reseed modes, and Pulse In 1 can replace the internal clock.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Pitch CV Modulation
+      description: Adds to X knob to control bird voice oscillator pitch
+    - id: CVIn2
+      name: Speed CV Modulation
+      description: Adds to Y knob to control sequence playback timing
+    - id: PulseIn1
+      name: External Clock
+      description: Rising edge clock input; when present it overrides internal timing
+  outputs:
+    - id: AudioOut1
+      name: Bird One Audio
+      description: Bird one audio voice
+    - id: AudioOut2
+      name: Bird Two Audio
+      description: Bird two audio voice
+    - id: CVOut1
+      name: Bird One Pitch Trace
+      description: Held CV trace derived from bird one pitch contour
+    - id: CVOut2
+      name: Bird Two Pitch Trace
+      description: Held CV trace derived from bird two pitch contour
+    - id: PulseOut1
+      name: Bird One Onset Pulse
+      description: Triggers on phrase onsets and internal trill/run sub-events for bird one
+    - id: PulseOut2
+      name: Bird Two Onset Pulse
+      description: Triggers on phrase onsets and internal trill/run sub-events for bird two
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Lock/Change Amount
+        description: Center is unstable; clockwise locks pattern, anticlockwise locks inverted double-pass behavior
+      x:
+        name: Bird Pitch
+        description: Controls pitch with CVIn1 summed in
+      y:
+        name: Playback Time
+        description: Left is slower phrase timing, right is faster
+    - when: { z: up }
+      main:
+        name: Lock/Change Amount (Wild)
+        description: Same lock/change control while wild mode behavior set is active
+      x:
+        name: Bird Pitch (Wild)
+        description: Pitch control in wild mode
+      y:
+        name: Playback Time (Wild)
+        description: Speed control in wild mode
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Reseed
+        description: Re-randomizes sequence state
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Bird One Pitch High
+          description: Upper pitch indicator for bird one
+        - id: LED1
+          name: Bird Two Pitch High
+          description: Upper pitch indicator for bird two
+        - id: LED2
+          name: Bird One Pitch Low
+          description: Lower/complementary pitch indicator for bird one
+        - id: LED3
+          name: Bird Two Pitch Low
+          description: Lower/complementary pitch indicator for bird two
+        - id: LED4
+          name: Bird One Pulse Activity
+          description: Indicates PulseOut1 activity
+        - id: LED5
+          name: Bird Two Pulse Activity
+          description: Indicates PulseOut2 activity

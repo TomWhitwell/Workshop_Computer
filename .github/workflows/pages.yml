@@ -16,8 +16,7 @@ concurrency:
 
 jobs:
   build:
-    # Don't run on forked repositories
-    if: github.event.repository.fork != true
+    if: github.event.repository.fork != true || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,8 +43,7 @@ jobs:
           path: site
 
   deploy:
-    # Don't run on forked repositories
-    if: github.event.repository.fork != true
+    if: github.event.repository.fork != true || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     steps:

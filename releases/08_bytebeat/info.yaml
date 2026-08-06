@@ -1,5 +1,136 @@
+draft: true
+Name: Bytebeat
 Description: Generates and mangles bytebeats
 Language: C++/Arduino-Pico
 Creator: Matt Kuebrich
 Version: 0.1
 Status: Functional but WIP
+
+tags:
+  - bytebeat
+  - oscillator
+  - generative
+  - noise
+  - experimental
+
+manual: |
+  Bytebeat generator with 36 built-in formulas across 6 banks plus 6 user formula slots.
+  Main controls sample rate, X selects formula/bank or user slot, and Y controls parameter 1.
+  Pulse In 1 resets/triggers and Pulse In 2 toggles reverse playback.
+  Built-in/user formula editing is available through the included browser tool (`bytebeat.html`).
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Parameter 1 Modulation
+      description: Modulates bytebeat parameter 1
+      type: cv
+    - id: AudioIn2
+      name: Parameter 2 Modulation
+      description: Modulates bytebeat parameter 2
+      type: cv
+    - id: CVIn1
+      name: Formula Select Modulation
+      description: Modulates formula index (built-in) or user slot selection
+      type: cv
+    - id: CVIn2
+      name: Sample Rate Modulation
+      description: Modulates effective sample rate/speed
+      type: cv
+    - id: PulseIn1
+      name: Reset / Trigger
+      description: Rising edge resets bytebeat time counter
+      type: pulse
+    - id: PulseIn2
+      name: Reverse Toggle
+      description: Rising edge toggles reverse playback direction
+      type: pulse
+  outputs:
+    - id: AudioOut1
+      name: Bytebeat Output
+      description: Main bytebeat audio output
+      type: audio
+    - id: AudioOut2
+      name: Next Bytebeat Output
+      description: Audio output of the next formula/slot for parallel patching
+      type: audio
+    - id: CVOut1
+      name: Slow Bytebeat CV
+      description: Slower-timebase bytebeat-derived CV
+      type: cv
+    - id: CVOut2
+      name: Fast Bytebeat CV
+      description: Faster-timebase bytebeat-derived CV
+      type: cv
+    - id: PulseOut1
+      name: 1-Bit Output
+      description: Bitbeat-style 1-bit pulse stream from waveform LSB
+      type: pulse
+    - id: PulseOut2
+      name: Time Division Clock
+      description: Pulse clock derived from divided bytebeat time variable
+      type: pulse
+
+controls:
+  knobs:
+    - when: { z: up }
+      main:
+        name: Sample Rate
+        description: Sets bytebeat sample rate/speed
+      x:
+        name: Built-in Formula Select
+        description: Selects formula bank and slot among 36 built-in formulas
+      y:
+        name: Parameter 1
+        description: Sets primary formula parameter (p1)
+    - when: { z: middle }
+      main:
+        name: Sample Rate
+      x:
+        name: User Slot Select
+        description: Selects one of 6 stored user formulas
+      y:
+        name: Parameter 1
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Reset
+        description: Momentary switch down resets bytebeat time counter
+  leds:
+    - when: { z: up }
+      display: list
+      items:
+        - id: LED0
+          name: Bank/Slot Display
+          description: LEDs show selected built-in bank and formula slot
+        - id: LED1
+          name: Bank/Slot Display
+        - id: LED2
+          name: Bank/Slot Display
+        - id: LED3
+          name: Bank/Slot Display
+        - id: LED4
+          name: Bank/Slot Display
+        - id: LED5
+          name: Bank/Slot Display
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED0
+          name: User Slot Display
+        - id: LED1
+          name: User Slot Display
+        - id: LED2
+          name: User Slot Display
+        - id: LED3
+          name: User Slot Display
+        - id: LED4
+          name: User Slot Display
+        - id: LED5
+          name: User Slot Display
+
+# certainty: low — browser-host integration inferred from README + bytebeat.html + serial protocol in source
+host:
+  usb:
+    - name: Browser formula editor
+      role: editor
+      description: Local browser page (`bytebeat.html`) live-codes formulas over USB serial and can store them in card EEPROM slots

@@ -1,5 +1,85 @@
+draft: false
+Name: Sheep
 Description: A time-stretching and pitch-shifting granular processor and digital degradation playground with 2 fidelity options.
 Language: Pico SDK
 Creator: Dune Desormeaux
-Version: 1.1
+Version: 1.2
 Status: Released
+demo-link: https://youtu.be/LfkgfMzVabg
+
+tags:
+  - effect
+  - granular
+  - time-stretch
+  - pitch-shift
+  - glitch
+
+# certainty: low — structured behavior inferred from source comments in main.cpp; no local README
+manual: |
+  Granular buffer processor with triggerable grains, reverse/forward playback, loop/glitch mode, and freeze.
+  Main controls grain speed or CV2 pitch attenuation, X controls delay spread (or CV1 attenuation), Y sets grain size.
+  PulseIn1 triggers grains; PulseIn2 acts as a grain gate. Z up freezes buffer, Z middle runs normal mode, Z down enables loop/glitch behavior.
+  Two firmware builds are provided in source comments: lo-fi longer buffer and hi-fi shorter buffer.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Granular Input Left
+      description: Recorded into circular buffer when not frozen
+    - id: AudioIn2
+      name: Granular Input Right
+      description: Recorded into circular buffer when not frozen
+    - id: CVIn1
+      name: Grain Position CV
+      description: Position/scrub control with X as attenuverter
+    - id: CVIn2
+      name: Grain Speed CV
+      description: Pitch/speed modulation with Main as attenuverter
+    - id: PulseIn1
+      name: Grain Trigger
+      description: Rising edge triggers new grain
+    - id: PulseIn2
+      name: Grain Gate
+      description: Gates grain triggering when connected
+  outputs:
+    - id: AudioOut1
+      name: Granular Output Left
+      description: Processed granular audio output
+    - id: AudioOut2
+      name: Granular Output Right
+      description: Processed granular audio output
+    - id: CVOut1
+      name: Random CV
+      description: Random value updated when grains are triggered
+    - id: CVOut2
+      name: Buffer Phase CV
+      description: Rising saw mapped to circular buffer write-head position
+    - id: PulseOut1
+      name: Grain Completion Trigger
+      description: Triggers when a grain reaches completion threshold
+    - id: PulseOut2
+      name: Stochastic Clock
+      description: Probabilistic pulse stream influenced by X and grain size
+
+controls:
+  switch:
+    up:
+      name: Freeze
+      description: Freezes the buffer; grains play from the frozen audio
+    middle:
+      name: Normal
+      description: Continuously records the input into the circular buffer
+    down:
+      name: Glitch
+      description: Enables looping/glitch grain playback around a captured baseline
+  knobs:
+    - when: { z: any }
+      main:
+        name: Grain Speed
+        description: Bidirectional speed from reverse to forward, with center pause detent
+      x:
+        name: Delay Spread
+        description: Left half selects delay offset, right half increases random spread
+      y:
+        name: Grain Size
+        description: Sets grain length from very short to long windows

@@ -1,6 +1,79 @@
-Description: AM radio transmitter / coupler
+draft: true
 Name: AM Coupler
+Description: AM radio transmitter / coupler
 Language: C++ (ComputerCard)
 Creator: Chris Johnson
 Version: 1.0
 Status: Released
+
+tags:
+  - radio
+  - transmitter
+  - utility
+  - sample-playback
+
+manual: |
+  AM Coupler generates a medium-wave AM carrier and modulates it with audio from `AudioIn1/2` (or an
+  uploaded WAV when no audio inputs are patched). Main sets coarse carrier frequency, X + `CVIn1` fine tune,
+  and Y controls modulation amount. Switch (or `PulseIn1` gate when patched) controls RF on/off.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Modulator Audio 1
+      description: Summed into AM modulation signal
+    - id: AudioIn2
+      name: Modulator Audio 2
+      description: Summed into AM modulation signal
+    - id: CVIn1
+      name: Fine Tune CV
+      description: Modulates carrier frequency with Knob X
+    - id: PulseIn1
+      name: RF Gate
+      description: When patched, high gate enables RF output
+  outputs:
+    - id: AudioOut1
+      name: WAV Playback Monitor
+      description: Outputs uploaded WAV playback signal
+    - id: AudioOut2
+      name: Modulation Signal Monitor
+      description: Outputs post-level modulation signal used for transmission
+
+controls:
+  knobs:
+    - main:
+        name: Carrier Frequency (Coarse)
+        description: Tunes RF carrier roughly across MW broadcast range
+      x:
+        name: Carrier Frequency (Fine)
+        description: Fine tune amount summed with CVIn1
+      y:
+        name: Modulation Level
+        description: Sets modulation depth / broadcast volume
+    - when: { z: middle }
+      main:
+        name: RF Off
+        description: Carrier disabled
+    - when: { z: up }
+      main:
+        name: RF On
+        description: Carrier enabled (unless gated low by PulseIn1)
+    - when: { z: down }
+      main:
+        name: RF On
+        description: Carrier enabled (unless gated low by PulseIn1)
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: RF Enable
+          description: Lit when RF carrier output is active
+        - id: LED1
+          name: VU Low
+          description: Low-range modulation level meter
+        - id: LED3
+          name: VU Mid
+          description: Mid-range modulation level meter
+        - id: LED5
+          name: VU High
+          description: High-range modulation level meter

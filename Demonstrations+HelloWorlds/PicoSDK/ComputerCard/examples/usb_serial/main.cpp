@@ -41,6 +41,8 @@ void core1()
 
 int main()
 {
+	set_sys_clock_khz(144000, true);
+
 	// Sleep commands not essential, but give some serial terminal programs
 	// time to notice the new virtual COM port / TTY, and connect to it.
     sleep_ms(500);

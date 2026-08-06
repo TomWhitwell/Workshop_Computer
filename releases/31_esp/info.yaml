@@ -1,5 +1,78 @@
+draft: true
+Name: ESP
 Description: A MS-20-style External Signal Processor that includes a preamp, bandpass filter, envelope follower, gate, and 1v/oct pitch outs.
-Language: C++(ComputerCard)
+Language: C++ (ComputerCard)
 Creator: Ben Regnier
 Version: 1.0
 Status: Released
+
+tags:
+  - external-signal-processor
+  - envelope-follower
+  - pitch-tracker
+  - gate-extractor
+  - filter
+
+manual: |
+  ESP processes incoming audio through a gain stage and bandpass section, then derives envelope, gate, trigger, and pitch control signals.
+  Main controls preamp gain, X sets lower cutoff, and Y sets upper cutoff.
+  In switch middle, pitch updates are held unless gate is high; otherwise pitch tracks continuously.
+  Audio Out 1 is post-gain signal and Audio Out 2 is bandpassed output.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio Input
+      description: Source signal for all ESP analysis/processing stages
+  outputs:
+    - id: AudioOut1
+      name: Post-Gain Monitor
+      description: Preamped signal after soft clipping
+    - id: AudioOut2
+      name: Bandpass Monitor
+      description: Band-passed signal used by envelope and pitch detector
+    - id: CVOut1
+      name: Pitch CV (1V/Oct)
+      description: Pitch estimate converted to calibrated 1V/oct-style output # certainty: medium (algorithmic approximation in code)
+    - id: CVOut2
+      name: Envelope CV
+      description: Envelope follower output derived from bandpassed signal
+    - id: PulseOut1
+      name: Gate Out
+      description: Schmitt gate derived from envelope thresholding
+    - id: PulseOut2
+      name: Trigger Out
+      description: Short trigger on gate rising edge
+
+controls:
+  knobs:
+    - when: { z: up }
+      main:
+        name: Preamp Gain
+        description: Exponential gain from low boost to high drive
+      x:
+        name: Bandpass Low Cut
+        description: Lower cutoff index for high-pass stage
+      y:
+        name: Bandpass High Cut
+        description: Upper cutoff index for low-pass stage
+    - when: { z: middle }
+      main:
+        name: Pitch Hold Mode
+        description: Pitch updates only while gate is active; helps stabilize tracking
+  leds:
+    - when: { mode: activity }
+      display: list
+      items:
+        - id: LED0
+          name: Bandpass Activity
+          description: Brightness follows bandpassed signal level
+        - id: LED2
+          name: Pitch CV Level
+          description: Brightness follows pitch CV output level
+        - id: LED3
+          name: Envelope Level
+          description: Brightness follows envelope CV output level
+        - id: LED4
+          name: Gate State
+          description: Lit while gate output is high

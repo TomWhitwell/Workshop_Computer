@@ -1,0 +1,111 @@
+draft: true
+Name: Knots
+Description: Six-engine oscillator firmware for the Music Thing Workshop System
+Language: C++ (RPi Pico SDK / ComputerCard)
+Creator: Jeff Fletcher
+Version: 0.2
+Status: Released
+
+manual: |
+  Six-engine oscillator card with Normal/Alt output modes, MIDI input, and clock/gate utilities.
+  Main sets pitch, X/Y shape engine parameters, CV and pulse inputs modulate mode/slot behavior,
+  and Z handles mode switching, engine advance, and Pulse Out 2 clock configuration.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: X Modulation Input
+      description: Bipolar modulation source for X macro; X knob becomes attenuation amount when patched
+    - id: AudioIn2
+      name: Y Modulation Input
+      description: Bipolar modulation source for Y macro; Y knob becomes attenuation amount when patched
+    - id: CVIn1
+      name: Pitch CV
+      description: 1V/oct pitch modulation summed with Main knob (clamped to 10 Hz to 10 kHz range)
+    - id: CVIn2
+      name: VCA CV
+      description: Global output level control; 0V mutes and +5V reaches unity gain
+    - id: PulseIn1
+      name: Mode Gate
+      description: Overrides panel Z up/middle mode latch; low selects Normal and high selects Alt
+    - id: PulseIn2
+      name: Engine Advance Clock
+      description: Rising edges advance to next engine slot
+  outputs:
+    - id: AudioOut1
+      name: Audio Output 1
+      description: Engine output channel 1; Normal or Alt signal depending on mode
+    - id: AudioOut2
+      name: Audio Output 2
+      description: Engine output channel 2; Normal or Alt signal depending on mode
+    - id: CVOut1
+      name: MIDI Pitch CV
+      description: 1V/oct CV derived from incoming MIDI note values
+    - id: CVOut2
+      name: MIDI CC74 CV
+      description: Bipolar control output mapped from incoming MIDI CC 74
+    - id: PulseOut1
+      name: MIDI Gate
+      description: 5V gate high while MIDI note is held
+    - id: PulseOut2
+      name: Clock Output
+      description: Clock pulses from internal BPM or external USB MIDI clock/divisions
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Main Pitch
+        description: Tunes oscillator pitch over roughly 10 octaves (10 Hz to 10 kHz)
+      x:
+        name: Engine Macro X
+        description: Engine-specific parameter 1 in Normal mode, or attenuation for AudioIn1 when patched
+      y:
+        name: Engine Macro Y
+        description: Engine-specific parameter 2 in Normal mode, or attenuation for AudioIn2 when patched
+    - when: { z: up }
+      main:
+        name: Main Pitch
+        description: Same pitch control while Alt mode outputs are active
+      x:
+        name: Alt Macro X
+        description: Engine-specific Alt-mode parameter 1
+      y:
+        name: Alt Macro Y
+        description: Engine-specific Alt-mode parameter 2
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Engine Slot Advance
+        description: Press-and-release advances to the next engine slot
+    - when: { z: down, gesture: hold }
+      x:
+        name: Pulse Out 2 Rate/Division
+        description: While holding Z down, X sets internal clock BPM or MIDI clock division for Pulse Out 2
+  leds:
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED0
+          name: Selected Engine Indicator
+          description: LEDs indicate current engine slot
+        - id: LED1
+          name: Selected Engine Indicator
+          description: LEDs indicate current engine slot
+        - id: LED2
+          name: Selected Engine Indicator
+          description: LEDs indicate current engine slot
+        - id: LED3
+          name: Selected Engine Indicator
+          description: LEDs indicate current engine slot
+        - id: LED4
+          name: Selected Engine Indicator
+          description: LEDs indicate current engine slot
+        - id: LED5
+          name: MIDI Activity
+          description: Brief flash on MIDI note events
+
+host:
+  usb:
+    - name: USB MIDI input
+      role: midi-host
+      description: Class-compliant MIDI input (channel 1) for note/gate, CC74 to CVOut2, and MIDI clock sync

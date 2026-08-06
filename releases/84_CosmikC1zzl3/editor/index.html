@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>C1ZZL3 Envelope Lab</title>
+  <link rel="stylesheet" href="styles.css?v=20260706-8">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">C1ZZL3</p>
+        <h1>Envelope Lab</h1>
+      </div>
+      <div class="transport">
+        <a id="onlineEditorLink" href="https://soveda.github.io/CozmikC1zzl3/web-midi/editor/index.html" target="_blank" rel="noopener noreferrer" class="transport-link">Online</a>
+        <a id="importLabLink" href="https://soveda.github.io/CozmikC1zzl3/experiments/cz-import/" target="_blank" rel="noopener noreferrer" class="transport-link">Import Lab</a>
+        <button id="audition" type="button" title="Loop browser audition">▶</button>
+        <button id="stop" type="button" title="Stop browser audition">■</button>
+        <button id="themeToggle" type="button" role="switch" aria-checked="false" title="Toggle light mode">Dark</button>
+        <button id="midiToggle" type="button" title="Connect USB MIDI input">MIDI</button>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <aside class="preset-list" aria-label="Envelope presets">
+        <div class="list-head">
+          <h2>Presets</h2>
+          <button id="addPreset" type="button" title="Add preset">+</button>
+        </div>
+        <div id="presetList" class="preset-buttons"></div>
+      </aside>
+
+      <section class="editor" aria-label="Envelope editor">
+        <div class="editor-head">
+          <label>
+            Name
+            <input id="presetName" type="text" maxlength="32">
+          </label>
+          <label>
+            MIDI pitch
+            <input id="pitchInput" type="number" min="24" max="96" value="60">
+          </label>
+          <label>
+            Preview waveform family
+            <select id="waveSelect">
+              <option value="0">Saw</option>
+              <option value="1">Square</option>
+              <option value="2">Narrow pulse</option>
+              <option value="3">Double sine</option>
+              <option value="4">Saw pulse</option>
+              <option value="5">Resonant saw window</option>
+              <option value="6">Resonant triangle window</option>
+              <option value="7">Resonant trapezoid window</option>
+            </select>
+          </label>
+          <label>
+            Card slot
+            <select id="customSlot">
+              <option value="0">Custom 1</option>
+              <option value="1">Custom 2</option>
+              <option value="2">Custom 3</option>
+              <option value="3">Custom 4</option>
+              <option value="4">Custom 5</option>
+              <option value="5">Custom 6</option>
+              <option value="6">Custom 7</option>
+              <option value="7">Custom 8</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="editor-hint">
+          Drag points on the graph to edit stages, or type exact values below. Factory presets turn into a copy the first time you change them. Bounce is the reset preset.
+        </div>
+
+        <div class="lane-switcher" role="tablist" aria-label="Envelope lane view">
+          <button id="ampView" type="button" class="is-active" role="tab" aria-selected="true">Amplitude</button>
+          <button id="pdView" type="button" role="tab" aria-selected="false">Phase Distortion</button>
+        </div>
+
+        <div class="editor-legend" aria-label="Editor guide">
+          <span><strong>Selected lane:</strong> only the active window can be moved.</span>
+          <span><strong>Point numbers:</strong> when stages stack, only the highest number is shown.</span>
+          <span><strong>Dragging:</strong> move a point to change its level and timing together.</span>
+          <span><strong>Preset status:</strong> Local only is stored in this browser; Saved is on the card; Changed has edits not yet saved to the card.</span>
+          <span><strong>Play / Stop:</strong> Play previews the envelope in the browser on a loop. Stop ends the browser preview only.</span>
+        </div>
+
+        <div class="curve-panel">
+          <canvas id="curveCanvas" width="1200" height="420" aria-label="Amplitude and phase distortion envelope preview"></canvas>
+        </div>
+
+        <button id="developerToggle" type="button" class="developer-toggle" role="switch" aria-checked="false">Developer tools: Off</button>
+
+        <div class="output-actions editor-actions">
+          <button id="sendSysex" type="button" title="Load this envelope until reset">Load RAM</button>
+          <button id="loadEnvelopeAndSettings" type="button" title="Load this envelope and send the current settings until reset">Load Envelope + Settings</button>
+          <button id="flashSysex" type="button" title="Save this envelope after reset">Save Envelope</button>
+          <button id="deleteSlot" type="button" title="Delete the selected custom slot from card flash">Delete Envelope Slot</button>
+          <button id="requestEnvelopes" type="button" title="Load saved card envelopes into the editor">Read Envelopes from Card</button>
+          <button id="requestSettings" type="button" title="Load current card settings into the editor">Read Settings from Card</button>
+          <button id="sendSettings" type="button" title="Send these settings to the card">Send Settings</button>
+          <button id="resetPreset" type="button">Reset Preset</button>
+        </div>
+        <div class="volatility-warning" role="note">
+          <strong>Temporary changes:</strong> Load RAM, Load Envelope + Settings, and Send Settings are lost when the card restarts. Use Save Envelope to keep the envelope. To make the current settings the hardware baseline, move the switch from middle to down and hold it until the card confirms the save.
+        </div>
+      </section>
+
+      <aside class="output-panel" aria-label="Export">
+        <label>
+          MIDI output
+          <select id="midiOutput">
+            <option value="">No output selected</option>
+          </select>
+        </label>
+        <section class="performance-panel" aria-label="Performance settings">
+          <h2 class="performance-title">Settings:</h2>
+          <label>
+            PD amount
+            <input id="pdControl" type="range" min="0" max="4095" value="0">
+          </label>
+          <label class="detune-setting">
+            Detune
+            <span class="detune-control">
+              <input id="detuneControl" type="range" min="0" max="4095" value="2048">
+              <span class="detune-scale" aria-hidden="true"><span>-</span><strong>OFF</strong><span>+</span></span>
+            </span>
+          </label>
+          <label>
+            Wave family
+            <select id="performanceWaveSelect">
+              <option value="0">Saw</option>
+              <option value="1">Square</option>
+              <option value="2">Narrow pulse</option>
+              <option value="3">Double sine</option>
+              <option value="4">Saw pulse</option>
+              <option value="5">Resonant saw window</option>
+              <option value="6">Resonant triangle window</option>
+              <option value="7">Resonant trapezoid window</option>
+            </select>
+          </label>
+          <label>
+            Ring mod
+            <input id="ringControl" type="range" min="0" max="4095" value="0">
+          </label>
+          <label>
+            Noise
+            <input id="noiseControl" type="range" min="0" max="4095" value="0">
+          </label>
+          <label>
+            MIDI in ch
+            <input id="midiInChannel" type="number" min="1" max="16" value="1">
+          </label>
+          <label>
+            Turing range
+            <input id="turingRange" type="number" min="1" max="8" value="2">
+          </label>
+          <label>
+            Turing MIDI out
+            <input id="turingMidiOut" type="checkbox" checked>
+          </label>
+          <label>
+            Turing MIDI ch
+            <input id="turingMidiChannel" type="number" min="1" max="16" value="1">
+          </label>
+        </section>
+        <section id="stagePanel" class="stage-panel" aria-label="Selected lane stages">
+          <div class="lane-title">
+            <h2 id="stagePanelTitle">Amplitude</h2>
+            <span id="stagePanelSubtitle">Level / samples</span>
+          </div>
+          <div class="stage-head">
+            <span>Stage</span>
+            <span>Level</span>
+            <span>Samples</span>
+          </div>
+          <div id="ampStages" class="stage-grid"></div>
+          <div id="pdStages" class="stage-grid"></div>
+        </section>
+        <div id="developerPanel" class="developer-panel is-hidden" aria-label="Developer tools">
+          <div class="output-actions developer-actions">
+            <button id="copyCpp" type="button">Copy C++</button>
+            <button id="copySysex" type="button">Copy SysEx</button>
+            <button id="downloadJson" type="button">Export JSON</button>
+          </div>
+          <textarea id="exportText" spellcheck="false" aria-label="Generated firmware preset"></textarea>
+          <div class="developer-log-panel">
+            <div class="developer-log-head">
+              <h3>MIDI Ports Seen By Browser</h3>
+            </div>
+            <pre id="developerPorts" class="developer-log" aria-label="Detected MIDI ports"></pre>
+          </div>
+          <div class="developer-log-panel">
+            <div class="developer-log-head">
+              <h3>Browser Web MIDI Details</h3>
+            </div>
+            <pre id="developerMidiRaw" class="developer-log" aria-label="Raw MIDI access details"></pre>
+          </div>
+          <div class="developer-log-panel">
+            <div class="developer-log-head">
+              <h3>Event Log</h3>
+              <button id="clearDeveloperLog" type="button">Clear log</button>
+            </div>
+            <pre id="developerLog" class="developer-log" aria-label="Developer diagnostics"></pre>
+          </div>
+        </div>
+        <p id="status" class="status">Ready.</p>
+      </aside>
+    </section>
+  </main>
+
+  <script src="app.js?v=20260706-9"></script>
+</body>
+</html>

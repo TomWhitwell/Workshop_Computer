@@ -1,0 +1,141 @@
+draft: false
+Name: Cathode Ray
+Description: Composite video synthesiser (PAL + NTSC builds) — oscilloscope, etch-a-sketch & spectrum analyser, greyscale via dithering, performance effects, 8 alt-boot screensaver/game modes
+Language: C++ (RP2040 Pico SDK)
+Creator: Andy Jenkinson (uglifruit)
+Version: 1.2.0
+Status: Released
+License: MIT
+Repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/96_cathode
+
+tags:
+  - video
+  - composite
+  - oscilloscope
+  - visualiser
+  - performance
+
+manual: |
+  Cathode Ray turns the Workshop Computer into a 1-bit composite video synthesiser.
+  Wire a two-resistor DAC from Pulse Out 1 (1kΩ) and Pulse Out 2 (220Ω) into an RCA
+  centre pin (grounds common) and connect to any composite-input TV/monitor. PAL by
+  default; flash cathode_ray_ntsc.uf2 for NTSC (US) displays.
+
+  The Main knob picks the mode across three zones: lower = etch-a-sketch (draw with
+  CV In 1/2 as X/Y), middle = oscilloscope (Audio In 1 traces, sweep speed slow→fast),
+  upper = spectrum analyser (24-band, Audio In 1). Greyscale (5 levels) is produced by a
+  2×2 spatial dither into the 1-bit picture.
+
+  Switch MIDDLE = phosphor fade / persistence, UP = static / clean. Knob X/Y are
+  multi-function (CV scale / position offset / scope gain & baseline / spectrum gain &
+  rotate) with pickup hysteresis.
+
+  Three independent performance-trigger sources — Switch DOWN, Pulse In 1, Pulse In 2 —
+  each runs a configurable behaviour (invert, clear, cycle/random effect, or one fixed
+  effect: strobe / fade / fade-to-white / snow / swap / corrupt / roll). Hold Switch
+  DOWN and twist Main/X/Y to open the on-screen config menu and assign each source.
+
+  Hold Switch DOWN at power-on for ALT-BOOT mode: a selector of screensaver / performance
+  hybrids that also protect a CRT from burn-in. Switch UP shows the selector (Main knob
+  scrolls through the modes, with on-screen input/output help); Switch MIDDLE or DOWN
+  plays the shown mode. Modes:
+   • COMET — a round comet with a phosphor tail (Main/CV1 = speed, Y/CV2 = tail length).
+   • PATCHTEROIDS — patch-controlled Asteroids. Main (+ CV In 1) steers, PU1 / Switch DOWN
+     fire. CV Out 1 = pitch (+1 semitone per hit, arpeggiates down on a crash), CV Out 2 =
+     gate per hit.
+   • BOING — Amiga-style tilted rotating checkered ball. Knob X / CV1 = spin & kick impulse,
+     Main / CV2 = bounce efficiency, Knob Y = horizontal speed, PU1 / DOWN = kick.
+     CV Out 1 = height, CV Out 2 = trigger on each floor bounce.
+   • STARFIELD — fly through space. Main = speed, X/CV1 = horizontal turn, Y/CV2 = vertical.
+   • RADAR — a radar scope. Main aims a turret, PU1 / DOWN fires a ballistic missile (hold =
+     range); PU2 (CV1 sets radius) drops fading target blocks. CV Out 2 = pulse on a hit.
+   • LUNAR — Lunar Lander. Main / CV1 rotate, PU1 / DOWN thrust; land gently on the pad
+     (narrows each stage) avoiding drifting UFOs. CV Out 1 = altitude, CV Out 2 = crash.
+   • 3DMAZE — first-person wireframe maze. Main turns, PU1 / DOWN walks; Knob X / CV1 =
+     hands-free auto-run. Find the glowing white EXIT panel on a wall (reaching it flashes and
+     generates a new maze). CV Out 2 = pulse when you reach the exit.
+   • FOURTRIG — a trigger-driven visual drum machine. Audio In 1, Audio In 2, Pulse In 1 and
+     Pulse In 2 are all triggers; each stamps a decaying "thing" (thick 2×2 strokes) into one
+     screen quadrant. Knob X = bank (icons first, words last: shapes / music-hits / symbols /
+     words / emphasis), Knob Y (+ CV In 2) = the set of four, Main (+ CV In 1) = CHAOS (jitter/
+     swap placement, grow + vary size, and past ~50% a rising chance of a per-hit random VFX from
+     the full set incl. flip-180). Hold Switch DOWN for a momentary held VFX. CV Out 2 = pulse on
+     every trigger.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Scope Input
+      description: Oscilloscope trace / spectrum source (gain via Knob Y). In FourTrig alt-mode, a trigger input (top-left quadrant)
+    - id: AudioIn2
+      name: Trigger (FourTrig)
+      description: Unused in the main synth. In FourTrig alt-mode, a trigger input (top-right quadrant)
+    - id: CVIn1
+      name: Draw X
+      description: Etch-a-sketch X axis (scaled/offset by Knob X), sampled at 48kHz
+    - id: CVIn2
+      name: Draw Y
+      description: Etch-a-sketch Y axis (scaled/offset by Knob Y), sampled at 48kHz
+    - id: PulseIn1
+      name: Trigger 1
+      description: Configurable performance trigger (default cycle FX; set to CLS to clear)
+    - id: PulseIn2
+      name: Trigger 2
+      description: Configurable performance trigger (default invert while held)
+  outputs:
+    - id: PulseOut1
+      name: Video DAC bit 0
+      description: Composite video via 1kΩ (black pedestal); summed into RCA centre pin
+    - id: PulseOut2
+      name: Video DAC bit 1
+      description: Composite video via 220Ω (white step); summed into RCA centre pin
+    - id: CVOut1
+      name: Alt-boot CV
+      description: Alt-boot only — mode-dependent (Patchteroids pitch / Boing height / etc). Unused in the main synth.
+    - id: CVOut2
+      name: Alt-boot Trigger
+      description: Alt-boot only — mode-dependent event pulse (hit / bounce / crash / reached exit). Unused in the main synth.
+
+controls:
+  modes:
+    - name: Etch-a-sketch
+      activation: Main knob in the lower third (CCW); knob sets fade rate
+      main: Fade rate (0.15s–2s)
+      x: CV In 1 scale (MIDDLE) or X position offset (UP)
+      y: CV In 2 scale (MIDDLE) or Y position offset (UP)
+      switch:
+        up: Knob X/Y offset the drawing position (drawings accumulate)
+        middle: Knob X/Y scale the CV inputs (+ phosphor fade)
+        down: Performance trigger / config menu
+    - name: Oscilloscope
+      activation: Main knob in the middle third
+      main: Sweep speed (slow ~3s to fast ~0.1s per sweep)
+      x: Centre-line (0V) vertical position
+      y: Audio trace gain (0–2×)
+      switch:
+        up: Static single clean trace
+        middle: Phosphor fade locked to the sweep
+        down: Performance trigger / config menu
+    - name: Spectrum analyser
+      activation: Main knob in the upper third (CW); knob sets decay speed
+      main: Bar/echo decay speed
+      x: Rotate the radial blob (MIDDLE mode only)
+      y: Audio gain
+      switch:
+        up: LED-segment bargraph
+        middle: Radial pulsing blob (Knob X rotates; grey echo trail)
+        down: Performance trigger / config menu
+      notes: 24-band Goertzel filter bank on Audio In 1 (~80Hz–8kHz, bass left→treble right); bars decay; a SWAP trigger mirrors bass↔treble.
+  leds:
+    - id: LED0
+      name: Scope mode
+    - id: LED1
+      name: Etch-a-sketch mode
+    - id: LED2
+      name: Config menu open
+    - id: LED3
+      name: Phosphor fade / persistence active (Switch MIDDLE)
+    - id: LED4
+      name: Switch DOWN held
+    - id: LED5
+      name: Spectrum-analyser mode

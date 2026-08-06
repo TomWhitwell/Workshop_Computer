@@ -36,6 +36,9 @@ public:
 
 int main()
 {
+	// Run chip at multiple of 48MHz
+	set_sys_clock_khz(144000, true);
+
 	// Create and run our new Sample and Hold
 	SampleAndHold sh;
 	sh.Run();
@@ -51,16 +54,20 @@ More generally, the process is:
 
 4. Override the pure virtual `ComputerCard::ProcessSample()` method to implement the per-sample functionality required for the particular card. `ComputerCard::ProcessSample()` is called at a fixed 48kHz sample rate.
 
-5. Now, create an instance of the new derived class (for example, in `main()`)
+5. To minimise ADC input noise, at the start of `main()` use `set_sys_clock_khz(144000, true);` to run the RP2040 at 144MHz, or another multiple of 48MHz.
 
-6. If the normalisation probe is used, call the `ComputerCard::EnableNormalisationProbe()` method on this instance.
+6. Now, create an instance of the new derived class (for example, in `main()`)
 
-7. Call the `ComputerCard::Run()` method on this instance to start audio processing. `ComputerCard::Run()` is blocking (never returns).
+7. If the normalisation probe is used, call the `ComputerCard::EnableNormalisationProbe()` method on this instance.
+
+8. Call the `ComputerCard::Run()` method on this instance to start audio processing. `ComputerCard::Run()` is blocking (never returns).
 
 ### Examples
 ComputerCard contains several examples in the `examples/` directory.
 For beginners just starting with ComputerCard, the first example to look at is `passthrough` to introduce the basic functions, followed by `sample_and_hold` for typical usage of these in a 'real' card.
 
+- `calibrated_cv_out` — example of using calibration data to output precise voltages/pitches 
+- `hid_keyboard_mouse` — example of connecting a mouse or keyboard to the Computer, using USB HID (Human Interface Device) host mode
 - `midi_device` — example of USB MIDI being used alongside ComputerCard. The MTM Computer acts as a USB device, to allow it to be connected to a (laptop/desktop) computer or a phone/tablet. Sends Computer knob values to the USB host as CC messages.
 - `midi_host` — example of USB MIDI being used alongside ComputerCard. The MTM Computer acts as a USB host, to allow it to be connected to USB MIDI devices such as keyboards/controllers/etc.
 - `midi_device_host` — example of USB MIDI being used alongside ComputerCard. At startup, the MTM computer determines the type of USB port it is connected to, and becomes either a host or device as appropriate. Requires Computer 1.1.0 Hardware for host mode.
@@ -161,6 +168,7 @@ Early versions do not include a version number in the source code, but can be id
 | 0.2.6   | 2025/07/31 | Version number in ComputerCard.h |
 | 0.2.7   | 2025/08/03 |                                  |
 | 0.2.8   | 2026/02/09 |                                  |
+| 0.3.0   | 2026/05/12 |                                  |
 
 #### 0.1.4
 Transfer of code to public Workshop_Computer repository.
@@ -214,6 +222,11 @@ Lots of fixes found during Utility Pair development:
 #### 0.2.8
 - Bug fix in calibration routine, where up to v0.2.7 `CVOutMillivolts` and `CVOutMIDINote` outputted constant voltages if the EEPROM did not contain calibration data
 - This also fixes an issue where ComputerCard did not run on Computer development boards without an EEPROM.
+
+#### 0.3.0
+- Alterations to CV out to minimise high-frequency tones that have audible in the audio inputs since the introduction of 19-bit PWM in v0.2.6. To benefit from this, the CPU clock must be set to a multiple of 48MHz.
+- Updated examples to use 144MHz (= 3 × 48MHz) clock
+- New `hid_keyboard_mouse` example
 
 # [Reference](#reference)
 
@@ -453,6 +466,8 @@ Returns `true` if CV Output calibration data has been loaded, or false if no cal
 
 # [Programming for ComputerCard](#programming)
 
+This section introduces some ways in which ComputerCard programming differs from desktop audio programming. Many more details are provided in a longer [programming tips](./NOTES.md) document.
+
 ComputerCard is designed to allow audio signals (with bandwidths up to ~20kHz) to be processed at low latency. To do this, the computations for each sample must be calculated individually, by calling the users `ProcessSample()` function at 48kHz. The `ProcessSample()` function for one sample must finish before the one for the next sample starts, meaning that the user's code for each sample must execute in 1/48000th of a second, or ~20μs. This is perfectly feasible on the RP2040, but requires some attention to code performance. Specifically;
 
 1. increasing clock speed 
@@ -468,6 +483,19 @@ The default clock rate of the RP2040 is 125MHz, and until February 2025 the fast
 
 As of Pico SDK v2.1.1, clock speeds up to 200MHz are supported (potentially with associated core voltage increase). This is officially done with a [preprocessor define](https://github.com/raspberrypi/pico-sdk/releases/tag/2.1.1), though I have had no issues with increasing the clock speed only, using `set_sys_clock_khz(200000, true);` at the start of the `main()` entry point.
 
+As of ComputerCard 0.3.0, clock speeds that are are multiples of 48MHz minimise noise on the audio inputs, and so a rate of 144MHz, 192MHz or 240MHz is recommended.
+
+```
+	set_sys_clock_khz(144000, true); // officially supported at default voltage
+```
+```
+	vreg_set_voltage(VREG_VOLTAGE_1_15); // officially supported at 1.15V
+	set_sys_clock_khz(192000, true);
+```
+```
+	vreg_set_voltage(VREG_VOLTAGE_1_20); // overclock, not officially supported
+	set_sys_clock_khz(240000, true);     // but appears to work on multiple devices at 1.2V
+```
 ## 2. Integer calculations
 
 Floating-point operations on the RP2040 are software emulated, and are [much slower](https://forums.raspberrypi.com/viewtopic.php?t=308794#p1848188) than the native 32-bit integer addition, subtraction and multiplication.

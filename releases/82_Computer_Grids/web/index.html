@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>82_Computer_Grids Config</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <main>
+    <h1>82_Computer_Grids Web Config</h1>
+    <p class="hint">
+      Use a USB-C data cable, close any Serial Monitor/MIDI app using the device, and use a Chromium-based browser with
+      Web MIDI
+      SysEx enabled. iOS browsers are generally unsupported.
+    </p>
+
+    <section class="card">
+      <h2>MIDI</h2>
+      <div class="row">
+        <button id="connectBtn">Connect Web MIDI</button>
+        <label for="midiIn">Input</label>
+        <select id="midiIn"></select>
+        <label for="midiOut">Output</label>
+        <select id="midiOut"></select>
+      </div>
+      <div class="row row--actions">
+        <button id="readBtn" type="button" class="midi-action">Read From Device</button>
+        <button id="applyBtn" type="button" class="midi-action">Apply To Device</button>
+        <button id="saveBtn" type="button" class="midi-action">Save To Card</button>
+        <button id="defaultsBtn" type="button" class="midi-action">Load Defaults</button>
+      </div>
+      <p id="status">Not connected.</p>
+    </section>
+
+    <section class="card">
+      <h2>Live Monitor</h2>
+      <div class="row">
+        <button id="monitorToggleBtn" type="button">Start Monitor</button>
+        <label for="monitorIntervalMs">Poll ms</label>
+        <input id="monitorIntervalMs" type="number" min="100" max="10000" value="1000" />
+        <span id="monitorState">Stopped</span>
+      </div>
+      <p id="lastRx" class="monitor-line">Start the monitor or use Read — status appears here.</p>
+      <pre id="monitorConfigPreview" class="monitor-dump"
+        aria-label="Last received configuration">No config payload yet.</pre>
+    </section>
+
+    <section class="card">
+      <h2>Timing + Macro</h2>
+      <div class="grid">
+        <label>BPM x10
+          <div class="pair">
+            <input id="bpm10_range" type="range" min="400" max="2600" />
+            <input id="bpm10" type="number" min="400" max="2600" />
+          </div>
+        </label>
+        <label>Swing % <span class="hint"></span>
+          <div class="pair">
+            <input id="swing_range" type="range" min="50" max="75" step="1"
+              title="50% straight timing, 75% strong shuffle" />
+            <input id="swing" type="number" min="50" max="75" title="50% straight timing, 75% strong shuffle" />
+          </div>
+        </label>
+        <label>Chaos
+          <div class="pair">
+            <input id="chaos_range" type="range" min="0" max="127" />
+            <input id="chaos" type="number" min="0" max="127" />
+          </div>
+        </label>
+        <label>Pulse ms
+          <div class="pair">
+            <input id="pulse_ms_range" type="range" min="1" max="40" />
+            <input id="pulse_ms" type="number" min="1" max="40" />
+          </div>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>CV Routing</h2>
+      <div class="grid">
+        <label>CV1 Mode
+          <select id="cv1_mode">
+            <option value="0">CV1ToX</option>
+            <option value="1">CV1ToY</option>
+            <option value="2">CV1ToBlend</option>
+          </select>
+        </label>
+        <label>CV1 Amount
+          <div class="pair">
+            <input id="cv1_amount_range" type="range" min="-127" max="127" />
+            <input id="cv1_amount" type="number" min="-127" max="127" />
+          </div>
+        </label>
+        <label>CV2 Amount
+          <div class="pair">
+            <input id="cv2_amount_range" type="range" min="-127" max="127" />
+            <input id="cv2_amount" type="number" min="-127" max="127" />
+          </div>
+        </label>
+        <label>Aux Mode
+          <select id="aux_mode">
+            <option value="0">Accent</option>
+            <option value="1">Clock</option>
+            <option value="2">Lane3 Mirror</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Fill Macro Shaping</h2>
+      <div class="grid">
+        <label>Lane1 Scale
+          <div class="pair">
+            <input id="lane1_fill_scale_range" type="range" min="0" max="200" />
+            <input id="lane1_fill_scale" type="number" min="0" max="200" />
+          </div>
+        </label>
+        <label>Lane2 Scale
+          <div class="pair">
+            <input id="lane2_fill_scale_range" type="range" min="0" max="200" />
+            <input id="lane2_fill_scale" type="number" min="0" max="200" />
+          </div>
+        </label>
+        <label>Lane3 Scale
+          <div class="pair">
+            <input id="lane3_fill_scale_range" type="range" min="0" max="200" />
+            <input id="lane3_fill_scale" type="number" min="0" max="200" />
+          </div>
+        </label>
+        <label>Lane1 Offset
+          <div class="pair">
+            <input id="lane1_fill_offset_range" type="range" min="-127" max="127" />
+            <input id="lane1_fill_offset" type="number" min="-127" max="127" />
+          </div>
+        </label>
+        <label>Lane2 Offset
+          <div class="pair">
+            <input id="lane2_fill_offset_range" type="range" min="-127" max="127" />
+            <input id="lane2_fill_offset" type="number" min="-127" max="127" />
+          </div>
+        </label>
+        <label>Lane3 Offset
+          <div class="pair">
+            <input id="lane3_fill_offset_range" type="range" min="-127" max="127" />
+            <input id="lane3_fill_offset" type="number" min="-127" max="127" />
+          </div>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Backup</h2>
+      <div class="row">
+        <button id="exportBtn">Export JSON</button>
+        <input id="importFile" type="file" accept=".json" />
+      </div>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+
+</html>

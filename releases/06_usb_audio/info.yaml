@@ -1,6 +1,119 @@
-Description: 6-Channel USB Audio & MIDI firmware with CV/Gate support
+draft: true
 Name: USB Audio & MIDI
+Description: 6-Channel USB Audio & MIDI firmware with CV/Gate support
 Language: C++ (RPi Pico SDK)
-Creator: Workshop System
+Creator: Vincent Maurer (vincentmaurer.de)
 Version: 1.0
 Status: Release
+License: GPL-3.0
+Editor: https://vincentmaurer.de/usb-audio/midi_config.html
+
+tags:
+  - usb-audio
+  - midi
+  - utility
+  - cv
+  - gate
+
+manual: |
+  Class-compliant USB composite firmware providing multichannel USB audio plus USB MIDI.
+  Middle switch mode runs standard audio interface behavior; up switch mode enables configurable MIDI/CV/Gate mapping;
+  down switch mode disables MIDI for audio-only operation.
+  Routing, channel count, sample rate, and CV/Pulse behaviors are configurable via the web interface and can be saved to flash.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio Input 1
+      description: Physical input channel routable to USB audio and/or MIDI processing
+      type: audio
+    - id: AudioIn2
+      name: Audio Input 2
+      description: Physical input channel routable to USB audio and/or MIDI processing
+      type: audio
+    - id: CVIn1
+      name: CV Input 1
+      description: Configurable as pitch or CC source in alt mode
+      type: cv
+    - id: CVIn2
+      name: CV Input 2
+      description: Configurable as pitch or CC source in alt mode
+      type: cv
+    - id: PulseIn1
+      name: Pulse Input 1
+      description: Configurable gate input (default associated with CV 1)
+      type: pulse
+    - id: PulseIn2
+      name: Pulse Input 2
+      description: Configurable gate/clock input (default clock/run role)
+      type: pulse
+  outputs:
+    - id: AudioOut1
+      name: Audio Output 1
+      description: Physical output channel routable from USB stream or mode logic
+      type: audio
+    - id: AudioOut2
+      name: Audio Output 2
+      description: Physical output channel routable from USB stream or mode logic
+      type: audio
+    - id: CVOut1
+      name: CV Output 1
+      description: Configurable pitch/CV destination in alt mode
+      type: cv
+    - id: CVOut2
+      name: CV Output 2
+      description: Configurable CC/CV destination in alt mode
+      type: cv
+    - id: PulseOut1
+      name: Pulse Output 1
+      description: Configurable gate/trigger/clock output
+      type: pulse
+    - id: PulseOut2
+      name: Pulse Output 2
+      description: Configurable gate/trigger/clock output
+      type: pulse
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: MIDI CC Source (Main)
+        description: Sends configurable CC number (default CC1) in MIDI-enabled modes
+      x:
+        name: MIDI CC Source (X)
+        description: Sends configurable CC number (default CC2) in MIDI-enabled modes
+      y:
+        name: MIDI CC Source (Y)
+        description: Sends configurable CC number (default CC3) in MIDI-enabled modes
+
+# certainty: low — per-LED meanings inferred from src/main.cpp LED status logic, not explicitly documented in README
+  leds:
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED0
+          name: USB Mounted
+        - id: LED1
+          name: Config Status
+          description: Flashes after config operations; otherwise indicates USB ready state
+        - id: LED2
+          name: Speaker Stream Activity
+        - id: LED3
+          name: Mic Stream Activity
+        - id: LED4
+          name: USB Ready
+        - id: LED5
+          name: Sample Rate Indicator
+          description: Lit when running the 48 kHz sample-rate index
+
+host:
+  usb:
+    - name: USB audio interface
+      role: audio
+      description: Class-compliant multichannel USB audio input/output
+    - name: USB MIDI interface
+      role: midi
+      description: Class-compliant USB MIDI device with configurable CV/Pulse mapping in alt mode
+    - name: Web MIDI configuration tool
+      role: editor
+      description: External browser editor for routing and persistent settings

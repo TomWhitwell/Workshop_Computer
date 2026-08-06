@@ -1,5 +1,62 @@
+draft: true
+Name: NZT
 Description: Grain Noise and Noise Tools
 Language: C++ (ComputerCard)
-Creator: '@kjnilsson'
+Creator: "@kjnilsson"
 Version: 1.0.0
 Status: Released
+Repository: https://github.com/kjnilsson/ws
+
+manual: |
+  Grain-noise generator and noise utility card with density control, seed modulation, CV utilities,
+  and optional audio-rate excitation via Pulse In 1. Audio Out 1/2 provide complementary dense/sparse textures.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Density Modulation CV
+      description: Modulates noise density; scaled by Y knob
+    - id: CVIn2
+      name: Seed Modulation CV
+      description: Modulates noise seed and overrides X knob control when connected
+    - id: PulseIn1
+      name: Seed Reset Trigger
+      description: Resets noise generator seed on triggers; can be used for pitched/noise oscillator behavior
+    - id: PulseIn2
+      name: Sample-and-Hold Clock
+      description: Updates CV Out 2 sample-and-hold output on trigger
+    - id: AudioIn1
+      name: Ring Mod Input
+      description: Ring-modulates internal noise source
+    - id: AudioIn2
+      name: External Noise Source
+      description: Replaces internal noise source when connected
+  outputs:
+    - id: AudioOut1
+      name: Grain Noise Output A
+      description: Primary grain-noise output
+    - id: AudioOut2
+      name: Grain Noise Output B
+      description: Complementary inverse-density grain-noise output
+    - id: CVOut1
+      name: Static Offset CV
+      description: Static approximately -6V output for biasing/offset patches
+    - id: CVOut2
+      name: Sample-and-Hold CV
+      description: Sample-and-hold output updated by Pulse In 2
+    - id: PulseOut2
+      name: Periodic Pulse
+      description: Short trigger pulse emitted approximately every 1.366 seconds
+
+controls:
+  knobs:
+    - when: { z: any }
+      main:
+        name: Noise Density
+        description: Primary grain density amount
+      x:
+        name: Seed Control
+        description: Controls noise seed when Pulse In 1 is used and CV In 2 is not connected
+      y:
+        name: CV In 1 Gain
+        description: Gain for CV In 1 contribution added to Main density value

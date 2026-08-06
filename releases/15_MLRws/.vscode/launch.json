@@ -1,0 +1,53 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "MLRws: Debug external OpenOCD",
+			"type": "cortex-debug",
+			"request": "launch",
+			"servertype": "external",
+			"cwd": "${workspaceFolder}",
+			"executable": "${workspaceFolder}/build/MLRws.elf",
+			"gdbTarget": "host.docker.internal:3333",
+			"gdbPath": "arm-none-eabi-gdb",
+			"device": "RP2040",
+			"svdFile": "${env:PICO_SDK_PATH}/src/rp2040/hardware_regs/rp2040.svd",
+			"runToEntryPoint": "main",
+			"preLaunchTask": "MLRws: Build firmware",
+			"overrideLaunchCommands": [
+				"monitor reset init",
+				"load \"${workspaceFolder}/build/MLRws.elf\""
+			],
+			"postRestartCommands": [
+				"break main",
+				"continue"
+			]
+		},
+		{
+			"name": "MLRws: Profile counters external OpenOCD",
+			"type": "cortex-debug",
+			"request": "launch",
+			"servertype": "external",
+			"cwd": "${workspaceFolder}",
+			"executable": "${workspaceFolder}/build-profile/MLRws_profile.elf",
+			"gdbTarget": "host.docker.internal:3333",
+			"gdbPath": "arm-none-eabi-gdb",
+			"device": "RP2040",
+			"svdFile": "${env:PICO_SDK_PATH}/src/rp2040/hardware_regs/rp2040.svd",
+			"liveWatch": {
+				"enabled": true,
+				"samplesPerSecond": 4
+			},
+			"runToEntryPoint": "main",
+			"preLaunchTask": "MLRws: Build profiling",
+			"overrideLaunchCommands": [
+				"monitor reset init",
+				"load \"${workspaceFolder}/build-profile/MLRws_profile.elf\""
+			],
+			"postRestartCommands": [
+				"break main",
+				"continue"
+			]
+		}
+	]
+}

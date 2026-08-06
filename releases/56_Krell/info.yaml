@@ -1,0 +1,72 @@
+draft: true
+Name: Krell
+Description: Krell
+Language: Blackbird Lua
+Creator: Benjamin Reily
+Version: 1.0
+Status: Mostly complete
+
+tags:
+  - generative
+  - krell
+  - dual-channel
+  - envelopes
+  - random-pitch
+
+manual: |
+  Krell outputs two independent channels of random pitch CV and looping AD envelopes, each with pulse outputs
+  at end of cycle. Main sets overall tendency toward longer/shorter envelopes, X sets left-channel envelope timing,
+  and Y sets right-channel timing. Switch up quantizes pitch to octaves, middle uses chromatic quantization,
+  and switch down cycles note range between roughly one and three octaves.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Left Pitch Sample Input
+      description: When connected, sampled-and-held then quantized onto CV Out 1 instead of internal random pitch
+    - id: CVIn2
+      name: Right Pitch Sample Input
+      description: When connected, sampled-and-held then quantized onto CV Out 2 instead of internal random pitch
+  outputs:
+    - id: AudioOut1
+      name: Left AD Envelope
+      description: Looping attack-decay envelope output for left channel
+    - id: AudioOut2
+      name: Right AD Envelope
+      description: Looping attack-decay envelope output for right channel
+    - id: CVOut1
+      name: Left Pitch CV
+      description: Random or sampled-and-held quantized pitch output
+    - id: CVOut2
+      name: Right Pitch CV
+      description: Random or sampled-and-held quantized pitch output
+    - id: PulseOut1
+      name: Left End-of-Cycle Pulse
+      description: Pulse at end of each left envelope cycle
+    - id: PulseOut2
+      name: Right End-of-Cycle Pulse
+      description: Pulse at end of each right envelope cycle
+
+controls:
+  knobs:
+    - when: { z: any }
+      main:
+        name: Global Time/Mood
+        description: Global multiplier for envelope lengths and activity feel
+      x:
+        name: Left Envelope Length
+        description: Controls left channel envelope timing range
+      y:
+        name: Right Envelope Length
+        description: Controls right channel envelope timing range
+  switches:
+    - id: Z
+      up:
+        name: Octave Quantize
+        description: Quantizes pitch outputs to octave-only steps
+      middle:
+        name: Chromatic Quantize
+        description: Quantizes pitch outputs to chromatic notes
+      down:
+        name: Range Cycle
+        description: Cycles random note range between approximately one to three octaves

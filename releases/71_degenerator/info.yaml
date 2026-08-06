@@ -1,0 +1,120 @@
+draft: true
+Name: Degenerator
+Description: "Degenerator — Disintegrating Looper. Capture audio loops and apply irreversible degradation with 6 algorithms (Saturation, Filter Drift, Tape Hiss, Oxide Shedding, Bit Crush, Bit Rot) via preview/apply workflow. Inspired by William Basinski's The Disintegration Loops."
+Language: C++ (Pico SDK)
+Creator: Joep Vermaat
+Version: 1.3
+Status: Released
+License: MIT
+Editor: https://degenerator-web.netlify.app/
+Repository: https://codeberg.org/johantv/Degenerator
+
+manual: |
+  Irreversible layered looper with additive MIX and subtractive DEGRADE workflows.
+  Z down is RECORD (and slot workflows in SLOT mode), Z middle is MIX, Z up is
+  DEGRADE. Main controls mix/commit amount (full left freezes state), X selects
+  harmonic effect zone, Y selects destructive effect zone. Boot with Z down enables
+  SLOT mode with flash save/load features; otherwise YOLO mode is instant-on.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Primary Audio Input
+      description: Main source for recording and overdub
+    - id: AudioIn2
+      name: Secondary Audio Input
+      description: Mixed with AudioIn1 when connected
+    - id: CVIn1
+      name: Main Amount Modulation
+      description: Adds voltage to Main knob value (mix level, degrade rate, and slot selection contexts)
+    - id: CVIn2
+      name: Y Effect Modulation
+      description: Adds voltage to Y knob destructive-effect selection/intensity
+    - id: PulseIn1
+      name: Record Trigger
+      description: Rising edge starts recording
+    - id: PulseIn2
+      name: Reset / Slot Select Trigger
+      description: Resets loop in YOLO mode, or enters slot select in SLOT mode when Z is down
+  outputs:
+    - id: AudioOut1
+      name: Loop Output
+      description: Main processed loop output
+    - id: AudioOut2
+      name: Input Monitor
+      description: Monitors AudioIn1 signal
+    - id: CVOut1
+      name: Loop Position CV
+      description: Position ramp over loop cycle
+    - id: CVOut2
+      name: Output Envelope CV
+      description: Envelope follower proportional to output level
+    - id: PulseOut1
+      name: Loop Boundary Pulse
+      description: Pulse emitted when loop wraps to start
+    - id: PulseOut2
+      name: Record Complete Pulse
+      description: Pulse emitted when RECORD completes and transitions to MIX
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Mix Amount
+        description: Amount of processed input layered into loop; full left freezes additions
+      x:
+        name: Harmonic Effect Select
+        description: Crossfades through saturation, filter drift, and tape hiss zones for input processing
+      y:
+        name: Destructive Effect Select
+        description: Crossfades through oxide shedding, bit crush, and bit rot zones for input processing
+    - when: { z: up }
+      main:
+        name: Degrade Commit Rate
+        description: Amount of processed buffer committed back each pass; full left freezes state
+      x:
+        name: Harmonic Degrade Effect
+        description: Selects/crossfades saturation, filter drift, and tape hiss on loop buffer
+      y:
+        name: Destructive Degrade Effect
+        description: Selects/crossfades oxide shedding, bit crush, and bit rot on loop buffer
+    - when: { z: down }
+      main:
+        name: Record Context / Slot Select
+        description: Not used for record level in RECORD; selects slot index in SELECT_SLOT or STORE_SLOT contexts
+    - when: { z: down, layer: boot }
+      main:
+        name: Boot Mode Select
+        description: Holding Z down at boot enters SLOT mode; otherwise YOLO mode
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Output Level Left Meter
+          description: Output level meter segment
+        - id: LED1
+          name: Output Level Right Meter
+          description: Output level meter segment
+        - id: LED2
+          name: Harmonic Effect Amount
+          description: Brightness tracks X effect intensity; pulse style indicates active X zone
+        - id: LED3
+          name: Destructive Effect Amount
+          description: Brightness tracks Y effect intensity; pulse style indicates active Y zone
+        - id: LED4
+          name: Loop Position
+          description: Bright at loop start and fades across loop progression
+        - id: LED5
+          name: Mode Indicator
+          description: Indicates MIX/DEGRADE/RECORD and YOLO versus SLOT behavior states
+
+host:
+  usb:
+    - name: Degenerator Manager
+      role: editor
+      description: Browser tool at the Editor URL communicates over WebUSB for loop upload/download in flash slot workflows
+  notes: |
+    Browser host interaction requires WebUSB-compatible browsers (Chrome/Edge). Local serving
+    from the project `web/` directory is also supported by the upstream project.

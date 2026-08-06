@@ -1,0 +1,113 @@
+draft: true
+Name: Siren
+Description: Multi-algorithm drone oscillator. Inspired by the Forge TME Vhikk X.
+Language: C++ (ComputerCard / Pico SDK)
+Creator: Moses Hoyt
+Version: 0.2
+Status: Functional but WIP
+License: MIT
+
+tags:
+  - drone
+  - oscillator
+  - stereo
+  - fixed-point
+  - processor
+
+demo-link: https://youtu.be/DORHEYpUqWU
+
+manual: |
+  Siren is a drone source with 6 oscillator banks (SINE, CLST, DTON, ANLG, WSHP, WAVE).
+  Use switch up for WARP/SPAN/MORPH and switch middle for SEED/SCAN/BASIS.
+  Switch down (momentary) cycles banks with a smoothed crossfade.
+  Pulse In 1 gates the drone; Pulse In 2 randomizes SEED on short trigger and cycles bank on long hold.
+  Audio In 1 can be processed and mixed with the drone; Audio In 2 modulates SPAN.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Processor Input
+      description: External audio processed by Siren's shaping path and summed with the drone # certainty: high (README + code)
+    - id: AudioIn2
+      name: Span Modulation
+      description: External CV/audio modulation for oscillator spread (SPAN) # certainty: high (README + code)
+    - id: CVIn1
+      name: Pitch Modulation
+      description: Added to BASIS/root pitch control
+    - id: CVIn2
+      name: Warp Modulation
+      description: Modulates WARP amount
+    - id: PulseIn1
+      name: Gate
+      description: Opens/closes the drone envelope
+    - id: PulseIn2
+      name: Seed / Bank Trigger
+      description: Short pulse randomizes SEED, long hold cycles oscillator bank # certainty: high (README + code)
+  outputs:
+    - id: AudioOut1
+      name: Left Drone Output
+      description: Left channel of stereo Siren output (plus processed input, if patched)
+    - id: AudioOut2
+      name: Right Drone Output
+      description: Right channel of stereo Siren output (plus processed input, if patched)
+    - id: CVOut1
+      name: Pitch CV Mirror
+      description: Mirrors current basis pitch value
+    - id: CVOut2
+      name: Envelope CV
+      description: Envelope level derived from Siren gate state
+    - id: PulseOut1
+      name: Sub-osc Clock
+      description: Square clock derived from oscillator phase
+    - id: PulseOut2
+      name: Divide-by-2 Clock
+      description: Divider pulse derived from PulseOut1 phase edges
+
+controls:
+  knobs:
+    - when: { z: up }
+      main:
+        name: Warp
+        description: Cross-mod / distortion intensity (bank-dependent behavior)
+      x:
+        name: Span
+        description: Oscillator spread / detuning amount (bank-dependent behavior)
+      y:
+        name: Morph
+        description: Waveform and timbral scan parameter (bank-dependent behavior)
+    - when: { z: middle }
+      main:
+        name: Seed
+        description: Structural randomization parameter
+      x:
+        name: Scan
+        description: Timbral scan parameter
+      y:
+        name: Basis
+        description: Root pitch / frequency basis (also modulated by CV In 1)
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Bank Cycle
+        description: Tap switch down to cycle to the next oscillator bank with crossfade
+  leds:
+    - when: { mode: bank-indicator }
+      display: list
+      items:
+        - id: LED0
+          name: Bank 1 (SINE)
+          description: Lit/bright when SINE bank is active
+        - id: LED1
+          name: Bank 2 (CLST)
+          description: Lit/bright when CLST bank is active
+        - id: LED2
+          name: Bank 3 (DTON)
+          description: Lit/bright when DTON bank is active
+        - id: LED3
+          name: Bank 4 (ANLG)
+          description: Lit/bright when ANLG bank is active
+        - id: LED4
+          name: Bank 5 (WSHP)
+          description: Lit/bright when WSHP bank is active
+        - id: LED5
+          name: Bank 6 (WAVE)
+          description: Lit/bright when WAVE bank is active

@@ -1,0 +1,118 @@
+id: 74_Wild_Pebble
+title: Wild Pebble
+draft: false
+release: 74 / 1.0
+summary: MIDI-clockable generative rhythm and melody organism inspired by Pet Rock
+description: MIDI-clockable generative rhythm and melody organism inspired by Pet Rock
+panel:
+  controls:
+    main:
+      label: |-
+        Internal
+        Tempo
+      description: Internal clock speed with variable swing profile according to switch position when internally clocked
+      source: info.yaml
+    x:
+      label: Density
+      description: Trigger probability density control (modulated by CVIn1)
+      source: info.yaml
+    'y':
+      label: Mutation
+      description: Mutation intensity control (modulated by CVIn2)
+      source: info.yaml
+    z:
+      label: |-
+        Mode
+        Select
+      description: Selects the overall behavior mode, shifting the card from restrained to more animated swing and mutation
+      source: info.yaml
+  inputs:
+    pulse_1:
+      label: Ext Clock
+      description: External clock input; when active it overrides internal tempo clock
+      source: info.yaml
+    pulse_2:
+      label: Freeze Gate
+      description: While held high, mutation updates are disabled and structure is preserved
+      source: info.yaml
+    cv_1:
+      label: Density Mod
+      description: Modulates X density control
+      source: info.yaml
+    cv_2:
+      label: Mutation Mod
+      description: Modulates Y mutation control
+      source: info.yaml
+  outputs:
+    pulse_out_1:
+      label: |-
+        Primary Trig
+        Stream
+      description: Main rhythm trigger stream used for melodic progression and kick events
+      source: info.yaml
+    pulse_out_2:
+      label: |-
+        Companion
+        Trig Stream
+      description: Derived companion trigger stream used for snare/percussion events
+      source: info.yaml
+    cv_out_1:
+      label: |-
+        Quant Melody
+        CV
+      description: Quantized pitch CV from evolving scale-constrained sequence
+      source: info.yaml
+    cv_out_2:
+      label: |-
+        Energy /
+        Tension CV
+      description: Smoothed evolving modulation output from internal energy and tension state
+      source: info.yaml
+    audio_out_l:
+      label: Kick Voice
+      description: Internal kick/percussion synthesis output driven by primary trigger stream
+      source: info.yaml
+    audio_out_r:
+      label: Snare Voice
+      description: Internal snare/percussion synthesis output driven by companion trigger stream
+      source: info.yaml
+switch_modes:
+  up: 'Z up: Steady mode. Restrained mutation, tighter rhythms, and the calmest phrasing feel.'
+  middle: 'Z middle: Drift mode. Balanced mutation, moderate swing, and gradual harmonic movement.'
+  down: 'Z down: Surge mode. Strongest swing, wider melodic leaps, and the most animated behavior.'
+leds:
+  - >-
+    Z any: Primary Trigger; Density Amount; Mutation Amount; Energy State; Clock Source;
+    Tension State.
+source:
+  - releases/74_Wild_Pebble/info.yaml
+  - releases/74_Wild_Pebble/README.md
+slug: 74-wild-pebble
+url: /workshopsystem/program-cards/74-wild-pebble/
+tags: []
+source_file: releases/74_Wild_Pebble/info.yaml
+source_url: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/74_Wild_Pebble
+readme_url: >-
+  https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/74_Wild_Pebble/README.md
+download_url: >-
+  https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/74_Wild_Pebble/UF2/WildPebble.uf2
+metadata:
+  creator: Adrian Vos with Vibecode support
+  language: C++
+  version: 1
+  status: Beta. USB MIDI clock input and sequencer note output tested
+  license: GPL-3.0
+documentation:
+  intro: >
+    Generative rhythm/melody organism with coupled trigger streams, quantized melody CV,
+
+    internal kick/snare voices, evolving energy/tension modulation, and USB MIDI clock/note
+
+    behavior. Main controls internal tempo when no external clock is present, X controls
+
+    rhythmic density, and Y controls mutation amount. The switch selects Steady, Drift, or
+
+    Surge behavior, moving from restrained patterns to more animated swing, mutation, and
+
+    melodic activity. Pulse In 1 is external clock and Pulse In 2 freezes mutation while
+    high.

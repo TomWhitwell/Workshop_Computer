@@ -1,0 +1,133 @@
+draft: true
+Name: Hot Fuzz
+Description: A stereo fuzz/distortion + resonant wah effects processor with manual and auto-wah modes, built on fixed-point DSP.
+Language: C++ (ComputerCard)
+Creator: Joep Vermaat
+Version: 1.0
+Status: Released
+License: MIT
+Repository: https://codeberg.org/johantv/hot-fuzz
+
+tags:
+  - fuzz
+  - distortion
+  - wah
+  - filter
+  - effects-processor
+  - envelope-follower
+
+manual: |
+  Hot Fuzz is a stereo fuzz/wah effects card. It combines a clipper (soft/hard/asymmetric/foldback)
+  with a resonant state-variable filter for the wah sweep, and supports both manual
+  and auto-wah modes.
+
+  Switch Up:   Fuzz + wah. Main pot selects fuzz type (4 zones: soft/hard/asym/fold,
+               CCW to CW). X pot = fuzz drive.
+  Switch Mid:  Fuzz + wah blend. Main pot = dry/wet blend (CCW=dry, CW=full fuzz).
+               X pot = drive.
+  Switch Down: Wah mode. Main pot = manual wah sweep (auto-wah off) or
+               base frequency (auto-wah on). Toggle auto-wah by double-tapping
+               Down (Mid→Down→Mid→Down within 0.5 s) or by sending a rising
+               edge to Pulse2. LED 4 flashes to confirm.
+               X pot = dry/wet blend.
+
+  Y pot:       Wah Q / resonance (0 = flat, 4095 = high resonance). Same in all modes.
+
+  Pulse1:      Rising edge toggles fuzz on/off (latched). Acts in Up/Mid modes
+               only. When bypassed the wah still runs on the clean signal;
+               LED 0 goes dark and flashes on toggle.
+  Pulse2:      Rising edge toggles auto-wah on/off (latched, any mode). Same
+               effect as the double-tap Down gesture, but patchable from a
+               gate or footswitch.
+
+  CV1 (optional): overrides wah cutoff when no pot controls it (Up/Mid modes).
+  CV2 (optional): adds to the X pot drive value.
+
+  Settings are not persisted — fuzz type, auto-wah state, and all settings
+  reset to defaults on power cycle.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Left Audio In
+      description: Left channel input (-2048..2047, 12-bit signed)
+    - id: AudioIn2
+      name: Right Audio In
+      description: Right channel input (-2048..2047, 12-bit signed)
+    - id: CV1
+      name: Wah CV (optional)
+      description: Overrides wah cutoff in Up/Mid modes when connected
+    - id: CV2
+      name: Drive CV (optional)
+      description: Adds to X pot drive value
+    - id: Pulse1
+      name: Fuzz Toggle
+      description: Rising edge toggles fuzz on/off (latched, Up/Mid modes only)
+    - id: Pulse2
+      name: Auto-Wah Toggle
+      description: Rising edge toggles auto-wah on/off (latched, any mode)
+  outputs:
+    - id: AudioOut1
+      name: Left Audio Out
+      description: Processed left channel (-2048..2047, 12-bit signed)
+    - id: AudioOut2
+      name: Right Audio Out
+      description: Processed right channel (-2048..2047, 12-bit signed)
+
+controls:
+  knobs:
+    - when: { z: up }
+      main:
+        name: Fuzz Type
+        description: 4 zones — soft(0-1023)/hard(1024-2047)/asym(2048-3071)/fold(3072-4095)
+      x:
+        name: Fuzz Drive
+        description: 0 = clean, 4095 = maximum fuzz
+      y:
+        name: Wah Q / Resonance
+        description: 0 = flat filter, 4095 = high resonance
+    - when: { z: middle }
+      main:
+        name: Fuzz Blend
+        description: 0 = dry (bypass fuzz), 4095 = full fuzz wet
+      x:
+        name: Fuzz Drive
+        description: 0 = clean, 4095 = maximum fuzz
+      y:
+        name: Wah Q / Resonance
+        description: 0 = flat filter, 4095 = high resonance
+    - when: { z: down }
+      main:
+        name: Wah Frequency / Auto-Wah Base
+        description: Manual sweep (auto-wah off) or base frequency (auto-wah on). Toggle auto-wah by double-tapping Down.
+      x:
+        name: Dry / Wet Blend
+        description: 0 = dry (unprocessed), 4095 = fully wet (wah only)
+      y:
+        name: Wah Q / Resonance
+        description: 0 = flat filter, 4095 = high resonance
+  leds:
+    - when: { mode: activity }
+      display: list
+      items:
+        - id: LED0
+          name: Fuzz Drive
+          description: Brightness follows drive pot (Up/Mid). Off in Down mode. Dark while fuzz is bypassed via Pulse1; brief flash on toggle.
+        - id: LED1
+          name: Fuzz / Wah Blend
+          description: Brightness follows blend amount (Mid = fuzz blend, Down = wah blend). Off in Up mode.
+        - id: LED2
+          name: Wah Sweep
+          description: Brightness follows wah cutoff frequency position.
+        - id: LED3
+          name: Wah Resonance
+          description: Brightness follows resonance (Y pot, 0=flat, 4095=high Q).
+        - id: LED4
+          name: Envelope Level
+          description: Only active in Down mode auto-wah; off in all other modes. Brightness follows envelope (playing dynamics).
+        - id: LED5
+          name: Fuzz Type
+          description: >
+            Pattern indicates current fuzz type (set in Up mode):
+            soft=steady dim, hard=steady bright, asym=slow blink, fold=fast blink.
+            Always visible regardless of switch position.

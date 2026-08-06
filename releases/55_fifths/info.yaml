@@ -1,5 +1,92 @@
-Description: A quantizer/sequencer that can create harmony and nimbly traverse the circle of fifths in attempts to make jazz 
-Language: Pico SDK
+draft: false
+Name: Fifths
+Description: A quantizer/sequencer that can create harmony and nimbly traverse the circle of fifths in attempts to make jazz
+Language: C++ (RP2040 Pico SDK)
 Creator: Dune Desormeaux
-Version: 1.0
-Status: Ready
+Version: 1.1
+Status: Released
+demo-link: https://youtu.be/xdUCDX7FmOA
+
+tags:
+  - quantizer
+  - sequencer
+  - harmony
+  - cv
+  - generative
+
+manual: |
+  Fifths quantizes incoming or generated CV to keys arranged around the circle of fifths and outputs both
+  a quantized note and an ambiguous third harmony voice. It can run from external clock (Pulse In 1) or internal
+  tap-tempo clock, and can loop or write incoming material depending on switch state/toggles. Loop length is set by X,
+  key center is selected by Main (or CV In 2), and CV In 1 transposes up to two octaves. Pulse outputs provide
+  an internal clock pulse plus a probabilistic sequence pulse stream.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: CV/Audio Source
+      description: Main signal to be sampled/quantized (or internal random source when unpatched)
+    - id: AudioIn2
+      name: VCA CV
+      description: Optional VCA/modulation control for input scaling
+    - id: CVIn1
+      name: Transpose CV
+      description: Adds up to roughly two octaves of transpose before quantization
+    - id: CVIn2
+      name: Key CV
+      description: Selects key index around the circle of fifths
+    - id: PulseIn1
+      name: External Clock
+      description: Advances quantizer/sequencer on rising edge when connected
+    - id: PulseIn2
+      name: Loop Toggle
+      description: Toggles loop/write behavior
+  outputs:
+    - id: AudioOut1
+      name: Key Monitor Output
+      description: Main knob-centered monitoring signal
+    - id: AudioOut2
+      name: VCA Output
+      description: Scaled input/random signal used as quantizer source
+    - id: CVOut1
+      name: Quantized Note
+      description: Primary quantized pitch output (MIDI note mapped to CV)
+    - id: CVOut2
+      name: Third Harmony
+      description: Harmonic third (major/minor context-sensitive) from quantized note
+    - id: PulseOut1
+      name: Internal Clock Pulse
+      description: Gate pulse at internal quarter-note timing
+    - id: PulseOut2
+      name: Sequence Pulse
+      description: Pulse stream from probabilistic/looped pulse sequencer
+
+controls:
+  knobs:
+    - when: { z: any }
+      main:
+        name: Key Center
+        description: Selects key center index when CV In 2 is not connected
+      x:
+        name: Loop Length
+        description: Sets quantizer/sequencer loop length from 1 to 12 steps
+      y:
+        name: VCA Att
+        description: Controls input scaling; can be replaced by Audio In 2 control
+    - when: { z: down, gesture: hold }
+      x:
+        name: Pulse Duration
+        description: Sets pulse output gate length
+      y:
+        name: Pulse Probability Threshold
+        description: Sets probability threshold for sequence pulse generation
+  switch:
+    up:
+      name: Write Mode
+      description: Favors live/write behavior over loop playback
+    middle:
+      name: Loop Mode
+      description: Starts in looping playback mode
+    down:
+      name: Tap/Shift Input
+      description: Tap tempo and hold gestures for alternate parameter editing

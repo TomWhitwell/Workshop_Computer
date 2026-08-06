@@ -1,0 +1,33 @@
+{
+  "name": "ComputerCard",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "PICO_SDK_VERSION": "2.2.0",
+      "TINYUSB_VERSION": "0.20.0"
+    }
+  },
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "runArgs": ["--add-host=host.docker.internal:host-gateway"],
+  "remoteEnv": {
+    "PICO_SDK_PATH": "/opt/pico-sdk",
+    "MAKEFILES": "${containerWorkspaceFolder}/scripts/pico_auto_make.mk"
+  },
+  "postCreateCommand": "git config -f .gitmodules --get-regexp path | awk '{ print $2 }' | xargs -r git submodule update --init --recursive --",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "mcu-debug.debug-tracker-vscode",
+        "marus25.cortex-debug",
+        "ms-vscode.cpptools",
+        "rioj7.command-variable"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "cmake.ignoreCMakeListsMissing": true,
+        "commandvariable.remember.persistent.file": "${workspaceFolder}${pathSeparator}.vscode${pathSeparator}.card.json"
+      }
+    }
+  }
+}
+

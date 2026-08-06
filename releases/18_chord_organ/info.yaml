@@ -1,0 +1,117 @@
+draft: true
+Name: Chord Organ-ish
+Description: Chord Organ-ish - 16 chords, 8 voices, 1V/oct root. Inspired by Music Thing Chord Organ.
+Language: Pico SDK (C++), ComputerCard
+Creator: jkeyworth
+Version: 0.1
+Status: Working
+
+tags:
+  - synthesizer
+  - chords
+  - progression
+  - cv
+
+manual: |
+  Chord voice generator with 16 chord types, root CV control, and selectable progression patterns.
+  Main + CV1 select chord, X + CV2 set root pitch (1V/oct), and Y selects one of 9 progressions.
+  PulseIn1 advances the progression and retriggers; PulseIn2 or Z-down cycles waveform.
+  Z up enables glide, Z middle disables glide. AudioIn1 acts as a VCA CV.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Chord Selection CV
+      description: Added to Main knob for voltage-controlled chord selection (negative voltages ignored)
+    - id: CVIn2
+      name: Root Pitch CV
+      description: 1V/oct root note input summed with X transpose control
+    - id: AudioIn1
+      name: VCA CV
+      description: Controls output level from 0 to full scale; defaults to full volume when unpatched
+    - id: PulseIn1
+      name: Progression Trigger
+      description: Rising edge advances progression step and retriggers chord pulse
+    - id: PulseIn2
+      name: Waveform Trigger
+      description: Rising edge cycles waveform mode
+  outputs:
+    - id: AudioOut1
+      name: Chord Audio Left
+      description: Mixed chord audio output
+    - id: AudioOut2
+      name: Chord Audio Right
+      description: Duplicate mixed chord audio output
+    - id: CVOut1
+      name: Highest Chord Note
+      description: Highest active chord tone as pitch CV
+    - id: CVOut2
+      name: Progression Root CV
+      description: Sequenced root note from selected progression
+    - id: PulseOut1
+      name: Chord Change Trigger
+      description: Brief pulse emitted on chord/root retrigger events
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Chord Select
+        description: Selects one of 16 chord types
+      x:
+        name: Root Transpose
+        description: Adds semitone transpose to root pitch
+      y:
+        name: Progression Pattern
+        description: Selects one of 9 root progression patterns
+    - when: { z: up }
+      main:
+        name: Chord Select
+        description: Same as Z middle; glide enabled in this switch position
+      x:
+        name: Root Transpose
+      y:
+        name: Progression Pattern
+    - when: { z: down }
+      main:
+        name: Chord Select
+        description: Same as Z middle
+      x:
+        name: Root Transpose
+      y:
+        name: Progression Pattern
+    - when: { z: up, gesture: toggle }
+      main:
+        name: Glide Enable
+        description: Z switch up enables portamento between chord changes
+    - when: { z: middle, gesture: toggle }
+      main:
+        name: Glide Disable
+        description: Z switch middle disables portamento
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Waveform Cycle
+        description: Moving to Z down cycles waveform (sine, triangle, square, saw)
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Chord Bit 0
+          description: Binary display of current chord index
+        - id: LED1
+          name: Chord Bit 1
+          description: Binary display of current chord index
+        - id: LED2
+          name: Chord Bit 2
+          description: Binary display of current chord index
+        - id: LED3
+          name: Chord Bit 3
+          description: Binary display of current chord index
+        - id: LED4
+          name: Retrigger Pulse
+          description: Lit while reset/retrigger pulse is active
+        - id: LED5
+          name: Waveform Index
+          description: Brightness indicates selected waveform slot

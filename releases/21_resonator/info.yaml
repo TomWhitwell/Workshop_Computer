@@ -1,7 +1,110 @@
 Description: Karplus-Strong sympathetic resonator for droning and plucked textures, with chord & tanpura tunings, arpeggiator, pitch tracking and web-configurable CV/pulse outputs.
+draft: true
 Name: Resonator
 Language: C++ (ComputerCard)
 Creator: Johan Eklund
 Version: 1.2
 Status: Released
 Editor: https://johaneklund.io/resonator
+
+tags:
+  - effect
+  - resonator
+  - karplus-strong
+  - drone
+  - plucked
+
+manual: |
+  Four-string sympathetic resonator inspired by Rings/tanpura techniques.
+  Feed audio to excite resonant strings, or trigger plucks with PulseIn1.
+  X sets base pitch (or fine tune with CV1 connected), Y sets damping, Main sets wet/dry mix.
+  PulseIn2 or short Z-down press advances chord mode; long Z-down hold resets progression defaults.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Excitation Input Left
+      description: Mixed with AudioIn2 to excite resonator strings
+    - id: AudioIn2
+      name: Excitation Input Right
+      description: Mixed with AudioIn1 to excite resonator strings
+    - id: CVIn1
+      name: Pitch CV
+      description: 1V/oct pitch input; X knob becomes fine tune when connected
+    - id: CVIn2
+      name: Damping CV
+      description: Modulates damping/decay with Y knob as base setting
+    - id: PulseIn1
+      name: Pluck Trigger
+      description: Injects noise burst to excite all strings
+    - id: PulseIn2
+      name: Next Chord Trigger
+      description: Advances to the next chord in progression
+  outputs:
+    - id: AudioOut1
+      name: Resonator Output Mid
+      description: Wet/dry mixed output using summed string image
+    - id: AudioOut2
+      name: Resonator Output Side
+      description: Wet/dry mixed output using alternate stereo string image
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Wet Dry Mix
+        description: Blends direct excitation audio with resonator output
+      x:
+        name: Base Pitch
+        description: Fundamental pitch (or fine tune with CV1 connected)
+      y:
+        name: Damping
+        description: Higher values increase resonance length
+    - when: { z: up }
+      main:
+        name: Wet Dry Mix
+      x:
+        name: Base Pitch
+      y:
+        name: Damping
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Next Chord
+        description: Short press advances to next progression chord
+    - when: { z: down, gesture: hold }
+      main:
+        name: Factory Reset Progression
+        description: Hold about 3 seconds to restore all 18 default chord modes
+    - when: { z: up, gesture: toggle }
+      main:
+        name: Tuning Mode
+        description: Soloes first string for tuning/reference
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Progression Position Indicator A
+          description: Encodes current progression slot with LED combination map
+        - id: LED1
+          name: Progression Position Indicator B
+          description: Encodes current progression slot with LED combination map
+        - id: LED2
+          name: Progression Position Indicator C
+          description: Encodes current progression slot with LED combination map
+        - id: LED3
+          name: Progression Position Indicator D
+          description: Encodes current progression slot with LED combination map
+        - id: LED4
+          name: Progression Position Indicator E
+          description: Encodes current progression slot with LED combination map
+        - id: LED5
+          name: Progression Position Indicator F
+          description: Encodes current progression slot with LED combination map
+
+host:
+  usb:
+    - name: Resonator Web Editor
+      role: editor
+      description: Browser editor for chord progression order and persistence over USB serial

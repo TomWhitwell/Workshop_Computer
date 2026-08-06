@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Turing Matrix Web Config</title>
+  <link rel="stylesheet" href="./styles.css?v=3" />
+</head>
+
+<body>
+  <main>
+    <header class="hero">
+      <button id="themeBtn" class="theme-toggle" type="button" aria-label="Switch colour theme">Light theme</button>
+      <p class="eyebrow">Program Card 93</p>
+      <h1>Turing Matrix</h1>
+      <p class="lede">
+        Shared Turing engine editor for the Workshop Computer. The browser configures the persistent
+        sequencer settings; the mixer layer remains mostly on the front panel.
+      </p>
+    </header>
+
+    <section class="panel">
+      <div class="toolbar">
+        <button id="connectBtn" type="button">Connect Web MIDI</button>
+        <label>
+          Input
+          <select id="midiIn"></select>
+        </label>
+        <label>
+          Output
+          <select id="midiOut"></select>
+        </label>
+      </div>
+      <div class="toolbar toolbar--actions">
+        <button id="readBtn" type="button">Read From Card</button>
+        <button id="sendBtn" type="button">Send To Card</button>
+        <button id="defaultsBtn" type="button">Load Defaults</button>
+      </div>
+      <p id="status">Not connected.</p>
+      <details id="developerTools" class="developer-tools">
+        <summary>Developer diagnostics</summary>
+        <div class="notes">
+          <p id="ports">No MIDI ports selected.</p>
+          <pre id="portDetails" class="transport-log">Connect MIDI to inspect browser port objects.</pre>
+        <div class="transport-log-wrap">
+          <div class="transport-log-header">
+            <span>Transport Log</span>
+            <button id="clearLogBtn" type="button">Clear Log</button>
+          </div>
+          <pre id="transportLog" class="transport-log">No SysEx traffic yet.</pre>
+        </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="layout">
+      <section class="panel">
+        <h2>Turing Layer Settings</h2>
+        <div class="grid">
+          <label>Scale
+            <select id="scale">
+              <option value="0">Chromatic</option>
+              <option value="1">Major</option>
+              <option value="2">Minor</option>
+              <option value="3">Minor Pentatonic</option>
+              <option value="4">Dorian</option>
+              <option value="5">Pelog</option>
+              <option value="6">Whole Tone</option>
+            </select>
+          </label>
+          <label>Octave Range
+            <select id="range">
+              <option value="0">1 octave</option>
+              <option value="1">2 octaves</option>
+              <option value="2">3 octaves</option>
+              <option value="3">4 octaves</option>
+            </select>
+          </label>
+          <label>Pulse Length Mode
+            <select id="length">
+              <option value="0">Blip</option>
+              <option value="1">Short</option>
+              <option value="2">Medium</option>
+              <option value="3">Long</option>
+              <option value="4">Gate</option>
+              <option value="5">Variable Short</option>
+              <option value="6">Variable Long</option>
+            </select>
+          </label>
+          <label>Channel 2 Loop Offset
+            <select id="looplen">
+              <option value="1">Same length</option>
+              <option value="0">One step shorter</option>
+            </select>
+          </label>
+          <label>Pulse Out 1
+            <select id="pulseMode1">
+              <option value="0">Clock</option>
+              <option value="1">Turing Bit</option>
+            </select>
+          </label>
+          <label>Pulse Out 2
+            <select id="pulseMode2">
+              <option value="0">Clock</option>
+              <option value="1">Turing Bit</option>
+            </select>
+          </label>
+          <label>CV Output Range
+            <select id="preset_cvRange">
+              <option value="0">+-6 V</option>
+              <option value="1">+-3 V</option>
+              <option value="2">0 to +6 V</option>
+              <option value="3">0 to +3 V</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Mixer Layer Settings</h2>
+        <div class="grid">
+          <label>Mix Curve
+            <select id="vactrol_law">
+              <option value="0">Linear</option>
+              <option value="1">Steep</option>
+            </select>
+          </label>
+          <label>Lane Link
+            <select id="vactrol_relation">
+              <option value="0">Independent</option>
+              <option value="1">Mirrored</option>
+              <option value="2">Inverted</option>
+            </select>
+          </label>
+          <label>Rise
+            <div class="pair">
+              <input id="vactrol_rise" type="range" min="0" max="127" value="48" />
+              <input id="vactrol_rise_num" type="number" min="0" max="127" value="48" />
+            </div>
+          </label>
+          <label>Fall
+            <div class="pair">
+              <input id="vactrol_fall" type="range" min="0" max="127" value="56" />
+              <input id="vactrol_fall_num" type="number" min="0" max="127" value="56" />
+            </div>
+          </label>
+          <label>Lane 1 Low
+            <div class="pair">
+              <input id="vactrol_min1" type="range" min="0" max="255" value="0" />
+              <input id="vactrol_min1_num" type="number" min="0" max="255" value="0" />
+            </div>
+          </label>
+          <label>Lane 1 High
+            <div class="pair">
+              <input id="vactrol_max1" type="range" min="0" max="255" value="255" />
+              <input id="vactrol_max1_num" type="number" min="0" max="255" value="255" />
+            </div>
+          </label>
+          <label>Lane 2 Low
+            <div class="pair">
+              <input id="vactrol_min2" type="range" min="0" max="255" value="0" />
+              <input id="vactrol_min2_num" type="number" min="0" max="255" value="0" />
+            </div>
+          </label>
+          <label>Lane 2 High
+            <div class="pair">
+              <input id="vactrol_max2" type="range" min="0" max="255" value="255" />
+              <input id="vactrol_max2_num" type="number" min="0" max="255" value="255" />
+            </div>
+          </label>
+        </div>
+        <div class="notes">
+          <p><strong>Z up</strong> is the mixer layer.</p>
+          <p>Main sets lag, X sets mix depth 1, Y sets mix depth 2.</p>
+          <p>Audio In 1/2 are the inputs. CV In 1/2 mirror the same crossfade path.</p>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script src="./app.js?v=3"></script>
+</body>
+
+</html>

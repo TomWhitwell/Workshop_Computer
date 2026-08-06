@@ -4,9 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { detectRepoFromGit, detectRefFromGit } from './utils/git.js';
 import { makeRawUrl as makeRawUrlExternal } from './links.js';
 import { renderLayout } from './render/layout.js';
-import { sevenSegmentSvg, mapStatusToClass, renderMetaList, renderActionButtons } from './render/components.js';
+import { sevenSegmentSvg, mapStatusToClass, renderMetaList } from './render/components.js';
 import { formatVersion } from './utils/strings.js';
 import { discoverRelease as discoverReleaseMod } from './discover/release.js';
+import { githubPagesBase, copyWebAssets } from './discover/webEditor.js';
 
 // ========== Path & Globals ==========
 const __filename = fileURLToPath(import.meta.url);
@@ -26,6 +27,7 @@ const DEFAULT_BRANCH = 'main';
 // On GitHub, prefer GITHUB_REPOSITORY and GITHUB_SHA (falls back to branch name). Locally, fall back to git.
 const REPO = process.env.GITHUB_REPOSITORY || detectRepoFromGit() || DEFAULT_REPO;
 const BRANCH = process.env.GITHUB_SHA || process.env.GITHUB_REF_NAME || detectRefFromGit() || DEFAULT_BRANCH;
+const PAGES_BASE = githubPagesBase(REPO);
 
 
 // (info parsing handled in discover/release.js)
@@ -36,7 +38,7 @@ function makeRawUrl(relPathFromRepoRoot) {
 
 async function discoverRelease(folderName) {
   const outPrograms = path.join(OUT_DIR, 'programs');
-  return discoverReleaseMod(RELEASES_DIR, folderName, outPrograms, makeRawUrl);
+  return discoverReleaseMod(RELEASES_DIR, folderName, outPrograms, makeRawUrl, PAGES_BASE);
 }
 
 function escapeAttr(s) {
@@ -80,7 +82,7 @@ function releaseCard(rel) {
     ${metaItems ? `<ul class="meta-list">${metaItems}</ul>` : ''}
     <div class="actions actions-grid">
       <a class="btn wide" href="programs/${slug}/index.html">📄 View Details</a>
-      ${latestUf2 ? `<a class="btn download" href="${latestUf2.url}">💾 Download</a>` : `<span class="btn disabled" aria-disabled="true">💾 Download</span>`}
+      ${latestUf2 ? `<a class="btn download" href="${latestUf2.url}" data-uf2-url="${latestUf2.url}">💾 Download</a>` : `<span class="btn disabled" aria-disabled="true">💾 Download</span>`}
       ${editorLink ? `<a class="btn editor" href="${editor}">🛠️ Web Editor</a>` : `<span class="btn disabled" aria-disabled="true">🛠️ Web Editor</span>`}
     </div>
   </div>
@@ -118,7 +120,7 @@ function detailPage(rel) {
     <p class="aside-desc">${desc}</p>
         ${metaItems ? `<ul class="meta-list">${metaItems}</ul>` : ''}
         <div class="actions aside-actions">
-          ${uf2Downloads.length ? uf2Downloads.map(d => `<a class="btn download" href="${d.url}" download>💾 Download ${d.name}</a>`).join('') : `<span class="btn disabled" aria-disabled="true">💾 No Download</span>`}
+          ${uf2Downloads.length ? uf2Downloads.map(d => `<a class="btn download" href="${d.url}" download data-uf2-url="${d.url}">💾 Download ${d.name}</a>`).join('') : `<span class="btn disabled" aria-disabled="true">💾 No Download</span>`}
           ${editorURL ? `<a class="btn editor" href="${editorURL}">🛠️ Web Editor</a>` : `<span class="btn disabled" aria-disabled="true">🛠️ Web Editor</span>`}
         </div>
       </div>
@@ -169,6 +171,14 @@ async function build() {
   const cssDest = path.join(OUT_DIR, 'assets', 'style.css');
   await fs.copyFile(cssSrc, cssDest);
 
+  // Copy JS assets (picoboot / uf2 libs for WebUSB programmer)
+  const jsSrcDir = path.join(ROOT, 'tools', 'sitegen', 'assets', 'js');
+  const jsDestDir = path.join(OUT_DIR, 'assets', 'js');
+  await ensureDir(jsDestDir);
+  for (const f of await fs.readdir(jsSrcDir)) {
+    if (f.endsWith('.js')) await fs.copyFile(path.join(jsSrcDir, f), path.join(jsDestDir, f));
+  }
+
   const releaseFolders = (await listSubdirs(RELEASES_DIR)).sort();
 
   const releases = [];
@@ -212,7 +222,7 @@ async function build() {
     content: `
 <article class="card intro-card">
   <div class="card-body">
-    <p>The Workshop Computer is part of the <a href="https://www.musicthing.co.uk/workshopsystem/">Music Thing Workshop System</a>.  This site provides access to all the available program cards, their documentation, and downloadable firmware files (.uf2)</p>
+    <p>The Workshop Computer is part of the <a href="https://www.musicthing.co.uk/workshopsystem/">Music Thing Workshop System</a>.  This site provides access to all the available program cards, their documentation, and downloadable firmware files (.uf2). On Chrome and some other browsers, cards can be programmed directly from this site.</p>
   </div>
 </article>
 <div class="filter-bar card" aria-label="Filter programs">
@@ -251,12 +261,16 @@ async function build() {
   });
   await writeFileEnsured(path.join(OUT_DIR, 'index.html'), indexHtml);
 
-  // Each release detail page (no copying of release assets)
   for (const rel of releases) {
     const base = path.join(OUT_DIR, 'programs', rel.slug);
     await ensureDir(base);
     const html = detailPage(rel);
     await writeFileEnsured(path.join(base, 'index.html'), html);
+
+    if (rel.web?.copySrc) {
+      const webDest = path.join(base, rel.web.siteSubdir || 'web');
+      await copyWebAssets(rel.web.copySrc, webDest);
+    }
   }
 
   // 404 fallback

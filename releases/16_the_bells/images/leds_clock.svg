@@ -1,0 +1,52 @@
+<svg width="100%" viewBox="0 0 680 530" xmlns="http://www.w3.org/2000/svg">
+  <title>The Bells — clock divide/multiply LED encoding</title>
+  <style>
+    text { font-family: sans-serif; font-size: 13px; fill: #333; }
+    text.label { font-size: 15px; font-weight: 500; }
+  </style>
+
+  <text class="label" x="40" y="32">Y knob — clock divide/multiply</text>
+
+  <!-- /8: LED 5 (bot-left) -->
+  <circle cx="62" cy="56"  r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="56"  r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="76"  r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="76"  r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="96"  r="7" fill="#EFB9C0"/><circle cx="84" cy="96"  r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="76">/8</text>
+
+  <!-- /4: LED 3 (mid-left) -->
+  <circle cx="62" cy="126" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="126" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="146" r="7" fill="#EFB9C0"/><circle cx="84" cy="146" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="166" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="166" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="146">/4</text>
+
+  <!-- /2: LED 1 (top-left) -->
+  <circle cx="62" cy="196" r="7" fill="#EFB9C0"/><circle cx="84" cy="196" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="216" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="216" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="236" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="236" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="216">/2</text>
+
+  <!-- x1: LEDs 1+2 (top row) -->
+  <circle cx="62" cy="266" r="7" fill="#EFB9C0"/><circle cx="84" cy="266" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="286" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="286" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="306" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="306" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="286">x1</text>
+
+  <!-- x2: LED 2 (top-right) -->
+  <circle cx="62" cy="336" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="336" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="356" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="356" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="376" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="376" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="356">x2</text>
+
+  <!-- x4: LED 4 (mid-right) -->
+  <circle cx="62" cy="406" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="406" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="426" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="426" r="7" fill="#EFB9C0"/>
+  <circle cx="62" cy="446" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="446" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <text x="106" y="426">x4</text>
+
+  <!-- x8: LED 6 (bot-right) -->
+  <circle cx="62" cy="476" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="476" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="496" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="496" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/>
+  <circle cx="62" cy="516" r="7" fill="none" stroke="#aaa" stroke-width="1.5"/><circle cx="84" cy="516" r="7" fill="#EFB9C0"/>
+  <text x="106" y="496">x8</text>
+
+</svg>

@@ -16,7 +16,7 @@ See dist/ for pre-compiled .uf2 images.
 Source
 ------
 
-https://github.com/olt/toolbox
+https://github.com/divmod-audio/toolbox
 
 Thanks
 ------

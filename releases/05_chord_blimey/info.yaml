@@ -1,5 +1,98 @@
+draft: true
+Name: Chord Blimey!
 Description: Generates CV/Pulse arpeggios
 Language: C (RPi Pico SDK)
 Creator: Tom Waters
 Version: 0.9
 Status: Mostly complete (for now)
+
+tags:
+  - arpeggiator
+  - sequencer
+  - cv
+  - chord
+  - generative
+
+manual: |
+  Trigger-driven chord arpeggiator for Workshop Computer.
+  CV Out 1 outputs arpeggiated notes while Pulse Out 1 emits matching note triggers.
+  Pulse Out 2 fires at end-of-cycle for chaining/looping; Audio Out 1/2 provide probabilistic random modulation voltages.
+  Use switch gestures to set fixed step length and arpeggiator direction.
+
+panel:
+  inputs:
+    - id: PulseIn1
+      name: Arpeggio Trigger
+      description: Starts arpeggio playback; patch Pulse Out 2 here to self-loop
+      type: pulse
+    - id: CVIn1
+      name: Root Pitch CV
+      description: Adds to root note selection (1V per octave)
+      type: cv
+    - id: CVIn2
+      name: Chord Select CV
+      description: Adds to chord selection in approximately 0-1V range
+      type: cv
+  outputs:
+    - id: CVOut1
+      name: Arpeggio Note CV
+      description: Current note of the arpeggio (root plus chord degree)
+      type: cv
+    - id: CVOut2
+      name: Root CV
+      description: Root note CV held during each chord
+      type: cv
+    - id: PulseOut1
+      name: Note Trigger
+      description: Pulse for each arpeggiated note
+      type: pulse
+    - id: PulseOut2
+      name: End-of-Cycle Trigger
+      description: Fires at end of arpeggio cycle for chaining or self-looping
+      type: pulse
+    - id: AudioOut1
+      name: Random Modulation A
+      description: Random 0-1V output updated probabilistically at chord boundaries
+      type: cv
+    - id: AudioOut2
+      name: Random Modulation B
+      description: Random 0-1V output updated probabilistically at chord boundaries
+      type: cv
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Arpeggio Speed
+        description: Controls note length / playback speed
+      x:
+        name: Root Note
+        description: Sets base/root pitch (summed with CV In 1)
+      y:
+        name: Chord Type
+        description: Selects chord (summed with CV In 2)
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Fixed Length Step Count
+        description: Short press increments fixed sequence length (1-6, wraps)
+    - when: { z: down, gesture: hold }
+      main:
+        name: Arpeggiator Direction
+        description: Long press cycles direction modes (up/down/up-down/random variants)
+  leds:
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED0
+          name: Step/Mode Display
+          description: LEDs indicate current sequence step and show mode/length feedback patterns
+        - id: LED1
+          name: Step/Mode Display
+        - id: LED2
+          name: Step/Mode Display
+        - id: LED3
+          name: Step/Mode Display
+        - id: LED4
+          name: Step/Mode Display
+        - id: LED5
+          name: Step/Mode Display

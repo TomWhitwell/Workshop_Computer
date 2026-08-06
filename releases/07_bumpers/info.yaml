@@ -1,6 +1,98 @@
+draft: true
 Name: Bumpers
 Description: "'Bouncing ball' style delay and trigger generators"
 Language: C++ (ComputerCard)
 Creator: Chris Johnson
 Version: 1.0
 Status: Released
+
+tags:
+  - trigger
+  - delay
+  - generative
+  - utility
+
+manual: |
+  Bouncing-ball trigger generator and multitap delay card.
+  Trigger streams can be internally generated or externally clocked, with pulse outputs and related CV/audio outputs.
+  Patching audio input enables the delay processor; otherwise outputs act as trigger/CV generators.
+
+# certainty: low — panel and control details inferred from src/bumpers.cpp (README references a booklet not present in this folder)
+panel:
+  inputs:
+    - id: PulseIn1
+      name: Trigger Clock A
+      description: Rising edge triggers/restarts channel A bounce sequence
+      type: pulse
+    - id: PulseIn2
+      name: Trigger Clock B
+      description: Rising edge triggers/restarts channel B bounce sequence
+      type: pulse
+    - id: AudioIn1
+      name: Delay Audio Input
+      description: Enables multitap delay path when connected
+      type: audio
+    - id: AudioIn2
+      name: Delay Time Modulation
+      description: Modulates delay interpolation length when connected with Audio In 1
+      type: cv
+    - id: CVIn1
+      name: Timing Modulation A
+      description: Modulates channel A pulse spacing in combination with knob X
+      type: cv
+    - id: CVIn2
+      name: Timing Modulation B
+      description: Modulates channel B pulse spacing in combination with knob Y
+      type: cv
+  outputs:
+    - id: PulseOut1
+      name: Bounce Pulse A
+      description: Pulse output for channel A bounce events
+      type: pulse
+    - id: PulseOut2
+      name: Bounce Pulse B
+      description: Pulse output for channel B bounce events
+      type: pulse
+    - id: CVOut1
+      name: Random Pitch CV
+      description: Quantized/random pitch output associated with channel A events
+      type: cv
+    - id: CVOut2
+      name: Ramp CV
+      description: Interpolated CV ramp output associated with channel B events
+      type: cv
+    - id: AudioOut1
+      name: Delay Output L
+      description: Left delay mix output when audio delay mode is active
+      type: audio
+    - id: AudioOut2
+      name: Delay Output R
+      description: Right delay mix output when audio delay mode is active
+      type: audio
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Bounce Decay
+        description: Scales spacing-growth/decay for both bounce channels
+      x:
+        name: Channel A Rate
+        description: Sets channel A trigger rate base (with CV In 1 modulation)
+      y:
+        name: Channel B Rate
+        description: Sets channel B trigger rate base (with CV In 2 modulation)
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Manual Trigger
+        description: Switch edge in down position triggers both channels manually
+  leds:
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED0
+          name: Pulse A Activity
+          description: Lit while Pulse Out 1 is active
+        - id: LED1
+          name: Pulse B Activity
+          description: Lit while Pulse Out 2 is active

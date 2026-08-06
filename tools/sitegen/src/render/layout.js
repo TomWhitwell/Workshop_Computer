@@ -21,9 +21,14 @@ export function renderLayout({ title, content, relativeRoot = '.', repoUrl = 'ht
   <header class="site-header" id="page-top">
     <div class="container header-bar">
       <h1 class="site-title"><a href="${relativeRoot}/index.html">Workshop Computer Program Cards</a></h1>
-      <button id="themeToggle" class="theme-toggle" type="button" role="switch" aria-checked="true" aria-label="Toggle color scheme">
-        <span class="track"><span class="thumb"></span><span class="icons" aria-hidden="true">☀️<span class="gap"></span>🌙</span></span>
-      </button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button id="connectToggle" class="connect-toggle" type="button" role="switch" aria-checked="false" aria-label="Connect to RP2040 via WebUSB" title="Reboot computer into programming mode before connecting">
+          <span class="c-track"><span class="c-thumb"></span><span class="c-icons" aria-hidden="true">💾<span class="c-gap"></span>⚡</span></span>
+        </button>
+        <button id="themeToggle" class="theme-toggle" type="button" role="switch" aria-checked="true" aria-label="Toggle color scheme">
+          <span class="track"><span class="thumb"></span><span class="icons" aria-hidden="true">☀️<span class="gap"></span>🌙</span></span>
+        </button>
+      </div>
     </div>
   </header>
   <main class="container">
@@ -38,6 +43,94 @@ export function renderLayout({ title, content, relativeRoot = '.', repoUrl = 'ht
       </p>
     </div>
   </footer>
+  <script type="module">
+import { Picoboot } from '${relativeRoot}/assets/js/picoboot.js';
+import { uf2ToFlashBuffer } from '${relativeRoot}/assets/js/uf2.js';
+
+var connectBtn = document.getElementById('connectToggle');
+var pb = null;
+
+function setConnected(on) {
+  if (connectBtn) {
+    connectBtn.setAttribute('aria-checked', String(on));
+    connectBtn.classList.toggle('active', on);
+  }
+  document.querySelectorAll('a.btn.download[data-uf2-url]').forEach(function(a) {
+    if (on) {
+      if (!a.dataset.origHtml) a.dataset.origHtml = a.innerHTML;
+      a.innerHTML = '⚡ Program';
+    } else {
+      if (a.dataset.origHtml) { a.innerHTML = a.dataset.origHtml; delete a.dataset.origHtml; }
+    }
+  });
+}
+
+async function flash(url, el) {
+  if (el.dataset.busy) return;
+  el.dataset.busy = '1';
+  try {
+    el.innerHTML = '⏳ Fetching…';
+    var r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    var parsed = uf2ToFlashBuffer(new Uint8Array(await r.arrayBuffer()));
+    el.innerHTML = '⏳ Flashing…';
+    await pb.flashEraseAndWrite(parsed.address, parsed.data);
+    el.innerHTML = '⏳ Verifying…';
+    var readback = await pb.flashRead(parsed.address, parsed.data.length);
+    for (var i = 0; i < parsed.data.length; i++) {
+      if (readback[i] !== parsed.data[i]) throw new Error('Verify failed at byte ' + i);
+    }
+    el.innerHTML = '✅ Reset to use';
+    // try { await pb.getConnection().reboot(500); } catch(_) {}
+    setTimeout(function() { delete el.dataset.busy; el.innerHTML = '⚡ Program'; }, 3000);
+  } catch(e) {
+    el.innerHTML = '❌ Error';
+    delete el.dataset.busy;
+    setTimeout(function() { el.innerHTML = '⚡ Program'; }, 3000);
+  }
+}
+
+if (!('usb' in navigator)) {
+  if (connectBtn) { connectBtn.disabled = true; connectBtn.title = 'Use Chrome to program cards from this site'; }
+} else {
+  if (connectBtn) {
+    connectBtn.addEventListener('click', async function() {
+      var isOn = connectBtn.getAttribute('aria-checked') === 'true';
+      if (isOn) {
+        setConnected(false);
+        return;
+      }
+      if (pb) {
+        setConnected(true);
+        return;
+      }
+      try {
+        var dev = await Picoboot.requestDevice();
+        await dev.connect();
+        pb = dev;
+        setConnected(true);
+      } catch(e) {
+        setConnected(false);
+      }
+    });
+  }
+
+  navigator.usb.addEventListener('disconnect', function(ev) {
+    if (pb && pb.device === ev.device) {
+      pb = null;
+      setConnected(false);
+    }
+  });
+
+  document.addEventListener('click', async function(e) {
+    if (!pb) return;
+    var a = e.target.closest('a.btn.download[data-uf2-url]');
+    if (!a) return;
+    e.preventDefault();
+    await flash(a.dataset.uf2Url, a);
+  });
+}
+  </script>
   <script>(function(){
     // Theme toggle
     var btn=document.getElementById('themeToggle');if(btn){var k='wc-theme';function cur(){return document.documentElement.getAttribute('data-theme')||'dark';}function set(t){try{localStorage.setItem(k,t);}catch(e){}var d=document.documentElement;d.classList.remove('theme-dark','theme-light');d.classList.add('theme-'+t);d.setAttribute('data-theme',t);update();}function update(){var t=cur();btn.setAttribute('aria-checked',String(t==='dark'));}btn.addEventListener('click',function(){set(cur()==='dark'?'light':'dark');});update();}

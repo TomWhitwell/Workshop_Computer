@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="53.14mm" height="148.3mm" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 150.64 420.38">
+  <defs>
+    <clipPath id="clippath">
+      <rect x="28.46" y="171.75" width="5.76" height="5.76" fill="#fff"/>
+    </clipPath>
+    <clipPath id="clippath-1">
+      <rect x="66.38" y="171.75" width="5.76" height="5.76" fill="#fff"/>
+    </clipPath>
+    <clipPath id="clippath-2">
+      <rect x="66.38" y="108.39" width="5.76" height="5.76" fill="#fff"/>
+    </clipPath>
+  </defs>
+  <g id="Layer_2">
+    <polygon points="13.7 420.39 13.7 56.07 126.65 56.07 126.65 316.45 139.57 334.48 139.57 420.37 13.7 420.39" fill="#dadada"/>
+  </g>
+  <g id="Layer_1">
+    <g>
+      <text transform="translate(105.37 192.23)" fill="#231f20" font-family="URWDIN-Medium, 'URW DIN'" font-size="7" font-weight="500"><tspan x="0" y="0">Z</tspan></text>
+      <text transform="translate(29.53 192.23)" fill="#231f20" font-family="URWDIN-Medium, 'URW DIN'" font-size="7" font-weight="500"><tspan x="0" y="0">X</tspan></text>
+      <text transform="translate(67.3 192.23)" fill="#231f20" font-family="URWDIN-Medium, 'URW DIN'" font-size="7" font-weight="500"><tspan x="0" y="0">Y</tspan></text>
+      <text transform="translate(49.91 66.12)" fill="#231f20" font-family="URWDIN-Medium, 'URW DIN'" font-size="9" font-weight="500"><tspan x="0" y="0">Computer</tspan></text>
+      <rect x="13.29" y="55.85" width=".28" height=".28" fill="#231f20"/>
+      <g>
+        <line x1="39.99" y1="82.31" x2="41.87" y2="84.19" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="96.8" y1="83.86" x2="98.49" y2="82.17" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="40.04" y1="140.51" x2="41.74" y2="138.81" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <path d="M48.87,147.41c-12.52-7.11-20.96-20.57-20.96-35.99,0-22.84,18.52-41.36,41.36-41.36s41.36,18.52,41.36,41.36c0,15.19-8.18,28.46-20.38,35.65" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="69.27" y1="72.46" x2="69.27" y2="70.05" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="27.9" y1="111.41" x2="30.75" y2="111.41" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="108.14" y1="111.41" x2="110.63" y2="111.41" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="96.5" y1="138.81" x2="98.38" y2="140.69" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="47.68" y1="149.56" x2="48.95" y2="147.31" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="91.46" y1="149.34" x2="90.09" y2="147.02" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+      </g>
+      <g>
+        <path d="M60.25,183.4c-2.25-2.27-3.64-5.4-3.64-8.85,0-6.95,5.63-12.59,12.59-12.59s12.59,5.63,12.59,12.59c0,3.44-1.38,6.55-3.61,8.82" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="56.61" y1="174.45" x2="58.34" y2="174.45" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="60.36" y1="165.56" x2="61.59" y2="166.79" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="80.06" y1="174.45" x2="81.76" y2="174.45" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="76.82" y1="166.81" x2="78.04" y2="165.59" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="60.14" y1="183.51" x2="61.48" y2="182.15" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="69.25" y1="163.68" x2="69.25" y2="161.96" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="76.95" y1="182.15" x2="78.28" y2="183.48" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+      </g>
+      <g>
+        <path d="M22.52,183.4c-2.25-2.27-3.64-5.4-3.64-8.85,0-6.95,5.63-12.59,12.59-12.59s12.59,5.63,12.59,12.59c0,3.44-1.38,6.55-3.61,8.82" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="18.89" y1="174.45" x2="20.61" y2="174.45" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="22.64" y1="165.56" x2="23.87" y2="166.79" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="42.33" y1="174.45" x2="44.04" y2="174.45" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="39.1" y1="166.81" x2="40.31" y2="165.59" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="22.41" y1="183.51" x2="23.76" y2="182.15" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="31.53" y1="163.68" x2="31.53" y2="161.96" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        <line x1="39.22" y1="182.15" x2="40.55" y2="183.48" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+      </g>
+      <g>
+        <polyline points="23.59 320.63 25.59 318.63 27.58 320.63" fill="none" stroke="#231f20" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"/>
+        <g>
+          <line x1="25.61" y1="319.07" x2="25.61" y2="324.05" fill="none" stroke="#231f20" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"/>
+          <circle cx="25.59" cy="321.34" r="4.91" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        </g>
+      </g>
+      <g>
+        <g>
+          <line x1="54.61" y1="319.07" x2="54.61" y2="324.05" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+          <polyline points="52.59 320.63 54.58 318.63 56.58 320.63" fill="none" stroke="#231f20" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"/>
+        </g>
+        <circle cx="54.58" cy="321.34" r="4.91" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+      </g>
+      <path d="M83.33,316.97c-2.57,0-4.66,2.09-4.66,4.66s2.09,4.66,4.66,4.66,4.66-2.09,4.66-4.66-2.09-4.66-4.66-4.66ZM85.59,322.61l-2,2c-.07.07-.17.11-.27.11s-.19-.04-.27-.11l-2-2c-.15-.15-.15-.38,0-.53s.38-.15.53,0l1.33,1.33v-4.49c0-.21.17-.38.38-.38s.38.17.38.38v4.54l1.38-1.38c.15-.15.38-.15.53,0s.15.38,0,.53Z" fill="#231f20"/>
+      <path d="M112.56,316.97c-2.57,0-4.66,2.09-4.66,4.66s2.09,4.66,4.66,4.66,4.66-2.09,4.66-4.66-2.09-4.66-4.66-4.66ZM114.82,322.61l-2,2c-.07.07-.17.11-.27.11s-.19-.04-.27-.11l-2-2c-.15-.15-.15-.38,0-.53s.38-.15.53,0l1.33,1.33v-4.49c0-.21.17-.38.38-.38s.38.17.38.38v4.54l1.38-1.38c.15-.15.38-.15.53,0s.15.38,0,.53Z" fill="#231f20"/>
+      <g>
+        <polyline points="23.59 282.7 25.59 280.7 27.58 282.7" fill="none" stroke="#231f20" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"/>
+        <g>
+          <line x1="25.61" y1="281.14" x2="25.61" y2="286.12" fill="none" stroke="#231f20" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"/>
+          <circle cx="25.59" cy="283.41" r="4.91" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+        </g>
+      </g>
+      <g>
+        <g>
+          <line x1="54.61" y1="281.14" x2="54.61" y2="286.12" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+          <polyline points="52.59 282.7 54.58 280.7 56.58 282.7" fill="none" stroke="#231f20" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"/>
+        </g>
+        <circle cx="54.58" cy="283.41" r="4.91" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+      </g>
+      <path d="M83.33,279.04c-2.57,0-4.66,2.09-4.66,4.66s2.09,4.66,4.66,4.66,4.66-2.09,4.66-4.66-2.09-4.66-4.66-4.66ZM85.59,284.67l-2,2c-.07.07-.17.11-.27.11s-.19-.04-.27-.11l-2-2c-.15-.15-.15-.38,0-.53s.38-.15.53,0l1.33,1.33v-4.49c0-.21.17-.38.38-.38s.38.17.38.38v4.54l1.38-1.38c.15-.15.38-.15.53,0s.15.38,0,.53Z" fill="#231f20"/>
+      <path d="M112.56,279.04c-2.57,0-4.66,2.09-4.66,4.66s2.09,4.66,4.66,4.66,4.66-2.09,4.66-4.66-2.09-4.66-4.66-4.66ZM114.82,284.67l-2,2c-.07.07-.17.11-.27.11s-.19-.04-.27-.11l-2-2c-.15-.15-.15-.38,0-.53s.38-.15.53,0l1.33,1.33v-4.49c0-.21.17-.38.38-.38s.38.17.38.38v4.54l1.38-1.38c.15-.15.38-.15.53,0s.15.38,0,.53Z" fill="#231f20"/>
+      <g>
+        <polyline points="23.59 243.12 25.59 241.13 27.58 243.12" fill="none" stroke="#231f20" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"/>
+        <g>
+          <line x1="25.61" y1="241.57" x2="25.61" y2="246.54" fill="none" stroke="#231f20" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"/>
+          <circle cx="25.59" cy="243.84" r="4.91" fill="none" stroke="#231f20" stroke-linecap="round" stroke-linejoin="round" stroke-width=".5"/>
+        </g>
+      </g>
+      <g>
+        <g>
+          <line x1="54.61" y1="241.57" x2="54.61" y2="246.54" fill="none" stroke="#231f20" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"/>
+          <polyline points="52.59 243.12 54.58 241.13 56.58 243.12" fill="none" stroke="#231f20" stroke-linecap="round" stroke-linejoin="round" stroke-width=".75"/>
+        </g>
+        <circle cx="54.58" cy="243.84" r="4.91" fill="none" stroke="#231f20" stroke-miterlimit="10" stroke-width=".5"/>
+      </g>
+      <path d="M83.33,239.46c-2.57,0-4.66,2.09-4.66,4.66s2.09,4.66,4.66,4.66,4.66-2.09,4.66-4.66-2.09-4.66-4.66-4.66ZM85.59,245.1l-2,2c-.07.07-.17.11-.27.11s-.19-.04-.27-.11l-2-2c-.15-.15-.15-.38,0-.53s.38-.15.53,0l1.33,1.33v-4.49c0-.21.17-.38.38-.38s.38.17.38.38v4.54l1.38-1.38c.15-.15.38-.15.53,0s.15.38,0,.53Z" fill="#231f20"/>
+      <path d="M112.56,239.46c-2.57,0-4.66,2.09-4.66,4.66s2.09,4.66,4.66,4.66,4.66-2.09,4.66-4.66-2.09-4.66-4.66-4.66ZM114.82,245.1l-2,2c-.07.07-.17.11-.27.11s-.19-.04-.27-.11l-2-2c-.15-.15-.15-.38,0-.53s.38-.15.53,0l1.33,1.33v-4.49c0-.21.17-.38.38-.38s.38.17.38.38v4.54l1.38-1.38c.15-.15.38-.15.53,0s.15.38,0,.53Z" fill="#231f20"/>
+      <g>
+        <rect x="61.31" y="393.63" width="3.39" height="2.83" transform="translate(-332.04 458.04) rotate(-90)" fill="#231f20"/>
+        <rect x="65.2" y="393.63" width="3.39" height="2.83" transform="translate(-328.15 461.93) rotate(-90)" fill="#231f20"/>
+        <rect x="69.09" y="393.63" width="3.39" height="2.83" transform="translate(-324.26 465.82) rotate(-90)" fill="#231f20"/>
+        <rect x="72.59" y="394.01" width="4.16" height="2.83" transform="translate(-320.75 470.1) rotate(-90)" fill="#231f20"/>
+        <rect x="76.87" y="393.63" width="3.39" height="2.83" transform="translate(-316.48 473.61) rotate(-90)" fill="#231f20"/>
+        <rect x="80.76" y="393.63" width="3.39" height="2.83" transform="translate(-312.59 477.5) rotate(-90)" fill="#231f20"/>
+        <rect x="84.65" y="393.63" width="3.39" height="2.83" transform="translate(-308.7 481.39) rotate(-90)" fill="#231f20"/>
+        <rect x="88.16" y="394.01" width="4.16" height="2.83" transform="translate(-305.19 485.66) rotate(-90)" fill="#231f20"/>
+      </g>
+      <text transform="translate(61.12 407.21) scale(1.07 1)" fill="#231f20" font-family="HelveticaNeue-CondensedBold, 'Helvetica Neue'" font-size="8.66" font-weight="700"><tspan x="0" y="0">Workshop System</tspan></text>
+      <text/>
+      <circle cx="69.26" cy="111.27" r="10.2" transform="translate(-48.15 53.03) rotate(-31.72)" fill="#231f20"/>
+      <rect x="13.46" y="56.07" width=".24" height="364.32" fill="#a7a9ab"/>
+      <rect x="18.02" y="332.07" width=".24" height="16.32" fill="#a7a9ab"/>
+      <rect x="28.1" y="332.07" width=".24" height="16.32" fill="#a7a9ab"/>
+      <path d="M23.3,353.73c-2.88,0-5.22-2.34-5.22-5.22h.24c0,2.75,2.24,4.98,4.98,4.98s4.98-2.24,4.98-4.98h.24c0,2.88-2.34,5.22-5.22,5.22Z" fill="#a7a9ab"/>
+      <path d="M28.52,332.19h-.24c0-2.75-2.23-4.98-4.98-4.98s-4.98,2.24-4.98,4.98h-.24c0-2.88,2.34-5.22,5.22-5.22s5.22,2.34,5.22,5.22Z" fill="#a7a9ab"/>
+      <rect x="59.9" y="391.23" width="38.16" height=".24" fill="#a7a9ab"/>
+      <rect x="59.78" y="383.43" width=".24" height="7.92" fill="#a7a9ab"/>
+      <rect x="59.9" y="383.31" width="38.16" height=".24" fill="#a7a9ab"/>
+      <rect x="97.94" y="383.43" width=".24" height="7.92" fill="#a7a9ab"/>
+      <circle cx="20.3" cy="391.35" r="4.44" fill="#e52629"/>
+      <circle cx="20.3" cy="365.43" r="4.44" fill="#e52629"/>
+      <circle cx="33.5" cy="391.35" r="4.44" fill="#e52629"/>
+      <circle cx="34.94" cy="411.75" r="4.68" transform="translate(-373.82 351.15) rotate(-76.72)" fill="#a7a9ab"/>
+      <circle cx="113.18" cy="388.95" r="5.16" fill="#a7a9ab"/>
+      <circle cx="20.3" cy="378.39" r="4.44" fill="#e52629"/>
+      <circle cx="33.5" cy="365.43" r="4.44" fill="#e52629"/>
+      <circle cx="33.5" cy="378.39" r="4.44" fill="#e52629"/>
+      <circle cx="34.94" cy="64.47" r="4.68" fill="#a7a9ab"/>
+      <circle cx="95.18" cy="98.55" r="5.16" transform="translate(-19.59 173.37) rotate(-79.1)" fill="#a7a9ab"/>
+      <circle cx="83.66" cy="224.07" r="8.76" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <circle cx="112.46" cy="303.27" r="8.76" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <circle cx="83.66" cy="263.67" r="8.76" transform="translate(-191.95 240.06) rotate(-67.5)" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <circle cx="112.46" cy="263.67" r="8.76" transform="translate(-167.72 324.23) rotate(-79.1)" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <circle cx="112.46" cy="224.07" r="8.76" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <circle cx="83.66" cy="303.27" r="8.76" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <circle cx="106.94" cy="174.63" r="7.32" fill="none" stroke="#939599" stroke-miterlimit="10"/>
+      <circle cx="26.06" cy="263.67" r="8.76" transform="translate(-233.85 212.2) rotate(-73.15)" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <circle cx="54.86" cy="303.27" r="8.76" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <circle cx="26.06" cy="224.07" r="8.76" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <circle cx="26.06" cy="303.27" r="8.76" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <circle cx="54.86" cy="263.67" r="8.76" transform="translate(-213.39 239.76) rotate(-73.15)" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <circle cx="54.86" cy="224.07" r="8.76" fill="none" stroke="#808386" stroke-miterlimit="10"/>
+      <path d="M22.5,343.49c.01.27.31-.43.33-.02.05,1.05,1.98,2.91,2.03,3.9,1.15,21.91,72.67-20.87,73.59-3.32,1.04,19.87-78.01-12.88-76.81,8.34,1.71,30.22,114.52-38.19,116.2-6.09,1.55,29.55-136.44-42.65-120.16,7.86,8.79,27.27,109.73-54.87,112.47-2.53,2.39,45.69-104-32.74-115.18,14.33-14.03,59.07,116.17-34.83,117.67-6.17,2.4,45.7-123.85-24.29-118.01,7.69,4.05,22.13,119.75-38.87,121.64-2.77,2.65,50.54-121.72-44.25-110.57,12.09,5.69,28.76,108.32-30.66,109.92-5.55,1.85,29.15-92.69-10.64-94.11,12.33-2.16,34.81,95.22-41.58,97.23-5.85,2.45,43.58-123.71-13.36-123.92,13.01s102.9-25.37,106.56-4.54c5.63,32.05-99.92-22.61-95.03,8.82,3.94,25.33,117.91-49.58,111.52-4.4-3.57,25.23-84.76-12.8-83.28,3.97.76,8.54,56,2.89,60.13,1.54" fill="none" stroke="#e7e8e9" stroke-linecap="round" stroke-linejoin="round" stroke-width=".36"/>
+      <text></text>
+      <text transform="translate(61.12 415.87) scale(1.07 1)" fill="#fff" font-family="HelveticaNeue-CondensedBold, 'Helvetica Neue'" font-size="8.66" font-weight="700"><tspan x="0" y="0">Music Thing Modular</tspan></text>
+      <text transform="translate(52.84 207.38)" fill="#d4af37" font-family="URWDIN-Demi, 'URW DIN'" font-size="7" font-weight="300"><tspan x="0" y="0">CV / Audio</tspan></text>
+      <text transform="translate(58.58 333.02)" fill="#d4af37" font-family="URWDIN-Demi, 'URW DIN'" font-size="7" font-weight="300"><tspan x="0" y="0">Pulses</tspan></text>
+      <text transform="translate(64.79 285.96)" fill="#d4af37" font-family="URWDIN-Demi, 'URW DIN'" font-size="7" font-weight="300"><tspan x="0" y="0">CV</tspan></text>
+      <circle cx="69.26" cy="111.27" r="10.2" transform="translate(-48.15 53.03) rotate(-31.72)" fill="#fff"/>
+      <rect x="59.88" y="383.55" width="38.18" height="7.81" fill="#414142"/>
+      <g>
+        <rect x="28.46" y="171.75" width="5.76" height="5.76" fill="#fff"/>
+        <g clip-path="url(#clippath)">
+          <path d="M33.74,174.63c0,3.2-4.8,3.2-4.8,0s4.8-3.2,4.8,0Z" fill="#010101"/>
+        </g>
+      </g>
+      <g>
+        <rect x="66.38" y="171.75" width="5.76" height="5.76" fill="#fff"/>
+        <g clip-path="url(#clippath-1)">
+          <path d="M71.66,174.63c0,3.2-4.8,3.2-4.8,0s4.8-3.2,4.8,0Z" fill="#010101"/>
+        </g>
+      </g>
+      <g>
+        <rect x="66.38" y="108.39" width="5.76" height="5.76" fill="#fff"/>
+        <g clip-path="url(#clippath-2)">
+          <path d="M71.66,111.27c0,3.2-4.8,3.2-4.8,0s4.8-3.2,4.8,0Z" fill="#010101"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- ==================== SIREN ANNOTATIONS ==================== -->
+
+    <!-- Title banner -->
+    <rect x="22" y="0" width="94" height="49" fill="#fcea10"/>
+    <text transform="translate(69 28)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="28" font-weight="700" text-anchor="middle"><tspan x="0" y="0">SIREN</tspan></text>
+    <text transform="translate(69 42)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="8" font-weight="700" text-anchor="middle"><tspan x="0" y="0">DRONE OSCILLATOR</tspan></text>
+
+    <!-- Main knob: UP=WARP, MID=SEED -->
+    <rect x="50" y="96" width="39" height="30" fill="#fcea10"/>
+    <text transform="translate(69.5 109)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="10" font-weight="700" text-anchor="middle"><tspan x="0" y="0">WARP</tspan><tspan x="0" y="13">SEED</tspan></text>
+
+    <!-- X knob: UP=SPAN, MID=SCAN -->
+    <rect x="13" y="155" width="30" height="28" fill="#fcea10"/>
+    <text transform="translate(28 165)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">SPAN</tspan><tspan x="0" y="10">SCAN</tspan></text>
+
+    <!-- Y knob: UP=MORPH, MID=BASIS -->
+    <rect x="55" y="155" width="30" height="28" fill="#fcea10"/>
+    <text transform="translate(70 165)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">MORPH</tspan><tspan x="0" y="10">BASIS</tspan></text>
+
+    <!-- Z: switch function -->
+    <rect x="93" y="155" width="30" height="28" fill="#fcea10"/>
+    <text transform="translate(108 165)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="6" font-weight="700" text-anchor="middle"><tspan x="0" y="0">UP/MID:</tspan><tspan x="0" y="8">PARAMS</tspan><tspan x="0" y="18">DN: BANK</tspan></text>
+
+    <!-- LED label -->
+    <rect x="38" y="366" width="30" height="30" fill="#fcea10"/>
+    <text transform="translate(53 376)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">OSC</tspan><tspan x="0" y="9">BANK</tspan><tspan x="0" y="18">1 - 6</tspan></text>
+
+    <!-- ===== Audio Row (y~224) ===== -->
+
+    <!-- Audio In 1: waveshaper input -->
+    <rect x="14" y="218" width="24" height="12" fill="#fcea10"/>
+    <text transform="translate(26 227)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">AUDIO</tspan></text>
+
+    <!-- Audio In 2: SPAN modulation -->
+    <rect x="42" y="218" width="26" height="12" fill="#fcea10"/>
+    <text transform="translate(55 227)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">SPAN</tspan></text>
+
+    <!-- Audio Out L -->
+    <rect x="72" y="218" width="24" height="12" fill="#fcea10"/>
+    <text transform="translate(84 227)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">OUT L</tspan></text>
+
+    <!-- Audio Out R -->
+    <rect x="100" y="218" width="25" height="12" fill="#fcea10"/>
+    <text transform="translate(112.5 227)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">OUT R</tspan></text>
+
+    <!-- ===== CV Row (y~264) ===== -->
+
+    <!-- CV In 1: pitch V/Oct -->
+    <rect x="14" y="258" width="24" height="12" fill="#fcea10"/>
+    <text transform="translate(26 267)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">V/OCT</tspan></text>
+
+    <!-- CV In 2: WARP modulation -->
+    <rect x="42" y="258" width="26" height="12" fill="#fcea10"/>
+    <text transform="translate(55 267)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">WARP</tspan></text>
+
+    <!-- CV Out 1: pitch mirror -->
+    <rect x="72" y="258" width="24" height="12" fill="#fcea10"/>
+    <text transform="translate(84 267)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">PITCH</tspan></text>
+
+    <!-- CV Out 2: envelope -->
+    <rect x="100" y="258" width="25" height="12" fill="#fcea10"/>
+    <text transform="translate(112.5 267)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">ENV</tspan></text>
+
+    <!-- ===== Pulse Row (y~321) ===== -->
+
+    <!-- Pulse In 1: gate (over row 3 circles at y~303) -->
+    <rect x="14" y="297" width="24" height="12" fill="#fcea10"/>
+    <text transform="translate(26 306)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">GATE</tspan></text>
+
+    <!-- Pulse In 2: short=SEED, long=BANK -->
+    <rect x="40" y="293" width="30" height="20" fill="#fcea10"/>
+    <text transform="translate(55 301)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="5.5" font-weight="700" text-anchor="middle"><tspan x="0" y="0">SHORT: SEED</tspan><tspan x="0" y="8">LONG: BANK</tspan></text>
+
+    <!-- Pulse Out 1: sub-oscillator clock (over row 3 circles at y~303) -->
+    <rect x="72" y="297" width="24" height="12" fill="#fcea10"/>
+    <text transform="translate(84 306)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">SUB</tspan></text>
+
+    <!-- Pulse Out 2: half divider (over row 3 circles at y~303) -->
+    <rect x="100" y="297" width="25" height="12" fill="#fcea10"/>
+    <text transform="translate(112.5 306)" fill="#1d1d1b" font-family="URWDINCond-Bold, 'URW DIN Cond'" font-size="7" font-weight="700" text-anchor="middle"><tspan x="0" y="0">1/2 DIV</tspan></text>
+
+  </g>
+</svg>

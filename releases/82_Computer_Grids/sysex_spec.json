@@ -1,0 +1,56 @@
+{
+  "name": "WorkshopGridsConfig",
+  "version": 1,
+  "transport": {
+    "type": "usb_midi_sysex",
+    "manufacturer_id": "0x7D",
+    "device_id": "0x63",
+    "commands": {
+      "get_config_request": "0x01",
+      "get_config_response": "0x02",
+      "set_config_request": "0x03",
+      "save_config_request": "0x04"
+    },
+    "frame": [
+      "0xF0",
+      "manufacturer_id",
+      "device_id",
+      "command",
+      "payload (optional for command)",
+      "0xF7"
+    ]
+  },
+  "payload_encoding": {
+    "current_firmware_mode": "midi_7bit_block_packed",
+    "scheme": "7-byte blocks encoded as [msb_mask][7 low-7bit bytes]",
+    "details": {
+      "encode": "For each 7 raw bytes, collect their MSBs into one mask byte (bit j = raw[j] bit7), then emit mask followed by raw bytes with bit7 cleared.",
+      "decode": "Read mask byte, then up to 7 payload bytes, restoring each byte's MSB from corresponding mask bit.",
+      "padding": "Last block may be shorter than 7 bytes; only present bytes are emitted."
+    }
+  },
+  "data_layout": {
+    "struct": "ConfigStore::Data",
+    "raw_payload_bytes": 28,
+    "fields": [
+      { "name": "magic", "type": "u32", "default": "0x47524453" },
+      { "name": "bpm10", "type": "u16", "default": 1200, "range": [400, 2600] },
+      { "name": "swing", "type": "u8", "default": 50, "range": [50, 75], "description": "Sequencer-style swing %: 50 straight, 75 strong shuffle; internal clock only." },
+      { "name": "chaos", "type": "u8", "default": 10, "range": [0, 127] },
+      { "name": "cv1_mode", "type": "u8", "enum": ["CV1ToX", "CV1ToY", "CV1ToBlend"] },
+      { "name": "cv2_mode", "type": "u8", "enum": ["CV2ToFill"] },
+      { "name": "cv1_amount", "type": "i8", "default": 64, "range": [-127, 127] },
+      { "name": "cv2_amount", "type": "i8", "default": 64, "range": [-127, 127] },
+      { "name": "lane1_fill_scale", "type": "u8", "default": 100, "range": [0, 200] },
+      { "name": "lane2_fill_scale", "type": "u8", "default": 85, "range": [0, 200] },
+      { "name": "lane3_fill_scale", "type": "u8", "default": 115, "range": [0, 200] },
+      { "name": "lane1_fill_offset", "type": "i8", "default": 0, "range": [-127, 127] },
+      { "name": "lane2_fill_offset", "type": "i8", "default": 8, "range": [-127, 127] },
+      { "name": "lane3_fill_offset", "type": "i8", "default": -10, "range": [-127, 127] },
+      { "name": "aux_mode", "type": "u8", "enum": ["AuxAccent", "AuxClock", "AuxLane3Mirror"] },
+      { "name": "pulse_ms", "type": "u8", "default": 10, "range": [1, 40] },
+      { "name": "reserved", "type": "u8[8]", "default": "all 0", "description": "Padding / future use; keeps packed size equal to sizeof(ConfigStore::Data) for MIDI apply." }
+    ]
+  }
+}
+

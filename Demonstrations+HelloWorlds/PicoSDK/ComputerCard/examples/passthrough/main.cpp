@@ -41,6 +41,8 @@ public:
 
 int main()
 {
+	set_sys_clock_khz(144000, true);
+	
 	// Create Passthrough object...
 	Passthrough pt;
 

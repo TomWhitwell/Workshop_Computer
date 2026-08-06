@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>DrumDrum — WebMIDI editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #f3f1ea; height: 100%; }
+  body { font-family: 'Space Grotesk', system-ui, sans-serif;
+         display: flex; align-items: center; justify-content: center;
+         min-height: 100vh; padding: 28px;
+         -webkit-text-size-adjust: 100%; }
+  #root { width: 100%; max-width: 1180px; }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.45 } }
+  @media (max-width: 720px) {
+    body { padding: 10px; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+<script type="text/babel">
+"use strict";
+
+// ─── Helpers ─────────────────────────────────────────────────────────
+const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+function noteName(n) {
+  if (n < 0 || n > 127) return "—";
+  const oct = Math.floor(n / 12) - 1;
+  return NOTE_NAMES[n % 12] + oct;
+}
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// Track viewport width so layouts can collapse below a phone-sized breakpoint.
+function useIsMobile(bp = 720) {
+  const get = () => typeof window !== 'undefined' && window.innerWidth < bp;
+  const [m, setM] = React.useState(get);
+  React.useEffect(() => {
+    const on = () => setM(get());
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return m;
+}
+
+// ─── SysEx protocol (matches midi_sysex.h on the firmware) ───────────
+const SYSEX_MFR              = 0x7D;
+const SYSEX_SET_PITCH        = 0x01;
+const SYSEX_SET_VELOCITY     = 0x02;
+const SYSEX_SET_LENGTH       = 0x03;
+const SYSEX_SET_PLAYING      = 0x04;
+const SYSEX_REQUEST_DUMP     = 0x05;
+const SYSEX_FULL_DUMP        = 0x10;
+const SYSEX_TICK             = 0x11;
+const SYSEX_PARAM_UPDATE     = 0x12;
+const PRODUCT_NAME           = "DrumDrum";
+
+// ─── WebMIDI-driven pattern store ────────────────────────────────────
+// Mirrors the firmware's SharedState. Setters fan out to both local
+// React state (so the UI updates instantly) and an outbound SysEx
+// message (so the firmware learns about the change). Inbound SysEx
+// updates state too — that's how panel-knob changes show up here.
+function usePattern() {
+  const [pitch,    setPitch]    = React.useState(() => Array(8).fill(60));
+  const [velocity, setVel]      = React.useState(() => Array(8).fill(128));
+  const [seqLength, setSeqLen]  = React.useState(8);
+  const [playing,  setPlayingS] = React.useState(true);
+  const [step,     setStep]     = React.useState(0);
+  const [conn,     setConn]     = React.useState({ tone: 'searching', label: 'Searching for DrumDrum…' });
+
+  const midiOut = React.useRef(null);
+
+  const sendSysex = React.useCallback((payload) => {
+    if (!midiOut.current) return;
+    try { midiOut.current.send([0xF0, SYSEX_MFR, ...payload, 0xF7]); }
+    catch (e) { /* ignore — port may have just gone away */ }
+  }, []);
+
+  const setStepPitch = React.useCallback((i, v) => {
+    const c = clamp(v, 0, 127);
+    setPitch(p => { const n = p.slice(); n[i] = c; return n; });
+    sendSysex([SYSEX_SET_PITCH, i & 7, c & 0x7F]);
+  }, [sendSysex]);
+
+  const setStepVel = React.useCallback((i, v) => {
+    const c = clamp(v, 0, 255);
+    setVel(p => { const n = p.slice(); n[i] = c; return n; });
+    sendSysex([SYSEX_SET_VELOCITY, i & 7, (c >> 4) & 0x0F, c & 0x0F]);
+  }, [sendSysex]);
+
+  const setLen = React.useCallback((n) => {
+    const c = clamp(n, 1, 8);
+    setSeqLen(c);
+    sendSysex([SYSEX_SET_LENGTH, c & 0x0F]);
+  }, [sendSysex]);
+
+  const setPlaying = React.useCallback((v) => {
+    setPlayingS(!!v);
+    sendSysex([SYSEX_SET_PLAYING, v ? 1 : 0]);
+  }, [sendSysex]);
+
+  // Parse incoming SysEx and apply to state.
+  const handleMessage = React.useCallback((data) => {
+    if (data.length < 3 || data[0] !== 0xF0 || data[1] !== SYSEX_MFR) return;
+    const body = data.slice(1, data.length - 1);
+    if (body.length < 2) return;
+    const cmd = body[1];
+
+    if (cmd === SYSEX_FULL_DUMP) {
+      if (body.length < 2 + 1 + 1 + 1 + 8 + 16) return;
+      let p = 2;
+      const newLen   = body[p++];
+      const newPlay  = body[p++];
+      const newStep  = body[p++];
+      const newPitch = Array.from({ length: 8 }, () => body[p++]);
+      const newVel   = Array.from({ length: 8 }, () => {
+        const hi = body[p++], lo = body[p++];
+        return ((hi & 0x0F) << 4) | (lo & 0x0F);
+      });
+      setSeqLen(newLen);
+      setPlayingS(!!newPlay);
+      setStep(newStep);
+      setPitch(newPitch);
+      setVel(newVel);
+    } else if (cmd === SYSEX_TICK) {
+      if (body.length < 3) return;
+      setStep(body[2]);
+    } else if (cmd === SYSEX_PARAM_UPDATE) {
+      if (body.length < 3) return;
+      const sub = body[2];
+      if (sub === SYSEX_SET_PITCH && body.length >= 5) {
+        const i = body[3] & 7, v = body[4] & 0x7F;
+        setPitch(p => { const n = p.slice(); n[i] = v; return n; });
+      } else if (sub === SYSEX_SET_VELOCITY && body.length >= 6) {
+        const i = body[3] & 7;
+        const v = ((body[4] & 0x0F) << 4) | (body[5] & 0x0F);
+        setVel(p => { const n = p.slice(); n[i] = v; return n; });
+      } else if (sub === SYSEX_SET_LENGTH && body.length >= 4) {
+        setSeqLen(body[3]);
+      } else if (sub === SYSEX_SET_PLAYING && body.length >= 4) {
+        setPlayingS(!!body[3]);
+      }
+    }
+  }, []);
+
+  // WebMIDI lifecycle.
+  React.useEffect(() => {
+    if (!navigator.requestMIDIAccess) {
+      setConn({ tone: 'disconnect', label: 'WebMIDI not supported' });
+      return;
+    }
+    let access;
+    let inputPort = null;
+    const findPort = (map) => {
+      for (const port of map.values()) {
+        if (port.name && port.name.indexOf(PRODUCT_NAME) !== -1) return port;
+      }
+      return null;
+    };
+    const wireUp = () => {
+      const inP  = findPort(access.inputs);
+      const outP = findPort(access.outputs);
+      if (inputPort && inputPort !== inP) inputPort.onmidimessage = null;
+      inputPort = inP;
+      midiOut.current = outP;
+      if (inP && outP) {
+        inP.onmidimessage = (ev) => handleMessage(ev.data);
+        setConn({ tone: 'connected', label: `Connected · ${outP.name}` });
+        // Ask the firmware for a fresh full state dump.
+        try { outP.send([0xF0, SYSEX_MFR, SYSEX_REQUEST_DUMP, 0xF7]); } catch {}
+      } else {
+        setConn({ tone: 'searching', label: 'Searching for DrumDrum…' });
+      }
+    };
+    setConn({ tone: 'searching', label: 'Requesting MIDI access…' });
+    navigator.requestMIDIAccess({ sysex: true })
+      .then((a) => { access = a; access.onstatechange = wireUp; wireUp(); })
+      .catch((err) => setConn({ tone: 'disconnect', label: `MIDI denied: ${err.message}` }));
+    return () => { if (inputPort) inputPort.onmidimessage = null; };
+  }, [handleMessage]);
+
+  return {
+    pitch, velocity, seqLength, playing, step, conn,
+    setStepPitch, setStepVel, setLen, setPlaying,
+  };
+}
+
+// ─── Theme ───────────────────────────────────────────────────────────
+function theme(dark) {
+  return dark ? {
+    bg:'#0d1117', paper:'#151b24', panel:'#1c2230',
+    ink:'#f0f3f8', inkSoft:'#c8cdd6', mute:'#8a93a3', muteSoft:'#5a6273',
+    line:'#2a313e', lineSoft:'#1f2530',
+    bar:'#e6ebf2',
+    accent:'#ff7a52', accentDk:'#ff5a36', accentBg:'#3a1d12',
+    now:'#ffb066',
+    okBg:'#0e2a1c', okBd:'#1a4a32', ok:'#5fcf8a',
+    warnBg:'#2e2410', warnBd:'#5a4520', warn:'#f5c451',
+    badBg:'#2e1218', badBd:'#5a1f2c', bad:'#ef4d6a',
+    pianoWhite:'#e8ecf2', pianoBlack:'#0a0d12',
+    btnInk:'#f0f3f8', primary:'#ff7a52', primaryFg:'#1a0d08',
+  } : {
+    bg:'#f3f1ea', paper:'#ffffff', panel:'#fbfaf6',
+    ink:'#0d1015', inkSoft:'#3a3f4a', mute:'#7a818d', muteSoft:'#a3a8b1',
+    line:'#e6e3da', lineSoft:'#efece4',
+    bar:'#0d1015',
+    accent:'#ff5a36', accentDk:'#d63f1d', accentBg:'#ffe9e2',
+    now:'#ff8a3c',
+    okBg:'#e8f7ee', okBd:'#c7ebd5', ok:'#1e9d60',
+    warnBg:'#fff4d6', warnBd:'#f1d98a', warn:'#a87404',
+    badBg:'#fde7eb', badBd:'#f3bcc6', bad:'#b41f37',
+    pianoWhite:'#ffffff', pianoBlack:'#0d1015',
+    btnInk:'#ffffff', primary:'#0d1015', primaryFg:'#ffffff',
+  };
+}
+
+// ─── App shell ───────────────────────────────────────────────────────
+function App({ dark, setDark }) {
+  const p = usePattern();
+  const [sel, setSel] = React.useState(0);
+  const c = theme(dark);
+  const m = useIsMobile();
+
+  React.useEffect(() => { document.body.style.background = c.bg; }, [dark]);
+
+  // Clamp selection if length shrinks below it.
+  React.useEffect(() => {
+    if (sel >= p.seqLength) setSel(0);
+  }, [p.seqLength, sel]);
+
+  // Keyboard shortcuts. Shift modifier targets velocity instead of pitch.
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      const code = e.code, key = e.key;
+      if (code === 'Space') { e.preventDefault(); p.setPlaying(!p.playing); return; }
+      if (key >= '1' && key <= '8') { p.setLen(parseInt(key, 10)); return; }
+      if (code === 'ArrowLeft')  { setSel(s => (s + p.seqLength - 1) % p.seqLength); return; }
+      if (code === 'ArrowRight') { setSel(s => (s + 1) % p.seqLength); return; }
+      if (code === 'ArrowUp') {
+        e.preventDefault();
+        if (e.shiftKey) p.setStepVel(sel, p.velocity[sel] + 1);
+        else            p.setStepPitch(sel, p.pitch[sel] + 1);
+        return;
+      }
+      if (code === 'ArrowDown') {
+        e.preventDefault();
+        if (e.shiftKey) p.setStepVel(sel, p.velocity[sel] - 1);
+        else            p.setStepPitch(sel, p.pitch[sel] - 1);
+        return;
+      }
+      if (key === 'J' || key === 'j') {
+        if (e.shiftKey) p.setStepVel(sel, p.velocity[sel] - 16);
+        else            p.setStepPitch(sel, p.pitch[sel] - 12);
+        return;
+      }
+      if (key === 'K' || key === 'k') {
+        if (e.shiftKey) p.setStepVel(sel, p.velocity[sel] + 16);
+        else            p.setStepPitch(sel, p.pitch[sel] + 12);
+        return;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [p, sel]);
+
+  return (
+    <div style={{
+      backgroundColor: c.paper, borderRadius: m ? 14 : 18, padding: m ? 16 : 32,
+      boxShadow: dark
+        ? '0 1px 0 rgba(255,255,255,0.03), 0 30px 60px rgba(0,0,0,0.5)'
+        : '0 1px 0 rgba(0,0,0,0.04), 0 30px 60px rgba(20,15,10,0.06)',
+      border: `1px solid ${c.line}`,
+      color: c.ink, display: 'flex', flexDirection: 'column', gap: m ? 16 : 22,
+    }}>
+      <Header p={p} c={c} m={m} dark={dark} setDark={setDark} />
+      <LengthRibbon p={p} c={c} m={m} />
+      <Chart p={p} c={c} m={m} sel={sel} setSel={setSel} />
+      <StepDetail p={p} c={c} m={m} sel={sel} setSel={setSel} />
+      <Footer c={c} m={m} />
+    </div>
+  );
+}
+
+// ─── Header ──────────────────────────────────────────────────────────
+function Header({ p, c, m, dark, setDark }) {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: m ? 'column' : 'row',
+      justifyContent: 'space-between',
+      alignItems: m ? 'stretch' : 'flex-end',
+      gap: m ? 12 : 0,
+    }}>
+      <div>
+        <div style={{ fontSize: m ? 10 : 11, color: c.mute, letterSpacing: '0.22em',
+          textTransform: 'uppercase', fontWeight: 600 }}>
+          Workshop Computer · DFAM-style sequencer
+        </div>
+        <div style={{ fontSize: m ? 32 : 44, fontWeight: 700, letterSpacing: '-0.03em',
+          marginTop: 4, lineHeight: 1, fontFamily: '"Space Grotesk", sans-serif',
+          color: c.ink,
+        }}>
+          drumdrum<span style={{ color: c.accent }}>.</span>
+        </div>
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        gap: m ? 10 : 14, flexWrap: 'wrap',
+        justifyContent: m ? 'space-between' : 'flex-end',
+      }}>
+        <Status c={c} conn={p.conn} m={m} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: m ? 10 : 14 }}>
+          <ThemeToggle dark={dark} setDark={setDark} c={c} />
+          <Transport p={p} c={c} m={m} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Status({ c, conn, m }) {
+  const tones = {
+    connected:  { bg: c.okBg,   bd: c.okBd,   fg: c.ok   },
+    searching:  { bg: c.warnBg, bd: c.warnBd, fg: c.warn },
+    disconnect: { bg: c.badBg,  bd: c.badBd,  fg: c.bad  },
+  };
+  const t = tones[conn.tone] || tones.searching;
+  // On mobile the connected label includes the long port name; trim to keep
+  // the badge from forcing the row wider than the viewport.
+  const label = (m && conn.tone === 'connected') ? 'Connected' : conn.label;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8,
+      fontSize: 12, color: t.fg, fontWeight: 600,
+      fontFamily: '"JetBrains Mono", monospace',
+      padding: '7px 12px', backgroundColor: t.bg, borderRadius: 99,
+      border: `1px solid ${t.bd}`,
+      minWidth: 0, maxWidth: '100%',
+      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+    }}>
+      <span style={{
+        width: 8, height: 8, borderRadius: 99, backgroundColor: t.fg,
+        boxShadow: `0 0 8px ${t.fg}`, flexShrink: 0,
+        animation: conn.tone === 'searching' ? 'pulse 1.4s ease-in-out infinite' : 'none',
+      }} />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+    </div>
+  );
+}
+
+function ThemeToggle({ dark, setDark, c }) {
+  return (
+    <button onClick={() => setDark(!dark)} title={dark ? 'Switch to light' : 'Switch to dark'} style={{
+      width: 38, height: 38, border: `1px solid ${c.line}`, backgroundColor: c.panel,
+      borderRadius: 99, cursor: 'pointer', color: c.ink,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+    }}>
+      {dark ? (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+        </svg>
+      ) : (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+function Transport({ p, c, m }) {
+  return (
+    <button onClick={() => p.setPlaying(!p.playing)} style={{
+      fontFamily: '"Space Grotesk", sans-serif', fontSize: 14, fontWeight: 700,
+      letterSpacing: '0.08em', textTransform: 'uppercase',
+      padding: m ? '12px 20px' : '14px 28px', border: 'none', borderRadius: 10, cursor: 'pointer',
+      backgroundColor: c.primary, color: c.primaryFg,
+      display: 'inline-flex', alignItems: 'center', gap: 10, minWidth: m ? 110 : 130,
+      boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+    }}>
+      {p.playing ? (
+        <>
+          <span style={{ display: 'inline-flex', gap: 3 }}>
+            <span style={{ width: 4, height: 14, backgroundColor: c.primaryFg }} />
+            <span style={{ width: 4, height: 14, backgroundColor: c.primaryFg }} />
+          </span>
+          Pause
+        </>
+      ) : (
+        <>
+          <span style={{ width: 0, height: 0, borderLeft: `12px solid ${c.primaryFg}`,
+            borderTop: '8px solid transparent', borderBottom: '8px solid transparent' }} />
+          Play
+        </>
+      )}
+    </button>
+  );
+}
+
+// ─── Length ribbon ───────────────────────────────────────────────────
+function LengthRibbon({ p, c, m }) {
+  const ribRef = React.useRef(null);
+  const dragging = React.useRef(false);
+  const setLenFromX = (x) => {
+    const r = ribRef.current.getBoundingClientRect();
+    const t = clamp((x - r.left) / r.width, 0, 1);
+    const n = clamp(Math.round(t * 8 + 0.0001), 1, 8);
+    p.setLen(n);
+  };
+  const onDown = (e) => {
+    dragging.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setLenFromX(e.clientX);
+  };
+  const onMove = (e) => { if (dragging.current) setLenFromX(e.clientX); };
+  const onUp = (e) => {
+    dragging.current = false;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  };
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between',
+        alignItems: 'baseline', marginBottom: 10, gap: 8 }}>
+        <Label c={c}>Length</Label>
+        <span style={{ fontSize: m ? 10 : 12, color: c.mute,
+          fontFamily: '"JetBrains Mono", monospace',
+          textAlign: 'right', minWidth: 0 }}>
+          {m ? 'drag · or tap' : 'drag the orange handle · or click a number'}
+        </span>
+      </div>
+      <div ref={ribRef} onPointerDown={onDown} onPointerMove={onMove}
+        onPointerUp={onUp} onPointerCancel={onUp}
+        style={{
+          position: 'relative',
+          display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 4,
+          padding: 4, backgroundColor: c.lineSoft, borderRadius: 10,
+          touchAction: 'none', userSelect: 'none',
+        }}>
+        {Array.from({ length: 8 }).map((_, i) => {
+          const inLen = i < p.seqLength;
+          return (
+            <button key={i}
+              onClick={(e) => { e.stopPropagation(); p.setLen(i + 1); }}
+              style={{
+                position: 'relative', height: 44, border: 'none',
+                backgroundColor: inLen ? c.paper : 'transparent',
+                backgroundImage: inLen ? 'none' :
+                  'repeating-linear-gradient(45deg, rgba(127,127,127,0.18) 0 4px, transparent 4px 9px)',
+                color: inLen ? c.ink : c.muteSoft,
+                fontFamily: '"JetBrains Mono", monospace', fontSize: 14, fontWeight: 600,
+                borderRadius: 7, cursor: 'pointer',
+                boxShadow: inLen ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+              }}>
+              {i + 1}
+            </button>
+          );
+        })}
+        <div style={{
+          position: 'absolute', top: -4, bottom: -4,
+          left: `calc(${(p.seqLength / 8) * 100}% - 9px)`,
+          width: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none', transition: 'left 0.18s',
+        }}>
+          <div style={{
+            width: 6, height: '100%', backgroundColor: c.accent, borderRadius: 3,
+            boxShadow: `0 0 0 3px ${c.paper}, 0 2px 8px ${c.accent}55`,
+          }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Bar chart ───────────────────────────────────────────────────────
+function Chart({ p, c, m, sel, setSel }) {
+  return (
+    <div style={{
+      backgroundColor: c.paper, border: `1px solid ${c.line}`, borderRadius: 14,
+      padding: m ? '14px 12px 8px' : '20px 22px 12px', position: 'relative',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between',
+        alignItems: 'baseline', marginBottom: m ? 10 : 14, gap: 8, flexWrap: 'wrap' }}>
+        <Label c={c}>Pattern</Label>
+        {!m && <Legend c={c} />}
+      </div>
+      <div style={{ display: 'flex', gap: m ? 6 : 12, alignItems: 'stretch',
+        height: m ? 220 : 280, position: 'relative' }}>
+        {!m && (
+          <div style={{ display: 'flex', flexDirection: 'column',
+            justifyContent: 'space-between', fontSize: 9, color: c.mute,
+            paddingRight: 4, fontFamily: '"JetBrains Mono", monospace',
+            textAlign: 'right', minWidth: 24,
+          }}>
+            <span>127</span><span>96</span><span>64</span><span>32</span><span>0</span>
+          </div>
+        )}
+        <div style={{ flex: 1, display: 'flex', gap: m ? 4 : 10,
+          alignItems: 'stretch', position: 'relative', paddingTop: 14,
+          minWidth: 0,
+        }}>
+          {[0.25, 0.5, 0.75].map(t => (
+            <div key={t} style={{
+              position: 'absolute', left: 0, right: 0, top: `calc(${t * 100}% + 7px)`,
+              borderTop: `1px dashed ${c.lineSoft}`, pointerEvents: 'none',
+            }} />
+          ))}
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Bar key={i} idx={i} p={p} c={c} m={m} sel={sel} setSel={setSel} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Legend({ c }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14,
+      fontSize: 11, color: c.mute, fontFamily: '"JetBrains Mono", monospace' }}>
+      <Swatch c={c} color={c.bar} alpha={0.4} /> low vel
+      <Swatch c={c} color={c.bar} alpha={1} /> high vel
+      <Swatch c={c} color={c.accent} alpha={1} /> selected
+      <Swatch c={c} color={c.now} alpha={1} ring /> playing
+    </div>
+  );
+}
+
+function Swatch({ c, color, alpha = 1, ring = false }) {
+  return (
+    <span style={{
+      display: 'inline-block', width: 10, height: 10, backgroundColor: color,
+      opacity: alpha, borderRadius: 2, marginRight: -4,
+      boxShadow: ring ? `0 0 0 2px ${c.paper}, 0 0 0 3px ${color}` : 'none',
+    }} />
+  );
+}
+
+function Bar({ idx, p, c, m, sel, setSel }) {
+  const inLen = idx < p.seqLength;
+  const isSel = sel === idx;
+  const isNow = p.playing && idx === p.step;
+  const pitch = p.pitch[idx];
+  const vel = p.velocity[idx];
+  const h = (pitch / 127) * 100;
+  const opacity = inLen ? 0.35 + (vel / 255) * 0.65 : 0.18;
+  const color = isNow ? c.now : (isSel ? c.accent : c.bar);
+
+  return (
+    <button onClick={() => setSel(idx)} style={{
+      flex: 1, position: 'relative', cursor: 'pointer',
+      backgroundColor: 'transparent', border: 'none', padding: 0,
+      display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+      borderRadius: 8, minWidth: 0,
+    }}>
+      <div style={{
+        position: 'absolute', top: -10, left: 0, right: 0,
+        display: 'flex', justifyContent: 'center',
+        opacity: isSel ? 1 : 0,
+        fontSize: 10, fontFamily: '"JetBrains Mono", monospace',
+        color: c.accent, fontWeight: 600, transition: 'opacity 0.12s',
+      }}>{noteName(pitch)} · {vel}</div>
+
+      <div style={{
+        height: `${h}%`, backgroundColor: color, opacity,
+        borderRadius: '6px 6px 0 0',
+        transition: 'height 0.18s, opacity 0.18s',
+        position: 'relative',
+      }}>
+        {isNow && (
+          <div style={{
+            position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
+            width: 8, height: 8, borderRadius: 99, backgroundColor: c.now,
+            boxShadow: `0 0 12px ${c.now}, 0 0 0 2px ${c.paper}`,
+          }} />
+        )}
+      </div>
+      <div style={{
+        marginTop: m ? 6 : 8, paddingTop: m ? 6 : 10,
+        borderTop: `2px solid ${isSel ? c.accent : (inLen ? c.ink : c.line)}`,
+        display: 'flex',
+        flexDirection: m ? 'column' : 'row',
+        justifyContent: 'space-between',
+        alignItems: m ? 'center' : 'baseline',
+        gap: m ? 2 : 0,
+        opacity: inLen ? 1 : 0.4, minWidth: 0,
+      }}>
+        <span style={{ fontSize: m ? 14 : 18, fontWeight: 700,
+          color: isSel ? c.accent : c.ink,
+          fontFamily: '"Space Grotesk", sans-serif',
+        }}>
+          {String(idx + 1).padStart(2, '0')}
+        </span>
+        {!m && (
+          <span style={{ fontSize: 10, color: c.mute,
+            fontFamily: '"JetBrains Mono", monospace' }}>
+            {noteName(pitch)}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+// ─── Step detail ─────────────────────────────────────────────────────
+function StepDetail({ p, c, m, sel, setSel }) {
+  const pitch = p.pitch[sel];
+  const vel = p.velocity[sel];
+  return (
+    <div style={{
+      display: m ? 'flex' : 'grid',
+      flexDirection: m ? 'column' : undefined,
+      gridTemplateColumns: m ? undefined : '180px 1fr 1fr',
+      gap: m ? 18 : 22,
+      backgroundColor: c.paper, border: `1px solid ${c.line}`, borderRadius: 14,
+      padding: m ? 16 : 22,
+    }}>
+      <div style={{
+        display: m ? 'flex' : 'block',
+        alignItems: m ? 'center' : undefined,
+        justifyContent: m ? 'space-between' : undefined,
+        gap: 14,
+      }}>
+        <div>
+          <Label c={c}>Editing</Label>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
+            <span style={{ fontSize: 11, color: c.mute,
+              fontFamily: '"JetBrains Mono", monospace' }}>step</span>
+            <span style={{ fontSize: m ? 40 : 56, lineHeight: 1, fontWeight: 700,
+              color: c.accent, fontFamily: '"Space Grotesk", sans-serif',
+              letterSpacing: '-0.04em',
+            }}>{String(sel + 1).padStart(2, '0')}</span>
+          </div>
+        </div>
+        <div style={{
+          display: 'flex', gap: 6,
+          marginTop: m ? 0 : 12,
+          alignItems: 'center',
+        }}>
+          <NavBtn c={c} m={m} onClick={() => setSel((sel + p.seqLength - 1) % p.seqLength)}>←</NavBtn>
+          <NavBtn c={c} m={m} onClick={() => setSel((sel + 1) % p.seqLength)}>→</NavBtn>
+          {!m && (
+            <span style={{ fontSize: 10, color: c.mute, alignSelf: 'center',
+              marginLeft: 4, fontFamily: '"JetBrains Mono", monospace' }}>←/→</span>
+          )}
+        </div>
+      </div>
+      <PitchEditor c={c} m={m} pitch={pitch} onChange={(v) => p.setStepPitch(sel, v)} />
+      <VelocityEditor c={c} m={m} vel={vel} onChange={(v) => p.setStepVel(sel, v)} />
+    </div>
+  );
+}
+
+function NavBtn({ c, m, children, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      width: m ? 44 : 36, height: m ? 40 : 32,
+      border: `1px solid ${c.line}`, backgroundColor: c.paper,
+      borderRadius: 6, fontSize: 16, fontWeight: 600, cursor: 'pointer',
+      color: c.ink, fontFamily: '"JetBrains Mono", monospace',
+    }}>{children}</button>
+  );
+}
+
+function PitchEditor({ c, m, pitch, onChange }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <Label c={c}>Pitch</Label>
+        <span style={{ fontSize: 16, fontWeight: 700,
+          fontFamily: '"JetBrains Mono", monospace', color: c.ink }}>
+          {noteName(pitch)} <span style={{ color: c.mute, fontWeight: 400 }}>· {pitch}</span>
+        </span>
+      </div>
+      <PianoStrip c={c} m={m} value={pitch} onChange={onChange} />
+      <BigSlider c={c} m={m} min={0} max={127} value={pitch} onChange={onChange} />
+    </div>
+  );
+}
+
+function PianoStrip({ c, m, value, onChange }) {
+  // Show fewer keys on mobile so each one is large enough to tap.
+  const span = m ? 24 : 36;
+  const half = Math.floor(span / 2);
+  const center = clamp(value, half, 127 - half);
+  const startOct = Math.floor(center / 12) - 1;
+  const startNote = clamp(startOct * 12, 0, 128 - span);
+  const notes = Array.from({ length: span }, (_, i) => startNote + i);
+  return (
+    <div style={{
+      position: 'relative', height: m ? 72 : 56, backgroundColor: c.lineSoft,
+      border: `1px solid ${c.line}`, borderRadius: 8, overflow: 'hidden',
+      display: 'flex',
+    }}>
+      {notes.map((n) => {
+        const pc = ((n % 12) + 12) % 12;
+        const isBlack = [1,3,6,8,10].includes(pc);
+        const isC = pc === 0;
+        const isOn = n === value;
+        const inRange = n >= 0 && n <= 127;
+        return (
+          <button key={n}
+            disabled={!inRange}
+            onClick={() => inRange && onChange(n)}
+            style={{
+              flex: 1, padding: 0, border: 'none', cursor: inRange ? 'pointer' : 'default',
+              backgroundColor: isOn ? c.accent : (isBlack ? c.pianoBlack : c.pianoWhite),
+              borderRight: `1px solid ${isBlack ? '#000' : c.line}`,
+              opacity: inRange ? 1 : 0.3,
+              position: 'relative',
+            }}>
+            {isC && (
+              <span style={{
+                position: 'absolute', bottom: 4, left: 0, right: 0,
+                fontSize: 8,
+                color: isOn ? c.primaryFg : (isBlack ? c.pianoWhite : c.mute),
+                fontFamily: '"JetBrains Mono", monospace', textAlign: 'center',
+              }}>{noteName(n)}</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function VelocityEditor({ c, m, vel, onChange }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <Label c={c}>Velocity</Label>
+        <span style={{ fontSize: 16, fontWeight: 700,
+          fontFamily: '"JetBrains Mono", monospace', color: c.ink }}>
+          {vel} <span style={{ color: c.mute, fontWeight: 400 }}>/ 255</span>
+        </span>
+      </div>
+      <div style={{
+        position: 'relative', height: m ? 72 : 56, backgroundColor: c.lineSoft,
+        border: `1px solid ${c.line}`, borderRadius: 8, overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `linear-gradient(90deg, ${c.accentBg}, ${c.accent})`,
+          opacity: 0.18,
+        }} />
+        <ScrubFill c={c} value={vel} max={255} onChange={onChange} />
+      </div>
+      <BigSlider c={c} m={m} min={0} max={255} value={vel} onChange={onChange} />
+    </div>
+  );
+}
+
+function ScrubFill({ c, value, max, onChange }) {
+  const ref = React.useRef(null);
+  const dragging = React.useRef(false);
+  const set = (e) => {
+    const r = ref.current.getBoundingClientRect();
+    const t = clamp((e.clientX - r.left) / r.width, 0, 1);
+    onChange(Math.round(t * max));
+  };
+  const onDown = (e) => {
+    dragging.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    set(e);
+  };
+  const onMove = (e) => { if (dragging.current) set(e); };
+  const onUp = (e) => {
+    dragging.current = false;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  };
+  const t = value / max;
+  return (
+    <div ref={ref}
+      onPointerDown={onDown} onPointerMove={onMove}
+      onPointerUp={onUp} onPointerCancel={onUp}
+      style={{ position: 'absolute', inset: 0, cursor: 'pointer', touchAction: 'none' }}>
+      <div style={{
+        position: 'absolute', left: 0, top: 0, bottom: 0,
+        width: `${t * 100}%`,
+        backgroundImage: `linear-gradient(90deg, ${c.accent}aa, ${c.accent})`,
+      }} />
+      <div style={{
+        position: 'absolute', top: 0, bottom: 0, width: 3,
+        left: `calc(${t * 100}% - 1.5px)`, backgroundColor: c.ink,
+      }} />
+    </div>
+  );
+}
+
+function BigSlider({ c, m, min, max, value, onChange }) {
+  const ref = React.useRef(null);
+  const dragging = React.useRef(false);
+  const set = (e) => {
+    const r = ref.current.getBoundingClientRect();
+    const t = clamp((e.clientX - r.left) / r.width, 0, 1);
+    onChange(Math.round(min + t * (max - min)));
+  };
+  const onDown = (e) => {
+    dragging.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    set(e);
+  };
+  const onMove = (e) => { if (dragging.current) set(e); };
+  const onUp = (e) => {
+    dragging.current = false;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  };
+  const t = (value - min) / (max - min);
+  const trackH = m ? 12 : 8;
+  const handleW = m ? 22 : 14;
+  const handlePad = m ? 6 : 4;
+  return (
+    <div ref={ref}
+      onPointerDown={onDown} onPointerMove={onMove}
+      onPointerUp={onUp} onPointerCancel={onUp}
+      style={{
+        position: 'relative', height: trackH, backgroundColor: c.lineSoft,
+        borderRadius: 4, cursor: 'pointer', touchAction: 'none',
+        marginTop: m ? 6 : 0, marginBottom: m ? 6 : 0,
+      }}>
+      <div style={{
+        position: 'absolute', left: 0, top: 0, bottom: 0,
+        width: `${t * 100}%`, backgroundColor: c.accent, borderRadius: 4,
+      }} />
+      <div style={{
+        position: 'absolute', top: -handlePad, bottom: -handlePad,
+        left: `calc(${t * 100}% - ${handleW / 2}px)`, width: handleW,
+        backgroundColor: c.ink, borderRadius: 3,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+      }} />
+    </div>
+  );
+}
+
+// ─── Footer ──────────────────────────────────────────────────────────
+function Footer({ c, m }) {
+  if (m) {
+    return (
+      <div style={{ textAlign: 'center', fontSize: 10, color: c.mute,
+        fontFamily: '"JetBrains Mono", monospace' }}>
+        SysEx · 7D · MIDI thru WebMIDI
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between',
+      alignItems: 'center', fontSize: 11, color: c.mute,
+      fontFamily: '"JetBrains Mono", monospace', flexWrap: 'wrap', gap: 12,
+    }}>
+      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+        <Kbd c={c} k="Space">play / pause</Kbd>
+        <Kbd c={c} k="1–8">length</Kbd>
+        <Kbd c={c} k="← →">step</Kbd>
+        <Kbd c={c} k="↑ ↓">pitch ±1</Kbd>
+        <Kbd c={c} k="J K">pitch ±octave</Kbd>
+        <Kbd c={c} k="⇧ ↑↓">velocity ±1</Kbd>
+        <Kbd c={c} k="⇧ J K">velocity ±16</Kbd>
+      </div>
+      <div>SysEx · 7D · MIDI thru WebMIDI</div>
+    </div>
+  );
+}
+
+function Kbd({ c, k, children }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span style={{
+        padding: '2px 7px', backgroundColor: c.paper, border: `1px solid ${c.line}`,
+        borderRadius: 4, color: c.ink, fontWeight: 600,
+        boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
+      }}>{k}</span>
+      {children}
+    </span>
+  );
+}
+
+function Label({ c, children }) {
+  return (
+    <span style={{
+      fontSize: 10, color: c.mute, letterSpacing: '0.18em',
+      textTransform: 'uppercase', fontWeight: 600,
+    }}>{children}</span>
+  );
+}
+
+function Root() {
+  const [dark, setDark] = React.useState(false);
+  // Re-key on theme swap so the tree remounts (no stale styles or
+  // half-completed transitions across the palette change).
+  return <App key={dark ? 'dark' : 'light'} dark={dark} setDark={setDark} />;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+</script>
+</body>
+</html>

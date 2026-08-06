@@ -1,0 +1,110 @@
+draft: true
+Name: Flux
+Description: Effects, Synthesizer and Utility
+Language: C++ (RP2040 Pico SDK)
+Creator: Vincent Maurer
+Version: 1.0
+Status: Released
+Editor: https://vincentmaurer.de/flux/flux_manager.html
+
+tags:
+  - multi-fx
+  - synthesizer
+  - sampler
+  - utility
+  - midi
+
+manual: |
+  Flux combines stereo effects, multiple synth engines, sample/granular playback, and utility generators
+  on one Workshop Computer card. Switch up is synth mode, middle is effect mode, down-hold selects
+  synth/effect, and double-down-hold enters performance controls. A web manager is used for CV/pulse routing,
+  MIDI mappings, sample management, and saving patch-card style configurations.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio Input Left / Mono
+      description: Main external audio input or synth/control source depending on selected engine
+    - id: AudioIn2
+      name: Audio Input Right
+      description: Stereo right input or alternate modulation/input source
+    - id: CVIn1
+      name: CV Mod X
+      description: Modulates effect/synth X-axis style parameter
+    - id: CVIn2
+      name: CV Mod Y
+      description: Modulates effect/synth Y-axis style parameter
+    - id: PulseIn1
+      name: Trigger / Gate
+      description: Primary synth trigger and utility clocking input
+    - id: PulseIn2
+      name: Utility Clock / Gate
+      description: Secondary pulse control for utility and sequencing functions
+  outputs:
+    - id: AudioOut1
+      name: Stereo Out Left
+      description: Processed/synthesized stereo left output
+    - id: AudioOut2
+      name: Stereo Out Right
+      description: Processed/synthesized stereo right output
+    - id: CVOut1
+      name: Assignable CV Out 1
+      description: Configurable utility CV output (MIDI/CV, envelope, LFO, sequencer, etc.)
+    - id: CVOut2
+      name: Assignable CV Out 2
+      description: Configurable utility CV output
+    - id: PulseOut1
+      name: Assignable Pulse Out 1
+      description: Configurable pulse/gate/clock output
+    - id: PulseOut2
+      name: Assignable Pulse Out 2
+      description: Configurable pulse/gate/clock output
+
+controls:
+  knobs:
+    - when: { z: up }
+      main:
+        name: Envelope / Decay
+        description: Primary synth envelope control for most engines
+      x:
+        name: Pitch
+        description: Main pitch control in synth mode
+      y:
+        name: Timbre / Color
+        description: Engine-specific timbre parameter
+    - when: { z: middle }
+      main:
+        name: Wet/Dry Mix
+        description: Blend between dry signal and selected effect
+      x:
+        name: Effect Parameter 1
+        description: Effect time/decay/rate style parameter
+      y:
+        name: Effect Parameter 2
+        description: Effect tone/feedback/depth style parameter
+    - when: { z: down, gesture: hold }
+      main:
+        name: Effect Select
+        description: Select current effect algorithm
+      x:
+        name: Synth Select
+        description: Select current synth/sample engine
+      y:
+        name: Extra Parameter
+        description: Additional parameter for selected engine
+    - when: { z: down, gesture: double-hold }
+      main:
+        name: Internal Tempo
+        description: Utility/performance tempo control
+      x:
+        name: Performance Parameter 1
+        description: Sequence/randomness style control for utility engines
+      y:
+        name: Performance Parameter 2
+        description: Secondary sequence/randomness style control
+
+host:
+  usb:
+    - name: Flux Manager
+      role: editor
+      description: Browser editor in `web/` and hosted online for sample management, routing, and settings transfer

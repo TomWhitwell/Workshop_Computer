@@ -1,0 +1,100 @@
+id: 34_dual_quant
+title: DualQuant
+draft: false
+release: 34 / 1.0
+summary: Dual quantised granular pitch shifter with calibrated 1V/oct CV outputs
+description: Dual quantised granular pitch shifter with calibrated 1V/oct CV outputs
+panel:
+  controls:
+    main:
+      label: |-
+        Quantize
+        Enable
+      description: Enables chromatic semitone quantization for both outputs
+      source: info.yaml
+    z:
+      label: Mode
+      description: Selects alternate control modes.
+      source: info.yaml
+  inputs:
+    audio_l:
+      label: Audio In
+      description: Source audio written into the shared granular delay buffer
+      source: info.yaml
+    cv_1:
+      label: Pitch Mod A
+      description: Additional semitone modulation for output A
+      source: info.yaml
+    cv_2:
+      label: Pitch Mod B
+      description: Additional semitone modulation for output B
+      source: info.yaml
+  outputs:
+    audio_out_l:
+      label: |-
+        Pitch Shift
+        Out A
+      description: Granular pitch-shifted output A
+      source: info.yaml
+    audio_out_r:
+      label: |-
+        Pitch Shift
+        Out B
+      description: Granular pitch-shifted output B
+      source: info.yaml
+    cv_out_1:
+      label: |-
+        Pitch CV Out
+        A
+      description: Pitch A converted to millivolt CV output
+      source: info.yaml
+    cv_out_2:
+      label: |-
+        Pitch CV Out
+        B
+      description: Pitch B converted to millivolt CV output
+      source: info.yaml
+switch_modes:
+  up: 'Z up: MAIN: Global Pitch Offset; X: Output A Offset; Y: Output B Offset.'
+  middle: 'Z middle: MAIN: Quantize Enable.'
+  down: ''
+leds:
+  - "Quantized state: all LEDs on"
+  - "Unquantized state: all LEDs off"
+source:
+  - releases/34_dual_quant/info.yaml
+  - releases/34_dual_quant/README.md
+slug: 34-dual-quant
+url: /workshopsystem/program-cards/34-dual-quant/
+tags:
+  - granular
+  - pitch-shifter
+  - dual-output
+  - quantizer
+  - fixed-point
+source_file: releases/34_dual_quant/info.yaml
+source_url: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/34_dual_quant
+readme_url: >-
+  https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/34_dual_quant/README.md
+download_url: >-
+  https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/34_dual_quant/UF2/dual_quant_pitch.uf2
+metadata:
+  creator: Adrian Vos
+  language: C++ (ComputerCard / Pico SDK)
+  version: 1
+  status: Beta
+  license: MIT
+documentation:
+  intro: >
+    DualQuantPitch runs two independent granular pitch-shifted outputs from one shared
+    circular buffer.
+
+    Main sets global pitch offset, X sets output A offset, and Y sets output B offset.
+
+    CV In 1 and CV In 2 modulate pitch for outputs A and B respectively.
+
+    Switch middle enables chromatic semitone quantization; other switch positions run
+    continuously unquantized.
+
+    The design intentionally favors gritty/lo-fi granular character over transparent
+    pitch shifting. # certainty: medium (README is marked LLM output)

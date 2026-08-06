@@ -133,6 +133,9 @@ int32_t midiNotenum = 0;
 
 uint8_t dmaPhase = 0;
 
+bool frozenReverb = false;
+
+
 void process_sample();
 
 
@@ -201,7 +204,6 @@ void __not_in_flash_func(buffer_full)()
 
 	// Set audio inputs, by averaging the two samples collected
 	adcInR = ((ADC_Buffer[cpuPhase][0] + ADC_Buffer[cpuPhase][4]) - 0x1000) >> 1;
-
 	adcInL = ((ADC_Buffer[cpuPhase][1] + ADC_Buffer[cpuPhase][5]) - 0x1000) >> 1;
 
 	// Set pulse inputs
@@ -349,7 +351,11 @@ int32_t __not_in_flash_func(continuous_source_from_config)(int offset)
 
 	if (config[offset] <= OPT_KNOB_Y && config[offset + 1] != OPT_ONLY)
 	{
-		ret += cv[config[offset + 1] - OPT_PLUS_CV_IN_1];
+		int cvIndex = config[offset + 1] - OPT_PLUS_CV_IN_1;
+		if (cvIndex >= 0 && cvIndex <= 1) // should be true always, unless bad data sent from UI
+		{
+			ret += cv[cvIndex];
+		}
 	}
 	return ret;
 }
@@ -429,18 +435,30 @@ uint32_t __not_in_flash_func(tempo_source_from_config_incr)(int offset)
 ////////////////////////////////////////
 // Turing machine
 
-void __not_in_flash_func(tm_step)()
+void __not_in_flash_func(tm_step)(bool useClockDivider, bool risingEdge)
 {
-	uint32_t chosenBit = turing_machine_step(&tm, continuous_source_from_config(SEN_TM_MAIN_KNOB));
-	uint32_t volt = turing_machine_volt(&tm);
+	// If we're using the clock divider, set it up and calculate whether to trigger
+	bool step = false;
+	if (useClockDivider)
+	{
+		divider_set(&tm_divider, config[SEN_TM_CLOCK + 1] + 1);
+		step = divider_step(&tm_divider, risingEdge);
+	}
 
-	// TM pulse -> Pulse out
-	if (config[SEN_PULSE_OUT_1 + 1] == OPT_TURING_MACHINE_PULSE_OUT) PulseOut1(chosenBit);
-	if (config[SEN_PULSE_OUT_2 + 1] == OPT_TURING_MACHINE_PULSE_OUT) PulseOut2(chosenBit);
+	// Now do the actual Turing Machine, either if clock divider disabled, or if enabled and on nth rising edge
+	if (!useClockDivider || (step && risingEdge))
+	{
+		uint32_t chosenBit = turing_machine_step(&tm, continuous_source_from_config(SEN_TM_MAIN_KNOB));
+		uint32_t volt = turing_machine_volt(&tm);
+		
+		// TM pulse -> Pulse out
+		if (config[SEN_PULSE_OUT_1 + 1] == OPT_TURING_MACHINE_PULSE_OUT) PulseOut1(chosenBit);
+		if (config[SEN_PULSE_OUT_2 + 1] == OPT_TURING_MACHINE_PULSE_OUT) PulseOut2(chosenBit);
 
-	// TM analogue -> CV out
-	if (config[SEN_CV_OUT_1] == OPT_TURING_MACHINE_ANALOGUE_OUT) CVOut1(1024 - (volt << 2));
-	if (config[SEN_CV_OUT_2] == OPT_TURING_MACHINE_ANALOGUE_OUT) CVOut2(1024 - (volt << 2));
+		// TM analogue -> CV out
+		if (config[SEN_CV_OUT_1] == OPT_TURING_MACHINE_ANALOGUE_OUT) CVOut1(1024 - (volt << 2));
+		if (config[SEN_CV_OUT_2] == OPT_TURING_MACHINE_ANALOGUE_OUT) CVOut2(1024 - (volt << 2));
+	}
 }
 
 
@@ -462,7 +480,7 @@ void __not_in_flash_func(bg_div_step)(bool risingEdge)
 		                                    newDiv);
 
 
-		bool chanA = bg_value, chanB = 1 - bg_value;
+		bool chanA = bg_value, chanB = !bg_value;
 		if (bg.awi)
 		{
 			chanA = chanA && newDiv;
@@ -665,7 +683,7 @@ void midi_device_task()
 		
 		while (bytesToProcess > 0)
 		{
-			if (packet[0] == 0xF0) // If SysEx, handle with standard routine
+			if (bufferPtr[0] == 0xF0) // If SysEx, handle with standard routine
 			{
 				process_sys_ex_command(bufferPtr);
 			}
@@ -830,6 +848,13 @@ void handle_midi_message(uint8_t *packet)
 		// Count note on with velocity zero as note off
 		bool noteOn = (messageType == MIDI_NOTE_ON) && (packet[2] != 0);
 
+		if (config[SEN_REV_FREEZE] == OPT_GATE_OF_MIDI_NOTE
+			&& midi_gate(packet, SEN_REV_FREEZE + 1))
+		{
+			frozenReverb = noteOn;
+		}
+			
+		// MIDI gate/trigger --> pulse out 1/2
 		if (config[SEN_PULSE_OUT_1 + 1] == OPT_MIDI_NOTE && midi_gate(packet, SEN_PULSE_OUT_1 + 2))
 		{
 			if (config[SEN_PULSE_OUT_1] == OPT_TRIGGER && noteOn)
@@ -842,6 +867,7 @@ void handle_midi_message(uint8_t *packet)
 				gate_counter(noteOn, &n_notes_on_pulse1, PulseOut1);
 			}
 		}
+		
 		if (config[SEN_PULSE_OUT_2 + 1] == OPT_MIDI_NOTE && midi_gate(packet, SEN_PULSE_OUT_2 + 2))
 		{
 			if (config[SEN_PULSE_OUT_2] == OPT_TRIGGER && noteOn)
@@ -854,14 +880,32 @@ void handle_midi_message(uint8_t *packet)
 				gate_counter(noteOn, &n_notes_on_pulse2, PulseOut2);
 			}
 		}
-		if (config[SEN_CV_OUT_1] == OPT_MIDI_NOTE && midi_gate(packet, SEN_CV_OUT_1 + 1)) gate_counter(noteOn, &n_notes_on_cv1, CVOut1Gate);
-		if (config[SEN_CV_OUT_2] == OPT_MIDI_NOTE && midi_gate(packet, SEN_CV_OUT_2 + 1)) gate_counter(noteOn, &n_notes_on_cv2, CVOut2Gate);
 
+		// MIDI gate/trigger --> CV out 1/2
+		if (config[SEN_CV_OUT_1] == OPT_MIDI_NOTE && midi_gate(packet, SEN_CV_OUT_1 + 1))
+		{
+			gate_counter(noteOn, &n_notes_on_cv1, CVOut1Gate);
+		}
+		if (config[SEN_CV_OUT_2] == OPT_MIDI_NOTE && midi_gate(packet, SEN_CV_OUT_2 + 1))
+		{
+			gate_counter(noteOn, &n_notes_on_cv2, CVOut2Gate);
+		}
+
+		// MIDI gate --> TM
 		if (config[SEN_TM_CLOCK] == OPT_MIDI_NOTE && midi_gate(packet, SEN_TM_CLOCK + 1)
-		    && messageType == MIDI_NOTE_ON)
-			tm_step();
+		    && noteOn)
+		{
+			tm_step(false, false);
+		}
 
-		// Pitch CV
+		// MIDI gate --> Bernoulli gate
+		if (config[SEN_BG_CLOCK] == OPT_MIDI_NOTE && midi_gate(packet, SEN_BG_CLOCK + 1))
+		{        
+			bg_div_step(noteOn);
+		}
+		 
+		// MIDI note pitch --> CV out
+		// (note pitch + pitchbend)
 		midiNotenum = packet[1];
 		if (noteOn)
 		{
@@ -877,17 +921,27 @@ void handle_midi_message(uint8_t *packet)
 	}
 	else if (messageType == MIDI_CC) // If MIDI CC
 	{
+		// MIDI CC --> CV out 1/2
 		uint8_t ccVal = packet[2];
-		if (config[SEN_CV_OUT_1] == OPT_MIDI_CC && midi_cc(packet, SEN_CV_OUT_1 + 1)) CVOut1(1024 - ccVal * 8);
-		if (config[SEN_CV_OUT_2] == OPT_MIDI_CC && midi_cc(packet, SEN_CV_OUT_2 + 1)) CVOut2(1024 - ccVal * 8);
+		if (config[SEN_CV_OUT_1] == OPT_MIDI_CC && midi_cc(packet, SEN_CV_OUT_1 + 1))
+		{
+			CVOut1(1024 - ccVal * 8);
+		}
+		if (config[SEN_CV_OUT_2] == OPT_MIDI_CC && midi_cc(packet, SEN_CV_OUT_2 + 1))
+		{
+			CVOut2(1024 - ccVal * 8);
+		}
 	}
 	else if (messageType == MIDI_PITCHBEND)
 	{
+		// MIDI pitchbend --> CV out
+		// (note pitch + pitchbend)
 		midiPitchbend =  packet[1] + (packet[2]<<7) - 8192;
 		if (config[SEN_CV_OUT_1] == OPT_PITCH && midi_channel(packet, SEN_CV_OUT_1 + 1))
 		{		
 			CVOut1(midiToDac8((midiNotenum<<8)+(midiPitchbend>>4), 0) >> 8);
 		}
+		
 		if (config[SEN_CV_OUT_2] == OPT_PITCH && midi_channel(packet, SEN_CV_OUT_2 + 1))
 		{
 			CVOut2(midiToDac8((midiNotenum<<8)+(midiPitchbend>>4), 1) >> 8);
@@ -1135,6 +1189,7 @@ int32_t __not_in_flash_func(freeze_mute)(bool mute)
 
 // process_sample is called once-per-audio-sample (48kHz) by the buffer_full ISR
 const int startupSampleDelay = 20000;
+
 void __not_in_flash_func(process_sample)()
 {
 	//	gpio_put(DEBUG_2, true);
@@ -1146,7 +1201,6 @@ void __not_in_flash_func(process_sample)()
 
 	int inStartupState = (frame < startupSampleDelay);
 
-	static bool frozenReverb = false;
 
 	static bool lastMomentarySwitch = false;
 	bool momentarySwitch = knobs[KNOB_SWITCH] < 1000;
@@ -1320,11 +1374,13 @@ void __not_in_flash_func(process_sample)()
 	{
 		bool pulseInRisingEdge = pulse[pulse_index] && !last_pulse[pulse_index];
 		bool pulseInFallingEdge = !pulse[pulse_index] && last_pulse[pulse_index];
-		uint8_t pulse_opt = OPT_PULSE_IN_1 + pulse_index;
 
-		// Pulse in -> pulse out
 		if (pulseInRisingEdge || pulseInFallingEdge)
 		{
+			/// pulse_opt is the value corresponding to the menu option 'clocked by Pulse In X'
+			uint8_t pulse_opt = OPT_PULSE_IN_1 + pulse_index;
+
+			// Pulse in --> out 1/2 with clock division
 			if (config[SEN_PULSE_OUT_1 + 1] == pulse_opt)
 			{
 				divider_set(&pulseout1_divider, config[SEN_PULSE_OUT_1 + 2] + 1);
@@ -1335,44 +1391,49 @@ void __not_in_flash_func(process_sample)()
 				divider_set(&pulseout2_divider, config[SEN_PULSE_OUT_2 + 2] + 1);
 				PulseOut2(divider_step(&pulseout2_divider, pulseInRisingEdge));
 			}
-		}
 
-		// Pulse in -> noise S&H
-		if (config[SEN_CV_OUT_1] == OPT_NOISE && config[SEN_CV_OUT_1 + 1] == pulse_opt)
-		{
-			divider_set(&cvout1_divider, config[SEN_CV_OUT_1 + 2] + 1);
-			if (pulseInRisingEdge && divider_step(&cvout1_divider, pulseInRisingEdge)) cv1Noise = rnd() >> 21;
-		}
-
-		if (config[SEN_CV_OUT_2] == OPT_NOISE && config[SEN_CV_OUT_2 + 1] == pulse_opt)
-		{
-			divider_set(&cvout2_divider, config[SEN_CV_OUT_2 + 2] + 1);
-			if (pulseInRisingEdge && divider_step(&cvout2_divider, pulseInRisingEdge)) cv2Noise = rnd() >> 21;
-		}
-
-
-		// Pulse in -> TM
-		if (pulseInRisingEdge)
-		{
+			
+			// Pulse in --> Bernoulli gate
+			if (config[SEN_BG_CLOCK] == pulse_opt)
+			{
+				bg_div_step(pulseInRisingEdge);
+			}
+			
+			// Pulse in --> TM
 			if (config[SEN_TM_CLOCK] == pulse_opt)
 			{
-				divider_set(&tm_divider, config[SEN_TM_CLOCK + 1] + 1);
-				tm_step();
+				tm_step(true, pulseInRisingEdge);
+			}
+			
+			// Pulse in --> CV out 1/2 noise S&H
+			if (config[SEN_CV_OUT_1] == OPT_NOISE && config[SEN_CV_OUT_1 + 1] == pulse_opt)
+			{
+				divider_set(&cvout1_divider, config[SEN_CV_OUT_1 + 2] + 1);
+				if (pulseInRisingEdge && divider_step(&cvout1_divider, pulseInRisingEdge)) cv1Noise = rnd() >> 21;
 			}
 
-			// Pulse in -> Reverb freeze
-			if (config[SEN_REV_FREEZE] == pulse_opt)
+			if (config[SEN_CV_OUT_2] == OPT_NOISE && config[SEN_CV_OUT_2 + 1] == pulse_opt)
 			{
-				frozenReverb = true;
+				divider_set(&cvout2_divider, config[SEN_CV_OUT_2 + 2] + 1);
+				if (pulseInRisingEdge && divider_step(&cvout2_divider, pulseInRisingEdge)) cv2Noise = rnd() >> 21;
 			}
-		}
 
-		if (pulseInFallingEdge)
-		{
-			// Pulse in -> Reverb freeze
+			// Pulse in --> Reverb freeze
 			if (config[SEN_REV_FREEZE] == pulse_opt)
 			{
-				frozenReverb = false;
+				frozenReverb = pulseInRisingEdge;
+			}
+
+			// Pulse in --> CV out 1/2 gate
+			if (config[SEN_CV_OUT_1] == pulse_opt)
+			{
+				divider_set(&cvout1_divider, config[SEN_CV_OUT_1 + 1] + 1);
+				CVOut1Gate(divider_step(&cvout1_divider, pulseInRisingEdge));
+			}
+			if (config[SEN_CV_OUT_2] == pulse_opt)
+			{
+				divider_set(&cvout2_divider, config[SEN_CV_OUT_2 + 1] + 1);
+				CVOut2Gate(divider_step(&cvout2_divider, pulseInRisingEdge));
 			}
 		}
 	}
@@ -1387,7 +1448,7 @@ void __not_in_flash_func(process_sample)()
 			bool risingEdge = clock_state(&clk[clk_index]);
 			int clockOpt = OPT_INTERNAL_CLOCK_A + clk_index;
 
-			// Clocks -> pulse out
+			// Internal clocks --> pulse out
 			if (config[SEN_PULSE_OUT_1 + 1] == clockOpt)
 			{
 				divider_set(&pulseout1_divider, config[SEN_PULSE_OUT_1 + 2] + 1);
@@ -1399,7 +1460,7 @@ void __not_in_flash_func(process_sample)()
 				PulseOut2(divider_step(&pulseout2_divider, risingEdge));
 			}
 
-			// Clocks -> CV out
+			// Internal clocks --> CV out
 			if (config[SEN_CV_OUT_1] == clockOpt)
 			{
 				divider_set(&cvout1_divider, config[SEN_CV_OUT_1 + 1] + 1);
@@ -1411,37 +1472,41 @@ void __not_in_flash_func(process_sample)()
 				CVOut2Gate(divider_step(&cvout2_divider, risingEdge));
 			}
 
-			// Clocks -> noise S&H
+			// Internal clocks -> noise S&H trigger
 			if (config[SEN_CV_OUT_1] == OPT_NOISE && config[SEN_CV_OUT_1 + 1] == clockOpt)
 			{
 				divider_set(&cvout1_divider, config[SEN_CV_OUT_1 + 2] + 1);
-				if (risingEdge && divider_step(&cvout1_divider, risingEdge)) cv1Noise = rnd() >> 21;
+				if (risingEdge && divider_step(&cvout1_divider, risingEdge))
+				{
+					cv1Noise = rnd() >> 21;
+				}
 			}
 
 			if (config[SEN_CV_OUT_2] == OPT_NOISE && config[SEN_CV_OUT_2 + 1] == clockOpt)
 			{
 				divider_set(&cvout2_divider, config[SEN_CV_OUT_2 + 2] + 1);
-				if (risingEdge && divider_step(&cvout2_divider, risingEdge)) cv2Noise = rnd() >> 21;
+				if (risingEdge && divider_step(&cvout2_divider, risingEdge))
+				{
+					cv2Noise = rnd() >> 21;
+				}
 			}
 
-			// Clocks -> Bernoulli gate
+			// Internal clocks --> Bernoulli gate
 			if (config[SEN_BG_CLOCK] == clockOpt)
 			{
 				bg_div_step(risingEdge);
 			}
 
-			// Clocks -> Reverb freeze
+			// Internal clocks --> Reverb freeze
 			if (config[SEN_REV_FREEZE] == clockOpt)
 			{
 				frozenReverb = risingEdge;
 			}
 
-			// Clocks -> TM
+			// Internal clocks --> TM
 			if (config[SEN_TM_CLOCK] == clockOpt && risingEdge)
 			{
-				divider_set(&tm_divider, config[SEN_TM_CLOCK + 1] + 1);
-				if (divider_step(&tm_divider, risingEdge))
-					tm_step();
+				tm_step(true, risingEdge);
 			}
 		}
 	}

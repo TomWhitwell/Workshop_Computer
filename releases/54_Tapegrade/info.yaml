@@ -1,0 +1,138 @@
+id: Tapegrade
+title: Tapegrade
+draft: false
+release: 54 / 0.8.0
+summary: >-
+  Mono-input stereo cassette warble processor with wow, flutter, hiss, crackle, and tape
+  wear morphing.
+description: >-
+  Mono-input stereo cassette warble processor with wow, flutter, hiss, crackle, and tape
+  wear morphing.
+
+panel:
+  controls:
+    main:
+      label: |-
+        Wet / Dry
+        Mix
+      description: Blend between dry input and processed tape signal
+      source: info.yaml
+    x:
+      label: Tape Depth
+      description: Increases wow and pitch instability; also sets CV Out 1 attenuation
+      source: info.yaml
+    y:
+      label: Instability
+      description: Increases flutter/transport roughness; also sets CV Out 2 attenuation
+      source: info.yaml
+    z:
+      label: Mode
+      description: Selects clean, old, or damaged tape behaviour.
+      source: info.yaml
+  inputs:
+    audio_l:
+      label: |-
+        Mono Audio
+        In
+      description: Primary mono source signal for tape processing
+      source: info.yaml
+    audio_r:
+      label: |-
+        Tape
+        Condition
+      description: Audio/CV modulation that morphs between cleaner and more degraded tape states
+      source: info.yaml
+    cv_1:
+      label: |-
+        Tape Depth
+        Mod
+      description: Modulates wow/pitch movement amount; also routed to CV Out 1 attenuator path
+      source: info.yaml
+    cv_2:
+      label: |-
+        Instability
+        Mod
+      description: Modulates flutter/transport agitation; also routed to CV Out 2 attenuator path
+      source: info.yaml
+    pulse_1:
+      label: |-
+        Damage Burst
+        Trig
+      description: Rising edge forces brief heavy tape degradation burst
+      source: info.yaml
+    pulse_2:
+      label: Crackle Gate
+      description: High gate forces stronger crackle generation
+      source: info.yaml
+  outputs:
+    audio_out_l:
+      label: |-
+        Stereo Out
+        Left
+      description: Processed cassette-style left output
+      source: info.yaml
+    audio_out_r:
+      label: |-
+        Stereo Out
+        Right
+      description: Processed cassette-style right output
+      source: info.yaml
+    cv_out_1:
+      label: |-
+        CV1
+        Attenuated
+      description: CV In 1 passthrough scaled by X knob
+      source: info.yaml
+    cv_out_2:
+      label: |-
+        CV2
+        Attenuated
+      description: CV In 2 passthrough scaled by Y knob
+      source: info.yaml
+
+switch_modes:
+  up: Brighter and more stable tape response.
+  middle: Darker tone with moderate hiss and instability.
+  down: Strong hiss, crackle, and unstable behavior.
+
+leds:
+  - "LED 1 follows modulated left delay movement."
+  - "LED 2 follows instability."
+  - "LED 3 follows modulated right delay movement."
+  - "LED 4 follows wet/dry mix."
+  - "LED 5 follows tape condition and damage state."
+
+source:
+  - releases/54_Tapegrade/info.yaml
+  - releases/54_Tapegrade/README.md
+slug: 54-tapegrade
+url: /workshopsystem/program-cards/54-tapegrade/
+tags:
+  - tape
+  - degradation
+  - stereo
+  - modulation
+  - lo-fi
+source_file: releases/54_Tapegrade/info.yaml
+source_url: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/54_Tapegrade
+readme_url: >-
+  https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/54_Tapegrade/README.md
+download_url: >-
+  https://raw.githubusercontent.com/TomWhitwell/Workshop_Computer/main/releases/54_Tapegrade/UF2/Tapegrade.uf2
+metadata:
+  creator: Adrian Vos
+  language: C++ (RP2040 Pico SDK)
+  version: 0.8.0
+  status: WIP (functional)
+  license: MIT
+documentation:
+  intro: >
+    Tapegrade emulates cassette-style instability and wear from subtle movement to
+    heavily damaged textures.
+
+    Main controls wet/dry mix, X controls tape depth and CV1 attenuation, and Y controls
+    instability and CV2 attenuation.
+
+    Switch positions choose clean/old/damaged tape base states, Audio In 2 morphs tape
+    condition continuously, Pulse In 1 injects temporary heavy damage, and Pulse In 2
+    forces strong crackle while high.

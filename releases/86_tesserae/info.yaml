@@ -1,0 +1,123 @@
+draft: true
+Name: Tesserae
+Description: "Tesserae — Variable-voice (2-8) arpeggiated chord generator with 5 patterns, 10 scales, tap tempo, CV/audio transpose inputs, and dual CV + audio pitch outputs. Inspired by Laurie Spiegel's Music Mouse and Patchwork."
+Language: C++ (Pico SDK)
+Creator: Joep Vermaat
+Version: 1.0
+Status: released
+License: MIT
+Repository: https://codeberg.org/johantv/Tesserae
+
+tags:
+  - arpeggiator
+  - harmonic
+  - cv
+  - utility
+
+manual: |
+  Variable-voice arpeggiated harmonic generator with 5 patterns and 10 scales. X sets melody
+  position, Y sets chord spacing, and Main changes by Z mode (pattern select, root note, or held
+  scale/voice selection). Supports tap tempo, external clock/reset, and dual transpose inputs.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Pitch Transpose
+      type: audio
+      description: Semitone transpose for arpeggiated voice outputs (1V/oct)
+    - id: AudioIn2
+      name: Root Transpose
+      type: audio
+      description: Semitone transpose for root/chord framework (1V/oct)
+    - id: CVIn1
+      name: Melody Position CV
+      type: cv
+      description: Offsets knob X melody position
+    - id: CVIn2
+      name: Chord Spacing CV
+      type: cv
+      description: Offsets knob Y spacing
+    - id: PulseIn1
+      name: External Clock
+      type: pulse
+      description: Advances one arpeggio step per rising edge
+    - id: PulseIn2
+      name: Reset
+      type: pulse
+      description: Restarts arpeggio at step 0
+  outputs:
+    - id: CVOut1
+      name: Arpeggiated Note
+      type: cv
+      description: Current arpeggiated note, calibrated 1V/oct
+    - id: CVOut2
+      name: Root Note
+      type: cv
+      description: Root/base melody pitch, calibrated 1V/oct
+    - id: AudioOut1
+      name: Arpeggiated Note Audio
+      type: audio
+      description: Mirrors CVOut1 on audio DAC (approximate 1V/oct)
+    - id: AudioOut2
+      name: Previous Note Audio
+      type: audio
+      description: Holds previous arpeggio note on audio DAC (approximate 1V/oct)
+    - id: PulseOut1
+      name: Gate
+      type: pulse
+      description: High while current arpeggio note is active
+    - id: PulseOut2
+      name: Trigger
+      type: pulse
+      description: Short pulse at each arpeggio step start
+
+controls:
+  knobs:
+    - when: { z: up }
+      main:
+        name: Arpeggio Pattern
+        description: Selects one of five arp patterns
+      x:
+        name: Melody Position
+        description: Selects base note in current scale across three octaves
+      y:
+        name: Chord Spacing
+        description: Scale-degree spacing between voices
+    - when: { z: middle }
+      main:
+        name: Root Note
+        description: Sets root note across C1-C7
+      x:
+        name: Melody Position
+      y:
+        name: Chord Spacing
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Tap Tempo
+        description: Two taps within two seconds set internal BPM
+    - when: { z: down, gesture: hold }
+      main:
+        name: Scale Select
+        description: Selects one of ten scales
+      y:
+        name: Voice Count
+        description: Sets 2-8 voices
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Voice Index 0-3
+          description: LEDs 0-3 show current voice index modulo 4
+        - id: LED1
+          name: Voice Index 0-3
+        - id: LED2
+          name: Voice Index 0-3
+        - id: LED3
+          name: Voice Index 0-3
+        - id: LED4
+          name: Scale/Voice Select Active
+          description: Lit while Z down hold scale/voice mode is active
+        - id: LED5
+          name: External Clock Present
+          description: Lit when PulseIn1 external clock is connected

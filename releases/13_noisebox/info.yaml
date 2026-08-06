@@ -1,0 +1,86 @@
+draft: true
+Name: Noisebox
+Description: 13-algorithm noise synth with CV modulation, sample-and-hold, and crusher mode
+Language: C++ (ComputerCard)
+Creator: Eric Gao
+Version: 1.0
+Status: Released
+License: CC BY-NC-SA 3.0
+
+tags:
+  - noise
+  - synthesizer
+  - sample-and-hold
+  - bitcrusher
+
+manual: |
+  Noisebox selects among 13 noise algorithms with Main, with X/Y shaping the active algorithm.
+  Main can be offset by `AudioIn1`, output level is VCA-controlled by `AudioIn2`, and switch down
+  randomizes control offsets (hold to reset). `PulseIn1` clocks sample-and-hold behavior; switch up
+  or `PulseIn2` enables sample-rate/bit reduction.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Main Offset Modulation
+      description: Offsets algorithm selection before wrapping
+    - id: AudioIn2
+      name: VCA Control
+      description: Controls output level; normalled to full level when unpatched
+    - id: CVIn1
+      name: X Offset CV
+      description: Offsets X parameter before wrap
+    - id: CVIn2
+      name: Y Offset CV
+      description: Offsets Y parameter before wrap
+    - id: PulseIn1
+      name: Sample-and-Hold Trigger
+      description: Rising edge samples current signal for CV/pulse outputs
+    - id: PulseIn2
+      name: Crusher Gate
+      description: High gate enables sample-rate/bit reduction
+  outputs:
+    - id: AudioOut1
+      name: Noise Output A
+      description: Main synthesized noise signal
+    - id: AudioOut2
+      name: Noise Output B
+      description: Duplicate synthesized noise signal
+    - id: CVOut1
+      name: Sample-and-Hold CV
+      description: Captured signal at PulseIn1 rising edges
+    - id: CVOut2
+      name: Slewed CV
+      description: Slews between successive sampled CVOut1 values over pulse period
+    - id: PulseOut1
+      name: S&H Comparator Gate
+      description: High when sampled CVOut1 value is above zero
+    - id: PulseOut2
+      name: Realtime Comparator Gate
+      description: High when current audio sample is above zero
+
+# certainty: low — knob/switch role details inferred from main.cpp; README jack labels differ
+controls:
+  knobs:
+    - main:
+        name: Algorithm Select
+        description: Selects one of 13 algorithms
+      x:
+        name: Algorithm Parameter X
+        description: Primary per-algorithm shaping parameter
+      y:
+        name: Algorithm Parameter Y
+        description: Secondary per-algorithm shaping parameter
+    - when: { z: up }
+      main:
+        name: Algorithm Select
+      x:
+        name: Parameter X
+      y:
+        name: Parameter Y
+      # certainty: low — up mode behavior inferred from main.cpp
+      # Enables sample-rate and bit-depth reduction of the signal path
+    - when: { z: down }
+      main:
+        name: Randomize Offsets
+        description: Tap randomizes Main/X/Y offsets; long hold resets offsets to zero

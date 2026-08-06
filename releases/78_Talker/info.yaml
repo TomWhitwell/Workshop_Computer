@@ -1,5 +1,72 @@
-Description: Proof of concept speech synthesizer, based on TalkiePCM, inspired by 1970s LPC speech synths. 
+draft: true
+Name: Talker
+Description: Proof of concept speech synthesizer, based on TalkiePCM, inspired by 1970s LPC speech synths.
 Language: C++ (ComputerCard)
 Creator: Chris Johnson
 Version: 0.1
 Status: Proof of concept
+License: GPL-3.0
+
+tags:
+  - speech
+  - synth
+  - lpc
+  - audio-processing
+
+manual: |
+  Early proof-of-concept LPC speech card that babbles randomized words. Z switch sets continuous,
+  off, or single-word behavior. Main + CVIn1 set pitch (with X as attenuverter), while Y + CVIn2
+  set speaking speed. AudioOut1 is speech, AudioOut2 exposes the LPC exciter components.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Exciter Audio Replace
+      type: audio
+      description: When patched, replaces the pitched component of the LPC exciter path
+    - id: CVIn1
+      name: Pitch CV
+      type: cv
+      description: Adds pitch modulation, scaled by knob X attenuverter
+    - id: CVIn2
+      name: Speed CV
+      type: cv
+      description: Adds modulation to babble speed
+  outputs:
+    - id: AudioOut1
+      name: Speech Output
+      type: audio
+      description: Main synthesized speech output
+    - id: AudioOut2
+      name: LPC Exciter Components
+      type: audio
+      description: Pitched and noise components of the LPC exciter
+    - id: CVOut1
+      name: Exciter Amplitude
+      type: cv
+      description: Exciter amplitude control signal output
+    - id: CVOut2
+      name: Exciter Pitch
+      type: cv
+      description: Exciter pitch control signal output
+
+controls:
+  knobs:
+    - when: { z: up }
+      main:
+        name: Pitch
+        description: Sets base speech pitch
+      x:
+        name: Pitch CV Attenuverter
+        description: Attenuverts CVIn1 pitch modulation amount
+      y:
+        name: Babble Speed
+        description: Sets speed of generated speech
+    - when: { z: middle }
+      main:
+        name: Off
+        description: Speech generation is muted
+    - when: { z: down }
+      main:
+        name: Single Word Trigger
+        description: Triggers a single spoken word

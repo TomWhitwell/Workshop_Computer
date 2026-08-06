@@ -1,0 +1,114 @@
+draft: true
+Name: Voices of SID
+Description: "Dual MOS 6581 SID emulation (reSID engine) with CV/gate control, stereo output, waveform selection, and randomize"
+Language: C++ (Pico SDK)
+Creator: Joep Vermaat
+Version: 1.1
+Status: Released
+License: MIT
+Repository: https://codeberg.org/johantv/voices-of-sid
+
+tags:
+  - synthesizer
+  - sid
+  - chiptune
+  - dual-voice
+  - cv-gate
+
+manual: |
+  Two emulated MOS 6581 SID chips run in parallel on separate audio outputs.
+  Switch middle is Play mode (CV/gate, Main = decay/release, X = resonance, Y = pulse width).
+  Switch up is Sound Edit (X/Y select waveforms for each voice; gates open for drone/tuning).
+  Hold switch down to randomize attack, sustain, waveforms, ring mod, and sync.
+  CV and pulse inputs pass through to outputs for chaining modules.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Voice 1 Pitch CV
+      description: 1V/oct pitch for SID1 lead voice and ring/sync carrier
+    - id: CVIn2
+      name: Voice 2 Pitch CV
+      description: 1V/oct pitch for SID2 second voice
+    - id: PulseIn1
+      name: Voice 1 Gate
+      description: Gate for voice 1 (high = gate open)
+    - id: PulseIn2
+      name: Voice 2 Gate
+      description: Gate for voice 2
+  outputs:
+    - id: AudioOut1
+      name: SID 1 Output
+      description: Left output — SID chip 1 (lead + ring-mod/sync carrier voices)
+    - id: AudioOut2
+      name: SID 2 Output
+      description: Right output — SID chip 2 (second voice)
+    - id: CVOut1
+      name: CV 1 Passthrough
+      description: 1:1 copy of CV In 1
+    - id: CVOut2
+      name: CV 2 Passthrough
+      description: 1:1 copy of CV In 2
+    - id: PulseOut1
+      name: Gate 1 Passthrough
+      description: 1:1 copy of Pulse In 1
+    - id: PulseOut2
+      name: Gate 2 Passthrough
+      description: 1:1 copy of Pulse In 2
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Decay/Release
+        description: Decay/release time (0–15, shared by both voices)
+      x:
+        name: Filter Resonance
+        description: SID filter resonance (0–15)
+      y:
+        name: Pulse Width
+        description: Pulse width shared by both voices (minimum 40)
+    - when: { z: up }
+      main:
+        name: Decay/Release
+        description: Decay/release time (same as Play mode)
+      x:
+        name: Voice 1 Waveform
+        description: Selects voice 1 waveform (8 stops)
+      y:
+        name: Voice 2 Waveform
+        description: Selects voice 2 waveform (8 stops)
+    - when: { z: down, gesture: hold }
+      main:
+        name: Randomize
+        description: Hold to continuously randomize attack, sustain, waveforms, ring mod, and sync
+
+  leds:
+    - when: { z: up }
+      display: list
+      items:
+        - id: LED0
+          name: Voice 1 Waveform Bit 0
+        - id: LED1
+          name: Voice 1 Waveform Bit 1
+        - id: LED2
+          name: Voice 1 Waveform Bit 2
+        - id: LED3
+          name: Voice 2 Waveform Bit 0
+        - id: LED4
+          name: Voice 2 Waveform Bit 1
+        - id: LED5
+          name: Voice 2 Waveform Bit 2
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED0
+          name: Gate 1 Active
+        - id: LED1
+          name: Gate 2 Active
+        - id: LED3
+          name: Voice 1 Waveform Bit 0
+        - id: LED4
+          name: Voice 1 Waveform Bit 1
+        - id: LED5
+          name: Voice 1 Waveform Bit 2

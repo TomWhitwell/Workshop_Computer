@@ -1,0 +1,102 @@
+draft: true
+Name: Markov
+Description: Dual generative Markov chain module — evolving melody (MarkoV) left side, rhythmic percussion patterns (MarkovPerc) right side, with internal synth voice
+Language: C++ (Pico SDK)
+Creator: Andy Jenkinson (uglifruit)
+Version: 1.0.0
+Status: Released
+
+manual: |
+  Dual Markov-chain generator with melody on voice A and rhythm/percussion on voice B.
+  Knob X selects melodic transition profile, Knob Y selects percussion profile, and
+  Main is switch-dependent: transpose (Z up), loop lock/mutate length (Z middle), or
+  scale select while held (Z down). Pulse In 1 clocks both chains; CV Out 1 carries
+  melody pitch, Pulse Out 1 emits pitch-change gate, Pulse Out 2 emits percussion
+  triggers/ratchets/flams, and CV Out 2 carries percussion accent.
+
+panel:
+  inputs:
+    - id: PulseIn1
+      name: Master Clock
+      description: Rising edge advances both Markov chains; after timeout the module falls back to internal CV-controlled tempo
+    - id: CVIn1
+      name: Melody Post-Scale Transpose
+      description: Bipolar semitone transpose applied after scale quantization (disabled while scale-select switch down is held)
+    - id: CVIn2
+      name: Internal Tempo CV
+      description: Internal tempo control when external clock is absent
+  outputs:
+    - id: PulseOut1
+      name: Melody Change Gate
+      description: Short pulse when quantized melody pitch changes
+    - id: CVOut1
+      name: Melody Pitch CV
+      description: Quantized melody pitch output (V/Oct calibrated by firmware mapping)
+    - id: PulseOut2
+      name: Percussion Trigger
+      description: Markov percussion trigger output including ratchets/flams
+    - id: CVOut2
+      name: Percussion Accent CV
+      description: Accent level CV derived from percussion state
+    - id: AudioOut1
+      name: Internal Synth Voice A
+      description: Square-wave synth voice tied to melody chain and percussion gating
+    - id: AudioOut2
+      name: Internal Output B / Dual Melody Voice B
+      description: Unused in primary mode; outputs second synth voice in dual melody mode
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Loop Lock Length / Mutation
+        description: Center is free run; clockwise locks fixed replay lengths, counter-clockwise locks replay with probabilistic per-step mutation
+      x:
+        name: Melody Profile
+        description: Selects one of five melodic transition profiles
+      y:
+        name: Percussion Profile
+        description: Selects one of four percussion transition profiles (or voice B profile in dual melody mode)
+    - when: { z: up }
+      main:
+        name: Base Transpose
+        description: Pre-scale transpose applied to generated melody
+      x:
+        name: Melody Profile
+        description: Selects one of five melodic transition profiles
+      y:
+        name: Percussion Profile
+        description: Selects one of four percussion transition profiles (or voice B profile in dual melody mode)
+    - when: { z: down, gesture: hold }
+      main:
+        name: Scale Select
+        description: Selects quantization scale index while switch is held down
+      x:
+        name: Melody Profile
+        description: Profile selection remains available outside the momentary scale-select action
+      y:
+        name: Percussion Profile
+        description: Profile selection remains available outside the momentary scale-select action
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Left Column Bit 0 / Loop Length Indicator
+          description: Shows melody profile bit 0 during Knob X feedback; participates in scale binary display; used as loop length indicator for 16-beat lock
+        - id: LED1
+          name: Right Column Bit 0
+          description: Shows percussion (or dual voice B) profile bit 0 during Knob Y feedback; participates in scale binary display
+        - id: LED2
+          name: Left Column Bit 1 / Loop Length Indicator
+          description: Shows melody profile bit 1 during Knob X feedback; participates in scale binary display; used as loop length indicator for 8-beat lock
+        - id: LED3
+          name: Right Column Bit 1 / Loop Length Indicator
+          description: Shows percussion (or dual voice B) profile bit 1 during Knob Y feedback; participates in scale binary display; used as loop length indicator for 2-beat lock
+        - id: LED4
+          name: Left Column Bit 2 / Loop Length Indicator
+          description: Shows melody profile bit 2 during Knob X feedback; participates in scale binary display; used as loop length indicator for 4-beat lock
+        - id: LED5
+          name: Right Column Bit 2 / Loop Length Indicator
+          description: Shows percussion (or dual voice B) profile bit 2 during Knob Y feedback; participates in scale binary display; used as loop length indicator for 3-beat lock

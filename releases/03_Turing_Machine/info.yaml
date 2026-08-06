@@ -1,6 +1,113 @@
-Description: Turing Machine with tap tempo clock, 2 x pulse outputs, 4 x CV outputs  
-Language: Arduino-Pico
+draft: true
+Name: Turing Machine
+Description: Turing Machine with tap tempo clock, 2 x pulse outputs, 4 x CV outputs
+Language: C++ (ComputerCard)
 Creator: Tom Whitwell
-Version: 0.1
+Version: 1.5.3
 Status: Working but Simple
 Editor: https://www.musicthing.co.uk/web_config/turing.html
+
+tags:
+  - sequencer
+  - turing-machine
+  - random
+  - clock
+  - cv
+
+manual: |
+  Dual Turing-style random sequencer with tap tempo or external clocking.
+  Pulse In 1 overrides tap tempo as the main clock; Pulse In 2 can clock channel 2 independently.
+  CV In 1 controls divide/multiply on channel 2, CV In 2 applies quantized pitch offset.
+  Audio/CV In 1 can reset sequences; Audio/CV In 2 can CV-switch between the two presets.
+
+panel:
+  inputs:
+    - id: PulseIn1
+      name: External Clock 1
+      description: Replaces tap tempo and drives the main clock
+      type: pulse
+    - id: PulseIn2
+      name: External Clock 2
+      description: Overrides channel 2 diviply clock for independently clocked channel 2
+      type: pulse
+    - id: CVIn1
+      name: Diviply CV
+      description: Positive/negative control for divide-multiply rate on channel 2
+      type: cv
+    - id: CVIn2
+      name: Pitch Offset CV
+      description: Experimental quantized offset applied to both channels
+      type: cv
+    - id: AudioIn1
+      name: Reset
+      description: Rising edge resets all sequence states to step 1
+      type: other
+    - id: AudioIn2
+      name: Preset Select CV
+      description: Experimental CV control of the two-preset mode switch
+      type: cv
+  outputs:
+    - id: PulseOut1
+      name: Channel 1 Pulse
+      description: Clock or Turing-bit pulse behavior depending on pulse mode configuration
+      type: pulse
+    - id: PulseOut2
+      name: Channel 2 Pulse
+      description: Clock or Turing-bit pulse behavior depending on pulse mode configuration
+      type: pulse
+    - id: CVOut1
+      name: Channel 1 Quantized CV
+      description: Quantized pitch CV output for channel 1
+      type: cv
+    - id: CVOut2
+      name: Channel 2 Quantized CV
+      description: Quantized pitch CV output for channel 2
+      type: cv
+    - id: AudioOut1
+      name: Channel 1 DAC CV
+      description: Scaled DAC signal for channel 1; output range configurable in editor
+      type: cv
+    - id: AudioOut2
+      name: Channel 2 DAC CV
+      description: Scaled DAC signal for channel 2; output range configurable in editor
+      type: cv
+
+# certainty: low — knob roles inferred from Rev_1_5_Code UI/MainApp implementation; README focuses on I/O and editor options
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Randomness / Write
+        description: Drives the main Turing machine write behavior for both channels
+      x:
+        name: Loop Length
+        description: Sets channel 1 sequence length; channel 2 length can be offset
+      y:
+        name: Divide/Multiply
+        description: Sets channel 2 divide/multiply clock relationship
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Tap Tempo
+        description: Tap switch sets internal BPM when no external clock is present
+  leds:
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED0
+          name: Channel 1 DAC Level
+        - id: LED1
+          name: Channel 2 DAC Level
+        - id: LED2
+          name: Channel 1 Turing Level
+        - id: LED3
+          name: Channel 2 Turing Level
+        - id: LED4
+          name: Pulse 1 Activity
+        - id: LED5
+          name: Pulse 2 Activity
+
+host:
+  usb:
+    - name: Web editor via MIDI SysEx
+      role: editor
+      description: Browser editor reads/writes settings over USB MIDI SysEx (Chrome recommended)

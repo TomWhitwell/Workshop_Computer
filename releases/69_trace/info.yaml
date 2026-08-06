@@ -1,5 +1,97 @@
+draft: true
+Name: Trace
 Description: Oscillograph stereo oscillator
 Language: C++ (ComputerCard)
 Creator: Ruiyang Wang
 Version: 0.1
 Status: Functional but WIP
+Repository: https://github.com/indiepaleale/Trace-Workshop-Computer
+
+manual: |
+  Oscillograph-focused dual-output oscillator bank for X/Y scope visuals. Main controls
+  pitch (summed with CVIn1). X and Y control oscillator-specific modulation offsets in
+  normal mode; with switch up they become attenuation controls for AudioIn1/AudioIn2
+  modulation depth. Switch down advances oscillator selection, while pulse inputs can
+  cycle bank/index externally.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Modulation Input 1
+      description: Modulates oscillator parameter 1 (Growth/depth-related role depending on active oscillator)
+    - id: AudioIn2
+      name: Modulation Input 2
+      description: Modulates oscillator parameter 2 (Y-parameter role depending on active oscillator)
+    - id: CVIn1
+      name: Pitch Modulation
+      description: Added to Main pitch control
+    - id: PulseIn1
+      name: Next Bank
+      description: Rising edge advances oscillator bank and resets oscillator index to first entry
+    - id: PulseIn2
+      name: Next Oscillator
+      description: Rising edge advances oscillator index within current bank
+  outputs:
+    - id: AudioOut1
+      name: X Channel Audio
+      description: Horizontal channel for oscilloscope X input
+    - id: AudioOut2
+      name: Y Channel Audio
+      description: Vertical channel for oscilloscope Y input
+    - id: PulseOut1
+      name: Switch Advance Trigger
+      description: Short trigger pulse emitted when switch-down gesture changes oscillator
+    - id: PulseOut2
+      name: Oscillator Advance Pulse
+      description: Set high when oscillator is advanced in CycleOscillator routine
+
+# certainty: low — several roles are inferred from source (PulseIn2/PulseOut2 behavior and LED binary mapping) where README is brief or incomplete
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Pitch
+        description: Exponential pitch control summed with CVIn1
+      x:
+        name: Parameter 1 Offset
+        description: Base offset for oscillator modulation parameter 1
+      y:
+        name: Parameter 2 Offset
+        description: Base offset for oscillator modulation parameter 2
+    - when: { z: up }
+      main:
+        name: Pitch
+        description: Exponential pitch control summed with CVIn1
+      x:
+        name: AudioIn1 Attenuation
+        description: Sets attenuation depth for AudioIn1 modulation amount
+      y:
+        name: AudioIn2 Attenuation
+        description: Sets attenuation depth for AudioIn2 modulation amount
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Next Oscillator
+        description: Switch-down change advances to next oscillator and can roll over into next bank
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Bank Bit 0
+          description: Left-column bank indicator bit
+        - id: LED1
+          name: Oscillator Bit 0
+          description: Right-column oscillator-index indicator bit
+        - id: LED2
+          name: Bank Bit 1
+          description: Left-column bank indicator bit
+        - id: LED3
+          name: Oscillator Bit 1
+          description: Right-column oscillator-index indicator bit
+        - id: LED4
+          name: Bank Bit 2
+          description: Left-column bank indicator bit
+        - id: LED5
+          name: Oscillator Bit 2
+          description: Right-column oscillator-index indicator bit

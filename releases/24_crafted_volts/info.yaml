@@ -1,5 +1,98 @@
+draft: true
+Name: Crafted Volts
 Description: Manually set control voltages (CV) with the input knobs and switch. It also attenuverts (attenuates and inverts) incoming voltages.
 Language: Rust (Embassy framework)
 Creator: Brian Dorsey
 Version: (see source repo)
 Status: Released
+Repository: https://codeberg.org/briandorsey/mtmws_cards/src/branch/main/crafted_volts
+
+tags:
+  - utility
+  - cv
+  - attenuverter
+  - voltage-source
+
+manual: |
+  CV utility for generating manual voltages and attenuverting incoming control signals.
+  Main, X, and Y knobs each drive a paired output; patching into corresponding inputs replaces knob value and applies attenuverting.
+  Pulse outputs follow Z switch state as complementary high/low gates.
+  LEDs mirror output voltage levels in the same 2x3 physical layout as output jacks.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio/CV Input A
+      description: Mixed with AudioIn2 when present, then attenuverted by Main knob
+    - id: AudioIn2
+      name: Audio/CV Input B
+      description: Mixed with AudioIn1 when present, then attenuverted by Main knob
+    - id: CVIn1
+      name: CV Input X
+      description: Replaces X knob source and is attenuverted by X position
+    - id: CVIn2
+      name: CV Input Y
+      description: Replaces Y knob source and is attenuverted by Y position
+  outputs:
+    - id: AudioOut1
+      name: Main Voltage Output
+      description: Main knob voltage (or mixed audio input voltage) after attenuverting
+    - id: AudioOut2
+      name: Inverted Main Voltage Output
+      description: Inverted copy of AudioOut1
+    - id: CVOut1
+      name: X Voltage Output
+      description: X knob voltage or attenuverted CVIn1
+    - id: CVOut2
+      name: Y Voltage Output
+      description: Y knob voltage or attenuverted CVIn2
+    - id: PulseOut1
+      name: Z High Gate
+      description: High when Z is momentary or up; low when Z is middle
+    - id: PulseOut2
+      name: Complement Gate
+      description: Inverse gate state of PulseOut1
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Main Attenuverter
+        description: Sets output voltage or scales mixed audio inputs
+      x:
+        name: CV1 Attenuverter
+        description: Sets output voltage or scales CVIn1
+      y:
+        name: CV2 Attenuverter
+        description: Sets output voltage or scales CVIn2
+    - when: { z: up }
+      main:
+        name: Gate High State
+        description: Sets PulseOut1 high and PulseOut2 low
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Momentary Gate High
+        description: Temporarily sets PulseOut1 high and PulseOut2 low
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: AudioOut1 Level
+          description: Brightness follows AudioOut1 voltage
+        - id: LED1
+          name: AudioOut2 Level
+          description: Brightness follows AudioOut2 voltage
+        - id: LED2
+          name: CVOut1 Level
+          description: Brightness follows CVOut1 voltage
+        - id: LED3
+          name: CVOut2 Level
+          description: Brightness follows CVOut2 voltage
+        - id: LED4
+          name: PulseOut1 State
+          description: Lit when PulseOut1 is high
+        - id: LED5
+          name: PulseOut2 State
+          description: Lit when PulseOut2 is high

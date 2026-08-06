@@ -1,5 +1,85 @@
+draft: true
+Name: Cirpy Wavetable
 Description: Wavetable oscillator that using wavetables from Plaits, Braids, and Microwave,
-Language: Circuit Python
-Creator:  '@todbot / Tod Kurt' 
+Language: CircuitPython
+Creator: Tod Kurt (@todbot)
 Version: 0.1
 Status: Functional but WIP
+
+tags:
+  - wavetable
+  - oscillator
+  - circuitpython
+  - lfo
+  - pwm-audio
+
+demo-link: https://youtu.be/Y7sOgAC92XU
+
+manual: |
+  cirpy_wavetable loads WAV wavetables and plays them as a continuously running oscillator.
+  Main sets wavetable position, X sets LFO modulation amount, and Y sets LFO rate.
+  Switch down selects next wavetable file; switch up toggles CV pitch quantization.
+  CV In 1 controls pitch and CV In 2 offsets wavetable position.
+  CV Out 1 mirrors wavetable position and CV Out 2 mirrors LFO modulation signal.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Pitch CV
+      description: Pitch control input mapped to a MIDI-note range (approximate 1V/oct behavior)
+    - id: CVIn2
+      name: Wavetable Position Mod
+      description: Adds bipolar modulation to wavetable position
+  outputs:
+    - id: PulseOut1
+      name: PWM Audio Out A
+      description: Pulse output configured as audio output stream
+    - id: PulseOut2
+      name: PWM Audio Out B
+      description: Pulse output configured as mirrored audio output stream
+    - id: CVOut1
+      name: Wavetable Position CV
+      description: Reflects current wavetable position value
+    - id: CVOut2
+      name: LFO Modulation CV
+      description: Reflects current wavemod LFO value
+
+controls:
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Wavetable Position
+        description: Selects/morphs current wave position within the loaded table
+      x:
+        name: LFO Amount
+        description: Amount of triangle LFO applied to wavetable position
+      y:
+        name: LFO Rate
+        description: Frequency of wavetable modulation LFO
+    - when: { z: down, gesture: momentary }
+      main:
+        name: Next Wavetable
+        description: Loads next WAV file in the wavetable folder
+    - when: { z: up, gesture: momentary }
+      main:
+        name: Quantize Toggle
+        description: Toggles CV In 1 pitch quantization on/off
+  leds:
+    - when: { mode: activity }
+      display: list
+      items:
+        - id: LED0
+          name: LFO Level
+          description: Brightness reflects wavemod LFO signal
+        - id: LED1
+          name: LFO Amount Knob
+          description: Brightness reflects X knob position
+        - id: LED2
+          name: LFO Rate Knob
+          description: Brightness reflects Y knob position
+        - id: LED4
+          name: CV In 1 Level
+          description: Brightness reflects pitch CV input level
+        - id: LED5
+          name: CV In 2 Level
+          description: Brightness reflects wavetable modulation CV input level

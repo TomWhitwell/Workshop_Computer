@@ -1,0 +1,6 @@
+Description: "Dual oversampled wavefolder — triangle / sine / hard-clip folding with bias (even-harmonic) control and CV over fold depth, band-limited via 4x oversampling."
+Name: Origami
+Language: "C++ (ComputerCard)"
+Creator: "Jason Moore"
+Version: "0.1"
+Status: "Working"

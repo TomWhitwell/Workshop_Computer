@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fr330hfr33 Editor</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, sans-serif;
+    --bg:#14110f; --panel:#211b17; --field:#100e0c; --text:#f3e8cf;
+    --muted:#cbb99e; --line:#5c4630; --secondary:#493a2b; --accent:#ffb000; }
+  :root[data-theme="light"] { color-scheme: light; --bg:#f7f1e7;
+    --panel:#fffaf1; --field:#fff; --text:#281d12; --muted:#685744;
+    --line:#b99c75; --secondary:#dfccb0; --accent:#9b6200; }
+  body { margin: 0; background: var(--bg); color: var(--text); }
+  main { width: min(920px, calc(100% - 32px)); margin: 40px auto; }
+  h1 { color: var(--accent); letter-spacing: .04em; margin-bottom: 6px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px; display: grid; gap: 18px; }
+  label { display: grid; gap: 7px; font-weight: 650; }
+  select, input, button { font: inherit; }
+  select, input[type="number"] { background: var(--field); color: var(--text);
+    border: 1px solid var(--line); border-radius: 7px; padding: 10px; }
+  input[type="range"] { accent-color: var(--accent); }
+  .check { grid-template-columns: auto 1fr; align-items: center; }
+  .check input { width: 20px; height: 20px; accent-color: #ffb000; }
+  button { border: 0; border-radius: 8px; padding: 12px 16px; cursor: pointer;
+    background: var(--accent); color: var(--field); font-weight: 800; }
+  button.secondary { background: var(--secondary); color: var(--text); }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .hint, #status { color: var(--muted); line-height: 1.45; }
+  output, th, .page-title { color: var(--accent); }
+  .pattern-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; min-width: 720px; width: 100%; }
+  th, td { border-bottom: 1px solid #493a2b; padding: 7px 5px;
+    text-align: center; }
+  th { color: #ffca58; font-size: .86rem; }
+  td select, td input[type="number"] { padding: 6px; width: 84px; }
+  td input[type="checkbox"] { width: 19px; height: 19px;
+    accent-color: #ffb000; }
+  .lane-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+  .lane-actions button { padding: 8px 10px; font-size: .86rem; }
+  .page-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .page-tabs button { background: #493a2b; color: #fff3d5; }
+  .page-tabs button.active { background: #ffb000; color: #1b1307; }
+  .page-title { color: #ffca58; margin: 2px 0 0; }
+  body[data-page="sound"] .sequencer-page,
+  body[data-page="sequencer"] .sound-page { display: none; }
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); }
+  pre { overflow:auto; background:var(--field); color:var(--text); padding:10px; border-radius:7px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fr330hfr33</h1>
+  <p class="hint">Use a USB-C data cable. Close Serial Monitor and other MIDI
+  apps first. Chrome or Edge is required; iOS is not supported.</p>
+  <section class="panel">
+    <div class="actions">
+      <button id="connect" class="secondary">Connect MIDI</button>
+      <button id="apply">Apply</button>
+      <button id="theme" type="button" class="secondary">Light theme</button>
+    </div>
+    <div id="status">Not connected. Choose “Fr330hfr33” in the browser dialog.</div>
+    <details><summary>Developer diagnostics</summary>
+      <pre id="diagnostics">No MIDI diagnostics yet.</pre>
+      <button id="clearDiagnostics" type="button" class="secondary">Clear diagnostics</button>
+    </details>
+    <nav class="page-tabs" aria-label="Editor page">
+      <button id="showSound" type="button" class="active">Sound</button>
+      <button id="showSequencer" type="button">Sequencer</button>
+    </nav>
+    <h2 class="page-title sound-page">Sound</h2>
+    <h2 class="page-title sequencer-page">Sequencer</h2>
+    <label class="sequencer-page">Scale
+      <select id="scale">
+        <option value="0">Major pentatonic</option>
+        <option value="1">Minor pentatonic</option>
+        <option value="2">Ionian (major)</option>
+        <option value="3">Lydian</option>
+        <option value="4">Melodic minor</option>
+        <option value="5">Chromatic</option>
+      </select>
+    </label>
+    <label class="sound-page">Oscillator waveform
+      <select id="waveform">
+        <option value="0">Saw</option>
+        <option value="1">Square</option>
+      </select>
+    </label>
+    <label class="sound-page">Diode filter slope
+      <select id="filterPoles">
+        <option value="4">24 dB/octave — 4 pole</option>
+        <option value="3">18 dB/octave — 3 pole</option>
+      </select>
+    </label>
+    <label class="sound-page">Filtered voice distortion
+      <select id="distortion">
+        <option value="0">Off</option>
+        <option value="1">RAT-style hard clipping</option>
+        <option value="2">Tube Screamer-style soft clipping</option>
+      </select>
+    </label>
+    <label class="sound-page">Distortion / overdrive amount:
+      <output id="driveOut">50%</output>
+      <input id="drive" type="range" min="0" max="100" value="50">
+    </label>
+    <label class="sound-page">Distortion tone:
+      <output id="toneOut">50%</output>
+      <input id="tone" type="range" min="0" max="100" value="50">
+    </label>
+    <label class="sequencer-page">Accent probability: <output id="accentOut">32%</output>
+      <input id="accent" type="range" min="0" max="100" value="32">
+    </label>
+    <label class="sequencer-page">Sequencer range
+      <select id="range">
+        <option value="1">1 octave</option>
+        <option value="2" selected>2 octaves</option>
+        <option value="3">3 octaves</option>
+        <option value="4">4 octaves</option>
+      </select>
+    </label>
+    <label class="sequencer-page">Root note
+      <select id="root">
+        <option value="0">C</option>
+        <option value="1">C♯ / D♭</option>
+        <option value="2">D</option>
+        <option value="3">D♯ / E♭</option>
+        <option value="4">E</option>
+        <option value="5">F</option>
+        <option value="6">F♯ / G♭</option>
+        <option value="7">G</option>
+        <option value="8">G♯ / A♭</option>
+        <option value="9">A</option>
+        <option value="10">A♯ / B♭</option>
+        <option value="11">B</option>
+      </select>
+    </label>
+    <label class="sequencer-page">Base octave
+      <select id="octave">
+        <option value="24">C1 — MIDI 24</option>
+        <option value="36" selected>C2 — MIDI 36</option>
+        <option value="48">C3 — MIDI 48</option>
+        <option value="60">C4 — MIDI 60</option>
+      </select>
+    </label>
+    <label class="sequencer-page">Gate
+      <select id="gate">
+        <option value="20">Pluck</option>
+        <option value="40">Short</option>
+        <option value="65" selected>Medium</option>
+        <option value="90">Long</option>
+      </select>
+    </label>
+    <label class="sequencer-page">Legato
+      <select id="glide">
+        <option value="0">None</option>
+        <option value="20">Low</option>
+        <option value="45" selected>Medium</option>
+        <option value="75">High</option>
+      </select>
+    </label>
+    <label class="sequencer-page">Acidness: <output id="acidnessOut">50%</output>
+      <input id="acidness" type="range" min="0" max="100" value="50">
+    </label>
+    <label class="sound-page">MIDI input channel
+      <select id="channel">
+        <option value="0">1</option>
+        <option value="1">2</option>
+        <option value="2">3</option>
+        <option value="3">4</option>
+        <option value="4">5</option>
+        <option value="5">6</option>
+        <option value="6">7</option>
+        <option value="7">8</option>
+        <option value="8">9</option>
+        <option value="9">10</option>
+        <option value="10">11</option>
+        <option value="11">12</option>
+        <option value="12">13</option>
+        <option value="13">14</option>
+        <option value="14">15</option>
+        <option value="15">16</option>
+      </select>
+    </label>
+    <label class="sequencer-page">Internal tempo
+      <input id="tempo" type="number" min="30" max="240" value="120">
+    </label>
+    <label class="sequencer-page">Swing: <output id="swingOut">1.00:1</output>
+      <input id="swing" type="range" min="0" max="100" value="0">
+    </label>
+    <label class="check sequencer-page">
+      <input id="midiClock" type="checkbox">
+      <span>Synchronize sequencer to MIDI clock</span>
+    </label>
+    <label class="check sequencer-page">
+      <input id="patternEnabled" type="checkbox">
+      <span>Use editable 16-step pattern instead of the generator</span>
+    </label>
+    <label class="sequencer-page">Pattern length
+      <input id="patternLength" type="number" min="1" max="16" value="16">
+    </label>
+    <label class="sequencer-page">Initial step
+      <input id="patternInitialStep" type="number" min="1" max="16" value="1">
+    </label>
+    <label class="check sequencer-page">
+      <input id="patternReverse" type="checkbox">
+      <span>Reverse playback (unchecked = forward)</span>
+    </label>
+    <label class="check sequencer-page">
+      <input id="patternPendulum" type="checkbox">
+      <span>Pendulum playback</span>
+    </label>
+    <label class="sequencer-page">Pattern slot
+      <select id="patternSlot">
+        <option value="0">Slot 1</option>
+        <option value="1">Slot 2</option>
+        <option value="2">Slot 3</option>
+        <option value="3">Slot 4</option>
+      </select>
+    </label>
+    <div class="actions sequencer-page">
+      <button id="loadSlot" type="button" class="secondary">Load slot</button>
+      <button id="saveSlot" type="button" class="secondary">Save slot</button>
+    </div>
+    <div class="sequencer-page">
+      <strong>Separate step lanes</strong>
+      <p class="hint">Note is chromatic and transposed by Root; Mute creates a
+      rest. Octave is relative to Base Octave. Tie keeps this step’s gate open
+      into the next; a changed note slides and a repeated note becomes a true
+      tie.</p>
+      <div class="lane-actions">
+        <button id="randomNotes" type="button" class="secondary">Random notes</button>
+        <button id="randomAccents" type="button" class="secondary">Random accents</button>
+        <button id="randomGates" type="button" class="secondary">Random gates</button>
+        <button id="randomOctaves" type="button" class="secondary">Random octaves</button>
+        <button id="randomTies" type="button" class="secondary">Random ties</button>
+        <button id="mutatePattern" type="button" class="secondary">Mutate pattern</button>
+        <button id="acidifyPattern" type="button">Acidify pattern</button>
+      </div>
+    </div>
+    <div class="pattern-wrap sequencer-page">
+      <table>
+        <thead>
+          <tr><th>Step</th><th>Note</th><th>Octave</th><th>Accent</th>
+            <th>Gate</th><th>Tie →</th></tr>
+        </thead>
+        <tbody id="patternRows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script>
+let outputPort = null;
+let inputPort = null;
+let midiAccess = null;
+let diagnosticLog = [];
+let lastSendAt = 0;
+const $ = id => document.getElementById(id);
+const logDiagnostic = message => {
+  diagnosticLog.push(`[${new Date().toLocaleTimeString()}] ${message}`);
+  diagnosticLog = diagnosticLog.slice(-30);
+  $("diagnostics").textContent = diagnosticLog.join("\n") || "No MIDI diagnostics yet.";
+};
+const portsToArray = collection => {
+  if (!collection) return [];
+  try {
+    if (typeof collection.forEach === "function") {
+      const ports = []; collection.forEach(port => ports.push(port));
+      if (ports.length) return ports;
+    }
+    if (typeof collection.values === "function") return Array.from(collection.values());
+    if (typeof collection[Symbol.iterator] === "function") return Array.from(collection);
+    if (typeof collection.keys === "function" && typeof collection.get === "function")
+      return Array.from(collection.keys(), key => collection.get(key)).filter(Boolean);
+  } catch (error) { logDiagnostic(`Port enumeration failed: ${error.message}`); }
+  return [];
+};
+const safeSend = (message, description) => {
+  if (!outputPort) { $("status").textContent = "No MIDI output found. Connect the card and try again."; return false; }
+  try {
+    const sendAt = Math.max(performance.now(), lastSendAt + 50);
+    outputPort.send(message, sendAt);
+    lastSendAt = sendAt;
+    logDiagnostic(`Queued ${description} (${message.length} bytes).`);
+    return true;
+  }
+  catch (error) { $("status").textContent = `Could not send ${description}. Check the cable and reconnect.`;
+    logDiagnostic(`Send failed (${description}): ${error.message}`); return false; }
+};
+const updatePorts = () => {
+  const outputs = portsToArray(midiAccess?.outputs);
+  const inputs = portsToArray(midiAccess?.inputs);
+  outputPort = outputs.find(p => /Fr330hfr33/i.test(p.name || "")) || outputs[0] || null;
+  if (inputPort) inputPort.onmidimessage = null;
+  inputPort = inputs.find(p => /Fr330hfr33/i.test(p.name || "")) || inputs[0] || null;
+  if (inputPort) inputPort.onmidimessage = handleMidiMessage;
+  logDiagnostic(`Inputs: ${inputs.map(p => p.name || p.id).join(", ") || "none"}; outputs: ${outputs.map(p => p.name || p.id).join(", ") || "none"}.`);
+  if (inputPort && outputPort) $("status").textContent = `Connected to ${outputPort.name}; input and output are ready.`;
+  else if (inputPort) $("status").textContent = "MIDI input found, but no output is available.";
+  else if (outputPort) $("status").textContent = `Connected to ${outputPort.name}. Reading slot updates is unavailable.`;
+  else $("status").textContent = "No MIDI device found. Check the data cable and reconnect the card.";
+};
+const showPage = page => {
+  document.body.dataset.page = page;
+  $("showSound").classList.toggle("active", page === "sound");
+  $("showSequencer").classList.toggle("active", page === "sequencer");
+  localStorage.setItem("fr330hfr33-editor-page", page);
+};
+$("showSound").addEventListener("click", () => showPage("sound"));
+$("showSequencer").addEventListener("click", () => showPage("sequencer"));
+showPage(localStorage.getItem("fr330hfr33-editor-page") === "sequencer"
+  ? "sequencer" : "sound");
+const noteNames = ["C", "C♯", "D", "D♯", "E", "F",
+  "F♯", "G", "G♯", "A", "A♯", "B", "Mute"];
+const gateChoices = [
+  { value: 20, label: "Pluck" },
+  { value: 40, label: "Short" },
+  { value: 65, label: "Medium" },
+  { value: 90, label: "Long" }
+];
+const nearestGate = value => gateChoices.reduce((best, choice) =>
+  Math.abs(choice.value - value) < Math.abs(best.value - value)
+    ? choice : best).value;
+const scaleNotes = [
+  [0, 2, 4, 7, 9],
+  [0, 3, 5, 7, 10],
+  [0, 2, 4, 5, 7, 9, 11],
+  [0, 2, 4, 6, 7, 9, 11],
+  [0, 2, 3, 5, 7, 9, 11],
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+];
+const defaultNotes = [0, 0, 7, 0, 3, 0, 10, 0, 0, 0, 7, 3, 0, 10, 7, 3];
+const defaultOctaves = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0];
+const defaultAccents = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0];
+const defaultGates = [65, 40, 65, 20, 65, 40, 65, 20,
+  65, 40, 65, 20, 65, 40, 65, 20];
+
+for (let step = 0; step < 16; step++) {
+  const row = document.createElement("tr");
+  row.innerHTML = `
+    <td>${step + 1}</td>
+    <td><select class="step-note">${noteNames.map((name, value) =>
+      `<option value="${value}"${value === defaultNotes[step] ? " selected" : ""}>${name}</option>`
+    ).join("")}</select></td>
+    <td><select class="step-octave">${[0, 1, 2, 3].map(value =>
+      `<option value="${value}"${value === defaultOctaves[step] ? " selected" : ""}>+${value}</option>`
+    ).join("")}</select></td>
+    <td><input class="step-accent" type="checkbox"${defaultAccents[step] ? " checked" : ""}></td>
+    <td><select class="step-gate">${gateChoices.map(choice =>
+      `<option value="${choice.value}"${choice.value === defaultGates[step] ? " selected" : ""}>${choice.label}</option>`
+    ).join("")}</select></td>
+    <td><input class="step-tie" type="checkbox"></td>`;
+  $("patternRows").appendChild(row);
+}
+
+const lane = className => [...document.querySelectorAll(`.${className}`)];
+const savePatternUiSnapshot = slot => {
+  localStorage.setItem(slotKey(slot), JSON.stringify(currentPatternUi()));
+};
+const handlePatternSysex = data => {
+  if (data.length < 94 ||
+      data[0] !== 0xF0 || data[1] !== 0x7D ||
+      data[2] !== 0x46 || data[3] !== 0x33 ||
+      data[4] !== 0x30 || data[5] !== 0x33 ||
+      data[6] !== 0x02 || data[data.length - 1] !== 0xF7)
+    return false;
+
+  const slot = Math.max(0, Math.min(3, Number(data[92]) || 0));
+  $("patternEnabled").checked = data[7] !== 0;
+  $("patternLength").value = Math.max(1, Math.min(16, Number(data[8]) || 16));
+  $("patternInitialStep").value = Math.max(1,
+    Math.min(16, (Number(data[89]) || 0) + 1));
+  $("patternReverse").checked = data[90] !== 0;
+  $("patternPendulum").checked = data[91] !== 0;
+  $("patternSlot").value = String(slot);
+
+  lane("step-note").forEach((control, i) =>
+    control.value = Math.max(0, Math.min(12, Number(data[9 + i * 5]) || 0)));
+  lane("step-octave").forEach((control, i) =>
+    control.value = Math.max(0, Math.min(3, Number(data[10 + i * 5]) || 0)));
+  lane("step-accent").forEach((control, i) =>
+    control.checked = data[11 + i * 5] !== 0);
+  lane("step-gate").forEach((control, i) =>
+    control.value = nearestGate(Number(data[12 + i * 5]) || defaultGates[i]));
+  lane("step-tie").forEach((control, i) =>
+    control.checked = data[13 + i * 5] !== 0);
+
+  savePatternUiSnapshot(slot);
+  $("status").textContent = `Loaded pattern slot ${slot + 1} from card.`;
+  return true;
+};
+const handleMidiMessage = event => {
+  handlePatternSysex([...event.data]);
+};
+const randomInt = maximum => Math.floor(Math.random() * maximum);
+$("randomNotes").addEventListener("click", () => {
+  const selectedScale = scaleNotes[Number($("scale").value)] || scaleNotes[0];
+  let previous = -1;
+  lane("step-note").forEach(control => {
+    let note = selectedScale[randomInt(selectedScale.length)];
+    if (selectedScale.length > 1 && note === previous)
+      note = selectedScale[(selectedScale.indexOf(note) + 1 +
+        randomInt(selectedScale.length - 1)) % selectedScale.length];
+    control.value = note;
+    previous = note;
+  });
+});
+$("randomAccents").addEventListener("click", () =>
+  lane("step-accent").forEach(control => control.checked = Math.random() < .3));
+$("randomGates").addEventListener("click", () =>
+  lane("step-gate").forEach(control =>
+    control.value = gateChoices[randomInt(gateChoices.length)].value));
+$("randomOctaves").addEventListener("click", () =>
+  lane("step-octave").forEach(control => control.value =
+    Math.random() < .8 ? 0 : 1 + randomInt(2)));
+$("randomTies").addEventListener("click", () =>
+  lane("step-tie").forEach(control => control.checked = Math.random() < .3));
+$("mutatePattern").addEventListener("click", () => {
+  const length = Math.max(1, Math.min(16,
+    Number($("patternLength").value) || 16));
+  const selectedScale = scaleNotes[Number($("scale").value)] || scaleNotes[0];
+  const notes = lane("step-note");
+  const octaves = lane("step-octave");
+  const accents = lane("step-accent");
+  const gates = lane("step-gate");
+  const ties = lane("step-tie");
+  const changedSteps = new Set();
+  const changes = 1 + randomInt(3);
+
+  while (changedSteps.size < changes)
+    changedSteps.add(randomInt(length));
+
+  changedSteps.forEach(step => {
+    const mutation = randomInt(10);
+    if (mutation < 5) {
+      const current = Number(notes[step].value);
+      if (current === 12) {
+        accents[step].checked = !accents[step].checked;
+      } else {
+        const alternatives = selectedScale.filter(note => note !== current);
+        if (alternatives.length)
+          notes[step].value = alternatives[randomInt(alternatives.length)];
+      }
+    } else if (mutation < 7) {
+      accents[step].checked = !accents[step].checked;
+    } else if (mutation === 7) {
+      const alternatives = gateChoices.filter(
+        choice => choice.value !== Number(gates[step].value));
+      gates[step].value =
+        alternatives[randomInt(alternatives.length)].value;
+    } else if (mutation === 8) {
+      octaves[step].value = Number(octaves[step].value) === 0 ? 1 : 0;
+    } else {
+      ties[step].checked = !ties[step].checked;
+    }
+  });
+  $("status").textContent =
+    `Mutated ${changes} step${changes === 1 ? "" : "s"}. Press Apply or Save Slot.`;
+});
+$("acidifyPattern").addEventListener("click", () => {
+  const acid = Number($("acidness").value) / 100;
+  const selectedScale = scaleNotes[Number($("scale").value)] || scaleNotes[0];
+  const notes = lane("step-note");
+  const octaves = lane("step-octave");
+  const accents = lane("step-accent");
+  const gates = lane("step-gate");
+  const ties = lane("step-tie");
+  let previous = 0;
+  notes.forEach((control, step) => {
+    const rootChance = .72 - acid * .55;
+    let note = Math.random() < rootChance
+      ? 0
+      : selectedScale[randomInt(selectedScale.length)];
+    if (acid > .55 && Math.random() < acid * .25) {
+      const edgy = selectedScale.filter(value =>
+        Math.abs(value - previous) >= 3);
+      if (edgy.length)
+        note = edgy[randomInt(edgy.length)];
+    }
+    control.value = note;
+    octaves[step].value =
+      Math.random() < acid * .22 ? 1 + randomInt(2) : 0;
+    accents[step].checked =
+      Math.random() < .08 + acid * .55;
+    gates[step].value = nearestGate(
+      65 - acid * 35 + Math.random() * (15 + acid * 20));
+    ties[step].checked =
+      Math.random() < .03 + acid * .52;
+    previous = note;
+  });
+  $("status").textContent =
+    "Pattern acidified. Press Apply or Save Slot.";
+});
+
+const slotKey = slot => `fr330hfr33-pattern-slot-${slot}`;
+const currentPatternUi = () => ({
+  enabled: $("patternEnabled").checked,
+  length: Number($("patternLength").value),
+  initialStep: Number($("patternInitialStep").value),
+  reverse: $("patternReverse").checked,
+  pendulum: $("patternPendulum").checked,
+  notes: lane("step-note").map(control => Number(control.value)),
+  octaves: lane("step-octave").map(control => Number(control.value)),
+  accents: lane("step-accent").map(control => control.checked),
+  gates: lane("step-gate").map(control => Number(control.value)),
+  ties: lane("step-tie").map(control => control.checked)
+});
+const restorePatternUi = pattern => {
+  if (!pattern) return;
+  $("patternEnabled").checked = !!pattern.enabled;
+  $("patternLength").value = pattern.length || 16;
+  $("patternInitialStep").value = pattern.initialStep || 1;
+  $("patternReverse").checked = !!pattern.reverse;
+  $("patternPendulum").checked = !!pattern.pendulum;
+  lane("step-note").forEach((control, i) =>
+    control.value = pattern.notes?.[i] ?? defaultNotes[i]);
+  lane("step-octave").forEach((control, i) =>
+    control.value = pattern.octaves?.[i] ?? defaultOctaves[i]);
+  lane("step-accent").forEach((control, i) =>
+    control.checked = pattern.accents?.[i] ?? !!defaultAccents[i]);
+  lane("step-gate").forEach((control, i) =>
+    control.value = nearestGate(pattern.gates?.[i] ?? defaultGates[i]));
+  lane("step-tie").forEach((control, i) =>
+    control.checked = pattern.ties?.[i] ?? false);
+};
+$("accent").addEventListener("input", () =>
+  $("accentOut").value = `${$("accent").value}%`);
+$("acidness").addEventListener("input", () =>
+  $("acidnessOut").value = `${$("acidness").value}%`);
+$("swing").addEventListener("input", () => {
+  const amount = Number($("swing").value) / 300;
+  $("swingOut").value = `${((1 + amount) / (1 - amount)).toFixed(2)}:1`;
+});
+$("drive").addEventListener("input", () =>
+  $("driveOut").value = `${$("drive").value}%`);
+$("tone").addEventListener("input", () =>
+  $("toneOut").value = `${$("tone").value}%`);
+
+$("connect").addEventListener("click", async () => {
+  if (!navigator.requestMIDIAccess) { $("status").textContent = "Web MIDI is unavailable. Use desktop Chrome or Edge."; return; }
+  if (!window.isSecureContext) { $("status").textContent = "Web MIDI requires HTTPS (or localhost)."; return; }
+  try {
+    midiAccess = await navigator.requestMIDIAccess({sysex: true});
+    midiAccess.onstatechange = updatePorts;
+    updatePorts();
+  } catch (error) {
+    $("status").textContent = /permission|not granted/i.test(error.message || "")
+      ? "MIDI permission was denied. Allow MIDI and SysEx access, then try again."
+      : `Could not connect to MIDI: ${error.message || "unknown browser error"}`;
+    logDiagnostic(`Connection failed: ${error.name || "Error"}: ${error.message || "unknown"}`);
+  }
+});
+
+$("loadSlot").addEventListener("click", () => {
+  if (!outputPort) {
+    $("status").textContent = "Connect MIDI first.";
+    return;
+  }
+  const slot = Number($("patternSlot").value);
+  if (!safeSend([
+    0xF0, 0x7D, 0x46, 0x33, 0x30, 0x33, 0x03, slot, 0xF7
+  ], "slot load request")) return;
+  $("status").textContent = inputPort
+    ? `Loading pattern slot ${slot + 1} from card...`
+    : `Loaded pattern slot ${slot + 1}. Reconnect if the page does not update.`;
+});
+
+$("saveSlot").addEventListener("click", () => {
+  if (!outputPort) {
+    $("status").textContent = "Connect MIDI first.";
+    return;
+  }
+  const slot = Number($("patternSlot").value);
+  savePatternUiSnapshot(slot);
+  $("apply").click();
+  if (!safeSend([
+    0xF0, 0x7D, 0x46, 0x33, 0x30, 0x33, 0x04, slot, 0xF7
+  ], "slot save request")) return;
+  $("status").textContent =
+    `Saved pattern slot ${slot + 1} to card flash.`;
+});
+
+$("apply").addEventListener("click", () => {
+  if (!outputPort) {
+    $("status").textContent = "Connect MIDI first.";
+    return;
+  }
+  const tempo = Math.max(30, Math.min(240, Number($("tempo").value) || 120));
+  const message = [
+    0xF0, 0x7D, 0x46, 0x33, 0x30, 0x33, 0x01,
+    Number($("scale").value),
+    Number($("accent").value),
+    Number($("range").value),
+    tempo & 0x7F, (tempo >> 7) & 0x7F,
+    Number($("root").value),
+    Number($("gate").value),
+    Number($("glide").value),
+    Number($("channel").value),
+    $("midiClock").checked ? 1 : 0,
+    Number($("octave").value),
+    Number($("waveform").value),
+    Number($("distortion").value),
+    Number($("drive").value),
+    Number($("tone").value),
+    Number($("filterPoles").value),
+    Number($("acidness").value),
+    Number($("swing").value),
+    0xF7
+  ];
+  if (!safeSend(message, "sound settings")) return;
+
+  const pattern = [
+    0xF0, 0x7D, 0x46, 0x33, 0x30, 0x33, 0x02,
+    $("patternEnabled").checked ? 1 : 0,
+    Math.max(1, Math.min(16, Number($("patternLength").value) || 16))
+  ];
+  const notes = lane("step-note");
+  const octaves = lane("step-octave");
+  const accents = lane("step-accent");
+  const gates = lane("step-gate");
+  const ties = lane("step-tie");
+  for (let step = 0; step < 16; step++) {
+    pattern.push(
+      Number(notes[step].value),
+      Number(octaves[step].value),
+      accents[step].checked ? 1 : 0,
+      Math.max(10, Math.min(95, Number(gates[step].value) || 65)),
+      ties[step].checked ? 1 : 0
+    );
+  }
+  pattern.push(
+    Math.max(0, Math.min(15,
+      (Number($("patternInitialStep").value) || 1) - 1)),
+    $("patternReverse").checked ? 1 : 0,
+    $("patternPendulum").checked ? 1 : 0,
+    Number($("patternSlot").value)
+  );
+  pattern.push(0xF7);
+  if (!safeSend(pattern, "pattern settings")) return;
+  $("status").textContent =
+    `Applied settings and ${$("patternEnabled").checked ? "editable pattern" : "generator mode"}.`;
+});
+$("clearDiagnostics").addEventListener("click", () => { diagnosticLog = []; $("diagnostics").textContent = "No MIDI diagnostics yet."; });
+const savedTheme = localStorage.getItem("fr330hfr33-theme");
+document.documentElement.dataset.theme = savedTheme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+const updateThemeLabel = () => $("theme").textContent = document.documentElement.dataset.theme === "dark" ? "Light theme" : "Dark theme";
+updateThemeLabel();
+$("theme").addEventListener("click", () => { const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = theme; localStorage.setItem("fr330hfr33-theme", theme); updateThemeLabel(); });
+</script>
+</body>
+</html>

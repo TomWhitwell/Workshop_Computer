@@ -1,6 +1,87 @@
-Description: A scriptable, live-codable, USB-serial-to-CV device implementing monome crow's protocol
+draft: false
+Name: Blackbird
+Description: "A scriptable, live-codable, USB-serial-to-CV device implementing monome crow's protocol"
 Language: Pico SDK + Lua
 Creator: Dune Desormeaux
 Version: 1.1
 Status: Released
+License: GPLv3 or later
 Editor: https://dessertplanet.github.io/web-druid/
+demo-link: https://youtu.be/V9HAspnpEWU
+
+manual: |
+  Blackbird runs crow-compatible Lua scripts over USB serial and can also store scripts on card flash.
+  Panel control behavior is script-defined: Lua code reads `bb.knob.*`, `bb.switch.position`, and inputs,
+  then decides how outputs respond. LEDs always reflect positive output voltages on the six outputs.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: input[1]
+      description: Script-readable CV input mapped to crow input[1]
+    - id: CVIn2
+      name: input[2]
+      description: Script-readable CV input mapped to crow input[2]
+    - id: AudioIn1
+      name: bb.audioin[1]
+      description: Audio input query source for Lua scripts
+    - id: AudioIn2
+      name: bb.audioin[2]
+      description: Audio input query source for Lua scripts
+    - id: PulseIn1
+      name: bb.pulsein[1]
+      description: Digital input with change/clock detection for Lua callbacks
+    - id: PulseIn2
+      name: bb.pulsein[2]
+      description: Digital input with change/clock detection for Lua callbacks
+  outputs:
+    - id: CVOut1
+      name: output[1]
+      description: Calibrated CV output under script control
+    - id: CVOut2
+      name: output[2]
+      description: Calibrated CV output under script control
+    - id: AudioOut1
+      name: output[3]
+      description: Uncalibrated CV/audio output under script control
+    - id: AudioOut2
+      name: output[4]
+      description: Uncalibrated CV/audio output under script control
+    - id: PulseOut1
+      name: bb.pulseout[1]
+      description: Digital pulse output for Lua-triggered actions
+    - id: PulseOut2
+      name: bb.pulseout[2]
+      description: Digital pulse output for Lua-triggered actions
+
+controls:
+  switch:
+    up:
+      name: position = up
+      description: Three-position switch state exposed to Lua; script decides response
+    middle:
+      name: position = middle
+      description: Three-position switch state exposed to Lua; script decides response
+    down:
+      name: position = down
+      description: Three-position switch state exposed to Lua; script decides response
+  knobs:
+    - when: { z: any }
+      main:
+        name: bb.knob.main
+        description: Normalized analog knob value exposed to Lua; behavior depends on loaded script
+      x:
+        name: bb.knob.x
+        description: Normalized analog knob value exposed to Lua; behavior depends on loaded script
+      y:
+        name: bb.knob.y
+        description: Normalized analog knob value exposed to Lua; behavior depends on loaded script
+
+host:
+  usb:
+    - name: crow-compatible serial host
+      role: serial
+      description: USB serial protocol compatible with crow hosts (druid, norns, Max/MSP, pyserial)
+    - name: Web Druid editor
+      role: editor
+      description: Browser editor for composing and sending Lua to Blackbird over USB

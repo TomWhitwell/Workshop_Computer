@@ -1,0 +1,119 @@
+draft: false
+Name: MLRws
+Description: "A remix of monome's classic MLR sample cutting platform (grid controller encouraged but optional). Diagrams here are for Gridless mode."
+Language: Pico SDK
+Creator: Dune Desormeaux
+Version: 1.1.5
+Status: Released
+License: GPL-3.0
+Editor: https://dessertplanet.github.io/MLRws-web/
+demo-link: https://youtu.be/fhHJykM1GWk
+
+tags:
+  - sampler
+  - looper
+  - performance
+  - usb-host
+  - grid-controller
+
+manual: |
+  MLRws is a six-track sample-cutting instrument with grid and gridless workflows. It supports on-card
+  sample storage, recording/playback, and USB grid interaction. In gridless mode, Main/X/Y plus switch
+  manage track selection, level/speed/start-position/radiate behavior, while pulse/CV I/O provides
+  reset/clocking and CV envelope/pitch triggers.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio Input 1
+      description: Recording source / modulation source depending on mode
+    - id: AudioIn2
+      name: Audio Input 2
+      description: Secondary recording source / speed modulation depending on mode
+    - id: CVIn1
+      name: X Modulation CV
+      description: Modulates X-layer behavior in gridless control paths
+    - id: CVIn2
+      name: Y Modulation CV
+      description: Modulates Y-layer behavior in gridless control paths
+    - id: PulseIn1
+      name: Reset / Cut Trigger
+      description: Rising edge triggers reset/cut actions in gridless mode
+    - id: PulseIn2
+      name: Clock / Advance Trigger
+      description: Rising edge advances track/turing clock actions in gridless mode
+  outputs:
+    - id: AudioOut1
+      name: Stereo Left Mix
+      description: Main mixed output bus L
+    - id: AudioOut2
+      name: Stereo Right Mix
+      description: Main mixed output bus R
+    # certainty: low — CV/pulse output role details inferred from main.cpp
+    - id: CVOut1
+      name: Cut/Turing Pitch CV
+      description: Emits quantized note CV tied to cut or turing events
+    - id: CVOut2
+      name: ASR Envelope CV
+      description: Attack/decay CV envelope output
+    - id: PulseOut1
+      name: Cut/Wrap Trigger
+      description: Trigger pulse on cut/wrap events
+    - id: PulseOut2
+      name: Envelope-End Trigger
+      description: Trigger pulse when CV envelope reaches end
+
+controls:
+  switch:
+    up:
+      name: Track Mode
+      description: Locks the active track; knobs set that track's speed/direction, level slot, and start position
+    middle:
+      name: Global Mode
+      description: Knobs set global params — track select / turing probability, playback gain, and radiate amount
+    down:
+      name: Reset / Record Arm
+      description: Tap resets the active track to its start position; hold two seconds to arm recording; Y sets CV2 envelope attack
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Track Select / Turing Probability
+        description: Selects active track in gridless mode and drives turing probability state
+      x:
+        name: Mix Gain
+        description: Controls global playback gain layer
+      y:
+        name: Radiate
+        description: Controls global radiate amount layer
+    - when: { z: up }
+      main:
+        name: Selected Track Speed / Direction
+        description: Sets selected track speed and direction around center
+      x:
+        name: Selected Track Level Slot
+        description: Sets per-track volume slot
+      y:
+        name: Selected Track Start Position
+        description: Sets per-track cut start column
+    - when: { z: down }
+      y:
+        name: CV2 Envelope Attack
+        description: Sets CV2 envelope attack while in down state
+      main:
+        name: Record-Hold / Reset Gesture
+        description: Used for record/hold/reset gestures in gridless mode
+      x:
+        name: Input Gain
+        description: Sets recording input gain for active source
+
+host:
+  usb:
+    - name: Monome grid (USB host)
+      role: controller
+      description: Direct grid controller input when device is connected at power-on
+    - name: Grid proxy (USB device workflow)
+      role: controller
+      description: Alternate grid workflow via external host/proxy bridge
+    - name: MLRws Sample Manager
+      role: editor
+      description: External web app for encoding/uploading samples to card flash

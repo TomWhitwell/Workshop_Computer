@@ -1,0 +1,87 @@
+draft: true
+Name: Glitch
+Description: Clock-synced beat-repeater with ratcheting, reversal and audio degradation
+Language: C++ (RP2040 Pico SDK)
+Creator: Andy Jenkinson (uglifruit)
+Version: 1.4.0
+Status: Released
+License: MIT
+Repository: https://github.com/uglifruit/Workshop_Computer/tree/main/Demonstrations%2BHelloWorlds/PicoSDK/ComputerCard/examples/glitch
+
+tags:
+  - beat-repeat
+  - stutter
+  - glitch
+  - clocked
+  - lo-fi
+
+manual: |
+  Glitch records into a shared 2.33-second circular buffer and runs in two power-on modes. Glitch mode loops
+  ratcheted sub-slices with optional reverse, decimation, and bitcrush; Stutter mode slices beats, shuffles order,
+  and can repeat slices before advancing. Pulse In 1 sets beat timing, CV In 1 freezes recording while playback
+  continues, and Audio Out 2 stays dry for parallel routing.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Main Audio Input
+      description: Source audio for buffering and processing
+    - id: PulseIn1
+      name: Clock Input
+      description: Rising edge defines beat length (max 2.33 seconds)
+    - id: PulseIn2
+      name: External Gate
+      description: Gate control for switch-middle trigger behavior in both modes
+    - id: CVIn1
+      name: Freeze CV
+      description: Above approximately 0V stops recording and loops frozen buffer content
+    - id: CVIn2
+      name: Mod CV
+      description: Bipolar modulation added to performance knobs (mode-dependent mapping)
+  outputs:
+    - id: AudioOut1
+      name: Processed Output
+      description: Glitched/stuttered output or pass-through when effect inactive
+    - id: AudioOut2
+      name: Dry Output
+      description: Always dry pass-through of Audio In 1
+    - id: PulseOut1
+      name: Slice Clock
+      description: Pulse at each ratchet/slice boundary
+    - id: PulseOut2
+      name: Clock Mirror
+      description: Direct mirror of Pulse In 1
+    - id: CVOut1
+      name: Activity Gate
+      description: High while glitch/shuffle is active, low during pass-through
+    - id: CVOut2
+      name: Descending Ramp
+      description: Falls across each slice and resets at slice boundary
+
+controls:
+  modes:
+    - name: Glitch Mode
+      activation: Power on with switch up/middle or not held
+      main: Selects ratchet zones (1,2,3,4,6) and probability threshold within zone
+      x: Sets degradation amount (decimation then bitcrush)
+      y: Sets degradation probability
+      switch:
+        up: Probabilistic glitch trigger
+        middle: Gate-triggered glitch from Pulse In 2
+        down: Force glitch every slice
+    - name: Stutter Mode
+      activation: Power on with switch held down
+      main: Selects slice zones (1,2,3,4,8) and drift probability within zone
+      x: Sets shuffle probability
+      y: Sets repeat/stutter probability
+      switch:
+        up: Probabilistic shuffle per slice
+        middle: Gate-triggered shuffle from Pulse In 2
+        down: Force shuffle every slice
+  leds:
+    - id: LED0-LED4
+      name: Zone Indicator
+      description: One LED indicates current ratchet/slice zone
+    - id: LED5
+      name: Probability Indicator
+      description: Brightness indicates probability threshold (glitch reverse or stutter drift)

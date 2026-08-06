@@ -1,5 +1,64 @@
+draft: true
+Name: Twists
 Description: A port of Mutable Instruments Braids with a web editor
 Language: C (RPi Pico SDK)
 Creator: Random Works
 Version: 0.1
 Status: Functional but WIP
+
+tags:
+  - synthesizer
+  - oscillator
+  - wavetable
+  - midi-host
+
+manual: |
+  Twists is a Workshop Computer port of Mutable Instruments Braids. `CVIn1` and Main control pitch,
+  `PulseIn1` triggers the envelope/strike, and X/Y shape timbre and color. Switch down toggles between
+  configured oscillator model sets, and `twists.html` can be used over USB for shape selection/config.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Pitch CV
+      description: Primary pitch input for the oscillator voice
+    - id: PulseIn1
+      name: Trigger
+      description: Trigger input for note/strike events
+    # certainty: low — AudioIn1/2 modulation use inferred from twists.cc
+    - id: AudioIn1
+      name: Timbre Modulation
+      description: Added to X control before timbre parameter mapping
+    - id: AudioIn2
+      name: Color Modulation
+      description: Added to Y control before color parameter mapping
+  outputs:
+    - id: AudioOut1
+      name: Main Audio Output
+      description: Rendered Braids oscillator audio
+
+controls:
+  knobs:
+    - main:
+        name: Pitch
+        description: Manual pitch control mixed with CVIn1
+      x:
+        name: Timbre
+        description: Braids timbre parameter
+      y:
+        name: Color
+        description: Braids color parameter
+    - when: { z: down }
+      main:
+        name: Model Set Toggle
+        description: Switch-down action toggles active six-model set
+
+host:
+  usb:
+    - name: Twists editor page
+      role: editor
+      description: Use `twists.html` over USB to configure available oscillator shapes
+    # certainty: low — USB MIDI behavior inferred from twists.cc UsbWorker callbacks
+    - name: USB MIDI input
+      role: midi-input
+      description: Note input can trigger the synth engine and auxiliary CV/pulse outputs
