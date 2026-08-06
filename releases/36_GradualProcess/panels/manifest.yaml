@@ -1,0 +1,23 @@
+version: 1
+default: glass
+
+# Three power-on modes (Main knob third at boot), three panels. Glass is the
+# default CCW third; Reich is middle; Pärt is CW. Labels that differ per mode
+# use when.panel in info.yaml; shared Z-switch semantics live in controls.switch.
+#
+# Images/content are generated from those entries (`image: auto` / `content: auto`).
+panels:
+  - id: glass
+    name: "Glass (additive)"
+    image: auto
+    content: auto
+
+  - id: reich
+    name: "Reich (phasing)"
+    image: auto
+    content: auto
+
+  - id: part
+    name: "Pärt (tintinnabuli)"
+    image: auto
+    content: auto

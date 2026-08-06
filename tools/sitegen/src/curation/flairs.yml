@@ -179,6 +179,7 @@ assignments:
     - magic
     - deep
     - new
+  "62_BioMimicry": []
   "64_voices_of_sid":
     - magic
   "66_stretchcore":
@@ -205,6 +206,7 @@ assignments:
   "84_CosmikC1zzl3":
     - deep
     - new
+  "85_plant_holder": []
   "86_tesserae": []
   "87_fr330hfr33": []
   "88_Blank":
@@ -235,5 +237,3 @@ assignments:
   "877_RYK_Tape-Sampler": []
   "910_RYK_Pitched-Delay":
     - classic
-  # PlantHolder
-  85_plant_holder: []
