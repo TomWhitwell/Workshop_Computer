@@ -1,0 +1,167 @@
+Name: PlantHolder
+short-description: USB MIDI host and Placeholder-style reverb — built for the Instruo Pocket Scion, happy with any USB MIDI device.
+Language: C++ (Pico SDK)
+Creator: Phil Miller
+Version: "0.2.0"
+Status: Beta
+License: MIT
+date-created: 2026-05-17
+date-updated: 2026-08-06
+
+contact:
+  website: https://github.com/philmillman
+  social:
+    instagram: https://www.instagram.com/nauticalartifacts/
+
+tags:
+  - effect
+  - reverb
+  - midi-host
+  - midi-to-cv
+
+# Pinned rather than auto-discovered, so a local build/ directory never adds a
+# second download tile alongside the committed firmware.
+uf2:
+  - path: UF2/plant_holder.uf2
+    name: PlantHolder 0.2.0
+
+summary: |
+  Originally a companion for the [Instruo Pocket Scion](https://instruomodular.com/product/pocket-scion/),
+  now a generally fun stereo reverb that's also a **USB MIDI host**. Plug in the Scion or any USB MIDI
+  device — the Computer will power it — and break MIDI channels **1** and **2** out as v/Oct + gate
+  (route voices in the Scion companion app, or your device's MIDI Settings).
+
+  The reverb is modelled on the Fairfield Circuitry **Placeholder (EB)** — three cross-coupled delay
+  lines with a tone-tilted feedback path. **DECAY self-oscillates around 2–3 o'clock**, highly
+  interactive with Size, Tone, LPF, and Mix.
+
+  The name nods to the Scion's plant-biosonification heritage and to the Householder reflection
+  matrix at the heart of the Placeholder's feedback delay network.
+
+  Requires a **Rev1_1** board (Q2 2025 or later) for USB host mode.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio Left
+      type: audio
+      description: Left channel audio input
+    - id: AudioIn2
+      name: Audio Right
+      type: audio
+      description: Right channel audio input
+    - id: CVIn1
+      name: Decay CV
+      type: cv
+      description: Bipolar trim added to the DECAY knob; full scale covers the whole range
+    - id: CVIn2
+      name: Size CV
+      type: cv
+      description: Bipolar trim added to the SIZE knob; full scale covers the whole 12–160 ms range
+  outputs:
+    - id: AudioOut1
+      name: Reverb Left
+      type: audio
+      description: Left channel reverb output
+    - id: AudioOut2
+      name: Reverb Right
+      type: audio
+      description: Right channel reverb output
+    - id: CVOut1
+      name: Pitch Ch 1
+      type: cv
+      description: v/Oct for MIDI channel 1, A4 = 0 V, with ±2-semitone pitch bend
+    - id: CVOut2
+      name: Pitch Ch 2
+      type: cv
+      description: v/Oct for MIDI channel 2, A4 = 0 V, with ±2-semitone pitch bend
+    - id: PulseOut1
+      name: Gate Ch 1
+      type: pulse
+      description: Gate for MIDI channel 1, last-note priority
+    - id: PulseOut2
+      name: Gate Ch 2
+      type: pulse
+      description: Gate for MIDI channel 2, last-note priority
+
+controls:
+  switch:
+    up:
+      name: Size / Ratio
+      description: X and Y set reverb SIZE and the length ratio between delay lines
+    middle:
+      name: Decay / Tone
+      description: X and Y set reverb DECAY and the TONE tilt
+    down:
+      name: Mod Page
+      description: >-
+        Hold Down for 1 s to latch the MOD page (LED 5). Main becomes the wet
+        hi-cut and X/Y become MOD depth and type, until you hold Down again.
+        While Down is held unlatched, the knobs keep their Middle meanings.
+  knobs:
+    - main:
+        name: Mix
+        description: Dry/wet balance. Held at its stored value while the MOD page is latched
+    - when: { z: up }
+      x:
+        name: Size
+        description: Delay-line length, 12–160 ms
+      y:
+        name: Ratio
+        description: Scales the length of delay lines 2 and 3 relative to line 1
+    - when: { z: middle }
+      x:
+        name: Decay
+        description: >-
+          Feedback amount, from a single reflection up into self-oscillation
+          around 2–3 o'clock. Highly interactive with Size, Tone, LPF, and Mix
+      y:
+        name: Tone
+        description: >-
+          Shelving tilt around 500 Hz, with a detent at noon. CW cuts lows and
+          lifts highs. Sits inside the feedback path as well as on the wet
+          output, so it doubles as a damping control
+    - when: { z: down }
+      main:
+        name: Wet Hi-Cut
+        description: >-
+          1st-order low-pass on the wet output, sweeping 1 kHz to fully open.
+          This is the pedal's F switch, which lives in its output section. MIX
+          keeps whatever value it had before the page was latched
+      x:
+        name: Mod Depth
+        description: >-
+          Depth of the delay-time modulation, up to about 4 % of the delay
+          length. Deliberately subtle, as on the pedal
+      y:
+        name: Mod Type
+        description: None / cyclical / random / both, in four steps across the knob
+  leds:
+    - display: list
+      items:
+        - id: "0"
+          name: Host Status
+          description: Solid when a USB MIDI device is mounted. Blinks when the board is older than Rev1_1 and cannot run USB host mode
+        - id: "1"
+          name: MIDI Activity
+          description: Flashes on incoming note and pitch-bend messages
+        - id: "2"
+          name: Gate Ch 1
+        - id: "3"
+          name: Gate Ch 2
+        - id: "5"
+          name: Mod Latched
+          description: Lit while the MOD page is latched
+
+host:
+  usb:
+    - name: USB MIDI device
+      role: host
+      description: >-
+        Plug the Instruo Pocket Scion or any USB MIDI device into the Computer's
+        USB port (the port will also power the Scion). Notes and pitch bend on
+        MIDI channels 1 and 2 drive the two CV/gate pairs — route voices in the
+        Scion companion app, or your device's MIDI Settings.
+  notes: |
+    USB host mode requires a **Rev1_1** board (Q2 2025 or later). On earlier hardware the host is
+    never started and LED 0 blinks to say so; the reverb still runs.

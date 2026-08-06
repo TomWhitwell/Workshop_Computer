@@ -154,7 +154,7 @@ assignments:
     - wild
   "44_Birds":
     - instant-win
-  "45_bends": 
+  "45_bends":
     - new
   "47_NZT": []
   "48_two_tracks":
@@ -235,3 +235,5 @@ assignments:
   "877_RYK_Tape-Sampler": []
   "910_RYK_Pitched-Delay":
     - classic
+  # PlantHolder
+  85_plant_holder: []
