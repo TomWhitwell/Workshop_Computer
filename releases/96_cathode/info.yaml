@@ -1,11 +1,13 @@
 draft: false
 Name: Cathode Ray
-Description: Composite video synthesiser (PAL + NTSC builds) — oscilloscope, etch-a-sketch & spectrum analyser, greyscale via dithering, performance effects, 8 alt-boot screensaver/game modes
+short-description: Composite video synthesiser (PAL + NTSC builds) — oscilloscope, etch-a-sketch & spectrum analyser, greyscale via dithering, performance effects, 8 alt-boot screensaver/game modes
 Language: C++ (RP2040 Pico SDK)
 Creator: Andy Jenkinson (uglifruit)
 Version: 1.2.0
 Status: Released
 License: MIT
+date-created: 2026-06-30
+date-updated: 2026-07-02
 Repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/96_cathode
 
 tags:
@@ -15,7 +17,7 @@ tags:
   - visualiser
   - performance
 
-manual: |
+summary: |
   Cathode Ray turns the Workshop Computer into a 1-bit composite video synthesiser.
   Wire a two-resistor DAC from Pulse Out 1 (1kΩ) and Pulse Out 2 (220Ω) into an RCA
   centre pin (grounds common) and connect to any composite-input TV/monitor. PAL by

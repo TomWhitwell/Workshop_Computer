@@ -1,0 +1,19 @@
+short-description: Six-slot sampler and clocked sequencer with MIDI pitch control, random CV outputs, an alternate long-sample variation mode, and web editor.
+summary: Six-slot sampler and clocked sequencer with MIDI pitch control, random CV outputs, an alternate long-sample variation mode, and web editor.
+Name: Fragments
+Language: C++ (RPi Pico SDK)
+Creator: Max Harnishfeger
+Version: 1
+Status: Released
+Editor: web
+web-entry: fragments_librarian.html
+date-created: 2026-07-09
+date-updated: 2026-07-09
+License: CC0-1.0
+demo-link: https://www.youtube.com/watch?v=2VMYzHE8cdc
+tags:
+  - sampler
+  - sequencer
+  - microlooper
+contact:
+  email: watermonstermusic@gmail.com

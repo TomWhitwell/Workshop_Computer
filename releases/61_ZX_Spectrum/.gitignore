@@ -1,0 +1,37 @@
+build/
+UF2/
+
+# Generated ROM headers (regenerated from roms/*.rom by tools/bin2h.py at build time)
+rom128_0.h
+rom128_1.h
+rom48.h
+build-diag/
+snapshot_data.h
+
+# Build outputs and copyrighted game snapshots — kept locally, not published
+FLASHME/*.uf2
+FLASHME/*.z80
+snapshots/*.z80
+snapshots/*.sna
+
+# ...except the freely-usable baked demo (Andy's own ASM), committed so a fresh
+# clone builds something real. snapshot_data.h is still generated from it.
+!snapshots/bakedasm.z80
+FLASHME/*.bin
+FLASHME/*.tap
+FLASHME/*.ay
+FLASHME/*.pt3
+snapshots/*.ay
+snapshots/*.pt3
+BakedASM.tap
+FLASHME/*.png
+
+# Emulator save-states from the assembler/debugger round-trip — pure scratch,
+# and the 8.3-mangled names (DEMO-S~1#1024….szx) aren't meaningful anyway.
+*.szx
+
+# ...but the DEMO-SFX demos ARE Andy's own work (source + assembled snapshot),
+# so they're committed as further worked examples alongside BakedASM.asm. The
+# blanket FLASHME/*.z80 rule above still keeps the commercial games out.
+!FLASHME/DEMO-SFX*.asm
+!FLASHME/DEMO-SFX*.z80

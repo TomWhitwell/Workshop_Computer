@@ -1,0 +1,152 @@
+draft: false
+Name: Acid
+short-description: A 303-style step sequencer
+Language: C++ (ComputerCard)
+Creator: Samuel Smith
+Version: 1.0.0
+Status: Released
+License: MIT
+date-created: 2026-07-19
+date-updated: 2026-07-19
+
+contact:
+  social:
+    github: https://github.com/SamGSmith
+
+tags:
+  - sequencer
+  - acid
+  - "303"
+  - cv
+
+summary: |
+  A deliberately slightly fiddly 16-step sequencer capturing some of the obtuse workflow of the
+  original 303. Walk a cursor through the pattern, setting pitch and step type (rest / normal /
+  accent / slide) per step. Pitch and step-type sequences can be independently phase-shifted and
+  reset during playback.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Pitch Phase Offset
+      type: audio
+      description: Phase-shifts the pitch sequence
+    - id: AudioIn2
+      name: Step-type Phase Offset
+      type: audio
+      description: Phase-shifts the step-type sequence
+    - id: CVIn1
+      name: Transpose
+      type: cv
+      description: Global transpose across the pattern
+    - id: CVIn2
+      name: Portamento Time
+      type: cv
+      description: Increase glide time
+    - id: PulseIn1
+      name: External Clock
+      type: pulse
+      description: One step per rising edge, overrides the internal tempo. When connected, X selects Pulse Out 1 clock division from /1 (CCW) through /8 (CW); the divided pulse fires on pattern steps 0, N, 2N, etc.
+    - id: PulseIn2
+      name: Reset
+      type: pulse
+      description: Quantised reset based on selected reset-mode
+  outputs:
+    - id: AudioOut1
+      name: Sawtooth Voice
+      type: audio
+      description: Internal sawtooth oscillator tracking the sequenced pitch (no envelope)
+    - id: AudioOut2
+      name: Gate
+      type: audio
+      description: ~2ms trigger for normal/accent steps, held high on slide steps
+    - id: CVOut1
+      name: Pitch
+      type: cv
+      description: Calibrated 1V/oct pitch output, quantised to semitones, with portamento on slide
+    - id: CVOut2
+      name: Accent CV
+      type: cv
+      description: ~5V on accented steps, 0V otherwise
+    - id: PulseOut1
+      name: Clock
+      type: pulse
+      description: Internal clock pulses, or a divided external clock when Pulse In 1 is connected. X selects /1 through /8; output pulses are phase-locked to pattern steps 0, N, 2N, etc., and Y sets the pulse width up to almost the full divided interval.
+    - id: PulseOut2
+      name: Accent Trigger
+      type: pulse
+      description: ~2ms trigger on accented steps. With Pulse In 1 connected, Y sets the gate width from the short trigger up to almost the external clock period.
+
+controls:
+  switch:
+    up:
+      name: Play
+      description: Runs the sequence, looping the active steps
+    middle:
+      name: Edit
+      description: Program the note and step type of the step under the cursor
+    down:
+      name: Advance / Config
+      description: flick advances the edit cursor to next step; hold 1s to enter reset-mode
+    tap:
+      name: Advance
+      description: Briefly press and release to advance the edit cursor to the next step
+  knobs:
+    - when: { z: up }
+      main:
+        name: Length
+        description: Sequence length, 1-16 steps
+      x:
+        name: Swing
+        description: Swing amount from 0% to ~33%; with Pulse In 1 connected, selects Pulse Out 1 division /1 to /8
+      y:
+        name: Tempo
+        description: Internal tempo; with Pulse In 1 connected, sets Pulse Out 1 and Pulse Out 2 gate width
+    - when: { z: middle }
+      main:
+        name: Note
+        description: Semitone within the octave (0-11) for the step under the cursor
+      x:
+        name: Octave
+        description: Octave offset (-1..+1, 0 = default) for the step under the cursor
+      y:
+        name: Step Mode
+        description: Step type for the step under the cursor - rest / normal / accent / slide
+    - when: { z: down }
+      main:
+        name: Reset Mode
+        description: Held ≥1s, selects the behaviour applied by a Pulse In 2 reset
+      x:
+        name: Randomise Pitch
+        description: Held ≥1s, a large turn randomises the pitch sequence
+      y:
+        name: Randomise Step Type
+        description: Held ≥1s, a large turn randomises the step-type sequence
+  leds:
+    - when: { z: up }
+      display: list
+      items:
+        - id: LED0-3
+          name: Step Number
+          description: Current step number (0-15) in binary
+        - id: LED4
+          name: Play Mode
+          description: Lit in play mode
+        - id: LED5
+          name: Gate
+          description: Blinks with the gate
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED4
+          name: Accent / Rest
+          description: Lit when the current step is accent or rest
+        - id: LED5
+          name: Slide / Rest
+          description: Lit when the current step is slide or rest
+    - when: { z: down }
+      display: list
+      items:
+        - id: LED0-2
+          name: Reset Mode
+          description: Currently selected reset mode, shown in binary, while switch DOWN is held ≥1s

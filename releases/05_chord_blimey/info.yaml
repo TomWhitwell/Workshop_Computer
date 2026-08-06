@@ -1,10 +1,12 @@
 draft: true
 Name: Chord Blimey!
-Description: Generates CV/Pulse arpeggios
+short-description: Generates CV/Pulse arpeggios
 Language: C (RPi Pico SDK)
 Creator: Tom Waters
 Version: 0.9
 Status: Mostly complete (for now)
+date-created: 2024-11-30
+date-updated: 2025-08-21
 
 tags:
   - arpeggiator
@@ -13,7 +15,7 @@ tags:
   - chord
   - generative
 
-manual: |
+summary: |
   Trigger-driven chord arpeggiator for Workshop Computer.
   CV Out 1 outputs arpeggiated notes while Pulse Out 1 emits matching note triggers.
   Pulse Out 2 fires at end-of-cycle for chaining/looping; Audio Out 1/2 provide probabilistic random modulation voltages.

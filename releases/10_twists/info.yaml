@@ -1,10 +1,12 @@
 draft: true
 Name: Twists
-Description: A port of Mutable Instruments Braids with a web editor
+short-description: A port of Mutable Instruments Braids with a web editor
 Language: C (RPi Pico SDK)
 Creator: Random Works
 Version: 0.1
 Status: Functional but WIP
+date-created: 2024-11-30
+date-updated: 2026-07-02
 
 tags:
   - synthesizer
@@ -12,7 +14,7 @@ tags:
   - wavetable
   - midi-host
 
-manual: |
+summary: |
   Twists is a Workshop Computer port of Mutable Instruments Braids. `CVIn1` and Main control pitch,
   `PulseIn1` triggers the envelope/strike, and X/Y shape timbre and color. Switch down toggles between
   configured oscillator model sets, and `twists.html` can be used over USB for shape selection/config.

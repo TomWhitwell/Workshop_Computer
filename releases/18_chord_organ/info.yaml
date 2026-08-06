@@ -1,10 +1,12 @@
 draft: true
 Name: Chord Organ-ish
-Description: Chord Organ-ish - 16 chords, 8 voices, 1V/oct root. Inspired by Music Thing Chord Organ.
+short-description: Chord Organ-ish - 16 chords, 8 voices, 1V/oct root. Inspired by Music Thing Chord Organ.
 Language: Pico SDK (C++), ComputerCard
 Creator: jkeyworth
 Version: 0.1
 Status: Working
+date-created: 2026-02-15
+date-updated: 2026-03-01
 
 tags:
   - synthesizer
@@ -12,7 +14,7 @@ tags:
   - progression
   - cv
 
-manual: |
+summary: |
   Chord voice generator with 16 chord types, root CV control, and selectable progression patterns.
   Main + CV1 select chord, X + CV2 set root pitch (1V/oct), and Y selects one of 9 progressions.
   PulseIn1 advances the progression and retriggers; PulseIn2 or Z-down cycles waveform.

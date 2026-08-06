@@ -1,41 +1,80 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
+#include <cstdint>
 #include <cstdlib>
 
 namespace pantograph {
 static constexpr int kMaxFrames = 18750;
+// Samples per recorded frame (48kHz / 192 = 250Hz capture rate); also the
+// playback-speed divisor, so record and playback rates stay in lockstep.
+static constexpr int kFramePeriod = 192;
 
-int KnobToCV(int knobVal) {
+inline int KnobToCV(int knobVal) {
   return knobVal - 2048;
 }
 
-int32_t KnobToSpeed(int32_t bigKnob) {
+inline int32_t KnobToSpeed(int32_t bigKnob) {
   const int32_t kDeadZone = 40; // TODO tune and adjust
-  const int32_t kScale = 128; // 4x speed
+  const int32_t kScale = 128; // ~4x speed at full deflection
 
   int32_t centered = bigKnob - 2048;
 
-  if (std::abs(centered) < kDeadZone) {
+  if (std::abs(centered) <= kDeadZone) {
     return 0;
   }
+
+  // Count from where the knob starts responding, so speed eases in
+  // from zero instead of jumping as the knob leaves the centre band.
+  centered -= centered > 0 ? kDeadZone : -kDeadZone;
 
   return centered * kScale;
 }
 
-int SumClamp(int cv1, int cv2) {
+inline int SumClamp(int cv1, int cv2) {
   return std::clamp(cv1 + cv2, -2048, 2047);
 }
 
-int16_t LerpI(int16_t y0, int16_t y1, uint32_t frac_q16) {
+inline int16_t LerpI(int16_t y0, int16_t y1, uint32_t frac_q16) {
   int32_t delta = y1 - y0;
   int32_t scaled = delta * static_cast<int32_t>(frac_q16) >> 16;
   return y0 + scaled;
 }
 
-int16_t ApplyDepth(int16_t cv, int32_t knob) {
+inline int16_t ApplyDepth(int16_t cv, int32_t knob) {
+  // The knob tops out at 4095; treat that as 4096 so full CW is exactly
+  // unity rather than 4095/4096 of the trace.
+  if (knob >= 4095) {
+    knob = 4096;
+  }
+
   return (static_cast<int32_t>(cv) * knob) >> 12;
 }
+
+// Fires every `period` ticks, starting with the first tick after Reset —
+// so a recording captures its t=0 frame the moment it starts.
+class Decimator {
+public:
+  explicit Decimator(int period) : period_(period) {}
+
+  void Reset() {
+    count_ = 0;
+  }
+
+  bool Tick() {
+    bool fire = count_ == 0;
+    count_++;
+    if (count_ == period_) {
+      count_ = 0;
+    }
+    return fire;
+  }
+
+private:
+  int period_;
+  int count_ = 0;
+};
 
 struct Frame {
   int16_t x;
@@ -44,9 +83,7 @@ struct Frame {
 
 class Buffer {
 public:
-  Buffer() {}
-
-  int Length() {
+  int Length() const {
     return idx_;
   }
 
@@ -64,8 +101,7 @@ public:
     return kMaxFrames;
   }
 
-  Frame At(int idx) {
-    //return buffer_.at(idx);
+  Frame At(int idx) const {
     return buffer_[idx];
   }
 
@@ -88,7 +124,7 @@ struct TriggerOut {
       frames_ = 0;
     }
 
-    return frames_ > 0 ? true : false;
+    return frames_ > 0;
   }
 
 private:
@@ -115,9 +151,10 @@ private:
 
 class Phasor {
 public:
-  // set the loop size (in frames)
+  // set the loop size (in frames); restarts playback from the top
   void SetLength(uint32_t length) {
     length_ = length;
+    Trigger();
   }
 
   bool Advance(int32_t increment, bool loop) {
@@ -143,11 +180,11 @@ public:
       int32_t pos = static_cast<int32_t>(position_) + increment;
 
       if (pos >= last) {
+        report = position_ != static_cast<uint32_t>(last);
         pos = last;
         finished_ = true;
-        report = true;
       } else if (pos < 0) {
-        report = true;
+        report = position_ != 0;
         pos = 0;
       }
 

@@ -1,11 +1,13 @@
 draft: true
 Name: Noisebox
-Description: 13-algorithm noise synth with CV modulation, sample-and-hold, and crusher mode
+short-description: 13-algorithm noise synth with CV modulation, sample-and-hold, and crusher mode
 Language: C++ (ComputerCard)
 Creator: Eric Gao
 Version: 1.0
 Status: Released
 License: CC BY-NC-SA 3.0
+date-created: 2025-08-08
+date-updated: 2025-08-10
 
 tags:
   - noise
@@ -13,7 +15,7 @@ tags:
   - sample-and-hold
   - bitcrusher
 
-manual: |
+summary: |
   Noisebox selects among 13 noise algorithms with Main, with X/Y shaping the active algorithm.
   Main can be offset by `AudioIn1`, output level is VCA-controlled by `AudioIn2`, and switch down
   randomizes control offsets (hold to reset). `PulseIn1` clocks sample-and-hold behavior; switch up

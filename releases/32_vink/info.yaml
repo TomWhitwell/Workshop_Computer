@@ -1,10 +1,12 @@
 draft: true
 Name: Vink
-Description: Dual delay loops with sigmoid saturation for Jaap Vink / Roland Kayn style feedback patching
+short-description: Dual delay loops with sigmoid saturation for Jaap Vink / Roland Kayn style feedback patching
 Language: C++ (ComputerCard)
 Creator: Ben Regnier
 Version: 1.1
 Status: Functional
+date-created: 2025-12-01
+date-updated: 2026-01-28
 
 tags:
   - delay
@@ -15,7 +17,7 @@ tags:
 
 demo-link: https://www.youtube.com/watch?v=X_Bcr_HS9XM
 
-manual: |
+summary: |
   Vink provides two independently time-modulated delay taps with optional sigmoid saturation blend.
   Main controls base delay time, X controls tap 2 offset, and Y crossfades dry to saturated output.
   In switch up, outputs are split per tap; in middle/down, taps are mixed to mono on both outputs.

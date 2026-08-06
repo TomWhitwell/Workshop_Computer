@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WS-DOOM — Workshop System Doom Display</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Metal+Mania&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=6">
+</head>
+<body>
+<button id="expand" title="Show sidebar">&#9656;</button>
+<aside>
+  <div class="title-row">
+    <h1>WS-DOOM</h1>
+    <button id="collapse" title="Hide sidebar">&#9666;</button>
+  </div>
+  <div class="conn-row">
+    <button id="connect">Connect</button>
+    <button id="refresh" class="secondary" title="Resend palette and settings">&#8635;</button>
+  </div>
+  <div class="badges">
+    <span id="conn-status" class="badge off">disconnected</span>
+    <span id="fps" class="badge">0 fps</span>
+    <span id="kbps" class="badge">0 KB/s</span>
+  </div>
+  <div id="devmsg"></div>
+
+  <section class="group">
+    <button id="pause" class="secondary">Pause / Resume</button>
+  </section>
+
+  <section class="group">
+    <label for="level">Level</label>
+    <select id="level">
+      <option value="1">E1M1 — Hangar</option>
+      <option value="2">E1M2 — Nuclear Plant</option>
+      <option value="3">E1M3 — Toxin Refinery</option>
+      <option value="4">E1M4 — Command Control</option>
+      <option value="5">E1M5 — Phobos Lab</option>
+      <option value="6">E1M6 — Central Processing</option>
+      <option value="7">E1M7 — Computer Station</option>
+      <option value="8">E1M8 — Phobos Anomaly</option>
+      <option value="9">E1M9 — Military Base</option>
+    </select>
+  </section>
+
+  <details class="group">
+    <summary>Controls</summary>
+    <table>
+      <tr><td>Main knob</td><td>turn rate (centre = straight)</td></tr>
+      <tr><td>X knob</td><td>forward / back</td></tr>
+      <tr><td>Y knob</td><td>weapon 1–7 (fires once to confirm)</td></tr>
+      <tr><td>Z switch down</td><td>fire</td></tr>
+      <tr><td>Z switch up</td><td>auto-aim nearest enemy</td></tr>
+      <tr><td>Pulse in 1 / 2</td><td>fire / use</td></tr>
+      <tr><td>CV in 1</td><td>turn (adds to Main)</td></tr>
+      <tr><td>CV in 2</td><td>forward / back (adds to X)</td></tr>
+      <tr><td>Audio in 1</td><td>replaces music (same panning)</td></tr>
+      <tr><td>Audio in 2</td><td>plays briefly on each shot</td></tr>
+      <tr><td>Audio out L/R</td><td>game audio, enemy-panned</td></tr>
+      <tr><td>CV out 1 / 2</td><td>health / ammo (0–5 V)</td></tr>
+      <tr><td>Pulse out 1 / 2</td><td>shot fired / damage taken</td></tr>
+      <tr><td>LEDs</td><td>radar: row = distance, side = bearing</td></tr>
+    </table>
+  </details>
+
+  <details class="group">
+    <summary>Settings</summary>
+    <label for="music-vol">Music volume</label>
+    <input type="range" id="music-vol" min="0" max="255" value="90">
+    <label for="sfx-vol">Effects volume</label>
+    <input type="range" id="sfx-vol" min="0" max="255" value="255">
+    <label for="turn-sens">Turn sensitivity</label>
+    <input type="range" id="turn-sens" min="32" max="255" value="128">
+    <label for="move-sens">Move sensitivity</label>
+    <input type="range" id="move-sens" min="32" max="255" value="128">
+    <button id="save-settings" class="secondary">Save settings</button>
+    <p class="hint">Sliders take effect live; Save writes them to the
+    card.</p>
+  </details>
+
+  <details class="group">
+    <summary>Cheat codes</summary>
+    <input type="text" id="cheat" placeholder="you know the codes&hellip; &#8629;"
+           autocomplete="off" autocapitalize="off" spellcheck="false"
+           aria-label="Cheat code">
+  </details>
+
+  <a class="download" href="https://computer.musicthing.co.uk/programs/666-ws-doom/"
+     target="_blank" rel="noopener">Get the card &#8599;</a>
+  <p class="hint">(The card page on the Workshop Computer site can flash your
+  module straight from the browser)
+
+  <footer>
+    Built by <a href="https://incomputable.io">incomputable.io</a>
+    for the <a href="https://computer.musicthing.co.uk/index.html">Computer Module by Music Thing Modular</a><br>
+    <a href="https://github.com/chicoe/ws-doom/blob/main/LICENSE">GPL-2.0 licensed</a>,
+    built on
+    <a href="https://github.com/kilograham/rp2040-doom">rp2040-doom</a>
+  </footer>
+</aside>
+
+<div id="intro" class="hidden">
+  <div class="intro-box">
+    <h2>WS-DOOM</h2>
+    <p>Doom as a program card for the
+    <a href="https://www.musicthing.co.uk/workshopsystem/">Music Thing Modular
+    Workshop System</a> Computer. The whole game runs on the module's RP2040 —
+    no screen, no PC. You play it from the panel and <em>listen</em> your way
+    through: the stereo mix pans enemies left and right, and the music itself
+    swells toward the nearest one, a beacon you can hunt by ear.</p>
+    <p>Knobs steer and pick weapons, the Z switch fires (up = auto-aim), CV
+    outs carry health and ammo, pulse outs trigger on shots and damage, and
+    the LEDs are an enemy radar. Patch audio in 1 to replace the soundtrack
+    with your own; audio in 2 gates open on every shot.</p>
+    <p>This page is optional — connect the module over USB-C and press
+    <strong>Connect</strong> to stream the actual game video onto the CRT.
+    The full panel mapping is in the sidebar.</p>
+    <button id="intro-close">Got it</button>
+  </div>
+</div>
+
+<main>
+  <div id="crt">
+    <div id="screen-glass">
+      <canvas id="screen" width="320" height="200"></canvas>
+      <div id="scanlines"></div>
+      <div id="grille"></div>
+      <div id="vignette"></div>
+      <div id="glare"></div>
+      <div id="overlay">
+        <p>NO SIGNAL</p>
+        <p class="small">Connect the Computer module via USB-C and press Connect.
+          <br>
+          The game runs fully on the module. Chrome browser required to stream the video.
+          <br>
+          Double-click for fullscreen.</p>
+      </div>
+    </div>
+  </div>
+</main>
+<script src="app.js?v=6"></script>
+</body>
+</html>

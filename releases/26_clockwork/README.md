@@ -1,195 +1,161 @@
 # Clockwork
 
-Clockwork is a 6-channel polyrhythmic timing and modulation card for the Music Thing Modular **Workshop Computer**, inspired by ALM Pamela’s Pro Workout. 
+A 6-channel polyrhythmic timing and modulation card for the Workshop Computer, inspired by ALM Pamela’s Workout.
 
-It turns the Computer into a central clock, gate generator, LFO source, and USB MIDI-to-CV interface. It provides 6 independent outputs, each capable of generating clock divisions/multiplications, Euclidean rhythms, custom LFO shapes, and decay envelopes. It can sync to external clock pulses, USB MIDI clock, or run on its own internal BPM flywheel.
+Clockwork turns the Workshop Computer into a central clock generator, gate sequencer, LFO source, and USB MIDI interface. Each of its 6 independent outputs generates clock divisions and multiplications, Euclidean rhythms, custom LFO shapes, or decay envelopes.
 
-*   [Web MIDI Manager & Preset Editor](https://vincentmaurer.de/clockwork/index.html)
-*   [Clockwork Tutorial Video](https://youtu.be/Pc0wPOAVZmw)
-*   [Clockwork Demo Video](https://www.youtube.com/watch?v=WFxAQ-dK7CM)
-
----
-
-## What does it do?
-*   **6 outputs**: Independently configurable for gates, ratchets, envelopes, LFOs, random voltages, or CV delay lines.
-*   **Euclidean sequencers**: Built-in Euclidean engines per channel (0 to 16 steps) with active fills and offsets.
-*   **Auto-sync clock**: Automatically locks onto incoming USB MIDI clock or external pulse clock, with fallback to an internal clock.
-*   **Web MIDI Editor**: A browser-based editor (`web/index.html`) to configure all channels, scales, and logic routing visually.
+- **6 Output Channels**: Configure each channel independently for gates, ratchets, envelopes, LFOs, random voltages, or CV delay lines.
+- **Euclidean Engine**: Built-in Euclidean pattern generators (0 to 16 steps) with fills and step rotation offsets.
+- **Clock Sync**: Automatically syncs to incoming USB MIDI clock or external pulse clock, or runs on its internal clock engine.
+- **USB Device & Host Modes**: Connect to a computer for Web MIDI Manager telemetry and DAW clock sync, or plug a USB MIDI controller directly into the card in host mode to drive channels with MIDI note, velocity, and pitch.
+- **Web MIDI Manager**: Interactive browser-based editor (`web/index.html`) with real-time oscilloscope telemetry, Euclidean orbits, and preset backup.
 
 ---
 
-## How to control it
+## Videos & Media
 
-Clockwork uses the Workshop Computer's knobs and its 3-position toggle switch (UP, MIDDLE, and spring-loaded momentary DOWN) to navigate pages and adjust settings.
-
-### 1. Page Navigation
-The interface cycles through 7 pages: **Channel 1 to 6** and the **Global Page**.
-*   **Tap DOWN**: Cycles forward through the channels (indicated by a single lit LED).
-*   **Medium Tap DOWN (hold slightly and release)**: Cycles backward.
-*   **Global Page**: Reached at the end of the cycle (all 6 LEDs will pulse gently).
-
-### 2. The Knobs (3 Switch Positions)
-The knobs control different parameters depending on the toggle switch position:
-
-*   **MIDDLE Position (Rhythm)**: 
-    *   **Main**: Speed Modifier (Divisions `/2048` to `/2`, straight `x1` at noon, and Multipliers `x2` to `x128`).
-    *   **X**: Euclidean Steps (`0` to `16`; `0` runs a straight clock).
-    *   **Y**: Context-dependent (see "Double Duty" below).
-*   **UP Position (Sound Shape)**:
-    *   **Main**: Waveform Shape (Gate, Ratchet, Sine, Triangle, Saw, Envelope, S&H, etc.).
-    *   **X**: Output Level (bipolar `-100%` to `+100%` on outputs 1-4, phase delay on outputs 5-6).
-    *   **Y**: Wave Parameter (pulse width, decay time, or math logic operator depending on active shape).
-    *   *Play/Pause Shortcut*: Flicking the switch UP and releasing it back to MIDDLE quickly (<400ms) starts and stops the clock.
-*   **DOWN Position (Held - Advanced Settings)**: Hold the toggle DOWN and turn the knobs:
-    *   **Main**: Pattern Loop Length (Clamps loop length from `1` to `64` steps, or `0` for infinite).
-    *   **X**: Trigger Probability (`0%` to `100%`, acts as a channel mute).
-    *   **Y**: Context-dependent (see "Double Duty" below).
-
-### 3. Double Duty (Euclidean Modes)
-Knob Y changes function depending on whether Euclidean steps are active:
-
-*   **Rhythm Mode (MIDDLE toggle), Knob Y**:
-    *   **Euclidean ON (Steps > 0)**: Controls **Fills** (number of active trigger steps).
-    *   **Euclidean OFF (Steps = 0)**: Controls **Phase Offset** (shifts the LFO wave/gate phase by `0..255`).
-*   **Advanced Mode (DOWN held), Knob Y**:
-    *   **Euclidean ON (Steps > 0)**: Controls **Step Offset** (shifts the Euclidean pattern rotation forward or backward).
-    *   **Euclidean OFF (Steps = 0)**: Controls **Quantizer Scale** (snaps LFO or random CV outputs to musical scales).
-
-### 4. Global Settings (All LEDs pulsing)
-*   **MIDDLE position**: Main = Master BPM; X = Swing; Y = Humanize (timing jitter).
-*   **UP position**: Main = External Clock PPQN; X = Random Seed; Y = Sync Source.
-*   **DOWN position (Held)**: Preset Menu. Main = Select preset slot (1-6) or Reset. X = Turn left to Load, or right to Save. Release the toggle to execute.
+- **Tutorial Walkthrough**: [Clockwork Tutorial Video](https://www.youtube.com/watch?v=Pc0wPOAVZmw)
+- **Performance Demo**: [Clockwork Demo Video](https://www.youtube.com/watch?v=WFxAQ-dK7CM)
 
 ---
 
-## External CV Inputs (Jacks 1-4)
-Jacks 1 to 4 correspond to Channels 1 to 4. When a patch cable is connected, it overrides default behavior for that channel:
+## Patch Ideas
 
-1.  **CV Modulation (Default)**: The incoming CV modulates the **Wave Parameter** (Knob Y in UP mode), mixing with the physical knob value.
-2.  **External S&H / Smooth**: The channel will sample the voltage on its input jack instead of using the internal random generator.
-3.  **Delay Input**: The `Delay` shape records and delays the CV signal coming into its own input jack.
-4.  **Math Carrier**: The `Math` shape carrier signal switches to the input jack voltage instead of the internal LFO.
-5.  **External Triggers**: If a channel's speed modifier is set to a cross-channel trigger, a cable in its jack allows you to use external analog triggers (with a +3V Schmitt threshold) to clock that channel's loop directly.
+- **Synthesized Kick Drums**: Set an analog output channel to `Envelope` or `Log Env` shape with a short decay time. Patch the output directly into an oscillator's pitch or filter FM input to synthesize punchy kick drums.
+- **Euclidean Snare & Percussion Patterns**: Set a digital gate output to a Euclidean rhythm (e.g., 12 or 16 steps with 5 fills) and ratchet subdivisions. Use the gate to trigger a noise generator or slope generator for shifting percussion.
+- **Quantized Sample & Hold Melodic Lines**: Set an analog output channel to `S&H` shape, set its speed modifier to a cross-channel trigger (so it clocks in sync with another channel), and enable a quantizer scale (e.g. Minor Pentatonic or Harmonic Minor). Set pattern loop length to 8 or 16 steps for repeating, in-key melodic sequences and arpeggios.
+- **Cross-Modulated Waveforms & Math Logic**: Set an analog channel to `Math` shape and select another channel's LFO or trigger as the modulator. Use Knob Y in Shape mode to combine the signals using Multiplication (*), Minimum (min), Maximum (max), or Logic operators (AND, OR, XOR) to generate complex, evolving modulation waves.
 
 ---
 
-## Special Speed Modifier Settings (Right Side of Wheel)
+## Operating Modes & Switch Controls
 
-Rotating the Main Speed knob in MIDDLE mode past `x128` accesses these special modes:
+Clockwork uses **Switch Z** (Up, Middle, and spring-loaded momentary Down) to navigate pages and adjust settings:
 
-*   **Cross-Channel Triggers (Outputs 1-6)**: Clocks this channel's loop from the gate transitions of another channel. If a cable is plugged into this channel's dedicated input jack, it uses the physical trigger instead.
-*   **MIDI Mode**: Clocks the channel from incoming USB MIDI notes. It tracks the last played MIDI note (monophonic legato note-stacking) and automatically maps output shapes:
-    *   `S&H` shape: Outputs calibrated **1V/Octave Pitch CV**.
-    *   `Smooth` shape: Outputs **MIDI Velocity CV** (0V to 6V).
-    *   `Envelope` / `Log Env` shapes: Generates decay envelopes scaled by note velocity.
-    *   `Gate` shape: Generates note gates.
+| Switch Position | Mode Name | Description |
+|:---:|---|---|
+| **Middle** | **Rhythm** | **Main** = Speed Modifier (`/2048` to `/2`, `x1` at noon, `x2` to `x128`, Cross-Triggers, MIDI Mode); **X** = Euclidean Steps (`0` to `16`); **Y** = Fills (when steps > 0) or LFO Phase Offset (when steps = 0). |
+| **Up** | **Shape** | **Main** = Waveform Shape; **X** = Output Level / Phase Delay (bipolar `-100%` to `+100%`); **Y** = Wave Parameter (pulse width, decay, or math operator).<br>*Short flick UP (<400ms) toggles Play/Pause.* |
+| **Down (Held)** | **Advanced** | **Main** = Pattern Loop Length (`1` to `64` steps, `0` = infinite); **X** = Trigger Probability (`0%` to `100%`); **Y** = Step Rotation Offset (when steps > 0) or Quantizer Scale (when steps = 0). |
+| **Down (Tap)** | **Page Cycle** | Tap briefly to step forward through channels 1–6 and the Global Page (indicated by lit LEDs). Hold slightly and release to cycle backward. |
+
+---
+
+## Global Page Settings (All 6 LEDs Pulsing)
+
+Cycle past Channel 6 to reach the Global Page:
+
+- **Switch Middle**: **Main** = Master BPM; **X** = Swing; **Y** = Humanize / Randomization (subtle timing jitter at lower settings; skips beats or randomizes voltages at higher settings).
+- **Switch Up**: **Main** = External Clock PPQN; **X** = Random Seed (swaps random sequence patterns); **Y** = Pulse 2 Input Mode (selects Gate or Run gate).
+- **Switch Down (Held)**: **Preset Menu**: **Main** = Select preset slot (1–6) or Reset; **X** = Turn left to Load, right to Save, or Reset.
+
+---
+
+## Special Speed Modifier Settings (Right Side of Speed Knob)
+
+Rotating the Main Speed knob past `x128` in Middle mode accesses special clocking modes:
+
+- **Cross-Channel Triggers**: Clocks the active channel loop from another channel's gate transitions (e.g. Channel 2 clocks Channel 1). Ideal for synced Sample & Hold or cross-clocked LFOs.
+- **MIDI Mode**: Clocks the channel from USB MIDI input (Channels 1–6). Automatically maps MIDI notes, velocity, or pitch to output shapes.
+
+---
+
+## Quantizer Scales (Switch DOWN Held, Steps = 0)
+
+Turn Knob Y while holding Switch DOWN (when Euclidean steps = 0) to snap smooth random walks or LFOs to musical scales for playing melodies and arpeggios:
+`OFF` (Raw CV), `CHRO` (Chromatic), `MAJ` (Major), `MPEN` (Major Pentatonic), `MIN` (Natural Minor), `MINP` (Minor Pentatonic), `DOR` (Dorian), `MIXO` (Mixolydian), `LYD` (Lydian), `PHRY` (Phrygian), `HMIN` (Harmonic Minor).
+
+---
+
+## Panel Jack Reference
+
+### Inputs (Jacks 1–4 correlate to Channels 1–4)
+Patching a cable into jacks 1–4 overrides default channel behavior depending on active shape:
+- **Audio In 1 (Channel 1 CV Input / Audio 1)**: Modulates Channel 1 wave parameter, S&H sample input, CV delay input, Math carrier, or external clock trigger.
+- **Audio In 2 (Channel 2 CV Input / Audio 2)**: Modulates Channel 2 wave parameter, S&H sample input, CV delay input, Math carrier, or external clock trigger.
+- **CV In 1 (Channel 3 CV Input / CV 1)**: Modulates Channel 3 wave parameter, S&H sample input, CV delay input, Math carrier, or external clock trigger.
+- **CV In 2 (Channel 4 CV Input / CV 2)**: Modulates Channel 4 wave parameter, S&H sample input, CV delay input, Math carrier, or external clock trigger.
+- **Pulse In 1 (External Clock Sync / Pulse 1)**: External clock pulse sync input.
+- **Pulse In 2 (Reset / Run Gate / Pulse 2)**: Clock reset trigger input or run gate.
+
+### Outputs
+- **Audio Out 1 (Output 1)**: Channel 1 bipolar/unipolar CV, LFO, envelope, or gate output (SPI DAC).
+- **Audio Out 2 (Output 2)**: Channel 2 bipolar/unipolar CV, LFO, envelope, or gate output (SPI DAC).
+- **CV Out 1 (Output 3)**: Channel 3 bipolar/unipolar CV, LFO, envelope, or gate output (PWM).
+- **CV Out 2 (Output 4)**: Channel 4 bipolar/unipolar CV, LFO, envelope, or gate output (PWM).
+- **Pulse Out 1 (Output 5)**: Channel 5 digital gate output (Gate, Ratchet, Trigger, Burst, Random, Utility).
+- **Pulse Out 2 (Output 6)**: Channel 6 digital gate output (Gate, Ratchet, Trigger, Burst, Random, Utility).
 
 ---
 
 ## Output Waveforms & Parameter Reference
 
-When selecting shapes, the active shape is displayed on the card's 6 LEDs as a 3x2 matrix (LED 0 to 5):
+Active shapes are displayed on the 6 panel LEDs as a 3x2 matrix (`●` = ON, `○` = OFF):
 ```
 Row 1: [LED 0] [LED 1]
 Row 2: [LED 2] [LED 3]
 Row 3: [LED 4] [LED 5]
 ```
-Below, `●` indicates the LED is ON and `○` indicates the LED is OFF.
 
-### 1. Analog Outputs (Jacks 1-4)
-These swing bipolar (`-6V` to `+6V`) for smooth waveforms, or unipolar (`0V` to `+6V`) for gate/envelope shapes.
+### 1. Analog Outputs (Channels 1–4 / Jacks 1–4)
+Bipolar (`-6V` to `+6V`) or unipolar (`0V` to `+6V`).
 
-| Index | Shape Name | LED Matrix (3x2) | Y Knob Parameter |
+| Index | Shape Name | LED Matrix (3x2) | Knob Y Parameter |
 |:---:|---|:---:|---|
-| **0** | Gate | ○○<br>○○<br>○○ | Duty cycle / pulse width |
-| **1** | Ratchet | ●○<br>○○<br>○○ | Subdivisions (2, 3, 4, 6, 8, 12, or 16 pulses) |
-| **2** | Sine | ○●<br>○○<br>○○ | Phase offset (0° to 360°) |
-| **3** | Triangle | ●●<br>○○<br>○○ | Skew (falling saw ↔ triangle ↔ rising saw) |
-| **4** | Saw ↑ | ○○<br>●○<br>○○ | Curve skew (logarithmic ↔ linear ↔ exponential) |
-| **5** | Saw ↓ | ●○<br>●○<br>○○ | Curve skew (logarithmic ↔ linear ↔ exponential) |
-| **6** | Trapezoid | ○●<br>●○<br>○○ | Peak flat sustain duration |
-| **7** | Hump | ●●<br>●○<br>○○ | Peak center skew |
-| **8** | Envelope | ○○<br>○●<br>○○ | Linear decay duration |
-| **9** | Log Env | ●○<br>○●<br>○○ | Exponential decay duration |
-| **10** | S&H | ○●<br>○●<br>○○ | No effect (holds random step CV). Cal. 1V/Oct in MIDI mode |
-| **11** | Smooth | ●●<br>○●<br>○○ | Smoothing/slew rate. Mapped to MIDI Velocity in MIDI mode |
-| **12** | Delay | ○○<br>●●<br>○○ | CV delay feedback level |
-| **13** | Math | ●○<br>●●<br>○○ | Selects math operator (Mix, Sub, Min, Max, Mult, AND, OR, XOR) |
+| **0** | Gate | ○○ / ○○ / ○○ | Duty cycle / pulse width |
+| **1** | Ratchet | ●○ / ○○ / ○○ | Subdivisions (2, 3, 4, 6, 8, 12, or 16 pulses) |
+| **2** | Sine | ○● / ○○ / ○○ | Phase offset (0° to 360°) |
+| **3** | Triangle | ●● / ○○ / ○○ | Skew (falling saw ↔ tri ↔ rising saw) |
+| **4** | Saw ↑ | ○○ / ●○ / ○○ | Curve skew (log ↔ linear ↔ exp) |
+| **5** | Saw ↓ | ●○ / ●○ / ○○ | Curve skew (log ↔ linear ↔ exp) |
+| **6** | Trapezoid | ○● / ●○ / ○○ | Peak flat sustain duration |
+| **7** | Hump | ●● / ●○ / ○○ | Peak center skew |
+| **8** | Envelope | ○○ / ○● / ○○ | Linear decay duration |
+| **9** | Log Env | ●○ / ○● / ○○ | Exponential decay duration |
+| **10** | S&H | ○● / ○● / ○○ | Random Sample & Hold (1V/Oct pitch in MIDI mode) |
+| **11** | Smooth | ●● / ○● / ○○ | Smoothing/slew rate (MIDI velocity in MIDI mode) |
+| **12** | Delay | ○○ / ●● / ○○ | CV delay feedback level |
+| **13** | Math | ●○ / ●● / ○○ | Math logic operator (Mix, Sub, Min, Max, Mult, AND, OR, XOR) |
 
-### 2. Digital Gate Outputs (Jacks 5-6)
-These swing unipolar (`0V` to `+6V`).
+### 2. Digital Gate Outputs (Channels 5–6 / Jacks 5–6)
+Unipolar (`0V` to `+6V`).
 
-| Index | Shape Name | LED Matrix (3x2) | Y Knob Parameter |
+| Index | Shape Name | LED Matrix (3x2) | Knob Y Parameter |
 |:---:|---|:---:|---|
-| **0** | Gate | ○○<br>○○<br>○○ | Pulse width / duty cycle |
-| **1** | Ratchet | ●○<br>○○<br>○○ | Spacing between double triggers |
-| **2** | Trigger | ○●<br>○○<br>○○ | Phase delay (trigger is fixed at 10ms) |
-| **3** | Burst | ●●<br>○○<br>○○ | Pulse count (1 to 8 triggers) |
-| **4** | Random | ○○<br>●○<br>○○ | Max random gate width scale |
-| **5** | Utility | ●○<br>●○<br>○○ | Mode select (1 PPQN, 4 PPQN, 24 PPQN, Run Gate) |
-
----
-
-## Math Operators (Analog Shape 13)
-
-When set to `Math`, you combine the active channel's carrier wave with another channel's output (selected using the Speed knob). Knob Y selects the operator:
-*   **Mix/Sum (+)**: Sums both channels.
-*   **Difference (-)**: Subtracts modulator from carrier.
-*   **Minimum (min)**: Outputs the lowest voltage of the two.
-*   **Maximum (max)**: Outputs the highest voltage of the two.
-*   **Multiply (*)**: Bipolar ring modulator / VCA logic.
-*   **AND (&)**: High (+6V) if both channels are positive, otherwise Low (-6V).
-*   **OR (|)**: High (+6V) if either channel is positive, otherwise Low (-6V).
-*   **XOR (^)**: High (+6V) if only one channel is positive, otherwise Low (-6V).
-
----
-
-## Quantizer Scales (Analog channels, steps = 0)
-
-Turn Knob Y in Advanced mode (DOWN held) to snap smooth random walks or LFOs to musical scales:
-`OFF` (Raw CV), `CHRO` (Chromatic), `MAJ` (Major), `MPEN` (Major Pentatonic), `MIN` (Natural Minor), `MINP` (Minor Pentatonic), `DOR` (Dorian), `MIXO` (Mixolydian), `LYD` (Lydian), `PHRY` (Phrygian), `HMIN` (Harmonic Minor).
-
----
-
-## USB MIDI CC Map
-
-Map parameters to your DAW or MIDI controller using these MIDI CC numbers:
-
-### Global Settings
-*   **BPM**: CC 70
-*   **Swing**: CC 71
-*   **Humanize**: CC 72
-*   **Seed**: CC 73
-*   **Sync Mode**: CC 74
-
-### Channel Settings (Outputs 1-6)
-Each channel maps to 9 sequential CCs: **Speed, Steps, Fills, Shape, Parameter, Probability, Scale, Loop Length, Level**.
-*   **Output 1**: CC 10 to 18
-*   **Output 2**: CC 20 to 28
-*   **Output 3**: CC 30 to 38
-*   **Output 4**: CC 40 to 48
-*   **Output 5**: CC 50 to 58
-*   **Output 6**: CC 60 to 68
+| **0** | Gate | ○○ / ○○ / ○○ | Pulse width / duty cycle |
+| **1** | Ratchet | ●○ / ○○ / ○○ | Double trigger spacing |
+| **2** | Trigger | ○● / ○○ / ○○ | Phase delay (10ms fixed pulse width) |
+| **3** | Burst | ●● / ○○ / ○○ | Pulse count (1 to 8 triggers) |
+| **4** | Random | ○○ / ●○ / ○○ | Max random gate width scale |
+| **5** | Utility | ●○ / ●○ / ○○ | Utility mode (1 PPQN, 4 PPQN, 24 PPQN, Run Gate) |
 
 ---
 
 ## Web MIDI Manager
 
-Open `web/index.html` in Chrome or Edge.
+Open `web/index.html` in Chrome or Edge, or visit the online [Clockwork Web Manager](https://vincentmaurer.de/clockwork/index.html).
 
-### How to Connect:
-1. Connect a USB-C data cable from the card's USB port to your computer.
-2. Open the page. It will automatically search for and connect to `Clockwork MIDI`. (Note: close other DAW or MIDI applications if the port fails to open).
+![Clockwork Web MIDI Manager](webui_screenshot.png)
 
-### Key Features:
-*   **Real-time Telemetry & Scope**: Live oscilloscope view of the voltages running out of all 6 outputs.
-*   **Euclidean Orbits**: Interactive rings showing Euclidean steps, active fills, and phase rotations.
-*   **Preset Manager**: Save and load patch configurations, name your presets, and back them up directly to your computer as files.
-*   **Advanced Routing**: Configure cross-channel trigger routing, quantizer scales, and mathematical logic operations using simple dropdowns.
-*   **Instant Sync**: Any changes made in the web browser interface update the hardware immediately.
+- **Live Oscilloscope**: Monitor output voltages across all 6 channels in real time.
+- **Euclidean Orbits**: Concentric rings showing step counts, active fills, phase offsets, and rotations.
+- **Instant Hardware Sync**: Turning hardware knobs updates the web browser live, and tweaking web UI controls updates the card immediately.
+- **Preset Manager**: Save, load, name, and back up 6 preset slots to disk or internal flash memory.
+- **Routing & Scale Controls**: Configure cross-channel triggers, math operators, and quantizer scales visually.
 
 ---
 
-Created for the Music Thing Modular Workshop System by Vincent Maurer (https://github.com/vincent-maurer/) with assistance from Google Gemini.
+## Building from Source (Developer Info)
 
-Thank you to everyone on the Workshop System Discord server and especially to Tom Whitwell for the module and Chris Johnson (https://github.com/chrisgjohnson) for the ComputerCard library and the great support.
+```bash
+mkdir build
+cd build
+cmake ..
+make
+```
+
+Flash the generated `clockwork.uf2` by holding **BOOTSEL** while connecting the card via USB-C.
+
+---
+
+Created for the Music Thing Modular Workshop System by Vincent Maurer with assistance from Google Gemini. Special thanks to Tom Whitwell and Chris Johnson.

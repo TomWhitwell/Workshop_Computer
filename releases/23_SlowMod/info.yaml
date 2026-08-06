@@ -1,11 +1,13 @@
 draft: true
 Name: SlowMod
-Description: Chaotic quad-LFO with VCAs
+short-description: Chaotic quad-LFO with VCAs
 Language: C++ (RPi Pico SDK) compat. w/ cmake and Arduino IDE.
 Creator: divmod
 Version: 0.1
 Status: Released
 Repository: https://github.com/divmod-audio/slowmod
+date-created: 2025-01-20
+date-updated: 2026-04-17
 
 tags:
   - modulation
@@ -13,7 +15,7 @@ tags:
   - utility
   - cv
 
-manual: |
+summary: |
   Four related LFO channels with cross-modulation and per-channel VCA behavior.
   Main sets global LFO rate from very slow to low audio range (AudioOut1 fastest, CVOut2 slowest).
   X sets cross-modulation intensity; Y crossfades each output with an inverted neighboring channel.

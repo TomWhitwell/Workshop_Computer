@@ -1,0 +1,43 @@
+version: 1
+default: page-0-global
+
+panels:
+  - id: page-0-global
+    name: "Global"
+    image: page0_global.svg
+    content: page0_global.md
+
+  - id: page-1-chorus
+    name: "1. Chorus"
+    image: page1_chorus.svg
+    content: page1_chorus.md
+
+  - id: page-2-codec
+    name: "2. Loss"
+    image: page2_codec.svg
+    content: page2_codec.md
+
+  - id: page-3-delay
+    name: "3. Delay"
+    image: page3_delay.svg
+    content: page3_delay.md
+
+  - id: page-4-glitcher
+    name: "4. Glitcher"
+    image: page4_glitcher.svg
+    content: page4_glitcher.md
+
+  - id: page-4-freeze
+    name: "Freeze"
+    image: page4_freeze.svg
+    content: page4_freeze.md
+
+  - id: page-5-filter
+    name: "5. Filter"
+    image: page5_filter.svg
+    content: page5_filter.md
+
+  - id: page-6-reverb
+    name: "6. Reverb"
+    image: page6_reverb.svg
+    content: page6_reverb.md

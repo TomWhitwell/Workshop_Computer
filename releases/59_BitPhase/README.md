@@ -244,4 +244,9 @@ Useful for synchronising external modulation events.
 * LED 5 — Burst mode status
 * LED 6 — Pulse input monitor
 
+## Attribution
+
+BitPhase uses the ComputerCard hardware framework by Chris Johnson. The
+framework's original notice is retained in `ComputerCard.h`.
+
 ---

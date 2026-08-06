@@ -1,11 +1,13 @@
 draft: false
 Name: Fifths
-Description: A quantizer/sequencer that can create harmony and nimbly traverse the circle of fifths in attempts to make jazz
+short-description: A quantizer/sequencer that can create harmony and nimbly traverse the circle of fifths in attempts to make jazz
 Language: C++ (RP2040 Pico SDK)
 Creator: Dune Desormeaux
 Version: 1.1
 Status: Released
 demo-link: https://youtu.be/xdUCDX7FmOA
+date-created: 2025-05-24
+date-updated: 2026-07-04
 
 tags:
   - quantizer
@@ -14,7 +16,7 @@ tags:
   - cv
   - generative
 
-manual: |
+summary: |
   Fifths quantizes incoming or generated CV to keys arranged around the circle of fifths and outputs both
   a quantized note and an ambiguous third harmony voice. It can run from external clock (Pulse In 1) or internal
   tap-tempo clock, and can loop or write incoming material depending on switch state/toggles. Loop length is set by X,

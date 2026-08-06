@@ -1,10 +1,12 @@
 draft: true
 Name: Bytebeat
-Description: Generates and mangles bytebeats
+short-description: Generates and mangles bytebeats
 Language: C++/Arduino-Pico
 Creator: Matt Kuebrich
 Version: 0.1
 Status: Functional but WIP
+date-created: 2024-11-30
+date-updated: 2024-12-10
 
 tags:
   - bytebeat
@@ -13,7 +15,7 @@ tags:
   - noise
   - experimental
 
-manual: |
+summary: |
   Bytebeat generator with 36 built-in formulas across 6 banks plus 6 user formula slots.
   Main controls sample rate, X selects formula/bank or user slot, and Y controls parameter 1.
   Pulse In 1 resets/triggers and Pulse In 2 toggles reverse playback.

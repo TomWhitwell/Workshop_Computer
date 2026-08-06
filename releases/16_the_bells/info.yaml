@@ -1,20 +1,7 @@
-draft: true
+draft: false
 Name: The Bells
-Description: Bellringing methods sequencer — 12 change-ringing methods with tempo and jitter, quantised to six scales
-Language: C++ (ComputerCard)
-Creator: James Saunders
-Version: 1.0.0
-Status: Released
-
-tags:
-  - sequencer
-  - campanology
-  - permutation
-  - cv
-  - scale
-  - generative
-
-manual: |
+short-description: Bellringing methods sequencer — 12 change-ringing methods with tempo and jitter, quantised to six scales
+summary: |
   A bellringing methods sequencer: plays 12 traditional English change-ringing methods
   (Plain Hunt Minimus through Plain Bob Triples, 4-7 bells), sending each row of the
   method as a v/oct pitch sequence quantised to one of six scales, with a synchronised
@@ -24,6 +11,19 @@ manual: |
   Z switch selects mode: Up = Play, Middle = Stop, Down (hold) = Edit. While held down,
   turning a knob selects that knob's edit-mode parameter (method / clock divide / scale);
   releasing Z returns to Play/Stop with the new parameter applied.
+Language: C++ (ComputerCard)
+Creator: James Saunders
+Version: 1.0.0
+Status: Released
+date-created: 2026-06-27
+date-updated: 2026-06-30
+tags:
+  - sequencer
+  - campanology
+  - permutation
+  - cv
+  - scale
+  - generative
 
 panel:
   outputs:
@@ -56,7 +56,7 @@ controls:
       y:
         name: Covering Tenor
         description: Same as Play
-    - when: { z: down, gesture: hold }
+    - when: { z: down }
       main:
         name: Method Select
         description: Chooses one of 12 change-ringing methods (see manual for full list); takes effect at the next row boundary
@@ -67,10 +67,27 @@ controls:
         name: Scale Select
         description: Six scales — Major, Minor, Pentatonic Major, Pentatonic Minor, Blues, Chromatic
 
+  switch:
+    up:
+      name: Play
+      description: Run the selected change-ringing method
+    middle:
+      name: Stop
+      description: Halt the sequence; tempo, jitter, and covering tenor remain live
+    down:
+      name: Edit
+      description: Hold to edit — Main selects method, X clock divide/multiply, Y scale; release to apply
+
   leds:
     - when: { z: up }
-      display: custom
-      description: Bells 1-6 shown as a single lit LED matching the bell number; bells 7-8 shown as a single unlit LED among the rest (mirrored), since only 6 LEDs are available
-    - when: { z: down, gesture: hold }
-      display: custom
-      description: Same 1-6-lit / 7-12-mirrored scheme, showing the currently selected method (1-12), clock divide step, or scale, depending on which knob last moved
+      display: list
+      items:
+        - id: LED0
+          name: Bell / row
+          description: Bells 1-6 shown as a single lit LED matching the bell number; bells 7-8 shown as a single unlit LED among the rest (mirrored), since only 6 LEDs are available
+    - when: { z: down }
+      display: list
+      items:
+        - id: LED0
+          name: Edit value
+          description: Same 1-6-lit / 7-12-mirrored scheme, showing the currently selected method (1-12), clock divide step, or scale, depending on which knob last moved

@@ -1,11 +1,13 @@
 draft: false
 Name: Sheep
-Description: A time-stretching and pitch-shifting granular processor and digital degradation playground with 2 fidelity options.
+short-description: A time-stretching and pitch-shifting granular processor and digital degradation playground with 2 fidelity options.
 Language: Pico SDK
 Creator: Dune Desormeaux
 Version: 1.2
 Status: Released
 demo-link: https://youtu.be/LfkgfMzVabg
+date-created: 2025-07-13
+date-updated: 2026-07-04
 
 tags:
   - effect
@@ -15,7 +17,7 @@ tags:
   - glitch
 
 # certainty: low — structured behavior inferred from source comments in main.cpp; no local README
-manual: |
+summary: |
   Granular buffer processor with triggerable grains, reverse/forward playback, loop/glitch mode, and freeze.
   Main controls grain speed or CV2 pitch attenuation, X controls delay spread (or CV1 attenuation), Y sets grain size.
   PulseIn1 triggers grains; PulseIn2 acts as a grain gate. Z up freezes buffer, Z middle runs normal mode, Z down enables loop/glitch behavior.

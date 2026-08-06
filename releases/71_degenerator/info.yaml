@@ -1,15 +1,27 @@
-draft: true
+draft: false
 Name: Degenerator
-Description: "Degenerator — Disintegrating Looper. Capture audio loops and apply irreversible degradation with 6 algorithms (Saturation, Filter Drift, Tape Hiss, Oxide Shedding, Bit Crush, Bit Rot) via preview/apply workflow. Inspired by William Basinski's The Disintegration Loops."
+short-description: "Degenerator — Disintegrating Looper. Capture audio loops and apply irreversible degradation with 6 algorithms (Saturation, Filter Drift, Tape Hiss, Oxide Shedding, Bit Crush, Bit Rot) via preview/apply workflow. Inspired by William Basinski's The Disintegration Loops."
 Language: C++ (Pico SDK)
 Creator: Joep Vermaat
+contact:
+  email: joep@joep-i.nl
+  website: https://codeberg.org/johantv/
 Version: 1.3
 Status: Released
 License: MIT
+date-created: 2026-05-08
+date-updated: 2026-05-31
 Editor: https://degenerator-web.netlify.app/
 Repository: https://codeberg.org/johantv/Degenerator
 
-manual: |
+tags:
+  - looper
+  - sampler
+  - distortion
+  - glitch
+  - disintegration
+
+summary: |
   Irreversible layered looper with additive MIX and subtractive DEGRADE workflows.
   Z down is RECORD (and slot workflows in SLOT mode), Z middle is MIX, Z up is
   DEGRADE. Main controls mix/commit amount (full left freezes state), X selects
@@ -80,16 +92,11 @@ controls:
         description: Selects/crossfades oxide shedding, bit crush, and bit rot on loop buffer
     - when: { z: down }
       main:
-        name: Record Context / Slot Select
-        description: Not used for record level in RECORD; selects slot index in SELECT_SLOT or STORE_SLOT contexts
-    - when: { z: down, layer: boot }
-      main:
-        name: Boot Mode Select
-        description: Holding Z down at boot enters SLOT mode; otherwise YOLO mode
+        name: Record Context
+        description: Not used for record level in RECORD
 
   leds:
-    - when: { z: any }
-      display: list
+    - display: list
       items:
         - id: LED0
           name: Output Level Left Meter

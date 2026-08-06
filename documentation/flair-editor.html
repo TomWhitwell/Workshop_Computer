@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Program Card Flair Editor</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #181713; background: #f5f2e8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: max-content; }
+    main { padding: 28px; }
+    header { display: flex; align-items: end; justify-content: space-between; gap: 32px; margin-bottom: 18px; }
+    h1 { margin: 0 0 6px; font-size: 2rem; }
+    p { margin: 0; color: #666158; }
+    .actions { display: flex; gap: 8px; }
+    button, input { font: inherit; }
+    button { padding: 8px 12px; border: 1px solid #aaa497; border-radius: 6px; background: #fffdf7; cursor: pointer; }
+    button.primary { border-color: #bd441f; color: white; background: #df5429; }
+    .toolbar { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
+    #search { width: 320px; padding: 9px 10px; border: 1px solid #aaa497; border-radius: 6px; }
+    #status { color: #666158; }
+    table { border-collapse: collapse; background: #fffdf7; }
+    th, td { border: 1px solid #d8d3c6; }
+    thead th { position: sticky; top: 0; z-index: 2; padding: 8px; background: #ece7da; vertical-align: bottom; }
+    th.card, tbody th, tfoot th { position: sticky; left: 0; z-index: 1; width: 330px; min-width: 330px; padding: 10px 12px; text-align: left; background: #fffdf7; }
+    thead th.card { z-index: 3; background: #ece7da; }
+    tbody th strong, tbody th span, tbody th small { display: block; }
+    tbody th span { margin: 3px 0; color: #59564f; font-size: .85rem; font-weight: normal; }
+    tbody th small { color: #8a857b; font-weight: normal; }
+    td { width: 112px; min-width: 112px; height: 58px; text-align: center; }
+    .flair-label { width: 100px; padding: 5px; border: 1px solid #aaa497; border-radius: 5px; font-weight: 700; text-align: center; }
+    .flair-id { display: block; margin-top: 4px; color: #777168; font: 11px ui-monospace, monospace; }
+    input[type="checkbox"] { width: 22px; height: 22px; accent-color: #df5429; cursor: pointer; }
+    tfoot th, tfoot td { padding: 12px; background: #ece7da; font-weight: 700; }
+    tfoot td { font-size: 1.2rem; }
+    .note { margin-top: 16px; max-width: 850px; line-height: 1.5; }
+    code { color: #35322d; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Program Card Flair Editor</h1>
+      <p>Tick assignments, type new column labels, or add a new flair.</p>
+    </div>
+    <div class="actions">
+      <button id="reset" type="button">Reset</button>
+      <button id="add" type="button">Add flair</button>
+      <button id="download" class="primary" type="button">Download flairs.yml</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Find a card">
+    <span id="status"></span>
+  </div>
+
+  <table>
+    <thead id="head"></thead>
+    <tbody id="body"></tbody>
+    <tfoot id="foot"></tfoot>
+  </table>
+
+  <p class="note">The downloaded file keeps every card, including cards with no flair. Replace
+    <code>tools/sitegen/src/curation/flairs.yml</code> with it and run <code>npm run check-curation</code>.</p>
+</main>
+
+<script id="curation-data" type="application/json">__CURATION_DATA_JSON__</script>
+<script>
+  const original = JSON.parse(document.querySelector('#curation-data').textContent);
+  let state = structuredClone(original);
+  const el = id => document.getElementById(id);
+  const slug = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const quote = value => `"${String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+
+  function assignments() {
+    const known = new Map();
+    state.availableTags.forEach(tag => {
+      known.set(slug(tag.id), tag.id);
+      known.set(slug(tag.label), tag.id);
+    });
+    const result = {};
+    state.cards.forEach(card => {
+      result[card.id] = [...new Set((state.assignments[card.id] || [])
+        .map(value => known.get(slug(value)) || slug(value)).filter(Boolean))];
+    });
+    return result;
+  }
+
+  function render() {
+    const assigned = assignments();
+    const query = el('search').value.trim().toLowerCase();
+    const cards = state.cards.filter(card => !query || `${card.id} ${card.title} ${card.shortDescription}`.toLowerCase().includes(query));
+
+    el('head').innerHTML = `<tr><th class="card">Program card</th>${state.availableTags.map(tag => `
+      <th><input class="flair-label" data-label="${escapeHtml(tag.id)}" value="${escapeHtml(tag.label)}" aria-label="Rename ${escapeHtml(tag.label)}"><small class="flair-id">${escapeHtml(tag.id)}</small></th>`).join('')}</tr>`;
+
+    el('body').innerHTML = cards.map(card => `<tr>
+      <th><strong>${escapeHtml(card.title)}</strong>${card.shortDescription ? `<span>${escapeHtml(card.shortDescription)}</span>` : ''}<small>${escapeHtml(card.id)}</small></th>
+      ${state.availableTags.map(tag => `<td><input type="checkbox" data-card="${escapeHtml(card.id)}" data-flair="${escapeHtml(tag.id)}" aria-label="${escapeHtml(card.title)}: ${escapeHtml(tag.label)}" ${(assigned[card.id] || []).includes(tag.id) ? 'checked' : ''}></td>`).join('')}
+    </tr>`).join('');
+
+    el('foot').innerHTML = `<tr><th>Flair totals</th>${state.availableTags.map(tag => {
+      const total = state.cards.filter(card => (assigned[card.id] || []).includes(tag.id)).length;
+      return `<td title="${escapeHtml(tag.label)}">${total}</td>`;
+    }).join('')}</tr>`;
+    el('status').textContent = `${cards.length} of ${state.cards.length} cards - ${state.availableTags.length} flairs`;
+  }
+
+  el('body').addEventListener('change', event => {
+    const input = event.target.closest('[data-card][data-flair]');
+    if (!input) return;
+    const values = new Set(assignments()[input.dataset.card] || []);
+    input.checked ? values.add(input.dataset.flair) : values.delete(input.dataset.flair);
+    state.assignments[input.dataset.card] = [...values];
+    render();
+  });
+
+  el('head').addEventListener('change', event => {
+    const input = event.target.closest('[data-label]');
+    if (!input || !input.value.trim()) return render();
+    state.availableTags.find(tag => tag.id === input.dataset.label).label = input.value.trim();
+    render();
+  });
+
+  el('search').addEventListener('input', render);
+  el('reset').addEventListener('click', () => {
+    if (!confirm('Discard changes made on this page?')) return;
+    state = structuredClone(original);
+    el('search').value = '';
+    render();
+  });
+
+  el('add').addEventListener('click', () => {
+    const label = prompt('Visible flair label:');
+    if (!label) return;
+    const id = slug(prompt('Stable flair ID:', slug(label)) || '');
+    if (!id || state.availableTags.some(tag => tag.id === id)) return alert('That flair ID is empty or already in use.');
+    const description = prompt('Short description:', '') || '';
+    const color = prompt('Badge colour:', '#365f9d') || '#365f9d';
+    state.availableTags.push({ id, label: label.trim(), description, color, textColor: '#ffffff' });
+    render();
+  });
+
+  function yaml() {
+    const lines = [
+      '# Flair administration for generated card pages.',
+      '# `available_flairs` defines the vocabulary; `assignments` maps card IDs to flair IDs.',
+      '', 'available_flairs:'
+    ];
+    state.availableTags.forEach(tag => lines.push(
+      `  - id: ${tag.id}`,
+      `    label: ${quote(tag.label)}`,
+      `    description: ${quote(tag.description)}`,
+      `    color: ${quote(tag.color)}`,
+      `    text_color: ${quote(tag.textColor)}`,
+      ''
+    ));
+    lines.push('assignments:');
+    const assigned = assignments();
+    state.cards.forEach(card => {
+      const values = assigned[card.id] || [];
+      if (!values.length) lines.push(`  ${quote(card.id)}: []`);
+      else {
+        lines.push(`  ${quote(card.id)}:`);
+        values.forEach(value => lines.push(`    - ${value}`));
+      }
+    });
+    return `${lines.join('\n')}\n`;
+  }
+
+  el('download').addEventListener('click', () => {
+    const url = URL.createObjectURL(new Blob([yaml()], { type: 'text/yaml' }));
+    const link = Object.assign(document.createElement('a'), { href: url, download: 'flairs.yml' });
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+
+  render();
+</script>
+</body>
+</html>

@@ -165,7 +165,7 @@ LEDs:
 
 ## Web MIDI editor
 
-[Launch the hosted Fr330hfr33 editor](https://soveda.github.io/303bass/web_config/Fr330hfr33.html)
+[Launch the hosted Fr330hfr33 editor](https://tomwhitwell.github.io/Workshop_Computer/programs/87-fr330hfr33/web/index.html)
 
 Use Chrome or Edge with Web MIDI and SysEx enabled. Connect with a USB-C data
 cable, close other applications using the MIDI port, select **Fr330hfr33**, and
@@ -174,13 +174,13 @@ press **Apply**.
 To serve the editor locally:
 
 ```sh
-python3 -m http.server 5173 --directory web_config
+python3 -m http.server 5173 --directory web
 ```
 
 Then open:
 
 ```text
-http://localhost:5173/Fr330hfr33.html
+http://localhost:5173
 ```
 
 ## Building
@@ -210,3 +210,9 @@ optional.
 
 The Web MIDI SysEx format is documented in
 [`protocol.md`](protocol.md).
+
+## Attribution
+
+Fr330hfr33 uses the ComputerCard hardware framework by Chris Johnson. Its USB
+MIDI host support includes the MIT-licensed rppicomidi files, copyright 2023
+rppicomidi; their copyright and licence notices are retained in the source.

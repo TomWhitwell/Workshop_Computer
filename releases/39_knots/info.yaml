@@ -1,12 +1,14 @@
 draft: true
 Name: Knots
-Description: Six-engine oscillator firmware for the Music Thing Workshop System
+short-description: Six-engine oscillator firmware for the Music Thing Workshop System
 Language: C++ (RPi Pico SDK / ComputerCard)
 Creator: Jeff Fletcher
 Version: 0.2
 Status: Released
+date-created: 2026-03-22
+date-updated: 2026-04-06
 
-manual: |
+summary: |
   Six-engine oscillator card with Normal/Alt output modes, MIDI input, and clock/gate utilities.
   Main sets pitch, X/Y shape engine parameters, CV and pulse inputs modulate mode/slot behavior,
   and Z handles mode switching, engine advance, and Pulse Out 2 clock configuration.

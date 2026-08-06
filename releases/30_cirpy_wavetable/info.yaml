@@ -1,10 +1,12 @@
 draft: true
 Name: Cirpy Wavetable
-Description: Wavetable oscillator that using wavetables from Plaits, Braids, and Microwave,
+short-description: Wavetable oscillator that using wavetables from Plaits, Braids, and Microwave,
 Language: CircuitPython
 Creator: Tod Kurt (@todbot)
 Version: 0.1
 Status: Functional but WIP
+date-created: 2024-11-30
+date-updated: 2024-11-30
 
 tags:
   - wavetable
@@ -15,7 +17,7 @@ tags:
 
 demo-link: https://youtu.be/Y7sOgAC92XU
 
-manual: |
+summary: |
   cirpy_wavetable loads WAV wavetables and plays them as a continuously running oscillator.
   Main sets wavetable position, X sets LFO modulation amount, and Y sets LFO rate.
   Switch down selects next wavetable file; switch up toggles CV pitch quantization.

@@ -1,102 +1,141 @@
-draft: true
+draft: false
 Name: Markov
-Description: Dual generative Markov chain module — evolving melody (MarkoV) left side, rhythmic percussion patterns (MarkovPerc) right side, with internal synth voice
-Language: C++ (Pico SDK)
+short-description: Dual generative Markov chain module — evolving melody left, rhythmic percussion right, with internal synth voice
+summary: >-
+  Two independent Markov chain engines run in parallel from a shared clock — a melodic generator
+  on the left side and a rhythmic percussion generator on the right — combined by an internal
+  square-wave synth voice into a self-contained generative instrument. Knob X selects one of five
+  melodic transition profiles, Knob Y one of four percussion profiles, and the Main knob changes
+  role with the switch: pre-scale transpose (up), loop lock and mutation (middle), or scale select
+  while held (down). Hold the switch down at power-on for Dual Melody mode, where both engines
+  become melodic voices.
+Language: C++ (RP2040 Pico SDK)
 Creator: Andy Jenkinson (uglifruit)
 Version: 1.0.0
 Status: Released
+License: MIT
+date-created: 2026-05-30
+date-updated: 2026-08-04
+repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/60_markov
+discussion: https://discord.com/channels/1210238368898879569/1510172134385647786
 
-manual: |
-  Dual Markov-chain generator with melody on voice A and rhythm/percussion on voice B.
-  Knob X selects melodic transition profile, Knob Y selects percussion profile, and
-  Main is switch-dependent: transpose (Z up), loop lock/mutate length (Z middle), or
-  scale select while held (Z down). Pulse In 1 clocks both chains; CV Out 1 carries
-  melody pitch, Pulse Out 1 emits pitch-change gate, Pulse Out 2 emits percussion
-  triggers/ratchets/flams, and CV Out 2 carries percussion accent.
+contact:
+  email: andyuglifruit@hotmail.com
+  social:
+    github: https://github.com/uglifruit
+
+tags:
+  - generative
+  - markov
+  - sequencer
+  - melody
+  - percussion
+  - quantiser
+
+uf2:
+  - path: UF2/markov.uf2
+    name: Markov v1.0.0
 
 panel:
   inputs:
     - id: PulseIn1
       name: Master Clock
-      description: Rising edge advances both Markov chains; after timeout the module falls back to internal CV-controlled tempo
+      type: pulse
+      description: Rising edge advances both Markov chains; falls back to the CV In 2 internal clock after 3 seconds with no pulse
     - id: CVIn1
-      name: Melody Post-Scale Transpose
-      description: Bipolar semitone transpose applied after scale quantization (disabled while scale-select switch down is held)
+      name: Post-Scale Transpose
+      type: cv
+      description: Bipolar ±12 semitone shift applied after scale quantisation; 0V is no shift, and the input is frozen while the switch is held down
     - id: CVIn2
-      name: Internal Tempo CV
-      description: Internal tempo control when external clock is absent
+      name: Internal Tempo
+      type: cv
+      description: Sets internal tempo when Pulse In 1 is absent — 0V is 120 BPM, ranging roughly 20–220 BPM. In Dual Melody mode this becomes post-scale transpose for voice B
   outputs:
-    - id: PulseOut1
-      name: Melody Change Gate
-      description: Short pulse when quantized melody pitch changes
     - id: CVOut1
       name: Melody Pitch CV
-      description: Quantized melody pitch output (V/Oct calibrated by firmware mapping)
+      type: cv
+      description: Quantised V/Oct pitch for the melody chain, hardware calibrated
+    - id: PulseOut1
+      name: Melody Change Gate
+      type: pulse
+      description: 10ms gate fired only when the quantised melody pitch changes from the previous step
     - id: PulseOut2
       name: Percussion Trigger
-      description: Markov percussion trigger output including ratchets/flams
+      type: pulse
+      description: Triggers for percussion hits, firing multiple times per clock for ratchets and flams. In Dual Melody mode this becomes the voice B gate
     - id: CVOut2
       name: Percussion Accent CV
-      description: Accent level CV derived from percussion state
+      type: cv
+      description: Accent level across five steps — 0V for a rest up to +5V for a full accent. In Dual Melody mode this becomes voice B pitch CV
     - id: AudioOut1
       name: Internal Synth Voice A
-      description: Square-wave synth voice tied to melody chain and percussion gating
+      type: audio
+      description: Square-wave oscillator pitched by the melody chain, shaped by a long decaying envelope and gated by percussion hits
     - id: AudioOut2
-      name: Internal Output B / Dual Melody Voice B
-      description: Unused in primary mode; outputs second synth voice in dual melody mode
+      name: Internal Synth Voice B
+      type: audio
+      description: Unused in primary mode; carries the independent voice B synth in Dual Melody mode
 
 controls:
+  switch:
+    up:
+      name: Transpose
+      description: Main knob sets melody base note from −12 to +12 semitones, applied before scale quantisation so it changes which scale degrees are played
+    middle:
+      name: Loop & Lock
+      description: Main knob is symmetric around centre — centre is free running, clockwise locks a clean 16/8/4/3/2 beat replay of what just played, counter-clockwise locks the same replay with a 1-in-8 per-step chance of Markov mutation
+    down:
+      name: Scale Select
+      description: Momentary. While held, the Main knob selects one of twelve quantisation scales and all six LEDs show the index in binary. Held at power-on instead selects Dual Melody mode
   knobs:
-    - when: { z: middle }
-      main:
-        name: Loop Lock Length / Mutation
-        description: Center is free run; clockwise locks fixed replay lengths, counter-clockwise locks replay with probabilistic per-step mutation
-      x:
-        name: Melody Profile
-        description: Selects one of five melodic transition profiles
-      y:
-        name: Percussion Profile
-        description: Selects one of four percussion transition profiles (or voice B profile in dual melody mode)
     - when: { z: up }
       main:
         name: Base Transpose
-        description: Pre-scale transpose applied to generated melody
+        description: Pre-scale transpose from −12 to +12 semitones, centre is 0
       x:
         name: Melody Profile
-        description: Selects one of five melodic transition profiles
+        description: Selects one of five melodic transition profiles — Pentatonic Stability, Chromatic Tension, Jazz Tendencies, Glacial, Drone
       y:
         name: Percussion Profile
-        description: Selects one of four percussion transition profiles (or voice B profile in dual melody mode)
-    - when: { z: down, gesture: hold }
+        description: Selects one of four percussion transition profiles — Steady, Syncopated, Jazz/Free, Sparse (voice B melodic profile in Dual Melody mode)
+    - when: { z: middle }
+      main:
+        name: Loop Length / Mutation
+        description: Centre is free run; clockwise locks a fixed 16/8/4/3/2 beat replay, counter-clockwise locks the same lengths with probabilistic per-step mutation
+      x:
+        name: Melody Profile
+        description: Selects one of five melodic transition profiles — Pentatonic Stability, Chromatic Tension, Jazz Tendencies, Glacial, Drone
+      y:
+        name: Percussion Profile
+        description: Selects one of four percussion transition profiles — Steady, Syncopated, Jazz/Free, Sparse (voice B melodic profile in Dual Melody mode)
+    - when: { z: down }
       main:
         name: Scale Select
-        description: Selects quantization scale index while switch is held down
+        description: Selects the quantisation scale index from 0 to 11 while the switch is held down; the new scale takes effect on the next clock pulse
       x:
         name: Melody Profile
-        description: Profile selection remains available outside the momentary scale-select action
+        description: Profile selection remains available outside the momentary scale-select gesture
       y:
         name: Percussion Profile
-        description: Profile selection remains available outside the momentary scale-select action
-
+        description: Profile selection remains available outside the momentary scale-select gesture
   leds:
-    - when: { z: any }
-      display: list
+    - display: list
       items:
-        - id: LED0
-          name: Left Column Bit 0 / Loop Length Indicator
-          description: Shows melody profile bit 0 during Knob X feedback; participates in scale binary display; used as loop length indicator for 16-beat lock
-        - id: LED1
+        - id: led0
+          name: Left Column Bit 0
+          description: Melody profile bit 0 during Knob X feedback; scale binary bit 0 while the switch is held down; loop length indicator for a 16-beat lock
+        - id: led1
           name: Right Column Bit 0
-          description: Shows percussion (or dual voice B) profile bit 0 during Knob Y feedback; participates in scale binary display
-        - id: LED2
-          name: Left Column Bit 1 / Loop Length Indicator
-          description: Shows melody profile bit 1 during Knob X feedback; participates in scale binary display; used as loop length indicator for 8-beat lock
-        - id: LED3
-          name: Right Column Bit 1 / Loop Length Indicator
-          description: Shows percussion (or dual voice B) profile bit 1 during Knob Y feedback; participates in scale binary display; used as loop length indicator for 2-beat lock
-        - id: LED4
-          name: Left Column Bit 2 / Loop Length Indicator
-          description: Shows melody profile bit 2 during Knob X feedback; participates in scale binary display; used as loop length indicator for 4-beat lock
-        - id: LED5
-          name: Right Column Bit 2 / Loop Length Indicator
-          description: Shows percussion (or dual voice B) profile bit 2 during Knob Y feedback; participates in scale binary display; used as loop length indicator for 3-beat lock
+          description: Percussion profile bit 0 during Knob Y feedback; scale binary bit 1 while the switch is held down
+        - id: led2
+          name: Left Column Bit 1
+          description: Melody profile bit 1 during Knob X feedback; scale binary bit 2 while the switch is held down; loop length indicator for an 8-beat lock
+        - id: led3
+          name: Right Column Bit 1
+          description: Percussion profile bit 1 during Knob Y feedback; scale binary bit 3 while the switch is held down; loop length indicator for a 2-beat lock
+        - id: led4
+          name: Left Column Bit 2
+          description: Melody profile bit 2 during Knob X feedback; scale binary bit 4 while the switch is held down; loop length indicator for a 4-beat lock
+        - id: led5
+          name: Right Column Bit 2
+          description: Percussion profile bit 2 during Knob Y feedback; scale binary bit 5 while the switch is held down; loop length indicator for a 3-beat lock

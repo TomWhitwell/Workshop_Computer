@@ -56,6 +56,11 @@ target_link_libraries(LoChoVibes
     hardware_i2c
 )
 
+# Stable restart on Workshop Computer hardware.
+target_compile_definitions(LoChoVibes PRIVATE
+    PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64
+)
+
 # ============================================================
 # Optimisation
 # ============================================================
@@ -64,6 +69,8 @@ target_compile_options(LoChoVibes PRIVATE
     -O3
     -ffast-math
 )
+
+pico_set_binary_type(LoChoVibes copy_to_ram)
 
 # ============================================================
 # Create UF2/BIN/etc

@@ -1,0 +1,81 @@
+draft: False
+Name: COMET
+short-description: Clocked lo-fi reverb and delay
+summary: Clocked lo-fi reverb and delay
+Language: C++ (Pico SDK, ComputerCard)
+Creator: EME
+Version: 1.0
+Status: Released
+License: MIT
+date-created: 2026-07-12
+date-updated: 2026-07-12
+
+tags:
+  - effect
+  - reverb
+  - delay
+  - lo-fi
+  - clock
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio In Left
+      description: Stereo audio input, left
+    - id: AudioIn2
+      name: Audio In Right
+      description: Stereo audio input, right (normalled to In 1 for mono sources)
+    - id: CVIn1
+      name: X CV
+      description: Adds to the X knob (reverb smear / delay feedback, LFO shape)
+    - id: CVIn2
+      name: Y CV
+      description: Adds to the Y knob (reverb decay / delay division, LFO phase)
+    - id: PulseIn1
+      name: Clock In
+      description: External clock; auto-detected, Main knob becomes mult/div
+    - id: PulseIn2
+      name: Unused
+      description: Not used
+  outputs:
+    - id: AudioOut1
+      name: Audio Out Left
+      description: Stereo output, fixed 50/50 dry/wet
+    - id: AudioOut2
+      name: Audio Out Right
+      description: Stereo output, fixed 50/50 dry/wet
+    - id: CVOut1
+      name: Weird Envelope
+      description: Envelope follower of the wet signal with level-dependent release and random wobble (unipolar)
+    - id: CVOut2
+      name: Clocked LFO
+      description: One cycle per clock, hard-synced; shape from X, phase from Y (bipolar)
+    - id: PulseOut1
+      name: Clock Thru
+      description: Mirrors external clock, otherwise internal clock ticks
+    - id: PulseOut2
+      name: Activity Gate
+      description: "Reverb: gate while tail is audible. Delay: trigger on each repeat."
+
+controls:
+  switch:
+    up:
+      name: Reverb
+      description: Selects the reverb engine (tails crossfade on change)
+    middle:
+      name: Delay
+      description: Selects the delay engine (200ms commit; spring-return from down never selects it)
+    down:
+      name: Freeze (momentary)
+      description: Hold to cut input and recirculate the active engine at exact unity; release to decay
+  knobs:
+    - when: { z: any }
+      main:
+        name: Clock
+        description: CW fast/clean, CCW slow/crushed. Sets tempo and the wet engine's virtual sample rate. Mult/div of external clock when Pulse In 1 is patched.
+      x:
+        name: MOD-W
+        description: Reverb smear / delay feedback; also morphs the CV Out 2 LFO shape
+      y:
+        name: Time
+        description: Reverb decay / delay clock-division ladder; also CV Out 2 LFO phase

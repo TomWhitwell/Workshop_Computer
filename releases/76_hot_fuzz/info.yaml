@@ -1,11 +1,15 @@
-draft: true
 Name: Hot Fuzz
-Description: A stereo fuzz/distortion + resonant wah effects processor with manual and auto-wah modes, built on fixed-point DSP.
+short-description: A stereo fuzz/distortion + resonant wah effects processor with manual and auto-wah modes, built on fixed-point DSP.
 Language: C++ (ComputerCard)
 Creator: Joep Vermaat
+contact:
+  email: joep@joep-i.nl
+  website: https://codeberg.org/johantv/
 Version: 1.0
 Status: Released
 License: MIT
+date-created: 2026-07-04
+date-updated: 2026-07-04
 Repository: https://codeberg.org/johantv/hot-fuzz
 
 tags:
@@ -16,7 +20,7 @@ tags:
   - effects-processor
   - envelope-follower
 
-manual: |
+summary: |
   Hot Fuzz is a stereo fuzz/wah effects card. It combines a clipper (soft/hard/asymmetric/foldback)
   with a resonant state-variable filter for the wah sweep, and supports both manual
   and auto-wah modes.
@@ -54,16 +58,16 @@ panel:
     - id: AudioIn2
       name: Right Audio In
       description: Right channel input (-2048..2047, 12-bit signed)
-    - id: CV1
+    - id: CVIn1
       name: Wah CV (optional)
       description: Overrides wah cutoff in Up/Mid modes when connected
-    - id: CV2
+    - id: CVIn2
       name: Drive CV (optional)
       description: Adds to X pot drive value
-    - id: Pulse1
+    - id: PulseIn1
       name: Fuzz Toggle
       description: Rising edge toggles fuzz on/off (latched, Up/Mid modes only)
-    - id: Pulse2
+    - id: PulseIn2
       name: Auto-Wah Toggle
       description: Rising edge toggles auto-wah on/off (latched, any mode)
   outputs:
@@ -107,8 +111,7 @@ controls:
         name: Wah Q / Resonance
         description: 0 = flat filter, 4095 = high resonance
   leds:
-    - when: { mode: activity }
-      display: list
+    - display: list
       items:
         - id: LED0
           name: Fuzz Drive

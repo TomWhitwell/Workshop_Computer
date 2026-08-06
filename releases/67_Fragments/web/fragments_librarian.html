@@ -1,0 +1,1939 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fragments Librarian</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --page: #272d2d;
+      --panel: #202626;
+      --panel-raised: #303737;
+      --field: #2f3636;
+      --field-hover: #384040;
+      --line: #4d5550;
+      --line-soft: #3e4644;
+      --text: #f6f8ff;
+      --muted: #cfc8b7;
+      --accent: #ac9969;
+      --accent-soft: #3a3529;
+      --accent-2: #f4442e;
+      --accent-3: #ff7477;
+      --canvas: #171d1d;
+      background: var(--page);
+      color: var(--text);
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background:
+        linear-gradient(180deg, rgba(246, 248, 255, 0.035), rgba(246, 248, 255, 0) 260px),
+        var(--page);
+    }
+
+    main {
+      max-width: 1040px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: end;
+      padding: 6px 2px 4px;
+    }
+
+    h1, h2 {
+      margin: 0;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+    }
+
+    h2 {
+      font-size: 14px;
+    }
+
+    section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background:
+        linear-gradient(180deg, rgba(246, 248, 255, 0.028), rgba(246, 248, 255, 0) 44px),
+        var(--panel);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.12);
+      display: grid;
+      gap: 14px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      min-width: 130px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    button, select, input {
+      font: inherit;
+      color: var(--text);
+      background: var(--field);
+      border: 1px solid #625c49;
+      border-radius: 6px;
+      min-height: 36px;
+      padding: 6px 10px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled),
+    select:hover,
+    input:hover {
+      background: var(--field-hover);
+      border-color: #857850;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+      outline-offset: 2px;
+    }
+
+    .primary {
+      border-color: color-mix(in srgb, var(--accent) 72%, var(--line));
+      background: color-mix(in srgb, var(--accent) 16%, var(--field));
+    }
+
+    .primary:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--accent) 22%, var(--field));
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    input[type="range"] {
+      min-width: 220px;
+      accent-color: var(--accent);
+    }
+
+    canvas {
+      width: 100%;
+      height: 104px;
+      background: var(--canvas);
+      border: 1px solid var(--line-soft);
+      border-radius: 6px;
+      cursor: ew-resize;
+      touch-action: none;
+    }
+
+    .kit-actions {
+      justify-content: space-between;
+    }
+
+    .sample-workspace {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .slot-panel,
+    .sample-editor {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .slot-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .slot-row {
+      width: 100%;
+      min-height: 44px;
+      padding: 7px 9px;
+      text-align: left;
+      display: grid;
+      gap: 3px;
+      background: #1c2222;
+    }
+
+    .slot-row.is-selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .slot-row-name {
+      font-weight: 700;
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .slot-row-file {
+      color: var(--muted);
+      font-size: 10px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .drop-zone {
+      min-height: 70px;
+      border: 1px dashed #625c49;
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      align-content: center;
+      gap: 4px;
+      color: var(--muted);
+      background: color-mix(in srgb, var(--panel-raised) 32%, var(--canvas));
+      font-size: 12px;
+    }
+
+    .drop-zone.is-dragging {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--text);
+    }
+
+    .drop-zone strong {
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .editor-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .editor-title {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .slot-name {
+      font-weight: 700;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .file-name,
+    .window-readout {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .file-picker {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .file-picker .file-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .normalize-control {
+      display: flex;
+      grid-auto-flow: column;
+      align-items: center;
+      gap: 6px;
+      min-width: max-content;
+      color: var(--muted);
+    }
+
+    .sample-editor .normalize-control input {
+      min-height: 0;
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      padding: 0;
+    }
+
+    .sample-file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .sample-editor input[type="range"] {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .wave-tools {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) max-content;
+      gap: 16px;
+      align-items: end;
+    }
+
+    .wave-tools label {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 4px;
+      overflow: hidden;
+    }
+
+    .wave-tools label span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .wave-tools input[type="range"] {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 0;
+    }
+
+    .slot-controls {
+      display: grid;
+      grid-template-columns: minmax(116px, 150px) repeat(5, minmax(72px, max-content));
+      gap: 8px;
+      align-items: end;
+    }
+
+    .trim-fields {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(90px, 1fr));
+      gap: 8px;
+    }
+
+    .cv-config-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .cv-config-card {
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      padding: 12px;
+      background: color-mix(in srgb, var(--panel-raised) 42%, var(--panel));
+      display: grid;
+      gap: 10px;
+    }
+
+    .cv-config-card h3 {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .cv-config-fields {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .sample-editor label {
+      min-width: 0;
+      font-size: 11px;
+      gap: 4px;
+    }
+
+    .sample-editor button,
+    .sample-editor select,
+    .sample-editor input {
+      min-height: 30px;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .speed-panel {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) 108px 108px max-content;
+      column-gap: 18px;
+      row-gap: 10px;
+      align-items: end;
+    }
+
+    .speed-panel label {
+      min-width: 0;
+    }
+
+    .speed-panel input[type="range"] {
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      padding-right: 14px;
+    }
+
+    @media (max-width: 680px) {
+      header {
+        display: grid;
+        gap: 8px;
+      }
+
+      #status {
+        text-align: left;
+      }
+
+      .sample-workspace,
+      .slot-controls,
+      .trim-fields,
+      .cv-config-grid,
+      .cv-config-fields,
+      .wave-tools,
+      .speed-panel {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    #status {
+      min-height: 22px;
+      color: var(--accent);
+      font-size: 13px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Fragments Librarian</h1>
+    <div id="status">Connect to Fragments to begin.</div>
+  </header>
+
+  <section>
+    <h2>Connection</h2>
+    <div class="row">
+      <button id="connect" class="primary">Connect MIDI</button>
+      <label>Output
+        <select id="outputs"></select>
+      </label>
+      <label>Input
+        <select id="inputs"></select>
+      </label>
+      <button id="ping">Ping Card</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Card Storage</h2>
+    <div class="row">
+      <button id="save" class="primary">Save Current Kit To Card</button>
+      <button id="load">Load Saved Kit From Card</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="row kit-actions">
+      <h2>Samples</h2>
+      <button id="sendAllSamples" class="primary" disabled>Send Loaded Samples</button>
+    </div>
+    <div class="sample-workspace">
+      <div class="slot-panel">
+        <div id="sampleDropZone" class="drop-zone">
+          <strong>Drop audio files</strong>
+          <span>Files fill slots from the selected slot.</span>
+        </div>
+        <div id="slots" class="slot-list"></div>
+      </div>
+      <div id="sampleEditor" class="sample-editor"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Pitch</h2>
+    <div class="speed-panel">
+      <label>Playback Speed
+        <input id="speed" type="range" min="0.125" max="8" step="0.001" value="1">
+      </label>
+      <label>Multiplier
+        <input id="speedMultiplier" type="number" min="0.125" max="8" step="0.01" value="1">
+      </label>
+      <label>Percent
+        <input id="speedPercent" type="number" min="12.5" max="800" step="1" value="100">
+      </label>
+      <button id="sendSpeed" class="primary">Send Speed</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>MIDI Controls</h2>
+    <div class="trim-fields">
+      <label>Main
+        <input id="midiMain" type="range" min="0" max="127" step="1" value="0">
+      </label>
+      <label>X
+        <input id="midiX" type="range" min="0" max="127" step="1" value="0">
+      </label>
+      <label>Y
+        <input id="midiY" type="range" min="0" max="127" step="1" value="0">
+      </label>
+    </div>
+  </section>
+
+  <section>
+    <div class="row kit-actions">
+      <h2>CV Outputs</h2>
+      <button id="sendAllCvConfig" class="primary">Send CV Config</button>
+    </div>
+    <div class="cv-config-grid">
+      <div class="cv-config-card" data-cv-card="0">
+        <h3>CV Out 1</h3>
+        <div class="cv-config-fields">
+          <label>Range
+            <select data-action="cvRange" data-output="0">
+              <option value="0">±6V</option>
+              <option value="1">±3V</option>
+              <option value="2">±1.5V</option>
+              <option value="3">0-6V</option>
+              <option value="4">0-3V</option>
+            </select>
+          </label>
+          <label>Quantization
+            <select data-action="cvQuant" data-output="0">
+              <option value="0">None</option>
+              <option value="1">Chromatic</option>
+              <option value="2">Major</option>
+              <option value="3">Minor</option>
+              <option value="4">Major Pentatonic</option>
+              <option value="5">Minor Pentatonic</option>
+              <option value="6">Dorian</option>
+              <option value="7">Pelog</option>
+              <option value="8">Whole Tone</option>
+            </select>
+          </label>
+          <label>Clock Division
+            <select data-action="cvDiv" data-output="0">
+              <option value="0">Every step</option>
+              <option value="1">Every 2 steps</option>
+              <option value="2">Every 4 steps</option>
+              <option value="3">Every 8 steps</option>
+              <option value="4">Every 16 steps</option>
+            </select>
+          </label>
+          <label>Slew
+            <select data-action="cvSlew" data-output="0">
+              <option value="0">Off</option>
+              <option value="1">~10 ms</option>
+              <option value="2">~20 ms</option>
+              <option value="3">~40 ms</option>
+              <option value="4">~85 ms</option>
+              <option value="5">~340 ms</option>
+            </select>
+          </label>
+        </div>
+        <button data-action="sendCvConfig" data-output="0">Send CV Out 1</button>
+      </div>
+      <div class="cv-config-card" data-cv-card="1">
+        <h3>CV Out 2</h3>
+        <label class="normalize-control">
+          <input data-action="cvCoupled" data-output="1" type="checkbox">
+          Couple to CV Out 1
+        </label>
+        <div class="cv-config-fields">
+          <label>Range
+            <select data-action="cvRange" data-output="1">
+              <option value="0">±6V</option>
+              <option value="1">±3V</option>
+              <option value="2">±1.5V</option>
+              <option value="3">0-6V</option>
+              <option value="4">0-3V</option>
+            </select>
+          </label>
+          <label>Quantization
+            <select data-action="cvQuant" data-output="1">
+              <option value="0">None</option>
+              <option value="1">Chromatic</option>
+              <option value="2">Major</option>
+              <option value="3">Minor</option>
+              <option value="4">Major Pentatonic</option>
+              <option value="5">Minor Pentatonic</option>
+              <option value="6">Dorian</option>
+              <option value="7">Pelog</option>
+              <option value="8">Whole Tone</option>
+            </select>
+          </label>
+          <label>Clock Division
+            <select data-action="cvDiv" data-output="1">
+              <option value="0">Every step</option>
+              <option value="1">Every 2 steps</option>
+              <option value="2">Every 4 steps</option>
+              <option value="3">Every 8 steps</option>
+              <option value="4">Every 16 steps</option>
+            </select>
+          </label>
+          <label>Slew
+            <select data-action="cvSlew" data-output="1">
+              <option value="0">Off</option>
+              <option value="1">~10 ms</option>
+              <option value="2">~20 ms</option>
+              <option value="3">~40 ms</option>
+              <option value="4">~85 ms</option>
+              <option value="5">~340 ms</option>
+            </select>
+          </label>
+        </div>
+        <button data-action="sendCvConfig" data-output="1">Send CV Out 2</button>
+      </div>
+    </div>
+    <div class="window-readout">CV ranges use the card's calibration. Use Save to keep settings after reboot.</div>
+  </section>
+
+  <section>
+    <div class="row kit-actions">
+      <h2>Patterns</h2>
+      <button id="restorePatterns">Restore Factory Patterns</button>
+    </div>
+    <div class="row">
+      <input id="patternCsv" type="file" accept=".csv,text/csv">
+      <button id="sendPatterns" disabled>Send CSV Patterns</button>
+    </div>
+    <div id="patternStatus" class="window-readout">CSV rows become patterns. Use slot numbers 0-5, up to 16 steps per row.</div>
+  </section>
+</main>
+
+<script>
+const MANUFACTURER = 0x7d;
+const CMD_IMPORT_BEGIN = 0x20;
+const CMD_IMPORT_DATA = 0x21;
+const CMD_IMPORT_END = 0x22;
+const CMD_SAVE_KIT = 0x30;
+const CMD_LOAD_KIT = 0x31;
+const CMD_PING = 0x40;
+const CMD_PATTERN_DATA = 0x50;
+const CMD_FACTORY_PATTERNS = 0x51;
+const CMD_CV_CONFIG = 0x52;
+const CMD_ACK = 0x7e;
+const MAX_SAMPLES = 12000;
+const TARGET_RATE = 48000;
+const MAX_WINDOW_SECONDS = MAX_SAMPLES / TARGET_RATE;
+const NORMALIZE_TARGET = 0.971628;
+const NORMALIZE_MAX_GAIN = 32;
+const NUM_SLOTS = 6;
+const IMPORT_SAMPLES_PER_CHUNK = 30;
+const IMPORT_CHUNK_DELAY_MS = 6;
+
+let midiAccess = null;
+let midiOutput = null;
+let midiInput = null;
+let incomingSysEx = [];
+let incomingSysExActive = false;
+let parsedPatterns = [];
+let previewContext = null;
+let previewSource = null;
+let waveformDrag = null;
+let selectedSlotIndex = 0;
+let sampleClipboard = null;
+const cvConfigs = [
+  { range: 0, quant: 0, div: 0, slew: 0, coupled: false },
+  { range: 0, quant: 0, div: 0, slew: 3, coupled: false }
+];
+const slots = Array.from({ length: NUM_SLOTS }, () => ({
+  audioBuffer: null,
+  name: "Empty",
+  startSec: 0,
+  endSec: MAX_WINDOW_SECONDS,
+  channel: 3,
+  normalize: true,
+  zoomLevel: 0,
+  viewCenterSec: MAX_WINDOW_SECONDS / 2,
+  sampleBytes: null
+}));
+
+const statusEl = document.getElementById("status");
+const outputsEl = document.getElementById("outputs");
+const inputsEl = document.getElementById("inputs");
+const speedEl = document.getElementById("speed");
+const speedMultiplierEl = document.getElementById("speedMultiplier");
+const speedPercentEl = document.getElementById("speedPercent");
+const patternCsvEl = document.getElementById("patternCsv");
+const sendPatternsEl = document.getElementById("sendPatterns");
+const patternStatusEl = document.getElementById("patternStatus");
+const slotsEl = document.getElementById("slots");
+const sampleEditorEl = document.getElementById("sampleEditor");
+const sampleDropZoneEl = document.getElementById("sampleDropZone");
+const sendAllSamplesEl = document.getElementById("sendAllSamples");
+
+function setStatus(text) {
+  statusEl.textContent = text;
+}
+
+function selectedOutput() {
+  if (!midiAccess) return null;
+  return midiAccess.outputs.get(outputsEl.value) || midiOutput;
+}
+
+function selectedInput() {
+  if (!midiAccess) return null;
+  return midiAccess.inputs.get(inputsEl.value) || midiInput;
+}
+
+function preferredMidiPort(ports, previousId) {
+  if (previousId && ports.has(previousId)) return ports.get(previousId);
+
+  const preferredNames = [
+    "fragments",
+    "mtmcomputer",
+    "workshop",
+    "music thing",
+    "midi card"
+  ];
+  for (const port of ports.values()) {
+    const name = (port.name || "").toLowerCase();
+    if (preferredNames.some(preferred => name.includes(preferred))) return port;
+  }
+
+  return ports.values().next().value || null;
+}
+
+function refreshOutputs() {
+  const previousOutputId = outputsEl.value || (midiOutput && midiOutput.id);
+  const previousInputId = inputsEl.value || (midiInput && midiInput.id);
+
+  outputsEl.innerHTML = "";
+  for (const output of midiAccess.outputs.values()) {
+    const option = document.createElement("option");
+    option.value = output.id;
+    option.textContent = output.name || output.id;
+    outputsEl.appendChild(option);
+  }
+  midiOutput = preferredMidiPort(midiAccess.outputs, previousOutputId);
+  if (midiOutput) outputsEl.value = midiOutput.id;
+
+  inputsEl.innerHTML = "";
+  for (const input of midiAccess.inputs.values()) {
+    input.onmidimessage = null;
+
+    const option = document.createElement("option");
+    option.value = input.id;
+    option.textContent = input.name || input.id;
+    inputsEl.appendChild(option);
+  }
+  midiInput = preferredMidiPort(midiAccess.inputs, previousInputId);
+  if (midiInput) inputsEl.value = midiInput.id;
+  if (midiInput) midiInput.onmidimessage = handleMIDIInput;
+}
+
+function sendMIDI(bytes) {
+  const output = selectedOutput();
+  if (!output) {
+    setStatus("No MIDI output selected.");
+    return false;
+  }
+  output.send(bytes);
+  return true;
+}
+
+function sendSysEx(command, payload = []) {
+  return sendMIDI([0xf0, MANUFACTURER, command, ...payload, 0xf7]);
+}
+
+function handleMIDIInput(event) {
+  for (const byte of event.data) {
+    if (byte === 0xf0) {
+      incomingSysEx = [];
+      incomingSysExActive = true;
+    } else if (byte === 0xf7 && incomingSysExActive) {
+      processIncomingSysEx(incomingSysEx);
+      incomingSysEx = [];
+      incomingSysExActive = false;
+    } else if (incomingSysExActive) {
+      incomingSysEx.push(byte);
+    }
+  }
+}
+
+function processIncomingSysEx(data) {
+  if (data[0] !== MANUFACTURER || data[1] !== CMD_ACK) {
+    return;
+  }
+
+  const code = data[2];
+  const slot = data[3];
+  const value = data[4] | (data[5] << 7);
+
+  if (code === 0) {
+    setStatus("Card replied to ping. MIDI SysEx is working.");
+  } else if (code === 1) {
+    setStatus(`Card accepted slot ${slot} import · expecting ${value} samples.`);
+  } else if (code === 2) {
+    setStatus("Card rejected the import command.");
+  } else if (code === 3) {
+    setStatus(`Card loaded slot ${slot} · ${value} samples.`);
+  } else if (code === 4) {
+    setStatus(`Card ignored slot ${slot}; import was too short (${value} samples).`);
+  } else if (code === 5) {
+    setStatus(slot === 127
+      ? `Card restored ${value} factory patterns.`
+      : `Card loaded pattern ${slot} · ${value} steps.`);
+  } else if (code === 6) {
+    setStatus(`Card rejected pattern ${slot}.`);
+  } else if (code === 7) {
+    setStatus(`Card loaded CV Out ${slot + 1} config. Use Save to keep it after reboot.`);
+  } else if (code === 8) {
+    setStatus(`Card rejected CV Out ${slot + 1} config.`);
+  }
+}
+
+document.getElementById("connect").onclick = async () => {
+  midiAccess = await navigator.requestMIDIAccess({ sysex: true });
+  midiAccess.onstatechange = refreshOutputs;
+  refreshOutputs();
+  setStatus("Connected. Choose the Fragments, MTMComputer, or Music Thing MIDI ports.");
+};
+
+outputsEl.onchange = () => {
+  midiOutput = selectedOutput();
+};
+
+inputsEl.onchange = () => {
+  for (const input of midiAccess.inputs.values()) {
+    input.onmidimessage = null;
+  }
+  midiInput = selectedInput();
+  if (midiInput) midiInput.onmidimessage = handleMIDIInput;
+};
+
+document.getElementById("ping").onclick = () => {
+  if (sendSysEx(CMD_PING)) {
+    setStatus("Ping sent. Waiting for card reply...");
+  }
+};
+
+document.getElementById("midiMain").oninput = event => {
+  sendMIDI([0xb0, 16, Number(event.target.value)]);
+};
+
+document.getElementById("midiX").oninput = event => {
+  sendMIDI([0xb0, 17, Number(event.target.value)]);
+};
+
+document.getElementById("midiY").oninput = event => {
+  sendMIDI([0xb0, 18, Number(event.target.value)]);
+};
+
+function syncCvConfigControls() {
+  cvConfigs.forEach((config, output) => {
+    const range = document.querySelector(`[data-action="cvRange"][data-output="${output}"]`);
+    const quant = document.querySelector(`[data-action="cvQuant"][data-output="${output}"]`);
+    const div = document.querySelector(`[data-action="cvDiv"][data-output="${output}"]`);
+    const slew = document.querySelector(`[data-action="cvSlew"][data-output="${output}"]`);
+    const coupled = document.querySelector(`[data-action="cvCoupled"][data-output="${output}"]`);
+
+    if (range) range.value = String(config.range);
+    if (quant) quant.value = String(config.quant);
+    if (div) div.value = String(config.div);
+    if (slew) slew.value = String(config.slew);
+    if (coupled) coupled.checked = config.coupled;
+  });
+}
+
+function readCvConfig(output) {
+  cvConfigs[output].range = Number(document.querySelector(`[data-action="cvRange"][data-output="${output}"]`).value);
+  cvConfigs[output].quant = Number(document.querySelector(`[data-action="cvQuant"][data-output="${output}"]`).value);
+  cvConfigs[output].div = Number(document.querySelector(`[data-action="cvDiv"][data-output="${output}"]`).value);
+  cvConfigs[output].slew = Number(document.querySelector(`[data-action="cvSlew"][data-output="${output}"]`).value);
+  const coupled = document.querySelector(`[data-action="cvCoupled"][data-output="${output}"]`);
+  cvConfigs[output].coupled = coupled ? coupled.checked : false;
+}
+
+function sendCvConfig(output) {
+  readCvConfig(output);
+  const config = cvConfigs[output];
+  return sendSysEx(CMD_CV_CONFIG, [
+    output,
+    config.range,
+    config.quant,
+    config.div,
+    config.slew,
+    config.coupled ? 1 : 0
+  ]);
+}
+
+document.querySelectorAll("[data-action^='cv']").forEach(control => {
+  control.addEventListener("change", event => {
+    const output = Number(event.currentTarget.dataset.output);
+    if (Number.isNaN(output)) return;
+    readCvConfig(output);
+  });
+});
+
+document.querySelectorAll("[data-action='sendCvConfig']").forEach(button => {
+  button.addEventListener("click", event => {
+    const output = Number(event.currentTarget.dataset.output);
+    if (sendCvConfig(output)) {
+      setStatus(`Sent CV Out ${output + 1} config. Use Save to keep it after reboot.`);
+    }
+  });
+});
+
+document.getElementById("sendAllCvConfig").onclick = async () => {
+  for (let output = 0; output < cvConfigs.length; output++) {
+    if (!sendCvConfig(output)) return;
+    await new Promise(resolve => setTimeout(resolve, 8));
+  }
+  setStatus("Sent both CV output configs. Use Save to keep them after reboot.");
+};
+
+function semitonesToRatio(semitones) {
+  return Math.pow(2, semitones / 12);
+}
+
+function formatRatio(ratio) {
+  return `${ratio.toFixed(2)}x · ${Math.round(ratio * 100)}%`;
+}
+
+function clampSpeed(value) {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0.125, Math.min(8, value));
+}
+
+function syncSpeedFields(source) {
+  let speed = Number(speedEl.value);
+
+  if (source === "multiplier") {
+    speed = Number(speedMultiplierEl.value);
+  } else if (source === "percent") {
+    speed = Number(speedPercentEl.value) / 100;
+  }
+
+  speed = clampSpeed(speed);
+  speedEl.value = String(speed);
+  speedMultiplierEl.value = speed.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+  speedPercentEl.value = String(Math.round(speed * 100));
+}
+
+function speedToMidiNote(speed) {
+  const semitones = Math.round(12 * Math.log2(speed));
+  return Math.max(0, Math.min(127, 60 + semitones));
+}
+
+speedEl.oninput = () => syncSpeedFields("slider");
+speedMultiplierEl.onchange = () => syncSpeedFields("multiplier");
+speedPercentEl.onchange = () => syncSpeedFields("percent");
+
+[speedMultiplierEl, speedPercentEl].forEach(input => {
+  input.addEventListener("keydown", event => {
+    if (event.key === "Enter") event.currentTarget.blur();
+  });
+});
+
+document.getElementById("sendSpeed").onclick = () => {
+  const speed = clampSpeed(Number(speedEl.value));
+  sendMIDI([0xe0, 0, 64]);
+  sendMIDI([0x90, speedToMidiNote(speed), 100]);
+  setStatus(`Playback speed set to ${formatRatio(speed)}.`);
+};
+
+syncSpeedFields("slider");
+syncCvConfigControls();
+
+document.getElementById("save").onclick = () => {
+  if (sendSysEx(CMD_SAVE_KIT)) {
+    setStatus("Saving samples, settings, and patterns. Audio may pause briefly.");
+  }
+};
+
+document.getElementById("load").onclick = () => {
+  if (sendSysEx(CMD_LOAD_KIT)) setStatus("Load requested.");
+};
+
+patternCsvEl.onchange = async () => {
+  const file = patternCsvEl.files[0];
+  if (!file) return;
+
+  try {
+    parsedPatterns = parsePatternCsv(await file.text());
+    sendPatternsEl.disabled = false;
+    patternStatusEl.textContent = `Loaded ${parsedPatterns.length} pattern rows from ${file.name}.`;
+  } catch (error) {
+    parsedPatterns = [];
+    sendPatternsEl.disabled = true;
+    patternStatusEl.textContent = error.message;
+  }
+};
+
+sendPatternsEl.onclick = async () => {
+  if (!parsedPatterns.length) return;
+
+  for (let i = 0; i < parsedPatterns.length; i++) {
+    sendSysEx(CMD_PATTERN_DATA, [i, parsedPatterns[i].length, ...parsedPatterns[i]]);
+    await new Promise(resolve => setTimeout(resolve, 8));
+  }
+
+  setStatus(`Sent ${parsedPatterns.length} custom patterns. Use Save to keep them after reboot.`);
+};
+
+document.getElementById("restorePatterns").onclick = () => {
+  if (sendSysEx(CMD_FACTORY_PATTERNS)) {
+    setStatus("Factory patterns restored. Use Save to keep them after reboot.");
+  }
+};
+
+function parsePatternCsv(text) {
+  const rows = text
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith("#"));
+
+  if (rows.length < 1) {
+    throw new Error("CSV has no pattern rows.");
+  }
+  if (rows.length > 21) {
+    throw new Error("CSV can contain at most 21 rows.");
+  }
+
+  return rows.map((row, rowIndex) => {
+    const values = row
+      .split(/[,\t ]+/)
+      .map(value => value.trim())
+      .filter(Boolean)
+      .map(value => Number(value));
+
+    if (values.length < 1 || values.length > 16) {
+      throw new Error(`Pattern ${rowIndex} must have 1 to 16 steps.`);
+    }
+
+    for (const value of values) {
+      if (!Number.isInteger(value) || value < 0 || value > 5) {
+        throw new Error(`Pattern ${rowIndex} contains ${value}; use slot numbers 0-5.`);
+      }
+    }
+
+    return values;
+  });
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderSlots() {
+  slotsEl.innerHTML = "";
+
+  slots.forEach((slot, index) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = `slot-row${index === selectedSlotIndex ? " is-selected" : ""}`;
+    row.dataset.action = "selectSlot";
+    row.dataset.slot = String(index);
+    row.innerHTML = `
+      <span class="slot-row-name">Slot ${index}</span>
+      <span class="slot-row-file">${escapeHtml(slot.name)}</span>
+    `;
+    slotsEl.appendChild(row);
+  });
+
+  renderEditor();
+  updateSampleButtons();
+}
+
+function renderEditor() {
+  const slot = slots[selectedSlotIndex];
+  sampleEditorEl.innerHTML = `
+    <div class="editor-head">
+      <div class="editor-title">
+        <div class="slot-name">Slot ${selectedSlotIndex}</div>
+        <div class="file-name">${escapeHtml(slot.name)}</div>
+      </div>
+      <label class="normalize-control">
+        <input data-action="normalize" data-slot="${selectedSlotIndex}" type="checkbox"> Normalize
+      </label>
+    </div>
+    <div class="file-picker">
+      <button data-action="chooseFile" data-slot="${selectedSlotIndex}">Load Sample(s)</button>
+      <div class="file-name">Load one file, or several to fill slots from here.</div>
+      <input class="sample-file-input" data-action="file" data-slot="${selectedSlotIndex}"
+        type="file" multiple accept="audio/*,.wav,.wave,.aif,.aiff,.mp3,.m4a">
+    </div>
+    <canvas data-slot="${selectedSlotIndex}" width="760" height="120"></canvas>
+    <div class="wave-tools">
+      <label><span data-role="zoomLabel" data-slot="${selectedSlotIndex}">Zoom 1x</span>
+        <input data-action="zoom" data-slot="${selectedSlotIndex}" type="range" min="0" max="10" step="1" value="0">
+      </label>
+      <label><span data-role="viewLabel" data-slot="${selectedSlotIndex}">View</span>
+        <input data-action="view" data-slot="${selectedSlotIndex}" type="range" min="0" max="1" step="0.001" value="0.5">
+      </label>
+      <button data-action="fit" data-slot="${selectedSlotIndex}" disabled>Fit</button>
+    </div>
+    <div class="window-readout" data-role="window" data-slot="${selectedSlotIndex}"></div>
+    <div class="trim-fields">
+      <label>Start ms
+        <input data-action="startMs" data-slot="${selectedSlotIndex}" type="number" min="0" step="1" value="0">
+      </label>
+      <label>End ms
+        <input data-action="endMs" data-slot="${selectedSlotIndex}" type="number" min="1" step="1" value="250">
+      </label>
+      <label>Length ms
+        <input data-action="lengthMs" data-slot="${selectedSlotIndex}" type="number" min="1" max="250" step="1" value="250">
+      </label>
+    </div>
+    <div class="slot-controls">
+      <label>Channel
+        <select data-action="channel" data-slot="${selectedSlotIndex}">
+          <option value="1">Audio 1</option>
+          <option value="2">Audio 2</option>
+          <option value="3">Both</option>
+        </select>
+      </label>
+      <button data-action="preview" data-slot="${selectedSlotIndex}" disabled>Preview</button>
+      <button data-action="copySample" data-slot="${selectedSlotIndex}" disabled>Copy</button>
+      <button data-action="pasteSample" data-slot="${selectedSlotIndex}" disabled>Paste</button>
+      <button class="primary" data-action="send" data-slot="${selectedSlotIndex}" disabled>Send Slot</button>
+      <button data-action="clear" data-slot="${selectedSlotIndex}" disabled>Clear</button>
+    </div>
+  `;
+  syncSlotControls(selectedSlotIndex);
+  drawSlotWave(selectedSlotIndex);
+}
+
+function updateSampleButtons() {
+  sendAllSamplesEl.disabled = !slots.some(s => s.sampleBytes);
+}
+
+function syncSlotControls(index) {
+  const slot = slots[index];
+  updateSampleButtons();
+  if (index !== selectedSlotIndex) return;
+
+  const channelInput = document.querySelector(`[data-action="channel"][data-slot="${index}"]`);
+  const sendButton = document.querySelector(`[data-action="send"][data-slot="${index}"]`);
+  const previewButton = document.querySelector(`[data-action="preview"][data-slot="${index}"]`);
+  const copyButton = document.querySelector(`[data-action="copySample"][data-slot="${index}"]`);
+  const pasteButton = document.querySelector(`[data-action="pasteSample"][data-slot="${index}"]`);
+  const clearButton = document.querySelector(`[data-action="clear"][data-slot="${index}"]`);
+  const normalizeInput = document.querySelector(`[data-action="normalize"][data-slot="${index}"]`);
+  const startMsInput = document.querySelector(`[data-action="startMs"][data-slot="${index}"]`);
+  const endMsInput = document.querySelector(`[data-action="endMs"][data-slot="${index}"]`);
+  const lengthMsInput = document.querySelector(`[data-action="lengthMs"][data-slot="${index}"]`);
+  const zoomInput = document.querySelector(`[data-action="zoom"][data-slot="${index}"]`);
+  const viewInput = document.querySelector(`[data-action="view"][data-slot="${index}"]`);
+  const fitButton = document.querySelector(`[data-action="fit"][data-slot="${index}"]`);
+  const zoomLabel = document.querySelector(`[data-role="zoomLabel"][data-slot="${index}"]`);
+  const viewLabel = document.querySelector(`[data-role="viewLabel"][data-slot="${index}"]`);
+  const readout = document.querySelector(`[data-role="window"][data-slot="${index}"]`);
+
+  if (!channelInput || !sendButton || !previewButton || !copyButton || !pasteButton
+      || !clearButton || !normalizeInput
+      || !startMsInput || !endMsInput || !lengthMsInput || !zoomInput || !viewInput
+      || !fitButton || !zoomLabel || !viewLabel || !readout) return;
+
+  channelInput.value = String(slot.channel);
+  normalizeInput.checked = slot.normalize;
+  sendButton.disabled = !slot.sampleBytes;
+  previewButton.disabled = !slot.sampleBytes;
+  copyButton.disabled = !slot.audioBuffer;
+  pasteButton.disabled = !sampleClipboard;
+  clearButton.disabled = !slot.audioBuffer;
+  zoomInput.disabled = !slot.audioBuffer;
+  viewInput.disabled = !slot.audioBuffer || slot.zoomLevel === 0;
+  fitButton.disabled = !slot.audioBuffer || slot.zoomLevel === 0;
+
+  const view = getWaveView(index);
+  const zoom = 2 ** slot.zoomLevel;
+  zoomInput.value = String(slot.zoomLevel);
+  zoomLabel.textContent = `Zoom ${zoom}x`;
+  viewLabel.textContent = `View ${view.startSec.toFixed(3)}-${view.endSec.toFixed(3)}s`;
+  viewInput.min = String(view.durationSec / 2);
+  viewInput.max = String(view.sourceDuration - view.durationSec / 2);
+  viewInput.step = String(Math.max(0.00001, view.durationSec / 1000));
+  viewInput.value = String(view.centerSec);
+
+  const durationMs = Math.round((slot.audioBuffer ? slot.audioBuffer.duration : MAX_WINDOW_SECONDS) * 1000);
+  const windowMs = Math.round((slot.endSec - slot.startSec) * 1000);
+  startMsInput.max = String(durationMs);
+  endMsInput.max = String(durationMs);
+  lengthMsInput.max = String(Math.min(250, durationMs));
+  startMsInput.value = String(Math.round(slot.startSec * 1000));
+  endMsInput.value = String(Math.round(slot.endSec * 1000));
+  lengthMsInput.value = String(windowMs);
+
+  const length = slot.sampleBytes ? slot.sampleBytes.length : 0;
+  readout.textContent = `${slot.startSec.toFixed(3)}s to ${slot.endSec.toFixed(3)}s · ${windowMs} ms · ${length} samples`;
+
+  updateSampleButtons();
+}
+
+function constrainWindow(index, moved) {
+  const slot = slots[index];
+  const duration = slot.audioBuffer ? slot.audioBuffer.duration : MAX_WINDOW_SECONDS;
+
+  slot.startSec = Math.max(0, Math.min(slot.startSec, duration));
+  slot.endSec = Math.max(0, Math.min(slot.endSec, duration));
+
+  if (slot.endSec <= slot.startSec) {
+    if (moved === "start") {
+      slot.endSec = Math.min(duration, slot.startSec + 0.001);
+    } else {
+      slot.startSec = Math.max(0, slot.endSec - 0.001);
+    }
+  }
+
+  if (slot.endSec - slot.startSec > MAX_WINDOW_SECONDS) {
+    if (moved === "start") {
+      slot.endSec = Math.min(duration, slot.startSec + MAX_WINDOW_SECONDS);
+    } else {
+      slot.startSec = Math.max(0, slot.endSec - MAX_WINDOW_SECONDS);
+    }
+  }
+}
+
+function getWaveView(index) {
+  const slot = slots[index];
+  const sourceDuration = slot.audioBuffer
+    ? slot.audioBuffer.duration
+    : MAX_WINDOW_SECONDS;
+  const zoom = 2 ** slot.zoomLevel;
+  const durationSec = sourceDuration / zoom;
+  const half = durationSec / 2;
+  const requestedCenter = Number.isFinite(slot.viewCenterSec)
+    ? slot.viewCenterSec
+    : sourceDuration / 2;
+  const centerSec = Math.max(half, Math.min(sourceDuration - half, requestedCenter));
+
+  slot.viewCenterSec = centerSec;
+  return {
+    sourceDuration,
+    durationSec,
+    centerSec,
+    startSec: centerSec - half,
+    endSec: centerSec + half
+  };
+}
+
+function centerWaveViewOnSelection(index) {
+  const slot = slots[index];
+  slot.viewCenterSec = (slot.startSec + slot.endSec) / 2;
+  getWaveView(index);
+}
+
+async function decodeAudioFile(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  let audioBuffer = null;
+
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error("Web Audio is unavailable");
+    const context = new AudioContextClass();
+    try {
+      audioBuffer = await context.decodeAudioData(arrayBuffer.slice(0));
+    } finally {
+      try {
+        await context.close();
+      } catch (closeError) {
+        console.warn("Audio decoder did not close cleanly", closeError);
+      }
+    }
+  } catch (decodeError) {
+    audioBuffer = decodeAIFF(arrayBuffer);
+  }
+
+  if (!audioBuffer.length || !audioBuffer.numberOfChannels || !audioBuffer.sampleRate) {
+    throw new Error("The audio file contains no usable samples");
+  }
+
+  return audioBuffer;
+}
+
+async function loadFileIntoSlot(file, index) {
+  const audioBuffer = await decodeAudioFile(file);
+  const slot = slots[index];
+  slot.audioBuffer = audioBuffer;
+  slot.name = file.name;
+  slot.startSec = 0;
+  slot.endSec = Math.min(MAX_WINDOW_SECONDS, audioBuffer.duration);
+  slot.zoomLevel = 0;
+  slot.viewCenterSec = audioBuffer.duration / 2;
+  slot.sampleBytes = renderSample(index);
+}
+
+async function loadFilesIntoSlots(fileList, startIndex = selectedSlotIndex) {
+  const files = Array.from(fileList).filter(file =>
+    file.type.startsWith("audio/") || /\.(wav|wave|aif|aiff|mp3|m4a)$/i.test(file.name)
+  );
+
+  if (!files.length) {
+    setStatus("Drop or choose WAV, AIFF PCM, MP3, or M4A files.");
+    return;
+  }
+
+  const loadCount = Math.min(files.length, NUM_SLOTS - startIndex);
+  let loaded = 0;
+
+  for (let i = 0; i < loadCount; i++) {
+    const slotIndex = startIndex + i;
+    const file = files[i];
+    setStatus(`Loading ${file.name} into slot ${slotIndex}...`);
+
+    try {
+      await loadFileIntoSlot(file, slotIndex);
+      loaded++;
+    } catch (error) {
+      console.error("Sample import failed", error);
+      setStatus(`Could not import ${file.name}. Try WAV, AIFF PCM, MP3, or another export format.`);
+    }
+  }
+
+  selectedSlotIndex = startIndex;
+  renderSlots();
+
+  if (loaded > 0) {
+    const skipped = files.length - loadCount;
+    setStatus(`Loaded ${loaded} sample${loaded === 1 ? "" : "s"} starting at slot ${startIndex}${skipped > 0 ? `; ${skipped} file${skipped === 1 ? "" : "s"} did not fit.` : "."}`);
+  }
+}
+
+sampleEditorEl.addEventListener("input", event => {
+  const action = event.target.dataset.action;
+  const index = Number(event.target.dataset.slot);
+  if (Number.isNaN(index) || !slots[index] || !slots[index].audioBuffer) return;
+
+  if (action === "zoom") {
+    slots[index].zoomLevel = Number(event.target.value);
+    centerWaveViewOnSelection(index);
+    syncSlotControls(index);
+    drawSlotWave(index);
+  } else if (action === "view") {
+    slots[index].viewCenterSec = Number(event.target.value);
+    syncSlotControls(index);
+    drawSlotWave(index);
+  }
+});
+
+sampleEditorEl.addEventListener("change", async event => {
+  const action = event.target.dataset.action;
+  const index = Number(event.target.dataset.slot);
+  if (!action || Number.isNaN(index)) return;
+
+  if (action === "file") {
+    if (event.target.files.length) await loadFilesIntoSlots(event.target.files, index);
+    event.target.value = "";
+  } else if (action === "channel") {
+    slots[index].channel = Number(event.target.value);
+    syncSlotControls(index);
+  } else if (action === "normalize") {
+    slots[index].normalize = event.target.checked;
+    slots[index].sampleBytes = renderSample(index);
+    syncSlotControls(index);
+  } else if (["startMs", "endMs", "lengthMs"].includes(action)) {
+    updateWindowFromField(index, action, Number(event.target.value));
+    slots[index].sampleBytes = renderSample(index);
+    syncSlotControls(index);
+    drawSlotWave(index);
+  }
+});
+
+sampleEditorEl.addEventListener("keydown", event => {
+  const action = event.target.dataset.action;
+  if (["startMs", "endMs", "lengthMs"].includes(action) && event.key === "Enter") {
+    event.target.blur();
+  }
+});
+
+sampleEditorEl.addEventListener("pointerdown", event => {
+  if (event.target.tagName !== "CANVAS") return;
+
+  const index = Number(event.target.dataset.slot);
+  const slot = slots[index];
+  if (!slot || !slot.audioBuffer) return;
+
+  waveformDrag = windowDragForPointer(index, event.clientX);
+  event.target.setPointerCapture(event.pointerId);
+  updateWindowFromPointer(waveformDrag, event.clientX);
+});
+
+sampleEditorEl.addEventListener("pointermove", event => {
+  if (!waveformDrag) return;
+  updateWindowFromPointer(waveformDrag, event.clientX);
+});
+
+window.addEventListener("pointerup", () => {
+  waveformDrag = null;
+});
+
+slotsEl.addEventListener("click", event => {
+  const action = event.target.closest("[data-action]")?.dataset.action;
+  const index = Number(event.target.closest("[data-slot]")?.dataset.slot);
+  if (action !== "selectSlot" || Number.isNaN(index)) return;
+
+  selectedSlotIndex = index;
+  renderSlots();
+});
+
+sampleEditorEl.addEventListener("click", async event => {
+  const index = Number(event.target.dataset.slot);
+  const action = event.target.dataset.action;
+
+  if (action === "chooseFile") {
+    const fileInput = document.querySelector(`[data-action="file"][data-slot="${index}"]`);
+    if (fileInput) fileInput.click();
+  } else if (action === "send") {
+    await sendSlot(index);
+  } else if (action === "preview") {
+    await previewSlot(index);
+  } else if (action === "copySample") {
+    copySampleSlot(index);
+  } else if (action === "pasteSample") {
+    pasteSampleSlot(index);
+  } else if (action === "clear") {
+    clearSlot(index);
+  } else if (action === "fit") {
+    slots[index].zoomLevel = 0;
+    slots[index].viewCenterSec = slots[index].audioBuffer
+      ? slots[index].audioBuffer.duration / 2
+      : MAX_WINDOW_SECONDS / 2;
+    syncSlotControls(index);
+    drawSlotWave(index);
+  }
+});
+
+["dragenter", "dragover"].forEach(type => {
+  sampleDropZoneEl.addEventListener(type, event => {
+    event.preventDefault();
+    sampleDropZoneEl.classList.add("is-dragging");
+  });
+});
+
+["dragleave", "drop"].forEach(type => {
+  sampleDropZoneEl.addEventListener(type, event => {
+    event.preventDefault();
+    sampleDropZoneEl.classList.remove("is-dragging");
+  });
+});
+
+sampleDropZoneEl.addEventListener("drop", async event => {
+  await loadFilesIntoSlots(event.dataTransfer.files, selectedSlotIndex);
+});
+
+sendAllSamplesEl.onclick = async () => {
+  if (!selectedOutput()) {
+    setStatus("No MIDI output selected.");
+    return;
+  }
+
+  const loaded = slots
+    .map((slot, index) => slot.sampleBytes ? index : -1)
+    .filter(index => index >= 0);
+
+  if (!loaded.length) {
+    setStatus("No loaded samples to send.");
+    return;
+  }
+
+  for (const index of loaded) {
+    setStatus(`Sending slot ${index}...`);
+    await sendSlot(index);
+  }
+
+  setStatus(`Sent ${loaded.length} loaded sample${loaded.length === 1 ? "" : "s"}. Use Save to make the kit persistent.`);
+};
+
+async function sendSlot(slotIndex) {
+  const slot = slots[slotIndex];
+  if (!slot.sampleBytes) return;
+  if (!selectedOutput()) {
+    setStatus("No MIDI output selected.");
+    return;
+  }
+
+  const length = slot.sampleBytes.length;
+  if (!sendSysEx(CMD_IMPORT_BEGIN, [
+    slotIndex,
+    slot.channel,
+    length & 0x7f,
+    (length >> 7) & 0x7f
+  ])) {
+    return;
+  }
+
+  for (let i = 0; i < slot.sampleBytes.length; i += IMPORT_SAMPLES_PER_CHUNK) {
+    const payload = [];
+    const end = Math.min(i + IMPORT_SAMPLES_PER_CHUNK, slot.sampleBytes.length);
+    for (let j = i; j < end; j++) {
+      payload.push(slot.sampleBytes[j] & 0x7f, (slot.sampleBytes[j] >> 7) & 0x01);
+    }
+
+    if (!sendSysEx(CMD_IMPORT_DATA, payload)) {
+      return;
+    }
+
+    if (i === 0 || i % (IMPORT_SAMPLES_PER_CHUNK * 20) === 0) {
+      const percent = Math.round((end / slot.sampleBytes.length) * 100);
+      setStatus(`Sending slot ${slotIndex}... ${percent}%`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, IMPORT_CHUNK_DELAY_MS));
+  }
+
+  if (!sendSysEx(CMD_IMPORT_END)) {
+    return;
+  }
+  setStatus(`Sent slot ${slotIndex} · ${length} samples. Use Save to make it persistent.`);
+}
+
+function pointerSecondsForCanvas(slotIndex, clientX) {
+  const canvas = document.querySelector(`canvas[data-slot="${slotIndex}"]`);
+  const rect = canvas.getBoundingClientRect();
+  const view = getWaveView(slotIndex);
+  const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+  return view.startSec + (x / rect.width) * view.durationSec;
+}
+
+function windowDragForPointer(slotIndex, clientX) {
+  const slot = slots[slotIndex];
+  const canvas = document.querySelector(`canvas[data-slot="${slotIndex}"]`);
+  const rect = canvas.getBoundingClientRect();
+  const view = getWaveView(slotIndex);
+  const startX = rect.left + ((slot.startSec - view.startSec) / view.durationSec) * rect.width;
+  const endX = rect.left + ((slot.endSec - view.startSec) / view.durationSec) * rect.width;
+  const handleZonePx = 10;
+
+  if (Math.abs(clientX - startX) <= handleZonePx) {
+    return { index: slotIndex, handle: "start" };
+  }
+  if (Math.abs(clientX - endX) <= handleZonePx) {
+    return { index: slotIndex, handle: "end" };
+  }
+
+  if (clientX > Math.min(startX, endX) && clientX < Math.max(startX, endX)) {
+    const seconds = pointerSecondsForCanvas(slotIndex, clientX);
+    return {
+      index: slotIndex,
+      handle: "move",
+      grabOffsetSec: seconds - slot.startSec,
+      windowLengthSec: slot.endSec - slot.startSec
+    };
+  }
+
+  return {
+    index: slotIndex,
+    handle: "pan",
+    startClientX: clientX,
+    startCenterSec: view.centerSec,
+    viewDurationSec: view.durationSec,
+    canvasWidth: rect.width
+  };
+}
+
+function updateWindowFromPointer(drag, clientX) {
+  const slotIndex = drag.index;
+  const slot = slots[slotIndex];
+  if (drag.handle === "pan") {
+    const deltaSec = ((clientX - drag.startClientX) / drag.canvasWidth) * drag.viewDurationSec;
+    slot.viewCenterSec = drag.startCenterSec - deltaSec;
+    syncSlotControls(slotIndex);
+    drawSlotWave(slotIndex);
+    return;
+  }
+
+  const seconds = pointerSecondsForCanvas(slotIndex, clientX);
+
+  if (drag.handle === "move") {
+    const duration = slot.audioBuffer ? slot.audioBuffer.duration : MAX_WINDOW_SECONDS;
+    const windowLengthSec = Math.min(drag.windowLengthSec, duration);
+    let startSec = seconds - drag.grabOffsetSec;
+    startSec = Math.max(0, Math.min(duration - windowLengthSec, startSec));
+    slot.startSec = startSec;
+    slot.endSec = startSec + windowLengthSec;
+  } else if (drag.handle === "start") {
+    slot.startSec = seconds;
+  } else {
+    slot.endSec = seconds;
+  }
+
+  constrainWindow(slotIndex, drag.handle);
+  if (drag.handle === "move") {
+    scanWaveViewAtSelectionEdge(slotIndex);
+  }
+  slot.sampleBytes = renderSample(slotIndex);
+  syncSlotControls(slotIndex);
+  drawSlotWave(slotIndex);
+}
+
+function scanWaveViewAtSelectionEdge(slotIndex) {
+  const slot = slots[slotIndex];
+  if (!slot.audioBuffer || slot.zoomLevel === 0) return;
+
+  const view = getWaveView(slotIndex);
+  const marginSec = view.durationSec * 0.08;
+  const stepSec = view.durationSec * 0.0125;
+  const minCenter = view.durationSec / 2;
+  const maxCenter = view.sourceDuration - view.durationSec / 2;
+
+  if (slot.startSec <= view.startSec + marginSec && slot.viewCenterSec > minCenter) {
+    slot.viewCenterSec = Math.max(minCenter, slot.viewCenterSec - stepSec);
+  } else if (slot.endSec >= view.endSec - marginSec && slot.viewCenterSec < maxCenter) {
+    slot.viewCenterSec = Math.min(maxCenter, slot.viewCenterSec + stepSec);
+  }
+}
+
+function updateWindowFromField(slotIndex, action, valueMs) {
+  const slot = slots[slotIndex];
+  const duration = slot.audioBuffer ? slot.audioBuffer.duration : MAX_WINDOW_SECONDS;
+  const clampedMs = Math.max(0, valueMs || 0);
+
+  if (action === "startMs") {
+    slot.startSec = clampedMs / 1000;
+    constrainWindow(slotIndex, "start");
+  } else if (action === "endMs") {
+    slot.endSec = clampedMs / 1000;
+    constrainWindow(slotIndex, "end");
+  } else if (action === "lengthMs") {
+    const lengthSec = Math.max(0.001, Math.min(MAX_WINDOW_SECONDS, clampedMs / 1000));
+    slot.endSec = Math.min(duration, slot.startSec + lengthSec);
+    if (slot.endSec - slot.startSec < lengthSec) {
+      slot.startSec = Math.max(0, slot.endSec - lengthSec);
+    }
+    constrainWindow(slotIndex, "end");
+  }
+}
+
+function clearSlot(slotIndex) {
+  slots[slotIndex].audioBuffer = null;
+  slots[slotIndex].name = "Empty";
+  slots[slotIndex].startSec = 0;
+  slots[slotIndex].endSec = MAX_WINDOW_SECONDS;
+  slots[slotIndex].zoomLevel = 0;
+  slots[slotIndex].viewCenterSec = MAX_WINDOW_SECONDS / 2;
+  slots[slotIndex].sampleBytes = null;
+  renderSlots();
+  setStatus(`Cleared slot ${slotIndex} in the web editor.`);
+}
+
+function copySampleSlot(slotIndex) {
+  const slot = slots[slotIndex];
+  if (!slot.audioBuffer) return;
+
+  sampleClipboard = {
+    audioBuffer: slot.audioBuffer,
+    name: slot.name,
+    startSec: slot.startSec,
+    endSec: slot.endSec,
+    channel: slot.channel,
+    normalize: slot.normalize,
+    zoomLevel: slot.zoomLevel,
+    viewCenterSec: slot.viewCenterSec
+  };
+  syncSlotControls(slotIndex);
+  setStatus(`Copied slot ${slotIndex}. Select another slot and paste to reuse the sample.`);
+}
+
+function pasteSampleSlot(slotIndex) {
+  if (!sampleClipboard) return;
+
+  const slot = slots[slotIndex];
+  slot.audioBuffer = sampleClipboard.audioBuffer;
+  slot.name = sampleClipboard.name;
+  slot.startSec = sampleClipboard.startSec;
+  slot.endSec = sampleClipboard.endSec;
+  slot.channel = sampleClipboard.channel;
+  slot.normalize = sampleClipboard.normalize;
+  slot.zoomLevel = sampleClipboard.zoomLevel;
+  slot.viewCenterSec = sampleClipboard.viewCenterSec;
+  constrainWindow(slotIndex, "end");
+  slot.sampleBytes = renderSample(slotIndex);
+  renderSlots();
+  setStatus(`Pasted copied sample into slot ${slotIndex}.`);
+}
+
+async function previewSlot(slotIndex) {
+  const slot = slots[slotIndex];
+  if (!slot.sampleBytes) return;
+
+  if (!previewContext) {
+    previewContext = new AudioContext({ sampleRate: TARGET_RATE });
+  }
+  if (previewContext.state === "suspended") {
+    await previewContext.resume();
+  }
+
+  if (previewSource) {
+    previewSource.stop();
+    previewSource = null;
+  }
+
+  const buffer = previewContext.createBuffer(1, slot.sampleBytes.length, TARGET_RATE);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < slot.sampleBytes.length; i++) {
+    const signed = slot.sampleBytes[i] > 127
+      ? slot.sampleBytes[i] - 256
+      : slot.sampleBytes[i];
+    data[i] = signed / 128;
+  }
+
+  previewSource = previewContext.createBufferSource();
+  previewSource.buffer = buffer;
+  previewSource.connect(previewContext.destination);
+  previewSource.onended = () => {
+    previewSource = null;
+  };
+  previewSource.start();
+  setStatus(`Previewing slot ${slotIndex}.`);
+}
+
+function decodeAIFF(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+
+  const formType = textAt(view, 8, 4);
+  if (textAt(view, 0, 4) !== "FORM" || (formType !== "AIFF" && formType !== "AIFC")) {
+    throw new Error("Not AIFF");
+  }
+
+  let channels = 0;
+  let frames = 0;
+  let bits = 0;
+  let sampleRate = 0;
+  let soundOffset = 0;
+  let soundSize = 0;
+  let littleEndian = false;
+
+  for (let offset = 12; offset + 8 <= view.byteLength;) {
+    const id = textAt(view, offset, 4);
+    const size = view.getUint32(offset + 4, false);
+    const dataOffset = offset + 8;
+
+    if (id === "COMM") {
+      channels = view.getUint16(dataOffset, false);
+      frames = view.getUint32(dataOffset + 2, false);
+      bits = view.getUint16(dataOffset + 6, false);
+      sampleRate = readExtended80(view, dataOffset + 8);
+      if (formType === "AIFC") {
+        const compression = textAt(view, dataOffset + 18, 4);
+        if (compression !== "NONE" && compression !== "sowt") {
+          throw new Error("Unsupported AIFC compression");
+        }
+        littleEndian = compression === "sowt";
+      }
+    } else if (id === "SSND") {
+      const ssndOffset = view.getUint32(dataOffset, false);
+      const blockSize = view.getUint32(dataOffset + 4, false);
+      soundOffset = dataOffset + 8 + ssndOffset;
+      soundSize = size - 8 - ssndOffset;
+      void blockSize;
+    }
+
+    offset = dataOffset + size + (size & 1);
+  }
+
+  if (!channels || !frames || !bits || !sampleRate || !soundOffset || !soundSize) {
+    throw new Error("Incomplete AIFF");
+  }
+  if (![8, 16, 24, 32].includes(bits)) {
+    throw new Error("Unsupported AIFF bit depth");
+  }
+
+  const samplesPerChannel = Math.min(frames, Math.floor(soundSize / ((bits / 8) * channels)));
+  const audioBuffer = {
+    sampleRate,
+    numberOfChannels: channels,
+    length: samplesPerChannel,
+    duration: samplesPerChannel / sampleRate,
+    _channels: Array.from({ length: channels }, () => new Float32Array(samplesPerChannel)),
+    getChannelData(channel) {
+      return this._channels[channel];
+    }
+  };
+
+  let read = soundOffset;
+  const bytesPerSample = bits / 8;
+  for (let frame = 0; frame < samplesPerChannel; frame++) {
+    for (let channel = 0; channel < channels; channel++) {
+      audioBuffer._channels[channel][frame] = readSignedSample(view, read, bits, littleEndian);
+      read += bytesPerSample;
+    }
+  }
+
+  return audioBuffer;
+}
+
+function textAt(view, offset, length) {
+  let text = "";
+  for (let i = 0; i < length; i++) {
+    text += String.fromCharCode(view.getUint8(offset + i));
+  }
+  return text;
+}
+
+function readExtended80(view, offset) {
+  const exponent = (view.getUint16(offset, false) & 0x7fff) - 16383;
+  const hi = view.getUint32(offset + 2, false);
+  const lo = view.getUint32(offset + 6, false);
+  const mantissa = hi * 2 ** -31 + lo * 2 ** -63;
+  return mantissa * 2 ** exponent;
+}
+
+function readSignedSample(view, offset, bits, littleEndian = false) {
+  if (bits === 8) {
+    return view.getInt8(offset) / 128;
+  }
+  if (bits === 16) {
+    return view.getInt16(offset, littleEndian) / 32768;
+  }
+  if (bits === 24) {
+    let value = littleEndian
+      ? (view.getUint8(offset + 2) << 16)
+        | (view.getUint8(offset + 1) << 8)
+        | view.getUint8(offset)
+      : (view.getUint8(offset) << 16)
+        | (view.getUint8(offset + 1) << 8)
+        | view.getUint8(offset + 2);
+    if (value & 0x800000) value |= 0xff000000;
+    return value / 8388608;
+  }
+  return view.getInt32(offset, littleEndian) / 2147483648;
+}
+
+function renderSample(slotIndex) {
+  const slot = slots[slotIndex];
+  const audioBuffer = slot.audioBuffer;
+  if (!audioBuffer) return null;
+
+  const sourceStart = Math.floor(slot.startSec * audioBuffer.sampleRate);
+  const sourceEnd = Math.min(
+    audioBuffer.length,
+    Math.max(sourceStart + 1, Math.floor(slot.endSec * audioBuffer.sampleRate))
+  );
+  const sourceLength = sourceEnd - sourceStart;
+  const outputLength = Math.min(
+    MAX_SAMPLES,
+    Math.max(1, Math.floor(sourceLength * TARGET_RATE / audioBuffer.sampleRate))
+  );
+  const channels = [];
+  for (let c = 0; c < audioBuffer.numberOfChannels; c++) {
+    channels.push(audioBuffer.getChannelData(c));
+  }
+
+  let gain = 1;
+  if (slot.normalize) {
+    let peak = 0;
+    for (let i = 0; i < outputLength; i++) {
+      const sourcePos = sourceStart + i * audioBuffer.sampleRate / TARGET_RATE;
+      const index = Math.min(sourceEnd - 1, Math.floor(sourcePos));
+      let sample = 0;
+      for (const channel of channels) sample += channel[index];
+      peak = Math.max(peak, Math.abs(sample / channels.length));
+    }
+    if (peak > 0.00001) {
+      gain = Math.min(NORMALIZE_MAX_GAIN, NORMALIZE_TARGET / peak);
+    }
+  }
+
+  const result = new Uint8Array(outputLength);
+  for (let i = 0; i < outputLength; i++) {
+    const sourcePos = sourceStart + i * audioBuffer.sampleRate / TARGET_RATE;
+    const index = Math.min(sourceEnd - 1, Math.floor(sourcePos));
+    let sample = 0;
+    for (const channel of channels) sample += channel[index];
+    sample /= channels.length;
+
+    sample = Math.max(-1, Math.min(1, sample * gain));
+    result[i] = (Math.round(sample * 127) + 256) & 0xff;
+  }
+  return result;
+}
+
+function drawSlotWave(slotIndex) {
+  const slot = slots[slotIndex];
+  const canvas = document.querySelector(`canvas[data-slot="${slotIndex}"]`);
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const mid = canvas.height / 2;
+
+  if (!slot.audioBuffer) {
+    ctx.strokeStyle = "#4d5550";
+    ctx.beginPath();
+    ctx.moveTo(0, mid);
+    ctx.lineTo(canvas.width, mid);
+    ctx.stroke();
+    return;
+  }
+
+  const view = getWaveView(slotIndex);
+  const startX = ((slot.startSec - view.startSec) / view.durationSec) * canvas.width;
+  const endX = ((slot.endSec - view.startSec) / view.durationSec) * canvas.width;
+  const visibleStartX = Math.max(0, startX);
+  const visibleEndX = Math.min(canvas.width, endX);
+
+  if (visibleEndX > visibleStartX) {
+    ctx.fillStyle = "#3a3529";
+    ctx.fillRect(visibleStartX, 0, visibleEndX - visibleStartX, canvas.height);
+  }
+
+  ctx.strokeStyle = "#ac9969";
+  ctx.beginPath();
+  const data = slot.audioBuffer.getChannelData(0);
+  for (let x = 0; x < canvas.width; x++) {
+    const time = view.startSec + (x / (canvas.width - 1)) * view.durationSec;
+    const i = Math.min(data.length - 1, Math.floor(time * slot.audioBuffer.sampleRate));
+    const y = mid - data[i] * (canvas.height * 0.45);
+    if (x === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = "#ff7477";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  let drewHandle = false;
+  if (startX >= 0 && startX <= canvas.width) {
+    ctx.moveTo(startX, 0);
+    ctx.lineTo(startX, canvas.height);
+    drewHandle = true;
+  }
+  if (endX >= 0 && endX <= canvas.width) {
+    ctx.moveTo(endX, 0);
+    ctx.lineTo(endX, canvas.height);
+    drewHandle = true;
+  }
+  if (drewHandle) ctx.stroke();
+
+  ctx.fillStyle = "#f4442e";
+  if (startX >= 0 && startX <= canvas.width) {
+    ctx.fillRect(startX - 4, 0, 8, 14);
+  }
+  if (endX >= 0 && endX <= canvas.width) {
+    ctx.fillRect(endX - 4, canvas.height - 14, 8, 14);
+  }
+  ctx.lineWidth = 1;
+}
+
+renderSlots();
+</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+Name: 433 Sense of Space - Mayakovsky CC0 Version
+short-description: "CC0 variant using Mayakovsky Theatre audience ambience with the same three-loop 4'33\" transport and controls."
+Language: C++ (Pico SDK / ComputerCard)
+Creator: Adrian Vos
+Version: 0.2.1-mayakovsky-cc0
+Status: Beta - stable in single-developer testing
+License: Mixed - embedded ambience and seat creak audio are Creative Commons 0; source code/reverb components follow their original project licences
+
+contact:
+  social:
+    github: https://github.com/soveda
+
+tags:
+  - ambience
+  - reverb
+  - sampler
+  - experimental
+  - foley
+
+summary: |
+  Mayakovsky CC0 variant of 433 Sense of Space. It is supplied as 2 MB and 16 MB builds. The 2 MB build uses a
+  compact 10 kHz stereo 8-bit ambience asset, while the 16 MB build uses a cleaner
+  24 kHz stereo 16-bit ambience asset. Both are sourced from approximately 4:45-6:16
+  of the Mayakovsky Theatre CC0 recording.
+  It is not a recording or reconstruction of a 4'33" performance, but a sound work
+  about the anticipation, room tone, and incidental activity around one.
+  Switch Up stops and arms the performance, Switch Middle starts three 91 second
+  loops sourced from 4:45-6:16 of the Mayakovsky Theatre recording, and the left column LEDs count
+  down from three loops to zero. Switch Down or Pulse In 1 triggers a short
+  chair/stool creak one-shot representing the musician shifting in their seat.
+  Pulse In 2 restarts the full performance from the beginning.
+
+panel:
+  inputs:
+    - id: PulseIn1
+      name: Seat Creak
+      type: pulse
+      description: Trigger a chair/stool creak one-shot on a rising edge
+    - id: PulseIn2
+      name: Restart
+      type: pulse
+      description: Restart the three-loop sound work from the beginning on a rising edge
+  outputs:
+    - id: AudioOut1
+      name: Left
+      type: audio
+      description: Left stereo output
+    - id: AudioOut2
+      name: Right
+      type: audio
+      description: Right stereo output
+
+controls:
+  switch:
+    up:
+      name: Stop / Arm
+      description: Stop playback, reset to the beginning, and light all three countdown LEDs.
+    middle:
+      name: Start
+      description: Start a three-loop 4'33" performance from the beginning.
+    down:
+      name: Seat Creak
+      description: Trigger a short chair/stool creak one-shot.
+  knobs:
+    - main:
+        name: Restlessness
+        description: Adds occasional quieter automatic chair/stool creaks
+      x:
+        name: Space
+        description: Reverb character, from small room to a restrained cathedral-like hall
+      y:
+        name: Amount
+        description: Dry/wet reverb amount
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Loop 1 remaining
+        - id: LED2
+          name: Loop 2 remaining
+        - id: LED4
+          name: Loop 3 remaining
+        - id: LED1
+          name: Running indicator
+        - id: LED3
+          name: Running indicator
+        - id: LED5
+          name: Running indicator
