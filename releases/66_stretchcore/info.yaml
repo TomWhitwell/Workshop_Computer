@@ -10,10 +10,14 @@ Language: C++ (Pico SDK)
 Creator: Infinite Digits
 Version: "1.0"
 Status: Ready
+License: MIT
 Editor: https://infinitedigits.co/stretchcore/
 date-created: 2026-06-02
 date-updated: 2026-07-02
 demo-link: https://www.youtube.com/watch?v=2qQBaFxhDwc
+
+contact:
+  email: zack@infinitedigits.co
 
 tags:
   - sampler
