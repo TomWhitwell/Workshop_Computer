@@ -1,0 +1,305 @@
+draft: false
+Name: NIBBLE
+short-description: Turns the Workshop System's mysterious four buttons into tools to make melodic lines and lo-fi drum loops
+Language: C++ (ComputerCard)
+Creator: Andy Jenkinson (uglifruit)
+Version: "1.11.4"
+Status: Released
+License: CC-BY-4.0
+repository: https://github.com/uglifruit/WorkshopNibble
+Editor: none
+date-created: 2026-08-07
+date-updated: 2026-08-08
+
+contact:
+  social:
+    github: https://github.com/uglifruit
+
+# The registry's demo-link takes a single URL, so Part 1 is the one that gets
+# the playable thumbnail on the card's page. Both parts are linked in the README,
+# where matching YouTube URLs are embedded inline.
+demo-link: https://youtu.be/te2GKfyd_0w
+
+uf2:
+  - path: UF2/nibble.uf2
+    name: NIBBLE 1.11.4
+
+tags:
+  - keyboard
+  - quantiser
+  - scales
+  - drums
+  - looper
+  - sequencer
+  - four-voltages
+
+summary: |
+  Turns the Workshop System's mysterious four buttons into tools to make melodic
+  lines and lo-fi drum loops.<br><br>
+
+  Patch one output of the FOUR VOLTAGES module into CV In 1, teach the card which
+  voltage each button combination produces, and the ten combinations become ten
+  degrees of a scale (MELODY) - or a lo-fi drum kit with a looper behind it
+  (PERCUSSION), chosen by holding the momentary switch at power-on. The left LED
+  column at boot means Melody, the right column Percussion.<br><br>
+
+  SETUP: use OUTPUT 1 of Four Voltages with its knob at about twelve o'clock.
+  That gives ten well-spread, reliably separable voltages. The knob position
+  matters - it moves all four outputs at once, and towards either extreme
+  several combinations collapse onto nearly the same voltage.<br><br>
+
+  Four buttons is four bits is one nibble.<br><br>
+
+  THE PROBLEM IT SOLVES: Four Voltages does not return to a rest voltage when you
+  let go - the output sits at the last-pressed button's level. Releasing A+B
+  leaves the voltage sitting exactly where pressing A alone would put it, so a
+  naive design fires a spurious note every time you lift a finger. NIBBLE ignores
+  that one specific level, and only that one, until the voltage moves somewhere
+  else.<br><br>
+
+  The payoff is the way you play it: HOLD one button and TAP the others. Hold C,
+  tap A for one sound, tap B for another, indefinitely, with no ghost notes. The
+  held finger is a bank select and the tapping finger plays.<br><br>
+
+  Hold the momentary switch for two seconds to calibrate - ten steps, each
+  confirmed by a tap, with the LEDs laid out in the same 2x2 as the buttons so
+  the display is the instruction. Calibration is deliberately NOT saved: the
+  Four Voltages knob changes every voltage it makes, so a remembered calibration
+  would be a wrong one.<br><br>
+
+  The combinations play scale DEGREES rather than pitches, so the voltage only
+  ever decides which combination you pressed - move the Four Voltages knob,
+  re-learn, and the same buttons give you the same notes back. Twelve scales on
+  Knob Y, ordered dark to bright.<br><br>
+
+  Hold the momentary switch at power-on for PERCUSSION (called DRUMS in the source; the default mode is MELODY, called KEYS). There a SINGLE button is a
+  shift rather than a sound and only pairs trigger, which is what lets you hold
+  one button and tap the others to repeat a hit as fast as you like - percussion
+  is mostly repeated hits on the same drum, and a keyboard reading of the buttons
+  cannot do that.<br><br>
+
+  TWELVE voices, not six, because holding A and tapping B is a different gesture
+  from holding B and tapping A. Those close the same switches and give an
+  identical voltage - press order is not in the signal - but the level the
+  voltage came FROM is the button that was already down, and latching that
+  recovers the ordering for nothing.<br><br>
+
+  THE KIT, all synthesised rather than sampled, which is why one knob can
+  reshape the whole thing: kick (62Hz, swept), deep kick (50Hz), snare (190Hz),
+  snappy snare (230Hz), closed hat, metallic hi-hat, open hi-hat, crash,
+  cowbell (1500Hz),
+  and three Simmons-style toms whose pitch falls exponentially rather than
+  linearly - the "pew" that a linear sweep cannot produce.<br><br>
+
+  Laid out for the hand: HOLD C and a right hand has closed hat, snare and kick
+  under three fingers, which is a whole beat without moving. HOLD D is the tom
+  row for fills. A and B carry the colour and the crash.<br><br>
+
+  A four-bar event looper whose overdub is lossless because it records events
+  rather than audio, clockable from Pulse In 1, a DJ filter whose movements can
+  be recorded into the loop, and a click track on Pulse Out 2.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Four Voltages
+      type: cv
+      description: Patch one output of the Four Voltages module here. This is the keyboard. The card learns which voltage each button combination produces, so it works at any position of the Four Voltages knob - re-learn whenever you move it. If two combinations cannot be told apart the card says so during calibration rather than guessing.
+    - id: CVIn2
+      name: Transpose
+      type: cv
+      description: MELODY - 1V/oct transpose of the whole keyboard, up to two octaves, quantised to semitones so an imprecise voltage cannot leave everything slightly sharp. The root of the scale sits at 0V, so this transposes upward from there, and it is only active when something is actually patched. PERCUSSION - unused.
+    - id: PulseIn1
+      name: Retrigger / ClkIn
+      type: pulse
+      description: MELODY - re-fires the current note without changing it, which is how you play repeated notes. PERCUSSION - an external clock at one pulse per beat. It OVERRIDES Knob X for as long as pulses keep arriving and hands the tempo back about three seconds after they stop, snapping to wherever the knob is then pointing. Locks anywhere from 30 to 240 BPM, and nudges into phase rather than snapping, so locking on never stutters the pattern.
+    - id: PulseIn2
+      name: Unused
+      type: pulse
+      description: Not used in this version.
+  outputs:
+    - id: CVOut1
+      name: Pitch / Bass
+      type: cv
+      description: "MELODY - calibrated 1V/oct pitch, stepped, or glided when the switch is up. The root of the scale is 0V, so an oscillator at its own zero is already in tune. PERCUSSION - a four-note bassline played by the single buttons, which make no drum sound and so had a spare output: A is the root, B a tone below, C the fifth, D the octave. No combos and no scale - once a pattern is looping you can put a simple line under it with the same four buttons."
+    - id: CVOut2
+      name: Harmony / BassGate
+      type: cv
+      description: MELODY - a second calibrated 1V/oct pitch, a third above the note you played and picked from the same scale, so it lands major or minor according to where in the scale you are. Patch it to a second oscillator with Pulse Out 1 as a shared gate and the ten buttons play two-part harmony. PERCUSSION - a 5V gate whenever a single (shift) button is pressed live, so the bassline on CV Out 1 can have its own envelope without opening on every drum hit. Live presses only - a recorded pattern contains no shift presses.
+    - id: AudioOut1
+      name: Envelope1 / Drums
+      type: audio
+      description: "MELODY - the FILTER envelope, roughly 24ms to 3.7 seconds, able to go a little snappier than the loudness envelope for plucks. Knob X decides whether it closes before the note fades or outlasts it. PERCUSSION - the mono drum bus, after the DJ filter. Audio Out 2 carries the SAME bus, not a stereo partner: patch either socket and you get the whole kit."
+    - id: AudioOut2
+      name: Envelope2 / Drums
+      type: audio
+      description: MELODY - the LOUDNESS envelope, roughly 44ms to 5.7 seconds across the macro knob. It is the one standing in for how long the note lasts, so it reaches genuine pad lengths. PERCUSSION - the same mono drum bus as Audio Out 1. They are deliberately identical and nothing splits them, so either socket gives you the whole kit rather than half of it.
+    - id: PulseOut1
+      name: Gate
+      type: pulse
+      description: "Fires on every note or drum hit, from the buttons, from a retrigger, or from the loop. In PERCUSSION it also gates the bassline the single buttons play."
+    - id: PulseOut2
+      name: Click
+      type: pulse
+      description: PERCUSSION - a click track, one blip per crotchet, running whenever the loop is, so there is something to record along to. MELODY - unused.
+
+controls:
+  switch:
+    up:
+      name: Glide / Record
+      description: MELODY - fast glide between notes instead of stepping; the harmony voice glides with it. PERCUSSION - record and overdub into the loop; the loop keeps running, and because it stores events rather than audio, overdubbing never degrades what is already there.
+    middle:
+      name: Step / Play
+      description: MELODY - pitch steps straight to each new note. PERCUSSION - the loop plays, and you can play along without recording.
+    down:
+      name: Calibrate
+      description: "Calibration starts automatically at power-on, since the learned levels are never saved. HOLD for two seconds to start another at any time, or to abort one in progress - and in PERCUSSION this also ERASES the loop, which is the erase gesture. How it ends is on the LEDs: all six ramp up and fade means a clean calibration; the same fade with LEDs 4 and 5 flashing over it means two combinations are too close to separate, so nudge the Four Voltages knob and run it again; the two COLUMNS alternating fast for about a second and a half means it FAILED, which in practice means nothing is patched into CV In 1 - the previous calibration is kept either way."
+    tap:
+      name: Retrigger Note
+      description: "MELODY - re-fires the current note. PERCUSSION - re-strikes the BASS note the held single button is playing, rather than the last drum. A drum is easier to repeat by tapping its pair again, whereas the bassline has no other way to be struck twice at all, since a note only fires when the combination CHANGES - so holding one button gives you a single note and nothing more. This makes the switch a repeat key for the bass. During calibration, captures the combination you are holding."
+  knobs:
+    -
+      main:
+        name: Envelopes / DJFilter
+        description: MELODY - how long the note lasts, from a click to over five seconds, across both envelopes at once. PERCUSSION - a DJ filter, low-pass to the left, high-pass to the right, with a generous bypass at centre you can find by feel. Its movements are recorded into the loop.
+      x:
+        name: Envelopes / Tempo
+        description: MELODY - how the 'filter' and 'loudness' envelopes (Audio1 and Audio 2) respond to MainKnob. PERCUSSION - tempo, 40 to 240 BPM, ignored while an external clock is running on Pulse In 1. Changing it re-times the pattern rather than pitching it.
+      y:
+        name: Scale / Kit
+        description: "MELODY - one of twelve scales, ordered dark to bright from fully anticlockwise, shown on the LEDs as a bar while you turn it: Phrygian, Hirajoshi, Harmonic Minor, Natural Minor, Minor Pentatonic, m7 Arpeggio, Dorian, Major Pentatonic, Ionian (Major), Maj7 Arpeggio, Whole Tone, Chromatic. Because the ten combinations are ten DEGREES, the scale also sets the range - a four-note arpeggio spreads them over more than two octaves while Chromatic packs them into three quarters of one. PERCUSSION - the character of the whole kit at once, from lower and longer to higher and shorter, roughly half to double pitch and three decay steps either way. Applied when a voice is struck, so sweeping it never warps a sound that is already ringing - and its movements are RECORDED INTO THE LOOP alongside the filter, so a pattern can change its own kit character as it plays."
+  leds:
+    -
+      display: list
+      items:
+        - id: LED0-3
+          name: Buttons A B / C D
+          description: Laid out in the same 2x2 as the Four Voltages buttons, and used that way everywhere - they show which combination is currently held, they flash on each hit, and during calibration they show you which combination to press next, so the display is the instruction rather than a code to decode.
+        - id: LED4
+          name: Beat
+          description: PERCUSSION - pulses on the beat, matching the click on Pulse Out 2. During calibration it marks the four single-button steps. Dark while playing in MELODY - the combo LEDs already show every note, and a second light saying the same thing only competes with them.
+        - id: LED5
+          name: Calibration / Record
+          description: PERCUSSION - lit while recording. During calibration it marks the six two-button steps. Dark while playing in MELODY - it used to sit on to mean calibrated, which is not something you can act on mid-performance. Collisions are reported once at the end of a calibration instead.
+
+host:
+  notes: |
+    WHAT TO PATCH
+
+    One output of the Four Voltages module into CV In 1. That is the whole
+    required patch. Four Voltages has four outputs and they respond differently
+    to the same buttons - if one gives you two combinations that collide during
+    calibration, try another before changing anything else.
+
+    CALIBRATION
+
+    Calibration starts by itself about a second after power-up, since the
+    levels are never saved and it is the first thing you would do anyway. Hold
+    the momentary switch for two seconds to start another at any time, or to
+    abort one in progress. Ten steps: the four single
+    buttons, then the pairs as top row, bottom row, left column, right column,
+    and the two diagonals - an order chosen so your hand alternates shape rather
+    than re-forming similar grips. Hold each combination and TAP the switch to
+    capture it.
+
+    All six LEDs flash to confirm. The BUTTON leds 0-3 fluttering means the
+    voltage was still moving - your hand, so hold steady and tap again. The
+    MARKER leds 4 and 5 blinking means the capture was kept but that combination
+    is too close to an earlier one to separate reliably; the calibration still
+    completes, and you can move the Four Voltages knob and run it again. The two
+    warnings use different lights deliberately.
+
+    The collision warning is deliberately quiet - it fires only when two levels
+    are within about 95mV, which is well below the point where the detector actually
+    starts confusing them. A warning that appears on combinations you can play
+    perfectly well just teaches you to ignore it.
+
+    Calibration is NOT saved across power cycles, on purpose. The Four Voltages
+    knob moves every voltage it produces, so a remembered calibration would be a
+    wrong one - and a card that looks calibrated while playing the wrong notes is
+    worse than one that admits it knows nothing.
+
+    HOW IT LISTENS
+
+    Ten combinations are learned: the four singles and the six pairs. Three- and
+    four-button presses produce voltages that match nothing, and the card does
+    nothing with them rather than snapping to the nearest note.
+
+    Because Four Voltages does not return to a rest voltage, releasing a pair
+    leaves the output sitting on one of that pair's own buttons. The card ignores
+    that one level - and only that one, only until the voltage moves elsewhere.
+    So A+B released to A is silent, but pressing B straight afterwards plays,
+    and returning to A later plays too.
+
+    NOTES, NOT VOLTAGES
+
+    The combinations map to scale DEGREES rather than to pitches. The voltage
+    only ever decides WHICH combination you pressed. That means moving the Four
+    Voltages knob and re-learning gives you exactly the same notes back, which
+    would not be true of a quantiser reading those voltages as pitches.
+
+    THE DRUM KIT
+
+    In PERCUSSION a SINGLE button makes no sound - it is a shift. Only pairs trigger,
+    which is what lets you hold one button and tap the others to repeat a hit as
+    fast as you like. Percussion is mostly repeated hits on the same drum, and a
+    keyboard reading of the buttons cannot do that: to play a sound twice you
+    must pass back through the held button, and if that were itself a sound then
+    every repeat would be interrupted.
+
+    Twelve voices, because hold-A-tap-B and hold-B-tap-A are different gestures
+    even though they close the same switches:
+
+      HOLD A   tap B cowbell    tap C metallic hi-hat  tap D open hi-hat
+      HOLD B   tap A CRASH      tap C deep kick        tap D snappy snare
+      HOLD C   tap A closed hat tap B snare            tap D kick
+      HOLD D   tap A tom 1      tap B syn tom 2        tap C syn drum 3
+
+    Hold C and a right hand has closed hat, snare and kick under three fingers.
+    Hold D for the tom row. A and B carry the colour and the crash.
+
+    Every voice is synthesised: a pitched body, a noise component, and an
+    exponential decay on each. Kick 62Hz swept to 45Hz over 6ms; deep kick 50Hz;
+    snare 190Hz; snappy snare 230Hz; closed hat 6kHz; hi-hats 7.6kHz; crash
+    5.2kHz. The three cymbal voices are ring-modulated against a second
+    oscillator at a non-integer ratio so they clang rather than hiss.
+
+    The toms fall in pitch EXPONENTIALLY - 420Hz to 90Hz over about 50ms, fast
+    then easing in - which is what makes a Simmons-style tom sound like one. A
+    linear fall reaches the floor in a few milliseconds and spends the rest of
+    the note at one pitch.
+
+    Voices carry their own level, because peak amplitude stops being a proxy for
+    loudness once decay times differ by two orders of magnitude: a 0.9-second
+    crash at full scale delivers many times a kick's energy. The crash sits at
+    20 percent, the kicks and snare at full.
+
+    THE LOOPER
+
+    Four bars, recording EVENTS rather than audio, so overdubbing never degrades
+    what is already there and the tempo knob re-times a pattern instead of
+    pitching it. An event stores WHICH SOUND - kick, snare, crash - not which
+    buttons made it, because how a hit was played belongs to the performance.
+
+    Hits quantise to 1/16 on playback; knob sweeps deliberately do not. Two
+    knobs are automated - the Main DJ filter and the Y kit character - on
+    separate lanes, so recording one never erases the other. Arming record never
+    silences the loop and never writes a knob's resting position: automation is
+    recorded only once the knob actually moves, and the physical knob reclaims
+    control the moment you move it again.
+
+    Sixteen voices can ring at once. When they are all busy the card steals the
+    QUIETEST rather than the oldest, so a voice near the end of its decay goes
+    before one that has just started. The old six-slot round robin was what made
+    a loop appear to erase itself after a few overdub passes: a crash rings for
+    nearly a second, and any six hits after it took its slot.
+
+    LICENCE - CC-BY-4.0 covers this card's source: use, fork or sell it, just
+    credit Andy Jenkinson (uglifruit). ComputerCard.h is Chris Johnson's and
+    keeps its own MIT licence.
+
+    CREDITS - ComputerCard by Chris Johnson (Music Thing Modular). Drum voices
+    generalised from Wild Pebble (74); scale tables from Lockstep (89);
+    degree-indexing from CA Sequencer (19); the Schmitt-band quantiser idiom
+    from Goldfish (11); the state-variable filter's update ordering from bends
+    (45). Built with Claude Code.
