@@ -11,6 +11,7 @@ Status: Beta - stable in single-developer testing
 License: GPL-3.0-or-later
 date-created: 2026-06-26
 date-updated: 2026-07-13
+demo-link: https://www.youtube.com/watch?v=F59vXwbCjhs
 panel:
   inputs:
     - id: PulseIn1

@@ -14,6 +14,7 @@ Creator: Adrian Vos
 Version: "1.4"
 Status: Beta - stable in single-developer testing
 License: MIT
+demo-link: https://www.youtube.com/watch?v=wv4BscxiBcc
 uf2:
   - path: uf2/C1ZZL3_CORE.uf2
     name: Core 1.4
