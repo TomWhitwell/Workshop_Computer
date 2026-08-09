@@ -13,6 +13,7 @@ Status: Beta - stable in single-developer testing
 License: MIT
 date-created: 2026-06-25
 date-updated: 2026-06-25
+demo-link: https://www.youtube.com/watch?v=iS8HaeX_z_Y
 panel:
   inputs:
     - id: AudioIn1
