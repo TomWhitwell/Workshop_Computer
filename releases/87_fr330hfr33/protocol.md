@@ -1,4 +1,4 @@
-# Fr330hfr33 Experimental Web MIDI Protocol
+# Fr330hfr33 Web MIDI Protocol
 
 This records the SysEx protocol shared by the firmware and Web MIDI editor.
 
@@ -25,11 +25,12 @@ F0 7D 46 33 30 33 01
    distortion_tone
    filter_poles
    acidness
+   swing
 F7
 ```
 
-The complete message is 25 bytes including `F0` and `F7`. The firmware stores
-the 23 bytes between them in `sysex[]`.
+The complete message is 26 bytes including `F0` and `F7`. The firmware stores
+the 24 bytes between them in `sysex[]`.
 
 ## Header
 
@@ -53,8 +54,8 @@ include the leading `F0`.
 | 9 | 10 | Tempo low 7 bits | Combined with the next byte |
 | 10 | 11 | Tempo high 7 bits | Result clamped to `30–240` BPM |
 | 11 | 12 | Root note | `0–11`, C through B |
-| 12 | 13 | Gate length | `10–95` percent |
-| 13 | 14 | Sequencer legato probability | `0–100` percent; selected transitions keep the gate high and become slides or repeated-note ties |
+| 12 | 13 | Gate length | `10–95` percent; the editor presents Pluck, Short, Medium, and Long |
+| 13 | 14 | Sequencer legato probability | `0–100` percent; the editor presents None, Low, Medium, and High |
 | 14 | 15 | MIDI input channel | `0–15`, representing channels 1–16 |
 | 15 | 16 | MIDI clock sync | Bit 0: `0` disabled, `1` enabled |
 | 16 | 17 | Base MIDI note | `24`, `36`, `48`, or `60` |
@@ -64,8 +65,9 @@ include the leading `F0`.
 | 20 | 21 | Distortion tone | `0–100`, dark to bright |
 | 21 | 22 | Diode filter poles | `4` for 24 dB/octave, `3` for 18 dB/octave |
 | 22 | 23 | Acidness | `0–100`; coordinated generator and pattern-mutation intensity |
+| 23 | 24 | Swing | `0–100`; displayed as a `1.00:1` to `2.00:1` long:short ratio |
 
-Wire byte 24 is `F7`, the SysEx terminator.
+Wire byte 25 is `F7`, the SysEx terminator.
 
 ## Distortion behavior
 
@@ -93,6 +95,7 @@ The firmware accepts these internal SysEx lengths:
 | 21 | Distortion tone |
 | 22 | Diode filter pole count |
 | 23 | Acidness |
+| 24 | Swing |
 
 Missing optional fields retain their current/default values:
 
@@ -101,6 +104,7 @@ Missing optional fields retain their current/default values:
 - Amount: 50%
 - Tone: 50%
 - Diode filter: four pole / 24 dB per octave
+- Swing: straight
 
 Invalid values are clamped or replaced with safe defaults.
 
@@ -134,7 +138,7 @@ Initial Step 1, forward playback, pendulum off, and slot 1.
 | --- | --- |
 | Enabled | `0` keeps the generative sequencer; `1` uses the editable pattern |
 | Pattern length | `1–16` steps |
-| Note | `0–11`, chromatic C through B; Root transposes it |
+| Note | `0–11`, chromatic C through B; Root transposes it. `12` mutes the step |
 | Octave | `0–3`, added above Base Octave |
 | Accent | `0` normal, `1` accented |
 | Gate | `10–95` percent of that step |
@@ -146,8 +150,8 @@ Initial Step 1, forward playback, pendulum off, and slot 1.
 
 A tied transition to a different programmed pitch slides without retriggering.
 A tied transition to the same pitch is a true repeated-note tie. Ties follow
-the selected playback direction. Unsaved edits are session-only; the active
-saved slot returns after reset.
+the selected playback direction. A muted step is a rest and breaks any incoming
+tie. Unsaved edits are session-only; the active saved slot returns after reset.
 
 ## Commands 03 and 04 — pattern slots
 
@@ -156,8 +160,10 @@ F0 7D 46 33 30 33 03 slot F7   recall slot
 F0 7D 46 33 30 33 04 slot F7   save current pattern to slot
 ```
 
-Slot is `0–3`. Recall changes the running pattern immediately. Save copies the
-current lane data and playback settings into the selected card-flash slot.
+Slot is `0–3`. Recall changes the running pattern immediately and echoes the
+loaded pattern back over Command `02`, allowing the Web editor to redraw from
+the card state. Save copies the current lane data and playback settings into
+the selected card-flash slot.
 Global command-01 settings are also persistent and restore automatically at
 boot.
 

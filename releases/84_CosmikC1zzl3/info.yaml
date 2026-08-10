@@ -1,160 +1,195 @@
-id: 84_CosmikC1zzl3
-title: Cosmik C1ZZL3
-release: 84 / 1.0
-summary: Phase-distortion synth, Web MIDI envelopes, USB MIDI, and Turing machine
-description: Stable phase-distortion synthesiser and Turing machine firmware with Web MIDI custom envelopes, USB MIDI device/host operation, MIDI CC control, and optional Turing MIDI output.
+Name: Cosmik C1ZZL3
+draft: false
+date-created: 2026-07-22
+date-updated: 2026-07-24
+summary: Dual phase-distortion synthesiser and Turing machine release with Core
+  1.4 and alternate Rad v9 firmware. Both support USB MIDI, a shared browser
+  editor and CZ patch Import Lab, optional Turing MIDI output, and Turing CV and
+  pulse outputs. Rad v9 adds independently editable envelopes, pitch envelopes,
+  and waveform families for both oscillators.
+short-description: Core 1.4 and Rad v9 dual phase-distortion synth and Turing
+  machine firmware with shared Web MIDI editing and CZ patch import.
+Language: C++ (Pico SDK)
+Creator: Adrian Vos
+Version: "1.4"
+Status: Beta - stable in single-developer testing
+License: MIT
+demo-link: https://www.youtube.com/watch?v=wv4BscxiBcc
+uf2:
+  - path: uf2/C1ZZL3_CORE.uf2
+    name: Core 1.4
+  - path: uf2/C1ZZL3_RAD.uf2
+    name: Rad v9
 panel:
-  controls:
-    main:
-      label: Pitch / Mutation
-      description: >-
-        In synth mode sets oscillator pitch. In Turing mode sets mutation/lock
-        behaviour; centre is most random and the extremes are more locked.
-      source: curated
-    x:
-      label: PD / Length
-      description: >-
-        In synth mode sets phase-distortion amount. In Turing mode chooses loop
-        length from 2 to 16 steps. In performance edit it sets ring modulation.
-      source: curated
-    'y':
-      label: Wave / Clock
-      description: >-
-        In synth mode morphs the waveform. In Turing mode sets the internal
-        clock speed. In performance edit it sets noise/grit.
-      source: curated
-    z:
-      label: Synth / Turing / Edit
-      description: >-
-        Up selects Turing machine, middle selects PD synth, and holding down
-        from middle edits detune, ring modulation, and noise. Holding down from
-        middle also saves supported performance settings.
-      source: curated
   inputs:
-    audio_l:
-      label: |-
-        Audio/CV
-        1
-      description: 1V/oct pitch modulation in PD synth mode.
-      source: curated
-    audio_r:
-      label: |-
-        Audio/CV
-        2
-      description: Unused in this build.
-      source: curated
-    cv_1:
-      label: |-
+    - id: AudioIn1
+      name: Pitch CV
+      description: 1V/oct pitch modulation in PD synth mode
+      type: audio
+    - id: CVIn1
+      name: |-
+        Phase
+        Distortion
+      description: Adds phase-distortion amount in synth and Turing modes
+      type: cv
+    - id: CVIn2
+      name: |-
+        Wave Control
         CV
-        1
-      description: Adds phase-distortion amount in synth and Turing modes.
-      source: curated
-    cv_2:
-      label: |-
-        CV
-        2
-      description: Adds wave control in synth and Turing modes.
-      source: curated
-    pulse_1:
-      label: |-
+      description: Adds wave control in synth and Turing modes
+      type: cv
+    - id: PulseIn1
+      name: |-
+        Ext Turing
         Clock
-        1
-      description: External Turing clock in switch-up mode.
-      source: curated
-    pulse_2:
-      label: |-
-        Env
+      description: External Turing clock in switch-up mode
+      type: pulse
+    - id: PulseIn2
+      name: |-
+        Envelope
         Trig
-      description: Triggers the selected envelope and oscillator sync in synth mode when an active preset is selected.
-      source: curated
+      description: Triggers selected envelope and oscillator sync in synth mode; held
+        gates loop supported envelopes and gate-off lets them complete
+      type: pulse
   outputs:
-    audio_out_l:
-      label: |-
-        Audio
-        1
-      description: Oscillator 1 in synth mode; self-playing stepped oscillator 1 in Turing mode.
-      source: curated
-    audio_out_r:
-      label: |-
-        Audio
-        2
-      description: Oscillator 2 in synth mode; self-playing stepped oscillator 2 in Turing mode.
-      source: curated
-    cv_out_1:
-      label: |-
-        CV
-        1
-      description: Scaled stepped Turing CV; continues updating in synth mode.
-      source: curated
-    cv_out_2:
-      label: |-
-        CV
-        2
-      description: Smoothed Turing CV; continues updating in synth mode.
-      source: curated
-    pulse_out_1:
-      label: |-
+    - id: AudioOut1
+      name: |-
+        Oscillator 1
+        / Turing
+      description: Oscillator 1 in synth mode; self-playing stepped oscillator 1 in
+        Turing mode
+      type: audio
+    - id: AudioOut2
+      name: |-
+        Oscillator 2
+        / Turing
+      description: Oscillator 2 in synth mode; self-playing stepped oscillator 2 in
+        Turing mode
+      type: audio
+    - id: CVOut1
+      name: |-
+        Stepped
+        Turing CV
+      description: Scaled stepped Turing CV; continues updating in synth mode
+      type: cv
+    - id: CVOut2
+      name: |-
+        Smoothed
+        Turing CV
+      description: Smoothed Turing CV; continues updating in synth mode
+      type: cv
+    - id: PulseOut1
+      name: |-
+        Main Turing
         Pulse
-        1
-      description: Main Turing pulse; continues updating in synth mode.
-      source: curated
-    pulse_out_2:
-      label: |-
-        Pulse
-        2
-      description: Alternate Turing bit pulse; continues updating in synth mode.
-      source: curated
-switch_modes:
-  up: Turing machine. Main controls mutation, X controls length, and Y controls clock speed.
-  middle: PD synth. Main controls pitch, X controls phase-distortion amount, and Y controls waveform morph.
-  down: Hold from middle for performance edit and save. Main controls detune, X ring modulation, and Y noise/grit.
-leds:
-  - "Synth mode: LED 1 phase-distortion amount, LED 2 waveform position, LED 3 oscillator 2 level, LED 4 ring modulation, LED 5 noise amount, LED 6 switch-held indicator."
-  - "Turing mode: LEDs 1-3 show low bits of the Turing pattern, LED 4 follows Pulse In 1, LED 5 shows sequence length, and LED 6 flashes on each Turing clock step. Turning X briefly displays length as binary."
-  - "Envelope startup selection: factory presets use binary LED display; custom slots light LED 6 and use LEDs 1-3 for the custom slot number."
-notes:
-  - "Hosted Web MIDI editor: https://soveda.github.io/CozmikC1zzl3/web-midi/editor/"
-  - "Factory envelope presets are never overwritten. The card stores custom envelope shapes; names are stored in the browser."
-  - "MIDI CC1 controls phase distortion, CC20 detune, CC21 ring modulation, CC22 noise, CC23 waveform, and CC24 Turing CV octave range."
-  - "The Turing clock continues running in synth mode, so CV and pulse outputs keep updating while the synth voice is playable."
-  - "This stable production build uses a 192 MHz RP2040 clock and was hardware-tested with USB MIDI device/host operation, Turing MIDI output, settings readback, and MIDI CC control."
-source:
-  - C1ZZL3.cpp
-  - C1ZZL3_LUT.cpp
-  - usb_midi_host.c
-  - usb_midi_host_app_driver.c
-  - usb_descriptors.c
-  - README.md
-  - CARD_README.md
-slug: 84-cosmikc1zzl3
-url: /workshopsystem/program-cards/84-cosmikc1zzl3/
+      description: Main Turing pulse; continues updating in synth mode
+      type: pulse
+    - id: PulseOut2
+      name: |-
+        Alternate
+        Turing Pulse
+      description: Alternate Turing bit pulse; continues updating in synth mode
+      type: pulse
 tags:
-  - id: synth
-    label: Synth
-  - id: midi
-    label: MIDI
-  - id: web-midi
-    label: Web MIDI
-  - id: turing-machine
-    label: Turing Machine
-  - id: phase-distortion
-    label: Phase Distortion
-tag_ids:
   - synth
   - midi
   - web-midi
   - turing-machine
   - phase-distortion
-tag_labels:
-  - Synth
-  - MIDI
-  - Web MIDI
-  - Turing Machine
-  - Phase Distortion
-source_file: data/cards/84_CosmikC1zzl3.yml
-metadata:
-  creator: Adrian Vos
-  language: Pico SDK
-  version: '1.0'
-  status: Released
-  editor_url: https://soveda.github.io/CozmikC1zzl3/web-midi/editor/
+controls:
+  switch:
+    up:
+      name: Turing machine mode
+      description: "Z up: MAIN: Mutation; X: Sequence Length; Y: Clock Speed."
+    middle:
+      name: Synthesiser mode
+      description: "Z middle: MAIN: Pitch; X: Phase Distortion; Y: Waveform Morph."
+    down:
+      name: Edit/save
+      description: "Z down, hold: MAIN: Detune; X: Ring Modulation; Y: Noise/Grit."
+  knobs:
+    - main:
+        name: Pitch/Mutation
+        description: Oscillator pitch in synth mode
+      x:
+        name: |-
+          Phase
+          Distortion/Length
+        description: Phase-distortion amount
+      y:
+        name: |-
+          Waveform
+          Morph/clock
+        description: Waveform selection/morph
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: LED 1
+          description: "In synth mode: LED 1 shows phase-distortion amount, LED 2 shows
+            waveform position, LED 3 shows oscillator 2 level, LED 4 shows ring
+            modulation amount, LED 5 shows noise amount, and LED 6 lights while
+            the switch is held down."
+        - id: LED1
+          name: LED 2
+          description: "In Turing mode: LEDs 1-3 show low bits of the Turing pattern, LED
+            4 follows Pulse In 1, LED 5 shows sequence length, and LED 6 flashes
+            on each Turing clock step."
+        - id: LED2
+          name: LED 3
+          description: "In startup envelope selection: factory presets use the binary LED
+            display, and custom slots light LED 6 and use LEDs 1-3 for the
+            custom slot number."
+host:
+  notes: >
+    Core 1.4 is the standard firmware. Rad v9 is an alternate firmware image
+    with independently editable Amp1/Amp2, PD1/PD2, and Pitch1/Pitch2 envelopes,
+    separate oscillator waveform families, slot names, and saved sound-preset
+    settings. Flash one firmware image at a time; both use the same hosted
+    Envelope Lab and C1ZZL3 Import Lab.
+
+    Both firmware variants provide a phase-distortion synth card with Turing
+    machine mode, USB MIDI, browser editor tools, CZ Import Lab handoff,
+    gate-held envelope looping, natural trigger completion, and audio smoothing
+    for high-PD tones.
+
+    Switch middle is PD synth mode (Main = pitch, X = phase distortion, Y =
+    waveform morph). Pulse In 2 and MIDI note-on loop supported envelopes while
+    held; gate/note-off lets the envelope complete naturally.
+
+    Hold switch down from middle for performance edit (detune, ring modulation,
+    noise/grit) and save.
+
+    Switch up is Turing mode (Main = mutation, X = length, Y = clock speed).
+
+    Turing CV and pulse outputs continue running in synth mode. Turing MIDI
+    output is optional and defaults off.
+
+    Factory envelope presets are never overwritten; custom envelopes use
+    separate browser-stored slots.
+
+    Envelope Lab edits and reads back envelopes and settings. C1ZZL3 Import Lab
+    prepares translated Casio CZ drafts, including pitch envelopes, for review
+    before sending them on to the card.
+
+
+
+    Envelope Lab: Browser editor for amplitude, phase-distortion, and pitch
+    envelopes, envelope readback, and performance settings.
+
+
+    C1ZZL3 Import Lab: Hosted browser translator for Casio CZ `.syx` patches,
+    with pitch-aware handoff into Envelope Lab for final editing and sending.
+
+    Demo video note: for the separate no-Turing branch with recipe-bank
+    performance controls, also refer to the C1ZZL3 Gnarly demo video.
+
+
+    MIDI CC1 controls phase distortion, CC20 detune, CC21 ring modulation, CC22
+    noise,
+
+    CC23 waveform, and CC24 Turing CV octave range. Turing MIDI output defaults
+    off.
+contact:
+  social:
+    github: https://github.com/soveda

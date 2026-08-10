@@ -1,0 +1,16 @@
+{
+  "name": "workshop-computer",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix tools/sitegen run build",
+    "dev": "npm --prefix tools/sitegen run dev",
+    "validate-info": "npm --prefix tools/sitegen run validate-info",
+    "check-curation": "npm --prefix tools/sitegen run check-curation",
+    "sync-curation": "npm --prefix tools/sitegen run sync-curation",
+    "setup-panel-renderer": "npm --prefix tools/sitegen run setup-panel-renderer",
+    "hooks:install": "node tools/sitegen/src/validate/installHooks.js",
+    "validate-staged": "node tools/sitegen/src/validate/validateStaged.js",
+    "test": "npm --prefix tools/sitegen test"
+  }
+}

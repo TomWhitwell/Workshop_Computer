@@ -1,0 +1,87 @@
+draft: false
+Name: Alloy
+short-description: Fixed-point 15-zone cross-modulator with a clocked Turing CV and gate companion.
+Language: C++ (RP2040 Pico SDK)
+Creator: Eric Gao
+Version: 0.2.0
+Status: Beta
+License: MIT
+date-created: 2026-07-08
+date-updated: 2026-07-13
+Repository: https://github.com/Ericxgao/Workshop_Computer/tree/eric/warps-port/releases/97_alloy
+
+tags:
+  - dsp
+  - modulation
+  - ring-modulation
+  - wavefolder
+  - vocoder
+  - turing-machine
+
+summary: >
+  Two audio inputs fused through 15 crossfaded cross-modulation algorithms -
+  ring mods, wavefolder, comparators, bitcrusher, frequency shifter, delay,
+  binaural doppler, and a 20-band vocoder - with a clocked Turing machine
+  driving pitch, CV, and gates underneath.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Carrier
+      description: External carrier input
+    - id: AudioIn2
+      name: Modulator
+      description: Modulator input
+    - id: CVIn1
+      name: Algorithm CV
+      description: Bipolar modulation added to the held Main value
+    - id: CVIn2
+      name: Timbre CV
+      description: Bipolar modulation added to the held X value
+    - id: PulseIn1
+      name: Clock
+      description: External Turing clock; overrides the internal clock
+    - id: PulseIn2
+      name: Reset
+      description: Turing reset on rising edge
+  outputs:
+    - id: AudioOut1
+      name: Main
+      description: Cross-modulated output
+    - id: AudioOut2
+      name: Aux / Right
+      description: Dry sum; doppler right channel, shifter opposite sideband, or bitcrushed dry mix in those zones
+    - id: CVOut1
+      name: Turing Pitch
+      description: C-minor-pentatonic quantized pitch
+    - id: CVOut2
+      name: Turing CV
+      description: Bipolar stepped modulation
+    - id: PulseOut1
+      name: Turing Gate A
+      description: First register bit gate
+    - id: PulseOut2
+      name: Turing Gate B
+      description: Length-aware second register bit gate
+
+controls:
+  knobs:
+    - id: Main
+      name: Algorithm / Probability
+      description: Algorithm in middle; Turing feedback probability up
+    - id: X
+      name: Timbre / Length
+      description: Timbre in middle; Turing loop length up
+    - id: Y
+      name: Drive / Zone Param / Spread
+      description: Input drive in middle (sideband crossfade, bitcrush operator, or doppler depth in those zones); Turing CV spread up
+  leds:
+    - id: LED0-3
+      name: Algorithm / Register
+      description: Algorithm binary display in middle; register bits up
+    - id: LED4
+      name: Overrun / Register
+      description: Latched CPU overrun in middle; register bit up
+    - id: LED5
+      name: Headroom / Register
+      description: CPU headroom in middle; register bit up

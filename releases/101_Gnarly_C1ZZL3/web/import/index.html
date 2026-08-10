@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>C1ZZL3 Import Lab</title>
+  <link rel="stylesheet" href="styles.css?v=20260719-button-feedback">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="hero-copy">
+        <p class="eyebrow">Universal patch translator</p>
+        <h1>C1ZZL3 Import Lab</h1>
+        <p class="top-note">
+          Bring in a Casio CZ SysEx patch, decode its amplitude, DCW, and DCO
+          pitch envelopes, then map DCW1/DCW2 and DCO1/DCO2 into the shared
+          C1ZZL3 Envelope Lab.
+        </p>
+        <div class="hero-panels">
+          <div class="hero-panel">
+            <span class="hero-label">What it does</span>
+            <strong>Decodes CZ patch data including separate DCW and DCO envelopes</strong>
+            <p>Amplitude, DCW1, DCW2, DCO1 pitch, DCO2 pitch, separate Line 1/Line 2 oscillator wave types, and performance values are mapped into a full dual-oscillator C1ZZL3 draft. Single-line CZ patches are detected and mirrored into both C1ZZL3 oscillator lanes.</p>
+          </div>
+          <div class="hero-panel">
+            <span class="hero-label">How to use it</span>
+            <strong>Send separate oscillator lanes</strong>
+            <p>DCA1/Amp1, DCW1/PD1, DCO1 pitch, and Line 1 wave type drive oscillator 1; DCA2/Amp2, DCW2/PD2, DCO2 pitch, and Line 2 wave type drive oscillator 2 where the connected card supports dual lanes. Older firmware receives a safe collapsed version.</p>
+          </div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="themeToggle" type="button" role="switch" aria-checked="false" title="Toggle light mode">Dark</button>
+        <a class="pill pill-link" href="../index.html" target="_blank" rel="noopener noreferrer">Open Envelope Lab</a>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <article class="card">
+        <div class="card-head">
+          <h2>Import</h2>
+          <span class="meta">Select a CZ `.syx` file</span>
+        </div>
+        <div class="card-body stack">
+          <label class="dropzone" for="czFile">
+            <div>
+              <strong>Drop a Casio CZ patch here</strong>
+              <div>Or choose a `.syx` file to validate and turn into a draft</div>
+            </div>
+          </label>
+          <input id="czFile" type="file" accept=".syx,.mid,.sysex,application/octet-stream">
+          <div id="importStatus" class="status-chip">Waiting for a file</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Validation</label>
+              <div id="validationBox" class="value-box">Waiting for file</div>
+            </div>
+            <div class="field">
+              <label>Patch type</label>
+              <div id="patchTypeBox" class="value-box">No patch loaded</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>File summary</label>
+            <div id="summaryBox" class="value-box">Name, size, and patch confidence will appear here.</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h2>Summary</h2>
+          <span class="meta">What the browser found</span>
+        </div>
+        <div class="card-body stack">
+          <div class="field">
+            <label>Decoded patch</label>
+            <div id="decodedPatchBox" class="value-box">No decoded patch yet.</div>
+          </div>
+          <div class="field">
+            <label>Mapped draft</label>
+            <div id="mappedDraftBox" class="value-box">Amplitude, PD, and 8-wave family mapping will be previewed here.</div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Confidence</label>
+              <div id="confidenceBox" class="value-box">High / Medium / Low</div>
+            </div>
+            <div class="field">
+              <label>Supported output</label>
+              <div id="supportedOutputBox" class="value-box">Draft preset for Envelope Lab</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Draft preset name</label>
+            <div id="draftNameBox" class="value-box">No draft created yet.</div>
+          </div>
+          <div class="field">
+            <label for="ampMode">Amplitude mapping</label>
+            <select id="ampMode">
+              <option value="dual">DCA1 -> Amp1, DCA2 -> Amp2</option>
+              <option value="merged">Merged DCA1 + DCA2 copied to both amps</option>
+              <option value="line1">DCA1 copied to both amps</option>
+              <option value="line2">DCA2 copied to both amps</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pdMode">Phase distortion mapping</label>
+            <select id="pdMode">
+              <option value="dual">DCW1 -> PD1, DCW2 -> PD2</option>
+              <option value="merged">Merged DCW1 + DCW2 average</option>
+              <option value="line1">DCW1 phase distortion only</option>
+              <option value="line2">DCW2 phase distortion only</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pitchMode">Pitch mapping</label>
+            <select id="pitchMode">
+              <option value="dual">DCO1 -> osc 1, DCO2 -> osc 2</option>
+              <option value="merged">Merged DCO1 + DCO2 average</option>
+              <option value="dco1">DCO1 pitch only</option>
+              <option value="dco2">DCO2 pitch only</option>
+              <option value="difference">Advanced: DCO1 / DCO2 difference emphasis</option>
+            </select>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h2>Decoded Data</h2>
+          <span class="meta">Detailed readout</span>
+        </div>
+        <div class="card-body">
+          <pre id="decodedBox">Raw parameter bytes, interpreted envelopes, waveform family, and unsupported features will appear here.</pre>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h2>Warnings</h2>
+          <span class="meta">What may not translate cleanly</span>
+        </div>
+        <div class="card-body">
+          <ul>
+            <li>Waveform behavior is approximate.</li>
+            <li>Pitch envelope decoding is approximate and may need adjustment in Envelope Lab.</li>
+            <li>CZ has separate DCA/DCW/DCO envelopes per synth line; choose line 1, line 2, or merged mappings to compare translations.</li>
+            <li>Modulation details may be dropped in the first pass.</li>
+            <li>Only files that pass the CZ frame checks are treated as draft candidates.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h2>Draft Mapping</h2>
+          <span class="meta">C1ZZL3 values</span>
+        </div>
+        <div class="card-body stack">
+          <div class="grid-2">
+            <div class="field">
+              <label>Wave family start</label>
+              <div id="waveBox" class="value-box">No draft yet.</div>
+            </div>
+            <div class="field">
+              <label>Performance defaults</label>
+              <div id="perfBox" class="value-box">No draft yet.</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>CZ envelope END / hold summary</label>
+            <pre id="czEnvelopeSummaryBox">No draft yet.</pre>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Amp1 / DCA1 envelope</label>
+              <pre id="ampDraftBox">No draft yet.</pre>
+            </div>
+            <div class="field">
+              <label>Amp2 / DCA2 envelope</label>
+              <pre id="amp2DraftBox">No draft yet.</pre>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>PD1 / DCW1 envelope</label>
+              <pre id="pdDraftBox">No draft yet.</pre>
+            </div>
+            <div class="field">
+              <label>PD2 / DCW2 envelope</label>
+              <pre id="pd2DraftBox">No draft yet.</pre>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>DCO1 pitch envelope</label>
+              <pre id="pitchDco1Box">No draft yet.</pre>
+            </div>
+            <div class="field">
+              <label>DCO2 pitch envelope</label>
+              <pre id="pitchDco2Box">No draft yet.</pre>
+            </div>
+          </div>
+          <div class="field">
+            <label>Selected C1ZZL3 pitch lane 1</label>
+            <pre id="pitchSelectedBox">No draft yet.</pre>
+          </div>
+        </div>
+      </article>
+
+      <article class="card full-span">
+        <div class="card-head">
+          <h2>Next Step</h2>
+          <span class="meta">Send the decoded draft into the shared Envelope Lab</span>
+        </div>
+        <div class="card-body stack">
+          <div class="top-actions start">
+            <button id="openDraft" class="primary" type="button">Open In Envelope Lab</button>
+          </div>
+          <div class="banner">
+            <strong>Note:</strong>
+            <span>This page decodes CZ DCA, DCW, DCO pitch envelopes, and separate Line 1/Line 2 oscillator wave types. The shared Envelope Lab detects the connected card and chooses the safest send mode.</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="footer">
+      Shared C1ZZL3 Import Lab: sends the richest decoded draft to the Envelope Lab, then the editor collapses or expands the payload to match the connected firmware.
+    </div>
+  </main>
+
+  <script src="app.js?v=20260720-pitch-end-cleanup-v6"></script>
+</body>
+</html>

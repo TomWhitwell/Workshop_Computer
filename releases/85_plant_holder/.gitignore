@@ -1,0 +1,22 @@
+# Build outputs
+/build/
+
+# CMake artifacts (in case someone configures in-tree)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+Makefile
+
+# Ninja/other generator artifacts
+.ninja_deps
+.ninja_log
+build.ninja
+rules.ninja
+
+# Common editor/OS cruft
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/

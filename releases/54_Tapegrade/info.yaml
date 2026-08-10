@@ -1,138 +1,139 @@
-id: 54_Tapegrade
-title: Tapegrade
-release: 54 / 0.8.0
-summary: Cassette-style mono-to-stereo warble, saturation, hiss, crackle, and tape wear
-description: Cassette-style warble and degradation effect that turns a mono input into a wide stereo tape texture using wow, flutter, saturation, hiss, and crackle.
+Name: Tapegrade
+draft: false
+date-created: 2026-06-14
+date-updated: 2026-07-09
+summary: Mono-input stereo cassette warble processor with wow, flutter, hiss,
+  crackle, and tape wear morphing.
+short-description: Mono-input stereo cassette warble processor with wow,
+  flutter, hiss, crackle, and tape wear morphing.
+Language: C++ (RP2040 Pico SDK)
+Creator: Adrian Vos
+Version: 0.8.0
+Status: Beta - stable in single-developer testing
+License: MIT
+demo-link: https://www.youtube.com/watch?v=X9NSBJfStic
 panel:
-  controls:
-    main:
-      label: Wet / Dry
-      description: Sets the blend between dry signal and cassette-processed signal.
-      source: curated
-    x:
-      label: Tape Depth
-      description: Sets wow, pitch movement, and CV Out 1 attenuation.
-      source: curated
-    'y':
-      label: Instability
-      description: Sets flutter, transport agitation, and CV Out 2 attenuation.
-      source: curated
-    z:
-      label: Clean / Old / Damaged
-      description: Up is Clean, middle is Old, and down is Damaged.
-      source: curated
   inputs:
-    audio_l:
-      label: |-
-        Audio
-        1
-      description: Main mono audio input.
-      source: curated
-    audio_r:
-      label: |-
-        Audio
-        2
-      description: Tape-condition modulation input for morphing between clean, old, and damaged tape.
-      source: curated
-    cv_1:
-      label: |-
-        CV
-        1
-      description: Modulates tape depth and wow/pitch movement; also routed to CV Out 1 through the X knob attenuator.
-      source: curated
-    cv_2:
-      label: |-
-        CV
-        2
-      description: Modulates instability, flutter speed, and transport agitation; also routed to CV Out 2 through the Y knob attenuator.
-      source: curated
-    pulse_1:
-      label: |-
-        Damage
-        Burst
-      description: Tape damage burst trigger; each rising edge briefly forces a heavily degraded state.
-      source: curated
-    pulse_2:
-      label: |-
-        Crackle
-        Gate
-      description: While high, forces strong crackle generation regardless of tape condition.
-      source: curated
+    - id: AudioIn1
+      name: |-
+        Mono Audio
+        In
+      description: Primary mono source signal for tape processing
+      type: audio
+    - id: AudioIn2
+      name: |-
+        Tape
+        Condition
+      description: Audio/CV modulation that morphs between cleaner and more degraded
+        tape states
+      type: audio
+    - id: CVIn1
+      name: |-
+        Tape Depth
+        Mod
+      description: Modulates wow/pitch movement amount; also routed to CV Out 1
+        attenuator path
+      type: cv
+    - id: CVIn2
+      name: |-
+        Instability
+        Mod
+      description: Modulates flutter/transport agitation; also routed to CV Out 2
+        attenuator path
+      type: cv
+    - id: PulseIn1
+      name: |-
+        Damage Burst
+        Trig
+      description: Rising edge forces brief heavy tape degradation burst
+      type: pulse
+    - id: PulseIn2
+      name: Crackle Gate
+      description: High gate forces stronger crackle generation
+      type: pulse
   outputs:
-    audio_out_l:
-      label: |-
-        Audio
-        1
-      description: Left cassette-processed output.
-      source: curated
-    audio_out_r:
-      label: |-
-        Audio
-        2
-      description: Right cassette-processed output.
-      source: curated
-    cv_out_1:
-      label: |-
-        CV
-        1
-      description: CV In 1 passthrough output scaled by the X knob.
-      source: curated
-    cv_out_2:
-      label: |-
-        CV
-        2
-      description: CV In 2 passthrough output scaled by the Y knob.
-      source: curated
-    pulse_out_1:
-      label: |-
-        Pulse
-        1
-      description: Pulse output.
-      source: curated
-    pulse_out_2:
-      label: |-
-        Pulse
-        2
-      description: Pulse output.
-      source: curated
-switch_modes:
-  up: Clean. Bright and stable cassette response.
-  middle: Old. Darker tone with moderate hiss and instability.
-  down: Damaged. Heavy degradation with strong hiss, crackle, and unstable tape behaviour.
-leds:
-  - "LED behaviour is not described in the current README."
-notes:
-  - "Main controls wet/dry mix, X controls tape depth, and Y controls instability."
-  - "Pulse In 1 triggers tape damage bursts. Pulse In 2 gates strong crackle generation while high."
-  - "Tapegrade is designed for mono input only; the stereo image is generated internally."
-  - "Audio-rate modulation is supported on Audio In 2, CV In 1, and CV In 2."
-source:
-  - Tapegrade.cpp
-  - README.md
-slug: 54-tapegrade
-url: /workshopsystem/program-cards/54-tapegrade/
+    - id: AudioOut1
+      name: |-
+        Stereo Out
+        Left
+      description: Processed cassette-style left output
+      type: audio
+    - id: AudioOut2
+      name: |-
+        Stereo Out
+        Right
+      description: Processed cassette-style right output
+      type: audio
+    - id: CVOut1
+      name: |-
+        CV1
+        Attenuated
+      description: CV In 1 passthrough scaled by X knob
+      type: cv
+    - id: CVOut2
+      name: |-
+        CV2
+        Attenuated
+      description: CV In 2 passthrough scaled by Y knob
+      type: cv
 tags:
-  - id: effect
-    label: Effect
-  - id: tape
-    label: Tape
-  - id: lo-fi
-    label: Lo-Fi
-  - id: stereo
-    label: Stereo
-tag_ids:
-  - effect
   - tape
-  - lo-fi
+  - degradation
   - stereo
-tag_labels:
-  - Effect
-  - Tape
-  - Lo-Fi
-  - Stereo
-source_file: data/cards/54_Tapegrade.yml
-metadata:
-  creator: Adrian Vos
-  language: Pico SDK
-  version: '0.8.0'
-  status: WIP but functional
+  - modulation
+  - lo-fi
+controls:
+  switch:
+    up:
+      name: New
+      description: Brighter and more stable tape response.
+    middle:
+      name: Old
+      description: Darker tone with moderate hiss and instability.
+    down:
+      name: Damaged
+      description: Strong hiss, crackle, and unstable behavior.
+  knobs:
+    - main:
+        name: |-
+          Wet / Dry
+          Mix
+        description: Blend between dry input and processed tape signal
+      x:
+        name: Tape Depth
+        description: Increases wow and pitch instability; also sets CV Out 1 attenuation
+      y:
+        name: Instability
+        description: Increases flutter/transport roughness; also sets CV Out 2 attenuation
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: LED 1
+          description: LED 1 follows modulated left delay movement.
+        - id: LED1
+          name: LED 2
+          description: LED 2 follows instability.
+        - id: LED2
+          name: LED 3
+          description: LED 3 follows modulated right delay movement.
+        - id: LED3
+          name: LED 4
+          description: LED 4 follows wet/dry mix.
+        - id: LED4
+          name: LED 5
+          description: LED 5 follows tape condition and damage state.
+host:
+  notes: >
+    Tapegrade emulates cassette-style instability and wear from subtle movement
+    to heavily damaged textures.
+
+    Main controls wet/dry mix, X controls tape depth and CV1 attenuation, and Y
+    controls instability and CV2 attenuation.
+
+    Switch positions choose clean/old/damaged tape base states, Audio In 2
+    morphs tape condition continuously, Pulse In 1 injects temporary heavy
+    damage, and Pulse In 2 forces strong crackle while high.
+contact:
+  social:
+    github: https://github.com/soveda

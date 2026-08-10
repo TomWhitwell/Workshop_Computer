@@ -1,13 +1,137 @@
-#
-#  info.yaml
-#  
-#
-#  Created by Adrian Vos on 16/05/2026.
-#
-
-
-Description: MIDI-clockable generative rhythm and melody organism inspired by Pet Rock
+Name: Wild Pebble
+draft: false
+summary: MIDI-clockable generative rhythm and melody organism inspired by Pet Rock
+short-description: MIDI-clockable generative rhythm and melody organism inspired by Pet Rock
 Language: C++
-Creator: Adrian Vos with Vibecode support
-Version: 1.0
-Status: Beta. USB MIDI clock input and sequencer note output tested
+Creator: Adrian Vos
+Version: "1.0"
+Status: Beta - stable in single-developer testing
+License: GPL-3.0
+date-created: 2026-06-14
+date-updated: 2026-06-25
+demo-link: https://www.youtube.com/watch?v=j9mWfKfPwmk
+panel:
+  inputs:
+    - id: PulseIn1
+      name: Ext Clock
+      description: External clock input; when active it overrides internal tempo clock
+      type: pulse
+    - id: PulseIn2
+      name: Freeze Gate
+      description: While held high, mutation updates are disabled and structure is preserved
+      type: pulse
+    - id: CVIn1
+      name: Density Mod
+      description: Modulates X density control
+      type: cv
+    - id: CVIn2
+      name: Mutation Mod
+      description: Modulates Y mutation control
+      type: cv
+  outputs:
+    - id: PulseOut1
+      name: |-
+        Primary Trig
+        Stream
+      description: Main rhythm trigger stream used for melodic progression and kick events
+      type: pulse
+    - id: PulseOut2
+      name: |-
+        Companion
+        Trig Stream
+      description: Derived companion trigger stream used for snare/percussion events
+      type: pulse
+    - id: CVOut1
+      name: |-
+        Quant Melody
+        CV
+      description: Quantized pitch CV from evolving scale-constrained sequence
+      type: cv
+    - id: CVOut2
+      name: |-
+        Energy /
+        Tension CV
+      description: Smoothed evolving modulation output from internal energy and
+        tension state
+      type: cv
+    - id: AudioOut1
+      name: Kick Voice
+      description: Internal kick/percussion synthesis output driven by primary trigger
+        stream
+      type: audio
+    - id: AudioOut2
+      name: Snare Voice
+      description: Internal snare/percussion synthesis output driven by companion
+        trigger stream
+      type: audio
+tags: []
+controls:
+  switch:
+    up:
+      name: Steady
+      description: "Z up: Steady mode. Restrained mutation, tighter rhythms, and the
+        calmest phrasing feel."
+    middle:
+      name: Swaying
+      description: "Z middle: Drift mode. Balanced mutation, moderate swing, and
+        gradual harmonic movement."
+    down:
+      name: Rocking
+      description: "Z down: Surge mode. Strongest swing, wider melodic leaps, and the
+        most animated behavior."
+  knobs:
+    - main:
+        name: |-
+          Internal
+          Tempo
+        description: Internal clock speed with variable swing profile according to
+          switch position when internally clocked
+      x:
+        name: Density
+        description: Trigger probability density control (modulated by CVIn1)
+      y:
+        name: Mutation
+        description: Mutation intensity control (modulated by CVIn2)
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Main Trigger
+          description: Flashes when Pulse Out 1 fires.
+        - id: LED1
+          name: Density
+          description: Brightness follows Density control, including CV In 1 modulation.
+        - id: LED2
+          name: Mutation
+          description: Brightness follows Mutation amount, including CV In 2 modulation.
+        - id: LED3
+          name: Energy
+          description: Displays the smoothed internal energy/modulation level.
+        - id: LED4
+          name: Clock Source
+          description: Fully lit when external pulse clock or MIDI clock is active.
+        - id: LED5
+          name: Tension
+          description: Displays the evolving internal tension state.
+host:
+  notes: >
+    Generative rhythm/melody organism with coupled trigger streams, quantized
+    melody CV,
+
+    internal kick/snare voices, evolving energy/tension modulation, and USB MIDI
+    clock/note
+
+    behavior. Main controls internal tempo when no external clock is present, X
+    controls
+
+    rhythmic density, and Y controls mutation amount. The switch selects Steady,
+    Drift, or
+
+    Surge behavior, moving from restrained patterns to more animated swing,
+    mutation, and
+
+    melodic activity. Pulse In 1 is external clock and Pulse In 2 freezes
+    mutation while high.
+contact:
+  social:
+    github: https://github.com/soveda

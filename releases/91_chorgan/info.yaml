@@ -1,6 +1,157 @@
+draft: false
 Name: Chorgan
-Description: "Chorgan — 6-voice chord synthesizer with morphing timbre, chord extension presets, and built-in chord sequencer. Two modes: normal (detune/chorus) and slew (portamento chord changes). Inspired by the Music Thing Modular Chord Organ."
-Language: "C++ (Pico SDK / ComputerCard)"
-Creator: "Andy Jenkinson (uglifruit)"
-Version: "1.0.0"
-Status: "released"
+short-description: Six-voice morphing chord synthesizer with extension presets and a built-in eight-slot chord sequencer
+summary: >-
+  Six-voice chord synthesizer with a built-in sequencer, inspired by the Music Thing Modular
+  Chord Organ. Knob X and CV In 1 set root pitch, Knob Y picks the interval above the root, and
+  four extension voices fill out the chord from the same harmonic world as that interval. The
+  Main knob morphs all six voices through pulse, sine, saw, sine, pulse. Audio In 1 adds
+  portamento glide and Audio In 2 shifts the voicing through octave inversions. Tap the switch
+  down to cycle extension presets, hold it a second to store a chord, and clock Pulse In 2 to
+  step through up to eight stored chords. Boot with the switch held down for slew mode, where
+  chord changes glide instead of detuning.
+Language: C++ (Pico SDK / ComputerCard)
+Creator: Andy Jenkinson (uglifruit)
+Version: 1.1.0
+Status: Released
+License: MIT
+date-created: 2026-06-21
+date-updated: 2026-08-04
+repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/91_chorgan
+discussion: https://discord.com/channels/1210238368898879569/1518232991334137906
+
+contact:
+  email: andyuglifruit@hotmail.com
+  social:
+    github: https://github.com/uglifruit
+
+tags:
+  - synthesizer
+  - chord
+  - sequencer
+  - polyphonic
+  - portamento
+
+uf2:
+  - path: chorgan.uf2
+    name: Chorgan v1.1.0
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Root Pitch CV
+      type: cv
+      description: Root pitch at 1V/oct with 0V as C4, summed with Knob X and applied uniformly to all six voices
+    - id: CVIn2
+      name: Timbre Offset CV
+      type: cv
+      description: Bipolar offset to the Main knob timbre position; cannot push the timbre across a detune or slew zone boundary
+    - id: AudioIn1
+      name: Slew Speed CV
+      type: audio
+      description: Portamento glide amount — 0V or unpatched is instant, +5V is roughly a one minute glide. In slew mode negative voltage shortens the zone rate
+    - id: AudioIn2
+      name: Chord Inversion CV
+      type: audio
+      description: Bipolar octave inversions up to six steps each way, cycling the lowest voice up or the highest voice down. Affects the audio outputs only
+    - id: PulseIn1
+      name: Preset Advance
+      type: pulse
+      description: Rising edge advances the chord extension preset, and does not break an active chord override
+    - id: PulseIn2
+      name: Chord Recall Clock
+      type: pulse
+      description: Rising edge recalls the next stored chord, wrapping at the end. Must be seen low once after boot before it responds
+  outputs:
+    - id: AudioOut1
+      name: Six-Voice Mix
+      type: audio
+      description: The full six-voice chord mix
+    - id: AudioOut2
+      name: Phase-Offset Mix
+      type: audio
+      description: The same six voices with per-voice phase offsets of 0 to 75 degrees for stereo width
+    - id: PulseOut1
+      name: Sub-Octave Square
+      type: pulse
+      description: Clean square wave one octave below the root
+    - id: PulseOut2
+      name: Chord Event PWM
+      type: pulse
+      description: PWM square at root pitch, resetting to 50 percent duty on each chord event then ramping to 20 percent at the zone rate
+    - id: CVOut1
+      name: Voiced Pitch CV
+      type: cv
+      description: Root pitch plus the voiced interval at 1V/oct, clamped to ±5V and following the chord override
+    - id: CVOut2
+      name: Chord Event Ramp
+      type: cv
+      description: Unipolar downward ramp from +5V to 0V on each chord event, tracking the Pulse Out 2 timing exactly
+
+controls:
+  switch:
+    up:
+      name: Detune Zone B
+      description: Selects the higher pair of detune levels (or slew rates in slew mode) — 10 cents clockwise of centre, 15 cents counter-clockwise
+    middle:
+      name: Detune Zone A
+      description: Selects the lower pair of detune levels (or slew rates in slew mode) — clean counter-clockwise of centre, 5 cents clockwise
+    down:
+      name: Preset Cycle / Store
+      description: Hold one second to store the current chord to the next sequencer slot. Held at power-on this selects slew mode instead
+    tap:
+      name: Cycle Preset
+      description: A tap under one second advances the chord extension preset for voices 3 to 6, six presets per interval
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Timbre / Detune Zone A
+        description: Morphs all six voices through pulse, sine, saw, sine, pulse. Counter-clockwise of centre is clean with a 250ms envelope, clockwise is 5 cents with a 100ms envelope
+      x:
+        name: Root Pitch
+        description: Sweeps the root from C3 to C6, summed with CV In 1
+      y:
+        name: Interval
+        description: Semitone interval between the root and voice 2, from 0 for unison to 12 for an octave
+    - when: { z: up }
+      main:
+        name: Timbre / Detune Zone B
+        description: Same timbre morph. Clockwise of centre is 10 cents with a 500ms envelope, counter-clockwise is 15 cents with a 3s envelope
+      x:
+        name: Root Pitch
+        description: Sweeps the root from C3 to C6, summed with CV In 1
+      y:
+        name: Interval
+        description: Semitone interval between the root and voice 2, from 0 for unison to 12 for an octave
+  leds:
+    - display: list
+      items:
+        - id: led0
+          name: Interval Position / Slot Bit 0
+          description: Part of the interval position display across LEDs 0 to 4; bit 0 of the slot number while storing; full bright while a chord is held
+        - id: led1
+          name: Interval Position / Recall Bit 0
+          description: Part of the interval position display; full bright while storing; bit 0 of the recalled slot while a chord is held
+        - id: led2
+          name: Interval Position / Slot Bit 1
+          description: Part of the interval position display across LEDs 0 to 4; bit 1 of the slot number while storing; full bright while a chord is held
+        - id: led3
+          name: Interval Position / Recall Bit 1
+          description: Part of the interval position display; full bright while storing; bit 1 of the recalled slot while a chord is held
+        - id: led4
+          name: Interval Position / Slot Bit 2
+          description: Part of the interval position display across LEDs 0 to 4; bit 2 of the slot number while storing; full bright while a chord is held
+        - id: led5
+          name: Preset Brightness / Recall Bit 2
+          description: Brightness indicates the current extension preset from 0 to 5; full bright while storing; bit 2 of the recalled slot while a chord is held
+
+host:
+  notes: |
+    Slew mode boots when the switch is held down at power-on until the LEDs flash — all on, then
+    all off, around 200ms. Detune is disabled and chord changes glide instead, with per-voice
+    portamento rates of instant, 200ms, 700ms or 3s set by the same four zones.
+
+    The sequencer stores up to eight chords, each capturing pitch, interval and preset. Storing
+    more than eight overwrites from the beginning. A recalled chord is released by moving Knob X
+    or CV In 1 more than one semitone from where they sat at recall, or by moving Knob Y to a
+    different step.

@@ -56,6 +56,11 @@ target_link_libraries(BitPhase
     hardware_i2c
 )
 
+# Stable restart on Workshop Computer hardware.
+target_compile_definitions(BitPhase PRIVATE
+    PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64
+)
+
 # ============================================================
 # Optimisation
 # ============================================================
@@ -64,6 +69,8 @@ target_compile_options(BitPhase PRIVATE
     -O3
     -ffast-math
 )
+
+pico_set_binary_type(BitPhase copy_to_ram)
 
 # ============================================================
 # Create UF2/BIN/etc

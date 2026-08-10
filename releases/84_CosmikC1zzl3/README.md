@@ -1,70 +1,107 @@
-# C1ZZL3 Card Guide
+# C1ZZL3
 
-C1ZZL3 is a phase-distortion synth card for the Music Thing Modular Workshop
-Computer. It combines a playable digital synth voice, a Turing machine, USB
-MIDI, and a browser editor for custom envelopes.
+Stable production firmware for the Cosmik C1ZZL3 Music Thing Modular Workshop
+Computer card.
 
-## What It Does
+C1ZZL3 is a dual phase-distortion synthesiser with browser-editable amplitude,
+phase-distortion, and pitch envelopes, USB MIDI device/host support, optional
+Turing MIDI output, and a Turing machine mode with CV and pulse outputs. Turing
+MIDI output defaults to off and must be enabled deliberately.
 
-- Plays as a phase-distortion synth voice.
-- Responds to USB MIDI notes from a DAW or class-compliant controller.
-- Lets you design and save custom envelopes from a browser.
-- Runs a Turing machine mode with stepped CV, smoothed CV, two pulse outputs,
-  and optional MIDI note output.
-- Keeps factory envelope presets safe; custom envelopes use separate slots.
+For the user-facing card guide, see:
 
-## Main Synth Mode
+```text
+CARD_README.md
+```
 
-Put the switch in the middle.
+## Stable Build
 
-- Main sets pitch.
-- X sets phase distortion.
-- Y selects or morphs the waveform.
-- `Audio/CV In 1` adds pitch at 1V/oct.
-- `CV In 1` adds phase distortion.
-- `CV In 2` adds wave control.
-- `Pulse In 2` triggers the selected envelope and oscillator sync.
+Current stable UF2:
 
-The Turing CV and pulse outputs continue running in synth mode, so they can be
-used while playing the synth.
+```text
+uf2/C1ZZL3.uf2
+```
 
-## Performance Edit
+Checksum:
 
-Hold the switch down from the middle position.
+```text
+47383c4ff54160a4d8fbfd5ee799b42f142def7ddd0a95de47eeb97d8617a6b0
+```
 
-- Main sets oscillator 2 detune.
-- X sets ring modulation.
-- Y sets noise/grit.
+This is hardware-tested production release 1.4.
 
-Ring and noise start neutral after reset. If the card powers up with the switch
-already down, ring/noise editing waits until the switch has first left down.
+Release 1.4 works with Envelope Lab and C1ZZL3 Import Lab and includes Web MIDI
+PD, detune, eight waveform families, card-to-editor envelope readback, browser
+CZ patch import handoff, pitch envelopes, gate-held envelope looping with
+natural completion on gate/note release, corrected CZ DCW-to-PD,
+DCA-to-amplitude, and DCO-to-pitch import mapping, high-PD audio smoothing, and
+rapid-retrigger oscillator phase continuity.
 
-Hold the switch down from the middle position to save the current performance
-settings.
+## Alternate RAD Build
 
-## Turing Mode
+This release also includes the alternate C1ZZL3 RAD v9 firmware:
 
-Put the switch up.
+```text
+uf2/C1ZZL3_RAD.uf2
+```
 
-- Main controls mutation.
-- X controls sequence length.
-- Y controls clock speed.
-- `Pulse In 1` can clock the Turing machine externally.
-- `CV Out 1` outputs stepped Turing CV.
-- `CV Out 2` outputs smoothed Turing CV.
-- `Pulse Out 1` and `Pulse Out 2` output Turing pulses.
-- Audio outputs carry the self-playing Turing oscillator voice.
+Checksum:
 
-Tap tempo has been removed. Y is the internal Turing clock-speed control.
+```text
+a425adb8f71686a3cd85cec2b4368a5a5fb61b421e196abc5a25cdcbd91eb0b0
+```
 
-## USB MIDI
+RAD is an alternative firmware image, not an update layered on top of Core 1.4;
+flash one version at a time. It retains the same physical controls, Turing
+machine interface, USB MIDI modes, and shared hosted Web MIDI editor and Import
+Lab. RAD v9 adds independently editable Amp1/Amp2, PD1/PD2, and Pitch1/Pitch2
+envelopes, separate oscillator waveform-family settings, named sound-preset
+slots, saved sound-preset settings, and editor readback for those settings.
 
-The card chooses its USB role at boot.
+## Current Stable Feature Set
 
-- Connected to a computer, it appears as a USB MIDI device for DAW and browser
-  use.
-- Connected to a class-compliant USB MIDI controller, it can run in USB MIDI
-  host mode.
+- Phase-distortion synth voice.
+- Factory envelopes plus eight protected custom envelope slots.
+- Web MIDI envelope editor with amplitude, phase-distortion, and pitch lanes.
+- USB MIDI device mode for DAW/browser use.
+- USB MIDI host mode for class-compliant controllers.
+- MIDI notes with gate-held envelope sustain/release.
+- MIDI CC control with knob pickup handoff.
+- Turing machine audio, CV, pulse, and optional MIDI note output.
+- Turing CV and pulse outputs continue running in synth mode.
+- Settings readback from the card into the Web MIDI editor.
+- Saved envelope readback from the card, including pitch envelope data.
+- Ring, noise, MIDI channel, Turing range, and Turing MIDI settings persist;
+  the baseline for Turing MIDI output is off.
+
+## Controls
+
+Switch middle: synth mode.
+
+- Main: pitch
+- X: phase distortion
+- Y: waveform
+- `CV In 1`: phase-distortion modulation
+- `CV In 2`: waveform modulation
+- `Pulse In 2`: gate-held envelope trigger/release and oscillator sync
+
+Switch down from middle: performance edit and save.
+
+- Main: oscillator 2 detune
+- X: ring modulation
+- Y: noise/grit
+
+Switch up: Turing mode.
+
+- Main: mutation/lock
+- X: sequence length, 2 to 16 steps
+- Y: internal clock speed
+- `Pulse In 1`: external clock
+- `CV Out 1`: stepped Turing CV
+- `CV Out 2`: smoothed Turing CV
+- `Pulse Out 1/2`: Turing pulses
+
+## MIDI
 
 MIDI CC controls on the selected input channel:
 
@@ -75,81 +112,159 @@ MIDI CC controls on the selected input channel:
 - `CC23`: waveform
 - `CC24`: Turing CV octave range, from 1 to 8 octaves
 
-Physical knobs use pickup after MIDI changes, so values do not jump until the
-knob is swept through the current setting.
+The physical knobs and MIDI CC controls share the same control values. After a
+CC change, the related knob must be swept through the current value before it
+takes over again.
 
 ## Web MIDI Editor
 
 Hosted editor:
 
 ```text
-https://soveda.github.io/CozmikC1zzl3/web-midi/editor/
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/index.html
 ```
 
-Use Chrome or another browser with Web MIDI and SysEx support. Press `MIDI`,
-choose the C1ZZL3 output, then use:
+Local editor from this release folder:
 
-- `Load` to send a custom envelope until reset.
-- `Save` to write a custom envelope to the card.
-- `Delete` to clear a custom envelope slot.
-- `Read` to load the current card settings into the editor.
-- `Set` to save performance settings to the card.
+```sh
+python3 -m http.server 5173 --directory web
+```
 
-The editor can save up to eight custom envelopes. Factory presets are not
-overwritten.
+Open:
 
-## Envelope Presets
+```text
+http://localhost:5173
+```
 
-Factory presets:
+Use Chrome or another browser with Web MIDI and SysEx support.
 
-0. Off
-1. Pluck
-2. Double pluck
-3. Bounce
-4. Bell
-5. Brass
-6. Strings
-7. Reverse swell
-8. Evolving digital
+## C1ZZL3 Import Lab
 
-Saved custom envelopes appear after the factory presets during startup envelope
-selection. Custom slots light LED 6 and use LEDs 1-3 for the slot number.
+Hosted import lab:
 
-## LED Feedback
+```text
+https://tomwhitwell.github.io/Workshop_Computer/programs/84-cosmikc1zzl3/web/import/index.html
+```
 
-In synth mode:
+Local import lab from this release folder:
 
-- LED 1 shows phase-distortion amount.
-- LED 2 shows waveform position.
-- LED 3 shows oscillator 2 level.
-- LED 4 shows ring modulation amount.
-- LED 5 shows noise amount.
-- LED 6 lights while the switch is held down.
+```sh
+python3 -m http.server 5174 --directory web/import
+```
 
-In Turing mode:
+Open:
 
-- LEDs 1-3 show low bits of the Turing pattern.
-- LED 4 follows Pulse In 1.
-- LED 5 shows sequence length.
-- LED 6 flashes on each Turing clock step.
-- Turning X briefly displays sequence length as binary on the LEDs.
+```text
+http://localhost:5174
+```
 
-In startup envelope selection:
+Use this page to decode Casio CZ `.syx` patches into C1ZZL3 drafts, then open
+the result in Envelope Lab for final editing and sending.
 
-- Factory presets use the binary LED display.
-- Custom slots light LED 6 and use LEDs 1-3 for the custom slot number.
+Current Import Lab features:
 
-## Build UF2
+- Light and dark mode toggle matching the Envelope Lab palette.
+- Larger `C1ZZL3 Import Lab` header and a clearer guided import workflow.
+- Drag-and-drop or file-picker import for Casio CZ `.syx` files.
+- Browser-side validation, patch summary, decoded data, and draft mapping.
+- CZ frame awareness for common patch-send SysEx files, including command,
+  location, channel, selected data offset, and payload candidates.
+- CZ envelope assignment: choose merged, line 1, or line 2 mapping for CZ DCA
+  amplitude and DCW phase-distortion envelopes; CZ DCO pitch envelopes map to
+  the pitch lane.
+- Draft handoff into Envelope Lab in a new tab for final editing and card send.
+- Separate import page so CZ translation and envelope editing stay distinct.
 
-From the repository root:
+Import Lab flow:
+
+1. Open `C1ZZL3 Import Lab`.
+2. Drop in or choose a Casio CZ patch file.
+3. Review the validation, decoded summary, warnings, and mapped draft.
+4. Use `Open In Envelope Lab` to carry the draft into the main editor.
+5. In Envelope Lab, review the result, adjust if needed, and send or save it.
+
+## How To Use The Editor
+
+1. Pick a preset on the left, or add a custom one.
+2. Choose `Amplitude` or `Phase Distortion` to focus the main graph lane.
+3. Use the Pitch Envelope graph below it to adjust pitch movement.
+4. Drag points on the graphs to change both level and timing.
+5. Watch the point numbers. When stages stack, only the highest number is shown.
+6. Use the tables below the graphs for exact values when you want precise edits.
+7. Connect Web MIDI. The editor automatically checks the card firmware type and saved envelope slots.
+8. Use the action buttons when you want to send, save, refresh, or reset.
+
+Button quick reference:
+
+- `Load RAM`: send the envelope to the card until reset.
+- `Load Envelope + Settings`: temporarily load the selected envelope and send
+  all current settings in one action.
+- `Save Envelope`: store the selected custom envelope in flash.
+- `Delete Envelope Slot`: clear the selected custom slot from card flash.
+- `Read Envelopes from Card`: load occupied card slots into the editor without
+  overwriting changed local drafts.
+- `Read Settings from Card`: pull the current performance settings into the editor.
+- `Send Settings`: send the current performance settings to the card.
+- `Reset Preset`: restore the selected preset to its factory value.
+
+`Load RAM`, `Load Envelope + Settings`, and `Send Settings` are temporary. Use
+`Save Envelope` to retain an envelope in flash. To make the current performance
+settings the startup baseline, move the hardware switch from middle to down and
+hold it until the card confirms the save.
+
+The card can save up to eight custom envelopes. Factory presets are not
+overwritten. Custom presets are labelled `Local only`, `Saved - slot N`, or
+`Changed - slot N`. Envelope readback confirms which custom slots are occupied
+and verifies saves and deletions when supported by the firmware. The editor also runs a quiet settings/envelope check automatically when MIDI connects or ports change, so the firmware type is visible without first pressing the read buttons.
+
+Envelope behaviour:
+
+- Pulse In 2 and MIDI note-on trigger the selected envelope and sync the
+  oscillators when the envelope starts from inactive.
+- While the gate or MIDI note is held, loop-capable envelopes cycle their middle
+  stages.
+- A short trigger runs the envelope through to completion.
+- Pulse In 2 gate-off or MIDI note-off exits the loop and lets the envelope
+  complete naturally from its current point.
+- Turing-triggered envelopes continue to run through without waiting for a gate
+  release.
+- Rapid retriggers keep oscillator phase continuous while the envelope is active
+  to reduce clicks.
+
+## Build
 
 ```sh
 cmake -S . -B build
 cmake --build build
 ```
 
-The built firmware will be at:
+The built UF2 will be:
 
 ```text
 build/C1ZZL3.uf2
 ```
+
+The production source build currently reports:
+
+```text
+FLASH: 146736 B
+RAM: 155644 B
+```
+
+## Stability Notes
+
+The stable version includes the lookup-table oscillator optimisation, 192 MHz
+clock, optional Turing MIDI output, settings readback, and full CC/knob pickup
+handoff. Turing MIDI output defaults off across current builds with Turing MIDI
+support, and should be enabled deliberately when needed. Tap tempo remains
+removed; Y is the Turing internal clock control.
+
+## License Notes
+
+This project is released under the MIT License. The included `computercard.h`
+hardware helper is ComputerCard by Chris Johnson and is also MIT licensed; keep
+its MIT notice present when copying firmware files into releases or experiments.
+
+USB MIDI host support includes the MIT-licensed rppicomidi files, copyright
+2023 rppicomidi. Their copyright and licence notices are retained in the
+corresponding source files.

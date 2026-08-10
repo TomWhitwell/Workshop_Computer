@@ -1,142 +1,136 @@
-id: 58_LoChoVibes
-title: LoCho Vibes
-release: 58 / 0.1.0
-summary: Stereo lo-fi chorus and vibrato with LFO shapes, saturation, compression, and clocking
-description: Stereo lo-fi chorus and vibrato effect for the Music Thing Modular Workshop Computer, inspired by unstable pitch movement, stereo widening, saturation, compression-style coloration, and degraded cassette-style modulation.
+Name: LoCho Vibes
+draft: false
+date-created: 2026-06-14
+date-updated: 2026-07-09
+summary: Stereo chorus and vibrato effect featuring triangle, sine, and slow
+  drift LFO modes, modulation-based delay movement, and tape-style saturation.
+short-description: Stereo chorus and vibrato effect featuring triangle, sine,
+  and slow drift LFO modes, modulation-based delay movement, and tape-style
+  saturation.
+Language: C++
+Creator: Adrian Vos
+Version: 0.1.0
+Status: Beta - stable in single-developer testing
+License: MIT
+demo-link: https://www.youtube.com/watch?v=rggZFG6SX6M
 panel:
-  controls:
-    main:
-      label: Rate
-      description: Controls chorus/vibrato modulation rate.
-      source: curated
-    x:
-      label: Depth
-      description: Controls modulation depth, stereo width, chorus movement, and vibrato depth.
-      source: curated
-    'y':
-      label: Character
-      description: Moves between degraded lo-fi texture, neutral response, and compressed/saturated modulation.
-      source: curated
-    z:
-      label: Vibrato / Chorus / Shape
-      description: Up selects vibrato, middle selects chorus, and momentary down cycles LFO shape.
-      source: curated
   inputs:
-    audio_l:
-      label: |-
-        Audio
-        1
-      description: Mono summed audio input with Audio In 2.
-      source: curated
-    audio_r:
-      label: |-
-        Audio
-        2
-      description: Mono summed audio input with Audio In 1.
-      source: curated
-    cv_1:
-      label: |-
-        CV
-        1
-      description: Modulates modulation depth, including stereo width, chorus movement, and vibrato depth.
-      source: curated
-    cv_2:
-      label: |-
-        CV
-        2
-      description: Modulates Character between degraded cassette texture, neutral response, and compressed/saturated modulation.
-      source: curated
-    pulse_1:
-      label: |-
-        LFO
+    - id: AudioIn1
+      name: |-
+        Audio In
+        Left
+      description: Left input channel; summed with AudioIn2 to mono before stereo
+        modulation processing
+      type: audio
+    - id: AudioIn2
+      name: |-
+        Audio In
+        Right
+      description: Right input channel; summed with AudioIn1 to mono before stereo
+        modulation processing
+      type: audio
+    - id: CVIn1
+      name: Depth Mod
+      description: Bipolar CV modulation for X depth control
+      type: cv
+    - id: CVIn2
+      name: |-
+        Character
+        Mod
+      description: Bipolar CV modulation for Y Character control
+      type: cv
+    - id: PulseIn1
+      name: |-
+        Ext LFO
         Clock
-      description: External LFO clock input; falls back to internal clock if pulses stop.
-      source: curated
-    pulse_2:
-      label: |-
-        Pulse
-        2
-      description: Secondary pulse input.
-      source: curated
+      description: Rising edges sync LFO timing to external pulse source with internal
+        fallback when pulses stop
+      type: pulse
   outputs:
-    audio_out_l:
-      label: |-
-        Audio
-        1
-      description: Left audio output.
-      source: curated
-    audio_out_r:
-      label: |-
-        Audio
-        2
-      description: Right audio output.
-      source: curated
-    cv_out_1:
-      label: |-
+    - id: AudioOut1
+      name: |-
+        Audio Out
+        Left
+      description: Left processed output
+      type: audio
+    - id: AudioOut2
+      name: |-
+        Audio Out
+        Right
+      description: Right processed output
+      type: audio
+    - id: CVOut1
+      name: LFO CV
+      description: Main internal LFO waveform as CV
+      type: cv
+    - id: CVOut2
+      name: |-
+        Inverted LFO
         CV
-        1
-      description: Main LFO modulation output.
-      source: curated
-    cv_out_2:
-      label: |-
-        CV
-        2
-      description: Inverted LFO modulation output.
-      source: curated
-    pulse_out_1:
-      label: |-
-        Pulse
-        1
-      description: Pulse output.
-      source: curated
-    pulse_out_2:
-      label: |-
-        Pulse
-        2
-      description: Pulse output.
-      source: curated
-switch_modes:
-  up: Vibrato mode. Fully wet pitch modulation for unstable tape transport and warped cassette movement.
-  middle: Chorus mode. Dry signal remains blended with the delay line for stereo widening and animated movement.
-  down: Momentary LFO shape select. Cycles Triangle, Sine, and Random Drift shapes.
-leds:
-  - "Normal display: LED 1 modulation rate, LED 2 modulation depth, LED 3 lo-fi amount, LED 4 compression amount, LED 5 LFO phase, LED 6 inverted LFO phase."
-  - "Shape overlay: Triangle uses LEDs 1-2, Sine uses LEDs 3-4, and Random Drift uses LEDs 5-6."
-notes:
-  - "Main controls modulation rate, X controls modulation depth, and Y controls Character from Lo-Fi to Compression."
-  - "Pulse In 1 is an external LFO clock input. The internal LFO synchronises to incoming clock pulses and falls back to internal clock if pulses stop."
-  - "The left and right channels use opposing delay modulation and offset delay times to create stereo widening."
-source:
-  - LoChoVibes.cpp
-  - README.md
-slug: 58-lochovibes
-url: /workshopsystem/program-cards/58-lochovibes/
-tags:
-  - id: effect
-    label: Effect
-  - id: chorus
-    label: Chorus
-  - id: vibrato
-    label: Vibrato
-  - id: lo-fi
-    label: Lo-Fi
-  - id: stereo
-    label: Stereo
-tag_ids:
-  - effect
-  - chorus
-  - vibrato
-  - lo-fi
-  - stereo
-tag_labels:
-  - Effect
-  - Chorus
-  - Vibrato
-  - Lo-Fi
-  - Stereo
-source_file: data/cards/58_LoChoVibes.yml
-metadata:
-  creator: Adrian Vos
-  language: Pico SDK
-  version: '0.1.0'
-  status: Released
+      description: Inverted version of the internal LFO waveform
+      type: cv
+tags: []
+controls:
+  switch:
+    up:
+      name: Vibrato
+      description: "Z up: Vibrato mode."
+    middle:
+      name: Chorus
+      description: "Z middle: Chorus mode."
+    down:
+      name: Change LFO shape
+      description: "Z down, momentary: LFO Shape Select."
+  knobs:
+    - main:
+        name: Mod Rate
+        description: LFO speed for chorus/vibrato movement
+      x:
+        name: Mod Depth
+        description: LFO pitch/modulation depth amount
+      y:
+        name: Character
+        description: Bipolar character shaping from lo-fi degradation to
+          compression/saturation coloration
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: LED 1
+          description: LED 1 follows clock / rate indication.
+        - id: LED1
+          name: LED 2
+          description: LED 2 follows modulation activity and depth.
+        - id: LED2
+          name: LED 3
+          description: LED 3 follows lo-fi amount.
+        - id: LED3
+          name: LED 4
+          description: LED 4 follows compression amount.
+        - id: LED4
+          name: LED 5
+          description: LED 5 follows shape animation A.
+        - id: LED5
+          name: LED 6
+          description: LED 6 follows shape animation B.
+        - id: LED6
+          name: LED 7
+          description: When the switch is tapped down, LEDs 1-2 show triangle, LEDs 3-4
+            show sine, and LEDs 5-6 show random drift.
+host:
+  notes: >
+    Stereo lo-fi chorus/vibrato with clockable LFO and character shaping.
+
+    Main controls modulation rate, X controls modulation depth, Y controls
+    Character
+
+    (lo-fi degradation <-> compression coloration). Switch up selects vibrato
+    mode
+
+    (fully wet), middle selects chorus mode (dry/wet blend), and a momentary
+    move
+
+    to down cycles LFO shape (triangle, sine, random drift).
+contact:
+  social:
+    github: https://github.com/soveda

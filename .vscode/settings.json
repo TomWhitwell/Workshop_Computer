@@ -1,0 +1,12 @@
+{
+  // Persist the "remembered" card choice (from the command-variable extension)
+  // across VS Code restarts, so you are only prompted the first time.
+  "commandvariable.remember.persistent.file": "${workspaceFolder}${pathSeparator}.vscode${pathSeparator}.card.json",
+
+  // Stop the CMake Tools extension from scanning the workspace and prompting
+  // you to pick a CMakeLists.txt every time the folder is opened. Building is
+  // driven by the ComputerCard tasks (make), not by CMake Tools.
+  "cmake.configureOnOpen": false,
+  "cmake.configureOnEdit": false,
+  "cmake.automaticReconfigure": false
+}

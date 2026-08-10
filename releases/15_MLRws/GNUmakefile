@@ -18,9 +18,12 @@ OPENOCD_HOST     ?= host.docker.internal
 OPENOCD_GDB_PORT ?= 3333
 GDB ?= $(shell command -v arm-none-eabi-gdb 2>/dev/null || command -v gdb-multiarch 2>/dev/null)
 
-.PHONY: all firmware monobright flash flash-monobright clean help
+.PHONY: all build firmware monobright flash flash-monobright clean help
 
 all: firmware
+
+# Alias so the root `make all` (which invokes `make build` per card) works here.
+build: firmware
 
 firmware:
 	@mkdir -p $(BUILD)

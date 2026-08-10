@@ -1,6 +1,5 @@
-# Build directory - ignore everything except .uf2 files
-/build/*
-!/build/*.uf2
-
-.claude/*
+build/*
+!build/resonator.uf2
 CLAUDE.md
+.claude/*
+/resonator.uf2

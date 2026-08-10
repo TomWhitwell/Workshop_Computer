@@ -1,0 +1,171 @@
+draft: false
+Name: XHT Card
+short-description: A playable deep-note-inspired stereo chord swarm with manual
+  scrubbing, one-shot movement, delay, reverb, CV, pulse, and optional MIDI
+  control.
+Language: C++ (Pico SDK)
+Creator: Adrian Vos
+Version: 0.1.0
+Status: Beta - stable in single-developer testing
+License: GPL-3.0
+date-created: 2026-07-11
+date-updated: 2026-07-12
+Editor: none
+demo-link: https://www.youtube.com/watch?v=76RNe7uglP4
+
+tags:
+  - synthesizer
+  - stereo
+  - effect
+  - midi
+  - midi-host
+  - cv
+  - clocked
+  - workshop-computer
+summary: >
+  XHT Card is a synthesised deep-note-style gesture rather than a bundled
+  sample.
+
+  Main sets the note position and one-shot destination. The momentary down
+  switch
+
+  resets the note and launches a one-shot from the start toward the current
+
+  destination. CV2 also participates in destination control. P2 can clock
+  stepped
+
+  movement through the note. X controls delay and Y controls reverb.
+
+
+  CV1 input transposes pitch. CV Out 1 mirrors note position unless CV1 is
+
+  patched, in which case CV Out 1 becomes pitch. CV Out 2 always mirrors note
+
+  position. P1 gates the note when patched and leaves the note sustained when
+
+  unpatched.
+
+
+  The separate MIDI build adds MIDI note input, CC1/mod-wheel destination
+
+  control, sustain pedal on CC64, and MIDI note output of the current chord.
+
+  MIDI clock is ignored.
+panel:
+  inputs:
+    - id: AudioIn1
+      name: External Audio Left
+      type: audio
+      description: Mixed into the left output before effects.
+    - id: AudioIn2
+      name: External Audio Right
+      type: audio
+      description: Mixed into the right output before effects.
+    - id: CVIn1
+      name: Pitch Transpose
+      type: cv
+      description: Transposes the current note position. When patched, CV Out 1
+        reports pitch instead of position.
+    - id: CVIn2
+      name: Position / Destination
+      type: cv
+      description: Controls note position and the one-shot destination; scaled so 0-5V
+        controller sources cover the full travel.
+    - id: PulseIn1
+      name: Gate
+      type: pulse
+      description: Gates the audio when patched. In the MIDI build, also gates MIDI
+        output when patched.
+    - id: PulseIn2
+      name: External Clock
+      type: pulse
+      description: Clocks stepped movement through the note and overrides the one-shot
+        while clocked.
+  outputs:
+    - id: AudioOut1
+      name: Left Output
+      type: audio
+      description: Left channel with delay and reverb.
+    - id: AudioOut2
+      name: Right Output
+      type: audio
+      description: Right channel with delay and reverb.
+    - id: CVOut1
+      name: Position / Pitch
+      type: cv
+      description: Mirrors note position unless CV1 is patched, then outputs pitch.
+    - id: CVOut2
+      name: Position
+      type: cv
+      description: Mirrors the current note-position state.
+    - id: PulseOut1
+      name: Note Gate
+      type: pulse
+      description: Mirrors the current note gate; with P1 patched it follows P1.
+    - id: PulseOut2
+      name: Clock Mirror
+      type: pulse
+      description: Mirrors the P2 input pulse.
+controls:
+  switch:
+    up:
+      name: Octave Up
+      description: Raises the note by one octave.
+    middle:
+      name: Normal Octave
+      description: Normal pitch range.
+    down:
+      name: Reset / One-Shot
+      description: Momentary reset that launches the note from the start toward the
+        current destination.
+  knobs:
+    - main:
+        name: Position / Destination
+        description: Manually scrubs the note and sets the one-shot destination.
+      x:
+        name: Delay
+        description: Controls delay amount/time character.
+      y:
+        name: Reverb
+        description: Controls reverb amount.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Note Position
+          description: Brightness follows the current note position.
+        - id: LED1
+          name: Delay / Main Position
+          description: Main-build brightness follows X delay; MIDI-build brightness
+            follows Main position.
+        - id: LED2
+          name: Envelope
+          description: Brightness follows the audio gate/envelope.
+        - id: LED3
+          name: Reverb / MIDI CC1
+          description: Normally follows Y reverb; the MIDI build briefly shows recent CC1
+            destination control.
+        - id: LED4
+          name: P1 Gate
+          description: Shows Pulse In 1.
+        - id: LED5
+          name: P2 Clock / USB Role
+          description: Shows Pulse In 2 activity; in the MIDI build, also indicates USB
+            host or device mode when idle.
+host:
+  usb:
+    - name: USB MIDI Device
+      role: device
+      description: Connects to a DAW/computer for MIDI notes, CC1, sustain, and MIDI
+        note output.
+    - name: USB MIDI Host
+      role: host
+      description: Connects directly to a USB MIDI controller when the card boots in
+        host mode.
+  notes: |
+    The MIDI build boots as either USB host or USB device, not both at once.
+    For direct USB controller use, connect the controller before powering the
+    card. Pressing reset alone may not force USB role renegotiation.
+contact:
+  social:
+    github: https://github.com/soveda

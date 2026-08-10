@@ -1,6 +1,112 @@
+draft: false
 Name: Birds
-Description: Two birds sing to each other controlled by a Turing-style shift register sequencer with clock in and CV/pulse out.
+short-description: Two birds sing to each other controlled by a Turing-style shift register sequencer with clock in and CV/pulse out.
 Language: C++ (Pico SDK / ComputerCard)
 Creator: Tom Whitwell
-Version: 0.5.0
-Status: Beta
+Version: "0.5.0"
+Status: Released
+License: MIT
+date-created: 2026-05-25
+date-updated: 2026-05-25
+demo-link: https://www.youtube.com/watch?v=LJqv-TFYq6Q
+
+contact:
+  website: https://www.musicthing.co.uk/
+
+summary: |
+  Two interacting birds are generated from a Turing-style looped random sequencer.
+  Main controls random/loop behaviour, X shifts bird pitch, Y controls phrase speed,
+  Z selects Natural, Robot, or Reseed mode, and Pulse In 1 can replace the internal clock.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Pitch CV
+      description: Adds to the X knob to control bird voice oscillator pitch
+
+    - id: CVIn2
+      name: Speed CV 
+      description: Adds to the Y knob to control sequence playback timing
+
+    - id: PulseIn1
+      name: Clock In
+      description: Rising-edge clock input; when present, it overrides internal timing
+
+  outputs:
+    - id: AudioOut1
+      name: Bird 1 Audio
+      description: Bird 1 audio voice
+
+    - id: AudioOut2
+      name: Bird 2 Audio
+      description: Bird 2 audio voice
+
+    - id: CVOut1
+      name: Bird 1 Pitch Trace
+      description: Held CV trace derived from Bird 1 pitch contour
+
+    - id: CVOut2
+      name: Bird 2 Pitch Trace
+      description: Held CV trace derived from Bird 2 pitch contour
+
+    - id: PulseOut1
+      name: Bird 1 Pulse
+      description: Triggers at phrase starts and internal trill/run sub-events for Bird 1
+
+    - id: PulseOut2
+      name: Bird 2 Pulse
+      description: Triggers at phrase starts and internal trill/run sub-events for Bird 2
+
+controls:
+  switch:
+    up:
+      name: Robot mode
+      description: More likely to produce wild, R2D2-like sounds
+
+    middle:
+      name: Natural mode
+      description: Normal two-bird mode
+
+    down:
+      name: Reseed
+      description: Randomises the sequence
+
+  knobs:
+    - main:
+        name: Random/ Loop
+        description: Centre is unstable; clockwise locks the pattern, anticlockwise locks an inverted double pass
+
+      x:
+        name: Bird Pitch
+        description: Controls pitch with CVIn1 summed in
+
+      y:
+        name: Tweet Speed
+        description: Left is slower phrase timing; right is faster
+
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Bird 1 Pitch High
+          description: Upper pitch indicator for Bird 1
+
+        - id: LED1
+          name: Bird 2 Pitch High
+          description: Upper pitch indicator for Bird 2
+
+        - id: LED2
+          name: Bird 1 Pitch Low
+          description: Lower/complementary pitch indicator for Bird 1
+
+        - id: LED3
+          name: Bird 2 Pitch Low
+          description: Lower/complementary pitch indicator for Bird 2
+
+        - id: LED4
+          name: Bird 1 Pulse Activity
+          description: Indicates PulseOut1 activity
+
+        - id: LED5
+          name: Bird 2 Pulse Activity
+          description: Indicates PulseOut2 activity

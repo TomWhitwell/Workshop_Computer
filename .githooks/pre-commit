@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+root=$(git rev-parse --show-toplevel)
+
+if git diff --cached --quiet -- releases/; then
+  exit 0
+fi
+
+exec node "$root/tools/sitegen/src/validate/validateStaged.js"

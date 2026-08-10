@@ -7,20 +7,31 @@ diode-style filter, accent, glide, distortion, USB MIDI, and a persistent
 
 ## Current release
 
-Version `0.9.1`:
+Version `0.9.3`:
 
 ```text
-uf2/Fr330hfr33-v0.9.1.uf2
+uf2/Fr330hfr33-v0.9.3.uf2
 ```
 
 SHA-256:
 
 ```text
-aff2cc66575f2d9bfd661f6b7106e63f905338911620f1fbb5e1067afaf63efa
+8124a6a0b34d9cf393a4ba5973f10973f22485d5a8b22695c7e0dd81f9d2f17d
 ```
 
 The release has passed functional, USB disconnect/reconnect, persistence,
-extended-running, and processor-stress hardware tests.
+extended-running, processor-stress, Swing, pitch-bend, sequencer-rest,
+sustain-pedal, Intensity, and editor workflow hardware tests.
+
+### New in 0.9.3
+
+- Internal and MIDI-clock Swing with a `1.00:1`–`2.00:1` ratio display
+- Standard ±2-semitone MIDI pitch bend
+- Simplified Gate and Legato choices in the Web editor
+- Per-step Mute for explicit sequencer rests
+- Mutate Pattern for restrained one-to-three-step variations
+- MIDI CC64 sustain-pedal support
+- Volatile MIDI CC20 Intensity performance macro
 
 ## Playing the card
 
@@ -46,17 +57,27 @@ more pronounced slides.
 - `Pulse In 2` high: manual glide
 - USB MIDI notes take priority while held
 - MIDI velocity 112–127 triggers accent
+- The MIDI pitch-bend wheel bends the voice and Pitch CV Out by ±2 semitones
+- MIDI CC64 supports a standard sustain pedal
+- MIDI CC20 controls the temporary performance Intensity
 
 Overlapping MIDI notes create 303-style legato slides without retriggering the
 envelope. The most recently played held note has priority.
+
+The sustain pedal holds released MIDI notes until the pedal is lifted. Intensity
+progressively opens the filter, strengthens its contour, adds a restrained
+amount of resonance, and increases drive when distortion is already enabled.
+It does not switch distortion on, is not saved, and returns to zero whenever
+the card starts.
 
 Accent makes the note louder and brighter. Closely spaced accents accumulate
 filter-sweep energy, so a run of accents can rise higher than an isolated
 accent.
 
-In USB host mode, MIDI CC1 controls cutoff. The Main knob uses pickup: it
-resumes control only after crossing the current CC1 position, avoiding a jump.
-CC1 does not control cutoff in USB device mode.
+In USB host mode, MIDI CC1—usually sent by a MIDI controller's mod wheel—
+controls cutoff. The Main knob uses pickup: it resumes control only after
+crossing the current CC1 position, avoiding a jump. CC1 does not control cutoff
+in USB device mode.
 
 If USB MIDI is interrupted, held MIDI state is cleared and the gate closes.
 USB reconnection or a new physical gate restores normal control.
@@ -65,11 +86,13 @@ USB reconnection or a new physical gate restores normal control.
 
 The sequencer can run as a scale-aware generator or as an editable pattern of
 1–16 steps. It uses the internal tempo unless it receives an external clock on
-`Pulse In 2`; optional MIDI clock advances it every 12 MIDI clock ticks.
+`Pulse In 2`; optional MIDI clock sync is also available. Swing ranges from
+straight timing to a strong 2:1 shuffle for the internal and MIDI clocks.
+External pulse timing is followed exactly and is not altered by Swing.
 
 Editable patterns have separate lanes for:
 
-- Note
+- Note or mute
 - Octave
 - Accent
 - Gate length
@@ -78,6 +101,10 @@ Editable patterns have separate lanes for:
 Patterns support Initial Step, forward, reverse, and pendulum playback.
 Individual lanes can be randomized, with note choices taken from the selected
 scale.
+
+**Mutate Pattern** changes only one to three steps—usually notes, but
+occasionally gate, octave, accent, or tie—so it creates a nearby variation
+rather than replacing the pattern. Muted steps remain muted.
 
 Four pattern slots and the general editor settings persist across power
 cycles. In sequencer mode LED 3 identifies the active slot:
@@ -106,9 +133,11 @@ The Web MIDI editor provides:
 - Distortion off, RAT-style hard clipping, or Tube Screamer-style soft clipping
 - Distortion amount and tone
 - Scale, root, base octave, range, accent probability, gate length, and glide
-- Internal tempo, MIDI channel, and MIDI clock sync
-- Pattern lanes, playback direction, Initial Step, pendulum mode, and slots
+- Internal tempo, swing, MIDI channel, and MIDI clock sync
+- Pattern lanes with explicit rests, playback direction, Initial Step,
+  pendulum mode, and slots
 - Acidness and Acidify Pattern
+- Mutate Pattern for restrained one-to-three-step variations
 
 RAT and Tube Screamer modes contrast most clearly with the saw. The square is
 already strongly rail-shaped, so the two clipping styles can sound similar,
@@ -136,7 +165,7 @@ LEDs:
 
 ## Web MIDI editor
 
-[Launch the hosted Fr330hfr33 editor](https://soveda.github.io/303bass/web_config/Fr330hfr33.html)
+[Launch the hosted Fr330hfr33 editor](https://tomwhitwell.github.io/Workshop_Computer/programs/87-fr330hfr33/web/index.html)
 
 Use Chrome or Edge with Web MIDI and SysEx enabled. Connect with a USB-C data
 cable, close other applications using the MIDI port, select **Fr330hfr33**, and
@@ -145,13 +174,13 @@ press **Apply**.
 To serve the editor locally:
 
 ```sh
-python3 -m http.server 5173 --directory web_config
+python3 -m http.server 5173 --directory web
 ```
 
 Then open:
 
 ```text
-http://localhost:5173/Fr330hfr33.html
+http://localhost:5173
 ```
 
 ## Building
@@ -181,3 +210,9 @@ optional.
 
 The Web MIDI SysEx format is documented in
 [`protocol.md`](protocol.md).
+
+## Attribution
+
+Fr330hfr33 uses the ComputerCard hardware framework by Chris Johnson. Its USB
+MIDI host support includes the MIT-licensed rppicomidi files, copyright 2023
+rppicomidi; their copyright and licence notices are retained in the source.

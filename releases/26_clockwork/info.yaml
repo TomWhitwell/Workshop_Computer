@@ -1,0 +1,170 @@
+Name: Clockwork
+short-description: 6-channel polyrhythmic timing and modulation generator inspired by Pamela's Workout.
+Language: C++ (RP2040 Pico SDK)
+Creator: Vincent Maurer
+Version: "1.0.0"
+Status: Released
+License: MIT
+Editor: https://vincentmaurer.de/clockwork/index.html
+demo-link: https://www.youtube.com/watch?v=Pc0wPOAVZmw
+
+contact:
+  website: https://vincentmaurer.de
+  social:
+    github: https://github.com/vincentltm
+    youtube: https://www.youtube.com/@vincentltm
+
+tags:
+  - clock
+  - trigger
+  - lfo
+  - envelope
+  - sequencer
+  - polyrhythm
+  - quantizer
+
+summary: |
+  6-channel polyrhythmic clock, gate generator, LFO, and envelope card inspired by Pamela's Workout.
+
+  Each output channel operates independently with its own clock division or multiplication (/2048 to x128), Euclidean sequencer (0–16 steps), 14 analog or 6 digital output shapes (envelopes, LFOs, S&H, math logic), trigger probability, and quantizer scales. Syncs to external pulse or USB MIDI clock, and includes a browser-based Web MIDI manager with live oscilloscope views and preset loading.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Channel 1 CV Input / Audio 1
+      description: "CV input for Channel 1: modulates wave parameter, S&H sample input, CV delay input, Math carrier, or external clock trigger depending on selected shape"
+      type: audio
+
+    - id: AudioIn2
+      name: Channel 2 CV Input / Audio 2
+      description: "CV input for Channel 2: modulates wave parameter, S&H sample input, CV delay input, Math carrier, or external clock trigger depending on selected shape"
+      type: audio
+
+    - id: CVIn1
+      name: Channel 3 CV Input / CV 1
+      description: "CV input for Channel 3: modulates wave parameter, S&H sample input, CV delay input, Math carrier, or external clock trigger depending on selected shape"
+      type: cv
+
+    - id: CVIn2
+      name: Channel 4 CV Input / CV 2
+      description: "CV input for Channel 4: modulates wave parameter, S&H sample input, CV delay input, Math carrier, or external clock trigger depending on selected shape"
+      type: cv
+
+    - id: PulseIn1
+      name: External Clock Sync / Pulse 1
+      description: "External clock pulse sync input"
+      type: pulse
+
+    - id: PulseIn2
+      name: Reset / Run Gate / Pulse 2
+      description: "Clock reset trigger input or run gate"
+      type: pulse
+
+  outputs:
+    - id: AudioOut1
+      name: Output 1
+      description: "Channel 1 bipolar/unipolar CV/LFO/gate output"
+      type: cv
+
+    - id: AudioOut2
+      name: Output 2
+      description: "Channel 2 bipolar/unipolar CV/LFO/gate output"
+      type: cv
+
+    - id: CVOut1
+      name: Output 3
+      description: "Channel 3 bipolar/unipolar CV/LFO/gate output"
+      type: cv
+
+    - id: CVOut2
+      name: Output 4
+      description: "Channel 4 bipolar/unipolar CV/LFO/gate output"
+      type: cv
+
+    - id: PulseOut1
+      name: Output 5
+      description: "Channel 5 digital gate output (Gate, Ratchet, Trigger, Burst, Random, Utility)"
+      type: pulse
+
+    - id: PulseOut2
+      name: Output 6
+      description: "Channel 6 digital gate output (Gate, Ratchet, Trigger, Burst, Random, Utility)"
+      type: pulse
+
+controls:
+  switch:
+    up:
+      name: Shape
+      description: "Main = Waveform Shape (Global: PPQN); X = Level / Phase Delay (Global: Seed); Y = Wave Parameter (Global: Pulse 2 mode). A quick flick UP (<400ms) toggles Play/Pause."
+    middle:
+      name: Rhythm
+      description: "Main = Speed Modifier (Global: Master BPM 20–300); X = Euclidean Steps (Global: Swing); Y = Fills / Phase Offset (Global: Humanize / Randomization)."
+    down:
+      name: Advanced / Page
+      description: "Tap to cycle active channel page (1–6 & Global). Hold DOWN to edit Advanced Settings (Main = Loop Length 1–64; X = Probability 0–100%; Y = Step Offset or Scale. Global: Preset Slot Load/Save/Reset)."
+
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Speed Modifier / Master BPM
+        description: "Clock division (/2048 to /2), straight x1 at noon, multiplication (x2 to x128), cross-channel triggers, or MIDI mode. On Global Page: Master BPM (20–300 BPM)"
+      x:
+        name: Euclidean Steps / Swing
+        description: "Euclidean pattern step count (0 to 16; 0 = straight clock). On Global Page: Master Swing (50%–75%)"
+      y:
+        name: Fills / Phase Offset / Humanize
+        description: "Active Euclidean fill count when steps > 0; LFO phase offset (0–255) when steps = 0. On Global Page: Humanize / Randomization"
+
+    - when: { z: up }
+      main:
+        name: Waveform Shape / Clock PPQN
+        description: "Select output shape (Analog Ch 1–4: Gate, Ratchet, Sine, Tri, Saw, Trap, Hump, Env, Log Env, S&H, Smooth, Delay, Math; Digital Ch 5–6: Gate, Ratchet, Trigger, Burst, Random, Utility). On Global Page: External Clock PPQN (1, 4, 24)"
+      x:
+        name: Level / Phase Delay / Seed
+        description: "Output level (-100% to +100% on analog channels 1–4; phase delay on digital gate channels 5–6). On Global Page: Sequence Random Seed"
+      y:
+        name: Wave Parameter / Pulse 2 Mode
+        description: "Pulse width, decay duration, or math logic operator depending on active shape. On Global Page: PulseIn2 Mode (Gate / Run gate)"
+
+    - when: { z: down }
+      main:
+        name: Pattern Loop Length / Preset Slot
+        description: "Clamps pattern loop length from 1 to 64 steps (0 = infinite). On Global Page: Preset Slot Select (1–6 / Reset)"
+      x:
+        name: Trigger Probability / Preset Action
+        description: "Probability of trigger generation per step (0% to 100%, acts as channel mute). On Global Page: Preset Load / Save / Reset action"
+      y:
+        name: Step Offset / Quantizer Scale
+        description: "Euclidean pattern rotation offset when steps > 0; quantizer musical scale select when steps = 0"
+
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Channel 1 / Matrix Bit 0
+          description: Lights when Channel 1 is active page; indicates top-left bit of waveform 3x2 matrix
+        - id: LED1
+          name: Channel 2 / Matrix Bit 1
+          description: Lights when Channel 2 is active page; indicates top-right bit of waveform 3x2 matrix
+        - id: LED2
+          name: Channel 3 / Matrix Bit 2
+          description: Lights when Channel 3 is active page; indicates mid-left bit of waveform 3x2 matrix
+        - id: LED3
+          name: Channel 4 / Matrix Bit 3
+          description: Lights when Channel 4 is active page; indicates mid-right bit of waveform 3x2 matrix
+        - id: LED4
+          name: Channel 5 / Matrix Bit 4
+          description: Lights when Channel 5 is active page; indicates bot-left bit of waveform 3x2 matrix
+        - id: LED5
+          name: Channel 6 / Matrix Bit 5
+          description: Lights when Channel 6 is active page; indicates bot-right bit of waveform 3x2 matrix
+
+host:
+  usb:
+    - name: Clockwork Web MIDI Manager & DAW Sync (Device Mode)
+      role: editor
+      description: "Connect to computer via USB-C for Web MIDI Manager telemetry/editing and bi-directional DAW MIDI clock sync"
+
+    - name: External USB MIDI Controller (Host Mode)
+      role: controller
+      description: "Connect USB MIDI controllers directly to card USB port to drive channels with external MIDI pitch, velocity, and clock"

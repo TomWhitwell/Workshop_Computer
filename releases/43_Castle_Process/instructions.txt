@@ -1,0 +1,60 @@
+┌────────────────────────────────────────────┐
+│  73                                        │
+│                                            │
+│             CASTLE PROCESS                 │
+│                                            │
+│  Fort Processor harsh noise performance    │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ CONTROLS                                   │
+│                                            │
+│ MAIN  → Drive / voicing                    │
+│ X     → Chopping / motion                  │
+│ Y     → Tuning / interaction               │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ SWITCH                                     │
+│                                            │
+│ UP      Fuller / more square colour        │
+│ MID     Tighter chopped default            │
+│ DOWN    Momentary bend / chaos             │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ INPUTS                                     │
+│                                            │
+│ Audio 1  → External audio in               │
+│ CV 1/2   → Internal modulation             │
+│ Pulse 1  → External bass trigger           │
+│ Pulse 2  → Reserved                        │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ OUTPUTS                                    │
+│                                            │
+│ Audio 1 → Chopped external input           │
+│ Audio 2 → Bass + supporting texture        │
+│ Pulse 1 → Bass activity pulse              │
+│ Pulse 2 → Internal chop pulse              │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ PATCH IDEAS                                │
+│                                            │
+│ Feed drums or oscillators into Audio 1     │
+│ Trigger Pulse 1 for bass rhythms           │
+│ Use switch Down as live performance bend   │
+│ Split Audio 1 and 2 for layered outputs    │
+│                                            │
+├────────────────────────────────────────────┤
+│                                            │
+│ NOTES                                      │
+│                                            │
+│ ________________________________________   │
+│ ________________________________________   │
+│ ________________________________________   │
+│ ________________________________________   │
+│                                            │
+└────────────────────────────────────────────┘

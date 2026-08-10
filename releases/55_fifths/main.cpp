@@ -91,7 +91,8 @@ public:
 		{
 			// If Audio2 is connected, treat as CV input
 			// vcaCV = virtualDetentedKnob((AudioIn2() * vcaKnob >> 12) + 2048) - 2048;
-			vcaCV = AudioIn2() * virtualDetentedKnob(vcaKnob) >> 12;
+			// ComputerCard v0.3.0 inverts the audio input; negate to preserve original sign.
+			vcaCV = -AudioIn2() * virtualDetentedKnob(vcaKnob) >> 12;
 		}
 		else
 		{
@@ -307,14 +308,16 @@ public:
 		updatePulseAndCounters(sw);
 
 		// 3. VCA calculation
-		int16_t input = Connected(Input::Audio1) ? AudioIn1() + 25 : (rnd12() - 2048); // DC offset for non-callibrated input
+		// ComputerCard v0.3.0 inverts the audio input (op-amp correction); negate to preserve behaviour.
+		int16_t input = Connected(Input::Audio1) ? -AudioIn1() + 25 : (rnd12() - 2048); // DC offset for non-callibrated input
 		mainKnob = virtualDetentedKnob(KnobVal(Knob::Main));
 		vcaKnob = virtualDetentedKnob(KnobVal(Knob::Y));
 		xKnob = virtualDetentedKnob(KnobVal(Knob::X));
 		vcaOut = calculateVCAOut(input);
 		clip(vcaOut);
-		AudioOut1(mainKnob - 2048);
-		AudioOut2(vcaOut);
+		// ComputerCard v0.3.0 inverts the audio output; negate to preserve original output voltage.
+		AudioOut1(2048 - mainKnob);
+		AudioOut2(-vcaOut);
 
 		// 5. Handle switchHold (shift functions) for knobs
 		if (switchHold && ((cabs(xKnob - lastX) > 0) || changeX))

@@ -1,7 +1,8 @@
 # Resonator
 
-A sympathetic resonator workshop card inspired by the Mutable Instruments Rings module and the tanpura.
+A sympathetic resonator workshop card originally inspired by the Mutable Instruments Rings module and the tanpura.
 It has four resonating Karplus-Strong strings that, when excited, create rich, harmonic textures.
+It also has a range of options for pulse/CV I/O, including arpeggios, pitch detection and envelope followers.
 
 ## Description
 
@@ -14,6 +15,16 @@ The sympathetic resonator simulates the behavior of strings that vibrate in resp
 - The delay time determines the pitch of each string
 - Input signals excite the strings, which then resonate at their tuned frequencies
 
+## Features
+
+- 18 chord and tanpura voicings with an editable, persistent progression
+- Arpeggiator synced to the chord tempo (up / down / up-down / random / pedal / random walk), with optional continuous loop
+- YIN pitch tracking with 1V/oct CV output
+- Envelope followers, Schmitt-trigger and onset transient detectors, tap-tempo clock and clock divider
+- Fully configurable CV, pulse, and audio I/O — saved on the module
+- Stereo mid/side audio output
+- Browser-based editor over USB (Web Serial)
+
 ## Controls
 
 ### Knobs
@@ -21,19 +32,53 @@ The sympathetic resonator simulates the behavior of strings that vibrate in resp
 - **Y Knob**: Damping amount (higher = more resonance/longer decay)
 - **Main Knob**: Dry/wet mix (0 = dry signal, full = wet resonator output)
 
-### CV Inputs
-- **CV1**: 1V/octave pitch control (X knob acts as fine tune when CV connected)
-- **CV2**: Damping modulation (adds to Y knob)
-
 ### Switch
-- **Up**: Tuning mode - only the fundamental string sounds
+- **Up**: Tuning mode — only the fundamental string sounds
 - **Middle**: Normal operation
 - **Down (momentary)**: Advance to next chord in progression
 - **Down (hold 3 seconds)**: Reset to factory defaults (all 18 chords)
 
+## Inputs & Outputs
+
+The Workshop System Computer has two of each jack. Most are configurable from the **i/o** tab of the web editor; the default mode is listed first. All settings persist on the module.
+
+### Audio
+- **Audio In 1 / In 2**: Excitation sources, summed to feed the strings. Pitch tracking listens to **Audio In 1 only**.
+- **Audio Out 1**: Main resonator mix (the "mid" of a mid/side stereo pair with Audio Out 2).
+- **Audio Out 2**: *audio* (side channel for stereo) · *resonator envelope* · *input envelope*. The envelope modes turn it into a CV output instead of audio.
+
+### CV Inputs
+- **CV In 1**: *1V/oct pitch* (the X knob becomes a ±1-octave fine tune / transpose when patched) · *arpeggio root only* (CV sets the pitch of the arpeggio/root/pitch CV outputs while the strings stay at the X-knob pitch).
+- **CV In 2**: *damping* (adds to the Y knob) · *wet/dry mix* (adds to the Main knob).
+
+### CV Outputs
+
+Both outputs share the same modes (defaults: CV Out 1 = arpeggio pitch, CV Out 2 = input envelope):
+
+| Mode | Output |
+|------|--------|
+| Arpeggio pitch | Rotating chord tones as 1V/oct (see [Arpeggio](#arpeggio)) |
+| Root pitch | A selectable chord tone's pitch as 1V/oct (root by default; pick 1st–4th tone in the editor) |
+| Resonator envelope | Resonator output amplitude as CV |
+| Input envelope | Input amplitude as CV |
+| Random S&H | New random voltage on each chord change |
+| Pitch S&H | Samples the pitch CV on a Pulse In 1 trigger, holds until the next |
+| Pitch track | YIN pitch detection (Audio In 1) as 1V/oct |
+
+**1V/oct:** All pitch CVs — pitch track, root, arp, pitch S&H, and CV In 1 — share one anchor, **middle C (C4) = 0 V**, at the standard 1 V/octave. So every pitch output reads the same voltage for a given note, and pitch track patched back into CV In 1 (self-tracking) or into another resonator's CV In 1 tracks at the correct octave (the receiving X knob acts as a ±1-octave transpose). Because CV In 1 is centered on middle C, the full C1–C7 string range spans roughly ±3 V: a bipolar source reaches the whole range, while a unipolar 0 V+ source covers middle C and up.
+
 ### Pulse Inputs
-- **Pulse In 1**: Trigger string excitation (pluck with noise burst)
-- **Pulse In 2**: Advance to next chord in progression
+- **Pulse In 1**: *noise burst / pluck* · *advance chord* · *reset to first chord*.
+- **Pulse In 2**: *advance chord* · *advance arp step* · *noise burst / pluck* · *reset to first chord*.
+
+### Pulse Outputs
+- **Pulse Out 1**: *audio trigger* (Schmitt trigger on input transients) · *tap tempo clock* · *arpeggio clock* · *onset detect*.
+- **Pulse Out 2**: *chord change trigger* · *tap tempo clock* · *audio trigger* · *arpeggio clock* · *clock divider* (divides Pulse In 2 by 2/3/4/8) · *onset detect*.
+
+The tap-tempo clock free-runs at the rate of your last two chord changes, while the chord-change trigger fires once per actual change. Onset detect responds to note attacks in sustained or layered audio (~100 ms minimum spacing).
+
+### Arpeggio
+When a CV output is set to *arpeggio pitch*, it steps through the current chord's tones, locked to the chord-change tempo. The pattern (up / down / up-down / random / **pedal** — root between each tone / **random walk** — steps ±1 tone) and the number of steps per chord (1, 2, 4, or 8) are set in the editor and shared by both CV outputs. By default it plays one sweep per chord and holds; enable **loop** to keep it cycling continuously on a held chord.
 
 ## Chord Modes
 
@@ -62,14 +107,14 @@ The sympathetic resonator simulates the behavior of strings that vibrate in resp
 
 ## Web Editor
 
-A browser-based chord editor lets you customize which chords are in your progression and their order.
+A browser-based editor with two tabs: **chords** for building the progression, and **i/o** for configuring the inputs and outputs above.
 
 ### Using the Editor
 1. Connect your Resonator via USB
 2. Open the editor at [johaneklund.io/resonator](https://johaneklund.io/resonator)
 3. Click **Connect USB** and select `Pico` (may appear as `ttyACM0` on Linux)
-4. Drag chords from the palette to build your progression
-5. Click **Send to Device** to save
+4. On the **chords** tab, drag chords from the palette to build your progression, then click **Send to Device**
+5. On the **i/o** tab, choose modes for each jack, then click **Save to device**
 
 Changes persist on the module even after power off.
 

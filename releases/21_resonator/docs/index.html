@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resonator Chord Editor</title>
+    <title>Resonator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
@@ -361,6 +361,81 @@
             border-color: #666;
         }
 
+        /* Tab buttons */
+        .tab-btn {
+            padding: 8px 14px;
+            border: 1px solid #333;
+            border-radius: 0;
+            background: transparent;
+            color: #555;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: color 0.3s, border-color 0.3s;
+        }
+        .tab-btn:hover { color: #e0e0e0; border-color: #666; }
+        .tab-btn.active { color: #e0e0e0; border-color: #666; }
+
+        /* Outputs section */
+        #outputsContent {
+            position: relative;
+            z-index: 10;
+            max-width: 560px;
+            margin: 0 auto;
+            padding: 32px 40px;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+        #outputsContent p {
+            margin-bottom: 0;
+            color: #d8d8d8;
+        }
+        #outputsContent hr {
+            border: none;
+            border-top: 1px dotted #333;
+            margin: 28px 0;
+        }
+        #outputsContent select {
+            font-family: 'EB Garamond', 'Georgia', serif;
+            font-size: 15px;
+            color: #e8a0a0;
+            background: #111;
+            border: 1px solid #e8a0a0;
+            border-radius: 0;
+            padding: 1px 4px;
+            cursor: pointer;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            outline: none;
+        }
+        #outputsContent select:focus {
+            border-color: #ff8080;
+        }
+        #outputsContent .mode-desc {
+        }
+        #outputsContent .outputs-save-btn {
+            padding: 10px 16px;
+            border: 1px solid #333;
+            background: transparent;
+            color: #999;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: color 0.3s, border-color 0.3s;
+        }
+        #outputsContent .outputs-save-btn:hover { color: #e0e0e0; border-color: #666; }
+        #outputsContent .outputs-save-btn:disabled {
+            color: #333;
+            border-color: #1a1a1a;
+            cursor: not-allowed;
+        }
+
         /* Light mode */
         body.light-mode {
             background: #fafafa;
@@ -430,15 +505,46 @@
         }
         body.light-mode #connectBtn,
         body.light-mode #settings-btn,
-        body.light-mode #info-btn {
+        body.light-mode #info-btn,
+        body.light-mode .tab-btn {
             border-color: #ccc;
             color: #666;
         }
         body.light-mode #connectBtn:hover,
         body.light-mode #settings-btn:hover,
-        body.light-mode #info-btn:hover {
+        body.light-mode #info-btn:hover,
+        body.light-mode .tab-btn:hover {
             color: #222;
             border-color: #999;
+        }
+        body.light-mode .tab-btn.active {
+            color: #222;
+            border-color: #999;
+        }
+        body.light-mode #outputsContent p {
+            color: #222;
+        }
+        body.light-mode #outputsContent hr {
+            border-top-color: #ddd;
+        }
+        body.light-mode #outputsContent select {
+            color: #c00;
+            background: #fff;
+            border-color: #c00;
+        }
+        body.light-mode #outputsContent .mode-desc {
+        }
+        body.light-mode #outputsContent .outputs-save-btn {
+            border-color: #ccc;
+            color: #666;
+        }
+        body.light-mode #outputsContent .outputs-save-btn:hover {
+            color: #222;
+            border-color: #999;
+        }
+        body.light-mode #outputsContent .outputs-save-btn:disabled {
+            color: #ccc;
+            border-color: #ddd;
         }
         body.light-mode .settings-dialog {
             background: #fff;
@@ -786,9 +892,13 @@
                 font-size: 16px;
                 letter-spacing: 1px;
             }
-            #connectBtn, #settings-btn, #info-btn {
+            #connectBtn, #settings-btn, #info-btn, .tab-btn {
                 padding: 6px 10px;
                 font-size: 10px;
+            }
+            #outputsContent {
+                padding: 16px 20px;
+                font-size: 14px;
             }
             .info-dialog {
                 padding: 20px;
@@ -831,7 +941,9 @@
 <body>
     <div id="canvas-container"></div>
     <header>
-        <h1>Resonator Chord Editor</h1>
+        <h1>Resonator</h1>
+        <button id="tab-chords" class="tab-btn active">chords</button>
+        <button id="tab-outputs" class="tab-btn">i/o</button>
         <button id="info-btn">?</button>
         <button id="settings-btn">⚙</button>
         <span id="status">Disconnected</span>
@@ -921,6 +1033,176 @@
         </section>
     </main>
 
+    <section id="outputsContent" style="display:none">
+        <hr>
+        <p>Audio in 1 &mdash;
+            <span class="mode-desc">audio excitation source (mixed with Audio in 2)</span>
+        </p>
+        <hr>
+        <p>Audio in 2 &mdash;
+            <span class="mode-desc">audio excitation source (mixed with Audio in 1)</span>
+        </p>
+        <hr>
+        <p>Audio out 1 &mdash;
+            <span class="mode-desc">main resonator mix output</span>
+        </p>
+        <hr>
+        <p>Audio out 2 &mdash;
+            <select id="ao2-mode">
+                <option value="0" selected>audio</option>
+                <option value="1">resonator envelope</option>
+                <option value="2">input envelope</option>
+            </select>
+            <span class="mode-desc" id="ao2-desc"></span>
+        </p>
+        <hr>
+        <p>CV in 1 &mdash;
+            <select id="ci1-mode">
+                <option value="0" selected>1V/oct pitch</option>
+                <option value="1">arpeggio root only</option>
+            </select>
+            <span class="mode-desc" id="ci1-desc"></span>
+        </p>
+        <hr>
+        <p>CV in 2 &mdash;
+            <select id="ci2-mode">
+                <option value="0" selected>damping</option>
+                <option value="1">wet/dry mix</option>
+            </select>
+            <span class="mode-desc" id="ci2-desc"></span>
+        </p>
+        <hr>
+        <p>CV out 1 &mdash;
+            <select id="cv1-mode">
+                <option value="0" selected>arpeggio pitch</option>
+                <option value="1">root pitch</option>
+                <option value="2">resonator envelope</option>
+                <option value="3">input envelope</option>
+                <option value="4">random S&amp;H</option>
+                <option value="5">pitch S&amp;H</option>
+                <option value="6">pitch track</option>
+            </select>
+            <span class="mode-desc" id="cv1-desc"></span>
+        </p>
+        <p id="arp-settings-row-1" style="margin-top:4px">
+            <select id="arp-pattern-1">
+                <option value="0" selected>up</option>
+                <option value="1">down</option>
+                <option value="2">up-down</option>
+                <option value="3">random</option>
+                <option value="4">pedal</option>
+                <option value="5">random walk</option>
+            </select>
+        pattern, chord period divided into
+            <select id="arp-division-1">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="4" selected>4</option>
+                <option value="8">8</option>
+            </select>
+        steps &nbsp; <label><input type="checkbox" id="arp-loop-1"> loop</label></p>
+        <p id="root-settings-row-1" style="margin-top:4px">
+            output the pitch of
+            <select id="root-string-1">
+                <option value="0" selected>1st tone (root)</option>
+                <option value="1">2nd tone</option>
+                <option value="2">3rd tone</option>
+                <option value="3">4th tone</option>
+            </select>
+        </p>
+        <hr>
+        <p>CV out 2 &mdash;
+            <select id="cv2-mode">
+                <option value="0">arpeggio pitch</option>
+                <option value="1">root pitch</option>
+                <option value="2">resonator envelope</option>
+                <option value="3" selected>input envelope</option>
+                <option value="4">random S&amp;H</option>
+                <option value="5">pitch S&amp;H</option>
+                <option value="6">pitch track</option>
+            </select>
+            <span class="mode-desc" id="cv2-desc"></span>
+        </p>
+        <p id="arp-settings-row-2" style="margin-top:4px">
+            <select id="arp-pattern-2">
+                <option value="0" selected>up</option>
+                <option value="1">down</option>
+                <option value="2">up-down</option>
+                <option value="3">random</option>
+                <option value="4">pedal</option>
+                <option value="5">random walk</option>
+            </select>
+        pattern, chord period divided into
+            <select id="arp-division-2">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="4" selected>4</option>
+                <option value="8">8</option>
+            </select>
+        steps &nbsp; <label><input type="checkbox" id="arp-loop-2"> loop</label></p>
+        <p id="root-settings-row-2" style="margin-top:4px">
+            output the pitch of
+            <select id="root-string-2">
+                <option value="0" selected>1st tone (root)</option>
+                <option value="1">2nd tone</option>
+                <option value="2">3rd tone</option>
+                <option value="3">4th tone</option>
+            </select>
+        </p>
+        <hr>
+        <p>Pulse in 1 &mdash;
+            <select id="pi1-mode">
+                <option value="0" selected>noise burst / pluck</option>
+                <option value="1">advance chord</option>
+                <option value="2">reset to first chord</option>
+            </select>
+            <span class="mode-desc" id="pi1-desc"></span>
+        </p>
+        <hr>
+        <p>Pulse in 2 &mdash;
+            <select id="pi2-mode">
+                <option value="0" selected>advance chord</option>
+                <option value="1">advance arp step</option>
+                <option value="2">noise burst / pluck</option>
+                <option value="3">reset to first chord</option>
+            </select>
+            <span class="mode-desc" id="pi2-desc"></span>
+        </p>
+        <hr>
+        <p>Pulse out 1 &mdash;
+            <select id="p1-mode">
+                <option value="0" selected>audio trigger</option>
+                <option value="1">tap tempo clock</option>
+                <option value="2">arpeggio clock</option>
+                <option value="3">onset detect</option>
+            </select>
+            <span class="mode-desc" id="p1-desc"></span>
+        </p>
+        <hr>
+        <p>Pulse out 2 &mdash;
+            <select id="p2-mode">
+                <option value="0" selected>chord change trigger</option>
+                <option value="1">tap tempo clock</option>
+                <option value="2">audio trigger</option>
+                <option value="3">arpeggio clock</option>
+                <option value="4">clock divider</option>
+                <option value="5">onset detect</option>
+            </select>
+            <span class="mode-desc" id="p2-desc"></span>
+        </p>
+        <p id="clk-div-row" style="margin-top:4px;display:none">
+            divide by
+            <select id="clk-div-ratio">
+                <option value="2" selected>2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="8">8</option>
+            </select>
+        </p>
+        <hr>
+        <button class="outputs-save-btn" id="outputs-save-btn" disabled>Save to device</button>
+    </section>
+
     <div id="piano-modal">
         <div class="piano-dialog">
             <h3 id="piano-chord-name">MAJOR</h3>
@@ -977,15 +1259,38 @@
         if (!("serial" in navigator)) {
             document.getElementById("noSerial").style.display = "block";
             document.getElementById("mainContent").style.display = "none";
+        } else {
+            // Detect physical unplug / device removal
+            navigator.serial.addEventListener("disconnect", (e) => {
+                if (port && e.target === port) handleDisconnect();
+            });
         }
 
         connectBtn.addEventListener("click", async () => {
             if (port) {
-                await disconnect();
+                await handleDisconnect();
             } else {
                 await connect();
             }
         });
+
+        function updateConnectionUI(connected) {
+            if (connected) {
+                statusEl.textContent = "Connected";
+                statusEl.className = "connected";
+                connectBtn.textContent = "Disconnect";
+                connectBtn.className = "connected";
+                sendBtn.disabled = getProgressionIds().length === 0;
+                document.getElementById('outputs-save-btn').disabled = false;
+            } else {
+                statusEl.textContent = "Disconnected";
+                statusEl.className = "";
+                connectBtn.textContent = "Connect USB";
+                connectBtn.className = "";
+                sendBtn.disabled = true;
+                document.getElementById('outputs-save-btn').disabled = true;
+            }
+        }
 
         async function connect() {
             try {
@@ -994,35 +1299,41 @@
 
                 writer = port.writable.getWriter();
                 const textDecoder = new TextDecoderStream();
-                port.readable.pipeTo(textDecoder.writable);
+                // pipeTo rejects when the port closes/drops — swallow to avoid an
+                // unhandled rejection; readLoop handles the UI side of the drop.
+                port.readable.pipeTo(textDecoder.writable).catch(() => {});
                 reader = textDecoder.readable.getReader();
 
-                statusEl.textContent = "Connected";
-                statusEl.className = "connected";
-                connectBtn.textContent = "Disconnect";
-                connectBtn.className = "connected";
-                sendBtn.disabled = false;
+                updateConnectionUI(true);
 
                 readLoop();
                 sendCommand("GET\n");
+                sendCommand("GETARP\n");
+                sendCommand("GETPAT\n");
+                sendCommand("GETLOOP\n");
+                sendCommand("GETROOT\n");
+                sendCommand("GETOUT\n");
+                sendCommand("GETDIV\n");
             } catch (e) {
                 console.error("Connection failed:", e);
             }
         }
 
-        async function disconnect() {
-            try {
-                if (reader) { await reader.cancel(); reader = null; }
-                if (writer) { writer.releaseLock(); writer = null; }
-                if (port) { await port.close(); port = null; }
-            } catch (e) {
-                console.error("Disconnect error:", e);
-            }
-            statusEl.textContent = "Disconnected";
-            statusEl.className = "";
-            connectBtn.textContent = "Connect USB";
-            connectBtn.className = "";
-            sendBtn.disabled = true;
+        // Single teardown path for both manual disconnect and unexpected drops
+        // (unplug, read/write error). Idempotent: safe to call from several places.
+        let disconnecting = false;
+        async function handleDisconnect() {
+            if (disconnecting || !port) return;
+            disconnecting = true;
+            try { if (reader) await reader.cancel(); } catch (e) {}
+            try { if (writer) writer.releaseLock(); } catch (e) {}
+            try { if (port) await port.close(); } catch (e) {}
+            reader = null;
+            writer = null;
+            port = null;
+            readBuffer = "";
+            updateConnectionUI(false);
+            disconnecting = false;
         }
 
         async function readLoop() {
@@ -1038,7 +1349,10 @@
                     }
                 }
             } catch (e) {
-                if (port) console.error("Read error:", e);
+                // read errored — connection lost
+            } finally {
+                // Stream ended (done) or threw: the connection is gone, reflect it in the UI
+                handleDisconnect();
             }
         }
 
@@ -1046,6 +1360,53 @@
             if (line.startsWith("PROG ")) {
                 const ids = line.substring(5).split(",").map(Number);
                 setProgression(ids);
+            } else if (line.startsWith("ARP ")) {
+                const val = parseInt(line.substring(4));
+                if (val === 1 || val === 2 || val === 4 || val === 8) {
+                    document.getElementById('arp-division-1').value = String(val);
+                    document.getElementById('arp-division-2').value = String(val);
+                }
+            } else if (line.startsWith("PAT ")) {
+                const val = parseInt(line.substring(4));
+                if (val >= 0 && val <= 5) {
+                    document.getElementById('arp-pattern-1').value = String(val);
+                    document.getElementById('arp-pattern-2').value = String(val);
+                }
+            } else if (line.startsWith("LOOP ")) {
+                const on = parseInt(line.substring(5)) === 1;
+                document.getElementById('arp-loop-1').checked = on;
+                document.getElementById('arp-loop-2').checked = on;
+            } else if (line.startsWith("ROOT ")) {
+                const val = parseInt(line.substring(5));
+                if (val >= 0 && val <= 3) {
+                    document.getElementById('root-string-1').value = String(val);
+                    document.getElementById('root-string-2').value = String(val);
+                }
+            } else if (line.startsWith("OUT ")) {
+                const vals = line.substring(4).split(",").map(Number);
+                if (vals.length >= 6) {
+                    document.getElementById('cv1-mode').value = String(vals[0]);
+                    document.getElementById('cv2-mode').value = String(vals[1]);
+                    document.getElementById('p1-mode').value = String(vals[2]);
+                    document.getElementById('p2-mode').value = String(vals[3]);
+                    document.getElementById('pi1-mode').value = String(vals[4]);
+                    document.getElementById('pi2-mode').value = String(vals[5]);
+                    if (vals.length >= 7) {
+                        document.getElementById('ao2-mode').value = String(vals[6]);
+                    }
+                    if (vals.length >= 8) {
+                        document.getElementById('ci1-mode').value = String(vals[7]);
+                    }
+                    if (vals.length >= 9) {
+                        document.getElementById('ci2-mode').value = String(vals[8]);
+                    }
+                    updateConditionalRows();
+                }
+            } else if (line.startsWith("DIV ")) {
+                const val = parseInt(line.substring(4));
+                if (val === 2 || val === 3 || val === 4 || val === 8) {
+                    document.getElementById('clk-div-ratio').value = String(val);
+                }
             } else if (line.startsWith("ERR ")) {
                 console.error("Device error:", line.substring(4));
             }
@@ -1054,7 +1415,12 @@
         async function sendCommand(cmd) {
             if (!writer) return;
             const encoder = new TextEncoder();
-            await writer.write(encoder.encode(cmd));
+            try {
+                await writer.write(encoder.encode(cmd));
+            } catch (e) {
+                // Write failed — device is gone; surface the lost connection
+                handleDisconnect();
+            }
         }
 
         sendBtn.addEventListener("click", (e) => {
@@ -1072,7 +1438,9 @@
         const clearBtn = document.getElementById('clearBtn');
 
         function updateClearBtn() {
-            clearBtn.disabled = progList.children.length === 0;
+            const empty = getProgressionIds().length === 0;
+            clearBtn.disabled = empty;
+            if (port) sendBtn.disabled = empty;
         }
 
         clearBtn.addEventListener('click', () => {
@@ -1328,6 +1696,180 @@
 
         // Initialize empty (will load from device on connect)
         setProgression([]);
+
+        // --- Tab switching ---
+        const tabChords = document.getElementById('tab-chords');
+        const tabOutputs = document.getElementById('tab-outputs');
+        const mainContent = document.getElementById('mainContent');
+        const outputsContent = document.getElementById('outputsContent');
+        const outputsSaveBtn = document.getElementById('outputs-save-btn');
+        const arpPattern1 = document.getElementById('arp-pattern-1');
+        const arpDivision1 = document.getElementById('arp-division-1');
+        const arpPattern2 = document.getElementById('arp-pattern-2');
+        const arpDivision2 = document.getElementById('arp-division-2');
+        const arpLoop1 = document.getElementById('arp-loop-1');
+        const arpLoop2 = document.getElementById('arp-loop-2');
+        const rootString1 = document.getElementById('root-string-1');
+        const rootString2 = document.getElementById('root-string-2');
+
+        // Keep both arp settings rows in sync
+        arpPattern1.addEventListener('change', () => { arpPattern2.value = arpPattern1.value; });
+        arpPattern2.addEventListener('change', () => { arpPattern1.value = arpPattern2.value; });
+        arpDivision1.addEventListener('change', () => { arpDivision2.value = arpDivision1.value; });
+        arpDivision2.addEventListener('change', () => { arpDivision1.value = arpDivision2.value; });
+        arpLoop1.addEventListener('change', () => { arpLoop2.checked = arpLoop1.checked; });
+        arpLoop2.addEventListener('change', () => { arpLoop1.checked = arpLoop2.checked; });
+        rootString1.addEventListener('change', () => { rootString2.value = rootString1.value; });
+        rootString2.addEventListener('change', () => { rootString1.value = rootString2.value; });
+
+        tabChords.addEventListener('click', () => {
+            tabChords.classList.add('active');
+            tabOutputs.classList.remove('active');
+            mainContent.style.display = '';
+            outputsContent.style.display = 'none';
+        });
+
+        tabOutputs.addEventListener('click', () => {
+            tabOutputs.classList.add('active');
+            tabChords.classList.remove('active');
+            mainContent.style.display = 'none';
+            outputsContent.style.display = '';
+        });
+
+        outputsSaveBtn.addEventListener('click', () => {
+            sendCommand('SETARP ' + arpDivision1.value + '\n');
+            sendCommand('SETPAT ' + arpPattern1.value + '\n');
+            sendCommand('SETLOOP ' + (arpLoop1.checked ? '1' : '0') + '\n');
+            sendCommand('SETROOT ' + rootString1.value + '\n');
+            const cv1 = document.getElementById('cv1-mode').value;
+            const cv2 = document.getElementById('cv2-mode').value;
+            const p1 = document.getElementById('p1-mode').value;
+            const p2 = document.getElementById('p2-mode').value;
+            const pi1 = document.getElementById('pi1-mode').value;
+            const pi2 = document.getElementById('pi2-mode').value;
+            const ao2 = document.getElementById('ao2-mode').value;
+            const ci1 = document.getElementById('ci1-mode').value;
+            const ci2 = document.getElementById('ci2-mode').value;
+            sendCommand('SETOUT ' + [cv1,cv2,p1,p2,pi1,pi2,ao2,ci1,ci2].join(',') + '\n');
+            sendCommand('SETDIV ' + document.getElementById('clk-div-ratio').value + '\n');
+        });
+
+        // Description text for each mode
+        const modeDescs = {
+            ci1: [
+                'CV controls string frequencies and CV outputs together (default)',
+                'CV only sets root for arpeggio/root/pitch CV outputs; strings stay at X knob pitch'
+            ],
+            ci2: [
+                'CV adds to Y knob for damping/decay control (default)',
+                'CV adds to Main knob for wet/dry mix control'
+            ],
+            cv1: [
+                'rotating chord tones as 1V/oct CV',
+                'fundamental pitch only, tracks pitch knob and CV input',
+                'tracks resonator output amplitude',
+                'tracks raw audio input amplitude',
+                'random voltage, new value on each chord change',
+                'samples the pitch CV (knob + CV In 1) on pulse input 1, holds until next trigger',
+                'YIN pitch detection on Audio In 1, 1V/oct output — patch to CV In 1 for pitch tracking'
+            ],
+            cv2: [
+                'rotating chord tones as 1V/oct CV',
+                'fundamental pitch only, tracks pitch knob and CV input',
+                'tracks resonator output amplitude',
+                'tracks raw audio input amplitude',
+                'random voltage, new value on each chord change',
+                'samples the pitch CV (knob + CV In 1) on pulse input 1, holds until next trigger',
+                'YIN pitch detection on Audio In 1, 1V/oct output — patch to CV In 1 for pitch tracking'
+            ],
+            ao2: [
+                'second audio channel, use with Audio out 1 for stereo mid/side pair',
+                'resonator envelope as CV',
+                'input envelope as CV'
+            ],
+            p1: [
+                'Schmitt trigger on input transients, 5ms pulse with 50ms lockout',
+                'free-running clock at the chord-change rate',
+                'pulse on each arpeggio step change',
+                'fires on note onsets, works with sustained and layered audio (~100ms min spacing)'
+            ],
+            p2: [
+                'fires when progression advances',
+                'free-running clock at the chord-change rate',
+                'Schmitt trigger on input transients, 5ms pulse with 50ms lockout',
+                'pulse on each arpeggio step change',
+                'divides pulse input 2 by a selectable ratio',
+                'fires on note onsets, works with sustained and layered audio (~100ms min spacing)'
+            ],
+            pi1: [
+                'excites all four strings with a decaying noise burst',
+                'steps to the next chord in the progression',
+                'jumps back to the first chord in the progression'
+            ],
+            pi2: [
+                'steps to the next chord in the progression',
+                'advances the arpeggio to the next chord tone',
+                'excites all four strings with a decaying noise burst',
+                'jumps back to the first chord in the progression'
+            ]
+        };
+
+        // Conditional row visibility and description updates
+        function updateConditionalRows() {
+            const ci1 = document.getElementById('ci1-mode').value;
+            const ci2 = document.getElementById('ci2-mode').value;
+            const cv1 = document.getElementById('cv1-mode').value;
+            const cv2 = document.getElementById('cv2-mode').value;
+            const ao2 = document.getElementById('ao2-mode').value;
+            const p1 = document.getElementById('p1-mode').value;
+            const p2 = document.getElementById('p2-mode').value;
+            const pi1 = document.getElementById('pi1-mode').value;
+            const pi2 = document.getElementById('pi2-mode').value;
+
+            // Show arp settings under each CV output that has arpeggio selected
+            document.getElementById('arp-settings-row-1').style.display = (cv1 === '0') ? '' : 'none';
+            document.getElementById('arp-settings-row-2').style.display = (cv2 === '0') ? '' : 'none';
+            // Show root-string selector under each CV output set to root pitch
+            document.getElementById('root-settings-row-1').style.display = (cv1 === '1') ? '' : 'none';
+            document.getElementById('root-settings-row-2').style.display = (cv2 === '1') ? '' : 'none';
+            // Show clock divider ratio when P2 is set to clock divider
+            document.getElementById('clk-div-row').style.display = (p2 === '4') ? '' : 'none';
+
+            // Update description text
+            document.getElementById('ci1-desc').textContent = modeDescs.ci1[ci1] || '';
+            document.getElementById('ci2-desc').textContent = modeDescs.ci2[ci2] || '';
+            document.getElementById('cv1-desc').textContent = modeDescs.cv1[cv1] || '';
+            document.getElementById('cv2-desc').textContent = modeDescs.cv2[cv2] || '';
+            document.getElementById('ao2-desc').textContent = modeDescs.ao2[ao2] || '';
+            document.getElementById('p1-desc').textContent = modeDescs.p1[p1] || '';
+            document.getElementById('p2-desc').textContent = modeDescs.p2[p2] || '';
+            document.getElementById('pi1-desc').textContent = modeDescs.pi1[pi1] || '';
+            document.getElementById('pi2-desc').textContent = modeDescs.pi2[pi2] || '';
+        }
+
+        function onModeChange(e) {
+            updateConditionalRows();
+            if (window.triggerResonance) {
+                const rect = e.target.getBoundingClientRect();
+                window.triggerResonance(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            }
+        }
+
+        document.getElementById('ci1-mode').addEventListener('change', onModeChange);
+        document.getElementById('ci2-mode').addEventListener('change', onModeChange);
+        document.getElementById('cv1-mode').addEventListener('change', onModeChange);
+        document.getElementById('cv2-mode').addEventListener('change', onModeChange);
+        document.getElementById('ao2-mode').addEventListener('change', onModeChange);
+        document.getElementById('p1-mode').addEventListener('change', onModeChange);
+        document.getElementById('p2-mode').addEventListener('change', onModeChange);
+        document.getElementById('pi1-mode').addEventListener('change', onModeChange);
+        document.getElementById('pi2-mode').addEventListener('change', onModeChange);
+        document.getElementById('arp-pattern-1').addEventListener('change', onModeChange);
+        document.getElementById('arp-division-1').addEventListener('change', onModeChange);
+        document.getElementById('arp-pattern-2').addEventListener('change', onModeChange);
+        document.getElementById('arp-division-2').addEventListener('change', onModeChange);
+        document.getElementById('clk-div-ratio').addEventListener('change', onModeChange);
+        updateConditionalRows();
 
         // ========================================
         // p5.js String Resonance Visualization

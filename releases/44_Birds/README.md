@@ -1,10 +1,6 @@
 # Birds
 
-Card 44. Version 0.5.0.
-
 Birds is a birdsong card and sequencer. It is not super accurate but sounds fairly bird-ish, with clock input and two channel CV/pulse sequencer. 
-
-[![Birds demo video](https://img.youtube.com/vi/LJqv-TFYq6Q/hqdefault.jpg)](https://youtu.be/LJqv-TFYq6Q)
 
 Birds was inspired by Hunter Adams' [Synthesising Birdsong with the RP2040 ](https://vanhunteradams.com/Pico/Birds/Birdsong.html) - Hunter was a big help during the early stages of designing the Workshop System so I'm very grateful for that. 
 
@@ -45,24 +41,3 @@ Untested suggestions from the coding robot:
 - Patch Pulse Out 1 into Pulse In 1. The first bird clocks the whole card, so the conversation starts to trip over itself. Take Audio Out 2 as the main voice and use CV Out 1 to open a filter.
 - Clock Pulse In 1 from a slow divider. Send CV Out 1 and CV Out 2 to two oscillators, not to pitch this time but to wavefolder amount or filter frequency. Keep the audio outputs in the mix, quietly, like the original birds behind the modular ones.
 - Put Y under a slow triangle LFO. The same locked pattern becomes territorial at one end and half-asleep at the other.
-
-## Building
-
-This is a Pico SDK / ComputerCard C++ project.
-
-```sh
-cmake -S . -B build
-cmake --build build
-```
-
-The UF2 appears at `build/bird_card.uf2`.
-
-## Files
-
-`main.cpp` is the card.
-
-`ComputerCard.h` is Chris Johnson's Workshop Computer helper library.
-
-`info.yaml` is the Workshop Computer release metadata.
-
-`HANDOVER.md` records the design thinking for version 0.5.0.

@@ -42,7 +42,7 @@ static constexpr uint8_t kMidiStop = 0xFC;
 static constexpr uint8_t kMidiNoteOff = 0x80;
 static constexpr uint8_t kMidiNoteOn = 0x90;
 static constexpr uint8_t kMidiChannel = 0;
-static constexpr uint8_t kMidiClocksPerStep = 6;
+static constexpr uint8_t kMidiClocksPerStep = 12;
 
 volatile uint8_t gMidiClockTicksPending = 0;
 volatile uint8_t gMidiStartPending = 0;
@@ -123,11 +123,19 @@ public:
     uint32_t internalClockPeriod = 4000;
 
     bool externalClockActive = false;
-    uint32_t externalClockTimeout = 0;
+    uint32_t pulseClockTimeout = 0;
+    uint32_t midiClockTimeout = 0;
+    uint32_t lastPulseClockSample = 0;
+    uint32_t lastMidiStepSample = 0;
+    uint32_t pulseClockPeriod = 0xFFFFFFFF;
+    uint32_t midiClockPeriod = 0xFFFFFFFF;
     bool midiClockRunning = false;
     uint8_t midiClockDivider = 0;
     bool midiNoteGateActive = false;
     uint8_t midiLastNote = 48;
+    uint32_t midiNoteOffSample = 0;
+    uint32_t midiNoteOnSample = 0;
+    uint32_t selectedClockPeriod = 4000;
 
     int32_t tension = 64;
     bool tensionRising = true;
@@ -515,6 +523,107 @@ public:
         }
     }
 
+    uint32_t ActiveStepPeriod() const
+    {
+        if(selectedClockPeriod > 0)
+        {
+            return selectedClockPeriod;
+        }
+
+        return internalClockPeriod;
+    }
+
+    uint8_t MidiVelocity() const
+    {
+        int32_t velocity = 28 + (currentEnergy >> 1) + (tension >> 2);
+
+        if(velocity > 127)
+        {
+            velocity = 127;
+        }
+
+        if(velocity < 24)
+        {
+            velocity = 24;
+        }
+
+        return (uint8_t)velocity;
+    }
+
+    uint32_t MidiNoteLength() const
+    {
+        uint32_t stepPeriod = ActiveStepPeriod();
+        uint32_t shape = (uint32_t)(80 + (currentEnergy >> 1) + (tension >> 2));
+
+        if(shape > 240)
+        {
+            shape = 240;
+        }
+
+        uint32_t noteLength = (stepPeriod * shape) >> 8;
+
+        if(noteLength < 120)
+        {
+            noteLength = 120;
+        }
+
+        return noteLength;
+    }
+
+    bool ShouldRetriggerMidiNote()
+    {
+        if(!midiNoteGateActive)
+        {
+            return true;
+        }
+
+        uint32_t minGap = ActiveStepPeriod() >> 3;
+
+        if(minGap < 120)
+        {
+            minGap = 120;
+        }
+
+        if((sampleCounter - midiNoteOnSample) < minGap)
+        {
+            return false;
+        }
+
+        uint32_t retriggerChance = (uint32_t)((currentEnergy >> 1) + (tension >> 2));
+
+        if(retriggerChance > 220)
+        {
+            retriggerChance = 220;
+        }
+
+        return (Random() & 255) < retriggerChance;
+    }
+
+    void TriggerMidiNote()
+    {
+        if(!ShouldRetriggerMidiNote())
+        {
+            return;
+        }
+
+        if(midiNoteGateActive)
+        {
+            QueueMidiMessage(kMidiNoteOff | kMidiChannel,
+                             midiLastNote,
+                             0);
+        }
+
+        midiLastNote = (uint8_t)currentMIDINote;
+
+        QueueMidiMessage(kMidiNoteOn | kMidiChannel,
+                         midiLastNote,
+                         MidiVelocity());
+
+        midiNoteGateActive = true;
+        midiNoteOnSample = sampleCounter;
+        midiNoteOffSample = sampleCounter + MidiNoteLength();
+    }
+
     bool ConsumeMidiClock()
     {
         bool clockEvent = false;
@@ -526,16 +635,13 @@ public:
             midiClockDivider = 0;
             currentStep = -1;
             clockCounter = 0;
-            externalClockActive = true;
-            externalClockTimeout = 48000;
+            lastMidiStepSample = sampleCounter;
         }
 
         if(gMidiContinuePending > 0)
         {
             gMidiContinuePending--;
             midiClockRunning = true;
-            externalClockActive = true;
-            externalClockTimeout = 48000;
         }
 
         if(gMidiStopPending > 0)
@@ -543,8 +649,8 @@ public:
             gMidiStopPending--;
             midiClockRunning = false;
             midiClockDivider = 0;
-            externalClockActive = false;
-            externalClockTimeout = 0;
+            midiClockTimeout = 0;
+            midiClockPeriod = 0xFFFFFFFF;
 
             if(midiNoteGateActive)
             {
@@ -564,14 +670,15 @@ public:
                 continue;
             }
 
-            externalClockActive = true;
-            externalClockTimeout = 48000;
+            midiClockTimeout = 48000;
 
             midiClockDivider++;
 
             if(midiClockDivider >= kMidiClocksPerStep)
             {
                 midiClockDivider = 0;
+                midiClockPeriod = sampleCounter - lastMidiStepSample;
+                lastMidiStepSample = sampleCounter;
                 clockEvent = true;
                 break;
             }
@@ -582,20 +689,8 @@ public:
 
     void UpdateMidiNoteOutput()
     {
-        if(pulse1 && !midiNoteGateActive)
-        {
-            midiLastNote = (uint8_t)currentMIDINote;
-
-            uint8_t velocity =
-                (uint8_t)(40 + ((currentEnergy * 87) >> 8));
-
-            QueueMidiMessage(kMidiNoteOn | kMidiChannel,
-                             midiLastNote,
-                             velocity);
-
-            midiNoteGateActive = true;
-        }
-        else if(!pulse1 && midiNoteGateActive)
+        if(midiNoteGateActive &&
+           ((int32_t)(sampleCounter - midiNoteOffSample) >= 0))
         {
             QueueMidiMessage(kMidiNoteOff | kMidiChannel,
                              midiLastNote,
@@ -633,23 +728,57 @@ public:
 
         bool freeze = PulseIn2();
 
-        bool clockEvent = ConsumeMidiClock();
+        bool midiClockEvent = ConsumeMidiClock();
+        bool pulseClockEvent = false;
 
         if(PulseIn1RisingEdge())
         {
-            externalClockActive = true;
-            externalClockTimeout = 48000;
-            clockEvent = true;
+            pulseClockPeriod = sampleCounter - lastPulseClockSample;
+            lastPulseClockSample = sampleCounter;
+            pulseClockTimeout = 48000;
+            pulseClockEvent = true;
         }
 
-        if(externalClockTimeout > 0)
+        if(pulseClockTimeout > 0)
         {
-            externalClockTimeout--;
+            pulseClockTimeout--;
+        }
+
+        if(midiClockTimeout > 0)
+        {
+            midiClockTimeout--;
+        }
+
+        bool pulseClockActive = pulseClockTimeout > 0;
+        bool midiClockActive =
+            midiClockRunning &&
+            (midiClockTimeout > 0);
+
+        bool preferPulseClock =
+            pulseClockActive &&
+            (!midiClockActive ||
+             (pulseClockPeriod < midiClockPeriod));
+
+        bool clockEvent = false;
+
+        if(preferPulseClock)
+        {
+            clockEvent = pulseClockEvent;
+            selectedClockPeriod = pulseClockPeriod;
+        }
+        else if(midiClockActive)
+        {
+            clockEvent = midiClockEvent;
+            selectedClockPeriod = midiClockPeriod;
         }
         else
         {
-            externalClockActive = false;
+            selectedClockPeriod = internalClockPeriod;
         }
+
+        externalClockActive =
+            pulseClockActive ||
+            midiClockActive;
 
         if(!externalClockActive)
         {
@@ -687,6 +816,11 @@ public:
         if(clockEvent)
         {
             AdvanceStep(density, mode);
+
+            if(pulse1)
+            {
+                TriggerMidiNote();
+            }
             
         // Update S+H only when Pulse2 fires
             

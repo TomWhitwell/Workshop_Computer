@@ -1,5 +1,133 @@
-Description: A card for playing and manipulating samples with tempo control, timestretch with browser-based audio loading (infinitedigits.com/stretchcore/)
-Language: Pico SDK
+draft: false
+Name: stretchcore
+short-description: Mono sample-loop player with tempo control, timestretch, position jumps, and browser-based sample loading
+summary: |
+  stretchcore plays uploaded mono sample loops with internal or external tempo control,
+  granular timestretch, position jumps, sample selection, and two independent slow random
+  CV outputs. Its Web Serial sample manager can preview, crop, read back, and replace the
+  sample bank without reflashing the firmware.
+Language: C++ (Pico SDK)
 Creator: Infinite Digits
-Version: 1.0
-Status: Ready%
+Version: "1.0"
+Status: Ready
+License: MIT
+Editor: https://infinitedigits.co/stretchcore/
+date-created: 2026-06-02
+date-updated: 2026-07-02
+demo-link: https://www.youtube.com/watch?v=2qQBaFxhDwc
+
+contact:
+  email: zack@infinitedigits.co
+
+tags:
+  - sampler
+  - looper
+  - timestretch
+  - web-serial
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Timestretch Mod
+      description: Adds bipolar modulation to the Main knob's timestretch amount when patched
+      type: cv
+    - id: CVIn2
+      name: Position Offset
+      description: Adds a bipolar offset to the Y position when Pulse In 2 triggers a jump
+      type: cv
+    - id: PulseIn1
+      name: External Tempo Clock
+      description: Two-pulses-per-quarter-note tempo clock; overrides the X knob while active
+      type: pulse
+    - id: PulseIn2
+      name: Jump Trigger
+      description: Jumps playback to the Y position, offset by CV In 2 when patched
+      type: pulse
+  outputs:
+    - id: AudioOut1
+      name: Loop Output 1
+      description: Mono playback of the selected sample loop
+      type: audio
+    - id: AudioOut2
+      name: Loop Output 2
+      description: Duplicate mono playback of the selected sample loop
+      type: audio
+    - id: CVOut1
+      name: Random CV 1
+      description: Smooth slow bipolar random modulation output
+      type: cv
+    - id: CVOut2
+      name: Random CV 2
+      description: Independent smooth slow bipolar random modulation output
+      type: cv
+    - id: PulseOut1
+      name: Jump Pulse
+      description: 20 ms trigger emitted when the switch is moved down to jump playback
+      type: pulse
+    - id: PulseOut2
+      name: Select Pulse
+      description: 20 ms trigger emitted when the switch is moved up to select a sample
+      type: pulse
+
+controls:
+  switch:
+    up:
+      name: Select Sample
+      description: Selects a sample according to the Y knob position and fires Pulse Out 2
+    middle:
+      name: Loop Playback
+      description: Normal playback; Main controls timestretch, X controls internal tempo, and Y sets the next jump position
+    down:
+      name: Jump Position
+      description: Jumps playback to the position selected by Y and fires Pulse Out 1
+  knobs:
+    - main:
+        name: Timestretch
+        description: Sets the timestretch amount; CV In 1 adds bipolar modulation when patched
+      x:
+        name: Internal Tempo
+        description: Sets playback tempo from 100 to 200 BPM when no external clock is active
+    - when: { z: middle }
+      y:
+        name: Jump Position
+        description: Sets the position used by the next switch-down or Pulse In 2 jump
+    - when: { z: up }
+      y:
+        name: Sample Select
+        description: Selects one of the uploaded samples according to knob position
+    - when: { z: down }
+      y:
+        name: Jump Position
+        description: Selects the loop position to jump to
+
+  # certainty: low — README documents overall feedback; per-LED roles are inferred from update_leds() in src/main.cpp
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Playhead / Clock Edge
+          description: First playhead segment in free-run mode; remains lit as the left edge marker with external clock
+        - id: LED1
+          name: Playhead Segment 2
+          description: Playhead segment in free-run mode; first inner position segment with external clock
+        - id: LED2
+          name: Playhead Segment 3
+          description: Playhead segment in free-run mode; second inner position segment with external clock
+        - id: LED3
+          name: Playhead Segment 4
+          description: Playhead segment in free-run mode; third inner position segment with external clock
+        - id: LED4
+          name: Playhead Segment 5
+          description: Playhead segment in free-run mode; fourth inner position segment with external clock
+        - id: LED5
+          name: Playhead / Clock Edge
+          description: Final playhead segment in free-run mode; remains lit as the right edge marker with external clock
+
+host:
+  usb:
+    - name: stretchcore Sample Manager
+      role: editor
+      description: Browser loader for previewing, cropping, reading back, and uploading sample banks over Web Serial
+  notes: |
+    The firmware exposes its sample manager over USB serial. Sample banks contain up to
+    64 mono samples stored in flash as 48 kHz signed 8-bit PCM.

@@ -1,0 +1,13 @@
+# CMake / firmware build
+build/
+
+# Host test artifacts
+tests/run
+tests/*.out
+tests/*.dSYM/
+
+# Editor / OS
+.DS_Store
+*.swp
+compile_commands.json
+.cache/

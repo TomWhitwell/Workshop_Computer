@@ -1,0 +1,2240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Clockwork</title>
+    <meta name="description" content="Clockwork timing generator control interface.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%2309090b' stroke='%23c9a227' stroke-width='6'/%3E%3Cg stroke='%23c9a227' stroke-width='5' stroke-linecap='round'%3E%3Cline x1='50' y1='4' x2='50' y2='12' /%3E%3Cline x1='50' y1='88' x2='50' y2='96' /%3E%3Cline x1='4' y1='50' x2='12' y2='50' /%3E%3Cline x1='88' y1='50' x2='96' y2='50' /%3E%3Cline x1='17.68' y1='17.68' x2='23.33' y2='23.33'/%3E%3Cline x1='76.67' y1='76.67' x2='82.32' y2='82.32'/%3E%3Cline x1='82.32' y1='17.68' x2='76.67' y2='23.33'/%3E%3Cline x1='23.33' y1='76.67' x2='17.68' y2='82.32'/%3E%3C/g%3E%3Cline x1='50' y1='50' x2='50' y2='25' stroke='%23c9a227' stroke-width='6' stroke-linecap='round'/%3E%3Cline x1='50' y1='50' x2='70' y2='50' stroke='%23c9a227' stroke-width='5' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%23c9a227'/%3E%3C/svg%3E">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Inter:wght@300;400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ─── Base (dark) ─── */
+        :root {
+            --bg: #09090b;
+            --card-bg: #111113;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-sub: rgba(255, 255, 255, 0.03);
+            --text-primary: #f4f4f5;
+            --text-secondary: #d4d4d8;
+            --text-muted: #8e8e93;
+            --slider-track: #27272a;
+            --accent: #c9a227;
+            --accent-glow: rgba(201, 162, 39, 0.22);
+            --radius: 10px;
+            --safe-b: env(safe-area-inset-bottom, 0px);
+        }
+
+        /* ─── Light mode ─── */
+        [data-mode="light"] {
+            --bg: #f1f1f3;
+            --card-bg: #ffffff;
+            --border: rgba(0, 0, 0, 0.09);
+            --border-sub: rgba(0, 0, 0, 0.05);
+            --text-primary: #18181b;
+            --text-secondary: #3f3f46;
+            --text-muted: #71717a;
+            --slider-track: #e4e4e7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            min-height: 100%;
+            padding: 18px 16px calc(18px + var(--safe-b));
+            overflow-x: hidden;
+            letter-spacing: -0.01em;
+        }
+
+        /* ─── Header ─────────────────────────────────────────── */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .brand {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
+            text-shadow: 0 0 14px var(--accent-glow);
+        }
+
+        .conn-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ─── Mode & Fullscreen toggles ─── */
+        .mode-toggle,
+        .fullscreen-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            transition: all 0.15s;
+            user-select: none;
+            background: transparent;
+            flex-shrink: 0;
+            padding: 0;
+        }
+
+        .mode-toggle:hover,
+        .fullscreen-toggle:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .status-dot.online {
+            background: var(--accent);
+            box-shadow: 0 0 7px var(--accent-glow);
+        }
+
+        button {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 500;
+            padding: 5px 14px;
+            border-radius: 999px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            transition: all 0.15s ease;
+            touch-action: manipulation;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+        }
+
+        button.connected {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ─── Play/stop button ─── */
+        .btn-play {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .btn-play:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-play.playing {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Separator */
+        .hdr-sep {
+            width: 1px;
+            height: 14px;
+            background: var(--border);
+            flex-shrink: 0;
+        }
+
+        /* ─── Top bar ─── */
+        .top-bar {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            flex-wrap: wrap;
+            min-height: 46px;
+        }
+
+        /* BPM and global sliders section */
+        .g-bpm,
+        .g-swing,
+        .g-humanize {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 14px 0 14px;
+            border-right: 1px solid var(--border);
+            flex-shrink: 0;
+            align-self: stretch;
+        }
+
+        .sliders-group {
+            display: flex;
+            align-items: stretch;
+        }
+
+        .sliders-row {
+            display: contents;
+        }
+
+        .bpm-num {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 400;
+            color: var(--text-primary);
+            min-width: 38px;
+            letter-spacing: -0.02em;
+            line-height: 1;
+        }
+
+        .bpm-unit {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.58rem;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            line-height: 1;
+        }
+
+        .bpm-col {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: var(--slider-track);
+            height: 2px;
+            outline: none;
+            border-radius: 1px;
+            cursor: pointer;
+            width: 80px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            transition: transform 0.12s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+        }
+
+        input[type="range"]:active::-webkit-slider-thumb {
+            transform: scale(1.3);
+        }
+
+        /* Settings dropdowns */
+        .g-selects {
+            display: flex;
+            align-items: stretch;
+        }
+
+        .gsc {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 1px;
+            padding: 0 14px;
+            border-right: 1px solid var(--border);
+        }
+
+        .gsc-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.58rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        select {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            outline: none;
+            cursor: pointer;
+            padding: 0;
+            -webkit-appearance: none;
+        }
+
+        select:focus {
+            color: var(--accent);
+        }
+
+        /* Preset section */
+        .g-presets {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            padding: 0 0 0 14px;
+        }
+
+        .slot-pills {
+            display: flex;
+            gap: 3px;
+        }
+
+        .slot-pill {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 600;
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            letter-spacing: 0;
+            transition: all 0.15s;
+        }
+
+        .slot-pill:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+        }
+
+        .slot-pill.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(201, 162, 39, 0.08);
+        }
+
+        .preset-btns {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-p {
+            font-size: 0.66rem;
+            padding: 3px 10px;
+        }
+
+        .btn-p.save:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-p.load:hover {
+            border-color: #60a5fa;
+            color: #60a5fa;
+        }
+
+        .btn-p.rst {
+            color: #f87171;
+            border-color: rgba(248, 113, 113, 0.25);
+        }
+
+        .btn-p.rst:hover {
+            border-color: #f87171;
+            background: rgba(248, 113, 113, 0.06);
+        }
+
+        @media (max-width: 960px) {
+            .top-bar {
+                padding: 10px 14px;
+                display: grid;
+                grid-template-columns: auto 1fr;
+                gap: 10px;
+                align-items: center;
+                min-height: auto;
+            }
+
+            .btn-play {
+                grid-column: 1;
+                grid-row: 1;
+                margin-right: 0 !important;
+                align-self: center !important;
+            }
+
+            .sliders-group {
+                grid-column: 2;
+                grid-row: 1;
+                display: flex;
+                flex-direction: row;
+                width: 100%;
+                gap: 8px;
+            }
+
+            .g-bpm,
+            .g-swing,
+            .g-humanize {
+                flex: 1;
+                width: auto;
+                border-right: none;
+                padding: 4px 6px;
+            }
+
+            .sliders-row {
+                display: contents;
+            }
+
+            .g-selects {
+                grid-column: 1 / span 2;
+                grid-row: 2;
+                width: 100%;
+                border-top: 1px solid var(--border);
+                border-bottom: 1px solid var(--border);
+                padding: 10px 0;
+                margin-top: 0;
+                display: flex;
+                gap: 10px;
+            }
+
+            .gsc {
+                flex: 1;
+                padding: 0;
+                border-right: none;
+            }
+
+            .g-presets {
+                grid-column: 1 / span 2;
+                grid-row: 3;
+                width: 100%;
+                padding: 10px 0 0;
+                margin-left: 0;
+                justify-content: space-between;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .top-bar {
+                grid-template-columns: auto 1fr;
+                grid-template-rows: repeat(4, auto);
+                gap: 8px 12px;
+                padding: 12px 14px;
+            }
+
+            .btn-play {
+                grid-column: 1;
+                grid-row: 1 / span 2;
+                height: 100%;
+                min-height: 90px;
+                align-self: stretch !important;
+                justify-content: center;
+            }
+
+            .sliders-group {
+                grid-column: 2;
+                grid-row: 1 / span 2;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .sliders-row {
+                display: contents;
+            }
+
+            .g-bpm,
+            .g-swing,
+            .g-humanize {
+                width: 100%;
+                border-right: none;
+                padding: 2px 0;
+            }
+
+            .g-swing input[type="range"],
+            .g-humanize input[type="range"] {
+                width: 100% !important;
+                flex: 1;
+            }
+
+            .g-selects {
+                grid-column: 1 / span 2;
+                grid-row: 3;
+                margin-top: 4px;
+                padding: 8px 0;
+                gap: 8px;
+            }
+
+            .g-presets {
+                grid-column: 1 / span 2;
+                grid-row: 4;
+                flex-direction: column;
+                gap: 10px;
+                padding: 8px 0 0;
+                align-items: stretch;
+            }
+
+            .slot-pills {
+                justify-content: space-between;
+                width: 100%;
+            }
+
+            .preset-btns {
+                justify-content: space-between;
+                width: 100%;
+            }
+
+            .preset-btns button {
+                flex: 1;
+                text-align: center;
+            }
+        }
+
+        /* ─── Channels grid ──────────────────────────────────── */
+        /*
+         * Desktop (≥960px): 3-col, Audio left / CV mid / Gate right
+         *   card-0 → col1 row1, card-1 → col1 row2
+         *   card-2 → col2 row1, card-3 → col2 row2
+         *   card-4 → col3 row1, card-5 → col3 row2
+         *
+         * Mobile / Tablet (<960px): 2-col normal order
+         */
+        .channels-grid {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: 1fr;
+        }
+
+        @media (min-width: 600px) {
+            .channels-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (min-width: 960px) {
+            body {
+                padding: 24px 24px;
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+
+            .channels-grid {
+                grid-template-columns: repeat(3, 1fr);
+                grid-template-rows: repeat(2, auto);
+            }
+
+            #card-0 {
+                grid-column: 1;
+                grid-row: 1;
+            }
+
+            #card-1 {
+                grid-column: 1;
+                grid-row: 2;
+            }
+
+            #card-2 {
+                grid-column: 2;
+                grid-row: 1;
+            }
+
+            #card-3 {
+                grid-column: 2;
+                grid-row: 2;
+            }
+
+            #card-4 {
+                grid-column: 3;
+                grid-row: 1;
+            }
+
+            #card-5 {
+                grid-column: 3;
+                grid-row: 2;
+            }
+        }
+
+            /* Fix: BPM slider stretches to fill on mobile (default width:80px is too narrow) */
+        @media (max-width: 600px) {
+            .g-bpm input[type="range"] {
+                flex: 1;
+                width: 100% !important;
+            }
+        }
+
+        /* ─── Channel card ───────────────────────────────────── */
+        .channel-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .channel-card.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .top-bar.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .ch-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px 0;
+        }
+
+        .ch-name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-primary);
+        }
+
+        .ch-badge {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.6rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 2px 7px;
+            border-radius: 4px;
+        }
+
+        /* ─── Canvas ─────────────────────────────────────────── */
+        .screen-box {
+            padding: 7px 14px 0;
+            width: 100%;
+        }
+
+        .screen-canvas {
+            width: 100%;
+            height: 72px;
+            display: block;
+        }
+
+        @media (min-width: 960px) {
+            .screen-canvas {
+                height: 88px;
+            }
+        }
+
+        /* ─── Param container & groups ──────────────────────── */
+        .params-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tier-group {
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tier-grid {
+            display: grid;
+            grid-template-columns: 0.8fr 1.1fr 1.1fr;
+        }
+
+        .advanced-grid {
+            grid-template-columns: 0.8fr 1.1fr 1.1fr 1fr !important;
+        }
+
+        .p {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 8px 10px 9px;
+            border-right: 1px solid var(--border-sub);
+        }
+
+        .p:last-child {
+            border-right: none;
+        }
+
+        .tier-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.005);
+        }
+
+        .p-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.58rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .p-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .p-val {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .p-val select {
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            width: 100%;
+            min-width: 0;
+        }
+
+        .p-val input[type="range"] {
+            flex: 1;
+            min-width: 0;
+            width: 100%;
+        }
+
+        .val-num {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            min-width: 30px;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .btn-sm {
+            font-size: 0.64rem;
+            padding: 3px 11px;
+        }
+
+        .btn-sm.btn-rand:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ─── Toast ──────────────────────────────────────────── */
+        #toast {
+            position: fixed;
+            bottom: calc(20px + var(--safe-b));
+            left: 50%;
+            transform: translateX(-50%) translateY(60px);
+            background: #1c1c1f;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 7px 18px;
+            border-radius: 999px;
+            z-index: 200;
+            opacity: 0;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 500;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        #toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="brand">Clockwork</div>
+        <div class="conn-row">
+            <button class="fullscreen-toggle" id="fullscreenToggle" title="Toggle Fullscreen"
+                onclick="toggleFullscreen()">⛶</button>
+            <button class="mode-toggle" id="modeToggle" title="Toggle light/dark" onclick="toggleMode()">☽</button>
+            <div class="status-dot" id="statusDot"></div>
+            <button id="btnConnect" onclick="toggleConnect()">Connect</button>
+        </div>
+    </header>
+
+    <!-- TOP BAR: global settings + presets in one row -->
+    <div class="top-bar">
+        <!-- Play/Stop -->
+        <button class="btn-play playing" id="btnPlay" onclick="togglePlay()"
+            style="align-self:center; margin-right:14px;">
+            <span id="playLabel">Stop</span>
+        </button>
+        <!-- Sliders Group (Tempo, Swing, Humanize) -->
+        <div class="sliders-group">
+            <!-- BPM -->
+            <div class="g-bpm">
+                <div class="bpm-col">
+                    <span class="bpm-unit">BPM</span>
+                    <span class="bpm-num" id="bpmVal">120</span>
+                </div>
+                <input type="range" id="globalBpm" min="40" max="250" value="120" oninput="changeGlobal(0,this.value)">
+                <span id="externalSyncDisplay"
+                    style="display: none; font-family:'Outfit',sans-serif; font-size:0.65rem; font-weight:600; color:var(--accent); text-transform:uppercase; border: 1px solid var(--accent); padding: 4px 10px; border-radius: 12px; background: rgba(201, 162, 39, 0.08); text-shadow: 0 0 10px var(--accent-glow); letter-spacing: 0.05em; white-space: nowrap;">MIDI
+                    CLOCK</span>
+            </div>
+            <!-- Swing & Humanize Row -->
+            <div class="sliders-row">
+                <!-- Swing -->
+                <div class="g-swing">
+                    <div class="bpm-col">
+                        <span class="bpm-unit">Swing</span>
+                        <span class="bpm-num" id="swingVal" style="min-width:32px;">0%</span>
+                    </div>
+                    <input type="range" id="globalSwing" min="0" max="50" value="0" style="width: 50px;"
+                        oninput="changeGlobal(4,this.value)">
+                </div>
+                <!-- Humanize -->
+                <div class="g-humanize">
+                    <div class="bpm-col">
+                        <span class="bpm-unit">Randomize</span>
+                        <span class="bpm-num" id="humanizeVal" style="min-width:32px;">0%</span>
+                    </div>
+                    <input type="range" id="globalHumanize" min="0" max="100" value="0" style="width: 50px;"
+                        oninput="changeGlobal(5,this.value)">
+                </div>
+            </div>
+        </div>
+        <!-- Settings dropdowns -->
+        <div class="g-selects">
+            <div class="gsc">
+                <span class="gsc-label">Ext PPQN</span>
+                <select id="globalPpqn" onchange="changeGlobal(3,this.value)">
+                    <option value="1">1</option>
+                    <option value="4" selected>4</option>
+                    <option value="24">24</option>
+                    <option value="48">48</option>
+                </select>
+            </div>
+            <div class="gsc">
+                <span class="gsc-label">Seed</span>
+                <select id="globalSeed" onchange="changeGlobal(6,this.value)">
+                </select>
+            </div>
+            <div class="gsc" style="border-right:none;">
+                <span class="gsc-label">Pulse 2</span>
+                <select id="globalReset" onchange="changeGlobal(2,this.value)">
+                    <option value="0">Reset</option>
+                    <option value="1">Run Gate</option>
+                </select>
+            </div>
+        </div>
+        <!-- Presets -->
+        <div class="g-presets">
+            <div class="slot-pills" id="slotPills"></div>
+            <div class="preset-btns">
+                <button class="btn-p load" onclick="loadPreset()">Load</button>
+                <button class="btn-p save" onclick="savePreset()">Save</button>
+                <button class="btn-p rst" onclick="resetAllChannels()">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHANNELS -->
+    <div class="channels-grid" id="channelsGrid"></div>
+
+    <!-- TOAST -->
+    <div id="toast"></div>
+
+    <script>
+        // WebMIDI variables
+        let midiAccess = null;
+        let midiInput = null;
+        let midiOutput = null;
+        let keepAliveTimer = null;
+        let currentSyncSource = 0;
+        let currentExtPpqn = 4;
+
+        // ── Constants ──────────────────────────────────────────────────────
+        const CLOCK_MODIFIERS = ["/2048", "/1024", "/768", "/512", "/384", "/256", "/192", "/128", "/96", "/64", "/48", "/32", "/24", "/16", "/12", "/8", "/6", "/4", "/3", "/2", "x1", "x2", "x3", "x4", "x6", "x8", "x12", "x16", "x24", "x32", "x48", "x64", "x96", "x128", "Audio 1", "Audio 2", "CV 1", "CV 2", "Gate 1", "Gate 2", "MIDI Ch 1", "MIDI Ch 2", "MIDI Ch 3", "MIDI Ch 4", "MIDI Ch 5", "MIDI Ch 6", "MIDI Ch 7", "MIDI Ch 8", "MIDI Ch 9", "MIDI Ch 10", "MIDI Ch 11", "MIDI Ch 12", "MIDI Ch 13", "MIDI Ch 14", "MIDI Ch 15", "MIDI Ch 16"];
+        const WAVE_SHAPES = ["Gate", "Ratchet", "Sine", "Triangle", "Saw ↑", "Saw ↓", "Trapezoid", "Hump", "Envelope", "Log Env", "S&H", "Smooth", "Delay", "Math"];
+        const PULSE_SHAPES = ["Gate", "Ratchet", "Trigger", "Burst", "Random", "Utility"];
+        const SCALES = ["Off", "Chromatic", "Major", "Min Pent", "Nat Minor", "Maj Pent", "Dorian", "Mixolydian", "Lydian", "Phrygian", "Harmonic Minor"];
+        const LOOP_LENGTHS_VALS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 24, 28, 30, 32, 40, 48, 56, 60, 64];
+        const CH_NAMES = ["Audio 1", "Audio 2", "CV 1", "CV 2", "Gate 1", "Gate 2"];
+        const CH_BADGES = ["Audio", "Audio", "CV", "CV", "Gate", "Gate"];
+        const NUM_PRESETS = 6;
+
+        const OSC_BUF_LEN = 80;
+        const SERIAL_BUF_CAP = 512;
+        const CLOCK_MULTIPLIERS = [1 / 2048, 1 / 1024, 1 / 768, 1 / 512, 1 / 384, 1 / 256, 1 / 192, 1 / 128, 1 / 96, 1 / 64, 1 / 48, 1 / 32, 1 / 24, 1 / 16, 1 / 12, 1 / 8, 1 / 6, 1 / 4, 1 / 3, 1 / 2, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+
+        // Populate seed dropdown 0-63
+        (function () {
+            const sel = document.getElementById('globalSeed');
+            for (let s = 0; s <= 63; s++) {
+                const opt = document.createElement('option');
+                opt.value = s; opt.textContent = s;
+                if (s === 0) opt.selected = true;
+                sel.appendChild(opt);
+            }
+        })();
+
+        // ── Sync states ───────────────────────────────────────────────────
+        let isSyncing = false, isIncomingSync = false;
+        let hasSynced = false;
+        let syncRetryTimer = null;
+        let syncAttempts = 0;
+
+        // ── Drag guard: suppress sync while user is interacting with any control ──
+        let userIsDragging = false;
+        let dragReleaseTimer = null;
+        document.addEventListener('pointerdown', () => {
+            userIsDragging = true;
+            if (dragReleaseTimer) { clearTimeout(dragReleaseTimer); dragReleaseTimer = null; }
+        });
+        document.addEventListener('pointerup', () => {
+            dragReleaseTimer = setTimeout(() => { userIsDragging = false; }, 300);
+        });
+        document.addEventListener('pointercancel', () => {
+            dragReleaseTimer = setTimeout(() => { userIsDragging = false; }, 300);
+        });
+
+        function startSyncSequence() {
+            hasSynced = false;
+            syncAttempts = 0;
+            if (syncRetryTimer) clearInterval(syncRetryTimer);
+
+            // Send first GET quickly
+            setTimeout(sendSyncRequest, 300);
+
+            // Keep retrying every 1.5s until we get a response
+            syncRetryTimer = setInterval(() => {
+                if (hasSynced) {
+                    clearInterval(syncRetryTimer);
+                    syncRetryTimer = null;
+                    return;
+                }
+                sendSyncRequest();
+            }, 1500);
+        }
+
+        async function sendSyncRequest() {
+            if (midiOutput) {
+                syncAttempts++;
+                try {
+                    midiOutput.send([0xF0, 0x7D, 0x43, 0x03, 0xF7]);
+                } catch (e) {
+                    console.error("Failed to send GET SysEx:", e);
+                }
+            }
+        }
+
+        // ── Channel state ──────────────────────────────────────────────────
+        const channelConfigs = Array.from({ length: 6 }, (_, i) => ({
+            id: i, clock_modifier: 20, euclidean_steps: 0, euclidean_fills: 0,
+            wave_shape: 0, wave_param: 128, probability: 100,
+            quantizer_scale: 0, euclidean_offset: 0, loop_length: 0, level: (i < 4) ? 200 : 0, glide: 0,
+            trigger_source: 0,
+            stepIndex: 0, lastValue: -2048,
+            oscilloscopeBuffer: new Int16Array(OSC_BUF_LEN),
+            oscHead: 0, phaseAccumulator: 0
+        }));
+
+        // ── Build channel cards ────────────────────────────────────────────
+        const grid = document.getElementById('channelsGrid');
+        for (let i = 0; i < 6; i++) {
+            const isPulse = i >= 4;
+            const shapes = isPulse ? PULSE_SHAPES : WAVE_SHAPES;
+            const card = document.createElement('div');
+            card.className = 'channel-card';
+            card.id = `card-${i}`;
+            card.innerHTML = `
+            <div class="ch-header">
+                <span class="ch-name">${CH_NAMES[i]}</span>
+                <span class="ch-badge">${CH_BADGES[i]}</span>
+            </div>
+            <div class="screen-box">
+                <canvas class="screen-canvas" id="canvas-${i}"></canvas>
+            </div>
+            <div class="params-container">
+                <!-- SOUND SHAPING GROUP (Switch UP) -->
+                <div class="tier-group">
+                    <div class="tier-grid">
+                        <div class="p">
+                            <span class="p-label">Shape</span>
+                            <div class="p-val">
+                                <select id="shape-${i}" onchange="changeParam(${i},3,this.value)">
+                                    ${shapes.map((n, j) => `<option value="${j}">${n}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="p">
+                            <div class="p-header">
+                                <span class="p-label" id="levelLabel-${i}">${isPulse ? 'Phase Offset' : 'Level'}</span>
+                                <span class="val-num" id="levelVal-${i}">${isPulse ? '0%' : '100%'}</span>
+                            </div>
+                            <div class="p-val">
+                                <input type="range" id="level-${i}" min="${isPulse ? 0 : -100}" max="100" value="${isPulse ? 100 : 100}" oninput="changeParam(${i},8,${isPulse ? 'parseInt(this.value)*2' : 'parseInt(this.value)+100'})">
+                            </div>
+                        </div>
+                        <div class="p">
+                            <div class="p-header">
+                                <span class="p-label" id="paramLabel-${i}">Param</span>
+                                <span class="val-num" id="paramVal-${i}">50%</span>
+                            </div>
+                            <div class="p-val" id="paramContainer-${i}">
+                                <input type="range" id="param-${i}" min="0" max="255" value="128" oninput="changeParam(${i},4,this.value)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RHYTHM GROUP (Switch MIDDLE) -->
+                <div class="tier-group">
+                    <div class="tier-grid">
+                        <div class="p">
+                            <span class="p-label">Speed</span>
+                            <div class="p-val">
+                                <select id="modifier-${i}" onchange="changeParam(${i},0,this.value)">
+                                    ${CLOCK_MODIFIERS.map((n, j) => `<option value="${j}"${j === 20 ? ' selected' : ''}>${n}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="p">
+                            <div class="p-header">
+                                <span class="p-label">Steps</span>
+                                <span class="val-num" id="eucStepsVal-${i}">Off</span>
+                            </div>
+                            <div class="p-val">
+                                <input type="range" id="eucSteps-${i}" min="0" max="16" value="0" oninput="changeParam(${i},1,this.value)">
+                            </div>
+                        </div>
+                        <div class="p">
+                            <div class="p-header">
+                                <span class="p-label">Fills</span>
+                                <span class="val-num" id="eucFillsVal-${i}">0</span>
+                            </div>
+                            <div class="p-val">
+                                <input type="range" id="eucFills-${i}" min="0" max="16" value="0" oninput="changeParam(${i},2,this.value)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADVANCED SETUP GROUP (Switch DOWN Held) -->
+                <div class="tier-group">
+                    <div class="tier-grid advanced-grid">
+                        <div class="p">
+                            <span class="p-label">Loop</span>
+                            <div class="p-val">
+                                <select id="loop-${i}" onchange="changeParam(${i},7,this.value)">
+                                    ${LOOP_LENGTHS_VALS.map(v => `<option value="${v}">${v === 0 ? '∞ Off' : v + ' steps'}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="p">
+                            <div class="p-header">
+                                <span class="p-label" id="probLabel-${i}">Probability</span>
+                                <span class="val-num" id="probVal-${i}">100%</span>
+                            </div>
+                            <div class="p-val">
+                                <input type="range" id="prob-${i}" min="0" max="100" value="100" oninput="changeParam(${i},5,this.value)">
+                            </div>
+                        </div>
+                        <div class="p">
+                            <span class="p-label" id="scaleLabel-${i}">Quantize</span>
+                            <div class="p-val">
+                                <select id="scale-${i}" onchange="changeParam(${i},6,this.value)">
+                                    ${SCALES.map((n, j) => `<option value="${j}">${n}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="p">
+                            <div class="p-header">
+                                <span class="p-label">Glide</span>
+                                <span class="val-num" id="glideVal-${i}">Off</span>
+                            </div>
+                            <div class="p-val">
+                                <input type="range" id="glide-${i}" min="0" max="255" value="0" oninput="changeParam(${i},9,this.value)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACTIONS -->
+                <div class="tier-actions">
+                    <button class="btn-sm" onclick="resetChannel(${i})">Reset</button>
+                    <button class="btn-sm btn-rand" onclick="randomizeChannel(${i})">Rand</button>
+                </div>
+            </div>`;
+            grid.appendChild(card);
+            renderParamControl(i);
+            renderScaleControl(i);
+            isSyncing = true;
+            const cfg = channelConfigs[i];
+            updateParamUI(i, 0, cfg.clock_modifier);
+            updateParamUI(i, 1, cfg.euclidean_steps);
+            updateParamUI(i, 2, cfg.euclidean_fills);
+            updateParamUI(i, 3, cfg.wave_shape);
+            updateParamUI(i, 4, cfg.wave_param);
+            updateParamUI(i, 5, cfg.probability);
+            updateParamUI(i, 6, cfg.quantizer_scale);
+            updateParamUI(i, 7, cfg.loop_length);
+            updateParamUI(i, 8, cfg.level);
+            isSyncing = false;
+        }
+
+        // ── Preset slot pills ──────────────────────────────────────────────
+        let activeSlot = 0;
+        const pillsContainer = document.getElementById('slotPills');
+        for (let s = 0; s < NUM_PRESETS; s++) {
+            const pill = document.createElement('button');
+            pill.className = 'slot-pill' + (s === 0 ? ' active' : '');
+            pill.textContent = s + 1;
+            pill.id = `slot-${s}`;
+            pill.onclick = () => selectSlot(s);
+            pillsContainer.appendChild(pill);
+        }
+
+        function selectSlot(s) {
+            document.getElementById(`slot-${activeSlot}`).classList.remove('active');
+            activeSlot = s;
+            document.getElementById(`slot-${activeSlot}`).classList.add('active');
+        }
+
+        // ── Preset save/load (localStorage) ───────────────────────────────
+        function getFullState() {
+            return {
+                bpm: parseInt(document.getElementById('globalBpm').value),
+                reset_mode: parseInt(document.getElementById('globalReset').value),
+                ext_ppqn: currentExtPpqn,
+                global_swing: parseInt(document.getElementById('globalSwing').value),
+                global_humanize: parseInt(document.getElementById('globalHumanize').value),
+                global_seed: parseInt(document.getElementById('globalSeed').value),
+                channels: channelConfigs.map(cfg => ({
+                    clock_modifier: cfg.clock_modifier,
+                    euclidean_steps: cfg.euclidean_steps,
+                    euclidean_fills: cfg.euclidean_fills,
+                    wave_shape: cfg.wave_shape,
+                    wave_param: cfg.wave_param,
+                    probability: cfg.probability,
+                    quantizer_scale: cfg.quantizer_scale,
+                    euclidean_offset: cfg.euclidean_offset,
+                    loop_length: cfg.loop_length,
+                    level: cfg.level,
+                    glide: cfg.glide
+                }))
+            };
+        }
+
+        async function savePreset() {
+            // Always save to localStorage as a backup
+            localStorage.setItem(`cwPreset_${activeSlot}`, JSON.stringify(getFullState()));
+
+            // Visually flash the pill
+            const pill = document.getElementById(`slot-${activeSlot}`);
+            pill.style.background = 'rgba(201,162,39,0.22)';
+            setTimeout(() => pill.style.background = '', 400);
+
+            if (midiOutput) {
+                console.log(`Saving preset ${activeSlot} to hardware...`);
+                try {
+                    midiOutput.send([0xF0, 0x7D, 0x43, 0x08, activeSlot, 0xF7]);
+                    showToast(`Preset ${activeSlot + 1} saved to module`);
+                } catch (e) {
+                    console.error("Failed to send SAVE command:", e);
+                    showToast(`Save to module failed: ` + e.message);
+                }
+            } else {
+                showToast(`Preset ${activeSlot + 1} saved (Offline)`);
+            }
+        }
+
+        async function loadPreset() {
+            if (midiOutput) {
+                console.log(`Loading preset ${activeSlot} from hardware...`);
+                try {
+                    midiOutput.send([0xF0, 0x7D, 0x43, 0x09, activeSlot, 0xF7]);
+                    showToast(`Loading Preset ${activeSlot + 1} from module...`);
+                } catch (e) {
+                    console.error("Failed to send LOAD command:", e);
+                    showToast(`Load failed: ` + e.message);
+                }
+            } else {
+                // Offline fallback
+                const raw = localStorage.getItem(`cwPreset_${activeSlot}`);
+                if (!raw) { showToast(`Slot ${activeSlot + 1} is empty`); return; }
+                const state = JSON.parse(raw);
+                isSyncing = true;
+                try {
+                    updateGlobalUI(0, state.bpm);
+                    updateGlobalUI(2, state.reset_mode);
+                    updateGlobalUI(3, state.ext_ppqn);
+                    updateGlobalUI(4, state.global_swing || 0);
+                    updateGlobalUI(5, state.global_humanize || 0);
+                    updateGlobalUI(6, state.global_seed || 0);
+                    state.channels.forEach((ch, i) => {
+                        updateParamUI(i, 0, ch.clock_modifier);
+                        updateParamUI(i, 1, ch.euclidean_steps);
+                        updateParamUI(i, 2, ch.euclidean_fills);
+                        updateParamUI(i, 3, ch.wave_shape);
+                        updateParamUI(i, 4, ch.wave_param);
+                        updateParamUI(i, 5, ch.probability);
+
+                        channelConfigs[i].quantizer_scale = ch.quantizer_scale !== undefined ? ch.quantizer_scale : 0;
+                        channelConfigs[i].euclidean_offset = ch.euclidean_offset !== undefined ? ch.euclidean_offset : 0;
+                        renderScaleControl(i);
+
+                        updateParamUI(i, 7, ch.loop_length);
+                        updateParamUI(i, 8, ch.level);
+                        updateParamUI(i, 9, ch.glide !== undefined ? ch.glide : 0);
+                    });
+                } finally { isSyncing = false; }
+                showToast(`Preset ${activeSlot + 1} loaded (Offline)`);
+            }
+        }
+
+        function resetAllChannels() {
+            if (!confirm('Reset all channels to defaults?')) return;
+            for (let i = 0; i < 6; i++) resetChannel(i, true);
+            // Also send hardware RESET if connected
+            if (midiOutput) {
+                midiOutput.send([0xF0, 0x7D, 0x43, 0x0A, 0xF7]);
+            }
+            showToast('All channels reset to defaults');
+        }
+
+        // ── Toast ─────────────────────────────────────────────────────────
+        let toastTimer = null;
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+        }
+
+        // ── UI update helpers ──────────────────────────────────────────────
+        function renderParamControl(ch) {
+            const cfg = channelConfigs[ch];
+            const shape = cfg.wave_shape;
+            const isPulse = ch >= 4;
+            const labelEl = document.getElementById(`paramLabel-${ch}`);
+            const containerEl = document.getElementById(`paramContainer-${ch}`);
+            const valNumEl = document.getElementById(`paramVal-${ch}`);
+            if (!labelEl || !containerEl) return;
+
+            const probLabelEl = document.getElementById(`probLabel-${ch}`);
+            if (probLabelEl) {
+                probLabelEl.textContent = "Probability";
+            }
+
+            if (isPulse) {
+                if (shape === 5) { // UTILITY
+                    labelEl.textContent = "Utility Mode";
+                    if (valNumEl) valNumEl.textContent = "";
+                    containerEl.innerHTML = `
+                    <select id="param-${ch}" onchange="changeParam(${ch},4,this.value)">
+                        <option value="32">PPQN 1</option>
+                        <option value="96">PPQN 4</option>
+                        <option value="160">PPQN 24</option>
+                        <option value="224">Run Gate</option>
+                    </select>
+                `;
+                    return;
+                } else if (shape === 2) { // TRIGGER (DELAY)
+                    labelEl.textContent = "Delay Offset";
+                } else if (shape === 0) { // GATE
+                    labelEl.textContent = "Pulse Width";
+                } else if (shape === 1) { // RATCHET
+                    labelEl.textContent = "Ratchet";
+                } else if (shape === 3) { // BURST
+                    labelEl.textContent = "Burst Pulses";
+                } else if (shape === 4) { // RANDOM
+                    labelEl.textContent = "Gate Width";
+                }
+            } else {
+                if (shape === 0) { // WAVE_GATE
+                    labelEl.textContent = "Gate Width";
+                } else if (shape === 1) { // WAVE_RATCHET
+                    labelEl.textContent = "Ratchets";
+                } else if (shape === 2) { // WAVE_SINE
+                    labelEl.textContent = "Phase Offset";
+                } else if (shape === 3) { // WAVE_TRIANGLE
+                    labelEl.textContent = "Skew Symmetry";
+                } else if (shape === 4) { // WAVE_SAW_UP
+                    labelEl.textContent = "Saw Curve";
+                } else if (shape === 5) { // WAVE_SAW_DOWN
+                    labelEl.textContent = "Saw Curve";
+                } else if (shape === 6) { // WAVE_TRAPEZOID
+                    labelEl.textContent = "Trapezoid Width";
+                } else if (shape === 7) { // WAVE_HUMP
+                    labelEl.textContent = "Hump Lean";
+                } else if (shape === 8) { // WAVE_ENVELOPE
+                    labelEl.textContent = "Decay Time";
+                } else if (shape === 9) { // WAVE_LOG_ENVELOPE
+                    labelEl.textContent = "Decay Time";
+                } else if (shape === 10) { // WAVE_RANDOM_SH
+                    labelEl.textContent = "Slew Rate";
+                } else if (shape === 11) { // WAVE_RANDOM_SM
+                    labelEl.textContent = "Slew Rate";
+                } else if (shape === 12) { // WAVE_CV_DELAY
+                    labelEl.textContent = "Delay Time";
+                } else if (shape === 13) { // WAVE_MATH
+                    labelEl.textContent = "Math Op";
+                    if (valNumEl) valNumEl.textContent = "";
+                    containerEl.innerHTML = `
+                    <select id="param-${ch}" onchange="changeParam(${ch},4,this.value)">
+                        <option value="16">Mix/Sum (+)</option>
+                        <option value="48">Difference (-)</option>
+                        <option value="80">Minimum (min)</option>
+                        <option value="112">Maximum (max)</option>
+                        <option value="144">Multiply (*)</option>
+                        <option value="176">AND (&)</option>
+                        <option value="208">OR (|)</option>
+                        <option value="240">XOR (^)</option>
+                    </select>
+                `;
+                    return;
+                }
+            }
+
+            if (valNumEl) {
+                valNumEl.textContent = `${Math.round(cfg.wave_param / 2.55)}%`;
+            }
+            containerEl.innerHTML = `
+            <input type="range" id="param-${ch}" min="0" max="255" value="${cfg.wave_param}" oninput="changeParam(${ch},4,this.value)">
+        `;
+        }
+
+        function renderScaleControl(ch) {
+            const cfg = channelConfigs[ch];
+            const steps = cfg.euclidean_steps;
+            const labelEl = document.getElementById(`scaleLabel-${ch}`);
+            const selectEl = document.getElementById(`scale-${ch}`);
+            if (!labelEl || !selectEl) return;
+
+            const expectedMode = steps > 0 ? "offset" : "scale";
+            const currentMode = selectEl.getAttribute("data-mode") || "scale";
+
+            if (expectedMode !== currentMode || (steps > 0 && selectEl.options.length !== steps)) {
+                selectEl.setAttribute("data-mode", expectedMode);
+                if (steps > 0) {
+                    labelEl.textContent = "Euclid Offset";
+                    let html = "";
+                    for (let s = 0; s < steps; s++) {
+                        html += `<option value="${s}">None</option>`;
+                    }
+                    selectEl.innerHTML = html;
+                    for (let s = 0; s < steps; s++) {
+                        selectEl.options[s].text = s === 0 ? 'None' : s + (s === 1 ? ' step' : ' steps');
+                        selectEl.options[s].value = s;
+                    }
+                } else {
+                    labelEl.textContent = "Quantize";
+                    let html = "";
+                    SCALES.forEach((n, j) => {
+                        html += `<option value="${j}">${n}</option>`;
+                    });
+                    selectEl.innerHTML = html;
+                }
+            }
+
+            if (!isIncomingSync || selectEl !== document.activeElement) {
+                selectEl.value = steps > 0 ? cfg.euclidean_offset : cfg.quantizer_scale;
+            }
+        }
+
+        function safeSetVal(id, val) {
+            const el = document.getElementById(id);
+            if (el) {
+                if (isIncomingSync && el === document.activeElement) {
+                    // Ignore incoming sync packet value for the element actively wiggled/focused by the user to avoid feedback fights/jitter
+                    return;
+                }
+                el.value = val;
+            }
+        }
+
+        function updateParamUI(ch, paramId, value) {
+            const cfg = channelConfigs[ch];
+            const v = parseInt(value);
+            if (paramId === 0) {
+                cfg.clock_modifier = v;
+                if (v <= 33) {
+                    cfg.trigger_source = 0;
+                } else if (v >= 34 && v <= 39) {
+                    cfg.trigger_source = v - 33;
+                } else {
+                    cfg.trigger_source = 7;
+                }
+                safeSetVal(`modifier-${ch}`, v);
+            }
+            else if (paramId === 1) {
+                cfg.euclidean_steps = v;
+                safeSetVal(`eucSteps-${ch}`, v);
+                document.getElementById(`eucStepsVal-${ch}`).textContent = v === 0 ? 'Off' : v;
+
+                if (v > 0 && cfg.euclidean_offset >= v) {
+                    cfg.euclidean_offset = v - 1;
+                } else if (v === 0) {
+                    cfg.euclidean_offset = 0;
+                }
+                renderScaleControl(ch);
+
+                if (ch < 4) {
+                    const fillsEl = document.getElementById(`eucFills-${ch}`);
+                    const labelEl = fillsEl.closest('.p').querySelector('.p-label');
+                    if (v === 0) {
+                        labelEl.textContent = 'Phase Offset';
+                        fillsEl.max = 255;
+                    } else {
+                        labelEl.textContent = 'Fills';
+                        fillsEl.max = v;
+                        if (!isSyncing && cfg.euclidean_fills > v) changeParam(ch, 2, v);
+                    }
+                } else {
+                    document.getElementById(`eucFills-${ch}`).max = v;
+                    if (!isSyncing && cfg.euclidean_fills > v) changeParam(ch, 2, v);
+                }
+            }
+            else if (paramId === 2) {
+                cfg.euclidean_fills = v;
+                safeSetVal(`eucFills-${ch}`, v);
+                if (ch < 4 && cfg.euclidean_steps === 0) {
+                    document.getElementById(`eucFillsVal-${ch}`).textContent = `${Math.round(v / 2.55)}%`;
+                } else {
+                    document.getElementById(`eucFillsVal-${ch}`).textContent = v;
+                }
+            }
+            else if (paramId === 3) {
+                cfg.wave_shape = v;
+                safeSetVal(`shape-${ch}`, v);
+                renderParamControl(ch);
+                updateParamUI(ch, 4, cfg.wave_param);
+                if (ch < 4) {
+                    updateParamUI(ch, 8, cfg.level);
+                }
+            }
+            else if (paramId === 4) {
+                cfg.wave_param = v;
+                const paramEl = document.getElementById(`param-${ch}`);
+                if (paramEl) {
+                    if (paramEl.tagName === 'SELECT') {
+                        let bestOpt = null;
+                        let bestDiff = 999;
+                        for (const opt of paramEl.options) {
+                            const optVal = parseInt(opt.value);
+                            const diff = Math.abs(optVal - v);
+                            if (diff < bestDiff) {
+                                bestDiff = diff;
+                                bestOpt = opt;
+                            }
+                        }
+                        if (bestOpt && (!isIncomingSync || paramEl !== document.activeElement)) {
+                            paramEl.value = bestOpt.value;
+                        }
+                    } else {
+                        safeSetVal(`param-${ch}`, v);
+                        const valNumEl = document.getElementById(`paramVal-${ch}`);
+                        if (valNumEl) {
+                            if (ch >= 4) {
+                                if (cfg.wave_shape === 3) { // BURST
+                                    const num = 1 + ((v * 7) >> 8);
+                                    valNumEl.textContent = `${num} trig`;
+                                } else {
+                                    valNumEl.textContent = `${Math.round(v / 2.55)}%`;
+                                }
+                            } else {
+                                if (cfg.wave_shape === 12) { // WAVE_CV_DELAY
+                                    if (v < 128) {
+                                        const max_ms = ch < 2 ? 170 : 85;
+                                        valNumEl.textContent = `${Math.round((v / 127) * max_ms)} ms`;
+                                    } else {
+                                        const sync_names = ["1/16", "1/8", "1/4", "1/2", "1x", "1.5x", "2x", "4x"];
+                                        const idx = Math.min(7, (v - 128) >> 4);
+                                        valNumEl.textContent = `Sync ${sync_names[idx]}`;
+                                    }
+                                } else if (cfg.wave_shape === 1) { // RATCHET
+                                    const ratchet_table = [2, 3, 4, 6, 8, 12, 16];
+                                    const idx = Math.min(6, Math.max(0, (v * 7) >> 8));
+                                    valNumEl.textContent = `${ratchet_table[idx]}x`;
+                                } else {
+                                    valNumEl.textContent = `${Math.round(v / 2.55)}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else if (paramId === 5) { cfg.probability = v; safeSetVal(`prob-${ch}`, v); document.getElementById(`probVal-${ch}`).textContent = `${v}%`; }
+            else if (paramId === 6) {
+                if (isIncomingSync) {
+                    cfg.quantizer_scale = v & 0x0F;
+                    cfg.euclidean_offset = (v >> 4) & 0x0F;
+                } else {
+                    if (cfg.euclidean_steps > 0) {
+                        cfg.euclidean_offset = v;
+                    } else {
+                        cfg.quantizer_scale = v;
+                    }
+                }
+                renderScaleControl(ch);
+            }
+            else if (paramId === 7) {
+                let closest = LOOP_LENGTHS_VALS.reduce((prev, curr) => Math.abs(curr - v) < Math.abs(prev - v) ? curr : prev);
+                cfg.loop_length = closest;
+                safeSetVal(`loop-${ch}`, closest);
+            }
+            else if (paramId === 8) {
+                cfg.level = v;
+                if (ch >= 4) {
+                    const sliderVal = Math.round(v / 2);
+                    safeSetVal(`level-${ch}`, sliderVal);
+                    // 0 = no delay (0%), 100 = full delay (100%)
+                    document.getElementById(`levelVal-${ch}`).textContent = `${sliderVal}%`;
+                } else {
+                    const sliderVal = v - 100;
+                    safeSetVal(`level-${ch}`, sliderVal);
+                    let labelText = "";
+                    if (sliderVal > 0) {
+                        labelText = `+${sliderVal}%`;
+                    } else if (sliderVal === 0) {
+                        labelText = `0%`;
+                    } else {
+                        labelText = `${sliderVal}%`;
+                    }
+                    document.getElementById(`levelVal-${ch}`).textContent = labelText;
+                }
+            }
+            else if (paramId === 9) {
+                cfg.glide = v;
+                safeSetVal(`glide-${ch}`, v);
+                const el = document.getElementById(`glideVal-${ch}`);
+                if (el) el.textContent = v === 0 ? 'Off' : `${Math.round(v / 2.55)}%`;
+            }
+        }
+
+        function updateGlobalUI(paramId, value) {
+            const v = parseInt(value);
+            if (paramId === 0) { document.getElementById('bpmVal').textContent = v; safeSetVal('globalBpm', v); }
+            else if (paramId === 1) {
+                const extDisplay = document.getElementById('externalSyncDisplay');
+                const bpmSlider = document.getElementById('globalBpm');
+                if (extDisplay && bpmSlider) {
+                    if (v === 0) {
+                        extDisplay.style.display = 'none';
+                        bpmSlider.style.display = 'inline-block';
+                    } else {
+                        bpmSlider.style.display = 'none';
+                        extDisplay.style.display = 'inline-block';
+                        if (v === 1) {
+                            extDisplay.textContent = 'Ext Pulse';
+                        } else if (v === 2) {
+                            extDisplay.textContent = 'MIDI Clock';
+                        }
+                    }
+                }
+            }
+            else if (paramId === 2) { safeSetVal('globalReset', v); }
+            else if (paramId === 3) { currentExtPpqn = v; safeSetVal('globalPpqn', v); }
+            else if (paramId === 4) { safeSetVal('globalSwing', v); document.getElementById('swingVal').textContent = `${v}%`; }
+            else if (paramId === 5) { safeSetVal('globalHumanize', v); document.getElementById('humanizeVal').textContent = `${v}%`; }
+            else if (paramId === 6) { safeSetVal('globalSeed', v); }
+        }
+
+        // ── Serial send queue ──────────────────────────────────────────────
+        let port = null, reader = null, writer = null, readPromise = null;
+        let keepReading = false;
+        let pendingSerialSends = {}, serialSendTimer = null;
+
+        function queueSerialSend(ch, paramId, value) {
+            const key = `${ch}_${paramId}`;
+            pendingSerialSends[key] = { ch, paramId, value: parseInt(value) };
+            if (!serialSendTimer) serialSendTimer = setTimeout(flushSerialSends, 20);
+        }
+
+        async function flushSerialSends() {
+            serialSendTimer = null;
+            if (!midiOutput) { pendingSerialSends = {}; return; }
+            for (const key of Object.keys(pendingSerialSends)) {
+                const item = pendingSerialSends[key];
+                if (item) {
+                    try {
+                        const valHigh = (item.value >> 4) & 0x0F;
+                        const valLow = item.value & 0x0F;
+                        midiOutput.send([0xF0, 0x7D, 0x43, 0x05, item.ch, item.paramId, valHigh, valLow, 0xF7]);
+                    } catch (e) {
+                        console.error("Failed to send parameter change:", e);
+                    }
+                }
+            }
+            pendingSerialSends = {};
+        }
+        function changeParam(ch, paramId, value) { updateParamUI(ch, paramId, value); queueSerialSend(ch, paramId, value); }
+        function changeGlobal(paramId, value) { updateGlobalUI(paramId, value); queueSerialSend(6, paramId, value); }
+
+        // ── Channel actions ────────────────────────────────────────────────
+        function resetChannel(ch, silent = false) {
+            changeParam(ch, 0, 20); changeParam(ch, 1, 0); changeParam(ch, 2, 0);
+            changeParam(ch, 3, 0); changeParam(ch, 4, 128); changeParam(ch, 5, 100);
+            changeParam(ch, 6, 0); changeParam(ch, 7, 0); changeParam(ch, 8, ch < 4 ? 200 : 0);
+            changeParam(ch, 9, 0);
+            if (!silent) showToast(`${CH_NAMES[ch]} reset`);
+        }
+
+        function randomizeChannel(ch) {
+            changeParam(ch, 0, Math.floor(Math.random() * 34));
+            changeParam(ch, 1, Math.floor(Math.random() * 17));
+            const steps = channelConfigs[ch].euclidean_steps;
+            changeParam(ch, 2, steps > 0 ? Math.floor(Math.random() * (steps + 1)) : 0);
+            changeParam(ch, 3, Math.floor(Math.random() * (ch >= 4 ? 6 : 13)));
+            changeParam(ch, 4, Math.floor(Math.random() * 256));
+            changeParam(ch, 5, 20 + Math.floor(Math.random() * 81));
+            changeParam(ch, 6, Math.floor(Math.random() * (steps > 0 ? steps : SCALES.length)));
+            changeParam(ch, 7, LOOP_LENGTHS_VALS[Math.floor(Math.random() * LOOP_LENGTHS_VALS.length)]);
+            changeParam(ch, 8, Math.floor(Math.random() * 201));
+            changeParam(ch, 9, Math.floor(Math.random() * 256));
+            showToast(`${CH_NAMES[ch]} randomized`);
+        }
+
+        async function toggleConnect() {
+            const btn = document.getElementById('btnConnect');
+            const dot = document.getElementById('statusDot');
+            if (midiOutput) {
+                if (midiInput) midiInput.onmidimessage = null;
+                try {
+                    // Send Stop Telemetry SysEx
+                    midiOutput.send([0xF0, 0x7D, 0x43, 0x04, 0xF7]);
+                } catch (e) { }
+                midiInput = midiOutput = null;
+                btn.textContent = 'Connect'; btn.classList.remove('connected');
+                dot.classList.remove('online');
+                showToast('Disconnected');
+                hasSynced = false;
+                if (syncRetryTimer) {
+                    clearInterval(syncRetryTimer);
+                    syncRetryTimer = null;
+                }
+                if (keepAliveTimer) {
+                    clearInterval(keepAliveTimer);
+                    keepAliveTimer = null;
+                }
+            } else {
+                try {
+                    if (!navigator.requestMIDIAccess) {
+                        showToast('WebMIDI not supported in this browser.');
+                        return;
+                    }
+                    midiAccess = await navigator.requestMIDIAccess({ sysex: true });
+                    let foundInput = null, foundOutput = null;
+                    for (const input of midiAccess.inputs.values()) {
+                        if (input.name && input.name.includes("Clockwork MIDI")) { foundInput = input; break; }
+                    }
+                    for (const output of midiAccess.outputs.values()) {
+                        if (output.name && output.name.includes("Clockwork MIDI")) { foundOutput = output; break; }
+                    }
+
+                    if (!foundInput || !foundOutput) {
+                        showToast('Clockwork MIDI device not found.');
+                        return;
+                    }
+
+                    midiInput = foundInput;
+                    midiOutput = foundOutput;
+                    midiInput.onmidimessage = handleMidiMessage;
+
+                    btn.textContent = 'Disconnect'; btn.classList.add('connected');
+                    dot.classList.add('online');
+                    showToast('Connected');
+                    startSyncSequence();
+
+                    if (keepAliveTimer) clearInterval(keepAliveTimer);
+                    keepAliveTimer = setInterval(() => {
+                        if (midiOutput && hasSynced) {
+                            try {
+                                midiOutput.send([0xF0, 0x7D, 0x43, 0x03, 0xF7]);
+                            } catch (e) { }
+                        }
+                    }, 2000);
+                } catch (e) {
+                    console.error(e);
+                    showToast('Connect failed: ' + e.message);
+                    midiInput = midiOutput = null;
+                }
+            }
+        }
+
+        function handleMidiMessage(event) {
+            const data = event.data;
+            if (!data || data.length < 5) return;
+            if (data[0] !== 0xF0 || data[1] !== 0x7D || data[2] !== 0x43) return;
+
+            const cmd = data[3];
+            if (cmd === 0x01) {
+                if (data.length < 63) return;
+                const pkt = new Uint8Array(29);
+                for (let i = 0; i < 29; i++) {
+                    pkt[i] = (data[4 + 2 * i] << 4) | data[4 + 2 * i + 1];
+                }
+                parseTelemetry(pkt);
+            } else if (cmd === 0x02) {
+                if (data.length < 145) return;
+                const pkt = new Uint8Array(70);
+                for (let i = 0; i < 70; i++) {
+                    pkt[i] = (data[4 + 2 * i] << 4) | data[4 + 2 * i + 1];
+                }
+                parseSyncPacket(pkt);
+            } else if (cmd === 0x05) {
+                if (data.length < 9) return;
+                const ch = data[4];
+                const paramId = data[5];
+                const val_high = data[6];
+                const val_low = data[7];
+                const value = (val_high << 4) | val_low;
+
+                isIncomingSync = true;
+                try {
+                    updateParamUI(ch, paramId, value);
+                } finally {
+                    isIncomingSync = false;
+                }
+            } else if (cmd === 0x0B) {
+                if (data.length < 8) return;
+                const paramId = data[4];
+                const val_high = data[5];
+                const val_low = data[6];
+                const value = (val_high << 4) | val_low;
+
+                isIncomingSync = true;
+                try {
+                    updateGlobalUI(paramId, value);
+                } finally {
+                    isIncomingSync = false;
+                }
+            }
+        }
+
+        function parseSyncPacket(pkt) {
+            // 64-byte sync frame layout:
+            // [0-2]  0xFD 0xFE 0xFD  (3-byte header)
+            // [3]    BPM (uint8, 40-250)
+            // [4-9]  sync_src, reset_mode, ext_ppqn, swing, humanize, seed
+            // [10-63] 6 channels × 9 bytes
+
+            // Don't overwrite sliders while the user is dragging them
+            if (userIsDragging) return;
+
+            const wasUnsynced = !hasSynced;
+            isSyncing = true;
+            isIncomingSync = true;
+            hasSynced = true;
+            if (syncRetryTimer) { clearInterval(syncRetryTimer); syncRetryTimer = null; }
+            try {
+                updateGlobalUI(0, pkt[3]);   // BPM (uint8 direct)
+                updateGlobalUI(1, pkt[4]);   // sync_source
+                updateGlobalUI(2, pkt[5]);   // reset_mode
+                updateGlobalUI(3, pkt[6]);   // ext_ppqn
+                updateGlobalUI(4, pkt[7]);   // global_swing
+                updateGlobalUI(5, pkt[8]);   // global_humanize
+                updateGlobalUI(6, pkt[9]);   // global_seed
+                let idx = 10;
+                for (let i = 0; i < 6; i++) {
+                    const rawMod = pkt[idx++];
+                    let uiIdx = rawMod;
+                    if (rawMod === 51 || rawMod === 83 || rawMod === 115 || rawMod === 147 || rawMod === 179 || rawMod === 211) {
+                        if (rawMod === 51) uiIdx = 34;      // Audio 1
+                        else if (rawMod === 83) uiIdx = 35; // Audio 2
+                        else if (rawMod === 115) uiIdx = 36;// CV 1
+                        else if (rawMod === 147) uiIdx = 37;// CV 2
+                        else if (rawMod === 179) uiIdx = 38;// Gate 1
+                        else if (rawMod === 211) uiIdx = 39;// Gate 2
+                    } else if (rawMod > 55) {
+                        const mod = rawMod & 0x1F;
+                        const trig = rawMod >> 5;
+                        uiIdx = (trig > 0) ? (33 + trig) : mod;
+                    }
+                    updateParamUI(i, 0, uiIdx);
+                    updateParamUI(i, 1, pkt[idx++]); updateParamUI(i, 2, pkt[idx++]);
+                    updateParamUI(i, 3, pkt[idx++]); updateParamUI(i, 4, pkt[idx++]); updateParamUI(i, 5, pkt[idx++]);
+                    updateParamUI(i, 6, pkt[idx++]); updateParamUI(i, 7, pkt[idx++]); updateParamUI(i, 8, pkt[idx++]); updateParamUI(i, 9, pkt[idx++]);
+                }
+                // Only toast on first sync after connect — periodic syncs are silent
+                if (wasUnsynced) showToast('↓ Synced from device');
+            } catch (e) {
+                console.error('parseSyncPacket error:', e);
+            } finally {
+                isSyncing = false;
+                isIncomingSync = false;
+            }
+        }
+
+        function parseTelemetry(pkt) {
+            let idx = 2;
+            for (let i = 0; i < 6; i++) {
+                const step = pkt[idx++];
+                let v = pkt[idx++] | (pkt[idx++] << 8);
+                if (v & 0x8000) v -= 0x10000;
+                const cfg = channelConfigs[i];
+                cfg.stepIndex = step; cfg.lastValue = v;
+                cfg.oscilloscopeBuffer[cfg.oscHead] = v;
+                cfg.oscHead = (cfg.oscHead + 1) % OSC_BUF_LEN;
+            }
+            const isPaused = pkt[26];
+            const activePage = pkt[27]; // 0-5 = channel, 6 = global
+            const playingState = !isPaused;
+            if (isPlaying !== playingState) {
+                isPlaying = playingState;
+                applyPlayState();
+            }
+            updateActivePageUI(activePage);
+        }
+
+        function updateActivePageUI(activePage) {
+            // Highlight the active channel card or the global top-bar
+            for (let i = 0; i < 6; i++) {
+                const card = document.getElementById(`card-${i}`);
+                if (card) card.classList.toggle('active', activePage === i);
+            }
+            const topBar = document.querySelector('.top-bar');
+            if (topBar) topBar.classList.toggle('active', activePage === 6);
+        }
+
+        // ── Wave shape math ────────────────────────────────────────────────
+        function waveY(shape, pf, param, isPulse, ch) {
+            switch (shape) {
+                case 0: return pf < (param / 255) ? 0.65 : 0;
+                case 1: { const tw = 0.1, d = tw + (param / 255) * (0.9 - tw); return (pf < tw || (pf >= d && pf < d + tw)) ? 0.65 : 0; }
+                case 2:
+                    if (isPulse) { const tw = 0.08, ds = (param / 255) * (1 - tw); return (pf >= ds && pf < ds + tw) ? 0.65 : 0; }
+                    return Math.sin(pf * 2 * Math.PI + (param / 255) * 2 * Math.PI) * 0.72;
+                case 3:
+                    if (isPulse) { const np = 1 + ((param * 7) >> 8), sw = 1 / np, k = Math.floor(pf / sw), ps = pf - k * sw; return ps < sw * 0.5 ? 0.65 : 0; }
+                    { const sk = Math.max(0.01, Math.min(0.99, param / 255)); return pf < sk ? (-0.72 + 1.44 * (pf / sk)) : (0.72 - 1.44 * ((pf - sk) / (1 - sk))); }
+                case 4:
+                    if (isPulse) { const w = param / 255; if (pf < w * 0.4) return 0.65; if (pf < w * 0.8) return (Math.floor(pf * 100) % 2 === 0) ? 0.65 : 0; return 0; }
+                    { const lin = -0.72 + 1.44 * pf, ex = Math.exp(-4 * pf), e2 = -0.72 + 1.44 * (1 - (ex - 0.018) / 0.982), lex = Math.exp(-4 * (1 - pf)), lg = -0.72 + 1.44 * ((lex - 0.018) / 0.982); return param === 128 ? lin : param < 128 ? lg + (lin - lg) * (param / 128) : lin + (e2 - lin) * ((param - 128) / 127); }
+                case 5:
+                    if (isPulse) {
+                        const op = param < 86 ? 0 : (param < 171 ? 1 : 2);
+                        const cfg = channelConfigs[ch];
+                        let src_gate = false;
+                        if (cfg && cfg.trigger_source > 0) {
+                            const src_ch = cfg.trigger_source - 1;
+                            const src_cfg = channelConfigs[src_ch];
+                            if (src_cfg) {
+                                const ratio = CLOCK_MULTIPLIERS[src_cfg.clock_modifier] / CLOCK_MULTIPLIERS[cfg.clock_modifier];
+                                const pf_src = (pf * ratio) % 1;
+                                const src_val = waveY(src_cfg.wave_shape, pf_src, src_cfg.wave_param, src_ch >= 4, src_ch);
+                                src_gate = src_val > 0;
+                            }
+                        } else {
+                            src_gate = (op === 0);
+                        }
+                        const internal_gate = pf < 0.5;
+                        let result = false;
+                        if (op === 0) result = internal_gate && src_gate;
+                        else if (op === 1) result = internal_gate || src_gate;
+                        else result = internal_gate !== src_gate;
+                        return result ? 0.65 : 0;
+                    }
+                    { const lin = 0.72 - 1.44 * pf, ex = Math.exp(-4 * pf), e2 = 0.72 - 1.44 * (1 - (ex - 0.018) / 0.982), lex = Math.exp(-4 * (1 - pf)), lg = 0.72 - 1.44 * ((lex - 0.018) / 0.982); return param === 128 ? lin : param < 128 ? lg + (lin - lg) * (param / 128) : lin + (e2 - lin) * ((param - 128) / 127); }
+                case 6: { // Trapezoid
+                    const w = param / 255;
+                    const F = w * 0.25;
+                    const R = 0.5 - F;
+                    if (pf < R) {
+                        return -0.72 + 1.44 * (pf / R);
+                    } else if (pf < R + F) {
+                        return 0.72;
+                    } else if (pf < 2 * R + F) {
+                        return 0.72 - 1.44 * ((pf - (R + F)) / R);
+                    } else {
+                        return -0.72;
+                    }
+                }
+                case 7: { // Hump
+                    const sk = Math.max(0.01, Math.min(0.99, param / 255));
+                    if (pf < sk) {
+                        return 0.72 * Math.sin((pf / sk) * Math.PI / 2);
+                    } else {
+                        return 0.72 * Math.cos(((pf - sk) / (1 - sk)) * Math.PI / 2);
+                    }
+                }
+                case 8: { // Envelope
+                    const mp = Math.min(1, pf * (255 / Math.max(2, param)));
+                    const dv = Math.exp(-4 * mp);
+                    return 0.72 * ((dv - 0.018) / 0.982);
+                }
+                case 9: { // Log Env
+                    const mp = Math.min(1, pf * (255 / Math.max(2, param)));
+                    const dv = Math.exp(-4 * (1 - mp));
+                    return 0.72 * (1 - (dv - 0.018) / 0.982);
+                }
+                case 10: case 11: { // S&H and Smooth
+                    const st = 4, si = Math.floor(pf * st), sp = (pf * st) % 1, sl = Math.max(0.01, Math.min(0.99, param / 255)) * 0.5;
+                    const vc = Math.sin(si * 43758.5453) * 0.5, vn = Math.sin(((si + 1) % st) * 43758.5453) * 0.5;
+                    if (sp < sl) {
+                        const t = sp / sl;
+                        return shape === 11 ? vc + (vn - vc) * (1 - Math.cos(t * Math.PI)) / 2 : vc + (vn - vc) * t;
+                    }
+                    return vn;
+                }
+                case 12: { // Delay
+                    return Math.sin(pf * 12 * Math.PI) * 0.7 * Math.exp(-pf * 3);
+                }
+                case 13: { // CV Math
+                    const carrier = pf < 0.5 ? -0.72 + 1.44 * (pf / 0.5) : 0.72 - 1.44 * ((pf - 0.5) / 0.5);
+                    const op = Math.floor(param / 32);
+                    const cfg = channelConfigs[ch];
+                    let modulator = 0;
+                    if (cfg && cfg.trigger_source > 0) {
+                        const src_ch = cfg.trigger_source - 1;
+                        const src_cfg = channelConfigs[src_ch];
+                        if (src_cfg) {
+                            const ratio = CLOCK_MULTIPLIERS[src_cfg.clock_modifier] / CLOCK_MULTIPLIERS[cfg.clock_modifier];
+                            const pf_src = (pf * ratio) % 1;
+                            modulator = waveY(src_cfg.wave_shape, pf_src, src_cfg.wave_param, src_ch >= 4, src_ch);
+                        }
+                    } else {
+                        if (op === 0 || op === 1) modulator = 0;
+                        else if (op === 2 || op === 4 || op === 5) modulator = 0.72;
+                        else modulator = -0.72;
+                    }
+                    let result = carrier;
+                    switch (op) {
+                        case 0: result = carrier + modulator; break;
+                        case 1: result = carrier - modulator; break;
+                        case 2: result = Math.min(carrier, modulator); break;
+                        case 3: result = Math.max(carrier, modulator); break;
+                        case 4: result = (carrier * modulator) / 0.72; break;
+                        case 5: result = (carrier > 0 && modulator > 0) ? 0.72 : -0.72; break;
+                        case 6: result = (carrier > 0 || modulator > 0) ? 0.72 : -0.72; break;
+                        case 7: result = ((carrier > 0) !== (modulator > 0)) ? 0.72 : -0.72; break;
+                    }
+                    return Math.max(-0.72, Math.min(0.72, result));
+                }
+            }
+            return 0;
+        }
+
+        // ── Canvas drawing loop ────────────────────────────────────────────
+        function drawCanvasLoop() {
+            requestAnimationFrame(drawCanvasLoop);
+            const bpm = parseInt(document.getElementById('globalBpm').value) || 120;
+
+            for (let i = 0; i < 6; i++) {
+                const cfg = channelConfigs[i];
+                const canvas = document.getElementById(`canvas-${i}`);
+                if (!canvas) continue;
+                // Canvas dimensions managed by ResizeObserver — no in-loop resize to prevent blank flash
+                const W = canvas.width, H = canvas.height;
+                const ctx = canvas.getContext('2d');
+                const isPulse = i >= 4;
+                const param = cfg.wave_param, shape = cfg.wave_shape;
+                const midY = H / 2;
+
+                // Layout splits
+                const wW = Math.floor(W * 0.43);   // waveform width
+                const oW = Math.floor(W * 0.33);   // oscilloscope width
+                const eX = wW + oW;               // euclid start x
+                const eW = W - eX;                // euclid width
+
+                // Background
+                ctx.fillStyle = currentMode === 'light' ? '#f7f7f9' : '#111113';
+                ctx.fillRect(0, 0, W, H);
+
+                // Dividers + zero lines
+                const divCol = currentMode === 'light' ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.04)';
+                ctx.strokeStyle = divCol; ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(wW, 0); ctx.lineTo(wW, H);
+                ctx.moveTo(eX, 0); ctx.lineTo(eX, H);
+                ctx.stroke();
+                ctx.strokeStyle = divCol;
+                ctx.setLineDash([2, 4]);
+                ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(eX, midY); ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Waveform trace
+                ctx.strokeStyle = currentAccent + '88'; ctx.lineWidth = 1.3; ctx.beginPath();
+                for (let x = 0; x < wW - 2; x++) {
+                    const pf = x / (wW - 2);
+                    let pf_offset = pf;
+                    let isMuted = false;
+                    if (isPulse) {
+                        const delayFrac = Math.round(cfg.level / 2) / 100;
+                        if (pf < delayFrac) {
+                            isMuted = true;
+                        } else {
+                            pf_offset = pf - delayFrac;
+                        }
+                    } else if (cfg.euclidean_steps === 0) {
+                        const delayFrac = cfg.euclidean_fills / 255;
+                        const isOneShot = [0, 1, 8, 9, 10, 11].includes(shape);
+                        if (isOneShot) {
+                            if (pf < delayFrac) {
+                                isMuted = true;
+                            } else {
+                                pf_offset = pf - delayFrac;
+                            }
+                        } else {
+                            pf_offset = (pf - delayFrac + 1) % 1;
+                        }
+                    }
+                    const val = isMuted ? 0 : waveY(shape, pf_offset, param, isPulse, i);
+                    let y = midY;
+                    if (isPulse) {
+                        const amplitude = midY * 0.84;
+                        y = midY - val * amplitude;
+                    } else {
+                        const signedLevel = cfg.level - 100;
+                        const isBipolarShape = [2, 3, 4, 5, 6, 10, 11, 12, 13].includes(shape);
+                        if (isBipolarShape) {
+                            if (signedLevel >= 0) {
+                                // Unipolar right (positive level)
+                                const abs_scale = signedLevel;
+                                const draw_val = ((val + 0.72) / 2) * (abs_scale / 100);
+                                const amplitude = midY * 0.84;
+                                y = midY - draw_val * amplitude;
+                            } else {
+                                // Bipolar left (negative level)
+                                const abs_scale = -signedLevel;
+                                const amplitude = (abs_scale / 100) * (midY * 0.84);
+                                y = midY - val * amplitude;
+                            }
+                        } else {
+                            // Unipolar shape
+                            if (signedLevel >= 0) {
+                                // Normal unipolar right (positive level)
+                                const amplitude = (signedLevel / 100) * (midY * 0.84);
+                                y = midY - val * amplitude;
+                            } else {
+                                // Inverted left (negative level)
+                                const abs_scale = -signedLevel;
+                                const amplitude = -(abs_scale / 100) * (midY * 0.84);
+                                y = midY - val * amplitude;
+                            }
+                        }
+                    }
+                    x === 0 ? ctx.moveTo(x + 1, y) : ctx.lineTo(x + 1, y);
+                }
+                ctx.stroke();
+
+                // Oscilloscope
+                const oStart = wW + 2;
+                ctx.strokeStyle = currentAccent; ctx.lineWidth = 1.3; ctx.beginPath();
+                const oscBuf = cfg.oscilloscopeBuffer, oscHead = cfg.oscHead;
+                const stepX = (oW - 4) / (OSC_BUF_LEN - 1);
+                for (let j = 0; j < OSC_BUF_LEN; j++) {
+                    const s = oscBuf[(oscHead + j) % OSC_BUF_LEN];
+                    const x = oStart + 2 + j * stepX, y = midY - (s / 2048) * (midY * 0.84);
+                    j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+
+
+                // Euclid wheel or clock label
+                const eXc = eX + eW / 2, eYc = midY;
+                const eR = Math.min(eW * 0.42, H * 0.38);
+                const stepsCount = cfg.euclidean_steps;
+                if (stepsCount > 0) {
+                    for (let s = 0; s < stepsCount; s++) {
+                        const angle = (s / stepsCount) * 2 * Math.PI - Math.PI / 2;
+                        const bx = eXc + eR * Math.cos(angle), by = eYc + eR * Math.sin(angle);
+                        const adjusted_step = (s + (cfg.euclidean_offset || 0)) % stepsCount;
+                        const active = ((adjusted_step * cfg.euclidean_fills) % stepsCount) < cfg.euclidean_fills;
+                        const isCur = s === cfg.stepIndex % stepsCount;
+                        if (isCur) {
+                            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 3, 0, 2 * Math.PI); ctx.fill();
+                        } else if (active) {
+                            ctx.fillStyle = currentAccent + 'cc'; ctx.beginPath(); ctx.arc(bx, by, 2, 0, 2 * Math.PI); ctx.fill();
+                        } else {
+                            ctx.fillStyle = currentMode === 'light' ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.1)';
+                            ctx.beginPath(); ctx.arc(bx, by, 1.5, 0, 2 * Math.PI); ctx.fill();
+                        }
+                    }
+                } else {
+                    ctx.fillStyle = currentMode === 'light' ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.5)';
+                    ctx.font = '600 11px "Outfit",sans-serif';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(CLOCK_MODIFIERS[cfg.clock_modifier], eXc, eYc);
+                }
+                ctx.textAlign = 'left';
+            }
+        }
+
+        // ── Theme & mode ───────────────────────────────────────────────────
+        const currentAccent = '#c9a227'; // gold, fixed
+        let currentMode = 'dark';
+
+        function toggleMode() {
+            currentMode = currentMode === 'dark' ? 'light' : 'dark';
+            applyMode(currentMode);
+            localStorage.setItem('cwMode', currentMode);
+        }
+
+        function applyMode(mode) {
+            currentMode = mode;
+            document.documentElement.setAttribute('data-mode', mode);
+            document.getElementById('modeToggle').textContent = mode === 'dark' ? '☽' : '☀';
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // ── Play / Stop ────────────────────────────────────────────────────
+        let isPlaying = true; // assume playing on load
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            applyPlayState();
+            if (midiOutput) {
+                midiOutput.send([0xF0, 0x7D, 0x43, isPlaying ? 0x06 : 0x07, 0xF7]);
+            }
+        }
+
+        function applyPlayState() {
+            const btn = document.getElementById('btnPlay');
+            const lbl = document.getElementById('playLabel');
+            if (isPlaying) {
+                btn.classList.add('playing');
+                lbl.textContent = 'Stop';
+            } else {
+                btn.classList.remove('playing');
+                lbl.textContent = 'Play';
+            }
+        }
+
+        async function autoConnect() {
+            if (!navigator.requestMIDIAccess) return;
+            try {
+                midiAccess = await navigator.requestMIDIAccess({ sysex: true });
+                let foundInput = null, foundOutput = null;
+                for (const input of midiAccess.inputs.values()) {
+                    if (input.name && input.name.includes("Clockwork MIDI")) { foundInput = input; break; }
+                }
+                for (const output of midiAccess.outputs.values()) {
+                    if (output.name && output.name.includes("Clockwork MIDI")) { foundOutput = output; break; }
+                }
+
+                if (foundInput && foundOutput) {
+                    midiInput = foundInput;
+                    midiOutput = foundOutput;
+                    midiInput.onmidimessage = handleMidiMessage;
+
+                    const btn = document.getElementById('btnConnect');
+                    const dot = document.getElementById('statusDot');
+                    btn.textContent = 'Disconnect'; btn.classList.add('connected');
+                    dot.classList.add('online');
+                    showToast('Auto-connected to Clockwork MIDI');
+                    startSyncSequence();
+
+                    if (keepAliveTimer) clearInterval(keepAliveTimer);
+                    keepAliveTimer = setInterval(() => {
+                        if (midiOutput && hasSynced) {
+                            try {
+                                midiOutput.send([0xF0, 0x7D, 0x43, 0x03, 0xF7]);
+                            } catch (e) { }
+                        }
+                    }, 2000);
+                }
+            } catch (e) {
+                console.error("Auto-connect failed:", e);
+            }
+        }
+
+        // Init
+        (function () {
+            applyMode(localStorage.getItem('cwMode') || 'dark');
+            applyPlayState();
+            const hasMidi = !!navigator.requestMIDIAccess;
+            if (!hasMidi) {
+                const btn = document.getElementById('btnConnect');
+                if (btn) {
+                    btn.textContent = 'Unsupported';
+                    btn.disabled = true;
+                    btn.title = 'WebMIDI is not supported by your browser. Use Google Chrome or MS Edge, and ensure you serve the page via a local web server (http://localhost) rather than opening the file directly (file://).';
+                    btn.style.opacity = '0.5';
+                    btn.style.cursor = 'not-allowed';
+                }
+            } else {
+                autoConnect();
+            }
+        })();
+
+        drawCanvasLoop();
+
+        // ResizeObserver: update canvas pixel dimensions once on resize
+        // (not inside the hot rAF loop — that caused blank-flash on every reflow)
+        const _ro = new ResizeObserver(() => {
+            for (let i = 0; i < 6; i++) {
+                const c = document.getElementById(`canvas-${i}`);
+                if (c && (c.width !== c.clientWidth || c.height !== c.clientHeight)) {
+                    c.width = c.clientWidth;
+                    c.height = c.clientHeight;
+                }
+            }
+        });
+        document.querySelectorAll('[id^="canvas-"]').forEach(c => _ro.observe(c));
+
+    </script>
+</body>
+
+</html>

@@ -19,6 +19,7 @@ pico_sdk_init()
 # Add executable target
 add_executable(resonator
     main.cpp
+    serial_flash.cpp
 )
 
 # Link libraries required by the Pico SDK and ComputerCard
@@ -34,6 +35,7 @@ target_link_libraries(resonator
     hardware_irq
     hardware_clocks
     pico_multicore
+    pico_flash
     pico_unique_id
 )
 

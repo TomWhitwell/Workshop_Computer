@@ -1,5 +1,15 @@
-Description: Loopable chaotic Lorenz attractor trajectories and zero-crossings as CV and pulses, with sensitivity to initial conditions.
+draft: true
+Name: Od
+short-description: Loopable chaotic Lorenz attractor trajectories and zero-crossings as CV and pulses, with sensitivity to initial conditions.
 Language: MicroPython
-Creator:  'M. John Mills'
+Creator: M. John Mills
 Version: 1.0
 Status: Released
+License: MIT
+date-created: 2025-01-26
+date-updated: 2025-04-12
+Repository: https://github.com/MJLMills/mtmws_od
+
+summary: |
+  Simulates a Lorenz attractor to generate loopable CV and pulse signals.
+  This release folder is a stub; documentation and UF2 builds are maintained in the external repository.

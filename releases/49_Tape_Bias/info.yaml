@@ -1,0 +1,105 @@
+draft: false
+Name: Tape Bias
+short-description: 1960s-inspired reel-to-reel record/replay simulator with virtual bias calibration.
+summary: >
+  Tape Bias is a first-pass mono record/replay processor inspired by 1960s
+  reel-to-reel machines. It models record drive, virtual AC-bias calibration,
+  tape formulation, transport speed, replay head loss, magnetic memory, and hiss
+  without generating an ultrasonic bias carrier at the 48 kHz audio rate.
+Language: C++ (Pico SDK)
+Creator: Adrian Vos
+Version: "0.1.1"
+Status: Beta - stable in single-developer testing
+License: MIT
+date-created: 2026-07-30
+date-updated: 2026-07-31
+demo-link: https://www.youtube.com/watch?v=F0PJVCJKk94
+uf2:
+  - path: uf2/TapeBias.uf2
+    name: Tape Bias 0.1.1 (current stable)
+tags:
+  - effect
+  - tape
+  - reel-to-reel
+  - saturation
+  - experimental
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio In
+      type: audio
+      description: Mono source recorded into the virtual tape path
+    - id: CVIn1
+      name: Bias CV
+      type: cv
+      description: Strong bipolar modulation of bias calibration around the X control
+    - id: CVIn2
+      name: Tape CV
+      type: cv
+      description: Modulates tape formulation around the Y control
+    - id: PulseIn1
+      name: Erase
+      type: pulse
+      description: Clears tape state and creates a brief replay dropout on a rising edge
+  outputs:
+    - id: AudioOut1
+      name: Replay Out
+      type: audio
+      description: Virtual tape replay output
+    - id: AudioOut2
+      name: Replay Out
+      type: audio
+      description: Duplicate virtual tape replay output
+    - id: CVOut1
+      name: Bias Offset
+      type: cv
+      description: Full-scale effective bias calibration relative to nominal bias
+    - id: CVOut2
+      name: Tape Flux
+      type: cv
+      description: Slow magnetic-memory state of the virtual tape
+controls:
+  switch:
+    up:
+      name: 3.75 ips
+      description: Slow transport with reduced replay bandwidth and stronger head loss
+    middle:
+      name: 7.5 ips
+      description: Standard transport setting
+    down:
+      name: 15 ips
+      description: Fast transport with wider replay bandwidth and reduced head loss
+  knobs:
+    - main:
+        name: Record Level
+        description: Sets record drive into the magnetic transfer curve
+      x:
+        name: Bias
+        description: Moves from under-biased through nominal to over-biased response
+      y:
+        name: Tape Type
+        description: Moves from lower-output ferric toward higher-output tape response
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Record Level
+          description: Follows the Main record-level control.
+        - id: LED1
+          name: Effective Bias
+          description: Follows the X Bias control after Bias CV modulation.
+        - id: LED2
+          name: Magnetic Flux
+          description: Shows the magnitude of magnetic memory and flashes fully during an erase pulse.
+        - id: LED3
+          name: Over-Bias Treble
+          description: Full brightness at under-bias or nominal bias; dims as over-bias reduces replay treble.
+        - id: LED4
+          name: Effective Tape Type
+          description: Follows the Y Tape Type control after Tape CV modulation.
+        - id: LED5
+          name: Transport Speed
+          description: "Indicates switch position: brightest at 3.75 ips, medium at 7.5 ips, and dimmest at 15 ips."
+contact:
+  social:
+    github: https://github.com/soveda

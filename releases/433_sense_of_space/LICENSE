@@ -1,0 +1,63 @@
+433 Sense of Space
+==================
+
+This folder contains a mixed-license firmware project. The compiled UF2 files and
+raw audio assets are not distributed under a single open-source license because
+they include third-party audio with different terms.
+
+Embedded BBC Sound Effects Audio
+--------------------------------
+
+The ambience loop assets:
+
+- `433_loop_10k_s8_stereo.bin`
+- `433_loop_24k_s16_stereo.bin`
+- the UF2 firmware images that embed those assets
+
+are derived from BBC Sound Effects Archive item `07003043`
+(`bbc_theatres--_07003043`).
+
+BBC Sound Effects Archive audio is subject to the BBC Sound Effects Archive
+licensing terms:
+
+https://sound-effects.bbcrewind.co.uk/licensing
+
+These embedded BBC-derived assets are included here only for non-commercial,
+personal, or research purposes unless separately licensed from the BBC. Public,
+commercial, broadcast, product, or other uses outside those terms require checking
+the BBC licence terms and, where needed, obtaining a separate BBC licence.
+
+Seat Creak Audio
+----------------
+
+The seat creak asset:
+
+- `seat_creak_12k_s8_stereo.bin`
+
+is derived from:
+
+- `Chair creaking back and forth 01.wav`
+- Creator: `unkleceeg`
+- URL: https://freesound.org/people/unkleceeg/sounds/276473/
+- Licence: Creative Commons 0 / Public Domain Dedication
+
+See `SEAT_CREAK_SOURCE.md` for the exact source notes and conversion details.
+
+Firmware Source Code
+--------------------
+
+New project-specific source code in this folder may be used, modified, and shared
+for non-commercial, personal, or research use together with the embedded audio
+assets described above.
+
+Some source files are copied or adapted from existing Music Thing Modular Workshop
+Computer / Pico SDK project material and retain their original notices and licence
+status where applicable, including:
+
+- `ComputerCard.h`
+- `pico_sdk_import.cmake`
+- `reverb_dsp.c`
+- `reverb_dsp.h`
+
+No additional permission is granted here for the BBC-derived audio beyond the BBC
+Sound Effects Archive terms.

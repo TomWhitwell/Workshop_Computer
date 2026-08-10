@@ -1,0 +1,176 @@
+draft: false
+Name: F1shnet
+short-description: Fishy filter/sample-hold card with synth-friendly envelope follower motion and random stepped filter gestures.
+summary: |
+  A Workshop Computer interpretation of the Maestro FSH-1 filter/sample-hold effect.
+  Envelope mode uses an envelope follower and ratio-style low-pass cutoff movement with a low base range, so rectified input dynamics move the filter like a low-pass auto-wah rather than adding a simple linear cutoff offset.
+  Envelope sensitivity and output trim are scaled for modular/euro-level sources, so 5-6Vpp oscillators should move the filter without immediately pinning the envelope open or clipping the output.
+  In the S&H gesture, random values move the filter frequency around the stored middle-page range with a wide pitch-style response rather than changing the envelope, with a moderate lower S&H cutoff floor, moderately damped resonance, and click-reduced ping-pong movement between the two audio outputs.
+  Audio In 2, CV 1, and CV 2 all influence parameters, with CV 1 and CV 2 keeping the same jobs in every switch position. Pulse In 1 acts as an external clock / retrigger, and Pulse In 2 can also force the sample-and-hold gesture high.
+  CV Out 1 always emits the stepped sample-and-hold voltage, CV Out 2 always emits the envelope follower, Pulse Out 1 mirrors the clock, and Pulse Out 2 emits the sample trigger pulse.
+  Knobs use soft pickup when switching between middle and up so parameters do not jump until the physical control crosses the stored value for that page. Up exposes output trim and envelope sensitivity while Y remains the shared resonance control from the middle page; envelope release is fixed internally rather than user-facing.
+Language: C++ (Pico SDK)
+Creator: Adrian Vos
+Version: 0.1.1
+Status: Beta Stable in testing by one individual
+License: MIT
+date-created: 2026-07-28
+date-updated: 2026-08-01
+demo-link: https://www.youtube.com/watch?v=XYNgTV4XgsE
+tags:
+  - effect
+  - filter
+  - sample-hold
+  - envelope-filter
+contact:
+  social:
+    github: https://github.com/soveda
+
+readme: |
+  # F1shnet
+
+  An FSH-1-inspired filter/sample-hold effect card for the Music Thing Modular Workshop Computer.
+
+  This version is an interpretation focusing on the core idea shared by the Maestro FSH-1 and recent descendants: a low-pass filter moved either by your playing dynamics or by random stepped voltages.
+
+  ## Modes
+
+  - **Up**: Alternate control page
+  - **Middle**: Main control page
+  - **Down (held)**: Sample and hold gesture
+
+  ## Controls
+
+  - **Middle**: Main = filter range, X = envelope/S&H depth, Y = resonance.
+  - **Up**: Main = output trim, X = envelope follower sensitivity, Y = shared resonance.
+  - **Down (held)**: Main = internal S&H clock speed with soft pickup.
+
+  ## Performance patching
+
+  - Patch **Pulse In 1** as an external retrigger / clock.
+  - Patch **Pulse In 2** to force the sample-and-hold gesture high without touching the switch.
+  - **CV Out 1** is always the stepped S&H voltage and **CV Out 2** is always the envelope follower voltage, so both can patch elsewhere even when the audio voice is doing something different.
+  - **CV In 2** modulates depth strongly enough to be audible: positive CV widens the sweep and negative CV narrows it.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio In
+      description: Main mono audio input to the filter engine.
+      type: audio
+    - id: AudioIn2
+      name: Audio Mod In
+      description: Secondary audio-rate control input used as extra parameter modulation.
+      type: audio
+    - id: CVIn1
+      name: CV 1
+      description: Consistent modulation for filter range and envelope sensitivity in all switch positions.
+      type: cv
+    - id: CVIn2
+      name: CV 2
+      description: Consistent modulation for depth; positive CV widens the envelope/S&H sweep, negative CV makes it shallower.
+      type: cv
+    - id: PulseIn1
+      name: Clock
+      description: External retrigger / clock input. Forces a new random step in sample-and-hold mode.
+      type: pulse
+    - id: PulseIn2
+      name: S&H Gate
+      description: Qualified gate input that forces the sample-and-hold gesture high while held after a real low-to-high gate.
+      type: pulse
+  outputs:
+    - id: AudioOut1
+      name: LP Up / Ping Out
+      description: Fully wet envelope-up low-pass output; transients open the filter upward. During S&H gesture this is the left side of the ping-pong S&H low-pass voice.
+      type: audio
+    - id: AudioOut2
+      name: LP Down / Pong Out
+      description: Fully wet envelope-down low-pass output; transients close the filter from the stored range. During S&H gesture this is the right side of the ping-pong S&H low-pass voice.
+      type: audio
+    - id: CVOut1
+      name: S&H CV
+      description: Stepped sample-and-hold control voltage, always available as a utility output.
+      type: cv
+    - id: CVOut2
+      name: Envelope CV
+      description: Envelope follower control voltage, always available as a utility output.
+      type: cv
+    - id: PulseOut1
+      name: Clock Mirror
+      description: Mirrors Pulse In 1.
+      type: pulse
+    - id: PulseOut2
+      name: Sample Trigger
+      description: Divided sample trigger pulse fired once for every four newly sampled random steps.
+      type: pulse
+
+controls:
+  knobs:
+    - main:
+        name: Main
+        description: Controls the primary parameter for the active page.
+      x:
+        name: X
+        description: Controls the second parameter for the active page.
+      y:
+        name: Y
+        description: Controls the third parameter for the active page.
+    - when: { z: middle }
+      main:
+        name: Filter Range
+        description: Base filter range / cutoff area.
+      x:
+        name: Depth
+        description: Main filter modulation depth.
+      y:
+        name: Resonance
+        description: Resonance emphasis for the core filter voice.
+    - when: { z: up }
+      main:
+        name: Output Trim
+        description: Post-filter output level trim for taming hot modular signals before the output clips; it is not an input attenuator and does not change envelope sensitivity; stored startup value is minimum trim.
+      x:
+        name: Envelope Sensitivity
+        description: Input sensitivity for the envelope follower; higher settings make smaller dynamics open the filter more.
+      y:
+        name: Resonance
+        description: Shared resonance control for the core filter voice; same stored setting as middle Y, with soft pickup on page changes.
+    - when: { z: down }
+      main:
+        name: S&H Speed
+        description: Live internal sample-and-hold clock speed while the momentary down gesture is held; uses soft pickup; minimum is slowest, maximum is fastest.
+  switch:
+    up:
+      name: Alt Page
+      description: Switches the knobs to the alternate control page without changing the core filter voice; knobs use soft pickup.
+    middle:
+      name: Main Page
+      description: Default control page for the core filter voice; knobs use soft pickup when returning from the alternate page.
+    down:
+      name: Sample Hold Gesture
+      description: Hold the spring-loaded down position to replace the envelope with random stepped filter movement; Main controls S&H clock speed while down is held.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Alt Page
+          description: Lit when the alternate control page is active.
+        - id: LED1
+          name: Main
+          description: Brightness follows Main; while Down is held it follows Down-Main S&H speed.
+        - id: LED2
+          name: S&H Gesture
+          description: Lit while the sample-and-hold gesture is active from the switch or Pulse In 2.
+        - id: LED3
+          name: X
+          description: Brightness follows the X knob position.
+        - id: LED4
+          name: Main Page
+          description: Lit when the main control page is active.
+        - id: LED5
+          name: Y
+          description: Brightness follows the Y knob position.
+
+host:
+  notes: |
+    No USB host or device features are used in this version.

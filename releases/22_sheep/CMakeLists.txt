@@ -42,21 +42,35 @@ target_compile_definitions(${CARD_NAME}_lofi PRIVATE LOFI_MODE=1)
 # Create HiFi variant (12-bit audio, shorter buffer) 
 add_card(${CARD_NAME}_hifi)
 
-# Copy both UF2 files to UF2 directory with descriptive names
-add_custom_command(
-    TARGET ${CARD_NAME}_lofi
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_SOURCE_DIR}/UF2
-    COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_BINARY_DIR}/${CARD_NAME}_lofi.uf2
-            ${CMAKE_CURRENT_SOURCE_DIR}/UF2/${CARD_NAME}_lofi.uf2
-)
+# Single source of truth for the firmware version (keep in sync with info.yaml).
+set(SHEEP_VERSION "1.2")
 
-add_custom_command(
-    TARGET ${CARD_NAME}_hifi
-    POST_BUILD
+# Embed program metadata into the built artifacts (readable via `picotool info`).
+pico_set_program_name(${CARD_NAME}_lofi "Sheep (LoFi)")
+pico_set_program_version(${CARD_NAME}_lofi "${SHEEP_VERSION}")
+pico_set_program_name(${CARD_NAME}_hifi "Sheep (HiFi)")
+pico_set_program_version(${CARD_NAME}_hifi "${SHEEP_VERSION}")
+
+# Rename each variant's default output to a version-stamped UF2
+# (e.g. sheep_lofi.1.2.uf2 / sheep_hifi.1.2.uf2) and copy into the UF2/ directory.
+add_custom_command(TARGET ${CARD_NAME}_lofi POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E rename
+        "$<TARGET_FILE_DIR:${CARD_NAME}_lofi>/${CARD_NAME}_lofi.uf2"
+        "$<TARGET_FILE_DIR:${CARD_NAME}_lofi>/${CARD_NAME}_lofi.${SHEEP_VERSION}.uf2"
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_SOURCE_DIR}/UF2
     COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_BINARY_DIR}/${CARD_NAME}_hifi.uf2
-            ${CMAKE_CURRENT_SOURCE_DIR}/UF2/${CARD_NAME}_hifi.uf2
-)
+        "$<TARGET_FILE_DIR:${CARD_NAME}_lofi>/${CARD_NAME}_lofi.${SHEEP_VERSION}.uf2"
+        ${CMAKE_CURRENT_SOURCE_DIR}/UF2/
+    COMMENT "Creating version-stamped UF2: ${CARD_NAME}_lofi.${SHEEP_VERSION}.uf2"
+    VERBATIM)
+
+add_custom_command(TARGET ${CARD_NAME}_hifi POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E rename
+        "$<TARGET_FILE_DIR:${CARD_NAME}_hifi>/${CARD_NAME}_hifi.uf2"
+        "$<TARGET_FILE_DIR:${CARD_NAME}_hifi>/${CARD_NAME}_hifi.${SHEEP_VERSION}.uf2"
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_SOURCE_DIR}/UF2
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "$<TARGET_FILE_DIR:${CARD_NAME}_hifi>/${CARD_NAME}_hifi.${SHEEP_VERSION}.uf2"
+        ${CMAKE_CURRENT_SOURCE_DIR}/UF2/
+    COMMENT "Creating version-stamped UF2: ${CARD_NAME}_hifi.${SHEEP_VERSION}.uf2"
+    VERBATIM)

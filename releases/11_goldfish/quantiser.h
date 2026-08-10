@@ -6,7 +6,9 @@
 #define COMPUTERCARD_NOIMPL
 
 int note_in = 69, pulseCounter = 0;
-constexpr static uint8_t majorScale[12] = {0, 0, 2, 2, 4, 4, 5, 7, 7, 9, 9, 11};  // Octaves
+// Forced into RAM (not flash rodata) so the record/quantise hot path stays
+// flash-safe while core 1 erases flash.
+static uint8_t __not_in_flash("goldfish_tables") majorScale[12] = {0, 0, 2, 2, 4, 4, 5, 7, 7, 9, 9, 11};  // Octaves
 
 int16_t __not_in_flash_func(quantSample)(int16_t input)
 {

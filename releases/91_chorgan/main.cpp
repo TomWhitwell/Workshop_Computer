@@ -9,6 +9,8 @@
 //   Switch Mid    : Detune normal (0 or 6 cents depending on knob side)
 //   Switch Down   : Tap = advance chord extension preset
 //   Pulse In 1    : Rising edge = advance chord extension preset
+//   Audio In 1    : Slew speed — 0V=instant, +5V≈1min glide (all modes); negative speeds up in alt mode
+//   Audio In 2    : Chord inversion — bipolar ±6 steps; shifts lowest/highest voice up/down by octave
 //   Audio Out 1   : 6-voice mix (left)
 //   Audio Out 2   : 6-voice mix with per-voice phase offset (right)
 //   Pulse Out 1   : Square wave one octave below root
@@ -210,6 +212,10 @@ public:
 	bool     modeLocked;     // true once boot switch has been sampled
 	int32_t  bootAnim;       // countdown for boot LED animation
 
+	// Audio In smoothers
+	int32_t  audio1Smoothed;
+	int32_t  audio2Smoothed;
+
 	// Slew state — persistent voice increments (only used in slew mode)
 	int32_t  voiceIncSlew[6];
 	int32_t  slewShift;      // IIR shift: 0=instant, 9=fast, 12=slow, 14=glacial
@@ -228,6 +234,8 @@ public:
 	{
 		for (int i = 0; i < 6; i++) phase[i] = uint32_t(i) * (0xFFFFFFFFu / 6);
 		for (int i = 0; i < 6; i++) voiceIncSlew[i] = 0;
+		audio1Smoothed   = 0;
+		audio2Smoothed   = 0;
 		subPhase     = 0;
 		pwmPhase     = 0;
 		detunePhase  = 0;
@@ -313,6 +321,10 @@ public:
 
 	void __not_in_flash_func(ProcessSample)() override
 	{
+		// --- Audio inputs (smoothed, τ≈64 samples) ---
+		audio1Smoothed += (AudioIn1() - audio1Smoothed) >> 6;
+		audio2Smoothed += (AudioIn2() - audio2Smoothed) >> 6;
+
 		// --- Pitch ---
 		static constexpr int32_t kPitchBase  = 2472; // ~C3
 		static constexpr int32_t kPitchRange = 1023; // 3 octaves to ~C6
@@ -434,6 +446,19 @@ public:
 			slewShift = kSlewShift[zone];
 		}
 
+		// --- Audio In 1: bipolar slew speed (0V=instant, +5V≈1min; negative speeds up in slew mode) ---
+		{
+			int32_t ai1Shift = 0;
+			if (audio1Smoothed > 0)
+				ai1Shift = (audio1Smoothed * 21) / 2047;
+			else if (slewMode && audio1Smoothed < 0)
+				ai1Shift = (audio1Smoothed * 21) / 2048;
+
+			slewShift = slewMode ? (slewShift + ai1Shift) : ai1Shift;
+			if (slewShift < 0)  slewShift = 0;
+			if (slewShift > 21) slewShift = 21;
+		}
+
 		// --- PU2 / CV Out 2 envelope: 50%→20% downward ramp ---
 		// Resets to 50% on zone change. Rate per zone:
 		// Zone 0 (Mid CCW): instant (snap to 20%)
@@ -466,9 +491,9 @@ public:
 			}
 		}
 
-		// --- Apply slew (slew mode) or use targets directly (normal mode) ---
+		// --- Apply slew or use targets directly ---
 		int32_t voice_inc[6];
-		if (slewMode && slewShift > 0)
+		if (slewShift > 0)
 		{
 			for (int i = 0; i < 6; i++)
 			{
@@ -482,6 +507,54 @@ public:
 			{
 				voice_inc[i]     = voice_inc_target[i];
 				voiceIncSlew[i]  = voice_inc_target[i]; // keep slew state in sync when instant
+			}
+		}
+
+		// --- Audio In 2: chord voicing inversions (bipolar ±6 steps, audio only) ---
+		// Positive: raise lowest voice by octaves. Negative: lower highest voice.
+		// voice_inc_target[] is untouched — CV Out 1 and Pulse Out 1 are unaffected.
+		{
+			int32_t invSteps = (audio2Smoothed * 6) / 2047;
+			if (invSteps >  6) invSteps =  6;
+			if (invSteps < -6) invSteps = -6;
+
+			if (invSteps != 0)
+			{
+				// Sort voice_inc[] ascending into vi[] (insertion sort, 6 elements)
+				int32_t vi[6];
+				for (int i = 0; i < 6; i++) vi[i] = voice_inc[i];
+				for (int i = 1; i < 6; i++) {
+					int32_t key = vi[i]; int j = i - 1;
+					while (j >= 0 && vi[j] > key) { vi[j+1] = vi[j]; j--; }
+					vi[j+1] = key;
+				}
+
+				// Positive steps: raise lowest non-zero voice one octave, re-sort
+				for (int s = 0; s < invSteps; s++) {
+					for (int i = 0; i < 6; i++) {
+						if (vi[i] > 0) { vi[i] <<= 1; break; }
+					}
+					for (int i = 0; i < 5; i++)
+						if (vi[i] > vi[i+1] && vi[i+1] > 0) { int32_t t=vi[i]; vi[i]=vi[i+1]; vi[i+1]=t; }
+				}
+
+				// Negative steps: lower highest non-zero voice one octave, re-sort
+				for (int s = 0; s < -invSteps; s++) {
+					for (int i = 5; i >= 0; i--) {
+						if (vi[i] > 0) { vi[i] >>= 1; break; }
+					}
+					for (int i = 5; i > 0; i--)
+						if (vi[i] < vi[i-1] && vi[i] > 0) { int32_t t=vi[i]; vi[i]=vi[i-1]; vi[i-1]=t; }
+				}
+
+				// Map sorted vi[] back to original voice slots by ascending voice_inc order
+				int idx[6] = {0,1,2,3,4,5};
+				for (int i = 1; i < 6; i++) {
+					int key = idx[i]; int j = i - 1;
+					while (j >= 0 && voice_inc[idx[j]] > voice_inc[key]) { idx[j+1] = idx[j]; j--; }
+					idx[j+1] = key;
+				}
+				for (int i = 0; i < 6; i++) voice_inc[idx[i]] = vi[i];
 			}
 		}
 

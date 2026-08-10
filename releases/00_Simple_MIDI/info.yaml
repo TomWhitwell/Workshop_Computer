@@ -1,5 +1,191 @@
-Description: Takes USB midi, sends it to pulse and CV outputs, also sends knob positions and CV inputs back to the computer as CC values. 
+draft: false
+Name: Simple MIDI
+short-description: USB MIDI interface and Computer calibrator.
 Language: Arduino-Pico
 Creator: Tom Whitwell
 Version: 0.6.6
 Status: Working but simple
+date-created: 2024-11-30
+date-updated: 2026-07-27
+license: MIT
+contact:
+  email: tom@musicthing.co.uk 
+  website: https://www.musicthing.co.uk/
+  social:
+    github: https://github.com/TomWhitwell
+
+tags:
+  - midi
+  - utility
+  - cv
+  - gate
+  - calibration
+
+summary: |
+  Simple MIDI turns the Computer into a simple USB MIDI interface that sends and receives MIDI over the front USB-C connection. It is also used to calibrate the outputs on the Workshop Computer.
+
+panel:
+  inputs:
+    - when: { z: middle }
+      id: AudioIn1
+      name: CV 38
+      description: CV input sent to the host as MIDI CC 38
+      type: cv
+
+    - when: { z: middle }
+      id: AudioIn2
+      name: CV 39
+      description: CV input sent to the host as MIDI CC 39
+      type: cv
+
+    - when: { z: middle }
+      id: CVIn1
+      name: CC 40
+      description: CV input sent to the host as MIDI CC 40
+      type: cv
+
+    - when: { z: middle }
+      id: CVIn2
+      name: CC 41
+      description: CV input sent to the host as MIDI CC 41
+      type: cv
+
+  outputs:
+    - when: { z: middle }
+      id: AudioOut1
+      name: CH 1 CC 42
+      description: Channel 1 Continuous Controller 42 values output as full-range CV
+      type: cv
+
+    - when: { z: middle }
+      id: AudioOut2
+      name: CH 2 CC 42
+      description: Channel 2 Continuous Controller 42 values output as full-range CV
+      type: cv
+
+    - when: { z: middle }
+      id: CVOut1
+      name: CH 1 Note CV
+      description: Channel 1 MIDI notes become calibrated pitch CV
+      type: cv
+
+    - when: { z: middle }
+      id: CVOut2
+      name: CH 2 Note CV
+      description: Channel 2 MIDI notes become calibrated pitch CV
+      type: cv
+
+    - when: { z: middle }
+      id: PulseOut1
+      name: CH 1 Note On
+      description: Note on and off events for MIDI notes on Channel 1
+      type: pulse
+
+    - when: { z: middle }
+      id: PulseOut2
+      name: CH 2 Note On
+      description: Note on and off events for MIDI notes on Channel 2
+      type: pulse
+
+    - when: { z: down }
+      id: CVOut1
+      name: Pitch CV 1
+      description: Calibrated pitch CV output for Channel 1
+      type: cv
+
+    - when: { z: down }
+      id: CVOut2
+      name: Pitch CV 2
+      description: Calibrated pitch CV output for Channel 2
+      type: cv
+
+controls:
+  switch:
+    middle:
+      name: CC 37
+      description: "Normal: switch position is sent to the host as MIDI CC 37"
+
+    down:
+      name: Startup Calib
+      description: Hold the switch down and press Load to enter output calibration mode
+
+  knobs:
+    - when: { z: middle }
+      main:
+        name: CC 34
+        description: Main knob position sent to the host as MIDI CC 34
+      x:
+        name: CC 35
+        description: X knob position sent to the host as MIDI CC 35
+      y:
+        name: CC 36
+        description: Y knob position sent to the host as MIDI CC 36
+
+    - when: { z: down }
+      main:
+        name: Fine
+        description: Fine-tune the selected calibration output
+      x:
+        name: Coarse
+        description: Make larger adjustments to the selected calibration output
+
+  leds:
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED0
+          name: CH 1 CC
+          description: Brightness shows Channel 1 CC activity
+
+        - id: LED1
+          name: CH 2 CC
+          description: Brightness shows Channel 2 CC activity
+
+        - id: LED2
+          name: CH 1 Pitch
+          description: Brightness shows Channel 1 pitch activity
+
+        - id: LED3
+          name: CH 2 Pitch
+          description: Brightness shows Channel 2 pitch activity
+
+        - id: LED4
+          name: CH 1 Gate
+          description: Indicates gate output activity for Channel 1
+
+        - id: LED5
+          name: CH 2 Gate
+          description: Indicates gate output activity for Channel 2
+
+    - when: { z: down }
+      display: list
+      items:
+        - id: LED0
+          name: CV 1 + 2 oct 
+          description: Currently tuning CV 1 at +2 octave 
+
+        - id: LED1
+          name: CV 2 + 2 oct 
+          description: Currently tuning CV 1 at +2 octave
+
+        - id: LED2
+          name: CV 1 C3
+          description: Currently tuning CV 1 at C3
+
+        - id: LED3
+          name: CV 2 C3
+          description: Currently tuning CV 2 at C3
+
+        - id: LED4
+          name: CV 1 - 2 oct 
+          description: Currently tuning CV 1 at -2 oct
+
+        - id: LED5
+          name: CH 2 Gate
+          description: Currently tuning CV 2 at -2 oct
+
+host:
+  usb:
+    - name: USB MIDI device
+      role: midi
+      description: Enumerates as "Music Thing Workshop System MIDI" for MIDI input and output with a DAW or browser tools

@@ -1,0 +1,10 @@
+short-description: 16-cell gate and quantized CV melody generator inspired by NLC Cellular Automata, using CA rules 90 & 150 on a 4x4 grid
+summary: 16-cell gate and quantized CV melody generator inspired by NLC Cellular Automata, using CA rules 90 & 150 on a 4x4 grid
+Name: Cellular Automata Sequencer
+Language: C++ (Pico SDK)
+Creator: Ainews
+Version: 1.1
+Status: Released
+License: MIT
+date-created: 2026-07-13
+date-updated: 2026-07-13

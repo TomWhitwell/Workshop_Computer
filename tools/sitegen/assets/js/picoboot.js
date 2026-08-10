@@ -387,20 +387,28 @@ export class Picoboot {
      * @param {number} size
      * @returns {Promise<Uint8Array>}
      */
-    async flashRead(addr, size) {
+    async flashRead(addr, size, onProgress) {
         const wasConnected = this.isConnected();
-        
+
         if (!wasConnected) {
             await this.connect();
         }
-        
+
         try {
             await this.connection.resetInterface();
 
             // Appears to be required on some RP2350 device
             await this.connection.exitXip();
 
-            const data = await this.connection.flashRead(addr, size);
+            // Read in batches (see flashEraseAndWrite): one whole-image
+            // command stalls USB long enough for the host to drop the device
+            const chunkSize = 16 * this.target.flashSectorSize();
+            const data = new Uint8Array(size);
+            for (let off = 0; off < size; off += chunkSize) {
+                const len = Math.min(chunkSize, size - off);
+                data.set(await this.connection.flashRead(addr + off, len), off);
+                if (onProgress) onProgress(off + len, size);
+            }
             return data;
         } finally {
             if (!wasConnected) {
@@ -468,7 +476,7 @@ export class Picoboot {
      * @param {Uint8Array} buf
      * @returns {Promise<void>}
      */
-    async flashEraseAndWrite(addr, buf) {
+    async flashEraseAndWrite(addr, buf, onProgress) {
         const sectorSize = this.target.flashSectorSize();
         const pageSize = this.target.flashPageSize();
         
@@ -479,22 +487,31 @@ export class Picoboot {
             );
         }
         
-        const eraseSize = Math.ceil(buf.length / sectorSize) * sectorSize;
-        
         const wasConnected = this.isConnected();
-        
+
         if (!wasConnected) {
             await this.connect();
         }
-        
+
         try {
             await this.connection.resetInterface();
 
             // Appears to be required on some RP2350 device
             await this.connection.exitXip();
 
-            await this.connection.flashErase(addr, eraseSize);
-            await this.connection.flashWrite(addr, buf);
+            // Erase and write in batches rather than as single whole-image
+            // commands: a large image (e.g. a 2MB firmware+data bundle)
+            // keeps the device busy in flash for so long that the host
+            // gives up on the stalled USB transfer and reports the device
+            // disconnected. Mirrors picotool's chunked behaviour.
+            const chunkSize = 16 * sectorSize;
+            for (let off = 0; off < buf.length; off += chunkSize) {
+                const part = buf.subarray(off, Math.min(off + chunkSize, buf.length));
+                const partEraseSize = Math.ceil(part.length / sectorSize) * sectorSize;
+                await this.connection.flashErase(addr + off, partEraseSize);
+                await this.connection.flashWrite(addr + off, part);
+                if (onProgress) onProgress(off + part.length, buf.length);
+            }
         } finally {
             if (!wasConnected) {
                 await this.disconnect();

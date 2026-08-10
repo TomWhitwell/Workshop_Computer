@@ -1,138 +1,108 @@
-id: 34_dual_quant
-title: Dual Quant
-release: 34 / 1.0
-summary: Dual granular pitch shifter with chromatic quantisation and calibrated pitch CV outputs
-description: Dual granular pitch shifter for the Workshop Computer platform with two independent fixed-point pitch shifters, optional chromatic pitch quantisation, CV-controllable pitch shifting, and pitch CV outputs.
+Name: DualQuant
+draft: false
+summary: Dual quantised granular pitch shifter with calibrated 1V/oct CV outputs
+short-description: Dual quantised granular pitch shifter with calibrated 1V/oct CV outputs
+Language: C++ (ComputerCard / Pico SDK)
+Creator: Adrian Vos
+Version: "1.0"
+Status: Beta - stable in single-developer testing
+License: MIT
+date-created: 2026-06-14
+date-updated: 2026-06-15
+demo-link: https://www.youtube.com/watch?v=U5x2nZ9EiMI
 panel:
-  controls:
-    main:
-      label: Global Pitch
-      description: Sets the shared global pitch offset for both pitch-shifted outputs.
-      source: curated
-    x:
-      label: Pitch A
-      description: Sets pitch offset for Audio Out 1 and CV Out 1.
-      source: curated
-    'y':
-      label: Pitch B
-      description: Sets pitch offset for Audio Out 2 and CV Out 2.
-      source: curated
-    z:
-      label: Quantise
-      description: Middle position enables chromatic pitch quantisation.
-      source: curated
   inputs:
-    audio_l:
-      label: |-
-        Audio
-        1
-      description: Main audio input into the shared circular buffer.
-      source: curated
-    audio_r:
-      label: |-
-        Audio
-        2
-      description: Secondary audio input.
-      source: curated
-    cv_1:
-      label: |-
-        CV
-        1
-      description: Additional pitch modulation for output A.
-      source: curated
-    cv_2:
-      label: |-
-        CV
-        2
-      description: Additional pitch modulation for output B.
-      source: curated
-    pulse_1:
-      label: |-
-        Pulse
-        1
-      description: Pulse input.
-      source: curated
-    pulse_2:
-      label: |-
-        Pulse
-        2
-      description: Pulse input.
-      source: curated
+    - id: AudioIn1
+      name: Audio In
+      description: Source audio written into the shared granular delay buffer
+      type: audio
+    - id: CVIn1
+      name: Pitch Mod A
+      description: Additional semitone modulation for output A
+      type: cv
+    - id: CVIn2
+      name: Pitch Mod B
+      description: Additional semitone modulation for output B
+      type: cv
   outputs:
-    audio_out_l:
-      label: |-
-        Audio
-        1
-      description: Pitch-shifted signal A.
-      source: curated
-    audio_out_r:
-      label: |-
-        Audio
-        2
-      description: Pitch-shifted signal B.
-      source: curated
-    cv_out_1:
-      label: |-
-        CV
-        1
-      description: Quantised pitch voltage A.
-      source: curated
-    cv_out_2:
-      label: |-
-        CV
-        2
-      description: Quantised pitch voltage B.
-      source: curated
-    pulse_out_1:
-      label: |-
-        Pulse
-        1
-      description: Pulse output.
-      source: curated
-    pulse_out_2:
-      label: |-
-        Pulse
-        2
-      description: Pulse output.
-      source: curated
-switch_modes:
-  up: Pitch shifting without quantisation.
-  middle: Enables chromatic pitch quantisation.
-  down: Pitch shifting without quantisation.
-leds:
-  - "LED feedback shows quantiser state."
-notes:
-  - "Main controls global pitch offset, X controls pitch offset for output A, and Y controls pitch offset for output B."
-  - "The DSP uses fixed-point arithmetic, lookup tables, power-of-two buffer wrapping, no dynamic allocation, and no floating point in the ISR."
-  - "The audio character is intentionally rough, lo-fi, granular, smeared, and metallic rather than transparent."
-source:
-  - dual_quant_pitch.cpp
-  - Click.h
-  - README.md
-slug: 34-dual-quant
-url: /workshopsystem/program-cards/34-dual-quant/
+    - id: AudioOut1
+      name: |-
+        Pitch Shift
+        Out A
+      description: Granular pitch-shifted output A
+      type: audio
+    - id: AudioOut2
+      name: |-
+        Pitch Shift
+        Out B
+      description: Granular pitch-shifted output B
+      type: audio
+    - id: CVOut1
+      name: |-
+        Pitch CV Out
+        A
+      description: Pitch A converted to millivolt CV output
+      type: cv
+    - id: CVOut2
+      name: |-
+        Pitch CV Out
+        B
+      description: Pitch B converted to millivolt CV output
+      type: cv
 tags:
-  - id: effect
-    label: Effect
-  - id: pitch-shifter
-    label: Pitch Shifter
-  - id: granular
-    label: Granular
-  - id: quantizer
-    label: Quantizer
-tag_ids:
-  - effect
-  - pitch-shifter
   - granular
+  - pitch-shifter
+  - dual-output
   - quantizer
-tag_labels:
-  - Effect
-  - Pitch Shifter
-  - Granular
-  - Quantizer
-source_file: data/cards/34_dual_quant.yml
-metadata:
-  creator: Adrian Vos
-  language: Pico SDK
-  version: '1.0'
-  status: Beta
+  - fixed-point
+controls:
+  switch:
+    up:
+      name: Unquantised
+      description: "Z up: MAIN: Global Pitch Offset; X: Output A Offset; Y: Output B
+        Offset."
+    middle:
+      name: Quantised semitones
+      description: "Z middle: MAIN: Quantize Enable."
+    down:
+      name: Unquantised
+      description: "Z down: MAIN: Global Pitch Offset; X: Output A Offset; Y: Output B
+        Offset."
+  knobs:
+    - main:
+        name: Global Pitch Offset
+        description: Global pitch offset applied to both outputs
+      x:
+        name: Output A Offset
+        description: Additional pitch offset for output A
+      y:
+        name: Output B Offset
+        description: Additional pitch offset for output B
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: LED 1
+          description: "Quantized state: all LEDs on"
+        - id: LED1
+          name: LED 2
+          description: "Unquantized state: all LEDs off"
+host:
+  notes: >
+    DualQuantPitch runs two independent granular pitch-shifted outputs from one
+    shared circular buffer.
+
+    Main sets global pitch offset, X sets output A offset, and Y sets output B
+    offset.
+
+    CV In 1 and CV In 2 modulate pitch for outputs A and B respectively.
+
+    Switch middle enables chromatic semitone quantization; other switch
+    positions run continuously unquantized.
+
+    The design intentionally favors gritty/lo-fi granular character over
+    transparent pitch shifting. # certainty: medium (README is marked LLM
+    output)
+contact:
+  social:
+    github: https://github.com/soveda

@@ -1,0 +1,220 @@
+#pragma once
+
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <cstdlib>
+
+namespace pantograph {
+static constexpr int kMaxFrames = 18750;
+// Samples per recorded frame (48kHz / 192 = 250Hz capture rate); also the
+// playback-speed divisor, so record and playback rates stay in lockstep.
+static constexpr int kFramePeriod = 192;
+
+inline int KnobToCV(int knobVal) {
+  return knobVal - 2048;
+}
+
+inline int32_t KnobToSpeed(int32_t bigKnob) {
+  const int32_t kDeadZone = 40; // TODO tune and adjust
+  const int32_t kScale = 128; // ~4x speed at full deflection
+
+  int32_t centered = bigKnob - 2048;
+
+  if (std::abs(centered) <= kDeadZone) {
+    return 0;
+  }
+
+  // Count from where the knob starts responding, so speed eases in
+  // from zero instead of jumping as the knob leaves the centre band.
+  centered -= centered > 0 ? kDeadZone : -kDeadZone;
+
+  return centered * kScale;
+}
+
+inline int SumClamp(int cv1, int cv2) {
+  return std::clamp(cv1 + cv2, -2048, 2047);
+}
+
+inline int16_t LerpI(int16_t y0, int16_t y1, uint32_t frac_q16) {
+  int32_t delta = y1 - y0;
+  int32_t scaled = delta * static_cast<int32_t>(frac_q16) >> 16;
+  return y0 + scaled;
+}
+
+inline int16_t ApplyDepth(int16_t cv, int32_t knob) {
+  // The knob tops out at 4095; treat that as 4096 so full CW is exactly
+  // unity rather than 4095/4096 of the trace.
+  if (knob >= 4095) {
+    knob = 4096;
+  }
+
+  return (static_cast<int32_t>(cv) * knob) >> 12;
+}
+
+// Fires every `period` ticks, starting with the first tick after Reset —
+// so a recording captures its t=0 frame the moment it starts.
+class Decimator {
+public:
+  explicit Decimator(int period) : period_(period) {}
+
+  void Reset() {
+    count_ = 0;
+  }
+
+  bool Tick() {
+    bool fire = count_ == 0;
+    count_++;
+    if (count_ == period_) {
+      count_ = 0;
+    }
+    return fire;
+  }
+
+private:
+  int period_;
+  int count_ = 0;
+};
+
+struct Frame {
+  int16_t x;
+  int16_t y;
+};
+
+class Buffer {
+public:
+  int Length() const {
+    return idx_;
+  }
+
+  void Push(Frame f) {
+    if (idx_ < buffer_.size()) {
+      buffer_[idx_++] = f;
+    }
+  }
+
+  void Reset() {
+    idx_ = 0;
+  }
+
+  int Capacity() const {
+    return kMaxFrames;
+  }
+
+  Frame At(int idx) const {
+    return buffer_[idx];
+  }
+
+private:
+  std::array<Frame, kMaxFrames> buffer_;
+  std::size_t idx_{};
+};
+
+struct TriggerOut {
+  static constexpr int kWidthSamples = 240; // ~5 ms at 48kHz
+  bool tick(bool trigger) {
+    if (trigger) {
+      frames_ = kWidthSamples;
+      return true;
+    }
+
+    frames_--;
+
+    if (frames_ < 0) {
+      frames_ = 0;
+    }
+
+    return frames_ > 0;
+  }
+
+private:
+  int frames_ = 0;
+};
+
+struct Schmitt {
+  static constexpr int kBand = 200;
+  bool update(int value) {
+    if (value > kBand) {
+      state_ = true;
+    }
+
+    if (value < -kBand) {
+      state_ = false;
+    }
+
+    return state_;
+  }
+
+private:
+  bool state_ = false;
+};
+
+class Phasor {
+public:
+  // set the loop size (in frames); restarts playback from the top
+  void SetLength(uint32_t length) {
+    length_ = length;
+    Trigger();
+  }
+
+  bool Advance(int32_t increment, bool loop) {
+    if (length_ == 0) {
+      return false;
+    }
+
+    bool report = false;
+
+    if (loop) {
+      int32_t span = length_ << 16;
+      int32_t pos = static_cast<int32_t>(position_) + increment;
+      report = (pos >= span || pos < 0);
+
+      pos %= span;
+      if (pos < 0) {
+        pos += span;
+      }
+
+      position_ = pos;
+    } else {
+      int32_t last = (length_ - 1) << 16;
+      int32_t pos = static_cast<int32_t>(position_) + increment;
+
+      if (pos >= last) {
+        report = position_ != static_cast<uint32_t>(last);
+        pos = last;
+        finished_ = true;
+      } else if (pos < 0) {
+        report = position_ != 0;
+        pos = 0;
+      }
+
+      position_ = pos;
+    }
+
+    return report;
+  }
+
+  bool Finished() const {
+    return finished_;
+  }
+
+  uint32_t Index() const {
+    return position_ >> 16;
+  }
+
+  // Q16
+  uint32_t Frac() const {
+    return position_ & 0xFFFF;
+  }
+
+  void Trigger() {
+    position_ = 0;
+    finished_ = false;
+  }
+
+private:
+  uint32_t position_{};
+  uint32_t length_{};
+  bool finished_{};
+};
+} // namespace pantograph

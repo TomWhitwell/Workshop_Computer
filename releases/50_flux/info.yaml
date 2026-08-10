@@ -1,7 +1,168 @@
-Description: Effects, Synthesizer and Utility
 Name: Flux
-Language: C++ (RPi Pico SDK), C
-Creator: Vincent Maurer (vincentmaurer.de)
-Version: 1.0
-Status: Release
+short-description: Multi-FX processor, polyphonic synthesizer, and CV utility module.
+Language: C++ (RP2040 Pico SDK)
+Creator: Vincent Maurer
+Version: "1.0.0"
+Status: Released
+License: MIT
 Editor: https://vincentmaurer.de/flux/flux_manager.html
+demo-link: https://youtu.be/oDZ6dwLnN7c
+
+contact:
+  website: https://vincentmaurer.de
+  social:
+    github: https://github.com/vincentltm
+    youtube: https://www.youtube.com/@vincentltm
+
+tags:
+  - multi-fx
+  - synthesizer
+  - sampler
+  - utility
+  - midi
+
+summary: |
+  Flux is a multi-effects processor, 4-voice polyphonic synthesizer, and CV utility card for the Workshop Computer. Runs dual RP2040 core processing: Core 0 handles a rich stereo FX engine (reverbs, delays, guitar amps, lossy MP3 degradation, pitch shifting, micro-looping), while Core 1 runs 14 synth & sampler engines (wavetables, virtual analog, string modeling, AMY piano, FM, drum kits, granular).
+
+  The card provides 4 configurable CV/Pulse output utilities (MIDI-to-CV, LFOs, step sequencers, MI Grids drum generator, clock dividers) and integrates with the browser-based Flux Manager for drag-and-drop sample management, patch card sharing, and Web MIDI control.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio Input 1 (Left / Mono)
+      description: Main external audio input or synth audio source
+      type: audio
+
+    - id: AudioIn2
+      name: Audio Input 2 (Right / Poly Synth)
+      description: Right audio input, secondary pitch, or 2-voice polyphonic CV
+      type: audio
+
+    - id: CVIn1
+      name: CV Mod X
+      description: Modulates effect time/decay or synth parameter
+      type: cv
+
+    - id: CVIn2
+      name: CV Mod Y
+      description: Modulates effect feedback/tone or synth parameter
+      type: cv
+
+    - id: PulseIn1
+      name: Trigger / Gate
+      description: Primary synth trigger and utility clocking input
+      type: pulse
+
+    - id: PulseIn2
+      name: Utility Clock / Reset
+      description: Secondary pulse control for sequencers and utility clocking
+      type: pulse
+
+  outputs:
+    - id: AudioOut1
+      name: Output 1 (Left)
+      description: Processed stereo left output or synth voice
+      type: cv
+
+    - id: AudioOut2
+      name: Output 2 (Right)
+      description: Processed stereo right output or synth voice
+      type: cv
+
+    - id: CVOut1
+      name: CV Output 1
+      description: "Configurable utility CV out: MIDI Pitch/Vel/CC, ADSR, LFOs, Step/Gen Sequencers"
+      type: cv
+
+    - id: CVOut2
+      name: CV Output 2
+      description: "Configurable utility CV out: Random S&H, LFOs, Sequencer B"
+      type: cv
+
+    - id: PulseOut1
+      name: Pulse Output 1
+      description: "Configurable pulse/clock out: MIDI Gate, Clock Div, MI Grids drum map"
+      type: pulse
+
+    - id: PulseOut2
+      name: Pulse Output 2
+      description: "Configurable pulse/clock out: Sequencer Gates, MI Grids drum gates"
+      type: pulse
+
+controls:
+  switch:
+    up:
+      name: Synth Mode
+      description: "Main = Envelope/Decay; X = Pitch; Y = Timbre/Color."
+    middle:
+      name: Effect Mode
+      description: "Main = Wet/Dry Mix; X = Param 1 (Time/Decay); Y = Param 2 (Tone/Feedback)."
+    down:
+      name: Select Menu & Performance
+      description: "Hold DOWN: Select Menu (Main = Change Effect, X = Change Synth, Y = Extra Param). Double-hold DOWN: Performance Menu (Main = Internal Tempo, X = Seq A, Y = Seq B)."
+
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Wet / Dry Mix (Effect Mode)
+        description: Blend between dry external audio and selected effect
+      x:
+        name: Effect Param 1 (Time / Decay)
+        description: Time, decay duration, or modulation rate depending on selected effect
+      y:
+        name: Effect Param 2 (Tone / Feedback)
+        description: Feedback level, tone filter, or depth depending on selected effect
+
+    - when: { z: up }
+      main:
+        name: Envelope / Decay (Synth Mode)
+        description: Primary synth envelope decay or attack/decay time
+      x:
+        name: Pitch (Synth Mode)
+        description: Main oscillator pitch transposition
+      y:
+        name: Timbre / Color (Synth Mode)
+        description: Engine-specific timbre, cutoff filter, or wave shape
+
+    - when: { z: down }
+      main:
+        name: Select Effect / Master BPM
+        description: "Hold DOWN: Select effect algorithm. Double-hold DOWN: Master BPM"
+      x:
+        name: Select Synth / Seq A Control
+        description: "Hold DOWN: Select synth engine. Double-hold DOWN: Sequence A length/randomness"
+      y:
+        name: Extra Param / Seq B Control
+        description: "Hold DOWN: Extra engine parameter. Double-hold DOWN: Sequence B length/randomness"
+
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Status Bit 0 / Voice Active
+          description: Displays current effect/synth selection bit 0
+        - id: LED1
+          name: Status Bit 1 / Voice Active
+          description: Displays current effect/synth selection bit 1
+        - id: LED2
+          name: Status Bit 2 / Voice Active
+          description: Displays current effect/synth selection bit 2
+        - id: LED3
+          name: Status Bit 3 / Voice Active
+          description: Displays current effect/synth selection bit 3
+        - id: LED4
+          name: Mode Indicator (Synth / Effect)
+          description: Indicates active mode (Synth vs Effect)
+        - id: LED5
+          name: Voice Announcement / MIDI Activity
+          description: Lights during voice announcements or incoming MIDI activity
+
+host:
+  usb:
+    - name: Flux Web Manager & DAW Sync (Device Mode)
+      role: editor
+      description: Browser Web MIDI app (`web/flux_manager.html` or online) for sample management, 4-voice USB MIDI control, patch card sharing, and utility routing
+
+    - name: USB MIDI Controller (Host Mode)
+      role: controller
+      description: Connect USB MIDI keyboards directly to card USB-C port for 4-voice polyphonic synth playing

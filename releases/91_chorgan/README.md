@@ -23,6 +23,8 @@ In both modes, Pulse Out 2 and CV Out 2 fire a timed envelope on every chord eve
 |------|----------|
 | CV In 1 | Root pitch 1V/oct (0V = C4) — summed with Knob X |
 | CV In 2 | Timbre offset — bipolar, offsets the Main knob position |
+| Audio In 1 | Slew speed offset bipolar CV
+| Audio In 2 | Chord inversion — bipolar; shifts voices up or down through octave inversions |
 | Pulse In 1 | Rising edge advances the chord extension preset |
 | Pulse In 2 | Rising edge recalls the next stored chord |
 
@@ -57,6 +59,18 @@ Morphs the waveform of all six voices simultaneously. The curve is a W-shape:
 | Fully CW | Narrow pulse |
 
 CV In 2 offsets the knob position bipolarly but cannot push the timbre into a different detune/slew zone — that is always determined by the physical knob position.
+
+**Audio In 1 — Slew speed**
+Patches a portamento glide onto all six voices. 0V (or unpatched) is instant — identical to the current behaviour. Positive voltage adds glide: at +5V the glide time is approximately one minute. The full range is continuously variable between those two extremes.
+
+In normal (detune) mode, Audio In 1 adds slew on top of the existing detune — voices glide to their detuned targets rather than snapping to them. Detune is still active.
+
+In slew mode, Audio In 1 offsets the zone-controlled rate. Positive voltage extends the glide beyond what the zone alone provides; negative voltage shortens it, bringing the glide back toward instant. (At maximum the slew time ~1min)
+
+**Audio In 2 — Chord inversions**
+Shifts the voicing up or down through octave inversions. At 0V the voicing is unchanged. Positive voltage steps the lowest-sounding voice up by one octave per step, cycling the voicing upward. Negative voltage steps the highest-sounding voice down by one octave per step. There are six steps available in each direction.
+
+This only affects the audio outputs — CV Out 1 and Pulse Out 1 continue to track the unmodified root pitch and interval.
 
 **Switch + Main Knob position — Detune (normal mode) / Slew rate (slew mode)**
 
@@ -219,4 +233,4 @@ V/oct lookup table (`voct_vals`) from [Utility Pair](https://github.com/chrisgjo
 
 Waveform morphing concept inspired by [Mutable Instruments Braids](https://mutable-instruments.net/modules/braids/) (Émilie Gillet).
 
-Licensed under [Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+Licensed under the [MIT License](https://opensource.org/licenses/MIT). The `voct_vals` lookup table retains its original licence from Utility Pair (MIT).

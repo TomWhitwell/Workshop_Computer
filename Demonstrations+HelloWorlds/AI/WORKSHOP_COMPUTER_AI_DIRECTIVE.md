@@ -339,17 +339,9 @@ For example:
 
 Cards in `releases/NN_name/` (e.g. `20_reverb`, `69_trace`). Required: `info.yaml`, `README.md`, `.uf2` binary.
 
-```yaml
-# info.yaml
-Description: One-line description
-Language: C++ / Arduino / Lua / Rust / CircuitPython / MicroPython
-Creator: Your name
-Version: 1.0
-Status: Released / Beta / WIP
-Editor: https://url (optional)
-```
+**`info.yaml` schema:** [`documentation/info.yaml.md`](../../documentation/info.yaml.md) — canonical field reference (core metadata, web editor deploy, `repository` / `tags` / `audio-sample`, structured `panel` / `controls` / `host`, and what sitegen uses today). Do not duplicate that schema here; update the doc when fields change.
 
-Automation: `update-readme.yml` regenerates `releases/README.md`; `pages.yml` builds the site.
+Structured metadata and several optional fields are parsed but **not** rendered on program detail pages yet — still author them in yaml for tooling and future site UI. Full structured example: [`releases/82_Computer_Grids/info.yaml`](../../releases/82_Computer_Grids/info.yaml).
 
 ### Version control discipline
 
@@ -388,8 +380,9 @@ A web editor is not required for every card. Use one when:
 - calibration/scale tables are involved.
 
 **Location/name**
-- Ship as a single self-contained static HTML file.
-- Use a predictable filename/path, e.g. `web_config/<card>.html` (as used by existing official editors), and link it prominently from the card's docs.
+- Prefer a `web/` folder in the card release directory with `index.html`.
+- Deploy paths and `Editor` / `web-entry` values: [`documentation/info.yaml.md`](../../documentation/info.yaml.md) (Web editor section).
+- Older official paths like `web_config/<card>.html` on musicthing.co.uk remain valid as external `Editor` URLs.
 
 **Connection**
 - WebMIDI/SysEx preferred (Chrome-family; sometimes Android). WebSerial is Chrome desktop only. iOS generally unsupported.
