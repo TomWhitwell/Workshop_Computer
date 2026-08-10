@@ -11,6 +11,7 @@ Creator: Adrian Vos
 Version: 0.8.0
 Status: Beta - stable in single-developer testing
 License: MIT
+demo-link: https://www.youtube.com/watch?v=X9NSBJfStic
 panel:
   inputs:
     - id: AudioIn1
