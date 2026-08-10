@@ -181,6 +181,9 @@ host:
     C1ZZL3 Import Lab: Hosted browser translator for Casio CZ `.syx` patches,
     with pitch-aware handoff into Envelope Lab for final editing and sending.
 
+    Demo video note: for the separate no-Turing branch with recipe-bank
+    performance controls, also refer to the C1ZZL3 Gnarly demo video.
+
 
     MIDI CC1 controls phase distortion, CC20 detune, CC21 ring modulation, CC22
     noise,

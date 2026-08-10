@@ -151,6 +151,9 @@ host:
     Web MIDI: use the Gnarly Lab for Amp1/Amp2, PD1/PD2, Pitch1/Pitch2,
     recipe bank, named sound presets, and CZ Import Lab handoff.
 
+    Demo video note: for the main Turing-enabled Core 1.4 / Rad v9 branch, also
+    refer to the Cosmik C1ZZL3 demo video.
+
 
     MIDI CC map: CC1 = oscillator 1 phase distortion; CC20 = oscillator 1
     recipe slot; CC21 = oscillator 2 recipe slot; CC22 = ring modulation;
