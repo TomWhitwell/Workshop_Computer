@@ -1,0 +1,134 @@
+draft: true
+Name: Punk Confusion
+short-description: Punk by name, split-brain by design: Atari Punk Console synth, broken-basement PA effect, and random shouted stabs
+summary: |
+  Punk Confusion is a deliberately confused card built around two very different
+  meanings of "punk". Switch Up is a voltage-controlled Atari Punk Console-inspired
+  synth voice with two timing controls, hard gate input, and nasty stepped tones.
+  Switch Middle is Broken Venue, a wrecked-room audio effect for external signals:
+  slapback, grit, feedback, and collapsing PA energy inspired by the cramped,
+  abrasive feel of rooms like CBGB, the Marquee, the 100 Club, and the Whisky a
+  Go Go. Hitting Switch Down or Pulse In 2 throws one of four short built-in
+  punk-inspired vocal stabs through the same Broken Venue processing chain.
+Language: C++ (Pico SDK / ComputerCard)
+Creator: Adrian Vos + Codex
+Version: "0.1.0"
+Status: Draft
+License: MIT
+date-created: 2026-08-10
+date-updated: 2026-08-10
+Repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/77_PunkConfusion
+
+tags:
+  - synth
+  - effect
+  - sample-playback
+  - noise
+  - lofi
+  - performance
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Broken Venue Input
+      type: audio
+      description: External audio source for the Broken Venue mode.
+    - id: AudioIn2
+      name: Unused
+      type: audio
+      description: Reserved for future expansion; unused in the first version.
+    - id: CVIn1
+      name: APC CV 1
+      type: cv
+      description: Voltage control for APC timing section 1, paired with Knob X.
+    - id: CVIn2
+      name: APC CV 2
+      type: cv
+      description: Voltage control for APC timing section 2, paired with Knob Y.
+    - id: PulseIn1
+      name: APC Gate
+      type: pulse
+      description: Hard gate for APC mode. High opens the sound, low mutes it.
+    - id: PulseIn2
+      name: Vocal Trigger
+      type: pulse
+      description: Triggers a random built-in vocal stab, matching the Switch Down gesture.
+  outputs:
+    - id: AudioOut1
+      name: Main Output
+      type: audio
+      description: Main audio output for both APC and Broken Venue modes.
+    - id: AudioOut2
+      name: Mirror Output
+      type: audio
+      description: Mirrors the main output in the first version.
+    - id: CVOut1
+      name: Unused
+      type: cv
+      description: Unused in the first version.
+    - id: CVOut2
+      name: Unused
+      type: cv
+      description: Unused in the first version.
+    - id: PulseOut1
+      name: Unused
+      type: pulse
+      description: Unused in the first version.
+    - id: PulseOut2
+      name: Unused
+      type: pulse
+      description: Unused in the first version.
+
+controls:
+  switch:
+    up:
+      name: Atari Punk Console
+      description: Free-running APC-inspired synth voice with CV over both timing controls.
+    middle:
+      name: Broken Venue
+      description: Dirty room / PA treatment for external audio at Audio In 1.
+    down:
+      name: Vocal Stab
+      description: Hold down to trigger a random built-in shout routed through the Broken Venue chain.
+  knobs:
+    - when: { z: up }
+      main:
+        name: Volume
+        description: Overall APC output level.
+      x:
+        name: APC Pot 1
+        description: Manual timing control for APC section 1, summed with CV In 1.
+      y:
+        name: APC Pot 2
+        description: Manual timing control for APC section 2, summed with CV In 2.
+    - when: { z: middle }
+      main:
+        name: Venue
+        description: Overall Broken Venue amount and dry-wet emphasis.
+      x:
+        name: Room
+        description: Selects and morphs between CBGB, the Marquee, the 100 Club, and the Whisky a Go Go.
+      y:
+        name: Collapse
+        description: Adds instability, overload, choke, flutter, and room failure intensity.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: APC Mode
+          description: Indicates Switch Up APC mode.
+        - id: LED1
+          name: Broken Venue Mode
+          description: Indicates Switch Middle Broken Venue mode.
+        - id: LED2
+          name: Vocal Trigger
+          description: Flashes when a vocal stab is triggered.
+        - id: LED3
+          name: Gate Open
+          description: Indicates APC gate high in Switch Up mode.
+        - id: LED4
+          name: Venue Drive
+          description: Activity indicator for the Broken Venue engine.
+        - id: LED5
+          name: Clip / Chaos
+          description: Indicates aggressive signal level or internal overload.
