@@ -7,7 +7,7 @@ summary: |
   synth voice with two timing controls, hard gate input, and nasty stepped tones.
   Switch Middle is Broken Venue, a wrecked-room audio effect for external signals:
   slapback, grit, feedback, and collapsing PA energy inspired by the cramped,
-  abrasive feel of rooms like CBGB, the Marquee, the 100 Club, and the Whisky a
+  abrasive feel of rooms like CBGB, the 100 Club, the Marquee, and the Whisky a
   Go Go. Hitting Switch Down or Pulse In 2 throws one of four short built-in
   punk-inspired vocal stabs through the same Broken Venue processing chain.
 Language: C++ (Pico SDK / ComputerCard)
@@ -103,11 +103,11 @@ controls:
         description: Manual timing control for APC section 2, summed with CV In 2.
     - when: { z: middle }
       main:
-        name: Venue
-        description: Overall Broken Venue amount and dry-wet emphasis.
+        name: Input / Room Gain
+        description: Attenuates hot modular signals below noon, sits near unity at noon, and boosts quieter line-level sources clockwise.
       x:
         name: Room
-        description: Selects and morphs between CBGB, the Marquee, the 100 Club, and the Whisky a Go Go.
+        description: Selects and morphs between CBGB, the 100 Club, the Marquee, and the Whisky a Go Go.
       y:
         name: Collapse
         description: Adds instability, overload, choke, flutter, and room failure intensity.

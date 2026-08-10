@@ -51,7 +51,8 @@ able to drag it into squelch, chirp, stepping, and ugly pseudo-melodic behavior.
 This mode turns the card into a dirty treatment box for external audio.
 
 - `Audio In 1` is the source input.
-- `Main` sets overall venue amount / dry-wet emphasis.
+- `Main` sets input/room gain: below noon attenuates hot modular signals, noon
+  is about unity, and clockwise boosts quieter line-level sources.
 - `Knob X` selects and morphs between venue personalities.
 - `Knob Y` controls collapse, instability, and failure intensity.
 - `Audio Out 1` and `Audio Out 2` carry the processed output.
@@ -59,7 +60,7 @@ This mode turns the card into a dirty treatment box for external audio.
 The target feel is not "nice reverb". It should suggest a damaged rehearsal PA,
 basement slapback, speaker bark, and unstable room energy, with venue mood
 leaning toward the sweat, wall reflections, and abrasive intimacy of rooms like
-CBGB, the Marquee, the 100 Club, and the Whisky a Go Go.
+CBGB, the 100 Club, the Marquee, and the Whisky a Go Go.
 
 ### Broken Venue parameter model
 
@@ -77,7 +78,7 @@ Shared engine blocks:
 
 Control intent:
 
-- `Main`: dry/wet and room amount
+- `Main`: input/room gain, roughly 0.25x to 8x with unity near noon
 - `Knob X`: venue selection / morph
 - `Knob Y`: collapse amount
 
@@ -86,8 +87,8 @@ Control intent:
 | Venue | Character | Early reflections | Delay / tail | EQ / color | Instability | Noise floor |
 |------|-----------|-------------------|--------------|------------|-------------|-------------|
 | `CBGB` | cramped, abrasive, overloaded | very short, splashy wall slap | short slapback, fast smear | upper-mid bark, trimmed lows, early clipping | moderate flutter, occasional crackle | hiss + hum possible |
-| `Marquee` | tight, sharp, punchy | shortest and most defined | shortest tail, strongest comb feel | brighter attack, less mud | low to moderate | low |
 | `100 Club` | dense, warm, sweaty | slightly denser cluster | thicker low-mid tail, less metallic | softer highs, more low-mid bloom | moderate, more pumping than flutter | low-mid room wash |
+| `Marquee` | tight, sharp, punchy | shortest and most defined | shortest tail, strongest comb feel | brighter attack, less mud | low to moderate | low |
 | `Whisky a Go Go` | bigger, splashier, more stage PA | wider first reflections | longest tail / clearest echo | more top before dirt, broader bandwidth | lower flutter, more dramatic splash | light air / room hash |
 
 ### First-pass implementation table
@@ -98,8 +99,8 @@ All times below are at 48kHz and assume a single shared dirty-room algorithm.
 | Venue | Early tap samples | Main delay samples | Feedback start | Tone tendency | Distortion | Collapse behavior |
 |------|-------------------|--------------------|----------------|---------------|------------|-------------------|
 | `CBGB` | `220, 470, 820` | `2800-4200` | `0.52` | mid-forward, dark top | asymmetric grit early | flutter + crackle + brief overload |
-| `Marquee` | `140, 310, 560` | `1800-3000` | `0.38` | brightest of the four | hard edge, less fuzz | mostly comb bite, mild dropout |
 | `100 Club` | `260, 540, 930, 1400` | `3600-5600` | `0.58` | warm, low-mid heavy | soft saturation after tail | pumping choke, less pitch wobble |
+| `Marquee` | `140, 310, 560` | `1800-3000` | `0.38` | brightest of the four | hard edge, less fuzz | mostly comb bite, mild dropout |
 | `Whisky a Go Go` | `340, 760, 1500` | `5200-7600` | `0.46` | broader, slightly shinier | speaker bark on peaks | splashy tail, occasional wash surge |
 
 ### Suggested morph behavior for `Knob X`
@@ -108,9 +109,9 @@ All times below are at 48kHz and assume a single shared dirty-room algorithm.
 the venues.
 
 - `0-1023`: `CBGB`
-- `1024-2047`: morph `CBGB -> Marquee`
-- `2048-3071`: morph `Marquee -> 100 Club`
-- `3072-4095`: morph `100 Club -> Whisky a Go Go`
+- `1024-2047`: morph `CBGB -> 100 Club`
+- `2048-3071`: morph `100 Club -> Marquee`
+- `3072-4095`: morph `Marquee -> Whisky a Go Go`
 
 If the morphing feels too subtle in code, use snapped zones first, then add
 crossfades later once the individual personalities are working.
@@ -127,8 +128,8 @@ crossfades later once the individual personalities are working.
 Venue-specific collapse emphasis:
 
 - `CBGB`: crackle, rough clipping, wall slap tearing
-- `Marquee`: tight harshness, comb bite, less chaos
 - `100 Club`: bloom, pumping, low-mid congestion
+- `Marquee`: tight harshness, comb bite, less chaos
 - `Whisky a Go Go`: splash, stage wash, echo swell
 
 ### Switch Down: Vocal stab

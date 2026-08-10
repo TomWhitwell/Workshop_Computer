@@ -22,8 +22,8 @@ constexpr uint32_t kApcPulseMin = 16;
 enum VenueType
 {
     VenueCBGB = 0,
-    VenueMarquee,
     VenueClub100,
+    VenueMarquee,
     VenueWhisky
 };
 
@@ -47,10 +47,10 @@ struct VenueProfile
 constexpr VenueProfile kVenueProfiles[] = {
     // CBGB: cramped, abrasive, overloaded
     {220, 470, 820, 2800, 1400, 1700, 650, 210, 120, 220, 180, 120, 220},
-    // Marquee: tight, sharp, punchy
-    {140, 310, 560, 1800, 1200, 1450, 450, 150, 80, 120, 80, 70, 80},
     // 100 Club: warm, dense, sweaty
     {260, 540, 930, 3600, 2000, 1900, 700, 300, 140, -120, 90, 90, 120},
+    // Marquee: tight, sharp, punchy
+    {140, 310, 560, 1800, 1200, 1450, 450, 150, 80, 120, 80, 70, 80},
     // Whisky a Go Go: larger, splashier, more stage PA
     {340, 760, 1500, 5200, 2400, 1550, 550, 180, 110, 80, 60, 60, 90},
 };
@@ -216,11 +216,25 @@ private:
         return kApcPulseMin + ((static_cast<uint32_t>(control) * (kApcPulseMax - kApcPulseMin)) >> 12);
     }
 
+    int32_t InputGainQ12(int32_t control) const
+    {
+        control = Clamp4095(control);
+
+        // Broken Venue needs to accept both hot modular signals and quieter
+        // line-level sources. Main is unity around noon, attenuates below noon,
+        // and gives enough lift above noon to make line-level gear usable.
+        if (control <= 2048)
+        {
+            return 1024 + ((control * 3072) >> 11); // 0.25x..1.0x
+        }
+        return 4096 + (((control - 2048) * 28672) >> 11); // 1.0x..8.0x
+    }
+
     VenueType SelectVenue(int32_t roomKnob) const
     {
         if (roomKnob < 1024) return VenueCBGB;
-        if (roomKnob < 2048) return VenueMarquee;
-        if (roomKnob < 3072) return VenueClub100;
+        if (roomKnob < 2048) return VenueClub100;
+        if (roomKnob < 3072) return VenueMarquee;
         return VenueWhisky;
     }
 
@@ -302,7 +316,8 @@ private:
 
     int32_t RenderBrokenVenue(bool downHeld)
     {
-        int32_t in = AudioIn1();
+        const int32_t gainControl = KnobVal(Knob::Main);
+        int32_t in = (static_cast<int32_t>(AudioIn1()) * InputGainQ12(gainControl)) >> 12;
         int32_t sample = ReadSampleVoice();
 
         // A small duck helps the vocal stab read clearly over a busy patch.
@@ -311,9 +326,8 @@ private:
             in = (in * 3) >> 2;
         }
 
-        int32_t source = Clamp12(in + sample);
+        int32_t source = SoftClip(in + sample);
 
-        const int32_t venueAmount = KnobVal(Knob::Main);
         const int32_t roomKnob = KnobVal(Knob::X);
         const int32_t collapse = KnobVal(Knob::Y);
         const VenueProfile &venue = kVenueProfiles[SelectVenue(roomKnob)];
@@ -416,7 +430,7 @@ private:
         const int32_t writeSample = Clamp12(source + early + ((filtered * feedback) >> 12));
         venueDelay_.Write(static_cast<int16_t>(writeSample));
 
-        const int32_t dryWet = venueAmount;
+        const int32_t dryWet = 2300 + ((gainControl * 1100) >> 12);
         return Clamp12(Lerp(source, wet, dryWet));
     }
 
