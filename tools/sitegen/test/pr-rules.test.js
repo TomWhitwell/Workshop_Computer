@@ -165,6 +165,31 @@ assignments:
     && item.file === 'tools/sitegen/src/curation/flairs.yml'));
 });
 
+test('sync-curation may remove an empty assignment for a deleted card', async t => {
+  const root = await fixture(t);
+  const changes = [
+    { status: 'D', path: 'releases/42_deleted/info.yaml' },
+    { status: 'M', path: 'tools/sitegen/src/curation/flairs.yml' },
+  ];
+  const baseFlairs = { available_flairs: [{ id: 'new' }], assignments: { '03_old': ['new'], '42_deleted': [] } };
+  await write(root, 'tools/sitegen/src/curation/flairs.yml', `
+available_flairs:
+  - id: new
+assignments:
+  03_old: [new]
+`);
+  const allowed = await evaluatePrRules(changes, { root, baseFlairs });
+  assert.ok(!allowed.some(item =>
+    item.ruleId === 'change-outside-release-directory'
+    && item.file === 'tools/sitegen/src/curation/flairs.yml'));
+
+  baseFlairs.assignments['42_deleted'] = ['new'];
+  const assignedDeletion = await evaluatePrRules(changes, { root, baseFlairs });
+  assert.ok(assignedDeletion.some(item =>
+    item.ruleId === 'change-outside-release-directory'
+    && item.file === 'tools/sitegen/src/curation/flairs.yml'));
+});
+
 test('deleting a complete release reports an explicit warning', async t => {
   const root = await fixture(t);
   const diagnostics = await evaluatePrRules([

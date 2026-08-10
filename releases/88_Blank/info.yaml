@@ -1,9 +1,12 @@
-draft: true
 Name: Blank
-short-description: Reserved for blank 88 cards
-summary: Reserved for blank 88 cards
-Language: None
+short-description: Reserved for blank cards
+summary: Nothing here
+Language: English
 Creator: Tom Whitwell
 Version: 0
-Status: None
+Status: Live
 date-created: 2024-11-30
+License: MIT
+contact:
+  email: tom@musicthing.co.uk
+

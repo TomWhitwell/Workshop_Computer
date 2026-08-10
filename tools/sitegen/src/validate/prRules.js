@@ -57,23 +57,43 @@ export function summarizePrTrigger(changes) {
 
 function allowsSynchronizedFlairs(changes, currentFlairs, baseFlairs) {
   if (!currentFlairs || !baseFlairs) return false;
-  const addedCards = new Set(changes
-    .filter(change => change.status.startsWith('A'))
-    .map(change => posix(change.path).match(/^releases\/([^/]+)\/info\.yaml$/)?.[1])
-    .filter(Boolean));
+  const addedCards = new Set();
+  const deletedCards = new Set();
+  const cardFromInfoPath = file => posix(file).match(/^releases\/([^/]+)\/info\.yaml$/)?.[1];
+  for (const change of changes) {
+    if (change.oldPath) {
+      const deleted = cardFromInfoPath(change.oldPath);
+      const added = cardFromInfoPath(change.path);
+      if (deleted) deletedCards.add(deleted);
+      if (added) addedCards.add(added);
+      continue;
+    }
+    const card = cardFromInfoPath(change.path);
+    if (!card) continue;
+    if (change.status.startsWith('A')) addedCards.add(card);
+    if (change.status.startsWith('D')) deletedCards.add(card);
+  }
   const currentAssignments = currentFlairs.assignments;
   const baseAssignments = baseFlairs.assignments;
   if (!currentAssignments || typeof currentAssignments !== 'object' || Array.isArray(currentAssignments)
       || !baseAssignments || typeof baseAssignments !== 'object' || Array.isArray(baseAssignments)) return false;
   const withoutAssignments = value => Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'assignments'));
   if (!isDeepStrictEqual(withoutAssignments(currentFlairs), withoutAssignments(baseFlairs))) return false;
-  for (const [card, assignment] of Object.entries(baseAssignments)) {
-    if (!Object.hasOwn(currentAssignments, card) || !isDeepStrictEqual(currentAssignments[card], assignment)) return false;
+  let synchronizedChanges = 0;
+  for (const card of new Set([...Object.keys(baseAssignments), ...Object.keys(currentAssignments)])) {
+    const inBase = Object.hasOwn(baseAssignments, card);
+    const inCurrent = Object.hasOwn(currentAssignments, card);
+    if (inBase && inCurrent) {
+      if (!isDeepStrictEqual(currentAssignments[card], baseAssignments[card])) return false;
+    } else if (inCurrent) {
+      if (!addedCards.has(card) || !Array.isArray(currentAssignments[card]) || currentAssignments[card].length !== 0) return false;
+      synchronizedChanges += 1;
+    } else {
+      if (!deletedCards.has(card) || !Array.isArray(baseAssignments[card]) || baseAssignments[card].length !== 0) return false;
+      synchronizedChanges += 1;
+    }
   }
-  const additions = Object.entries(currentAssignments).filter(([card]) => !Object.hasOwn(baseAssignments, card));
-  return additions.length > 0 && additions.every(([card, assignment]) =>
-    addedCards.has(card) && Array.isArray(assignment) && assignment.length === 0
-  );
+  return synchronizedChanges > 0;
 }
 
 function walkFiles(dir) {
