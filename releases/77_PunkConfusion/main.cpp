@@ -309,8 +309,10 @@ private:
         voice_.data = choice.data;
         voice_.length = choice.length;
         voice_.phase = 0;
-        voice_.step = 180 + ((NextRandom() >> 28) * 22); // small pitch spread
-        voice_.level = 3200;
+        // Keep the shout lower and less frantic than the first pass. A 24.8 step
+        // below 256 slows playback and pitches it down without extra DSP cost.
+        voice_.step = 132 + ((NextRandom() >> 29) * 10); // about 0.52x..0.79x
+        voice_.level = 3000;
         voice_.active = true;
     }
 
@@ -369,7 +371,7 @@ private:
         int32_t feedback = venue.feedbackBase + ((collapse * venue.feedbackRange) >> 12);
         if (downHeld)
         {
-            feedback += 180;
+            feedback += 80;
         }
         if (feedback > 3000) feedback = 3000;
 
@@ -382,7 +384,7 @@ private:
         }
         if (downHeld)
         {
-            noiseTarget += static_cast<int32_t>((NextRandom() >> 22) & 0x1FF) - 256;
+            noiseTarget += (static_cast<int32_t>((NextRandom() >> 23) & 0xFF) - 128) >> 1;
         }
         venueNoiseHold_ = ((venueNoiseHold_ * 29) + (noiseTarget * 3)) >> 5;
 

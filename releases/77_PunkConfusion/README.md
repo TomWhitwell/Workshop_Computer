@@ -144,6 +144,15 @@ Venue-specific collapse emphasis:
 The sample direction should stay original and genre-inspired rather than trying
 to imitate any specific band or performer.
 
+First real sample candidate:
+
+- `Men Shouting Hey.wav` by Jace on Freesound
+- Source: https://freesound.org/people/Jace/sounds/57204/
+- License: Creative Commons 0 / public domain
+- Notes: Group "hey" shout that auditioned well for the card. Trim, downsample,
+  pitch-shift if needed, and embed a transformed short version rather than
+  shipping the unedited source WAV.
+
 ## Suggested jack map
 
 | Jack | First version role |
@@ -170,7 +179,8 @@ to imitate any specific band or performer.
 - Prefer `copy_to_ram` unless a later feature gives us a good reason not to.
 - Keep the APC path simple and cheap enough to run comfortably inside the audio
   callback budget.
-- Keep the vocal samples short and stored on-card.
+- Keep the vocal samples short and stored on-card. The first real candidate is
+  the CC0 Freesound `Men Shouting Hey.wav` sample noted above.
 - Route vocal playback through the same venue engine so the card still feels
   like one instrument rather than three unrelated features.
 - Start with venue snapping and only add continuous morphing once the four venue
