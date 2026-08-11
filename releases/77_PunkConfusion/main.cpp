@@ -16,8 +16,10 @@ constexpr int32_t kSampleRate = 48000;
 constexpr int32_t kMaxAudio = 2047;
 constexpr int32_t kMinAudio = -2048;
 constexpr uint32_t kVenueDelaySize = 16384;
-constexpr uint32_t kApcPulseMax = 2048;
-constexpr uint32_t kApcPulseMin = 16;
+constexpr uint32_t kApcPeriodMinSamples = 24;   // about 2 kHz
+constexpr uint32_t kApcPeriodMaxSamples = 960;  // about 50 Hz
+constexpr uint32_t kApcPulseMinSamples = 4;     // shortest one-shot pulse
+constexpr uint32_t kApcPulseMaxSamples = 1100;  // lets the monostable overrun
 
 enum VenueType
 {
@@ -183,13 +185,14 @@ private:
     SampleVoice voice_{};
 
     uint32_t rngState_ = 0x13579BDFu;
-    uint32_t apcCarrierPhase_ = 0;
-    uint32_t apcTriggerPhase_ = 0;
+    uint32_t apcTriggerCounter_ = 0;
     uint32_t apcPulseTimer_ = 0;
     int32_t venueFilterState_ = 0;
     int32_t venueEnvelope_ = 0;
     int32_t venueNoiseHold_ = 0;
     int32_t vocalLedCounter_ = 0;
+    int32_t apcTriggerLedCounter_ = 0;
+    uint32_t apcTriggerLedDivider_ = 0;
     uint32_t venueFlutterCounter_ = 0;
 
     uint32_t NextRandom()
@@ -198,22 +201,30 @@ private:
         return rngState_;
     }
 
-    uint32_t KnobToIncrement(int32_t control) const
+    uint32_t ControlToApcPeriod(int32_t control) const
     {
-        if (control < 0) control = 0;
-        if (control > 4095) control = 4095;
+        control = Clamp4095(control);
 
-        // This is not precision pitch tracking. It maps the Workshop controls into
-        // a lively APC-like timing range: low values crawl, high values shriek.
-        const uint32_t base = 80u + static_cast<uint32_t>(control) * 10u;
-        return base << 6;
+        // Invert the knob so clockwise means faster, then square it for a denser
+        // useful range in the middle of the pot travel.
+        const uint32_t inverse = static_cast<uint32_t>(4095 - control);
+        const uint32_t shaped = (inverse * inverse) >> 12;
+        return kApcPeriodMinSamples
+            + ((shaped * (kApcPeriodMaxSamples - kApcPeriodMinSamples)) >> 12);
     }
 
-    uint32_t KnobToPulseLength(int32_t control) const
+    uint32_t ControlToApcPulseLength(int32_t control) const
     {
-        if (control < 0) control = 0;
-        if (control > 4095) control = 4095;
-        return kApcPulseMin + ((static_cast<uint32_t>(control) * (kApcPulseMax - kApcPulseMin)) >> 12);
+        control = Clamp4095(control);
+
+        // The second 555 in a classic APC is a monostable, not a duty-cycle
+        // control. Higher hardware resistance gives a longer one-shot, but this
+        // pot reads opposite on the card, so invert it to match the useful feel.
+        const uint32_t inverse = static_cast<uint32_t>(4095 - control);
+        const uint32_t step = inverse >> 6; // 64 steps
+        const uint32_t shaped = (step * step) >> 6;
+        return kApcPulseMinSamples
+            + ((shaped * (kApcPulseMaxSamples - kApcPulseMinSamples)) >> 6);
     }
 
     int32_t InputGainQ12(int32_t control) const
@@ -240,30 +251,43 @@ private:
 
     int32_t RenderApc()
     {
-        // The APC model here is deliberately simple: one square-wave timer clocks
-        // a second pulse generator. That preserves the stepped, rude feeling of the
-        // hardware circuit while keeping CPU cost tiny enough for a first pass.
+        // 555-style APC model: an astable clock (X/CV1) triggers a monostable
+        // one-shot (Y/CV2). If a trigger arrives while the one-shot is still
+        // high, it is ignored, which creates the hardware-like skip/step zones.
         int32_t cv1 = KnobVal(Knob::X) + CVIn1();
         int32_t cv2 = KnobVal(Knob::Y) + CVIn2();
-        const uint32_t triggerIncrement = KnobToIncrement(cv1);
-        const uint32_t carrierIncrement = KnobToIncrement(cv2);
+        const uint32_t periodSamples = ControlToApcPeriod(cv1);
 
-        const uint32_t previousTrigger = apcTriggerPhase_;
-        apcTriggerPhase_ += triggerIncrement;
-        if (apcTriggerPhase_ < previousTrigger)
+        if (apcTriggerCounter_ == 0)
         {
-            apcPulseTimer_ = KnobToPulseLength(cv2);
+            if (apcPulseTimer_ == 0)
+            {
+                apcPulseTimer_ = ControlToApcPulseLength(cv2);
+            }
+            apcTriggerCounter_ = periodSamples;
+            apcTriggerLedDivider_++;
+            if ((apcTriggerLedDivider_ & 0x3Fu) == 0)
+            {
+                apcTriggerLedCounter_ = 2400;
+            }
+        }
+        else
+        {
+            apcTriggerCounter_--;
         }
 
-        apcCarrierPhase_ += carrierIncrement;
         int32_t apcSample = 0;
         if (apcPulseTimer_ > 0)
         {
             apcPulseTimer_--;
-            apcSample = (apcCarrierPhase_ & 0x80000000u) ? 1900 : -1900;
+            apcSample = 1900;
+        }
+        else
+        {
+            apcSample = -1900;
         }
 
-        if (!PulseIn1())
+        if (Connected(Input::Pulse1) && !PulseIn1())
         {
             apcSample = 0;
         }
@@ -438,19 +462,23 @@ private:
 
     void UpdateLeds(Switch sw)
     {
-        LedOn(0, sw == Switch::Up);
+        const bool apcMode = sw == Switch::Up;
+        const bool gateOpen = !Connected(Input::Pulse1) || PulseIn1();
+
+        LedOn(0, apcMode);
         LedOn(1, sw == Switch::Middle || sw == Switch::Down);
-        LedOn(2, vocalLedCounter_ > 0);
-        LedOn(3, sw == Switch::Up && PulseIn1());
+        LedOn(2, apcMode ? apcTriggerLedCounter_ > 0 : vocalLedCounter_ > 0);
+        LedOn(3, false);
 
         int32_t venueActivity = venueEnvelope_ << 1;
         if (venueActivity > 4095) venueActivity = 4095;
-        LedBrightness(4, sw == Switch::Up ? 0 : venueActivity);
+        LedBrightness(4, apcMode && gateOpen ? 4095 : (apcMode ? 0 : venueActivity));
 
         const int32_t clipIndicator = Abs32(venueFilterState_) > 1400 ? 4095 : 0;
         LedBrightness(5, clipIndicator);
 
         if (vocalLedCounter_ > 0) vocalLedCounter_--;
+        if (apcTriggerLedCounter_ > 0) apcTriggerLedCounter_--;
     }
 };
 } // namespace
@@ -460,5 +488,6 @@ int main()
     set_sys_clock_khz(192000, true);
 
     PunkConfusion card;
+    card.EnableNormalisationProbe();
     card.Run();
 }

@@ -35,16 +35,23 @@ This mode is the joke in the title taken literally. It is not an amp or an
 effect; it is a self-running synth voice inspired by the classic dual-555 Atari
 Punk Console / stepped-tone-generator idea.
 
-- `Knob X` acts as APC pot 1.
-- `Knob Y` acts as APC pot 2.
+- `Knob X` acts as APC pot 1: trigger oscillator rate / pitch.
+- `Knob Y` acts as APC pot 2: monostable one-shot time for the stepped-tone
+  effect.
 - `Main` is overall output volume.
-- `CV In 1` modulates APC timing section 1.
-- `CV In 2` modulates APC timing section 2.
-- `Pulse In 1` is a hard gate.
+- `CV In 1` modulates APC timing section 1 / trigger rate.
+- `CV In 2` modulates APC timing section 2 / one-shot length.
+- `Pulse In 1` is a hard gate when patched. With no gate patched, the APC runs
+  freely.
 - `Audio Out 1` and `Audio Out 2` carry the APC signal.
 
 The target feel is free-running and stubborn by default, with control voltages
 able to drag it into squelch, chirp, stepping, and ugly pseudo-melodic behavior.
+The model follows the classic APC idea more closely than a simple PWM oscillator:
+`X` clocks the astable trigger oscillator, while `Y` sets a separate one-shot
+length that can overrun the trigger period and produce skipped/stuck steps.
+`Y` is inverted in firmware so the useful monostable range follows the hardware
+feel rather than the raw ADC direction.
 
 ### Switch Middle: Broken Venue
 
@@ -161,7 +168,7 @@ First real sample candidate:
 | `Audio In 2` | Unused |
 | `CV In 1` | APC CV 1 |
 | `CV In 2` | APC CV 2 |
-| `Pulse In 1` | APC hard gate |
+| `Pulse In 1` | APC hard gate when patched; unpatched = free-running |
 | `Pulse In 2` | Vocal trigger |
 | `Audio Out 1` | Main output |
 | `Audio Out 2` | Mirrored main output |
@@ -169,6 +176,16 @@ First real sample candidate:
 | `CV Out 2` | Unused |
 | `Pulse Out 1` | Unused |
 | `Pulse Out 2` | Unused |
+
+## LED map
+
+- `LED0`: APC mode indicator in Switch Up.
+- `LED2`: divided APC trigger-clock blink in Switch Up; vocal trigger flash in
+  Broken Venue / Switch Down.
+- `LED4`: APC gate-open indicator in Switch Up; Broken Venue activity otherwise.
+- `LED1`: Broken Venue / vocal mode indicator.
+- `LED3`: unused in the first version.
+- `LED5`: clip / chaos indicator.
 
 ## Initial implementation notes
 

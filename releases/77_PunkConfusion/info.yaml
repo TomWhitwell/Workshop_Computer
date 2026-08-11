@@ -16,7 +16,7 @@ Version: "0.1.0"
 Status: Draft
 License: MIT
 date-created: 2026-08-10
-date-updated: 2026-08-10
+date-updated: 2026-08-11
 Repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/77_PunkConfusion
 
 tags:
@@ -48,7 +48,7 @@ panel:
     - id: PulseIn1
       name: APC Gate
       type: pulse
-      description: Hard gate for APC mode. High opens the sound, low mutes it.
+      description: Hard gate for APC mode when patched. With no gate patched, the APC runs freely.
     - id: PulseIn2
       name: Vocal Trigger
       type: pulse
@@ -97,10 +97,10 @@ controls:
         description: Overall APC output level.
       x:
         name: APC Pot 1
-        description: Manual timing control for APC section 1, summed with CV In 1.
+        description: Manual trigger-rate control for APC section 1, summed with CV In 1.
       y:
         name: APC Pot 2
-        description: Manual timing control for APC section 2, summed with CV In 2.
+        description: Monostable one-shot time for APC section 2, summed with CV In 2; long settings can overrun the trigger rate for stepped tones.
     - when: { z: middle }
       main:
         name: Input / Room Gain
@@ -121,14 +121,14 @@ controls:
           name: Broken Venue Mode
           description: Indicates Switch Middle Broken Venue mode.
         - id: LED2
-          name: Vocal Trigger
-          description: Flashes when a vocal stab is triggered.
+          name: APC Clock / Vocal Trigger
+          description: In APC mode, blinks from the divided astable trigger clock; otherwise flashes when a vocal stab is triggered.
         - id: LED3
-          name: Gate Open
-          description: Indicates APC gate high in Switch Up mode.
+          name: Unused
+          description: Unused in the first version.
         - id: LED4
-          name: Venue Drive
-          description: Activity indicator for the Broken Venue engine.
+          name: APC Gate / Venue Drive
+          description: In APC mode, indicates gate-open state; otherwise shows activity from the Broken Venue engine.
         - id: LED5
           name: Clip / Chaos
           description: Indicates aggressive signal level or internal overload.
