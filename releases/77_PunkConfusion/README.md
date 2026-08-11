@@ -67,7 +67,8 @@ This mode turns the card into a dirty treatment box for external audio.
 - `Knob X` selects and morphs between venue personalities.
 - `Knob Y` controls audience absorption: clockwise simulates more bodies in the
   room, damping the reflected room path and shortening the lively tail.
-- `Audio Out 1` and `Audio Out 2` carry the processed output.
+- `Audio Out 1` carries the main processed output. `Audio Out 2` carries a
+  decorrelated room output for stereo patches.
 
 Current hardware-test build note: Broken Venue uses a fixed 50% dry / 50% wet
 mix so the venue personalities can be auditioned without losing the source.
@@ -103,7 +104,7 @@ Shared engine blocks:
 
 Control intent:
 
-- `Main`: input/room gain, roughly 0.25x to 8x with unity near noon
+- `Main`: input/room gain, roughly 0.25x to 2x with unity near noon
 - `Knob X`: venue selection / morph
 - `Knob Y`: audience absorption, with clockwise values damping reflections and
   reducing high-frequency room energy
@@ -190,7 +191,7 @@ First real sample candidate:
 | `Pulse In 1` | APC hard gate when patched; unpatched = free-running |
 | `Pulse In 2` | Vocal trigger |
 | `Audio Out 1` | Main output |
-| `Audio Out 2` | Mirrored main output |
+| `Audio Out 2` | Stereo room output in Broken Venue; mirrored APC output in Switch Up |
 | `CV Out 1` | Unused |
 | `CV Out 2` | Unused |
 | `Pulse Out 1` | Unused |
@@ -199,12 +200,20 @@ First real sample candidate:
 ## LED map
 
 - `LED0`: APC mode indicator in Switch Up.
-- `LED2`: divided APC trigger-clock blink in Switch Up; vocal trigger flash in
-  Broken Venue / Switch Down.
-- `LED4`: APC gate-open indicator in Switch Up; Broken Venue activity otherwise.
+- `LED2`: divided APC trigger-clock blink in Switch Up; participates in
+  room-zone display otherwise.
+- `LED4`: APC gate-open indicator in Switch Up; participates in room-zone
+  display otherwise.
 - `LED1`: Broken Venue / vocal mode indicator.
-- `LED3`: unused in the first version.
+- `LED3`: vocal trigger / Switch Down flash.
 - `LED5`: clip / chaos indicator.
+
+Middle-mode room-zone display on `LED0/LED2/LED4`:
+
+- `Marquee`: `LED0`
+- `CBGB`: `LED2`
+- `100 Club`: `LED4`
+- `Whisky a Go Go`: `LED0 + LED2 + LED4`
 
 ## Initial implementation notes
 

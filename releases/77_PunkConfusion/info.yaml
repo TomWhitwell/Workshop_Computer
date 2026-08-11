@@ -59,9 +59,9 @@ panel:
       type: audio
       description: Main audio output for both APC and Broken Venue modes.
     - id: AudioOut2
-      name: Mirror Output
+      name: Stereo Room Output
       type: audio
-      description: Mirrors the main output in the first version.
+      description: Decorrelated room output for stereo patches; APC mode mirrors Audio Out 1.
     - id: CVOut1
       name: Unused
       type: cv
@@ -104,7 +104,7 @@ controls:
     - when: { z: middle }
       main:
         name: Input / Room Gain
-        description: Attenuates hot modular signals below noon, sits near unity at noon, and boosts quieter line-level sources clockwise; dry/wet is fixed 50/50 for auditioning.
+        description: Attenuates hot modular signals below noon, sits near unity at noon, and gives gentle boost clockwise; dry/wet is fixed 50/50 for auditioning.
       x:
         name: Room
         description: Selects snapped room zones in approximate length order: Marquee, CBGB, the 100 Club, then the Whisky a Go Go.
@@ -115,20 +115,20 @@ controls:
     - display: list
       items:
         - id: LED0
-          name: APC Mode
-          description: Indicates Switch Up APC mode.
+          name: APC Mode / Room Zone
+          description: Indicates Switch Up APC mode; in room mode participates in venue-zone display.
         - id: LED1
           name: Broken Venue Mode
           description: Indicates Switch Middle Broken Venue mode.
         - id: LED2
-          name: APC Clock / Vocal Trigger
-          description: In APC mode, blinks from the divided astable trigger clock; otherwise flashes when a vocal stab is triggered.
+          name: APC Clock / Room Zone
+          description: In APC mode, blinks from the divided astable trigger clock; in room mode participates in venue-zone display.
         - id: LED3
-          name: Unused
-          description: Unused in the first version.
+          name: Vocal Trigger
+          description: Flashes for Switch Down or Pulse In 2 vocal triggers.
         - id: LED4
           name: APC Gate / Venue Drive
-          description: In APC mode, indicates gate-open state; otherwise shows activity from the Broken Venue engine.
+          description: In APC mode, indicates gate-open state; in room mode participates in venue-zone display.
         - id: LED5
           name: Clip / Chaos
           description: Indicates aggressive signal level or internal overload.

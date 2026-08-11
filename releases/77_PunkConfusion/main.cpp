@@ -156,18 +156,21 @@ public:
         }
 
         int32_t output = 0;
+        int32_t outputRight = 0;
 
         if (sw == Switch::Up)
         {
             output = RenderApc();
+            outputRight = output;
         }
         else
         {
             output = RenderBrokenVenue(sw == Switch::Down);
+            outputRight = roomRightOut_;
         }
 
         AudioOut1(output);
-        AudioOut2(output);
+        AudioOut2(outputRight);
         UpdateLeds(sw);
     }
 
@@ -186,10 +189,14 @@ private:
     uint32_t apcTriggerCounter_ = 0;
     uint32_t apcPulseTimer_ = 0;
     int32_t venueFilterState_ = 0;
+    int32_t venueFilterRightState_ = 0;
     int32_t venueEnvelope_ = 0;
     int32_t venueNoiseHold_ = 0;
     int32_t audienceLowState_ = 0;
     int32_t audienceHighState_ = 0;
+    int32_t audienceLowRightState_ = 0;
+    int32_t audienceHighRightState_ = 0;
+    int32_t roomRightOut_ = 0;
     int32_t vocalLedCounter_ = 0;
     int32_t apcTriggerLedCounter_ = 0;
     uint32_t apcTriggerLedDivider_ = 0;
@@ -238,7 +245,7 @@ private:
         {
             return 1024 + ((control * 3072) >> 11); // 0.25x..1.0x
         }
-        return 4096 + (((control - 2048) * 28672) >> 11); // 1.0x..8.0x
+        return 4096 + (((control - 2048) * 4096) >> 11); // 1.0x..2.0x
     }
 
     VenueType SelectVenue(int32_t roomKnob) const
@@ -249,23 +256,27 @@ private:
         return VenueWhisky;
     }
 
-    int32_t ApplyAudienceAttenuation(int32_t signal, int32_t audience)
+    int32_t ApplyAudienceAttenuation(
+        int32_t signal,
+        int32_t audience,
+        int32_t &lowState,
+        int32_t &highState)
     {
         audience = Clamp4095(audience);
 
         // Inspired by Rummler/Green/Jurkiewicz/Kahle 2025 ARTF measurements:
         // grazing sound over audience seating loses broadband energy from about
         // 200 Hz upward, with the strongest loss around 400 Hz-3 kHz.
-        audienceLowState_ += (signal - audienceLowState_) / 20;  // about 400 Hz
-        audienceHighState_ += (signal - audienceHighState_) / 3; // about 3 kHz
+        lowState += (signal - lowState) / 20;  // about 400 Hz
+        highState += (signal - highState) / 3; // about 3 kHz
 
-        const int32_t low = audienceLowState_;
-        const int32_t mid = audienceHighState_ - audienceLowState_;
-        const int32_t high = signal - audienceHighState_;
+        const int32_t low = lowState;
+        const int32_t mid = highState - lowState;
+        const int32_t high = signal - highState;
 
-        const int32_t lowGain = 4096 - ((audience * 1200) >> 12);  // about -3 dB
-        const int32_t midGain = 4096 - ((audience * 3450) >> 12);  // about -16 dB
-        const int32_t highGain = 4096 - ((audience * 2800) >> 12); // about -10 dB
+        const int32_t lowGain = 4096 - ((audience * 650) >> 12);   // about -1.5 dB
+        const int32_t midGain = 4096 - ((audience * 2200) >> 12);  // about -6.5 dB
+        const int32_t highGain = 4096 - ((audience * 1700) >> 12); // about -4.5 dB
 
         return Clamp12(((low * lowGain) + (mid * midGain) + (high * highGain)) >> 12);
     }
@@ -377,7 +388,7 @@ private:
 
         const int32_t roomKnob = KnobVal(Knob::X);
         const int32_t audienceRaw = KnobVal(Knob::Y);
-        const int32_t audience = (audienceRaw * audienceRaw) >> 12;
+        const int32_t audience = (((audienceRaw * audienceRaw) >> 12) * 3) >> 2;
         const VenueType selectedVenue = SelectVenue(roomKnob);
         const VenueProfile &venue = kVenueProfiles[selectedVenue];
 
@@ -388,8 +399,13 @@ private:
         const int32_t tap2 = venueDelay_.Read(venue.tap2);
         const int32_t tap3 = venueDelay_.Read(venue.tap3);
         const int32_t delayed = venueDelay_.Read(delaySamples);
+        const int32_t tapR1 = venueDelay_.Read(venue.tap1 + 37);
+        const int32_t tapR2 = venueDelay_.Read(venue.tap2 + 109);
+        const int32_t tapR3 = venueDelay_.Read(venue.tap3 + 211);
+        const int32_t delayedRight = venueDelay_.Read(delaySamples + 337);
 
         int32_t early = 0;
+        int32_t earlyRight = 0;
         int32_t roomInput = 0;
         int32_t filterDiv = 8;
         int32_t feedback = 0;
@@ -398,24 +414,28 @@ private:
         {
         case VenueCBGB:
             early = ((tap1 << 1) - tap2 + tap3) >> 2;
+            earlyRight = ((tapR2 << 1) - tapR1 + tapR3) >> 2;
             roomInput = SoftClip(source + (source >> 1));
             filterDiv = 5;
             feedback = 1050;
             break;
         case VenueClub100:
             early = (tap1 + (tap2 << 1) + tap3) >> 2;
+            earlyRight = ((tapR1 << 1) + tapR2 + tapR3) >> 2;
             roomInput = SoftClip(source - (source >> 3));
             filterDiv = 14;
             feedback = 1200;
             break;
         case VenueMarquee:
-            early = ((tap1 << 1) - tap2 + tap3) >> 2;
-            roomInput = Clamp12(source + (source >> 3));
-            filterDiv = 5;
+            early = ((tap1 + tap2) >> 2) + (tap3 >> 2);
+            earlyRight = ((tapR2 + tapR3) >> 2) + (tapR1 >> 3);
+            roomInput = source;
+            filterDiv = 8;
             feedback = 620;
             break;
         case VenueWhisky:
             early = (tap1 + tap2 + (tap3 << 1)) >> 2;
+            earlyRight = (tapR1 + (tapR2 << 1) + tapR3) >> 2;
             roomInput = SoftClip(source + (source >> 3));
             filterDiv = 7;
             feedback = 950;
@@ -429,22 +449,30 @@ private:
 
         venueFilterState_ += (delayed - venueFilterState_) / filterDiv;
         int32_t filtered = venueFilterState_;
+        venueFilterRightState_ += (delayedRight - venueFilterRightState_) / filterDiv;
+        int32_t filteredRight = venueFilterRightState_;
         early = (early * (4096 - (audience >> 2))) >> 12;
+        earlyRight = (earlyRight * (4096 - (audience >> 2))) >> 12;
 
         int32_t wet = 0;
+        int32_t wetRight = 0;
         switch (selectedVenue)
         {
         case VenueCBGB:
             wet = SoftClip((roomInput >> 1) + early + (filtered >> 1));
+            wetRight = SoftClip((roomInput >> 1) + earlyRight + (filteredRight >> 1));
             break;
         case VenueClub100:
             wet = SoftClip((roomInput >> 1) + (early >> 1) + filtered);
+            wetRight = SoftClip((roomInput >> 1) + (earlyRight >> 1) + filteredRight);
             break;
         case VenueMarquee:
             wet = SoftClip((roomInput >> 1) + (early >> 1) - (filtered >> 3));
+            wetRight = SoftClip((roomInput >> 1) + (earlyRight >> 1) + (filteredRight >> 3));
             break;
         case VenueWhisky:
             wet = SoftClip((roomInput >> 1) + (early >> 1) + (filtered >> 1));
+            wetRight = SoftClip((roomInput >> 1) + (earlyRight >> 1) + (filteredRight >> 1));
             break;
         }
 
@@ -452,27 +480,36 @@ private:
         venueNoiseHold_ = (venueNoiseHold_ * 31) >> 5;
 
         wet = SoftClip(wet);
-        wet = ApplyAudienceAttenuation(wet, audience);
+        wet = ApplyAudienceAttenuation(wet, audience, audienceLowState_, audienceHighState_);
+        wetRight = SoftClip(wetRight);
+        wetRight = ApplyAudienceAttenuation(
+            wetRight,
+            audience,
+            audienceLowRightState_,
+            audienceHighRightState_);
 
         const int32_t writeSample = Clamp12(roomInput + (early >> 1) + ((wet * feedback) >> 12));
         venueDelay_.Write(static_cast<int16_t>(writeSample));
 
+        roomRightOut_ = Clamp12((source + wetRight) >> 1);
         return Clamp12((source + wet) >> 1);
     }
 
     void UpdateLeds(Switch sw)
     {
         const bool apcMode = sw == Switch::Up;
+        const bool roomMode = sw == Switch::Middle || sw == Switch::Down;
         const bool gateOpen = !Connected(Input::Pulse1) || PulseIn1();
+        const VenueType ledVenue = SelectVenue(KnobVal(Knob::X));
 
-        LedOn(0, apcMode);
+        LedOn(0, apcMode || (roomMode && (ledVenue == VenueMarquee || ledVenue == VenueWhisky)));
         LedOn(1, sw == Switch::Middle || sw == Switch::Down);
-        LedOn(2, apcMode ? apcTriggerLedCounter_ > 0 : vocalLedCounter_ > 0);
-        LedOn(3, false);
+        LedOn(2, apcMode ? apcTriggerLedCounter_ > 0 : roomMode && (ledVenue == VenueCBGB || ledVenue == VenueWhisky));
+        LedOn(3, !apcMode && vocalLedCounter_ > 0);
 
         int32_t venueActivity = venueEnvelope_ << 1;
         if (venueActivity > 4095) venueActivity = 4095;
-        LedBrightness(4, apcMode && gateOpen ? 4095 : (apcMode ? 0 : venueActivity));
+        LedBrightness(4, apcMode && gateOpen ? 4095 : (apcMode ? 0 : (roomMode && (ledVenue == VenueClub100 || ledVenue == VenueWhisky) ? 4095 : 0)));
 
         const int32_t clipIndicator = !apcMode && Abs32(venueFilterState_) > 1400 ? 4095 : 0;
         LedBrightness(5, clipIndicator);
