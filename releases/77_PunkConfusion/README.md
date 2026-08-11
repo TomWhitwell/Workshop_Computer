@@ -65,7 +65,8 @@ This mode turns the card into a dirty treatment box for external audio.
 - `Main` sets input/room gain: below noon attenuates hot modular signals, noon
   is about unity, and clockwise boosts quieter line-level sources.
 - `Knob X` selects and morphs between venue personalities.
-- `Knob Y` controls collapse, instability, and failure intensity.
+- `Knob Y` controls audience absorption: clockwise simulates more bodies in the
+  room, damping the reflected room path and shortening the lively tail.
 - `Audio Out 1` and `Audio Out 2` carry the processed output.
 
 Current hardware-test build note: Broken Venue uses a fixed 50% dry / 50% wet
@@ -73,6 +74,13 @@ mix so the venue personalities can be auditioned without losing the source.
 `Main` no longer changes dry/wet mix in this test pass. The room engine has been
 simplified for hardware testing: no random dropout/choke layer, just
 deterministic venue colour, delay feedback, and drive.
+
+Audience attenuation note: the current `Y` curve is inspired by
+Rummler/Green/Jurkiewicz/Kahle, "Forget About The Seat Dip Effect" (Forum
+Acusticum / Euronoise 2025). The implementation approximates grazing-over-
+seating loss with a cheap three-band split: small low-frequency loss, strong
+`400 Hz-3 kHz` attenuation, and moderate high-frequency damping on the wet room
+path.
 
 The target feel is not "nice reverb". It should suggest a damaged rehearsal PA,
 basement slapback, speaker bark, and unstable room energy, with venue mood
@@ -97,7 +105,8 @@ Control intent:
 
 - `Main`: input/room gain, roughly 0.25x to 8x with unity near noon
 - `Knob X`: venue selection / morph
-- `Knob Y`: deterministic damage amount: more drive, feedback, and room smear
+- `Knob Y`: audience absorption, with clockwise values damping reflections and
+  reducing high-frequency room energy
 
 ### Venue personalities
 
@@ -123,12 +132,12 @@ All times below are at 48kHz and assume a single shared dirty-room algorithm.
 ### Suggested morph behavior for `Knob X`
 
 `Knob X` should not just darken or brighten the effect. It should move through
-the venues.
+the venues in approximate room-length order.
 
-- `0-1023`: `CBGB`
-- `1024-2047`: morph `CBGB -> 100 Club`
-- `2048-3071`: morph `100 Club -> Marquee`
-- `3072-4095`: morph `Marquee -> Whisky a Go Go`
+- `0-1023`: `Marquee`
+- `1024-2047`: `CBGB`
+- `2048-3071`: `100 Club`
+- `3072-4095`: `Whisky a Go Go`
 
 If the morphing feels too subtle in code, use snapped zones first, then add
 crossfades later once the individual personalities are working.

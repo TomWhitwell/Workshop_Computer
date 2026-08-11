@@ -1,5 +1,5 @@
 // Punk Confusion uses the local ComputerCard.h copy in this release folder.
-// The upstream Demonstrations+HelloWorlds copy is left untouched; this local
+//  this local
 // copy carries the newer per-card fixes needed for hardware testing.
 //
 // ComputerCard credit:
@@ -188,6 +188,8 @@ private:
     int32_t venueFilterState_ = 0;
     int32_t venueEnvelope_ = 0;
     int32_t venueNoiseHold_ = 0;
+    int32_t audienceLowState_ = 0;
+    int32_t audienceHighState_ = 0;
     int32_t vocalLedCounter_ = 0;
     int32_t apcTriggerLedCounter_ = 0;
     uint32_t apcTriggerLedDivider_ = 0;
@@ -241,10 +243,31 @@ private:
 
     VenueType SelectVenue(int32_t roomKnob) const
     {
-        if (roomKnob < 1024) return VenueCBGB;
-        if (roomKnob < 2048) return VenueClub100;
-        if (roomKnob < 3072) return VenueMarquee;
+        if (roomKnob < 1024) return VenueMarquee;
+        if (roomKnob < 2048) return VenueCBGB;
+        if (roomKnob < 3072) return VenueClub100;
         return VenueWhisky;
+    }
+
+    int32_t ApplyAudienceAttenuation(int32_t signal, int32_t audience)
+    {
+        audience = Clamp4095(audience);
+
+        // Inspired by Rummler/Green/Jurkiewicz/Kahle 2025 ARTF measurements:
+        // grazing sound over audience seating loses broadband energy from about
+        // 200 Hz upward, with the strongest loss around 400 Hz-3 kHz.
+        audienceLowState_ += (signal - audienceLowState_) / 20;  // about 400 Hz
+        audienceHighState_ += (signal - audienceHighState_) / 3; // about 3 kHz
+
+        const int32_t low = audienceLowState_;
+        const int32_t mid = audienceHighState_ - audienceLowState_;
+        const int32_t high = signal - audienceHighState_;
+
+        const int32_t lowGain = 4096 - ((audience * 1200) >> 12);  // about -3 dB
+        const int32_t midGain = 4096 - ((audience * 3450) >> 12);  // about -16 dB
+        const int32_t highGain = 4096 - ((audience * 2800) >> 12); // about -10 dB
+
+        return Clamp12(((low * lowGain) + (mid * midGain) + (high * highGain)) >> 12);
     }
 
     int32_t RenderApc()
@@ -353,13 +376,13 @@ private:
         int32_t source = SoftClip(in + sample);
 
         const int32_t roomKnob = KnobVal(Knob::X);
-        const int32_t damageRaw = KnobVal(Knob::Y);
-        const int32_t damage = (damageRaw * damageRaw) >> 12;
+        const int32_t audienceRaw = KnobVal(Knob::Y);
+        const int32_t audience = (audienceRaw * audienceRaw) >> 12;
         const VenueType selectedVenue = SelectVenue(roomKnob);
         const VenueProfile &venue = kVenueProfiles[selectedVenue];
 
         const uint32_t delaySamples = venue.mainDelayBase
-            + ((static_cast<uint32_t>(damage) * venue.mainDelayRange) >> 13);
+            + ((static_cast<uint32_t>(audience) * venue.mainDelayRange) >> 14);
 
         const int32_t tap1 = venueDelay_.Read(venue.tap1);
         const int32_t tap2 = venueDelay_.Read(venue.tap2);
@@ -377,34 +400,36 @@ private:
             early = ((tap1 << 1) - tap2 + tap3) >> 2;
             roomInput = SoftClip(source + (source >> 1));
             filterDiv = 5;
-            feedback = 1400 + ((damage * 360) >> 12);
+            feedback = 1050;
             break;
         case VenueClub100:
             early = (tap1 + (tap2 << 1) + tap3) >> 2;
             roomInput = SoftClip(source - (source >> 3));
             filterDiv = 14;
-            feedback = 1500 + ((damage * 420) >> 12);
+            feedback = 1200;
             break;
         case VenueMarquee:
             early = ((tap1 << 1) - tap2 + tap3) >> 2;
             roomInput = Clamp12(source + (source >> 3));
             filterDiv = 5;
-            feedback = 680 + ((damage * 220) >> 12);
+            feedback = 620;
             break;
         case VenueWhisky:
             early = (tap1 + tap2 + (tap3 << 1)) >> 2;
             roomInput = SoftClip(source + (source >> 3));
             filterDiv = 7;
-            feedback = 1100 + ((damage * 380) >> 12);
+            feedback = 950;
             break;
         }
 
-        feedback = (feedback * damage) >> 12;
-        if (downHeld) feedback += (damage >> 5);
-        if (feedback > 1700) feedback = 1700;
+        filterDiv += 2 + (audience >> 8); // clockwise Y absorbs high end.
+        feedback = (feedback * (4096 - (audience >> 1))) >> 12;
+        if (downHeld) feedback += 80;
+        if (feedback > 1200) feedback = 1200;
 
         venueFilterState_ += (delayed - venueFilterState_) / filterDiv;
         int32_t filtered = venueFilterState_;
+        early = (early * (4096 - (audience >> 2))) >> 12;
 
         int32_t wet = 0;
         switch (selectedVenue)
@@ -426,8 +451,8 @@ private:
         venueEnvelope_ += (Abs32(source) - venueEnvelope_) >> 6;
         venueNoiseHold_ = (venueNoiseHold_ * 31) >> 5;
 
-        const int32_t drive = 4096 + (damage >> 1);
-        wet = SoftClip((wet * drive) >> 12);
+        wet = SoftClip(wet);
+        wet = ApplyAudienceAttenuation(wet, audience);
 
         const int32_t writeSample = Clamp12(roomInput + (early >> 1) + ((wet * feedback) >> 12));
         venueDelay_.Write(static_cast<int16_t>(writeSample));
