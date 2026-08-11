@@ -1,11 +1,9 @@
-// Punk Confusion is built against the shared ComputerCard framework in this
-// repository:
-//   Demonstrations+HelloWorlds/PicoSDK/ComputerCard/ComputerCard.h
-// Keep that shared header as the source of truth rather than copying a local
-// duplicate into this card folder.
+// Punk Confusion uses the local ComputerCard.h copy in this release folder.
+// The upstream Demonstrations+HelloWorlds copy is left untouched; this local
+// copy carries the newer per-card fixes needed for hardware testing.
 //
 // ComputerCard credit:
-//   Chris Johnson, version 0.3.0 (12 May 2026 in the current repo copy).
+//   Chris Johnson, version 0.3.0 (12 May 2026), MIT licensed.
 #include "ComputerCard.h"
 #include "pico/stdlib.h"
 #include <cstdint>
@@ -48,13 +46,13 @@ struct VenueProfile
 
 constexpr VenueProfile kVenueProfiles[] = {
     // CBGB: cramped, abrasive, overloaded
-    {220, 470, 820, 2800, 1400, 1700, 650, 210, 120, 220, 180, 120, 220},
+    {120, 260, 510, 1800, 900, 1200, 420, 360, 130, 420, 120, 50, 120},
     // 100 Club: warm, dense, sweaty
-    {260, 540, 930, 3600, 2000, 1900, 700, 300, 140, -120, 90, 90, 120},
+    {360, 780, 1320, 4200, 1300, 1500, 520, 520, 180, -260, 60, 40, 80},
     // Marquee: tight, sharp, punchy
-    {140, 310, 560, 1800, 1200, 1450, 450, 150, 80, 120, 80, 70, 80},
+    {70, 160, 330, 920, 520, 900, 300, 120, 60, 260, 40, 25, 35},
     // Whisky a Go Go: larger, splashier, more stage PA
-    {340, 760, 1500, 5200, 2400, 1550, 550, 180, 110, 80, 60, 60, 90},
+    {640, 1450, 2860, 6800, 1800, 1150, 460, 170, 70, 80, 35, 30, 55},
 };
 
 static inline int32_t Clamp12(int32_t value)
@@ -355,109 +353,86 @@ private:
         int32_t source = SoftClip(in + sample);
 
         const int32_t roomKnob = KnobVal(Knob::X);
-        const int32_t collapse = KnobVal(Knob::Y);
-        const VenueProfile &venue = kVenueProfiles[SelectVenue(roomKnob)];
-
-        venueFlutterCounter_++;
-        int32_t flutterOffset = 0;
-        const int32_t flutterDepth = (static_cast<int32_t>(venue.flutter) * collapse) >> 12;
-        if (flutterDepth > 0 && (venueFlutterCounter_ & 0x3F) == 0)
-        {
-            flutterOffset = static_cast<int32_t>((NextRandom() >> 24) & 0x1F) - 16;
-            flutterOffset = (flutterOffset * flutterDepth) >> 4;
-        }
+        const int32_t damageRaw = KnobVal(Knob::Y);
+        const int32_t damage = (damageRaw * damageRaw) >> 12;
+        const VenueType selectedVenue = SelectVenue(roomKnob);
+        const VenueProfile &venue = kVenueProfiles[selectedVenue];
 
         const uint32_t delaySamples = venue.mainDelayBase
-            + ((static_cast<uint32_t>(collapse) * venue.mainDelayRange) >> 12)
-            + static_cast<uint32_t>(flutterOffset > 0 ? flutterOffset : 0);
+            + ((static_cast<uint32_t>(damage) * venue.mainDelayRange) >> 13);
 
         const int32_t tap1 = venueDelay_.Read(venue.tap1);
         const int32_t tap2 = venueDelay_.Read(venue.tap2);
         const int32_t tap3 = venueDelay_.Read(venue.tap3);
         const int32_t delayed = venueDelay_.Read(delaySamples);
 
-        int32_t early = (tap1 + tap2 + tap3) / 3;
-        if (SelectVenue(roomKnob) == VenueClub100)
-        {
-            early = (tap1 + (tap2 << 1) + tap3) >> 2;
-        }
-        else if (SelectVenue(roomKnob) == VenueMarquee)
-        {
-            early = ((tap1 << 1) + tap2 + tap3) >> 2;
-        }
+        int32_t early = 0;
+        int32_t roomInput = 0;
+        int32_t filterDiv = 8;
+        int32_t feedback = 0;
 
-        const int32_t toneBlend = venue.lowpassBase + ((collapse * venue.lowpassRange) >> 12);
-        venueFilterState_ += (delayed - venueFilterState_) / toneBlend;
-        int32_t filtered = venueFilterState_;
-
-        filtered = Clamp12(filtered + venue.color);
-
-        int32_t feedback = venue.feedbackBase + ((collapse * venue.feedbackRange) >> 12);
-        if (downHeld)
-        {
-            feedback += 80;
-        }
-        if (feedback > 3000) feedback = 3000;
-
-        int32_t noiseTarget = 0;
-        const int32_t noiseDepth = (static_cast<int32_t>(venue.noise) * collapse) >> 12;
-        if (noiseDepth > 0)
-        {
-            noiseTarget = static_cast<int32_t>((NextRandom() >> 20) & 0x3FF) - 512;
-            noiseTarget = (noiseTarget * noiseDepth) >> 8;
-        }
-        if (downHeld)
-        {
-            noiseTarget += (static_cast<int32_t>((NextRandom() >> 23) & 0xFF) - 128) >> 1;
-        }
-        venueNoiseHold_ = ((venueNoiseHold_ * 29) + (noiseTarget * 3)) >> 5;
-
-        int32_t wet = early + filtered + ((filtered * feedback) >> 12) + venueNoiseHold_;
-
-        // Venue-specific color after the room sum.
-        switch (SelectVenue(roomKnob))
+        switch (selectedVenue)
         {
         case VenueCBGB:
-            wet = SoftClip(wet + (wet >> 2));
-            break;
-        case VenueMarquee:
-            wet = Clamp12(wet + (early >> 1));
-            wet = SoftClip(wet);
+            early = ((tap1 << 1) - tap2 + tap3) >> 2;
+            roomInput = SoftClip(source + (source >> 1));
+            filterDiv = 5;
+            feedback = 1400 + ((damage * 360) >> 12);
             break;
         case VenueClub100:
-            wet = SoftClip(wet - (wet >> 3));
+            early = (tap1 + (tap2 << 1) + tap3) >> 2;
+            roomInput = SoftClip(source - (source >> 3));
+            filterDiv = 14;
+            feedback = 1500 + ((damage * 420) >> 12);
+            break;
+        case VenueMarquee:
+            early = ((tap1 << 1) - tap2 + tap3) >> 2;
+            roomInput = Clamp12(source + (source >> 3));
+            filterDiv = 5;
+            feedback = 680 + ((damage * 220) >> 12);
             break;
         case VenueWhisky:
-            wet = SoftClip(wet + (filtered >> 3));
+            early = (tap1 + tap2 + (tap3 << 1)) >> 2;
+            roomInput = SoftClip(source + (source >> 3));
+            filterDiv = 7;
+            feedback = 1100 + ((damage * 380) >> 12);
+            break;
+        }
+
+        feedback = (feedback * damage) >> 12;
+        if (downHeld) feedback += (damage >> 5);
+        if (feedback > 1700) feedback = 1700;
+
+        venueFilterState_ += (delayed - venueFilterState_) / filterDiv;
+        int32_t filtered = venueFilterState_;
+
+        int32_t wet = 0;
+        switch (selectedVenue)
+        {
+        case VenueCBGB:
+            wet = SoftClip((roomInput >> 1) + early + (filtered >> 1));
+            break;
+        case VenueClub100:
+            wet = SoftClip((roomInput >> 1) + (early >> 1) + filtered);
+            break;
+        case VenueMarquee:
+            wet = SoftClip((roomInput >> 1) + (early >> 1) - (filtered >> 3));
+            break;
+        case VenueWhisky:
+            wet = SoftClip((roomInput >> 1) + (early >> 1) + (filtered >> 1));
             break;
         }
 
         venueEnvelope_ += (Abs32(source) - venueEnvelope_) >> 6;
-        const int32_t chokeThreshold = 120 + ((collapse * 500) >> 12);
-        if (venueEnvelope_ < chokeThreshold && !voice_.active)
-        {
-            if (SelectVenue(roomKnob) == VenueClub100)
-            {
-                wet = (wet * 2) >> 1;
-            }
-            else
-            {
-                wet = (wet * 3) >> 2;
-            }
-        }
+        venueNoiseHold_ = (venueNoiseHold_ * 31) >> 5;
 
-        // Random dropouts become more likely with collapse, especially in CBGB.
-        const int32_t dropoutChance = (static_cast<int32_t>(venue.dropout) * collapse) >> 12;
-        if (dropoutChance > 0 && static_cast<int32_t>((NextRandom() >> 20) & 0xFF) < (dropoutChance >> 2))
-        {
-            wet >>= 1;
-        }
+        const int32_t drive = 4096 + (damage >> 1);
+        wet = SoftClip((wet * drive) >> 12);
 
-        const int32_t writeSample = Clamp12(source + early + ((filtered * feedback) >> 12));
+        const int32_t writeSample = Clamp12(roomInput + (early >> 1) + ((wet * feedback) >> 12));
         venueDelay_.Write(static_cast<int16_t>(writeSample));
 
-        const int32_t dryWet = 2300 + ((gainControl * 1100) >> 12);
-        return Clamp12(Lerp(source, wet, dryWet));
+        return Clamp12((source + wet) >> 1);
     }
 
     void UpdateLeds(Switch sw)
@@ -474,7 +449,7 @@ private:
         if (venueActivity > 4095) venueActivity = 4095;
         LedBrightness(4, apcMode && gateOpen ? 4095 : (apcMode ? 0 : venueActivity));
 
-        const int32_t clipIndicator = Abs32(venueFilterState_) > 1400 ? 4095 : 0;
+        const int32_t clipIndicator = !apcMode && Abs32(venueFilterState_) > 1400 ? 4095 : 0;
         LedBrightness(5, clipIndicator);
 
         if (vocalLedCounter_ > 0) vocalLedCounter_--;

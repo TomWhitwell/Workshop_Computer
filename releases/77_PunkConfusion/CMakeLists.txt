@@ -36,8 +36,8 @@ target_include_directories(${CARD_NAME} PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}
   ${CMAKE_CURRENT_LIST_DIR}/../../Demonstrations+HelloWorlds/PicoSDK/ComputerCard)
 
-# Use the shared ComputerCard framework from the repository. Do not add a
-# separate card-local copy unless we have a deliberate reason to fork it.
+# The card-local ComputerCard.h is intentionally searched first. It keeps the
+# newer per-card hardware fixes without modifying the upstream HelloWorlds copy.
 
 target_compile_options(${CARD_NAME} PRIVATE
   -Wdouble-promotion -Wfloat-conversion -Wall -Wextra)

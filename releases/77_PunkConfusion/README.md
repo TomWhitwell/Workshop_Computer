@@ -16,16 +16,20 @@ begins.
 
 ## Framework and credit
 
-This card is intended to build against the shared
+This card intentionally builds against the local
+[`ComputerCard.h`](/Users/adrianvos/coding/GitHub/Workshop_Computer/releases/77_PunkConfusion/ComputerCard.h)
+copy in this release folder. The upstream
 [`Demonstrations+HelloWorlds/PicoSDK/ComputerCard/ComputerCard.h`](/Users/adrianvos/coding/GitHub/Workshop_Computer/Demonstrations+HelloWorlds/PicoSDK/ComputerCard/ComputerCard.h)
-framework in this repository, rather than carrying a separate local copy.
+copy is left untouched.
 
-Current repo version checked for this card: `ComputerCard` **0.3.0** dated
-**May 12, 2026**.
+Local copy version checked for this card: `ComputerCard` **0.3.0** dated
+**May 12, 2026**, with the newer per-card startup-silence and ADC DMA re-arm
+fixes found in recent release copies.
 
-`ComputerCard` is by **Chris Johnson**. That credit should stay visible in card
-documentation, and any future local adaptations should clearly distinguish
-between upstream framework code and Punk Confusion-specific code.
+`ComputerCard` is by **Chris Johnson** and is MIT licensed. That credit should
+stay visible in card documentation, and any future local adaptations should
+clearly distinguish between upstream framework code and Punk Confusion-specific
+code.
 
 ## First-pass mode behavior
 
@@ -64,6 +68,12 @@ This mode turns the card into a dirty treatment box for external audio.
 - `Knob Y` controls collapse, instability, and failure intensity.
 - `Audio Out 1` and `Audio Out 2` carry the processed output.
 
+Current hardware-test build note: Broken Venue uses a fixed 50% dry / 50% wet
+mix so the venue personalities can be auditioned without losing the source.
+`Main` no longer changes dry/wet mix in this test pass. The room engine has been
+simplified for hardware testing: no random dropout/choke layer, just
+deterministic venue colour, delay feedback, and drive.
+
 The target feel is not "nice reverb". It should suggest a damaged rehearsal PA,
 basement slapback, speaker bark, and unstable room energy, with venue mood
 leaning toward the sweat, wall reflections, and abrasive intimacy of rooms like
@@ -87,7 +97,7 @@ Control intent:
 
 - `Main`: input/room gain, roughly 0.25x to 8x with unity near noon
 - `Knob X`: venue selection / morph
-- `Knob Y`: collapse amount
+- `Knob Y`: deterministic damage amount: more drive, feedback, and room smear
 
 ### Venue personalities
 
@@ -190,7 +200,8 @@ First real sample candidate:
 ## Initial implementation notes
 
 - Prefer `ComputerCard` + Pico SDK for the first firmware pass.
-- Use the current shared `ComputerCard.h` from the repo as the source of truth.
+- Use the local `ComputerCard.h` copy in this release folder; do not modify the
+  upstream HelloWorlds version for this card.
 - Prefer `set_sys_clock_khz(192000, true)`.
 - Include `PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64`.
 - Prefer `copy_to_ram` unless a later feature gives us a good reason not to.
