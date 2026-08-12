@@ -163,22 +163,27 @@ Venue-specific collapse emphasis:
 
 `Switch Down` is a performance interruption, not a third full mode.
 
-- Trigger one of four short built-in vocal one-shots at random.
+- Trigger the vocal one-shot linked to the currently selected venue.
 - Route that sample through the same `Broken Venue` processing chain.
 - `Pulse In 2` mirrors this trigger behavior.
+- Vocal playback is gated: releasing Switch Down, or letting `Pulse In 2` go
+  low, stops the call for stutter-style performance gestures.
 - No separate knob layer is introduced while the switch is held.
+- Playback uses a tiny fade-in/fade-out envelope to avoid trigger clicks.
+- The live input is ducked while a call is active so the vocal can cut through a
+  running patch.
 
 The sample direction should stay original and genre-inspired rather than trying
 to imitate any specific band or performer.
 
-First real sample candidate:
+Current embedded vocal calls are original recordings by Adrian Vos, processed
+for the card as 24 kHz mono signed 16-bit PCM and peak-normalised before
+embedding:
 
-- `Men Shouting Hey.wav` by Jace on Freesound
-- Source: https://freesound.org/people/Jace/sounds/57204/
-- License: Creative Commons 0 / public domain
-- Notes: Group "hey" shout that auditioned well for the card. Trim, downsample,
-  pitch-shift if needed, and embed a transformed short version rather than
-  shipping the unedited source WAV.
+- `Marquee`: `Oi`
+- `CBGB`: `Hey Ho`
+- `100 Club`: `No Future`
+- `Whisky a Go Go`: `Let's Go`
 
 ## Suggested jack map
 
@@ -222,7 +227,8 @@ Middle-mode room-zone display on `LED0/LED2/LED4`:
   upstream HelloWorlds version for this card.
 - Prefer `set_sys_clock_khz(192000, true)`.
 - Include `PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64`.
-- Prefer `copy_to_ram` unless a later feature gives us a good reason not to.
+- Use the default flash binary type for the sample build; the embedded vocal PCM
+  is too large for `copy_to_ram`.
 - Keep the APC path simple and cheap enough to run comfortably inside the audio
   callback budget.
 - Keep the vocal samples short and stored on-card. The first real candidate is

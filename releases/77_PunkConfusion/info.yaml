@@ -1,6 +1,6 @@
 draft: true
 Name: Punk Confusion
-short-description: Punk by name, split-brain by design: Atari Punk Console synth, broken-basement PA effect, and random shouted stabs
+short-description: Punk by name, split-brain by design: Atari Punk Console synth, broken-basement PA effect, and venue-linked vocal calls
 summary: |
   Punk Confusion is a deliberately confused card built around two very different
   meanings of "punk". Switch Up is a voltage-controlled Atari Punk Console-inspired
@@ -8,15 +8,16 @@ summary: |
   Switch Middle is Broken Venue, a wrecked-room audio effect for external signals:
   slapback, grit, feedback, and collapsing PA energy inspired by the cramped,
   abrasive feel of rooms like CBGB, the 100 Club, the Marquee, and the Whisky a
-  Go Go. Hitting Switch Down or Pulse In 2 throws one of four short built-in
-  punk-inspired vocal stabs through the same Broken Venue processing chain.
+  Go Go. Hitting Switch Down or Pulse In 2 throws the current venue's original
+  recorded punk-inspired vocal call through the same Broken Venue processing
+  chain.
 Language: C++ (Pico SDK / ComputerCard)
 Creator: Adrian Vos + Codex
 Version: "0.1.0"
 Status: Draft
 License: MIT
 date-created: 2026-08-10
-date-updated: 2026-08-11
+date-updated: 2026-08-12
 Repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/77_PunkConfusion
 
 tags:
@@ -89,7 +90,7 @@ controls:
       description: Fixed 50% dry/wet dirty room / PA treatment for external audio at Audio In 1 in the current hardware-test build.
     down:
       name: Vocal Stab
-      description: Hold down to trigger a random built-in shout routed through the Broken Venue chain.
+      description: Hold down to gate the current venue's embedded vocal call through the Broken Venue chain; release stops playback for stutters.
   knobs:
     - when: { z: up }
       main:

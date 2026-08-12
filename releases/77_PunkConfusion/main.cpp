@@ -5,6 +5,7 @@
 // ComputerCard credit:
 //   Chris Johnson, version 0.3.0 (12 May 2026), MIT licensed.
 #include "ComputerCard.h"
+#include "VocalSamples.h"
 #include "pico/stdlib.h"
 #include <cstdint>
 
@@ -87,28 +88,13 @@ static inline int32_t Clamp4095(int32_t value)
     return value;
 }
 
-// Four tiny built-in shout shapes. These are intentionally synthetic placeholders
-// for the first firmware pass so the trigger/routing behavior can be tested on
-// hardware before better sample assets are authored.
-constexpr int16_t kSampleHey[] = {
-    0, 300, 1200, 1800, 1200, 400, -200, -700, -300, 500, 1100, 700, 100, -200, 0
-};
-constexpr int16_t kSampleOi[] = {
-    0, 900, 1600, 1200, 500, -300, -700, -500, 400, 1000, 700, 200, -150, 0
-};
-constexpr int16_t kSampleNo[] = {
-    0, 500, 1300, 1700, 1300, 800, 200, -400, -800, -400, 100, 450, 100, -120, 0
-};
-constexpr int16_t kSampleGo[] = {
-    0, 600, 1400, 2000, 1500, 600, -100, -550, -250, 650, 1200, 800, 250, 0
-};
-
 struct SampleVoice
 {
     const int16_t *data = nullptr;
     uint32_t length = 0;
     uint32_t phase = 0; // 24.8 fixed-point sample position.
     uint32_t step = 256;
+    uint32_t fadeSamples = 0;
     int32_t level = 0;
     bool active = false;
 };
@@ -137,22 +123,27 @@ class PunkConfusion : public ComputerCard
 public:
     PunkConfusion()
     {
-        sampleBank_[0] = {kSampleHey, static_cast<uint32_t>(sizeof(kSampleHey) / sizeof(kSampleHey[0]))};
-        sampleBank_[1] = {kSampleOi, static_cast<uint32_t>(sizeof(kSampleOi) / sizeof(kSampleOi[0]))};
-        sampleBank_[2] = {kSampleNo, static_cast<uint32_t>(sizeof(kSampleNo) / sizeof(kSampleNo[0]))};
-        sampleBank_[3] = {kSampleGo, static_cast<uint32_t>(sizeof(kSampleGo) / sizeof(kSampleGo[0]))};
+        sampleBank_[VenueMarquee] = {kVocalMarqueeOi, static_cast<uint32_t>(sizeof(kVocalMarqueeOi) / sizeof(kVocalMarqueeOi[0]))};
+        sampleBank_[VenueCBGB] = {kVocalCbgbHeyHo, static_cast<uint32_t>(sizeof(kVocalCbgbHeyHo) / sizeof(kVocalCbgbHeyHo[0]))};
+        sampleBank_[VenueClub100] = {kVocalClub100NoFuture, static_cast<uint32_t>(sizeof(kVocalClub100NoFuture) / sizeof(kVocalClub100NoFuture[0]))};
+        sampleBank_[VenueWhisky] = {kVocalWhiskyLetsGo, static_cast<uint32_t>(sizeof(kVocalWhiskyLetsGo) / sizeof(kVocalWhiskyLetsGo[0]))};
     }
 
     void ProcessSample() override
     {
         const Switch sw = SwitchVal();
         const bool switchDownEdge = SwitchChanged() && sw == Switch::Down;
+        const bool vocalGate = sw == Switch::Down || PulseIn2();
         const bool vocalTrigger = switchDownEdge || PulseIn2RisingEdge();
 
         if (vocalTrigger)
         {
-            TriggerRandomSample();
+            TriggerVenueSample();
             vocalLedCounter_ = 4000;
+        }
+        else if (!vocalGate)
+        {
+            voice_.active = false;
         }
 
         int32_t output = 0;
@@ -165,7 +156,7 @@ public:
         }
         else
         {
-            output = RenderBrokenVenue(sw == Switch::Down);
+            output = RenderBrokenVenue();
             outputRight = roomRightOut_;
         }
 
@@ -349,6 +340,16 @@ private:
         const int32_t b = voice_.data[nextIndex];
         const int32_t frac = static_cast<int32_t>(voice_.phase & 0xFFu);
         const int32_t sample = ((a * (256 - frac)) + (b * frac)) >> 8;
+        const uint32_t remaining = voice_.length - index;
+        uint32_t envelope = 4096;
+        if (index < voice_.fadeSamples)
+        {
+            envelope = (index * 4096) / voice_.fadeSamples;
+        }
+        if (remaining < voice_.fadeSamples && remaining < envelope)
+        {
+            envelope = (remaining * 4096) / voice_.fadeSamples;
+        }
 
         voice_.phase += voice_.step;
         if ((voice_.phase >> 8) >= voice_.length)
@@ -356,23 +357,22 @@ private:
             voice_.active = false;
         }
 
-        return (sample * voice_.level) >> 12;
+        return (((sample * voice_.level) >> 12) * static_cast<int32_t>(envelope)) >> 12;
     }
 
-    void TriggerRandomSample()
+    void TriggerVenueSample()
     {
-        const SampleDef &choice = sampleBank_[NextRandom() & 0x3u];
+        const SampleDef &choice = sampleBank_[SelectVenue(KnobVal(Knob::X))];
         voice_.data = choice.data;
         voice_.length = choice.length;
         voice_.phase = 0;
-        // Keep the shout lower and less frantic than the first pass. A 24.8 step
-        // below 256 slows playback and pitches it down without extra DSP cost.
-        voice_.step = 132 + ((NextRandom() >> 29) * 10); // about 0.52x..0.79x
-        voice_.level = 3000;
+        voice_.step = 128; // 24 kHz sample data played at the 48 kHz audio rate.
+        voice_.fadeSamples = 96; // about 4 ms at the source sample rate.
+        voice_.level = 4096;
         voice_.active = true;
     }
 
-    int32_t RenderBrokenVenue(bool downHeld)
+    int32_t RenderBrokenVenue()
     {
         const int32_t gainControl = KnobVal(Knob::Main);
         int32_t in = (static_cast<int32_t>(AudioIn1()) * InputGainQ12(gainControl)) >> 12;
@@ -381,7 +381,7 @@ private:
         // A small duck helps the vocal stab read clearly over a busy patch.
         if (sample != 0)
         {
-            in = (in * 3) >> 2;
+            in >>= 1;
         }
 
         int32_t source = SoftClip(in + sample);
@@ -444,7 +444,6 @@ private:
 
         filterDiv += 2 + (audience >> 8); // clockwise Y absorbs high end.
         feedback = (feedback * (4096 - (audience >> 1))) >> 12;
-        if (downHeld) feedback += 80;
         if (feedback > 1200) feedback = 1200;
 
         venueFilterState_ += (delayed - venueFilterState_) / filterDiv;

@@ -56,6 +56,8 @@ target_link_libraries(${CARD_NAME}
   hardware_vreg
   hardware_flash)
 
-pico_set_binary_type(${CARD_NAME} copy_to_ram)
+# Real embedded vocal samples are too large for copy_to_ram; keep code/sample
+# data in flash so RAM remains available for delay buffers and audio state.
+pico_set_binary_type(${CARD_NAME} default)
 pico_add_extra_outputs(${CARD_NAME})
 pico_enable_stdio_usb(${CARD_NAME} 0)
