@@ -3,9 +3,9 @@
 
 #include <cstdint>
 
-// Generated from Adrian Vos vocal recordings, processed for Punk Confusion.
+// Generated from the WAVs in samples/.
 // Format: 24 kHz mono signed 16-bit PCM, peak-normalised to about -6 dBFS.
-// Source files are in /Users/adrianvos/Desktop/Vocal samples/.
+// Regenerate with tools/generate_vocal_samples.py.
 
 // Marquee: Oi, 0.616 seconds.
 constexpr int16_t kVocalMarqueeOi[] = {
@@ -1240,7 +1240,7 @@ constexpr int16_t kVocalMarqueeOi[] = {
     -109, -94, -82, -71, -67, -82, -109, -124, -116, -109, -94, -79,
     -71, -75, -79, -75, -64, -49, -33, -26, -18, -11, -3, 0,
     0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0,
-    0, 0, 0, 0
+    0, 0, 0, 0,
 };
 
 // CBGB: Hey Ho, 0.941 seconds.
@@ -3127,7 +3127,7 @@ constexpr int16_t kVocalCbgbHeyHo[] = {
     -263, -123, -13, 51, 102, 140, 170, 211, 256, 307, 358, 406,
     451, 481, 492, 488, 478, 461, 447, 437, 430, 423, 413, 393,
     372, 341, 307, 276, 242, 211, 184, 157, 133, 109, 85, 61,
-    41, 17, 0
+    41, 17, 0,
 };
 
 // 100 Club: No Future, 3.109 seconds.
@@ -9350,7 +9350,7 @@ constexpr int16_t kVocalClub100NoFuture[] = {
     149, 163, 202, 250, 219, 135, 83, 59, 48, 73, 132, 184,
     209, 223, 226, 202, 174, 174, 195, 202, 188, 160, 135, 118,
     111, 101, 94, 80, 62, 52, 52, 55, 52, 45, 41, 31,
-    24, 13, 10, 6, 3, 0, 0, 0
+    24, 13, 10, 6, 3, 0, 0, 0,
 };
 
 // Whisky a Go Go: Let's Go, 0.900 seconds.
@@ -11154,7 +11154,7 @@ constexpr int16_t kVocalWhiskyLetsGo[] = {
     450, 446, 425, 382, 346, 317, 289, 250, 207, 175, 150, 117,
     96, 82, 71, 50, 39, 32, 21, 10, 0, 0, 0, -3,
     -3, -7, -10, -14, -17, -21, -21, -17, -17, -14, -10, -7,
-    -3, 0, 0
+    -3, 0, 0,
 };
 
 #endif // PUNK_CONFUSION_VOCAL_SAMPLES_H

@@ -19,6 +19,7 @@ constexpr uint32_t kApcPeriodMinSamples = 24;   // about 2 kHz
 constexpr uint32_t kApcPeriodMaxSamples = 960;  // about 50 Hz
 constexpr uint32_t kApcPulseMinSamples = 4;     // shortest one-shot pulse
 constexpr uint32_t kApcPulseMaxSamples = 1100;  // lets the monostable overrun
+constexpr int32_t kPickupWindow = 96;
 
 enum VenueType
 {
@@ -135,6 +136,29 @@ public:
         const bool switchDownEdge = SwitchChanged() && sw == Switch::Down;
         const bool vocalGate = sw == Switch::Down || PulseIn2();
         const bool vocalTrigger = switchDownEdge || PulseIn2RisingEdge();
+        const int32_t mainKnob = KnobVal(Knob::Main);
+
+        if (SwitchChanged())
+        {
+            if (sw == Switch::Down)
+            {
+                vocalGainPickedUp_ = Abs32(mainKnob - vocalGainControl_) <= kPickupWindow;
+            }
+            else if (sw == Switch::Middle)
+            {
+                roomGainPickedUp_ = Abs32(mainKnob - roomGainControl_) <= kPickupWindow;
+            }
+        }
+
+        if (sw == Switch::Down)
+        {
+            UpdateSoftPickup(mainKnob, lastMainKnob_, vocalGainControl_, vocalGainPickedUp_);
+        }
+        else if (sw == Switch::Middle)
+        {
+            UpdateSoftPickup(mainKnob, lastMainKnob_, roomGainControl_, roomGainPickedUp_);
+        }
+        lastMainKnob_ = mainKnob;
 
         if (vocalTrigger)
         {
@@ -191,6 +215,11 @@ private:
     int32_t audienceDryHighState_ = 0;
     int32_t roomRightOut_ = 0;
     int32_t vocalLedCounter_ = 0;
+    int32_t roomGainControl_ = 2048;
+    int32_t vocalGainControl_ = 2048;
+    int32_t lastMainKnob_ = 2048;
+    bool roomGainPickedUp_ = false;
+    bool vocalGainPickedUp_ = false;
     int32_t apcTriggerLedCounter_ = 0;
     uint32_t apcTriggerLedDivider_ = 0;
     uint32_t venueFlutterCounter_ = 0;
@@ -199,6 +228,26 @@ private:
     {
         rngState_ = rngState_ * 1664525u + 1013904223u;
         return rngState_;
+    }
+
+    void UpdateSoftPickup(
+        int32_t knob,
+        int32_t previousKnob,
+        int32_t &storedControl,
+        bool &pickedUp)
+    {
+        if (!pickedUp)
+        {
+            const bool closeEnough = Abs32(knob - storedControl) <= kPickupWindow;
+            const bool crossedUp = previousKnob < storedControl && knob >= storedControl;
+            const bool crossedDown = previousKnob > storedControl && knob <= storedControl;
+            pickedUp = closeEnough || crossedUp || crossedDown;
+        }
+
+        if (pickedUp)
+        {
+            storedControl = knob;
+        }
     }
 
     uint32_t ControlToApcPeriod(int32_t control) const
@@ -378,10 +427,10 @@ private:
 
     int32_t RenderBrokenVenue()
     {
-        const int32_t gainControl = KnobVal(Knob::Main);
-        const int32_t inputGain = InputGainQ12(gainControl);
+        const int32_t inputGain = InputGainQ12(roomGainControl_);
         int32_t in = (static_cast<int32_t>(AudioIn1()) * inputGain) >> 12;
-        int32_t sample = (ReadSampleVoice() * gainControl) >> 12;
+        const int32_t vocalGain = (inputGain * vocalGainControl_) >> 12;
+        int32_t sample = (ReadSampleVoice() * vocalGain) >> 12;
 
         int32_t source = SoftClip(in + sample);
         const int32_t vocalRoomSend = sample != 0 ? sample >> 1 : 0;
@@ -409,6 +458,8 @@ private:
         int32_t roomInput = 0;
         int32_t filterDiv = 8;
         int32_t feedback = 0;
+        int32_t combBite = 0;
+        int32_t combBiteRight = 0;
 
         switch (selectedVenue)
         {
@@ -434,11 +485,13 @@ private:
             feedback = 620;
             break;
         case VenueWhisky:
-            early = (tap1 + tap2 + (tap3 << 1)) >> 2;
-            earlyRight = (tapR1 + (tapR2 << 1) + tapR3) >> 2;
-            roomInput = SoftClip(source + (source >> 3));
-            filterDiv = 7;
-            feedback = 950;
+            early = (tap1 - tap2 + (tap3 << 1)) >> 2;
+            earlyRight = (tapR1 - tapR2 + (tapR3 << 1)) >> 2;
+            combBite = (tap1 - tap2) >> 2;
+            combBiteRight = (tapR1 - tapR2) >> 2;
+            roomInput = SoftClip(source + (source >> 2));
+            filterDiv = 4;
+            feedback = 1020;
             break;
         }
 
@@ -470,8 +523,8 @@ private:
             wetRight = SoftClip((roomInput >> 1) + (earlyRight >> 1) + (filteredRight >> 3));
             break;
         case VenueWhisky:
-            wet = SoftClip((roomInput >> 1) + (early >> 1) + (filtered >> 1));
-            wetRight = SoftClip((roomInput >> 1) + (earlyRight >> 1) + (filteredRight >> 1));
+            wet = SoftClip((roomInput >> 1) + early + (filtered >> 1) + combBite);
+            wetRight = SoftClip((roomInput >> 1) + earlyRight + (filteredRight >> 1) + combBiteRight);
             break;
         }
 
@@ -503,18 +556,22 @@ private:
     void UpdateLeds(Switch sw)
     {
         const bool apcMode = sw == Switch::Up;
+        const bool vocalEditMode = sw == Switch::Down;
         const bool roomMode = sw == Switch::Middle || sw == Switch::Down;
         const bool gateOpen = !Connected(Input::Pulse1) || PulseIn1();
         const VenueType ledVenue = SelectVenue(KnobVal(Knob::X));
+        const bool shoutLed0 = vocalEditMode && vocalGainControl_ > 512;
+        const bool shoutLed2 = vocalEditMode && vocalGainControl_ > 1700;
+        const bool shoutLed4 = vocalEditMode && vocalGainControl_ > 2900;
 
-        LedOn(0, apcMode || (roomMode && (ledVenue == VenueMarquee || ledVenue == VenueWhisky)));
+        LedOn(0, apcMode || shoutLed0 || (!vocalEditMode && roomMode && (ledVenue == VenueMarquee || ledVenue == VenueWhisky)));
         LedOn(1, sw == Switch::Middle || sw == Switch::Down);
-        LedOn(2, apcMode ? apcTriggerLedCounter_ > 0 : roomMode && (ledVenue == VenueCBGB || ledVenue == VenueWhisky));
+        LedOn(2, apcMode ? apcTriggerLedCounter_ > 0 : shoutLed2 || (!vocalEditMode && roomMode && (ledVenue == VenueCBGB || ledVenue == VenueWhisky)));
         LedOn(3, !apcMode && vocalLedCounter_ > 0);
 
         int32_t venueActivity = venueEnvelope_ << 1;
         if (venueActivity > 4095) venueActivity = 4095;
-        LedBrightness(4, apcMode && gateOpen ? 4095 : (apcMode ? 0 : (roomMode && (ledVenue == VenueClub100 || ledVenue == VenueWhisky) ? 4095 : 0)));
+        LedBrightness(4, apcMode && gateOpen ? 4095 : (apcMode ? 0 : (shoutLed4 || (!vocalEditMode && roomMode && (ledVenue == VenueClub100 || ledVenue == VenueWhisky)) ? 4095 : 0)));
 
         const int32_t clipIndicator = !apcMode && Abs32(venueFilterState_) > 1400 ? 4095 : 0;
         LedBrightness(5, clipIndicator);

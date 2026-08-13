@@ -1,262 +1,191 @@
-# 77_PunkConfusion
+# Punk Confusion
 
-`77_PunkConfusion` is a deliberately split-personality card built around two
-different meanings of "punk".
+A split-brain punk card for the Music Thing Modular Workshop Computer.
 
-- `Switch Up` is a voltage-controlled Atari Punk Console-inspired synth voice:
-  buzzy, stepped, rude, and patchable.
-- `Switch Middle` is `Broken Venue`, a broken-basement PA effect for external
-  audio with slapback, grit, feedback, and collapsing room tone.
-- `Switch Down` or `Pulse In 2` throws one of four short built-in vocal stabs
-  through the same `Broken Venue` chain.
+`Switch Up` is the word "punk" taken literally: a voltage-controlled
+Atari Punk Console-inspired synth voice. `Switch Middle` is Broken Venue, a
+dirty room and damaged PA treatment for external audio. `Switch Down` and
+`Pulse In 2` fire short venue-linked vocal calls through the same room engine.
 
-This folder is the initial design scaffold for the card. It captures the first
-pass of the controls, jack map, and implementation intent before firmware work
-begins.
+## Quick Start
 
-## Framework and credit
+1. Flash `punk_confusion.uf2`.
+2. Patch `Audio Out 1` to your mixer. Patch `Audio Out 2` as well for stereo
+   room output in Broken Venue mode.
+3. For APC mode, set the switch Up and turn `Main` up.
+4. For Broken Venue, patch audio to `Audio In 1`, set the switch Middle, set
+   `Main`, `X`, and `Y` near noon, then choose a room with `X`.
+5. Hold the switch Down, or patch gates to `Pulse In 2`, to inject the current
+   venue's vocal call.
 
-This card intentionally builds against the local
-[`ComputerCard.h`](/Users/adrianvos/coding/GitHub/Workshop_Computer/releases/77_PunkConfusion/ComputerCard.h)
-copy in this release folder. The upstream
-[`Demonstrations+HelloWorlds/PicoSDK/ComputerCard/ComputerCard.h`](/Users/adrianvos/coding/GitHub/Workshop_Computer/Demonstrations+HelloWorlds/PicoSDK/ComputerCard/ComputerCard.h)
-copy is left untouched.
-
-Local copy version checked for this card: `ComputerCard` **0.3.0** dated
-**May 12, 2026**, with the newer per-card startup-silence and ADC DMA re-arm
-fixes found in recent release copies.
-
-`ComputerCard` is by **Chris Johnson** and is MIT licensed. That credit should
-stay visible in card documentation, and any future local adaptations should
-clearly distinguish between upstream framework code and Punk Confusion-specific
-code.
-
-## First-pass mode behavior
+## Modes
 
 ### Switch Up: Atari Punk Console
 
-This mode is the joke in the title taken literally. It is not an amp or an
-effect; it is a self-running synth voice inspired by the classic dual-555 Atari
-Punk Console / stepped-tone-generator idea.
+This is a simple dual-555-style APC model rather than an audio effect.
 
-- `Knob X` acts as APC pot 1: trigger oscillator rate / pitch.
-- `Knob Y` acts as APC pot 2: monostable one-shot time for the stepped-tone
-  effect.
-- `Main` is overall output volume.
-- `CV In 1` modulates APC timing section 1 / trigger rate.
-- `CV In 2` modulates APC timing section 2 / one-shot length.
-- `Pulse In 1` is a hard gate when patched. With no gate patched, the APC runs
-  freely.
-- `Audio Out 1` and `Audio Out 2` carry the APC signal.
+- `Main`: APC output volume.
+- `X`: trigger oscillator rate, like APC pot 1. Clockwise is faster.
+- `Y`: monostable one-shot time, like APC pot 2. The useful direction is
+  matched to the tested hardware feel.
+- `CV In 1`: adds to `X`.
+- `CV In 2`: adds to `Y`.
+- `Pulse In 1`: hard gate when patched. Unpatched, the APC free-runs.
+- `Audio Out 1` and `Audio Out 2`: mirrored APC output.
 
-The target feel is free-running and stubborn by default, with control voltages
-able to drag it into squelch, chirp, stepping, and ugly pseudo-melodic behavior.
-The model follows the classic APC idea more closely than a simple PWM oscillator:
-`X` clocks the astable trigger oscillator, while `Y` sets a separate one-shot
-length that can overrun the trigger period and produce skipped/stuck steps.
-`Y` is inverted in firmware so the useful monostable range follows the hardware
-feel rather than the raw ADC direction.
+`X` clocks the astable trigger oscillator. `Y` sets the one-shot length. When
+the one-shot is still high, incoming triggers are ignored, giving the classic
+skipped, stepped APC behaviour.
 
 ### Switch Middle: Broken Venue
 
-This mode turns the card into a dirty treatment box for external audio.
+Broken Venue processes external audio from `Audio In 1` through a fixed 50/50
+dry/wet dirty-room engine.
 
-- `Audio In 1` is the source input.
-- `Main` sets input/room gain: below noon attenuates hot modular signals, noon
-  is about unity, and clockwise boosts quieter headphone/line-level sources.
-  Hot Eurorack-level signals are expected to clip above roughly 2 o'clock; use
-  that range for drive, or keep hot modular sources below it.
-- `Knob X` selects and morphs between venue personalities.
-- `Knob Y` controls audience absorption: clockwise simulates more bodies in the
-  room, damping the reflected room path and shortening the lively tail.
-- `Audio Out 1` carries the main processed output. `Audio Out 2` carries a
-  decorrelated room output for stereo patches.
+- `Main`: input/room gain with soft pickup. Below noon attenuates hot modular
+  signals, noon is about unity, and clockwise boosts quieter headphone or
+  line-level sources. Hot Eurorack-level signals may clip above roughly
+  2 o'clock.
+- `X`: venue selection in room-length order.
+- `Y`: audience absorption. Clockwise means more bodies in the room, reducing
+  reflected energy and lightly damping the dry side so the 50/50 mix still
+  reads as a room change.
+- `Audio Out 1`: main processed output.
+- `Audio Out 2`: decorrelated stereo room output.
 
-Current hardware-test build note: Broken Venue uses a fixed 50% dry / 50% wet
-mix so the venue personalities can be auditioned without losing the source.
-`Main` no longer changes dry/wet mix in this test pass. The room engine has been
-simplified for hardware testing: no random dropout/choke layer, just
-deterministic venue colour, delay feedback, and drive.
+The `Y` curve is inspired by Rummler/Green/Jurkiewicz/Kahle, "Forget About The
+Seat Dip Effect" (Forum Acusticum / Euronoise 2025). The firmware uses a cheap
+three-band approximation: small low-frequency loss, stronger attenuation around
+`400 Hz-3 kHz`, and moderate high-frequency damping.
 
-Audience attenuation note: the current `Y` curve is inspired by
-Rummler/Green/Jurkiewicz/Kahle, "Forget About The Seat Dip Effect" (Forum
-Acusticum / Euronoise 2025). The implementation approximates grazing-over-
-seating loss with a cheap three-band split: small low-frequency loss, strong
-`400 Hz-3 kHz` attenuation, and moderate high-frequency damping on the wet room
-path.
+### Venue Order
 
-The target feel is not "nice reverb". It should suggest a damaged rehearsal PA,
-basement slapback, speaker bark, and unstable room energy, with venue mood
-leaning toward the sweat, wall reflections, and abrasive intimacy of rooms like
-CBGB, the 100 Club, the Marquee, and the Whisky a Go Go.
+`X` selects snapped venue zones:
 
-### Broken Venue parameter model
+| X range | Venue | Character |
+|---|---|---|
+| `0-1023` | `Marquee` | tight, sharp, short, metallic comb bite |
+| `1024-2047` | `CBGB` | cramped, abrasive, short slapback |
+| `2048-3071` | `100 Club` | denser, darker, warmer low-mid room |
+| `3072-4095` | `Whisky a Go Go` | larger, brighter, splashier stage PA with mild comb bite |
 
-The easiest way to make the venue references feel distinct is not to write four
-different reverbs. Instead, use one shared dirty-room engine and swap the
-parameter set underneath it.
+These are not acoustic models of the real rooms. They are four punk-venue
+personalities built from one compact delay, reflection, saturation, and
+filtering engine.
 
-Shared engine blocks:
+### Switch Down: Vocal Calls
 
-1. Input gain / pre-saturation
-2. Early reflections (2-4 taps)
-3. Main dirty delay / feedback room
-4. Venue color stage (EQ + clipping)
-5. Collapse layer (flutter, choke, dropout, overload, noise)
+`Switch Down` is a momentary performance layer, not a separate full mode.
 
-Control intent:
+- Pressing or holding Down triggers the vocal call for the currently selected
+  venue.
+- Releasing Down stops playback, so you can stutter the call manually.
+- `Pulse In 2` mirrors this behaviour: high gates the call, rising edges
+  retrigger it, and low stops it.
+- Driving `Pulse In 2` at audio rate can chop the shout into a raw vocal
+  texture. That is intentional.
+- The vocal is routed through the same Broken Venue path and gets an extra send
+  into the room delay so it sits inside the venue.
 
-- `Main`: input/room gain, roughly 0.25x to 4x with unity near noon; hot
-  Eurorack-level signals may clip above roughly 2 o'clock
-- `Knob X`: venue selection / morph
-- `Knob Y`: audience absorption, with clockwise values gently damping the wet
-  room path and applying a lighter version of the same curve to the dry side
-  so the 50/50 mix still reads as a room change
+While holding Down, `Main` edits the saved vocal-call trim rather than the main
+room input gain. The trim has soft pickup and is multiplied by the saved room
+gain, so later input-gain changes still scale the shout level. The default trim
+is midpoint.
 
-### Venue personalities
+## Vocal Samples
 
-| Venue | Character | Early reflections | Delay / tail | EQ / color | Instability | Noise floor |
-|------|-----------|-------------------|--------------|------------|-------------|-------------|
-| `CBGB` | cramped, abrasive, overloaded | very short, splashy wall slap | short slapback, fast smear | upper-mid bark, trimmed lows, early clipping | moderate flutter, occasional crackle | hiss + hum possible |
-| `100 Club` | dense, warm, sweaty | slightly denser cluster | thicker low-mid tail, less metallic | softer highs, more low-mid bloom | moderate, more pumping than flutter | low-mid room wash |
-| `Marquee` | tight, sharp, punchy | shortest and most defined | shortest tail, strongest comb feel | brighter attack, less mud | low to moderate | low |
-| `Whisky a Go Go` | bigger, splashier, more stage PA | wider first reflections | longest tail / clearest echo | more top before dirt, broader bandwidth | lower flutter, more dramatic splash | light air / room hash |
+The embedded calls are original recordings by Adrian Vos, processed for Punk
+Confusion as 24 kHz mono signed 16-bit PCM and kept around `-6 dBFS` peak to
+avoid extra digital clipping after the Colourbox drive.
 
-### First-pass implementation table
+| Venue | Sample |
+|---|---|
+| `Marquee` | `Oi` |
+| `CBGB` | `Hey Ho` |
+| `100 Club` | `No Future` |
+| `Whisky a Go Go` | `Let's Go` |
 
-These are not sacred final values. They are practical starting points for code.
-All times below are at 48kHz and assume a single shared dirty-room algorithm.
+The source WAVs are kept in `samples/`, matching the organisation used by other
+sample-based releases in this repo. To build with your own calls, replace the
+four WAVs in `samples/`, then run:
 
-| Venue | Early tap samples | Main delay samples | Feedback start | Tone tendency | Distortion | Collapse behavior |
-|------|-------------------|--------------------|----------------|---------------|------------|-------------------|
-| `CBGB` | `220, 470, 820` | `2800-4200` | `0.52` | mid-forward, dark top | asymmetric grit early | flutter + crackle + brief overload |
-| `100 Club` | `260, 540, 930, 1400` | `3600-5600` | `0.58` | warm, low-mid heavy | soft saturation after tail | pumping choke, less pitch wobble |
-| `Marquee` | `140, 310, 560` | `1800-3000` | `0.38` | brightest of the four | hard edge, less fuzz | mostly comb bite, mild dropout |
-| `Whisky a Go Go` | `340, 760, 1500` | `5200-7600` | `0.46` | broader, slightly shinier | speaker bark on peaks | splashy tail, occasional wash surge |
+```sh
+python3 tools/generate_vocal_samples.py
+```
 
-### Suggested morph behavior for `Knob X`
+This regenerates `VocalSamples.h`, which is compiled directly into the firmware.
+Keep replacement samples mono, 16-bit PCM, 24 kHz, short, and conservatively
+levelled. The card targets a 2 MB program card, so all samples and firmware must
+fit in flash.
 
-`Knob X` should not just darken or brighten the effect. It should move through
-the venues in approximate room-length order.
+## Jack Map
 
-- `0-1023`: `Marquee`
-- `1024-2047`: `CBGB`
-- `2048-3071`: `100 Club`
-- `3072-4095`: `Whisky a Go Go`
-
-If the morphing feels too subtle in code, use snapped zones first, then add
-crossfades later once the individual personalities are working.
-
-### Suggested collapse behavior for `Knob Y`
-
-`Knob Y` should add "room failure", not just more reverb.
-
-- `0-1023`: mostly stable room, venue fingerprint clear
-- `1024-2047`: more grit, more tail density, slight duck/choke
-- `2048-3071`: flutter, overload, occasional dropout, stronger feedback
-- `3072-4095`: collapsing PA territory, gated tail, unstable reflections, noise bursts
-
-Venue-specific collapse emphasis:
-
-- `CBGB`: crackle, rough clipping, wall slap tearing
-- `100 Club`: bloom, pumping, low-mid congestion
-- `Marquee`: tight harshness, comb bite, less chaos
-- `Whisky a Go Go`: splash, stage wash, echo swell
-
-### Switch Down: Vocal stab
-
-`Switch Down` is a performance interruption, not a third full mode.
-
-- Trigger the vocal one-shot linked to the currently selected venue.
-- Route that sample through the same `Broken Venue` processing chain.
-- `Pulse In 2` mirrors this trigger behavior.
-- Vocal playback is gated: releasing Switch Down, or letting `Pulse In 2` go
-  low, stops the call for stutter-style performance gestures.
-- Driving `Pulse In 2` at audio rate can retrigger/gate the shout fast enough
-  to turn it into a raw chopped vocal texture. This is an intentional
-  performance trick, not a fault.
-- No separate knob layer is introduced while the switch is held.
-- Playback uses a tiny fade-in/fade-out envelope to avoid trigger clicks.
-- The vocal direct level is deliberately lower than the room input, with an
-  extra send into the delay path so the call sits in the venue rather than
-  overwhelming the patch. Vocal playback follows the raw `Main` knob position,
-  while external input uses the wider input gain curve.
-
-The sample direction should stay original and genre-inspired rather than trying
-to imitate any specific band or performer.
-
-Current embedded vocal calls are original recordings by Adrian Vos, processed
-for the card as 24 kHz mono signed 16-bit PCM and peak-normalised to about
-`-6 dBFS` before embedding. This keeps the Colourbox overdrive character without
-adding unnecessary digital clipping:
-
-- `Marquee`: `Oi`
-- `CBGB`: `Hey Ho`
-- `100 Club`: `No Future`
-- `Whisky a Go Go`: `Let's Go`
-
-## Suggested jack map
-
-| Jack | First version role |
-|------|---------------------|
+| Jack | Role |
+|---|---|
 | `Audio In 1` | Broken Venue input |
 | `Audio In 2` | Unused |
-| `CV In 1` | APC CV 1 |
-| `CV In 2` | APC CV 2 |
-| `Pulse In 1` | APC hard gate when patched; unpatched = free-running |
-| `Pulse In 2` | Vocal trigger/gate; audio-rate pulses can chop the shout into texture |
+| `CV In 1` | APC timing CV for `X` |
+| `CV In 2` | APC timing CV for `Y` |
+| `Pulse In 1` | APC hard gate when patched |
+| `Pulse In 2` | Vocal trigger/gate, including audio-rate chopping |
 | `Audio Out 1` | Main output |
-| `Audio Out 2` | Stereo room output in Broken Venue; mirrored APC output in Switch Up |
+| `Audio Out 2` | Stereo Broken Venue output, mirrored APC output in Switch Up |
 | `CV Out 1` | Unused |
 | `CV Out 2` | Unused |
 | `Pulse Out 1` | Unused |
 | `Pulse Out 2` | Unused |
 
-## LED map
+## LED Map
 
-- `LED0`: APC mode indicator in Switch Up.
-- `LED2`: divided APC trigger-clock blink in Switch Up; participates in
-  room-zone display otherwise.
-- `LED4`: APC gate-open indicator in Switch Up; participates in room-zone
-  display otherwise.
+- `LED0`: APC mode indicator in Switch Up; venue-zone display in room mode.
 - `LED1`: Broken Venue / vocal mode indicator.
+- `LED2`: divided APC trigger-clock blink in Switch Up; venue-zone display in
+  room mode.
 - `LED3`: vocal trigger / Switch Down flash.
+- `LED4`: APC gate-open indicator in Switch Up; venue-zone display in room
+  mode.
 - `LED5`: clip / chaos indicator.
 
-Middle-mode room-zone display on `LED0/LED2/LED4`:
+Middle-mode venue display on `LED0/LED2/LED4`:
 
-- `Marquee`: `LED0`
-- `CBGB`: `LED2`
-- `100 Club`: `LED4`
-- `Whisky a Go Go`: `LED0 + LED2 + LED4`
+| Venue | LEDs |
+|---|---|
+| `Marquee` | `LED0` |
+| `CBGB` | `LED2` |
+| `100 Club` | `LED4` |
+| `Whisky a Go Go` | `LED0 + LED2 + LED4` |
 
-## Initial implementation notes
+While Switch Down is held, `LED0/LED2/LED4` temporarily become a three-step
+meter for the saved vocal-call trim.
 
-- Prefer `ComputerCard` + Pico SDK for the first firmware pass.
-- Use the local `ComputerCard.h` copy in this release folder; do not modify the
-  upstream HelloWorlds version for this card.
-- Prefer `set_sys_clock_khz(192000, true)`.
-- Include `PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64`.
-- Use the default flash binary type for the sample build; the embedded vocal PCM
-  is too large for `copy_to_ram`.
-- Keep the APC path simple and cheap enough to run comfortably inside the audio
-  callback budget.
-- Keep the vocal samples short and stored on-card. The first real candidate is
-  the CC0 Freesound `Men Shouting Hey.wav` sample noted above.
-- Route vocal playback through the same venue engine so the card still feels
-  like one instrument rather than three unrelated features.
-- Start with venue snapping and only add continuous morphing once the four venue
-  personalities are distinct enough to be worth interpolating.
+## Building
 
-## Next code targets
+This release includes source, `CMakeLists.txt`, a local `ComputerCard.h`, the
+generated `VocalSamples.h`, and the source WAVs used to generate it.
 
-- Replace the single generic Broken Venue parameter set with the four venue
-  personalities above.
-- Move `Knob X` from generic tone to venue selection/morph.
-- Move `Knob Y` from generic decay to collapse/failure amount.
-- Keep the existing vocal ducking for now unless hardware testing suggests it is
-  too heavy-handed.
-- Hardware listening note: `100 Club` and `Whisky a Go Go` currently sound very
-  close and may need more separation after a fresh-ear pass.
-- Hardware listening note: the vocal shouts may have crept loud again after the
-  latest room/audience balance changes; reassess against a music/input signal.
+```sh
+cmake -S . -B build
+cmake --build build -j2
+```
+
+The firmware uses `set_sys_clock_khz(192000, true)` and
+`PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64`. The build uses the default flash binary
+type rather than `copy_to_ram`, because the embedded vocal PCM is too large for
+a RAM-copy build.
+
+## Credits
+
+- Card concept, samples, hardware testing, and release direction: Adrian Vos.
+- Firmware and documentation assistance: Codex.
+- `ComputerCard` library: Chris Johnson, MIT licensed.
+- Workshop Computer platform: Music Thing Modular and Tom Whitwell.
+
+This card intentionally builds against the local
+[`ComputerCard.h`](ComputerCard.h) copy in this release folder. The upstream
+`Demonstrations+HelloWorlds/PicoSDK/ComputerCard/ComputerCard.h` copy is left
+untouched.
+
+## License
+
+Punk Confusion code, documentation, and included vocal samples are released
+under the MIT License. See `LICENSE`.
