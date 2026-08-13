@@ -379,7 +379,7 @@ private:
         const int32_t gainControl = KnobVal(Knob::Main);
         const int32_t inputGain = InputGainQ12(gainControl);
         int32_t in = (static_cast<int32_t>(AudioIn1()) * inputGain) >> 12;
-        int32_t sample = (ReadSampleVoice() * inputGain) >> 12;
+        int32_t sample = (ReadSampleVoice() * gainControl) >> 12;
 
         int32_t source = SoftClip(in + sample);
         const int32_t vocalRoomSend = sample != 0 ? sample >> 1 : 0;

@@ -175,7 +175,8 @@ Venue-specific collapse emphasis:
 - Playback uses a tiny fade-in/fade-out envelope to avoid trigger clicks.
 - The vocal direct level is deliberately lower than the room input, with an
   extra send into the delay path so the call sits in the venue rather than
-  overwhelming the patch. Vocal playback follows the `Main` input gain.
+  overwhelming the patch. Vocal playback follows the raw `Main` knob position,
+  while external input uses the wider input gain curve.
 
 The sample direction should stay original and genre-inspired rather than trying
 to imitate any specific band or performer.
