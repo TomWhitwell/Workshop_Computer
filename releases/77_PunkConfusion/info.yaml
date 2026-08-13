@@ -12,9 +12,9 @@ summary: |
   recorded punk-inspired vocal call through the same Broken Venue processing
   chain.
 Language: C++ (Pico SDK / ComputerCard)
-Creator: Adrian Vos + Codex
+Creator: Adrian Vos
 Version: "1.0.0"
-Status: Released
+Status: Beta fully tested on one device
 License: MIT
 date-created: 2026-08-10
 date-updated: 2026-08-13
