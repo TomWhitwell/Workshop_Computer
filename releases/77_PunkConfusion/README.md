@@ -9,7 +9,7 @@ dirty room and damaged PA treatment for external audio. `Switch Down` and
 
 ## Quick Start
 
-1. Flash `punk_confusion.uf2`.
+1. Flash `uf2/punk_confusion.uf2`.
 2. Patch `Audio Out 1` to your mixer. Patch `Audio Out 2` as well for stereo
    room output in Broken Venue mode.
 3. For APC mode, set the switch Up and turn `Main` up.
@@ -106,8 +106,19 @@ avoid extra digital clipping after the Colourbox drive.
 | `Whisky a Go Go` | `Let's Go` |
 
 The source WAVs are kept in `samples/`, matching the organisation used by other
-sample-based releases in this repo. To build with your own calls, replace the
-four WAVs in `samples/`, then run:
+sample-based releases in this repo. Punk Confusion does not load samples onto an
+already-flashed card; instead, custom calls are compiled into a new UF2. This
+keeps the firmware simple, reliable, and self-contained.
+
+To build with your own calls, replace the four WAVs in `samples/`, keeping the
+same filenames:
+
+- `marquee_oi.wav`
+- `cbgb_hey_ho.wav`
+- `club100_no_future.wav`
+- `whisky_lets_go.wav`
+
+Then run:
 
 ```sh
 python3 tools/generate_vocal_samples.py

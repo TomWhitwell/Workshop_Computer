@@ -21,7 +21,7 @@ date-updated: 2026-08-13
 Repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/77_PunkConfusion
 
 uf2:
-  - path: punk_confusion.uf2
+  - path: uf2/punk_confusion.uf2
     name: Punk Confusion
 
 tags:
