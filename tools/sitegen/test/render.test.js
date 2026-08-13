@@ -240,6 +240,34 @@ test('discovery renderers escape searchable attributes and ignore absent shelf c
   assert.equal((shelf.match(/program-card-tile__link/g) || []).length, 1);
 });
 
+test('video shelf layouts show media on the intended cards', () => {
+  const cards = [
+    card({ id: '01_lead', slug: '01-lead', videos: [{ id: 'lead-video' }] }),
+    card({ id: '02_support', slug: '02-support', videos: [{ id: 'support-video' }] }),
+    card({ id: '03_support', slug: '03-support', videos: [{ id: 'another-video' }] }),
+  ];
+  const cardsById = new Map(cards.map(item => [item.id, item]));
+  const shelf = { title: 'Videos', cards: cards.map(item => item.id) };
+
+  const lead = renderShelf({ ...shelf, layout: 'video-lead' }, cardsById);
+  assert.equal((lead.match(/program-card-tile__media/g) || []).length, 1);
+  assert.match(lead, /data-video-id="lead-video"/);
+  assert.doesNotMatch(lead, /data-video-id="support-video"|data-video-id="another-video"/);
+  assert.equal((lead.match(/program-card-tile--video/g) || []).length, 1);
+
+  const strip = renderShelf({ ...shelf, layout: 'video-strip' }, cardsById);
+  assert.equal((strip.match(/program-card-tile__media/g) || []).length, 3);
+  assert.match(strip, /data-video-id="lead-video"/);
+  assert.match(strip, /data-video-id="support-video"/);
+  assert.match(strip, /data-video-id="another-video"/);
+
+  const leadWithoutVideo = renderShelf(
+    { ...shelf, layout: 'video-lead' },
+    new Map(cards.map((item, index) => [item.id, index === 0 ? { ...item, videos: [] } : item])),
+  );
+  assert.doesNotMatch(leadWithoutVideo, /program-card-tile__media|program-card-tile--video/);
+});
+
 test('catalogue sorting uses inferred creation dates', () => {
   const inferred = card({
     metadata: { created: '2026-07-29', created_inferred: true },

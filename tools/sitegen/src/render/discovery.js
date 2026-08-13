@@ -155,7 +155,6 @@ function shelfCards(shelf, cardsById) {
 export function renderShelf(shelf, cardsById, opts = {}) {
   const { featured = false, root = '.' } = opts;
   const layout = shelf.layout || '';
-  const showVideo = layout.includes('video');
   const list = shelfCards(shelf, cardsById);
   if (!list.length) return '';
 
@@ -165,7 +164,12 @@ export function renderShelf(shelf, cardsById, opts = {}) {
 
   return `<section class="${classes}">
     <header class="program-card-shelf__header"><h2>${esc(shelf.title || 'Shelf')}</h2>${shelf.intro ? `<p>${esc(shelf.intro)}</p>` : ''}</header>
-    <div class="${gridClasses}">${list.map(card => renderTile(card, { showVideo, showArtwork: featured, hideFlairs: shelf.hide_flairs, root })).join('')}</div>
+    <div class="${gridClasses}">${list.map((card, index) => renderTile(card, {
+      showVideo: layout === 'video-strip' || (layout === 'video-lead' && index === 0),
+      showArtwork: featured,
+      hideFlairs: shelf.hide_flairs,
+      root,
+    })).join('')}</div>
   </section>`;
 }
 

@@ -1,5 +1,9 @@
 # ZX + OneBit — for the Music Thing Workshop Computer
 
+**A ZX Spectrum inside your modular.**
+Patch gates and CV into Spectrum games and programs.
+Patch the beeper, border, AY sound and live memory back out.
+
 A program card for the **Music Thing Modular Workshop System Computer** that carries
 **two different instruments in one firmware**, chosen at power-on:
 
@@ -47,7 +51,7 @@ every knob and jack for the mode. The panels below are the quick reference.
 - **128K Spectrum**: 128 KB banked RAM, 32 KB ROM, `0x7FFD` paging, the ULA
   (`0xFE` beeper/border), and the **AY-3-8912** (3 tones + noise + 8 envelope shapes).
   48K programs run too.
-- **Loads** `.z80` (v1/v2/v3, 48K & 128K, RLE), `.sna` (48K/128K) snapshots, and
+- **Loads** `.z80` (v1/v2/v3, 48K & 128K), `.sna` (48K/128K) snapshots, and
   `.ay` / `.pt3` (Vortex Tracker) chip-music. AY tunes run their own Z80 player on
   the emulated CPU; PT3 modules run against an embedded PT3 player — both via a
   self-contained IM2 harness. Everything decodes **in the browser** and streams to
@@ -73,21 +77,56 @@ every knob and jack for the mode. The panels below are the quick reference.
 
 Every jack + the switch is **mapped in the Web UI** to one of: a **key** (held while
 the input is active), a **Kempston** joystick direction, a **Z80-readable port** (the
-input's live 0–255 value), or **None**. A jack only acts when something is patched in.
+input's live 0–255 value), an **AY mangle** target (see below), or **None**. A jack only
+acts when something is patched in.
 
 | Jack | Default | Mappable to |
 |------|---------|-------------|
-| **Pulse In 1** | ENTER | key / Kempston / port / none |
-| **Pulse In 2** | SPACE | key / Kempston / port / none |
-| **CV In 1** | Q (comparator) | key / Kempston / port / none |
-| **CV In 2** | A | key / Kempston / port / none |
-| **Audio In 1** | O | key / Kempston / port / none |
-| **Audio In 2** | P | key / Kempston / port / none |
-| **Switch Down** | ENTER | key / Kempston / port / none |
+| **Pulse In 1** | ENTER | key / Kempston / port / AY mangle / none |
+| **Pulse In 2** | SPACE | key / Kempston / port / AY mangle / none |
+| **CV In 1** | Q  | key / Kempston / port / AY mangle / none |
+| **CV In 2** | A | key / Kempston / port / AY mangle / none |
+| **Audio In 1** | O | key / Kempston / port / AY mangle / none |
+| **Audio In 2** | P | key / Kempston / port / AY mangle / none |
+| **Switch Down** | ENTER | key / Kempston / port / AY mangle / none |
 
 **Input ports** (read with `IN A,(port)` when a source is mapped to *Port*):
-Knob Y `0x5F`, CV In 1 `0x6F`, CV In 2 `0x7F`, Audio In 1 `0x8F`, Audio In 2 `0x9F`,
-Pulse In 1 `0xAF`, Pulse In 2 `0xBF`, Switch `0xCF`.
+Knob Y `0x5F` (95), Pulse In 1 `0x23` (35), Pulse In 2 `0x27` (39), CV In 1 `0x2B` (43),
+CV In 2 `0x2F` (47), Audio In 1 `0x33` (51), Audio In 2 `0x63` (99), Switch `0x67` (103).
+
+These port numbers are chosen so the emulated machine can never mistake them for real
+hardware: each has bits 0, 1 and 5 set, which keeps them clear of the ULA (even ports),
+Kempston (bit 5 = 0) and — importantly — the 128K paging latch (bit 1 = 0), so a stray
+`OUT` can't repage RAM under your program. Read them with a **high byte below `0x80`**
+(`IN A,(n)` with a small `A`, or `IN r,(C)` with `B` < `0x80`); above that the AY claims
+the address. A source that isn't mapped to *Port* reads `0xFF`, like the floating bus.
+
+### Mangling the AY (`.ay` / `.pt3` playback)
+
+While the card is playing an `.ay`/`.pt3`, a jack can be mapped to an **AY mangle**
+target — live CV control over the sound chip itself, on top of whatever the tune is
+doing. These targets are **inert in ZX game mode**, so one mapping table serves both.
+
+| Target | What the CV does |
+|--------|------------------|
+| **A / B / C duty** | Reshapes that channel's square wave — PWM the real chip can't do. Centre = the normal 50% square; moving the CV **either way** thins the pulse toward a nasal, reedy tone |
+| **Envelope** | Scales the envelope period by up to **±2 octaves** either side of whatever the tune set |
+| **Noise** | Bends the noise period — grit and pitch on the noise channel |
+| **A / B / C mute** | Gate-mutes a channel while the input is active (drop the bass, solo a lead) |
+
+Duty, envelope and noise are **continuous** — they follow the CV, centred so that 0 V
+(or an unpatched jack) means "no change". Each has a **mangle depth** slider in the Web
+UI setting how far the CV pushes it. Mute is a **gate**: it mutes while the input is
+high (invertible).
+
+Two details that make these playable rather than merely correct. **Duty folds** around
+centre because a square's timbre is symmetric about 50% — 25% and 75% sound identical —
+so a straight sweep would spend half its travel repeating itself. **Envelope scales by
+ratio, not by a fixed offset**, so you get the same musical interval whatever period the
+tune programmed; an offset would slam to the limit on the short periods most PT3s use
+and do nothing on long ones.
+
+Playback is bit-identical to the unmangled tune until you actually patch something in.
 
 ## Write your own — a Spectrum program in the CV world
 
@@ -105,6 +144,41 @@ The baked-in default demo is exactly this — its source is
 
 That's the whole loop — modular in → Spectrum logic → audio/CV out — in ~40 lines.
 Start from it. (`snapshots/bakedasm.z80` is the assembled version that gets baked in.)
+
+### More worked examples — `FLASHME/DEMO-SFX*`
+
+Four further demos live in [`FLASHME/`](FLASHME/), each as source + assembled
+snapshot (`DEMO-SFX2.asm` / `DEMO-SFX2.z80`, and so on), so you can hear one and
+then read exactly how it works. Upload the `.z80` over the Web UI.
+
+> **These are examples, not instruments.** They exist to show *techniques* — how to
+> read a jack, how to build an oscillator in Z80, how to get a signal back out — not
+> because they sound good. Several are harsh, some are barely musical, and one is
+> deliberately a bit broken (see SFX4 below). Treat them as annotated code you can
+> hear, and raid them for parts.
+
+| Demo | What it is |
+|------|-----------|
+| [`DEMO-SFX2`](FLASHME/DEMO-SFX2.asm) | **Six key-triggered SFX engines.** Q = VCA decay ping, A = PWM, O = binary rhythmic gating (AM), P = hard-sync vocal formants, SPACE = LFSR noise clock-divider, ENTER = arpeggiator. Knob Y (port 95) does something different in each — envelope length, duty cycle, bitmask, master pitch, sample rate, interval |
+| [`DEMO-SFX3`](FLASHME/DEMO-SFX3.asm) | **Six more, all time-evolving.** Q = riser/siren (pitch climbs while held), A = portamento glide, O = charging-capacitor density builder, P = LFO pulse-width sweep, SPACE = sequencer play, ENTER = bitcrush texture morph |
+| [`DEMO-SFX4`](FLASHME/DEMO-SFX4.asm) | **CV-driven oscillator / audio mangler.** Pitch from CV In 1, hard sync on Pulse In 1, FM from Knob Y, PWM threshold from Audio In 2, ring-mod invert from Pulse In 2. Switch Down swaps to an audio-thru mode where Audio In 1 gets bitwise-ANDed with CV In 2 (brutal bitcrushing) |
+| [`DEMO-SFX5`](FLASHME/DEMO-SFX5.asm) | **Turing-machine sequencer.** Two 8-bit phase accumulators (CV In 1 / CV In 2), each hard-syncable from its Pulse In. Phase A doubles as the shift-register clock divider; the bit shifted in comes from comparing Audio In 1 against Audio In 2. Switch picks continuous morphing vs. stepped CV. Writes to screen memory so **CV Out 2's memory probe** carries the sequence |
+
+**Set up the input mapping first.** `DEMO-SFX4` and `SFX5` read the input *ports*, so
+in the Web UI each jack you want to use must be mapped to **→ Port** — otherwise they
+read the idle `0xFF`/centre value and nothing appears to respond. `DEMO-SFX2`/`3` are
+keyboard-driven instead, so map jacks to **keys** for those.
+
+`DEMO-SFX4`'s oscillator is an **8-bit phase accumulator**: CV In 1 is added straight
+to the byte that *is* the saw wave, so pitch ≈ looprate × CV / 256. The Z80 loop runs
+at roughly 18 kHz, putting CV 1 at about 70 Hz and CV 64 around 4.5 kHz. The lower
+part of the CV sweep is the musically useful bit — past CV ~128 you're above the
+loop's Nyquist and the tone aliases into grit, which is either a bug or a feature
+depending on what you're after.
+
+(Accumulator width is the whole ballgame here: routing the same CV through a 16-bit
+accumulator divides pitch by 65536 instead of 256 and caps the oscillator around
+70 Hz — a slow thump rather than a tone.)
 
 ## Outputs (ZX)
 
@@ -140,7 +214,9 @@ USB-MIDI / WebMIDI SysEx — **Chrome or Edge**, no install.
 A 1-bit beeper synth: a single fast-bitbanged output makes the tone, with
 pseudo-polyphony faked by interleaving/XOR-ing squares — the classic ZX beeper trick.
 Seven selectable engines (faithful ports of well-known Spectrum beeper routines) plus
-drums. Boot it by holding the switch **Down** at power-on.
+drums. 
+
+Boot OneBit by holding the switch **Down** at power-on.
 
 ## Panel (OneBit)
 
@@ -174,8 +250,10 @@ drums. Boot it by holding the switch **Down** at power-on.
 | **Audio Out 2** | Drum density |
 | **LEDs** | Left (0/2/4) = **engine number in binary** (0–6). Right = note-decay glow (1) / drum kit (3) / drum activity (5) |
 
-*(OneBit uses no Web UI. See its own repo/README for the full details and engine
-history.)*
+*(OneBit uses no Web UI. See its own repo, **<https://github.com/uglifruit/OneBit>**,
+for the full details, build history (DEVLOG) and per-engine credits — that repo is
+OneBit's standalone development home; the engine here is the same code reused as a
+boot mode.)*
 
 ---
 
@@ -243,7 +321,9 @@ This card stands on a lot of other people's work. Thank you, all of you.
   (embedded); PT3 format by **Sergey Bulba** and the Vortex Tracker authors.
 - The reverb is a fixed-point take on **Jezar at Dreampoint**'s *Freeverb* topology.
 
-**OneBit beeper engines** (all via **Beepola** by Chris Cowley):
+**OneBit beeper engines** — from the standalone
+[**OneBit**](https://github.com/uglifruit/OneBit) synth (reused here as a boot mode);
+all via **Beepola** by Chris Cowley:
 - **Joffa Smith** — PlipPlop / Special FX · **Shiru** — Tritone / Qchan / Phaser /
   Huby · **Jason C Brooke** — Savage · **Mark Alexander** — Music Box ·
   **Saa Puica** — Music Studio · and above all **utz** for the 1-bit routine
@@ -255,6 +335,6 @@ This card stands on a lot of other people's work. Thank you, all of you.
 
 ## Licence
 
-The card's own source is Andy's. Vendored components keep their own licences
+Vendored components keep their own licences
 (`vendor/sz80/LICENSE`, `ComputerCard.h`). The Sinclair ROMs are Amstrad's, used by
 permission. No copyrighted game or music files are included.

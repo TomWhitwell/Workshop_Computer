@@ -1,0 +1,24 @@
+version: 1
+default: zx-spectrum
+
+# Two boot modes, two panels. ZX Spectrum is the normal boot and the default view;
+# OneBit is the alternate boot (hold the momentary switch DOWN at power-on).
+#
+# info.yaml carries the ZX labels as its unconditioned base rows and adds
+# `when: { panel: onebit }` rows only for the sockets and knobs that mean something
+# different in OneBit — so each view shows one set of labels instead of every jack
+# reading "ZX — … / OneBit — …".
+#
+# Images are generated from those entries (`image: auto`): the printable overlays
+# in this folder are PNG, and panel art must be a self-contained SVG on a fixed
+# 560x1785 viewBox.
+panels:
+  - id: zx-spectrum
+    name: "ZX Spectrum"
+    image: auto
+    content: auto
+
+  - id: onebit
+    name: "OneBit (alt boot)"
+    image: auto
+    content: auto

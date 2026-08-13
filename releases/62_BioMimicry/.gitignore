@@ -1,0 +1,30 @@
+build/
+build-*/
+
+# Generated from samples/*.raw by tools/mksamples.py at build time
+samples.h
+
+# The converted one-shots ARE committed: they are the card's voice, and without
+# them a fresh clone builds a silent instrument. Sourced from Pixabay and
+# redistributable under the Pixabay Content License.
+#
+# Source WAVs dropped in for tools/importwav.py to convert are not — they are
+# large and the converted .raw files are what the build actually uses.
+samples/incoming/
+
+# Host-side simulation harness binary
+tools/simulate.exe
+tools/*.o
+__pycache__/
+*.pyc
+
+# The released firmware IS published, so the site can offer a download and
+# compute its sha256. Working copies in FLASHME/ are not.
+FLASHME/*.uf2
+FLASHME/*.bin
+FLASHME/*.elf
+
+# Editor / OS noise
+.vscode/
+.DS_Store
+Thumbs.db

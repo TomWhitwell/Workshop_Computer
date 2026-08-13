@@ -103,7 +103,7 @@ static inline void EnvStep(AY *ay)
 	ay->envVol = rising ? p : (15 - p);
 }
 
-int16_t AY::Render(uint32_t tstates)
+int16_t AY::Render(uint32_t tstates, const AYMod &mod)
 {
 	// Convert CPU T-states to AY cycles (CPU/2), carrying the remainder.
 	uint32_t total = tstateFrac + tstates;
@@ -116,20 +116,43 @@ int16_t AY::Render(uint32_t tstates)
 	uint32_t perC = ((reg[5] & 0x0F) << 8) | reg[4]; if (!perC) perC = 1;
 	uint32_t perN = (reg[6] & 0x1F); if (!perN) perN = 1;
 	uint32_t perE = (reg[12] << 8) | reg[11]; if (!perE) perE = 1;
+
+	// --- Live mangling: bend the noise / envelope periods by the CV amounts.
+	// mod == AYMod{} (all zero, duty 128) leaves everything below identical.
+	if (mod.noiseMod) { int32_t n = (int32_t)perN + mod.noiseMod; perN = n < 1 ? 1 : (n > 31 ? 31 : n); }
+	if (mod.envMod)
+	{
+		// envMod is a signed exponent: scale the period by 2^(envMod/64), so the
+		// sweep is the same musical interval whatever period the tune programmed
+		// (rate perception is ratio-based; a fixed offset clamps on short periods
+		// and vanishes on long ones). Integer form: shift by the whole octaves,
+		// then a 6-step linear interpolation across the fractional octave.
+		int32_t e   = mod.envMod;
+		int32_t oct = e >> 6;                       // whole octaves, floor (-2..+1)
+		int32_t fr  = e - (oct << 6);               // 0..63 within the octave
+		int32_t p   = (int32_t)perE;
+		// Fractional part: multiply by (64 + fr)/64 ≈ 2^(fr/64) to within ~3%.
+		p = (p * (64 + fr)) >> 6;
+		p = (oct >= 0) ? (p << oct) : (p >> (-oct));
+		perE = p < 1 ? 1 : (p > 0xFFFF ? 0xFFFF : (uint32_t)p);
+	}
+
 	uint32_t per[3] = { perA, perB, perC };
 
-	// Block stepping. AY tone frequency = clock / (16 × period): the output
-	// toggles every (period × 8) AY cycles (a half-period). Noise is the same
-	// prescale; the envelope steps every (period × 256) AY cycles.
+	// Block stepping. AY tone frequency = clock / (16 × period): one full square
+	// cycle spans (period × 16) AY cycles. We track the phase within that full
+	// period and derive the square level by comparing against a duty threshold —
+	// duty 128 puts the edge at the half-period, reproducing the classic 50%
+	// square exactly; other duty values give PWM the real chip can't do. Noise is
+	// the same prescale; the envelope steps every (period × 256) AY cycles.
 	for (int c = 0; c < 3; c++)
 	{
+		uint32_t fullPeriod = per[c] << 4;          // full square cycle in AY cycles
 		toneCounter[c] += ayCycles;
-		uint32_t step = per[c] << 3;                // half-period in AY cycles
-		while (toneCounter[c] >= step)
-		{
-			toneCounter[c] -= step;
-			toneOut[c] ^= 1;
-		}
+		if (toneCounter[c] >= fullPeriod) toneCounter[c] %= fullPeriod;
+		// Edge position for this channel's duty (128 -> exactly half-period).
+		uint32_t edge = (fullPeriod * mod.duty[c]) >> 8;
+		toneOut[c] = (toneCounter[c] < edge) ? 1 : 0;
 	}
 	// Noise (÷16 prescale like tone; toggles the LFSR each period step)
 	noiseCounter += ayCycles;
@@ -152,7 +175,14 @@ int16_t AY::Render(uint32_t tstates)
 	}
 
 	// --- Mix ------------------------------------------------------------------
+	// Force-mute requested channels by setting both their tone and noise enable
+	// bits in the mixer (bit=1 => disabled). muteMask == 0 leaves reg[7] as-is.
 	uint8_t mix = reg[7];
+	if (mod.muteMask)
+	{
+		uint8_t m = mod.muteMask & 0x07;
+		mix |= m | (m << 3);                         // tone bits 0-2, noise bits 3-5
+	}
 	int32_t out = 0;
 	for (int c = 0; c < 3; c++)
 	{

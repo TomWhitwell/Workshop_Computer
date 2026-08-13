@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 144 285">
-  <!-- Generator: Adobe Illustrator 29.8.7, SVG Export Plug-In . SVG Version: 2.1.1 Build 1)  -->
+  <!-- Generator: Adobe Illustrator 29.8.9, SVG Export Plug-In . SVG Version: 2.1.1 Build 1)  -->
   <defs>
     <style>
-      .st0 {
-        font-size: 4.36px;
-      }
-
       .st0, .st1, .st2 {
         isolation: isolate;
       }
 
-      .st0, .st2 {
+      .st1 {
+        font-size: 3.78px;
+      }
+
+      .st1, .st2 {
         fill: #333;
         font-family: Helvetica, Helvetica;
       }
@@ -20,20 +20,22 @@
         fill: #efb9c0;
       }
 
+      .st2 {
+        font-size: 4.36px;
+      }
+
       .st4 {
         fill: none;
         stroke: #ababab;
         stroke-miterlimit: 3.5;
         stroke-width: 1.31px;
       }
-
-      .st2 {
-        font-size: 3.78px;
-      }
     </style>
   </defs>
-  <g class="st1">
-    <text class="st0" transform="translate(4.68 6.81)"><tspan x="0" y="0">Main knob — method select</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st2" transform="translate(4.68 6.81)"><tspan x="0" y="0">Main knob — method select</tspan></text>
+    </g>
   </g>
   <circle class="st3" cx="7.38" cy="13.33" r="2.03"/>
   <circle class="st4" cx="13.77" cy="13.33" r="2.03"/>
@@ -41,8 +43,10 @@
   <circle class="st4" cx="13.77" cy="19.14" r="2.03"/>
   <circle class="st4" cx="7.38" cy="24.95" r="2.03"/>
   <circle class="st4" cx="13.77" cy="24.95" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(20.16 20.46)"><tspan x="0" y="0">Plain Hunt Minimus [4]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(20.16 20.46)"><tspan x="0" y="0">Plain Hunt Minimus [4]</tspan></text>
+    </g>
   </g>
   <circle class="st4" cx="7.38" cy="33.66" r="2.03"/>
   <circle class="st3" cx="13.77" cy="33.66" r="2.03"/>
@@ -50,8 +54,10 @@
   <circle class="st4" cx="13.77" cy="39.47" r="2.03"/>
   <circle class="st4" cx="7.38" cy="45.28" r="2.03"/>
   <circle class="st4" cx="13.77" cy="45.28" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(20.16 40.8)"><tspan x="0" y="0">Grandsire Doubles [5]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(20.16 40.8)"><tspan x="0" y="0">Grandsire Doubles [5]</tspan></text>
+    </g>
   </g>
   <circle class="st4" cx="7.38" cy="54" r="2.03"/>
   <circle class="st4" cx="13.77" cy="54" r="2.03"/>
@@ -59,8 +65,10 @@
   <circle class="st4" cx="13.77" cy="59.8" r="2.03"/>
   <circle class="st4" cx="7.38" cy="65.62" r="2.03"/>
   <circle class="st4" cx="13.77" cy="65.62" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(20.16 61.13)"><tspan x="0" y="0">Plain Bob Doubles [5]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(20.16 61.13)"><tspan x="0" y="0">Plain Bob Doubles [5]</tspan></text>
+    </g>
   </g>
   <circle class="st4" cx="7.38" cy="74.33" r="2.03"/>
   <circle class="st4" cx="13.77" cy="74.33" r="2.03"/>
@@ -68,8 +76,10 @@
   <circle class="st3" cx="13.77" cy="80.14" r="2.03"/>
   <circle class="st4" cx="7.38" cy="85.95" r="2.03"/>
   <circle class="st4" cx="13.77" cy="85.95" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(20.16 81.46)"><tspan x="0" y="0">Plain Hunt Doubles [5]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(20.16 81.46)"><tspan x="0" y="0">Plain Hunt Doubles [5]</tspan></text>
+    </g>
   </g>
   <circle class="st4" cx="7.38" cy="94.66" r="2.03"/>
   <circle class="st4" cx="13.77" cy="94.66" r="2.03"/>
@@ -77,8 +87,10 @@
   <circle class="st4" cx="13.77" cy="100.47" r="2.03"/>
   <circle class="st3" cx="7.38" cy="106.27" r="2.03"/>
   <circle class="st4" cx="13.77" cy="106.27" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(20.16 101.8)"><tspan x="0" y="0">Reverse Canterbury Doubles [5]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(20.16 101.8)"><tspan x="0" y="0">Reverse Canterbury Doubles [5]</tspan></text>
+    </g>
   </g>
   <circle class="st4" cx="7.38" cy="114.99" r="2.03"/>
   <circle class="st4" cx="13.77" cy="114.99" r="2.03"/>
@@ -86,8 +98,10 @@
   <circle class="st4" cx="13.77" cy="120.8" r="2.03"/>
   <circle class="st4" cx="7.38" cy="126.61" r="2.03"/>
   <circle class="st3" cx="13.77" cy="126.61" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(20.16 122.13)"><tspan x="0" y="0">St Martins Doubles [5]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(20.16 122.13)"><tspan x="0" y="0">St Martins Doubles [5]</tspan></text>
+    </g>
   </g>
   <circle class="st4" cx="84.96" cy="13.33" r="2.03"/>
   <circle class="st3" cx="91.34" cy="13.33" r="2.03"/>
@@ -95,8 +109,10 @@
   <circle class="st3" cx="91.34" cy="19.14" r="2.03"/>
   <circle class="st3" cx="84.96" cy="24.95" r="2.03"/>
   <circle class="st3" cx="91.34" cy="24.95" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(97.73 20.46)"><tspan x="0" y="0">St Simons Doubles [5]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(97.73 20.46)"><tspan x="0" y="0">St Simons Doubles [5]</tspan></text>
+    </g>
   </g>
   <circle class="st3" cx="84.96" cy="33.66" r="2.03"/>
   <circle class="st4" cx="91.34" cy="33.66" r="2.03"/>
@@ -104,8 +120,10 @@
   <circle class="st3" cx="91.34" cy="39.47" r="2.03"/>
   <circle class="st3" cx="84.96" cy="45.28" r="2.03"/>
   <circle class="st3" cx="91.34" cy="45.28" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(97.73 40.8)"><tspan x="0" y="0">Stedman Doubles [5]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(97.73 40.8)"><tspan x="0" y="0">Stedman Doubles [5]</tspan></text>
+    </g>
   </g>
   <circle class="st3" cx="84.96" cy="54" r="2.03"/>
   <circle class="st3" cx="91.34" cy="54" r="2.03"/>
@@ -113,8 +131,10 @@
   <circle class="st3" cx="91.34" cy="59.8" r="2.03"/>
   <circle class="st3" cx="84.96" cy="65.62" r="2.03"/>
   <circle class="st3" cx="91.34" cy="65.62" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(97.73 61.13)"><tspan x="0" y="0">Plain Bob Minor [6]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(97.73 61.13)"><tspan x="0" y="0">Plain Bob Minor [6]</tspan></text>
+    </g>
   </g>
   <circle class="st3" cx="84.96" cy="74.33" r="2.03"/>
   <circle class="st3" cx="91.34" cy="74.33" r="2.03"/>
@@ -122,8 +142,10 @@
   <circle class="st4" cx="91.34" cy="80.14" r="2.03"/>
   <circle class="st3" cx="84.96" cy="85.95" r="2.03"/>
   <circle class="st3" cx="91.34" cy="85.95" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(97.73 81.46)"><tspan x="0" y="0">St Clements Minor [6]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(97.73 81.46)"><tspan x="0" y="0">St Clements Minor [6]</tspan></text>
+    </g>
   </g>
   <circle class="st3" cx="84.96" cy="94.66" r="2.03"/>
   <circle class="st3" cx="91.34" cy="94.66" r="2.03"/>
@@ -131,8 +153,10 @@
   <circle class="st3" cx="91.34" cy="100.47" r="2.03"/>
   <circle class="st4" cx="84.96" cy="106.27" r="2.03"/>
   <circle class="st3" cx="91.34" cy="106.27" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(97.73 101.8)"><tspan x="0" y="0">Grandsire Triples [7]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(97.73 101.8)"><tspan x="0" y="0">Grandsire Triples [7]</tspan></text>
+    </g>
   </g>
   <circle class="st3" cx="84.96" cy="114.99" r="2.03"/>
   <circle class="st3" cx="91.34" cy="114.99" r="2.03"/>
@@ -140,130 +164,166 @@
   <circle class="st3" cx="91.34" cy="120.8" r="2.03"/>
   <circle class="st3" cx="84.96" cy="126.61" r="2.03"/>
   <circle class="st4" cx="91.34" cy="126.61" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(97.73 122.13)"><tspan x="0" y="0">Plain Bob Triples [8]</tspan></text>
+  <g class="st0">
+    <g class="st0">
+      <text class="st1" transform="translate(97.73 122.13)"><tspan x="0" y="0">Plain Bob Triples [8]</tspan></text>
+    </g>
   </g>
-  <g class="st1">
-    <text class="st0" transform="translate(4.33 144.91)"><tspan x="0" y="0">X knob — scale</tspan></text>
+  <g>
+    <g class="st0">
+      <g class="st0">
+        <text class="st2" transform="translate(82.94 146.2)"><tspan x="0" y="0">Y knob — scale</tspan></text>
+      </g>
+    </g>
+    <circle class="st3" cx="84.97" cy="153.17" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="153.17" r="2.03"/>
+    <circle class="st4" cx="84.97" cy="158.98" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="158.98" r="2.03"/>
+    <circle class="st4" cx="84.97" cy="164.79" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="164.79" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(97.75 160.31)"><tspan x="0" y="0">Major</tspan></text>
+      </g>
+    </g>
+    <circle class="st4" cx="84.97" cy="173.5" r="2.03"/>
+    <circle class="st3" cx="91.36" cy="173.5" r="2.03"/>
+    <circle class="st4" cx="84.97" cy="179.31" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="179.31" r="2.03"/>
+    <circle class="st4" cx="84.97" cy="185.12" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="185.12" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(97.75 180.64)"><tspan x="0" y="0">Minor</tspan></text>
+      </g>
+    </g>
+    <circle class="st4" cx="84.97" cy="193.83" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="193.83" r="2.03"/>
+    <circle class="st3" cx="84.97" cy="199.65" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="199.65" r="2.03"/>
+    <circle class="st4" cx="84.97" cy="205.45" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="205.45" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(97.75 200.97)"><tspan x="0" y="0">Pentatonic Major</tspan></text>
+      </g>
+    </g>
+    <circle class="st4" cx="84.97" cy="214.16" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="214.16" r="2.03"/>
+    <circle class="st4" cx="84.97" cy="219.98" r="2.03"/>
+    <circle class="st3" cx="91.36" cy="219.98" r="2.03"/>
+    <circle class="st4" cx="84.97" cy="225.78" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="225.78" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(97.75 221.3)"><tspan x="0" y="0">Pentatonic Minor</tspan></text>
+      </g>
+    </g>
+    <circle class="st4" cx="84.97" cy="234.5" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="234.5" r="2.03"/>
+    <circle class="st4" cx="84.97" cy="240.3" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="240.3" r="2.03"/>
+    <circle class="st3" cx="84.97" cy="246.12" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="246.12" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(97.75 241.63)"><tspan x="0" y="0">Blues</tspan></text>
+      </g>
+    </g>
+    <circle class="st4" cx="84.97" cy="254.83" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="254.83" r="2.03"/>
+    <circle class="st4" cx="84.97" cy="260.64" r="2.03"/>
+    <circle class="st4" cx="91.36" cy="260.64" r="2.03"/>
+    <circle class="st4" cx="84.97" cy="266.45" r="2.03"/>
+    <circle class="st3" cx="91.36" cy="266.45" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(97.75 261.96)"><tspan x="0" y="0">Chromatic</tspan></text>
+      </g>
+    </g>
   </g>
-  <circle class="st3" cx="6.36" cy="151.88" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="151.88" r="2.03"/>
-  <circle class="st4" cx="6.36" cy="157.69" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="157.69" r="2.03"/>
-  <circle class="st4" cx="6.36" cy="163.5" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="163.5" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(19.14 159.02)"><tspan x="0" y="0">Major</tspan></text>
-  </g>
-  <circle class="st4" cx="6.36" cy="172.21" r="2.03"/>
-  <circle class="st3" cx="12.75" cy="172.21" r="2.03"/>
-  <circle class="st4" cx="6.36" cy="178.02" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="178.02" r="2.03"/>
-  <circle class="st4" cx="6.36" cy="183.83" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="183.83" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(19.14 179.35)"><tspan x="0" y="0">Minor</tspan></text>
-  </g>
-  <circle class="st4" cx="6.36" cy="192.54" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="192.54" r="2.03"/>
-  <circle class="st3" cx="6.36" cy="198.36" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="198.36" r="2.03"/>
-  <circle class="st4" cx="6.36" cy="204.16" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="204.16" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(19.14 199.68)"><tspan x="0" y="0">Pentatonic Major</tspan></text>
-  </g>
-  <circle class="st4" cx="6.36" cy="212.87" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="212.87" r="2.03"/>
-  <circle class="st4" cx="6.36" cy="218.69" r="2.03"/>
-  <circle class="st3" cx="12.75" cy="218.69" r="2.03"/>
-  <circle class="st4" cx="6.36" cy="224.49" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="224.49" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(19.14 220.01)"><tspan x="0" y="0">Pentatonic Minor</tspan></text>
-  </g>
-  <circle class="st4" cx="6.36" cy="233.21" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="233.21" r="2.03"/>
-  <circle class="st4" cx="6.36" cy="239.01" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="239.01" r="2.03"/>
-  <circle class="st3" cx="6.36" cy="244.83" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="244.83" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(19.14 240.34)"><tspan x="0" y="0">Blues</tspan></text>
-  </g>
-  <circle class="st4" cx="6.36" cy="253.54" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="253.54" r="2.03"/>
-  <circle class="st4" cx="6.36" cy="259.35" r="2.03"/>
-  <circle class="st4" cx="12.75" cy="259.35" r="2.03"/>
-  <circle class="st4" cx="6.36" cy="265.16" r="2.03"/>
-  <circle class="st3" cx="12.75" cy="265.16" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(19.14 260.67)"><tspan x="0" y="0">Chromatic</tspan></text>
-  </g>
-  <g class="st1">
-    <text class="st0" transform="translate(82.92 144.91)"><tspan x="0" y="0">Y knob — clock divide/multiply</tspan></text>
-  </g>
-  <circle class="st4" cx="85.05" cy="215.59" r="2.03"/>
-  <circle class="st4" cx="91.44" cy="215.59" r="2.03"/>
-  <circle class="st4" cx="85.05" cy="221.4" r="2.03"/>
-  <circle class="st4" cx="91.44" cy="221.4" r="2.03"/>
-  <circle class="st3" cx="85.05" cy="227.2" r="2.03"/>
-  <circle class="st4" cx="91.44" cy="227.2" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(97.83 222.72)"><tspan x="0" y="0">/8</tspan></text>
-  </g>
-  <circle class="st4" cx="85.05" cy="195.26" r="2.03"/>
-  <circle class="st4" cx="91.44" cy="195.26" r="2.03"/>
-  <circle class="st3" cx="85.05" cy="201.06" r="2.03"/>
-  <circle class="st4" cx="91.44" cy="201.06" r="2.03"/>
-  <circle class="st4" cx="85.05" cy="206.88" r="2.03"/>
-  <circle class="st4" cx="91.44" cy="206.88" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(97.83 202.39)"><tspan x="0" y="0">/4</tspan></text>
-  </g>
-  <circle class="st3" cx="85.05" cy="175" r="2.03"/>
-  <circle class="st4" cx="91.44" cy="175" r="2.03"/>
-  <circle class="st4" cx="85.05" cy="180.8" r="2.03"/>
-  <circle class="st4" cx="91.44" cy="180.8" r="2.03"/>
-  <circle class="st4" cx="85.05" cy="186.61" r="2.03"/>
-  <circle class="st4" cx="91.44" cy="186.61" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(97.83 182.13)"><tspan x="0" y="0">/2</tspan></text>
-  </g>
-  <circle class="st3" cx="102.88" cy="151.88" r="2.03"/>
-  <circle class="st3" cx="109.27" cy="151.88" r="2.03"/>
-  <circle class="st4" cx="102.88" cy="157.69" r="2.03"/>
-  <circle class="st4" cx="109.27" cy="157.69" r="2.03"/>
-  <circle class="st4" cx="102.88" cy="163.5" r="2.03"/>
-  <circle class="st4" cx="109.27" cy="163.5" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(115.66 159.02)"><tspan x="0" y="0">x1</tspan></text>
-  </g>
-  <circle class="st4" cx="118.62" cy="174.92" r="2.03"/>
-  <circle class="st3" cx="125.01" cy="174.92" r="2.03"/>
-  <circle class="st4" cx="118.62" cy="180.73" r="2.03"/>
-  <circle class="st4" cx="125.01" cy="180.73" r="2.03"/>
-  <circle class="st4" cx="118.62" cy="186.54" r="2.03"/>
-  <circle class="st4" cx="125.01" cy="186.54" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(131.4 182.06)"><tspan x="0" y="0">x2</tspan></text>
-  </g>
-  <circle class="st4" cx="118.62" cy="195.26" r="2.03"/>
-  <circle class="st4" cx="125.01" cy="195.26" r="2.03"/>
-  <circle class="st4" cx="118.62" cy="201.06" r="2.03"/>
-  <circle class="st3" cx="125.01" cy="201.06" r="2.03"/>
-  <circle class="st4" cx="118.62" cy="206.88" r="2.03"/>
-  <circle class="st4" cx="125.01" cy="206.88" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(131.4 202.39)"><tspan x="0" y="0">x4</tspan></text>
-  </g>
-  <circle class="st4" cx="118.62" cy="215.59" r="2.03"/>
-  <circle class="st4" cx="125.01" cy="215.59" r="2.03"/>
-  <circle class="st4" cx="118.62" cy="221.4" r="2.03"/>
-  <circle class="st4" cx="125.01" cy="221.4" r="2.03"/>
-  <circle class="st4" cx="118.62" cy="227.2" r="2.03"/>
-  <circle class="st3" cx="125.01" cy="227.2" r="2.03"/>
-  <g class="st1">
-    <text class="st2" transform="translate(131.4 222.72)"><tspan x="0" y="0">x8</tspan></text>
+  <g>
+    <g class="st0">
+      <g class="st0">
+        <text class="st2" transform="translate(5.35 146.29)"><tspan x="0" y="0">X knob — clock divide/multiply</tspan></text>
+      </g>
+    </g>
+    <circle class="st4" cx="7.48" cy="216.97" r="2.03"/>
+    <circle class="st4" cx="13.87" cy="216.97" r="2.03"/>
+    <circle class="st4" cx="7.48" cy="222.78" r="2.03"/>
+    <circle class="st4" cx="13.87" cy="222.78" r="2.03"/>
+    <circle class="st3" cx="7.48" cy="228.58" r="2.03"/>
+    <circle class="st4" cx="13.87" cy="228.58" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(20.26 224.1)"><tspan x="0" y="0">/8</tspan></text>
+      </g>
+    </g>
+    <circle class="st4" cx="7.48" cy="196.64" r="2.03"/>
+    <circle class="st4" cx="13.87" cy="196.64" r="2.03"/>
+    <circle class="st3" cx="7.48" cy="202.44" r="2.03"/>
+    <circle class="st4" cx="13.87" cy="202.44" r="2.03"/>
+    <circle class="st4" cx="7.48" cy="208.26" r="2.03"/>
+    <circle class="st4" cx="13.87" cy="208.26" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(20.26 203.77)"><tspan x="0" y="0">/4</tspan></text>
+      </g>
+    </g>
+    <circle class="st3" cx="7.48" cy="176.38" r="2.03"/>
+    <circle class="st4" cx="13.87" cy="176.38" r="2.03"/>
+    <circle class="st4" cx="7.48" cy="182.18" r="2.03"/>
+    <circle class="st4" cx="13.87" cy="182.18" r="2.03"/>
+    <circle class="st4" cx="7.48" cy="187.99" r="2.03"/>
+    <circle class="st4" cx="13.87" cy="187.99" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(20.26 183.51)"><tspan x="0" y="0">/2</tspan></text>
+      </g>
+    </g>
+    <circle class="st3" cx="25.31" cy="153.26" r="2.03"/>
+    <circle class="st3" cx="31.7" cy="153.26" r="2.03"/>
+    <circle class="st4" cx="25.31" cy="159.07" r="2.03"/>
+    <circle class="st4" cx="31.7" cy="159.07" r="2.03"/>
+    <circle class="st4" cx="25.31" cy="164.88" r="2.03"/>
+    <circle class="st4" cx="31.7" cy="164.88" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(38.09 160.4)"><tspan x="0" y="0">x1</tspan></text>
+      </g>
+    </g>
+    <circle class="st4" cx="41.05" cy="176.3" r="2.03"/>
+    <circle class="st3" cx="47.44" cy="176.3" r="2.03"/>
+    <circle class="st4" cx="41.05" cy="182.11" r="2.03"/>
+    <circle class="st4" cx="47.44" cy="182.11" r="2.03"/>
+    <circle class="st4" cx="41.05" cy="187.92" r="2.03"/>
+    <circle class="st4" cx="47.44" cy="187.92" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(53.83 183.44)"><tspan x="0" y="0">x2</tspan></text>
+      </g>
+    </g>
+    <circle class="st4" cx="41.05" cy="196.64" r="2.03"/>
+    <circle class="st4" cx="47.44" cy="196.64" r="2.03"/>
+    <circle class="st4" cx="41.05" cy="202.44" r="2.03"/>
+    <circle class="st3" cx="47.44" cy="202.44" r="2.03"/>
+    <circle class="st4" cx="41.05" cy="208.26" r="2.03"/>
+    <circle class="st4" cx="47.44" cy="208.26" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(53.83 203.77)"><tspan x="0" y="0">x4</tspan></text>
+      </g>
+    </g>
+    <circle class="st4" cx="41.05" cy="216.97" r="2.03"/>
+    <circle class="st4" cx="47.44" cy="216.97" r="2.03"/>
+    <circle class="st4" cx="41.05" cy="222.78" r="2.03"/>
+    <circle class="st4" cx="47.44" cy="222.78" r="2.03"/>
+    <circle class="st4" cx="41.05" cy="228.58" r="2.03"/>
+    <circle class="st3" cx="47.44" cy="228.58" r="2.03"/>
+    <g class="st0">
+      <g class="st0">
+        <text class="st1" transform="translate(53.83 224.1)"><tspan x="0" y="0">x8</tspan></text>
+      </g>
+    </g>
   </g>
 </svg>

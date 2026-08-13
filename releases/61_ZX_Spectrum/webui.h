@@ -77,6 +77,10 @@ private:
 	// SysEx reassembly
 	static constexpr uint32_t kRxBuf = 128;
 	static constexpr uint32_t kMsgBuf = 512;   // one decoded SysEx message
+	// Largest message we SEND is MSG_MAP_REPORT: 2 + SRC_COUNT*4 = 30 bytes.
+	// Outgoing messages are framed into one buffer so the host receives each as a
+	// single SysEx rather than header/body/footer fragments.
+	static constexpr uint32_t kTxMsgMax = 64;
 	uint8_t  msg_[kMsgBuf];
 	uint32_t msgLen_ = 0;
 	bool     inSysex_ = false;

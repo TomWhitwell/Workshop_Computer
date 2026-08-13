@@ -1,8 +1,11 @@
-draft: true
+draft: false
 Name: Voices of SID
 short-description: "Dual MOS 6581 SID emulation (reSID engine) with CV/gate control, stereo output, waveform selection, and randomize"
 Language: C++ (Pico SDK)
 Creator: Joep Vermaat
+contact:
+  email: joep@joep-i.nl
+  website: https://codeberg.org/johantv/
 Version: 1.1
 Status: Released
 License: MIT
@@ -80,7 +83,7 @@ controls:
       y:
         name: Voice 2 Waveform
         description: Selects voice 2 waveform (8 stops)
-    - when: { z: down, gesture: hold }
+    - when: { z: down }
       main:
         name: Randomize
         description: Hold to continuously randomize attack, sustain, waveforms, ring mod, and sync

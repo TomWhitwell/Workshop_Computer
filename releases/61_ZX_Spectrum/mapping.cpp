@@ -35,6 +35,16 @@ void Mapper::Apply(const bool srcActive[SRC_COUNT], const uint8_t srcValue[SRC_C
 	uint8_t rows[8] = { 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F };
 	uint8_t kemp = 0;
 
+	// AY live-mangling accumulators. Start from "no effect" each sample; a jack
+	// mapped to an AY target overrides these. These are evaluated and published
+	// unconditionally, regardless of the current machine mode: core 1 gates on
+	// MODE_AY in Machine::Run, so it costs nothing here and means a mapping sent
+	// while paused (before a tune has been loaded and the mode switched to
+	// MODE_AY) still takes effect the moment playback starts.
+	uint8_t  ayDuty[3] = { 128, 128, 128 };
+	int16_t  ayEnv = 0, ayNoise = 0;
+	uint8_t  ayMute = 0;
+
 	for (int s = 0; s < SRC_COUNT; s++)
 	{
 		const Mapping &m = table_[s];
@@ -45,6 +55,50 @@ void Mapper::Apply(const bool srcActive[SRC_COUNT], const uint8_t srcValue[SRC_C
 		if (m.kind == TGT_PORT)
 		{
 			spec.xc.portVal[s] = srcValue[s];
+			continue;
+		}
+
+		// AY targets act on the sound chip, not the keyboard, so a single mapping
+		// table serves both modes. Core 1 applies these only in MODE_AY, which is
+		// what makes them inert during ZX games.
+		if (m.kind == TGT_AY_DUTY || m.kind == TGT_AY_ENV ||
+		    m.kind == TGT_AY_NOISE || m.kind == TGT_AY_MUTE)
+		{
+			// Continuous value centred at 128; depth scales the mangle amount.
+			int32_t dev = (int32_t)srcValue[s] - 128;         // -128..+127
+			int32_t scaled = (dev * m.depth) / 255;           // depth 0..255
+			switch (m.kind)
+			{
+			case TGT_AY_DUTY: {
+				// Fold around centre: 128 (50% square) thinning toward a narrow
+				// pulse in EITHER CV direction. A square's timbre is symmetric
+				// about 50% — 25% and 75% sound identical — so mapping the CV
+				// straight onto 1..255 spends half its travel repeating the same
+				// sweep. Folding makes every step change the tone.
+				int32_t d = 128 - (scaled < 0 ? -scaled : scaled);
+				if (d < 4) d = 4;                             // <1.5% aliases to silence
+				if (d > 128) d = 128;
+				uint8_t ch = m.arg < 3 ? m.arg : 0;
+				ayDuty[ch] = (uint8_t)d;
+				break;
+			}
+			case TGT_AY_ENV:
+				// Signed exponent, not an offset: core 1 scales the tune's own
+				// envelope period by 2^(envMod/64), giving the same ~4-octave
+				// sweep whatever period the tune set. A fixed offset was huge on
+				// short periods (instant clamp) and inaudible on long ones.
+				ayEnv = (int16_t)scaled;                      // -128..+127 -> ∓2 oct
+				break;
+			case TGT_AY_NOISE:
+				ayNoise = (int16_t)(scaled >> 3);             // ~±15 across the 5-bit period
+				break;
+			case TGT_AY_MUTE: {
+				bool active = srcActive[s] ^ m.invert;        // gate mutes while held
+				if (active && m.arg < 3) ayMute |= (1u << m.arg);
+				break;
+			}
+			default: break;
+			}
 			continue;
 		}
 
@@ -76,6 +130,16 @@ void Mapper::Apply(const bool srcActive[SRC_COUNT], const uint8_t srcValue[SRC_C
 	// Publish to the shared state core 1 reads.
 	for (int i = 0; i < 8; i++) spec.kbd.rows[i] = rows[i];
 	spec.xc.kempston = kemp;
+
+	// Publish the AY mangling controls for core 1's AY::Render. Published in every
+	// mode (core 1 reads them only in MODE_AY) so the values are already correct
+	// when a tune starts, rather than needing a fresh Apply() after the mode flips.
+	spec.xc.ayDuty[0] = ayDuty[0];
+	spec.xc.ayDuty[1] = ayDuty[1];
+	spec.xc.ayDuty[2] = ayDuty[2];
+	spec.xc.ayEnvMod   = ayEnv;
+	spec.xc.ayNoiseMod = ayNoise;
+	spec.xc.ayMuteMask = ayMute;
 }
 
 void Mapper::PassthroughKey(uint8_t keyIndex, bool down)

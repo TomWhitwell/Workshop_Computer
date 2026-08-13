@@ -46,27 +46,52 @@ enum TargetKind : uint8_t {
 	TGT_KEY,        // press a Spectrum key (arg = Keycode)
 	TGT_KEMPSTON,   // set a Kempston joystick bit (arg = bit mask 000FUDLR)
 	TGT_PORT,       // expose the source's analog value (0-255) at a fixed Z80 port
+	// --- AY/PT3-mode live mangling (only act when xc.mode == MODE_AY) ---
+	TGT_AY_DUTY,    // shape a channel's square duty/PWM (arg = channel 0..2)
+	TGT_AY_ENV,     // bend the envelope period (arg ignored)
+	TGT_AY_NOISE,   // bend the noise period (arg ignored)
+	TGT_AY_MUTE,    // gate-mute a channel (arg = channel 0..2; uses srcActive)
 };
 
 // Fixed Z80 port (low byte) each source appears on when mapped to TGT_PORT.
-// Readable with IN A,(port). Chosen to avoid ULA/AY/Kempston/paging decode.
-//   Knob Y is a separate fixed peripheral at 0x5F (see spectrum.cpp).
+// Readable with IN A,(port).
+//
+// Chosen so neither PortRead() nor PortWrite() can mistake them for real
+// hardware. Every one satisfies ALL of:
+//   bit0 = 1 (odd)  -> the ULA only answers on even ports, so never the keyboard
+//   bit5 = 1        -> Kempston tests (port & 0x0020) == 0, so never the joystick
+//   bit1 = 1        -> the 128K paging latch decodes (port & 0x8002) == 0, i.e.
+//                      A15=0 AND A1=0. Keeping A1 high means a stray OUT to one
+//                      of these ports can NEVER trigger a bank swap. This one is
+//                      the important one: a mis-decoded read returns junk, but a
+//                      mis-decoded write silently repages RAM under the program.
+//   not 0x5F        -> Knob Y peripheral (see spectrum.cpp)
+//   not 0xFD/0xFE   -> AY select/data (0xFFFD/0xBFFD) and the ULA
+// Also clear of the common add-ons a .z80 might poke: Interface I (0xEF/0xF7/
+// 0xE7), Multiface (0x37), ULAplus (0x3B/0xBB), Currah uSpeech (0x3F), Fuller
+// (0x7F), SpecDrum / Kempston mouse (0xDF/0xFB).
+//
+// Caveat: the AY checks run BEFORE these in both paths, so a high byte of
+// 0x80-0xFF is shadowed by the AY regardless of low byte (true of any port on
+// this machine). Read them with a high byte below 0x80 — IN A,(n) with a small
+// A, or IN r,(C) with B < 0x80.
 static constexpr uint8_t kSourcePort[SRC_COUNT] = {
-	0xAF, // SRC_PULSE1
-	0xBF, // SRC_PULSE2
-	0x6F, // SRC_CV1
-	0x7F, // SRC_CV2
-	0x8F, // SRC_AUDIO1
-	0x9F, // SRC_AUDIO2
-	0xCF, // SRC_SWITCH
+	0x23, // SRC_PULSE1
+	0x27, // SRC_PULSE2
+	0x2B, // SRC_CV1
+	0x2F, // SRC_CV2
+	0x33, // SRC_AUDIO1
+	0x63, // SRC_AUDIO2
+	0x67, // SRC_SWITCH
 };
 
 // One mapping: source -> target, with a threshold for analog sources.
 struct Mapping {
 	TargetKind kind;
-	uint8_t    arg;        // Keycode, or Kempston bitmask
+	uint8_t    arg;        // Keycode, Kempston bitmask, or AY channel (0..2)
 	int16_t    threshold;  // analog: activate when value >= threshold (12-bit signed)
 	bool       invert;     // invert the active sense
+	uint8_t    depth = 255; // AY continuous-target mangle amount (0=none..255=full)
 };
 
 // Kempston joystick bits (port 0x1F: 000FUDLR).

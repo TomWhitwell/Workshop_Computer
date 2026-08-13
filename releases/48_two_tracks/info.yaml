@@ -1,8 +1,11 @@
-draft: true
+draft: false
 Name: Two Tracks
 short-description: "Two Tracks — Dual-read-head phase looper. Record a mono loop to flash (IMA-ADPCM) and play it through two independent heads with separately controllable positions and loop lengths for evolving phase patterns and interference textures."
 Language: C++ (Pico SDK)
 Creator: Joep Vermaat
+contact:
+  email: joep@joep-i.nl
+  website: https://codeberg.org/johantv/
 Version: 1.2
 Status: Released
 License: MIT
@@ -86,8 +89,7 @@ controls:
       name: Record arm / stop
       description: In PLAY arms recording (3s countdown); in RECORD stops and returns to PLAY.
   knobs:
-    - when: { z: any }
-      main:
+    - main:
         name: Loop window / Right loop length
         description: In Offset mode controls the loop window length (tiny fragment -> full loop). In Phasing mode controls how much shorter the right loop is (short -> full).
       x:
@@ -96,3 +98,4 @@ controls:
       y:
         name: Right position offset / Right speed
         description: In Offset mode sets right head position offset. In Phasing mode sets right playback speed (0.9x - 1.1x, centre = 1.0x).
+

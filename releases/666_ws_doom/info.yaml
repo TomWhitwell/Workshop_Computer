@@ -117,11 +117,13 @@ host:
       description: WebSerial (Chrome) page streaming the real game video onto a CRT-styled screen, plus level warp, volume/sensitivity settings and cheat codes. Hosted at https://ws-doom.incomputable.io or open index.html from this folder.
 
 readme: |
-  Flash `ws-doom-full.uf2` to a blank
-  2MB program card. macOS Finder sometimes truncates the copy — if the card
-  boots to LEDs but no game, copy from Terminal
-  (`cp ws-doom-full.uf2 /Volumes/RPI-RP2/`) or use
-  `picotool load -f -v ws-doom-full.uf2`.
+  The easiest way to get the card is the *Program* button on this page:
+  connect USB-C, remove the program card, press the boot/reset button on
+  the Computer Module, insert a blank program card (2MB is ok) and press
+  *Program* — it flashes straight from the browser (Chrome). The `.uf2`
+  download also works, by drag-and-drop onto the `RPI-RP2` drive or with
+  picotool (heads-up: macOS Finder sometimes truncates large UF2 copies —
+  the browser flasher avoids that).
 
   The game boots straight into a random E1 level. Everything is playable
   from the panel; the web display is optional eyes. Music and effects
