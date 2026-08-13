@@ -1,6 +1,5 @@
 draft: false
 Name: Fragments
-Description: Six-slot sampler and sequencer with MIDI pitch control, configurable random CV outputs, saved kits, alternate variation mode, web editor, and included 24 kHz long-sample firmware.
 short-description: Six-slot sampler and sequencer with MIDI pitch control, configurable random CV outputs, saved kits, alternate variation mode, web editor, and included 24 kHz long-sample firmware.
 Language: C++ (RPi Pico SDK)
 Creator: Max Harnishfeger
