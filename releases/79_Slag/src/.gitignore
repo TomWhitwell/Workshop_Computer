@@ -1,0 +1,3 @@
+# Build output — track only the .uf2, ignore the rest of the CMake/SDK tree
+/build/*
+!/build/*.uf2
