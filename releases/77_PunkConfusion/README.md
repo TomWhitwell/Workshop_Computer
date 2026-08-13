@@ -110,7 +110,8 @@ Control intent:
   Eurorack-level signals may clip above roughly 2 o'clock
 - `Knob X`: venue selection / morph
 - `Knob Y`: audience absorption, with clockwise values gently damping the wet
-  room path while preserving the selected venue character
+  room path and applying a lighter version of the same curve to the dry side
+  so the 50/50 mix still reads as a room change
 
 ### Venue personalities
 
@@ -171,6 +172,9 @@ Venue-specific collapse emphasis:
 - `Pulse In 2` mirrors this trigger behavior.
 - Vocal playback is gated: releasing Switch Down, or letting `Pulse In 2` go
   low, stops the call for stutter-style performance gestures.
+- Driving `Pulse In 2` at audio rate can retrigger/gate the shout fast enough
+  to turn it into a raw chopped vocal texture. This is an intentional
+  performance trick, not a fault.
 - No separate knob layer is introduced while the switch is held.
 - Playback uses a tiny fade-in/fade-out envelope to avoid trigger clicks.
 - The vocal direct level is deliberately lower than the room input, with an
@@ -200,7 +204,7 @@ adding unnecessary digital clipping:
 | `CV In 1` | APC CV 1 |
 | `CV In 2` | APC CV 2 |
 | `Pulse In 1` | APC hard gate when patched; unpatched = free-running |
-| `Pulse In 2` | Vocal trigger |
+| `Pulse In 2` | Vocal trigger/gate; audio-rate pulses can chop the shout into texture |
 | `Audio Out 1` | Main output |
 | `Audio Out 2` | Stereo room output in Broken Venue; mirrored APC output in Switch Up |
 | `CV Out 1` | Unused |
@@ -252,3 +256,7 @@ Middle-mode room-zone display on `LED0/LED2/LED4`:
 - Move `Knob Y` from generic decay to collapse/failure amount.
 - Keep the existing vocal ducking for now unless hardware testing suggests it is
   too heavy-handed.
+- Hardware listening note: `100 Club` and `Whisky a Go Go` currently sound very
+  close and may need more separation after a fresh-ear pass.
+- Hardware listening note: the vocal shouts may have crept loud again after the
+  latest room/audience balance changes; reassess against a music/input signal.

@@ -187,6 +187,8 @@ private:
     int32_t audienceHighState_ = 0;
     int32_t audienceLowRightState_ = 0;
     int32_t audienceHighRightState_ = 0;
+    int32_t audienceDryLowState_ = 0;
+    int32_t audienceDryHighState_ = 0;
     int32_t roomRightOut_ = 0;
     int32_t vocalLedCounter_ = 0;
     int32_t apcTriggerLedCounter_ = 0;
@@ -484,12 +486,18 @@ private:
             audience,
             audienceLowRightState_,
             audienceHighRightState_);
+        const int32_t dryAudience = audience >> 1;
+        const int32_t drySource = ApplyAudienceAttenuation(
+            source,
+            dryAudience,
+            audienceDryLowState_,
+            audienceDryHighState_);
 
         const int32_t writeSample = Clamp12(roomInput + vocalRoomSend + (early >> 1) + ((wet * feedback) >> 12));
         venueDelay_.Write(static_cast<int16_t>(writeSample));
 
-        roomRightOut_ = Clamp12((source + wetRight) >> 1);
-        return Clamp12((source + wet) >> 1);
+        roomRightOut_ = Clamp12((drySource + wetRight) >> 1);
+        return Clamp12((drySource + wet) >> 1);
     }
 
     void UpdateLeds(Switch sw)
