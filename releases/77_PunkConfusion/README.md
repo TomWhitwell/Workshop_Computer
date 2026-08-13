@@ -148,25 +148,25 @@ fit in flash.
 
 ## LED Map
 
-- `LED0`: APC mode indicator in Switch Up; venue-zone display in room mode.
-- `LED1`: Broken Venue / vocal mode indicator.
-- `LED2`: divided APC trigger-clock blink in Switch Up; venue-zone display in
+- `LED 1`: APC mode indicator in Switch Up; venue-zone display in room mode.
+- `LED 2`: Broken Venue / vocal mode indicator.
+- `LED 3`: divided APC trigger-clock blink in Switch Up; venue-zone display in
   room mode.
-- `LED3`: vocal trigger / Switch Down flash.
-- `LED4`: APC gate-open indicator in Switch Up; venue-zone display in room
+- `LED 4`: vocal trigger / Switch Down flash.
+- `LED 5`: APC gate-open indicator in Switch Up; venue-zone display in room
   mode.
-- `LED5`: clip / chaos indicator.
+- `LED 6`: clip / chaos indicator.
 
-Middle-mode venue display on `LED0/LED2/LED4`:
+Middle-mode venue display on `LED 1` / `LED 3` / `LED 5`:
 
 | Venue | LEDs |
 |---|---|
-| `Marquee` | `LED0` |
-| `CBGB` | `LED2` |
-| `100 Club` | `LED4` |
-| `Whisky a Go Go` | `LED0 + LED2 + LED4` |
+| `Marquee` | `LED 1` |
+| `CBGB` | `LED 3` |
+| `100 Club` | `LED 5` |
+| `Whisky a Go Go` | `LED 1 + LED 3 + LED 5` |
 
-While Switch Down is held, `LED0/LED2/LED4` temporarily become a three-step
+While Switch Down is held, `LED 1` / `LED 3` / `LED 5` temporarily become a three-step
 meter for the saved vocal-call trim.
 
 ## Building
