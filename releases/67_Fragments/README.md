@@ -1,81 +1,152 @@
 # Fragments
 
-Fragments is a six-slot audio recorder and clocked fragment sequencer for the
-Music Thing Modular Workshop System Computer and Workshop Computer.
+Fragments is a six-slot sampler and sequencer for the Music Thing Modular
+Workshop System Computer and Workshop Computer.
 
-Each slot holds up to 250 ms of stereo audio at 48 kHz. Samples can be captured
-from the audio inputs or imported with the included browser librarian. A bank of
-21 patterns sequences the slots, while shift, repeat division, reverse
-probability, playback mode, MIDI pitch, and configurable random CV outputs
-provide variation.
+Record short sounds into the six slots, then play them back with patterns,
+shift, repeat division, reverse probability, playback modes, MIDI pitch, and
+random CV outputs.
 
-The two audio channels remain independent when recording from the card, so they
-can be used as stereo or as two unrelated mono sources.
+Each slot can hold up to 400 ms of stereo audio at 48 kHz. Samples can be
+recorded from the module or imported with the included web editor.
 
-## Quick start
+## Downloads
 
-1. Patch audio into either audio input.
-2. Move Z up and use Main to select one of the six slots.
-3. Send a gate to Pulse In 2 to record into that slot.
-4. Return Z to the middle position.
-5. Send a clock to Pulse In 1.
-6. Move Main to select a pattern, X to shift its slot numbers, and Y to set the
-   repeat division.
+- [fragments.uf2](UF2/fragments.uf2): standard 48 kHz firmware, up to 400 ms per slot.
+- [fragments_24k.uf2](UF2/fragments_24k.uf2): alternate 24 kHz firmware, up to 800 ms per slot with a darker sound.
 
-The LEDs show the selected slot while Z is up and the active playback slot while
-Z is in the middle.
+Use [web/fragments_librarian.html](web/fragments_librarian.html) for both
+firmware versions. Select the matching firmware profile in the editor before
+importing or sending samples.
+
+## Quick Start
+
+1. Patch audio into Audio In 1, Audio In 2, or both.
+2. Move Z up.
+3. Use Main to choose a slot.
+4. Send a gate to Pulse In 2 to record into that slot.
+5. Move Z to the middle.
+6. Send a clock to Pulse In 1.
+7. Use Main to choose a pattern, X to shift it, and Y to set repeat division.
+
+LEDs show the selected slot while Z is up. In playback, they show the active
+slot or variation.
 
 ## Controls
 
-### Z up: slot setup and recording
+### Z Up: Slots
 
 | Control | Function |
 | --- | --- |
-| Main | Selects recording slot 0-5 |
-| X | Sets the selected slot's playback mode |
-| Y | Sets the selected slot's reverse probability |
-| Pulse In 2 | Records the selected slot while high |
+| Main | Selects slot 0-5 |
+| X | Sets playback mode |
+| Y | Sets reverse probability |
+| Pulse In 2 | Records while high |
 
-X divides its travel into four playback modes:
+Playback modes, from low to high on X:
 
-| X position | Mode | Behavior |
-| --- | --- | --- |
-| 0-25% | Loop | Repeats until the sequencer moves to another step |
-| 25-50% | One Shot | Plays its planned repeats, then becomes silent |
-| 50-75% | Interrupt | Plays its planned repeats, then returns to live audio |
-| 75-100% | Passthrough | Ignores the recording and passes live audio |
+| Mode | Behavior |
+| --- | --- |
+| Loop | Repeats until the next sequencer step |
+| One Shot | Plays once, then rests |
+| Interrupt | Plays once, then returns to live input |
+| Passthrough | Plays live input instead of the recording |
 
-X and Y use pickup behavior. Entering Z-up mode does not immediately overwrite
-a slot's saved settings; the setting changes only after its knob moves.
+New or cleared slots default to One Shot with 0% reverse probability.
 
-On a clean card, all six slots start in One Shot mode with 0% reverse
-probability. A saved kit restores its own per-slot mode and reverse settings.
-
-### Z middle: pattern playback
+### Z Middle: Patterns
 
 | Control | Function |
 | --- | --- |
 | Main | Selects one of 21 patterns |
-| X | Shifts every slot number in the pattern by 0-5, wrapping around |
-| Y | Selects x1, x2, x4, or x8 repeat division |
-| Pulse In 1 | Advances the pattern on each rising edge |
+| X | Shifts every slot number in the pattern, wrapping around |
+| Y | Sets repeat division: x1, x2, x4, or x8 |
+| Pulse In 1 | Advances the pattern |
 
-Main, X, and Y respond only after they move in middle mode. This prevents stored
-settings from jumping when Z moves between positions.
+Main, X, and Y use pickup behavior. Changing Z position will not immediately
+jump to the physical knob value; the setting changes after the knob moves.
 
-At x2, x4, and x8, the most recently measured clock period is divided into that
-many repeat windows. At x1, the fragment loops normally until the next clock.
+### Z Down: Reset, Clear, Save
 
-### Variation boot mode
+| Gesture | Function |
+| --- | --- |
+| Tap Z down | Reset to the first pattern step |
+| Hold Z down until all LEDs flash, release, tap once | Clear all samples |
+| Hold Z down until all LEDs flash, release, tap twice | Save the current kit |
 
-Hold Z down while rebooting the card with the Computer's boot/reset button to
-start in Variation mode for that session. In this mode, Pulse In 2 records one
-long sample of up to 72,000 samples, or 1.5 seconds at 48 kHz, using the same
-memory that normally holds six shorter slots. Patterns play that one sample six
-different ways instead of sequencing six different slots. Reboot normally to
-return to standard slot-pattern playback.
+After the LEDs flash, the card waits one second for a tap. A single tap waits
+briefly before clearing so the card can tell it apart from a double tap.
 
-| Pattern value | Variation |
+## Recording
+
+- A standard slot records up to 400 ms.
+- Variation mode records one longer sample up to 2.4 seconds.
+- A recording must be at least 10 ms.
+- Only patched audio inputs are recorded.
+- If no audio input is patched, the slot is left unchanged.
+- In standard mode, recording one channel preserves the other channel.
+- Patched-but-silent audio can be recorded as silence.
+- Recording does not stop the sequencer.
+
+The monitor input setting controls when live input is mixed with playback:
+
+| Mode | Behavior |
+| --- | --- |
+| Always | Live input is always mixed with the program output |
+| When Armed | Live input is mixed while Z is up or while recording |
+| When Recording | Live input is mixed only while recording |
+
+The default monitor mode is When Armed.
+
+## CV And Pulse
+
+| Jack | Function |
+| --- | --- |
+| CV In 1 | Pattern shift |
+| CV In 2 | Reverse probability |
+| Pulse Out 1 | 10 ms pulse on every sequencer step |
+| Pulse Out 2 | 10 ms pulse on the first index of the pattern |
+| CV Out 1 | Configurable random voltage, stepped by default |
+| CV Out 2 | Configurable random voltage, slewed by default |
+
+CV In 1 and CV In 2 keep these assignments in every Z switch position. When a
+CV input is patched, its matching knob becomes an attenuator: X for CV In 1 and
+Y for CV In 2.
+
+The CV inputs automatically work with unipolar signals. If an input crosses
+below 0 V, it switches to bipolar behavior so a roughly +/-6 V signal can sweep
+the full control range.
+
+The web editor can configure the CV outputs' voltage range, quantization,
+clock division, slew time, and CV Out 2 coupling.
+
+## USB MIDI
+
+Fragments appears as a USB MIDI device over USB-C. Depending on the card and
+operating system, it may appear as Fragments, MTMComputer, or a Music Thing MIDI
+card name.
+
+| MIDI | Function |
+| --- | --- |
+| Notes | Change playback speed for all slots together |
+| C4 / note 60 | Normal speed |
+| Pitch bend | +/-12 semitones |
+| CC 16 | Main knob |
+| CC 17 | X knob |
+| CC 18 | Y knob |
+
+Note Off has no assigned behavior. Moving a physical knob takes control back
+from its MIDI CC value.
+
+## Variation Mode
+
+Hold Z down while rebooting the Computer with its boot/reset button to start in
+Variation mode for that session. Reboot normally to return to standard mode.
+
+Variation mode uses the six slot buffers as one longer sample. Patterns then
+play that one sample six different ways:
+
+| Pattern Value | Variation |
 | --- | --- |
 | 0 | Normal speed |
 | 1 | 2x speed, one octave up |
@@ -84,144 +155,41 @@ return to standard slot-pattern playback.
 | 4 | Reverse at 2x speed |
 | 5 | 0.5x speed, one octave down |
 
-In Z-middle playback, X still shifts the pattern, but in Variation mode it
-rotates the variation numbers instead of slot numbers. With Z up, Main controls
-a +/-24 semitone pitch offset with a small no-pitch zone at the center, X sets
-the global Variation playback mode, and Y sets reverse probability. Reverse
-probability flips the natural direction of the variation: forward variations can
-play backward, and reverse variations can play forward. MIDI pitch still applies
-globally on top of the variation speed. The initial Z-down release is ignored so
-the boot gesture does not accidentally reset or arm a save/clear command.
+In Variation mode:
 
-Variation mode adds a 2 ms playback de-click at sample edges and step retriggers.
-Recording stays raw, so standard mode keeps the sharper high-clock behavior.
+- Pulse In 2 records the long sample.
+- Main with Z up controls pitch over +/-24 semitones, with sweet spots at
+  useful intervals.
+- X with Z up sets the global playback mode.
+- Y with Z up sets reverse probability.
+- CV In 1 still controls variation shift.
+- CV In 2 still controls reverse probability.
 
-### Z down: reset, save, and clear
+## Web Editor
 
-- Tap and release Z down to reset the pattern to its first step.
-- Hold Z down for two seconds, until all six LEDs flash, to arm the kit command.
-- Release Z and tap once to clear all samples. Clear waits 150 ms before acting.
-- Tap twice within that 150 ms window to save instead. All six LEDs light
-  briefly when the save completes.
-- If no tap arrives within one second after release, the command is cancelled.
-
-The hardware save stores the same samples, slot settings, and pattern bank as
-the librarian's Save command. Clear affects the current kit in memory; use the
-hardware or librarian save afterward if the saved kit should also be replaced.
-
-## Recording behavior
-
-- Maximum recording length: 12,000 samples, or 250 ms at 48 kHz. Variation mode
-  records one long sample up to 72,000 samples, or 1.5 seconds.
-- Minimum accepted recording: 10 ms.
-- While Pulse In 2 is held, the audio inputs are monitored directly.
-- Recordings preserve their raw edges without fades, allowing short fragments
-  to retain energy at high clock rates and playback speeds.
-- Hot inputs are clamped cleanly when stored, preventing digital wraparound
-  distortion during capture.
-- Playback uses linear interpolation for smoother pitch and speed changes.
-- Only patched audio inputs are recorded.
-- In standard mode, recording one channel preserves existing material on the
-  other channel.
-- In Variation mode, recording replaces the long sample; unpatched channels are
-  cleared and remain silent during playback.
-- If neither audio input is patched, the slot is left unchanged.
-- In standard mode, an empty or unrecorded channel passes its corresponding
-  live input.
-
-Normally, Z up monitors live audio and pauses pattern playback. After Pulse In 1
-has received a clock, playback continues in Z-up mode for four seconds after the
-most recent clock. This allows a slot to be selected or recorded without stopping
-an externally clocked sequence.
-
-## CV and pulse outputs
-
-| Output | Function |
-| --- | --- |
-| Pulse Out 1 | 10 ms pulse whenever the sequencer step changes |
-| Pulse Out 2 | 10 ms pulse on the first index of the pattern |
-| CV Out 1 | Configurable random voltage; defaults to full-range stepped random on each step |
-| CV Out 2 | Configurable random voltage; defaults to full-range slewed random on each step |
-
-Pulse Out 2 follows the first pattern index, not slot 0, so shifting a pattern
-does not change where the pattern-start pulse occurs.
-
-The web librarian can configure each CV output's calibrated voltage range,
-quantization, clock division, and slew time. Quantization options include
-chromatic, major, minor, major pentatonic, minor pentatonic, dorian, pelog, and
-whole tone. CV Out 2 can also be coupled to mirror CV Out 1 exactly. Use **Save
-Current Kit To Card** afterward to keep those CV settings across power cycles.
-
-## CV inputs
-
-In middle mode, CV In 1 modulates pattern shift and CV In 2 modulates repeat
-division. When a CV cable is connected, X and Y become attenuators for their
-respective inputs.
-
-The inputs automatically begin in unipolar mode. If a signal crosses below 0 V,
-that input switches to bipolar interpretation so a roughly +/-6 V signal can
-sweep the full control range. With no CV cable connected, X and Y work as direct
-controls.
-
-## USB MIDI
-
-Fragments appears as a USB MIDI device over USB-C. For compatibility with the
-Workshop Computer MIDI examples, the USB product name may appear as
-**MTMComputer** or a Music Thing MIDI card name in the operating system.
-
-### Pitch and speed
-
-- MIDI note 60 (C4) is normal playback speed.
-- Notes above or below C4 change the playback speed of all slots together.
-- Note On changes speed; Note Off has no assigned behavior.
-- Pitch bend covers +/-12 semitones.
-
-### Knob control
-
-| MIDI CC | Control |
-| --- | --- |
-| CC 16 | Main |
-| CC 17 | X |
-| CC 18 | Y |
-
-Moving a physical knob takes control back from its MIDI CC value.
-
-## Web librarian
-
-Open [web/fragments_librarian.html](web/fragments_librarian.html) in a browser
-with Web MIDI and SysEx support, such as Chrome or Edge.
+Open [web/fragments_librarian.html](web/fragments_librarian.html) in Chrome or
+Edge.
 
 1. Select **Connect MIDI** and allow SysEx access.
-2. Choose Fragments, MTMComputer, or the Music Thing MIDI card name for both
-   the MIDI input and output.
-3. Select **Ping Card** to verify two-way communication.
+2. Choose the Fragments MIDI input and output.
+3. Select **Ping Card** to confirm the connection.
 
-The librarian provides:
+The web editor can:
 
-- Global playback-speed control from 0.125x to 8x.
-- MIDI control of Main, X, and Y.
-- Per-output calibrated CV random-voltage range, quantization, clock division,
-  slew, and CV Out 2 coupling.
-- Six sample slots with waveform trimming and audio preview.
-- Copy and paste between sample slots for reusing one loaded file with different
-  start and end points.
-- Per-slot waveform zoom up to 1024x, horizontal navigation, and Fit control.
-- A maximum 250 ms selection window with editable start, end, and length values.
-- Per-slot Audio 1, Audio 2, or Both destination selection.
-- Optional normalization to -0.25 dBFS with up to 32x gain.
-- WAV, AIFF/AIFC PCM, MP3, and M4A import when supported by the browser.
-- CSV pattern import and factory-pattern restoration.
-- Kit save and load commands.
+- Load, trim, preview, normalize, copy, and paste samples.
+- Send one slot or all loaded samples to the card.
+- Save and load kits.
+- Edit and send pattern banks from CSV.
+- Control playback speed and the Main, X, and Y knobs over MIDI.
+- Configure monitor input and CV output behavior.
 
-Imported stereo files are mixed to mono before being sent to the selected card
-channel or channels. Preview plays the same 8-bit sample data that will be sent
-to the card.
+Supported audio import depends on the browser, but WAV, AIFF/AIFC PCM, MP3, and
+M4A are supported in common browsers.
 
-## Pattern CSV format
+## Pattern CSV
 
-Each CSV row is one pattern. Each value is a slot number from 0 through 5, and a
-row may contain 1-16 steps. The row number determines the pattern number; there
-is no header or pattern-number column.
+Each CSV row is one pattern. Each value is a slot number from 0 through 5. Rows
+may contain 1-16 steps. The row number determines the pattern number.
 
 ```csv
 0
@@ -230,39 +198,33 @@ is no header or pattern-number column.
 5,4,3,2,1,0
 ```
 
-The librarian accepts up to 21 rows. Sending fewer rows replaces only those
-patterns. Use **Save Current Kit To Card** afterward to keep the updated pattern
-bank across power cycles.
+The web editor accepts up to 21 rows. Sending fewer rows replaces only those
+patterns. Save the kit afterward to keep the new pattern bank across power
+cycles.
 
-The current default bank is available at
+The factory bank is available at
 [web/fragments_factory_patterns.csv](web/fragments_factory_patterns.csv).
 
-## Saved kits
+## Saved Kits
 
-**Save Current Kit To Card** stores:
+A saved kit includes:
 
-- All six audio slots and their channel assignments.
-- Per-slot playback mode and reverse probability.
-- The complete 21-pattern bank.
-- CV output range, quantization, clock division, slew, and coupling settings.
+- Audio slots and channel assignments.
+- Slot playback modes and reverse probability.
+- The 21-pattern bank.
+- CV output settings.
+- Monitor input mode.
 
-The card loads the saved kit automatically at boot. Pattern selection, shift,
-division, MIDI note, pitch bend, and current sequencer position are performance
-controls and are not saved.
-
-Older saved kits remain compatible. If an older kit has no saved pattern bank,
-the firmware uses its built-in factory patterns until the kit is saved again.
+Pattern selection, shift, division, MIDI note, pitch bend, and current
+sequencer position are performance controls and are not saved.
 
 ## Building
-
-The ready-to-flash release file is included at
-[UF2/fragments.uf2](UF2/fragments.uf2).
 
 Requirements:
 
 - Raspberry Pi Pico SDK
 - CMake
-- An ARM embedded GCC toolchain
+- ARM embedded GCC toolchain
 
 ```sh
 export PICO_SDK_PATH=/path/to/pico-sdk
@@ -272,39 +234,15 @@ cmake --build build_local -j4
 
 The flashable file is `build_local/fragments.uf2`.
 
-To flash the card, hold BOOTSEL while connecting USB-C, then copy
-`fragments.uf2` to the mounted `RPI-RP2` drive.
+The included source builds the standard 48 kHz firmware. The 24 kHz source
+variant is included as `src/fragments_24k.cpp` and
+`src/usb_descriptors_24k.c` for reference.
 
-The firmware is compiled with size optimization and copied to RAM at boot. USB
-MIDI, web communication, flash storage, LED updates, and other slower
-control work run on the second RP2040 core so the 48 kHz audio path stays lean.
-
-## Memory
-
-The six stereo buffers use 144,000 bytes:
-
-`6 slots x 12,000 samples x 2 channels x 1 byte`
-
-The current build uses 264,080 bytes across code, static data, and working RAM.
-The fixed buffer length should not be increased without checking the linker
-memory report.
+To flash the card, hold BOOTSEL while connecting USB-C, then copy the UF2 file
+to the mounted `RPI-RP2` drive.
 
 ## License
 
 Fragments is licensed under the Creative Commons
 Attribution-NonCommercial-ShareAlike 4.0 International License. See
 [LICENSE.md](LICENSE.md).
-
-## Project files
-
-| Path | Contents |
-| --- | --- |
-| `UF2/fragments.uf2` | Ready-to-flash firmware |
-| `src/fragments.cpp` | Sequencer, recorder, controls, MIDI, and flash storage |
-| `src/usb_descriptors.c` | USB MIDI device descriptors |
-| `src/tusb_config.h` | TinyUSB configuration |
-| `lib/ComputerCard.h` | Workshop Computer hardware helper |
-| `web/fragments_librarian.html` | Self-contained browser librarian |
-| `web/fragments_factory_patterns.csv` | Default 21-pattern bank |
-| `CMakeLists.txt` | Pico SDK build configuration |
-| `LICENSE.md` | CC BY-NC-SA 4.0 license notice |

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fragments Librarian</title>
+  <title>Fragments Web Editor</title>
   <style>
     :root {
       color-scheme: dark;
@@ -427,7 +427,7 @@
 <body>
 <main>
   <header>
-    <h1>Fragments Librarian</h1>
+    <h1>Fragments Web Editor</h1>
     <div id="status">Connect to Fragments to begin.</div>
   </header>
 
@@ -435,6 +435,12 @@
     <h2>Connection</h2>
     <div class="row">
       <button id="connect" class="primary">Connect MIDI</button>
+      <label>Firmware
+        <select id="firmwareProfile">
+          <option value="standard">Standard 48 kHz · 400 ms</option>
+          <option value="24k">24 kHz · 800 ms</option>
+        </select>
+      </label>
       <label>Output
         <select id="outputs"></select>
       </label>
@@ -451,6 +457,21 @@
       <button id="save" class="primary">Save Current Kit To Card</button>
       <button id="load">Load Saved Kit From Card</button>
     </div>
+  </section>
+
+  <section>
+    <h2>Monitor Input</h2>
+    <div class="row">
+      <label>Mode
+        <select id="monitorMode">
+          <option value="0">Always</option>
+          <option value="1" selected>When Armed</option>
+          <option value="2">When Recording</option>
+        </select>
+      </label>
+      <button id="sendMonitorConfig" class="primary">Send Monitor Setting</button>
+    </div>
+    <div class="window-readout">Audio In 1 monitors to Out 1. Audio In 2 monitors to Out 2. Use Save to keep this setting after reboot.</div>
   </section>
 
   <section>
@@ -517,6 +538,7 @@
               <option value="2">±1.5V</option>
               <option value="3">0-6V</option>
               <option value="4">0-3V</option>
+              <option value="5">0-1.5V</option>
             </select>
           </label>
           <label>Quantization
@@ -530,6 +552,9 @@
               <option value="6">Dorian</option>
               <option value="7">Pelog</option>
               <option value="8">Whole Tone</option>
+              <option value="9">Octaves</option>
+              <option value="10">5ths + Octaves</option>
+              <option value="11">4ths + 5ths + Octaves</option>
             </select>
           </label>
           <label>Clock Division
@@ -568,6 +593,7 @@
               <option value="2">±1.5V</option>
               <option value="3">0-6V</option>
               <option value="4">0-3V</option>
+              <option value="5">0-1.5V</option>
             </select>
           </label>
           <label>Quantization
@@ -581,6 +607,9 @@
               <option value="6">Dorian</option>
               <option value="7">Pelog</option>
               <option value="8">Whole Tone</option>
+              <option value="9">Octaves</option>
+              <option value="10">5ths + Octaves</option>
+              <option value="11">4ths + 5ths + Octaves</option>
             </select>
           </label>
           <label>Clock Division
@@ -633,10 +662,16 @@ const CMD_PING = 0x40;
 const CMD_PATTERN_DATA = 0x50;
 const CMD_FACTORY_PATTERNS = 0x51;
 const CMD_CV_CONFIG = 0x52;
+const CMD_MONITOR_CONFIG = 0x53;
 const CMD_ACK = 0x7e;
-const MAX_SAMPLES = 12000;
-const TARGET_RATE = 48000;
-const MAX_WINDOW_SECONDS = MAX_SAMPLES / TARGET_RATE;
+const FIRMWARE_PROFILES = {
+  standard: { maxSamples: 19200, targetRate: 48000, label: "Standard 48 kHz" },
+  "24k": { maxSamples: 19200, targetRate: 24000, label: "24 kHz" }
+};
+let activeFirmwareProfile = "standard";
+let MAX_SAMPLES = FIRMWARE_PROFILES.standard.maxSamples;
+let TARGET_RATE = FIRMWARE_PROFILES.standard.targetRate;
+let MAX_WINDOW_SECONDS = MAX_SAMPLES / TARGET_RATE;
 const NORMALIZE_TARGET = 0.971628;
 const NORMALIZE_MAX_GAIN = 32;
 const NUM_SLOTS = 6;
@@ -673,9 +708,11 @@ const slots = Array.from({ length: NUM_SLOTS }, () => ({
 const statusEl = document.getElementById("status");
 const outputsEl = document.getElementById("outputs");
 const inputsEl = document.getElementById("inputs");
+const firmwareProfileEl = document.getElementById("firmwareProfile");
 const speedEl = document.getElementById("speed");
 const speedMultiplierEl = document.getElementById("speedMultiplier");
 const speedPercentEl = document.getElementById("speedPercent");
+const monitorModeEl = document.getElementById("monitorMode");
 const patternCsvEl = document.getElementById("patternCsv");
 const sendPatternsEl = document.getElementById("sendPatterns");
 const patternStatusEl = document.getElementById("patternStatus");
@@ -686,6 +723,54 @@ const sendAllSamplesEl = document.getElementById("sendAllSamples");
 
 function setStatus(text) {
   statusEl.textContent = text;
+}
+
+function firmwareWindowMs() {
+  return Math.round(MAX_WINDOW_SECONDS * 1000);
+}
+
+function setFirmwareProfile(profileKey, announce = true) {
+  const profile = FIRMWARE_PROFILES[profileKey] || FIRMWARE_PROFILES.standard;
+  const oldWindowSeconds = MAX_WINDOW_SECONDS;
+  activeFirmwareProfile = FIRMWARE_PROFILES[profileKey] ? profileKey : "standard";
+  MAX_SAMPLES = profile.maxSamples;
+  TARGET_RATE = profile.targetRate;
+  MAX_WINDOW_SECONDS = MAX_SAMPLES / TARGET_RATE;
+  firmwareProfileEl.value = activeFirmwareProfile;
+
+  slots.forEach((slot, index) => {
+    const wasDefaultWindow =
+      Math.abs(slot.startSec) < 0.000001
+      && Math.abs(slot.endSec - oldWindowSeconds) < 0.000001;
+
+    if (!slot.audioBuffer || wasDefaultWindow) {
+      slot.startSec = 0;
+      slot.endSec = Math.min(
+        MAX_WINDOW_SECONDS,
+        slot.audioBuffer ? slot.audioBuffer.duration : MAX_WINDOW_SECONDS
+      );
+      slot.viewCenterSec = slot.endSec / 2;
+      slot.zoomLevel = 0;
+    } else {
+      constrainWindow(index, "end");
+    }
+
+    slot.sampleBytes = slot.audioBuffer ? renderSample(index) : null;
+  });
+
+  renderSlots();
+  renderEditor();
+
+  if (announce) {
+    setStatus(`Editor set to ${profile.label}. Use the matching UF2 firmware.`);
+  }
+}
+
+function inferFirmwareProfileFromPort(port) {
+  const name = (port && port.name ? port.name : "").toLowerCase();
+  if (name.includes("24k")) {
+    setFirmwareProfile("24k", false);
+  }
 }
 
 function selectedOutput() {
@@ -702,6 +787,7 @@ function preferredMidiPort(ports, previousId) {
   if (previousId && ports.has(previousId)) return ports.get(previousId);
 
   const preferredNames = [
+    "fragments 24k",
     "fragments",
     "mtmcomputer",
     "workshop",
@@ -729,6 +815,7 @@ function refreshOutputs() {
   }
   midiOutput = preferredMidiPort(midiAccess.outputs, previousOutputId);
   if (midiOutput) outputsEl.value = midiOutput.id;
+  inferFirmwareProfileFromPort(midiOutput);
 
   inputsEl.innerHTML = "";
   for (const input of midiAccess.inputs.values()) {
@@ -741,6 +828,7 @@ function refreshOutputs() {
   }
   midiInput = preferredMidiPort(midiAccess.inputs, previousInputId);
   if (midiInput) inputsEl.value = midiInput.id;
+  inferFirmwareProfileFromPort(midiInput);
   if (midiInput) midiInput.onmidimessage = handleMIDIInput;
 }
 
@@ -802,6 +890,11 @@ function processIncomingSysEx(data) {
     setStatus(`Card loaded CV Out ${slot + 1} config. Use Save to keep it after reboot.`);
   } else if (code === 8) {
     setStatus(`Card rejected CV Out ${slot + 1} config.`);
+  } else if (code === 9) {
+    const labels = ["Always", "When Armed", "When Recording"];
+    setStatus(`Card set monitor input to ${labels[slot] || "selected mode"}. Use Save to keep it after reboot.`);
+  } else if (code === 10) {
+    setStatus("Card rejected monitor input setting.");
   }
 }
 
@@ -814,6 +907,7 @@ document.getElementById("connect").onclick = async () => {
 
 outputsEl.onchange = () => {
   midiOutput = selectedOutput();
+  inferFirmwareProfileFromPort(midiOutput);
 };
 
 inputsEl.onchange = () => {
@@ -821,7 +915,12 @@ inputsEl.onchange = () => {
     input.onmidimessage = null;
   }
   midiInput = selectedInput();
+  inferFirmwareProfileFromPort(midiInput);
   if (midiInput) midiInput.onmidimessage = handleMIDIInput;
+};
+
+firmwareProfileEl.onchange = event => {
+  setFirmwareProfile(event.target.value);
 };
 
 document.getElementById("ping").onclick = () => {
@@ -903,6 +1002,13 @@ document.getElementById("sendAllCvConfig").onclick = async () => {
     await new Promise(resolve => setTimeout(resolve, 8));
   }
   setStatus("Sent both CV output configs. Use Save to keep them after reboot.");
+};
+
+document.getElementById("sendMonitorConfig").onclick = () => {
+  const mode = Number(monitorModeEl.value);
+  if (sendSysEx(CMD_MONITOR_CONFIG, [mode])) {
+    setStatus("Sent monitor input setting. Use Save to keep it after reboot.");
+  }
 };
 
 function semitonesToRatio(semitones) {
@@ -1096,10 +1202,10 @@ function renderEditor() {
         <input data-action="startMs" data-slot="${selectedSlotIndex}" type="number" min="0" step="1" value="0">
       </label>
       <label>End ms
-        <input data-action="endMs" data-slot="${selectedSlotIndex}" type="number" min="1" step="1" value="250">
+        <input data-action="endMs" data-slot="${selectedSlotIndex}" type="number" min="1" step="1" value="${firmwareWindowMs()}">
       </label>
       <label>Length ms
-        <input data-action="lengthMs" data-slot="${selectedSlotIndex}" type="number" min="1" max="250" step="1" value="250">
+        <input data-action="lengthMs" data-slot="${selectedSlotIndex}" type="number" min="1" max="${firmwareWindowMs()}" step="1" value="${firmwareWindowMs()}">
       </label>
     </div>
     <div class="slot-controls">
@@ -1177,7 +1283,7 @@ function syncSlotControls(index) {
   const windowMs = Math.round((slot.endSec - slot.startSec) * 1000);
   startMsInput.max = String(durationMs);
   endMsInput.max = String(durationMs);
-  lengthMsInput.max = String(Math.min(250, durationMs));
+  lengthMsInput.max = String(Math.min(Math.round(MAX_WINDOW_SECONDS * 1000), durationMs));
   startMsInput.value = String(Math.round(slot.startSec * 1000));
   endMsInput.value = String(Math.round(slot.endSec * 1000));
   lengthMsInput.value = String(windowMs);

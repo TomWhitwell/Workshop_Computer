@@ -33,14 +33,21 @@
 #include "pico/time.h"
 #include "tusb.h"
 
-// Buffer size: 0.4 seconds at 48kHz
+constexpr int kAudioSampleRate = 48000;
+constexpr int kStoredSampleRate = 24000;
+constexpr int kStoredSamplesPerAudioSample = kAudioSampleRate / kStoredSampleRate;
+static_assert(
+    kAudioSampleRate % kStoredSampleRate == 0,
+    "Stored sample rate must divide the audio interrupt rate");
+
+// Buffer size: 0.8 seconds at 24kHz
 constexpr int kBufferLength = 19200;
 constexpr int kNumSlots = 6;
 constexpr int kVariationBufferLength = kBufferLength * kNumSlots;
 constexpr int kNumPatterns = 21;
 constexpr int kMaxPatternLen = 16;
 constexpr int kPulseTriggerSamples = 480; // 10ms at 48kHz
-constexpr int32_t kMinRecordingSamples = 480; // 10ms at 48kHz
+constexpr int32_t kMinRecordingSamples = kStoredSampleRate / 100; // 10ms
 constexpr int32_t kClockActivityHoldSamples = 192000; // 4s at 48kHz
 constexpr int32_t kSaveFeedbackSamples = 24000; // 0.5s at 48kHz
 constexpr int32_t kClearHoldSamples = 96000; // 2s at 48kHz
@@ -55,7 +62,9 @@ constexpr int kClearSamplesPerCore1Tick = 256;
 constexpr int32_t kKnobEditMoveThreshold = 32;
 constexpr int32_t kCVBipolarDetectThreshold = -64;
 constexpr int kPlaybackFracBits = 12;
-constexpr int32_t kPlaybackStepNormal = 1 << kPlaybackFracBits;
+constexpr int32_t kPlaybackRatioUnity = 1 << kPlaybackFracBits;
+constexpr int32_t kPlaybackStepNormal =
+    kPlaybackRatioUnity / kStoredSamplesPerAudioSample;
 constexpr int32_t kSamplePlaybackGainNum = 1; // Unity playback gain
 constexpr int32_t kSamplePlaybackGainDen = 1;
 constexpr int32_t kRecordingSilenceThreshold = 32;
@@ -92,7 +101,7 @@ constexpr uint32_t kFlashMagic = 0x31475246; // "FRG1"
 constexpr uint32_t kPatternFlashMagic = 0x31544150; // "PAT1"
 constexpr uint32_t kCVConfigFlashMagic = 0x31535643; // "CVS1"
 constexpr uint32_t kMonitorConfigFlashMagic = 0x314E4F4D; // "MON1"
-constexpr uint32_t kFlashVersion = 1;
+constexpr uint32_t kFlashVersion = 2;
 constexpr uint32_t kFlashStorageSize = 256 * 1024;
 constexpr uint32_t kFlashStorageOffset = PICO_FLASH_SIZE_BYTES - kFlashStorageSize;
 constexpr int kLegacy350BufferLength = 16800;
@@ -494,6 +503,9 @@ public:
                     recordingSlot_ = slot;
                     writeIndex_ = 0;
                     bufferFull_ = false;
+                    recordDecimationPhase_ = 0;
+                    recordAccumA_ = 0;
+                    recordAccumB_ = 0;
                     recordingWriteA_ = audio1Connected;
                     recordingWriteB_ = audio2Connected;
                 }
@@ -505,39 +517,66 @@ public:
                     ? kVariationBufferLength
                     : kBufferLength;
 
-                if (writeIndex_ >= 0 && writeIndex_ < maxRecordLength)
+                if (!bufferFull_)
                 {
-                    if (recordingWriteA_)
-                    {
-                        if (variationMode_)
-                        {
-                            writeVariationSample(bufferA_, writeIndex_, audioToStoredSample(inA));
-                        }
-                        else
-                        {
-                            bufferA_[slot][writeIndex_] = audioToStoredSample(inA);
-                        }
-                    }
-                    if (recordingWriteB_)
-                    {
-                        if (variationMode_)
-                        {
-                            writeVariationSample(bufferB_, writeIndex_, audioToStoredSample(inB));
-                        }
-                        else
-                        {
-                            bufferB_[slot][writeIndex_] = audioToStoredSample(inB);
-                        }
-                    }
-                }
+                    recordAccumA_ += inA;
+                    recordAccumB_ += inB;
+                    recordDecimationPhase_++;
 
-                if (writeIndex_ < maxRecordLength - 1)
-                {
-                    writeIndex_++;
-                }
-                else
-                {
-                    bufferFull_ = true;
+                    if (recordDecimationPhase_ >= kStoredSamplesPerAudioSample)
+                    {
+                        int32_t storedInputA =
+                            recordAccumA_ / kStoredSamplesPerAudioSample;
+                        int32_t storedInputB =
+                            recordAccumB_ / kStoredSamplesPerAudioSample;
+
+                        if (writeIndex_ >= 0 && writeIndex_ < maxRecordLength)
+                        {
+                            if (recordingWriteA_)
+                            {
+                                if (variationMode_)
+                                {
+                                    writeVariationSample(
+                                        bufferA_,
+                                        writeIndex_,
+                                        audioToStoredSample(storedInputA));
+                                }
+                                else
+                                {
+                                    bufferA_[slot][writeIndex_] =
+                                        audioToStoredSample(storedInputA);
+                                }
+                            }
+                            if (recordingWriteB_)
+                            {
+                                if (variationMode_)
+                                {
+                                    writeVariationSample(
+                                        bufferB_,
+                                        writeIndex_,
+                                        audioToStoredSample(storedInputB));
+                                }
+                                else
+                                {
+                                    bufferB_[slot][writeIndex_] =
+                                        audioToStoredSample(storedInputB);
+                                }
+                            }
+                        }
+
+                        recordAccumA_ = 0;
+                        recordAccumB_ = 0;
+                        recordDecimationPhase_ = 0;
+
+                        if (writeIndex_ < maxRecordLength - 1)
+                        {
+                            writeIndex_++;
+                        }
+                        else
+                        {
+                            bufferFull_ = true;
+                        }
+                    }
                 }
             }
 
@@ -684,7 +723,10 @@ public:
                         if (playPositionQ_ < 0)
                         {
                             if (subdivisionActive
-                                && currentLength < effectiveRepeatLength)
+                                && fragmentShorterThanRepeat(
+                                    currentLength,
+                                    effectiveRepeatLength,
+                                    playbackStepThisSample))
                             {
                                 inSilenceFill_ = true;
                             }
@@ -706,7 +748,10 @@ public:
                         if (playPositionQ_ >= (currentLength << kPlaybackFracBits))
                         {
                             if (subdivisionActive
-                                && currentLength < effectiveRepeatLength)
+                                && fragmentShorterThanRepeat(
+                                    currentLength,
+                                    effectiveRepeatLength,
+                                    playbackStepThisSample))
                             {
                                 inSilenceFill_ = true;
                             }
@@ -871,7 +916,7 @@ private:
         }
 
         semitoneOffsetQ = snapVariationPitchSemitoneOffset(semitoneOffsetQ);
-        variationPitchStepQ_ = semitoneOffsetToPlaybackStep(semitoneOffsetQ);
+        variationPitchStepQ_ = semitoneOffsetToPlaybackRatio(semitoneOffsetQ);
 
         int led = (int)((knobMain * kNumSlots) >> 12);
         if (led < 0) led = 0;
@@ -981,6 +1026,24 @@ private:
     int32_t playbackStepForCurrentVariation()
     {
         return playbackStepForVariation(activeVariation_);
+    }
+
+    bool __not_in_flash_func(fragmentShorterThanRepeat)(
+        int32_t storedLength,
+        int32_t repeatAudioSamples,
+        int32_t playbackStep)
+    {
+        if (storedLength <= 0)
+        {
+            return true;
+        }
+        if (playbackStep < 1)
+        {
+            playbackStep = 1;
+        }
+
+        return (((int64_t)storedLength) << kPlaybackFracBits)
+            < ((int64_t)repeatAudioSamples * playbackStep);
     }
 
     // Patched CV starts unipolar. If it dips below 0V, treat it as bipolar.
@@ -1645,10 +1708,17 @@ private:
             (((int32_t)midiNote_ - 60) << kPlaybackFracBits)
             + pitchBendSemitoneQ_;
 
-        playbackStepQ_ = semitoneOffsetToPlaybackStep(semitoneOffsetQ);
+        playbackStepQ_ =
+            playbackRatioToStep(semitoneOffsetToPlaybackRatio(semitoneOffsetQ));
     }
 
-    uint32_t semitoneOffsetToPlaybackStep(int32_t semitoneOffsetQ)
+    uint32_t playbackRatioToStep(uint32_t ratioQ)
+    {
+        uint32_t step = (ratioQ * kPlaybackStepNormal) >> kPlaybackFracBits;
+        return step > 0 ? step : 1;
+    }
+
+    uint32_t semitoneOffsetToPlaybackRatio(int32_t semitoneOffsetQ)
     {
         int octave = 0;
         const int32_t octaveQ = 12 << kPlaybackFracBits;
@@ -3103,7 +3173,7 @@ private:
     int32_t bootModeDownSamples_ = 0;
     volatile bool variationMode_ = false;
     volatile int32_t variationModeFeedbackSamples_ = 0;
-    volatile uint32_t variationPitchStepQ_ = kPlaybackStepNormal;
+    volatile uint32_t variationPitchStepQ_ = kPlaybackRatioUnity;
     bool isUSBMIDIHost_ = false;
     bool switchUpMainPrimed_ = false;
     int32_t lastSwitchUpMain_ = 0;
@@ -3164,6 +3234,9 @@ private:
     volatile int shiftAmount_ = 0;        // switch-middle X knob shift (0-5)
     volatile int subdivisionShift_ = 0;   // switch-middle Y knob: 0/1/2/3 = x1/x2/x4/x8
     volatile bool recordingActive_ = false; // currently recording?
+    int32_t recordDecimationPhase_ = 0;
+    int32_t recordAccumA_ = 0;
+    int32_t recordAccumB_ = 0;
     volatile bool clockEdge_ = false;     // set by core 0, cleared by core 1
     volatile bool resetEdge_ = false;     // set by core 0, cleared by core 1
 

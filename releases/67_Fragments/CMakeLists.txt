@@ -51,5 +51,7 @@ target_link_libraries(fragments
   tinyusb_board
 )
 
-pico_set_binary_type(fragments copy_to_ram)
+# Experimental XIP layout: keep most code in flash, with the hot audio
+# path explicitly pinned to RAM.
+# pico_set_binary_type(fragments copy_to_ram)
 pico_add_extra_outputs(fragments)
