@@ -105,13 +105,13 @@ controls:
     - when: { z: middle }
       main:
         name: Input / Room Gain
-        description: Attenuates hot modular signals below noon, sits near unity at noon, and gives gentle boost clockwise; dry/wet is fixed 50/50 for auditioning.
+        description: Attenuates hot modular signals below noon, sits near unity at noon, and boosts quieter headphone/line sources clockwise; hot Eurorack-level signals may clip above about 2 o'clock.
       x:
         name: Room
         description: Selects snapped room zones in approximate length order: Marquee, CBGB, the 100 Club, then the Whisky a Go Go.
       y:
         name: Audience
-        description: Simulates audience absorption; clockwise applies strongest wet-path attenuation around 400 Hz-3 kHz, with moderate high-frequency damping.
+        description: Simulates gentle audience absorption; clockwise damps the wet room path while preserving the selected venue character.
   leds:
     - display: list
       items:

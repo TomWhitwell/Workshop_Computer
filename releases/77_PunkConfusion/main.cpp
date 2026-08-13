@@ -236,7 +236,9 @@ private:
         {
             return 1024 + ((control * 3072) >> 11); // 0.25x..1.0x
         }
-        return 4096 + (((control - 2048) * 4096) >> 11); // 1.0x..2.0x
+        const int32_t boost = control - 2048;
+        const int32_t shapedBoost = (boost * boost) >> 11;
+        return 4096 + ((shapedBoost * 12288) >> 11); // 1.0x..4.0x
     }
 
     VenueType SelectVenue(int32_t roomKnob) const
@@ -368,27 +370,23 @@ private:
         voice_.phase = 0;
         voice_.step = 128; // 24 kHz sample data played at the 48 kHz audio rate.
         voice_.fadeSamples = 96; // about 4 ms at the source sample rate.
-        voice_.level = 4096;
+        voice_.level = 1536;
         voice_.active = true;
     }
 
     int32_t RenderBrokenVenue()
     {
         const int32_t gainControl = KnobVal(Knob::Main);
-        int32_t in = (static_cast<int32_t>(AudioIn1()) * InputGainQ12(gainControl)) >> 12;
-        int32_t sample = ReadSampleVoice();
-
-        // A small duck helps the vocal stab read clearly over a busy patch.
-        if (sample != 0)
-        {
-            in >>= 1;
-        }
+        const int32_t inputGain = InputGainQ12(gainControl);
+        int32_t in = (static_cast<int32_t>(AudioIn1()) * inputGain) >> 12;
+        int32_t sample = (ReadSampleVoice() * inputGain) >> 12;
 
         int32_t source = SoftClip(in + sample);
+        const int32_t vocalRoomSend = sample != 0 ? sample >> 1 : 0;
 
         const int32_t roomKnob = KnobVal(Knob::X);
         const int32_t audienceRaw = KnobVal(Knob::Y);
-        const int32_t audience = (((audienceRaw * audienceRaw) >> 12) * 3) >> 2;
+        const int32_t audience = ((audienceRaw * audienceRaw) >> 13);
         const VenueType selectedVenue = SelectVenue(roomKnob);
         const VenueProfile &venue = kVenueProfiles[selectedVenue];
 
@@ -442,16 +440,16 @@ private:
             break;
         }
 
-        filterDiv += 2 + (audience >> 8); // clockwise Y absorbs high end.
-        feedback = (feedback * (4096 - (audience >> 1))) >> 12;
+        filterDiv += 1 + (audience >> 9); // clockwise Y absorbs high end.
+        feedback = (feedback * (4096 - (audience >> 2))) >> 12;
         if (feedback > 1200) feedback = 1200;
 
         venueFilterState_ += (delayed - venueFilterState_) / filterDiv;
         int32_t filtered = venueFilterState_;
         venueFilterRightState_ += (delayedRight - venueFilterRightState_) / filterDiv;
         int32_t filteredRight = venueFilterRightState_;
-        early = (early * (4096 - (audience >> 2))) >> 12;
-        earlyRight = (earlyRight * (4096 - (audience >> 2))) >> 12;
+        early = (early * (4096 - (audience >> 3))) >> 12;
+        earlyRight = (earlyRight * (4096 - (audience >> 3))) >> 12;
 
         int32_t wet = 0;
         int32_t wetRight = 0;
@@ -487,7 +485,7 @@ private:
             audienceLowRightState_,
             audienceHighRightState_);
 
-        const int32_t writeSample = Clamp12(roomInput + (early >> 1) + ((wet * feedback) >> 12));
+        const int32_t writeSample = Clamp12(roomInput + vocalRoomSend + (early >> 1) + ((wet * feedback) >> 12));
         venueDelay_.Write(static_cast<int16_t>(writeSample));
 
         roomRightOut_ = Clamp12((source + wetRight) >> 1);

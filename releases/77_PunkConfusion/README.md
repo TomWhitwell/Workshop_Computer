@@ -63,7 +63,9 @@ This mode turns the card into a dirty treatment box for external audio.
 
 - `Audio In 1` is the source input.
 - `Main` sets input/room gain: below noon attenuates hot modular signals, noon
-  is about unity, and clockwise boosts quieter line-level sources.
+  is about unity, and clockwise boosts quieter headphone/line-level sources.
+  Hot Eurorack-level signals are expected to clip above roughly 2 o'clock; use
+  that range for drive, or keep hot modular sources below it.
 - `Knob X` selects and morphs between venue personalities.
 - `Knob Y` controls audience absorption: clockwise simulates more bodies in the
   room, damping the reflected room path and shortening the lively tail.
@@ -104,10 +106,11 @@ Shared engine blocks:
 
 Control intent:
 
-- `Main`: input/room gain, roughly 0.25x to 2x with unity near noon
+- `Main`: input/room gain, roughly 0.25x to 4x with unity near noon; hot
+  Eurorack-level signals may clip above roughly 2 o'clock
 - `Knob X`: venue selection / morph
-- `Knob Y`: audience absorption, with clockwise values damping reflections and
-  reducing high-frequency room energy
+- `Knob Y`: audience absorption, with clockwise values gently damping the wet
+  room path while preserving the selected venue character
 
 ### Venue personalities
 
@@ -170,15 +173,17 @@ Venue-specific collapse emphasis:
   low, stops the call for stutter-style performance gestures.
 - No separate knob layer is introduced while the switch is held.
 - Playback uses a tiny fade-in/fade-out envelope to avoid trigger clicks.
-- The live input is ducked while a call is active so the vocal can cut through a
-  running patch.
+- The vocal direct level is deliberately lower than the room input, with an
+  extra send into the delay path so the call sits in the venue rather than
+  overwhelming the patch. Vocal playback follows the `Main` input gain.
 
 The sample direction should stay original and genre-inspired rather than trying
 to imitate any specific band or performer.
 
 Current embedded vocal calls are original recordings by Adrian Vos, processed
-for the card as 24 kHz mono signed 16-bit PCM and peak-normalised before
-embedding:
+for the card as 24 kHz mono signed 16-bit PCM and peak-normalised to about
+`-6 dBFS` before embedding. This keeps the Colourbox overdrive character without
+adding unnecessary digital clipping:
 
 - `Marquee`: `Oi`
 - `CBGB`: `Hey Ho`
