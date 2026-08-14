@@ -84,6 +84,10 @@ filtering engine.
   retrigger it, and low stops it.
 - Driving `Pulse In 2` at audio rate can chop the shout into a raw vocal
   texture. That is intentional.
+- `Audio In 2` is an experimental vocal slice/reverse CV input in this branch.
+  When patched, positive voltage selects a later start slice for the next
+  trigger; negative voltage selects a slice and plays it backwards. Unpatched,
+  calls play normally from the start.
 - The vocal is routed through the same Broken Venue path and gets an extra send
   into the room delay so it sits inside the venue.
 
@@ -134,7 +138,7 @@ fit in flash.
 | Jack | Role |
 |---|---|
 | `Audio In 1` | Broken Venue input |
-| `Audio In 2` | Unused |
+| `Audio In 2` | Experimental vocal slice/reverse CV |
 | `CV In 1` | APC timing CV for `X` |
 | `CV In 2` | APC timing CV for `Y` |
 | `Pulse In 1` | APC hard gate when patched |

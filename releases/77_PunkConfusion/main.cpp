@@ -95,9 +95,11 @@ struct SampleVoice
     uint32_t length = 0;
     uint32_t phase = 0; // 24.8 fixed-point sample position.
     uint32_t step = 256;
+    uint32_t ageSamples = 0;
     uint32_t fadeSamples = 0;
     int32_t level = 0;
     bool active = false;
+    bool reverse = false;
 };
 
 struct DelayLine
@@ -388,26 +390,43 @@ private:
             return 0;
         }
 
-        const uint32_t nextIndex = (index + 1 < voice_.length) ? index + 1 : index;
+        const uint32_t nextIndex = voice_.reverse
+            ? (index > 0 ? index - 1 : index)
+            : ((index + 1 < voice_.length) ? index + 1 : index);
         const int32_t a = voice_.data[index];
         const int32_t b = voice_.data[nextIndex];
         const int32_t frac = static_cast<int32_t>(voice_.phase & 0xFFu);
         const int32_t sample = ((a * (256 - frac)) + (b * frac)) >> 8;
-        const uint32_t remaining = voice_.length - index;
+        const uint32_t remaining = voice_.reverse ? index + 1 : voice_.length - index;
         uint32_t envelope = 4096;
-        if (index < voice_.fadeSamples)
+        if (voice_.ageSamples < voice_.fadeSamples)
         {
-            envelope = (index * 4096) / voice_.fadeSamples;
+            envelope = (voice_.ageSamples * 4096) / voice_.fadeSamples;
         }
         if (remaining < voice_.fadeSamples && remaining < envelope)
         {
             envelope = (remaining * 4096) / voice_.fadeSamples;
         }
 
-        voice_.phase += voice_.step;
-        if ((voice_.phase >> 8) >= voice_.length)
+        voice_.ageSamples++;
+        if (voice_.reverse)
         {
-            voice_.active = false;
+            if (voice_.phase <= voice_.step)
+            {
+                voice_.active = false;
+            }
+            else
+            {
+                voice_.phase -= voice_.step;
+            }
+        }
+        else
+        {
+            voice_.phase += voice_.step;
+            if ((voice_.phase >> 8) >= voice_.length)
+            {
+                voice_.active = false;
+            }
         }
 
         return (((sample * voice_.level) >> 12) * static_cast<int32_t>(envelope)) >> 12;
@@ -416,12 +435,30 @@ private:
     void TriggerVenueSample()
     {
         const SampleDef &choice = sampleBank_[SelectVenue(KnobVal(Knob::X))];
+        const bool sliceCvPatched = Connected(Input::Audio2);
+        const int32_t sliceCv = sliceCvPatched ? AudioIn2() : 0;
+        const bool reverse = sliceCvPatched && sliceCv < -96;
+        const uint32_t cvMagnitude = sliceCvPatched ? static_cast<uint32_t>(Abs32(sliceCv)) : 0;
+        uint32_t slice = (cvMagnitude * 8u) >> 11;
+        if (slice > 7) slice = 7;
+
+        uint32_t startIndex = 0;
+        if (sliceCvPatched && choice.length > 0)
+        {
+            startIndex = reverse
+                ? ((choice.length * (slice + 1u)) / 8u)
+                : ((choice.length * slice) / 8u);
+            if (startIndex >= choice.length) startIndex = choice.length - 1;
+        }
+
         voice_.data = choice.data;
         voice_.length = choice.length;
-        voice_.phase = 0;
+        voice_.phase = startIndex << 8;
         voice_.step = 128; // 24 kHz sample data played at the 48 kHz audio rate.
+        voice_.ageSamples = 0;
         voice_.fadeSamples = 96; // about 4 ms at the source sample rate.
         voice_.level = 1536;
+        voice_.reverse = reverse;
         voice_.active = true;
     }
 

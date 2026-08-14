@@ -39,9 +39,9 @@ panel:
       type: audio
       description: External audio source for the Broken Venue mode.
     - id: AudioIn2
-      name: Unused
+      name: Vocal Slice CV
       type: audio
-      description: Unused.
+      description: Experimental input. When patched, positive voltage selects a later vocal start slice; negative voltage selects a slice and reverses playback.
     - id: CVIn1
       name: APC CV 1
       type: cv
