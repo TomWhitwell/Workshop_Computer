@@ -101,6 +101,11 @@ already-playing shout.
 | Positive CV, low to high | Forward slices 0-7, starting at 0%, 12.5%, 25%, 37.5%, 50%, 62.5%, 75%, and 87.5% |
 | Negative CV, low to high magnitude | Reverse slices 0-7, starting around 12.5%, 25%, 37.5%, 50%, 62.5%, 75%, 87.5%, and near the end |
 
+The Computer audio inputs clip at about `+/-6 V`. Hotter control signals, such
+as a full-range Workshop System Slopes output, are safe but do not give extra
+slice range: high positive voltages hold the last forward slice, and high
+negative voltages hold the last reverse slice.
+
 While holding Down, `Main` edits the saved vocal-call trim rather than the main
 room input gain. The trim has soft pickup and is multiplied by the saved room
 gain, so later input-gain changes still scale the shout level. The default trim
