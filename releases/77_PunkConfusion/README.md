@@ -91,6 +91,16 @@ filtering engine.
 - The vocal is routed through the same Broken Venue path and gets an extra send
   into the room delay so it sits inside the venue.
 
+`Audio In 2` is sampled only when the vocal is triggered. It does not scrub an
+already-playing shout.
+
+| `Audio In 2` voltage | Slice behaviour |
+|---|---|
+| Unpatched | Normal forward playback from the start |
+| Near 0 V | Forward slice 0, starts at 0% |
+| Positive CV, low to high | Forward slices 0-7, starting at 0%, 12.5%, 25%, 37.5%, 50%, 62.5%, 75%, and 87.5% |
+| Negative CV, low to high magnitude | Reverse slices 0-7, starting around 12.5%, 25%, 37.5%, 50%, 62.5%, 75%, 87.5%, and near the end |
+
 While holding Down, `Main` edits the saved vocal-call trim rather than the main
 room input gain. The trim has soft pickup and is multiplied by the saved room
 gain, so later input-gain changes still scale the shout level. The default trim
