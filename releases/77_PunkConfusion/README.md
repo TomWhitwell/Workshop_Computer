@@ -208,6 +208,19 @@ Use the page like this:
 6. Wait for the local CMake build to finish.
 7. The browser downloads `punk_confusion_custom.uf2`.
 
+The `Estimated header size` readout is a practical warning light for flash
+space. It measures the generated `VocalSamples.h` text file, not the final UF2
+size, so treat these as safe working limits rather than exact measurements:
+
+| Program card | Keep estimated header size under | What to do if it is larger |
+|---|---:|---|
+| Standard `2 MB` card | about `5 MB` | Shorten the samples, then build again |
+| Larger `16 MB` card | about `45 MB` | Shorten the samples if the build fails |
+
+The factory samples are well under the `2 MB` card limit. If you are unsure,
+keep the shouts short; four one-or-two-second calls are much safer than long
+loops or full phrases.
+
 The browser converts each source file to mono 24 kHz signed 16-bit PCM and
 normalises it to about `-6 dBFS`. The local builder receives those processed
 WAVs, regenerates `VocalSamples.h`, runs the firmware build, and returns the
