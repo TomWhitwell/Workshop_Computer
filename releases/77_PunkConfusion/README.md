@@ -148,6 +148,113 @@ Keep replacement samples mono, 16-bit PCM, 24 kHz, short, and conservatively
 levelled. The card targets a 2 MB program card, so all samples and firmware must
 fit in flash.
 
+### Local Web UF2 Builder
+
+The easiest way to make a custom sample build is the local web builder. It gives
+you a browser page for preparing the samples, then builds a complete UF2 on your
+own computer.
+
+First, open a command line app and move into this card's folder. In the
+`Workshop_Computer` repo that folder is `releases/77_PunkConfusion`; in the
+standalone repo it may be called `Punk Confusion`. The folder path will be
+different on each computer, so use the examples below as a guide and change the
+path to match your own setup.
+
+On macOS, open `Terminal` and use a command like this:
+
+```sh
+cd "$HOME/GitHub/Workshop_Computer/releases/77_PunkConfusion"
+```
+
+On Windows, open `PowerShell` and use a command like this:
+
+```powershell
+cd "$HOME\Documents\GitHub\Workshop_Computer\releases\77_PunkConfusion"
+```
+
+On Linux, open `Terminal` and use a command like this:
+
+```sh
+cd "$HOME/GitHub/Workshop_Computer/releases/77_PunkConfusion"
+```
+
+When the command line is in the card folder, start the builder:
+
+```sh
+make webui
+```
+
+Leave that command line window open. It is running the local builder.
+
+Then open this address in your web browser:
+
+```text
+http://127.0.0.1:8765/web/
+```
+
+If your computer says `make` is not available, use this command instead:
+
+```sh
+python3 tools/web_uf2_server.py
+```
+
+Use the page like this:
+
+1. Drop one audio file into each venue slot.
+2. Wait for each slot to say `ready`.
+3. Use the preview player to check the converted shout.
+4. Check that total sample time and estimated header size look sensible.
+5. Press `Build custom UF2`.
+6. Wait for the local CMake build to finish.
+7. The browser downloads `punk_confusion_custom.uf2`.
+
+The browser converts each source file to mono 24 kHz signed 16-bit PCM and
+normalises it to about `-6 dBFS`. The local builder receives those processed
+WAVs, regenerates `VocalSamples.h`, runs the firmware build, and returns the
+finished UF2. The first build may take longer if the Pico SDK has to be fetched.
+
+The local build process replaces the four files in `samples/` and regenerates
+`VocalSamples.h` before compiling. Commit or copy any sample set you want to
+keep before running the builder with different sounds.
+
+The original included shouts are backed up in `factory-samples/`. After making
+a custom UF2, restore the factory samples and matching header with:
+
+```sh
+make restore-factory-samples
+```
+
+You can use a different local port if needed:
+
+```sh
+make webui WEB_PORT=9000
+```
+
+If you do not want to build a UF2 straight away, the page can also download
+processed WAVs or a replacement `VocalSamples.h`. The processed WAV download is
+useful if you want to audition or archive the exact card-ready files before
+building.
+
+### Command-Line Build
+
+For a command-line local build using the WAVs already in `samples/`, use:
+
+```sh
+make custom-uf2
+```
+
+That regenerates `VocalSamples.h`, configures/builds the Pico SDK project, and
+writes `uf2/punk_confusion_custom.uf2`. To build from a separate folder of
+card-ready WAVs, use:
+
+```sh
+python3 tools/build_custom_uf2.py --samples path/to/my-samples --clean
+```
+
+The sample folder must contain the four filenames listed above. From this card
+folder, CMake uses the local `ComputerCard.h` and will use a local Pico SDK if
+available, or fetch the SDK into the build directory.
+
 ## Jack Map
 
 | Jack | Role |
