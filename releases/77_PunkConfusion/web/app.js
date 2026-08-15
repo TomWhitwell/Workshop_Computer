@@ -1,6 +1,8 @@
 const TARGET_SAMPLE_RATE = 24000;
 const TARGET_PEAK = 10 ** (-6 / 20);
 const INT16_MAX = 32767;
+const TWO_MB_CARD_HEADER_LIMIT = 5 * 1024 * 1024;
+const SIXTEEN_MB_CARD_HEADER_LIMIT = 45 * 1024 * 1024;
 
 const sampleSlots = [
   {
@@ -42,6 +44,9 @@ const buildUf2Button = document.querySelector("#buildUf2");
 const clearAllButton = document.querySelector("#clearAll");
 const totalDurationEl = document.querySelector("#totalDuration");
 const headerSizeEl = document.querySelector("#headerSize");
+const sizeWarningEl = document.querySelector("#sizeWarning");
+const sizeWarningTitleEl = document.querySelector("#sizeWarningTitle");
+const sizeWarningTextEl = document.querySelector("#sizeWarningText");
 const builderMessageEl = document.querySelector("#builderMessage");
 
 let audioContext;
@@ -190,11 +195,41 @@ function updateSummary() {
   const ready = state.filter(Boolean);
   const duration = ready.reduce((sum, item) => sum + item.intSamples.length / TARGET_SAMPLE_RATE, 0);
   const header = ready.length === sampleSlots.length ? generateHeader() : "";
+  const headerBytes = header ? new TextEncoder().encode(header).length : 0;
   totalDurationEl.textContent = `${duration.toFixed(3)} s`;
-  headerSizeEl.textContent = header ? formatBytes(new TextEncoder().encode(header).length) : "0 KB";
+  headerSizeEl.textContent = header ? formatBytes(headerBytes) : "0 KB";
+  updateSizeWarning(ready.length, headerBytes);
   buildUf2Button.disabled = ready.length !== sampleSlots.length;
   downloadHeaderButton.disabled = ready.length !== sampleSlots.length;
   downloadWavsButton.disabled = ready.length !== sampleSlots.length;
+}
+
+function updateSizeWarning(readyCount, headerBytes) {
+  sizeWarningEl.classList.remove("ok", "warning", "danger");
+
+  if (readyCount !== sampleSlots.length) {
+    sizeWarningTitleEl.textContent = "Waiting for samples";
+    sizeWarningTextEl.textContent = "Add all four shouts to estimate whether the build should fit.";
+    return;
+  }
+
+  if (headerBytes > SIXTEEN_MB_CARD_HEADER_LIMIT) {
+    sizeWarningEl.classList.add("danger");
+    sizeWarningTitleEl.textContent = "Too large";
+    sizeWarningTextEl.textContent = "This is over the suggested 16 MB-card limit. Shorten the samples before building.";
+    return;
+  }
+
+  if (headerBytes > TWO_MB_CARD_HEADER_LIMIT) {
+    sizeWarningEl.classList.add("warning");
+    sizeWarningTitleEl.textContent = "Large for 2 MB cards";
+    sizeWarningTextEl.textContent = "This may be too large for a standard 2 MB card. Use shorter samples, or build for a 16 MB card.";
+    return;
+  }
+
+  sizeWarningEl.classList.add("ok");
+  sizeWarningTitleEl.textContent = "Good for 2 MB cards";
+  sizeWarningTextEl.textContent = "This is under the suggested 2 MB-card header-size limit.";
 }
 
 function renderSlot(index) {

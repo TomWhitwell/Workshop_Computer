@@ -120,6 +120,36 @@ h1 {
   color: var(--muted);
 }
 
+.size-warning {
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+.size-warning p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.size-warning.ok {
+  background: rgba(245, 200, 76, 0.55);
+}
+
+.size-warning.warning {
+  background: rgba(245, 200, 76, 0.9);
+  box-shadow: 8px 8px 0 rgba(197, 37, 37, 0.28);
+}
+
+.size-warning.danger {
+  color: var(--paper);
+  background: var(--red);
+  box-shadow: 8px 8px 0 var(--black);
+}
+
+.size-warning.danger span,
+.size-warning.danger p {
+  color: var(--paper);
+}
+
 .slots {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
