@@ -125,9 +125,20 @@ avoid extra digital clipping after the Colourbox drive.
 | `Whisky a Go Go` | `Let's Go` |
 
 The source WAVs are kept in `samples/`, matching the organisation used by other
-sample-based releases in this repo. Punk Confusion does not load samples onto an
-already-flashed card; instead, custom calls are compiled into a new UF2. This
-keeps the firmware simple, reliable, and self-contained.
+sample-based releases in this repo.
+
+There are now two ways to customise the shouts:
+
+- The standard release firmware embeds the calls in `VocalSamples.h`. To change
+  them, build a custom UF2 and flash that UF2 to the card.
+- The experimental WebSerial sample loader stores uploaded calls in a reserved
+  flash sample bank. After flashing the loader firmware once, you can change the
+  four shouts from a browser without rebuilding or reflashing the UF2.
+
+The standard embedded-sample path is still the simplest and safest release
+build. The WebSerial loader is included under
+`experiments/webserial_sample_loader/` for testing the user-loadable sample
+workflow.
 
 To build with your own calls, replace the four WAVs in `samples/`, keeping the
 same filenames:
@@ -147,6 +158,38 @@ This regenerates `VocalSamples.h`, which is compiled directly into the firmware.
 Keep replacement samples mono, 16-bit PCM, 24 kHz, short, and conservatively
 levelled. The card targets a 2 MB program card, so all samples and firmware must
 fit in flash.
+
+### Experimental WebSerial Sample Loader
+
+The WebSerial experiment is for users who want to change the four vocal calls
+without building a new UF2 every time.
+
+Use it like this:
+
+1. Flash one of the experimental UF2s from
+   `experiments/webserial_sample_loader/uf2/`.
+2. Use `punk_confusion_2mb.uf2` for a standard 2 MB Workshop Computer card, or
+   `punk_confusion_16mb.uf2` for a 16 MB card.
+3. Open `experiments/webserial_sample_loader/web/index.html` in Chrome, Edge,
+   or another Chromium-based browser with WebSerial support.
+4. Drop one audio file into each venue slot on the page.
+5. Hold the card switch Down while powering or resetting the card.
+6. Wait for confirmation: all LEDs flash three times, then LEDs 1, 3, and 5
+   stay lit while the card waits for the browser.
+7. Press `Connect card`, choose the Workshop Computer serial device, then press
+   `Send these sounds to the card`.
+8. Restart the card and use it normally.
+
+The uploaded samples are stored in flash, so they can persist even after you
+reflash the firmware. To return to the embedded factory shouts, enter loader
+mode again and press `Use built-in sounds again` in the web page. That erases
+the uploaded sample-bank header, so the firmware falls back to `VocalSamples.h`.
+
+The WebSerial builds use 24 kHz 8-bit µ-law samples in the flash sample bank.
+This is deliberately more compact than the embedded 16-bit PCM header and lets
+the firmware jump to slice points or play backwards without loading whole files
+into RAM. The standard 2 MB build reserves about `1 MB` for uploaded samples;
+the 16 MB build reserves about `14 MB`.
 
 ### Local Web UF2 Builder
 
