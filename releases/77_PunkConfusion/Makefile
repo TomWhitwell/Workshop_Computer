@@ -1,23 +1,23 @@
 PYTHON ?= python3
 WEB_PORT ?= 8765
-BUILD_DIR ?= build-custom
-CUSTOM_UF2 ?= uf2/punk_confusion_custom.uf2
+BUILD_DIR ?= build
 
-.PHONY: webui smoke custom-uf2 restore-factory-samples clean-web
+.PHONY: webui smoke build restore-factory-samples clean
 
 webui:
-	$(PYTHON) tools/web_uf2_server.py $(WEB_PORT)
+	$(PYTHON) -m http.server $(WEB_PORT) --directory web
 
 smoke:
-	$(PYTHON) -m py_compile tools/generate_vocal_samples.py tools/build_custom_uf2.py tools/web_uf2_server.py
+	$(PYTHON) -m py_compile tools/generate_vocal_samples.py
 	node --check web/app.js
 
-custom-uf2:
-	$(PYTHON) tools/build_custom_uf2.py --clean --build-dir $(BUILD_DIR) --output $(CUSTOM_UF2)
+build:
+	cmake -S . -B $(BUILD_DIR)
+	cmake --build $(BUILD_DIR) -j2
 
 restore-factory-samples:
 	cp factory-samples/VocalSamples.h VocalSamples.h
 	cp factory-samples/samples/*.wav samples/
 
-clean-web:
-	rm -rf build-web
+clean:
+	rm -rf $(BUILD_DIR)

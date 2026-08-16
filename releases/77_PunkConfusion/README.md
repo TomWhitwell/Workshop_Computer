@@ -9,7 +9,8 @@ dirty room and damaged PA treatment for external audio. `Switch Down` and
 
 ## Quick Start
 
-1. Flash `uf2/punk_confusion.uf2`.
+1. Flash `uf2/punk_confusion_2mb.uf2` for a standard 2 MB card, or
+   `uf2/punk_confusion_16mb.uf2` for a 16 MB card.
 2. Patch `Audio Out 1` to your mixer. Patch `Audio Out 2` as well for stereo
    room output in Broken Venue mode.
 3. For APC mode, set the switch Up and turn `Main` up.
@@ -84,7 +85,7 @@ filtering engine.
   retrigger it, and low stops it.
 - Driving `Pulse In 2` at audio rate can chop the shout into a raw vocal
   texture. That is intentional.
-- `Audio In 2` is an experimental vocal slice/reverse CV input in this branch.
+- `Audio In 2` is a beta vocal slice/reverse CV input.
   When patched, positive voltage selects a later start slice for the next
   trigger; negative voltage selects a slice and plays it backwards. Unpatched,
   calls play normally from the start.
@@ -125,60 +126,31 @@ avoid extra digital clipping after the Colourbox drive.
 | `Whisky a Go Go` | `Let's Go` |
 
 The source WAVs are kept in `samples/`, matching the organisation used by other
-sample-based releases in this repo.
+sample-based releases in this repo. The beta firmware includes those calls as
+factory fallback samples, but the normal user workflow is now WebSerial loading:
+flash the card once, then change the four vocal calls from a browser without
+rebuilding or reflashing the UF2.
 
-There are now two ways to customise the shouts:
+### WebSerial Sample Loader
 
-- The standard release firmware embeds the calls in `VocalSamples.h`. To change
-  them, build a custom UF2 and flash that UF2 to the card.
-- The experimental WebSerial sample loader stores uploaded calls in a reserved
-  flash sample bank. After flashing the loader firmware once, you can change the
-  four shouts from a browser without rebuilding or reflashing the UF2.
-
-The standard embedded-sample path is still the simplest and safest release
-build. The WebSerial loader is included under
-`experiments/webserial_sample_loader/` for testing the user-loadable sample
-workflow.
-
-To build with your own calls, replace the four WAVs in `samples/`, keeping the
-same filenames:
-
-- `marquee_oi.wav`
-- `cbgb_hey_ho.wav`
-- `club100_no_future.wav`
-- `whisky_lets_go.wav`
-
-Then run:
-
-```sh
-python3 tools/generate_vocal_samples.py
-```
-
-This regenerates `VocalSamples.h`, which is compiled directly into the firmware.
-Keep replacement samples mono, 16-bit PCM, 24 kHz, short, and conservatively
-levelled. The card targets a 2 MB program card, so all samples and firmware must
-fit in flash.
-
-### Experimental WebSerial Sample Loader
-
-The WebSerial experiment is for users who want to change the four vocal calls
-without building a new UF2 every time.
+The WebSerial loader stores uploaded calls in a reserved flash sample bank.
+Uploaded samples persist across normal restarts and may also persist after
+reflashing, so the web page includes a simple factory-restore button.
 
 Use it like this:
 
-1. Flash one of the experimental UF2s from
-   `experiments/webserial_sample_loader/uf2/`.
-2. Use `punk_confusion_2mb.uf2` for a standard 2 MB Workshop Computer card, or
-   `punk_confusion_16mb.uf2` for a 16 MB card.
-3. Open `experiments/webserial_sample_loader/web/index.html` in Chrome, Edge,
-   or another Chromium-based browser with WebSerial support.
+1. Flash `uf2/punk_confusion_2mb.uf2` for a standard 2 MB Workshop Computer
+   card, or `uf2/punk_confusion_16mb.uf2` for a 16 MB card.
+2. Open `web/index.html` in Chrome, Edge, or another Chromium-based browser
+   with WebSerial support.
+3. Choose the matching card size in the page.
 4. Drop one audio file into each venue slot on the page.
 5. Hold the card switch Down while powering or resetting the card.
 6. Wait for confirmation: all LEDs flash three times, then LEDs 1, 3, and 5
    stay lit while the card waits for the browser.
 7. Press `Connect card`, choose the Workshop Computer serial device, then press
    `Send these sounds to the card`.
-8. Restart the card and use it normally.
+8. Restart the card and use it normally with the new shouts.
 
 The uploaded samples are stored in flash, so they can persist even after you
 reflash the firmware. To return to the embedded factory shouts, enter loader
@@ -191,132 +163,17 @@ the firmware jump to slice points or play backwards without loading whole files
 into RAM. The standard 2 MB build reserves about `1 MB` for uploaded samples;
 the 16 MB build reserves about `14 MB`.
 
-### Local Web UF2 Builder
-
-The easiest way to make a custom sample build is the local web builder. It gives
-you a browser page for preparing the samples, then builds a complete UF2 on your
-own computer.
-
-First, open a command line app and move into this card's folder. In the
-`Workshop_Computer` repo that folder is `releases/77_PunkConfusion`; in the
-standalone repo it may be called `Punk Confusion`. The folder path will be
-different on each computer, so use the examples below as a guide and change the
-path to match your own setup.
-
-On macOS, open `Terminal` and use a command like this:
-
-```sh
-cd "$HOME/GitHub/Workshop_Computer/releases/77_PunkConfusion"
-```
-
-On Windows, open `PowerShell` and use a command like this:
-
-```powershell
-cd "$HOME\Documents\GitHub\Workshop_Computer\releases\77_PunkConfusion"
-```
-
-On Linux, open `Terminal` and use a command like this:
-
-```sh
-cd "$HOME/GitHub/Workshop_Computer/releases/77_PunkConfusion"
-```
-
-When the command line is in the card folder, start the builder:
-
-```sh
-make webui
-```
-
-Leave that command line window open. It is running the local builder.
-
-Then open this address in your web browser:
-
-```text
-http://127.0.0.1:8765/web/
-```
-
-If your computer says `make` is not available, use this command instead:
-
-```sh
-python3 tools/web_uf2_server.py
-```
-
-Use the page like this:
-
-1. Drop one audio file into each venue slot.
-2. Wait for each slot to say `ready`.
-3. Use the preview player to check the converted shout.
-4. Check that total sample time and estimated header size look sensible.
-5. Press `Build custom UF2`.
-6. Wait for the local CMake build to finish.
-7. The browser downloads `punk_confusion_custom.uf2`.
-
-The `Estimated header size` readout is a practical warning light for flash
-space. It measures the generated `VocalSamples.h` text file, not the final UF2
-size, so treat these as safe working limits rather than exact measurements:
-
-| Program card | Keep estimated header size under | What to do if it is larger |
-|---|---:|---|
-| Standard `2 MB` card | about `5 MB` | Shorten the samples, then build again |
-| Larger `16 MB` card | about `45 MB` | Shorten the samples if the build fails |
-
-The factory samples are well under the `2 MB` card limit. If you are unsure,
-keep the shouts short; four one-or-two-second calls are much safer than long
-loops or full phrases.
-
-The browser converts each source file to mono 24 kHz signed 16-bit PCM and
-normalises it to about `-6 dBFS`. The local builder receives those processed
-WAVs, regenerates `VocalSamples.h`, runs the firmware build, and returns the
-finished UF2. The first build may take longer if the Pico SDK has to be fetched.
-
-The local build process replaces the four files in `samples/` and regenerates
-`VocalSamples.h` before compiling. Commit or copy any sample set you want to
-keep before running the builder with different sounds.
-
-The original included shouts are backed up in `factory-samples/`. After making
-a custom UF2, restore the factory samples and matching header with:
-
-```sh
-make restore-factory-samples
-```
-
-You can use a different local port if needed:
-
-```sh
-make webui WEB_PORT=9000
-```
-
-If you do not want to build a UF2 straight away, the page can also download
-processed WAVs or a replacement `VocalSamples.h`. The processed WAV download is
-useful if you want to audition or archive the exact card-ready files before
-building.
-
-### Command-Line Build
-
-For a command-line local build using the WAVs already in `samples/`, use:
-
-```sh
-make custom-uf2
-```
-
-That regenerates `VocalSamples.h`, configures/builds the Pico SDK project, and
-writes `uf2/punk_confusion_custom.uf2`. To build from a separate folder of
-card-ready WAVs, use:
-
-```sh
-python3 tools/build_custom_uf2.py --samples path/to/my-samples --clean
-```
-
-The sample folder must contain the four filenames listed above. From this card
-folder, CMake uses the local `ComputerCard.h` and will use a local Pico SDK if
-available, or fetch the SDK into the build directory.
+The web page converts source files to mono 24 kHz µ-law and shows how much of
+the sample bank they will use before upload. If the sounds are too large, the
+page will ask you to shorten them or use the 16 MB build. Factory fallback WAVs
+and `VocalSamples.h` are backed up in `factory-samples/` for maintainers.
 
 ## Jack Map
 
 | Jack | Role |
 |---|---|
 | `Audio In 1` | Broken Venue input |
-| `Audio In 2` | Experimental vocal slice/reverse CV |
+| `Audio In 2` | Beta vocal slice/reverse CV |
 | `CV In 1` | APC timing CV for `X` |
 | `CV In 2` | APC timing CV for `Y` |
 | `Pulse In 1` | APC hard gate when patched |
@@ -353,18 +210,31 @@ meter for the saved vocal-call trim.
 
 ## Building
 
-This release includes source, `CMakeLists.txt`, a local `ComputerCard.h`, the
-generated `VocalSamples.h`, and the source WAVs used to generate it.
+This release builds two beta firmware targets from the same source: one for
+standard 2 MB cards and one for 16 MB cards.
 
 ```sh
 cmake -S . -B build
 cmake --build build -j2
 ```
 
-The firmware uses `set_sys_clock_khz(192000, true)` and
-`PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64`. The build uses the default flash binary
-type rather than `copy_to_ram`, because the embedded vocal PCM is too large for
-a RAM-copy build.
+The generated UF2s are:
+
+- `build/punk_confusion_2mb.uf2`
+- `build/punk_confusion_16mb.uf2`
+
+The firmware uses `set_sys_clock_khz(192000, true)`,
+`PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64`, and the default flash binary type. The
+2 MB target reserves `1 MB` at the top of flash for user samples; the 16 MB
+target reserves `14 MB`.
+
+To run the WebSerial loader page locally:
+
+```sh
+make webui
+```
+
+Then open `http://127.0.0.1:8765/` in a Chromium-based browser.
 
 ## Credits
 

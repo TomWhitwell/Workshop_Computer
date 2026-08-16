@@ -3,98 +3,82 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Punk Confusion Sample Loader</title>
+  <title>Punk Confusion WebSerial Loader</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main class="shell">
     <section class="hero">
-      <p class="eyebrow">Punk Confusion workshop tool</p>
-      <h1>Roll your own shouts.</h1>
-      <p class="lede">
-        Drop four short vocal samples here. The browser converts them to the
-        card format and builds a replacement <code>VocalSamples.h</code>.
+      <p class="eyebrow">Beta</p>
+      <h1>Load shouts without rebuilding.</h1>
+      <p>
+        Hold the switch down while resetting Punk Confusion, connect to the
+        card, then send it four new shouts.
       </p>
     </section>
 
-    <section class="instructions" aria-label="How this works">
-      <div>
-        <strong>Target format</strong>
-        <span>24 kHz mono signed 16-bit PCM, normalised to about -6 dBFS.</span>
-      </div>
-      <div>
-        <strong>Firmware flow</strong>
-        <span>Run the local builder, drop samples, download the finished UF2.</span>
-      </div>
-      <div>
-        <strong>Keep it short</strong>
-        <span>The card targets 2 MB flash. Short shouts are the point.</span>
-      </div>
+    <section class="steps">
+      <div><strong>1</strong><span>Drop four short samples.</span></div>
+      <div><strong>2</strong><span>Hold switch down and reset the card.</span></div>
+      <div><strong>3</strong><span>LEDs 1, 3, and 5 stay lit: connect and send sounds.</span></div>
     </section>
 
-    <section class="slots" id="slots" aria-label="Sample slots"></section>
+    <section class="target">
+      <label for="buildSelect">Which card are you using?</label>
+      <select id="buildSelect">
+        <option value="2mb">Standard 2 MB card</option>
+        <option value="16mb">Large 16 MB card</option>
+      </select>
+      <p>
+        Choose the version of the Punk Confusion beta firmware you flashed. If
+        you are not sure, connect to the card and this page will try to choose
+        for you.
+      </p>
+    </section>
 
-    <section class="console">
-      <div class="meter-card">
-        <span>Total sample time</span>
-        <strong id="totalDuration">0.000 s</strong>
+    <section class="slots" id="slots"></section>
+
+    <section class="panel">
+      <div>
+        <span>Maximum sound space</span>
+        <strong id="bankLimit">1.00 MB</strong>
       </div>
-      <div class="meter-card">
-        <span>Estimated header size</span>
-        <strong id="headerSize">0 KB</strong>
+      <div>
+        <span>Your sounds use</span>
+        <strong id="payloadSize">0 KB</strong>
       </div>
-      <div class="meter-card size-warning" id="sizeWarning" aria-live="polite">
-        <span>Sample size check</span>
-        <strong id="sizeWarningTitle">Waiting for samples</strong>
-        <p id="sizeWarningText">Keep the estimated header under about 5 MB for a standard 2 MB card.</p>
+      <div>
+        <span>Estimated duration</span>
+        <strong id="duration">0.000 s</strong>
+      </div>
+      <div>
+        <span>Remaining space</span>
+        <strong id="remaining">1.00 MB</strong>
       </div>
       <div class="actions">
-        <button id="buildUf2" disabled>Build custom UF2</button>
-        <button id="downloadHeader" disabled>Download VocalSamples.h</button>
-        <button id="downloadWavs" disabled>Download processed WAVs</button>
-        <button id="clearAll" type="button">Clear</button>
+        <button id="connect">Connect card</button>
+        <button id="upload" disabled>Send sounds to card</button>
+        <button id="restore" disabled>Use built-in sounds again</button>
+        <button id="download" disabled>Save prepared sounds</button>
       </div>
     </section>
 
-    <section class="builder-status" aria-live="polite">
-      <h2>Local UF2 builder</h2>
-      <p id="builderMessage">
-        Start the local server with <code>python3 tools/web_uf2_server.py</code>,
-        then this button will build and download a complete custom UF2.
-      </p>
-    </section>
-
-    <section class="notes">
-      <h2>What gets generated?</h2>
-      <p>
-        The output header uses the same symbol names as the firmware:
-        <code>kVocalMarqueeOi</code>, <code>kVocalCbgbHeyHo</code>,
-        <code>kVocalClub100NoFuture</code>, and <code>kVocalWhiskyLetsGo</code>.
-        The browser converts the audio; the local Python backend runs CMake and
-        returns the finished UF2. If you are using this page without the backend,
-        you can still download the processed WAVs and run
-        <code>python3 tools/build_custom_uf2.py --samples that-folder --clean</code>.
-      </p>
+    <section class="log" aria-live="polite">
+      <h2>Status</h2>
+      <pre id="log">Waiting for samples.</pre>
     </section>
   </main>
 
   <template id="slotTemplate">
     <article class="slot">
-      <div class="slot-head">
-        <div>
-          <span class="venue"></span>
-          <h2></h2>
-        </div>
-        <span class="status">empty</span>
-      </div>
-      <label class="drop-zone">
+      <h2></h2>
+      <p class="venue"></p>
+      <label class="drop">
         <input type="file" accept="audio/*,.wav,.aif,.aiff">
-        <span class="drop-title">Choose or drop audio</span>
-        <span class="drop-hint">Short mono or stereo files are fine</span>
+        <span>Choose or drop audio</span>
       </label>
-      <div class="sample-info"></div>
+      <p class="info">Empty</p>
       <audio controls></audio>
-      <button class="download-wav" type="button" disabled>Download processed WAV</button>
     </article>
   </template>
 

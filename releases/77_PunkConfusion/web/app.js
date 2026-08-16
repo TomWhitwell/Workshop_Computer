@@ -1,65 +1,166 @@
 const TARGET_SAMPLE_RATE = 24000;
-const TARGET_PEAK = 10 ** (-6 / 20);
-const INT16_MAX = 32767;
-const TWO_MB_CARD_HEADER_LIMIT = 5 * 1024 * 1024;
-const SIXTEEN_MB_CARD_HEADER_LIMIT = 45 * 1024 * 1024;
+const BANK_MAGIC = 0x4b4e5550; // PUNK
+const BANK_VERSION = 1;
+const FORMAT_MULAW_8 = 1;
+const SAMPLE_COUNT = 4;
+const LOADER_MAGIC = 0x444c4350; // PCLD
+const RESTORE_MAGIC = 0x524c4350; // PCLR
+const HEADER_BYTES = 32 + SAMPLE_COUNT * 8;
 
-const sampleSlots = [
-  {
-    venue: "Marquee",
-    phrase: "Oi",
-    filename: "marquee_oi.wav",
-    symbol: "kVocalMarqueeOi",
-    label: "Marquee: Oi"
-  },
-  {
-    venue: "CBGB",
-    phrase: "Hey Ho",
-    filename: "cbgb_hey_ho.wav",
-    symbol: "kVocalCbgbHeyHo",
-    label: "CBGB: Hey Ho"
-  },
-  {
-    venue: "100 Club",
-    phrase: "No Future",
-    filename: "club100_no_future.wav",
-    symbol: "kVocalClub100NoFuture",
-    label: "100 Club: No Future"
-  },
-  {
-    venue: "Whisky a Go Go",
-    phrase: "Let's Go",
-    filename: "whisky_lets_go.wav",
-    symbol: "kVocalWhiskyLetsGo",
-    label: "Whisky a Go Go: Let's Go"
-  }
+const targets = {
+  "2mb": { label: "standard 2 MB card", flashBytes: 2 * 1024 * 1024, bankBytes: 1024 * 1024 },
+  "16mb": { label: "large 16 MB card", flashBytes: 16 * 1024 * 1024, bankBytes: 14 * 1024 * 1024 }
+};
+
+const slots = [
+  { venue: "Marquee", phrase: "Oi" },
+  { venue: "CBGB", phrase: "Hey Ho" },
+  { venue: "100 Club", phrase: "No Future" },
+  { venue: "Whisky a Go Go", phrase: "Let's Go" }
 ];
 
-const state = sampleSlots.map(() => null);
+const state = slots.map(() => null);
 const slotsEl = document.querySelector("#slots");
 const template = document.querySelector("#slotTemplate");
-const downloadHeaderButton = document.querySelector("#downloadHeader");
-const downloadWavsButton = document.querySelector("#downloadWavs");
-const buildUf2Button = document.querySelector("#buildUf2");
-const clearAllButton = document.querySelector("#clearAll");
-const totalDurationEl = document.querySelector("#totalDuration");
-const headerSizeEl = document.querySelector("#headerSize");
-const sizeWarningEl = document.querySelector("#sizeWarning");
-const sizeWarningTitleEl = document.querySelector("#sizeWarningTitle");
-const sizeWarningTextEl = document.querySelector("#sizeWarningText");
-const builderMessageEl = document.querySelector("#builderMessage");
+const connectButton = document.querySelector("#connect");
+const uploadButton = document.querySelector("#upload");
+const restoreButton = document.querySelector("#restore");
+const downloadButton = document.querySelector("#download");
+const buildSelect = document.querySelector("#buildSelect");
+const bankLimitEl = document.querySelector("#bankLimit");
+const payloadSizeEl = document.querySelector("#payloadSize");
+const durationEl = document.querySelector("#duration");
+const remainingEl = document.querySelector("#remaining");
+const logEl = document.querySelector("#log");
 
 let audioContext;
+let port;
+let serialText = "";
 
-function getAudioContext() {
-  audioContext ||= new AudioContext();
-  return audioContext;
+function log(message) {
+  serialText = message;
+  logEl.textContent = serialText;
+}
+
+function appendLog(message) {
+  serialText = `${serialText}${serialText ? "\n" : ""}${message}`.slice(-3000);
+  logEl.textContent = serialText;
 }
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function getAudioContext() {
+  audioContext ||= new AudioContext();
+  return audioContext;
+}
+
+async function decodeAudio(file) {
+  return getAudioContext().decodeAudioData(await file.arrayBuffer());
+}
+
+async function resampleMono(buffer) {
+  const frameCount = Math.max(1, Math.ceil(buffer.duration * TARGET_SAMPLE_RATE));
+  const offline = new OfflineAudioContext(1, frameCount, TARGET_SAMPLE_RATE);
+  const source = offline.createBufferSource();
+  const gain = offline.createGain();
+  source.buffer = buffer;
+  gain.gain.value = 1 / Math.max(1, buffer.numberOfChannels);
+  source.connect(gain);
+  gain.connect(offline.destination);
+  source.start();
+  return (await offline.startRendering()).getChannelData(0);
+}
+
+function linearToMuLaw(sample) {
+  const clipped = Math.max(-1, Math.min(1, sample));
+  const sign = clipped < 0 ? 0x80 : 0;
+  let magnitude = Math.round(Math.abs(clipped) * 32767);
+  magnitude = Math.min(32635, magnitude + 0x84);
+
+  let exponent = 7;
+  for (let mask = 0x4000; exponent > 0 && (magnitude & mask) === 0; exponent--, mask >>= 1) {}
+
+  const mantissa = (magnitude >> (exponent + 3)) & 0x0f;
+  return ~(sign | (exponent << 4) | mantissa) & 0xff;
+}
+
+function normalise(samples) {
+  let peak = 0;
+  for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+  const gain = peak > 0 ? (10 ** (-6 / 20)) / peak : 1;
+  const encoded = new Uint8Array(samples.length);
+  for (let i = 0; i < samples.length; i++) encoded[i] = linearToMuLaw(samples[i] * gain);
+  return { encoded, gain, peak };
+}
+
+function writeU32(view, offset, value) {
+  view.setUint32(offset, value >>> 0, true);
+}
+
+function checksum(bytes) {
+  let sum = 2166136261;
+  for (const byte of bytes) {
+    sum ^= byte;
+    sum = Math.imul(sum, 16777619) >>> 0;
+  }
+  return sum >>> 0;
+}
+
+function selectedTarget() {
+  return targets[buildSelect.value] || targets["2mb"];
+}
+
+function buildBank() {
+  if (state.some((item) => !item)) return null;
+
+  const payloadBytes = state.reduce((sum, item) => sum + item.encoded.length, 0);
+  const totalBytes = HEADER_BYTES + payloadBytes;
+  const target = selectedTarget();
+  if (totalBytes > target.bankBytes) {
+    throw new Error(`These sounds need more room than the ${target.label} can use here. Shorten the audio or choose the 16 MB build.`);
+  }
+
+  const bank = new Uint8Array(totalBytes);
+  const view = new DataView(bank.buffer);
+  writeU32(view, 0, BANK_MAGIC);
+  writeU32(view, 4, BANK_VERSION);
+  writeU32(view, 8, FORMAT_MULAW_8);
+  writeU32(view, 12, TARGET_SAMPLE_RATE);
+  writeU32(view, 16, SAMPLE_COUNT);
+  writeU32(view, 20, payloadBytes);
+  writeU32(view, 24, checksum(new Uint8Array(bank.buffer, HEADER_BYTES, payloadBytes)));
+  writeU32(view, 28, 0);
+
+  let payloadOffset = 0;
+  for (let i = 0; i < SAMPLE_COUNT; i++) {
+    writeU32(view, 32 + i * 8, payloadOffset);
+    writeU32(view, 36 + i * 8, state[i].encoded.length);
+    bank.set(state[i].encoded, HEADER_BYTES + payloadOffset);
+    payloadOffset += state[i].encoded.length;
+  }
+
+  writeU32(view, 24, checksum(bank.slice(HEADER_BYTES)));
+  return bank;
+}
+
+function updateSummary() {
+  const ready = state.filter(Boolean);
+  const payloadBytes = ready.reduce((sum, item) => sum + item.encoded.length, 0);
+  const totalBytes = HEADER_BYTES + payloadBytes;
+  const duration = ready.reduce((sum, item) => sum + item.encoded.length / TARGET_SAMPLE_RATE, 0);
+  const target = selectedTarget();
+  const remaining = Math.max(0, target.bankBytes - totalBytes);
+  bankLimitEl.textContent = formatBytes(target.bankBytes);
+  payloadSizeEl.textContent = formatBytes(payloadBytes);
+  durationEl.textContent = `${duration.toFixed(3)} s`;
+  remainingEl.textContent = formatBytes(remaining);
+  uploadButton.disabled = ready.length !== SAMPLE_COUNT || !port || totalBytes > target.bankBytes;
+  restoreButton.disabled = !port;
+  downloadButton.disabled = ready.length !== SAMPLE_COUNT || totalBytes > target.bankBytes;
 }
 
 function downloadBlob(blob, filename) {
@@ -73,314 +174,141 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-  }
-  return btoa(binary);
-}
+async function handleFile(index, file, node) {
+  const info = node.querySelector(".info");
+  const audio = node.querySelector("audio");
+  info.textContent = "Decoding...";
 
-async function decodeAudioFile(file) {
-  const arrayBuffer = await file.arrayBuffer();
-  return getAudioContext().decodeAudioData(arrayBuffer);
-}
+  const decoded = await decodeAudio(file);
+  const mono = await resampleMono(decoded);
+  const { encoded, gain, peak } = normalise(mono);
+  state[index] = { encoded, sourceName: file.name };
 
-async function resampleToMono(audioBuffer) {
-  const frameCount = Math.max(1, Math.ceil(audioBuffer.duration * TARGET_SAMPLE_RATE));
-  const offline = new OfflineAudioContext(1, frameCount, TARGET_SAMPLE_RATE);
-  const source = offline.createBufferSource();
-  source.buffer = audioBuffer;
-
-  const merger = offline.createGain();
-  merger.gain.value = 1 / Math.max(1, audioBuffer.numberOfChannels);
-  source.connect(merger);
-  merger.connect(offline.destination);
-  source.start();
-
-  const rendered = await offline.startRendering();
-  return rendered.getChannelData(0);
-}
-
-function normaliseAndConvert(floatSamples) {
-  let peak = 0;
-  for (const sample of floatSamples) {
-    const abs = Math.abs(sample);
-    if (abs > peak) peak = abs;
-  }
-
-  const gain = peak > 0 ? TARGET_PEAK / peak : 1;
-  const intSamples = new Int16Array(floatSamples.length);
-
-  for (let index = 0; index < floatSamples.length; index++) {
-    const clamped = Math.max(-1, Math.min(1, floatSamples[index] * gain));
-    intSamples[index] = Math.round(clamped * INT16_MAX);
-  }
-
-  return { intSamples, sourcePeak: peak, gain };
-}
-
-function writeAscii(view, offset, text) {
-  for (let index = 0; index < text.length; index++) {
-    view.setUint8(offset + index, text.charCodeAt(index));
-  }
-}
-
-function encodeWav(intSamples) {
-  const byteLength = 44 + intSamples.length * 2;
-  const buffer = new ArrayBuffer(byteLength);
-  const view = new DataView(buffer);
-
-  writeAscii(view, 0, "RIFF");
-  view.setUint32(4, byteLength - 8, true);
-  writeAscii(view, 8, "WAVE");
-  writeAscii(view, 12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, TARGET_SAMPLE_RATE, true);
-  view.setUint32(28, TARGET_SAMPLE_RATE * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeAscii(view, 36, "data");
-  view.setUint32(40, intSamples.length * 2, true);
-
-  let offset = 44;
-  for (const sample of intSamples) {
-    view.setInt16(offset, sample, true);
-    offset += 2;
-  }
-
-  return new Blob([buffer], { type: "audio/wav" });
-}
-
-function emitArray(slot, intSamples) {
-  const seconds = intSamples.length / TARGET_SAMPLE_RATE;
-  const lines = [
-    `// ${slot.label}, ${seconds.toFixed(3)} seconds.`,
-    `constexpr int16_t ${slot.symbol}[] = {`
-  ];
-
-  for (let offset = 0; offset < intSamples.length; offset += 12) {
-    const chunk = Array.from(intSamples.slice(offset, offset + 12)).join(", ");
-    lines.push(`    ${chunk},`);
-  }
-
-  lines.push("};", "");
-  return lines.join("\n");
-}
-
-function generateHeader() {
-  const body = [
-    "#ifndef PUNK_CONFUSION_VOCAL_SAMPLES_H",
-    "#define PUNK_CONFUSION_VOCAL_SAMPLES_H",
-    "",
-    "#include <cstdint>",
-    "",
-    "// Generated with web/index.html.",
-    "// Format: 24 kHz mono signed 16-bit PCM, peak-normalised to about -6 dBFS.",
-    ""
-  ];
-
-  sampleSlots.forEach((slot, index) => {
-    body.push(emitArray(slot, state[index].intSamples));
-  });
-
-  body.push("#endif // PUNK_CONFUSION_VOCAL_SAMPLES_H", "");
-  return body.join("\n");
-}
-
-function updateSummary() {
-  const ready = state.filter(Boolean);
-  const duration = ready.reduce((sum, item) => sum + item.intSamples.length / TARGET_SAMPLE_RATE, 0);
-  const header = ready.length === sampleSlots.length ? generateHeader() : "";
-  const headerBytes = header ? new TextEncoder().encode(header).length : 0;
-  totalDurationEl.textContent = `${duration.toFixed(3)} s`;
-  headerSizeEl.textContent = header ? formatBytes(headerBytes) : "0 KB";
-  updateSizeWarning(ready.length, headerBytes);
-  buildUf2Button.disabled = ready.length !== sampleSlots.length;
-  downloadHeaderButton.disabled = ready.length !== sampleSlots.length;
-  downloadWavsButton.disabled = ready.length !== sampleSlots.length;
-}
-
-function updateSizeWarning(readyCount, headerBytes) {
-  sizeWarningEl.classList.remove("ok", "warning", "danger");
-
-  if (readyCount !== sampleSlots.length) {
-    sizeWarningTitleEl.textContent = "Waiting for samples";
-    sizeWarningTextEl.textContent = "Add all four shouts to estimate whether the build should fit.";
-    return;
-  }
-
-  if (headerBytes > SIXTEEN_MB_CARD_HEADER_LIMIT) {
-    sizeWarningEl.classList.add("danger");
-    sizeWarningTitleEl.textContent = "Too large";
-    sizeWarningTextEl.textContent = "This is over the suggested 16 MB-card limit. Shorten the samples before building.";
-    return;
-  }
-
-  if (headerBytes > TWO_MB_CARD_HEADER_LIMIT) {
-    sizeWarningEl.classList.add("warning");
-    sizeWarningTitleEl.textContent = "Large for 2 MB cards";
-    sizeWarningTextEl.textContent = "This may be too large for a standard 2 MB card. Use shorter samples, or build for a 16 MB card.";
-    return;
-  }
-
-  sizeWarningEl.classList.add("ok");
-  sizeWarningTitleEl.textContent = "Good for 2 MB cards";
-  sizeWarningTextEl.textContent = "This is under the suggested 2 MB-card header-size limit.";
+  const preview = new Blob([await file.arrayBuffer()], { type: file.type || "audio/*" });
+  audio.src = URL.createObjectURL(preview);
+  info.innerHTML = `${file.name}<br>${(encoded.length / TARGET_SAMPLE_RATE).toFixed(3)} s, ${formatBytes(encoded.length)} µ-law<br>source peak ${(peak * 100).toFixed(1)}%, gain ${gain.toFixed(2)}x`;
+  updateSummary();
 }
 
 function renderSlot(index) {
-  const slot = sampleSlots[index];
   const node = template.content.firstElementChild.cloneNode(true);
   const input = node.querySelector("input");
-  const dropZone = node.querySelector(".drop-zone");
-  const status = node.querySelector(".status");
-  const info = node.querySelector(".sample-info");
-  const audio = node.querySelector("audio");
-  const downloadWavButton = node.querySelector(".download-wav");
-
-  node.querySelector(".venue").textContent = slot.venue;
-  node.querySelector("h2").textContent = slot.phrase;
-
-  async function handleFile(file) {
-    status.textContent = "working";
-    status.classList.remove("ready");
-    info.textContent = "Decoding and converting...";
-    downloadWavButton.disabled = true;
-
-    try {
-      const decoded = await decodeAudioFile(file);
-      const mono = await resampleToMono(decoded);
-      const { intSamples, sourcePeak, gain } = normaliseAndConvert(mono);
-      const wavBlob = encodeWav(intSamples);
-      const objectUrl = URL.createObjectURL(wavBlob);
-
-      if (state[index]?.objectUrl) URL.revokeObjectURL(state[index].objectUrl);
-      state[index] = {
-        intSamples,
-        wavBlob,
-        objectUrl,
-        sourceName: file.name,
-        sourcePeak,
-        gain
-      };
-
-      audio.src = objectUrl;
-      status.textContent = "ready";
-      status.classList.add("ready");
-      info.innerHTML = [
-        `<strong>${file.name}</strong>`,
-        `${(intSamples.length / TARGET_SAMPLE_RATE).toFixed(3)} s at 24 kHz`,
-        `source peak ${(sourcePeak * 100).toFixed(1)}%, gain ${gain.toFixed(2)}x`
-      ].join("<br>");
-      downloadWavButton.disabled = false;
-    } catch (error) {
-      console.error(error);
-      status.textContent = "error";
-      status.classList.remove("ready");
-      info.textContent = error.message || "Could not decode this file.";
-      state[index] = null;
-      audio.removeAttribute("src");
-    }
-
-    updateSummary();
-  }
+  const drop = node.querySelector(".drop");
+  node.querySelector("h2").textContent = slots[index].phrase;
+  node.querySelector(".venue").textContent = slots[index].venue;
 
   input.addEventListener("change", () => {
-    const file = input.files?.[0];
-    if (file) handleFile(file);
+    if (input.files?.[0]) handleFile(index, input.files[0], node);
   });
 
-  ["dragenter", "dragover"].forEach((eventName) => {
-    dropZone.addEventListener(eventName, (event) => {
+  ["dragenter", "dragover"].forEach((name) => {
+    drop.addEventListener(name, (event) => {
       event.preventDefault();
-      dropZone.classList.add("dragover");
+      drop.classList.add("dragover");
     });
   });
 
-  ["dragleave", "drop"].forEach((eventName) => {
-    dropZone.addEventListener(eventName, (event) => {
+  ["dragleave", "drop"].forEach((name) => {
+    drop.addEventListener(name, (event) => {
       event.preventDefault();
-      dropZone.classList.remove("dragover");
+      drop.classList.remove("dragover");
     });
   });
 
-  dropZone.addEventListener("drop", (event) => {
+  drop.addEventListener("drop", (event) => {
     const file = event.dataTransfer?.files?.[0];
-    if (file) handleFile(file);
-  });
-
-  downloadWavButton.addEventListener("click", () => {
-    const item = state[index];
-    if (item) downloadBlob(item.wavBlob, slot.filename);
+    if (file) handleFile(index, file, node);
   });
 
   return node;
 }
 
-sampleSlots.forEach((_, index) => {
-  slotsEl.append(renderSlot(index));
+function matchTargetFromBankSize(bankBytes) {
+  for (const [key, target] of Object.entries(targets)) {
+    if (target.bankBytes === bankBytes) return key;
+  }
+  return null;
+}
+
+connectButton.addEventListener("click", async () => {
+  if (!("serial" in navigator)) {
+    log("This browser cannot talk to the card. Use Chrome or Edge.");
+    return;
+  }
+
+  port = await navigator.serial.requestPort();
+  await port.open({ baudRate: 115200 });
+  log("Connected. If LEDs 1, 3, and 5 are lit, you can send sounds now.");
+  readSerial(port);
+  updateSummary();
 });
 
-downloadHeaderButton.addEventListener("click", () => {
-  const header = generateHeader();
-  downloadBlob(new Blob([header], { type: "text/x-c++hdr" }), "VocalSamples.h");
-});
+buildSelect.addEventListener("change", updateSummary);
 
-downloadWavsButton.addEventListener("click", () => {
-  state.forEach((item, index) => {
-    if (!item) return;
-    setTimeout(() => {
-      downloadBlob(item.wavBlob, sampleSlots[index].filename);
-    }, index * 180);
-  });
-});
-
-buildUf2Button.addEventListener("click", async () => {
-  const ready = state.filter(Boolean);
-  if (ready.length !== sampleSlots.length) return;
-
-  buildUf2Button.disabled = true;
-  builderMessageEl.textContent = "Building UF2 locally. This can take a minute or two...";
-
-  try {
-    const samples = await Promise.all(
-      sampleSlots.map(async (slot, index) => ({
-        filename: slot.filename,
-        data: arrayBufferToBase64(await state[index].wavBlob.arrayBuffer())
-      }))
-    );
-
-    const response = await fetch("/api/build", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ samples })
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `Build failed with HTTP ${response.status}`);
+async function readSerial(serialPort) {
+  const decoder = new TextDecoder();
+  while (serialPort.readable) {
+    const reader = serialPort.readable.getReader();
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) {
+          const text = decoder.decode(value, { stream: true }).trimEnd();
+          appendLog(text);
+          const match = text.match(/SAMPLE_BANK_BYTES\s+(\d+)/);
+          if (match) {
+            const targetKey = matchTargetFromBankSize(Number(match[1]));
+            if (targetKey) {
+              buildSelect.value = targetKey;
+              updateSummary();
+            }
+          }
+        }
+      }
+    } catch (error) {
+      appendLog(error.message || String(error));
+    } finally {
+      reader.releaseLock();
     }
+  }
+}
 
-    const uf2 = await response.blob();
-    downloadBlob(uf2, "punk_confusion_custom.uf2");
-    builderMessageEl.textContent = "Built punk_confusion_custom.uf2. Flash it to test your shouts.";
+uploadButton.addEventListener("click", async () => {
+  try {
+    const bank = buildBank();
+    const packet = new Uint8Array(8 + bank.length);
+    const view = new DataView(packet.buffer);
+    writeU32(view, 0, LOADER_MAGIC);
+    writeU32(view, 4, bank.length);
+    packet.set(bank, 8);
+
+    const writer = port.writable.getWriter();
+    await writer.write(packet);
+    writer.releaseLock();
+    appendLog(`Sent ${formatBytes(packet.length)} to the card. Wait for OK DONE, then restart the card.`);
   } catch (error) {
-    console.error(error);
-    builderMessageEl.textContent = error.message || "Build failed.";
-  } finally {
-    buildUf2Button.disabled = state.filter(Boolean).length !== sampleSlots.length;
+    appendLog(error.message || String(error));
   }
 });
 
-clearAllButton.addEventListener("click", () => {
-  state.forEach((item) => {
-    if (item?.objectUrl) URL.revokeObjectURL(item.objectUrl);
-  });
-  window.location.reload();
+restoreButton.addEventListener("click", async () => {
+  try {
+    const packet = new Uint8Array(4);
+    writeU32(new DataView(packet.buffer), 0, RESTORE_MAGIC);
+    const writer = port.writable.getWriter();
+    await writer.write(packet);
+    writer.releaseLock();
+    appendLog("Built-in sounds command sent. Wait for OK FACTORY_DONE, then restart the card.");
+  } catch (error) {
+    appendLog(error.message || String(error));
+  }
 });
 
+downloadButton.addEventListener("click", () => {
+  const bank = buildBank();
+  downloadBlob(new Blob([bank], { type: "application/octet-stream" }), "punk_confusion_samples.pbank");
+});
+
+slots.forEach((_, index) => slotsEl.append(renderSlot(index)));
 updateSummary();

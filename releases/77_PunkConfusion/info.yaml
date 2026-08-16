@@ -13,16 +13,18 @@ summary: |
   chain.
 Language: C++ (Pico SDK / ComputerCard)
 Creator: Adrian Vos
-Version: "1.0.0"
+Version: "1.0.0-beta"
 Status: Beta fully tested on one device
 License: MIT
 date-created: 2026-08-10
-date-updated: 2026-08-13
+date-updated: 2026-08-16
 Repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/77_PunkConfusion
 
 uf2:
-  - path: uf2/punk_confusion.uf2
-    name: Punk Confusion
+  - path: uf2/punk_confusion_2mb.uf2
+    name: Punk Confusion Beta (2 MB)
+  - path: uf2/punk_confusion_16mb.uf2
+    name: Punk Confusion Beta (16 MB)
 
 tags:
   - synth
@@ -41,7 +43,7 @@ panel:
     - id: AudioIn2
       name: Vocal Slice CV
       type: audio
-      description: Experimental input. When patched, positive voltage selects a later vocal start slice; negative voltage selects a slice and reverses playback.
+      description: Beta input. When patched, positive voltage selects a later vocal start slice; negative voltage selects a slice and reverses playback.
     - id: CVIn1
       name: APC CV 1
       type: cv
@@ -94,7 +96,7 @@ controls:
       description: Fixed 50% dry/wet dirty room / PA treatment for external audio at Audio In 1.
     down:
       name: Vocal Stab
-      description: Hold down to gate the current venue's embedded vocal call through the Broken Venue chain and edit vocal-call trim with Main.
+      description: Hold down to gate the current venue's vocal call through the Broken Venue chain and edit vocal-call trim with Main.
   knobs:
     - when: { z: up }
       main:
@@ -119,7 +121,7 @@ controls:
     - when: { z: down }
       main:
         name: Vocal Trim
-        description: Soft-pickup trim for the embedded vocal calls, scaled by the saved Broken Venue input gain.
+        description: Soft-pickup trim for the vocal calls, scaled by the saved Broken Venue input gain.
       x:
         name: Room
         description: "Selects the venue call and room engine: Marquee, CBGB, the 100 Club, then the Whisky a Go Go."

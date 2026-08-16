@@ -5,9 +5,13 @@
 // ComputerCard credit:
 //   Chris Johnson, version 0.3.0 (12 May 2026), MIT licensed.
 #include "ComputerCard.h"
+#include "SampleBank.h"
 #include "VocalSamples.h"
 #include "pico/stdlib.h"
+#include "pico/stdio_usb.h"
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 
 namespace
 {
@@ -92,6 +96,7 @@ static inline int32_t Clamp4095(int32_t value)
 struct SampleVoice
 {
     const int16_t *data = nullptr;
+    const uint8_t *muLawData = nullptr;
     uint32_t length = 0;
     uint32_t phase = 0; // 24.8 fixed-point sample position.
     uint32_t step = 256;
@@ -100,6 +105,7 @@ struct SampleVoice
     int32_t level = 0;
     bool active = false;
     bool reverse = false;
+    bool muLaw = false;
 };
 
 struct DelayLine
@@ -126,10 +132,26 @@ class PunkConfusion : public ComputerCard
 public:
     PunkConfusion()
     {
-        sampleBank_[VenueMarquee] = {kVocalMarqueeOi, static_cast<uint32_t>(sizeof(kVocalMarqueeOi) / sizeof(kVocalMarqueeOi[0]))};
-        sampleBank_[VenueCBGB] = {kVocalCbgbHeyHo, static_cast<uint32_t>(sizeof(kVocalCbgbHeyHo) / sizeof(kVocalCbgbHeyHo[0]))};
-        sampleBank_[VenueClub100] = {kVocalClub100NoFuture, static_cast<uint32_t>(sizeof(kVocalClub100NoFuture) / sizeof(kVocalClub100NoFuture[0]))};
-        sampleBank_[VenueWhisky] = {kVocalWhiskyLetsGo, static_cast<uint32_t>(sizeof(kVocalWhiskyLetsGo) / sizeof(kVocalWhiskyLetsGo[0]))};
+        sampleBank_[VenueMarquee] = {kVocalMarqueeOi, nullptr, static_cast<uint32_t>(sizeof(kVocalMarqueeOi) / sizeof(kVocalMarqueeOi[0])), false};
+        sampleBank_[VenueCBGB] = {kVocalCbgbHeyHo, nullptr, static_cast<uint32_t>(sizeof(kVocalCbgbHeyHo) / sizeof(kVocalCbgbHeyHo[0])), false};
+        sampleBank_[VenueClub100] = {kVocalClub100NoFuture, nullptr, static_cast<uint32_t>(sizeof(kVocalClub100NoFuture) / sizeof(kVocalClub100NoFuture[0])), false};
+        sampleBank_[VenueWhisky] = {kVocalWhiskyLetsGo, nullptr, static_cast<uint32_t>(sizeof(kVocalWhiskyLetsGo) / sizeof(kVocalWhiskyLetsGo[0])), false};
+        LoadUploadedSampleBank();
+    }
+
+    void ShowLoaderEntryLeds()
+    {
+        for (uint32_t blink = 0; blink < 3; ++blink)
+        {
+            for (uint32_t i = 0; i < 6; ++i) LedOn(i, true);
+            sleep_ms(110);
+            for (uint32_t i = 0; i < 6; ++i) LedOff(i);
+            sleep_ms(110);
+        }
+
+        LedOn(0, true);
+        LedOn(2, true);
+        LedOn(4, true);
     }
 
     void ProcessSample() override
@@ -195,11 +217,14 @@ private:
     struct SampleDef
     {
         const int16_t *data;
+        const uint8_t *muLawData = nullptr;
         uint32_t length;
+        bool muLaw = false;
     };
 
     DelayLine venueDelay_{};
     SampleDef sampleBank_[4]{};
+    PunkSampleBank::LoadedBank uploadedBank_{};
     SampleVoice voice_{};
 
     uint32_t rngState_ = 0x13579BDFu;
@@ -230,6 +255,26 @@ private:
     {
         rngState_ = rngState_ * 1664525u + 1013904223u;
         return rngState_;
+    }
+
+    void LoadUploadedSampleBank()
+    {
+        uploadedBank_ = PunkSampleBank::load();
+        if (!uploadedBank_.valid)
+        {
+            return;
+        }
+
+        sampleBank_[VenueMarquee] = UploadedSample(0);
+        sampleBank_[VenueCBGB] = UploadedSample(1);
+        sampleBank_[VenueClub100] = UploadedSample(2);
+        sampleBank_[VenueWhisky] = UploadedSample(3);
+    }
+
+    SampleDef UploadedSample(uint32_t index) const
+    {
+        const PunkSampleBank::SampleInfo &info = uploadedBank_.header->samples[index];
+        return {nullptr, uploadedBank_.payload + info.offset, info.length, true};
     }
 
     void UpdateSoftPickup(
@@ -378,7 +423,7 @@ private:
 
     int32_t ReadSampleVoice()
     {
-        if (!voice_.active || voice_.data == nullptr || voice_.length == 0)
+        if (!voice_.active || (!voice_.data && !voice_.muLawData) || voice_.length == 0)
         {
             return 0;
         }
@@ -393,8 +438,12 @@ private:
         const uint32_t nextIndex = voice_.reverse
             ? (index > 0 ? index - 1 : index)
             : ((index + 1 < voice_.length) ? index + 1 : index);
-        const int32_t a = voice_.data[index];
-        const int32_t b = voice_.data[nextIndex];
+        const int32_t a = voice_.muLaw
+            ? static_cast<int32_t>(PunkSampleBank::decodeMuLaw(voice_.muLawData[index]))
+            : voice_.data[index];
+        const int32_t b = voice_.muLaw
+            ? static_cast<int32_t>(PunkSampleBank::decodeMuLaw(voice_.muLawData[nextIndex]))
+            : voice_.data[nextIndex];
         const int32_t frac = static_cast<int32_t>(voice_.phase & 0xFFu);
         const int32_t sample = ((a * (256 - frac)) + (b * frac)) >> 8;
         const uint32_t remaining = voice_.reverse ? index + 1 : voice_.length - index;
@@ -452,6 +501,7 @@ private:
         }
 
         voice_.data = choice.data;
+        voice_.muLawData = choice.muLawData;
         voice_.length = choice.length;
         voice_.phase = startIndex << 8;
         voice_.step = 128; // 24 kHz sample data played at the 48 kHz audio rate.
@@ -459,6 +509,7 @@ private:
         voice_.fadeSamples = 96; // about 4 ms at the source sample rate.
         voice_.level = 1536;
         voice_.reverse = reverse;
+        voice_.muLaw = choice.muLaw;
         voice_.active = true;
     }
 
@@ -617,6 +668,234 @@ private:
         if (apcTriggerLedCounter_ > 0) apcTriggerLedCounter_--;
     }
 };
+
+int ReadByteBlocking()
+{
+    int c = getchar_timeout_us(0);
+    while (c < 0)
+    {
+        tight_loop_contents();
+        c = getchar_timeout_us(1000);
+    }
+    return c;
+}
+
+uint32_t ReadU32Blocking()
+{
+    uint8_t bytes[4] = {};
+    for (uint32_t i = 0; i < 4; ++i)
+    {
+        bytes[i] = static_cast<uint8_t>(ReadByteBlocking());
+    }
+    return static_cast<uint32_t>(bytes[0])
+        | (static_cast<uint32_t>(bytes[1]) << 8)
+        | (static_cast<uint32_t>(bytes[2]) << 16)
+        | (static_cast<uint32_t>(bytes[3]) << 24);
+}
+
+constexpr uint32_t kLoaderCommandUpload = 0x444C4350u; // "PCLD" little-endian.
+constexpr uint32_t kLoaderCommandClear = 0x524C4350u;  // "PCLR" little-endian.
+
+uint32_t WaitForLoaderCommand()
+{
+    uint8_t window[4] = {};
+    uint32_t count = 0;
+
+    while (true)
+    {
+        const int c = getchar_timeout_us(1000);
+        if (c < 0)
+        {
+            tight_loop_contents();
+            continue;
+        }
+
+        window[count & 0x03u] = static_cast<uint8_t>(c);
+        count++;
+        if (count < 4)
+        {
+            continue;
+        }
+
+        const uint32_t start = count & 0x03u;
+        const uint32_t command = static_cast<uint32_t>(window[start])
+            | (static_cast<uint32_t>(window[(start + 1) & 0x03u]) << 8)
+            | (static_cast<uint32_t>(window[(start + 2) & 0x03u]) << 16)
+            | (static_cast<uint32_t>(window[(start + 3) & 0x03u]) << 24);
+
+        if (command == kLoaderCommandUpload || command == kLoaderCommandClear)
+        {
+            return command;
+        }
+    }
+}
+
+bool ValidateBankHeader(const PunkSampleBank::Header &header, uint32_t length)
+{
+    if (length != sizeof(PunkSampleBank::Header) + header.payloadBytes)
+    {
+        return false;
+    }
+    if (header.magic != PunkSampleBank::kMagic
+        || header.version != PunkSampleBank::kVersion
+        || header.format != PunkSampleBank::kFormatMuLaw8
+        || header.sampleRate != PunkSampleBank::kSampleRate
+        || header.sampleCount != PunkSampleBank::kSampleCount
+        || header.payloadBytes > PunkSampleBank::kMaxPayloadBytes)
+    {
+        return false;
+    }
+
+    for (uint32_t i = 0; i < PunkSampleBank::kSampleCount; ++i)
+    {
+        const uint32_t end = header.samples[i].offset + header.samples[i].length;
+        if (end < header.samples[i].offset || end > header.payloadBytes)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool ReceiveAndProgramBank(uint32_t length)
+{
+    if (length < sizeof(PunkSampleBank::Header) || length > PunkSampleBank::kBankSize)
+    {
+        printf("ERR BAD_LENGTH\n");
+        return false;
+    }
+
+    PunkSampleBank::Header header{};
+    auto *headerBytes = reinterpret_cast<uint8_t *>(&header);
+    for (uint32_t i = 0; i < sizeof(header); ++i)
+    {
+        headerBytes[i] = static_cast<uint8_t>(ReadByteBlocking());
+    }
+
+    if (!ValidateBankHeader(header, length))
+    {
+        const uint32_t discard = length - sizeof(header);
+        for (uint32_t i = 0; i < discard; ++i)
+        {
+            ReadByteBlocking();
+        }
+        printf("ERR INVALID_HEADER\n");
+        return false;
+    }
+
+    printf("OK WRITING\n");
+
+    static uint8_t page[FLASH_PAGE_SIZE] __attribute__((aligned(FLASH_PAGE_SIZE)));
+    memset(page, 0xFF, sizeof(page));
+    uint32_t pageFill = 0;
+    uint32_t flashOffset = 0;
+    uint32_t checksum = 2166136261u;
+
+    auto programPage = [&]() {
+        const uint32_t ints = save_and_disable_interrupts();
+        flash_range_program(PunkSampleBank::kBankOffset + flashOffset, page, FLASH_PAGE_SIZE);
+        restore_interrupts(ints);
+        flashOffset += FLASH_PAGE_SIZE;
+        pageFill = 0;
+        memset(page, 0xFF, sizeof(page));
+    };
+
+    const uint32_t ints = save_and_disable_interrupts();
+    flash_range_erase(PunkSampleBank::kBankOffset, PunkSampleBank::kBankSize);
+    restore_interrupts(ints);
+
+    for (uint32_t i = 0; i < sizeof(header); ++i)
+    {
+        page[pageFill++] = headerBytes[i];
+        if (pageFill == FLASH_PAGE_SIZE) programPage();
+    }
+
+    for (uint32_t i = 0; i < header.payloadBytes; ++i)
+    {
+        const uint8_t byte = static_cast<uint8_t>(ReadByteBlocking());
+        checksum ^= byte;
+        checksum *= 16777619u;
+        page[pageFill++] = byte;
+        if (pageFill == FLASH_PAGE_SIZE) programPage();
+    }
+
+    if (pageFill > 0)
+    {
+        programPage();
+    }
+
+    if (checksum != header.checksum)
+    {
+        printf("ERR CHECKSUM\n");
+        return false;
+    }
+
+    printf("OK DONE\n");
+    return true;
+}
+
+void ClearUploadedBank()
+{
+    printf("OK RESTORE_FACTORY\n");
+    const uint32_t ints = save_and_disable_interrupts();
+    flash_range_erase(PunkSampleBank::kBankOffset, FLASH_SECTOR_SIZE);
+    restore_interrupts(ints);
+    printf("OK FACTORY_DONE\n");
+}
+
+void RunWebSerialLoader()
+{
+    stdio_usb_init();
+    sleep_ms(1200);
+    printf("PUNKCONF LOADER READY\n");
+    printf("FLASH_BYTES %lu\n", static_cast<unsigned long>(PICO_FLASH_SIZE_BYTES));
+    printf("SAMPLE_BANK_BYTES %lu\n", static_cast<unsigned long>(PunkSampleBank::kBankSize));
+    printf("Send PCLD plus length/bank image, or PCLR to restore factory samples.\n");
+
+    while (true)
+    {
+        const uint32_t command = WaitForLoaderCommand();
+        if (command == kLoaderCommandClear)
+        {
+            ClearUploadedBank();
+            printf("Restart the card to use factory samples, or send PCLD for an upload.\n");
+            continue;
+        }
+
+        const uint32_t length = ReadU32Blocking();
+        if (length == 0 || length > PunkSampleBank::kBankSize)
+        {
+            printf("ERR BAD_LENGTH\n");
+            continue;
+        }
+
+        printf("OK SEND %lu\n", static_cast<unsigned long>(length));
+        ReceiveAndProgramBank(length);
+        printf("Send PCLD for another upload or restart the card.\n");
+    }
+}
+
+bool BootSwitchHeldDown()
+{
+    // The three-position switch is on mux position 3 of ADC2, sharing the same
+    // path ComputerCard later uses for KnobVal(3). Sample it once before audio
+    // starts so the WebSerial loader has a deliberate hardware gesture.
+    gpio_put(MX_A, true);
+    gpio_put(MX_B, true);
+    sleep_us(250);
+    adc_select_input(2);
+
+    uint32_t sum = 0;
+    for (uint32_t i = 0; i < 32; ++i)
+    {
+        sum += adc_read();
+        sleep_us(20);
+    }
+
+    const uint32_t average = sum >> 5;
+    return average < 1000;
+}
 } // namespace
 
 int main()
@@ -624,6 +903,12 @@ int main()
     set_sys_clock_khz(192000, true);
 
     PunkConfusion card;
+    if (BootSwitchHeldDown())
+    {
+        card.ShowLoaderEntryLeds();
+        RunWebSerialLoader();
+    }
+
     card.EnableNormalisationProbe();
     card.Run();
 }

@@ -44,28 +44,31 @@ endif()
 
 include(${CMAKE_CURRENT_LIST_DIR}/pico_sdk_import.cmake)
 
-set(CARD_NAME punk_confusion)
-project(${CARD_NAME} C CXX ASM)
+project(punk_confusion C CXX ASM)
 set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
-add_executable(${CARD_NAME}
+function(add_punk_confusion_target TARGET_NAME FLASH_BYTES SAMPLE_BANK_BYTES)
+add_executable(${TARGET_NAME}
   main.cpp)
 
-target_include_directories(${CARD_NAME} PUBLIC
+target_include_directories(${TARGET_NAME} PUBLIC
   ${CMAKE_CURRENT_LIST_DIR})
 
 # The card-local ComputerCard.h is intentionally searched first. It keeps the
 # newer per-card hardware fixes without modifying the upstream HelloWorlds copy.
 
-target_compile_options(${CARD_NAME} PRIVATE
+target_compile_options(${TARGET_NAME} PRIVATE
   -Wdouble-promotion -Wfloat-conversion -Wall -Wextra)
 
-target_link_options(${CARD_NAME} PRIVATE -Wl,--print-memory-usage)
+target_link_options(${TARGET_NAME} PRIVATE -Wl,--print-memory-usage)
 
-target_compile_definitions(${CARD_NAME} PRIVATE PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
+target_compile_definitions(${TARGET_NAME} PRIVATE
+  PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64
+  PICO_FLASH_SIZE_BYTES=${FLASH_BYTES}
+  PUNK_SAMPLE_BANK_SIZE_BYTES=${SAMPLE_BANK_BYTES})
 
-target_link_libraries(${CARD_NAME}
+target_link_libraries(${TARGET_NAME}
   pico_stdlib
   hardware_dma
   hardware_i2c
@@ -75,8 +78,25 @@ target_link_libraries(${CARD_NAME}
   hardware_vreg
   hardware_flash)
 
-# Real embedded vocal samples are too large for copy_to_ram; keep code/sample
-# data in flash so RAM remains available for delay buffers and audio state.
-pico_set_binary_type(${CARD_NAME} default)
-pico_add_extra_outputs(${CARD_NAME})
-pico_enable_stdio_usb(${CARD_NAME} 0)
+# Keep code and factory fallback sample data in flash so RAM remains available
+# for delay buffers and audio state.
+pico_set_binary_type(${TARGET_NAME} default)
+
+set(LINKER_TEMPLATE ${PICO_SDK_PATH}/src/rp2_common/pico_crt0/rp2040/memmap_default.ld)
+set(LINKER_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}_memmap_default.ld)
+file(READ ${LINKER_TEMPLATE} LINKER_TEXT)
+string(REPLACE
+  "    INCLUDE \"pico_flash_region.ld\""
+  "    FLASH(rx) : ORIGIN = 0x10000000, LENGTH = ${FLASH_BYTES}"
+  LINKER_TEXT
+  "${LINKER_TEXT}")
+file(WRITE ${LINKER_SCRIPT} "${LINKER_TEXT}")
+pico_set_linker_script(${TARGET_NAME} ${LINKER_SCRIPT})
+
+pico_add_extra_outputs(${TARGET_NAME})
+pico_enable_stdio_usb(${TARGET_NAME} 1)
+pico_enable_stdio_uart(${TARGET_NAME} 0)
+endfunction()
+
+add_punk_confusion_target(punk_confusion_2mb 2097152 1048576)
+add_punk_confusion_target(punk_confusion_16mb 16777216 14680064)
