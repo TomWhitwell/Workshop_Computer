@@ -19,6 +19,7 @@ License: MIT
 date-created: 2026-08-10
 date-updated: 2026-08-16
 Repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/77_PunkConfusion
+Editor: web
 
 uf2:
   - path: uf2/punk_confusion_2mb.uf2
@@ -33,6 +34,7 @@ tags:
   - noise
   - lofi
   - performance
+  - web-serial
 
 panel:
   inputs:
@@ -149,3 +151,9 @@ controls:
         - id: LED5
           name: Clip / Chaos
           description: Indicates aggressive signal level or internal overload.
+
+host:
+  usb:
+    - name: WebSerial sample loader
+      role: editor
+      description: Browser loader in `web/` uploads four venue-linked vocal samples to the reserved flash sample bank. Use Chrome or Edge, hold the switch Down during reset to enter loader mode, then connect over USB serial.
