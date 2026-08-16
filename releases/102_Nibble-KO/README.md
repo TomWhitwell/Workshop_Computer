@@ -6,7 +6,7 @@ module — with a browser sample manager.**
 
 *Four buttons. Ten voltages. Twelve drums, yours to fill.*
 
-> **Status: 1.0, released.** Drums, the looper, mute groups, twelve
+> **Status: 1.0.1, released.** Drums, the looper, mute groups, twelve
 > performance effects, three pattern slots, sample playback, the browser
 > sample manager, flash-saved calibration and the CV expansion all work on
 > hardware. One deliberate gap: patterns are still RAM-only, so they are
@@ -213,6 +213,20 @@ So you can sweep a filter curve once, then punch the effect in and out over
 the top of it on later passes without re-recording the sweep. Turning Main
 with *no* shift held does nothing, deliberately: with four curves and no
 button down, which one you meant is ambiguous.
+
+**There are four parameter curves, one per shift — not one per effect.** The
+three effects under a shift share it: `B+A`, `B+C` and `B+D` all read and
+write the same curve. That is what makes the shift a coherent *layer* rather
+than three unrelated things, but it has a consequence worth knowing before
+it surprises you — recording a depth twiddle under `B+C` overwrites a curve
+you recorded earlier under `B+A`, wherever the two overlap in the bar.
+
+**To play over a recorded curve without disturbing it, jam with the switch
+at Middle.** Your hand takes the depth live while you hold the gesture, the
+recorded curve is left alone, and it picks up again the moment you let go.
+Only the switch at Up writes. That is the difference between trying
+something and committing it, and it is the same distinction everywhere else
+on the card.
 
 ## Calibration is the whole game
 

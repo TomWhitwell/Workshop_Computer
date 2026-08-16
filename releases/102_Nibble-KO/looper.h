@@ -112,6 +112,18 @@ static inline uint8_t FxLaneForShift(int8_t shift)
 }
 
 /// Which parameter-lane a shift button writes to.
+///
+/// Keyed on the SHIFT alone — the tap is deliberately ignored, so the three
+/// effects under one shift SHARE a depth curve. That is what makes a shift a
+/// coherent layer rather than three unrelated things, and it is why there are
+/// four parameter lanes rather than twelve.
+///
+/// The cost, which is real and documented in README.md: recording a depth
+/// twiddle under B+C overwrites a curve recorded earlier under B+A, wherever
+/// they overlap. Playing over a recorded curve non-destructively is done with
+/// the switch at MIDDLE, where the hand drives the depth live and nothing is
+/// written. Twelve lanes would remove the caveat at the cost of kNumLanes
+/// growing past 16 and a lot more event-buffer pressure.
 static inline uint8_t ParLaneForShift(int8_t shift)
 {
 	return static_cast<uint8_t>(kLaneParFirst + shift);
@@ -355,6 +367,11 @@ public:
 	/// reads its depth from it. Unlike the effect lanes this only writes while
 	/// the knob is actually MOVING, exactly like the filter and tone lanes —
 	/// a still knob must not flatten a curve recorded on an earlier pass.
+	///
+	/// That rule cannot be relaxed to "while the shift is held", and the
+	/// reason is the card's founding quirk: FOUR VOLTAGES LATCHES, so
+	/// levels_.Current() reports a shift as held long after the finger has
+	/// gone. Every knob lane therefore records CHANGE, never position.
 	void RecordKnobs(bool filterMoving, int32_t filterKnob,
 	                 bool toneMoving,   int32_t toneKnob,
 	                 const uint8_t *fxPacked,

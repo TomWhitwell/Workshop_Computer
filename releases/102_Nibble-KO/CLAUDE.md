@@ -167,6 +167,20 @@ released. Three separate bugs came from forgetting it:
 - **A bare-press toggle can turn something on and never off**, because
   pressing the same button twice needs a transition that never happens.
   Hence shift-and-tap for mutes.
+- **A latched single is NOT evidence that a finger is on the button**, and
+  anything that treats it as intent will misfire once the hand has gone.
+  `FxUpdate()` assigns `fxParShift_` from a bare `Current()`, which is
+  correct — but `FxSlotDepth()` then read the LIVE Main knob for that slot on
+  that basis alone, so one slot permanently ignored its recorded depth curve
+  and followed the knob's resting position instead. It presented as "FX depth
+  records under shift C but not under B": C is mode C's own button, so the
+  latch usually rested there, and what sounded like C working was the live
+  knob being heard rather than the recording.
+
+  The fix is the rule the recording side already followed — **the hand only
+  wins while it is actually MOVING the knob** (`AutoKnob::HandOwns()`). A
+  latched voltage plus a still knob means the recording drives. Any future
+  "the player is doing X because the CV says so" needs the same test.
 
 ### Ordering inside ControlTick is load-bearing
 

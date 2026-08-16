@@ -334,7 +334,19 @@ struct AutoKnob
 	/// How long the hand keeps the knob after it stops moving. Long enough to
 	/// bridge the gaps in a slow deliberate turn; short enough that letting go
 	/// feels immediate.
-	static constexpr int32_t kHold = kCtrlRate / 4;   // 250ms
+	///
+	/// IT MUST ALSO OUTLAST THE RECORDER'S SAMPLING GAP, which is what set
+	/// this figure. Looper::RecordKnobs samples at most once every
+	/// kKnobSampleTicks LOOP ticks — deliberately, so a recorded curve has the
+	/// same musical resolution at any tempo — and at the slowest tempo (40bpm)
+	/// that is one opportunity every 250ms. At the old kCtrlRate/4 this hold
+	/// was ALSO exactly 250ms, so a short deliberate move could begin and end
+	/// entirely between two sampling opportunities and record nothing at all.
+	///
+	/// That is what "the FX depth is not being recorded" turned out to be on
+	/// the bench: not a gating bug, a race between two clocks that happened to
+	/// be the same length. 500ms clears the worst case with margin.
+	static constexpr int32_t kHold = kCtrlRate / 2;   // 500ms
 
 	bool HandOwns() const { return holdTicks_ > 0; }
 
@@ -1196,8 +1208,27 @@ private:
 	int32_t __not_in_flash_func(FxSlotDepth)(int8_t slot)
 	{
 		if (slot < 0 || slot >= kNumFxSlots) return 2048;
-		return (slot == fxParShift_) ? MainVal()
-		                             : fxParPlayback_[slot];
+
+		// THE HAND ONLY WINS WHILE IT IS ACTUALLY MOVING THE KNOB.
+		//
+		// fxParShift_ alone is not evidence of intent, because FOUR VOLTAGES
+		// LATCHES: after any gesture the CV rests on a bare single and
+		// FxUpdate() keeps assigning that to fxParShift_ with nobody touching
+		// anything. Taking the live knob on that basis meant one slot — the
+		// one the voltage happened to be sitting on — permanently ignored its
+		// recorded curve and read the knob's physical position instead.
+		//
+		// On the bench that looked like "the depth records under shift C but
+		// not under B": C is the mode's own button, so the latch usually
+		// rested there, and what sounded like C working was the LIVE knob
+		// being heard rather than the recording. B's curve was simply being
+		// overridden by a stale voltage.
+		//
+		// filterLane_ is fed MainVal() every tick, so HandOwns() is exactly
+		// "the hand is turning Main right now" — the same movement test the
+		// recording side uses. Let go and the recorded curve takes back over.
+		if (slot == fxParShift_ && filterLane_.HandOwns()) return MainVal();
+		return fxParPlayback_[slot];
 	}
 
 	/// Which effect is held right now. Control rate.
@@ -1424,6 +1455,17 @@ private:
 			randomFxOn_ = false;
 		}
 
+		// Each lane decides for itself whether the hand or the recording is
+		// driving this tick. Moving the knob mutes that lane's playback while
+		// you move it and for a moment after; letting go hands it back.
+		//
+		// UPDATED BEFORE the FX slots resolve, because FxSlotDepth() now asks
+		// filterLane_.HandOwns() whether the hand is on Main this instant.
+		// Reading it after would answer with last tick's value, and on the
+		// very first tick with an unseeded one.
+		const int32_t mainVal = filterLane_.Update(MainVal());
+		const int32_t toneVal = toneLane_.Update(KnobVal(Knob::Y));
+
 		for (int8_t s = 0; s < kNumFxSlots; s++)
 		{
 			const int32_t depth = FxSlotDepth(s);
@@ -1462,12 +1504,6 @@ private:
 
 		loop_.SetTempo(KnobVal(Knob::X));
 
-		// Each lane decides for itself whether the hand or the recording is
-		// driving this tick. Moving the knob mutes that lane's playback while
-		// you move it and for a moment after; letting go hands it back.
-		const int32_t mainVal = filterLane_.Update(MainVal());
-		const int32_t toneVal = toneLane_.Update(KnobVal(Knob::Y));
-
 		// In FX1 the Main knob is the effect's DEPTH, so it must not also be
 		// sweeping the DJ filter — the filter latches where it was and only
 		// starts following again once the knob is turned back through that
@@ -1496,11 +1532,17 @@ private:
 			if (fxLiveSlot_ >= 0)
 				fxPacked[fxLiveSlot_] = PackFx(static_cast<uint8_t>(fxCurrent_));
 
-			// The parameter lane writes only when a SHIFT is held. Without one
-			// the knob is ambiguous — there are four parameter curves and
-			// nothing says which you meant — so turning it in FX1 with no
-			// button down deliberately does nothing at all. fxParShift_ is
-			// -1 then, and RecordKnobs ignores the value.
+			// The parameter lane writes only when a SHIFT is held AND the knob
+			// is moving. Without a shift the knob is ambiguous — there are four
+			// parameter curves and nothing says which you meant — so turning it
+			// in FX1 with no button down deliberately does nothing at all.
+			//
+			// The movement half cannot be dropped, however much it looks like
+			// it should be: FOUR VOLTAGES LATCHES, so fxParShift_ reports a
+			// shift long after the finger has left it. Recording position
+			// rather than change would lay a flat line over every curve
+			// underneath for the rest of the pass. Every knob lane on this card
+			// records CHANGE for the same reason.
 			loop_.RecordKnobs(filterLane_.HandOwns() && !mainIsDepth,
 			                  MainVal(),
 			                  toneLane_.HandOwns(), KnobVal(Knob::Y),

@@ -265,11 +265,20 @@ void Looper::RecordKnobs(bool filterMoving, int32_t filterKnob,
 				RecordLane(FxLaneForShift(s),
 				           static_cast<int32_t>(fxPacked[s]) << 4);
 
-	// The parameter curve, on the other hand, follows the KNOB LANE rules: it
-	// writes only while the knob is genuinely moving. An effect held steady
-	// still has to be recorded every tick or playback would never release it;
-	// a parameter held steady is a flat line that would overwrite whatever
-	// curve an earlier pass drew underneath.
+	// The parameter curve follows the KNOB LANE rules: it writes only while
+	// the knob is genuinely MOVING.
+	//
+	// This is not a nicety, and an attempt to relax it had to be reverted.
+	// "Write for every tick the shift is held" sounds equivalent and is not,
+	// because FOUR VOLTAGES LATCHES: levels_.Current() reports the last
+	// voltage indefinitely, so a shift that was tapped once looks held
+	// forever. The parameter would then record a flat line for the rest of
+	// the pass and flatten every curve underneath it.
+	//
+	// An effect held steady still has to be recorded every tick — playback
+	// would otherwise start it and never stop it — but that lane can afford
+	// it: a packed 0 means "no effect" and writes nothing, so a stale
+	// latched voltage is silent there in a way a knob POSITION never is.
 	if (parShift >= 0 && parShift < kNumSingles && parMoving)
 		RecordLane(ParLaneForShift(parShift), parKnob);
 }
