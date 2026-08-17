@@ -624,6 +624,23 @@ public:
 		LedBrightness(5, progress > (kQ16One * 2 / 3) ? kLedHalf : 0);
 	}
 
+	/// Pattern-slot access for the WebUI, forwarded straight to the Looper.
+	///
+	/// Called from core 1 via WebGetPattern/WebSetPattern (see the bottom of
+	/// this file) and only while usbMode is set, so core 0 is no longer
+	/// playing and there is no concurrent reader of the slot arrays.
+	bool GetPatternForWeb(int slot, LoopEvent *out, uint16_t &count,
+	                      uint16_t &knobCount) const
+	{
+		return loop_.GetPatternRaw(slot, out, count, knobCount);
+	}
+
+	bool SetPatternForWeb(int slot, const LoopEvent *in, uint16_t count,
+	                      uint16_t knobCount)
+	{
+		return loop_.SetPatternRaw(slot, in, count, knobCount);
+	}
+
 private:
 	// =======================================================================
 	// Control rate
@@ -766,7 +783,26 @@ private:
 		// One-way. The way back is MSG_PLAY from the browser, which reboots.
 		if (m == Mode::WebUi)
 		{
-			playing_ = false;
+			// THE LOOP KEEPS PLAYING, deliberately. Entering the WebUI used
+			// to stop it, and that was wrong for what the WebUI is mostly
+			// used for: re-pointing a voice at a different sound is a
+			// judgement you can only make BY EAR, against the pattern it has
+			// to sit in. MSG_SET_SOURCE is instant and flash-free precisely
+			// so the change is audible straight away — stopping the loop
+			// threw that away and made every audition a stop/flash/restart.
+			//
+			// Nothing about USB requires silence. TinyUSB runs on core 1 and
+			// ProcessSample() on core 0; they only collide over a FLASH
+			// WRITE, and that path stops the card properly through
+			// EnterUploadMode()/core0Parked rather than leaning on this flag.
+			// So an upload still mutes and parks (see ProcessSample()'s
+			// uploadMode branch) while assignment, naming and pattern
+			// transfer play on.
+			//
+			// RECORDING still stops. The pads are inert in WebUi mode (see
+			// FireCombo's switch), so an armed recorder could only capture
+			// knob automation from someone who is looking at a browser rather
+			// than at the card, and Undo would be the only way back out.
 			recording_ = false;
 			WebUI::usbMode = true;
 		}
@@ -2351,6 +2387,42 @@ private:
 /// other members are a few hundred bytes.
 static WebUI        gWebUI;
 static NibbleKoCard *gCard = nullptr;
+
+// --- pattern transfer bridge -----------------------------------------------
+//
+// webui.h declares these; they are defined here because this is where gCard
+// lives. The alternative — handing WebUI a Looper pointer — would put looper.h
+// (and drums.h behind it) into webui.cpp for the sake of two array copies.
+//
+// Safe only while usbMode is set, which is the only time they are called: core
+// 0 has stopped playing by then, so nothing else is touching the slot arrays.
+static_assert(static_cast<uint32_t>(kMaxEvents) == kPatMaxEvents,
+              "kPatMaxEvents must track looper.h's kMaxEvents");
+static_assert(sizeof(LoopEvent) == kPatEventBytes,
+              "kPatEventBytes must track sizeof(LoopEvent)");
+static_assert(static_cast<int>(kPatSlots) == kNumPatterns,
+              "kPatSlots must track looper.h's kNumPatterns");
+
+// Defined INSIDE namespace nko: webui.h declares them there, and `using
+// namespace nko` above imports names rather than opening the namespace, so a
+// definition at global scope links as a different symbol entirely.
+namespace nko {
+
+bool WebGetPattern(int slot, void *out, uint16_t *count, uint16_t *knobCount)
+{
+	if (!gCard || !out || !count || !knobCount) return false;
+	return gCard->GetPatternForWeb(slot, static_cast<LoopEvent *>(out),
+	                               *count, *knobCount);
+}
+
+bool WebSetPattern(int slot, const void *in, uint16_t count, uint16_t knobCount)
+{
+	if (!gCard || !in) return false;
+	return gCard->SetPatternForWeb(slot, static_cast<const LoopEvent *>(in),
+	                               count, knobCount);
+}
+
+} // namespace nko
 
 /// Set once core 0 has finished booting and published gCard, so core 1 never
 /// dereferences it early.

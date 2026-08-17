@@ -3,7 +3,7 @@ Name: NIBBLE-KO
 short-description: A 12-voice synth/sample percussion looper for the Four Voltages module, with a browser sample manager
 Language: C++ (ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: "1.0.1"
+Version: "1.1.0"
 Status: Released
 License: CC-BY-4.0
 repository: https://github.com/uglifruit/Nibble-KO
@@ -22,7 +22,7 @@ contact:
 
 uf2:
   - path: UF2/nibbleko.uf2
-    name: NIBBLE-KO 1.0.1
+    name: NIBBLE-KO 1.1.0
 
 tags:
   - drums
@@ -83,13 +83,18 @@ summary: |
   following the live quantise grid. Patch either back into Pulse In 2 and the
   card glitches itself.<br><br>
 
-  1.0.1. Drums, the four-bar looper, mute groups, the twelve effects, pattern
+  1.1.0. Drums, the four-bar looper, mute groups, the twelve effects, pattern
   slots, sample playback, the browser sample manager, flash-saved calibration
-  and the CV expansion above are all played and working on hardware. One gap
-  is known and deliberate for this release: pattern slots are RAM only, so
-  they do not survive a power cycle - saving them to flash, a WebUI setting
-  for loop length, and JSON pattern export/import are the roadmap for the
-  next one. See the repository's README for the fuller detail.
+  and the CV expansion above are all played and working on hardware. New in
+  this release: patterns can be SAVED TO YOUR COMPUTER and loaded back from
+  the browser tool, as plain JSON files - the card keeps its three slots in
+  RAM, so the file on disk is the permanent copy. A pattern stores voice
+  numbers rather than sounds, so one saved against any kit plays against any
+  other. The loop also keeps playing while the browser tool is connected, so
+  a voice can be re-pointed at a new sound and judged by ear against the
+  pattern it has to sit in. Loop length is still fixed at four bars, and a
+  WebUI setting for it is the roadmap for the next release. See the
+  repository's README for the fuller detail.
 
 panel:
   inputs:
@@ -121,7 +126,7 @@ panel:
     - id: CVOut1
       name: Glitch (sparse)
       type: cv
-      description: "Gates on random beat divisions, weighted hard toward the downbeat and with longer gates - musical enough to use as an accent track on its own. Divisions follow the live quantise grid (switch+A+C), so this always agrees with what the card is recording to. Density is set by chaos on Audio In 2; with nothing patched there it fires about one beat in twenty. NIBBLE put a bassline on this socket; this card has a better use for it."
+      description: "Gates on random beat divisions, weighted hard toward the downbeat and with longer gates - musical enough to use as an accent track on its own. Divisions follow the live quantise grid (switch+A+C), so this always agrees with what the card is recording to. Density is set by chaos on Audio In 2; with nothing patched there it fires about one beat in twenty."
     - id: CVOut2
       name: Glitch (dense)
       type: cv

@@ -8,7 +8,10 @@ card over WebMIDI SysEx.
 ## Using it
 
 1. On the card, hold the switch **Down** and press **B + D**. All four pads
-   glow slowly: the card is on USB and silent.
+   glow slowly: the card is on USB. **The loop keeps playing** — assignment
+   is instant, so a new sound can be judged against the pattern it has to sit
+   in. Only recording stops. (An upload does silence the card, because
+   writing flash stops everything; see below.)
 2. Open `index.html` in **Chrome or Edge** (Safari and Firefox have no
    WebMIDI) and click **Connect USB**.
 3. The card appears as a MIDI port named `NIBBLE-KO (Workshop)` — the page
@@ -25,12 +28,22 @@ appearing rather than making you press Connect again.
 instant, no reboot), saving the kit (`MSG_SAVE_MAP`), and the whole sample
 library — upload, rename, delete, erase — are all wired up.
 
-**Mutes, FX and Patterns are reference displays.** The firmware has no SysEx
-messages for mute-group assignment, pattern transfer or loop settings yet, so
-those tabs document the card's gestures rather than configuring anything. The
-page says so rather than pretending otherwise. Pattern transfer is the
-obvious next one to build — a pattern is a bare event list under 2KB with no
-audio attached.
+**Patterns save and load.** The card keeps its three pattern slots in RAM
+only, so they are lost at power-off; the JSON file this page writes is the
+permanent copy. Save reads a slot over `MSG_PAT_GET` and offers it as a
+download, Load pushes a file back with `MSG_PAT_SET`. Neither touches flash,
+so neither reboots the card — a loaded pattern is playable straight away
+(hold D, tap A/B/C).
+
+A pattern carries **no audio**: each event names a voice index, not a sample.
+So a pattern saved against one kit plays against any other, and re-pointing a
+voice changes what an existing pattern sounds like without touching it.
+
+**Mutes and FX are reference displays**, as is everything on the Patterns tab
+below the save/load panel. The firmware has no SysEx messages for mute-group
+assignment or loop settings yet, so those tabs document the card's gestures
+rather than configuring anything. The page says so rather than pretending
+otherwise.
 
 ## The library model
 

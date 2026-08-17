@@ -11,19 +11,40 @@ where every voice is independently synthesised or sample-based, chosen and
 uploaded from a browser WebUI — the sample-management pattern from
 `../WorkshopBio`.
 
-## Current status: PLAYABLE, TESTED ON HARDWARE
+## Current status: RELEASED, v1.0.1
 
-Builds to `build/nibbleko.uf2` — **7.4% flash, 83% RAM**. Confirmed working
-on a Workshop Computer: drums, the four-bar looper with lossless overdub,
-three mute groups, twelve performance effects with two-lane recording, three
-pattern slots, and sample playback from a baked bank.
+Builds to `build/nibbleko.uf2` — **7.6% flash, 84.7% RAM**. Everything
+except pattern persistence is played and confirmed on a Workshop Computer:
+drums, the four-bar looper with lossless overdub, three mute groups, twelve
+performance effects with two-lane recording, three pattern slots, sample
+playback, the browser sample manager (connect, assign, upload, rename,
+delete, erase), flash-saved calibration, and the whole CV expansion
+including the CV Out 2 → Pulse In 2 self-patch.
+
+**Shipped.** `info.yaml` is `draft: false`, `Status: Released`. The card is
+in the community catalogue as `releases/102_Nibble-KO` in
+`TomWhitwell/Workshop_Computer` — merged there at 1.0.0 (PR #362), with
+1.0.1 following in PR #365. Own repo: `uglifruit/Nibble-KO`.
 
 **The RAM figure is the WebUI's 160KB upload staging buffer**, not a leak.
 It only fits because USB is modal — nothing instantiates `WebUI` until
-switch+B+D, by which point the card has stopped playing. Same figure
-WorkshopBio ships on identical hardware. Watch `--print-memory-usage`.
+switch+B+D. Same figure WorkshopBio ships on identical hardware. Watch
+`--print-memory-usage`.
 
-**USB is written but NOT yet hardware-tested** — see "Untested" below.
+Note that entering the WebUI **no longer stops the loop**. It used to, and
+that was wrong for the job the WebUI mostly does: re-pointing a voice at a
+different sound is a judgement made BY EAR, against the pattern the sound
+has to sit in, and `MSG_SET_SOURCE` is instant and flash-free precisely so
+the change is audible immediately. Only RECORDING stops on entry. An UPLOAD
+still silences and parks the card, but through `EnterUploadMode()` /
+`core0Parked` — the real mechanism — rather than through the mode change.
+
+**Pattern slots are still RAM-only on the card, by design** — they die at
+power-off, and the browser is where they persist: the Patterns tab saves a
+slot to a JSON file on the PC and loads one back over SysEx
+(`MSG_PAT_GET`/`MSG_PAT_SET`). Built and verified in software, **not yet
+played on hardware**. Loop length is the remaining 1.1 item; see "What's NOT
+here" below.
 
 **Calibration is flash-persisted** (`calibstore.h`) — a normal boot loads the
 last saved levels and is playable within the splash; only an alt-boot (switch
@@ -111,17 +132,18 @@ Ported and adapted from `../WoskshopButtons` (NIBBLE) and `../WorkshopBio`
 | `samplestore.h` | Written new, wired in | `ResolveSample()` is called per hit from `DrumKit::TriggerVoice` |
 | `calibstore.h` | Written new, wired in | Flash-persisted calibration, sibling layout to `samplestore.h`; `SaveCalibration()`/`LoadSavedCalibration()` called from `main.cpp`'s `LearnTick()` and boot splash |
 | `webui.h` | Written new | WorkshopBio's message set on 12 flat slots + `MSG_SET_SOURCE` |
-| `webui.cpp` | Ported, **untested on hardware** | WorkshopBio's, with mode×variant collapsed to flat voices |
+| `webui.cpp` | Ported, tested on hardware | WorkshopBio's, with mode×variant collapsed to flat voices |
 | `tusb_config.h`, `usb_descriptors.c` | Ported | WorkshopBio's, byte-identical but for the product string |
 | `web/index.html` | Written new | Mockup's visual shell + WorkshopBio's connection/upload logic |
 | `tools/importbank.py`, `mksamples.py` | Written new | WAV → numbered bank entries; `importwav.py` supplies the DSP |
 | `fx.h/.cpp` | Written new | Twelve performance effects, four slots chained in series |
 | `tools/checksize.cmake`, `tools/bin2h.py` | Ported unchanged | WorkshopBio |
 | `tools/ghostsim.py`, `loopsim.py`, `dspsim.py`, `syntax.sh`, `checkyaml.py`, `kittable.py`, `crosscheck.py` | Ported unchanged | NIBBLE — all pass against the ported `.cpp` files (see Verifying changes) |
+| `tools/patsim.py` | Written new | Pattern transfer across the `webui.cpp` ↔ `web/index.html` seam, plus `SetPatternRaw()`'s trust boundary |
 | `ComputerCard.h`, `pico_sdk_import.cmake` | Vendored, byte-identical | NIBBLE — **do not edit** |
 | `main.cpp` | Written new | The mode machine, Drum Performance, LEDs, calibration. Structure follows NIBBLE's `main.cpp` closely |
 | `CMakeLists.txt` | Written new | Builds, with TinyUSB + `pico_multicore` and the `checksize` guard |
-| `info.yaml` | Written new | `draft: true`, `Status: In development` |
+| `info.yaml` | Written new | `draft: false`, `Status: Released`, v1.0.1 |
 
 ## The control surface
 
@@ -223,6 +245,25 @@ that array wholesale, so it must be **rebuilt from the playhead**. Resetting
 it to zero looks safe and makes `Fire()` re-fire everything between the loop
 start and the current position, all on one tick.
 
+**And the rebuild has two ends, not one.** Walking forward from the playhead
+is only half of it: if the new array is SHORTER than the playhead's position
+— undoing a pass whose hits were all behind it, or recalling a sparser
+pattern mid-bar — the walk runs off the end and leaves `cursor_ == count_`.
+That is not a harmless resting place. `Fire()` only ever moves the cursor
+forward, and `Advance()` only rewinds it when `playHead_` reaches 0, so the
+loop plays NOTHING for the rest of the pass. It shipped that way and came
+back from the bench as "undo sometimes silences the loop til start of next
+pass" — intermittent-sounding, because it only bites when the undone pass
+was behind the playhead.
+
+Both paths now go through `Looper::RebuildCursor()`, which wraps to 0 on
+running out. Wrapping is correct rather than merely non-silent: the array is
+a RING sorted by fire time, so "nothing left this pass" and "the next event
+is the first one, next pass" are the same statement. `tools/loopsim.py`
+covers both ends — `test_undo_does_not_replay_the_bar_so_far` for the
+forward walk, `test_undo_past_every_surviving_event_does_not_go_silent` and
+`test_recall_a_sparser_pattern_does_not_go_silent` for the wrap.
+
 ### The Python models are not decoration
 
 They have caught, before hardware: a stalling slew, a 0.33x soft clip, a
@@ -243,26 +284,35 @@ ticks first and expired instantly at slow tempos.
 
 Roughly in dependency order:
 
-1. **Patterns are not saved to flash.** The three pattern slots are RAM only,
-   so they die at power-off — unlike calibration, which is now persisted (see
-   `calibstore.h`). A pattern is a bare event list under 2KB with no audio
-   attached, so this is the natural first WebUI transfer target (item 2
-   below) rather than needing its own flash-write path: land it as part of
-   the pattern-transfer protocol instead of a separate store.
+1. **Patterns are saved to the PC, not to the card.** The three slots are
+   still RAM only and still die at power-off — deliberately. Persistence is
+   the browser's job: the Patterns tab saves a slot as a JSON file and loads
+   one back (`MSG_PAT_GET`/`MSG_PAT_DATA`/`MSG_PAT_SET`), so the file on
+   disk is the permanent copy. No flash write is involved anywhere in that
+   path, which is why it needs none of `docs/LESSONS.md`'s five-step
+   protocol and never reboots the card — the same "instant, RAM only" shape
+   as `MSG_SET_SOURCE`.
 
-2. **The WebUI covers the KIT and SAMPLES only.** Connect, assignment
-   (`MSG_SET_SOURCE`, instant), saving the kit (`MSG_SAVE_MAP`), and the
-   whole sample library — upload, name, delete, erase — all work. What is
-   still missing needs NEW SysEx messages, none of which exist:
-   - **pattern transfer** — a pattern is a bare event list under 2KB and
-     carries no audio, so this is close to a straight dump over SysEx, and
-     is the obvious next one
+   A pattern carries no audio (`what` is a voice index), so one saved
+   against any kit plays against any other. **Not yet exercised on
+   hardware** — the codec round-trip and the wire framing are verified in
+   software only.
+
+   An on-card flash store was considered and rejected: it would duplicate
+   the persistence the file already provides, and cost a flash region plus
+   a write path for it.
+
+2. **The WebUI covers the KIT, SAMPLES and PATTERNS.** Connect, assignment
+   (`MSG_SET_SOURCE`, instant), saving the kit (`MSG_SAVE_MAP`), the whole
+   sample library — upload, name, delete, erase — and pattern save/load all
+   work. What is still missing needs NEW SysEx messages, none of which exist:
    - **mute-group assignment** — `MuteGroupOf()` is still a compile-time
      function, see item 4
    - **loop setup** (bars, swing, quantise grid) — card-side only
 
-   The Mutes/FX/Patterns tabs in `web/index.html` are reference displays
-   that say so, rather than controls that quietly do nothing.
+   The Mutes and FX tabs, and everything on the Patterns tab below the
+   save/load panel, are reference displays that say so rather than controls
+   that quietly do nothing.
 
 3. **Deleting a sample frees the SLOT, not the space.** Uploads append, and
    nothing compacts the region — only `MSG_ERASE` reclaims bytes. The
@@ -286,6 +336,14 @@ Roughly in dependency order:
    music, so it stays card state, persists across pattern recalls, and is
    outside Undo. Do not "finish" it.
 
+6. **The published Map artifact's layout was never fixed.** Asked for on the
+   bench and deliberately deferred: lay the ABCD gesture pads out as a 2×2
+   grid and the LEDs as 2×3 (matching `nibbleko.h`'s stated physical layout,
+   `0 1 / 2 3 / 4 5`), and set the type larger. This applies to the
+   standalone **mockup artifact**, not `web/index.html` — the shipped tool
+   already got the 2×2 pads and the +3px type. Cosmetic, no code depends on
+   it.
+
 ## USB: what is proven, and what is not
 
 **Confirmed on hardware, v2 library protocol:** entering WebUI mode
@@ -303,8 +361,27 @@ an empty library. Both are written up in `docs/LESSONS.md`.
 
 **Not yet exercised on the current protocol:** `MSG_NAME` and `MSG_DELETE`
 (same commit path as `MSG_SAVE_MAP`, which is proven, but not separately
-confirmed), and a library at or near `kMaxUserSamples` (32 entries) —
-everything tested so far has been a handful of samples.
+confirmed), a library at or near `kMaxUserSamples` (32 entries) — everything
+tested so far has been a handful of samples — and the whole pattern-transfer
+trio `MSG_PAT_GET`/`MSG_PAT_DATA`/`MSG_PAT_SET`.
+
+Pattern transfer touches no flash, so it cannot hang the card the way an
+upload can; what is unproven is the drip-fed reply under a real browser's
+timing, which is exactly where `MSG_LIBRARY` went wrong the first time. The
+codec and the chunk framing are verified in software (a 512-event round trip
+through both implementations, high bits and the `kKnobEvent` flag included),
+but software cannot tell you whether the burst survives WebMIDI.
+
+**GET and SET share one buffer and one cursor**, so the two directions are
+not independent: `patBuf_`/`patCursor_`/`patBytes_` mean "the transfer in
+progress", whichever way it is going. A `MSG_PAT_SET` header therefore clears
+`patSending_` — without it, a load started while a save was still draining
+had `SendNextPatternChunk()` transmitting the ARRIVING pattern back out and
+advancing the cursor underneath the receive path, corrupting both at once.
+The browser serialises the two, so this only shows up on a retry or a second
+tab: it is a defence, not a normal path, and it will not appear on a bench
+test that saves and loads one at a time. Any new message reusing that buffer
+needs the same guard.
 
 **A v2 card cannot read a v1 upload.** `kUserMagic` changed, so
 `HaveUserSamples()` answers false and the card falls back to baked samples —
@@ -362,13 +439,13 @@ ever built against each other or diffed side by side.
 | `samplestore.h` | Flash layout for user-uploaded samples, per voice slot (not wired in) |
 | `calibstore.h` | Flash layout for the saved calibration levels — wired in |
 | `samples_default.h` | `__has_include` shim so the build works with or without baked samples |
-| `webui.h/.cpp` | USB-MIDI SysEx transport + upload state machine — runs on core 1 |
+| `webui.h/.cpp` | USB-MIDI SysEx transport, upload state machine, pattern transfer — runs on core 1 |
 | `tusb_config.h`, `usb_descriptors.c` | TinyUSB setup; the product string is what the browser matches on |
-| `web/index.html` | Browser setup tool. Kit tab is live; other tabs are reference — see `web/README.md` |
+| `web/index.html` | Browser setup tool. Kit, Samples and Patterns save/load are live; other tabs are reference — see `web/README.md` |
 | `fastmath.h/.cpp` | Fixed-point helpers, sine LUT, PRNG |
 | `ComputerCard.h` | Vendored MTM library — **do not edit** |
 | `tools/` | Python verification models, `syntax.sh`, `checkyaml.py`, sample pipeline |
-| `info.yaml` | Workshop System card registry metadata (`draft: true`) |
+| `info.yaml` | Workshop System card registry metadata (`draft: false`, released) |
 | `docs/LESSONS.md` | NIBBLE's handover doc — **read this first**, most of the reasoning behind what's ported here lives there |
 
 ## Starting work on this card
@@ -391,8 +468,19 @@ sh tools/syntax.sh          # type-check every .cpp with the ARM compiler, ~1s
 python tools/ghostsim.py    # the ghost rule + learn round-trip
 python tools/dspsim.py      # DJ filter stability, soft clip
 python tools/loopsim.py     # event ordering, overdub, tempo
+python tools/patsim.py      # pattern transfer: wire framing + the trust boundary
 python tools/checkyaml.py   # info.yaml parses AND is structurally complete
 ```
+
+`patsim.py` is the one model that spans a language boundary rather than
+mirroring a single `.cpp`. Pattern transfer is split between `webui.cpp` and
+`web/index.html` with no compiler across the seam, so it checks the bytes one
+puts on the wire against the offsets the other reads — and it reads the chunk
+size out of BOTH source files, because a mismatch there is silent: each side
+stays self-consistent, so a round trip within either one still passes. It was
+written by mutation-testing the checks, which is what caught `webui.cpp`
+claiming a chunk size was "the largest that fits" when the cap is not reached
+until twice that.
 
 All pass, and the card builds clean with `-Wall -Wextra -Wdouble-promotion
 -Wfloat-conversion`. `tools/syntax.sh` does **not** link, so it cannot catch a

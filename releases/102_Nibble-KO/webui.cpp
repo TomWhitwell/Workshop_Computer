@@ -233,6 +233,15 @@ void __not_in_flash_func(WebUI::Task)()
 		txPending_ = false;
 		tud_task();
 	}
+
+	// Same deal for a pattern dump: 2KB of events against a 256-byte FIFO, so
+	// one chunk per pass with a real tud_task() behind it.
+	if (patSending_)
+	{
+		SendNextPatternChunk();
+		txPending_ = false;
+		tud_task();
+	}
 }
 
 /// Send ONE MSG_LIBDET, or the terminator once the library is exhausted.
@@ -270,6 +279,52 @@ void __not_in_flash_func(WebUI::SendNextLibraryEntry)()
 	uint8_t end[2] = { MSG_LIBDET, 0x7F };
 	Send(end, 2);
 	libSending_ = false;
+}
+
+/// Send ONE MSG_PAT_DATA chunk, or the terminator once the slot is exhausted.
+///
+/// Framing, per message: [MSG_PAT_DATA, slot, more, encoded...], where `more`
+/// is 1 while chunks follow and 0 on the last one. The browser concatenates
+/// the decoded bytes and stops at more == 0, so it never needs to know the
+/// chunk size — which means this can change without touching the page.
+///
+/// 21 raw bytes per chunk. Three groups of seven, so the 7-bit encoding comes
+/// out even at 24 bytes, and the whole message lands at 30 — comfortably
+/// inside Send()'s 64-byte cap rather than at it. Bigger chunks would fit (the
+/// cap is not reached until 44 raw bytes), but there is nothing to win: the
+/// transfer is one 2KB slot in USB mode with nothing else running, and a
+/// round figure keeps d[] small and the arithmetic obvious.
+///
+/// If this changes, it must change in web/index.html's uploadPattern() too.
+/// tools/patsim.py reads the figure out of BOTH files and fails if they
+/// disagree, because a mismatch is silent: each side stays self-consistent,
+/// so a round trip within either one still passes.
+void __not_in_flash_func(WebUI::SendNextPatternChunk)()
+{
+	constexpr uint32_t kRaw = 21;
+
+	if (patCursor_ >= patBytes_)
+	{
+		// Terminator: an empty final chunk with more == 0. Sent even for an
+		// EMPTY slot, so "nothing stored here" is a complete reply rather than
+		// a silence the browser has to time out on.
+		uint8_t end[3] = { MSG_PAT_DATA, patSlot_, 0 };
+		Send(end, 3);
+		patSending_ = false;
+		return;
+	}
+
+	uint32_t n = patBytes_ - patCursor_;
+	if (n > kRaw) n = kRaw;
+
+	uint8_t d[3 + 32];
+	uint32_t o = 0;
+	d[o++] = MSG_PAT_DATA;
+	d[o++] = patSlot_;
+	d[o++] = 1;                                   // more chunks follow
+	o += Encode7bit(patBuf_ + patCursor_, n, d + o, sizeof(d) - o);
+	patCursor_ += n;
+	Send(d, o);
 }
 
 void __not_in_flash_func(WebUI::Send)(const uint8_t *payload, uint32_t len)
@@ -456,7 +511,19 @@ void __not_in_flash_func(WebUI::HandleSysex)(const uint8_t *msg, uint32_t len)
 		}
 		const uint32_t live = UserBytesUsed();
 
-		uint8_t info[18] = {
+		// APPEND-ONLY, and the length is a contract. The page checks for a
+		// MINIMUM length and reads fields by fixed index, so a new field may
+		// only be added at the END — moving or resizing an existing one makes
+		// an older page misread a newer card silently.
+		//
+		// kFeaturePatterns is why this grew. A card flashed before pattern
+		// transfer existed does not know MSG_PAT_GET, and HandleSysex's
+		// `default: break;` answers unknown messages with SILENCE — which the
+		// page could only report as "card did not respond", indistinguishable
+		// from a bug in code that was in fact correct. It cost a bench session.
+		// Advertising the capability lets the page say "this firmware is too
+		// old" instead of blaming itself.
+		uint8_t info[19] = {
 			MSG_INFO, kUserVersion,
 			static_cast<uint8_t>(HaveUserSamples() ? 1 : 0),
 			static_cast<uint8_t>(kHaveSamples ? 1 : 0),
@@ -482,8 +549,10 @@ void __not_in_flash_func(WebUI::HandleSysex)(const uint8_t *msg, uint32_t len)
 			static_cast<uint8_t>(kMaxUserSamples),
 			static_cast<uint8_t>((live >> 14) & 0x7F),
 			static_cast<uint8_t>((live >> 7)  & 0x7F),
-			static_cast<uint8_t>( live        & 0x7F) };
-		Send(info, 18);
+			static_cast<uint8_t>( live        & 0x7F),
+			// Feature bits. Bit 0 = pattern transfer (MSG_PAT_GET/SET).
+			kFeatureBits };
+		Send(info, 19);
 		break;
 	}
 
@@ -775,6 +844,116 @@ void __not_in_flash_func(WebUI::HandleSysex)(const uint8_t *msg, uint32_t len)
 		FlushUsb(200);
 		watchdog_reboot(0, 0, 0);
 		break;
+
+	case MSG_PAT_GET:
+	{
+		// Dump one pattern slot to the browser: payload [slot].
+		//
+		// The slot is COPIED OUT HERE, in one go, and the reply is then drip
+		// fed from Task() out of that copy — see SendNextPatternChunk(). A
+		// dump spread over many passes that re-read the live array would be a
+		// torn read if anything changed underneath it.
+		//
+		// Deferred rather than sent from here for the same reason MSG_LIBRARY
+		// is: tud_task() must not be re-entered from inside this function.
+		if (n < 2) { SendErr(ERR_PROTOCOL); break; }
+		const uint8_t slot = p[1];
+
+		uint16_t count = 0, knobCount = 0;
+		if (!WebGetPattern(slot, patBuf_, &count, &knobCount))
+		{
+			SendErr(ERR_BAD_SLOT);
+			break;
+		}
+
+		patSlot_       = slot;
+		patKnobCount_  = knobCount;
+		patBytes_      = static_cast<uint32_t>(count) * kPatEventBytes;
+		patCursor_     = 0;
+		patSending_    = true;
+
+		// The counts go first, in their own message, so the browser can size
+		// the pattern before any events arrive.
+		uint8_t hdr[6] = { MSG_PAT_DATA, slot, 0x7F,
+		                   static_cast<uint8_t>((count >> 7) & 0x7F),
+		                   static_cast<uint8_t>( count       & 0x7F),
+		                   static_cast<uint8_t>(knobCount    & 0x7F) };
+		Send(hdr, 6);
+		break;
+	}
+
+	case MSG_PAT_SET:
+	{
+		// Write a pattern slot: [slot, more, countHi, countLo, knobCount,
+		// encoded...] on the first packet, [slot, more, encoded...] after.
+		//
+		// RAM only, exactly like MSG_SET_SOURCE — no flash write, so no
+		// EnterUploadMode and no reboot. Persistence is the browser's job:
+		// it holds the JSON file. That is the whole point of this pair.
+		if (n < 3) { SendErr(ERR_PROTOCOL); break; }
+		const uint8_t slot = p[1];
+		const uint8_t more = p[2];
+		if (slot >= kPatSlots) { SendErr(ERR_BAD_SLOT); break; }
+
+		// First packet of a transfer carries the counts and resets the buffer.
+		uint32_t off = 3;
+		if (more == 0x7F)
+		{
+			if (n < 6) { SendErr(ERR_PROTOCOL); break; }
+			const uint16_t count = static_cast<uint16_t>(
+				(static_cast<uint16_t>(p[3]) << 7) | p[4]);
+			if (count > kPatMaxEvents) { SendErr(ERR_TOO_BIG); break; }
+
+			// Cancel any dump still draining. GET and SET share patBuf_ and the
+			// cursor, so a load started while a save was still being sent would
+			// have SendNextPatternChunk() transmitting the ARRIVING pattern back
+			// out and advancing patCursor_ underneath the receive path —
+			// corrupting both directions at once. The browser serialises these,
+			// so this is a defence against a retry or a second tab, not against
+			// its normal behaviour.
+			patSending_   = false;
+
+			patSlot_      = slot;
+			patKnobCount_ = p[5];
+			patBytes_     = static_cast<uint32_t>(count) * kPatEventBytes;
+			patCursor_    = 0;
+			SendAck(15, count);
+			break;
+		}
+
+		// A continuation for a slot other than the one in progress is a
+		// browser bug; refuse it rather than interleaving two transfers.
+		if (slot != patSlot_) { SendErr(ERR_PROTOCOL); break; }
+
+		if (n > off)
+		{
+			uint8_t dec[64];
+			const uint32_t got = Decode7bit(p + off, n - off, dec, sizeof(dec));
+			if (patCursor_ + got > sizeof(patBuf_)) { SendErr(ERR_TOO_BIG); break; }
+			memcpy(patBuf_ + patCursor_, dec, got);
+			patCursor_ += got;
+		}
+
+		// more == 0 ends the transfer and commits the slot. The count comes
+		// from what actually ARRIVED, not from what was announced, so a
+		// truncated transfer stores the events it got rather than trailing
+		// garbage from a previous, longer pattern.
+		if (more == 0)
+		{
+			const uint16_t got = static_cast<uint16_t>(patCursor_ / kPatEventBytes);
+			if (!WebSetPattern(slot, patBuf_, got, patKnobCount_))
+			{
+				SendErr(ERR_BAD_SLOT);
+				break;
+			}
+			SendAck(16, got);
+		}
+		else
+		{
+			SendAck(17, patCursor_);
+		}
+		break;
+	}
 
 	default:
 		break;

@@ -62,6 +62,12 @@ enum : uint8_t {
 	MSG_DELETE      = 0x29,  // ui->fw: drop ONE library entry, commit, reboot
 	MSG_PROF_GET    = 0x30,  // ui->fw: send the timing peaks (profile builds)
 	MSG_PROF        = 0x31,  // fw->ui: peak cycles per bucket + overrun count
+	MSG_PAT_GET     = 0x40,  // ui->fw: dump a pattern slot; payload [slot].
+	                          // Replies with a burst of MSG_PAT_DATA.
+	MSG_PAT_DATA    = 0x41,  // fw->ui: one chunk of a pattern slot; see
+	                          // SendNextPatternChunk() for the framing.
+	MSG_PAT_SET     = 0x42,  // ui->fw: write a pattern slot. RAM only, like
+	                          // MSG_SET_SOURCE — no flash, no reboot.
 };
 
 // Manufacturer ID 0x7D = "prototyping / private use". Same as the sibling cards.
@@ -84,6 +90,23 @@ enum : uint8_t {
 	ERR_NONE = 0, ERR_TOO_BIG = 1, ERR_BAD_SLOT = 2, ERR_PROTOCOL = 3,
 };
 
+/// What this firmware can do, advertised in MSG_INFO's last byte.
+///
+/// This exists because an unknown SysEx message is answered with SILENCE
+/// (HandleSysex's `default: break;`), which the browser cannot tell apart
+/// from a card that failed to reply — so a page talking to firmware older
+/// than itself reports "the card did not respond" and looks like a bug in
+/// working code. It cost a bench session before this was added.
+///
+/// Set a bit when a new message group lands, and have the page check it
+/// before offering the control. Seven bits are available before this needs
+/// a second byte; add that at the END of MSG_INFO, never in the middle.
+enum : uint8_t {
+	kFeaturePatterns = 1u << 0,   ///< MSG_PAT_GET / MSG_PAT_DATA / MSG_PAT_SET
+};
+
+constexpr uint8_t kFeatureBits = kFeaturePatterns;
+
 /// MSG_SET_SOURCE's "this slot is synthesised" sentinel, ON THE WIRE.
 ///
 /// 0x7F, NOT 0xFF, and the distinction is not cosmetic: every byte inside a
@@ -99,6 +122,37 @@ constexpr uint8_t kWireSynth = 0x7F;
 /// Encoded length = ceil(srcLen/7)*8; decoded length <= (srcLen/8)*7.
 uint32_t Encode7bit(const uint8_t *src, uint32_t srcLen, uint8_t *dst, uint32_t dstMax);
 uint32_t Decode7bit(const uint8_t *src, uint32_t srcLen, uint8_t *dst, uint32_t dstMax);
+
+/// Pattern-slot access for the WebUI, defined in main.cpp.
+///
+/// Free functions rather than a Looper handle, for the same reason
+/// gVoiceSample/SetVoiceSample are: the Looper is a private member of the card
+/// object, webui.cpp runs on core 1, and this is the whole of the surface it
+/// needs.
+///
+/// CROSS-CORE, and the safety argument is NOT "core 0 has stopped" — it no
+/// longer does. The loop keeps playing in WebUi mode so that re-assigning a
+/// sound can be judged by ear (see main.cpp's SetMode). What makes this safe
+/// is narrower: the pattern SLOT arrays are written only by StorePattern(),
+/// which is reachable only from a pad gesture, and the pads are inert in
+/// WebUi mode (FireCombo ignores every combo there). So core 0 plays FROM
+/// events_ while these touch pattern_[], and the two never overlap.
+///
+/// If a future change lets anything else write a slot while connected — a
+/// timer, a CV trigger, a new gesture — this becomes a genuine torn read and
+/// needs real synchronisation, not a comment.
+///
+/// `out` must have room for Looper::kMaxEvents events. Returns false for a bad
+/// slot; an empty slot is a success with *count == 0.
+bool WebGetPattern(int slot, void *out, uint16_t *count, uint16_t *knobCount);
+bool WebSetPattern(int slot, const void *in, uint16_t count, uint16_t knobCount);
+
+/// How many events a slot can hold, and the wire size of one — so webui.cpp can
+/// size its buffers without including looper.h (which drags in drums.h and the
+/// whole audio engine for two numbers).
+constexpr uint32_t kPatMaxEvents  = 512;
+constexpr uint32_t kPatEventBytes = 4;
+constexpr uint8_t  kPatSlots      = 3;
 
 /// USB-MIDI transport + upload state machine.
 ///
@@ -168,6 +222,12 @@ private:
 	/// HandleSysex() without corrupting the parser — see MSG_LIBRARY.
 	void SendNextLibraryEntry();
 
+	/// Send one MSG_PAT_DATA chunk per call, driven from Task() for exactly
+	/// the same reason as SendNextLibraryEntry(): a full slot is 2KB against a
+	/// 256-byte TX FIFO, and tud_task() must not be called from inside
+	/// HandleSysex(). See MSG_PAT_GET.
+	void SendNextPatternChunk();
+
 	bool     uploading_ = false;
 	uint8_t  slotEntry_ = 0;    // library entry currently being received
 	uint32_t writeOff_ = 0;     // next byte offset within the data area
@@ -201,6 +261,16 @@ private:
 	// The library reply, sent one entry per Task() pass.
 	uint8_t  libCursor_ = 0;
 	bool     libSending_ = false;
+
+	// The pattern dump, sent one chunk per Task() pass. patBuf_ holds the slot
+	// copied out at MSG_PAT_GET time, so the reply is a snapshot rather than a
+	// live read spread over many passes.
+	uint8_t  patBuf_[kPatMaxEvents * kPatEventBytes];
+	uint32_t patBytes_ = 0;     // how much of patBuf_ is real
+	uint32_t patCursor_ = 0;    // next byte to send
+	uint16_t patKnobCount_ = 0;
+	uint8_t  patSlot_ = 0;
+	bool     patSending_ = false;
 };
 
 } // namespace nko

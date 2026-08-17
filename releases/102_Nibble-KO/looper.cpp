@@ -470,10 +470,72 @@ bool Looper::RecallPattern(int i)
 	// zero instead would re-fire everything between the loop start and here,
 	// all on this one tick — the same trap Undo() has, and worth stating
 	// twice because it is silent when wrong.
+	//
+	// Recalling a SPARSER pattern mid-bar also has to wrap rather than sit at
+	// count_, or the loop goes quiet until the next pass — see RebuildCursor().
+	RebuildCursor();
+
+	for (int k = 0; k < kNumLanes; k++) lastKnob_[k] = -9999;
+	return true;
+}
+
+void Looper::RebuildCursor()
+{
 	cursor_ = 0;
 	while (cursor_ < count_ && FireTick(events_[cursor_]) < playHead_) cursor_++;
 
-	for (int k = 0; k < kNumLanes; k++) lastKnob_[k] = -9999;
+	// Ran off the end: every remaining event is behind the playhead, so the
+	// next one due is the first of the next pass. See the header comment —
+	// leaving cursor_ == count_ here is what silenced the loop until the wrap.
+	if (cursor_ >= count_) cursor_ = 0;
+}
+
+bool Looper::GetPatternRaw(int i, LoopEvent *out, uint16_t &count,
+                           uint16_t &knobCount) const
+{
+	if (i < 0 || i >= kNumPatterns || out == nullptr) return false;
+
+	count     = patternCount_[i];
+	knobCount = patternKnobCount_[i];
+	for (uint16_t k = 0; k < count; k++) out[k] = pattern_[i][k];
+	return true;
+}
+
+bool Looper::SetPatternRaw(int i, const LoopEvent *in, uint16_t count,
+                           uint16_t knobCount)
+{
+	if (i < 0 || i >= kNumPatterns || in == nullptr) return false;
+	if (count > kMaxEvents) return false;
+
+	// This is a TRUST BOUNDARY, unlike StorePattern(): that copies events_,
+	// which Insert() has already kept sorted and in range, whereas this takes
+	// whatever arrived over USB from a JSON file a user could have edited by
+	// hand. RecallPattern() walks the array assuming it is sorted by tick (see
+	// FireTick()), so an out-of-order or out-of-range pattern would leave the
+	// cursor pointing at the wrong place and fire events at the wrong time —
+	// silently, and only once that slot was recalled.
+	//
+	// Clamping the tick and insertion-sorting on the way in costs a few
+	// microseconds in USB mode, where nothing is playing, and makes a bad file
+	// merely wrong rather than able to corrupt playback.
+	uint16_t n = 0;
+	for (uint16_t k = 0; k < count; k++)
+	{
+		LoopEvent ev = in[k];
+		if (ev.tick >= kLoopTicks) ev.tick %= kLoopTicks;
+
+		uint16_t j = n;
+		while (j > 0 && pattern_[i][j - 1].tick > ev.tick)
+		{
+			pattern_[i][j] = pattern_[i][j - 1];
+			j--;
+		}
+		pattern_[i][j] = ev;
+		n++;
+	}
+
+	patternCount_[i]     = n;
+	patternKnobCount_[i] = (knobCount > n) ? n : knobCount;
 	return true;
 }
 
@@ -492,9 +554,11 @@ bool Looper::Undo()
 	// hits that are not due yet.
 	//
 	// The array is sorted by FireTick, so the first event at or after the
-	// playhead is exactly where the walk in Fire() should resume.
-	cursor_ = 0;
-	while (cursor_ < count_ && FireTick(events_[cursor_]) < playHead_) cursor_++;
+	// playhead is exactly where the walk in Fire() should resume — and if the
+	// undone pass added events BEHIND the playhead, the shortened array runs
+	// out and the walk must wrap to 0 rather than strand the cursor at count_.
+	// That stranding is what silenced the loop until the next pass.
+	RebuildCursor();
 
 	// The knob lanes were tracking values from the undone pass. Drop the
 	// references so the next RecordKnobs() re-seeds instead of comparing

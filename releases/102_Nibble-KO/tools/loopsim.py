@@ -311,11 +311,8 @@ class Looper:
         self.knob_count = kc
 
         # The playhead is deliberately NOT moved. The cursor must be rebuilt
-        # from it for the same reason undo's must -- see there.
-        self.cursor = 0
-        while (self.cursor < len(self.events)
-               and fire_tick(self.events[self.cursor]) < self.play_head):
-            self.cursor += 1
+        # from it for the same reason undo's must -- see rebuild_cursor().
+        self.rebuild_cursor()
         return True
 
     def undo(self):
@@ -327,13 +324,34 @@ class Looper:
 
         # Rebuild the cursor from the playhead. Resetting it to zero would
         # replay everything between the loop start and here.
+        self.rebuild_cursor()
+
+        self.have_snap = False
+        return True
+
+    def rebuild_cursor(self):
+        """Re-point the cursor after events[] has been REPLACED wholesale.
+
+        Mirrors Looper::RebuildCursor in looper.cpp. The walk is the obvious
+        part; the WRAP is the part that was missing and shipped as a bug.
+
+        If the new array is shorter than the playhead's position -- undoing a
+        pass that added events behind the playhead, or recalling a sparser
+        pattern mid-bar -- the walk runs off the end and leaves the cursor at
+        len(events). fire() only moves the cursor forward, and advance() only
+        resets it when play_head hits 0, so nothing sounds again until the
+        loop wraps: "undo silences the loop until the start of the next pass".
+
+        Landing on 0 is right rather than merely non-silent: the array is a
+        RING sorted by fire time, so "nothing left this pass" and "the next
+        event is the first one, next pass" are the same statement.
+        """
         self.cursor = 0
         while (self.cursor < len(self.events)
                and fire_tick(self.events[self.cursor]) < self.play_head):
             self.cursor += 1
-
-        self.have_snap = False
-        return True
+        if self.cursor >= len(self.events):
+            self.cursor = 0
 
 
 def run_pass(lp, collect=None):
@@ -817,6 +835,92 @@ def test_undo_does_not_replay_the_bar_so_far():
           [c for (_t, c) in fired], [3])
 
 
+def test_undo_past_every_surviving_event_does_not_go_silent():
+    """The other half of the cursor rebuild, and a bug that shipped.
+
+    test_undo_does_not_replay_the_bar_so_far covers the walk going FORWARD.
+    This covers it running OFF THE END: undo a pass whose hits were all behind
+    the playhead and the shortened array has nothing at or after it, so the
+    walk stops at len(events).
+
+    That is not a harmless resting place. fire() only ever moves the cursor
+    forward, and advance() only rewinds it when play_head reaches 0, so a
+    cursor parked at the end plays NOTHING for the rest of the pass -- the
+    loop drops out until the next bar. Reported from the bench as "undo
+    sometimes silences the loop til start of next pass".
+
+    Wrapping to 0 is the fix: the array is a ring sorted by fire time, so
+    "nothing left this pass" and "the next event is the first one, next pass"
+    are the same statement.
+    """
+    lp = Looper()
+    lp.set_tempo_bpm(120)
+
+    # Two hits EARLY in the bar; these survive the undo.
+    for t, v in ((0, 0), (100, 1)):
+        lp.play_head = t
+        lp.record_hit(v)
+    lp.snapshot()
+
+    # Overdub a hit LATE, then undo from a playhead past everything that
+    # remains once that hit is dropped.
+    lp.play_head = 700
+    lp.record_hit(9)
+    lp.undo()
+
+    check("undo: the array really is shorter than the playhead",
+          all(fire_tick(e) < lp.play_head for e in lp.events), True)
+    check("undo: cursor wrapped rather than stranding at the end",
+          lp.cursor, 0)
+
+    # The whole next pass must play both surviving hits.
+    fired = []
+    for _ in range(LOOP_TICKS):
+        lp.play_head = (lp.play_head + 1) % LOOP_TICKS
+        if lp.play_head == 0:
+            lp.cursor = 0                      # advance()'s wrap
+        for ev in lp.fire():
+            fired.append(ev[0])
+    check("undo: both surviving hits play on the next pass",
+          sorted(fired), [0, 1])
+
+
+def test_recall_a_sparser_pattern_does_not_go_silent():
+    """The same stranding, reached through recall_pattern() instead.
+
+    Both share rebuild_cursor(), so a pattern recalled mid-bar whose events
+    all sit behind the playhead has to wrap for the same reason -- otherwise
+    switching to a sparser pattern drops the loop until the next bar.
+    """
+    lp = Looper()
+    lp.set_tempo_bpm(120)
+
+    # Store a SPARSE pattern: one hit, early.
+    lp.play_head = 50
+    lp.record_hit(4)
+    lp.store_pattern(0)
+
+    # Fill the live loop with something denser and run the playhead past the
+    # sparse pattern's only event.
+    for t, v in ((600, 5), (700, 6)):
+        lp.play_head = t
+        lp.record_hit(v)
+    lp.play_head = 720
+
+    check("recall: the sparse pattern recalled", lp.recall_pattern(0), True)
+    check("recall: cursor wrapped rather than stranding at the end",
+          lp.cursor, 0)
+
+    fired = []
+    for _ in range(LOOP_TICKS):
+        lp.play_head = (lp.play_head + 1) % LOOP_TICKS
+        if lp.play_head == 0:
+            lp.cursor = 0
+        for ev in lp.fire():
+            fired.append(ev[0])
+    check("recall: the recalled hit plays on the next pass", fired, [4])
+
+
 def test_patterns_store_voices_not_sounds():
     """A pattern must hold VOICE INDICES and nothing about what they sound
     like, so uploading a sample or re-pointing a slot changes what an existing
@@ -1232,6 +1336,8 @@ def main():
     test_undo_is_one_way()
     test_undo_with_no_snapshot()
     test_undo_does_not_replay_the_bar_so_far()
+    test_undo_past_every_surviving_event_does_not_go_silent()
+    test_recall_a_sparser_pattern_does_not_go_silent()
     test_patterns_store_voices_not_sounds()
     test_pattern_recall_keeps_the_playhead()
     test_quantise_snaps_at_capture_not_playback()

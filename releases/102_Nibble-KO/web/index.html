@@ -27,11 +27,14 @@
 
   WHAT IS REAL: the Kit and Samples tabs. Connect, per-voice assignment
   (any synth voice, any baked sample, any uploaded one), saving the kit, and
-  the whole sample library — upload, rename, delete, erase.
-  WHAT IS NOT: Mutes, FX and Patterns are reference displays only — the card
-  has no SysEx messages for mute-group assignment, pattern transfer or loop
-  settings yet. They are marked as such in the UI rather than quietly
-  pretending to work.
+  the whole sample library — upload, rename, delete, erase. Plus pattern
+  save/load on the Patterns tab: the card keeps patterns in RAM only, so the
+  JSON file written here is the permanent copy. A pattern carries no audio —
+  `what` is a voice index — so one saved from any kit plays on any other.
+  WHAT IS NOT: Mutes and FX are reference displays only, and so is everything
+  on the Patterns tab BELOW the save/load panel — the card has no SysEx
+  messages for mute-group assignment or loop settings yet. They are marked as
+  such in the UI rather than quietly pretending to work.
 
   EVERY FLASH WRITE REBOOTS THE CARD, which drops USB and leaves it playing
   rather than in WebUI mode. That is not a choice — see webui.cpp's
@@ -543,9 +546,10 @@ footer {
   <!-- PATTERNS -->
   <div class="view" id="view-patterns">
     <div class="notice">
-      Reference only. Hold <strong>D</strong> and tap <strong>A</strong> <strong>B</strong>
-      <strong>C</strong> to trigger patterns. Switch UP records patterns.
+      Patterns live in the card's memory only and are lost at power-off.
+      Save one here and the file on your computer becomes the permanent copy.
     </div>
+    <div class="ref-grid" id="pattern-io"></div>
     <div class="ref-grid" id="pattern-ref"></div>
   </div>
 
@@ -606,7 +610,7 @@ footer {
     <h4>Connecting</h4>
     <ul>
       <li>On the card: hold the switch <strong>Down</strong> and press <strong>B + D</strong> together</li>
-      <li>All four pads glow slowly &mdash; the card is now on USB and silent</li>
+      <li>All four pads glow slowly &mdash; the card is now on USB. The loop keeps playing, so you can judge a new sound against it; only recording stops</li>
       <li>Click <code>Connect USB</code> and allow MIDI access when the browser asks</li>
     </ul>
 
@@ -685,7 +689,13 @@ const MSG = {
   ERASE: 0x20, PLAY: 0x21,
   SLOTS: 0x23, LIBRARY: 0x24, LIBDET: 0x25, SET_SOURCE: 0x26,
   SAVE_MAP: 0x27, NAME: 0x28, DELETE: 0x29,
+  PAT_GET: 0x40, PAT_DATA: 0x41, PAT_SET: 0x42,
 };
+
+// Pattern slots, matching kNumPatterns/kMaxEvents in looper.h.
+const NUM_PATTERNS = 3;
+const PAT_MAX_EVENTS = 512;
+const LOOP_TICKS = 768;      // kLoopTicks: 4 bars at 192 ticks/bar
 
 // The SYNTH character of each slot, matching drums.cpp's kVoices table. This
 // is what a slot sounds like when it is not playing a sample — so it stays
@@ -858,6 +868,20 @@ function encode7bit(src) {
   return out.subarray(0, o);
 }
 
+// Mirrors Decode7bit in webui.cpp: every 8 bytes are one high-bit byte
+// followed by up to 7 septets.
+function decode7bit(src) {
+  const out = new Uint8Array(src.length);
+  let o = 0;
+  for (let i = 0; i < src.length; i += 8) {
+    const high = src[i];
+    const n = Math.min(7, src.length - i - 1);
+    for (let k = 0; k < n; k++)
+      out[o++] = src[i + 1 + k] | ((high & (1 << k)) ? 0x80 : 0);
+  }
+  return out.subarray(0, o);
+}
+
 // --- MIDI -------------------------------------------------------------------
 
 function setStatus(msg, cls = "") {
@@ -906,6 +930,23 @@ function waitAck(timeoutMs = 4000) {
     const handler = (d) => { clearTimeout(t); deliver(d); };
     rxWaiter = handler;
   });
+}
+
+/// Throw away replies the card queued for a request we have finished with.
+///
+/// Call this BEFORE starting a new exchange. The queue is shared by every
+/// message, and a burst reply (MSG_LIBDET, MSG_PAT_DATA) is only drained
+/// until its terminator — so anything the card had already queued behind it
+/// survives into the next wait and is delivered to the WRONG requester,
+/// putting every later reply one message behind.
+///
+/// That is not hypothetical: saving a pattern before any slot was stored
+/// came back as "unexpected reply f0 7d 25 7f f7" — a leftover MSG_LIBDET
+/// terminator (0x25, entry 0x7F) from the connect-time library read, handed
+/// to the pattern download. The pattern code was correct; it was reading
+/// someone else's post.
+function drainRx() {
+  rxQueue.length = 0;
 }
 
 const DEVICE_RE = /nibble|workshop|pico/i;
@@ -968,7 +1009,15 @@ async function connect() {
   const total = (info[13] << 14) | (info[14] << 7) | info[15];
   const maxEntries = info[16];
   const live  = (info[17] << 14) | (info[18] << 7) | info[19];
-  state.info = { user: info[4] === 1, cap, used, total, maxEntries, live };
+
+  // Feature bits, appended after `live`. A card older than this page does not
+  // send them at all, and the length check above only requires 21 bytes — so
+  // treat "absent" as "supports nothing new" rather than reading past the end.
+  // Bit 0 is pattern transfer; without it MSG_PAT_GET would be met with
+  // silence, which is indistinguishable from a dead card.
+  const features = info.length >= 22 ? info[20] : 0;
+  state.info = { user: info[4] === 1, cap, used, total, maxEntries, live,
+                 patterns: (features & 0x01) !== 0 };
 
   await refreshLibrary();
   await refreshSlots();
@@ -1012,6 +1061,164 @@ async function refreshLibrary() {
       name += String.fromCharCode(d[i]);
     state.library.push({ entry, size, name });
   }
+}
+
+// --- pattern transfer -------------------------------------------------------
+//
+// A pattern is a bare event list — {tick, what, value}, 4 bytes each, up to
+// 512 — and carries NO audio and no sample references. `what` is a voice
+// index, so a pattern saved from one kit plays correctly on another; that is
+// a deliberate property of the format (see looper.h), not an accident.
+//
+// The card holds patterns in RAM only, so these two functions are the whole of
+// pattern persistence: the file on your disk IS the saved copy.
+
+/// Pull one slot off the card. Returns {count, knobCount, events} or null.
+///
+/// The card replies with a header (more == 0x7F) carrying the counts, then a
+/// burst of chunks, then a terminator (more == 0). Drained here until the
+/// terminator, the same shape refreshLibrary() uses.
+async function downloadPattern(slot) {
+  drainRx();                      // see drainRx: stale burst replies desync this
+  send([MSG.PAT_GET, slot]);
+
+  // waitAck REJECTS on MSG_UP_ERR rather than returning it, so a plain
+  // .catch(() => null) here collapses "the card refused" and "the card said
+  // nothing" into the same silent null — which is what made this report as a
+  // bare "did not send that pattern" with no way to tell the two apart.
+  let hdr = null, why = "no reply";
+  try {
+    hdr = await waitAck(2000);
+  } catch (e) {
+    why = e.message;
+  }
+  if (!hdr) { downloadPattern.why = why; return null; }
+  if (hdr[2] !== MSG.PAT_DATA || hdr[4] !== 0x7F) {
+    downloadPattern.why = "unexpected reply " +
+      Array.from(hdr).map(b => b.toString(16).padStart(2, "0")).join(" ");
+    return null;
+  }
+  const count = (hdr[5] << 7) | hdr[6];
+  const knobCount = hdr[7];
+
+  const bytes = [];
+  for (;;) {
+    const d = await waitAck(2000).catch(() => null);
+    if (!d || d[2] !== MSG.PAT_DATA) return null;     // timed out or lost sync
+    if (d[4] === 0) break;                            // terminator
+    const dec = decode7bit(d.subarray(5, d.length - 1));
+    for (const b of dec) bytes.push(b);
+  }
+
+  const events = [];
+  for (let i = 0; i + 3 < bytes.length; i += 4)
+    events.push({ tick: bytes[i] | (bytes[i + 1] << 8),
+                  what: bytes[i + 2], value: bytes[i + 3] });
+  return { count, knobCount, events };
+}
+
+/// Push a pattern onto a slot. RAM only on the card — no flash, no reboot.
+///
+/// 21 raw bytes per chunk, matching SendNextPatternChunk()'s figure: SysEx
+/// payloads must be 7-bit, so 21 bytes encode to 24 and stay well inside the
+/// card's receive buffer.
+async function uploadPattern(slot, pat) {
+  const n = Math.min(pat.events.length, PAT_MAX_EVENTS);
+  const raw = new Uint8Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    const e = pat.events[i];
+    raw[i * 4]     = e.tick & 0xFF;
+    raw[i * 4 + 1] = (e.tick >> 8) & 0xFF;
+    raw[i * 4 + 2] = e.what & 0xFF;
+    raw[i * 4 + 3] = e.value & 0xFF;
+  }
+
+  // Header: counts first, so the card can reject an oversized pattern before
+  // any events arrive.
+  drainRx();                      // see drainRx: stale burst replies desync this
+  send([MSG.PAT_SET, slot, 0x7F, (n >> 7) & 0x7F, n & 0x7F,
+        (pat.knobCount || 0) & 0x7F]);
+  await waitAck(2000);
+
+  for (let off = 0; off < raw.length; off += 21) {
+    const chunk = encode7bit(raw.subarray(off, Math.min(off + 21, raw.length)));
+    send([MSG.PAT_SET, slot, 1, ...chunk]);
+    await waitAck(2000);
+  }
+
+  send([MSG.PAT_SET, slot, 0]);          // more == 0 commits the slot
+  await waitAck(2000);
+}
+
+async function savePatternToDisk(slot) {
+  if (!state.midiOut) { setStatus("Connect the card first.", "err"); return; }
+  setStatus(`Reading pattern ${slot + 1}…`);
+  downloadPattern.why = "no reply";
+  const pat = await downloadPattern(slot).catch(e => { downloadPattern.why = e.message; return null; });
+  if (!pat) {
+    setStatus(`Could not read pattern ${slot + 1} — ${downloadPattern.why}.`, "err");
+    return;
+  }
+  if (pat.events.length === 0) {
+    setStatus(`Pattern ${slot + 1} is empty — nothing to save.`, "err");
+    return;
+  }
+
+  const blob = new Blob([JSON.stringify(
+    { card: "nibble-ko", kind: "pattern", slot,
+      knobCount: pat.knobCount, events: pat.events }, null, 2)],
+    { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `nibbleko-pattern-${slot + 1}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus(`Saved pattern ${slot + 1} — ${pat.events.length} events.`, "ok");
+}
+
+async function loadPatternFromDisk(slot, file) {
+  if (!state.midiOut) { setStatus("Connect the card first.", "err"); return; }
+  let pat;
+  try {
+    pat = JSON.parse(await file.text());
+  } catch (e) {
+    setStatus("That file is not readable JSON.", "err");
+    return;
+  }
+  if (!pat || !Array.isArray(pat.events)) {
+    setStatus("That file does not look like a NIBBLE-KO pattern.", "err");
+    return;
+  }
+  if (pat.events.length > PAT_MAX_EVENTS) {
+    setStatus(`Too many events — ${pat.events.length}, the card holds ` +
+              `${PAT_MAX_EVENTS}.`, "err");
+    return;
+  }
+
+  // Check the events before sending. The card clamps and re-sorts whatever
+  // arrives (see SetPatternRaw), so this is not what keeps it safe — it is
+  // what turns "the pattern loaded but sounds wrong" into a message naming
+  // the bad event. 0x80 is kKnobEvent, the automation flag.
+  const bad = pat.events.findIndex(e =>
+    !e || typeof e.tick !== "number" || typeof e.what !== "number" ||
+    typeof e.value !== "number" ||
+    e.tick < 0 || e.tick >= LOOP_TICKS ||
+    e.value < 0 || e.value > 255 ||
+    ((e.what & 0x80) === 0 && (e.what < 0 || e.what >= NUM_VOICES)));
+  if (bad >= 0) {
+    setStatus(`Event ${bad} in that file is not valid for this card.`, "err");
+    return;
+  }
+
+  setStatus(`Sending pattern to slot ${slot + 1}…`);
+  try {
+    await uploadPattern(slot, pat);
+  } catch (e) {
+    setStatus("The card did not accept that pattern: " + e.message, "err");
+    return;
+  }
+  setStatus(`Pattern ${slot + 1} loaded — ${pat.events.length} events. ` +
+            `Hold D and tap ${["A", "B", "C"][slot]} on the card to play it.`, "ok");
 }
 
 function disconnected() {
@@ -1524,6 +1731,50 @@ function renderReference() {
         `<span class="ref-voice">${name}</span></div>`
       ).join("");
     fx.appendChild(card);
+  });
+
+  // PATTERNS, save/load. The only live controls on this page: everything
+  // below is reference. Enabled only while connected, because both ends are
+  // a conversation with the card.
+  const io = document.getElementById("pattern-io");
+  // Connected AND running firmware that knows the messages. An older card
+  // answers MSG_PAT_GET with silence, so offering the button would produce a
+  // timeout that reads as a broken page rather than as stale firmware.
+  const canPat = !!state.midiOut && !!(state.info && state.info.patterns);
+  const live = canPat;
+  const staleFw = !!state.midiOut && !canPat;
+  io.innerHTML =
+    `<div class="ref-card"><h3>Save and load patterns</h3>` +
+    `<div class="ref-sub">the file on your computer is the permanent copy</div>` +
+    ["A", "B", "C"].map((k, i) =>
+      `<div class="ref-row" style="align-items:center">` +
+      `<span class="ref-voice">Pattern ${i + 1} &mdash; hold D, tap ${k}</span>` +
+      `<span class="button-row" style="margin-top:0">` +
+      `<button data-pat-save="${i}"${live ? "" : " disabled"}>Save&hellip;</button>` +
+      `<button data-pat-load="${i}"${live ? "" : " disabled"}>Load&hellip;</button>` +
+      `</span></div>`
+    ).join("") +
+    (live ? "" : `<div class="ref-row"><span class="ref-voice" ` +
+      `style="color:var(--text-muted);font-style:italic">` +
+      (staleFw
+        ? `This card's firmware predates pattern transfer. Reflash it with ` +
+          `the current build (build/nibbleko.uf2) to save and load patterns.`
+        : `Connect the card to save or load.`) +
+      `</span></div>`) +
+    `</div>`;
+
+  io.querySelectorAll("[data-pat-save]").forEach(b => {
+    b.onclick = () => savePatternToDisk(Number(b.dataset.patSave));
+  });
+  io.querySelectorAll("[data-pat-load]").forEach(b => {
+    b.onclick = () => {
+      const slot = Number(b.dataset.patLoad);
+      const f = document.createElement("input");
+      f.type = "file";
+      f.accept = ".json,application/json";
+      f.onchange = () => { if (f.files[0]) loadPatternFromDisk(slot, f.files[0]); };
+      f.click();
+    };
   });
 
   // PATTERNS: D is the shift, A/B/C are the slots.

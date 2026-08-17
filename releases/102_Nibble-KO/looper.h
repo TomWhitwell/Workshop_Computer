@@ -471,6 +471,22 @@ public:
 		return i >= 0 && i < kNumPatterns && patternCount_[i] > 0;
 	}
 
+	/// Copy slot `i` out for transfer to the browser. `out` must have room for
+	/// kMaxEvents. Returns false for a bad slot; an EMPTY slot is a success
+	/// with count 0, so the browser can tell "nothing stored" apart from
+	/// "no such slot".
+	bool GetPatternRaw(int i, LoopEvent *out, uint16_t &count,
+	                   uint16_t &knobCount) const;
+
+	/// Replace slot `i` with a pattern received from the browser.
+	///
+	/// Touches ONLY the slot. events_/cursor_/playHead_ are left alone, so a
+	/// pattern arriving over USB behaves exactly like one stored by the
+	/// gesture: what is currently playing keeps playing, and the new content
+	/// takes effect at the next RecallPattern(). Rejects count > kMaxEvents.
+	bool SetPatternRaw(int i, const LoopEvent *in, uint16_t count,
+	                   uint16_t knobCount);
+
 	// --- quantise grid ------------------------------------------------------
 
 	/// Step to the next grid (16th -> 12th -> 8th -> 16th...).
@@ -551,6 +567,23 @@ private:
 	/// Snap a raw tick to the CURRENT grid. Called once, from RecordHit() —
 	/// see QuantGrid's comment for why this is capture-time, not playback.
 	uint16_t QuantiseTick(uint16_t tick) const;
+
+	/// Re-point cursor_ at the first event due at or after the playhead, after
+	/// events_ has been REPLACED wholesale (Undo, RecallPattern).
+	///
+	/// The walk is the obvious part. The wrap is not, and leaving it out is a
+	/// bug that was shipped: if the new array is SHORTER than the playhead's
+	/// position — undoing a pass that added events behind the playhead, or
+	/// recalling a sparser pattern mid-bar — the walk runs off the end and
+	/// leaves cursor_ == count_. Fire() only ever moves the cursor forward and
+	/// Advance() only resets it when playHead_ hits 0, so nothing sounds again
+	/// until the loop wraps. On the bench that is "undo silences the loop
+	/// until the start of the next pass".
+	///
+	/// Landing on 0 instead is right rather than merely non-silent: the array
+	/// is a RING sorted by fire time, so "no event left this pass" and "the
+	/// next event is the first one, next pass" are the same statement.
+	void RebuildCursor();
 
 	/// The tick at which an event actually sounds. For a drum hit this is
 	/// just ev.tick — quantisation already happened once, at RecordHit()
