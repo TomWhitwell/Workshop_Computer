@@ -116,6 +116,22 @@ h1 {
   color: var(--muted);
 }
 
+.notice {
+  border: 2px solid var(--ink);
+  padding: 12px;
+  background: rgba(245, 200, 76, 0.28);
+}
+
+.notice.ok {
+  color: var(--ink);
+  background: rgba(94, 145, 85, 0.24);
+}
+
+.notice.warn {
+  color: var(--ink);
+  background: rgba(191, 36, 36, 0.16);
+}
+
 .steps div,
 .panel > div,
 .log {

@@ -851,7 +851,7 @@ void RunWebSerialLoader()
     printf("PUNKCONF LOADER READY\n");
     printf("FLASH_BYTES %lu\n", static_cast<unsigned long>(PICO_FLASH_SIZE_BYTES));
     printf("SAMPLE_BANK_BYTES %lu\n", static_cast<unsigned long>(PunkSampleBank::kBankSize));
-    printf("Send PCLD plus length/bank image, or PCLR to restore factory samples.\n");
+    printf("Waiting for the web page to send sounds or restore built-in sounds.\n");
 
     while (true)
     {
@@ -859,7 +859,7 @@ void RunWebSerialLoader()
         if (command == kLoaderCommandClear)
         {
             ClearUploadedBank();
-            printf("Restart the card to use factory samples, or send PCLD for an upload.\n");
+            printf("Restart the card to use built-in sounds, or send new sounds from the web page.\n");
             continue;
         }
 
@@ -872,7 +872,7 @@ void RunWebSerialLoader()
 
         printf("OK SEND %lu\n", static_cast<unsigned long>(length));
         ReceiveAndProgramBank(length);
-        printf("Send PCLD for another upload or restart the card.\n");
+        printf("Upload complete. Restart the card, or send another set from the web page.\n");
     }
 }
 
