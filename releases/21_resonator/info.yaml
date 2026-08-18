@@ -5,6 +5,7 @@ Language: C++ (ComputerCard)
 Creator: Johan Eklund
 Version: 1.2.1
 Status: Released
+License: GPL-3.0
 Editor: https://johaneklund.io/resonator
 date-created: 2026-04-10
 date-updated: 2026-08-18
@@ -109,4 +110,4 @@ host:
   usb:
     - name: Resonator Web Editor
       role: editor
-      description: Browser editor for chord progression order and persistence over USB serial
+      description: Browser editor for chord progressions and CV & pulse I/O
