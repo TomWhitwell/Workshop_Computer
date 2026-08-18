@@ -41,7 +41,7 @@ function releaseCards() {
     .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
 }
 
-function validate(flairs, discovery, cards) {
+export function validate(flairs, discovery, cards) {
   const errors = [];
   const warnings = [];
   const available = Array.isArray(flairs.available_flairs) ? flairs.available_flairs : [];
@@ -100,7 +100,12 @@ function validate(flairs, discovery, cards) {
     if (!assignmentIds.has(card.id)) errors.push(`flairs.yml: missing assignment for ${card.id}`);
   }
   for (const id of assignmentIds) {
-    if (!cardIds.has(id)) errors.push(`flairs.yml: stale assignment for ${id}`);
+    if (cardIds.has(id)) continue;
+    if (Array.isArray(assignments[id]) && assignments[id].length === 0) {
+      warnings.push(`flairs.yml: stale empty assignment for ${id}; run \`npm run sync-curation\` to remove it`);
+    } else {
+      errors.push(`flairs.yml: stale assignment for ${id}`);
+    }
   }
 
   const referencedCards = [];
@@ -145,9 +150,18 @@ function validate(flairs, discovery, cards) {
   return { errors, warnings };
 }
 
-function synchronize(flairsDocument, cards) {
+export function synchronize(flairsDocument, cards) {
   let assignments = flairsDocument.get('assignments', true);
   if (!(assignments instanceof YAMLMap)) throw new Error('flairs.yml: assignments must be a mapping before it can be synchronized');
+  const cardIds = new Set(cards.map(card => card.id));
+  const removed = [];
+  assignments.items = assignments.items.filter(pair => {
+    const id = String(pair.key?.value ?? pair.key);
+    const assigned = pair.value?.toJSON?.() ?? pair.value;
+    if (cardIds.has(id) || !Array.isArray(assigned) || assigned.length !== 0) return true;
+    removed.push(id);
+    return false;
+  });
   const existing = new Set(assignments.items.map(pair => String(pair.key?.value ?? pair.key)));
   const added = [];
   for (const card of cards) {
@@ -158,8 +172,7 @@ function synchronize(flairsDocument, cards) {
     existing.add(card.id);
     added.push(card.id);
   }
-  if (added.length) fs.writeFileSync(FLAIRS_FILE, String(flairsDocument));
-  return added;
+  return { added, removed };
 }
 
 function report(result) {
@@ -174,8 +187,11 @@ function main() {
   const cards = releaseCards();
   const flairsDocument = readDocument(FLAIRS_FILE);
   if (mode === 'sync') {
-    const added = synchronize(flairsDocument, cards);
-    console.log(added.length ? `Added ${added.length} curation assignment(s): ${added.join(', ')}` : 'Curation assignments are already synchronized.');
+    const { added, removed } = synchronize(flairsDocument, cards);
+    if (added.length || removed.length) fs.writeFileSync(FLAIRS_FILE, String(flairsDocument));
+    if (added.length) console.log(`Added ${added.length} curation assignment(s): ${added.join(', ')}`);
+    if (removed.length) console.log(`Removed ${removed.length} stale empty curation assignment(s): ${removed.join(', ')}`);
+    if (!added.length && !removed.length) console.log('Curation assignments are already synchronized.');
   }
 
   const currentFlairs = readDocument(FLAIRS_FILE).toJS() || {};
@@ -194,9 +210,11 @@ function main() {
   }
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(`error: ${error.message}`);
-  process.exitCode = 1;
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    main();
+  } catch (error) {
+    console.error(`error: ${error.message}`);
+    process.exitCode = 1;
+  }
 }

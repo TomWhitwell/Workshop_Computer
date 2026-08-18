@@ -76,16 +76,27 @@ shelves:
       - 11_goldfish
 
 
-  - id: generative-sequencers
-    title: Generative sequencers
-    layout: list
+#   - id: generative-sequencers
+#     title: Generative sequencers
+#     layout: list
+#     cards:
+#       - 16_the_bells
+#       - 19_CA_Sequencer
+#       - 36_GradualProcess
+#       - 60_markov
+#       - 74_Wild_Pebble
+#       - 82_Computer_Grids
+
+  - id: samples-and-found-sound
+    title: Samples and found sound
+    layout: video-lead
     cards:
-      - 16_the_bells
-      - 19_CA_Sequencer
-      - 36_GradualProcess
-      - 60_markov
-      - 74_Wild_Pebble
-      - 82_Computer_Grids
+      - 66_stretchcore
+      - 53_glitter
+      - 67_Fragments
+      - 73_VSS
+      - 95_offair2
+      - 433_sense_of_space
 
 
   - id: vincent-collection
@@ -105,7 +116,7 @@ shelves:
       - useful
     hide_flairs:
       - useful
-    limit: 4
+    limit: 6
     
   - id: amazing
     title:  🤯 Mind blown

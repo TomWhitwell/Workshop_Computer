@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Punk Confusion WebSerial Loader</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">Beta</p>
+      <h1>Load shouts without rebuilding.</h1>
+      <p>
+        Hold the switch down while resetting Punk Confusion, connect to the
+        card, then send it four new shouts.
+      </p>
+    </section>
+
+    <section class="steps">
+      <div><strong>1</strong><span>Drop four short samples.</span></div>
+      <div><strong>2</strong><span>Hold switch down and reset the card.</span></div>
+      <div><strong>3</strong><span>LEDs 1, 3, and 5 stay lit: connect and send sounds.</span></div>
+    </section>
+
+    <section class="target">
+      <label for="buildSelect">Which card are you using?</label>
+      <select id="buildSelect">
+        <option value="2mb">Standard 2 MB card</option>
+        <option value="16mb">Large 16 MB card</option>
+      </select>
+      <p>
+        Choose the version of the Punk Confusion beta firmware you flashed. If
+        you are not sure, connect to the card and this page will try to choose
+        for you.
+      </p>
+      <p class="notice" id="firmwareNotice">
+        Before loading sounds, flash the latest Punk Confusion WebSerial UF2 and
+        enter the sample loader by holding the switch down while resetting.
+      </p>
+    </section>
+
+    <section class="bank-import">
+      <div>
+        <h2>Already have prepared sounds?</h2>
+        <p>
+          Drop a saved <code>.pbank</code> file here to fill all four sample
+          slots at once.
+        </p>
+      </div>
+      <label class="drop" id="bankDrop">
+        <input id="bankFile" type="file" accept=".pbank,application/octet-stream">
+        <span>Choose or drop prepared sounds</span>
+      </label>
+    </section>
+
+    <section class="slots" id="slots"></section>
+
+    <section class="panel">
+      <div>
+        <span>Maximum sound space</span>
+        <strong id="bankLimit">1.00 MB</strong>
+      </div>
+      <div>
+        <span>Your sounds use</span>
+        <strong id="payloadSize">0 KB</strong>
+      </div>
+      <div>
+        <span>Estimated duration</span>
+        <strong id="duration">0.000 s</strong>
+      </div>
+      <div>
+        <span>Remaining space</span>
+        <strong id="remaining">1.00 MB</strong>
+      </div>
+      <div class="actions">
+        <button id="connect">Connect card</button>
+        <button id="upload" disabled>Send sounds to card</button>
+        <button id="restore" disabled>Use built-in sounds again</button>
+        <button id="download" disabled>Save prepared sounds</button>
+      </div>
+    </section>
+
+    <section class="log" aria-live="polite">
+      <h2>Status</h2>
+      <pre id="log">Waiting for samples.</pre>
+    </section>
+  </main>
+
+  <template id="slotTemplate">
+    <article class="slot">
+      <h2></h2>
+      <p class="venue"></p>
+      <label class="drop">
+        <input type="file" accept="audio/*,.wav,.aif,.aiff">
+        <span>Choose or drop audio</span>
+      </label>
+      <p class="info">Empty</p>
+      <audio controls></audio>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+summary: "A harsh metal-percussion voice wired to a random step sequencer you can lock. Every step re-rolls pitch, decay, noise, corrosion, accent and whether it fires at all; the Steps knob freezes the last N of those rolls into a loop. The metal and the kick come out of separate jacks so each can take its own processing."
+short-description: Metallic percussion driven by a lockable random step sequencer.
+Name: Slag
+Language: "C++ (ComputerCard)"
+Creator: "Jason Moore"
+contact: { email: "casconed@gmail.com" }
+Version: "0.1"
+Status: "Working"
+License: MIT
+date-created: 2026-08-05
+date-updated: 2026-08-10
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: External Source
+      description: Replaces the internal white noise in the voice mixer — blend it against the metal bank with the Tone knob
+    - id: AudioIn2
+      name: Unused
+      description: Nothing is wired to this jack
+    - id: CVIn1
+      name: Pitch CV / Keyboard
+      description: 1V/oct, adds to the Pitch knob. With no clock patched it also plays the card — a jump of more than about a semitone is a new note, and the voltage keys the timbre as well as the pitch, so four buttons on a 4 Voltages give four repeatable hits
+    - id: CVIn2
+      name: Chance CV
+      description: Adds to the Chance knob — modulate the density from an LFO or envelope
+    - id: PulseIn1
+      name: Clock
+      description: One step per rising edge. Unpatched, the internal clock runs at whatever Tempo is set to (and Tempo fully anticlockwise stops it, leaving only what you play)
+    - id: PulseIn2
+      name: Reset
+      description: Restarts a locked pattern at step 1
+  outputs:
+    - id: AudioOut1
+      name: Metal
+      description: The metal voice, rusted, with essentially no low end in it — send this to your reverb, filter or whatever else without the kick going through it
+    - id: AudioOut2
+      name: Kick
+      description: The kick on its own jack, clean and never through the drive stage, at full scale. Nothing on the card mixes the two, so their balance is yours to set
+    - id: CVOut1
+      name: Step Pitch
+      description: The current step's pitch as 1V/oct CV, sampled and held — the same random stream, for another voice
+    - id: CVOut2
+      name: Envelope
+      description: The decay envelope, 0..+6V
+    - id: PulseOut1
+      name: Trigger
+      description: Fires on every step that sounds
+    - id: PulseOut2
+      name: Ghost
+      description: Fires on every step that was skipped — the complement of Trigger, so Chance crossfades between two rhythms
+
+controls:
+  switch:
+    up:
+      name: Machine
+      description: Re-banks the three knobs onto the sequencer — Steps, Chance, Spread
+    middle:
+      name: Voice
+      description: The three knobs shape the hit — Pitch, Decay, Rust
+    down:
+      name: Setup
+      description: Held, the three knobs re-bank a third time onto Tempo, Tone and Metal — the things you set rather than the things you play
+    tap:
+      name: Hit
+      description: Plays a hit by hand, ignoring Chance. It does not advance the sequencer, so reaching down to set Tempo cannot shift a locked pattern
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Pitch
+        description: Tunes the six inharmonic partials together, ~55Hz to ~1.8kHz — low is gong and anvil, high is hats and shrapnel
+      x:
+        name: Decay
+        description: ~4ms to ~2.7s, exponential — tick to long ring
+      y:
+        name: Rust
+        description: A Pade-tanh waveshaper, then continuous sample-rate reduction over the top half of the knob (48kHz down to 3kHz). Makeup-gain normalised, so it changes the character rather than the level
+    - when: { z: up }
+      main:
+        name: Steps
+        description: "Locks the random stream into a loop: Off (endless fresh chaos), then 2, 3, 4, 5, 7, 8, 10, 16, 32. Coming out of Off captures the window that just played; moving between lengths re-slices that same window"
+      x:
+        name: Chance
+        description: Overall density below halfway. Each voice takes its own share of this and rolls separately, so the kick and the metal land on different steps; a step where neither wins pulses the Ghost output. Above halfway every step fires and the knob buys an increasing chance that a step subdivides into 2-4 strikes instead
+      y:
+        name: Spread
+        description: How far each step is allowed to stray from "everything at once". Each step draws one of eight characters — kick-driven, metal-driven, hats, ghost kicks, heavy — and each carries a separate density for the kick and for the metal, so the two voices roll their own dice and run genuinely independent rhythms rather than sharing one. One archetype is held across a phrase, with about a third of steps breaking out of it. Also scales the per-step dice on pitch, decay, rust and the attack pitch blip
+    - when: { z: down }
+      main:
+        name: Tempo
+        description: Internal clock, ~0.5Hz to ~32Hz. Overridden when a clock is patched to Pulse In 1, and fully anticlockwise it stops altogether so the card only speaks when you play it
+      x:
+        name: Tone
+        description: Crossfades the metal bank against the noise source — or against Audio In 1, if you patch it. Spread moves it per step around wherever you leave it
+      y:
+        name: Metal
+        description: Crossfades a clean fundamental against the inharmonic XOR cloud, and opens the partial ratios out as it goes. Anticlockwise is a struck bell with a clear pitch; clockwise is atonal scrapyard

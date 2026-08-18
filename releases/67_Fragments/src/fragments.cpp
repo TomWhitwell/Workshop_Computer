@@ -7,8 +7,10 @@
 // Controls:
 // - Switch up: choose the recording slot with Main. X chooses that
 //   slot's playback mode; Y sets its chance of playing backward.
-// - Switch middle: Main chooses the pattern. X/CV1 shifts the pattern,
-//   and Y/CV2 chooses the repeat division.
+// - Switch middle: Main chooses the pattern. X shifts the pattern,
+//   and Y chooses the repeat division.
+// - CV In 1 always controls pattern shift. CV In 2 always controls
+//   reverse probability. X/Y become attenuators for patched CV inputs.
 // - Switch down: tap to reset to the first step. Hold for two seconds,
 //   release, then tap once to clear or twice to save the kit.
 //
@@ -27,11 +29,12 @@
 #include "hardware/clocks.h"
 #include "hardware/sync.h"
 #include "pico/multicore.h"
+#include "pico/platform.h"
 #include "pico/time.h"
 #include "tusb.h"
 
-// Buffer size: 0.25 seconds at 48kHz
-constexpr int kBufferLength = 12000;
+// Buffer size: 0.4 seconds at 48kHz
+constexpr int kBufferLength = 19200;
 constexpr int kNumSlots = 6;
 constexpr int kVariationBufferLength = kBufferLength * kNumSlots;
 constexpr int kNumPatterns = 21;
@@ -47,6 +50,7 @@ constexpr int32_t kBootModeLatchSamples = 2400; // 50ms at 48kHz
 constexpr int32_t kBootModeWindowSamples = 24000; // 0.5s at 48kHz
 constexpr int32_t kVariationModeFeedbackSamples = 36000; // 0.75s at 48kHz
 constexpr int32_t kVariationFadeSamples = 96; // 2ms at 48kHz
+constexpr int32_t kCVJackDebounceSamples = 480; // 10ms at 48kHz
 constexpr int kClearSamplesPerCore1Tick = 256;
 constexpr int32_t kKnobEditMoveThreshold = 32;
 constexpr int32_t kCVBipolarDetectThreshold = -64;
@@ -54,6 +58,7 @@ constexpr int kPlaybackFracBits = 12;
 constexpr int32_t kPlaybackStepNormal = 1 << kPlaybackFracBits;
 constexpr int32_t kSamplePlaybackGainNum = 1; // Unity playback gain
 constexpr int32_t kSamplePlaybackGainDen = 1;
+constexpr int32_t kRecordingSilenceThreshold = 32;
 constexpr int32_t kPitchBendRangeSemitones = 12;
 constexpr int32_t kPitchBendScale =
     (kPitchBendRangeSemitones * (1 << kPlaybackFracBits)) / 8192;
@@ -70,6 +75,7 @@ constexpr uint8_t kSysExPing = 0x40;
 constexpr uint8_t kSysExPatternData = 0x50;
 constexpr uint8_t kSysExFactoryPatterns = 0x51;
 constexpr uint8_t kSysExCVConfig = 0x52;
+constexpr uint8_t kSysExMonitorConfig = 0x53;
 constexpr uint8_t kSysExAck = 0x7E;
 constexpr uint8_t kAckPing = 0x00;
 constexpr uint8_t kAckImportBegin = 0x01;
@@ -80,12 +86,27 @@ constexpr uint8_t kAckPatternLoaded = 0x05;
 constexpr uint8_t kAckPatternReject = 0x06;
 constexpr uint8_t kAckCVConfigLoaded = 0x07;
 constexpr uint8_t kAckCVConfigReject = 0x08;
+constexpr uint8_t kAckMonitorConfigLoaded = 0x09;
+constexpr uint8_t kAckMonitorConfigReject = 0x0A;
 constexpr uint32_t kFlashMagic = 0x31475246; // "FRG1"
 constexpr uint32_t kPatternFlashMagic = 0x31544150; // "PAT1"
 constexpr uint32_t kCVConfigFlashMagic = 0x31535643; // "CVS1"
+constexpr uint32_t kMonitorConfigFlashMagic = 0x314E4F4D; // "MON1"
 constexpr uint32_t kFlashVersion = 1;
-constexpr uint32_t kFlashStorageSize = 160 * 1024;
+constexpr uint32_t kFlashStorageSize = 256 * 1024;
 constexpr uint32_t kFlashStorageOffset = PICO_FLASH_SIZE_BYTES - kFlashStorageSize;
+constexpr int kLegacy350BufferLength = 16800;
+constexpr uint32_t kLegacy350FlashStorageSize = 224 * 1024;
+constexpr uint32_t kLegacy350FlashStorageOffset =
+    PICO_FLASH_SIZE_BYTES - kLegacy350FlashStorageSize;
+constexpr int kLegacy300BufferLength = 14400;
+constexpr uint32_t kLegacy300FlashStorageSize = 192 * 1024;
+constexpr uint32_t kLegacy300FlashStorageOffset =
+    PICO_FLASH_SIZE_BYTES - kLegacy300FlashStorageSize;
+constexpr int kLegacyV11BufferLength = 12000;
+constexpr uint32_t kLegacyV11FlashStorageSize = 160 * 1024;
+constexpr uint32_t kLegacyV11FlashStorageOffset =
+    PICO_FLASH_SIZE_BYTES - kLegacyV11FlashStorageSize;
 constexpr uint32_t kFlashProgramPageSize = FLASH_PAGE_SIZE;
 constexpr uint32_t kSysExBufferSize = 96;
 constexpr uint32_t kFlashKitBytes =
@@ -96,6 +117,8 @@ constexpr uint32_t kFlashKitBytes =
     + (kNumPatterns * (1 + kMaxPatternLen))
     + sizeof(uint32_t)
     + (2 * 4)
+    + 1
+    + sizeof(uint32_t)
     + 1;
 static_assert(kFlashKitBytes <= kFlashStorageSize, "Saved kit exceeds flash storage");
 
@@ -110,6 +133,11 @@ constexpr int kModeOneShot = 1;
 constexpr int kModeInterrupt = 2;
 constexpr int kModePassthrough = 3;
 
+constexpr uint8_t kMonitorAlways = 0;
+constexpr uint8_t kMonitorWhenArmed = 1;
+constexpr uint8_t kMonitorWhenRecording = 2;
+constexpr uint8_t kMonitorModeCount = 3;
+
 constexpr int kVariationNormal = 0;
 constexpr int kVariationOctaveUp = 1;
 constexpr int kVariationOctaveFifth = 2;
@@ -122,7 +150,8 @@ constexpr uint8_t kCVRangeBipolar3V = 1;
 constexpr uint8_t kCVRangeBipolar15V = 2;
 constexpr uint8_t kCVRangeUnipolar6V = 3;
 constexpr uint8_t kCVRangeUnipolar3V = 4;
-constexpr uint8_t kCVRangeCount = 5;
+constexpr uint8_t kCVRangeUnipolar15V = 5;
+constexpr uint8_t kCVRangeCount = 6;
 constexpr int32_t kCVRawFullScale = 2048;
 constexpr int32_t kCVMillivoltFullScale = 6000;
 constexpr int kCVSlewFracBits = 12;
@@ -136,7 +165,10 @@ constexpr uint8_t kCVQuantMinorPentatonic = 5;
 constexpr uint8_t kCVQuantDorian = 6;
 constexpr uint8_t kCVQuantPelog = 7;
 constexpr uint8_t kCVQuantWholeTone = 8;
-constexpr uint8_t kCVQuantCount = 9;
+constexpr uint8_t kCVQuantOctaves = 9;
+constexpr uint8_t kCVQuantFifthsOctaves = 10;
+constexpr uint8_t kCVQuantFourthsFifthsOctaves = 11;
+constexpr uint8_t kCVQuantCount = 12;
 
 constexpr uint8_t kCVClockDivCount = 5; // step, /2, /4, /8, /16
 constexpr uint8_t kCVSlewCount = 6;     // off, then progressively slower
@@ -309,7 +341,7 @@ public:
         }
     }
 
-    virtual void ProcessSample()
+    virtual void __not_in_flash_func(ProcessSample)()
     {
         sampleCounter_++;
         updatePulseOutputs();
@@ -342,6 +374,8 @@ public:
         knobY = resolveKnobControl(2, knobY);
         bool audio1Connected = Connected(Input::Audio1);
         bool audio2Connected = Connected(Input::Audio2);
+        bool cv1Connected = debouncedCVConnected(0, Connected(Input::CV1));
+        bool cv2Connected = debouncedCVConnected(1, Connected(Input::CV2));
 
         Switch sw = SwitchVal();
         bool switchDown = (sw == Switch::Down);
@@ -349,6 +383,13 @@ public:
         bool recordHeld = PulseIn2();
         lastSwitchUp_ = (sw == Switch::Up);
         ZCommand zCommand = updateZCommand(switchDown);
+        monitorThisSample_ = shouldMonitorInput(sw, recordHeld);
+        monitorInputA_ = audio1Connected ? inA : 0;
+        monitorInputB_ = audio2Connected ? inB : 0;
+        monitorConnectedA_ = audio1Connected;
+        monitorConnectedB_ = audio2Connected;
+        updateAlwaysOnCVControls(
+            knobX, knobY, cv1in, cv2in, cv1Connected, cv2Connected);
 
         if (zCommand == kZCommandReset)
         {
@@ -370,14 +411,16 @@ public:
             if (variationMode_)
             {
                 updateVariationPitchEditing(knobMain);
-                updateVariationSwitchUpEditing(knobX, knobY);
+                updateVariationSwitchUpEditing(
+                    knobX, knobY, cv1Connected, cv2Connected);
             }
             else
             {
                 updateSwitchUpSlotSelection(knobMain);
                 // X/Y use pickup behavior, so changing switch position does
                 // not overwrite a slot until the knob actually moves.
-                updateSwitchUpKnobEditing(selectedSlot_, knobX, knobY);
+                updateSwitchUpKnobEditing(
+                    selectedSlot_, knobX, knobY, cv1Connected, cv2Connected);
             }
         }
         else
@@ -498,8 +541,6 @@ public:
                 }
             }
 
-            setAudioOut(inA, inB);
-
             // While recording, show the slot/tape being written.
             for (int i = 0; i < kNumSlots; i++)
             {
@@ -510,12 +551,13 @@ public:
         }
         if (recordHeld)
         {
-            // Recording monitors live input and skips playback.
+            // Recording keeps playback running, with the dry input mixed in
+            // by the monitor mixer below.
         }
-        else if (sw == Switch::Up && !clockFollowMode)
+        if (sw == Switch::Up && !clockFollowMode)
         {
             // Without an active clock, switch-up is live passthrough.
-            setAudioOut(inA, inB);
+            setAudioOutWithMonitor(inA, inB, true, true);
         }
         else
         {
@@ -524,7 +566,8 @@ public:
             if (sw == Switch::Middle)
             {
                 updateMiddlePatternEditing(knobMain);
-                updateMiddleShiftDivideEditing(knobX, knobY, cv1in, cv2in);
+                updateMiddleShiftDivideEditing(
+                    knobX, knobY, cv1Connected, cv2Connected);
             }
             else
             {
@@ -584,7 +627,7 @@ public:
             else if (mode == kModePassthrough)
             {
                 // Passthrough mode ignores this slot's recording.
-                setAudioOut(inA, inB);
+                setAudioOutWithMonitor(inA, inB, true, true);
             }
             else if (stepFinished_)
             {
@@ -592,7 +635,7 @@ public:
                 // returns to live audio after it finishes.
                 if (mode == kModeInterrupt)
                 {
-                    setAudioOut(inA, inB);
+                    setAudioOutWithMonitor(inA, inB, true, true);
                 }
                 else // kModeOneShot
                 {
@@ -716,7 +759,7 @@ public:
             else
             {
                 // Empty slots pass live audio.
-                setAudioOut(inA, inB);
+                setAudioOutWithMonitor(inA, inB, true, true);
             }
         }
 
@@ -736,7 +779,8 @@ private:
             activeVariation_ = shiftedValue;
             activeSlot_ = 0;
             bool flipReverse =
-                (int32_t)(nextRandom() & 0x0FFF) < variationReverseProb_;
+                (int32_t)(nextRandom() & 0x0FFF)
+                    < activeVariationReverseProbability();
             playReverse_ = variationIsReverse(shiftedValue) != flipReverse;
         }
         else
@@ -835,7 +879,29 @@ private:
         selectedSlot_ = led;
     }
 
-    void updateSwitchUpSlotSelection(int32_t knobMain)
+    bool __not_in_flash_func(debouncedCVConnected)(int input, bool rawConnected)
+    {
+        if (rawConnected == cvConnectedStable_[input])
+        {
+            cvConnectedDebounceSamples_[input] = 0;
+            return cvConnectedStable_[input];
+        }
+
+        if (cvConnectedDebounceSamples_[input] < kCVJackDebounceSamples)
+        {
+            cvConnectedDebounceSamples_[input]++;
+        }
+
+        if (cvConnectedDebounceSamples_[input] >= kCVJackDebounceSamples)
+        {
+            cvConnectedStable_[input] = rawConnected;
+            cvConnectedDebounceSamples_[input] = 0;
+        }
+
+        return cvConnectedStable_[input];
+    }
+
+    void __not_in_flash_func(updateSwitchUpSlotSelection)(int32_t knobMain)
     {
         if (!switchUpMainPrimed_)
         {
@@ -918,7 +984,7 @@ private:
     }
 
     // Patched CV starts unipolar. If it dips below 0V, treat it as bipolar.
-    static int32_t attenuatedAutoCVControl(
+    static int32_t __not_in_flash_func(attenuatedAutoCVControl)(
         int32_t cv,
         int32_t amount,
         bool &seenNegative,
@@ -940,7 +1006,7 @@ private:
             : attenuatedUnipolarCVControl(cv, amount);
     }
 
-    static int32_t attenuatedBipolarCVControl(int32_t cv, int32_t amount)
+    static int32_t __not_in_flash_func(attenuatedBipolarCVControl)(int32_t cv, int32_t amount)
     {
         if (cv < -2048) cv = -2048;
         if (cv > 2047) cv = 2047;
@@ -953,7 +1019,7 @@ private:
         return control;
     }
 
-    static int32_t attenuatedUnipolarCVControl(int32_t cv, int32_t amount)
+    static int32_t __not_in_flash_func(attenuatedUnipolarCVControl)(int32_t cv, int32_t amount)
     {
         if (cv < 0) cv = 0;
         if (cv > 2047) cv = 2047;
@@ -966,7 +1032,44 @@ private:
         return control;
     }
 
-    void updateSwitchUpKnobEditing(int slot, int32_t knobX, int32_t knobY)
+    void __not_in_flash_func(updateAlwaysOnCVControls)(
+        int32_t knobX,
+        int32_t knobY,
+        int32_t cv1in,
+        int32_t cv2in,
+        bool cv1Connected,
+        bool cv2Connected)
+    {
+        if (cv1Connected)
+        {
+            int32_t shiftControl = attenuatedAutoCVControl(
+                cv1in, knobX, cv1SeenNegative_, true);
+            setShiftFromControl(shiftControl);
+        }
+        else
+        {
+            cv1SeenNegative_ = false;
+        }
+
+        if (cv2Connected)
+        {
+            cvReverseProb_ = attenuatedAutoCVControl(
+                cv2in, knobY, cv2SeenNegative_, true);
+            cvReverseOverrideActive_ = true;
+        }
+        else
+        {
+            cv2SeenNegative_ = false;
+            cvReverseOverrideActive_ = false;
+        }
+    }
+
+    void __not_in_flash_func(updateSwitchUpKnobEditing)(
+        int slot,
+        int32_t knobX,
+        int32_t knobY,
+        bool cv1Connected,
+        bool cv2Connected)
     {
         if (!switchUpKnobsPrimed_)
         {
@@ -979,7 +1082,11 @@ private:
 
         int32_t dx = knobX - lastKnobX_;
         if (dx < 0) dx = -dx;
-        if (dx >= kKnobEditMoveThreshold)
+        if (cv1Connected)
+        {
+            lastKnobX_ = knobX;
+        }
+        else if (dx >= kKnobEditMoveThreshold)
         {
             int mode = (int)(knobX >> 10); // 0-3
             if (mode < 0) mode = 0;
@@ -990,14 +1097,22 @@ private:
 
         int32_t dy = knobY - lastKnobY_;
         if (dy < 0) dy = -dy;
-        if (dy >= kKnobEditMoveThreshold)
+        if (cv2Connected)
+        {
+            lastKnobY_ = knobY;
+        }
+        else if (dy >= kKnobEditMoveThreshold)
         {
             reverseProb_[slot] = knobY;
             lastKnobY_ = knobY;
         }
     }
 
-    void updateVariationSwitchUpEditing(int32_t knobX, int32_t knobY)
+    void __not_in_flash_func(updateVariationSwitchUpEditing)(
+        int32_t knobX,
+        int32_t knobY,
+        bool cv1Connected,
+        bool cv2Connected)
     {
         if (!switchUpKnobsPrimed_)
         {
@@ -1010,7 +1125,11 @@ private:
 
         int32_t dx = knobX - lastKnobX_;
         if (dx < 0) dx = -dx;
-        if (dx >= kKnobEditMoveThreshold)
+        if (cv1Connected)
+        {
+            lastKnobX_ = knobX;
+        }
+        else if (dx >= kKnobEditMoveThreshold)
         {
             int mode = (int)(knobX >> 10); // 0-3
             if (mode < 0) mode = 0;
@@ -1021,14 +1140,18 @@ private:
 
         int32_t dy = knobY - lastKnobY_;
         if (dy < 0) dy = -dy;
-        if (dy >= kKnobEditMoveThreshold)
+        if (cv2Connected)
+        {
+            lastKnobY_ = knobY;
+        }
+        else if (dy >= kKnobEditMoveThreshold)
         {
             variationReverseProb_ = knobY;
             lastKnobY_ = knobY;
         }
     }
 
-    void updateMiddlePatternEditing(int32_t knobMain)
+    void __not_in_flash_func(updateMiddlePatternEditing)(int32_t knobMain)
     {
         if (!middleMainPrimed_)
         {
@@ -1051,15 +1174,12 @@ private:
         lastMiddleMain_ = knobMain;
     }
 
-    void updateMiddleShiftDivideEditing(
+    void __not_in_flash_func(updateMiddleShiftDivideEditing)(
         int32_t knobX,
         int32_t knobY,
-        int32_t cv1in,
-        int32_t cv2in)
+        bool cv1Connected,
+        bool cv2Connected)
     {
-        bool cv1Connected = Connected(Input::CV1);
-        bool cv2Connected = Connected(Input::CV2);
-
         if (!middleXYPrimed_)
         {
             lastMiddleKnobX_ = knobX;
@@ -1070,9 +1190,6 @@ private:
 
         if (cv1Connected)
         {
-            int32_t shiftControl = attenuatedAutoCVControl(
-                cv1in, knobX, cv1SeenNegative_, true);
-            setShiftFromControl(shiftControl);
             lastMiddleKnobX_ = knobX;
         }
         else
@@ -1080,7 +1197,6 @@ private:
             // No CV patched: X is direct shift control, but only after
             // it moves in middle mode. This prevents a mode jump when
             // returning from switch-up slot selection.
-            cv1SeenNegative_ = false;
             int32_t dx = knobX - lastMiddleKnobX_;
             if (dx < 0) dx = -dx;
             if (dx >= kKnobEditMoveThreshold)
@@ -1092,9 +1208,6 @@ private:
 
         if (cv2Connected)
         {
-            int32_t divideControl = attenuatedAutoCVControl(
-                cv2in, knobY, cv2SeenNegative_, true);
-            setSubdivisionFromControl(divideControl);
             lastMiddleKnobY_ = knobY;
         }
         else
@@ -1102,7 +1215,6 @@ private:
             // No CV patched: Y is direct divide control, but only
             // after movement. This avoids accidental repeat/divide
             // jumps when moving between switch positions.
-            cv2SeenNegative_ = false;
             int32_t dy = knobY - lastMiddleKnobY_;
             if (dy < 0) dy = -dy;
             if (dy >= kKnobEditMoveThreshold)
@@ -1113,7 +1225,7 @@ private:
         }
     }
 
-    void setShiftFromControl(int32_t control)
+    void __not_in_flash_func(setShiftFromControl)(int32_t control)
     {
         int shift = (int)((control * kNumSlots) >> 12);
         if (shift < 0) shift = 0;
@@ -1121,7 +1233,7 @@ private:
         shiftAmount_ = shift;
     }
 
-    void setSubdivisionFromControl(int32_t control)
+    void __not_in_flash_func(setSubdivisionFromControl)(int32_t control)
     {
         int subShift = (int)(control >> 10);
         if (subShift < 0) subShift = 0;
@@ -1140,7 +1252,7 @@ private:
         }
     }
 
-    void updatePulseOutputs()
+    void __not_in_flash_func(updatePulseOutputs)()
     {
         if (pulseOut1Samples_ > 0)
         {
@@ -1190,12 +1302,12 @@ private:
         }
     }
 
-    int32_t randomSigned12Bit()
+    int32_t __not_in_flash_func(randomSigned12Bit)()
     {
         return (int32_t)(nextRandom() & 0x0FFF) - 2048;
     }
 
-    int32_t makeRandomCVValue(int output)
+    int32_t __not_in_flash_func(makeRandomCVValue)(int output)
     {
         int32_t value = applyCVRange(randomSigned12Bit(), cvRange_[output]);
         value = quantizeCV(value, cvQuant_[output]);
@@ -1217,6 +1329,9 @@ private:
 
         case kCVRangeUnipolar3V:
             return (value + 2048) >> 2;
+
+        case kCVRangeUnipolar15V:
+            return (value + 2048) >> 3;
 
         case kCVRangeBipolar6V:
         default:
@@ -1246,6 +1361,9 @@ private:
         static const int dorianScale[7] = {0, 2, 3, 5, 7, 9, 10};
         static const int pelogScale[5] = {0, 1, 3, 7, 8};
         static const int wholeToneScale[6] = {0, 2, 4, 6, 8, 10};
+        static const int octaveScale[1] = {0};
+        static const int fifthsOctavesScale[2] = {0, 7};
+        static const int fourthsFifthsOctavesScale[3] = {0, 5, 7};
         const int *scale = majorScale;
         int length = 7;
 
@@ -1277,6 +1395,21 @@ private:
             scale = wholeToneScale;
             length = 6;
         }
+        else if (quant == kCVQuantOctaves)
+        {
+            scale = octaveScale;
+            length = 1;
+        }
+        else if (quant == kCVQuantFifthsOctaves)
+        {
+            scale = fifthsOctavesScale;
+            length = 2;
+        }
+        else if (quant == kCVQuantFourthsFifthsOctaves)
+        {
+            scale = fourthsFifthsOctavesScale;
+            length = 3;
+        }
 
         int best = semitone;
         int bestDistance = 128;
@@ -1299,7 +1432,7 @@ private:
         return best;
     }
 
-    int32_t divRound(int32_t numerator, int32_t denominator)
+    int32_t __not_in_flash_func(divRound)(int32_t numerator, int32_t denominator)
     {
         if (numerator >= 0)
         {
@@ -1308,14 +1441,14 @@ private:
         return -((-numerator + denominator / 2) / denominator);
     }
 
-    int32_t clampSigned12Bit(int32_t value)
+    int32_t __not_in_flash_func(clampSigned12Bit)(int32_t value)
     {
         if (value < -2048) return -2048;
         if (value > 2047) return 2047;
         return value;
     }
 
-    int32_t randomCVToMillivolts(int32_t value)
+    int32_t __not_in_flash_func(randomCVToMillivolts)(int32_t value)
     {
         value = clampSigned12Bit(value);
         int32_t millivolts = divRound(value * kCVMillivoltFullScale, kCVRawFullScale);
@@ -1331,7 +1464,7 @@ private:
         return millivolts;
     }
 
-    void writeRandomCVOutput(int output, int32_t value)
+    void __not_in_flash_func(writeRandomCVOutput)(int output, int32_t value)
     {
         value = clampSigned12Bit(value);
         if (lastRandomCVOutput_[output] == value)
@@ -1352,18 +1485,25 @@ private:
         }
     }
 
-    uint8_t cvClockDivisor(int output)
+    uint8_t __not_in_flash_func(cvClockDivisor)(int output)
     {
         return 1u << cvClockDiv_[output];
     }
 
-    uint8_t cvSlewShift(int output)
+    uint8_t __not_in_flash_func(cvSlewShift)(int output)
     {
-        static const uint8_t shifts[kCVSlewCount] = {0, 9, 10, 11, 12, 14};
-        return shifts[cvSlew_[output]];
+        switch (cvSlew_[output])
+        {
+            case 1: return 9;
+            case 2: return 10;
+            case 3: return 11;
+            case 4: return 12;
+            case 5: return 14;
+            default: return 0;
+        }
     }
 
-    void updateRandomCVOutputs()
+    void __not_in_flash_func(updateRandomCVOutputs)()
     {
         for (int output = 0; output < 2; output++)
         {
@@ -1598,6 +1738,10 @@ private:
             handleCVConfig(payload, size);
             break;
 
+        case kSysExMonitorConfig:
+            handleMonitorConfig(payload, size);
+            break;
+
         default:
             break;
         }
@@ -1730,6 +1874,18 @@ private:
 
         sendSysExAck(kAckCVConfigLoaded, (uint8_t)output,
             (uint16_t)(range | (quant << 3) | (div << 7) | (slew << 10)));
+    }
+
+    void handleMonitorConfig(uint8_t *data, uint32_t size)
+    {
+        if (size < 1 || data[0] >= kMonitorModeCount)
+        {
+            sendSysExAck(kAckMonitorConfigReject, 0, 0);
+            return;
+        }
+
+        monitorMode_ = data[0];
+        sendSysExAck(kAckMonitorConfigLoaded, monitorMode_, 0);
     }
 
     void handleImportBegin(uint8_t *data, uint32_t size)
@@ -2167,7 +2323,7 @@ private:
         return total;
     }
 
-    void outputSlotSampleOrLive(
+    void __not_in_flash_func(outputSlotSampleOrLive)(
         int slot,
         int32_t inA,
         int32_t inB,
@@ -2201,11 +2357,19 @@ private:
             }
         }
 
-        setAudioOut(outA, outB);
+        bool includesLiveInputA = !variationMode_ && !channelA;
+        bool includesLiveInputB = !variationMode_ && !channelB;
+        setAudioOutWithMonitor(outA, outB, includesLiveInputA, includesLiveInputB);
     }
 
-    int8_t audioToStoredSample(int32_t sample)
+    int8_t __not_in_flash_func(audioToStoredSample)(int32_t sample)
     {
+        if (sample > -kRecordingSilenceThreshold
+            && sample < kRecordingSilenceThreshold)
+        {
+            return 0;
+        }
+
         int32_t stored = sample >> 4;
         if (stored < -128) return -128;
         if (stored > 127) return 127;
@@ -2269,7 +2433,7 @@ private:
             : interpolatedBufferSample(bufferB_[slot], recordedLengthB_[slot]);
     }
 
-    int32_t interpolatedBufferSample(int8_t *buffer, int32_t length)
+    int32_t __not_in_flash_func(interpolatedBufferSample)(int8_t *buffer, int32_t length)
     {
         if (length <= 0)
         {
@@ -2292,7 +2456,7 @@ private:
         return sample + (((nextSample - sample) * frac) >> kPlaybackFracBits);
     }
 
-    int32_t interpolatedVariationSample(
+    int32_t __not_in_flash_func(interpolatedVariationSample)(
         int8_t buffer[kNumSlots][kBufferLength],
         int32_t length)
     {
@@ -2342,7 +2506,7 @@ private:
         buffer[slot][offset] = sample;
     }
 
-    int32_t smoothVariationEdge(int slot, int32_t sample, bool recordedChannel)
+    int32_t __not_in_flash_func(smoothVariationEdge)(int slot, int32_t sample, bool recordedChannel)
     {
         if (!recordedChannel)
         {
@@ -2381,7 +2545,7 @@ private:
         return (sample * gain) / fade;
     }
 
-    int32_t crossfadeVariationRetrigger(int32_t target, int32_t start)
+    int32_t __not_in_flash_func(crossfadeVariationRetrigger)(int32_t target, int32_t start)
     {
         int32_t fade = kVariationFadeSamples;
         int32_t elapsed = fade - variationFadeSamples_;
@@ -2396,6 +2560,53 @@ private:
         lastOutputB_ = outB;
         AudioOut1(outA);
         AudioOut2(outB);
+    }
+
+    void __not_in_flash_func(setAudioOutWithMonitor)(
+        int32_t outA,
+        int32_t outB,
+        bool outputAlreadyIncludesInputA,
+        bool outputAlreadyIncludesInputB)
+    {
+        if (monitorThisSample_)
+        {
+            if (monitorConnectedA_ && !outputAlreadyIncludesInputA)
+            {
+                outA = mixMonitorInput(outA, monitorInputA_);
+            }
+            if (monitorConnectedB_ && !outputAlreadyIncludesInputB)
+            {
+                outB = mixMonitorInput(outB, monitorInputB_);
+            }
+        }
+
+        setAudioOut(outA, outB);
+    }
+
+    bool shouldMonitorInput(Switch sw, bool recordHeld) const
+    {
+        switch (monitorMode_)
+        {
+        case kMonitorAlways:
+            return true;
+        case kMonitorWhenRecording:
+            return recordHeld;
+        case kMonitorWhenArmed:
+        default:
+            return sw == Switch::Up || recordHeld;
+        }
+    }
+
+    static int32_t clampAudioOutput(int32_t sample)
+    {
+        if (sample < -2048) return -2048;
+        if (sample > 2047) return 2047;
+        return sample;
+    }
+
+    static int32_t mixMonitorInput(int32_t program, int32_t monitor)
+    {
+        return clampAudioOutput((program + monitor) >> 1);
     }
 
     void outputSlotSilenceOrLive(int slot, int32_t inA, int32_t inB)
@@ -2463,12 +2674,46 @@ private:
         }
         writeFlashByte(cv2CoupledToCV1_ ? 1 : 0);
 
+        writeFlashU32(kMonitorConfigFlashMagic);
+        writeFlashByte(monitorMode_);
+
         flushFlashPage();
     }
 
     void loadKitFromFlash()
     {
-        const uint8_t *read = (const uint8_t *)(XIP_BASE + kFlashStorageOffset);
+        if (loadKitFromFlashOffset(kFlashStorageOffset, kBufferLength))
+        {
+            return;
+        }
+
+        if (kBufferLength != kLegacy350BufferLength
+            && loadKitFromFlashOffset(
+                kLegacy350FlashStorageOffset,
+                kLegacy350BufferLength))
+        {
+            return;
+        }
+
+        if (kBufferLength != kLegacy300BufferLength
+            && loadKitFromFlashOffset(
+                kLegacy300FlashStorageOffset,
+                kLegacy300BufferLength))
+        {
+            return;
+        }
+
+        if (kBufferLength != kLegacyV11BufferLength)
+        {
+            loadKitFromFlashOffset(
+                kLegacyV11FlashStorageOffset,
+                kLegacyV11BufferLength);
+        }
+    }
+
+    bool loadKitFromFlashOffset(uint32_t storageOffset, uint32_t expectedBufferLength)
+    {
+        const uint8_t *read = (const uint8_t *)(XIP_BASE + storageOffset);
 
         uint32_t magic = readFlashU32(read);
         uint32_t version = readFlashU32(read);
@@ -2477,10 +2722,16 @@ private:
 
         if (magic != kFlashMagic
             || version != kFlashVersion
-            || bufferLength != (uint32_t)kBufferLength
+            || bufferLength != expectedBufferLength
             || numSlots != (uint32_t)kNumSlots)
         {
-            return;
+            return false;
+        }
+
+        int32_t copyLength = (int32_t)bufferLength;
+        if (copyLength > kBufferLength)
+        {
+            copyLength = kBufferLength;
         }
 
         for (int slot = 0; slot < kNumSlots; slot++)
@@ -2497,13 +2748,24 @@ private:
 
         for (int slot = 0; slot < kNumSlots; slot++)
         {
-            for (int i = 0; i < kBufferLength; i++)
+            for (int i = 0; i < copyLength; i++)
             {
                 bufferA_[slot][i] = (int8_t)*read++;
             }
-            for (int i = 0; i < kBufferLength; i++)
+            read += bufferLength - copyLength;
+            for (int i = copyLength; i < kBufferLength; i++)
+            {
+                bufferA_[slot][i] = 0;
+            }
+
+            for (int i = 0; i < copyLength; i++)
             {
                 bufferB_[slot][i] = (int8_t)*read++;
+            }
+            read += bufferLength - copyLength;
+            for (int i = copyLength; i < kBufferLength; i++)
+            {
+                bufferB_[slot][i] = 0;
             }
         }
 
@@ -2572,6 +2834,15 @@ private:
             }
         }
 
+        if (readFlashU32(read) == kMonitorConfigFlashMagic)
+        {
+            uint8_t monitor = *read++;
+            if (monitor < kMonitorModeCount)
+            {
+                monitorMode_ = monitor;
+            }
+        }
+
         writeIndex_ = 0;
         playIndex_ = 0;
         playPositionQ_ = 0;
@@ -2581,6 +2852,7 @@ private:
         inSilenceFill_ = false;
         recordingActive_ = false;
         recomputeVariationRecordingState();
+        return true;
     }
 
     void writeFlashU32(uint32_t value)
@@ -2689,11 +2961,21 @@ private:
     void rollReverse()
     {
         uint32_t roll = nextRandom() & 0x0FFF; // 0-4095
-        playReverse_ = (int32_t)roll < reverseProb_[activeSlot_];
+        playReverse_ = (int32_t)roll < activeSlotReverseProbability(activeSlot_);
+    }
+
+    int32_t activeSlotReverseProbability(int slot) const
+    {
+        return cvReverseOverrideActive_ ? cvReverseProb_ : reverseProb_[slot];
+    }
+
+    int32_t activeVariationReverseProbability() const
+    {
+        return cvReverseOverrideActive_ ? cvReverseProb_ : variationReverseProb_;
     }
 
     // Small, fast random-number generator for musical variation.
-    uint32_t nextRandom()
+    uint32_t __not_in_flash_func(nextRandom)()
     {
         uint32_t x = rngState_;
         x ^= x << 13;
@@ -2808,6 +3090,8 @@ private:
     bool bufferFull_ = false;
     bool cv1SeenNegative_ = false;
     bool cv2SeenNegative_ = false;
+    bool cvConnectedStable_[2] = {false, false};
+    int32_t cvConnectedDebounceSamples_[2] = {0, 0};
     int32_t zHoldSamples_ = 0;
     volatile bool zCommandArmed_ = false;
     bool zCommandNeedsRelease_ = false;
@@ -2842,6 +3126,12 @@ private:
     volatile uint8_t cvClockDiv_[2] = {0, 0};
     volatile uint8_t cvSlew_[2] = {0, 3};
     volatile bool cv2CoupledToCV1_ = false;
+    volatile uint8_t monitorMode_ = kMonitorWhenArmed;
+    bool monitorThisSample_ = false;
+    bool monitorConnectedA_ = false;
+    bool monitorConnectedB_ = false;
+    int32_t monitorInputA_ = 0;
+    int32_t monitorInputB_ = 0;
     volatile uint32_t playbackStepQ_ = kPlaybackStepNormal;
     Pattern patterns_[kNumPatterns] = {};
     volatile bool midiKnobActive_[3] = {false, false, false};
@@ -2910,6 +3200,8 @@ private:
     volatile int reverseProb_[kNumSlots] = {0};
     int variationPlaybackMode_ = kModeOneShot;
     volatile int variationReverseProb_ = 0;
+    volatile bool cvReverseOverrideActive_ = false;
+    volatile int32_t cvReverseProb_ = 0;
 
     // xorshift32 must not be seeded with zero.
     uint32_t rngState_ = 0x9F3779B9u;

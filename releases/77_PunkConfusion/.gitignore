@@ -1,0 +1,5 @@
+build*/
+build-web/
+tools/__pycache__/
+*.pyc
+uf2/punk_confusion_custom.uf2

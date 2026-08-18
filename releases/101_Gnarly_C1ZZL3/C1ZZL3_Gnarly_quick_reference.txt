@@ -72,10 +72,10 @@ CC27: oscillator 1 phase distortion for eight-knob controllers
 Web MIDI
 --------
 Hosted editor after deployment:
-https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/index.html
+https://computer.musicthing.co.uk/programs/101-gnarly-c1zzl3/web/index.html
 
 Hosted import lab after deployment:
-https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/import/index.html
+https://computer.musicthing.co.uk/programs/101-gnarly-c1zzl3/web/import/index.html
 
 Run editor:
 python3 -m http.server 5177 --directory web

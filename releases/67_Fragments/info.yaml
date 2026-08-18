@@ -1,9 +1,9 @@
-short-description: Six-slot sampler and clocked sequencer with MIDI pitch control, random CV outputs, an alternate long-sample variation mode, and web editor.
-summary: Six-slot sampler and clocked sequencer with MIDI pitch control, random CV outputs, an alternate long-sample variation mode, and web editor.
+draft: false
 Name: Fragments
+short-description: Six-slot sampler and sequencer with MIDI pitch control, configurable random CV outputs, saved kits, alternate variation mode, web editor, and included 24 kHz long-sample firmware.
 Language: C++ (RPi Pico SDK)
 Creator: Max Harnishfeger
-Version: 1
+Version: 1.1
 Status: Released
 Editor: web
 web-entry: fragments_librarian.html
@@ -15,5 +15,102 @@ tags:
   - sampler
   - sequencer
   - microlooper
+  - midi
+  - random-cv
+
+summary: Six-slot sampler and sequencer with MIDI pitch control, configurable random CV outputs, saved kits, alternate variation mode, web editor, and included 24 kHz long-sample firmware.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio In 1
+      description: Audio input for channel 1
+
+    - id: AudioIn2
+      name: Audio In 2
+      description: Audio input for channel 2
+
+    - id: CVIn1
+      name: Pattern Shift CV
+      description: Controls pattern shift. When patched, X attenuates the incoming CV.
+
+    - id: CVIn2
+      name: Reverse Probability CV
+      description: Controls reverse probability. When patched, Y attenuates the incoming CV.
+
+    - id: PulseIn1
+      name: Clock In
+      description: Advances the sequencer.
+
+    - id: PulseIn2
+      name: Record Gate
+      description: Records into the selected slot while high.
+
+  outputs:
+    - id: AudioOut1
+      name: Audio Out 1
+      description: Audio output for channel 1
+
+    - id: AudioOut2
+      name: Audio Out 2
+      description: Audio output for channel 2
+
+    - id: CVOut1
+      name: Random CV 1
+      description: Configurable random voltage, stepped by default.
+
+    - id: CVOut2
+      name: Random CV 2
+      description: Configurable random voltage, slewed by default. Can be coupled to CV Out 1 from the web editor.
+
+    - id: PulseOut1
+      name: Step Pulse
+      description: Outputs a 10 ms pulse on each sequencer step.
+
+    - id: PulseOut2
+      name: Pattern Start Pulse
+      description: Outputs a 10 ms pulse on the first index of the current pattern.
+
+controls:
+  switch:
+    up:
+      name: Slot Settings
+      description: Select a slot with Main, set playback mode with X, and set reverse probability with Y.
+
+    middle:
+      name: Sequencer Settings
+      description: Select a pattern with Main, shift the pattern with X, and set repeat division with Y.
+
+    down:
+      name: Reset, Clear, Save
+      description: Tap to reset. Hold until the LEDs flash, then tap once to clear or twice to save.
+
+  knobs:
+    - when: { z: up }
+      main:
+        name: Slot Select
+        description: Selects slots 0-5.
+
+      x:
+        name: Playback Mode
+        description: Loop, one shot, interrupt, or passthrough.
+
+      y:
+        name: Reverse Probability
+        description: Sets reverse probability from 0% to 100%.
+
+    - when: { z: middle }
+      main:
+        name: Pattern Select
+        description: Selects one of 21 patterns.
+
+      x:
+        name: Pattern Shift
+        description: Shifts pattern slot numbers, wrapping around the six slots.
+
+      y:
+        name: Repeat Division
+        description: Sets repeat division to x1, x2, x4, or x8.
+
 contact:
   email: watermonstermusic@gmail.com

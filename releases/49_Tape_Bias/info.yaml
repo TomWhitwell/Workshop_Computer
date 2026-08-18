@@ -13,6 +13,7 @@ Status: Beta - stable in single-developer testing
 License: MIT
 date-created: 2026-07-30
 date-updated: 2026-07-31
+demo-link: https://www.youtube.com/watch?v=F0PJVCJKk94
 uf2:
   - path: uf2/TapeBias.uf2
     name: Tape Bias 0.1.1 (current stable)

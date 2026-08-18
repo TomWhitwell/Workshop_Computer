@@ -1,0 +1,159 @@
+draft: false
+Name: Punk Confusion
+short-description: "Punk by name, split-brain by design: Atari Punk Console synth, broken-basement PA effect, and venue-linked vocal calls"
+summary: |
+  Punk Confusion is a deliberately confused card built around two very different
+  meanings of "punk". Switch Up is a voltage-controlled Atari Punk Console-inspired
+  synth voice with two timing controls, hard gate input, and nasty stepped tones.
+  Switch Middle is Broken Venue, a wrecked-room audio effect for external signals:
+  slapback, grit, feedback, and collapsing PA energy inspired by the cramped,
+  abrasive feel of rooms like CBGB, the 100 Club, the Marquee, and the Whisky a
+  Go Go. Hitting Switch Down or Pulse In 2 throws the current venue's original
+  recorded punk-inspired vocal call through the same Broken Venue processing
+  chain.
+Language: C++ (Pico SDK / ComputerCard)
+Creator: Adrian Vos
+Version: "1.0.0-beta"
+Status: Beta fully tested on one device
+License: MIT
+date-created: 2026-08-10
+date-updated: 2026-08-16
+Repository: https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/77_PunkConfusion
+Editor: web
+
+uf2:
+  - path: uf2/punk_confusion_2mb.uf2
+    name: Punk Confusion Beta (2 MB)
+  - path: uf2/punk_confusion_16mb.uf2
+    name: Punk Confusion Beta (16 MB)
+
+tags:
+  - synth
+  - effect
+  - sample-playback
+  - noise
+  - lofi
+  - performance
+  - web-serial
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Broken Venue Input
+      type: audio
+      description: External audio source for the Broken Venue mode.
+    - id: AudioIn2
+      name: Vocal Slice CV
+      type: audio
+      description: Beta input. When patched, positive voltage selects a later vocal start slice; negative voltage selects a slice and reverses playback.
+    - id: CVIn1
+      name: APC CV 1
+      type: cv
+      description: Voltage control for APC timing section 1, paired with Knob X.
+    - id: CVIn2
+      name: APC CV 2
+      type: cv
+      description: Voltage control for APC timing section 2, paired with Knob Y.
+    - id: PulseIn1
+      name: APC Gate
+      type: pulse
+      description: Hard gate for APC mode when patched. With no gate patched, the APC runs freely.
+    - id: PulseIn2
+      name: Vocal Trigger
+      type: pulse
+      description: Gates and retriggers the current venue's vocal call, matching the Switch Down gesture.
+  outputs:
+    - id: AudioOut1
+      name: Main Output
+      type: audio
+      description: Main audio output for both APC and Broken Venue modes.
+    - id: AudioOut2
+      name: Stereo Room Output
+      type: audio
+      description: Decorrelated room output for stereo patches; APC mode mirrors Audio Out 1.
+    - id: CVOut1
+      name: Unused
+      type: cv
+      description: Unused.
+    - id: CVOut2
+      name: Unused
+      type: cv
+      description: Unused.
+    - id: PulseOut1
+      name: Unused
+      type: pulse
+      description: Unused.
+    - id: PulseOut2
+      name: Unused
+      type: pulse
+      description: Unused.
+
+controls:
+  switch:
+    up:
+      name: Atari Punk Console
+      description: Free-running APC-inspired synth voice with CV over both timing controls.
+    middle:
+      name: Broken Venue
+      description: Fixed 50% dry/wet dirty room / PA treatment for external audio at Audio In 1.
+    down:
+      name: Vocal Stab
+      description: Hold down to gate the current venue's vocal call through the Broken Venue chain and edit vocal-call trim with Main.
+  knobs:
+    - when: { z: up }
+      main:
+        name: Volume
+        description: Overall APC output level.
+      x:
+        name: APC Pot 1
+        description: Manual trigger-rate control for APC section 1, summed with CV In 1.
+      y:
+        name: APC Pot 2
+        description: Monostable one-shot time for APC section 2, summed with CV In 2; long settings can overrun the trigger rate for stepped tones.
+    - when: { z: middle }
+      main:
+        name: Input / Room Gain
+        description: Soft-pickup input gain. Attenuates hot modular signals below noon, sits near unity at noon, and boosts quieter headphone/line sources clockwise; hot Eurorack-level signals may clip above about 2 o'clock.
+      x:
+        name: Room
+        description: "Selects snapped room zones in approximate length order: Marquee, CBGB, the 100 Club, then the Whisky a Go Go."
+      y:
+        name: Audience
+        description: Simulates gentle audience absorption; clockwise damps the wet room path and lightly damps the dry side while preserving venue character.
+    - when: { z: down }
+      main:
+        name: Vocal Trim
+        description: Soft-pickup trim for the vocal calls, scaled by the saved Broken Venue input gain.
+      x:
+        name: Room
+        description: "Selects the venue call and room engine: Marquee, CBGB, the 100 Club, then the Whisky a Go Go."
+      y:
+        name: Audience
+        description: Same audience absorption as Broken Venue.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: APC Mode / Room Zone / Vocal Trim
+          description: Indicates Switch Up APC mode; in room mode participates in venue-zone display; while Down is held, participates in the vocal-trim meter.
+        - id: LED1
+          name: Broken Venue Mode
+          description: Indicates Broken Venue / vocal mode.
+        - id: LED2
+          name: APC Clock / Room Zone / Vocal Trim
+          description: In APC mode, blinks from the divided astable trigger clock; in room mode participates in venue-zone display; while Down is held, participates in the vocal-trim meter.
+        - id: LED3
+          name: Vocal Trigger
+          description: Flashes for Switch Down or Pulse In 2 vocal triggers.
+        - id: LED4
+          name: APC Gate / Room Zone / Vocal Trim
+          description: In APC mode, indicates gate-open state; in room mode participates in venue-zone display; while Down is held, participates in the vocal-trim meter.
+        - id: LED5
+          name: Clip / Chaos
+          description: Indicates aggressive signal level or internal overload.
+
+host:
+  usb:
+    - name: WebSerial sample loader
+      role: editor
+      description: Browser loader in `web/` uploads four venue-linked vocal samples to the reserved flash sample bank. Use Chrome or Edge, hold the switch Down during reset to enter loader mode, then connect over USB serial.

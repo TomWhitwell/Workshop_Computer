@@ -1,0 +1,192 @@
+draft: false
+Name: NIBBLE-KO
+short-description: A 12-voice synth/sample percussion looper for the Four Voltages module, with a browser sample manager
+Language: C++ (ComputerCard)
+Creator: Andy Jenkinson (uglifruit)
+Version: "1.1.0"
+Status: Released
+License: CC-BY-4.0
+repository: https://github.com/uglifruit/Nibble-KO
+Editor: web
+date-created: 2026-08-09
+date-updated: 2026-08-17
+
+# The browser setup tool's visual design follows Johan Eklund's Resonator
+# (https://johaneklund.io/resonator/), and its USB connection/upload logic is
+# ported from WorkshopBio's web/index.html (also Andy Jenkinson). See
+# README.md's Credits section and web/README.md for the fuller detail.
+
+contact:
+  social:
+    github: https://github.com/uglifruit
+
+uf2:
+  - path: UF2/nibbleko.uf2
+    name: NIBBLE-KO 1.1.0
+
+tags:
+  - drums
+  - looper
+  - sample-player
+  - effects
+  - performance
+  - four-voltages
+  - webmidi
+
+summary: |
+  NIBBLE-KO is the percussion half of NIBBLE (uglifruit/WorkshopNibble),
+  expanded into a dedicated twelve-voice drum machine: every voice
+  independently synthesised or sample-based, chosen and uploaded from a
+  browser WebUI.<br><br>
+
+  Patch one output of the FOUR VOLTAGES module into CV In 1. The card learns
+  which voltage each button combination produces, the same ten-level
+  detector and SHIFT technique as NIBBLE's Percussion half: hold one button
+  as a bank select, tap another to play it repeatedly - twelve ordered
+  gestures from four buttons and six pairs.<br><br>
+
+  CALIBRATION IS THE WHOLE GAME. Use output 1 of Four Voltages with its knob
+  near twelve o'clock, and give the card ten well-separated voltages. Levels
+  that sit close together do not fail cleanly - a pad plays the wrong drum,
+  fires twice or does nothing, differently each time. The card blinks LEDs 4
+  and 5 when two captures are too close; move the knob and run it again
+  rather than playing around it.<br><br>
+
+  The momentary switch is a MODE SELECTOR rather than a trigger. Hold it and
+  press a button to choose - drums, mute groups, or twelve performance
+  effects - then Middle plays that mode and Up records it. Because the mode
+  latches, everything is recorded through one mechanism.<br><br>
+
+  THE EFFECTS are four banks of three, the shift picking the family: filters,
+  destruction (crush, decimate, wavefold), rhythmic (stutter, flam, gate) and
+  transport (reverse, tape-stop, silence). Up to four layer at once, in
+  series. The transport bank means different things to different voices - a
+  sample plays backwards where a synthesised voice runs its ENVELOPE
+  backwards, a swell instead of a decay - so one press gives backwards kick
+  and hats over swelling toms at the same time. Each shift records two lanes,
+  the effect and its own parameter curve, so a sweep can be drawn once and
+  effects punched in and out over the top of it.<br><br>
+
+  THREE PATTERN SLOTS sit on the fourth mode, where the SWITCH is the verb:
+  hold D and tap A, B or C to recall a slot instantly, or do the same with
+  the switch UP to store the live loop into it instead. That reuses what Up
+  already means everywhere else - commit this to the loop - so there is no
+  new gesture to learn. Recall does not move the playhead, so switching
+  mid-bar reads as the band changing part rather than a stop and start, and
+  it discards whatever you were playing, which is what makes it possible to
+  try something over a pattern and abandon it.<br><br>
+
+  PATCHABLE. CV In 2 takes over the Main knob, Pulse In 2 fires a random
+  effect for as long as it is high, and Audio In 1 and 2 set that effect's
+  depth and a global CHAOS level. Chaos drives two glitch generators on the
+  CV outputs - one sparse and beat-anchored, one dense and syncopated, both
+  following the live quantise grid. Patch either back into Pulse In 2 and the
+  card glitches itself.<br><br>
+
+  1.1.0. Drums, the four-bar looper, mute groups, the twelve effects, pattern
+  slots, sample playback, the browser sample manager, flash-saved calibration
+  and the CV expansion above are all played and working on hardware. New in
+  this release: patterns can be SAVED TO YOUR COMPUTER and loaded back from
+  the browser tool, as plain JSON files - the card keeps its three slots in
+  RAM, so the file on disk is the permanent copy. A pattern stores voice
+  numbers rather than sounds, so one saved against any kit plays against any
+  other. The loop also keeps playing while the browser tool is connected, so
+  a voice can be re-pointed at a new sound and judged by ear against the
+  pattern it has to sit in. Loop length is still fixed at four bars, and a
+  WebUI setting for it is the roadmap for the next release. See the
+  repository's README for the fuller detail.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Four Voltages
+      type: cv
+      description: "Patch one output of the Four Voltages module here - output 1 with its knob near twelve o'clock is the reliable setting. The card learns which voltage each button combination produces, so it works at any knob position; re-learn whenever you move it. WELL-SEPARATED VOLTAGES MATTER MORE THAN ANYTHING ELSE: the knob moves all four outputs at once, and towards either extreme several combinations collapse onto nearly the same voltage. Two levels sitting close together do not fail cleanly - a pad plays the wrong drum, fires twice or does nothing, differently each time, because a few millivolts of drift moves the reading across the boundary. The card flags it (LEDs 4 and 5 blink during calibration) rather than guessing, and the fix is to move the Four Voltages knob and calibrate again."
+    - id: CVIn2
+      name: Main override
+      type: cv
+      description: "Takes over the Main knob while patched, so whatever Main does in the current mode is under CV instead - the DJ filter in DRUMS and MUTE, the held effect's depth in FX. Overrides rather than offsets, the same way Pulse In 1 overrides the tempo knob: a cable wins. Bipolar, and full swing covers the knob's whole travel."
+    - id: PulseIn1
+      name: ClkIn
+      type: pulse
+      description: An external clock at one pulse per beat. Overrides the tempo knob for as long as pulses keep arriving and hands the tempo back a few seconds after they stop.
+    - id: PulseIn2
+      name: Random FX
+      type: pulse
+      description: "While HIGH, a randomly chosen effect is applied - one of the same twelve the buttons play. Level-sensitive rather than edge-triggered, so the incoming gate's WIDTH is how long the effect lasts; the effect is rolled once when the gate opens and held until it closes. It sits BELOW the hand and below anything recorded, so it colours the slots you are not using rather than fighting you for one. Patch CV Out 1 or 2 back into here and the card glitches itself."
+    - id: AudioIn1
+      name: FX depth
+      type: cv
+      description: "Sets the depth of the random effect fired by Pulse In 2. A control voltage is the intended use; feeding it actual audio makes the depth judder at signal rate, which is either a mistake or exactly what you wanted. With nothing patched the effect uses that slot's own parameter curve instead."
+    - id: AudioIn2
+      name: Chaos
+      type: cv
+      description: "How busy the two glitch outputs are, and how fine. Turning it up raises the odds of any division firing AND widens the pool - at the bottom only beats are candidates, at the top every half-division is, so more chaos is finer as well as denser. Above about two thirds the dense output starts producing ratchets, short bursts instead of single gates. Never reaches certainty: a stream that fires on every candidate is a pulse train, not a random one. With nothing patched it sits at about 5%, one beat in twenty, so the glitch outputs always do something."
+  outputs:
+    - id: CVOut1
+      name: Glitch (sparse)
+      type: cv
+      description: "Gates on random beat divisions, weighted hard toward the downbeat and with longer gates - musical enough to use as an accent track on its own. Divisions follow the live quantise grid (switch+A+C), so this always agrees with what the card is recording to. Density is set by chaos on Audio In 2; with nothing patched there it fires about one beat in twenty."
+    - id: CVOut2
+      name: Glitch (dense)
+      type: cv
+      description: "The same idea as CV Out 1 turned up: off-beats and finer subdivisions, short gates, and at high chaos occasional ratchets - short bursts rather than single hits. Deliberately skips the beat itself, which CV Out 1 already owns. This is the one to patch into Pulse In 2 when you want the card to fall apart."
+    - id: AudioOut1
+      name: Drums
+      type: audio
+      description: The mono drum bus, after the DJ filter. Audio Out 2 carries the same bus, not a stereo partner - patch either socket and you get the whole kit.
+    - id: AudioOut2
+      name: Drums
+      type: audio
+      description: The same mono drum bus as Audio Out 1.
+    - id: PulseOut1
+      name: Gate
+      type: pulse
+      description: Fires on every drum hit, live or looped.
+    - id: PulseOut2
+      name: Click
+      type: pulse
+      description: Fires once per beat.
+
+controls:
+  switch:
+    up:
+      name: Record
+      description: Play the current mode AND record it. Drum hits, effects and knob movements are captured the same way. Mute toggles are deliberately NOT recorded - a mute is a mixer move rather than part of the music, so it stays live state and persists across pattern recalls, making it an arrangement layer above the patterns. The loop stores events rather than audio, so overdubbing never degrades what is already there.
+    middle:
+      name: Play
+      description: Play the current mode without recording.
+    down:
+      name: Mode select
+      description: "Hold DOWN and press a button to choose a mode; the choice lands when you RELEASE, and then LATCHES, so Down and Up never need to be held at once. A: drums. B: mute groups. C: twelve performance effects. D: three pattern slots, hold D and tap A/B/C to recall - or do the same with the switch UP to store. With a PAIR held it fires a one-shot instead - A+B undo (which covers RECORDING - hits, effects and knob curves - and deliberately not the pattern slots), A+C quantise (which cycles the grid new hits snap to - 16th, 12th, 8th - rather than re-timing anything already recorded, shown on LEDs 4 and 5: 4 alone is 16ths, both is 12ths, 5 alone is 8ths), C+D play/stop, B+D hands the card to the browser setup tool over USB. Commit-on-release exists because Four Voltages holds its last voltage: the CV may already be sitting on the button you want, so a press-driven select would never fire."
+    tap:
+      name: Capture (during calibration)
+      description: While calibrating, tap to capture the combination you are holding. Outside calibration a tap is just a short mode-select gesture and does nothing on its own.
+  knobs:
+    -
+      main:
+        name: DJ Filter / FX depth
+        description: "Overridden by CV In 2 while something is patched there. In DRUMS and MUTE it is a DJ filter - low-pass to the left, high-pass to the right, generous bypass at centre. In FX mode it becomes the held effect's depth instead, and the filter latches where it was, picking up again only when the knob is turned back through that value so leaving the mode never jumps it. Movements are recorded into the loop; in FX mode each shift has its own parameter curve, so holding a shift alone and turning Main draws that lane's automation."
+      x:
+        name: Tempo
+        description: 40 to 240 BPM, ignored while an external clock is running on Pulse In 1.
+      y:
+        name: Kit character
+        description: Reshapes the whole kit at once when a voice is struck - anticlockwise lower and longer, clockwise higher and shorter. On a synthesised voice that is pitch and decay; on a sampled one it is playback rate, which couples the two the way tape does. Applied at the moment of striking, so sweeping it never warps a sound already ringing.
+  leds:
+    -
+      display: list
+      items:
+        - id: LED0-3
+          name: Buttons A B / C D
+          description: Laid out in the same 2x2 as the Four Voltages buttons - shows which combination is currently held, flashes on each hit, and during calibration shows which combination to press next.
+        - id: LED4
+          name: Beat
+          description: Pulses on the beat. During calibration marks the four single-button steps.
+        - id: LED5
+          name: Record
+          description: Lit while recording. During calibration marks the six two-button steps.
+
+host:
+  notes: |
+    NOT YET BUILDABLE. See the repository's CLAUDE.md for current status.

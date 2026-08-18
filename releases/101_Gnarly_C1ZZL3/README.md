@@ -155,7 +155,7 @@ The C1ZZL3 Envelope Lab has a hidden Developer-mode MIDI CC Test Suite for check
 Hosted editor path after Workshop deployment:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/index.html
+https://computer.musicthing.co.uk/programs/101-gnarly-c1zzl3/web/index.html
 ```
 
 Local editor from this release folder:
@@ -177,7 +177,7 @@ Use Chrome or another browser with Web MIDI and SysEx support. When Web MIDI con
 Hosted import lab path after Workshop deployment:
 
 ```text
-https://tomwhitwell.github.io/Workshop_Computer/programs/101-gnarly-c1zzl3/web/import/index.html
+https://computer.musicthing.co.uk/programs/101-gnarly-c1zzl3/web/import/index.html
 ```
 
 Local import lab from this release folder:

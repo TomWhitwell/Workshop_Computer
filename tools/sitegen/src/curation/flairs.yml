@@ -116,7 +116,8 @@ assignments:
   "22_sheep":
     - classic
   "23_SlowMod": []
-  "24_crafted_volts": []
+  "24_crafted_volts":
+    - useful
   "25_utility_pair":
     - classic
     - start-here
@@ -135,7 +136,8 @@ assignments:
     - useful
   "32_vink":
     - wild
-  "33_drumdrum": []
+  "33_drumdrum":
+    - useful
   "34_dual_quant": []
   "35_FreqShift":
     - wild
@@ -154,7 +156,7 @@ assignments:
     - wild
   "44_Birds":
     - instant-win
-  "45_bends": 
+  "45_bends":
     - new
   "47_NZT": []
   "48_two_tracks":
@@ -164,7 +166,8 @@ assignments:
     - classic
     - deep
   "51_grains": []
-  "52_F1shnet": []
+  "52_F1shnet":
+    - new
   "53_glitter": []
   "54_Tapegrade":
     - start-here
@@ -178,9 +181,12 @@ assignments:
   "61_ZX_Spectrum":
     - magic
     - deep
+  "62_BioMimicry":
     - new
-  "64_voices_of_sid":
-    - magic
+    - toms-pick
+  "63_Nibble":
+    - new
+  "64_voices_of_sid": []
   "66_stretchcore":
     - classic
     - wild
@@ -197,29 +203,28 @@ assignments:
   "74_Wild_Pebble": []
   "75_Turing_Clouds": []
   "76_hot_fuzz": []
-  "77_Placeholder": []
   "78_Talker": []
   "81_West_Coast_LPG": []
   "82_Computer_Grids": []
   "83_Origami": []
   "84_CosmikC1zzl3":
     - deep
+  "85_plant_holder":
     - new
   "86_tesserae": []
   "87_fr330hfr33": []
   "88_Blank":
     - included
   "89_Lockstep": []
-  "90_Pantograph": []
+  "90_Pantograph":
+    - new
   "91_chorgan":
     - instant-win
   "93_Turing_Matrix": []
   "94_Ouroboros": []
-  "95_offair2":
-    - new
+  "95_offair2": []
   "96_cathode":
     - magic
-    - new
   "97_alloy": []
   "98_duo_midi": []
   "99_toolbox": []
@@ -232,6 +237,13 @@ assignments:
   "666_ws_doom":
     - toms-pick
     - new
-  "877_RYK_Tape-Sampler": []
+  "877_RYK_Tape-Sampler":
+    - magic
   "910_RYK_Pitched-Delay":
     - classic
+  # Punk Confusion
+  77_PunkConfusion: []
+  # Slag
+  79_Slag: []
+  # NIBBLE-KO
+  102_Nibble-KO: []

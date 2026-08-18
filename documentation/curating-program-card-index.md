@@ -22,9 +22,9 @@ npm install --prefix tools/sitegen
 npm run sync-curation
 ```
 
-This adds an empty assignment for every new card. It does not award a flair: an empty list means that the card has been registered but has not been given an editorial badge.
+This adds an empty assignment for every new card and removes empty assignments for deleted cards. It does not award a flair: an empty list means that the card has been registered but has not been given an editorial badge.
 
-The command preserves existing assignments and reports stale entries instead of deleting them. A stale entry usually means that a release folder was renamed or removed and should be investigated before editing `flairs.yml`.
+The command preserves stale entries that have editorial flairs so a release deletion cannot silently discard curation. These assigned stale entries must be investigated and cleaned up manually.
 
 ## Curating flairs
 
@@ -202,7 +202,7 @@ npm run build
 The curation check catches:
 
 - cards missing from `flairs.yml`
-- stale card assignments
+- stale card assignments that still have editorial flairs
 - unknown or duplicate flairs
 - invalid assignment shapes
 - missing cards referenced by the hero, embeds, or shelves
@@ -219,13 +219,13 @@ Then serve the generated `site/` directory with the usual local preview and insp
 - the **Browse all cards** archive
 - tag filtering under **Advanced search**
 
-The GitHub Pages workflow synchronizes missing empty assignments before checking and building. After a card is merged to `main`, the curation workflow commits the synchronized `flairs.yml`. Invalid references, stale assignments, unknown flairs, and malformed curation still fail with an actionable error.
+The GitHub Pages workflow adds missing empty assignments and removes stale empty assignments before checking and building. After a card addition or deletion is merged to `main`, the curation workflow commits the synchronized `flairs.yml`. Invalid references, stale assignments with editorial flairs, unknown flairs, and malformed curation still fail with an actionable error.
 
 ## Safe editing rules
 
 - Change only curation files when making an editorial decision.
 - Never rename a release folder merely to alter its displayed title.
-- Never delete a stale assignment until the corresponding release rename or deletion is understood.
+- Never delete a stale assignment with editorial flairs until the corresponding release rename or deletion is understood.
 - Prefer flair IDs, not visible labels, in assignments and shelves.
 - Keep empty assignment entries.
 - Treat `New`, `Updated`, `Tom's Pick`, and `Chris's Pick` as editorial choices, not objective card metadata.

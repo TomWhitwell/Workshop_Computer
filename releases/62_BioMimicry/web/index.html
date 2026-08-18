@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BioMimicry — sample uploader</title>
+<style>
+  :root {
+    --bg:#0f1210; --panel:#171b18; --line:#2a312c; --text:#dfe6e0;
+    --dim:#8b968e; --accent:#7fd18c; --warn:#e0a24a; --err:#e06a5a;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:2rem 1rem 4rem; background:var(--bg); color:var(--text);
+    font:15px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  main { max-width:860px; margin:0 auto; }
+  h1 { font-size:1.6rem; margin:0 0 .25rem; letter-spacing:-.01em; }
+  h1 span { color:var(--accent); }
+  .sub { color:var(--dim); margin:0 0 1.75rem; }
+  .bar {
+    display:flex; gap:.75rem; align-items:center; flex-wrap:wrap;
+    padding:1rem; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; margin-bottom:1.5rem;
+  }
+  button {
+    font:inherit; font-weight:600; color:#0f1210; background:var(--accent);
+    border:0; border-radius:7px; padding:.55rem 1.1rem; cursor:pointer;
+  }
+  button.ghost { background:transparent; color:var(--text); border:1px solid var(--line); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  #status { color:var(--dim); }
+  #status.ok { color:var(--accent); }
+  #status.err { color:var(--err); }
+  .modes { display:grid; gap:.75rem; }
+  .mode {
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:.9rem 1rem;
+  }
+  .mode h2 { margin:0 0 .15rem; font-size:1rem; }
+  .mode .hint { color:var(--dim); font-size:.85rem; margin:0 0 .6rem; }
+  /* Wider cells than the old file-drop slots needed: each now holds a dropdown
+     whose longest entry is "NEW 1 — somefilename.wav". min-width:0 on the select
+     is what actually stops it forcing the grid cell wider than its track and
+     overlapping its neighbour. */
+  .slots { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:.4rem; }
+  .slot {
+    border:1px dashed var(--line); border-radius:7px; padding:.45rem .5rem;
+    font-size:.78rem; color:var(--dim);
+    background:#12160f00; transition:border-color .12s,color .12s;
+    display:flex; align-items:center; gap:.45rem; min-width:0;
+  }
+  .slot:hover, .slot.drag { border-color:var(--accent); color:var(--text); }
+  .slot.filled { border-style:solid; border-color:var(--accent); color:var(--text); }
+  /* Already on the card, nothing staged for it: solid but muted, so you can see
+     what you are adding to rather than guessing. */
+  .slot.oncard { border-style:solid; border-color:var(--dim); color:var(--text); }
+  .slot .n { font-weight:700; color:var(--text); flex:0 0 auto; }
+  .slot select {
+    flex:1 1 auto; min-width:0; width:100%;
+    font:inherit; font-size:.76rem; color:var(--text);
+    background:var(--bg); border:1px solid var(--line); border-radius:5px;
+    padding:.2rem .25rem;
+  }
+  progress { width:100%; height:8px; margin-top:1rem; }
+  .note { color:var(--dim); font-size:.86rem; }
+  .note code { color:var(--text); background:#0000; }
+  table { border-collapse:collapse; width:100%; margin-top:.5rem; font-size:.86rem; }
+  td { padding:.15rem .5rem .15rem 0; color:var(--dim); }
+  td:first-child { color:var(--text); width:8rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Bio<span>Mimicry</span> — sample uploader</h1>
+  <p class="sub">
+    Drop your own recordings onto the card over USB. Chrome or Edge (WebMIDI).
+  </p>
+  <p class="note">
+    Hold the card's momentary switch down for two seconds — the LEDs fill and
+    stay lit. Then <strong>Connect</strong>.
+  </p>
+  <p class="note">
+    To go back to playing, restart the card by holding the switch, or press
+    <strong>Back to playing</strong>.
+  </p>
+
+  <div class="bar">
+    <button id="connect">Connect</button>
+    <button id="upload" class="ghost" disabled>Upload samples</button>
+    <button id="remap" class="ghost" disabled>Update mapping</button>
+    <button id="revert" class="ghost" disabled>Revert to built-in</button>
+    <button id="play" class="ghost" disabled>Back to playing</button>
+    <span id="status">Not connected.</span>
+  </div>
+
+  <!-- Card capacity. Persistent, unlike the status line, which the next message
+       overwrites — "how much room is left" is something you want to glance at
+       while deciding what to load, not something to remember from a toast. -->
+  <div id="cap" hidden style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.8rem 1rem;margin-bottom:1.5rem">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.45rem">
+      <strong style="font-size:.9rem">Card storage</strong>
+      <span id="capnum" class="note"></span>
+    </div>
+    <div style="display:flex;height:9px;border-radius:5px;background:var(--line);overflow:hidden">
+      <div id="capused" style="width:0;background:var(--accent);transition:width .2s"></div>
+      <div id="capstage" style="width:0;background:var(--warn);transition:width .2s"></div>
+    </div>
+    <p id="capnote" class="note" style="margin:.45rem 0 0"></p>
+  </div>
+
+  <!-- The pool. Files load here once; slots below choose from it, so the same
+       recording can be used in several places without being sent twice. -->
+  <div id="poolbox" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem;margin-bottom:1.5rem">
+    <h2 style="margin:0 0 .15rem;font-size:1rem">Your samples</h2>
+    <p class="hint" style="margin:0 0 .6rem">
+      Load recordings here, then pick them in the slots below. One file can be
+      used as many times as you like — the card stores it once, so reuse is free.
+    </p>
+    <div id="pool" style="display:grid;gap:.35rem;margin-bottom:.6rem"></div>
+    <button id="addfiles" class="ghost" style="font-size:.85rem;padding:.35rem .8rem">Add files…</button>
+    <input id="poolinput" type="file" accept="audio/*,.wav" multiple hidden>
+  </div>
+
+  <!-- What the card is already holding. Survives a reboot, unlike the pool
+       above, because the card can report offsets and sizes even though it
+       cannot report the original filenames. -->
+  <div id="oncardbox" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem;margin-bottom:1.5rem">
+    <h2 style="margin:0 0 .15rem;font-size:1rem">On the card</h2>
+    <div id="oncard"></div>
+  </div>
+
+  <div class="modes" id="modes"></div>
+  <progress id="prog" value="0" max="1" hidden></progress>
+
+  <p class="note" style="margin-top:1.5rem">
+    Any WAV works, mono or stereo. Browser converts to the card's format (8-bit
+    mono 48&nbsp;kHz), trims silence and matches loudness.
+  </p>
+  <p class="note">
+    Setting a slot to <em>none</em> removes it, so a mode with three slots filled
+    plays a three-way round robin.
+  </p>
+  <p class="note">
+    Each slot can be: 1. a recording the card already holds
+    (<strong>USER 1</strong>, <strong>USER 2</strong>…) 2. one of its built-in
+    recordings, 3. a file you have just loaded (<strong>NEW 1</strong>…), which
+    will upload 4. None (unused)
+  </p>
+  <p class="note">
+    <strong>Upload samples</strong> sends any NEW files and applies the mapping.
+  </p>
+  <p class="note">
+    <strong>Update mapping</strong> only rewrites which slot plays what.
+  </p>
+  <p class="note">
+    <strong>Revert to built-in</strong> above clears everything and reclaims the
+    space.
+  </p>
+  <p class="note">
+    Sample changes/mapping survive power off!
+  </p>
+</main>
+
+<script>
+"use strict";
+
+// --- protocol (must match webui.h) ---------------------------------------
+const MFR = 0x7D;
+const MSG = {
+  HELLO:0x01, INFO:0x02, UP_BEGIN:0x10, UP_SLOT:0x11, UP_CHUNK:0x12,
+  UP_SLOTEND:0x13, UP_END:0x14, ACK:0x15, ERR:0x16, ERASE:0x20,
+  UP_ALIAS:0x17, UP_DROP:0x18, UP_BAKED:0x19, UP_KEEP:0x1A,
+  PLAY:0x21, CLEARMODE:0x22, SLOTS:0x23,
+  SLOTINFO:0x24, SLOTDET:0x25,
+};
+
+const MODES = [
+  ["Horses",  "Variants are the HOOVES: 1 left hind, 2 left fore, 3 right hind, 4 right fore. Hinds strike lower and heavier than fores.", 4],
+  ["Geese",   "Up to eight birds. Picked at random, never the same one twice running.", 8],
+  ["Frogs",   "Up to eight species in the pond.", 8],
+  ["Rain",    "Up to eight drip sizes.", 8],
+  ["Meteors", "Up to eight distances. Long swooshes are fine here.", 8],
+  ["Cicadas", "Up to eight insects. A real field is fairly uniform.", 8],
+];
+
+const SR = 48000;
+// slots  = what is staged in this page, not yet sent
+// onCard = what the card reports it is actually playing, per mode: a bitmask of
+//          which variants hold uploaded audio. The two are different, and the
+//          difference is the whole point of showing it.
+// slots       = what is staged in this page, not yet sent
+// onCard      = what the card reports it is actually playing, per mode: a
+//               bitmask of which variants hold uploaded audio
+// pool   = every file loaded in this page, ONCE each: {name, audio}
+// slots  = which pool entry each mode+variant uses, as "mode:variant" -> index.
+//          Several slots may name the same entry; the card stores that audio
+//          once and points both slots at it, so reuse is free.
+// onCard = what the card reports it is actually playing, per mode
+const state = { midiOut:null, midiIn:null, pool:[], slots:{}, info:null,
+                onCard:null, onCardSlots:{}, onCardBaked:{},
+                bakedCount:[] };
+
+// --- audio conversion ------------------------------------------------------
+
+async function decodeWav(file) {
+  const buf = await file.arrayBuffer();
+  const ctx = new OfflineAudioContext(1, 1, SR);
+  const audio = await ctx.decodeAudioData(buf);
+  // Sum to mono.
+  const n = audio.length;
+  const out = new Float32Array(n);
+  for (let c = 0; c < audio.numberOfChannels; c++) {
+    const d = audio.getChannelData(c);
+    for (let i = 0; i < n; i++) out[i] += d[i];
+  }
+  if (audio.numberOfChannels > 1)
+    for (let i = 0; i < n; i++) out[i] /= audio.numberOfChannels;
+  // Resample if the file was not already 48k.
+  if (audio.sampleRate === SR) return out;
+  const ratio = audio.sampleRate / SR;
+  const m = Math.floor(n / ratio);
+  const rs = new Float32Array(m);
+  for (let i = 0; i < m; i++) {
+    const x = i * ratio, j = x | 0, f = x - j;
+    rs[i] = out[j] + ((out[j + 1] || 0) - out[j]) * f;
+  }
+  return rs;
+}
+
+function trim(d, floor = 0.004) {
+  let a = 0, b = d.length;
+  while (a < b && Math.abs(d[a]) < floor) a++;
+  while (b > a && Math.abs(d[b - 1]) < floor) b--;
+  a = Math.max(0, a - 48);            // keep 1ms of pre-roll so attacks survive
+  return d.subarray(a, Math.max(b, a + 1));
+}
+
+function rms(d) {
+  if (!d.length) return 0;
+  let s = 0;
+  for (let i = 0; i < d.length; i++) s += d[i] * d[i];
+  return Math.sqrt(s / d.length);
+}
+
+// Match PERCEIVED loudness, then soft-limit. Peak normalisation does not work
+// here: a peak is usually one transient, so two files normalised to the same
+// peak can still sound nothing alike.
+function loudnessMatch(d, target, ceiling = 0.94) {
+  const r = rms(d);
+  if (r < 1e-9) return d;
+  const g = target / r, knee = ceiling * 0.7;
+  const out = new Float32Array(d.length);
+  for (let i = 0; i < d.length; i++) {
+    let v = d[i] * g, a = Math.abs(v);
+    if (a > knee) {
+      const over = (a - knee) / (1 - knee);
+      a = knee + (ceiling - knee) * (over / (1 + over));
+      v = v >= 0 ? a : -a;
+    }
+    out[i] = v;
+  }
+  return out;
+}
+
+function fadeOut(d, ms = 4) {
+  const n = Math.min((SR * ms / 1000) | 0, d.length);
+  for (let i = 0; i < n; i++) d[d.length - n + i] *= 1 - i / n;
+  return d;
+}
+
+function toBytes(d) {
+  // TPDF dither, matching tools/importwav.py. Without it the quantisation error
+  // correlates with the signal, which is what makes 8-bit read as grit riding on
+  // a decaying tail rather than as hiss. Two uniform randoms summed give a
+  // triangular distribution of +/-1 LSB: more noise on paper, much less
+  // objectionable in the ear.
+  const out = new Uint8Array(d.length);
+  for (let i = 0; i < d.length; i++) {
+    const dither = Math.random() + Math.random() - 1.0;
+    let s = Math.floor(d[i] * 127 + dither + 0.5);
+    out[i] = (s < -128 ? -128 : s > 127 ? 127 : s) & 0xFF;
+  }
+  return out;
+}
+
+// --- 7-bit SysEx encoding (mirrors Encode7bit in webui.cpp) ----------------
+
+function encode7bit(src) {
+  const groups = Math.ceil(src.length / 7);
+  const out = new Uint8Array(groups * 8);
+  let o = 0;
+  for (let i = 0; i < src.length; i += 7) {
+    const n = Math.min(7, src.length - i);
+    let high = 0;
+    for (let k = 0; k < n; k++) if (src[i + k] & 0x80) high |= 1 << k;
+    out[o++] = high;
+    for (let k = 0; k < n; k++) out[o++] = src[i + k] & 0x7F;
+  }
+  return out.subarray(0, o);
+}
+
+// --- MIDI ------------------------------------------------------------------
+
+function setStatus(msg, cls = "") {
+  const el = document.getElementById("status");
+  el.textContent = msg;
+  el.className = cls;
+}
+
+function send(payload) {
+  const msg = new Uint8Array(payload.length + 3);
+  msg[0] = 0xF0; msg[1] = MFR;
+  msg.set(payload, 2);
+  msg[msg.length - 1] = 0xF7;
+  state.midiOut.send(msg);
+}
+
+// Wait for the card to acknowledge, so we never outrun a flash write.
+// Replies are collected by ONE permanent handler and queued, rather than by a
+// handler installed per wait.
+//
+// The old version set midiIn.onmidimessage inside waitAck and cleared it on
+// resolve, so any reply that arrived BETWEEN waits was dropped on the floor and
+// every later wait was one message behind - which surfaces as "card did not
+// respond" on a message that the card had in fact answered. Harmless while the
+// protocol was strictly ping-pong; not once connect() started firing a burst of
+// SLOTINFO requests.
+const rxQueue = [];
+let rxWaiter = null;
+
+function attachMidiIn(port) {
+  rxQueue.length = 0;
+  rxWaiter = null;
+  port.onmidimessage = (e) => {
+    const d = e.data;
+    if (d[0] !== 0xF0 || d[1] !== MFR) return;
+    if (rxWaiter) { const w = rxWaiter; rxWaiter = null; w(d); }
+    else rxQueue.push(d);
+  };
+}
+
+function waitAck(timeoutMs = 4000) {
+  return new Promise((resolve, reject) => {
+    const deliver = (d) => {
+      if (d[2] === MSG.ERR) reject(new Error("card reported error " + d[3]));
+      else resolve(d);
+    };
+    if (rxQueue.length) { deliver(rxQueue.shift()); return; }
+    const t = setTimeout(() => {
+      if (rxWaiter === handler) rxWaiter = null;
+      reject(new Error("card did not respond"));
+    }, timeoutMs);
+    const handler = (d) => { clearTimeout(t); deliver(d); };
+    rxWaiter = handler;
+  });
+}
+
+async function connect() {
+  try {
+    const midi = await navigator.requestMIDIAccess({ sysex: true });
+    for (const o of midi.outputs.values())
+      if (/biomimicry|workshop|pico/i.test(o.name)) state.midiOut = o;
+    for (const i of midi.inputs.values())
+      if (/biomimicry|workshop|pico/i.test(i.name)) state.midiIn = i;
+    if (state.midiIn) attachMidiIn(state.midiIn);
+    if (!state.midiOut || !state.midiIn) {
+      // The card only enumerates once its switch has been held, so "not found"
+      // is much more likely to mean "not in USB mode yet" than "unplugged".
+      // Watch for it appearing rather than making the user press Connect again.
+      setStatus("Card not found — hold its switch for two seconds until all " +
+                "six LEDs light. Waiting…", "err");
+      midi.onstatechange = (e) => {
+        if (e.port && e.port.state === "connected" &&
+            /biomimicry|workshop|pico/i.test(e.port.name)) {
+          midi.onstatechange = null;
+          connect();
+        }
+      };
+      return;
+    }
+    send([MSG.HELLO]);
+    // Insist on a full INFO. A short or mismatched reply used to be read as one
+    // anyway, so a truncated message reported "user samples loaded" on a card
+    // that had none.
+    const info = await waitAck(1500).catch(() => null);
+    if (info && info[2] === MSG.INFO && info.length >= 16) {
+      // cap is the PER-UPLOAD transfer limit (the card's RAM staging buffer);
+      // used/total describe the flash region. They are different things, and
+      // conflating them made a card with 900KB free report "too big".
+      const cap = (info[6] << 14) | (info[7] << 7) | info[8];
+      const user = info[4] === 1;
+      // info[] is the raw SysEx (F0 7D <payload> F7), so payload[k] is info[k+2].
+      const used  = info.length > 12 ? ((info[10] << 14) | (info[11] << 7) | info[12]) : 0;
+      const total = info.length > 15 ? ((info[13] << 14) | (info[14] << 7) | info[15]) : 0;
+      state.info = { cap, user, used, total };
+
+      // Capacity has its own panel now, so the status line just says what state
+      // the card is in rather than repeating the numbers.
+      setStatus("Connected. " +
+                (user ? "User samples loaded." : "Using built-in samples."), "ok");
+      document.getElementById("revert").disabled = !user;
+
+      // Ask what is actually on the card, so each mode can say whether it is
+      // playing uploads or the built-in recordings.
+      send([MSG.SLOTS]);
+      const sl = await waitAck(1500).catch(() => null);
+      if (sl && sl[2] === MSG.SLOTS) {
+        const nm = sl[3];
+        // Three bytes per mode now: two septets of the filled-slot bitmask,
+        // then how many DISTINCT built-in recordings that mode really has.
+        // Meteors ships five for eight slots, so "8 variants" was wrong.
+        state.onCard = [];
+        state.bakedCount = [];
+        for (let m = 0; m < nm; m++) {
+          state.onCard.push(sl[4 + m*3] | (sl[5 + m*3] << 7));
+          state.bakedCount.push(sl[6 + m*3]);
+        }
+      }
+      // Pull per-slot detail so the page can show what is ON THE CARD after a
+      // reboot, not just what this session loaded. Slots sharing an offset are
+      // sharing one recording, which is how reuse survives the round trip.
+      state.onCardSlots = {};
+      state.onCardBaked = {};
+      // Two requests per mode: the card reports four slots at a time, because
+      // all eight did not fit in the USB-MIDI transmit buffer.
+      for (let m = 0; m < MODES.length; m++) {
+        for (let half = 0; half < 2; half++) {
+          send([MSG.SLOTINFO, m, half]);
+          // Keep reading until the SLOTDET arrives. Anything else in the queue -
+          // a late ack, an error from an earlier message - must be DISCARDED
+          // rather than counted as this request's answer: consuming one reply
+          // per request regardless of what it was left every later reply shifted
+          // by one, and the last request with nothing at all. That silently lost
+          // one half of one mode, so a sample in a high slot vanished from the
+          // page while the card went on playing it.
+          let det = null;
+          for (let tries = 0; tries < 4; tries++) {
+            det = await waitAck(1500).catch(() => null);
+            if (!det || det[2] === MSG.SLOTDET) break;
+          }
+          if (!det || det[2] !== MSG.SLOTDET) continue;
+          // Key on the mode the CARD reported, not the one we asked for. The
+          // receiver queues replies, so one arriving late lands under whatever
+          // request is in flight - which is how samples loaded into Geese
+          // reappeared in Rain.
+          const rm = det[3];
+          const nv = det[5];
+          const v0 = det[4] * nv;
+          if (rm >= MODES.length || det[4] > 1 || nv < 1) continue;
+          for (let i = 0; i < nv; i++) {
+            const b = 6 + i * 6;
+            const off = (det[b] << 14) | (det[b+1] << 7) | det[b+2];
+            const sz  = (det[b+3] << 14) | (det[b+4] << 7) | det[b+5];
+            // 0x1FFFFF marks a slot pointing at a BUILT-IN recording: the
+            // "size" is then mode<<8|variant, not a length. Kept out of
+            // onCardSlots, which is about audio the card is STORING - a baked
+            // reference occupies no user memory and is not a USER entry.
+            if (off === 0x1FFFFF)
+              state.onCardBaked[`${rm}:${v0 + i}`] = { bm: sz >> 8, bv: sz & 0xFF };
+            else if (sz > 0)
+              state.onCardSlots[`${rm}:${v0 + i}`] = { off, sz };
+          }
+        }
+      }
+      // Seed the page's mapping FROM THE CARD, so a reload shows what is
+      // actually there. Without this every slot read "none" while the card still
+      // held audio - and since a sync is authoritative, syncing would then have
+      // DELETED it. Marked "k<off>" for keep: the sync re-points the slot at the
+      // same bytes rather than re-sending them.
+      for (const [key, { off }] of Object.entries(state.onCardSlots))
+        if (state.slots[key] === undefined) state.slots[key] = `k${off}`;
+
+      // Slots the card is pointing at a built-in recording.
+      //
+      // A mode with no uploaded audio of its own should not be holding these at
+      // all - an empty slot already plays its own built-in. Older firmware wrote
+      // cross-mode references into untouched modes, so a card can still carry
+      // them; showing them as the mode's mapping would make the page repeat a
+      // fault instead of reporting one. Show the mode's OWN built-in instead,
+      // which is what it will play once the stale reference is cleared.
+      const uploadedModes = new Set(
+        Object.keys(state.onCardSlots).map(k => Number(k.split(":")[0])));
+      for (const [key, { bm, bv }] of Object.entries(state.onCardBaked)) {
+        if (state.slots[key] !== undefined) continue;
+        const km = Number(key.split(":")[0]);
+        state.slots[key] = uploadedModes.has(km) ? `b${bm}:${bv}` : undefined;
+        if (state.slots[key] === undefined) delete state.slots[key];
+      }
+
+      // Any slot the card has NOT been given a recording for is playing its own
+      // built-in one, so show that rather than "none" - the page should open as
+      // a picture of what the card is doing, and Horses 1 is playing Horses 1.
+      // Only for modes with no uploads at all: once a mode has any, the card
+      // ignores that mode's built-ins entirely and an empty slot really is empty.
+      MODES.forEach(([, , count], mi) => {
+        const modeHasUploads = Object.keys(state.onCardSlots)
+                                     .some(k => k.startsWith(`${mi}:`));
+        if (modeHasUploads) return;
+        // Only up to the mode's REAL count: seeding Meteors 6-8 would point at
+        // padding, which is the same audio as 1-3 and would show the round robin
+        // as eight when the card only has five recordings.
+        const real = Math.min(count,
+          (state.bakedCount && state.bakedCount[mi]) || count);
+        for (let v = 0; v < real; v++)
+          if (state.slots[`${mi}:${v}`] === undefined)
+            state.slots[`${mi}:${v}`] = `b${mi}:${v}`;
+      });
+
+      renderOnCard();
+      refreshSelects();
+      updateUsage();
+    } else {
+      setStatus("Connected, but the card did not identify itself.", "err");
+    }
+    document.getElementById("upload").disabled = false;
+    // Enabled on CONNECT, not after a sync. "Update mapping" only rewrites the
+    // header, so a connected card is all it needs - and changing nothing but a
+    // mapping is exactly the case where no upload has happened, which is when
+    // it used to be the one button still greyed out.
+    document.getElementById("remap").disabled = false;
+    document.getElementById("play").disabled = false;
+  } catch (e) {
+    setStatus("WebMIDI unavailable: " + e.message, "err");
+  }
+}
+
+// --- upload ----------------------------------------------------------------
+
+async function sync(sendAudio) {
+  const entries = Object.entries(state.slots);
+  if (!entries.length) { setStatus("Nothing assigned. Set at least one slot, or use Revert to clear the card.", "err"); return; }
+
+  // "Update mapping" rewrites which slot plays what and sends no audio, so it is
+  // quick and costs no flash. It cannot carry files that are not on the card
+  // yet, so say so rather than silently dropping them.
+  if (!sendAudio) {
+    const pending = Object.values(state.slots)
+                          .some(v => typeof v === "string" && v[0] === "p");
+    if (pending) {
+      setStatus("Some slots use files that are not on the card yet — " +
+                "use Upload samples for those.", "err");
+      return;
+    }
+  }
+
+  // Which pool entries are actually referenced by a slot? Only those get sent -
+  // and each only ONCE, however many slots use it. Every slot after the first
+  // becomes an alias pointing at the same bytes on the card.
+  // Only POOL entries carry audio; baked references are free.
+  const poolIdx = (v) => (typeof v === "string" && v[0] === "p")
+                         ? parseInt(v.slice(1), 10) : -1;
+  const usedIdx = [...new Set(Object.values(state.slots)
+                    .map(poolIdx).filter(i => i >= 0))].sort((a, b) => a - b);
+
+  // One loudness target across everything, so switching modes on the card does
+  // not jump in level.
+  const all = usedIdx.map(i => rms(state.pool[i].audio)).sort((a, b) => a - b);
+  // 0.12, matching tools/importwav.py. Normalisation happens BEFORE the 8-bit
+  // conversion, so this figure sets how many of the eight bits actually get
+  // used -- 0.06 discarded about 1.5 of them before the byte was written.
+  const target = Math.max(all[all.length >> 1] || 0.12, 0.12);
+
+  // Convert each distinct file once.
+  const bytesFor = new Map();
+  for (const i of usedIdx)
+    bytesFor.set(i, toBytes(fadeOut(loudnessMatch(state.pool[i].audio, target))));
+
+  // First slot using a given file CARRIES it; the rest alias that slot.
+  // Which modes have real audio in this sync? Decides whether a slot pointing
+  // at its own built-in is a no-op or something that must be written.
+  const modeUploads = new Set();
+  for (const [key, val] of entries) {
+    if (typeof val !== "string") continue;
+    if (val[0] === "p" || val[0] === "k")
+      modeUploads.add(Number(key.split(":")[0]));
+  }
+
+  const carrier = new Map();
+  const prepared = [], aliases = [], bakedRefs = [], keeps = [];
+  for (const [key, val] of entries) {
+    const [mode, variant] = key.split(":").map(Number);
+    if (typeof val === "string" && val[0] === "b") {
+      const [bm, bv] = val.slice(1).split(":").map(Number);
+      // A mode with NO uploads of its own needs no baked references at all:
+      // an empty slot already plays that mode's built-in recording, so writing
+      // one changes nothing on the card and only adds a way to be wrong.
+      //
+      // The test used to be "skip if it points at its OWN mode and variant",
+      // which let a CROSS-mode reference through - and the page seeds slots
+      // from the card, so one bad reference round-tripped forever. That is how
+      // Cicadas 3 ended up pointing at built-in Horses 3 and playing hooves in
+      // a mode that had never been touched.
+      //
+      // With uploads in the mode it MUST be sent: the card ignores a mode's
+      // built-ins entirely once any slot of it is uploaded, so an unsent slot
+      // silently drops out of the round robin even though the page shows it.
+      if (!modeUploads.has(mode)) continue;
+      bakedRefs.push({ mode, variant, srcMode: bm, srcVariant: bv });
+      continue;
+    }
+    if (typeof val === "string" && val[0] === "k") {
+      // Already on the card: keep it exactly where it is. The audio is not
+      // re-sent; the slot is re-pointed at the same bytes.
+      keeps.push({ mode, variant, off: parseInt(val.slice(1), 10) });
+      continue;
+    }
+    const idx = poolIdx(val);
+    if (idx < 0) continue;
+    if (carrier.has(idx)) {
+      const src = carrier.get(idx);
+      aliases.push({ mode, variant, srcMode: src.mode, srcVariant: src.variant });
+    } else {
+      carrier.set(idx, { mode, variant });
+      prepared.push({ key, mode, variant, bytes: bytesFor.get(idx) });
+    }
+  }
+
+  // Only the carried audio counts against the cap; aliases are free.
+  const total = prepared.reduce((n, p) => n + p.bytes.length, 0);
+
+  // A mode the card holds but the page has emptied entirely sends no UP_SLOT,
+  // so nothing would clear it. Name those explicitly and revert them, or
+  // "set every slot to none and sync" would silently do nothing.
+  const touched = new Set(
+    [...prepared, ...aliases, ...bakedRefs, ...keeps].map(x => x.mode));
+  const onCardModes = new Set(
+    Object.keys(state.onCardSlots).map(k => Number(k.split(":")[0])));
+  const emptied = [...onCardModes].filter(m => !touched.has(m));
+  const kb = (n) => `${Math.round(n / 1024)} KB`;
+
+  // Two different limits, and saying which one you hit matters. The per-upload
+  // cap is the card's RAM staging buffer, not how much it can store — uploads
+  // append, so the same audio usually fits across two passes. Reporting this as
+  // "the card is full" would send people deleting samples they did not need to.
+  if (state.info && total > state.info.cap) {
+    setStatus(`${kb(total)} is more than the ${kb(state.info.cap)} the card can ` +
+              `take in ONE upload — ${kb(total - state.info.cap)} too much. ` +
+              `Click the × on a slot to drop it, then upload the rest in a ` +
+              `second pass; uploads add to what is already there.`, "err");
+    return;
+  }
+  if (state.info && state.info.total) {
+    const free = Math.max(0, state.info.total - state.info.used);
+    if (total > free) {
+      setStatus(`${kb(total)} will not fit in the ${kb(free)} left on the card. ` +
+                `Use "Revert to built-in" to clear it and start again.`, "err");
+      return;
+    }
+  }
+
+  const prog = document.getElementById("prog");
+  prog.hidden = false; prog.value = 0;
+  document.getElementById("upload").disabled = true;
+  document.getElementById("remap").disabled = true;
+  setStatus("Syncing… the card restarts into your samples when this finishes.");
+
+  // Set once the sync has committed and the card is on its way to rebooting.
+  // A failure leaves it false, so the buttons come back and the sync can be
+  // retried without reconnecting.
+  let rebooted = false;
+
+  try {
+    // The card now erases only the sectors this upload needs, not the whole 1MB,
+    // so the stall is proportional to what is being sent. Still generous: an
+    // erase is tens of ms per sector and the card is silent throughout.
+    send([MSG.UP_BEGIN, (total >> 14) & 0x7F, (total >> 7) & 0x7F, total & 0x7F]);
+    await waitAck(30000);
+
+    let done = 0;
+    for (const p of prepared) {
+      // 4th byte 1 = REPLACE this mode. The page's mapping is now the whole
+      // truth for any mode it touches, so a sync has to be able to REMOVE a
+      // slot as well as add one: set Geese 8 to none, sync, and the card must
+      // end up with seven geese rather than seven plus the old eighth. The
+      // firmware clears the mode on its first slot of the session, so this is
+      // idempotent across the several slots a mode usually has.
+      send([MSG.UP_SLOT, p.mode, p.variant, 1]);
+      await waitAck();
+
+      // Chunk small enough that an encoded SysEx stays comfortable over USB.
+      const CHUNK = 336;       // 336 = 48 groups of 7 -> 384 encoded bytes
+      for (let off = 0; off < p.bytes.length; off += CHUNK) {
+        const enc = encode7bit(p.bytes.subarray(off, off + CHUNK));
+        const msg = new Uint8Array(enc.length + 1);
+        msg[0] = MSG.UP_CHUNK; msg.set(enc, 1);
+        send(msg);
+        await waitAck();
+        done += Math.min(CHUNK, p.bytes.length - off);
+        prog.value = done / total;
+        setStatus(`Uploading ${MODES[p.mode][0]} ${p.variant + 1}… ` +
+                  `${((done / total) * 100) | 0}%`);
+      }
+      send([MSG.UP_SLOTEND]);
+      await waitAck();
+    }
+
+    // Modes the page has emptied: clear them as part of THIS session. Not
+    // MSG_CLEARMODE, which commits and reboots immediately and would abort the
+    // sync half way through.
+    for (const m of emptied) {
+      send([MSG.UP_DROP, m]);
+      await waitAck();
+    }
+
+    // Slots keeping audio the card already holds: re-point, do not re-send.
+    for (const k of keeps) {
+      send([MSG.UP_KEEP, k.mode, k.variant,
+            (k.off >> 14) & 0x7F, (k.off >> 7) & 0x7F, k.off & 0x7F]);
+      await waitAck();
+    }
+
+    // Slots pointing at a BUILT-IN recording: no audio to send.
+    for (const b of bakedRefs) {
+      send([MSG.UP_BAKED, b.mode, b.variant, b.srcMode, b.srcVariant]);
+      await waitAck();
+    }
+
+    // Slots that reuse a file already sent: point them at it rather than
+    // sending the audio again. Must come AFTER the carriers, since an alias
+    // names a slot that has to exist already.
+    for (const a of aliases) {
+      send([MSG.UP_ALIAS, a.mode, a.variant, a.srcMode, a.srcVariant]);
+      await waitAck();
+    }
+
+    // The card acks UP_END and then REBOOTS, so it vanishes from WebMIDI a
+    // moment later. A missing ack here is normal, not a failure -- treating the
+    // disconnect as an error is what made a working upload look like a hang.
+    send([MSG.UP_END]);
+    await waitAck(10000).catch(() => null);
+    prog.value = 1;
+    setStatus("Done — the card is restarting with your samples. Hold the switch " +
+              "and Connect again to add more.", "ok");
+
+    // The card has rebooted, so what this page thinks it knows is now stale.
+    // Clear the staged files and the card picture rather than showing a state
+    // that is no longer true; reconnecting re-reads both.
+    state.slots = {};
+    state.onCard = null;
+    renderPool();
+    refreshSelects();
+    updateUsage();
+
+    document.getElementById("revert").disabled = false;
+    document.getElementById("connect").disabled = false;
+    // The card has gone to reboot, so nothing that talks to it should be live
+    // until Connect finds it again. Re-enabling these unconditionally in the
+    // finally left them pointing at a card that was no longer there.
+    rebooted = true;
+  } catch (e) {
+    setStatus("Sync failed: " + e.message, "err");
+  } finally {
+    document.getElementById("upload").disabled = rebooted;
+    document.getElementById("remap").disabled = rebooted;
+  }
+}
+
+
+// Send the card back to being an instrument. It reboots, so like every other
+// reboot path here the ack may not arrive — that is success, not failure.
+async function backToPlaying() {
+  try {
+    send([MSG.PLAY]);
+    await waitAck(4000).catch(() => null);
+    setStatus("Card is restarting — it should be playing again in a moment.", "ok");
+    for (const id of ["upload", "remap", "revert", "play"])
+      document.getElementById(id).disabled = true;
+    document.getElementById("connect").disabled = false;
+  } catch (e) {
+    setStatus("Could not switch back: " + e.message, "err");
+  }
+}
+
+// Revert ONE mode to its built-in recordings, leaving other modes' uploads
+// alone. Rewrites the header only, so it costs a single sector write.
+async function clearMode(mi, name) {
+  try {
+    send([MSG.CLEARMODE, mi]);
+    await waitAck(4000).catch(() => null);
+    setStatus(`${name} reverted to built-in — the card is restarting.`, "ok");
+    for (const id of ["upload", "remap", "revert", "play"])
+      document.getElementById(id).disabled = true;
+    document.getElementById("connect").disabled = false;
+  } catch (e) {
+    setStatus("Could not revert that mode: " + e.message, "err");
+  }
+}
+
+async function revert() {
+  try {
+    // Also reboots the card, so the ack may not arrive. Reverting is how space
+    // is reclaimed too: uploads append, so this is the way to empty the region.
+    send([MSG.ERASE]);
+    await waitAck(8000).catch(() => null);
+
+    // Clear the staged slots too. The card is back to all eight built-in
+    // variants per mode, so leaving the page showing loaded files and a
+    // "will play only these two" note would be describing a card that no
+    // longer exists.
+    state.slots = {};
+    state.pool = [];
+    state.onCard = null;   // the card is back to built-in everywhere
+    state.onCardSlots = {};
+    renderOnCard();
+    if (state.info) state.info.used = 0;   // region emptied and reclaimed
+    renderPool();
+    refreshSelects();
+    updateUsage();
+
+    setStatus("Reverted to the built-in samples — the card is restarting.", "ok");
+    document.getElementById("revert").disabled = true;
+    document.getElementById("connect").disabled = false;
+  } catch (e) {
+    setStatus("Could not revert: " + e.message, "err");
+  }
+}
+
+// --- UI --------------------------------------------------------------------
+
+/// Add a file to the pool, returning its index (or -1 if it would not decode).
+/// Identical names are reused rather than duplicated, so dropping the same file
+/// on four slots gives one pool entry and four references to it.
+async function addToPool(file) {
+  const existing = state.pool.findIndex(p => p.name === file.name);
+  if (existing >= 0) return existing;
+  try {
+    let d = trim(await decodeWav(file));
+    state.pool.push({ name: file.name, audio: d });
+    renderPool();
+    return state.pool.length - 1;
+  } catch (e) {
+    setStatus(`Could not read ${file.name}.`, "err");
+    return -1;
+  }
+}
+
+/// Remove a pool entry, and every slot assignment that used it. Indices above it
+/// shift down, so the remaining assignments are renumbered rather than silently
+/// pointing at the wrong file.
+function removeFromPool(idx) {
+  state.pool.splice(idx, 1);
+  const next = {};
+  for (const [k, v] of Object.entries(state.slots)) {
+    // Baked references are unaffected by pool renumbering.
+    if (typeof v !== "string" || v[0] !== "p") { next[k] = v; continue; }
+    const i = parseInt(v.slice(1), 10);
+    if (i === idx) continue;                 // slots using it become empty
+    next[k] = `p${i > idx ? i - 1 : i}`;
+  }
+  state.slots = next;
+  renderPool();
+  refreshSelects();
+  updateUsage();
+}
+
+/// What is ALREADY on the card, grouped by shared audio.
+///
+/// The page cannot know the original filenames after a reboot - the card stores
+/// audio, not names - so entries are identified by size and by where they are
+/// used. Slots sharing an offset are sharing one recording, so reuse survives
+/// the round trip even though the names do not.
+function renderOnCard() {
+  const box = document.getElementById("oncard");
+  if (!box) return;
+  const entries = Object.entries(state.onCardSlots);
+  if (!entries.length && !Object.keys(state.onCardBaked).length) {
+    box.innerHTML = `<span class="note">Nothing uploaded — the card is using ` +
+                    `its built-in recordings.</span>`;
+    return;
+  }
+  // Group slots by offset: same offset means same audio.
+  const byOff = new Map();
+  for (const [key, { off, sz }] of entries) {
+    if (!byOff.has(off)) byOff.set(off, { sz, slots: [] });
+    byOff.get(off).slots.push(key);
+  }
+  const kb = (n) => `${Math.round(n / 1024)} KB`;
+  const rows = [...byOff.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([off, g], i) => {
+      const where = g.slots.map(k => {
+        const [m, v] = k.split(":").map(Number);
+        return `${MODES[m][0]} ${v + 1}`;
+      }).join(", ");
+      return `<div style="display:flex;gap:.6rem;align-items:baseline">` +
+             `<span style="color:var(--accent);font-weight:600;min-width:4rem">` +
+             `USER ${i + 1}</span>` +
+             `<span class="note" style="min-width:5rem">${kb(g.sz)}</span>` +
+             `<span class="note" style="min-width:4.5rem">${(g.sz / 48) | 0} ms</span>` +
+             `<span style="flex:1">${where}</span></div>`;
+    });
+  // Slots pointing at a BUILT-IN recording. Listed separately because they cost
+  // no memory - showing them among the USER entries is what made five of them
+  // look like 0 KB uploads.
+  const bakedRows = Object.entries(state.onCardBaked).map(([key, { bm, bv }]) => {
+    const [m, v] = key.split(":").map(Number);
+    return `${MODES[m][0]} ${v + 1} = built-in ${MODES[bm][0]} ${bv + 1}`;
+  });
+
+  const total = [...byOff.values()].reduce((n, g) => n + g.sz, 0);
+  box.innerHTML = rows.join("") +
+    `<div class="note" style="margin-top:.4rem">${byOff.size} ` +
+    `${byOff.size === 1 ? "recording" : "recordings"}, ${kb(total)} in use.</div>` +
+    (bakedRows.length
+      ? `<div class="note" style="margin-top:.4rem">Using built-in recordings: ` +
+        `${bakedRows.join("; ")}</div>`
+      : "");
+}
+
+function renderPool() {
+  const box = document.getElementById("pool");
+  if (!box) return;
+  if (!state.pool.length) {
+    box.innerHTML = `<span class="note">Nothing loaded yet.</span>`;
+    return;
+  }
+  box.innerHTML = "";
+  state.pool.forEach((p, i) => {
+    const used = Object.values(state.slots).filter(x => x === `p${i}`).length;
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:.6rem;align-items:baseline";
+    row.innerHTML =
+      `<span style="color:var(--warn);font-weight:600;min-width:4rem">NEW ${i + 1}</span>` +
+      `<span style="flex:1">${p.name}</span>` +
+      `<span class="note">${(p.audio.length / 48) | 0} ms</span>` +
+      `<span class="note" style="min-width:5.5rem;text-align:right">` +
+      `${used ? `used ${used}×` : "unused"}</span>`;
+    const x = document.createElement("span");
+    x.textContent = "×";
+    x.title = "Remove from the pool";
+    x.style.cssText = "cursor:pointer;color:var(--dim)";
+    x.onmouseover = () => x.style.color = "var(--err)";
+    x.onmouseout  = () => x.style.color = "var(--dim)";
+    x.onclick = () => removeFromPool(i);
+    row.appendChild(x);
+    box.appendChild(row);
+  });
+}
+
+/// Rebuild every slot dropdown from the current pool, preserving assignments.
+function refreshSelects() {
+  MODES.forEach(([, , count], mi) => {
+    for (let v = 0; v < count; v++) {
+      const sel = document.getElementById(`sel${mi}_${v}`);
+      if (!sel) continue;
+      const cur = state.slots[`${mi}:${v}`];
+      // Three kinds of entry: nothing, one of YOUR files, or one of the card's
+      // own recordings — which can come from ANY mode, so the built-in horse
+      // hoof can be Geese 1 without uploading anything.
+      // Only as many built-in entries as the mode actually HAS. Slots are padded
+      // by repetition when a mode ships fewer than eight, so offering all eight
+      // let you pick Meteors 6 and get Meteors 1 without being told.
+      const baked = MODES.map(([bn, , bc], bm) => {
+        const n = (state.bakedCount && state.bakedCount[bm]) || bc;
+        return `<optgroup label="Built-in ${bn}">` +
+          Array.from({ length: Math.min(n, bc) }, (_, bv) =>
+            `<option value="b${bm}:${bv}">${bn} ${bv + 1}</option>`).join("") +
+          `</optgroup>`;
+      }).join("");
+      // Audio already on the card for THIS slot, so a reload can show it and a
+      // sync can keep it. Grouped by the offsets actually in use, since two
+      // slots sharing an offset share one recording.
+      const onCardOffs = [...new Set(Object.values(state.onCardSlots)
+                            .map(x => x.off))].sort((a, b) => a - b);
+      const keeps = onCardOffs.length
+        ? `<optgroup label="On the card">` + onCardOffs.map((o, i) =>
+            `<option value="k${o}">USER ${i + 1}</option>`).join("") +
+          `</optgroup>`
+        : "";
+      sel.innerHTML = `<option value="">— none —</option>` + keeps +
+        (state.pool.length
+          ? `<optgroup label="To be uploaded">` + state.pool.map((p, i) =>
+              `<option value="p${i}">NEW ${i + 1} — ${p.name}</option>`).join("") +
+            `</optgroup>`
+          : "") + baked;
+      sel.value = (cur === undefined) ? "" : cur;
+      const slot = sel.parentElement;
+      if (slot) slot.classList.toggle("filled", cur !== undefined);
+    }
+  });
+}
+
+function build() {
+  const wrap = document.getElementById("modes");
+  MODES.forEach(([name, hint, count], mi) => {
+    const div = document.createElement("div");
+    div.className = "mode";
+    div.innerHTML = `<h2>${name}</h2><p class="hint">${hint}</p>`;
+    const slots = document.createElement("div");
+    slots.className = "slots";
+    for (let v = 0; v < count; v++) {
+      const s = document.createElement("div");
+      s.className = "slot";
+      s.innerHTML = `<span class="n">${v + 1}</span>`;
+
+      // A dropdown over the POOL, not a file input. One recording can therefore
+      // serve several slots -- four hooves from one clop, or the same note in
+      // two ecosystems -- and the card stores it once, so reuse costs no flash.
+      const sel = document.createElement("select");
+      sel.id = `sel${mi}_${v}`;
+      sel.onchange = () => {
+        const k = `${mi}:${v}`;
+        if (sel.value === "") delete state.slots[k];
+        else state.slots[k] = sel.value;   // "k<off>", "p<i>" or "b<mode>:<var>"
+        renderPool();                      // usage counts change
+        updateUsage();
+      };
+      s.appendChild(sel);
+
+      // Dropping a file straight onto a slot still works: it joins the pool and
+      // is assigned here, which is the common case of "this one, here".
+      s.ondragover = (e) => { e.preventDefault(); s.classList.add("drag"); };
+      s.ondragleave = () => s.classList.remove("drag");
+      s.ondrop = async (e) => {
+        e.preventDefault(); s.classList.remove("drag");
+        const f = e.dataTransfer.files[0];
+        if (!f) return;
+        const idx = await addToPool(f);
+        if (idx >= 0) { state.slots[`${mi}:${v}`] = `p${idx}`; refreshSelects(); updateUsage(); }
+      };
+      slots.appendChild(s);
+    }
+    div.appendChild(slots);
+
+    // What this mode will ACTUALLY play after uploading. Loading two geese does
+    // not give you two geese plus six of the card's own: the firmware restricts
+    // a mode to the slots you filled. Worth stating, because the alternative
+    // assumption is reasonable and produces a confusing result.
+    const note = document.createElement("p");
+    note.className = "hint";
+    note.id = `use${mi}`;
+    div.appendChild(note);
+
+    // Per-mode revert. Only rewrites the header, so one mode can go back to its
+    // built-in recordings without disturbing the uploads in every other mode.
+    const clr = document.createElement("button");
+    clr.className = "ghost";
+    clr.id = `clr${mi}`;
+    clr.hidden = true;
+    clr.style.cssText = "font-size:.8rem;padding:.3rem .7rem";
+    clr.textContent = `Revert ${name} to built-in`;
+    clr.onclick = () => clearMode(mi, name);
+    div.appendChild(clr);
+
+    wrap.appendChild(div);
+  });
+  updateUsage();
+}
+
+/// Refresh every mode's card/staged status. Called on load, connect and drop.
+/// Card storage bar: what is committed, what this page is about to add, and how
+/// much is left. Staged bytes are shown in the warning colour so the cost of an
+/// upload is visible BEFORE sending it rather than as a rejection afterwards.
+function updateCapacity() {
+  const box = document.getElementById("cap");
+  if (!box) return;
+  if (!state.info || !state.info.total) { box.hidden = true; return; }
+  box.hidden = false;
+
+  const { used, total, cap } = state.info;
+  // Staged size is approximate: the real bytes are produced at upload time after
+  // loudness matching and trimming. Length in samples is the right order of
+  // magnitude and 8-bit mono means one byte per sample.
+  // Distinct pool entries actually assigned. Reuse is free on the card, so a
+  // file used four times still counts once here.
+  const usedIdx = [...new Set(Object.values(state.slots)
+    .filter(v => typeof v === "string" && v[0] === "p")
+    .map(v => parseInt(v.slice(1), 10)))];
+  const staged = usedIdx.reduce(
+    (n, i) => n + (state.pool[i] ? state.pool[i].audio.length : 0), 0);
+
+  const kb = (n) => `${Math.round(n / 1024)} KB`;
+  const pctUsed  = Math.min(100, (used / total) * 100);
+  const pctStage = Math.min(100 - pctUsed, (staged / total) * 100);
+  const free = Math.max(0, total - used - staged);
+
+  document.getElementById("capused").style.width  = `${pctUsed}%`;
+  document.getElementById("capstage").style.width = `${pctStage}%`;
+  document.getElementById("capnum").textContent =
+    `${Math.round((free / total) * 100)}% free — ${kb(free)} of ${kb(total)}`;
+
+  let note = used ? `${kb(used)} in use. ` : "Nothing uploaded yet. ";
+  if (staged) note += `${kb(staged)} staged in this page. `;
+  note += `Up to ${kb(cap)} per upload — bigger sets go in more than one pass, ` +
+          `since uploads add to what is already there.`;
+  document.getElementById("capnote").textContent = note;
+}
+
+function updateUsage() {
+  updateCapacity();
+  MODES.forEach(([name, , count], mi) => {
+    const el = document.getElementById(`use${mi}`);
+    if (!el) return;
+
+    // What the CARD holds, independent of anything staged in this page.
+    const bits = state.onCard ? state.onCard[mi] : 0;
+    const onCardN = bits ? (bits.toString(2).match(/1/g) || []).length : 0;
+    const clr = document.getElementById(`clr${mi}`);
+    if (clr) clr.hidden = !onCardN;
+
+    // Mark the slots the card already has, so it is obvious what you are adding
+    // to. Staged files win the label, since those are about to overwrite.
+    for (let v = 0; v < count; v++) {
+      const sel = document.getElementById(`sel${mi}_${v}`);
+      if (!sel) continue;
+      const assigned = state.slots[`${mi}:${v}`] !== undefined;
+      const has = (bits >> v) & 1;
+      const slot = sel.parentElement;
+      if (slot) slot.classList.toggle("oncard", !assigned && !!has);
+      // Deliberately does NOT touch the option list or its labels. It used to
+      // relabel the empty option here, which ran AFTER refreshSelects() and so
+      // overwrote the correct labels — a slot holding USER 1 read
+      // "none (was on card)" and looked unset. Building the options is
+      // refreshSelects()'s job alone.
+    }
+
+    // What will play AFTER a sync: every slot of this mode that names anything.
+    // Counting "staged" and adding it to what is already on the card
+    // double-counted, because the page seeds the slots the card already holds -
+    // so eight slots read as "will add 8, 16 in the rotation".
+    let willPlay = 0, sending = 0;
+    for (let v = 0; v < count; v++) {
+      const val = state.slots[`${mi}:${v}`];
+      if (val === undefined) continue;
+      willPlay++;
+      if (typeof val === "string" && val[0] === "p") sending++;
+    }
+
+    // HORSES IS NOT A ROUND ROBIN. Its four variants are the four hooves, picked
+    // by which foot actually landed, so it always uses all four.
+    const hooves = (mi === 0);
+
+    let cardLine;
+    if (!state.onCard) {
+      cardLine = `<span style="color:var(--dim)">○ Connect to see what is on ` +
+                 `the card.</span>`;
+    } else if (!onCardN) {
+      cardLine = `<span style="color:var(--dim)">○ On the card: built-in ` +
+                 `${name.toLowerCase()}.</span>`;
+    } else if (hooves) {
+      cardLine = `<span style="color:var(--accent)">● On the card: ${onCardN} of ` +
+                 `4 hooves replaced; the rest use the built-in ones.</span>`;
+    } else {
+      cardLine = `<span style="color:var(--accent)">● On the card: ${onCardN} ` +
+                 `uploaded, and only ${onCardN === 1 ? "that is" : "those are"} ` +
+                 `played — not mixed with the built-in ${name.toLowerCase()}.</span>`;
+    }
+
+    let stagedLine = "";
+    if (hooves) {
+      stagedLine = `<span class="note">Horses always plays all four hooves; ` +
+                   `each slot is a foot, not an alternate.</span>`;
+    } else if (willPlay) {
+      // Note "round robin of N", not "N variants" - the card plays exactly the
+      // slots that name something, which is the number that matters and is not
+      // necessarily eight. Meteors ships five recordings for eight slots.
+      stagedLine = `<span style="color:var(--accent)">✓ ${willPlay}-way round ` +
+                   `robin after syncing` +
+                   (sending ? `, ${sending} to upload` : ``) + `.</span>`;
+    }
+
+    el.innerHTML = cardLine + (stagedLine ? "<br>" + stagedLine : "");
+    el.style.color = "";
+  });
+}
+
+document.getElementById("connect").onclick = connect;
+document.getElementById("upload").onclick = () => sync(true);
+document.getElementById("remap").onclick = () => sync(false);
+document.getElementById("revert").onclick = revert;
+document.getElementById("play").onclick = backToPlaying;
+
+// Pool loading: the button and a page-wide drop target, so files can arrive
+// either way before being assigned to slots.
+const poolInput = document.getElementById("poolinput");
+document.getElementById("addfiles").onclick = () => poolInput.click();
+poolInput.onchange = async () => {
+  for (const f of poolInput.files) await addToPool(f);
+  poolInput.value = "";
+  refreshSelects();
+  updateUsage();
+};
+const poolBox = document.getElementById("poolbox");
+poolBox.ondragover = (e) => { e.preventDefault(); poolBox.style.borderColor = "var(--accent)"; };
+poolBox.ondragleave = () => poolBox.style.borderColor = "var(--line)";
+poolBox.ondrop = async (e) => {
+  e.preventDefault();
+  poolBox.style.borderColor = "var(--line)";
+  for (const f of e.dataTransfer.files) await addToPool(f);
+  refreshSelects();
+  updateUsage();
+};
+
+build();
+renderPool();
+renderOnCard();
+refreshSelects();
+</script>
+</body>
+</html>
