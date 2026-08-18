@@ -144,13 +144,20 @@ Use it like this:
 2. Open `web/index.html` in Chrome, Edge, or another Chromium-based browser
    with WebSerial support.
 3. Choose the matching card size in the page.
-4. Drop one audio file into each venue slot on the page.
+4. Drop one audio file into each venue slot on the page. If you already have a
+   saved `punk_confusion_samples.pbank` file, drop it into `Already have
+   prepared sounds?` instead to fill all four slots at once.
 5. Hold the card switch Down while powering or resetting the card.
 6. Wait for confirmation: all LEDs flash three times, then LEDs 1, 3, and 5
    stay lit while the card waits for the browser.
 7. Press `Connect card`, choose the Workshop Computer serial device, then press
-   `Send these sounds to the card`.
+   `Send sounds to card`.
 8. Restart the card and use it normally with the new shouts.
+
+During upload the status panel shows four stages: asking whether the card is
+ready, sending the sounds, waiting while the card saves them, and upload
+complete. Larger banks can take a little while to write, so wait for the final
+complete message before restarting the card.
 
 The uploaded samples are stored in flash, so they can persist even after you
 reflash the firmware. To return to the embedded factory shouts, enter loader
@@ -165,8 +172,11 @@ the 16 MB build reserves about `14 MB`.
 
 The web page converts source files to mono 24 kHz µ-law and shows how much of
 the sample bank they will use before upload. If the sounds are too large, the
-page will ask you to shorten them or use the 16 MB build. Factory fallback WAVs
-and `VocalSamples.h` are backed up in `factory-samples/` for maintainers.
+page will ask you to shorten them or use the 16 MB build. `Save prepared
+sounds` downloads the converted `.pbank` file, which can later be dropped back
+onto the page without reloading the original WAV or AIFF files. Factory
+fallback WAVs and `VocalSamples.h` are backed up in `factory-samples/` for
+maintainers.
 
 ## Jack Map
 
