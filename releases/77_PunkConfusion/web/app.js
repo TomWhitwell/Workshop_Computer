@@ -25,6 +25,10 @@ const slotsEl = document.querySelector("#slots");
 const template = document.querySelector("#slotTemplate");
 const bankFileInput = document.querySelector("#bankFile");
 const bankDrop = document.querySelector("#bankDrop");
+const folderFileInput = document.querySelector("#folderFile");
+const folderDrop = document.querySelector("#folderDrop");
+const detectedFilesEl = document.querySelector("#detectedFiles");
+const detectedFileTemplate = document.querySelector("#detectedFileTemplate");
 const connectButton = document.querySelector("#connect");
 const uploadButton = document.querySelector("#upload");
 const restoreButton = document.querySelector("#restore");
@@ -44,6 +48,7 @@ let uploadInProgress = false;
 let loaderGreetingSeen = false;
 let firmwareCheckTimer;
 const serialWaiters = [];
+let detectedWavs = [];
 
 function log(message) {
   serialText = message;
@@ -254,6 +259,98 @@ async function handleBankFile(file) {
   }
 }
 
+function isWavFile(file) {
+  return /\.wav$/i.test(file.name) || file.type === "audio/wav" || file.type === "audio/x-wav";
+}
+
+function displayPath(file) {
+  return file.webkitRelativePath || file.relativePath || file.name;
+}
+
+function sortAudioFiles(files) {
+  return [...files].sort((a, b) => displayPath(a).localeCompare(displayPath(b), undefined, { numeric: true }));
+}
+
+function fileFromEntry(entry) {
+  return new Promise((resolve, reject) => entry.file(resolve, reject));
+}
+
+function readDirectoryEntries(reader) {
+  return new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+}
+
+async function collectEntryFiles(entry, prefix = "") {
+  if (entry.isFile) {
+    const file = await fileFromEntry(entry);
+    file.relativePath = `${prefix}${file.name}`;
+    return [file];
+  }
+
+  if (!entry.isDirectory) return [];
+
+  const reader = entry.createReader();
+  const files = [];
+  while (true) {
+    const entries = await readDirectoryEntries(reader);
+    if (entries.length === 0) break;
+    for (const child of entries) {
+      files.push(...await collectEntryFiles(child, `${prefix}${entry.name}/`));
+    }
+  }
+  return files;
+}
+
+async function filesFromDrop(event) {
+  const items = [...(event.dataTransfer?.items || [])];
+  const entries = items.map((item) => item.webkitGetAsEntry?.()).filter(Boolean);
+  if (entries.length === 0) return [...(event.dataTransfer?.files || [])];
+
+  const files = [];
+  for (const entry of entries) {
+    files.push(...await collectEntryFiles(entry));
+  }
+  return files;
+}
+
+function renderDetectedWavs() {
+  detectedFilesEl.replaceChildren();
+
+  if (detectedWavs.length === 0) {
+    const empty = document.createElement("p");
+    empty.textContent = "No WAV files found yet.";
+    detectedFilesEl.append(empty);
+    return;
+  }
+
+  for (const file of detectedWavs) {
+    const node = detectedFileTemplate.content.firstElementChild.cloneNode(true);
+    node.querySelector("strong").textContent = file.name;
+    node.querySelector("span").textContent = displayPath(file);
+    node.querySelector("audio").src = URL.createObjectURL(file);
+
+    const assignments = node.querySelector(".assignments");
+    slots.forEach((slot, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = `Use as ${index + 1}`;
+      button.addEventListener("click", () => handleFile(index, file, slotNodes[index]));
+      assignments.append(button);
+    });
+
+    detectedFilesEl.append(node);
+  }
+}
+
+function handleWavFiles(files) {
+  detectedWavs = sortAudioFiles(files.filter(isWavFile));
+  renderDetectedWavs();
+  if (detectedWavs.length === 0) {
+    log("No WAV files found. Try another folder or choose individual WAV files.");
+  } else {
+    log(`${detectedWavs.length} WAV file${detectedWavs.length === 1 ? "" : "s"} found. Audition them, then choose four for the sample slots.`);
+  }
+}
+
 function updateSampleStatus(ready, totalBytes, target) {
   if (port || uploadInProgress) return;
 
@@ -372,6 +469,27 @@ function addDropHandlers(drop, onFile) {
   drop.addEventListener("drop", (event) => {
     const file = event.dataTransfer?.files?.[0];
     if (file) onFile(file);
+  });
+}
+
+function addMultiDropHandlers(drop, onFiles) {
+  ["dragenter", "dragover"].forEach((name) => {
+    drop.addEventListener(name, (event) => {
+      event.preventDefault();
+      drop.classList.add("dragover");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((name) => {
+    drop.addEventListener(name, (event) => {
+      event.preventDefault();
+      drop.classList.remove("dragover");
+    });
+  });
+
+  drop.addEventListener("drop", async (event) => {
+    const files = await filesFromDrop(event);
+    onFiles(files);
   });
 }
 
@@ -516,6 +634,11 @@ bankFileInput.addEventListener("change", () => {
   if (bankFileInput.files?.[0]) handleBankFile(bankFileInput.files[0]);
 });
 addDropHandlers(bankDrop, handleBankFile);
+
+folderFileInput.addEventListener("change", () => {
+  handleWavFiles([...(folderFileInput.files || [])]);
+});
+addMultiDropHandlers(folderDrop, handleWavFiles);
 
 slots.forEach((_, index) => {
   const node = renderSlot(index);

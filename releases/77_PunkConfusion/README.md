@@ -146,7 +146,9 @@ Use it like this:
 3. Choose the matching card size in the page.
 4. Drop one audio file into each venue slot on the page. If you already have a
    saved `punk_confusion_samples.pbank` file, drop it into `Already have
-   prepared sounds?` instead to fill all four slots at once.
+   prepared sounds?` instead to fill all four slots at once. You can also use
+   `Browse a folder of WAVs` to choose or drop any folder of `.wav` files,
+   audition the detected files, and assign four of them to the sample slots.
 5. Hold the card switch Down while powering or resetting the card.
 6. Wait for confirmation: all LEDs flash three times, then LEDs 1, 3, and 5
    stay lit while the card waits for the browser.
@@ -177,6 +179,11 @@ sounds` downloads the converted `.pbank` file, which can later be dropped back
 onto the page without reloading the original WAV or AIFF files. Factory
 fallback WAVs and `VocalSamples.h` are backed up in `factory-samples/` for
 maintainers.
+
+The folder picker is intentionally general: it looks for `.wav` files and
+ignores other files. This can be useful for Squid Salmple or 1010music-style
+folders, but the page still converts the four chosen WAVs into Punk
+Confusion's own `.pbank` format before sending them to the card.
 
 ## Jack Map
 
