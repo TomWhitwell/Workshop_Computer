@@ -267,12 +267,20 @@ void ResonatingStrings::handleSetDiv(const char* args) {
     markFlashDirty();
 }
 
-// Flash erase+program callback for flash_safe_execute. Runs in RAM with the other core
-// locked out and interrupts disabled (guaranteed by flash_safe_execute). param = data page.
-static void __not_in_flash_func(doFlashProgram)(void* param) {
-    const uint8_t* data = (const uint8_t*)param;
+// Erase+program the settings sector. Runs from RAM on Core 1, with only Core 1's own
+// interrupts disabled — Core 0 keeps running the audio ISR throughout.
+//
+// Deliberately no multicore lockout. The firmware is built copy_to_ram (see CMakeLists),
+// so Core 0 executes entirely from SRAM and never touches flash or XIP; locking it out
+// bought nothing and cost ~45ms of frozen audio ISR per save. During that freeze the ADC
+// FIFO overran and the 8-sample DMA frame came back rotated, permanently scrambling the
+// knob/CV/switch channel mapping (dead switch, string pitch pinned to the top of its
+// range), and USB CDC stalled long enough for the host to drop the port.
+static void __not_in_flash_func(writeFlashPage)(const uint8_t* data) {
+    uint32_t ints = save_and_disable_interrupts();
     flash_range_erase(FLASH_PROG_OFFSET, FLASH_SECTOR_SIZE);
     flash_range_program(FLASH_PROG_OFFSET, data, FLASH_PAGE_SIZE);
+    restore_interrupts(ints);
 }
 
 // Save current progression to flash (must be called from Core 1)
@@ -302,15 +310,24 @@ void ResonatingStrings::saveProgressionToFlash() {
     data[32] = (uint8_t)(arpLoop ? 1 : 0);
     data[33] = (uint8_t)rootString;
 
-    // Write flash safely. flash_safe_execute locks out Core 0 and disables interrupts,
-    // then runs doFlashProgram in that safe window. The timeout is for *engaging* the
-    // lockout handshake (a healthy one completes in microseconds); keep it short so a
-    // struggling handshake under heavy Core 1 load (pitch tracking) blips briefly instead
-    // of freezing both cores for a full second. Retry a bounded number of times to catch
-    // a good window; never re-arm (avoids a retry storm that would stall Core 1's YIN).
-    for (int attempt = 0; attempt < 8; attempt++) {
-        if (flash_safe_execute(doFlashProgram, data, 20) == PICO_OK) break;
-        sleep_ms(10);
+    // Single unconditional write — there is no cross-core handshake left to fail, so
+    // there is nothing to retry. This blocks Core 1 for the sector erase (~45ms typical,
+    // up to 400ms worst case); the YIN ring is sized to absorb that (see pitch_utils.h).
+    writeFlashPage(data);
+
+    // Read the page back through XIP and confirm it. flash_range_program flushes the XIP
+    // cache, so this sees real flash rather than a stale cache line. Reading flash from
+    // Core 1 at runtime is fine — the copy_to_ram invariant only forbids it on Core 0,
+    // and no write can be in flight here since writeFlashPage has returned.
+    //
+    // The save used to be audible (it glitched the audio), which was the only feedback
+    // that it had happened. Now that it is seamless, this is what the web UI shows a
+    // confirmation from.
+    const uint8_t* written = (const uint8_t*)(XIP_BASE + FLASH_PROG_OFFSET);
+    if (memcmp(written, data, FLASH_PAGE_SIZE) == 0) {
+        printf("SAVED\n");
+    } else {
+        printf("ERR save_verify\n");
     }
 }
 

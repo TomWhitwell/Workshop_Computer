@@ -35,8 +35,23 @@ target_link_libraries(resonator
     hardware_irq
     hardware_clocks
     pico_multicore
-    pico_flash
     pico_unique_id
+)
+
+# Enlarge the USB CDC FIFOs. The SDK defaults are 64 bytes each, and the web UI's connect
+# sequence asks seven questions at once whose answers total ~77 bytes. Overflowing the TX
+# FIFO makes stdio_usb_out_chars spin calling tud_task() from Core 1 (for up to
+# PICO_STDIO_USB_STDOUT_TIMEOUT_US = 500ms) while USBCTRL_IRQ runs TinyUSB on Core 0.
+# TinyUSB is not safe to drive from two cores, and that wedges the CDC endpoint
+# permanently: control transfers keep working but bulk data never flows again.
+# The SDK's tusb_config.h guards both with #ifndef, so defining them here wins.
+target_compile_definitions(resonator PRIVATE
+    CFG_TUD_CDC_TX_BUFSIZE=256
+    CFG_TUD_CDC_RX_BUFSIZE=256
+    # Disable the SDK's background task. It calls tud_task() from Core 0's alarm, which
+    # would race the USB device driver now that USBCTRL_IRQ has been moved to Core 1.
+    # Core 1 pumps tud_task() itself instead (see core1_handler).
+    PICO_STDIO_USB_ENABLE_IRQ_BACKGROUND_TASK=0
 )
 
 # Run from RAM to prevent flash access delays during audio

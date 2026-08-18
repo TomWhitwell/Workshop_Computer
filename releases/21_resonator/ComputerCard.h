@@ -537,8 +537,15 @@ void __not_in_flash_func(ComputerCard::AudioWorker)()
 	dma_channel_set_irq0_enabled(adc_dma, true);
 
 	// Call buffer_full ISR when ADC DMA finished
-	irq_set_enabled(DMA_IRQ_0, true);
+	// Highest priority. The ADC free-runs into a 4-entry FIFO, so once the DMA has
+	// completed its 8 samples this ISR has only ~10us to re-arm it before the FIFO
+	// overflows and drops a sample -- and a dropped sample rotates the round-robin
+	// frame permanently, scrambling the knob/CV/switch mapping. At the default 0x80
+	// this ISR shares priority with USBCTRL_IRQ (stdio runs on Core 0), which can
+	// hold it off well past that budget.
 	irq_set_exclusive_handler(DMA_IRQ_0, ComputerCard::AudioCallback);
+	irq_set_priority(DMA_IRQ_0, 0);
+	irq_set_enabled(DMA_IRQ_0, true);
 
 
 	// Turn on IRQ for CV output PWM

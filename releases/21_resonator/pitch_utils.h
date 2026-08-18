@@ -4,7 +4,12 @@
 #include "pico/stdlib.h"
 
 // Cross-core shared state for YIN pitch detection (Core 0 writes audio, Core 1 computes)
-#define YIN_RING_BITS 6
+// 4096 entries = 85ms of headroom at 48kHz. Needs to cover the longest stretch Core 1
+// can go without draining, which is a flash sector erase (~45ms typical). The old
+// 64-entry ring lasted 1.33ms, so every settings save lapped it many times over and
+// Core 1 replayed the wrapped contents as a perfectly periodic artifact that YIN locked
+// onto as a bogus high pitch. Core 1 also drops the backlog outright on overrun.
+#define YIN_RING_BITS 12
 #define YIN_RING_SIZE (1 << YIN_RING_BITS)
 static volatile int16_t yinRing[YIN_RING_SIZE];  // audio sample ring buffer
 static volatile uint32_t yinRingHead;             // write index (Core 0)
