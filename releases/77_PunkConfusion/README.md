@@ -13,7 +13,9 @@ dirty room and damaged PA treatment for external audio. `Switch Down` and
    `uf2/punk_confusion_16mb.uf2` for a 16 MB card.
 2. Patch `Audio Out 1` to your mixer. Patch `Audio Out 2` as well for stereo
    room output in Broken Venue mode.
-3. For APC mode, set the switch Up and turn `Main` up.
+3. For APC mode, set the switch Up and turn `Main` up. `Audio Out 1` is the
+   direct APC voice; `Audio Out 2` is the same voice through a fixed
+   CBGB-style room/PA treatment.
 4. For Broken Venue, patch audio to `Audio In 1`, set the switch Middle, set
    `Main`, `X`, and `Y` near noon, then choose a room with `X`.
 5. Hold the switch Down, or patch gates to `Pulse In 2`, to inject the current
@@ -184,8 +186,10 @@ fallback WAVs and `VocalSamples.h` are backed up in `factory-samples/` for
 maintainers.
 
 The folder picker is intentionally general: it looks for `.wav` files and
-ignores other files. This can be useful for Squid Salmple or 1010music-style
-folders, but the page still converts the four chosen WAVs into Punk
+ignores other files. File names do not need to match the factory samples. Pick
+any four detected WAVs, audition them in the browser, and assign them to the
+four Punk Confusion slots. This can be useful for Squid Salmple or
+1010music-style folders, but the page still converts the chosen WAVs into Punk
 Confusion's own `.pbank` format before sending them to the card.
 
 ## Jack Map
