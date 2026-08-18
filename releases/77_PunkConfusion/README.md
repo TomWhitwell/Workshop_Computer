@@ -32,11 +32,14 @@ This is a simple dual-555-style APC model rather than an audio effect.
 - `CV In 1`: adds to `X`.
 - `CV In 2`: adds to `Y`.
 - `Pulse In 1`: hard gate when patched. Unpatched, the APC free-runs.
-- `Audio Out 1` and `Audio Out 2`: mirrored APC output.
+- `Audio Out 1`: dry APC output.
+- `Audio Out 2`: APC through a fixed CBGB-style room/PA treatment, with the
+  audience absorption set internally around 33% and a small gain trim.
 
 `X` clocks the astable trigger oscillator. `Y` sets the one-shot length. When
 the one-shot is still high, incoming triggers are ignored, giving the classic
-skipped, stepped APC behaviour.
+skipped, stepped APC behaviour. `Main` controls the level feeding both APC
+outputs together.
 
 ### Switch Middle: Broken Venue
 
@@ -189,7 +192,7 @@ maintainers.
 | `Pulse In 1` | APC hard gate when patched |
 | `Pulse In 2` | Vocal trigger/gate, including audio-rate chopping |
 | `Audio Out 1` | Main output |
-| `Audio Out 2` | Stereo Broken Venue output, mirrored APC output in Switch Up |
+| `Audio Out 2` | Stereo Broken Venue output; fixed CBGB-style APC character output in Switch Up |
 | `CV Out 1` | Unused |
 | `CV Out 2` | Unused |
 | `Pulse Out 1` | Unused |
