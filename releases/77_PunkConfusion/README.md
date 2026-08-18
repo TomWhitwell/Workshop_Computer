@@ -185,12 +185,13 @@ onto the page without reloading the original WAV or AIFF files. Factory
 fallback WAVs and `VocalSamples.h` are backed up in `factory-samples/` for
 maintainers.
 
-The folder picker is intentionally general: it looks for `.wav` files and
-ignores other files. File names do not need to match the factory samples. Pick
-any four detected WAVs, audition them in the browser, and assign them to the
-four Punk Confusion slots. This can be useful for Squid Salmple or
-1010music-style folders, but the page still converts the chosen WAVs into Punk
-Confusion's own `.pbank` format before sending them to the card.
+The folder picker is intentionally general: it looks for visible `.wav` files
+and ignores other files, including hidden macOS sidecar files such as
+`._Sample.wav`. File names do not need to match the factory samples. Pick any
+four detected WAVs, audition them in the browser, and assign them to the four
+Punk Confusion slots. This can be useful for Squid Salmple, 1010music,
+Elektron, or Ableton export folders, but the page still converts the chosen
+WAVs into Punk Confusion's own `.pbank` format before sending them to the card.
 
 ## Jack Map
 

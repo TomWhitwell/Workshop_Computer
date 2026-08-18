@@ -260,7 +260,14 @@ async function handleBankFile(file) {
 }
 
 function isWavFile(file) {
+  if (isHiddenFile(file)) return false;
   return /\.wav$/i.test(file.name) || file.type === "audio/wav" || file.type === "audio/x-wav";
+}
+
+function isHiddenFile(file) {
+  return displayPath(file)
+    .split("/")
+    .some((part) => part.startsWith("."));
 }
 
 function displayPath(file) {
