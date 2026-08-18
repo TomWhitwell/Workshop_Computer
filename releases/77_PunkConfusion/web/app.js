@@ -13,10 +13,10 @@ const targets = {
 };
 
 const slots = [
-  { venue: "Marquee", phrase: "Oi" },
-  { venue: "CBGB", phrase: "Hey Ho" },
-  { venue: "100 Club", phrase: "No Future" },
-  { venue: "Whisky a Go Go", phrase: "Let's Go" }
+  { venue: "Marquee", phrase: "Sample One" },
+  { venue: "CBGB", phrase: "Sample Two" },
+  { venue: "100 Club", phrase: "Sample Three" },
+  { venue: "Whisky a Go Go", phrase: "Sample Four" }
 ];
 
 const state = slots.map(() => null);
