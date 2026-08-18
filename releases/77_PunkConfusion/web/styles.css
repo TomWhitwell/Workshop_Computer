@@ -37,6 +37,7 @@ select {
 .panel,
 .log,
 .target,
+.bank-import,
 .steps div,
 .slot {
   border: 3px solid var(--ink);
@@ -114,6 +115,28 @@ h1 {
   grid-column: 1 / -1;
   margin: 0;
   color: var(--muted);
+}
+
+.bank-import {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 2fr);
+  gap: 18px;
+  align-items: center;
+  margin: 32px 0;
+  padding: 18px;
+}
+
+.bank-import h2 {
+  margin: 0 0 8px;
+}
+
+.bank-import p {
+  margin: 0;
+  color: var(--muted);
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .notice {
@@ -231,7 +254,8 @@ pre {
   .steps,
   .panel,
   .slots,
-  .target {
+  .target,
+  .bank-import {
     grid-template-columns: 1fr;
   }
 }

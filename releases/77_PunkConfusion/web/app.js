@@ -20,8 +20,11 @@ const slots = [
 ];
 
 const state = slots.map(() => null);
+const slotNodes = [];
 const slotsEl = document.querySelector("#slots");
 const template = document.querySelector("#slotTemplate");
+const bankFileInput = document.querySelector("#bankFile");
+const bankDrop = document.querySelector("#bankDrop");
 const connectButton = document.querySelector("#connect");
 const uploadButton = document.querySelector("#upload");
 const restoreButton = document.querySelector("#restore");
@@ -99,6 +102,15 @@ function linearToMuLaw(sample) {
   return ~(sign | (exponent << 4) | mantissa) & 0xff;
 }
 
+function muLawToLinear(byte) {
+  const decoded = (~byte) & 0xff;
+  const sign = decoded & 0x80;
+  const exponent = (decoded >> 4) & 0x07;
+  const mantissa = decoded & 0x0f;
+  const magnitude = (((mantissa << 3) + 0x84) << exponent) - 0x84;
+  return (sign ? -magnitude : magnitude) / 32768;
+}
+
 function normalise(samples) {
   let peak = 0;
   for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
@@ -110,6 +122,10 @@ function normalise(samples) {
 
 function writeU32(view, offset, value) {
   view.setUint32(offset, value >>> 0, true);
+}
+
+function readU32(view, offset) {
+  return view.getUint32(offset, true);
 }
 
 function checksum(bytes) {
@@ -156,6 +172,86 @@ function buildBank() {
 
   writeU32(view, 24, checksum(bank.slice(HEADER_BYTES)));
   return bank;
+}
+
+function wavPreviewFromMuLaw(encoded) {
+  const dataBytes = encoded.length * 2;
+  const wav = new ArrayBuffer(44 + dataBytes);
+  const view = new DataView(wav);
+  const writeText = (offset, text) => {
+    for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+  };
+
+  writeText(0, "RIFF");
+  writeU32(view, 4, 36 + dataBytes);
+  writeText(8, "WAVE");
+  writeText(12, "fmt ");
+  writeU32(view, 16, 16);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  writeU32(view, 24, TARGET_SAMPLE_RATE);
+  writeU32(view, 28, TARGET_SAMPLE_RATE * 2);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeText(36, "data");
+  writeU32(view, 40, dataBytes);
+
+  for (let i = 0; i < encoded.length; i++) {
+    const sample = Math.max(-1, Math.min(1, muLawToLinear(encoded[i])));
+    view.setInt16(44 + i * 2, Math.round(sample * 32767), true);
+  }
+
+  return new Blob([wav], { type: "audio/wav" });
+}
+
+function setSlotFromEncoded(index, encoded, sourceName) {
+  state[index] = { encoded, sourceName };
+  const node = slotNodes[index];
+  if (!node) return;
+
+  const info = node.querySelector(".info");
+  const audio = node.querySelector("audio");
+  audio.src = URL.createObjectURL(wavPreviewFromMuLaw(encoded));
+  info.innerHTML = `${sourceName}<br>${(encoded.length / TARGET_SAMPLE_RATE).toFixed(3)} s, ${formatBytes(encoded.length)} µ-law`;
+}
+
+function parseBank(bytes) {
+  if (bytes.length < HEADER_BYTES) throw new Error("That prepared sounds file is too small to be a Punk Confusion bank.");
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (readU32(view, 0) !== BANK_MAGIC) throw new Error("That is not a Punk Confusion prepared sounds file.");
+  if (readU32(view, 4) !== BANK_VERSION) throw new Error("That prepared sounds file uses an unsupported version.");
+  if (readU32(view, 8) !== FORMAT_MULAW_8) throw new Error("That prepared sounds file uses an unsupported audio format.");
+  if (readU32(view, 12) !== TARGET_SAMPLE_RATE) throw new Error("That prepared sounds file uses the wrong sample rate.");
+  if (readU32(view, 16) !== SAMPLE_COUNT) throw new Error("That prepared sounds file does not contain four sounds.");
+
+  const payloadBytes = readU32(view, 20);
+  const expectedChecksum = readU32(view, 24);
+  if (HEADER_BYTES + payloadBytes !== bytes.length) throw new Error("That prepared sounds file appears to be incomplete.");
+  if (checksum(bytes.slice(HEADER_BYTES)) !== expectedChecksum) throw new Error("That prepared sounds file did not pass its safety check.");
+
+  return slots.map((slot, index) => {
+    const offset = readU32(view, 32 + index * 8);
+    const length = readU32(view, 36 + index * 8);
+    if (offset + length > payloadBytes) throw new Error("That prepared sounds file has a damaged slot table.");
+    return {
+      encoded: bytes.slice(HEADER_BYTES + offset, HEADER_BYTES + offset + length),
+      sourceName: `${slot.phrase} from prepared sounds`
+    };
+  });
+}
+
+async function handleBankFile(file) {
+  try {
+    log(`Loading prepared sounds from ${file.name}...`);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const samples = parseBank(bytes);
+    samples.forEach((sample, index) => setSlotFromEncoded(index, sample.encoded, sample.sourceName));
+    updateSummary();
+    log(`Prepared sounds loaded from ${file.name}. All four slots are ready.`);
+  } catch (error) {
+    log(error.message || String(error));
+  }
 }
 
 function updateSampleStatus(ready, totalBytes, target) {
@@ -250,7 +346,7 @@ async function handleFile(index, file, node) {
   const decoded = await decodeAudio(file);
   const mono = await resampleMono(decoded);
   const { encoded, gain, peak } = normalise(mono);
-  state[index] = { encoded, sourceName: file.name };
+  setSlotFromEncoded(index, encoded, file.name);
 
   const preview = new Blob([await file.arrayBuffer()], { type: file.type || "audio/*" });
   audio.src = URL.createObjectURL(preview);
@@ -258,17 +354,7 @@ async function handleFile(index, file, node) {
   updateSummary();
 }
 
-function renderSlot(index) {
-  const node = template.content.firstElementChild.cloneNode(true);
-  const input = node.querySelector("input");
-  const drop = node.querySelector(".drop");
-  node.querySelector("h2").textContent = slots[index].phrase;
-  node.querySelector(".venue").textContent = slots[index].venue;
-
-  input.addEventListener("change", () => {
-    if (input.files?.[0]) handleFile(index, input.files[0], node);
-  });
-
+function addDropHandlers(drop, onFile) {
   ["dragenter", "dragover"].forEach((name) => {
     drop.addEventListener(name, (event) => {
       event.preventDefault();
@@ -285,8 +371,22 @@ function renderSlot(index) {
 
   drop.addEventListener("drop", (event) => {
     const file = event.dataTransfer?.files?.[0];
-    if (file) handleFile(index, file, node);
+    if (file) onFile(file);
   });
+}
+
+function renderSlot(index) {
+  const node = template.content.firstElementChild.cloneNode(true);
+  const input = node.querySelector("input");
+  const drop = node.querySelector(".drop");
+  node.querySelector("h2").textContent = slots[index].phrase;
+  node.querySelector(".venue").textContent = slots[index].venue;
+
+  input.addEventListener("change", () => {
+    if (input.files?.[0]) handleFile(index, input.files[0], node);
+  });
+
+  addDropHandlers(drop, (file) => handleFile(index, file, node));
 
   return node;
 }
@@ -370,7 +470,7 @@ uploadButton.addEventListener("click", async () => {
     writeU32(view, 0, LOADER_MAGIC);
     writeU32(view, 4, bank.length);
 
-    appendLog(`Starting upload of ${formatBytes(bank.length)}. Keep the card connected.`);
+    appendLog(`Stage 1 of 4: asking the card if it is ready for ${formatBytes(bank.length)}.`);
     if (!loaderGreetingSeen) {
       appendLog("I have not seen the WebSerial loader greeting yet. If this does not continue, flash the latest Punk Confusion WebSerial UF2 and enter the loader again.");
     }
@@ -379,13 +479,14 @@ uploadButton.addEventListener("click", async () => {
     const readyReply = await ready;
     if (/ERR/.test(readyReply.match[0])) throw new Error(readyReply.match[0]);
 
-    appendLog("Card is ready. Sending sounds now...");
+    appendLog("Stage 2 of 4: card is ready. Sending sounds now...");
     const done = waitForSerial(/OK DONE|ERR\s+\w+/, 30000);
     await writeToCard(bank);
+    appendLog("Stage 3 of 4: sounds sent. Waiting for the card to finish saving them...");
     const doneReply = await done;
     if (/ERR/.test(doneReply.match[0])) throw new Error(doneReply.match[0]);
 
-    appendLog("Upload complete. Restart the card now to use the new shouts.");
+    appendLog("Stage 4 of 4: upload complete. Restart the card now to use the new shouts.");
   } catch (error) {
     appendLog(error.message || String(error));
   } finally {
@@ -411,5 +512,14 @@ downloadButton.addEventListener("click", () => {
   downloadBlob(new Blob([bank], { type: "application/octet-stream" }), "punk_confusion_samples.pbank");
 });
 
-slots.forEach((_, index) => slotsEl.append(renderSlot(index)));
+bankFileInput.addEventListener("change", () => {
+  if (bankFileInput.files?.[0]) handleBankFile(bankFileInput.files[0]);
+});
+addDropHandlers(bankDrop, handleBankFile);
+
+slots.forEach((_, index) => {
+  const node = renderSlot(index);
+  slotNodes[index] = node;
+  slotsEl.append(node);
+});
 updateSummary();
