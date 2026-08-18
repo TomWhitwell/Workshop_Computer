@@ -15,11 +15,13 @@ Language: C++ (ComputerCard)
 Creator: James Saunders
 Version: 1.0.0
 Status: Released
+demo-link: https://youtu.be/jAWV7_NaBM0?si=06GFGjHGklVmo8Ig
 date-created: 2026-06-27
 date-updated: 2026-06-30
 tags:
   - sequencer
-  - campanology
+  - bellringing
+  - process
   - permutation
   - cv
   - scale
@@ -27,6 +29,12 @@ tags:
 
 panel:
   outputs:
+    - id: AudioOut1
+      name: Bell samples 1
+      description: Sample playback of bell recordings alternating with AudioOut2
+    - id: AudioOut2
+      name: Bell samples 2
+      description: Sample playback of bell recordings alternating with AudioOut1
     - id: CVOut1
       name: Pitch
       description: Calibrated v/oct output, one bell at a time, quantised to the active scale (tenor bell = root note)
