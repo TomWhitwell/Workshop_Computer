@@ -50,7 +50,9 @@ is part of the valid deployment path.
 npm run dev
 ```
 
-The command first performs a complete build, then serves the generated site at <http://localhost:5173/>.
+The command first performs a complete preview build, then serves the generated site at <http://localhost:5173/>.
+
+Copied web-editor links use that local origin (`http://localhost:5173/programs/<slug>/web/…`) so the assets served by Vite open instead of the production Pages URL. External `https://…` Editor values are unchanged. Production and CI builds keep the public base described above.
 
 While it is running, the development server watches:
 

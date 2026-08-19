@@ -27,19 +27,20 @@ function rebuildSite() {
   let server;
 
   function buildArgs(files) {
-    if (files.length !== 1) return ['run', 'build'];
+    const preview = ['--prefix', 'tools/sitegen', 'run', 'build', '--', '--preview'];
+    if (files.length !== 1) return preview;
     const relative = path.relative(ROOT, files[0]).replaceAll(path.sep, '/');
     const release = relative.match(/^releases\/([^/]+)\/info\.yaml$/);
     if (release && existsSync(files[0])) {
-      return ['--prefix', 'tools/sitegen', 'run', 'build', '--', '--incremental-release', release[1]];
+      return [...preview, '--incremental-release', release[1]];
     }
     if (relative === 'tools/sitegen/src/curation/discovery.yml') {
-      return ['--prefix', 'tools/sitegen', 'run', 'build', '--', '--incremental-curation', 'discovery'];
+      return [...preview, '--incremental-curation', 'discovery'];
     }
     if (relative === 'tools/sitegen/src/curation/flairs.yml') {
-      return ['--prefix', 'tools/sitegen', 'run', 'build', '--', '--incremental-curation', 'flairs'];
+      return [...preview, '--incremental-curation', 'flairs'];
     }
-    return ['run', 'build'];
+    return preview;
   }
 
   function runBuild() {
