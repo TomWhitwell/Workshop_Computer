@@ -6,6 +6,7 @@
 
 import { curation, resolveFlair } from '../curation/index.js';
 import { externalLinkArrow } from './icons.js';
+import { flashAttrFromDownloads, has16mbFirmware } from '../utils/flash.js';
 
 const CARD_ARTWORK = {
   '00_Simple_MIDI': '00-simple-midi.svg',
@@ -113,17 +114,19 @@ export function renderTile(card, opts = {}) {
     number, card.title, summary, metadata.creator, metadata.language,
     ...(Array.isArray(card.tags) ? card.tags : []),
     ...flair.map(f => f.label),
+    ...(has16mbFirmware(card.uf2_downloads) ? ['16mb'] : []),
   ].filter(Boolean).join(' ').toLowerCase();
 
   const flairFilter = flair.map(f => f.id);
   const authorTagFilter = (Array.isArray(card.tags) ? card.tags : []).map(tag => curation.slugify(tag)).filter(Boolean);
   const tagFilter = [...new Set([...flairFilter, ...authorTagFilter])].join(' ');
+  const flashFilter = flashAttrFromDownloads(card.uf2_downloads);
 
   return `<article class="program-card-tile${media ? ' program-card-tile--video' : ''}${artwork ? ' program-card-tile--artwork' : ''}"` +
     ` data-creator="${escapeAttr(metadata.creator || '')}" data-language="${escapeAttr(metadata.language || '')}"` +
     ` data-type="${escapeAttr(metadata.status || '')}" data-date="${escapeAttr(sortDate)}"` +
     ` data-name="${escapeAttr(String(card.title || card.id || '').toLowerCase())}" data-num="${escapeAttr(String(parseInt(number, 10) || 0))}"` +
-    ` data-tags="${escapeAttr(tagFilter)}" data-search="${escapeAttr(searchText)}">
+    ` data-tags="${escapeAttr(tagFilter)}" data-flash="${escapeAttr(flashFilter)}" data-search="${escapeAttr(searchText)}">
     <a class="program-card-tile__link" href="${card.id === '88_Blank' && showArtwork ? `${root}/random/` : `${root}/programs/${card.slug}/`}">
       ${media}
       <span class="program-card-tile__head"><span class="program-card-tile__title">${artwork || `<span class="program-card-tile__number">${esc(number)}</span>`}<span class="program-card-tile__name">${esc(truncate(card.title || card.id || 'Untitled card', 48))}</span>${showCreator && metadata.creator ? `<span class="program-card-tile__byline">by ${esc(metadata.creator)}</span>` : ''}</span></span>
@@ -188,13 +191,14 @@ function renderArchiveRow(card, root) {
   const flair = resolveFlair(card.id);
   const number = cardNumber(card);
   const summary = card.short_description || '';
-  const searchText = [number, card.title, summary, card.metadata?.creator, ...(Array.isArray(card.tags) ? card.tags : []), ...flair.map(f => f.label)]
+  const searchText = [number, card.title, summary, card.metadata?.creator, ...(Array.isArray(card.tags) ? card.tags : []), ...flair.map(f => f.label), ...(has16mbFirmware(card.uf2_downloads) ? ['16mb'] : [])]
     .filter(Boolean).join(' ').toLowerCase();
   const date = card.metadata?.created || '';
   const flairFilter = flair.map(f => f.id);
   const authorTagFilter = (Array.isArray(card.tags) ? card.tags : []).map(tag => curation.slugify(tag)).filter(Boolean);
   const tagFilter = [...new Set([...flairFilter, ...authorTagFilter])].join(' ');
-  return `<article class="program-card-archive-row" data-creator="${escapeAttr(card.metadata?.creator || '')}" data-date="${escapeAttr(date)}" data-name="${escapeAttr(String(card.title || '').toLowerCase())}" data-num="${escapeAttr(String(parseInt(number, 10) || 0))}" data-tags="${escapeAttr(tagFilter)}" data-search="${escapeAttr(searchText)}">
+  const flashFilter = flashAttrFromDownloads(card.uf2_downloads);
+  return `<article class="program-card-archive-row" data-creator="${escapeAttr(card.metadata?.creator || '')}" data-date="${escapeAttr(date)}" data-name="${escapeAttr(String(card.title || '').toLowerCase())}" data-num="${escapeAttr(String(parseInt(number, 10) || 0))}" data-tags="${escapeAttr(tagFilter)}" data-flash="${escapeAttr(flashFilter)}" data-search="${escapeAttr(searchText)}">
     <a class="program-card-archive-row__link" href="${root}/programs/${card.slug}/">
       <span class="program-card-archive-row__number">${esc(number)}</span>
       <span class="program-card-archive-row__main"><span class="program-card-archive-row__heading"><span class="program-card-archive-row__title">${esc(card.title)}</span>${card.metadata?.creator ? `<span class="program-card-archive-row__byline">by ${esc(card.metadata.creator)}</span>` : ''}</span>${summary ? `<span class="program-card-archive-row__summary">${esc(truncate(summary, 120))}</span>` : ''}</span>

@@ -437,14 +437,16 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
         if (d.external) {
           const host = d.host ? `<small class="program-card-action__host">${esc(d.host)}</small>` : '';
           const tag = '<small class="program-card-action__tag">External \u2197</small>';
+          const flashTag = d.flash === '16mb' ? '<small class="program-card-action__tag">16MB</small>' : '';
           const flashAttrs = d.flashable && d.sha256
             ? ` data-uf2-url="${esc(d.url)}" data-sha256="${esc(d.sha256)}"`
             : '';
-          return `<a class="program-card-action program-card-action--download program-card-action--external" href="${esc(d.url)}" target="_blank" rel="noopener noreferrer"${flashAttrs}><span class="program-card-action__label">Download</span><small>${esc(d.name)}</small>${host}${tag}</a>`;
+          return `<a class="program-card-action program-card-action--download program-card-action--external" href="${esc(d.url)}" target="_blank" rel="noopener noreferrer"${flashAttrs}><span class="program-card-action__label">Download</span><small>${esc(d.name)}</small>${host}${tag}${flashTag}</a>`;
         }
         // A repo file downloads directly, enables WebUSB, and exposes its SHA256.
         const hashAttr = d.sha256 ? ` data-sha256="${esc(d.sha256)}"` : '';
-        return `<a class="program-card-action program-card-action--download" href="${esc(d.url)}" download data-uf2-url="${esc(d.url)}"${hashAttr}><span class="program-card-action__label">Download</span><small class="program-card-action__firmware">${esc(d.name)}</small></a>`;
+        const flashTag = d.flash === '16mb' ? '<small class="program-card-action__tag">16MB</small>' : '';
+        return `<a class="program-card-action program-card-action--download" href="${esc(d.url)}" download data-uf2-url="${esc(d.url)}"${hashAttr}><span class="program-card-action__label">Download</span><small class="program-card-action__firmware">${esc(d.name)}</small>${flashTag}</a>`;
       }).join('')
     : (uf2Url || card.has_uf2_metadata ? (() => {
         const downloadHref = uf2Url || sourceUrl;

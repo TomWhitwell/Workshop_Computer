@@ -4,6 +4,7 @@
   // search and creation-date sort.
   var creatorSel=document.getElementById('filter-creator');
   var tagInputs=Array.from(document.querySelectorAll('input[name="filter-tag"]'));
+  var flash16=document.getElementById('filter-flash-16mb');
   var tagSearch=document.getElementById('filter-tag-search');
   var tagGroup=document.querySelector('.tag-filter-group');
   var toggleAllTags=document.getElementById('toggle-all-tags');
@@ -37,17 +38,19 @@
     return m?parseInt(m[1], 10):null;
   }
 
-  function filterCollection(items, c, selectedTags, s){
+  function filterCollection(items, c, selectedTags, want16, s){
     var shown=0;
     var wantedNum=cardNumberQuery(s);
     visibleItems=[];
     items.forEach(function(el){
       var cr=(el.getAttribute('data-creator')||'').toLowerCase();
       var tags=(el.getAttribute('data-tags')||'').toLowerCase().split(/\s+/);
+      var flash=(el.getAttribute('data-flash')||'').toLowerCase().split(/\s+/);
       var st=(el.getAttribute('data-search')||'');
       var ok=true;
       if(c && cr!==c) ok=false;
       if(selectedTags.length && !selectedTags.some(function(tag){ return tags.indexOf(tag) !== -1; })) ok=false;
+      if(want16 && flash.indexOf('16mb')===-1) ok=false;
       if(wantedNum!==null){ if(parseInt(el.getAttribute('data-num'), 10)!==wantedNum) ok=false; }
       else if(s && st.indexOf(s)===-1) ok=false;
       el.style.display=ok?'':'none';
@@ -60,24 +63,27 @@
   function applyFilters(){
     var c=creatorSel&&creatorSel.value?creatorSel.value.toLowerCase():'';
     var selectedTags=tagInputs.filter(function(input){ return input.checked; }).map(function(input){ return input.value.toLowerCase(); });
+    var want16=!!(flash16&&flash16.checked);
     var raw=searchInput&&searchInput.value?searchInput.value:'';
     var s=raw.trim().toLowerCase();
 
     // A whitespace-only search - or Enter on an empty box - still counts as a
     // search: it lists every card.
-    var active = !!(c||selectedTags.length||raw||showAll);
+    var active = !!(c||selectedTags.length||want16||raw||showAll);
     // The unfiltered listing, however it was reached (toggle link, Enter or
     // whitespace in the search box).
-    listingAll = active && !c && !selectedTags.length && !s;
+    listingAll = active && !c && !selectedTags.length && !want16 && !s;
 
     if(allCardsLink) allCardsLink.textContent = listingAll ? 'Close card list' : allCardsLabel;
     if(searchClear) searchClear.style.display = active ? 'flex' : 'none';
     if(clearTags) clearTags.hidden = selectedTags.length === 0;
 
-    if(tagInputs.length && window.history && window.URL) {
+    if((tagInputs.length || flash16) && window.history && window.URL) {
       var url = new URL(window.location.href);
       url.searchParams.delete('tag');
       selectedTags.forEach(function(tag){ url.searchParams.append('tag', tag); });
+      if(want16) url.searchParams.set('flash', '16mb');
+      else url.searchParams.delete('flash');
       window.history.replaceState(null, '', url.pathname + url.search + url.hash);
     }
 
@@ -86,10 +92,10 @@
       if(discoveryEl) discoveryEl.hidden = active;
       resultsEl.hidden = !active;
       if(!active){ visibleItems=[]; return; }
-      filterCollection(resultsList?resultsList.querySelectorAll(itemSelector):[], c, selectedTags, s);
+      filterCollection(resultsList?resultsList.querySelectorAll(itemSelector):[], c, selectedTags, want16, s);
     } else if(archiveList){
       // Archive: filter rows in place
-      filterCollection(archiveList.querySelectorAll('.program-card-archive-row'), c, selectedTags, s);
+      filterCollection(archiveList.querySelectorAll('.program-card-archive-row'), c, selectedTags, want16, s);
     }
 
   }
@@ -132,7 +138,7 @@
   }
 
   function wire(sel, ev){if(!sel) return; sel.addEventListener(ev||'change',applyFilters);}
-  wire(creatorSel); tagInputs.forEach(function(input){
+  wire(creatorSel); wire(flash16); tagInputs.forEach(function(input){
     wire(input);
     input.addEventListener('change', applyTagOptionSearch);
   });
@@ -183,6 +189,7 @@
     showAll = false;
     if(searchInput) searchInput.value = '';
     if(creatorSel) creatorSel.value = '';
+    if(flash16) flash16.checked = false;
     tagInputs.forEach(function(input){ input.checked = false; });
     if(tagSearch) tagSearch.value = '';
     if(tagGroup) tagGroup.classList.remove('is-showing-all');
@@ -208,11 +215,12 @@
   if(tagInputs.length && window.URLSearchParams) {
     var requestedTags = new URLSearchParams(window.location.search).getAll('tag').map(function(tag){ return tag.toLowerCase(); });
     tagInputs.forEach(function(input){ input.checked = requestedTags.indexOf(input.value.toLowerCase()) !== -1; });
-    if(requestedTags.length) {
+    if(flash16 && new URLSearchParams(window.location.search).get('flash') === '16mb') flash16.checked = true;
+    if(requestedTags.length || (flash16 && flash16.checked)) {
       var advanced = document.querySelector('.advanced-options');
       if(advanced) advanced.open = true;
     }
   }
   applyTagOptionSearch();
-  if(creatorSel||tagInputs.length||searchInput) applyFilters();
+  if(creatorSel||tagInputs.length||flash16||searchInput) applyFilters();
 })();
