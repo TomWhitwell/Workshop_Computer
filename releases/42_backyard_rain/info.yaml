@@ -35,6 +35,7 @@ uf2:
     path: backyard_rain_2M_2_0_0.uf2
   - name: Backyard Rain V2.0 - for 16MB cards 
     path: backyard_rain_16M_2_0_0.uf2
+    flash: 16mb
 
 demo-link: https://youtu.be/ABbWmZOtmig?si=bKNxzY5MFJ0kZ6UB&t=1772
 

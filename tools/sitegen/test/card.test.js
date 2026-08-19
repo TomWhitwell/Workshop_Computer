@@ -97,6 +97,18 @@ test('authored UF2 entries are retained as a download-availability signal', () =
   assert.equal(build({}).has_uf2_metadata, undefined);
 });
 
+test('card memory is derived only when every UF2 download is 16MB', () => {
+  assert.equal(build({}, { uf2Downloads: [{ name: 'card.uf2' }] }).memory, undefined);
+  assert.deepEqual(
+    build({}, { uf2Downloads: [{ name: 'card.uf2', flash: '16mb' }] }).memory,
+    { size: '16mb', requirement: 'only' },
+  );
+  assert.equal(build({}, { uf2Downloads: [
+    { name: 'card_2mb.uf2' },
+    { name: 'card_16mb.uf2', flash: '16mb' },
+  ] }).memory, undefined);
+});
+
 test('demo-link YouTube URL produces a videos entry', () => {
   const card = build({ 'demo-link': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
   assert.equal(card.videos.length, 1);

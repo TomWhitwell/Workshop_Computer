@@ -79,6 +79,7 @@ const uf2Entry = {
   properties: {
     path: { type: 'string', minLength: 1, pattern: '\\.[Uu][Ff]2$' },
     name: nonBlankText,
+    flash: { enum: ['2mb', '16mb'] },
     sha256: { type: 'string', pattern: '^[A-Fa-f0-9]{64}$' },
     download: uf2Download,
   },

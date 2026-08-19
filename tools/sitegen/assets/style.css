@@ -75,7 +75,7 @@ a { color: var(--link); }
 .advanced-options > summary::-webkit-details-marker { display: none; }
 .advanced-options > summary::before { content: "+ "; }
 .advanced-options[open] > summary::before { content: "− "; }
-.filter-row { align-items: start; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 3fr); margin-top: 14px; }
+.filter-row { align-items: start; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, auto) minmax(0, 3fr); margin-top: 14px; }
 .filter-group { display: grid; gap: 3px; }
 .tag-filter-group { border: 0; margin: 0; min-width: 0; padding: 0; }
 .tag-filter-group.is-showing-all { grid-column: 1/-1; }

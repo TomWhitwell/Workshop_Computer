@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderCardArticle, renderPanelArtwork, renderReadmeAndDocs } from '../src/render/cardPage.js';
 import { renderArchive, renderShelf, renderTile } from '../src/render/discovery.js';
+import { renderFilterBar } from '../src/render/filterBar.js';
 import { renderLayout } from '../src/render/layout.js';
 import { renderAuthorPage } from '../src/render/authorPage.js';
 
@@ -202,6 +203,48 @@ test('download action requires firmware, an external link, or authored UF2 metad
   });
   assert.match(declared, /program-card-action--download/);
   assert.match(declared, /href="https:\/\/example\.test\/source"/);
+});
+
+test('16MB firmware is tagged on download tiles and omitted for implicit 2MB', () => {
+  const html = renderCardArticle({ card: card({ uf2_downloads: [
+    { name: 'Local 2MB', url: 'two.uf2', sha256: 'aa' },
+    { name: 'Local 16MB', url: 'sixteen.uf2', sha256: 'bb', flash: '16mb' },
+  ] }), panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
+  assert.match(html, /Local 16MB<\/small><small class="program-card-action__tag">16MB<\/small>/);
+  assert.doesNotMatch(html, /Local 2MB<\/small><small class="program-card-action__tag">16MB<\/small>/);
+  assert.doesNotMatch(html, /Card memory/);
+});
+
+test('cards whose every UF2 is 16MB show a 16MB-only memory line', () => {
+  const html = renderCardArticle({
+    card: card({
+      memory: { size: '16mb', requirement: 'only' },
+      uf2_downloads: [{ name: 'Only', url: 'only.uf2', flash: '16mb' }],
+    }),
+    panelImg: 'panel.svg', yamlUrl: 'source.yaml',
+  });
+  assert.match(html, /program-card-hero__meta/);
+  assert.match(html, /16MB card only/);
+  assert.match(html, /<dt>Card memory<\/dt><dd>16MB only<\/dd>/);
+});
+
+test('catalogue tiles expose flash size for search and the 16MB filter', () => {
+  const mixed = card({ uf2_downloads: [
+    { name: 'two.uf2' },
+    { name: 'sixteen.uf2', flash: '16mb' },
+  ] });
+  const tile = renderTile(mixed);
+  assert.match(tile, /data-flash="2mb 16mb"/);
+  assert.match(tile, /data-search="[^"]*16mb/);
+  const only = renderTile(card({ uf2_downloads: [{ name: 'sixteen.uf2', flash: '16mb' }] }));
+  assert.match(only, /data-flash="16mb"/);
+  assert.match(renderArchive([mixed]), /data-flash="2mb 16mb"/);
+  const bar = renderFilterBar({
+    creatorOptions: '', sortOptions: '', tagOptions: '',
+    linkHref: 'archive/', linkText: 'All cards',
+  });
+  assert.match(bar, /id="filter-flash-16mb"/);
+  assert.match(bar, /16MB firmware/);
 });
 
 test('card details render configured creation and update dates', () => {

@@ -128,6 +128,24 @@ test('curated firmware resolves case-insensitive paths, hashes files, and handle
   });
 });
 
+test('curated firmware attaches explicit and inferred flash sizes', async t => {
+  const release = await fixture(t);
+  await write(path.join(release, 'uf2', 'punk_confusion_2mb.uf2'), 'two');
+  await write(path.join(release, 'uf2', 'punk_confusion_16mb.uf2'), 'sixteen');
+  await write(path.join(release, 'card.uf2'), 'plain');
+  const { uf2Downloads, errors } = await curateUf2Downloads([
+    { path: 'uf2/punk_confusion_2mb.uf2', name: '2 MB' },
+    { path: 'uf2/punk_confusion_16mb.uf2', name: '16 MB', flash: '16mb' },
+    { path: 'card.uf2', name: 'Unmarked' },
+    { path: 'uf2/punk_confusion_16mb.uf2', name: 'Override', flash: '2mb' },
+  ], release, 'releases/77_fixture', relative => `https://raw.test/${relative}`);
+  assert.deepEqual(errors, []);
+  assert.equal(uf2Downloads[0].flash, undefined);
+  assert.equal(uf2Downloads[1].flash, '16mb');
+  assert.equal(uf2Downloads[2].flash, undefined);
+  assert.equal(uf2Downloads[3].flash, '2mb');
+});
+
 test('external firmware rejects active protocols and unhashed browser flashing', async t => {
   const release = await fixture(t);
   const { uf2Downloads, errors } = await curateUf2Downloads([
