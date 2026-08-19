@@ -30,6 +30,10 @@ export function renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkH
             <label for="sort-mode">Sort</label>
             <select id="sort-mode">${sortOptions}</select>
           </div>
+          <div class="filter-group">
+            <label for="filter-flash-16mb">Flash</label>
+            <label class="tag-filter-option program-card-tag" for="filter-flash-16mb"><input id="filter-flash-16mb" type="checkbox" name="filter-flash" value="16mb"> <span>16MB firmware</span></label>
+          </div>
           <fieldset class="filter-group tag-filter-group">
             <legend class="tag-filter-heading"><span>Tags</span><span class="tag-filter-heading__actions"><button id="clear-tags" type="button" hidden>Clear</button></span></legend>
             <input id="filter-tag-search" class="tag-filter-search" type="search" placeholder="Search all tags…" aria-label="Search all tags" autocomplete="off">

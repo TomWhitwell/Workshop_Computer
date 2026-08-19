@@ -459,6 +459,54 @@ uf2:
     d.ruleId === 'ajv-schema' && d.severity === 'error' && d.path === 'uf2.0.download.sha256'));
 });
 
+test('uf2 flash defaults to 2MB and accepts 16mb', () => {
+  const omitted = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+`);
+  assert.ok(!omitted.diagnostics.some(d => String(d.path || '').includes('flash')));
+
+  const explicit = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash: 16mb
+`);
+  assert.ok(!explicit.diagnostics.some(d => String(d.path || '').includes('flash')));
+});
+
+test('invalid uf2 flash values are rejected', () => {
+  const result = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash: 32mb
+`);
+  assert.ok(result.diagnostics.some(d =>
+    d.ruleId === 'uf2-entries' && d.severity === 'warning' && d.path === 'uf2[0].flash'));
+  assert.ok(result.diagnostics.some(d =>
+    d.ruleId === 'ajv-schema' && d.path === 'uf2.0.flash'));
+});
+
 test('when cannot combine z and panel', () => {
   const result = validate(`
 Name: X

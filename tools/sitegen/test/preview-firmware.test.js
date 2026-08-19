@@ -33,8 +33,19 @@ test('author preview external UF2 metadata matches card-detail download data', (
   }]);
 });
 
-test('removing or invalidating curated UF2 entries removes stale preview downloads', () => {
-  assert.deepEqual(resolvePreviewUf2Downloads({ uf2: [{ path: 'missing.uf2' }] }, available), []);
+test('author preview infers and honours curated flash sizes', () => {
+  const available = [
+    { path: 'UF2/goldfish.2.0.2mb.uf2', name: 'goldfish.2.0.2mb.uf2', url: 'https://raw.test/2.uf2' },
+    { path: 'UF2/goldfish.2.0.16mb.uf2', name: 'goldfish.2.0.16mb.uf2', url: 'https://raw.test/16.uf2' },
+  ];
+  const inferred = resolvePreviewUf2Downloads({}, available);
+  assert.equal(inferred[0].flash, undefined);
+  assert.equal(inferred[1].flash, '16mb');
+  const curated = resolvePreviewUf2Downloads({ uf2: [
+    { path: 'UF2/goldfish.2.0.16mb.uf2', name: 'Goldfish 16MB', flash: '16mb' },
+  ] }, available);
+  assert.equal(curated[0].flash, '16mb');
+  assert.equal(curated[0].name, 'Goldfish 16MB');
 });
 
 test('author preview CSS keeps download and web-editor action tiles visible', () => {

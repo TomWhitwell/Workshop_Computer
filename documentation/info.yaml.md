@@ -98,14 +98,20 @@ Add an optional `uf2:` list to curate this. **When `uf2:` is present it fully re
 |-------|----------|------|-------------|
 | `path` | either path or download | string | Path to the `.uf2` relative to the card folder (e.g. `UF2/goldfish.2.0.2mb.uf2`), matched case-insensitively. The build errors if the file is missing. |
 | `name` | no | string | Friendly label shown on the download tile instead of the filename. |
+| `flash` | no | `2mb` \| `16mb` | Blank-card flash size this firmware targets. **Omit for 2MB** (the default). Set `flash: 16mb` for a 16MB-only download. A card whose every UF2 entry is `16mb` is treated as 16MB-only on the site. When omitted, the build also infers `16mb` from filenames containing `16mb` or `16M` (and `2mb` from `2mb` / `2M`). An explicit `flash` value always wins. |
 | `download` | either path or download | object | `{ url, sha256, flashable? }` (`url` and `sha256` are required). `url` is an external mirror, direct firmware URL, or store/purchase page. It opens in a new tab, shows its host, and is tagged "External". Set `flashable: true` only for a direct UF2 URL whose host permits cross-origin browser requests (CORS); the site verifies `sha256` before erasing or writing the connected card. `sha256` is the firmware's hex digest (`shasum -a 256 file.uf2` on macOS). For repo-hosted firmware (via `path`) the build computes it automatically. |
 
 Do not add `sha256` beside a repository-hosted `path`; the build calculates that hash from the tracked file. Validation accepts it only to provide a warning that it is unnecessary.
+
+Do not add `flash: 2mb` on ordinary cards; 2MB is implicit. A future 16MB-only card is a card whose only UF2 entry has `flash: 16mb`.
 
 ```yaml
 uf2:
   - path: UF2/goldfish.2.0.2mb.uf2
     name: Goldfish 2.0 (2MB)
+  - path: UF2/goldfish.2.0.16mb.uf2
+    name: Goldfish 2.0 (16MB)
+    flash: 16mb
   - name: Buy a pre-flashed card
     download:
       url: https://example.com/store/goldfish

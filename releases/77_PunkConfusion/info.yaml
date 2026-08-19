@@ -26,6 +26,7 @@ uf2:
     name: Punk Confusion Beta (2 MB)
   - path: uf2/punk_confusion_16mb.uf2
     name: Punk Confusion Beta (16 MB)
+    flash: 16mb
 
 tags:
   - synth

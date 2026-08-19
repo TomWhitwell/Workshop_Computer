@@ -26,6 +26,6 @@ export const infoYamlSchema = {
     { path: 'panel', type: 'object', required: false, description: 'Panel jack metadata. Unconditioned entries form the base; when.z targets generated physical-position panels and when.panel targets an id from panels/manifest.yaml.' },
     { path: 'controls', type: 'object', required: false, description: 'Control metadata. Switch keys are up/middle/down plus tap; conditions may use when.z for generated views or when.panel for custom views.' },
     { path: 'host', type: 'object', required: false, description: 'Host connectivity metadata.' },
-    { path: 'uf2', type: 'array', required: false, description: 'Curated firmware download list; when present it overrides auto-discovery. Each item needs a path OR a download.url: { path?, name?, download?: { url, sha256 } }.' },
+    { path: 'uf2', type: 'array', required: false, description: 'Curated firmware download list; when present it overrides auto-discovery. Each item needs a path OR a download.url: { path?, name?, flash?, download?: { url, sha256 } }. flash is 2mb (omit; the default) or 16mb.' },
   ],
 };

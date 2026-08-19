@@ -518,6 +518,7 @@ const PREVIEW_LIB_FILES = [
   'utils/video.js',
   'utils/audio.js',
   'utils/markdown.js',
+  'utils/flash.js',
   'utils/previewFirmware.js',
   'utils/previewWeb.js',
   'schema/schemaDefinition.js',
