@@ -15,7 +15,7 @@ const Fx kFxForGesture[kNumSingles][kNumSingles] = {
 	/* D */ { Fx::Reverse,    Fx::TapeStop,    Fx::Silence,     Fx::None      },
 };
 
-void FxRack::SetSlot(int slot, Fx f, int32_t depth)
+void __not_in_flash_func(FxRack::SetSlot)(int slot, Fx f, int32_t depth)
 {
 	if (slot < 0 || slot >= kNumFxSlots) return;
 	FxSlot &s = slot_[slot];
@@ -50,7 +50,7 @@ void FxRack::Clear()
 	active_ = 0;
 }
 
-FxTiming FxRack::Timing() const
+FxTiming __not_in_flash_func(FxRack::Timing)() const
 {
 	switch (slot_[kFxRhythmSlot].fx)
 	{
@@ -60,7 +60,7 @@ FxTiming FxRack::Timing() const
 	}
 }
 
-Fx FxRack::TriggerFx() const
+Fx __not_in_flash_func(FxRack::TriggerFx)() const
 {
 	const Fx f = slot_[kD].fx;
 	return IsTriggerFx(f) ? f : Fx::None;

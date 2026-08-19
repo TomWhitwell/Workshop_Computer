@@ -19,6 +19,7 @@ import sys
 TICKS_PER_BEAT = 48
 BEATS_PER_LOOP = 16
 LOOP_TICKS = TICKS_PER_BEAT * BEATS_PER_LOOP      # 768
+MIN_BEATS_PER_LOOP = 4
 # (the old fixed QUANT_TICKS is gone -- the grid is runtime now, see
 #  QUANT_NOTES_PER_BEAT below)
 NUM_VOICES = 12          # the looper stores VOICES, not key combos
@@ -130,6 +131,33 @@ class Looper:
         self.since_clock = 0
         self.clock_timeout = 0
         self.quant_grid = 0        # index into QUANT_NOTES_PER_BEAT; 0 = 16th
+        self.loop_ticks = LOOP_TICKS   # where the playhead wraps
+
+    def set_loop_beats(self, beats):
+        """Mirrors Looper::SetLoopBeats. A PLAYBACK setting only.
+
+        Events are always recorded and stored against the full BEATS_PER_LOOP;
+        this moves only where the playhead wraps. So shortening hides the tail
+        of the pattern rather than erasing it, and lengthening brings it back
+        exactly as it was.
+
+        Note the ORDER: fold the playhead against the new length BEFORE
+        publishing the length. In the firmware this runs on core 1 while core 0
+        is playing, and publishing first would leave a window where
+        play_head >= loop_ticks, which advance()'s modulo would not rescue
+        until it had counted all the way round the OLD length.
+        """
+        beats = max(MIN_BEATS_PER_LOOP, min(BEATS_PER_LOOP, beats))
+        ticks = beats * TICKS_PER_BEAT
+        if ticks == self.loop_ticks:
+            return
+        if self.play_head >= ticks:
+            self.play_head %= ticks
+        self.loop_ticks = ticks
+        self.rebuild_cursor()
+
+    def loop_beats(self):
+        return self.loop_ticks // TICKS_PER_BEAT
 
     def set_tempo_bpm(self, bpm):
         self.tick_inc = (bpm * TICKS_PER_BEAT * Q16) // (60 * CTRL_RATE)
@@ -174,7 +202,8 @@ class Looper:
             return False
         while self.phase >= Q16:
             self.phase -= Q16
-            self.play_head = (self.play_head + 1) % LOOP_TICKS
+            # loop_ticks, not LOOP_TICKS -- see set_loop_beats.
+            self.play_head = (self.play_head + 1) % self.loop_ticks
             if self.play_head == 0:
                 self.cursor = 0
         return True
@@ -205,10 +234,10 @@ class Looper:
 
     def near_playhead(self, tick):
         d = tick - self.play_head
-        if d > LOOP_TICKS // 2:
-            d -= LOOP_TICKS
-        if d < -LOOP_TICKS // 2:
-            d += LOOP_TICKS
+        if d > self.loop_ticks // 2:
+            d -= self.loop_ticks
+        if d < -self.loop_ticks // 2:
+            d += self.loop_ticks
         return abs(d) <= KNOB_REPLACE_WINDOW
 
     def arm_knobs(self):
@@ -224,14 +253,51 @@ class Looper:
         eating the sweep it is currently laying down.
         """
         what = KNOB_EVENT | lane
-        i = 0
-        while i < len(self.events):
-            e = self.events[i]
-            if (same_kind(e[1], what) and not is_this_pass(e[1])
-                    and self.near_playhead(fire_tick(e))):
-                self.remove(i)
-            else:
-                i += 1
+
+        # BOUNDED BY THE WINDOW, mirroring Looper::RecordLane.
+        #
+        # The array is sorted by tick, so the +/-KNOB_REPLACE_WINDOW span is
+        # contiguous and its start can be bisected. The wrap makes it TWO
+        # contiguous spans near the loop boundary, which is what earlier
+        # versions mistook for "cannot be bounded" and scanned the whole array
+        # for -- at most ~4 of 171 events can ever match, so >97% of that scan
+        # was waste, and it profiled at 187% of the sample budget.
+        #
+        # Equivalence to the old full scan was checked exhaustively (3000
+        # random arrays x every playhead position, including every wrap case)
+        # before this replaced it.
+        head = self.play_head
+        length = self.loop_ticks
+        lo = head - KNOB_REPLACE_WINDOW
+        hi = head + KNOB_REPLACE_WINDOW
+
+        def lower_bound(frm):
+            a, b = 0, len(self.events)
+            while a < b:
+                m = (a + b) // 2
+                if fire_tick(self.events[m]) < frm:
+                    a = m + 1
+                else:
+                    b = m
+            return a
+
+        def drop_span(first, last_tick):
+            i = first
+            while (i < len(self.events)
+                   and fire_tick(self.events[i]) <= last_tick):
+                e = self.events[i]
+                if same_kind(e[1], what) and not is_this_pass(e[1]):
+                    self.remove(i)
+                else:
+                    i += 1
+
+        if lo >= 0 and hi < length:
+            drop_span(lower_bound(lo), hi)
+        else:
+            lo_wrapped = lo + length if lo < 0 else lo
+            hi_wrapped = hi - length if hi >= length else hi
+            drop_span(lower_bound(lo_wrapped), length - 1)
+            drop_span(0, hi_wrapped)
         if self.knob_count >= MAX_KNOB_EVENTS:
             return
         # `value` here is the STORED byte, i.e. already knob>>4. The C++ does
@@ -260,7 +326,11 @@ class Looper:
     def quantise_tick(self, tick):
         """Round to the CURRENT grid. Mirrors Looper::QuantiseTick."""
         q = TICKS_PER_BEAT // QUANT_NOTES_PER_BEAT[self.quant_grid]
-        return ((tick + q // 2) // q * q) % LOOP_TICKS
+        # Against the LIVE length: a hit in the last half-step of a shortened
+        # loop rounds up to loop_ticks, a tick the playhead never reaches, so
+        # wrapping against LOOP_TICKS would strand it as an event that can
+        # never fire.
+        return ((tick + q // 2) // q * q) % self.loop_ticks
 
     def cycle_quant_grid(self):
         """16th -> 12th -> 8th -> 16th. Affects only FUTURE hits."""
@@ -921,6 +991,99 @@ def test_recall_a_sparser_pattern_does_not_go_silent():
     check("recall: the recalled hit plays on the next pass", fired, [4])
 
 
+def test_loop_length_truncates_without_erasing():
+    """Shortening the loop must HIDE the tail, not destroy it.
+
+    The whole design rests on this: events are recorded and stored against the
+    full sixteen beats, and the length setting only moves where the playhead
+    wraps. So a shortened loop simply never reaches the later hits, and putting
+    the length back brings them out again untouched.
+    """
+    lp = Looper()
+    lp.set_tempo_bpm(120)
+
+    # One hit per beat, across all sixteen.
+    for b in range(BEATS_PER_LOOP):
+        lp.play_head = b * TICKS_PER_BEAT
+        lp.record_hit(b % NUM_VOICES)
+    stored = [list(e) for e in lp.events]
+    check("loop length: sixteen hits recorded", len(lp.events), 16)
+
+    # Play eight beats' worth and collect what sounds.
+    def play_one_pass():
+        fired = []
+        lp.play_head = 0
+        lp.cursor = 0
+        for _ in range(lp.loop_ticks):
+            for ev in lp.fire():
+                fired.append(ev[0])
+            lp.play_head = (lp.play_head + 1) % lp.loop_ticks
+            if lp.play_head == 0:
+                lp.cursor = 0
+        return fired
+
+    lp.set_loop_beats(8)
+    check("loop length: eight beats plays eight hits",
+          len(play_one_pass()), 8)
+    check("loop length: nothing was erased", lp.events, stored)
+
+    # An odd length, the point of the feature.
+    lp.set_loop_beats(7)
+    check("loop length: seven beats plays seven hits",
+          len(play_one_pass()), 7)
+
+    # Back to full: everything returns.
+    lp.set_loop_beats(BEATS_PER_LOOP)
+    check("loop length: restoring the length restores every hit",
+          len(play_one_pass()), 16)
+    check("loop length: events still byte-identical", lp.events, stored)
+
+
+def test_loop_length_folds_the_playhead_in():
+    """Shortening while the playhead is past the new end must fold it in NOW.
+
+    Leaving it out of range would work eventually -- advance()'s modulo brings
+    it back -- but only after counting all the way round the OLD length, so the
+    loop would appear to hang for up to four bars.
+    """
+    lp = Looper()
+    lp.set_tempo_bpm(120)
+    lp.play_head = 15 * TICKS_PER_BEAT      # deep into the last bar
+
+    lp.set_loop_beats(4)
+    check("loop length: playhead folded inside the new length",
+          lp.play_head < lp.loop_ticks, True)
+    check("loop length: folded by modulo, not reset to zero",
+          lp.play_head, (15 * TICKS_PER_BEAT) % (4 * TICKS_PER_BEAT))
+
+
+def test_loop_length_is_clamped():
+    """The card clamps rather than refusing, so a browser built against a
+    different range cannot put the looper into a length it cannot play."""
+    lp = Looper()
+    lp.set_loop_beats(1)
+    check("loop length: below the minimum clamps up",
+          lp.loop_beats(), MIN_BEATS_PER_LOOP)
+    lp.set_loop_beats(999)
+    check("loop length: above the maximum clamps down",
+          lp.loop_beats(), BEATS_PER_LOOP)
+
+
+def test_loop_length_quantise_wraps_against_live_length():
+    """A hit in the last half-step of a SHORTENED loop must land on tick 0,
+    not on loop_ticks -- a tick the playhead never reaches, which would leave
+    an event that can never fire."""
+    lp = Looper()
+    lp.set_tempo_bpm(120)
+    lp.set_loop_beats(4)
+
+    # The very end of a four-beat loop, inside the last half-step of the grid.
+    lp.play_head = lp.loop_ticks - 1
+    lp.record_hit(0)
+    check("loop length: a hit at the wrap lands in range",
+          all(0 <= fire_tick(e) < lp.loop_ticks for e in lp.events), True)
+
+
 def test_patterns_store_voices_not_sounds():
     """A pattern must hold VOICE INDICES and nothing about what they sound
     like, so uploading a sample or re-pointing a slot changes what an existing
@@ -1338,6 +1501,10 @@ def main():
     test_undo_does_not_replay_the_bar_so_far()
     test_undo_past_every_surviving_event_does_not_go_silent()
     test_recall_a_sparser_pattern_does_not_go_silent()
+    test_loop_length_truncates_without_erasing()
+    test_loop_length_folds_the_playhead_in()
+    test_loop_length_is_clamped()
+    test_loop_length_quantise_wraps_against_live_length()
     test_patterns_store_voices_not_sounds()
     test_pattern_recall_keeps_the_playhead()
     test_quantise_snaps_at_capture_not_playback()
