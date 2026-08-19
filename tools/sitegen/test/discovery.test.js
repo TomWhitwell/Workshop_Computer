@@ -8,7 +8,7 @@ import { discoverRelease } from '../src/discover/release.js';
 import { discoverDocs } from '../src/discover/docs.js';
 import { compareFirmwareCandidates, curateUf2Downloads } from '../src/discover/downloads.js';
 import { discoverCustomPanels, validateCustomPanelReferences } from '../src/discover/customPanels.js';
-import { copyWebAssets, resolveWebConfig } from '../src/discover/webEditor.js';
+import { copyWebAssets, resolveSiteBase, resolveWebConfig } from '../src/discover/webEditor.js';
 
 async function fixture(t) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'workshop-sitegen-'));
@@ -81,6 +81,25 @@ test('document and web discovery copy only publishable assets', async t => {
   assert.ok(await fs.stat(path.join(output, 'web', 'assets', 'app.js')));
   await assert.rejects(fs.stat(path.join(output, 'web', 'src', 'source.js')));
   await assert.rejects(fs.stat(path.join(output, 'web', 'package.json')));
+});
+
+test('site base uses localhost for preview builds and Pages URLs otherwise', () => {
+  assert.equal(
+    resolveSiteBase({ preview: true }),
+    'http://localhost:5173/',
+  );
+  assert.equal(
+    resolveSiteBase({ repoSlug: 'DessertPlanet/Workshop_Computer' }),
+    'https://dessertplanet.github.io/Workshop_Computer/',
+  );
+  assert.equal(
+    resolveSiteBase({ configured: 'https://computer.musicthing.co.uk', preview: true }),
+    'https://computer.musicthing.co.uk/',
+  );
+  assert.throws(
+    () => resolveSiteBase({ configured: 'ftp://example.test/' }),
+    /SITE_BASE_URL must be an HTTP\(S\) URL/,
+  );
 });
 
 test('web editors reject traversal, unsafe protocols, and symlinks', async t => {

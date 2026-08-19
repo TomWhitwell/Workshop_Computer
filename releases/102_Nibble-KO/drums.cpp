@@ -119,7 +119,7 @@ inline int32_t SoftClip(int32_t x)
 // One voice
 // ---------------------------------------------------------------------------
 
-void DrumVoice::Trigger(const DrumSpec &spec, int32_t pitchScaleQ16, int32_t decayAdj)
+void __not_in_flash_func(DrumVoice::Trigger)(const DrumSpec &spec, int32_t pitchScaleQ16, int32_t decayAdj)
 {
 	int32_t p0 = mul_q16(static_cast<int32_t>(spec.pitch0),     pitchScaleQ16);
 	int32_t pf = mul_q16(static_cast<int32_t>(spec.pitchFloor), pitchScaleQ16);
@@ -168,7 +168,7 @@ void DrumVoice::Trigger(const DrumSpec &spec, int32_t pitchScaleQ16, int32_t dec
 	noiseEnv_ = (spec.noiseMix > 0) ? (4095 << kDrumEnvFrac) : 0;
 }
 
-void DrumVoice::TriggerPcm(const int8_t *data, uint32_t len,
+void __not_in_flash_func(DrumVoice::TriggerPcm)(const int8_t *data, uint32_t len,
                            int32_t rateQ16, uint16_t level)
 {
 	pcm_     = data;
@@ -412,7 +412,7 @@ int32_t __not_in_flash_func(DrumVoice::Step)(uint32_t &rng)
 // The kit
 // ---------------------------------------------------------------------------
 
-void DrumKit::TriggerVoice(int8_t voice, int32_t yKnob,
+void __not_in_flash_func(DrumKit::TriggerVoice)(int8_t voice, int32_t yKnob,
                            bool reverse, int32_t tapeStopSamples)
 {
 	if (voice < 0 || voice >= kNumVoices) return;
@@ -525,7 +525,7 @@ constexpr int32_t kBypassHi = 2300;
 
 } // namespace
 
-void DjFilter::SetKnob(int32_t knob)
+void __not_in_flash_func(DjFilter::SetKnob)(int32_t knob)
 {
 	if (knob < kBypassLo)
 	{

@@ -102,7 +102,7 @@ void LevelTracker::ResetHeld()
 // Matching
 // ---------------------------------------------------------------------------
 
-int8_t LevelTracker::Match(int32_t v, int8_t cur) const
+int8_t __not_in_flash_func(LevelTracker::Match)(int32_t v, int8_t cur) const
 {
 	// Walk the sorted thresholds. Ten entries, so a linear walk beats a binary
 	// search on an M0+ once branch cost is counted.

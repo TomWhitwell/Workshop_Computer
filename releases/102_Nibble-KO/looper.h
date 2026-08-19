@@ -174,6 +174,12 @@ constexpr int kTicksPerBeat = 48;
 constexpr int kBeatsPerLoop = 16;
 constexpr int kLoopTicks    = kTicksPerBeat * kBeatsPerLoop;   // 768
 
+/// The shortest loop the WebUI may set, in beats. Four beats is one bar of
+/// 4/4; below that the "loop" stops being a phrase and becomes a stutter,
+/// and the pattern slots (which always hold the FULL sixteen) would be
+/// almost entirely unreachable.
+constexpr int kMinBeatsPerLoop = 4;
+
 /// Quantisation grid, as a divisor of kTicksPerBeat. A lo-fi drum looper
 /// played with fingers on a resistor network needs it.
 ///
@@ -513,6 +519,34 @@ public:
 
 	QuantGrid CurrentQuantGrid() const { return quantGrid_; }
 
+	// --- loop length --------------------------------------------------------
+
+	/// How many beats the loop plays before wrapping, 4..kBeatsPerLoop.
+	///
+	/// A PLAYBACK setting, and that distinction is the whole design. Events
+	/// are always recorded and stored against the full sixteen beats; this
+	/// only moves where the playhead wraps. So shortening the loop is
+	/// non-destructive — the hits past the new end are still there, silent,
+	/// and lengthening brings them back exactly as they were.
+	///
+	/// The click on Pulse Out 2 is unstressed and the card never marks beat
+	/// one, so a fourteen-beat loop is 7/4 + 7/4, or 5/4 + 2/4 + 3/4 + 4/4,
+	/// or anything else the listener hears in it. That ambiguity is the
+	/// feature: odd lengths are usable without the card imposing a metre.
+	///
+	/// CAVEAT, and it is worth saying out loud rather than hiding: since
+	/// nothing marks beat one, changing the length mid-performance moves the
+	/// wrap to an arbitrary point in what you recorded. The truncated part
+	/// (or the silent gap a longer setting exposes) can land anywhere in the
+	/// phrase. That is inherent to a loop with no downbeat, not a bug.
+	void SetLoopBeats(int beats);
+
+	int  LoopBeats() const { return loopTicks_ / kTicksPerBeat; }
+
+	/// The live loop length in TICKS. Everything that wraps the playhead uses
+	/// this; everything that stores an event uses kLoopTicks.
+	uint16_t LoopTicks() const { return loopTicks_; }
+
 	uint16_t Position() const   { return playHead_; }
 	uint16_t EventCount() const { return count_; }
 	bool     Full() const       { return count_ >= kMaxEvents; }
@@ -551,12 +585,19 @@ public:
 	///
 	/// Falls back to a 120bpm beat before any tempo has been set, so a caller
 	/// never divides by zero or gets an absurd length on the first tick.
-	int32_t SamplesPerBeat() const
-	{
-		if (tickInc_ <= 0) return kSampleRate / 2;      // 120bpm
-		return static_cast<int32_t>(
-			((static_cast<int64_t>(kTicksPerBeat) << 16) * kCtrlDiv) / tickInc_);
-	}
+	/// CACHED, and that is a performance fix rather than a style choice.
+	///
+	/// The expression below is a 64-BIT DIVISION, which on a Cortex-M0+ is a
+	/// call into __aeabi_ldivmod — there is no divide instruction, so it costs
+	/// hundreds of cycles. GlitchTick() calls this every control tick, and the
+	/// profiler found the control tick at 354% of its budget with this and the
+	/// modulos below as the bulk of it.
+	///
+	/// tickInc_ only changes when the tempo does (SetTempo/ClockPulse), so the
+	/// division is done there instead and this becomes a load. Any new writer
+	/// of tickInc_ MUST call RecacheTempo() — hence the single private helper
+	/// rather than assignments scattered about.
+	int32_t SamplesPerBeat() const { return samplesPerBeat_; }
 
 private:
 	void Insert(const LoopEvent &ev);
@@ -603,6 +644,11 @@ private:
 	/// The live playback quantise grid. See CycleQuantGrid()/QuantGrid.
 	QuantGrid quantGrid_ = QuantGrid::k16th;
 
+	/// Where the playhead wraps. Defaults to the full four bars, so a card
+	/// that is never told otherwise behaves exactly as it always has.
+	/// See SetLoopBeats() for why this is playback-only.
+	uint16_t  loopTicks_ = kLoopTicks;
+
 	// --- undo, depth 1 ----------------------------------------------------
 	// 2KB, the same size as events_ itself. Worth it for one level; a stack
 	// would not be. See Snapshot().
@@ -618,8 +664,19 @@ private:
 	uint16_t  patternCount_[kNumPatterns] = {};
 	uint16_t  patternKnobCount_[kNumPatterns] = {};
 
+	/// Recompute samplesPerBeat_ from tickInc_. The ONLY place the 64-bit
+	/// division happens; called from every writer of tickInc_.
+	void RecacheTempo()
+	{
+		samplesPerBeat_ = (tickInc_ <= 0)
+			? (kSampleRate / 2)                       // 120bpm fallback
+			: static_cast<int32_t>(
+				((static_cast<int64_t>(kTicksPerBeat) << 16) * kCtrlDiv) / tickInc_);
+	}
+
 	int32_t  phase_   = 0;      ///< Q16 fraction of a tick
 	int32_t  tickInc_ = 0;      ///< Q16 ticks per control step
+	int32_t  samplesPerBeat_ = kSampleRate / 2;   ///< cached; see SamplesPerBeat()
 	int32_t  lastX_   = -9999;  ///< last tempo knob reading, for move detection
 
 	// External clock. clockTimeout_ counts down at control rate; while it is

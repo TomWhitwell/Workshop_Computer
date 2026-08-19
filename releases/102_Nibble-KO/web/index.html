@@ -499,6 +499,7 @@ footer {
       <div class="voice-list" id="voice-list"></div>
       <div class="button-row">
         <button class="primary" id="save-map-btn" disabled>Save Kit to Card</button>
+        <button id="default-kit-btn" disabled>Default Kit</button>
       </div>
       <div class="capacity" id="capacity"></div>
     </section>
@@ -548,9 +549,15 @@ footer {
     <div class="notice">
       Patterns live in the card's memory only and are lost at power-off.
       Save one here and the file on your computer becomes the permanent copy.
+      <br><br>
+      <strong>Save before you leave this page.</strong> Returning the card to
+      playing reboots it, and a reboot clears the pattern slots just as a power
+      cycle does &mdash; so a pattern you have not saved is gone. Uploading a
+      sample or saving the kit reboots the card too.
     </div>
     <div class="ref-grid" id="pattern-io"></div>
     <div class="ref-grid" id="pattern-ref"></div>
+    <div class="ref-grid" id="loop-len"></div>
   </div>
 
   <!-- I/O -->
@@ -585,6 +592,7 @@ footer {
       <p style="margin-top:28px"><strong>Knobs</strong></p>
       <hr>
       <p>Main / X / Y &mdash; <span class="io-desc">DJ filter (or FX depth) / tempo 40&ndash;240bpm / kit character</span></p>
+
     </div>
   </div>
 
@@ -651,10 +659,11 @@ footer {
       <li><strong>Audio In 2</strong> is chaos: how often and how finely <strong>CV Out 1</strong>
           (sparse, beat-anchored) and <strong>CV Out 2</strong> (dense, syncopated) glitch. Both follow
           whatever quantise grid is live on the card</li>
-      <li>Patch <strong>CV Out 2 into Pulse In 2</strong> and the card fires random effects at itself
-          &mdash; the payoff patch, and the best single test that this is all working</li>
-      <li>None of this is configured here; it is fixed in firmware and playable the moment you patch a
-          cable. See the project <a href="../README.md">README</a> for the fuller explanation</li>
+      <li>Patch <strong>CV1 or 2 Out into Pulse In 2</strong> and the card fires random effects at
+          itself.</li>
+      <li>The card is playable the moment you patch a cable. See the project
+          <a href="https://github.com/uglifruit/Nibble-KO#readme" target="_blank" rel="noopener">README</a>
+          for the full explanation</li>
     </ul>
 
     <button class="dialog-close" id="help-close">Close</button>
@@ -690,6 +699,7 @@ const MSG = {
   SLOTS: 0x23, LIBRARY: 0x24, LIBDET: 0x25, SET_SOURCE: 0x26,
   SAVE_MAP: 0x27, NAME: 0x28, DELETE: 0x29,
   PAT_GET: 0x40, PAT_DATA: 0x41, PAT_SET: 0x42,
+  LOOP_GET: 0x43, LOOP_SET: 0x44, LOOP: 0x45,
 };
 
 // Pattern slots, matching kNumPatterns/kMaxEvents in looper.h.
@@ -708,6 +718,28 @@ const SYNTH_NAMES = [
 
 // Baked bank entries, matching samples_default.h's import order.
 const BANK_NAMES = ["kick", "snare", "closed hat", "open hat", "clap"];
+
+// The FACTORY kit: kVoiceSample[] in samples_default.h, byte for byte.
+// -1 (kSourceSynth, sent as kWireSynth 0x7F) means "synthesise this slot".
+//
+// Five sampled, seven synthesised — deliberately a mix rather than a wholesale
+// swap. The synthesised ones are those whose Y-knob reshaping earns its keep,
+// so this is a musical choice worth being able to get back to, not merely a
+// zero state. Keep in step with samples_default.h if that table changes.
+const DEFAULT_KIT = [
+  0,   //  0  kick            <- bank 0
+  -1,  //  1  kick deep          synth
+  1,   //  2  snare           <- bank 1
+  -1,  //  3  snare snappy       synth
+  2,   //  4  closed hat      <- bank 2
+  -1,  //  5  hi-hat metallic    synth
+  3,   //  6  open hi-hat     <- bank 3
+  -1,  //  7  crash              synth
+  -1,  //  8  cowbell            synth
+  -1,  //  9  tom 1              synth
+  -1,  // 10  tom 2              synth
+  4,   // 11  clap            <- bank 4
+];
 
 // Which voice each (shift, tap) gesture plays — kGestureVoice in drums.cpp.
 // -1 is the diagonal: a button cannot be its own tap.
@@ -1017,10 +1049,12 @@ async function connect() {
   // silence, which is indistinguishable from a dead card.
   const features = info.length >= 22 ? info[20] : 0;
   state.info = { user: info[4] === 1, cap, used, total, maxEntries, live,
-                 patterns: (features & 0x01) !== 0 };
+                 patterns: (features & 0x01) !== 0,
+                 loopLen:  (features & 0x02) !== 0 };
 
   await refreshLibrary();
   await refreshSlots();
+  if (state.info.loopLen) await refreshLoopLength();
 
   const n = state.library.length;
   setStatus(n ? `Connected. ${n} uploaded sample${n === 1 ? "" : "s"} on the card.`
@@ -1086,18 +1120,39 @@ async function downloadPattern(slot) {
   // .catch(() => null) here collapses "the card refused" and "the card said
   // nothing" into the same silent null — which is what made this report as a
   // bare "did not send that pattern" with no way to tell the two apart.
+  // SKIP stale replies rather than failing on the first one.
+  //
+  // drainRx() above clears what has already arrived, but a burst the card is
+  // still drip-feeding keeps producing chunks AFTER it runs — so the first
+  // reply can be a leftover from an earlier dump (seen on the bench as
+  // "unexpected reply f0 7d 41 00 01 ...": slot 0, more=1, when slot 1's
+  // header was expected). The card now cancels a dump when a new request
+  // arrives, and this tolerates anything already in flight.
+  //
+  // Bounded, so a card that only ever sends the wrong thing still fails
+  // rather than hanging.
+  // 150 attempts, not 40: a full slot is 98 chunks and the card sends ONE per
+  // Task() pass, so a stale burst still draining can legitimately take that
+  // many replies to clear — more when the card is busy enough to overrun and
+  // core 1 is getting less time. 40 exhausted mid-drain and reported "card did
+  // not respond" for a card that was answering perfectly well, just slowly.
   let hdr = null, why = "no reply";
-  try {
-    hdr = await waitAck(2000);
-  } catch (e) {
-    why = e.message;
+  for (let attempt = 0; attempt < 150; attempt++) {
+    let d = null;
+    try {
+      d = await waitAck(2000);
+    } catch (e) {
+      why = e.message;
+      break;
+    }
+    if (!d) break;
+    // The header for THIS slot: more == 0x7F.
+    if (d[2] === MSG.PAT_DATA && d[3] === slot && d[4] === 0x7F) { hdr = d; break; }
+    // Anything else is stale; note it once and keep looking.
+    why = "only stale replies (last: " +
+          Array.from(d).map(b => b.toString(16).padStart(2, "0")).join(" ") + ")";
   }
   if (!hdr) { downloadPattern.why = why; return null; }
-  if (hdr[2] !== MSG.PAT_DATA || hdr[4] !== 0x7F) {
-    downloadPattern.why = "unexpected reply " +
-      Array.from(hdr).map(b => b.toString(16).padStart(2, "0")).join(" ");
-    return null;
-  }
   const count = (hdr[5] << 7) | hdr[6];
   const knobCount = hdr[7];
 
@@ -1105,16 +1160,32 @@ async function downloadPattern(slot) {
   for (;;) {
     const d = await waitAck(2000).catch(() => null);
     if (!d || d[2] !== MSG.PAT_DATA) return null;     // timed out or lost sync
+    if (d[3] !== slot) continue;                      // stale: another slot's burst
     if (d[4] === 0) break;                            // terminator
     const dec = decode7bit(d.subarray(5, d.length - 1));
     for (const b of dec) bytes.push(b);
   }
 
+  // TRUST THE HEADER'S COUNT, not the length of what arrived.
+  //
+  // 7-bit encoding works in groups of seven, so the final chunk can decode to
+  // a few bytes of padding beyond the real payload — and a chunk boundary can
+  // add more. Reading "however many whole 4-byte groups turned up" therefore
+  // manufactures phantom events off the end: a full slot came back as 516
+  // events, which the card then refused on re-upload because it only holds
+  // 512. The count in the header is authoritative and costs nothing to honour.
+  const want = Math.min(count, Math.floor(bytes.length / 4));
+  if (want < count)
+    console.warn(`pattern ${slot}: header said ${count} events, only ` +
+                 `${want} arrived`);
+
   const events = [];
-  for (let i = 0; i + 3 < bytes.length; i += 4)
-    events.push({ tick: bytes[i] | (bytes[i + 1] << 8),
-                  what: bytes[i + 2], value: bytes[i + 3] });
-  return { count, knobCount, events };
+  for (let i = 0; i < want; i++) {
+    const o = i * 4;
+    events.push({ tick: bytes[o] | (bytes[o + 1] << 8),
+                  what: bytes[o + 2], value: bytes[o + 3] });
+  }
+  return { count: events.length, knobCount, events };
 }
 
 /// Push a pattern onto a slot. RAM only on the card — no flash, no reboot.
@@ -1148,6 +1219,37 @@ async function uploadPattern(slot, pat) {
 
   send([MSG.PAT_SET, slot, 0]);          // more == 0 commits the slot
   await waitAck(2000);
+}
+
+// --- loop length ------------------------------------------------------------
+//
+// A PLAYBACK setting: the card always records and stores against the full
+// sixteen beats and this only moves where the playhead wraps, so shortening
+// is non-destructive and lengthening brings the hidden beats back untouched.
+//
+// The range comes from the CARD rather than from constants here, so the page
+// cannot offer a length the firmware will not play.
+
+async function refreshLoopLength() {
+  drainRx();
+  send([MSG.LOOP_GET]);
+  const d = await waitAck(1500).catch(() => null);
+  if (!d || d[2] !== MSG.LOOP) return;
+  state.loop = { beats: d[3], min: d[4], max: d[5] };
+}
+
+async function setLoopLength(beats) {
+  drainRx();
+  send([MSG.LOOP_SET, beats & 0x7F]);
+  const d = await waitAck(1500).catch(() => null);
+  if (!d) { setStatus("The card did not accept that loop length.", "err"); return; }
+  // The card clamps, and reports what it actually took -- so trust its answer
+  // rather than what we asked for.
+  if (state.loop) state.loop.beats = beats;
+  await refreshLoopLength();
+  renderReference();
+  const n = state.loop ? state.loop.beats : beats;
+  setStatus(`Loop length ${n} beat${n === 1 ? "" : "s"}.`, "ok");
 }
 
 async function savePatternToDisk(slot) {
@@ -1189,10 +1291,17 @@ async function loadPatternFromDisk(slot, file) {
     setStatus("That file does not look like a NIBBLE-KO pattern.", "err");
     return;
   }
+  // A file written before the phantom-event fix can hold a handful of events
+  // past the card's capacity — trailing 7-bit padding that was mistaken for
+  // real data. Those are junk by construction, sitting after every genuine
+  // event, so trimming them recovers the pattern instead of refusing the file
+  // and stranding it. A file that is oversized for any OTHER reason is not
+  // something this can distinguish, but the trim is harmless there too: the
+  // card could not have played those events either way.
   if (pat.events.length > PAT_MAX_EVENTS) {
-    setStatus(`Too many events — ${pat.events.length}, the card holds ` +
-              `${PAT_MAX_EVENTS}.`, "err");
-    return;
+    const extra = pat.events.length - PAT_MAX_EVENTS;
+    pat.events.length = PAT_MAX_EVENTS;
+    console.warn(`trimmed ${extra} event(s) past the card's ${PAT_MAX_EVENTS}`);
   }
 
   // Check the events before sending. The card clamps and re-sorts whatever
@@ -1343,6 +1452,16 @@ function renderVoices() {
   }
 
   document.getElementById("save-map-btn").disabled = !connected || !state.dirtyMap;
+
+  // Enabled whenever connected, not only when the kit is dirty: "put it back
+  // how it was" is exactly what you reach for after a session of changes you
+  // have already saved.
+  const defBtn = document.getElementById("default-kit-btn");
+  if (defBtn) defBtn.disabled = !connected;
+
+  // The profiler lives on the I/O tab but is enabled from here, alongside
+  // every other connection-dependent control.
+
   updateCapacity();
 }
 
@@ -1455,6 +1574,37 @@ function updateSpace() {
     txt += ` · ${kb(state.info.used - state.info.live)} reclaimable with Erase All`;
   el.textContent = txt;
 }
+
+// Put every voice back to the factory kit (DEFAULT_KIT, = samples_default.h's
+// kVoiceSample). Sent slot by slot with MSG_SET_SOURCE, so it takes effect
+// instantly and audibly — and, like any other assignment, is RAM only until
+// Save Kit is pressed. That is deliberate: an accidental press is undone by a
+// power cycle rather than by having overwritten flash.
+document.getElementById("default-kit-btn").addEventListener("click", async () => {
+  if (!state.midiOut) return;
+  setStatus("Restoring the default kit…");
+
+  for (let v = 0; v < NUM_VOICES; v++) {
+    const src = DEFAULT_KIT[v];
+    // -1 cannot travel in SysEx (every byte must be 7-bit); kWireSynth is the
+    // on-the-wire spelling of "synthesise this slot". See webui.h.
+    send([MSG.SET_SOURCE, v, src < 0 ? 0x7F : src]);
+    const ack = await waitAck(1500).catch(() => null);
+    if (!ack) {
+      setStatus(`The card did not confirm voice ${v + 1}. Kit may be half set.`, "err");
+      await refreshSlots();
+      renderVoices();
+      return;
+    }
+    state.sources[v] = src < 0 ? 0x7F : src;
+  }
+
+  state.dirtyMap = true;
+  renderVoices();
+  renderReference();
+  setStatus("Default kit restored — five sampled, seven synthesised. " +
+            "Save the kit to keep it after a power cycle.", "ok");
+});
 
 document.getElementById("add-btn").addEventListener("click", () => {
   const input = document.createElement("input");
@@ -1736,6 +1886,44 @@ function renderReference() {
   // PATTERNS, save/load. The only live controls on this page: everything
   // below is reference. Enabled only while connected, because both ends are
   // a conversation with the card.
+  // LOOP LENGTH. The one setting on this page that changes how the card
+  // plays rather than moving data around.
+  const loopEl = document.getElementById("loop-len");
+  const canLoop = !!state.midiOut && !!(state.info && state.info.loopLen);
+  if (loopEl) {
+    if (canLoop && state.loop) {
+      const { beats, min, max } = state.loop;
+      const opts = [];
+      for (let b = max; b >= min; b--)
+        opts.push(`<option value="${b}"${b === beats ? " selected" : ""}>` +
+                  `${b} beat${b === 1 ? "" : "s"}` +
+                  `${b === max ? " — four bars of 4/4 (default)" : ""}` +
+                  `${b % 4 === 0 && b !== max ? ` — ${b / 4} bars of 4/4` : ""}` +
+                  `</option>`);
+      loopEl.innerHTML =
+        `<div class="ref-card"><h3>Loop length</h3>` +
+        `<div class="ref-sub">how many beats before the loop repeats</div>` +
+        `<div class="ref-row" style="align-items:center">` +
+        `<span class="ref-voice">Play <select id="loop-beats">${opts.join("")}</select></span>` +
+        `</div>` +
+        `<div class="ref-row"><span class="ref-voice" style="color:var(--text-muted)">` +
+        `The click is unstressed and nothing marks beat one, so an odd length ` +
+        `is whatever you hear in it — 14 beats can be 7/4 + 7/4, or ` +
+        `5/4 + 2/4 + 3/4 + 4/4, or none of those.` +
+        `</span></div>` +
+        `<div class="ref-row"><span class="ref-voice" style="color:var(--text-muted)">` +
+        `Nothing is erased: the card always records the full ${max} beats, so ` +
+        `shortening hides the rest and lengthening brings it back. But since ` +
+        `nothing marks beat one, the join can land anywhere in what you played.` +
+        `</span></div>` +
+        `</div>`;
+      const sel = document.getElementById("loop-beats");
+      if (sel) sel.onchange = () => setLoopLength(Number(sel.value));
+    } else {
+      loopEl.innerHTML = "";
+    }
+  }
+
   const io = document.getElementById("pattern-io");
   // Connected AND running firmware that knows the messages. An older card
   // answers MSG_PAT_GET with silence, so offering the button would produce a
@@ -1812,7 +2000,7 @@ function renderReference() {
     `</div>` +
 
     `<div class="ref-card"><h3>Loop</h3><div class="ref-sub">card-side settings</div>` +
-    `<div class="ref-row"><span class="ref-voice">Length: 4 bars, fixed for now</span></div>` +
+    `<div class="ref-row"><span class="ref-voice">Length: set above, 4 to 16 beats</span></div>` +
     `<div class="ref-row"><span class="ref-voice">A hit keeps the grid it was recorded against, so a` +
     ` straight part and a triplet part can share one loop.</span></div>` +
     `</div>`;

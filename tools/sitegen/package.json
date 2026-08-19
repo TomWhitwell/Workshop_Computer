@@ -6,7 +6,7 @@
   "scripts": {
     "prebuild": "npm run check-curation",
     "build": "node ./src/build.js",
-    "dev": "npm run build && vite --config vite.config.js",
+    "dev": "npm run build -- --preview && vite --config vite.config.js",
     "validate-info": "node ./src/validate/cli.js",
     "check-curation": "node ./src/curation/cli.js check",
     "sync-curation": "node ./src/curation/cli.js sync",

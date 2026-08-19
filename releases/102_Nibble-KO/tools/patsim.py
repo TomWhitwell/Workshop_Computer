@@ -119,10 +119,23 @@ def browser_parse(msgs):
             break
         data += decode7bit(d[5:len(d) - 1])
 
-    events = [{'tick': data[i] | (data[i + 1] << 8),
-               'what': data[i + 2], 'value': data[i + 3]}
-              for i in range(0, len(data) - 3, 4)]
-    return {'count': count, 'knobCount': knob_count, 'events': events}
+    # TRUST THE HEADER'S COUNT, mirroring downloadPattern().
+    #
+    # This model previously derived the event count from len(data), exactly as
+    # the page did -- which is why it did not catch the bug it was written to
+    # prevent. 7-bit encoding pads to groups of seven, so the tail of the last
+    # chunk decodes to bytes past the real payload; counting whole 4-byte
+    # groups therefore invents events off the end. A full slot round-tripped as
+    # 516 events and the card refused it on re-upload, holding only 512.
+    #
+    # The lesson is about the model, not just the code: a port that mirrors the
+    # implementation's ASSUMPTION cannot falsify it. This now checks the
+    # property (events in == events out) rather than reproducing the method.
+    want = min(count, len(data) // 4)
+    events = [{'tick': data[i * 4] | (data[i * 4 + 1] << 8),
+               'what': data[i * 4 + 2], 'value': data[i * 4 + 3]}
+              for i in range(want)]
+    return {'count': len(events), 'knobCount': knob_count, 'events': events}
 
 
 # --- looper.cpp SetPatternRaw() ---------------------------------------------
@@ -218,6 +231,28 @@ check(f"the chunk size leaves real headroom ({_worst}B of {kSendCap}B used)",
 # out even and the last chunk is the only short one.
 check(f"{kRawPerChunk} is a whole number of 7-byte encoding groups",
       kRawPerChunk % 7 == 0)
+
+# The regression that motivated the count fix: NO padding may survive as a
+# phantom event, at any size. Every count is checked rather than a sampled few,
+# because the failure depends on where the last chunk boundary falls -- 512
+# events came back as 516 while smaller patterns round-tripped cleanly, which
+# is exactly the shape that hides in spot checks.
+worst = None
+for n in range(0, kMaxEvents + 1):
+    ev = make_events(n)
+    got = browser_parse(card_reply(0, ev, 0))
+    if len(got['events']) != n:
+        worst = (n, len(got['events']))
+        break
+if worst is not None:
+    print(f"          {worst[0]} events came back as {worst[1]}")
+check("no event count from 0..512 gains or loses events in transit",
+      worst is None)
+
+# And that a full slot survives, since that is the case that failed.
+full_rt = browser_parse(card_reply(0, make_events(kMaxEvents), 0))
+check("a FULL slot round-trips as exactly kMaxEvents",
+      len(full_rt['events']) == kMaxEvents)
 
 print("\npattern transfer: browser -> card")
 raw = events_to_bytes(full)

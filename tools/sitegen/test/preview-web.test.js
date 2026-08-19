@@ -9,14 +9,14 @@ test('author preview web metadata shows, updates, and hides the editor action', 
   assert.equal(resolvePreviewWebConfig({ Editor: 'none' }).editorUrl, '');
 });
 
-test('existing-card previews retain auto-discovered editors and reflect entry edits', () => {
+test('existing-card previews keep auto-discovered local editors on the preview origin', () => {
   const discoveredWeb = {
     mode: 'local',
     editorUrl: 'https://pages.test/programs/42-fixture/web/index.html',
     siteSubdir: 'web',
     entry: 'index.html',
   };
-  assert.equal(resolvePreviewWebConfig({}, { slug: '42-fixture', discoveredWeb }).editorUrl, discoveredWeb.editorUrl);
+  assert.equal(resolvePreviewWebConfig({}, { slug: '42-fixture', discoveredWeb }).editorUrl, '../programs/42-fixture/web/index.html');
   assert.equal(resolvePreviewWebConfig({ 'web-entry': 'manager.html' }, { slug: '42-fixture', discoveredWeb }).editorUrl, '../programs/42-fixture/web/manager.html');
   assert.equal(resolvePreviewWebConfig({ Editor: 'none' }, { slug: '42-fixture', discoveredWeb }).editorUrl, '');
 });

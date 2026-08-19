@@ -35,7 +35,7 @@ export function resolvePreviewWebConfig(raw, { slug = 'new-card', discoveredWeb 
   if (editor) return { mode: 'none', editorUrl: '', siteSubdir: 'web', entry: '' };
 
   if (discoveredWeb?.mode === 'local' && discoveredWeb.editorUrl) {
-    return entry ? localConfig(slug, entry) : { ...discoveredWeb };
+    return localConfig(slug, entry || discoveredWeb.entry || 'index.html');
   }
   if (discoveredWeb?.mode === 'external' && discoveredWeb.editorUrl) return { ...discoveredWeb };
   return { mode: 'none', editorUrl: '', siteSubdir: 'web', entry: '' };

@@ -5,7 +5,7 @@ import { build as esbuild } from 'esbuild';
 import { makeRawUrl as makeRawUrlExternal } from './links.js';
 import { renderLayout } from './render/layout.js';
 import { discoverRelease as discoverReleaseMod } from './discover/release.js';
-import { githubPagesBase, copyWebAssets } from './discover/webEditor.js';
+import { resolveSiteBase, copyWebAssets } from './discover/webEditor.js';
 import { getInfoYamlSchemaAdapter } from './schema/schemaAdapter.js';
 import { infoYamlJsonSchema } from './schema/infoYamlJsonSchema.js';
 import { renderCardArticle, renderReadmeAndDocs } from './render/cardPage.js';
@@ -38,16 +38,11 @@ const DEFAULT_BRANCH = 'main';
 // available for an explicit preview override.
 const REPO = process.env.SITE_REPOSITORY || process.env.GITHUB_REPOSITORY || DEFAULT_REPO;
 const BRANCH = process.env.SITE_REF || process.env.GITHUB_SHA || process.env.GITHUB_REF_NAME || DEFAULT_BRANCH;
-const SITE_BASE = (() => {
-  const configured = String(process.env.SITE_BASE_URL || '').trim();
-  if (!configured) return githubPagesBase(REPO);
-  const url = new URL(configured);
-  if (!/^https?:$/.test(url.protocol)) throw new Error('SITE_BASE_URL must be an HTTP(S) URL.');
-  url.search = '';
-  url.hash = '';
-  if (!url.pathname.endsWith('/')) url.pathname += '/';
-  return url.href;
-})();
+const SITE_BASE = resolveSiteBase({
+  configured: process.env.SITE_BASE_URL,
+  preview: process.argv.includes('--preview'),
+  repoSlug: REPO,
+});
 const schemaAdapter = getInfoYamlSchemaAdapter();
 
 

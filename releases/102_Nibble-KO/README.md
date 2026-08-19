@@ -6,14 +6,13 @@ module — with a browser sample manager.**
 
 *Four buttons. Ten voltages. Twelve drums, yours to fill.*
 
-> **Status: 1.1.0, released.** Drums, the looper, mute groups, twelve
+> **Status: 1.2.0, released.** Drums, the looper, mute groups, twelve
 > performance effects, three pattern slots, sample playback, the browser
 > sample manager, flash-saved calibration and the CV expansion all work on
-> hardware. **New in 1.1.0:** patterns save to and load from your computer
-> as JSON files, and the loop keeps playing while the browser tool is
-> connected. Loop length is still fixed at four bars — a WebUI setting for
-> it is the roadmap for 1.2. See [CLAUDE.md](CLAUDE.md) for exactly what's
-> here and what isn't.
+> hardware. Patterns save to and load from your computer as JSON, and the loop
+> keeps playing while the browser tool is connected. **New in 1.2.0:** the loop
+> length is settable from 4 to 16 beats, so odd time signatures are playable.
+> See [CLAUDE.md](CLAUDE.md) for exactly what's here and what isn't.
 
 A program card for the [Music Thing Modular Workshop System
 Computer](https://www.musicthing.co.uk/workshopsystem/) that expands the
@@ -385,6 +384,28 @@ can be re-pointed at a new sound and judged by ear against the pattern it has
 to sit in. Only recording stops; an upload still silences the card, because
 writing flash stops everything.
 
+## Loop length *(new in 1.2.0)*
+
+The **Patterns** tab sets how many beats the loop plays before repeating,
+anywhere from **4 to 16**. Sixteen — four bars of 4/4 — is the default and
+what every earlier version did.
+
+This is what makes odd metres playable. The click on Pulse Out 2 is
+**unstressed** and nothing on the card marks beat one, so the length is a
+count rather than a time signature: fourteen beats is 7/4 twice, or
+5/4 + 2/4 + 3/4 + 4/4, or an eleven and a three. The card does not decide,
+and neither does the click — you do, by what you play against it.
+
+**Shortening is non-destructive.** The card always records against the full
+sixteen beats and the setting only moves where the playhead wraps, so hits
+past the new end are hidden rather than erased and restoring the length brings
+them back exactly as they were. Pattern slots always hold the full sixteen.
+
+The caveat is inherent rather than a bug, and worth knowing before you reach
+for it mid-take: since nothing marks beat one, changing the length moves the
+join to an arbitrary point in what you played. The part that vanishes — or the
+gap a longer setting exposes — can land anywhere in the phrase.
+
 ## The browser setup tool
 
 Hold the switch **Down** and press **B + D**: all four pads glow and the card
@@ -401,12 +422,8 @@ making it survive a power cycle.
 WAVs are converted in the browser to the same 8-bit 48kHz format the built-in
 samples use. See [`web/README.md`](web/README.md).
 
-## What isn't done, and the roadmap for 1.2
+## What isn't done
 
-**Loop length is fixed at four bars.** `kLoopTicks` is only ever used in
-ordinary wrap arithmetic in `looper.cpp` and nothing is sized by it, so
-making it runtime-settable (2 bars, 1 bar) is a small change and a natural
-WebUI setting. The quantise grid has already made exactly this move.
 
 **Patterns live in RAM, and that is now a choice rather than a gap.** They
 still do not survive a power cycle on the card — but since 1.1.0 the browser
@@ -426,6 +443,38 @@ Two smaller things, unrelated to the roadmap above:
 - **Mute groups are hardcoded** three ways by voice index.
 
 ## Changelog
+
+### 1.2.0
+
+**Loop length is settable, 4 to 16 beats**, on the Patterns tab of the browser
+tool. This is what makes odd time signatures playable: the click is unstressed
+and nothing marks beat one, so fourteen beats is 7/4 twice, or 5/4 + 2/4 +
+3/4 + 4/4, or whatever you hear in it. See
+[Loop length](#loop-length-new-in-120).
+
+It is a **playback** setting, so shortening is non-destructive: the card always
+records against the full sixteen beats, and putting the length back brings the
+hidden hits with it, unchanged. The caveat is inherent rather than a bug —
+since nothing marks beat one, changing the length moves the join to an
+arbitrary point in what you played.
+
+**Fixed: Undo put the filter and tone knobs in arbitrary places.** Undo drops
+the automation it deleted, but it did that by handing the lane back to the
+PHYSICAL KNOB — whose resting position may be minutes old and unrelated to the
+music, so the tone jumped. It now holds the last replayed value instead: an
+undo is silent in the tone, and the next hand movement or recorded event takes
+over as usual.
+
+**Fixed: saving a pattern failed on busy patterns.** The dump sent one chunk
+per USB service pass, and on a dense patch core 0 is busy enough that core 1
+gets very few passes — so the transfer could not finish before the browser gave
+up, and the failure appeared on exactly the patterns most worth saving. The
+dump now drains in one pass.
+
+**Minor optimisations to the control path**: software division removed from
+the per-tick code (the Cortex-M0+ has no divide instruction, so each one was a
+function call), the control-rate functions moved into RAM, and the automation
+replace-scan bounded to its window rather than walking the whole event array.
 
 ### 1.1.0
 

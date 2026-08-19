@@ -27,7 +27,7 @@ namespace {
 /// the last half-step of the loop UP to kLoopTicks, which must land on tick 0
 /// of the next pass rather than off the end — handled there, once, at the
 /// point of rounding.
-uint16_t Looper::FireTick(const LoopEvent &ev) const
+uint16_t __not_in_flash_func(Looper::FireTick)(const LoopEvent &ev) const
 {
 	return ev.tick;
 }
@@ -35,18 +35,25 @@ uint16_t Looper::FireTick(const LoopEvent &ev) const
 /// Round `tick` to the CURRENT grid. The only caller is RecordHit() — this is
 /// capture-time snapping, not a playback filter — but it is worth its own
 /// function because the wrap needs the same care FireTick() used to take.
-uint16_t Looper::QuantiseTick(uint16_t tick) const
+uint16_t __not_in_flash_func(Looper::QuantiseTick)(uint16_t tick) const
 {
 	const int q = kTicksPerBeat / kQuantNotesPerBeat[static_cast<int>(quantGrid_)];
 	uint16_t snapped = static_cast<uint16_t>(((tick + q / 2) / q) * q);
-	return static_cast<uint16_t>(snapped % kLoopTicks);
+
+	// Wrap against the LIVE length, not the full four bars. A hit played in
+	// the last half-step of a shortened loop rounds up to loopTicks_, and a
+	// tick equal to the wrap point is one the playhead never reaches — so
+	// against kLoopTicks it would survive as an event that can never fire.
+	// It belongs on tick 0 of the next pass, exactly as it would at full
+	// length.
+	return static_cast<uint16_t>(snapped % loopTicks_);
 }
 
 // ---------------------------------------------------------------------------
 // Time
 // ---------------------------------------------------------------------------
 
-void Looper::SetTempo(int32_t xKnob)
+void __not_in_flash_func(Looper::SetTempo)(int32_t xKnob)
 {
 	// An external clock owns the tempo while it is running.
 	//
@@ -73,9 +80,10 @@ void Looper::SetTempo(int32_t xKnob)
 	tickInc_ = static_cast<int32_t>(
 		(static_cast<int64_t>(bpm) * kTicksPerBeat * kQ16One)
 		/ (60 * kCtrlRate));
+	RecacheTempo();
 }
 
-void Looper::ClockPulse()
+void __not_in_flash_func(Looper::ClockPulse)()
 {
 	// The first edge only starts the stopwatch; an interval needs two.
 	if (sinceClock_ > 0 && sinceClock_ <= kClockMaxGap)
@@ -86,6 +94,7 @@ void Looper::ClockPulse()
 		// clockInterval_ control steps.
 		tickInc_ = static_cast<int32_t>(
 			(static_cast<int64_t>(kTicksPerBeat) * kQ16One) / clockInterval_);
+		RecacheTempo();
 
 		// Re-align to the nearest beat rather than snapping to it. Jumping the
 		// playhead on every edge would stutter the pattern; nudging it keeps
@@ -98,7 +107,7 @@ void Looper::ClockPulse()
 			// drift, small enough never to be heard as a skip.
 			if (offset > 0)      playHead_--;
 			else if (offset < 0) playHead_++;
-			playHead_ = static_cast<uint16_t>((playHead_ + kLoopTicks) % kLoopTicks);
+			playHead_ = static_cast<uint16_t>((playHead_ + loopTicks_) % loopTicks_);
 		}
 	}
 
@@ -106,7 +115,7 @@ void Looper::ClockPulse()
 	clockTimeout_ = kClockTimeout;   // hand back to the knob after it stops
 }
 
-bool Looper::Advance()
+bool __not_in_flash_func(Looper::Advance)()
 {
 	// Clock housekeeping FIRST and unconditionally: these are wall-clock
 	// timers, not musical ones, and putting them after the early-outs below
@@ -126,7 +135,12 @@ bool Looper::Advance()
 	while (phase_ >= kQ16One)
 	{
 		phase_ -= kQ16One;
-		playHead_ = static_cast<uint16_t>((playHead_ + 1) % kLoopTicks);
+
+		// loopTicks_, NOT kLoopTicks: this is where a shortened loop actually
+		// takes effect. Events keep their full-length ticks (see
+		// SetLoopBeats), so shortening just wraps early and the hits past the
+		// new end sit silent until the length is put back.
+		playHead_ = static_cast<uint16_t>((playHead_ + 1) % loopTicks_);
 
 		// Latch the beat crossing here, where it happens exactly once, rather
 		// than letting the caller poll OnBeat() — that is a level and stays true
@@ -147,7 +161,7 @@ bool Looper::Advance()
 // Recording
 // ---------------------------------------------------------------------------
 
-void Looper::Insert(const LoopEvent &ev)
+void __not_in_flash_func(Looper::Insert)(const LoopEvent &ev)
 {
 	if (count_ >= kMaxEvents) return;
 
@@ -197,7 +211,7 @@ void Looper::Insert(const LoopEvent &ev)
 	if (static_cast<uint16_t>(i) <= cursor_) cursor_++;
 }
 
-void Looper::RecordHit(int8_t voice, uint8_t velocity)
+void __not_in_flash_func(Looper::RecordHit)(int8_t voice, uint8_t velocity)
 {
 	// Bounded by the VOICE count, not the combo count: an event stores which
 	// sound to make, never which buttons made it.
@@ -233,7 +247,7 @@ void Looper::RecordHit(int8_t voice, uint8_t velocity)
 	Insert(ev);
 }
 
-void Looper::RecordKnobs(bool filterMoving, int32_t filterKnob,
+void __not_in_flash_func(Looper::RecordKnobs)(bool filterMoving, int32_t filterKnob,
                          bool toneMoving,   int32_t toneKnob,
                          const uint8_t *fxPacked,
                          int8_t parShift, int32_t parKnob, bool parMoving)
@@ -242,7 +256,24 @@ void Looper::RecordKnobs(bool filterMoving, int32_t filterKnob,
 	// lane test and consume it separately would mean whichever asked first ate
 	// the whole interval and the others never recorded at all.
 	if (knobCountdown_ > 0) return;
-	knobCountdown_ = kKnobSampleTicks;
+
+	// RESET TO AN ODD INTERVAL so this stops colliding with Advance().
+	//
+	// knobCountdown_ is decremented inside Advance(), so it only ever reaches
+	// zero on a LOOP TICK — which means the automation scan landed on exactly
+	// the tick where Advance() was already firing hits and running GlitchTick.
+	// The two most expensive things on the card were synchronised by
+	// construction. Profiled at 9051 cycles on one tick (226% of budget), with
+	// RecordKnobs 2491 of it, while neighbouring ticks sat near idle.
+	//
+	// SEVEN, and the value was chosen by arithmetic rather than by feel.
+	// gcd(7,48) = gcd(7,768) = 1, so it is coprime with both the beat and the
+	// loop and successive samples land on a different phase every time —
+	// nine would have shared a factor of 3 with both and repeated every
+	// sixteen samples. Seven also samples marginally MORE often than eight, so
+	// the recorded curve does not lose resolution to buy the spreading.
+	knobCountdown_ = kKnobSampleTicks - 1;
+
 
 	// Only a knob the player is actually holding writes anything — see the
 	// header. A still knob recording its position every tick would flatten an
@@ -288,16 +319,19 @@ void Looper::RecordKnobs(bool filterMoving, int32_t filterKnob,
 /// The wrap matters: a sweep recorded across the loop boundary must still
 /// replace one recorded just before it, or the seam between passes is exactly
 /// where two sweeps survive together.
-bool Looper::NearPlayhead(uint16_t tick) const
+bool __not_in_flash_func(Looper::NearPlayhead)(uint16_t tick) const
 {
+	// Against the LIVE length: the seam this exists to handle is where the
+	// playhead wraps, which a shortened loop moves earlier.
+	const int32_t len = static_cast<int32_t>(loopTicks_);
 	int32_t d = static_cast<int32_t>(tick) - static_cast<int32_t>(playHead_);
-	if (d >  kLoopTicks / 2) d -= kLoopTicks;
-	if (d < -kLoopTicks / 2) d += kLoopTicks;
+	if (d >  len / 2) d -= len;
+	if (d < -len / 2) d += len;
 	if (d < 0) d = -d;
 	return d <= kKnobReplaceWindow;
 }
 
-void Looper::RecordLane(uint8_t lane, int32_t knob)
+void __not_in_flash_func(Looper::RecordLane)(uint8_t lane, int32_t knob)
 {
 	if (lane >= kNumLanes) return;
 
@@ -321,18 +355,81 @@ void Looper::RecordLane(uint8_t lane, int32_t knob)
 	//
 	// Only THIS lane is touched, so re-recording the filter never disturbs a Y
 	// sweep lying underneath it.
-	for (int i = 0; i < count_; )
+	//
+	// BOUNDED BY THE WINDOW, not a scan of the whole array.
+	//
+	// The history here is worth keeping, because two earlier versions were each
+	// a real improvement and each still too slow. It began as a Remove() per
+	// match, which shifts the tail every time: O(n) scan driving O(n) shifts.
+	// That became one linear compacting pass, then the same pass with the loop
+	// invariants hoisted into registers (the compiler was reloading playHead_
+	// and loopTicks_ from memory on EVERY iteration). Measured across those:
+	// 8433 -> 10166 -> 7483 cycles against a 4000-cycle budget.
+	//
+	// Still ~22 cycles an event, because the work was never the problem: the
+	// COUNT of it was. The window is +/-12 ticks and a lane samples once every
+	// 8, so at most about four events can ever match — out of 171. Better than
+	// 97% of the scan was provably wasted, and no amount of tightening the body
+	// fixes that.
+	//
+	// events_ is sorted by tick, so the window is a CONTIGUOUS span and its
+	// start can be found by bisection. The wrap is what made this look
+	// impossible: near the loop boundary the span runs off the end of the array
+	// and resumes at the front. That is two contiguous spans, not a reason to
+	// scan everything — so this walks [lo..n) and, only when the window wraps,
+	// [0..hi) as well.
+	//
+	// Events are moved rather than compacted now: with a bounded span there is
+	// no long tail of survivors to slide down, and removing 4 of 171 by
+	// memmove beats copying 167 of them.
 	{
-		// Same lane, near the playhead, and NOT part of the sweep currently
-		// being laid down. Without that last condition the window eats its own
-		// tail: every new event falls inside the next one's window, and a full
-		// re-record collapses to a single surviving event.
-		if (SameKind(events_[i].what, what)
-		 && !IsThisPass(events_[i].what)
-		 && NearPlayhead(FireTick(events_[i])))
-			Remove(i);
+		const int32_t head = static_cast<int32_t>(playHead_);
+		const int32_t len  = static_cast<int32_t>(loopTicks_);
+		const int32_t lo   = head - kKnobReplaceWindow;
+		const int32_t hi   = head + kKnobReplaceWindow;
+
+		// Bisect for the first event at or after `from`, on the raw tick.
+		auto LowerBound = [this](int32_t from) -> int
+		{
+			int a = 0, b = static_cast<int>(count_);
+			while (a < b)
+			{
+				const int m = (a + b) >> 1;
+				if (static_cast<int32_t>(events_[m].tick) < from) a = m + 1;
+				else                                             b = m;
+			}
+			return a;
+		};
+
+		// DropSpan removes matching events in [first, lastTick] going forward,
+		// stopping as soon as the tick passes the window. Returns how many went.
+		auto DropSpan = [&](int first, int32_t lastTick)
+		{
+			int i = first;
+			while (i < static_cast<int>(count_)
+			    && static_cast<int32_t>(events_[i].tick) <= lastTick)
+			{
+				if (SameKind(events_[i].what, what) && !IsThisPass(events_[i].what))
+					Remove(i);          // rare: ~4 per call, so the shift is cheap
+				else
+					i++;
+			}
+		};
+
+		if (lo >= 0 && hi < len)
+		{
+			// The common case: the window lies wholly inside the array.
+			DropSpan(LowerBound(lo), hi);
+		}
 		else
-			i++;
+		{
+			// Wrapped. Two spans: the tail from `lo` to the end, and the head
+			// from 0 to `hi`, each reduced into range.
+			const int32_t loWrapped = (lo < 0) ? (lo + len) : lo;
+			const int32_t hiWrapped = (hi >= len) ? (hi - len) : hi;
+			DropSpan(LowerBound(loWrapped), len - 1);
+			DropSpan(0, hiWrapped);
+		}
 	}
 
 	if (knobCount_ >= kMaxKnobEvents) return;
@@ -345,7 +442,7 @@ void Looper::RecordLane(uint8_t lane, int32_t knob)
 }
 
 /// Remove the event at `i`, keeping the array sorted and the cursor honest.
-void Looper::Remove(int i)
+void __not_in_flash_func(Looper::Remove)(int i)
 {
 	if (i < 0 || i >= count_) return;
 	if (IsKnobEvent(events_[i].what) && knobCount_ > 0) knobCount_--;
@@ -363,7 +460,7 @@ void Looper::Remove(int i)
 // Playback
 // ---------------------------------------------------------------------------
 
-int Looper::Fire(int8_t *outCombo, uint8_t *outVel,
+int __not_in_flash_func(Looper::Fire)(int8_t *outCombo, uint8_t *outVel,
                  int32_t *outKnob, bool *haveKnob)
 {
 	int n = 0;
@@ -477,6 +574,37 @@ bool Looper::RecallPattern(int i)
 
 	for (int k = 0; k < kNumLanes; k++) lastKnob_[k] = -9999;
 	return true;
+}
+
+void Looper::SetLoopBeats(int beats)
+{
+	if (beats < kMinBeatsPerLoop) beats = kMinBeatsPerLoop;
+	if (beats > kBeatsPerLoop)    beats = kBeatsPerLoop;
+
+	const uint16_t ticks = static_cast<uint16_t>(beats * kTicksPerBeat);
+	if (ticks == loopTicks_) return;
+
+	// ORDER MATTERS, because this is called from CORE 1 (the WebUI) while
+	// core 0 is still playing — unlike the pattern slots, which are safe only
+	// because the pads are inert in WebUi mode. Both writes are to aligned
+	// 16-bit values, so neither tears on this chip; what could bite is the
+	// WINDOW BETWEEN them.
+	//
+	// Fold the playhead FIRST, against the new length, then publish the
+	// length. That way core 0 only ever observes (old length, in-range head)
+	// or (new length, in-range head). Publishing the length first would leave
+	// a tick or two where playHead_ >= loopTicks_, and Advance()'s modulo
+	// would not rescue it until it had counted all the way round the OLD
+	// length — an audible hang of up to four bars.
+	if (playHead_ >= ticks)
+		playHead_ = static_cast<uint16_t>(playHead_ % ticks);
+
+	loopTicks_ = ticks;
+
+	// The cursor points into an array whose events are still at full length,
+	// but the playhead has just moved — so the walk has to be re-seeded, for
+	// the same reason Undo and RecallPattern re-seed it.
+	RebuildCursor();
 }
 
 void Looper::RebuildCursor()

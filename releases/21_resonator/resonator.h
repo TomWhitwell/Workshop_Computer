@@ -6,7 +6,6 @@
 #include "pitch_utils.h"
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
-#include "pico/flash.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
 #include <cstring>
@@ -23,7 +22,7 @@
 
 /**
 Resonator Workshop System Computer Card - by Johan Eklund
-version 1.2 - 2026-07-08
+version 1.2.1 - 2026-08-18
 
 Four resonating strings using Karplus-Strong synthesis
 */
