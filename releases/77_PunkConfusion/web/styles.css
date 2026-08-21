@@ -38,6 +38,7 @@ select {
 .log,
 .target,
 .bank-import,
+.folder-import,
 .steps div,
 .slot {
   border: 3px solid var(--ink);
@@ -133,6 +134,67 @@ h1 {
 .bank-import p {
   margin: 0;
   color: var(--muted);
+}
+
+.folder-import {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 2fr);
+  gap: 18px;
+  align-items: start;
+  margin: 32px 0;
+  padding: 18px;
+}
+
+.folder-import h2 {
+  margin: 0 0 8px;
+}
+
+.folder-import p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.detected-files {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+}
+
+.detected-file {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 2px solid var(--ink);
+  padding: 12px;
+  background: rgba(242, 234, 213, 0.74);
+}
+
+.detected-file strong,
+.detected-file span {
+  display: block;
+}
+
+.detected-file strong {
+  font-family: "Arial Black", Impact, sans-serif;
+  text-transform: uppercase;
+}
+
+.detected-file span {
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.assignments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.assignments button {
+  padding: 8px 10px;
+  box-shadow: 3px 3px 0 var(--red);
 }
 
 code {
@@ -255,7 +317,13 @@ pre {
   .panel,
   .slots,
   .target,
-  .bank-import {
+  .bank-import,
+  .folder-import,
+  .detected-file {
     grid-template-columns: 1fr;
+  }
+
+  .assignments {
+    justify-content: flex-start;
   }
 }

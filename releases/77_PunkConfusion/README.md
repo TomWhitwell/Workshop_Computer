@@ -13,7 +13,9 @@ dirty room and damaged PA treatment for external audio. `Switch Down` and
    `uf2/punk_confusion_16mb.uf2` for a 16 MB card.
 2. Patch `Audio Out 1` to your mixer. Patch `Audio Out 2` as well for stereo
    room output in Broken Venue mode.
-3. For APC mode, set the switch Up and turn `Main` up.
+3. For APC mode, set the switch Up and turn `Main` up. `Audio Out 1` is the
+   direct APC voice; `Audio Out 2` is the same voice through a fixed
+   CBGB-style room/PA treatment.
 4. For Broken Venue, patch audio to `Audio In 1`, set the switch Middle, set
    `Main`, `X`, and `Y` near noon, then choose a room with `X`.
 5. Hold the switch Down, or patch gates to `Pulse In 2`, to inject the current
@@ -149,7 +151,9 @@ Use it like this:
 3. Choose the matching card size in the page.
 4. Drop one audio file into each venue slot on the page. If you already have a
    saved `punk_confusion_samples.pbank` file, drop it into `Already have
-   prepared sounds?` instead to fill all four slots at once.
+   prepared sounds?` instead to fill all four slots at once. You can also use
+   `Browse a folder of WAVs` to choose or drop any folder of `.wav` files,
+   audition the detected files, and assign four of them to the sample slots.
 5. Hold the card switch Down while powering or resetting the card.
 6. Wait for confirmation: all LEDs flash three times, then LEDs 1, 3, and 5
    stay lit while the card waits for the browser.
@@ -180,6 +184,14 @@ sounds` downloads the converted `.pbank` file, which can later be dropped back
 onto the page without reloading the original WAV or AIFF files. Factory
 fallback WAVs and `VocalSamples.h` are backed up in `factory-samples/` for
 maintainers.
+
+The folder picker is intentionally general: it looks for visible `.wav` files
+and ignores other files, including hidden macOS sidecar files such as
+`._Sample.wav`. File names do not need to match the factory samples. Pick any
+four detected WAVs, audition them in the browser, and assign them to the four
+Punk Confusion slots. This can be useful for Squid Salmple, 1010music,
+Elektron, or Ableton export folders, but the page still converts the chosen
+WAVs into Punk Confusion's own `.pbank` format before sending them to the card.
 
 ## Jack Map
 
