@@ -1,14 +1,17 @@
 import { applyContentSecurityPolicy, CSP_PLACEHOLDER } from './csp.js';
 import { externalLinkArrow } from './icons.js';
+import { renderSocialMeta } from './socialMeta.js';
 
-export function renderLayout({ title, content, relativeRoot = '.', legacyRedirectRoot = relativeRoot, repoUrl = 'https://github.com/TomWhitwell/Workshop_Computer', showProgramIdentity = false }) {
+export function renderLayout({ title, content, relativeRoot = '.', legacyRedirectRoot = relativeRoot, repoUrl = 'https://github.com/TomWhitwell/Workshop_Computer', showProgramIdentity = false, social } = {}) {
+  const pageTitle = title ? String(title).replace(/</g, '&lt;') : 'Workshop Computer';
   const html = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Content-Security-Policy" content="${CSP_PLACEHOLDER}" />
-  <title>${title ? String(title).replace(/</g, '&lt;') : 'Workshop Computer'}</title>
+  <title>${pageTitle}</title>
+  ${renderSocialMeta({ title: title || 'Workshop Computer', ...social })}
   <link rel="icon" type="image/png" href="${relativeRoot}/assets/favicon/favicon.png" />
   <link rel="stylesheet" href="${relativeRoot}/assets/github-markdown.css" />
   <link rel="stylesheet" href="${relativeRoot}/assets/style.css" />

@@ -18,6 +18,11 @@ npm run build
 
 This performs a clean production build of the complete site.
 
+Share-preview images (Open Graph / Twitter Card PNGs at 1200×630) are
+generated into `site/assets/og/default.png` and `site/programs/<slug>/og.png`
+so Discord, Slack, iMessage, and similar crawlers can unfurl links on the
+static GitHub Pages site.
+
 Absolute links to copied web editors default to the repository's GitHub Pages
 project URL. Set `SITE_BASE_URL` to override that public base, including its
 trailing path when applicable:

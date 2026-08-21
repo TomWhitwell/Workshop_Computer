@@ -360,6 +360,42 @@ test('layout uses relative external runtime assets and CSP hashes only remaining
   assert.match(withInline, /script-src 'self' 'sha256-/);
 });
 
+test('layout emits escaped Open Graph and Twitter card tags', () => {
+  const html = renderLayout({
+    title: 'A "quoted" <card>',
+    content: '',
+    social: {
+      title: 'A "quoted" <card>',
+      description: 'Ampersands & quotes',
+      url: 'https://example.test/programs/safe-slug/',
+      image: 'https://example.test/programs/safe-slug/og.png',
+      imageAlt: 'A "quoted" <card> program card',
+    },
+  });
+  assert.match(html, /<meta name="description" content="Ampersands &amp; quotes"/);
+  assert.match(html, /property="og:title" content="A &quot;quoted&quot; &lt;card&gt;"/);
+  assert.match(html, /property="og:description" content="Ampersands &amp; quotes"/);
+  assert.match(html, /property="og:url" content="https:\/\/example\.test\/programs\/safe-slug\/"/);
+  assert.match(html, /property="og:image" content="https:\/\/example\.test\/programs\/safe-slug\/og\.png"/);
+  assert.match(html, /property="og:image:width" content="1200"/);
+  assert.match(html, /name="twitter:card" content="summary_large_image"/);
+  assert.match(html, /rel="canonical" href="https:\/\/example\.test\/programs\/safe-slug\/"/);
+  assert.match(html, /name="theme-color" content="#27743a"/);
+});
+
+test('author page emits sitewide share tags when a public URL is provided', () => {
+  const html = renderAuthorPage({
+    social: {
+      description: 'Inspect and edit program card metadata.',
+      url: 'https://example.test/preview/',
+      image: 'https://example.test/assets/og/default.png',
+    },
+  });
+  assert.match(html, /property="og:title" content="Author page – Workshop Computer"/);
+  assert.match(html, /property="og:image" content="https:\/\/example\.test\/assets\/og\/default\.png"/);
+  assert.match(html, /rel="canonical" href="https:\/\/example\.test\/preview\/"/);
+});
+
 test('author preview permits AJV schema compilation without weakening published pages', () => {
   const preview = renderAuthorPage();
   const previewPolicy = preview.match(/Content-Security-Policy" content="([^"]+)/)?.[1] || '';

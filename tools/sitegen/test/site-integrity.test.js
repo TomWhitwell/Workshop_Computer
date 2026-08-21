@@ -29,6 +29,15 @@ function existingTarget(fromFile, rawUrl) {
   return target;
 }
 
+function pngSize(file) {
+  const header = Buffer.alloc(24);
+  const fd = fs.openSync(file, 'r');
+  fs.readSync(fd, header, 0, 24, 0);
+  fs.closeSync(fd);
+  assert.equal(header.subarray(12, 16).toString(), 'IHDR');
+  return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
+}
+
 test('generated catalogue is complete, unique, and internally consistent', () => {
   const catalogue = readJson('cards.json');
   const rawIndex = readJson('raw-info/index.json');
@@ -133,6 +142,31 @@ test('generator-owned layouts use external runtime scripts', () => {
     const executableInline = [...html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/gi)]
       .filter(match => !/\btype=(['"])importmap\1/i.test(match[1]) && match[2].trim());
     assert.deepEqual(executableInline, [], `${relative} contains executable inline runtime code`);
+  }
+});
+
+test('generated pages have Open Graph images pointing at 1200x630 PNGs', () => {
+  const { cards } = readJson('cards.json');
+  const defaultPng = path.join(siteDir, 'assets/og/default.png');
+  assert.ok(fs.existsSync(defaultPng), 'sitewide og image is missing');
+  assert.deepEqual(pngSize(defaultPng), { width: 1200, height: 630 });
+
+  const index = fs.readFileSync(path.join(siteDir, 'index.html'), 'utf8');
+  assert.match(index, /property="og:image" content="https?:\/\/[^"]+\/assets\/og\/default\.png"/);
+  assert.match(index, /name="twitter:card" content="summary_large_image"/);
+
+  const archive = fs.readFileSync(path.join(siteDir, 'archive/index.html'), 'utf8');
+  assert.match(archive, /property="og:image" content="https?:\/\/[^"]+\/assets\/og\/default\.png"/);
+
+  const preview = fs.readFileSync(path.join(siteDir, 'preview/index.html'), 'utf8');
+  assert.match(preview, /property="og:image" content="https?:\/\/[^"]+\/assets\/og\/default\.png"/);
+
+  for (const card of cards) {
+    const html = fs.readFileSync(path.join(siteDir, 'programs', card.slug, 'index.html'), 'utf8');
+    const image = path.join(siteDir, 'programs', card.slug, 'og.png');
+    assert.match(html, new RegExp(`property="og:image" content="https?:\\/\\/[^"]+/programs/${card.slug}/og\\.png"`));
+    assert.ok(fs.existsSync(image), `${card.slug} is missing og.png`);
+    assert.deepEqual(pngSize(image), { width: 1200, height: 630 }, `${card.slug} og.png is not 1200x630`);
   }
 });
 
