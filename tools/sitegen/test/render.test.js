@@ -4,6 +4,7 @@ import { renderCardArticle, renderPanelArtwork, renderReadmeAndDocs } from '../s
 import { orderFlairShelfCards, renderArchive, renderShelf, renderTile } from '../src/render/discovery.js';
 import { renderLayout } from '../src/render/layout.js';
 import { renderAuthorPage } from '../src/render/authorPage.js';
+import { cardFeedbackUrl, websiteFeedbackUrl } from '../src/render/githubIssue.js';
 
 function card(extra = {}) {
   return {
@@ -431,4 +432,46 @@ test('basic author mode exposes live-preview web editor metadata', () => {
   assert.match(preview, /data-add-optional="Editor"/);
   assert.match(preview, /data-field="Editor"/);
   assert.match(preview, /data-field="web-entry"/);
+});
+
+test('layout footer links to the website feedback issue template', () => {
+  const html = renderLayout({ title: 'Safe', content: '<p>Content</p>' });
+  assert.match(html, /<a href="https:\/\/github\.com\/TomWhitwell\/Workshop_Computer\/issues\/new\?template=website_feedback\.yml">Website feedback<\/a>/);
+  assert.equal(
+    websiteFeedbackUrl(),
+    'https://github.com/TomWhitwell/Workshop_Computer/issues/new?template=website_feedback.yml',
+  );
+});
+
+test('card pages link to a prefilled program-card issue template', () => {
+  const blackbird = card({
+    id: '41_blackbird',
+    title: 'Blackbird',
+    slug: '41-blackbird',
+    release: '41 / 1.1',
+  });
+  const html = renderCardArticle({ card: blackbird, panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
+  const href = cardFeedbackUrl(blackbird).replace(/&/g, '&amp;');
+  const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  assert.match(href, /template=card_feedback\.yml/);
+  assert.match(href, /labels=41\+Blackbird/);
+  assert.match(href, /card=41\+Blackbird/);
+  assert.match(html, new RegExp(`href="${escaped}">Send feedback</a>`));
+  assert.match(html, new RegExp(`<dt>Feedback</dt><dd><a href="${escaped}">Report an issue on GitHub</a></dd>`));
+});
+
+test('offsite cards send feedback to the upstream forge, not this catalogue', () => {
+  const voices = card({
+    id: '64_voices_of_sid',
+    title: 'Voices of SID',
+    slug: '64-voices-of-sid',
+    metadata: { repository: 'https://codeberg.org/johantv/voices-of-sid' },
+  });
+  const html = renderCardArticle({ card: voices, panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
+  const href = cardFeedbackUrl(voices).replace(/&/g, '&amp;');
+  const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  assert.match(href, /codeberg\.org\/johantv\/voices-of-sid\/issues\/new/);
+  assert.doesNotMatch(html, /template=card_feedback\.yml/);
+  assert.match(html, new RegExp(`href="${escaped}">Send feedback</a>`));
+  assert.match(html, new RegExp(`<dt>Feedback</dt><dd><a href="${escaped}">Report an issue on Codeberg</a></dd>`));
 });

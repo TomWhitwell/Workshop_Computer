@@ -8,6 +8,7 @@ body:
       value: |
         Thanks for taking the time to report a bug.
 
+        **A specific program card** should use the Program card template, or Send feedback on that card's page.
         **New program cards** belong under `releases/` via a pull request — see the [README](https://github.com/TomWhitwell/Workshop_Computer/blob/main/README.md). Do not use this template to propose a new card.
   - type: input
     id: summary

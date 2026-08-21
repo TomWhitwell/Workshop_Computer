@@ -1,4 +1,5 @@
 import { applyContentSecurityPolicy, CSP_PLACEHOLDER } from './csp.js';
+import { websiteFeedbackUrl } from './githubIssue.js';
 import { externalLinkArrow } from './icons.js';
 import { renderSocialMeta } from './socialMeta.js';
 
@@ -51,7 +52,7 @@ export function renderLayout({ title, content, relativeRoot = '.', legacyRedirec
       <h2>Music Thing Modular</h2>
       <div class="footer-grid">
         <p>Tom Whitwell<br><a href="mailto:tom@musicthing.co.uk">tom@musicthing.co.uk</a><br><a href="https://www.musicthing.co.uk/about/">About Music Thing Modular</a></p>
-        <p><a href="${repoUrl}">GitHub</a><br><a href="https://www.instagram.com/musicthingmodular/">Instagram</a><br><a href="https://workshopsystem.substack.com/">Newsletter</a></p>
+        <p><a href="${repoUrl}">GitHub</a><br><a href="${websiteFeedbackUrl()}">Website feedback</a><br><a href="https://www.instagram.com/musicthingmodular/">Instagram</a><br><a href="https://workshopsystem.substack.com/">Newsletter</a></p>
         <p>Open source electronic musical instruments. Designed in London, made in Brighton, built and used by musicians around the world.</p>
       </div>
     </div>

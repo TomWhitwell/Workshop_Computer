@@ -10,6 +10,7 @@
     "validate-info": "node ./src/validate/cli.js",
     "check-curation": "node ./src/curation/cli.js check",
     "sync-curation": "node ./src/curation/cli.js sync",
+    "sync-card-labels": "node ./src/github/syncCardLabels.js",
     "setup-panel-renderer": "playwright install --with-deps chromium",
     "test": "npm run build && node --test"
   },

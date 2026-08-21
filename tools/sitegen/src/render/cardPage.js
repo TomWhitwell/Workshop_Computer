@@ -9,6 +9,7 @@
 import { panelPositions } from './panelPositions.js';
 import { renderMarkdownBlock, renderMarkdownInline, sanitizeAuthoredHtml } from '../utils/markdown.js';
 import { instagramEmbedHtml } from '../utils/instagram.js';
+import { cardFeedbackHostLabel, cardFeedbackUrl } from './githubIssue.js';
 import { externalLinkArrow } from './icons.js';
 
 const DEFAULT_DISCUSSION = 'https://discord.com/channels/1210238368898879569/1484219323039092938';
@@ -417,6 +418,8 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
   const hasPanel = !basic && hasPanelDefinition(card);
   const panelRail = hasPanel ? renderPanelRail(card, panelImg) : '';
   const discussionUrl = metadata.discussion_url || DEFAULT_DISCUSSION;
+  const feedbackUrl = cardFeedbackUrl(card);
+  const feedbackHost = cardFeedbackHostLabel(card);
   const firstVideo = Array.isArray(card.videos) && card.videos[0];
   const sourceLinkUrl = metadata.repository || sourceUrl;
   const sourceLinkLabel = metadata.repository ? 'Upstream repository' : 'Release folder in the Workshop Computer repo';
@@ -468,7 +471,7 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
       ${basic || !memoryMarkup ? '' : `<div class="program-card-hero__meta">${memoryMarkup}</div>`}
       <div class="program-card-actions" aria-label="Card actions">${downloadActions}${editorAction}</div>
       <div class="program-card-sha" data-sha-display role="status" aria-live="polite" hidden>SHA256: <code class="program-card-sha__value" data-sha-value></code> <button type="button" class="program-card-sha__verify" data-verify-open>How to verify</button></div>
-      <div class="program-card-hero__links" aria-label="Further card links">${documentation ? `<a href="#card-documentation">Read more</a>` : ''}<a href="${esc(discussionUrl)}">Support &amp; questions</a><button id="connectToggle" class="connect-toggle" type="button" role="switch" aria-checked="false" aria-label="Connect to RP2040 via WebUSB" title="Reboot computer into programming mode before connecting"><span class="c-status" aria-hidden="true"></span><span class="c-label">Connect workshop computer</span></button></div>
+      <div class="program-card-hero__links" aria-label="Further card links">${documentation ? `<a href="#card-documentation">Read more</a>` : ''}<a href="${esc(discussionUrl)}">Support &amp; questions</a><a href="${esc(feedbackUrl)}">Send feedback</a><button id="connectToggle" class="connect-toggle" type="button" role="switch" aria-checked="false" aria-label="Connect to RP2040 via WebUSB" title="Reboot computer into programming mode before connecting"><span class="c-status" aria-hidden="true"></span><span class="c-label">Connect workshop computer</span></button></div>
     </div>
   </header>`;
 
@@ -502,6 +505,7 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
       ${readmeUrl ? `<div><dt>Read more</dt><dd><a href="${esc(readmeUrl)}">README in the Workshop Computer repo</a></dd></div>` : ''}
       ${sourceLinkUrl ? `<div><dt>Source</dt><dd><a href="${esc(sourceLinkUrl)}">${sourceLinkLabel}</a></dd></div>` : ''}
       <div><dt>Support</dt><dd><a href="${esc(discussionUrl)}">Ask questions, contact the designer, or share feedback</a></dd></div>
+      <div><dt>Feedback</dt><dd><a href="${esc(feedbackUrl)}">Report an issue on ${esc(feedbackHost)}</a></dd></div>
     </dl></details>
     ${notesMarkup}
     ${dataSources}
