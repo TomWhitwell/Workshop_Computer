@@ -1,8 +1,9 @@
 name: Build and Deploy GitHub Pages 
 
 on:
-  push:
-    branches: [ "main" ]
+  workflow_run:
+    workflows: ["Synchronize repository metadata"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -16,13 +17,8 @@ concurrency:
 
 jobs:
   build:
-    if: github.event.repository.fork != true || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event.repository.fork != true && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-      issues: write
     env:
       # Fork previews retain their own github.io project URL. The upstream
       # production build emits canonical web-editor links on the custom domain.
@@ -49,13 +45,6 @@ jobs:
       - name: Build and test site
         run: |
           npm test --prefix tools/sitegen
-
-      - name: Synchronize program-card issue labels
-        if: github.repository == 'TomWhitwell/Workshop_Computer'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: npm run sync-card-labels --prefix tools/sitegen
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
