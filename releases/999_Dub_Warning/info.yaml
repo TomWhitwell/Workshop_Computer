@@ -1,0 +1,125 @@
+draft: false
+Name: Dub Warning
+short-description: Playable dub warning siren with PT2399-style delay.
+summary: |
+  A small, immediate dub warning siren for the Workshop Computer. Main sets the base
+  pitch, X drives the sweep, CV In 2 colors the oscillator, and Y opens up the
+  PT2399-style delay. Use Z Down for a compact Wheel Up one-shot gesture,
+  Pulse In 1 for a gated siren, or Pulse In 2 for reset plucks and fast-trigger
+  textures. Audio In 2 can override the Main pitch knob when patched.
+Language: C++ (Pico SDK)
+Creator: Adrian Vos
+Version: "0.1.0-beta"
+Status: Beta - stable in single-developer testing
+License: MIT
+date-created: 2026-08-21
+date-updated: 2026-08-22
+contact: {}
+
+tags:
+  - synthesizer
+  - effect
+  - drone
+  - trigger
+
+uf2:
+  - path: UF2/DubWarning.uf2
+    name: Dub Warning PT2399 Beta
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Pitch Mod
+      description: Audio-rate or CV pitch modulation mixed with CV In 1
+      type: audio
+    - id: AudioIn2
+      name: Main CV
+      description: Overrides the Main pitch knob when patched
+      type: audio
+    - id: CVIn1
+      name: Pitch CV
+      description: Adds to the base siren pitch
+      type: cv
+    - id: CVIn2
+      name: Color CV
+      description: Modulates siren wave color and drive
+      type: cv
+    - id: PulseIn1
+      name: Fire
+      description: Rising edge fires the normal gated siren envelope
+      type: pulse
+    - id: PulseIn2
+      name: Reset Pluck
+      description: Rising edge resets oscillator/LFO phase and fires a short pluck; fast triggers create useful textures
+      type: pulse
+  outputs:
+    - id: AudioOut1
+      name: Warning Mix
+      description: Main warning siren output through the wet/dry effect mix
+      type: audio
+    - id: AudioOut2
+      name: Direct + Echo
+      description: Alternate direct-plus-echo output
+      type: audio
+    - id: CVOut1
+      name: LFO
+      description: Internal siren sweep LFO
+      type: cv
+    - id: CVOut2
+      name: Envelope
+      description: Gate and hit envelope for patching other modules
+      type: cv
+    - id: PulseOut1
+      name: Active Gate
+      description: High while the siren envelope or Wheel Up gesture is active
+      type: pulse
+    - id: PulseOut2
+      name: Hit
+      description: Short pulse on trigger, reset, or Wheel Up
+      type: pulse
+
+controls:
+  switch:
+    up:
+      name: Continuous
+      description: Free-running siren
+    middle:
+      name: Gated
+      description: Triggered siren that fades after Pulse In 1
+    down:
+      name: Wheel Up / Reset
+      description: Tap to fire the Wheel Up one-shot and reset phase
+    tap:
+      name: Wheel Up
+      description: Briefly tap Down to fire the Wheel Up gesture from the panel
+  knobs:
+    - main:
+        name: Pitch
+        description: Base siren pitch, defeated by Audio In 2 when patched
+      x:
+        name: Sweep
+        description: Sweep rate and pitch bend depth
+      y:
+        name: Effect
+        description: Raises delay time, modulation, repeats, dirt, and wet level
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Gate
+          description: Brightness follows siren level
+        - id: LED1
+          name: Pitch
+          description: Shows active Main pitch source, either the Main knob or Audio In 2
+        - id: LED2
+          name: Sweep
+          description: Shows X knob position
+        - id: LED3
+          name: Effect
+          description: Shows Y knob position
+        - id: LED4
+          name: LFO
+          description: Follows the internal sweep LFO
+        - id: LED5
+          name: Hit / Echo
+          description: Flashes on trigger, then follows echo return level
