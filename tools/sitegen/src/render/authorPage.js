@@ -2,8 +2,9 @@
 
 import { applyContentSecurityPolicy, CSP_PLACEHOLDER } from './csp.js';
 import { externalLinkArrow } from './icons.js';
+import { renderSocialMeta } from './socialMeta.js';
 
-export function renderAuthorPage({ documentKind = 'new', suggestions = {} } = {}) {
+export function renderAuthorPage({ documentKind = 'new', suggestions = {}, social } = {}) {
   const existing = documentKind === 'existing';
   const baseHref = existing ? './' : '../';
   const escape = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -16,6 +17,7 @@ export function renderAuthorPage({ documentKind = 'new', suggestions = {} } = {}
   <meta http-equiv="Content-Security-Policy" content="${CSP_PLACEHOLDER}">
   <base href="${baseHref}">
   <title>Author page – Workshop Computer</title>
+  ${renderSocialMeta({ title: 'Author page – Workshop Computer', ...social })}
   <link rel="icon" type="image/png" href="../assets/favicon/favicon.png">
   <link rel="stylesheet" href="../assets/style.css">
   <link rel="stylesheet" href="../assets/program-cards.css">

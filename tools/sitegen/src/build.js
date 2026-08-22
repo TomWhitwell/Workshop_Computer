@@ -5,7 +5,7 @@ import { build as esbuild } from 'esbuild';
 import { makeRawUrl as makeRawUrlExternal } from './links.js';
 import { renderLayout } from './render/layout.js';
 import { discoverRelease as discoverReleaseMod } from './discover/release.js';
-import { githubPagesBase, copyWebAssets } from './discover/webEditor.js';
+import { resolveSiteBase, copyWebAssets } from './discover/webEditor.js';
 import { getInfoYamlSchemaAdapter } from './schema/schemaAdapter.js';
 import { infoYamlJsonSchema } from './schema/infoYamlJsonSchema.js';
 import { renderCardArticle, renderReadmeAndDocs } from './render/cardPage.js';
@@ -17,6 +17,12 @@ import { parseSource } from './validate/parseSource.js';
 import { validateInfoYaml } from './validate/validateInfoYaml.js';
 import { renderAuthorPage } from './render/authorPage.js';
 import { buildFirmwareFingerprints } from './firmware/fingerprints.js';
+import {
+  DEFAULT_OG_DESCRIPTION,
+  DEFAULT_OG_IMAGE_PATH,
+  absoluteSiteUrl,
+} from './render/socialMeta.js';
+import { ogImageOptionsForCard, ogImageOptionsForSite, writeOgPng } from './render/ogImage.js';
 
 // ========== Path & Globals ==========
 const __filename = fileURLToPath(import.meta.url);
@@ -38,16 +44,11 @@ const DEFAULT_BRANCH = 'main';
 // available for an explicit preview override.
 const REPO = process.env.SITE_REPOSITORY || process.env.GITHUB_REPOSITORY || DEFAULT_REPO;
 const BRANCH = process.env.SITE_REF || process.env.GITHUB_SHA || process.env.GITHUB_REF_NAME || DEFAULT_BRANCH;
-const SITE_BASE = (() => {
-  const configured = String(process.env.SITE_BASE_URL || '').trim();
-  if (!configured) return githubPagesBase(REPO);
-  const url = new URL(configured);
-  if (!/^https?:$/.test(url.protocol)) throw new Error('SITE_BASE_URL must be an HTTP(S) URL.');
-  url.search = '';
-  url.hash = '';
-  if (!url.pathname.endsWith('/')) url.pathname += '/';
-  return url.href;
-})();
+const SITE_BASE = resolveSiteBase({
+  configured: process.env.SITE_BASE_URL,
+  preview: process.argv.includes('--preview'),
+  repoSlug: REPO,
+});
 const schemaAdapter = getInfoYamlSchemaAdapter();
 
 
@@ -66,12 +67,23 @@ function escapeAttr(s) {
   return String(s ?? '').replaceAll('"', '&quot;');
 }
 
+function pageSocial(relativePath, { title, description, imagePath = DEFAULT_OG_IMAGE_PATH, imageAlt } = {}) {
+  return {
+    title,
+    description: description || DEFAULT_OG_DESCRIPTION,
+    url: absoluteSiteUrl(SITE_BASE, relativePath),
+    image: absoluteSiteUrl(SITE_BASE, imagePath),
+    imageAlt: imageAlt || title,
+  };
+}
+
 function detailPage(rel) {
   const { docs, readmeHtml, card } = rel;
   const uf2Url = rel.latestUf2?.url || '';
   const yamlUrl = card?.source_file
     ? `https://github.com/${REPO}/blob/${BRANCH}/${card.source_file}`
     : `https://github.com/${REPO}`;
+  const title = `${card.title} – Workshop Computer`;
 
   const article = renderCardArticle({
     card,
@@ -85,9 +97,15 @@ function detailPage(rel) {
   });
 
   return renderLayout({
-    title: `${card.title} – Workshop Computer`,
+    title,
     relativeRoot: '../..',
     repoUrl: `https://github.com/${REPO}`,
+    social: pageSocial(`programs/${rel.slug}/`, {
+      title,
+      description: String(card.short_description || '').trim() || DEFAULT_OG_DESCRIPTION,
+      imagePath: `programs/${rel.slug}/og.png`,
+      imageAlt: `${card.title} program card`,
+    }),
     content: `
 <nav class="program-card-top-nav" aria-label="Card navigation">
   <a href="../../index.html">← BACK TO PROGRAM CARDS</a>
@@ -170,6 +188,7 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
     for (const f of await fs.readdir(panelSrcDir)) {
       await fs.copyFile(path.join(panelSrcDir, f), path.join(panelDestDir, f));
     }
+    await writeOgPng(path.join(OUT_DIR, 'assets', 'og', 'default.png'), ogImageOptionsForSite());
   }
 
   // Copy JS assets (picoboot / uf2 libs for WebUSB programmer)
@@ -328,7 +347,8 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
     title: 'Workshop Computer Program Cards',
     relativeRoot: '.',
     showProgramIdentity: true,
-  repoUrl: `https://github.com/${REPO}`,
+    repoUrl: `https://github.com/${REPO}`,
+    social: pageSocial('', { title: 'Workshop Computer Program Cards' }),
     content: `
 ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/', linkText: `Browse all ${normalizedCards.length} cards`, linkId: 'all-cards-toggle' })}
 <div class="program-cards program-cards--index">
@@ -351,6 +371,10 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
     title: 'Finding a random card – Workshop Computer',
     relativeRoot: '..',
     repoUrl: `https://github.com/${REPO}`,
+    social: pageSocial('random/', {
+      title: 'Finding a random card – Workshop Computer',
+      description: 'Choosing a random Workshop Computer program card.',
+    }),
     content: `
 <section class="program-card-random" aria-live="polite">
   <span class="program-card-random__spinner" aria-hidden="true"></span>
@@ -374,6 +398,10 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
     title: 'All cards – Workshop Computer',
     relativeRoot: '..',
     repoUrl: `https://github.com/${REPO}`,
+    social: pageSocial('archive/', {
+      title: 'All cards – Workshop Computer',
+      description: 'Browse all Workshop Computer program cards.',
+    }),
     content: `
 <div class="program-cards program-cards--archive">
   <header class="program-cards__title">
@@ -425,6 +453,7 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
     await ensureDir(base);
     const html = detailPage(rel);
     await writeFileEnsured(path.join(base, 'index.html'), html);
+    await writeOgPng(path.join(base, 'og.png'), ogImageOptionsForCard(rel.card));
 
     if (!incrementalCuration && rel.web?.copySrc) {
       const webDest = path.join(base, rel.web.siteSubdir || 'web');
@@ -439,7 +468,8 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
     // GitHub Pages preserves the missing URL when it serves 404.html. Load the
     // redirect helper from the custom-domain root regardless of path depth.
     legacyRedirectRoot: '',
-  repoUrl: `https://github.com/${REPO}`,
+    repoUrl: `https://github.com/${REPO}`,
+    social: pageSocial('404.html', { title: 'Not found', description: 'Page not found.' }),
     content: '<h1>404</h1><p>Page not found.</p>'
   }));
 
@@ -593,8 +623,20 @@ async function buildPreviewTool(suggestions = {}) {
 /** Refresh only the suggestion-bearing author pages, leaving vendor bundles intact. */
 async function buildPreviewPages(suggestions = {}) {
   const previewDir = path.join(OUT_DIR, 'preview');
-  await writeFileEnsured(path.join(previewDir, 'index.html'), renderAuthorPage({ documentKind: 'existing', suggestions }));
-  await writeFileEnsured(path.join(previewDir, 'new', 'index.html'), renderAuthorPage({ documentKind: 'new', suggestions }));
+  const authorSocial = (relativePath, description) => pageSocial(relativePath, {
+    title: 'Author page – Workshop Computer',
+    description,
+  });
+  await writeFileEnsured(path.join(previewDir, 'index.html'), renderAuthorPage({
+    documentKind: 'existing',
+    suggestions,
+    social: authorSocial('preview/', 'Inspect and edit program card metadata.'),
+  }));
+  await writeFileEnsured(path.join(previewDir, 'new', 'index.html'), renderAuthorPage({
+    documentKind: 'new',
+    suggestions,
+    social: authorSocial('preview/new/', 'Create a program card page visually, then download the generated info.yaml.'),
+  }));
 }
 
 /** Build the self-contained flair editor under site/documentation/. */

@@ -234,11 +234,35 @@ void __not_in_flash_func(WebUI::Task)()
 		tud_task();
 	}
 
-	// Same deal for a pattern dump: 2KB of events against a 256-byte FIFO, so
-	// one chunk per pass with a real tud_task() behind it.
-	if (patSending_)
+	// Same deal for a pattern dump, but SEVERAL chunks per pass rather than
+	// one.
+	//
+	// One-per-pass needs 98 passes for a full slot, and on a busy patch core 0
+	// is overrunning its budget so core 1 gets noticeably less time — the dump
+	// took long enough that the browser gave up with "card did not respond"
+	// for a card that was answering correctly, just slowly.
+	//
+	// Six chunks is 180 bytes against a 256-byte TX FIFO, so it still cannot
+	// overflow (the constraint that made this one-at-a-time in the first
+	// place), and it cuts a full slot to 17 passes.
+	// DRAIN THE WHOLE DUMP HERE, pumping USB between bursts, rather than
+	// leaving one burst per Task() pass.
+	//
+	// One-per-pass could not finish on a busy patch. Core 0 overruns its
+	// budget there, so its DMA interrupt is running almost continuously and
+	// core 1 gets very few passes — the browser timed out with "card did not
+	// respond" while the card was answering correctly, just far too slowly.
+	// The failure therefore appeared only on exactly the patterns most worth
+	// saving.
+	//
+	// Six chunks is 180 bytes against a 256-byte TX FIFO so it cannot
+	// overflow, and tud_task() between bursts puts them on the wire. This is
+	// safe HERE and nowhere else: the packet loop above has finished, so there
+	// is no rx_ state for a nested tud_task() to corrupt — the trap that
+	// MSG_LIBRARY fell into. See Send()'s comment.
+	while (patSending_)
 	{
-		SendNextPatternChunk();
+		for (int i = 0; i < 6 && patSending_; i++) SendNextPatternChunk();
 		txPending_ = false;
 		tud_task();
 	}
@@ -845,6 +869,30 @@ void __not_in_flash_func(WebUI::HandleSysex)(const uint8_t *msg, uint32_t len)
 		watchdog_reboot(0, 0, 0);
 		break;
 
+	case MSG_LOOP_GET:
+	{
+		// Current length plus the legal range, so the browser builds its
+		// control from what the CARD allows rather than from constants baked
+		// into the page that could drift out of step with the firmware.
+		uint8_t d[4] = { MSG_LOOP,
+		                 static_cast<uint8_t>(WebGetLoopBeats() & 0x7F),
+		                 kLoopBeatsMin, kLoopBeatsMax };
+		Send(d, 4);
+		break;
+	}
+
+	case MSG_LOOP_SET:
+	{
+		// RAM only, like MSG_SET_SOURCE: a playback setting, no flash, no
+		// reboot, audible on the next wrap. The card clamps rather than
+		// refusing, so a page built against a different range cannot put the
+		// looper into a length it cannot play.
+		if (n < 2) { SendErr(ERR_PROTOCOL); break; }
+		WebSetLoopBeats(p[1]);
+		SendAck(18, static_cast<uint32_t>(WebGetLoopBeats()));
+		break;
+	}
+
 	case MSG_PAT_GET:
 	{
 		// Dump one pattern slot to the browser: payload [slot].
@@ -865,6 +913,18 @@ void __not_in_flash_func(WebUI::HandleSysex)(const uint8_t *msg, uint32_t len)
 			SendErr(ERR_BAD_SLOT);
 			break;
 		}
+
+		// CANCEL any dump still draining before starting this one.
+		//
+		// Without this, a request that arrives while an earlier burst is still
+		// being drip-fed leaves the old chunks queued AHEAD of this one's
+		// header — so the browser's first waitAck() gets a data chunk from the
+		// previous slot and reports "unexpected reply f0 7d 41 00 01 ...":
+		// MSG_PAT_DATA, slot 0, more=1, when it asked for slot 1 and expected
+		// more=0x7F. drainRx() on the page cannot fix that, because the stale
+		// chunks are generated AFTER it runs.
+		patSending_ = false;
+		libSending_ = false;   // same hazard, same shared reply path
 
 		patSlot_       = slot;
 		patKnobCount_  = knobCount;

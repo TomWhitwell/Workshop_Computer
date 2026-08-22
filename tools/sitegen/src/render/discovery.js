@@ -65,6 +65,30 @@ function cardNumber(card) {
   return Number.isNaN(number) ? raw : String(number).padStart(2, '0');
 }
 
+/** Newest of date-updated / date-created, ignoring missing and inferred-empty values. */
+function recencyDate(card) {
+  const metadata = card.metadata || {};
+  for (const value of [metadata.updated, metadata.created]) {
+    if (value && value !== 'n/a') return value;
+  }
+  return '';
+}
+
+/**
+ * Flair-driven shelves show the most recently created or updated cards first.
+ * Missing dates sort last; same-day ties use numeric card id descending.
+ */
+export function orderFlairShelfCards(matches, limit = 999) {
+  return [...matches].sort((a, b) => {
+    const aDate = recencyDate(a);
+    const bDate = recencyDate(b);
+    if (aDate && !bDate) return -1;
+    if (!aDate && bDate) return 1;
+    if (aDate !== bDate) return bDate.localeCompare(aDate);
+    return String(b.id).localeCompare(String(a.id), undefined, { numeric: true });
+  }).slice(0, limit);
+}
+
 function renderFlairBadges(flair, hideFlairs = [], root = '.') {
   const hidden = new Set((hideFlairs || []).map(t => curation.slugify(t)));
   const badges = (flair || [])
@@ -140,14 +164,12 @@ function shelfCards(shelf, cardsById) {
   }
   if (Array.isArray(shelf.cards_from_flairs)) {
     const wanted = shelf.cards_from_flairs.map(t => curation.slugify(t));
-    const limit = shelf.limit || 999;
-    const list = [];
+    const matches = [];
     for (const card of cardsById.values()) {
       const flairIds = resolveFlair(card.id).map(f => f.id);
-      if (flairIds.some(id => wanted.includes(id))) list.push(card);
-      if (list.length >= limit) break;
+      if (flairIds.some(id => wanted.includes(id))) matches.push(card);
     }
-    return list;
+    return orderFlairShelfCards(matches, shelf.limit || 999);
   }
   return [];
 }

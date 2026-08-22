@@ -5,12 +5,33 @@ import { normalizeYamlKey } from '../utils/strings.js';
 const SKIP_DIRS = new Set(['node_modules', '.git', '.github']);
 const SKIP_FILES = new Set(['package-lock.json', 'tsconfig.json', 'vite.config.ts', 'vite.config.js']);
 const LOCAL_EDITOR_DIRS = new Set(['web', 'dist']);
+const LOCAL_PREVIEW_BASE = 'http://localhost:5173/';
 
 /** GitHub Pages base URL for a user/org project site. */
 export function githubPagesBase(repoSlug) {
   const [owner, name] = String(repoSlug || '').split('/');
   if (!owner || !name) return 'https://tomwhitwell.github.io/Workshop_Computer/';
   return `https://${owner.toLowerCase()}.github.io/${name}/`;
+}
+
+/**
+ * Public site origin used for copied (local) web-editor links.
+ * Preview builds (`npm run dev`) pin those links to the Vite origin so they
+ * stay on localhost instead of the production Pages URL. SITE_BASE_URL still
+ * wins when set, including during a preview build.
+ */
+export function resolveSiteBase({ configured = '', preview = false, repoSlug = '' } = {}) {
+  const value = String(configured || '').trim();
+  if (value) {
+    const url = new URL(value);
+    if (!/^https?:$/.test(url.protocol)) throw new Error('SITE_BASE_URL must be an HTTP(S) URL.');
+    url.search = '';
+    url.hash = '';
+    if (!url.pathname.endsWith('/')) url.pathname += '/';
+    return url.href;
+  }
+  if (preview) return LOCAL_PREVIEW_BASE;
+  return githubPagesBase(repoSlug);
 }
 
 function normalizeRelFolder(loc) {

@@ -1,4 +1,4 @@
-name: Synchronize site curation
+name: Synchronize repository metadata
 
 on:
   push:
@@ -7,14 +7,15 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: sync-site-curation
+  group: sync-repository-metadata
   cancel-in-progress: true
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
-  sync-curation:
+  sync-metadata:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -46,3 +47,10 @@ jobs:
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Synchronize program-card issue labels
+        if: github.repository == 'TomWhitwell/Workshop_Computer'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: npm run sync-card-labels

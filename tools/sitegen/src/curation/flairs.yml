@@ -129,8 +129,7 @@ assignments:
     - start-here
     - instant-win
   "28_eighties_bass": []
-  "29_XHT":
-    - new
+  "29_XHT": []
   "30_cirpy_wavetable": []
   "31_esp":
     - useful
@@ -166,8 +165,7 @@ assignments:
     - classic
     - deep
   "51_grains": []
-  "52_F1shnet":
-    - new
+  "52_F1shnet": []
   "53_glitter": []
   "54_Tapegrade":
     - start-here
@@ -184,15 +182,12 @@ assignments:
   "62_BioMimicry":
     - new
     - toms-pick
-  "63_Nibble":
-    - new
+  "63_Nibble": []
   "64_voices_of_sid": []
   "66_stretchcore":
     - classic
     - wild
-    - new
-  "67_Fragments":
-    - new
+  "67_Fragments": []
   "69_trace":
     - magic
   "71_degenerator": []
@@ -203,7 +198,11 @@ assignments:
   "74_Wild_Pebble": []
   "75_Turing_Clouds": []
   "76_hot_fuzz": []
+  "77_PunkConfusion":
+    - new
   "78_Talker": []
+  "79_Slag":
+    - new
   "81_West_Coast_LPG": []
   "82_Computer_Grids": []
   "83_Origami": []
@@ -211,6 +210,7 @@ assignments:
     - deep
   "85_plant_holder":
     - new
+    - useful
   "86_tesserae": []
   "87_fr330hfr33": []
   "88_Blank":
@@ -222,28 +222,28 @@ assignments:
     - instant-win
   "93_Turing_Matrix": []
   "94_Ouroboros": []
-  "95_offair2": []
+  "95_offair2":
+    - wild
   "96_cathode":
     - magic
   "97_alloy": []
   "98_duo_midi": []
   "99_toolbox": []
-  "101_Gnarly_C1ZZL3": []
+  "101_Gnarly_C1ZZL3":
+    - wild
+  "102_Nibble-KO":
+    - new
   "303_acid":
     - new
   "355_RYK_Pitch-Vocoder": []
-  "433_sense_of_space":
-    - magic
+  "433_sense_of_space": []
   "666_ws_doom":
     - toms-pick
     - new
+    - magic
   "877_RYK_Tape-Sampler":
     - magic
   "910_RYK_Pitched-Delay":
     - classic
-  # Punk Confusion
-  77_PunkConfusion: []
-  # Slag
-  79_Slag: []
-  # NIBBLE-KO
-  102_Nibble-KO: []
+  # Dub Warning
+  999_Dub_Warning: []

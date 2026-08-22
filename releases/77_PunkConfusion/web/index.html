@@ -54,6 +54,23 @@
       </label>
     </section>
 
+    <section class="folder-import">
+      <div>
+        <h2>Browse a folder of WAVs</h2>
+        <p>
+          Choose a folder, drop a folder, or drop several WAV files. Audition
+          the detected sounds, then pick four for the card.
+        </p>
+      </div>
+      <label class="drop" id="folderDrop">
+        <input id="folderFile" type="file" accept=".wav,audio/wav,audio/x-wav" multiple webkitdirectory>
+        <span>Choose or drop WAV folder</span>
+      </label>
+      <div class="detected-files" id="detectedFiles" aria-live="polite">
+        <p>No WAV folder loaded yet.</p>
+      </div>
+    </section>
+
     <section class="slots" id="slots"></section>
 
     <section class="panel">
@@ -97,6 +114,17 @@
       </label>
       <p class="info">Empty</p>
       <audio controls></audio>
+    </article>
+  </template>
+
+  <template id="detectedFileTemplate">
+    <article class="detected-file">
+      <div>
+        <strong></strong>
+        <span></span>
+      </div>
+      <audio controls></audio>
+      <div class="assignments"></div>
     </article>
   </template>
 

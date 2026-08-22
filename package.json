@@ -8,6 +8,7 @@
     "validate-info": "npm --prefix tools/sitegen run validate-info",
     "check-curation": "npm --prefix tools/sitegen run check-curation",
     "sync-curation": "npm --prefix tools/sitegen run sync-curation",
+    "sync-card-labels": "npm --prefix tools/sitegen run sync-card-labels",
     "setup-panel-renderer": "npm --prefix tools/sitegen run setup-panel-renderer",
     "hooks:install": "node tools/sitegen/src/validate/installHooks.js",
     "validate-staged": "node tools/sitegen/src/validate/validateStaged.js",

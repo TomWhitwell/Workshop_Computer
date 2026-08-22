@@ -3,13 +3,13 @@ Name: NIBBLE-KO
 short-description: A 12-voice synth/sample percussion looper for the Four Voltages module, with a browser sample manager
 Language: C++ (ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: "1.1.0"
+Version: "1.2.0"
 Status: Released
 License: CC-BY-4.0
 repository: https://github.com/uglifruit/Nibble-KO
 Editor: web
 date-created: 2026-08-09
-date-updated: 2026-08-17
+date-updated: 2026-08-19
 
 # The browser setup tool's visual design follows Johan Eklund's Resonator
 # (https://johaneklund.io/resonator/), and its USB connection/upload logic is
@@ -22,7 +22,7 @@ contact:
 
 uf2:
   - path: UF2/nibbleko.uf2
-    name: NIBBLE-KO 1.1.0
+    name: NIBBLE-KO 1.2.0
 
 tags:
   - drums
@@ -83,17 +83,20 @@ summary: |
   following the live quantise grid. Patch either back into Pulse In 2 and the
   card glitches itself.<br><br>
 
-  1.1.0. Drums, the four-bar looper, mute groups, the twelve effects, pattern
-  slots, sample playback, the browser sample manager, flash-saved calibration
-  and the CV expansion above are all played and working on hardware. New in
-  this release: patterns can be SAVED TO YOUR COMPUTER and loaded back from
-  the browser tool, as plain JSON files - the card keeps its three slots in
-  RAM, so the file on disk is the permanent copy. A pattern stores voice
-  numbers rather than sounds, so one saved against any kit plays against any
-  other. The loop also keeps playing while the browser tool is connected, so
-  a voice can be re-pointed at a new sound and judged by ear against the
-  pattern it has to sit in. Loop length is still fixed at four bars, and a
-  WebUI setting for it is the roadmap for the next release. See the
+  1.2.0. Drums, the looper, mute groups, the twelve effects, pattern slots,
+  sample playback, the browser sample manager, flash-saved calibration and the
+  CV expansion above are all played and working on hardware. Patterns can be
+  SAVED TO YOUR COMPUTER and loaded back from the browser tool, as plain JSON
+  files - the card keeps its three slots in RAM, so the file on disk is the
+  permanent copy. A pattern stores voice numbers rather than sounds, so one
+  saved against any kit plays against any other. New in this release: the LOOP
+  LENGTH is settable from 4 to 16 beats, so odd time signatures are playable -
+  the click is unstressed and nothing marks beat one, so fourteen beats is 7/4
+  twice, or 5/4 + 2/4 + 3/4 + 4/4, or whatever you hear in it. Shortening is
+  non-destructive: the card always records the full sixteen beats, so putting
+  the length back brings the hidden hits with it. The loop also keeps playing
+  while the browser tool is connected, so a voice can be re-pointed at a new
+  sound and judged by ear against the pattern it has to sit in. See the
   repository's README for the fuller detail.
 
 panel:

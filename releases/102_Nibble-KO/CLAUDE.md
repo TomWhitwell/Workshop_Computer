@@ -11,10 +11,10 @@ where every voice is independently synthesised or sample-based, chosen and
 uploaded from a browser WebUI — the sample-management pattern from
 `../WorkshopBio`.
 
-## Current status: RELEASED, v1.0.1
+## Current status: RELEASED, v1.2.0
 
-Builds to `build/nibbleko.uf2` — **7.6% flash, 84.7% RAM**. Everything
-except pattern persistence is played and confirmed on a Workshop Computer:
+Builds to `build/nibbleko.uf2` — **7.78% flash, 87.64% RAM**. Everything is
+played and confirmed on a Workshop Computer:
 drums, the four-bar looper with lossless overdub, three mute groups, twelve
 performance effects with two-lane recording, three pattern slots, sample
 playback, the browser sample manager (connect, assign, upload, rename,
@@ -39,19 +39,26 @@ the change is audible immediately. Only RECORDING stops on entry. An UPLOAD
 still silences and parks the card, but through `EnterUploadMode()` /
 `core0Parked` — the real mechanism — rather than through the mode change.
 
-**Pattern slots are still RAM-only on the card, by design** — they die at
-power-off, and the browser is where they persist: the Patterns tab saves a
-slot to a JSON file on the PC and loads one back over SysEx
-(`MSG_PAT_GET`/`MSG_PAT_SET`). Built and verified in software, **not yet
-played on hardware**. Loop length is the remaining 1.1 item; see "What's NOT
-here" below.
+**Pattern slots are RAM-only on the card, by design** — they die at power-off,
+and the browser is where they persist: the Patterns tab saves a slot to a JSON
+file on the PC and loads one back over SysEx (`MSG_PAT_GET`/`MSG_PAT_SET`).
+Confirmed on hardware, including on dense patterns, which is where it first
+failed — the dump now drains in one `Task()` pass because core 1 gets very
+little time while core 0 is busy.
+
+Note that **a reboot clears the slots**, and every flash write reboots — so
+leaving the WebUI, saving the kit or uploading a sample all lose unsaved
+patterns. The Patterns tab says so; it is the one sharp edge in the feature.
+
+**Loop length is settable, 4-16 beats** (`MSG_LOOP_GET`/`MSG_LOOP_SET`),
+which is what makes odd metres playable. It is a PLAYBACK setting: events are
+always recorded against the full sixteen beats and only the wrap point moves,
+so shortening hides rather than erases. See `Looper::SetLoopBeats`.
 
 **Calibration is flash-persisted** (`calibstore.h`) — a normal boot loads the
 last saved levels and is playable within the splash; only an alt-boot (switch
 Down through the boot-settle window) forces a fresh learn, and a successful
-learn is saved automatically. **Patterns are still RAM only** and die at
-power-off. That plus the browser app is the bulk of what is left — see
-"What's NOT here".
+learn is saved automatically.
 
 ## Build
 
@@ -272,6 +279,37 @@ where `loopsim` stored raw knob values while `looper.cpp` stored `knob >> 4`
 — invisible until the FX lane packed data into all eight bits. **If you
 change `levels.cpp`, `looper.cpp` or `drums.cpp`, change the model too**, or
 delete it rather than let it lie.
+
+
+
+### The control tick has no divide instruction, and no flash either
+
+Two things bite anything added to `ControlTick()`/`PlayControl()`, both found
+by reading the disassembly rather than by timing:
+
+- **Cortex-M0+ has no divide.** Every `/` and `%` on a runtime value is a call
+  into `__aeabi_idiv`/`ldivmod` at 100+ cycles, and a 64-bit divide is worse.
+  `SamplesPerBeat()` is cached for exactly this reason (`RecacheTempo()` — any
+  new writer of `tickInc_` must call it), and `GlitchTick()` uses lookup
+  tables and reciprocal multiplies instead of the obvious arithmetic.
+- **`__not_in_flash_func` does not propagate to callees.** A RAM-resident
+  function calling a flash-resident one still stalls on XIP. The control-rate
+  path — `Looper::Advance/Fire/RecordHit/RecordKnobs`, `DrumKit::TriggerVoice`,
+  `LevelTracker::Match`, `FxRack::SetSlot` — is annotated for that reason.
+  Check the map, not the annotation on the entry point:
+
+```sh
+grep -oE "^[0-9a-f]{8} <_ZN3nko[^>]+>:" build/nibbleko.dis | sort
+```
+
+`0x2000…` is RAM, `0x1000…` is flash. What may stay in flash is genuinely
+cold: the WebUI, calibration setup, and one-shot gestures.
+
+A third trap is in the compiler rather than the chip: `RecordLane`'s scan
+reloaded `playHead_` and `loopTicks_` from memory on EVERY iteration, because
+nothing proved the loop left them alone. Hoisting them into locals turned the
+body into register work. If a hot loop reads members, check what it compiled
+to before assuming it is cheap.
 
 ### Units: loop ticks are not control ticks
 

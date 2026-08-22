@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderCardArticle, renderPanelArtwork, renderReadmeAndDocs } from '../src/render/cardPage.js';
-import { renderArchive, renderShelf, renderTile } from '../src/render/discovery.js';
+import { orderFlairShelfCards, renderArchive, renderShelf, renderTile } from '../src/render/discovery.js';
 import { renderLayout } from '../src/render/layout.js';
 import { renderAuthorPage } from '../src/render/authorPage.js';
+import { cardFeedbackUrl, websiteFeedbackUrl } from '../src/render/githubIssue.js';
 
 function card(extra = {}) {
   return {
@@ -240,6 +241,59 @@ test('discovery renderers escape searchable attributes and ignore absent shelf c
   assert.equal((shelf.match(/program-card-tile__link/g) || []).length, 1);
 });
 
+test('flair-driven shelves sort by recency then apply the limit', () => {
+  const olderNumberNewerDate = card({
+    id: '26_clockwork', slug: '26-clockwork', title: 'Clockwork',
+    metadata: { created: '2024-01-01', updated: '2026-08-01' },
+  });
+  const newerNumberOlderDate = card({
+    id: '85_plant_holder', slug: '85-plant-holder', title: 'Plant Holder',
+    metadata: { created: '2026-05-17', updated: '2026-05-17' },
+  });
+  const newestNumberOldestDate = card({
+    id: '90_Pantograph', slug: '90-pantograph', title: 'Pantograph',
+    metadata: { created: '2023-01-01', updated: '2023-06-01' },
+  });
+  const cardsById = new Map([
+    [olderNumberNewerDate.id, olderNumberNewerDate],
+    [newerNumberOlderDate.id, newerNumberOlderDate],
+    [newestNumberOldestDate.id, newestNumberOldestDate],
+  ]);
+  const html = renderShelf({
+    title: 'New',
+    cards_from_flairs: ['new'],
+    limit: 2,
+  }, cardsById);
+  const names = [...html.matchAll(/program-card-tile__name">([^<]+)/g)].map(match => match[1]);
+  assert.deepEqual(names, ['Clockwork', 'Plant Holder']);
+  assert.doesNotMatch(html, /Pantograph/);
+});
+
+test('explicit card shelves keep YAML list order', () => {
+  const first = card({ id: '90_Pantograph', slug: '90-pantograph', title: 'Pantograph', metadata: { updated: '2023-01-01' } });
+  const second = card({ id: '26_clockwork', slug: '26-clockwork', title: 'Clockwork', metadata: { updated: '2026-08-01' } });
+  const html = renderShelf(
+    { title: 'Picked', cards: [first.id, second.id] },
+    new Map([[first.id, first], [second.id, second]]),
+  );
+  const names = [...html.matchAll(/program-card-tile__name">([^<]+)/g)].map(match => match[1]);
+  assert.deepEqual(names, ['Pantograph', 'Clockwork']);
+});
+
+test('orderFlairShelfCards prefers updated dates and puts missing dates last', () => {
+  const recentUpdate = card({ id: '10_old', metadata: { created: '2020-01-01', updated: '2026-08-06' } });
+  const recentCreate = card({ id: '20_mid', metadata: { created: '2026-07-01' } });
+  const undated = card({ id: '99_none', metadata: { created: 'n/a', updated: 'n/a' } });
+  const sameDayHigh = card({ id: '85_plant_holder', metadata: { created: '2026-05-17', updated: '2026-05-17' } });
+  const sameDayLow = card({ id: '26_clockwork', metadata: { created: '2026-05-17', updated: '2026-05-17' } });
+
+  const ordered = orderFlairShelfCards(
+    [undated, sameDayLow, recentCreate, sameDayHigh, recentUpdate],
+    4,
+  ).map(item => item.id);
+  assert.deepEqual(ordered, ['10_old', '20_mid', '85_plant_holder', '26_clockwork']);
+});
+
 test('video shelf layouts show media on the intended cards', () => {
   const cards = [
     card({ id: '01_lead', slug: '01-lead', videos: [{ id: 'lead-video' }] }),
@@ -307,6 +361,42 @@ test('layout uses relative external runtime assets and CSP hashes only remaining
   assert.match(withInline, /script-src 'self' 'sha256-/);
 });
 
+test('layout emits escaped Open Graph and Twitter card tags', () => {
+  const html = renderLayout({
+    title: 'A "quoted" <card>',
+    content: '',
+    social: {
+      title: 'A "quoted" <card>',
+      description: 'Ampersands & quotes',
+      url: 'https://example.test/programs/safe-slug/',
+      image: 'https://example.test/programs/safe-slug/og.png',
+      imageAlt: 'A "quoted" <card> program card',
+    },
+  });
+  assert.match(html, /<meta name="description" content="Ampersands &amp; quotes"/);
+  assert.match(html, /property="og:title" content="A &quot;quoted&quot; &lt;card&gt;"/);
+  assert.match(html, /property="og:description" content="Ampersands &amp; quotes"/);
+  assert.match(html, /property="og:url" content="https:\/\/example\.test\/programs\/safe-slug\/"/);
+  assert.match(html, /property="og:image" content="https:\/\/example\.test\/programs\/safe-slug\/og\.png"/);
+  assert.match(html, /property="og:image:width" content="1200"/);
+  assert.match(html, /name="twitter:card" content="summary_large_image"/);
+  assert.match(html, /rel="canonical" href="https:\/\/example\.test\/programs\/safe-slug\/"/);
+  assert.match(html, /name="theme-color" content="#27743a"/);
+});
+
+test('author page emits sitewide share tags when a public URL is provided', () => {
+  const html = renderAuthorPage({
+    social: {
+      description: 'Inspect and edit program card metadata.',
+      url: 'https://example.test/preview/',
+      image: 'https://example.test/assets/og/default.png',
+    },
+  });
+  assert.match(html, /property="og:title" content="Author page – Workshop Computer"/);
+  assert.match(html, /property="og:image" content="https:\/\/example\.test\/assets\/og\/default\.png"/);
+  assert.match(html, /rel="canonical" href="https:\/\/example\.test\/preview\/"/);
+});
+
 test('author preview permits AJV schema compilation without weakening published pages', () => {
   const preview = renderAuthorPage();
   const previewPolicy = preview.match(/Content-Security-Policy" content="([^"]+)/)?.[1] || '';
@@ -342,4 +432,46 @@ test('basic author mode exposes live-preview web editor metadata', () => {
   assert.match(preview, /data-add-optional="Editor"/);
   assert.match(preview, /data-field="Editor"/);
   assert.match(preview, /data-field="web-entry"/);
+});
+
+test('layout footer links to the website feedback issue template', () => {
+  const html = renderLayout({ title: 'Safe', content: '<p>Content</p>' });
+  assert.match(html, /<a href="https:\/\/github\.com\/TomWhitwell\/Workshop_Computer\/issues\/new\?template=website_feedback\.yml">Website feedback<\/a>/);
+  assert.equal(
+    websiteFeedbackUrl(),
+    'https://github.com/TomWhitwell/Workshop_Computer/issues/new?template=website_feedback.yml',
+  );
+});
+
+test('card pages link to a prefilled program-card issue template', () => {
+  const blackbird = card({
+    id: '41_blackbird',
+    title: 'Blackbird',
+    slug: '41-blackbird',
+    release: '41 / 1.1',
+  });
+  const html = renderCardArticle({ card: blackbird, panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
+  const href = cardFeedbackUrl(blackbird).replace(/&/g, '&amp;');
+  const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  assert.match(href, /template=card_feedback\.yml/);
+  assert.match(href, /labels=41\+Blackbird/);
+  assert.match(href, /card=41\+Blackbird/);
+  assert.match(html, new RegExp(`href="${escaped}">Send feedback</a>`));
+  assert.match(html, new RegExp(`<dt>Feedback</dt><dd><a href="${escaped}">Report an issue on GitHub</a></dd>`));
+});
+
+test('offsite cards send feedback to the upstream forge, not this catalogue', () => {
+  const voices = card({
+    id: '64_voices_of_sid',
+    title: 'Voices of SID',
+    slug: '64-voices-of-sid',
+    metadata: { repository: 'https://codeberg.org/johantv/voices-of-sid' },
+  });
+  const html = renderCardArticle({ card: voices, panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
+  const href = cardFeedbackUrl(voices).replace(/&/g, '&amp;');
+  const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  assert.match(href, /codeberg\.org\/johantv\/voices-of-sid\/issues\/new/);
+  assert.doesNotMatch(html, /template=card_feedback\.yml/);
+  assert.match(html, new RegExp(`href="${escaped}">Send feedback</a>`));
+  assert.match(html, new RegExp(`<dt>Feedback</dt><dd><a href="${escaped}">Report an issue on Codeberg</a></dd>`));
 });

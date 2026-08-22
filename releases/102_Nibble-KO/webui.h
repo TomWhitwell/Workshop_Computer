@@ -60,14 +60,15 @@ enum : uint8_t {
 	MSG_SAVE_MAP    = 0x27,  // ui->fw: commit the slot map to flash, no reboot
 	MSG_NAME        = 0x28,  // ui->fw: name a library entry; payload entry+ASCII
 	MSG_DELETE      = 0x29,  // ui->fw: drop ONE library entry, commit, reboot
-	MSG_PROF_GET    = 0x30,  // ui->fw: send the timing peaks (profile builds)
-	MSG_PROF        = 0x31,  // fw->ui: peak cycles per bucket + overrun count
 	MSG_PAT_GET     = 0x40,  // ui->fw: dump a pattern slot; payload [slot].
 	                          // Replies with a burst of MSG_PAT_DATA.
 	MSG_PAT_DATA    = 0x41,  // fw->ui: one chunk of a pattern slot; see
 	                          // SendNextPatternChunk() for the framing.
 	MSG_PAT_SET     = 0x42,  // ui->fw: write a pattern slot. RAM only, like
 	                          // MSG_SET_SOURCE — no flash, no reboot.
+	MSG_LOOP_GET    = 0x43,  // ui->fw: ask the current loop length
+	MSG_LOOP_SET    = 0x44,  // ui->fw: set loop length; payload [beats]
+	MSG_LOOP        = 0x45,  // fw->ui: [beats, minBeats, maxBeats]
 };
 
 // Manufacturer ID 0x7D = "prototyping / private use". Same as the sibling cards.
@@ -103,9 +104,11 @@ enum : uint8_t {
 /// a second byte; add that at the END of MSG_INFO, never in the middle.
 enum : uint8_t {
 	kFeaturePatterns = 1u << 0,   ///< MSG_PAT_GET / MSG_PAT_DATA / MSG_PAT_SET
+	kFeatureLoopLen  = 1u << 1,   ///< MSG_LOOP_GET / MSG_LOOP_SET / MSG_LOOP
 };
 
-constexpr uint8_t kFeatureBits = kFeaturePatterns;
+constexpr uint8_t kFeatureBits =
+	kFeaturePatterns | kFeatureLoopLen;
 
 /// MSG_SET_SOURCE's "this slot is synthesised" sentinel, ON THE WIRE.
 ///
@@ -147,12 +150,25 @@ uint32_t Decode7bit(const uint8_t *src, uint32_t srcLen, uint8_t *dst, uint32_t 
 bool WebGetPattern(int slot, void *out, uint16_t *count, uint16_t *knobCount);
 bool WebSetPattern(int slot, const void *in, uint16_t count, uint16_t knobCount);
 
+/// Loop length in beats, a PLAYBACK setting — see Looper::SetLoopBeats.
+/// Also defined in main.cpp, and safe under the same argument as the pattern
+/// pair above.
+int  WebGetLoopBeats();
+void WebSetLoopBeats(int beats);
+
 /// How many events a slot can hold, and the wire size of one — so webui.cpp can
 /// size its buffers without including looper.h (which drags in drums.h and the
 /// whole audio engine for two numbers).
 constexpr uint32_t kPatMaxEvents  = 512;
 constexpr uint32_t kPatEventBytes = 4;
 constexpr uint8_t  kPatSlots      = 3;
+
+/// Loop-length range, mirroring looper.h's kMinBeatsPerLoop/kBeatsPerLoop for
+/// the same reason as the constants above: so webui.cpp does not include
+/// looper.h (and drums.h behind it) for two numbers. main.cpp static_asserts
+/// that they agree.
+constexpr uint8_t kLoopBeatsMin = 4;
+constexpr uint8_t kLoopBeatsMax = 16;
 
 /// USB-MIDI transport + upload state machine.
 ///

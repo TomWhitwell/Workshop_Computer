@@ -19,11 +19,14 @@ constexpr int32_t kSampleRate = 48000;
 constexpr int32_t kMaxAudio = 2047;
 constexpr int32_t kMinAudio = -2048;
 constexpr uint32_t kVenueDelaySize = 16384;
+constexpr uint32_t kApcCbgbDelaySize = 2048;
 constexpr uint32_t kApcPeriodMinSamples = 24;   // about 2 kHz
 constexpr uint32_t kApcPeriodMaxSamples = 960;  // about 50 Hz
 constexpr uint32_t kApcPulseMinSamples = 4;     // shortest one-shot pulse
 constexpr uint32_t kApcPulseMaxSamples = 1100;  // lets the monostable overrun
 constexpr int32_t kPickupWindow = 96;
+constexpr int32_t kApcCbgbAudience = 1365;      // about 33% Y in Broken Venue.
+constexpr int32_t kApcCbgbTrimQ12 = 3072;       // keep the character out close to dry level.
 
 enum VenueType
 {
@@ -127,6 +130,25 @@ struct DelayLine
     }
 };
 
+struct ApcCbgbDelayLine
+{
+    int16_t buffer[kApcCbgbDelaySize] = {};
+    uint32_t writeIndex = 0;
+
+    int16_t Read(uint32_t delaySamples) const
+    {
+        uint32_t readIndex = (writeIndex + kApcCbgbDelaySize - (delaySamples % kApcCbgbDelaySize)) % kApcCbgbDelaySize;
+        return buffer[readIndex];
+    }
+
+    void Write(int16_t sample)
+    {
+        buffer[writeIndex] = sample;
+        writeIndex++;
+        if (writeIndex >= kApcCbgbDelaySize) writeIndex = 0;
+    }
+};
+
 class PunkConfusion : public ComputerCard
 {
 public:
@@ -200,7 +222,7 @@ public:
         if (sw == Switch::Up)
         {
             output = RenderApc();
-            outputRight = output;
+            outputRight = RenderApcCbgb(output);
         }
         else
         {
@@ -223,6 +245,7 @@ private:
     };
 
     DelayLine venueDelay_{};
+    ApcCbgbDelayLine apcCbgbDelay_{};
     SampleDef sampleBank_[4]{};
     PunkSampleBank::LoadedBank uploadedBank_{};
     SampleVoice voice_{};
@@ -240,6 +263,11 @@ private:
     int32_t audienceHighRightState_ = 0;
     int32_t audienceDryLowState_ = 0;
     int32_t audienceDryHighState_ = 0;
+    int32_t apcCbgbFilterState_ = 0;
+    int32_t apcCbgbAudienceLowState_ = 0;
+    int32_t apcCbgbAudienceHighState_ = 0;
+    int32_t apcCbgbDryLowState_ = 0;
+    int32_t apcCbgbDryHighState_ = 0;
     int32_t roomRightOut_ = 0;
     int32_t vocalLedCounter_ = 0;
     int32_t roomGainControl_ = 2048;
@@ -419,6 +447,46 @@ private:
         apcSample = (apcSample * volume) >> 12;
 
         return SoftClip(apcSample);
+    }
+
+    int32_t RenderApcCbgb(int32_t apcSample)
+    {
+        const VenueProfile &venue = kVenueProfiles[VenueCBGB];
+        const uint32_t delaySamples = venue.mainDelayBase
+            + ((static_cast<uint32_t>(kApcCbgbAudience) * venue.mainDelayRange) >> 14);
+
+        const int32_t tap1 = apcCbgbDelay_.Read(venue.tap1);
+        const int32_t tap2 = apcCbgbDelay_.Read(venue.tap2);
+        const int32_t tap3 = apcCbgbDelay_.Read(venue.tap3);
+        const int32_t delayed = apcCbgbDelay_.Read(delaySamples);
+
+        const int32_t source = SoftClip(apcSample);
+        const int32_t early = ((tap1 << 1) - tap2 + tap3) >> 2;
+        const int32_t roomInput = SoftClip(source + (source >> 1));
+        const int32_t filterDiv = 6 + (kApcCbgbAudience >> 9);
+        int32_t feedback = (1050 * (4096 - (kApcCbgbAudience >> 2))) >> 12;
+        if (feedback > 1200) feedback = 1200;
+
+        apcCbgbFilterState_ += (delayed - apcCbgbFilterState_) / filterDiv;
+        const int32_t filtered = apcCbgbFilterState_;
+        const int32_t dampedEarly = (early * (4096 - (kApcCbgbAudience >> 3))) >> 12;
+        int32_t wet = SoftClip((roomInput >> 1) + dampedEarly + (filtered >> 1));
+        wet = ApplyAudienceAttenuation(
+            wet,
+            kApcCbgbAudience,
+            apcCbgbAudienceLowState_,
+            apcCbgbAudienceHighState_);
+
+        const int32_t drySource = ApplyAudienceAttenuation(
+            source,
+            kApcCbgbAudience >> 1,
+            apcCbgbDryLowState_,
+            apcCbgbDryHighState_);
+
+        const int32_t writeSample = Clamp12(roomInput + (dampedEarly >> 1) + ((wet * feedback) >> 12));
+        apcCbgbDelay_.Write(static_cast<int16_t>(writeSample));
+
+        return Clamp12((((drySource + wet) >> 1) * kApcCbgbTrimQ12) >> 12);
     }
 
     int32_t ReadSampleVoice()

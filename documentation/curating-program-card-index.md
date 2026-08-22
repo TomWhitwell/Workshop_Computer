@@ -151,9 +151,10 @@ Use `cards_from_flairs` when the shelf should follow flair assignments:
 ```
 
 - A card is included when it has any listed flair.
-- `limit` caps the number displayed.
+- Matching cards are reverse-sorted by date (`date-updated`, then `date-created` or git-inferred dates). Newer activity appears first; missing dates sort last. Same-day ties use numeric card id descending.
+- `limit` then caps the number displayed.
 - `hide_flairs` hides a redundant badge within that shelf; it does not remove the assignment.
-- Flair-driven shelves currently use the site's canonical card-number order. Assignment order in `flairs.yml` does not control them. Use an explicit `cards` shelf when editorial ordering is required.
+- Assignment order in `flairs.yml` does not control them. Use an explicit `cards` shelf when editorial ordering is required.
 
 Do not put both `cards` and `cards_from_flairs` on one shelf.
 
@@ -175,8 +176,8 @@ Video layouts use a card's first valid demo video when one is available. They do
 
 1. Run `npm run sync-curation`.
 2. Add `new` to the card in `flairs.yml`.
-3. It will enter the flair-driven **New** shelf, subject to that shelf's limit and numeric ordering.
-4. If it must appear first, use or create an explicit shelf instead.
+3. It will enter the flair-driven **New** shelf. Newest-dated cards appear first, subject to that shelf's limit.
+4. If it must appear first regardless of date, use or create an explicit shelf instead.
 
 #### Mark a card as properly useful
 

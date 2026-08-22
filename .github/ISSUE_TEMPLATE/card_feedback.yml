@@ -1,0 +1,34 @@
+name: Program card
+description: Report a problem or suggest an improvement for a specific program card
+title: "[Card]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this.
+
+        **Chat and designer questions** belong in [Discord](https://discord.com/channels/1210238368898879569/1484219323039092938).
+        **New program cards** belong under `releases/` via a pull request — see the [README](https://github.com/TomWhitwell/Workshop_Computer/blob/main/README.md).
+        **Catalogue / website issues** should use the Website feedback template.
+  - type: input
+    id: card
+    attributes:
+      label: Card
+      description: Which program card is this about? (prefilled from the card page)
+      placeholder: 03 Turing Machine
+    validations:
+      required: true
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: A short description of the problem or idea
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What happened, or what should change? Include firmware version, steps, or screenshots if they help.
+    validations:
+      required: true

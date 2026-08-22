@@ -1,8 +1,9 @@
 name: Build and Deploy GitHub Pages 
 
 on:
-  push:
-    branches: [ "main" ]
+  workflow_run:
+    workflows: ["Synchronize repository metadata"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -16,7 +17,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.event.repository.fork != true || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event.repository.fork != true && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     env:
       # Fork previews retain their own github.io project URL. The upstream
