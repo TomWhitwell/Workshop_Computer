@@ -2,7 +2,7 @@
 
 Current beta result: passed single-device hardware testing.
 
-Use `test_uf2/DubWarning_PT2399_TEST.uf2`.
+Use `UF2/DubWarning.uf2`.
 
 ## Setup
 
