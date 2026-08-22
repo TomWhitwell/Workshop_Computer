@@ -60,7 +60,7 @@ hit the switch or a pulse input when you want the siren to shout.
 
 ## Test
 
-Use `test_uf2/DubWarning_PT2399_TEST.uf2` for hardware testing. The full input
+Use `UF2/DubWarning.uf2` for hardware testing. The full input
 and output test checklist is in `TEST_PROCESS.md`.
 
 ## Development notes
@@ -82,3 +82,16 @@ make
 
 The dev container will configure CMake, build the firmware, and stage the UF2 in
 `UF2/`.
+
+## Credits
+
+- Dub Warning for the Workshop Computer by Adrian Vos, 2026.
+- ComputerCard is the Music Thing Modular card library by Chris Johnson, MIT,
+  included here as `ComputerCard.h`.
+- Music Thing Modular Workshop System Computer by Tom Whitwell / Music Thing
+  Modular.
+
+## License
+
+Dub Warning is released under the [MIT License](LICENSE). `ComputerCard.h`
+keeps its own MIT license and attribution to Chris Johnson.

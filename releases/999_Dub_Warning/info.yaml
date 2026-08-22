@@ -88,10 +88,7 @@ controls:
       description: Triggered siren that fades after Pulse In 1
     down:
       name: Wheel Up / Reset
-      description: Tap to fire the Wheel Up one-shot and reset phase
-    tap:
-      name: Wheel Up
-      description: Briefly tap Down to fire the Wheel Up gesture from the panel
+      description: Move Down to fire the Wheel Up one-shot and reset phase
   knobs:
     - main:
         name: Pitch
