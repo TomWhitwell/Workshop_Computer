@@ -23,7 +23,7 @@ function readDocument(file) {
   return document;
 }
 
-function releaseCards() {
+export function releaseCards() {
   return fs.readdirSync(RELEASES_DIR, { withFileTypes: true })
     .filter(entry => entry.isDirectory() && fs.existsSync(path.join(RELEASES_DIR, entry.name, 'info.yaml')))
     .map(entry => {
