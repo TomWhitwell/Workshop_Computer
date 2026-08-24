@@ -7,7 +7,7 @@ Checksum: 5782a8a0f77ef2d8ebd0433f6da3b7d5b1398627d82b163600f586a5cbf6bf4e
 
 Important identity
 ------------------
-- Gnarly is the no-Turing C1ZZL3 branch.
+- Gnarly is the no-Turing C1ZZL3 version.
 - Core remains the simpler production C1ZZL3 card 84.
 - Rad can be added to card 84 later as the advanced-with-Turing version.
 
