@@ -1,27 +1,25 @@
 draft: false
-Name: GradualProcess
-short-description: Three generative composition processes (Glass, Reich, Pärt) in one card, chosen by Main's position at power-on
-summary: |
-  A multi-process card: three independent generative composition processes live in one
-  firmware image, and which one runs is chosen by the Main knob's position at power-on
-  (or reset) — CCW third = Glass, middle third = Reich, CW third = Pärt. LEDs
-  briefly flash to confirm the selection (~0.5s) before it starts. The choice latches for
-  that session; to switch, set Main to a different zone and power-cycle/reset again. All three processes share the same Z-switch convention (Up = Play, Middle = Stop, Down
-  held = Settings), the same 6-scale system (Major, Minor, Pentatonic Major, Pentatonic
-  Minor, Blues, Chromatic) on Y while Z is held, and the same 7-step clock divide/multiply
-  (/8 /4 /2 x1 x2 x4 x8) on X while Z is held — only the Play-mode controls and outputs
-  differ between them, described per-process below.
+Name: The Bells
+short-description: Bellringing methods sequencer — 12 change-ringing methods with tempo and jitter, quantised to six scales
+summary: A bellringing methods sequencer: plays 12 traditional English change-ringing methods
+  (Plain Hunt Minimus through Plain Bob Triples, 4-7 bells), sending each row of the
+  method as a v/oct pitch sequence quantised to one of six scales, with a synchronised
+  gate pulse per bell strike. Intended to drive oscillators or other CV inputs that can
+  respond to permutation patterns.
+
+  Z switch selects mode: Up = Play, Middle = Stop, Down (hold) = Edit. While held down,
+  turning a knob selects that knob's edit-mode parameter (method / clock divide / scale);
+  releasing Z returns to Play/Stop with the new parameter applied.
 Language: C++ (ComputerCard)
 Creator: James Saunders
 Version: 1.0.0
 Status: Released
-demo-link: https://youtu.be/_94dtPt-7Go
-date-created: 2026-07-04
-date-updated: 2026-07-06
+date-created: 2026-06-27
+date-updated: 2026-06-30
 tags:
-  - generative
   - sequencer
-  - minimalism
-  - phase
-  - harmony
-  - multi-mode
+  - campanology
+  - permutation
+  - cv
+  - scale
+  - generative
