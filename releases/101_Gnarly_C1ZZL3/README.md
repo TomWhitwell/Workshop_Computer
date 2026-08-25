@@ -3,7 +3,7 @@
 C1ZZL3 Gnarly is a dual-oscillator phase-distortion synth card for the Music
 Thing Modular Workshop Computer.
 
-Gnarly is the most complex C1ZZL3 branch. It keeps the Web MIDI sound-preset
+Gnarly is the most complexVersion of C1ZZL3. It keeps the Web MIDI sound-preset
 workflow from the advanced C1ZZL3 experiments, but removes the Turing machine
 panel mode so the hardware controls can focus on oscillator editing, recipe wave
 banks, ring modulation, and noise/grit.
@@ -23,8 +23,7 @@ release: 101 / Gnarly protocol v11 stable
 draft: false
 ```
 
-Core C1ZZL3 remains card 84. Rad can be added to card 84 in due course as an
-additional version. Gnarly is prepared here as a separate card identity because
+Core C1ZZL3 remains card 84. Gnarly is prepared here as a separate card identity because
 its hardware behaviour is substantially different.
 
 ## Stable Build

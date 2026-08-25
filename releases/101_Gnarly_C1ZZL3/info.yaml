@@ -1,11 +1,11 @@
 draft: false
 Name: C1ZZL3 Gnarly
 short-description: >-
-  No-Turing dual-oscillator C1ZZL3 branch with recipe wave banks, named Web MIDI
+  Dual-oscillator phase distortion synth voice with recipe wave banks, named Web MIDI
   sound presets, separate oscillator envelopes, CZ patch import support, and an
   eight-knob MIDI CC performance block.
 summary: >-
-  No-Turing dual-oscillator C1ZZL3 branch with recipe wave banks, named Web MIDI
+  Dual-oscillator phase distortion synth voice with recipe wave banks, named Web MIDI
   sound presets, separate oscillator amplitude/phase-distortion/pitch envelopes,
   CZ patch import support, and an eight-knob MIDI CC performance block.
 Language: C++ (Pico SDK)
@@ -42,7 +42,7 @@ panel:
     - id: PulseIn1
       name: Unused
       type: pulse
-      description: Unused in this no-Turing Gnarly branch.
+      description: Unused in this no-Turing Gnarly firmware.
     - id: PulseIn2
       name: Envelope Trig
       type: pulse
@@ -59,19 +59,19 @@ panel:
     - id: CVOut1
       name: Off
       type: cv
-      description: Held low in this no-Turing Gnarly branch.
+      description: Held low in this no-Turing Gnarly firmware.
     - id: CVOut2
       name: Off
       type: cv
-      description: Held low in this no-Turing Gnarly branch.
+      description: Held low in this no-Turing Gnarly firmware.
     - id: PulseOut1
       name: Off
       type: pulse
-      description: Held low in this no-Turing Gnarly branch.
+      description: Held low in this no-Turing Gnarly firmware.
     - id: PulseOut2
       name: Off
       type: pulse
-      description: Held low in this no-Turing Gnarly branch.
+      description: Held low in this no-Turing Gnarly firmware.
 
 controls:
   switch:
@@ -144,14 +144,14 @@ controls:
 
 host:
   notes: >-
-    This branch intentionally removes Turing CV, pulse, and generated MIDI
+    This version of the C1ZZL3 firmware removes Turing CV, pulse, and generated MIDI
     output so the physical panel can focus on dual-oscillator tone controls.
 
 
-    Web MIDI: use the Gnarly Lab for Amp1/Amp2, PD1/PD2, Pitch1/Pitch2,
+    Web MIDI: use the GnarlyC1zzl3 Lab for Amp1/Amp2, PD1/PD2, Pitch1/Pitch2,
     recipe bank, named sound presets, and CZ Import Lab handoff.
 
-    Demo video note: for the main Turing-enabled Core 1.4 / Rad v9 branch, also
+    Demo video note: for the main Turing-enabled Core 1.4 / Rad v9 version, also
     refer to the Cosmik C1ZZL3 demo video.
 
 
