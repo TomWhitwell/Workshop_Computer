@@ -1,8 +1,8 @@
 # C1ZZL3 Gnarly Card Guide
 
 C1ZZL3 Gnarly is a dual-oscillator phase-distortion synth for the Music Thing
-Modular Workshop Computer. It is the no-Turing, performance-focused branch of
-C1ZZL3, with two oscillator lanes, recipe wave banks, named sound presets, and
+Modular Workshop Computer. It is a no-Turing, performance-focused C1ZZL3
+version, with two oscillator lanes, recipe wave banks, named sound presets, and
 CZ patch import support.
 
 ## What It Does
