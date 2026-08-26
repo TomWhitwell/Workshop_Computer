@@ -213,6 +213,12 @@ select:focus-visible {
   text-align: center;
 }
 
+.tone.is-active {
+  outline: 2px solid var(--teal-strong);
+  outline-offset: 2px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.36);
+}
+
 .tone.red {
   background: var(--red);
   color: #fff5ec;
@@ -405,17 +411,35 @@ input[type="text"] {
 }
 
 .led-grid span {
+  --led-alpha: 0.52;
+  display: grid;
+  place-items: center;
   width: 32px;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: var(--led-off);
-  box-shadow: inset 0 0 0 4px var(--field-bg);
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 238, 220, 0.95), transparent 24%),
+    radial-gradient(circle, rgba(255, 63, 45, var(--led-alpha)) 0%, rgba(168, 24, 18, var(--led-alpha)) 68%, rgba(72, 10, 8, 0.92) 100%);
+  box-shadow:
+    inset 0 0 0 3px var(--field-bg),
+    0 0 calc(8px + 14px * var(--led-alpha)) rgba(255, 45, 32, calc(var(--led-alpha) * 0.9));
+  color: rgba(255, 238, 220, 0.95);
+  font-size: 0.62rem;
+  font-weight: 900;
 }
 
-.led-grid span:nth-child(1),
-.led-grid span:nth-child(4),
-.led-grid span:nth-child(6) {
-  background: var(--amber);
+.led-grid span.is-pickup {
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 238, 220, 0.86), transparent 24%),
+    radial-gradient(circle, rgba(255, 63, 45, var(--led-alpha)) 0%, rgba(168, 24, 18, var(--led-alpha)) 68%, rgba(72, 10, 8, 0.92) 100%);
+}
+
+.led-grid span.is-pickup:not(.is-picked-up) {
+  color: rgba(255, 238, 220, 0.55);
+}
+
+.led-grid b {
+  line-height: 1;
 }
 
 .editor-stack {
@@ -453,10 +477,13 @@ input[type="text"] {
 
 .control {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(140px, 2fr) 52px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label value"
+    "slider slider";
   align-items: center;
-  gap: 10px;
-  min-height: 50px;
+  gap: 8px 10px;
+  min-height: 78px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 9px 10px;
@@ -464,10 +491,18 @@ input[type="text"] {
 }
 
 .control span {
+  grid-area: label;
+  min-width: 0;
   font-weight: 650;
 }
 
+.control input[type="range"] {
+  grid-area: slider;
+}
+
 .control output {
+  grid-area: value;
+  min-width: 52px;
   color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
   text-align: right;

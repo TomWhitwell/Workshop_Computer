@@ -1,6 +1,7 @@
 # Local build output
 /build/
 /build-*/
+/build_*/
 
 # Local firmware test drops. Keep release candidates in /uf2/.
 /test-uf2/

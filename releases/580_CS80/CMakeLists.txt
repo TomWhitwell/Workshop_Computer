@@ -12,6 +12,9 @@ pico_sdk_init()
 add_executable(CS80
     CS80.cpp
     CS80_LUT.cpp
+    usb_descriptors.c
+    usb_midi_host.c
+    usb_midi_host_app_driver.c
 )
 
 target_include_directories(CS80 PRIVATE
@@ -22,6 +25,9 @@ target_link_libraries(CS80
     pico_stdlib
     pico_unique_id
     pico_multicore
+    tinyusb_device
+    tinyusb_host
+    tinyusb_board
     hardware_adc
     hardware_pwm
     hardware_dma

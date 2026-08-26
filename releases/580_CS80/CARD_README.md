@@ -13,7 +13,7 @@ Switch up: oscillator page.
 
 - Main: pitch offset
 - X: pulse width
-- Y: saw/pulse mix and PWM depth
+- Y: PWM amount; independent saw, square/pulse, sine, and noise levels are Web-editor controls
 
 Switch middle: filter page.
 
@@ -25,11 +25,11 @@ Switch down hold: performance page.
 
 - Main: temporary pitch offset
 - X: ring modulation
-- Y: LFO depth
+- Y: LFO-to-pitch depth; PWM, filter, and amp destinations are independently controlled in the Web editor
 
 ## Planned Inputs
 
-- `Audio/CV In 1`: pitch CV
+- `Audio/CV In 1`: selectable 1V/oct pitch CV range: 0 V to +5 V with C4 at +3 V, or -3 V to +3 V with C4 at 0 V
 - `CV In 1`: wide filter modulation for high-pass and low-pass cutoff
 - `CV In 2`: expression modulation for brightness and resonance
 - `Pulse In 1`: gate when patched; unpatched, the voice drones for oscillator bring-up

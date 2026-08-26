@@ -1,6 +1,6 @@
 draft: true
 Name: CS80
-short-description: Draft mono CS-80-inspired synth voice with planned Web MIDI editing.
+short-description: Draft mono CS-80-inspired synth voice with Web MIDI editing.
 summary: >-
   Draft card scaffold for a Yamaha CS-80-inspired Workshop Computer synth voice.
   The first firmware target is a lean mono voice with two oscillator lanes,
@@ -11,7 +11,7 @@ summary: >-
 Language: C++ (Pico SDK)
 Creator: Adrian Vos
 Version: "0.1 draft"
-Status: Draft - firmware not yet implemented
+Status: Draft - first-pass mono firmware and Web MIDI patch interface
 License: MIT
 date-created: 2026-08-26
 Editor: web
@@ -29,7 +29,7 @@ panel:
     - id: AudioIn1
       name: Pitch CV
       type: audio
-      description: Planned 1V/oct pitch input for the mono voice.
+      description: "Web-selectable 1V/oct pitch input: 0 V to +5 V with C4 at +3 V, or -3 V to +3 V with C4 at 0 V."
     - id: AudioIn2
       name: Audio / Mod In
       type: audio
@@ -80,13 +80,13 @@ controls:
   switch:
     up:
       name: Oscillator page
-      description: Pitch offset, pulse width, and oscillator mix for the mono voice, with soft pickup.
+      description: Pitch offset, pulse width, and PWM amount for the mono voice, with soft pickup.
     middle:
       name: Filter page
       description: High-pass cutoff, low-pass cutoff, and resonance for the mono voice, with soft pickup.
     down:
       name: Performance page
-      description: Hold page for temporary pitch offset, ring modulation, and LFO depth, with soft pickup.
+      description: Hold page for temporary pitch offset, ring modulation, and LFO-to-pitch depth, with soft pickup.
   knobs:
     - when:
         z: up
@@ -97,8 +97,8 @@ controls:
         name: Pulse Width
         description: Pulse width for the mono voice.
       y:
-        name: Oscillator Mix
-        description: Saw/pulse mix and PWM depth for the mono voice.
+        name: PWM Amount
+        description: Pulse-width modulation amount for the mono voice. The independent source mixer is Web-editor controlled.
     - when:
         z: middle
       main:
@@ -119,8 +119,8 @@ controls:
         name: Ring Mod
         description: Ring-modulation amount.
       y:
-        name: LFO Depth
-        description: Vibrato, PWM, and filter modulation depth.
+        name: LFO to Pitch
+        description: Vibrato depth. LFO-to-PWM, filter, and amp routings are independently controlled in the Web editor.
   leds:
     - display: list
       items:
@@ -147,15 +147,25 @@ host:
   usb:
     - name: Web MIDI editor
       role: device
-      description: Planned browser editor using Web MIDI SysEx for patch editing, readback, and save actions.
+      description: Draft browser editor using Web MIDI SysEx for patch apply, readback, and eight persistent card slots.
     - name: USB MIDI input
       role: host-or-device
       description: Planned note, gate, pitch-bend, and performance CC input.
   notes: >-
     Draft architecture target: RP2040 at 192 MHz, copy-to-RAM firmware, audio
-    rendering on core 0, USB MIDI/Web MIDI/control work on core 1, and a bounded
-    handoff between control and audio code. The first goal is a robust mono voice;
+    rendering on core 0, USB MIDI/Web MIDI work on core 1, and bounded lockless
+    queues for complete patch handoff and core-0 readback. The first goal is a robust mono voice;
     dual voice should wait until the mono implementation is lean and profiled.
+    Current draft firmware stores eight Web MIDI patch slots in flash. The Web
+    editor can choose a saved startup slot, and holding Down during the startup
+    selection window lets Main override it, with the LEDs showing the slot
+    number. With no saved startup slot, the compiled fallback is the Web
+    editor's Doctor Who Theme preset, including its portamento setting. Each saved patch includes its pitch-CV range mode. Web MIDI patch
+    readback and saved slots
+    cover the visible editor controls, including independent additive
+    saw/pulse/sine/noise source levels, voice level, portamento, expression depth, LFO rate,
+    independent LFO-to-pitch/PWM/VCF/VCA modulation depths, ring amount, and
+    ring speed.
 
 
     Attribution: included computercard.h is ComputerCard by Chris Johnson,
@@ -163,8 +173,9 @@ host:
     Demonstrations+HelloWorlds/PicoSDK/ComputerCard/ComputerCard.h. The
     included pico_sdk_import.cmake is the standard Raspberry Pi Pico SDK import
     helper and carries the Raspberry Pi (Trading) Ltd. BSD-style notice in the
-    file. Future code adapted from existing Workshop Computer cards should
-    retain source notices and be documented before release.
+    file. USB MIDI host helper files are copied from the local C1ZZL3 cards and
+    retain the upstream rppicomidi MIT notices in source. The TinyUSB
+    descriptor/config pattern is adapted from Adrian Vos's C1ZZL3 cards.
 
 contact:
   social:

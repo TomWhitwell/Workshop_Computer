@@ -2,15 +2,162 @@
 #include "CS80_LUT.h"
 
 #include "hardware/clocks.h"
+#include "hardware/flash.h"
 #include "pico/multicore.h"
+#include "pico/sync.h"
 #include "pico/time.h"
+#include "tusb.h"
+#include "usb_midi_host.h"
+
+static constexpr uint8_t WebMidiManufacturer = 0x7Du;
+static constexpr uint8_t WebMidiId[4] = {0x43u, 0x53u, 0x38u, 0x30u}; // CS80
+static constexpr uint8_t WebMidiCommandApplyPatch = 0x01u;
+static constexpr uint8_t WebMidiCommandSavePatch = 0x02u;
+static constexpr uint8_t WebMidiCommandRequestPatch = 0x03u;
+static constexpr uint8_t WebMidiCommandPatchResponse = 0x04u;
+static constexpr uint8_t WebMidiCommandSaveSlot = 0x05u;
+static constexpr uint8_t WebMidiCommandRequestSlots = 0x06u;
+static constexpr uint8_t WebMidiCommandSlotsResponse = 0x07u;
+static constexpr uint8_t WebMidiCommandRequestSlot = 0x08u;
+static constexpr uint8_t WebMidiCommandSlotResponse = 0x09u;
+static constexpr uint8_t WebMidiCommandDeleteSlot = 0x0Au;
+static constexpr uint8_t WebMidiCommandSetStartupSlot = 0x0Bu;
+static constexpr uint8_t WebMidiPatchProtocolVersion = 5u;
+static constexpr uint32_t WebMidiPatchPayloadLength = 53u;
+static constexpr uint32_t WebMidiMaxSysexLength = 64u;
 
 class CS80Card : public ComputerCard
 {
+private:
+    struct PatchState;
+
 public:
     CS80Card()
     {
         voice.enabled = true;
+        loadPatchBank();
+    }
+
+    bool ShouldBootUsbHost()
+    {
+        return USBPowerState() == USBPowerState_t::DFP;
+    }
+
+    void ProcessUsbMidiByte(uint8_t byte)
+    {
+        if (byte == 0xF0u)
+        {
+            sysexReceiving = true;
+            sysexLength = 0;
+            sysexOverflow = false;
+            return;
+        }
+
+        if (!sysexReceiving)
+            return;
+
+        if (byte == 0xF7u)
+        {
+            sysexReceiving = false;
+            if (!sysexOverflow)
+                handleWebMidiSysex();
+            return;
+        }
+
+        if (sysexLength < sizeof(sysexBuffer))
+            sysexBuffer[sysexLength++] = byte;
+        else
+            sysexOverflow = true;
+    }
+
+    void SendPendingUsbMidiOutput()
+    {
+        drainAudioPatchSnapshots();
+
+        if (slotsResponsePending)
+        {
+            uint8_t frame[11] = {
+                0xF0u,
+                WebMidiManufacturer,
+                WebMidiId[0],
+                WebMidiId[1],
+                WebMidiId[2],
+                WebMidiId[3],
+                WebMidiCommandSlotsResponse,
+                (uint8_t)(savedSlotMask & 0x7Fu),
+                (uint8_t)((savedSlotMask >> 7) & 0x7Fu),
+                (uint8_t)(startupSlot & 0x07u),
+                0xF7u
+            };
+            tud_midi_stream_write(0, frame, sizeof(frame));
+            slotsResponsePending = false;
+        }
+
+        if (slotResponsePending)
+        {
+            sendPatchFrame(WebMidiCommandSlotResponse, slotResponseIndex, slotResponsePatch);
+            slotResponsePending = false;
+        }
+
+        if (patchResponsePending && (patchResponseHasPatch || webPatchSnapshotValid))
+        {
+            sendPatchFrame(
+                WebMidiCommandPatchResponse,
+                0x7Fu,
+                patchResponseHasPatch ? patchResponsePatch : webPatchSnapshot);
+            patchResponsePending = false;
+            patchResponseHasPatch = false;
+        }
+    }
+
+    void FlushPendingWebPatch()
+    {
+        flushQueuedPatchForAudio();
+    }
+
+    void sendPatchFrame(uint8_t command, uint8_t slot, const PatchState& patch)
+    {
+        uint8_t frame[64] = {
+            0xF0u,
+            WebMidiManufacturer,
+            WebMidiId[0],
+            WebMidiId[1],
+            WebMidiId[2],
+            WebMidiId[3],
+            command,
+            (uint8_t)(slot & 0x7Fu),
+            WebMidiPatchProtocolVersion
+        };
+        uint32_t offset = 9;
+        appendWebMidiUint14(frame, offset, knobValueForPitch(patch.params.pitchOffsetQ8));
+        appendWebMidiUint14(frame, offset, patch.params.portamento);
+        appendWebMidiUint14(frame, offset, patch.params.pitchCvRange);
+        appendWebMidiUint14(frame, offset, clampRange(patch.params.pulseWidth - 512, 0, 4095));
+        appendWebMidiUint14(frame, offset, patch.params.pwmAmount);
+        appendWebMidiUint14(frame, offset, patch.params.sawLevel);
+        appendWebMidiUint14(frame, offset, patch.params.pulseLevel);
+        appendWebMidiUint14(frame, offset, patch.params.sineLevel);
+        appendWebMidiUint14(frame, offset, patch.params.noiseLevel);
+        appendWebMidiUint14(frame, offset, patch.params.voiceLevel);
+        appendWebMidiUint14(frame, offset, clamp12(2048 + patch.performancePitchQ8));
+        appendWebMidiUint14(frame, offset, patch.params.hpCutoff);
+        appendWebMidiUint14(frame, offset, patch.params.lpCutoff);
+        appendWebMidiUint14(frame, offset, patch.params.resonance);
+        appendWebMidiUint14(frame, offset, patch.params.expressionDepth);
+        appendWebMidiUint14(frame, offset, patch.params.attack);
+        appendWebMidiUint14(frame, offset, patch.params.decay);
+        appendWebMidiUint14(frame, offset, patch.params.sustain);
+        appendWebMidiUint14(frame, offset, patch.params.release);
+        appendWebMidiUint14(frame, offset, patch.params.lfoRate);
+        appendWebMidiUint14(frame, offset, patch.params.lfoPitchDepth);
+        appendWebMidiUint14(frame, offset, patch.params.lfoPwmDepth);
+        appendWebMidiUint14(frame, offset, patch.params.lfoVcfDepth);
+        appendWebMidiUint14(frame, offset, patch.params.lfoVcaDepth);
+        appendWebMidiUint14(frame, offset, patch.ringAmount);
+        appendWebMidiUint14(frame, offset, patch.params.ringSpeed);
+        frame[offset++] = 0xF7u;
+
+        tud_midi_stream_write(0, frame, offset);
     }
 
     void ProcessSample() override
@@ -28,9 +175,18 @@ public:
         if (++controlDivider >= ControlIntervalSamples)
         {
             controlDivider = 0;
-            updatePanelControls(mode, KnobVal(Knob::Main), KnobVal(Knob::X), KnobVal(Knob::Y));
+            int32_t main = KnobVal(Knob::Main);
+            int32_t x = KnobVal(Knob::X);
+            int32_t y = KnobVal(Knob::Y);
+            applyPendingWebPatches();
+            updateStartupPatchSelect(mode);
+            if (startupSelectMode)
+                updateStartupPatchSelection(main, mode);
+            if (!startupSelectMode)
+                updatePanelControls(mode, main, x, y);
             updatePitchCache(audioPitch);
             updateLEDs(mode);
+            publishAudioPatchSnapshot();
         }
 
         if (gateNow && !lastGate)
@@ -54,15 +210,78 @@ private:
     struct VoiceParams
     {
         int32_t pitchOffsetQ8 = 0;
-        int32_t pulseWidth = 2048;
-        int32_t pwmDepth = 0;
-        int32_t sawPulseMix = 2300;
-        int32_t hpCutoff = 300;
-        int32_t lpCutoff = 1800;
-        int32_t resonance = 1200;
-        int32_t attack = 1800;
-        int32_t release = 1800;
+        int32_t portamento = 2600;
+        int32_t pitchCvRange = 1;
+        int32_t pulseWidth = 2162;
+        int32_t pwmAmount = 1450;
+        int32_t sawLevel = 450;
+        int32_t pulseLevel = 2500;
+        int32_t sineLevel = 2300;
+        int32_t noiseLevel = 220;
+        int32_t voiceLevel = 3600;
+        int32_t hpCutoff = 1500;
+        int32_t lpCutoff = 2450;
+        int32_t resonance = 2650;
+        int32_t expressionDepth = 1900;
+        int32_t attack = 80;
+        int32_t decay = 760;
+        int32_t sustain = 3300;
+        int32_t release = 1200;
+        int32_t lfoRate = 1750;
+        int32_t lfoPitchDepth = 980;
+        int32_t lfoPwmDepth = 1550;
+        int32_t lfoVcfDepth = 1000;
+        int32_t lfoVcaDepth = 560;
+        int32_t ringSpeed = 2250;
         uint32_t cachedPhaseIncrement = C2PhaseIncrement;
+    };
+
+    struct PatchState
+    {
+        VoiceParams params = {};
+        int32_t performancePitchQ8 = 0;
+        int32_t ringAmount = 850;
+    };
+
+    // One producer and one consumer per queue. A release-store publishes a
+    // complete slot, while the other core only reads slots it has acquired.
+    template <typename T, uint32_t Capacity>
+    class SpscPatchQueue
+    {
+        static_assert((Capacity & (Capacity - 1u)) == 0u, "Capacity must be a power of two");
+    public:
+        bool tryPush(const T& value)
+        {
+            const uint32_t write = writeIndex;
+            const uint32_t read = readIndex;
+            __dmb();
+            if (write - read == Capacity)
+                return false;
+
+            slots[write & (Capacity - 1u)] = value;
+            __dmb();
+            writeIndex = write + 1u;
+            return true;
+        }
+
+        bool tryPop(T& value)
+        {
+            const uint32_t read = readIndex;
+            const uint32_t write = writeIndex;
+            __dmb();
+            if (read == write)
+                return false;
+
+            value = slots[read & (Capacity - 1u)];
+            __dmb();
+            readIndex = read + 1u;
+            return true;
+        }
+
+    private:
+        T slots[Capacity] = {};
+        volatile uint32_t writeIndex = 0;
+        volatile uint32_t readIndex = 0;
     };
 
     struct VoiceState
@@ -71,6 +290,7 @@ private:
         uint32_t phase = 0;
         int32_t ampEnvelopeQ12 = 0;
         int32_t filterEnvelopeQ12 = 0;
+        uint8_t envelopeStage = 0;
         int32_t hpLowpass = 0;
         int32_t lp = 0;
     };
@@ -80,14 +300,73 @@ private:
     static constexpr uint32_t DownTapSamples = 14400u;
     static constexpr uint32_t DownHoldSamples = 14400u;
     static constexpr uint32_t DownLongHoldSamples = 96000u;
+    static constexpr uint32_t StartupSelectDelayTicks = 188u;
+    static constexpr uint32_t StartupSelectWindowTicks = 375u;
     static constexpr uint32_t LfoBaseIncrement = 89478u;
     static constexpr uint32_t RingBaseIncrement = 1491308u;
-    static constexpr int32_t MaxVoicePitchQ8 = 72 * 256;
+    static constexpr int32_t MaxVoicePitchQ8 = 84 * 256;
     static constexpr int32_t MinVoicePitchQ8 = -48 * 256;
+    static constexpr int32_t MiddleCBasePitchQ8 = 24 * 256;
+    static constexpr int32_t PitchCvThreeVoltsCounts = 3 * 341;
+    static constexpr int32_t PitchCvFiveVoltsCounts = 5 * 341;
     static constexpr int32_t PickupWindow = 96;
+    static constexpr uint8_t PatchSlotCount = 8u;
+    static constexpr uint32_t PatchBankMagic = 0x43533830u; // CS80
+    static constexpr uint16_t PatchBankVersion = 8u;
+    static constexpr uint32_t PatchBankFlashOffset =
+        (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE) &
+        ~(FLASH_SECTOR_SIZE - 1u);
+
+    struct SavedPatch
+    {
+        int32_t pitchOffsetQ8;
+        int32_t portamento;
+        int32_t pitchCvRange;
+        int32_t pulseWidth;
+        int32_t pwmAmount;
+        int32_t sawLevel;
+        int32_t pulseLevel;
+        int32_t sineLevel;
+        int32_t noiseLevel;
+        int32_t voiceLevel;
+        int32_t performancePitchQ8;
+        int32_t hpCutoff;
+        int32_t lpCutoff;
+        int32_t resonance;
+        int32_t expressionDepth;
+        int32_t attack;
+        int32_t decay;
+        int32_t sustain;
+        int32_t release;
+        int32_t lfoRate;
+        int32_t lfoPitchDepth;
+        int32_t lfoPwmDepth;
+        int32_t lfoVcfDepth;
+        int32_t lfoVcaDepth;
+        int32_t ringAmount;
+        int32_t ringSpeed;
+    };
+
+    struct SavedPatchBank
+    {
+        uint32_t magic;
+        uint16_t version;
+        uint16_t size;
+        uint8_t loadedMask;
+        uint8_t startupSlot;
+        uint8_t reserved[2];
+        SavedPatch slots[PatchSlotCount];
+        uint32_t checksum;
+    };
 
     VoiceParams params = {};
     VoiceState voice = {};
+    SpscPatchQueue<PatchState, 4u> webToAudioPatchQueue = {};
+    SpscPatchQueue<PatchState, 4u> audioToWebPatchQueue = {};
+    PatchState queuedWebPatch = {};
+    bool queuedWebPatchPending = false;
+    PatchState webPatchSnapshot = {};
+    bool webPatchSnapshotValid = false;
 
     uint32_t controlDivider = 0;
     uint32_t downSamples = 0;
@@ -101,12 +380,32 @@ private:
 
     uint32_t lfoPhase = 0;
     uint32_t ringPhase = 0;
+    uint32_t noiseState = 0x1234abcd;
     int32_t lfoValue = 0;
     int32_t ringValue = 0;
-    int32_t ringAmount = 0;
-    int32_t lfoDepth = 700;
+    int32_t ringAmount = 850;
     int32_t performancePitchQ8 = 0;
+    int32_t currentPitchQ8 = MiddleCBasePitchQ8;
+    bool pitchSlewInitialised = false;
     int32_t lastPitchInput = 0;
+    uint8_t sysexBuffer[WebMidiMaxSysexLength] = {};
+    uint32_t sysexLength = 0;
+    bool sysexReceiving = false;
+    bool sysexOverflow = false;
+    bool patchResponsePending = false;
+    bool patchResponseHasPatch = false;
+    PatchState patchResponsePatch = {};
+    bool slotsResponsePending = false;
+    bool slotResponsePending = false;
+    uint8_t slotResponseIndex = 0;
+    PatchState slotResponsePatch = {};
+    uint8_t savedSlotMask = 0;
+    uint8_t startupSlot = 0;
+    uint32_t startupSelectSamples = 0;
+    bool startupSelectChecked = false;
+    bool startupSelectMode = false;
+    bool startupSelectReady = false;
+    uint8_t startupSelectedSlot = 0;
 
     void updateDownSwitch(bool downNow)
     {
@@ -139,11 +438,8 @@ private:
                 params.pitchOffsetQ8 = clampPitchQ8((main - 2048) << 2);
             if (pickupReady(1, x, params.pulseWidth - 512))
                 params.pulseWidth = clampRange(512 + x, 512, 3584);
-            if (pickupReady(2, y, params.sawPulseMix))
-            {
-                params.pwmDepth = y;
-                params.sawPulseMix = y;
-            }
+            if (pickupReady(2, y, params.pwmAmount))
+                params.pwmAmount = y;
             return;
         }
 
@@ -160,12 +456,12 @@ private:
 
         if (downHeld)
         {
-            if (pickupReady(0, main, clamp12(2048 + performancePitchQ8)))
+            if (pickupReady(0, main, knobValueForPerformancePitch()))
                 performancePitchQ8 = main - 2048;
             if (pickupReady(1, x, ringAmount))
                 ringAmount = x;
-            if (pickupReady(2, y, lfoDepth))
-                lfoDepth = y;
+            if (pickupReady(2, y, params.lfoPitchDepth))
+                params.lfoPitchDepth = y;
         }
     }
 
@@ -179,6 +475,61 @@ private:
         pickedUp[2] = false;
         lastPanelMode = mode;
         lastPanelDownHeld = downHeld;
+    }
+
+    void updateStartupPatchSelect(Switch mode)
+    {
+        if (startupSelectChecked)
+            return;
+
+        if (startupSelectSamples < StartupSelectDelayTicks + StartupSelectWindowTicks)
+        {
+            startupSelectSamples++;
+            if (startupSelectSamples >= StartupSelectDelayTicks &&
+                mode == Switch::Down &&
+                savedSlotMask != 0)
+            {
+                startupSelectMode = true;
+                startupSelectReady = false;
+            }
+            return;
+        }
+
+        startupSelectChecked = true;
+        startupSelectMode = false;
+    }
+
+    void updateStartupPatchSelection(int32_t main, Switch mode)
+    {
+        uint8_t count = loadedSlotCount();
+        if (count == 0)
+        {
+            startupSelectMode = false;
+            startupSelectChecked = true;
+            return;
+        }
+
+        uint8_t selectedIndex = (uint8_t)(((uint32_t)clamp12(main) * count) >> 12);
+        if (selectedIndex >= count)
+            selectedIndex = count - 1;
+        startupSelectedSlot = slotForLoadedSelection(selectedIndex);
+        showSlotLeds(startupSelectedSlot);
+
+        if (!startupSelectReady)
+        {
+            if (mode != Switch::Down)
+                startupSelectReady = true;
+            return;
+        }
+
+        if (mode != Switch::Down)
+        {
+            applySavedSlot(startupSelectedSlot);
+            startupSlot = startupSelectedSlot;
+            savePatchBankIfChanged();
+            startupSelectMode = false;
+            startupSelectChecked = true;
+        }
     }
 
     bool pickupReady(uint32_t index, int32_t knob, int32_t target)
@@ -200,18 +551,115 @@ private:
         return clamp12(2048 + (pitchQ8 >> 2));
     }
 
+    int32_t knobValueForPerformancePitch() const
+    {
+        return clamp12(2048 + performancePitchQ8);
+    }
+
     void updatePitchCache(int32_t pitchInput)
     {
         lastPitchInput = pitchInput;
-        int32_t pitchCvQ8 = pitchInput * 9; // Hardware-tested rough 1V/oct scale: 341 counts ~= 12 semitones.
+        int32_t limitedPitchInput = pitchInput;
+        int32_t pitchBaseQ8 = MiddleCBasePitchQ8;
+        if (params.pitchCvRange == 0)
+        {
+            limitedPitchInput = clampRange(limitedPitchInput, 0, PitchCvFiveVoltsCounts);
+            // Standard unipolar V/oct convention: 0V is C1 and C4 is +3V.
+            pitchBaseQ8 -= 36 * 256;
+        }
+        else
+        {
+            limitedPitchInput = clampRange(
+                limitedPitchInput,
+                -PitchCvThreeVoltsCounts,
+                PitchCvThreeVoltsCounts);
+        }
+        int32_t pitchCvQ8 = limitedPitchInput * 9; // Hardware-tested rough 1V/oct scale: 341 counts ~= 12 semitones.
+        int32_t targetPitchQ8 = clampPitchQ8(pitchBaseQ8 + params.pitchOffsetQ8 + performancePitchQ8 + pitchCvQ8);
+
+        if (!pitchSlewInitialised || params.portamento <= 0)
+        {
+            currentPitchQ8 = targetPitchQ8;
+            pitchSlewInitialised = true;
+        }
+        else
+        {
+            int32_t delta = targetPitchQ8 - currentPitchQ8;
+            int32_t speed = 4095 - clamp12(params.portamento);
+            int32_t step = 1 + ((speed * speed) >> 16);
+
+            if (delta > step)
+                currentPitchQ8 += step;
+            else if (delta < -step)
+                currentPitchQ8 -= step;
+            else
+                currentPitchQ8 = targetPitchQ8;
+        }
 
         params.cachedPhaseIncrement =
-            phaseIncrementFromSemitoneQ8(clampPitchQ8(params.pitchOffsetQ8 + performancePitchQ8 + pitchCvQ8));
+            phaseIncrementFromSemitoneQ8(currentPitchQ8);
+    }
+
+    PatchState currentPatchState() const
+    {
+        PatchState patch = {};
+        patch.params = params;
+        patch.performancePitchQ8 = performancePitchQ8;
+        patch.ringAmount = ringAmount;
+        return patch;
+    }
+
+    void applyPatchState(const PatchState& patch)
+    {
+        params = patch.params;
+        performancePitchQ8 = clampRange(patch.performancePitchQ8, -2048, 2047);
+        ringAmount = clamp12(patch.ringAmount);
+        pitchSlewInitialised = false;
+        pickedUp[0] = false;
+        pickedUp[1] = false;
+        pickedUp[2] = false;
+    }
+
+    void applyPendingWebPatches()
+    {
+        PatchState patch = {};
+        while (webToAudioPatchQueue.tryPop(patch))
+            applyPatchState(patch);
+    }
+
+    void publishAudioPatchSnapshot()
+    {
+        // Readback is best-effort; core 1 drains any backlog and keeps its newest snapshot.
+        audioToWebPatchQueue.tryPush(currentPatchState());
+    }
+
+    void queuePatchForAudio(const PatchState& patch)
+    {
+        queuedWebPatch = patch;
+        queuedWebPatchPending = true;
+        flushQueuedPatchForAudio();
+    }
+
+    void flushQueuedPatchForAudio()
+    {
+        if (queuedWebPatchPending && webToAudioPatchQueue.tryPush(queuedWebPatch))
+            queuedWebPatchPending = false;
+    }
+
+    void drainAudioPatchSnapshots()
+    {
+        PatchState snapshot = {};
+        while (audioToWebPatchQueue.tryPop(snapshot))
+        {
+            webPatchSnapshot = snapshot;
+            webPatchSnapshotValid = true;
+        }
     }
 
     void triggerVoice()
     {
         voice.phase = 0;
+        voice.envelopeStage = 0;
         if (voice.ampEnvelopeQ12 < 96)
             voice.ampEnvelopeQ12 = 96;
         if (voice.filterEnvelopeQ12 < 128)
@@ -220,8 +668,8 @@ private:
 
     void updateGlobalModulation()
     {
-        uint32_t lfoIncrement = LfoBaseIncrement + ((uint32_t)lfoDepth << 8);
-        uint32_t ringIncrement = RingBaseIncrement + ((uint32_t)ringAmount << 9);
+        uint32_t lfoIncrement = LfoBaseIncrement + ((uint32_t)params.lfoRate << 8);
+        uint32_t ringIncrement = RingBaseIncrement + ((uint32_t)params.ringSpeed << 9);
 
         lfoPhase += lfoIncrement;
         ringPhase += ringIncrement;
@@ -236,38 +684,96 @@ private:
 
         updateEnvelope(voice, params, gate);
 
-        uint32_t pwmOffset = ((uint32_t)lfoDepth * (uint32_t)params.pwmDepth) >> 12;
+        uint32_t pwmOffset = ((uint32_t)params.lfoPwmDepth * (uint32_t)params.pwmAmount) >> 12;
         int32_t pulseWidth = params.pulseWidth + ((lfoValue * (int32_t)pwmOffset) >> 11);
         pulseWidth = clampRange(pulseWidth, 256, 3840);
 
-        voice.phase += params.cachedPhaseIncrement;
+        int32_t pitchMod = (lfoValue * params.lfoPitchDepth) >> 12;
+        int32_t phaseIncrement = static_cast<int32_t>(params.cachedPhaseIncrement) +
+            (static_cast<int32_t>(params.cachedPhaseIncrement >> 15) * pitchMod);
+        voice.phase += static_cast<uint32_t>(phaseIncrement);
 
         int32_t phase12 = (int32_t)((voice.phase >> 20) & 4095u);
         int32_t saw = phase12 - 2048;
         int32_t pulse = phase12 < pulseWidth ? 1500 : -1500;
         int32_t sineBody = sine64(voice.phase) >> 2;
+        noiseState = noiseState * 1664525u + 1013904223u;
+        int32_t noise = ((int32_t)((noiseState >> 20) & 4095u)) - 2048;
 
-        int32_t osc = mix(saw + sineBody, pulse + sineBody, params.sawPulseMix);
+        int32_t sawBody = (saw * params.sawLevel) >> 12;
+        int32_t pulseBody = (pulse * params.pulseLevel) >> 12;
+        int32_t sineMix = (sineBody * params.sineLevel) >> 12;
+        int32_t noiseMix = (noise * params.noiseLevel) >> 13;
+        // Each source is independently levelled; the shift leaves useful headroom
+        // for the normal two-to-four waveform combinations.
+        int32_t osc = (sawBody + pulseBody + sineMix + noiseMix) >> 1;
+        osc = clip12(osc);
         osc = applyRingMod(osc);
 
         int32_t filtered = filterVoice(osc, voice, params, filterCv, expressionCv);
-        return clip12((filtered * voice.ampEnvelopeQ12) >> 12);
+        int32_t amp = voice.ampEnvelopeQ12;
+        if (params.lfoVcaDepth > 0)
+        {
+            int32_t tremolo = clamp12(2048 + ((lfoValue * params.lfoVcaDepth) >> 11));
+            amp = (amp * tremolo) >> 12;
+        }
+        int32_t enveloped = (filtered * amp) >> 12;
+        return clip12((enveloped * params.voiceLevel) >> 12);
     }
 
     void updateEnvelope(VoiceState& state, const VoiceParams& voiceParams, bool gate)
     {
         int32_t attackRate = rateFromControl(voiceParams.attack);
+        int32_t decayRate = rateFromControl(voiceParams.decay);
+        int32_t sustainLevel = clamp12(voiceParams.sustain);
         int32_t releaseRate = rateFromControl(voiceParams.release);
 
-        if (gate)
+        if (!gate)
         {
-            state.ampEnvelopeQ12 = clamp12(state.ampEnvelopeQ12 + attackRate);
-            state.filterEnvelopeQ12 = clamp12(state.filterEnvelopeQ12 + (attackRate << 1));
+            state.envelopeStage = 3;
+            state.ampEnvelopeQ12 = clamp12(state.ampEnvelopeQ12 - releaseRate);
+            state.filterEnvelopeQ12 = clamp12(state.filterEnvelopeQ12 - releaseRate);
+            return;
+        }
+
+        if (state.envelopeStage == 0)
+        {
+            state.ampEnvelopeQ12 += attackRate;
+            state.filterEnvelopeQ12 += attackRate << 1;
+            if (state.ampEnvelopeQ12 >= 4095)
+            {
+                state.ampEnvelopeQ12 = 4095;
+                state.envelopeStage = 1;
+            }
+            state.filterEnvelopeQ12 = clamp12(state.filterEnvelopeQ12);
+            return;
+        }
+
+        if (state.envelopeStage == 1)
+        {
+            if (state.ampEnvelopeQ12 > sustainLevel)
+                state.ampEnvelopeQ12 = clampRange(state.ampEnvelopeQ12 - decayRate, sustainLevel, 4095);
+            else
+                state.ampEnvelopeQ12 = sustainLevel;
+
+            if (state.filterEnvelopeQ12 > sustainLevel)
+                state.filterEnvelopeQ12 = clampRange(state.filterEnvelopeQ12 - (decayRate << 1), sustainLevel, 4095);
+            else
+                state.filterEnvelopeQ12 = sustainLevel;
+
+            if (state.ampEnvelopeQ12 == sustainLevel && state.filterEnvelopeQ12 == sustainLevel)
+                state.envelopeStage = 2;
+            return;
+        }
+
+        if (state.envelopeStage == 2)
+        {
+            state.ampEnvelopeQ12 = sustainLevel;
+            state.filterEnvelopeQ12 = sustainLevel;
         }
         else
         {
-            state.ampEnvelopeQ12 = clamp12(state.ampEnvelopeQ12 - releaseRate);
-            state.filterEnvelopeQ12 = clamp12(state.filterEnvelopeQ12 - releaseRate);
+            state.envelopeStage = 0;
         }
     }
 
@@ -278,11 +784,12 @@ private:
         int32_t filterCv,
         int32_t expressionCv)
     {
-        int32_t expression = expressionCv;
+        int32_t expression = (expressionCv * voiceParams.expressionDepth) >> 12;
         int32_t filterMod = filterCv + filterCv;
         int32_t expressionMod = expression + expression;
+        int32_t lfoFilterMod = (lfoValue * voiceParams.lfoVcfDepth) >> 11;
         int32_t hpControl = clamp12(voiceParams.hpCutoff + filterCv);
-        int32_t lpControl = clamp12(voiceParams.lpCutoff + filterMod + expressionMod + (state.filterEnvelopeQ12 >> 3));
+        int32_t lpControl = clamp12(voiceParams.lpCutoff + filterMod + expressionMod + lfoFilterMod + (state.filterEnvelopeQ12 >> 1));
 
         int32_t hpAlpha = curveFromControl(hpControl);
         int32_t lpAlpha = curveFromControl(lpControl);
@@ -310,6 +817,9 @@ private:
 
     void updateLEDs(Switch mode)
     {
+        if (startupSelectMode)
+            return;
+
         int32_t mainValue = 0;
         int32_t xValue = 0;
         int32_t yValue = 0;
@@ -318,7 +828,7 @@ private:
         {
             mainValue = knobValueForPitch(params.pitchOffsetQ8);
             xValue = params.pulseWidth - 512;
-            yValue = params.sawPulseMix;
+            yValue = params.pwmAmount;
         }
         else if (mode == Switch::Middle)
         {
@@ -328,9 +838,9 @@ private:
         }
         else
         {
-            mainValue = clamp12(2048 + performancePitchQ8);
+            mainValue = knobValueForPerformancePitch();
             xValue = ringAmount;
-            yValue = lfoDepth;
+            yValue = params.lfoPitchDepth;
         }
 
         LedBrightness(0, clamp12(mainValue));
@@ -435,14 +945,481 @@ private:
             return 2047;
         return value;
     }
+
+    void handleWebMidiSysex()
+    {
+        if (!webMidiHeaderMatches())
+            return;
+
+        uint8_t command = sysexBuffer[5];
+        if (command == WebMidiCommandApplyPatch)
+        {
+            if (sysexLength != WebMidiPatchPayloadLength + 6u)
+                return;
+            PatchState patch = {};
+            if (!decodeWebMidiPatch(6, patch))
+                return;
+            queuePatchForAudio(patch);
+            patchResponsePatch = patch;
+            patchResponseHasPatch = true;
+            patchResponsePending = true;
+            return;
+        }
+
+        if (command == WebMidiCommandSavePatch ||
+            command == WebMidiCommandSaveSlot)
+        {
+            handleWebMidiSaveSlot();
+            return;
+        }
+
+        if (command == WebMidiCommandRequestPatch && sysexLength == 6u)
+        {
+            patchResponseHasPatch = false;
+            patchResponsePending = true;
+            return;
+        }
+
+        if (command == WebMidiCommandRequestSlots && sysexLength == 6u)
+        {
+            slotsResponsePending = true;
+            return;
+        }
+
+        if (command == WebMidiCommandRequestSlot && sysexLength == 7u)
+        {
+            uint8_t slot = sysexBuffer[6] & 0x07u;
+            if ((savedSlotMask & (1u << slot)) != 0)
+            {
+                slotResponsePatch = patchStateFromSavedPatch(savedPatches[slot]);
+                queuePatchForAudio(slotResponsePatch);
+                slotResponseIndex = slot;
+                slotResponsePending = true;
+            }
+            return;
+        }
+
+        if (command == WebMidiCommandDeleteSlot && sysexLength == 7u)
+        {
+            uint8_t slot = sysexBuffer[6] & 0x07u;
+            savedSlotMask &= ~(1u << slot);
+            if (startupSlot == slot)
+                startupSlot = firstLoadedSlot();
+            savePatchBankIfChanged();
+            slotsResponsePending = true;
+            return;
+        }
+
+        if (command == WebMidiCommandSetStartupSlot && sysexLength == 7u)
+        {
+            uint8_t slot = sysexBuffer[6] & 0x07u;
+            if ((savedSlotMask & (1u << slot)) == 0)
+                return;
+            startupSlot = slot;
+            savePatchBankIfChanged();
+            slotsResponsePending = true;
+        }
+    }
+
+    bool webMidiHeaderMatches() const
+    {
+        if (sysexLength < 6u)
+            return false;
+
+        if (sysexBuffer[0] != WebMidiManufacturer)
+            return false;
+
+        for (uint32_t i = 0; i < 4u; ++i)
+        {
+            if (sysexBuffer[1u + i] != WebMidiId[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    bool decodeWebMidiPatch(uint32_t offset, PatchState& patch) const
+    {
+        if (sysexBuffer[offset++] != WebMidiPatchProtocolVersion)
+            return false;
+
+        patch = {};
+        patch.params.pitchOffsetQ8 = clampPitchQ8((decodeWebMidiUint14(offset) - 2048) << 2);
+        patch.params.portamento = decodeWebMidiUint14(offset);
+        patch.params.pitchCvRange = decodeWebMidiUint14(offset) == 0 ? 0 : 1;
+        patch.params.pulseWidth = clampRange(512 + decodeWebMidiUint14(offset), 512, 3584);
+        patch.params.pwmAmount = decodeWebMidiUint14(offset);
+        patch.params.sawLevel = decodeWebMidiUint14(offset);
+        patch.params.pulseLevel = decodeWebMidiUint14(offset);
+        patch.params.sineLevel = decodeWebMidiUint14(offset);
+        patch.params.noiseLevel = decodeWebMidiUint14(offset);
+        patch.params.voiceLevel = decodeWebMidiUint14(offset);
+        patch.performancePitchQ8 = decodeWebMidiUint14(offset) - 2048;
+        patch.params.hpCutoff = decodeWebMidiUint14(offset);
+        patch.params.lpCutoff = decodeWebMidiUint14(offset);
+        patch.params.resonance = decodeWebMidiUint14(offset);
+        patch.params.expressionDepth = decodeWebMidiUint14(offset);
+        patch.params.attack = decodeWebMidiUint14(offset);
+        patch.params.decay = decodeWebMidiUint14(offset);
+        patch.params.sustain = decodeWebMidiUint14(offset);
+        patch.params.release = decodeWebMidiUint14(offset);
+        patch.params.lfoRate = decodeWebMidiUint14(offset);
+        patch.params.lfoPitchDepth = decodeWebMidiUint14(offset);
+        patch.params.lfoPwmDepth = decodeWebMidiUint14(offset);
+        patch.params.lfoVcfDepth = decodeWebMidiUint14(offset);
+        patch.params.lfoVcaDepth = decodeWebMidiUint14(offset);
+        patch.ringAmount = decodeWebMidiUint14(offset);
+        patch.params.ringSpeed = decodeWebMidiUint14(offset);
+        return true;
+    }
+
+    void handleWebMidiSaveSlot()
+    {
+        if (sysexLength != WebMidiPatchPayloadLength + 7u)
+            return;
+
+        uint8_t slot = sysexBuffer[6] & 0x07u;
+        PatchState patch = {};
+        if (!decodeWebMidiPatch(7, patch))
+            return;
+        bool hadSavedSlots = savedSlotMask != 0;
+        queuePatchForAudio(patch);
+        savePatchToSlot(slot, patch);
+        if (!hadSavedSlots)
+            startupSlot = slot;
+        savePatchBankIfChanged();
+        slotResponseIndex = slot;
+        slotResponsePatch = patch;
+        slotResponsePending = true;
+        slotsResponsePending = true;
+    }
+
+    int32_t decodeWebMidiUint14(uint32_t& offset) const
+    {
+        int32_t low = sysexBuffer[offset++] & 0x7Fu;
+        int32_t high = sysexBuffer[offset++] & 0x7Fu;
+        return clamp12(low | (high << 7));
+    }
+
+    void appendWebMidiUint14(uint8_t* frame, uint32_t& offset, int32_t value) const
+    {
+        uint32_t clipped = (uint32_t)clamp12(value);
+        frame[offset++] = clipped & 0x7Fu;
+        frame[offset++] = (clipped >> 7) & 0x7Fu;
+    }
+
+    SavedPatch savedPatchFromState(const PatchState& state) const
+    {
+        SavedPatch patch = {};
+        patch.pitchOffsetQ8 = state.params.pitchOffsetQ8;
+        patch.portamento = state.params.portamento;
+        patch.pitchCvRange = state.params.pitchCvRange;
+        patch.pulseWidth = state.params.pulseWidth;
+        patch.pwmAmount = state.params.pwmAmount;
+        patch.sawLevel = state.params.sawLevel;
+        patch.pulseLevel = state.params.pulseLevel;
+        patch.sineLevel = state.params.sineLevel;
+        patch.noiseLevel = state.params.noiseLevel;
+        patch.voiceLevel = state.params.voiceLevel;
+        patch.performancePitchQ8 = state.performancePitchQ8;
+        patch.hpCutoff = state.params.hpCutoff;
+        patch.lpCutoff = state.params.lpCutoff;
+        patch.resonance = state.params.resonance;
+        patch.expressionDepth = state.params.expressionDepth;
+        patch.attack = state.params.attack;
+        patch.decay = state.params.decay;
+        patch.sustain = state.params.sustain;
+        patch.release = state.params.release;
+        patch.lfoRate = state.params.lfoRate;
+        patch.lfoPitchDepth = state.params.lfoPitchDepth;
+        patch.lfoPwmDepth = state.params.lfoPwmDepth;
+        patch.lfoVcfDepth = state.params.lfoVcfDepth;
+        patch.lfoVcaDepth = state.params.lfoVcaDepth;
+        patch.ringAmount = state.ringAmount;
+        patch.ringSpeed = state.params.ringSpeed;
+        return patch;
+    }
+
+    PatchState patchStateFromSavedPatch(const SavedPatch& saved) const
+    {
+        PatchState patch = {};
+        patch.params.pitchOffsetQ8 = clampPitchQ8(saved.pitchOffsetQ8);
+        patch.params.portamento = clamp12(saved.portamento);
+        patch.params.pitchCvRange = saved.pitchCvRange == 0 ? 0 : 1;
+        patch.params.pulseWidth = clampRange(saved.pulseWidth, 512, 3584);
+        patch.params.pwmAmount = clamp12(saved.pwmAmount);
+        patch.params.sawLevel = clamp12(saved.sawLevel);
+        patch.params.pulseLevel = clamp12(saved.pulseLevel);
+        patch.params.sineLevel = clamp12(saved.sineLevel);
+        patch.params.noiseLevel = clamp12(saved.noiseLevel);
+        patch.params.voiceLevel = clamp12(saved.voiceLevel);
+        patch.performancePitchQ8 = clampRange(saved.performancePitchQ8, -2048, 2047);
+        patch.params.hpCutoff = clamp12(saved.hpCutoff);
+        patch.params.lpCutoff = clamp12(saved.lpCutoff);
+        patch.params.resonance = clamp12(saved.resonance);
+        patch.params.expressionDepth = clamp12(saved.expressionDepth);
+        patch.params.attack = clamp12(saved.attack);
+        patch.params.decay = clamp12(saved.decay);
+        patch.params.sustain = clamp12(saved.sustain);
+        patch.params.release = clamp12(saved.release);
+        patch.params.lfoRate = clamp12(saved.lfoRate);
+        patch.params.lfoPitchDepth = clamp12(saved.lfoPitchDepth);
+        patch.params.lfoPwmDepth = clamp12(saved.lfoPwmDepth);
+        patch.params.lfoVcfDepth = clamp12(saved.lfoVcfDepth);
+        patch.params.lfoVcaDepth = clamp12(saved.lfoVcaDepth);
+        patch.ringAmount = clamp12(saved.ringAmount);
+        patch.params.ringSpeed = clamp12(saved.ringSpeed);
+        return patch;
+    }
+
+    void applySavedPatch(const SavedPatch& patch)
+    {
+        applyPatchState(patchStateFromSavedPatch(patch));
+    }
+
+    void savePatchToSlot(uint8_t slot, const PatchState& patch)
+    {
+        if (slot >= PatchSlotCount)
+            return;
+        savedPatches[slot] = savedPatchFromState(patch);
+        savedSlotMask |= 1u << slot;
+    }
+
+    void applySavedSlot(uint8_t slot)
+    {
+        if (slot >= PatchSlotCount || (savedSlotMask & (1u << slot)) == 0)
+            return;
+        applySavedPatch(savedPatches[slot]);
+    }
+
+    uint8_t loadedSlotCount() const
+    {
+        uint8_t count = 0;
+        for (uint8_t i = 0; i < PatchSlotCount; ++i)
+        {
+            if ((savedSlotMask & (1u << i)) != 0)
+                count++;
+        }
+        return count;
+    }
+
+    uint8_t slotForLoadedSelection(uint8_t selected) const
+    {
+        for (uint8_t slot = 0; slot < PatchSlotCount; ++slot)
+        {
+            if ((savedSlotMask & (1u << slot)) == 0)
+                continue;
+            if (selected == 0)
+                return slot;
+            selected--;
+        }
+        return firstLoadedSlot();
+    }
+
+    uint8_t firstLoadedSlot() const
+    {
+        for (uint8_t slot = 0; slot < PatchSlotCount; ++slot)
+        {
+            if ((savedSlotMask & (1u << slot)) != 0)
+                return slot;
+        }
+        return 0;
+    }
+
+    void showSlotLeds(uint8_t slot)
+    {
+        uint8_t display = slot + 1u;
+        LedBrightness(0, display & 1u ? 4095 : 0);
+        LedBrightness(1, display & 2u ? 4095 : 0);
+        LedBrightness(2, display & 4u ? 4095 : 0);
+        LedBrightness(3, (savedSlotMask & (1u << slot)) != 0 ? 4095 : 0);
+        LedBrightness(4, 0);
+        LedBrightness(5, 4095);
+    }
+
+    SavedPatchBank currentPatchBank() const
+    {
+        SavedPatchBank bank = {};
+        bank.magic = PatchBankMagic;
+        bank.version = PatchBankVersion;
+        bank.size = sizeof(SavedPatchBank);
+        bank.loadedMask = savedSlotMask;
+        bank.startupSlot = startupSlot;
+        for (uint8_t i = 0; i < PatchSlotCount; ++i)
+            bank.slots[i] = savedPatches[i];
+        bank.checksum = 0;
+        bank.checksum = checksumPatchBank(bank);
+        return bank;
+    }
+
+    const SavedPatchBank& flashPatchBank() const
+    {
+        return *reinterpret_cast<const SavedPatchBank*>(
+            XIP_BASE + PatchBankFlashOffset);
+    }
+
+    bool isValidPatchBank(const SavedPatchBank& bank) const
+    {
+        return
+            bank.magic == PatchBankMagic &&
+            bank.version == PatchBankVersion &&
+            bank.size == sizeof(SavedPatchBank) &&
+            bank.checksum == checksumPatchBank(bank);
+    }
+
+    uint32_t checksumPatchBank(const SavedPatchBank& bank) const
+    {
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&bank);
+        uint32_t checksum = 2166136261u;
+
+        for (uint32_t i = 0; i < sizeof(SavedPatchBank) - sizeof(uint32_t); ++i)
+        {
+            checksum ^= bytes[i];
+            checksum *= 16777619u;
+        }
+        return checksum;
+    }
+
+    bool patchBankMatches(const SavedPatchBank& a, const SavedPatchBank& b) const
+    {
+        const uint8_t* aBytes = reinterpret_cast<const uint8_t*>(&a);
+        const uint8_t* bBytes = reinterpret_cast<const uint8_t*>(&b);
+        for (uint32_t i = 0; i < sizeof(SavedPatchBank); ++i)
+        {
+            if (aBytes[i] != bBytes[i])
+                return false;
+        }
+        return true;
+    }
+
+    void loadPatchBank()
+    {
+        const SavedPatchBank& bank = flashPatchBank();
+        if (!isValidPatchBank(bank))
+            return;
+
+        savedSlotMask = bank.loadedMask;
+        startupSlot = bank.startupSlot < PatchSlotCount ? bank.startupSlot : firstLoadedSlot();
+        for (uint8_t i = 0; i < PatchSlotCount; ++i)
+            savedPatches[i] = bank.slots[i];
+
+        if ((savedSlotMask & (1u << startupSlot)) != 0)
+            applySavedSlot(startupSlot);
+    }
+
+    void savePatchBankIfChanged()
+    {
+        SavedPatchBank bank = currentPatchBank();
+        const SavedPatchBank& saved = flashPatchBank();
+        if (isValidPatchBank(saved) && patchBankMatches(bank, saved))
+            return;
+
+        uint8_t page[FLASH_PAGE_SIZE];
+        const uint8_t* stateBytes = reinterpret_cast<const uint8_t*>(&bank);
+        uint32_t bytesWritten = 0;
+
+        uint32_t interrupts = save_and_disable_interrupts();
+        flash_range_erase(PatchBankFlashOffset, FLASH_SECTOR_SIZE);
+        while (bytesWritten < sizeof(SavedPatchBank))
+        {
+            for (uint32_t i = 0; i < FLASH_PAGE_SIZE; ++i)
+                page[i] = 0xFF;
+
+            for (uint32_t i = 0;
+                 i < FLASH_PAGE_SIZE && bytesWritten + i < sizeof(SavedPatchBank);
+                 ++i)
+                page[i] = stateBytes[bytesWritten + i];
+
+            flash_range_program(
+                PatchBankFlashOffset + bytesWritten,
+                page,
+                FLASH_PAGE_SIZE);
+            bytesWritten += FLASH_PAGE_SIZE;
+        }
+        restore_interrupts(interrupts);
+    }
+
+    SavedPatch savedPatches[PatchSlotCount] = {};
 };
 
 CS80Card card;
+static volatile uint8_t hostMidiDeviceAddress = 0;
 
 void core1Worker()
 {
+    sleep_ms(100);
+    bool hostMode = card.ShouldBootUsbHost();
+
+    if (hostMode)
+        tuh_init(0);
+    else
+        tud_init(0);
+
     while (true)
-        tight_loop_contents();
+    {
+        card.FlushPendingWebPatch();
+        if (hostMode)
+        {
+            tuh_task();
+        }
+        else
+        {
+            tud_task();
+            card.SendPendingUsbMidiOutput();
+
+            uint8_t bytes[64];
+            uint32_t count = tud_midi_stream_read(bytes, sizeof(bytes));
+            for (uint32_t i = 0; i < count; ++i)
+                card.ProcessUsbMidiByte(bytes[i]);
+        }
+    }
+}
+
+extern "C" void tuh_midi_mount_cb(
+    uint8_t dev_addr,
+    uint8_t in_ep,
+    uint8_t out_ep,
+    uint8_t num_cables_rx,
+    uint16_t num_cables_tx)
+{
+    (void)in_ep;
+    (void)out_ep;
+    (void)num_cables_rx;
+    (void)num_cables_tx;
+
+    if (hostMidiDeviceAddress == 0)
+        hostMidiDeviceAddress = dev_addr;
+}
+
+extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
+{
+    (void)instance;
+
+    if (dev_addr == hostMidiDeviceAddress)
+        hostMidiDeviceAddress = 0;
+}
+
+extern "C" void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
+{
+    if (dev_addr != hostMidiDeviceAddress || num_packets == 0)
+        return;
+
+    uint8_t cable = 0;
+    uint8_t bytes[128];
+    while (true)
+    {
+        uint32_t count = tuh_midi_stream_read(dev_addr, &cable, bytes, sizeof(bytes));
+        if (count == 0)
+            break;
+
+        for (uint32_t i = 0; i < count; ++i)
+            card.ProcessUsbMidiByte(bytes[i]);
+    }
+}
+
+extern "C" void tuh_midi_tx_cb(uint8_t dev_addr)
+{
+    (void)dev_addr;
 }
 
 int main()
