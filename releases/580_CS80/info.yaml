@@ -1,0 +1,171 @@
+draft: true
+Name: CS80
+short-description: Draft mono CS-80-inspired synth voice with planned Web MIDI editing.
+summary: >-
+  Draft card scaffold for a Yamaha CS-80-inspired Workshop Computer synth voice.
+  The first firmware target is a lean mono voice with two oscillator lanes,
+  expressive envelopes, high-pass and low-pass filter character, ring modulation,
+  MIDI/Web MIDI control, and a browser editor. The code is intended to be shaped
+  so a second voice can be added after the mono engine has been profiled and
+  proven on hardware.
+Language: C++ (Pico SDK)
+Creator: Adrian Vos
+Version: "0.1 draft"
+Status: Draft - firmware not yet implemented
+License: MIT
+date-created: 2026-08-26
+Editor: web
+
+tags:
+  - synth
+  - midi
+  - web-midi
+  - mono
+  - cs-80-inspired
+  - draft
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Pitch CV
+      type: audio
+      description: Planned 1V/oct pitch input for the mono voice.
+    - id: AudioIn2
+      name: Audio / Mod In
+      type: audio
+      description: Reserved for future audio-rate modulation or external processing experiments.
+    - id: CVIn1
+      name: Filter CV
+      type: cv
+      description: Wide high-pass and low-pass filter modulation.
+    - id: CVIn2
+      name: Expression CV
+      type: cv
+      description: Expression input for brightness and resonance modulation.
+    - id: PulseIn1
+      name: Gate
+      type: pulse
+      description: Planned gate input for the amp and filter envelopes.
+    - id: PulseIn2
+      name: Trigger / Hold
+      type: pulse
+      description: Reserved for retrigger, sustain, or alternate performance gestures.
+  outputs:
+    - id: AudioOut1
+      name: Mono Out
+      type: audio
+      description: Planned main mono synthesiser output.
+    - id: AudioOut2
+      name: Alt Out
+      type: audio
+      description: Reserved for dry/wet, alternate filter tap, or future dual-voice output.
+    - id: CVOut1
+      name: Off
+      type: cv
+      description: Reserved for later modulation output once the mono voice is stable.
+    - id: CVOut2
+      name: Off
+      type: cv
+      description: Reserved for later modulation output once the mono voice is stable.
+    - id: PulseOut1
+      name: Off
+      type: pulse
+      description: Reserved for later clock, gate, or envelope-state output.
+    - id: PulseOut2
+      name: Off
+      type: pulse
+      description: Reserved for later clock, gate, or envelope-state output.
+
+controls:
+  switch:
+    up:
+      name: Oscillator page
+      description: Pitch offset, pulse width, and oscillator mix for the mono voice, with soft pickup.
+    middle:
+      name: Filter page
+      description: High-pass cutoff, low-pass cutoff, and resonance for the mono voice, with soft pickup.
+    down:
+      name: Performance page
+      description: Hold page for temporary pitch offset, ring modulation, and LFO depth, with soft pickup.
+  knobs:
+    - when:
+        z: up
+      main:
+        name: Pitch / Spread
+        description: Pitch offset for the mono voice.
+      x:
+        name: Pulse Width
+        description: Pulse width for the mono voice.
+      y:
+        name: Oscillator Mix
+        description: Saw/pulse mix and PWM depth for the mono voice.
+    - when:
+        z: middle
+      main:
+        name: HP Cutoff
+        description: High-pass filter cutoff.
+      x:
+        name: LP Cutoff
+        description: Low-pass filter cutoff.
+      y:
+        name: Resonance
+        description: Filter resonance.
+    - when:
+        z: down
+      main:
+        name: Pitch Offset
+        description: Temporary pitch offset while Down is held.
+      x:
+        name: Ring Mod
+        description: Ring-modulation amount.
+      y:
+        name: LFO Depth
+        description: Vibrato, PWM, and filter modulation depth.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Main Value
+          description: Stored Main parameter value for the active switch page.
+        - id: LED1
+          name: Main Pickup
+          description: Soft-pickup state for the Main knob; dim until picked up, bright when active.
+        - id: LED2
+          name: X Value
+          description: Stored X parameter value for the active switch page.
+        - id: LED3
+          name: X Pickup
+          description: Soft-pickup state for the X knob; dim until picked up, bright when active.
+        - id: LED4
+          name: Y Value
+          description: Stored Y parameter value for the active switch page.
+        - id: LED5
+          name: Y Pickup
+          description: Soft-pickup state for the Y knob; dim until picked up, bright when active.
+
+host:
+  usb:
+    - name: Web MIDI editor
+      role: device
+      description: Planned browser editor using Web MIDI SysEx for patch editing, readback, and save actions.
+    - name: USB MIDI input
+      role: host-or-device
+      description: Planned note, gate, pitch-bend, and performance CC input.
+  notes: >-
+    Draft architecture target: RP2040 at 192 MHz, copy-to-RAM firmware, audio
+    rendering on core 0, USB MIDI/Web MIDI/control work on core 1, and a bounded
+    handoff between control and audio code. The first goal is a robust mono voice;
+    dual voice should wait until the mono implementation is lean and profiled.
+
+
+    Attribution: included computercard.h is ComputerCard by Chris Johnson,
+    version 0.3.0, MIT licensed, copied from
+    Demonstrations+HelloWorlds/PicoSDK/ComputerCard/ComputerCard.h. The
+    included pico_sdk_import.cmake is the standard Raspberry Pi Pico SDK import
+    helper and carries the Raspberry Pi (Trading) Ltd. BSD-style notice in the
+    file. Future code adapted from existing Workshop Computer cards should
+    retain source notices and be documented before release.
+
+contact:
+  social:
+    github: https://github.com/soveda
