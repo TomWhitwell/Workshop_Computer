@@ -1,4 +1,4 @@
-draft: true
+draft: false
 Name: drumdrum
 short-description: DFAM-style 8-step sequencer
 Language: C++ (ComputerCard / Pico SDK)
@@ -59,6 +59,13 @@ panel:
       description: Trigger pulse when sequence wraps from last step to first
 
 controls:
+  switch:
+    down:
+      name: Play/Pause Toggle
+      description: Toggles sequencer running state
+    tap:
+      name: Advance Edit Cursor
+      description: Moves edit cursor to next step
   knobs:
     - when: { z: up }
       main:
@@ -80,18 +87,12 @@ controls:
       y:
         name: Step Velocity
         description: Velocity for selected edit step (with pickup)
-    - when: { z: down, gesture: short-press }
-      main:
-        name: Advance Edit Cursor
-        description: Moves edit cursor to next step
-    - when: { z: down, gesture: long-press }
-      main:
-        name: Play/Pause Toggle
-        description: Toggles sequencer running state
   leds:
-    - when: { mode: step-encoding }
-      display: grid
-      description: Six LEDs encode current step (play mode) or edit cursor (edit mode) using binary-like 1..8 patterns
+    - display: grid
+      items:
+        - id: LED0
+          name: Step encoding
+          description: Six LEDs encode current step (play mode) or edit cursor (edit mode) using binary-like 1..8 patterns
 
 host:
   usb:
