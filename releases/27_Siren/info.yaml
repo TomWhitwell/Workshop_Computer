@@ -66,6 +66,10 @@ panel:
       description: Divider pulse derived from PulseOut1 phase edges
 
 controls:
+  switch:
+    tap:
+      name: Bank Cycle
+      description: Tap switch down to cycle to the next oscillator bank with crossfade
   knobs:
     - when: { z: up }
       main:
@@ -87,13 +91,8 @@ controls:
       y:
         name: Basis
         description: Root pitch / frequency basis (also modulated by CV In 1)
-    - when: { z: down, gesture: momentary }
-      main:
-        name: Bank Cycle
-        description: Tap switch down to cycle to the next oscillator bank with crossfade
   leds:
-    - when: { mode: bank-indicator }
-      display: list
+    - display: list
       items:
         - id: LED0
           name: Bank 1 (SINE)
