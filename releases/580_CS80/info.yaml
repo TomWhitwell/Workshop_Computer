@@ -150,7 +150,7 @@ host:
       description: Draft browser editor using Web MIDI SysEx for patch apply, readback, and eight persistent card slots.
     - name: USB MIDI input
       role: host-or-device
-      description: Planned note, gate, pitch-bend, and performance CC input.
+      description: MIDI note/gate, pitch-bend, and performance CC input for the draft mono voice, following a Gnarly-style dedicated controller block with standard synth aliases.
   notes: >-
     Draft architecture target: RP2040 at 192 MHz, copy-to-RAM firmware, audio
     rendering on core 0, USB MIDI/Web MIDI work on core 1, and bounded lockless
@@ -165,7 +165,13 @@ host:
     cover the visible editor controls, including independent additive
     saw/pulse/sine/noise source levels, voice level, portamento, expression depth, LFO rate,
     independent LFO-to-pitch/PWM/VCF/VCA modulation depths, ring amount, and
-    ring speed.
+    ring speed. The current MIDI controller map is: CC1 LFO-to-pitch,
+    CC2/11 expression depth, CC5 portamento, CC7 voice level, CC16-19
+    saw/pulse/sine/noise levels, CC20 pulse width, CC21 PWM amount, CC22 HP
+    cutoff, CC23 or CC74 LP cutoff, CC24 or CC71 resonance, CC25 ring amount,
+    CC26 ring speed, CC27 or CC73 attack, CC28 or CC75 decay, CC29 sustain,
+    CC30 or CC72 release, CC76 LFO rate, CC77 or CC93 LFO-to-PWM, CC91
+    LFO-to-VCF, CC92 LFO-to-VCA, and pitch bend at +/-2 semitones.
 
 
     Attribution: included computercard.h is ComputerCard by Chris Johnson,

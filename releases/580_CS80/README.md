@@ -82,6 +82,43 @@ If no saved startup slot exists yet, the compiled fallback patch is the Web
 editor's `Doctor Who Theme` preset: an eerie mono lead using sine plus pulse,
 resonant filtering, portamento, vibrato, PWM wobble, and a little ring modulation.
 
+## MIDI CC Map
+
+Following the Gnarly habit, CS80 now exposes a simple eight-knob-style CC block
+plus a few standard synth aliases:
+
+- `CC1`: LFO to pitch
+- `CC2` or `CC11`: expression depth
+- `CC5`: portamento
+- `CC7`: voice level
+- `CC16`: saw level
+- `CC17`: pulse level
+- `CC18`: sine level
+- `CC19`: noise level
+- `CC20`: pulse width
+- `CC21`: PWM amount
+- `CC22`: HP cutoff
+- `CC23` or `CC74`: LP cutoff
+- `CC24` or `CC71`: resonance
+- `CC25`: ring amount
+- `CC26`: ring speed
+- `CC27` or `CC73`: attack
+- `CC28` or `CC75`: decay
+- `CC29`: sustain
+- `CC30` or `CC72`: release
+- `CC76`: LFO rate
+- `CC77` or `CC93`: LFO to PWM
+- `CC91`: LFO to VCF
+- `CC92`: LFO to VCA
+
+Pitch bend is also supported and currently maps to a fixed `+/-2 semitone`
+range through the existing performance-pitch path.
+
+MIDI note-on and note-off now drive the mono voice directly. While a MIDI note
+is held, it takes over pitch and gate for the synth voice, including
+portamento and pitch bend. Releasing the note returns pitch control to the card
+CV input and pulse gate behaviour.
+
 ## First-Pass Firmware
 
 `CS80.cpp` is a lean starting point rather than a finished synth. It currently
@@ -107,10 +144,11 @@ page, while LEDs 1/3/5 go bright once each physical knob has picked up its store
 value.
 
 Web MIDI never writes live audio parameters directly. Core 1 parses each complete
-SysEx patch and queues it without waiting; core 0 applies queued patches only on
-its 64-sample control tick. A second, best-effort queue returns core-0 snapshots
-to the editor for safe readback. If a burst fills the four-patch input queue, core
-1 coalesces it to the most recent patch rather than blocking either core.
+SysEx patch, incoming MIDI CC update, or pitch-bend change and queues a complete
+patch without waiting; core 0 applies queued patches only on its 64-sample
+control tick. A second, best-effort queue returns core-0 snapshots to the editor
+for safe readback. If a burst fills the four-patch input queue, core 1 coalesces
+it to the most recent patch rather than blocking either core.
 
 The first pass uses small lookup tables in `CS80_LUT.*` for pitch ratios, filter
 curves, envelope rates, and LFO/ring sine values. This follows the C1ZZL3 habit

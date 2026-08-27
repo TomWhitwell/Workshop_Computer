@@ -25,6 +25,11 @@ static constexpr uint8_t WebMidiCommandSetStartupSlot = 0x0Bu;
 static constexpr uint8_t WebMidiPatchProtocolVersion = 5u;
 static constexpr uint32_t WebMidiPatchPayloadLength = 53u;
 static constexpr uint32_t WebMidiMaxSysexLength = 64u;
+static constexpr uint8_t MidiStatusMask = 0xF0u;
+static constexpr uint8_t MidiStatusNoteOff = 0x80u;
+static constexpr uint8_t MidiStatusNoteOn = 0x90u;
+static constexpr uint8_t MidiStatusControlChange = 0xB0u;
+static constexpr uint8_t MidiStatusPitchBend = 0xE0u;
 
 class CS80Card : public ComputerCard
 {
@@ -36,6 +41,8 @@ public:
     {
         voice.enabled = true;
         loadPatchBank();
+        midiControlPatch = currentPatchState();
+        midiControlPatchValid = true;
     }
 
     bool ShouldBootUsbHost()
@@ -45,6 +52,9 @@ public:
 
     void ProcessUsbMidiByte(uint8_t byte)
     {
+        if (byte >= 0xF8u)
+            return;
+
         if (byte == 0xF0u)
         {
             sysexReceiving = true;
@@ -54,7 +64,10 @@ public:
         }
 
         if (!sysexReceiving)
+        {
+            processMidiVoiceByte(byte);
             return;
+        }
 
         if (byte == 0xF7u)
         {
@@ -168,7 +181,8 @@ public:
         int32_t audioPitch = AudioIn1();
         int32_t filterCv = CVIn1();
         int32_t expressionCv = CVIn2();
-        bool gateNow = Disconnected(Input::Pulse1) || PulseIn1();
+        bool pulseGateNow = Disconnected(Input::Pulse1) || PulseIn1();
+        bool gateNow = pulseGateNow || midiNoteActive;
 
         updateDownSwitch(downNow);
 
@@ -367,6 +381,8 @@ private:
     bool queuedWebPatchPending = false;
     PatchState webPatchSnapshot = {};
     bool webPatchSnapshotValid = false;
+    PatchState midiControlPatch = {};
+    bool midiControlPatchValid = false;
 
     uint32_t controlDivider = 0;
     uint32_t downSamples = 0;
@@ -387,11 +403,16 @@ private:
     int32_t performancePitchQ8 = 0;
     int32_t currentPitchQ8 = MiddleCBasePitchQ8;
     bool pitchSlewInitialised = false;
+    bool midiNoteActive = false;
+    uint8_t midiNote = 60;
     int32_t lastPitchInput = 0;
     uint8_t sysexBuffer[WebMidiMaxSysexLength] = {};
     uint32_t sysexLength = 0;
     bool sysexReceiving = false;
     bool sysexOverflow = false;
+    uint8_t midiRunningStatus = 0;
+    uint8_t midiData[2] = {};
+    uint8_t midiDataCount = 0;
     bool patchResponsePending = false;
     bool patchResponseHasPatch = false;
     PatchState patchResponsePatch = {};
@@ -406,6 +427,191 @@ private:
     bool startupSelectMode = false;
     bool startupSelectReady = false;
     uint8_t startupSelectedSlot = 0;
+
+    void processMidiVoiceByte(uint8_t byte)
+    {
+        if (byte & 0x80u)
+        {
+            if (byte < 0xF0u)
+            {
+                midiRunningStatus = byte;
+                midiDataCount = 0;
+            }
+            else
+            {
+                midiRunningStatus = 0;
+                midiDataCount = 0;
+            }
+            return;
+        }
+
+        uint8_t type = midiRunningStatus & MidiStatusMask;
+        if (type != MidiStatusNoteOff &&
+            type != MidiStatusNoteOn &&
+            type != MidiStatusControlChange &&
+            type != MidiStatusPitchBend)
+            return;
+
+        midiData[midiDataCount++] = byte & 0x7Fu;
+        if (midiDataCount < 2u)
+            return;
+
+        midiDataCount = 0;
+
+        if (type == MidiStatusNoteOn && midiData[1] > 0)
+        {
+            midiNote = midiData[0];
+            midiNoteActive = true;
+            triggerVoice();
+            return;
+        }
+
+        if (type == MidiStatusNoteOff || (type == MidiStatusNoteOn && midiData[1] == 0))
+        {
+            if (midiNoteActive && midiData[0] == midiNote)
+                midiNoteActive = false;
+            return;
+        }
+
+        if (type == MidiStatusControlChange)
+        {
+            handleMidiControlChange(midiData[0], midiData[1]);
+            return;
+        }
+
+        if (type == MidiStatusPitchBend)
+        {
+            handleMidiPitchBend(midiData[0], midiData[1]);
+            return;
+        }
+    }
+
+    void refreshMidiControlPatch()
+    {
+        drainAudioPatchSnapshots();
+        if (webPatchSnapshotValid)
+        {
+            midiControlPatch = webPatchSnapshot;
+            midiControlPatchValid = true;
+        }
+        else if (!midiControlPatchValid)
+        {
+            midiControlPatch = currentPatchState();
+            midiControlPatchValid = true;
+        }
+    }
+
+    int32_t midiCcToControl(uint8_t value) const
+    {
+        return ((int32_t)(value & 0x7Fu) * 4095) / 127;
+    }
+
+    void pushMidiControlPatch()
+    {
+        queuePatchForAudio(midiControlPatch);
+        patchResponsePatch = midiControlPatch;
+        patchResponseHasPatch = true;
+        patchResponsePending = true;
+    }
+
+    void handleMidiControlChange(uint8_t cc, uint8_t value)
+    {
+        refreshMidiControlPatch();
+        int32_t control = midiCcToControl(value);
+
+        switch (cc & 0x7Fu)
+        {
+        case 1:
+            midiControlPatch.params.lfoPitchDepth = control;
+            break;
+        case 2:
+        case 11:
+            midiControlPatch.params.expressionDepth = control;
+            break;
+        case 5:
+            midiControlPatch.params.portamento = control;
+            break;
+        case 7:
+            midiControlPatch.params.voiceLevel = control;
+            break;
+        case 16:
+            midiControlPatch.params.sawLevel = control;
+            break;
+        case 17:
+            midiControlPatch.params.pulseLevel = control;
+            break;
+        case 18:
+            midiControlPatch.params.sineLevel = control;
+            break;
+        case 19:
+            midiControlPatch.params.noiseLevel = control;
+            break;
+        case 20:
+            midiControlPatch.params.pulseWidth = clampRange(512 + control, 512, 3584);
+            break;
+        case 21:
+            midiControlPatch.params.pwmAmount = control;
+            break;
+        case 22:
+            midiControlPatch.params.hpCutoff = control;
+            break;
+        case 23:
+        case 74:
+            midiControlPatch.params.lpCutoff = control;
+            break;
+        case 24:
+        case 71:
+            midiControlPatch.params.resonance = control;
+            break;
+        case 25:
+            midiControlPatch.ringAmount = control;
+            break;
+        case 26:
+            midiControlPatch.params.ringSpeed = control;
+            break;
+        case 27:
+        case 73:
+            midiControlPatch.params.attack = control;
+            break;
+        case 28:
+        case 75:
+            midiControlPatch.params.decay = control;
+            break;
+        case 29:
+            midiControlPatch.params.sustain = control;
+            break;
+        case 30:
+        case 72:
+            midiControlPatch.params.release = control;
+            break;
+        case 76:
+            midiControlPatch.params.lfoRate = control;
+            break;
+        case 77:
+        case 93:
+            midiControlPatch.params.lfoPwmDepth = control;
+            break;
+        case 91:
+            midiControlPatch.params.lfoVcfDepth = control;
+            break;
+        case 92:
+            midiControlPatch.params.lfoVcaDepth = control;
+            break;
+        default:
+            return;
+        }
+
+        pushMidiControlPatch();
+    }
+
+    void handleMidiPitchBend(uint8_t lsb, uint8_t msb)
+    {
+        refreshMidiControlPatch();
+        int32_t bend = ((int32_t)(msb & 0x7Fu) << 7) | (lsb & 0x7Fu);
+        midiControlPatch.performancePitchQ8 =
+            clampRange(((bend - 8192) * 512) / 8192, -512, 511);
+        pushMidiControlPatch();
+    }
 
     void updateDownSwitch(bool downNow)
     {
@@ -559,6 +765,35 @@ private:
     void updatePitchCache(int32_t pitchInput)
     {
         lastPitchInput = pitchInput;
+        if (midiNoteActive)
+        {
+            int32_t targetPitchQ8 = clampPitchQ8(
+                midiNotePitchQ8(midiNote) + params.pitchOffsetQ8 + performancePitchQ8);
+
+            if (!pitchSlewInitialised || params.portamento <= 0)
+            {
+                currentPitchQ8 = targetPitchQ8;
+                pitchSlewInitialised = true;
+            }
+            else
+            {
+                int32_t delta = targetPitchQ8 - currentPitchQ8;
+                int32_t speed = 4095 - clamp12(params.portamento);
+                int32_t step = 1 + ((speed * speed) >> 16);
+
+                if (delta > step)
+                    currentPitchQ8 += step;
+                else if (delta < -step)
+                    currentPitchQ8 -= step;
+                else
+                    currentPitchQ8 = targetPitchQ8;
+            }
+
+            params.cachedPhaseIncrement =
+                phaseIncrementFromSemitoneQ8(currentPitchQ8);
+            return;
+        }
+
         int32_t limitedPitchInput = pitchInput;
         int32_t pitchBaseQ8 = MiddleCBasePitchQ8;
         if (params.pitchCvRange == 0)
@@ -598,6 +833,11 @@ private:
 
         params.cachedPhaseIncrement =
             phaseIncrementFromSemitoneQ8(currentPitchQ8);
+    }
+
+    int32_t midiNotePitchQ8(uint8_t note) const
+    {
+        return ((int32_t)note - 36) * 256;
     }
 
     PatchState currentPatchState() const
