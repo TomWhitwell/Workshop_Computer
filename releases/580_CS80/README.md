@@ -15,11 +15,13 @@ performance modulation, ring modulation, and expressive envelopes.
 
 ## Current Status
 
-This folder contains a first-pass firmware scaffold and draft Web MIDI editor.
+This folder contains the current stable mono firmware baseline plus a draft Web
+MIDI editor.
 
-- Firmware: first-pass mono voice implemented, with non-blocking core handover
+- Firmware: current stable version is the non-dual mono voice build with the
+  two-bank MIDI CC layout and `CC1` vibrato depth
 - Web editor: draft CS80 SysEx v5 patch apply/readback interface
-- UF2: local test builds only
+- UF2: the rollback-stable firmware build is kept in `uf2/`
 - Release status: draft
 
 Release firmware should go in `uf2/` when a build is ready to publish. Local

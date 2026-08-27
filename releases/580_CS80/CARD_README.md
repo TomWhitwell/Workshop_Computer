@@ -38,9 +38,16 @@ Switch down hold: performance page.
 ## Outputs
 
 - `Audio Out 1`: mono voice
-- `Audio Out 2`: mono copy / future alternate output reserve
+- `Audio Out 2`: mono copy in the current stable version; future alternate
+  output reserve
 
 CV and pulse outputs are reserved until the mono voice is stable.
+
+## Stable Rollback
+
+The current stable rollback target is the non-dual mono firmware build from
+August 27, 2026, before the separate dual-output experiment under
+`experimental-dual-output/`.
 
 ## LEDs
 
