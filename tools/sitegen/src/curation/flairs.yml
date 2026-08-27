@@ -247,3 +247,5 @@ assignments:
     - classic
   # Dub Warning
   999_Dub_Warning: []
+  # SPECTRAL
+  103_spectral: []
