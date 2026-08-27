@@ -524,65 +524,63 @@ private:
         case 1:
             midiControlPatch.params.lfoPitchDepth = control;
             break;
+        case 20:
+            midiControlPatch.params.sawLevel = control;
+            break;
+        case 21:
+            midiControlPatch.params.pulseLevel = control;
+            break;
+        case 22:
+            midiControlPatch.params.sineLevel = control;
+            break;
+        case 23:
+            midiControlPatch.params.noiseLevel = control;
+            break;
+        case 24:
+            midiControlPatch.params.pulseWidth = clampRange(512 + control, 512, 3584);
+            break;
+        case 25:
+            midiControlPatch.params.pwmAmount = control;
+            break;
+        case 26:
+            midiControlPatch.params.lpCutoff = control;
+            break;
+        case 27:
+            midiControlPatch.params.resonance = control;
+            break;
+        case 28:
+            midiControlPatch.params.hpCutoff = control;
+            break;
+        case 29:
+            midiControlPatch.ringAmount = control;
+            break;
+        case 30:
+            midiControlPatch.params.ringSpeed = control;
+            break;
+        case 31:
+            midiControlPatch.params.attack = control;
+            break;
+        case 32:
+            midiControlPatch.params.decay = control;
+            break;
+        case 33:
+            midiControlPatch.params.sustain = control;
+            break;
+        case 34:
+            midiControlPatch.params.release = control;
+            break;
+        case 35:
+            midiControlPatch.params.portamento = control;
+            break;
         case 2:
         case 11:
             midiControlPatch.params.expressionDepth = control;
             break;
-        case 5:
-            midiControlPatch.params.portamento = control;
+        case 91:
+            midiControlPatch.params.lfoVcfDepth = control;
             break;
-        case 7:
-            midiControlPatch.params.voiceLevel = control;
-            break;
-        case 16:
-            midiControlPatch.params.sawLevel = control;
-            break;
-        case 17:
-            midiControlPatch.params.pulseLevel = control;
-            break;
-        case 18:
-            midiControlPatch.params.sineLevel = control;
-            break;
-        case 19:
-            midiControlPatch.params.noiseLevel = control;
-            break;
-        case 20:
-            midiControlPatch.params.pulseWidth = clampRange(512 + control, 512, 3584);
-            break;
-        case 21:
-            midiControlPatch.params.pwmAmount = control;
-            break;
-        case 22:
-            midiControlPatch.params.hpCutoff = control;
-            break;
-        case 23:
-        case 74:
-            midiControlPatch.params.lpCutoff = control;
-            break;
-        case 24:
-        case 71:
-            midiControlPatch.params.resonance = control;
-            break;
-        case 25:
-            midiControlPatch.ringAmount = control;
-            break;
-        case 26:
-            midiControlPatch.params.ringSpeed = control;
-            break;
-        case 27:
-        case 73:
-            midiControlPatch.params.attack = control;
-            break;
-        case 28:
-        case 75:
-            midiControlPatch.params.decay = control;
-            break;
-        case 29:
-            midiControlPatch.params.sustain = control;
-            break;
-        case 30:
-        case 72:
-            midiControlPatch.params.release = control;
+        case 92:
+            midiControlPatch.params.lfoVcaDepth = control;
             break;
         case 76:
             midiControlPatch.params.lfoRate = control;
@@ -591,11 +589,8 @@ private:
         case 93:
             midiControlPatch.params.lfoPwmDepth = control;
             break;
-        case 91:
-            midiControlPatch.params.lfoVcfDepth = control;
-            break;
-        case 92:
-            midiControlPatch.params.lfoVcaDepth = control;
+        case 7:
+            midiControlPatch.params.voiceLevel = control;
             break;
         default:
             return;
@@ -944,8 +939,6 @@ private:
         int32_t pulseBody = (pulse * params.pulseLevel) >> 12;
         int32_t sineMix = (sineBody * params.sineLevel) >> 12;
         int32_t noiseMix = (noise * params.noiseLevel) >> 13;
-        // Each source is independently levelled; the shift leaves useful headroom
-        // for the normal two-to-four waveform combinations.
         int32_t osc = (sawBody + pulseBody + sineMix + noiseMix) >> 1;
         osc = clip12(osc);
         osc = applyRingMod(osc);

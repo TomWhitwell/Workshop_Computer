@@ -163,15 +163,15 @@ host:
     editor's Doctor Who Theme preset, including its portamento setting. Each saved patch includes its pitch-CV range mode. Web MIDI patch
     readback and saved slots
     cover the visible editor controls, including independent additive
-    saw/pulse/sine/noise source levels, voice level, portamento, expression depth, LFO rate,
-    independent LFO-to-pitch/PWM/VCF/VCA modulation depths, ring amount, and
-    ring speed. The current MIDI controller map is: CC1 LFO-to-pitch,
-    CC2/11 expression depth, CC5 portamento, CC7 voice level, CC16-19
-    saw/pulse/sine/noise levels, CC20 pulse width, CC21 PWM amount, CC22 HP
-    cutoff, CC23 or CC74 LP cutoff, CC24 or CC71 resonance, CC25 ring amount,
-    CC26 ring speed, CC27 or CC73 attack, CC28 or CC75 decay, CC29 sustain,
-    CC30 or CC72 release, CC76 LFO rate, CC77 or CC93 LFO-to-PWM, CC91
-    LFO-to-VCF, CC92 LFO-to-VCA, and pitch bend at +/-2 semitones.
+    saw/pulse/sine/noise source levels, voice level, portamento, expression
+    depth, LFO rate, independent LFO-to-pitch/PWM/VCF/VCA modulation depths,
+    ring amount, and ring speed. The current MIDI controller map is: CC1
+    vibrato depth via LFO-to-pitch; Bank A on CC20-27 for saw level, pulse
+    level, sine level, noise level, pulse width, PWM amount, LP cutoff, and
+    resonance; Bank B on CC28-35 for HP cutoff, ring amount, ring speed,
+    attack, decay, sustain, release, and portamento; CC2/11 expression depth;
+    CC7 voice level; CC76 LFO rate; CC77 or CC93 LFO-to-PWM; CC91
+    LFO-to-VCF; CC92 LFO-to-VCA; and pitch bend at +/-2 semitones.
 
 
     Attribution: included computercard.h is ComputerCard by Chris Johnson,

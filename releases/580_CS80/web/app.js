@@ -107,7 +107,7 @@ const presets = [
     filter: "Resonant bandpass-like shape with raised HPF and open LPF",
     envelope: "Immediate attack, sustained note body, short/medium release",
     modulation: "Audible vibrato and PWM wobble, plus a little ring colour for tape-era shimmer",
-    params: { ...defaultPatchParams },
+    params: { ...defaultPatchParams, lfoPitchDepth: 560, lfoRate: 1620, lfoPwmDepth: 1480 },
   },
   {
     name: "Initial Brass",
@@ -396,8 +396,8 @@ const presets = [
     sources: "Saw and pulse strong, sine low, no noise",
     filter: "Low HPF, darker LPF, moderate resonance",
     envelope: "Fast attack, medium decay, medium sustain, short release",
-    modulation: "Little modulation, intended to stay solid",
-    params: { pitch: -12, pulse: 1500, pwmAmount: 220, sawLevel: 2600, pulseLevel: 2200, sineLevel: 500, noiseLevel: 0, hp: 120, lp: 1500, res: 1350, attack: 30, decay: 900, sustain: 1800, release: 760, ring: 0, lfoPitchDepth: 40, lfoPwmDepth: 100, vcfDepth: 220, vcaDepth: 60, lfoRate: 420, ringSpeed: 720, expression: 1600 },
+    modulation: "A little more filter bounce and motion while keeping the note body solid",
+    params: { pitch: -12, pulse: 1500, pwmAmount: 220, sawLevel: 2600, pulseLevel: 2200, sineLevel: 500, noiseLevel: 0, hp: 120, lp: 1580, res: 1520, attack: 20, decay: 720, sustain: 1500, release: 680, ring: 0, lfoPitchDepth: 30, lfoPwmDepth: 120, vcfDepth: 520, vcaDepth: 110, lfoRate: 680, ringSpeed: 720, expression: 1750 },
   },
 ];
 

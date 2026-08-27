@@ -84,28 +84,17 @@ resonant filtering, portamento, vibrato, PWM wobble, and a little ring modulatio
 
 ## MIDI CC Map
 
-Following the Gnarly habit, CS80 now exposes a simple eight-knob-style CC block
-plus a few standard synth aliases:
+Following the Gnarly habit, CS80 now exposes a simple two-bank encoder layout
+for controllers such as the M-VAVE SMK-25:
 
-- `CC1`: LFO to pitch
+- `CC1`: vibrato depth via LFO to pitch
+- Bank A, `CC20-27`: saw level, pulse level, sine level, noise level, pulse width, PWM amount, LP cutoff, resonance
+- Bank B, `CC28-35`: HP cutoff, ring amount, ring speed, attack, decay, sustain, release, portamento
+
+Secondary synth controls stay available on:
+
 - `CC2` or `CC11`: expression depth
-- `CC5`: portamento
 - `CC7`: voice level
-- `CC16`: saw level
-- `CC17`: pulse level
-- `CC18`: sine level
-- `CC19`: noise level
-- `CC20`: pulse width
-- `CC21`: PWM amount
-- `CC22`: HP cutoff
-- `CC23` or `CC74`: LP cutoff
-- `CC24` or `CC71`: resonance
-- `CC25`: ring amount
-- `CC26`: ring speed
-- `CC27` or `CC73`: attack
-- `CC28` or `CC75`: decay
-- `CC29`: sustain
-- `CC30` or `CC72`: release
 - `CC76`: LFO rate
 - `CC77` or `CC93`: LFO to PWM
 - `CC91`: LFO to VCF

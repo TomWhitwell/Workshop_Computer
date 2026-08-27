@@ -55,10 +55,12 @@ Candidate first voice:
 - precomputed pitch/filter mapping tables
 - simple saturation/drive only after timing headroom is known
 
-## Duophonic Options
+## Second Oscillator Options
 
-If this card grows beyond mono, keep the next step to two voices and choose the
-architecture deliberately rather than drifting into accidental pseudo-polyphony.
+If this card grows beyond the current mono draft, prefer a stronger single-voice
+architecture over note polyphony. The next step should be a monophonic voice
+with a second oscillator/layer path, not a MIDI-only duophonic split that makes
+CV and MIDI behave like different instruments.
 
 Current constraints in the draft firmware:
 
@@ -68,120 +70,120 @@ Current constraints in the draft firmware:
 - one active MIDI note
 - both audio outputs currently carry the same mono render
 
-Realistic duophonic routes:
+Realistic next routes:
 
-### 1. Split-output duophonic
+### 1. Split-output oscillator B
 
-Two independent note lanes, one per output.
+One played note, with a second oscillator lane exposed on the second output.
 
-- `Audio Out 1`: voice A
-- `Audio Out 2`: voice B
-- separate pitch, envelope, and oscillator state per voice
-- each voice keeps the same mono architecture
-- simplest audible proof that two-note MIDI/CV handling works
+- `Audio Out 1`: main voice / oscillator A path
+- `Audio Out 2`: oscillator B or alternate layer of the same note
+- one pitch source, one note, one playing model
+- oscillator B can be detuned, interval-shifted, balanced, or shaped
+  differently
+- simplest route toward a more CS-80-like voice structure without confusing the
+  control model
 
 Pros:
 
-- easiest to debug by ear
-- no internal voice mixing cost
+- keeps CV and MIDI behaviour consistent
+- closer to the real CS-80 idea than note duophony
+- easy to debug by ear with separate outputs
 - maps naturally to the Workshop Computer output layout
-- useful even before a polished summed mode exists
+- useful even before internal mixing is finalised
 
 Cons:
 
-- less immediately “synth keyboard” like if the user expects both notes mixed
-- filter and envelope duplication still costs CPU
-- panel control ownership between voice A, voice B, and shared controls must be
-  designed explicitly
+- panel and web control ownership between oscillator A and B must be designed
+  explicitly
+- per-layer filter/envelope duplication still costs CPU if taken far
+- if the two outputs are not later mixable in firmware, external mixing may be
+  needed for some patches
 
-### 2. Summed duophonic
+### 2. Internally layered mono voice
 
-Two fully independent voices are rendered, then mixed to one or both outputs.
+One played note, with oscillator A and B combined internally.
 
-- separate oscillator, pitch, and envelope state per voice
-- per-voice filter path if the sound should stay close to the mono card
-- summed output to `Audio Out 1`, optional duplicate or alternate tap on
-  `Audio Out 2`
+- separate oscillator lanes inside one voice
+- optional balance, detune, interval, or level relationship between them
+- summed output to `Audio Out 1`, with `Audio Out 2` available as duplicate,
+  dry tap, or alternate filter tap
 
 Pros:
 
-- most familiar “two-note synth” behaviour
-- keeps the card musically self-contained without requiring external mixing
-- can still support later split-output debug modes
+- closest to a real “single rich CS-80-style note”
+- no mismatch between CV and MIDI playing models
+- keeps the card musically self-contained without external mixing
+- can still preserve a debug tap on output 2
 
 Cons:
 
 - higher clipping/headroom management burden
-- more expensive than split outputs because both voices are always combined
-- harder to isolate per-voice problems during early testing
+- more expensive than split-output development
+- harder to debug early than exposing oscillator B separately first
 
-### 3. Paraphonic two-note mode
+### 3. Hybrid development path
 
-Two oscillators or pitch lanes feed a shared filter and shared amp envelope.
+Start with oscillator B on output 2, then add an internal layered mode later.
 
-- separate pitch generation for two held notes
-- shared downstream filter and VCA path
-- one articulation envelope for both notes
-
-Pros:
-
-- much cheaper than full dual-voice rendering
-- could preserve more CPU headroom for richer oscillators or modulation
-- historically plausible for a synth-inspired instrument, even if not true
-  CS-80 behaviour
-
-Cons:
-
-- less expressive than true dual voice
-- note release behaviour becomes musically tricky
-- patch expectations from the current mono envelope logic may not translate
-  cleanly
-
-### 4. Hybrid debug-first duophonic
-
-Start as split-output dual voice internally, then add optional summed mode once
-timing is proven.
-
-- build voice A and voice B as fully separate render paths
-- test them on separate outputs first
-- add a selectable summed mode only after CPU and headroom are known
+- build oscillator B as a real second lane of the same note
+- expose it first on `Audio Out 2`
+- add internal balance or mix control only after timing and headroom are known
 
 Pros:
 
 - safest development path
-- exposes CPU cost early
-- keeps audio debugging straightforward
+- preserves a clear monophonic playing model
+- makes it easy to hear what oscillator B is contributing
+- leaves room for later internal mixing or alternate output roles
 
 Cons:
 
-- takes longer to reach the most polished end-user mode
-- requires an extra routing decision later
+- takes longer to reach the most polished internally layered result
+- still needs a later decision on how much of oscillator B becomes shared,
+  mixed, or separately routable
 
 ### Recommendation
 
-Best next experiment: option 4.
+Best next experiment: option 3.
 
 In practice that means:
 
-1. duplicate the current mono voice into `voiceA` and `voiceB`
-2. keep one shared patch for now, with only pitch/gate/note allocation per
-   voice
-3. route `voiceA` to `Audio Out 1` and `voiceB` to `Audio Out 2`
-4. add a tiny two-note allocator for MIDI first
-5. decide later whether CV should stay mono, become voice A only, or support a
-   second pitch source
-6. only add summed dual-voice mode after profiling
+1. keep one monophonic played note for both CV and MIDI
+2. duplicate only the oscillator lane, not the note allocator
+3. route oscillator A to `Audio Out 1`
+4. route oscillator B or its alternate tap to `Audio Out 2`
+5. add detune, interval, level, or balance control for oscillator B
+6. decide later whether oscillator B should gain independent filtering or
+   envelopes
+7. only add internal mixing after profiling and listening tests
+
+### Preferred operating model
+
+For this card and this hardware, formalise the preferred expansion as:
+
+- one monophonic playing model
+- same note behaviour from CV and MIDI
+- `Audio Out 1` as the main voice output
+- `Audio Out 2` as oscillator B, alternate layer, or debug tap of the same note
+
+Do not prioritise a MIDI-only duophonic mode, because it makes CV and MIDI feel
+like different instruments and moves the card away from the CS-80-style goal of
+making one note richer.
 
 ### Control strategy questions for later
 
-Before implementing duophony, answer these explicitly:
+Before implementing oscillator B, answer these explicitly:
 
-- Are filter controls shared by both voices, or does one output become a
-  timbral variation of the other?
-- Does `Pulse In 1` gate both voices together, or only the most recent/voice A?
-- Should MIDI be note-priority based, round-robin, or last-two-held?
-- Should saved patches remain global, or eventually store per-voice offsets?
-- Is ring modulation shared, per voice, or only available in summed mode?
+- Is oscillator B simply detuned, or can it also take a fixed interval?
+- Are filter controls shared by both oscillator lanes, or does output 2 become a
+  timbral variation of output 1?
+- Should saved patches remain global, or eventually store oscillator-B-specific
+  offsets?
+- Is ring modulation shared, per lane, or only meaningful after internal
+  layering?
+- Should `Audio Out 2` stay a raw alternate lane forever, or later become an
+  optional mixed/dry/alternate tap?
 
 ## Web Editor Notes
 
@@ -196,3 +198,32 @@ Borrow the C1ZZL3 Web MIDI habits:
 
 Do not create large preset payloads until the firmware parameter model is
 settled.
+
+## External Control Plan
+
+Long-term control expansion should assume two separate roles:
+
+- compact MIDI controller for many performance parameters
+- mono pitch-CV source for playing notes from the modular/keyboard side
+
+Preferred future setup:
+
+- use an `8mu`-style controller for expanded parameter control over MIDI CC
+- use something like an Arturia Keystep for mono pitch CV and gate note entry
+- keep the card's pitch-CV model mono even if oscillator B is added later
+
+As of August 27, 2026, the current public `8mu` page describes the existing
+8mu as an eight-fader MIDI controller with buttons, banks, gesture-derived
+controls, USB-C, hardware MIDI out, and a web editor, and it explicitly notes
+that the current hardware cannot send i2c or CV due to size constraints. That
+means:
+
+- MIDI CC mapping is the correct first integration step now
+- do not plan around 8mu CV output on current hardware
+- revisit deeper 8mu-led expanded control when the new 8mu version actually
+  exists and its capabilities are known
+
+Working assumption for later:
+
+- parameter expansion via 8mu-family MIDI control
+- note playing via mono pitch CV/gate from an external keyboard or controller
