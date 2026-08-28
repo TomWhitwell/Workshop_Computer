@@ -22,6 +22,7 @@ MIDI editor.
   two-bank MIDI CC layout and `CC1` vibrato depth
 - Web editor: draft CS80 SysEx v5 patch apply/readback interface
 - UF2: the rollback-stable firmware build is kept in `uf2/`
+- Dual-voice experiments: kept separately in `experimental-dual-output/`
 - Release status: draft
 
 Release firmware should go in `uf2/` when a build is ready to publish. Local

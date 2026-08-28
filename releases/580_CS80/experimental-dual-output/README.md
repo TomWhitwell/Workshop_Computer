@@ -1,21 +1,42 @@
 # CS80 Dual Output Experimental
 
-This is a local experimental variant of `580_CS80` for exploring a split-output
-voice layout.
+This folder is the experimental branch for the next CS80 direction. The main
+`580_CS80` folder remains the current stable mono firmware and rollback point.
 
-Current behavior:
+The purpose of this folder is to explore a split-output dual-voice layout with:
 
-- `Audio Out 1`: base mono CS80 voice
-- `Audio Out 2`: second oscillator lane using the same voice architecture but
-  detuned by `pitchOffsetQ8`
-- the rest of the patch structure is shared for now: same envelope, filter
-  topology, source mix, modulation, and ring-mod controls
+- `Audio Out 1`: Voice A
+- `Audio Out 2`: Voice B
+- short `Down` tap toggling which voice page is being edited
+- visible LED feedback for whether Voice A or Voice B is selected
 
-Control note:
+Target control layout for this experiment:
 
-- `Switch Up / Main` is the detune amount for output 2 in this experiment
-- `Switch Down / Main` remains the held performance pitch control
+- `Switch Up`: filter page
+  - `Main`: LP cutoff
+  - `X`: HP cutoff
+  - `Y`: resonance
+- `Switch Middle`: oscillator page
+  - `Main`: overall base pitch / pitch offset for both voices
+  - `X`: pulse width for the selected voice page
+  - `Y`: PWM amount for the selected voice page
+- `Switch Down` while held: performance page
+  - `Main`: Voice B detune relative to Voice A, with a target range of
+    `-12` to `+12` semitones
+  - `X`: ring-mod amount
+  - `Y`: LFO-to-pitch depth
 
-This folder is intentionally separate so the main `580_CS80` build stays stable
-while we explore whether split-output dual-oscillator behavior feels more like
-the direction you want.
+Target LED behavior for this experiment:
+
+- `LED0` / `LED1`: selected voice page
+  - Voice A selected: `LED0` bright, `LED1` dim
+  - Voice B selected: `LED0` dim, `LED1` bright
+- `LED2` / `LED3`: active `X` value and pickup
+- `LED4` / `LED5`: active `Y` value and pickup
+
+Current implementation note:
+
+- the existing experimental firmware is still an earlier split-output prototype
+  with shared shaping for many parameters
+- this folder is now the place where the new A/B page, detune, and per-voice
+  control work should happen next

@@ -2,6 +2,8 @@
 /build/
 /build-*/
 /build_*/
+/experimental-dual-output/build_local_*/
+/experimental-dual-output/build_*/
 
 # Local firmware test drops. Keep release candidates in /uf2/.
 /test-uf2/

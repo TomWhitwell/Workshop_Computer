@@ -213,13 +213,14 @@ public:
 
         updateGlobalModulation();
 
-        int32_t outA = renderVoice(voiceA, gateNow, filterCv, expressionCv, outputAPitchOffsetQ8);
+        int32_t outA = renderVoice(voiceA, gateNow, filterCv, expressionCv, outputAPitchOffsetQ8, 0u);
         int32_t outB = renderVoice(
             voiceB,
             gateNow,
             filterCv,
             expressionCv,
-            clampPitchQ8(outputAPitchOffsetQ8 + params.pitchOffsetQ8));
+            clampPitchQ8(outputAPitchOffsetQ8 + params.pitchOffsetQ8),
+            1u);
 
         AudioOut1(outA);
         AudioOut2(outB);
@@ -387,6 +388,11 @@ private:
     VoiceState voiceA = {};
     VoiceState voiceB = {};
     int32_t outputAPitchOffsetQ8 = 0;
+    int32_t voicePulseWidth[2] = {2162, 2162};
+    int32_t voicePwmAmount[2] = {1450, 1450};
+    int32_t voiceHpCutoff[2] = {1500, 1500};
+    int32_t voiceLpCutoff[2] = {2450, 2450};
+    int32_t voiceResonance[2] = {2650, 2650};
     SpscPatchQueue<PatchState, 4u> webToAudioPatchQueue = {};
     SpscPatchQueue<PatchState, 4u> audioToWebPatchQueue = {};
     PatchState queuedWebPatch = {};
@@ -657,39 +663,34 @@ private:
     void updatePanelControls(Switch mode, int32_t main, int32_t x, int32_t y)
     {
         updatePickupContext(mode);
+        uint32_t voiceIndex = selectedVoiceIndex();
 
         if (mode == Switch::Up)
         {
-            int32_t activePitchOffsetQ8 = selectedOutputB ? params.pitchOffsetQ8 : outputAPitchOffsetQ8;
-            if (pickupReady(0, main, knobValueForPitch(activePitchOffsetQ8)))
-            {
-                if (selectedOutputB)
-                    params.pitchOffsetQ8 = clampPitchQ8((main - 2048) << 2);
-                else
-                    outputAPitchOffsetQ8 = clampPitchQ8((main - 2048) << 2);
-            }
-            if (pickupReady(1, x, params.pulseWidth - 512))
-                params.pulseWidth = clampRange(512 + x, 512, 3584);
-            if (pickupReady(2, y, params.pwmAmount))
-                params.pwmAmount = y;
+            if (pickupReady(0, main, voiceLpCutoff[voiceIndex]))
+                voiceLpCutoff[voiceIndex] = main;
+            if (pickupReady(1, x, voiceHpCutoff[voiceIndex]))
+                voiceHpCutoff[voiceIndex] = x;
+            if (pickupReady(2, y, voiceResonance[voiceIndex]))
+                voiceResonance[voiceIndex] = y;
             return;
         }
 
         if (mode == Switch::Middle)
         {
-            if (pickupReady(0, main, params.hpCutoff))
-                params.hpCutoff = main;
-            if (pickupReady(1, x, params.lpCutoff))
-                params.lpCutoff = x;
-            if (pickupReady(2, y, params.resonance))
-                params.resonance = y;
+            if (pickupReady(0, main, knobValueForPitch(outputAPitchOffsetQ8)))
+                outputAPitchOffsetQ8 = clampPitchQ8((main - 2048) << 2);
+            if (pickupReady(1, x, voicePulseWidth[voiceIndex] - 512))
+                voicePulseWidth[voiceIndex] = clampRange(512 + x, 512, 3584);
+            if (pickupReady(2, y, voicePwmAmount[voiceIndex]))
+                voicePwmAmount[voiceIndex] = y;
             return;
         }
 
         if (downHeld)
         {
-            if (pickupReady(0, main, knobValueForPerformancePitch()))
-                performancePitchQ8 = main - 2048;
+            if (pickupReady(0, main, knobValueForDetuneB()))
+                params.pitchOffsetQ8 = detuneBQ8FromKnob(main);
             if (pickupReady(1, x, ringAmount))
                 ringAmount = x;
             if (pickupReady(2, y, params.lfoPitchDepth))
@@ -786,6 +787,22 @@ private:
     int32_t knobValueForPerformancePitch() const
     {
         return clamp12(2048 + performancePitchQ8);
+    }
+
+    int32_t knobValueForDetuneB() const
+    {
+        return clamp12(2048 + ((params.pitchOffsetQ8 * 2048) / (12 * 256)));
+    }
+
+    int32_t detuneBQ8FromKnob(int32_t knob) const
+    {
+        int32_t centered = clamp12(knob) - 2048;
+        return clampRange((centered * (12 * 256)) / 2048, -(12 * 256), 12 * 256);
+    }
+
+    uint32_t selectedVoiceIndex() const
+    {
+        return selectedOutputB ? 1u : 0u;
     }
 
     void updatePitchCache(int32_t pitchInput)
@@ -948,18 +965,26 @@ private:
         bool gate,
         int32_t filterCv,
         int32_t expressionCv,
-        int32_t pitchOffsetQ8)
+        int32_t pitchOffsetQ8,
+        uint32_t voiceIndex)
     {
         if (!voice.enabled)
             return 0;
 
-        updateEnvelope(voice, params, gate);
+        VoiceParams voiceParams = params;
+        voiceParams.pulseWidth = voicePulseWidth[voiceIndex];
+        voiceParams.pwmAmount = voicePwmAmount[voiceIndex];
+        voiceParams.hpCutoff = voiceHpCutoff[voiceIndex];
+        voiceParams.lpCutoff = voiceLpCutoff[voiceIndex];
+        voiceParams.resonance = voiceResonance[voiceIndex];
 
-        uint32_t pwmOffset = ((uint32_t)params.lfoPwmDepth * (uint32_t)params.pwmAmount) >> 12;
-        int32_t pulseWidth = params.pulseWidth + ((lfoValue * (int32_t)pwmOffset) >> 11);
+        updateEnvelope(voice, voiceParams, gate);
+
+        uint32_t pwmOffset = ((uint32_t)voiceParams.lfoPwmDepth * (uint32_t)voiceParams.pwmAmount) >> 12;
+        int32_t pulseWidth = voiceParams.pulseWidth + ((lfoValue * (int32_t)pwmOffset) >> 11);
         pulseWidth = clampRange(pulseWidth, 256, 3840);
 
-        int32_t pitchMod = (lfoValue * params.lfoPitchDepth) >> 12;
+        int32_t pitchMod = (lfoValue * voiceParams.lfoPitchDepth) >> 12;
         uint32_t baseIncrement = phaseIncrementFromSemitoneQ8(
             clampPitchQ8(currentPitchQ8 + pitchOffsetQ8));
         int32_t phaseIncrement = static_cast<int32_t>(baseIncrement) +
@@ -973,23 +998,23 @@ private:
         noiseState = noiseState * 1664525u + 1013904223u;
         int32_t noise = ((int32_t)((noiseState >> 20) & 4095u)) - 2048;
 
-        int32_t sawBody = (saw * params.sawLevel) >> 12;
-        int32_t pulseBody = (pulse * params.pulseLevel) >> 12;
-        int32_t sineMix = (sineBody * params.sineLevel) >> 12;
-        int32_t noiseMix = (noise * params.noiseLevel) >> 13;
+        int32_t sawBody = (saw * voiceParams.sawLevel) >> 12;
+        int32_t pulseBody = (pulse * voiceParams.pulseLevel) >> 12;
+        int32_t sineMix = (sineBody * voiceParams.sineLevel) >> 12;
+        int32_t noiseMix = (noise * voiceParams.noiseLevel) >> 13;
         int32_t osc = (sawBody + pulseBody + sineMix + noiseMix) >> 1;
         osc = clip12(osc);
         osc = applyRingMod(osc);
 
-        int32_t filtered = filterVoice(osc, voice, params, filterCv, expressionCv);
+        int32_t filtered = filterVoice(osc, voice, voiceParams, filterCv, expressionCv);
         int32_t amp = voice.ampEnvelopeQ12;
-        if (params.lfoVcaDepth > 0)
+        if (voiceParams.lfoVcaDepth > 0)
         {
-            int32_t tremolo = clamp12(2048 + ((lfoValue * params.lfoVcaDepth) >> 11));
+            int32_t tremolo = clamp12(2048 + ((lfoValue * voiceParams.lfoVcaDepth) >> 11));
             amp = (amp * tremolo) >> 12;
         }
         int32_t enveloped = (filtered * amp) >> 12;
-        return clip12((enveloped * params.voiceLevel) >> 12);
+        return clip12((enveloped * voiceParams.voiceLevel) >> 12);
     }
 
     void updateEnvelope(VoiceState& state, const VoiceParams& voiceParams, bool gate)
@@ -1091,30 +1116,27 @@ private:
         if (startupSelectMode)
             return;
 
-        int32_t mainValue = 0;
         int32_t xValue = 0;
         int32_t yValue = 0;
+        uint32_t voiceIndex = selectedVoiceIndex();
 
         if (mode == Switch::Up)
         {
-            mainValue = knobValueForPitch(selectedOutputB ? params.pitchOffsetQ8 : outputAPitchOffsetQ8);
-            xValue = params.pulseWidth - 512;
-            yValue = params.pwmAmount;
+            xValue = voiceHpCutoff[voiceIndex];
+            yValue = voiceResonance[voiceIndex];
         }
         else if (mode == Switch::Middle)
         {
-            mainValue = params.hpCutoff;
-            xValue = params.lpCutoff;
-            yValue = params.resonance;
+            xValue = voicePulseWidth[voiceIndex] - 512;
+            yValue = voicePwmAmount[voiceIndex];
         }
         else
         {
-            mainValue = knobValueForPerformancePitch();
             xValue = ringAmount;
             yValue = params.lfoPitchDepth;
         }
 
-        LedBrightness(0, clamp12(mainValue));
+        LedBrightness(0, selectedOutputB ? 768 : 4095);
         LedBrightness(1, selectedOutputB ? 4095 : 768);
         LedBrightness(2, clamp12(xValue));
         LedBrightness(3, pickedUp[1] ? 4095 : 384);
