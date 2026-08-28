@@ -1,0 +1,121 @@
+draft: false
+Name: Skipping Stones
+short-description: Marbles-inspired controlled-random patch conductor for the Workshop System.
+summary: >
+  Skipping Stones is a controlled-random patch conductor inspired by the ideas
+  of Mutable Instruments Marbles: related random gates and voltages, deja-vu
+  loop memory, bias/spread shaping, clocked uncertainty, and musical repetition.
+  It is adapted for the Workshop Computer and Workshop System rather than being
+  a literal panel clone. CV Out 1 is a calibrated quantized pitch stream for a
+  SineSquare oscillator, CV Out 2 is a related smoothed modulation voltage,
+  Pulse Out 1 and 2 drive slopes, filters, or accents, and the two audio outputs
+  provide simple monitor voices so the card can perform before any patching is
+  done.
+Language: C++ (ComputerCard)
+Creator: Adrian Vos
+Version: "0.1.0"
+Status: Beta - buildable firmware, awaiting hardware play-test
+License: MIT
+date-created: 2026-08-28
+date-updated: 2026-08-28
+uf2:
+  - path: uf2/SkippingStones.uf2
+    name: Skipping Stones 0.1.0
+tags:
+  - random
+  - sequencer
+  - generative
+  - cv
+  - workshop-system
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Bias In
+      type: cv
+      description: Optional bipolar bias control for the random voltage distribution
+    - id: CVIn1
+      name: Density CV
+      type: cv
+      description: Adds to the Main density/activity control, useful with Four Voltages
+    - id: CVIn2
+      name: Spread CV
+      type: cv
+      description: Adds to the Y spread/jitter control
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: External clock; when active it replaces the internal clock
+    - id: PulseIn2
+      name: Reset
+      type: pulse
+      description: Rising edge resets playback to the first captured loop step
+  outputs:
+    - id: AudioOut1
+      name: Pitch Monitor
+      type: audio
+      description: Simple square monitor voice following CV Out 1
+    - id: AudioOut2
+      name: Accent Monitor
+      type: audio
+      description: Simple square/noise-like monitor voice following Pulse Out 2
+    - id: CVOut1
+      name: Pitch CV
+      type: cv
+      description: Calibrated quantized pitch stream for an analogue oscillator
+    - id: CVOut2
+      name: Motion CV
+      type: cv
+      description: Smoothed related modulation stream for filter, slope, or VCA control
+    - id: PulseOut1
+      name: Main Gate
+      type: pulse
+      description: Primary probabilistic trigger stream
+    - id: PulseOut2
+      name: Accent Gate
+      type: pulse
+      description: Related accent/fill trigger stream
+controls:
+  switch:
+    up:
+      name: Coupled
+      description: More regular relationship between the two pulse streams
+    middle:
+      name: Sparse
+      description: More gaps and independent pulse decisions
+    down:
+      name: Write
+      description: Momentary write mode; newly generated steps replace the loop aggressively
+  knobs:
+    - main:
+        name: Density / Rate
+        description: Sets internal clock speed and trigger activity; CV In 1 adds to it
+      x:
+        name: Deja Vu
+        description: Moves from constantly rewritten randomness to repeating loop memory
+      y:
+        name: Spread / Jitter
+        description: Widens the voltage range and timing jitter; CV In 2 adds to it
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Main Gate / Density
+          description: Flashes on Pulse Out 1, otherwise follows density
+        - id: LED1
+          name: Accent Gate / Deja Vu
+          description: Flashes on Pulse Out 2, otherwise follows loop lock amount
+        - id: LED2
+          name: Spread
+          description: Follows the effective spread/jitter control
+        - id: LED3
+          name: Pitch CV
+          description: Follows the quantized pitch output range
+        - id: LED4
+          name: Motion CV
+          description: Follows the smoothed modulation output
+        - id: LED5
+          name: Clock Source
+          description: Bright when an external clock is active, dim on internal clock
+contact:
+  social:
+    github: https://github.com/soveda
