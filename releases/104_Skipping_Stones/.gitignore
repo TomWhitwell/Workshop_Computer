@@ -1,0 +1,12 @@
+build/
+*.elf
+*.bin
+*.hex
+*.map
+*.dis
+*.elf.map
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+pico_flash_region.ld
