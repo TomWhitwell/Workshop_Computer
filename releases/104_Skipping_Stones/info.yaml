@@ -9,7 +9,7 @@ summary: >
   a literal panel clone. CV Out 1 is a calibrated quantized pitch stream for a
   SineSquare oscillator, CV Out 2 is a related smoothed modulation voltage,
   Pulse Out 1 and 2 drive slopes, filters, or accents, and the two audio outputs
-  provide simple monitor voices so the card can perform before any patching is
+  provide closed and open hi-hats so the card can perform before any patching is
   done.
 Language: C++ (ComputerCard)
 Creator: Adrian Vos
@@ -51,13 +51,13 @@ panel:
       description: Rising edge resets playback to the first captured loop step
   outputs:
     - id: AudioOut1
-      name: Pitch Monitor
+      name: Closed Hat
       type: audio
-      description: Simple square monitor voice following CV Out 1
+      description: Short metallic closed hi-hat triggered by the main gate stream
     - id: AudioOut2
-      name: Accent Monitor
+      name: Open Hat
       type: audio
-      description: Simple square/noise-like monitor voice following Pulse Out 2
+      description: Longer metallic open hi-hat triggered by the accent gate stream and ducked by closed hats
     - id: CVOut1
       name: Pitch CV
       type: cv

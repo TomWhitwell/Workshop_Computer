@@ -8,8 +8,8 @@ clocked uncertainty, and repeatable musical chance.
 It is designed for the Workshop System as a complete performance setup. Patch
 CV Out 1 to a SineSquare oscillator pitch input, Pulse Out 1 to a Slope trigger,
 CV Out 2 to a filter, slope time, or VCA/ring-mod control, and Pulse Out 2 to a
-second Slope or accent destination. The audio outputs provide simple monitor
-voices so the card still makes sound with no patch cables beyond the output.
+second Slope or accent destination. The audio outputs provide closed and open
+hi-hats so the card still makes a useful rhythm bed before any analogue patching.
 
 ## Controls
 
@@ -35,8 +35,8 @@ voices so the card still makes sound with no patch cables beyond the output.
 | CV Out 2 | Smoothed related modulation CV |
 | Pulse Out 1 | Main gate stream |
 | Pulse Out 2 | Accent/fill gate stream |
-| Audio Out 1 | Pitch monitor voice |
-| Audio Out 2 | Accent monitor voice |
+| Audio Out 1 | Closed hi-hat, triggered by the main gate stream |
+| Audio Out 2 | Open hi-hat, triggered by the accent/fill gate stream |
 
 ## Notes
 

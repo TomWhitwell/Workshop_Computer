@@ -4,7 +4,7 @@
 // Inspired by the ideas in Mutable Instruments Marbles: related random gates
 // and voltages, deja-vu loop memory, bias/spread shaping, and clocked musical
 // uncertainty. This is not a source port; it is a fixed-point Workshop System
-// adaptation with two CV outs, two pulse outs, and two simple monitor voices.
+// adaptation with two CV outs, two pulse outs, and closed/open hi-hat voices.
 
 #include "ComputerCard.h"
 
@@ -35,12 +35,12 @@ public:
     int32_t lastExternalCounter = 48000;
     int32_t pulse1Timer = 0;
     int32_t pulse2Timer = 0;
-    int32_t audioEnv1 = 0;
-    int32_t audioEnv2 = 0;
-    int32_t oscPhase1 = 0;
-    int32_t oscPhase2 = 0;
-    int32_t oscInc1 = 2000;
-    int32_t oscInc2 = 1000;
+    int32_t closedHatEnv = 0;
+    int32_t openHatEnv = 0;
+    int32_t hatPhase1 = 0;
+    int32_t hatPhase2 = 0;
+    int32_t hatPhase3 = 0;
+    int32_t hatHighpass = 0;
     int32_t smoothY = 0;
     int32_t currentX = 2048;
     int32_t currentY = 0;
@@ -119,16 +119,6 @@ public:
         return kScaleMv[index] + octaveShift;
     }
 
-    inline int32_t PhaseIncrementFromMv(int32_t millivolts)
-    {
-        // A monitor voice only needs to show what the CV is doing. This cheap
-        // exponential-ish mapping avoids an audio-rate pitch lookup.
-        int32_t note = (millivolts + 2400) / 100;
-        if (note < 0) note = 0;
-        if (note > 60) note = 60;
-        return 700 + note * note * 9;
-    }
-
     inline void FillLoops()
     {
         for (int32_t i = 0; i < kLoopSize; ++i)
@@ -188,19 +178,37 @@ public:
         if (gate1)
         {
             pulse1Timer = kPulseSamples;
-            audioEnv1 = 4095;
+            closedHatEnv = 4095;
         }
         if (gate2)
         {
             pulse2Timer = kPulseSamples;
-            audioEnv2 = 4095;
+            openHatEnv = 4095;
         }
 
         currentNoteMv = QuantizeToScale(currentX, spread);
-        oscInc1 = PhaseIncrementFromMv(currentNoteMv);
-        oscInc2 = oscInc1 + 900 + ((yTarget + 2048) >> 2);
         currentY = yTarget;
         ++loopIndex;
+    }
+
+    inline int32_t HatMetal()
+    {
+        // Cheap metallic source: three unrelated square oscillators XORed with
+        // a little random dust. It is intentionally not pitched from CV Out 1;
+        // the audio outs are rhythm voices, while CV Out 1 conducts the
+        // analogue oscillator.
+        hatPhase1 += 15193;
+        hatPhase2 += 21701;
+        hatPhase3 += 31717;
+        int32_t metal = 0;
+        metal += ((hatPhase1 >> 19) & 1) ? 1024 : -1024;
+        metal += ((hatPhase2 >> 19) & 1) ? 1024 : -1024;
+        metal += ((hatPhase3 >> 19) & 1) ? 1024 : -1024;
+        metal += static_cast<int32_t>((Random() >> 22) & 1023) - 512;
+
+        // One-pole high-pass removes low thumps and keeps the hats crisp.
+        hatHighpass += (metal - hatHighpass) >> 4;
+        return metal - hatHighpass;
     }
 
     virtual void ProcessSample() override
@@ -271,17 +279,19 @@ public:
         if (pulse1Timer > 0) --pulse1Timer;
         if (pulse2Timer > 0) --pulse2Timer;
 
-        oscPhase1 += oscInc1;
-        oscPhase2 += oscInc2;
-        int32_t voice1 = ((oscPhase1 >> 20) & 1) ? audioEnv1 : -audioEnv1;
-        int32_t voice2 = ((oscPhase2 >> 20) & 1) ? audioEnv2 : -audioEnv2;
-        audioEnv1 -= (audioEnv1 >> 8) + 2;
-        audioEnv2 -= (audioEnv2 >> 7) + 3;
-        if (audioEnv1 < 0) audioEnv1 = 0;
-        if (audioEnv2 < 0) audioEnv2 = 0;
+        int32_t hat = HatMetal();
+        int32_t closedHat = (hat * closedHatEnv) >> 13;
+        int32_t openHat = (hat * openHatEnv) >> 13;
 
-        AudioOut1(Clamp12(voice1 >> 1));
-        AudioOut2(Clamp12(voice2 >> 1));
+        // Closed hat is short and dry. Open hat is longer and ducked by the
+        // closed hat, mimicking the way a real pedal closes the cymbal.
+        closedHatEnv -= (closedHatEnv >> 5) + 24;
+        openHatEnv -= (openHatEnv >> 8) + 4 + (closedHatEnv >> 8);
+        if (closedHatEnv < 0) closedHatEnv = 0;
+        if (openHatEnv < 0) openHatEnv = 0;
+
+        AudioOut1(Clamp12(closedHat));
+        AudioOut2(Clamp12(openHat));
 
         cv1Led += (((currentNoteMv + 2400) - cv1Led) >> 6);
         LedBrightness(0, pulse1Timer > 0 ? 4095 : ClampLed(density));
