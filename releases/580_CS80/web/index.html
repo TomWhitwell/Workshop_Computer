@@ -37,7 +37,7 @@
     <main class="workspace">
       <section class="status-strip" aria-label="Connection status">
         <span id="status">Use a USB-C data cable. Close Serial Monitor and other MIDI apps.</span>
-        <span id="protocol">CS80 v7 draft</span>
+        <span id="protocol">CS80 v8 draft</span>
       </section>
 
       <section class="tone-strip" aria-label="Preset instrument filter">
@@ -231,24 +231,44 @@
             <div class="envelope-layout">
               <div class="control-grid compact">
                 <label class="control">
-                  <span>Attack</span>
+                  <span>Amp Attack</span>
                   <input type="range" min="0" max="4095" value="80" data-param="attack">
                   <output>2%</output>
                 </label>
                 <label class="control">
-                  <span>Decay</span>
+                  <span>Amp Decay</span>
                   <input type="range" min="0" max="4095" value="760" data-param="decay">
                   <output>19%</output>
                 </label>
                 <label class="control">
-                  <span>Sustain</span>
+                  <span>Amp Sustain</span>
                   <input type="range" min="0" max="4095" value="3300" data-param="sustain">
                   <output>81%</output>
                 </label>
                 <label class="control">
-                  <span>Release</span>
+                  <span>Amp Release</span>
                   <input type="range" min="0" max="4095" value="1200" data-param="release">
                   <output>29%</output>
+                </label>
+                <label class="control">
+                  <span>Filter Attack</span>
+                  <input type="range" min="0" max="4095" value="40" data-param="filterAttack">
+                  <output>1%</output>
+                </label>
+                <label class="control">
+                  <span>Filter Decay</span>
+                  <input type="range" min="0" max="4095" value="480" data-param="filterDecay">
+                  <output>12%</output>
+                </label>
+                <label class="control">
+                  <span>Filter Sustain</span>
+                  <input type="range" min="0" max="4095" value="2400" data-param="filterSustain">
+                  <output>59%</output>
+                </label>
+                <label class="control">
+                  <span>Filter Release</span>
+                  <input type="range" min="0" max="4095" value="900" data-param="filterRelease">
+                  <output>22%</output>
                 </label>
               </div>
               <canvas id="envCanvas" width="720" height="220"></canvas>

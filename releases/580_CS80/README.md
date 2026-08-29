@@ -20,7 +20,7 @@ draft Web MIDI editor.
 
 - Firmware: current stable version is the dual-output monophonic build with the
   two-bank MIDI CC layout and `CC1` vibrato depth
-- Web editor: draft CS80 SysEx v7 patch apply/readback interface
+- Web editor: draft CS80 SysEx v8 patch apply/readback interface
 - UF2: the rollback-stable firmware build is kept in `uf2/`
 - Mono fallback: the last passed non-dual firmware is retained in `uf2/` as a
   second rollback option
@@ -65,17 +65,18 @@ The editor and firmware now share a small non-commercial SysEx protocol:
 
 - manufacturer byte: `0x7d`
 - card id: `CS80`
-- protocol version: `7`
+- protocol version: `8`
 - commands: apply patch, save slot, request current patch, request slot map,
   request slot, slot response, delete slot, and set startup slot
 
-pitch-CV range mode, portamento, pulse width, PWM amount, independent saw/pulse/sine/noise source levels, voice
-level, performance pitch offset, HP cutoff, LP cutoff, resonance, expression
-depth, ADSR envelope controls, LFO rate, independent LFO-to-pitch/PWM/VCF/VCA
-depths, ring amount, and ring speed. The source levels are summed rather than
-crossfaded. Save applies the patch and writes it to one of eight persistent card
-slots. The first saved patch becomes the startup patch automatically; use the
-editor's `Start Here` button to choose a different saved startup slot.
+pitch-CV range mode, portamento, pulse width, PWM amount, independent
+saw/pulse/sine/noise source levels, voice level, performance pitch offset, HP
+cutoff, LP cutoff, resonance, expression depth, separate shared amp ADSR and
+filter ADSR controls, LFO rate, independent LFO-to-pitch/PWM/VCF/VCA depths,
+ring amount, and ring speed. The source levels are summed rather than
+crossfaded. Save applies the patch and writes it to one of eight persistent
+card slots. The first saved patch becomes the startup patch automatically; use
+the editor's `Start Here` button to choose a different saved startup slot.
 
 At startup, holding the Down switch during the short boot selection window enters
 patch-slot select. Main chooses among saved slots, LEDs show the selected slot
@@ -95,7 +96,13 @@ for controllers such as the M-VAVE SMK-25:
 
 - `CC1`: vibrato depth via LFO to pitch
 - Bank A, `CC20-27`: saw level, pulse level, sine level, noise level, pulse width, PWM amount, LP cutoff, resonance
-- Bank B, `CC28-35`: HP cutoff, ring amount, ring speed, attack, decay, sustain, release, portamento
+- Bank B, `CC28-31`: HP cutoff, ring amount, ring speed, portamento
+- Bank B, `CC32-35`: linked amp/filter attack, decay, sustain, release
+
+The Web UI stores separate amp and filter ADSR values. `CC32-35` move the amp
+and filter envelope values together by offset, so controller changes keep the
+relative Web UI envelope shape instead of collapsing both envelopes to identical
+values.
 
 Secondary synth controls stay available on:
 

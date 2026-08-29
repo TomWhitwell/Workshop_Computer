@@ -60,3 +60,8 @@ the parameter.
 The editor should expose patch parameters that do not fit on the hardware
 surface: oscillator details, envelopes, LFO routing, filter ranges, performance
 response, preset names, readback, apply, and save-to-card actions.
+
+The Web UI has separate shared amp ADSR and filter ADSR controls. MIDI `CC32`
+to `CC35` act as linked envelope controls: attack, decay, sustain, and release
+move both envelopes together while preserving the relative values set in the Web
+UI. `CC31` is portamento.

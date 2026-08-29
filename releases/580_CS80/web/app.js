@@ -39,7 +39,7 @@ const COMMAND_REQUEST_SLOT = 0x08;
 const COMMAND_SLOT_RESPONSE = 0x09;
 const COMMAND_DELETE_SLOT = 0x0a;
 const COMMAND_SET_STARTUP_SLOT = 0x0b;
-const PATCH_PROTOCOL_VERSION = 7;
+const PATCH_PROTOCOL_VERSION = 8;
 let themeMode = loadThemeMode();
 let developerMode = false;
 let developerLogLines = [];
@@ -72,6 +72,10 @@ const defaultPatchParams = {
   decay: 760,
   sustain: 3300,
   release: 1200,
+  filterAttack: 40,
+  filterDecay: 480,
+  filterSustain: 2400,
+  filterRelease: 900,
   lfoRate: 1750,
   lfoPitchDepth: 980,
   lfoPwmDepth: 1550,
@@ -130,6 +134,10 @@ const presets = [
       decay: 700,
       sustain: 4095,
       release: 620,
+      filterAttack: 20,
+      filterDecay: 480,
+      filterSustain: 1200,
+      filterRelease: 520,
       lfoRate: 500,
       lfoPitchDepth: 0,
       lfoPwmDepth: 0,
@@ -557,6 +565,10 @@ function currentPatchPayload() {
     Number(getParam("decay").value),
     Number(getParam("sustain").value),
     Number(getParam("release").value),
+    Number(getParam("filterAttack").value),
+    Number(getParam("filterDecay").value),
+    Number(getParam("filterSustain").value),
+    Number(getParam("filterRelease").value),
     Number(getParam("lfoRate").value),
     Number(getParam("lfoPitchDepth").value),
     Number(getParam("lfoPwmDepth").value),
@@ -679,7 +691,7 @@ function sendSysex(command, payload = []) {
 }
 
 function usePatchPayload(payload, sourceSlot = 0x7f) {
-  if (payload[0] !== PATCH_PROTOCOL_VERSION || payload.length < 55) {
+  if (payload[0] !== PATCH_PROTOCOL_VERSION || payload.length < 63) {
     logDeveloper("patch response ignored", { reason: "unsupported payload", version: payload[0], bytes: payload.length, slot: sourceSlot });
     return;
   }
@@ -705,6 +717,10 @@ function usePatchPayload(payload, sourceSlot = 0x7f) {
   setParam("decay", decodeUint14(payload, offset)); offset += 2;
   setParam("sustain", decodeUint14(payload, offset)); offset += 2;
   setParam("release", decodeUint14(payload, offset)); offset += 2;
+  setParam("filterAttack", decodeUint14(payload, offset)); offset += 2;
+  setParam("filterDecay", decodeUint14(payload, offset)); offset += 2;
+  setParam("filterSustain", decodeUint14(payload, offset)); offset += 2;
+  setParam("filterRelease", decodeUint14(payload, offset)); offset += 2;
   setParam("lfoRate", decodeUint14(payload, offset)); offset += 2;
   setParam("lfoPitchDepth", decodeUint14(payload, offset)); offset += 2;
   setParam("lfoPwmDepth", decodeUint14(payload, offset)); offset += 2;
@@ -717,7 +733,7 @@ function usePatchPayload(payload, sourceSlot = 0x7f) {
   statusEl.textContent = sourceSlot < 8
     ? `Patch read from card slot ${sourceSlot + 1}.`
     : "Patch read from card.";
-  protocolEl.textContent = "CS80 v7";
+  protocolEl.textContent = "CS80 v8";
   logDeveloper("patch response applied", { version: payload[0], slot: sourceSlot < 8 ? sourceSlot + 1 : null });
 }
 
@@ -765,7 +781,7 @@ function selectMidiPorts() {
     input.onmidimessage = input === midiInput ? handleMidiMessage : null;
   });
 
-  protocolEl.textContent = midiOutput ? "CS80 v7" : "No MIDI Out";
+  protocolEl.textContent = midiOutput ? "CS80 v8" : "No MIDI Out";
   statusEl.textContent = midiOutput
     ? `MIDI connected: ${midiOutput.name || "unnamed output"}.`
     : "MIDI access granted, but no output port was found.";
@@ -839,6 +855,10 @@ function drawEnvelope() {
   const decay = Number(document.querySelector("[data-param='decay']").value);
   const sustain = Number(document.querySelector("[data-param='sustain']").value);
   const release = Number(document.querySelector("[data-param='release']").value);
+  const filterAttack = Number(document.querySelector("[data-param='filterAttack']").value);
+  const filterDecay = Number(document.querySelector("[data-param='filterDecay']").value);
+  const filterSustain = Number(document.querySelector("[data-param='filterSustain']").value);
+  const filterRelease = Number(document.querySelector("[data-param='filterRelease']").value);
   const showFilter = envTargetEl?.value === "Filter";
   const labelY = 22;
   const topY = 48;
@@ -859,27 +879,27 @@ function drawEnvelope() {
     ctx.stroke();
   }
 
-  const attackScale = showFilter ? 0.55 : 1;
-  const decayScale = showFilter ? 0.62 : 1;
-  const sustainScale = showFilter ? 0.78 : 1;
-  const aX = 40 + (attack / 4095) * 170 * attackScale;
-  const dX = aX + 50 + (decay / 4095) * 120 * decayScale;
-  const sY = bottomY - (sustain / 4095) * graphHeight;
-  const rX = w - 40 - (release / 4095) * 140;
-  const filterSustainY = bottomY - ((sustain / 4095) * sustainScale) * graphHeight;
+  const envAttack = showFilter ? filterAttack : attack;
+  const envDecay = showFilter ? filterDecay : decay;
+  const envSustain = showFilter ? filterSustain : sustain;
+  const envRelease = showFilter ? filterRelease : release;
+  const aX = 40 + (envAttack / 4095) * 170;
+  const dX = aX + 50 + (envDecay / 4095) * 120;
+  const sY = bottomY - (envSustain / 4095) * graphHeight;
+  const rX = w - 40 - (envRelease / 4095) * 140;
 
   ctx.strokeStyle = styles.getPropertyValue("--teal-strong").trim() || "#48b6a7";
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(28, bottomY);
   ctx.lineTo(aX, topY);
-  ctx.lineTo(dX, showFilter ? filterSustainY : sY);
-  ctx.lineTo(rX, showFilter ? filterSustainY : sY);
+  ctx.lineTo(dX, sY);
+  ctx.lineTo(rX, sY);
   ctx.lineTo(w - 28, bottomY);
   ctx.stroke();
 
   ctx.fillStyle = styles.getPropertyValue("--yellow").trim() || "#e0c443";
-  for (const [x, y] of [[aX, topY], [dX, showFilter ? filterSustainY : sY], [rX, showFilter ? filterSustainY : sY]]) {
+  for (const [x, y] of [[aX, topY], [dX, sY], [rX, sY]]) {
     ctx.beginPath();
     ctx.arc(x, y, 6, 0, Math.PI * 2);
     ctx.fill();
@@ -887,12 +907,16 @@ function drawEnvelope() {
 
   ctx.fillStyle = styles.getPropertyValue("--ink-soft").trim() || "#b8b0a3";
   ctx.font = "14px Inter, system-ui, sans-serif";
-  ctx.fillText(showFilter ? "Filter contour: faster attack/decay into LP cutoff" : "Amp contour: shared output level envelope", 18, labelY);
+  ctx.fillText(showFilter ? "Filter ADSR: shared LP cutoff contour" : "Amp ADSR: shared output level envelope", 18, labelY);
 }
 
 function resolvedPresetParams(preset) {
   const legacy = preset.params || {};
   const { mix, pwm, vcoDepth, ...params } = legacy;
+  const attack = params.attack ?? defaultPatchParams.attack;
+  const decay = params.decay ?? defaultPatchParams.decay;
+  const sustain = params.sustain ?? defaultPatchParams.sustain;
+  const release = params.release ?? defaultPatchParams.release;
   return {
     ...defaultPatchParams,
     ...params,
@@ -902,6 +926,10 @@ function resolvedPresetParams(preset) {
     pwmAmount: params.pwmAmount ?? pwm ?? defaultPatchParams.pwmAmount,
     lfoPitchDepth: params.lfoPitchDepth ?? Math.round((vcoDepth || 0) / 4),
     lfoPwmDepth: params.lfoPwmDepth ?? vcoDepth ?? defaultPatchParams.lfoPwmDepth,
+    filterAttack: params.filterAttack ?? Math.round(attack * 0.55),
+    filterDecay: params.filterDecay ?? Math.round(decay * 0.62),
+    filterSustain: params.filterSustain ?? Math.round(sustain * 0.78),
+    filterRelease: params.filterRelease ?? Math.round(release * 0.75),
   };
 }
 

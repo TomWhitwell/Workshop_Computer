@@ -165,12 +165,14 @@ host:
     readback and saved slots
     cover the visible editor controls, including independent additive
     saw/pulse/sine/noise source levels, voice level, portamento, expression
-    depth, LFO rate, independent LFO-to-pitch/PWM/VCF/VCA modulation depths,
-    ring amount, and ring speed. The current MIDI controller map is: CC1
+    depth, separate shared amp ADSR and filter ADSR controls, LFO rate,
+    independent LFO-to-pitch/PWM/VCF/VCA modulation depths, ring amount, and
+    ring speed. The current MIDI controller map is: CC1
     vibrato depth via LFO-to-pitch; Bank A on CC20-27 for saw level, pulse
     level, sine level, noise level, pulse width, PWM amount, LP cutoff, and
-    resonance; Bank B on CC28-35 for HP cutoff, ring amount, ring speed,
-    attack, decay, sustain, release, and portamento; CC2/11 expression depth;
+    resonance; Bank B on CC28-31 for HP cutoff, ring amount, ring speed, and
+    portamento; CC32-35 for linked amp/filter attack, decay, sustain, and
+    release offsets; CC2/11 expression depth;
     CC7 voice level; CC76 LFO rate; CC77 or CC93 LFO-to-PWM; CC91
     LFO-to-VCF; CC92 LFO-to-VCA; and pitch bend at +/-2 semitones.
 

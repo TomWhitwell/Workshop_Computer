@@ -22,9 +22,9 @@ static constexpr uint8_t WebMidiCommandRequestSlot = 0x08u;
 static constexpr uint8_t WebMidiCommandSlotResponse = 0x09u;
 static constexpr uint8_t WebMidiCommandDeleteSlot = 0x0Au;
 static constexpr uint8_t WebMidiCommandSetStartupSlot = 0x0Bu;
-static constexpr uint8_t WebMidiPatchProtocolVersion = 7u;
-static constexpr uint32_t WebMidiPatchPayloadLength = 55u;
-static constexpr uint32_t WebMidiMaxSysexLength = 64u;
+static constexpr uint8_t WebMidiPatchProtocolVersion = 8u;
+static constexpr uint32_t WebMidiPatchPayloadLength = 63u;
+static constexpr uint32_t WebMidiMaxSysexLength = 80u;
 static constexpr uint8_t MidiStatusMask = 0xF0u;
 static constexpr uint8_t MidiStatusNoteOff = 0x80u;
 static constexpr uint8_t MidiStatusNoteOn = 0x90u;
@@ -131,7 +131,7 @@ public:
 
     void sendPatchFrame(uint8_t command, uint8_t slot, const PatchState& patch)
     {
-        uint8_t frame[64] = {
+        uint8_t frame[80] = {
             0xF0u,
             WebMidiManufacturer,
             WebMidiId[0],
@@ -163,6 +163,10 @@ public:
         appendWebMidiUint14(frame, offset, patch.params.decay);
         appendWebMidiUint14(frame, offset, patch.params.sustain);
         appendWebMidiUint14(frame, offset, patch.params.release);
+        appendWebMidiUint14(frame, offset, patch.params.filterAttack);
+        appendWebMidiUint14(frame, offset, patch.params.filterDecay);
+        appendWebMidiUint14(frame, offset, patch.params.filterSustain);
+        appendWebMidiUint14(frame, offset, patch.params.filterRelease);
         appendWebMidiUint14(frame, offset, patch.params.lfoRate);
         appendWebMidiUint14(frame, offset, patch.params.lfoPitchDepth);
         appendWebMidiUint14(frame, offset, patch.params.lfoPwmDepth);
@@ -254,6 +258,10 @@ private:
         int32_t decay = 760;
         int32_t sustain = 3300;
         int32_t release = 1200;
+        int32_t filterAttack = 40;
+        int32_t filterDecay = 480;
+        int32_t filterSustain = 2400;
+        int32_t filterRelease = 900;
         int32_t lfoRate = 1750;
         int32_t lfoPitchDepth = 980;
         int32_t lfoPwmDepth = 1550;
@@ -339,7 +347,7 @@ private:
     static constexpr int32_t PickupWindow = 96;
     static constexpr uint8_t PatchSlotCount = 8u;
     static constexpr uint32_t PatchBankMagic = 0x43533830u; // CS80
-    static constexpr uint16_t PatchBankVersion = 9u;
+    static constexpr uint16_t PatchBankVersion = 10u;
     static constexpr uint32_t PatchBankFlashOffset =
         (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE) &
         ~(FLASH_SECTOR_SIZE - 1u);
@@ -366,6 +374,10 @@ private:
         int32_t decay;
         int32_t sustain;
         int32_t release;
+        int32_t filterAttack;
+        int32_t filterDecay;
+        int32_t filterSustain;
+        int32_t filterRelease;
         int32_t lfoRate;
         int32_t lfoPitchDepth;
         int32_t lfoPwmDepth;
@@ -581,19 +593,19 @@ private:
             midiControlPatch.params.ringSpeed = control;
             break;
         case 31:
-            midiControlPatch.params.attack = control;
+            midiControlPatch.params.portamento = control;
             break;
         case 32:
-            midiControlPatch.params.decay = control;
+            offsetLinkedEnvelope(midiControlPatch.params.attack, midiControlPatch.params.filterAttack, control);
             break;
         case 33:
-            midiControlPatch.params.sustain = control;
+            offsetLinkedEnvelope(midiControlPatch.params.decay, midiControlPatch.params.filterDecay, control);
             break;
         case 34:
-            midiControlPatch.params.release = control;
+            offsetLinkedEnvelope(midiControlPatch.params.sustain, midiControlPatch.params.filterSustain, control);
             break;
         case 35:
-            midiControlPatch.params.portamento = control;
+            offsetLinkedEnvelope(midiControlPatch.params.release, midiControlPatch.params.filterRelease, control);
             break;
         case 2:
         case 11:
@@ -620,6 +632,13 @@ private:
         }
 
         pushMidiControlPatch();
+    }
+
+    void offsetLinkedEnvelope(int32_t& ampValue, int32_t& filterValue, int32_t newAmpValue)
+    {
+        int32_t delta = clamp12(newAmpValue) - ampValue;
+        ampValue = clamp12(ampValue + delta);
+        filterValue = clamp12(filterValue + delta);
     }
 
     void handleMidiPitchBend(uint8_t lsb, uint8_t msb)
@@ -1026,25 +1045,29 @@ private:
         int32_t decayRate = rateFromControl(voiceParams.decay);
         int32_t sustainLevel = clamp12(voiceParams.sustain);
         int32_t releaseRate = rateFromControl(voiceParams.release);
+        int32_t filterAttackRate = rateFromControl(voiceParams.filterAttack);
+        int32_t filterDecayRate = rateFromControl(voiceParams.filterDecay);
+        int32_t filterSustainLevel = clamp12(voiceParams.filterSustain);
+        int32_t filterReleaseRate = rateFromControl(voiceParams.filterRelease);
 
         if (!gate)
         {
             state.envelopeStage = 3;
             state.ampEnvelopeQ12 = clamp12(state.ampEnvelopeQ12 - releaseRate);
-            state.filterEnvelopeQ12 = clamp12(state.filterEnvelopeQ12 - releaseRate);
+            state.filterEnvelopeQ12 = clamp12(state.filterEnvelopeQ12 - filterReleaseRate);
             return;
         }
 
         if (state.envelopeStage == 0)
         {
             state.ampEnvelopeQ12 += attackRate;
-            state.filterEnvelopeQ12 += attackRate << 1;
+            state.filterEnvelopeQ12 += filterAttackRate;
             if (state.ampEnvelopeQ12 >= 4095)
-            {
                 state.ampEnvelopeQ12 = 4095;
+            if (state.filterEnvelopeQ12 >= 4095)
+                state.filterEnvelopeQ12 = 4095;
+            if (state.ampEnvelopeQ12 == 4095 && state.filterEnvelopeQ12 == 4095)
                 state.envelopeStage = 1;
-            }
-            state.filterEnvelopeQ12 = clamp12(state.filterEnvelopeQ12);
             return;
         }
 
@@ -1055,12 +1078,12 @@ private:
             else
                 state.ampEnvelopeQ12 = sustainLevel;
 
-            if (state.filterEnvelopeQ12 > sustainLevel)
-                state.filterEnvelopeQ12 = clampRange(state.filterEnvelopeQ12 - (decayRate << 1), sustainLevel, 4095);
+            if (state.filterEnvelopeQ12 > filterSustainLevel)
+                state.filterEnvelopeQ12 = clampRange(state.filterEnvelopeQ12 - filterDecayRate, filterSustainLevel, 4095);
             else
-                state.filterEnvelopeQ12 = sustainLevel;
+                state.filterEnvelopeQ12 = filterSustainLevel;
 
-            if (state.ampEnvelopeQ12 == sustainLevel && state.filterEnvelopeQ12 == sustainLevel)
+            if (state.ampEnvelopeQ12 == sustainLevel && state.filterEnvelopeQ12 == filterSustainLevel)
                 state.envelopeStage = 2;
             return;
         }
@@ -1068,7 +1091,7 @@ private:
         if (state.envelopeStage == 2)
         {
             state.ampEnvelopeQ12 = sustainLevel;
-            state.filterEnvelopeQ12 = sustainLevel;
+            state.filterEnvelopeQ12 = filterSustainLevel;
         }
         else
         {
@@ -1378,6 +1401,10 @@ private:
         patch.params.decay = decodeWebMidiUint14(offset);
         patch.params.sustain = decodeWebMidiUint14(offset);
         patch.params.release = decodeWebMidiUint14(offset);
+        patch.params.filterAttack = decodeWebMidiUint14(offset);
+        patch.params.filterDecay = decodeWebMidiUint14(offset);
+        patch.params.filterSustain = decodeWebMidiUint14(offset);
+        patch.params.filterRelease = decodeWebMidiUint14(offset);
         patch.params.lfoRate = decodeWebMidiUint14(offset);
         patch.params.lfoPitchDepth = decodeWebMidiUint14(offset);
         patch.params.lfoPwmDepth = decodeWebMidiUint14(offset);
@@ -1446,6 +1473,10 @@ private:
         patch.decay = state.params.decay;
         patch.sustain = state.params.sustain;
         patch.release = state.params.release;
+        patch.filterAttack = state.params.filterAttack;
+        patch.filterDecay = state.params.filterDecay;
+        patch.filterSustain = state.params.filterSustain;
+        patch.filterRelease = state.params.filterRelease;
         patch.lfoRate = state.params.lfoRate;
         patch.lfoPitchDepth = state.params.lfoPitchDepth;
         patch.lfoPwmDepth = state.params.lfoPwmDepth;
@@ -1479,6 +1510,10 @@ private:
         patch.params.decay = clamp12(saved.decay);
         patch.params.sustain = clamp12(saved.sustain);
         patch.params.release = clamp12(saved.release);
+        patch.params.filterAttack = clamp12(saved.filterAttack);
+        patch.params.filterDecay = clamp12(saved.filterDecay);
+        patch.params.filterSustain = clamp12(saved.filterSustain);
+        patch.params.filterRelease = clamp12(saved.filterRelease);
         patch.params.lfoRate = clamp12(saved.lfoRate);
         patch.params.lfoPitchDepth = clamp12(saved.lfoPitchDepth);
         patch.params.lfoPwmDepth = clamp12(saved.lfoPwmDepth);
