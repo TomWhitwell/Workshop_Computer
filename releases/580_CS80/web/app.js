@@ -975,7 +975,13 @@ function renderPresetDetail(index = 0) {
 
 function applyPreset(index) {
   const preset = presets[index] || presets[0];
+  const preservedCvSettings = {
+    pitchCvRange: getParam("pitchCvRange").value,
+    filterCvMode: getParam("filterCvMode").value,
+    expression: getParam("expression").value,
+  };
   const params = resolvedPresetParams(preset);
+  Object.assign(params, preservedCvSettings);
   Object.entries(params).forEach(([name, value]) => setParam(name, value));
   presetNameEl.value = preset.name;
   drawEnvelope();

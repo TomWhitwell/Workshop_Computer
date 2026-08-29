@@ -32,7 +32,7 @@ Switch down hold: performance page.
 - `Audio/CV In 1`: selectable 1V/oct pitch CV range: 0 V to +5 V with C4 at +3 V, or -3 V to +3 V with C4 at 0 V
 - `CV In 1` / `CV In 2`: combined Web UI filter pairing: `CV1 Contour Sweep + CV2 Expression`, `CV1 High-Pass Focus + CV2 Brightness`, or `CV1 Low-Pass Brightness + CV2 Resonance`
 - `Pulse In 1`: gate when patched; unpatched, the voice drones for oscillator bring-up
-- `Pulse In 2`: trigger, hold, or alternate gesture
+- `Pulse In 2`: not currently used by this firmware
 
 ## Outputs
 
