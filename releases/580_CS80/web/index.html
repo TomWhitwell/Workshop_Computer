@@ -66,11 +66,9 @@
       </section>
 
       <nav class="tabs" aria-label="Editor pages">
-        <button class="tab is-active" type="button" data-page="voice">Voice</button>
-        <button class="tab" type="button" data-page="filter">Filter</button>
-        <button class="tab" type="button" data-page="envelopes">Envelopes</button>
-        <button class="tab" type="button" data-page="modulation">Mod</button>
-        <button class="tab" type="button" data-page="cv">CV</button>
+        <button class="tab is-active" type="button" data-page="perform">Perform</button>
+        <button class="tab" type="button" data-page="shape">Shape</button>
+        <button class="tab" type="button" data-page="deep">Deep</button>
         <button class="tab" type="button" data-page="presets">Presets</button>
       </nav>
 
@@ -101,10 +99,10 @@
         </aside>
 
         <section class="editor-stack">
-          <section class="page is-active" data-page-panel="voice">
+          <section class="page is-active" data-page-panel="perform">
             <div class="panel-title">
-              <h2>Voice</h2>
-              <span class="small-label">Mono additive mixer</span>
+              <h2>Perform</h2>
+              <span class="small-label">Immediate controls for playing and broad tone moves</span>
             </div>
 
             <div class="control-grid">
@@ -118,6 +116,66 @@
                 <input type="range" min="0" max="4095" value="2600" data-param="portamento">
                 <output>63%</output>
               </label>
+              <label class="control">
+                <span>Voice Level</span>
+                <input type="range" min="0" max="4095" value="3600" data-param="level">
+                <output>88%</output>
+              </label>
+              <label class="control">
+                <span>HP Cutoff</span>
+                <input type="range" min="0" max="4095" value="1500" data-param="hp">
+                <output>37%</output>
+              </label>
+              <label class="control">
+                <span>LP Cutoff</span>
+                <input type="range" min="0" max="4095" value="2450" data-param="lp">
+                <output>60%</output>
+              </label>
+              <label class="control">
+                <span>Resonance</span>
+                <input type="range" min="0" max="4095" value="2650" data-param="res">
+                <output>65%</output>
+              </label>
+              <label class="control">
+                <span>Attack</span>
+                <input type="range" min="0" max="4095" value="80" data-param="attack">
+                <output>2%</output>
+              </label>
+              <label class="control">
+                <span>Release</span>
+                <input type="range" min="0" max="4095" value="1200" data-param="release">
+                <output>29%</output>
+              </label>
+              <label class="control">
+                <span>Expression</span>
+                <input type="range" min="0" max="4095" value="1900" data-param="expression">
+                <output>46%</output>
+              </label>
+              <label class="control">
+                <span>LFO Rate</span>
+                <input type="range" min="0" max="4095" value="1750" data-param="lfoRate">
+                <output>43%</output>
+              </label>
+              <label class="control">
+                <span>LFO to Pitch</span>
+                <input type="range" min="0" max="4095" value="980" data-param="lfoPitchDepth">
+                <output>24%</output>
+              </label>
+              <label class="control">
+                <span>Ring Amount</span>
+                <input type="range" min="0" max="4095" value="850" data-param="ring">
+                <output>21%</output>
+              </label>
+            </div>
+          </section>
+
+          <section class="page" data-page-panel="shape">
+            <div class="panel-title">
+              <h2>Shape</h2>
+              <span class="small-label">Sources, envelopes, and motion shaping</span>
+            </div>
+
+            <div class="control-grid">
               <label class="control">
                 <span>Pulse Width</span>
                 <input type="range" min="0" max="4095" value="1650" data-param="pulse">
@@ -149,62 +207,9 @@
                 <output>5%</output>
               </label>
               <label class="control">
-                <span>Voice Level</span>
-                <input type="range" min="0" max="4095" value="3600" data-param="level">
-                <output>88%</output>
-              </label>
-              <label class="control">
                 <span>Performance Pitch</span>
                 <input type="range" min="-36" max="36" value="0" data-param="spread">
                 <output>0 st</output>
-              </label>
-            </div>
-          </section>
-
-          <section class="page" data-page-panel="filter">
-            <div class="panel-title">
-              <h2>Filter</h2>
-              <span class="small-label">HP into LP mono path</span>
-            </div>
-
-            <div class="control-grid">
-              <label class="control">
-                <span>HP Cutoff</span>
-                <input type="range" min="0" max="4095" value="1500" data-param="hp">
-                <output>37%</output>
-              </label>
-              <label class="control">
-                <span>LP Cutoff</span>
-                <input type="range" min="0" max="4095" value="2450" data-param="lp">
-                <output>60%</output>
-              </label>
-              <label class="control">
-                <span>Resonance</span>
-                <input type="range" min="0" max="4095" value="2650" data-param="res">
-                <output>65%</output>
-              </label>
-              <label class="control">
-                <span>Expression</span>
-                <input type="range" min="0" max="4095" value="1900" data-param="expression">
-                <output>46%</output>
-              </label>
-            </div>
-          </section>
-
-          <section class="page" data-page-panel="envelopes">
-            <div class="panel-title">
-              <h2>Envelopes</h2>
-              <select id="envTarget">
-                <option>Amp</option>
-                <option>Filter</option>
-              </select>
-            </div>
-            <canvas id="envCanvas" width="720" height="220"></canvas>
-            <div class="control-grid compact">
-              <label class="control">
-                <span>Attack</span>
-                <input type="range" min="0" max="4095" value="80" data-param="attack">
-                <output>2%</output>
               </label>
               <label class="control">
                 <span>Decay</span>
@@ -215,30 +220,6 @@
                 <span>Sustain</span>
                 <input type="range" min="0" max="4095" value="3300" data-param="sustain">
                 <output>81%</output>
-              </label>
-              <label class="control">
-                <span>Release</span>
-                <input type="range" min="0" max="4095" value="1200" data-param="release">
-                <output>29%</output>
-              </label>
-            </div>
-          </section>
-
-          <section class="page" data-page-panel="modulation">
-            <div class="panel-title">
-              <h2>Modulation</h2>
-              <span class="small-label">Independent LFO routes and ring mod</span>
-            </div>
-            <div class="control-grid">
-              <label class="control">
-                <span>LFO Rate</span>
-                <input type="range" min="0" max="4095" value="1750" data-param="lfoRate">
-                <output>43%</output>
-              </label>
-              <label class="control">
-                <span>LFO to Pitch</span>
-                <input type="range" min="0" max="4095" value="980" data-param="lfoPitchDepth">
-                <output>24%</output>
               </label>
               <label class="control">
                 <span>LFO to PWM</span>
@@ -255,6 +236,24 @@
                 <input type="range" min="0" max="4095" value="560" data-param="vcaDepth">
                 <output>14%</output>
               </label>
+            </div>
+
+            <div class="panel-title">
+              <h2>Envelope View</h2>
+              <select id="envTarget">
+                <option>Amp</option>
+                <option>Filter</option>
+              </select>
+            </div>
+            <canvas id="envCanvas" width="720" height="220"></canvas>
+          </section>
+
+          <section class="page" data-page-panel="deep">
+            <div class="panel-title">
+              <h2>Deep</h2>
+              <span class="small-label">CV policy, detailed ring behaviour, and system choices</span>
+            </div>
+            <div class="control-grid">
               <label class="control">
                 <span>Ring Amount</span>
                 <input type="range" min="0" max="4095" value="850" data-param="ring">
@@ -265,15 +264,6 @@
                 <input type="range" min="0" max="4095" value="2250" data-param="ringSpeed">
                 <output>55%</output>
               </label>
-            </div>
-          </section>
-
-          <section class="page" data-page-panel="cv">
-            <div class="panel-title">
-              <h2>CV</h2>
-              <span class="small-label">Playable without MIDI</span>
-            </div>
-            <div class="cv-list">
               <label>
                 <span>Audio/CV In 1 Pitch Reference</span>
                 <select data-param="pitchCvRange">
