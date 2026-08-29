@@ -599,6 +599,7 @@ function renderCardSlots() {
 
 function requestSlotMap(reason = "manual") {
   if (sendSysex(COMMAND_REQUEST_SLOTS)) {
+    if (warnIfNoReadback("Slot refresh request")) return true;
     statusEl.textContent = reason === "manual"
       ? "Card slot refresh requested."
       : "Checking card slots...";
@@ -618,6 +619,7 @@ function requestSelectedSlot(reason = "manual") {
 
   if (sendSysex(COMMAND_REQUEST_SLOT, [slot & 0x07])) {
     slotReadReason = reason;
+    if (warnIfNoReadback(`Card slot ${slot + 1} read request`)) return true;
     statusEl.textContent = reason === "save"
       ? `Verifying saved card slot ${slot + 1}...`
       : `Card slot ${slot + 1} read requested.`;
@@ -710,6 +712,43 @@ function frameFor(command, payload = []) {
   return [0xf0, SYSEX_MANUFACTURER, ...SYSEX_ID, command, ...payload, 0xf7];
 }
 
+function portName(port) {
+  return port?.name || port?.manufacturer || "unnamed port";
+}
+
+function normalizedPortName(port) {
+  return portName(port).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function cardPortScore(port) {
+  const name = normalizedPortName(port);
+  let score = 0;
+  if (name.includes("cs80")) score += 8;
+  if (name.includes("workshop")) score += 6;
+  if (name.includes("pico")) score += 4;
+  if (name.includes("rp2040")) score += 3;
+  if (name.includes("tinyusb")) score += 3;
+  return score;
+}
+
+function bestCardPort(ports) {
+  return ports
+    .map((port) => ({ port, score: cardPortScore(port) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)[0]?.port || null;
+}
+
+function readbackAvailable() {
+  return Boolean(midiAccess && Array.from(midiAccess.inputs.values()).length && midiOutput);
+}
+
+function warnIfNoReadback(action) {
+  if (readbackAvailable()) return false;
+  statusEl.textContent = `${action} sent, but no MIDI input is available for card readback. Reconnect the card and use Link Card again.`;
+  logDeveloper("readback unavailable", { action, output: midiOutput ? portName(midiOutput) : null });
+  return true;
+}
+
 function sendSysex(command, payload = []) {
   if (!midiOutput) {
     statusEl.textContent = "Connect MIDI before sending a patch.";
@@ -720,7 +759,7 @@ function sendSysex(command, payload = []) {
 
   const frame = frameFor(command, payload);
   midiOutput.send(frame);
-  logDeveloper("sysex sent", { command, bytes: frame.length, output: midiOutput.name || "unnamed port" });
+  logDeveloper("sysex sent", { command, bytes: frame.length, output: portName(midiOutput) });
   return true;
 }
 
@@ -811,25 +850,29 @@ function handleMidiMessage(event) {
 function selectMidiPorts() {
   const outputs = Array.from(midiAccess.outputs.values());
   const inputs = Array.from(midiAccess.inputs.values());
-  const match = (port) => /cs80|workshop|pico/i.test(port.name || "");
 
-  midiOutput = outputs.find(match) || outputs[0] || null;
-  midiInput = inputs.find(match) || inputs[0] || null;
+  midiOutput = bestCardPort(outputs) || outputs[0] || null;
+  const outputName = normalizedPortName(midiOutput);
+  midiInput = inputs.find((input) => normalizedPortName(input) === outputName) || bestCardPort(inputs) || inputs[0] || null;
 
   inputs.forEach((input) => {
-    input.onmidimessage = input === midiInput ? handleMidiMessage : null;
+    input.onmidimessage = handleMidiMessage;
   });
 
-  protocolEl.textContent = midiOutput ? "CS80 v8" : "No MIDI Out";
+  protocolEl.textContent = midiOutput ? (inputs.length ? "CS80 v8" : "Send only") : "No MIDI Out";
   statusEl.textContent = midiOutput
-    ? `MIDI connected: ${midiOutput.name || "unnamed output"}.`
+    ? inputs.length
+      ? `MIDI connected: out ${portName(midiOutput)}, listening to ${inputs.length} input${inputs.length === 1 ? "" : "s"}.`
+      : `MIDI output connected: ${portName(midiOutput)}. No MIDI input found for readback.`
     : "MIDI access granted, but no output port was found.";
   logDeveloper("midi ports selected", {
-    input: midiInput?.name || null,
-    output: midiOutput?.name || null,
+    input: midiInput ? portName(midiInput) : null,
+    output: midiOutput ? portName(midiOutput) : null,
+    availableInputs: inputs.map(portName),
+    availableOutputs: outputs.map(portName),
   });
 
-  if (midiOutput) {
+  if (readbackAvailable()) {
     requestSlotMap("connect");
   }
 }
@@ -1141,6 +1184,7 @@ refreshSlotsEl.addEventListener("click", () => {
 
 readCardEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_REQUEST_PATCH)) {
+    if (warnIfNoReadback("Current patch read request")) return;
     statusEl.textContent = "Current card patch read requested.";
     logDeveloper("current patch read requested");
   }
@@ -1162,6 +1206,7 @@ savePatchEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_SAVE_SLOT, [slot & 0x07, ...currentPatchPayload()])) {
     savedSlotMask |= 1 << slot;
     renderCardSlots();
+    if (warnIfNoReadback(`Save request for card slot ${slot + 1}`)) return;
     statusEl.textContent = `Save sent for card slot ${slot + 1}; verifying...`;
     logDeveloper("slot save requested", { slot: slot + 1 });
     window.setTimeout(() => requestSelectedSlot("save"), 120);
@@ -1178,6 +1223,7 @@ setStartupSlotEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_SET_STARTUP_SLOT, [slot & 0x07])) {
     startupSlot = slot;
     renderCardSlots();
+    if (warnIfNoReadback(`Startup slot ${slot + 1} request`)) return;
     statusEl.textContent = `Startup slot ${slot + 1} sent; refreshing slot map...`;
     logDeveloper("startup slot set", { slot: slot + 1 });
     window.setTimeout(() => requestSlotMap("startup"), 120);
@@ -1204,6 +1250,7 @@ deletePatchEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_DELETE_SLOT, [slot & 0x07])) {
     savedSlotMask &= ~(1 << slot);
     renderCardSlots();
+    if (warnIfNoReadback(`Delete request for card slot ${slot + 1}`)) return;
     statusEl.textContent = `Delete sent for card slot ${slot + 1}; refreshing slot map...`;
     logDeveloper("slot delete requested", { slot: slot + 1 });
     window.setTimeout(() => requestSlotMap("delete"), 120);

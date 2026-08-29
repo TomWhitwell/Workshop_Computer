@@ -90,20 +90,7 @@ public:
 
         if (slotsResponsePending)
         {
-            uint8_t frame[11] = {
-                0xF0u,
-                WebMidiManufacturer,
-                WebMidiId[0],
-                WebMidiId[1],
-                WebMidiId[2],
-                WebMidiId[3],
-                WebMidiCommandSlotsResponse,
-                (uint8_t)(savedSlotMask & 0x7Fu),
-                (uint8_t)((savedSlotMask >> 7) & 0x7Fu),
-                (uint8_t)(startupSlot & 0x07u),
-                0xF7u
-            };
-            tud_midi_stream_write(0, frame, sizeof(frame));
+            sendSlotsFrame();
             slotsResponsePending = false;
         }
 
@@ -177,6 +164,24 @@ public:
         frame[offset++] = 0xF7u;
 
         tud_midi_stream_write(0, frame, offset);
+    }
+
+    void sendSlotsFrame()
+    {
+        uint8_t frame[11] = {
+            0xF0u,
+            WebMidiManufacturer,
+            WebMidiId[0],
+            WebMidiId[1],
+            WebMidiId[2],
+            WebMidiId[3],
+            WebMidiCommandSlotsResponse,
+            (uint8_t)(savedSlotMask & 0x7Fu),
+            (uint8_t)((savedSlotMask >> 7) & 0x7Fu),
+            (uint8_t)(startupSlot & 0x07u),
+            0xF7u
+        };
+        tud_midi_stream_write(0, frame, sizeof(frame));
     }
 
     void ProcessSample() override
@@ -1396,9 +1401,7 @@ private:
             if (!decodeWebMidiPatch(6, patch))
                 return;
             queuePatchForAudio(patch);
-            patchResponsePatch = patch;
-            patchResponseHasPatch = true;
-            patchResponsePending = true;
+            sendPatchFrame(WebMidiCommandPatchResponse, 0x7Fu, patch);
             return;
         }
 
@@ -1411,14 +1414,17 @@ private:
 
         if (command == WebMidiCommandRequestPatch && sysexLength == 6u)
         {
-            patchResponseHasPatch = false;
-            patchResponsePending = true;
+            drainAudioPatchSnapshots();
+            sendPatchFrame(
+                WebMidiCommandPatchResponse,
+                0x7Fu,
+                webPatchSnapshotValid ? webPatchSnapshot : currentPatchState());
             return;
         }
 
         if (command == WebMidiCommandRequestSlots && sysexLength == 6u)
         {
-            slotsResponsePending = true;
+            sendSlotsFrame();
             return;
         }
 
@@ -1427,10 +1433,9 @@ private:
             uint8_t slot = sysexBuffer[6] & 0x07u;
             if ((savedSlotMask & (1u << slot)) != 0)
             {
-                slotResponsePatch = patchStateFromSavedPatch(savedPatches[slot]);
-                queuePatchForAudio(slotResponsePatch);
-                slotResponseIndex = slot;
-                slotResponsePending = true;
+                PatchState patch = patchStateFromSavedPatch(savedPatches[slot]);
+                queuePatchForAudio(patch);
+                sendPatchFrame(WebMidiCommandSlotResponse, slot, patch);
             }
             return;
         }
@@ -1442,7 +1447,7 @@ private:
             if (startupSlot == slot)
                 startupSlot = firstLoadedSlot();
             savePatchBankIfChanged();
-            slotsResponsePending = true;
+            sendSlotsFrame();
             return;
         }
 
@@ -1453,7 +1458,7 @@ private:
                 return;
             startupSlot = slot;
             savePatchBankIfChanged();
-            slotsResponsePending = true;
+            sendSlotsFrame();
         }
     }
 
@@ -1529,10 +1534,8 @@ private:
         if (!hadSavedSlots)
             startupSlot = slot;
         savePatchBankIfChanged();
-        slotResponseIndex = slot;
-        slotResponsePatch = patch;
-        slotResponsePending = true;
-        slotsResponsePending = true;
+        sendPatchFrame(WebMidiCommandSlotResponse, slot, patch);
+        sendSlotsFrame();
     }
 
     int32_t decodeWebMidiUint14(uint32_t& offset) const
