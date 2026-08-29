@@ -77,14 +77,18 @@ ring amount, and ring speed. The source levels are summed rather than
 crossfaded. Save applies the patch and writes it to one of eight persistent
 card slots. The first saved patch becomes the startup patch automatically; use
 the editor's `Start Here` button to choose a different saved startup slot.
+`Refresh Slots` reads the card's saved-slot map, `Read Patch` syncs the current
+live card patch, and `Load Slot` recalls the selected saved slot.
 
 At startup, holding the Down switch during the short boot selection window enters
 patch-slot select. Main chooses among saved slots, LEDs show the selected slot
 number, and releasing Down loads the slot and stores it as the default startup
 slot.
 
-The pitch-CV range is part of each saved patch, so the startup slot also restores
-its `-3 V to +3 V, C4 at 0 V` or `0 V to +5 V, C4 at +3 V` pitch reference.
+Factory/example presets preserve the editor's current CV policy when loaded.
+Saved card slots are full snapshots: the pitch-CV range is part of each saved
+patch, so the startup slot also restores its `-3 V to +3 V, C4 at 0 V` or
+`0 V to +5 V, C4 at +3 V` pitch reference.
 If no saved startup slot exists yet, the compiled fallback patch is the Web
 editor's `Doctor Who Theme` preset: an eerie lead using sine plus pulse,
 resonant filtering, portamento, vibrato, PWM wobble, and a little ring modulation.

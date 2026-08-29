@@ -15,7 +15,9 @@ const envTargetEl = document.querySelector("#envTarget");
 const presetGridEl = document.querySelector("#presetGrid");
 const presetDetailEl = document.querySelector("#presetDetail");
 const presetNameEl = document.querySelector("#presetName");
+const refreshSlotsEl = document.querySelector("#refreshSlots");
 const readCardEl = document.querySelector("#readCard");
+const loadSlotEl = document.querySelector("#loadSlot");
 const applyPatchEl = document.querySelector("#applyPatch");
 const savePatchEl = document.querySelector("#savePatch");
 const deletePatchEl = document.querySelector("#deletePatch");
@@ -51,6 +53,7 @@ let startupSlot = 0;
 let pickupPreview = [false, false, false];
 let activeTone = "all";
 let previewVoice = "a";
+let slotReadReason = "manual";
 
 const defaultPatchParams = {
   pitch: 0,
@@ -591,6 +594,37 @@ function renderCardSlots() {
     option.textContent = `Slot ${index + 1}${saved ? " saved" : " empty"}${startup ? " (startup)" : ""}`;
   });
   setStartupSlotEl.disabled = (savedSlotMask & (1 << selectedCardSlot())) === 0;
+  loadSlotEl.disabled = (savedSlotMask & (1 << selectedCardSlot())) === 0;
+}
+
+function requestSlotMap(reason = "manual") {
+  if (sendSysex(COMMAND_REQUEST_SLOTS)) {
+    statusEl.textContent = reason === "manual"
+      ? "Card slot refresh requested."
+      : "Checking card slots...";
+    logDeveloper("slot map requested", { reason });
+    return true;
+  }
+  return false;
+}
+
+function requestSelectedSlot(reason = "manual") {
+  const slot = selectedCardSlot();
+  if ((savedSlotMask & (1 << slot)) === 0) {
+    statusEl.textContent = `Card slot ${slot + 1} is empty.`;
+    logDeveloper("slot read skipped", { slot: slot + 1, reason: "empty" });
+    return false;
+  }
+
+  if (sendSysex(COMMAND_REQUEST_SLOT, [slot & 0x07])) {
+    slotReadReason = reason;
+    statusEl.textContent = reason === "save"
+      ? `Verifying saved card slot ${slot + 1}...`
+      : `Card slot ${slot + 1} read requested.`;
+    logDeveloper("slot read requested", { slot: slot + 1, reason });
+    return true;
+  }
+  return false;
 }
 
 function resetPickupPreview() {
@@ -759,6 +793,10 @@ function handleMidiMessage(event) {
     renderCardSlots();
     cardSlotEl.value = String(slot);
     usePatchPayload(payload.slice(1), slot);
+    if (slotReadReason === "save") {
+      statusEl.textContent = `Verified patch saved in card slot ${slot + 1}.`;
+    }
+    slotReadReason = "manual";
   }
 
   if (command === COMMAND_SLOTS_RESPONSE) {
@@ -766,6 +804,7 @@ function handleMidiMessage(event) {
     startupSlot = (payload[2] ?? 0) & 0x07;
     renderCardSlots();
     logDeveloper("card slot map received", { mask: savedSlotMask, startupSlot: startupSlot + 1 });
+    statusEl.textContent = `Card slots refreshed. Startup slot is ${startupSlot + 1}.`;
   }
 }
 
@@ -791,7 +830,7 @@ function selectMidiPorts() {
   });
 
   if (midiOutput) {
-    sendSysex(COMMAND_REQUEST_SLOTS);
+    requestSlotMap("connect");
   }
 }
 
@@ -1096,20 +1135,19 @@ document.querySelectorAll("input[type='range']").forEach((range) => {
   });
 });
 
-readCardEl.addEventListener("click", () => {
-  const slot = selectedCardSlot();
-  if ((savedSlotMask & (1 << slot)) !== 0) {
-    if (sendSysex(COMMAND_REQUEST_SLOT, [slot & 0x07])) {
-      statusEl.textContent = `Card slot ${slot + 1} read requested.`;
-      logDeveloper("slot read requested", { slot: slot + 1 });
-    }
-    return;
-  }
+refreshSlotsEl.addEventListener("click", () => {
+  requestSlotMap("manual");
+});
 
+readCardEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_REQUEST_PATCH)) {
-    statusEl.textContent = `Slot ${slot + 1} is empty; current card patch read requested.`;
+    statusEl.textContent = "Current card patch read requested.";
     logDeveloper("current patch read requested");
   }
+});
+
+loadSlotEl.addEventListener("click", () => {
+  requestSelectedSlot("manual");
 });
 
 applyPatchEl.addEventListener("click", () => {
@@ -1124,8 +1162,9 @@ savePatchEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_SAVE_SLOT, [slot & 0x07, ...currentPatchPayload()])) {
     savedSlotMask |= 1 << slot;
     renderCardSlots();
-    statusEl.textContent = `Patch saved to card slot ${slot + 1}.`;
+    statusEl.textContent = `Save sent for card slot ${slot + 1}; verifying...`;
     logDeveloper("slot save requested", { slot: slot + 1 });
+    window.setTimeout(() => requestSelectedSlot("save"), 120);
   }
 });
 
@@ -1139,8 +1178,9 @@ setStartupSlotEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_SET_STARTUP_SLOT, [slot & 0x07])) {
     startupSlot = slot;
     renderCardSlots();
-    statusEl.textContent = `Card slot ${slot + 1} will load at startup.`;
+    statusEl.textContent = `Startup slot ${slot + 1} sent; refreshing slot map...`;
     logDeveloper("startup slot set", { slot: slot + 1 });
+    window.setTimeout(() => requestSlotMap("startup"), 120);
   }
 });
 
@@ -1164,8 +1204,9 @@ deletePatchEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_DELETE_SLOT, [slot & 0x07])) {
     savedSlotMask &= ~(1 << slot);
     renderCardSlots();
-    statusEl.textContent = `Delete sent for card slot ${slot + 1}.`;
+    statusEl.textContent = `Delete sent for card slot ${slot + 1}; refreshing slot map...`;
     logDeveloper("slot delete requested", { slot: slot + 1 });
+    window.setTimeout(() => requestSlotMap("delete"), 120);
   }
 });
 
