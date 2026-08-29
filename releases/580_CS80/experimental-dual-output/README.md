@@ -38,5 +38,10 @@ Current implementation note:
 
 - the existing experimental firmware is still an earlier split-output prototype
   with shared shaping for many parameters
+- the experimental firmware and copied Web UI now include the stable `v7`
+  patch protocol, `Init` preset, and combined CV filter pairing behaviour
+- the experimental Web UI labels the current dual-output behaviour, but Web MIDI
+  still sends one shared patch; per-output LP/HP/resonance and pulse/PWM remain
+  hardware-panel experiments until the protocol grows proper A/B parameter fields
 - this folder is now the place where the new A/B page, detune, and per-voice
   control work should happen next

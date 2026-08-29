@@ -1,11 +1,11 @@
 # CS80
 
-CS80 is a draft Workshop Computer card for a CS-80-inspired mono synthesiser
-voice. The name is a working title and should change before release.
+CS80 is a draft Workshop Computer card for a CS-80-inspired split-output
+synthesiser voice. The name is a working title and should change before release.
 
-The first target is intentionally modest: make one expressive mono voice sound
-good, keep the audio loop lean, and leave the code shaped so a second voice can
-be added later.
+The current stable target is still deliberately modest: keep one playable
+monophonic note path, but render it as two related output voices so Audio Out 2
+can be detuned against Audio Out 1.
 
 This card is not affiliated with Yamaha and is not intended to be a circuit
 emulation of the Yamaha CS-80. The goal is a playable Workshop Computer
@@ -15,14 +15,15 @@ performance modulation, ring modulation, and expressive envelopes.
 
 ## Current Status
 
-This folder contains the current stable mono firmware baseline plus a draft Web
-MIDI editor.
+This folder contains the current stable split-output firmware baseline plus a
+draft Web MIDI editor.
 
-- Firmware: current stable version is the non-dual mono voice build with the
+- Firmware: current stable version is the dual-output monophonic build with the
   two-bank MIDI CC layout and `CC1` vibrato depth
-- Web editor: draft CS80 SysEx v5 patch apply/readback interface
+- Web editor: draft CS80 SysEx v7 patch apply/readback interface
 - UF2: the rollback-stable firmware build is kept in `uf2/`
-- Dual-voice experiments: kept separately in `experimental-dual-output/`
+- Mono fallback: the last passed non-dual firmware is retained in `uf2/` as a
+  second rollback option
 - Release status: draft
 
 Release firmware should go in `uf2/` when a build is ready to publish. Local
@@ -38,12 +39,14 @@ hardware-test UF2s should go in `test-uf2/`, which is ignored by git.
   writes, and MIDI parsing
 - Complete Web MIDI patches cross from core 1 to core 0 through a bounded,
   lockless SPSC queue; core 0 publishes readback snapshots through a second queue
-- The first voice should be mono, with structures laid out so a second voice can
-  be added after profiling
+- The playable note path remains monophonic while Audio Out 1 and Audio Out 2
+  render separate A/B voices for detune and shaping experiments
 
-## Planned Mono Voice
+## Current Voice Shape
 
-- two oscillator lanes
+- monophonic note/gate path with two split audio outputs
+- `Audio Out 1`: Voice A
+- `Audio Out 2`: Voice B, detunable relative to Voice A
 - web-first portamento for smooth CV/pitch glides
 - independent saw, square/pulse, sine, and noise mixer levels
 - independent pulse width, PWM amount, LFO-to-pitch, and LFO-to-PWM controls
@@ -82,7 +85,7 @@ slot.
 The pitch-CV range is part of each saved patch, so the startup slot also restores
 its `-3 V to +3 V, C4 at 0 V` or `0 V to +5 V, C4 at +3 V` pitch reference.
 If no saved startup slot exists yet, the compiled fallback patch is the Web
-editor's `Doctor Who Theme` preset: an eerie mono lead using sine plus pulse,
+editor's `Doctor Who Theme` preset: an eerie lead using sine plus pulse,
 resonant filtering, portamento, vibrato, PWM wobble, and a little ring modulation.
 
 ## MIDI CC Map
@@ -106,24 +109,24 @@ Secondary synth controls stay available on:
 Pitch bend is also supported and currently maps to a fixed `+/-2 semitone`
 range through the existing performance-pitch path.
 
-MIDI note-on and note-off now drive the mono voice directly. While a MIDI note
+MIDI note-on and note-off now drive the monophonic note path directly. While a MIDI note
 is held, it takes over pitch and gate for the synth voice, including
 portamento and pitch bend. Releasing the note returns pitch control to the card
 CV input and pulse gate behaviour.
 
-## First-Pass Firmware
+## Firmware
 
 `CS80.cpp` is a lean starting point rather than a finished synth. It currently
-drives one mono voice and copies it to both audio outputs for easy monitoring:
+drives one monophonic note path with two audio output voices:
 
-- `Audio Out 1`: mono voice
-- `Audio Out 2`: mono copy / future alternate output reserve
+- `Audio Out 1`: Voice A
+- `Audio Out 2`: Voice B, detuned relative to Voice A
 
-Holding Down exposes performance controls for temporary pitch offset, ring
-modulation, and LFO depth. The earlier two-output Voice A/B experiment has been
-pulled back until the mono implementation is lean and profiled.
+Short-tapping Down toggles whether the hardware panel is editing Voice A or
+Voice B. Holding Down exposes performance controls for Voice B detune, ring
+modulation, and LFO depth.
 When `Pulse In 1` is unpatched the gate is held open for oscillator bring-up;
-when it is patched, `Pulse In 1` gates the mono voice.
+when it is patched, `Pulse In 1` gates the monophonic note path.
 `Audio/CV In 1` is the pitch input. The Web editor selects either unipolar
 0 V to +5 V, with C4 at +3 V (0 V is C1), or bipolar -3 V to +3 V, with C4 at
 0 V. Both use 1V/oct. The Web editor also provides one combined CV filter

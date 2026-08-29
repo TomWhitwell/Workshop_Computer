@@ -1,17 +1,17 @@
 draft: true
 Name: CS80
-short-description: Draft mono CS-80-inspired synth voice with Web MIDI editing.
+short-description: Draft split-output CS-80-inspired synth voice with Web MIDI editing.
 summary: >-
   Draft card scaffold for a Yamaha CS-80-inspired Workshop Computer synth voice.
-  The first firmware target is a lean mono voice with two oscillator lanes,
-  expressive envelopes, high-pass and low-pass filter character, ring modulation,
-  MIDI/Web MIDI control, and a browser editor. The code is intended to be shaped
-  so a second voice can be added after the mono engine has been profiled and
-  proven on hardware.
+  The current stable firmware keeps a monophonic note path but renders two
+  related output voices: Audio Out 1 is Voice A and Audio Out 2 is Voice B,
+  detunable relative to Voice A. It includes expressive envelopes, high-pass and
+  low-pass filter character, ring modulation, MIDI/Web MIDI control, and a
+  browser editor.
 Language: C++ (Pico SDK)
 Creator: Adrian Vos
 Version: "0.1 draft"
-Status: Draft - first-pass mono firmware and Web MIDI patch interface
+Status: Draft - split-output firmware and Web MIDI patch interface
 License: MIT
 date-created: 2026-08-26
 Editor: web
@@ -20,7 +20,7 @@ tags:
   - synth
   - midi
   - web-midi
-  - mono
+  - split-output
   - cs-80-inspired
   - draft
 
@@ -52,21 +52,21 @@ panel:
       description: Reserved for retrigger, sustain, or alternate performance gestures.
   outputs:
     - id: AudioOut1
-      name: Mono Out
+      name: Voice A
       type: audio
-      description: Planned main mono synthesiser output.
+      description: First audio voice output.
     - id: AudioOut2
-      name: Alt Out
+      name: Voice B
       type: audio
-      description: Reserved for dry/wet, alternate filter tap, or future dual-voice output.
+      description: Second audio voice output, detunable relative to Voice A.
     - id: CVOut1
       name: Off
       type: cv
-      description: Reserved for later modulation output once the mono voice is stable.
+      description: Reserved for later modulation output once the split-output voice is stable.
     - id: CVOut2
       name: Off
       type: cv
-      description: Reserved for later modulation output once the mono voice is stable.
+      description: Reserved for later modulation output once the split-output voice is stable.
     - id: PulseOut1
       name: Off
       type: pulse
@@ -79,42 +79,43 @@ panel:
 controls:
   switch:
     up:
-      name: Oscillator page
-      description: Pitch offset, pulse width, and PWM amount for the mono voice, with soft pickup.
-    middle:
       name: Filter page
-      description: High-pass cutoff, low-pass cutoff, and resonance for the mono voice, with soft pickup.
+      description: Low-pass cutoff, high-pass cutoff, and resonance for the selected output voice, with soft pickup.
+    middle:
+      name: Oscillator page
+      description: Shared base pitch plus pulse width and PWM amount for the selected output voice, with soft pickup.
     down:
       name: Performance page
-      description: Hold page for temporary pitch offset, ring modulation, and LFO-to-pitch depth, with soft pickup.
+      description: Hold page for Voice B detune, ring modulation, and LFO-to-pitch depth, with soft pickup.
   knobs:
     - when:
         z: up
       main:
-        name: Pitch / Spread
-        description: Pitch offset for the mono voice.
+        name: LP Cutoff
+        description: Low-pass cutoff for the selected output voice.
       x:
         name: Pulse Width
-        description: Pulse width for the mono voice.
+        name: HP Cutoff
+        description: High-pass cutoff for the selected output voice.
       y:
-        name: PWM Amount
-        description: Pulse-width modulation amount for the mono voice. The independent source mixer is Web-editor controlled.
+        name: Resonance
+        description: Resonance for the selected output voice.
     - when:
         z: middle
       main:
-        name: HP Cutoff
-        description: High-pass filter cutoff.
+        name: Base Pitch
+        description: Shared base pitch offset for both output voices.
       x:
-        name: LP Cutoff
-        description: Low-pass filter cutoff.
+        name: Pulse Width
+        description: Pulse width for the selected output voice.
       y:
-        name: Resonance
-        description: Filter resonance.
+        name: PWM Amount
+        description: Pulse-width modulation amount for the selected output voice. The independent source mixer is Web-editor controlled.
     - when:
         z: down
       main:
-        name: Pitch Offset
-        description: Temporary pitch offset while Down is held.
+        name: Voice B Detune
+        description: Detunes Audio Out 2 relative to Audio Out 1 while Down is held.
       x:
         name: Ring Mod
         description: Ring-modulation amount.
@@ -125,11 +126,11 @@ controls:
     - display: list
       items:
         - id: LED0
-          name: Main Value
-          description: Stored Main parameter value for the active switch page.
+          name: Voice A
+          description: Bright when Voice A is selected for hardware-panel editing.
         - id: LED1
-          name: Main Pickup
-          description: Soft-pickup state for the Main knob; dim until picked up, bright when active.
+          name: Voice B
+          description: Bright when Voice B is selected for hardware-panel editing.
         - id: LED2
           name: X Value
           description: Stored X parameter value for the active switch page.
@@ -150,12 +151,12 @@ host:
       description: Draft browser editor using Web MIDI SysEx for patch apply, readback, and eight persistent card slots.
     - name: USB MIDI input
       role: host-or-device
-      description: MIDI note/gate, pitch-bend, and performance CC input for the draft mono voice, following a Gnarly-style dedicated controller block with standard synth aliases.
+      description: MIDI note/gate, pitch-bend, and performance CC input for the draft split-output voice, following a Gnarly-style dedicated controller block with standard synth aliases.
   notes: >-
     Draft architecture target: RP2040 at 192 MHz, copy-to-RAM firmware, audio
     rendering on core 0, USB MIDI/Web MIDI work on core 1, and bounded lockless
-    queues for complete patch handoff and core-0 readback. The first goal is a robust mono voice;
-    dual voice should wait until the mono implementation is lean and profiled.
+    queues for complete patch handoff and core-0 readback. The current stable
+    firmware keeps one monophonic note path and renders split A/B audio outputs.
     Current draft firmware stores eight Web MIDI patch slots in flash. The Web
     editor can choose a saved startup slot, and holding Down during the startup
     selection window lets Main override it, with the LEDs showing the slot

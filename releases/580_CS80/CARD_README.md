@@ -1,29 +1,29 @@
 # CS80 Card Guide
 
-CS80 is a draft mono synthesiser card inspired by the performance feel of the
-Yamaha CS-80.
+CS80 is a draft split-output synthesiser card inspired by the performance feel
+of the Yamaha CS-80.
 
 The firmware is in first-pass bring-up. This guide records the current panel
 layout so firmware, metadata, and the Web MIDI editor can grow in the same
 direction.
 
-## Planned Panel
+## Panel
 
-Switch up: oscillator page.
+Switch up: filter page.
 
-- Main: pitch offset
-- X: pulse width
-- Y: PWM amount; independent saw, square/pulse, sine, and noise levels are Web-editor controls
+- Main: low-pass cutoff for the selected output voice
+- X: high-pass cutoff for the selected output voice
+- Y: resonance for the selected output voice
 
-Switch middle: filter page.
+Switch middle: oscillator page.
 
-- Main: high-pass cutoff
-- X: low-pass cutoff
-- Y: resonance or brightness
+- Main: base pitch offset for both output voices
+- X: pulse width for the selected output voice
+- Y: PWM amount for the selected output voice
 
 Switch down hold: performance page.
 
-- Main: temporary pitch offset
+- Main: Voice B detune relative to Voice A
 - X: ring modulation
 - Y: LFO-to-pitch depth; PWM, filter, and amp destinations are independently controlled in the Web editor
 
@@ -36,24 +36,24 @@ Switch down hold: performance page.
 
 ## Outputs
 
-- `Audio Out 1`: mono voice
-- `Audio Out 2`: mono copy in the current stable version; future alternate
-  output reserve
+- `Audio Out 1`: Voice A
+- `Audio Out 2`: Voice B, detuned relative to Voice A
 
-CV and pulse outputs are reserved until the mono voice is stable.
+CV and pulse outputs are reserved while the split-output voice is refined.
 
 ## Stable Rollback
 
-The current stable rollback target is the non-dual mono firmware build from
-August 27, 2026, before the separate dual-output experiment under
-`experimental-dual-output/`.
+The current stable rollback target is the dual-output firmware build from
+August 29, 2026. The last passed non-dual mono firmware is kept as a second
+rollback option in `uf2/`.
 
 ## LEDs
 
-LEDs 0, 2, and 4 show the current Main, X, and Y parameter values for the
-active switch page. LEDs 1, 3, and 5 show soft-pickup state for those controls:
-dim means the knob has not picked up the stored value yet, bright means turning
-that knob will edit the parameter.
+LEDs 0 and 1 show whether Voice A or Voice B is selected for hardware-panel
+editing. LEDs 2 and 4 show the current X and Y parameter values for the active
+switch page. LEDs 3 and 5 show soft-pickup state for X and Y: dim means the knob
+has not picked up the stored value yet, bright means turning that knob will edit
+the parameter.
 
 ## Web MIDI Editor
 
