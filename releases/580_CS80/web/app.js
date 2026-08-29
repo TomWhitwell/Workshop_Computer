@@ -917,9 +917,28 @@ function resolvedPresetParams(preset) {
   const decay = params.decay ?? defaultPatchParams.decay;
   const sustain = params.sustain ?? defaultPatchParams.sustain;
   const release = params.release ?? defaultPatchParams.release;
+  const sawLevel = params.sawLevel ?? defaultPatchParams.sawLevel;
+  const pulseLevel = params.pulseLevel ?? defaultPatchParams.pulseLevel;
+  const sineLevel = params.sineLevel ?? defaultPatchParams.sineLevel;
+  const noiseLevel = params.noiseLevel ?? defaultPatchParams.noiseLevel;
+  const sourceTotal = sawLevel + pulseLevel + sineLevel + (noiseLevel >> 1);
+  const sourceBoost = preset.name === "Init" || sourceTotal >= 6400
+    ? 4096
+    : sourceTotal >= 5000
+      ? 4864
+      : 6144;
+  const boostSource = (value) => Math.min(4095, Math.round((value * sourceBoost) / 4096));
+  const musicalSustain = preset.name === "Init" || sustain >= 1200
+    ? sustain
+    : Math.round(1200 + (sustain * 2) / 5);
   return {
     ...defaultPatchParams,
     ...params,
+    sawLevel: boostSource(sawLevel),
+    pulseLevel: boostSource(pulseLevel),
+    sineLevel: boostSource(sineLevel),
+    noiseLevel: boostSource(noiseLevel),
+    level: preset.name === "Init" ? (params.level ?? defaultPatchParams.level) : (params.level ?? 4095),
     portamento: params.portamento ?? (preset.name === "Doctor Who Theme" ? defaultPatchParams.portamento : 0),
     // Preserve the previous preset character while separating its former
     // combined VCO modulation control into independent pitch and PWM routes.
@@ -928,7 +947,8 @@ function resolvedPresetParams(preset) {
     lfoPwmDepth: params.lfoPwmDepth ?? vcoDepth ?? defaultPatchParams.lfoPwmDepth,
     filterAttack: params.filterAttack ?? Math.round(attack * 0.55),
     filterDecay: params.filterDecay ?? Math.round(decay * 0.62),
-    filterSustain: params.filterSustain ?? Math.round(sustain * 0.78),
+    sustain: params.sustain == null ? musicalSustain : musicalSustain,
+    filterSustain: params.filterSustain ?? Math.round(musicalSustain * 0.45),
     filterRelease: params.filterRelease ?? Math.round(release * 0.75),
   };
 }

@@ -189,6 +189,7 @@ public:
         int32_t expressionCv = CVIn2();
         bool pulseGateNow = Disconnected(Input::Pulse1) || PulseIn1();
         bool gateNow = pulseGateNow || midiNoteActive;
+        currentGate = gateNow;
 
         updateDownSwitch(downNow);
 
@@ -426,6 +427,7 @@ private:
     bool downHeld = false;
     bool longHoldSeen = false;
     bool lastGate = false;
+    bool currentGate = false;
     bool selectedOutputB = true;
     bool pickedUp[3] = {false, false, false};
     Switch lastPanelMode = Switch::Middle;
@@ -919,6 +921,16 @@ private:
 
     void applyPatchState(const PatchState& patch)
     {
+        bool envelopeChanged =
+            params.attack != patch.params.attack ||
+            params.decay != patch.params.decay ||
+            params.sustain != patch.params.sustain ||
+            params.release != patch.params.release ||
+            params.filterAttack != patch.params.filterAttack ||
+            params.filterDecay != patch.params.filterDecay ||
+            params.filterSustain != patch.params.filterSustain ||
+            params.filterRelease != patch.params.filterRelease;
+
         params = patch.params;
         performancePitchQ8 = clampRange(patch.performancePitchQ8, -2048, 2047);
         ringAmount = clamp12(patch.ringAmount);
@@ -926,6 +938,12 @@ private:
         pickedUp[0] = false;
         pickedUp[1] = false;
         pickedUp[2] = false;
+
+        if (envelopeChanged && currentGate)
+        {
+            resetEnvelopeForAudition(voiceA);
+            resetEnvelopeForAudition(voiceB);
+        }
     }
 
     void applyPendingWebPatches()
@@ -979,6 +997,16 @@ private:
             voice.filterEnvelopeQ12 = 128;
             voice.filterEnvelopeAccQ20 = voice.filterEnvelopeQ12 << 8;
         }
+    }
+
+    void resetEnvelopeForAudition(VoiceState& voice)
+    {
+        voice.ampEnvelopeQ12 = 0;
+        voice.filterEnvelopeQ12 = 0;
+        voice.ampEnvelopeAccQ20 = 0;
+        voice.filterEnvelopeAccQ20 = 0;
+        voice.ampEnvelopeStage = 0;
+        voice.filterEnvelopeStage = 0;
     }
 
     void updateGlobalModulation()
@@ -1039,7 +1067,7 @@ private:
         osc = applyRingMod(osc);
 
         int32_t filtered = filterVoice(osc, voice, voiceParams, filterCv, expressionCv);
-        int32_t amp = voice.ampEnvelopeQ12;
+        int32_t amp = ampCurve(voice.ampEnvelopeQ12);
         if (voiceParams.lfoVcaDepth > 0)
         {
             int32_t tremolo = clamp12(2048 + ((lfoValue * voiceParams.lfoVcaDepth) >> 11));
@@ -1085,7 +1113,7 @@ private:
         int32_t attackRate = rateFromTimeControl(attack);
         int32_t decayRate = rateFromTimeControl(decay);
         int32_t sustainLevel = clamp12(sustain) << 8;
-        int32_t releaseRate = rateFromTimeControl(release);
+        int32_t releaseRate = releaseRateFromTimeControl(release);
         static constexpr int32_t EnvelopeMaxQ20 = 4095 << 8;
 
         if (!gate)
@@ -1166,7 +1194,8 @@ private:
         }
 
         int32_t hpControl = clamp12(voiceParams.hpCutoff + hpCv);
-        int32_t lpControl = clamp12(voiceParams.lpCutoff + lpCv + expressionMod + lfoFilterMod + state.filterEnvelopeQ12);
+        int32_t filterEnvelopeMod = filterEnvelopeCurve(state.filterEnvelopeQ12);
+        int32_t lpControl = clamp12(voiceParams.lpCutoff + lpCv + expressionMod + lfoFilterMod + filterEnvelopeMod);
 
         int32_t hpAlpha = curveFromControl(hpControl);
         int32_t lpAlpha = curveFromControl(lpControl);
@@ -1270,7 +1299,40 @@ private:
 
     int32_t rateFromTimeControl(int32_t control) const
     {
-        return (int32_t)cs80EnvelopeRateQ12[15u - ((uint32_t)clamp12(control) >> 8)] * 5;
+        const uint32_t idx = (uint32_t)clamp12(control) >> 8;
+        static constexpr int32_t envelopeRateQ20[16] = {
+            32768, 24576, 16384, 12288,
+            8192, 6144, 4096, 3072,
+            2048, 1536, 1024, 768,
+            512, 384, 256, 192
+        };
+        return envelopeRateQ20[idx];
+    }
+
+    int32_t releaseRateFromTimeControl(int32_t control) const
+    {
+        const uint32_t idx = (uint32_t)clamp12(control) >> 8;
+        static constexpr int32_t envelopeReleaseRateQ20[16] = {
+            16384, 12288, 8192, 6144,
+            4096, 3072, 2048, 1536,
+            1024, 768, 512, 256,
+            128, 64, 32, 16
+        };
+        return envelopeReleaseRateQ20[idx];
+    }
+
+    int32_t ampCurve(int32_t envelopeQ12) const
+    {
+        envelopeQ12 = clamp12(envelopeQ12);
+        int32_t squared = (envelopeQ12 * envelopeQ12) >> 12;
+        return (envelopeQ12 + squared) >> 1;
+    }
+
+    int32_t filterEnvelopeCurve(int32_t envelopeQ12) const
+    {
+        envelopeQ12 = clamp12(envelopeQ12);
+        int32_t curved = (envelopeQ12 * (8192 - envelopeQ12)) >> 13;
+        return curved + (envelopeQ12 >> 2);
     }
 
     int32_t sine64(uint32_t phase) const
