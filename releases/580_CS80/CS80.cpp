@@ -22,7 +22,7 @@ static constexpr uint8_t WebMidiCommandRequestSlot = 0x08u;
 static constexpr uint8_t WebMidiCommandSlotResponse = 0x09u;
 static constexpr uint8_t WebMidiCommandDeleteSlot = 0x0Au;
 static constexpr uint8_t WebMidiCommandSetStartupSlot = 0x0Bu;
-static constexpr uint8_t WebMidiPatchProtocolVersion = 6u;
+static constexpr uint8_t WebMidiPatchProtocolVersion = 7u;
 static constexpr uint32_t WebMidiPatchPayloadLength = 55u;
 static constexpr uint32_t WebMidiMaxSysexLength = 64u;
 static constexpr uint8_t MidiStatusMask = 0xF0u;
@@ -1025,6 +1025,7 @@ private:
         int32_t lfoFilterMod = (lfoValue * voiceParams.lfoVcfDepth) >> 11;
         int32_t hpCv = 0;
         int32_t lpCv = 0;
+        int32_t resonanceCv = expression;
 
         if (voiceParams.filterCvMode == 1)
         {
@@ -1033,6 +1034,7 @@ private:
         else if (voiceParams.filterCvMode == 2)
         {
             lpCv = filterCv + filterCv;
+            expressionMod = 0;
         }
         else
         {
@@ -1049,7 +1051,7 @@ private:
         state.hpLowpass += (hpAlpha * (input - state.hpLowpass)) >> 12;
         int32_t highpassed = input - state.hpLowpass;
 
-        int32_t resonance = voiceParams.resonance + expression;
+        int32_t resonance = voiceParams.resonance + resonanceCv;
         resonance = clamp12(resonance);
 
         int32_t driven = highpassed - ((state.lp * resonance) >> 11);

@@ -62,7 +62,7 @@ The editor and firmware now share a small non-commercial SysEx protocol:
 
 - manufacturer byte: `0x7d`
 - card id: `CS80`
-- protocol version: `5`
+- protocol version: `7`
 - commands: apply patch, save slot, request current patch, request slot map,
   request slot, slot response, delete slot, and set startup slot
 
@@ -126,10 +126,12 @@ When `Pulse In 1` is unpatched the gate is held open for oscillator bring-up;
 when it is patched, `Pulse In 1` gates the mono voice.
 `Audio/CV In 1` is the pitch input. The Web editor selects either unipolar
 0 V to +5 V, with C4 at +3 V (0 V is C1), or bipolar -3 V to +3 V, with C4 at
-0 V. Both use 1V/oct. `CV In 1` is a selectable filter modulation input with
-three modes: `Contour Sweep (HP + LP)` for the current broad sweep behaviour,
-`High-Pass Focus`, or `Low-Pass Brightness`. `CV In 2` is an expression input
-that pushes brightness and resonance.
+0 V. Both use 1V/oct. The Web editor also provides one combined CV filter
+pairing selector. `CV1 Contour Sweep + CV2 Expression` keeps the broad sweep
+behaviour, with CV1 moving HP and LP while CV2 adds LP brightness and resonance.
+`CV1 High-Pass Focus + CV2 Brightness` gives separate lower-edge and upper-edge
+filter movement. `CV1 Low-Pass Brightness + CV2 Resonance` leaves CV2 as a
+resonance-only performance input.
 
 Panel controls use soft pickup so switching pages does not immediately overwrite
 stored values. LEDs 0/2/4 show the stored Main/X/Y values for the current switch

@@ -37,7 +37,7 @@
     <main class="workspace">
       <section class="status-strip" aria-label="Connection status">
         <span id="status">Use a USB-C data cable. Close Serial Monitor and other MIDI apps.</span>
-        <span id="protocol">CS80 v5 draft</span>
+        <span id="protocol">CS80 v7 draft</span>
       </section>
 
       <section class="tone-strip" aria-label="Preset instrument filter">
@@ -271,16 +271,14 @@
                   <option value="0">0 V to +5 V, C4 at +3 V</option>
                 </select>
               </label>
-              <label><span>Audio/CV In 2</span><select><option>Audio-rate mod reserve</option><option>Alternate pitch reserve</option></select></label>
               <label>
-                <span>CV In 1 Filter Target</span>
+                <span>CV Filter Pairing</span>
                 <select data-param="filterCvMode">
-                  <option value="0">Contour Sweep (HP + LP)</option>
-                  <option value="1">High-Pass Focus</option>
-                  <option value="2">Low-Pass Brightness</option>
+                  <option value="0">CV1 Contour Sweep + CV2 Expression</option>
+                  <option value="1">CV1 High-Pass Focus + CV2 Brightness</option>
+                  <option value="2">CV1 Low-Pass Brightness + CV2 Resonance</option>
                 </select>
               </label>
-              <label><span>CV In 2</span><select><option>Expression macro</option><option>LFO depth</option><option>Ring amount</option></select></label>
               <label><span>Pulse In 1</span><select><option>Gate</option></select></label>
               <label><span>Pulse In 2</span><select><option>Accent / retrig reserve</option><option>Alternate gate reserve</option></select></label>
             </div>

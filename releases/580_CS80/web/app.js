@@ -38,7 +38,7 @@ const COMMAND_REQUEST_SLOT = 0x08;
 const COMMAND_SLOT_RESPONSE = 0x09;
 const COMMAND_DELETE_SLOT = 0x0a;
 const COMMAND_SET_STARTUP_SLOT = 0x0b;
-const PATCH_PROTOCOL_VERSION = 6;
+const PATCH_PROTOCOL_VERSION = 7;
 let themeMode = loadThemeMode();
 let developerMode = false;
 let developerLogLines = [];
@@ -100,6 +100,44 @@ const knobMaps = {
 };
 
 const presets = [
+  {
+    name: "Init",
+    category: "utility",
+    detail: "plain single-voice starting point",
+    sources: "Saw only, pulse/sine/noise off",
+    filter: "HPF low, LPF open, resonance low",
+    envelope: "Fast attack, full sustain, short release",
+    modulation: "No LFO, ring, PWM, or expression shaping",
+    params: {
+      pitch: 0,
+      portamento: 0,
+      filterCvMode: 0,
+      pulse: 2048,
+      pwmAmount: 0,
+      sawLevel: 3000,
+      pulseLevel: 0,
+      sineLevel: 0,
+      noiseLevel: 0,
+      level: 3400,
+      spread: 0,
+      hp: 120,
+      lp: 3300,
+      res: 450,
+      expression: 0,
+      attack: 20,
+      decay: 700,
+      sustain: 4095,
+      release: 620,
+      lfoRate: 500,
+      lfoPitchDepth: 0,
+      lfoPwmDepth: 0,
+      vcfDepth: 0,
+      vcaDepth: 0,
+      ring: 0,
+      ringSpeed: 900,
+      pitchCvRange: 1,
+    },
+  },
   {
     name: "Doctor Who Theme",
     category: "funny",
@@ -672,7 +710,7 @@ function usePatchPayload(payload, sourceSlot = 0x7f) {
   statusEl.textContent = sourceSlot < 8
     ? `Patch read from card slot ${sourceSlot + 1}.`
     : "Patch read from card.";
-  protocolEl.textContent = "CS80 v6";
+  protocolEl.textContent = "CS80 v7";
   logDeveloper("patch response applied", { version: payload[0], slot: sourceSlot < 8 ? sourceSlot + 1 : null });
 }
 
@@ -720,7 +758,7 @@ function selectMidiPorts() {
     input.onmidimessage = input === midiInput ? handleMidiMessage : null;
   });
 
-  protocolEl.textContent = midiOutput ? "CS80 v6" : "No MIDI Out";
+  protocolEl.textContent = midiOutput ? "CS80 v7" : "No MIDI Out";
   statusEl.textContent = midiOutput
     ? `MIDI connected: ${midiOutput.name || "unnamed output"}.`
     : "MIDI access granted, but no output port was found.";
