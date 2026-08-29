@@ -30,7 +30,7 @@ Switch down hold: performance page.
 ## Planned Inputs
 
 - `Audio/CV In 1`: selectable 1V/oct pitch CV range: 0 V to +5 V with C4 at +3 V, or -3 V to +3 V with C4 at 0 V
-- `CV In 1`: wide filter modulation for high-pass and low-pass cutoff
+- `CV In 1`: selectable filter modulation target: `Contour Sweep (HP + LP)`, `High-Pass Focus`, or `Low-Pass Brightness`
 - `CV In 2`: expression modulation for brightness and resonance
 - `Pulse In 1`: gate when patched; unpatched, the voice drones for oscillator bring-up
 - `Pulse In 2`: trigger, hold, or alternate gesture

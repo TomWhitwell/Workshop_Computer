@@ -22,8 +22,8 @@ static constexpr uint8_t WebMidiCommandRequestSlot = 0x08u;
 static constexpr uint8_t WebMidiCommandSlotResponse = 0x09u;
 static constexpr uint8_t WebMidiCommandDeleteSlot = 0x0Au;
 static constexpr uint8_t WebMidiCommandSetStartupSlot = 0x0Bu;
-static constexpr uint8_t WebMidiPatchProtocolVersion = 5u;
-static constexpr uint32_t WebMidiPatchPayloadLength = 53u;
+static constexpr uint8_t WebMidiPatchProtocolVersion = 6u;
+static constexpr uint32_t WebMidiPatchPayloadLength = 55u;
 static constexpr uint32_t WebMidiMaxSysexLength = 64u;
 static constexpr uint8_t MidiStatusMask = 0xF0u;
 static constexpr uint8_t MidiStatusNoteOff = 0x80u;
@@ -145,6 +145,7 @@ public:
         appendWebMidiUint14(frame, offset, knobValueForPitch(patch.params.pitchOffsetQ8));
         appendWebMidiUint14(frame, offset, patch.params.portamento);
         appendWebMidiUint14(frame, offset, patch.params.pitchCvRange);
+        appendWebMidiUint14(frame, offset, patch.params.filterCvMode);
         appendWebMidiUint14(frame, offset, clampRange(patch.params.pulseWidth - 512, 0, 4095));
         appendWebMidiUint14(frame, offset, patch.params.pwmAmount);
         appendWebMidiUint14(frame, offset, patch.params.sawLevel);
@@ -226,6 +227,7 @@ private:
         int32_t pitchOffsetQ8 = 0;
         int32_t portamento = 2600;
         int32_t pitchCvRange = 1;
+        int32_t filterCvMode = 0;
         int32_t pulseWidth = 2162;
         int32_t pwmAmount = 1450;
         int32_t sawLevel = 450;
@@ -326,7 +328,7 @@ private:
     static constexpr int32_t PickupWindow = 96;
     static constexpr uint8_t PatchSlotCount = 8u;
     static constexpr uint32_t PatchBankMagic = 0x43533830u; // CS80
-    static constexpr uint16_t PatchBankVersion = 8u;
+    static constexpr uint16_t PatchBankVersion = 9u;
     static constexpr uint32_t PatchBankFlashOffset =
         (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE) &
         ~(FLASH_SECTOR_SIZE - 1u);
@@ -336,6 +338,7 @@ private:
         int32_t pitchOffsetQ8;
         int32_t portamento;
         int32_t pitchCvRange;
+        int32_t filterCvMode;
         int32_t pulseWidth;
         int32_t pwmAmount;
         int32_t sawLevel;
@@ -1018,11 +1021,27 @@ private:
         int32_t expressionCv)
     {
         int32_t expression = (expressionCv * voiceParams.expressionDepth) >> 12;
-        int32_t filterMod = filterCv + filterCv;
         int32_t expressionMod = expression + expression;
         int32_t lfoFilterMod = (lfoValue * voiceParams.lfoVcfDepth) >> 11;
-        int32_t hpControl = clamp12(voiceParams.hpCutoff + filterCv);
-        int32_t lpControl = clamp12(voiceParams.lpCutoff + filterMod + expressionMod + lfoFilterMod + (state.filterEnvelopeQ12 >> 1));
+        int32_t hpCv = 0;
+        int32_t lpCv = 0;
+
+        if (voiceParams.filterCvMode == 1)
+        {
+            hpCv = filterCv;
+        }
+        else if (voiceParams.filterCvMode == 2)
+        {
+            lpCv = filterCv + filterCv;
+        }
+        else
+        {
+            hpCv = filterCv;
+            lpCv = filterCv + filterCv;
+        }
+
+        int32_t hpControl = clamp12(voiceParams.hpCutoff + hpCv);
+        int32_t lpControl = clamp12(voiceParams.lpCutoff + lpCv + expressionMod + lfoFilterMod + (state.filterEnvelopeQ12 >> 1));
 
         int32_t hpAlpha = curveFromControl(hpControl);
         int32_t lpAlpha = curveFromControl(lpControl);
@@ -1280,6 +1299,7 @@ private:
         patch.params.pitchOffsetQ8 = clampPitchQ8((decodeWebMidiUint14(offset) - 2048) << 2);
         patch.params.portamento = decodeWebMidiUint14(offset);
         patch.params.pitchCvRange = decodeWebMidiUint14(offset) == 0 ? 0 : 1;
+        patch.params.filterCvMode = clampRange(decodeWebMidiUint14(offset), 0, 2);
         patch.params.pulseWidth = clampRange(512 + decodeWebMidiUint14(offset), 512, 3584);
         patch.params.pwmAmount = decodeWebMidiUint14(offset);
         patch.params.sawLevel = decodeWebMidiUint14(offset);
@@ -1347,6 +1367,7 @@ private:
         patch.pitchOffsetQ8 = state.params.pitchOffsetQ8;
         patch.portamento = state.params.portamento;
         patch.pitchCvRange = state.params.pitchCvRange;
+        patch.filterCvMode = state.params.filterCvMode;
         patch.pulseWidth = state.params.pulseWidth;
         patch.pwmAmount = state.params.pwmAmount;
         patch.sawLevel = state.params.sawLevel;
@@ -1379,6 +1400,7 @@ private:
         patch.params.pitchOffsetQ8 = clampPitchQ8(saved.pitchOffsetQ8);
         patch.params.portamento = clamp12(saved.portamento);
         patch.params.pitchCvRange = saved.pitchCvRange == 0 ? 0 : 1;
+        patch.params.filterCvMode = clampRange(saved.filterCvMode, 0, 2);
         patch.params.pulseWidth = clampRange(saved.pulseWidth, 512, 3584);
         patch.params.pwmAmount = clamp12(saved.pwmAmount);
         patch.params.sawLevel = clamp12(saved.sawLevel);

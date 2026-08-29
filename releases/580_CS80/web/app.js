@@ -38,7 +38,7 @@ const COMMAND_REQUEST_SLOT = 0x08;
 const COMMAND_SLOT_RESPONSE = 0x09;
 const COMMAND_DELETE_SLOT = 0x0a;
 const COMMAND_SET_STARTUP_SLOT = 0x0b;
-const PATCH_PROTOCOL_VERSION = 5;
+const PATCH_PROTOCOL_VERSION = 6;
 let themeMode = loadThemeMode();
 let developerMode = false;
 let developerLogLines = [];
@@ -53,6 +53,7 @@ let activeTone = "all";
 const defaultPatchParams = {
   pitch: 0,
   portamento: 2600,
+  filterCvMode: 0,
   pulse: 1650,
   pwmAmount: 1450,
   sawLevel: 450,
@@ -499,6 +500,7 @@ function currentPatchPayload() {
     pitchSliderToControl(pitch),
     Number(getParam("portamento").value),
     Number(getParam("pitchCvRange").value),
+    Number(getParam("filterCvMode").value),
     Number(getParam("pulse").value),
     Number(getParam("pwmAmount").value),
     Number(getParam("sawLevel").value),
@@ -632,7 +634,7 @@ function sendSysex(command, payload = []) {
 }
 
 function usePatchPayload(payload, sourceSlot = 0x7f) {
-  if (payload[0] !== PATCH_PROTOCOL_VERSION || payload.length < 53) {
+  if (payload[0] !== PATCH_PROTOCOL_VERSION || payload.length < 55) {
     logDeveloper("patch response ignored", { reason: "unsupported payload", version: payload[0], bytes: payload.length, slot: sourceSlot });
     return;
   }
@@ -641,6 +643,7 @@ function usePatchPayload(payload, sourceSlot = 0x7f) {
   setParam("pitch", controlToPitchSlider(decodeUint14(payload, offset))); offset += 2;
   setParam("portamento", decodeUint14(payload, offset)); offset += 2;
   setParam("pitchCvRange", decodeUint14(payload, offset)); offset += 2;
+  setParam("filterCvMode", decodeUint14(payload, offset)); offset += 2;
   setParam("pulse", decodeUint14(payload, offset)); offset += 2;
   setParam("pwmAmount", decodeUint14(payload, offset)); offset += 2;
   setParam("sawLevel", decodeUint14(payload, offset)); offset += 2;
@@ -669,7 +672,7 @@ function usePatchPayload(payload, sourceSlot = 0x7f) {
   statusEl.textContent = sourceSlot < 8
     ? `Patch read from card slot ${sourceSlot + 1}.`
     : "Patch read from card.";
-  protocolEl.textContent = "CS80 v5";
+  protocolEl.textContent = "CS80 v6";
   logDeveloper("patch response applied", { version: payload[0], slot: sourceSlot < 8 ? sourceSlot + 1 : null });
 }
 
@@ -717,7 +720,7 @@ function selectMidiPorts() {
     input.onmidimessage = input === midiInput ? handleMidiMessage : null;
   });
 
-  protocolEl.textContent = midiOutput ? "CS80 v5" : "No MIDI Out";
+  protocolEl.textContent = midiOutput ? "CS80 v6" : "No MIDI Out";
   statusEl.textContent = midiOutput
     ? `MIDI connected: ${midiOutput.name || "unnamed output"}.`
     : "MIDI access granted, but no output port was found.";

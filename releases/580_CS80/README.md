@@ -126,9 +126,10 @@ When `Pulse In 1` is unpatched the gate is held open for oscillator bring-up;
 when it is patched, `Pulse In 1` gates the mono voice.
 `Audio/CV In 1` is the pitch input. The Web editor selects either unipolar
 0 V to +5 V, with C4 at +3 V (0 V is C1), or bipolar -3 V to +3 V, with C4 at
-0 V. Both use 1V/oct. `CV In 1` is a wide filter
-modulation input, and `CV In 2` is an expression input that pushes brightness
-and resonance.
+0 V. Both use 1V/oct. `CV In 1` is a selectable filter modulation input with
+three modes: `Contour Sweep (HP + LP)` for the current broad sweep behaviour,
+`High-Pass Focus`, or `Low-Pass Brightness`. `CV In 2` is an expression input
+that pushes brightness and resonance.
 
 Panel controls use soft pickup so switching pages does not immediately overwrite
 stored values. LEDs 0/2/4 show the stored Main/X/Y values for the current switch
