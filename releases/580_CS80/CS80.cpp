@@ -325,7 +325,10 @@ private:
         uint32_t phase = 0;
         int32_t ampEnvelopeQ12 = 0;
         int32_t filterEnvelopeQ12 = 0;
-        uint8_t envelopeStage = 0;
+        int32_t ampEnvelopeAccQ20 = 0;
+        int32_t filterEnvelopeAccQ20 = 0;
+        uint8_t ampEnvelopeStage = 0;
+        uint8_t filterEnvelopeStage = 0;
         int32_t hpLowpass = 0;
         int32_t lp = 0;
     };
@@ -964,11 +967,18 @@ private:
     void triggerVoice(VoiceState& voice)
     {
         voice.phase = 0;
-        voice.envelopeStage = 0;
+        voice.ampEnvelopeStage = 0;
+        voice.filterEnvelopeStage = 0;
         if (voice.ampEnvelopeQ12 < 96)
+        {
             voice.ampEnvelopeQ12 = 96;
+            voice.ampEnvelopeAccQ20 = voice.ampEnvelopeQ12 << 8;
+        }
         if (voice.filterEnvelopeQ12 < 128)
+        {
             voice.filterEnvelopeQ12 = 128;
+            voice.filterEnvelopeAccQ20 = voice.filterEnvelopeQ12 << 8;
+        }
     }
 
     void updateGlobalModulation()
@@ -1041,62 +1051,89 @@ private:
 
     void updateEnvelope(VoiceState& state, const VoiceParams& voiceParams, bool gate)
     {
-        int32_t attackRate = rateFromControl(voiceParams.attack);
-        int32_t decayRate = rateFromControl(voiceParams.decay);
-        int32_t sustainLevel = clamp12(voiceParams.sustain);
-        int32_t releaseRate = rateFromControl(voiceParams.release);
-        int32_t filterAttackRate = rateFromControl(voiceParams.filterAttack);
-        int32_t filterDecayRate = rateFromControl(voiceParams.filterDecay);
-        int32_t filterSustainLevel = clamp12(voiceParams.filterSustain);
-        int32_t filterReleaseRate = rateFromControl(voiceParams.filterRelease);
+        updateOneEnvelope(
+            state.ampEnvelopeQ12,
+            state.ampEnvelopeAccQ20,
+            state.ampEnvelopeStage,
+            gate,
+            voiceParams.attack,
+            voiceParams.decay,
+            voiceParams.sustain,
+            voiceParams.release);
+
+        updateOneEnvelope(
+            state.filterEnvelopeQ12,
+            state.filterEnvelopeAccQ20,
+            state.filterEnvelopeStage,
+            gate,
+            voiceParams.filterAttack,
+            voiceParams.filterDecay,
+            voiceParams.filterSustain,
+            voiceParams.filterRelease);
+    }
+
+    void updateOneEnvelope(
+        int32_t& envelopeQ12,
+        int32_t& envelopeAccQ20,
+        uint8_t& stage,
+        bool gate,
+        int32_t attack,
+        int32_t decay,
+        int32_t sustain,
+        int32_t release)
+    {
+        int32_t attackRate = rateFromTimeControl(attack);
+        int32_t decayRate = rateFromTimeControl(decay);
+        int32_t sustainLevel = clamp12(sustain) << 8;
+        int32_t releaseRate = rateFromTimeControl(release);
+        static constexpr int32_t EnvelopeMaxQ20 = 4095 << 8;
 
         if (!gate)
         {
-            state.envelopeStage = 3;
-            state.ampEnvelopeQ12 = clamp12(state.ampEnvelopeQ12 - releaseRate);
-            state.filterEnvelopeQ12 = clamp12(state.filterEnvelopeQ12 - filterReleaseRate);
+            stage = 3;
+            envelopeAccQ20 -= releaseRate;
+            if (envelopeAccQ20 < 0)
+                envelopeAccQ20 = 0;
+            envelopeQ12 = envelopeAccQ20 >> 8;
             return;
         }
 
-        if (state.envelopeStage == 0)
+        if (stage == 0)
         {
-            state.ampEnvelopeQ12 += attackRate;
-            state.filterEnvelopeQ12 += filterAttackRate;
-            if (state.ampEnvelopeQ12 >= 4095)
-                state.ampEnvelopeQ12 = 4095;
-            if (state.filterEnvelopeQ12 >= 4095)
-                state.filterEnvelopeQ12 = 4095;
-            if (state.ampEnvelopeQ12 == 4095 && state.filterEnvelopeQ12 == 4095)
-                state.envelopeStage = 1;
+            envelopeAccQ20 += attackRate;
+            if (envelopeAccQ20 >= EnvelopeMaxQ20)
+            {
+                envelopeAccQ20 = EnvelopeMaxQ20;
+                stage = 1;
+            }
+            envelopeQ12 = envelopeAccQ20 >> 8;
             return;
         }
 
-        if (state.envelopeStage == 1)
+        if (stage == 1)
         {
-            if (state.ampEnvelopeQ12 > sustainLevel)
-                state.ampEnvelopeQ12 = clampRange(state.ampEnvelopeQ12 - decayRate, sustainLevel, 4095);
+            if (envelopeAccQ20 > sustainLevel)
+            {
+                envelopeAccQ20 -= decayRate;
+                if (envelopeAccQ20 < sustainLevel)
+                    envelopeAccQ20 = sustainLevel;
+            }
             else
-                state.ampEnvelopeQ12 = sustainLevel;
+                envelopeAccQ20 = sustainLevel;
 
-            if (state.filterEnvelopeQ12 > filterSustainLevel)
-                state.filterEnvelopeQ12 = clampRange(state.filterEnvelopeQ12 - filterDecayRate, filterSustainLevel, 4095);
-            else
-                state.filterEnvelopeQ12 = filterSustainLevel;
-
-            if (state.ampEnvelopeQ12 == sustainLevel && state.filterEnvelopeQ12 == filterSustainLevel)
-                state.envelopeStage = 2;
+            envelopeQ12 = envelopeAccQ20 >> 8;
+            if (envelopeAccQ20 == sustainLevel)
+                stage = 2;
             return;
         }
 
-        if (state.envelopeStage == 2)
+        if (stage == 2)
         {
-            state.ampEnvelopeQ12 = sustainLevel;
-            state.filterEnvelopeQ12 = filterSustainLevel;
+            envelopeAccQ20 = sustainLevel;
+            envelopeQ12 = envelopeAccQ20 >> 8;
         }
         else
-        {
-            state.envelopeStage = 0;
-        }
+            stage = 0;
     }
 
     int32_t filterVoice(
@@ -1129,7 +1166,7 @@ private:
         }
 
         int32_t hpControl = clamp12(voiceParams.hpCutoff + hpCv);
-        int32_t lpControl = clamp12(voiceParams.lpCutoff + lpCv + expressionMod + lfoFilterMod + (state.filterEnvelopeQ12 >> 1));
+        int32_t lpControl = clamp12(voiceParams.lpCutoff + lpCv + expressionMod + lfoFilterMod + state.filterEnvelopeQ12);
 
         int32_t hpAlpha = curveFromControl(hpControl);
         int32_t lpAlpha = curveFromControl(lpControl);
@@ -1231,9 +1268,9 @@ private:
         return cs80FilterAlphaQ12[(uint32_t)clamp12(control) >> 8];
     }
 
-    int32_t rateFromControl(int32_t control) const
+    int32_t rateFromTimeControl(int32_t control) const
     {
-        return cs80EnvelopeRateQ12[(uint32_t)clamp12(control) >> 8];
+        return (int32_t)cs80EnvelopeRateQ12[15u - ((uint32_t)clamp12(control) >> 8)] * 5;
     }
 
     int32_t sine64(uint32_t phase) const
