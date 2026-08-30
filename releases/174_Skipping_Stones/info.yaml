@@ -8,19 +8,19 @@ summary: >
   It is adapted for the Workshop Computer and Workshop System rather than being
   a literal panel clone. CV Out 1 is a calibrated quantized pitch stream for a
   SineSquare oscillator, CV Out 2 is a related smoothed modulation voltage,
-  Pulse Out 1 and 2 drive slopes, filters, or accents, and the two audio outputs
-  provide closed and open hi-hats so the card can perform before any patching is
-  done.
+  Pulse Out 1 and 2 drive slopes, filters, or accents. Embedded TR-606 closed
+  and open hi-hat samples on the audio outputs provide a rhythm bed before any
+  analogue patching is done.
 Language: C++ (ComputerCard)
 Creator: Adrian Vos
-Version: "0.1.0"
-Status: Beta - buildable firmware, awaiting hardware play-test
-License: MIT
+Version: "1.0.0"
+Status: Released
+License: MIT (program code only; embedded samples excluded)
 date-created: 2026-08-28
-date-updated: 2026-08-28
+date-updated: 2026-08-30
 uf2:
   - path: uf2/SkippingStones.uf2
-    name: Skipping Stones 0.1.0
+    name: Skipping Stones 1.0.0
 tags:
   - random
   - sequencer
@@ -53,11 +53,11 @@ panel:
     - id: AudioOut1
       name: Closed Hat
       type: audio
-      description: Short metallic closed hi-hat triggered by the main gate stream
+      description: Embedded TR-606 closed-hat sample triggered by the main gate stream
     - id: AudioOut2
       name: Open Hat
       type: audio
-      description: Longer metallic open hi-hat triggered by the accent gate stream and ducked by closed hats
+      description: Embedded TR-606 open-hat sample triggered by the accent/fill gate stream
     - id: CVOut1
       name: Pitch CV
       type: cv

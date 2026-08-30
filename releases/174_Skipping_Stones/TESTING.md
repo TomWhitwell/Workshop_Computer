@@ -13,13 +13,12 @@
 3. Set the switch to Middle.
 4. Turn Main from fully CCW to fully CW.
 
-Expected: Audio Out 1 plays the short DR-55 closed-hat sample. Audio Out 2
-plays that same attack followed by the 120 ms DR-55 snare-noise tail, with no
-second transient at the join. Higher Main settings should increase event
-activity and rate. LED 5 should be dim, showing internal clock.
+Expected: Audio Out 1 plays the supplied TR-606 closed-hat sample. Audio Out 2
+plays the supplied TR-606 open-hat sample. Higher Main settings should increase
+event activity and rate. LED 5 should be dim, showing internal clock.
 
-Fail if Audio Out 2 has a full snare transient, plays longer than roughly 120
-ms, or either output is only a narrow click.
+Fail if either output clicks when a new trigger arrives before its prior sample
+has ended.
 
 ## Workshop System Patch
 

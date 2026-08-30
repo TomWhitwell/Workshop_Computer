@@ -35,27 +35,38 @@ hi-hats so the card still makes a useful rhythm bed before any analogue patching
 | CV Out 2 | Smoothed related modulation CV |
 | Pulse Out 1 | Main gate stream |
 | Pulse Out 2 | Accent/fill gate stream |
-| Audio Out 1 | Closed hi-hat, triggered by the main gate stream |
-| Audio Out 2 | Open hi-hat, triggered by the accent/fill gate stream |
+| Audio Out 1 | Embedded TR-606 closed-hat sample, triggered by the main gate stream |
+| Audio Out 2 | Embedded TR-606 open-hat sample, triggered by the accent/fill gate stream |
 
 ## Notes
 
 The firmware runs the RP2040 at 192 MHz and is copied to RAM by the linker to
-avoid flash-cache timing jitter in the audio interrupt.
+avoid flash-cache timing jitter in the audio interrupt. The samples are stored
+as 16-bit 44.1 kHz PCM and play at their native speed through a fixed-point
+48 kHz playback step.
 
-The audio voices play embedded DR-55 PCM: the closed-hat sample on Audio Out 1,
-and that same attack followed by a boosted 120 ms DR-55 snare-noise tail on
-Audio Out 2.
+The audio voices play embedded TR-606 PCM: the closed-hat sample on Audio Out
+1 and the open-hat sample on Audio Out 2. Both use a 10.7 ms attack ramp, and
+retriggering crossfades the prior voice for 2.7 ms to avoid a discontinuity.
 
 This is not a direct source port of Marbles. It uses the same broad instrument
 ideas, adapted to the Workshop Computer's two CV outputs, two pulse outputs,
 audio outputs, and three-knob/switch panel.
 
-## Credits
+## Attribution And Licence
 
-Inspired by Mutable Instruments Marbles by Emilie Gillet. Mutable Instruments'
-STM32 firmware is MIT licensed; this card is independently adapted for the
-Workshop Computer and avoids using the original module name for the derivative
-work.
+Skipping Stones program code is copyright 2026 Adrian Vos and released under
+the MIT License in [LICENSE](LICENSE). The embedded samples are excluded from
+that licence.
 
-The included DR-55 samples were supplied by the card author for this release.
+It uses `ComputerCard` version 0.3.0 by Chris Johnson, distributed with the
+Music Thing Modular Workshop Computer repository. Its interface header remains
+attributed in [ComputerCard.h](ComputerCard.h).
+
+The design is inspired by Mutable Instruments Marbles by Emilie Gillet. No
+Mutable Instruments source code is included; the random, loop-memory, and
+distribution logic was independently written for this card.
+
+The embedded TR-606 recordings were supplied by Adrian Vos for this release:
+`CH 606 Clean.wav` and `OH 606 Clean.wav`. Their rights and any conditions for
+redistribution are separate from the MIT licence for the program code.

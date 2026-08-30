@@ -7,7 +7,7 @@
 // adaptation with two CV outs, two pulse outs, and closed/open hi-hat voices.
 
 #include "ComputerCard.h"
-#include "Dr55Samples.h"
+#include "Dr606Samples.h"
 
 #include "hardware/clocks.h"
 
@@ -17,12 +17,10 @@ public:
     static constexpr int32_t kLoopSize = 16;
     static constexpr int32_t kScaleSize = 16;
     static constexpr int32_t kPulseSamples = 480;  // 10 ms at 48 kHz
-    static constexpr uint32_t kWavDataOffset = 44;
-    static constexpr uint32_t kClosedHatFrames = (kClosedHatWav_len - kWavDataOffset) / 2;
-    static constexpr uint32_t kOpenHatTailFrames = kOpenHatPcm_len / 2;
-    static constexpr uint32_t kOpenHatFrames = kClosedHatFrames + kOpenHatTailFrames;
+    static constexpr uint32_t kClosedHatFrames = kClosedHatPcm_len / 2;
+    static constexpr uint32_t kOpenHatFrames = kOpenHatPcm_len / 2;
     static constexpr uint32_t kAttackFadeFrames = 512;
-    static constexpr uint32_t kTailFadeFrames = 128;
+    static constexpr int32_t kRetriggerFadeSamples = 128;
     // 44.1 kHz source played by the Workshop Computer's 48 kHz audio loop.
     static constexpr uint32_t kSampleStep = 60211;
 
@@ -46,6 +44,10 @@ public:
     int32_t pulse2Timer = 0;
     uint32_t closedHatPosition = kClosedHatFrames << 16;
     uint32_t openHatPosition = kOpenHatFrames << 16;
+    uint32_t closedHatReleasePosition = kClosedHatFrames << 16;
+    uint32_t openHatReleasePosition = kOpenHatFrames << 16;
+    int32_t closedHatReleaseLevel = 0;
+    int32_t openHatReleaseLevel = 0;
     int32_t smoothY = 0;
     int32_t currentX = 2048;
     int32_t currentY = 0;
@@ -183,11 +185,15 @@ public:
         if (gate1)
         {
             pulse1Timer = kPulseSamples;
+            closedHatReleasePosition = closedHatPosition;
+            closedHatReleaseLevel = kRetriggerFadeSamples;
             closedHatPosition = 0;
         }
         if (gate2)
         {
             pulse2Timer = kPulseSamples;
+            openHatReleasePosition = openHatPosition;
+            openHatReleaseLevel = kRetriggerFadeSamples;
             openHatPosition = 0;
         }
 
@@ -205,12 +211,10 @@ public:
         return sample >> 4;
     }
 
-    inline int32_t PlayClosedHat()
+    inline int32_t ClosedHatSampleAt(uint32_t index)
     {
-        uint32_t index = closedHatPosition >> 16;
         if (index >= kClosedHatFrames) return 0;
-        int32_t sample = ReadPcmSample(kClosedHatWav + kWavDataOffset, index);
-        closedHatPosition += kSampleStep;
+        int32_t sample = ReadPcmSample(kClosedHatPcm, index);
 
         // The original peak sits inside the recorded hit. A longer 10.7 ms
         // ramp rounds it into a hat attack instead of a mixer-click transient.
@@ -218,26 +222,39 @@ public:
         return sample;
     }
 
+    inline int32_t OpenHatSampleAt(uint32_t index)
+    {
+        if (index >= kOpenHatFrames) return 0;
+
+        int32_t sample = ReadPcmSample(kOpenHatPcm, index);
+        if (index < kAttackFadeFrames) sample = (sample * static_cast<int32_t>(index)) >> 9;
+        return sample;
+    }
+
+    inline int32_t PlayClosedHat()
+    {
+        int32_t sample = ClosedHatSampleAt(closedHatPosition >> 16);
+        closedHatPosition += kSampleStep;
+        if (closedHatReleaseLevel > 0)
+        {
+            sample += (ClosedHatSampleAt(closedHatReleasePosition >> 16) *
+                       closedHatReleaseLevel) >> 7;
+            closedHatReleasePosition += kSampleStep;
+            --closedHatReleaseLevel;
+        }
+        return sample;
+    }
+
     inline int32_t PlayOpenHat()
     {
-        uint32_t index = openHatPosition >> 16;
-        if (index >= kOpenHatFrames) return 0;
+        int32_t sample = OpenHatSampleAt(openHatPosition >> 16);
         openHatPosition += kSampleStep;
-
-        if (index < kClosedHatFrames)
+        if (openHatReleaseLevel > 0)
         {
-            int32_t sample = ReadPcmSample(kClosedHatWav + kWavDataOffset, index);
-            if (index < kAttackFadeFrames) sample = (sample * static_cast<int32_t>(index)) >> 9;
-            return sample;
-        }
-
-        uint32_t tailIndex = index - kClosedHatFrames;
-        int32_t sample = ReadPcmSample(kOpenHatPcm, tailIndex) << 1;
-        // Ease in the joined tail so its noise begins as continuation, not a
-        // second attack after the closed-hat sample ends.
-        if (tailIndex < kTailFadeFrames)
-        {
-            sample = (sample * static_cast<int32_t>(tailIndex)) >> 7;
+            sample += (OpenHatSampleAt(openHatReleasePosition >> 16) *
+                       openHatReleaseLevel) >> 7;
+            openHatReleasePosition += kSampleStep;
+            --openHatReleaseLevel;
         }
         return sample;
     }
