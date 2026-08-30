@@ -23,7 +23,8 @@ date-updated: 2026-08-31
 # Their copyright headers are intact in those files. See LICENSE.
 
 contact:
-  social: github:uglifruit
+  social:
+    github: https://github.com/uglifruit
 
 uf2:
   - path: UF2/tract8.uf2
@@ -163,154 +164,110 @@ panel:
       description: High while formant freeze is latched.
 
 controls:
-  # BABBLE is the DEFAULT boot mode - just turn the card on. Holding the
-  # switch Down at power-on gives the deliberate one-knob-one-parameter
-  # mode instead. Even boot LEDs mean BABBLE, odd mean the alt mode.
+  switch:
+    middle:
+      name: Page 1
+      description: >
+        In BABBLE, what is said - vowel sweep, chatter rate, character. In
+        the deliberate mode, openness, front and breath.
+    up:
+      name: Page 2
+      description: >
+        In BABBLE, who is saying it - voice size, animation, consonants. In
+        the deliberate mode, pitch, brightness and rounding. Between the two
+        pages the panel reaches every parameter the 8mu can.
+    down:
+      name: Plosive / auto-chatter
+      description: >
+        Spring-loaded. A tap fires a plosive burst. In BABBLE, holding it for
+        two seconds engages auto-chatter, where the card talks by itself in
+        phrases until the switch is tapped again; the LEDs fill left to right
+        during the hold so the gesture is not silent. In the deliberate mode,
+        holding it turns LEDs 0-3 into a silence diagnostic.
   knobs:
-    - when: "BABBLE page 1 - Switch Middle or Down (default boot)"
+    - when:
+        z: middle
       main:
         name: VOWEL SWEEP
         description: >
-          Walks the vowel diagonally across the cube while raising the
-          pitch with it - one knob for a whole spoken gesture.
+          BABBLE page 1. Walks the vowel diagonally across the cube while
+          raising the pitch with it - one knob for a whole spoken gesture. In
+          the deliberate mode this is OPENNESS, the cube's first axis: how far
+          the jaw is open (F1).
       x:
         name: CHATTER
         description: >
           Syllable rate and brightness together, 2 to 20 Hz. Faster and
-          brighter are the two things that make speech sound hurried.
+          brighter are the two things that make speech sound hurried. In the
+          deliberate mode this is FRONT, the cube's second axis: where the
+          tongue sits (F2).
       y:
         name: CHARACTER
         description: >
           Breath against rounding - a rounded hum at one end, a breathy
-          whisper at the other.
-    - when: "BABBLE page 2 - Switch Up (default boot)"
+          whisper at the other. In the deliberate mode this is BREATH alone,
+          a ratio rather than a level: it changes how breathy the voice is,
+          not how loud.
+    - when:
+        z: up
       main:
         name: VOICE SIZE
         description: >
-          Pitch, brightness and vowel placement together, from a small
-          bright voice to a large dark one. Page 1 is what is said; page 2
-          is who is saying it.
+          BABBLE page 2. Pitch, brightness and vowel placement together, from
+          a small bright voice to a large dark one. Page 1 is what is said;
+          page 2 is who is saying it. In the deliberate mode this is PITCH,
+          the base F0 for the buzz oscillator, 50 to 500 Hz.
       x:
         name: ANIMATION
         description: >
           How far the voice wanders between syllables, from a monotone to
-          muttering. Drawn per syllable and held, which is how speech
-          moves.
+          muttering. Drawn per syllable and held, which is how speech moves.
+          In the deliberate mode this is BRIGHTNESS, a spectral tilt shading
+          the vowel darker or brighter.
       y:
         name: CONSONANTS
         description: >
           How many syllables get a plosive, and how loud. Capped short of
-          every syllable, which would read as percussion rather than
-          speech.
-
-  knobs_alt:
-    - when: "Deliberate mode page 1 - Switch Middle or Down (hold Down at power-on)"
-      main:
-        name: OPENNESS
-        description: >
-          The vowel cube's first axis - how far the jaw is open (F1).
-      x:
-        name: FRONT
-        description: >
-          The vowel cube's second axis - where the tongue sits (F2).
-      y:
-        name: BREATH
-        description: >
-          Buzz to noise. A ratio rather than a level: it changes how
-          breathy the voice is, not how loud.
-    - when: "Deliberate mode page 2 - Switch Up"
-      main:
-        name: PITCH
-        description: Base F0 for the buzz oscillator, 50 to 500 Hz.
-      x:
-        name: BRIGHTNESS
-        description: Spectral tilt, shading the vowel darker or brighter.
-      y:
-        name: ROUNDING
-        description: >
-          The vowel cube's third axis - lip rounding, toward the OO
-          corner. Between the two pages the panel reaches every parameter
-          the 8mu can.
-
+          every syllable, which would read as percussion rather than speech.
+          In the deliberate mode this is ROUNDING, the cube's third axis -
+          lip rounding, toward the OO corner.
   leds:
-    - when: "Running"
-      display: list
+    - display: list
       items:
-        - id: 0
-          name: Band 1-2
-          description: Energy in the 250 and 450 Hz bands.
-        - id: 1
-          name: Band 3-4
+        - id: LED0
+          name: Bands 1-2
+          description: >
+            Energy in the 250 and 450 Hz bands. LEDs 0 to 3 are the formant
+            display, one per pair of bands, so the vowel being made is
+            visible as a shape rather than a level.
+
+            At boot these show a chase across all six while the switch
+            settles, then even LEDs for BABBLE and odd for the deliberate
+            mode - nothing is shown until the switch has been read once,
+            after the full boot window, so the mode is never guessed at.
+            Holding the switch down in the deliberate mode turns LEDs 0-3
+            into a silence diagnostic: excitation gated shut, external input
+            taken over, formant freeze latched, or all eight band gains near
+            zero.
+        - id: LED1
+          name: Bands 3-4
           description: Energy in the 700 and 1000 Hz bands.
-        - id: 2
-          name: Band 5-6
+        - id: LED2
+          name: Bands 5-6
           description: Energy in the 1400 and 1900 Hz bands.
-        - id: 3
-          name: Band 7-8
+        - id: LED3
+          name: Bands 7-8
           description: Energy in the 2600 and 3800 Hz bands.
-        - id: 4
+        - id: LED4
           name: 8mu
           description: Lit while a USB MIDI controller is mounted.
-        - id: 5
+        - id: LED5
           name: Voiced
-          description: Bright while voiced, dim while unvoiced.
-    - when: "Formants frozen (8mu button 4 held)"
-      display: list
-      items:
-        - id: 0
-          name: All six at half brightness
           description: >
-            Freeze stops openness, front, rounding and the vowel morph at
-            once, so a frozen card looks exactly like a broken one. A flat
-            even glow is unlike every other display on the card - the band
-            meters vary, the diagnostics are on/off per LED, the splash
-            chases - so it cannot be mistaken for any of them.
-    - when: "Muted (8mu button 1 held)"
-      display: list
-      items:
-        - id: 0
-          name: All six dim
-          description: >
-            The same idea, dimmer still, since silence is even easier to
-            mistake for a fault than a stuck vowel.
-    - when: "Auto-chatter engaging (momentary switch held in BABBLE)"
-      display: list
-      items:
-        - id: 0
-          name: Progress bar
-          description: >
-            The LEDs fill left to right over the two-second hold. A hold
-            with no feedback feels broken long before it completes.
-    - when: "Auto-chatter running"
-      display: list
-      items:
-        - id: 5
-          name: Syllable
-          description: >
-            Pulses with each syllable, so the panel shows the card is
-            talking by itself rather than merely left switched on.
-    - when: "Switch Down (deliberate mode)"
-      display: list
-      items:
-        - id: 0
-          name: Gated
-          description: Excitation is gated shut - no buzz, no noise.
-        - id: 1
-          name: External
-          description: External audio is reaching the filter bank.
-        - id: 2
-          name: Frozen
-          description: Formant freeze is latched.
-        - id: 3
-          name: Silent bands
-          description: All eight band gains are near zero.
-    - when: "Boot"
-      display: list
-      items:
-        - id: 0
-          name: Splash
-          description: >
-            A chase across all six LEDs while the switch is still settling,
-            then even LEDs for BABBLE or odd for the deliberate mode. The
-            mode is never guessed at: nothing is shown until the switch has
-            been read once, after the full boot window.
+            Bright while voiced, dim while unvoiced. Pulses with each
+            syllable while auto-chatter is running, so the panel shows the
+            card is talking by itself rather than merely left switched on.
+            All six LEDs go to an even half brightness while the formants are
+            frozen, and dimmer still while muted - a flat glow is unlike
+            every other display on the card, so a frozen or muted card cannot
+            be mistaken for a broken one.
