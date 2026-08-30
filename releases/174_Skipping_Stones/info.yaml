@@ -10,7 +10,8 @@ summary: >
   SineSquare oscillator, CV Out 2 is a related smoothed modulation voltage,
   Pulse Out 1 and 2 drive slopes, filters, or accents. Embedded TR-606 closed
   and open hi-hat samples on the audio outputs provide a rhythm bed before any
-  analogue patching is done.
+  analogue patching is done. Their attack shaping and short retrigger crossfade
+  prevent abrupt sample-playback clicks during dense patterns.
 Language: C++ (ComputerCard)
 Creator: Adrian Vos
 Version: "1.0.0"
@@ -53,11 +54,11 @@ panel:
     - id: AudioOut1
       name: Closed Hat
       type: audio
-      description: Embedded TR-606 closed-hat sample triggered by the main gate stream
+      description: Embedded TR-606 closed-hat sample with softened attack and retrigger crossfade
     - id: AudioOut2
       name: Open Hat
       type: audio
-      description: Embedded TR-606 open-hat sample triggered by the accent/fill gate stream
+      description: Embedded TR-606 open-hat sample with softened attack and retrigger crossfade
     - id: CVOut1
       name: Pitch CV
       type: cv
