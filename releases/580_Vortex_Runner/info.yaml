@@ -1,4 +1,4 @@
-draft: true
+draft: false
 Name: Vortex Runner
 short-description: Split-output cinematic synth voice with Web MIDI editing.
 summary: >-
@@ -14,7 +14,7 @@ summary: >-
 Language: C++ (Pico SDK)
 Creator: Adrian Vos
 Version: "0.1"
-Status: Draft - stable-tested split-output firmware with named Web MIDI presets
+Status: Beta - stable-tested split-output firmware with named Web MIDI presets
 License: MIT
 date-created: 2026-08-26
 Editor: web
