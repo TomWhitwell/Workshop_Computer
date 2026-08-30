@@ -1221,8 +1221,9 @@ private:
         }
 
         int32_t hpControl = clamp12(voiceParams.hpCutoff + hpCv);
-        int32_t filterEnvelopeMod = filterEnvelopeCurve(state.filterEnvelopeQ12);
-        int32_t lpControl = clamp12(voiceParams.lpCutoff + lpCv + expressionMod + lfoFilterMod + filterEnvelopeMod);
+        int32_t lpBaseControl = clamp12(voiceParams.lpCutoff + lpCv + expressionMod + lfoFilterMod);
+        int32_t filterEnvelopeMod = filterEnvelopeModForBase(state.filterEnvelopeQ12, lpBaseControl);
+        int32_t lpControl = clamp12(lpBaseControl + filterEnvelopeMod);
 
         int32_t hpAlpha = curveFromControl(hpControl);
         int32_t lpAlpha = curveFromControl(lpControl);
@@ -1355,11 +1356,13 @@ private:
         return (envelopeQ12 + squared) >> 1;
     }
 
-    int32_t filterEnvelopeCurve(int32_t envelopeQ12) const
+    int32_t filterEnvelopeModForBase(int32_t envelopeQ12, int32_t lpBaseControl) const
     {
         envelopeQ12 = clamp12(envelopeQ12);
         int32_t curved = (envelopeQ12 * (8192 - envelopeQ12)) >> 13;
-        return curved + (envelopeQ12 >> 2);
+        int32_t contour = curved + (envelopeQ12 >> 2);
+        int32_t headroom = 4095 - clamp12(lpBaseControl);
+        return (contour * headroom) >> 11;
     }
 
     int32_t sine64(uint32_t phase) const
