@@ -31,3 +31,6 @@ releases/97_alloy/stmlib/
 Demonstrations+HelloWorlds/PicoSDK/ComputerCard/examples/warps/
 Demonstrations+HelloWorlds/PicoSDK/ComputerCard/examples/fold_int/
 Demonstrations+HelloWorlds/PicoSDK/ComputerCard/examples/pico_sdk_import.cmake
+
+# Local notes
+releases/adrian-vos-demo-suggestions.txt
