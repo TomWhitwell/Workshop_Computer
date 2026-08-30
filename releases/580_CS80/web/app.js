@@ -54,6 +54,7 @@ let pickupPreview = [false, false, false];
 let activeTone = "all";
 let previewVoice = "a";
 let slotReadReason = "manual";
+let mangledSysexBytes = [];
 
 const defaultPatchParams = {
   pitch: 0,
@@ -812,6 +813,7 @@ function usePatchPayload(payload, sourceSlot = 0x7f) {
 
 function handleMidiMessage(event) {
   const data = Array.from(event.data);
+  if (handleMangledSysexChunk(data)) return;
   if (data[0] !== 0xf0 || data[data.length - 1] !== 0xf7) return;
   if (data[1] !== SYSEX_MANUFACTURER) return;
   if (!SYSEX_ID.every((value, index) => data[2 + index] === value)) return;
@@ -845,6 +847,39 @@ function handleMidiMessage(event) {
     logDeveloper("card slot map received", { mask: savedSlotMask, startupSlot: startupSlot + 1 });
     statusEl.textContent = `Card slots refreshed. Startup slot is ${startupSlot + 1}.`;
   }
+}
+
+function handleMangledSysexChunk(data) {
+  if (data.length !== 3 || data[0] !== 0x80) return false;
+
+  mangledSysexBytes.push(data[1] & 0x7f, data[2] & 0x7f);
+  const headerIndex = mangledSysexBytes.findIndex((value, index, bytes) =>
+    value === SYSEX_MANUFACTURER &&
+    SYSEX_ID.every((id, idIndex) => bytes[index + 1 + idIndex] === id)
+  );
+  if (headerIndex < 0) {
+    if (mangledSysexBytes.length > 12) mangledSysexBytes = mangledSysexBytes.slice(-6);
+    return true;
+  }
+  if (headerIndex > 0) mangledSysexBytes = mangledSysexBytes.slice(headerIndex);
+
+  const command = mangledSysexBytes[5];
+  const expectedPayloadBytes = expectedPayloadLength(command);
+  if (expectedPayloadBytes < 0) return true;
+  const expectedDataBytes = 6 + expectedPayloadBytes;
+  if (mangledSysexBytes.length < expectedDataBytes) return true;
+
+  const frame = [0xf0, ...mangledSysexBytes.slice(0, expectedDataBytes), 0xf7];
+  mangledSysexBytes = mangledSysexBytes.slice(expectedDataBytes);
+  logDeveloper("reconstructed mangled sysex", { command, bytes: frame.length });
+  handleMidiMessage({ data: frame, target: { name: "CS80 reconstructed" } });
+  return true;
+}
+
+function expectedPayloadLength(command) {
+  if (command === COMMAND_SLOTS_RESPONSE) return 2;
+  if (command === COMMAND_PATCH_RESPONSE || command === COMMAND_SLOT_RESPONSE) return 64;
+  return -1;
 }
 
 function selectMidiPorts() {
@@ -1119,6 +1154,31 @@ function setPreviewVoice(voice) {
   logDeveloper("preview voice selected", { previewVoice });
 }
 
+async function openMidiPort(port, kind) {
+  if (!port || typeof port.open !== "function" || port.connection === "open") return;
+  try {
+    await port.open();
+    logDeveloper("midi port opened", { kind, port: portName(port) });
+  } catch (error) {
+    logDeveloper("midi port open failed", {
+      kind,
+      port: portName(port),
+      message: error?.message || "unknown error",
+    });
+  }
+}
+
+async function prepareMidiPorts() {
+  if (!midiAccess) return;
+  const inputs = Array.from(midiAccess.inputs.values());
+  const outputs = Array.from(midiAccess.outputs.values());
+  await Promise.allSettled([
+    ...inputs.map((input) => openMidiPort(input, "input")),
+    ...outputs.map((output) => openMidiPort(output, "output")),
+  ]);
+  selectMidiPorts();
+}
+
 async function connectMidi() {
   if (!navigator.requestMIDIAccess) {
     statusEl.textContent = "Web MIDI is not available in this browser.";
@@ -1130,8 +1190,10 @@ async function connectMidi() {
   try {
     const access = await navigator.requestMIDIAccess({ sysex: true });
     midiAccess = access;
-    midiAccess.onstatechange = selectMidiPorts;
-    selectMidiPorts();
+    midiAccess.onstatechange = () => {
+      prepareMidiPorts();
+    };
+    await prepareMidiPorts();
     logDeveloper("midi access granted", {
       inputs: Array.from(access.inputs.values()).map((input) => input.name || "unnamed port"),
       outputs: Array.from(access.outputs.values()).map((output) => output.name || "unnamed port"),

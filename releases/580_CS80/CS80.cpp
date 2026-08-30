@@ -163,7 +163,33 @@ public:
         appendWebMidiUint14(frame, offset, patch.params.ringSpeed);
         frame[offset++] = 0xF7u;
 
-        tud_midi_stream_write(0, frame, offset);
+        sendWebMidiFrame(frame, offset);
+    }
+
+    void sendWebMidiFrame(const uint8_t* frame, uint32_t length)
+    {
+        if (length < 2u || frame[0] != 0xF0u || frame[length - 1u] != 0xF7u)
+            return;
+
+        uint32_t offset = 0;
+        while (length - offset > 3u)
+        {
+            uint8_t packet[4] = {
+                0x04u,
+                frame[offset],
+                frame[offset + 1u],
+                frame[offset + 2u]
+            };
+            tud_midi_packet_write(packet);
+            offset += 3u;
+        }
+
+        uint32_t remaining = length - offset;
+        uint8_t cin = remaining == 1u ? 0x05u : remaining == 2u ? 0x06u : 0x07u;
+        uint8_t packet[4] = {cin, 0, 0, 0};
+        for (uint32_t i = 0; i < remaining; ++i)
+            packet[1u + i] = frame[offset + i];
+        tud_midi_packet_write(packet);
     }
 
     void sendSlotsFrame()
@@ -181,7 +207,7 @@ public:
             (uint8_t)(startupSlot & 0x07u),
             0xF7u
         };
-        tud_midi_stream_write(0, frame, sizeof(frame));
+        sendWebMidiFrame(frame, sizeof(frame));
     }
 
     void ProcessSample() override
