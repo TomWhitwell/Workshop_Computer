@@ -55,9 +55,8 @@ audio outputs, and three-knob/switch panel.
 
 ## Attribution And Licence
 
-Skipping Stones program code is copyright 2026 Adrian Vos and released under
-the MIT License in [LICENSE](LICENSE). The embedded samples are excluded from
-that licence.
+Skipping Stones program code is released under
+the MIT License in [LICENSE](LICENSE). 
 
 It uses `ComputerCard` version 0.3.0 by Chris Johnson, distributed with the
 Music Thing Modular Workshop Computer repository. Its interface header remains
@@ -66,7 +65,3 @@ attributed in [ComputerCard.h](ComputerCard.h).
 The design is inspired by Mutable Instruments Marbles by Emilie Gillet. No
 Mutable Instruments source code is included; the random, loop-memory, and
 distribution logic was independently written for this card.
-
-The embedded TR-606 recordings were supplied by Adrian Vos for this release:
-`CH 606 Clean.wav` and `OH 606 Clean.wav`. Their rights and any conditions for
-redistribution are separate from the MIT licence for the program code.
