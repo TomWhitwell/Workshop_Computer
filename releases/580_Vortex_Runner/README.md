@@ -26,7 +26,8 @@ editor.
   persistent card slots
 - Rollbacks: locally retained rollback UF2s are ignored by git
 - Release status: draft
-- Release guide and first patch: [RELEASE_SUMMARY.md](RELEASE_SUMMARY.md)
+- Release guide and first patch: [RELEASE_SUMMARY.md](RELEASE_SUMMARY.md) or
+  [RELEASE_SUMMARY.txt](RELEASE_SUMMARY.txt)
 
 Release firmware should go in `uf2/` when a build is ready to publish. Local
 hardware-test UF2s should go in `test-uf2/`, which is ignored by git.

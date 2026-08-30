@@ -1,0 +1,107 @@
+VORTEX RUNNER 0.1
+=================
+
+Vortex Runner is a CS-80-inspired, monophonic Workshop Computer synth voice.
+It has one shared note, gate, envelope, LFO, CV, MIDI, and preset path, rendered
+as two independently coloured audio outputs. Audio Out 1 is Voice A; Audio Out 2
+is Voice B, which can be gently detuned for width or pushed into more obvious
+intervals.
+
+This is a stable-tested draft release. The supplied firmware is:
+
+uf2/Vortex_Runner_current_stable_dual_output_20260830.uf2
+
+
+INSTALL AND START
+-----------------
+
+1. Flash Vortex_Runner_current_stable_dual_output_20260830.uf2 to a program
+   card with the normal Workshop Computer card-flashing workflow.
+2. Insert the programmed card and power the Workshop Computer.
+3. For a first sound with no controller connected, leave Pulse In 1 unpatched.
+   The voice remains open for direct panel auditioning.
+4. For pitched playing, patch a 1V/oct source to Audio/CV In 1 and its gate to
+   Pulse In 1. In the Web MIDI editor, choose -3 V to +3 V, C4 at 0 V for a
+   Keystep-style bipolar pitch source.
+5. To choose a saved card preset at boot, hold the switch Down while powering
+   up. Turn Main to choose the binary LED slot, release Down to browse, then
+   press Down again to load that slot and complete boot.
+
+The Web MIDI editor can audition factory patches, manage named browser presets,
+and save or load eight named card slots. Connect using a USB-C data cable, open
+the editor in a browser with Web MIDI SysEx support, then choose the Vortex
+Runner MIDI input and output. Refresh Slots reads the card automatically on
+connection; use Apply Settings to audition the current editor state and Save
+Settings to write the selected card slot.
+
+
+FIRST PATCH: VORTEX HORIZON
+---------------------------
+
+Start from the Init factory preset. This patch is a restrained animated lead:
+the two outputs are nearly in unison, with enough detune to make a stereo image
+without the fast wobble of the Doctor Who preset.
+
+WORKSHOP SYSTEM PATCH NOTE
+
+  1V/OCT KEYBOARD OR SEQUENCER                     VORTEX RUNNER                 MIXER / OUTPUT
+  +----------------------------+                 +----------------+             +----------------+
+  | Pitch CV                   |---------------->| Audio/CV In 1  |             | Channel 1: L   |
+  | Gate                       |---------------->| Pulse In 1     |             | Channel 2: R   |
+  +----------------------------+                 |                |             +----------------+
+                                                 | Audio Out 1    |------------>| Channel 1       |
+                                                 | Audio Out 2    |------------>| Channel 2       |
+                                                 +----------------+
+
+Set the mixer channels to equal level, then pan Channel 1 left and Channel 2
+right.
+
+Set both voices close to these values in the Web MIDI editor:
+
+                  VOICE A    VOICE B
+  Saw level         20%        20%
+  Pulse level       45%        45%
+  Sine level        25%        25%
+  Noise level        0%         0%
+  Output level      75%        75%
+  Pulse width       50%        50%
+  PWM amount         8%         8%
+  HP cutoff         10%        10%
+  LP cutoff         55%        52%
+  Resonance         20%        22%
+
+Set the shared envelopes to about 20% attack, 40% decay, 65% sustain, and 35%
+release. Start with ring modulation and LFO-to-PWM/VCF/VCA at zero. Add only a
+small amount of LFO-to-pitch, around 5 to 8%, for gentle vibrato.
+
+On the panel, short-tap Down to select the voice to edit: LED 0 marks Voice A
+and LED 1 marks Voice B. Hold Down and place Main just off centre for a subtle
+Voice B detune. The middle switch page controls the selected voice's pulse width
+and PWM; the up page controls its HP, LP, and resonance.
+
+For a stronger CS-style ensemble effect, increase Voice B detune only a little
+at a time and keep the two output levels matched. Larger detune settings are
+deliberately musical intervals rather than a conventional chorus effect.
+
+
+PERFORMANCE NOTES
+-----------------
+
+- With USB MIDI active and Pulse In 1 unpatched, Vortex Runner stays silent
+  until it receives a MIDI note. MIDI pitch is absolute and is not transposed by
+  the panel base-pitch control.
+- A patched Pulse In 1 takes gate priority. The pitch source can remain CV while
+  the pulse input supplies articulation.
+- The switch Down performance page gives direct access to Voice B detune, ring
+  modulation, and vibrato depth. Keep vibrato low for the Vortex Horizon patch.
+- CC1 controls vibrato. CC20-27 control source mix and primary tone; CC28-31
+  control HP, ring amount, ring speed, and portamento; CC32-35 control linked
+  amp/filter ADSR offsets.
+
+
+INCLUDED FIRMWARE
+-----------------
+
+- uf2/Vortex_Runner_current_stable_dual_output_20260830.uf2
+  Current tested release candidate.
+- Local rollback UF2s are deliberately ignored by git and are not release files.
