@@ -227,3 +227,10 @@ Working assumption for later:
 
 - parameter expansion via 8mu-family MIDI control
 - note playing via mono pitch CV/gate from an external keyboard or controller
+
+## Startup Preset Selection Follow-Up
+
+After the Web MIDI save/load/readback path is fixed and promoted, debug manual
+startup preset selection. Current observed issue: holding the switch down while
+restarting the card does not enter manual saved-preset selection, even when
+slots are saved and visible in the web UI.

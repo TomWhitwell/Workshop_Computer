@@ -168,28 +168,9 @@ public:
 
     void sendWebMidiFrame(const uint8_t* frame, uint32_t length)
     {
-        if (length < 2u || frame[0] != 0xF0u || frame[length - 1u] != 0xF7u)
-            return;
-
-        uint32_t offset = 0;
-        while (length - offset > 3u)
-        {
-            uint8_t packet[4] = {
-                0x04u,
-                frame[offset],
-                frame[offset + 1u],
-                frame[offset + 2u]
-            };
-            tud_midi_packet_write(packet);
-            offset += 3u;
-        }
-
-        uint32_t remaining = length - offset;
-        uint8_t cin = remaining == 1u ? 0x05u : remaining == 2u ? 0x06u : 0x07u;
-        uint8_t packet[4] = {cin, 0, 0, 0};
-        for (uint32_t i = 0; i < remaining; ++i)
-            packet[1u + i] = frame[offset + i];
-        tud_midi_packet_write(packet);
+        uint8_t midiKick[3] = {0x80u, 60u, 0u};
+        tud_midi_stream_write(0, midiKick, sizeof(midiKick));
+        tud_midi_stream_write(0, frame, length);
     }
 
     void sendSlotsFrame()
@@ -495,7 +476,6 @@ private:
     uint32_t startupSelectSamples = 0;
     bool startupSelectChecked = false;
     bool startupSelectMode = false;
-    bool startupSelectReady = false;
     uint8_t startupSelectedSlot = 0;
 
     void processMidiVoiceByte(uint8_t byte)
@@ -773,16 +753,15 @@ private:
         if (startupSelectChecked)
             return;
 
+        if (mode == Switch::Down && savedSlotMask != 0)
+        {
+            startupSelectMode = true;
+            return;
+        }
+
         if (startupSelectSamples < StartupSelectDelayTicks + StartupSelectWindowTicks)
         {
             startupSelectSamples++;
-            if (startupSelectSamples >= StartupSelectDelayTicks &&
-                mode == Switch::Down &&
-                savedSlotMask != 0)
-            {
-                startupSelectMode = true;
-                startupSelectReady = false;
-            }
             return;
         }
 
@@ -805,13 +784,6 @@ private:
             selectedIndex = count - 1;
         startupSelectedSlot = slotForLoadedSelection(selectedIndex);
         showSlotLeds(startupSelectedSlot);
-
-        if (!startupSelectReady)
-        {
-            if (mode != Switch::Down)
-                startupSelectReady = true;
-            return;
-        }
 
         if (mode != Switch::Down)
         {
@@ -1427,7 +1399,9 @@ private:
             if (!decodeWebMidiPatch(6, patch))
                 return;
             queuePatchForAudio(patch);
-            sendPatchFrame(WebMidiCommandPatchResponse, 0x7Fu, patch);
+            patchResponsePatch = patch;
+            patchResponseHasPatch = true;
+            patchResponsePending = true;
             return;
         }
 
@@ -1441,16 +1415,15 @@ private:
         if (command == WebMidiCommandRequestPatch && sysexLength == 6u)
         {
             drainAudioPatchSnapshots();
-            sendPatchFrame(
-                WebMidiCommandPatchResponse,
-                0x7Fu,
-                webPatchSnapshotValid ? webPatchSnapshot : currentPatchState());
+            patchResponsePatch = webPatchSnapshotValid ? webPatchSnapshot : currentPatchState();
+            patchResponseHasPatch = true;
+            patchResponsePending = true;
             return;
         }
 
         if (command == WebMidiCommandRequestSlots && sysexLength == 6u)
         {
-            sendSlotsFrame();
+            slotsResponsePending = true;
             return;
         }
 
@@ -1461,7 +1434,9 @@ private:
             {
                 PatchState patch = patchStateFromSavedPatch(savedPatches[slot]);
                 queuePatchForAudio(patch);
-                sendPatchFrame(WebMidiCommandSlotResponse, slot, patch);
+                slotResponseIndex = slot;
+                slotResponsePatch = patch;
+                slotResponsePending = true;
             }
             return;
         }
@@ -1473,7 +1448,7 @@ private:
             if (startupSlot == slot)
                 startupSlot = firstLoadedSlot();
             savePatchBankIfChanged();
-            sendSlotsFrame();
+            slotsResponsePending = true;
             return;
         }
 
@@ -1484,7 +1459,7 @@ private:
                 return;
             startupSlot = slot;
             savePatchBankIfChanged();
-            sendSlotsFrame();
+            slotsResponsePending = true;
         }
     }
 
@@ -1560,8 +1535,10 @@ private:
         if (!hadSavedSlots)
             startupSlot = slot;
         savePatchBankIfChanged();
-        sendPatchFrame(WebMidiCommandSlotResponse, slot, patch);
-        sendSlotsFrame();
+        slotResponseIndex = slot;
+        slotResponsePatch = patch;
+        slotResponsePending = true;
+        slotsResponsePending = true;
     }
 
     int32_t decodeWebMidiUint14(uint32_t& offset) const

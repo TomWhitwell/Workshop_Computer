@@ -41,6 +41,7 @@ const COMMAND_REQUEST_SLOT = 0x08;
 const COMMAND_SLOT_RESPONSE = 0x09;
 const COMMAND_DELETE_SLOT = 0x0a;
 const COMMAND_SET_STARTUP_SLOT = 0x0b;
+const COMMAND_DIAGNOSTIC_ACK = 0x0c;
 const PATCH_PROTOCOL_VERSION = 8;
 let themeMode = loadThemeMode();
 let developerMode = false;
@@ -55,6 +56,8 @@ let activeTone = "all";
 let previewVoice = "a";
 let slotReadReason = "manual";
 let mangledSysexBytes = [];
+let midiPreparing = null;
+let midiConnectInProgress = false;
 
 const defaultPatchParams = {
   pitch: 0,
@@ -822,6 +825,11 @@ function handleMidiMessage(event) {
   const payload = data.slice(7, -1);
   logDeveloper("sysex received", { command, bytes: data.length, input: midiInput?.name || "unnamed port" });
 
+  if (command === COMMAND_DIAGNOSTIC_ACK) {
+    logDeveloper("ignored diagnostic ack", { echoedCommand: payload[0] ?? null });
+    return;
+  }
+
   if (command === COMMAND_PATCH_RESPONSE) {
     const hasSlotByte = payload[0] !== PATCH_PROTOCOL_VERSION;
     const slot = hasSlotByte ? payload[0] & 0x7f : 0x7f;
@@ -852,20 +860,37 @@ function handleMidiMessage(event) {
 function handleMangledSysexChunk(data) {
   if (data.length !== 3 || data[0] !== 0x80) return false;
 
+  const wasEmpty = mangledSysexBytes.length === 0;
   mangledSysexBytes.push(data[1] & 0x7f, data[2] & 0x7f);
+  if (wasEmpty) {
+    logDeveloper("mangled sysex chunks started", {
+      head: data.slice(0, 3).map((byte) => byte.toString(16).padStart(2, "0")).join(" "),
+    });
+  }
   const headerIndex = mangledSysexBytes.findIndex((value, index, bytes) =>
     value === SYSEX_MANUFACTURER &&
     SYSEX_ID.every((id, idIndex) => bytes[index + 1 + idIndex] === id)
   );
   if (headerIndex < 0) {
-    if (mangledSysexBytes.length > 12) mangledSysexBytes = mangledSysexBytes.slice(-6);
+    if (mangledSysexBytes.length > 12) {
+      logDeveloper("mangled sysex header not found", { bufferedBytes: mangledSysexBytes.length });
+      mangledSysexBytes = mangledSysexBytes.slice(-6);
+    }
     return true;
   }
-  if (headerIndex > 0) mangledSysexBytes = mangledSysexBytes.slice(headerIndex);
+  if (headerIndex > 0) {
+    logDeveloper("mangled sysex skipped prefix", { skippedBytes: headerIndex });
+    mangledSysexBytes = mangledSysexBytes.slice(headerIndex);
+  }
 
   const command = mangledSysexBytes[5];
+  if (command === undefined) return true;
   const expectedPayloadBytes = expectedPayloadLength(command);
-  if (expectedPayloadBytes < 0) return true;
+  if (expectedPayloadBytes < 0) {
+    logDeveloper("mangled sysex unknown command", { command, bufferedBytes: mangledSysexBytes.length });
+    mangledSysexBytes = [];
+    return true;
+  }
   const expectedDataBytes = 6 + expectedPayloadBytes;
   if (mangledSysexBytes.length < expectedDataBytes) return true;
 
@@ -877,7 +902,8 @@ function handleMangledSysexChunk(data) {
 }
 
 function expectedPayloadLength(command) {
-  if (command === COMMAND_SLOTS_RESPONSE) return 2;
+  if (command === COMMAND_DIAGNOSTIC_ACK) return 1;
+  if (command === COMMAND_SLOTS_RESPONSE) return 3;
   if (command === COMMAND_PATCH_RESPONSE || command === COMMAND_SLOT_RESPONSE) return 64;
   return -1;
 }
@@ -907,10 +933,11 @@ function selectMidiPorts() {
     availableOutputs: outputs.map(portName),
   });
 
-  if (readbackAvailable()) {
+  if (readbackAvailable() && selectMidiPorts.shouldAutoRefresh) {
     requestSlotMap("connect");
   }
 }
+selectMidiPorts.shouldAutoRefresh = true;
 
 function logDeveloper(message, detail = null) {
   const stamp = new Date().toISOString().slice(11, 19);
@@ -1170,13 +1197,23 @@ async function openMidiPort(port, kind) {
 
 async function prepareMidiPorts() {
   if (!midiAccess) return;
+  if (midiPreparing) return midiPreparing;
+  midiPreparing = (async () => {
   const inputs = Array.from(midiAccess.inputs.values());
   const outputs = Array.from(midiAccess.outputs.values());
+  selectMidiPorts.shouldAutoRefresh = false;
   await Promise.allSettled([
     ...inputs.map((input) => openMidiPort(input, "input")),
     ...outputs.map((output) => openMidiPort(output, "output")),
   ]);
   selectMidiPorts();
+  selectMidiPorts.shouldAutoRefresh = true;
+  })();
+  try {
+    await midiPreparing;
+  } finally {
+    midiPreparing = null;
+  }
 }
 
 async function connectMidi() {
@@ -1188,12 +1225,16 @@ async function connectMidi() {
   }
 
   try {
+    midiConnectInProgress = true;
     const access = await navigator.requestMIDIAccess({ sysex: true });
     midiAccess = access;
     midiAccess.onstatechange = () => {
-      prepareMidiPorts();
+      if (!midiConnectInProgress) {
+        prepareMidiPorts();
+      }
     };
     await prepareMidiPorts();
+    requestSlotMap("connect");
     logDeveloper("midi access granted", {
       inputs: Array.from(access.inputs.values()).map((input) => input.name || "unnamed port"),
       outputs: Array.from(access.outputs.values()).map((output) => output.name || "unnamed port"),
@@ -1202,6 +1243,8 @@ async function connectMidi() {
     statusEl.textContent = `MIDI connection failed: ${error.message}`;
     protocolEl.textContent = "Disconnected";
     logDeveloper("midi connection failed", { message: error.message });
+  } finally {
+    midiConnectInProgress = false;
   }
 }
 
