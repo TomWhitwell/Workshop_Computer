@@ -488,7 +488,7 @@ function renderThemeMode() {
 function renderDeveloperMode() {
   developerPanelEl.classList.toggle("is-hidden", !developerMode);
   developerToggleEl.classList.toggle("is-active", developerMode);
-  developerToggleEl.textContent = developerMode ? "Dev On" : "Dev";
+  developerToggleEl.textContent = developerMode ? "Developer Tools On" : "Developer Tools Off";
   developerToggleEl.setAttribute("aria-checked", String(developerMode));
 }
 
