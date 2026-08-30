@@ -17,6 +17,8 @@ Expected: Audio Out 1 produces short closed hi-hats and Audio Out 2 produces
 longer open hi-hats. Higher Main settings should increase event activity and
 rate. LED 5 should be dim, showing internal clock.
 
+Fail if the audio outputs are only narrow clicks with no noisy/metallic body.
+
 ## Workshop System Patch
 
 1. Patch CV Out 1 to a SineSquare pitch input.

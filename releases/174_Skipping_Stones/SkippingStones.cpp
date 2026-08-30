@@ -37,10 +37,12 @@ public:
     int32_t pulse2Timer = 0;
     int32_t closedHatEnv = 0;
     int32_t openHatEnv = 0;
-    int32_t hatPhase1 = 0;
-    int32_t hatPhase2 = 0;
-    int32_t hatPhase3 = 0;
-    int32_t hatHighpass = 0;
+    uint32_t hatPhase1 = 0;
+    uint32_t hatPhase2 = 0;
+    uint32_t hatPhase3 = 0;
+    uint32_t hatPhase4 = 0;
+    int32_t hatLowpass = 0;
+    int32_t hatBody = 0;
     int32_t smoothY = 0;
     int32_t currentX = 2048;
     int32_t currentY = 0;
@@ -193,22 +195,26 @@ public:
 
     inline int32_t HatMetal()
     {
-        // Cheap metallic source: three unrelated square oscillators XORed with
-        // a little random dust. It is intentionally not pitched from CV Out 1;
-        // the audio outs are rhythm voices, while CV Out 1 conducts the
-        // analogue oscillator.
-        hatPhase1 += 15193;
-        hatPhase2 += 21701;
-        hatPhase3 += 31717;
+        // Cheap metallic source: several high square oscillators mixed with
+        // noise. The phase increments are deliberately audio-rate; earlier
+        // tiny increments made the hats collapse into envelope clicks.
+        hatPhase1 += 536870912u;  // about 6 kHz at 48 kHz sample rate
+        hatPhase2 += 715827883u;  // about 8 kHz
+        hatPhase3 += 894784853u;  // about 10 kHz
+        hatPhase4 += 1073741824u; // about 12 kHz
         int32_t metal = 0;
-        metal += ((hatPhase1 >> 19) & 1) ? 1024 : -1024;
-        metal += ((hatPhase2 >> 19) & 1) ? 1024 : -1024;
-        metal += ((hatPhase3 >> 19) & 1) ? 1024 : -1024;
-        metal += static_cast<int32_t>((Random() >> 22) & 1023) - 512;
+        metal += ((hatPhase1 >> 31) & 1) ? 900 : -900;
+        metal += ((hatPhase2 >> 31) & 1) ? 700 : -700;
+        metal += ((hatPhase3 >> 31) & 1) ? 600 : -600;
+        metal += ((hatPhase4 >> 31) & 1) ? 500 : -500;
+        metal += static_cast<int32_t>((Random() >> 17) & 4095) - 2048;
 
-        // One-pole high-pass removes low thumps and keeps the hats crisp.
-        hatHighpass += (metal - hatHighpass) >> 4;
-        return metal - hatHighpass;
+        // A short resonant-ish memory gives the noise a cymbal body, while a
+        // one-pole high-pass removes low thumps and keeps it above the mix.
+        hatBody += (metal - hatBody) >> 2;
+        int32_t bright = metal + (hatBody >> 1);
+        hatLowpass += (bright - hatLowpass) >> 5;
+        return bright - hatLowpass;
     }
 
     virtual void ProcessSample() override
@@ -280,13 +286,13 @@ public:
         if (pulse2Timer > 0) --pulse2Timer;
 
         int32_t hat = HatMetal();
-        int32_t closedHat = (hat * closedHatEnv) >> 13;
-        int32_t openHat = (hat * openHatEnv) >> 13;
+        int32_t closedHat = (hat * closedHatEnv) >> 12;
+        int32_t openHat = (hat * openHatEnv) >> 12;
 
         // Closed hat is short and dry. Open hat is longer and ducked by the
         // closed hat, mimicking the way a real pedal closes the cymbal.
-        closedHatEnv -= (closedHatEnv >> 5) + 24;
-        openHatEnv -= (openHatEnv >> 8) + 4 + (closedHatEnv >> 8);
+        closedHatEnv -= (closedHatEnv >> 6) + 10;
+        openHatEnv -= (openHatEnv >> 9) + 2 + (closedHatEnv >> 9);
         if (closedHatEnv < 0) closedHatEnv = 0;
         if (openHatEnv < 0) openHatEnv = 0;
 
