@@ -7,6 +7,7 @@
 // adaptation with two CV outs, two pulse outs, and closed/open hi-hat voices.
 
 #include "ComputerCard.h"
+#include "Dr55Samples.h"
 
 #include "hardware/clocks.h"
 
@@ -16,6 +17,14 @@ public:
     static constexpr int32_t kLoopSize = 16;
     static constexpr int32_t kScaleSize = 16;
     static constexpr int32_t kPulseSamples = 480;  // 10 ms at 48 kHz
+    static constexpr uint32_t kWavDataOffset = 44;
+    static constexpr uint32_t kClosedHatFrames = (kClosedHatWav_len - kWavDataOffset) / 2;
+    static constexpr uint32_t kOpenHatTailFrames = kOpenHatPcm_len / 2;
+    static constexpr uint32_t kOpenHatFrames = kClosedHatFrames + kOpenHatTailFrames;
+    static constexpr uint32_t kAttackFadeFrames = 64;
+    static constexpr uint32_t kTailFadeFrames = 128;
+    // 44.1 kHz source played by the Workshop Computer's 48 kHz audio loop.
+    static constexpr uint32_t kSampleStep = 60211;
 
     // Minor-pentatonic-ish scale degrees over two octaves. CVOut1 uses
     // calibrated millivolts so the analogue oscillator gets a stable pitch
@@ -35,10 +44,8 @@ public:
     int32_t lastExternalCounter = 48000;
     int32_t pulse1Timer = 0;
     int32_t pulse2Timer = 0;
-    int32_t closedHatEnv = 0;
-    int32_t openHatEnv = 0;
-    int32_t hatNoiseLow = 0;
-    int32_t hatWash = 0;
+    uint32_t closedHatPosition = kClosedHatFrames << 16;
+    uint32_t openHatPosition = kOpenHatFrames << 16;
     int32_t smoothY = 0;
     int32_t currentX = 2048;
     int32_t currentY = 0;
@@ -176,12 +183,12 @@ public:
         if (gate1)
         {
             pulse1Timer = kPulseSamples;
-            closedHatEnv = 4095;
+            closedHatPosition = 0;
         }
         if (gate2)
         {
             pulse2Timer = kPulseSamples;
-            openHatEnv = 4095;
+            openHatPosition = 0;
         }
 
         currentNoteMv = QuantizeToScale(currentX, spread);
@@ -189,15 +196,50 @@ public:
         ++loopIndex;
     }
 
-    inline int32_t HatNoise()
+    inline int32_t ReadPcmSample(const unsigned char *pcm, uint32_t index)
     {
-        // Noise, not pitched oscillators: the high-passed branch is the
-        // closed hat's sizzle and the slower branch provides an open-hat wash.
-        int32_t white = static_cast<int32_t>((Random() >> 16) & 4095) - 2048;
-        hatNoiseLow += (white - hatNoiseLow) >> 4;
-        int32_t bright = white - hatNoiseLow;
-        hatWash += (bright - hatWash) >> 6;
-        return bright;
+        uint32_t byteIndex = index << 1;
+        int16_t sample = static_cast<int16_t>(
+            static_cast<uint16_t>(pcm[byteIndex]) |
+            (static_cast<uint16_t>(pcm[byteIndex + 1]) << 8));
+        return sample >> 4;
+    }
+
+    inline int32_t PlayClosedHat()
+    {
+        uint32_t index = closedHatPosition >> 16;
+        if (index >= kClosedHatFrames) return 0;
+        int32_t sample = ReadPcmSample(kClosedHatWav + kWavDataOffset, index);
+        closedHatPosition += kSampleStep;
+
+        // Preserve the recorded hit, but make its first millisecond continuous
+        // enough for the Workshop DAC and mixer not to present as a click.
+        if (index < kAttackFadeFrames) sample = (sample * static_cast<int32_t>(index)) >> 6;
+        return sample;
+    }
+
+    inline int32_t PlayOpenHat()
+    {
+        uint32_t index = openHatPosition >> 16;
+        if (index >= kOpenHatFrames) return 0;
+        openHatPosition += kSampleStep;
+
+        if (index < kClosedHatFrames)
+        {
+            int32_t sample = ReadPcmSample(kClosedHatWav + kWavDataOffset, index);
+            if (index < kAttackFadeFrames) sample = (sample * static_cast<int32_t>(index)) >> 6;
+            return sample;
+        }
+
+        uint32_t tailIndex = index - kClosedHatFrames;
+        int32_t sample = ReadPcmSample(kOpenHatPcm, tailIndex) << 1;
+        // Ease in the joined tail so its noise begins as continuation, not a
+        // second attack after the closed-hat sample ends.
+        if (tailIndex < kTailFadeFrames)
+        {
+            sample = (sample * static_cast<int32_t>(tailIndex)) >> 7;
+        }
+        return sample;
     }
 
     virtual void ProcessSample() override
@@ -268,22 +310,8 @@ public:
         if (pulse1Timer > 0) --pulse1Timer;
         if (pulse2Timer > 0) --pulse2Timer;
 
-        int32_t hat = HatNoise();
-        int32_t closedHat = (hat * closedHatEnv) >> 12;
-        // Mixing in a little slower noise turns the sustained output into a
-        // wash rather than the same short, bright tick at a lower level.
-        int32_t openSource = hat + (hatWash << 1);
-        int32_t openHat = (openSource * openHatEnv) >> 12;
-
-        // Closed hat is short and dry. Open hat is longer and ducked by the
-        // closed hat, mimicking the way a real pedal closes the cymbal.
-        closedHatEnv -= (closedHatEnv >> 10) + 4;
-        openHatEnv -= (openHatEnv >> 14) + 1 + (closedHatEnv >> 10);
-        if (closedHatEnv < 0) closedHatEnv = 0;
-        if (openHatEnv < 0) openHatEnv = 0;
-
-        AudioOut1(Clamp12(closedHat));
-        AudioOut2(Clamp12(openHat));
+        AudioOut1(Clamp12(PlayClosedHat()));
+        AudioOut2(Clamp12(PlayOpenHat()));
 
         cv1Led += (((currentNoteMv + 2400) - cv1Led) >> 6);
         LedBrightness(0, pulse1Timer > 0 ? 4095 : ClampLed(density));

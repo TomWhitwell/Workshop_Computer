@@ -43,6 +43,10 @@ hi-hats so the card still makes a useful rhythm bed before any analogue patching
 The firmware runs the RP2040 at 192 MHz and is copied to RAM by the linker to
 avoid flash-cache timing jitter in the audio interrupt.
 
+The audio voices play embedded DR-55 PCM: the closed-hat sample on Audio Out 1,
+and that same attack followed by a boosted 120 ms DR-55 snare-noise tail on
+Audio Out 2.
+
 This is not a direct source port of Marbles. It uses the same broad instrument
 ideas, adapted to the Workshop Computer's two CV outputs, two pulse outputs,
 audio outputs, and three-knob/switch panel.
@@ -53,3 +57,5 @@ Inspired by Mutable Instruments Marbles by Emilie Gillet. Mutable Instruments'
 STM32 firmware is MIT licensed; this card is independently adapted for the
 Workshop Computer and avoids using the original module name for the derivative
 work.
+
+The included DR-55 samples were supplied by the card author for this release.
