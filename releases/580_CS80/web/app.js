@@ -595,7 +595,7 @@ function renderCardSlots() {
   Array.from(cardSlotEl.options).forEach((option, index) => {
     const saved = (savedSlotMask & (1 << index)) !== 0;
     const startup = saved && index === startupSlot;
-    option.textContent = `Slot ${index + 1}${saved ? " saved" : " empty"}${startup ? " (startup)" : ""}`;
+    option.textContent = `Card preset ${index + 1}${saved ? " saved" : " empty"}${startup ? " (startup)" : ""}`;
   });
   setStartupSlotEl.disabled = (savedSlotMask & (1 << selectedCardSlot())) === 0;
   loadSlotEl.disabled = (savedSlotMask & (1 << selectedCardSlot())) === 0;
