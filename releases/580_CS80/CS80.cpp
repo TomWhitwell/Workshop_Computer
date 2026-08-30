@@ -193,6 +193,7 @@ public:
 
     void ProcessSample() override
     {
+        const bool midiTriggered = applyPendingMidiNoteEvents();
         const Switch mode = SwitchVal();
         const bool downNow = mode == Switch::Down;
 
@@ -233,7 +234,7 @@ public:
             return;
         }
 
-        if (gateNow && !lastGate)
+        if (gateNow && !lastGate && !midiTriggered)
         {
             triggerVoice(voiceA);
             triggerVoice(voiceB);
@@ -351,10 +352,17 @@ private:
         int32_t filterEnvelopeQ12 = 0;
         int32_t ampEnvelopeAccQ20 = 0;
         int32_t filterEnvelopeAccQ20 = 0;
+        int32_t triggerRampQ12 = 4095;
         uint8_t ampEnvelopeStage = 0;
         uint8_t filterEnvelopeStage = 0;
         int32_t hpLowpass = 0;
         int32_t lp = 0;
+    };
+
+    struct MidiNoteEvent
+    {
+        uint8_t note = 0;
+        bool on = false;
     };
 
     static constexpr uint32_t C2PhaseIncrement = 5852465u;
@@ -437,6 +445,7 @@ private:
     int32_t voiceResonance[2] = {2650, 2650};
     SpscPatchQueue<PatchState, 4u> webToAudioPatchQueue = {};
     SpscPatchQueue<PatchState, 4u> audioToWebPatchQueue = {};
+    SpscPatchQueue<MidiNoteEvent, 32u> midiNoteEvents = {};
     PatchState queuedWebPatch = {};
     bool queuedWebPatchPending = false;
     PatchState webPatchSnapshot = {};
@@ -522,17 +531,13 @@ private:
 
         if (type == MidiStatusNoteOn && midiData[1] > 0)
         {
-            midiNote = midiData[0];
-            midiNoteActive = true;
-            triggerVoice(voiceA);
-            triggerVoice(voiceB);
+            midiNoteEvents.tryPush({midiData[0], true});
             return;
         }
 
         if (type == MidiStatusNoteOff || (type == MidiStatusNoteOn && midiData[1] == 0))
         {
-            if (midiNoteActive && midiData[0] == midiNote)
-                midiNoteActive = false;
+            midiNoteEvents.tryPush({midiData[0], false});
             return;
         }
 
@@ -572,9 +577,6 @@ private:
     void pushMidiControlPatch()
     {
         queuePatchForAudio(midiControlPatch);
-        patchResponsePatch = midiControlPatch;
-        patchResponseHasPatch = true;
-        patchResponsePending = true;
     }
 
     void handleMidiControlChange(uint8_t cc, uint8_t value)
@@ -1011,13 +1013,18 @@ private:
 
     void triggerVoice(VoiceState& voice)
     {
-        voice.phase = 0;
         voice.ampEnvelopeStage = 0;
         voice.filterEnvelopeStage = 0;
-        if (voice.ampEnvelopeQ12 < 96)
+        if (voice.ampEnvelopeQ12 < 8)
         {
-            voice.ampEnvelopeQ12 = 96;
-            voice.ampEnvelopeAccQ20 = voice.ampEnvelopeQ12 << 8;
+            voice.ampEnvelopeQ12 = 0;
+            voice.ampEnvelopeAccQ20 = 0;
+            voice.triggerRampQ12 = 0;
+        }
+        else
+        {
+            // Do not abruptly mute an audible note before retriggering its envelope.
+            voice.triggerRampQ12 = 4095;
         }
         if (voice.filterEnvelopeQ12 < 128)
         {
@@ -1026,12 +1033,35 @@ private:
         }
     }
 
+    bool applyPendingMidiNoteEvents()
+    {
+        bool triggered = false;
+        MidiNoteEvent event = {};
+        while (midiNoteEvents.tryPop(event))
+        {
+            if (event.on)
+            {
+                midiNote = event.note;
+                midiNoteActive = true;
+                triggerVoice(voiceA);
+                triggerVoice(voiceB);
+                triggered = true;
+            }
+            else if (midiNoteActive && event.note == midiNote)
+            {
+                midiNoteActive = false;
+            }
+        }
+        return triggered;
+    }
+
     void resetEnvelopeForAudition(VoiceState& voice)
     {
         voice.ampEnvelopeQ12 = 0;
         voice.filterEnvelopeQ12 = 0;
         voice.ampEnvelopeAccQ20 = 0;
         voice.filterEnvelopeAccQ20 = 0;
+        voice.triggerRampQ12 = 0;
         voice.ampEnvelopeStage = 0;
         voice.filterEnvelopeStage = 0;
     }
@@ -1095,6 +1125,12 @@ private:
 
         int32_t filtered = filterVoice(osc, voice, voiceParams, filterCv, expressionCv);
         int32_t amp = ampCurve(voice.ampEnvelopeQ12);
+        // A short retrigger fade avoids clicks from oscillator and filter-state discontinuities.
+        if (voice.triggerRampQ12 < 4095)
+        {
+            voice.triggerRampQ12 = clamp12(voice.triggerRampQ12 + 16);
+        }
+        amp = (amp * voice.triggerRampQ12) >> 12;
         if (voiceParams.lfoVcaDepth > 0)
         {
             int32_t tremolo = clamp12(2048 + ((lfoValue * voiceParams.lfoVcaDepth) >> 11));
@@ -1426,6 +1462,8 @@ private:
             if (!decodeWebMidiPatch(6, patch))
                 return;
             queuePatchForAudio(patch);
+            midiControlPatch = patch;
+            midiControlPatchValid = true;
             patchResponsePatch = patch;
             patchResponseHasPatch = true;
             patchResponsePending = true;
@@ -1461,6 +1499,8 @@ private:
             {
                 PatchState patch = patchStateFromSavedPatch(savedPatches[slot]);
                 queuePatchForAudio(patch);
+                midiControlPatch = patch;
+                midiControlPatchValid = true;
                 slotResponseIndex = slot;
                 slotResponsePatch = patch;
                 slotResponsePending = true;
@@ -1558,6 +1598,8 @@ private:
             return;
         bool hadSavedSlots = savedSlotMask != 0;
         queuePatchForAudio(patch);
+        midiControlPatch = patch;
+        midiControlPatchValid = true;
         savePatchToSlot(slot, patch);
         if (!hadSavedSlots)
             startupSlot = slot;
