@@ -18,7 +18,7 @@ performance modulation, ring modulation, and expressive envelopes.
 This folder contains the tested split-output firmware baseline and its Web MIDI
 editor.
 
-- Firmware: `uf2/Vortex_Rider_current_stable_dual_output_20260830.uf2` is the tested
+- Firmware: `uf2/Vortex_Runner_current_stable_dual_output_20260830.uf2` is the tested
   dual-output monophonic build, including the two-bank MIDI CC layout, `CC1`
   vibrato depth, MIDI absolute-pitch handling, and coalesced Web MIDI patch
   handoff for rapid detune changes
@@ -26,6 +26,7 @@ editor.
   persistent card slots
 - Rollbacks: locally retained rollback UF2s are ignored by git
 - Release status: draft
+- Release guide and first patch: [RELEASE_SUMMARY.md](RELEASE_SUMMARY.md)
 
 Release firmware should go in `uf2/` when a build is ready to publish. Local
 hardware-test UF2s should go in `test-uf2/`, which is ignored by git.
