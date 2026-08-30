@@ -21,7 +21,7 @@ public:
     static constexpr uint32_t kClosedHatFrames = (kClosedHatWav_len - kWavDataOffset) / 2;
     static constexpr uint32_t kOpenHatTailFrames = kOpenHatPcm_len / 2;
     static constexpr uint32_t kOpenHatFrames = kClosedHatFrames + kOpenHatTailFrames;
-    static constexpr uint32_t kAttackFadeFrames = 64;
+    static constexpr uint32_t kAttackFadeFrames = 512;
     static constexpr uint32_t kTailFadeFrames = 128;
     // 44.1 kHz source played by the Workshop Computer's 48 kHz audio loop.
     static constexpr uint32_t kSampleStep = 60211;
@@ -212,9 +212,9 @@ public:
         int32_t sample = ReadPcmSample(kClosedHatWav + kWavDataOffset, index);
         closedHatPosition += kSampleStep;
 
-        // Preserve the recorded hit, but make its first millisecond continuous
-        // enough for the Workshop DAC and mixer not to present as a click.
-        if (index < kAttackFadeFrames) sample = (sample * static_cast<int32_t>(index)) >> 6;
+        // The original peak sits inside the recorded hit. A longer 10.7 ms
+        // ramp rounds it into a hat attack instead of a mixer-click transient.
+        if (index < kAttackFadeFrames) sample = (sample * static_cast<int32_t>(index)) >> 9;
         return sample;
     }
 
@@ -227,7 +227,7 @@ public:
         if (index < kClosedHatFrames)
         {
             int32_t sample = ReadPcmSample(kClosedHatWav + kWavDataOffset, index);
-            if (index < kAttackFadeFrames) sample = (sample * static_cast<int32_t>(index)) >> 6;
+            if (index < kAttackFadeFrames) sample = (sample * static_cast<int32_t>(index)) >> 9;
             return sample;
         }
 
