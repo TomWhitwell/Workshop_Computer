@@ -286,11 +286,11 @@ private:
         int32_t filterDecay = 480;
         int32_t filterSustain = 2400;
         int32_t filterRelease = 900;
-        int32_t lfoRate = 1750;
-        int32_t lfoPitchDepth = 980;
-        int32_t lfoPwmDepth = 1550;
+        int32_t lfoRate = 1420;
+        int32_t lfoPitchDepth = 260;
+        int32_t lfoPwmDepth = 980;
         int32_t lfoVcfDepth = 1000;
-        int32_t lfoVcaDepth = 560;
+        int32_t lfoVcaDepth = 180;
         int32_t ringSpeed = 2250;
         uint32_t cachedPhaseIncrement = C2PhaseIncrement;
     };

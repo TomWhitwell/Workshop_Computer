@@ -163,7 +163,7 @@ const presets = [
     filter: "Resonant bandpass-like shape with raised HPF and open LPF",
     envelope: "Immediate attack, sustained note body, short/medium release",
     modulation: "Audible vibrato and PWM wobble, plus a little ring colour for tape-era shimmer",
-    params: { ...defaultPatchParams, lfoPitchDepth: 560, lfoRate: 1620, lfoPwmDepth: 1480 },
+    params: { ...defaultPatchParams, lfoPitchDepth: 260, lfoRate: 1420, lfoPwmDepth: 980, vcaDepth: 180 },
   },
   {
     name: "Initial Brass",
