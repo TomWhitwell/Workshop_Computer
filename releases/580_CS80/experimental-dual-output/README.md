@@ -1,7 +1,9 @@
 # CS80 Dual Output Experimental
 
 This folder is the experimental branch for the next CS80 direction. The main
-`580_CS80` folder remains the current stable mono firmware and rollback point.
+`580_CS80` contains the current stable split-output monophonic firmware and
+rollback UF2s. This folder remains the place for deliberately experimental
+per-voice extensions.
 
 The purpose of this folder is to explore a split-output dual-voice layout with:
 

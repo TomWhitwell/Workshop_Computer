@@ -18,8 +18,10 @@ performance modulation, ring modulation, and expressive envelopes.
 This folder contains the current stable split-output firmware baseline plus a
 draft Web MIDI editor.
 
-- Firmware: current stable version is the dual-output monophonic build with the
-  two-bank MIDI CC layout and `CC1` vibrato depth
+- Firmware: `uf2/CS80_current_stable_dual_output_20260830.uf2` is the tested
+  dual-output monophonic build, including the two-bank MIDI CC layout, `CC1`
+  vibrato depth, MIDI absolute-pitch handling, and coalesced Web MIDI patch
+  handoff for rapid detune changes
 - Web editor: draft CS80 SysEx v8 patch apply/readback interface
 - UF2: the rollback-stable firmware build is kept in `uf2/`
 - Mono fallback: the last passed non-dual firmware is retained in `uf2/` as a
@@ -118,13 +120,16 @@ Secondary synth controls stay available on:
 - `CC91`: LFO to VCF
 - `CC92`: LFO to VCA
 
-Pitch bend is also supported and currently maps to a fixed `+/-2 semitone`
-range through the existing performance-pitch path.
+Pitch bend is also supported at a fixed `+/-2 semitone` range. It is kept
+separate from the editor's performance-pitch parameter, so Web patch changes
+cannot overwrite an active MIDI bend or alter MIDI note pitch unexpectedly.
 
-MIDI note-on and note-off now drive the monophonic note path directly. While a MIDI note
-is held, it takes over pitch and gate for the synth voice, including
-portamento and pitch bend. Releasing the note returns pitch control to the card
-CV input and pulse gate behaviour.
+MIDI note-on and note-off drive the monophonic note path directly. While a MIDI
+note is held, it takes over pitch and gate for the synth voice, including
+portamento and pitch bend; the panel base-pitch offset no longer transposes MIDI
+notes. With USB MIDI connected and `Pulse In 1` unpatched, the card is silent
+until it receives a MIDI note. A patched `Pulse In 1` remains the gate source.
+After a MIDI release tail ends, pitch returns to the card CV/manual source.
 
 ## Firmware
 
@@ -154,11 +159,13 @@ page, while LEDs 1/3/5 go bright once each physical knob has picked up its store
 value.
 
 Web MIDI never writes live audio parameters directly. Core 1 parses each complete
-SysEx patch, incoming MIDI CC update, or pitch-bend change and queues a complete
-patch without waiting; core 0 applies queued patches only on its 64-sample
-control tick. A second, best-effort queue returns core-0 snapshots to the editor
-for safe readback. If a burst fills the four-patch input queue, core 1 coalesces
-it to the most recent patch rather than blocking either core.
+SysEx patch or MIDI CC update and retains only the newest complete patch for the
+audio core; core 0 applies at most one patch on each 64-sample control tick
+(about 750 Hz at 48 kHz). This single-value mailbox coalesces rapid detune or
+editor updates rather than making audio apply stale intermediate states. A
+second, best-effort queue returns core-0 snapshots to the editor for safe
+readback. Apply messages do not generate a full patch reply; explicit read,
+slot load, save verification, and slot refresh continue to do so.
 
 The first pass uses small lookup tables in `CS80_LUT.*` for pitch ratios, filter
 curves, envelope rates, and LFO/ring sine values. This follows the C1ZZL3 habit

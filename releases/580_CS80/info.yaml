@@ -11,7 +11,7 @@ summary: >-
 Language: C++ (Pico SDK)
 Creator: Adrian Vos
 Version: "0.1 draft"
-Status: Draft - split-output firmware and Web MIDI patch interface
+Status: Draft - stable-tested split-output firmware and Web MIDI patch interface
 License: MIT
 date-created: 2026-08-26
 Editor: web
@@ -45,7 +45,7 @@ panel:
     - id: PulseIn1
       name: Gate
       type: pulse
-      description: Planned gate input for the amp and filter envelopes.
+      description: Gate input for the amp and filter envelopes. When patched, it takes priority over USB MIDI gate.
     - id: PulseIn2
       name: Trigger / Hold
       type: pulse
@@ -94,7 +94,6 @@ controls:
         name: LP Cutoff
         description: Low-pass cutoff for the selected output voice.
       x:
-        name: Pulse Width
         name: HP Cutoff
         description: High-pass cutoff for the selected output voice.
       y:
@@ -168,7 +167,10 @@ host:
     saw/pulse/sine/noise source levels, voice level, portamento, expression
     depth, separate shared amp ADSR and filter ADSR controls, LFO rate,
     independent LFO-to-pitch/PWM/VCF/VCA modulation depths, ring amount, and
-    ring speed. The current MIDI controller map is: CC1
+    ring speed. Rapid Web MIDI patch updates are coalesced to the newest patch
+    before core 0 applies them on its 64-sample control tick. MIDI note pitch
+    is absolute while MIDI is active and is not transposed by the panel base
+    pitch offset. The current MIDI controller map is: CC1
     vibrato depth via LFO-to-pitch; Bank A on CC20-27 for saw level, pulse
     level, sine level, noise level, pulse width, PWM amount, LP cutoff, and
     resonance; Bank B on CC28-31 for HP cutoff, ring amount, ring speed, and

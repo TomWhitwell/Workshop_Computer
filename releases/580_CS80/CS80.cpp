@@ -51,6 +51,13 @@ public:
         return USBPowerState() == USBPowerState_t::DFP;
     }
 
+    void SetUsbMidiConnected(bool connected)
+    {
+        __dmb();
+        usbMidiConnected = connected;
+        __dmb();
+    }
+
     void ProcessUsbMidiByte(uint8_t byte)
     {
         if (byte >= 0xF8u)
@@ -200,8 +207,10 @@ public:
         int32_t audioPitch = AudioIn1();
         int32_t filterCv = CVIn1();
         int32_t expressionCv = CVIn2();
-        bool pulseGateNow = Disconnected(Input::Pulse1) || PulseIn1();
-        bool gateNow = pulseGateNow || midiNoteActive;
+        const bool pulseInputConnected = !Disconnected(Input::Pulse1);
+        bool gateNow = pulseInputConnected
+            ? PulseIn1()
+            : ((midiGateModeActive || usbMidiConnected) ? midiNoteActive : true);
         currentGate = gateNow;
 
         updateDownSwitch(downNow);
@@ -243,17 +252,27 @@ public:
 
         updateGlobalModulation();
 
-        int32_t outA = renderVoice(voiceA, gateNow, filterCv, expressionCv, outputAPitchOffsetQ8, 0u);
+        const int32_t mainPitchOffsetQ8 = midiPitchSourceActive ? 0 : outputAPitchOffsetQ8;
+        int32_t outA = renderVoice(voiceA, gateNow, filterCv, expressionCv, mainPitchOffsetQ8, 0u);
         int32_t outB = renderVoice(
             voiceB,
             gateNow,
             filterCv,
             expressionCv,
-            clampPitchQ8(outputAPitchOffsetQ8 + params.pitchOffsetQ8),
+            clampPitchQ8(mainPitchOffsetQ8 + params.pitchOffsetQ8),
             1u);
 
         AudioOut1(outA);
         AudioOut2(outB);
+
+        if (midiPitchSourceActive &&
+            !midiNoteActive &&
+            voiceA.ampEnvelopeQ12 == 0 &&
+            voiceB.ampEnvelopeQ12 == 0)
+        {
+            midiPitchSourceActive = false;
+            pitchSlewInitialised = false;
+        }
 
         CVOut1(0);
         CVOut2(0);
@@ -359,10 +378,18 @@ private:
         int32_t lp = 0;
     };
 
-    struct MidiNoteEvent
+    enum class MidiEventType : uint8_t
     {
+        NoteOn,
+        NoteOff,
+        PitchBend,
+    };
+
+    struct MidiEvent
+    {
+        MidiEventType type = MidiEventType::NoteOff;
         uint8_t note = 0;
-        bool on = false;
+        int16_t pitchBendQ8 = 0;
     };
 
     static constexpr uint32_t C2PhaseIncrement = 5852465u;
@@ -443,9 +470,12 @@ private:
     int32_t voiceHpCutoff[2] = {1500, 1500};
     int32_t voiceLpCutoff[2] = {2450, 2450};
     int32_t voiceResonance[2] = {2650, 2650};
-    SpscPatchQueue<PatchState, 4u> webToAudioPatchQueue = {};
+    // A web patch is a complete state snapshot, so intermediate drag updates
+    // have no value. One queued snapshot plus queuedWebPatch coalesces bursts
+    // without asking the audio core to apply an old detune on its way to a new one.
+    SpscPatchQueue<PatchState, 1u> webToAudioPatchQueue = {};
     SpscPatchQueue<PatchState, 4u> audioToWebPatchQueue = {};
-    SpscPatchQueue<MidiNoteEvent, 32u> midiNoteEvents = {};
+    SpscPatchQueue<MidiEvent, 32u> midiEvents = {};
     PatchState queuedWebPatch = {};
     bool queuedWebPatchPending = false;
     PatchState webPatchSnapshot = {};
@@ -475,6 +505,10 @@ private:
     int32_t currentPitchQ8 = MiddleCBasePitchQ8;
     bool pitchSlewInitialised = false;
     bool midiNoteActive = false;
+    bool midiGateModeActive = false;
+    bool midiPitchSourceActive = false;
+    int32_t midiPitchBendQ8 = 0;
+    volatile bool usbMidiConnected = false;
     uint8_t midiNote = 60;
     int32_t lastPitchInput = 0;
     uint8_t sysexBuffer[WebMidiMaxSysexLength] = {};
@@ -531,13 +565,13 @@ private:
 
         if (type == MidiStatusNoteOn && midiData[1] > 0)
         {
-            midiNoteEvents.tryPush({midiData[0], true});
+            midiEvents.tryPush({MidiEventType::NoteOn, midiData[0], 0});
             return;
         }
 
         if (type == MidiStatusNoteOff || (type == MidiStatusNoteOn && midiData[1] == 0))
         {
-            midiNoteEvents.tryPush({midiData[0], false});
+            midiEvents.tryPush({MidiEventType::NoteOff, midiData[0], 0});
             return;
         }
 
@@ -673,11 +707,11 @@ private:
 
     void handleMidiPitchBend(uint8_t lsb, uint8_t msb)
     {
-        refreshMidiControlPatch();
         int32_t bend = ((int32_t)(msb & 0x7Fu) << 7) | (lsb & 0x7Fu);
-        midiControlPatch.performancePitchQ8 =
-            clampRange(((bend - 8192) * 512) / 8192, -512, 511);
-        pushMidiControlPatch();
+        midiEvents.tryPush({
+            MidiEventType::PitchBend,
+            0,
+            (int16_t)clampRange(((bend - 8192) * 512) / 8192, -512, 511)});
     }
 
     void updateDownSwitch(bool downNow)
@@ -864,10 +898,10 @@ private:
     void updatePitchCache(int32_t pitchInput)
     {
         lastPitchInput = pitchInput;
-        if (midiNoteActive)
+        if (midiPitchSourceActive)
         {
             int32_t targetPitchQ8 = clampPitchQ8(
-                midiNotePitchQ8(midiNote) + performancePitchQ8);
+                midiNotePitchQ8(midiNote) + midiPitchBendQ8);
 
             if (!pitchSlewInitialised || params.portamento <= 0)
             {
@@ -978,7 +1012,10 @@ private:
     void applyPendingWebPatches()
     {
         PatchState patch = {};
-        while (webToAudioPatchQueue.tryPop(patch))
+        // The producer retains the newest patch while this mailbox is full.
+        // Applying one patch per control tick keeps USB/Web MIDI bursts away
+        // from the audio-rate work.
+        if (webToAudioPatchQueue.tryPop(patch))
             applyPatchState(patch);
     }
 
@@ -1036,20 +1073,27 @@ private:
     bool applyPendingMidiNoteEvents()
     {
         bool triggered = false;
-        MidiNoteEvent event = {};
-        while (midiNoteEvents.tryPop(event))
+        MidiEvent event = {};
+        while (midiEvents.tryPop(event))
         {
-            if (event.on)
+            if (event.type == MidiEventType::NoteOn)
             {
                 midiNote = event.note;
                 midiNoteActive = true;
+                midiGateModeActive = true;
+                midiPitchSourceActive = true;
                 triggerVoice(voiceA);
                 triggerVoice(voiceB);
                 triggered = true;
             }
-            else if (midiNoteActive && event.note == midiNote)
+            else if (event.type == MidiEventType::NoteOff &&
+                     midiNoteActive && event.note == midiNote)
             {
                 midiNoteActive = false;
+            }
+            else if (event.type == MidiEventType::PitchBend)
+            {
+                midiPitchBendQ8 = event.pitchBendQ8;
             }
         }
         return triggered;
@@ -1464,9 +1508,6 @@ private:
             queuePatchForAudio(patch);
             midiControlPatch = patch;
             midiControlPatchValid = true;
-            patchResponsePatch = patch;
-            patchResponseHasPatch = true;
-            patchResponsePending = true;
             return;
         }
 
@@ -1891,6 +1932,7 @@ void core1Worker()
         else
         {
             tud_task();
+            card.SetUsbMidiConnected(tud_mounted());
             card.SendPendingUsbMidiOutput();
 
             uint8_t bytes[64];
@@ -1914,7 +1956,10 @@ extern "C" void tuh_midi_mount_cb(
     (void)num_cables_tx;
 
     if (hostMidiDeviceAddress == 0)
+    {
         hostMidiDeviceAddress = dev_addr;
+        card.SetUsbMidiConnected(true);
+    }
 }
 
 extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
@@ -1922,7 +1967,10 @@ extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
     (void)instance;
 
     if (dev_addr == hostMidiDeviceAddress)
+    {
         hostMidiDeviceAddress = 0;
+        card.SetUsbMidiConnected(false);
+    }
 }
 
 extern "C" void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
