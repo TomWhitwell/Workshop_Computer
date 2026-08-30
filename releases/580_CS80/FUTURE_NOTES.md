@@ -2,19 +2,27 @@
 
 These are working notes for the CS80 draft card. They are not release notes.
 
-## Mono First
+## Monophonic Invariant
 
-Build one mono voice first. The first success criterion is stable hardware
-behaviour under gate retriggering, MIDI input, Web MIDI editing, and high
-modulation depth.
+Build and retain one monophonic instrument. The first success criterion is
+stable hardware behaviour under gate retriggering, MIDI input, Web MIDI
+editing, and high modulation depth.
 
-Do not add a second voice until:
+Shared across both outputs:
 
-- the mono voice builds cleanly
-- the mono voice has been profiled
-- the audio interrupt has clear timing headroom
-- the Web MIDI protocol has basic read/apply/save working
-- the physical controls feel coherent
+- pitch and pitch source
+- gate/trigger behaviour
+- amp and filter envelopes
+- portamento
+- pitch-CV reference and CV routing
+- MIDI note, bend, and CC handling
+- LFO timing and destinations
+- preset and startup-slot state
+
+Voice A/B differences are limited to oscillator/filter colour and detune.
+Do not turn Voice B into an independently gated, enveloped, modulated, or MIDI
+played voice. Add an A/B Web UI control only with a corresponding firmware
+parameter.
 
 ## Architecture
 

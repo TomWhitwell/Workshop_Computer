@@ -49,6 +49,12 @@ hardware-test UF2s should go in `test-uf2/`, which is ignored by git.
 - monophonic note/gate path with two split audio outputs
 - `Audio Out 1`: Voice A
 - `Audio Out 2`: Voice B, detunable relative to Voice A
+- one shared pitch, gate, amp/filter envelope, portamento, pitch-CV policy,
+  CV routing, MIDI state, LFO timing, and preset state for both outputs
+- A/B differences are limited to oscillator/filter colour: detune, pulse
+  width, PWM amount, HP cutoff, LP cutoff, and resonance; future Web MIDI
+  fields will be added only when the firmware gains a corresponding A/B
+  parameter
 - web-first portamento for smooth CV/pitch glides
 - independent saw, square/pulse, sine, and noise mixer levels
 - independent pulse width, PWM amount, LFO-to-pitch, and LFO-to-PWM controls

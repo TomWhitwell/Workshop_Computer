@@ -22,9 +22,9 @@ static constexpr uint8_t WebMidiCommandRequestSlot = 0x08u;
 static constexpr uint8_t WebMidiCommandSlotResponse = 0x09u;
 static constexpr uint8_t WebMidiCommandDeleteSlot = 0x0Au;
 static constexpr uint8_t WebMidiCommandSetStartupSlot = 0x0Bu;
-static constexpr uint8_t WebMidiPatchProtocolVersion = 7u;
-static constexpr uint32_t WebMidiPatchPayloadLength = 55u;
-static constexpr uint32_t WebMidiMaxSysexLength = 64u;
+static constexpr uint8_t WebMidiPatchProtocolVersion = 10u;
+static constexpr uint32_t WebMidiPatchPayloadLength = 83u;
+static constexpr uint32_t WebMidiMaxSysexLength = 96u;
 static constexpr uint8_t MidiStatusMask = 0xF0u;
 static constexpr uint8_t MidiStatusNoteOff = 0x80u;
 static constexpr uint8_t MidiStatusNoteOn = 0x90u;
@@ -49,6 +49,13 @@ public:
     bool ShouldBootUsbHost()
     {
         return USBPowerState() == USBPowerState_t::DFP;
+    }
+
+    void SetUsbMidiConnected(bool connected)
+    {
+        __dmb();
+        usbMidiConnected = connected;
+        __dmb();
     }
 
     void ProcessUsbMidiByte(uint8_t byte)
@@ -90,20 +97,7 @@ public:
 
         if (slotsResponsePending)
         {
-            uint8_t frame[11] = {
-                0xF0u,
-                WebMidiManufacturer,
-                WebMidiId[0],
-                WebMidiId[1],
-                WebMidiId[2],
-                WebMidiId[3],
-                WebMidiCommandSlotsResponse,
-                (uint8_t)(savedSlotMask & 0x7Fu),
-                (uint8_t)((savedSlotMask >> 7) & 0x7Fu),
-                (uint8_t)(startupSlot & 0x07u),
-                0xF7u
-            };
-            tud_midi_stream_write(0, frame, sizeof(frame));
+            sendSlotsFrame();
             slotsResponsePending = false;
         }
 
@@ -131,7 +125,7 @@ public:
 
     void sendPatchFrame(uint8_t command, uint8_t slot, const PatchState& patch)
     {
-        uint8_t frame[64] = {
+        uint8_t frame[96] = {
             0xF0u,
             WebMidiManufacturer,
             WebMidiId[0],
@@ -163,6 +157,10 @@ public:
         appendWebMidiUint14(frame, offset, patch.params.decay);
         appendWebMidiUint14(frame, offset, patch.params.sustain);
         appendWebMidiUint14(frame, offset, patch.params.release);
+        appendWebMidiUint14(frame, offset, patch.params.filterAttack);
+        appendWebMidiUint14(frame, offset, patch.params.filterDecay);
+        appendWebMidiUint14(frame, offset, patch.params.filterSustain);
+        appendWebMidiUint14(frame, offset, patch.params.filterRelease);
         appendWebMidiUint14(frame, offset, patch.params.lfoRate);
         appendWebMidiUint14(frame, offset, patch.params.lfoPitchDepth);
         appendWebMidiUint14(frame, offset, patch.params.lfoPwmDepth);
@@ -170,21 +168,60 @@ public:
         appendWebMidiUint14(frame, offset, patch.params.lfoVcaDepth);
         appendWebMidiUint14(frame, offset, patch.ringAmount);
         appendWebMidiUint14(frame, offset, patch.params.ringSpeed);
+        appendWebMidiUint14(frame, offset, patch.voiceSawLevel[1]);
+        appendWebMidiUint14(frame, offset, patch.voicePulseLevel[1]);
+        appendWebMidiUint14(frame, offset, patch.voiceSineLevel[1]);
+        appendWebMidiUint14(frame, offset, patch.voiceNoiseLevel[1]);
+        appendWebMidiUint14(frame, offset, patch.voiceLevel[1]);
+        appendWebMidiUint14(frame, offset, patch.voicePulseWidth[1] - 512);
+        appendWebMidiUint14(frame, offset, patch.voicePwmAmount[1]);
+        appendWebMidiUint14(frame, offset, patch.voiceHpCutoff[1]);
+        appendWebMidiUint14(frame, offset, patch.voiceLpCutoff[1]);
+        appendWebMidiUint14(frame, offset, patch.voiceResonance[1]);
         frame[offset++] = 0xF7u;
 
-        tud_midi_stream_write(0, frame, offset);
+        sendWebMidiFrame(frame, offset);
+    }
+
+    void sendWebMidiFrame(const uint8_t* frame, uint32_t length)
+    {
+        uint8_t midiKick[3] = {0x80u, 60u, 0u};
+        tud_midi_stream_write(0, midiKick, sizeof(midiKick));
+        tud_midi_stream_write(0, frame, length);
+    }
+
+    void sendSlotsFrame()
+    {
+        uint8_t frame[11] = {
+            0xF0u,
+            WebMidiManufacturer,
+            WebMidiId[0],
+            WebMidiId[1],
+            WebMidiId[2],
+            WebMidiId[3],
+            WebMidiCommandSlotsResponse,
+            (uint8_t)(savedSlotMask & 0x7Fu),
+            (uint8_t)((savedSlotMask >> 7) & 0x7Fu),
+            (uint8_t)(startupSlot & 0x07u),
+            0xF7u
+        };
+        sendWebMidiFrame(frame, sizeof(frame));
     }
 
     void ProcessSample() override
     {
+        const bool midiTriggered = applyPendingMidiNoteEvents();
         const Switch mode = SwitchVal();
         const bool downNow = mode == Switch::Down;
 
         int32_t audioPitch = AudioIn1();
         int32_t filterCv = CVIn1();
         int32_t expressionCv = CVIn2();
-        bool pulseGateNow = Disconnected(Input::Pulse1) || PulseIn1();
-        bool gateNow = pulseGateNow || midiNoteActive;
+        const bool pulseInputConnected = !Disconnected(Input::Pulse1);
+        bool gateNow = pulseInputConnected
+            ? PulseIn1()
+            : ((midiGateModeActive || usbMidiConnected) ? midiNoteActive : true);
+        currentGate = gateNow;
 
         updateDownSwitch(downNow);
 
@@ -205,7 +242,18 @@ public:
             publishAudioPatchSnapshot();
         }
 
-        if (gateNow && !lastGate)
+        if (startupSelectMode)
+        {
+            AudioOut1(0);
+            AudioOut2(0);
+            CVOut1(0);
+            CVOut2(0);
+            PulseOut1(false);
+            PulseOut2(false);
+            return;
+        }
+
+        if (gateNow && !lastGate && !midiTriggered)
         {
             triggerVoice(voiceA);
             triggerVoice(voiceB);
@@ -214,17 +262,27 @@ public:
 
         updateGlobalModulation();
 
-        int32_t outA = renderVoice(voiceA, gateNow, filterCv, expressionCv, outputAPitchOffsetQ8, 0u);
+        const int32_t mainPitchOffsetQ8 = midiPitchSourceActive ? 0 : outputAPitchOffsetQ8;
+        int32_t outA = renderVoice(voiceA, gateNow, filterCv, expressionCv, mainPitchOffsetQ8, 0u);
         int32_t outB = renderVoice(
             voiceB,
             gateNow,
             filterCv,
             expressionCv,
-            clampPitchQ8(outputAPitchOffsetQ8 + params.pitchOffsetQ8),
+            clampPitchQ8(mainPitchOffsetQ8 + params.pitchOffsetQ8),
             1u);
 
         AudioOut1(outA);
         AudioOut2(outB);
+
+        if (midiPitchSourceActive &&
+            !midiNoteActive &&
+            voiceA.ampEnvelopeQ12 == 0 &&
+            voiceB.ampEnvelopeQ12 == 0)
+        {
+            midiPitchSourceActive = false;
+            pitchSlewInitialised = false;
+        }
 
         CVOut1(0);
         CVOut2(0);
@@ -254,11 +312,15 @@ private:
         int32_t decay = 760;
         int32_t sustain = 3300;
         int32_t release = 1200;
-        int32_t lfoRate = 1750;
-        int32_t lfoPitchDepth = 980;
-        int32_t lfoPwmDepth = 1550;
+        int32_t filterAttack = 40;
+        int32_t filterDecay = 480;
+        int32_t filterSustain = 2400;
+        int32_t filterRelease = 900;
+        int32_t lfoRate = 1420;
+        int32_t lfoPitchDepth = 260;
+        int32_t lfoPwmDepth = 980;
         int32_t lfoVcfDepth = 1000;
-        int32_t lfoVcaDepth = 560;
+        int32_t lfoVcaDepth = 180;
         int32_t ringSpeed = 2250;
         uint32_t cachedPhaseIncrement = C2PhaseIncrement;
     };
@@ -268,6 +330,16 @@ private:
         VoiceParams params = {};
         int32_t performancePitchQ8 = 0;
         int32_t ringAmount = 850;
+        int32_t voiceSawLevel[2] = {450, 450};
+        int32_t voicePulseLevel[2] = {2500, 2500};
+        int32_t voiceSineLevel[2] = {2300, 2300};
+        int32_t voiceNoiseLevel[2] = {220, 220};
+        int32_t voiceLevel[2] = {3600, 3600};
+        int32_t voicePulseWidth[2] = {2162, 2162};
+        int32_t voicePwmAmount[2] = {1450, 1450};
+        int32_t voiceHpCutoff[2] = {1500, 1500};
+        int32_t voiceLpCutoff[2] = {2450, 2450};
+        int32_t voiceResonance[2] = {2650, 2650};
     };
 
     // One producer and one consumer per queue. A release-store publishes a
@@ -317,9 +389,27 @@ private:
         uint32_t phase = 0;
         int32_t ampEnvelopeQ12 = 0;
         int32_t filterEnvelopeQ12 = 0;
-        uint8_t envelopeStage = 0;
+        int32_t ampEnvelopeAccQ20 = 0;
+        int32_t filterEnvelopeAccQ20 = 0;
+        int32_t triggerRampQ12 = 4095;
+        uint8_t ampEnvelopeStage = 0;
+        uint8_t filterEnvelopeStage = 0;
         int32_t hpLowpass = 0;
         int32_t lp = 0;
+    };
+
+    enum class MidiEventType : uint8_t
+    {
+        NoteOn,
+        NoteOff,
+        PitchBend,
+    };
+
+    struct MidiEvent
+    {
+        MidiEventType type = MidiEventType::NoteOff;
+        uint8_t note = 0;
+        int16_t pitchBendQ8 = 0;
     };
 
     static constexpr uint32_t C2PhaseIncrement = 5852465u;
@@ -339,7 +429,7 @@ private:
     static constexpr int32_t PickupWindow = 96;
     static constexpr uint8_t PatchSlotCount = 8u;
     static constexpr uint32_t PatchBankMagic = 0x43533830u; // CS80
-    static constexpr uint16_t PatchBankVersion = 9u;
+    static constexpr uint16_t PatchBankVersion = 12u;
     static constexpr uint32_t PatchBankFlashOffset =
         (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE) &
         ~(FLASH_SECTOR_SIZE - 1u);
@@ -366,6 +456,10 @@ private:
         int32_t decay;
         int32_t sustain;
         int32_t release;
+        int32_t filterAttack;
+        int32_t filterDecay;
+        int32_t filterSustain;
+        int32_t filterRelease;
         int32_t lfoRate;
         int32_t lfoPitchDepth;
         int32_t lfoPwmDepth;
@@ -373,6 +467,16 @@ private:
         int32_t lfoVcaDepth;
         int32_t ringAmount;
         int32_t ringSpeed;
+        int32_t voiceBSawLevel;
+        int32_t voiceBPulseLevel;
+        int32_t voiceBSineLevel;
+        int32_t voiceBNoiseLevel;
+        int32_t voiceBLevel;
+        int32_t voiceBPulseWidth;
+        int32_t voiceBPwmAmount;
+        int32_t voiceBHpCutoff;
+        int32_t voiceBLpCutoff;
+        int32_t voiceBResonance;
     };
 
     struct SavedPatchBank
@@ -396,8 +500,17 @@ private:
     int32_t voiceHpCutoff[2] = {1500, 1500};
     int32_t voiceLpCutoff[2] = {2450, 2450};
     int32_t voiceResonance[2] = {2650, 2650};
-    SpscPatchQueue<PatchState, 4u> webToAudioPatchQueue = {};
+    int32_t voiceSawLevel[2] = {450, 450};
+    int32_t voicePulseLevel[2] = {2500, 2500};
+    int32_t voiceSineLevel[2] = {2300, 2300};
+    int32_t voiceNoiseLevel[2] = {220, 220};
+    int32_t voiceLevel[2] = {3600, 3600};
+    // A web patch is a complete state snapshot, so intermediate drag updates
+    // have no value. One queued snapshot plus queuedWebPatch coalesces bursts
+    // without asking the audio core to apply an old detune on its way to a new one.
+    SpscPatchQueue<PatchState, 1u> webToAudioPatchQueue = {};
     SpscPatchQueue<PatchState, 4u> audioToWebPatchQueue = {};
+    SpscPatchQueue<MidiEvent, 32u> midiEvents = {};
     PatchState queuedWebPatch = {};
     bool queuedWebPatchPending = false;
     PatchState webPatchSnapshot = {};
@@ -411,6 +524,7 @@ private:
     bool downHeld = false;
     bool longHoldSeen = false;
     bool lastGate = false;
+    bool currentGate = false;
     bool selectedOutputB = true;
     bool pickedUp[3] = {false, false, false};
     Switch lastPanelMode = Switch::Middle;
@@ -426,6 +540,10 @@ private:
     int32_t currentPitchQ8 = MiddleCBasePitchQ8;
     bool pitchSlewInitialised = false;
     bool midiNoteActive = false;
+    bool midiGateModeActive = false;
+    bool midiPitchSourceActive = false;
+    int32_t midiPitchBendQ8 = 0;
+    volatile bool usbMidiConnected = false;
     uint8_t midiNote = 60;
     int32_t lastPitchInput = 0;
     uint8_t sysexBuffer[WebMidiMaxSysexLength] = {};
@@ -447,7 +565,7 @@ private:
     uint32_t startupSelectSamples = 0;
     bool startupSelectChecked = false;
     bool startupSelectMode = false;
-    bool startupSelectReady = false;
+    bool startupSelectReleased = false;
     uint8_t startupSelectedSlot = 0;
 
     void processMidiVoiceByte(uint8_t byte)
@@ -482,17 +600,13 @@ private:
 
         if (type == MidiStatusNoteOn && midiData[1] > 0)
         {
-            midiNote = midiData[0];
-            midiNoteActive = true;
-            triggerVoice(voiceA);
-            triggerVoice(voiceB);
+            midiEvents.tryPush({MidiEventType::NoteOn, midiData[0], 0});
             return;
         }
 
         if (type == MidiStatusNoteOff || (type == MidiStatusNoteOn && midiData[1] == 0))
         {
-            if (midiNoteActive && midiData[0] == midiNote)
-                midiNoteActive = false;
+            midiEvents.tryPush({MidiEventType::NoteOff, midiData[0], 0});
             return;
         }
 
@@ -532,9 +646,6 @@ private:
     void pushMidiControlPatch()
     {
         queuePatchForAudio(midiControlPatch);
-        patchResponsePatch = midiControlPatch;
-        patchResponseHasPatch = true;
-        patchResponsePending = true;
     }
 
     void handleMidiControlChange(uint8_t cc, uint8_t value)
@@ -549,15 +660,23 @@ private:
             break;
         case 20:
             midiControlPatch.params.sawLevel = control;
+            midiControlPatch.voiceSawLevel[0] = control;
+            midiControlPatch.voiceSawLevel[1] = control;
             break;
         case 21:
             midiControlPatch.params.pulseLevel = control;
+            midiControlPatch.voicePulseLevel[0] = control;
+            midiControlPatch.voicePulseLevel[1] = control;
             break;
         case 22:
             midiControlPatch.params.sineLevel = control;
+            midiControlPatch.voiceSineLevel[0] = control;
+            midiControlPatch.voiceSineLevel[1] = control;
             break;
         case 23:
             midiControlPatch.params.noiseLevel = control;
+            midiControlPatch.voiceNoiseLevel[0] = control;
+            midiControlPatch.voiceNoiseLevel[1] = control;
             break;
         case 24:
             midiControlPatch.params.pulseWidth = clampRange(512 + control, 512, 3584);
@@ -581,19 +700,19 @@ private:
             midiControlPatch.params.ringSpeed = control;
             break;
         case 31:
-            midiControlPatch.params.attack = control;
+            midiControlPatch.params.portamento = control;
             break;
         case 32:
-            midiControlPatch.params.decay = control;
+            offsetLinkedEnvelope(midiControlPatch.params.attack, midiControlPatch.params.filterAttack, control);
             break;
         case 33:
-            midiControlPatch.params.sustain = control;
+            offsetLinkedEnvelope(midiControlPatch.params.decay, midiControlPatch.params.filterDecay, control);
             break;
         case 34:
-            midiControlPatch.params.release = control;
+            offsetLinkedEnvelope(midiControlPatch.params.sustain, midiControlPatch.params.filterSustain, control);
             break;
         case 35:
-            midiControlPatch.params.portamento = control;
+            offsetLinkedEnvelope(midiControlPatch.params.release, midiControlPatch.params.filterRelease, control);
             break;
         case 2:
         case 11:
@@ -614,6 +733,8 @@ private:
             break;
         case 7:
             midiControlPatch.params.voiceLevel = control;
+            midiControlPatch.voiceLevel[0] = control;
+            midiControlPatch.voiceLevel[1] = control;
             break;
         default:
             return;
@@ -622,13 +743,20 @@ private:
         pushMidiControlPatch();
     }
 
+    void offsetLinkedEnvelope(int32_t& ampValue, int32_t& filterValue, int32_t newAmpValue)
+    {
+        int32_t delta = clamp12(newAmpValue) - ampValue;
+        ampValue = clamp12(ampValue + delta);
+        filterValue = clamp12(filterValue + delta);
+    }
+
     void handleMidiPitchBend(uint8_t lsb, uint8_t msb)
     {
-        refreshMidiControlPatch();
         int32_t bend = ((int32_t)(msb & 0x7Fu) << 7) | (lsb & 0x7Fu);
-        midiControlPatch.performancePitchQ8 =
-            clampRange(((bend - 8192) * 512) / 8192, -512, 511);
-        pushMidiControlPatch();
+        midiEvents.tryPush({
+            MidiEventType::PitchBend,
+            0,
+            (int16_t)clampRange(((bend - 8192) * 512) / 8192, -512, 511)});
     }
 
     void updateDownSwitch(bool downNow)
@@ -718,16 +846,19 @@ private:
         if (startupSelectChecked)
             return;
 
+        if (startupSelectMode)
+            return;
+
+        if (mode == Switch::Down && savedSlotMask != 0)
+        {
+            startupSelectMode = true;
+            startupSelectReleased = false;
+            return;
+        }
+
         if (startupSelectSamples < StartupSelectDelayTicks + StartupSelectWindowTicks)
         {
             startupSelectSamples++;
-            if (startupSelectSamples >= StartupSelectDelayTicks &&
-                mode == Switch::Down &&
-                savedSlotMask != 0)
-            {
-                startupSelectMode = true;
-                startupSelectReady = false;
-            }
             return;
         }
 
@@ -742,6 +873,7 @@ private:
         {
             startupSelectMode = false;
             startupSelectChecked = true;
+            startupSelectReleased = false;
             return;
         }
 
@@ -751,20 +883,20 @@ private:
         startupSelectedSlot = slotForLoadedSelection(selectedIndex);
         showSlotLeds(startupSelectedSlot);
 
-        if (!startupSelectReady)
+        if (mode != Switch::Down)
         {
-            if (mode != Switch::Down)
-                startupSelectReady = true;
+            startupSelectReleased = true;
             return;
         }
 
-        if (mode != Switch::Down)
+        if (startupSelectReleased)
         {
             applySavedSlot(startupSelectedSlot);
             startupSlot = startupSelectedSlot;
             savePatchBankIfChanged();
             startupSelectMode = false;
             startupSelectChecked = true;
+            startupSelectReleased = false;
         }
     }
 
@@ -811,10 +943,10 @@ private:
     void updatePitchCache(int32_t pitchInput)
     {
         lastPitchInput = pitchInput;
-        if (midiNoteActive)
+        if (midiPitchSourceActive)
         {
             int32_t targetPitchQ8 = clampPitchQ8(
-                midiNotePitchQ8(midiNote) + performancePitchQ8);
+                midiNotePitchQ8(midiNote) + midiPitchBendQ8);
 
             if (!pitchSlewInitialised || params.portamento <= 0)
             {
@@ -892,24 +1024,69 @@ private:
         patch.params = params;
         patch.performancePitchQ8 = performancePitchQ8;
         patch.ringAmount = ringAmount;
+        for (uint32_t voice = 0; voice < 2u; ++voice)
+        {
+            patch.voiceSawLevel[voice] = voiceSawLevel[voice];
+            patch.voicePulseLevel[voice] = voicePulseLevel[voice];
+            patch.voiceSineLevel[voice] = voiceSineLevel[voice];
+            patch.voiceNoiseLevel[voice] = voiceNoiseLevel[voice];
+            patch.voiceLevel[voice] = voiceLevel[voice];
+            patch.voicePulseWidth[voice] = voicePulseWidth[voice];
+            patch.voicePwmAmount[voice] = voicePwmAmount[voice];
+            patch.voiceHpCutoff[voice] = voiceHpCutoff[voice];
+            patch.voiceLpCutoff[voice] = voiceLpCutoff[voice];
+            patch.voiceResonance[voice] = voiceResonance[voice];
+        }
         return patch;
     }
 
     void applyPatchState(const PatchState& patch)
     {
+        bool envelopeChanged =
+            params.attack != patch.params.attack ||
+            params.decay != patch.params.decay ||
+            params.sustain != patch.params.sustain ||
+            params.release != patch.params.release ||
+            params.filterAttack != patch.params.filterAttack ||
+            params.filterDecay != patch.params.filterDecay ||
+            params.filterSustain != patch.params.filterSustain ||
+            params.filterRelease != patch.params.filterRelease;
+
         params = patch.params;
+        for (uint32_t voice = 0; voice < 2u; ++voice)
+        {
+            voiceSawLevel[voice] = clamp12(patch.voiceSawLevel[voice]);
+            voicePulseLevel[voice] = clamp12(patch.voicePulseLevel[voice]);
+            voiceSineLevel[voice] = clamp12(patch.voiceSineLevel[voice]);
+            voiceNoiseLevel[voice] = clamp12(patch.voiceNoiseLevel[voice]);
+            voiceLevel[voice] = clamp12(patch.voiceLevel[voice]);
+            voicePulseWidth[voice] = clampRange(patch.voicePulseWidth[voice], 512, 3584);
+            voicePwmAmount[voice] = clamp12(patch.voicePwmAmount[voice]);
+            voiceHpCutoff[voice] = clamp12(patch.voiceHpCutoff[voice]);
+            voiceLpCutoff[voice] = clamp12(patch.voiceLpCutoff[voice]);
+            voiceResonance[voice] = clamp12(patch.voiceResonance[voice]);
+        }
         performancePitchQ8 = clampRange(patch.performancePitchQ8, -2048, 2047);
         ringAmount = clamp12(patch.ringAmount);
         pitchSlewInitialised = false;
         pickedUp[0] = false;
         pickedUp[1] = false;
         pickedUp[2] = false;
+
+        if (envelopeChanged && currentGate)
+        {
+            resetEnvelopeForAudition(voiceA);
+            resetEnvelopeForAudition(voiceB);
+        }
     }
 
     void applyPendingWebPatches()
     {
         PatchState patch = {};
-        while (webToAudioPatchQueue.tryPop(patch))
+        // The producer retains the newest patch while this mailbox is full.
+        // Applying one patch per control tick keeps USB/Web MIDI bursts away
+        // from the audio-rate work.
+        if (webToAudioPatchQueue.tryPop(patch))
             applyPatchState(patch);
     }
 
@@ -944,12 +1121,64 @@ private:
 
     void triggerVoice(VoiceState& voice)
     {
-        voice.phase = 0;
-        voice.envelopeStage = 0;
-        if (voice.ampEnvelopeQ12 < 96)
-            voice.ampEnvelopeQ12 = 96;
+        voice.ampEnvelopeStage = 0;
+        voice.filterEnvelopeStage = 0;
+        if (voice.ampEnvelopeQ12 < 8)
+        {
+            voice.ampEnvelopeQ12 = 0;
+            voice.ampEnvelopeAccQ20 = 0;
+            voice.triggerRampQ12 = 0;
+        }
+        else
+        {
+            // Do not abruptly mute an audible note before retriggering its envelope.
+            voice.triggerRampQ12 = 4095;
+        }
         if (voice.filterEnvelopeQ12 < 128)
+        {
             voice.filterEnvelopeQ12 = 128;
+            voice.filterEnvelopeAccQ20 = voice.filterEnvelopeQ12 << 8;
+        }
+    }
+
+    bool applyPendingMidiNoteEvents()
+    {
+        bool triggered = false;
+        MidiEvent event = {};
+        while (midiEvents.tryPop(event))
+        {
+            if (event.type == MidiEventType::NoteOn)
+            {
+                midiNote = event.note;
+                midiNoteActive = true;
+                midiGateModeActive = true;
+                midiPitchSourceActive = true;
+                triggerVoice(voiceA);
+                triggerVoice(voiceB);
+                triggered = true;
+            }
+            else if (event.type == MidiEventType::NoteOff &&
+                     midiNoteActive && event.note == midiNote)
+            {
+                midiNoteActive = false;
+            }
+            else if (event.type == MidiEventType::PitchBend)
+            {
+                midiPitchBendQ8 = event.pitchBendQ8;
+            }
+        }
+        return triggered;
+    }
+
+    void resetEnvelopeForAudition(VoiceState& voice)
+    {
+        voice.ampEnvelopeQ12 = 0;
+        voice.filterEnvelopeQ12 = 0;
+        voice.ampEnvelopeAccQ20 = 0;
+        voice.filterEnvelopeAccQ20 = 0;
+        voice.triggerRampQ12 = 0;
+        voice.ampEnvelopeStage = 0;
+        voice.filterEnvelopeStage = 0;
     }
 
     void updateGlobalModulation()
@@ -975,6 +1204,11 @@ private:
             return 0;
 
         VoiceParams voiceParams = params;
+        voiceParams.sawLevel = voiceSawLevel[voiceIndex];
+        voiceParams.pulseLevel = voicePulseLevel[voiceIndex];
+        voiceParams.sineLevel = voiceSineLevel[voiceIndex];
+        voiceParams.noiseLevel = voiceNoiseLevel[voiceIndex];
+        voiceParams.voiceLevel = voiceLevel[voiceIndex];
         voiceParams.pulseWidth = voicePulseWidth[voiceIndex];
         voiceParams.pwmAmount = voicePwmAmount[voiceIndex];
         voiceParams.hpCutoff = voiceHpCutoff[voiceIndex];
@@ -1010,7 +1244,13 @@ private:
         osc = applyRingMod(osc);
 
         int32_t filtered = filterVoice(osc, voice, voiceParams, filterCv, expressionCv);
-        int32_t amp = voice.ampEnvelopeQ12;
+        int32_t amp = ampCurve(voice.ampEnvelopeQ12);
+        // A short retrigger fade avoids clicks from oscillator and filter-state discontinuities.
+        if (voice.triggerRampQ12 < 4095)
+        {
+            voice.triggerRampQ12 = clamp12(voice.triggerRampQ12 + 16);
+        }
+        amp = (amp * voice.triggerRampQ12) >> 12;
         if (voiceParams.lfoVcaDepth > 0)
         {
             int32_t tremolo = clamp12(2048 + ((lfoValue * voiceParams.lfoVcaDepth) >> 11));
@@ -1022,58 +1262,89 @@ private:
 
     void updateEnvelope(VoiceState& state, const VoiceParams& voiceParams, bool gate)
     {
-        int32_t attackRate = rateFromControl(voiceParams.attack);
-        int32_t decayRate = rateFromControl(voiceParams.decay);
-        int32_t sustainLevel = clamp12(voiceParams.sustain);
-        int32_t releaseRate = rateFromControl(voiceParams.release);
+        updateOneEnvelope(
+            state.ampEnvelopeQ12,
+            state.ampEnvelopeAccQ20,
+            state.ampEnvelopeStage,
+            gate,
+            voiceParams.attack,
+            voiceParams.decay,
+            voiceParams.sustain,
+            voiceParams.release);
+
+        updateOneEnvelope(
+            state.filterEnvelopeQ12,
+            state.filterEnvelopeAccQ20,
+            state.filterEnvelopeStage,
+            gate,
+            voiceParams.filterAttack,
+            voiceParams.filterDecay,
+            voiceParams.filterSustain,
+            voiceParams.filterRelease);
+    }
+
+    void updateOneEnvelope(
+        int32_t& envelopeQ12,
+        int32_t& envelopeAccQ20,
+        uint8_t& stage,
+        bool gate,
+        int32_t attack,
+        int32_t decay,
+        int32_t sustain,
+        int32_t release)
+    {
+        int32_t attackRate = rateFromTimeControl(attack);
+        int32_t decayRate = rateFromTimeControl(decay);
+        int32_t sustainLevel = clamp12(sustain) << 8;
+        int32_t releaseRate = releaseRateFromTimeControl(release);
+        static constexpr int32_t EnvelopeMaxQ20 = 4095 << 8;
 
         if (!gate)
         {
-            state.envelopeStage = 3;
-            state.ampEnvelopeQ12 = clamp12(state.ampEnvelopeQ12 - releaseRate);
-            state.filterEnvelopeQ12 = clamp12(state.filterEnvelopeQ12 - releaseRate);
+            stage = 3;
+            envelopeAccQ20 -= releaseRate;
+            if (envelopeAccQ20 < 0)
+                envelopeAccQ20 = 0;
+            envelopeQ12 = envelopeAccQ20 >> 8;
             return;
         }
 
-        if (state.envelopeStage == 0)
+        if (stage == 0)
         {
-            state.ampEnvelopeQ12 += attackRate;
-            state.filterEnvelopeQ12 += attackRate << 1;
-            if (state.ampEnvelopeQ12 >= 4095)
+            envelopeAccQ20 += attackRate;
+            if (envelopeAccQ20 >= EnvelopeMaxQ20)
             {
-                state.ampEnvelopeQ12 = 4095;
-                state.envelopeStage = 1;
+                envelopeAccQ20 = EnvelopeMaxQ20;
+                stage = 1;
             }
-            state.filterEnvelopeQ12 = clamp12(state.filterEnvelopeQ12);
+            envelopeQ12 = envelopeAccQ20 >> 8;
             return;
         }
 
-        if (state.envelopeStage == 1)
+        if (stage == 1)
         {
-            if (state.ampEnvelopeQ12 > sustainLevel)
-                state.ampEnvelopeQ12 = clampRange(state.ampEnvelopeQ12 - decayRate, sustainLevel, 4095);
+            if (envelopeAccQ20 > sustainLevel)
+            {
+                envelopeAccQ20 -= decayRate;
+                if (envelopeAccQ20 < sustainLevel)
+                    envelopeAccQ20 = sustainLevel;
+            }
             else
-                state.ampEnvelopeQ12 = sustainLevel;
+                envelopeAccQ20 = sustainLevel;
 
-            if (state.filterEnvelopeQ12 > sustainLevel)
-                state.filterEnvelopeQ12 = clampRange(state.filterEnvelopeQ12 - (decayRate << 1), sustainLevel, 4095);
-            else
-                state.filterEnvelopeQ12 = sustainLevel;
-
-            if (state.ampEnvelopeQ12 == sustainLevel && state.filterEnvelopeQ12 == sustainLevel)
-                state.envelopeStage = 2;
+            envelopeQ12 = envelopeAccQ20 >> 8;
+            if (envelopeAccQ20 == sustainLevel)
+                stage = 2;
             return;
         }
 
-        if (state.envelopeStage == 2)
+        if (stage == 2)
         {
-            state.ampEnvelopeQ12 = sustainLevel;
-            state.filterEnvelopeQ12 = sustainLevel;
+            envelopeAccQ20 = sustainLevel;
+            envelopeQ12 = envelopeAccQ20 >> 8;
         }
         else
-        {
-            state.envelopeStage = 0;
-        }
+            stage = 0;
     }
 
     int32_t filterVoice(
@@ -1106,7 +1377,9 @@ private:
         }
 
         int32_t hpControl = clamp12(voiceParams.hpCutoff + hpCv);
-        int32_t lpControl = clamp12(voiceParams.lpCutoff + lpCv + expressionMod + lfoFilterMod + (state.filterEnvelopeQ12 >> 1));
+        int32_t lpBaseControl = clamp12(voiceParams.lpCutoff + lpCv + expressionMod + lfoFilterMod);
+        int32_t filterEnvelopeMod = filterEnvelopeModForBase(state.filterEnvelopeQ12, lpBaseControl);
+        int32_t lpControl = clamp12(lpBaseControl + filterEnvelopeMod);
 
         int32_t hpAlpha = curveFromControl(hpControl);
         int32_t lpAlpha = curveFromControl(lpControl);
@@ -1208,9 +1481,44 @@ private:
         return cs80FilterAlphaQ12[(uint32_t)clamp12(control) >> 8];
     }
 
-    int32_t rateFromControl(int32_t control) const
+    int32_t rateFromTimeControl(int32_t control) const
     {
-        return cs80EnvelopeRateQ12[(uint32_t)clamp12(control) >> 8];
+        const uint32_t idx = (uint32_t)clamp12(control) >> 8;
+        static constexpr int32_t envelopeRateQ20[16] = {
+            32768, 24576, 16384, 12288,
+            8192, 6144, 4096, 3072,
+            2048, 1536, 1024, 768,
+            512, 384, 256, 192
+        };
+        return envelopeRateQ20[idx];
+    }
+
+    int32_t releaseRateFromTimeControl(int32_t control) const
+    {
+        const uint32_t idx = (uint32_t)clamp12(control) >> 8;
+        static constexpr int32_t envelopeReleaseRateQ20[16] = {
+            16384, 12288, 8192, 6144,
+            4096, 3072, 2048, 1536,
+            1024, 768, 512, 256,
+            128, 64, 32, 16
+        };
+        return envelopeReleaseRateQ20[idx];
+    }
+
+    int32_t ampCurve(int32_t envelopeQ12) const
+    {
+        envelopeQ12 = clamp12(envelopeQ12);
+        int32_t squared = (envelopeQ12 * envelopeQ12) >> 12;
+        return (envelopeQ12 + squared) >> 1;
+    }
+
+    int32_t filterEnvelopeModForBase(int32_t envelopeQ12, int32_t lpBaseControl) const
+    {
+        envelopeQ12 = clamp12(envelopeQ12);
+        int32_t curved = (envelopeQ12 * (8192 - envelopeQ12)) >> 13;
+        int32_t contour = curved + (envelopeQ12 >> 2);
+        int32_t headroom = 4095 - clamp12(lpBaseControl);
+        return (contour * headroom) >> 11;
     }
 
     int32_t sine64(uint32_t phase) const
@@ -1274,9 +1582,8 @@ private:
             if (!decodeWebMidiPatch(6, patch))
                 return;
             queuePatchForAudio(patch);
-            patchResponsePatch = patch;
-            patchResponseHasPatch = true;
-            patchResponsePending = true;
+            midiControlPatch = patch;
+            midiControlPatchValid = true;
             return;
         }
 
@@ -1289,7 +1596,9 @@ private:
 
         if (command == WebMidiCommandRequestPatch && sysexLength == 6u)
         {
-            patchResponseHasPatch = false;
+            drainAudioPatchSnapshots();
+            patchResponsePatch = webPatchSnapshotValid ? webPatchSnapshot : currentPatchState();
+            patchResponseHasPatch = true;
             patchResponsePending = true;
             return;
         }
@@ -1305,9 +1614,12 @@ private:
             uint8_t slot = sysexBuffer[6] & 0x07u;
             if ((savedSlotMask & (1u << slot)) != 0)
             {
-                slotResponsePatch = patchStateFromSavedPatch(savedPatches[slot]);
-                queuePatchForAudio(slotResponsePatch);
+                PatchState patch = patchStateFromSavedPatch(savedPatches[slot]);
+                queuePatchForAudio(patch);
+                midiControlPatch = patch;
+                midiControlPatchValid = true;
                 slotResponseIndex = slot;
+                slotResponsePatch = patch;
                 slotResponsePending = true;
             }
             return;
@@ -1378,6 +1690,10 @@ private:
         patch.params.decay = decodeWebMidiUint14(offset);
         patch.params.sustain = decodeWebMidiUint14(offset);
         patch.params.release = decodeWebMidiUint14(offset);
+        patch.params.filterAttack = decodeWebMidiUint14(offset);
+        patch.params.filterDecay = decodeWebMidiUint14(offset);
+        patch.params.filterSustain = decodeWebMidiUint14(offset);
+        patch.params.filterRelease = decodeWebMidiUint14(offset);
         patch.params.lfoRate = decodeWebMidiUint14(offset);
         patch.params.lfoPitchDepth = decodeWebMidiUint14(offset);
         patch.params.lfoPwmDepth = decodeWebMidiUint14(offset);
@@ -1385,6 +1701,26 @@ private:
         patch.params.lfoVcaDepth = decodeWebMidiUint14(offset);
         patch.ringAmount = decodeWebMidiUint14(offset);
         patch.params.ringSpeed = decodeWebMidiUint14(offset);
+        patch.voiceSawLevel[0] = patch.params.sawLevel;
+        patch.voicePulseLevel[0] = patch.params.pulseLevel;
+        patch.voiceSineLevel[0] = patch.params.sineLevel;
+        patch.voiceNoiseLevel[0] = patch.params.noiseLevel;
+        patch.voiceLevel[0] = patch.params.voiceLevel;
+        patch.voiceSawLevel[1] = decodeWebMidiUint14(offset);
+        patch.voicePulseLevel[1] = decodeWebMidiUint14(offset);
+        patch.voiceSineLevel[1] = decodeWebMidiUint14(offset);
+        patch.voiceNoiseLevel[1] = decodeWebMidiUint14(offset);
+        patch.voiceLevel[1] = decodeWebMidiUint14(offset);
+        patch.voicePulseWidth[0] = patch.params.pulseWidth;
+        patch.voicePwmAmount[0] = patch.params.pwmAmount;
+        patch.voiceHpCutoff[0] = patch.params.hpCutoff;
+        patch.voiceLpCutoff[0] = patch.params.lpCutoff;
+        patch.voiceResonance[0] = patch.params.resonance;
+        patch.voicePulseWidth[1] = clampRange(512 + decodeWebMidiUint14(offset), 512, 3584);
+        patch.voicePwmAmount[1] = decodeWebMidiUint14(offset);
+        patch.voiceHpCutoff[1] = decodeWebMidiUint14(offset);
+        patch.voiceLpCutoff[1] = decodeWebMidiUint14(offset);
+        patch.voiceResonance[1] = decodeWebMidiUint14(offset);
         return true;
     }
 
@@ -1399,6 +1735,8 @@ private:
             return;
         bool hadSavedSlots = savedSlotMask != 0;
         queuePatchForAudio(patch);
+        midiControlPatch = patch;
+        midiControlPatchValid = true;
         savePatchToSlot(slot, patch);
         if (!hadSavedSlots)
             startupSlot = slot;
@@ -1446,6 +1784,10 @@ private:
         patch.decay = state.params.decay;
         patch.sustain = state.params.sustain;
         patch.release = state.params.release;
+        patch.filterAttack = state.params.filterAttack;
+        patch.filterDecay = state.params.filterDecay;
+        patch.filterSustain = state.params.filterSustain;
+        patch.filterRelease = state.params.filterRelease;
         patch.lfoRate = state.params.lfoRate;
         patch.lfoPitchDepth = state.params.lfoPitchDepth;
         patch.lfoPwmDepth = state.params.lfoPwmDepth;
@@ -1453,6 +1795,16 @@ private:
         patch.lfoVcaDepth = state.params.lfoVcaDepth;
         patch.ringAmount = state.ringAmount;
         patch.ringSpeed = state.params.ringSpeed;
+        patch.voiceBSawLevel = state.voiceSawLevel[1];
+        patch.voiceBPulseLevel = state.voicePulseLevel[1];
+        patch.voiceBSineLevel = state.voiceSineLevel[1];
+        patch.voiceBNoiseLevel = state.voiceNoiseLevel[1];
+        patch.voiceBLevel = state.voiceLevel[1];
+        patch.voiceBPulseWidth = state.voicePulseWidth[1];
+        patch.voiceBPwmAmount = state.voicePwmAmount[1];
+        patch.voiceBHpCutoff = state.voiceHpCutoff[1];
+        patch.voiceBLpCutoff = state.voiceLpCutoff[1];
+        patch.voiceBResonance = state.voiceResonance[1];
         return patch;
     }
 
@@ -1479,6 +1831,10 @@ private:
         patch.params.decay = clamp12(saved.decay);
         patch.params.sustain = clamp12(saved.sustain);
         patch.params.release = clamp12(saved.release);
+        patch.params.filterAttack = clamp12(saved.filterAttack);
+        patch.params.filterDecay = clamp12(saved.filterDecay);
+        patch.params.filterSustain = clamp12(saved.filterSustain);
+        patch.params.filterRelease = clamp12(saved.filterRelease);
         patch.params.lfoRate = clamp12(saved.lfoRate);
         patch.params.lfoPitchDepth = clamp12(saved.lfoPitchDepth);
         patch.params.lfoPwmDepth = clamp12(saved.lfoPwmDepth);
@@ -1486,6 +1842,26 @@ private:
         patch.params.lfoVcaDepth = clamp12(saved.lfoVcaDepth);
         patch.ringAmount = clamp12(saved.ringAmount);
         patch.params.ringSpeed = clamp12(saved.ringSpeed);
+        patch.voiceSawLevel[0] = patch.params.sawLevel;
+        patch.voicePulseLevel[0] = patch.params.pulseLevel;
+        patch.voiceSineLevel[0] = patch.params.sineLevel;
+        patch.voiceNoiseLevel[0] = patch.params.noiseLevel;
+        patch.voiceLevel[0] = patch.params.voiceLevel;
+        patch.voiceSawLevel[1] = clamp12(saved.voiceBSawLevel);
+        patch.voicePulseLevel[1] = clamp12(saved.voiceBPulseLevel);
+        patch.voiceSineLevel[1] = clamp12(saved.voiceBSineLevel);
+        patch.voiceNoiseLevel[1] = clamp12(saved.voiceBNoiseLevel);
+        patch.voiceLevel[1] = clamp12(saved.voiceBLevel);
+        patch.voicePulseWidth[0] = patch.params.pulseWidth;
+        patch.voicePwmAmount[0] = patch.params.pwmAmount;
+        patch.voiceHpCutoff[0] = patch.params.hpCutoff;
+        patch.voiceLpCutoff[0] = patch.params.lpCutoff;
+        patch.voiceResonance[0] = patch.params.resonance;
+        patch.voicePulseWidth[1] = clampRange(saved.voiceBPulseWidth, 512, 3584);
+        patch.voicePwmAmount[1] = clamp12(saved.voiceBPwmAmount);
+        patch.voiceHpCutoff[1] = clamp12(saved.voiceBHpCutoff);
+        patch.voiceLpCutoff[1] = clamp12(saved.voiceBLpCutoff);
+        patch.voiceResonance[1] = clamp12(saved.voiceBResonance);
         return patch;
     }
 
@@ -1549,9 +1925,9 @@ private:
         LedBrightness(0, display & 1u ? 4095 : 0);
         LedBrightness(1, display & 2u ? 4095 : 0);
         LedBrightness(2, display & 4u ? 4095 : 0);
-        LedBrightness(3, (savedSlotMask & (1u << slot)) != 0 ? 4095 : 0);
-        LedBrightness(4, 0);
-        LedBrightness(5, 4095);
+        LedBrightness(3, display & 8u ? 4095 : 0);
+        LedBrightness(4, display & 16u ? 4095 : 0);
+        LedBrightness(5, display & 32u ? 4095 : 0);
     }
 
     SavedPatchBank currentPatchBank() const
@@ -1682,6 +2058,7 @@ void core1Worker()
         else
         {
             tud_task();
+            card.SetUsbMidiConnected(tud_mounted());
             card.SendPendingUsbMidiOutput();
 
             uint8_t bytes[64];
@@ -1705,7 +2082,10 @@ extern "C" void tuh_midi_mount_cb(
     (void)num_cables_tx;
 
     if (hostMidiDeviceAddress == 0)
+    {
         hostMidiDeviceAddress = dev_addr;
+        card.SetUsbMidiConnected(true);
+    }
 }
 
 extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
@@ -1713,7 +2093,10 @@ extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
     (void)instance;
 
     if (dev_addr == hostMidiDeviceAddress)
+    {
         hostMidiDeviceAddress = 0;
+        card.SetUsbMidiConnected(false);
+    }
 }
 
 extern "C" void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)

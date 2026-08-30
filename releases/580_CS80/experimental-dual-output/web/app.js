@@ -15,7 +15,11 @@ const envTargetEl = document.querySelector("#envTarget");
 const presetGridEl = document.querySelector("#presetGrid");
 const presetDetailEl = document.querySelector("#presetDetail");
 const presetNameEl = document.querySelector("#presetName");
+const saveBrowserPresetEl = document.querySelector("#saveBrowserPreset");
+const deleteBrowserPresetEl = document.querySelector("#deleteBrowserPreset");
+const refreshSlotsEl = document.querySelector("#refreshSlots");
 const readCardEl = document.querySelector("#readCard");
+const loadSlotEl = document.querySelector("#loadSlot");
 const applyPatchEl = document.querySelector("#applyPatch");
 const savePatchEl = document.querySelector("#savePatch");
 const deletePatchEl = document.querySelector("#deletePatch");
@@ -25,6 +29,7 @@ const developerPanelEl = document.querySelector("#developerPanel");
 const developerLogEl = document.querySelector("#developerLog");
 const clearDeveloperLogEl = document.querySelector("#clearDeveloperLog");
 const THEME_KEY = "cs80-editor-theme";
+const PRESET_STORAGE_KEY = "cs80-experimental-v10-user-presets";
 const MAX_LOG_LINES = 120;
 const SYSEX_MANUFACTURER = 0x7d;
 const SYSEX_ID = [0x43, 0x53, 0x38, 0x30]; // CS80
@@ -39,7 +44,8 @@ const COMMAND_REQUEST_SLOT = 0x08;
 const COMMAND_SLOT_RESPONSE = 0x09;
 const COMMAND_DELETE_SLOT = 0x0a;
 const COMMAND_SET_STARTUP_SLOT = 0x0b;
-const PATCH_PROTOCOL_VERSION = 7;
+const COMMAND_DIAGNOSTIC_ACK = 0x0c;
+const PATCH_PROTOCOL_VERSION = 10;
 let themeMode = loadThemeMode();
 let developerMode = false;
 let developerLogLines = [];
@@ -51,6 +57,10 @@ let startupSlot = 0;
 let pickupPreview = [false, false, false];
 let activeTone = "all";
 let previewVoice = "a";
+let slotReadReason = "manual";
+let mangledSysexBytes = [];
+let midiPreparing = null;
+let midiConnectInProgress = false;
 
 const defaultPatchParams = {
   pitch: 0,
@@ -72,6 +82,10 @@ const defaultPatchParams = {
   decay: 760,
   sustain: 3300,
   release: 1200,
+  filterAttack: 40,
+  filterDecay: 480,
+  filterSustain: 2400,
+  filterRelease: 900,
   lfoRate: 1750,
   lfoPitchDepth: 980,
   lfoPwmDepth: 1550,
@@ -82,6 +96,24 @@ const defaultPatchParams = {
   pitchCvRange: 1,
 };
 let selectedPresetIndex = 0;
+let customPresets = loadCustomPresets();
+
+function loadCustomPresets() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PRESET_STORAGE_KEY));
+    return Array.isArray(saved) ? saved.filter((preset) => preset?.name && preset?.params) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveCustomPresets() {
+  localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(customPresets));
+}
+
+function allPresets() {
+  return [...presets, ...customPresets];
+}
 
 const knobMaps = {
   up: [
@@ -130,6 +162,10 @@ const presets = [
       decay: 700,
       sustain: 4095,
       release: 620,
+      filterAttack: 20,
+      filterDecay: 480,
+      filterSustain: 1200,
+      filterRelease: 520,
       lfoRate: 500,
       lfoPitchDepth: 0,
       lfoPwmDepth: 0,
@@ -148,7 +184,14 @@ const presets = [
     filter: "Resonant bandpass-like shape with raised HPF and open LPF",
     envelope: "Immediate attack, sustained note body, short/medium release",
     modulation: "Audible vibrato and PWM wobble, plus a little ring colour for tape-era shimmer",
-    params: { ...defaultPatchParams, lfoPitchDepth: 560, lfoRate: 1620, lfoPwmDepth: 1480 },
+    params: {
+      ...defaultPatchParams,
+      lfoPitchDepth: 260,
+      lfoRate: 1420,
+      lfoPwmDepth: 980,
+      vcfDepth: 1000,
+      vcaDepth: 180,
+    },
   },
   {
     name: "Initial Brass",
@@ -473,7 +516,7 @@ function renderThemeMode() {
 function renderDeveloperMode() {
   developerPanelEl.classList.toggle("is-hidden", !developerMode);
   developerToggleEl.classList.toggle("is-active", developerMode);
-  developerToggleEl.textContent = developerMode ? "Dev On" : "Dev";
+  developerToggleEl.textContent = developerMode ? "Developer Tools On" : "Developer Tools Off";
   developerToggleEl.setAttribute("aria-checked", String(developerMode));
 }
 
@@ -557,6 +600,10 @@ function currentPatchPayload() {
     Number(getParam("decay").value),
     Number(getParam("sustain").value),
     Number(getParam("release").value),
+    Number(getParam("filterAttack").value),
+    Number(getParam("filterDecay").value),
+    Number(getParam("filterSustain").value),
+    Number(getParam("filterRelease").value),
     Number(getParam("lfoRate").value),
     Number(getParam("lfoPitchDepth").value),
     Number(getParam("lfoPwmDepth").value),
@@ -564,6 +611,16 @@ function currentPatchPayload() {
     Number(getParam("vcaDepth").value),
     Number(getParam("ring").value),
     Number(getParam("ringSpeed").value),
+    paramValue("sawLevelB", 450),
+    paramValue("pulseLevelB", 2500),
+    paramValue("sineLevelB", 2300),
+    paramValue("noiseLevelB", 220),
+    paramValue("levelB", 3600),
+    paramValue("pulseB", 1650),
+    paramValue("pwmAmountB", 1450),
+    paramValue("hpB", 1500),
+    paramValue("lpB", 2450),
+    paramValue("resB", 2650),
   ].forEach((value) => payload.push(...encodeUint14(value)));
   return payload;
 }
@@ -576,9 +633,42 @@ function renderCardSlots() {
   Array.from(cardSlotEl.options).forEach((option, index) => {
     const saved = (savedSlotMask & (1 << index)) !== 0;
     const startup = saved && index === startupSlot;
-    option.textContent = `Slot ${index + 1}${saved ? " saved" : " empty"}${startup ? " (startup)" : ""}`;
+    option.textContent = `Card preset ${index + 1}${saved ? " saved" : " empty"}${startup ? " (startup)" : ""}`;
   });
   setStartupSlotEl.disabled = (savedSlotMask & (1 << selectedCardSlot())) === 0;
+  loadSlotEl.disabled = (savedSlotMask & (1 << selectedCardSlot())) === 0;
+}
+
+function requestSlotMap(reason = "manual") {
+  if (sendSysex(COMMAND_REQUEST_SLOTS)) {
+    if (warnIfNoReadback("Slot refresh request")) return true;
+    statusEl.textContent = reason === "manual"
+      ? "Card slot refresh requested."
+      : "Checking card slots...";
+    logDeveloper("slot map requested", { reason });
+    return true;
+  }
+  return false;
+}
+
+function requestSelectedSlot(reason = "manual") {
+  const slot = selectedCardSlot();
+  if ((savedSlotMask & (1 << slot)) === 0) {
+    statusEl.textContent = `Card slot ${slot + 1} is empty.`;
+    logDeveloper("slot read skipped", { slot: slot + 1, reason: "empty" });
+    return false;
+  }
+
+  if (sendSysex(COMMAND_REQUEST_SLOT, [slot & 0x07])) {
+    slotReadReason = reason;
+    if (warnIfNoReadback(`Card slot ${slot + 1} read request`)) return true;
+    statusEl.textContent = reason === "save"
+      ? `Verifying saved card slot ${slot + 1}...`
+      : `Card slot ${slot + 1} read requested.`;
+    logDeveloper("slot read requested", { slot: slot + 1, reason });
+    return true;
+  }
+  return false;
 }
 
 function resetPickupPreview() {
@@ -664,6 +754,43 @@ function frameFor(command, payload = []) {
   return [0xf0, SYSEX_MANUFACTURER, ...SYSEX_ID, command, ...payload, 0xf7];
 }
 
+function portName(port) {
+  return port?.name || port?.manufacturer || "unnamed port";
+}
+
+function normalizedPortName(port) {
+  return portName(port).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function cardPortScore(port) {
+  const name = normalizedPortName(port);
+  let score = 0;
+  if (name.includes("cs80")) score += 8;
+  if (name.includes("workshop")) score += 6;
+  if (name.includes("pico")) score += 4;
+  if (name.includes("rp2040")) score += 3;
+  if (name.includes("tinyusb")) score += 3;
+  return score;
+}
+
+function bestCardPort(ports) {
+  return ports
+    .map((port) => ({ port, score: cardPortScore(port) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)[0]?.port || null;
+}
+
+function readbackAvailable() {
+  return Boolean(midiAccess && Array.from(midiAccess.inputs.values()).length && midiOutput);
+}
+
+function warnIfNoReadback(action) {
+  if (readbackAvailable()) return false;
+  statusEl.textContent = `${action} sent, but no MIDI input is available for card readback. Reconnect the card and use Link Card again.`;
+  logDeveloper("readback unavailable", { action, output: midiOutput ? portName(midiOutput) : null });
+  return true;
+}
+
 function sendSysex(command, payload = []) {
   if (!midiOutput) {
     statusEl.textContent = "Connect MIDI before sending a patch.";
@@ -674,12 +801,12 @@ function sendSysex(command, payload = []) {
 
   const frame = frameFor(command, payload);
   midiOutput.send(frame);
-  logDeveloper("sysex sent", { command, bytes: frame.length, output: midiOutput.name || "unnamed port" });
+  logDeveloper("sysex sent", { command, bytes: frame.length, output: portName(midiOutput) });
   return true;
 }
 
 function usePatchPayload(payload, sourceSlot = 0x7f) {
-  if (payload[0] !== PATCH_PROTOCOL_VERSION || payload.length < 55) {
+  if (payload[0] !== PATCH_PROTOCOL_VERSION || payload.length < 83) {
     logDeveloper("patch response ignored", { reason: "unsupported payload", version: payload[0], bytes: payload.length, slot: sourceSlot });
     return;
   }
@@ -705,24 +832,40 @@ function usePatchPayload(payload, sourceSlot = 0x7f) {
   setParam("decay", decodeUint14(payload, offset)); offset += 2;
   setParam("sustain", decodeUint14(payload, offset)); offset += 2;
   setParam("release", decodeUint14(payload, offset)); offset += 2;
+  setParam("filterAttack", decodeUint14(payload, offset)); offset += 2;
+  setParam("filterDecay", decodeUint14(payload, offset)); offset += 2;
+  setParam("filterSustain", decodeUint14(payload, offset)); offset += 2;
+  setParam("filterRelease", decodeUint14(payload, offset)); offset += 2;
   setParam("lfoRate", decodeUint14(payload, offset)); offset += 2;
   setParam("lfoPitchDepth", decodeUint14(payload, offset)); offset += 2;
   setParam("lfoPwmDepth", decodeUint14(payload, offset)); offset += 2;
   setParam("vcfDepth", decodeUint14(payload, offset)); offset += 2;
   setParam("vcaDepth", decodeUint14(payload, offset)); offset += 2;
   setParam("ring", decodeUint14(payload, offset)); offset += 2;
-  setParam("ringSpeed", decodeUint14(payload, offset));
+  setParam("ringSpeed", decodeUint14(payload, offset)); offset += 2;
+  setParam("sawLevelB", decodeUint14(payload, offset)); offset += 2;
+  setParam("pulseLevelB", decodeUint14(payload, offset)); offset += 2;
+  setParam("sineLevelB", decodeUint14(payload, offset)); offset += 2;
+  setParam("noiseLevelB", decodeUint14(payload, offset)); offset += 2;
+  setParam("levelB", decodeUint14(payload, offset));
+  offset += 2;
+  setParam("pulseB", decodeUint14(payload, offset)); offset += 2;
+  setParam("pwmAmountB", decodeUint14(payload, offset)); offset += 2;
+  setParam("hpB", decodeUint14(payload, offset)); offset += 2;
+  setParam("lpB", decodeUint14(payload, offset)); offset += 2;
+  setParam("resB", decodeUint14(payload, offset));
   drawEnvelope();
   resetPickupPreview();
   statusEl.textContent = sourceSlot < 8
     ? `Patch read from card slot ${sourceSlot + 1}.`
     : "Patch read from card.";
-  protocolEl.textContent = "CS80 v7";
+  protocolEl.textContent = "CS80 experimental v10";
   logDeveloper("patch response applied", { version: payload[0], slot: sourceSlot < 8 ? sourceSlot + 1 : null });
 }
 
 function handleMidiMessage(event) {
   const data = Array.from(event.data);
+  if (handleMangledSysexChunk(data)) return;
   if (data[0] !== 0xf0 || data[data.length - 1] !== 0xf7) return;
   if (data[1] !== SYSEX_MANUFACTURER) return;
   if (!SYSEX_ID.every((value, index) => data[2 + index] === value)) return;
@@ -730,6 +873,11 @@ function handleMidiMessage(event) {
   const command = data[6];
   const payload = data.slice(7, -1);
   logDeveloper("sysex received", { command, bytes: data.length, input: midiInput?.name || "unnamed port" });
+
+  if (command === COMMAND_DIAGNOSTIC_ACK) {
+    logDeveloper("ignored diagnostic ack", { echoedCommand: payload[0] ?? null });
+    return;
+  }
 
   if (command === COMMAND_PATCH_RESPONSE) {
     const hasSlotByte = payload[0] !== PATCH_PROTOCOL_VERSION;
@@ -743,6 +891,10 @@ function handleMidiMessage(event) {
     renderCardSlots();
     cardSlotEl.value = String(slot);
     usePatchPayload(payload.slice(1), slot);
+    if (slotReadReason === "save") {
+      statusEl.textContent = `Verified patch saved in card slot ${slot + 1}.`;
+    }
+    slotReadReason = "manual";
   }
 
   if (command === COMMAND_SLOTS_RESPONSE) {
@@ -750,34 +902,91 @@ function handleMidiMessage(event) {
     startupSlot = (payload[2] ?? 0) & 0x07;
     renderCardSlots();
     logDeveloper("card slot map received", { mask: savedSlotMask, startupSlot: startupSlot + 1 });
+    statusEl.textContent = `Card slots refreshed. Startup slot is ${startupSlot + 1}.`;
   }
+}
+
+function handleMangledSysexChunk(data) {
+  if (data.length !== 3 || data[0] !== 0x80) return false;
+
+  const wasEmpty = mangledSysexBytes.length === 0;
+  mangledSysexBytes.push(data[1] & 0x7f, data[2] & 0x7f);
+  if (wasEmpty) {
+    logDeveloper("mangled sysex chunks started", {
+      head: data.slice(0, 3).map((byte) => byte.toString(16).padStart(2, "0")).join(" "),
+    });
+  }
+  const headerIndex = mangledSysexBytes.findIndex((value, index, bytes) =>
+    value === SYSEX_MANUFACTURER &&
+    SYSEX_ID.every((id, idIndex) => bytes[index + 1 + idIndex] === id)
+  );
+  if (headerIndex < 0) {
+    if (mangledSysexBytes.length > 12) {
+      logDeveloper("mangled sysex header not found", { bufferedBytes: mangledSysexBytes.length });
+      mangledSysexBytes = mangledSysexBytes.slice(-6);
+    }
+    return true;
+  }
+  if (headerIndex > 0) {
+    logDeveloper("mangled sysex skipped prefix", { skippedBytes: headerIndex });
+    mangledSysexBytes = mangledSysexBytes.slice(headerIndex);
+  }
+
+  const command = mangledSysexBytes[5];
+  if (command === undefined) return true;
+  const expectedPayloadBytes = expectedPayloadLength(command);
+  if (expectedPayloadBytes < 0) {
+    logDeveloper("mangled sysex unknown command", { command, bufferedBytes: mangledSysexBytes.length });
+    mangledSysexBytes = [];
+    return true;
+  }
+  const expectedDataBytes = 6 + expectedPayloadBytes;
+  if (mangledSysexBytes.length < expectedDataBytes) return true;
+
+  const frame = [0xf0, ...mangledSysexBytes.slice(0, expectedDataBytes), 0xf7];
+  mangledSysexBytes = mangledSysexBytes.slice(expectedDataBytes);
+  logDeveloper("reconstructed mangled sysex", { command, bytes: frame.length });
+  handleMidiMessage({ data: frame, target: { name: "CS80 reconstructed" } });
+  return true;
+}
+
+function expectedPayloadLength(command) {
+  if (command === COMMAND_DIAGNOSTIC_ACK) return 1;
+  if (command === COMMAND_SLOTS_RESPONSE) return 3;
+  if (command === COMMAND_PATCH_RESPONSE || command === COMMAND_SLOT_RESPONSE) return 84;
+  return -1;
 }
 
 function selectMidiPorts() {
   const outputs = Array.from(midiAccess.outputs.values());
   const inputs = Array.from(midiAccess.inputs.values());
-  const match = (port) => /cs80|workshop|pico/i.test(port.name || "");
 
-  midiOutput = outputs.find(match) || outputs[0] || null;
-  midiInput = inputs.find(match) || inputs[0] || null;
+  midiOutput = bestCardPort(outputs) || outputs[0] || null;
+  const outputName = normalizedPortName(midiOutput);
+  midiInput = inputs.find((input) => normalizedPortName(input) === outputName) || bestCardPort(inputs) || inputs[0] || null;
 
   inputs.forEach((input) => {
-    input.onmidimessage = input === midiInput ? handleMidiMessage : null;
+    input.onmidimessage = handleMidiMessage;
   });
 
-  protocolEl.textContent = midiOutput ? "CS80 v7" : "No MIDI Out";
+  protocolEl.textContent = midiOutput ? (inputs.length ? "CS80 v8" : "Send only") : "No MIDI Out";
   statusEl.textContent = midiOutput
-    ? `MIDI connected: ${midiOutput.name || "unnamed output"}.`
+    ? inputs.length
+      ? `MIDI connected: out ${portName(midiOutput)}, listening to ${inputs.length} input${inputs.length === 1 ? "" : "s"}.`
+      : `MIDI output connected: ${portName(midiOutput)}. No MIDI input found for readback.`
     : "MIDI access granted, but no output port was found.";
   logDeveloper("midi ports selected", {
-    input: midiInput?.name || null,
-    output: midiOutput?.name || null,
+    input: midiInput ? portName(midiInput) : null,
+    output: midiOutput ? portName(midiOutput) : null,
+    availableInputs: inputs.map(portName),
+    availableOutputs: outputs.map(portName),
   });
 
-  if (midiOutput) {
-    sendSysex(COMMAND_REQUEST_SLOTS);
+  if (readbackAvailable() && selectMidiPorts.shouldAutoRefresh) {
+    requestSlotMap("connect");
   }
 }
+selectMidiPorts.shouldAutoRefresh = true;
 
 function logDeveloper(message, detail = null) {
   const stamp = new Date().toISOString().slice(11, 19);
@@ -839,6 +1048,10 @@ function drawEnvelope() {
   const decay = Number(document.querySelector("[data-param='decay']").value);
   const sustain = Number(document.querySelector("[data-param='sustain']").value);
   const release = Number(document.querySelector("[data-param='release']").value);
+  const filterAttack = Number(document.querySelector("[data-param='filterAttack']").value);
+  const filterDecay = Number(document.querySelector("[data-param='filterDecay']").value);
+  const filterSustain = Number(document.querySelector("[data-param='filterSustain']").value);
+  const filterRelease = Number(document.querySelector("[data-param='filterRelease']").value);
   const showFilter = envTargetEl?.value === "Filter";
   const labelY = 22;
   const topY = 48;
@@ -859,27 +1072,27 @@ function drawEnvelope() {
     ctx.stroke();
   }
 
-  const attackScale = showFilter ? 0.55 : 1;
-  const decayScale = showFilter ? 0.62 : 1;
-  const sustainScale = showFilter ? 0.78 : 1;
-  const aX = 40 + (attack / 4095) * 170 * attackScale;
-  const dX = aX + 50 + (decay / 4095) * 120 * decayScale;
-  const sY = bottomY - (sustain / 4095) * graphHeight;
-  const rX = w - 40 - (release / 4095) * 140;
-  const filterSustainY = bottomY - ((sustain / 4095) * sustainScale) * graphHeight;
+  const envAttack = showFilter ? filterAttack : attack;
+  const envDecay = showFilter ? filterDecay : decay;
+  const envSustain = showFilter ? filterSustain : sustain;
+  const envRelease = showFilter ? filterRelease : release;
+  const aX = 40 + (envAttack / 4095) * 170;
+  const dX = aX + 50 + (envDecay / 4095) * 120;
+  const sY = bottomY - (envSustain / 4095) * graphHeight;
+  const rX = w - 40 - (envRelease / 4095) * 140;
 
   ctx.strokeStyle = styles.getPropertyValue("--teal-strong").trim() || "#48b6a7";
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(28, bottomY);
   ctx.lineTo(aX, topY);
-  ctx.lineTo(dX, showFilter ? filterSustainY : sY);
-  ctx.lineTo(rX, showFilter ? filterSustainY : sY);
+  ctx.lineTo(dX, sY);
+  ctx.lineTo(rX, sY);
   ctx.lineTo(w - 28, bottomY);
   ctx.stroke();
 
   ctx.fillStyle = styles.getPropertyValue("--yellow").trim() || "#e0c443";
-  for (const [x, y] of [[aX, topY], [dX, showFilter ? filterSustainY : sY], [rX, showFilter ? filterSustainY : sY]]) {
+  for (const [x, y] of [[aX, topY], [dX, sY], [rX, sY]]) {
     ctx.beginPath();
     ctx.arc(x, y, 6, 0, Math.PI * 2);
     ctx.fill();
@@ -887,21 +1100,49 @@ function drawEnvelope() {
 
   ctx.fillStyle = styles.getPropertyValue("--ink-soft").trim() || "#b8b0a3";
   ctx.font = "14px Inter, system-ui, sans-serif";
-  ctx.fillText(showFilter ? "Filter contour: faster attack/decay into LP cutoff" : "Amp contour: shared output level envelope", 18, labelY);
+  ctx.fillText(showFilter ? "Filter ADSR: shared LP cutoff contour" : "Amp ADSR: shared output level envelope", 18, labelY);
 }
 
 function resolvedPresetParams(preset) {
   const legacy = preset.params || {};
   const { mix, pwm, vcoDepth, ...params } = legacy;
+  const attack = params.attack ?? defaultPatchParams.attack;
+  const decay = params.decay ?? defaultPatchParams.decay;
+  const sustain = params.sustain ?? defaultPatchParams.sustain;
+  const release = params.release ?? defaultPatchParams.release;
+  const sawLevel = params.sawLevel ?? defaultPatchParams.sawLevel;
+  const pulseLevel = params.pulseLevel ?? defaultPatchParams.pulseLevel;
+  const sineLevel = params.sineLevel ?? defaultPatchParams.sineLevel;
+  const noiseLevel = params.noiseLevel ?? defaultPatchParams.noiseLevel;
+  const sourceTotal = sawLevel + pulseLevel + sineLevel + (noiseLevel >> 1);
+  const sourceBoost = preset.name === "Init" || sourceTotal >= 6400
+    ? 4096
+    : sourceTotal >= 5000
+      ? 4864
+      : 6144;
+  const boostSource = (value) => Math.min(4095, Math.round((value * sourceBoost) / 4096));
+  const musicalSustain = preset.name === "Init" || sustain >= 1200
+    ? sustain
+    : Math.round(1200 + (sustain * 2) / 5);
   return {
     ...defaultPatchParams,
     ...params,
+    sawLevel: boostSource(sawLevel),
+    pulseLevel: boostSource(pulseLevel),
+    sineLevel: boostSource(sineLevel),
+    noiseLevel: boostSource(noiseLevel),
+    level: preset.name === "Init" ? (params.level ?? defaultPatchParams.level) : (params.level ?? 4095),
     portamento: params.portamento ?? (preset.name === "Doctor Who Theme" ? defaultPatchParams.portamento : 0),
     // Preserve the previous preset character while separating its former
     // combined VCO modulation control into independent pitch and PWM routes.
     pwmAmount: params.pwmAmount ?? pwm ?? defaultPatchParams.pwmAmount,
     lfoPitchDepth: params.lfoPitchDepth ?? Math.round((vcoDepth || 0) / 4),
     lfoPwmDepth: params.lfoPwmDepth ?? vcoDepth ?? defaultPatchParams.lfoPwmDepth,
+    filterAttack: params.filterAttack ?? Math.round(attack * 0.55),
+    filterDecay: params.filterDecay ?? Math.round(decay * 0.62),
+    sustain: params.sustain == null ? musicalSustain : musicalSustain,
+    filterSustain: params.filterSustain ?? Math.round(musicalSustain * 0.45),
+    filterRelease: params.filterRelease ?? Math.round(release * 0.75),
   };
 }
 
@@ -910,9 +1151,10 @@ function percent(value) {
 }
 
 function renderPresetDetail(index = 0) {
-  const preset = presets[index] || presets[0];
+  const preset = allPresets()[index] || presets[0];
   const params = resolvedPresetParams(preset);
   presetNameEl.value = preset.name;
+  deleteBrowserPresetEl.disabled = index < presets.length;
   presetDetailEl.innerHTML = `
     <h3>${preset.name}</h3>
     <dl>
@@ -926,8 +1168,24 @@ function renderPresetDetail(index = 0) {
 }
 
 function applyPreset(index) {
-  const preset = presets[index] || presets[0];
+  const preset = allPresets()[index] || presets[0];
+  const preservedCvSettings = {
+    pitchCvRange: getParam("pitchCvRange").value,
+    filterCvMode: getParam("filterCvMode").value,
+    expression: getParam("expression").value,
+  };
   const params = resolvedPresetParams(preset);
+  Object.assign(params, preservedCvSettings);
+  if (index < presets.length) {
+    // Factory patches begin as true unison A/B settings.
+    params.pitch = 0;
+    Object.assign(params, {
+      sawLevelB: params.sawLevel, pulseLevelB: params.pulseLevel,
+      sineLevelB: params.sineLevel, noiseLevelB: params.noiseLevel,
+      levelB: params.level, pulseB: params.pulse, pwmAmountB: params.pwmAmount,
+      hpB: params.hp, lpB: params.lp, resB: params.res,
+    });
+  }
   Object.entries(params).forEach(([name, value]) => setParam(name, value));
   presetNameEl.value = preset.name;
   drawEnvelope();
@@ -936,8 +1194,41 @@ function applyPreset(index) {
   logDeveloper("preset loaded", { slot: index + 1, name: preset.name, params });
 }
 
+function saveNamedBrowserPreset() {
+  const name = presetNameEl.value.trim() || "Custom preset";
+  const params = {};
+  document.querySelectorAll("[data-param]").forEach((input) => {
+    params[input.dataset.param] = Number(input.value);
+  });
+  customPresets.push({
+    name,
+    category: "user",
+    detail: "Named browser preset",
+    sources: "Current A/B mixer settings",
+    filter: "Current A/B filter settings",
+    envelope: "Current shared envelopes",
+    modulation: "Current shared modulation",
+    params,
+  });
+  saveCustomPresets();
+  activeTone = "all";
+  selectedPresetIndex = presets.length + customPresets.length - 1;
+  renderPresets();
+  statusEl.textContent = `Saved browser preset: ${name}. Use Save to Card separately for persistent hardware storage.`;
+}
+
+function deleteNamedBrowserPreset() {
+  if (selectedPresetIndex < presets.length) return;
+  customPresets.splice(selectedPresetIndex - presets.length, 1);
+  saveCustomPresets();
+  selectedPresetIndex = 0;
+  renderPresets();
+  statusEl.textContent = "Named browser preset removed.";
+}
+
 function renderPresets() {
-  const visiblePresets = presets
+  const all = allPresets();
+  const visiblePresets = all
     .map((preset, index) => ({ preset, index }))
     .filter(({ preset }) => activeTone === "all" || preset.category === activeTone);
 
@@ -983,6 +1274,41 @@ function setPreviewVoice(voice) {
   logDeveloper("preview voice selected", { previewVoice });
 }
 
+async function openMidiPort(port, kind) {
+  if (!port || typeof port.open !== "function" || port.connection === "open") return;
+  try {
+    await port.open();
+    logDeveloper("midi port opened", { kind, port: portName(port) });
+  } catch (error) {
+    logDeveloper("midi port open failed", {
+      kind,
+      port: portName(port),
+      message: error?.message || "unknown error",
+    });
+  }
+}
+
+async function prepareMidiPorts() {
+  if (!midiAccess) return;
+  if (midiPreparing) return midiPreparing;
+  midiPreparing = (async () => {
+  const inputs = Array.from(midiAccess.inputs.values());
+  const outputs = Array.from(midiAccess.outputs.values());
+  selectMidiPorts.shouldAutoRefresh = false;
+  await Promise.allSettled([
+    ...inputs.map((input) => openMidiPort(input, "input")),
+    ...outputs.map((output) => openMidiPort(output, "output")),
+  ]);
+  selectMidiPorts();
+  selectMidiPorts.shouldAutoRefresh = true;
+  })();
+  try {
+    await midiPreparing;
+  } finally {
+    midiPreparing = null;
+  }
+}
+
 async function connectMidi() {
   if (!navigator.requestMIDIAccess) {
     statusEl.textContent = "Web MIDI is not available in this browser.";
@@ -992,10 +1318,16 @@ async function connectMidi() {
   }
 
   try {
+    midiConnectInProgress = true;
     const access = await navigator.requestMIDIAccess({ sysex: true });
     midiAccess = access;
-    midiAccess.onstatechange = selectMidiPorts;
-    selectMidiPorts();
+    midiAccess.onstatechange = () => {
+      if (!midiConnectInProgress) {
+        prepareMidiPorts();
+      }
+    };
+    await prepareMidiPorts();
+    requestSlotMap("connect");
     logDeveloper("midi access granted", {
       inputs: Array.from(access.inputs.values()).map((input) => input.name || "unnamed port"),
       outputs: Array.from(access.outputs.values()).map((output) => output.name || "unnamed port"),
@@ -1004,6 +1336,8 @@ async function connectMidi() {
     statusEl.textContent = `MIDI connection failed: ${error.message}`;
     protocolEl.textContent = "Disconnected";
     logDeveloper("midi connection failed", { message: error.message });
+  } finally {
+    midiConnectInProgress = false;
   }
 }
 
@@ -1032,6 +1366,9 @@ clearDeveloperLogEl.addEventListener("click", () => {
   renderDeveloperLog();
 });
 
+saveBrowserPresetEl.addEventListener("click", saveNamedBrowserPreset);
+deleteBrowserPresetEl.addEventListener("click", deleteNamedBrowserPreset);
+
 document.querySelectorAll("input[type='range']").forEach((range) => {
   updateOutput(range);
   range.addEventListener("input", () => {
@@ -1042,20 +1379,20 @@ document.querySelectorAll("input[type='range']").forEach((range) => {
   });
 });
 
-readCardEl.addEventListener("click", () => {
-  const slot = selectedCardSlot();
-  if ((savedSlotMask & (1 << slot)) !== 0) {
-    if (sendSysex(COMMAND_REQUEST_SLOT, [slot & 0x07])) {
-      statusEl.textContent = `Card slot ${slot + 1} read requested.`;
-      logDeveloper("slot read requested", { slot: slot + 1 });
-    }
-    return;
-  }
+refreshSlotsEl.addEventListener("click", () => {
+  requestSlotMap("manual");
+});
 
+readCardEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_REQUEST_PATCH)) {
-    statusEl.textContent = `Slot ${slot + 1} is empty; current card patch read requested.`;
+    if (warnIfNoReadback("Current patch read request")) return;
+    statusEl.textContent = "Current card patch read requested.";
     logDeveloper("current patch read requested");
   }
+});
+
+loadSlotEl.addEventListener("click", () => {
+  requestSelectedSlot("manual");
 });
 
 applyPatchEl.addEventListener("click", () => {
@@ -1070,8 +1407,10 @@ savePatchEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_SAVE_SLOT, [slot & 0x07, ...currentPatchPayload()])) {
     savedSlotMask |= 1 << slot;
     renderCardSlots();
-    statusEl.textContent = `Patch saved to card slot ${slot + 1}.`;
+    if (warnIfNoReadback(`Save request for card slot ${slot + 1}`)) return;
+    statusEl.textContent = `Save sent for card slot ${slot + 1}; verifying...`;
     logDeveloper("slot save requested", { slot: slot + 1 });
+    window.setTimeout(() => requestSelectedSlot("save"), 120);
   }
 });
 
@@ -1085,8 +1424,10 @@ setStartupSlotEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_SET_STARTUP_SLOT, [slot & 0x07])) {
     startupSlot = slot;
     renderCardSlots();
-    statusEl.textContent = `Card slot ${slot + 1} will load at startup.`;
+    if (warnIfNoReadback(`Startup slot ${slot + 1} request`)) return;
+    statusEl.textContent = `Startup slot ${slot + 1} sent; refreshing slot map...`;
     logDeveloper("startup slot set", { slot: slot + 1 });
+    window.setTimeout(() => requestSlotMap("startup"), 120);
   }
 });
 
@@ -1110,8 +1451,10 @@ deletePatchEl.addEventListener("click", () => {
   if (sendSysex(COMMAND_DELETE_SLOT, [slot & 0x07])) {
     savedSlotMask &= ~(1 << slot);
     renderCardSlots();
-    statusEl.textContent = `Delete sent for card slot ${slot + 1}.`;
+    if (warnIfNoReadback(`Delete request for card slot ${slot + 1}`)) return;
+    statusEl.textContent = `Delete sent for card slot ${slot + 1}; refreshing slot map...`;
     logDeveloper("slot delete requested", { slot: slot + 1 });
+    window.setTimeout(() => requestSlotMap("delete"), 120);
   }
 });
 

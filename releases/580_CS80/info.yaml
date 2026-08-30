@@ -5,7 +5,9 @@ summary: >-
   Draft card scaffold for a Yamaha CS-80-inspired Workshop Computer synth voice.
   The current stable firmware keeps a monophonic note path but renders two
   related output voices: Audio Out 1 is Voice A and Audio Out 2 is Voice B,
-  detunable relative to Voice A. It includes expressive envelopes, high-pass and
+  detunable relative to Voice A. Pitch, gate, envelopes, portamento, CV policy,
+  MIDI handling, LFO timing, and preset state are shared; only oscillator/filter
+  colour is A/B-specific. It includes expressive envelopes, high-pass and
   low-pass filter character, ring modulation, MIDI/Web MIDI control, and a
   browser editor.
 Language: C++ (Pico SDK)
