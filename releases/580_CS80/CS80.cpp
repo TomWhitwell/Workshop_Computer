@@ -222,6 +222,17 @@ public:
             publishAudioPatchSnapshot();
         }
 
+        if (startupSelectMode)
+        {
+            AudioOut1(0);
+            AudioOut2(0);
+            CVOut1(0);
+            CVOut2(0);
+            PulseOut1(false);
+            PulseOut2(false);
+            return;
+        }
+
         if (gateNow && !lastGate)
         {
             triggerVoice(voiceA);
@@ -476,6 +487,7 @@ private:
     uint32_t startupSelectSamples = 0;
     bool startupSelectChecked = false;
     bool startupSelectMode = false;
+    bool startupSelectReleased = false;
     uint8_t startupSelectedSlot = 0;
 
     void processMidiVoiceByte(uint8_t byte)
@@ -753,9 +765,13 @@ private:
         if (startupSelectChecked)
             return;
 
+        if (startupSelectMode)
+            return;
+
         if (mode == Switch::Down && savedSlotMask != 0)
         {
             startupSelectMode = true;
+            startupSelectReleased = false;
             return;
         }
 
@@ -776,6 +792,7 @@ private:
         {
             startupSelectMode = false;
             startupSelectChecked = true;
+            startupSelectReleased = false;
             return;
         }
 
@@ -787,11 +804,18 @@ private:
 
         if (mode != Switch::Down)
         {
+            startupSelectReleased = true;
+            return;
+        }
+
+        if (startupSelectReleased)
+        {
             applySavedSlot(startupSelectedSlot);
             startupSlot = startupSelectedSlot;
             savePatchBankIfChanged();
             startupSelectMode = false;
             startupSelectChecked = true;
+            startupSelectReleased = false;
         }
     }
 
@@ -1689,9 +1713,9 @@ private:
         LedBrightness(0, display & 1u ? 4095 : 0);
         LedBrightness(1, display & 2u ? 4095 : 0);
         LedBrightness(2, display & 4u ? 4095 : 0);
-        LedBrightness(3, (savedSlotMask & (1u << slot)) != 0 ? 4095 : 0);
-        LedBrightness(4, 0);
-        LedBrightness(5, 4095);
+        LedBrightness(3, display & 8u ? 4095 : 0);
+        LedBrightness(4, display & 16u ? 4095 : 0);
+        LedBrightness(5, display & 32u ? 4095 : 0);
     }
 
     SavedPatchBank currentPatchBank() const

@@ -81,9 +81,10 @@ the editor's `Start Here` button to choose a different saved startup slot.
 live card patch, and `Load Slot` recalls the selected saved slot.
 
 At startup, holding the Down switch during the short boot selection window enters
-patch-slot select. Main chooses among saved slots, LEDs show the selected slot
-number, and releasing Down loads the slot and stores it as the default startup
-slot.
+patch-slot select. Main chooses among saved slots while the LEDs show only the
+selected slot number in binary. Release Down to keep browsing, then press Down
+again to load the selected slot, store it as the default startup slot, and enter
+normal performance mode.
 
 Factory/example presets preserve the editor's current CV policy when loaded.
 Saved card slots are full snapshots: the pitch-CV range is part of each saved

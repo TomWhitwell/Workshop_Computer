@@ -159,8 +159,9 @@ host:
     firmware keeps one monophonic note path and renders split A/B audio outputs.
     Current draft firmware stores eight Web MIDI patch slots in flash. The Web
     editor can choose a saved startup slot, and holding Down during the startup
-    selection window lets Main override it, with the LEDs showing the slot
-    number. With no saved startup slot, the compiled fallback is the Web
+    selection window lets Main override it. In startup selection the LEDs show
+    only the selected slot number in binary; release Down to keep browsing, then
+    press Down again to load that slot and enter performance mode. With no saved startup slot, the compiled fallback is the Web
     editor's Doctor Who Theme preset, including its portamento setting. Each saved patch includes its pitch-CV range mode. Web MIDI patch
     readback and saved slots
     cover the visible editor controls, including independent additive
