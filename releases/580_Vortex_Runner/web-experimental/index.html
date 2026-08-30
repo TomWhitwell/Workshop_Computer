@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Vortex Runner Draft Editor</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Vortex Runner</h1>
+        <p>Draft mono-first editor for the Workshop Computer card.</p>
+      </div>
+      <div class="transport">
+        <button id="themeToggle" type="button" role="switch" aria-checked="false" title="Toggle light mode">Dark</button>
+        <button id="connect" type="button">Connect MIDI</button>
+        <select id="cardSlot" aria-label="Card preset slot">
+          <option value="0">Slot 1</option>
+          <option value="1">Slot 2</option>
+          <option value="2">Slot 3</option>
+          <option value="3">Slot 4</option>
+          <option value="4">Slot 5</option>
+          <option value="5">Slot 6</option>
+          <option value="6">Slot 7</option>
+          <option value="7">Slot 8</option>
+        </select>
+        <button id="readCard" type="button">Read</button>
+        <button id="applyPatch" type="button">Apply</button>
+        <button id="savePatch" type="button">Save</button>
+        <button id="setStartupSlot" type="button">Start Here</button>
+        <button id="deletePatch" type="button">Delete</button>
+        <button id="developerToggle" type="button" role="switch" aria-checked="false">Dev</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="status-strip" aria-label="Connection status">
+        <span id="status">Use a USB-C data cable. Close Serial Monitor and other MIDI apps.</span>
+        <span id="protocol">Vortex Runner v5 draft</span>
+      </section>
+
+      <section class="tone-strip" aria-label="Preset instrument filter">
+        <button class="tone white is-active" type="button" data-tone="all">All</button>
+        <button class="tone red" type="button" data-tone="brass">Brass</button>
+        <button class="tone yellow" type="button" data-tone="string">String</button>
+        <button class="tone yellow" type="button" data-tone="electric-piano">Electric Piano</button>
+        <button class="tone yellow" type="button" data-tone="clavi">Clavi</button>
+        <button class="tone white" type="button" data-tone="flute">Flute</button>
+        <button class="tone teal" type="button" data-tone="organ">Organ</button>
+        <button class="tone teal" type="button" data-tone="guitar">Guitar</button>
+        <button class="tone white" type="button" data-tone="funny">Funny</button>
+      </section>
+
+      <section class="voice-map" aria-label="Voice output map">
+        <button class="output-lane is-active" type="button" data-output="mono">
+          <span>Audio Out 1</span>
+          <strong>Mono Voice</strong>
+          <i class="level-bar"><b style="width: 58%"></b></i>
+        </button>
+        <button class="output-lane" type="button" data-output="copy">
+          <span>Audio Out 2</span>
+          <strong>Mono Copy</strong>
+          <i class="level-bar"><b style="width: 58%"></b></i>
+        </button>
+      </section>
+
+      <nav class="tabs" aria-label="Editor pages">
+        <button class="tab is-active" type="button" data-page="perform">Perform</button>
+        <button class="tab" type="button" data-page="shape">Shape</button>
+        <button class="tab" type="button" data-page="deep">Deep</button>
+        <button class="tab" type="button" data-page="presets">Presets</button>
+      </nav>
+
+      <div class="main-grid">
+        <aside class="panel hardware-panel" aria-label="Hardware panel">
+          <div class="panel-title">
+            <h2>Panel</h2>
+            <select id="panelPage">
+              <option value="up">Up: VCO</option>
+              <option value="middle" selected>Middle: VCF</option>
+              <option value="down">Hold Down: Performance</option>
+            </select>
+          </div>
+          <div class="switch-graphic" aria-hidden="true">
+            <span data-switch-led="up"></span>
+            <span data-switch-led="middle" class="is-lit"></span>
+            <span data-switch-led="down"></span>
+          </div>
+          <div class="knob-map" id="knobMap"></div>
+          <div class="led-grid" aria-label="LED preview">
+            <span data-led-index="0"><b>0</b></span>
+            <span data-led-index="1"><b>1</b></span>
+            <span data-led-index="2"><b>2</b></span>
+            <span data-led-index="3"><b>3</b></span>
+            <span data-led-index="4"><b>4</b></span>
+            <span data-led-index="5"><b>5</b></span>
+          </div>
+        </aside>
+
+        <section class="editor-stack">
+          <section class="page is-active" data-page-panel="perform">
+            <div class="panel-title">
+              <h2>Perform</h2>
+              <span class="small-label">Immediate controls for playing and broad tone moves</span>
+            </div>
+
+            <div class="control-grid">
+              <label class="control">
+                <span>VCO Pitch</span>
+                <input type="range" min="-24" max="24" value="0" data-param="pitch">
+                <output>0 st</output>
+              </label>
+              <label class="control">
+                <span>Portamento</span>
+                <input type="range" min="0" max="4095" value="2600" data-param="portamento">
+                <output>63%</output>
+              </label>
+              <label class="control">
+                <span>Voice Level</span>
+                <input type="range" min="0" max="4095" value="3600" data-param="level">
+                <output>88%</output>
+              </label>
+              <label class="control">
+                <span>HP Cutoff</span>
+                <input type="range" min="0" max="4095" value="1500" data-param="hp">
+                <output>37%</output>
+              </label>
+              <label class="control">
+                <span>LP Cutoff</span>
+                <input type="range" min="0" max="4095" value="2450" data-param="lp">
+                <output>60%</output>
+              </label>
+              <label class="control">
+                <span>Resonance</span>
+                <input type="range" min="0" max="4095" value="2650" data-param="res">
+                <output>65%</output>
+              </label>
+              <label class="control">
+                <span>Attack</span>
+                <input type="range" min="0" max="4095" value="80" data-param="attack">
+                <output>2%</output>
+              </label>
+              <label class="control">
+                <span>Release</span>
+                <input type="range" min="0" max="4095" value="1200" data-param="release">
+                <output>29%</output>
+              </label>
+              <label class="control">
+                <span>Expression</span>
+                <input type="range" min="0" max="4095" value="1900" data-param="expression">
+                <output>46%</output>
+              </label>
+              <label class="control">
+                <span>LFO Rate</span>
+                <input type="range" min="0" max="4095" value="1750" data-param="lfoRate">
+                <output>43%</output>
+              </label>
+              <label class="control">
+                <span>LFO to Pitch</span>
+                <input type="range" min="0" max="4095" value="980" data-param="lfoPitchDepth">
+                <output>24%</output>
+              </label>
+              <label class="control">
+                <span>Ring Amount</span>
+                <input type="range" min="0" max="4095" value="850" data-param="ring">
+                <output>21%</output>
+              </label>
+            </div>
+          </section>
+
+          <section class="page" data-page-panel="shape">
+            <div class="panel-title">
+              <h2>Shape</h2>
+              <span class="small-label">Sources, envelopes, and motion shaping</span>
+            </div>
+
+            <div class="control-grid">
+              <label class="control">
+                <span>Pulse Width</span>
+                <input type="range" min="0" max="4095" value="1650" data-param="pulse">
+                <output>40%</output>
+              </label>
+              <label class="control">
+                <span>PWM Amount</span>
+                <input type="range" min="0" max="4095" value="1450" data-param="pwmAmount">
+                <output>35%</output>
+              </label>
+              <label class="control">
+                <span>Saw Level</span>
+                <input type="range" min="0" max="4095" value="450" data-param="sawLevel">
+                <output>11%</output>
+              </label>
+              <label class="control">
+                <span>Square/Pulse Level</span>
+                <input type="range" min="0" max="4095" value="2500" data-param="pulseLevel">
+                <output>61%</output>
+              </label>
+              <label class="control">
+                <span>Sine Level</span>
+                <input type="range" min="0" max="4095" value="2300" data-param="sineLevel">
+                <output>56%</output>
+              </label>
+              <label class="control">
+                <span>Noise Level</span>
+                <input type="range" min="0" max="4095" value="220" data-param="noiseLevel">
+                <output>5%</output>
+              </label>
+              <label class="control">
+                <span>Performance Pitch</span>
+                <input type="range" min="-36" max="36" value="0" data-param="spread">
+                <output>0 st</output>
+              </label>
+              <label class="control">
+                <span>Decay</span>
+                <input type="range" min="0" max="4095" value="760" data-param="decay">
+                <output>19%</output>
+              </label>
+              <label class="control">
+                <span>Sustain</span>
+                <input type="range" min="0" max="4095" value="3300" data-param="sustain">
+                <output>81%</output>
+              </label>
+              <label class="control">
+                <span>LFO to PWM</span>
+                <input type="range" min="0" max="4095" value="1550" data-param="lfoPwmDepth">
+                <output>38%</output>
+              </label>
+              <label class="control">
+                <span>VCF Depth</span>
+                <input type="range" min="0" max="4095" value="1000" data-param="vcfDepth">
+                <output>24%</output>
+              </label>
+              <label class="control">
+                <span>VCA Depth</span>
+                <input type="range" min="0" max="4095" value="560" data-param="vcaDepth">
+                <output>14%</output>
+              </label>
+            </div>
+
+            <div class="panel-title">
+              <h2>Envelope View</h2>
+              <select id="envTarget">
+                <option>Amp</option>
+                <option>Filter</option>
+              </select>
+            </div>
+            <canvas id="envCanvas" width="720" height="220"></canvas>
+          </section>
+
+          <section class="page" data-page-panel="deep">
+            <div class="panel-title">
+              <h2>Deep</h2>
+              <span class="small-label">CV policy, detailed ring behaviour, and system choices</span>
+            </div>
+            <div class="control-grid">
+              <label class="control">
+                <span>Ring Amount</span>
+                <input type="range" min="0" max="4095" value="850" data-param="ring">
+                <output>21%</output>
+              </label>
+              <label class="control">
+                <span>Ring Speed</span>
+                <input type="range" min="0" max="4095" value="2250" data-param="ringSpeed">
+                <output>55%</output>
+              </label>
+              <label>
+                <span>Audio/CV In 1 Pitch Reference</span>
+                <select data-param="pitchCvRange">
+                  <option value="1">-3 V to +3 V, C4 at 0 V</option>
+                  <option value="0">0 V to +5 V, C4 at +3 V</option>
+                </select>
+              </label>
+              <label><span>Audio/CV In 2</span><select><option>Audio-rate mod reserve</option><option>Alternate pitch reserve</option></select></label>
+              <label><span>CV In 1</span><select><option>Filter brightness</option><option>HP cutoff</option><option>LP cutoff</option></select></label>
+              <label><span>CV In 2</span><select><option>Expression macro</option><option>LFO depth</option><option>Ring amount</option></select></label>
+              <label><span>Pulse In 1</span><select><option>Gate</option></select></label>
+              <label><span>Pulse In 2</span><select><option>Accent / retrig reserve</option><option>Alternate gate reserve</option></select></label>
+            </div>
+          </section>
+
+          <section class="page" data-page-panel="presets">
+            <div class="panel-title">
+              <h2>Presets</h2>
+              <input id="presetName" type="text" value="Doctor Who Theme" maxlength="24">
+            </div>
+            <div class="preset-grid" id="presetGrid"></div>
+            <div class="preset-detail" id="presetDetail" aria-label="Selected preset details"></div>
+          </section>
+        </section>
+      </div>
+
+      <section id="developerPanel" class="developer-panel is-hidden" aria-label="Developer tools">
+        <div class="panel-title">
+          <h2>Developer Log</h2>
+          <button id="clearDeveloperLog" type="button">Clear</button>
+        </div>
+        <pre id="developerLog" aria-live="polite"></pre>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
