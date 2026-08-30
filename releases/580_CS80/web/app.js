@@ -15,6 +15,8 @@ const envTargetEl = document.querySelector("#envTarget");
 const presetGridEl = document.querySelector("#presetGrid");
 const presetDetailEl = document.querySelector("#presetDetail");
 const presetNameEl = document.querySelector("#presetName");
+const saveBrowserPresetEl = document.querySelector("#saveBrowserPreset");
+const deleteBrowserPresetEl = document.querySelector("#deleteBrowserPreset");
 const refreshSlotsEl = document.querySelector("#refreshSlots");
 const readCardEl = document.querySelector("#readCard");
 const loadSlotEl = document.querySelector("#loadSlot");
@@ -27,6 +29,8 @@ const developerPanelEl = document.querySelector("#developerPanel");
 const developerLogEl = document.querySelector("#developerLog");
 const clearDeveloperLogEl = document.querySelector("#clearDeveloperLog");
 const THEME_KEY = "cs80-editor-theme";
+const PRESET_STORAGE_KEY = "cs80-experimental-v10-user-presets";
+const CARD_PRESET_NAME_LENGTH = 24;
 const MAX_LOG_LINES = 120;
 const SYSEX_MANUFACTURER = 0x7d;
 const SYSEX_ID = [0x43, 0x53, 0x38, 0x30]; // CS80
@@ -42,7 +46,7 @@ const COMMAND_SLOT_RESPONSE = 0x09;
 const COMMAND_DELETE_SLOT = 0x0a;
 const COMMAND_SET_STARTUP_SLOT = 0x0b;
 const COMMAND_DIAGNOSTIC_ACK = 0x0c;
-const PATCH_PROTOCOL_VERSION = 8;
+const PATCH_PROTOCOL_VERSION = 10;
 let themeMode = loadThemeMode();
 let developerMode = false;
 let developerLogLines = [];
@@ -51,6 +55,7 @@ let midiInput = null;
 let midiOutput = null;
 let savedSlotMask = 0;
 let startupSlot = 0;
+let cardSlotNames = Array(8).fill("");
 let pickupPreview = [false, false, false];
 let activeTone = "all";
 let previewVoice = "a";
@@ -93,6 +98,24 @@ const defaultPatchParams = {
   pitchCvRange: 1,
 };
 let selectedPresetIndex = 0;
+let customPresets = loadCustomPresets();
+
+function loadCustomPresets() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PRESET_STORAGE_KEY));
+    return Array.isArray(saved) ? saved.filter((preset) => preset?.name && preset?.params) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveCustomPresets() {
+  localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(customPresets));
+}
+
+function allPresets() {
+  return [...presets, ...customPresets];
+}
 
 const knobMaps = {
   up: [
@@ -590,8 +613,30 @@ function currentPatchPayload() {
     Number(getParam("vcaDepth").value),
     Number(getParam("ring").value),
     Number(getParam("ringSpeed").value),
+    paramValue("sawLevelB", 450),
+    paramValue("pulseLevelB", 2500),
+    paramValue("sineLevelB", 2300),
+    paramValue("noiseLevelB", 220),
+    paramValue("levelB", 3600),
+    paramValue("pulseB", 1650),
+    paramValue("pwmAmountB", 1450),
+    paramValue("hpB", 1500),
+    paramValue("lpB", 2450),
+    paramValue("resB", 2650),
   ].forEach((value) => payload.push(...encodeUint14(value)));
   return payload;
+}
+
+function encodeCardPresetName(name) {
+  const bytes = Array(CARD_PRESET_NAME_LENGTH).fill(0);
+  Array.from(name.trim().slice(0, CARD_PRESET_NAME_LENGTH)).forEach((character, index) => {
+    bytes[index] = character.charCodeAt(0) & 0x7f;
+  });
+  return bytes;
+}
+
+function decodeCardPresetName(bytes) {
+  return String.fromCharCode(...bytes).replace(/\0/g, "").trim();
 }
 
 function selectedCardSlot() {
@@ -602,7 +647,8 @@ function renderCardSlots() {
   Array.from(cardSlotEl.options).forEach((option, index) => {
     const saved = (savedSlotMask & (1 << index)) !== 0;
     const startup = saved && index === startupSlot;
-    option.textContent = `Card preset ${index + 1}${saved ? " saved" : " empty"}${startup ? " (startup)" : ""}`;
+    const name = cardSlotNames[index] ? `: ${cardSlotNames[index]}` : "";
+    option.textContent = `Card preset ${index + 1}${saved ? " saved" : " empty"}${name}${startup ? " (startup)" : ""}`;
   });
   setStartupSlotEl.disabled = (savedSlotMask & (1 << selectedCardSlot())) === 0;
   loadSlotEl.disabled = (savedSlotMask & (1 << selectedCardSlot())) === 0;
@@ -775,7 +821,7 @@ function sendSysex(command, payload = []) {
 }
 
 function usePatchPayload(payload, sourceSlot = 0x7f) {
-  if (payload[0] !== PATCH_PROTOCOL_VERSION || payload.length < 63) {
+  if (payload[0] !== PATCH_PROTOCOL_VERSION || payload.length < 83) {
     logDeveloper("patch response ignored", { reason: "unsupported payload", version: payload[0], bytes: payload.length, slot: sourceSlot });
     return;
   }
@@ -811,13 +857,24 @@ function usePatchPayload(payload, sourceSlot = 0x7f) {
   setParam("vcfDepth", decodeUint14(payload, offset)); offset += 2;
   setParam("vcaDepth", decodeUint14(payload, offset)); offset += 2;
   setParam("ring", decodeUint14(payload, offset)); offset += 2;
-  setParam("ringSpeed", decodeUint14(payload, offset));
+  setParam("ringSpeed", decodeUint14(payload, offset)); offset += 2;
+  setParam("sawLevelB", decodeUint14(payload, offset)); offset += 2;
+  setParam("pulseLevelB", decodeUint14(payload, offset)); offset += 2;
+  setParam("sineLevelB", decodeUint14(payload, offset)); offset += 2;
+  setParam("noiseLevelB", decodeUint14(payload, offset)); offset += 2;
+  setParam("levelB", decodeUint14(payload, offset));
+  offset += 2;
+  setParam("pulseB", decodeUint14(payload, offset)); offset += 2;
+  setParam("pwmAmountB", decodeUint14(payload, offset)); offset += 2;
+  setParam("hpB", decodeUint14(payload, offset)); offset += 2;
+  setParam("lpB", decodeUint14(payload, offset)); offset += 2;
+  setParam("resB", decodeUint14(payload, offset));
   drawEnvelope();
   resetPickupPreview();
   statusEl.textContent = sourceSlot < 8
     ? `Patch read from card slot ${sourceSlot + 1}.`
     : "Patch read from card.";
-  protocolEl.textContent = "CS80 v8";
+  protocolEl.textContent = "CS80 experimental v10";
   logDeveloper("patch response applied", { version: payload[0], slot: sourceSlot < 8 ? sourceSlot + 1 : null });
 }
 
@@ -846,9 +903,11 @@ function handleMidiMessage(event) {
   if (command === COMMAND_SLOT_RESPONSE) {
     const slot = payload[0] & 0x07;
     savedSlotMask |= 1 << slot;
+    cardSlotNames[slot] = decodeCardPresetName(payload.slice(84, 84 + CARD_PRESET_NAME_LENGTH));
     renderCardSlots();
     cardSlotEl.value = String(slot);
     usePatchPayload(payload.slice(1), slot);
+    if (cardSlotNames[slot]) presetNameEl.value = cardSlotNames[slot];
     if (slotReadReason === "save") {
       statusEl.textContent = `Verified patch saved in card slot ${slot + 1}.`;
     }
@@ -858,6 +917,10 @@ function handleMidiMessage(event) {
   if (command === COMMAND_SLOTS_RESPONSE) {
     savedSlotMask = (payload[0] & 0x7f) | ((payload[1] & 0x7f) << 7);
     startupSlot = (payload[2] ?? 0) & 0x07;
+    for (let slot = 0; slot < 8; slot += 1) {
+      const start = 3 + slot * CARD_PRESET_NAME_LENGTH;
+      cardSlotNames[slot] = decodeCardPresetName(payload.slice(start, start + CARD_PRESET_NAME_LENGTH));
+    }
     renderCardSlots();
     logDeveloper("card slot map received", { mask: savedSlotMask, startupSlot: startupSlot + 1 });
     statusEl.textContent = `Card slots refreshed. Startup slot is ${startupSlot + 1}.`;
@@ -910,8 +973,9 @@ function handleMangledSysexChunk(data) {
 
 function expectedPayloadLength(command) {
   if (command === COMMAND_DIAGNOSTIC_ACK) return 1;
-  if (command === COMMAND_SLOTS_RESPONSE) return 3;
-  if (command === COMMAND_PATCH_RESPONSE || command === COMMAND_SLOT_RESPONSE) return 64;
+  if (command === COMMAND_SLOTS_RESPONSE) return 195;
+  if (command === COMMAND_PATCH_RESPONSE) return 84;
+  if (command === COMMAND_SLOT_RESPONSE) return 108;
   return -1;
 }
 
@@ -1109,9 +1173,10 @@ function percent(value) {
 }
 
 function renderPresetDetail(index = 0) {
-  const preset = presets[index] || presets[0];
+  const preset = allPresets()[index] || presets[0];
   const params = resolvedPresetParams(preset);
   presetNameEl.value = preset.name;
+  deleteBrowserPresetEl.disabled = index < presets.length;
   presetDetailEl.innerHTML = `
     <h3>${preset.name}</h3>
     <dl>
@@ -1125,7 +1190,7 @@ function renderPresetDetail(index = 0) {
 }
 
 function applyPreset(index) {
-  const preset = presets[index] || presets[0];
+  const preset = allPresets()[index] || presets[0];
   const preservedCvSettings = {
     pitchCvRange: getParam("pitchCvRange").value,
     filterCvMode: getParam("filterCvMode").value,
@@ -1133,6 +1198,16 @@ function applyPreset(index) {
   };
   const params = resolvedPresetParams(preset);
   Object.assign(params, preservedCvSettings);
+  if (index < presets.length) {
+    // Factory patches begin as true unison A/B settings.
+    params.pitch = 0;
+    Object.assign(params, {
+      sawLevelB: params.sawLevel, pulseLevelB: params.pulseLevel,
+      sineLevelB: params.sineLevel, noiseLevelB: params.noiseLevel,
+      levelB: params.level, pulseB: params.pulse, pwmAmountB: params.pwmAmount,
+      hpB: params.hp, lpB: params.lp, resB: params.res,
+    });
+  }
   Object.entries(params).forEach(([name, value]) => setParam(name, value));
   presetNameEl.value = preset.name;
   drawEnvelope();
@@ -1141,8 +1216,41 @@ function applyPreset(index) {
   logDeveloper("preset loaded", { slot: index + 1, name: preset.name, params });
 }
 
+function saveNamedBrowserPreset() {
+  const name = presetNameEl.value.trim() || "Custom preset";
+  const params = {};
+  document.querySelectorAll("[data-param]").forEach((input) => {
+    params[input.dataset.param] = Number(input.value);
+  });
+  customPresets.push({
+    name,
+    category: "user",
+    detail: "Named browser preset",
+    sources: "Current A/B mixer settings",
+    filter: "Current A/B filter settings",
+    envelope: "Current shared envelopes",
+    modulation: "Current shared modulation",
+    params,
+  });
+  saveCustomPresets();
+  activeTone = "all";
+  selectedPresetIndex = presets.length + customPresets.length - 1;
+  renderPresets();
+  statusEl.textContent = `Saved browser preset: ${name}. Use Save to Card separately for persistent hardware storage.`;
+}
+
+function deleteNamedBrowserPreset() {
+  if (selectedPresetIndex < presets.length) return;
+  customPresets.splice(selectedPresetIndex - presets.length, 1);
+  saveCustomPresets();
+  selectedPresetIndex = 0;
+  renderPresets();
+  statusEl.textContent = "Named browser preset removed.";
+}
+
 function renderPresets() {
-  const visiblePresets = presets
+  const all = allPresets();
+  const visiblePresets = all
     .map((preset, index) => ({ preset, index }))
     .filter(({ preset }) => activeTone === "all" || preset.category === activeTone);
 
@@ -1280,6 +1388,9 @@ clearDeveloperLogEl.addEventListener("click", () => {
   renderDeveloperLog();
 });
 
+saveBrowserPresetEl.addEventListener("click", saveNamedBrowserPreset);
+deleteBrowserPresetEl.addEventListener("click", deleteNamedBrowserPreset);
+
 document.querySelectorAll("input[type='range']").forEach((range) => {
   updateOutput(range);
   range.addEventListener("input", () => {
@@ -1315,8 +1426,10 @@ applyPatchEl.addEventListener("click", () => {
 
 savePatchEl.addEventListener("click", () => {
   const slot = selectedCardSlot();
-  if (sendSysex(COMMAND_SAVE_SLOT, [slot & 0x07, ...currentPatchPayload()])) {
+  const name = presetNameEl.value.trim() || `Card preset ${slot + 1}`;
+  if (sendSysex(COMMAND_SAVE_SLOT, [slot & 0x07, ...currentPatchPayload(), ...encodeCardPresetName(name)])) {
     savedSlotMask |= 1 << slot;
+    cardSlotNames[slot] = name;
     renderCardSlots();
     if (warnIfNoReadback(`Save request for card slot ${slot + 1}`)) return;
     statusEl.textContent = `Save sent for card slot ${slot + 1}; verifying...`;

@@ -22,7 +22,8 @@ draft Web MIDI editor.
   dual-output monophonic build, including the two-bank MIDI CC layout, `CC1`
   vibrato depth, MIDI absolute-pitch handling, and coalesced Web MIDI patch
   handoff for rapid detune changes
-- Web editor: draft CS80 SysEx v8 patch apply/readback interface
+- Web editor: draft CS80 SysEx v10 patch apply/readback interface with named
+  persistent card slots
 - UF2: the rollback-stable firmware build is kept in `uf2/`
 - Mono fallback: the last passed non-dual firmware is retained in `uf2/` as a
   second rollback option
@@ -51,10 +52,9 @@ hardware-test UF2s should go in `test-uf2/`, which is ignored by git.
 - `Audio Out 2`: Voice B, detunable relative to Voice A
 - one shared pitch, gate, amp/filter envelope, portamento, pitch-CV policy,
   CV routing, MIDI state, LFO timing, and preset state for both outputs
-- A/B differences are limited to oscillator/filter colour: detune, pulse
-  width, PWM amount, HP cutoff, LP cutoff, and resonance; future Web MIDI
-  fields will be added only when the firmware gains a corresponding A/B
-  parameter
+- A/B differences are limited to oscillator/filter colour: source levels,
+  output level, detune, pulse width, PWM amount, HP cutoff, LP cutoff, and
+  resonance
 - web-first portamento for smooth CV/pitch glides
 - independent saw, square/pulse, sine, and noise mixer levels
 - independent pulse width, PWM amount, LFO-to-pitch, and LFO-to-PWM controls
@@ -73,20 +73,24 @@ The editor and firmware now share a small non-commercial SysEx protocol:
 
 - manufacturer byte: `0x7d`
 - card id: `CS80`
-- protocol version: `8`
+- protocol version: `10`
 - commands: apply patch, save slot, request current patch, request slot map,
   request slot, slot response, delete slot, and set startup slot
 
-pitch-CV range mode, portamento, pulse width, PWM amount, independent
-saw/pulse/sine/noise source levels, voice level, performance pitch offset, HP
-cutoff, LP cutoff, resonance, expression depth, separate shared amp ADSR and
-filter ADSR controls, LFO rate, independent LFO-to-pitch/PWM/VCF/VCA depths,
-ring amount, and ring speed. The source levels are summed rather than
-crossfaded. Save applies the patch and writes it to one of eight persistent
-card slots. The first saved patch becomes the startup patch automatically; use
-the editor's `Start Here` button to choose a different saved startup slot.
+pitch-CV range mode, portamento, separate A/B pulse width, PWM amount,
+saw/pulse/sine/noise source levels, output level, HP cutoff, LP cutoff, and
+resonance, plus shared expression depth, amp/filter ADSR controls, LFO rate,
+LFO routings, ring amount, and ring speed. The source levels are summed rather
+than crossfaded. Save applies the patch and writes it, with a 24-character
+name, to one of eight persistent card slots. The first saved patch becomes the
+startup patch automatically; use the editor's `Start Here` button to choose a
+different saved startup slot.
 `Refresh Slots` reads the card's saved-slot map, `Read Patch` syncs the current
 live card patch, and `Load Slot` recalls the selected saved slot.
+
+Factory presets remain immutable editor choices and load both outputs in
+unison. Users can create named browser presets alongside them, then use Save to
+Card to persist the current sound and its name in a selected hardware slot.
 
 At startup, holding the Down switch during the short boot selection window enters
 patch-slot select. Main chooses among saved slots while the LEDs show only the

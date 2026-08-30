@@ -179,24 +179,74 @@
                 <output>35%</output>
               </label>
               <label class="control">
-                <span>Saw Level</span>
+                <span>Voice A Saw Level</span>
                 <input type="range" min="0" max="4095" value="450" data-param="sawLevel">
                 <output>11%</output>
               </label>
               <label class="control">
-                <span>Square/Pulse Level</span>
+                <span>Voice A Square/Pulse Level</span>
                 <input type="range" min="0" max="4095" value="2500" data-param="pulseLevel">
                 <output>61%</output>
               </label>
               <label class="control">
-                <span>Sine Level</span>
+                <span>Voice A Sine Level</span>
                 <input type="range" min="0" max="4095" value="2300" data-param="sineLevel">
                 <output>56%</output>
               </label>
               <label class="control">
-                <span>Noise Level</span>
+                <span>Voice A Noise Level</span>
                 <input type="range" min="0" max="4095" value="220" data-param="noiseLevel">
                 <output>5%</output>
+              </label>
+              <label class="control">
+                <span>Voice B Saw Level</span>
+                <input type="range" min="0" max="4095" value="450" data-param="sawLevelB">
+                <output>11%</output>
+              </label>
+              <label class="control">
+                <span>Voice B Square/Pulse Level</span>
+                <input type="range" min="0" max="4095" value="2500" data-param="pulseLevelB">
+                <output>61%</output>
+              </label>
+              <label class="control">
+                <span>Voice B Sine Level</span>
+                <input type="range" min="0" max="4095" value="2300" data-param="sineLevelB">
+                <output>56%</output>
+              </label>
+              <label class="control">
+                <span>Voice B Noise Level</span>
+                <input type="range" min="0" max="4095" value="220" data-param="noiseLevelB">
+                <output>5%</output>
+              </label>
+              <label class="control">
+                <span>Voice B Output Level</span>
+                <input type="range" min="0" max="4095" value="3600" data-param="levelB">
+                <output>88%</output>
+              </label>
+              <label class="control">
+                <span>Voice B Pulse Width</span>
+                <input type="range" min="0" max="4095" value="1650" data-param="pulseB">
+                <output>40%</output>
+              </label>
+              <label class="control">
+                <span>Voice B PWM Amount</span>
+                <input type="range" min="0" max="4095" value="1450" data-param="pwmAmountB">
+                <output>35%</output>
+              </label>
+              <label class="control">
+                <span>Voice B HP Cutoff</span>
+                <input type="range" min="0" max="4095" value="1500" data-param="hpB">
+                <output>37%</output>
+              </label>
+              <label class="control">
+                <span>Voice B LP Cutoff</span>
+                <input type="range" min="0" max="4095" value="2450" data-param="lpB">
+                <output>60%</output>
+              </label>
+              <label class="control">
+                <span>Voice B Resonance</span>
+                <input type="range" min="0" max="4095" value="2650" data-param="resB">
+                <output>65%</output>
               </label>
               <label class="control">
                 <span>Performance Pitch</span>
@@ -323,6 +373,10 @@
             <div class="panel-title">
               <h2>Presets</h2>
               <input id="presetName" type="text" value="Doctor Who Theme" maxlength="24">
+            </div>
+            <div class="action-row">
+              <button id="saveBrowserPreset" type="button">Save Named Preset</button>
+              <button id="deleteBrowserPreset" type="button">Delete Named Preset</button>
             </div>
             <div class="preset-grid" id="presetGrid"></div>
             <div class="preset-detail" id="presetDetail" aria-label="Selected preset details"></div>

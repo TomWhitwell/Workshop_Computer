@@ -7,13 +7,14 @@ summary: >-
   related output voices: Audio Out 1 is Voice A and Audio Out 2 is Voice B,
   detunable relative to Voice A. Pitch, gate, envelopes, portamento, CV policy,
   MIDI handling, LFO timing, and preset state are shared; only oscillator/filter
-  colour is A/B-specific. It includes expressive envelopes, high-pass and
+  colour is A/B-specific, including source/output levels, pulse/PWM, and filter
+  settings. It includes expressive envelopes, high-pass and
   low-pass filter character, ring modulation, MIDI/Web MIDI control, and a
   browser editor.
 Language: C++ (Pico SDK)
 Creator: Adrian Vos
 Version: "0.1 draft"
-Status: Draft - stable-tested split-output firmware and Web MIDI patch interface
+Status: Draft - stable-tested split-output firmware with named Web MIDI presets
 License: MIT
 date-created: 2026-08-26
 Editor: web
@@ -149,7 +150,7 @@ host:
   usb:
     - name: Web MIDI editor
       role: device
-      description: Draft browser editor using Web MIDI SysEx for patch apply, readback, and eight persistent card slots.
+      description: Draft browser editor using Web MIDI SysEx for patch apply, readback, and eight persistent named card slots.
     - name: USB MIDI input
       role: host-or-device
       description: MIDI note/gate, pitch-bend, and performance CC input for the draft split-output voice, following a Gnarly-style dedicated controller block with standard synth aliases.
@@ -158,15 +159,16 @@ host:
     rendering on core 0, USB MIDI/Web MIDI work on core 1, and bounded lockless
     queues for complete patch handoff and core-0 readback. The current stable
     firmware keeps one monophonic note path and renders split A/B audio outputs.
-    Current draft firmware stores eight Web MIDI patch slots in flash. The Web
+    Current draft firmware stores eight named Web MIDI patch slots in flash. The Web
     editor can choose a saved startup slot, and holding Down during the startup
     selection window lets Main override it. In startup selection the LEDs show
     only the selected slot number in binary; release Down to keep browsing, then
     press Down again to load that slot and enter performance mode. With no saved startup slot, the compiled fallback is the Web
     editor's Doctor Who Theme preset, including its portamento setting. Each saved patch includes its pitch-CV range mode. Web MIDI patch
     readback and saved slots
-    cover the visible editor controls, including independent additive
-    saw/pulse/sine/noise source levels, voice level, portamento, expression
+    cover the visible editor controls, including separate A/B additive
+    saw/pulse/sine/noise source levels, output levels, pulse/PWM and filter
+    settings, plus shared portamento, expression
     depth, separate shared amp ADSR and filter ADSR controls, LFO rate,
     independent LFO-to-pitch/PWM/VCF/VCA modulation depths, ring amount, and
     ring speed. Rapid Web MIDI patch updates are coalesced to the newest patch
