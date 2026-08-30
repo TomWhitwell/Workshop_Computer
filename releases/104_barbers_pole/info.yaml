@@ -1,0 +1,300 @@
+draft: false
+Name: Barber's Pole
+short-description: "An infinite glissando — Shepard-Risset tones that rise or fall forever, as sine tones or by octave-stacking live audio"
+Language: C++ (ComputerCard)
+Creator: Andy Jenkinson (uglifruit)
+Version: "1.0.0"
+Status: Released
+License: MIT
+repository: https://github.com/uglifruit/WorkshopShepard
+Editor: none
+date-created: 2026-08-28
+date-updated: 2026-08-30
+
+contact:
+  social:
+    github: https://github.com/uglifruit
+
+uf2:
+  - path: UF2/shepard.uf2
+    name: Barber's Pole 1.0.0
+
+tags:
+  - effect
+  - synth
+  - pitch-shift
+  - shepard
+  - barbers-pole
+  - glissando
+  - scale
+  - octave-stack
+  - percussion
+
+summary: |
+  BARBER'S POLE generates Shepard-Risset tones: the auditory illusion of a pitch that
+  glides forever upward or downward without ever leaving its range. Octave-spaced
+  components slide together through a fixed spectral envelope, each fading in at
+  the bottom and out at the top; because the stack is octave-spaced, sliding it
+  by one whole octave returns it exactly to where it started, so the glide loops
+  seamlessly.<br><br>
+
+  Main sets speed and direction, with a deadzone at noon so the stationary
+  position can be found by feel — anticlockwise descends, clockwise ascends, and
+  CV In 1 is summed in. X sets density, 3 to 11 octave layers, stepped discretely with hysteresis so knob jitter cannot retrigger a change. Y crossfades
+  between two sources: the internal sine bank, and your own signal
+  OCTAVE-STACKED.<br><br>
+
+  The live path transposes whatever is patched into Audio In 1 into N
+  octave-spaced copies, weighted by the same window as the oscillators - so a
+  220 Hz partial appears at 55, 110, 220 and 440 Hz and each copy rises and
+  fades exactly as an oscillator layer does. The internal voice is
+  octave-stacked sines; this is octave-stacked you. Feed it anything with clear
+  pitch content.<br><br>
+
+  Switch Up is page two: Main quantises the glide to smooth glissando, 12-ET
+  chromatic, major, minor or pentatonic; X sets stereo width; Y sets output level.
+  Snapping is slewed over about 1.4 ms rather than jumped, because twelve
+  oscillators stepping together is audible as a thump.<br><br>
+
+  Switch Down is spring-loaded and toggles FREEZE on each press. Audio In 2 is
+  a HOLD gate doing the same thing - it stops the glide while high and resumes
+  from exactly where it paused, so the glide does not run on underneath. Pulse
+  In 1 is an EVENT rather than a gate: its rising edge advances a scale step in
+  the stepped modes, and because it never holds the glide, stepping and gliding
+  work together - park Main at centre for pure manual stepping, or leave it
+  off-centre and the pulses nudge an already-moving pole. Pulse In 2 reverses
+  the glide while held. CV In 1 and 2 offset
+  speed and density. CV Out 1 is the master phase as a 0-1V ramp - one octave per cycle,
+  so an oscillator tracks the pole in tune - and CV Out 2 is the window level
+  at that phase, so the two together drive a VCA and oscillator as one Shepard
+  layer made external.<br><br>
+
+  ALT-BOOT - HIDDEN BARBER: holding the switch DOWN at power-on makes the pole climb
+  SILENTLY. A trigger on Pulse In 1 voices a ping at whatever pitches the pole
+  has reached, and that ping decays WITHOUT climbing - it is a snapshot, not a
+  window onto the moving stack. Trigger repeatedly and each ping comes from a
+  different point on the pole, building a chord out of one rising structure, so
+  the barber's pole becomes something you play rather than something you listen
+  to. Four voices, oldest stolen. Page-two X sets the decay, 17ms to 1.7s; Main still quantises.
+  Patch Pulse Out 1 back to Pulse In 1 and it strikes itself once per octave.
+  Note that four voices of twelve layers each, with the live input
+  octave-stacked through all of them, is close to what an RP2040 can do at
+  48kHz - trigger fast enough that all four ring at once, with a long decay and
+  the input mixed in, and the card WILL distort. That is the processor running
+  out of time rather than a fault, and no setting removes it; shorten the
+  decay, use fewer layers, or play a little more sparsely.
+  With Y clockwise the live input is gated by the ping envelope AND transposed
+  to the struck pitches, so your own signal is what rings.<br><br>
+
+  All fixed point: the RP2040 has no FPU, so a float multiply costs ~360ns
+  against a 20.8us per-sample budget. Two economies make a eleven-layer stereo
+  bank affordable — because the layers are exactly an octave apart every layer's
+  increment is layer 0's shifted left by i, so ONE exponential lookup serves all
+  eleven at 1.5kHz rather than 48kHz; and the octave stack's read heads all
+  share one delay buffer, which is the card's single large allocation. The envelope reuses the first half of
+  the sine table rather than needing one of its own, and sums to exactly N/2 at
+  every layer count and phase.<br><br>
+
+  The fixed-point DSP is verified on the host before flashing — window
+  constant-sum, exponential accuracy, quadrature and sideband rejection, scale
+  quantisation across the octave wrap, delay loop stability run at DC, and
+  end-to-end gain. Two of those tests caught real bugs during development: a
+  truncated window lookup that rippled at odd layer counts only, and an output
+  stage running 4dB too hot. A renderer (tools/shepsim.py) runs the same integer
+  engine to WAV so the card can be heard before flashing, and checks the octave
+  wrap for a discontinuity — calibrating itself against a deliberately broken
+  build on each run, so a detector that cannot fire is never mistaken for a
+  pass.<br><br>
+
+  Flash 1.4%, RAM 57%, both from the linker. Measured on hardware, the normal
+  engine has comfortable margin; HIDDEN BARBER at four simultaneous voices with the live
+  input mixed in sits close to the ceiling - see the note above.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: In
+      type: audio
+      description: >
+        Source for the octave stack, and for HIDDEN BARBER's gated voice.
+        Wants clear pitch content - a voice, a synth line, a drone, a chord.
+        Percussion works but smears, since each read head spans a 341 ms
+        window.
+    - id: AudioIn2
+      name: Hold
+      type: audio
+      description: >
+        HOLD while high - stops the glide and resumes from exactly where it
+        paused, so releasing never jumps ahead. Works in both modes; in HIDDEN
+        BARBER it holds the invisible pole still, so every strike gives the
+        same chord. Above about 1.2 V holds and below 0.6 V releases, with
+        hysteresis between them because this is an audio input rather than a
+        comparator. Unpatched it does nothing.
+    - id: CVIn1
+      name: Speed
+      type: cv
+      description: >
+        Bipolar glide speed, summed with the Main knob. Applied after the
+        knob's deadzone, so CV still drives the glide with Main parked at noon.
+    - id: CVIn2
+      name: Density
+      type: cv
+      description: Bipolar density offset, summed with the X knob on page one.
+    - id: PulseIn1
+      name: Step
+      type: pulse
+      description: >
+        An EVENT, never a gate - it does not hold the glide, which is what
+        lets stepping and gliding be used together. In normal boot its rising
+        edge advances one scale degree in the stepped modes, so the pole keeps
+        climbing between steps. In HIDDEN BARBER it is the strike trigger.
+    - id: PulseIn2
+      name: Reverse
+      type: pulse
+      description: >
+        Reverses the glide direction while high. Momentary rather than
+        latching, so it is playable against a clock.
+
+  outputs:
+    - id: AudioOut1
+      name: Left
+      type: audio
+      description: Left channel. Identical to the right at zero stereo width.
+    - id: AudioOut2
+      name: Right
+      type: audio
+      description: >
+        Right channel. Width decorrelates the two by offsetting the window
+        rather than the oscillator phase, so a mono sum stays valid and never
+        cancels.
+    - id: CVOut1
+      name: Pitch
+      type: cv
+      description: >
+        Master glide position as a 0-1V ramp - ONE OCTAVE per cycle, so an
+        oscillator patched here climbs in tune with the pole. Calibrated per
+        card rather than scaled by hand.
+    - id: CVOut2
+      name: Level
+      type: cv
+      description: >
+        The window level at the master phase - what the bottom layer of the
+        stack is doing. Patch CV Out 1 to an oscillator's V/oct and this to a
+        VCA and you get one Shepard layer made external: rising in pitch while
+        swelling and fading, then beginning again.
+    - id: PulseOut1
+      name: Octave
+      type: pulse
+      description: >
+        One trigger per octave wrap - the card's own clock, locked to the
+        glide. Self-patch it to Pulse In 1 to advance a scale step every cycle,
+        or use it to clock something else in time with the illusion.
+
+controls:
+  switch:
+    middle:
+      name: Page 1
+      description: >
+        Speed, density and source mix. The card's normal playing page.
+    up:
+      name: Page 2
+      description: >
+        Quantise, stereo width and output level - or in HIDDEN BARBER,
+        quantise, ping decay and level. Knobs use PICKUP across a page change:
+        each holds its previous value until moved about 4 degrees, with its LED
+        pulsing until it does, so flicking pages never edits three parameters
+        at once.
+    down:
+      name: Freeze
+      description: >
+        Spring-loaded, and a button rather than a third page. Each press
+        toggles FREEZE - the stack stops moving through the envelope but keeps
+        sounding. LED 3 lights while frozen. A gate into Audio In 2 does the
+        same thing, and both resume from exactly where they paused.
+  knobs:
+    - when:
+        z: middle
+      main:
+        name: SPEED
+        description: >
+          Glide speed and direction. Centre is stationary, with a deadzone so
+          it can be found by feel; anticlockwise descends, clockwise ascends.
+          About 85% of the travel sits inside the illusion - 46 seconds per
+          octave just off centre, down to about one second at 85% - and the
+          last stretch runs out to roughly 8 octaves per second, which reads
+          as a siren rather than a glissando. A Shepard tone only works while
+          the ear cannot track the octave cycle, so the curve is weighted to
+          keep most of the knob below that limit. In HIDDEN BARBER this is
+          POLE SPEED: the same control over an invisible climb, setting how
+          far apart in pitch consecutive strikes land.
+      x:
+        name: DENSITY
+        description: >
+          Number of octave layers, 3 to 11. Higher counts make the illusion
+          smoother and more convincing; lower counts leave the individual
+          octaves audible. Stepped discretely with hysteresis, since adding a
+          layer respaces the whole stack and there is no entering layer to
+          fade. In HIDDEN BARBER it sets the layers in each strike.
+      y:
+        name: SOURCE
+        description: >
+          Crossfades from the internal sine bank (anticlockwise) to the
+          octave-stacked live input (clockwise), at constant power. In HIDDEN
+          BARBER the live input is also gated by the ping envelope, so your
+          own signal is what rings.
+    - when:
+        z: up
+      main:
+        name: QUANTISE
+        description: >
+          Smooth glissando, or one of six scales that repeat every octave:
+          chromatic (0 1 2 3 4 5 6 7 8 9 10 11), major (0 2 4 5 7 9 11), minor
+          (0 2 3 5 7 8 10), pentatonic (0 2 4 7 9), diminished
+          (0 2 3 5 6 8 9 11) or whole tone (0 2 4 6 8 10). In a rising glide
+          the chromatic setting is nearly indistinguishable from smooth, so
+          the modal ones are what change the character; the last two are
+          symmetric and repeat BELOW the octave, which suits a barber-pole
+          unusually well. Steps are even in time - the pole advances one
+          degree per unit time rather than a fixed pitch interval - and are
+          slewed over about 1.4ms rather than snapped. In HIDDEN BARBER it
+          makes strikes land on scale degrees, which is one of the most
+          playable things about that mode.
+      x:
+        name: WIDTH / DECAY
+        description: >
+          In normal boot, stereo width - by offsetting the window position
+          between channels, which spreads the image without ever separating an
+          octave from its neighbours, so the stack stays fused and a mono sum
+          stays valid. In HIDDEN BARBER it is ping DECAY instead, from a 17ms
+          click to a 1.7s ring, and width sits at a fixed modest spread.
+      y:
+        name: LEVEL
+        description: >
+          Output level. Holds its current value until the knob is actually
+          moved, so changing page never drops the volume.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Phase (quarter 1)
+          description: >
+            LEDs 0 to 2 show the master glide position, one lighting per
+            quarter of the octave cycle - so the pole's progress is visible
+            even when the sound gives nothing away. At boot, LEDs 0, 2 and 4
+            light together for a normal boot and 1, 3 and 5 for the HIDDEN
+            BARBER alt-boot, held for about three quarters of a second after
+            the switch is read.
+        - id: LED1
+          name: Phase (quarter 2)
+        - id: LED2
+          name: Phase (quarter 3)
+        - id: LED3
+          name: Freeze
+          description: Lit while the stack is frozen or held.
+        - id: LED4
+          name: Page 1
+          description: >
+            Lit on page 1. Pulses instead while a knob is waiting to be picked
+            up after a page change.
+        - id: LED5
+          name: Page 2
