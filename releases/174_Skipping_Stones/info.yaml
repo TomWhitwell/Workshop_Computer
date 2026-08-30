@@ -15,8 +15,8 @@ summary: >
 Language: C++ (ComputerCard)
 Creator: Adrian Vos
 Version: "1.0.0"
-Status: Released
-License: MIT (program code only; embedded samples excluded)
+Status: Beta - stable in testing
+License: MIT
 date-created: 2026-08-28
 date-updated: 2026-08-30
 uf2:
