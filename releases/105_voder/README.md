@@ -57,11 +57,27 @@ Knob X. Each syllable is voiced for three quarters of its period, which is
 roughly what connected speech does — the silences in speech are the stop
 closures, not gaps between notes.
 
+### The momentary switch is a gate
+
+**Hold the switch down and the card sounds for as long as you hold it** —
+it is the panel's copy of Pulse In 2, so the card can be played from the
+panel alone with nothing in the jacks. It sustains rather than chatters:
+a gate from a sequencer is a stream of events and should chatter, but a
+finger on a button is one continuous intent. Button 2 on the 8mu behaves
+the same way, for the same reason.
+
+It used to fire a single plosive click on the press and then go quiet for
+the rest of the hold. Consonants have not been lost with the change —
+Pulse In 1 still triggers clicks in every mode, the 8mu's button 3 still
+does, and BABBLE draws its own.
+
 ### Auto-chatter
 
 **Hold the momentary switch for two seconds** and it starts talking by
-itself, no gate needed. The LEDs fill as a progress bar while you hold.
-**Tap the switch to stop.**
+itself, no gate needed. The LEDs fill as a progress bar while you hold,
+**and the card sounds throughout the hold** — the arming gesture is an
+audible held note that hands over to the chatter, rather than two seconds
+of silence ending in a surprise. **Tap the switch to stop.**
 
 It generates phrases rather than an even stream. Some syllables get a
 consonant, most do not. LED 5 pulses with each syllable.

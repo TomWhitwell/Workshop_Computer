@@ -3,7 +3,7 @@ Name: Voder
 short-description: "The 1939 Bell Labs Voder - a filter and formant based voice-synthesis machine, invented by Homer Dudley - played by hand from the panel or from a Music Thing 8mu over USB MIDI Host"
 Language: C++ (ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: "1.0.0"
+Version: "1.0.1"
 Status: Released
 License: MIT
 repository: https://github.com/uglifruit/WorkshopTract8
@@ -28,7 +28,7 @@ contact:
 
 uf2:
   - path: UF2/tract8.uf2
-    name: Voder 1.0.0
+    name: Voder 1.0.1
 
 tags:
   - synth
@@ -59,9 +59,10 @@ summary: |
   sweeps the vowel and the pitch together, X sets how fast and bright the
   syllables are, and Y runs from a rounded hum to a breathy whisper. Switch
   up for a second page that shapes the voice itself rather than what it is
-  saying: size, animation and consonants. Holding the momentary switch for
-  two seconds starts it talking by itself in phrases, with pauses long
-  enough to read as breaths.<br><br>
+  saying: size, animation and consonants. The momentary switch is a gate -
+  hold it and the card sounds for as long as you hold it, with nothing
+  patched at all. Hold it for two seconds and it starts talking by itself
+  in phrases, with pauses long enough to read as breaths.<br><br>
 
   Holding the switch down at power-on gives the deliberate mode instead, one
   knob to one parameter, where the vowel is a point in a three-dimensional
@@ -177,13 +178,17 @@ controls:
         the deliberate mode, pitch, brightness and rounding. Between the two
         pages the panel reaches every parameter the 8mu can.
     down:
-      name: Plosive / auto-chatter
+      name: Gate / auto-chatter
       description: >
-        Spring-loaded. A tap fires a plosive burst. In BABBLE, holding it for
+        Spring-loaded. Holding it sounds the card for as long as it is held -
+        the panel's copy of Pulse In 2, so the card can be played from the
+        panel alone with nothing patched. It sustains rather than chatters,
+        because a finger on a button is one continuous intent where a gate
+        from a sequencer is a stream of events. In BABBLE, holding it for
         two seconds engages auto-chatter, where the card talks by itself in
         phrases until the switch is tapped again; the LEDs fill left to right
-        during the hold so the gesture is not silent. In the deliberate mode,
-        holding it turns LEDs 0-3 into a silence diagnostic.
+        during the hold, and the card sounds throughout it. In the deliberate
+        mode, holding it turns LEDs 0-3 into a silence diagnostic.
   knobs:
     - when:
         z: middle

@@ -30,6 +30,13 @@ The rule it enforces: no single jack-detection fault may reduce the card to
 silence. Failures must fall back to making sound, because a droning card is
 diagnosable from the front panel and a mute one is not.
 
+Check 5 was added when the momentary switch stopped being a plosive key and
+became a gate. Anything that joins the gate path has to be checked BOTH
+ways: that it can rescue a card whose gate is stuck low, and that it cannot
+latch gate_seen_ - a switch that latched would mute the card the moment it
+was released with nothing patched, which is the original bug by another
+route.
+
 Run: python tools/silence_check.py
 """
 
@@ -47,12 +54,19 @@ class Panel:
         self.ext_hold = 0
         self.gate_seen = False
 
-    def step(self, *, pulse2_high, audio_in, midi_voiced=0, midi_noise=0):
+    def step(self, *, pulse2_high, audio_in, midi_voiced=0, midi_noise=0,
+             switch_down=False):
         """Returns (voiced_level, noise_level, use_ext, excitation_reaches_bank)."""
         # --- gate path (current implementation) ---
         if pulse2_high:
             self.gate_seen = True
-        ext_gate = pulse2_high if self.gate_seen else True
+        # gate_seen_ latches on the JACK only. The switch must not make the
+        # card think a cable has appeared - if it did, releasing the switch
+        # would leave the gate closed and the card silent with nothing
+        # patched, which is the exact failure mode the latch exists to
+        # prevent.
+        jack_gate = pulse2_high if self.gate_seen else True
+        ext_gate = jack_gate or switch_down
 
         any_midi = midi_voiced or midi_noise
         if any_midi:
@@ -79,12 +93,13 @@ class Panel:
 
 
 def scenario(name, *, pulse2_high, audio_in, midi_v=0, midi_n=0,
-             steps=2, expect_sound=True):
+             steps=2, expect_sound=True, switch_down=False):
     p = Panel()
     reaches = False
     for _ in range(steps):
         _, _, _, reaches = p.step(pulse2_high=pulse2_high, audio_in=audio_in,
-                                  midi_voiced=midi_v, midi_noise=midi_n)
+                                  midi_voiced=midi_v, midi_noise=midi_n,
+                                  switch_down=switch_down)
     ok = (reaches == expect_sound)
     verdict = "sound" if reaches else "SILENT"
     want = "sound" if expect_sound else "silent"
@@ -168,6 +183,51 @@ def check_ext_hold():
     return held and released
 
 
+def check_switch_gate():
+    """The switch became a GATE rather than a plosive key.
+
+    It used to fire one click on the press and then do nothing for the rest
+    of the hold - the panel's copy of Pulse In 1. It is now the panel's copy
+    of Pulse In 2: held down it opens the voice for as long as it is held.
+
+    That puts it in the gate path, which is what this file guards, so it
+    gets two checks pulling in opposite directions.
+    """
+    print("\n5. The switch is a gate, and joining the gate path is safe")
+    ok = True
+
+    # It must SOUND while held - the whole point of the change.
+    ok &= scenario("switch held, nothing else patched",
+                   pulse2_high=False, audio_in=0, switch_down=True)
+
+    # And it must RESCUE a gate stuck low. This is the direction that
+    # matters for this file: a real cable in Pulse In 2 sitting at 0 V
+    # legitimately silences the card, and the switch is then the one
+    # control on the panel that can prove the card is still alive.
+    p = Panel()
+    p.step(pulse2_high=True, audio_in=0)          # a real jack rises once
+    _, _, _, silent = p.step(pulse2_high=False, audio_in=0)
+    _, _, _, rescued = p.step(pulse2_high=False, audio_in=0, switch_down=True)
+    good = (not silent) and rescued
+    print(f"   {'gate latched then held low -> switch still sounds':52} "
+          f"{'ok' if good else '<-- CANNOT RESCUE'}")
+    ok &= good
+
+    # The other direction, and the trap: the switch must NOT latch
+    # gate_seen_. If it did, pressing and releasing the switch with nothing
+    # patched would leave jack_gate reading PulseIn2() forever - which is
+    # low - and the card would be permanently mute afterwards. That is the
+    # v1.0.0 silence bug reintroduced by the back door.
+    p2 = Panel()
+    for _ in range(4):
+        p2.step(pulse2_high=False, audio_in=0, switch_down=True)
+    _, _, _, after = p2.step(pulse2_high=False, audio_in=0, switch_down=False)
+    print(f"   {'switch released, nothing patched -> still drones':52} "
+          f"{'ok' if after else '<-- MUTED BY THE SWITCH'}")
+    ok &= after
+    return ok
+
+
 def main():
     print("TRACT8 silence regression check")
     print("  Rule: no single jack-detection fault may mute the card.")
@@ -175,6 +235,7 @@ def main():
     ok &= check_real_patches()
     ok &= check_deliberate_silence()
     ok &= check_ext_hold()
+    ok &= check_switch_gate()
     print("\nPASS" if ok else "\nFAIL")
     return 0 if ok else 1
 

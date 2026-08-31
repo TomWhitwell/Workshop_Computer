@@ -27,10 +27,10 @@
 // needing the patch to supply a sensible absolute value.
 //
 // The Voder's controls map onto this card as:
-//   wrist bar (buzz/hiss)  -> notes C2/C3, Knob 3, Pulse In 2
+//   wrist bar (buzz/hiss)  -> notes C2/C3, Knob 3, Pulse In 2, Switch down
 //   foot pedal (pitch)     -> accelerometer CC 42/43, CV In 1, Knob 1 page 2
 //   ten filter keys        -> 8mu faders CC 34-41, Knob 1/2 on the panel
-//   three stop keys        -> note C4, Pulse In 1, Switch down
+//   three stop keys        -> note C4, Pulse In 1
 
 #include "ComputerCard.h"
 
@@ -97,6 +97,11 @@ static constexpr int32_t kBabbleMaxPeriod = 24000;  // 2 Hz
 // to engage, tap it to leave. It generates its own gates - varied lengths,
 // grouped into phrases with breaths between them - so the card talks
 // unprompted, as if something were feeding Pulse In 2.
+//
+// The switch sounds throughout that two-second hold, because it is a gate
+// in its own right (see the gate block in ProcessSample). So the arming
+// gesture is audible as a held note that then hands over to the chatter,
+// rather than two seconds of silence ending in a surprise.
 //
 // The shape is what makes it read as speech rather than as a gate
 // sequencer. Real utterances are bursts of a few syllables with pauses
@@ -501,16 +506,27 @@ class VoderCard : public ComputerCard {
     // patched, which is the failure mode the latch exists to prevent.
     if (PulseIn2()) gate_seen_ = true;
     const bool jack_gate = gate_seen_ ? PulseIn2() : true;
-    const bool ext_gate = jack_gate || g_state.midi_gate;
+    // The switch is read here rather than at its own block below, because
+    // it is now a GATE and the gate has to be assembled before the voice
+    // is. Held down it opens the voice for as long as it is held, exactly
+    // like Pulse In 2 - it is the panel's copy of that jack.
+    const bool down = (SwitchVal() == Switch::Down);
+    const bool ext_gate = jack_gate || g_state.midi_gate || down;
     // The 8mu no longer gates the sources separately - button 1 is a
     // mute now, and breath already covers the buzz/noise balance better
     // than two buttons could.
     // Button 2 overrides the syllable gate, so holding it sustains rather
     // than chatters. It is the only control that does; everything else
     // goes through the same envelope.
-    const bool open = g_state.midi_gate ? true
-                    : babble_           ? babble_open_
-                                        : ext_gate;
+    //
+    // The switch sustains for the same reason. A finger held on a button
+    // is one continuous intent, not a stream of events, so it opens the
+    // voice for the whole hold - INCLUDING the two seconds it takes to
+    // arm auto-chatter, which would otherwise be the one gesture on the
+    // card that goes quiet while you perform it.
+    const bool open = (g_state.midi_gate || down) ? true
+                    : babble_                     ? babble_open_
+                                                  : ext_gate;
     p.voiced_level = open ? 32767 : 0;
     p.noise_level = open ? 32767 : 0;
 
@@ -623,17 +639,22 @@ class VoderCard : public ComputerCard {
       babble_open_ = false;
     }
 
-    // Switch down: a momentary plosive key, and in BABBLE a two-second
-    // hold toggles AUTO-CHATTER.
+    // Switch down: a GATE, not a key. It was a momentary plosive - one
+    // click on the press, silence for the rest of the hold - which made
+    // the panel's copy of Pulse In 1 rather than of Pulse In 2, and left
+    // the two-second auto-chatter arming gesture completely silent while
+    // you performed it. It now sounds for as long as it is held, through
+    // the gate assembled above, and that includes the countdown.
     //
-    // The plosive fires on the CHANGE, so a long hold makes one click and
-    // then arms the toggle rather than repeating. Leaving is a tap, so the
-    // gesture is asymmetric on purpose: engaging something that then plays
-    // by itself should take deliberate effort, while stopping it should
-    // not - the same reasoning as a panic button.
-    const bool down = (SwitchVal() == Switch::Down);
+    // Consonants have not been lost: Pulse In 1 still fires clicks in
+    // every mode, the 8mu's plosive note still does, and BABBLE draws its
+    // own. The switch simply is not one of those sources any more.
+    //
+    // In BABBLE a two-second hold still toggles AUTO-CHATTER. Leaving is
+    // a tap, so the gesture is asymmetric on purpose: engaging something
+    // that then plays by itself should take deliberate effort, while
+    // stopping it should not - the same reasoning as a panic button.
     if (down && SwitchChanged()) {
-      voder_.TriggerPlosive(p.click_decay);
       // A tap while auto-chatter is running stops it. Handled on the
       // press rather than the release so it stops the instant it is
       // touched.

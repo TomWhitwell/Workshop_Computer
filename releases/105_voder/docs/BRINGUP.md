@@ -18,7 +18,7 @@ returns, the named cause is where to look first rather than starting again.
 - Headphones or a monitor on Audio Out 1 or 2.
 - Nothing patched into the inputs. The card makes sound on its own and a bare
   start removes a whole class of confusion.
-- The 8mu stays unplugged until section 5. Every control below is reachable
+- The 8mu stays unplugged until section 6. Every control below is reachable
   from the panel alone, which is deliberate.
 
 ---
@@ -74,16 +74,37 @@ Every knob must move the sound on every page. A knob that does nothing was a
 real fault twice — once from a latch that stopped the morph writing after any
 fader moved, once from a control the 8mu had silently seized.
 
-## 4. Auto-chatter
+## 4. The momentary switch as a gate
+
+Hold the switch **Down** with nothing patched. **The card should sound for the
+whole hold** and stop when you let go.
+
+If it makes one click on the press and then goes quiet, the switch is still
+wired as a plosive key rather than into the gate — the pre-1.0.1 behaviour.
+
+If it stutters instead of sustaining, it has been put into `chatter_gate`
+rather than overriding it. A gate from a sequencer is a stream of events and
+should chatter; a finger on a button is one continuous intent and should not.
+
+If it sounds while held but the card is **permanently mute after you release
+it** with nothing patched, the switch is latching `gate_seen_`. It must not:
+that latch is what keeps a misdetected Pulse In 2 from muting the card, and a
+switch that sets it reintroduces the first hardware run's silence bug by the
+back door. `silence_check.py` check 5 covers exactly this.
+
+## 5. Auto-chatter
 
 Hold the momentary switch for **two seconds** in BABBLE. The LEDs fill left to
-right as a progress bar, then it starts talking by itself in phrases with
-pauses long enough to read as breaths. Tap the switch to stop.
+right as a progress bar, **and the card sounds throughout the hold**, then it
+starts talking by itself in phrases with pauses long enough to read as
+breaths. Tap the switch to stop.
+
+If the hold is silent, the switch is not reaching the gate — see section 4.
 
 If the phrases sound staccato and evenly spaced rather than like speech, the
 syllable duty is wrong.
 
-## 5. The 8mu
+## 6. The 8mu
 
 Plug it in. **LED 4 lights** when it mounts.
 
@@ -106,7 +127,7 @@ and a stale device address that made every later mount fail). It should now
 recover on its own from any of them. Sustained fader plus accelerometer traffic
 is what provoked it.
 
-## 6. The jacks
+## 7. The jacks
 
 Every CV input **adds** to its control rather than replacing it, so nothing
 goes dead when a cable goes in.
@@ -126,7 +147,7 @@ half the cycle, with the DC offset shifting as faders 1 and 8 move — was a rea
 fault, caused by clamping the CV at zero instead of scaling it into the
 headroom the faders leave.
 
-## 7. Level and cleanliness
+## 8. Level and cleanliness
 
 On a scope, an ordinary vowel should span roughly **±2.8 V with momentary peaks
 near ±4.2 V**, against outputs that reach ±6 V.
@@ -148,14 +169,14 @@ an unsmoothed CV multiplying the output, and the panel read beating against
 ComputerCard's 4-state input mux. If it returns, the *period* identifies it —
 250 µs is the mux beat, 8 ms is the control rate.
 
-## 8. CV outs
+## 9. CV outs
 
 - **CV Out 1** — formant energy envelope, ~5 ms smoothing.
 - **CV Out 2** — the vowel's openness axis, 0–5 V closed to open. In BABBLE it
   wanders on its own, so it is a modulation source related to what you are
   hearing. Patch it at a filter and the patch moves with the voice.
 
-## 9. What is still unproven
+## 10. What is still unproven
 
 - **Deliberate reproduction of the USB lockup.** Three causes were fixed and
   absence of reports is not proof. Sustained fader plus accelerometer traffic
