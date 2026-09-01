@@ -11,6 +11,10 @@ namespace {
 
 uint32_t g_midiPhaseInc[128];
 int16_t g_sinLut[256];
+int32_t g_cutoffFLut[128];
+
+constexpr uint64_t kPwmWidthMul = (0xF0000000ull << 32) / 127ull;
+constexpr int32_t kThirdScale = 21845; // 1/3 in Q16
 
 uint32_t noteIncrement(int32_t note)
 {
@@ -21,21 +25,21 @@ uint32_t noteIncrement(int32_t note)
     return g_midiPhaseInc[note];
 }
 
-int32_t polyblepCorr(uint32_t phase, uint32_t inc)
+int32_t polyblepCorr(uint32_t phase, uint32_t invInc)
 {
-    if (inc == 0)
+    if (invInc == 0)
         return 0;
-    if (phase < inc)
+    if ((uint64_t)phase * invInc < (1ull << 32))
     {
-        uint32_t x = (uint32_t)(((uint64_t)phase << 16) / inc);
+        uint32_t x = (uint32_t)(((uint64_t)phase * invInc) >> 16);
         int32_t corr =
             (int32_t)(2 * x) - (int32_t)((x * x) >> 16) - 65536;
         return (corr * 2048) >> 16;
     }
     uint32_t inv = 0u - phase;
-    if (inv < inc)
+    if ((uint64_t)inv * invInc < (1ull << 32))
     {
-        uint32_t xn = (uint32_t)(((uint64_t)inv << 16) / inc);
+        uint32_t xn = (uint32_t)(((uint64_t)inv * invInc) >> 16);
         int32_t up1 = 65536 - (int32_t)xn;
         int32_t corr = (up1 * up1) >> 16;
         return (corr * 2048) >> 16;
@@ -46,7 +50,11 @@ int32_t polyblepCorr(uint32_t phase, uint32_t inc)
 int16_t oscSaw(uint32_t phase, uint32_t inc)
 {
     int32_t saw = (int32_t)(phase >> 20) - 2048;
-    saw -= polyblepCorr(phase, inc);
+    if (inc != 0)
+    {
+        uint32_t invInc = (uint32_t)((1ull << 32) / inc);
+        saw -= polyblepCorr(phase, invInc);
+    }
     return (int16_t)clamp12(saw);
 }
 
@@ -58,7 +66,8 @@ int16_t oscSquare(uint32_t phase)
 // pwmWidth 0..127 → duty ~3%..97% (avoids stuck rails).
 int16_t oscPulse(uint32_t phase, uint8_t pwm)
 {
-    uint32_t width = ((uint32_t)pwm * 0xF0000000u) / 127u + 0x08000000u;
+    uint32_t width =
+        (uint32_t)(((uint64_t)pwm * kPwmWidthMul) >> 32) + 0x08000000u;
     return (phase < width) ? (int16_t)2047 : (int16_t)-2048;
 }
 
@@ -116,6 +125,8 @@ int32_t cutoffToF(int32_t cut01_127)
 {
     if (cut01_127 < 0)
         cut01_127 = 0;
+    if (cut01_127 <= 127)
+        return g_cutoffFLut[cut01_127];
     if (cut01_127 > 140)
         cut01_127 = 140;
     return 180 + cut01_127 * cut01_127 / 2;
@@ -131,15 +142,13 @@ void voiceChorusStereo(PolyVoice &v, int32_t x, int32_t &outL, int32_t &outR)
     int32_t lfoB = g_sinLut[v.chorusLfo2 >> 24];
     int delayL = 48 + (((lfoA + 2048) * 90) >> 12); // ~1–3 ms
     int delayR = 64 + (((lfoB + 2048) * 100) >> 12);
-    int idxL = (int)v.chorusWr - delayL;
-    if (idxL < 0)
-        idxL += PolyVoice::kChorusLen;
-    int idxR = (int)v.chorusWr - delayR;
-    if (idxR < 0)
-        idxR += PolyVoice::kChorusLen;
+    int idxL = (int)v.chorusWr + PolyVoice::kChorusLen - delayL;
+    int idxR = (int)v.chorusWr + PolyVoice::kChorusLen - delayR;
+    idxL &= (PolyVoice::kChorusLen - 1);
+    idxR &= (PolyVoice::kChorusLen - 1);
     int32_t wetL = v.chorusBuf[idxL];
     int32_t wetR = v.chorusBuf[idxR];
-    v.chorusWr = (uint16_t)((v.chorusWr + 1u) % PolyVoice::kChorusLen);
+    v.chorusWr = (uint16_t)((v.chorusWr + 1u) & (PolyVoice::kChorusLen - 1));
     // Mild wet — character without washing out the DCO.
     outL = clamp12((x * 3 + wetL) >> 2);
     outR = clamp12((x * 3 + wetR) >> 2);
@@ -181,6 +190,8 @@ void initLuts()
         float t = (float)i / 256.0f * 6.28318530718f;
         g_sinLut[i] = (int16_t)(sinf(t) * 2047.0f);
     }
+    for (int i = 0; i < 128; ++i)
+        g_cutoffFLut[i] = 180 + i * i / 2;
 }
 
 int16_t phaseSin(uint32_t phase) { return g_sinLut[phase >> 24]; }
@@ -217,7 +228,7 @@ uint32_t noteBendIncrement(uint8_t note, int16_t bend14, uint8_t bendSemitones)
 {
     int32_t note8 =
         ((int32_t)note << 8) +
-        (((int32_t)bend14 * (int32_t)bendSemitones * 256) / 8192);
+        (((int32_t)bend14 * (int32_t)bendSemitones * 256) >> 13);
     if (note8 < 0)
         note8 = 0;
     if (note8 > (127 << 8))
@@ -465,10 +476,11 @@ void renderWaveMatrix(PolyVoice &v, uint8_t row, uint8_t col,
         v.phase += inc;
         v.phase2 += inc;
         v.phase3 += inc;
-        s = (sampleRowWave(row, v.phase, inc) +
-             sampleRowWave(row, v.phase2, inc) +
-             sampleRowWave(row, v.phase3, inc)) /
-            3;
+        s = (int32_t)((sampleRowWave(row, v.phase, inc) +
+                       sampleRowWave(row, v.phase2, inc) +
+                       sampleRowWave(row, v.phase3, inc)) *
+                      (int64_t)kThirdScale >>
+                      16);
         break;
     case 3:
         v.phase += inc;

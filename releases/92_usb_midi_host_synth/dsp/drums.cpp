@@ -38,6 +38,7 @@ struct DrumVoice
 
 DrumVoice g_drums[kDrumVoiceMax];
 uint32_t g_drumAge = 1;
+uint8_t g_drumsActiveCount = 0;
 
 // Approximate phase increments at 48 kHz (freq / 48000 * 2^32).
 constexpr uint32_t kInc150 = 13421773u;  // ~150 Hz kick start
@@ -284,7 +285,11 @@ int32_t renderVoice(DrumVoice &v)
     if (v.amp <= v.ampDec)
     {
         v.amp = 0;
-        v.active = false;
+        if (v.active)
+        {
+            v.active = false;
+            --g_drumsActiveCount;
+        }
     }
     else
         v.amp -= v.ampDec;
@@ -299,6 +304,7 @@ void drumsInit()
     for (int i = 0; i < kDrumVoiceMax; ++i)
         g_drums[i] = DrumVoice{};
     g_drumAge = 1;
+    g_drumsActiveCount = 0;
 }
 
 void drumNoteOn(uint8_t note, uint8_t velocity)
@@ -314,7 +320,10 @@ void drumNoteOn(uint8_t note, uint8_t velocity)
         chokeKind(DrumKind::HatClosed);
 
     int slot = allocVoice(kind);
+    bool wasActive = g_drums[slot].active;
     startVoice(g_drums[slot], kind, velocity);
+    if (!wasActive)
+        ++g_drumsActiveCount;
 }
 
 void drumNoteOff(uint8_t note)
@@ -329,10 +338,14 @@ void drumsAllOff()
 {
     for (int i = 0; i < kDrumVoiceMax; ++i)
         g_drums[i].active = false;
+    g_drumsActiveCount = 0;
 }
 
 void drumsRenderMix(int32_t &mixL, int32_t &mixR)
 {
+    if (g_drumsActiveCount == 0)
+        return;
+
     int32_t sumL = 0;
     int32_t sumR = 0;
     int active = 0;
