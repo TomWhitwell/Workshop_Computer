@@ -233,7 +233,7 @@ flowchart TD
     ENV --> RENDER[renderPolyVoiceAudio]
     RENDER --> DECODE[decodeVoiceMatrix voiceId<br/>row = id/11 col = id%11]
     DECODE --> VM[renderVoiceMatrix<br/>waveform rows R0–R10 × cols C0–C10]
-    VM --> SUM[Mix L/R ÷ kPolyMax]
+    VM --> SUM[Mix L/R >> 2]
     SUM --> DRUMS[drumsRenderMix]
     DRUMS --> CLIP[Clamp ±2048]
     CLIP --> OUT[AudioOut1/2]
