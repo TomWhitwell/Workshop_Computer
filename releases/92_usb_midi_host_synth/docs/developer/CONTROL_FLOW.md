@@ -5,7 +5,7 @@ describes how the firmware is structured, how the two RP2040 cores interact,
 and how MIDI, panel I/O, audio, and configuration flow through the system.
 
 Firmware **0.10.x** — see also [`VOICE_MATRIX.md`](VOICE_MATRIX.md) for the
-121-patch voice matrix spec.
+121-patch voice matrix spec. Operator guide: [`../features/voice-matrix.md`](../features/voice-matrix.md).
 
 **Clock:** firmware runs at **200 MHz** (not the AGENTS default 144 MHz) to
 leave headroom for four poly voices, drum synthesis, and per-voice character FX

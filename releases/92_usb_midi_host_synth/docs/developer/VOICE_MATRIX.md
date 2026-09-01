@@ -1,5 +1,7 @@
 # 121 Voice Matrix — Design Spec
 
+Developer reference. For patch selection and everyday use, see [`../features/voice-matrix.md`](../features/voice-matrix.md).
+
 USB MIDI Host program card **79**. Source of truth for the 11×11 voice system:
 **11 base timbres (rows)** × **11 classic synth variations (columns)** = **121
 patches**, addressable by MIDI CC **0–120** on the Audio engine slot (factory

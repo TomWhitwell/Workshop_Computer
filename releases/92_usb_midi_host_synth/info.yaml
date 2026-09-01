@@ -128,4 +128,4 @@ readme: |
   Plug a class-compliant USB MIDI keyboard into the Computer (Rev 1.1+) for dual-voice
   CV/gate plus 4-voice poly audio (121-patch voice matrix). CC 24 selects engine patch.
   Hold Z Down ~1 s to toggle SETUP and learn any CC, key, or X/Y knob to a parameter slot. Plug into a laptop
-  to use web/index.html for the same maps over SysEx. Pitch CV uses Simple MIDI EEPROM calibration.
+  to use web/index.html for the same maps over SysEx. Full operator docs: docs/getting-started.md
