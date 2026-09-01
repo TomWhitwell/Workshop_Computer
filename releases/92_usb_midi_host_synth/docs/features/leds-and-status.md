@@ -16,7 +16,7 @@ LED indices in documentation are **LED0–LED5** top-left through bottom-right i
 
 | LED | Meaning |
 |-----|---------|
-| LED0 | USB **host**: lit when a MIDI device is mounted. **Device**: blinks with web/editor link activity |
+| LED0 | USB **host**: lit when a MIDI device is mounted. **Device**: blinks with web/editor link activity. **Uncalibrated CV**: slow blink overrides the above until EEPROM pitch cal is loaded |
 | LED1 | MIDI activity (flickers on traffic) |
 | LED2 | Gate for Voice A (Pulse Out 1) |
 | LED3 | Gate for Voice B (Pulse Out 2) |

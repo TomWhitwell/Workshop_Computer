@@ -21,7 +21,6 @@ void UsbMidiHostCard::core1Entry() { g_card->usbCore(); }
 
 void UsbMidiHostCard::usbCore()
 {
-    multicore_lockout_victim_init();
     sleep_us(150000);
     chooseUsbRole();
     if (g_isUsbHost)
@@ -33,6 +32,7 @@ void UsbMidiHostCard::usbCore()
 
     while (true)
     {
+        serviceFlashSaveRequest();
         if (consumeFactoryResetLatch())
         {
             applyDefaults();

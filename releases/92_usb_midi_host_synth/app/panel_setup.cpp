@@ -70,7 +70,7 @@ void UsbMidiHostCard::serviceSetupControls()
 
     if (g_appMode == (uint8_t)AppMode::Setup)
     {
-        uint16_t main = g_panelMain;
+        int32_t main = g_panelMain;
         uint8_t raw =
             (uint8_t)(((uint32_t)main * (uint32_t)kNumSlots) / 4096u);
         if (raw >= kNumSlots)

@@ -12,6 +12,10 @@ Send notes on a MIDI channel the card listens to (channel 1 works out of the box
 
 If you are using the web editor relay, enable **Relay to card** and pick your **controller** port, not the Computer’s own MIDI port.
 
+## CV pitch wrong or drifting
+
+Run the Workshop Computer **Simple MIDI calibration** (EEPROM). If calibration data is missing, **LED0** blinks slowly in PLAY mode and the web editor header shows “CV pitch not calibrated”. Pitch still outputs, but 1 V/oct tracking will be approximate.
+
 ## CV or gate dead on one voice
 
 Voice A defaults to **MIDI channel 1**, Voice B to **channel 2**. Many controllers transmit on channel 1 only; CV Out 2 will stay idle until you send channel 2 data or change the channel map in SETUP or the web editor.

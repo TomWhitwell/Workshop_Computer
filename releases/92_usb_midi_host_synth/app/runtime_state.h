@@ -15,9 +15,11 @@ extern volatile bool g_midiActivity;
 extern volatile bool g_webLinked;
 extern volatile uint32_t g_configSavedFlashTimer;
 
-extern volatile uint16_t g_panelMain;
-extern volatile uint16_t g_panelX;
-extern volatile uint16_t g_panelY;
+extern volatile bool g_cvOutsCalibrated;
+
+extern volatile int32_t g_panelMain;
+extern volatile int32_t g_panelX;
+extern volatile int32_t g_panelY;
 extern volatile uint8_t g_panelSwitch;
 extern volatile bool g_panelStream;
 extern volatile uint8_t g_appMode; // AppMode

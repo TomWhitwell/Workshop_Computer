@@ -125,9 +125,9 @@ void UsbMidiHostCard::sendPanelSnapshot(bool force)
 
 void UsbMidiHostCard::sendPanelState(bool force)
 {
-    uint16_t main = g_panelMain;
-    uint16_t x = g_panelX;
-    uint16_t y = g_panelY;
+    uint16_t main = (uint16_t)g_panelMain;
+    uint16_t x = (uint16_t)g_panelX;
+    uint16_t y = (uint16_t)g_panelY;
     uint8_t sw = g_panelSwitch;
     if (main > 4095)
         main = 4095;
@@ -161,7 +161,7 @@ void UsbMidiHostCard::sendPanelState(bool force)
         (uint8_t)(g_ext.cutoff & 0x7F),
         (uint8_t)(g_ext.pwmWidth & 0x7F),
         (uint8_t)(g_setupSlotPending & 0x7F),
-        127, // reserved
+        (uint8_t)(g_cvOutsCalibrated ? 1 : 0),
     };
 
     bool discrete = !panelTxValid_;

@@ -12,9 +12,11 @@ volatile bool g_midiActivity = false;
 volatile bool g_webLinked = false;
 volatile uint32_t g_configSavedFlashTimer = 0;
 
-volatile uint16_t g_panelMain = 0;
-volatile uint16_t g_panelX = 0;
-volatile uint16_t g_panelY = 0;
+volatile bool g_cvOutsCalibrated = false;
+
+volatile int32_t g_panelMain = 0;
+volatile int32_t g_panelX = 0;
+volatile int32_t g_panelY = 0;
 volatile uint8_t g_panelSwitch = 1;
 volatile bool g_panelStream = false;
 volatile uint8_t g_appMode = 0;
