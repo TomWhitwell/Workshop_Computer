@@ -16,3 +16,4 @@ void sysexProcessIncoming(SysExTransport &tx, uint8_t *data, uint32_t size);
 void sysexSendMapsReply(SysExTransport &tx);
 void sysexSendCardId(SysExTransport &tx);
 void sysexSendConfig(SysExTransport &tx);
+void sysexSendProfile(SysExTransport &tx);

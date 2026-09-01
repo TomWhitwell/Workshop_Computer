@@ -1,5 +1,7 @@
 #include "card.h"
 
+#include "profile_meter.h"
+
 #include "adsr.h"
 #include "config_store.h"
 #include "drums.h"
@@ -43,6 +45,8 @@ void UsbMidiHostCard::writeMidiCv(uint8_t noteA, int16_t bendA, uint8_t noteB,
 
 void UsbMidiHostCard::ProcessSample()
 {
+    g_processSampleMeter.beginSample();
+
     if (bootSamples_ < 4800)
     {
         ++bootSamples_;
@@ -287,5 +291,6 @@ void UsbMidiHostCard::ProcessSample()
         }
     }
 
+    g_processSampleMeter.endSample();
     ++sampleCount_;
 }

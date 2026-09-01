@@ -1,6 +1,7 @@
 #include "sysex_editor.h"
 
 #include "config_store.h"
+#include "profile_meter.h"
 #include "protocol.h"
 #include "runtime_state.h"
 
@@ -25,6 +26,22 @@ void sysexSendConfig(SysExTransport &tx)
     uint8_t reply[1 + kConfigLen];
     reply[0] = kCmdReadConfig;
     memcpy(reply + 1, &g_config, kConfigLen);
+    tx.sendSysEx(reply, sizeof(reply));
+}
+
+void sysexSendProfile(SysExTransport &tx)
+{
+    uint32_t peak = g_processSampleMeter.peakUs();
+    if (peak > 0x3FFF)
+        peak = 0x3FFF;
+    uint8_t reply[] = {
+        kCmdReadProfile,
+        (uint8_t)((peak >> 7) & 0x7F),
+        (uint8_t)(peak & 0x7F),
+        (uint8_t)(g_processSampleMeter.overrun() ? 1 : 0),
+        (uint8_t)((kProcessSampleBudgetUs >> 7) & 0x7F),
+        (uint8_t)(kProcessSampleBudgetUs & 0x7F),
+    };
     tx.sendSysEx(reply, sizeof(reply));
 }
 
@@ -57,6 +74,8 @@ void sysexProcessIncoming(SysExTransport &tx, uint8_t *data, uint32_t size)
     }
     else if (cmd == kCmdPanelState)
         tx.sendPanelSnapshot(true);
+    else if (cmd == kCmdReadProfile)
+        sysexSendProfile(tx);
     else if (cmd == kCmdReadMaps)
         sysexSendMapsReply(tx);
     else if (cmd == kCmdWriteMaps && size >= 1 + sizeof(ExtConfig))
