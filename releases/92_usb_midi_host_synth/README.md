@@ -1,19 +1,17 @@
 # USB MIDI Host
 
-USB MIDI → CV/Gate/Audio for the Music Thing Modular Workshop System Computer, with SETUP + MIDI learn, multiple engines, arpeggiator, reverb, stroke LED glyphs, and a browser editor.
+USB MIDI → CV/Gate/Audio for the Music Thing Modular Workshop System Computer, with SETUP + MIDI learn, a 121-patch voice matrix, stroke LED glyphs, and a browser editor.
 
 ## What it does
 
 | Output | Source |
 |--------|--------|
-| CV Out 1 + Pulse Out 1 | Voice A (default MIDI ch 1), optionally arpeggiated |
+| CV Out 1 + Pulse Out 1 | Voice A (default MIDI ch 1), last-note priority |
 | CV Out 2 + Pulse Out 2 | Voice B (default MIDI ch 2) |
 | Audio Out 1 / 2 | 4-voice poly — **121 voice matrix** (see [`docs/VOICE_MATRIX.md`](docs/VOICE_MATRIX.md)) |
 
 - **CV pitch:** MIDI note 60 (C4) = 0 V (Simple MIDI EEPROM cal)
-- **Audio engines (CC 24):** **4-voice poly** — `0–7` basic/stacks; `8–12` famous-inspired (Moogish, Junoish, Sync, Acid, FM bell). Filter / chorus / glide / sync / FM stay **on each voice**, not on the mix bus.
-- **Arp (CC 26):** `0` off; `1–4` Up / Down / Up-Down / As-played (8ths); `5–8` same patterns faster (16ths) — voice A
-- **Reverb (CC 22):** wet param stored (bus FX; separate from voice character)
+- **Audio engines (CC 24):** **4-voice poly** — 121 patches via the voice matrix (CC 0–120)
 - **ADSR (slots 7–10):** amp envelope on each voice; factory maps **Attack → X**, **Release → Y** (Decay/Sustain unmapped — learn MIDI CC or the other knob in SETUP). Kill-switch `A=D=R=0`, `S=127` is clickless gate; X/Y only update their slots when the knobs actually move (so Live ADSR settings are not constantly overwritten).
 - **Cutoff (slot 11):** per-voice filter cutoff / FM index (`0` dark … `127` open)
 - **PWM (slot 12):** pulse width, sync ratio, acid wave select, or FM ratio (`64` ≈ 50% pulse)
@@ -43,8 +41,8 @@ Factory reset (hold Down at power-on) is separate and only applies during the fi
 | 2 | Voice B MIDI channel | — |
 | 3 | Pitch bend range (1–12) | — |
 | 4 | Audio engine (voice matrix) | **CC 24** Omni — CC value 0–120 selects patch (see `docs/VOICE_MATRIX.md`) |
-| 5 | Arpeggiator 0–8 | **CC 26** Omni |
-| 6 | Reverb wet 0–127 | **CC 22** Omni |
+| 5 | *(reserved)* | — |
+| 6 | *(reserved)* | — |
 | 7 | Attack 0–127 | **Knob X** |
 | 8 | Decay 0–127 | — |
 | 9 | Sustain 0–127 | — |
@@ -54,7 +52,7 @@ Factory reset (hold Down at power-on) is separate and only applies during the fi
 
 ### Stroke LED glyphs
 
-On discrete changes (slot, channel, bend, engine, arp), the six LEDs briefly draw the digit as a stroke (not a bitmap), then return to status. Layout:
+On discrete changes (slot, channel, bend, engine), the six LEDs briefly draw the digit as a stroke (not a bitmap), then return to status. Layout:
 
 ```text
 1 2
@@ -75,7 +73,7 @@ On discrete changes (slot, channel, bend, engine, arp), the six LEDs briefly dra
 | 8 | 4-1-2-3-5-6-3 |
 | 9 | 5-4-1-2-6 |
 
-Each digit finishes in under ~200 ms. Continuous params (reverb) do not spam glyphs.
+Each digit finishes in under ~200 ms.
 
 ## USB host vs device
 
@@ -92,8 +90,8 @@ Open `web/index.html` in **Chrome or Edge** (WebMIDI + SysEx), Computer in devic
 
 1. Select Workshop Computer MIDI ports → **Identify** / **Read config**
 2. **MIDI relay** — choose a USB keyboard on this PC → enable **Relay to card** (play + SETUP learn without host cabling)
-3. **Front panel** graphic tracks Main / X / Y / Z; readouts show engine / arp / reverb / ADSR
-4. **Live engine** + **MIDI maps** — edit voice/arp/reverb/envelope/cutoff/PWM and learn table
+3. **Front panel** graphic tracks Main / X / Y / Z; readouts show engine / ADSR
+4. **Live engine** + **MIDI maps** — edit voice/envelope/cutoff/PWM and learn table
 5. **Virtual keyboard** (C1–C5) for quick CV/audio tests
 6. TX log + PC MIDI monitor (monitor is log-only; use relay to forward)
 
@@ -132,24 +130,10 @@ SysEx protocol is documented in [`sysex_spec.json`](sysex_spec.json) and [`docs/
 | `06` | Panel stream on/off |
 | `07` | Read extended maps block (`ExtConfig`) |
 | `08` | Write extended maps block to flash |
-| `09` | Set engine live: voice, arp, reverb[, ADSR][, cutoff, PWM] (RAM) |
+| `09` | Set engine live: voice[, ADSR][, cutoff, PWM] (RAM) |
 | `0A` | SETUP learn notify → editor (slot, source, channel, CC/note) |
 
-Firmware **0.9.0** (121-patch voice matrix, poly engines + ADSR).
-
-### Voices
-| # | Engine |
-|---|--------|
-| 0 | Square |
-| 1 | Sine |
-| 2 | Saw (polyBLEP) |
-| 3 | Triangle |
-| 4 | Dual saw (detuned) |
-| 5 | Square + sub (octave) |
-| 6 | Dual sine (detuned) |
-| 7 | Saw + sub square |
-
-Live engine / CC 24. Still 4-voice poly, clickless gate, fixed headroom.
+Firmware **0.10.0** (121-patch voice matrix, poly engines + ADSR, drums).
 
 ### ADSR on/off
 - **On** by default as clickless gate (factory `A=0 D=0 S=127 R=0`; X→Attack, Y→Release). Cutoff defaults open (`127`), PWM defaults `0`.

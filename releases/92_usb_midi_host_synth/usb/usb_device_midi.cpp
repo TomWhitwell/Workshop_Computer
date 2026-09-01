@@ -154,8 +154,6 @@ void UsbMidiHostCard::sendPanelState(bool force)
         (uint8_t)(g_appMode & 0x7F),
         (uint8_t)(g_setupSlot & 0x7F),
         (uint8_t)(g_ext.audioVoice & 0x7F),
-        (uint8_t)(g_ext.arpMode & 0x7F),
-        (uint8_t)(g_ext.reverbWet & 0x7F),
         (uint8_t)(g_ext.attack & 0x7F),
         (uint8_t)(g_ext.decay & 0x7F),
         (uint8_t)(g_ext.sustain & 0x7F),
@@ -163,7 +161,7 @@ void UsbMidiHostCard::sendPanelState(bool force)
         (uint8_t)(g_ext.cutoff & 0x7F),
         (uint8_t)(g_ext.pwmWidth & 0x7F),
         (uint8_t)(g_setupSlotPending & 0x7F),
-        127, // reserved (was applied volume; output is always full scale)
+        127, // reserved
     };
 
     bool discrete = !panelTxValid_;

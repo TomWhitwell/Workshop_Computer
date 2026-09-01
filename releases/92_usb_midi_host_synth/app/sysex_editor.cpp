@@ -1,6 +1,5 @@
 #include "sysex_editor.h"
 
-#include "arp.h"
 #include "config_store.h"
 #include "protocol.h"
 #include "runtime_state.h"
@@ -67,34 +66,26 @@ void sysexProcessIncoming(SysExTransport &tx, uint8_t *data, uint32_t size)
         if (ext.marker == kExtMarker)
         {
             sanitizeExtConfig(ext);
-            uint8_t newArp = ext.arpMode;
-            uint8_t oldArp = g_ext.arpMode;
-            ext.arpMode = oldArp;
             g_ext = ext;
-            setArpMode(newArp, false);
             requestSaveToFlash(kCmdWriteMaps);
         }
     }
-    else if (cmd == kCmdSetPerf && size >= 4)
+    else if (cmd == kCmdSetPerf && size >= 2)
     {
         uint8_t v = data[1];
-        uint8_t a = data[2];
-        uint8_t r = data[3] & 0x7F;
         if (v <= kVoiceMatrixMax)
             g_ext.audioVoice = v;
-        setArpMode(a, false);
-        g_ext.reverbWet = r;
+        if (size >= 6)
+        {
+            g_ext.attack = data[2] & 0x7F;
+            g_ext.decay = data[3] & 0x7F;
+            g_ext.sustain = data[4] & 0x7F;
+            g_ext.releaseAmp = data[5] & 0x7F;
+        }
         if (size >= 8)
         {
-            g_ext.attack = data[4] & 0x7F;
-            g_ext.decay = data[5] & 0x7F;
-            g_ext.sustain = data[6] & 0x7F;
-            g_ext.releaseAmp = data[7] & 0x7F;
-        }
-        if (size >= 10)
-        {
-            g_ext.cutoff = data[8] & 0x7F;
-            g_ext.pwmWidth = data[9] & 0x7F;
+            g_ext.cutoff = data[6] & 0x7F;
+            g_ext.pwmWidth = data[7] & 0x7F;
         }
     }
 }

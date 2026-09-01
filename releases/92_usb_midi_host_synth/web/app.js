@@ -11,7 +11,7 @@
     const CMD_SET_PERF = 0x09;
     const CMD_LEARN_NOTIFY = 0x0A;
     const CONFIG_LEN = 8;
-    const EXT_MARKER = 0x58;
+    const EXT_MARKER = 0x59;
     const NUM_SLOTS = 13;
     const SRC_NONE = 0;
     const SRC_CC = 1;
@@ -39,8 +39,8 @@
       'Voice B channel',
       'Pitch bend range',
       'Audio engine (CC 0–120)',
-      'Arpeggiator',
-      'Reverb wet',
+      'Reserved',
+      'Reserved',
       'Attack',
       'Decay',
       'Sustain',
@@ -48,10 +48,10 @@
       'Cutoff',
       'PWM'
     ];
-    const FACTORY_SLOT_CCS = [null, null, null, null, 24, 26, 22, null, null, null, null, null, null];
+    const FACTORY_SLOT_CCS = [null, null, null, null, 24, null, null, null, null, null, null, null, null];
     const FACTORY_SLOT_SRC = [
       SRC_NONE, SRC_NONE, SRC_NONE, SRC_NONE,
-      SRC_CC, SRC_CC, SRC_CC,
+      SRC_CC, SRC_NONE, SRC_NONE,
       SRC_KNOB_X, SRC_NONE, SRC_NONE, SRC_KNOB_Y,
       SRC_NONE, SRC_NONE
     ];
@@ -104,8 +104,6 @@
       return {
         marker: EXT_MARKER,
         audioVoice: 0,
-        arpMode: 0,
-        reverbWet: 0,
         attack: 0,
         decay: 0,
         sustain: 127,
@@ -374,9 +372,7 @@
       perfUiFromPanel = true;
       if ($('liveVoiceRow') && $('liveVoiceCol'))
         syncLiveVoiceUiFromCc(s.audioVoice | 0, { quiet: true });
-      if ($('liveArp')) $('liveArp').value = String(Math.max(0, Math.min(8, s.arpMode | 0)));
       const pairs = [
-        ['liveReverb', 'liveReverbVal', s.reverbWet],
         ['liveAttack', 'liveAttackVal', s.attack],
         ['liveDecay', 'liveDecayVal', s.decay],
         ['liveSustain', 'liveSustainVal', s.sustain],
@@ -400,8 +396,6 @@
       if ($('liveVoiceCc'))
         mapsState.audioVoice = Math.max(0, Math.min(VOICE_MATRIX_MAX,
           parseInt($('liveVoiceCc').value, 10) || mapsState.audioVoice));
-      mapsState.arpMode = Math.max(0, Math.min(8, parseInt($('liveArp').value, 10) || 0));
-      mapsState.reverbWet = clamp7(parseInt($('liveReverb').value, 10) || 0);
       mapsState.attack = clamp7(parseInt($('liveAttack').value, 10) || 0);
       mapsState.decay = clamp7(parseInt($('liveDecay').value, 10) || 0);
       mapsState.sustain = clamp7(parseInt($('liveSustain').value, 10) || 0);
@@ -409,7 +403,6 @@
       mapsState.cutoff = clamp7(parseInt($('liveCutoff').value, 10) || 0);
       mapsState.pwmWidth = clamp7(parseInt($('livePwm').value, 10) || 0);
       mapsState.marker = EXT_MARKER;
-      if ($('liveReverbVal')) $('liveReverbVal').textContent = String(mapsState.reverbWet);
       if ($('liveAttackVal')) $('liveAttackVal').textContent = String(mapsState.attack);
       if ($('liveDecayVal')) $('liveDecayVal').textContent = String(mapsState.decay);
       if ($('liveSustainVal')) $('liveSustainVal').textContent = String(mapsState.sustain);
@@ -432,8 +425,6 @@
         [
           CMD_SET_PERF,
           mapsState.audioVoice,
-          mapsState.arpMode,
-          mapsState.reverbWet,
           mapsState.attack,
           mapsState.decay,
           mapsState.sustain,
@@ -467,8 +458,6 @@
       const out = [
         state.marker & 0x7F,
         state.audioVoice & 0x7F,
-        state.arpMode & 0x7F,
-        state.reverbWet & 0x7F,
         (state.attack || 0) & 0x7F,
         (state.decay || 0) & 0x7F,
         (state.sustain || 0) & 0x7F,
@@ -484,23 +473,21 @@
     }
 
     function bytesToExtConfig(bytes) {
-      if (!bytes || bytes.length < 10 + NUM_SLOTS * 4) return null;
+      if (!bytes || bytes.length < 8 + NUM_SLOTS * 4) return null;
       if (bytes[0] !== EXT_MARKER) return null;
       const state = {
         marker: bytes[0],
         audioVoice: bytes[1],
-        arpMode: bytes[2],
-        reverbWet: bytes[3],
-        attack: bytes[4],
-        decay: bytes[5],
-        sustain: bytes[6],
-        releaseAmp: bytes[7],
-        cutoff: bytes[8],
-        pwmWidth: bytes[9],
+        attack: bytes[2],
+        decay: bytes[3],
+        sustain: bytes[4],
+        releaseAmp: bytes[5],
+        cutoff: bytes[6],
+        pwmWidth: bytes[7],
         slots: []
       };
       for (let i = 0; i < NUM_SLOTS; i++) {
-        const o = 10 + i * 4;
+        const o = 8 + i * 4;
         state.slots.push({
           sourceType: bytes[o],
           channel: bytes[o + 1],
@@ -1069,8 +1056,6 @@
         pill.textContent = setup ? 'SETUP' : 'PLAY';
         pill.classList.toggle('setup', setup);
       }
-      const arp = ext.arp != null ? ext.arp : 0;
-      const rev = ext.reverb != null ? ext.reverb : 0;
       const atk = ext.attack != null ? ext.attack : 0;
       const dcy = ext.decay != null ? ext.decay : 0;
       const sus = ext.sustain != null ? ext.sustain : 0;
@@ -1078,8 +1063,6 @@
       const ctf = ext.cutoff != null ? ext.cutoff : 0;
       const pwm = ext.pwmWidth != null ? ext.pwmWidth : 0;
 
-      setEngKnob('engDialArp', 'engValArp', arp, String(arp), 8);
-      setEngKnob('engDialRev', 'engValRev', rev, String(rev), 127);
       setEngKnob('engDialAtk', 'engValAtk', atk, String(atk), 127);
       setEngKnob('engDialDcy', 'engValDcy', dcy, String(dcy), 127);
       setEngKnob('engDialSus', 'engValSus', sus, String(sus), 127);
@@ -1187,8 +1170,8 @@
         // Accept known payload sizes only — garbage after a desync used to
         // thrash the front-panel / engine knobs.
         const okLen =
-          data.length === 8 || data.length === 13 || data.length === 17 ||
-          data.length === 19 || data.length === 20 || data.length === 21;
+          data.length === 8 || data.length === 11 || data.length === 15 ||
+          data.length === 17 || data.length === 18 || data.length === 19;
         if (!okLen) {
           noteMidiFault('bad panel packet len ' + data.length);
           return;
@@ -1202,26 +1185,24 @@
         }
         const sw = data[7] & 0x03;
         let ext = null;
-        if (data.length >= 13) {
+        if (data.length >= 11) {
           ext = {
             mode: data[8] & 0x7F,
             slot: data[9] & 0x7F,
-            voice: data[10] & 0x7F,
-            arp: data[11] & 0x7F,
-            reverb: data[12] & 0x7F
+            voice: data[10] & 0x7F
           };
+          if (data.length >= 15) {
+            ext.attack = data[11] & 0x7F;
+            ext.decay = data[12] & 0x7F;
+            ext.sustain = data[13] & 0x7F;
+            ext.releaseAmp = data[14] & 0x7F;
+          }
           if (data.length >= 17) {
-            ext.attack = data[13] & 0x7F;
-            ext.decay = data[14] & 0x7F;
-            ext.sustain = data[15] & 0x7F;
-            ext.releaseAmp = data[16] & 0x7F;
+            ext.cutoff = data[15] & 0x7F;
+            ext.pwmWidth = data[16] & 0x7F;
           }
-          if (data.length >= 19) {
-            ext.cutoff = data[17] & 0x7F;
-            ext.pwmWidth = data[18] & 0x7F;
-          }
-          if (data.length >= 20)
-            ext.slotPending = data[19] & 0x7F;
+          if (data.length >= 18)
+            ext.slotPending = data[17] & 0x7F;
         }
         applyPanelState(main, x, y, sw, ext);
       } else if (cmd === CMD_LEARN_NOTIFY && data.length >= 5) {
@@ -1496,9 +1477,6 @@
         sendPerfToCard({ quiet: false });
       });
     }
-    $('liveArp').addEventListener('change', () => sendPerfToCard({ quiet: false }));
-    $('liveReverb').addEventListener('input', schedulePerfSend);
-    $('liveReverb').addEventListener('change', () => sendPerfToCard({ quiet: true }));
     for (const id of ['liveAttack', 'liveDecay', 'liveSustain', 'liveRelease', 'liveCutoff', 'livePwm']) {
       $(id).addEventListener('input', schedulePerfSend);
       $(id).addEventListener('change', () => sendPerfToCard({ quiet: true }));

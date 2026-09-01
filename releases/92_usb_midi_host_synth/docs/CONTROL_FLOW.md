@@ -4,7 +4,7 @@ USB MIDI Host Synth (release **92**, SysEx device ID **79**). This document
 describes how the firmware is structured, how the two RP2040 cores interact,
 and how MIDI, panel I/O, audio, and configuration flow through the system.
 
-Firmware **0.9.x** — see also [`VOICE_MATRIX.md`](VOICE_MATRIX.md) for the
+Firmware **0.10.x** — see also [`VOICE_MATRIX.md`](VOICE_MATRIX.md) for the
 121-patch voice matrix spec.
 
 **Clock:** firmware runs at **200 MHz** (not the AGENTS default 144 MHz) to
@@ -115,7 +115,7 @@ sequenceDiagram
     Card->>Flash: loadConfigFromFlash()
     Flash->>Flash: applyDefaults() then overlay flash if valid
     Flash->>Flash: sanitizeExtConfig() + legacy engine migrate
-    Card->>Card: g_reverb.Reset()
+    Card->>Card: loadConfigFromFlash()
     Card->>C1: multicore_launch_core1(core1Entry)
     Card->>Card: Run() — never returns
 
@@ -186,21 +186,20 @@ flowchart TD
 
     MODE -->|PLAY + CC| CC{Special CC?}
     CC -->|120/123 All off| SILENCE[silence voices + drums]
-    CC -->|mapped slot| SLOT_C[applySlotValue<br/>voice/arp/reverb/ADSR/etc.]
+    CC -->|mapped slot| SLOT_C[applySlotValue<br/>voice/ADSR/cutoff/PWM]
 
     MODE -->|PLAY + Pitch bend| BEND[g_pitchBendA/B]
 
     SLOT_C --> VOICE_MAP[mapCcVoice → mapCcToVoiceId<br/>g_ext.audioVoice 0–120]
-    SLOT_C --> ARP[setArpMode]
     SLOT_C --> PARAMS[g_ext attack/decay/sustain/…]
 ```
 
 **13 parameter slots** (`protocol.h`): Ch A, Ch B, bend range, voice (CC 24
-default), arp (CC 26), reverb (CC 22), ADSR, cutoff, PWM — each mapped to CC,
+default), ADSR, cutoff, PWM — each mapped to CC,
 Note, Knob X, or Knob Y via `ExtConfig.slots[]`.
 
 **Source files:** `midi_parser.cpp`, `param_maps.cpp`, `voices.cpp`,
-`drums.cpp`, `arp.cpp`.
+`drums.cpp`.
 
 ---
 
@@ -276,12 +275,12 @@ flowchart TD
     CMD -->|01 Preview| PRE[applyConfigBytes → RAM]
     CMD -->|02 SaveFlash| SAV[applyConfigBytes + requestSaveToFlash]
     CMD -->|03 ReadConfig| RC[sysexSendConfig]
-    CMD -->|04 CardId| ID[fw 0.9.0 + device 79]
+    CMD -->|04 CardId| ID[fw 0.10.0 + device 79]
     CMD -->|05 PanelState| PS[sendPanelSnapshot]
     CMD -->|06 PanelStream| PST[enable g_panelStream<br/>periodic sendPanelState]
     CMD -->|07 ReadMaps| RM[sysexSendMapsReply ExtConfig]
-    CMD -->|08 WriteMaps| WM[sanitize + setArpMode + save]
-    CMD -->|09 SetPerf| PERF[voice/arp/reverb/ADSR/cutoff/PWM RAM]
+    CMD -->|08 WriteMaps| WM[sanitize + save]
+    CMD -->|09 SetPerf| PERF[voice/ADSR/cutoff/PWM RAM]
 
     SP --> TX[sendSysEx → midiStreamWriteMessage<br/>or enqueue txq if busy]
     TX --> FL[flushSysExQueue in usbCore loop]
@@ -369,9 +368,8 @@ so erase/program does not race USB. Config lives in the last flash sector
 flowchart LR
     subgraph Core1_writes["Core 1 — may lock g_midiCs"]
         W1[polyNoteOn/Off]
-        W2[setArpMode]
-        W3[silenceAllVoices]
-        W4[drumNoteOn/Off]
+        W2[silenceAllVoices]
+        W3[drumNoteOn/Off]
     end
 
     subgraph Core0_reads["Core 0 — never locks g_midiCs"]
@@ -387,18 +385,6 @@ flowchart LR
 Core 1 holds `g_midiCs` only briefly while mutating voice allocation. Core 0
 reads MIDI state from volatiles and renders poly voices **without** taking the
 lock — spinning on the lock in `ProcessSample` would stall the ADC knob mux.
-
----
-
-## 10. Modules not in the audio hot path
-
-These exist and accept MIDI/CC/editor updates, but are **not currently called
-from `ProcessSample()`**:
-
-| Module | Status |
-|--------|--------|
-| **`arpTick()`** | Arp state machine implemented; `setArpMode` works, but output is not routed through the ISR yet. |
-| **`CardReverb::Process()`** | Initialized; `reverbWet` is stored and mapped, but not mixed into `AudioOut`. |
 
 ---
 
@@ -422,8 +408,6 @@ from `ProcessSample()`**:
 | `dsp/synth.cpp` | Oscillator matrix renderer |
 | `dsp/adsr.cpp` | Envelope per voice |
 | `dsp/drums.cpp` | Ch10 drum kit |
-| `dsp/arp.cpp` | Arpeggiator state (not wired to ISR) |
-| `dsp/reverb.cpp` | Reverb DSP (not wired to ISR) |
 | `app/glyph_leds.cpp` | Stroke digit LED animations |
 | `protocol.h` | SysEx commands, slots, config structs |
 | `sysex_spec.json` | Machine-readable editor/firmware contract |

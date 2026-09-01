@@ -43,8 +43,6 @@ void applyMapDefaults()
     memset(&g_ext, 0, sizeof(g_ext));
     g_ext.marker = kExtMarker;
     g_ext.audioVoice = 0;
-    g_ext.arpMode = 0;
-    g_ext.reverbWet = 0;
     g_ext.attack = 0;
     g_ext.decay = 0;
     g_ext.sustain = 127;
@@ -60,12 +58,8 @@ void applyMapDefaults()
     g_ext.slots[kSlotVoice].sourceType = kSrcCc;
     g_ext.slots[kSlotVoice].channel = kChanOmni;
     g_ext.slots[kSlotVoice].ccOrNote = kDefaultCcVoice;
-    g_ext.slots[kSlotArp].sourceType = kSrcCc;
-    g_ext.slots[kSlotArp].channel = kChanOmni;
-    g_ext.slots[kSlotArp].ccOrNote = kDefaultCcArp;
-    g_ext.slots[kSlotReverb].sourceType = kSrcCc;
-    g_ext.slots[kSlotReverb].channel = kChanOmni;
-    g_ext.slots[kSlotReverb].ccOrNote = kDefaultCcReverb;
+    g_ext.slots[kSlotReserved5].sourceType = kSrcNone;
+    g_ext.slots[kSlotReserved6].sourceType = kSrcNone;
     g_ext.slots[kSlotAttack].sourceType = kSrcKnobX;
     g_ext.slots[kSlotRelease].sourceType = kSrcKnobY;
 }
@@ -87,9 +81,6 @@ void sanitizeExtConfig(ExtConfig &ext)
         ext.audioVoice = migrateLegacyEngine(ext.audioVoice);
     else if (ext.audioVoice > kVoiceMatrixMax)
         ext.audioVoice = 0;
-    if (ext.arpMode > 8)
-        ext.arpMode = 0;
-    ext.reverbWet &= 0x7F;
     ext.attack &= 0x7F;
     ext.decay &= 0x7F;
     ext.sustain &= 0x7F;
@@ -108,6 +99,9 @@ void sanitizeExtConfig(ExtConfig &ext)
     ext.slots[kSlotVolume].sourceType = kSrcNone;
     ext.slots[kSlotVolume].channel = kChanOmni;
     ext.slots[kSlotVolume].ccOrNote = 0;
+    // Strip legacy arp/reverb learn maps from older flash.
+    ext.slots[kSlotReserved5].sourceType = kSrcNone;
+    ext.slots[kSlotReserved6].sourceType = kSrcNone;
 }
 
 void loadConfigFromFlash()

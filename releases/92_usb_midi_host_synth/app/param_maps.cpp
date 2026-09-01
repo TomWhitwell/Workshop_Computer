@@ -1,6 +1,5 @@
 #include "param_maps.h"
 
-#include "arp.h"
 #include "config_store.h"
 #include "drums.h"
 #include "voice_matrix.h"
@@ -24,11 +23,6 @@ uint8_t g_knobMapYv = 0xFF;
 uint8_t mapCcVoice(uint8_t v)
 {
     return mapCcToVoiceId(v);
-}
-
-uint8_t mapCcArp(uint8_t v)
-{
-    return (uint8_t)((uint16_t)v * 8 / 127);
 }
 
 bool slotMatches(const MapSlot &s, uint8_t chan, uint8_t type, uint8_t id)
@@ -89,12 +83,9 @@ void applySlotValue(uint8_t slot, uint8_t value, bool fromLearn)
         }
         break;
     }
-    case kSlotArp:
-        setArpMode(mapCcArp(value), !fromLearn);
-        break;
-    case kSlotReverb:
-        g_ext.reverbWet = value;
-        break;
+    case kSlotReserved5:
+    case kSlotReserved6:
+        break; // legacy arp/reverb slots — ignored
     case kSlotAttack:
         g_ext.attack = value;
         break;

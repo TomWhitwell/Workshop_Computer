@@ -33,16 +33,6 @@
       <span class="hint" id="engStateHint">Waiting for panel stream (Identify the card)&hellip;</span>
     </div>
     <div class="eng-knob-row" id="engineKnobRow">
-      <div class="eng-knob" data-eng="arp">
-        <div class="eng-knob__dial" id="engDialArp"></div>
-        <div class="eng-knob__name">Arp</div>
-        <div class="eng-knob__val" id="engValArp">—</div>
-      </div>
-      <div class="eng-knob" data-eng="rev">
-        <div class="eng-knob__dial" id="engDialRev"></div>
-        <div class="eng-knob__name">Rev</div>
-        <div class="eng-knob__val" id="engValRev">—</div>
-      </div>
       <div class="eng-knob" data-eng="atk">
         <div class="eng-knob__dial" id="engDialAtk"></div>
         <div class="eng-knob__name">Atk</div>
@@ -458,7 +448,7 @@
       </div>
       <p class="hint">
         Hardware only &mdash; Main / X / Y / Z from card telemetry.
-        Engine parameters (arp, ADSR&hellip;) live in the
+        Engine parameters (ADSR, cutoff, PWM&hellip;) live in the
         <strong>Card engine state</strong> strip in the header.
       </p>
     </section>
@@ -575,8 +565,7 @@
                 sets pulse width, sync ratio, acid wave, or FM ratio depending on engine.
               </li>
               <li>
-                <strong>Reverb</strong> and <strong>Arp</strong> live on the Live tab too —
-                arp patterns use Voice A.
+                ADSR, cutoff, and PWM live on the <strong>Live</strong> tab.
               </li>
             </ul>
             <p class="muted">
@@ -597,8 +586,7 @@
               <li>
                 <strong>Maps</strong> tab — edit the learn table and flash it with Write maps.
                 Factory CC maps: voice <span class="tutorial-kbd">24</span>,
-                arp <span class="tutorial-kbd">26</span>,
-                reverb <span class="tutorial-kbd">22</span> (Omni).
+                engine <span class="tutorial-kbd">24</span> (Omni).
               </li>
               <li>
                 <strong>Settings (⚙)</strong> — MIDI ports, Voice A/B channels, pitch bend range,
@@ -627,7 +615,7 @@
           <p class="hint" style="margin-top:0">
             Changes apply immediately in device mode (RAM). Use
             <strong>Write maps to flash</strong> above to keep them after power-cycle.
-            All engines are <strong>4-voice polyphonic</strong> (arp off). Voice matrix: 11 base
+            All engines are <strong>4-voice polyphonic</strong>. Voice matrix: 11 base
             timbres × 11 variations = 121 patches (CC 0–120 on factory Audio engine CC 24).
           </p>
           <div class="row voice-matrix-pick">
@@ -653,24 +641,6 @@
             <div id="voiceMatrixGrid" class="voice-matrix-grid"></div>
           </details>
           <div class="row">
-            <div class="field">
-              <label for="liveArp">Arpeggiator</label>
-              <select id="liveArp">
-                <option value="0">0 — Off</option>
-                <option value="1">1 — Up (8ths)</option>
-                <option value="2">2 — Down (8ths)</option>
-                <option value="3">3 — Up-Down (8ths)</option>
-                <option value="4">4 — As-played (8ths)</option>
-                <option value="5">5 — Up (16ths)</option>
-                <option value="6">6 — Down (16ths)</option>
-                <option value="7">7 — Up-Down (16ths)</option>
-                <option value="8">8 — As-played (16ths)</option>
-              </select>
-            </div>
-            <div class="field grow">
-              <label for="liveReverb">Reverb wet <span class="value-inline" id="liveReverbVal">0</span></label>
-              <input id="liveReverb" type="range" min="0" max="127" value="0">
-            </div>
             <span id="liveEngStatus" class="status"></span>
           </div>
           <div class="row">
@@ -716,7 +686,7 @@
         <section class="panel panel-always">
           <h2>MIDI maps (device SysEx)</h2>
           <p class="hint" style="margin-top:0">
-            Factory defaults: voice <strong>CC 24</strong>, arp <strong>CC 26</strong>, reverb <strong>CC 22</strong> (Omni).
+            Factory defaults: voice <strong>CC 24</strong> (Omni). Slots 5–6 are reserved.
             Host SETUP can re-learn these; this table edits the same flash block.
           </p>
           <div class="row">
@@ -726,7 +696,7 @@
             <span id="mapsStatus" class="status"></span>
           </div>
           <p class="hint" style="margin-top:0">
-            Engine / arp / reverb defaults are set in <strong>Live engine</strong> below;
+            Engine defaults are set in <strong>Live engine</strong> below;
             Write maps also stores those values with the CC learn table.
           </p>
           <div style="overflow-x:auto; margin-top:8px">
@@ -872,7 +842,7 @@
         Voice A &rarr; CV/Pulse/Audio Out 1, Voice B &rarr; Out 2.
         Pitch CV: MIDI note 60 (C4) = 0 V (Simple MIDI EEPROM cal).
         Audio: selectable engines at 48&nbsp;kHz at full level (use an external mixer). Use the
-        <strong>Live</strong> tab to change voice / arp / reverb from this page.
+        <strong>Live</strong> tab to change voice / ADSR from this page.
         Hold Z Down at power-on to restore defaults.
         Hold Z Down ~1&nbsp;s while running to enter SETUP (works with MIDI relay).
       </p>

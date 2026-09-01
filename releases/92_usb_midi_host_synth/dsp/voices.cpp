@@ -1,6 +1,5 @@
 #include "voices.h"
 
-#include "arp.h"
 #include "drums.h"
 #include "protocol.h"
 #include "runtime_state.h"
@@ -182,7 +181,6 @@ void silenceAllVoicesUnlocked()
     g_gateA = false;
     g_gateB = false;
     polyAllOffUnlocked();
-    arpClearUnlocked();
     drumsAllOff();
 }
 

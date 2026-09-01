@@ -19,4 +19,3 @@ void serviceKnobLearnGesture();
 void handleChannelMessage(const uint8_t *buf);
 
 uint8_t mapCcVoice(uint8_t v);
-uint8_t mapCcArp(uint8_t v);

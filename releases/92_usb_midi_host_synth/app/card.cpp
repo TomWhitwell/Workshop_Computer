@@ -5,7 +5,6 @@
 #include "drums.h"
 #include "glyph_leds.h"
 #include "param_maps.h"
-#include "reverb.h"
 #include "runtime_state.h"
 #include "voice_matrix.h"
 #include "synth.h"
@@ -16,8 +15,6 @@
 UsbMidiHostCard *g_card = nullptr;
 volatile ComputerCard::USBPowerState_t g_powerState = ComputerCard::Unsupported;
 
-static CardReverb g_reverb;
-
 UsbMidiHostCard::UsbMidiHostCard()
 {
     g_card = this;
@@ -25,7 +22,6 @@ UsbMidiHostCard::UsbMidiHostCard()
     initLuts();
     drumsInit();
     loadConfigFromFlash();
-    g_reverb.Reset();
     multicore_launch_core1(core1Entry);
 }
 

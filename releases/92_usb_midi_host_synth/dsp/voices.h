@@ -1,4 +1,4 @@
-// Mono note stacks + 4-voice poly pool (shared g_midiCs with arp).
+// Mono note stacks + 4-voice poly pool (shared g_midiCs).
 #pragma once
 
 #include "pico/critical_section.h"

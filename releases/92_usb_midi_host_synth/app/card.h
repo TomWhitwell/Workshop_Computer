@@ -72,7 +72,7 @@ private:
     uint8_t txqCount_ = 0;
 
     bool panelTxValid_ = false;
-    uint8_t panelTxPayload_[21] = {};
+    uint8_t panelTxPayload_[19] = {};
     uint16_t panelTxMain_ = 0;
     uint16_t panelTxX_ = 0;
     uint16_t panelTxY_ = 0;

@@ -4,7 +4,7 @@
  * Release folder: releases/92_usb_midi_host_synth
  * SysEx device ID: 79 (F0 7D 79 …) — on-wire protocol, not release number.
  *
- * 0.9.0: 121-patch voice matrix, poly engines, ADSR, drums, reverb.
+ * 0.10.0: 121-patch voice matrix, poly engines, ADSR, drums (no arp/reverb).
  */
 
 #include "card.h"

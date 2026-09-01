@@ -2,12 +2,12 @@ draft: true
 Name: USB MIDI Host
 short-description: USB MIDI host/device to CV, gate, and audio, with a browser editor for config and testing
 summary: |
-  **USB MIDI Host** maps USB MIDI to calibrated CV/Gate plus audio (poly engines + ADSR),
-  with host SETUP/MIDI-learn for CC/knob maps (voice, arp, reverb, envelope), stroke LED feedback,
+  **USB MIDI Host** maps USB MIDI to calibrated CV/Gate plus audio (121-patch voice matrix + ADSR),
+  with host SETUP/MIDI-learn for CC/knob maps (voice, envelope, cutoff, PWM), stroke LED feedback,
   and a web editor in device mode.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Dan Galbraith
-Version: "0.9.0"
+Version: "0.10.0"
 License: MIT
 Status: Beta
 Editor: web
@@ -22,7 +22,7 @@ date-updated: 2026-09-01
 
 uf2:
   - path: UF2/92_usb_midi_host_synth.uf2
-    name: USB MIDI Host Synth 0.9.0
+    name: USB MIDI Host Synth 0.10.0
 
 tags:
   - midi-host
@@ -61,13 +61,13 @@ panel:
       description: Right mix (stereo for Junoish chorus; otherwise matches L)
     - id: CVOut1
       name: Pitch Voice A
-      description: v/Oct for voice A (default MIDI ch 1), optionally arpeggiated; C4 = 0 V
+      description: v/Oct for voice A (default MIDI ch 1), last-note priority; C4 = 0 V
     - id: CVOut2
       name: Pitch Voice B
       description: v/Oct for voice B (default MIDI ch 2), C4 = 0 V, with pitch bend
     - id: PulseOut1
       name: Gate Voice A
-      description: Gate for voice A (arp step pulses when arp is on)
+      description: Gate for voice A
     - id: PulseOut2
       name: Gate Voice B
       description: Gate for voice B, last-note priority
@@ -126,6 +126,6 @@ host:
 readme: |
 
   Plug a class-compliant USB MIDI keyboard into the Computer (Rev 1.1+) for dual-voice
-  CV/gate plus audio (13 engines, including voice-local Moog/Juno/sync/acid/FM), with CC 22/24/26 for reverb, engine, and arp.
+  CV/gate plus 4-voice poly audio (121-patch voice matrix). CC 24 selects engine patch.
   Hold Z Down ~1 s to toggle SETUP and learn any CC, key, or X/Y knob to a parameter slot. Plug into a laptop
   to use web/index.html for the same maps over SysEx. Pitch CV uses Simple MIDI EEPROM calibration.

@@ -14,11 +14,11 @@ constexpr uint8_t kCmdPanelState = 0x05;
 constexpr uint8_t kCmdPanelStream = 0x06;
 constexpr uint8_t kCmdReadMaps = 0x07;
 constexpr uint8_t kCmdWriteMaps = 0x08;
-constexpr uint8_t kCmdSetPerf = 0x09; // voice, arp, reverb[, ADSR] — RAM
+constexpr uint8_t kCmdSetPerf = 0x09; // voice[, ADSR][, cutoff, PWM] — RAM
 constexpr uint8_t kCmdLearnNotify = 0x0A; // SETUP learn: slot, src, chan, id
 
 constexpr uint8_t kFwMajor = 0;
-constexpr uint8_t kFwMinor = 9;
+constexpr uint8_t kFwMinor = 10;
 constexpr uint8_t kFwPatch = 0;
 
 // 11×11 voice matrix (121 patches, CC 0–120). See VOICE_MATRIX.md.
@@ -37,7 +37,7 @@ constexpr uint8_t kVoiceEngineMax = kVoiceMatrixMax;
 constexpr bool kAdsrEnabled = (USB_MIDI_HOST_ADSR != 0);
 
 constexpr uint8_t kConfigMarker = 0x4D;
-constexpr uint8_t kExtMarker = 0x58; // ADSR + cutoff/PWM + 13 slots
+constexpr uint8_t kExtMarker = 0x59; // v0.10 — no arp/reverb in ExtConfig
 constexpr int kConfigLen = 8;
 constexpr int kNumSlots = 13;
 
@@ -60,8 +60,8 @@ constexpr uint8_t kSlotChA = 1;
 constexpr uint8_t kSlotChB = 2;
 constexpr uint8_t kSlotBend = 3;
 constexpr uint8_t kSlotVoice = 4;
-constexpr uint8_t kSlotArp = 5;
-constexpr uint8_t kSlotReverb = 6;
+constexpr uint8_t kSlotReserved5 = 5; // was arp — unused
+constexpr uint8_t kSlotReserved6 = 6; // was reverb — unused
 constexpr uint8_t kSlotAttack = 7;
 constexpr uint8_t kSlotDecay = 8;
 constexpr uint8_t kSlotSustain = 9;
@@ -69,9 +69,7 @@ constexpr uint8_t kSlotRelease = 10;
 constexpr uint8_t kSlotCutoff = 11;
 constexpr uint8_t kSlotPwm = 12;
 
-constexpr uint8_t kDefaultCcReverb = 22;
 constexpr uint8_t kDefaultCcVoice = 24;
-constexpr uint8_t kDefaultCcArp = 26;
 
 enum class AppMode : uint8_t { Play = 0, Setup = 1 };
 
@@ -97,8 +95,6 @@ struct __attribute__((packed)) ExtConfig
 {
     uint8_t marker;
     uint8_t audioVoice; // voiceId 0..120 (row*11+col); see VOICE_MATRIX.md
-    uint8_t arpMode;    // 0-8
-    uint8_t reverbWet;  // 0-127
     uint8_t attack;     // 0-127
     uint8_t decay;      // 0-127
     uint8_t sustain;    // 0-127
@@ -109,4 +105,4 @@ struct __attribute__((packed)) ExtConfig
 };
 
 static_assert(sizeof(MapSlot) == 4, "MapSlot size");
-static_assert(sizeof(ExtConfig) == 10 + kNumSlots * 4, "ExtConfig size");
+static_assert(sizeof(ExtConfig) == 8 + kNumSlots * 4, "ExtConfig size");

@@ -1,9 +1,9 @@
 {
   "name": "UsbMidiHostSynth",
-  "version": 1,
+  "version": 2,
   "firmware": {
     "major": 0,
-    "minor": 9,
+    "minor": 10,
     "patch": 0
   },
   "transport": {
@@ -32,24 +32,12 @@
     }
   },
   "data_layout": {
-    "CardConfig": {
-      "raw_bytes": 8,
-      "fields": [
-        { "name": "channelA", "type": "u8", "description": "Voice A MIDI channel (0-15)" },
-        { "name": "channelB", "type": "u8", "description": "Voice B MIDI channel (0-15)" },
-        { "name": "bendSemitones", "type": "u8", "range": [1, 12] },
-        { "name": "flags", "type": "u8", "description": "bit0 = MIDI activity LED" },
-        { "name": "reserved", "type": "u8[3]" },
-        { "name": "marker", "type": "u8", "default": "0x4D" }
-      ]
-    },
     "ExtConfig": {
-      "raw_bytes": 62,
+      "marker": "0x59",
+      "raw_bytes": 60,
       "fields": [
-        { "name": "marker", "type": "u8", "default": "0x58" },
+        { "name": "marker", "type": "u8", "default": "0x59" },
         { "name": "audioVoice", "type": "u8", "range": [0, 120], "description": "121-patch voice matrix index" },
-        { "name": "arpMode", "type": "u8", "range": [0, 8] },
-        { "name": "reverbWet", "type": "u8", "range": [0, 127] },
         { "name": "attack", "type": "u8", "range": [0, 127] },
         { "name": "decay", "type": "u8", "range": [0, 127] },
         { "name": "sustain", "type": "u8", "range": [0, 127] },
@@ -71,15 +59,13 @@
     "PanelStatePayload": {
       "command": "0x05",
       "fields": [
-        { "name": "main", "type": "u14", "description": "Main knob, quantized to 32-step" },
+        { "name": "main", "type": "u14" },
         { "name": "x", "type": "u14" },
         { "name": "y", "type": "u14" },
         { "name": "switch", "type": "u8", "range": [0, 2] },
         { "name": "appMode", "type": "u8", "enum": ["play", "setup"] },
         { "name": "setupSlot", "type": "u8" },
         { "name": "audioVoice", "type": "u8" },
-        { "name": "arpMode", "type": "u8" },
-        { "name": "reverbWet", "type": "u8" },
         { "name": "attack", "type": "u8" },
         { "name": "decay", "type": "u8" },
         { "name": "sustain", "type": "u8" },
@@ -94,8 +80,6 @@
       "command": "0x09",
       "fields": [
         { "name": "audioVoice", "type": "u8" },
-        { "name": "arpMode", "type": "u8" },
-        { "name": "reverbWet", "type": "u8" },
         { "name": "attack", "type": "u8", "optional": true },
         { "name": "decay", "type": "u8", "optional": true },
         { "name": "sustain", "type": "u8", "optional": true },

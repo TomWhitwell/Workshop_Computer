@@ -5,7 +5,7 @@ USB MIDI Host program card **79**. Source of truth for the 11×11 voice system:
 patches**, addressable by MIDI CC **0–120** on the Audio engine slot (factory
 **CC 24** Omni).
 
-Planned for firmware **0.9.x** — replaces 13 monolithic engines in `synth.cpp`.
+Implemented in firmware **0.10.x** — replaces 13 monolithic engines in `synth.cpp`.
 
 ---
 

@@ -37,8 +37,6 @@ add_executable(${CARD_NAME}
 	${CARD_ROOT}/dsp/synth.cpp
 	${CARD_ROOT}/dsp/voices.cpp
 	${CARD_ROOT}/dsp/drums.cpp
-	${CARD_ROOT}/dsp/arp.cpp
-	${CARD_ROOT}/dsp/reverb.cpp
 	${CARD_ROOT}/usb/usb_role.cpp
 	${CARD_ROOT}/usb/usb_core1.cpp
 	${CARD_ROOT}/usb/usb_device_midi.cpp
