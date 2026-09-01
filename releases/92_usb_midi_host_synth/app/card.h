@@ -52,6 +52,12 @@ public:
     Switch lastSwitch_ = Middle;
     uint32_t midiActivityTimer_ = 0;
 
+    static constexpr uint8_t kLedSubsample = 48; // ~1 kHz LED updates @ 48 kHz audio
+    uint8_t ledPhase_ = 0;
+    uint8_t ledShadow_[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+    void setLedIfChanged(int i, bool on);
+
 private:
     bool midiStreamWriteMessage(uint8_t const *data, uint32_t size);
     bool enqueueSysEx(uint8_t const *msg, uint32_t total);

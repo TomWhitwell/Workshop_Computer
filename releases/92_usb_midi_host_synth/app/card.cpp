@@ -43,6 +43,16 @@ void UsbMidiHostCard::writeMidiCv(uint8_t noteA, int16_t bendA, uint8_t noteB,
     CVOut2Millivolts(millivolts(noteB, bendB));
 }
 
+void UsbMidiHostCard::setLedIfChanged(int i, bool on)
+{
+    uint8_t v = on ? 1 : 0;
+    if (ledShadow_[i] != v)
+    {
+        ledShadow_[i] = v;
+        LedOn(i, on);
+    }
+}
+
 void UsbMidiHostCard::ProcessSample()
 {
     g_processSampleMeter.beginSample();
@@ -140,6 +150,7 @@ void UsbMidiHostCard::ProcessSample()
     {
         int32_t mixL = 0;
         int32_t mixR = 0;
+        const VoiceMatrixCoord vm = decodeVoiceMatrix(g_ext.audioVoice);
         // Render unlocked — MIDI briefly locks only while mutating voice
         // alloc; spinning here would stall the ADC mux.
         for (int i = 0; i < kPolyMax; ++i)
@@ -200,15 +211,14 @@ void UsbMidiHostCard::ProcessSample()
             int16_t bend = g_poly[i].bendIsB ? bendB : bendA;
             uint32_t inc =
                 noteBendIncrement(g_poly[i].note, bend, bendRange);
-            uint8_t voiceId = clampVoiceId(g_ext.audioVoice);
             int32_t sL = 0, sR = 0;
-            renderPolyVoiceAudio(g_poly[i], inc, voiceId, sL, sR);
+            renderVoiceMatrix(g_poly[i], inc, vm.row, vm.col, sL, sR);
             int32_t voiceL =
                 ((sL * (int32_t)env) >> 16) * g_poly[i].amp >> 12;
             int32_t voiceR =
                 ((sR * (int32_t)env) >> 16) * g_poly[i].amp >> 12;
-            mixL += voiceL / kPolyMax;
-            mixR += voiceR / kPolyMax;
+            mixL += voiceL >> 2;
+            mixR += voiceR >> 2;
         }
         drumsRenderMix(mixL, mixR);
 
@@ -228,66 +238,78 @@ void UsbMidiHostCard::ProcessSample()
     AudioOut2(outB);
 
     if (modeFlash_ > 0)
-    {
         --modeFlash_;
-        if (modeFlashKind_ == 1)
-        {
-            bool on = ((modeFlash_ / 900) & 1) != 0;
-            for (int i = 0; i < 6; ++i)
-                LedOn(i, on);
-        }
-        else
-        {
-            int step = (int)((9600 - modeFlash_) / 1400);
-            for (int i = 0; i < 6; ++i)
-                LedOn(i, i == step);
-        }
-    }
-    else if (g_glyph.active)
-    {
+
+    if (g_glyph.active)
         g_glyph.tick();
-        for (int i = 0; i < 6; ++i)
-            LedOn(i, (g_glyph.ledMask & (1u << i)) != 0);
-    }
-    else
+
+    // Activity / save-flash timers must advance every sample; LED PWM writes
+    // are subsampled below (~1 kHz) with shadow state to skip redundant calls.
+    const bool activityLed = (g_config.flags & 1) != 0;
+    if (modeFlash_ == 0 && !g_glyph.active && !setup)
     {
-        bool activityLed = (g_config.flags & 1) != 0;
-        if (setup)
+        if (activityLed && g_midiActivity)
+        {
+            midiActivityTimer_ = 2400;
+            g_midiActivity = false;
+        }
+        if (midiActivityTimer_ > 0)
+            --midiActivityTimer_;
+        if (g_configSavedFlashTimer > 0)
+            --g_configSavedFlashTimer;
+    }
+
+    if (++ledPhase_ >= kLedSubsample)
+    {
+        ledPhase_ = 0;
+
+        if (modeFlash_ > 0)
+        {
+            if (modeFlashKind_ == 1)
+            {
+                bool on = ((modeFlash_ / 900) & 1) != 0;
+                for (int i = 0; i < 6; ++i)
+                    setLedIfChanged(i, on);
+            }
+            else
+            {
+                int step = (int)((9600 - modeFlash_) / 1400);
+                for (int i = 0; i < 6; ++i)
+                    setLedIfChanged(i, i == step);
+            }
+        }
+        else if (g_glyph.active)
+        {
+            for (int i = 0; i < 6; ++i)
+                setLedIfChanged(i, (g_glyph.ledMask & (1u << i)) != 0);
+        }
+        else if (setup)
         {
             uint8_t slot = g_setupSlot;
             bool blink = (sampleCount_ & 0x2000) != 0;
-            LedOn(0, (slot & 1) != 0);
-            LedOn(1, (slot & 2) != 0);
-            LedOn(2, (slot & 4) != 0);
-            LedOn(3, (slot & 8) != 0);
-            LedOn(4, blink);
-            LedOn(5, !blink);
+            setLedIfChanged(0, (slot & 1) != 0);
+            setLedIfChanged(1, (slot & 2) != 0);
+            setLedIfChanged(2, (slot & 4) != 0);
+            setLedIfChanged(3, (slot & 8) != 0);
+            setLedIfChanged(4, blink);
+            setLedIfChanged(5, !blink);
         }
         else
         {
             if (!g_cvOutsCalibrated)
-                LedOn(0, (sampleCount_ & 0x8000) != 0);
+                setLedIfChanged(0, (sampleCount_ & 0x8000) != 0);
             else if (g_powerState == Unsupported)
-                LedOn(0, (sampleCount_ & 0x4000) != 0);
+                setLedIfChanged(0, (sampleCount_ & 0x4000) != 0);
             else if (g_isUsbHost)
-                LedOn(0, g_midiConnected);
+                setLedIfChanged(0, g_midiConnected);
             else
-                LedOn(0, (sampleCount_ & 0x2000) != 0);
+                setLedIfChanged(0, (sampleCount_ & 0x2000) != 0);
 
-            if (activityLed && g_midiActivity)
-            {
-                midiActivityTimer_ = 2400;
-                g_midiActivity = false;
-            }
-            if (midiActivityTimer_ > 0)
-                --midiActivityTimer_;
-            LedOn(1, midiActivityTimer_ > 0);
-            LedOn(2, gateA);
-            LedOn(3, gateB);
-            LedOn(4, !g_isUsbHost && g_webLinked);
-            if (g_configSavedFlashTimer > 0)
-                --g_configSavedFlashTimer;
-            LedOn(5, g_configSavedFlashTimer > 0);
+            setLedIfChanged(1, midiActivityTimer_ > 0);
+            setLedIfChanged(2, gateA);
+            setLedIfChanged(3, gateB);
+            setLedIfChanged(4, !g_isUsbHost && g_webLinked);
+            setLedIfChanged(5, g_configSavedFlashTimer > 0);
         }
     }
 
