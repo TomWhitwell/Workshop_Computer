@@ -1071,8 +1071,12 @@
       setEngKnob('engDialPwm', 'engValPwm', pwm, String(pwm), 127);
 
       const voice = voiceNameFromId(ext.voice != null ? ext.voice : 0);
-      if ($('engStateHint'))
-        $('engStateHint').textContent = 'Live from card · ' + voice;
+      if ($('engStateHint')) {
+        let hint = 'Live from card · ' + voice;
+        if (ext.cvCalibrated === false)
+          hint += ' · CV pitch not calibrated (EEPROM)';
+        $('engStateHint').textContent = hint;
+      }
       // Mark knobs fresh
       document.querySelectorAll('.eng-knob').forEach((el) => el.classList.remove('is-stale'));
     }
@@ -1203,6 +1207,8 @@
           }
           if (data.length >= 18)
             ext.slotPending = data[17] & 0x7F;
+          if (data.length >= 19)
+            ext.cvCalibrated = (data[18] & 0x7F) !== 0;
         }
         applyPanelState(main, x, y, sw, ext);
       } else if (cmd === CMD_LEARN_NOTIFY && data.length >= 5) {

@@ -77,6 +77,14 @@ ExtConfig g_ext;
 volatile bool g_flashSaveAckPending = false;
 volatile uint8_t g_flashSaveAckCmd = 0;
 
+// RAM-resident: safe while XIP is suspended during erase/program (core 1).
+static void __not_in_flash_func(flashProgramConfigPage)(uint32_t addr,
+                                                       const uint8_t *buf)
+{
+    flash_range_erase(addr, FLASH_SECTOR_SIZE);
+    flash_range_program(addr, buf, FLASH_PAGE_SIZE);
+}
+
 void applyMapDefaults()
 {
     memset(&g_ext, 0, sizeof(g_ext));
@@ -198,7 +206,8 @@ void serviceFlashSaveRequest()
         return;
     if (!g_flashSaveReq && !g_flashSavePending)
         return;
-    if (!multicore_lockout_victim_is_initialized(1))
+    // Core 0 (audio) is the lockout victim; this runs on core 1 (USB loop).
+    if (!multicore_lockout_victim_is_initialized(0))
         return;
 
     if (g_flashSavePending && !g_flashSaveReq)
@@ -216,8 +225,7 @@ void serviceFlashSaveRequest()
 
     multicore_lockout_start_blocking();
     uint32_t ints = save_and_disable_interrupts();
-    flash_range_erase(kConfigFlashAddr, FLASH_SECTOR_SIZE);
-    flash_range_program(kConfigFlashAddr, g_flashProgramBuf, FLASH_PAGE_SIZE);
+    flashProgramConfigPage(kConfigFlashAddr, g_flashProgramBuf);
     restore_interrupts(ints);
     multicore_lockout_end_blocking();
 

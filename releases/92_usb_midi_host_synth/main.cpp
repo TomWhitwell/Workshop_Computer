@@ -17,7 +17,7 @@ int main()
 {
     usbRoleRegisterHostCallbacks();
     // 200 MHz gives headroom for 4-voice poly engines + drums at 48 kHz while
-    // core 1 runs TinyUSB host/device (see docs/CONTROL_FLOW.md).
+    // core 1 runs TinyUSB host/device (see docs/developer/CONTROL_FLOW.md).
     set_sys_clock_khz(200000, true);
     UsbMidiHostCard card;
     card.Run();

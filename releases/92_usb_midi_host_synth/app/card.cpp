@@ -18,10 +18,13 @@ volatile ComputerCard::USBPowerState_t g_powerState = ComputerCard::Unsupported;
 UsbMidiHostCard::UsbMidiHostCard()
 {
     g_card = this;
+    g_cvOutsCalibrated = CVOutsCalibrated();
     voicesInit();
     initLuts();
     drumsInit();
     loadConfigFromFlash();
+    // Core 0 pauses in RAM during flash writes initiated from core 1.
+    multicore_lockout_victim_init();
     multicore_launch_core1(core1Entry);
 }
 
@@ -40,10 +43,6 @@ void UsbMidiHostCard::writeMidiCv(uint8_t noteA, int16_t bendA, uint8_t noteB,
 
 void UsbMidiHostCard::ProcessSample()
 {
-    // Flash erase stalls audio; serviceFlashSaveRequest returns immediately
-    // unless a save was requested (still not ideal in-ISR — separate fix).
-    serviceFlashSaveRequest();
-
     if (bootSamples_ < 4800)
     {
         ++bootSamples_;
@@ -53,9 +52,9 @@ void UsbMidiHostCard::ProcessSample()
             factoryResetLatch_ = true;
     }
 
-    g_panelMain = (uint16_t)KnobVal(Knob::Main);
-    g_panelX = (uint16_t)KnobVal(Knob::X);
-    g_panelY = (uint16_t)KnobVal(Knob::Y);
+    g_panelMain = KnobVal(Knob::Main);
+    g_panelX = KnobVal(Knob::X);
+    g_panelY = KnobVal(Knob::Y);
     g_panelSwitch = (uint8_t)SwitchVal();
 
     if (g_appMode != (uint8_t)AppMode::Setup)
@@ -262,7 +261,9 @@ void UsbMidiHostCard::ProcessSample()
         }
         else
         {
-            if (g_powerState == Unsupported)
+            if (!g_cvOutsCalibrated)
+                LedOn(0, (sampleCount_ & 0x8000) != 0);
+            else if (g_powerState == Unsupported)
                 LedOn(0, (sampleCount_ & 0x4000) != 0);
             else if (g_isUsbHost)
                 LedOn(0, g_midiConnected);

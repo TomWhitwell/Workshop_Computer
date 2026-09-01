@@ -5,7 +5,7 @@ describes how the firmware is structured, how the two RP2040 cores interact,
 and how MIDI, panel I/O, audio, and configuration flow through the system.
 
 Firmware **0.10.x** — see also [`VOICE_MATRIX.md`](VOICE_MATRIX.md) for the
-121-patch voice matrix spec.
+121-patch voice matrix spec. Operator guide: [`../features/voice-matrix.md`](../features/voice-matrix.md).
 
 **Clock:** firmware runs at **200 MHz** (not the AGENTS default 144 MHz) to
 leave headroom for four poly voices, drum synthesis, and per-voice character FX
@@ -57,11 +57,11 @@ flowchart TB
         PS --> SYNTH[Poly voice mix + drums]
         PS --> DAC[AudioOut1/2 → SPI DAC]
         PS --> LED[LED / glyph display]
-        PS --> FLASH[serviceFlashSaveRequest]
     end
 
     subgraph Core1["Core 1 — USB loop"]
         UC[usbCore forever]
+        UC --> FLASH[serviceFlashSaveRequest]
         UC --> ROLE{USB role?}
         ROLE -->|Host DFP| HOST[tuh_task]
         ROLE -->|Device UFP| DEV[tud_task]
@@ -92,7 +92,7 @@ flowchart TB
     PS -.read panel.-> GP
     PS --> SYNTH
     SYNTH --> GV
-    FLASH -.lockout core1.-> UC
+    FLASH -.lockout core0.-> AW
 ```
 
 ---
@@ -115,11 +115,11 @@ sequenceDiagram
     Card->>Flash: loadConfigFromFlash()
     Flash->>Flash: applyDefaults() then overlay flash if valid
     Flash->>Flash: sanitizeExtConfig() + legacy engine migrate
-    Card->>Card: loadConfigFromFlash()
+    Card->>Card: CVOutsCalibrated → g_cvOutsCalibrated
+    Card->>Card: multicore_lockout_victim_init() on core 0
     Card->>C1: multicore_launch_core1(core1Entry)
     Card->>Card: Run() — never returns
 
-    C1->>C1: multicore_lockout_victim_init()
     C1->>C1: sleep 150 ms
     C1->>C1: chooseUsbRole() via USBPowerState()
     alt USB Host (DFP)
@@ -128,6 +128,7 @@ sequenceDiagram
         C1->>C1: tud_init()
     end
     loop forever
+        C1->>C1: serviceFlashSaveRequest (RAM fn, lockout core 0)
         C1->>C1: tuh_task / tud_task + MIDI + SysEx
     end
 ```
@@ -207,8 +208,7 @@ Note, Knob X, or Knob Y via `ExtConfig.slots[]`.
 
 ```mermaid
 flowchart TD
-    START[ProcessSample @ 48 kHz] --> SF[serviceFlashSaveRequest]
-    SF --> BOOT[Boot hold Z Down → factoryResetLatch]
+    START[ProcessSample @ 48 kHz] --> BOOT[Boot hold Z Down → factoryResetLatch]
     BOOT --> PANEL[Sample knobs → g_panelMain/X/Y<br/>g_panelSwitch]
     PANEL --> KM{SETUP mode?}
     KM -->|No| KMAP[applyKnobMappedSlots<br/>X/Y → mapped slots]
@@ -336,29 +336,32 @@ stateDiagram-v2
 sequenceDiagram
     participant Editor as Core 1 / Editor
     participant Req as requestSaveToFlash
-    participant ISR as Core 0 ProcessSample
+    participant C1 as Core 1 usbCore
+    participant C0 as Core 0 audio
     participant Flash as hardware flash
 
     Editor->>Req: requestSaveToFlash(ackCmd)
     Req->>Req: fillFlashPageBuf(g_config + g_ext)
     Req->>Req: g_flashSaveReq = true
 
-    loop each audio sample
-        ISR->>ISR: serviceFlashSaveRequest()
-        alt save pending + core1 lockout ready
-            ISR->>ISR: multicore_lockout_start_blocking()
-            ISR->>Flash: erase + program last sector
-            ISR->>ISR: multicore_lockout_end_blocking()
-            ISR->>ISR: g_flashSaveAckPending = true
+    loop each USB iteration
+        C1->>C1: serviceFlashSaveRequest()
+        alt save pending + core0 lockout ready
+            C1->>C0: multicore_lockout_start_blocking()
+            Note over C0: victim paused in RAM
+            C1->>Flash: PICO_COPY_TO_RAM erase + program
+            C1->>C0: multicore_lockout_end_blocking()
+            C1->>C1: g_flashSaveAckPending = true
         end
     end
 
-    Core 1->>Core 1: send SysEx ack (SaveFlash / WriteMaps)
+    C1->>C1: send SysEx ack (SaveFlash / WriteMaps)
 ```
 
-Flash writes run from the audio ISR but **pause Core 1** via multicore lockout
-so erase/program does not race USB. Config lives in the last flash sector
-(`config_store.cpp`).
+Flash writes run from the **core 1 USB loop**, not the audio ISR. Core 0 is the
+lockout victim (paused in RAM during erase/program). The erase/program helper
+lives in RAM (`PICO_COPY_TO_RAM`) so XIP suspend is safe. Config lives in the
+last flash sector (`config_store.cpp`).
 
 ---
 
