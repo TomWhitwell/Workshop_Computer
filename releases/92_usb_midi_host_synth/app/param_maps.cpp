@@ -17,8 +17,20 @@ uint16_t g_learnKnobBaseX = 0;
 uint16_t g_learnKnobBaseY = 0;
 uint8_t g_knobMapXv = 0xFF;
 uint8_t g_knobMapYv = 0xFF;
+bool g_knobBaselineValid = false;
+uint8_t g_knobLastXv = 0xFF;
+uint8_t g_knobLastYv = 0xFF;
 
 } // namespace
+
+void resetKnobMappedBaseline()
+{
+    g_knobMapXv = 0xFF;
+    g_knobMapYv = 0xFF;
+    g_knobBaselineValid = false;
+    g_knobLastXv = 0xFF;
+    g_knobLastYv = 0xFF;
+}
 
 uint8_t mapCcVoice(uint8_t v)
 {
@@ -134,6 +146,19 @@ void applyKnobMappedSlots()
     // Wider deadband — X/Y ADC noise was flipping Attack/Release enough to
     // leave the A=D=R=0 / S=127 ADSR kill-switch after long idle play.
     constexpr int kKnobDeadband = 3;
+
+    // Capture knob position at boot / after config load without overwriting
+    // factory ADSR defaults (A=D=R=0, S=127) until the user moves a knob.
+    if (!g_knobBaselineValid)
+    {
+        g_knobMapXv = xv;
+        g_knobMapYv = yv;
+        g_knobBaselineValid = true;
+        g_knobLastXv = xv;
+        g_knobLastYv = yv;
+        return;
+    }
+
     if (g_knobMapXv == 0xFF)
         g_knobMapXv = xv;
     else
@@ -155,14 +180,12 @@ void applyKnobMappedSlots()
             yv = g_knobMapYv;
     }
 
-    static uint8_t lastXv = 0xFF;
-    static uint8_t lastYv = 0xFF;
-    const bool xChanged = (xv != lastXv);
-    const bool yChanged = (yv != lastYv);
+    const bool xChanged = (xv != g_knobLastXv);
+    const bool yChanged = (yv != g_knobLastYv);
     if (!xChanged && !yChanged)
         return;
-    lastXv = xv;
-    lastYv = yv;
+    g_knobLastXv = xv;
+    g_knobLastYv = yv;
 
     for (uint8_t s = 0; s < kNumSlots; ++s)
     {
