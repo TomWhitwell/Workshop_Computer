@@ -2,15 +2,27 @@
 
 #include "config_store.h"
 
-uint32_t adsrInc(uint8_t t)
+namespace {
+
+uint32_t g_adsrIncLut[128];
+
+} // namespace
+
+void initAdsrLuts()
 {
-    uint32_t samples = 48u + (uint32_t)t * (uint32_t)t * 8u;
-    return (65535u + samples - 1u) / samples;
+    for (int t = 0; t < 128; ++t)
+    {
+        uint32_t samples = 48u + (uint32_t)t * (uint32_t)t * 8u;
+        g_adsrIncLut[t] = (65535u + samples - 1u) / samples;
+    }
 }
+
+uint32_t adsrInc(uint8_t t) { return g_adsrIncLut[t]; }
 
 uint32_t envSustainLevel()
 {
-    return ((uint32_t)g_ext.sustain * 65535u) / 127u;
+    // sustain 0..127 → level 0..65535 (516 ≈ 65535/127).
+    return (uint32_t)g_ext.sustain * 516u;
 }
 
 uint32_t envTick(uint8_t &stage, uint32_t &level, bool gated)

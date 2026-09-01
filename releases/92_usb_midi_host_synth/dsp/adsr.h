@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+void initAdsrLuts();
 uint32_t adsrInc(uint8_t t);
 uint32_t envSustainLevel();
 uint32_t envTick(uint8_t &stage, uint32_t &level, bool gated);

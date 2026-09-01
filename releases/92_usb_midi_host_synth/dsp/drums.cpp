@@ -19,6 +19,13 @@ enum class DrumKind : uint8_t
 
 constexpr int kDrumVoiceMax = 8;
 
+int32_t drumHp(int32_t n, int32_t &hp, int32_t coef)
+{
+    int32_t n7 = n << 7;
+    hp += ((n7 - hp) * coef) >> 15;
+    return (n7 - hp) >> 7;
+}
+
 struct DrumVoice
 {
     bool active = false;
@@ -222,8 +229,7 @@ int32_t renderVoice(DrumVoice &v)
         int32_t body = phaseSin(v.phase) >> 1;
         int32_t n = noiseSample(v.noise);
         // Mild HP on noise.
-        v.hp += ((n - v.hp) * 20000) >> 15;
-        int32_t hn = n - v.hp;
+        int32_t hn = drumHp(n, v.hp, 20000);
         s = body + (hn >> 1);
         break;
     }
@@ -232,8 +238,7 @@ int32_t renderVoice(DrumVoice &v)
     {
         int32_t n = noiseSample(v.noise);
         // Aggressive HP.
-        v.hp += ((n - v.hp) * 28000) >> 15;
-        s = (n - v.hp);
+        s = drumHp(n, v.hp, 28000);
         if (v.kind == DrumKind::HatClosed)
             s = (s * 3) >> 2;
         break;
@@ -253,8 +258,7 @@ int32_t renderVoice(DrumVoice &v)
     case DrumKind::Crash:
     {
         int32_t n = noiseSample(v.noise);
-        v.hp += ((n - v.hp) * 18000) >> 15;
-        int32_t hn = n - v.hp;
+        int32_t hn = drumHp(n, v.hp, 18000);
         v.phase += v.pitch;
         v.phase2 += v.pitch + (v.pitch >> 2);
         int32_t metal =
@@ -265,8 +269,7 @@ int32_t renderVoice(DrumVoice &v)
     case DrumKind::Ride:
     {
         int32_t n = noiseSample(v.noise);
-        v.hp += ((n - v.hp) * 24000) >> 15;
-        int32_t hn = (n - v.hp) >> 2;
+        int32_t hn = drumHp(n, v.hp, 24000) >> 2;
         v.phase += v.pitch;
         int32_t ping = phaseSin(v.phase) >> 2;
         // Shorter ping: decay pitch amp via overall amp already.

@@ -203,8 +203,8 @@ void UsbMidiHostCard::ProcessSample()
                 ((sL * (int32_t)env) >> 16) * g_poly[i].amp >> 12;
             int32_t voiceR =
                 ((sR * (int32_t)env) >> 16) * g_poly[i].amp >> 12;
-            mixL += voiceL / kPolyMax;
-            mixR += voiceR / kPolyMax;
+            mixL += voiceL >> 2;
+            mixR += voiceR >> 2;
         }
         drumsRenderMix(mixL, mixR);
 
