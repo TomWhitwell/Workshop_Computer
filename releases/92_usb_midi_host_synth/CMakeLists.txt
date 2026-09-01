@@ -32,6 +32,7 @@ add_executable(${CARD_NAME}
 	${CARD_ROOT}/app/param_maps.cpp
 	${CARD_ROOT}/app/midi_parser.cpp
 	${CARD_ROOT}/app/sysex_editor.cpp
+	${CARD_ROOT}/app/profile_meter.cpp
 	${CARD_ROOT}/dsp/adsr.cpp
 	${CARD_ROOT}/dsp/voice_matrix.cpp
 	${CARD_ROOT}/dsp/synth.cpp

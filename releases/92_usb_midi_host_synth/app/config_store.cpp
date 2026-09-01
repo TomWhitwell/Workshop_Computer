@@ -1,5 +1,7 @@
 #include "config_store.h"
 
+#include "adsr.h"
+#include "param_maps.h"
 #include "voice_matrix.h"
 
 #include "hardware/flash.h"
@@ -14,6 +16,44 @@ namespace {
 constexpr uint32_t kConfigFlashAddr =
     (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE) -
     ((PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE) % FLASH_SECTOR_SIZE);
+
+constexpr uint8_t kExtMarkerV09 = 0x58;
+
+struct __attribute__((packed)) LegacyExtConfigV09
+{
+    uint8_t marker;
+    uint8_t audioVoice;
+    uint8_t arpMode;
+    uint8_t reverbWet;
+    uint8_t attack;
+    uint8_t decay;
+    uint8_t sustain;
+    uint8_t releaseAmp;
+    uint8_t cutoff;
+    uint8_t pwmWidth;
+    MapSlot slots[kNumSlots];
+};
+
+static_assert(sizeof(LegacyExtConfigV09) == 10 + kNumSlots * 4,
+              "LegacyExtConfigV09 size");
+
+bool migrateLegacyExtConfigV09(const uint8_t *flashExt, ExtConfig &out)
+{
+    LegacyExtConfigV09 leg;
+    memcpy(&leg, flashExt, sizeof(leg));
+    if (leg.marker != kExtMarkerV09)
+        return false;
+    out.marker = kExtMarker;
+    out.audioVoice = leg.audioVoice;
+    out.attack = leg.attack;
+    out.decay = leg.decay;
+    out.sustain = leg.sustain;
+    out.releaseAmp = leg.releaseAmp;
+    out.cutoff = leg.cutoff;
+    out.pwmWidth = leg.pwmWidth;
+    memcpy(out.slots, leg.slots, sizeof(out.slots));
+    return true;
+}
 
 uint8_t g_flashPageBuf[FLASH_PAGE_SIZE];
 uint8_t g_flashProgramBuf[FLASH_PAGE_SIZE];
@@ -70,6 +110,7 @@ void applyMapDefaults()
     g_ext.slots[kSlotReserved6].sourceType = kSrcNone;
     g_ext.slots[kSlotAttack].sourceType = kSrcKnobX;
     g_ext.slots[kSlotRelease].sourceType = kSrcKnobY;
+    updateEnvSusLevel(g_ext.sustain);
 }
 
 void applyDefaults()
@@ -81,6 +122,7 @@ void applyDefaults()
     g_config.reserved[0] = g_config.reserved[1] = g_config.reserved[2] = 0;
     g_config.marker = kConfigMarker;
     applyMapDefaults();
+    resetKnobMappedBaseline();
 }
 
 void sanitizeExtConfig(ExtConfig &ext)
@@ -127,10 +169,23 @@ void loadConfigFromFlash()
     g_config = loaded;
     ExtConfig ext;
     memcpy(&ext, flash + kConfigLen, sizeof(ExtConfig));
-    if (ext.marker != kExtMarker)
+    bool migrated = false;
+    if (ext.marker == kExtMarker)
+    {
+        // current layout
+    }
+    else if (migrateLegacyExtConfigV09(flash + kConfigLen, ext))
+    {
+        migrated = true;
+    }
+    else
         return;
     sanitizeExtConfig(ext);
     g_ext = ext;
+    updateEnvSusLevel(g_ext.sustain);
+    resetKnobMappedBaseline();
+    if (migrated)
+        requestSaveToFlash(0);
 }
 
 void requestSaveToFlash(uint8_t ackCmd)

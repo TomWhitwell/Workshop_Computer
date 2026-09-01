@@ -10,6 +10,7 @@
     const CMD_WRITE_MAPS = 0x08;
     const CMD_SET_PERF = 0x09;
     const CMD_LEARN_NOTIFY = 0x0A;
+    const CMD_READ_PROFILE = 0x0B;
     const CONFIG_LEN = 8;
     const EXT_MARKER = 0x59;
     const NUM_SLOTS = 13;
@@ -84,6 +85,10 @@
     let mapsState = factoryMapsState();
     let perfUiFromPanel = false;
     let perfSendTimer = 0;
+    let profilePollTimer = 0;
+    let profilePeakUs = 0;
+    let profileBudgetUs = 20;
+    let profileOverrun = false;
 
     const heldNotes = new Map(); // note -> channel used for note-on
 
@@ -849,6 +854,7 @@
         panelStreaming = false;
         panelStreamKey = '';
         lastPanelAt = 0;
+        stopProfilePoll();
       }
       cardOutput = connected;
       if (cardOutput && cardInput) startPanelStream({ force: !lastPanelAt });
@@ -856,6 +862,7 @@
         panelStreaming = false;
         panelStreamKey = '';
         lastPanelAt = 0;
+        stopProfilePoll();
         setPanelStatus('Panel stream off', false);
       }
       updateRelayStatus();
@@ -929,7 +936,7 @@
             1: 'Preview', 2: 'Save flash', 3: 'Read config', 4: 'Card ID',
             5: 'Panel snapshot', 6: 'Panel stream',
             7: 'Read maps', 8: 'Write maps', 9: 'Set engine',
-            0x0A: 'Learn notify'
+            0x0A: 'Learn notify', 0x0B: 'Read profile'
           };
           logTx(msg, 'SysEx ' + (names[payload[0]] || ('cmd 0x' + payload[0].toString(16))));
         }
@@ -952,6 +959,8 @@
       panelStreaming = true;
       panelStreamKey = key;
       const ok = sendSysEx([CMD_PANEL_STREAM, 1], { quiet: true });
+      if (ok)
+        startProfilePoll();
       if (!lastPanelAt)
         setPanelStatus('Listening for panel…', false);
       return ok;
@@ -961,6 +970,7 @@
       panelStreaming = false;
       panelStreamKey = '';
       lastPanelAt = 0;
+      stopProfilePoll();
       if (sendOff && cardOutput)
         sendSysEx([CMD_PANEL_STREAM, 0], { quiet: true });
       setPanelStatus('Panel stream off', false);
@@ -988,6 +998,62 @@
       else if (el) el.textContent = text;
       if (dot) dot.classList.toggle('on', !!live);
       if (el) el.className = 'status ' + (live ? 'ok' : 'warn');
+    }
+
+    function setProfileDisplay(peakUs, budgetUs, overrun) {
+      profilePeakUs = peakUs;
+      profileBudgetUs = budgetUs;
+      profileOverrun = overrun;
+      const el = $('profileStatus');
+      const peakEl = $('profilePeak');
+      const overrunEl = $('profileOverrun');
+      if (!el || !peakEl) return;
+      peakEl.textContent = String(peakUs);
+      if (overrunEl) overrunEl.hidden = !overrun;
+      let cls = 'status ';
+      if (overrun || peakUs > budgetUs)
+        cls += 'warn';
+      else if (peakUs > Math.floor(budgetUs * 0.75))
+        cls += 'warn';
+      else
+        cls += 'ok';
+      el.className = cls;
+      el.title =
+        'ProcessSample peak over ~170 ms (budget ' + budgetUs + ' µs)' +
+        (overrun ? ' — overrun latched on card' : '');
+    }
+
+    function resetProfileDisplay() {
+      profilePeakUs = 0;
+      profileOverrun = false;
+      const peakEl = $('profilePeak');
+      const overrunEl = $('profileOverrun');
+      const el = $('profileStatus');
+      if (peakEl) peakEl.textContent = '—';
+      if (overrunEl) overrunEl.hidden = true;
+      if (el) {
+        el.className = 'status';
+        el.title = 'ProcessSample peak over ~170 ms (target < 20 µs)';
+      }
+    }
+
+    function requestProfileSample() {
+      if (!cardOutput) return;
+      sendSysEx([CMD_READ_PROFILE], { quiet: true });
+    }
+
+    function startProfilePoll() {
+      stopProfilePoll();
+      requestProfileSample();
+      profilePollTimer = setInterval(requestProfileSample, 500);
+    }
+
+    function stopProfilePoll() {
+      if (profilePollTimer) {
+        clearInterval(profilePollTimer);
+        profilePollTimer = 0;
+      }
+      resetProfileDisplay();
     }
 
     function knobAngle(v) {
@@ -1211,6 +1277,11 @@
             ext.cvCalibrated = (data[18] & 0x7F) !== 0;
         }
         applyPanelState(main, x, y, sw, ext);
+      } else if (cmd === CMD_READ_PROFILE && data.length >= 6) {
+        const peak = ((data[1] & 0x7F) << 7) | (data[2] & 0x7F);
+        const overrun = (data[3] & 0x7F) !== 0;
+        const budget = ((data[4] & 0x7F) << 7) | (data[5] & 0x7F);
+        setProfileDisplay(peak, budget || 20, overrun);
       } else if (cmd === CMD_LEARN_NOTIFY && data.length >= 5) {
         applyLearnNotify(
           data[1] & 0x7F,

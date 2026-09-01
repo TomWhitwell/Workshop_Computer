@@ -16,7 +16,8 @@ bool UsbMidiHostCard::consumeFactoryResetLatch()
 
 void UsbMidiHostCard::serviceSetupControls()
 {
-    Switch sw = SwitchVal();
+    // g_panelSwitch is sampled once per ProcessSample() before this runs.
+    Switch sw = (Switch)g_panelSwitch;
 
     // Hold Z Down ~1 s toggles SETUP ↔ PLAY. Must release before the next
     // toggle (edge-armed). Releasing Down often passes through Middle on

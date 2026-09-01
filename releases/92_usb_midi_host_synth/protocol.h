@@ -16,6 +16,7 @@ constexpr uint8_t kCmdReadMaps = 0x07;
 constexpr uint8_t kCmdWriteMaps = 0x08;
 constexpr uint8_t kCmdSetPerf = 0x09; // voice[, ADSR][, cutoff, PWM] — RAM
 constexpr uint8_t kCmdLearnNotify = 0x0A; // SETUP learn: slot, src, chan, id
+constexpr uint8_t kCmdReadProfile = 0x0B; // ProcessSample peak_us + overrun + budget
 
 constexpr uint8_t kFwMajor = 0;
 constexpr uint8_t kFwMinor = 10;

@@ -28,7 +28,8 @@
       "read_maps": "0x07",
       "write_maps_flash": "0x08",
       "set_perf_ram": "0x09",
-      "learn_notify": "0x0A"
+      "learn_notify": "0x0A",
+      "read_profile": "0x0B"
     }
   },
   "data_layout": {
@@ -86,6 +87,15 @@
         { "name": "releaseAmp", "type": "u8", "optional": true },
         { "name": "cutoff", "type": "u8", "optional": true },
         { "name": "pwmWidth", "type": "u8", "optional": true }
+      ]
+    },
+    "ProfilePayload": {
+      "command": "0x0B",
+      "description": "ProcessSample peak duration (µs) over ~170 ms window",
+      "fields": [
+        { "name": "peak_us", "type": "u14" },
+        { "name": "overrun", "type": "u8", "range": [0, 1] },
+        { "name": "budget_us", "type": "u14", "default": 20 }
       ]
     }
   }
