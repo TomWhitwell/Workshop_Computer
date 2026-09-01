@@ -32,6 +32,94 @@ Firmware developers: [docs/developer/](docs/developer/README.md).
 
 Host **SETUP** learns CC/knob maps on the panel; **device mode** exposes the same maps to `web/index.html`.
 
+## Quick Start
+
+After flashing the card, power everything off, plug in a USB keyboard (ideally one that has CC dials on it (twisty knobs) like the M-VAVE SMK25) into the USB-C port, and switch everything on, starting with your USB keyboard.
+
+Next, we need to set up the voice select, and ADSR controls. Hold the Z switch down for a second or two and you'll see the 6 LEDs flicker, and the bottom two start to alternate. You're now in setup mode.
+
+**Voice**
+
+Twist the main knob until you see the LED pattern look like this:
+
+```
+⚫⚫
+🔴⚫
+FF
+
+F = Flashing
+```
+
+Now, twist the CC knob that you want to use to control the voice on your keyboard. You should see all the LEDs flicker. That's just assigned it.
+
+**Attack**
+
+Next, twist the main knob until you see this:
+
+```
+🔴🔴
+🔴⚫
+FF
+
+F = Flashing
+```
+
+Now, twist the CC knob that you want to use to control the attack on your keyboard. You should see all the LEDs flicker. That's just assigned it.
+
+**Decay**
+
+Next, twist the main knob until you see this:
+
+```
+⚫⚫
+⚫🔴
+FF
+
+F = Flashing
+```
+
+Now, twist the CC knob that you want to use to control the decay on your keyboard. You should see all the LEDs flicker. That's just assigned it.
+
+**Sustain**
+
+Next, twist the main knob until you see this:
+
+```
+🔴⚫
+⚫🔴
+FF
+
+F = Flashing
+```
+
+Now, twist the CC knob that you want to use to control the sustain on your keyboard. You should see all the LEDs flicker. That's just assigned it.
+
+**Release**
+
+Next, twist the main knob until you see this:
+
+```
+⚫🔴
+⚫🔴
+FF
+
+F = Flashing
+```
+
+Now, twist the CC knob that you want to use to control the release on your keyboard. You should see all the LEDs flicker. That's just assigned it.
+
+**Save Settings**
+
+Flick the Z switch up, wait 2 seconds, and flip it back to the middle. The settings have been saved to the unit, and you're good to go. To make sure there's no weird preset / flash values hanging around, you should turn each knob you've assigned up and down a bit to get some midi flowing, then turn:
+
+- Voice to 0
+- Attack to 0
+- Decay to 0
+- Sustain to 127
+- Release to 0
+
+... and now you should get some sound if you mash some keys. Have fun!
+
 ## Build
 
 Build inside the [Dev Container](../../.devcontainer/README.md) (recommended):
