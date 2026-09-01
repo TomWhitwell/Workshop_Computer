@@ -1,6 +1,7 @@
 #include "sysex_editor.h"
 
 #include "config_store.h"
+#include "adsr.h"
 #include "profile_meter.h"
 #include "protocol.h"
 #include "runtime_state.h"
@@ -86,6 +87,7 @@ void sysexProcessIncoming(SysExTransport &tx, uint8_t *data, uint32_t size)
         {
             sanitizeExtConfig(ext);
             g_ext = ext;
+            updateEnvSusLevel(g_ext.sustain);
             requestSaveToFlash(kCmdWriteMaps);
         }
     }
@@ -100,6 +102,7 @@ void sysexProcessIncoming(SysExTransport &tx, uint8_t *data, uint32_t size)
             g_ext.decay = data[3] & 0x7F;
             g_ext.sustain = data[4] & 0x7F;
             g_ext.releaseAmp = data[5] & 0x7F;
+            updateEnvSusLevel(g_ext.sustain);
         }
         if (size >= 8)
         {

@@ -1,5 +1,6 @@
 #include "config_store.h"
 
+#include "adsr.h"
 #include "param_maps.h"
 #include "voice_matrix.h"
 
@@ -109,6 +110,7 @@ void applyMapDefaults()
     g_ext.slots[kSlotReserved6].sourceType = kSrcNone;
     g_ext.slots[kSlotAttack].sourceType = kSrcKnobX;
     g_ext.slots[kSlotRelease].sourceType = kSrcKnobY;
+    updateEnvSusLevel(g_ext.sustain);
 }
 
 void applyDefaults()
@@ -180,6 +182,7 @@ void loadConfigFromFlash()
         return;
     sanitizeExtConfig(ext);
     g_ext = ext;
+    updateEnvSusLevel(g_ext.sustain);
     resetKnobMappedBaseline();
     if (migrated)
         requestSaveToFlash(0);

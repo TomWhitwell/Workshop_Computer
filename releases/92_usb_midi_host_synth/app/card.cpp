@@ -23,8 +23,10 @@ UsbMidiHostCard::UsbMidiHostCard()
     g_cvOutsCalibrated = CVOutsCalibrated();
     voicesInit();
     initLuts();
+    initAdsrLuts();
     drumsInit();
     loadConfigFromFlash();
+    updateEnvSusLevel(g_ext.sustain);
     // Core 0 pauses in RAM during flash writes initiated from core 1.
     multicore_lockout_victim_init();
     multicore_launch_core1(core1Entry);

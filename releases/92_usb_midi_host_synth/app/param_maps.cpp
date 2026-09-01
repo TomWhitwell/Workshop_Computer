@@ -1,5 +1,6 @@
 #include "param_maps.h"
 
+#include "adsr.h"
 #include "config_store.h"
 #include "drums.h"
 #include "voice_matrix.h"
@@ -106,6 +107,7 @@ void applySlotValue(uint8_t slot, uint8_t value, bool fromLearn)
         break;
     case kSlotSustain:
         g_ext.sustain = value;
+        updateEnvSusLevel(value);
         break;
     case kSlotRelease:
         g_ext.releaseAmp = value;

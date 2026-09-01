@@ -2,22 +2,40 @@
 
 #include "config_store.h"
 
-uint32_t adsrInc(uint8_t t)
+namespace {
+
+uint32_t g_adsrIncLut[128];
+
+uint32_t computeAdsrInc(uint8_t t)
 {
     uint32_t samples = 48u + (uint32_t)t * (uint32_t)t * 8u;
     return (65535u + samples - 1u) / samples;
 }
 
-uint32_t envSustainLevel()
+} // namespace
+
+uint32_t g_envSusLevel = 65535;
+
+void initAdsrLuts()
 {
-    return ((uint32_t)g_ext.sustain * 65535u) / 127u;
+    for (int i = 0; i < 128; ++i)
+        g_adsrIncLut[i] = computeAdsrInc((uint8_t)i);
 }
+
+void updateEnvSusLevel(uint8_t sustain)
+{
+    g_envSusLevel = ((uint32_t)sustain * 65535u) / 127u;
+}
+
+uint32_t adsrInc(uint8_t t) { return g_adsrIncLut[t & 0x7F]; }
+
+uint32_t envSustainLevel() { return g_envSusLevel; }
 
 uint32_t envTick(uint8_t &stage, uint32_t &level, bool gated)
 {
     if (!gated && (stage == 1 || stage == 2 || stage == 3))
         stage = 4;
-    uint32_t sus = envSustainLevel();
+    const uint32_t sus = g_envSusLevel;
     switch (stage)
     {
     case 1:
