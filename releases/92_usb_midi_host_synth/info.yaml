@@ -1,4 +1,4 @@
-draft: true
+draft: false
 Name: USB MIDI Host
 short-description: USB MIDI host/device to CV, gate, and audio, with a browser editor for config and testing
 summary: |
@@ -33,25 +33,6 @@ tags:
   - utility
 
 panel:
-  inputs:
-    - id: AudioIn1
-      name: Not used
-      description: No audio input processing in current firmware
-    - id: AudioIn2
-      name: Not used
-      description: No audio input processing in current firmware
-    - id: CVIn1
-      name: Not used
-      description: CV inputs are not mapped in current firmware
-    - id: CVIn2
-      name: Not used
-      description: CV inputs are not mapped in current firmware
-    - id: PulseIn1
-      name: Not used
-      description: Pulse inputs are not mapped in current firmware
-    - id: PulseIn2
-      name: Not used
-      description: Pulse inputs are not mapped in current firmware
   outputs:
     - id: AudioOut1
       name: Audio mix L
