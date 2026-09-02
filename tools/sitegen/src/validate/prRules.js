@@ -244,6 +244,15 @@ export async function evaluatePrRules(changes, { root, baseFlairs = null }) {
       continue;
     }
     const releaseFiles = walkFiles(releaseDir);
+    const infoPath = path.join(releaseDir, 'info.yaml');
+    let rawInfo = {};
+    try {
+      rawInfo = YAML.parse(fs.readFileSync(infoPath, 'utf8')) || {};
+    } catch {}
+    if (rawInfo.draft === true) {
+      diagnostics.push(diagnostic('warning', 'draft-card-changed', `releases/${release}/info.yaml`,
+        `Release ${release} is marked draft: true.`));
+    }
     const readme = path.join(releaseDir, 'README.md');
     if (!fs.existsSync(readme) || !fs.statSync(readme).isFile()) {
       diagnostics.push(diagnostic('warning', 'release-readme-recommended', `releases/${release}`,
@@ -253,10 +262,6 @@ export async function evaluatePrRules(changes, { root, baseFlairs = null }) {
     const panelsDir = path.join(releaseDir, 'panels');
     if (fs.existsSync(panelsDir)) {
       const panels = await discoverCustomPanels(releaseDir, '', { copyAssets: false });
-      let rawInfo = {};
-      try {
-        rawInfo = YAML.parse(fs.readFileSync(path.join(releaseDir, 'info.yaml'), 'utf8')) || {};
-      } catch {}
       const panelDiagnostics = [
         ...panels.diagnostics,
         ...validateCustomPanelReferences(rawInfo, panels.panels),
