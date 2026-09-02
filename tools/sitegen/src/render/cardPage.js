@@ -200,8 +200,8 @@ function renderGeneratedPanelCopy(snapshot, positionControl = null) {
     </div>`;
   }).join('');
   const switchMarkup = renderSwitchSection(snapshot, positionControl);
-  const inputsMarkup = renderSocketList('Inputs', panel.inputs, panelPositions.inputs);
-  const outputsMarkup = renderSocketList('Outputs', panel.outputs, panelPositions.outputs);
+  const inputsMarkup = renderSocketList('Inputs', panel.inputs, panelPositions.inputs, { showEmpty: true });
+  const outputsMarkup = renderSocketList('Outputs', panel.outputs, panelPositions.outputs, { showEmpty: true });
   const ledsMarkup = renderLedList(snapshot.leds);
 
   return `<div class="program-card-use__reference">
@@ -291,8 +291,9 @@ function renderPanelRail(card, panelImg) {
   return `<aside class="program-card-panel-rail" aria-label="Panel visualization">${panels}</aside>`;
 }
 
-function renderSocketList(title, sockets, positions) {
-  if (!sockets) return '';
+function renderSocketList(title, sockets, positions, { showEmpty = false } = {}) {
+  if (!sockets && !showEmpty) return '';
+  sockets ||= {};
   const items = (positions || []).map(pos => {
     const socket = sockets[pos.key];
     if (!socket || (!socket.description && !socket.label)) {
@@ -303,7 +304,7 @@ function renderSocketList(title, sockets, positions) {
       ${socket.label || socket.description ? `<p>${socket.label ? `<span class="program-card-component-role">${esc(inline(socket.label))}</span>` : ''}${socket.label && socket.description ? '<br>' : ''}${socket.description ? esc(truncate(socket.description, PANEL_DESCRIPTION_THRESHOLD)) : ''}</p>` : ''}
     </div>`;
   }).join('');
-  if (!Object.values(sockets).some(socket => socket && (socket.description || socket.label))) return '';
+  if (!showEmpty && !Object.values(sockets).some(socket => socket && (socket.description || socket.label))) return '';
   return `<section class="program-card-socket-section program-card-socket-section--${esc(title.toLowerCase())}"><h4 class="program-card-socket-section__heading">${esc(title)}</h4><div class="program-card-socket-list">${items}</div></section>`;
 }
 

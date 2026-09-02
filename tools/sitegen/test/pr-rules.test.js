@@ -213,6 +213,20 @@ test('release without a local README warns', async t => {
     item.ruleId === 'release-readme-recommended' && item.severity === 'warning'));
 });
 
+test('changes to a draft release warn even when info.yaml is not the changed file', async t => {
+  const root = await fixture(t);
+  await write(root, 'releases/42_card/info.yaml', 'Name: Card\ndraft: true\n');
+  await write(root, 'releases/42_card/README.md', '# Card');
+  await write(root, 'releases/42_card/card.uf2', 'firmware');
+  const diagnostics = await evaluatePrRules([
+    { status: 'M', path: 'releases/42_card/card.uf2' },
+  ], { root });
+  assert.ok(diagnostics.some(item =>
+    item.ruleId === 'draft-card-changed'
+    && item.file === 'releases/42_card/info.yaml'
+    && item.severity === 'warning'));
+});
+
 test('existing UF2 in a nested release subdirectory satisfies the firmware rule', async t => {
   const root = await fixture(t);
   await write(root, 'releases/42_card/info.yaml', 'Name: Card');

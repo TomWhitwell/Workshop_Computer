@@ -54,6 +54,20 @@ test('generated socket descriptions preserve unused physical jack positions', ()
   assert.match(html, /Audio 1[\s\S]*program-card-socket--empty" aria-hidden="true"><span>Unused<\/span>[\s\S]*CV 1/);
 });
 
+test('generated panels render unused positions when no inputs or outputs are defined', () => {
+  const generated = card({
+    panel_views: {
+      source: 'generated', default: 'middle', items: [{
+        id: 'middle', name: 'Middle', panel: {}, switch_modes: {}, leds: [],
+      }],
+    },
+  });
+  const html = renderCardArticle({ card: generated, panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
+  assert.match(html, /program-card-socket-section--inputs/);
+  assert.match(html, /program-card-socket-section--outputs/);
+  assert.equal((html.match(/program-card-socket--empty/g) || []).length, 12);
+});
+
 test('tap labels the panel down position only when no down mode is provided', () => {
   const tapOnly = renderPanelArtwork({ panel: {}, switch_modes: { tap: 'Tap Tempo: Set the clock' } }, 'panel.svg');
   assert.match(tapOnly, /program-card-panel-switch-position--down[^>]*aria-label="down switch position: Tap Tempo"[^>]*>[\s\S]*<strong>Tap Tempo<\/strong>/);
