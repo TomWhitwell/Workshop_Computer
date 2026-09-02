@@ -257,3 +257,5 @@ assignments:
   174_Skipping_Stones: []
   # Voder
   105_voder: []
+  # USB MIDI Host
+  92_usb_midi_host_synth: []
