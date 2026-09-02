@@ -1,0 +1,131 @@
+draft: true
+Name: USB MIDI Host
+short-description: USB MIDI host/device to CV, gate, and audio, with a browser editor for config and testing
+summary: |
+  **USB MIDI Host** maps USB MIDI to calibrated CV/Gate plus audio (121-patch voice matrix + ADSR),
+  with host SETUP/MIDI-learn for CC/knob maps (voice, envelope, cutoff, PWM), stroke LED feedback,
+  and a web editor in device mode.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Dan Galbraith
+Version: "0.10.0"
+License: MIT
+Status: Beta
+Editor: web
+date-created: 2026-08-08
+date-updated: 2026-09-01
+
+# Vendors, unmodified and under their own MIT terms:
+#   usb_midi_host.c/.h + usb_midi_host_app_driver.c
+#     (c) 2023 rppicomidi, https://github.com/rppicomidi/usb_midi_host
+#   ComputerCard.h
+#     (c) Chris Johnson
+
+uf2:
+  - path: UF2/92_usb_midi_host_synth.uf2
+    name: USB MIDI Host Synth 0.10.0
+
+tags:
+  - midi-host
+  - midi-to-cv
+  - synthesizer
+  - polyphonic
+  - web-midi
+  - utility
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Not used
+      description: No audio input processing in current firmware
+    - id: AudioIn2
+      name: Not used
+      description: No audio input processing in current firmware
+    - id: CVIn1
+      name: Not used
+      description: CV inputs are not mapped in current firmware
+    - id: CVIn2
+      name: Not used
+      description: CV inputs are not mapped in current firmware
+    - id: PulseIn1
+      name: Not used
+      description: Pulse inputs are not mapped in current firmware
+    - id: PulseIn2
+      name: Not used
+      description: Pulse inputs are not mapped in current firmware
+  outputs:
+    - id: AudioOut1
+      name: Audio mix L
+      description: 4-voice poly (engines 0–12); Junoish can be stereo via per-voice chorus; full-level audio (external mixer)
+    - id: AudioOut2
+      name: Audio mix R
+      description: Right mix (stereo for Junoish chorus; otherwise matches L)
+    - id: CVOut1
+      name: Pitch Voice A
+      description: v/Oct for voice A (default MIDI ch 1), last-note priority; C4 = 0 V
+    - id: CVOut2
+      name: Pitch Voice B
+      description: v/Oct for voice B (default MIDI ch 2), C4 = 0 V, with pitch bend
+    - id: PulseOut1
+      name: Gate Voice A
+      description: Gate for voice A
+    - id: PulseOut2
+      name: Gate Voice B
+      description: Gate for voice B, last-note priority
+
+controls:
+  switch:
+    up:
+      name: Save SETUP exit
+      description: In SETUP, move Z Up then Middle to save maps to flash and return to PLAY
+    middle:
+      name: Save SETUP (from Up)
+      description: In SETUP, reached after Z Up — completes save to flash and returns to PLAY
+    down:
+      name: SETUP toggle / factory reset
+      description: Hold ~1 s to toggle SETUP while running (host or device+relay); hold ~0.1 s at power-on for factory reset
+  knobs:
+    - main:
+        name: SETUP slot select
+        description: In SETUP, selects learn slot 0–12; no function in PLAY
+      x:
+        name: Attack (factory)
+        description: Factory-mapped to Attack; re-learnable in SETUP to any slot
+      y:
+        name: Release (factory)
+        description: Factory-mapped to Release; re-learnable in SETUP to any slot
+  leds:
+    - items:
+        - id: LED0
+          name: Status / SETUP bit0 / glyph
+          description: Host mount or device blink in PLAY; SETUP slot LSB; stroke glyphs on change
+        - id: LED1
+          name: Activity / SETUP bit1 / glyph
+          description: MIDI activity in PLAY; SETUP slot bit1; stroke glyphs
+        - id: LED2
+          name: Gate 1 / SETUP bit2 / glyph
+          description: Pulse Out 1 in PLAY; SETUP slot bit2; stroke glyphs
+        - id: LED3
+          name: Gate 2 / SETUP bit3 / glyph
+          description: Pulse Out 2 in PLAY; SETUP slot bit3; stroke glyphs
+        - id: LED4
+          name: SETUP blink A / web / glyph
+          description: Alternates with LED5 in SETUP; web-linked in PLAY device mode; stroke glyphs
+        - id: LED5
+          name: SETUP blink B / saved / glyph
+          description: Alternates with LED4 in SETUP; brief flash after flash save in PLAY; stroke glyphs
+
+host:
+  usb:
+    - name: USB MIDI Host editor
+      role: editor
+      description: Browser app in `web/` for reading and writing card config over Web MIDI (Chrome, USB-C data cable, close other MIDI apps)
+    - name: USB MIDI Device/Host
+      role: midi
+      description: Dual role — host for controllers with SETUP learn (Rev ≥ 1.1), device for the editor
+
+readme: |
+
+  Plug a class-compliant USB MIDI keyboard into the Computer (Rev 1.1+) for dual-voice
+  CV/gate plus 4-voice poly audio (121-patch voice matrix). CC 24 selects engine patch.
+  Hold Z Down ~1 s to toggle SETUP and learn any CC, key, or X/Y knob to a parameter slot. Plug into a laptop
+  to use web/index.html for the same maps over SysEx. Full operator docs: docs/getting-started.md
