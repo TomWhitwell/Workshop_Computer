@@ -1,13 +1,14 @@
 # Uncertainty for Workshop System Computer
 
 A tribute to the Buchla 266 Source of Uncertainty, sharing the card with a
-Buchla-lineage triangle wavefolder and a fixed-window comparator, for the
-Music Thing Modular Workshop Computer.
+Buchla-lineage wavefolder and a fixed-window comparator, for the Music
+Thing Modular Workshop Computer.
 
-**Status: not yet flashed to hardware.** This is source-verified — it
-builds cleanly against the Pico SDK and `ComputerCard.h` — but nobody has
-patched it into a live rack yet. See "What still needs checking" below
-before trusting the numbers.
+**Status: flashed and mostly confirmed on hardware.** Noise, FRV, QRV, and
+the comparator are working. The wavefolder was reported not working on
+the original triangle-reflection version and has since been rebuilt as a
+sine-table folder (see "DSP notes" below) — that rebuild hasn't been
+re-tested on the card yet. See "What still needs checking" below.
 
 ## What's here
 
@@ -22,7 +23,7 @@ releases/106_uncertainty/
 ├── dsp/
 │   ├── noise.h            # flat / pink / blue noise (shared xorshift32 PRNG)
 │   ├── qrv.h               # Quantized Random Voltage (sample & hold)
-│   ├── wavefolder.h        # triangle-reflection wavefolder
+│   ├── wavefolder.h        # sine-table phase-multiplication wavefolder
 │   └── comparator.h        # hysteresis window comparator
 ├── info.yaml
 └── UF2/uncertainty.uf2    # built firmware
@@ -102,12 +103,24 @@ audio-input oversampling, reduced ADC tonal artifacts). There's no
   the time the next target is chosen.
 - **QRV:** on each Pulse In 1 rising edge, one xorshift32 draw scaled into
   [0, Y-scaled-range]mV, output directly — no slew, hard steps.
-- **Wavefolder:** triangle-wave reflection. Multiple reflections off
-  ±threshold mirrors are algebraically a triangle wave of period
-  `4×threshold`, so one integer modulo produces the fully-folded shape in
-  constant time — no lookup table, no iteration. CV In 1 shrinks the
-  threshold from full-scale (no folding) down to a floor of 96 codes
-  (heavy folding).
+- **Wavefolder:** originally a hard triangle-reflection fold, replaced
+  after hardware testing showed it sounded harsh/wrong on this card's
+  sine-ish Audio In 1 — every reflection has a sharp corner, and a sharp
+  corner in a smooth waveform is a burst of unshaped high harmonics.
+  Rebuilt as a sine-table phase-multiplication folder: the same
+  int16 LUT + linear-interpolation technique the ComputerCard
+  `sine_wave_lookup` example uses for an oscillator, but reading the
+  *input sample* as the phase instead of a free-running counter. CV In 1
+  sets a fixed-point cycle count, 0.5 (in's whole swing covers half a
+  table revolution, the region where sine is monotonic — a soft shaper,
+  not yet folding) up to 20 (dense folding), that scales the phase before
+  the lookup. The phase math is done signed and zero-centred before the
+  final wrap to a table index, so the shaper stays odd (negative in gives
+  negative out) at every setting rather than drifting into a rectifier —
+  an easy trap with this technique, and one this build hit and fixed on
+  the first pass (see the comment in `dsp/wavefolder.h` for the specific
+  bias-before-scaling bug and why it broke symmetry). One signed 64-bit
+  multiply plus a table read per sample; no `sinf()` in the audio path.
 - **Comparator:** fixed ±1V (0V-centred) window with a hysteresis deadband
   (~60mV) around each edge, so noise sitting on the threshold doesn't
   chatter. Fires a ~1ms pulse each time the signal *leaves* the window, in
@@ -115,21 +128,26 @@ audio-input oversampling, reduced ADC tonal artifacts). There's no
 
 ## What still needs checking
 
-This was built and reviewed against `ComputerCard.h` and the AI directive,
-and compiles clean (`-Wall -Wextra -Wdouble-promotion -Wfloat-conversion`,
-zero warnings) — but none of the following has been confirmed on a real
-card:
+Noise, FRV, QRV, and the comparator have been confirmed working on
+hardware. Still open:
 
+- **The rebuilt wavefolder needs a re-flash and listening pass.** It
+  compiles clean, and a host-side numeric check (not on hardware —
+  just running the fold math on a synthetic sine off the RP2040)
+  confirmed the minimum setting is monotonic and odd-symmetric (no
+  folding, no DC bias) and higher settings genuinely add folds within a
+  bounded output range. What that check can't tell you: does minimum CV
+  In 1 sound like a gentle shaper rather than doing nothing; does
+  increasing CV In 1 add folds smoothly rather than jumping; does the top
+  of the range (20 cycles) stay musical rather than turning to noise.
 - Actual pink/blue noise slope by ear or spectrum analyser — fixed-point
   filter approximations vary in how precisely they hit ±3dB/octave.
 - `ProcessSample()` timing margin, via the debug-GPIO/scope method — the
   audio-rate path (noise + wavefolder + comparator + QRV logic) is small
   and branch-light, but hasn't been measured on hardware.
 - FRV's glide feel and QRV's range-scaling by ear — the constants
-  (glide time = interval/3, fold floor = 96 codes) are reasoned defaults,
-  not tuned against a listening pass.
-- The wavefolder/comparator input-sharing on Audio In 1 sounds right in
-  theory but hasn't been patched and played.
+  (glide time = interval/3) are reasoned defaults, not tuned against a
+  listening pass.
 
 ## Build and flash
 

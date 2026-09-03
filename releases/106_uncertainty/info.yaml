@@ -1,7 +1,8 @@
-# certainty: low — built and verified by compiling against ComputerCard.h
-# and flowing all six LEDs at startup in source review; not yet confirmed
-# on physical hardware. Update Status to Released and drop this note once
-# it's been flashed and patched.
+# certainty: low — flashed and confirmed on hardware for noise/FRV/QRV/
+# comparator. The wavefolder was reported not working as a hard triangle
+# fold and has been rebuilt as a sine-table folder (see dsp/wavefolder.h);
+# that rebuild has not yet been re-flashed and re-tested. Update Status to
+# Released and drop this note once it has.
 draft: true
 Name: Uncertainty
 short-description: Buchla 266-style noise/FRV/QRV, plus a wavefolder and comparator.
@@ -10,7 +11,7 @@ summary: |
   (flat, low-biased, high-biased), a Fluctuating Random Voltage that glides
   continuously between new targets, and a Quantized Random Voltage that
   jumps to a new value on each trigger — sharing the card with a
-  Buchla-lineage triangle wavefolder and a fixed-window comparator/gate.
+  Buchla-lineage sine-folding wavefolder and a fixed-window comparator/gate.
 Language: C++ (Pico SDK)
 Creator: Claude Code
 Version: "0.1.0"

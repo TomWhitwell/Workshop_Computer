@@ -12,7 +12,8 @@
 //   QRV            - Quantized Random Voltage: a fresh random value latched
 //                    on each Pulse In 1 trigger, held with no slew. Range
 //                    set by Y. -> CV Out 2
-//   Wavefolder     - triangle-reflection folder, fold amount from CV In 1.
+//   Wavefolder     - sine-table phase-multiplication folder (smooth folds,
+//                    tuned for a sine-ish input), fold count from CV In 1.
 //                    Audio In 1 -> Audio Out 1
 //   Comparator     - fixed +-1V window on Audio In 1; fires a short pulse
 //                    each time the signal leaves the window. -> Pulse Out 1
