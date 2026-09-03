@@ -12,8 +12,8 @@
 //   QRV            - Quantized Random Voltage: a fresh random value latched
 //                    on each Pulse In 1 trigger, held with no slew. Range
 //                    set by Y. -> CV Out 2
-//   Wavefolder     - sine-table phase-multiplication folder (smooth folds,
-//                    tuned for a sine-ish input), fold count from CV In 1.
+//   Wavefolder     - Chris Johnson's antiderivative-antialiased fold
+//                    (ported from Utility Pair), drive from Main knob.
 //                    Audio In 1 -> Audio Out 1
 //   Comparator     - fixed +-1V window on Audio In 1; fires a short pulse
 //                    each time the signal leaves the window. -> Pulse Out 1
@@ -152,8 +152,8 @@ public:
 		CVOut2Millivolts(qrvMv);
 		LedBrightness(3, uncertainty::MillivoltsToLed(qrvMv));
 
-		// --- Wavefolder: Audio In 1 folded by CV In 1's intensity.
-		AudioOut1(wavefolder_.Process(AudioIn1(), CVIn1()));
+		// --- Wavefolder: Audio In 1 folded by Main knob's drive amount.
+		AudioOut1(wavefolder_.Process(AudioIn1(), KnobVal(Knob::Main)));
 
 		// --- Comparator: fixed +-1V (0V-centred) window on Audio In 1.
 		// 1V of the card's ~6V range is roughly 2047/6 codes.

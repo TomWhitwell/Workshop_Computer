@@ -1,8 +1,10 @@
 # certainty: low — flashed and confirmed on hardware for noise/FRV/QRV/
-# comparator. The wavefolder was reported not working as a hard triangle
-# fold and has been rebuilt as a sine-table folder (see dsp/wavefolder.h);
-# that rebuild has not yet been re-flashed and re-tested. Update Status to
-# Released and drop this note once it has.
+# comparator. The wavefolder went through two from-scratch attempts (hard
+# triangle fold, then a smooth sine-table fold) that both sounded wrong on
+# hardware, and has now been replaced with a port of Chris Johnson's
+# proven Utility Pair wavefolder (antiderivative-antialiased fold; see
+# dsp/wavefolder.h). That rebuild has not yet been re-flashed and
+# re-tested. Update Status to Released and drop this note once it has.
 draft: true
 Name: Uncertainty
 short-description: Buchla 266-style noise/FRV/QRV, plus a wavefolder and comparator.
@@ -10,8 +12,9 @@ summary: |
   A tribute to the Buchla 266 Source of Uncertainty — three noise colours
   (flat, low-biased, high-biased), a Fluctuating Random Voltage that glides
   continuously between new targets, and a Quantized Random Voltage that
-  jumps to a new value on each trigger — sharing the card with a
-  Buchla-lineage sine-folding wavefolder and a fixed-window comparator/gate.
+  jumps to a new value on each trigger — sharing the card with an
+  antialiased wavefolder (ported from Chris Johnson's Utility Pair) and a
+  fixed-window comparator/gate.
 Language: C++ (Pico SDK)
 Creator: Claude Code
 Version: "0.1.0"
@@ -30,9 +33,6 @@ panel:
     - id: AudioIn1
       name: Fold/Comparator In
       description: Shared input for the wavefolder and the comparator
-    - id: CVIn1
-      name: Fold Intensity
-      description: Dedicated wavefolder fold-amount control, positive-going
     - id: CVIn2
       name: FRV Rate Mod
       description: Bipolar modulation of the FRV rate, +-6V, added on top of knob X
@@ -64,8 +64,8 @@ controls:
 
   knobs:
     - main:
-        name: Unused
-        description: Reserved for a future control; has no effect in this version
+        name: Fold Drive
+        description: Gain into the wavefolder — low settings pass the signal clean, higher settings drive it into folding
       x:
         name: FRV Rate
         description: Exponential taper across three decades, 0.05Hz to 50Hz, modulated by CV In 2

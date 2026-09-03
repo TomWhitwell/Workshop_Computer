@@ -1,14 +1,15 @@
 # Uncertainty for Workshop System Computer
 
-A tribute to the Buchla 266 Source of Uncertainty, sharing the card with a
-Buchla-lineage wavefolder and a fixed-window comparator, for the Music
-Thing Modular Workshop Computer.
+A tribute to the Buchla 266 Source of Uncertainty, sharing the card with an
+antialiased wavefolder and a fixed-window comparator, for the Music Thing
+Modular Workshop Computer.
 
 **Status: flashed and mostly confirmed on hardware.** Noise, FRV, QRV, and
-the comparator are working. The wavefolder was reported not working on
-the original triangle-reflection version and has since been rebuilt as a
-sine-table folder (see "DSP notes" below) — that rebuild hasn't been
-re-tested on the card yet. See "What still needs checking" below.
+the comparator are working. The wavefolder went through two from-scratch
+attempts that both sounded wrong on hardware and has now been replaced
+with a direct port of Chris Johnson's proven Utility Pair wavefolder (see
+"DSP notes" below) — that rebuild hasn't been re-tested on the card yet.
+See "What still needs checking" below.
 
 ## What's here
 
@@ -23,7 +24,7 @@ releases/106_uncertainty/
 ├── dsp/
 │   ├── noise.h            # flat / pink / blue noise (shared xorshift32 PRNG)
 │   ├── qrv.h               # Quantized Random Voltage (sample & hold)
-│   ├── wavefolder.h        # sine-table phase-multiplication wavefolder
+│   ├── wavefolder.h        # antialiased fold, ported from Chris Johnson's Utility Pair
 │   └── comparator.h        # hysteresis window comparator
 ├── info.yaml
 └── UF2/uncertainty.uf2    # built firmware
@@ -39,8 +40,8 @@ example (a slow, `float`-based control loop feeding a value that
 
 ```
                     ┌─────────────────────────┐
-                    │   ●  MAIN (unused)      │
-                    │                          │
+                    │   ●  MAIN                │
+                    │  (fold drive)            │
               ○ 0   │   ○ X        ○ Y         │  ○ 1
    (noise: flat)    │  (FRV rate)  (QRV range)  │  (FRV level)
               ○ 2   │                          │  ○ 3
@@ -50,7 +51,7 @@ example (a slow, `float`-based control loop feeding a value that
                     │                          │
                     │ AudioIn1  AudioOut1      │  fold/comparator in, fold out
                     │ (unused)  AudioOut2      │  noise out
-                    │ CVIn1     (unused)       │  fold intensity
+                    │ (unused)  (unused)       │
                     │ CVIn2     CVOut1          │  FRV rate mod, FRV out
                     │ PulseIn1  CVOut2          │  QRV trigger, QRV out
                     │ (unused)  PulseOut1      │  comparator trigger out
@@ -62,11 +63,13 @@ example (a slow, `float`-based control loop feeding a value that
 | Noise source | — | Z tap cycles flat → low-biased (pink) → high-biased (blue) | Audio Out 2 | 0/2/4, one lit = active mode |
 | FRV | CV In 2 (rate mod, ±6V) | X (rate, 0.05–50Hz, exponential) | CV Out 1 | 1, brightness 0V off → +6V brightest |
 | QRV | Pulse In 1 (new-value trigger) | Y (range, 0 to +6V) | CV Out 2 | 3, brightness 0V off → +6V brightest |
-| Wavefolder | Audio In 1, CV In 1 (fold intensity) | — | Audio Out 1 | — |
+| Wavefolder | Audio In 1 | Main (fold drive) | Audio Out 1 | — |
 | Comparator | Audio In 1 (shared with wavefolder in) | — (fixed ±1V window, 0V-centred) | Pulse Out 1 | 5, brief flash on trigger |
 
-Main knob is currently unused — reserved rather than wired to anything, so
-a future revision can add it without moving existing controls.
+CV In 1 is currently unused — the wavefolder's fold amount used to live
+there but is now driven by the Main knob instead (matching Chris
+Johnson's original wavefolder, which drives the fold with a knob rather
+than a CV).
 
 ## Hardware reality this build assumes
 
@@ -103,24 +106,32 @@ audio-input oversampling, reduced ADC tonal artifacts). There's no
   the time the next target is chosen.
 - **QRV:** on each Pulse In 1 rising edge, one xorshift32 draw scaled into
   [0, Y-scaled-range]mV, output directly — no slew, hard steps.
-- **Wavefolder:** originally a hard triangle-reflection fold, replaced
-  after hardware testing showed it sounded harsh/wrong on this card's
-  sine-ish Audio In 1 — every reflection has a sharp corner, and a sharp
-  corner in a smooth waveform is a burst of unshaped high harmonics.
-  Rebuilt as a sine-table phase-multiplication folder: the same
-  int16 LUT + linear-interpolation technique the ComputerCard
-  `sine_wave_lookup` example uses for an oscillator, but reading the
-  *input sample* as the phase instead of a free-running counter. CV In 1
-  sets a fixed-point cycle count, 0.5 (in's whole swing covers half a
-  table revolution, the region where sine is monotonic — a soft shaper,
-  not yet folding) up to 20 (dense folding), that scales the phase before
-  the lookup. The phase math is done signed and zero-centred before the
-  final wrap to a table index, so the shaper stays odd (negative in gives
-  negative out) at every setting rather than drifting into a rectifier —
-  an easy trap with this technique, and one this build hit and fixed on
-  the first pass (see the comment in `dsp/wavefolder.h` for the specific
-  bias-before-scaling bug and why it broke symmetry). One signed 64-bit
-  multiply plus a table read per sample; no `sinf()` in the audio path.
+- **Wavefolder:** two from-scratch attempts here (a hard triangle-
+  reflection fold, then a smooth sine-table fold) both sounded wrong on
+  hardware, and both were the same underlying mistake: evaluating a
+  nonlinear fold function fresh on every sample with no antialiasing.
+  Folding creates harmonics above what the input had; a naive per-sample
+  evaluation pushes some of that content above the 24kHz Nyquist limit,
+  where it aliases back down into the audible range as inharmonic noise —
+  regardless of whether the fold's corner is sharp or smooth. Replaced
+  with a direct port of Chris Johnson's proven Utility Pair wavefolder
+  (`github.com/chrisgjohnson/Utility-Pair`), which uses **antiderivative
+  antialiasing (ADAA)**: instead of calling `fold(x)` per sample, it
+  evaluates the fold's antiderivative `F(x)` and returns the discrete
+  slope `(F(x) - F(prev_x)) / (x - prev_x)` between this sample and the
+  last. That slope is mathematically the average of the continuous-time
+  fold output across the inter-sample interval, which suppresses exactly
+  the above-Nyquist content a naive evaluation would have aliased. Full
+  derivation in `ComputerCard/NOTES.md` under "Antiderivative
+  antialiasing", after Parker et al., DAFx-16. The fold shape itself
+  (`FoldFunction`) and its integral (`IntegralOfFold`) are Chris
+  Johnson's exact formulas, unchanged; only the surrounding state
+  (member variables instead of function-local statics — his version
+  relies on a per-channel class template we don't have here) and the
+  control wiring (Main knob only, no CV) are adapted for this card. Main
+  sets the drive into the fold — low settings pass the signal clean,
+  higher settings push it past the fold's fixed threshold, the way
+  turning up a real wavefolder's drive knob works.
 - **Comparator:** fixed ±1V (0V-centred) window with a hysteresis deadband
   (~60mV) around each edge, so noise sitting on the threshold doesn't
   chatter. Fires a ~1ms pulse each time the signal *leaves* the window, in
@@ -131,15 +142,22 @@ audio-input oversampling, reduced ADC tonal artifacts). There's no
 Noise, FRV, QRV, and the comparator have been confirmed working on
 hardware. Still open:
 
-- **The rebuilt wavefolder needs a re-flash and listening pass.** It
-  compiles clean, and a host-side numeric check (not on hardware —
-  just running the fold math on a synthetic sine off the RP2040)
-  confirmed the minimum setting is monotonic and odd-symmetric (no
-  folding, no DC bias) and higher settings genuinely add folds within a
-  bounded output range. What that check can't tell you: does minimum CV
-  In 1 sound like a gentle shaper rather than doing nothing; does
-  increasing CV In 1 add folds smoothly rather than jumping; does the top
-  of the range (20 cycles) stay musical rather than turning to noise.
+- **The rebuilt wavefolder needs a re-flash and listening pass.** The
+  fold shape and antialiasing math are Chris Johnson's own proven,
+  hardware-tested formulas, unchanged. Porting them into member-variable
+  state (instead of his function-local statics, which relied on a
+  per-channel class template this card doesn't use) introduced one real
+  bug, caught before this reached hardware: the state's default
+  initial value didn't satisfy the invariant the ADAA math depends on,
+  so the very first sample after startup computed a slope against the
+  wrong reference point and hard-clipped. Confirmed and fixed with a
+  host-side numeric test (`dsp/wavefolder.h` has no hardware
+  dependencies, so plain `g++` on the dev machine could run the exact
+  fold math against a synthetic sine) — see the comment above
+  `lastIntegral_` in `dsp/wavefolder.h`. What that test can't tell you:
+  does low Main pass the signal through clean; does turning Main up
+  bring in folds progressively; does it actually sound cleaner than the
+  two previous attempts on a sine input.
 - Actual pink/blue noise slope by ear or spectrum analyser — fixed-point
   filter approximations vary in how precisely they hit ±3dB/octave.
 - `ProcessSample()` timing margin, via the debug-GPIO/scope method — the

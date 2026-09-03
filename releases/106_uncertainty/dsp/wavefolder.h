@@ -1,55 +1,45 @@
-// Buchla-lineage wavefolder (not a Source of Uncertainty circuit itself,
-// but built in the same spirit to sit alongside it on the card).
+// Wavefolder, ported from Chris Johnson's proven "Utility Pair" wavefolder
+// (https://github.com/chrisgjohnson/Utility-Pair, src/main.cpp,
+// `wavefolder::fold_function` / `int_function` / `aa_wavefolder`).
 //
-// This card's Audio In 1 is expected to carry a sine-ish signal (an
-// external VCO, typically), and folding that with a hard-cornered
-// triangle-reflection mirror sounds wrong: every reflection has a sharp
-// corner, and a sharp corner in a smooth waveform is a burst of high
-// harmonics with no natural roll-off — audibly harsh and alias-prone,
-// especially as fold count increases. That's not a Buchla-style timbre,
-// it's a fold that assumes a triangle core (like a 259) where the
-// waveform is already all corners, so a corner-for-corner reflection lines
-// up naturally.
+// Two earlier attempts at this block (a hard triangle-reflection fold,
+// then a smooth sine-table fold) both sounded wrong on real hardware.
+// Both were the same mistake in different clothes: evaluating a
+// nonlinear function fresh on every sample with no antialiasing.
+// Wavefolding creates harmonics above what the signal had going in — a
+// naive per-sample fold generates content above the 24kHz Nyquist limit,
+// which does not disappear, it aliases: folds back down into the audible
+// range as inharmonic noise. That happens whether the fold's corner is
+// sharp (triangle) or smooth (sine) — a smoother corner just delays the
+// problem to higher fold counts rather than removing it.
 //
-// The fix used here treats the input sample as a phase and looks it up in
-// a precomputed sine table, the same integer LUT + linear-interpolation
-// technique the ComputerCard "sine_wave_lookup" example uses to draw an
-// oscillator. A fixed-point multiplier on the phase before the lookup —
-// set by CV In 1 — controls how many table cycles in's own -2048..2047
-// excursion covers. Two things matter for this to sound like a folder and
-// not a rectifier:
+// The actual fix — proven on real hardware in Utility Pair, and written
+// up in Demonstrations+HelloWorlds/PicoSDK/ComputerCard/NOTES.md under
+// "Antiderivative antialiasing" (ADAA), after Parker et al., DAFx-16 —
+// isn't a different fold shape at all. It's evaluating the fold's
+// *antiderivative* F(x) = integral of fold(x), then taking the discrete
+// slope (F(x) - F(prev_x)) / (x - prev_x) between this sample and the
+// last one, instead of calling fold(x) directly. That discrete slope is
+// mathematically the average of the continuous-time fold output across
+// the interval between samples, which acts as a filter that suppresses
+// exactly the above-Nyquist content a naive per-sample evaluation would
+// have aliased. See NOTES.md for the full derivation; this file only
+// needs the result.
 //
-//   Zero-centred: in=0 must land on phase=0 (table value 0), and the
-//                 mapping must be odd (f(-x) = -f(x)), or negative input
-//                 gets pushed toward positive output — an accidental
-//                 half-wave-rectify-ish DC bias, not a fold. That means
-//                 doing the phase math in *signed* arithmetic, scaling
-//                 the true signed angle, and only converting to unsigned
-//                 (which wraps mod 2^32 for free — exactly the table's
-//                 periodicity) at the very last step for the lookup.
-//                 Biasing in to unsigned first and scaling *that* breaks
-//                 the symmetry: halving an already-wrapped-positive
-//                 representation of a negative angle does not equal
-//                 halving the negative angle itself.
-//   0.5 cycles (minimum): in's swing covers half a table revolution,
-//                 -90deg to +90deg, where sin() is monotonic. That's a
-//                 soft shaper (curved, but every input still maps to a
-//                 unique output, and negative in gives negative out) —
-//                 no actual folding yet. Anything more starts folding, so
-//                 0.5 is the "just barely no folding" starting point.
-//   N cycles (higher CV): in's swing covers N table revolutions, i.e.
-//                 output rises and falls N times — N-ish folds, each one
-//                 a smooth sine corner instead of a sharp mirror.
-//
-// This is the same shape a sine carrier phase-modulated by itself
-// produces (sin(k*theta) for input theta), which is the natural way to
-// think about "folding a sine": table lookups and one signed 32x32->64
-// multiply per sample, no sinf() in the audio path.
+// fold_function and int_function below are Chris Johnson's exact integer
+// formulas — a fixed period-8192 triangle fold and its analytic integral.
+// The only changes from the original are structural: his version keeps
+// `lastval`/`lastx` as function-local statics inside a class template
+// (correct there because Utility Pair instantiates one wavefolder per
+// channel, so the template parameter gives each channel its own static
+// storage) — here there's a single instance, so they're ordinary member
+// variables instead. The knob/CV combination that fed `mult` in the
+// original (paired-utility layout: knob X + CV in) is replaced with just
+// this card's Main knob, per spec.
 
 #ifndef UNCERTAINTY_DSP_WAVEFOLDER_H_
 #define UNCERTAINTY_DSP_WAVEFOLDER_H_
 
-#include <cmath>
 #include <cstdint>
 
 namespace uncertainty
@@ -58,70 +48,99 @@ namespace uncertainty
 	class Wavefolder
 	{
 	public:
-		Wavefolder()
+		// audioIn: -2048..2047. knobMain: 0..4095 (raw KnobVal(Knob::Main)).
+		// Returns the folded output, -2047..2047.
+		int32_t Process(int32_t audioIn, int32_t knobMain)
 		{
-			// Built once at startup with double-precision sin() — this
-			// never runs inside ProcessSample, so there's no budget
-			// concern here the way there would be for a per-sample sinf().
-			for (unsigned i = 0; i < kTableSize; i++)
-			{
-				table_[i] = static_cast<int16_t>(32000.0 * sin(2.0 * i * M_PI / double(kTableSize)));
-			}
-		}
-
-		// in: audio input, -2048..2047.
-		// intensity: fold control, -2048..2047 (raw CV in), higher = more
-		// folds. Only the positive half is used, matching a unipolar
-		// "amount" control fed from CV.
-		int32_t Process(int32_t in, int32_t intensity) const
-		{
-			int32_t clamped = intensity;
-			if (clamped < 0) clamped = 0;
-			if (clamped > 2047) clamped = 2047;
-
-			// Cycle count, Q8 fixed point: 0.5 cycles (soft shaper, no
-			// folding) at minimum, up to kMaxCycles (dense folding) at
-			// full CV.
-			constexpr int32_t kMinCyclesQ8 = 128;         // 0.5 << 8
-			constexpr int32_t kMaxCyclesQ8 = 20 * 256;    // 20 << 8
-			int32_t cyclesQ8 = kMinCyclesQ8 + ((clamped * (kMaxCyclesQ8 - kMinCyclesQ8)) >> 11);
-
-			// Signed angle where +-2^31 is +-one full revolution — in's own
-			// range (-2048..2047) covers almost exactly that at cyclesQ8
-			// = 1.0. `in * (1<<20)` cannot overflow int32_t (its extreme,
-			// -2048 * 2^20 = -2^31, is exactly INT32_MIN, still
-			// representable), so this is safe as a plain 32-bit multiply.
-			int32_t signedPhase = in * (1 << 20);
-
-			// Scale by the cycle count in signed 64-bit (the product can
-			// exceed 32 bits: a full-scale signedPhase times a ~14-bit
-			// cyclesQ8), then truncate to uint32_t. That truncation is a
-			// well-defined mod-2^32 reduction, which is exactly the
-			// table's periodicity — so scaling by a fractional cycle
-			// count and wrapping into table range fall out of the same
-			// cast for free.
-			uint32_t phase = static_cast<uint32_t>(
-				(static_cast<int64_t>(signedPhase) * cyclesQ8) >> 8);
-
-			// Same table read + linear interpolation as sine_wave_lookup:
-			// top 9 bits select the table entry, the next chunk is the
-			// fractional position between it and the next entry.
-			uint32_t index = phase >> 23;
-			int32_t frac = (phase & 0x7FFFFF) >> 7;
-
-			int32_t s1 = table_[index];
-			int32_t s2 = table_[(index + 1) & kTableMask];
-
-			// Interpolate, then rescale from the table's ~15-bit amplitude
-			// down to our 12-bit audio range.
-			return (s2 * frac + s1 * (65536 - frac)) >> 20;
+			// Same scaling Chris Johnson's code uses for its knob
+			// contribution to `mult`: knob>>1 gives 0..2047, and `mult`
+			// is a Q7 gain applied to the input before folding (mult=128
+			// is unity gain, i.e. right at the edge of the fold's linear
+			// region — below that the signal never reaches the fold
+			// point and passes clean; above it, harder drive means more
+			// folds, the way turning up a real wavefolder's drive knob
+			// works).
+			int32_t mult = knobMain >> 1;
+			return AntialiasedFold((audioIn * mult) >> 7);
 		}
 
 	private:
-		static constexpr unsigned kTableSize = 512;
-		static constexpr uint32_t kTableMask = kTableSize - 1;
+		// Fixed period-8192, +-2048-amplitude triangle fold. `mult`
+		// above is what makes this feel like a variable-intensity fold:
+		// the nonlinearity itself never moves, only how hard the signal
+		// is driven into it.
+		static int32_t FoldFunction(int32_t x)
+		{
+			constexpr int32_t period = 8192;
+			x = ((x + 2048) % period + period) % period;
 
-		int16_t table_[kTableSize];
+			if (x < 4096)
+				return x - 2048;
+			else
+				return (8191 - x) - 2048;
+		}
+
+		// Antiderivative (definite integral) of FoldFunction, needed by
+		// the ADAA step below. Exact formula from Chris Johnson's
+		// wavefolder — the piecewise-quadratic integral of a
+		// piecewise-linear triangle wave, in fixed point.
+		static int32_t IntegralOfFold(int32_t x)
+		{
+			constexpr int32_t period = 8192;
+			x = ((x + 2048) % period + period) % period;
+			int32_t x2 = x * 2;
+			if (x < 4096)
+				return ((x2 + 1) * (x2 - 8191)) >> 3;
+			else
+				return -((x2 - 8191) * (x2 - 16383)) >> 3;
+		}
+
+		static void Clip(int32_t &a)
+		{
+			if (a < -2047) a = -2047;
+			if (a > 2047) a = 2047;
+		}
+
+		// The antiderivative-antialiasing step: instead of FoldFunction(x),
+		// return the discrete slope of its integral between this sample
+		// and the last one. Falls back to a direct evaluation only when
+		// x hasn't moved (the slope would be 0/0) — at that point the
+		// two are equal anyway, since there's no new content between two
+		// identical samples for the filter to average over.
+		int32_t AntialiasedFold(int32_t x)
+		{
+			int32_t result;
+			if (x == lastX_)
+			{
+				result = FoldFunction(x);
+			}
+			else
+			{
+				int32_t val = IntegralOfFold(x);
+				result = (val - lastIntegral_) / (x - lastX_);
+				lastX_ = x;
+				lastIntegral_ = val;
+			}
+			Clip(result);
+			return result;
+		}
+
+		// AntialiasedFold's two branches both preserve the invariant
+		// lastIntegral_ == IntegralOfFold(lastX_) (the fallback branch
+		// touches neither, and the ADAA branch updates both together) —
+		// but that invariant has to start true. Chris Johnson's original
+		// leaves this as `static int32_t lastval=0, lastx=0`, which is
+		// the same as writing lastIntegral_ = 0 here: only correct if
+		// IntegralOfFold(0) happened to be 0, and it isn't (it's
+		// -2097152 — this fixed-point integral formula has a nonzero
+		// constant of integration even though the fold itself is odd
+		// and passes through the origin). Caught by a host-side numeric
+		// test: with the mismatched default, the first sample to differ
+		// from the initial x=0 computed a slope against the wrong
+		// reference point and landed on the -2047 clip rail instead of
+		// a musical value.
+		int32_t lastX_ = 0;
+		int32_t lastIntegral_ = IntegralOfFold(0);
 	};
 
 } // namespace uncertainty
