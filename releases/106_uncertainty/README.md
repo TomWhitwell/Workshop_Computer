@@ -51,7 +51,7 @@ example (a slow, `float`-based control loop feeding a value that
                     │                          │
                     │ AudioIn1  AudioOut1      │  fold/comparator in, fold out
                     │ (unused)  AudioOut2      │  noise out
-                    │ (unused)  (unused)       │
+                    │ CVIn1     (unused)       │  fold drive mod (bipolar)
                     │ CVIn2     CVOut1          │  FRV rate mod, FRV out
                     │ PulseIn1  CVOut2          │  QRV trigger, QRV out
                     │ (unused)  PulseOut1      │  comparator trigger out
@@ -63,13 +63,15 @@ example (a slow, `float`-based control loop feeding a value that
 | Noise source | — | Z tap cycles flat → low-biased (pink) → high-biased (blue) | Audio Out 2 | 0/2/4, one lit = active mode |
 | FRV | CV In 2 (rate mod, ±6V) | X (rate, 0.05–50Hz, exponential) | CV Out 1 | 1, brightness 0V off → +6V brightest |
 | QRV | Pulse In 1 (new-value trigger) | Y (range, 0 to +6V) | CV Out 2 | 3, brightness 0V off → +6V brightest |
-| Wavefolder | Audio In 1 | Main (fold drive) | Audio Out 1 | — |
+| Wavefolder | Audio In 1, CV In 1 (drive mod, bipolar) | Main (fold drive) | Audio Out 1 | — |
 | Comparator | Audio In 1 (shared with wavefolder in) | — (fixed ±1V window, 0V-centred) | Pulse Out 1 | 5, brief flash on trigger |
 
-CV In 1 is currently unused — the wavefolder's fold amount used to live
-there but is now driven by the Main knob instead (matching Chris
-Johnson's original wavefolder, which drives the fold with a knob rather
-than a CV).
+CV In 1 adds directly onto the Main knob's drive amount, unclamped —
+this is Chris Johnson's original `mult = knob + CVIn` formula verbatim.
+Because it's bipolar and unclamped, enough negative CV can push the
+combined drive below zero: instead of just cancelling Main out to
+silence, that inverts the signal before folding, the way driving a real
+wavefolder's input through zero does.
 
 ## Hardware reality this build assumes
 
@@ -125,13 +127,16 @@ audio-input oversampling, reduced ADC tonal artifacts). There's no
   derivation in `ComputerCard/NOTES.md` under "Antiderivative
   antialiasing", after Parker et al., DAFx-16. The fold shape itself
   (`FoldFunction`) and its integral (`IntegralOfFold`) are Chris
-  Johnson's exact formulas, unchanged; only the surrounding state
-  (member variables instead of function-local statics — his version
-  relies on a per-channel class template we don't have here) and the
-  control wiring (Main knob only, no CV) are adapted for this card. Main
-  sets the drive into the fold — low settings pass the signal clean,
-  higher settings push it past the fold's fixed threshold, the way
-  turning up a real wavefolder's drive knob works.
+  Johnson's exact formulas, unchanged; only the surrounding state (member
+  variables instead of function-local statics — his version relies on a
+  per-channel class template we don't have here) is adapted for this
+  card. Drive into the fold is Main + CV In 1, also his original
+  `mult = knob + CVIn` formula verbatim — CV In 1 is bipolar and
+  unclamped, so it can push the combined drive negative, inverting the
+  signal before folding rather than just cancelling Main out to silence.
+  Low drive passes the signal clean; higher drive pushes it past the
+  fold's fixed threshold, the way turning up a real wavefolder's drive
+  knob works.
 - **Comparator:** fixed ±1V (0V-centred) window with a hysteresis deadband
   (~60mV) around each edge, so noise sitting on the threshold doesn't
   chatter. Fires a ~1ms pulse each time the signal *leaves* the window, in
@@ -154,10 +159,16 @@ hardware. Still open:
   host-side numeric test (`dsp/wavefolder.h` has no hardware
   dependencies, so plain `g++` on the dev machine could run the exact
   fold math against a synthetic sine) — see the comment above
-  `lastIntegral_` in `dsp/wavefolder.h`. What that test can't tell you:
-  does low Main pass the signal through clean; does turning Main up
-  bring in folds progressively; does it actually sound cleaner than the
-  two previous attempts on a sine input.
+  `lastIntegral_` in `dsp/wavefolder.h`. CV In 1 was added after that fix,
+  wired as bipolar per this request, additive with Main and unclamped
+  (Chris Johnson's original formula) — the numeric tests confirm it stays
+  bounded and behaves smoothly across the full range including negative
+  CV pushing the drive through zero into inversion, but that's still just
+  the math. What none of that can tell you: does low Main pass the signal
+  through clean; does turning Main up bring in folds progressively; does
+  it sound cleaner than the two previous attempts on a sine input; does
+  CV In 1's through-zero inversion sound like a feature or a mistake in
+  practice.
 - Actual pink/blue noise slope by ear or spectrum analyser — fixed-point
   filter approximations vary in how precisely they hit ±3dB/octave.
 - `ProcessSample()` timing margin, via the debug-GPIO/scope method — the

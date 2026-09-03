@@ -3,7 +3,8 @@
 # triangle fold, then a smooth sine-table fold) that both sounded wrong on
 # hardware, and has now been replaced with a port of Chris Johnson's
 # proven Utility Pair wavefolder (antiderivative-antialiased fold; see
-# dsp/wavefolder.h). That rebuild has not yet been re-flashed and
+# dsp/wavefolder.h), with CV In 1 wired back in as bipolar drive
+# modulation on top of Main. That version has not yet been re-flashed and
 # re-tested. Update Status to Released and drop this note once it has.
 draft: true
 Name: Uncertainty
@@ -33,6 +34,9 @@ panel:
     - id: AudioIn1
       name: Fold/Comparator In
       description: Shared input for the wavefolder and the comparator
+    - id: CVIn1
+      name: Fold Drive Mod
+      description: Bipolar, adds directly onto the Main knob's drive amount, unclamped — enough negative CV inverts the signal before folding
     - id: CVIn2
       name: FRV Rate Mod
       description: Bipolar modulation of the FRV rate, +-6V, added on top of knob X
@@ -65,7 +69,7 @@ controls:
   knobs:
     - main:
         name: Fold Drive
-        description: Gain into the wavefolder — low settings pass the signal clean, higher settings drive it into folding
+        description: Gain into the wavefolder, combined with CV In 1 — low settings pass the signal clean, higher settings drive it into folding
       x:
         name: FRV Rate
         description: Exponential taper across three decades, 0.05Hz to 50Hz, modulated by CV In 2

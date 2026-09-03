@@ -28,14 +28,18 @@
 //
 // fold_function and int_function below are Chris Johnson's exact integer
 // formulas — a fixed period-8192 triangle fold and its analytic integral.
-// The only changes from the original are structural: his version keeps
+// The only change from the original is structural: his version keeps
 // `lastval`/`lastx` as function-local statics inside a class template
 // (correct there because Utility Pair instantiates one wavefolder per
 // channel, so the template parameter gives each channel its own static
 // storage) — here there's a single instance, so they're ordinary member
-// variables instead. The knob/CV combination that fed `mult` in the
-// original (paired-utility layout: knob X + CV in) is replaced with just
-// this card's Main knob, per spec.
+// variables instead. The knob+CV combination that feeds `mult` below is
+// his original formula verbatim (`mult = k + CVIn(I)`, no clamping): CV
+// In 1 is bipolar and adds straight onto the knob-derived drive, so
+// enough negative CV can push `mult` negative — which inverts the signal
+// before folding rather than just attenuating toward silence. That's not
+// a bug to guard against; it's what "bipolar" buys you here; a real
+// wavefolder driven through zero behaves the same way.
 
 #ifndef UNCERTAINTY_DSP_WAVEFOLDER_H_
 #define UNCERTAINTY_DSP_WAVEFOLDER_H_
@@ -49,18 +53,20 @@ namespace uncertainty
 	{
 	public:
 		// audioIn: -2048..2047. knobMain: 0..4095 (raw KnobVal(Knob::Main)).
+		// cv1: -2048..2047 (raw CVIn1()), bipolar drive modulation.
 		// Returns the folded output, -2047..2047.
-		int32_t Process(int32_t audioIn, int32_t knobMain)
+		int32_t Process(int32_t audioIn, int32_t knobMain, int32_t cv1)
 		{
-			// Same scaling Chris Johnson's code uses for its knob
-			// contribution to `mult`: knob>>1 gives 0..2047, and `mult`
-			// is a Q7 gain applied to the input before folding (mult=128
-			// is unity gain, i.e. right at the edge of the fold's linear
-			// region — below that the signal never reaches the fold
-			// point and passes clean; above it, harder drive means more
-			// folds, the way turning up a real wavefolder's drive knob
-			// works).
-			int32_t mult = knobMain >> 1;
+			// `mult` is a Q7 gain applied to the input before folding —
+			// mult=128 is unity gain, right at the edge of the fold's
+			// linear region (below that the signal never reaches the
+			// fold point and passes clean; above it, harder drive means
+			// more folds, the way turning up a real wavefolder's drive
+			// knob works). knob>>1 gives the knob's 0..2047 contribution;
+			// cv1 adds straight on top, bipolar and unclamped, so full
+			// negative CV can drive mult negative (signal inversion, see
+			// the file header) rather than just cancelling the knob out.
+			int32_t mult = (knobMain >> 1) + cv1;
 			return AntialiasedFold((audioIn * mult) >> 7);
 		}
 
