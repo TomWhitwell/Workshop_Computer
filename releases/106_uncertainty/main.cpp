@@ -26,9 +26,18 @@
 // There used to be a sixth block here: a fixed +-1V window comparator on
 // Audio In 1, feeding the same Pulse Out 1/2 alternator. Removed outright
 // rather than reworked — the alternator logic was worth keeping, the
-// comparator wasn't. See README.md for the full panel layout and the
-// hardware-reality corrections (voltage range, switch behaviour) this
-// build is based on.
+// comparator wasn't.
+//
+// Switch Up gives Main/X/Y a second job each, as attenuverters for the
+// section they already control: Main becomes the wavefolder's CV In 1
+// attenuverter, X becomes FRV's output attenuverter, Y becomes QRV's
+// output attenuverter. Each knob's two jobs share pot-pickup logic
+// (dsp/dual_role_knob.h) so switching Up and back never snaps a value to
+// wherever the knob physically ended up while it was doing its other
+// job — see that file for the mechanism.
+//
+// See README.md for the full panel layout and the hardware-reality
+// corrections (voltage range, switch behaviour) this build is based on.
 
 #include <cmath>
 #include <cstdint>
@@ -37,6 +46,7 @@
 #include "pico/multicore.h"
 #include "pico/time.h"
 
+#include "dsp/dual_role_knob.h"
 #include "dsp/noise.h"
 #include "dsp/qrv.h"
 #include "dsp/wavefolder.h"
@@ -44,11 +54,14 @@
 namespace uncertainty
 {
 
-	// Millivolts <-> LED brightness (0..4095), for the "0V off, +6V
-	// brightest" FRV/QRV indicators. mv is expected in 0..6000.
+	// Millivolts <-> LED brightness (0..4095), for the FRV/QRV level
+	// indicators. Shows magnitude only (|mv|, clamped to 6000) — a single
+	// LED brightness can't show polarity, and now that attenuversion can
+	// push these outputs negative, "how far from 0V" is the useful thing
+	// to see regardless of which direction.
 	static inline int32_t MillivoltsToLed(int32_t mv)
 	{
-		if (mv < 0) mv = 0;
+		if (mv < 0) mv = -mv;
 		if (mv > 6000) mv = 6000;
 		return static_cast<int32_t>((mv * 4095) / 6000);
 	}
@@ -67,10 +80,13 @@ public:
 	//
 	// FRV's rate can be as slow as 0.05Hz, far below audio rate, so its
 	// random-walk-with-slew is computed here instead of in ProcessSample.
-	// It reads the X knob and CV In 2 directly (rather than only inside
-	// ProcessSample) — the same pattern the ComputerCard "second_core"
-	// example uses, since KnobVal/CVIn read a volatile word that's safe
-	// to sample from either core.
+	// It reads the X knob, CV In 2, and the switch directly (rather than
+	// only inside ProcessSample) — the same pattern the ComputerCard
+	// "second_core" example uses, since KnobVal/CVIn/SwitchVal all read a
+	// volatile word that's safe to sample from either core. xKnob_'s
+	// dual-role/pot-pickup bookkeeping lives entirely here, on the same
+	// core that owns X — core 0 never touches it, so there's no
+	// cross-core state to synchronise for this knob.
 	void FRVLoop()
 	{
 		constexpr float kMinHz = 0.05f;
@@ -88,9 +104,11 @@ public:
 			float dt = static_cast<float>(nowUs - lastUs) * 1.0e-6f;
 			lastUs = nowUs;
 
+			xKnob_.Update(SwitchVal() == Switch::Up, KnobVal(Knob::X));
+
 			// X sets the base rate; CV In 2 can swing it by up to half the
 			// knob's own travel, in either direction.
-			float knobFrac = KnobVal(Knob::X) / 4095.0f;
+			float knobFrac = xKnob_.Primary() / 4095.0f;
 			float cvMod = (CVIn2() / 2047.0f) * 0.5f;
 			float normalized = knobFrac + cvMod;
 			if (normalized < 0.0f) normalized = 0.0f;
@@ -116,7 +134,11 @@ public:
 				current += (target - current) * coeff;
 			}
 
-			frvOutMillivolts_ = static_cast<int32_t>(current);
+			// X's attenuverter (Switch Up) scales/inverts the glide
+			// value on its way out — turning the attenuverter reshapes
+			// the currently-gliding voltage live, it doesn't wait for a
+			// new target.
+			frvOutMillivolts_ = xKnob_.Attenuvert(static_cast<int32_t>(current));
 
 			// Control-rate is plenty here; free up the core.
 			sleep_us(200);
@@ -149,20 +171,35 @@ public:
 		LedOn(2, noiseMode_ == uncertainty::NoiseSource::LowBiased);
 		LedOn(4, noiseMode_ == uncertainty::NoiseSource::HighBiased);
 
-		// --- FRV: core 1 computes the value; here we just output it.
+		// Switch Up gives Main/X/Y their attenuverter role instead of
+		// their normal one (X's copy of this lives on core 1, next to the
+		// FRV loop that owns it). Read once, used by both knobs below.
+		bool switchUp = (SwitchVal() == Switch::Up);
+
+		// --- FRV: core 1 computes the value (including its own
+		// attenuversion); here we just output it.
 		CVOut1Millivolts(frvOutMillivolts_);
 		LedBrightness(1, uncertainty::MillivoltsToLed(frvOutMillivolts_));
 
 		// --- QRV: fresh random value on each Pulse In 1 rising edge,
-		// range scaled 0..6000mV by the Y knob.
-		int32_t qrvRangeMv = (KnobVal(Knob::Y) * 6000) >> 12;
-		int32_t qrvMv = qrv_.Process(PulseIn1RisingEdge(), qrvRangeMv);
+		// range scaled 0..6000mV by Y's primary (range) role. Y's
+		// attenuverter role (Switch Up) is applied continuously to
+		// whatever value is currently held, not just at the moment of a
+		// new trigger — turning it reshapes the held voltage live.
+		yKnob_.Update(switchUp, KnobVal(Knob::Y));
+		int32_t qrvRangeMv = (yKnob_.Primary() * 6000) >> 12;
+		int32_t qrvRawMv = qrv_.Process(PulseIn1RisingEdge(), qrvRangeMv);
+		int32_t qrvMv = yKnob_.Attenuvert(qrvRawMv);
 		CVOut2Millivolts(qrvMv);
 		LedBrightness(3, uncertainty::MillivoltsToLed(qrvMv));
 
-		// --- Wavefolder: Audio In 1 folded by Main knob's drive amount,
-		// modulated bipolar by CV In 1.
-		AudioOut1(wavefolder_.Process(AudioIn1(), KnobVal(Knob::Main), CVIn1()));
+		// --- Wavefolder: Audio In 1 folded by Main's drive amount
+		// (primary role). CV In 1 is scaled by Main's attenuverter role
+		// (Switch Up) before it reaches the fold — at 12 o'clock CV In 1
+		// has no effect at all, same as being unpatched.
+		mainKnob_.Update(switchUp, KnobVal(Knob::Main));
+		int32_t cv1Attenuverted = mainKnob_.Attenuvert(CVIn1());
+		AudioOut1(wavefolder_.Process(AudioIn1(), mainKnob_.Primary(), cv1Attenuverted));
 
 		// --- Pulse alternator: Pulse In 1 duplicated straight through to
 		// Pulse Out 1 / Pulse Out 2, alternating which output gets each
@@ -211,6 +248,14 @@ private:
 	int32_t noiseMode_ = uncertainty::NoiseSource::Flat;
 	bool lastPulseIn1_ = false;
 	bool pulseAltChannel_ = false;
+
+	// mainKnob_/yKnob_ are read and updated only from ProcessSample
+	// (core 0). xKnob_ is read and updated only from FRVLoop (core 1) —
+	// each is owned exclusively by one core, so there's no shared-state
+	// concern despite them living on the same object.
+	uncertainty::DualRoleKnob mainKnob_;
+	uncertainty::DualRoleKnob xKnob_;
+	uncertainty::DualRoleKnob yKnob_;
 
 	uncertainty::NoiseSource noise_{1};
 	uncertainty::Wavefolder wavefolder_;
