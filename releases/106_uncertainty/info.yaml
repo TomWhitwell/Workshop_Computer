@@ -1,11 +1,14 @@
-# certainty: low — flashed and confirmed on hardware for noise/FRV/QRV/
-# comparator. The wavefolder went through two from-scratch attempts (hard
-# triangle fold, then a smooth sine-table fold) that both sounded wrong on
+# certainty: low — flashed and confirmed on hardware for noise/FRV/QRV.
+# The comparator's crossing detection was confirmed too, but has since
+# gained a ~10Hz minimum-retrigger lockout (see dsp/comparator.h) so a
+# VCO into Audio In 1 doesn't fire it at audio rate; not yet re-tested.
+# The wavefolder went through two from-scratch attempts (hard triangle
+# fold, then a smooth sine-table fold) that both sounded wrong on
 # hardware, and has now been replaced with a port of Chris Johnson's
 # proven Utility Pair wavefolder (antiderivative-antialiased fold; see
 # dsp/wavefolder.h), with CV In 1 wired back in as bipolar drive
-# modulation on top of Main. That version has not yet been re-flashed and
-# re-tested. Update Status to Released and drop this note once it has.
+# modulation on top of Main. Also not yet re-tested. Update Status to
+# Released and drop this note once both have been.
 draft: true
 Name: Uncertainty
 short-description: Buchla 266-style noise/FRV/QRV, plus a wavefolder and comparator.
@@ -58,7 +61,7 @@ panel:
       description: Quantized Random Voltage, 0 to +6V span set by knob Y
     - id: PulseOut1
       name: Comparator Out
-      description: Short trigger pulse each time Audio In 1 leaves the fixed +-1V window
+      description: Short trigger pulse each time Audio In 1 leaves the fixed +-1V window, rate-limited to ~10Hz max regardless of input pitch
 
 controls:
   switch:

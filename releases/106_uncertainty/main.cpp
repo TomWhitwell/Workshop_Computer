@@ -184,13 +184,22 @@ private:
 
 	static constexpr int32_t kComparatorWindow = 341;    // ~1V in ADC codes
 	static constexpr int32_t kComparatorHysteresis = 20; // ~60mV deadband
+	// Minimum gap between pulses, independent of how fast Audio In 1 (a
+	// VCO, normally) crosses the window — the window/hysteresis above set
+	// *sensitivity*, not rate: a steady tone crosses on its own schedule
+	// no matter where the threshold sits, right up until the threshold
+	// exceeds its peak and it stops firing altogether. This is what
+	// actually turns audio-rate crossings into a slow, musical trigger
+	// rate. 100ms -> ~10Hz cap, verified to hold regardless of the VCO's
+	// pitch (tested at 50Hz and 220Hz, both settle to the same rate).
+	static constexpr int32_t kComparatorMinRetriggerSamples = 48 * 100;
 
 	int32_t startupSample_ = 0;
 	int32_t noiseMode_ = uncertainty::NoiseSource::Flat;
 
 	uncertainty::NoiseSource noise_{1};
 	uncertainty::Wavefolder wavefolder_;
-	uncertainty::Comparator comparator_{kComparatorWindow, kComparatorHysteresis};
+	uncertainty::Comparator comparator_{kComparatorWindow, kComparatorHysteresis, kComparatorMinRetriggerSamples};
 	uncertainty::QRV qrv_{12345};
 
 	uint32_t frvSeed_ = 7;

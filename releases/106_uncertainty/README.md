@@ -64,7 +64,7 @@ example (a slow, `float`-based control loop feeding a value that
 | FRV | CV In 2 (rate mod, ±6V) | X (rate, 0.05–50Hz, exponential) | CV Out 1 | 1, brightness 0V off → +6V brightest |
 | QRV | Pulse In 1 (new-value trigger) | Y (range, 0 to +6V) | CV Out 2 | 3, brightness 0V off → +6V brightest |
 | Wavefolder | Audio In 1, CV In 1 (drive mod, bipolar) | Main (fold drive) | Audio Out 1 | — |
-| Comparator | Audio In 1 (shared with wavefolder in) | — (fixed ±1V window, 0V-centred) | Pulse Out 1 | 5, brief flash on trigger |
+| Comparator | Audio In 1 (shared with wavefolder in) | — (fixed ±1V window, 0V-centred, ~10Hz max rate) | Pulse Out 1 | 5, brief flash on trigger |
 
 CV In 1 adds directly onto the Main knob's drive amount, unclamped —
 this is Chris Johnson's original `mult = knob + CVIn` formula verbatim.
@@ -140,12 +140,29 @@ audio-input oversampling, reduced ADC tonal artifacts). There's no
 - **Comparator:** fixed ±1V (0V-centred) window with a hysteresis deadband
   (~60mV) around each edge, so noise sitting on the threshold doesn't
   chatter. Fires a ~1ms pulse each time the signal *leaves* the window, in
-  either direction.
+  either direction. Also rate-limited: after a pulse, new triggers are
+  ignored for a minimum 100ms, capping the output at ~10Hz. That's a
+  separate mechanism from the window, and deliberately so — Audio In 1 is
+  normally a VCO, and a steady tone crosses a fixed threshold on the same
+  schedule every cycle no matter how wide the window is, right up until
+  the window exceeds the tone's peak and it stops firing altogether
+  (verified numerically: widening the window from 1V to 4.5V left a
+  220Hz test tone's rate exactly unchanged at 440/s, the whole way).
+  Window width sets *sensitivity* — how loud a peak has to be to count —
+  not *rate*; only the retrigger lockout does that, and it does it
+  regardless of the VCO's pitch (tested at 50Hz and 220Hz, both land on
+  the same rate for a given lockout).
 
 ## What still needs checking
 
-Noise, FRV, QRV, and the comparator have been confirmed working on
-hardware. Still open:
+Noise, FRV, and QRV have been confirmed working on hardware. The
+comparator's window/hysteresis crossing detection was confirmed working
+too, but it has since gained a minimum-retrigger lockout (see "DSP
+notes") that hasn't itself been heard yet — the numeric test confirms the
+rate cap holds regardless of the VCO's pitch, not that a ~10Hz default
+feels right in practice, or that Pulse Out 1 downstream gear reacts
+cleanly to pulses spaced that far apart after expecting audio-rate ones.
+Still open:
 
 - **The rebuilt wavefolder needs a re-flash and listening pass.** The
   fold shape and antialiasing math are Chris Johnson's own proven,
