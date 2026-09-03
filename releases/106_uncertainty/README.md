@@ -4,12 +4,13 @@ A tribute to the Buchla 266 Source of Uncertainty, sharing the card with an
 antialiased wavefolder and a fixed-window comparator, for the Music Thing
 Modular Workshop Computer.
 
-**Status: flashed and mostly confirmed on hardware.** Noise, FRV, QRV, and
-the comparator are working. The wavefolder went through two from-scratch
-attempts that both sounded wrong on hardware and has now been replaced
-with a direct port of Chris Johnson's proven Utility Pair wavefolder (see
-"DSP notes" below) — that rebuild hasn't been re-tested on the card yet.
-See "What still needs checking" below.
+**Status: flashed and partly confirmed on hardware.** Noise, FRV, and QRV
+are working. The wavefolder went through two from-scratch attempts that
+both sounded wrong on hardware and has now been replaced with a direct
+port of Chris Johnson's proven Utility Pair wavefolder; the comparator's
+core crossing-detection worked, but has since gained rate-limiting and
+alternating dual-output pulses. None of that most recent work has been
+re-tested on the card yet — see "What still needs checking" below.
 
 ## What's here
 
@@ -51,10 +52,10 @@ example (a slow, `float`-based control loop feeding a value that
                     │                          │
                     │ AudioIn1  AudioOut1      │  fold/comparator in, fold out
                     │ (unused)  AudioOut2      │  noise out
-                    │ CVIn1     (unused)       │  fold drive mod (bipolar)
-                    │ CVIn2     CVOut1          │  FRV rate mod, FRV out
-                    │ PulseIn1  CVOut2          │  QRV trigger, QRV out
-                    │ (unused)  PulseOut1      │  comparator trigger out
+                    │ CVIn1     CVOut1          │  fold drive mod (bipolar), FRV out
+                    │ CVIn2     CVOut2          │  FRV rate mod, QRV out
+                    │ PulseIn1  PulseOut1      │  QRV trigger, comparator out (alternating)
+                    │ (unused)  PulseOut2      │  comparator out (alternating)
                     └─────────────────────────┘
 ```
 
@@ -64,7 +65,7 @@ example (a slow, `float`-based control loop feeding a value that
 | FRV | CV In 2 (rate mod, ±6V) | X (rate, 0.05–50Hz, exponential) | CV Out 1 | 1, brightness 0V off → +6V brightest |
 | QRV | Pulse In 1 (new-value trigger) | Y (range, 0 to +6V) | CV Out 2 | 3, brightness 0V off → +6V brightest |
 | Wavefolder | Audio In 1, CV In 1 (drive mod, bipolar) | Main (fold drive) | Audio Out 1 | — |
-| Comparator | Audio In 1 (shared with wavefolder in) | — (fixed ±1V window, 0V-centred, ~10Hz max rate) | Pulse Out 1 | 5, brief flash on trigger |
+| Comparator | Audio In 1 (shared with wavefolder in) | — (fixed ±1V window, 0V-centred, ~10Hz max rate) | Pulse Out 1 / 2, alternating each firing | 5, brief flash on every firing (both outputs) |
 
 CV In 1 adds directly onto the Main knob's drive amount, unclamped —
 this is Chris Johnson's original `mult = knob + CVIn` formula verbatim.
@@ -151,18 +152,28 @@ audio-input oversampling, reduced ADC tonal artifacts). There's no
   Window width sets *sensitivity* — how loud a peak has to be to count —
   not *rate*; only the retrigger lockout does that, and it does it
   regardless of the VCO's pitch (tested at 50Hz and 220Hz, both land on
-  the same rate for a given lockout).
+  the same rate for a given lockout). The physical pulse output alternates
+  between Pulse Out 1 and Pulse Out 2 each firing — Pulse In 2/Pulse Out 2
+  were otherwise unused, so a downstream clock divider or two separate
+  voices can each get half the trigger rate. The toggle happens once per
+  firing (on the rising edge into a pulse, checked against the *previous*
+  sample's pulse state), not every sample the pulse is held high, so a
+  single ~1ms pulse always goes entirely to one output. LED 5 flashes on
+  every firing regardless of which output it went to — what you see is
+  always the true firing rate, even though each individual jack only
+  carries half of it.
 
 ## What still needs checking
 
 Noise, FRV, and QRV have been confirmed working on hardware. The
 comparator's window/hysteresis crossing detection was confirmed working
-too, but it has since gained a minimum-retrigger lockout (see "DSP
-notes") that hasn't itself been heard yet — the numeric test confirms the
-rate cap holds regardless of the VCO's pitch, not that a ~10Hz default
-feels right in practice, or that Pulse Out 1 downstream gear reacts
-cleanly to pulses spaced that far apart after expecting audio-rate ones.
-Still open:
+too, but it has since gained a minimum-retrigger lockout and, on top of
+that, alternating Pulse Out 1/2 output (see "DSP notes") — neither has
+been heard on a card yet. Simulated logic confirms LED 5 flashes on every
+firing while the physical pulse cleanly alternates outputs, but that's
+off-hardware verification of the bookkeeping, not proof the actual gate
+timing and level look right on a scope, or that a ~10Hz default rate
+feels right in practice. Still open:
 
 - **The rebuilt wavefolder needs a re-flash and listening pass.** The
   fold shape and antialiasing math are Chris Johnson's own proven,

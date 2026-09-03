@@ -16,7 +16,10 @@
 //                    (ported from Utility Pair), drive from Main knob +
 //                    CV In 1 (bipolar). Audio In 1 -> Audio Out 1
 //   Comparator     - fixed +-1V window on Audio In 1; fires a short pulse
-//                    each time the signal leaves the window. -> Pulse Out 1
+//                    each time the signal leaves the window, alternating
+//                    between Pulse Out 1 and Pulse Out 2 each firing (LED
+//                    5 flashes on every firing regardless of which output
+//                    it went to).
 //
 // See README.md for the full panel layout and the hardware-reality
 // corrections (voltage range, switch behaviour) this build is based on.
@@ -158,8 +161,24 @@ public:
 
 		// --- Comparator: fixed +-1V (0V-centred) window on Audio In 1.
 		// 1V of the card's ~6V range is roughly 2047/6 codes.
+		//
+		// Alternates the physical pulse between Pulse Out 1 and Pulse
+		// Out 2 on each successive firing, so a downstream clock divider
+		// or two separate voices each see half the rate — while LED 5
+		// still flashes on every firing, so what you see always matches
+		// how often the comparator is actually triggering. The toggle
+		// happens once per firing (on the rising edge into a pulse, not
+		// every sample the pulse is held high) so a single ~1ms pulse
+		// goes entirely to one output, never split between both.
 		bool pulse = comparator_.Process(AudioIn1());
-		PulseOut1(pulse);
+		if (pulse && !lastComparatorPulse_)
+		{
+			pulseAltChannel_ = !pulseAltChannel_;
+		}
+		lastComparatorPulse_ = pulse;
+
+		PulseOut1(pulse && !pulseAltChannel_);
+		PulseOut2(pulse && pulseAltChannel_);
 		LedOn(5, pulse);
 	}
 
@@ -196,6 +215,8 @@ private:
 
 	int32_t startupSample_ = 0;
 	int32_t noiseMode_ = uncertainty::NoiseSource::Flat;
+	bool lastComparatorPulse_ = false;
+	bool pulseAltChannel_ = false;
 
 	uncertainty::NoiseSource noise_{1};
 	uncertainty::Wavefolder wavefolder_;

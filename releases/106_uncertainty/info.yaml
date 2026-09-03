@@ -1,14 +1,15 @@
 # certainty: low — flashed and confirmed on hardware for noise/FRV/QRV.
 # The comparator's crossing detection was confirmed too, but has since
-# gained a ~10Hz minimum-retrigger lockout (see dsp/comparator.h) so a
-# VCO into Audio In 1 doesn't fire it at audio rate; not yet re-tested.
-# The wavefolder went through two from-scratch attempts (hard triangle
-# fold, then a smooth sine-table fold) that both sounded wrong on
-# hardware, and has now been replaced with a port of Chris Johnson's
-# proven Utility Pair wavefolder (antiderivative-antialiased fold; see
+# gained a ~10Hz minimum-retrigger lockout and alternating Pulse Out 1/2
+# output (see dsp/comparator.h and main.cpp) so a VCO into Audio In 1
+# doesn't fire it at audio rate on a single jack; not yet re-tested. The
+# wavefolder went through two from-scratch attempts (hard triangle fold,
+# then a smooth sine-table fold) that both sounded wrong on hardware, and
+# has now been replaced with a port of Chris Johnson's proven Utility
+# Pair wavefolder (antiderivative-antialiased fold; see
 # dsp/wavefolder.h), with CV In 1 wired back in as bipolar drive
 # modulation on top of Main. Also not yet re-tested. Update Status to
-# Released and drop this note once both have been.
+# Released and drop this note once all of the above have been.
 draft: true
 Name: Uncertainty
 short-description: Buchla 266-style noise/FRV/QRV, plus a wavefolder and comparator.
@@ -60,8 +61,11 @@ panel:
       name: QRV Out
       description: Quantized Random Voltage, 0 to +6V span set by knob Y
     - id: PulseOut1
-      name: Comparator Out
-      description: Short trigger pulse each time Audio In 1 leaves the fixed +-1V window, rate-limited to ~10Hz max regardless of input pitch
+      name: Comparator Out A
+      description: Short trigger pulse each time Audio In 1 leaves the fixed +-1V window, rate-limited to ~10Hz max regardless of input pitch. Alternates with Pulse Out 2 each firing — LED 5 flashes on every firing regardless of which output it went to.
+    - id: PulseOut2
+      name: Comparator Out B
+      description: The other half of the alternating comparator output — same signal as Pulse Out 1, offset by one firing
 
 controls:
   switch:
@@ -100,7 +104,7 @@ controls:
           description: Lit when the noise source is in high-biased (blue) mode
         - id: "5"
           name: Comparator Trigger
-          description: Brief flash each time the comparator fires
+          description: Brief flash each time the comparator fires, on every firing regardless of which of Pulse Out 1/2 the alternator sent it to
 
 uf2:
   - path: UF2/uncertainty.uf2
