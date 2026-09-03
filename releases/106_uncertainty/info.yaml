@@ -1,0 +1,99 @@
+# certainty: low — built and verified by compiling against ComputerCard.h
+# and flowing all six LEDs at startup in source review; not yet confirmed
+# on physical hardware. Update Status to Released and drop this note once
+# it's been flashed and patched.
+draft: true
+Name: Uncertainty
+short-description: Buchla 266-style noise/FRV/QRV, plus a wavefolder and comparator.
+summary: |
+  A tribute to the Buchla 266 Source of Uncertainty — three noise colours
+  (flat, low-biased, high-biased), a Fluctuating Random Voltage that glides
+  continuously between new targets, and a Quantized Random Voltage that
+  jumps to a new value on each trigger — sharing the card with a
+  Buchla-lineage triangle wavefolder and a fixed-window comparator/gate.
+Language: C++ (Pico SDK)
+Creator: Claude Code
+Version: "0.1.0"
+Status: WIP
+License: MIT
+
+tags:
+  - source-of-uncertainty
+  - random
+  - noise
+  - wavefolder
+  - utility
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Fold/Comparator In
+      description: Shared input for the wavefolder and the comparator
+    - id: CVIn1
+      name: Fold Intensity
+      description: Dedicated wavefolder fold-amount control, positive-going
+    - id: CVIn2
+      name: FRV Rate Mod
+      description: Bipolar modulation of the FRV rate, +-6V, added on top of knob X
+    - id: PulseIn1
+      name: QRV Trigger
+      description: Rising edge latches a new Quantized Random Voltage value
+  outputs:
+    - id: AudioOut1
+      name: Fold Out
+      description: Wavefolder output
+    - id: AudioOut2
+      name: Noise Out
+      description: Current noise colour (flat / low-biased / high-biased)
+    - id: CVOut1
+      name: FRV Out
+      description: Fluctuating Random Voltage, free-running 0 to +6V, no range control
+    - id: CVOut2
+      name: QRV Out
+      description: Quantized Random Voltage, 0 to +6V span set by knob Y
+    - id: PulseOut1
+      name: Comparator Out
+      description: Short trigger pulse each time Audio In 1 leaves the fixed +-1V window
+
+controls:
+  switch:
+    tap:
+      name: Cycle Noise Colour
+      description: Briefly press and release Down to cycle the noise source between flat, low-biased (pink, -3dB/oct) and high-biased (blue, +3dB/oct). LEDs 0/2/4 hold the current mode.
+
+  knobs:
+    - main:
+        name: Unused
+        description: Reserved for a future control; has no effect in this version
+      x:
+        name: FRV Rate
+        description: Exponential taper across three decades, 0.05Hz to 50Hz, modulated by CV In 2
+      y:
+        name: QRV Range
+        description: Sets the maximum span of each new Quantized Random Voltage draw, 0 to +6V
+
+  leds:
+    - display: list
+      items:
+        - id: "0"
+          name: Noise: Flat
+          description: Lit when the noise source is in flat (white) mode
+        - id: "1"
+          name: FRV Level
+          description: Brightness follows the current FRV output, 0V off to +6V brightest
+        - id: "2"
+          name: Noise: Low-biased
+          description: Lit when the noise source is in low-biased (pink) mode
+        - id: "3"
+          name: QRV Level
+          description: Brightness follows the current QRV output, 0V off to +6V brightest
+        - id: "4"
+          name: Noise: High-biased
+          description: Lit when the noise source is in high-biased (blue) mode
+        - id: "5"
+          name: Comparator Trigger
+          description: Brief flash each time the comparator fires
+
+uf2:
+  - path: UF2/uncertainty.uf2
+    name: Uncertainty firmware
