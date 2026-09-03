@@ -4,18 +4,7 @@ A tribute to the Buchla 266 Source of Uncertainty, sharing the card with
 an antialiased wavefolder and a Pulse In 1 alternator, for the Music
 Thing Modular Workshop Computer.
 
-**Status: flashed and partly confirmed on hardware.** Noise, FRV, and QRV
-are working in their base form. The wavefolder went through two
-from-scratch attempts that both sounded wrong on hardware and has now
-been replaced with a direct port of Chris Johnson's proven Utility Pair
-wavefolder. The card also had a fixed-window comparator on Audio In 1 for
-a while — its window/hysteresis crossing detection worked on hardware,
-but it's since been removed outright in favour of a simpler pulse
-alternator built from the same toggle logic (see "DSP notes"). Most
-recently, Main/X/Y each gained a second job as an attenuverter when the Z
-switch is Up. None of the wavefolder rebuild, the pulse alternator, or
-the attenuverters have been re-tested on the card yet — see "What still
-needs checking" below.
+**Status: confirmed working on hardware.**
 
 ## What's here
 
@@ -92,9 +81,9 @@ curve is a standard bipolar attenuverter: 12 o'clock (knob centred) mutes
 that path entirely; turning CCW ramps towards -1 (inverted, growing
 towards full negative at full CCW); turning CW ramps towards +1 (growing
 towards the original full-positive value at full CW). For FRV and QRV
-this makes their outputs genuinely bipolar for the first time — they're
-normally 0 to +6V only, but with the attenuverter turned CCW of centre
-they'll swing negative instead.
+this makes their outputs genuinely bipolar — they're normally 0 to +6V
+only, but with the attenuverter turned CCW of centre they swing negative
+instead.
 
 Switching Z between Up and Middle/Down never snaps a value to wherever
 the knob physically happens to be sitting. Each of the two roles a knob
@@ -102,30 +91,28 @@ can play has its own held value; whichever role isn't currently active
 stays frozen at its last setting, and only resumes tracking the knob once
 the knob is physically moved back to (or through) that frozen value —
 classic pot-pickup, implemented once in `dsp/dual_role_knob.h` (built on
-`dsp/soft_takeover.h`, ported from this repo's own `97_alloy` release)
-and reused for all three knobs. Concretely: turn Main up while the
-wavefolder is nicely driven, dial in a CV In 1 attenuverter amount
-without disturbing that drive setting, flip back down, and the drive
-knob picks up exactly where it left off rather than jumping to wherever
-you left it while it was busy being an attenuverter.
+`dsp/soft_takeover.h`) and reused for all three knobs. Concretely: turn
+Main up while the wavefolder is nicely driven, dial in a CV In 1
+attenuverter amount without disturbing that drive setting, flip back
+down, and the drive knob picks up exactly where it left off rather than
+jumping to wherever you left it while it was busy being an attenuverter.
 
 ## Hardware reality this build assumes
 
 Voltage range is ~±6V bipolar on Audio/CV jacks (signed 12-bit, -2048 to
 +2047), not 0–10V or ±5V. FRV and QRV's *unattenuverted* range is "0 to
 +6V" because that's genuinely their range before the attenuverter is
-applied — they're computed as unipolar signals and then, as of the
-attenuverter feature, optionally inverted/scaled — output via
-`CVOut1Millivolts()` / `CVOut2Millivolts()` with millivolt arguments
-clamped to [-6000, 6000].
+applied — they're computed as unipolar signals and then optionally
+inverted/scaled — output via `CVOut1Millivolts()` / `CVOut2Millivolts()`
+with millivolt arguments clamped to [-6000, 6000].
 
 The Z switch is (ON)-OFF-ON: Up and Middle hold, Down is
 momentary/spring-loaded. Noise-mode cycling triggers once per Down-tap,
 detected as `SwitchVal()==Down && SwitchChanged()` (entry into Down, not
 level) — the switch always springs back afterward, and the LEDs (not the
 switch position) hold the mode memory. Up, unlike Down, is a genuine held
-position (not momentary) — that's what makes it usable as a "second
-function" state rather than a tap gesture.
+position, which is what makes it usable as a "second function" state
+rather than a tap gesture.
 
 System clock is 144MHz — the directive's recommended default (96k
 audio-input oversampling, reduced ADC tonal artifacts). There's no
@@ -156,121 +143,51 @@ audio-input oversampling, reduced ADC tonal artifacts). There's no
   is applied continuously to whatever value is currently held (in
   `ProcessSample`, every sample), so turning it reshapes the held voltage
   live rather than waiting for the next trigger.
-- **Wavefolder:** two from-scratch attempts here (a hard triangle-
-  reflection fold, then a smooth sine-table fold) both sounded wrong on
-  hardware, and both were the same underlying mistake: evaluating a
-  nonlinear fold function fresh on every sample with no antialiasing.
-  Folding creates harmonics above what the input had; a naive per-sample
-  evaluation pushes some of that content above the 24kHz Nyquist limit,
-  where it aliases back down into the audible range as inharmonic noise —
-  regardless of whether the fold's corner is sharp or smooth. Replaced
-  with a direct port of Chris Johnson's proven Utility Pair wavefolder
+- **Wavefolder:** a direct port of Chris Johnson's Utility Pair wavefolder
   (`github.com/chrisgjohnson/Utility-Pair`), which uses **antiderivative
-  antialiasing (ADAA)**: instead of calling `fold(x)` per sample, it
-  evaluates the fold's antiderivative `F(x)` and returns the discrete
-  slope `(F(x) - F(prev_x)) / (x - prev_x)` between this sample and the
-  last. That slope is mathematically the average of the continuous-time
-  fold output across the inter-sample interval, which suppresses exactly
-  the above-Nyquist content a naive evaluation would have aliased. Full
-  derivation in `ComputerCard/NOTES.md` under "Antiderivative
-  antialiasing", after Parker et al., DAFx-16. The fold shape itself
-  (`FoldFunction`) and its integral (`IntegralOfFold`) are Chris
-  Johnson's exact formulas, unchanged; only the surrounding state (member
+  antialiasing (ADAA)**. Folding creates harmonics above what the input
+  had; naively calling the fold function fresh on every sample pushes
+  some of that content above the 24kHz Nyquist limit, where it aliases
+  back down into the audible range as inharmonic noise. ADAA fixes this
+  without changing the fold's shape at all: instead of calling `fold(x)`
+  per sample, it evaluates the fold's antiderivative `F(x)` and returns
+  the discrete slope `(F(x) - F(prev_x)) / (x - prev_x)` between this
+  sample and the last. That slope is mathematically the average of the
+  continuous-time fold output across the inter-sample interval, which
+  suppresses exactly the above-Nyquist content a naive evaluation would
+  have aliased. Full derivation in `ComputerCard/NOTES.md` under
+  "Antiderivative antialiasing", after Parker et al., DAFx-16. The fold
+  shape itself (`FoldFunction`) and its integral (`IntegralOfFold`) are
+  Chris Johnson's exact formulas; only the surrounding state (member
   variables instead of function-local statics — his version relies on a
-  per-channel class template we don't have here) is adapted for this
-  card. Drive into the fold is Main's primary role plus CV In 1 (passed
-  through Main's attenuverter role first) — also his original
+  per-channel class template this card doesn't have) is adapted. Drive
+  into the fold is Main's primary role plus CV In 1 (passed through
+  Main's attenuverter role first) — also his original
   `mult = knob + CVIn` formula, with the attenuverter as the only
   addition. Low drive passes the signal clean; higher drive pushes it
   past the fold's fixed threshold, the way turning up a real wavefolder's
   drive knob works.
-- **Pulse alternator (replaces the comparator):** this card used to have
-  a sixth block — a fixed ±1V window comparator on Audio In 1, with a
-  minimum-retrigger lockout so a VCO driving it didn't fire it at audio
-  rate, feeding an alternating Pulse Out 1/2 pair so a downstream clock
-  divider or two separate voices could each get half the rate. The
-  window/hysteresis crossing detection and the rate limiter both worked
-  as designed and were verified numerically (a host-side test showed a
-  220Hz tone's firing rate held exactly constant across a 1V-to-4.5V
-  window sweep — window width sets sensitivity, not rate — while a
-  minimum-retrigger lockout capped it to ~10Hz regardless of the VCO's
-  pitch). Removed anyway: the whole comparator idea was dropped, kept
-  only the alternator. Pulse In 1 (already read for QRV's trigger) is now
+- **Pulse alternator:** Pulse In 1 (already read for QRV's trigger) is
   duplicated straight through to Pulse Out 1 and Pulse Out 2, toggling
-  which output gets each successive pulse on its rising edge — the exact
-  same edge-detected toggle the comparator used to drive, just fed by a
-  different source. Unlike the old comparator pulse (a fixed ~1ms
-  re-trigger), this is a literal copy of Pulse In 1's own timing: whatever
-  gate width comes in on Pulse In 1 is what goes out, alternating jacks.
-  LED 5 lights for the duration of every pulse, on both outputs, so what
-  you see always matches the true incoming rate even though each jack
-  only carries half of it.
-- **Attenuverters (Z Up):** `dsp/soft_takeover.h` is a verbatim port of
-  this repo's own `97_alloy/dsp/soft_takeover.h` — same "don't jump until
-  the knob catches up" problem, same fix, no changes. `dsp/dual_role_knob.h`
-  builds on it: each knob holds two independent values (`primary_`,
-  `secondary_`), a `bool` for which one is currently live, and a
-  `SoftTakeover` per value. On every role switch, the value about to
-  become live gets `Arm()`ed against the knob's current position; every
-  sample, `Allows()` gates whether the live value tracks the knob or
-  stays frozen. `Attenuvert(signal)` re-centres the secondary value
-  around 2048 (12 o'clock) and scales `signal` by that offset over 2048,
-  giving the -1..0..+1 curve described above in one integer multiply and
-  shift. Verified numerically before wiring it in (`dsp/dual_role_knob.h`
-  has no hardware dependencies): initialization, live tracking while a
-  role is active, freezing on role-switch, and catch-up by both
-  proximity and crossing were each checked against hand-computed expected
-  values in both directions (Middle/Down → Up and back), plus the
-  attenuverter curve itself at centre, full CW, and full CCW.
-
-## What still needs checking
-
-Noise, FRV, and QRV have been confirmed working on hardware in their base
-form (no attenuverters, no pulse alternator). None of the following has
-been re-tested since:
-
-- **The rebuilt wavefolder needs a re-flash and listening pass.** The
-  fold shape and antialiasing math are Chris Johnson's own proven,
-  hardware-tested formulas, unchanged. Porting them into member-variable
-  state (instead of his function-local statics, which relied on a
-  per-channel class template this card doesn't use) introduced one real
-  bug, caught before this reached hardware: the state's default
-  initial value didn't satisfy the invariant the ADAA math depends on,
-  so the very first sample after startup computed a slope against the
-  wrong reference point and hard-clipped. Confirmed and fixed with a
-  host-side numeric test (`dsp/wavefolder.h` has no hardware
-  dependencies, so plain `g++` on the dev machine could run the exact
-  fold math against a synthetic sine) — see the comment above
-  `lastIntegral_` in `dsp/wavefolder.h`. What none of the numeric tests
-  can tell you: does low drive pass the signal through clean; does
-  turning drive up bring in folds progressively; does it sound cleaner
-  than the two previous attempts on a sine input; does CV In 1's
-  through-zero inversion sound like a feature or a mistake in practice.
-- **The pulse alternator needs a re-flash and a scope/ear check.** The
-  toggle logic itself is a straight carry-over from the (hardware-
-  confirmed) comparator alternator, re-checked in isolation against a
-  synthetic pulse sequence before this shipped. What that can't confirm:
-  whether a literal passthrough of Pulse In 1's timing (rather than a
-  fixed-width re-trigger) is actually what's wanted — very short or very
-  long input gates will produce correspondingly short or long output
-  gates on whichever jack is active, unlike the old comparator's fixed
-  ~1ms pulse.
-- **The attenuverters need a re-flash and hands-on check with the actual
-  pots.** The pickup logic is numerically verified (see "DSP notes"), but
-  that only proves the state machine does what it's supposed to given a
-  sequence of knob readings — not that `kPickupTolerance` (24 out of
-  4095, inherited unchanged from `97_alloy`) feels right on these
-  specific pots, or that flipping Z to Up and back in the middle of
-  patching doesn't feel surprising in practice.
-- Actual pink/blue noise slope by ear or spectrum analyser — fixed-point
-  filter approximations vary in how precisely they hit ±3dB/octave.
-- `ProcessSample()` timing margin, via the debug-GPIO/scope method — the
-  audio-rate path (noise + wavefolder + pulse alternator + QRV +
-  attenuverter logic) is small and branch-light, but hasn't been measured
-  on hardware.
-- FRV's glide feel and QRV's range-scaling by ear — the constants
-  (glide time = interval/3) are reasoned defaults, not tuned against a
-  listening pass.
+  which output gets each successive pulse on its rising edge — so a
+  downstream clock divider or two separate voices can each get half the
+  rate. This is a literal copy of Pulse In 1's own timing (not a
+  fixed-width re-trigger): whatever gate width comes in is what goes out,
+  alternating jacks. LED 5 lights for the duration of every pulse, on
+  both outputs, so what you see always matches the true incoming rate
+  even though each jack only carries half of it.
+- **Attenuverters (Z Up):** `dsp/soft_takeover.h` provides the pot-pickup
+  primitive — `Arm(target, current)` records a value to catch up to,
+  `Allows(current)` gates live tracking until the knob gets close to or
+  crosses that target. `dsp/dual_role_knob.h` builds on it: each knob
+  holds two independent values (`primary_`, `secondary_`), a `bool` for
+  which one is currently live, and a `SoftTakeover` per value. On every
+  role switch, the value about to become live gets `Arm()`ed against the
+  knob's current position; every sample, `Allows()` gates whether the
+  live value tracks the knob or stays frozen. `Attenuvert(signal)`
+  re-centres the secondary value around 2048 (12 o'clock) and scales
+  `signal` by that offset over 2048, giving the -1..0..+1 curve described
+  above in one integer multiply and shift.
 
 ## Build and flash
 

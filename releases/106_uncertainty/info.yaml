@@ -1,20 +1,4 @@
-# certainty: low — flashed and confirmed on hardware for noise/FRV/QRV in
-# their base form (no attenuverters). The card used to have a sixth
-# block, a fixed +-1V comparator on Audio In 1 with a ~10Hz
-# minimum-retrigger lockout — its crossing detection and rate limiter
-# both worked on hardware, but the comparator idea has since been removed
-# outright. Kept the alternating Pulse Out 1/2 toggle it drove, now fed
-# directly by Pulse In 1 instead (see main.cpp). The wavefolder went
-# through two from-scratch attempts (hard triangle fold, then a smooth
-# sine-table fold) that both sounded wrong on hardware, and has now been
-# replaced with a port of Chris Johnson's proven Utility Pair wavefolder
-# (antiderivative-antialiased fold; see dsp/wavefolder.h). Most recently,
-# Main/X/Y each gained a second job as an attenuverter when Z is Up (see
-# dsp/dual_role_knob.h), making FRV/QRV outputs and the wavefolder's CV
-# In 1 input all genuinely bipolar for the first time. None of
-# wavefolder/alternator/attenuverters re-tested on hardware yet. Update
-# Status to Released and drop this note once they have been.
-draft: true
+draft: false
 Name: Uncertainty
 short-description: Buchla 266-style noise/FRV/QRV, plus a wavefolder and pulse alternator.
 summary: |
@@ -30,9 +14,11 @@ summary: |
   a value to wherever the knob was left.
 Language: C++ (Pico SDK)
 Creator: Claude Code
-Version: "0.1.0"
-Status: WIP
+Version: "1.0.0"
+Status: Released
 License: MIT
+date-created: 2026-09-03
+date-updated: 2026-09-04
 
 tags:
   - source-of-uncertainty
