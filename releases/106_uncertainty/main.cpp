@@ -1,28 +1,34 @@
 // Uncertainty — a Buchla 266 Source of Uncertainty tribute, plus a
-// Buchla-lineage wavefolder and comparator, for the Music Thing Modular
-// Workshop Computer.
+// Buchla-lineage wavefolder, for the Music Thing Modular Workshop
+// Computer.
 //
 // Five blocks share the card:
-//   Noise source   - flat / low-biased (pink) / high-biased (blue),
-//                    cycled by tapping the Z switch down. -> Audio Out 2
-//   FRV            - Fluctuating Random Voltage: a random walk that glides
-//                    continuously between new targets. Rate set by X (and
-//                    CV In 2). Runs on the second core, since its rate can
-//                    be far slower than the 48kHz audio loop. -> CV Out 1
-//   QRV            - Quantized Random Voltage: a fresh random value latched
-//                    on each Pulse In 1 trigger, held with no slew. Range
-//                    set by Y. -> CV Out 2
-//   Wavefolder     - Chris Johnson's antiderivative-antialiased fold
-//                    (ported from Utility Pair), drive from Main knob +
-//                    CV In 1 (bipolar). Audio In 1 -> Audio Out 1
-//   Comparator     - fixed +-1V window on Audio In 1; fires a short pulse
-//                    each time the signal leaves the window, alternating
-//                    between Pulse Out 1 and Pulse Out 2 each firing (LED
-//                    5 flashes on every firing regardless of which output
-//                    it went to).
+//   Noise source    - flat / low-biased (pink) / high-biased (blue),
+//                     cycled by tapping the Z switch down. -> Audio Out 2
+//   FRV             - Fluctuating Random Voltage: a random walk that
+//                     glides continuously between new targets. Rate set
+//                     by X (and CV In 2). Runs on the second core, since
+//                     its rate can be far slower than the 48kHz audio
+//                     loop. -> CV Out 1
+//   QRV             - Quantized Random Voltage: a fresh random value
+//                     latched on each Pulse In 1 trigger, held with no
+//                     slew. Range set by Y. -> CV Out 2
+//   Wavefolder      - Chris Johnson's antiderivative-antialiased fold
+//                     (ported from Utility Pair), drive from Main knob +
+//                     CV In 1 (bipolar). Audio In 1 -> Audio Out 1
+//   Pulse alternator - Pulse In 1 is duplicated straight through to
+//                     Pulse Out 1 and Pulse Out 2, alternating which
+//                     output gets each successive pulse (a T-flip-flop
+//                     style splitter) — independent of, and in addition
+//                     to, that same Pulse In 1 also triggering QRV above.
+//                     LED 5 flashes on every pulse, both outputs.
 //
-// See README.md for the full panel layout and the hardware-reality
-// corrections (voltage range, switch behaviour) this build is based on.
+// There used to be a sixth block here: a fixed +-1V window comparator on
+// Audio In 1, feeding the same Pulse Out 1/2 alternator. Removed outright
+// rather than reworked — the alternator logic was worth keeping, the
+// comparator wasn't. See README.md for the full panel layout and the
+// hardware-reality corrections (voltage range, switch behaviour) this
+// build is based on.
 
 #include <cmath>
 #include <cstdint>
@@ -31,7 +37,6 @@
 #include "pico/multicore.h"
 #include "pico/time.h"
 
-#include "dsp/comparator.h"
 #include "dsp/noise.h"
 #include "dsp/qrv.h"
 #include "dsp/wavefolder.h"
@@ -159,27 +164,28 @@ public:
 		// modulated bipolar by CV In 1.
 		AudioOut1(wavefolder_.Process(AudioIn1(), KnobVal(Knob::Main), CVIn1()));
 
-		// --- Comparator: fixed +-1V (0V-centred) window on Audio In 1.
-		// 1V of the card's ~6V range is roughly 2047/6 codes.
-		//
-		// Alternates the physical pulse between Pulse Out 1 and Pulse
-		// Out 2 on each successive firing, so a downstream clock divider
-		// or two separate voices each see half the rate — while LED 5
-		// still flashes on every firing, so what you see always matches
-		// how often the comparator is actually triggering. The toggle
-		// happens once per firing (on the rising edge into a pulse, not
-		// every sample the pulse is held high) so a single ~1ms pulse
-		// goes entirely to one output, never split between both.
-		bool pulse = comparator_.Process(AudioIn1());
-		if (pulse && !lastComparatorPulse_)
+		// --- Pulse alternator: Pulse In 1 duplicated straight through to
+		// Pulse Out 1 / Pulse Out 2, alternating which output gets each
+		// successive pulse — independent of that same Pulse In 1 also
+		// triggering QRV above (ComputerCard's PulseIn1()/
+		// PulseIn1RisingEdge() are just reads of the current sample's
+		// input state; reading it twice for two purposes has no side
+		// effects). The toggle happens once per pulse (on the rising
+		// edge, checked against the previous sample) rather than every
+		// sample the input is held high, so one incoming pulse goes
+		// entirely to one output — this is a literal copy of Pulse In
+		// 1's own timing, not a fixed-width re-trigger, so whatever gate
+		// length comes in is what goes out.
+		bool pulseIn = PulseIn1();
+		if (pulseIn && !lastPulseIn1_)
 		{
 			pulseAltChannel_ = !pulseAltChannel_;
 		}
-		lastComparatorPulse_ = pulse;
+		lastPulseIn1_ = pulseIn;
 
-		PulseOut1(pulse && !pulseAltChannel_);
-		PulseOut2(pulse && pulseAltChannel_);
-		LedOn(5, pulse);
+		PulseOut1(pulseIn && !pulseAltChannel_);
+		PulseOut2(pulseIn && pulseAltChannel_);
+		LedOn(5, pulseIn);
 	}
 
 private:
@@ -201,26 +207,13 @@ private:
 		return true;
 	}
 
-	static constexpr int32_t kComparatorWindow = 341;    // ~1V in ADC codes
-	static constexpr int32_t kComparatorHysteresis = 20; // ~60mV deadband
-	// Minimum gap between pulses, independent of how fast Audio In 1 (a
-	// VCO, normally) crosses the window — the window/hysteresis above set
-	// *sensitivity*, not rate: a steady tone crosses on its own schedule
-	// no matter where the threshold sits, right up until the threshold
-	// exceeds its peak and it stops firing altogether. This is what
-	// actually turns audio-rate crossings into a slow, musical trigger
-	// rate. 100ms -> ~10Hz cap, verified to hold regardless of the VCO's
-	// pitch (tested at 50Hz and 220Hz, both settle to the same rate).
-	static constexpr int32_t kComparatorMinRetriggerSamples = 48 * 100;
-
 	int32_t startupSample_ = 0;
 	int32_t noiseMode_ = uncertainty::NoiseSource::Flat;
-	bool lastComparatorPulse_ = false;
+	bool lastPulseIn1_ = false;
 	bool pulseAltChannel_ = false;
 
 	uncertainty::NoiseSource noise_{1};
 	uncertainty::Wavefolder wavefolder_;
-	uncertainty::Comparator comparator_{kComparatorWindow, kComparatorHysteresis, kComparatorMinRetriggerSamples};
 	uncertainty::QRV qrv_{12345};
 
 	uint32_t frvSeed_ = 7;

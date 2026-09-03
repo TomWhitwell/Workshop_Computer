@@ -1,16 +1,19 @@
 # Uncertainty for Workshop System Computer
 
-A tribute to the Buchla 266 Source of Uncertainty, sharing the card with an
-antialiased wavefolder and a fixed-window comparator, for the Music Thing
-Modular Workshop Computer.
+A tribute to the Buchla 266 Source of Uncertainty, sharing the card with
+an antialiased wavefolder and a Pulse In 1 alternator, for the Music
+Thing Modular Workshop Computer.
 
 **Status: flashed and partly confirmed on hardware.** Noise, FRV, and QRV
 are working. The wavefolder went through two from-scratch attempts that
 both sounded wrong on hardware and has now been replaced with a direct
-port of Chris Johnson's proven Utility Pair wavefolder; the comparator's
-core crossing-detection worked, but has since gained rate-limiting and
-alternating dual-output pulses. None of that most recent work has been
-re-tested on the card yet — see "What still needs checking" below.
+port of Chris Johnson's proven Utility Pair wavefolder. The card also had
+a fixed-window comparator on Audio In 1 for a while — its window/
+hysteresis crossing detection worked on hardware, but it's since been
+removed outright (see "DSP notes") in favour of a simpler pulse
+alternator built from the same toggle logic. None of the most recent
+work (wavefolder rebuild, pulse alternator) has been re-tested on the
+card yet — see "What still needs checking" below.
 
 ## What's here
 
@@ -25,17 +28,19 @@ releases/106_uncertainty/
 ├── dsp/
 │   ├── noise.h            # flat / pink / blue noise (shared xorshift32 PRNG)
 │   ├── qrv.h               # Quantized Random Voltage (sample & hold)
-│   ├── wavefolder.h        # antialiased fold, ported from Chris Johnson's Utility Pair
-│   └── comparator.h        # hysteresis window comparator
+│   └── wavefolder.h        # antialiased fold, ported from Chris Johnson's Utility Pair
 ├── info.yaml
 └── UF2/uncertainty.uf2    # built firmware
 ```
 
-FRV (Fluctuating Random Voltage) doesn't have its own header — it's a
-member function of the card class in `main.cpp`, run on the RP2040's
-second core, following the same pattern as the ComputerCard `second_core`
-example (a slow, `float`-based control loop feeding a value that
-`ProcessSample()` just outputs each 48kHz sample).
+FRV (Fluctuating Random Voltage) and the Pulse In 1 alternator don't have
+their own headers — FRV is a member function of the card class in
+`main.cpp`, run on the RP2040's second core, following the same pattern
+as the ComputerCard `second_core` example (a slow, `float`-based control
+loop feeding a value that `ProcessSample()` just outputs each 48kHz
+sample). The pulse alternator is a dozen lines of edge-detection directly
+in `ProcessSample()` — small enough that a separate header would be more
+ceremony than the logic it holds.
 
 ## Panel
 
@@ -48,14 +53,14 @@ example (a slow, `float`-based control loop feeding a value that
               ○ 2   │                          │  ○ 3
  (noise: low-biased)│   [ (ON)-OFF-ON  Z ]     │  (QRV level)
               ○ 4   │      tap = cycle noise   │  ○ 5
-(noise: high-biased)│                          │  (comparator hit)
+(noise: high-biased)│                          │  (alternator hit)
                     │                          │
-                    │ AudioIn1  AudioOut1      │  fold/comparator in, fold out
+                    │ AudioIn1  AudioOut1      │  fold in, fold out
                     │ (unused)  AudioOut2      │  noise out
                     │ CVIn1     CVOut1          │  fold drive mod (bipolar), FRV out
                     │ CVIn2     CVOut2          │  FRV rate mod, QRV out
-                    │ PulseIn1  PulseOut1      │  QRV trigger, comparator out (alternating)
-                    │ (unused)  PulseOut2      │  comparator out (alternating)
+                    │ PulseIn1  PulseOut1      │  QRV trigger + alternator in, alternator out A
+                    │ (unused)  PulseOut2      │  alternator out B
                     └─────────────────────────┘
 ```
 
@@ -65,7 +70,7 @@ example (a slow, `float`-based control loop feeding a value that
 | FRV | CV In 2 (rate mod, ±6V) | X (rate, 0.05–50Hz, exponential) | CV Out 1 | 1, brightness 0V off → +6V brightest |
 | QRV | Pulse In 1 (new-value trigger) | Y (range, 0 to +6V) | CV Out 2 | 3, brightness 0V off → +6V brightest |
 | Wavefolder | Audio In 1, CV In 1 (drive mod, bipolar) | Main (fold drive) | Audio Out 1 | — |
-| Comparator | Audio In 1 (shared with wavefolder in) | — (fixed ±1V window, 0V-centred, ~10Hz max rate) | Pulse Out 1 / 2, alternating each firing | 5, brief flash on every firing (both outputs) |
+| Pulse alternator | Pulse In 1 (shared with QRV trigger) | — | Pulse Out 1 / 2, alternating each pulse | 5, on for every pulse, both outputs |
 
 CV In 1 adds directly onto the Main knob's drive amount, unclamped —
 this is Chris Johnson's original `mult = knob + CVIn` formula verbatim.
@@ -138,42 +143,33 @@ audio-input oversampling, reduced ADC tonal artifacts). There's no
   Low drive passes the signal clean; higher drive pushes it past the
   fold's fixed threshold, the way turning up a real wavefolder's drive
   knob works.
-- **Comparator:** fixed ±1V (0V-centred) window with a hysteresis deadband
-  (~60mV) around each edge, so noise sitting on the threshold doesn't
-  chatter. Fires a ~1ms pulse each time the signal *leaves* the window, in
-  either direction. Also rate-limited: after a pulse, new triggers are
-  ignored for a minimum 100ms, capping the output at ~10Hz. That's a
-  separate mechanism from the window, and deliberately so — Audio In 1 is
-  normally a VCO, and a steady tone crosses a fixed threshold on the same
-  schedule every cycle no matter how wide the window is, right up until
-  the window exceeds the tone's peak and it stops firing altogether
-  (verified numerically: widening the window from 1V to 4.5V left a
-  220Hz test tone's rate exactly unchanged at 440/s, the whole way).
-  Window width sets *sensitivity* — how loud a peak has to be to count —
-  not *rate*; only the retrigger lockout does that, and it does it
-  regardless of the VCO's pitch (tested at 50Hz and 220Hz, both land on
-  the same rate for a given lockout). The physical pulse output alternates
-  between Pulse Out 1 and Pulse Out 2 each firing — Pulse In 2/Pulse Out 2
-  were otherwise unused, so a downstream clock divider or two separate
-  voices can each get half the trigger rate. The toggle happens once per
-  firing (on the rising edge into a pulse, checked against the *previous*
-  sample's pulse state), not every sample the pulse is held high, so a
-  single ~1ms pulse always goes entirely to one output. LED 5 flashes on
-  every firing regardless of which output it went to — what you see is
-  always the true firing rate, even though each individual jack only
-  carries half of it.
+- **Pulse alternator (replaces the comparator):** this card used to have
+  a sixth block — a fixed ±1V window comparator on Audio In 1, with a
+  minimum-retrigger lockout so a VCO driving it didn't fire it at audio
+  rate, feeding an alternating Pulse Out 1/2 pair so a downstream clock
+  divider or two separate voices could each get half the rate. The window/
+  hysteresis crossing detection and the rate limiter both worked as
+  designed and were verified numerically (a host-side test showed a
+  220Hz tone's firing rate held exactly constant across a 1V-to-4.5V
+  window sweep — window width sets sensitivity, not rate — while a
+  minimum-retrigger lockout capped it to ~10Hz regardless of the VCO's
+  pitch). Removed anyway: the whole comparator idea was dropped, kept
+  only the alternator. Pulse In 1 (already read for QRV's trigger) is now
+  duplicated straight through to Pulse Out 1 and Pulse Out 2, toggling
+  which output gets each successive pulse on its rising edge — the exact
+  same edge-detected toggle the comparator used to drive, just fed by a
+  different source. Unlike the old comparator pulse (a fixed ~1ms
+  re-trigger), this is a literal copy of Pulse In 1's own timing: whatever
+  gate width comes in on Pulse In 1 is what goes out, alternating jacks.
+  LED 5 lights for the duration of every pulse, on both outputs, so what
+  you see always matches the true incoming rate even though each jack
+  only carries half of it.
 
 ## What still needs checking
 
 Noise, FRV, and QRV have been confirmed working on hardware. The
-comparator's window/hysteresis crossing detection was confirmed working
-too, but it has since gained a minimum-retrigger lockout and, on top of
-that, alternating Pulse Out 1/2 output (see "DSP notes") — neither has
-been heard on a card yet. Simulated logic confirms LED 5 flashes on every
-firing while the physical pulse cleanly alternates outputs, but that's
-off-hardware verification of the bookkeeping, not proof the actual gate
-timing and level look right on a scope, or that a ~10Hz default rate
-feels right in practice. Still open:
+wavefolder rebuild and the pulse alternator have not — see "DSP notes"
+above for what changed and why. Still open:
 
 - **The rebuilt wavefolder needs a re-flash and listening pass.** The
   fold shape and antialiasing math are Chris Johnson's own proven,
@@ -188,7 +184,7 @@ feels right in practice. Still open:
   dependencies, so plain `g++` on the dev machine could run the exact
   fold math against a synthetic sine) — see the comment above
   `lastIntegral_` in `dsp/wavefolder.h`. CV In 1 was added after that fix,
-  wired as bipolar per this request, additive with Main and unclamped
+  wired as bipolar per request, additive with Main and unclamped
   (Chris Johnson's original formula) — the numeric tests confirm it stays
   bounded and behaves smoothly across the full range including negative
   CV pushing the drive through zero into inversion, but that's still just
@@ -197,11 +193,22 @@ feels right in practice. Still open:
   it sound cleaner than the two previous attempts on a sine input; does
   CV In 1's through-zero inversion sound like a feature or a mistake in
   practice.
+- **The pulse alternator needs a re-flash and a scope/ear check.** The
+  toggle logic itself is a straight carry-over from the (hardware-
+  confirmed) comparator alternator, and was re-checked in isolation
+  against a synthetic pulse sequence mimicking real pulse-width/gap
+  timing before this shipped — LED-high sample count matched total pulse
+  samples exactly, output alternated cleanly across successive firings.
+  What that can't confirm: whether a literal passthrough of Pulse In 1's
+  timing (rather than a fixed-width re-trigger) is actually what's wanted
+  for whatever's patched into Pulse In 1 — very short or very long input
+  gates will produce correspondingly short or long output gates on
+  whichever jack is active, unlike the old comparator's fixed ~1ms pulse.
 - Actual pink/blue noise slope by ear or spectrum analyser — fixed-point
   filter approximations vary in how precisely they hit ±3dB/octave.
 - `ProcessSample()` timing margin, via the debug-GPIO/scope method — the
-  audio-rate path (noise + wavefolder + comparator + QRV logic) is small
-  and branch-light, but hasn't been measured on hardware.
+  audio-rate path (noise + wavefolder + pulse alternator + QRV logic) is
+  small and branch-light, but hasn't been measured on hardware.
 - FRV's glide feel and QRV's range-scaling by ear — the constants
   (glide time = interval/3) are reasoned defaults, not tuned against a
   listening pass.

@@ -24,8 +24,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 pico_sdk_init()
 
 # Uncertainty: a Buchla 266 Source of Uncertainty tribute (noise + FRV +
-# QRV), plus a Buchla-lineage wavefolder and comparator. See dsp/ for the
-# individual blocks and main.cpp for how they're wired to the panel.
+# QRV), plus a Buchla-lineage wavefolder and a pulse alternator. See dsp/
+# for the individual blocks and main.cpp for how they're wired to the panel.
 add_executable(${CARD_NAME}
     main.cpp
 )

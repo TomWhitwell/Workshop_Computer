@@ -1,25 +1,27 @@
 # certainty: low — flashed and confirmed on hardware for noise/FRV/QRV.
-# The comparator's crossing detection was confirmed too, but has since
-# gained a ~10Hz minimum-retrigger lockout and alternating Pulse Out 1/2
-# output (see dsp/comparator.h and main.cpp) so a VCO into Audio In 1
-# doesn't fire it at audio rate on a single jack; not yet re-tested. The
-# wavefolder went through two from-scratch attempts (hard triangle fold,
-# then a smooth sine-table fold) that both sounded wrong on hardware, and
-# has now been replaced with a port of Chris Johnson's proven Utility
-# Pair wavefolder (antiderivative-antialiased fold; see
-# dsp/wavefolder.h), with CV In 1 wired back in as bipolar drive
-# modulation on top of Main. Also not yet re-tested. Update Status to
-# Released and drop this note once all of the above have been.
+# The card used to have a sixth block, a fixed +-1V comparator on Audio
+# In 1 with a ~10Hz minimum-retrigger lockout — its crossing detection
+# and rate limiter both worked on hardware, but the comparator idea has
+# since been removed outright. Kept the alternating Pulse Out 1/2 toggle
+# it drove, now fed directly by Pulse In 1 instead (see main.cpp) — not
+# yet re-tested. The wavefolder went through two from-scratch attempts
+# (hard triangle fold, then a smooth sine-table fold) that both sounded
+# wrong on hardware, and has now been replaced with a port of Chris
+# Johnson's proven Utility Pair wavefolder (antiderivative-antialiased
+# fold; see dsp/wavefolder.h), with CV In 1 wired back in as bipolar
+# drive modulation on top of Main. Also not yet re-tested. Update Status
+# to Released and drop this note once both have been.
 draft: true
 Name: Uncertainty
-short-description: Buchla 266-style noise/FRV/QRV, plus a wavefolder and comparator.
+short-description: Buchla 266-style noise/FRV/QRV, plus a wavefolder and pulse alternator.
 summary: |
   A tribute to the Buchla 266 Source of Uncertainty — three noise colours
   (flat, low-biased, high-biased), a Fluctuating Random Voltage that glides
   continuously between new targets, and a Quantized Random Voltage that
   jumps to a new value on each trigger — sharing the card with an
   antialiased wavefolder (ported from Chris Johnson's Utility Pair) and a
-  fixed-window comparator/gate.
+  Pulse In 1 alternator that duplicates each incoming pulse across Pulse
+  Out 1 and Pulse Out 2 in turn.
 Language: C++ (Pico SDK)
 Creator: Claude Code
 Version: "0.1.0"
@@ -36,8 +38,8 @@ tags:
 panel:
   inputs:
     - id: AudioIn1
-      name: Fold/Comparator In
-      description: Shared input for the wavefolder and the comparator
+      name: Fold In
+      description: Wavefolder input
     - id: CVIn1
       name: Fold Drive Mod
       description: Bipolar, adds directly onto the Main knob's drive amount, unclamped — enough negative CV inverts the signal before folding
@@ -45,8 +47,8 @@ panel:
       name: FRV Rate Mod
       description: Bipolar modulation of the FRV rate, +-6V, added on top of knob X
     - id: PulseIn1
-      name: QRV Trigger
-      description: Rising edge latches a new Quantized Random Voltage value
+      name: QRV Trigger / Alternator In
+      description: Rising edge latches a new Quantized Random Voltage value. The same input is also duplicated straight through to Pulse Out 1/2, alternating which one gets each pulse.
   outputs:
     - id: AudioOut1
       name: Fold Out
@@ -61,11 +63,11 @@ panel:
       name: QRV Out
       description: Quantized Random Voltage, 0 to +6V span set by knob Y
     - id: PulseOut1
-      name: Comparator Out A
-      description: Short trigger pulse each time Audio In 1 leaves the fixed +-1V window, rate-limited to ~10Hz max regardless of input pitch. Alternates with Pulse Out 2 each firing — LED 5 flashes on every firing regardless of which output it went to.
+      name: Alternator Out A
+      description: A literal copy of Pulse In 1's timing, routed here on every other incoming pulse (alternates with Pulse Out 2)
     - id: PulseOut2
-      name: Comparator Out B
-      description: The other half of the alternating comparator output — same signal as Pulse Out 1, offset by one firing
+      name: Alternator Out B
+      description: A literal copy of Pulse In 1's timing, routed here on the pulses Pulse Out 1 doesn't get
 
 controls:
   switch:
@@ -103,8 +105,8 @@ controls:
           name: Noise: High-biased
           description: Lit when the noise source is in high-biased (blue) mode
         - id: "5"
-          name: Comparator Trigger
-          description: Brief flash each time the comparator fires, on every firing regardless of which of Pulse Out 1/2 the alternator sent it to
+          name: Alternator Trigger
+          description: Lit for the duration of every pulse on Pulse In 1, regardless of which of Pulse Out 1/2 it's currently being routed to
 
 uf2:
   - path: UF2/uncertainty.uf2
