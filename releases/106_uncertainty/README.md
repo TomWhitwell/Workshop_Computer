@@ -1,8 +1,10 @@
 # Uncertainty for Workshop System Computer
 
 A tribute to the Buchla 266 Source of Uncertainty, sharing the card with
-an antialiased wavefolder and a Pulse In 1 alternator, for the Music
-Thing Modular Workshop Computer.
+an antialiased wavefolder (in the spirit of the 259 Complex Oscillator's
+timbre section) and a Pulse In 1 alternator (in the spirit of the Model
+140 Timing Pulse Generator), for the Music Thing Modular Workshop
+Computer.
 
 **Status: confirmed working on hardware.**
 
@@ -143,7 +145,11 @@ audio-input oversampling, reduced ADC tonal artifacts). There's no
   is applied continuously to whatever value is currently held (in
   `ProcessSample`, every sample), so turning it reshapes the held voltage
   live rather than waiting for the next trigger.
-- **Wavefolder:** a direct port of Chris Johnson's Utility Pair wavefolder
+- **Wavefolder:** in spirit, the same idea as the timbre/wavefolding
+  section of Buchla's 259 Complex Oscillator — a fixed nonlinearity that a
+  drive control pushes the signal harder into, rather than a filter that
+  changes shape. The implementation itself is a direct port of Chris
+  Johnson's Utility Pair wavefolder
   (`github.com/chrisgjohnson/Utility-Pair`), which uses **antiderivative
   antialiasing (ADAA)**. Folding creates harmonics above what the input
   had; naively calling the fold function fresh on every sample pushes
@@ -167,11 +173,14 @@ audio-input oversampling, reduced ADC tonal artifacts). There's no
   addition. Low drive passes the signal clean; higher drive pushes it
   past the fold's fixed threshold, the way turning up a real wavefolder's
   drive knob works.
-- **Pulse alternator:** Pulse In 1 (already read for QRV's trigger) is
-  duplicated straight through to Pulse Out 1 and Pulse Out 2, toggling
-  which output gets each successive pulse on its rising edge — so a
-  downstream clock divider or two separate voices can each get half the
-  rate. This is a literal copy of Pulse In 1's own timing (not a
+- **Pulse alternator:** in spirit, the same idea Buchla's Model 140
+  Timing Pulse Generator was built around back in the 100 series — taking
+  one timing pulse and distributing it across multiple outputs rather
+  than just repeating it on one. Here, Pulse In 1 (already read for QRV's
+  trigger) is duplicated straight through to Pulse Out 1 and Pulse Out 2,
+  toggling which output gets each successive pulse on its rising edge —
+  so a downstream clock divider or two separate voices can each get half
+  the rate. This is a literal copy of Pulse In 1's own timing (not a
   fixed-width re-trigger): whatever gate width comes in is what goes out,
   alternating jacks. LED 5 lights for the duration of every pulse, on
   both outputs, so what you see always matches the true incoming rate
