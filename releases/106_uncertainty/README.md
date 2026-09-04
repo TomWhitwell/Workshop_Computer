@@ -104,11 +104,9 @@ the knob was doing a moment ago.
 
 **The Z switch:**
 - **Down (tap):** a quick press-and-release cycles the noise source
-  through its three colours. It springs back up on its own — this isn't
-  a position you hold.
+  through its three colours. It springs back up on its own.
 - **Middle:** normal operation. Main/X/Y do their everyday jobs.
-- **Up (held):** attenuverter mode. Main/X/Y switch to the jobs
-  described above. This is a position you hold, not a tap.
+- **Up:** attenuverter mode. Main/X/Y switch to the jobs described above.
 
 **LEDs**, top-to-bottom, left-to-right:
 1. Lit when the noise source is set to flat.
