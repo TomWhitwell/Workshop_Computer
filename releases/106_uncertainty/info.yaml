@@ -1,0 +1,118 @@
+draft: false
+Name: Uncertainty
+short-description: Buchla 266-style noise/FRV/QRV, plus a wavefolder and pulse alternator.
+summary: |
+  A tribute to the Buchla 266 Source of Uncertainty — three noise colours
+  (flat, low-biased, high-biased), a Fluctuating Random Voltage that glides
+  continuously between new targets, and a Quantized Random Voltage that
+  jumps to a new value on each trigger — sharing the card with an
+  antialiased wavefolder (ported from Chris Johnson's Utility Pair) and a
+  Pulse In 1 alternator that duplicates each incoming pulse across Pulse
+  Out 1 and Pulse Out 2 in turn. Z switch Up turns Main/X/Y into bipolar
+  attenuverters for the wavefolder's CV In 1, FRV's output, and QRV's
+  output respectively, with pot-pickup so returning to normal never snaps
+  a value to wherever the knob was left.
+Language: C++ (Pico SDK)
+Creator: Claude Code
+Version: "1.0.0"
+Status: Released
+License: MIT
+date-created: 2026-09-03
+date-updated: 2026-09-04
+
+tags:
+  - source-of-uncertainty
+  - random
+  - noise
+  - wavefolder
+  - utility
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Fold In
+      description: Wavefolder input
+    - id: CVIn1
+      name: Fold Drive Mod
+      description: Bipolar, scaled by Main's attenuverter role (Z up) then added directly onto the Main knob's drive amount, unclamped — enough negative CV (or a CCW attenuverter setting) inverts the signal before folding
+    - id: CVIn2
+      name: FRV Rate Mod
+      description: Bipolar modulation of the FRV rate, +-6V, added on top of knob X
+    - id: PulseIn1
+      name: QRV Trigger / Alternator In
+      description: Rising edge latches a new Quantized Random Voltage value. The same input is also duplicated straight through to Pulse Out 1/2, alternating which one gets each pulse.
+  outputs:
+    - id: AudioOut1
+      name: Fold Out
+      description: Wavefolder output
+    - id: AudioOut2
+      name: Noise Out
+      description: Current noise colour (flat / low-biased / high-biased)
+    - id: CVOut1
+      name: FRV Out
+      description: Fluctuating Random Voltage, free-running 0 to +6V before X's attenuverter role (Z up) is applied — CCW of centre there makes it swing negative instead
+    - id: CVOut2
+      name: QRV Out
+      description: Quantized Random Voltage, 0 to +6V span set by knob Y's primary role, before Y's attenuverter role (Z up) is applied — CCW of centre there makes it swing negative instead
+    - id: PulseOut1
+      name: Alternator Out A
+      description: A literal copy of Pulse In 1's timing, routed here on every other incoming pulse (alternates with Pulse Out 2)
+    - id: PulseOut2
+      name: Alternator Out B
+      description: A literal copy of Pulse In 1's timing, routed here on the pulses Pulse Out 1 doesn't get
+
+controls:
+  switch:
+    up:
+      name: Attenuverter Mode
+      description: Main/X/Y each switch to a bipolar attenuverter for the section they already control (wavefolder CV In 1 / FRV output / QRV output) instead of their normal role. 12 o'clock mutes; CCW inverts and scales towards full negative; CW scales towards the original full-positive value. Each knob's two roles are pot-pickup guarded, so switching in or out of Up never jumps a value — it stays frozen until the knob is moved back to where that role was left.
+    tap:
+      name: Cycle Noise Colour
+      description: Briefly press and release Down to cycle the noise source between flat, low-biased (pink, -3dB/oct) and high-biased (blue, +3dB/oct). LEDs 0/2/4 hold the current mode.
+
+  knobs:
+    - main:
+        name: Fold Drive
+        description: Gain into the wavefolder, combined with CV In 1 — low settings pass the signal clean, higher settings drive it into folding
+      x:
+        name: FRV Rate
+        description: Exponential taper across three decades, 0.05Hz to 50Hz, modulated by CV In 2
+      y:
+        name: QRV Range
+        description: Sets the maximum span of each new Quantized Random Voltage draw, 0 to +6V
+    - when: { z: up }
+      main:
+        name: Fold CV In 1 Attenuverter
+        description: Bipolar attenuverter for CV In 1's contribution to the wavefolder's drive. 12 o'clock = CV In 1 has no effect (same as unpatched).
+      x:
+        name: FRV Output Attenuverter
+        description: Bipolar attenuverter for FRV's output voltage. 12 o'clock mutes CV Out 1; CCW makes FRV swing negative, CW keeps it swinging positive as before.
+      y:
+        name: QRV Output Attenuverter
+        description: Bipolar attenuverter for QRV's output voltage. 12 o'clock mutes CV Out 2; CCW makes QRV swing negative, CW keeps it swinging positive as before.
+
+  leds:
+    - display: list
+      items:
+        - id: "0"
+          name: "Noise: Flat"
+          description: Lit when the noise source is in flat (white) mode
+        - id: "1"
+          name: FRV Level
+          description: Brightness follows the magnitude of the current FRV output regardless of sign (0V off, brightest at +-6V) — a single LED can't show polarity, so it shows how far from 0V, not which direction
+        - id: "2"
+          name: "Noise: Low-biased"
+          description: Lit when the noise source is in low-biased (pink) mode
+        - id: "3"
+          name: QRV Level
+          description: Brightness follows the magnitude of the current QRV output regardless of sign (0V off, brightest at +-6V) — a single LED can't show polarity, so it shows how far from 0V, not which direction
+        - id: "4"
+          name: "Noise: High-biased"
+          description: Lit when the noise source is in high-biased (blue) mode
+        - id: "5"
+          name: Alternator Trigger
+          description: Lit for the duration of every pulse on Pulse In 1, regardless of which of Pulse Out 1/2 it's currently being routed to
+
+uf2:
+  - path: UF2/uncertainty.uf2
+    name: Uncertainty firmware

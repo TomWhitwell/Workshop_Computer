@@ -1,0 +1,277 @@
+// Uncertainty — a Buchla 266 Source of Uncertainty tribute, plus a
+// Buchla-lineage wavefolder, for the Music Thing Modular Workshop
+// Computer.
+//
+// Five blocks share the card:
+//   Noise source    - flat / low-biased (pink) / high-biased (blue),
+//                     cycled by tapping the Z switch down. -> Audio Out 2
+//   FRV             - Fluctuating Random Voltage: a random walk that
+//                     glides continuously between new targets. Rate set
+//                     by X (and CV In 2). Runs on the second core, since
+//                     its rate can be far slower than the 48kHz audio
+//                     loop. -> CV Out 1
+//   QRV             - Quantized Random Voltage: a fresh random value
+//                     latched on each Pulse In 1 trigger, held with no
+//                     slew. Range set by Y. -> CV Out 2
+//   Wavefolder      - Chris Johnson's antiderivative-antialiased fold
+//                     (ported from Utility Pair), drive from Main knob +
+//                     CV In 1 (bipolar). Audio In 1 -> Audio Out 1
+//   Pulse alternator - Pulse In 1 is duplicated straight through to
+//                     Pulse Out 1 and Pulse Out 2, alternating which
+//                     output gets each successive pulse (a T-flip-flop
+//                     style splitter) — independent of, and in addition
+//                     to, that same Pulse In 1 also triggering QRV above.
+//                     LED 5 flashes on every pulse, both outputs.
+//
+// There used to be a sixth block here: a fixed +-1V window comparator on
+// Audio In 1, feeding the same Pulse Out 1/2 alternator. Removed outright
+// rather than reworked — the alternator logic was worth keeping, the
+// comparator wasn't.
+//
+// Switch Up gives Main/X/Y a second job each, as attenuverters for the
+// section they already control: Main becomes the wavefolder's CV In 1
+// attenuverter, X becomes FRV's output attenuverter, Y becomes QRV's
+// output attenuverter. Each knob's two jobs share pot-pickup logic
+// (dsp/dual_role_knob.h) so switching Up and back never snaps a value to
+// wherever the knob physically ended up while it was doing its other
+// job — see that file for the mechanism.
+//
+// See README.md for the full panel layout and the hardware-reality
+// corrections (voltage range, switch behaviour) this build is based on.
+
+#include <cmath>
+#include <cstdint>
+
+#include "ComputerCard.h"
+#include "pico/multicore.h"
+#include "pico/time.h"
+
+#include "dsp/dual_role_knob.h"
+#include "dsp/noise.h"
+#include "dsp/qrv.h"
+#include "dsp/wavefolder.h"
+
+namespace uncertainty
+{
+
+	// Millivolts <-> LED brightness (0..4095), for the FRV/QRV level
+	// indicators. Shows magnitude only (|mv|, clamped to 6000) — a single
+	// LED brightness can't show polarity, and now that attenuversion can
+	// push these outputs negative, "how far from 0V" is the useful thing
+	// to see regardless of which direction.
+	static inline int32_t MillivoltsToLed(int32_t mv)
+	{
+		if (mv < 0) mv = -mv;
+		if (mv > 6000) mv = 6000;
+		return static_cast<int32_t>((mv * 4095) / 6000);
+	}
+
+} // namespace uncertainty
+
+class Uncertainty : public ComputerCard
+{
+public:
+	Uncertainty()
+	{
+		multicore_launch_core1(Core1Entry);
+	}
+
+	// ---- Core 1: FRV control-rate loop -------------------------------
+	//
+	// FRV's rate can be as slow as 0.05Hz, far below audio rate, so its
+	// random-walk-with-slew is computed here instead of in ProcessSample.
+	// It reads the X knob, CV In 2, and the switch directly (rather than
+	// only inside ProcessSample) — the same pattern the ComputerCard
+	// "second_core" example uses, since KnobVal/CVIn/SwitchVal all read a
+	// volatile word that's safe to sample from either core. xKnob_'s
+	// dual-role/pot-pickup bookkeeping lives entirely here, on the same
+	// core that owns X — core 0 never touches it, so there's no
+	// cross-core state to synchronise for this knob.
+	void FRVLoop()
+	{
+		constexpr float kMinHz = 0.05f;
+		constexpr float kLog10 = 2.302585093f; // ln(10)
+		constexpr float kDecadesSpan = 3.0f * kLog10;
+
+		float target = 0.0f;
+		float current = 0.0f;
+		float secondsToNextTarget = 0.0f;
+		uint32_t lastUs = time_us_32();
+
+		while (true)
+		{
+			uint32_t nowUs = time_us_32();
+			float dt = static_cast<float>(nowUs - lastUs) * 1.0e-6f;
+			lastUs = nowUs;
+
+			xKnob_.Update(SwitchVal() == Switch::Up, KnobVal(Knob::X));
+
+			// X sets the base rate; CV In 2 can swing it by up to half the
+			// knob's own travel, in either direction.
+			float knobFrac = xKnob_.Primary() / 4095.0f;
+			float cvMod = (CVIn2() / 2047.0f) * 0.5f;
+			float normalized = knobFrac + cvMod;
+			if (normalized < 0.0f) normalized = 0.0f;
+			if (normalized > 1.0f) normalized = 1.0f;
+
+			float rateHz = kMinHz * expf(kDecadesSpan * normalized);
+
+			secondsToNextTarget -= dt;
+			if (secondsToNextTarget <= 0.0f)
+			{
+				uint32_t draw = uncertainty::Xorshift32(frvSeed_) & 0x0FFF; // 0..4095
+				target = (draw / 4095.0f) * 6000.0f;                       // millivolts
+				secondsToNextTarget = 1.0f / rateHz;
+			}
+
+			// Exponential glide that reaches ~95% of the way to a fresh
+			// target over the course of one interval, so it arrives about
+			// when the next target is chosen rather than stepping.
+			float tau = (1.0f / rateHz) / 3.0f;
+			if (tau > 0.0f)
+			{
+				float coeff = 1.0f - expf(-dt / tau);
+				current += (target - current) * coeff;
+			}
+
+			// X's attenuverter (Switch Up) scales/inverts the glide
+			// value on its way out — turning the attenuverter reshapes
+			// the currently-gliding voltage live, it doesn't wait for a
+			// new target.
+			frvOutMillivolts_ = xKnob_.Attenuvert(static_cast<int32_t>(current));
+
+			// Control-rate is plenty here; free up the core.
+			sleep_us(200);
+		}
+	}
+
+	static void Core1Entry()
+	{
+		static_cast<Uncertainty *>(ThisPtr())->FRVLoop();
+	}
+
+	// ---- Core 0: audio-rate callback ----------------------------------
+	virtual void ProcessSample() override
+	{
+		// Startup smoke test: walk all six LEDs in sequence once, so a
+		// fresh flash visibly proves LEDs, PWM and the sample clock all
+		// work before any patching happens.
+		if (RunStartupBlink()) return;
+
+		// --- Noise source: cycle colour on each Down-tap of the switch.
+		// SwitchChanged() fires on any transition; gating on Down here
+		// means the mode advances on the press only (springs back to
+		// Middle/Up without incident).
+		if (SwitchVal() == Switch::Down && SwitchChanged())
+		{
+			noiseMode_ = (noiseMode_ + 1) % uncertainty::NoiseSource::kNumColours;
+		}
+		AudioOut2(noise_.Next(static_cast<uncertainty::NoiseSource::Colour>(noiseMode_)));
+		LedOn(0, noiseMode_ == uncertainty::NoiseSource::Flat);
+		LedOn(2, noiseMode_ == uncertainty::NoiseSource::LowBiased);
+		LedOn(4, noiseMode_ == uncertainty::NoiseSource::HighBiased);
+
+		// Switch Up gives Main/X/Y their attenuverter role instead of
+		// their normal one (X's copy of this lives on core 1, next to the
+		// FRV loop that owns it). Read once, used by both knobs below.
+		bool switchUp = (SwitchVal() == Switch::Up);
+
+		// --- FRV: core 1 computes the value (including its own
+		// attenuversion); here we just output it.
+		CVOut1Millivolts(frvOutMillivolts_);
+		LedBrightness(1, uncertainty::MillivoltsToLed(frvOutMillivolts_));
+
+		// --- QRV: fresh random value on each Pulse In 1 rising edge,
+		// range scaled 0..6000mV by Y's primary (range) role. Y's
+		// attenuverter role (Switch Up) is applied continuously to
+		// whatever value is currently held, not just at the moment of a
+		// new trigger — turning it reshapes the held voltage live.
+		yKnob_.Update(switchUp, KnobVal(Knob::Y));
+		int32_t qrvRangeMv = (yKnob_.Primary() * 6000) >> 12;
+		int32_t qrvRawMv = qrv_.Process(PulseIn1RisingEdge(), qrvRangeMv);
+		int32_t qrvMv = yKnob_.Attenuvert(qrvRawMv);
+		CVOut2Millivolts(qrvMv);
+		LedBrightness(3, uncertainty::MillivoltsToLed(qrvMv));
+
+		// --- Wavefolder: Audio In 1 folded by Main's drive amount
+		// (primary role). CV In 1 is scaled by Main's attenuverter role
+		// (Switch Up) before it reaches the fold — at 12 o'clock CV In 1
+		// has no effect at all, same as being unpatched.
+		mainKnob_.Update(switchUp, KnobVal(Knob::Main));
+		int32_t cv1Attenuverted = mainKnob_.Attenuvert(CVIn1());
+		AudioOut1(wavefolder_.Process(AudioIn1(), mainKnob_.Primary(), cv1Attenuverted));
+
+		// --- Pulse alternator: Pulse In 1 duplicated straight through to
+		// Pulse Out 1 / Pulse Out 2, alternating which output gets each
+		// successive pulse — independent of that same Pulse In 1 also
+		// triggering QRV above (ComputerCard's PulseIn1()/
+		// PulseIn1RisingEdge() are just reads of the current sample's
+		// input state; reading it twice for two purposes has no side
+		// effects). The toggle happens once per pulse (on the rising
+		// edge, checked against the previous sample) rather than every
+		// sample the input is held high, so one incoming pulse goes
+		// entirely to one output — this is a literal copy of Pulse In
+		// 1's own timing, not a fixed-width re-trigger, so whatever gate
+		// length comes in is what goes out.
+		bool pulseIn = PulseIn1();
+		if (pulseIn && !lastPulseIn1_)
+		{
+			pulseAltChannel_ = !pulseAltChannel_;
+		}
+		lastPulseIn1_ = pulseIn;
+
+		PulseOut1(pulseIn && !pulseAltChannel_);
+		PulseOut2(pulseIn && pulseAltChannel_);
+		LedOn(5, pulseIn);
+	}
+
+private:
+	// Returns true while the startup blink is still running (and has
+	// already written the LEDs for this sample).
+	bool RunStartupBlink()
+	{
+		constexpr int32_t kSamplesPerLed = 48000 / 8; // 125ms per LED
+		constexpr int32_t kTotalSamples = kSamplesPerLed * 6;
+
+		if (startupSample_ >= kTotalSamples) return false;
+
+		int32_t active = startupSample_ / kSamplesPerLed;
+		for (int32_t i = 0; i < 6; i++)
+		{
+			LedOn(i, i == active);
+		}
+		startupSample_++;
+		return true;
+	}
+
+	int32_t startupSample_ = 0;
+	int32_t noiseMode_ = uncertainty::NoiseSource::Flat;
+	bool lastPulseIn1_ = false;
+	bool pulseAltChannel_ = false;
+
+	// mainKnob_/yKnob_ are read and updated only from ProcessSample
+	// (core 0). xKnob_ is read and updated only from FRVLoop (core 1) —
+	// each is owned exclusively by one core, so there's no shared-state
+	// concern despite them living on the same object.
+	uncertainty::DualRoleKnob mainKnob_;
+	uncertainty::DualRoleKnob xKnob_;
+	uncertainty::DualRoleKnob yKnob_;
+
+	uncertainty::NoiseSource noise_{1};
+	uncertainty::Wavefolder wavefolder_;
+	uncertainty::QRV qrv_{12345};
+
+	uint32_t frvSeed_ = 7;
+	volatile int32_t frvOutMillivolts_ = 0;
+};
+
+int main()
+{
+	// 144MHz + 96k audio-input oversampling is the directive's recommended
+	// default (reduces ADC tonal artifacts). No 192kHz/192MHz mode exists
+	// in ComputerCard.
+	set_sys_clock_khz(144000, true);
+
+	Uncertainty card;
+	card.Run();
+}
