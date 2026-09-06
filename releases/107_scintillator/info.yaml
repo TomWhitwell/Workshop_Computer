@@ -1,0 +1,120 @@
+draft: false
+Name: Scintillator
+short-description: Analog-computer argument/function chain, a triggerable kick drum, and Geiger-style collision gates.
+summary: |
+  An analog-computer-style test-gear card. Two audio inputs feed an 8-way
+  "argument" stage (add, subtract, multiply, ratio, magnitude...) and then
+  a 6-way classic analog-computer "function" stage (log, root, square,
+  differentiator), blended dry-to-wet on Audio Out 1. Audio Out 2 is a
+  synthesised kick drum triggered from Pulse In 1 - deliberately
+  independent of the rest of the card so it holds a steady rhythm
+  underneath - tuned by the MAIN knob, with CV In 1 and CV In 2 shaping
+  its attack and decay and a tap of the switch cycling three envelope
+  presets. Two pulse outputs behave like Geiger-counter gates, firing
+  stochastically when the two inputs "collide", with the collision's
+  "violence" setting both the odds of firing and the pulse width. Switch
+  Up swaps Knob X/Y/MAIN into a simple 2-input mixer with a dry/wet blend.
+Language: C++ (Pico SDK)
+Creator: Matt Allison, with Claude Code (Anthropic)
+Version: "1.0.0"
+Status: Released
+License: MIT
+date-created: 2026-09-05
+date-updated: 2026-09-05
+
+tags:
+  - analog-computer
+  - kick
+  - drum
+  - random
+  - utility
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: A
+      description: DSP mode - raw input to the argument stage. Mix mode - scaled by Knob X (0 = silence, fully CW = unity) before anything else touches it.
+    - id: AudioIn2
+      name: B
+      description: DSP mode - raw input to the argument stage. Mix mode - scaled by Knob Y (0 = silence, fully CW = unity) before anything else touches it.
+    - id: CVIn1
+      name: Kick Attack
+      description: Offsets the kick envelope's attack from the current preset, in both switch positions. Roughly -2V gives a soft ~28ms swell, centred is ~0.4ms, positive is instant.
+    - id: CVIn2
+      name: Kick Decay
+      description: Offsets the kick envelope's decay from the current preset, in both switch positions. Roughly -2V stretches the tail past a second, positive shortens it to ~20ms.
+    - id: PulseIn1
+      name: Kick Trigger
+      description: Each rising edge fires the kick drum on Audio Out 2. Retriggering mid-decay restarts the hit.
+  outputs:
+    - id: AudioOut1
+      name: Main Out
+      description: A blend of the dry A+B mix and the wet chain (argument -> function), applied in both switch positions. Knob MAIN sets the blend in Mix mode and the setting is held when the switch returns to the middle; CV In 2 offsets it live in either position. Defaults to fully wet.
+    - id: AudioOut2
+      name: Kick Out
+      description: A synthesised kick drum - a sine with a fast downward pitch sweep under an amplitude envelope - triggered by Pulse In 1. Independent of the argument/function chain so it can hold a rhythm steady. Silent until triggered.
+    - id: PulseOut1
+      name: Gate 1 (A-led collision)
+      description: Fires when A's direction-reversal opens the coincidence window and B's opposite-direction reversal completes it. Probability and pulse width both scale with the collision's "violence" - how far each signal swings between direction reversals, so firing depends on level rather than pitch and works evenly across the audio range. The detector runs at a quarter of the sample rate and each output enforces a randomised gap (a ~60ms floor plus a short-weighted random extra up to ~400ms, drawn after every hit), so gates run at roughly 4-6 per second with deliberately uneven spacing rather than at audio rate or on a fixed grid. With only one input patched there is nothing to collide with, so both gates instead fire on that signal's own direction reversals, alternating between the two outputs.
+    - id: PulseOut2
+      name: Gate 2 (B-led collision)
+      description: Fires when B's direction-reversal opens the coincidence window and A's opposite-direction reversal completes it. Probability and pulse width both scale with the collision's "violence". Rate-limited the same way as Pulse Out 1.
+
+controls:
+  switch:
+    middle:
+      name: DSP Mode
+      description: Knob X selects one of 8 argument operations on A/B, Knob Y selects one of 6 function operations on the argument's output, and Knob MAIN tunes the kick drum.
+    up:
+      name: Mix Mode
+      description: Knob X and Y become Audio In 1/2 level controls (0 = silence, fully CW = unity), and Knob MAIN becomes a dry/wet blend on Audio Out 1. All three knobs use pot pickup, so each job keeps the value it was left at when the switch moves and only resumes tracking once the knob returns to it - nothing jumps in either direction.
+    tap:
+      name: Cycle Kick Preset
+      description: Momentary (spring-loaded). Each tap cycles the kick's envelope preset - short and snappy, tight and round, deep and low. LED 3 briefly shows which is selected (dim / half / full) before returning to following the envelope.
+
+  knobs:
+    - main:
+        name: Kick Pitch
+        description: "DSP mode: tunes the kick drum across roughly 35-160Hz, exponentially so the knob is even across its travel. The preset shifts that range - short and snappy sits a quarter higher, deep and low a quarter lower. Pot-pickup guarded, so it holds its value across a trip to the up position and only resumes tracking once MAIN returns to it."
+      x:
+        name: Argument Select
+        description: "DSP mode: 8-way select (with hysteresis at each boundary) - A / B / A+B / A-B / A*B/10 / sqrt(A^2+B^2) / A/|B| / 10*A/|B|. Mix mode: Audio In 1 level."
+      y:
+        name: Function Select
+        description: "DSP mode: 6-way select (with hysteresis at each boundary) - ln(|x|+1) / sqrt(|x|) / x (none) / x^2 / -dx/dt /100 / -dx/dt, applied to the argument stage's output. Mix mode: Audio In 2 level."
+    - when: { z: up }
+      main:
+        name: Dry/Wet Blend
+        description: Fully CCW is the dry A+B mix, fully CW is the wet chain (argument -> function). Pot-pickup guarded, so the blend keeps applying after the switch returns to the middle, where MAIN goes back to tuning the kick.
+      x:
+        name: Audio In 1 Level
+        description: 0 at fully CCW (silence), unity at fully CW. Applied before the signal splits into the dry copy and the wet chain, so it silences A everywhere downstream, including the dry mix and the Geiger gates.
+      y:
+        name: Audio In 2 Level
+        description: 0 at fully CCW (silence), unity at fully CW. Applied before the signal splits into the dry copy and the wet chain, so it silences B everywhere downstream, including the dry mix and the Geiger gates.
+
+  leds:
+    - display: list
+      items:
+        - id: "0"
+          name: Audio In 1 Level
+          description: Brightness follows |A|'s magnitude (post-level in Mix mode) - a live input meter regardless of switch position.
+        - id: "1"
+          name: Audio In 2 Level
+          description: Brightness follows |B|'s magnitude (post-level in Mix mode) - a live input meter regardless of switch position.
+        - id: "2"
+          name: Kick Envelope
+          description: Brightness follows the kick's amplitude envelope, so each hit is visible. Briefly holds a fixed brightness after a switch tap to show which envelope preset is now selected.
+        - id: "3"
+          name: Mode
+          description: Lit in Mix mode (switch up), off in DSP mode (switch middle).
+        - id: "4"
+          name: Gate 1 Firing
+          description: Lit for the duration of each fired Pulse Out 1 pulse (an A-led collision).
+        - id: "5"
+          name: Gate 2 Firing
+          description: Lit for the duration of each fired Pulse Out 2 pulse (a B-led collision).
+
+uf2:
+  - path: UF2/scintillator.uf2
+    name: Scintillator firmware
