@@ -151,6 +151,8 @@ the RP2 drive that appears (or via `picotool load`, or SWD).
   antialiasing technique the wavefolder uses.
 - **[Tom Whitwell](https://github.com/TomWhitwell) / Music Thing
   Modular** — the Workshop Computer platform this card runs on.
+- **Claude Code** (Anthropic) — wrote the firmware from the author's
+  brief.
 - **Don Buchla** — the 266 Source of Uncertainty, the 259 Complex
   Oscillator, and the Model 140 Timing Pulse Generator, whose ideas this
   card is a tribute to rather than a copy of.

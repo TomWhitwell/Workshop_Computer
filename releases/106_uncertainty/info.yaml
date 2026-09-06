@@ -13,7 +13,7 @@ summary: |
   output respectively, with pot-pickup so returning to normal never snaps
   a value to wherever the knob was left.
 Language: C++ (Pico SDK)
-Creator: Claude Code
+Creator: Matt Allison
 Version: "1.0.0"
 Status: Released
 License: MIT
