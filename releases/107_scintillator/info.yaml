@@ -15,7 +15,7 @@ summary: |
   "violence" setting both the odds of firing and the pulse width. Switch
   Up swaps Knob X/Y/MAIN into a simple 2-input mixer with a dry/wet blend.
 Language: C++ (Pico SDK)
-Creator: Matt Allison, with Claude Code (Anthropic)
+Creator: Matt Allison
 Version: "1.0.0"
 Status: Released
 License: MIT
