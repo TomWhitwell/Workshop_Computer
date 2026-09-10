@@ -1,0 +1,19 @@
+# Build artifacts
+build/
+build-*/
+payload/build/
+diagnostics/build/
+
+# Local .uf2 builds, kept out of the repo. A RELEASED binary would live in
+# UF2/ and be committed; FLASHME/ is just the one you drag onto the Pico.
+FLASHME/*.uf2
+
+# Editor / OS noise
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
