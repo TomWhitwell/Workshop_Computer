@@ -1,0 +1,127 @@
+; gba_spi.pio — Full-duplex SPI master (mode 3) for GBA Multiboot on the Workshop Computer
+;
+; The GBA link cable in "normal"/SIO32 mode (used by Multiboot) is plain SPI:
+;   mode 3 (CPOL=1, CPHA=1), MSB-first, 32 bits per transfer, master supplies the clock.
+;   Data transitions on the leading (falling, since CPOL=1) edge and is captured on the
+;   trailing (rising) edge.
+;
+; This program is the CPHA=1 program from the Raspberry Pi pico-examples SPI example,
+; unchanged. CPOL and every Workshop hardware inversion are handled in the IO pad via
+; gpio_set_outover / gpio_set_inover in the C init (see gba_multiboot.cpp), NOT here — so
+; this stays a clean, canonical CPHA=1 SPI core.
+;
+; Pin routing on the Workshop Computer:
+;   SCK (GBA SC) -> Pulse Out 1 -> GPIO 8   (side-set)
+;   SI  (MOSI)   -> Pulse Out 2 -> GPIO 9   (OUT / MOV pins)
+;   SO  (MISO)   -> Pulse In 1  -> GPIO 2   (IN pins)
+;
+; Net pad inversion (worked out in C). Two independent inversions apply to SCK:
+;   * CPOL=1 wants SCK inverted (pico-examples technique), AND
+;   * the Workshop output stage already inverts Pulse Out 1.
+;   Two inversions cancel => SCK pad override = NORMAL.
+;   MOSI: Workshop inverts Pulse Out 2 once            => MOSI pad override = INVERT.
+;   MISO: SCOPE-MEASURED 2026-09-03 => MISO pad override = NORMAL. The earlier claim that
+;         "Workshop inverts Pulse In 1 once" was wrong: ComputerCard's PulseIn1() returning
+;         !gpio_get is a SOFTWARE convention, not a pad inversion. Verified with a patch
+;         cable Pulse Out 2 -> Pulse In 1, probing both ends: they go high together.
+;   The authoritative values now live as constants in gba_spi.h, used by every init site.
+;
+; One SPI bit = 4 PIO *cycles* in BOTH programs (cpha1 is 3 instructions but the `mov`
+; carries a [1]; cpha0 is 2 instructions each with [1]). See GBA_PIO_CYCLES_PER_BIT in
+; gba_spi.h — dividing by 3 made every requested rate run 4/3 too fast. Multiboot
+; is happy at low rates (reference uploaders use 50 kHz–1 MHz), which suits the slow,
+; transistor-conditioned Pulse In 1. Autopush/autopull (32-bit thresholds) are set in C.
+
+.program gba_spi
+.side_set 1
+
+; Clock phase = 1 (CPHA=1): data transitions on the leading edge of each SCK pulse, and is
+; captured on the trailing edge.
+    out x, 1    side 0     ; stall here on empty (keep SCK deasserted); load next TX bit
+    mov pins, x side 1 [1] ; drive MOSI (mov uses OUT mapping), assert SCK
+    in pins, 1  side 0     ; sample MISO, deassert SCK
+
+; Clock phase = 0 (CPHA=0): data is captured on the leading edge and transitions on the
+; trailing edge. Second program so diagnostics can sweep the sample edge (the axis a plain
+; polarity sweep can't reach). Same pin mapping/config.
+.program gba_spi_cpha0
+.side_set 1
+    out pins, 1 side 0 [1] ; drive MOSI, keep SCK deasserted (stall here on empty)
+    in pins, 1  side 1 [1] ; assert SCK and sample MISO on this (leading) edge
+
+; C-side configuration (gba_multiboot.cpp):
+;   sm_config_set_out_pins(&c, GBA_MOSI_PIN, 1);      // GPIO 9
+;   sm_config_set_in_pins(&c, GBA_MISO_PIN);          // GPIO 2
+;   sm_config_set_sideset_pins(&c, GBA_SCK_PIN);      // GPIO 8
+;   sm_config_set_out_shift(&c, false, true, 32);     // MSB first, autopull, threshold 32
+;   sm_config_set_in_shift(&c, false, true, 32);      // MSB first, autopush, threshold 32
+;   sm_config_set_clkdiv(&c, div);                    // conservative
+;   // MOSI + SCK are outputs, MISO input:
+;   pio_sm_set_pins_with_mask(pio, sm, 0, (1u<<GBA_SCK_PIN)|(1u<<GBA_MOSI_PIN));
+;   pio_sm_set_pindirs_with_mask(pio, sm,
+;       (1u<<GBA_SCK_PIN)|(1u<<GBA_MOSI_PIN),
+;       (1u<<GBA_SCK_PIN)|(1u<<GBA_MOSI_PIN)|(1u<<GBA_MISO_PIN));
+;   pio_gpio_init(pio, GBA_SCK_PIN); pio_gpio_init(pio, GBA_MOSI_PIN); pio_gpio_init(pio, GBA_MISO_PIN);
+;   // Net inversions (see table above):
+;   gpio_set_outover(GBA_SCK_PIN,  GBA_SCK_OUTOVER);   // NORMAL  (CPOL * HW invert cancel)
+;   gpio_set_outover(GBA_MOSI_PIN, GBA_MOSI_OUTOVER);  // INVERT  (HW invert)
+;   gpio_set_inover (GBA_MISO_PIN, GBA_MISO_INOVER);   // NORMAL  (measured, not derived)
+;   pio_set_input_sync_bypass_with_mask(pio, 1u<<GBA_MISO_PIN, 1u<<GBA_MISO_PIN);
+
+; ═══════════════════════════════════════════════════════════════════════════════════════
+; GBATEK-DERIVED SAMPLING VARIANTS (added 2026-09-04 after auditing against GBATEK)
+;
+; GBATEK, "SIO Normal Mode", states plainly:
+;   "During inactive transfer, the shift clock (SC) is high."
+;   "When master sends SC=LOW, each master and slave must output the next outgoing data
+;    bit to SO. When master sends SC=HIGH, each master and slave must read out the
+;    opponents data bit from SI."
+;
+; So the canonical link timing is: SC IDLES HIGH; both ends DRIVE on the falling edge and
+; READ on the rising edge. In SPI terms that is mode 3 (CPOL=1, CPHA=1) — which is what
+; `gba_spi` above already implements. The scope confirms the polarity half: with the SM
+; stalled on `side 0` the SC jack sits HIGH at ~6 V, because Pulse Out 1 inverts.
+;
+; IMPORTANT: at the JACK, side 0 = HIGH (idle) and side 1 = LOW (clock asserted), because
+; of that hardware inversion. Read every `side` below with that in mind.
+;
+; `gba_spi_cpha0` samples while the jack is LOW, i.e. during the DRIVE phase — the opposite
+; of what GBATEK specifies. It is kept only so the sweep can prove it wrong empirically.
+;
+; The variants differ ONLY in where inside the bit period MISO is sampled. Pulse In 1 is a
+; slow transistor stage, so the settling margin is the thing most likely to matter.
+; Cycles per bit differ per program — see kPrograms[] in the diagnostics.
+
+; A) Sample exactly ON the rising edge. GBATEK-canonical. 4 cycles/bit.
+;    (Identical timing to `gba_spi`; named for clarity in the sweep.)
+.program gba_spi_m3_edge
+.side_set 1
+    out x, 1    side 0      ; jack HIGH (idle); load next TX bit
+    mov pins, x side 1 [1]  ; jack LOW: drive MOSI (the "output on SC=LOW" step)
+    in pins, 1  side 0      ; jack returns HIGH: sample MISO on that rising edge
+
+; B) Sample LATE in the HIGH phase — maximum settling for the slow input. 6 cycles/bit.
+.program gba_spi_m3_late
+.side_set 1
+    out x, 1    side 0      ; jack HIGH; load bit
+    mov pins, x side 1 [2]  ; jack LOW for 3 cycles: drive MOSI, let it settle
+    nop         side 0      ; jack HIGH (rising edge here)
+    in pins, 1  side 0      ; still HIGH: sample one cycle AFTER the edge
+
+; C) Sample at the END of the LOW phase, just before the rising edge. 5 cycles/bit.
+;    The slave sets its bit on the falling edge, so by here it has been stable longest.
+.program gba_spi_m3_hold
+.side_set 1
+    out x, 1    side 0      ; jack HIGH; load bit
+    mov pins, x side 1 [1]  ; jack LOW: drive MOSI
+    in pins, 1  side 1      ; still LOW: sample at the end of the drive phase
+    nop         side 0      ; jack HIGH
+
+; D) Wide/slow variant: long symmetric phases, sampled late. For a badly slewed line where
+;    the issue is edge rate rather than sample point. 12 cycles/bit.
+.program gba_spi_m3_wide
+.side_set 1
+    out x, 1    side 0 [1]  ; jack HIGH
+    mov pins, x side 1 [4]  ; jack LOW for 5 cycles
+    nop         side 0 [3]  ; jack HIGH for 4 cycles
+    in pins, 1  side 0      ; sample deep into the high phase
