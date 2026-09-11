@@ -1,0 +1,128 @@
+draft: false
+Name: BuzzyBee
+short-description: Hardware-tested Buzzrito saw and sub swarm with virtual XY motion and note-memory chords.
+summary: >-
+  A Workshop Computer adaptation of the Buddies Buzzrito stereo swarm oscillator.
+  BuzzyBee combines a virtual XY pad, recordable motion, original-style comb,
+  glide, BOC, wobble, pink noise, calibrated pitch CV, and musical note-memory
+  chord modes.
+Language: C++ (Pico SDK / ComputerCard)
+Creator: Adrian Vos
+Version: "1.0.0"
+Status: Beta - hardware-tested
+License: MIT
+date-created: 2026-09-09
+date-updated: 2026-09-11
+repository: https://github.com/soveda/workshop-buddies
+tags:
+  - synthesizer
+  - oscillator
+  - drone
+  - stereo
+  - cv
+  - webusb
+uf2:
+  - path: uf2/BuzzyBee-1.0.0.uf2
+    name: BuzzyBee 1.0.0
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Pitch CV
+      type: cv
+      description: Calibrated 1 V/oct pitch input added to Main tune.
+    - id: CVIn1
+      name: X CV
+      type: cv
+      description: Modulates virtual-pad X and overrides saved X motion while patched.
+    - id: CVIn2
+      name: Y CV
+      type: cv
+      description: Modulates virtual-pad Y and overrides saved Y motion while patched.
+    - id: PulseIn1
+      name: Gate In
+      type: pulse
+      description: Gates the oscillator; leave unpatched for drone operation.
+    - id: PulseIn2
+      name: Live XY
+      type: pulse
+      description: A rising edge stops motion playback and restores live X/Y.
+  outputs:
+    - id: AudioOut1
+      name: Stereo Left
+      type: audio
+      description: Left saw/sub swarm output.
+    - id: AudioOut2
+      name: Stereo Right
+      type: audio
+      description: Right saw/sub swarm output.
+    - id: CVOut1
+      name: Pitch Monitor
+      type: cv
+      description: Approximate pitch control-voltage monitor.
+    - id: CVOut2
+      name: Unused
+      type: cv
+      description: Unused in this firmware.
+    - id: PulseOut1
+      name: Gate Monitor
+      type: pulse
+      description: High while the audio gate is open.
+    - id: PulseOut2
+      name: Unused
+      type: pulse
+      description: Unused in this firmware.
+controls:
+  switch:
+    up:
+      name: Record XY Motion
+      description: After a normal boot, latch Up to record X/Y; return to Middle to play the new path.
+    middle:
+      name: Performance / Motion Playback
+      description: Plays the saved path or provides live X/Y when no path is playing.
+    down:
+      name: Gate Override
+      description: Hold to force the gate open with Pulse In 1 patched, or mute the unpatched drone.
+    tap:
+      name: Chord Mode
+      description: Briefly press and release Down to cycle the 1-4 note-memory chord modes.
+  knobs:
+    - main:
+        name: Tune
+        description: Overall pitch; Audio/CV In 1 adds calibrated 1 V/oct pitch.
+      x:
+        name: Virtual Pad X
+        description: Horizontal virtual-pad position and recorded-motion axis.
+      y:
+        name: Virtual Pad Y
+        description: Vertical virtual-pad position and recorded-motion axis.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Virtual Pad Top Left
+          description: Top-left virtual-pad weight.
+        - id: LED1
+          name: Virtual Pad Top Right
+          description: Top-right virtual-pad weight.
+        - id: LED2
+          name: Virtual Pad Bottom Left
+          description: Bottom-left virtual-pad weight.
+        - id: LED3
+          name: Virtual Pad Bottom Right
+          description: Bottom-right virtual-pad weight.
+        - id: LED4
+          name: Gate Level
+          description: Audio gate level.
+        - id: LED5
+          name: Chord Mode / Record
+          description: Chord-mode brightness, or full brightness while recording.
+host:
+  notes: >-
+    Booting or resetting with the latched switch Up enters muted WebUSB editor
+    mode for the [Buzzrito manual and web editor](https://plinkysynth.com/docs/buzzrito-manual/).
+    Save edited presets by moving the
+    switch Down and holding for one second; power-cycle with the switch Middle
+    for normal performance. Motion is held in RAM and clears on power cycling.
+contact:
+  social:
+    github: https://github.com/soveda
