@@ -3,8 +3,8 @@
 ## Plinky Synth Buddies / Buzzrito
 
 This card adapts MIT-licensed software from the
-[Plinky Synth Buddies public repository](https://github.com/plinkysynth/buddies_public),
-with particular reference to `sw/src/buzzrito/buzzrito.c` and
+[public Plinky Synth Buddies Buzzrito source](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/buzzrito),
+with particular reference to `buzzrito.c` and
 `sw/src/buzzrito/buzzrito_dsp.h`.
 
 Copied or adapted material includes Buzzrito preset structures and default

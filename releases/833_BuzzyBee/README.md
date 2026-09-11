@@ -69,7 +69,7 @@ cmake --build /private/tmp/buzzybee -j2
 BuzzyBee is released under the [MIT License](LICENSE).
 
 It adapts MIT-licensed software from the
-[Plinky Synth Buddies public repository](https://github.com/plinkysynth/buddies_public),
+[public Buddies Buzzrito source](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/buzzrito),
 including Buzzrito preset definitions and XY interpolation, pink-noise and
 interpolation-noise algorithms, wavetable support, and the original swarm,
 comb, wobble, and chord-note behavior. The Workshop per-sample renderer,

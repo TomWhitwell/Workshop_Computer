@@ -13,7 +13,7 @@ Status: Beta - hardware-tested
 License: MIT
 date-created: 2026-09-09
 date-updated: 2026-09-11
-repository: https://github.com/soveda/workshop-buddies
+repository: https://github.com/plinkysynth/buddies_public/tree/main/sw/src/buzzrito
 tags:
   - synthesizer
   - oscillator
