@@ -48,8 +48,8 @@ unused.
 ## WebUSB Editor
 
 Boot or reset with the latched switch Up to enter the muted `Workshop Buzzrito
-WebUSB` editor mode. The original Buzzrito web app can read and edit the seven
-presets. To save edited presets, move the switch Down and hold it for one
+WebUSB` editor mode. The [Buzzrito manual and web editor](https://plinkysynth.com/docs/buzzrito-manual/)
+can read and edit the seven presets. To save edited presets, move the switch Down and hold it for one
 second; the card writes a CRC-checked record to flash and reboots. Power-cycle
 with the switch Middle for normal performance.
 
@@ -66,7 +66,8 @@ cmake --build /private/tmp/buzzybee -j2
 
 ## Attribution And Licence
 
-BuzzyBee is released under the [MIT License](LICENSE).
+BuzzyBee is released under the
+[MIT License](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/833_BuzzyBee/LICENSE).
 
 It adapts MIT-licensed software from the
 [public Buddies Buzzrito source](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/buzzrito),
@@ -77,6 +78,7 @@ knob/CV mapping, motion controls, WebUSB boot separation, pitch-CV conversion,
 and release integration were written for BuzzyBee.
 
 No upstream logos, front-panel artwork, documentation graphics, or hardware
-design are included. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for
-the full provenance record. `ComputerCard.h` is the MIT-licensed ComputerCard
+design are included. See the
+[third-party notices](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/833_BuzzyBee/THIRD_PARTY_NOTICES.md)
+for the full provenance record. `ComputerCard.h` is the MIT-licensed ComputerCard
 framework by Chris Johnson, distributed by Music Thing Modular.

@@ -13,7 +13,7 @@ Status: Beta - hardware-tested
 License: MIT
 date-created: 2026-09-09
 date-updated: 2026-09-11
-repository: https://github.com/plinkysynth/buddies_public/tree/main/sw/src/buzzrito
+repository: https://github.com/soveda/workshop-buddies
 tags:
   - synthesizer
   - oscillator
@@ -119,7 +119,8 @@ controls:
 host:
   notes: >-
     Booting or resetting with the latched switch Up enters muted WebUSB editor
-    mode for the original Buzzrito web app. Save edited presets by moving the
+    mode for the [Buzzrito manual and web editor](https://plinkysynth.com/docs/buzzrito-manual/).
+    Save edited presets by moving the
     switch Down and holding for one second; power-cycle with the switch Middle
     for normal performance. Motion is held in RAM and clears on power cycling.
 contact:
