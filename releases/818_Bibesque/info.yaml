@@ -1,0 +1,76 @@
+draft: false
+Name: Bibesque
+short-description: Bib-inspired stereo dub delay, reverb and tape processor
+summary: >
+  A hardware-tested Workshop Computer adaptation of Plinky Synth's Bib:
+  shaped drive and wavefold, clock-quantised stereo tape delay, rhythmic
+  multi-tap repeats, modulated reverb, shimmer and dub freeze.
+Language: C++ (Pico SDK / ComputerCard v0.3.0)
+Creator: Adrian Vos
+Version: "1.0.0-rc1"
+Status: "Release Candidate — hardware tested"
+License: MIT
+date-created: 2026-09-12
+date-updated: 2026-09-12
+repository: https://github.com/soveda/workshop-buddies
+tags: [effect, delay, reverb, stereo, tape, clocked]
+uf2:
+  - path: uf2/Bibesque_1.0.0_rc1.uf2
+    name: Bibesque 1.0.0 release candidate
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio In 1
+      description: Primary audio input; normalised to both channels when Audio In 2 is unpatched.
+      type: audio
+    - id: AudioIn2
+      name: Audio In 2
+      description: Right audio input for stereo processing.
+      type: audio
+    - id: CVIn1
+      name: X Mod
+      description: Bipolar modulation of active-page X after pot pickup.
+      type: cv
+    - id: CVIn2
+      name: Y Mod
+      description: Bipolar modulation of active-page Y after pot pickup.
+      type: cv
+    - id: PulseIn1
+      name: Delay Clock
+      description: External clock for Bib-style delay-time quantisation.
+      type: pulse
+  outputs:
+    - id: AudioOut1
+      name: Left Out
+      description: Left processed audio output.
+      type: audio
+    - id: AudioOut2
+      name: Right Out
+      description: Right processed audio output.
+      type: audio
+controls:
+  switch:
+    up: { name: Detail Page, description: Delay tape transport/wobble or persistent reverb shimmer. }
+    middle: { name: Main Controls, description: Normal page controls. }
+    down: { name: Action, description: Tap/toggle in Drive and Delay; hold for Mix freeze. }
+  knobs:
+    - main: { name: Page, description: "Selects Drive, Delay, Reverb or Mix." }
+      x: { name: X, description: Active-page X parameter; modulated by CV In 1. }
+      y: { name: Y, description: Active-page Y parameter; modulated by CV In 2. }
+  leds:
+    - display: list
+      items:
+        - { id: LED0, name: Page Bit 0, description: Binary Main-page indicator. }
+        - { id: LED1, name: Page Bit 1, description: Binary Main-page indicator. }
+        - { id: LED2, name: X Value, description: Effective active-page X value. }
+        - { id: LED3, name: Y Value, description: Effective active-page Y value. }
+        - { id: LED4, name: Page State A, description: "Page-specific state such as wavefold, clock lock, shimmer or freeze." }
+        - { id: LED5, name: Page State B, description: "Page-specific state such as ping-pong, tap count, wet mix or limiter reduction." }
+host:
+  notes: >
+    Built for the Music Thing Workshop Computer. Based on MIT-licensed work
+    from https://github.com/plinkysynth/buddies_public and ComputerCard from
+    https://github.com/TomWhitwell/Workshop_Computer/tree/main/Demonstrations%2BHelloWorlds/PicoSDK/ComputerCard.
+contact:
+  social:
+    github: https://github.com/soveda
