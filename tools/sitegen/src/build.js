@@ -523,6 +523,7 @@ const PREVIEW_LIB_FILES = [
   'model/card.js',
   'render/panelPositions.js',
   'render/icons.js',
+  'render/githubIssue.js',
   'render/cardPage.js',
 ];
 

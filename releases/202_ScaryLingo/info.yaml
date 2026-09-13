@@ -2,7 +2,7 @@ draft: true
 Name: ScaryLingo
 short-description: Hardware-tested ring modulator with internal or external carrier, LFO, and patchable control outputs.
 summary: |
-  ScaryLingo is a ring modulator for the Workshop Computer. Audio In 1 is the programme input; Audio In 2 replaces the internal carrier when patched. Middle provides carrier frequency, dry/wet mix, and drive. Up provides a 0.1-25 Hz LFO with calibrated three-octave pitch depth and a sine-to-square waveform morph. A Down tap selects the internal carrier type.
+  ScaryLingo is a ring modulator for the Workshop Computer. Audio In 1 is the programme input; Audio In 2 replaces the internal carrier when patched. Middle provides carrier frequency, dry/wet mix, and drive. Up provides a 0.1-25 Hz LFO with calibrated three-octave pitch depth and a sine-to-square waveform morph. Down selects the internal carrier type.
 Language: C++ (Pico SDK)
 Creator: Adrian Vos
 Version: "1.0.0-rc.1"
@@ -78,9 +78,9 @@ controls:
     up:
       name: LFO
       description: Main controls LFO rate, X LFO pitch depth, and Y LFO waveform. Returning to Middle removes LFO pitch modulation from the audio path.
-    tap:
+    down:
       name: Carrier Type
-      description: Down tap cycles Extermin8, Cyber, and Blend internal carrier types. The mode names suggest classic British TV monsters.
+      description: Press Down to cycle Extermin8, Cyber, and Blend internal carrier types. The mode names suggest classic British TV monsters.
   knobs:
     - main:
         name: Carrier Frequency

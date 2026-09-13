@@ -49,9 +49,9 @@ All knob pages use soft pickup: when you enter Middle or Up, a knob begins chang
 
 LFO pitch modulation is active while the switch is Up. Returning to Middle restores the stable performance sound. The LFO remains available at CV Out 1 and Pulse Out 1.
 
-### Down Tap: Carrier Type
+### Down: Carrier Type
 
-Tap the spring-loaded switch down to select the internal carrier waveform:
+Press the spring-loaded switch down to select the internal carrier waveform:
 
 | LED 6 flash | Type | Carrier waveform |
 | --- | --- | --- |
