@@ -1,4 +1,4 @@
-draft: true
+draft: false
 Name: ScaryLingo
 short-description: Hardware-tested ring modulator with internal or external carrier, LFO, and patchable control outputs.
 summary: |
