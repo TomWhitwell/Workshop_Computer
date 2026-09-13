@@ -403,10 +403,31 @@ of a hunt by ear.
 `CV OFFSET` then moves the whole range without changing its span, and `BASE NOTE` sets what
 0 V means (C2 by default).
 
-> **The shipped default of 3312 is a bench measurement from one module, not a specification.**
-> It replaced a value calculated on the assumption that the inputs span ±6 V over the full 4096
-> counts — which turned out to want about 2.2 V per octave in practice, because the ADC keeps
-> substantial over-range headroom either side of the nominal input range. Expect to trim it.
+### The live tuner
+
+Below the list, two lines update as you patch:
+
+```
+IN  C3 +07c   RAW  2048
+OUT C3        CAL
+```
+
+`IN` reads CV In 2's raw voltage straight through the *current* calibration — note name plus
+cents, at unity depth and ignoring any scale or key — so it moves the instant you nudge `CV
+SCALE` or `CV OFFSET`, without needing a note to actually sound. `OUT` is the note really
+playing on channel 1 right now, after the modulation matrix and any scale quantising.
+
+Patch a running sequence into CV In 2 and watch both at once: trim until `IN` reads dead on
+(0c) at each step, and check `OUT` matches what you expect — if it does not, a scale or key is
+quantising it there on purpose, which is worth knowing before you conclude the calibration is
+wrong. `RAW` is unchanged from before and is what the two-point trim above still reads.
+
+> **The shipped default of 3372 is a bench measurement, not a specification — expect to trim it
+> on yours.** It is close to (but not identical to) an earlier reading of 3312 from a first
+> module, and well under an intermediate reading of 7422 that a second bench pass produced —
+> roughly double, which is exactly what a one-octave-vs-two-octave measurement slip produces. If
+> your own trim comes out looking like double or half of a number you expected, that ratio is the
+> tell; re-measure the two-point trim below rather than trust it.
 
 **Why the constant is stored so finely.** Pitch error accumulates with distance from the
 calibration point, so a coarse constant is not a small error at the far end of the keyboard. In
@@ -423,15 +444,23 @@ this is a number you can dial rather than a firmware rebuild.
 
 `TUNING` (master, in cents), `KEY`, `SCALE`, `OCTAVE`, and the user-scale editor.
 
-Nineteen scales: CHROMATIC, MAJOR, DORIAN, PHRYGIAN, LYDIAN, MIXOLYD, MINOR, LOCRIAN, HARM MIN,
-PENTA MAJ, PENTA MIN, BLUES, HIRAJOSHI, IN SEN, WHOLE, then USER 1–4.
+Twenty scales: FREE, then CHROMATIC, MAJOR, DORIAN, PHRYGIAN, LYDIAN, MIXOLYD, MINOR, LOCRIAN,
+HARM MIN, PENTA MAJ, PENTA MIN, BLUES, HIRAJOSHI, IN SEN, WHOLE, then USER 1–4.
 
-**CHROMATIC means the quantiser is off.** Any other scale snaps incoming pitch to the nearest
-degree — and because the quantiser snaps the *target*, portamento still glides into it rather
-than being stepped away.
+**FREE is first, and the factory default.** It quantises nothing at all: pitch passes through
+exactly as the calibrated CV reads it, fractional cents and all, all the way to the PSG's period
+register — the setting for a CV source that should glide continuously (an envelope, an LFO, a
+slide generator) rather than being pulled onto a grid of any kind. CV Out 2 keeps reporting the
+nearest whole semitone regardless of this setting, since it has no way to carry a fraction of
+one.
+
+**CHROMATIC still quantises — to the nearest semitone, with all twelve degrees valid** — and any
+other built-in or user scale narrows that to its own degrees. Because the quantiser snaps the
+*target*, portamento still glides into it rather than being stepped away.
 
 To edit a user scale, select USER 1–4 and move to `SCALE NOTES`: the twelve semitones are drawn
-as a row of toggles.
+as a row of toggles. CHROMATIC shows `BUILT IN` there and FREE shows `N/A` — neither has degrees
+to edit.
 
 ---
 

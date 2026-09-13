@@ -166,6 +166,18 @@ void gba_link_core1(const uint8_t *payload, uint32_t payload_size)
                 // in a rotation. A momentary switch used to play notes is unusable otherwise.
                 lastSwitch = sw;
                 word = gba_control_pack(GBA_OP_SWITCH, sw);
+            } else if ((seq & 0x3Fu) == 0x20u) {
+                // Re-announced every ~64 words (~64 ms at the 1 kHz poll rate) even though it has
+                // not moved. SWITCH is a CONTROL word, and CONTROL carries none of STREAM's check
+                // bits (see gba_stream_check in gba_proto.h) - it is entirely unprotected, so a
+                // bit flipped by noise while the link cable is disturbed (moving the module, a
+                // marginal jack connection) can silently decode as a valid opcode. Because this
+                // word used to be sent ONLY on a real change, nothing ever corrected a phantom one
+                // until the switch made an actual move - a stuck note until the next press. HELLO
+                // and SLOTS already re-announce themselves for exactly this reason (see below);
+                // SWITCH did not, and a stuck trigger source is far more noticeable than either of
+                // those. This closes the gap: a phantom SW self-heals within a poll or two.
+                word = gba_control_pack(GBA_OP_SWITCH, sw);
             } else if ((seq & 0x7u) == 0x7u) {
                 // Knobs round-robin, one word in eight. They are modulation sources now rather
                 // than a display curiosity, so about 40 Hz each instead of the previous 4 Hz.

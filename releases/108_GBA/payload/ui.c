@@ -418,7 +418,11 @@ static void field_value(int page, int row, char *buf)
         case 2: scopy(buf, 0, scale_name[p->scale % SCALE_COUNT]); return;
         case 3: sdec32(buf, p->octave, 3); return;
         default:
-            if (p->scale < SCALE_BUILTIN) { scopy(buf, 0, "BUILT IN"); return; }
+            // FREE is index 0, checked first: it would otherwise also pass "< SCALE_BUILTIN"
+            // below, since the built-in scales now start at 1, not 0 - see SCALE_FREE's comment
+            // in synth.h.
+            if (p->scale == SCALE_FREE)  { scopy(buf, 0, "N/A"); return; }
+            if (p->scale <= SCALE_BUILTIN) { scopy(buf, 0, "BUILT IN"); return; }
             dec_at(buf, scopy(buf, 0, "DEGREE "), (uint32_t)g_degCol);
             return;
         }
@@ -968,11 +972,13 @@ static int g_scaleShape = -1;
 static void draw_user_scale(int x, int y)
 {
     Patch *p = &g_patch;
-    int isUser = (p->scale >= SCALE_BUILTIN);
+    // FREE is index 0, before the built-in scales, not past the last USER slot any more - see
+    // SCALE_FREE's comment in synth.h. It already fails ">", so only ">" (not ">=") is needed.
+    int isUser = (p->scale > SCALE_BUILTIN);
 
     // -2 is the "no grid" state. Returning early on a built-in scale merely stopped DRAWING the
     // grid, which left the previous USER scale's boxes sitting on screen after you stepped past.
-    int shape = isUser ? ((p->userScale[(p->scale - SCALE_BUILTIN) & 3] << 8)
+    int shape = isUser ? ((p->userScale[(p->scale - SCALE_BUILTIN - 1) & 3] << 8)
                           | (g_degCol << 2) | (p->scale & 3))
                        : -2;
     if (shape == g_scaleShape) return;
@@ -981,7 +987,7 @@ static void draw_user_scale(int x, int y)
     rect(x - 2, y - 2, 196, 22, COL_BG);
     if (!isUser) return;
 
-    uint16_t m = p->userScale[(p->scale - SCALE_BUILTIN) & 3];
+    uint16_t m = p->userScale[(p->scale - SCALE_BUILTIN - 1) & 3];
     for (int d = 0; d < 12; d++) {
         int bx = x + d * 16;
         rect(bx, y, 14, 11, (d == g_degCol) ? COL_SEL : COL_DIM);
@@ -1061,26 +1067,50 @@ static void edit_extras(void)
     case PAGE_SET: draw_user_scale(14, 92); break;
 
     case PAGE_CAL: {
-        // Only redrawn when the RENDERED text changes, and the raw count is masked to the top
-        // bits so ADC dither alone cannot repaint it every frame.
-        static char lastLine[48] = { 1, 0 };
-        int at = scopy(buf, 0, "READS ");
-        char n[8];
-        note_text(n, g_note);
-        at = scopy(buf, at, n);
-        at = scopy(buf, at, "   RAW ");
-        char r[8];
-        dec32(r, (uint32_t)(g_in[LINK_IN_CV2] & 0xFF0u), 5);
-        at = scopy(buf, at, r);
-        scopy(buf, at, (g_hostCaps & GBA_CAP_CVOUT_CAL) ? "  CAL" : "  UNCAL");
+        // A live two-line tuner below the list, each redrawn only when its rendered text
+        // changes (the raw count is masked to the top bits so ADC dither alone cannot repaint
+        // it every frame):
+        //   IN  - what CV In 2's raw voltage means through the CURRENT calibration alone, at
+        //         unity depth and ignoring any scale/key quantisation. This is the reading to
+        //         trim CV SCALE/OFFSET against, whatever CV In 2 happens to be mapped to.
+        //   OUT - the note actually sounding on channel 0 right now, after the modulation
+        //         matrix and any scale quantisation - i.e. what the calibrated CV Out 2 is
+        //         really sending. Patch a sequence into CV In 2 and the two lines together show
+        //         both "is the calibration right" and "is what comes out what I expect".
+        static char lastIn[48]  = { 1, 0 };
+        static char lastOut[48] = { 1, 0 };
+        char tmp[8];
+
+        int inNote, inCents;
+        synth_cv2_tuner(&inNote, &inCents);
+
+        int at = scopy(buf, 0, "IN  ");
+        note_text(tmp, inNote);
+        at = scopy(buf, at, tmp);
+        sdec32(tmp, inCents, 4);
+        at = scopy(buf, at, tmp);
+        at = scopy(buf, at, "c   RAW ");
+        dec32(tmp, (uint32_t)(g_in[LINK_IN_CV2] & 0xFF0u), 5);
+        scopy(buf, at, tmp);
 
         // y=114, not 104: the list is eight rows now (CV 2 IN was added for the 1V/oct trim)
         // and ends at y=110, so the old position sat on top of the LINK row - and the clear
         // rect took a bite out of it every time the reading changed.
-        if (!streq(buf, lastLine)) {
-            scopy(lastLine, 0, buf);
+        if (!streq(buf, lastIn)) {
+            scopy(lastIn, 0, buf);
             srect(10, 114, SCREEN_W - 20, 10, COL_BG);
             text(14, 114, buf, COL_MID, 1);
+        }
+
+        at = scopy(buf, 0, "OUT ");
+        note_text(tmp, g_note);
+        at = scopy(buf, at, tmp);
+        scopy(buf, at, (g_hostCaps & GBA_CAP_CVOUT_CAL) ? "        CAL" : "        UNCAL");
+
+        if (!streq(buf, lastOut)) {
+            scopy(lastOut, 0, buf);
+            srect(10, 125, SCREEN_W - 20, 10, COL_BG);
+            text(14, 125, buf, COL_MID, 1);
         }
 
         break;
@@ -1240,8 +1270,9 @@ void ui_frame(void)
                 if (steps & KEY_LEFT)  o->step[i] = (int8_t)clampi(o->step[i] - 12, -24, 24);
             }
 
-        } else if (g_page == PAGE_SET && g_row == 4 && g_patch.scale >= SCALE_BUILTIN) {
-            uint16_t *m = &g_patch.userScale[(g_patch.scale - SCALE_BUILTIN) & 3];
+        } else if (g_page == PAGE_SET && g_row == 4 && g_patch.scale > SCALE_BUILTIN) {
+            // FREE (index 0) already fails this - see SCALE_FREE's comment in synth.h.
+            uint16_t *m = &g_patch.userScale[(g_patch.scale - SCALE_BUILTIN - 1) & 3];
             if (!adj) {
                 if (steps & KEY_RIGHT) g_degCol = (uint8_t)((g_degCol + 1 >= 12) ? 0 : g_degCol + 1);
                 if (steps & KEY_LEFT)  g_degCol = (uint8_t)((g_degCol == 0) ? 11 : g_degCol - 1);

@@ -42,6 +42,7 @@ const char *pan_name[4] = { "OFF", "L", "R", "BOTH" };
 const char *key_name[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 
 const char *scale_name[SCALE_COUNT] = {
+    "FREE",
     "CHROMATIC", "MAJOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYD", "MINOR", "LOCRIAN",
     "HARM MIN", "PENTA MAJ", "PENTA MIN", "BLUES", "HIRAJOSHI", "IN SEN", "WHOLE",
     "USER 1", "USER 2", "USER 3", "USER 4"
@@ -191,6 +192,17 @@ static int32_t clampi(int32_t v, int32_t lo, int32_t hi)
     return v < lo ? lo : (v > hi ? hi : v);
 }
 
+void synth_cv2_tuner(int *note, int *cents)
+{
+    refresh_cv_recip();     // pick up a CV SCALE edit immediately, not next tick
+    int32_t raw     = (int32_t)g_in[SRC_CV2] - 2048;
+    int32_t semiQ8  = ((raw - g_patch.cvOffset) * g_cvRecip) >> 12;
+    int32_t pitchQ8 = ((int32_t)g_patch.baseNote << 8) + semiQ8;
+    int32_t n       = clampi((pitchQ8 + 128) >> 8, 0, 127);
+    *note  = (int)n;
+    *cents = (int)(((pitchQ8 - (n << 8)) * 100) >> 8);
+}
+
 int synth_patch_bytes(void) { return (int)sizeof(Patch); }
 
 // ACCEPT OLDER VERSIONS THAT CAN BE BROUGHT FORWARD, not just the current one. See
@@ -205,6 +217,11 @@ int synth_patch_valid(const Patch *p)
 // migrated from the bytes alone, and synth_patch_valid rejects those instead.
 //
 // v2 -> v3: cvScale went from counts per semitone in 1/16ths to 1/256ths, for the resolution.
+//
+// v3 -> v4: FREE moved from one past USER 4 (where it did not exist before this version) to
+// index 0, taking over the slot CHROMATIC used to occupy - everything from CHROMATIC through
+// USER 4 shifts up by one to make room. Every patch older than v4 predates FREE entirely, so
+// this is an unconditional +1, clamped for safety though it can never actually reach the top.
 void synth_patch_migrate(Patch *p)
 {
     if (p->version == 2) {
@@ -213,6 +230,9 @@ void synth_patch_migrate(Patch *p)
         // would load quietly mistuned instead of loudly broken.
         int32_t q8 = (int32_t)p->cvScale * 16;
         p->cvScale = (int16_t)clampi(q8, 1024, 32767);
+    }
+    if (p->version <= 3) {
+        p->scale = (uint8_t)clampi((int32_t)p->scale + 1, 0, SCALE_COUNT - 1);
     }
     p->version = PATCH_VERSION;
 }
@@ -285,28 +305,32 @@ void synth_default_patch(void)
     p->baseNote   = 36;         // 0 V = C2
     p->tuneCents  = 0;
     p->key        = 0;
-    p->scale      = 0;          // chromatic: quantiser off
+    p->scale      = SCALE_FREE; // no quantiser: the factory patch glides straight off the CV
     p->drumMode   = 0;
     p->drumThresh = 6;
 
-    // COUNTS PER SEMITONE, Q8. MEASURED, NOT CALCULATED.
+    // COUNTS PER SEMITONE, Q8. MEASURED, NOT CALCULATED - AND IT VARIES BY MODULE.
     //
-    // 3312 is 207 in the old Q4 unit, which is the bench trim: an octave measured about 2.2 V
-    // under the original 455, and 455 / 2.2 is 207. That 455 came from taking the CV inputs to
-    // span +-6 V over the full 4096 counts - 341 counts/V, 28.44 per semitone - and the hardware
-    // says otherwise, so the ADC evidently keeps a good deal of over-range headroom either side
-    // of the nominal input range.
+    // 3372 is a bench trim by ear against a two-octave interval, close to (but not identical to)
+    // an earlier trim of 3312 from a first module and well under an intermediate reading of 7422
+    // that a second bench pass produced - a reminder that TRIM THIS ON EVERY UNIT, do not assume
+    // any of these numbers travels, and re-trim rather than reuse if the reading looks off by
+    // roughly double or half: that ratio is exactly what a one-octave-vs-two-octave measurement
+    // mistake produces, and it is the easiest way to get a bench trim quietly wrong.
     //
     // Q8 RATHER THAN Q4 BECAUSE PITCH ERROR ACCUMULATES WITH DISTANCE FROM THE CALIBRATION
     // POINT. One Q4 step is 0.48%, which is 17 cents three octaves up - so 206 and 207 straddled
     // correct with nothing between them. A Q8 step is 1.1 cents at the same distance.
     //
-    // It is still only as good as one bench reading, which is why CV SCALE is trimmable and why
-    // the CAL page shows the live input count: two readings a known interval apart give the
-    // exact figure as 256 * (high - low) / semitones. There is no factory calibration for the CV
-    // INPUTS, so this can never be more than a good starting point.
-    p->cvScale  = 3312;
-    p->cvOffset = 0;
+    // -34 counts of CV OFFSET is this same module's DC trim (about -100 mV) - small and
+    // unremarkable, the kind of offset ordinary component tolerance accounts for on its own.
+    //
+    // Both are still only as good as one bench reading, which is why CV SCALE and CV OFFSET stay
+    // trimmable and the CAL page carries a live tuner: two readings a known interval apart give
+    // CV SCALE directly as 256 * (high - low) / semitones. There is no factory calibration for
+    // the CV INPUTS, so neither number can ever be more than a good starting point.
+    p->cvScale  = 3372;
+    p->cvOffset = -34;
 
     // ---- the modulation matrix -------------------------------------------------------------
     // Unused sources are left unassigned on purpose: nothing should move that you did not patch.
@@ -417,20 +441,26 @@ static uint16_t period_for(int32_t pitchQ8, int semitoneShift)
     return (uint16_t)(a + (((b - a) * frac) >> 8));
 }
 
+// idx is never SCALE_FREE here - both call sites below skip quantise() entirely for it, since
+// it would otherwise land on SCALE_MASK[-1]. Everything else shifts down by one to reach the
+// SCALE_MASK/userScale arrays; see SCALE_FREE's comment in synth.h.
 static uint16_t scale_mask_for(int idx)
 {
-    if (idx < SCALE_BUILTIN) return SCALE_MASK[idx];
-    uint16_t m = g_patch.userScale[(idx - SCALE_BUILTIN) & 3];
+    if (idx <= SCALE_BUILTIN) return SCALE_MASK[idx - 1];
+    uint16_t m = g_patch.userScale[(idx - 1 - SCALE_BUILTIN) & 3];
     return m ? (uint16_t)(m & 0x0FFF) : 0x0FFF;   // an empty user scale would silence everything
 }
 
 // Snap a note to the NEAREST degree of the current key and scale, not the one below it. Rounding
 // down makes a slow upward CV sweep hang on each degree until it is a full step past — the note
 // you hear lags the voltage you can see. Nearest splits the difference and tracks properly.
+//
+// CHROMATIC (scaleIdx 1) has no special case here any more: scale_mask_for(1) is SCALE_MASK[0],
+// the "every semitone valid" mask, so the loop below finds a match at d=0 and returns the input
+// note unchanged - correctly, since rounding to the nearest of twelve-out-of-twelve degrees is
+// just rounding to the nearest semitone, which the caller already did before calling in.
 static int32_t quantise(int32_t note, int scaleIdx, int key)
 {
-    if (scaleIdx == 0) return note;
-
     uint16_t mask = scale_mask_for(scaleIdx);
     int32_t  rel  = note - key;
     int32_t  oct  = rel / 12;                  // constant divisor
@@ -637,7 +667,11 @@ static void synth_tick(void)
                  + (((int32_t)p->tuneCents * 256) / 100);    // master tuning, constant divisor
     g_pitchQ8 = clampi(base + modPitch[0], (int32_t)NOTE_MIN << 8, (int32_t)NOTE_MAX << 8);
     uint8_t note = (uint8_t)clampi((g_pitchQ8 + 128) >> 8, 0, 127);
-    if (scaleIdx != 0) note = (uint8_t)clampi(quantise(note, scaleIdx, keyIdx), 0, 127);
+    // FREE never reaches quantise(): scale_mask_for() would land on SCALE_MASK[-1] (see
+    // SCALE_FREE's comment in synth.h). CHROMATIC still goes through it - the mask is 0xFFF, so
+    // it is a no-op that returns the already-rounded note unchanged.
+    if (scaleIdx != SCALE_FREE)
+        note = (uint8_t)clampi(quantise(note, scaleIdx, keyIdx), 0, 127);
     g_note = note;
 
     // ---- trigger sources ------------------------------------------------------------------------
@@ -790,11 +824,23 @@ static void synth_tick(void)
 
     // ---- per-voice pitch and portamento -----------------------------------------------------------
     // The quantiser snaps the TARGET; portamento then slides to it, so a scale still glides.
+    //
+    // CHROMATIC used to be scaleIdx 0 and skip this entirely, which was wrong: it left every
+    // note a continuous, unrounded Q8 value all the way to period_for(), so "chromatic" actually
+    // meant no quantisation at all rather than quantising to the (trivial, all-degrees) chromatic
+    // scale. It now always rounds to the nearest semitone here, same as it already did for
+    // g_note - quantise(note, scaleIdx, key) is a no-op for CHROMATIC that returns the rounded
+    // note unchanged, since the chromatic mask has every bit set.
+    //
+    // FREE (scaleIdx 0, and the factory default) is the new home for the old behaviour: it skips
+    // this rounding on purpose, and it never reaches quantise() at all, since that would land on
+    // SCALE_MASK[-1] (see SCALE_FREE's comment in synth.h). This is what lets a continuously-
+    // varying CV in glide the PSG's pitch smoothly instead of stepping semitone to semitone.
     int detune = (int)clampi((int32_t)p->detune + (modDetune >> 2), -128, 127);
 
     for (int c = 0; c < 4; c++) {
         int32_t t = base + modPitch[c];
-        if (scaleIdx != 0) t = quantise((t + 128) >> 8, scaleIdx, keyIdx) << 8;
+        if (scaleIdx != SCALE_FREE) t = quantise((t + 128) >> 8, scaleIdx, keyIdx) << 8;
         t += (int32_t)p->ch[c].semi << 8;
         if (c == 1) t += (detune << 4);
         t = clampi(t, (int32_t)NOTE_MIN << 8, (int32_t)NOTE_MAX << 8);
