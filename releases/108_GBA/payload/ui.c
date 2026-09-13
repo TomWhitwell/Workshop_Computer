@@ -517,7 +517,10 @@ static void field_adjust(int page, int row, int delta)
 
 static void play_static(void)
 {
-    rect(0, 0, SCREEN_W, SCREEN_H, COL_BG);
+    // rect_clear(), not rect(): this fires once on every PLAY<->EDIT mode switch, and a plain
+    // full-screen rect() blocks gfx_idle() for the several milliseconds the fill takes - long
+    // enough to be heard as a hitch in whatever envelope or portamento is running at that moment.
+    rect_clear(0, 0, SCREEN_W, SCREEN_H, COL_BG);
     text_centre(4, "MTM WORKSHOP COMPUTER  //  GBA PSG VOICE", COL_TITLE, 1);
     rect(14, 16, SCREEN_W - 28, 1, COL_DIM);
 
@@ -609,7 +612,7 @@ static void arrow(int x, int y, int up, uint16_t c)
 
 static void edit_static(void)
 {
-    rect(0, 0, SCREEN_W, SCREEN_H, COL_BG);
+    rect_clear(0, 0, SCREEN_W, SCREEN_H, COL_BG);   // see play_static()'s note on rect_clear()
     draw_tabs();
     text(4, HINT_Y, "SEL+L/R PAGE", COL_DIM, 1);
     text(96, HINT_Y, (g_page == PAGE_TRIG) ? "A TOGGLES" : "A+PAD EDIT", COL_DIM, 1);
@@ -798,7 +801,7 @@ static void draw_chan_grid(void)
 
     if (!g_chanInit) {
         g_chanInit = 1;
-        rect(0, LIST_TOP - 2, SCREEN_W, 134 - LIST_TOP, COL_BG);
+        rect_clear(0, LIST_TOP - 2, SCREEN_W, 134 - LIST_TOP, COL_BG);   // see play_static()
         for (int c = 0; c < 4; c++) {
             ch_text(buf, c);
             text(CHAN_X0 + c * CHAN_W, LIST_TOP, buf, COL_DIM, 1);
@@ -845,7 +848,7 @@ static void draw_trig_grid(void)
 
     if (!g_trigInit) {
         g_trigInit = 1;
-        rect(0, LIST_TOP - 2, SCREEN_W, 126, COL_BG);
+        rect_clear(0, LIST_TOP - 2, SCREEN_W, 126, COL_BG);   // see play_static()
         text(14, LIST_TOP, "TRIGGERS", COL_DIM, 1);
         for (int t = 0; t < TRIG_COUNT; t++)
             text(x0 + t * cw + 8, LIST_TOP, trig_name[t], COL_DIM, 1);
@@ -910,7 +913,7 @@ static void edit_list(void)
         // LIST_MAX height was over-reaching: it erased the page legends that edit_static() had
         // just drawn below the list, so MAP came up with no column headings at all.
         int clearRows = (vis > cacheVis) ? vis : cacheVis;
-        rect(0, top - 2, SCREEN_W, clearRows * LIST_ROW + 4, COL_BG);
+        rect_clear(0, top - 2, SCREEN_W, clearRows * LIST_ROW + 4, COL_BG);   // see play_static()
         cacheVis = vis;
     }
 
@@ -1015,7 +1018,7 @@ static void draw_mem_page(void)
         g_memInit = 1;
         // Stops at 138, clear of the legend edit_static() draws at 140. Clearing to 146 took
         // the top half of it away every time the page was entered.
-        rect(0, LIST_TOP - 2, SCREEN_W, 138 - LIST_TOP, COL_BG);
+        rect_clear(0, LIST_TOP - 2, SCREEN_W, 138 - LIST_TOP, COL_BG);   // see play_static()
         text(14, LIST_TOP, "PATCH SLOTS", COL_DIM, 1);
         for (int i = 0; i < GBA_PATCH_SLOTS; i++) g_memCell[i] = 0xFF;
         g_memProg = -1;
@@ -1359,7 +1362,7 @@ void ui_frame(void)
         if (selecting) {
             if (!g_navBlank) {
                 g_navBlank = 1;
-                rect(0, 17, SCREEN_W, HINT_Y - 19, COL_BG);
+                rect_clear(0, 17, SCREEN_W, HINT_Y - 19, COL_BG);   // see play_static()
             }
             if (g_tabPage != g_page) { g_tabPage = g_page; draw_tabs(); }
         }

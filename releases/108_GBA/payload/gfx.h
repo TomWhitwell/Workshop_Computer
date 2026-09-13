@@ -50,6 +50,13 @@ void rect(int x, int y, int w, int h, uint16_t color);
 // error. Used by the envelope graph.
 void line(int x0, int y0, int x1, int y1, uint16_t color);
 void srect(int x, int y, int w, int h, uint16_t color);   // rect() + link_service()
+// Like rect(), but for the large body/screen clears a page or mode change does ONCE: services
+// the link and the synth's control tick every few rows rather than only after the whole fill,
+// so a ~150-row clear (a full-screen change_page, or a page's one-time list-area clear) cannot
+// stall a note's envelope or drop a link poll for the several milliseconds a plain rect() over
+// that many pixels takes. Ordinary small rects should keep using rect() - the per-band idle
+// call here is not free, and most on-screen rects are only a handful of rows tall anyway.
+void rect_clear(int x, int y, int w, int h, uint16_t color);
 void glyph(int x, int y, char ch, uint16_t color, int scale);
 void text(int x, int y, const char *s, uint16_t color, int scale);
 void text_centre(int y, const char *s, uint16_t color, int scale);
