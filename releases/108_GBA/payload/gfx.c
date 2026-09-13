@@ -51,6 +51,18 @@ void srect(int x, int y, int w, int h, uint16_t color)
     gfx_idle();
 }
 
+void rect_clear(int x, int y, int w, int h, uint16_t color)
+{
+    enum { BAND = 8 };   // 8 rows x 240 cols is a small, cheap fill; plenty of bands even for
+                         // a full 160-row screen (20 idle calls), rare enough to matter and
+                         // small enough that no one band is itself a noticeable stall.
+    for (int y0 = 0; y0 < h; y0 += BAND) {
+        int bh = (h - y0 < BAND) ? (h - y0) : BAND;
+        rect(x, y + y0, w, bh, color);
+        gfx_idle();
+    }
+}
+
 // Draw one glyph at `scale`. Column-major font: bit r of column c is the pixel at (c, r).
 void glyph(int x, int y, char ch, uint16_t color, int scale)
 {

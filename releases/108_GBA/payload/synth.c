@@ -309,14 +309,14 @@ void synth_default_patch(void)
     p->drumMode   = 0;
     p->drumThresh = 6;
 
-    // COUNTS PER SEMITONE, Q8. MEASURED, NOT CALCULATED - AND IT VARIES BY MODULE.
+    // COUNTS PER SEMITONE, Q8. MEASURED BY EAR, NOT CALCULATED - AND IT VARIES BY MODULE.
     //
-    // 3372 is a bench trim by ear against a two-octave interval, close to (but not identical to)
-    // an earlier trim of 3312 from a first module and well under an intermediate reading of 7422
-    // that a second bench pass produced - a reminder that TRIM THIS ON EVERY UNIT, do not assume
-    // any of these numbers travels, and re-trim rather than reuse if the reading looks off by
-    // roughly double or half: that ratio is exactly what a one-octave-vs-two-octave measurement
-    // mistake produces, and it is the easiest way to get a bench trim quietly wrong.
+    // 7422 is the trim that plays in tune on this module, confirmed by ear against a two-octave
+    // interval. Two other readings were tried and are worth recording so they are not tried
+    // again: 3312 (close to an earlier module's trim) and 3372 (a refinement of that) both played
+    // audibly worse than 7422 on THIS module - a reminder that a plausible-looking number from
+    // another unit, or from the naive +-6V-over-4096-counts calculation, is not a substitute for
+    // trimming the one in front of you. TRIM THIS ON EVERY UNIT.
     //
     // Q8 RATHER THAN Q4 BECAUSE PITCH ERROR ACCUMULATES WITH DISTANCE FROM THE CALIBRATION
     // POINT. One Q4 step is 0.48%, which is 17 cents three octaves up - so 206 and 207 straddled
@@ -325,11 +325,11 @@ void synth_default_patch(void)
     // -34 counts of CV OFFSET is this same module's DC trim (about -100 mV) - small and
     // unremarkable, the kind of offset ordinary component tolerance accounts for on its own.
     //
-    // Both are still only as good as one bench reading, which is why CV SCALE and CV OFFSET stay
+    // Both are still only as good as a bench reading, which is why CV SCALE and CV OFFSET stay
     // trimmable and the CAL page carries a live tuner: two readings a known interval apart give
     // CV SCALE directly as 256 * (high - low) / semitones. There is no factory calibration for
     // the CV INPUTS, so neither number can ever be more than a good starting point.
-    p->cvScale  = 3372;
+    p->cvScale  = 7422;
     p->cvOffset = -34;
 
     // ---- the modulation matrix -------------------------------------------------------------

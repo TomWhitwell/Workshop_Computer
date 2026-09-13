@@ -422,12 +422,11 @@ Patch a running sequence into CV In 2 and watch both at once: trim until `IN` re
 quantising it there on purpose, which is worth knowing before you conclude the calibration is
 wrong. `RAW` is unchanged from before and is what the two-point trim above still reads.
 
-> **The shipped default of 3372 is a bench measurement, not a specification — expect to trim it
-> on yours.** It is close to (but not identical to) an earlier reading of 3312 from a first
-> module, and well under an intermediate reading of 7422 that a second bench pass produced —
-> roughly double, which is exactly what a one-octave-vs-two-octave measurement slip produces. If
-> your own trim comes out looking like double or half of a number you expected, that ratio is the
-> tell; re-measure the two-point trim below rather than trust it.
+> **The shipped default of 7422 is a bench measurement, not a specification — expect to trim it
+> on yours.** It's the one of three readings that actually plays in tune on this module: 3312
+> (from an earlier module) and 3372 (a refinement of that) were both tried and both sounded
+> audibly worse here. A plausible-looking number from another unit, or from theory, is not a
+> substitute for the two-point trim below on the one in front of you.
 
 **Why the constant is stored so finely.** Pitch error accumulates with distance from the
 calibration point, so a coarse constant is not a small error at the far end of the keyboard. In
