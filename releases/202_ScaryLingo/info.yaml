@@ -1,0 +1,128 @@
+draft: true
+Name: ScaryLingo
+short-description: Hardware-tested ring modulator with internal or external carrier, LFO, and patchable control outputs.
+summary: |
+  ScaryLingo is a ring modulator for the Workshop Computer. Audio In 1 is the programme input; Audio In 2 replaces the internal carrier when patched. Middle provides carrier frequency, dry/wet mix, and drive. Up provides a 0.1-25 Hz LFO with calibrated three-octave pitch depth and a sine-to-square waveform morph. A Down tap selects the internal carrier type.
+Language: C++ (Pico SDK)
+Creator: Adrian Vos
+Version: "1.0.0-rc.1"
+Status: Beta
+License: MIT
+date-created: 2026-09-06
+date-updated: 2026-09-13
+contact: {}
+tags:
+  - ring-modulator
+  - effect
+  - lfo
+  - voice
+  - modulation
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Programme Input
+      description: Audio sent through the ring modulator.
+      type: audio
+    - id: AudioIn2
+      name: External Carrier
+      description: Replaces the internal carrier when patched.
+      type: audio
+    - id: CVIn1
+      name: Carrier Pitch CV
+      description: Bipolar offset for the internal carrier frequency.
+      type: cv
+    - id: CVIn2
+      name: Mix CV
+      description: Bipolar offset for the dry/wet mix.
+      type: cv
+    - id: PulseIn1
+      name: LFO Reset
+      description: Rising edge resets the internal LFO phase.
+      type: pulse
+    - id: PulseIn2
+      name: Tremolo Gate
+      description: High gate applies LFO-shaped tremolo to the wet mix.
+      type: pulse
+  outputs:
+    - id: AudioOut1
+      name: Main Output
+      description: Dry-to-ring-modulated programme signal.
+      type: audio
+    - id: AudioOut2
+      name: Ring Only
+      description: Fully wet ring-modulated output.
+      type: audio
+    - id: CVOut1
+      name: LFO CV
+      description: Bipolar internal LFO waveform.
+      type: cv
+    - id: CVOut2
+      name: Carrier Monitor
+      description: Half-level internal or external carrier monitor.
+      type: cv
+    - id: PulseOut1
+      name: LFO Pulse
+      description: High for the positive LFO half-cycle.
+      type: pulse
+    - id: PulseOut2
+      name: Input Presence
+      description: High while conditioned programme input is active.
+      type: pulse
+
+controls:
+  switch:
+    middle:
+      name: Performance
+      description: Main controls carrier frequency, X dry/wet mix, and Y drive.
+    up:
+      name: LFO
+      description: Main controls LFO rate, X LFO pitch depth, and Y LFO waveform. Returning to Middle removes LFO pitch modulation from the audio path.
+    tap:
+      name: Carrier Type
+      description: Down tap cycles Extermin8, Cyber, and Blend internal carrier types. The mode names suggest classic British TV monsters.
+  knobs:
+    - main:
+        name: Carrier Frequency
+        description: Soft-pickup internal-carrier control. Lower half is 0.6-80 Hz; upper half is 80 Hz-4 kHz.
+      x:
+        name: Dry / Ring Mix
+        description: Soft-pickup dry/wet crossfade. CV In 2 offsets this value.
+      y:
+        name: Drive
+        description: Soft-pickup input and ring-stage drive.
+    - when: { z: up }
+      main:
+        name: LFO Rate
+        description: Soft-pickup LFO rate from 0.1 to 25 Hz.
+      x:
+        name: LFO Amount
+        description: Soft-pickup internal-carrier pitch modulation. Fully CCW is off; maximum is three octaves peak-to-peak.
+      y:
+        name: LFO Waveform
+        description: Soft-pickup sine-like to square LFO waveform morph.
+  leds:
+    - display: list
+      items:
+        - id: "0"
+          name: Input Level
+          description: Conditioned programme-input level.
+        - id: "1"
+          name: Ring Level
+          description: Ring-output level.
+        - id: "2"
+          name: Carrier Frequency
+          description: Stored carrier-frequency setting.
+        - id: "3"
+          name: Mix
+          description: Active dry/wet mix after CV modulation.
+        - id: "4"
+          name: LFO
+          description: Internal LFO waveform and rate.
+        - id: "5"
+          name: Status
+          description: Drive in Middle, LFO waveform in Up, and carrier-type or LFO-reset status flashes.
+
+uf2:
+  - path: UF2/ScaryLingo.uf2
+    name: ScaryLingo 1.0.0 release candidate
