@@ -271,6 +271,69 @@ covers both ends — `test_undo_does_not_replay_the_bar_so_far` for the
 forward walk, `test_undo_past_every_surviving_event_does_not_go_silent` and
 `test_recall_a_sparser_pattern_does_not_go_silent` for the wrap.
 
+### "Forget" a recorded value means HOLD it, not revert to the knob
+
+`AutoKnob::Forget()` (now `HoldWhereItIs()`) used to set `playback_ = -1`,
+which makes `Update()` fall back to the live knob position. That is correct
+when the loop itself is wiped (recalibration — `ForgetToKnob()` still does
+this), but wrong for Undo: dropping a deleted automation curve by handing the
+lane back to the *physical knob* means the filter jumps to wherever the
+player's hand happened to be resting, which can be minutes old and unrelated
+to the music. Reported from the bench as "undo puts the filter in weird
+places". The fix keeps `playback_` exactly as it was — an undo is silent in
+the tone, and a real hand movement or the next recorded event still takes
+over normally. Two different "forget" behaviours were needed because two
+different things were being forgotten: a curve with nothing left to belong to
+(reset to knob) versus a curve that is merely stale (hold).
+
+### Every SysEx burst reply needs to survive a superseding request
+
+`MSG_PAT_GET` used to start a new drip-fed dump without cancelling one already
+in flight, and `Task()` sends one queued burst per pass — so a request that
+arrived mid-drain got a stale chunk from the *previous* dump ahead of its own
+header. It surfaced as an "unexpected reply" the browser couldn't explain,
+because the bytes were real, just from the wrong conversation. The general
+rule: any handler that arms a multi-pass `Task()`-driven reply (see
+`SendNextLibraryEntry()`, `SendNextPatternChunk()`) must clear every other
+send-in-progress flag before arming its own, and the browser side should skip
+non-matching replies for a bounded number of attempts rather than fail on the
+first mismatch — a busy card can take many `Task()` passes to catch up.
+
+### A USB product string is not an identity
+
+The browser tool found the card by matching its MIDI port name against
+`/nibble|workshop|pico/i`. A user could not connect on macOS for weeks: card in
+WebUI mode, pads breathing, 1.2.0, enumerating fine, page stuck on "Waiting…".
+
+Every card in the Workshop System family ships the **same VID/PID**
+(`2E8A:10C1` — it is the Computer's own, and cannot change). macOS CoreMIDI
+caches a MIDI Studio name against that USB identity, so a card plugged in after
+a sibling **inherits the sibling's name**. Theirs came up as `MTMComputer`, and
+nothing matched. Windows truncates to ~31 characters or reports a generic `USB
+Audio Device`; ALSA truncates to `NIBBLE-KO (Work` and matched `/nibble/` by
+luck rather than design. The name is the HOST's guess at what the device is.
+
+Two things made it worse than a failed match. The retry watcher tested the
+**same name** the search did, so the Waiting… state could not resolve even once
+the card was properly in WebUI mode — the page ignored the very event it was
+waiting for. And it never said what it HAD seen, though it had the port list
+all along, which is why it cost the reporter two sessions weeks apart.
+
+`web/index.html` now identifies the card by **asking**: `probeForCard()` sends
+`MSG_HELLO` to each plausible port and takes whatever answers with a valid
+`MSG_INFO`. The name survives only as the search ORDER, so the ordinary case
+still costs one round trip. `MSG_HELLO` is read-only on the card, which is what
+makes probing a stranger's port acceptable.
+
+The general rule: **when a device cannot be told apart by its USB identity, it
+must be identified by what it ANSWERS.** Anything that matches on a name is
+matching on a string some other layer is free to rewrite. `tools/discoversim.js`
+models this; note that its two acceptance tests guard different things — the
+`MSG_INFO` type test rejects a loopback echoing our own HELLO back, the
+21-byte length test rejects a v1 card. Mutation-testing found that the type
+test could be deleted with nothing noticing, which is how the third case in
+that model came to exist.
+
 ### The Python models are not decoration
 
 They have caught, before hardware: a stalling slew, a 0.33x soft clip, a
@@ -280,7 +343,52 @@ where `loopsim` stored raw knob values while `looper.cpp` stored `knob >> 4`
 change `levels.cpp`, `looper.cpp` or `drums.cpp`, change the model too**, or
 delete it rather than let it lie.
 
+### A profiler is a claim, and it needs its own proof before you trust it
 
+The 1.2.0 CPU investigation took far longer than the fix did, because the
+*instrument* was wrong in three separate ways before it said anything true,
+and each wrong reading produced a confident wrong diagnosis:
+
+- **No compiler barrier around the timestamps.** `GlitchTick()` is inlined
+  into `PlayControl()` (2500+ instructions), and with nothing pinning two
+  `systick_hw->cvr` reads apart, the optimiser hoisted unrelated work between
+  them. A function with no division and no loop over the event array measured
+  at 17000+ cycles — the region timed was not the region named. Fixed by
+  wrapping every read in `asm volatile("" ::: "memory")` on both sides.
+- **Peaks taken independently, then added.** Two costly things
+  (`RecordKnobs`, `Advance`) run on different ticks by construction — one is
+  gated by a countdown, the other by the loop wrap — so their two *separate*
+  worst-case peaks routinely summed to more than the measured whole. The fix
+  was to capture a breakdown from **one execution**, not to add two peaks and
+  trust the arithmetic.
+- **A one-off cost mistaken for the steady state.** The boot splash reads
+  saved calibration from flash inside `ProcessSample()`, once, before a note
+  is played. Because peaks persist until read, that single tick set the
+  headline "control tick" figure for every reading taken afterwards — a card
+  sitting idle reported 289% of budget while its worst *genuine* tick was
+  72%. Boot is now excluded from profiling outright.
+
+The instinct to distrust was there from the start and got overridden anyway:
+early readings had sub-timings that summed to more than the total, which is
+mathematically impossible for a single execution and should have stopped the
+investigation immediately. It didn't, because each new reading was treated as
+more informative than the last rather than as another data point from a
+still-unproven instrument. **Calibrate the tool against a known quantity
+before trusting what it reports** — here, a 1ms `busy_wait_us` should have
+read back as ~192000 SysTick ticks, and did, but only once someone thought to
+check.
+
+The other standing lesson: **read the disassembly before believing a cycle
+count.** Every real finding this session — the six division calls, the
+functions still in flash, the reloaded loop invariants — was confirmed by
+`objdump`, not by timing. Every wrong turn was timing trusted on its own.
+
+Also: an "audible as grit" label written into a debug UI is a hypothesis, not
+a fact, and it is very easy to spend hours treating your own earlier guess as
+established evidence. ComputerCard double-buffers audio output (DMA re-arms
+*before* `ProcessSample()` runs, into the buffer for the *next* cycle), so an
+isolated overrun on one tick does not necessarily produce an audible artefact
+— "trust your ears over the counter" turned out to be the right call.
 
 ### The control tick has no divide instruction, and no flash either
 
@@ -508,6 +616,7 @@ python tools/dspsim.py      # DJ filter stability, soft clip
 python tools/loopsim.py     # event ordering, overdub, tempo
 python tools/patsim.py      # pattern transfer: wire framing + the trust boundary
 python tools/checkyaml.py   # info.yaml parses AND is structurally complete
+node tools/discoversim.js   # the browser finding the card, under any port name
 ```
 
 `patsim.py` is the one model that spans a language boundary rather than
@@ -519,6 +628,15 @@ stays self-consistent, so a round trip within either one still passes. It was
 written by mutation-testing the checks, which is what caught `webui.cpp`
 claiming a chunk size was "the largest that fits" when the cap is not reached
 until twice that.
+
+`discoversim.js` is the other one, and it is JavaScript because the code it
+models is. Rather than mirroring the page, it **runs it**: it extracts the
+block between the `// >>> discovery` and `// <<< discovery` sentinels in
+`web/index.html` and evaluates it against fake MIDI ports, so it cannot drift
+from what ships. Keep that block DOM-free and dependent on nothing but `MFR`
+and `MSG`, or the model stops being able to load it. It takes an optional page
+path (`node tools/discoversim.js some/copy.html`), which is how its checks get
+mutation-tested against a deliberately broken copy.
 
 All pass, and the card builds clean with `-Wall -Wextra -Wdouble-promotion
 -Wfloat-conversion`. `tools/syntax.sh` does **not** link, so it cannot catch a
