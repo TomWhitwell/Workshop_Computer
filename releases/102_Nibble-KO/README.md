@@ -6,12 +6,16 @@ module — with a browser sample manager.**
 
 *Four buttons. Ten voltages. Twelve drums, yours to fill.*
 
-> **Status: 1.2.0, released.** Drums, the looper, mute groups, twelve
+> **Status: 1.2.1, released.** Drums, the looper, mute groups, twelve
 > performance effects, three pattern slots, sample playback, the browser
 > sample manager, flash-saved calibration and the CV expansion all work on
 > hardware. Patterns save to and load from your computer as JSON, and the loop
-> keeps playing while the browser tool is connected. **New in 1.2.0:** the loop
-> length is settable from 4 to 16 beats, so odd time signatures are playable.
+> keeps playing while the browser tool is connected. The loop length is
+> settable from 4 to 16 beats, so odd time signatures are playable.
+> **New in 1.2.1:** the browser tool finds the card by asking it, not by
+> matching its MIDI port name — so it connects even when your computer shows
+> the card under another Workshop card's cached name. *Browser page only; the
+> firmware is unchanged and needs no reflashing.*
 > See [CLAUDE.md](CLAUDE.md) for exactly what's here and what isn't.
 
 A program card for the [Music Thing Modular Workshop System
@@ -443,6 +447,33 @@ Two smaller things, unrelated to the roadmap above:
 - **Mute groups are hardcoded** three ways by voice index.
 
 ## Changelog
+
+### 1.2.1
+
+**The browser tool finds the card by asking it, not by its name.** It sends the
+`MSG_HELLO` SysEx to each plausible MIDI port and takes whatever answers — so
+the card is found under any name at all.
+
+It used to match the MIDI port name against `/nibble|workshop|pico/i`, and that
+does not hold up. Every card in the Workshop System family ships the **same
+USB VID/PID**, and macOS CoreMIDI caches a MIDI Studio name against that
+identity — so a card plugged in after a sibling inherits the sibling's name.
+One was reported in the field appearing as `MTMComputer`, with the page stuck
+on "Waiting…" while the card sat there enumerated, in WebUI mode, and answering
+perfectly. (Windows truncates port names or reports a generic `USB Audio
+Device`; Linux truncates too and matched only by luck.)
+
+The retry watcher tested the same name the search did, so it could not recover
+either, and the page never said what ports it *had* seen — which is why this
+cost its reporter two sessions, weeks apart, before they diagnosed it
+themselves. When nothing answers, the page now lists the ports it found and
+explains the cached-name trap, so the next person gets a message that
+diagnoses itself.
+
+**This is a change to `web/index.html` only. The firmware is unchanged from
+1.2.0 and there is nothing to reflash** — grab the new page and you are set.
+
+Found and diagnosed by a user who hit it twice. Thank you.
 
 ### 1.2.0
 

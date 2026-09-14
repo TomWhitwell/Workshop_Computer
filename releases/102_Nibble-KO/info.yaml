@@ -3,7 +3,7 @@ Name: NIBBLE-KO
 short-description: A 12-voice synth/sample percussion looper for the Four Voltages module, with a browser sample manager
 Language: C++ (ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: "1.2.0"
+Version: "1.2.1"
 Status: Released
 License: CC-BY-4.0
 repository: https://github.com/uglifruit/Nibble-KO
@@ -22,7 +22,7 @@ contact:
 
 uf2:
   - path: UF2/nibbleko.uf2
-    name: NIBBLE-KO 1.2.0
+    name: NIBBLE-KO 1.2.1
 
 tags:
   - drums
@@ -83,7 +83,7 @@ summary: |
   following the live quantise grid. Patch either back into Pulse In 2 and the
   card glitches itself.<br><br>
 
-  1.2.0. Drums, the looper, mute groups, the twelve effects, pattern slots,
+  1.2.1. Drums, the looper, mute groups, the twelve effects, pattern slots,
   sample playback, the browser sample manager, flash-saved calibration and the
   CV expansion above are all played and working on hardware. Patterns can be
   SAVED TO YOUR COMPUTER and loaded back from the browser tool, as plain JSON
@@ -96,8 +96,14 @@ summary: |
   non-destructive: the card always records the full sixteen beats, so putting
   the length back brings the hidden hits with it. The loop also keeps playing
   while the browser tool is connected, so a voice can be re-pointed at a new
-  sound and judged by ear against the pattern it has to sit in. See the
-  repository's README for the fuller detail.
+  sound and judged by ear against the pattern it has to sit in. 1.2.1 fixes
+  the browser tool failing to find the card when the computer shows it under
+  another Workshop card's cached MIDI name - it now identifies the card by
+  asking rather than by matching the port name. That is a change to the web
+  page only: THE FIRMWARE IS UNCHANGED FROM 1.2.0 AND NEEDS NO REFLASHING -
+  the UF2 below is the same binary, so if you are already running 1.2.0 just
+  take the new browser page. See the repository's README for the fuller
+  detail.
 
 panel:
   inputs:
