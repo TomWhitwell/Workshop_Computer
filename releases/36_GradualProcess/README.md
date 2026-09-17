@@ -32,13 +32,13 @@ Modes 1-5 generate a new pitch sequence each time, drawing on broadly idiomatic 
 **MODE SELECT**
 This is a multi-process card with different modes chosen by the Main knob's position at power-on (or reset). Main's travel is split into 12 selector slots — the six marked dial divisions, each halved — with room for future processes; the first six slots, CCW to CW, are Glass, Reich, Pärt, Rzewski, Ligeti, and Lucier. LEDs briefly flash to confirm the selection before it starts. The choice latches for that session; to switch, set Main to a different slot and power-cycle/reset again. 
 
-![[main.svg]]
+<img src="images/maindial.svg" width="200">
 
 **COMMON CONTROLS**
 
 The first five processes share the same Z-switch convention (Up = Play, Middle = Stop, Down held = Settings), the same 6-scale system (Major, Minor, Pentatonic Major, Pentatonic Minor, Blues, and Chromatic/bespoke) on Y while Z is held, and the same 7-step clock divide/multiply (/8 /4 /2 x1 x2 x4 x8) on X while Z is held. Only the Play-mode controls and outputs differ between them, described per-process below.
 
-![[leds_XY.svg]]
+<img src="images/leds_XY.svg" width="400">
 
 Everything works a lot better if you [callibrate the Computer](https://www.musicthing.co.uk/Workshop_System_Calibration/) so the tuning tracks accurately.
 

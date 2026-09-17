@@ -2,25 +2,7 @@ draft: false
 Name: GradualProcess
 short-description: Six generative composition processes in one card (Glass, Reich, Pärt, Rzewski, Ligeti, Lucier)
 summary: |
-  A multi-process card: six independent generative composition processes live in one
-  firmware image, and which one runs is chosen by the Main knob's position at power-on
-  (or reset). Main's travel is split into 12 selector slots — the six marked dial
-  divisions, each halved — with room for future processes; the first six slots, CCW to
-  CW, are Glass, Reich, Pärt, Rzewski (after "Les Moutons de Panurge"), Ligeti
-  (after "Continuum" — two contrary-motion voices whose pitch loops grow and phase
-  against each other) and Lucier (after "I Am Sitting in a Room" — a live audio
-  record/re-record loop; unlike the other five, it works on Audio In/Out, not CV/pulse,
-  and uses its own momentary-Z-press control scheme instead of the shared switch
-  convention below). LEDs
-  briefly flash to confirm the selection (~0.5s) before it starts. The choice latches for
-  that session; to switch, set Main to a different slot and power-cycle/reset again. The
-  first five processes share the same Z-switch convention (Up = Play, Middle = Stop, Down
-  held = Settings), the same 6-scale system (Major, Minor, Pentatonic Major, Pentatonic
-  Minor, Blues, Chromatic — Rzewski substitutes F melodic-minor for Chromatic, Ligeti an
-  irregular shifting interval set) on Y while
-  Z is held, and the same 7-step clock divide/multiply (/8 /4 /2 x1 x2 x4 x8) on X while
-  Z is held — only the Play-mode controls and outputs differ between them, described
-  per-process below.
+  GradualProcess is a CV generator and audio processor that produces sequences in the style of composers Philip Glass, Steve Reich, Arvo Pärt, Frederik Rzewski, György Ligeti and Alvin Lucier. It uses simple algorithms to generate material that draws on these composers’ techniques. The card can cycle through multiple modes and more will be added over time. 
 Language: C++ (ComputerCard)
 Creator: James Saunders
 Version: 1.2.0
@@ -228,76 +210,46 @@ panel:
       description: The loop's playback, sent on to the mixer/speaker
 
 controls:
+  # controls.switch must be one flat object keyed by up/middle/down/tap — the
+  # real sitegen validator (see documentation/how-to-validate-info-yaml.md,
+  # or just `node tools/sitegen/src/validate/cli.js releases/<card>/info.yaml`)
+  # rejects a per-panel `when`-scoped list here, unlike controls.knobs/leds
+  # below which do support it. Since five panels share one convention and
+  # Lucier doesn't use it at all, that split is written into the text instead
+  # of the structure — matching how other multi-panel cards (e.g. 45_bends)
+  # handle a switch whose meaning shifts across panels.
   switch:
-    - when: { panel: glass }
-      up:
-        name: Play
-        description: Run the selected process
-      middle:
-        name: Stop
-        description: Halt playback
-      down:
-        name: Settings
-        description: >
-          Hold for settings — X = clock divide/multiply (/8…x8), Y = scale select
-          (Major, Minor, Pentatonic Major/Minor, Blues, Chromatic — Rzewski and
-          Ligeti each substitute their own set for Chromatic in this slot). Main is
-          process-specific while held: unused in Glass; Phrase Length (4–20 beats)
-          in Reich; Harmonisation Type in Pärt; unused in Rzewski; unused in Ligeti.
-          Mode itself is chosen by Main's position among 12 selector slots at
-          power-on (the six marked dial divisions, each halved) — CCW to CW:
-          Glass, Reich, Pärt, Rzewski, Ligeti, Lucier.
-
-    - when: { panel: reich }
-      up:
-        name: Play
-        description: Run the selected process
-      middle:
-        name: Stop
-        description: Halt playback
-      down:
-        name: Settings
-        description: >
-          Hold for settings — X = clock divide/multiply (/8…x8), Y = scale select
-          (Major, Minor, Pentatonic Major/Minor, Blues, Chromatic — Rzewski and
-          Ligeti each substitute their own set for Chromatic in this slot). Main is
-          process-specific while held: unused in Glass; Phrase Length (4–20 beats)
-          in Reich; Harmonisation Type in Pärt; unused in Rzewski; unused in Ligeti.
-          Mode itself is chosen by Main's position among 12 selector slots at
-          power-on (the six marked dial divisions, each halved) — CCW to CW:
-          Glass, Reich, Pärt, Rzewski, Ligeti, Lucier.
-
-    - when: { panel: part }
-      up:
-        name: Play
-        description: Run the selected process
-      middle:
-        name: Stop
-        description: Halt playback
-      down:
-        name: Settings
-        description: >
-          Hold for settings — X = clock divide/multiply (/8…x8), Y = scale select
-          (Major, Minor, Pentatonic Major/Minor, Blues, Chromatic — Rzewski and
-          Ligeti each substitute their own set for Chromatic in this slot). Main is
-          process-specific while held: unused in Glass; Phrase Length (4–20 beats)
-          in Reich; Harmonisation Type in Pärt; unused in Rzewski; unused in Ligeti.
-          Mode itself is chosen by Main's position among 12 selector slots at
-          power-on (the six marked dial divisions, each halved) — CCW to CW:
-          Glass, Reich, Pärt, Rzewski, Ligeti, Lucier.
-
-    - when: { panel: rzewski }
-      up: { name: Play, description: Run the process }
-      middle: { name: Stop, description: Halt playback }
-      down: { name: Settings, description: Hold for settings — X = clock divide, Y = scale. Main unassigned while held. While not playing, all four pitch voices output the tonic reference pitch for tuning }
-
-    - when: { panel: ligeti }
-      up: { name: Play, description: Run the process — a fresh sequence is generated every time Play starts }
-      middle: { name: Stop, description: Halt playback }
-      down: { name: Settings, description: Hold for settings — X = clock divide, Y = scale. Main unassigned while held }
-
-    - when: { panel: lucier }
-      tap: { name: Advance Cycle, description: 'Every press (any switch position, regardless of hold time) advances Idle → Recording → Cycling → Idle. There is no Up/Middle/Down distinction and no settings mode in this panel — Main/X/Y are always live' }
+    up:
+      name: Play
+      description: >
+        Run the selected process. Applies to Glass, Reich, Pärt, Rzewski and
+        Ligeti — the five processes sharing this Up/Middle/Down convention.
+        Lucier ignores switch position entirely; see Tap below.
+    middle:
+      name: Stop
+      description: >
+        Halt playback. Glass, Reich, Pärt, Rzewski and Ligeti only — see Tap
+        for Lucier.
+    down:
+      name: Settings
+      description: >
+        Hold for settings — X = clock divide/multiply (/8…x8), Y = scale select
+        (Major, Minor, Pentatonic Major/Minor, Blues, Chromatic — Rzewski and
+        Ligeti each substitute their own set for Chromatic in this slot). Main is
+        process-specific while held: unused in Glass; Phrase Length (4–20 beats)
+        in Reich; Harmonisation Type in Pärt; unused in Rzewski; unused in Ligeti.
+        Mode itself is chosen by Main's position among 12 selector slots at
+        power-on (the six marked dial divisions, each halved) — CCW to CW:
+        Glass, Reich, Pärt, Rzewski, Ligeti, Lucier. Glass, Reich, Pärt,
+        Rzewski and Ligeti only — see Tap for Lucier.
+    tap:
+      name: Advance Cycle (Lucier only)
+      description: >
+        Lucier ignores switch position (Up/Middle/Down) entirely and instead
+        treats every press as a momentary tap, regardless of hold time or
+        which position it rests at in between: press to advance Idle →
+        Recording → Cycling → Idle. There is no Settings mode in Lucier —
+        Main, X and Y are always live.
 
   knobs:
     - when: { panel: glass }
@@ -351,12 +303,12 @@ controls:
           minor triad).
 
     - when: { panel: rzewski }
-      main: { name: Tempo, description: 5–300 BPM, always active in Play }
+      main: { name: Tempo, description: '5–300 BPM, always active in Play' }
       x: { name: Clock Divide (Z hold), description: Unassigned in Play. While Z is held — seven steps /8 /4 /2 x1 x2 x4 x8 }
       y: { name: Scale (Z hold), description: Unassigned in Play. While Z is held — six scales; slot 6 replaces Chromatic with F melodic-minor (Ab becomes A natural partway through each melody) }
 
     - when: { panel: ligeti }
-      main: { name: Tempo, description: 5–300 BPM, always active in Play }
+      main: { name: Tempo, description: '5–300 BPM, always active in Play' }
       x: { name: Right-Hand Loop Length, description: 'Play — continuous scrub, CCW = 2-note dyad through to CW = long up/down arc. While Z is held — clock divide/multiply (/8…x8)' }
       y: { name: Left-Hand Loop Length, description: 'Play — same sweep as X, mirrored contour, set independently; differing X/Y phases the two voices against each other. While Z is held — scale select; slot 6 replaces Chromatic with Ligeti''s own structural intervals (M2/m3/M3/tritone) plus a slow contrary transposition drift once a voice reaches its arc stage' }
 
