@@ -1,6 +1,7 @@
 draft: false
 Name: GradualProcess
-short-description: Six generative composition processes in one card (Glass, Reich, Pärt, Rzewski, Ligeti, Lucier) 
+short-description: Six generative composition processes in one card (Glass, Reich, Pärt, Rzewski, Ligeti, Lucier)
+summary: |
   A multi-process card: six independent generative composition processes live in one
   firmware image, and which one runs is chosen by the Main knob's position at power-on
   (or reset). Main's travel is split into 12 selector slots — the six marked dial
