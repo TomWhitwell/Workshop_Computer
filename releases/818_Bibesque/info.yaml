@@ -1,76 +1,112 @@
 draft: false
-Name: Bibesque
-short-description: Bib-inspired stereo dub delay, reverb and tape processor
-summary: >
-  A hardware-tested Workshop Computer adaptation of Plinky Synth's Bib:
-  shaped drive and wavefold, clock-quantised stereo tape delay, rhythmic
-  multi-tap repeats, modulated reverb, shimmer and dub freeze.
-Language: C++ (Pico SDK / ComputerCard v0.3.0)
+Name: Bib
+short-description: Original Bib block-DSP stereo dub delay, reverb, shimmer, and tape processor.
+summary: >-
+  A hardware-tested beta Workshop Computer port of Plinky Synth's Bib. It runs
+  the original 64-frame fixed-point DSP with stereo delay, rhythmic multitap,
+  modulated reverb, shimmer, clock divisions, and tape transport controls.
+Language: C++ (Pico SDK)
 Creator: Adrian Vos
-Version: "1.0.0-rc1"
-Status: "Release Candidate — hardware tested"
+Version: "1.1.0-beta"
+Status: Beta - hardware-tested
 License: MIT
-date-created: 2026-09-12
-date-updated: 2026-09-12
+date-updated: 2026-09-18
 repository: https://github.com/soveda/workshop-buddies
-tags: [effect, delay, reverb, stereo, tape, clocked]
+tags:
+  - effect
+  - delay
+  - reverb
+  - stereo
+  - tape
+  - clocked
 uf2:
-  - path: uf2/Bibesque_1.0.0_rc1.uf2
-    name: Bibesque 1.0.0 release candidate
+  - path: uf2/Bib-1.1.0-beta.uf2
+    name: Bib 1.1.0 beta
 panel:
   inputs:
     - id: AudioIn1
-      name: Audio In 1
-      description: Primary audio input; normalised to both channels when Audio In 2 is unpatched.
+      name: Left Audio
       type: audio
+      description: Left input for stereo processing.
     - id: AudioIn2
-      name: Audio In 2
-      description: Right audio input for stereo processing.
+      name: Right Audio
       type: audio
+      description: Independent right input for stereo processing.
     - id: CVIn1
       name: X Mod
-      description: Bipolar modulation of active-page X after pot pickup.
       type: cv
+      description: Bipolar modulation of the active X control after pickup.
     - id: CVIn2
       name: Y Mod
-      description: Bipolar modulation of active-page Y after pot pickup.
       type: cv
+      description: Bipolar modulation of the active Y control after pickup.
     - id: PulseIn1
       name: Delay Clock
-      description: External clock for Bib-style delay-time quantisation.
       type: pulse
+      description: Clock input for Bib-style delay-time divisions.
   outputs:
     - id: AudioOut1
       name: Left Out
-      description: Left processed audio output.
       type: audio
+      description: Processed left output.
     - id: AudioOut2
       name: Right Out
-      description: Right processed audio output.
       type: audio
+      description: Processed right output.
 controls:
   switch:
-    up: { name: Detail Page, description: Delay tape transport/wobble or persistent reverb shimmer. }
-    middle: { name: Main Controls, description: Normal page controls. }
-    down: { name: Action, description: Tap/toggle in Drive and Delay; hold for Mix freeze. }
+    up:
+      name: Detail Page
+      description: Delay tape transport/wobble or retained reverb shimmer.
+    middle:
+      name: Main Controls
+      description: Normal Drive, Delay, Reverb, and Mix page controls.
+    down:
+      name: Page Action
+      description: Toggle wavefold, record delay taps, or hold dub feedback by page.
   knobs:
-    - main: { name: Page, description: "Selects Drive, Delay, Reverb or Mix." }
-      x: { name: X, description: Active-page X parameter; modulated by CV In 1. }
-      y: { name: Y, description: Active-page Y parameter; modulated by CV In 2. }
+    - main:
+        name: Page
+        description: Selects Drive, Delay, Reverb, or Mix.
+      x:
+        name: X
+        description: Active-page X parameter, modulated by CV In 1.
+      y:
+        name: Y
+        description: Active-page Y parameter, modulated by CV In 2.
+    - when: { z: up }
+      x:
+        name: Detail X
+        description: Tape speed on Delay; retained shimmer amount on Reverb.
+      y:
+        name: Detail Y
+        description: Tape wobble on Delay; inactive on Reverb.
   leds:
     - display: list
       items:
-        - { id: LED0, name: Page Bit 0, description: Binary Main-page indicator. }
-        - { id: LED1, name: Page Bit 1, description: Binary Main-page indicator. }
-        - { id: LED2, name: X Value, description: Effective active-page X value. }
-        - { id: LED3, name: Y Value, description: Effective active-page Y value. }
-        - { id: LED4, name: Page State A, description: "Page-specific state such as wavefold, clock lock, shimmer or freeze." }
-        - { id: LED5, name: Page State B, description: "Page-specific state such as ping-pong, tap count, wet mix or limiter reduction." }
+        - id: LED0
+          name: Page Bit 0
+          description: Binary Main-page indicator.
+        - id: LED1
+          name: Page Bit 1
+          description: Binary Main-page indicator.
+        - id: LED2
+          name: X Value
+          description: Effective X value, including CV.
+        - id: LED3
+          name: Y Value
+          description: Effective Y value, including CV.
+        - id: LED4
+          name: Page State A
+          description: Wavefold, clock lock, shimmer, or dub hold by page.
+        - id: LED5
+          name: Page State B
+          description: Ping-pong, multitap count, mix, or output level by page.
 host:
-  notes: >
-    Built for the Music Thing Workshop Computer. Based on MIT-licensed work
-    from https://github.com/plinkysynth/buddies_public and ComputerCard from
-    https://github.com/TomWhitwell/Workshop_Computer/tree/main/Demonstrations%2BHelloWorlds/PicoSDK/ComputerCard.
+  notes: >-
+    Original Bib DSP is adapted from the public Buddies repository. The
+    Workshop runtime is a custom DMA block-audio implementation and does not
+    use ComputerCard.h.
 contact:
   social:
     github: https://github.com/soveda

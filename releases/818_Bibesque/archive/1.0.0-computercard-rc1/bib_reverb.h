@@ -200,7 +200,6 @@ static inline void do_reverb(int reverbinl, int reverbinr, int reverb_decay_q12,
   reverbdc += ((acc << 8) - reverbdc) >> 4;
   acc -= reverbdc >> 8;
   static int reverb_limiter = 0;
-  static int reverb_hold = 0;
   int level = abs(acc);
   level *= 256; // tune the threshold
   static int limit_hold = 0;
@@ -229,7 +228,6 @@ static inline void do_reverb(int reverbinl, int reverbinr, int reverb_decay_q12,
 
   if (level > reverb_limiter) {
     reverb_limiter = level;
-    reverb_hold = 200;
   }
 
   if (level)
