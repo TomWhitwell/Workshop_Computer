@@ -1,22 +1,14 @@
 draft: false
 Name: GradualProcess
-short-description: Three generative composition processes (Glass, Reich, Pärt) in one card, chosen by Main's position at power-on
+short-description: Six generative composition processes in one card (Glass, Reich, Pärt, Rzewski, Ligeti, Lucier)
 summary: |
-  A multi-process card: three independent generative composition processes live in one
-  firmware image, and which one runs is chosen by the Main knob's position at power-on
-  (or reset) — CCW third = Glass, middle third = Reich, CW third = Pärt. LEDs
-  briefly flash to confirm the selection (~0.5s) before it starts. The choice latches for
-  that session; to switch, set Main to a different zone and power-cycle/reset again. All three processes share the same Z-switch convention (Up = Play, Middle = Stop, Down
-  held = Settings), the same 6-scale system (Major, Minor, Pentatonic Major, Pentatonic
-  Minor, Blues, Chromatic) on Y while Z is held, and the same 7-step clock divide/multiply
-  (/8 /4 /2 x1 x2 x4 x8) on X while Z is held — only the Play-mode controls and outputs
-  differ between them, described per-process below.
+  GradualProcess is a CV generator and audio processor that produces sequences in the style of composers Philip Glass, Steve Reich, Arvo Pärt, Frederik Rzewski, György Ligeti and Alvin Lucier. It uses simple algorithms to generate material that draws on these composers’ techniques. The card can cycle through multiple modes and more will be added over time. 
 Language: C++ (ComputerCard)
 Creator: James Saunders
-Version: 1.0.0
+Version: 1.2.0
 Status: Released
 date-created: 2026-07-04
-date-updated: 2026-07-06
+date-updated: 2026-09-16
 tags:
   - generative
   - sequencer
@@ -27,10 +19,22 @@ tags:
 
 demo-link: https://youtu.be/Qx_csP-5-Qc
 
-# Three power-on modes → three custom panels (see panels/manifest.yaml).
-# Glass is the unconditioned base for shared sockets where labels match; Reich and
-# Pärt override jacks/knobs that differ. Z Play/Stop/Settings are documented in
-# controls.switch (when.z cannot combine with when.panel).
+# Six power-on modes -> six custom panels (see panels/manifest.yaml).
+# Glass is the unconditioned base for shared sockets where labels match; Reich, Pärt,
+# Rzewski, Ligeti and Lucier override jacks/knobs that differ. Z Play/Stop/Settings is
+# documented per-panel in controls.switch (when.z cannot combine with when.panel), since
+# Lucier's momentary-press convention isn't the shared Up/Middle/Down scheme the other
+# five use.
+#
+# History: this file was originally reassembled from several separately-pasted blocks
+# that had ended up as duplicate top-level `panel:`/`controls:` keys — YAML keeps only
+# the last occurrence of a repeated key, so everything pasted for Rzewski, Ligeti and
+# Lucier was silently being discarded on load. That structural pass touched formatting
+# only. A second pass then closed the four content gaps it had deliberately left open:
+# the header now describes all six modes/v1.2.0, the shared switch's Settings text below
+# lists all five Z-convention processes and the 12-slot selector, Reich's real CV In 1/2
+# + Pulse In 1/2 trigger behaviour is in panel.inputs, and controls.leds now covers
+# Rzewski/Ligeti/Lucier too.
 panel:
   inputs:
     - id: PulseIn1
@@ -43,6 +47,37 @@ panel:
       name: Add Unit
       type: pulse
       description: Debounced trigger; appends a freshly-generated unit
+
+    # Reich — CV/Pulse trigger alternatives to the X/Y knobs; live at the same time
+    # as the knobs, not a substitute for them
+    - id: CVIn1
+      when: { panel: reich }
+      name: Drift Back (trigger)
+      type: cv
+      description: A pulse above ~1V arms a backward gradual phase drift, identical to flicking X CCW; only arms if no drift is currently running
+    - id: CVIn2
+      when: { panel: reich }
+      name: Drift Forward (trigger)
+      type: cv
+      description: Same, forward, identical to flicking X CW
+    - id: PulseIn1
+      when: { panel: reich }
+      name: Step Back
+      type: pulse
+      description: Steps Voice 2 one beat earlier, identical to flicking Y CCW (including quick-locking a running drift)
+    - id: PulseIn2
+      when: { panel: reich }
+      name: Step Forward
+      type: pulse
+      description: Steps Voice 2 one beat later, identical to flicking Y CW (including quick-locking a running drift)
+
+    # Lucier — I Am Sitting in a Room (live audio record/re-record loop)
+    - id: AudioIn1
+      when: { panel: lucier }
+      name: Mic In
+      type: audio
+      description: The mic signal, via the panel amp
+    # No CV In/Out or Pulse In/Out used in this mode
 
   outputs:
     # Glass (default panel) — additive process after Philip Glass
@@ -111,22 +146,110 @@ panel:
       type: pulse
       description: Identical timing to Pulse Out 1 — the two voices always attack and release together
 
+    # Rzewski — additive/subtractive canon (Les Moutons de Panurge)
+    - id: CVOut1
+      when: { panel: rzewski }
+      name: Voice 1 Pitch
+      type: cv
+      description: v/oct — the reference reader, always exactly on the beat
+    - id: CVOut2
+      when: { panel: rzewski }
+      name: Voice 2 Pitch
+      type: cv
+      description: v/oct — an independently drifting double of Voice 1
+    - id: AudioOut1
+      when: { panel: rzewski }
+      name: Voice 3 Pitch (Square)
+      type: audio
+      description: Independently drifting reader of the same melody, square wave
+    - id: AudioOut2
+      when: { panel: rzewski }
+      name: Voice 4 Pitch (Triangle)
+      type: audio
+      description: Independently drifting reader of the same melody, triangle wave
+    - id: PulseOut1
+      when: { panel: rzewski }
+      name: Rhythmic Pulse 1
+      type: pulse
+      description: Independent 1-or-2-tick grouping against the plain tempo grid — not tied to any pitch voice's own note-timing
+    - id: PulseOut2
+      when: { panel: rzewski }
+      name: Rhythmic Pulse 2
+      type: pulse
+      description: Same idea as Pulse Out 1, its own separate 1-or-2-tick grouping
+    # No CV In / Pulse In used in this mode
+
+    # Ligeti — Continuum (contrary-motion harpsichord texture)
+    - id: CVOut1
+      when: { panel: ligeti }
+      name: Right-Hand Pitch
+      type: cv
+      description: v/oct — the right-hand (Voice 0) voice
+    - id: CVOut2
+      when: { panel: ligeti }
+      name: Left-Hand Pitch
+      type: cv
+      description: v/oct — the left-hand (Voice 1) voice, always in exact contrary motion with CV Out 1
+    - id: PulseOut1
+      when: { panel: ligeti }
+      name: Right-Hand Gate
+      type: pulse
+      description: ~10ms trigger, in rhythmic unison with Pulse Out 2
+    - id: PulseOut2
+      when: { panel: ligeti }
+      name: Left-Hand Gate
+      type: pulse
+      description: ~10ms trigger, in rhythmic unison with Pulse Out 1
+    # No CV In / Pulse In used in this mode
+
+    # Lucier — I Am Sitting in a Room (live audio record/re-record loop)
+    - id: AudioOut1
+      when: { panel: lucier }
+      name: Loop Playback
+      type: audio
+      description: The loop's playback, sent on to the mixer/speaker
+
 controls:
+  # controls.switch must be one flat object keyed by up/middle/down/tap — the
+  # real sitegen validator (see documentation/how-to-validate-info-yaml.md,
+  # or just `node tools/sitegen/src/validate/cli.js releases/<card>/info.yaml`)
+  # rejects a per-panel `when`-scoped list here, unlike controls.knobs/leds
+  # below which do support it. Since five panels share one convention and
+  # Lucier doesn't use it at all, that split is written into the text instead
+  # of the structure — matching how other multi-panel cards (e.g. 45_bends)
+  # handle a switch whose meaning shifts across panels.
   switch:
     up:
       name: Play
-      description: Run the selected process
+      description: >
+        Run the selected process. Applies to Glass, Reich, Pärt, Rzewski and
+        Ligeti — the five processes sharing this Up/Middle/Down convention.
+        Lucier ignores switch position entirely; see Tap below.
     middle:
       name: Stop
-      description: Halt playback
+      description: >
+        Halt playback. Glass, Reich, Pärt, Rzewski and Ligeti only — see Tap
+        for Lucier.
     down:
       name: Settings
       description: >
         Hold for settings — X = clock divide/multiply (/8…x8), Y = scale select
-        (Major, Minor, Pentatonic Major/Minor, Blues, Chromatic). Main is
+        (Major, Minor, Pentatonic Major/Minor, Blues, Chromatic — Rzewski and
+        Ligeti each substitute their own set for Chromatic in this slot). Main is
         process-specific while held: unused in Glass; Phrase Length (4–20 beats)
-        in Reich; Harmonisation Type in Pärt. Mode itself is chosen by Main's
-        third at power-on (CCW Glass / mid Reich / CW Pärt).
+        in Reich; Harmonisation Type in Pärt; unused in Rzewski; unused in Ligeti.
+        Mode itself is chosen by Main's position among 12 selector slots at
+        power-on (the six marked dial divisions, each halved) — CCW to CW:
+        Glass, Reich, Pärt, Rzewski, Ligeti, Lucier. Glass, Reich, Pärt,
+        Rzewski and Ligeti only — see Tap for Lucier.
+    tap:
+      name: Advance Cycle (Lucier only)
+      description: >
+        Lucier ignores switch position (Up/Middle/Down) entirely and instead
+        treats every press as a momentary tap, regardless of hold time or
+        which position it rests at in between: press to advance Idle →
+        Recording → Cycling → Idle. There is no Settings mode in Lucier —
+        Main, X and Y are always live.
 
   knobs:
     - when: { panel: glass }
@@ -179,6 +302,21 @@ controls:
           triad (major-family scales use a major triad; minor-family and blues use a
           minor triad).
 
+    - when: { panel: rzewski }
+      main: { name: Tempo, description: '5–300 BPM, always active in Play' }
+      x: { name: Clock Divide (Z hold), description: Unassigned in Play. While Z is held — seven steps /8 /4 /2 x1 x2 x4 x8 }
+      y: { name: Scale (Z hold), description: Unassigned in Play. While Z is held — six scales; slot 6 replaces Chromatic with F melodic-minor (Ab becomes A natural partway through each melody) }
+
+    - when: { panel: ligeti }
+      main: { name: Tempo, description: '5–300 BPM, always active in Play' }
+      x: { name: Right-Hand Loop Length, description: 'Play — continuous scrub, CCW = 2-note dyad through to CW = long up/down arc. While Z is held — clock divide/multiply (/8…x8)' }
+      y: { name: Left-Hand Loop Length, description: 'Play — same sweep as X, mirrored contour, set independently; differing X/Y phases the two voices against each other. While Z is held — scale select; slot 6 replaces Chromatic with Ligeti''s own structural intervals (M2/m3/M3/tritone) plus a slow contrary transposition drift once a voice reaches its arc stage' }
+
+    - when: { panel: lucier }
+      main: { name: Output Level, description: '0–200%, 12 o''clock = unity. Playback-side level control — instantly audible, also tames the mic/speaker/room round trip' }
+      x: { name: Persistence, description: '0–100%. Blends each position''s stored value against fresh input every generation — CCW = hard replace (fast resonance build), CW = frozen (no new material written in)' }
+      y: { name: Limiter, description: 'CCW = bypass (raw digital distortion possible), CW = aggressive. Soft-knee limiter on fresh input before it''s written into the loop, independent of Main/X' }
+
   leds:
     - when: { panel: glass }
       display: list
@@ -198,3 +336,21 @@ controls:
         - id: LED0
           name: Harmonisation
           description: Current harmonisation type (single LED, 1–6); clock-divide/scale shown instead while Z is held
+    - when: { panel: rzewski }
+      display: list
+      items:
+        - id: LED0
+          name: Sub-phrase fade
+          description: All six flash to full when Voice 1 sounds "note 1" of its current sub-phrase, then fade to black across it (slower through the additive half, faster through the subtractive half) — dim while Voice 2 is off unison, full brightness when locked in step. Stopped/Settings = selected scale, or whichever of Clock Divide (X) / Scale (Y) is being adjusted
+    - when: { panel: ligeti }
+      display: list
+      items:
+        - id: LED0
+          name: Loop length bars
+          description: Two 3-segment bars — left column the right hand's (X) loop length, right column the left hand's (Y), fractional fill via brightness; the bottom segment of each keeps a dim floor so a fully-CCW voice (2-note dyad) still reads as running. Stopped/Settings = selected scale, or whichever of Clock Divide (X) / Scale (Y) is being adjusted
+    - when: { panel: lucier }
+      display: list
+      items:
+        - id: LED0
+          name: Stage indicator
+          description: 'Idle: off. Recording: a live 1–6 input-level meter. Cycling: the completed-generation count, 1–12 index/mirror (same scheme as Glass''s unit count)'

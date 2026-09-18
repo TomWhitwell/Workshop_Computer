@@ -1,9 +1,12 @@
 version: 1
 default: glass
 
-# Three power-on modes (Main knob third at boot), three panels. Glass is the
-# default CCW third; Reich is middle; Pärt is CW. Labels that differ per mode
-# use when.panel in info.yaml; shared Z-switch semantics live in controls.switch.
+# Six power-on modes (Main knob position among 12 selector slots at boot — the
+# six marked dial divisions, each halved), six panels, CCW to CW: Glass, Reich,
+# Pärt, Rzewski, Ligeti, Lucier. Glass remains the default (fully CCW). Labels
+# that differ per mode use when.panel in info.yaml; shared Z-switch semantics
+# (Play/Stop/Settings, for the first five panels) also live in controls.switch,
+# per-panel there too since Lucier's momentary-press convention differs.
 #
 # Images/content are generated from those entries (`image: auto` / `content: auto`).
 panels:
@@ -19,5 +22,20 @@ panels:
 
   - id: part
     name: "Pärt (tintinnabuli)"
+    image: auto
+    content: auto
+
+  - id: rzewski
+    name: "Rzewski (Les Moutons de Panurge)"
+    image: auto
+    content: auto
+
+  - id: ligeti
+    name: "Ligeti (Continuum)"
+    image: auto
+    content: auto
+
+  - id: lucier
+    name: "Lucier (I Am Sitting in a Room)"
     image: auto
     content: auto
