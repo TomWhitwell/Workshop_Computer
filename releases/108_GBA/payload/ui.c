@@ -844,14 +844,18 @@ static uint8_t g_trigRow[4];
 static void draw_trig_grid(void)
 {
     char buf[8];
-    const int x0 = 70, cw = 44, y0 = LIST_TOP + 14, rh = 20;
+    // Six columns in 240 px: x0=66 keeps a four-pixel gap after the channel label's box (which
+    // ends at 62), and at a 28 px pitch the last cell starts at 206 and ends at 230. The names
+    // are abbreviated to match - the widest ("PU2", "BTN") are 18 px at the 6 px font advance,
+    // so with the +5 indent below they still end inside their own column.
+    const int x0 = 66, cw = 28, y0 = LIST_TOP + 14, rh = 20;
 
     if (!g_trigInit) {
         g_trigInit = 1;
         rect_clear(0, LIST_TOP - 2, SCREEN_W, 126, COL_BG);   // see play_static()
         text(14, LIST_TOP, "TRIGGERS", COL_DIM, 1);
         for (int t = 0; t < TRIG_COUNT; t++)
-            text(x0 + t * cw + 8, LIST_TOP, trig_name[t], COL_DIM, 1);
+            text(x0 + t * cw + 5, LIST_TOP, trig_name[t], COL_DIM, 1);
         for (int c = 0; c < 4; c++) {
             g_trigRow[c] = 0xFF;
             for (int t = 0; t < TRIG_COUNT; t++) g_trigCell[c][t] = 0xFF;
@@ -875,8 +879,8 @@ static void draw_trig_grid(void)
             if (g_trigCell[c][t] == st) continue;
             g_trigCell[c][t] = st;
             int x = x0 + t * cw;
-            rect(x, y, 34, 12, (st & 2) ? COL_SEL : COL_DIM);
-            rect(x + 1, y + 1, 32, 10, (st & 1) ? COL_OK : COL_BG);
+            rect(x, y, 24, 12, (st & 2) ? COL_SEL : COL_DIM);
+            rect(x + 1, y + 1, 22, 10, (st & 1) ? COL_OK : COL_BG);
         }
         gfx_idle();
     }

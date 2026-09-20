@@ -37,7 +37,9 @@ const char *dest_name[DEST_COUNT] = {
 };
 const char *src_name[SRC_COUNT] = { "CV 1", "CV 2", "AUD 1", "AUD 2", "MAIN", "KNOB X", "KNOB Y",
                                     "SWITCH" };
-const char *trig_name[TRIG_COUNT] = { "PU2", "SW", "BTN" };
+// Abbreviated because six columns have to fit the 240 px screen - see draw_trig_grid(). This
+// table is the TRIG grid header's only consumer, so nothing else prints these names in full.
+const char *trig_name[TRIG_COUNT] = { "PU2", "SW", "BTN", "A1", "A2", "V1" };
 const char *pan_name[4] = { "OFF", "L", "R", "BOTH" };
 const char *key_name[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 
@@ -689,6 +691,34 @@ static void synth_tick(void)
 
     trigLevel[TRIG_BTN] = btnTrigLevel;
     trigEdge[TRIG_BTN]  = btnTrigEdge;
+
+    // The three analogue jacks, on the same threshold-crossing shape the drum engine uses below
+    // - loud audio, a gate or a trigger pulse all read as high, a slowly drifting CV does not.
+    //
+    // TWO THINGS HERE ARE DELIBERATE. It lives OUTSIDE the `if (p->drumMode)` block, because
+    // TRIG and DRUM are independent consumers of the same raw jacks rather than two views of one
+    // feature: arming a channel here has to work whether or not drum mode is on. And the
+    // threshold is a fixed copy of the drum engine's DEFAULT (drumThresh 6), not p->drumThresh
+    // itself, so tuning drum sensitivity on the DRUM page cannot silently change what an armed
+    // TRIG column does.
+    static uint8_t trigHi[3] = { 0, 0, 0 };
+    int32_t trigThr = 2048 + 6 * 96;
+
+    int lvlAud1 = (int32_t)g_in[SRC_AUD1] > trigThr;
+    int lvlAud2 = (int32_t)g_in[SRC_AUD2] > trigThr;
+    int lvlCv1  = (int32_t)g_in[SRC_CV1]  > trigThr;
+
+    trigLevel[TRIG_AUD1] = lvlAud1;
+    trigEdge[TRIG_AUD1]  = lvlAud1 && !trigHi[0];
+    trigHi[0] = (uint8_t)lvlAud1;
+
+    trigLevel[TRIG_AUD2] = lvlAud2;
+    trigEdge[TRIG_AUD2]  = lvlAud2 && !trigHi[1];
+    trigHi[1] = (uint8_t)lvlAud2;
+
+    trigLevel[TRIG_CV1] = lvlCv1;
+    trigEdge[TRIG_CV1]  = lvlCv1 && !trigHi[2];
+    trigHi[2] = (uint8_t)lvlCv1;
 
     // HOLD is a LATCHING trigger source: switching it on fires once and sustains, switching it
     // off releases. It never re-fires on its own.
