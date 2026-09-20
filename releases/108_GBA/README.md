@@ -58,7 +58,7 @@ thing here to get wrong.
       PLUG (contacts toward you)          SOCKET (looking into the GBA)
     ┌──────────────────────────┐      ┌──────────────────────────┐
     │    1    3    5           │      │           5    3    1    │
-    │        ╱▔▔▔╲            │      │            ╱▔▔▔╲         │
+    │        ╱▔▔▔╲             │      │            ╱▔▔▔╲         │
     │    2    4    6           │      │           6    4    2    │
     └──────────────────────────┘      └──────────────────────────┘
          lump at the top
@@ -167,7 +167,7 @@ Expect it to be **quiet**: around 1 Vpp against Eurorack's ~10 Vpp, so it wants 
 
 ## The default patch
 
-The default patch has jacks, knobs and button doing something audible'; **the workshop module's momentary switch triggers it**, so you can hear it work with
+The default patch has jacks, knobs and buttons doing something audible; **the workshop module's momentary switch triggers it**, so you can hear it work with
 nothing patched at all.
 
 | | |
@@ -404,9 +404,9 @@ playing on channel 1 right now, after the modulation matrix and any scale quanti
 Patch a running sequence into CV In 2 and watch both at once: trim until `IN` reads dead on
 (0c) at each step, and check `OUT` matches what you expect — if it does not, a scale or key is
 quantising it there on purpose, which is worth knowing before you conclude the calibration is
-wrong. `RAW` is unchanged from before and is what the two-point trim above still reads.
+wrong. `RAW` is the same live count `CV 2 IN` shows in the list above.
 
-> **The shipped CV Scale my measurement, not a specification — expect to trim it on yours.** 
+> **The shipped CV Scale is my measurement, not a specification — expect to trim it on yours.** 
 
 
 ## SET page — tuning, key and scale
