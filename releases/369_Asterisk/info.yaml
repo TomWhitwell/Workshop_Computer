@@ -1,0 +1,110 @@
+draft: false
+Name: Asterisk
+short-description: Six-track generative drum synthesis with one-switch randomization, Filter, Decay, Heat, and USB MIDI or analog clock sync.
+summary: >
+  A six-track generative drum synthesizer for the Music Thing Modular Workshop Computer.
+  Synthesized drums, bass, and melodic percussion draw
+  from 14 synthesis algorithms. Three knobs shape the sound, and one flick of the
+  switch creates a new musical idea. Individual synthesis parameters are not directly
+  editable, and patches cannot be saved.
+Language: C++ (Pico SDK)
+Creator: Laboratory 0
+Version: "0.1.0"
+Status: Released
+License: Laboratory 0 Freeware (see LICENSE.txt)
+date-created: "2026-09-21"
+date-updated: "2026-09-21"
+Editor: none
+demo-link: https://www.youtube.com/shorts/i8sVAtF1YXs
+
+tags:
+  - drums
+  - generative
+  - synthesizer
+  - percussion
+  - sequencer
+  - midi
+  - stereo
+
+uf2:
+  - path: Asterisk_Workshop_v0.1.0.uf2
+    name: Asterisk 0.1.0
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Filter CV
+      type: cv
+      description: Adds modulation to the Main Filter setting.
+    - id: CVIn2
+      name: Decay CV
+      type: cv
+      description: Adds modulation to the X Decay setting.
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: Each rising edge advances one sixteenth note (4 PPQN). A plugged-in cable takes priority over USB MIDI clock.
+    - id: PulseIn2
+      name: Reset
+      type: pulse
+      description: Restarts the sequence from the beginning on the next clock step.
+  outputs:
+    - id: AudioOut1
+      name: Left
+      type: audio
+      description: Stereo left audio output.
+    - id: AudioOut2
+      name: Right
+      type: audio
+      description: Stereo right audio output.
+    - id: CVOut1
+      name: Envelope 1
+      type: cv
+      description: Fixed-decay trigger envelope from the kick track.
+    - id: CVOut2
+      name: Envelope 2
+      type: cv
+      description: Fixed-decay trigger envelope from a melodic percussion track.
+    - id: PulseOut1
+      name: Clock
+      type: pulse
+      description: Sixteenth-note clock pulses.
+    - id: PulseOut2
+      name: Kick trigger
+      type: pulse
+      description: Triggers from the kick track.
+
+controls:
+  knobs:
+    - main:
+        name: Filter
+        description: Low-pass to the left, unfiltered in the center, high-pass to the right.
+      x:
+        name: Decay
+        description: Approximately 0.25x to 4x decay, with 1x at the center. Changes apply to new hits.
+      y:
+        name: Heat
+        description: Saturation, density, and grit with level compensation.
+  switch:
+    up:
+      name: Pause
+      description: Stops new hits while existing tails ring out. Return to center to restart from the beginning.
+    middle:
+      name: Play
+      description: Runs the sequencer.
+    down:
+      name: Randomize
+      description: Generates new sounds and patterns once on entry. Holding down does not repeatedly randomize.
+    tap:
+      name: Randomize
+      description: Flick down to create a new combination; it takes over on the next clock step after preparation. Knob settings remain unchanged.
+
+host:
+  usb:
+    - name: Asterisk Workshop
+      role: MIDI device
+      description: Receives 24 PPQN MIDI Clock, Start, Stop, Continue, and Song Position Pointer from a computer or DAW.
+  notes: >
+    Enable MIDI Clock output to Asterisk Workshop in your DAW.
+    Pulse In 1 takes priority when a cable is connected. Without an external clock,
+    the sequencer uses its internally generated tempo and swing. Audio inputs are unused.
