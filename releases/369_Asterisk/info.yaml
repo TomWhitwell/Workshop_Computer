@@ -9,12 +9,12 @@ summary: >
   editable, and patches cannot be saved.
 Language: C++ (Pico SDK)
 Creator: Laboratory 0
-Version: "0.1.0"
+Version: "1.0"
 Status: Released
 License: Laboratory 0 Freeware (see LICENSE.txt)
 date-created: "2026-09-21"
 date-updated: "2026-09-21"
-Editor: none
+Editor: web
 demo-link: https://www.youtube.com/shorts/i8sVAtF1YXs
 
 tags:
@@ -27,8 +27,8 @@ tags:
   - stereo
 
 uf2:
-  - path: Asterisk_Workshop_v0.1.0.uf2
-    name: Asterisk 0.1.0
+  - path: Asterisk_Workshop_v1.0.uf2
+    name: Asterisk 1.0
 
 panel:
   inputs:
@@ -103,7 +103,7 @@ host:
   usb:
     - name: Asterisk Workshop
       role: MIDI device
-      description: Receives 24 PPQN MIDI Clock, Start, Stop, Continue, and Song Position Pointer from a computer or DAW.
+      description: Receives 24 PPQN MIDI Clock, Start, Stop, Continue, and Song Position Pointer from a computer or DAW. Also connects to the web editor over USB MIDI.
   notes: >
     Enable MIDI Clock output to Asterisk Workshop in your DAW.
     Pulse In 1 takes priority when a cable is connected. Without an external clock,

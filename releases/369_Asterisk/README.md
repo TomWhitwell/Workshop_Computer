@@ -34,12 +34,22 @@ Asterisk runs on its own or follows an external clock:
 
 A cable plugged into Pulse In 1 takes priority over USB MIDI. Without an external clock, Asterisk uses its internally generated tempo and swing. Audio inputs are unused in this version.
 
+## Web editor
+
+The web editor adds internal tempo control, per-track mute and solo, and a global delay amount control. Drag one voice onto another to swap their sounds while keeping each track’s rhythm.
+
+[Open the web editor](https://computer.musicthing.co.uk/programs/369-asterisk/web/index.html). Requires Asterisk 1.0. Connect the Workshop Computer to your computer by USB, then open the editor in Chrome or Edge and allow MIDI and SysEx access.
+
+## Sound demo 2
+
+[Watch on YouTube](https://www.youtube.com/shorts/0aHeqTN17uc)
+
 ## Release
 
 - **Creator:** Laboratory 0
-- **Version:** 0.1.0
+- **Version:** 1.0
 - **Status:** Released
-- **Firmware:** [Asterisk_Workshop_v0.1.0.uf2](Asterisk_Workshop_v0.1.0.uf2)
+- **Firmware:** [Asterisk_Workshop_v1.0.uf2](Asterisk_Workshop_v1.0.uf2)
 
 Follow the [official Program Card installation instructions](https://www.musicthing.co.uk/workshopsystem/program-cards/install/) to write the UF2 to a Workshop Computer Program Card.
 
