@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Asterisk / Laboratory 0</title><link rel="stylesheet" href="style.css"><link rel="icon" href="assets/mark.svg" type="image/svg+xml"></head>
+<body>
+<main class="console">
+ <div class="mast"><span>WORKSHOP COMPUTER VERSION</span><span>LABORATORY 0</span></div>
+ <header><div class="identity"><h1>ASTERISK<span aria-hidden="true">✳</span></h1></div><div class="connection"><button id="connect" class="connect">CONNECT <span>↗</span></button><div class="small-actions"><button id="preview">PREVIEW</button><button id="help">HELP</button></div></div></header>
+ <div id="notice" role="status" aria-live="polite">Disconnected.</div>
+ <div class="instrument">
+  <section class="visual" aria-label="Six-track rhythm display">
+   <div class="stage"><canvas id="radar" aria-label="Six concentric rhythm rings"></canvas><button id="randomize" class="randomize" disabled aria-label="Randomize all sounds and rhythms"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 13V87M18 31L82 69M18 69L82 31"/></svg><span>RANDOMIZE</span></button></div>
+  </section>
+  <section class="performance" aria-label="Performance controls">
+   <div class="tempo-head"><span class="section-label">TEMPO</span><span id="clock-source">NO CLOCK</span></div>
+   <div class="tempo"><label class="tempo-input"><span class="sr-only">Internal tempo in BPM</span><input id="bpm" type="number" min="40" max="240" step="0.1" value="120" disabled inputmode="decimal"><span>BPM</span></label><button id="auto-tempo" disabled title="Return to the tempo generated with the current scene">AUTO<br><span>TEMPO</span></button></div>
+   <div class="tempo-foot"><span id="tempo-note">AUTO</span><div><button id="tempo-down" aria-label="Decrease tempo by one BPM" disabled>−</button><button id="tempo-up" aria-label="Increase tempo by one BPM" disabled>+</button></div></div>
+   <div class="delay-control"><label for="delay">DELAY AMOUNT</label><output id="delay-value" for="delay">—</output><input id="delay" type="range" min="0" max="100" value="100" step="1" disabled></div>
+   <div class="voice-head"><span class="section-label">VOICES</span><div><button id="clear-solo" disabled>CLEAR SOLO</button><button id="all-on" disabled>ALL ON</button></div></div>
+   <p id="drag-hint" class="drag-hint">Drag a name or icon onto another voice to swap sounds. Rhythms stay in place.</p>
+   <div id="voices" class="voices"></div>
+  </section>
+ </div>
+
+</main>
+<dialog id="help-dialog"><div class="dialog-top"><h2>CONTROLS</h2><button data-close="help-dialog" aria-label="Close help">×</button></div><ol><li>Install Asterisk 1.0 firmware. Power the Workshop Computer normally and connect its front USB-C port with a data cable.</li><li>Open this page in Chrome or Edge. Press Connect and allow MIDI and SysEx access.</li><li>Set an internal tempo, mute voices with M, or isolate one or more voices with S. Mute wins over Solo.</li><li>Click a voice to select it. Drag its name or symbol onto another voice to exchange their sounds. Their rhythms stay in place.</li><li>Press the center disc for a new scene. Manual tempo, Delay Amount, Mute and Solo stay as set. Auto Tempo restores each scene’s generated tempo.</li></ol><p>Delay Amount sets the overall echo volume: 0% silences the delay return, and 100% uses the generated level. It does not change the feedback or delay time.</p><p>External CV or USB MIDI clock takes priority over the tempo field. Existing echo tails can linger after muting. Closing this page leaves the current controls on the hardware; power cycling clears them.</p><p>Preview is a silent interface demo. Filter, Decay and Heat are controlled on the hardware.</p><details><summary>Connection and audio diagnostics</summary><p id="diagnostics">Connect hardware to read its counters.</p><p>If audio underruns increase while playing, note the scene and operation and report them with your listening test.</p></details><button class="dialog-done" data-close="help-dialog">CLOSE</button></dialog>
+<dialog id="ports-dialog"><div class="dialog-top"><h2>SELECT PORTS</h2><button data-close="ports-dialog" aria-label="Close port selection">×</button></div><label>FROM ASTERISK<select id="input-port"></select></label><label>TO ASTERISK<select id="output-port"></select></label><button id="use-ports" class="dialog-done">CONNECT ↗</button></dialog>
+<script type="module" src="app.js"></script>
+</body></html>
