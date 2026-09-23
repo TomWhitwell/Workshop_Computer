@@ -69,7 +69,7 @@ private:
 // === Grain ==================================================================
 struct Grain
 {
-    int32_t readPos = 0;      // fixed-point buffer position
+    uint32_t readPos = 0;     // fixed-point buffer position; must be unsigned — pos<<16 overflows int32 for the back half of the buffer, sending idx negative and reading out of bounds
     int32_t increment = 0;    // normally +1.0
     int32_t env = 0;          // envelope phase, 0..kFixedOne
     int32_t envDelta = 0;     // envelope increment per sample
@@ -271,7 +271,7 @@ private:
         gr.readPos = pos << kFixedPoint;
         gr.increment = kFixedOne; // normal speed
         gr.env = 0;
-        gr.envDelta = (kFixedOne * 2) / gr.size;
+        gr.envDelta = 1; // env counts samples 0..size; was (kFixedOne*2)/size, which made grains size²/131072 long — sub-millisecond clicks at small sizes
         gr.active = true;
     }
 
