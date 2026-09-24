@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wand Calibration Targets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Single theme on purpose: this is held against a light sensor. */
+  :root {
+    --ground: #121315; --panel: #1B1D21; --panel-2: #23262B; --line: #2E3238;
+    --ink: #E8E6E1; --ink-dim: #9AA0A6; --brass: #C9A227;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    font-size: 15px; line-height: 1.5;
+  }
+  .wrap { min-height: 100%; display: grid; place-items: center; padding: 16px; padding-block: 28px; }
+  .card { width: min(620px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 26px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--brass); margin: 0 0 10px;
+  }
+  h1 { font-size: clamp(23px, 4.2vw, 30px); line-height: 1.15; margin: 0 0 20px; font-weight: 600; }
+  h2 {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim);
+    margin: 0 0 10px; font-weight: 600;
+  }
+  .sections { display: grid; gap: 22px; }
+  .ways { display: grid; gap: 8px; }
+  .way { display: grid; grid-template-columns: 86px 1fr; gap: 12px; align-items: center; }
+  .way .what { color: var(--ink-dim); font-size: 13px; }
+  .row { display: flex; gap: 5px; }
+  .dot { width: 22px; height: 22px; border-radius: 3px; border: 1px solid var(--line); }
+  ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--ink-dim); }
+  ul b { color: var(--ink); font-weight: 600; }
+  kbd {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px;
+  }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 24px; }
+  button { font: inherit; font-weight: 600; color: #17181A; background: var(--brass); border: 1px solid var(--brass); border-radius: 4px; padding: 10px 20px; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  button:hover { filter: brightness(1.08); }
+  :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .hint { color: var(--ink-dim); font-size: 13px; }
+
+  #target { position: fixed; inset: 0; display: none; cursor: pointer; }
+  #target.on { display: block; }
+  #readout {
+    position: fixed; top: env(safe-area-inset-top, 0px); left: 0; margin: 14px;
+    background: rgba(12, 13, 15, 0.86); border: 1px solid var(--line); border-radius: 5px;
+    padding: 10px 13px; display: grid; gap: 8px; max-width: min(260px, calc(100% - 28px));
+    transition: opacity 600ms ease;
+  }
+  #readout.faded { opacity: 0.12; }
+  @media (prefers-reduced-motion: reduce) { #readout { transition: none; } }
+  .r-head { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; letter-spacing: 0.08em; }
+  .r-head .of { color: var(--ink-dim); }
+  .r-led { display: flex; gap: 9px; align-items: center; color: var(--ink-dim); font-size: 12px; }
+  .leds { display: grid; grid-template-columns: repeat(2, 8px); gap: 4px; }
+  .led { width: 8px; height: 8px; border-radius: 50%; background: #34383E; }
+  .led.on { background: var(--brass); }
+  .led.dim { background: #6B5A1C; }
+  .pips { display: flex; gap: 4px; }
+  .pip { width: 15px; height: 3px; border-radius: 2px; background: #34383E; }
+  .pip.done { background: var(--brass); }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="intro">
+  <main class="card">
+    <p class="eyebrow">LightPen</p>
+    <h1>Wand Calibration Targets</h1>
+
+    <div class="sections">
+      <section>
+        <h2>Two ways to calibrate</h2>
+        <div class="ways">
+          <div class="way">
+            <span class="row" id="wayColour"></span>
+            <span class="what">Colour and level</span>
+          </div>
+          <div class="way">
+            <span class="row" id="wayLevel"></span>
+            <span class="what">Level only — just show white four times</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>On the card</h2>
+        <ul>
+          <li>Hold the switch <b>Down</b> while powering on, then release.</li>
+          <li>Tap <b>Down</b> once for each capture. Hold still.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>On this screen</h2>
+        <ul>
+          <li>Turn off <b>night mode</b> and <b>auto-brightness</b>, and leave brightness alone until you're done.</li>
+          <li>Use a <b>black card</b> for the last step if you have one.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="actions">
+      <button id="start">Start</button>
+      <button class="ghost" id="fs">Full screen</button>
+      <span class="hint"><kbd>space</kbd> next · <kbd>esc</kbd> stop</span>
+    </div>
+  </main>
+</div>
+
+<div id="target">
+  <div id="readout">
+    <div class="r-head"><span id="stepName">RED</span> <span class="of">· <span id="stepNum">1</span>/5</span></div>
+    <div class="pips" id="pips"></div>
+    <div class="r-led"><span class="leds" id="ledView"></span><span id="ledText"></span></div>
+  </div>
+</div>
+
+<script>
+  var STEPS = [
+    { name: "RED",   css: "#FF0000", leds: [0], text: "LED 1" },
+    { name: "GREEN", css: "#00FF00", leds: [1], text: "LED 3" },
+    { name: "BLUE",  css: "#0000FF", leds: [2], text: "LED 5" },
+    { name: "WHITE", css: "#FFFFFF", leds: [0, 1, 2], text: "all three" },
+    { name: "BLACK", css: "#000000", leds: [0, 1, 2], dim: true, text: "all three, dim" }
+  ];
+
+  var intro = document.getElementById("intro");
+  var target = document.getElementById("target");
+  var readout = document.getElementById("readout");
+  var stepName = document.getElementById("stepName");
+  var stepNum = document.getElementById("stepNum");
+  var ledView = document.getElementById("ledView");
+  var ledText = document.getElementById("ledText");
+  var pips = document.getElementById("pips");
+  var idx = 0, fadeTimer = null;
+
+  function swatches(el, colours) {
+    var html = "";
+    for (var i = 0; i < colours.length; i++) {
+      html += '<span class="dot" style="background:' + colours[i] + '"></span>';
+    }
+    el.innerHTML = html;
+  }
+  swatches(document.getElementById("wayColour"), ["#FF0000", "#00FF00", "#0000FF", "#FFFFFF", "#000000"]);
+  swatches(document.getElementById("wayLevel"), ["#FFFFFF", "#FFFFFF", "#FFFFFF", "#FFFFFF", "#000000"]);
+
+  for (var i = 0; i < STEPS.length; i++) {
+    var p = document.createElement("span");
+    p.className = "pip";
+    pips.appendChild(p);
+  }
+
+  function render() {
+    var s = STEPS[idx];
+    target.style.background = s.css;
+    stepName.textContent = s.name;
+    stepNum.textContent = String(idx + 1);
+    var html = "";
+    for (var row = 0; row < 3; row++) {
+      var lit = s.leds.indexOf(row) !== -1;
+      html += '<span class="led"></span>';
+      html += '<span class="' + (lit ? (s.dim ? "led dim" : "led on") : "led") + '"></span>';
+    }
+    ledView.innerHTML = html;
+    ledText.textContent = s.text;
+    for (var i = 0; i < pips.children.length; i++) {
+      pips.children[i].className = i <= idx ? "pip done" : "pip";
+    }
+    readout.classList.remove("faded");
+    if (fadeTimer) clearTimeout(fadeTimer);
+    fadeTimer = setTimeout(function () { readout.classList.add("faded"); }, 2600);
+  }
+
+  function openTarget() { idx = 0; intro.style.display = "none"; target.classList.add("on"); render(); }
+  function closeTarget() { target.classList.remove("on"); intro.style.display = ""; if (fadeTimer) clearTimeout(fadeTimer); }
+  function advance(by) {
+    var next = idx + by;
+    if (next < 0) next = 0;
+    if (next >= STEPS.length) { closeTarget(); return; }
+    idx = next;
+    render();
+  }
+
+  document.getElementById("start").addEventListener("click", openTarget);
+  document.getElementById("fs").addEventListener("click", function () {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(function () {});
+    }
+  });
+  target.addEventListener("click", function () { advance(1); });
+  document.addEventListener("keydown", function (e) {
+    if (!target.classList.contains("on")) {
+      if (e.key === "Enter" || e.key === " ") { openTarget(); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Escape") { closeTarget(); }
+    else if (e.key === "ArrowLeft") { advance(-1); e.preventDefault(); }
+    else if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight") { advance(1); e.preventDefault(); }
+  });
+</script>
+</body>
+</html>

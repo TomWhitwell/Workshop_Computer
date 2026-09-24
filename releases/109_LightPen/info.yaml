@@ -1,0 +1,173 @@
+draft: false
+Name: LIGHTPEN
+short-description: An RGB light-sensor wand as an eight-mode controller and sound source
+Language: C++ (ComputerCard)
+Creator: Andy Jenkinson (uglifruit)
+Version: "1.0.0"
+Status: Released
+License: CC-BY-4.0
+repository: https://github.com/uglifruit/WorkshopLightPen
+Editor: none
+date-created: 2026-09-16
+date-updated: 2026-09-24
+
+contact:
+  social:
+    github: https://github.com/uglifruit
+
+uf2:
+  - path: UF2/lightpen.uf2
+    name: LIGHTPEN 1.0.0
+
+tags:
+  - controller
+  - sensor
+  - synthesis
+  - percussion
+  - looper
+  - quantizer
+
+summary: |
+  LIGHTPEN drives an RGB sensor wand: three light-dependent resistors under
+  red, green and blue gels in a marker-pen body, powered from CV Out 1 and
+  read on CV In 1, CV In 2 and Audio In 2. Point it at the room or scan
+  printed colour, and the colour becomes CV, gates and audio.<br><br>
+
+  The wand is four wires and nothing else. Each LDR goes straight from the
+  CV Out 1 plug to one input plug: the Computer's inputs are each 120k to
+  ground internally, which forms the other half of the divider, and its
+  outputs already carry a 1k series resistor, so no components and no ground
+  wire are needed. Each channel draws about 50uA.<br><br>
+
+  X sets sensitivity and Y smoothing in every mode. Switch Up steps through
+  eight modes; Down is each mode's action — and in the three modes that
+  record, a quick tap of Down cycles the sound or behaviour while a longer
+  press still records.<br><br>
+
+  The LEDs are two columns of three: the left (0, 2, 4) counts the mode as a
+  three-bit number, and the right is a live meter of red (LED 1), green (3)
+  and blue (5). The meter shows the reading the modes act on — after
+  calibration, sensitivity and smoothing — so it is also how you set the card
+  up: a colour pinned at full brightness or staying dark as the wand moves
+  means the modes see that too.<br><br>
+
+  1 RGB CV Mirror: colour as three CVs, plus threshold gates.
+  2 Triad Drone: red, green and blue set the levels of a chord's three notes.
+  3 Barcode Reader: swipe across a black-and-white code while holding Down,
+  and its bars loop as triggers — every element on one pulse out, the wide
+  ones on the other, with the black/white gate as CV. It also plays drums: a
+  bar going dark hits a kick and coming back to light hits a snare, or
+  clicks, crackle or shaped noise, tapped through with the switch.
+  4 Tape Scrubber: hold Down to record Audio In 1 for as long as you hold it,
+  then scrub through the take by moving the wand across a colour map, with a
+  colour-controlled filter. Tap Down to switch between scrubbing, repeating
+  one of sixteen slices, and sweeping the loop length down to a buzz.
+  5 Synesthesia Voice: a 1V/oct voice whose filter, wavefolder and decay
+  follow the colour.
+  6 Colour Organ: hue picks a note in a scale, as calibrated pitch CV,
+  triggers and an organ tone.
+  7 Jog Wheel: the same take runs as a loop and the wand sets its speed,
+  from a nudge to a full shuttle into reverse, against a flywheel whose
+  weight the colour controls. Tap Down for a motorless platter your hand
+  drives entirely, or a brake that stops when you cover the sensor.
+  8 Prism Voice: a sustaining voice with FM, sample-rate crush and filter
+  on the three colours.<br><br>
+
+  Hold Down at power-on to calibrate: five captures, one per tap. Show it
+  red, green, blue, white and black and it measures how much each gel leaks
+  the other colours and un-mixes them, so blue reads as blue rather than as a
+  grey lift on all three, then reports how well the gels separate, one LED to
+  five. Show it white for the first four taps instead and it calibrates level
+  alone — setting each channel's range and straightening its response, an LDR
+  being a power-law device whose raw reading bunches up at the bright end.
+  There is no mode to pick: white is the sum of the primaries, so the
+  captures themselves say which calibration was meant. It is saved to flash
+  and survives power-off.<br><br>
+
+  Two pages to open full-screen on whatever screen you are scanning, both in
+  tools/ and both on the web — the calibration targets
+  (https://uglifruit.github.io/WorkshopLightPen/tools/calibration-target.html)
+  and nine colour maps
+  (https://uglifruit.github.io/WorkshopLightPen/tools/colour-maps.html): the
+  red/green field the tape scrubber was designed around, a hue sweep that
+  plays as a rising scale, barcodes for the barcode reader, and saturated
+  fields for the drone.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Red
+      description: Red LDR return. Wand channel, not a patch point in normal use
+    - id: CVIn2
+      name: Green
+      description: Green LDR return. Wand channel, not a patch point in normal use
+    - id: AudioIn2
+      name: Blue
+      description: Blue LDR return, read as a steady voltage. Wand channel, not a patch point in normal use
+    - id: AudioIn1
+      name: Source / pitch
+      description: Record source in Modes 4 and 7; 1V/oct pitch in Modes 2, 5 and 8. Unused in Modes 1, 3 and 6
+    - id: PulseIn1
+      name: Gate
+      description: Note gate for the two synth voices, Modes 5 and 8. Unused elsewhere
+    - id: PulseIn2
+      name: (unused)
+      description: Not read by any mode
+  outputs:
+    - id: CVOut1
+      name: Wand supply
+      description: Held at full scale as the excitation supply for all three LDRs. Not a signal output — no mode writes to it
+    - id: CVOut2
+      name: Mode CV
+      description: Red in Mode 1, element width or brightness in Mode 3, envelope in Modes 5 and 8, calibrated 1V/oct note in Mode 6, play position in Mode 7
+    - id: AudioOut1
+      name: Audio / green
+      description: Green as CV in Mode 1, the drum voice or element width in Mode 3, audio in every other mode
+    - id: AudioOut2
+      name: Audio / blue
+      description: Blue as CV in Mode 1, the black/white gate in Mode 3, audio in every other mode
+    - id: PulseOut1
+      name: Trigger
+      description: Red over threshold (1), every barcode element (3), a new note (6), the loop start (7)
+    - id: PulseOut2
+      name: Trigger 2
+      description: Blue over threshold (1), wide barcode elements only (3), colour detected (6), high while playing backwards (7)
+
+controls:
+  knobs:
+    - main:
+        name: Mode parameter
+        description: Gate threshold (1), waveshape (2, 5, 8), playback speed (3), filter type (4), scale (6), jog depth (7)
+      x:
+        name: Sensitivity
+        description: Global, every mode. 0.25x to 4x of the calibrated black-to-white range, unity at noon
+      y:
+        name: Smoothing
+        description: Global, every mode. Slew on all three colour channels, from light to about a third of a second. Keep it low when scanning barcodes
+
+  switch:
+    up:
+      name: Next mode
+      description: Momentary up steps to the next of the eight modes, exactly one per click. The left LED column shows which
+    down:
+      name: Mode action
+      description: Freeze (1), chord type (2), record (3, 4, 7), colour rotation (5, 8), transpose (6). Held at power-on it starts calibration instead
+    tap:
+      name: Option
+      description: In Modes 3, 4 and 7 a quick tap cycles the drum kit or the scrub behaviour, while a longer press records
+
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Mode number, bit 0 (left column)
+        - id: LED1
+          name: Red, live level (right column)
+        - id: LED2
+          name: Mode number, bit 1
+        - id: LED3
+          name: Green, live level
+        - id: LED4
+          name: Mode number, bit 2
+        - id: LED5
+          name: Blue, live level
