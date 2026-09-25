@@ -256,6 +256,17 @@ static constexpr uint32_t HzToInc(int32_t hz)
 	return static_cast<uint32_t>((static_cast<int64_t>(hz) << 32) / kSampleRate);
 }
 
+/// Triangle fold: reflect off +/-2048 as many times as the drive needs.
+/// Closed form over one 8192-unit period, so no loop in the interrupt, and the
+/// identity for anything already inside the rails — at 8x drive a full-scale
+/// input needs more reflections than an unrolled reflect loop would give it.
+static inline int32_t __attribute__((always_inline)) fold12(int32_t v)
+{
+	int32_t t = (v + 2048) & 8191;
+	if (t > 4096) t = 8192 - t;
+	return t - 2048;
+}
+
 /// MIDI note in Q8 (note * 256) -> phase increment per sample at 48kHz.
 /// Semitone table plus linear interpolation, then an octave shift.
 /// Uses a divide, so CONTROL RATE ONLY.
