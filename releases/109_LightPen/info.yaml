@@ -1,15 +1,15 @@
 draft: false
 Name: LIGHTPEN
-short-description: An RGB light-sensor wand as an eight-mode controller and sound source
+short-description: An RGB light-sensor wand as a nine-mode controller and sound source
 Language: C++ (ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: "1.0.0"
+Version: "1.1.0"
 Status: Released
 License: CC-BY-4.0
 repository: https://github.com/uglifruit/WorkshopLightPen
 Editor: none
 date-created: 2026-09-16
-date-updated: 2026-09-24
+date-updated: 2026-09-25
 
 contact:
   social:
@@ -17,7 +17,7 @@ contact:
 
 uf2:
   - path: UF2/lightpen.uf2
-    name: LIGHTPEN 1.0.0
+    name: LIGHTPEN 1.1.0
 
 tags:
   - controller
@@ -26,6 +26,7 @@ tags:
   - percussion
   - looper
   - quantizer
+  - filter
 
 summary: |
   LIGHTPEN drives an RGB sensor wand: three light-dependent resistors under
@@ -40,12 +41,13 @@ summary: |
   wire are needed. Each channel draws about 50uA.<br><br>
 
   X sets sensitivity and Y smoothing in every mode. Switch Up steps through
-  eight modes; Down is each mode's action — and in the three modes that
+  nine modes; Down is each mode's action — and in the three modes that
   record, a quick tap of Down cycles the sound or behaviour while a longer
   press still records.<br><br>
 
   The LEDs are two columns of three: the left (0, 2, 4) counts the mode as a
-  three-bit number, and the right is a live meter of red (LED 1), green (3)
+  three-bit number starting at one, with Modes 8 and 9 counting again at half
+  brightness, and the right is a live meter of red (LED 1), green (3)
   and blue (5). The meter shows the reading the modes act on — after
   calibration, sensitivity and smoothing — so it is also how you set the card
   up: a colour pinned at full brightness or staying dark as the wand moves
@@ -71,7 +73,11 @@ summary: |
   weight the colour controls. Tap Down for a motorless platter your hand
   drives entirely, or a brake that stops when you cover the sensor.
   8 Prism Voice: a sustaining voice with FM, sample-rate crush and filter
-  on the three colours.<br><br>
+  on the three colours.
+  9 Colour Filter: patch audio into Audio In 1 and the wand holds all three
+  filter controls at once — cutoff, resonance and a continuous low-pass to
+  band-pass to high-pass walk — with drive on the Main knob and an envelope
+  follower on the spare jacks.<br><br>
 
   Hold Down at power-on to calibrate: five captures, one per tap. Show it
   red, green, blue, white and black and it measures how much each gel leaks
@@ -105,8 +111,8 @@ panel:
       name: Blue
       description: Blue LDR return, read as a steady voltage. Wand channel, not a patch point in normal use
     - id: AudioIn1
-      name: Source / pitch
-      description: Record source in Modes 4 and 7; 1V/oct pitch in Modes 2, 5 and 8. Unused in Modes 1, 3 and 6
+      name: Audio in / pitch
+      description: The audio to filter in Mode 9; record source in Modes 4 and 7; 1V/oct pitch in Modes 2, 5 and 8. Unused in Modes 1, 3 and 6
     - id: PulseIn1
       name: Gate
       description: Note gate for the two synth voices, Modes 5 and 8. Unused elsewhere
@@ -119,16 +125,16 @@ panel:
       description: Held at full scale as the excitation supply for all three LDRs. Not a signal output — no mode writes to it
     - id: CVOut2
       name: Mode CV
-      description: Red in Mode 1, element width or brightness in Mode 3, envelope in Modes 5 and 8, calibrated 1V/oct note in Mode 6, play position in Mode 7
+      description: Red in Mode 1, element width or brightness in Mode 3, envelope in Modes 5 and 8, calibrated 1V/oct note in Mode 6, play position in Mode 7, envelope follower in Mode 9
     - id: AudioOut1
       name: Audio / green
-      description: Green as CV in Mode 1, the drum voice or element width in Mode 3, audio in every other mode
+      description: Green as CV in Mode 1, the drum voice or element width in Mode 3, the filtered input in Mode 9, audio in every other mode
     - id: AudioOut2
       name: Audio / blue
-      description: Blue as CV in Mode 1, the black/white gate in Mode 3, audio in every other mode
+      description: Blue as CV in Mode 1, the black/white gate in Mode 3, the filtered input in Mode 9, audio in every other mode
     - id: PulseOut1
       name: Trigger
-      description: Red over threshold (1), every barcode element (3), a new note (6), the loop start (7)
+      description: Red over threshold (1), every barcode element (3), a new note (6), the loop start (7), signal present (9)
     - id: PulseOut2
       name: Trigger 2
       description: Blue over threshold (1), wide barcode elements only (3), colour detected (6), high while playing backwards (7)
@@ -137,7 +143,7 @@ controls:
   knobs:
     - main:
         name: Mode parameter
-        description: Gate threshold (1), waveshape (2, 5, 8), playback speed (3), filter type (4), scale (6), jog depth (7)
+        description: Gate threshold (1), waveshape (2, 5, 8), playback speed (3), filter type (4), scale (6), jog depth (7), filter drive (9)
       x:
         name: Sensitivity
         description: Global, every mode. 0.25x to 4x of the calibrated black-to-white range, unity at noon
@@ -148,10 +154,10 @@ controls:
   switch:
     up:
       name: Next mode
-      description: Momentary up steps to the next of the eight modes, exactly one per click. The left LED column shows which
+      description: Momentary up steps to the next of the nine modes, exactly one per click. The left LED column shows which
     down:
       name: Mode action
-      description: Freeze (1), chord type (2), record (3, 4, 7), colour rotation (5, 8), transpose (6). Held at power-on it starts calibration instead
+      description: Freeze (1), chord type (2), record (3, 4, 7), colour rotation (5, 8, 9), transpose (6). Held at power-on it starts calibration instead
     tap:
       name: Option
       description: In Modes 3, 4 and 7 a quick tap cycles the drum kit or the scrub behaviour, while a longer press records
@@ -160,7 +166,7 @@ controls:
     - display: list
       items:
         - id: LED0
-          name: Mode number, bit 0 (left column)
+          name: Mode number, bit 0 (left column; half brightness past Mode 7)
         - id: LED1
           name: Red, live level (right column)
         - id: LED2

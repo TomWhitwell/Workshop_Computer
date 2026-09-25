@@ -26,13 +26,14 @@
 #include "modes/hueorgan.h"
 #include "modes/jog.h"
 #include "modes/prism.h"
+#include "modes/colourfilter.h"
 
 using namespace lp;
 
 class LightPen : public ComputerCard
 {
 public:
-	static constexpr int kNumModes = 8;
+	static constexpr int kNumModes = 9;
 
 	/// Before Run(). `saved`: this is a calibration loaded from flash, not
 	/// the defaults.
@@ -221,9 +222,10 @@ private:
 	HueOrganMode    hueorgan_;
 	JogMode         jog_;
 	PrismMode       prism_;
+	ColourFilterMode colourfilter_;
 	Engine *engines_[kNumModes] = {
 		&mirror_, &triad_, &barcode_, &tapescrub_, &synesthesia_, &hueorgan_,
-		&jog_, &prism_,
+		&jog_, &prism_, &colourfilter_,
 	};
 
 	static constexpr int32_t kBootSettleSamples = kSampleRate / 2;   // ~0.5s
