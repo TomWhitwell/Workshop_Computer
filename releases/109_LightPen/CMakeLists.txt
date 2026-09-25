@@ -34,7 +34,13 @@ add_executable(${CARD_NAME}
   modes/hueorgan.cpp
   modes/jog.cpp
   modes/prism.cpp
-  modes/colourfilter.cpp)
+  modes/colourfilter.cpp
+  fx.cpp
+  modes/delay.cpp
+  modes/reverb.cpp
+  modes/freeze.cpp
+  modes/modulation.cpp
+  modes/mangle.cpp)
 
 target_compile_options(${CARD_NAME} PRIVATE
   -Wdouble-promotion -Wfloat-conversion -Wall -Wextra)

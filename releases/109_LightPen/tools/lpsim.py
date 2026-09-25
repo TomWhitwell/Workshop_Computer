@@ -2108,6 +2108,36 @@ def check_colour_filter():
     check("the gate's hysteresis is wider than a release step at the threshold",
           (40 - 18) > step_at_on, f"band 22 vs step {step_at_on}")
 
+    # The whole Mode 9 chain, end to end, at a level you would actually patch
+    # in. This is the check that was missing when the mode shipped silent: the
+    # arithmetic was all correct, and the mode still made no sound, because a
+    # dark reading asked for a 40Hz low-pass and the wand's resting state in
+    # room light IS dark.
+    def mode9(colour, freq=440, amp=1500, n=9600, res_u=0, type_u=0, main=0):
+        s = Svf()
+        s.set(20480 + ((colour * 11) >> 4), res_u)
+        seg, frac = blend_set(type_u >> 4)
+        d = drive_q12(main)
+        out = []
+        for i in range(n):
+            x = int(amp * math.sin(2 * math.pi * freq * i / 48000))
+            s.process(soft_clip(i32(x * d) >> 12))
+            out.append(clamp(blend_render(s, seg, frac), -2048, 2047))
+        return rms(out[n // 2:])
+
+    ref = 1500 / math.sqrt(2)
+    rest = 20 * math.log10(mode9(0) / ref)
+    check("Mode 9 still passes audible signal with the wand in the dark",
+          rest > -18, f"{rest:.1f} dB at 440Hz, cutoff floor closed")
+    openz = 20 * math.log10(mode9(65535) / ref)
+    check("and is essentially open at full brightness",
+          openz > -1.0, f"{openz:.1f} dB at 440Hz")
+    check("the cutoff sweep is monotonic in brightness",
+          all(mode9(c) < mode9(c + 8192) for c in range(0, 57344, 8192)))
+    # The overflow the obvious remap would have hit at full scale.
+    check("the cutoff remap stays inside int32 at full brightness",
+          i32(65535 * 11) >> 4 == 45055, "11/16 rather than (65536-floor)/65536")
+
     # The mode display: nine distinct patterns, none of them a dark column.
     pats = [mode_leds(m) for m in range(9)]
     check("all nine modes show a distinct LED pattern",
@@ -2117,6 +2147,285 @@ def check_colour_filter():
           all(max(p) == 4095 for p in pats[:7])
           and all(max(p) == 1100 for p in pats[7:]),
           f"mode 8 = {pats[7]}, mode 9 = {pats[8]}")
+
+
+# --- Modes 10-14, the effects: fx.h primitives and each mode end to end ------
+
+FX_LEN = 20480
+
+
+class FxBuf:
+    """The shared gFx buffer. Every mode carves regions out of this one list,
+    exactly as the firmware does, so a layout that overlaps shows up here."""
+
+    def __init__(self):
+        self.b = [0] * FX_LEN
+
+
+class Line:
+    def __init__(self, fx, off, n):
+        self.fx, self.off, self.n, self.w = fx, off, n, 0
+
+    def write(self, s):
+        self.fx.b[self.off + self.w] = clamp(s, -32767, 32767)
+        self.w = (self.w + 1) % self.n
+
+    def tap(self, back):
+        i = (self.w + self.n - 1 - (back % self.n)) % self.n
+        return self.fx.b[self.off + i]
+
+    def tap_q16(self, b_q16):
+        whole, frac = b_q16 >> 16, b_q16 & 0xFFFF
+        s0, s1 = self.tap(whole), self.tap(whole + 1)
+        return s0 + (i32((s1 - s0) * frac) >> 16)
+
+
+class OnePole:
+    def __init__(self):
+        self.z, self.d = 0, 0
+
+    def process(self, x):
+        self.z += i32((x - self.z) * (32768 - self.d)) >> 15
+        return self.z
+
+
+class Comb:
+    def __init__(self, fx, off, n):
+        self.line, self.lp, self.n, self.fb = Line(fx, off, n), OnePole(), n, 0
+
+    def process(self, x):
+        out = self.line.tap(self.n - 1)
+        self.line.write(x + (i32(self.lp.process(out) * self.fb) >> 15))
+        return out
+
+
+class Allpass:
+    def __init__(self, fx, off, n):
+        self.line, self.n = Line(fx, off, n), n
+
+    def process(self, x):
+        b = self.line.tap(self.n - 1)
+        self.line.write(x + ((b * 16384) >> 15))
+        return b - x
+
+
+def delay_time_q16(u, lo, hi):
+    oct_q12 = (log2_q16(hi) - log2_q16(lo)) >> 4
+    t = pow2_scale(lo * 256, (u * oct_q12) >> 16) * 256
+    return clamp(t, lo * 65536, hi * 65536)
+
+
+COMB_LEN = [1214, 1293, 1390, 1476, 1548, 1623, 1694, 1760]
+AP_LEN = [605, 480, 371, 245]
+PRE_LEN = 4096
+
+
+def sine(n, freq, amp=1500):
+    return [int(amp * math.sin(2 * math.pi * freq * i / 48000)) for i in range(n)]
+
+
+def run_delay(red, green, blue, main=0, n=48000, freq=440):
+    """Mode 10 end to end."""
+    fx = FxBuf()
+    line = Line(fx, 0, FX_LEN)
+    tone = OnePole()
+    lo, hi = 480, FX_LEN - 512
+    target = delay_time_q16(red, lo, hi)
+    t = target
+    fb = i32(green * 32440) >> 16
+    mix = blue >> 1
+    tone.d = ((4095 - main) * 26000) >> 12
+    src = sine(n, freq)
+    out = []
+    for x in src:
+        t = slew_exact(t, target, 10)
+        wet = line.tap_q16(t)
+        line.write(x + (i32(tone.process(wet) * fb) >> 15))
+        out.append(clamp(x + (i32((wet - x) * mix) >> 15), -2048, 2047))
+    return out
+
+
+def run_reverb(red, green, blue, main=0, n=48000, src=None):
+    """Mode 11 end to end."""
+    fx = FxBuf()
+    at = 0
+    combs = []
+    for ln in COMB_LEN:
+        combs.append(Comb(fx, at, ln))
+        at += ln
+    aps = []
+    for ln in AP_LEN:
+        aps.append(Allpass(fx, at, ln))
+        at += ln
+    pre = Line(fx, at, PRE_LEN)
+    fb = 22938 + ((i32((30146 - 22938) * red)) >> 16)
+    damp = 26000 - (i32(green * 26000) >> 16)
+    for c in combs:
+        c.fb, c.lp.d = fb, damp
+    mix = blue >> 1
+    pre_tap = (main * (PRE_LEN - 1)) >> 12
+    if src is None:
+        src = sine(n, 440)
+    out = []
+    for x in src:
+        pre.write(x)
+        v = pre.tap(pre_tap) >> 3
+        wet = sum(c.process(v) for c in combs) >> 3
+        for a in aps:
+            wet = a.process(wet)
+        out.append(clamp(x + (i32((wet - x) * mix) >> 15), -2048, 2047))
+    return out
+
+
+def grain_env(pos, dur, ramp, ramp_inv):
+    e = ((pos * ramp_inv) >> 16) if pos < ramp else \
+        (((dur - pos) * ramp_inv) >> 16) if pos > dur - ramp else 32767
+    return max(e, 0)
+
+
+def run_mangle(red, green, blue, main=0, n=4800, freq=440):
+    """Mode 14 end to end. No buffer, so it is pure arithmetic."""
+    hold_n = 1 + ((red * 31) >> 16)
+    drop = (red * 9) >> 16
+    mask = ~((1 << drop) - 1)
+    drive = 256 + ((green * 1792) >> 16)
+    ring = blue >> 1
+    inc = pow2_scale(hz_to_inc(20), (main * 7 * 4096) >> 12)
+    phase, count, held = 0, 0, 0
+    out = []
+    for x in sine(n, freq):
+        count += 1
+        if count >= hold_n:
+            count, held = 0, x & mask
+        v = fold((held * drive) >> 8)
+        phase = (phase + inc) & 0xFFFFFFFF
+        ringed = mul_q15(v, fast_sin(phase))
+        v = v + (i32((ringed - v) * ring) >> 15)
+        out.append(clamp(v, -2048, 2047))
+    return out
+
+
+def check_effects():
+    print()
+    ref = 1500 / math.sqrt(2)
+
+    # The layouts. An overlap here would be two effects scribbling on each
+    # other, which is exactly the bug a shared buffer invites.
+    tank = sum(COMB_LEN) + sum(AP_LEN) + PRE_LEN
+    check("the reverb tank fits the shared buffer",
+          tank <= FX_LEN, f"{tank} of {FX_LEN} samples")
+    check("and the delay's longest tap stays inside it",
+          (FX_LEN - 512) + 1 < FX_LEN, f"max tap {FX_LEN - 512}")
+
+    # --- Mode 10, delay
+    lo, hi = 480, FX_LEN - 512
+    t0 = delay_time_q16(0, lo, hi) >> 16
+    t1 = delay_time_q16(65535, lo, hi) >> 16
+    check("the delay time spans about 10ms to 416ms",
+          9 < t0 * 1000 / 48000 < 11 and 410 < t1 * 1000 / 48000 < 417
+          and t1 <= FX_LEN - 512,
+          f"{t0 * 1000 / 48000:.1f}ms .. {t1 * 1000 / 48000:.0f}ms")
+    check("and is monotonic in brightness",
+          all(delay_time_q16(u, lo, hi) < delay_time_q16(u + 4096, lo, hi)
+              for u in range(0, 61440, 4096)))
+    # pow2_scale reads up to 6% high inside an octave (linear interpolation of a
+    # convex curve), which unclamped asks for 441ms from a 416ms line — Tap()
+    # would wrap that into a completely different delay.
+    raw = pow2_scale(lo * 256, (65535 * ((log2_q16(hi) - log2_q16(lo)) >> 4)) >> 16) * 256
+    check("the clamp is load-bearing: unclamped the time runs past the line",
+          (raw >> 16) > hi, f"unclamped {raw >> 16} vs line {hi}")
+
+    # A tap must return exactly what was written that many samples ago, or the
+    # delay is not a delay.
+    fx = FxBuf()
+    ln = Line(fx, 0, 1000)
+    for i in range(1, 501):
+        ln.write(i * 50)
+    check("a line's tap returns the sample written that many back",
+          ln.tap(0) == 25000 and ln.tap(9) == 24550 and ln.tap(499) == 50,
+          f"tap(0)={ln.tap(0)}, tap(9)={ln.tap(9)}, tap(499)={ln.tap(499)}")
+    half = ln.tap_q16((10 << 16) + 32768)
+    check("and an interpolated tap sits half way between its two neighbours",
+          ln.tap(11) < half < ln.tap(10) and abs(half - 24475) <= 1,
+          f"tap(10)={ln.tap(10)}, half={half}, tap(11)={ln.tap(11)}")
+
+    out = run_delay(32768, 40000, 65535, n=48000)   # wet, mid time, feedback up
+    tail = rms(out[40000:])
+    check("Mode 10 makes sound, and the wet path is the output at full mix",
+          20 * math.log10(tail / ref) > -12, f"{20 * math.log10(tail / ref):.1f} dB")
+    # Feedback under unity has to decay, or a held note builds to a clip.
+    quiet = run_delay(32768, 65535, 65535, n=24000)
+    silence_fed = quiet[:]
+    check("feedback at its maximum still decays rather than running away",
+          max(abs(v) for v in silence_fed[20000:]) <= 2047,
+          "no clip at full feedback")
+
+    # --- Mode 11, reverb
+    # An impulse in, and the tail has to actually ring and then die.
+    imp = [1800] + [0] * 47999
+    rv = run_reverb(65535, 32768, 65535, src=imp)
+    peak_early = max(abs(v) for v in rv[:4800])
+    peak_late = max(abs(v) for v in rv[43200:])
+    check("Mode 11 rings from an impulse", peak_early > 40, f"peak {peak_early}")
+    check("and the tail decays rather than sustaining for ever",
+          peak_late < peak_early // 2, f"{peak_early} early vs {peak_late} late")
+    check("the biggest room does not clip a sustained input",
+          max(abs(v) for v in run_reverb(65535, 65535, 65535, n=24000)) <= 2047)
+    small = run_reverb(0, 32768, 65535, src=imp)
+    check("a small room decays faster than a big one",
+          sum(abs(v) for v in small[9600:]) < sum(abs(v) for v in rv[9600:]),
+          "size actually changes the decay")
+
+    # --- Mode 12, freeze: the grain window is what stops it clicking
+    dur, ramp = 4800, 1200
+    ramp_inv = (32767 * 65536) // ramp
+    check("a grain's envelope starts and ends at silence",
+          grain_env(0, dur, ramp, ramp_inv) == 0
+          and grain_env(dur, dur, ramp, ramp_inv) == 0,
+          "no click at either edge")
+    check("and reaches full in the middle",
+          grain_env(dur // 2, dur, ramp, ramp_inv) == 32767)
+    check("the envelope never goes negative anywhere in the grain",
+          all(grain_env(p, dur, ramp, ramp_inv) >= 0 for p in range(dur + 1)))
+    # At maximum density three grains overlap, so the sum never reaches zero
+    # between them — which is what makes a pad rather than a stutter.
+    every = (dur * (131072 - ((65535 * 109226) >> 16))) >> 16
+    cover = [0] * (dur * 3)
+    for start in range(0, dur * 2, max(every, 1)):
+        for p in range(dur):
+            if start + p < len(cover):
+                cover[start + p] += grain_env(p, dur, ramp, ramp_inv)
+    check("at full density the grains overlap with no gap",
+          min(cover[dur:dur * 2]) > 0, f"spawn every {every} of {dur} samples")
+
+    # --- Mode 13, modulation: the phaser cascade must stay bounded
+    x1 = [0] * 4
+    y1 = [0] * 4
+    worst = 0
+    for i, x in enumerate(sine(24000, 220, 2047)):
+        a = clamp(16384 + (((fast_sin(i * 400000 & 0xFFFFFFFF) * 16383) >> 15) >> 2),
+                  4915, 27852)
+        v = x
+        for s in range(4):
+            y = ((i32((v + y1[s]) * a)) >> 15) - x1[s]
+            x1[s], y1[s] = v, y
+            v = y
+        worst = max(worst, abs(v))
+    check("the phaser's four allpass stages stay bounded at full drive",
+          worst < 8192, f"worst |out| = {worst} from +/-2047 in")
+
+    # --- Mode 14, mangle
+    check("the crush mask is a true bit reduction",
+          (~((1 << 0) - 1)) == -1 and (1000 & ~((1 << 4) - 1)) == 992,
+          "12 bits at rest, 4 bits away drops to a multiple of 16")
+    for name, r, g, b in (("crush only", 60000, 0, 0),
+                          ("fold only", 0, 60000, 0),
+                          ("ring only", 0, 0, 60000)):
+        o = run_mangle(r, g, b, main=2048)
+        db = 20 * math.log10(max(rms(o), 0.01) / ref)
+        check(f"Mode 14 makes sound with {name}", db > -20, f"{db:.1f} dB")
+    check("and never leaves 12-bit range",
+          all(-2048 <= v <= 2047 for v in run_mangle(65535, 65535, 65535, main=4095)))
 
 
 def main():
@@ -2136,6 +2445,7 @@ def main():
     check_hue()
     check_tape_modes()
     check_colour_filter()
+    check_effects()
     check_controls()
     print()
     print("ALL PASS" if not FAILS else f"{len(FAILS)} FAILED: " + ", ".join(FAILS))

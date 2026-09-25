@@ -42,6 +42,11 @@ private:
 	static constexpr int32_t kGateOn  = 40;
 	static constexpr int32_t kGateOff = 18;
 
+	// The bottom of the cutoff sweep, as a Q16 colour handed to Svf::Set.
+	// 20480 is ~228Hz; 0 would be ~40Hz, which is inaudible on most material
+	// and is what made this mode look silent at rest. See colourfilter.cpp.
+	static constexpr int32_t kCutFloor = 20480;
+
 	Svf      svf_;
 	SvfBlend blend_;
 	int32_t  drive_ = 5461;    // Q12; 5461 is unity through the soft clip

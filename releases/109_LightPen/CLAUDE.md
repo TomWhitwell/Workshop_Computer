@@ -9,20 +9,23 @@ where they fit.
 **LIGHTPEN drives an "RGB sensor wand"**: a whiteboard-marker body with three
 LDRs in the tip under red, green and blue gels. It reads room light or scans
 printed colour (gradient maps, barcode stripes, rainbow strips) and turns it
-into CV and audio across nine modes.
+into CV and audio across fourteen modes.
 
-## Current status: v1.1.0, released, flashed and played
+## Current status: v1.2.0, released, flashed and played
 
 Builds clean under `-Wall -Wextra -Wdouble-promotion -Wfloat-conversion` to
-`build/lightpen.uf2`: **5.84% flash, 81.32% RAM** (the RAM is almost entirely
-`gTape`, the 168KB take shared by Modes 4 and 7). The released binary is
-committed at `UF2/lightpen.uf2`.
-`python tools/lpsim.py` passes all 198 checks.
+`build/lightpen.uf2`: **6.15% flash, 89.21% RAM** (mostly `gTape`'s 144KB and
+the effects' 40KB `gFx`). The released binary is committed at
+`UF2/lightpen.uf2`.
+`python tools/lpsim.py` passes all 225 checks.
 
-`info.yaml` is `draft: false`, `Status: Released`, version 1.1.0. Own repo:
-`uglifruit/WorkshopLightPen`, tagged `v1.1.0`. Submitted to the community
-catalogue as `releases/109_LightPen` in `TomWhitwell/Workshop_Computer`
-(PR #421, from branch `add-card-109-lightpen` on the fork).
+`info.yaml` is `draft: false`, `Status: Released`, version 1.2.0. Own repo:
+`uglifruit/WorkshopLightPen`, tagged `v1.2.0`. Submitted to the community
+catalogue as `releases/109_LightPen` in `TomWhitwell/Workshop_Computer` —
+merged there at 1.0.0 (PR #421), with 1.1.0 following as PR #423 from branch
+`update-card-109-lightpen-1.1.0` on the fork. Copy only the files a release
+actually changed into that folder: the fork is checked out with CRLF, so
+re-copying every file makes git see all 41 as modified.
 Design plan of record: `~/.claude/plans/glistening-popping-avalanche.md`.
 
 The bench list further down is no longer a list of blockers — the card has
@@ -203,6 +206,11 @@ again, and keep the v1 read path.
 | 7 | `modes/jog` | jog depth (nudge→shuttle) | hold = record; TAP = Nudge/Platter/Brake | A1+A2; G = speed, B = platter weight, R = cutoff; CV2 = position; P1 = loop start; P2 = reversing |
 | 8 | `modes/prism` | sine→tri→square | tap = rotate R/G/B roles | A1+A2 voice; CV2 = envelope; R = FM, G = crush, B = cutoff; sustains on the gate |
 | 9 | `modes/colourfilter` | filter drive 1x..8x | tap = rotate R/G/B roles | A In 1 → SVF → A1+A2; R = cutoff, G = resonance, B = LP→BP→HP blend; CV2 = envelope follower, P1 = signal present |
+| 10 | `modes/delay` | feedback tone | tap = rotate R/G/B roles | R = time 10-416ms, G = feedback, B = mix; P1 = one pulse per delay period; CV2 = envelope |
+| 11 | `modes/reverb` | pre-delay 0-85ms | tap = rotate R/G/B roles | 8 combs + 4 allpass; R = size, G = tail brightness, B = mix; CV2 = envelope |
+| 12 | `modes/freeze` | mix | hold = freeze; TAP = rotate roles | 3 granular voices over the frozen buffer; R = grain size, G = pitch, B = density; P1 = each grain |
+| 13 | `modes/modulation` | phaser→flanger→chorus | tap = rotate R/G/B roles | R = LFO rate, G = depth, B = feedback; CV2 = the LFO, P1 = its rising half |
+| 14 | `modes/mangle` | ring carrier pitch | tap = rotate R/G/B roles | no buffer; R = bit+rate crush, G = fold, B = ring depth; CV2 = envelope |
 
 Design decisions worth knowing before changing things:
 
@@ -243,8 +251,8 @@ Design decisions worth knowing before changing things:
   Mode 3 needs none of that: it records into the spare buffer and swaps.
 - **Modes 4 and 7 share one take** (`tape.h`, `gTape`, 168KB at file scope).
   Recording is a gesture in both: hold Down and the take is as long as the
-  hold, capped at `Tape::kMaxLen` (1.75s — the most that fits with ~54KB to
-  spare). A take under 50ms is discarded and the previous one kept, though
+  hold, capped at `Tape::kMaxLen` (1.5s, down from 1.75s when the effects
+  arrived wanting 40KB — see the RAM table). A take under 50ms is discarded and the previous one kept, though
   its first few ms have been overwritten by then. Mode 4 places the head
   absolutely from Green; Mode 7 lets the loop run and Green sets its speed.
 - **Mode 3's voice** (`percvoice.h`, header-only so it inlines into the
@@ -286,6 +294,33 @@ Design decisions worth knowing before changing things:
   quiet. L is 4096 rather than full scale to keep `x*x` exact inside int32,
   and the 0.75 that costs is folded into the drive constant (5461 = 4096*4/3),
   which is what makes the bottom of the drive travel unity for small signals.
+- **Modes 10-14 all share one 40KB buffer** (`fx.h`, `gFx`), the way 4 and 7
+  share the tape. They are mutually exclusive, so only the current mode's
+  regions are live. Each lays its regions out from offset 0 and must fit
+  `kFxLen`; the reverb's tank has a `static_assert` for exactly this.
+  **Entering one of these modes wipes the buffer over control ticks**
+  (`FxClearChunk`, 1024 samples a tick, ~13ms) and keeps the wet path muted
+  until it finishes — 40KB of stores is thousands of times the 20.8us budget,
+  and without the wipe you hear the previous effect's buffer as a burst.
+- **The reverb's input shift is a measured number, not a guess.** Eight combs
+  at 0.92 feedback each reach ~12x their input before summing. lpsim measured
+  the worst case (biggest room, no damping, sustained tone): `>>4` leaves the
+  tank 13.8dB down and inaudible under the dry signal, `>>2` peaks at 2094 and
+  clips, `>>3` is -7.8dB with a peak of 1042. Feedback tops out at 0.92 rather
+  than Freeverb's 0.98 for the same reason.
+- **Mode 10 clamps its delay time, and the clamp is load-bearing.**
+  `pow2_scale` interpolates LINEARLY inside an octave and 2^x is convex, so it
+  reads up to 6% HIGH — at full brightness it asks for 441ms from a 416ms line,
+  which `Tap()` wraps modulo the buffer into a completely different delay. Every
+  other caller of `pow2_scale` tolerates that error; this one cannot.
+- **Mode 13 crossfades between two topologies** rather than switching: a phaser
+  and a modulated delay both run every sample and Main mixes them, the same
+  trick `SvfBlend` uses on the filter taps, so there is no discrete boundary to
+  chatter across. Note `depth_ >> 1` before it meets the LFO — `lfo * depth_` at
+  full scale is 2147385345, which clears int32 by 98302.
+- **Mode 12 freezes from the control tick, not the press**, at
+  `downTicks == kTapTicks`, exactly as Modes 4 and 7 start recording — and for
+  the same reason: freezing on the press makes every tap a 171ms hole.
 - **Per-sample virtual dispatch** of `AudioTick` is deliberate; see
   `engine.h`.
 
@@ -346,15 +381,19 @@ pymupdf). Sheets 2/5 and 3/5 settle how the wand behaves:
 
 | Consumer | Size |
 |---|---|
-| `gTape`, shared by Modes 4 and 7 (1.75s at 48kHz) | 168 KB |
+| `gTape`, shared by Modes 4 and 7 (1.5s at 48kHz) | 144 KB |
+| `gFx`, shared by Modes 10-14 (426ms at 48kHz) | 40 KB |
 | Mode 3's two takes, with their element lists | 11 KB |
 | The three response tables (513 x int32) + shared gain table | 8 KB |
-| Sine LUT, engine/oscillator/filter state, library buffers | ~23 KB |
-| **Total, measured at link** | **210 KB, 80% of 256KB** |
+| Sine LUT, engine/oscillator/filter state, library buffers | ~25 KB |
+| **Total, measured at link** | **228 KB, 89% of 256KB** |
 
-The tape is sized to leave ~54KB spare, so it is the first thing that will
-run the card out of RAM. Watch `--print-memory-usage` if `Tape::kMaxLen`
-changes; 2s (192KB) would leave only ~30KB.
+**The two shared buffers are the whole budget**, and they were traded against
+each other: the effects wanted 40KB, so `Tape::kMaxLen` came down from 1.75s to
+1.5s to pay for it. At 1.75s the card links at 98.4%, which works — the stack
+lives in SCRATCH_X at 0x20040000, outside this 256KB figure, and nothing here
+allocates — but it leaves 6KB, so the next feature has nowhere to go. Watch
+`--print-memory-usage` whenever either constant moves.
 
 ## Build
 
@@ -387,7 +426,8 @@ its own `Sw` enum.
 laws and calibration mapping (including an inverted wand and the minimum
 span), the oscillators, the SVF and blend, the fold, Mode 3's speed law and
 edge finder, Mode 6's hue and note picker, Mode 9's drive and soft clip and the
-mode-LED scheme, and the switch debounce. It exits non-zero on failure. Keep it in step with the C++: when you change a law in
+mode-LED scheme, the fx.h primitives and all five effect modes end to end, and
+the switch debounce. It exits non-zero on failure. Keep it in step with the C++: when you change a law in
 the firmware, change its mirror too.
 
 It has already caught two real bugs. **The SVF's integrators froze at low
@@ -396,6 +436,15 @@ of DC stuck on the output; the fix is that the states carry 8 extra fractional
 bits. And **Mode 9's soft clip overshot its range by a LSB at each extreme**
 (2048 and -2049, the shift flooring one way and the truncating divide the
 other) — the check was written expecting it to be in range, and it was not.
+
+**The lesson from Mode 9 shipping silent: test the SOUND, not the pieces.**
+Every one of the 198 checks passed while that mode made no noise at all,
+because they each tested one stage in isolation and none of them put a signal
+in one end and listened at the other. Every effect mode now has an "it makes
+sound" check that drives a sine through the whole chain and asserts a level in
+dB. Two of those found real faults the moment they were written — the delay's
+time overshooting its line, and the reverb tank sitting 14dB down. Add one for
+any mode you add.
 
 ## Hard rules
 

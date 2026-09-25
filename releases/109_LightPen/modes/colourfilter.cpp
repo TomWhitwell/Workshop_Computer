@@ -49,7 +49,14 @@ void ColourFilterMode::ControlTick(const SensorFrame &f, const Ctrl &c, EngineOu
 	int32_t resU  = u[(rotation_ + 1) % 3];
 	int32_t typeU = u[(rotation_ + 2) % 3];
 
-	svf_.Set(cutU, resU);
+	// Compressed into an audible band, NOT handed to the Svf raw. Raw, a dark
+	// reading is a 40Hz low-pass — 42dB down at 440Hz — and since the wand's
+	// resting state in ordinary room light IS dark, the mode read as broken
+	// rather than as closed. The floor puts that rest state at 228Hz instead,
+	// which sounds like a shut filter but still plays. 11/16 keeps the top at
+	// exactly 65535 while staying inside int32; the obvious
+	// (cutU * (65536 - floor)) >> 16 overflows at full scale.
+	svf_.Set(kCutFloor + ((cutU * 11) >> 4), resU);
 	// SvfBlend reads a 0..4095 knob; the colour is unipolar Q16.
 	blend_.Set(typeU >> 4);
 	// Three octaves of drive, 1x to 8x. 5461 = 4096 * 4/3 undoes the 0.75 the

@@ -4,8 +4,11 @@
 // exactly as long as you held it, up to kMaxLen. Both modes record and play
 // the same buffer, so a take grabbed in one is playable in the other.
 //
-// 1.75s at 48kHz is 168KB of the RP2040's 256KB. That is the practical
-// ceiling here: with the rest of the card at ~34KB it leaves ~54KB spare.
+// 1.5s at 48kHz is 144KB of the RP2040's 256KB. It was 1.75s until the five
+// effect modes arrived wanting a 40KB buffer of their own (fx.h); a quarter of
+// a second off the longest take bought all five, and the take is a gesture
+// whose length you set by holding the switch, so the cap is a ceiling rather
+// than the point. Raise it back if the effects are ever dropped.
 
 #pragma once
 #include <cstdint>
@@ -16,7 +19,7 @@ namespace lp {
 class Tape
 {
 public:
-	static constexpr uint32_t kMaxLen = 84000;   // 1.75s
+	static constexpr uint32_t kMaxLen = 72000;   // 1.5s
 	// 5.3ms — just enough to keep PositionQ8's len-2 and Mode 7's position
 	// ramp sane. It used to be 50ms, to throw away accidental taps; recording
 	// now only STARTS once a press has outlived kTapTicks, so every take that

@@ -27,13 +27,18 @@
 #include "modes/jog.h"
 #include "modes/prism.h"
 #include "modes/colourfilter.h"
+#include "modes/delay.h"
+#include "modes/reverb.h"
+#include "modes/freeze.h"
+#include "modes/modulation.h"
+#include "modes/mangle.h"
 
 using namespace lp;
 
 class LightPen : public ComputerCard
 {
 public:
-	static constexpr int kNumModes = 9;
+	static constexpr int kNumModes = 14;
 
 	/// Before Run(). `saved`: this is a calibration loaded from flash, not
 	/// the defaults.
@@ -223,9 +228,15 @@ private:
 	JogMode         jog_;
 	PrismMode       prism_;
 	ColourFilterMode colourfilter_;
+	DelayMode        delay_;
+	ReverbMode       reverb_;
+	FreezeMode       freeze_;
+	ModulationMode   modulation_;
+	MangleMode       mangle_;
 	Engine *engines_[kNumModes] = {
 		&mirror_, &triad_, &barcode_, &tapescrub_, &synesthesia_, &hueorgan_,
-		&jog_, &prism_, &colourfilter_,
+		&jog_, &prism_, &colourfilter_, &delay_, &reverb_, &freeze_, &modulation_,
+		&mangle_,
 	};
 
 	static constexpr int32_t kBootSettleSamples = kSampleRate / 2;   // ~0.5s

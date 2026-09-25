@@ -1,9 +1,9 @@
 draft: false
 Name: LIGHTPEN
-short-description: An RGB light-sensor wand as a nine-mode controller and sound source
+short-description: An RGB light-sensor wand as a fourteen-mode controller, sound source and effects box
 Language: C++ (ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: "1.1.0"
+Version: "1.2.0"
 Status: Released
 License: CC-BY-4.0
 repository: https://github.com/uglifruit/WorkshopLightPen
@@ -17,7 +17,7 @@ contact:
 
 uf2:
   - path: UF2/lightpen.uf2
-    name: LIGHTPEN 1.1.0
+    name: LIGHTPEN 1.2.0
 
 tags:
   - controller
@@ -27,6 +27,9 @@ tags:
   - looper
   - quantizer
   - filter
+  - delay
+  - reverb
+  - effects
 
 summary: |
   LIGHTPEN drives an RGB sensor wand: three light-dependent resistors under
@@ -41,12 +44,12 @@ summary: |
   wire are needed. Each channel draws about 50uA.<br><br>
 
   X sets sensitivity and Y smoothing in every mode. Switch Up steps through
-  nine modes; Down is each mode's action — and in the three modes that
+  fourteen modes; Down is each mode's action — and in the three modes that
   record, a quick tap of Down cycles the sound or behaviour while a longer
   press still records.<br><br>
 
   The LEDs are two columns of three: the left (0, 2, 4) counts the mode as a
-  three-bit number starting at one, with Modes 8 and 9 counting again at half
+  three-bit number starting at one, with Modes 8 to 14 counting again at half
   brightness, and the right is a live meter of red (LED 1), green (3)
   and blue (5). The meter shows the reading the modes act on — after
   calibration, sensitivity and smoothing — so it is also how you set the card
@@ -78,6 +81,29 @@ summary: |
   filter controls at once — cutoff, resonance and a continuous low-pass to
   band-pass to high-pass walk — with drive on the Main knob and an envelope
   follower on the spare jacks.<br><br>
+
+  Modes 10 to 14 are EFFECTS. They all take audio on Audio In 1 and return it
+  on both audio outs, the three colours are the three controls, Main is the one
+  thing a hand cannot hold, and a tap of Down rotates which colour does what.
+  They share one 40KB buffer, which is the only reason a reverb fits here at
+  all; arriving in one wipes it over about 13ms so you never hear what the last
+  effect left behind.<br><br>
+
+  10 Delay: red is time, 10ms to 416ms, green feedback, blue mix. The time is
+  smoothed and interpolated, so sweeping it bends the pitch of what is already
+  in the line the way a tape delay does. Main is the tone of the feedback path;
+  Pulse Out 1 clocks once per delay period.
+  11 Reverb: eight damped combs into four allpass diffusers, retuned to 48kHz.
+  Red is size, up to a 2.4s hall, green the brightness of the tail, blue mix.
+  Main is pre-delay.
+  12 Freeze: the last 426ms is always in the buffer. Hold Down and it stops
+  writing, and three granular voices make a pad out of the moment that has just
+  gone — red grain size, green pitch, blue density.
+  13 Modulation: one LFO, with Main walking a four-stage phaser into a flanger
+  into a chorus by crossfade rather than by switch. Red rate, green depth, blue
+  feedback, and CV Out 2 carries the LFO.
+  14 Mangle: no buffer at all. Red crushes bit depth and sample rate together,
+  green folds, blue ring-modulates, and Main is the carrier pitch.<br><br>
 
   Hold Down at power-on to calibrate: five captures, one per tap. Show it
   red, green, blue, white and black and it measures how much each gel leaks
@@ -112,7 +138,7 @@ panel:
       description: Blue LDR return, read as a steady voltage. Wand channel, not a patch point in normal use
     - id: AudioIn1
       name: Audio in / pitch
-      description: The audio to filter in Mode 9; record source in Modes 4 and 7; 1V/oct pitch in Modes 2, 5 and 8. Unused in Modes 1, 3 and 6
+      description: The audio in for every effect mode, 9 to 14; record source in Modes 4 and 7; 1V/oct pitch in Modes 2, 5 and 8. Unused in Modes 1, 3 and 6
     - id: PulseIn1
       name: Gate
       description: Note gate for the two synth voices, Modes 5 and 8. Unused elsewhere
@@ -125,16 +151,16 @@ panel:
       description: Held at full scale as the excitation supply for all three LDRs. Not a signal output — no mode writes to it
     - id: CVOut2
       name: Mode CV
-      description: Red in Mode 1, element width or brightness in Mode 3, envelope in Modes 5 and 8, calibrated 1V/oct note in Mode 6, play position in Mode 7, envelope follower in Mode 9
+      description: Red in Mode 1, element width or brightness in Mode 3, envelope in Modes 5 and 8, calibrated 1V/oct note in Mode 6, play position in Mode 7, an envelope follower in Modes 9 to 12 and 14, and the LFO in Mode 13
     - id: AudioOut1
       name: Audio / green
-      description: Green as CV in Mode 1, the drum voice or element width in Mode 3, the filtered input in Mode 9, audio in every other mode
+      description: Green as CV in Mode 1, the drum voice or element width in Mode 3, the processed input in Modes 9 to 14, audio in every other mode
     - id: AudioOut2
       name: Audio / blue
-      description: Blue as CV in Mode 1, the black/white gate in Mode 3, the filtered input in Mode 9, audio in every other mode
+      description: Blue as CV in Mode 1, the black/white gate in Mode 3, the processed input in Modes 9 to 14, audio in every other mode
     - id: PulseOut1
       name: Trigger
-      description: Red over threshold (1), every barcode element (3), a new note (6), the loop start (7), signal present (9)
+      description: Red over threshold (1), every barcode element (3), a new note (6), the loop start (7), signal present (9), the delay's own clock (10), each grain (12), the LFO's rising half (13)
     - id: PulseOut2
       name: Trigger 2
       description: Blue over threshold (1), wide barcode elements only (3), colour detected (6), high while playing backwards (7)
@@ -143,7 +169,7 @@ controls:
   knobs:
     - main:
         name: Mode parameter
-        description: Gate threshold (1), waveshape (2, 5, 8), playback speed (3), filter type (4), scale (6), jog depth (7), filter drive (9)
+        description: Gate threshold (1), waveshape (2, 5, 8), playback speed (3), filter type (4), scale (6), jog depth (7), filter drive (9), feedback tone (10), pre-delay (11), mix (12), phaser to flanger to chorus (13), ring carrier pitch (14)
       x:
         name: Sensitivity
         description: Global, every mode. 0.25x to 4x of the calibrated black-to-white range, unity at noon
@@ -154,13 +180,13 @@ controls:
   switch:
     up:
       name: Next mode
-      description: Momentary up steps to the next of the nine modes, exactly one per click. The left LED column shows which
+      description: Momentary up steps to the next of the fourteen modes, exactly one per click. The left LED column shows which
     down:
       name: Mode action
-      description: Freeze (1), chord type (2), record (3, 4, 7), colour rotation (5, 8, 9), transpose (6). Held at power-on it starts calibration instead
+      description: Freeze (1), chord type (2), record (3, 4, 7), freeze (12), colour rotation (5, 8, 9, 10, 11, 13, 14), transpose (6). Held at power-on it starts calibration instead
     tap:
       name: Option
-      description: In Modes 3, 4 and 7 a quick tap cycles the drum kit or the scrub behaviour, while a longer press records
+      description: In Modes 3, 4, 7 and 12 a quick tap cycles the drum kit, the scrub behaviour or the colour roles, while a longer press records or freezes
 
   leds:
     - display: list
