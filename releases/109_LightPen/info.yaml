@@ -3,7 +3,7 @@ Name: LIGHTPEN
 short-description: An RGB light-sensor wand as a fourteen-mode controller, sound source and effects box
 Language: C++ (ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: "1.2.0"
+Version: "1.2.1"
 Status: Released
 License: CC-BY-4.0
 repository: https://github.com/uglifruit/WorkshopLightPen
@@ -17,7 +17,7 @@ contact:
 
 uf2:
   - path: UF2/lightpen.uf2
-    name: LIGHTPEN 1.2.0
+    name: LIGHTPEN 1.2.1
 
 tags:
   - controller
@@ -56,54 +56,54 @@ summary: |
   up: a colour pinned at full brightness or staying dark as the wand moves
   means the modes see that too.<br><br>
 
-  1 RGB CV Mirror: colour as three CVs, plus threshold gates.
-  2 Triad Drone: red, green and blue set the levels of a chord's three notes.
+  1 RGB CV Mirror: colour as three CVs, plus threshold gates.<br><br>
+  2 Triad Drone: red, green and blue set the levels of a chord's three notes.<br><br>
   3 Barcode Reader: swipe across a black-and-white code while holding Down,
   and its bars loop as triggers — every element on one pulse out, the wide
   ones on the other, with the black/white gate as CV. It also plays drums: a
   bar going dark hits a kick and coming back to light hits a snare, or
-  clicks, crackle or shaped noise, tapped through with the switch.
+  clicks, crackle or shaped noise, tapped through with the switch.<br><br>
   4 Tape Scrubber: hold Down to record Audio In 1 for as long as you hold it,
   then scrub through the take by moving the wand across a colour map, with a
   colour-controlled filter. Tap Down to switch between scrubbing, repeating
-  one of sixteen slices, and sweeping the loop length down to a buzz.
+  one of sixteen slices, and sweeping the loop length down to a buzz.<br><br>
   5 Synesthesia Voice: a 1V/oct voice whose filter, wavefolder and decay
-  follow the colour.
+  follow the colour.<br><br>
   6 Colour Organ: hue picks a note in a scale, as calibrated pitch CV,
-  triggers and an organ tone.
+  triggers and an organ tone.<br><br>
   7 Jog Wheel: the same take runs as a loop and the wand sets its speed,
   from a nudge to a full shuttle into reverse, against a flywheel whose
   weight the colour controls. Tap Down for a motorless platter your hand
-  drives entirely, or a brake that stops when you cover the sensor.
+  drives entirely, or a brake that stops when you cover the sensor.<br><br>
   8 Prism Voice: a sustaining voice with FM, sample-rate crush and filter
-  on the three colours.
+  on the three colours.<br><br><br>
+
+  Modes 9 to 14 are EFFECTS. They all take audio on Audio In 1 and return it
+  on both audio outs, the three colours are the three controls, plus Main knob.
+  Tap of Down rotates which colour does what.<br><br><br>
+
+
   9 Colour Filter: patch audio into Audio In 1 and the wand holds all three
   filter controls at once — cutoff, resonance and a continuous low-pass to
   band-pass to high-pass walk — with drive on the Main knob and an envelope
   follower on the spare jacks.<br><br>
-
-  Modes 10 to 14 are EFFECTS. They all take audio on Audio In 1 and return it
-  on both audio outs, the three colours are the three controls, Main is the one
-  thing a hand cannot hold, and a tap of Down rotates which colour does what.
-  They share one 40KB buffer, which is the only reason a reverb fits here at
-  all; arriving in one wipes it over about 13ms so you never hear what the last
-  effect left behind.<br><br>
-
   10 Delay: red is time, 10ms to 416ms, green feedback, blue mix. The time is
   smoothed and interpolated, so sweeping it bends the pitch of what is already
   in the line the way a tape delay does. Main is the tone of the feedback path;
-  Pulse Out 1 clocks once per delay period.
+  Pulse Out 1 clocks once per delay period.<br><br>
   11 Reverb: eight damped combs into four allpass diffusers, retuned to 48kHz.
   Red is size, up to a 2.4s hall, green the brightness of the tail, blue mix.
-  Main is pre-delay.
+  Main is pre-delay.<br><br>
   12 Freeze: the last 426ms is always in the buffer. Hold Down and it stops
   writing, and three granular voices make a pad out of the moment that has just
-  gone — red grain size, green pitch, blue density.
-  13 Modulation: one LFO, with Main walking a four-stage phaser into a flanger
+  gone — red grain size, green pitch, blue density, and Main scatters the grains
+  from an orderly stretch to a cloud. The hold LATCHES, so the wand hand is
+  free, and the voices alternate between the two audio outs for width.<br><br>
+  13 Modulation: one LFO, with Main walking a six-stage phaser into a flanger
   into a chorus by crossfade rather than by switch. Red rate, green depth, blue
-  feedback, and CV Out 2 carries the LFO.
+  feedback, and CV Out 2 carries the LFO.<br><br>
   14 Mangle: no buffer at all. Red crushes bit depth and sample rate together,
-  green folds, blue ring-modulates, and Main is the carrier pitch.<br><br>
+  green folds, blue ring-modulates, and Main is the carrier pitch.<br><br><br>
 
   Hold Down at power-on to calibrate: five captures, one per tap. Show it
   red, green, blue, white and black and it measures how much each gel leaks
@@ -157,7 +157,7 @@ panel:
       description: Green as CV in Mode 1, the drum voice or element width in Mode 3, the processed input in Modes 9 to 14, audio in every other mode
     - id: AudioOut2
       name: Audio / blue
-      description: Blue as CV in Mode 1, the black/white gate in Mode 3, the processed input in Modes 9 to 14, audio in every other mode
+      description: Blue as CV in Mode 1, the black/white gate in Mode 3, the processed input in Modes 9 to 14 (the right-leaning half of the grain cloud in Mode 12), audio in every other mode
     - id: PulseOut1
       name: Trigger
       description: Red over threshold (1), every barcode element (3), a new note (6), the loop start (7), signal present (9), the delay's own clock (10), each grain (12), the LFO's rising half (13)
@@ -169,7 +169,7 @@ controls:
   knobs:
     - main:
         name: Mode parameter
-        description: Gate threshold (1), waveshape (2, 5, 8), playback speed (3), filter type (4), scale (6), jog depth (7), filter drive (9), feedback tone (10), pre-delay (11), mix (12), phaser to flanger to chorus (13), ring carrier pitch (14)
+        description: Gate threshold (1), waveshape (2, 5, 8), playback speed (3), filter type (4), scale (6), jog depth (7), filter drive (9), feedback tone (10), pre-delay (11), grain scatter (12), phaser to flanger to chorus (13), ring carrier pitch (14)
       x:
         name: Sensitivity
         description: Global, every mode. 0.25x to 4x of the calibrated black-to-white range, unity at noon
@@ -183,10 +183,10 @@ controls:
       description: Momentary up steps to the next of the fourteen modes, exactly one per click. The left LED column shows which
     down:
       name: Mode action
-      description: Freeze (1), chord type (2), record (3, 4, 7), freeze (12), colour rotation (5, 8, 9, 10, 11, 13, 14), transpose (6). Held at power-on it starts calibration instead
+      description: Freeze (1), chord type (2), record (3, 4, 7), latching freeze (12), colour rotation (5, 8, 9, 10, 11, 13, 14), transpose (6). Held at power-on it starts calibration instead
     tap:
       name: Option
-      description: In Modes 3, 4, 7 and 12 a quick tap cycles the drum kit, the scrub behaviour or the colour roles, while a longer press records or freezes
+      description: In Modes 3, 4, 7 and 12 a quick tap cycles the drum kit, the scrub behaviour or the colour roles, while a longer press records, or toggles the freeze on and off
 
   leds:
     - display: list

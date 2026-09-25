@@ -2,7 +2,7 @@
 
 A program card for the [Music Thing Modular Workshop System Computer](https://github.com/TomWhitwell/Workshop_Computer) that turns an **RGB sensor wand** into a controller and a sound source. The wand is a whiteboard-marker body with three light-dependent resistors (LDRs) in the tip, under red, green and blue lighting gels. Wave it at the room, or scan printed colour with it (gradient maps, barcode stripes, rainbow strips), and the colour becomes CV, gates and audio.
 
-**Version 1.2.0.** All fourteen modes build and pass the desktop DSP checks in `tools/`. A ready-to-flash binary is in [UF2/lightpen.uf2](UF2/lightpen.uf2) — drag it onto the Computer in bootloader mode.
+**Version 1.2.1.** All fourteen modes build and pass the desktop DSP checks in `tools/`. A ready-to-flash binary is in [UF2/lightpen.uf2](UF2/lightpen.uf2) — drag it onto the Computer in bootloader mode.
 
 ## Wiring the wand
 
@@ -22,7 +22,7 @@ This works best when the LDRs read somewhere near 120k through their gels. If yo
 - **X knob:** sensitivity (0.25x to 4x of the calibrated range, unity at noon)
 - **Y knob:** smoothing, from light to about a third of a second
 - **Switch Up:** next mode (one mode per click)
-- **Switch Down (momentary):** the current mode's action. In the modes that record or freeze (3, 4, 7 and 12), a quick **tap** changes the sound or behaviour while a longer press records, so the one switch does both. In the effect modes a tap rotates which colour controls what
+- **Switch Down (momentary):** the current mode's action. In the modes that record or freeze (3, 4, 7 and 12), a quick **tap** changes the sound or behaviour while a longer press records — or, in Mode 12, toggles the freeze on and off. The one switch does both. In the effect modes a tap rotates which colour controls what
 - **Main knob:** the current mode's parameter
 
 **LEDs.** The six LEDs are in two columns of three:
@@ -123,9 +123,11 @@ They share one 40KB buffer between them — only one mode runs at a time, which 
 
 **11. Reverb.** Eight damped combs into four allpass diffusers — the Freeverb topology, retuned to 48kHz. Red is **size** (a small bright box up to a ~2.4s hall), green is the **brightness of the tail**, blue is **dry/wet**. *Main:* pre-delay, 0 to 85ms, which is what separates a sound from its own reverb. All three rest states are the useful end of nothing: with the wand in the dark it's a small, dark, entirely dry room, so arriving in the mode passes your input through rather than drowning it.
 
-**12. Freeze.** Audio runs continuously into the buffer, so the last 426ms is always there. **Hold Down** and the writing stops: that moment becomes the source for three granular voices, and you get a sustained pad out of something already gone. Red is **grain size** (2ms to 400ms), green is **pitch** (an octave either side of unity at mid-grey), blue is **density** — from stuttering gaps to a solid cloud. *Main:* dry/wet. Grains march forward through the frozen buffer rather than sitting still, so a long hold reads as a time-stretch rather than one looped fragment. **Pulse Out 1** fires on each grain. A *tap* of Down rotates the colours instead of freezing.
+**12. Freeze.** Audio runs continuously into the buffer, so the last 426ms is always there. **Hold Down** and the writing stops: that moment becomes the source for three granular voices, and you get a sustained pad out of something already gone. Red is **grain size** (20ms to 400ms), green is **pitch** (an octave either side of unity at mid-grey), blue is **density**. *Main:* **scatter** — at the bottom the grains march forward through the buffer in order, which reads as a time-stretch of the captured moment; at the top each one starts somewhere random in it, which reads as a cloud.
 
-**13. Modulation.** One LFO and two topologies, with Main walking between them: a four-stage **phaser** at the bottom, a **flanger** in the middle, a **chorus** at the top. Both run every sample and the knob crossfades, so there's no switch to click across. Red is **rate** (0.06Hz to 8Hz), green is **depth**, blue is **feedback** — which is what makes a flanger ring and a phaser bite. **CV Out 2** is the LFO itself, so the rest of the rack can move with it.
+The hold **latches**: one hold freezes, another thaws, so you aren't pinning the switch down with the hand you need for the wand. A *tap* rotates the colours instead. While frozen the output is entirely wet — blending the live input back in just sounds like nothing is happening. The three voices **alternate between the two audio outs**, panned 3:1, so the pad is wide but still sums to mono; it's the one mode that doesn't send the same signal to both. **Pulse Out 1** fires on each grain.
+
+**13. Modulation.** One LFO and two topologies, with Main walking between them: a six-stage **phaser** at the bottom, a **flanger** in the middle, a **chorus** at the top. Both run every sample and the knob crossfades, so there's no switch to click across. Red is **rate** (0.25Hz to 8Hz), green is **depth**, blue is **feedback** — which is what makes a flanger ring and a phaser bite. **CV Out 2** is the LFO itself, so the rest of the rack can move with it. The depth never reaches zero, so there's always movement to hear even with the wand at rest.
 
 **14. Mangle.** The destructive one, and the only effect with no buffer at all. Red is **crush** — bit depth and sample rate together, from clean down to 3 bits held for 32 samples. Green is **fold**, drive into a triangle wavefolder. Blue is **ring modulation** depth. *Main:* the ring modulator's carrier pitch, 20Hz to about 2.5kHz — low for tremolo, mid for the classic clang, high for sidebands that read as a new timbre. The order is crush, then fold, then ring: folding a crushed signal keeps the staircase audible, while crushing a folded one just samples the folds.
 

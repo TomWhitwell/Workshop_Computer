@@ -11,19 +11,20 @@ LDRs in the tip under red, green and blue gels. It reads room light or scans
 printed colour (gradient maps, barcode stripes, rainbow strips) and turns it
 into CV and audio across fourteen modes.
 
-## Current status: v1.2.0, released, flashed and played
+## Current status: v1.2.1, released, flashed and played
 
 Builds clean under `-Wall -Wextra -Wdouble-promotion -Wfloat-conversion` to
-`build/lightpen.uf2`: **6.15% flash, 89.21% RAM** (mostly `gTape`'s 144KB and
+`build/lightpen.uf2`: **6.16% flash, 89.28% RAM** (mostly `gTape`'s 144KB and
 the effects' 40KB `gFx`). The released binary is committed at
 `UF2/lightpen.uf2`.
-`python tools/lpsim.py` passes all 225 checks.
+`python tools/lpsim.py` passes all 233 checks.
 
-`info.yaml` is `draft: false`, `Status: Released`, version 1.2.0. Own repo:
-`uglifruit/WorkshopLightPen`, tagged `v1.2.0`. Submitted to the community
+`info.yaml` is `draft: false`, `Status: Released`, version 1.2.1. Own repo:
+`uglifruit/WorkshopLightPen`, tagged `v1.2.1`. Submitted to the community
 catalogue as `releases/109_LightPen` in `TomWhitwell/Workshop_Computer` —
-merged there at 1.0.0 (PR #421), with 1.1.0 following as PR #423 from branch
-`update-card-109-lightpen-1.1.0` on the fork. Copy only the files a release
+merged there at 1.0.0 (PR #421), then 1.1.0 (PR #423), with 1.2.0 open as
+PR #424. Note 1.1.1 never went up on its own — its Mode 9 fix rode along in
+1.2.0, so the catalogue skipped straight from 1.1.0. Copy only the files a release
 actually changed into that folder: the fork is checked out with CRLF, so
 re-copying every file makes git see all 41 as modified.
 Design plan of record: `~/.claude/plans/glistening-popping-avalanche.md`.
@@ -208,8 +209,8 @@ again, and keep the v1 read path.
 | 9 | `modes/colourfilter` | filter drive 1x..8x | tap = rotate R/G/B roles | A In 1 → SVF → A1+A2; R = cutoff, G = resonance, B = LP→BP→HP blend; CV2 = envelope follower, P1 = signal present |
 | 10 | `modes/delay` | feedback tone | tap = rotate R/G/B roles | R = time 10-416ms, G = feedback, B = mix; P1 = one pulse per delay period; CV2 = envelope |
 | 11 | `modes/reverb` | pre-delay 0-85ms | tap = rotate R/G/B roles | 8 combs + 4 allpass; R = size, G = tail brightness, B = mix; CV2 = envelope |
-| 12 | `modes/freeze` | mix | hold = freeze; TAP = rotate roles | 3 granular voices over the frozen buffer; R = grain size, G = pitch, B = density; P1 = each grain |
-| 13 | `modes/modulation` | phaser→flanger→chorus | tap = rotate R/G/B roles | R = LFO rate, G = depth, B = feedback; CV2 = the LFO, P1 = its rising half |
+| 12 | `modes/freeze` | grain scatter | hold = TOGGLE freeze; TAP = rotate roles | 3 granular voices over the frozen buffer, alternating between the two outs; R = grain size, G = pitch, B = density; P1 = each grain |
+| 13 | `modes/modulation` | phaser→flanger→chorus | tap = rotate R/G/B roles | 6 allpass stages; R = LFO rate, G = depth (floored), B = feedback; CV2 = the LFO, P1 = its rising half |
 | 14 | `modes/mangle` | ring carrier pitch | tap = rotate R/G/B roles | no buffer; R = bit+rate crush, G = fold, B = ring depth; CV2 = envelope |
 
 Design decisions worth knowing before changing things:
@@ -318,9 +319,43 @@ Design decisions worth knowing before changing things:
   trick `SvfBlend` uses on the filter taps, so there is no discrete boundary to
   chatter across. Note `depth_ >> 1` before it meets the LFO — `lfo * depth_` at
   full scale is 2147385345, which clears int32 by 98302.
-- **Mode 12 freezes from the control tick, not the press**, at
+- **Do NOT pre-mix the phaser output with the input.** The final
+  `(dry + wet) >> 1` is already the 50/50 a phaser needs for full-depth notches.
+  The first version mixed dry in twice, leaving a quarter allpass against three
+  quarters dry: measured sweep 0.35dB, which is inaudible. Not pre-mixing,
+  widening the coefficient sweep from 0.25..0.75 to 0.10..0.90, and going from
+  four stages to six took it to 4.23dB — twelve times the movement. lpsim
+  asserts the swing in dB and compares it against the old arrangement.
+- **Mode 13's depth and rate both have FLOORS**, and they are the whole reason
+  the mode felt "not obvious". At depth 0 the LFO moves nothing, and a dark wand
+  asked for exactly that, so the mode was a bypass at rest; the rate floor was
+  0.0625Hz, one cycle every sixteen seconds, which reads as switched off rather
+  than as slow. Depth now starts at 35% and the rate at 0.25Hz. **Any control
+  whose zero is "effect off" needs a floor if a dark wand is going to ask for
+  it** — the same fault as Mode 9's cutoff, in a third place.
+- **Mode 12 toggles from the control tick, not the press**, at
   `downTicks == kTapTicks`, exactly as Modes 4 and 7 start recording — and for
-  the same reason: freezing on the press makes every tap a 171ms hole.
+  the same reason: acting on the press makes every tap a 171ms hole. The freeze
+  LATCHES rather than being momentary, because holding the switch occupies the
+  hand that should be moving the wand — which is most of the instrument.
+  `toggled_` stops one hold flipping it twice and stops the release being read
+  as a tap.
+- **Mode 12 is the only mode that sends different audio to its two outs.** The
+  three grain voices alternate sides, panned 3:1 rather than hard, so the pad is
+  wide and still sums to mono. Everywhere else `audio2 = audio1`; a granular
+  cloud is the one place width is worth more than the redundancy.
+- **Mode 12 takes NO output gain, and that is measured.** The 3:1 pan weights
+  and the 50%-overlap envelope already sum to unity: across every density, grain
+  size and pitch, a full-scale frozen source peaks at 1996 of 2047. A 1.25x
+  boost — which looks harmless, and which the first version had — clips at 2495.
+  lpsim asserts both numbers.
+- **Mode 12's spawn interval must never exceed the grain length.** Two
+  triangular envelopes sum flat at 50% overlap; at 100% they meet at zero and
+  the pad pulses to silence at every join. The density control therefore runs
+  from half a grain down to a third, never longer. The grain floor is 20ms for
+  the same class of reason: at the original 2ms a grain was 96 samples with a
+  24-sample ramp, which is a click generator, and it was what a dark wand asked
+  for — so it was what the mode sounded like at rest.
 - **Per-sample virtual dispatch** of `AudioTick` is deliberate; see
   `engine.h`.
 
@@ -445,6 +480,16 @@ sound" check that drives a sine through the whole chain and asserts a level in
 dB. Two of those found real faults the moment they were written — the delay's
 time overshooting its line, and the reverb tank sitting 14dB down. Add one for
 any mode you add.
+
+**And the follow-up lesson: "it makes sound" is not enough either.** Freeze and
+Modulation both passed their level checks and both came back from the bench as
+"lame" and "could be more obvious". Each was technically working and musically
+inert, for the same underlying reason as Mode 9: **the rest state is whatever a
+dark wand asks for, and that is usually the useless end of every control.** When
+you add a mode, write down what it does with all three colours at zero, and if
+the answer is "nothing", put floors on the controls. The checks now assert the
+rest state directly — grain size at its floor, LFO depth non-zero, phaser swing
+in dB — rather than only that a signal gets through.
 
 ## Hard rules
 

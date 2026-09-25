@@ -2,7 +2,7 @@
 //
 // One LFO, two topologies, and the Main knob walks between them:
 //
-//   Main bottom third   a four-stage PHASER (allpass sweep, no delay line)
+//   Main bottom third   a six-stage PHASER (allpass sweep, no delay line)
 //   Main middle         a FLANGER (1ms delay, so the comb is high and metallic)
 //   Main top            a CHORUS (up to 40ms, so it detunes rather than combs)
 //
@@ -12,7 +12,7 @@
 // upper two thirds, which is the only real difference between a flanger and a
 // chorus once the LFO is doing the work.
 //
-//   Red   = LFO rate, 0.05Hz to 8Hz
+//   Red   = LFO rate, 0.25Hz to 8Hz
 //   Green = depth
 //   Blue  = feedback, which is what makes a flanger ring and a phaser bite
 //
@@ -34,15 +34,20 @@ public:
 	void OnDownPress() override;
 
 private:
-	static constexpr int      kStages  = 4;
+	// Six stages, three notches. Four gave two, and a phaser reads as a
+	// phaser by how many notches sweep past.
+	static constexpr int      kStages  = 6;
 	static constexpr uint32_t kLineLen = 2400;    // 50ms, all the chorus needs
 	static constexpr int32_t  kMinBase = 48;      // 1ms, flanger
 	static constexpr int32_t  kMaxBase = 1920;    // 40ms, chorus
 	/// Where the phaser has faded out and the delay owns the sound.
 	static constexpr int32_t  kPhaseEnd = 1365;   // a third of the knob
 
-	/// First-order allpass: y = a*(x + y1) - x1. Four of these in series with a
-	/// swept coefficient are a phaser; the notches move with `a`.
+	/// First-order allpass: y = a*(x + y1) - x1. Six of these in series with a
+	/// swept coefficient are a phaser; the notches move with `a`. This is the
+	/// pole-at-+a form rather than the textbook pole-at--a one — the magnitude
+	/// response is identical (both reduce to |a - e^-jw| over |1 - a e^-jw|), and
+	/// it is stable for any |a| < 1.
 	struct Ap1
 	{
 		int32_t x1 = 0, y1 = 0;

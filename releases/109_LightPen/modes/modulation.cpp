@@ -5,9 +5,17 @@ namespace lp {
 
 namespace {
 
-// 0.0625Hz at black through 8Hz at white — seven octaves.
-constexpr int32_t kRateBase = static_cast<int32_t>(HzToInc(1) >> 4);   // 0.0625Hz
-constexpr int32_t kRateOct  = 7 * 4096;                                // Q12
+// 0.25Hz at black through 8Hz at white — five octaves. It used to start at
+// 0.0625Hz, one cycle every sixteen seconds, which a dark wand asked for and
+// which read as the effect being switched off rather than as a slow sweep.
+constexpr int32_t kRateBase = static_cast<int32_t>(HzToInc(1) >> 2);   // 0.25Hz
+constexpr int32_t kRateOct  = 5 * 4096;                                // Q12
+
+// Depth never reaches zero. At zero the LFO moves nothing at all, so with the
+// wand at rest the whole mode was a bypass — which is what "could be more
+// obvious" turned out to mean. 23000 is about 35%: clearly audible movement
+// before you have aimed at anything.
+constexpr int32_t kDepthFloor = 23000;
 
 } // namespace
 
@@ -37,7 +45,7 @@ void ModulationMode::ControlTick(const SensorFrame &f, const Ctrl &c, EngineOut 
 	int32_t fbU    = u[(rotation_ + 2) % 3];
 
 	lfoInc_ = static_cast<uint32_t>(pow2_scale(kRateBase, (rateU * kRateOct) >> 16));
-	depth_  = depthU;
+	depth_ = kDepthFloor + ((depthU * (65535 - kDepthFloor)) >> 16);
 	// Short of unity: a flanger at exactly 1.0 never stops ringing.
 	fb_ = (fbU * 30000) >> 16;
 
@@ -71,13 +79,16 @@ void __not_in_flash_func(ModulationMode::AudioTick)(const SensorFrame &, const I
 	const int32_t dry = in.audio1;
 	const int32_t x = clamp_i32(dry + ((fbState_ * fb_) >> 15), -2047, 2047);
 
-	// Phaser: sweep the allpass coefficient over about 0.15..0.85, which walks
-	// four notches across the band without the cascade going unstable.
-	int32_t aQ15 = clamp_i32(16384 + (modQ15 >> 2), 4915, 27852);
+	// Sweep the allpass coefficient over 0.10..0.90. It was 0.25..0.75, which
+	// moved the notches over too narrow a span to hear as a sweep. The pole sits
+	// at z = a, so anything under 1.0 is stable.
+	int32_t aQ15 = clamp_i32(16384 + (modQ15 >> 1), 3277, 29491);
 	int32_t ph = x;
 	for (int i = 0; i < kStages; i++) ph = ap_[i].Process(ph, aQ15);
-	// The notches only exist in the sum with the input.
-	ph = (x + ph) >> 1;
+	// NOT pre-mixed with the input here. The final (dry + wet) >> 1 below is
+	// already the 50/50 a phaser needs for full-depth notches; mixing dry in
+	// twice left only a quarter allpass against three quarters dry, and shallow
+	// notches are exactly what an unconvincing phaser sounds like.
 
 	int32_t del = 0;
 	if (clearPos_ >= kFxLen)
