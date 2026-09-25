@@ -2387,32 +2387,133 @@ def check_effects():
           grain_env(dur // 2, dur, ramp, ramp_inv) == 32767)
     check("the envelope never goes negative anywhere in the grain",
           all(grain_env(p, dur, ramp, ramp_inv) >= 0 for p in range(dur + 1)))
-    # At maximum density three grains overlap, so the sum never reaches zero
-    # between them — which is what makes a pad rather than a stutter.
-    every = (dur * (131072 - ((65535 * 109226) >> 16))) >> 16
-    cover = [0] * (dur * 3)
-    for start in range(0, dur * 2, max(every, 1)):
-        for p in range(dur):
-            if start + p < len(cover):
-                cover[start + p] += grain_env(p, dur, ramp, ramp_inv)
-    check("at full density the grains overlap with no gap",
-          min(cover[dur:dur * 2]) > 0, f"spawn every {every} of {dur} samples")
 
-    # --- Mode 13, modulation: the phaser cascade must stay bounded
-    x1 = [0] * 4
-    y1 = [0] * 4
-    worst = 0
-    for i, x in enumerate(sine(24000, 220, 2047)):
-        a = clamp(16384 + (((fast_sin(i * 400000 & 0xFFFFFFFF) * 16383) >> 15) >> 2),
-                  4915, 27852)
-        v = x
-        for s in range(4):
-            y = ((i32((v + y1[s]) * a)) >> 15) - x1[s]
-            x1[s], y1[s] = v, y
-            v = y
-        worst = max(worst, abs(v))
-    check("the phaser's four allpass stages stay bounded at full drive",
-          worst < 8192, f"worst |out| = {worst} from +/-2047 in")
+    # The rest state has to be a pad, not a click track. 20ms is the floor
+    # because at the old 2ms a grain was 96 samples with a 24-sample ramp.
+    MIN_GRAIN, MAX_GRAIN = 960, 19200
+    check("the smallest grain is long enough to be a grain",
+          MIN_GRAIN / 48 >= 20, f"{MIN_GRAIN / 48:.0f}ms floor")
+
+    # Spawn interval must never exceed the grain at ANY density, or the
+    # triangular envelopes meet at zero and the pad pulses to silence.
+    def spawn_every(dens, d):
+        return max((d * (32768 - ((dens * 10923) >> 16))) >> 16, 1)
+
+    worst_dip = 32767
+    for dens in (0, 16384, 32768, 49152, 65535):
+        for d in (MIN_GRAIN, 4800, MAX_GRAIN):
+            rp = max(d >> 2, 1)
+            ri = (32767 * 65536) // rp
+            ev = spawn_every(dens, d)
+            cover = [0] * (d * 4)
+            for start in range(0, d * 3, ev):
+                for pp in range(d):
+                    if start + pp < len(cover):
+                        cover[start + pp] += grain_env(pp, d, rp, ri)
+            worst_dip = min(worst_dip, min(cover[d:d * 3]))
+    check("the grain cloud never dips to silence at any density or grain size",
+          worst_dip > 16000,
+          f"worst sum of envelopes mid-cloud = {worst_dip} of 32767")
+    check("and the spawn interval is never longer than the grain",
+          all(spawn_every(dn, 4800) <= 4800 for dn in range(0, 65536, 4096)),
+          f"{spawn_every(0, 4800)} at rest down to {spawn_every(65535, 4800)} dense")
+
+    # The output level, measured the only way that means anything: run the real
+    # grain cloud over a full-scale frozen source and look at the peak. The pan
+    # weights and the 50%-overlap envelope already sum to unity, so the mode
+    # takes NO output gain — a 1.25x boost that looks harmless clips at 2495.
+    def freeze_peak(dens, sizeu, pitch, num=1, shift=0, n=12000, amp=2000):
+        buf = [int(amp * math.sin(2 * math.pi * 220 * i / 48000)) for i in range(FX_LEN)]
+        dur = MIN_GRAIN + (((MAX_GRAIN - MIN_GRAIN) * sizeu) >> 16)
+        rp = max(dur >> 2, 1)
+        ri = (32767 * 65536) // rp
+        ev = spawn_every(dens, dur)
+        rate = pow2_scale(65536, ((pitch - 32768) * 4096) >> 15)
+        voices, cnt, nxt, right, peak = [], 0, 0, False, 0
+        for _ in range(n):
+            cnt -= 1
+            if cnt <= 0:
+                cnt = ev
+                if len(voices) < 3:
+                    voices.append({"i": nxt, "f": 0, "p": 0, "d": dur, "r": right})
+                    right = not right
+                    nxt = (nxt + (dur >> 1)) % FX_LEN
+            aL = aR = 0
+            for g in list(voices):
+                e = grain_env(g["p"], g["d"], rp, ri)
+                v = mul_q15(buf[g["i"] % FX_LEN], e)
+                aL += mul_q15(v, 8192 if g["r"] else 24576)
+                aR += mul_q15(v, 24576 if g["r"] else 8192)
+                g["f"] += rate
+                g["i"] += g["f"] >> 16
+                g["f"] &= 0xFFFF
+                g["p"] += 1
+                if g["p"] >= g["d"]:
+                    voices.remove(g)
+            peak = max(peak, abs((aL * num) >> shift), abs((aR * num) >> shift))
+        return peak
+
+    worst_peak = max(freeze_peak(d, s_, p_)
+                     for d in (0, 65535) for s_ in (0, 32768, 65535)
+                     for p_ in (0, 32768, 65535))
+    check("the grain cloud reaches full scale without clipping, at unity gain",
+          1400 < worst_peak <= 2047,
+          f"worst peak {worst_peak} from a 2000-peak frozen source")
+    check("and a 1.25x output boost would have clipped it",
+          freeze_peak(0, 32768, 32768, num=5, shift=2) > 2047,
+          "which is why the mode takes no output gain")
+
+    # --- Mode 13, modulation
+    DEPTH_FLOOR = 23000
+    check("the LFO depth never reaches zero, so the mode is never a bypass",
+          DEPTH_FLOOR + ((0 * (65535 - DEPTH_FLOOR)) >> 16) == DEPTH_FLOOR
+          and DEPTH_FLOOR / 65535 > 0.3,
+          f"{100 * DEPTH_FLOOR / 65535:.0f}% depth with the wand at rest")
+    rest_hz = pow2_scale(hz_to_inc(1) >> 2, 0) * 48000 / 2**32
+    top_hz = pow2_scale(hz_to_inc(1) >> 2, 5 * 4096) * 48000 / 2**32
+    check("and the rate at rest is a sweep rather than a standstill",
+          0.2 < rest_hz < 0.4 and 7 < top_hz < 9,
+          f"{rest_hz:.2f}Hz at rest, {top_hz:.1f}Hz at full")
+
+    def run_phaser(stages, shift, fb_q15, depth=65535, premix=False, n=48000):
+        x1, y1 = [0] * stages, [0] * stages
+        fbs, worst, out = 0, 0, []
+        inc, lp = pow2_scale(hz_to_inc(1) >> 2, 0), 0
+        for src in sine(n, 220, 2000):
+            lp = (lp + inc * 40) & 0xFFFFFFFF
+            mod = (fast_sin(lp) * (depth >> 1)) >> 15
+            xx = clamp(src + ((fbs * fb_q15) >> 15), -2047, 2047)
+            a = clamp(16384 + (mod >> shift), 3277, 29491)
+            v = xx
+            for st in range(stages):
+                y = (i32((v + y1[st]) * a) >> 15) - x1[st]
+                x1[st], y1[st] = v, y
+                v = y
+            if premix:
+                v = (xx + v) >> 1
+            worst = max(worst, abs(v))
+            fbs = v
+            out.append(clamp((src + v) >> 1, -2048, 2047))
+        return worst, out
+
+    def sweep_db(out):
+        wins = [rms(out[i:i + 2400]) for i in range(0, len(out) - 2400, 2400)]
+        return 20 * math.log10(max(wins) / max(min(wins), 0.01))
+
+    # The point of a phaser is that you HEAR the notches move. Pre-mixing the
+    # input before the final 50/50 left a quarter allpass against three
+    # quarters dry, and the sweep was 0.35dB — inaudible.
+    worst, out = run_phaser(6, 1, 0)
+    new_db = sweep_db(out)
+    _, old_out = run_phaser(4, 2, 0, premix=True)
+    old_db = sweep_db(old_out)
+    check("the phaser's notches audibly sweep the output level",
+          new_db > 2.0, f"{new_db:.2f} dB of swing")
+    check("and the fix is what made it audible: pre-mixed and narrow was flat",
+          new_db > old_db * 4, f"{old_db:.2f} dB before, {new_db:.2f} dB after")
+    check("the phaser's six allpass stages stay bounded at full feedback",
+          all(run_phaser(6, 1, fb)[0] < 4096 for fb in (0, 15000, 30000)),
+          "stable with the pole at +a, |a| < 0.9")
 
     # --- Mode 14, mangle
     check("the crush mask is a true bit reduction",
