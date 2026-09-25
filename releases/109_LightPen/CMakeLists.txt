@@ -33,7 +33,8 @@ add_executable(${CARD_NAME}
   modes/synesthesia.cpp
   modes/hueorgan.cpp
   modes/jog.cpp
-  modes/prism.cpp)
+  modes/prism.cpp
+  modes/colourfilter.cpp)
 
 target_compile_options(${CARD_NAME} PRIVATE
   -Wdouble-promotion -Wfloat-conversion -Wall -Wextra)

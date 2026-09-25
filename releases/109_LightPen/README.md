@@ -2,7 +2,7 @@
 
 A program card for the [Music Thing Modular Workshop System Computer](https://github.com/TomWhitwell/Workshop_Computer) that turns an **RGB sensor wand** into a controller and a sound source. The wand is a whiteboard-marker body with three light-dependent resistors (LDRs) in the tip, under red, green and blue lighting gels. Wave it at the room, or scan printed colour with it (gradient maps, barcode stripes, rainbow strips), and the colour becomes CV, gates and audio.
 
-**Version 1.0.0.** All eight modes build and pass the desktop DSP checks in `tools/`. A ready-to-flash binary is in [UF2/lightpen.uf2](UF2/lightpen.uf2) — drag it onto the Computer in bootloader mode.
+**Version 1.1.0.** All nine modes build and pass the desktop DSP checks in `tools/`. A ready-to-flash binary is in [UF2/lightpen.uf2](UF2/lightpen.uf2) — drag it onto the Computer in bootloader mode.
 
 ## Wiring the wand
 
@@ -27,7 +27,7 @@ This works best when the LDRs read somewhere near 120k through their gels. If yo
 
 **LEDs.** The six LEDs are in two columns of three:
 
-- **Left column (LEDs 0, 2, 4)** — which mode you're in, as a three-bit number counting from zero: Mode 1 is all three dark, Mode 8 all three lit. It blinks for a second whenever you change mode, so the change is visible even on a dark pattern.
+- **Left column (LEDs 0, 2, 4)** — which mode you're in, as a three-bit number counting from **one**: Mode 1 lights one LED, Mode 7 lights all three. Three bits run out there, so Modes 8 and 9 count again from one at **half brightness** — brightness is the fourth bit. No mode is ever a dark column. It blinks for a second whenever you change mode.
 - **Right column (LEDs 1, 3, 5)** — a live meter of **red, green and blue**, top to bottom.
 
 The meter shows what the modes actually act on, not the bare sensor: it's the reading after calibration, the X-knob sensitivity and the Y-knob smoothing. Dark is calibrated black, full brightness is calibrated white, and turning X up brightens the LEDs too. That makes it the quickest way to set the card up — if a colour sits pinned at full or stays dark as you move the wand, the modes are seeing the same thing, so back the sensitivity off or recalibrate.
@@ -104,6 +104,14 @@ Coloured stripes still work, read by their lightness. Two practical notes: keep 
 *Main:* how hard the wand pushes, from a gentle nudge to a full shuttle. *Down:* tap to change behaviour, hold to record.
 
 **8. Prism Voice.** Mode 5's voice wired to a different set of controls, and a different character: it *sustains* while the gate is high instead of plucking. Red is FM depth from a second oscillator an octave up, green crushes the sample rate from clean down to a sixty-fourth, and blue is the filter cutoff. Same pitch and gate inputs as Mode 5, and the envelope again comes out of CV Out 2. *Main:* waveshape, sine → triangle → square. *Down:* rotate which colour controls what.
+
+**9. Colour Filter.** The one mode that processes something rather than generating it: patch audio into **Audio In 1** and it comes out of both audio outs through a filter the wand holds all three controls of at once — red is **cutoff**, green is **resonance**, and blue is the **filter type**, walking continuously low-pass → band-pass → high-pass. One gesture across a colour map sweeps all three together, which is the thing a filter with three knobs on a panel cannot do.
+
+*Main* is drive into the filter, 1x to 8x through a soft clip. It makes the resonance sing, and it puts back the level a narrow band-pass setting takes away; at the bottom of the travel a full-scale peak still loses about 1.4dB to the knee, so treat it as a drive knob at minimum rather than a bypass.
+
+The two jacks a filter leaves spare carry an envelope follower on the output: **CV Out 2** is the level and **Pulse Out 1** is high while there's signal, so the filtered audio can gate something else. *Down:* rotate which colour controls what.
+
+With nothing patched into Audio In 1 this mode is silent — that's the normalisation probe holding the input at zero, not a fault.
 
 ## Building
 

@@ -4,14 +4,21 @@
 //                               2 3
 //                               4 5
 // Left column = the mode, as a 3-bit number, LED 0 the fours and LED 4 the
-// ones. It counts from zero, so mode 1 is all three dark and mode 8 is all
-// three lit. Right column = live R (1), G (3), B (5) after the global
-// sensitivity and slew.
+// ones. It counts from ONE: Mode 1 lights one LED, Mode 7 lights all three.
+// No mode is ever a dark column, which is what makes the display readable at
+// a glance rather than something to decode.
 //
-// On a mode change the left column blinks that pattern for a second, so a
-// change is visible even when it lands on a dark pattern. A mode's own option
-// change (chord, rotation, scale) instead blinks its option number as the
-// first N LEDs in reading order.
+// Three bits run out at 7, so modes past that light the same three LEDs at
+// HALF BRIGHTNESS and count again from one: Mode 8 is a dim 1, Mode 9 a dim 2.
+// Brightness is the fourth bit. That leaves room to 14 without touching the
+// right column, which belongs to the sensor.
+//
+// Right column = live R (1), G (3), B (5) after the global sensitivity and
+// slew.
+//
+// On a mode change the left column blinks its pattern for a second. A mode's
+// own option change (chord, rotation, scale, kit) instead blinks that option's
+// number as the first N LEDs in reading order.
 
 #pragma once
 #include <cstdint>
@@ -23,6 +30,11 @@ class Leds
 {
 public:
 	static constexpr int kFlashTicks = kCtrlRate;   // 1s
+	/// The modes past 7. Not 2048: an LED's perceived brightness is far from
+	/// linear in its duty cycle, and half the number reads as nearly as bright.
+	/// This is the level that actually looks like half next to kFullMode.
+	static constexpr uint16_t kHalfMode = 1100;
+	static constexpr uint16_t kFullMode = 4095;
 
 	/// An option number, 1..6, blinked over everything else.
 	void Flash(int count, bool blink)
@@ -54,9 +66,18 @@ public:
 			modeTicks_--;
 			showMode = fast;
 		}
-		level[0] = (showMode && (mode & 4)) ? 4095 : 0;
-		level[2] = (showMode && (mode & 2)) ? 4095 : 0;
-		level[4] = (showMode && (mode & 1)) ? 4095 : 0;
+		// mode is the index, 0-based; the display counts from one.
+		int n = mode + 1;
+		uint16_t on = kFullMode;
+		if (n > 7)
+		{
+			n -= 7;             // count again, dimly
+			on = kHalfMode;
+		}
+		if (!showMode) on = 0;
+		level[0] = (n & 4) ? on : 0;
+		level[2] = (n & 2) ? on : 0;
+		level[4] = (n & 1) ? on : 0;
 		level[1] = static_cast<uint16_t>(f.ur >> 4);
 		level[3] = static_cast<uint16_t>(f.ug >> 4);
 		level[5] = static_cast<uint16_t>(f.ub >> 4);

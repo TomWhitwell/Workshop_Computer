@@ -9,19 +9,20 @@ where they fit.
 **LIGHTPEN drives an "RGB sensor wand"**: a whiteboard-marker body with three
 LDRs in the tip under red, green and blue gels. It reads room light or scans
 printed colour (gradient maps, barcode stripes, rainbow strips) and turns it
-into CV and audio across eight modes.
+into CV and audio across nine modes.
 
-## Current status: v1.0.0, released, flashed and played
+## Current status: v1.1.0, released, flashed and played
 
 Builds clean under `-Wall -Wextra -Wdouble-promotion -Wfloat-conversion` to
-`build/lightpen.uf2`: **5.78% flash, 81.13% RAM** (the RAM is almost entirely
+`build/lightpen.uf2`: **5.84% flash, 81.32% RAM** (the RAM is almost entirely
 `gTape`, the 168KB take shared by Modes 4 and 7). The released binary is
 committed at `UF2/lightpen.uf2`.
-`python tools/lpsim.py` passes all 184 checks.
+`python tools/lpsim.py` passes all 198 checks.
 
-`info.yaml` is `draft: false`, `Status: Released`, version 1.0.0. Own repo:
-`uglifruit/WorkshopLightPen`, tagged `v1.0.0`. Submitted to the community
-catalogue as `releases/109_LightPen` in `TomWhitwell/Workshop_Computer`.
+`info.yaml` is `draft: false`, `Status: Released`, version 1.1.0. Own repo:
+`uglifruit/WorkshopLightPen`, tagged `v1.1.0`. Submitted to the community
+catalogue as `releases/109_LightPen` in `TomWhitwell/Workshop_Computer`
+(PR #421, from branch `add-card-109-lightpen` on the fork).
 Design plan of record: `~/.claude/plans/glistening-popping-avalanche.md`.
 
 The bench list further down is no longer a list of blockers — the card has
@@ -42,11 +43,16 @@ wrong on a different wand or a different set of gels.
 | Down held at power-on | calibration, two-point or five-point, saved to flash |
 
 LEDs are three rows of two (`0 1 / 2 3 / 4 5`). Left column (0, 2, 4) = the
-mode as a 3-bit number counting from zero (mode 1 = all dark, mode 8 = all
-lit); it blinks for 1s on a mode change, so a change is visible even when it
-lands on a dark pattern. Right column (1, 3, 5) = live R, G, B. A mode's own
-option change (chord, rotation, scale) blinks its option number as the first
-N LEDs for 1s. All six blinking at boot = no calibration saved yet.
+mode as a 3-bit number counting from ONE (mode 1 = one LED, mode 7 = all
+three), so no mode is ever a dark column. Three bits stop at 7, so modes past
+that light the same LEDs at HALF BRIGHTNESS and count again from one: mode 8 is
+a dim 1, mode 9 a dim 2. **Brightness is the fourth bit**, which leaves room to
+14 without touching the right column. `kHalfMode` is 1100, not 2048 — an LED's
+perceived brightness is nowhere near linear in duty cycle, and half the number
+reads as nearly as bright. It blinks for 1s on a mode change. Right column
+(1, 3, 5) = live R, G, B. A mode's own option change (chord, rotation, scale,
+kit) blinks its option number as the first N LEDs for 1s. All six blinking at
+boot = no calibration saved yet.
 
 ## Calibration
 
@@ -196,6 +202,7 @@ again, and keep the v1 read path.
 | 6 | `modes/hueorgan` | scale (4 zones) | tap = transpose +1 (wraps), hold 1s = C | CV2 = note (calibrated); P1 = new note; P2 = colour seen; A1+A2 organ |
 | 7 | `modes/jog` | jog depth (nudge→shuttle) | hold = record; TAP = Nudge/Platter/Brake | A1+A2; G = speed, B = platter weight, R = cutoff; CV2 = position; P1 = loop start; P2 = reversing |
 | 8 | `modes/prism` | sine→tri→square | tap = rotate R/G/B roles | A1+A2 voice; CV2 = envelope; R = FM, G = crush, B = cutoff; sustains on the gate |
+| 9 | `modes/colourfilter` | filter drive 1x..8x | tap = rotate R/G/B roles | A In 1 → SVF → A1+A2; R = cutoff, G = resonance, B = LP→BP→HP blend; CV2 = envelope follower, P1 = signal present |
 
 Design decisions worth knowing before changing things:
 
@@ -263,6 +270,22 @@ Design decisions worth knowing before changing things:
   Degrees are evenly spaced in hue (two octaves + top root), with a
   quarter-band hysteresis and a 30ms dwell per note. The organ voice on the
   audio outs was not in the plan; it was added because those jacks were free.
+- **Mode 9 is the only PROCESSOR on the card.** Every other mode generates;
+  this one filters Audio In 1. With nothing patched, `EnableNormalisationProbe`
+  holds that input at exactly 0 and the mode is silent — correct, and worth
+  knowing before chasing it as a fault. It is also the only mode where a
+  colour drives the filter TYPE rather than a level: `SvfBlend` takes a 0..4095
+  knob, so blue goes in as `ub >> 4` and the continuous LP→BP→HP walk needs no
+  hysteresis, which is exactly why that blend was written as a crossfade.
+- **Mode 9's soft clip is trimmed to +/-2047, and the trim is load-bearing.**
+  The cubic's ceiling lands on 2048 and its floor on -2049: the final shift
+  floors while `c / 3` truncates toward zero, so the two ends miss by a LSB in
+  OPPOSITE directions. That is 1 LSB outside the range `Svf`'s overflow
+  headroom is argued for. lpsim asserts both the trimmed range and the
+  untrimmed escape, so removing the clamp fails a check rather than going
+  quiet. L is 4096 rather than full scale to keep `x*x` exact inside int32,
+  and the 0.75 that costs is folded into the drive constant (5461 = 4096*4/3),
+  which is what makes the bottom of the drive travel unity for small signals.
 - **Per-sample virtual dispatch** of `AudioTick` is deliberate; see
   `engine.h`.
 
@@ -363,14 +386,16 @@ its own `Sw` enum.
 `python tools/lpsim.py` gives integer-exact mirrors of fastmath, the sensor
 laws and calibration mapping (including an inverted wand and the minimum
 span), the oscillators, the SVF and blend, the fold, Mode 3's speed law and
-edge finder, Mode 6's hue and note picker, and the switch debounce. It exits
-non-zero on failure. Keep it in step with the C++: when you change a law in
+edge finder, Mode 6's hue and note picker, Mode 9's drive and soft clip and the
+mode-LED scheme, and the switch debounce. It exits non-zero on failure. Keep it in step with the C++: when you change a law in
 the firmware, change its mirror too.
 
-It has already caught one real bug: **the SVF's integrators froze at low
+It has already caught two real bugs. **The SVF's integrators froze at low
 cutoff** (`f*hp >> 14` rounds to zero for |hp| < ~190), leaving up to 117 LSB
-of DC stuck on the output. The fix is that the states carry 8 extra fractional
-bits.
+of DC stuck on the output; the fix is that the states carry 8 extra fractional
+bits. And **Mode 9's soft clip overshot its range by a LSB at each extreme**
+(2048 and -2049, the shift flooring one way and the truncating divide the
+other) — the check was written expecting it to be in range, and it was not.
 
 ## Hard rules
 

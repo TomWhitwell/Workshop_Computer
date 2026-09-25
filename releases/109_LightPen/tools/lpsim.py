@@ -2016,6 +2016,109 @@ def check_behaviours():
           stalled < 65536, f"stalls at {stalled}, {100*(65536-stalled)/65536:.0f}% slow")
 
 
+# --- Mode 9, the colour filter: drive, soft clip, follower, mode LEDs -------
+
+
+def soft_clip(x):
+    """modes/colourfilter.cpp SoftClip(). Note cdiv: C truncates c/3 toward
+    zero, which for a negative sample is not what Python's // would do."""
+    x = clamp(x, -4096, 4096)
+    q = i32(x * x) >> 12
+    c = i32(x * q) >> 12
+    return clamp((i32(x - cdiv(c, 3)) * 3) >> 2, -2047, 2047)
+
+
+def drive_q12(main):
+    return pow2_scale(5461, main * 3)
+
+
+def mode_leds(mode):
+    """leds.h: count from one, then again at half brightness past seven."""
+    n, on = mode + 1, 4095
+    if n > 7:
+        n, on = n - 7, 1100
+    return (on if n & 4 else 0, on if n & 2 else 0, on if n & 1 else 0)
+
+
+def check_colour_filter():
+    print()
+    # The knee is what a drive knob at its minimum should be: unity for
+    # anything quiet, a gentle round on the loudest peaks.
+    unity = drive_q12(0)
+    small = [(v, soft_clip(i32(v * unity) >> 12)) for v in range(1, 200)]
+    worst = max(abs(o - v) for v, o in small)
+    check("at minimum drive the filter input is unity for small signals",
+          worst <= 1, f"worst error {worst} LSB over +/-200")
+    peak = soft_clip(i32(2047 * unity) >> 12)
+    loss = 20 * math.log10(peak / 2047)
+    check("and a full-scale peak loses only the knee, not a bypass",
+          -2.0 < loss < -0.5, f"{loss:.2f} dB at full scale")
+
+    # Never exceeds what clamp12 can carry, at any drive, for any input.
+    over = []
+    for knob in range(0, 4096, 37):
+        d = drive_q12(knob)
+        for v in (-2048, -2047, -1000, -1, 0, 1, 1000, 2047):
+            y = soft_clip(i32(v * d) >> 12)
+            if not -2047 <= y <= 2047:
+                over.append((knob, v, y))
+    check("no drive setting can push the soft clip past 12-bit full scale",
+          not over, f"{len(over)} escapes over 111 knob positions")
+    # Without the trim the ends land on 2048 and -2049: the shift floors while
+    # c/3 truncates toward zero, so the two extremes miss in opposite
+    # directions. That is 1 LSB outside what the Svf's headroom is argued for.
+    raw_ends = [(i32(x - cdiv((i32(x * ((i32(x * x)) >> 12))) >> 12, 3)) * 3) >> 2
+                for x in (-4096, 4096)]
+    check("the trim is load-bearing: untrimmed, both extremes escape",
+          raw_ends == [-2049, 2048], f"untrimmed ends {raw_ends}")
+
+    mono = all(soft_clip(x) <= soft_clip(x + 1) for x in range(-5000, 5000))
+    check("the soft clip is monotonic, so it shapes rather than folds", mono)
+
+    asym = max(abs(soft_clip(x) + soft_clip(-x)) for x in range(0, 4097))
+    check("and is odd-symmetric to within the shift's flooring",
+          asym <= 1, f"worst |f(x)+f(-x)| = {asym}")
+
+    # 1x to 8x across the travel, which is the three octaves claimed.
+    ratio = drive_q12(4095) / unity
+    check("drive spans 1x to 8x across the Main knob",
+          7.9 < ratio < 8.1, f"{ratio:.2f}x at full")
+    quiet = 120
+    check("full drive lifts a quiet signal to the ceiling",
+          soft_clip(i32(quiet * drive_q12(4095)) >> 12) > 800,
+          f"{quiet} in -> {soft_clip(i32(quiet * drive_q12(4095)) >> 12)} out")
+
+    # The follower: up fast, down slow, and it does reach both ends.
+    env, rise = 0, 0
+    while env < 2000:
+        env = slew_exact(env, 2047, 5)
+        rise += 1
+    fall = 0
+    while env > 0:
+        env = slew_exact(env, 0, 11)
+        fall += 1
+    check("the envelope follower attacks faster than it releases",
+          rise < fall, f"{rise} samples up vs {fall} down")
+    check("and releases all the way to zero, so the gate always closes",
+          env == 0)
+
+    # The gate's hysteresis has to be wider than one release step at the
+    # threshold, or a decaying tail chatters across it.
+    step_at_on = 40 - slew_exact(40, 0, 11)
+    check("the gate's hysteresis is wider than a release step at the threshold",
+          (40 - 18) > step_at_on, f"band 22 vs step {step_at_on}")
+
+    # The mode display: nine distinct patterns, none of them a dark column.
+    pats = [mode_leds(m) for m in range(9)]
+    check("all nine modes show a distinct LED pattern",
+          len(set(pats)) == 9, f"{len(set(pats))} distinct")
+    check("and no mode is a dark column", all(any(p) for p in pats))
+    check("modes 1-7 are full brightness, 8 and 9 half",
+          all(max(p) == 4095 for p in pats[:7])
+          and all(max(p) == 1100 for p in pats[7:]),
+          f"mode 8 = {pats[7]}, mode 9 = {pats[8]}")
+
+
 def main():
     check_fastmath()
     check_sensors()
@@ -2032,6 +2135,7 @@ def main():
     check_barcode()
     check_hue()
     check_tape_modes()
+    check_colour_filter()
     check_controls()
     print()
     print("ALL PASS" if not FAILS else f"{len(FAILS)} FAILED: " + ", ".join(FAILS))
