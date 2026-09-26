@@ -1318,7 +1318,34 @@ def check_controls():
 
 # --- tape.h / modes/jog.cpp / modes/prism.cpp ------------------------------------
 
-TAPE_MAX = 84000
+TAPE_MAX = 144000          # stored samples
+TAPE_STORE_RATE = 24000   # the buffer is decimated 2:1 from 48kHz
+TAPE_DECIM_SHIFT = 1
+
+
+def tape_store_rate(rate_q16):
+    """Tape::StoreRate — a speed-relative rate as stored samples per output
+    sample. Modes still talk in 65536 = 1x; the buffer is at half rate."""
+    return rate_q16 >> TAPE_DECIM_SHIFT
+
+
+def tape_encode(x):
+    """Tape::Encode — sign, 3-bit exponent, 4-bit mantissa."""
+    sign = 0
+    if x < 0:
+        sign, x = 0x80, -x
+    if x > 2047:
+        x = 2047
+    v, e = x + 16, 0
+    while v >= 32 and e < 7:
+        v >>= 1
+        e += 1
+    return sign | (e << 4) | (v & 0x0F)
+
+
+def tape_decode(c):
+    m = (((c & 0x0F) | 0x10) << ((c >> 4) & 0x07)) - 16
+    return -m if c & 0x80 else m
 
 
 def position_q8(u, length):
@@ -1340,8 +1367,9 @@ def jog_rate(ug, main, dead=2048, maxrate=4 * 65536):
 def jog_run(rate, length, samples):
     """Mode 7's position stepping. Returns (idx, frac, wraps)."""
     idx, frac, wraps = 0, 0, 0
+    step = tape_store_rate(rate)
     for _ in range(samples):
-        frac += rate
+        frac += step
         idx += frac >> 16
         frac &= 0xFFFF
         if idx >= length:
@@ -1351,6 +1379,79 @@ def jog_run(rate, length, samples):
             idx += length
             wraps += 1
     return idx, frac, wraps
+
+
+def check_tape_codec():
+    print()
+    # Length: the whole point of the format change.
+    secs = TAPE_MAX / TAPE_STORE_RATE
+    check("the take is six seconds long in the same 144KB",
+          abs(secs - 6.0) < 0.01 and TAPE_MAX == 144000,
+          f"{secs:.1f}s of 8-bit 24kHz vs 1.5s of 16-bit 48kHz")
+
+    # The codec has to be an honest round trip before anything else.
+    check("the codec is monotonic, so it never inverts a waveform",
+          all(tape_decode(tape_encode(x)) <= tape_decode(tape_encode(x + 1))
+              for x in range(-2047, 2047)))
+    check("and silence stays exactly silent",
+          tape_decode(tape_encode(0)) == 0)
+    worst = max(abs(tape_decode(tape_encode(x)) - clamp(x, -2047, 2047))
+                for x in range(-2048, 2048))
+    check("the worst quantisation error is half the top segment's step",
+          worst <= 64, f"{worst} counts of 2047")
+    check("the decoder is the exact inverse for every code the encoder emits",
+          all(tape_encode(tape_decode(c)) == c
+              for c in {tape_encode(x) for x in range(-2048, 2048)}))
+
+    # The reason for companding: SNR that does not collapse on quiet material.
+    def snr(level_db, companded):
+        amp = 2047 * 10 ** (level_db / 20)
+        src = [amp * math.sin(2 * math.pi * 7 * i / 4096) for i in range(4096)]
+        if companded:
+            out = [tape_decode(tape_encode(int(round(v)))) for v in src]
+        else:
+            out = [clamp(int(round(v / 16)) * 16, -2048, 2047) for v in src]
+        err = sum((a - b) ** 2 for a, b in zip(src, out))
+        return 10 * math.log10(sum(a * a for a in src) / err) if err else 99.0
+
+    levels = [0, -6, -12, -20, -30, -40]
+    comp = [snr(d, True) for d in levels]
+    check("companded SNR is roughly constant at every signal level",
+          max(comp) - min(comp) < 6 and min(comp) > 28,
+          f"{min(comp):.1f}-{max(comp):.1f} dB from 0 to -40dB")
+    # Linear 8-bit is better when loud and catastrophic when quiet, which is
+    # the wrong way round for sampled material.
+    lin = [snr(d, False) for d in levels]
+    check("and beats linear 8-bit everywhere that matters, by a wide margin",
+          comp[-1] - lin[-1] > 15 and comp[-2] - lin[-2] > 9,
+          f"at -40dB: {comp[-1]:.1f} dB companded vs {lin[-1]:.1f} dB linear")
+    check("linear 8-bit only wins while the signal is loud",
+          lin[0] > comp[0] and lin[-1] < comp[-1],
+          f"crossover around -18dB")
+
+    # The decimation filter: gentle, but it nulls exactly where it must.
+    def decim_db(f):
+        return 20 * math.log10(max(abs(math.cos(math.pi * f / 48000)), 1e-12))
+    check("the 2-point decimation average nulls at the new Nyquist",
+          decim_db(24000) < -100, f"{decim_db(24000):.0f} dB at 24kHz")
+    check("and is gentle rather than brick-wall, as the comment claims",
+          -3.5 < decim_db(12000) < -2.5 and -9 < decim_db(18000) < -7,
+          f"{decim_db(12000):.1f} dB at 12kHz, {decim_db(18000):.1f} dB at 18kHz")
+
+    # Round trip through the real write path: average a pair, encode, decode.
+    src = [int(1500 * math.sin(2 * math.pi * 440 * i / 48000)) for i in range(9600)]
+    stored = [tape_encode((src[i] + src[i + 1]) >> 1) for i in range(0, len(src) - 1, 2)]
+    back = [tape_decode(c) for c in stored]
+    check("a recorded tone survives the whole write path at a sane level",
+          1000 < max(abs(v) for v in back) <= 2047,
+          f"peak {max(abs(v) for v in back)} from a 1500 peak input")
+
+    # Pitch: normal speed must consume stored samples at exactly the store rate,
+    # or everything plays back transposed.
+    consumed = tape_store_rate(65536) * 48000 / 65536
+    check("normal speed reads the buffer at exactly its store rate",
+          abs(consumed - TAPE_STORE_RATE) < 1,
+          f"{consumed:.0f} stored samples/s vs {TAPE_STORE_RATE}")
 
 
 def check_tape_modes():
@@ -1376,11 +1477,13 @@ def check_tape_modes():
     for rate, name in ((65536, "1x"), (98304, "1.5x"), (-131072, "-2x"), (12288, "0.1875x")):
         idx, frac, wraps = jog_run(rate, 40000, 40000)
         travelled = wraps * 40000 + idx if rate > 0 else -(wraps * 40000 + (40000 - idx) % 40000)
-        want = rate * 40000 // 65536
+        # Half the stored samples per output sample, because the buffer is at
+        # 24kHz — which is exactly what keeps the PITCH right.
+        want = tape_store_rate(rate) * 40000 // 65536
         check(f"jog at {name}: position tracks the rate with no drift",
               abs(travelled - want) <= 1, f"{travelled} vs {want}")
 
-    idx, _, wraps = jog_run(-65536, 2400, 2400 * 3)
+    idx, _, wraps = jog_run(-65536, 2400, 2400 * 6)
     check("jog in reverse wraps at the loop start", wraps == 3 and idx == 0, f"idx {idx} wraps {wraps}")
 
     # Mode 7's position ramp: one divide, must stay inside the CV range.
@@ -1653,7 +1756,8 @@ def tape_writes(duration_ticks):
     length, now that recording starts at the threshold rather than the press."""
     if duration_ticks < TAP_TICKS:
         return 0
-    return (duration_ticks - TAP_TICKS) * 32      # 32 samples per control tick
+    # 32 input samples per control tick, decimated 2:1 into the buffer.
+    return ((duration_ticks - TAP_TICKS) * 32) >> TAPE_DECIM_SHIFT
 
 
 def check_gesture():
@@ -1690,12 +1794,32 @@ def check_gesture():
     # The claim the deferred record exists to make.
     damaged = max(tape_writes(t) for t in range(0, TAP_TICKS))
     check("a tap writes nothing at all to the tape", damaged == 0)
-    window = [t for t in range(TAP_TICKS, TAP_TICKS + 40) if 0 < tape_writes(t) < 256]
-    check("only a 5ms window of presses can touch the old take, and then by <=256 samples",
-          len(window) <= 8 and all(tape_writes(t) < 256 for t in window),
-          f"{len(window)} tick-lengths, at most {max(tape_writes(t) for t in window)} samples")
+    # A press that starts recording and then releases before kMinLen is down
+    # leaves the PREVIOUS take with its front overwritten. Decimation doubled
+    # this window in time — a tick now contributes 16 stored samples, not 32 —
+    # so it is asserted against kMinLen rather than against a bare number.
+    window = [t for t in range(TAP_TICKS, TAP_TICKS + 60) if 0 < tape_writes(t) < 256]
+    ms = len(window) * 1000 / CTRL_RATE
+    check("the window where a press can damage the old take stays a few ms wide",
+          len(window) <= 16 and ms < 12
+          and all(tape_writes(t) < 256 for t in window),
+          f"{len(window)} tick-lengths = {ms:.1f}ms of press duration, "
+          f"at most {max(tape_writes(t) for t in window)} stored samples lost")
+    check("and the damage can never exceed kMinLen, by construction",
+          max(tape_writes(t) for t in window) < 256)
+
+    # Mode 4's Sweep clamp must cope with a take shorter than its floor, or the
+    # loop end lands past the end of the take and the head reads stale bytes.
+    def sweep_end(length, ug):
+        oct_q12 = -(((65535 - ug) * 6 * 4096) >> 16)
+        lo = length if length < 256 else 256
+        return clamp(pow2_scale(length, oct_q12), lo, length)
+    check("the Sweep loop end never runs past the end of a short take",
+          all(sweep_end(n, ug) <= n
+              for n in (4, 16, 100, 255, 256, 2400, TAPE_MAX)
+              for ug in range(0, 65536, 4096)))
     check("a real take records exactly what it held for, less the threshold",
-          tape_writes(round(1.0 * CTRL_RATE)) == (CTRL_RATE - TAP_TICKS) * 32)
+          tape_writes(round(1.0 * CTRL_RATE)) == ((CTRL_RATE - TAP_TICKS) * 32) >> 1)
 
     # Cycling arithmetic.
     for n, name in ((5, "kits"), (3, "behaviours")):
@@ -1909,7 +2033,7 @@ def slice_index(ug, current, slices=16):
 def check_behaviours():
     # Slices land on real boundaries, for every take length.
     ok = True
-    for length in (256, 2400, 40000, 84000):
+    for length in (256, 2400, 40000, TAPE_MAX):
         slice_len = max(length // 16, 2)
         for ug in range(0, 65536, 37):
             s = slice_index(ug, 0)
@@ -2545,6 +2669,7 @@ def main():
     check_barcode()
     check_hue()
     check_tape_modes()
+    check_tape_codec()
     check_colour_filter()
     check_effects()
     check_controls()

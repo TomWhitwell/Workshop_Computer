@@ -88,8 +88,14 @@ void TapeScrubMode::ControlTick(const SensorFrame &f, const Ctrl &c, EngineOut &
 		// Green sets the loop length: the whole take down to a sixty-fourth,
 		// exponentially, so the shrink feels even all the way down.
 		int32_t octQ12 = -(((65535 - f.ug) * 6 * 4096) >> 16);
+		// The floor has to yield to len, not sit above it: clamp_i32(v, 256, len)
+		// with len under 256 returns 256, which is a loop end PAST the end of the
+		// take, and the head then reads stale bytes. Tape::kMinLen keeps len at
+		// 256 or more today, so this is belt and braces — but it makes kMinLen's
+		// value a free choice rather than a hidden dependency of this line.
+		int32_t lo = (len < 256) ? static_cast<int32_t>(len) : 256;
 		loopEnd_ = static_cast<uint32_t>(
-			clamp_i32(pow2_scale(static_cast<int32_t>(len), octQ12), 256,
+			clamp_i32(pow2_scale(static_cast<int32_t>(len), octQ12), lo,
 			          static_cast<int32_t>(len)));
 	}
 }

@@ -11,20 +11,20 @@ LDRs in the tip under red, green and blue gels. It reads room light or scans
 printed colour (gradient maps, barcode stripes, rainbow strips) and turns it
 into CV and audio across fourteen modes.
 
-## Current status: v1.2.1, released, flashed and played
+## Current status: v1.3.0, released, flashed and played
 
 Builds clean under `-Wall -Wextra -Wdouble-promotion -Wfloat-conversion` to
 `build/lightpen.uf2`: **6.16% flash, 89.28% RAM** (mostly `gTape`'s 144KB and
 the effects' 40KB `gFx`). The released binary is committed at
 `UF2/lightpen.uf2`.
-`python tools/lpsim.py` passes all 233 checks.
+`python tools/lpsim.py` passes all 247 checks.
 
-`info.yaml` is `draft: false`, `Status: Released`, version 1.2.1. Own repo:
-`uglifruit/WorkshopLightPen`, tagged `v1.2.1`. Submitted to the community
+`info.yaml` is `draft: false`, `Status: Released`, version 1.3.0. Own repo:
+`uglifruit/WorkshopLightPen`, tagged `v1.3.0`. Submitted to the community
 catalogue as `releases/109_LightPen` in `TomWhitwell/Workshop_Computer` —
-merged there at 1.0.0 (PR #421), then 1.1.0 (PR #423), with 1.2.0 open as
-PR #424. Note 1.1.1 never went up on its own — its Mode 9 fix rode along in
-1.2.0, so the catalogue skipped straight from 1.1.0. Copy only the files a release
+merged there at 1.0.0 (PR #421), 1.1.0 (#423) and 1.2.0 (#424), with 1.2.1
+open as PR #425. Note 1.1.1 never went up on its own — its Mode 9 fix rode
+along in 1.2.0, so the catalogue skipped straight from 1.1.0. Copy only the files a release
 actually changed into that folder: the fork is checked out with CRLF, so
 re-copying every file makes git see all 41 as modified.
 Design plan of record: `~/.claude/plans/glistening-popping-avalanche.md`.
@@ -250,10 +250,10 @@ Design decisions worth knowing before changing things:
   and makes a tap provably harmless. `Tape::kMinLen` dropped to 256 because
   the "discard accidental taps" guard it existed for is now unreachable.
   Mode 3 needs none of that: it records into the spare buffer and swaps.
-- **Modes 4 and 7 share one take** (`tape.h`, `gTape`, 168KB at file scope).
+- **Modes 4 and 7 share one take** (`tape.h`, `gTape`, 144KB at file scope).
   Recording is a gesture in both: hold Down and the take is as long as the
-  hold, capped at `Tape::kMaxLen` (1.5s, down from 1.75s when the effects
-  arrived wanting 40KB — see the RAM table). A take under 50ms is discarded and the previous one kept, though
+  hold, capped at `Tape::kMaxLen` — **6.0s**, stored as 8-bit companded samples
+  at 24kHz rather than 16-bit at 48kHz (see `tape.h`). A take under 50ms is discarded and the previous one kept, though
   its first few ms have been overwritten by then. Mode 4 places the head
   absolutely from Green; Mode 7 lets the loop run and Green sets its speed.
 - **Mode 3's voice** (`percvoice.h`, header-only so it inlines into the
@@ -295,6 +295,33 @@ Design decisions worth knowing before changing things:
   quiet. L is 4096 rather than full scale to keep `x*x` exact inside int32,
   and the 0.75 that costs is folded into the drive constant (5461 = 4096*4/3),
   which is what makes the bottom of the drive travel unity for small signals.
+- **The take's FORMAT is where its length came from, not its size.** 8-bit
+  companded at 24kHz is 4x the seconds of 16-bit at 48kHz in identical memory.
+  The companding matters as much as the rate: measured in lpsim, it holds
+  29-34dB SNR from full scale down to -40dB, where linear 8-bit runs 50dB down
+  to 11dB. Linear is better only above about -18dB, and sampled material spends
+  most of its time below that — a scrubber lingering on a quiet tail is the
+  worst case for linear and the best case for companding.
+  **ADPCM was considered and rejected**: it would give another 2x but it is
+  sequential, and Mode 4 scrubs to arbitrary positions while Mode 7 plays
+  backwards. A differential codec cannot be entered at an arbitrary sample.
+  The decimation filter is a 2-point average — response |cos(pi f / 48k)|, which
+  nulls exactly at the new 12kHz Nyquist and is -8dB at 18kHz. Gentle, not a
+  brick wall, so content above 12kHz folds down quietly; that is a deliberate
+  trade for one add per sample.
+- **`Tape::kMinLen` is load-bearing, and not for the reason it used to claim.**
+  Its comment said it was about `PositionQ8`'s `len-2`; the real dependency was
+  Mode 4's SWEEP, which clamped its loop end to `[256, len]` — and
+  `clamp_i32(v, 256, len)` with `len` under 256 returns 256, a loop end PAST the
+  end of the take, reading stale bytes. That clamp now yields its floor to `len`,
+  so the value is a free choice again. Found while chasing why decimation broke
+  a gesture check.
+- **Rates stay in "65536 = 1x" everywhere outside `tape.h`.** `Advance()` and
+  `ReadHead()` apply `StoreRate()` themselves. Mode 7 runs its own accumulator
+  (it needs a signed wrap) so it calls `Tape::StoreRate(rate_)` explicitly —
+  but `kMuteRate` and the inertia slew still compare against the unscaled
+  `rate_`, because those are about perceived speed, not storage. Getting this
+  wrong transposes every take by an octave.
 - **Modes 10-14 all share one 40KB buffer** (`fx.h`, `gFx`), the way 4 and 7
   share the tape. They are mutually exclusive, so only the current mode's
   regions are live. Each lays its regions out from offset 0 and must fit
@@ -416,18 +443,22 @@ pymupdf). Sheets 2/5 and 3/5 settle how the wand behaves:
 
 | Consumer | Size |
 |---|---|
-| `gTape`, shared by Modes 4 and 7 (1.5s at 48kHz) | 144 KB |
+| `gTape`, shared by Modes 4 and 7 (6.0s, 8-bit at 24kHz) | 144 KB |
 | `gFx`, shared by Modes 10-14 (426ms at 48kHz) | 40 KB |
 | Mode 3's two takes, with their element lists | 11 KB |
 | The three response tables (513 x int32) + shared gain table | 8 KB |
 | Sine LUT, engine/oscillator/filter state, library buffers | ~25 KB |
 | **Total, measured at link** | **228 KB, 89% of 256KB** |
 
-**The two shared buffers are the whole budget**, and they were traded against
-each other: the effects wanted 40KB, so `Tape::kMaxLen` came down from 1.75s to
-1.5s to pay for it. At 1.75s the card links at 98.4%, which works — the stack
-lives in SCRATCH_X at 0x20040000, outside this 256KB figure, and nothing here
-allocates — but it leaves 6KB, so the next feature has nowhere to go. Watch
+**The two shared buffers are the whole budget.** The tape was 1.75s of 16-bit
+48kHz (168KB), came down to 1.5s (144KB) to pay for the effects' 40KB, and now
+holds **6.0s in that same 144KB** by storing 8-bit companded samples at 24kHz.
+Changing the FORMAT bought 4x where trading bytes between the two buffers could
+only ever have bought fractions.
+
+At 168KB the card links at 98.4%, which works — the stack lives in SCRATCH_X at
+0x20040000, outside this 256KB figure, and nothing here allocates — but it
+leaves 6KB, so the next feature has nowhere to go. Watch
 `--print-memory-usage` whenever either constant moves.
 
 ## Build
