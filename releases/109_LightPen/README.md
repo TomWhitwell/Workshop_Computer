@@ -2,7 +2,7 @@
 
 A program card for the [Music Thing Modular Workshop System Computer](https://github.com/TomWhitwell/Workshop_Computer) that turns an **RGB sensor wand** into a controller and a sound source. The wand is a whiteboard-marker body with three light-dependent resistors (LDRs) in the tip, under red, green and blue lighting gels. Wave it at the room, or scan printed colour with it (gradient maps, barcode stripes, rainbow strips), and the colour becomes CV, gates and audio.
 
-**Version 1.2.1.** All fourteen modes build and pass the desktop DSP checks in `tools/`. A ready-to-flash binary is in [UF2/lightpen.uf2](UF2/lightpen.uf2) — drag it onto the Computer in bootloader mode.
+**Version 1.3.0.** All fourteen modes build and pass the desktop DSP checks in `tools/`. A ready-to-flash binary is in [UF2/lightpen.uf2](UF2/lightpen.uf2) — drag it onto the Computer in bootloader mode.
 
 ## Wiring the wand
 
@@ -83,7 +83,7 @@ Two things to know: calibrate against the screen or print you'll actually use, b
 
 Coloured stripes still work, read by their lightness. Two practical notes: keep **Y (smoothing) low** while scanning or the bars blur together, and remember LDRs respond in milliseconds rather than microseconds — a supermarket barcode swiped at speed is beyond them, but a code printed or photocopied up large reads well.
 
-**4. Tape Scrubber.** Hold Down and Audio In 1 records for exactly as long as you hold it, up to 1.5 seconds — the length of the hold is the length of the loop. Red sets the filter cutoff and blue its resonance. With a 2D colour map (green across, red up), the page works like a KAOSS pad. A quick *tap* of Down changes what green does with the take:
+**4. Tape Scrubber.** Hold Down and Audio In 1 records for exactly as long as you hold it, up to **6 seconds** — the length of the hold is the length of the loop. The take is stored lo-fi on purpose (see below), which is what makes six seconds fit. Red sets the filter cutoff and blue its resonance. With a 2D colour map (green across, red up), the page works like a KAOSS pad. A quick *tap* of Down changes what green does with the take:
 
 - **Scrub** — green places the playhead anywhere in the take, so moving the wand scratches it like tape. Silent when your hand is still.
 - **Slice** — the take is cut into sixteen, green picks one, and that slice repeats. Beat repeat: it plays whether or not you move.
@@ -102,6 +102,10 @@ Coloured stripes still work, read by their lightness. Two practical notes: keep 
 - **Brake** — rest is normal speed, but covering the sensor ramps it to a halt and uncovering spins it back up. Stopping is quicker than starting, so it behaves like a motor rather than a fader.
 
 *Main:* how hard the wand pushes, from a gentle nudge to a full shuttle. *Down:* tap to change behaviour, hold to record.
+
+**About the take** (Modes 4 and 7 share one). It's six seconds, stored at 24kHz in eight companded bits rather than 48kHz in sixteen linear ones — four times the length in exactly the same memory. That costs treble above about 12kHz and puts the noise floor around 32dB down, so it sounds like cassette. For a scrubber and a jog wheel that reads as character rather than as damage, and six seconds of phrase is worth far more than a second and a half of clean.
+
+The eight bits are *companded*, not linear: the step size tracks the signal, so the noise sits 32dB under whatever you're playing at every level. Linear eight-bit would be cleaner on a loud passage and fall apart on a quiet tail — which is exactly where a scrubber spends its time.
 
 **8. Prism Voice.** Mode 5's voice wired to a different set of controls, and a different character: it *sustains* while the gate is high instead of plucking. Red is FM depth from a second oscillator an octave up, green crushes the sample rate from clean down to a sixty-fourth, and blue is the filter cutoff. Same pitch and gate inputs as Mode 5, and the envelope again comes out of CV Out 2. *Main:* waveshape, sine → triangle → square. *Down:* rotate which colour controls what.
 

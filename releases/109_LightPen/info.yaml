@@ -3,13 +3,13 @@ Name: LIGHTPEN
 short-description: An RGB light-sensor wand as a fourteen-mode controller, sound source and effects box
 Language: C++ (ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: "1.2.1"
+Version: "1.3.0"
 Status: Released
 License: CC-BY-4.0
 repository: https://github.com/uglifruit/WorkshopLightPen
 Editor: none
 date-created: 2026-09-16
-date-updated: 2026-09-25
+date-updated: 2026-09-26
 
 contact:
   social:
@@ -17,7 +17,7 @@ contact:
 
 uf2:
   - path: UF2/lightpen.uf2
-    name: LIGHTPEN 1.2.1
+    name: LIGHTPEN 1.3.0
 
 tags:
   - controller
@@ -64,9 +64,12 @@ summary: |
   bar going dark hits a kick and coming back to light hits a snare, or
   clicks, crackle or shaped noise, tapped through with the switch.<br><br>
   4 Tape Scrubber: hold Down to record Audio In 1 for as long as you hold it,
-  then scrub through the take by moving the wand across a colour map, with a
-  colour-controlled filter. Tap Down to switch between scrubbing, repeating
-  one of sixteen slices, and sweeping the loop length down to a buzz.<br><br>
+  up to six seconds, then scrub through the take by moving the wand across a
+  colour map, with a colour-controlled filter. Tap Down to switch between
+  scrubbing, repeating one of sixteen slices, and sweeping the loop length down
+  to a buzz. The take is stored lo-fi on purpose — 24kHz in eight companded
+  bits — which is four times the length in the same memory, and sounds like
+  cassette.<br><br>
   5 Synesthesia Voice: a 1V/oct voice whose filter, wavefolder and decay
   follow the colour.<br><br>
   6 Colour Organ: hue picks a note in a scale, as calibrated pitch CV,

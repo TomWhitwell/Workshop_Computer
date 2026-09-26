@@ -115,7 +115,11 @@ void __not_in_flash_func(JogMode::AudioTick)(const SensorFrame &, const Inputs &
 		// and a rate stuck 0.1x away from 1x is audibly out of tune.
 		rate_ = slew_exact(rate_, rateTarget_, inertia_);
 
-		frac_ += rate_;
+		// StoreRate, not rate_ directly: the buffer holds 24kHz samples, so
+		// normal speed advances half a stored sample per output sample. rate_
+		// itself stays in "65536 = 1x" units, which is what kMuteRate and the
+		// inertia slew are reasoning about.
+		frac_ += Tape::StoreRate(rate_);
 		idx_ += frac_ >> 16;       // floors, so a negative rate steps back
 		frac_ &= 0xFFFF;
 
