@@ -87,7 +87,8 @@ assignments:
   "06_usb_audio":
     - useful
   "07_bumpers": []
-  "08_bytebeat": []
+  "08_bytebeat":
+    - chris-pick
   "09_DivCom":
     - wild
     - deep
@@ -139,9 +140,11 @@ assignments:
   "34_dual_quant": []
   "35_FreqShift":
     - wild
-  "36_GradualProcess": []
+  "36_GradualProcess": 
+    - chris-pick
   "37_compulidean": []
-  "38_od": []
+  "38_od":
+    - chris-pick
   "39_knots": []
   "41_blackbird":
     - deep
@@ -219,14 +222,15 @@ assignments:
     - wild
   "96_cathode":
     - magic
+    - chris-pick
   "97_alloy": []
   "98_duo_midi": []
   "99_toolbox": []
   "101_Gnarly_C1ZZL3":
     - wild
-  "102_Nibble-KO": []
-  "103_spectral":
-    - new
+  "102_Nibble-KO":
+    - toms-pick
+  "103_spectral": []
   "104_barbers_pole":
     - new
   "105_voder":
@@ -237,13 +241,21 @@ assignments:
   "107_scintillator":
     - new
   "108_GBA":
-    - new
     - toms-pick
     - magic
+    - deep
+  "109_LightPen":
+    - new
+    - wild
   "174_Skipping_Stones":
+    - new
+  "202_ScaryLingo":
     - new
   "303_acid": []
   "355_RYK_Pitch-Vocoder": []
+  "369_Asterisk":
+    - new
+    - chris-pick
   "433_sense_of_space": []
   "580_Vortex_Runner":
     - new
@@ -253,14 +265,13 @@ assignments:
   "818_Bibesque":
     - new
     - useful
+    - classic
   "833_BuzzyBee":
     - new
   "877_RYK_Tape-Sampler":
     - magic
+    - chris-pick
   "910_RYK_Pitched-Delay":
     - classic
   "999_Dub_Warning":
-    - new
     - toms-pick
-  # ScaryLingo
-  202_ScaryLingo: []

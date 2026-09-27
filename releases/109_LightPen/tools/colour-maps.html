@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Colour Map Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Single theme on purpose: this is held against a light sensor. */
+  :root {
+    --ground: #121315; --panel: #1B1D21; --panel-2: #23262B; --line: #2E3238;
+    --ink: #E8E6E1; --ink-dim: #9AA0A6; --brass: #C9A227;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    font-size: 15px; line-height: 1.5;
+  }
+  .wrap { padding: 16px; padding-block: 28px; max-width: 1040px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--brass); margin: 0 0 10px;
+  }
+  h1 { font-size: clamp(23px, 4.2vw, 30px); line-height: 1.15; margin: 0 0 8px; font-weight: 600; }
+  .keys { margin: 0 0 22px; color: var(--ink-dim); font-size: 13px; }
+  kbd {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 14px; }
+  .map {
+    display: block; padding: 0; text-align: left; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+    cursor: pointer; font: inherit; color: inherit; width: 100%;
+  }
+  .map:hover { border-color: var(--brass); }
+  .map img { display: block; width: 100%; height: 130px; object-fit: cover; background: #000; }
+  .map .meta { padding: 10px 13px; display: block; }
+  .map .name { display: block; font-weight: 600; }
+  .map .use { display: block; color: var(--ink-dim); font-size: 13px; }
+  :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  button.ghost {
+    font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line);
+    border-radius: 4px; padding: 9px 16px; cursor: pointer; margin-bottom: 20px;
+  }
+  button.ghost:hover { border-color: var(--brass); }
+
+  #viewer { position: fixed; inset: 0; background: #000; display: none; cursor: pointer; }
+  #viewer.on { display: block; }
+  #viewer img {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    max-width: 100%; max-height: 100%;
+  }
+  #readout {
+    position: fixed; top: env(safe-area-inset-top, 0px); left: 0; margin: 14px;
+    background: rgba(12, 13, 15, 0.86); border: 1px solid var(--line); border-radius: 5px;
+    padding: 9px 12px; max-width: min(300px, calc(100% - 28px));
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em;
+    transition: opacity 600ms ease;
+  }
+  #readout.faded { opacity: 0.1; }
+  @media (prefers-reduced-motion: reduce) { #readout { transition: none; } }
+  #readout .of { color: var(--ink-dim); }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="index">
+  <p class="eyebrow">LightPen</p>
+  <h1>Colour Map Viewer</h1>
+  <p class="keys">
+    Pick one to fill the screen, then wand across it.
+    <kbd>space</kbd> next · <kbd>←</kbd> <kbd>→</kbd> move · <kbd>esc</kbd> back · <kbd>1</kbd>–<kbd>9</kbd> jump
+  </p>
+  <button class="ghost" id="fs">Full screen</button>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div id="viewer">
+  <img id="view" alt="">
+  <div id="readout"><span id="rName"></span> <span class="of">· <span id="rNum"></span>/9</span></div>
+</div>
+
+<script>
+  var MAPS = [
+    { file: "colourmaps/rg-field.png",      name: "Red / Green Field", use: "Mode 4 scrub pad" },
+    { file: "colourmaps/hue-field.png",     name: "Hue Field",         use: "Mode 6 — scan sideways for a scale" },
+    { file: "colourmaps/gradient-bars.png", name: "Gradient Bars",     use: "One colour pair at a time" },
+    { file: "colourmaps/barcode.png",       name: "Barcode",           use: "Mode 3 — swipe it" },
+    { file: "colourmaps/block-noise.png",   name: "Block Noise",       use: "Mode 3 — busier" },
+    { file: "colourmaps/circles.png",       name: "Colour Circles",    use: "Mode 6 — hold a patch" },
+    { file: "colourmaps/pie.png",           name: "Colour Pie",        use: "Mode 6 — circle the middle" },
+    { file: "colourmaps/sphere.png",        name: "Colour Sphere",     use: "Hue and level together" },
+    { file: "colourmaps/balls.png",         name: "Colour Balls",      use: "Mode 2 — drift for chord levels" }
+  ];
+
+  var index = document.getElementById("index");
+  var viewer = document.getElementById("viewer");
+  var view = document.getElementById("view");
+  var readout = document.getElementById("readout");
+  var rName = document.getElementById("rName");
+  var rNum = document.getElementById("rNum");
+  var grid = document.getElementById("grid");
+  var idx = 0, fadeTimer = null;
+
+  MAPS.forEach(function (m, i) {
+    var el = document.createElement("button");
+    el.className = "map";
+    el.type = "button";
+    el.innerHTML =
+      '<img src="' + m.file + '" alt="' + m.name + '">' +
+      '<span class="meta">' +
+        '<span class="name">' + (i + 1) + ". " + m.name + "</span>" +
+        '<span class="use">' + m.use + "</span>" +
+      "</span>";
+    el.addEventListener("click", function () { show(i); });
+    grid.appendChild(el);
+  });
+
+  function render() {
+    var m = MAPS[idx];
+    view.src = m.file;
+    view.alt = m.name;
+    rName.textContent = m.name;
+    rNum.textContent = String(idx + 1);
+    readout.classList.remove("faded");
+    if (fadeTimer) clearTimeout(fadeTimer);
+    fadeTimer = setTimeout(function () { readout.classList.add("faded"); }, 2400);
+  }
+
+  function show(i) { idx = i; index.style.display = "none"; viewer.classList.add("on"); render(); }
+  function back() { viewer.classList.remove("on"); index.style.display = ""; if (fadeTimer) clearTimeout(fadeTimer); }
+  function step(by) { idx = (idx + by + MAPS.length) % MAPS.length; render(); }
+
+  document.getElementById("fs").addEventListener("click", function () {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(function () {});
+    }
+  });
+  viewer.addEventListener("click", function () { step(1); });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key >= "1" && e.key <= "9") {
+      var n = Number(e.key) - 1;
+      if (n < MAPS.length) { show(n); e.preventDefault(); }
+      return;
+    }
+    if (!viewer.classList.contains("on")) {
+      if (e.key === " " || e.key === "Enter") { show(0); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Escape") { back(); }
+    else if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); }
+    else if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight") { step(1); e.preventDefault(); }
+  });
+</script>
+</body>
+</html>

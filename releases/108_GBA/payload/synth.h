@@ -52,7 +52,14 @@ extern const char *dest_name[DEST_COUNT];
 #define TRIG_PU2   0
 #define TRIG_SW    1
 #define TRIG_BTN   2
-#define TRIG_COUNT 3
+// The three analogue jacks cross a fixed threshold to fire - see synth_tick(). They fit into
+// previously-unused bits of Channel.trig (a uint8_t, only 3 of 8 bits used before this), so no
+// stored field changes size or meaning and every patch ever saved already has these bits at 0,
+// which is exactly the un-armed default they should come up with.
+#define TRIG_AUD1  3
+#define TRIG_AUD2  4
+#define TRIG_CV1   5
+#define TRIG_COUNT 6
 
 extern const char *trig_name[TRIG_COUNT];
 
@@ -184,7 +191,11 @@ extern const char *drum_name[DRUM_PRESETS];
 //       meaning, so synth_patch_migrate() brings it forward instead of throwing it away.
 //   v4  FREE moved from one past USER 4 to index 0, ahead of CHROMATIC. Same layout, every
 //       scale index's meaning shifts by +1; migrated the same way.
-#define PATCH_VERSION 4
+//   v5  TRIG_COUNT grew to add AudioIn1/AudioIn2/CV In 1, using previously-unused bits of
+//       Channel.trig. THE ONLY ENTRY HERE WITH NO MIGRATION CASE: every existing patch already
+//       has those bits at 0, which is the correct un-armed default, so there is nothing to
+//       bring forward. The bump is documentary.
+#define PATCH_VERSION 5
 
 typedef struct {
     uint16_t magic;

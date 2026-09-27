@@ -3,13 +3,13 @@ Name: GBA PSG Voice
 short-description: "Boots a cartridge-less Game Boy Advance over the pulse jacks via BIOS Multiboot, then plays it as a chiptune synth voice with the whole sound editor on the GBA's own screen"
 Language: C++ (RP2040 Pico SDK) + C (GBA payload)
 Creator: Andy Jenkinson (uglifruit)
-Version: 1.0.2
+Version: 1.0.3
 Status: Released
 License: MIT
 repository: https://github.com/uglifruit/89_GBA
 Editor: none
 date-created: 2026-07-04
-date-updated: 2026-09-13
+date-updated: 2026-09-20
 
 contact:
   social:
@@ -17,7 +17,7 @@ contact:
 
 uf2:
   - path: UF2/gba_link.uf2
-    name: GBA PSG Voice 1.0.2
+    name: GBA PSG Voice 1.0.3
 
 tags:
   - gba
@@ -92,7 +92,10 @@ summary: |
   1V/oct pitch, the Main knob rides channel 3, X and Y are attack and release. Pulse In 2, CV In
   1 and the Audio Ins are deliberately unassigned - nothing should move that you did not patch.
   All four jacks, the three knobs and the switch's UP position are assignable on the GBA's MAP
-  page, each with its own set of per-voice tickboxes.<br><br>
+  page, each with its own set of per-voice tickboxes. Audio In 1, Audio In 2 and CV In 1 can also
+  be armed as TRIGGER sources on the TRIG page, alongside Pulse In 2, the switch and a GBA
+  button - they fire on a rising level, so loud audio or a gate works and a drifting CV does
+  not. Off by default, like everything else that has to be patched to matter.<br><br>
 
   CV Out 2 is the quantised note as calibrated 1V/oct, so setting a scale on the SET page turns
   the pair into a quantiser for the rest of the rack. Audio Out 1 and 2 send the GBA's A and B
@@ -125,13 +128,13 @@ panel:
       description: Gate and trigger. Edges shorter than the 1ms poll are still caught
     - id: CVIn1
       name: Mod 1
-      description: Unassigned by default - nothing should move that you did not patch. Give it a job on the MAP page
+      description: Unassigned by default - nothing should move that you did not patch. Give it a job on the MAP page, or arm it as a trigger source on the TRIG page
     - id: AudioIn1
       name: Mod 2
-      description: Unassigned by default; assignable on the MAP page, with per-voice tickboxes
+      description: Unassigned by default; assignable on the MAP page with per-voice tickboxes, or armable as a trigger source on the TRIG page
     - id: AudioIn2
       name: Mod 3
-      description: Unassigned by default; assignable on the MAP page, with per-voice tickboxes
+      description: Unassigned by default; assignable on the MAP page with per-voice tickboxes, or armable as a trigger source on the TRIG page
     - id: PulseIn1
       name: GBA SO (MISO)
       description: Serial data back from the GBA. Read directly via PIO, not the 48kHz pulse path

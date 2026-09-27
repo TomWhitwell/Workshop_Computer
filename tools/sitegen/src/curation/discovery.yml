@@ -52,10 +52,10 @@ shelves:
     title: Essentials 
     layout: video-lead
     cards:
+      - 369_Asterisk
       - 22_sheep
       - 44_Birds
       - 21_resonator
-      - 42_backyard_rain
 
   - id: new
     title: Recommended new releases
@@ -67,14 +67,14 @@ shelves:
     limit: 8
 
 
-  - id: dune-collection
-    title: The Dune collection
+  - id: vos-collection
+    title: The Vos collection
     layout: video-strip
     cards:
-      - 15_MLRws
-      - 41_blackbird
-      - 11_goldfish
-      - 04_BYO_Benjolin
+      - 54_Tapegrade
+      - 433_sense_of_space
+      - 87_fr330hfr33
+      - 101_Gnarly_C1ZZL3
 
 
 
@@ -89,14 +89,16 @@ shelves:
 
 
 
-  - id: vos-collection
-    title: The Vos collection
+  - id: dune-collection
+    title: The Dune collection
     layout: video-strip
     cards:
-      - 54_Tapegrade
-      - 433_sense_of_space
-      - 87_fr330hfr33
-      - 101_Gnarly_C1ZZL3
+      - 15_MLRws
+      - 41_blackbird
+      - 11_goldfish
+      - 04_BYO_Benjolin
+
+
 
       
   - id: properly-useful
