@@ -4,7 +4,7 @@ A six-track generative drum synthesizer for the Music Thing Modular Workshop Com
 
 Asterisk creates complete rhythmic patterns from synthesized drums, bass, and melodic percussion. Its six tracks draw from 14 synthesis algorithms, including FM, additive synthesis, wavefolding, subtractive bass, and several drum models.
 
-Three knobs shape the sound. One flick of the switch creates a new musical idea. Despite the countless synthesis parameters running underneath, the user has no direct control over them and cannot save patches.
+Three knobs shape the sound. One flick of the switch creates a new musical idea.
 
 ## Controls
 
@@ -36,9 +36,18 @@ A cable plugged into Pulse In 1 takes priority over USB MIDI. Without an externa
 
 ## Web editor
 
-The web editor adds internal tempo control, per-track mute and solo, and a global delay amount control. Drag one voice onto another to swap their sounds while keeping each track’s rhythm.
+The web editor adds internal tempo control, per-track mute and solo, and the following controls:
 
-[Open the web editor](https://computer.musicthing.co.uk/programs/369-asterisk/web/index.html). Requires Asterisk 1.0. Connect the Workshop Computer to your computer by USB, then open the editor in Chrome or Edge and allow MIDI and SysEx access.
+- **Level, Pan and Delay Send:** Click a voice to open its three faders. Pan positions the dry voice; all six sends feed one shared delay, which stays centered.
+- **Delay Time:** Sync follows the active clock. Free sets the time in milliseconds, from 20 to 1000 ms. This replaces the previous global delay amount control.
+- **Single-track randomization:** Each small star generates a new sound, rhythm, Level, Pan and Send for that track. The other tracks and global settings stay as set, and the shared clock keeps running.
+- **Save / Recall:** Save a patch as a file on your computer and load it later. Hardware knobs and CV remain live; knob positions, playback position and ringing tails are not saved.
+
+Drag one voice onto another to swap sounds, Pan and Send. Rhythms and Level stay in their original slots. Manually set tempo and delay time, Mute and Solo are preserved when randomizing.
+
+Sync divisions longer than the 1.024-second delay buffer are capped and marked **MAX**.
+
+[Open the web editor](https://computer.musicthing.co.uk/programs/369-asterisk/web/index.html). Requires **Asterisk 1.1 firmware**. Connect the Workshop Computer to your computer by USB, then open the editor in Chrome or Edge and allow MIDI and SysEx access.
 
 ## Sound demo 2
 
@@ -47,9 +56,9 @@ The web editor adds internal tempo control, per-track mute and solo, and a globa
 ## Release
 
 - **Creator:** Laboratory 0
-- **Version:** 1.0
+- **Version:** 1.1
 - **Status:** Released
-- **Firmware:** [Asterisk_Workshop_v1.0.uf2](Asterisk_Workshop_v1.0.uf2)
+- **Firmware:** [Asterisk_Workshop_v1.1.uf2](Asterisk_Workshop_v1.1.uf2)
 
 Follow the [official Program Card installation instructions](https://www.musicthing.co.uk/workshopsystem/program-cards/install/) to write the UF2 to a Workshop Computer Program Card.
 
