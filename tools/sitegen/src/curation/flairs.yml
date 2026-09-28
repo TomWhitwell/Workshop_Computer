@@ -140,7 +140,7 @@ assignments:
   "34_dual_quant": []
   "35_FreqShift":
     - wild
-  "36_GradualProcess": 
+  "36_GradualProcess":
     - chris-pick
   "37_compulidean": []
   "38_od":
@@ -275,3 +275,5 @@ assignments:
     - classic
   "999_Dub_Warning":
     - toms-pick
+  # BlackBox
+  404_BlackBox: []
