@@ -1,0 +1,115 @@
+draft: false
+Name: Impermanence
+short-description: A 0.75-second stereo looper whose Chaos knob re-slices the take every time it moves, into a shimmer reverb.
+summary: |
+  Record 0.75 seconds of stereo audio, then play it with a single **Chaos** knob. Every movement re-cuts the loop:
+  more slices, reordered, reversed and pitch-scattered as Chaos rises. A still knob holds the loop exactly;
+  a moved knob throws it away for good, with no undo and no presets. Three layers of different lengths phase
+  against each other into a shimmer reverb whose tail rises in octaves and animates as its decay knob opens. Tap the switch **down** for Rhythm mode, where slices
+  step to a clock on Pulse In 2.
+Language: C++ (Pico SDK)
+Creator: Matt Allison
+Version: "0.4.2"
+Status: Released
+License: MIT
+date-created: 2026-09-22
+date-updated: 2026-09-28
+
+contact:
+  social:
+    github: https://github.com/mrmattallison
+
+uf2:
+  - path: UF2/impermanence.0.4.2.uf2
+    name: Impermanence 0.4.2
+
+tags:
+  - looper
+  - granular
+  - effect
+  - reverb
+  - generative
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Record In L
+      type: audio
+      description: Left record source (both sides when Audio In 2 is unpatched)
+    - id: AudioIn2
+      name: Record In R
+      type: audio
+      description: Right record source
+    - id: PulseIn1
+      name: Record
+      type: pulse
+      description: Starts a 0.75-second take; a second pulse during the take ends it early. Unplugging doesn't disturb the loop
+    - id: PulseIn2
+      name: Clock
+      type: pulse
+      description: Locks loop timing to the clock without changing pitch; in Rhythm mode each beat plays the next slot. Unplugged or stopped, the last tempo is held
+    - id: CVIn1
+      name: Chaos CV
+      type: cv
+      description: Adds to Chaos in Texture mode (moving it re-cuts the loop); ignored in Rhythm mode and with the switch up
+    - id: CVIn2
+      name: Wet/Dry CV
+      type: cv
+      description: Adds to reverb wet/dry, in every switch position
+  outputs:
+    - id: AudioOut1
+      name: Out L
+      type: audio
+      description: Left output, after the shimmer reverb
+    - id: AudioOut2
+      name: Out R
+      type: audio
+      description: Right output, after the shimmer reverb
+    - id: PulseOut1
+      name: Layer 1 Cycle
+      type: pulse
+      description: Pulse at the end of each layer 1 loop (the whole take)
+    - id: PulseOut2
+      name: Layer 3 Cycle
+      type: pulse
+      description: Pulse at the end of each layer 3 loop (the 2/3-length layer); 3 against 2 with Pulse Out 1
+    - id: CVOut1
+      name: Wander
+      type: cv
+      description: Slow, smooth random voltage, 0 to about +5V; patch to CV In 2 for self-fading reverb
+    - id: CVOut2
+      name: Envelope
+      type: cv
+      description: Envelope follower on the loop, before the reverb
+
+controls:
+  switch:
+    up:
+      name: Levels
+      description: Main / X / Y set the levels of layers 1 / 2 / 3; Chaos and reverb hold their last values (the reverb keeps sounding)
+    middle:
+      name: Perform
+      description: Main = Chaos, X = reverb decay, Y = reverb wet/dry. Main fully anticlockwise clears the buffer; turning it back up records a new take
+    down:
+      name: Perform
+      description: Same knob jobs as middle (Down is momentary)
+    tap:
+      name: Texture / Rhythm
+      description: Tap down to toggle between free-running grains (Texture) and clocked percussive slices (Rhythm)
+  knobs:
+    - main: { name: Chaos, description: "Position sets how wild a re-cut can be; movement triggers a new one" }
+      x: { name: Reverb Decay }
+      y: { name: Reverb Wet/Dry }
+    - when: { z: up }
+      main: { name: Level 1, description: Whole-take layer; picks up only after passing its last value }
+      x: { name: Level 2, description: 3/4-length layer; picks up only after passing its last value }
+      y: { name: Level 3, description: 2/3-length layer; picks up only after passing its last value }
+  leds:
+    - display: list
+      items:
+        - { id: LED0, name: Record / re-cut, description: On while recording; flashes on each re-cut }
+        - { id: LED1, name: Rhythm mode }
+        - { id: LED2, name: Layer 1 loop end, description: Mirrors Pulse Out 1 }
+        - { id: LED3, name: Layer 3 loop end, description: Mirrors Pulse Out 2 }
+        - { id: LED4, name: Wander level, description: Blinks with LED 5 while a knob is catching up }
+        - { id: LED5, name: Envelope level, description: Blinks with LED 4 while a knob is catching up }
