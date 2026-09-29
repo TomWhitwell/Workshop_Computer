@@ -1,4 +1,4 @@
-draft: true
+draft: false
 Name: Graphic Osc
 short-description: Draw an oscillator's wave with eight faders (8mu, web page, or both). Band-limited, with FM, sync and a Turing Machine.
 summary: |
@@ -26,23 +26,14 @@ summary: |
   significant bit; with the Z switch up, **Knob X** locks the loop (clockwise = repeat, 12 o'clock = random,
   counter-clockwise = repeat inverted) and **Knob Y** picks one of eight scales.
 Language: C++ (Pico SDK + ComputerCard)
-Creator: YOUR NAME
+Creator: XponentOne, claude
+Contact: xponentoneaudio@gmail.com
 Version: "0.7.0"
 License: MIT
 Status: WIP
 date-created: 2026-09-19
 date-updated: 2026-09-26
-Editor: web
-
-# Vendored, unmodified, under their own MIT terms:
-#   usb_midi_host.c/.h + usb_midi_host_app_driver.c  (c) 2023 rppicomidi
-#   ComputerCard.h                                    (c) Chris Johnson
-
-uf2:
-  - path: UF2/800_graphic_osc.uf2
-    name: Graphic Osc 0.7.0
-  - path: UF2/800_graphic_osc_profile.uf2
-    name: Graphic Osc 0.7.0 - CPU profiling build (LEDs show peak audio load)
+Editor: index.html                         
 
 tags:
   - oscillator
