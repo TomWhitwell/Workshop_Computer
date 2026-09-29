@@ -19,10 +19,6 @@ tags:
   - dual-voice
   - clock
 
-uf2:
-  - path: src/build/mazerunner.uf2
-    name: mazerunner
-
 Editor: web
 
 panel:
