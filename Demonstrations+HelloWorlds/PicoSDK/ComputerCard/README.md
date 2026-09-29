@@ -83,6 +83,7 @@ For beginners just starting with ComputerCard, the first example to look at is `
 - `sine_wave_lookup` — 440Hz sine wave generator, demonstrating scanning and linear interpolation of a lookup table using integer arithmetic 
 - `usb_detect` — Displays on the LEDs whether the USB port on the MTM Computer is acting as a 'downstream facing port' (MTM Computer is USB Host), or 'upstream facing port' (MTM Computer is USB device). Requires Computer 1.1.0 Hardware. 
 - `usb_serial` — Outputs debugging information from a ComputerCard through the USB serial connection
+- `usb_msc_host` — Plays and records WAV files on a USB stick. Needs TinyUSB 0.21 or later for adequate speed.
 - `web_interface` — Demonstrates bidirectional SysEx communication with an HTML web interface
 
 ### Notes
