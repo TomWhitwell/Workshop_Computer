@@ -1,0 +1,167 @@
+draft: false
+Name: Graphic Osc
+short-description: Draw an oscillator's wave with eight faders (8mu, web page, or both). Band-limited, with FM, sync and a Turing Machine.
+summary: |
+  **Graphic Osc** is an oscillator whose waveform you draw by hand: eight faders are the eight stages
+  of one wave cycle. Use a Music Thing **8mu** plugged straight into the Computer's USB-C socket (the Computer
+  acts as USB host), or a laptop running the bundled **web editor** (the Computer acts as a USB MIDI
+  device; an 8mu can be plugged into the laptop instead). The card picks the role at power-up. Page buttons A-D switch the faders between stage **levels**, stage **times**,
+  stage **curves** and a **performance** page (fine tune, level, symmetry, fold, brightness,
+  odd/even harmonics, formant). Pitch comes from the Main knob plus **CV In 1** at 1 V/oct; the
+  oscillator is on **Audio Out 1**.
+
+  **Symmetry** (page 4) is smooth, and **CV In 2** controls it too, by a depth set with Knob Y (switch in
+  the middle) - zero depth is no effect, full depth is CV In 2's old always-on range.
+
+  Whatever you draw is played through band-limited wavetables that are rebuilt on the fly, so even
+  hard steps and folded shapes do not alias at any pitch (measured on a PC harness, see README).
+
+  **FM** (Audio In 1 modulates the oscillator's pitch) and **sync** (Audio In 2, soft or hard, stepped by a
+  quick press of the Z switch) are also built in; they are less clean than the plain oscillator (see README
+  for measurements). The **Z switch** chooses what the X and Y knobs do, and every knob-controlled setting
+  uses soft takeover so nothing jumps.
+
+  A small **Turing Machine sequencer** runs alongside: **Pulse In 1** clocks a 16-bit shift register,
+  **CV Out 1** is the quantised note (1 V/oct, 2 octaves), **Pulse Out 2** is the register's least
+  significant bit; with the Z switch up, **Knob X** locks the loop (clockwise = repeat, 12 o'clock = random,
+  counter-clockwise = repeat inverted) and **Knob Y** picks one of eight scales.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: XponentOne, claude
+contact:
+  email: xponentoneaudio@gmail.com
+Version: "0.7.0"
+License: MIT
+Status: WIP
+date-created: 2026-09-19
+date-updated: 2026-09-26
+Editor: web                      
+
+tags:
+  - oscillator
+  - wavetable
+  - band-limited
+  - synthesizer
+  - midi-host
+  - midi-device
+  - fm
+  - sync
+  - 8mu
+  - turing-machine
+  - sequencer
+  - quantizer
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Pitch CV
+      type: cv
+      description: Oscillator pitch, 1 V/oct, added to the Main knob. Reads as 0 V when nothing is patched.
+    - id: CVIn2
+      name: Symmetry CV
+      type: cv
+      description: Oscillator symmetry (the wave's midpoint), added to the page-4 symmetry fader by a depth set with Knob Y and the Z switch in the middle. At full depth +-5 V sweeps the full range; at zero depth this input does nothing. Reads as 0 V when nothing is patched.
+    - id: AudioIn1
+      name: FM
+      type: audio
+      description: FM modulator. Moves the oscillator's pitch in proportion to itself; amount is Knob X with the Z switch in the middle. Reduced or off at high pitch or for very fast modulators.
+    - id: AudioIn2
+      name: Sync source
+      type: audio
+      description: Sync source. Each rising zero-crossing soft-syncs (reverses) or hard-syncs (resets) the oscillator; type is stepped by a quick press of the Z switch (held a full second instead, it is factory defaults).
+    - id: PulseIn1
+      name: Sequencer clock
+      type: pulse
+      description: Each rising edge steps the Turing Machine.
+  outputs:
+    - id: AudioOut1
+      name: Oscillator
+      type: audio
+      description: The drawn wave, band-limited. About +-4.8 V for a drawn +-1.0 at full output level; cannot clip.
+    - id: PulseOut1
+      name: Cycle gate
+      type: pulse
+      description: High during the first half of each oscillator cycle (useful as a clock or sync at LFO rates).
+    - id: CVOut1
+      name: Sequencer note
+      type: cv
+      description: Turing Machine note, quantised to the scale chosen with Knob Y, 1 V/oct, C = 0 V, 2 octaves (0 to 1.917 V). Patch to CV In 1 to play the oscillator.
+    - id: PulseOut2
+      name: Sequencer LSB
+      type: pulse
+      description: The Turing Machine shift register's least significant bit, held between clocks.
+
+controls:
+  switch:
+    up:
+      name: Turing mode
+      description: Knob X = Turing Machine lock, Knob Y = quantiser scale.
+    middle:
+      name: Modulation mode
+      description: Knob X = FM amount (modulator on Audio In 1), Knob Y = symmetry modulation depth (how much CV In 2 moves symmetry).
+    down:
+      name: Sync step / factory defaults
+      description: Momentary; X and Y do nothing while it is down. A quick press steps the sync type (off / soft / hard, source Audio In 2). Held for a full second instead, it restores the default drawing and settings on every page.
+  knobs:
+    - main:
+        name: Pitch
+        description: Oscillator pitch in every switch position. 5 octaves, C1 (32.7 Hz) at full counter-clockwise to C6 (1047 Hz) at full clockwise. CV In 1 adds to this.
+      x:
+        name: Lock / FM amount
+        description: Switch up - Turing Machine loop lock. Clockwise = the 16-step loop repeats exactly. 12 o'clock = fully random. Counter-clockwise = the loop repeats inverted each pass (32 steps). Switch middle - FM amount. Soft takeover, so a knob does nothing until it meets the value that setting already holds.
+      y:
+        name: Scale / Symmetry mod depth
+        description: Switch up - quantiser scale, eight zones left to right (chromatic, major, natural minor, major pentatonic, minor pentatonic, dorian, whole tone, root and fifth). Switch middle - symmetry modulation depth (how much CV In 2 moves symmetry; zero is no effect). Soft takeover. (Sync type, off / soft / hard, has no knob - see the Z switch, Down.)
+  leds:
+    - items:
+        - id: LED0
+          name: Page 1 (levels)
+          description: Lit while page 1 is showing. For a second after Knob Y changes scale, the top three LEDs show the scale number in binary (LED0 = 1, LED1 = 2, LED2 = 4).
+        - id: LED1
+          name: Page 2 (times)
+          description: Lit while page 2 is showing.
+        - id: LED2
+          name: Page 3 (curves)
+          description: Lit while page 3 is showing.
+        - id: LED3
+          name: Page 4 (perform)
+          description: Lit while page 4 is showing.
+        - id: LED4
+          name: USB / pick-up status
+          description: Slow blink = nothing connected yet. Steady dim = an 8mu or a laptop is connected. Fast blink = a fader on this page, or an X / Y knob, still needs to be moved through its stored value ("picked up").
+        - id: LED5
+          name: Waveform
+          description: The output wave as brightness. Visible at LFO speeds.
+
+host:
+  usb:
+    - name: Music Thing 8mu
+      role: midi
+      description: USB MIDI host. Uses the 8mu's factory mapping (faders CC 34-41, buttons notes C2/C3/C4/C5); no 8mu setup needed. Needs Computer hardware Rev 1.1.
+    - name: Computer running the web editor
+      role: midi
+      description: USB MIDI device ("Graphic Osc") with SysEx. Open web/index.html in Chrome or Edge. An 8mu plugged into the computer is read by the web page.
+  notes: |
+    The card decides once, at power-up, whether its USB port is a host (8mu) or a device (computer).
+    After plugging a computer in, power-cycle the module. An 8mu can be plugged in before or after
+    power-up; unplugging it leaves the sound exactly as it was. Older (pre-Rev 1.1) boards are device-only.
+
+readme: |
+  # Graphic Osc
+
+  Draw one cycle of a wave with eight faders (an 8mu, the web editor, or both) and play it as an oscillator.
+
+  **Pages** (8mu buttons A-D): 1 stage levels, 2 stage times, 3 stage curves, 4 performance.
+  A fader on a page you have just switched to does nothing until you move it through the value that page
+  has stored (the status LED blinks while any are waiting), so nothing ever jumps.
+
+  **Symmetry** bends the wave's midpoint smoothly; CV In 2 adds to the page-4 fader, by a depth set with
+  Knob Y (switch middle).
+
+  The **Turing Machine** is clocked by Pulse In 1; CV Out 1 is the quantised note, Pulse Out 2 the register's
+  LSB. With the Z switch up Knob X is the lock and Knob Y the scale; in the middle X is FM amount (Audio In 1
+  is the modulator) and Y is symmetry modulation depth (how much CV In 2 moves symmetry). Sync type has no
+  knob: a quick press of the Z switch steps it (off / soft / hard, source Audio In 2); held a full second,
+  it is factory defaults instead.
+
+  Full instructions, recipes for saw / square / triangle, and the anti-aliasing measurements are in the
+  README.
