@@ -27,13 +27,14 @@ summary: |
   counter-clockwise = repeat inverted) and **Knob Y** picks one of eight scales.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: XponentOne, claude
-Contact: xponentoneaudio@gmail.com
+contact:
+  email: xponentoneaudio@gmail.com
 Version: "0.7.0"
 License: MIT
 Status: WIP
 date-created: 2026-09-19
 date-updated: 2026-09-26
-Editor: index.html                         
+Editor: web                      
 
 tags:
   - oscillator
