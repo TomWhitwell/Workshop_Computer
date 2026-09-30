@@ -1,0 +1,267 @@
+{
+  "ledFlash": true,
+  "ledFlashAccel": false,
+  "controllerFlip": false,
+  "midiThru": false,
+  "deviceId": 6,
+  "faderMin": 0,
+  "faderMax": 16383,
+  "trsMode": 0,
+  "firmwareVersion": "1.0.0",
+  "usbControls": [
+    {
+      "channel": 1,
+      "cc": 104,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 105,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 106,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 107,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 108,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 109,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 110,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 111,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    }
+  ],
+  "trsControls": [
+    {
+      "channel": 1,
+      "cc": 104,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 105,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 106,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 107,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 108,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 109,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 110,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 1,
+      "cc": 111,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    },
+    {
+      "channel": 0,
+      "cc": 0,
+      "lsb": 0,
+      "highResolution": false
+    }
+  ],
+  "usbButtonControls": [
+    {
+      "channel": 1,
+      "mode": 0,
+      "paramA": 120,
+      "paramB": 127,
+      "pressed": false
+    },
+    {
+      "channel": 1,
+      "mode": 0,
+      "paramA": 121,
+      "paramB": 127,
+      "pressed": false
+    },
+    {
+      "channel": 1,
+      "mode": 0,
+      "paramA": 122,
+      "paramB": 127,
+      "pressed": false
+    },
+    {
+      "channel": 1,
+      "mode": 0,
+      "paramA": 123,
+      "paramB": 127,
+      "pressed": false
+    }
+  ],
+  "trsButtonControls": [
+    {
+      "channel": 1,
+      "mode": 0,
+      "paramA": 120,
+      "paramB": 127,
+      "pressed": false
+    },
+    {
+      "channel": 1,
+      "mode": 0,
+      "paramA": 121,
+      "paramB": 127,
+      "pressed": false
+    },
+    {
+      "channel": 1,
+      "mode": 0,
+      "paramA": 122,
+      "paramB": 127,
+      "pressed": false
+    },
+    {
+      "channel": 1,
+      "mode": 0,
+      "paramA": 123,
+      "paramB": 127,
+      "pressed": false
+    }
+  ]
+}
