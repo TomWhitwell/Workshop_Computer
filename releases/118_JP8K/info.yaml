@@ -1,0 +1,111 @@
+draft: false
+Name: JP4k-sandsquall
+short-description: JP-inspired Supersaw oscillator with CV/MIDI synth and a web-editable sting sequencer.
+summary: >
+  A Workshop Computer JP-inspired Supersaw voice: a wide, animated stack of
+  saw oscillators with a web-editable built-in sequencer and a familiar default
+  phrase. Flip Z up for a playable CV/MIDI synth voice, or set Z middle for a
+  clockable 32-step sequencer. From sequencer mode, Z down starts or stops the
+  internal sequencer when no clock is active.
+  X spreads seven fixed-point saw oscillators, while Y darkens or brightens the
+  stack before it leaves the stereo audio outs. USB MIDI works in both device
+  and host modes for note/gate playability, pitch bend, and basic CC control.
+Language: C++ (RP2040 Pico SDK / ComputerCard)
+Creator: Adrian Vos
+Version: "0.1.22"
+Status: Beta
+License: MIT
+date-created: 2026-09-01
+date-updated: 2026-09-30
+Editor: web
+
+tags:
+  - oscillator
+  - synthesizer
+  - supersaw
+  - drone
+  - cv-gate
+  - virtual-analog
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Pitch CV
+      description: Calibrated 1V/oct pitch CV added to Main in synth mode, or to the active MIDI/sequencer note; uses ComputerCard 0.4.0 audio-input calibration when available, with a 341-counts-per-volt fallback
+    - id: AudioIn2
+      name: ""
+      description: ""
+    - id: CVIn1
+      name: Filter CV
+      description: Bipolar cutoff modulation added to the Y brightness setting before the two-pole low-pass filter
+    - id: CVIn2
+      name: Spread CV
+      description: Adds modulation to the detune/spread amount set by X
+    - id: PulseIn1
+      name: Gate / Reset
+      description: Sustains the synth envelope while high in Z-up synth mode; resets the sequencer in Z-middle sequencer mode
+    - id: PulseIn2
+      name: Accent / Clock
+      description: Its rising edge triggers a bright attack snap and it adds a level lift while high in synth mode; clocks the sequencer from rising edges captured at audio rate in sequencer mode, taking priority over USB MIDI Clock
+  outputs:
+    - id: AudioOut1
+      name: Left / Mono
+      description: Supersaw voice output
+    - id: AudioOut2
+      name: Right
+      description: Stereo companion output in all modes
+    - id: CVOut1
+      name: Pitch Monitor
+      description: Approximate 1V/oct monitor derived from the internal pitch value
+    - id: CVOut2
+      name: Brightness Monitor
+      description: CV following the effective two-pole filter coefficient, including Y, CV In 1, and the sequencer brightness contour
+    - id: PulseOut1
+      name: Gate Monitor
+      description: High while the incoming or sequenced gate is active; falls at note-off before the short audio release tail
+    - id: PulseOut2
+      name: Saw Clock
+      description: Square pulse derived from the centre oscillator phase while the voice is active
+
+controls:
+  switch:
+    up:
+      name: Synth
+      description: CV/gate and USB MIDI playable supersaw voice
+    middle:
+      name: Sequencer
+      description: Quietly armed 32-step sequencer. Use Z down to start or stop its internal clock; Pulse In 2 or active USB MIDI Clock clocks it externally
+    down:
+      name: Start / Stop
+      description: From sequencer mode with no external clock, starts or stops the internal clock; neutral in synth mode
+  knobs:
+    - main:
+        name: Tune
+        description: Tune/transpose in synth mode; tempo in sequencer mode; ignored while a MIDI note is active
+      x:
+        name: Spread
+        description: Detunes the seven saw oscillators from single-saw tuning mode at minimum to a wide supersaw cloud
+      y:
+        name: Brightness
+        description: Neutral two-pole low-pass tone control from warm pad to bright raw saw
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Synth Mode
+          description: Bright in Z-up synth mode and dim in sequencer mode
+        - id: LED1
+          name: Width / Sequencer Tick
+          description: Brightness follows stereo spread in synth mode and pulses with sequencer movement in sequencer mode
+        - id: LED2
+          name: Gate
+          description: Lit while the voice is open
+        - id: LED3
+          name: Brightness
+          description: Brightness follows the Y tone control
+        - id: LED4
+          name: USB MIDI
+          description: Dim in USB device mode, brighter in USB host mode, and stays bright while USB MIDI Clock is active
+        - id: LED5
+          name: Envelope / MIDI Note
+          description: Brightness follows the envelope, or stays bright while a MIDI note is held

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JP4k-sandsquall Sequencer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p>Workshop Computer</p>
+        <h1>JP4k-sandsquall</h1>
+      </div>
+      <button id="connect" type="button">Connect MIDI</button>
+    </header>
+
+    <section class="panel controls">
+      <label>
+        Output
+        <select id="output"></select>
+      </label>
+      <label>
+        Tempo
+        <input id="tempo" type="range" min="60" max="180" value="136">
+        <span id="tempoValue">136 BPM</span>
+      </label>
+      <label>
+        Length
+        <input id="length" type="number" min="1" max="32" value="32">
+      </label>
+      <div class="actions">
+        <button id="sendPattern" type="button">Send Pattern</button>
+        <button id="sendControls" type="button">Send Controls</button>
+        <button id="resetSandstorm" type="button">Sandsquall Sting</button>
+      </div>
+    </section>
+
+    <section class="panel performance">
+      <label>
+        Spread
+        <input id="spread" type="range" min="0" max="127" value="40">
+      </label>
+      <label>
+        Brightness
+        <input id="brightness" type="range" min="0" max="127" value="104">
+      </label>
+      <label>
+        Volume
+        <input id="volume" type="range" min="0" max="127" value="127">
+      </label>
+    </section>
+
+    <section class="sequencer" aria-label="Sequencer steps">
+      <div class="grid-head">
+        <span>Step</span>
+        <span>Note</span>
+        <span>Gate</span>
+        <span>Accent</span>
+      </div>
+      <div id="steps" class="steps"></div>
+    </section>
+
+    <p id="status" class="status">Disconnected</p>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
