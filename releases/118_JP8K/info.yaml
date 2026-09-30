@@ -32,9 +32,6 @@ panel:
     - id: AudioIn1
       name: Pitch CV
       description: Calibrated 1V/oct pitch CV added to Main in synth mode, or to the active MIDI/sequencer note; uses ComputerCard 0.4.0 audio-input calibration when available, with a 341-counts-per-volt fallback
-    - id: AudioIn2
-      name: ""
-      description: ""
     - id: CVIn1
       name: Filter CV
       description: Bipolar cutoff modulation added to the Y brightness setting before the two-pole low-pass filter
