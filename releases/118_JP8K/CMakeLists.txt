@@ -15,7 +15,7 @@ set(PICO_BOARD pico CACHE STRING "Board type")
 cmake_minimum_required(VERSION 3.13)
 include(pico_sdk_import.cmake)
 
-set(CARD_NAME jp4k_sandsquall)
+set(CARD_NAME jp8k_sandsquall)
 project(${CARD_NAME} C CXX ASM)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -43,6 +43,8 @@ target_link_libraries(${CARD_NAME}
     hardware_adc
     hardware_spi
     hardware_clocks
+    hardware_flash
+    hardware_sync
     hardware_vreg
 )
 

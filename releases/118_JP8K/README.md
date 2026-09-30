@@ -1,6 +1,6 @@
-# JP4k-sandsquall
+# JP8k-sandsquall
 
-JP4k-sandsquall is a JP-inspired Supersaw voice for the Music Thing Workshop
+JP8k-sandsquall is a JP-inspired Supersaw voice for the Music Thing Workshop
 Computer, a wide animated stack of saw oscillators.
 
 The card includes a built-in sequencer which is accessible through the webUI. The default sequence may be familiar...
@@ -120,12 +120,13 @@ to middle to start or stop the internal clock. Patch a clock to Pulse In 2 to
 step the sequence externally; Pulse In 1 resets back to step 1. The factory
 phrase uses shorter inner-note gates, longer phrase endings, and a rising
 brightness contour added to Y for a more played, less static supersaw line.
-The Web MIDI editor can still replace its notes, gates, and accents.
+The Web MIDI editor can still replace its notes, gates, and accents. Sending a
+pattern saves it to the card, so it is restored after a power cycle.
 
 The browser editor in `web/index.html` can send a replacement 32-step pattern,
 tempo, accents, gates, and basic performance controls over Web MIDI SysEx.
 
-The card runs the RP2040 at 192 MHz by default. A `JP4K_SANDSQUALL_OVERCLOCK_240` build
+The card runs the RP2040 at 192 MHz by default. A `JP8K_SANDSQUALL_OVERCLOCK_240` build
 define is provided for later testing if the voice grows heavier, but the first
 version should not need it.
 
@@ -177,10 +178,14 @@ Version 0.1.21 moves calibrated 1V/oct pitch control to Audio In 1 and assigns
 CV In 1 to bipolar low-pass cutoff modulation. CV In 2 remains Supersaw spread
 modulation.
 
-Version 0.1.22 finalises the card identity as JP4k-sandsquall. Its USB MIDI
+Version 0.1.22 finalises the card identity as JP8k-sandsquall. Its USB MIDI
 name, browser editor, SysEx tag, firmware target, and canonical UF2 now use
 the final name.
 
-The versioned `UF2/JP4K_SANDSQUALL_0.1.22.uf2` is the sole release firmware.
+Version 0.1.23 saves a Web MIDI editor pattern in the card's final flash
+sector. A valid saved pattern replaces the factory pattern on boot; changed
+MIDI performance controls are intentionally not saved.
+
+The versioned `UF2/JP8K_SANDSQUALL_0.1.23.uf2` is the sole release firmware.
 Earlier test builds are kept locally in `UF2/archive/` and are intentionally
 excluded from release commits.

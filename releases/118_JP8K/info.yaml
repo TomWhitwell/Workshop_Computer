@@ -1,18 +1,19 @@
 draft: false
-Name: JP4k-sandsquall
+Name: JP8k-sandsquall
 short-description: JP-inspired Supersaw oscillator with CV/MIDI synth and a web-editable sting sequencer.
 summary: >
   A Workshop Computer JP-inspired Supersaw voice: a wide, animated stack of
   saw oscillators with a web-editable built-in sequencer and a familiar default
-  phrase. Flip Z up for a playable CV/MIDI synth voice, or set Z middle for a
-  clockable 32-step sequencer. From sequencer mode, Z down starts or stops the
+  phrase. Sent editor patterns are restored after power cycling. Flip Z up for
+  a playable CV/MIDI synth voice, or set Z middle for a clockable 32-step
+  sequencer. From sequencer mode, Z down starts or stops the
   internal sequencer when no clock is active.
   X spreads seven fixed-point saw oscillators, while Y darkens or brightens the
   stack before it leaves the stereo audio outs. USB MIDI works in both device
   and host modes for note/gate playability, pitch bend, and basic CC control.
 Language: C++ (RP2040 Pico SDK / ComputerCard)
 Creator: Adrian Vos
-Version: "0.1.22"
+Version: "0.1.23"
 Status: Beta
 License: MIT
 date-created: 2026-09-01

@@ -1,4 +1,4 @@
-// JP4k-sandsquall - JP-inspired supersaw voice for Workshop Computer.
+// JP8k-sandsquall - JP-inspired supersaw voice for Workshop Computer.
 //
 // This is not an attempt to copy Roland firmware. It is a small Workshop-sized
 // instrument built around the same playable idea: a wide, detuned stack of saws
@@ -13,6 +13,9 @@
 #include "ComputerCard.h"
 
 #include "hardware/clocks.h"
+#include "hardware/flash.h"
+#include "hardware/regs/addressmap.h"
+#include "hardware/sync.h"
 #include "hardware/vreg.h"
 #include "pico/multicore.h"
 #include "pico/stdlib.h"
@@ -53,6 +56,27 @@ constexpr uint8_t kMidiContinue = 0xFB;
 constexpr uint8_t kMidiStop = 0xFC;
 constexpr uint8_t kMidiClockTicksPerStep = 6; // 24 PPQN -> sixteenth notes.
 constexpr uint32_t kMidiClockTimeoutUs = 500000;
+constexpr uint32_t kPatternPersistenceMagic = 0x4A385350u; // J8SP
+constexpr uint16_t kPatternPersistenceVersion = 1;
+constexpr uint32_t kPatternPersistenceFlashOffset =
+    (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE) &
+    ~(FLASH_SECTOR_SIZE - 1u);
+
+struct PersistentPattern {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t size;
+    uint8_t tempo;
+    uint8_t length;
+    uint16_t reserved;
+    uint32_t accent_mask;
+    uint8_t notes[kPatternLengthMax];
+    uint8_t gates[kPatternLengthMax];
+    uint32_t checksum;
+};
+
+static_assert(sizeof(PersistentPattern) <= FLASH_PAGE_SIZE,
+    "Persistent pattern must fit in one flash page");
 
 int32_t clamp_int(int32_t v, int32_t lo, int32_t hi)
 {
@@ -99,9 +123,9 @@ int32_t clip_audio(int32_t v)
 
 } // namespace
 
-class JP4KSandsquall : public ComputerCard {
+class JP8KSandsquall : public ComputerCard {
 public:
-    JP4KSandsquall()
+    JP8KSandsquall()
     {
         static constexpr uint32_t kClusteredPhase[kSawCount] = {
             0xFFF00000u, 0x00080000u, 0x00180000u, 0x00000000u,
@@ -167,6 +191,24 @@ public:
     void RefreshControls()
     {
         update_controls();
+    }
+
+    void LoadPersistentPattern()
+    {
+        const PersistentPattern& saved = *reinterpret_cast<const PersistentPattern*>(
+            XIP_BASE + kPatternPersistenceFlashOffset);
+        if (!valid_persistent_pattern(saved)) {
+            return;
+        }
+
+        sequencer_tempo_ = clamp_int(saved.tempo, 30, 240);
+        pattern_length_ = clamp_int(saved.length, 1, kPatternLengthMax);
+        pattern_accent_mask_ = saved.accent_mask;
+        for (int i = 0; i < kPatternLengthMax; ++i) {
+            pattern_note_[i] = saved.notes[i] <= 127 ?
+                saved.notes[i] : kPatternRest;
+            pattern_gate_[i] = clamp_int(saved.gates[i], 5, 100);
+        }
     }
 
     virtual void __not_in_flash_func(ProcessSample)()
@@ -633,7 +675,7 @@ private:
             return false;
         }
 
-        static constexpr uint8_t kId[4] = {'J', '4', 'K', 'S'};
+        static constexpr uint8_t kId[4] = {'J', '8', 'K', 'S'};
         if (sysex_index_ == 0) {
             sysex_matching_ = (byte == kSysexManufacturer);
         } else if (sysex_index_ >= 1 && sysex_index_ <= 4) {
@@ -672,6 +714,7 @@ private:
             pattern_step_ = 0;
             next_internal_step_us_ = 0;
             sequencer_gate_ = false;
+            save_persistent_pattern_if_changed();
         } else if (sysex_command_ == kSysexCommandControls && sysex_payload_len_ >= 3) {
             midi_spread_cc_ = ((int32_t)sysex_payload_[0] * 4095) / 127;
             midi_brightness_cc_ = ((int32_t)sysex_payload_[1] * 4095) / 127;
@@ -821,6 +864,68 @@ private:
             static_cast<uint32_t>(now_us - midi_clock_last_us_) < kMidiClockTimeoutUs;
     }
 
+    static uint32_t persistent_pattern_checksum(const PersistentPattern& pattern)
+    {
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&pattern);
+        uint32_t checksum = 2166136261u;
+        for (uint32_t i = 0;
+            i < sizeof(PersistentPattern) - sizeof(uint32_t); ++i) {
+            checksum ^= bytes[i];
+            checksum *= 16777619u;
+        }
+        return checksum;
+    }
+
+    static bool valid_persistent_pattern(const PersistentPattern& pattern)
+    {
+        return pattern.magic == kPatternPersistenceMagic &&
+            pattern.version == kPatternPersistenceVersion &&
+            pattern.size == sizeof(PersistentPattern) &&
+            pattern.checksum == persistent_pattern_checksum(pattern);
+    }
+
+    PersistentPattern current_persistent_pattern() const
+    {
+        PersistentPattern pattern = {};
+        pattern.magic = kPatternPersistenceMagic;
+        pattern.version = kPatternPersistenceVersion;
+        pattern.size = sizeof(PersistentPattern);
+        pattern.tempo = sequencer_tempo_;
+        pattern.length = pattern_length_;
+        pattern.accent_mask = pattern_accent_mask_;
+        for (int i = 0; i < kPatternLengthMax; ++i) {
+            pattern.notes[i] = pattern_note_[i];
+            pattern.gates[i] = pattern_gate_[i];
+        }
+        pattern.checksum = persistent_pattern_checksum(pattern);
+        return pattern;
+    }
+
+    void save_persistent_pattern_if_changed()
+    {
+        const PersistentPattern pattern = current_persistent_pattern();
+        const PersistentPattern& saved = *reinterpret_cast<const PersistentPattern*>(
+            XIP_BASE + kPatternPersistenceFlashOffset);
+        if (valid_persistent_pattern(saved) &&
+            saved.checksum == pattern.checksum) {
+            return;
+        }
+
+        uint8_t page[FLASH_PAGE_SIZE];
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&pattern);
+        for (uint32_t i = 0; i < FLASH_PAGE_SIZE; ++i) {
+            page[i] = 0xFF;
+        }
+        for (uint32_t i = 0; i < sizeof(PersistentPattern); ++i) {
+            page[i] = bytes[i];
+        }
+
+        const uint32_t interrupts = save_and_disable_interrupts();
+        flash_range_erase(kPatternPersistenceFlashOffset, FLASH_SECTOR_SIZE);
+        flash_range_program(kPatternPersistenceFlashOffset, page, FLASH_PAGE_SIZE);
+        restore_interrupts(interrupts);
+    }
+
     int32_t midi_cc_to_control(uint8_t value) const
     {
         return ((int32_t)value * 4095) / 127;
@@ -869,7 +974,7 @@ private:
     }
 };
 
-JP4KSandsquall card;
+JP8KSandsquall card;
 static volatile uint8_t host_midi_device_address = 0;
 
 extern "C" void tuh_midi_mount_cb(
@@ -971,7 +1076,7 @@ void usb_midi_worker()
 
 int main()
 {
-#ifdef JP4K_SANDSQUALL_OVERCLOCK_240
+#ifdef JP8K_SANDSQUALL_OVERCLOCK_240
     vreg_set_voltage(VREG_VOLTAGE_1_20);
     sleep_ms(10);
     set_sys_clock_khz(240000, true);
@@ -979,6 +1084,7 @@ int main()
     set_sys_clock_khz(192000, true);
 #endif
 
+    card.LoadPersistentPattern();
     multicore_launch_core1(usb_midi_worker);
     card.EnableNormalisationProbe();
     card.Run();

@@ -56,8 +56,8 @@ char const *string_desc_arr[] =
 {
     (const char[]){0x09, 0x04},
     "Adrian Vos",
-    "JP4k-sandsquall",
-    "JP4k-sandsquall"
+    "JP8k-sandsquall",
+    "JP8k-sandsquall"
 };
 
 static uint16_t desc_str[32];
