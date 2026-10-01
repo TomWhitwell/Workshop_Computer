@@ -180,7 +180,7 @@ This architecture provides excellent timing accuracy for musical applications wh
 
 ## Credits & Thank yous
 
-Written by Dune Desormeaux / [@dessertplanet](https://github.com/dessertplanet), 2025
+Written by Dune Desormeaux / [@dessertplanet](https://dessertplanet.co), 2025
 
 Special thanks to:
 - **Tom Whitwell** for the Workshop System

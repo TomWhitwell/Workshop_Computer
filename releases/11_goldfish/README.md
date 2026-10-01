@@ -2,7 +2,7 @@
 
 Weird delay/looper for audio and CV, for the Music Thing Workshop System Computer.
 
-By Dune Desormeaux ([@dessertplanet](https://github.com/dessertplanet)).
+By Dune Desormeaux ([@dessertplanet](https://dessertplanet.co)).
 
 Goldfish is a multi-mode delay/looper with synchronized pulse/CV outputs. The
 switch selects record, delay, and play behaviors; the pulse inputs provide

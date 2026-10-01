@@ -49,4 +49,4 @@ The firmware artifact is `build/stretchcore.uf2`.
 
 ## Acknowledgements
 
-Thanks for [Tom Whitwell](https://github.com/tomwhitwell) for this incredible tool which I find myself constantly referring to as a design of pure genius. Thanks to Chris Johnson for paving the way for the framework and huge thanks to [Dune](https://github.com/dessertplanet/) for continually pushing the boundaries and making incredibly inspirational music from such a small device. Also for letting me steal the 15_MLRws Sample Manager code!
+Thanks for [Tom Whitwell](https://github.com/tomwhitwell) for this incredible tool which I find myself constantly referring to as a design of pure genius. Thanks to Chris Johnson for paving the way for the framework and huge thanks to [Dune](https://dessertplanet.co) for continually pushing the boundaries and making incredibly inspirational music from such a small device. Also for letting me steal the 15_MLRws Sample Manager code!
