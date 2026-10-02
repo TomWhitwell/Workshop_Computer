@@ -1,191 +1,146 @@
 draft: false
 Name: Simple MIDI
 short-description: USB MIDI interface and Computer calibrator.
-Language: Arduino-Pico
-Creator: Tom Whitwell
-Version: 0.6.6
-Status: Working but simple
+Language: C++ (Pico SDK)
+Creator: Tom Whitwell, Chris Johnson
+Version: "0.7.0"
+Status: Released
 date-created: 2024-11-30
-date-updated: 2026-07-27
+date-updated: 2026-10-02
 license: MIT
 contact:
-  email: tom@musicthing.co.uk 
+  email: tom@musicthing.co.uk
   website: https://www.musicthing.co.uk/
   social:
     github: https://github.com/TomWhitwell
 
 tags:
   - midi
+  - midi-host
   - utility
   - cv
   - gate
   - calibration
 
 summary: |
-  Simple MIDI turns the Computer into a simple USB MIDI interface that sends and receives MIDI over the front USB-C connection. It is also used to calibrate the outputs on the Workshop Computer.
+  Simple MIDI turns the Computer into a two-channel USB MIDI interface over the front USB-C connection. Incoming MIDI notes, pitch bend and CC 42 become calibrated pitch CV, gates and CV; the knobs, switch and inputs are sent back as MIDI CCs. It works as a MIDI device (connected to a computer) or as a MIDI host (connected to a MIDI controller).
+
+  It is also used, with a web page, to calibrate the Computer's precision CV outputs and its audio and CV inputs. The calibration is saved on the Computer and used by other cards.
+
+uf2:
+  - path: uf2/simple_midi_2.uf2
+    name: Simple MIDI 0.7.0
 
 panel:
   inputs:
-    - when: { z: middle }
-      id: AudioIn1
-      name: CV 38
-      description: CV input sent to the host as MIDI CC 38
+    - id: AudioIn1
+      name: CC 38
+      description: Sent to the host as MIDI CC 38 on channel 1
       type: cv
 
-    - when: { z: middle }
-      id: AudioIn2
-      name: CV 39
-      description: CV input sent to the host as MIDI CC 39
+    - id: AudioIn2
+      name: CC 39
+      description: Sent to the host as MIDI CC 39 on channel 1
       type: cv
 
-    - when: { z: middle }
-      id: CVIn1
+    - id: CVIn1
       name: CC 40
-      description: CV input sent to the host as MIDI CC 40
+      description: Sent to the host as MIDI CC 40 on channel 1
       type: cv
 
-    - when: { z: middle }
-      id: CVIn2
+    - id: CVIn2
       name: CC 41
-      description: CV input sent to the host as MIDI CC 41
+      description: Sent to the host as MIDI CC 41 on channel 1
       type: cv
 
   outputs:
-    - when: { z: middle }
-      id: AudioOut1
+    - id: AudioOut1
       name: CH 1 CC 42
-      description: Channel 1 Continuous Controller 42 values output as full-range CV
+      description: MIDI channel 1 CC 42 output as CV, approximately -5V to +5V
       type: cv
 
-    - when: { z: middle }
-      id: AudioOut2
+    - id: AudioOut2
       name: CH 2 CC 42
-      description: Channel 2 Continuous Controller 42 values output as full-range CV
+      description: MIDI channel 2 CC 42 output as CV, approximately -5V to +5V
       type: cv
 
-    - when: { z: middle }
-      id: CVOut1
-      name: CH 1 Note CV
-      description: Channel 1 MIDI notes become calibrated pitch CV
+    - id: CVOut1
+      name: CH 1 Pitch
+      description: Calibrated 1V/octave pitch CV for the last held note on MIDI channel 1, with +/-2 semitone pitch bend
       type: cv
 
-    - when: { z: middle }
-      id: CVOut2
-      name: CH 2 Note CV
-      description: Channel 2 MIDI notes become calibrated pitch CV
+    - id: CVOut2
+      name: CH 2 Pitch
+      description: Calibrated 1V/octave pitch CV for the last held note on MIDI channel 2, with +/-2 semitone pitch bend
       type: cv
 
-    - when: { z: middle }
-      id: PulseOut1
-      name: CH 1 Note On
-      description: Note on and off events for MIDI notes on Channel 1
+    - id: PulseOut1
+      name: CH 1 Gate
+      description: High while any note is held on MIDI channel 1
       type: pulse
 
-    - when: { z: middle }
-      id: PulseOut2
-      name: CH 2 Note On
-      description: Note on and off events for MIDI notes on Channel 2
+    - id: PulseOut2
+      name: CH 2 Gate
+      description: High while any note is held on MIDI channel 2
       type: pulse
-
-    - when: { z: down }
-      id: CVOut1
-      name: Pitch CV 1
-      description: Calibrated pitch CV output for Channel 1
-      type: cv
-
-    - when: { z: down }
-      id: CVOut2
-      name: Pitch CV 2
-      description: Calibrated pitch CV output for Channel 2
-      type: cv
 
 controls:
   switch:
+    up:
+      name: CC 37
+      description: Sends MIDI CC 37 value 127
     middle:
       name: CC 37
-      description: "Normal: switch position is sent to the host as MIDI CC 37"
-
+      description: Sends MIDI CC 37 value 64
     down:
-      name: Startup Calib
-      description: Hold the switch down and press Load to enter output calibration mode
+      name: CC 37 / Calibrate
+      description: Sends MIDI CC 37 value 0. Hold down while pressing Reset/Load to start calibration mode, which is controlled from the calibration web page.
 
   knobs:
-    - when: { z: middle }
-      main:
+    - main:
         name: CC 34
-        description: Main knob position sent to the host as MIDI CC 34
+        description: Sent to the host as MIDI CC 34 on channel 1
       x:
         name: CC 35
-        description: X knob position sent to the host as MIDI CC 35
+        description: Sent to the host as MIDI CC 35 on channel 1
       y:
         name: CC 36
-        description: Y knob position sent to the host as MIDI CC 36
-
-    - when: { z: down }
-      main:
-        name: Fine
-        description: Fine-tune the selected calibration output
-      x:
-        name: Coarse
-        description: Make larger adjustments to the selected calibration output
+        description: Sent to the host as MIDI CC 36 on channel 1
 
   leds:
-    - when: { z: middle }
-      display: list
+    - display: list
       items:
         - id: LED0
-          name: CH 1 CC
-          description: Brightness shows Channel 1 CC activity
+          name: CH 1 CC 42
+          description: Brightness shows the channel 1 CC 42 value
 
         - id: LED1
-          name: CH 2 CC
-          description: Brightness shows Channel 2 CC activity
+          name: CH 2 CC 42
+          description: Brightness shows the channel 2 CC 42 value
 
         - id: LED2
           name: CH 1 Pitch
-          description: Brightness shows Channel 1 pitch activity
+          description: Brightness shows the channel 1 note number
 
         - id: LED3
           name: CH 2 Pitch
-          description: Brightness shows Channel 2 pitch activity
+          description: Brightness shows the channel 2 note number
 
         - id: LED4
           name: CH 1 Gate
-          description: Indicates gate output activity for Channel 1
+          description: On while a note is held on channel 1
 
         - id: LED5
           name: CH 2 Gate
-          description: Indicates gate output activity for Channel 2
-
-    - when: { z: down }
-      display: list
-      items:
-        - id: LED0
-          name: CV 1 + 2 oct 
-          description: Currently tuning CV 1 at +2 octave 
-
-        - id: LED1
-          name: CV 2 + 2 oct 
-          description: Currently tuning CV 1 at +2 octave
-
-        - id: LED2
-          name: CV 1 C3
-          description: Currently tuning CV 1 at C3
-
-        - id: LED3
-          name: CV 2 C3
-          description: Currently tuning CV 2 at C3
-
-        - id: LED4
-          name: CV 1 - 2 oct 
-          description: Currently tuning CV 1 at -2 oct
-
-        - id: LED5
-          name: CH 2 Gate
-          description: Currently tuning CV 2 at -2 oct
+          description: On while a note is held on channel 2
 
 host:
   usb:
     - name: USB MIDI device
       role: midi
-      description: Enumerates as "Music Thing Workshop System MIDI" for MIDI input and output with a DAW or browser tools
+      description: Connected to a computer, appears as "MTMComputer MIDI" for MIDI input and output with a DAW or browser tools
+    - name: USB MIDI host
+      role: midi-host
+      description: Connected to a USB MIDI controller, receives notes, pitch bend and CC 42 from it
+  notes: |
+    Device or host mode is detected automatically at power-up. Power-cycle the Workshop System, rather than only pressing Reset, when changing what is connected.
