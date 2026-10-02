@@ -142,6 +142,7 @@ export function validate(flairs, discovery, cards) {
     }
     if (shelf.layout && !VALID_LAYOUTS.has(shelf.layout)) errors.push(`${location} has unknown layout "${shelf.layout}"`);
     if (shelf.limit != null && (!Number.isInteger(shelf.limit) || shelf.limit < 1)) errors.push(`${location}.limit must be a positive integer`);
+    if (shelf.link != null && (typeof shelf.link?.text !== 'string' || !shelf.link.text || typeof shelf.link.href !== 'string' || !shelf.link.href)) errors.push(`${location}.link needs text and href`);
   }
   for (const reference of referencedCards) {
     if (!cardIds.has(reference.id)) errors.push(`${reference.location} references unknown card ${reference.id}`);
