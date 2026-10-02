@@ -1,0 +1,189 @@
+draft: false
+Name: 8mu CV
+short-description: "A playable, unpredictable Music Thing 8mu instrument: four voltages with LFOs and gesture control, plus two pulses, over USB MIDI Host"
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Joep Vermaat
+Version: "0.1.0"
+Status: Beta
+License: MIT
+Editor: none
+date-created: 2026-09-25
+date-updated: 2026-10-02
+
+contact:
+  email: joep@joep-i.nl
+
+# Vendors, unmodified and under their own MIT terms:
+#   ComputerCard.h
+#     (c) Chris Johnson
+#   EightMU.h, which carries the rppicomidi usb_midi_host driver
+#     (c) 2026 Chris Johnson; usb_midi_host (c) 2023 rppicomidi
+# Their copyright headers are intact in those files.
+
+uf2:
+  - path: UF2/8mu_cv.uf2
+    name: 8mu CV 0.1.0
+
+tags:
+  - midi-host
+  - midi-to-cv
+  - utility
+  - lfo
+  - controller
+  - accelerometer
+
+summary: |
+  A playable, unpredictable instrument as much as a showcase for the Music
+  Thing 8mu: every control it has - the eight faders, the four top buttons,
+  and the accelerometer - drives the Workshop Computer's outputs. Set the LFOs
+  running and latch in the accelerometer, and the controller steers voltages,
+  rates and widths you didn't quite dial in - surprising, and often musical.
+  It is also a way to test an 8mu channel by channel. The audio outputs are
+  DC-coupled, so they carry steady voltages just as well as sound, giving four
+  bipolar voltage sources rather than the usual two.<br><br>
+
+  Faders 1-4 set the levels of Audio Out 1, Audio Out 2, CV Out 1 and CV Out
+  2, each running from about -5V at the bottom through 0V in the middle to
+  about +5V at the top. Faders 5 and 6 set the rates of Pulse Out 1 and Pulse
+  Out 2: independent pulses from 0.1Hz to 20Hz, exponential across the fader
+  so equal movements multiply the rate. Faders 7 and 8 set their widths: the
+  middle is a 50% square, the way down narrows toward a sharp trigger, the way
+  up widens toward a gate that stays open nearly all the time.<br><br>
+
+  The Computer's switch picks the mode. Middle is the basic card. Up is LFO
+  mode: a tap on a top button arms that output, capturing the voltage it is
+  already at as the centre for a triangle LFO, with the fader then setting the
+  speed. The Main knob sets how far the triangle swings, always measured to
+  the nearer supply rail, so it can never clip.<br><br>
+
+  Holding the switch Down for half a second latches the accelerometer on or
+  off. When it is on, the four gesture axes take over the four voltage outputs
+  and their LFO rates: Pitch and Roll (tilt), Yaw (spin), and Flip (which way
+  up, unipolar so a flat 8mu reads 0). The X knob scales how far the gestures
+  respond and the Y knob smooths them. The three panel knobs are otherwise
+  not a fallback, since the point of the card is to drive the 8mu; unplug it
+  and the outputs hold their last values.<br><br>
+
+  The card is a pure MIDI listener: it never writes to the 8mu's LEDs or
+  settings, so the controller behaves exactly as it does anywhere else. It
+  needs a Rev 1.1 or later Computer, and nothing else may be in the front USB
+  socket, because the Computer has to act as a USB host.
+
+panel:
+  inputs: []
+  outputs:
+    - id: AudioOut1
+      name: Voltage 1
+      type: cv
+      description: >
+        Bipolar voltage from fader 1, about -5V to +5V with 0V at the middle
+        of the fader. Uncalibrated. The audio outputs are DC-coupled, so this
+        carries a steady voltage as happily as sound. Top button 1 arms it as
+        a triangle LFO in LFO mode. With the accelerometer latched on, Pitch
+        drives it instead.
+    - id: AudioOut2
+      name: Voltage 2
+      type: cv
+      description: >
+        Bipolar voltage from fader 2, same range as Voltage 1. Top button 2
+        arms its LFO; Roll drives it with the accelerometer latched on.
+    - id: CVOut1
+      name: Voltage 3
+      type: cv
+      description: >
+        Bipolar voltage from fader 3, same range as Voltage 1. Top button 3
+        arms its LFO; Yaw drives it with the accelerometer latched on.
+    - id: CVOut2
+      name: Voltage 4
+      type: cv
+      description: >
+        Bipolar voltage from fader 4, same range as Voltage 1. Top button 4
+        arms its LFO; Flip (unipolar, flat = 0) drives it with the
+        accelerometer latched on.
+    - id: PulseOut1
+      name: Pulse 1
+      type: pulse
+      description: >
+        Rate set by fader 5, 0.1Hz to 20Hz with an exponential response - a
+        slow LFO at the bottom of the fader, a fast rhythmic gate at the top.
+        Width set by fader 7: centre is a 50% square, down narrows toward a
+        sharp trigger, up widens toward a gate. Always a pulse, never dead.
+    - id: PulseOut2
+      name: Pulse 2
+      type: pulse
+      description: >
+        Rate set by fader 6 and width by fader 8, independent of Pulse 1.
+
+controls:
+  switch:
+    middle:
+      name: Basic
+      description: >
+        Faders 1-4 are steady voltages and faders 5-8 are pulse rate and
+        width. Any output that was oscillating in LFO mode glides back to its
+        captured centre.
+    up:
+      name: LFO
+      description: >
+        Outputs armed with a top button oscillate as triangle LFOs, with their
+        faders setting the rate. Outputs that are not armed stay steady
+        voltages. The Main knob sets the LFO swing depth.
+    down:
+      name: Latch accelerometer
+      description: >
+        Momentary. Held for about half a second, it latches the accelerometer
+        on or off. When on, the four gesture axes take over the four voltage
+        outputs and their LFO rates. All six LEDs blink on the change.
+  knobs:
+    - main:
+        name: LFO depth
+        description: >
+          How far the triangle LFOs swing, fully anticlockwise for no swing to
+          fully clockwise for the whole distance to the nearer supply rail.
+          Always measured to the rail, so an LFO can never clip. Only affects
+          outputs that are armed.
+      x:
+        name: Gesture sensitivity
+        description: >
+          How far the accelerometer gestures respond, exponential from about
+          0.25x to 4x across the knob. Only applies while the accelerometer is
+          latched on.
+      y:
+        name: Gesture smoothing
+        description: >
+          How much the accelerometer gestures are smoothed, from barely any to
+          a settled ~20ms glide. Softens a shaky hand while the accelerometer
+          is latched on.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: 8mu
+          description: Lit while a USB MIDI controller is connected.
+        - id: LED1
+          name: Voltage 1
+          description: Brightness follows the level of Audio Out 1.
+        - id: LED2
+          name: Pulse 1
+          description: Follows Pulse Out 1 on and off.
+        - id: LED3
+          name: Pulse 2
+          description: Follows Pulse Out 2 on and off.
+        - id: LED4
+          name: LFO mode
+          description: Lit while the switch is up, selecting LFO mode.
+        - id: LED5
+          name: Voltage 3
+          description: Brightness follows the level of CV Out 1.
+
+host:
+  usb:
+    - name: Music Thing 8mu
+      role: midi
+      description: >
+        Class-compliant USB MIDI controller plugged into the Computer's front
+        USB-C jack. The Computer acts as USB host, which needs a Rev 1.1 or
+        later board. Factory mapping, nothing to configure on the 8mu.
+  notes: |
+    The card only listens - it never writes to the 8mu's LEDs or settings, so
+    the controller behaves exactly as it does anywhere else.
