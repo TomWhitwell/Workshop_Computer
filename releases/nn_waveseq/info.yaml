@@ -1,0 +1,145 @@
+draft: true
+Name: Wave Sequencer
+short-description: "Wavestation-style wave sequencing - eight steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
+Language: C++ (ComputerCard)
+Creator: Martyn Quickenden
+Version: "0.1.0"
+Status: Beta
+License: MIT
+Editor: none
+date-created: 2026-10-02
+date-updated: 2026-10-02
+
+# Vendors, unmodified and under their own MIT terms:
+#   ComputerCard.h, EightMU.h (which carries the rppicomidi usb_midi_host
+#   driver, (c) 2023 rppicomidi)
+#     (c) Chris Johnson
+
+uf2:
+  - path: UF2/waveseq.uf2
+    name: Wave Sequencer 0.1.0
+
+tags:
+  - synth
+  - oscillator
+  - wavetable
+  - sequencer
+  - usb-host
+  - midi
+
+summary: |
+  Wave sequencing, as made famous by the Korg Wavestation: instead of one
+  waveform, the oscillator plays a sequence of them, each for its own time,
+  pitch and level, crossfading from one to the next.<br><br>
+
+  There are eight steps, and a bank of 64 single-cycle waves in eight
+  families - additive, saw to square, pulse width, hard sync, FM, vowels,
+  wavefolding and digital. A step's wave is a position in the bank rather
+  than a choice from a list, so it can sit between two waves.<br><br>
+
+  The sequence is edited from a Music Thing 8mu. Its eight faders are the
+  eight steps, and its four buttons choose what the faders edit: A is WAVE,
+  B is TIME, C is PITCH and D is LEVEL. After a page change each fader picks
+  up its step only once it reaches the stored value, so changing page never
+  makes the sound jump. The 8mu's LEDs show the stored values, with the
+  playing step lit fully. Tilting the 8mu forward and back scans every
+  step's wave together; tilting it left and right widens the detune on
+  Audio Out 2.<br><br>
+
+  Without an 8mu the card plays a default sequence, still under the panel's
+  pitch, speed and crossfade controls.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: FM
+      type: audio
+      description: Linear FM of the oscillator.
+    - id: AudioIn2
+      name: Wave scan
+      type: cv
+      description: Offsets every step's wave position, up to 32 waves either way. Works at audio rate.
+    - id: CVIn1
+      name: Pitch
+      type: cv
+      description: 1V/oct, added to the Main knob.
+    - id: CVIn2
+      name: Speed
+      type: cv
+      description: Sequence speed, 1V/oct - each volt doubles the speed.
+    - id: PulseIn1
+      name: Restart
+      type: pulse
+      description: Restarts the sequence from its first step, with oscillator phases reset.
+    - id: PulseIn2
+      name: Clock
+      type: pulse
+      description: >
+        While clocks are arriving, steps advance on the clock instead of by
+        time, each lasting the number of clocks (1-8) set by its TIME fader.
+        Two seconds without a clock returns to free running.
+  outputs:
+    - id: AudioOut1
+      name: Out
+      type: audio
+      description: The wave sequence.
+    - id: AudioOut2
+      name: Detuned
+      type: audio
+      description: The same sequence, detuned by 6 cents - more with the 8mu tilted left or right.
+    - id: CVOut1
+      name: Step pitch
+      type: cv
+      description: The current step's PITCH as 1V/oct, 0V for no offset.
+    - id: CVOut2
+      name: Level
+      type: cv
+      description: The current step's LEVEL, following the crossfade, 0-5V.
+    - id: PulseOut1
+      name: Step
+      type: pulse
+      description: Trigger on every step.
+    - id: PulseOut2
+      name: Start
+      type: pulse
+      description: Trigger when the sequence returns to its first step.
+
+controls:
+  switch:
+    up:
+      name: Ping-pong
+      description: Plays the sequence forwards then backwards.
+    middle:
+      name: Forward
+      description: Loops the sequence forwards.
+    down:
+      name: Restart
+      description: Momentary. Restarts from the first step.
+  knobs:
+    - main:
+        name: Pitch
+        description: C1 to C7.
+      x:
+        name: Speed
+        description: Scales every step time, from 1/8x to 8x.
+      y:
+        name: Crossfade
+        description: From a hard cut between steps to a crossfade lasting the whole step.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Page A / step
+          description: With an 8mu, LEDs 0-3 show the page (WAVE, TIME, PITCH, LEVEL). Without one, they show the playing step - bright for steps 1-4, dim for 5-8.
+        - id: LED1
+          name: Page B / step
+        - id: LED2
+          name: Page C / step
+        - id: LED3
+          name: Page D / step
+        - id: LED4
+          name: Step
+          description: Flashes on every step.
+        - id: LED5
+          name: 8mu
+          description: Lit while an 8mu is connected.
