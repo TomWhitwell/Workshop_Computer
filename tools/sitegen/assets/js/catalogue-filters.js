@@ -57,6 +57,19 @@
     if(noResults) noResults.hidden = shown>0;
   }
 
+  // Mirror the controls into the URL. Unknown params (e.g. utm_*) are kept.
+  function syncUrl(){
+    if(!window.history || !window.URL) return;
+    var url = new URL(window.location.href);
+    function setParam(name, value){ if(value) url.searchParams.set(name, value); else url.searchParams.delete(name); }
+    setParam('q', searchInput ? searchInput.value.trim() : '');
+    setParam('creator', creatorSel ? creatorSel.value : '');
+    url.searchParams.delete('tag');
+    tagInputs.filter(function(input){ return input.checked; }).forEach(function(input){ url.searchParams.append('tag', input.value); });
+    setParam('sort', sortSel ? sortSel.value : '');
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }
+
   function applyFilters(){
     var c=creatorSel&&creatorSel.value?creatorSel.value.toLowerCase():'';
     var selectedTags=tagInputs.filter(function(input){ return input.checked; }).map(function(input){ return input.value.toLowerCase(); });
@@ -74,12 +87,7 @@
     if(searchClear) searchClear.style.display = active ? 'flex' : 'none';
     if(clearTags) clearTags.hidden = selectedTags.length === 0;
 
-    if(tagInputs.length && window.history && window.URL) {
-      var url = new URL(window.location.href);
-      url.searchParams.delete('tag');
-      selectedTags.forEach(function(tag){ url.searchParams.append('tag', tag); });
-      window.history.replaceState(null, '', url.pathname + url.search + url.hash);
-    }
+    syncUrl();
 
     if(resultsEl){
       // Index: reveal flat results only while filtering
@@ -204,13 +212,35 @@
     showAll = true;
     applyFilters();
   });
-  if(sortSel) sortSel.addEventListener('change', applySort);
-  if(tagInputs.length && window.URLSearchParams) {
-    var requestedTags = new URLSearchParams(window.location.search).getAll('tag').map(function(tag){ return tag.toLowerCase(); });
+  if(sortSel) sortSel.addEventListener('change', function(){ applySort(); syncUrl(); });
+
+  // ?q=, ?creator=, ?tag= (repeatable) and ?sort= preload the controls, so any
+  // filtered or sorted listing can be linked to and shared.
+  if(window.URLSearchParams) {
+    var params = new URLSearchParams(window.location.search);
+    var requestedQuery = params.get('q');
+    if(searchInput && requestedQuery) searchInput.value = requestedQuery;
+
+    var requestedCreator = (params.get('creator') || '').toLowerCase();
+    var creatorMatch = creatorSel && requestedCreator && Array.from(creatorSel.options).find(function(option){ return option.value && option.value.toLowerCase() === requestedCreator; });
+    if(creatorMatch) creatorSel.value = creatorMatch.value;
+
+    var requestedTags = params.getAll('tag').map(function(tag){ return tag.toLowerCase(); });
     tagInputs.forEach(function(input){ input.checked = requestedTags.indexOf(input.value.toLowerCase()) !== -1; });
-    if(requestedTags.length) {
+
+    if(creatorMatch || requestedTags.length) {
       var advanced = document.querySelector('.advanced-options');
       if(advanced) advanced.open = true;
+    }
+
+    // ?sort=created-desc (e.g. a shelf's "Browse all new cards" link) applies
+    // that sort and, on the index, goes straight to the full card list.
+    var requestedSort = params.get('sort');
+    var validSort = sortSel && requestedSort && Array.from(sortSel.options).some(function(option){ return option.value === requestedSort; });
+    if(validSort) {
+      sortSel.value = requestedSort;
+      applySort();
+      if(resultsEl) showAll = true;
     }
   }
   applyTagOptionSearch();

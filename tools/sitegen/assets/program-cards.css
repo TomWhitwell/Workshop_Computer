@@ -1527,9 +1527,9 @@ a.program-card-tag:visited {
   margin: 8px 0 24px;
 }
 
-/* Tag badges carry their own ink colour and must not pick up the link colour. */
-.program-cards--index a:not(.program-card-tag),
-.program-cards--archive a:not(.program-card-tag) {
+/* Tag badges and shelf links carry their own ink colour and must not pick up the link colour. */
+.program-cards--index a:not(.program-card-tag):not(.program-card-shelf__link),
+.program-cards--archive a:not(.program-card-tag):not(.program-card-shelf__link) {
   color: var(--program-card-link);
 }
 
@@ -1617,8 +1617,26 @@ a.program-card-tag:visited {
 }
 
 .program-card-shelf__header {
+  align-items: center;
   border-top: 1px solid var(--program-card-ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  justify-content: space-between;
   padding-top: 11px;
+}
+
+/* Matches the search bar's "Browse all cards" link (.filter-link). */
+.program-card-shelf__link {
+  border-bottom: 2px solid var(--text);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: var(--weight-bold);
+  line-height: 16px;
+  padding-bottom: 2px;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .program-card-shelf__header h2 {
@@ -1635,6 +1653,7 @@ a.program-card-tag:visited {
   font-size: 15px;
   font-weight: var(--weight-normal);
   line-height: 1.3;
+  flex-basis: 100%;
   margin: 5px 0 0;
   max-width: 36rem;
 }

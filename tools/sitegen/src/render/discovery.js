@@ -182,10 +182,14 @@ export function renderShelf(shelf, cardsById, opts = {}) {
 
   const layoutSlug = layout ? curation.slugify(layout) : '';
   const classes = `program-card-shelf${featured ? ' program-card-shelf--featured' : ''}${layoutSlug ? ` program-card-shelf--${layoutSlug}` : ''}`;
+  // `link.href` is relative to the site root, e.g. `?sort=created-desc`.
+  const shelfLink = shelf.link?.text && shelf.link?.href
+    ? `<a class="program-card-shelf__link" href="${esc(`${root}/${shelf.link.href}`)}">${esc(shelf.link.text)}</a>`
+    : '';
   const gridClasses = `program-card-grid${featured ? ' program-card-grid--featured' : ''}${layoutSlug ? ` program-card-grid--${layoutSlug}` : ''}`;
 
   return `<section class="${classes}">
-    <header class="program-card-shelf__header"><h2>${esc(shelf.title || 'Shelf')}</h2>${shelf.intro ? `<p>${esc(shelf.intro)}</p>` : ''}</header>
+    <header class="program-card-shelf__header"><h2>${esc(shelf.title || 'Shelf')}</h2>${shelfLink}${shelf.intro ? `<p>${esc(shelf.intro)}</p>` : ''}</header>
     <div class="${gridClasses}">${list.map((card, index) => renderTile(card, {
       showVideo: layout === 'video-strip' || (layout === 'video-lead' && index === 0),
       showArtwork: featured,

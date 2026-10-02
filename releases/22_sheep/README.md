@@ -3,7 +3,7 @@
 A time-stretching and pitch-shifting granular processor and digital degradation
 playground, for the Music Thing Workshop System Computer.
 
-By Dune Desormeaux ([@dessertplanet](https://github.com/dessertplanet)).
+By Dune Desormeaux ([@dessertplanet](https://dessertplanet.co)).
 
 Sheep is a granular buffer processor with triggerable grains, reverse/forward
 playback, a loop/glitch mode, and buffer freeze. Two firmware builds are
