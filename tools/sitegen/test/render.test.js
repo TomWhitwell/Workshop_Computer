@@ -256,6 +256,17 @@ test('discovery renderers escape searchable attributes and ignore absent shelf c
   assert.equal((shelf.match(/program-card-tile__link/g) || []).length, 1);
 });
 
+test('shelves can link to a sorted card list from their header', () => {
+  const testCard = card();
+  const cardsById = new Map([[testCard.id, testCard]]);
+  const linked = renderShelf({
+    title: 'New', cards: [testCard.id],
+    link: { text: 'Browse all new cards', href: '?sort=created-desc' },
+  }, cardsById);
+  assert.match(linked, /<a class="program-card-shelf__link" href="\.\/\?sort=created-desc">Browse all new cards<\/a>/);
+  assert.doesNotMatch(renderShelf({ title: 'Plain', cards: [testCard.id] }, cardsById), /program-card-shelf__link/);
+});
+
 test('flair-driven shelves sort by recency then apply the limit', () => {
   // Uses fake card ids (rather than real ones) with flair assignments injected
   // directly, so this test doesn't depend on the moderator-curated, bot-synced
