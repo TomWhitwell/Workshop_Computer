@@ -74,10 +74,6 @@ panel:
       name: Gate 1 Mirror
       type: pulse
       description: Mirrors Pulse In 1.
-    - id: PulseOut2
-      name: Off
-      type: pulse
-      description: Held low.
 
 controls:
   switch:
