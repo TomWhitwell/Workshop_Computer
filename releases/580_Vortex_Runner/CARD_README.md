@@ -43,9 +43,9 @@ CV and pulse outputs are reserved while the split-output voice is refined.
 
 ## Stable Rollback
 
-The current stable rollback target is the dual-output firmware build from
-August 29, 2026. The last passed non-dual mono firmware is kept as a second
-rollback option in `uf2/`.
+The current stable firmware is the hardware-tested 8mu/filter/preset-browser
+build in `uf2/`. The previous August 2026 dual-output stable UF2 and matching
+source are recoverably archived locally and ignored by the stable-release PR.
 
 ## LEDs
 
@@ -54,6 +54,17 @@ editing. LEDs 2 and 4 show the current X and Y parameter values for the active
 switch page. LEDs 3 and 5 show soft-pickup state for X and Y: dim means the knob
 has not picked up the stored value yet, bright means turning that knob will edit
 the parameter.
+
+With an 8mu connected at boot, these LEDs instead provide 8mu fader feedback:
+fader number, soft-takeover state, and fader position. See
+[8MU_ACTIVITY.md](8MU_ACTIVITY.md) for the complete 8mu workflow.
+
+## Filter Architecture
+
+The stable 8mu firmware uses a 12 dB/octave high-pass path feeding a 12 dB/octave
+low-pass path for each output. Voice A and Voice B retain independent cutoff,
+resonance, and filter state; the filter envelope and modulation routings are
+shared. Resonance is bounded below self-oscillation and affects both paths.
 
 ## Web MIDI Editor
 

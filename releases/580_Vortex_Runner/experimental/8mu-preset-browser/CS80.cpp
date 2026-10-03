@@ -194,9 +194,6 @@ public:
         for (int layer = 0; layer < static_cast<int>(EightMuLayer::Count); ++layer)
             for (int fader = 0; fader < EightMU::numFaders; ++fader)
                 eightMuFaderPickedUp[layer][fader] = false;
-        eightMuLastFader = 0;
-        eightMuLastFaderPickedUp = false;
-        eightMuLastFaderPosition = 0;
         eightMuLayerLedsDirty = true;
     }
 
@@ -559,13 +556,8 @@ private:
         int32_t triggerRampQ12 = 4095;
         uint8_t ampEnvelopeStage = 0;
         uint8_t filterEnvelopeStage = 0;
-        // Two cascaded one-pole sections make both the high-pass and low-pass
-        // paths 12 dB/octave. Keeping their states per voice preserves the
-        // independently coloured A/B outputs.
-        int32_t hpLowpass1 = 0;
-        int32_t hpLowpass2 = 0;
-        int32_t lp1 = 0;
-        int32_t lp2 = 0;
+        int32_t hpLowpass = 0;
+        int32_t lp = 0;
     };
 
     enum class MidiEventType : uint8_t
@@ -737,9 +729,6 @@ private:
     bool eightMuPreviousButtons[EightMU::numButtons] = {};
     bool eightMuFaderPickedUp[static_cast<uint8_t>(EightMuLayer::Count)][EightMU::numFaders] = {};
     bool eightMuLayerLedsDirty = true;
-    uint8_t eightMuLastFader = 0;
-    bool eightMuLastFaderPickedUp = false;
-    int32_t eightMuLastFaderPosition = 0;
     bool patchResponsePending = false;
     bool patchResponseHasPatch = false;
     PatchState patchResponsePatch = {};
@@ -966,9 +955,6 @@ private:
                 eightMuLayer = static_cast<EightMuLayer>(button);
                 for (int fader = 0; fader < EightMU::numFaders; ++fader)
                     eightMuFaderPickedUp[button][fader] = false;
-                eightMuLastFader = 0;
-                eightMuLastFaderPickedUp = false;
-                eightMuLastFaderPosition = 0;
                 eightMuLayerLedsDirty = true;
             }
             eightMuPreviousButtons[button] = pressed;
@@ -1018,7 +1004,7 @@ private:
             case 1: return midiControlPatch.params.filterDecay;
             case 2: return midiControlPatch.params.filterSustain;
             case 3: return midiControlPatch.params.filterRelease;
-            case 4: return midiControlPatch.params.hpCutoff;
+            case 4: return midiControlPatch.params.lpCutoff;
             case 5: return midiControlPatch.params.resonance;
             case 6: return midiControlPatch.params.lfoVcfDepth;
             default: return midiControlPatch.params.lfoVcaDepth;
@@ -1051,11 +1037,6 @@ private:
         refreshMidiControlPatch();
         const int32_t control = midiCcToControl(value);
         const uint8_t layer = static_cast<uint8_t>(eightMuLayer);
-        // Record even an uncaptured fader so the panel explains why moving it
-        // has not yet changed the sound.
-        eightMuLastFader = fader;
-        eightMuLastFaderPickedUp = eightMuFaderPickedUp[layer][fader];
-        eightMuLastFaderPosition = control;
         if (!eightMuFaderPickedUp[layer][fader])
         {
             int32_t delta = control - eightMuFaderTarget(fader);
@@ -1064,7 +1045,6 @@ private:
             if (delta > EightMuPickupWindow)
                 return;
             eightMuFaderPickedUp[layer][fader] = true;
-            eightMuLastFaderPickedUp = true;
         }
 
         switch (eightMuLayer)
@@ -1099,9 +1079,9 @@ private:
             else if (fader == 3) midiControlPatch.params.filterRelease = control;
             else if (fader == 4)
             {
-                midiControlPatch.params.hpCutoff = control;
-                midiControlPatch.voiceHpCutoff[0] = control;
-                midiControlPatch.voiceHpCutoff[1] = control;
+                midiControlPatch.params.lpCutoff = control;
+                midiControlPatch.voiceLpCutoff[0] = control;
+                midiControlPatch.voiceLpCutoff[1] = control;
             }
             else if (fader == 5)
             {
@@ -1785,25 +1765,19 @@ private:
         int32_t filterEnvelopeMod = filterEnvelopeModForBase(state.filterEnvelopeQ12, lpBaseControl);
         int32_t lpControl = clamp12(lpBaseControl + filterEnvelopeMod);
 
-        int32_t resonance = voiceParams.resonance + resonanceCv;
-        resonance = clamp12(resonance);
         int32_t hpAlpha = curveFromControl(hpControl);
         int32_t lpAlpha = curveFromControl(lpControl);
 
-        // CS-style serial HP -> LP filtering, using two poles in each stage.
-        // Feedback is deliberately bounded below unity, preventing the
-        // self-oscillation and collapse possible in the earlier one-pole path.
-        int32_t hpDriven = input - ((state.hpLowpass2 * resonance) >> 14);
-        state.hpLowpass1 += (hpAlpha * (hpDriven - state.hpLowpass1)) >> 12;
-        int32_t hpFirst = hpDriven - state.hpLowpass1;
-        state.hpLowpass2 += (hpAlpha * (hpFirst - state.hpLowpass2)) >> 12;
-        int32_t highpassed = hpFirst - state.hpLowpass2;
+        state.hpLowpass += (hpAlpha * (input - state.hpLowpass)) >> 12;
+        int32_t highpassed = input - state.hpLowpass;
 
-        int32_t driven = highpassed - ((state.lp2 * resonance) >> 13);
-        state.lp1 += (lpAlpha * (driven - state.lp1)) >> 12;
-        state.lp2 += (lpAlpha * (state.lp1 - state.lp2)) >> 12;
+        int32_t resonance = voiceParams.resonance + resonanceCv;
+        resonance = clamp12(resonance);
 
-        return clip12(state.lp2);
+        int32_t driven = highpassed - ((state.lp * resonance) >> 11);
+        state.lp += (lpAlpha * (driven - state.lp)) >> 12;
+
+        return clip12(state.lp);
     }
 
     int32_t applyRingMod(int32_t input) const
@@ -1819,23 +1793,6 @@ private:
     {
         if (startupSelectMode || livePresetSelectMode)
             return;
-
-        if (eightMu.Connected())
-        {
-            // The 8mu identifies its own A-D layer. The panel focuses on the
-            // last moved fader: 000=Fader 1 through 111=Fader 8, then pickup
-            // and physical fader position.
-            const int32_t position = clamp12(eightMuLastFaderPosition);
-            LedBrightness(0, (eightMuLastFader & 0x01u) ? 4095 : 0);
-            LedBrightness(1, (eightMuLastFader & 0x02u) ? 4095 : 0);
-            LedBrightness(2, (eightMuLastFader & 0x04u) ? 4095 : 0);
-            LedBrightness(3, eightMuLastFaderPickedUp ? 4095 : 384);
-            // A two-segment continuous bar: LED 5 covers 0-50%; LED 6 covers
-            // 50-100%. Physical position remains useful before pickup.
-            LedBrightness(4, clamp12(position * 2));
-            LedBrightness(5, clamp12((position - 2048) * 2));
-            return;
-        }
 
         int32_t xValue = 0;
         int32_t yValue = 0;

@@ -18,14 +18,15 @@ performance modulation, ring modulation, and expressive envelopes.
 This folder contains the tested split-output firmware baseline and its Web MIDI
 editor.
 
-- Firmware: `uf2/Vortex_Runner_current_stable_dual_output_20260830.uf2` is the tested
-  dual-output monophonic build, including the two-bank MIDI CC layout, `CC1`
-  vibrato depth, MIDI absolute-pitch handling, and coalesced Web MIDI patch
-  handoff for rapid detune changes
+- Firmware: `uf2/Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2`
+  is the hardware-tested stable build. It adds 12 dB/octave high-pass and
+  low-pass paths, bounded resonance, the factory-plus-saved hardware preset
+  browser, and 8mu controller support with panel LED feedback. Filter Envelope
+  layer fader 5 controls HP cutoff; fader 6 controls resonance.
 - Web editor: Vortex Runner SysEx v10 patch apply/readback interface with named
   persistent card slots
 - Rollbacks: locally retained rollback UF2s are ignored by git
-- Release status: draft
+- Release status: hardware-tested stable build (2026-10-03)
 - Release guide and first patch: [RELEASE_SUMMARY.md](RELEASE_SUMMARY.md) or
   [RELEASE_SUMMARY.txt](RELEASE_SUMMARY.txt)
 
@@ -59,13 +60,34 @@ hardware-test UF2s should go in `test-uf2/`, which is ignored by git.
 - independent saw, square/pulse, sine, and noise mixer levels
 - independent pulse width, PWM amount, LFO-to-pitch, and LFO-to-PWM controls
 - oscillator spread or detune
-- high-pass then low-pass filter character
+- 12 dB/octave high-pass then 12 dB/octave low-pass filter character
 - amp envelope
 - filter envelope
 - LFO for vibrato, tremolo, or filter movement
 - ring modulation as a performance colour
 - gate and MIDI note triggering
 - Web MIDI editor for patch editing, readback, and saving
+
+## Filter Architecture
+
+Each output has its own 12 dB/octave high-pass path feeding a 12 dB/octave
+low-pass path. HP cutoff, LP cutoff, resonance, and filter state are
+independent for Voice A and Voice B; the filter envelope, filter CV routing,
+and LFO-to-filter depth are shared. Resonance is bounded below
+self-oscillation and is applied to both paths for a stronger, controlled
+band-pass focus.
+
+This replaces the earlier, gentler 6 dB/octave filter path. The August 2026
+rollback image and matching source are retained locally in an ignored archive,
+so they are not included in the stable-release PR.
+
+## 8mu Activity
+
+The stable firmware supports a Music Thing Modular 8mu connected at power-on.
+The 8mu uses the Computer USB port in host mode, so it cannot be used at the
+same time as the Web MIDI editor. The complete connection, layer, soft-takeover,
+panel-LED, and preset-browser instructions are kept separately in
+[8MU_ACTIVITY.md](8MU_ACTIVITY.md).
 
 ## Draft Web MIDI Protocol
 

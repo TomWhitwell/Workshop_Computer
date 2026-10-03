@@ -43,55 +43,6 @@ enum class EightMuLayer : uint8_t
     Count
 };
 
-// These are the 31 factory patches from the accompanying Web editor, resolved
-// into the firmware's current parameter model so they can be browsed without
-// a USB host connection.
-struct FactoryPresetDefinition
-{
-    int16_t pitch, portamento, pitchCvRange, filterCvMode;
-    int16_t pulse, pwmAmount, sawLevel, pulseLevel, sineLevel, noiseLevel, level, spread;
-    int16_t hp, lp, resonance, expression;
-    int16_t attack, decay, sustain, release;
-    int16_t filterAttack, filterDecay, filterSustain, filterRelease;
-    int16_t lfoRate, lfoPitchDepth, lfoPwmDepth, lfoVcfDepth, lfoVcaDepth;
-    int16_t ringAmount, ringSpeed;
-};
-
-static constexpr uint8_t FactoryPresetCount = 31u;
-static const FactoryPresetDefinition FactoryPresets[FactoryPresetCount] = {
-    {0, 0, 1, 0, 2048, 0, 3000, 0, 0, 0, 3400, 0, 120, 3300, 450, 0, 20, 700, 4095, 620, 20, 480, 1200, 520, 500, 0, 0, 0, 0, 0, 900}, // Init
-    {0, 2600, 1, 0, 1650, 1450, 534, 2969, 2731, 261, 3600, 0, 1500, 2450, 2650, 1900, 80, 760, 3300, 1200, 40, 480, 2400, 900, 1420, 260, 980, 1000, 180, 850, 2250}, // Doctor Who Theme
-    {0, 0, 1, 0, 1900, 520, 3563, 2019, 594, 0, 4095, 0, 280, 2350, 1650, 2000, 1550, 1750, 3000, 1900, 853, 1085, 1350, 1425, 980, 105, 420, 850, 360, 0, 900}, // Initial Brass
-    {-12, 0, 1, 0, 1780, 420, 3450, 2250, 600, 135, 4095, 0, 220, 1450, 2300, 2300, 1700, 1850, 2800, 2100, 935, 1147, 1260, 1575, 760, 75, 300, 1100, 300, 0, 800}, // Muted Brass
-    {0, 0, 1, 0, 2100, 2200, 3300, 2550, 1200, 0, 4095, 0, 200, 2650, 780, 1900, 2650, 2400, 3300, 3300, 1458, 1488, 1485, 2475, 620, 238, 950, 520, 420, 0, 700}, // Soft String
-    {0, 0, 1, 0, 2000, 1150, 3450, 2625, 900, 0, 4095, 0, 260, 1900, 600, 2100, 1900, 2200, 3200, 2750, 1045, 1364, 1440, 2063, 720, 155, 620, 700, 360, 0, 780}, // String Brass
-    {-24, 0, 1, 0, 1500, 700, 2700, 3600, 375, 0, 4095, 0, 350, 2300, 2800, 2400, 450, 1200, 1800, 1050, 248, 744, 810, 788, 1550, 75, 300, 2100, 520, 0, 900}, // Christmas Bass
-    {0, 0, 1, 0, 1800, 360, 4095, 1800, 750, 75, 4095, 0, 180, 1750, 1450, 2250, 2150, 1850, 2900, 2200, 1183, 1147, 1305, 1650, 640, 65, 260, 760, 300, 0, 760}, // Warm Horn
-    {0, 0, 1, 0, 1850, 1150, 3563, 1900, 713, 238, 4095, 0, 170, 2550, 1350, 2700, 2850, 2600, 3150, 3000, 1568, 1612, 1418, 2250, 520, 163, 650, 1250, 560, 180, 620}, // Blade Runner Brass
-    {12, 0, 1, 0, 2350, 300, 950, 2969, 3088, 0, 4095, 0, 500, 3100, 1850, 1600, 220, 1100, 3600, 1700, 121, 682, 1620, 1275, 450, 45, 180, 260, 320, 0, 700}, // Organ Glow
-    {0, 0, 1, 0, 1950, 1900, 3300, 2850, 600, 0, 4095, 0, 1550, 1700, 2600, 2300, 1650, 1900, 2800, 2250, 908, 1178, 1260, 1688, 900, 200, 800, 1300, 420, 0, 850}, // Bandpass Dream
-    {0, 0, 1, 0, 1500, 180, 4095, 1125, 0, 150, 4095, 0, 1900, 1500, 3200, 2800, 120, 720, 1460, 1700, 66, 446, 657, 1275, 380, 30, 120, 450, 280, 0, 900}, // Plucked Filter
-    {0, 0, 1, 0, 2200, 1500, 4050, 2400, 750, 0, 4095, 0, 260, 2900, 1100, 1900, 1050, 1700, 3300, 2050, 578, 1054, 1485, 1538, 760, 140, 560, 520, 350, 0, 700}, // Hounds String 3
-    {12, 0, 1, 0, 2550, 1850, 450, 4095, 1650, 30, 4095, 0, 360, 2050, 650, 2200, 380, 1350, 2500, 1750, 209, 837, 1125, 1313, 820, 120, 480, 420, 300, 0, 650}, // PWM Flute Lead
-    {0, 0, 1, 0, 1350, 260, 3450, 2550, 450, 225, 4095, 0, 700, 2400, 1700, 2450, 80, 650, 1560, 950, 44, 403, 702, 713, 420, 45, 180, 800, 500, 120, 1600}, // Babooshka Guitar
-    {0, 0, 1, 0, 2100, 1750, 3750, 2250, 1050, 0, 4095, 0, 180, 2750, 700, 1800, 2500, 2100, 3400, 3200, 1375, 1302, 1530, 2400, 620, 260, 1100, 420, 260, 0, 700}, // String 1
-    {0, 0, 1, 0, 2200, 1650, 4095, 2325, 675, 120, 4095, 0, 240, 2950, 950, 1950, 1900, 1800, 3320, 2850, 1045, 1116, 1494, 2138, 760, 220, 980, 380, 240, 0, 720}, // String 2
-    {0, 0, 1, 0, 1820, 420, 4095, 2175, 675, 0, 4095, 0, 220, 2280, 1500, 2250, 1450, 1680, 2950, 1850, 798, 1042, 1328, 1388, 720, 180, 260, 760, 240, 0, 760}, // Brass 1
-    {0, 0, 1, 0, 1900, 520, 3622, 1959, 416, 143, 4095, 0, 260, 2480, 1900, 2400, 1600, 1820, 3020, 2050, 880, 1128, 1359, 1538, 780, 210, 340, 980, 260, 0, 800}, // Brass 2
-    {12, 0, 1, 0, 1750, 650, 3325, 2494, 356, 119, 4095, 0, 340, 2580, 2250, 2350, 900, 1550, 2750, 1750, 495, 961, 1238, 1313, 920, 320, 420, 820, 260, 90, 980}, // Brass 3
-    {0, 0, 1, 0, 1450, 180, 3750, 1350, 0, 270, 4095, 0, 1050, 2200, 1700, 2400, 70, 620, 1480, 880, 39, 384, 666, 660, 420, 60, 120, 320, 140, 0, 900}, // Clavichord 1
-    {12, 0, 1, 0, 1500, 140, 4095, 1800, 0, 330, 4095, 0, 1320, 2450, 2350, 2550, 40, 540, 1408, 720, 22, 335, 634, 540, 520, 40, 80, 260, 120, 70, 1100}, // Clavichord 2
-    {12, 0, 1, 0, 1200, 0, 2250, 3750, 0, 180, 4095, 0, 1500, 2850, 600, 1800, 10, 380, 1272, 380, 6, 236, 572, 285, 360, 0, 0, 120, 0, 0, 900}, // Harpsichord 1
-    {0, 0, 1, 0, 1280, 0, 3150, 3525, 390, 120, 4095, 0, 1280, 2600, 900, 1750, 10, 460, 1304, 460, 6, 285, 587, 345, 360, 0, 0, 150, 0, 0, 900}, // Harpsichord 2
-    {0, 0, 1, 0, 2400, 220, 831, 2613, 2969, 0, 4095, 0, 420, 3000, 520, 1500, 50, 900, 3600, 1500, 28, 558, 1620, 1125, 440, 80, 180, 120, 180, 0, 720}, // Organ 1
-    {12, 0, 1, 0, 2300, 260, 1425, 2731, 2138, 0, 4095, 0, 520, 3150, 900, 1650, 50, 880, 3500, 1600, 28, 546, 1575, 1200, 480, 120, 220, 180, 160, 0, 760}, // Organ 2
-    {0, 0, 1, 0, 1380, 140, 3300, 2400, 270, 270, 4095, 0, 860, 2280, 1550, 2300, 60, 760, 1448, 820, 33, 471, 652, 615, 420, 40, 80, 360, 120, 100, 1450}, // Guitar 1
-    {12, 0, 1, 0, 1450, 160, 3675, 2175, 240, 300, 4095, 0, 980, 2520, 1750, 2400, 45, 700, 1416, 760, 25, 434, 637, 570, 460, 50, 90, 420, 120, 140, 1520}, // Guitar 2
-    {12, 0, 1, 0, 1650, 260, 2250, 3900, 0, 120, 4095, 0, 1150, 2300, 2200, 2200, 25, 520, 1480, 620, 14, 322, 666, 465, 540, 30, 120, 280, 80, 80, 980}, // Funky 1
-    {0, 0, 1, 0, 1720, 520, 2775, 3525, 0, 150, 4095, 0, 1260, 2150, 2450, 2300, 20, 620, 1528, 680, 11, 384, 688, 510, 700, 40, 220, 300, 120, 110, 1050}, // Funky 2
-    {-12, 0, 1, 0, 1500, 220, 3088, 2613, 594, 0, 4095, 0, 120, 1580, 1520, 1750, 20, 720, 1500, 680, 11, 446, 675, 510, 680, 30, 120, 520, 110, 0, 720}, // Bass
-};
-
 class CS80Card : public ComputerCard
 {
 private:
@@ -194,9 +145,6 @@ public:
         for (int layer = 0; layer < static_cast<int>(EightMuLayer::Count); ++layer)
             for (int fader = 0; fader < EightMU::numFaders; ++fader)
                 eightMuFaderPickedUp[layer][fader] = false;
-        eightMuLastFader = 0;
-        eightMuLastFaderPickedUp = false;
-        eightMuLastFaderPosition = 0;
         eightMuLayerLedsDirty = true;
     }
 
@@ -398,9 +346,7 @@ public:
             updateStartupPatchSelect(mode);
             if (startupSelectMode)
                 updateStartupPatchSelection(main, mode);
-            else if (livePresetSelectMode)
-                updateLivePresetSelection(main, mode);
-            if (!startupSelectMode && !livePresetSelectMode)
+            if (!startupSelectMode)
                 updatePanelControls(mode, main, x, y);
             updatePitchCache(audioPitch);
             updateLEDs(mode);
@@ -559,13 +505,8 @@ private:
         int32_t triggerRampQ12 = 4095;
         uint8_t ampEnvelopeStage = 0;
         uint8_t filterEnvelopeStage = 0;
-        // Two cascaded one-pole sections make both the high-pass and low-pass
-        // paths 12 dB/octave. Keeping their states per voice preserves the
-        // independently coloured A/B outputs.
-        int32_t hpLowpass1 = 0;
-        int32_t hpLowpass2 = 0;
-        int32_t lp1 = 0;
-        int32_t lp2 = 0;
+        int32_t hpLowpass = 0;
+        int32_t lp = 0;
     };
 
     enum class MidiEventType : uint8_t
@@ -737,9 +678,6 @@ private:
     bool eightMuPreviousButtons[EightMU::numButtons] = {};
     bool eightMuFaderPickedUp[static_cast<uint8_t>(EightMuLayer::Count)][EightMU::numFaders] = {};
     bool eightMuLayerLedsDirty = true;
-    uint8_t eightMuLastFader = 0;
-    bool eightMuLastFaderPickedUp = false;
-    int32_t eightMuLastFaderPosition = 0;
     bool patchResponsePending = false;
     bool patchResponseHasPatch = false;
     PatchState patchResponsePatch = {};
@@ -754,10 +692,6 @@ private:
     bool startupSelectMode = false;
     bool startupSelectReleased = false;
     uint8_t startupSelectedSlot = 0;
-    bool livePresetSelectMode = false;
-    bool livePresetSelectReleased = false;
-    bool suppressNextDownTap = false;
-    uint8_t presetBrowserSelection = 0;
 
     void processMidiVoiceByte(uint8_t byte)
     {
@@ -966,9 +900,6 @@ private:
                 eightMuLayer = static_cast<EightMuLayer>(button);
                 for (int fader = 0; fader < EightMU::numFaders; ++fader)
                     eightMuFaderPickedUp[button][fader] = false;
-                eightMuLastFader = 0;
-                eightMuLastFaderPickedUp = false;
-                eightMuLastFaderPosition = 0;
                 eightMuLayerLedsDirty = true;
             }
             eightMuPreviousButtons[button] = pressed;
@@ -1018,7 +949,7 @@ private:
             case 1: return midiControlPatch.params.filterDecay;
             case 2: return midiControlPatch.params.filterSustain;
             case 3: return midiControlPatch.params.filterRelease;
-            case 4: return midiControlPatch.params.hpCutoff;
+            case 4: return midiControlPatch.params.lpCutoff;
             case 5: return midiControlPatch.params.resonance;
             case 6: return midiControlPatch.params.lfoVcfDepth;
             default: return midiControlPatch.params.lfoVcaDepth;
@@ -1051,11 +982,6 @@ private:
         refreshMidiControlPatch();
         const int32_t control = midiCcToControl(value);
         const uint8_t layer = static_cast<uint8_t>(eightMuLayer);
-        // Record even an uncaptured fader so the panel explains why moving it
-        // has not yet changed the sound.
-        eightMuLastFader = fader;
-        eightMuLastFaderPickedUp = eightMuFaderPickedUp[layer][fader];
-        eightMuLastFaderPosition = control;
         if (!eightMuFaderPickedUp[layer][fader])
         {
             int32_t delta = control - eightMuFaderTarget(fader);
@@ -1064,7 +990,6 @@ private:
             if (delta > EightMuPickupWindow)
                 return;
             eightMuFaderPickedUp[layer][fader] = true;
-            eightMuLastFaderPickedUp = true;
         }
 
         switch (eightMuLayer)
@@ -1099,9 +1024,9 @@ private:
             else if (fader == 3) midiControlPatch.params.filterRelease = control;
             else if (fader == 4)
             {
-                midiControlPatch.params.hpCutoff = control;
-                midiControlPatch.voiceHpCutoff[0] = control;
-                midiControlPatch.voiceHpCutoff[1] = control;
+                midiControlPatch.params.lpCutoff = control;
+                midiControlPatch.voiceLpCutoff[0] = control;
+                midiControlPatch.voiceLpCutoff[1] = control;
             }
             else if (fader == 5)
             {
@@ -1154,17 +1079,7 @@ private:
             if (downSamples >= DownHoldSamples)
                 downHeld = true;
             if (downSamples >= DownLongHoldSamples)
-            {
                 longHoldSeen = true;
-                if (downSamples == DownLongHoldSamples &&
-                    startupSelectChecked && !startupSelectMode &&
-                    !livePresetSelectMode)
-                {
-                    livePresetSelectMode = true;
-                    livePresetSelectReleased = false;
-                    presetBrowserSelection = 0;
-                }
-            }
         }
         else
         {
@@ -1172,9 +1087,7 @@ private:
                 downSamples > 0 &&
                 downSamples < DownTapSamples &&
                 !startupSelectMode &&
-                !livePresetSelectMode &&
-                startupSelectChecked &&
-                !suppressNextDownTap)
+                startupSelectChecked)
             {
                 selectedOutputB = !selectedOutputB;
                 pickedUp[0] = false;
@@ -1184,7 +1097,6 @@ private:
             downSamples = 0;
             downHeld = false;
             longHoldSeen = false;
-            suppressNextDownTap = false;
         }
 
         wasDown = downNow;
@@ -1245,14 +1157,13 @@ private:
         if (startupSelectChecked)
             return;
 
-        if (startupSelectMode || livePresetSelectMode)
+        if (startupSelectMode)
             return;
 
-        if (mode == Switch::Down)
+        if (mode == Switch::Down && savedSlotMask != 0)
         {
             startupSelectMode = true;
             startupSelectReleased = false;
-            presetBrowserSelection = 0;
             return;
         }
 
@@ -1268,7 +1179,20 @@ private:
 
     void updateStartupPatchSelection(int32_t main, Switch mode)
     {
-        updatePresetBrowserSelection(main);
+        uint8_t count = loadedSlotCount();
+        if (count == 0)
+        {
+            startupSelectMode = false;
+            startupSelectChecked = true;
+            startupSelectReleased = false;
+            return;
+        }
+
+        uint8_t selectedIndex = (uint8_t)(((uint32_t)clamp12(main) * count) >> 12);
+        if (selectedIndex >= count)
+            selectedIndex = count - 1;
+        startupSelectedSlot = slotForLoadedSelection(selectedIndex);
+        showSlotLeds(startupSelectedSlot);
 
         if (mode != Switch::Down)
         {
@@ -1278,29 +1202,12 @@ private:
 
         if (startupSelectReleased)
         {
-            applyPresetBrowserSelection(true);
+            applySavedSlot(startupSelectedSlot);
+            startupSlot = startupSelectedSlot;
+            savePatchBankIfChanged();
             startupSelectMode = false;
             startupSelectChecked = true;
             startupSelectReleased = false;
-        }
-    }
-
-    void updateLivePresetSelection(int32_t main, Switch mode)
-    {
-        updatePresetBrowserSelection(main);
-
-        if (mode != Switch::Down)
-        {
-            livePresetSelectReleased = true;
-            return;
-        }
-
-        if (livePresetSelectReleased)
-        {
-            applyPresetBrowserSelection(false);
-            livePresetSelectMode = false;
-            livePresetSelectReleased = false;
-            suppressNextDownTap = true;
         }
     }
 
@@ -1785,25 +1692,19 @@ private:
         int32_t filterEnvelopeMod = filterEnvelopeModForBase(state.filterEnvelopeQ12, lpBaseControl);
         int32_t lpControl = clamp12(lpBaseControl + filterEnvelopeMod);
 
-        int32_t resonance = voiceParams.resonance + resonanceCv;
-        resonance = clamp12(resonance);
         int32_t hpAlpha = curveFromControl(hpControl);
         int32_t lpAlpha = curveFromControl(lpControl);
 
-        // CS-style serial HP -> LP filtering, using two poles in each stage.
-        // Feedback is deliberately bounded below unity, preventing the
-        // self-oscillation and collapse possible in the earlier one-pole path.
-        int32_t hpDriven = input - ((state.hpLowpass2 * resonance) >> 14);
-        state.hpLowpass1 += (hpAlpha * (hpDriven - state.hpLowpass1)) >> 12;
-        int32_t hpFirst = hpDriven - state.hpLowpass1;
-        state.hpLowpass2 += (hpAlpha * (hpFirst - state.hpLowpass2)) >> 12;
-        int32_t highpassed = hpFirst - state.hpLowpass2;
+        state.hpLowpass += (hpAlpha * (input - state.hpLowpass)) >> 12;
+        int32_t highpassed = input - state.hpLowpass;
 
-        int32_t driven = highpassed - ((state.lp2 * resonance) >> 13);
-        state.lp1 += (lpAlpha * (driven - state.lp1)) >> 12;
-        state.lp2 += (lpAlpha * (state.lp1 - state.lp2)) >> 12;
+        int32_t resonance = voiceParams.resonance + resonanceCv;
+        resonance = clamp12(resonance);
 
-        return clip12(state.lp2);
+        int32_t driven = highpassed - ((state.lp * resonance) >> 11);
+        state.lp += (lpAlpha * (driven - state.lp)) >> 12;
+
+        return clip12(state.lp);
     }
 
     int32_t applyRingMod(int32_t input) const
@@ -1817,25 +1718,8 @@ private:
 
     void updateLEDs(Switch mode)
     {
-        if (startupSelectMode || livePresetSelectMode)
+        if (startupSelectMode)
             return;
-
-        if (eightMu.Connected())
-        {
-            // The 8mu identifies its own A-D layer. The panel focuses on the
-            // last moved fader: 000=Fader 1 through 111=Fader 8, then pickup
-            // and physical fader position.
-            const int32_t position = clamp12(eightMuLastFaderPosition);
-            LedBrightness(0, (eightMuLastFader & 0x01u) ? 4095 : 0);
-            LedBrightness(1, (eightMuLastFader & 0x02u) ? 4095 : 0);
-            LedBrightness(2, (eightMuLastFader & 0x04u) ? 4095 : 0);
-            LedBrightness(3, eightMuLastFaderPickedUp ? 4095 : 384);
-            // A two-segment continuous bar: LED 5 covers 0-50%; LED 6 covers
-            // 50-100%. Physical position remains useful before pickup.
-            LedBrightness(4, clamp12(position * 2));
-            LedBrightness(5, clamp12((position - 2048) * 2));
-            return;
-        }
 
         int32_t xValue = 0;
         int32_t yValue = 0;
@@ -2326,90 +2210,6 @@ private:
         applySavedPatch(savedPatches[slot]);
     }
 
-    PatchState factoryPatchState(uint8_t index) const
-    {
-        const FactoryPresetDefinition& source = FactoryPresets[index % FactoryPresetCount];
-        PatchState patch = {};
-        patch.params.pitchOffsetQ8 = source.pitch * 256;
-        patch.params.portamento = source.portamento;
-        patch.params.pitchCvRange = source.pitchCvRange;
-        patch.params.filterCvMode = source.filterCvMode;
-        patch.params.pulseWidth = clampRange(512 + source.pulse, 512, 3584);
-        patch.params.pwmAmount = source.pwmAmount;
-        patch.params.sawLevel = source.sawLevel;
-        patch.params.pulseLevel = source.pulseLevel;
-        patch.params.sineLevel = source.sineLevel;
-        patch.params.noiseLevel = source.noiseLevel;
-        patch.params.voiceLevel = source.level;
-        patch.performancePitchQ8 = source.spread * 56;
-        patch.params.hpCutoff = source.hp;
-        patch.params.lpCutoff = source.lp;
-        patch.params.resonance = source.resonance;
-        patch.params.expressionDepth = source.expression;
-        patch.params.attack = source.attack;
-        patch.params.decay = source.decay;
-        patch.params.sustain = source.sustain;
-        patch.params.release = source.release;
-        patch.params.filterAttack = source.filterAttack;
-        patch.params.filterDecay = source.filterDecay;
-        patch.params.filterSustain = source.filterSustain;
-        patch.params.filterRelease = source.filterRelease;
-        patch.params.lfoRate = source.lfoRate;
-        patch.params.lfoPitchDepth = source.lfoPitchDepth;
-        patch.params.lfoPwmDepth = source.lfoPwmDepth;
-        patch.params.lfoVcfDepth = source.lfoVcfDepth;
-        patch.params.lfoVcaDepth = source.lfoVcaDepth;
-        patch.ringAmount = source.ringAmount;
-        patch.params.ringSpeed = source.ringSpeed;
-
-        for (uint32_t voice = 0; voice < 2u; ++voice)
-        {
-            patch.voiceSawLevel[voice] = source.sawLevel;
-            patch.voicePulseLevel[voice] = source.pulseLevel;
-            patch.voiceSineLevel[voice] = source.sineLevel;
-            patch.voiceNoiseLevel[voice] = source.noiseLevel;
-            patch.voiceLevel[voice] = source.level;
-            patch.voicePulseWidth[voice] = patch.params.pulseWidth;
-            patch.voicePwmAmount[voice] = source.pwmAmount;
-            patch.voiceHpCutoff[voice] = source.hp;
-            patch.voiceLpCutoff[voice] = source.lp;
-            patch.voiceResonance[voice] = source.resonance;
-        }
-        return patch;
-    }
-
-    uint8_t presetBrowserCount() const
-    {
-        return FactoryPresetCount + loadedSlotCount();
-    }
-
-    void updatePresetBrowserSelection(int32_t main)
-    {
-        const uint8_t count = presetBrowserCount();
-        presetBrowserSelection = (uint8_t)(((uint32_t)clamp12(main) * count) >> 12);
-        if (presetBrowserSelection >= count)
-            presetBrowserSelection = count - 1u;
-        showPresetBrowserLeds(presetBrowserSelection);
-    }
-
-    void applyPresetBrowserSelection(bool setStartupSlot)
-    {
-        if (presetBrowserSelection < FactoryPresetCount)
-        {
-            applyPatchState(factoryPatchState(presetBrowserSelection));
-            return;
-        }
-
-        const uint8_t slot = slotForLoadedSelection(
-            presetBrowserSelection - FactoryPresetCount);
-        applySavedSlot(slot);
-        if (setStartupSlot)
-        {
-            startupSlot = slot;
-            savePatchBankIfChanged();
-        }
-    }
-
     uint8_t loadedSlotCount() const
     {
         uint8_t count = 0;
@@ -2447,17 +2247,6 @@ private:
     void showSlotLeds(uint8_t slot)
     {
         uint8_t display = slot + 1u;
-        LedBrightness(0, display & 1u ? 4095 : 0);
-        LedBrightness(1, display & 2u ? 4095 : 0);
-        LedBrightness(2, display & 4u ? 4095 : 0);
-        LedBrightness(3, display & 8u ? 4095 : 0);
-        LedBrightness(4, display & 16u ? 4095 : 0);
-        LedBrightness(5, display & 32u ? 4095 : 0);
-    }
-
-    void showPresetBrowserLeds(uint8_t selection)
-    {
-        const uint8_t display = selection + 1u;
         LedBrightness(0, display & 1u ? 4095 : 0);
         LedBrightness(1, display & 2u ? 4095 : 0);
         LedBrightness(2, display & 4u ? 4095 : 0);

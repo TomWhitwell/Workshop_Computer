@@ -8,13 +8,13 @@ summary: >-
   detunable relative to Voice A. Pitch, gate, envelopes, portamento, CV policy,
   MIDI handling, LFO timing, and preset state are shared; only oscillator/filter
   colour is A/B-specific, including source/output levels, pulse/PWM, and filter
-  settings. It includes expressive envelopes, high-pass and
-  low-pass filter character, ring modulation, MIDI/Web MIDI control, and a
-  browser editor.
+  settings. It includes expressive envelopes, 12 dB/octave high-pass and
+  low-pass filters with bounded resonance, ring modulation, MIDI/Web MIDI
+  control, a hardware preset browser, and 8mu controller support.
 Language: C++ (Pico SDK)
 Creator: Adrian Vos
 Version: "0.1"
-Status: Beta - stable-tested split-output firmware with named Web MIDI presets
+Status: Stable - hardware-tested split-output firmware with 8mu control and preset browser
 License: MIT
 date-created: 2026-08-26
 Editor: web
@@ -25,7 +25,8 @@ tags:
   - web-midi
   - split-output
   - cs-80-inspired
-  - draft
+  - 8mu
+  - usb-host
 
 panel:
   inputs:
@@ -150,20 +151,25 @@ host:
   usb:
     - name: Web MIDI editor
       role: device
-      description: Draft browser editor using Web MIDI SysEx for patch apply, readback, and eight persistent named card slots.
+      description: Browser editor using Web MIDI SysEx for patch apply, readback, and eight persistent named card slots.
     - name: USB MIDI input
       role: host-or-device
-      description: MIDI note/gate, pitch-bend, and performance CC input for the draft split-output voice, following a Gnarly-style dedicated controller block with standard synth aliases.
+      description: MIDI note/gate, pitch-bend, and performance CC input for the split-output voice, following a Gnarly-style dedicated controller block with standard synth aliases.
+    - name: Music Thing Modular 8mu
+      role: host
+      description: Hardware-tested USB-host controller. Buttons A-D select fader layers; panel LEDs show focused fader feedback. Cannot operate with the Web MIDI editor at the same time.
   notes: >-
     Draft architecture target: RP2040 at 192 MHz, copy-to-RAM firmware, audio
     rendering on core 0, USB MIDI/Web MIDI work on core 1, and bounded lockless
     queues for complete patch handoff and core-0 readback. The current stable
     firmware keeps one monophonic note path and renders split A/B audio outputs.
-    Current draft firmware stores eight named Web MIDI patch slots in flash. The Web
-    editor can choose a saved startup slot, and holding Down during the startup
-    selection window lets Main override it. In startup selection the LEDs show
-    only the selected slot number in binary; release Down to keep browsing, then
-    press Down again to load that slot and enter performance mode. With no saved startup slot, the compiled fallback is the Web
+    Stable firmware stores eight named Web MIDI patch slots in flash and embeds
+    31 factory presets. Holding Down at boot opens a combined factory-plus-saved
+    browser: Main selects an entry, panel LEDs show its one-based number in
+    binary, release Down arms it, and a second Down press loads it. Choosing a
+    saved entry also sets the later startup slot; choosing a factory entry does
+    not. Holding Down for about two seconds during play opens the same browser
+    without stopping audio. With no saved startup slot, the compiled fallback is the Web
     editor's Doctor Who Theme preset, including its portamento setting. Each saved patch includes its pitch-CV range mode. Web MIDI patch
     readback and saved slots
     cover the visible editor controls, including separate A/B additive
