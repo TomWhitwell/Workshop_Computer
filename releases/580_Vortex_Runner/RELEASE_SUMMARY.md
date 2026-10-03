@@ -6,12 +6,12 @@ as two independently coloured audio outputs. Audio Out 1 is Voice A; Audio Out
 2 is Voice B, which can be gently detuned for width or pushed into more obvious
 intervals.
 
-This is a stable-tested draft release. The supplied firmware is
-`uf2/Vortex_Runner_current_stable_dual_output_20260830.uf2`.
+This is a hardware-tested stable release. The supplied firmware is
+`uf2/Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2`.
 
 ## Install And Start
 
-1. Flash `Vortex_Runner_current_stable_dual_output_20260830.uf2` to a program
+1. Flash `Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2` to a program
    card with the normal Workshop Computer card-flashing workflow.
 2. Insert the programmed card and power the Workshop Computer.
 3. For a first sound with no controller connected, leave Pulse In 1 unpatched:
@@ -29,6 +29,15 @@ the editor in a browser with Web MIDI SysEx support, then choose the Vortex
 Runner MIDI input and output. `Refresh Slots` reads the card automatically on
 connection; use `Apply Settings` to audition the current editor state and
 `Save Settings` to write the selected card slot.
+
+## 8mu Controller
+
+To use an 8mu, connect it before powering the Workshop Computer so the USB port
+boots in host mode. The 8mu and Web MIDI editor cannot be used simultaneously.
+Buttons A–D select Tone, Amp envelope, Filter envelope, and Performance fader
+layers. The Workshop Computer panel LEDs show the most recently moved fader,
+its soft-takeover state, and its physical position. See
+[8MU_ACTIVITY.md](8MU_ACTIVITY.md) for the complete mapping and display guide.
 
 ## First Patch: Vortex Horizon
 
@@ -94,6 +103,7 @@ deliberately musical intervals rather than a conventional chorus effect.
 
 ## Included Firmware
 
-- `uf2/Vortex_Runner_current_stable_dual_output_20260830.uf2`: current tested
-  release candidate
-- local rollback UF2s are deliberately ignored by git and are not release files
+- `uf2/Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2`: current
+  hardware-tested stable release
+- the August 2026 rollback firmware and matching source snapshot are archived
+  locally and deliberately excluded from the stable-release PR
