@@ -18,10 +18,11 @@ performance modulation, ring modulation, and expressive envelopes.
 This folder contains the tested split-output firmware baseline and its Web MIDI
 editor.
 
-- Firmware: `uf2/Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2`
+- Firmware: `uf2/Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2`
   is the hardware-tested stable build. It adds 12 dB/octave high-pass and
   low-pass paths, bounded resonance, the factory-plus-saved hardware preset
-  browser, and 8mu controller support with panel LED feedback.
+  browser, and 8mu controller support with panel LED feedback. Filter Envelope
+  layer fader 5 controls HP cutoff; fader 6 controls resonance.
 - Web editor: Vortex Runner SysEx v10 patch apply/readback interface with named
   persistent card slots
 - Rollbacks: locally retained rollback UF2s are ignored by git

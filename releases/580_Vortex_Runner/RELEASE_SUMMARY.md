@@ -7,11 +7,11 @@ as two independently coloured audio outputs. Audio Out 1 is Voice A; Audio Out
 intervals.
 
 This is a hardware-tested stable release. The supplied firmware is
-`uf2/Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2`.
+`uf2/Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2`.
 
 ## Install And Start
 
-1. Flash `Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2` to a program
+1. Flash `Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2` to a program
    card with the normal Workshop Computer card-flashing workflow.
 2. Insert the programmed card and power the Workshop Computer.
 3. For a first sound with no controller connected, leave Pulse In 1 unpatched:
@@ -103,7 +103,7 @@ deliberately musical intervals rather than a conventional chorus effect.
 
 ## Included Firmware
 
-- `uf2/Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2`: current
+- `uf2/Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2`: current
   hardware-tested stable release
 - the August 2026 rollback firmware and matching source snapshot are archived
   locally and deliberately excluded from the stable-release PR

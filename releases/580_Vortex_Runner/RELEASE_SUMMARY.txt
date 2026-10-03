@@ -9,13 +9,13 @@ intervals.
 
 This is a hardware-tested stable release. The supplied firmware is:
 
-uf2/Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2
+uf2/Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2
 
 
 INSTALL AND START
 -----------------
 
-1. Flash Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2 to a program
+1. Flash Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2 to a program
    card with the normal Workshop Computer card-flashing workflow.
 2. Insert the programmed card and power the Workshop Computer.
 3. For a first sound with no controller connected, leave Pulse In 1 unpatched.
@@ -112,7 +112,7 @@ PERFORMANCE NOTES
 INCLUDED FIRMWARE
 -----------------
 
-- uf2/Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2
+- uf2/Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2
   Current hardware-tested stable release.
 - The August 2026 rollback firmware and matching source snapshot are archived
   locally and deliberately excluded from the stable-release PR.

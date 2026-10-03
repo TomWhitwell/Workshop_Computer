@@ -17,6 +17,8 @@
 /archive/
 /experimental/8mu-cs80-filter-leds/
 /experimental/8mu-filter-led-focus/
+/experimental/8mu-filter-envelope-hp/
+/uf2/Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2
 
 # Local scratch ideas that are not part of this card release.
 /FUTURE_PROJECTS.md

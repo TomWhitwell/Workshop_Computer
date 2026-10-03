@@ -1,7 +1,7 @@
 # Vortex Runner 8mu Activity
 
 This guide applies to the stable 8mu firmware:
-`uf2/Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2`.
+`uf2/Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2`.
 
 ## Connecting
 
@@ -22,7 +22,7 @@ the selected layer.
 | --- | --- |
 | A / LED 1 — Tone | Saw, pulse, sine, noise, pulse width, PWM, LP cutoff, resonance |
 | B / LED 2 — Amp envelope | Attack, decay, sustain, release, level, expression, portamento, vibrato |
-| C / LED 3 — Filter envelope | Filter attack, decay, sustain, release, LP cutoff, resonance, LFO-to-filter, LFO-to-amp |
+| C / LED 3 — Filter envelope | Filter attack, decay, sustain, release, HP cutoff, resonance, LFO-to-filter, LFO-to-amp |
 | D / LED 4 — Performance | Voice-B detune, ring amount, ring speed, LFO rate, vibrato, LFO-to-PWM, LFO-to-filter, LFO-to-amp |
 
 Changing a layer resets soft takeover for its faders. Move a fader through the

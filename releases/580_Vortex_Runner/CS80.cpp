@@ -1018,7 +1018,7 @@ private:
             case 1: return midiControlPatch.params.filterDecay;
             case 2: return midiControlPatch.params.filterSustain;
             case 3: return midiControlPatch.params.filterRelease;
-            case 4: return midiControlPatch.params.lpCutoff;
+            case 4: return midiControlPatch.params.hpCutoff;
             case 5: return midiControlPatch.params.resonance;
             case 6: return midiControlPatch.params.lfoVcfDepth;
             default: return midiControlPatch.params.lfoVcaDepth;
@@ -1099,9 +1099,9 @@ private:
             else if (fader == 3) midiControlPatch.params.filterRelease = control;
             else if (fader == 4)
             {
-                midiControlPatch.params.lpCutoff = control;
-                midiControlPatch.voiceLpCutoff[0] = control;
-                midiControlPatch.voiceLpCutoff[1] = control;
+                midiControlPatch.params.hpCutoff = control;
+                midiControlPatch.voiceHpCutoff[0] = control;
+                midiControlPatch.voiceHpCutoff[1] = control;
             }
             else if (fader == 5)
             {
