@@ -1,0 +1,138 @@
+draft: false
+Name: Cosmik M1N1
+short-description: >-
+  Minimoog-influenced mono synth voice with two internal oscillators, external
+  OSC3 pitch/CV integration, ladder filtering, USB MIDI, and Web MIDI presets.
+summary: >-
+  A monophonic Workshop Computer synth voice with two band-limited wavetable
+  oscillators, external OSC3 pitch CV and audio return, a four-pole resonant
+  low/high-pass filter, noise, ADS contours, internal LFO, MIDI CC1 modulation,
+  glide, and eight factory plus eight named user presets.
+Language: C++ (Pico SDK)
+Creator: Adrian Vos
+Version: "1.0.0"
+Status: Released
+License: MIT
+date-created: 2026-10-03
+Editor: web
+uf2:
+  - path: uf2/COSMIK_M1N1_1.0.0.uf2
+    name: Cosmik M1N1 1.0.0
+
+tags:
+  - synth
+  - midi
+  - web-midi
+  - minimoog-inspired
+  - oscillator
+  - filter
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Pitch CV
+      type: audio
+      description: Calibrated 1V/oct pitch CV when no USB MIDI note is active.
+    - id: AudioIn2
+      name: OSC3 Return
+      type: audio
+      description: External oscillator audio return for the pre-filter mixer.
+    - id: CVIn1
+      name: Filter CV
+      type: cv
+      description: Positive filter-cutoff modulation.
+    - id: CVIn2
+      name: Mod Source
+      type: cv
+      description: External OSC3 or other modulation source selectable in the Web UI.
+    - id: PulseIn1
+      name: Gate 1
+      type: pulse
+      description: Gates the amplifier and filter ADS contours; mirrored at Pulse Out 1.
+    - id: PulseIn2
+      name: Gate 2
+      type: pulse
+      description: Additional gate input for the amplifier and filter ADS contours.
+  outputs:
+    - id: AudioOut1
+      name: Filtered Voice
+      type: audio
+      description: Main four-pole filtered mono voice output.
+    - id: AudioOut2
+      name: Pre-filter Mix
+      type: audio
+      description: Mixer output before the resonant filter.
+    - id: CVOut1
+      name: OSC3 Pitch
+      type: cv
+      description: Calibrated external OSC3 1V/oct pitch CV, with C3 at 0V and shared glide.
+    - id: CVOut2
+      name: Loudness Envelope
+      type: cv
+      description: Amplifier ADS envelope CV.
+    - id: PulseOut1
+      name: Gate 1 Mirror
+      type: pulse
+      description: Mirrors Pulse In 1.
+    - id: PulseOut2
+      name: Off
+      type: pulse
+      description: Held low.
+
+controls:
+  switch:
+    up:
+      name: Oscillator Setup
+      description: Edit the selected OSC1, OSC2, or external OSC3 page.
+    middle:
+      name: Filter Voice
+      description: Cutoff, resonance/emphasis, and filter contour.
+    down:
+      name: Modulation / Noise / Presets
+      description: Short hold edits modulation, a longer hold edits noise, and long holds enter preset selection.
+  knobs:
+    - when: { z: middle }
+      main:
+        name: Cutoff
+        description: Filter cutoff.
+      x:
+        name: Resonance
+        description: Filter emphasis/resonance.
+      y:
+        name: Filter Contour
+        description: Amount of filter ADS contour.
+    - when: { z: up }
+      main:
+        name: OSC Pitch / Offset
+        description: Fine pitch for the selected internal oscillator or offset for external OSC3 pitch CV.
+      x:
+        name: OSC Level
+        description: Mixer level for the selected oscillator.
+      y:
+        name: Waveform / Range
+        description: Internal oscillator waveform or external OSC3 pipe-length range.
+    - when: { z: down }
+      main:
+        name: OSC3 Offset / Noise Level
+        description: OSC3 pitch offset during a short hold; noise level during a longer hold.
+      x:
+        name: Mod Depth / Noise Colour
+        description: Modulation depth during a short hold; white/pink selection across noon during a longer hold.
+      y:
+        name: Pitch-Filter Balance / Mod Mix
+        description: Modulation destination balance during a short hold; source A/B mix during a longer hold.
+
+host:
+  usb:
+    - name: MIDI device
+      role: midi
+      description: Mono last-note-wins MIDI input with note on/off, +/-2 semitone pitch bend, CC1 modulation depth, and Web MIDI preset communication.
+  notes: >-
+    Hold Down at startup, or for five seconds during operation, to select factory
+    and populated user presets. A short Down press cycles oscillator setup pages.
+    Web MIDI manages oscillator ranges, full ADS contours, filter mode/tracking,
+    modulation sources, LFO, glide, and named user slots.
+
+contact:
+  social:
+    github: https://github.com/soveda
