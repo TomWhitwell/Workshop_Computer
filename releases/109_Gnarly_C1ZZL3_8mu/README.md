@@ -27,6 +27,10 @@ draft: false
 Core C1ZZL3 remains card 84. Gnarly is prepared here as a separate card identity because
 its hardware behaviour is substantially different.
 
+Hardware validation completed: the supplied 8mu v2 banks were tested for
+performance control, all six envelope lanes, level/time editing, save/revert,
+power-cycle persistence, factory-envelope protection, and disabled gestures.
+
 ## Stable Build
 
 Built firmware UF2:
@@ -52,8 +56,7 @@ Checksum:
 - Reads and writes settings through the Gnarly Web MIDI Lab.
 - Imports Casio CZ `.syx` patches through the shared C1ZZL3 Import Lab.
 - Removes Turing CV, Turing pulse, and generated Turing MIDI behaviour.
-- Maps the Music Thing 8mu's factory faders directly to all six envelope
-  lanes, so their depth can be performed without the Web MIDI editor.
+- Turns a Music Thing 8mu v2 into an eight-bank performance and custom-envelope editor.
 
 ## Hardware Controls
 
@@ -137,28 +140,17 @@ On the switch-down page, LEDs 1 and 2 show the selected recipe bank:
 
 ## MIDI
 
-## Music Thing 8mu envelope controls
+## Music Thing 8mu v2 banks
 
-Plug a factory-configured Music Thing 8mu into the front USB-C jack. Its first
-six faders set the live depth of the corresponding envelope lanes. A lane at
-full depth is identical to the envelope created in the Web MIDI editor; at zero
-depth it is neutralised. The controls are live only and never overwrite saved
-envelope shapes or sound presets.
+Import the eight files in [`8mu_banks`](8mu_banks) with the
+[16n Faderbank editor](https://16n-faderbank.github.io/editor/). Bank 1 is
+live Gnarly performance control. Banks 2-7 expose stages 1-8 for Amp1, Amp2,
+PD1, PD2, Pitch1, and Pitch2. Bank 8 selects the active custom slot and sets
+per-lane or master depth.
 
-| 8mu fader | Factory CC | Live control |
-| --- | --- | --- |
-| 1 | CC34 | Amp1 envelope depth |
-| 2 | CC35 | PD1 envelope depth |
-| 3 | CC36 | Pitch1 envelope depth |
-| 4 | CC37 | Pitch2 envelope depth |
-| 5 | CC38 | PD2 envelope depth |
-| 6 | CC39 | Amp2 envelope depth |
-| 7 | CC40 | Envelope selection: Off, the eight factory envelopes, then saved sound-preset slots |
-| 8 | CC41 | Master depth for all six envelope lanes |
-
-The 8mu buttons continue to send MIDI notes: use them as note/gate triggers
-for the selected envelope. An unmoved 8mu leaves every lane at full depth, so
-the card begins exactly like the original Gnarly firmware.
+In a lane bank, Button A edits stage levels, Button B edits stage times,
+Button C saves the active custom envelope, and Button D reverts it. Factory
+envelopes are read-only; gestures are disabled in all supplied banks.
 
 Gnarly uses `CC20` to `CC27` as an eight-knob performance block. `CC1` is also
 kept as oscillator 1 phase distortion so a mod wheel remains useful.

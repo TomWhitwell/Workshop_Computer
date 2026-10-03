@@ -107,25 +107,21 @@ LED 3 shows oscillator 2 interval/spread as a bipolar brightness from centre.
 LEDs 4 and 5 show ring modulation and noise/grit. LED 6 shows the active edit
 page at off, medium, or full brightness.
 
-## Music Thing 8mu envelope lanes
+## Music Thing 8mu v2 envelope editor
 
-Connect a factory-configured Music Thing 8mu to the front USB-C jack. Its
-faders perform envelope depth without editing or replacing the envelope shapes
-stored by the Web MIDI Lab:
+Import the eight supplied configurations in `8mu_banks` with the
+[16n Faderbank editor](https://16n-faderbank.github.io/editor/). Bank 1 is
+the live performance bank; banks 2-7 edit stages 1-8 for Amp1, Amp2, PD1,
+PD2, Pitch1, and Pitch2. Bank 8 selects the active custom slot and provides
+individual-lane plus master depth controls.
 
-- Fader 1 / CC34: Amp1 depth.
-- Fader 2 / CC35: PD1 depth.
-- Fader 3 / CC36: Pitch1 depth.
-- Fader 4 / CC37: Pitch2 depth.
-- Fader 5 / CC38: PD2 depth.
-- Fader 6 / CC39: Amp2 depth.
-- Fader 7 / CC40: selects Off, factory envelope 1-8, then saved sound-preset slots.
-- Fader 8 / CC41: master depth for every envelope lane.
+In an envelope lane bank, Button A edits levels, Button B edits times, Button
+C saves, and Button D reverts. Only saved custom slots are editable. Factory
+envelopes are protected, and gestures are disabled in the supplied banks.
 
-At full depth, a lane exactly follows its saved Web MIDI envelope. At zero, an
-amplitude or PD lane is removed and a pitch lane stays at its centre pitch.
-These live 8mu controls are not saved to the card and never alter envelope
-shapes. The 8mu buttons remain MIDI note/gate triggers.
+Hardware validation has covered every lane bank, level/time mode, save/revert,
+persistence after power cycling, factory-envelope protection, and gesture
+disablement.
 
 MIDI note-on behaves like a held gate. It triggers the selected envelopes and
 keeps loop-capable envelopes cycling until MIDI note-off lets them complete
