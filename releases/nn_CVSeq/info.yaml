@@ -1,0 +1,170 @@
+draft: true
+Name: CVSeq
+short-description: "An eight-step CV sequencer after the Performer in NI Massive - each step a morph between two of 32 shapes, with level ramps, quantise and chance - edited from a Music Thing 8mu, with a web editor"
+Language: C++ (ComputerCard)
+Creator: XponentOneAudio
+Version: "0.1.0"
+Status: Beta
+License: MIT
+Editor: web
+date-created: 2026-10-05
+date-updated: 2026-10-05
+
+contact:
+  email: XponentOneAudio@gmail.com
+
+# Vendors, unmodified and under their own MIT terms:
+#   ComputerCard.h, EightMU.h (which carries the rppicomidi usb_midi_host
+#   driver, (c) 2023 rppicomidi)
+#     (c) Chris Johnson
+
+uf2:
+  - path: UF2/cvseq.uf2
+    name: CVSeq 0.1.0
+
+tags:
+  - sequencer
+  - modulation
+  - cv
+  - usb-host
+  - midi
+  - 8mu
+
+summary: |
+  A step sequencer for control voltages rather than notes, after the
+  Performer modulator in Native Instruments' Massive. Each of its eight
+  steps plays a shape - a ramp, a pluck, a sine, stairs, a random wander -
+  and the steps run on one after another as one continuous voltage.<br><br>
+
+  Every step has two shapes from a library of 32 and a morph between them,
+  a level, a start and an end level that ramp across the step, a quantise
+  that turns the shape into held stairs, and a chance that it plays at all.
+  A step that loses its chance holds the voltage where it was.<br><br>
+
+  The sequence is edited from a Music Thing 8mu: its eight faders are the
+  eight steps and its four buttons choose the page - A is SHAPE 1, B SHAPE
+  2, C MORPH and D LEVEL - with a second press of each giving START, END,
+  QUANT and CHANCE. Faders pick up, so changing page never makes the
+  voltage jump, and the 8mu's LEDs show the stored values. Tilting the 8mu
+  morphs every step at once.<br><br>
+
+  Five directions run the sequence: step forward, step ping-pong and step
+  backward change the order of the steps, while true ping-pong and true
+  reverse play the whole sequence backwards, every shape reversed too.<br><br>
+
+  An optional web editor (web/index.html, Chrome or Edge) draws the
+  sequence with a live playhead and a scope of the output, shows the shape
+  library, and keeps presets. With a computer plugged into the Computer's
+  USB socket the card becomes a USB MIDI device for the editor, and an 8mu
+  plugged into the computer is passed on through it.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Unused
+      type: audio
+      description: Not used.
+    - id: AudioIn2
+      name: Unused
+      type: audio
+      description: Not used.
+    - id: CVIn1
+      name: Morph
+      type: cv
+      description: Added to every step's MORPH; +5V moves it all the way from shape 1 to shape 2.
+    - id: CVIn2
+      name: Rate
+      type: cv
+      description: Rate, 1V/oct - each volt doubles the speed.
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: >
+        While clocks are arriving, each step lasts one clock. Two seconds
+        without a clock returns to free running.
+    - id: PulseIn2
+      name: Restart
+      type: pulse
+      description: Restarts the sequence from its first step.
+  outputs:
+    - id: AudioOut1
+      name: CV copy
+      type: audio
+      description: The same voltage as CV Out 1, uncalibrated.
+    - id: AudioOut2
+      name: Inverted
+      type: audio
+      description: CV Out 1 inverted, uncalibrated.
+    - id: CVOut1
+      name: CV
+      type: cv
+      description: The sequence - offset plus depth times 0 to 5V - after smoothing.
+    - id: CVOut2
+      name: Quantised
+      type: cv
+      description: CV Out 1 quantised to semitones, 1V/oct.
+    - id: PulseOut1
+      name: Step
+      type: pulse
+      description: Trigger at the start of every step that plays (not one that loses its chance).
+    - id: PulseOut2
+      name: Start
+      type: pulse
+      description: Trigger at the start of the sequence.
+
+controls:
+  switch:
+    up:
+      name: Output
+      description: X and Y set depth and offset.
+    middle:
+      name: Shape
+      description: X and Y set smoothing and morph offset.
+    down:
+      name: Direction
+      description: >
+        Momentary. Each tap steps the direction: step forward, step
+        ping-pong, step backward, true ping-pong, true reverse. The top
+        LEDs show which for a second - one to four lit, or all four
+        blinking for true reverse.
+  knobs:
+    - when:
+        z: up
+      main:
+        name: Rate
+        description: 8s to 10ms per step.
+      x:
+        name: Depth
+        description: -100% to +100%, an attenuverter on the 0-5V sequence. Each X/Y setting keeps its value; after the switch moves a knob picks up only once turned to its value.
+      y:
+        name: Offset
+        description: -5V to +5V added to the output.
+    - when:
+        z: middle
+      main:
+        name: Rate
+        description: 8s to 10ms per step.
+      x:
+        name: Smoothing
+        description: Off fully down, then a lag of 1ms to about 2s.
+      y:
+        name: Morph offset
+        description: Added to every step's MORPH, -100% to +100%.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Page A / step
+          description: With an 8mu or the web editor, LEDs 0-3 show the button whose page is selected (A-D), steady for its first page and blinking slowly for its second. Without one, they show the playing step - bright for steps 1-4, dim for 5-8.
+        - id: LED1
+          name: Page B / step
+        - id: LED2
+          name: Page C / step
+        - id: LED3
+          name: Page D / step
+        - id: LED4
+          name: CV
+          description: Brightness follows CV Out 1, 0 to 5V.
+        - id: LED5
+          name: 8mu / editor
+          description: Lit while an 8mu, or the web editor, is connected. Blinks fast while the X or Y knob is waiting to pick up its setting.
