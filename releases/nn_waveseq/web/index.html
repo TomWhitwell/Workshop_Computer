@@ -244,8 +244,8 @@ const PAGE_INFO = [
   { name: 'Level', letter: 'D', hint: 'How loud each step is.' },
   { name: 'FM',    letter: 'A2', hint: 'Per-step FM amount: multiplies the FM amount knob (X, switch middle) for each step, crossfading between steps. Default 100%.' },
   { name: 'Scan',  letter: 'B2', hint: 'Per-step wave scan amount: multiplies the scan amount knob (Y, switch middle) for each step, crossfading between steps. Default 100%.' },
-  { name: '\u2014',  letter: 'C2', hint: 'Not assigned yet. Values are kept, and saved in presets.' },
-  { name: '\u2014',  letter: 'D2', hint: 'Not assigned yet. Values are kept, and saved in presets.' },
+  { name: 'Glide', letter: 'C2', hint: 'Per-step glide: at 0 the step jumps to its pitch; above, its pitch slides from the previous step\u2019s, starting as the crossfade into it begins, over up to the whole step.' },
+  { name: 'Gate',  letter: 'D2', hint: 'Per-step gate on Pulse Out 1, as a fraction of the step (at least 5 ms). Fully down: no pulse for this step. At the top it ties into the next step. Default: half.' },
 ];
 const FAMILIES = ['Sine to saw', 'Saw to square', 'Pulse width', 'Hard sync', 'FM', 'Vowels', 'Wavefold', 'Digital'];
 const DEFAULT_VALUES = [
@@ -256,7 +256,7 @@ const DEFAULT_VALUES = [
   [127, 127, 127, 127, 127, 127, 127, 127],
   [127, 127, 127, 127, 127, 127, 127, 127],
   [0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0],
+  [64, 64, 64, 64, 64, 64, 64, 64],
 ];
 const TAB_ORDER = [0, 4, 1, 5, 2, 6, 3, 7];
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -356,7 +356,8 @@ function describe(page, v) {
     case 2: { const s = semis(v); return (s > 0 ? '+' : '') + s + ' st'; }
     case 3: { const l = level(v); return l <= 0 ? 'off' : Math.round(20 * Math.log10(l)) + ' dB'; }
     case 4: case 5: return Math.round(v >= 127 ? 100 : v * 100 / 127) + '%';
-    default: return '';
+    case 6: return v === 0 ? 'jump' : 'glide ' + Math.round(v * 100 / 127) + '%';
+    default: return v < 1 ? 'off' : v >= 127 ? 'tie' : 'gate ' + Math.round(v * 100 / 127) + '%';
   }
 }
 function noteName(n) {
@@ -434,6 +435,18 @@ function drawTimeline() {
     ctx.fillStyle = cssVar('--muted'); ctx.font = '11px system-ui';
     if (b.w > 44) ctx.fillText((s > 0 ? '+' : '') + s + ' st', b.x + 18, top - 5);
     if (b.w > 50) ctx.fillText(describe(1, v[1][i]), b.x + 4, H - 4);
+    // gate on Pulse Out 1, along the bottom edge
+    const gv = v[7][i];
+    if (gv > 0) {
+      const gw = gv >= 127 ? b.w : Math.max(3, b.w * gv / 127);
+      ctx.fillStyle = col; ctx.globalAlpha = 0.6; ctx.fillRect(b.x + 1, bot - 4, gw - (gv >= 127 ? 0 : 1), 4); ctx.globalAlpha = 1;
+    }
+    // glide: a ramp in the top-left corner
+    if (v[6][i] > 0 && b.w > 24) {
+      const gx = Math.min(b.w - 4, b.w * v[6][i] / 127);
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath();
+      ctx.moveTo(b.x + 2, top + 10); ctx.lineTo(b.x + 2 + gx, top + 2); ctx.stroke();
+    }
     // selection and current step
     if (i === state.sel) { ctx.strokeStyle = cssVar('--warm'); ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(b.x + 1, top, b.w - 2, bot - top); ctx.setLineDash([]); }
     if (i === L.cur) { ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2; ctx.strokeRect(b.x + 1, top, b.w - 2, bot - top); }
@@ -447,7 +460,7 @@ function drawTimeline() {
   }
   const loop = state.live.clocked ? total + ' clocks' : fmtMs(total / (L.speed || 1)) + ' at ' + L.speed.toFixed(2) + 'x';
   $('timeline-caption').textContent = total > 0
-    ? 'One pass: ' + loop + (L.direction === 1 ? ' (ping-pong plays the middle steps twice)' : L.direction === 2 ? ' on average (random order)' : '') + '. Width is time, height is level; the shaded end of each step is its crossfade.'
+    ? 'One pass: ' + loop + (L.direction === 1 ? ' (ping-pong plays the middle steps twice)' : L.direction === 2 ? ' on average (random order)' : '') + '. Width is time, height is level; the shaded end of each step is its crossfade, the bar along the bottom its gate, and a ramp at the top its glide.'
     : 'Every step is skipped: the card holds the current step.';
 }
 

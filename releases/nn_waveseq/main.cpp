@@ -13,11 +13,18 @@
 //             First page                         Second page
 //   Button A  WAVE  position in the 64-wave bank FM    per-step FM amount
 //   Button B  TIME  20ms to 4s; down = skip      SCAN  per-step wave scan amount
-//   Button C  PITCH -12 to +12 semitones         (not yet assigned)
-//   Button D  LEVEL step loudness                (not yet assigned)
+//   Button C  PITCH -12 to +12 semitones         GLIDE pitch slides into the step
+//   Button D  LEVEL step loudness                GATE  gate length on Pulse Out 1
 //
 // The per-step FM and SCAN amounts (default 100%) multiply the panel's FM and
 // wave scan amounts, and crossfade between steps along with everything else.
+//
+// GLIDE: 0 jumps to the step's pitch; otherwise the pitch slides from where
+// the previous step was, starting as the step begins to be heard (the start
+// of the crossfade into it), over up to the whole length of the step.
+// GATE: 0 gives no pulse for the step; otherwise Pulse Out 1 is high for
+// that fraction of the step (at least 5ms), and at the top it ties into the
+// next step.  Default is half the step.
 //
 // After a page change the faders 'pick up': a fader only takes over its step
 // once it has been moved to (or across) the value already stored, so changing
@@ -50,7 +57,7 @@
 //   Audio Out 2 Wave sequence, slightly detuned (8mu roll widens it)
 //   CV Out 1    Pitch of the current step, 1V/oct, 0V = no offset
 //   CV Out 2    Level of the current step, crossfaded, 0-5V
-//   Pulse Out 1 Trigger on every step
+//   Pulse Out 1 Gate for each step, length from the GATE page
 //   Pulse Out 2 Trigger at the start of the sequence
 //
 // 8mu motion
@@ -82,7 +89,7 @@ public:
 	static constexpr int kSteps = 8;
 	// Page = button + 4 * layer
 	enum Page {PageWave, PageTime, PagePitch, PageLevel,
-		PageFM, PageScan, PageC2, PageD2, kPages};
+		PageFM, PageScan, PageGlide, PageGate, kPages};
 
 	WaveSeq()
 	{
@@ -118,8 +125,8 @@ public:
 			params[PageLevel][i] = 127 << 5;
 			params[PageFM][i] = 127 << 5;
 			params[PageScan][i] = 127 << 5;
-			params[PageC2][i] = 0;
-			params[PageD2][i] = 0;
+			params[PageGlide][i] = 0;
+			params[PageGate][i] = 64 << 5;
 		}
 	}
 
@@ -425,9 +432,60 @@ private:
 		return ((params[PagePitch][s] * 25) >> 12) - 12;
 	}
 
+	// Glide into a step: its pitch starts 'from' (Q8 semitones) away from the
+	// step's own pitch and slides to it over len samples
+	struct Glide
+	{
+		int32_t from = 0, len = 0, pos = 0;
+		bool started = false;
+		int32_t Offset() const
+		{
+			if (!started || pos >= len || len <= 0) return 0;
+			return int32_t((int64_t(from) * (len - pos)) / len);
+		}
+	};
+	Glide glideA, glideB;
+
+	// Pitch of a slot relative to the base note, Q8 semitones, with glide
+	int32_t RelPitch(int s, const Glide &g) const
+	{
+		return (StepSemitones(s) << 8) + g.Offset();
+	}
+
+	// Length of step s in samples, at the current speed or clock
+	int32_t StepSamples(int s) const
+	{
+		if (clocked) return clockPeriod * ClocksForStep(s);
+		int32_t x = params[PageTime][s] - kSkipBelow;
+		if (x < 0) x = 0;
+		int64_t q8 = ExpScale(960 * 256, (x * 31293) / 3968);
+		return int32_t(q8 / (speed > 0 ? speed : 1));
+	}
+
+	// Start slot B gliding, from wherever slot A's pitch is now
+	void StartGlideB()
+	{
+		if (glideB.started) return;
+		glideB.started = true;
+		glideB.pos = 0;
+		glideB.from = RelPitch(cur, glideA) - (StepSemitones(nxt) << 8);
+		glideB.len = int32_t((int64_t(StepSamples(nxt)) * Q12(params[PageGlide][nxt])) >> 12);
+	}
+
+	// Start the gate on Pulse Out 1 for the step just begun
+	void StartGate()
+	{
+		int32_t g = params[PageGate][cur];
+		if (g < 32) {stepTrig = 0; return;}
+		// At the top, stay high until the next step starts: a tie
+		if (g >= 127 << 5) {stepTrig = 0x7FFFFFFF; return;}
+		int32_t len = int32_t((int64_t(StepSamples(cur)) * Q12(g)) >> 12);
+		stepTrig = len < 240 ? 240 : len;
+	}
+
 	void SetSlot(bool b, int s)
 	{
-		int32_t note = baseNote + (StepSemitones(s) << 8);
+		int32_t note = baseNote + RelPitch(s, b ? glideB : glideA);
 		if (note < 0) note = 0;
 		if (note > (127 << 8)) note = 127 << 8;
 		uint32_t inc = ExpScale(kIncNote0, (note * 4) / 3);
@@ -448,6 +506,9 @@ private:
 
 	void Advance()
 	{
+		// Start the next step's glide now if the crossfade was too short for
+		// Control to see it begin, while cur is still the outgoing step
+		StartGlideB();
 		int prev = cur;
 		cur = nxt;
 		dir = nxtDir;
@@ -459,6 +520,8 @@ private:
 		waveA = waveB; levelA = levelB; mipA = mipB;
 		fmA = fmB; scanA = scanB;
 		phB = phA; ph2B = ph2A;
+		glideA = glideB;
+		glideB = Glide();
 
 		if (clocked) elapsed = 0;
 		else
@@ -473,7 +536,7 @@ private:
 		SetSlot(true, nxt);
 		UpdateTiming();
 
-		if (cur != prev || nxt != cur) stepTrig = 480;
+		StartGate();
 		if (cur == FirstActive() && cur != prev) seqTrig = 480;
 	}
 
@@ -485,11 +548,13 @@ private:
 		clockCount = 0;
 		phA = phB = ph2A = ph2B = 0;
 		swallowClock = true;
+		glideA = Glide();
+		glideB = Glide();
 		NextStep(cur, dir, nxt, nxtDir);
 		SetSlot(false, cur);
 		SetSlot(true, nxt);
 		UpdateTiming();
-		stepTrig = 480;
+		StartGate();
 		seqTrig = 480;
 	}
 
@@ -558,7 +623,13 @@ private:
 		SetSlot(true, nxt);
 		UpdateTiming();
 
-		CVOut1MIDINote(uint8_t(60 + StepSemitones(cur)));
+		// Glides advance at control rate; slot B's starts with the crossfade
+		if (glideA.started) glideA.pos += 32;
+		if (glideB.started) glideB.pos += 32;
+		else if (lastMix > 0) StartGlideB();
+
+		// Current step's pitch, gliding, as 1V/oct (1000/12 mV per semitone)
+		CVOut1Millivolts((RelPitch(cur, glideA) * 1000) / (12 * 256));
 
 		// Snapshot for the web editor
 		stCur = uint8_t(cur);

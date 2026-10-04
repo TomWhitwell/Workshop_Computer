@@ -3,7 +3,7 @@ Name: Wave Sequencer
 short-description: "Wavestation-style wave sequencing - eight steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
 Language: C++ (ComputerCard)
 Creator: Martyn Quickenden
-Version: "0.4.0"
+Version: "0.5.0"
 Status: Beta
 License: MIT
 Editor: web
@@ -17,7 +17,7 @@ date-updated: 2026-10-04
 
 uf2:
   - path: UF2/waveseq.uf2
-    name: Wave Sequencer 0.4.0
+    name: Wave Sequencer 0.5.0
 
 tags:
   - synth
@@ -41,8 +41,10 @@ summary: |
   eight steps, and its four buttons choose what the faders edit: A is WAVE,
   B is TIME, C is PITCH and D is LEVEL. Pressing a button again flips to its
   second page: A gives per-step FM amount and B per-step wave scan amount,
-  each multiplying the panel's amount and crossfading between steps (C and
-  D's second pages are not assigned yet). After a page change each fader picks
+  each multiplying the panel's amount and crossfading between steps; C gives
+  per-step glide, sliding into the step's pitch from the last; and D gives a
+  per-step gate length on Pulse Out 1, from off through to a tie. After a
+  page change each fader picks
   up its step only once it reaches the stored value, so changing page never
   makes the sound jump. The 8mu's LEDs show the stored values, with the
   playing step lit fully. Tilting the 8mu forward and back scans every
@@ -93,15 +95,18 @@ panel:
     - id: CVOut1
       name: Step pitch
       type: cv
-      description: The current step's PITCH as 1V/oct, 0V for no offset.
+      description: The current step's PITCH as 1V/oct, 0V for no offset, gliding with the GLIDE page.
     - id: CVOut2
       name: Level
       type: cv
       description: The current step's LEVEL, following the crossfade, 0-5V.
     - id: PulseOut1
-      name: Step
+      name: Gate
       type: pulse
-      description: Trigger on every step.
+      description: >
+        A gate for each step, its length set per step on the GATE page (D,
+        second page): off, a fraction of the step (at least 5ms), or tied
+        into the next step. Default half the step.
     - id: PulseOut2
       name: Start
       type: pulse
@@ -160,8 +165,8 @@ controls:
         - id: LED3
           name: Page D / step
         - id: LED4
-          name: Step
-          description: Flashes on every step.
+          name: Gate
+          description: Follows Pulse Out 1, the per-step gate.
         - id: LED5
           name: 8mu / editor
           description: Lit while an 8mu, or the web editor, is connected. Blinks fast while the X or Y knob is waiting to pick up its setting.

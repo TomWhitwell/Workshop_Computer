@@ -32,13 +32,24 @@ always starts on that button's first page.
 |--------|------------|------------|-------------|------------|
 | A | WAVE  | Wave position, scanning through the 64-wave bank | FM   | Per-step FM amount, default 100% |
 | B | TIME  | Step duration, 20 ms to 4 s. Fully down skips the step. In clocked mode, 1-8 clocks | SCAN | Per-step wave scan amount, default 100% |
-| C | PITCH | -12 to +12 semitones, centre is no offset | -    | Not assigned yet |
-| D | LEVEL | Step loudness | -    | Not assigned yet |
+| C | PITCH | -12 to +12 semitones, centre is no offset | GLIDE | Per-step glide time, default 0 (jump) |
+| D | LEVEL | Step loudness | GATE | Per-step gate length on Pulse Out 1, default half the step |
 
 **Per-step FM and SCAN** multiply the panel's FM amount (X, switch middle) and
 wave scan amount (Y, switch middle) for each step. They crossfade from step to
 step along with the wave, pitch and level, so a long crossfade glides between
 them. A step at 0% gets no FM (or scan) at all, whatever the knob says.
+
+**GLIDE.** Fully down, a step jumps straight to its pitch. Above that, its
+pitch slides from wherever the previous step's pitch was, starting as the step
+begins to be heard (the start of the crossfade into it), and taking up to the
+whole length of the step at the top. CV Out 1 glides with it.
+
+**GATE.** Sets how long Pulse Out 1 stays high for each step, as a fraction of
+the step (never shorter than 5 ms, so short settings make triggers). Fully
+down gives no pulse at all for that step, so the page doubles as a rhythm
+pattern. At the top the gate stays high into the next step, a tie. The
+default is half the step.
 
 **Pickup.** After a page change the faders don't do anything until they reach
 the value already stored for their step (or pass it), then take it over. So
@@ -132,9 +143,9 @@ three for random. The web editor can set it too.
 | Pulse In 2  | Restart from the first step                                |
 | Audio Out 1 | Wave sequence                                              |
 | Audio Out 2 | Wave sequence, detuned                                     |
-| CV Out 1    | Current step's pitch offset, 1V/oct                        |
+| CV Out 1    | Current step's pitch offset, 1V/oct, including glide        |
 | CV Out 2    | Current step's level, crossfaded, 0-5V                     |
-| Pulse Out 1 | Trigger on every step                                      |
+| Pulse Out 1 | Gate for each step, length set on the GATE page (D, second page) |
 | Pulse Out 2 | Trigger at the start of the sequence                       |
 
 ## The waves
