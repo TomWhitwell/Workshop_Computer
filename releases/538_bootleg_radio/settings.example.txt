@@ -1,0 +1,38 @@
+# Bootleg Radio (538) - example settings.txt
+#
+# Copy this file to the ROOT of your USB stick and rename it to "settings.txt".
+# It is read once each time the stick is mounted, after the filesystem mounts.
+# Every line is optional; delete or comment out anything you do not want to
+# change, and the card keeps its default. Lines starting with # or ; are
+# comments. Keys are case-insensitive. The values below are all the defaults, so
+# this file as-is changes nothing.
+
+# Power-on "tune" mode: loop | sync
+#   loop  a new station starts at its loop start point
+#   sync  a new station keeps the proportional position (synchronised jump)
+mode = sync
+
+# Bank to start on, 0-31 (0 = the root directory; 1.. = subfolders in order)
+bank = 0
+
+# Internal clock tempo in BPM, 30-240 (used when Pulse in 1 is unpatched)
+clockBpm = 120
+
+# Clock pulses per triangle cycle on CV out 2, 1-256
+#   40 = one cycle every 20 seconds at 120 BPM
+triPulses = 40
+
+# Pulse out 1: gate | tick | clock | off
+#   gate   high while the loop plays, low during the wrap/seek gap
+#   tick   a short pulse at each loop wrap
+#   clock  the active clock pulse
+#   off    always low
+pulse1 = gate
+
+# Pulse out 2: gate | tick | clock | off
+pulse2 = tick
+
+# LED display: verbose | quiet
+#   verbose  level, playing, station-change, mounted, underrun/fault
+#   quiet    level, playing and mounted only (LEDs 3 and 5 stay dark)
+led = verbose
