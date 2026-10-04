@@ -10,6 +10,9 @@ Editor: web
 date-created: 2026-10-02
 date-updated: 2026-10-04
 
+contact:
+  email: XponentOneAudio@gmail.com
+
 # Vendors, unmodified and under their own MIT terms:
 #   ComputerCard.h, EightMU.h (which carries the rppicomidi usb_midi_host
 #   driver, (c) 2023 rppicomidi)
