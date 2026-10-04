@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wave Sequencer editor</title>
+<!--
+  WAVE SEQUENCER - web editor for the Music Thing Modular Workshop Computer card.
+  One static file, no network needed. Talks to the card over WebMIDI + SysEx
+  (protocol: ../sysex.h). The card works without this page; the page adds a
+  picture of the sequence, presets, and a way to use an 8mu plugged into this
+  computer rather than into the card.
+
+  The fader units (0-127, as an 8mu sends them) and every conversion below
+  (wave position, step time, pitch, level) mirror ../main.cpp, and the wave
+  shapes are ../wavetables.h's definitions, before band-limiting.
+-->
+<style>
+  :root {
+    --bg: #f4f2ee; --panel: #ffffff; --ink: #1c1b19; --muted: #6a675f; --line: #d9d5cc;
+    --wave-bg: #fbfaf7; --grid: #e6e2d8;
+    --accent: #0b7d78; --accent-soft: #cfe9e6; --warm: #b5560a; --warm-soft: #f6dcc6;
+    --ok: #2b7a2b; --bad: #b3261e; --track: #e3dfd5; --shadow: 0 1px 2px rgba(0,0,0,.08);
+    --s0: #0b7d78; --s1: #3a6fb0; --s2: #7a55b0; --s3: #b0457a;
+    --s4: #b5560a; --s5: #8a7a12; --s6: #3f8a3a; --s7: #5a6470;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141514; --panel: #1e201f; --ink: #ecebe6; --muted: #9a978d; --line: #34362f;
+      --wave-bg: #171918; --grid: #2a2d29;
+      --accent: #4fd1c5; --accent-soft: #1d3d3a; --warm: #f0a35e; --warm-soft: #4a3320;
+      --ok: #7ed37e; --bad: #ff8a80; --track: #33352f; --shadow: none;
+      --s0: #4fd1c5; --s1: #7aa8f0; --s2: #b49af0; --s3: #f08ab8;
+      --s4: #f0a35e; --s5: #d8c85a; --s6: #84d07c; --s7: #a8b2bc;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .02em; }
+  h2 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .status { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warm); } .dot.bad { background: var(--bad); }
+  .spacer { flex: 1; }
+  button {
+    font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+  #msg { padding: 6px 16px; min-height: 1.4em; color: var(--muted); }
+  #msg.err { color: var(--bad); }
+  main { display: grid; gap: 16px; padding: 0 16px 24px; grid-template-columns: minmax(0, 1fr) 340px; }
+  @media (max-width: 960px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: var(--shadow); min-width: 0; }
+  canvas { display: block; width: 100%; border-radius: 6px; background: var(--wave-bg); }
+  #timeline { height: 190px; cursor: pointer; }
+  #scope { height: 170px; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .row > * { flex: 1 1 260px; min-width: 0; }
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 10px; }
+  .readout { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  .readout .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .readout .v { font-size: 16px; font-variant-numeric: tabular-nums; }
+  .caption { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .dirs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+  .dirs .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-right: 4px; }
+  .dir.on { background: var(--accent-soft); border-color: var(--accent); }
+  #knob-line { flex: 1 1 200px; }
+
+  /* Fader banks */
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tab { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer; background: var(--panel); }
+  .tab b { display: inline-block; width: 1.4em; text-align: center; margin-right: 4px; border-radius: 4px; background: var(--track); }
+  .tab.on { border-color: var(--accent); background: var(--accent-soft); }
+  .tab.on b { background: var(--accent); color: var(--panel); }
+  .tab.second { margin-right: 8px; font-size: 13px; }
+  .tab.second b { width: auto; padding: 0 3px; }
+  .faders { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+  .fader { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; border-radius: 6px; padding: 4px 0; }
+  .fader.cur { background: var(--accent-soft); }
+  .fader.sel { outline: 2px solid var(--warm); outline-offset: -2px; }
+  .fader .name { font-size: 12px; color: var(--muted); }
+  .fader .slot { position: relative; height: 150px; width: 32px; }
+  .fader input[type=range] {
+    writing-mode: vertical-lr; direction: rtl; width: 32px; height: 150px; margin: 0;
+    accent-color: var(--accent); cursor: pointer;
+  }
+  .fader .ghost {
+    position: absolute; left: 2px; right: 2px; height: 0; border-top: 2px dashed var(--warm);
+    pointer-events: none; display: none;
+  }
+  .fader .val { font-variant-numeric: tabular-nums; font-size: 13px; }
+  .fader .desc { font-size: 11px; color: var(--muted); text-align: center; min-height: 2.6em; overflow-wrap: anywhere; }
+
+  /* Wave bank */
+  .bank { display: grid; grid-template-columns: 92px repeat(8, minmax(0, 1fr)); gap: 3px; align-items: center; }
+  .bank .fam { font-size: 11px; color: var(--muted); }
+  .bank canvas { height: 30px; cursor: pointer; border: 1px solid transparent; border-radius: 4px; }
+  .bank canvas:hover { border-color: var(--accent); }
+  .bank canvas.used { border-color: var(--warm); }
+
+  /* Presets */
+  #presets { list-style: none; padding: 0; margin: 0; max-height: 420px; overflow: auto; }
+  #presets li { display: flex; align-items: center; gap: 8px; padding: 4px; border-radius: 6px; }
+  #presets li:hover { background: var(--accent-soft); }
+  #presets li canvas { width: 96px; height: 28px; flex: none; }
+  #presets li .pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  #presets li .tag { font-size: 11px; color: var(--muted); }
+  #presets li button { padding: 2px 6px; font-size: 12px; }
+  .preset-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  details { margin-top: 16px; }
+  details summary { cursor: pointer; color: var(--muted); }
+  kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Wave Sequencer</h1>
+  <div class="status"><span id="dot" class="dot"></span><span id="status-text">Not connected</span></div>
+  <div class="spacer"></div>
+  <button id="btn-connect" class="primary">Connect card &amp; 8mu</button>
+  <button id="btn-rescan" hidden>Rescan</button>
+  <button id="btn-read" disabled>Read from card</button>
+  <button id="btn-send" disabled>Send to card</button>
+  <button id="btn-restart">Restart</button>
+  <button id="btn-reset">Reset</button>
+</header>
+<div id="msg"></div>
+
+<main>
+  <div style="display:grid; gap:16px; min-width:0">
+    <section class="card">
+      <h2>Sequence</h2>
+      <canvas id="timeline" aria-label="The eight steps as a timeline: width is duration, height is level"></canvas>
+      <div class="caption" id="timeline-caption"></div>
+      <div class="readouts">
+        <div class="readout"><div class="k">Step</div><div class="v" id="ro-step">-</div></div>
+        <div class="readout"><div class="k">Pitch</div><div class="v" id="ro-pitch">-</div></div>
+        <div class="readout"><div class="k">Speed</div><div class="v" id="ro-speed">-</div></div>
+        <div class="readout"><div class="k">Crossfade</div><div class="v" id="ro-xfade">-</div></div>
+        <div class="readout"><div class="k">Timing</div><div class="v" id="ro-clock">-</div></div>
+        <div class="readout"><div class="k">FM amount</div><div class="v" id="ro-fm">-</div></div>
+        <div class="readout"><div class="k">Scan amount</div><div class="v" id="ro-scan">-</div></div>
+      </div>
+      <div class="dirs" role="group" aria-label="Direction">
+        <span class="k">Direction</span>
+        <button class="dir" data-dir="0">Forward</button>
+        <button class="dir" data-dir="1">Ping-pong</button>
+        <button class="dir" data-dir="2">Random</button>
+        <span class="caption" id="knob-line" style="margin:0"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <div>
+          <h2>Now playing</h2>
+          <canvas id="scope" aria-label="The wave playing now"></canvas>
+          <div class="caption" id="scope-caption"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="tabs" id="tabs"></div>
+      <div class="faders" id="faders"></div>
+      <div class="caption" id="page-hint"></div>
+    </section>
+
+    <section class="card">
+      <h2>Wave bank</h2>
+      <div class="bank" id="bank"></div>
+      <div class="caption">Click a wave to give it to the selected step (orange). Click a step on the timeline, or a fader, to select it. Steps can also sit between two waves, which morphs them.</div>
+    </section>
+  </div>
+
+  <aside style="display:grid; gap:16px; align-content:start; min-width:0">
+    <section class="card">
+      <h2>Presets</h2>
+      <ul id="presets"></ul>
+      <div class="preset-actions">
+        <button id="btn-save">Save current…</button>
+        <button id="btn-export">Export</button>
+        <button id="btn-import">Import</button>
+        <input type="file" id="import-file" accept=".json,application/json" hidden>
+      </div>
+      <div class="caption">Presets live in this browser. Loading one sends it to the card if one is connected. The card itself keeps nothing over power-off.</div>
+    </section>
+
+    <section class="card">
+      <h2>How it connects</h2>
+      <div class="caption" style="margin-top:0">
+        The card picks its USB mode at power-up. <b>8mu plugged into the card</b>: the card reads it directly and this page isn't used.
+        <b>Computer plugged into the card</b>: the card appears as a MIDI device called <b>Wave Sequencer</b>, and an 8mu plugged
+        into this computer is passed on by this page. After plugging a computer in, <b>power-cycle the module</b>.
+      </div>
+      <details>
+        <summary>Help</summary>
+        <ul class="caption">
+          <li>Use Chrome, Edge or another Chromium browser. Safari and iOS browsers can't do WebMIDI with SysEx.</li>
+          <li>Press <kbd>Connect card &amp; 8mu</kbd> and allow MIDI with SysEx when the browser asks.</li>
+          <li>8mu buttons A-D (or the tabs) choose the page. Faders pick up: one does nothing until it reaches the stored value
+            (the dashed line shows where the 8mu's fader is while it waits).</li>
+          <li>On-screen faders: drag, or focus one and use the arrow keys. Double-click resets one.</li>
+          <li>Direction: tap the module’s switch down to step forward, ping-pong, random, or use the buttons here.</li>
+          <li>The module’s X and Y knobs: switch up = speed and crossfade, middle = FM and wave scan amounts.</li>
+          <li>Tilting an 8mu plugged into this computer scans the waves and detunes Audio Out 2, as it would on the card.</li>
+          <li>Without a card the page still edits, previews and keeps presets; the playhead is then simulated at 1x speed.</li>
+        </ul>
+      </details>
+    </section>
+  </aside>
+</main>
+
+<script>
+'use strict';
+
+// ============================================================================
+// Constants mirroring the firmware (main.cpp, sysex.h, wavetables.h)
+// ============================================================================
+const NS = 8;                                   // steps
+const PAGES = 8;                                // button + 4 * layer
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x57, PROTOCOL_VERSION = 3;
+const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9, RESTART: 10, DIRECTION: 11 };
+const DIRECTIONS = ['Forward', 'Ping-pong', 'Random'];
+const FIRST_FADER_CC = 34, FIRST_MOTION_CC = 42;
+const BUTTON_NOTES = [36, 48, 60, 72];
+const EIGHTMU_BLINK_OFF = [0xF0, 0x7D, 0x00, 0x00, 0x30, 0xF7];
+
+const PAGE_INFO = [
+  { name: 'Wave',  letter: 'A', hint: 'Which wave each step plays: a position in the 64-wave bank, morphing between neighbours.' },
+  { name: 'Time',  letter: 'B', hint: 'How long each step lasts, 20 ms to 4 s (scaled by the speed setting: X with the switch up). Fully down skips the step. With a clock on Pulse In 1, 1-8 clocks.' },
+  { name: 'Pitch', letter: 'C', hint: 'Each step’s pitch, -12 to +12 semitones. The middle is no change.' },
+  { name: 'Level', letter: 'D', hint: 'How loud each step is.' },
+  { name: 'FM',    letter: 'A2', hint: 'Per-step FM amount: multiplies the FM amount knob (X, switch middle) for each step, crossfading between steps. Default 100%.' },
+  { name: 'Scan',  letter: 'B2', hint: 'Per-step wave scan amount: multiplies the scan amount knob (Y, switch middle) for each step, crossfading between steps. Default 100%.' },
+  { name: 'Glide', letter: 'C2', hint: 'Per-step glide: at 0 the step jumps to its pitch; above, its pitch slides from the previous step\u2019s, starting as the crossfade into it begins, over up to the whole step.' },
+  { name: 'Gate',  letter: 'D2', hint: 'Per-step gate on Pulse Out 1, as a fraction of the step (at least 5 ms). Fully down: no pulse for this step. At the top it ties into the next step. Default: half.' },
+];
+const FAMILIES = ['Sine to saw', 'Saw to square', 'Pulse width', 'Hard sync', 'FM', 'Vowels', 'Wavefold', 'Digital'];
+const DEFAULT_VALUES = [
+  [6, 22, 34, 50, 67, 81, 95, 116],
+  [64, 64, 64, 64, 64, 64, 64, 64],
+  [64, 64, 64, 64, 64, 64, 64, 64],
+  [127, 127, 127, 127, 127, 127, 127, 127],
+  [127, 127, 127, 127, 127, 127, 127, 127],
+  [127, 127, 127, 127, 127, 127, 127, 127],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [64, 64, 64, 64, 64, 64, 64, 64],
+];
+const TAB_ORDER = [0, 4, 1, 5, 2, 6, 3, 7];
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// Firmware conversions, from 0-127 fader units
+const raw = (v) => v << 5;                                        // stored value, 0-4064
+const wavePos = (v) => raw(v) * (63 * 256) / 4064 / 256;          // 0-63
+const isActive = (tv) => raw(tv) >= 128;
+const stepMs = (tv) => 20 * Math.pow(2, Math.floor((Math.max(0, raw(tv) - 128) * 31293) / 3968) / 4096);
+const stepClocks = (tv) => Math.min(8, Math.max(1, 1 + Math.floor((raw(tv) - 128) * 8 / 3968)));
+const semis = (pv) => Math.floor(raw(pv) * 25 / 4096) - 12;
+const level = (lv) => Math.floor(raw(lv) * raw(lv) / 4096) / 4096;
+
+// ============================================================================
+// The wave bank: wavetables.h's definitions, in JavaScript
+// ============================================================================
+const TABLE = 256;
+const VOWELS = [[7, 11], [6, 16], [3, 21], [5, 9], [3, 7], [4, 13], [8, 12], [2.5, 24]];
+function defineWave(w) {
+  const fam = w >> 3, j = w & 7, t = j / 7, out = new Float32Array(TABLE);
+  const TAU = Math.PI * 2;
+  let amp = [], phs = [];
+  if (fam === 5) {
+    for (let h = 1; h <= 40; h++) {
+      const d1 = (h - VOWELS[j][0]) / 1.5, d2 = (h - VOWELS[j][1]) / 2.5;
+      amp[h] = Math.exp(-d1 * d1) + 0.6 * Math.exp(-d2 * d2) + 0.3 / h;
+    }
+  }
+  if (fam === 7 && j >= 4) {
+    let rng = (777 + j * 101) >>> 0;
+    const rand = () => { rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0; return (rng >>> 8) / 16777216; };
+    for (let h = 1; h <= 24; h++) { const r = rand(); amp[h] = r * r / Math.sqrt(h); phs[h] = rand(); }
+  }
+  for (let n = 0; n < TABLE; n++) {
+    const x = n / TABLE; let v = 0;
+    switch (fam) {
+      case 0: { const N = [1, 2, 3, 4, 6, 10, 20, 64][j]; for (let h = 1; h <= N; h++) v += Math.sin(TAU * h * x) / h; break; }
+      case 1: v = (1 - t) * (1 - 2 * x) + t * (x < 0.5 ? 1 : -1); break;
+      case 2: v = x < (0.5 - 0.46 * t) ? 1 : -1; break;
+      case 3: { const y = x * (1 + 0.5 * j); v = 1 - 2 * (y - Math.floor(y)); break; }
+      case 4: { const idx = [0, 1, 2, 3.5, 1, 2, 3, 5][j]; v = Math.sin(TAU * x + idx * Math.sin(TAU * (j < 4 ? 1 : 3) * x)); break; }
+      case 5: for (let h = 1; h <= 40; h++) v += amp[h] * Math.sin(TAU * h * x); break;
+      case 6: { let y = ((1 + 5 * t) * Math.sin(TAU * x) + 1) * 0.25; y -= Math.floor(y); v = 1 - 4 * Math.abs(y - 0.5); break; }
+      default:
+        if (j < 4) { const q = [8, 4, 2, 1][j]; v = Math.round(Math.sin(TAU * x) * q) / q; }
+        else for (let h = 1; h <= 24; h++) v += amp[h] * Math.sin(TAU * (h * x + phs[h]));
+    }
+    out[n] = v;
+  }
+  // The card drops DC and normalises each wave to the same peak
+  let mean = 0; for (const v of out) mean += v; mean /= TABLE;
+  let peak = 1e-6; for (let n = 0; n < TABLE; n++) { out[n] -= mean; peak = Math.max(peak, Math.abs(out[n])); }
+  for (let n = 0; n < TABLE; n++) out[n] /= peak;
+  return out;
+}
+const WAVES = Array.from({ length: 64 }, (_, w) => defineWave(w));
+function waveAt(pos, x) {                       // pos 0-63 (fractional), x 0-1
+  pos = Math.max(0, Math.min(63, pos));
+  const wi = Math.floor(pos), wf = pos - wi, a = WAVES[wi], b = WAVES[Math.min(63, wi + 1)];
+  const i = Math.floor(x * TABLE) % TABLE;
+  return a[i] + (b[i] - a[i]) * wf;
+}
+
+// ============================================================================
+// State
+// ============================================================================
+const state = {
+  values: DEFAULT_VALUES.map(r => r.slice()),
+  page: 0,
+  sel: 0,                                       // selected step, for the wave bank
+  // live, from the card's STATUS (or simulated when there's no card)
+  live: { cur: 0, next: 1, mix: 0, progress: 0, direction: 0, clocked: false, muOnCard: false,
+          switchUp: false, knobWaiting: false, fm: 0, scan: 0,
+          note: 48, speed: 1, xfade: 32 / 127 },
+};
+const link = { access: null, card: { in: null, out: null }, muIns: [], muOuts: [], cardOnline: false,
+               sysexBuf: [], sysexOn: false, lastStatus: 0, pingTimer: 0 };
+// 8mu pickup, mirroring WaveSeq::HandleEightMU in the firmware
+const mu = { phys: new Array(NS).fill(-1), engaged: new Array(NS).fill(false), cc: new Array(16).fill(0),
+             ledSent: new Array(NS).fill(-1), lastBlinkOff: 0, ledTimer: 0, motionTimer: 0 };
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+function say(text, isErr) { const m = $('msg'); m.textContent = text || ''; m.className = isErr ? 'err' : ''; }
+function setStatus(kind, text) { $('dot').className = 'dot ' + kind; $('status-text').textContent = text; }
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const stepColor = (i) => cssVar('--s' + i);
+
+// ============================================================================
+// Describing values
+// ============================================================================
+function fmtMs(ms) { return ms >= 1000 ? (ms / 1000).toFixed(2) + ' s' : Math.round(ms) + ' ms'; }
+function describe(page, v) {
+  switch (page) {
+    case 0: { const p = wavePos(v); return p.toFixed(1) + ' ' + FAMILIES[Math.min(7, Math.floor(Math.round(p) / 8))]; }
+    case 1: return !isActive(v) ? 'skip' : state.live.clocked ? stepClocks(v) + ' clk' : fmtMs(stepMs(v));
+    case 2: { const s = semis(v); return (s > 0 ? '+' : '') + s + ' st'; }
+    case 3: { const l = level(v); return l <= 0 ? 'off' : Math.round(20 * Math.log10(l)) + ' dB'; }
+    case 4: case 5: return Math.round(v >= 127 ? 100 : v * 100 / 127) + '%';
+    case 6: return v === 0 ? 'jump' : 'glide ' + Math.round(v * 100 / 127) + '%';
+    default: return v < 1 ? 'off' : v >= 127 ? 'tie' : 'gate ' + Math.round(v * 100 / 127) + '%';
+  }
+}
+function noteName(n) {
+  const r = Math.round(n), c = Math.round((n - r) * 100);
+  return NOTE_NAMES[((r % 12) + 12) % 12] + (Math.floor(r / 12) - 1) + (c ? (c > 0 ? ' +' : ' ') + c + 'c' : '');
+}
+
+// ============================================================================
+// Drawing
+// ============================================================================
+function setupCanvas(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w: r.width, h: r.height };
+}
+
+// Step widths on the timeline: proportional to duration (or clocks)
+function layout(values, W) {
+  const SKIP_W = 16;
+  const dur = values[1].map(tv => !isActive(tv) ? 0 : state.live.clocked ? stepClocks(tv) : stepMs(tv));
+  const total = dur.reduce((a, b) => a + b, 0);
+  const nSkip = dur.filter(d => d === 0).length;
+  const avail = Math.max(10, W - nSkip * SKIP_W);
+  let x = 0; const boxes = [];
+  for (let i = 0; i < NS; i++) {
+    const w = dur[i] === 0 ? SKIP_W : (total > 0 ? avail * dur[i] / total : avail / NS);
+    boxes.push({ x, w, active: dur[i] > 0, dur: dur[i] }); x += w;
+  }
+  return { boxes, total };
+}
+
+function drawTimeline() {
+  const { ctx, w: W, h: H } = setupCanvas($('timeline'));
+  ctx.clearRect(0, 0, W, H);
+  const v = state.values, L = state.live;
+  const { boxes, total } = layout(v, W);
+  const top = 18, bot = H - 18, mid = (top + bot) / 2, half = (bot - top) / 2;
+
+  ctx.strokeStyle = cssVar('--grid'); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
+
+  for (let i = 0; i < NS; i++) {
+    const b = boxes[i], col = stepColor(i);
+    if (!b.active) {
+      ctx.save(); ctx.strokeStyle = cssVar('--line'); ctx.beginPath();
+      for (let y = top - 16; y < bot; y += 6) { ctx.moveTo(b.x + 2, y + 16); ctx.lineTo(b.x + b.w - 2, y + 4); }
+      ctx.stroke(); ctx.restore();
+      ctx.fillStyle = cssVar('--muted'); ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(String(i + 1), b.x + b.w / 2, top - 5);
+      continue;
+    }
+    const lv = level(v[3][i]), pos = wavePos(v[0][i]);
+    // block
+    ctx.fillStyle = col; ctx.globalAlpha = 0.10; ctx.fillRect(b.x + 1, top, b.w - 2, bot - top); ctx.globalAlpha = 1;
+    // crossfade ramp into the next step
+    const xf = Math.min(b.w, Math.max(2, b.w * L.xfade));
+    const g = ctx.createLinearGradient(b.x + b.w - xf, 0, b.x + b.w, 0);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, stepColor(i === L.cur ? L.next : nextActive(i)));
+    ctx.globalAlpha = 0.22; ctx.fillStyle = g; ctx.fillRect(b.x + b.w - xf, top, xf, bot - top); ctx.globalAlpha = 1;
+    // wave, a few cycles, scaled by level
+    const cycles = Math.max(1, Math.min(6, Math.round(b.w / 40)));
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath();
+    for (let px = 0; px <= b.w - 4; px++) {
+      const x = (px / (b.w - 4)) * cycles % 1;
+      const y = mid - waveAt(pos, x) * half * 0.9 * lv;
+      if (px === 0) ctx.moveTo(b.x + 2 + px, y); else ctx.lineTo(b.x + 2 + px, y);
+    }
+    ctx.stroke();
+    // labels
+    ctx.fillStyle = cssVar('--ink'); ctx.font = '600 11px system-ui'; ctx.textAlign = 'left';
+    const s = semis(v[2][i]);
+    if (b.w > 18) ctx.fillText(String(i + 1), b.x + 4, top - 5);
+    ctx.fillStyle = cssVar('--muted'); ctx.font = '11px system-ui';
+    if (b.w > 44) ctx.fillText((s > 0 ? '+' : '') + s + ' st', b.x + 18, top - 5);
+    if (b.w > 50) ctx.fillText(describe(1, v[1][i]), b.x + 4, H - 4);
+    // gate on Pulse Out 1, along the bottom edge
+    const gv = v[7][i];
+    if (gv > 0) {
+      const gw = gv >= 127 ? b.w : Math.max(3, b.w * gv / 127);
+      ctx.fillStyle = col; ctx.globalAlpha = 0.6; ctx.fillRect(b.x + 1, bot - 4, gw - (gv >= 127 ? 0 : 1), 4); ctx.globalAlpha = 1;
+    }
+    // glide: a ramp in the top-left corner
+    if (v[6][i] > 0 && b.w > 24) {
+      const gx = Math.min(b.w - 4, b.w * v[6][i] / 127);
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath();
+      ctx.moveTo(b.x + 2, top + 10); ctx.lineTo(b.x + 2 + gx, top + 2); ctx.stroke();
+    }
+    // selection and current step
+    if (i === state.sel) { ctx.strokeStyle = cssVar('--warm'); ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(b.x + 1, top, b.w - 2, bot - top); ctx.setLineDash([]); }
+    if (i === L.cur) { ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2; ctx.strokeRect(b.x + 1, top, b.w - 2, bot - top); }
+  }
+  // playhead
+  const cb = boxes[L.cur];
+  if (cb && cb.active) {
+    const x = cb.x + cb.w * L.progress;
+    ctx.strokeStyle = cssVar('--ink'); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, top - 2); ctx.lineTo(x, bot + 2); ctx.stroke();
+  }
+  const loop = state.live.clocked ? total + ' clocks' : fmtMs(total / (L.speed || 1)) + ' at ' + L.speed.toFixed(2) + 'x';
+  $('timeline-caption').textContent = total > 0
+    ? 'One pass: ' + loop + (L.direction === 1 ? ' (ping-pong plays the middle steps twice)' : L.direction === 2 ? ' on average (random order)' : '') + '. Width is time, height is level; the shaded end of each step is its crossfade, the bar along the bottom its gate, and a ramp at the top its glide.'
+    : 'Every step is skipped: the card holds the current step.';
+}
+
+function nextActive(i) {
+  for (let k = 1; k <= NS; k++) { const j = (i + k) % NS; if (isActive(state.values[1][j])) return j; }
+  return i;
+}
+
+function drawScope() {
+  const { ctx, w: W, h: H } = setupCanvas($('scope'));
+  ctx.clearRect(0, 0, W, H);
+  const v = state.values, L = state.live, mid = H / 2, half = H / 2 - 8;
+  ctx.strokeStyle = cssVar('--grid'); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
+  const a = L.cur, b = L.next, mix = L.mix;
+  const pa = wavePos(v[0][a]), pb = wavePos(v[0][b]), la = level(v[3][a]), lb = level(v[3][b]);
+  const trace = (fn, col, width, alpha) => {
+    ctx.strokeStyle = col; ctx.lineWidth = width; ctx.globalAlpha = alpha; ctx.beginPath();
+    for (let px = 0; px <= W; px++) { const x = (px / W * 2) % 1, y = mid - fn(x) * half;
+      if (px === 0) ctx.moveTo(px, y); else ctx.lineTo(px, y); }
+    ctx.stroke(); ctx.globalAlpha = 1;
+  };
+  if (mix > 0.01 && b !== a) trace(x => waveAt(pb, x) * lb, stepColor(b), 1, 0.35);
+  trace(x => waveAt(pa, x) * la * (1 - mix) + waveAt(pb, x) * lb * mix, cssVar('--ink'), 2, 1);
+  $('scope-caption').textContent = 'Step ' + (a + 1) + (b !== a ? ' → ' + (b + 1) + ', ' + Math.round(mix * 100) + '% faded' : '') +
+    ' · two cycles' + (link.cardOnline ? '' : ' · simulated (no card)');
+}
+
+function drawThumb(cv, fn) {
+  const { ctx, w: W, h: H } = setupCanvas(cv);
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = cssVar('--ink'); ctx.lineWidth = 1; ctx.beginPath();
+  for (let px = 0; px <= W; px++) { const y = H / 2 - fn(px / W) * (H / 2 - 2); if (px === 0) ctx.moveTo(px, y); else ctx.lineTo(px, y); }
+  ctx.stroke();
+}
+
+function drawReadouts() {
+  const L = state.live;
+  $('ro-step').textContent = (L.cur + 1) + ' → ' + (L.next + 1);
+  $('ro-pitch').textContent = link.cardOnline ? noteName(L.note) : '-';
+  $('ro-speed').textContent = L.speed.toFixed(2) + 'x';
+  $('ro-xfade').textContent = Math.round(L.xfade * 100) + '%';
+  $('ro-clock').textContent = L.clocked ? 'Clocked' : 'Free';
+  $('ro-fm').textContent = Math.round(L.fm * L.fm * 100) + '%';
+  $('ro-scan').textContent = Math.round(L.scan * 100) + '%';
+  document.querySelectorAll('.dir').forEach(b => b.classList.toggle('on', +b.dataset.dir === L.direction));
+  $('knob-line').textContent = !link.cardOnline ? 'Tap the module\u2019s switch down to step the direction.'
+    : 'Switch ' + (L.switchUp ? 'up: X = speed, Y = crossfade' : 'middle: X = FM amount, Y = scan amount') +
+      (L.knobWaiting ? '. A knob is waiting to pick up its value.' : '.');
+}
+
+// Wave bank grid
+const bankThumbs = [];
+function buildBank() {
+  const el = $('bank');
+  for (let f = 0; f < 8; f++) {
+    const lab = document.createElement('div'); lab.className = 'fam'; lab.textContent = FAMILIES[f]; el.appendChild(lab);
+    for (let j = 0; j < 8; j++) {
+      const w = f * 8 + j, cv = document.createElement('canvas');
+      cv.title = 'Wave ' + w + ' (' + FAMILIES[f] + ')';
+      cv.addEventListener('click', () => {
+        userSetValue(0, state.sel, Math.round(w * 4064 / 63 / 32));
+        say('Step ' + (state.sel + 1) + ' now plays wave ' + w + ' (' + FAMILIES[f] + ').');
+      });
+      el.appendChild(cv); bankThumbs.push(cv);
+    }
+  }
+}
+function drawBank() {
+  const used = new Set(state.values[0].map(v => Math.round(wavePos(v))));
+  const sel = Math.round(wavePos(state.values[0][state.sel]));
+  bankThumbs.forEach((cv, w) => {
+    drawThumb(cv, x => WAVES[w][Math.floor(x * TABLE) % TABLE]);
+    cv.classList.toggle('used', w === sel);
+    cv.style.background = used.has(w) ? cssVar('--accent-soft') : '';
+  });
+}
+
+// ============================================================================
+// Faders
+// ============================================================================
+const faderEls = [];
+function buildFaders() {
+  const tabs = $('tabs');
+  TAB_ORDER.forEach((i) => {
+    const p = PAGE_INFO[i];
+    const t = document.createElement('button'); t.className = 'tab' + (i >= 4 ? ' second' : ''); t.dataset.page = i;
+    t.innerHTML = '<b>' + p.letter + '</b>' + p.name;
+    t.addEventListener('click', () => selectPage(i, true)); tabs.appendChild(t);
+  });
+  const el = $('faders');
+  for (let i = 0; i < NS; i++) {
+    const f = document.createElement('div'); f.className = 'fader';
+    f.innerHTML = '<div class="name">' + (i + 1) + '</div><div class="slot"><input type="range" min="0" max="127" step="1">' +
+      '<div class="ghost"></div></div><div class="val"></div><div class="desc"></div>';
+    const input = f.querySelector('input');
+    input.setAttribute('aria-label', 'Step ' + (i + 1));
+    input.addEventListener('input', () => { selectStep(i); userSetValue(state.page, i, +input.value); });
+    input.addEventListener('focus', () => selectStep(i));
+    input.addEventListener('dblclick', () => userSetValue(state.page, i, DEFAULT_VALUES[state.page][i]));
+    el.appendChild(f);
+    faderEls.push({ root: f, input, ghost: f.querySelector('.ghost'), val: f.querySelector('.val'), desc: f.querySelector('.desc') });
+  }
+}
+function refreshFaders() {
+  [...$('tabs').children].forEach((t) => t.classList.toggle('on', +t.dataset.page === state.page));
+  $('page-hint').textContent = PAGE_INFO[state.page].hint;
+  faderEls.forEach((f, i) => {
+    const v = state.values[state.page][i];
+    if (document.activeElement !== f.input || +f.input.value !== v) f.input.value = v;
+    f.val.textContent = v; f.desc.textContent = describe(state.page, v);
+    f.root.classList.toggle('cur', i === state.live.cur);
+    f.root.classList.toggle('sel', i === state.sel);
+    const ph = mu.phys[i], waiting = link.muIns.length > 0 && ph >= 0 && !mu.engaged[i];
+    f.ghost.style.display = waiting ? 'block' : 'none';
+    if (waiting) f.ghost.style.top = ((1 - ph / 127) * 150) + 'px';
+  });
+}
+
+// ============================================================================
+// Changing values (from the screen, the 8mu, a preset or the card)
+// ============================================================================
+let pending = new Map(), flushTimer = 0;
+function queueSend(key, bytes) {
+  if (!link.cardOnline) return;
+  pending.set(key, bytes);
+  if (!flushTimer) flushTimer = setTimeout(() => { flushTimer = 0; const b = pending; pending = new Map(); for (const m of b.values()) sendRaw(m); }, 16);
+}
+function sendRaw(bytes) {
+  if (!link.card.out) return;
+  try { link.card.out.send(bytes); } catch (e) { say('Could not send to the card: ' + e.message, true); }
+}
+const sysex = (cmd, payload) => [0xF0, SYSEX_MFR, SYSEX_PRODUCT, cmd, ...payload, 0xF7];
+
+function userSetValue(page, i, v) {
+  v = clamp(v | 0, 0, 127);
+  if (state.values[page][i] === v) return;
+  state.values[page][i] = v;
+  if (page === state.page) mu.engaged[i] = false;   // a physical fader must meet it again
+  queueSend('v' + page + '.' + i, sysex(CMD.SET, [page, i, v]));
+  changed();
+}
+function selectPage(p, send) {
+  if (p === state.page) return;
+  state.page = p;
+  for (let i = 0; i < NS; i++) { const ph = mu.phys[i]; mu.engaged[i] = ph >= 0 && Math.abs(ph - state.values[p][i]) <= 1; }
+  if (send) queueSend('page', sysex(CMD.PAGE, [p]));
+  changed();
+}
+function selectStep(i) { if (state.sel !== i) { state.sel = i; changed(); } }
+
+let renderQueued = false, saveTimer = 0;
+function requestRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; refreshFaders(); drawBank(); renderPresets(); });
+}
+function changed() {
+  requestRender();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => store.set('waveseq.last.v1', state.values), 400);
+}
+
+// ---- 8mu plugged into this computer -----------------------------------------
+function eightmuFader(i, v) {
+  const last = mu.phys[i], target = state.values[state.page][i];
+  mu.phys[i] = v;
+  if (!mu.engaged[i]) {
+    const near = Math.abs(v - target) <= 1;
+    const crossed = last >= 0 && ((last < target) !== (v < target));
+    if (!near && !crossed) { requestRender(); return; }
+    mu.engaged[i] = true;
+  }
+  if (state.values[state.page][i] !== v) {
+    state.values[state.page][i] = v;
+    queueSend('v' + state.page + '.' + i, sysex(CMD.SET, [state.page, i, v]));
+    changed();
+  }
+}
+function eightmuMessage(d) {
+  if (d.length < 3 || d[0] < 0x80 || d[0] >= 0xF0) return;
+  const type = d[0] & 0xF0;
+  if (type === 0xB0) {
+    const cc = d[1];
+    if (cc >= FIRST_FADER_CC && cc < FIRST_FADER_CC + NS) eightmuFader(cc - FIRST_FADER_CC, d[2] & 0x7F);
+    else if (cc >= FIRST_MOTION_CC && cc < FIRST_MOTION_CC + 8) { mu.cc[cc - FIRST_MOTION_CC] = d[2] & 0x7F; scheduleMotion(); }
+  } else if (type === 0x90 && d[2] > 0) {
+    const p = BUTTON_NOTES.indexOf(d[1]);
+    // Same button again flips to its second page; another starts on its first
+    if (p >= 0) selectPage((state.page & 3) === p ? state.page ^ 4 : p, true);
+  }
+}
+// Tilt, as EightMU::Pitch/Roll compute it: the difference of a pair of CCs
+function scheduleMotion() {
+  if (mu.motionTimer) return;
+  mu.motionTimer = setTimeout(() => {
+    mu.motionTimer = 0;
+    const pitch = (mu.cc[0] - mu.cc[1]) * 16, roll = (mu.cc[2] - mu.cc[3]) * 16;
+    const p = clamp(pitch + 2048, 0, 4095), r = clamp(roll + 2048, 0, 4095);
+    sendRaw(sysex(CMD.MOTION, [p >> 7, p & 127, r >> 7, r & 127]));
+  }, 33);
+}
+// The 8mu's own LEDs: stored values, playing step full on (as the card does).
+// SysEx to the 8mu must travel on its own, so LED notes pause around it.
+function serviceEightmuLeds() {
+  if (!link.muOuts.length) return;
+  const now = performance.now();
+  if (now - mu.lastBlinkOff > 2000) {
+    mu.lastBlinkOff = now;
+    for (const o of link.muOuts) try { o.send(EIGHTMU_BLINK_OFF); } catch (e) {}
+    mu.ledSent.fill(-1);
+    return;
+  }
+  if (now - mu.lastBlinkOff < 60) return;
+  for (let i = 0; i < NS; i++) {
+    const v = i === state.live.cur ? 127 : (state.values[state.page][i] * 9) >> 4;
+    if (v === mu.ledSent[i]) continue;
+    mu.ledSent[i] = v;
+    for (const o of link.muOuts) try { o.send([0x90, i, v]); } catch (e) {}
+  }
+}
+
+// ============================================================================
+// WebMIDI
+// ============================================================================
+const isCardName = (n) => /wave\s*seq/i.test(n || '');
+const is8mu = (p) => [p.name, p.manufacturer, (p.manufacturer || '') + ' ' + (p.name || '')].some(s => /8mu/i.test(s || ''));
+
+async function connect() {
+  if (!navigator.requestMIDIAccess) { say('This browser has no WebMIDI. Use Chrome or Edge on a computer.', true); return; }
+  say('The browser will ask to use MIDI devices with SysEx: choose Allow.');
+  try { link.access = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { say('MIDI access was refused (' + (e && e.message || e) + '). Allow MIDI with SysEx for this page, then try again.', true); return; }
+  link.access.onstatechange = () => scanPorts();
+  $('btn-rescan').hidden = false;
+  scanPorts();
+}
+
+function scanPorts() {
+  const acc = link.access; if (!acc) return;
+  const ins = [...acc.inputs.values()].filter(p => p.state !== 'disconnected');
+  const outs = [...acc.outputs.values()].filter(p => p.state !== 'disconnected');
+  const cardIn = ins.find(p => isCardName(p.name)) || null, cardOut = outs.find(p => isCardName(p.name)) || null;
+  const muIns = ins.filter(is8mu), muOuts = outs.filter(is8mu);
+  const unrecognised = ins.filter(p => p !== cardIn && !muIns.includes(p));
+  console.log('[Wave Sequencer] MIDI inputs:', ins.map(p => ({ name: p.name, manufacturer: p.manufacturer })));
+
+  for (const p of ins) p.onmidimessage = null;
+  if (cardIn) cardIn.onmidimessage = (ev) => onCardBytes(ev.data);
+  for (const p of muIns) p.onmidimessage = (ev) => eightmuMessage(ev.data);
+  const wasOnline = link.cardOnline;
+  link.card.in = cardIn; link.card.out = cardOut; link.muIns = muIns; link.muOuts = muOuts;
+  link.cardOnline = !!(cardIn && cardOut);
+  link.sysexBuf = []; link.sysexOn = false;
+  if (!muIns.length) { mu.phys.fill(-1); }
+  mu.lastBlinkOff = 0;
+
+  $('btn-read').disabled = $('btn-send').disabled = !link.cardOnline;
+  clearInterval(link.pingTimer);
+  const note = unrecognised.length ? ' Other MIDI inputs: ' + unrecognised.map(p => '“' + (p.name || '?') + '”').join(', ') + '.' : '';
+  if (link.cardOnline) {
+    link.pingTimer = setInterval(() => sendRaw(sysex(CMD.PING, [])), 1000);
+    sendRaw(sysex(CMD.PING, []));
+    setStatus('ok', 'Connected: Wave Sequencer card' + (muIns.length ? ' + 8mu' : ''));
+    say(muIns.length ? 'The 8mu drives this page, and this page drives the card.' : 'Card connected. Drag the faders, or plug an 8mu into this computer.' + note);
+    if (!wasOnline) sendRaw(sysex(CMD.HELLO, []));       // the card is the source of truth: read it
+  } else if (muIns.length) {
+    setStatus('warn', 'Connected: 8mu only (no card)');
+    say('No “Wave Sequencer” card found, so editing here only. To reach the card, plug this computer into the Computer’s USB socket and power-cycle the module.', true);
+  } else {
+    setStatus('warn', 'No card or 8mu found');
+    say('Nothing found. Use a USB data cable, close other apps using the device, and power-cycle the module after plugging this computer in.' + note, true);
+  }
+  requestRender();
+}
+
+function onCardBytes(d) {
+  for (const b of d) {
+    if (b === 0xF0) { link.sysexOn = true; link.sysexBuf = []; continue; }
+    if (!link.sysexOn) continue;
+    if (b === 0xF7) { link.sysexOn = false; handleCardMessage(link.sysexBuf); link.sysexBuf = []; continue; }
+    if (b & 0x80) { if (b < 0xF8) link.sysexOn = false; continue; }
+    if (link.sysexBuf.length < 128) link.sysexBuf.push(b); else link.sysexOn = false;
+  }
+}
+
+function handleCardMessage(m) {
+  if (m.length < 3 || m[0] !== SYSEX_MFR || m[1] !== SYSEX_PRODUCT) return;
+  const cmd = m[2], p = m.slice(3);
+  if (cmd === CMD.STATE) {
+    if (p.length !== 2 + PAGES * NS) { say('The card sent a state message of an unexpected size: is its firmware a different version?', true); return; }
+    if (p[0] !== PROTOCOL_VERSION) { say('The card speaks protocol version ' + p[0] + ' but this page speaks ' + PROTOCOL_VERSION + '.', true); return; }
+    for (let b = 0; b < PAGES; b++) for (let i = 0; i < NS; i++) state.values[b][i] = clamp(p[2 + b * NS + i], 0, 127);
+    const pg = clamp(p[1], 0, PAGES - 1);
+    if (pg !== state.page) selectPage(pg, false);
+    for (let i = 0; i < NS; i++) mu.engaged[i] = mu.phys[i] >= 0 && Math.abs(mu.phys[i] - state.values[state.page][i]) <= 1;
+    say('Read the sequence from the card.');
+    changed();
+  } else if (cmd === CMD.STATUS && p.length >= 12) {
+    const L = state.live;
+    L.cur = p[0] & 7; L.next = p[1] & 7; L.mix = p[2] / 127; L.progress = p[3] / 127;
+    L.direction = Math.min(2, p[4] & 3); L.clocked = !!(p[4] & 4); L.muOnCard = !!(p[4] & 8);
+    L.switchUp = !!(p[4] & 16); L.knobWaiting = !!(p[4] & 32);
+    L.note = ((p[5] << 7) | p[6]) / 8;
+    L.speed = Math.pow(2, (((p[7] << 7) | p[8]) - 2048) / 256);
+    L.xfade = p[9] / 127; L.fm = p[10] / 127; L.scan = p[11] / 127;
+    link.lastStatus = performance.now();
+  }
+}
+
+function sendAll() {
+  if (!link.cardOnline) return;
+  const payload = [PROTOCOL_VERSION];
+  for (let b = 0; b < PAGES; b++) for (let i = 0; i < NS; i++) payload.push(state.values[b][i]);
+  sendRaw(sysex(CMD.SET_ALL, payload));
+}
+
+// ============================================================================
+// Simulated playhead, when there's no card (mirrors the card at 1x speed,
+// with the crossfade at a quarter, in the direction chosen on the page)
+// ============================================================================
+const sim = { cur: 0, next: 1, dir: 1, elapsed: 0, last: 0, direction: 0 };
+function simNext(cur) {                // as WaveSeq::NextStep
+  const act = (i) => isActive(state.values[1][i]);
+  if (sim.direction === 2) {
+    const c = []; for (let i = 0; i < NS; i++) if (act(i) && i !== cur) c.push(i);
+    return c.length ? c[Math.floor(Math.random() * c.length)] : cur;
+  }
+  if (sim.direction === 0) { sim.dir = 1; return nextActive(cur); }
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = cur + sim.dir; i >= 0 && i < NS; i += sim.dir) if (act(i)) return i;
+    sim.dir = -sim.dir;
+  }
+  return cur;
+}
+function simulate(now) {
+  const dt = sim.last ? Math.min(100, now - sim.last) : 0; sim.last = now;
+  const L = state.live, v = state.values;
+  L.direction = sim.direction; L.clocked = false; L.speed = 1; L.xfade = 0.25; L.fm = 0; L.scan = 0;
+  if (!v[1].some(isActive)) { L.next = L.cur = sim.cur; L.mix = 0; L.progress = 0; return; }
+  if (!isActive(v[1][sim.cur])) { sim.cur = nextActive(sim.cur); sim.next = simNext(sim.cur); }
+  if (!isActive(v[1][sim.next]) || sim.next === sim.cur) sim.next = simNext(sim.cur);
+  sim.elapsed += dt;
+  let len = stepMs(v[1][sim.cur]);
+  if (sim.elapsed >= len) {
+    sim.elapsed -= len; if (sim.elapsed > len) sim.elapsed = 0;
+    sim.cur = sim.next; sim.next = simNext(sim.cur); len = stepMs(v[1][sim.cur]);
+  }
+  const xf = Math.min(len, Math.max(1, len * L.xfade));
+  L.cur = sim.cur; L.next = sim.next;
+  L.progress = Math.min(1, sim.elapsed / len);
+  L.mix = sim.elapsed > len - xf ? Math.min(1, (sim.elapsed - (len - xf)) / xf) : 0;
+}
+
+let lastCur = -1;
+function frame(now) {
+  if (!link.cardOnline || now - link.lastStatus > 3000) simulate(now);
+  drawTimeline(); drawScope(); drawReadouts();
+  if (state.live.cur !== lastCur) { lastCur = state.live.cur; refreshFaders(); }
+  serviceEightmuLeds();
+  requestAnimationFrame(frame);
+}
+
+// ============================================================================
+// Presets (localStorage)
+// ============================================================================
+const store = {
+  get(k, d) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+};
+const BUILTIN = [
+  { name: 'Default', v: DEFAULT_VALUES },
+  { name: 'Evolving pad', v: [[0, 10, 20, 30, 40, 50, 60, 70], [100, 100, 100, 100, 100, 100, 100, 100], [64, 64, 64, 64, 64, 64, 64, 64], [127, 120, 127, 110, 127, 120, 127, 110]] },
+  { name: 'Vowel talk', v: [[81, 83, 85, 87, 89, 91, 93, 95], [70, 60, 76, 60, 70, 56, 80, 60], [64, 64, 69, 64, 64, 59, 64, 64], [127, 110, 127, 100, 127, 110, 127, 90]] },
+  { name: 'Arpeggio', v: [[20, 20, 36, 36, 20, 20, 36, 36], [40, 40, 40, 40, 40, 40, 40, 40], [64, 79, 92, 107, 92, 79, 64, 59], [127, 100, 115, 100, 127, 100, 115, 100]] },
+  { name: 'Pulse sweep', v: [[32, 34, 36, 38, 40, 42, 44, 46], [48, 48, 48, 48, 48, 48, 48, 48], [64, 64, 64, 64, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127]] },
+  { name: 'Rhythm', v: [[116, 2, 104, 2, 120, 2, 110, 60], [30, 30, 0, 30, 30, 30, 0, 30], [64, 64, 64, 64, 76, 64, 64, 52], [127, 60, 127, 60, 127, 60, 127, 90]] },
+  { name: 'FM bells', v: [[68, 70, 72, 74, 76, 78, 72, 70], [90, 30, 30, 90, 30, 30, 60, 60], [64, 88, 64, 76, 64, 88, 69, 64], [127, 90, 80, 127, 90, 80, 110, 90]] },
+].map(cleanPreset);
+let userPresets = [];
+function cleanPreset(o) {   // hoisted: BUILTIN above uses it
+  // Presets from before the second pages have 4 rows: the rest take defaults
+  if (!o || typeof o !== 'object' || !Array.isArray(o.v) || (o.v.length !== 4 && o.v.length !== PAGES)) return null;
+  const v = o.v.map(r => Array.isArray(r) && r.length === NS ? r.map(x => clamp(Math.round(+x) || 0, 0, 127)) : null);
+  if (v.some(r => !r)) return null;
+  for (let p = v.length; p < PAGES; p++) v.push(DEFAULT_VALUES[p].slice());
+  return { name: String(o.name || 'Preset').slice(0, 60), v };
+}
+function loadPresets() { userPresets = (store.get('waveseq.presets.v1', []) || []).map(cleanPreset).filter(Boolean); }
+function savePresets() { if (!store.set('waveseq.presets.v1', userPresets)) say('Could not save presets: browser storage is unavailable or full.', true); }
+function applyPreset(pr) {
+  state.values = pr.v.map(r => r.slice());
+  for (let i = 0; i < NS; i++) mu.engaged[i] = mu.phys[i] >= 0 && Math.abs(mu.phys[i] - state.values[state.page][i]) <= 1;
+  sendAll();
+  say('Loaded “' + pr.name + '”' + (link.cardOnline ? ' and sent it to the card.' : '.'));
+  changed();
+}
+function presetThumb(cv, values) {
+  // a miniature timeline: wave per step, width by time
+  const { ctx, w: W, h: H } = setupCanvas(cv);
+  ctx.clearRect(0, 0, W, H);
+  const dur = values[1].map(t => isActive(t) ? stepMs(t) : 0), total = dur.reduce((a, b) => a + b, 0) || 1;
+  let x = 0;
+  for (let i = 0; i < NS; i++) {
+    const w = W * dur[i] / total; if (w < 1) continue;
+    const pos = wavePos(values[0][i]), lv = level(values[3][i]);
+    ctx.strokeStyle = stepColor(i); ctx.lineWidth = 1; ctx.beginPath();
+    for (let px = 0; px <= w; px++) { const y = H / 2 - waveAt(pos, (px / Math.max(1, w)) % 1) * (H / 2 - 2) * lv;
+      if (px === 0) ctx.moveTo(x + px, y); else ctx.lineTo(x + px, y); }
+    ctx.stroke(); x += w;
+  }
+}
+let presetsDirty = true, presetSig = '';
+function renderPresets() {
+  const sig = JSON.stringify(userPresets);
+  if (!presetsDirty && sig === presetSig) return;
+  presetsDirty = false; presetSig = sig;
+  const ul = $('presets'); ul.innerHTML = '';
+  const add = (pr, idx) => {
+    const li = document.createElement('li');
+    const cv = document.createElement('canvas');
+    const name = document.createElement('span'); name.className = 'pname'; name.textContent = pr.name; name.title = 'Load';
+    li.append(cv, name);
+    name.addEventListener('click', () => applyPreset(pr));
+    cv.addEventListener('click', () => applyPreset(pr));
+    if (idx < 0) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'built in'; li.append(t); }
+    else {
+      const mk = (label, title, fn) => { const b = document.createElement('button'); b.textContent = label; b.title = title; b.addEventListener('click', fn); li.append(b); };
+      mk('Update', 'Overwrite with what is on screen now', () => { userPresets[idx].v = state.values.map(r => r.slice()); savePresets(); presetsDirty = true; requestRender(); say('Updated “' + pr.name + '”.'); });
+      mk('Rename', 'Rename', () => { const n = prompt('New name', pr.name); if (n) { userPresets[idx].name = n.slice(0, 60); savePresets(); presetsDirty = true; requestRender(); } });
+      mk('✕', 'Delete', () => { if (confirm('Delete “' + pr.name + '”?')) { userPresets.splice(idx, 1); savePresets(); presetsDirty = true; requestRender(); } });
+    }
+    ul.append(li);
+    requestAnimationFrame(() => presetThumb(cv, pr.v));
+  };
+  BUILTIN.forEach(pr => add(pr, -1));
+  userPresets.forEach((pr, i) => add(pr, i));
+}
+function saveCurrent() {
+  const n = prompt('Name for this preset', 'My sequence ' + (userPresets.length + 1));
+  if (!n) return;
+  userPresets.push({ name: n.slice(0, 60), v: state.values.map(r => r.slice()) });
+  savePresets(); presetsDirty = true; requestRender(); say('Saved “' + n + '”.');
+}
+function exportPresets() {
+  const blob = new Blob([JSON.stringify({ format: 'waveseq-presets', version: 1, presets: userPresets }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'waveseq-presets.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function importPresets(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const o = JSON.parse(r.result);
+      const list = (Array.isArray(o) ? o : o.presets || []).map(cleanPreset).filter(Boolean);
+      if (!list.length) { say('No presets found in that file.', true); return; }
+      userPresets.push(...list); savePresets(); presetsDirty = true; requestRender();
+      say('Imported ' + list.length + ' preset' + (list.length > 1 ? 's' : '') + '.');
+    } catch (e) { say('That file isn’t a presets file: ' + e.message, true); }
+  };
+  r.readAsText(file);
+}
+
+// ============================================================================
+// Start
+// ============================================================================
+function init() {
+  const last = store.get('waveseq.last.v1', null);
+  const lp = last && cleanPreset({ v: last });
+  if (lp) state.values = lp.v;
+  loadPresets();
+  buildFaders(); buildBank();
+  $('btn-connect').addEventListener('click', connect);
+  $('btn-rescan').addEventListener('click', connect);
+  $('btn-read').addEventListener('click', () => { sendRaw(sysex(CMD.HELLO, [])); say('Asked the card for its sequence.'); });
+  $('btn-send').addEventListener('click', () => { sendAll(); say('Sent the sequence to the card.'); });
+  $('btn-restart').addEventListener('click', () => { if (link.cardOnline) sendRaw(sysex(CMD.RESTART, [])); sim.cur = 0; sim.elapsed = 0; });
+  $('btn-reset').addEventListener('click', () => {
+    if (!confirm('Reset the sequence to the default?')) return;
+    state.values = DEFAULT_VALUES.map(r => r.slice());
+    if (link.cardOnline) sendRaw(sysex(CMD.RESET, []));
+    changed();
+  });
+  $('btn-save').addEventListener('click', saveCurrent);
+  document.querySelectorAll('.dir').forEach(b => b.addEventListener('click', () => {
+    const d = +b.dataset.dir;
+    sim.direction = d; state.live.direction = d;
+    if (link.cardOnline) sendRaw(sysex(CMD.DIRECTION, [d]));
+    say('Direction: ' + DIRECTIONS[d] + '.');
+  }));
+  $('btn-export').addEventListener('click', exportPresets);
+  $('btn-import').addEventListener('click', () => $('import-file').click());
+  $('import-file').addEventListener('change', (e) => { if (e.target.files[0]) importPresets(e.target.files[0]); e.target.value = ''; });
+  $('timeline').addEventListener('click', (e) => {
+    const r = $('timeline').getBoundingClientRect(), x = e.clientX - r.left;
+    const { boxes } = layout(state.values, r.width);
+    const i = boxes.findIndex(b => x >= b.x && x < b.x + b.w);
+    if (i >= 0) selectStep(i);
+  });
+  window.addEventListener('resize', () => { presetsDirty = true; requestRender(); });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { presetsDirty = true; requestRender(); });
+  if (!navigator.requestMIDIAccess) say('This browser can’t do WebMIDI, so it can’t reach the card or an 8mu. You can still edit and keep presets here.');
+  else say('Press “Connect card & 8mu” to reach the card. Until then this page edits and previews on its own.');
+  changed();
+  requestAnimationFrame(frame);
+}
+init();
+</script>
+</body>
+</html>
