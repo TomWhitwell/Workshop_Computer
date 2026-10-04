@@ -19,17 +19,22 @@
 //   PING     09                      sent every second; STATUS flows while
 //                                    pings keep arriving
 //   RESTART  0A                      restart from the first step
+//   DIRECTION 0B dir                 0 forward, 1 ping-pong, 2 random
 //
 // Card -> web
 //   STATE    02 version page values[32]
-//   STATUS   07 cur next mix progress flags note(2) speed(2) xfade
+//   STATUS   07 cur next mix progress flags note(2) speed(2) xfade fm scan
 //            cur, next   steps 0-7
 //            mix         crossfade into next, 0-127
 //            progress    position through the current step, 0-127
-//            flags       bit 0 ping-pong, bit 1 clocked, bit 2 8mu on card
+//            flags       bits 0-1 direction (0 forward, 1 ping-pong,
+//                        2 random), bit 2 clocked, bit 3 8mu on card,
+//                        bit 4 switch up (X/Y are speed and crossfade, not
+//                        FM and scan), bit 5 a knob is waiting to pick up
 //            note        base pitch in 1/8 semitones (MIDI note * 8)
 //            speed       speed in 1/256 octave, offset by 2048
-//            xfade       crossfade knob, 0-127
+//            xfade       crossfade setting, 0-127
+//            fm, scan    FM and wave scan amount settings, 0-127
 
 #ifndef WAVESEQ_SYSEX_H
 #define WAVESEQ_SYSEX_H
@@ -41,7 +46,7 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x57;
-static constexpr uint8_t kVersion = 1;
+static constexpr uint8_t kVersion = 2;
 static constexpr int kNumValues = 32;
 
 enum Cmd : uint8_t
@@ -56,6 +61,7 @@ enum Cmd : uint8_t
 	Motion = 0x08,
 	Ping = 0x09,
 	Restart = 0x0A,
+	Direction = 0x0B,
 };
 
 // Collects one SysEx message from a byte stream.  Feed() returns true when
@@ -127,7 +133,7 @@ inline int32_t Get14(const uint8_t *in)
 }
 
 static constexpr int kStateLen = 4 + 2 + kNumValues + 1;
-static constexpr int kStatusLen = 4 + 5 + 2 + 2 + 1 + 1;
+static constexpr int kStatusLen = 4 + 5 + 2 + 2 + 3 + 1;
 
 } // namespace sysex
 

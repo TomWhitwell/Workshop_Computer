@@ -72,6 +72,10 @@
   .readout .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
   .readout .v { font-size: 16px; font-variant-numeric: tabular-nums; }
   .caption { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .dirs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+  .dirs .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-right: 4px; }
+  .dir.on { background: var(--accent-soft); border-color: var(--accent); }
+  #knob-line { flex: 1 1 200px; }
 
   /* Fader banks */
   .tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -142,8 +146,16 @@
         <div class="readout"><div class="k">Pitch</div><div class="v" id="ro-pitch">-</div></div>
         <div class="readout"><div class="k">Speed</div><div class="v" id="ro-speed">-</div></div>
         <div class="readout"><div class="k">Crossfade</div><div class="v" id="ro-xfade">-</div></div>
-        <div class="readout"><div class="k">Direction</div><div class="v" id="ro-dir">-</div></div>
         <div class="readout"><div class="k">Timing</div><div class="v" id="ro-clock">-</div></div>
+        <div class="readout"><div class="k">FM amount</div><div class="v" id="ro-fm">-</div></div>
+        <div class="readout"><div class="k">Scan amount</div><div class="v" id="ro-scan">-</div></div>
+      </div>
+      <div class="dirs" role="group" aria-label="Direction">
+        <span class="k">Direction</span>
+        <button class="dir" data-dir="0">Forward</button>
+        <button class="dir" data-dir="1">Ping-pong</button>
+        <button class="dir" data-dir="2">Random</button>
+        <span class="caption" id="knob-line" style="margin:0"></span>
       </div>
     </section>
 
@@ -198,6 +210,8 @@
           <li>8mu buttons A-D (or the tabs) choose the page. Faders pick up: one does nothing until it reaches the stored value
             (the dashed line shows where the 8mu's fader is while it waits).</li>
           <li>On-screen faders: drag, or focus one and use the arrow keys. Double-click resets one.</li>
+          <li>Direction: tap the module’s switch down to step forward, ping-pong, random, or use the buttons here.</li>
+          <li>The module’s X and Y knobs: switch up = speed and crossfade, middle = FM and wave scan amounts.</li>
           <li>Tilting an 8mu plugged into this computer scans the waves and detunes Audio Out 2, as it would on the card.</li>
           <li>Without a card the page still edits, previews and keeps presets; the playhead is then simulated at 1x speed.</li>
         </ul>
@@ -214,15 +228,16 @@
 // ============================================================================
 const NS = 8;                                   // steps
 const PAGES = 4;
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x57, PROTOCOL_VERSION = 1;
-const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9, RESTART: 10 };
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x57, PROTOCOL_VERSION = 2;
+const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9, RESTART: 10, DIRECTION: 11 };
+const DIRECTIONS = ['Forward', 'Ping-pong', 'Random'];
 const FIRST_FADER_CC = 34, FIRST_MOTION_CC = 42;
 const BUTTON_NOTES = [36, 48, 60, 72];
 const EIGHTMU_BLINK_OFF = [0xF0, 0x7D, 0x00, 0x00, 0x30, 0xF7];
 
 const PAGE_INFO = [
   { name: 'Wave',  letter: 'A', hint: 'Which wave each step plays: a position in the 64-wave bank, morphing between neighbours.' },
-  { name: 'Time',  letter: 'B', hint: 'How long each step lasts, 20 ms to 4 s (scaled by the X knob). Fully down skips the step. With a clock on Pulse In 2, 1-8 clocks.' },
+  { name: 'Time',  letter: 'B', hint: 'How long each step lasts, 20 ms to 4 s (scaled by the speed setting: X with the switch up). Fully down skips the step. With a clock on Pulse In 2, 1-8 clocks.' },
   { name: 'Pitch', letter: 'C', hint: 'Each step’s pitch, -12 to +12 semitones. The middle is no change.' },
   { name: 'Level', letter: 'D', hint: 'How loud each step is.' },
 ];
@@ -302,7 +317,8 @@ const state = {
   page: 0,
   sel: 0,                                       // selected step, for the wave bank
   // live, from the card's STATUS (or simulated when there's no card)
-  live: { cur: 0, next: 1, mix: 0, progress: 0, pingPong: false, clocked: false, muOnCard: false,
+  live: { cur: 0, next: 1, mix: 0, progress: 0, direction: 0, clocked: false, muOnCard: false,
+          switchUp: false, knobWaiting: false, fm: 0, scan: 0,
           note: 48, speed: 1, xfade: 32 / 127 },
 };
 const link = { access: null, card: { in: null, out: null }, muIns: [], muOuts: [], cardOnline: false,
@@ -387,7 +403,7 @@ function drawTimeline() {
     // crossfade ramp into the next step
     const xf = Math.min(b.w, Math.max(2, b.w * L.xfade));
     const g = ctx.createLinearGradient(b.x + b.w - xf, 0, b.x + b.w, 0);
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, stepColor(nextActive(i)));
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, stepColor(i === L.cur ? L.next : nextActive(i)));
     ctx.globalAlpha = 0.22; ctx.fillStyle = g; ctx.fillRect(b.x + b.w - xf, top, xf, bot - top); ctx.globalAlpha = 1;
     // wave, a few cycles, scaled by level
     const cycles = Math.max(1, Math.min(6, Math.round(b.w / 40)));
@@ -418,7 +434,7 @@ function drawTimeline() {
   }
   const loop = state.live.clocked ? total + ' clocks' : fmtMs(total / (L.speed || 1)) + ' at ' + L.speed.toFixed(2) + 'x';
   $('timeline-caption').textContent = total > 0
-    ? 'One pass: ' + loop + (L.pingPong ? ' (ping-pong plays the middle steps twice)' : '') + '. Width is time, height is level; the shaded end of each step is its crossfade.'
+    ? 'One pass: ' + loop + (L.direction === 1 ? ' (ping-pong plays the middle steps twice)' : L.direction === 2 ? ' on average (random order)' : '') + '. Width is time, height is level; the shaded end of each step is its crossfade.'
     : 'Every step is skipped: the card holds the current step.';
 }
 
@@ -461,8 +477,13 @@ function drawReadouts() {
   $('ro-pitch').textContent = link.cardOnline ? noteName(L.note) : '-';
   $('ro-speed').textContent = L.speed.toFixed(2) + 'x';
   $('ro-xfade').textContent = Math.round(L.xfade * 100) + '%';
-  $('ro-dir').textContent = L.pingPong ? 'Ping-pong' : 'Forward';
   $('ro-clock').textContent = L.clocked ? 'Clocked' : 'Free';
+  $('ro-fm').textContent = Math.round(L.fm * L.fm * 100) + '%';
+  $('ro-scan').textContent = Math.round(L.scan * 100) + '%';
+  document.querySelectorAll('.dir').forEach(b => b.classList.toggle('on', +b.dataset.dir === L.direction));
+  $('knob-line').textContent = !link.cardOnline ? 'Tap the module\u2019s switch down to step the direction.'
+    : 'Switch ' + (L.switchUp ? 'up: X = speed, Y = crossfade' : 'middle: X = FM amount, Y = scan amount') +
+      (L.knobWaiting ? '. A knob is waiting to pick up its value.' : '.');
 }
 
 // Wave bank grid
@@ -709,13 +730,14 @@ function handleCardMessage(m) {
     for (let i = 0; i < NS; i++) mu.engaged[i] = mu.phys[i] >= 0 && Math.abs(mu.phys[i] - state.values[state.page][i]) <= 1;
     say('Read the sequence from the card.');
     changed();
-  } else if (cmd === CMD.STATUS && p.length >= 10) {
+  } else if (cmd === CMD.STATUS && p.length >= 12) {
     const L = state.live;
     L.cur = p[0] & 7; L.next = p[1] & 7; L.mix = p[2] / 127; L.progress = p[3] / 127;
-    L.pingPong = !!(p[4] & 1); L.clocked = !!(p[4] & 2); L.muOnCard = !!(p[4] & 4);
+    L.direction = Math.min(2, p[4] & 3); L.clocked = !!(p[4] & 4); L.muOnCard = !!(p[4] & 8);
+    L.switchUp = !!(p[4] & 16); L.knobWaiting = !!(p[4] & 32);
     L.note = ((p[5] << 7) | p[6]) / 8;
     L.speed = Math.pow(2, (((p[7] << 7) | p[8]) - 2048) / 256);
-    L.xfade = p[9] / 127;
+    L.xfade = p[9] / 127; L.fm = p[10] / 127; L.scan = p[11] / 127;
     link.lastStatus = performance.now();
   }
 }
@@ -729,20 +751,37 @@ function sendAll() {
 
 // ============================================================================
 // Simulated playhead, when there's no card (mirrors the card at 1x speed,
-// forward, with the crossfade knob at a quarter)
+// with the crossfade at a quarter, in the direction chosen on the page)
 // ============================================================================
-const sim = { cur: 0, elapsed: 0, last: 0 };
+const sim = { cur: 0, next: 1, dir: 1, elapsed: 0, last: 0, direction: 0 };
+function simNext(cur) {                // as WaveSeq::NextStep
+  const act = (i) => isActive(state.values[1][i]);
+  if (sim.direction === 2) {
+    const c = []; for (let i = 0; i < NS; i++) if (act(i) && i !== cur) c.push(i);
+    return c.length ? c[Math.floor(Math.random() * c.length)] : cur;
+  }
+  if (sim.direction === 0) { sim.dir = 1; return nextActive(cur); }
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = cur + sim.dir; i >= 0 && i < NS; i += sim.dir) if (act(i)) return i;
+    sim.dir = -sim.dir;
+  }
+  return cur;
+}
 function simulate(now) {
   const dt = sim.last ? Math.min(100, now - sim.last) : 0; sim.last = now;
   const L = state.live, v = state.values;
-  L.pingPong = false; L.clocked = false; L.speed = 1; L.xfade = 0.25;
+  L.direction = sim.direction; L.clocked = false; L.speed = 1; L.xfade = 0.25; L.fm = 0; L.scan = 0;
   if (!v[1].some(isActive)) { L.next = L.cur = sim.cur; L.mix = 0; L.progress = 0; return; }
-  if (!isActive(v[1][sim.cur])) sim.cur = nextActive(sim.cur);
+  if (!isActive(v[1][sim.cur])) { sim.cur = nextActive(sim.cur); sim.next = simNext(sim.cur); }
+  if (!isActive(v[1][sim.next]) || sim.next === sim.cur) sim.next = simNext(sim.cur);
   sim.elapsed += dt;
   let len = stepMs(v[1][sim.cur]);
-  if (sim.elapsed >= len) { sim.elapsed -= len; if (sim.elapsed > len) sim.elapsed = 0; sim.cur = nextActive(sim.cur); len = stepMs(v[1][sim.cur]); }
+  if (sim.elapsed >= len) {
+    sim.elapsed -= len; if (sim.elapsed > len) sim.elapsed = 0;
+    sim.cur = sim.next; sim.next = simNext(sim.cur); len = stepMs(v[1][sim.cur]);
+  }
   const xf = Math.min(len, Math.max(1, len * L.xfade));
-  L.cur = sim.cur; L.next = nextActive(sim.cur);
+  L.cur = sim.cur; L.next = sim.next;
   L.progress = Math.min(1, sim.elapsed / len);
   L.mix = sim.elapsed > len - xf ? Math.min(1, (sim.elapsed - (len - xf)) / xf) : 0;
 }
@@ -875,6 +914,12 @@ function init() {
     changed();
   });
   $('btn-save').addEventListener('click', saveCurrent);
+  document.querySelectorAll('.dir').forEach(b => b.addEventListener('click', () => {
+    const d = +b.dataset.dir;
+    sim.direction = d; state.live.direction = d;
+    if (link.cardOnline) sendRaw(sysex(CMD.DIRECTION, [d]));
+    say('Direction: ' + DIRECTIONS[d] + '.');
+  }));
   $('btn-export').addEventListener('click', exportPresets);
   $('btn-import').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', (e) => { if (e.target.files[0]) importPresets(e.target.files[0]); e.target.value = ''; });

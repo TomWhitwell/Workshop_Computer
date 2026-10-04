@@ -3,7 +3,7 @@ Name: Wave Sequencer
 short-description: "Wavestation-style wave sequencing - eight steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
 Language: C++ (ComputerCard)
 Creator: Martyn Quickenden
-Version: "0.2.0"
+Version: "0.3.0"
 Status: Beta
 License: MIT
 Editor: web
@@ -17,7 +17,7 @@ date-updated: 2026-10-04
 
 uf2:
   - path: UF2/waveseq.uf2
-    name: Wave Sequencer 0.2.0
+    name: Wave Sequencer 0.3.0
 
 tags:
   - synth
@@ -54,11 +54,11 @@ panel:
     - id: AudioIn1
       name: FM
       type: audio
-      description: Linear FM of the oscillator.
+      description: Linear FM of the oscillator, depth set by X with the switch in the middle.
     - id: AudioIn2
       name: Wave scan
       type: cv
-      description: Offsets every step's wave position, up to 32 waves either way. Works at audio rate.
+      description: Offsets every step's wave position, up to 32 waves either way, depth set by Y with the switch in the middle. Works at audio rate.
     - id: CVIn1
       name: Pitch
       type: cv
@@ -107,16 +107,21 @@ panel:
 controls:
   switch:
     up:
-      name: Ping-pong
-      description: Plays the sequence forwards then backwards.
+      name: Timing
+      description: X and Y set speed and crossfade.
     middle:
-      name: Forward
-      description: Loops the sequence forwards.
+      name: Modulation
+      description: X and Y set FM amount and wave scan amount.
     down:
-      name: Restart
-      description: Momentary. Restarts from the first step.
+      name: Direction
+      description: >
+        Momentary. Each tap steps the direction - forward, ping-pong,
+        random - and the top LEDs show which for a second (one, two or
+        three LEDs).
   knobs:
-    - main:
+    - when:
+        z: up
+      main:
         name: Pitch
         description: C1 to C7.
       x:
@@ -125,6 +130,20 @@ controls:
       y:
         name: Crossfade
         description: From a hard cut between steps to a crossfade lasting the whole step.
+    - when:
+        z: middle
+      main:
+        name: Pitch
+        description: C1 to C7.
+      x:
+        name: FM amount
+        description: >
+          Depth of linear FM from Audio In 1, squared law. Each X/Y setting
+          keeps its value; after the switch moves a knob picks up only once
+          turned to its setting's value, so nothing jumps.
+      y:
+        name: Scan amount
+        description: Depth of wave scan from Audio In 2, up to 32 waves either way.
   leds:
     - display: list
       items:
@@ -142,4 +161,4 @@ controls:
           description: Flashes on every step.
         - id: LED5
           name: 8mu / editor
-          description: Lit while an 8mu, or the web editor, is connected.
+          description: Lit while an 8mu, or the web editor, is connected. Blinks fast while the X or Y knob is waiting to pick up its setting.

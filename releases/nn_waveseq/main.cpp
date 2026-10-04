@@ -20,15 +20,19 @@
 //
 // Panel
 //   Main knob   Pitch (C1 to C7), plus CV In 1 at 1V/oct
-//   X knob      Sequence speed, 1/8x to 8x, plus CV In 2 at 1V/oct
-//   Y knob      Crossfade, from a hard cut to fading over the whole step
-//   Switch up   Ping-pong
-//   Switch mid  Forward loop
-//   Switch down Restart from the first step
+//   Switch up   X = sequence speed (1/8x to 8x), Y = crossfade (hard cut to
+//               fading over the whole step)
+//   Switch mid  X = FM amount (Audio In 1), Y = wave scan amount (Audio In 2)
+//   Switch down Tap to step the direction: forward, ping-pong, random
+//
+// The four X/Y settings each keep their value.  After the switch moves, a
+// knob does nothing until it reaches (or passes) its new setting's value,
+// so nothing jumps; LED 5 blinks fast while one is waiting.
 //
 // Inputs
-//   Audio In 1  Linear FM
-//   Audio In 2  Wave scan, offsetting every step's wave position
+//   Audio In 1  Linear FM, depth set by X with the switch in the middle
+//   Audio In 2  Wave scan, offsetting every step's wave position, depth set
+//               by Y with the switch in the middle
 //   CV In 1     Pitch, 1V/oct
 //   CV In 2     Speed, 1V/oct
 //   Pulse In 1  Restart from the first step
@@ -109,14 +113,20 @@ public:
 
 	virtual void ProcessSample()
 	{
-		// Restart: rising edge on Pulse In 1, or switch pushed down
-		bool restart = PulseIn1RisingEdge() || (SwitchChanged() && SwitchVal() == Down);
+		// Restart on a rising edge at Pulse In 1 (or from the web editor)
+		bool restart = PulseIn1RisingEdge();
 		if (restartRequest)
 		{
 			restartRequest = false;
 			restart = true;
 		}
-		pingPong = SwitchVal() == Up;
+
+		// A tap down on the switch steps the direction
+		if (SwitchChanged() && SwitchVal() == Down)
+		{
+			direction = (direction + 1) % kDirections;
+			dirShow = 1500; // show it on the LEDs for ~1s
+		}
 
 		// Clock on Pulse In 2
 		bool clockEdge = PulseIn2RisingEdge();
@@ -178,14 +188,15 @@ public:
 		int32_t gA = (levelA * (4096 - mix)) >> 12;
 		int32_t gB = (levelB * mix) >> 12;
 
-		// Wave scan from Audio In 2 (+/-32 waves)
-		int32_t scan = AudioIn2() * 4;
+		// Wave scan from Audio In 2 (up to +/-32 waves)
+		int32_t scan = (AudioIn2() * scanAmount) >> 10;
 		int32_t wA = ClampWave(waveA + scan);
 		int32_t wB = ClampWave(waveB + scan);
 
 		// Linear FM from Audio In 1
 		int32_t fm = AudioIn1();
 		if (fm > -8 && fm < 8) fm = 0;
+		fm = (fm * fmAmount) >> 12;
 
 		phA += incA + (int32_t(incA >> 11) * fm);
 		phB += incB + (int32_t(incB >> 11) * fm);
@@ -230,7 +241,11 @@ private:
 	// Sequencer state
 	int cur = 0, nxt = 0;
 	int dir = 1, nxtDir = 1;
-	bool pingPong = false;
+	enum Direction {DirForward, DirPingPong, DirRandom, kDirections};
+	volatile int direction = DirForward; // also set by the web editor
+	int lastDirection = DirForward;
+	int dirShow = 0;
+	uint32_t rng = 0x12345678;
 	int32_t elapsed = 0;      // time into step, samples in Q8
 	int32_t stepLen = 256;    // step length, samples in Q8
 	int32_t xfLen = 256;      // crossfade length, samples in Q8
@@ -247,6 +262,16 @@ private:
 	int32_t baseNote = 60 << 8; // Q8 semitones
 	int32_t detune = 15;        // Q8 semitones, for Audio Out 2
 	int32_t xfAmount = 0;       // Q12
+	int32_t fmAmount = 0;       // Q12, squared law
+	int32_t scanAmount = 0;     // Q12
+
+	// X/Y knob settings, with soft takeover when the switch moves.
+	// Up: speed, crossfade.  Middle: FM amount, wave scan amount.
+	enum Setting {SetSpeed, SetFade, SetFM, SetScan, kSettings};
+	int32_t settings[kSettings] = {2048, 1024, 0, 0};
+	int knobBank = -1;          // 0 = up pair, 1 = middle pair
+	bool knobLatched[2] = {};
+	int32_t lastKnob[2] = {};
 	int32_t tiltScan = 0;       // Q8 waves
 
 	// Voice slots: A is the current step, B the next one being faded into
@@ -269,7 +294,7 @@ private:
 
 	// Snapshot for the web editor: written on core0, read on core1
 	volatile uint8_t stCur = 0, stNext = 0, stMix = 0, stProgress = 0, stFlags = 0;
-	volatile uint8_t stXfade = 0;
+	volatile uint8_t stXfade = 0, stFM = 0, stScan = 0;
 	volatile int32_t stNote = 0, stSpeed = 0;
 	int32_t lastMix = 0;
 
@@ -337,11 +362,26 @@ private:
 		return 0;
 	}
 
+	uint32_t NextRandom()
+	{
+		rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;
+		return rng >> 8;
+	}
+
 	// The step after s, travelling in direction d
-	void NextStep(int s, int d, int &ns, int &nd) const
+	void NextStep(int s, int d, int &ns, int &nd)
 	{
 		ns = s; nd = d;
-		if (!pingPong)
+		if (direction == DirRandom)
+		{
+			// Any other active step, chosen at random
+			int choices[kSteps], n = 0;
+			for (int i = 0; i < kSteps; i++) if (Active(i) && i != s) choices[n++] = i;
+			nd = 1;
+			if (n > 0) ns = choices[NextRandom() % uint32_t(n)];
+			return;
+		}
+		if (direction == DirForward)
 		{
 			nd = 1;
 			for (int k = 1; k <= kSteps; k++)
@@ -453,11 +493,14 @@ private:
 	{
 		// Panel
 		baseNote = (24 << 8) + (KnobVal(Main) * 72 * 256) / 4095 + CVIn1() * 9;
-		int32_t spd = (KnobVal(X) - 2048) * 6 + CVIn2() * 12;
+		HandleKnobs();
+		int32_t spd = (settings[SetSpeed] - 2048) * 6 + CVIn2() * 12;
 		if (spd < -24576) spd = -24576;
 		if (spd > 24576) spd = 24576;
 		speed = int32_t(ExpScale(256, spd));
-		xfAmount = KnobVal(Y);
+		xfAmount = settings[SetFade];
+		fmAmount = (settings[SetFM] * settings[SetFM]) >> 12;
+		scanAmount = settings[SetScan];
 
 		if (hostMode)
 		{
@@ -473,9 +516,16 @@ private:
 		// Which step comes next is only chosen again while slot B is silent,
 		// so a crossfade never switches to a different step part-way; but
 		// the step being faded into still follows everything else.
+		// In random mode the next step is rolled once per step (in Advance),
+		// and only rolled again here if it has since been skipped.
 		if (elapsed <= stepLen - xfLen)
 		{
-			NextStep(cur, dir, nxt, nxtDir);
+			if (direction != DirRandom || direction != lastDirection || !Active(nxt)
+				|| (nxt == cur && ActiveCount() > 1))
+			{
+				NextStep(cur, dir, nxt, nxtDir);
+			}
+			lastDirection = direction;
 		}
 		SetSlot(false, cur);
 		SetSlot(true, nxt);
@@ -491,20 +541,77 @@ private:
 			int32_t pr = stepLen > 0 ? int32_t((int64_t(elapsed) * 127) / stepLen) : 0;
 			stProgress = uint8_t(pr < 0 ? 0 : (pr > 127 ? 127 : pr));
 		}
-		stFlags = uint8_t((pingPong ? 1 : 0) | (clocked ? 2 : 0) | (mu.Connected() ? 4 : 0));
+		bool waiting = !knobLatched[0] || !knobLatched[1];
+		stFlags = uint8_t((direction & 3) | (clocked ? 4 : 0) | (mu.Connected() ? 8 : 0)
+			| (knobBank == 0 ? 16 : 0) | (waiting ? 32 : 0));
+		stFM = uint8_t(settings[SetFM] >> 5);
+		stScan = uint8_t(settings[SetScan] >> 5);
 		stNote = baseNote >> 5;
 		stSpeed = (spd >> 4) + 2048;
 		stXfade = uint8_t(xfAmount >> 5);
+		if (dirShow > 0) dirShow--;
 
 		// Computer LEDs: page (or step, with no 8mu), step trigger, 8mu
 		bool conn = mu.Connected() || WebLinked();
 		for (int i = 0; i < 4; i++)
 		{
-			if (conn) LedOn(i, i == page);
+			if (dirShow > 0) LedOn(i, i <= direction && i < 3); // 1, 2 or 3 LEDs
+			else if (conn) LedOn(i, i == page);
 			else LedBrightness(i, (cur & 3) == i ? (cur < 4 ? 4095 : 1024) : 0);
 		}
 		LedOn(4, stepTrig > 0);
-		LedOn(5, conn);
+		// LED 5: connection, blinking fast while a knob waits to pick up
+		static int blink = 0;
+		blink = (blink + 1) % 300;
+		LedBrightness(5, waiting ? (blink < 150 ? 4095 : 0) : (conn ? 4095 : 0));
+	}
+
+	int ActiveCount() const
+	{
+		int n = 0;
+		for (int i = 0; i < kSteps; i++) if (Active(i)) n++;
+		return n;
+	}
+
+	// X and Y knobs, with soft takeover when the switch changes which pair
+	// of settings they control.  Down is momentary and keeps the pair of the
+	// position it was pressed from.
+	void HandleKnobs()
+	{
+		Switch sw = SwitchVal();
+		int bank = sw == Up ? 0 : (sw == Middle ? 1 : knobBank);
+		if (bank < 0) bank = 1;
+		int32_t k[2] = {KnobVal(X), KnobVal(Y)};
+		if (knobBank < 0)
+		{
+			// Power-up: the current pair takes the knobs as they are
+			knobBank = bank;
+			for (int i = 0; i < 2; i++)
+			{
+				settings[bank * 2 + i] = k[i];
+				knobLatched[i] = true;
+				lastKnob[i] = k[i];
+			}
+			return;
+		}
+		if (bank != knobBank)
+		{
+			knobBank = bank;
+			knobLatched[0] = knobLatched[1] = false;
+		}
+		for (int i = 0; i < 2; i++)
+		{
+			int32_t &v = settings[bank * 2 + i];
+			if (!knobLatched[i])
+			{
+				int32_t d = k[i] - v;
+				bool near = d > -48 && d < 48;
+				bool crossed = (lastKnob[i] - v < 0) != (d < 0);
+				if (near || crossed) knobLatched[i] = true;
+			}
+			if (knobLatched[i]) v = k[i];
+			lastKnob[i] = k[i];
+		}
 	}
 
 	void HandleEightMU()
@@ -687,6 +794,9 @@ public:
 		case sysex::Restart:
 			restartRequest = true;
 			break;
+		case sysex::Direction:
+			if (len >= 1 && p[0] < kDirections) direction = p[0];
+			break;
 		default:
 			break;
 		}
@@ -716,6 +826,8 @@ public:
 		n += sysex::Put14(out + n, stNote);
 		n += sysex::Put14(out + n, stSpeed);
 		out[n++] = stXfade;
+		out[n++] = stFM;
+		out[n++] = stScan;
 		out[n++] = 0xF7;
 		return n;
 	}

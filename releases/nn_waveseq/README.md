@@ -76,6 +76,9 @@ edit as it's made.
 - **Presets.** Seven built in, plus your own, kept in the browser
   (`localStorage`). Save, update, rename, delete, and export or import as a
   JSON file. Loading a preset sends it to the card.
+- **Direction** buttons (forward, ping-pong, random) set the card's direction,
+  and follow it when the switch is tapped. The page also shows what the X and
+  Y knobs are doing and whether one is waiting to pick up.
 - **Restart** and **Reset** (to the default sequence) act on the card too.
 
 Without a card the page still edits, previews and keeps presets, with a
@@ -89,19 +92,35 @@ The card and page talk SysEx; the protocol is documented in
 | Control     | Function                                                   |
 |-------------|------------------------------------------------------------|
 | Main knob   | Pitch, C1 to C7                                            |
-| X knob      | Speed, 1/8x to 8x                                          |
-| Y knob      | Crossfade, from a hard cut to fading over the whole step   |
-| Switch up   | Ping-pong                                                  |
-| Switch mid  | Forward loop                                               |
-| Switch down | Restart from the first step                                |
+| Switch down | Tap to step the direction: forward, ping-pong, random      |
+
+The switch's up and middle positions choose what the X and Y knobs do:
+
+| Switch | X knob | Y knob |
+|--------|--------|--------|
+| Up     | Speed, 1/8x to 8x | Crossfade, from a hard cut to fading over the whole step |
+| Middle | FM amount (Audio In 1) | Wave scan amount (Audio In 2) |
+
+Each of the four settings keeps its value. After the switch moves, a knob does
+nothing until it's turned to (or past) its new setting's value, then takes
+over, so nothing jumps. LED 6 (bottom right) blinks fast while a knob is
+waiting. At power-up the knobs take over straight away for the position the
+switch is in; the others start at speed 1x, crossfade 25%, and FM and wave scan
+off (so Audio In 1 and 2 do nothing until turned up).
+
+**Directions.** Forward loops 1 to 8. Ping-pong plays forwards then
+backwards, without repeating the end steps. Random picks any other step that
+isn't skipped, never the same step twice in a row. After a tap, the top LEDs
+show the new direction for a second: one LED for forward, two for ping-pong,
+three for random. The web editor can set it too.
 
 | Jack        | Function                                                   |
 |-------------|------------------------------------------------------------|
-| Audio In 1  | Linear FM                                                  |
-| Audio In 2  | Wave scan, +/-32 waves, audio rate                         |
+| Audio In 1  | Linear FM, depth set by X (switch middle)                  |
+| Audio In 2  | Wave scan, up to +/-32 waves, audio rate, depth set by Y (switch middle) |
 | CV In 1     | Pitch, 1V/oct                                              |
 | CV In 2     | Speed, 1V/oct                                              |
-| Pulse In 1  | Restart                                                    |
+| Pulse In 1  | Restart from the first step                                |
 | Pulse In 2  | Clock. Steps advance on clocks while they keep arriving    |
 | Audio Out 1 | Wave sequence                                              |
 | Audio Out 2 | Wave sequence, detuned                                     |
