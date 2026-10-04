@@ -4,7 +4,7 @@
     "dockerfile": "Dockerfile",
     "args": {
       "PICO_SDK_VERSION": "2.2.0",
-      "TINYUSB_VERSION": "0.21.0"
+      "TINYUSB_VERSION": "0.20.0"
     }
   },
   "features": {
