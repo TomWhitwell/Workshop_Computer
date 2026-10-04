@@ -7,7 +7,7 @@
 
 /*
  * Sheep: A crunchy granular delay and digital degradation effect
- * by Dune Desormeaux (github.com/dessertplanet)
+ * by Dune Desormeaux (https://dessertplanet.co)
  * Thank you to Émilie Gillet for Clouds which was a huge inspiration here!
  * Sheep features:
  * - 2 UF2's to choose from based on fidelity + buffer length:

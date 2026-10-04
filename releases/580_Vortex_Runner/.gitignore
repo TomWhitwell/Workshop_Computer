@@ -12,6 +12,14 @@
 # Keep local rollback binaries available without committing them.
 /uf2/*rollback*.uf2
 
+# Local rollback/source snapshot and pre-promotion experiments. The stable
+# 2026-10-03 firmware in /uf2/ is the artifact intended for the release PR.
+/archive/
+/experimental/8mu-cs80-filter-leds/
+/experimental/8mu-filter-led-focus/
+/experimental/8mu-filter-envelope-hp/
+/uf2/Vortex_Runner_current_stable_8mu_filter_led_focus_20261003.uf2
+
 # Local scratch ideas that are not part of this card release.
 /FUTURE_PROJECTS.md
 

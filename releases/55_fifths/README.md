@@ -3,7 +3,7 @@
 A quantizer/sequencer that creates harmony and nimbly traverses the circle of
 fifths in attempts to make jazz, for the Music Thing Workshop System Computer.
 
-By Dune Desormeaux ([@dessertplanet](https://github.com/dessertplanet)).
+By Dune Desormeaux ([@dessertplanet](https://dessertplanet.co)).
 
 Fifths quantizes incoming or generated CV to keys arranged around the circle of
 fifths and outputs both a quantized note and an ambiguous third harmony voice.

@@ -26,19 +26,22 @@ draft: false
 Core C1ZZL3 remains card 84. Gnarly is prepared here as a separate card identity because
 its hardware behaviour is substantially different.
 
-## Stable Build
+## Firmware Builds
 
-Current Gnarly UF2:
+The standard Gnarly firmware is:
 
 ```text
 uf2/C1ZZL3_GNARLY_V11.uf2
 ```
 
-Checksum:
+The alternative firmware for use with an 8mu v2 controller is:
 
 ```text
-376b856daf2b7ddc2dc5a75728882b27e9423802b33d23ea2a040e5989c5bc94
+uf2/Gnarly_C1ZZL3_8mu.uf2
 ```
+
+Flash one of these UF2 files, not both. Their SHA-256 checksums are in
+`uf2/SHA256SUMS.txt`.
 
 ## What It Does
 
@@ -149,6 +152,30 @@ kept as oscillator 1 phase distortion so a mod wheel remains useful.
 
 The C1ZZL3 Envelope Lab has a hidden Developer-mode MIDI CC Test Suite for checking these messages without a hardware controller. It sends individual CC values, a neutral reset, and sweep tests through the selected Web MIDI output.
 
+## If You Have An 8mu
+
+`Gnarly_C1ZZL3_8mu.uf2` is an alternative Gnarly firmware that exposes the
+envelope lanes on a Music Thing 8mu v2. It retains the same Gnarly sound engine
+and Web MIDI editor, but receives its controls from the 8mu instead of using
+only the editor.
+
+The alternative source is self-contained in `8mu/`, so it can be developed
+without changing the standard Gnarly source in this folder. The 8mu bank files
+are in `8mu_banks/`; import them one at a time with the
+[16n Faderbank editor](https://16n-faderbank.github.io/editor/). See
+`8mu_banks/README.md` for the exact import and control guide.
+
+- Bank 1 controls the regular Gnarly performance parameters.
+- Banks 2--7 edit stages 1--8 of Amp1, Amp2, PD1, PD2, Pitch1, and Pitch2.
+- Bank 8 selects the editable custom envelope slot and sets the six lane
+  depths plus master depth.
+- In a lane bank, Buttons A/B select level/time, C saves, and D reverts.
+
+Only saved custom sound-preset slots are editable; factory envelopes remain
+read-only. Gesture mappings are intentionally disabled. The 8mu control path,
+save/revert, persistence, and factory-envelope protection have been hardware
+validated.
+
 ## Web MIDI Editor
 
 Hosted editor path after Workshop deployment:
@@ -207,6 +234,15 @@ The build creates:
 ```text
 build/C1ZZL3_GNARLY_V11.uf2
 ```
+
+To build the alternative 8mu firmware:
+
+```sh
+cmake -S 8mu -B build-8mu -DPICO_NO_PICOTOOL=1
+cmake --build build-8mu -j2
+```
+
+This creates `build-8mu/Gnarly_C1ZZL3_8mu.uf2`.
 
 ## License Notes
 
