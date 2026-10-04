@@ -68,16 +68,16 @@ panel:
       type: cv
       description: Sequence speed, 1V/oct - each volt doubles the speed.
     - id: PulseIn1
-      name: Restart
-      type: pulse
-      description: Restarts the sequence from its first step, with oscillator phases reset.
-    - id: PulseIn2
       name: Clock
       type: pulse
       description: >
         While clocks are arriving, steps advance on the clock instead of by
         time, each lasting the number of clocks (1-8) set by its TIME fader.
         Two seconds without a clock returns to free running.
+    - id: PulseIn2
+      name: Restart
+      type: pulse
+      description: Restarts the sequence from its first step, with oscillator phases reset.
   outputs:
     - id: AudioOut1
       name: Out

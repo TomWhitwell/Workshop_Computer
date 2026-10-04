@@ -35,9 +35,9 @@
 //               by Y with the switch in the middle
 //   CV In 1     Pitch, 1V/oct
 //   CV In 2     Speed, 1V/oct
-//   Pulse In 1  Restart from the first step
-//   Pulse In 2  Clock: while clocks arrive, each step lasts its TIME fader's
+//   Pulse In 1  Clock: while clocks arrive, each step lasts its TIME fader's
 //               number of clocks (1-8) instead of a time
+//   Pulse In 2  Restart from the first step
 //
 // Outputs
 //   Audio Out 1 Wave sequence
@@ -113,8 +113,8 @@ public:
 
 	virtual void ProcessSample()
 	{
-		// Restart on a rising edge at Pulse In 1 (or from the web editor)
-		bool restart = PulseIn1RisingEdge();
+		// Restart on a rising edge at Pulse In 2 (or from the web editor)
+		bool restart = PulseIn2RisingEdge();
 		if (restartRequest)
 		{
 			restartRequest = false;
@@ -128,8 +128,8 @@ public:
 			dirShow = 1500; // show it on the LEDs for ~1s
 		}
 
-		// Clock on Pulse In 2
-		bool clockEdge = PulseIn2RisingEdge();
+		// Clock on Pulse In 1
+		bool clockEdge = PulseIn1RisingEdge();
 		if (samplesSinceClock < 0x7FFFFFFF) samplesSinceClock++;
 		if (clockEdge)
 		{
