@@ -1,8 +1,8 @@
-draft: true
-Name: Wave Sequencer
+draft: false
+Name: WaveSeq
 short-description: "Wavestation-style wave sequencing - eight steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
 Language: C++ (ComputerCard)
-Creator: Martyn Quickenden
+Creator: XponentOneAudio
 Version: "0.5.0"
 Status: Beta
 License: MIT
@@ -26,6 +26,7 @@ tags:
   - sequencer
   - usb-host
   - midi
+  - 8mu
 
 summary: |
   Wave sequencing, as made famous by the Korg Wavestation: instead of one
