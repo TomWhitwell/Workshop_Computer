@@ -24,22 +24,29 @@ hardware; older boards are always a USB device.
 ## The 8mu
 
 The eight faders are the eight steps. The four buttons on top choose the page,
-which is what the faders edit:
+which is what the faders edit. Each button has two pages: press it again to
+flip to its second page (and again to flip back). Pressing a different button
+always starts on that button's first page.
 
-| Button | Page  | Fader sets                                              |
-|--------|-------|---------------------------------------------------------|
-| A      | WAVE  | Wave position, scanning through the 64-wave bank        |
-| B      | TIME  | Step duration, 20 ms to 4 s. Fully down skips the step. In clocked mode, 1-8 clocks |
-| C      | PITCH | -12 to +12 semitones, centre is no offset               |
-| D      | LEVEL | Step loudness                                           |
+| Button | First page | Fader sets | Second page | Fader sets |
+|--------|------------|------------|-------------|------------|
+| A | WAVE  | Wave position, scanning through the 64-wave bank | FM   | Per-step FM amount, default 100% |
+| B | TIME  | Step duration, 20 ms to 4 s. Fully down skips the step. In clocked mode, 1-8 clocks | SCAN | Per-step wave scan amount, default 100% |
+| C | PITCH | -12 to +12 semitones, centre is no offset | -    | Not assigned yet |
+| D | LEVEL | Step loudness | -    | Not assigned yet |
+
+**Per-step FM and SCAN** multiply the panel's FM amount (X, switch middle) and
+wave scan amount (Y, switch middle) for each step. They crossfade from step to
+step along with the wave, pitch and level, so a long crossfade glides between
+them. A step at 0% gets no FM (or scan) at all, whatever the knob says.
 
 **Pickup.** After a page change the faders don't do anything until they reach
 the value already stored for their step (or pass it), then take it over. So
 switching page never makes the sound jump.
 
 **LEDs.** The 8mu's LEDs show the stored values on the current page, and the
-playing step is lit fully. On the Computer, LEDs 1-4 show which page is
-selected.
+playing step is lit fully. On the Computer, LEDs 1-4 show which button's page
+is selected: lit steadily for its first page, blinking slowly for its second.
 
 **Motion.** Tilting the 8mu forward and back scans every step's wave together,
 up to 16 waves either way. Tilting it left and right detunes Audio Out 2 by up
@@ -66,7 +73,8 @@ edit as it's made.
   whether the card is clocked, live from the card's knobs, CV and switch.
 - **Now playing.** The wave being heard, including part-way through a
   crossfade.
-- **Faders.** Four pages of eight, like the 8mu: tabs A-D choose the page.
+- **Faders.** Eight pages of eight, like the 8mu's two pages per button: tabs
+  A, A2, B, B2... choose the page.
   Drag, use the arrow keys, or double-click to reset.
 - **Wave bank.** All 64 waves. Click one to give it to the selected step.
 - **8mu on the computer.** Its faders, buttons and tilt drive the page, with

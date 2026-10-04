@@ -6,13 +6,14 @@
 // (7D is the MIDI 'non-commercial' manufacturer ID, 57 is 'W').
 // All values are 7-bit; wider values are sent as two bytes, high 7 bits first.
 //
-// Step values are in 8mu fader units, 0-127, sent page by page:
-// WAVE 1-8, TIME 1-8, PITCH 1-8, LEVEL 1-8.
+// Step values are in 8mu fader units, 0-127, sent page by page (8 pages of
+// 8): WAVE, TIME, PITCH, LEVEL, then the second pages FM, SCAN, C2, D2.
+// Page numbers are button (0-3) + 4 for a button's second page.
 //
 // Web -> card
 //   HELLO    01                      card replies with STATE
 //   SET      03 page step value      one step value
-//   SET_ALL  04 version values[32]   every step value
+//   SET_ALL  04 version values[64]   every step value
 //   PAGE     05 page                 page shown on the Computer's LEDs
 //   RESET    06                      default sequence; card replies with STATE
 //   MOTION   08 pitch(2) roll(2)     8mu tilt, each 0-4095 with 2048 level
@@ -22,7 +23,7 @@
 //   DIRECTION 0B dir                 0 forward, 1 ping-pong, 2 random
 //
 // Card -> web
-//   STATE    02 version page values[32]
+//   STATE    02 version page values[64]
 //   STATUS   07 cur next mix progress flags note(2) speed(2) xfade fm scan
 //            cur, next   steps 0-7
 //            mix         crossfade into next, 0-127
@@ -46,8 +47,8 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x57;
-static constexpr uint8_t kVersion = 2;
-static constexpr int kNumValues = 32;
+static constexpr uint8_t kVersion = 3;
+static constexpr int kNumValues = 64;
 
 enum Cmd : uint8_t
 {
@@ -69,7 +70,7 @@ enum Cmd : uint8_t
 // then in cmd, payload and length.
 struct Parser
 {
-	static constexpr int kMax = 48;
+	static constexpr int kMax = 80;
 	uint8_t buf[kMax];
 	int n = 0;
 	bool in = false;

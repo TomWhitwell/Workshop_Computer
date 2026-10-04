@@ -83,6 +83,8 @@
   .tab b { display: inline-block; width: 1.4em; text-align: center; margin-right: 4px; border-radius: 4px; background: var(--track); }
   .tab.on { border-color: var(--accent); background: var(--accent-soft); }
   .tab.on b { background: var(--accent); color: var(--panel); }
+  .tab.second { margin-right: 8px; font-size: 13px; }
+  .tab.second b { width: auto; padding: 0 3px; }
   .faders { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
   .fader { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; border-radius: 6px; padding: 4px 0; }
   .fader.cur { background: var(--accent-soft); }
@@ -227,8 +229,8 @@
 // Constants mirroring the firmware (main.cpp, sysex.h, wavetables.h)
 // ============================================================================
 const NS = 8;                                   // steps
-const PAGES = 4;
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x57, PROTOCOL_VERSION = 2;
+const PAGES = 8;                                // button + 4 * layer
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x57, PROTOCOL_VERSION = 3;
 const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9, RESTART: 10, DIRECTION: 11 };
 const DIRECTIONS = ['Forward', 'Ping-pong', 'Random'];
 const FIRST_FADER_CC = 34, FIRST_MOTION_CC = 42;
@@ -240,6 +242,10 @@ const PAGE_INFO = [
   { name: 'Time',  letter: 'B', hint: 'How long each step lasts, 20 ms to 4 s (scaled by the speed setting: X with the switch up). Fully down skips the step. With a clock on Pulse In 1, 1-8 clocks.' },
   { name: 'Pitch', letter: 'C', hint: 'Each step’s pitch, -12 to +12 semitones. The middle is no change.' },
   { name: 'Level', letter: 'D', hint: 'How loud each step is.' },
+  { name: 'FM',    letter: 'A2', hint: 'Per-step FM amount: multiplies the FM amount knob (X, switch middle) for each step, crossfading between steps. Default 100%.' },
+  { name: 'Scan',  letter: 'B2', hint: 'Per-step wave scan amount: multiplies the scan amount knob (Y, switch middle) for each step, crossfading between steps. Default 100%.' },
+  { name: '\u2014',  letter: 'C2', hint: 'Not assigned yet. Values are kept, and saved in presets.' },
+  { name: '\u2014',  letter: 'D2', hint: 'Not assigned yet. Values are kept, and saved in presets.' },
 ];
 const FAMILIES = ['Sine to saw', 'Saw to square', 'Pulse width', 'Hard sync', 'FM', 'Vowels', 'Wavefold', 'Digital'];
 const DEFAULT_VALUES = [
@@ -247,7 +253,12 @@ const DEFAULT_VALUES = [
   [64, 64, 64, 64, 64, 64, 64, 64],
   [64, 64, 64, 64, 64, 64, 64, 64],
   [127, 127, 127, 127, 127, 127, 127, 127],
+  [127, 127, 127, 127, 127, 127, 127, 127],
+  [127, 127, 127, 127, 127, 127, 127, 127],
+  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0],
 ];
+const TAB_ORDER = [0, 4, 1, 5, 2, 6, 3, 7];
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 // Firmware conversions, from 0-127 fader units
@@ -343,7 +354,9 @@ function describe(page, v) {
     case 0: { const p = wavePos(v); return p.toFixed(1) + ' ' + FAMILIES[Math.min(7, Math.floor(Math.round(p) / 8))]; }
     case 1: return !isActive(v) ? 'skip' : state.live.clocked ? stepClocks(v) + ' clk' : fmtMs(stepMs(v));
     case 2: { const s = semis(v); return (s > 0 ? '+' : '') + s + ' st'; }
-    default: { const l = level(v); return l <= 0 ? 'off' : Math.round(20 * Math.log10(l)) + ' dB'; }
+    case 3: { const l = level(v); return l <= 0 ? 'off' : Math.round(20 * Math.log10(l)) + ' dB'; }
+    case 4: case 5: return Math.round(v >= 127 ? 100 : v * 100 / 127) + '%';
+    default: return '';
   }
 }
 function noteName(n) {
@@ -519,8 +532,10 @@ function drawBank() {
 const faderEls = [];
 function buildFaders() {
   const tabs = $('tabs');
-  PAGE_INFO.forEach((p, i) => {
-    const t = document.createElement('button'); t.className = 'tab'; t.innerHTML = '<b>' + p.letter + '</b>' + p.name;
+  TAB_ORDER.forEach((i) => {
+    const p = PAGE_INFO[i];
+    const t = document.createElement('button'); t.className = 'tab' + (i >= 4 ? ' second' : ''); t.dataset.page = i;
+    t.innerHTML = '<b>' + p.letter + '</b>' + p.name;
     t.addEventListener('click', () => selectPage(i, true)); tabs.appendChild(t);
   });
   const el = $('faders');
@@ -538,7 +553,7 @@ function buildFaders() {
   }
 }
 function refreshFaders() {
-  [...$('tabs').children].forEach((t, i) => t.classList.toggle('on', i === state.page));
+  [...$('tabs').children].forEach((t) => t.classList.toggle('on', +t.dataset.page === state.page));
   $('page-hint').textContent = PAGE_INFO[state.page].hint;
   faderEls.forEach((f, i) => {
     const v = state.values[state.page][i];
@@ -621,7 +636,8 @@ function eightmuMessage(d) {
     else if (cc >= FIRST_MOTION_CC && cc < FIRST_MOTION_CC + 8) { mu.cc[cc - FIRST_MOTION_CC] = d[2] & 0x7F; scheduleMotion(); }
   } else if (type === 0x90 && d[2] > 0) {
     const p = BUTTON_NOTES.indexOf(d[1]);
-    if (p >= 0) selectPage(p, true);
+    // Same button again flips to its second page; another starts on its first
+    if (p >= 0) selectPage((state.page & 3) === p ? state.page ^ 4 : p, true);
   }
 }
 // Tilt, as EightMU::Pitch/Roll compute it: the difference of a pair of CCs
@@ -714,7 +730,7 @@ function onCardBytes(d) {
     if (!link.sysexOn) continue;
     if (b === 0xF7) { link.sysexOn = false; handleCardMessage(link.sysexBuf); link.sysexBuf = []; continue; }
     if (b & 0x80) { if (b < 0xF8) link.sysexOn = false; continue; }
-    if (link.sysexBuf.length < 64) link.sysexBuf.push(b); else link.sysexOn = false;
+    if (link.sysexBuf.length < 128) link.sysexBuf.push(b); else link.sysexOn = false;
   }
 }
 
@@ -810,12 +826,14 @@ const BUILTIN = [
   { name: 'Pulse sweep', v: [[32, 34, 36, 38, 40, 42, 44, 46], [48, 48, 48, 48, 48, 48, 48, 48], [64, 64, 64, 64, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127]] },
   { name: 'Rhythm', v: [[116, 2, 104, 2, 120, 2, 110, 60], [30, 30, 0, 30, 30, 30, 0, 30], [64, 64, 64, 64, 76, 64, 64, 52], [127, 60, 127, 60, 127, 60, 127, 90]] },
   { name: 'FM bells', v: [[68, 70, 72, 74, 76, 78, 72, 70], [90, 30, 30, 90, 30, 30, 60, 60], [64, 88, 64, 76, 64, 88, 69, 64], [127, 90, 80, 127, 90, 80, 110, 90]] },
-];
+].map(cleanPreset);
 let userPresets = [];
-function cleanPreset(o) {
-  if (!o || typeof o !== 'object' || !Array.isArray(o.v) || o.v.length !== PAGES) return null;
+function cleanPreset(o) {   // hoisted: BUILTIN above uses it
+  // Presets from before the second pages have 4 rows: the rest take defaults
+  if (!o || typeof o !== 'object' || !Array.isArray(o.v) || (o.v.length !== 4 && o.v.length !== PAGES)) return null;
   const v = o.v.map(r => Array.isArray(r) && r.length === NS ? r.map(x => clamp(Math.round(+x) || 0, 0, 127)) : null);
   if (v.some(r => !r)) return null;
+  for (let p = v.length; p < PAGES; p++) v.push(DEFAULT_VALUES[p].slice());
   return { name: String(o.name || 'Preset').slice(0, 60), v };
 }
 function loadPresets() { userPresets = (store.get('waveseq.presets.v1', []) || []).map(cleanPreset).filter(Boolean); }

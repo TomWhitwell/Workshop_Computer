@@ -3,7 +3,7 @@ Name: Wave Sequencer
 short-description: "Wavestation-style wave sequencing - eight steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
 Language: C++ (ComputerCard)
 Creator: Martyn Quickenden
-Version: "0.3.0"
+Version: "0.4.0"
 Status: Beta
 License: MIT
 Editor: web
@@ -17,7 +17,7 @@ date-updated: 2026-10-04
 
 uf2:
   - path: UF2/waveseq.uf2
-    name: Wave Sequencer 0.3.0
+    name: Wave Sequencer 0.4.0
 
 tags:
   - synth
@@ -39,7 +39,10 @@ summary: |
 
   The sequence is edited from a Music Thing 8mu. Its eight faders are the
   eight steps, and its four buttons choose what the faders edit: A is WAVE,
-  B is TIME, C is PITCH and D is LEVEL. After a page change each fader picks
+  B is TIME, C is PITCH and D is LEVEL. Pressing a button again flips to its
+  second page: A gives per-step FM amount and B per-step wave scan amount,
+  each multiplying the panel's amount and crossfading between steps (C and
+  D's second pages are not assigned yet). After a page change each fader picks
   up its step only once it reaches the stored value, so changing page never
   makes the sound jump. The 8mu's LEDs show the stored values, with the
   playing step lit fully. Tilting the 8mu forward and back scans every
@@ -149,7 +152,7 @@ controls:
       items:
         - id: LED0
           name: Page A / step
-          description: With an 8mu or the web editor, LEDs 0-3 show the page (WAVE, TIME, PITCH, LEVEL). Without one, they show the playing step - bright for steps 1-4, dim for 5-8.
+          description: With an 8mu or the web editor, LEDs 0-3 show the button whose page is selected (A-D), steady for its first page and blinking slowly for its second. Without one, they show the playing step - bright for steps 1-4, dim for 5-8.
         - id: LED1
           name: Page B / step
         - id: LED2

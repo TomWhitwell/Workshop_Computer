@@ -6,12 +6,18 @@
 // An eight-step sequence, where every step plays a wave from a bank of 64
 // single-cycle waves for a set time, at a set pitch and level, crossfading
 // into the next step.  The 8mu's eight faders edit the eight steps; its four
-// buttons choose which property of the steps the faders are editing:
+// buttons choose which property of the steps the faders are editing.  Each
+// button has two pages: pressing it again flips to its second page, and
+// pressing a different button always starts on that button's first page.
 //
-//   Button A  WAVE   wave position, scanning through the 64-wave bank
-//   Button B  TIME   step duration, 20ms to 4s; fully down skips the step
-//   Button C  PITCH  -12 to +12 semitones
-//   Button D  LEVEL  step loudness
+//             First page                         Second page
+//   Button A  WAVE  position in the 64-wave bank FM    per-step FM amount
+//   Button B  TIME  20ms to 4s; down = skip      SCAN  per-step wave scan amount
+//   Button C  PITCH -12 to +12 semitones         (not yet assigned)
+//   Button D  LEVEL step loudness                (not yet assigned)
+//
+// The per-step FM and SCAN amounts (default 100%) multiply the panel's FM and
+// wave scan amounts, and crossfade between steps along with everything else.
 //
 // After a page change the faders 'pick up': a fader only takes over its step
 // once it has been moved to (or across) the value already stored, so changing
@@ -74,7 +80,9 @@ class WaveSeq : public ComputerCard
 {
 public:
 	static constexpr int kSteps = 8;
-	enum Page {PageWave, PageTime, PagePitch, PageLevel, kPages};
+	// Page = button + 4 * layer
+	enum Page {PageWave, PageTime, PagePitch, PageLevel,
+		PageFM, PageScan, PageC2, PageD2, kPages};
 
 	WaveSeq()
 	{
@@ -108,6 +116,10 @@ public:
 			params[PageTime][i] = 64 << 5;
 			params[PagePitch][i] = 64 << 5;
 			params[PageLevel][i] = 127 << 5;
+			params[PageFM][i] = 127 << 5;
+			params[PageScan][i] = 127 << 5;
+			params[PageC2][i] = 0;
+			params[PageD2][i] = 0;
 		}
 	}
 
@@ -188,15 +200,19 @@ public:
 		int32_t gA = (levelA * (4096 - mix)) >> 12;
 		int32_t gB = (levelB * mix) >> 12;
 
+		// Per-step FM and scan amounts, crossfaded like the levels
+		int32_t stepFM = (fmA * (4096 - mix) + fmB * mix) >> 12;
+		int32_t stepScan = (scanA * (4096 - mix) + scanB * mix) >> 12;
+
 		// Wave scan from Audio In 2 (up to +/-32 waves)
-		int32_t scan = (AudioIn2() * scanAmount) >> 10;
+		int32_t scan = (((AudioIn2() * scanAmount) >> 12) * stepScan) >> 10;
 		int32_t wA = ClampWave(waveA + scan);
 		int32_t wB = ClampWave(waveB + scan);
 
 		// Linear FM from Audio In 1
 		int32_t fm = AudioIn1();
 		if (fm > -8 && fm < 8) fm = 0;
-		fm = (fm * fmAmount) >> 12;
+		fm = (((fm * fmAmount) >> 12) * stepFM) >> 12;
 
 		phA += incA + (int32_t(incA >> 11) * fm);
 		phB += incB + (int32_t(incB >> 11) * fm);
@@ -231,6 +247,7 @@ private:
 
 	// 8mu paging and fader pickup
 	volatile int page = PageWave;
+	int pageBlink = 0;
 	bool latched[kSteps] = {};
 	int32_t lastFader[kSteps] = {};
 	bool lastFaderValid = false;
@@ -279,6 +296,8 @@ private:
 	uint32_t incA = 0, incB = 0, inc2A = 0, inc2B = 0;
 	int32_t waveA = 0, waveB = 0; // Q8 wave position
 	int32_t levelA = 0, levelB = 0; // Q12
+	int32_t fmA = 4096, fmB = 4096;     // per-step FM amount, Q12
+	int32_t scanA = 4096, scanB = 4096; // per-step scan amount, Q12
 	int mipA = 0, mipB = 0;
 
 	uint32_t exp2Tab[257]; // 2^(i/256) in Q30
@@ -416,8 +435,15 @@ private:
 		int32_t w = ClampWave(params[PageWave][s] * kMaxWave / 4064 + tiltScan);
 		int32_t lv = params[PageLevel][s];
 		lv = (lv * lv) >> 12;
-		if (b) {incB = inc; inc2B = inc2; waveB = w; levelB = lv; mipB = MipFor(inc);}
-		else {incA = inc; inc2A = inc2; waveA = w; levelA = lv; mipA = MipFor(inc);}
+		int32_t fa = Q12(params[PageFM][s]), sa = Q12(params[PageScan][s]);
+		if (b) {incB = inc; inc2B = inc2; waveB = w; levelB = lv; mipB = MipFor(inc); fmB = fa; scanB = sa;}
+		else {incA = inc; inc2A = inc2; waveA = w; levelA = lv; mipA = MipFor(inc); fmA = fa; scanA = sa;}
+	}
+
+	// Stored fader value (0-4064) to 0-4096, so a fader at the top is 100%
+	static int32_t Q12(int32_t v)
+	{
+		return v >= 4064 ? 4096 : (v * 4096) / 4064;
 	}
 
 	void Advance()
@@ -431,6 +457,7 @@ private:
 		phA = phB; ph2A = ph2B;
 		incA = incB; inc2A = inc2B;
 		waveA = waveB; levelA = levelB; mipA = mipB;
+		fmA = fmB; scanA = scanB;
 		phB = phA; ph2B = ph2A;
 
 		if (clocked) elapsed = 0;
@@ -556,11 +583,17 @@ private:
 		for (int i = 0; i < 4; i++)
 		{
 			if (dirShow > 0) LedOn(i, i <= direction && i < 3); // 1, 2 or 3 LEDs
-			else if (conn) LedOn(i, i == page);
+			else if (conn)
+			{
+				// First page lit; second page blinks slowly
+				bool second = page >= 4;
+				LedOn(i, (page & 3) == i && (!second || pageBlink < 450));
+			}
 			else LedBrightness(i, (cur & 3) == i ? (cur < 4 ? 4095 : 1024) : 0);
 		}
 		LedOn(4, stepTrig > 0);
 		// LED 5: connection, blinking fast while a knob waits to pick up
+		pageBlink = (pageBlink + 1) % 900;
 		static int blink = 0;
 		blink = (blink + 1) % 300;
 		LedBrightness(5, waiting ? (blink < 150 ? 4095 : 0) : (conn ? 4095 : 0));
@@ -641,9 +674,11 @@ private:
 		for (int b = 0; b < EightMU::numButtons; b++)
 		{
 			bool down = mu.Button(b);
-			if (down && !prevButton[b] && b != page)
+			if (down && !prevButton[b])
 			{
-				page = b;
+				// Same button again flips between its two pages; another
+				// button starts on its first page
+				page = (page & 3) == b ? (page ^ 4) : b;
 				for (int i = 0; i < kSteps; i++) latched[i] = false;
 			}
 			prevButton[b] = down;
