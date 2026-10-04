@@ -6,7 +6,7 @@ project(${CARD_NAME} C CXX ASM)
 set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
-add_executable(${CARD_NAME} main.cpp)
+add_executable(${CARD_NAME} main.cpp usb_descriptors.c)
 
 target_compile_options(${CARD_NAME} PRIVATE
   -Wdouble-promotion -Wfloat-conversion -Wall -Wextra -O2)
@@ -15,8 +15,8 @@ target_link_options(${CARD_NAME} PRIVATE -Wl,--print-memory-usage)
 # Needed for the Workshop Computer's crystal to start reliably from cold
 target_compile_definitions(${CARD_NAME} PRIVATE PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
 
-# EightMU.h carries the USB MIDI host driver and doubles as tusb_config.h
-target_compile_definitions(${CARD_NAME} PRIVATE CFG_TUSB_CONFIG_FILE="EightMU.h")
+# tusb_config.h (next to main.cpp) enables USB host and device modes; the
+# host side and the usb_midi_host driver come from EightMU.h
 
 target_include_directories(${CARD_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 
@@ -30,6 +30,7 @@ target_link_libraries(${CARD_NAME}
   hardware_adc
   hardware_spi
   tinyusb_host
+  tinyusb_device
   tinyusb_board)
 
 # Run from RAM, so core1's USB activity can't upset the audio interrupt

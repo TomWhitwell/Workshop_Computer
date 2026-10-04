@@ -7,10 +7,21 @@ An eight-step sequence, where every step plays a wave from a bank of 64
 single-cycle waves for a set time, at a set pitch and level, crossfading into
 the next step.
 
-## The 8mu
+## Three ways to use it
 
-Plug the 8mu into the Computer's USB socket. That needs Computer Rev 1.1
-hardware, with the Computer acting as USB host.
+The card works on its own; the 8mu and the web editor are both optional.
+
+| Plugged into the Computer's USB socket | The card is | The faders are |
+|---|---|---|
+| an 8mu | USB host | the 8mu's, read directly. No computer needed |
+| a computer | a USB MIDI device called **Wave Sequencer** | the web editor's, and an 8mu plugged into the *computer* is passed on by the editor |
+| nothing | USB host, waiting | (plug an 8mu in any time) |
+
+The card picks its mode once, at power-up, so **after plugging a computer in,
+power-cycle the module**. Telling the two apart needs Computer Rev 1.1
+hardware; older boards are always a USB device.
+
+## The 8mu
 
 The eight faders are the eight steps. The four buttons on top choose the page,
 which is what the faders edit:
@@ -36,6 +47,42 @@ to 50 cents. Lying flat, neither does anything.
 
 Without an 8mu the card plays a default sequence, still under the panel
 controls.
+
+## Web editor
+
+Open [`web/index.html`](web/index.html) in Chrome or Edge. It's a single file
+and needs no network. Safari and iOS can't do WebMIDI with SysEx.
+
+Plug the computer into the Computer's USB socket with a data cable,
+power-cycle the module, and press **Connect card & 8mu**. The page reads the
+sequence from the card (the card is the source of truth), then sends every
+edit as it's made.
+
+- **Sequence.** The eight steps as a timeline. Each step's width is its
+  duration, its trace is its wave at its level, and the shaded end is its
+  crossfade into the next. A playhead follows the card. Click a step to select
+  it.
+- **Readouts.** Step, pitch (as a note name), speed, crossfade, direction and
+  whether the card is clocked, live from the card's knobs, CV and switch.
+- **Now playing.** The wave being heard, including part-way through a
+  crossfade.
+- **Faders.** Four pages of eight, like the 8mu: tabs A-D choose the page.
+  Drag, use the arrow keys, or double-click to reset.
+- **Wave bank.** All 64 waves. Click one to give it to the selected step.
+- **8mu on the computer.** Its faders, buttons and tilt drive the page, with
+  the same pickup as the card. The page lights the 8mu's LEDs as the card
+  would. A dashed line on a fader shows where the 8mu's fader is while it
+  waits to pick up.
+- **Presets.** Seven built in, plus your own, kept in the browser
+  (`localStorage`). Save, update, rename, delete, and export or import as a
+  JSON file. Loading a preset sends it to the card.
+- **Restart** and **Reset** (to the default sequence) act on the card too.
+
+Without a card the page still edits, previews and keeps presets, with a
+simulated playhead at 1x speed.
+
+The card and page talk SysEx; the protocol is documented in
+[`sysex.h`](sysex.h).
 
 ## Panel
 
@@ -91,4 +138,5 @@ Needs the Pico SDK. `EightMU.h` and `ComputerCard.h` are copied from
 
 ## Not yet
 
-- Sequences aren't saved, so they're lost at power-off.
+- Sequences aren't saved on the card, so they're lost at power-off. Keep them
+  as presets in the web editor and send them again after power-up.

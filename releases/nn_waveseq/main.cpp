@@ -46,10 +46,24 @@
 // 8mu motion
 //   Pitch (tilt front/back)  scans every step's wave position, +/-16 waves
 //   Roll (tilt left/right)   detunes Audio Out 2 by up to +/-50 cents
+//
+// USB, chosen once at power-up
+//   Port supplying power (an 8mu, or nothing yet): USB host, reading the 8mu.
+//   Computer plugged in: USB MIDI device called "Wave Sequencer", for the web
+//   editor in web/index.html (protocol in sysex.h).  An 8mu plugged into the
+//   computer is passed on by the editor.  Either way the card runs on its
+//   own; the editor only adds a picture of the sequence and presets.
 
+// First, so TinyUSB is configured for host and device modes before
+// EightMU.h supplies its host-only defaults
+#include "tusb_config.h"
 #include "ComputerCard.h"
 #include "EightMU.h"
+#include "sysex.h"
 #include "wavetables.h"
+
+class WaveSeq;
+static WaveSeq *gCard = nullptr;
 
 
 class WaveSeq : public ComputerCard
@@ -66,24 +80,30 @@ public:
 			exp2Tab[i] = uint32_t(1073741824.0f * exp2f(float(i) / 256.0f));
 		}
 
-		// Default sequence, so the card plays something with no 8mu
-		static const int16_t defWave[kSteps] = {200, 700, 1100, 1600, 2150, 2600, 3050, 3700};
-		for (int i = 0; i < kSteps; i++)
-		{
-			params[PageWave][i] = defWave[i];
-			params[PageTime][i] = 2048;
-			params[PagePitch][i] = 2048;
-			params[PageLevel][i] = 4095;
-		}
-
+		SetDefaults();
 		Restart();
 
-		// Give the USB power circuitry time to settle, then start the USB
-		// host stack only if the Computer really is acting as a host
+		// Give the USB power circuitry time to settle, then pick the USB
+		// mode once: host if the port is supplying power (an 8mu, or nothing
+		// yet), device if a computer is (the web editor).  Boards older than
+		// Rev 1.1 can't tell, and are always a device.
 		sleep_us(150000);
-		if (USBPowerState() == DFP)
+		gCard = this;
+		hostMode = USBPowerState() == DFP;
+		multicore_launch_core1(hostMode ? Core1Host : Core1Device);
+	}
+
+	// Default sequence, so the card plays something with no 8mu.
+	// Values are in 8mu fader units (0-127), stored shifted up to 0-4064.
+	void SetDefaults()
+	{
+		static const uint8_t defWave[kSteps] = {6, 22, 34, 50, 67, 81, 95, 116};
+		for (int i = 0; i < kSteps; i++)
 		{
-			mu.Start(); // claims core1
+			params[PageWave][i] = defWave[i] << 5;
+			params[PageTime][i] = 64 << 5;
+			params[PagePitch][i] = 64 << 5;
+			params[PageLevel][i] = 127 << 5;
 		}
 	}
 
@@ -91,6 +111,11 @@ public:
 	{
 		// Restart: rising edge on Pulse In 1, or switch pushed down
 		bool restart = PulseIn1RisingEdge() || (SwitchChanged() && SwitchVal() == Down);
+		if (restartRequest)
+		{
+			restartRequest = false;
+			restart = true;
+		}
 		pingPong = SwitchVal() == Up;
 
 		// Clock on Pulse In 2
@@ -149,6 +174,7 @@ public:
 				: ((((elapsed - xStart) >> xfShift) << 12) / ((xfLen >> xfShift) | 1));
 			if (mix > 4096) mix = 4096;
 		}
+		lastMix = mix;
 		int32_t gA = (levelA * (4096 - mix)) >> 12;
 		int32_t gB = (levelB * mix) >> 12;
 
@@ -188,11 +214,12 @@ public:
 private:
 	EightMU mu;
 
-	// Step parameters, stored as raw fader values 0-4095
-	int32_t params[kPages][kSteps];
+	// Step parameters, stored as raw fader values 0-4095.  Written by core1
+	// in device mode, as the web editor sends them.
+	volatile int32_t params[kPages][kSteps];
 
 	// 8mu paging and fader pickup
-	int page = PageWave;
+	volatile int page = PageWave;
 	bool latched[kSteps] = {};
 	int32_t lastFader[kSteps] = {};
 	bool lastFaderValid = false;
@@ -230,6 +257,21 @@ private:
 	int mipA = 0, mipB = 0;
 
 	uint32_t exp2Tab[257]; // 2^(i/256) in Q30
+
+	// USB mode, fixed at power-up
+	bool hostMode = true;
+
+	// Device mode: written on core1, read on core0
+	volatile bool restartRequest = false;
+	volatile int32_t webPitch = 0, webRoll = 0;
+	volatile uint32_t lastPingUs = 0;
+	volatile bool pinged = false;
+
+	// Snapshot for the web editor: written on core0, read on core1
+	volatile uint8_t stCur = 0, stNext = 0, stMix = 0, stProgress = 0, stFlags = 0;
+	volatile uint8_t stXfade = 0;
+	volatile int32_t stNote = 0, stSpeed = 0;
+	int32_t lastMix = 0;
 
 	static constexpr int32_t kSkipBelow = 128;
 	static constexpr uint32_t kIncNote0 = 731558; // MIDI note 0, 8.18Hz
@@ -417,7 +459,15 @@ private:
 		speed = int32_t(ExpScale(256, spd));
 		xfAmount = KnobVal(Y);
 
-		HandleEightMU();
+		if (hostMode)
+		{
+			HandleEightMU();
+		}
+		else
+		{
+			tiltScan = webPitch * 2;
+			detune = 15 + webRoll / 16;
+		}
 
 		// Keep slots and timing following edits.  Slot B is only refreshed
 		// while silent, so the step being faded into never jumps.
@@ -431,8 +481,21 @@ private:
 
 		CVOut1MIDINote(uint8_t(60 + StepSemitones(cur)));
 
+		// Snapshot for the web editor
+		stCur = uint8_t(cur);
+		stNext = uint8_t(nxt);
+		stMix = uint8_t(lastMix >> 5 > 127 ? 127 : lastMix >> 5);
+		{
+			int32_t pr = stepLen > 0 ? int32_t((int64_t(elapsed) * 127) / stepLen) : 0;
+			stProgress = uint8_t(pr < 0 ? 0 : (pr > 127 ? 127 : pr));
+		}
+		stFlags = uint8_t((pingPong ? 1 : 0) | (clocked ? 2 : 0) | (mu.Connected() ? 4 : 0));
+		stNote = baseNote >> 5;
+		stSpeed = (spd >> 4) + 2048;
+		stXfade = uint8_t(xfAmount >> 5);
+
 		// Computer LEDs: page (or step, with no 8mu), step trigger, 8mu
-		bool conn = mu.Connected();
+		bool conn = mu.Connected() || WebLinked();
 		for (int i = 0; i < 4; i++)
 		{
 			if (conn) LedOn(i, i == page);
@@ -481,7 +544,7 @@ private:
 		for (int i = 0; i < kSteps; i++)
 		{
 			int32_t f = mu.Fader(i);
-			int32_t &p = params[page][i];
+			volatile int32_t &p = params[page][i];
 			if (!latched[i])
 			{
 				int32_t d = f - p;
@@ -500,6 +563,166 @@ private:
 		// Motion
 		tiltScan = mu.Pitch() * 2;
 		detune = 15 + mu.Roll() / 16;
+	}
+
+	//------------------------------------------------------------------------
+	// USB, on core1
+	//------------------------------------------------------------------------
+
+	// The web editor counts as linked while its pings keep arriving
+	bool WebLinked() const
+	{
+		return !hostMode && pinged && (time_us_32() - lastPingUs) < 3000000;
+	}
+
+	// Host mode: read an 8mu plugged straight into the Computer
+	static void Core1Host()
+	{
+		board_init();
+		tuh_init(0);
+		while (true)
+		{
+			gCard->mu.Poll();
+		}
+	}
+
+	// Device mode: talk to the web editor
+	static void Core1Device()
+	{
+		board_init();
+		tud_init(0);
+		sysex::Parser parser;
+		uint32_t lastStatusUs = 0;
+		while (true)
+		{
+			tud_task();
+			uint8_t buf[64];
+			while (tud_midi_available())
+			{
+				uint32_t n = tud_midi_stream_read(buf, sizeof(buf));
+				if (n == 0) break;
+				for (uint32_t i = 0; i < n; i++)
+				{
+					if (parser.Feed(buf[i]))
+					{
+						gCard->OnSysEx(parser.cmd, parser.payload, parser.length);
+					}
+				}
+			}
+
+			uint32_t now = time_us_32();
+			if (gCard->WebLinked() && now - lastStatusUs >= 33000)
+			{
+				lastStatusUs = now;
+				uint8_t msg[sysex::kStatusLen];
+				int len = gCard->EncodeStatus(msg);
+				Write(msg, len);
+			}
+		}
+	}
+
+	// Send a whole message, waiting briefly for room if need be.  If the
+	// computer isn't reading, the rest is dropped; the editor's parser
+	// resynchronises on the next F0.
+	static void Write(const uint8_t *msg, int len)
+	{
+		uint32_t start = time_us_32();
+		int sent = 0;
+		while (sent < len && tud_mounted())
+		{
+			sent += int(tud_midi_stream_write(0, msg + sent, uint32_t(len - sent)));
+			if (sent < len)
+			{
+				if (time_us_32() - start > 50000) return;
+				tud_task();
+			}
+		}
+	}
+
+public:
+	// Handle one message from the web editor.  Public so it can be tested.
+	void OnSysEx(uint8_t cmd, const uint8_t *p, int len)
+	{
+		switch (cmd)
+		{
+		case sysex::Hello:
+			SendState();
+			break;
+		case sysex::Set:
+			if (len >= 3 && p[0] < kPages && p[1] < kSteps)
+			{
+				params[p[0]][p[1]] = int32_t(p[2] & 0x7F) << 5;
+			}
+			break;
+		case sysex::SetAll:
+			if (len >= 1 + sysex::kNumValues && p[0] == sysex::kVersion)
+			{
+				for (int i = 0; i < sysex::kNumValues; i++)
+				{
+					params[i / kSteps][i % kSteps] = int32_t(p[1 + i] & 0x7F) << 5;
+				}
+			}
+			break;
+		case sysex::Page:
+			if (len >= 1 && p[0] < kPages) page = p[0];
+			break;
+		case sysex::Reset:
+			SetDefaults();
+			restartRequest = true;
+			SendState();
+			break;
+		case sysex::Motion:
+			if (len >= 4)
+			{
+				webPitch = sysex::Get14(p) - 2048;
+				webRoll = sysex::Get14(p + 2) - 2048;
+			}
+			break;
+		case sysex::Ping:
+			lastPingUs = time_us_32();
+			pinged = true;
+			break;
+		case sysex::Restart:
+			restartRequest = true;
+			break;
+		default:
+			break;
+		}
+	}
+
+	int EncodeState(uint8_t *out) const
+	{
+		int n = sysex::Header(out, sysex::State);
+		out[n++] = sysex::kVersion;
+		out[n++] = uint8_t(page);
+		for (int i = 0; i < sysex::kNumValues; i++)
+		{
+			out[n++] = uint8_t((params[i / kSteps][i % kSteps] >> 5) & 0x7F);
+		}
+		out[n++] = 0xF7;
+		return n;
+	}
+
+	int EncodeStatus(uint8_t *out) const
+	{
+		int n = sysex::Header(out, sysex::Status);
+		out[n++] = stCur;
+		out[n++] = stNext;
+		out[n++] = stMix;
+		out[n++] = stProgress;
+		out[n++] = stFlags;
+		n += sysex::Put14(out + n, stNote);
+		n += sysex::Put14(out + n, stSpeed);
+		out[n++] = stXfade;
+		out[n++] = 0xF7;
+		return n;
+	}
+
+private:
+	void SendState()
+	{
+		uint8_t msg[sysex::kStateLen];
+		Write(msg, EncodeState(msg));
 	}
 };
 

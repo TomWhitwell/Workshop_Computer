@@ -3,12 +3,12 @@ Name: Wave Sequencer
 short-description: "Wavestation-style wave sequencing - eight steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
 Language: C++ (ComputerCard)
 Creator: Martyn Quickenden
-Version: "0.1.0"
+Version: "0.2.0"
 Status: Beta
 License: MIT
-Editor: none
+Editor: web
 date-created: 2026-10-02
-date-updated: 2026-10-02
+date-updated: 2026-10-04
 
 # Vendors, unmodified and under their own MIT terms:
 #   ComputerCard.h, EightMU.h (which carries the rppicomidi usb_midi_host
@@ -17,7 +17,7 @@ date-updated: 2026-10-02
 
 uf2:
   - path: UF2/waveseq.uf2
-    name: Wave Sequencer 0.1.0
+    name: Wave Sequencer 0.2.0
 
 tags:
   - synth
@@ -130,7 +130,7 @@ controls:
       items:
         - id: LED0
           name: Page A / step
-          description: With an 8mu, LEDs 0-3 show the page (WAVE, TIME, PITCH, LEVEL). Without one, they show the playing step - bright for steps 1-4, dim for 5-8.
+          description: With an 8mu or the web editor, LEDs 0-3 show the page (WAVE, TIME, PITCH, LEVEL). Without one, they show the playing step - bright for steps 1-4, dim for 5-8.
         - id: LED1
           name: Page B / step
         - id: LED2
@@ -141,5 +141,5 @@ controls:
           name: Step
           description: Flashes on every step.
         - id: LED5
-          name: 8mu
-          description: Lit while an 8mu is connected.
+          name: 8mu / editor
+          description: Lit while an 8mu, or the web editor, is connected.
