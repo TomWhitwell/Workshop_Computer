@@ -469,14 +469,16 @@ private:
 			detune = 15 + webRoll / 16;
 		}
 
-		// Keep slots and timing following edits.  Slot B is only refreshed
-		// while silent, so the step being faded into never jumps.
-		SetSlot(false, cur);
+		// Keep slots and timing following edits, the pitch knob, CV and tilt.
+		// Which step comes next is only chosen again while slot B is silent,
+		// so a crossfade never switches to a different step part-way; but
+		// the step being faded into still follows everything else.
 		if (elapsed <= stepLen - xfLen)
 		{
 			NextStep(cur, dir, nxt, nxtDir);
-			SetSlot(true, nxt);
 		}
+		SetSlot(false, cur);
+		SetSlot(true, nxt);
 		UpdateTiming();
 
 		CVOut1MIDINote(uint8_t(60 + StepSemitones(cur)));
