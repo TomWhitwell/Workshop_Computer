@@ -1,7 +1,7 @@
 draft: false
 Name: Cathode Ray
 short-description: Composite video synthesiser (PAL + NTSC builds) — oscilloscope, etch-a-sketch & spectrum analyser, greyscale via dithering, performance effects, 8 alt-boot screensaver/game modes
-Language: C++ (RP2040 Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: 1.2.0
 Status: Released
@@ -129,15 +129,16 @@ controls:
         down: Performance trigger / config menu
       notes: 24-band Goertzel filter bank on Audio In 1 (~80Hz–8kHz, bass left→treble right); bars decay; a SWAP trigger mirrors bass↔treble.
   leds:
-    - id: LED0
-      name: Scope mode
-    - id: LED1
-      name: Etch-a-sketch mode
-    - id: LED2
-      name: Config menu open
-    - id: LED3
-      name: Phosphor fade / persistence active (Switch MIDDLE)
-    - id: LED4
-      name: Switch DOWN held
-    - id: LED5
-      name: Spectrum-analyser mode
+    - items:
+        - id: LED0
+          name: Scope mode
+        - id: LED1
+          name: Etch-a-sketch mode
+        - id: LED2
+          name: Config menu open
+        - id: LED3
+          name: Phosphor fade / persistence active (Switch MIDDLE)
+        - id: LED4
+          name: Switch DOWN held
+        - id: LED5
+          name: Spectrum-analyser mode
