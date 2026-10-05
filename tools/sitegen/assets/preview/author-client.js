@@ -80,6 +80,16 @@ const els = {
 let data = IS_EXISTING ? clone(INITIAL) : loadDraft();
 let index = [];
 let currentEntry = null;
+// Every card's tag/Language/Status values, embedded by the build, so the
+// similar-values rule can flag near-duplicate spellings.
+const knownValues = (() => {
+  try {
+    return JSON.parse(document.getElementById('known-values')?.textContent || 'null');
+  } catch {
+    return null;
+  }
+})();
+const validateCard = source => validateInfoYaml(source, { knownValues, cardId: currentEntry?.id || '' });
 let selectedLicense = '';
 let licenseWasManuallySelected = false;
 let differentControls = localStorage.getItem(DIFFERENTIAL_STORAGE_KEY) === 'true';
@@ -372,7 +382,7 @@ function formatYamlSource() {
   const document = YAML.parseDocument(els.yaml.value, { prettyErrors: true });
   if (document.errors?.length) {
     const source = parseSource(els.yaml.value, 'info.yaml');
-    renderDiagnostics(validateInfoYaml(source));
+    renderDiagnostics(validateCard(source));
     els.status.textContent = 'Fix the YAML syntax error before formatting.';
     els.status.className = 'author-status is-error';
     jumpToDiagnostic(source.error?.line || 1, source.error?.col || 1);
@@ -676,7 +686,7 @@ function validateAndRender({ syncYaml = true, syncForm = false } = {}) {
   // calculating diagnostic locations. Canonical serialization can remove
   // blank lines and would make otherwise-correct markers drift upward.
   const source = parseSource(syncYaml ? sourceText() : els.yaml.value, 'info.yaml');
-  const result = validateInfoYaml(source);
+  const result = validateCard(source);
   renderDiagnostics(result);
   if (syncYaml) els.yaml.value = sourceText();
   if (syncForm) syncFormFromData();
@@ -1278,13 +1288,13 @@ async function loadExistingCard(entry) {
     els.yaml.value = raw;
     updateYamlDiagnostics([]);
     if (source.error || !source.data) {
-      renderDiagnostics(validateInfoYaml(source));
+      renderDiagnostics(validateCard(source));
       updateBasicAvailability(raw, null);
     } else {
       data = source.data;
       differentControls = hasPositionSpecificData();
       syncFormFromData();
-      const result = validateInfoYaml(source);
+      const result = validateCard(source);
       renderDiagnostics(result);
       renderPreview();
       updateProgress();
@@ -1516,7 +1526,7 @@ function init() {
       if (source.error || !source.data) {
         els.status.textContent = 'Fix the YAML syntax error before returning to visual editing.';
         els.status.className = 'author-status is-error';
-        renderDiagnostics(validateInfoYaml(source));
+        renderDiagnostics(validateCard(source));
         updateBasicAvailability(els.yaml.value, null);
         return;
       }

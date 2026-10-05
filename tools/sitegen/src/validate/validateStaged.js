@@ -103,6 +103,8 @@ try {
   const runner = spawnSync(process.execPath, [
     path.join(snapshot, 'tools', 'sitegen', 'src', 'validate', 'stagedChangeSetCli.js'),
     changesFile,
+    // The snapshot only holds the changed cards; index the rest from the repo.
+    path.join(sourceRoot, 'releases'),
   ], { cwd: snapshot, stdio: 'inherit' });
   process.exitCode = runner.status ?? 2;
 } catch (error) {

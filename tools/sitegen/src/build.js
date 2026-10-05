@@ -15,6 +15,7 @@ import { externalLinkArrow } from './render/icons.js';
 import { curation } from './curation/index.js';
 import { parseSource } from './validate/parseSource.js';
 import { validateInfoYaml } from './validate/validateInfoYaml.js';
+import { collectKnownValues } from './utils/similarValues.js';
 import { renderAuthorPage } from './render/authorPage.js';
 import { buildFirmwareFingerprints } from './firmware/fingerprints.js';
 import {
@@ -237,12 +238,15 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
     for (const diagnostic of rel.panelDiagnostics || []) {
       panelValidationResults.push({ ...diagnostic, file: `releases/${rel.folderName}/${diagnostic.path || 'panels'}` });
     }
-    if (rel.rawInfoSource) {
-      // Validate the raw author source against the canonical schema. This is a
-      // non-fatal reporting pass: it never blocks the build.
-      const source = parseSource(rel.rawInfoSource, `releases/${rel.folderName}/info.yaml`);
-      validationResults.push(validateInfoYaml(source));
-    }
+  }
+
+  // Validate the raw author source against the canonical schema. This is a
+  // non-fatal reporting pass: it never blocks the build. It runs after
+  // discovery so near-duplicate checks can compare against every card.
+  const knownValues = collectKnownValues(releases.filter(rel => rel.rawInfoSource).map(rel => ({ id: rel.folderName, data: rel.rawYaml })));
+  for (const rel of releases.filter(rel => rel.rawInfoSource && foldersToDiscover.includes(rel.folderName))) {
+    const source = parseSource(rel.rawInfoSource, `releases/${rel.folderName}/info.yaml`);
+    validationResults.push(validateInfoYaml(source, { knownValues }));
   }
 
   // Reconstruct shared indexes from the cached release models. This avoids
@@ -484,6 +488,8 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
       ...curation.availableFlairs.map(flair => flair.label),
       ...normalizedCards.flatMap(card => Array.isArray(card.tags) ? card.tags : []),
     ])].sort((a, b) => a.localeCompare(b)),
+    // Lets the author page warn about near-duplicate tag/Language/Status values.
+    knownValues,
   };
   if (!incremental) await buildPreviewTool(suggestions);
   else if (!incrementalCuration || incrementalCuration === 'flairs') await buildPreviewPages(suggestions);
@@ -506,6 +512,7 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
 // build exactly. Keep this list in sync with the preview client's imports.
 const PREVIEW_LIB_FILES = [
   'utils/strings.js',
+  'utils/similarValues.js',
   'utils/youtube.js',
   'utils/instagram.js',
   'utils/video.js',

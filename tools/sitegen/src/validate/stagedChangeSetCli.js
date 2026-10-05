@@ -7,12 +7,13 @@ import { fileURLToPath } from 'node:url';
 import { parseSourceFile } from './readSource.js';
 import { validateInfoYaml } from './validateInfoYaml.js';
 import { readCustomPanelManifest } from '../discover/customPanels.js';
+import { loadKnownValues } from './knownValues.js';
 import { evaluatePrRules, parseNameStatusZ, summarizePrTrigger } from './prRules.js';
 import { reportText } from './reporters/index.js';
 
 const changesFile = process.argv[2];
 if (!changesFile) {
-  console.error('Usage: stagedChangeSetCli.js CHANGES_FILE');
+  console.error('Usage: stagedChangeSetCli.js CHANGES_FILE [RELEASES_DIR]');
   process.exit(2);
 }
 
@@ -22,6 +23,7 @@ const infoFiles = [...new Set(changes
   .filter(change => !change.status.startsWith('D') && /(?:^|\/)info\.yaml$/i.test(change.path))
   .map(change => change.path))];
 
+const knownValues = loadKnownValues(process.argv[3] || path.join(root, 'releases'));
 const results = [];
 for (const relative of infoFiles) {
   const file = path.join(root, relative);
@@ -32,6 +34,7 @@ for (const relative of infoFiles) {
   results.push(validateInfoYaml(source, {
     customPanelsPresent: customPanels.present,
     panelIds: customPanels.items.map(item => item.id),
+    knownValues,
     externalDiagnostics: customPanels.diagnostics.map(diagnostic => ({
       ...diagnostic,
       ruleId: 'custom-panel-manifest',
