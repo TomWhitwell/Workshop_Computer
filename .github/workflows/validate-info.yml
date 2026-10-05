@@ -23,12 +23,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: npm
@@ -75,7 +75,7 @@ jobs:
 
       - name: Post validation report on PR
         if: always() && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('validation-comment.md') != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           REPORT_FILE: validation-comment.md
         with:
@@ -102,7 +102,7 @@ jobs:
 
       - name: Save validation report for fork PR
         if: always() && github.event.pull_request.head.repo.full_name != github.repository && hashFiles('validation-comment.md') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: validation-report-${{ github.event.pull_request.number }}
           path: validation-comment.md
