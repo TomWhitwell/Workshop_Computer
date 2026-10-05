@@ -123,14 +123,14 @@ ${article}
 async function readDevCache() {
   try {
     const parsed = JSON.parse(await fs.readFile(DEV_CACHE_FILE, 'utf8'));
-    return parsed.version === 1 && Array.isArray(parsed.releases) ? parsed.releases : null;
+    return parsed.version === 2 && Array.isArray(parsed.releases) ? parsed.releases : null;
   } catch {
     return null;
   }
 }
 
 async function writeDevCache(releases) {
-  await writeFileEnsured(DEV_CACHE_FILE, JSON.stringify({ version: 1, releases }));
+  await writeFileEnsured(DEV_CACHE_FILE, JSON.stringify({ version: 2, releases }));
 }
 
 async function build({ incrementalRelease = '', incrementalCuration = '' } = {}) {
@@ -337,8 +337,8 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
     }).join('');
   const sortOptions = [
     ['', 'Card number'],
-    ['created-desc', 'Newest created'],
-    ['created-asc', 'Oldest created'],
+    ['created-desc', 'Newest added'],
+    ['created-asc', 'Oldest added'],
     ['name-asc', 'Name A\u2013Z'],
     ['name-desc', 'Name Z\u2013A'],
     ['number-desc', 'Number (high to low)'],
