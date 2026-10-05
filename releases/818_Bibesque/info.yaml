@@ -5,10 +5,10 @@ summary: >-
   A hardware-tested beta Workshop Computer port of Plinky Synth's Bib. It runs
   the original 64-frame fixed-point DSP with stereo delay, rhythmic multitap,
   modulated reverb, shimmer, clock divisions, and tape transport controls.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.1.0-beta"
-Status: Beta - hardware-tested
+Status: Beta
 License: MIT
 date-updated: 2026-09-18
 repository: https://github.com/soveda/workshop-buddies

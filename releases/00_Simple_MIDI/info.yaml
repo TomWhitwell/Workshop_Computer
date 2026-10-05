@@ -4,7 +4,7 @@ short-description: USB MIDI interface and Computer calibrator.
 Language: Arduino-Pico
 Creator: Tom Whitwell
 Version: 0.6.6
-Status: Working but simple
+Status: Released
 date-created: 2024-11-30
 date-updated: 2026-07-27
 license: MIT

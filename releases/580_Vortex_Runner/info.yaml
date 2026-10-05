@@ -11,10 +11,10 @@ summary: >-
   settings. It includes expressive envelopes, 12 dB/octave high-pass and
   low-pass filters with bounded resonance, ring modulation, MIDI/Web MIDI
   control, a hardware preset browser, and 8mu controller support.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "0.1"
-Status: Stable - hardware-tested split-output firmware with 8mu control and preset browser
+Status: Released
 License: MIT
 date-created: 2026-08-26
 Editor: web

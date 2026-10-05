@@ -1,7 +1,7 @@
 draft: false
 Name: Duo MIDI
 short-description: A duophonic midi device/host interface
-Language: Lua / Blackbird
+Language: Blackbird Lua
 Creator: Dune Desormeaux
 Version: 0.1
 Status: Released

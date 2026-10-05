@@ -7,7 +7,7 @@ summary: >
   Three knobs shape the sound, and one flick of the switch generates a new scene.
   The web editor adds per-track mixing, delay time, single-track randomization,
   and patch save/recall as files on your computer.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Laboratory 0
 Version: "1.1"
 Status: Released

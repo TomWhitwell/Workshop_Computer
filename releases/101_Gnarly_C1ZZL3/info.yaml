@@ -8,10 +8,10 @@ summary: >-
   Dual-oscillator phase distortion synth voice with recipe wave banks, named Web MIDI
   sound presets, separate oscillator amplitude/phase-distortion/pitch envelopes,
   CZ patch import support, and an eight-knob MIDI CC performance block.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "Gnarly protocol v11 stable"
-Status: Beta - stable in single-developer testing
+Status: Beta
 License: MIT
 date-created: 2026-07-22
 Editor: web

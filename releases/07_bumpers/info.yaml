@@ -1,7 +1,7 @@
 draft: true
 Name: Bumpers
 short-description: "'Bouncing ball' style delay and trigger generators"
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Chris Johnson
 Version: 1.0
 Status: Released

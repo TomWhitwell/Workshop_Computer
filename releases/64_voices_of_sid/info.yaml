@@ -1,7 +1,7 @@
 draft: false
 Name: Voices of SID
 short-description: "Dual MOS 6581 SID emulation (reSID engine) with CV/gate control, stereo output, waveform selection, and randomize"
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
 contact:
   email: joep@joep-i.nl

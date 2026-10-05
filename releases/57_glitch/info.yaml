@@ -7,7 +7,7 @@ summary: >-
   bitcrush; Stutter mode slices the beat and shuffles or repeats slices in real time. Pulse In 1
   sets beat length, CV In 1 freezes recording while playback continues, and Audio Out 2 stays dry
   for parallel routing.
-Language: C++ (RP2040 Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: 1.4.0
 Status: Released

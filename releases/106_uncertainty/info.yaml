@@ -12,7 +12,7 @@ summary: |
   attenuverters for the wavefolder's CV In 1, FRV's output, and QRV's
   output respectively, with pot-pickup so returning to normal never snaps
   a value to wherever the knob was left.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Matt Allison
 Version: "1.0.0"
 Status: Released

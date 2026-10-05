@@ -8,7 +8,7 @@ summary: >-
   oscillators, external OSC3 pitch CV and audio return, a four-pole resonant
   low/high-pass filter, noise, ADS contours, internal LFO, MIDI CC1 modulation,
   glide, and eight factory plus eight named user presets.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.0.0"
 Status: Released
