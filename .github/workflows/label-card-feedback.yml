@@ -1,0 +1,57 @@
+name: Label card feedback
+
+# The card feedback link pre-fills `labels=<card>` in the new-issue URL, but
+# GitHub ignores that parameter for anyone without triage access. Apply the
+# program-card label from the issue form's "Card" field instead.
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    if: contains(github.event.issue.body, '### Card')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add program-card label
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const body = context.payload.issue.body || '';
+            const match = body.match(/^###\s*Card\s*\r?\n+\s*([^\r\n]+)/m);
+            const value = (match?.[1] || '').replace(/\s+/g, ' ').trim();
+            if (!value || value === '_No response_') {
+              core.info('No card named in the issue form.');
+              return;
+            }
+
+            // Program-card labels are "<number> <name>", e.g. "36 GradualProcess".
+            // Only consider those, so the field cannot apply arbitrary labels.
+            const labels = (await github.paginate(github.rest.issues.listLabelsForRepo, {
+              ...context.repo, per_page: 100,
+            })).map(label => label.name).filter(name => /^\d+\s/.test(name));
+            const number = text => Number.parseInt(String(text).match(/^\d+/)?.[0] ?? '', 10);
+
+            let label = labels.find(name => name.toLowerCase() === value.toLowerCase());
+            if (!label && !Number.isNaN(number(value))) {
+              // Fall back to the card number when the name was edited or omitted.
+              const byNumber = labels.filter(name => number(name) === number(value));
+              if (byNumber.length === 1) label = byNumber[0];
+            }
+            if (!label) {
+              core.info(`No program-card label matches "${value}".`);
+              return;
+            }
+            if (context.payload.issue.labels.some(existing => existing.name === label)) {
+              core.info(`Already labelled "${label}".`);
+              return;
+            }
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: context.payload.issue.number,
+              labels: [label],
+            });
+            core.info(`Added label "${label}".`);
