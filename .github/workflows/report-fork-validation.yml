@@ -20,7 +20,7 @@ jobs:
     steps:
       # This privileged workflow never checks out or executes code from the PR.
       - name: Download validation report
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           pattern: validation-report-*
           path: validation-report
@@ -28,7 +28,7 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
 
       - name: Post validation report on PR
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           REPORT_DIR: validation-report
           WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
