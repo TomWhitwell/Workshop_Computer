@@ -81,9 +81,15 @@ controls.
 
 ## Directions
 
-Tap the switch down to step through them. After a tap the top LEDs show which
-for a second: one to four lit for the first four, all four blinking for the
-fifth.
+**Hold the switch down and turn Main** to choose one: the knob's travel is
+split into eight zones, in the order of the table below. Turning Main while the
+switch is held doesn't touch the scale or the rate; afterwards Main waits to
+pick its scale or rate up again, so neither jumps. A quick tap without turning
+still steps to the next direction.
+
+While the switch is held, and for a second after, LED 4 is lit to show it's
+the direction, and LEDs 1-3 show its number (0-7, in the table's order) in
+binary, LED 1 the lowest bit.
 
 | Direction | Steps | Shapes |
 |---|---|---|
@@ -92,13 +98,17 @@ fifth.
 | Step backward | 8-1 | forwards |
 | True ping-pong | 1-8, then 8-1 | forwards, then backwards |
 | True reverse | 8-1 | backwards |
+| Random step | a random step each time, never the same twice running | forwards |
+| Random reverse | 1-8 | each at random forwards or backwards |
+| True random | a random step each time, never the same twice running | each at random forwards or backwards |
 
 The "step" directions change only the order of the steps; each shape still
 plays forwards. The "true" directions play the whole sequence backwards, every
 shape reversed too, as if the voltage were recorded and played in reverse. True
 ping-pong plays step 8 forwards and then backwards at the turn, so the voltage
 turns round without a jump (same for step 1 at the other end). Step ping-pong
-doesn't repeat the end steps.
+doesn't repeat the end steps. The random directions roll again at every
+step, so they never settle into a loop.
 
 ## Panel
 
@@ -106,7 +116,7 @@ doesn't repeat the end steps.
 |---|---|
 | Switch up | Main = scale, X = depth (-100% to +100%), Y = offset (-5 V to +5 V) |
 | Switch middle | Main = rate (8 s to 10 ms per step), X = smoothing (off across the bottom of the knob, then 1 ms to about 2 s), Y = morph offset (-100% to +100%, all steps) |
-| Switch down | Tap to step the direction |
+| Switch down | Hold and turn Main to choose the direction; tap to step to the next |
 
 All knobs have a small dead zone at each end, so the full range is reached
 even if a knob doesn't quite read its very ends, and the two-sided settings

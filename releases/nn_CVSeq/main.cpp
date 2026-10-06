@@ -30,8 +30,9 @@
 //               to +5V)
 //   Switch mid  Main = rate (8s to 10ms per step, plus CV In 2 at 1V/oct),
 //               X = smoothing (off to ~2s), Y = morph offset (all steps)
-//   Switch down Tap to step the direction: step forward, step ping-pong,
-//               step backward, true ping-pong, true reverse
+//   Switch down Hold and turn Main to choose the direction (eight zones
+//               round the knob); or tap without turning to step to the next.
+//               While held, Main leaves the scale and rate alone
 //
 // The six knob settings each keep their value; after the switch moves a knob
 // does nothing until it reaches its new setting's value, so nothing jumps.
@@ -50,6 +51,10 @@
 //   True ping-pong   the whole sequence forwards, then the whole sequence in
 //                    reverse (steps 8-1, each shape backwards)
 //   True reverse     the whole sequence in reverse
+//   Random step      a random step each time (never the same twice running),
+//                    shapes forwards
+//   Random reverse   steps 1-8, each shape at random forwards or backwards
+//   True random      a random step, at random forwards or backwards
 //
 // Inputs
 //   CV In 1     Morph offset, added to every step's MORPH (+5V = all the way)
@@ -94,7 +99,7 @@ public:
 	enum Page {PageShape1, PageShape2, PageMorph, PageLevel,
 		PageStart, PageEnd, PageQuant, PageChance, kPages};
 	enum Direction {StepForward, StepPingPong, StepBackward, TruePingPong,
-		TrueReverse, kDirections};
+		TrueReverse, RandomStep, RandomReverse, TrueRandom, kDirections};
 
 	CVSeq()
 	{
@@ -151,13 +156,6 @@ public:
 		{
 			restartRequest = false;
 			restart = true;
-		}
-
-		// A tap down on the switch steps the direction
-		if (SwitchChanged() && SwitchVal() == Down)
-		{
-			direction = (direction + 1) % kDirections;
-			dirShow = 1500; // show it on the LEDs for ~1s
 		}
 
 		// Clock on Pulse In 1
@@ -236,11 +234,11 @@ public:
 		if (scaleMask && quantN > 0) mv = SnapToScale(mv, scaleMask);
 		if (smoothAlpha >= (1 << 24))
 		{
-			smoothed = int64_t(mv) << 16;
+			smoothed = int64_t(mv) * 65536;
 		}
 		else
 		{
-			smoothed += (((int64_t(mv) << 16) - smoothed) * smoothAlpha) >> 24;
+			smoothed += (((int64_t(mv) * 65536) - smoothed) * smoothAlpha) >> 24;
 		}
 		int32_t out = int32_t(smoothed >> 16);
 		if (out > 6000) out = 6000;
@@ -281,6 +279,8 @@ private:
 	bool reversed = false;    // this step plays its shape backwards
 	volatile int direction = StepForward; // also set by the web editor
 	int dirShow = 0;
+	bool dirHeld = false, dirTurned = false;
+	int32_t dirHeldFrom = 0;
 	uint32_t phase = 0, phaseInc = 89478;
 	bool holding = false;     // lost its chance roll
 	int32_t heldVal = 0, lastVal = 0;
@@ -383,6 +383,12 @@ private:
 		return rng;
 	}
 
+	// A random step other than the current one
+	int OtherStep()
+	{
+		return (cur + 1 + int((NextRandom() >> 8) % uint32_t(kSteps - 1))) % kSteps;
+	}
+
 	int FirstStep() const
 	{
 		return (direction == StepBackward || direction == TrueReverse) ? kSteps - 1 : 0;
@@ -444,6 +450,18 @@ private:
 			reversed = false;
 			break;
 		}
+		case RandomStep:
+			cur = OtherStep();
+			reversed = false;
+			break;
+		case RandomReverse:
+			cur = (cur + 1) % kSteps;
+			reversed = (NextRandom() >> 16) & 1;
+			break;
+		case TrueRandom:
+			cur = OtherStep();
+			reversed = (NextRandom() >> 16) & 1;
+			break;
 		default: // TruePingPong
 		{
 			// Turning round plays the end step again, backwards: the
@@ -474,6 +492,7 @@ private:
 	// Runs every 32 samples (1.5kHz)
 	void Control()
 	{
+		HandleDirectionSwitch();
 		HandleKnobs();
 
 		// Rate: Main knob, 8s (-3 octaves from one step a second) to 10ms
@@ -560,16 +579,16 @@ private:
 		pageBlink = (pageBlink + 1) % 900;
 		for (int i = 0; i < 4; i++)
 		{
-			if (scaleShow > 0 && dirShow == 0)
+			if (dirShow > 0)
+			{
+				// Direction number (0-7) in binary on LEDs 0-2, LED 0 the
+				// lowest bit, with LED 3 lit to show it's the direction
+				LedOn(i, i == 3 || ((direction >> i) & 1));
+			}
+			else if (scaleShow > 0)
 			{
 				// Scale number in binary, LED 0 the lowest bit; none = Off
 				LedOn(i, (scaleIndex >> i) & 1);
-			}
-			else if (dirShow > 0)
-			{
-				// Direction 1-5 in binary-ish: 1-4 LEDs, five = all blink
-				bool on = direction < 4 ? i <= direction : pageBlink % 300 < 150;
-				LedOn(i, on);
 			}
 			else if (conn)
 			{
@@ -608,6 +627,33 @@ private:
 	// X and Y knobs, with soft takeover when the switch changes which pair
 	// of settings they control.  Down is momentary and keeps the pair of the
 	// position it was pressed from.
+	// Switch down: hold and turn Main to choose the direction, or tap
+	// without turning to step to the next one
+	void HandleDirectionSwitch()
+	{
+		bool down = SwitchVal() == Down;
+		int32_t m = MapKnob(KnobVal(Main), false);
+		if (down && !dirHeld)
+		{
+			dirHeldFrom = m;
+			dirTurned = false;
+		}
+		if (down)
+		{
+			if (!dirTurned && (m - dirHeldFrom > 96 || dirHeldFrom - m > 96)) dirTurned = true;
+			if (dirTurned) direction = (m * kDirections) >> 12;
+			dirShow = 1500; // shown while held, and ~1s after
+		}
+		else if (dirHeld)
+		{
+			if (!dirTurned) direction = (direction + 1) % kDirections;
+			// Main has moved: it must pick up the scale or rate again
+			else knobLatched[2] = false;
+			dirShow = 1500;
+		}
+		dirHeld = down;
+	}
+
 	void HandleKnobs()
 	{
 		Switch sw = SwitchVal();
@@ -641,6 +687,8 @@ private:
 		}
 		for (int i = 0; i < 3; i++)
 		{
+			// While the switch is held down, Main chooses the direction
+			if (i == 2 && sw == Down) {lastKnob[2] = k[2]; continue;}
 			int32_t &v = settings[kKnobSetting[bank][i]];
 			if (!knobLatched[i])
 			{

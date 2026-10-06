@@ -171,6 +171,9 @@
         <button class="dir" data-dir="2" title="Steps 8-1, each shape forwards">Step backward</button>
         <button class="dir" data-dir="3" title="The whole sequence forwards, then the whole sequence in reverse">True ping-pong</button>
         <button class="dir" data-dir="4" title="The whole sequence in reverse: steps 8-1, each shape backwards">True reverse</button>
+        <button class="dir" data-dir="5" title="A random step each time (never the same twice running), shapes forwards">Random step</button>
+        <button class="dir" data-dir="6" title="Steps 1-8, each shape at random forwards or backwards">Random reverse</button>
+        <button class="dir" data-dir="7" title="A random step, at random forwards or backwards">True random</button>
       </div>
       <div class="caption" id="knob-line"></div>
     </section>
@@ -222,7 +225,7 @@
           <li>8mu buttons A-D choose the page; pressing one again flips to its second page. The tabs here do the same.
             Faders pick up: one does nothing until it reaches the stored value (the dashed line shows where the 8mu's fader is while it waits).</li>
           <li>On-screen faders: drag, or focus one and use the arrow keys. Double-click resets one.</li>
-          <li>Direction: tap the module's switch down to step through the five directions, or use the buttons here.</li>
+          <li>Direction: hold the module's switch down and turn Main to choose one of the eight directions (tap without turning to step to the next), or use the buttons here.</li>
           <li>The module's knobs: switch up = Main scale, X depth, Y offset; middle = Main rate, X smoothing, Y morph offset.</li>
           <li>Tilting an 8mu forwards and back adds to every step's morph, as it would on the card.</li>
           <li>Without a card the page still edits, previews and keeps presets; the playhead is then simulated at one step a second, full depth, no offset.</li>
@@ -242,7 +245,8 @@ const NS = 8;                                   // steps
 const PAGES = 8;                                // button + 4 * layer
 const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x43, PROTOCOL_VERSION = 1;
 const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9, RESTART: 10, DIRECTION: 11 };
-const DIRECTIONS = ['Step forward', 'Step ping-pong', 'Step backward', 'True ping-pong', 'True reverse'];
+const DIRECTIONS = ['Step forward', 'Step ping-pong', 'Step backward', 'True ping-pong', 'True reverse',
+  'Random step', 'Random reverse', 'True random'];
 // Scales, as in main.cpp: name and the semitones in each octave (C = 0)
 const SCALES = [
   ['Off', []], ['Chromatic', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]], ['Major', [0, 2, 4, 5, 7, 9, 11]],
@@ -499,7 +503,7 @@ function drawReadouts() {
   $('ro-clock').textContent = L.clocked ? 'Clocked' : 'Free';
   $('ro-scale').textContent = SCALES[L.scale][0];
   document.querySelectorAll('.dir').forEach(b => b.classList.toggle('on', +b.dataset.dir === L.direction));
-  $('knob-line').textContent = !on ? 'Tap the module’s switch down to step the direction.'
+  $('knob-line').textContent = !on ? 'Hold the module’s switch down and turn Main to choose the direction.'
     : 'Switch ' + (L.switchUp ? 'up: Main = scale, X = depth, Y = offset' : 'middle: Main = rate, X = smoothing, Y = morph offset') +
       (L.knobWaiting ? '. A knob is waiting to pick up its value.' : '.');
 }
@@ -758,7 +762,7 @@ function handleCardMessage(m) {
   } else if (cmd === CMD.STATUS && p.length >= 12) {
     const L = state.live;
     L.cur = p[0] & 7; L.progress = p[1] / 127;
-    L.direction = Math.min(4, p[2] & 7); L.clocked = !!(p[2] & 8); L.muOnCard = !!(p[2] & 16);
+    L.direction = p[2] & 7; L.clocked = !!(p[2] & 8); L.muOnCard = !!(p[2] & 16);
     L.switchUp = !!(p[2] & 32); L.knobWaiting = !!(p[2] & 64);
     L.reversed = !!(p[3] & 1); L.holding = !!(p[3] & 2);
     L.outMv = ((p[4] << 7) | p[5]) - 8192;
@@ -791,6 +795,9 @@ function simAdvance() {
   else if (d === 2) { sim.cur = (sim.cur + NS - 1) % NS; sim.reversed = false; }
   else if (d === 4) { sim.cur = (sim.cur + NS - 1) % NS; sim.reversed = true; }
   else if (d === 1) { let n = sim.cur + sim.travel; if (n < 0 || n >= NS) { sim.travel = -sim.travel; n = sim.cur + sim.travel; } sim.cur = n; sim.reversed = false; }
+  else if (d === 5) { sim.cur = (sim.cur + 1 + Math.floor(Math.random() * (NS - 1))) % NS; sim.reversed = false; }
+  else if (d === 6) { sim.cur = (sim.cur + 1) % NS; sim.reversed = Math.random() < 0.5; }
+  else if (d === 7) { sim.cur = (sim.cur + 1 + Math.floor(Math.random() * (NS - 1))) % NS; sim.reversed = Math.random() < 0.5; }
   else { let n = sim.cur + sim.travel; if (n < 0 || n >= NS) { sim.travel = -sim.travel; n = sim.cur; } sim.cur = n; sim.reversed = sim.travel < 0; }
   const c = state.values[7][sim.cur];
   sim.holding = !(c >= 127 || Math.random() < c / 127);

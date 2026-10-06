@@ -21,7 +21,7 @@
 //   PING      09                      sent every second; STATUS flows while
 //                                     pings keep arriving
 //   RESTART   0A                      restart from the first step
-//   DIRECTION 0B dir                  0-4, see below
+//   DIRECTION 0B dir                  0-7, see below
 //
 // Card -> web
 //   STATE     02 version page values[64]
@@ -55,6 +55,10 @@
 //                      the whole sequence played forwards then in reverse
 //   4 true reverse     steps 8-1 with shapes backwards: the whole sequence
 //                      played in reverse
+//   5 random step      a random step each time, never the same twice running,
+//                      shapes forwards
+//   6 random reverse   steps 1-8, each shape at random forwards or backwards
+//   7 true random      a random step, at random forwards or backwards
 
 #ifndef CVSEQ_SYSEX_H
 #define CVSEQ_SYSEX_H

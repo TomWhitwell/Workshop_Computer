@@ -3,7 +3,7 @@ Name: CVSeq
 short-description: "An eight-step CV sequencer after the Performer in NI Massive - each step a morph between two of 40 shapes, with level ramps, quantise and chance - edited from a Music Thing 8mu, with a web editor"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
-Version: "0.3.0"
+Version: "0.4.0"
 Status: Beta
 License: MIT
 Editor: web
@@ -20,7 +20,7 @@ contact:
 
 uf2:
   - path: UF2/cvseq.uf2
-    name: CVSeq 0.3.0
+    name: CVSeq 0.4.0
 
 tags:
   - sequencer
@@ -48,9 +48,12 @@ summary: |
   voltage jump, and the 8mu's LEDs show the stored values. Tilting the 8mu
   morphs every step at once.<br><br>
 
-  Five directions run the sequence: step forward, step ping-pong and step
-  backward change the order of the steps, while true ping-pong and true
-  reverse play the whole sequence backwards, every shape reversed too.<br><br>
+  Eight directions run the sequence, chosen by holding the switch down and
+  turning Main: step forward, step ping-pong and step backward change the
+  order of the steps, true ping-pong and true reverse play the whole
+  sequence backwards, every shape reversed too, and random step, random
+  reverse and true random roll the dice on which step plays next, which
+  way round, or both.<br><br>
 
   An optional web editor (web/index.html, Chrome or Edge) draws the
   sequence with a live playhead and a scope of the output, shows the shape
@@ -123,10 +126,11 @@ controls:
     down:
       name: Direction
       description: >
-        Momentary. Each tap steps the direction: step forward, step
-        ping-pong, step backward, true ping-pong, true reverse. The top
-        LEDs show which for a second - one to four lit, or all four
-        blinking for true reverse.
+        Momentary. Hold it and turn Main to choose the direction from eight:
+        step forward, step ping-pong, step backward, true ping-pong, true
+        reverse, random step, random reverse and true random. A tap without
+        turning steps to the next. While held, LED 4 is lit and LEDs 1-3
+        show the direction's number in binary.
   knobs:
     - when:
         z: up
