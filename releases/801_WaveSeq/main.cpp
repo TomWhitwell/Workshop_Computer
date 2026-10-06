@@ -584,9 +584,11 @@ private:
 	void Control()
 	{
 		// Panel
-		baseNote = (24 << 8) + (KnobVal(Main) * 72 * 256) / 4095 + CVIn1() * 9;
+		baseNote = (24 << 8) + (MapKnob(KnobVal(Main), false) * 72 * 256) / 4095 + CVIn1() * 9;
 		HandleKnobs();
-		int32_t spd = (settings[SetSpeed] - 2048) * 6 + CVIn2() * 12;
+		// Speed: 1/8x at 0, 1x at 2048, 8x at 4095 (+/-3 octaves), plus CV
+		int32_t sd = settings[SetSpeed] - 2048;
+		int32_t spd = (sd * 12288) / (sd > 0 ? 2047 : 2048) + CVIn2() * 12;
 		if (spd < -24576) spd = -24576;
 		if (spd > 24576) spd = 24576;
 		speed = int32_t(ExpScale(256, spd));
@@ -677,6 +679,25 @@ private:
 		return n;
 	}
 
+	// A knob reading (0-4095) with dead zones, as the knobs don't always
+	// reach the very ends of their range: the outer kKnobEndZone at each end
+	// reads as fully 0 or 4095, and the travel between is stretched to fill
+	// the range.  Two-sided controls also get kKnobCentreZone either side of
+	// the middle, which reads as exactly 2048 (speed 1x).
+	static constexpr int32_t kKnobEndZone = 128;
+	static constexpr int32_t kKnobCentreZone = 64;
+	static int32_t MapKnob(int32_t raw, bool twoSided)
+	{
+		int32_t v = ((raw - kKnobEndZone) * 4095) / (4095 - 2 * kKnobEndZone);
+		if (v < 0) v = 0;
+		if (v > 4095) v = 4095;
+		if (!twoSided) return v;
+		int32_t d = v - 2048;
+		if (d > -kKnobCentreZone && d < kKnobCentreZone) return 2048;
+		if (d > 0) return 2048 + ((d - kKnobCentreZone) * 2047) / (2047 - kKnobCentreZone);
+		return 2048 + ((d + kKnobCentreZone) * 2048) / (2048 - kKnobCentreZone);
+	}
+
 	// X and Y knobs, with soft takeover when the switch changes which pair
 	// of settings they control.  Down is momentary and keeps the pair of the
 	// position it was pressed from.
@@ -685,7 +706,9 @@ private:
 		Switch sw = SwitchVal();
 		int bank = sw == Up ? 0 : (sw == Middle ? 1 : knobBank);
 		if (bank < 0) bank = 1;
-		int32_t k[2] = {KnobVal(X), KnobVal(Y)};
+		// Speed is two-sided (1x in the middle), with a centre zone
+		int32_t k[2] = {MapKnob(KnobVal(X), bank * 2 == SetSpeed),
+			MapKnob(KnobVal(Y), false)};
 		if (knobBank < 0)
 		{
 			// Power-up: the current pair takes the knobs as they are

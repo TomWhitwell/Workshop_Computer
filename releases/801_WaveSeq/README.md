@@ -120,6 +120,10 @@ The switch's up and middle positions choose what the X and Y knobs do:
 | Up     | Speed, 1/8x to 8x | Crossfade, from a hard cut to fading over the whole step |
 | Middle | FM amount (Audio In 1) | Wave scan amount (Audio In 2) |
 
+All knobs have a small dead zone at each end, so the full range is reached
+even if a knob doesn't quite read its very ends, and speed has one in the
+middle, so exactly 1x is easy to find.
+
 Each of the four settings keeps its value. After the switch moves, a knob does
 nothing until it's turned to (or past) its new setting's value, then takes
 over, so nothing jumps. LED 6 (bottom right) blinks fast while a knob is
