@@ -5,7 +5,7 @@ summary: Load the webapp and connect to the Workshop Computer - on load, a momen
 Language: C++ (Pico SDK)
 Creator: XponentOne, AI-assisted (Claude)
 Version: "0.6.0"
-Status: WIP
+Status: Beta
 License: MIT
 date-created: 2026-09-29
 contact:
