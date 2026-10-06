@@ -86,7 +86,7 @@
   .tab.second { margin-right: 8px; font-size: 13px; }
   .tab.second b { width: auto; padding: 0 3px; }
   .faders { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
-  .fader { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; border-radius: 6px; padding: 4px 0; }
+  .fader { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; border-radius: 6px; padding: 4px 0; cursor: pointer; }
   .fader.cur { background: var(--accent-soft); }
   .fader.sel { outline: 2px solid var(--warm); outline-offset: -2px; }
   .fader .name { font-size: 12px; color: var(--muted); }
@@ -561,6 +561,9 @@ function buildFaders() {
     input.addEventListener('input', () => { selectStep(i); userSetValue(state.page, i, +input.value); });
     input.addEventListener('focus', () => selectStep(i));
     input.addEventListener('dblclick', () => userSetValue(state.page, i, DEFAULT_VALUES[state.page][i]));
+    // Clicking anywhere in the step's box but the slider (its number, value,
+    // description or the space around) selects the step without changing it
+    f.addEventListener('pointerdown', (e) => { if (e.target !== input) selectStep(i); });
     el.appendChild(f);
     faderEls.push({ root: f, input, ghost: f.querySelector('.ghost'), val: f.querySelector('.val'), desc: f.querySelector('.desc') });
   }
