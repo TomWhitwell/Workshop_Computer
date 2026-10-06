@@ -16,7 +16,8 @@
 # - Use either `cards` for an explicit card-ID list, or `cards_from_flairs` to pull from flairs.yml.
 # - Flair-driven shelves are reverse-sorted by card date (updated, then created) before `limit` caps them.
 # - `link` is optional: `text` and `href` (relative to the site root) add a link at the top right of the shelf,
-#   e.g. `href: ?sort=created-desc` opens the full card list sorted newest first.
+#   e.g. `href: ?sort=created-desc` opens the full card list sorted newest first (by the date each card
+#   was merged to main as a non-draft).
 # - `hide_flairs` suppresses redundant badges inside that shelf, e.g. hide `new` on a New shelf.
 # - `layout` is optional:
 #   - omit it for the normal 3-column card grid

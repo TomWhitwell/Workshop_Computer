@@ -6,7 +6,7 @@ import { toPosix } from '../utils/fs.js';
 import { discoverDocs } from './docs.js';
 import { discoverCustomPanels, validateCustomPanelReferences } from './customPanels.js';
 import { discoverDownloads, curateUf2Downloads } from './downloads.js';
-import { getCommitDates, getOldestBlameDate, getContentUpdatedDate } from '../utils/git.js';
+import { getCommitDates, getOldestBlameDate, getContentUpdatedDate, getPublishedDate } from '../utils/git.js';
 import { resolveWebConfig } from './webEditor.js';
 import { normalizeTags, normalizeRepository, normalizeDiscussion, normalizeContact, normalizeDraft, resolveAudioSample } from './infoFields.js';
 import { videoEmbedHtml } from '../utils/video.js';
@@ -46,6 +46,14 @@ export function normalizeInfo(raw, fallbackTitle) {
     discussion: normalizeDiscussion(out.discussion),
     contact: normalizeContact(out.contact),
   };
+}
+
+function isDraftSource(source) {
+  try {
+    return normalizeInfo(YAML.parse(source)).draft;
+  } catch {
+    return false;
+  }
 }
 
 export async function discoverRelease(rootReleasesDir, folderName, outDirPrograms, makeRawUrl, pagesBaseUrl, repoSlug, refName) {
@@ -154,6 +162,8 @@ export async function discoverRelease(rootReleasesDir, folderName, outDirProgram
   //    bulk clobber that ruins the folder's last-commit date.
   const blameDate = getOldestBlameDate(sourceFile);
   const contentDate = getContentUpdatedDate(path.join('releases', folderName));
+  // "Newest" sorting uses when the card landed on main and was not a draft.
+  const publishedDate = getPublishedDate(path.join('releases', folderName), isDraftSource);
   const card = buildCanonicalCardModel({
     folderName,
     slug,
@@ -173,6 +183,7 @@ export async function discoverRelease(rootReleasesDir, folderName, outDirProgram
     gitLastDate,
     blameDate,
     contentDate,
+    publishedDate,
     customPanels: customPanels.present ? customPanels.panels : null,
   });
 

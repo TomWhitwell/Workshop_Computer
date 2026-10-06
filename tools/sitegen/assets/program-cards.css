@@ -1990,7 +1990,9 @@ a.program-card-tag:visited {
   font-size: 17px;
   font-weight: var(--weight-heavy);
   line-height: 1.05;
+  margin-block: -0.15em;
   overflow: hidden;
+  padding-block: 0.15em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2160,9 +2162,6 @@ a.program-card-tag:visited {
   }
 
   .program-card-archive-row__title {
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    display: -webkit-box;
     white-space: normal;
   }
 

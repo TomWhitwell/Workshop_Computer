@@ -48,6 +48,12 @@ test('created derives from the earliest git signal; updated from content date', 
   assert.equal(card.metadata.updated, '2025-03-01');
 });
 
+test('published date is carried through for non-draft cards only', () => {
+  assert.equal(build({ 'date-created': '2026-09-01' }, { publishedDate: '2026-09-30' }).metadata.published, '2026-09-30');
+  assert.equal(build({ draft: true }, { publishedDate: '2026-09-30' }).metadata.published, undefined);
+  assert.equal(build({}, {}).metadata.published, undefined);
+});
+
 test('updated is never presented as older than created', () => {
   const card = build({ created: '2025-01-01' }, { contentDate: '2024-06-01' });
   assert.equal(card.metadata.created, '2025-01-01');
