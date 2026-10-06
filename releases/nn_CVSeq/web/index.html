@@ -709,6 +709,9 @@ function onCardBytes(d) {
   }
 }
 
+// A two-sided setting sent as 0-127 with 64 = 0, to -1..+1 (127 is the top)
+const twoSided = (v) => v > 64 ? (v - 64) / 63 : (v - 64) / 64;
+
 function handleCardMessage(m) {
   if (m.length < 3 || m[0] !== SYSEX_MFR || m[1] !== SYSEX_PRODUCT) return;
   const cmd = m[2], p = m.slice(3);
@@ -729,10 +732,10 @@ function handleCardMessage(m) {
     L.reversed = !!(p[3] & 1); L.holding = !!(p[3] & 2);
     L.outMv = ((p[4] << 7) | p[5]) - 8192;
     L.rateOct = (((p[6] << 7) | p[7]) - 8192) / 256;
-    L.depth = (p[8] - 64) / 64; L.offsetMv = (p[9] - 64) * 5000 / 64;
-    // As main.cpp: off below a dead zone of 260 (of 4095), then 1ms to ~2s
-    L.smooth = p[10] * 32 < 260 ? -1 : (p[10] * 32 - 260) / (4095 - 260);
-    L.morph = (p[11] - 64) / 64;
+    L.depth = twoSided(p[8]); L.offsetMv = twoSided(p[9]) * 5000;
+    // As main.cpp: off below a dead zone of 140 (of 4095, after the knob end zone: a raw reading of 260), then 1ms to ~2s
+    L.smooth = p[10] * 32 < 140 ? -1 : (p[10] * 32 - 140) / (4095 - 140);
+    L.morph = twoSided(p[11]);
     link.lastStatus = performance.now();
     state.history.push([link.lastStatus, L.outMv]);
   }

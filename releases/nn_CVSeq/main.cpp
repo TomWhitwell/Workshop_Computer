@@ -295,7 +295,7 @@ private:
 	int32_t depth = 4096;     // Q12, signed
 	int32_t offsetMv = 0;
 	int32_t smoothAlpha = 1 << 24;
-	static constexpr int32_t kSmoothDeadZone = 260;
+	static constexpr int32_t kSmoothDeadZone = 140; // after MapKnob: a raw reading of 260
 	int64_t smoothed = 0;     // millivolts, Q16
 	volatile int32_t outMv = 0;
 	int32_t morphOffset = 0;  // Q12, signed
@@ -461,7 +461,7 @@ private:
 
 		// Rate: Main knob, 8s (-3 octaves from one step a second) to 10ms
 		// (+6.64 octaves), plus CV In 2 at 1V/oct
-		rateOct = -12288 + (KnobVal(Main) * 39485) / 4095 + CVIn2() * 12;
+		rateOct = -12288 + (MapKnob(KnobVal(Main), false) * 39485) / 4095 + CVIn2() * 12;
 		if (rateOct < -16384) rateOct = -16384;
 		if (rateOct > 28672) rateOct = 28672;
 		phaseInc = clocked ? 0xFFFFFFFFu / uint32_t(clockPeriod)
@@ -470,7 +470,9 @@ private:
 		depth = (settings[SetDepth] - 2048) * 2;
 		if (depth > 4096) depth = 4096;
 		if (depth < -4096) depth = -4096;
-		offsetMv = ((settings[SetOffset] - 2048) * 5000) / 2048;
+		// -5V at 0, 0V at 2048, +5V at 4095
+		int32_t o = settings[SetOffset] - 2048;
+		offsetMv = (o * 5000) / (o > 0 ? 2047 : 2048);
 
 		// Smoothing: off across the bottom ~6% of the knob (a dead zone, so
 		// off is reachable even when the knob doesn't read quite zero), then
@@ -534,6 +536,25 @@ private:
 		LedBrightness(5, waiting ? (blink < 150 ? 4095 : 0) : (conn ? 4095 : 0));
 	}
 
+	// A knob reading (0-4095) with dead zones, as the knobs don't always
+	// reach the very ends of their range: the outer kKnobEndZone at each end
+	// reads as fully 0 or 4095, and the travel between is stretched to fill
+	// the range.  Two-sided controls also get kKnobCentreZone either side of
+	// the middle, which reads as exactly 2048 (0%, 0V, no morph).
+	static constexpr int32_t kKnobEndZone = 128;
+	static constexpr int32_t kKnobCentreZone = 64;
+	static int32_t MapKnob(int32_t raw, bool twoSided)
+	{
+		int32_t v = ((raw - kKnobEndZone) * 4095) / (4095 - 2 * kKnobEndZone);
+		if (v < 0) v = 0;
+		if (v > 4095) v = 4095;
+		if (!twoSided) return v;
+		int32_t d = v - 2048;
+		if (d > -kKnobCentreZone && d < kKnobCentreZone) return 2048;
+		if (d > 0) return 2048 + ((d - kKnobCentreZone) * 2047) / (2047 - kKnobCentreZone);
+		return 2048 + ((d + kKnobCentreZone) * 2048) / (2048 - kKnobCentreZone);
+	}
+
 	// X and Y knobs, with soft takeover when the switch changes which pair
 	// of settings they control.  Down is momentary and keeps the pair of the
 	// position it was pressed from.
@@ -542,7 +563,9 @@ private:
 		Switch sw = SwitchVal();
 		int bank = sw == Up ? 0 : (sw == Middle ? 1 : knobBank);
 		if (bank < 0) bank = 1;
-		int32_t k[2] = {KnobVal(X), KnobVal(Y)};
+		// Depth, offset and morph offset are two-sided, with a centre zone
+		int32_t k[2] = {MapKnob(KnobVal(X), bank * 2 != SetSmooth),
+			MapKnob(KnobVal(Y), bank * 2 + 1 != SetSmooth)};
 		if (knobBank < 0)
 		{
 			// Power-up: the current pair takes the knobs as they are

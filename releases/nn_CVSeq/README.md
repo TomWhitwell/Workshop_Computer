@@ -95,6 +95,11 @@ doesn't repeat the end steps.
 | Switch middle | X = smoothing (off across the bottom of the knob, then 1 ms to about 2 s), Y = morph offset (-100% to +100%, all steps) |
 | Switch down | Tap to step the direction |
 
+All knobs have a small dead zone at each end, so the full range is reached
+even if a knob doesn't quite read its very ends, and the two-sided settings
+(depth, offset, morph offset) have one in the middle, so exactly 0 is easy to
+find.
+
 The four X/Y settings each keep their value. After the switch moves, a knob
 does nothing until it's turned to (or past) its new setting's value, then takes
 over. LED 6 (bottom right) blinks fast while a knob is waiting. At power-up the
