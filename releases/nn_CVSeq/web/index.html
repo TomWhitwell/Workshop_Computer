@@ -726,8 +726,8 @@ function handleCardMessage(m) {
     L.outMv = ((p[4] << 7) | p[5]) - 8192;
     L.rateOct = (((p[6] << 7) | p[7]) - 8192) / 256;
     L.depth = (p[8] - 64) / 64; L.offsetMv = (p[9] - 64) * 5000 / 64;
-    // As main.cpp: off below a dead zone of 160 (of 4095), then 1ms to ~2s
-    L.smooth = p[10] * 32 < 160 ? -1 : (p[10] * 32 - 160) / (4095 - 160);
+    // As main.cpp: off below a dead zone of 260 (of 4095), then 1ms to ~2s
+    L.smooth = p[10] * 32 < 260 ? -1 : (p[10] * 32 - 260) / (4095 - 260);
     L.morph = (p[11] - 64) / 64;
     link.lastStatus = performance.now();
     state.history.push([link.lastStatus, L.outMv]);
