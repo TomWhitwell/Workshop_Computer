@@ -71,7 +71,8 @@
 //   Pulse Out 2 Trigger at the start of the sequence
 //
 // 8mu motion
-//   Pitch (tilt front/back)  morph offset, added to the knob and CV In 1
+//   Pitch (tilt front/back)  morph offset, added to the knob and CV In 1,
+//                            ignoring about 15 degrees either side of flat
 //
 // USB, chosen once at power-up
 //   Port supplying power (an 8mu, or nothing yet): USB host, reading the 8mu.
@@ -552,7 +553,7 @@ private:
 		}
 
 		if (hostMode) HandleEightMU();
-		else tiltMorph = webPitch * 2;
+		else tiltMorph = TiltToMorph(webPitch);
 
 		// Morph offset: knob, CV In 1 (+5V = all the way) and tilt
 		morphOffset = (settings[SetMorph] - 2048) * 2 + (CVIn1() * 12) / 5 + tiltMorph;
@@ -625,6 +626,19 @@ private:
 		if (d > -kKnobCentreZone && d < kKnobCentreZone) return 2048;
 		if (d > 0) return 2048 + ((d - kKnobCentreZone) * 2047) / (2047 - kKnobCentreZone);
 		return 2048 + ((d + kKnobCentreZone) * 2048) / (2048 - kKnobCentreZone);
+	}
+
+	// 8mu front/back tilt (-2032 to 2032 for -90 to +90 degrees) to a morph
+	// offset (Q12), ignoring about 15 degrees either side of flat so that
+	// holding the 8mu doesn't nudge the morph; beyond that the tilt is
+	// stretched so tipping it right up still reaches +/-100%
+	static constexpr int32_t kTiltDeadZone = 512;
+	static int32_t TiltToMorph(int32_t t)
+	{
+		if (t > -kTiltDeadZone && t < kTiltDeadZone) return 0;
+		int32_t d = t > 0 ? t - kTiltDeadZone : t + kTiltDeadZone;
+		int32_t m = (d * 4096) / (2032 - kTiltDeadZone);
+		return m > 4096 ? 4096 : (m < -4096 ? -4096 : m);
 	}
 
 	// X and Y knobs, with soft takeover when the switch changes which pair
@@ -781,7 +795,7 @@ private:
 		lastFaderValid = true;
 
 		// Motion: front/back tilt is a morph offset
-		tiltMorph = mu.Pitch() * 2;
+		tiltMorph = TiltToMorph(mu.Pitch());
 	}
 
 	//------------------------------------------------------------------------

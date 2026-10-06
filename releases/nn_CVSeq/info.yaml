@@ -46,7 +46,8 @@ summary: |
   2, C MORPH and D LEVEL - with a second press of each giving START, END,
   QUANT and CHANCE. Faders pick up, so changing page never makes the
   voltage jump, and the 8mu's LEDs show the stored values. Tilting the 8mu
-  morphs every step at once.<br><br>
+  morphs every step at once (past a dead zone of about 15 degrees, so
+  holding it doesn't).<br><br>
 
   Eight directions run the sequence, chosen by holding the switch down and
   turning Main: step forward, step ping-pong and step backward change the

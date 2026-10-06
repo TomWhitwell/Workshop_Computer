@@ -77,7 +77,9 @@ changing page never makes the voltage jump.
 playing step is lit fully. On the Computer, LEDs 1-4 show which button's page
 is selected: lit steadily for its first page, blinking slowly for its second.
 
-**Motion.** Tilting the 8mu forward and back adds to every step's MORPH.
+**Motion.** Tilting the 8mu forward and back adds to every step's MORPH. The
+first 15 degrees or so either side of flat are ignored, so holding it in your
+hand doesn't nudge the morph; tipping it right up still reaches the full range.
 
 Without an 8mu the card plays a default sequence, still under the panel
 controls.
