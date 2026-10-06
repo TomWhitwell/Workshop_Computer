@@ -292,7 +292,7 @@ private:
 	int32_t depth = 4096;     // Q12, signed
 	int32_t offsetMv = 0;
 	int32_t smoothAlpha = 1 << 24;
-	static constexpr int32_t kSmoothDeadZone = 160;
+	static constexpr int32_t kSmoothDeadZone = 200;
 	int64_t smoothed = 0;     // millivolts, Q16
 	volatile int32_t outMv = 0;
 	int32_t morphOffset = 0;  // Q12, signed
