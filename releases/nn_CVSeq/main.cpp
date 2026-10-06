@@ -2,7 +2,7 @@
 //
 // An eight-step CV sequencer for the Music Thing Workshop Computer, after the
 // Performer modulator in Native Instruments' Massive: each step plays a shape,
-// a morph between two shapes from a library of 32, and the steps run on one
+// a morph between two shapes from a library of 40, and the steps run on one
 // after another as a continuous control voltage.  Edited from a Music Thing
 // 8mu, over USB MIDI host, or from the web editor in web/index.html.
 //
@@ -11,8 +11,8 @@
 // page, and pressing a different button always starts on that button's first.
 //
 //             First page                          Second page
-//   Button A  SHAPE 1  first shape (of 32)        START  level at the step's start
-//   Button B  SHAPE 2  second shape (of 32)       END    level at the step's end
+//   Button A  SHAPE 1  first shape (of 40)        START  level at the step's start
+//   Button B  SHAPE 2  second shape (of 40)       END    level at the step's end
 //   Button C  MORPH    shape 1 to shape 2         QUANT  digital stepping of the shape
 //   Button D  LEVEL    step level                 CHANCE chance the step plays
 //
@@ -114,8 +114,8 @@ public:
 	// Values are in 8mu fader units (0-127), stored shifted up to 0-4064.
 	void SetDefaults()
 	{
-		static const uint8_t defShape1[kSteps] = {3, 4, 7, 26, 16, 8, 14, 30};
-		static const uint8_t defShape2[kSteps] = {4, 3, 6, 27, 17, 9, 15, 31};
+		static const uint8_t defShape1[kSteps] = {3, 4, 7, 34, 20, 8, 18, 38};
+		static const uint8_t defShape2[kSteps] = {4, 3, 6, 35, 21, 9, 19, 39};
 		static const uint8_t defLevel[kSteps] = {127, 100, 127, 80, 127, 100, 127, 80};
 		for (int i = 0; i < kSteps; i++)
 		{
@@ -130,8 +130,11 @@ public:
 		}
 	}
 
+	// Shape selected by a fader value (0-127): 40 shapes over 128 positions
+	static int ShapeOf(int v) {return (v * kNumShapes) >> 7;}
+
 	// Fader value (0-127) in the middle of shape s's range
-	static int ShapeFader(int s) {return s * 4 + 2;}
+	static int ShapeFader(int s) {return (s * 128 + 64) / kNumShapes;}
 
 	virtual void ProcessSample()
 	{
@@ -371,8 +374,8 @@ private:
 	// Load the current step's settings
 	void LoadStep()
 	{
-		shape1 = gShapes[(params[PageShape1][cur] >> 5) >> 2];
-		shape2 = gShapes[(params[PageShape2][cur] >> 5) >> 2];
+		shape1 = gShapes[ShapeOf(params[PageShape1][cur] >> 5)];
+		shape2 = gShapes[ShapeOf(params[PageShape2][cur] >> 5)];
 		int32_t m = Q12(params[PageMorph][cur]) + morphOffset;
 		morph = m < 0 ? 0 : (m > 4096 ? 4096 : m);
 		level = Q12(params[PageLevel][cur]);

@@ -1,14 +1,14 @@
 draft: true
 Name: CVSeq
-short-description: "An eight-step CV sequencer after the Performer in NI Massive - each step a morph between two of 32 shapes, with level ramps, quantise and chance - edited from a Music Thing 8mu, with a web editor"
+short-description: "An eight-step CV sequencer after the Performer in NI Massive - each step a morph between two of 40 shapes, with level ramps, quantise and chance - edited from a Music Thing 8mu, with a web editor"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
-Version: "0.1.0"
+Version: "0.2.0"
 Status: Beta
 License: MIT
 Editor: web
 date-created: 2026-10-05
-date-updated: 2026-10-05
+date-updated: 2026-10-06
 
 contact:
   email: XponentOneAudio@gmail.com
@@ -20,7 +20,7 @@ contact:
 
 uf2:
   - path: UF2/cvseq.uf2
-    name: CVSeq 0.1.0
+    name: CVSeq 0.2.0
 
 tags:
   - sequencer
@@ -36,7 +36,7 @@ summary: |
   steps plays a shape - a ramp, a pluck, a sine, stairs, a random wander -
   and the steps run on one after another as one continuous voltage.<br><br>
 
-  Every step has two shapes from a library of 32 and a morph between them,
+  Every step has two shapes from a library of 40 and a morph between them,
   a level, a start and an end level that ramp across the step, a quantise
   that turns the shape into held stairs, and a chance that it plays at all.
   A step that loses its chance holds the voltage where it was.<br><br>

@@ -1,6 +1,6 @@
 // Step shape library for CVSeq
 //
-// 32 unipolar shapes, each one step long: x runs 0 to 1 across the step and
+// 40 unipolar shapes, each one step long: x runs 0 to 1 across the step and
 // the shape gives 0 to 1.  Built into tables at power-up.  web/index.html
 // carries the same definitions, so keep the two in step.
 
@@ -12,7 +12,7 @@
 
 static constexpr int kShapeBits = 8;
 static constexpr int kShapeSize = 1 << kShapeBits;
-static constexpr int kNumShapes = 32;
+static constexpr int kNumShapes = 40;
 
 // 0-4095, with a guard point so interpolation never wraps
 static int16_t gShapes[kNumShapes][kShapeSize + 1];
@@ -33,6 +33,11 @@ static float RandomLevel(int i)
 	return float(r >> 8) * (1.0f / 16777216.0f);
 }
 
+static float Frac(float y)
+{
+	return y - floorf(y);
+}
+
 static float Shape(int s, float x)
 {
 	const float pi = 3.14159265f;
@@ -49,30 +54,38 @@ static float Shape(int s, float x)
 	case 8: return 0.5f - 0.5f * cosf(2.0f * pi * x);      // Sine (from low)
 	case 9: return 0.5f + 0.5f * cosf(2.0f * pi * x);      // Cosine (from high)
 	case 10: return x * x * x;                             // Exp rise
-	case 11: return (1.0f - x) * (1.0f - x) * (1.0f - x);  // Exp fall
-	case 12: return 1.0f - (1.0f - x) * (1.0f - x) * (1.0f - x); // Log rise
-	case 13: return 1.0f - x * x * x;                      // Log fall
-	case 14: return x * x * (3.0f - 2.0f * x);             // S rise
-	case 15: return 1.0f - x * x * (3.0f - 2.0f * x);      // S fall
-	case 16: return x < 0.5f ? 1.0f : 0.0f;                // Square
-	case 17: return x < 0.5f ? 0.0f : 1.0f;                // Square, late
-	case 18: return x < 0.25f ? 1.0f : 0.0f;               // Pulse
-	case 19: return x >= 0.75f ? 1.0f : 0.0f;              // Pulse, late
-	case 20: return floorf(x * 4.0f) / 3.0f;               // Stairs up
-	case 21: return 1.0f - floorf(x * 4.0f) / 3.0f;        // Stairs down
-	case 22: return 2.0f * x - floorf(2.0f * x);           // Saw x2
-	case 23: return 1.0f - (2.0f * x - floorf(2.0f * x));  // Saw down x2
-	case 24: { float y = 2.0f * x - floorf(2.0f * x); return 1.0f - fabsf(2.0f * y - 1.0f); } // Triangle x2
-	case 25: return 0.5f - 0.5f * cosf(4.0f * pi * x);     // Sine x2
-	case 26: return x < 0.05f ? x / 0.05f : expf(-(x - 0.05f) * 6.0f); // Pluck
-	case 27: return x > 0.95f ? (1.0f - x) / 0.05f : expf(-(0.95f - x) * 6.0f); // Swell
-	case 28:                                               // ADSR
+	case 11: {float y = Frac(2.0f * x); return y * y * y;} // Exp rise x2
+	case 12: {float y = Frac(3.0f * x); return y * y * y;} // Exp rise x3
+	case 13: return (1.0f - x) * (1.0f - x) * (1.0f - x);  // Exp fall
+	case 14: {float y = 1.0f - Frac(2.0f * x); return y * y * y;} // Exp fall x2
+	case 15: {float y = 1.0f - Frac(3.0f * x); return y * y * y;} // Exp fall x3
+	case 16: return 1.0f - (1.0f - x) * (1.0f - x) * (1.0f - x); // Log rise
+	case 17: return 1.0f - x * x * x;                      // Log fall
+	case 18: return x * x * (3.0f - 2.0f * x);             // S rise
+	case 19: return 1.0f - x * x * (3.0f - 2.0f * x);      // S fall
+	case 20: return x < 0.5f ? 1.0f : 0.0f;                // Square
+	case 21: return x < 0.5f ? 0.0f : 1.0f;                // Square, late
+	case 22: return x < 0.25f ? 1.0f : 0.0f;               // Pulse
+	case 23: return x >= 0.75f ? 1.0f : 0.0f;              // Pulse, late
+	case 24: return floorf(x * 4.0f) / 3.0f;               // Stairs up
+	case 25: return 1.0f - floorf(x * 4.0f) / 3.0f;        // Stairs down
+	case 26: return Frac(2.0f * x);                        // Saw x2
+	case 27: return Frac(3.0f * x);                        // Saw x3
+	case 28: return 1.0f - Frac(2.0f * x);                 // Saw down x2
+	case 29: return 1.0f - Frac(3.0f * x);                 // Saw down x3
+	case 30: return 1.0f - fabsf(2.0f * Frac(2.0f * x) - 1.0f); // Triangle x2
+	case 31: return 1.0f - fabsf(2.0f * Frac(3.0f * x) - 1.0f); // Triangle x3
+	case 32: return 0.5f - 0.5f * cosf(4.0f * pi * x);     // Sine x2
+	case 33: return 0.5f - 0.5f * cosf(6.0f * pi * x);     // Sine x3
+	case 34: return x < 0.05f ? x / 0.05f : expf(-(x - 0.05f) * 6.0f); // Pluck
+	case 35: return x > 0.95f ? (1.0f - x) / 0.05f : expf(-(0.95f - x) * 6.0f); // Swell
+	case 36:                                               // ADSR
 		if (x < 0.1f) return x / 0.1f;
 		if (x < 0.3f) return 1.0f - 0.4f * (x - 0.1f) / 0.2f;
 		if (x < 0.8f) return 0.6f;
 		return 0.6f * (1.0f - (x - 0.8f) / 0.2f);
-	case 29: return fabsf(sinf(3.0f * pi * x)) * (1.0f - x); // Bounce
-	case 30: return RandomLevel(int(x * 8.0f));            // Random steps
+	case 37: return fabsf(sinf(3.0f * pi * x)) * (1.0f - x); // Bounce
+	case 38: return RandomLevel(int(x * 8.0f));            // Random steps
 	default:                                               // Random smooth
 	{
 		float p = x * 8.0f;

@@ -16,8 +16,8 @@ Each step has eight settings, on the 8mu's eight pages:
 
 | Button | First page | Second page |
 |---|---|---|
-| A | **SHAPE 1**: one of 32 shapes | **START**: level at the start of the step |
-| B | **SHAPE 2**: one of 32 shapes | **END**: level at the end of the step |
+| A | **SHAPE 1**: one of 40 shapes | **START**: level at the start of the step |
+| B | **SHAPE 2**: one of 40 shapes | **END**: level at the end of the step |
 | C | **MORPH**: from shape 1 (down) to shape 2 (up) | **QUANT**: digital stepping of the shape |
 | D | **LEVEL**: the step's level | **CHANCE**: the chance the step plays |
 
@@ -35,11 +35,14 @@ the voltage where it was for its length, and gives no trigger. Default: always.
 ### The shapes
 
 High, Middle, Low, Ramp up, Ramp down, Triangle, Valley, Hump, Sine, Cosine,
-Exp rise, Exp fall, Log rise, Log fall, S rise, S fall, Square, Square late,
-Pulse, Pulse late, Stairs up, Stairs down, Saw x2, Saw down x2, Triangle x2,
-Sine x2, Pluck, Swell, ADSR, Bounce, Random steps, Random smooth.
+Exp rise, Exp rise x2, Exp rise x3, Exp fall, Exp fall x2, Exp fall x3,
+Log rise, Log fall, S rise, S fall, Square, Square late, Pulse, Pulse late,
+Stairs up, Stairs down, Saw x2, Saw x3, Saw down x2, Saw down x3,
+Triangle x2, Triangle x3, Sine x2, Sine x3, Pluck, Swell, ADSR, Bounce,
+Random steps, Random smooth.
 
-The SHAPE faders select from these in order, four fader positions to a shape.
+The SHAPE faders select from these in order, about three fader positions to a
+shape. The "x2" and "x3" shapes repeat two or three times within one step.
 Every shape is 0 to 1 across one step; the random shapes are fixed patterns,
 the same every time.
 
@@ -141,7 +144,7 @@ the sequence from the card, then sends every edit as it's made.
   switch is tapped.
 - **CV Out 1.** A scope of the last four seconds of the output.
 - **Faders.** Eight pages of eight, as on the 8mu.
-- **Shapes.** All 32. Click one to give it to the selected step.
+- **Shapes.** All 40. Click one to give it to the selected step.
 - **8mu on the computer.** Its faders, buttons and tilt drive the page, with
   the same pickup as the card, and the page lights its LEDs as the card would.
 - **Presets.** Seven built in, plus your own, kept in the browser. Save,

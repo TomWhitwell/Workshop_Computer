@@ -247,8 +247,8 @@ const BUTTON_NOTES = [36, 48, 60, 72];
 const EIGHTMU_BLINK_OFF = [0xF0, 0x7D, 0x00, 0x00, 0x30, 0xF7];
 
 const PAGE_INFO = [
-  { name: 'Shape 1', letter: 'A',  hint: 'Each step’s first shape, one of 32 (see Shapes below).' },
-  { name: 'Shape 2', letter: 'B',  hint: 'Each step’s second shape, one of 32. MORPH (C) moves between the two.' },
+  { name: 'Shape 1', letter: 'A',  hint: 'Each step’s first shape, one of 40 (see Shapes below).' },
+  { name: 'Shape 2', letter: 'B',  hint: 'Each step’s second shape, one of 40. MORPH (C) moves between the two.' },
   { name: 'Morph',   letter: 'C',  hint: 'From shape 1 (down) to shape 2 (up). The morph offset (Y with the switch in the middle, CV In 1, 8mu tilt) is added to every step.' },
   { name: 'Level',   letter: 'D',  hint: 'Each step’s level, multiplying its shape.' },
   { name: 'Start',   letter: 'A2', hint: 'Level at the start of the step. With END it makes a ramp across the step that multiplies the shape and LEVEL. Default 100%.' },
@@ -258,13 +258,15 @@ const PAGE_INFO = [
 ];
 const TAB_ORDER = [0, 4, 1, 5, 2, 6, 3, 7];
 const SHAPE_NAMES = ['High', 'Middle', 'Low', 'Ramp up', 'Ramp down', 'Triangle', 'Valley', 'Hump',
-  'Sine', 'Cosine', 'Exp rise', 'Exp fall', 'Log rise', 'Log fall', 'S rise', 'S fall',
-  'Square', 'Square late', 'Pulse', 'Pulse late', 'Stairs up', 'Stairs down', 'Saw x2', 'Saw down x2',
-  'Triangle x2', 'Sine x2', 'Pluck', 'Swell', 'ADSR', 'Bounce', 'Random steps', 'Random smooth'];
-const shapeFader = (s) => s * 4 + 2;
+  'Sine', 'Cosine', 'Exp rise', 'Exp rise x2', 'Exp rise x3', 'Exp fall', 'Exp fall x2', 'Exp fall x3',
+  'Log rise', 'Log fall', 'S rise', 'S fall', 'Square', 'Square late', 'Pulse', 'Pulse late',
+  'Stairs up', 'Stairs down', 'Saw x2', 'Saw x3', 'Saw down x2', 'Saw down x3', 'Triangle x2', 'Triangle x3',
+  'Sine x2', 'Sine x3', 'Pluck', 'Swell', 'ADSR', 'Bounce', 'Random steps', 'Random smooth'];
+const NSHAPES = SHAPE_NAMES.length;              // 40, as kNumShapes in shapes.h
+const shapeFader = (s) => Math.floor((s * 128 + 64) / NSHAPES);
 const DEFAULT_VALUES = [
-  [3, 4, 7, 26, 16, 8, 14, 30].map(shapeFader),
-  [4, 3, 6, 27, 17, 9, 15, 31].map(shapeFader),
+  [3, 4, 7, 34, 20, 8, 18, 38].map(shapeFader),
+  [4, 3, 6, 35, 21, 9, 19, 39].map(shapeFader),
   [0, 0, 0, 0, 0, 0, 0, 0],
   [127, 100, 127, 80, 127, 100, 127, 80],
   [127, 127, 127, 127, 127, 127, 127, 127],
@@ -275,7 +277,7 @@ const DEFAULT_VALUES = [
 
 // Firmware conversions, from 0-127 fader units
 const pct = (v) => v >= 127 ? 1 : v / 127;               // Q12() in main.cpp
-const shapeOf = (v) => v >> 2;
+const shapeOf = (v) => (v * NSHAPES) >> 7;
 const quantN = (v) => v === 0 ? 0 : 32 - Math.floor((v - 1) * 31 / 126);
 
 // ============================================================================
@@ -295,26 +297,28 @@ function shapeFn(s, x) {
     case 5: return 1 - Math.abs(2 * x - 1); case 6: return Math.abs(2 * x - 1);
     case 7: return Math.sin(pi * x);
     case 8: return 0.5 - 0.5 * Math.cos(2 * pi * x); case 9: return 0.5 + 0.5 * Math.cos(2 * pi * x);
-    case 10: return x * x * x; case 11: return (1 - x) ** 3;
-    case 12: return 1 - (1 - x) ** 3; case 13: return 1 - x * x * x;
-    case 14: return x * x * (3 - 2 * x); case 15: return 1 - x * x * (3 - 2 * x);
-    case 16: return x < 0.5 ? 1 : 0; case 17: return x < 0.5 ? 0 : 1;
-    case 18: return x < 0.25 ? 1 : 0; case 19: return x >= 0.75 ? 1 : 0;
-    case 20: return Math.floor(x * 4) / 3; case 21: return 1 - Math.floor(x * 4) / 3;
-    case 22: return fr(2 * x); case 23: return 1 - fr(2 * x);
-    case 24: return 1 - Math.abs(2 * fr(2 * x) - 1);
-    case 25: return 0.5 - 0.5 * Math.cos(4 * pi * x);
-    case 26: return x < 0.05 ? x / 0.05 : Math.exp(-(x - 0.05) * 6);
-    case 27: return x > 0.95 ? (1 - x) / 0.05 : Math.exp(-(0.95 - x) * 6);
-    case 28: if (x < 0.1) return x / 0.1; if (x < 0.3) return 1 - 0.4 * (x - 0.1) / 0.2; if (x < 0.8) return 0.6; return 0.6 * (1 - (x - 0.8) / 0.2);
-    case 29: return Math.abs(Math.sin(3 * pi * x)) * (1 - x);
-    case 30: return randomLevel(Math.floor(x * 8));
+    case 10: return x * x * x; case 11: return fr(2 * x) ** 3; case 12: return fr(3 * x) ** 3;
+    case 13: return (1 - x) ** 3; case 14: return (1 - fr(2 * x)) ** 3; case 15: return (1 - fr(3 * x)) ** 3;
+    case 16: return 1 - (1 - x) ** 3; case 17: return 1 - x * x * x;
+    case 18: return x * x * (3 - 2 * x); case 19: return 1 - x * x * (3 - 2 * x);
+    case 20: return x < 0.5 ? 1 : 0; case 21: return x < 0.5 ? 0 : 1;
+    case 22: return x < 0.25 ? 1 : 0; case 23: return x >= 0.75 ? 1 : 0;
+    case 24: return Math.floor(x * 4) / 3; case 25: return 1 - Math.floor(x * 4) / 3;
+    case 26: return fr(2 * x); case 27: return fr(3 * x);
+    case 28: return 1 - fr(2 * x); case 29: return 1 - fr(3 * x);
+    case 30: return 1 - Math.abs(2 * fr(2 * x) - 1); case 31: return 1 - Math.abs(2 * fr(3 * x) - 1);
+    case 32: return 0.5 - 0.5 * Math.cos(4 * pi * x); case 33: return 0.5 - 0.5 * Math.cos(6 * pi * x);
+    case 34: return x < 0.05 ? x / 0.05 : Math.exp(-(x - 0.05) * 6);
+    case 35: return x > 0.95 ? (1 - x) / 0.05 : Math.exp(-(0.95 - x) * 6);
+    case 36: if (x < 0.1) return x / 0.1; if (x < 0.3) return 1 - 0.4 * (x - 0.1) / 0.2; if (x < 0.8) return 0.6; return 0.6 * (1 - (x - 0.8) / 0.2);
+    case 37: return Math.abs(Math.sin(3 * pi * x)) * (1 - x);
+    case 38: return randomLevel(Math.floor(x * 8));
     default: { const p = x * 8, i = Math.floor(p), w = 0.5 - 0.5 * Math.cos(pi * (p - i)); return randomLevel(i) + (randomLevel(i + 1) - randomLevel(i)) * w; }
   }
 }
 // Tables as the card builds them: 0-4095 at 256 points, the guard point
 // repeating the last
-const SHAPES = Array.from({ length: 32 }, (_, s) => {
+const SHAPES = Array.from({ length: NSHAPES }, (_, s) => {
   const t = new Float32Array(TABLE + 1);
   for (let n = 0; n <= TABLE; n++) { const m = Math.min(n, TABLE - 1); t[n] = Math.round(Math.min(1, Math.max(0, shapeFn(s, m / TABLE))) * 4095) / 4095; }
   return t;
@@ -801,11 +805,11 @@ const S = shapeFader, ALL = (x) => new Array(NS).fill(x);
 const BUILTIN = [
   { name: 'Default', v: DEFAULT_VALUES },
   { name: 'Ramps', v: [ALL(S(3)), ALL(S(4)), [0, 18, 36, 54, 73, 91, 109, 127], ALL(127), ALL(127), ALL(127), ALL(0), ALL(127)] },
-  { name: 'Plucks', v: [ALL(S(26)), ALL(S(28)), [0, 0, 64, 0, 0, 0, 96, 0], [127, 70, 100, 70, 127, 60, 100, 80], ALL(127), ALL(127), ALL(0), [127, 90, 127, 70, 127, 100, 127, 60]] },
+  { name: 'Plucks', v: [ALL(S(34)), ALL(S(36)), [0, 0, 64, 0, 0, 0, 96, 0], [127, 70, 100, 70, 127, 60, 100, 80], ALL(127), ALL(127), ALL(0), [127, 90, 127, 70, 127, 100, 127, 60]] },
   { name: 'Triangle LFO', v: [ALL(S(3)), ALL(S(3)), ALL(0), ALL(127), [0, 32, 64, 96, 127, 96, 64, 32], [32, 64, 96, 127, 96, 64, 32, 0], ALL(0), ALL(127)] },
-  { name: 'Stepped random', v: [[30, 31, 30, 31, 30, 31, 30, 31].map(S), ALL(S(30)), ALL(0), [127, 110, 90, 127, 100, 80, 127, 90], ALL(127), ALL(127), [80, 100, 120, 80, 100, 120, 127, 60], ALL(110)] },
-  { name: 'Gated pulses', v: [ALL(S(18)), ALL(S(16)), [0, 127, 0, 64, 0, 127, 0, 32], ALL(127), ALL(127), [127, 64, 127, 64, 127, 64, 127, 64], ALL(0), [127, 80, 127, 50, 127, 80, 127, 30]] },
-  { name: 'Swells', v: [ALL(S(27)), ALL(S(7)), [0, 32, 64, 96, 127, 96, 64, 32], [60, 80, 100, 127, 100, 80, 60, 40], ALL(127), ALL(127), ALL(0), ALL(127)] },
+  { name: 'Stepped random', v: [[38, 39, 38, 39, 38, 39, 38, 39].map(S), ALL(S(38)), ALL(0), [127, 110, 90, 127, 100, 80, 127, 90], ALL(127), ALL(127), [80, 100, 120, 80, 100, 120, 127, 60], ALL(110)] },
+  { name: 'Gated pulses', v: [ALL(S(22)), ALL(S(20)), [0, 127, 0, 64, 0, 127, 0, 32], ALL(127), ALL(127), [127, 64, 127, 64, 127, 64, 127, 64], ALL(0), [127, 80, 127, 50, 127, 80, 127, 30]] },
+  { name: 'Swells', v: [ALL(S(35)), ALL(S(7)), [0, 32, 64, 96, 127, 96, 64, 32], [60, 80, 100, 127, 100, 80, 60, 40], ALL(127), ALL(127), ALL(0), ALL(127)] },
 ].map(cleanPreset);
 let userPresets = [];
 function loadPresets() { userPresets = (store.get('cvseq.presets.v1', []) || []).map(cleanPreset).filter(Boolean); }
