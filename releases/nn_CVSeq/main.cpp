@@ -40,9 +40,9 @@
 //
 // Scales: the first position, Off, leaves QUANT as digital stepping only.
 // Any other scale also snaps the output of every step with QUANT above zero
-// to the nearest note of the scale (1V/oct, C at 0V), after depth and offset,
-// so smoothing glides between notes.  Steps with QUANT fully down stay
-// smooth.  CV Out 2 follows the scale for every step.
+// to the nearest note of the scale (1V/oct, C at 0V), after depth, offset and
+// smoothing, so those steps only ever give the scale's notes.  Steps with
+// QUANT fully down stay smooth.  CV Out 2 follows the scale for every step.
 //
 // Directions
 //   Step forward     steps 1-8, each shape forwards
@@ -229,9 +229,11 @@ public:
 			lastVal = val;
 		}
 
-		// Depth and offset, the scale, then smoothing
+		// Depth and offset, then smoothing, then the scale.  Snapping after
+		// smoothing keeps a quantised step on the scale's notes the whole
+		// time: smoothing then slows it down through the notes in between,
+		// rather than gliding through the voltages between them.
 		int32_t mv = offsetMv + ((((depth * val) >> 12) * 5000) >> 12);
-		if (scaleMask && quantN > 0) mv = SnapToScale(mv, scaleMask);
 		if (smoothAlpha >= (1 << 24))
 		{
 			smoothed = int64_t(mv) * 65536;
@@ -241,6 +243,7 @@ public:
 			smoothed += (((int64_t(mv) * 65536) - smoothed) * smoothAlpha) >> 24;
 		}
 		int32_t out = int32_t(smoothed >> 16);
+		if (scaleMask && quantN > 0) out = SnapToScale(out, scaleMask);
 		if (out > 6000) out = 6000;
 		if (out < -6000) out = -6000;
 		outMv = out;
