@@ -89,7 +89,7 @@ doesn't repeat the end steps.
 |---|---|
 | Main knob | Rate: 8 s to 10 ms per step |
 | Switch up | X = depth (-100% to +100%), Y = offset (-5 V to +5 V) |
-| Switch middle | X = smoothing (off, then 1 ms to about 2 s), Y = morph offset (-100% to +100%, all steps) |
+| Switch middle | X = smoothing (off across the bottom of the knob, then 1 ms to about 2 s), Y = morph offset (-100% to +100%, all steps) |
 | Switch down | Tap to step the direction |
 
 The four X/Y settings each keep their value. After the switch moves, a knob

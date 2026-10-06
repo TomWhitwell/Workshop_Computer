@@ -460,7 +460,7 @@ function drawReadouts() {
   $('ro-rate').textContent = L.clocked ? 'clock' : fmtTime(Math.pow(2, -L.rateOct));
   $('ro-depth').textContent = Math.round(L.depth * 100) + '%';
   $('ro-offset').textContent = (L.offsetMv / 1000).toFixed(2) + ' V';
-  $('ro-smooth').textContent = L.smooth <= 0 ? 'off' : fmtTime(0.001 * Math.pow(2, L.smooth * 11));
+  $('ro-smooth').textContent = L.smooth < 0 ? 'off' : fmtTime(0.001 * Math.pow(2, L.smooth * 11));
   $('ro-morph').textContent = (L.morph > 0 ? '+' : '') + Math.round(L.morph * 100) + '%';
   $('ro-clock').textContent = L.clocked ? 'Clocked' : 'Free';
   document.querySelectorAll('.dir').forEach(b => b.classList.toggle('on', +b.dataset.dir === L.direction));
@@ -726,7 +726,8 @@ function handleCardMessage(m) {
     L.outMv = ((p[4] << 7) | p[5]) - 8192;
     L.rateOct = (((p[6] << 7) | p[7]) - 8192) / 256;
     L.depth = (p[8] - 64) / 64; L.offsetMv = (p[9] - 64) * 5000 / 64;
-    L.smooth = p[10] < 1 ? 0 : p[10] / 127;
+    // As main.cpp: off below a dead zone of 160 (of 4095), then 1ms to ~2s
+    L.smooth = p[10] * 32 < 160 ? -1 : (p[10] * 32 - 160) / (4095 - 160);
     L.morph = (p[11] - 64) / 64;
     link.lastStatus = performance.now();
     state.history.push([link.lastStatus, L.outMv]);
@@ -769,7 +770,7 @@ function simulate(now) {
   if (!sim.holding) sim.lastVal = val;
   const L = state.live;
   Object.assign(L, { cur: sim.cur, progress: sim.phase, direction: sim.direction, clocked: false, reversed: sim.reversed,
-    holding: sim.holding, outMv: Math.round(val * 5000), rateOct: 0, depth: 1, offsetMv: 0, smooth: 0, morph: 0, switchUp: false, knobWaiting: false });
+    holding: sim.holding, outMv: Math.round(val * 5000), rateOct: 0, depth: 1, offsetMv: 0, smooth: -1, morph: 0, switchUp: false, knobWaiting: false });
   state.history.push([now, L.outMv]);
 }
 

@@ -146,7 +146,7 @@ controls:
         description: 8s to 10ms per step.
       x:
         name: Smoothing
-        description: Off fully down, then a lag of 1ms to about 2s.
+        description: Off across the bottom few percent of the knob, then a lag of 1ms to about 2s.
       y:
         name: Morph offset
         description: Added to every step's MORPH, -100% to +100%.

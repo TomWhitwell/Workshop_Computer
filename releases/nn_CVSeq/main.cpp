@@ -292,6 +292,7 @@ private:
 	int32_t depth = 4096;     // Q12, signed
 	int32_t offsetMv = 0;
 	int32_t smoothAlpha = 1 << 24;
+	static constexpr int32_t kSmoothDeadZone = 160;
 	int64_t smoothed = 0;     // millivolts, Q16
 	volatile int32_t outMv = 0;
 	int32_t morphOffset = 0;  // Q12, signed
@@ -468,12 +469,14 @@ private:
 		if (depth < -4096) depth = -4096;
 		offsetMv = ((settings[SetOffset] - 2048) * 5000) / 2048;
 
-		// Smoothing: off at zero, then a time constant of 1ms to ~2s
-		int32_t s = settings[SetSmooth];
-		if (s < 32) smoothAlpha = 1 << 24;
+		// Smoothing: off across the bottom ~4% of the knob (a dead zone, so
+		// off is reachable even when the knob doesn't read quite zero), then
+		// a time constant of 1ms to ~2s over the rest
+		int32_t s = settings[SetSmooth] - kSmoothDeadZone;
+		if (s < 0) smoothAlpha = 1 << 24;
 		else
 		{
-			float tau = 0.001f * exp2f(float(s) * (11.0f / 4095.0f));
+			float tau = 0.001f * exp2f(float(s) * (11.0f / float(4095 - kSmoothDeadZone)));
 			smoothAlpha = int32_t(16777216.0f * (1.0f - expf(-1.0f / (tau * 48000.0f))));
 			if (smoothAlpha < 1) smoothAlpha = 1;
 		}
