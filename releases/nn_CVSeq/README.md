@@ -32,11 +32,8 @@ across the step, fewer as it rises, down to one held value at the top.
 **Scales.** With the switch up, the Main knob chooses a scale. Off (fully
 down, the default) leaves QUANT as above. Any other scale also snaps the
 voltage of every step with QUANT above zero to the nearest note of the scale,
-1 V/oct with C at 0 V. The snap comes last, after LEVEL, START and END, depth,
-offset and smoothing, so a quantised step only ever gives the scale's notes:
-a fade-in climbs through the scale, and smoothing slows a change down by
-stepping through the notes in between rather than gliding off the scale. Steps
-with QUANT fully down stay smooth, so
+1 V/oct with C at 0 V, after depth and offset. So a quantised step plays notes,
+and smoothing glides between them. Steps with QUANT fully down stay smooth, so
 melodic and smooth steps can share a sequence. CV Out 2 follows the scale for
 every step.
 
