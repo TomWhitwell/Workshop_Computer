@@ -3,12 +3,12 @@ Name: CVSeq
 short-description: "An eight-step CV sequencer after the Performer in NI Massive - each step a morph between two of 40 shapes, with level ramps, quantise and chance - edited from a Music Thing 8mu, with a web editor"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
-Version: "0.2.0"
+Version: "0.3.0"
 Status: Beta
 License: MIT
 Editor: web
 date-created: 2026-10-05
-date-updated: 2026-10-06
+date-updated: 2026-10-07
 
 contact:
   email: XponentOneAudio@gmail.com
@@ -20,7 +20,7 @@ contact:
 
 uf2:
   - path: UF2/cvseq.uf2
-    name: CVSeq 0.2.0
+    name: CVSeq 0.3.0
 
 tags:
   - sequencer
@@ -102,7 +102,7 @@ panel:
     - id: CVOut2
       name: Quantised
       type: cv
-      description: CV Out 1 quantised to semitones, 1V/oct.
+      description: CV Out 1 quantised to the chosen scale (to semitones with the scale Off), 1V/oct.
     - id: PulseOut1
       name: Step
       type: pulse
@@ -116,10 +116,10 @@ controls:
   switch:
     up:
       name: Output
-      description: X and Y set depth and offset.
+      description: Main sets the scale, X and Y depth and offset.
     middle:
       name: Shape
-      description: X and Y set smoothing and morph offset.
+      description: Main sets the rate, X and Y smoothing and morph offset.
     down:
       name: Direction
       description: >
@@ -131,8 +131,14 @@ controls:
     - when:
         z: up
       main:
-        name: Rate
-        description: 8s to 10ms per step.
+        name: Scale
+        description: >
+          Off (fully down, QUANT only steps the shape), then Chromatic,
+          Major, Minor, Harmonic minor, Dorian, Phrygian, Lydian, Mixolydian,
+          Major and Minor pentatonic, Blues, Whole tone, Diminished, Fifths
+          and Octaves. With a scale chosen, every step with QUANT above zero
+          snaps to the scale's notes, 1V/oct with C at 0V. LEDs 1-4 show
+          the scale number in binary for a second when it changes.
       x:
         name: Depth
         description: -100% to +100%, an attenuverter on the 0-5V sequence. Each X/Y setting keeps its value; after the switch moves a knob picks up only once turned to its value.

@@ -162,6 +162,7 @@
         <div class="readout"><div class="k">Smoothing</div><div class="v" id="ro-smooth">-</div></div>
         <div class="readout"><div class="k">Morph offset</div><div class="v" id="ro-morph">-</div></div>
         <div class="readout"><div class="k">Timing</div><div class="v" id="ro-clock">-</div></div>
+        <div class="readout"><div class="k">Scale</div><div class="v" id="ro-scale">-</div></div>
       </div>
       <div class="dirs" role="group" aria-label="Direction">
         <span class="k">Direction</span>
@@ -222,7 +223,7 @@
             Faders pick up: one does nothing until it reaches the stored value (the dashed line shows where the 8mu's fader is while it waits).</li>
           <li>On-screen faders: drag, or focus one and use the arrow keys. Double-click resets one.</li>
           <li>Direction: tap the module's switch down to step through the five directions, or use the buttons here.</li>
-          <li>The module's X and Y knobs: switch up = depth and offset, middle = smoothing and morph offset. The Main knob is the rate.</li>
+          <li>The module's knobs: switch up = Main scale, X depth, Y offset; middle = Main rate, X smoothing, Y morph offset.</li>
           <li>Tilting an 8mu forwards and back adds to every step's morph, as it would on the card.</li>
           <li>Without a card the page still edits, previews and keeps presets; the playhead is then simulated at one step a second, full depth, no offset.</li>
         </ul>
@@ -242,6 +243,26 @@ const PAGES = 8;                                // button + 4 * layer
 const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x43, PROTOCOL_VERSION = 1;
 const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9, RESTART: 10, DIRECTION: 11 };
 const DIRECTIONS = ['Step forward', 'Step ping-pong', 'Step backward', 'True ping-pong', 'True reverse'];
+// Scales, as in main.cpp: name and the semitones in each octave (C = 0)
+const SCALES = [
+  ['Off', []], ['Chromatic', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]], ['Major', [0, 2, 4, 5, 7, 9, 11]],
+  ['Minor', [0, 2, 3, 5, 7, 8, 10]], ['Harmonic minor', [0, 2, 3, 5, 7, 8, 11]], ['Dorian', [0, 2, 3, 5, 7, 9, 10]],
+  ['Phrygian', [0, 1, 3, 5, 7, 8, 10]], ['Lydian', [0, 2, 4, 6, 7, 9, 11]], ['Mixolydian', [0, 2, 4, 5, 7, 9, 10]],
+  ['Major pentatonic', [0, 2, 4, 7, 9]], ['Minor pentatonic', [0, 3, 5, 7, 10]], ['Blues', [0, 3, 5, 6, 7, 10]],
+  ['Whole tone', [0, 2, 4, 6, 8, 10]], ['Diminished', [0, 1, 3, 4, 6, 7, 9, 10]], ['Fifths', [0, 7]], ['Octaves', [0]],
+];
+// The nearest note of a scale to a voltage in mV, 1V/oct with C at 0V
+// (SnapToScale in main.cpp)
+function snapToScale(mv, degrees) {
+  const u = mv * 12 / 1000, s = Math.floor(u);
+  let best = Infinity, note = s;
+  for (let d = -6; d <= 7; d++) {
+    const n = s + d;
+    if (!degrees.includes(((n % 12) + 12) % 12)) continue;
+    if (Math.abs(n - u) < best) { best = Math.abs(n - u); note = n; }
+  }
+  return note * 1000 / 12;
+}
 const FIRST_FADER_CC = 34, FIRST_MOTION_CC = 42;
 const BUTTON_NOTES = [36, 48, 60, 72];
 const EIGHTMU_BLINK_OFF = [0xF0, 0x7D, 0x00, 0x00, 0x30, 0xF7];
@@ -253,7 +274,7 @@ const PAGE_INFO = [
   { name: 'Level',   letter: 'D',  hint: 'Each step’s level, multiplying its shape.' },
   { name: 'Start',   letter: 'A2', hint: 'Level at the start of the step. With END it makes a ramp across the step that multiplies the shape and LEVEL. Default 100%.' },
   { name: 'End',     letter: 'B2', hint: 'Level at the end of the step. With START it makes a ramp across the step that multiplies the shape and LEVEL. Default 100%.' },
-  { name: 'Quant',   letter: 'C2', hint: 'Digital stepping: fully down is smooth; above, the step is sampled into held stairs, 32 down to 1 at the top.' },
+  { name: 'Quant',   letter: 'C2', hint: 'Digital stepping: fully down is smooth; above, the step is sampled into held stairs, 32 down to 1 at the top. With a scale chosen (Main knob, switch up), those steps also snap to the scale\u2019s notes.' },
   { name: 'Chance',  letter: 'D2', hint: 'The chance a step plays each time round. A step that doesn’t play holds the last output for its length and gives no trigger. Default always.' },
 ];
 const TAB_ORDER = [0, 4, 1, 5, 2, 6, 3, 7];
@@ -347,7 +368,7 @@ const state = {
   sel: 0,
   // live, from the card's STATUS (or simulated when there's no card)
   live: { cur: 0, progress: 0, direction: 0, clocked: false, muOnCard: false, switchUp: false, knobWaiting: false,
-          reversed: false, holding: false, outMv: 0, rateOct: 0, depth: 1, offsetMv: 0, smooth: 0, morph: 0 },
+          reversed: false, holding: false, outMv: 0, rateOct: 0, depth: 1, offsetMv: 0, smooth: 0, morph: 0, scale: 0 },
   history: [],                                  // [time ms, mV]
 };
 const link = { access: null, card: { in: null, out: null }, muIns: [], muOuts: [], cardOnline: false,
@@ -371,7 +392,7 @@ function describe(page, v) {
   switch (page) {
     case 0: case 1: return SHAPE_NAMES[shapeOf(v)];
     case 2: return v === 0 ? 'shape 1' : v >= 127 ? 'shape 2' : Math.round(pct(v) * 100) + '% to 2';
-    case 6: return v === 0 ? 'smooth' : quantN(v) + (quantN(v) === 1 ? ' value' : ' stairs');
+    case 6: return v === 0 ? 'smooth' : quantN(v) + (quantN(v) === 1 ? ' value' : ' stairs') + (state.live.scale ? ', ' + SCALES[state.live.scale][0] : '');
     case 7: return v === 0 ? 'never' : v >= 127 ? 'always' : Math.round(pct(v) * 100) + '%';
     default: return Math.round(pct(v) * 100) + '%';
   }
@@ -389,6 +410,15 @@ function setupCanvas(cv) {
   return { ctx, w: r.width, h: r.height };
 }
 
+// A step's value as drawn: with a scale chosen, a quantised step is snapped
+// to the scale after depth and offset, as on the card
+function shownValue(v, i, u, mo) {
+  const val = stepValue(v, i, u, mo), L = state.live;
+  if (!L.scale || quantN(v[6][i]) === 0 || Math.abs(L.depth) < 0.01) return val;
+  const mv = snapToScale(L.offsetMv + L.depth * val * 5000, SCALES[L.scale][1]);
+  return (mv - L.offsetMv) / (L.depth * 5000);
+}
+
 function drawTimeline() {
   const { ctx, w: W, h: H } = setupCanvas($('timeline'));
   ctx.clearRect(0, 0, W, H);
@@ -403,11 +433,11 @@ function drawTimeline() {
     ctx.fillStyle = col; ctx.globalAlpha = 0.05 + 0.08 * chance; ctx.fillRect(x0 + 1, top, bw - 2, span); ctx.globalAlpha = 1;
     // the step's curve, filled beneath
     ctx.beginPath(); ctx.moveTo(x0 + 1, bot);
-    for (let px = 0; px <= bw - 2; px++) { const u = px / (bw - 2); ctx.lineTo(x0 + 1 + px, bot - stepValue(v, i, u, mo) * span); }
+    for (let px = 0; px <= bw - 2; px++) { const u = px / (bw - 2); ctx.lineTo(x0 + 1 + px, bot - shownValue(v, i, u, mo) * span); }
     ctx.lineTo(x0 + bw - 1, bot); ctx.closePath();
     ctx.fillStyle = col; ctx.globalAlpha = 0.18 * (0.3 + 0.7 * chance); ctx.fill(); ctx.globalAlpha = 1;
     ctx.beginPath();
-    for (let px = 0; px <= bw - 2; px++) { const u = px / (bw - 2), y = bot - stepValue(v, i, u, mo) * span;
+    for (let px = 0; px <= bw - 2; px++) { const u = px / (bw - 2), y = bot - shownValue(v, i, u, mo) * span;
       if (px === 0) ctx.moveTo(x0 + 1 + px, y); else ctx.lineTo(x0 + 1 + px, y); }
     ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.globalAlpha = 0.35 + 0.65 * chance; ctx.stroke(); ctx.globalAlpha = 1;
     if (chance < 1) ctx.setLineDash([]);
@@ -467,9 +497,10 @@ function drawReadouts() {
   $('ro-smooth').textContent = L.smooth < 0 ? 'off' : fmtTime(0.001 * Math.pow(2, L.smooth * 11));
   $('ro-morph').textContent = (L.morph > 0 ? '+' : '') + Math.round(L.morph * 100) + '%';
   $('ro-clock').textContent = L.clocked ? 'Clocked' : 'Free';
+  $('ro-scale').textContent = SCALES[L.scale][0];
   document.querySelectorAll('.dir').forEach(b => b.classList.toggle('on', +b.dataset.dir === L.direction));
   $('knob-line').textContent = !on ? 'Tap the module’s switch down to step the direction.'
-    : 'Switch ' + (L.switchUp ? 'up: X = depth, Y = offset' : 'middle: X = smoothing, Y = morph offset') +
+    : 'Switch ' + (L.switchUp ? 'up: Main = scale, X = depth, Y = offset' : 'middle: Main = rate, X = smoothing, Y = morph offset') +
       (L.knobWaiting ? '. A knob is waiting to pick up its value.' : '.');
 }
 
@@ -736,6 +767,7 @@ function handleCardMessage(m) {
     // As main.cpp: off below a dead zone of 140 (of 4095, after the knob end zone: a raw reading of 260), then 1ms to ~2s
     L.smooth = p[10] * 32 < 140 ? -1 : (p[10] * 32 - 140) / (4095 - 140);
     L.morph = twoSided(p[11]);
+    L.scale = p.length >= 13 ? Math.min(SCALES.length - 1, p[12]) : 0;
     link.lastStatus = performance.now();
     state.history.push([link.lastStatus, L.outMv]);
   }
@@ -777,7 +809,7 @@ function simulate(now) {
   if (!sim.holding) sim.lastVal = val;
   const L = state.live;
   Object.assign(L, { cur: sim.cur, progress: sim.phase, direction: sim.direction, clocked: false, reversed: sim.reversed,
-    holding: sim.holding, outMv: Math.round(val * 5000), rateOct: 0, depth: 1, offsetMv: 0, smooth: -1, morph: 0, switchUp: false, knobWaiting: false });
+    holding: sim.holding, outMv: Math.round(val * 5000), rateOct: 0, depth: 1, offsetMv: 0, smooth: -1, morph: 0, scale: 0, switchUp: false, knobWaiting: false });
   state.history.push([now, L.outMv]);
 }
 

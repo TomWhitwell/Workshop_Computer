@@ -26,12 +26,13 @@
 // Card -> web
 //   STATE     02 version page values[64]
 //   STATUS    07 cur progress flags flags2 out(2) speed(2) depth offset
-//                smooth morph
+//                smooth morph scale
 //             cur        step 0-7
 //             progress   position through the step, 0-127, in time
 //             flags      bits 0-2 direction, bit 3 clocked, bit 4 8mu on
-//                        card, bit 5 switch up (X/Y are depth and offset,
-//                        not smoothing and morph), bit 6 a knob is waiting
+//                        card, bit 5 switch up (knobs are scale, depth and
+//                        offset, not rate, smoothing and morph), bit 6 a
+//                        knob is waiting
 //             flags2     bit 0 this step plays its shape backwards, bit 1
 //                        this step lost its chance roll and is holding
 //             out        CV Out 1 in millivolts, offset by 8192
@@ -41,6 +42,10 @@
 //             offset     -5V to +5V, as 0-127 with 64 = 0V
 //             smooth     smoothing setting, 0-127
 //             morph      morph offset, as 0-127 with 64 = none
+//             scale      0 Off, then 1-15: Chromatic, Major, Minor,
+//                        Harmonic minor, Dorian, Phrygian, Lydian,
+//                        Mixolydian, Major pentatonic, Minor pentatonic,
+//                        Blues, Whole tone, Diminished, Fifths, Octaves
 //
 // Directions
 //   0 step forward     steps 1-8, shapes forwards
@@ -148,7 +153,7 @@ inline int32_t Get14(const uint8_t *in)
 }
 
 static constexpr int kStateLen = 4 + 2 + kNumValues + 1;
-static constexpr int kStatusLen = 4 + 4 + 2 + 2 + 4 + 1;
+static constexpr int kStatusLen = 4 + 4 + 2 + 2 + 5 + 1;
 
 } // namespace sysex
 

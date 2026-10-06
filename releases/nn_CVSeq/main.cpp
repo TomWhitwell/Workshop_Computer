@@ -26,15 +26,22 @@
 // LEDs show the stored values on the current page, the playing step full on.
 //
 // Panel
-//   Main knob   Rate, 8s to 10ms per step, plus CV In 2 at 1V/oct
-//   Switch up   X = depth (-100% to +100%), Y = offset (-5V to +5V)
-//   Switch mid  X = smoothing (off to ~2s), Y = morph offset (all steps)
+//   Switch up   Main = scale, X = depth (-100% to +100%), Y = offset (-5V
+//               to +5V)
+//   Switch mid  Main = rate (8s to 10ms per step, plus CV In 2 at 1V/oct),
+//               X = smoothing (off to ~2s), Y = morph offset (all steps)
 //   Switch down Tap to step the direction: step forward, step ping-pong,
 //               step backward, true ping-pong, true reverse
 //
-// The four X/Y settings each keep their value; after the switch moves a knob
+// The six knob settings each keep their value; after the switch moves a knob
 // does nothing until it reaches its new setting's value, so nothing jumps.
 // LED 5 blinks fast while one is waiting.
+//
+// Scales: the first position, Off, leaves QUANT as digital stepping only.
+// Any other scale also snaps the output of every step with QUANT above zero
+// to the nearest note of the scale (1V/oct, C at 0V), after depth and offset,
+// so smoothing glides between notes.  Steps with QUANT fully down stay
+// smooth.  CV Out 2 follows the scale for every step.
 //
 // Directions
 //   Step forward     steps 1-8, each shape forwards
@@ -52,7 +59,7 @@
 //
 // Outputs
 //   CV Out 1    The sequence: offset + depth x (0 to 5V), smoothed
-//   CV Out 2    The same, quantised to semitones (1V/oct)
+//   CV Out 2    The same, quantised to the scale (semitones with scale Off)
 //   Audio Out 1 The same as CV Out 1, uncalibrated
 //   Audio Out 2 CV Out 1 inverted, uncalibrated
 //   Pulse Out 1 Trigger at the start of every step that plays
@@ -224,8 +231,9 @@ public:
 			lastVal = val;
 		}
 
-		// Depth and offset, then smoothing
+		// Depth and offset, the scale, then smoothing
 		int32_t mv = offsetMv + ((((depth * val) >> 12) * 5000) >> 12);
+		if (scaleMask && quantN > 0) mv = SnapToScale(mv, scaleMask);
 		if (smoothAlpha >= (1 << 24))
 		{
 			smoothed = int64_t(mv) << 16;
@@ -240,8 +248,7 @@ public:
 		outMv = out;
 
 		CVOut1Millivolts(out);
-		int32_t semis = (out * 12 + (out >= 0 ? 500 : -500)) / 1000;
-		CVOut2Millivolts((semis * 1000) / 12);
+		CVOut2Millivolts(SnapToScale(out, scaleMask ? scaleMask : 0xFFF));
 		AudioOut1(int16_t((out * 349) >> 10));
 		AudioOut2(int16_t(-((out * 349) >> 10)));
 
@@ -302,13 +309,23 @@ private:
 	int32_t rateOct = 0;      // Q12 octaves, 0 = one step a second
 	int32_t tiltMorph = 0;
 
-	// X/Y knob settings, with soft takeover when the switch moves.
-	// Up: depth, offset.  Middle: smoothing, morph offset.
-	enum Setting {SetDepth, SetOffset, SetSmooth, SetMorph, kSettings};
-	int32_t settings[kSettings] = {4095, 2048, 0, 2048};
-	int knobBank = -1;        // 0 = up pair, 1 = middle pair
-	bool knobLatched[2] = {};
-	int32_t lastKnob[2] = {};
+	// Knob settings, with soft takeover when the switch moves.
+	// Up: depth (X), offset (Y), scale (Main).
+	// Middle: smoothing (X), morph offset (Y), rate (Main).
+	enum Setting {SetDepth, SetOffset, SetSmooth, SetMorph, SetScale, SetRate, kSettings};
+	// Rate 1274 is one step a second
+	int32_t settings[kSettings] = {4095, 2048, 0, 2048, 0, 1274};
+	static constexpr int kKnobSetting[2][3] = {
+		{SetDepth, SetOffset, SetScale}, {SetSmooth, SetMorph, SetRate}};
+	int knobBank = -1;        // 0 = up, 1 = middle
+	bool knobLatched[3] = {};
+	int32_t lastKnob[3] = {};
+
+	// Scales, as 12-bit masks of the semitones in each octave (bit 0 = C)
+	static constexpr int kNumScales = 16;
+	uint16_t scaleMask = 0;   // 0 = Off
+	int scaleIndex = 0;
+	int scaleShow = 0;
 
 	uint32_t exp2Tab[257]; // 2^(i/256) in Q30
 
@@ -323,7 +340,7 @@ private:
 
 	// Snapshot for the web editor: written on core0, read on core1
 	volatile uint8_t stCur = 0, stProgress = 0, stFlags = 0, stFlags2 = 0;
-	volatile uint8_t stDepth = 0, stOffset = 0, stSmooth = 0, stMorph = 0;
+	volatile uint8_t stDepth = 0, stOffset = 0, stSmooth = 0, stMorph = 0, stScale = 0;
 	volatile int32_t stOut = 0, stRate = 0;
 
 	// base * 2^(oct/4096)
@@ -461,11 +478,37 @@ private:
 
 		// Rate: Main knob, 8s (-3 octaves from one step a second) to 10ms
 		// (+6.64 octaves), plus CV In 2 at 1V/oct
-		rateOct = -12288 + (MapKnob(KnobVal(Main), false) * 39485) / 4095 + CVIn2() * 12;
+		rateOct = -12288 + (settings[SetRate] * 39485) / 4095 + CVIn2() * 12;
 		if (rateOct < -16384) rateOct = -16384;
 		if (rateOct > 28672) rateOct = 28672;
 		phaseInc = clocked ? 0xFFFFFFFFu / uint32_t(clockPeriod)
 			: ExpScale(89478, rateOct); // 2^32 / 48000: one step a second
+
+		static const uint16_t kScaleMasks[kNumScales] = {
+		0x000, // Off
+		0xFFF, // Chromatic
+		0xAB5, // Major
+		0x5AD, // Minor
+		0x9AD, // Harmonic minor
+		0x6AD, // Dorian
+		0x5AB, // Phrygian
+		0xAD5, // Lydian
+		0x6B5, // Mixolydian
+		0x295, // Major pentatonic
+		0x4A9, // Minor pentatonic
+		0x4E9, // Blues
+		0x555, // Whole tone
+		0x6DB, // Diminished
+		0x081, // Fifths
+		0x001, // Octaves
+		};
+		int sc = (settings[SetScale] * kNumScales) >> 12;
+		if (sc != scaleIndex)
+		{
+			scaleIndex = sc;
+			scaleShow = 1500; // show it on the LEDs for ~1s
+		}
+		scaleMask = kScaleMasks[scaleIndex];
 
 		depth = (settings[SetDepth] - 2048) * 2;
 		if (depth > 4096) depth = 4096;
@@ -495,7 +538,7 @@ private:
 		LoadStep(); // so edits to the playing step are heard straight away
 
 		// Snapshot for the web editor
-		bool waiting = !knobLatched[0] || !knobLatched[1];
+		bool waiting = !knobLatched[0] || !knobLatched[1] || !knobLatched[2];
 		stCur = uint8_t(cur);
 		stProgress = uint8_t(phase >> 25);
 		stFlags = uint8_t((direction & 7) | (clocked ? 8 : 0) | (mu.Connected() ? 16 : 0)
@@ -507,7 +550,9 @@ private:
 		stOffset = uint8_t((settings[SetOffset] >> 5) & 127);
 		stSmooth = uint8_t((settings[SetSmooth] >> 5) & 127);
 		stMorph = uint8_t((settings[SetMorph] >> 5) & 127);
+		stScale = uint8_t(scaleIndex);
 		if (dirShow > 0) dirShow--;
+		if (scaleShow > 0) scaleShow--;
 
 		// Computer LEDs: page (or step, with no 8mu), direction after a
 		// tap, CV Out 1 level, and connection
@@ -515,7 +560,12 @@ private:
 		pageBlink = (pageBlink + 1) % 900;
 		for (int i = 0; i < 4; i++)
 		{
-			if (dirShow > 0)
+			if (scaleShow > 0 && dirShow == 0)
+			{
+				// Scale number in binary, LED 0 the lowest bit; none = Off
+				LedOn(i, (scaleIndex >> i) & 1);
+			}
+			else if (dirShow > 0)
 			{
 				// Direction 1-5 in binary-ish: 1-4 LEDs, five = all blink
 				bool on = direction < 4 ? i <= direction : pageBlink % 300 < 150;
@@ -564,15 +614,21 @@ private:
 		int bank = sw == Up ? 0 : (sw == Middle ? 1 : knobBank);
 		if (bank < 0) bank = 1;
 		// Depth, offset and morph offset are two-sided, with a centre zone
-		int32_t k[2] = {MapKnob(KnobVal(X), bank * 2 != SetSmooth),
-			MapKnob(KnobVal(Y), bank * 2 + 1 != SetSmooth)};
+		const Knob knobs[3] = {X, Y, Main};
+		int32_t k[3];
+		for (int i = 0; i < 3; i++)
+		{
+			int set = kKnobSetting[bank][i];
+			k[i] = MapKnob(KnobVal(knobs[i]), set == SetDepth || set == SetOffset || set == SetMorph);
+		}
 		if (knobBank < 0)
 		{
-			// Power-up: the current pair takes the knobs as they are
+			// Power-up: the current position's settings take the knobs as
+			// they are
 			knobBank = bank;
-			for (int i = 0; i < 2; i++)
+			for (int i = 0; i < 3; i++)
 			{
-				settings[bank * 2 + i] = k[i];
+				settings[kKnobSetting[bank][i]] = k[i];
 				knobLatched[i] = true;
 				lastKnob[i] = k[i];
 			}
@@ -581,11 +637,11 @@ private:
 		if (bank != knobBank)
 		{
 			knobBank = bank;
-			knobLatched[0] = knobLatched[1] = false;
+			knobLatched[0] = knobLatched[1] = knobLatched[2] = false;
 		}
-		for (int i = 0; i < 2; i++)
+		for (int i = 0; i < 3; i++)
 		{
-			int32_t &v = settings[bank * 2 + i];
+			int32_t &v = settings[kKnobSetting[bank][i]];
 			if (!knobLatched[i])
 			{
 				int32_t d = k[i] - v;
@@ -596,6 +652,24 @@ private:
 			if (knobLatched[i]) v = k[i];
 			lastKnob[i] = k[i];
 		}
+	}
+
+	// The nearest note of a scale to a voltage, 1V/oct with C at 0V
+	static int32_t SnapToScale(int32_t mv, uint16_t mask)
+	{
+		int32_t u = mv * 12; // thousandths of a semitone
+		int32_t s = u >= 0 ? u / 1000 : -((-u + 999) / 1000);
+		int32_t best = 0x7FFFFFFF, note = s;
+		for (int d = -6; d <= 7; d++)
+		{
+			int32_t n = s + d;
+			int deg = ((n % 12) + 12) % 12;
+			if (!((mask >> deg) & 1)) continue;
+			int32_t dist = n * 1000 - u;
+			if (dist < 0) dist = -dist;
+			if (dist < best) {best = dist; note = n;}
+		}
+		return (note * 1000) / 12;
 	}
 
 	void HandleEightMU()
@@ -813,6 +887,7 @@ public:
 		out[n++] = stOffset;
 		out[n++] = stSmooth;
 		out[n++] = stMorph;
+		out[n++] = stScale;
 		out[n++] = 0xF7;
 		return n;
 	}

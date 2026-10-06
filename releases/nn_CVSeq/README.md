@@ -29,6 +29,20 @@ ramp.
 **QUANT** turns the step into held stairs: fully down is smooth, then 32 stairs
 across the step, fewer as it rises, down to one held value at the top.
 
+**Scales.** With the switch up, the Main knob chooses a scale. Off (fully
+down, the default) leaves QUANT as above. Any other scale also snaps the
+voltage of every step with QUANT above zero to the nearest note of the scale,
+1 V/oct with C at 0 V, after depth and offset. So a quantised step plays notes,
+and smoothing glides between them. Steps with QUANT fully down stay smooth, so
+melodic and smooth steps can share a sequence. CV Out 2 follows the scale for
+every step.
+
+The scales, in order round the knob: Off, Chromatic, Major, Minor, Harmonic
+minor, Dorian, Phrygian, Lydian, Mixolydian, Major pentatonic, Minor
+pentatonic, Blues, Whole tone, Diminished, Fifths, Octaves. When the scale
+changes, LEDs 1-4 show its number in binary for a second (LED 1 the lowest
+bit; none lit is Off).
+
 **CHANCE** is rolled each time a step comes round. A step that doesn't play holds
 the voltage where it was for its length, and gives no trigger. Default: always.
 
@@ -90,9 +104,8 @@ doesn't repeat the end steps.
 
 | Control | Function |
 |---|---|
-| Main knob | Rate: 8 s to 10 ms per step |
-| Switch up | X = depth (-100% to +100%), Y = offset (-5 V to +5 V) |
-| Switch middle | X = smoothing (off across the bottom of the knob, then 1 ms to about 2 s), Y = morph offset (-100% to +100%, all steps) |
+| Switch up | Main = scale, X = depth (-100% to +100%), Y = offset (-5 V to +5 V) |
+| Switch middle | Main = rate (8 s to 10 ms per step), X = smoothing (off across the bottom of the knob, then 1 ms to about 2 s), Y = morph offset (-100% to +100%, all steps) |
 | Switch down | Tap to step the direction |
 
 All knobs have a small dead zone at each end, so the full range is reached
@@ -100,11 +113,12 @@ even if a knob doesn't quite read its very ends, and the two-sided settings
 (depth, offset, morph offset) have one in the middle, so exactly 0 is easy to
 find.
 
-The four X/Y settings each keep their value. After the switch moves, a knob
+The six knob settings each keep their value. After the switch moves, a knob
 does nothing until it's turned to (or past) its new setting's value, then takes
 over. LED 6 (bottom right) blinks fast while a knob is waiting. At power-up the
 knobs take over straight away for the position the switch is in; the others
-start at depth +100%, offset 0 V, smoothing off and morph offset 0.
+start at depth +100%, offset 0 V, scale Off, one step a second, smoothing off
+and morph offset 0.
 
 | Jack | Function |
 |---|---|
@@ -113,7 +127,7 @@ start at depth +100%, offset 0 V, smoothing off and morph offset 0.
 | Pulse In 1 | Clock: while clocks keep arriving, each step lasts one clock |
 | Pulse In 2 | Restart from the first step |
 | CV Out 1 | The sequence: offset + depth x (0 to 5 V), smoothed |
-| CV Out 2 | CV Out 1 quantised to semitones, 1 V/oct |
+| CV Out 2 | CV Out 1 quantised to the scale (to semitones with scale Off), 1 V/oct |
 | Audio Out 1 | CV Out 1, uncalibrated |
 | Audio Out 2 | CV Out 1 inverted, uncalibrated |
 | Pulse Out 1 | Trigger at the start of every step that plays |
