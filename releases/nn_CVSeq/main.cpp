@@ -59,7 +59,10 @@
 // Inputs
 //   CV In 1     Morph offset, added to every step's MORPH (+5V = all the way)
 //   CV In 2     Rate, 1V/oct
-//   Pulse In 1  Clock: while clocks arrive, each step lasts one clock
+//   Pulse In 1  Clock: each step lasts one clock, up to a minute apart.
+//               Followed from the second pulse; the rate knob takes over
+//               again after four of the clock's periods (at least 2s)
+//               without one
 //   Pulse In 2  Restart from the first step
 //
 // Outputs
@@ -164,16 +167,22 @@ public:
 		if (samplesSinceClock < 0x7FFFFFFF) samplesSinceClock++;
 		if (clockEdge)
 		{
-			if (haveClock)
+			// Two clocks up to a minute apart give the period; until then
+			// (and after the clock stops) the rate knob keeps time
+			if (haveClock && samplesSinceClock <= kMaxClockPeriod)
 			{
-				clockPeriod = samplesSinceClock;
-				if (clockPeriod < 48) clockPeriod = 48;
-				if (clockPeriod > 8 * 48000) clockPeriod = 8 * 48000;
+				clockPeriod = samplesSinceClock < 48 ? 48 : samplesSinceClock;
+				periodKnown = true;
 			}
 			haveClock = true;
 			samplesSinceClock = 0;
 		}
-		clocked = haveClock && samplesSinceClock < 2 * 48000;
+		// The clock counts as stopped after four of its own periods without
+		// one (never less than 2s), so slow clocks are followed rather than
+		// dropped mid-step
+		int32_t timeout = clockPeriod > 24000 ? clockPeriod * 4 : 2 * 48000;
+		if (periodKnown && samplesSinceClock >= timeout) periodKnown = false;
+		clocked = periodKnown;
 
 		if (++controlCount >= 32)
 		{
@@ -290,8 +299,10 @@ private:
 	int32_t heldVal = 0, lastVal = 0;
 	int clockCount = 0;
 	bool haveClock = false, clocked = false, swallowClock = false;
+	bool periodKnown = false;
 	int32_t samplesSinceClock = 0x7FFFFFFF;
 	int32_t clockPeriod = 24000;
+	static constexpr int32_t kMaxClockPeriod = 60 * 48000; // a minute
 	int controlCount = 0;
 	int stepTrig = 0, seqTrig = 0;
 	uint32_t rng = 0x2545F491;

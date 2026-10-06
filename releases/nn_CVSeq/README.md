@@ -139,7 +139,7 @@ and morph offset 0.
 |---|---|
 | CV In 1 | Morph offset: +5 V moves every step all the way from shape 1 to shape 2 |
 | CV In 2 | Rate, 1 V/oct |
-| Pulse In 1 | Clock: while clocks keep arriving, each step lasts one clock |
+| Pulse In 1 | Clock: each step lasts one clock, for clocks up to a minute apart. The card follows the clock from its second pulse, and goes back to the rate knob once four of the clock's periods (at least 2 s) pass without one |
 | Pulse In 2 | Restart from the first step |
 | CV Out 1 | The sequence: offset + depth x (0 to 5 V), smoothed |
 | CV Out 2 | CV Out 1 quantised to the scale (to semitones with scale Off), 1 V/oct |

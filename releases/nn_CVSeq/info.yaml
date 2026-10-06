@@ -84,8 +84,10 @@ panel:
       name: Clock
       type: pulse
       description: >
-        While clocks are arriving, each step lasts one clock. Two seconds
-        without a clock returns to free running.
+        While clocks are arriving, each step lasts one clock, for clocks
+        anything up to a minute apart. The card follows the clock from its
+        second pulse, and returns to the Main knob's rate once four of the
+        clock's periods (at least 2s) pass without one.
     - id: PulseIn2
       name: Restart
       type: pulse
