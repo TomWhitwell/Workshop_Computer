@@ -89,6 +89,19 @@ same time as the Web MIDI editor. The complete connection, layer, soft-takeover,
 panel-LED, and preset-browser instructions are kept separately in
 [8MU_ACTIVITY.md](8MU_ACTIVITY.md).
 
+### Previous 8mu button-note issue — verify after updating
+
+Earlier 8mu firmware builds also forwarded the four 8mu button-note messages
+to Vortex Runner's ordinary MIDI-note input. When playing from a CV keyboard
+with its gate held high, pressing A, B, C, or D could therefore retrigger the
+voice and switch its pitch to C2, C3, C4, or C5. The corrected firmware consumes
+those button notes exclusively for 8mu layer selection.
+
+After flashing a corrected build, hold a note on a CV keyboard and press then
+release each 8mu button. Only the selected 8mu layer LED should change: the
+pitch and envelope of the CV-played note must remain unchanged. If they do
+change, the card is still running a pre-fix firmware build.
+
 ## Draft Web MIDI Protocol
 
 The editor and firmware now share a small non-commercial SysEx protocol:
