@@ -3,7 +3,7 @@ Name: WaveSeq
 short-description: "Wavestation-style wave sequencing - eight steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
-Version: "0.5.1"
+Version: "0.5.2"
 Status: Beta
 License: MIT
 Editor: web
@@ -20,7 +20,7 @@ contact:
 
 uf2:
   - path: UF2/waveseq.uf2
-    name: Wave Sequencer 0.5.1
+    name: Wave Sequencer 0.5.2
 
 tags:
   - synth
@@ -81,8 +81,10 @@ panel:
       type: pulse
       description: >
         While clocks are arriving, steps advance on the clock instead of by
-        time, each lasting the number of clocks (1-8) set by its TIME fader.
-        Two seconds without a clock returns to free running.
+        time, each lasting the number of clocks (1-8) set by its TIME fader,
+        for clocks anything up to 20s apart. The card follows the clock from
+        its second pulse, and returns to free running once four of the
+        clock's periods (at least 2s) pass without one.
     - id: PulseIn2
       name: Restart
       type: pulse

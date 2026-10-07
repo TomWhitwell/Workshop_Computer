@@ -143,7 +143,7 @@ three for random. The web editor can set it too.
 | Audio In 2  | Wave scan, up to +/-32 waves, audio rate, depth set by Y (switch middle) |
 | CV In 1     | Pitch, 1V/oct                                              |
 | CV In 2     | Speed, 1V/oct                                              |
-| Pulse In 1  | Clock. Steps advance on clocks while they keep arriving    |
+| Pulse In 1  | Clock. Steps advance on clocks while they keep arriving, for clocks up to 20 s apart. Followed from the second pulse; the speed knob takes over again after four of the clock's periods (at least 2 s) without one |
 | Pulse In 2  | Restart from the first step                                |
 | Audio Out 1 | Wave sequence                                              |
 | Audio Out 2 | Wave sequence, detuned                                     |

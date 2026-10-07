@@ -49,7 +49,10 @@
 //   CV In 1     Pitch, 1V/oct
 //   CV In 2     Speed, 1V/oct
 //   Pulse In 1  Clock: while clocks arrive, each step lasts its TIME fader's
-//               number of clocks (1-8) instead of a time
+//               number of clocks (1-8) instead of a time.  Clocks up to 20s
+//               apart; followed from the second pulse, and the speed knob
+//               takes over again after four of the clock's periods (at
+//               least 2s) without one
 //   Pulse In 2  Restart from the first step
 //
 // Outputs
@@ -152,16 +155,22 @@ public:
 		if (samplesSinceClock < 0x7FFFFFFF) samplesSinceClock++;
 		if (clockEdge)
 		{
-			if (haveClock)
+			// Two clocks up to 20s apart give the period; until then (and
+			// after the clock stops) the speed knob keeps time
+			if (haveClock && samplesSinceClock <= kMaxClockPeriod)
 			{
-				clockPeriod = samplesSinceClock;
-				if (clockPeriod < 48) clockPeriod = 48;
-				if (clockPeriod > 4 * 48000) clockPeriod = 4 * 48000;
+				clockPeriod = samplesSinceClock < 48 ? 48 : samplesSinceClock;
+				periodKnown = true;
 			}
 			haveClock = true;
 			samplesSinceClock = 0;
 		}
-		clocked = haveClock && samplesSinceClock < 2 * 48000;
+		// The clock counts as stopped after four of its own periods without
+		// one (never less than 2s), so slow clocks are followed rather than
+		// dropped mid-step
+		int32_t timeout = clockPeriod > 24000 ? clockPeriod * 4 : 2 * 48000;
+		if (periodKnown && samplesSinceClock >= timeout) periodKnown = false;
+		clocked = periodKnown;
 
 		if (++controlCount >= 32)
 		{
@@ -175,7 +184,9 @@ public:
 		}
 		else if (clocked)
 		{
+			// Waiting for a late clock holds at the end of the step
 			elapsed += 256;
+			if (elapsed > stepLen) elapsed = stepLen;
 			// The first clock after a restart starts the step rather than
 			// counting towards its end
 			if (clockEdge && swallowClock)
@@ -279,6 +290,10 @@ private:
 	bool haveClock = false, clocked = false, swallowClock = false;
 	int32_t samplesSinceClock = 0x7FFFFFFF;
 	int32_t clockPeriod = 24000;
+	bool periodKnown = false;
+	// Up to 20s a clock: with up to 8 clocks a step, the step length in
+	// 1/256 samples still fits 32 bits
+	static constexpr int32_t kMaxClockPeriod = 20 * 48000;
 	int controlCount = 0;
 	int stepTrig = 0, seqTrig = 0;
 
