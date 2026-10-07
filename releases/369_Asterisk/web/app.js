@@ -1,9 +1,9 @@
-import {message,controlsPayload,parseStatus,parsePatch,patchDocument,readPatchDocument,mixPayload} from './protocol.js?v=1.1';
+import {message,controlsPayload,parseStatus,parsePatch,patchDocument,readPatchDocument,mixPayload,scalePayload,scaleNames} from './protocol.js?v=1.2';
 const $=id=>document.getElementById(id);
 const roles=['LOW','SNAP','TICK','BASS','CHIME','GHOST'];
 const engines=['SUB KICK','SUB SNARE','NOISE','FM','ADDITIVE','WAVEFOLD','FOLD KICK','BASS','KICK','FM KICK','SNARE','CLAP','HAT','TOM'];
 const glyphs=['M3 8H10C15 8 12 19 21 19','M3 5H7V10H12V15H17V20H22','M5 4v2m8-3v2m7 3v2M4 13v2m8-5v2m7 4v2M8 20v2m8-1v2','M14 12a6 6 0 1 0-12 0a6 6 0 1 0 12 0M23 12a6 6 0 1 0-12 0a6 6 0 1 0 12 0','M4 3V22M10 8V22M16 12V22M22 17V22','M2 19L7 5L12 19L17 5L22 19','M2 19L7 5L12 19L17 5L22 19','M2 13C5 0 9 0 12 13S20 26 23 13','M2 13H7L10 3L13 23L16 13H23','M14 12a6 6 0 1 0-12 0a6 6 0 1 0 12 0M23 12a6 6 0 1 0-12 0a6 6 0 1 0 12 0','M3 5H7V10H12V15H17V20H22','M3 6H7M10 10H14M17 6H21M3 20H21','M3 9H22M3 15H22M12 3V22','M3 5H9V12H15V19H22'];
-let state=null,desired={bpm10:0,mute:0,solo:0,delay:100,delayMode:0,delayTime:0},mode='offline',midi=null,input=null,output=null,seq=0,pendingSeq=null,pendingSince=0,waitingOp=null;
+let state=null,desired={bpm10:0,mute:0,solo:0,delay:100,delayMode:0,delayTime:0,autoPan:0},mode='offline',midi=null,input=null,output=null,seq=0,pendingSeq=null,pendingSince=0,waitingOp=null;
 let lastReply=0,receivedAt=0,baseTime=0,sendTimer=0,pollTimer=0,connectTimeout=0,dragSource=-1,selectedLane=-1,lastDraw=0,previewClock=0;
 let previewSeed=369,previewGeneration=1,lastScene=0,flashUntil=0,diagnosticBase=null,saveRequest=null;
 let mixTimer=0;const mixDirty=new Map(),mixPending=new Map();
@@ -89,15 +89,20 @@ for(const [id,value] of [['delay-sync',0],['delay-free',1]])$(id).onclick=()=>{
  else{const units=desired.delayTime*288/state.period;let nearest=0;for(let i=1;i<divisions.length;i++)if(Math.abs(divisions[i]-units)<Math.abs(divisions[nearest]-units))nearest=i;desired.delayTime=nearest+1;}
  desired.delayMode=value;queueControls();
 };
+$('delay-pan').onclick=()=>{if(!canEdit())return;desired.autoPan=desired.autoPan?0:1;queueControls();};
 $('clear-solo').onclick=()=>{desired.solo=0;queueControls();};
+const offlineScale=new Option('—','');offlineScale.disabled=true;
+$('scale').replaceChildren(offlineScale,...scaleNames.map((name,i)=>new Option(name,i)));
+$('scale').onchange=()=>{if(!canEdit()||state.busy||saveRequest){update();return;}const value=Number($('scale').value);if(value===state.scale)return;operation(9,scalePayload(value,state.generation));};
 function operation(type,payload){if(!canEdit()||state.busy||saveRequest)return;
  if(mode==='preview'){
-  if(type===3){const manual=desired.bpm10;state=makePreview();state.bpm10=manual;state.mute=desired.mute;state.solo=desired.solo;state.delay=desired.delay;state.delayMode=desired.delayMode;state.delayTime=desired.delayTime;state.audible=(desired.solo||63)&~desired.mute&63;state.actualBpm10=manual||state.generatedBpm10;state.period=7200000/state.actualBpm10;previewClock=performance.now();}
+  if(type===3){const manual=desired.bpm10;state=makePreview();state.bpm10=manual;state.mute=desired.mute;state.solo=desired.solo;state.delay=desired.delay;state.delayMode=desired.delayMode;state.delayTime=desired.delayTime;state.autoPan=desired.autoPan;state.audible=(desired.solo||63)&~desired.mute&63;state.actualBpm10=manual||state.generatedBpm10;state.period=7200000/state.actualBpm10;previewClock=performance.now();}
+  else if(type===9){state.scale=payload[0];state.generation=previewGeneration++;}
   else if(type===5){const i=payload[0];state.tracks[i]=makePreview().tracks[i];state.generation=previewGeneration++;}
   else{const [a,b]=payload;const fa=state.tracks[a].mixFlags,fb=state.tracks[b].mixFlags;state.tracks[a].mixFlags=(fa&4)|(fb&3);state.tracks[b].mixFlags=(fb&4)|(fa&3);for(const key of ['kind','pan','send'])[state.tracks[a][key],state.tracks[b][key]]=[state.tracks[b][key],state.tracks[a][key]];state.generation++;previewGeneration=Math.max(previewGeneration,state.generation+1);}
   flashUntil=performance.now()+140;notice('Preview · no audio.');update();return;
  }
- flushControls();flushMix();try{pendingSeq=send(type,payload);pendingSince=performance.now();waitingOp={seq:pendingSeq,generation:state.generation,since:pendingSince};state.busy=true;update();notice(type===3?'Preparing a new scene…':type===5?`Preparing ${roles[payload[0]]}…`:type===6?'Preparing the saved patch…':'Preparing the sound swap for the next clock step…');}catch(e){disconnect(e.message);}
+ flushControls();flushMix();try{pendingSeq=send(type,payload);pendingSince=performance.now();waitingOp={seq:pendingSeq,generation:state.generation,since:pendingSince,scale:type===9?payload[0]:null};state.busy=true;update();notice(type===9?'Preparing the scale for the next clock step…':type===3?'Preparing a new scene…':type===5?`Preparing ${roles[payload[0]]}…`:type===6?'Preparing the saved patch…':'Preparing the sound swap for the next clock step…');}catch(e){disconnect(e.message);}
 }
 function swap(a,b){operation(4,[a,b]);}
 $('randomize').onclick=()=>operation(3,[]);
@@ -113,7 +118,7 @@ function onMidi(e){
  clearTimeout(connectTimeout);lastReply=receivedAt=performance.now();
  if(mode==='connecting'){mode='connected';diagnosticBase=incoming.underruns;selectVoice(0);notice('Connected to Asterisk Workshop.');}
  reconcileMix(incoming);
- if((pendingSeq===null&&!sendTimer)||incoming.ack===pendingSeq){desired={bpm10:incoming.bpm10,mute:incoming.mute,solo:incoming.solo,delay:incoming.delay,delayMode:incoming.delayMode,delayTime:incoming.delayTime};if(incoming.ack===pendingSeq){pendingSeq=null;if(incoming.result)notice(incoming.result===2?'This change exceeds the audio budget. The current patch is unchanged.':'The card is preparing another change. Try again when it is ready.');}}
+ if((pendingSeq===null&&!sendTimer)||incoming.ack===pendingSeq){desired={bpm10:incoming.bpm10,mute:incoming.mute,solo:incoming.solo,delay:incoming.delay,delayMode:incoming.delayMode,delayTime:incoming.delayTime,autoPan:incoming.autoPan};if(incoming.ack===pendingSeq){pendingSeq=null;if(incoming.result)notice(incoming.result===2?'This change exceeds the audio budget. The current patch is unchanged.':'The card is preparing another change. Try again when it is ready.');}}
  if(waitingOp&&incoming.ack===waitingOp.seq&&incoming.result===2)notice('This change exceeds the audio budget. The current patch is unchanged.');
  if(waitingOp){if(incoming.generation!==waitingOp.generation||(incoming.ack===waitingOp.seq&&incoming.result>0))waitingOp=null;else if(incoming.busy||performance.now()-waitingOp.since<1600)incoming.busy=true;else{waitingOp=null;notice('The last sound change was not confirmed. Try again.');}}
  if(lastScene&&incoming.generation!==lastScene){flashUntil=performance.now()+140;notice('Scene updated.');}lastScene=incoming.generation;
@@ -122,13 +127,13 @@ function onMidi(e){
 }
 async function bindPorts(inPort,outPort){
  if(input)input.onmidimessage=null;input=inPort;output=outPort;await Promise.all([input.open(),output.open()]);
- input.onmidimessage=onMidi;mode='connecting';state=null;desired={bpm10:0,mute:0,solo:0,delay:100,delayMode:0,delayTime:0};pendingSeq=null;lastScene=0;
+ input.onmidimessage=onMidi;mode='connecting';state=null;desired={bpm10:0,mute:0,solo:0,delay:100,delayMode:0,delayTime:0,autoPan:0};pendingSeq=null;lastScene=0;
  notice('Looking for Asterisk Workshop…');update();requestStatus();
  clearInterval(pollTimer);pollTimer=setInterval(()=>{if(document.hidden)return;requestStatus();
   const now=performance.now();if(saveRequest&&now-saveRequest.since>5000){saveRequest=null;notice('Save was not confirmed. Try again.');update();}if(mode==='connected'&&now-lastReply>3000)disconnect('Connection lost. Check the USB cable, then reconnect.');
   if(pendingSeq!==null&&now-pendingSince>1600){pendingSeq=null;notice('The last change was not confirmed. The next update will restore the device values.');}
  },200);
- connectTimeout=setTimeout(()=>{if(mode==='connecting')disconnect('No editor response. Install Asterisk 1.1 firmware, then connect again.');},5000);
+ connectTimeout=setTimeout(()=>{if(mode==='connecting')disconnect('No editor response. Install Asterisk 1.2 firmware for Auto Pan, then connect again.');},5000);
 }
 function disconnect(text='Disconnected. Hardware keeps its current settings.'){
  clearTimeout(connectTimeout);clearTimeout(sendTimer);clearInterval(pollTimer);sendTimer=0;
@@ -152,8 +157,8 @@ $('connect').onclick=async()=>{
 };
 $('use-ports').onclick=async()=>{$('ports-dialog').close();try{await bindPorts(midi.inputs.get($('input-port').value),midi.outputs.get($('output-port').value));}catch(e){disconnect(e.message);}};
 function rand(){previewSeed^=previewSeed<<13;previewSeed^=previewSeed>>>17;previewSeed^=previewSeed<<5;return (previewSeed>>>0)/4294967296;}
-function makePreview(){const lengths=[16,12,16,16,11,15],counts=[4,3,9,5,4,6];return {bpm10:0,generatedBpm10:Math.round(95+rand()*55)*10,actualBpm10:1200,source:0,step:1,elapsed:0,period:6000,swing:2300,generation:previewGeneration++,running:true,busy:false,mute:0,solo:0,delay:100,delayMode:0,delayTime:0,delayUnits:[9,12,18,24][Math.floor(rand()*4)],audible:63,filter:2048,decay:2048,heat:1100,underruns:0,midiOverflows:0,tracks:lengths.map((n,i)=>{let pattern=0;const rotation=Math.floor(rand()*n);for(let j=0;j<n;j++)if((j*counts[i])%n<counts[i])pattern+=(2**((j+rotation)%n));return {length:n,kind:([8,10,12,7,4,3][i]+(rand()>.8?1:0))%14,pattern,pan:i===0?100:Math.round(20+rand()*160),send:Math.round(rand()*[0,15,18,8,40,35][i]),level:Math.round([[70,90],[45,68],[18,36],[40,60],[20,40],[14,30]][i][0]+rand()*[20,23,18,20,20,16][i]),mixFlags:0};})};}
-$('preview').onclick=()=>{clearMix();if(mode==='connected'||mode==='connecting')disconnect();if(mode==='preview'){mode='offline';state=null;notice('Disconnected.');}else{mode='preview';state=makePreview();state.actualBpm10=state.generatedBpm10;state.period=7200000/state.actualBpm10;desired={bpm10:0,mute:0,solo:0,delay:100,delayMode:0,delayTime:0};previewClock=performance.now();selectVoice(selectedLane<0?0:selectedLane);notice('Preview · no audio.');}update();};
+function makePreview(){const lengths=[16,12,16,16,11,15],counts=[4,3,9,5,4,6];return {bpm10:0,generatedBpm10:Math.round(95+rand()*55)*10,actualBpm10:1200,source:0,step:1,elapsed:0,period:6000,swing:2300,generation:previewGeneration++,scale:Math.floor(rand()*6),running:true,busy:false,mute:0,solo:0,delay:100,delayMode:0,delayTime:0,autoPan:0,delayUnits:[9,12,18,24][Math.floor(rand()*4)],audible:63,filter:2048,decay:2048,heat:1100,underruns:0,midiOverflows:0,tracks:lengths.map((n,i)=>{let pattern=0;const rotation=Math.floor(rand()*n);for(let j=0;j<n;j++)if((j*counts[i])%n<counts[i])pattern+=(2**((j+rotation)%n));return {length:n,kind:([8,10,12,7,4,3][i]+(rand()>.8?1:0))%14,pattern,pan:i===0?100:Math.round(20+rand()*160),send:Math.round(rand()*[0,15,18,8,40,35][i]),level:Math.round([[70,90],[45,68],[18,36],[40,60],[20,40],[14,30]][i][0]+rand()*[20,23,18,20,20,16][i]),mixFlags:0};})};}
+$('preview').onclick=()=>{clearMix();if(mode==='connected'||mode==='connecting')disconnect();if(mode==='preview'){mode='offline';state=null;notice('Disconnected.');}else{mode='preview';state=makePreview();state.actualBpm10=state.generatedBpm10;state.period=7200000/state.actualBpm10;desired={bpm10:0,mute:0,solo:0,delay:100,delayMode:0,delayTime:0,autoPan:0};previewClock=performance.now();selectVoice(selectedLane<0?0:selectedLane);notice('Preview · no audio.');}update();};
 $('save-patch').onclick=()=>{
  if(mode!=='connected'||state.busy||saveRequest)return;
  flushControls();flushMix();try{pendingSeq=send(7);pendingSince=performance.now();saveRequest={seq:pendingSeq,since:pendingSince};notice('Saving patch…');update();}catch(e){disconnect(e.message);}
@@ -170,6 +175,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastReply
 window.addEventListener('pagehide',()=>{clearInterval(pollTimer);if(input)input.onmidimessage=null;});
 function update(){
  const on=canEdit(),external=on&&state.source!==0;
+ $('scale').disabled=!on||state.busy||!!saveRequest;$('scale').value=on?String(waitingOp?.scale??state.scale):'';
  $('connect').innerHTML=(mode==='connected'?'DISCONNECT':mode==='connecting'?'CONNECTING…':'CONNECT')+' <span>↗</span>';
  $('preview').classList.toggle('selected',mode==='preview');$('preview').textContent=mode==='preview'?'EXIT PREVIEW':'PREVIEW';
  $('clock-source').textContent=on?['INTERNAL CLOCK','CV CLOCK','USB MIDI CLOCK'][state.source]:'NO CLOCK';
@@ -183,6 +189,7 @@ function update(){
  $('delay-value').title=limited?'The delay buffer is limited to 1.024 seconds at this tempo.':'';
  $('delay').style.setProperty('--amount',(free?(desired.delayTime-20)/9.8:index/7*100)+'%');
  for(const [id,value] of [['delay-sync',0],['delay-free',1]]){$(id).disabled=!on;$(id).setAttribute('aria-pressed',desired.delayMode===value);}
+ $('delay-pan').disabled=!on;$('delay-pan').setAttribute('aria-pressed',on&&!!desired.autoPan);
  for(const id of ['all-on','clear-solo'])$(id).disabled=!on;
  $('randomize').disabled=!on||state.busy||!!saveRequest;
  for(const id of ['save-patch','recall-patch'])$(id).disabled=mode!=='connected'||!on||state.busy||!!saveRequest;$('randomize').classList.toggle('busy',on&&state.busy);
