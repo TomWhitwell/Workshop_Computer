@@ -15,18 +15,19 @@ performance modulation, ring modulation, and expressive envelopes.
 
 ## Current Status
 
-This folder contains the tested split-output firmware baseline and its Web MIDI
-editor.
+This folder contains the split-output firmware baseline and its Web MIDI editor.
 
-- Firmware: `uf2/Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2`
-  is the hardware-tested stable build. It adds 12 dB/octave high-pass and
+- Firmware: `uf2/Vortex_Runner_8mu_button_note_fix_20261007.uf2` is the
+  current 8mu button-note fix build. It has compiled successfully and requires
+  hardware verification. It adds 12 dB/octave high-pass and
   low-pass paths, bounded resonance, the factory-plus-saved hardware preset
   browser, and 8mu controller support with panel LED feedback. Filter Envelope
   layer fader 5 controls HP cutoff; fader 6 controls resonance.
 - Web editor: Vortex Runner SysEx v10 patch apply/readback interface with named
   persistent card slots
 - Rollbacks: locally retained rollback UF2s are ignored by git
-- Release status: hardware-tested stable build (2026-10-03)
+- Release status: 8mu button-note fix build (2026-10-07); hardware verification
+  pending
 - Release guide and first patch: [RELEASE_SUMMARY.md](RELEASE_SUMMARY.md) or
   [RELEASE_SUMMARY.txt](RELEASE_SUMMARY.txt)
 
@@ -83,7 +84,7 @@ so they are not included in the stable-release PR.
 
 ## 8mu Activity
 
-The stable firmware supports a Music Thing Modular 8mu connected at power-on.
+The current firmware supports a Music Thing Modular 8mu connected at power-on.
 The 8mu uses the Computer USB port in host mode, so it cannot be used at the
 same time as the Web MIDI editor. The complete connection, layer, soft-takeover,
 panel-LED, and preset-browser instructions are kept separately in
