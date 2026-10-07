@@ -1,14 +1,23 @@
 // CVSeq
 //
-// An eight-step CV sequencer for the Music Thing Workshop Computer, after the
+// A 32-step CV sequencer for the Music Thing Workshop Computer, after the
 // Performer modulator in Native Instruments' Massive: each step plays a shape,
 // a morph between two shapes from a library of 40, and the steps run on one
 // after another as a continuous control voltage.  Edited from a Music Thing
 // 8mu, over USB MIDI host, or from the web editor in web/index.html.
 //
-// The 8mu's eight faders edit the eight steps; its four buttons choose what
-// they edit.  Each button has two pages: pressing it again flips to its second
-// page, and pressing a different button always starts on that button's first.
+// The 32 steps are in four banks of eight, and the 8mu's eight faders edit one
+// bank at a time.  Its four buttons, acted on when released:
+//
+//   Short press  the page, below.  Pressing a button again flips to its
+//                second page; another button always starts on its first.
+//   Long press   (half a second or more) the bank: A = steps 1-8, B = 9-16,
+//                C = 17-24, D = 25-32.  The LED of fader 1-4 for that bank
+//                flashes three times.
+//   Hold + move a fader   the sequence's last step: the button is the bank,
+//                the fader the step within it (hold D and move fader 8 for
+//                32 steps, hold A and move fader 4 for 4).  The faders up to
+//                the last step light briefly.  The sequence starts 8 long.
 //
 //             First page                          Second page
 //   Button A  SHAPE 1  first shape (of 40)        START  level at the step's start
@@ -98,7 +107,9 @@ static CVSeq *gCard = nullptr;
 class CVSeq : public ComputerCard
 {
 public:
-	static constexpr int kSteps = 8;
+	static constexpr int kSteps = 32;     // steps in all
+	static constexpr int kBankSize = 8;   // steps a bank, one per fader
+	static constexpr int kBanks = kSteps / kBankSize;
 	// Page = button + 4 * layer
 	enum Page {PageShape1, PageShape2, PageMorph, PageLevel,
 		PageStart, PageEnd, PageQuant, PageChance, kPages};
@@ -130,20 +141,23 @@ public:
 	// Values are in 8mu fader units (0-127), stored shifted up to 0-4064.
 	void SetDefaults()
 	{
-		static const uint8_t defShape1[kSteps] = {3, 4, 7, 34, 20, 8, 18, 38};
-		static const uint8_t defShape2[kSteps] = {4, 3, 6, 35, 21, 9, 19, 39};
-		static const uint8_t defLevel[kSteps] = {127, 100, 127, 80, 127, 100, 127, 80};
+		static const uint8_t defShape1[kBankSize] = {3, 4, 7, 34, 20, 8, 18, 38};
+		static const uint8_t defShape2[kBankSize] = {4, 3, 6, 35, 21, 9, 19, 39};
+		static const uint8_t defLevel[kBankSize] = {127, 100, 127, 80, 127, 100, 127, 80};
+		// Steps 9-32 start as copies of 1-8, so a longer sequence has
+		// something in it straight away
 		for (int i = 0; i < kSteps; i++)
 		{
-			params[PageShape1][i] = ShapeFader(defShape1[i]) << 5;
-			params[PageShape2][i] = ShapeFader(defShape2[i]) << 5;
+			params[PageShape1][i] = ShapeFader(defShape1[i % kBankSize]) << 5;
+			params[PageShape2][i] = ShapeFader(defShape2[i % kBankSize]) << 5;
 			params[PageMorph][i] = 0;
-			params[PageLevel][i] = defLevel[i] << 5;
+			params[PageLevel][i] = defLevel[i % kBankSize] << 5;
 			params[PageStart][i] = 127 << 5;
 			params[PageEnd][i] = 127 << 5;
 			params[PageQuant][i] = 0;
 			params[PageChance][i] = 127 << 5;
 		}
+		seqLength = kBankSize;
 	}
 
 	// Shape selected by a fader value (0-127): 40 shapes over 128 positions
@@ -279,8 +293,19 @@ private:
 	// 8mu paging and fader pickup
 	volatile int page = PageShape1;
 	int pageBlink = 0;
-	bool latched[kSteps] = {};
-	int32_t lastFader[kSteps] = {};
+	bool latched[kBankSize] = {};
+	int32_t lastFader[kBankSize] = {};
+
+	// Banks and length
+	volatile int bank = 0;            // which 8 steps the faders edit
+	volatile int seqLength = kBankSize;
+	int pressTicks[EightMU::numButtons] = {};
+	bool pressSetLength[EightMU::numButtons] = {};
+	int32_t pressFaders[EightMU::numButtons][kBankSize] = {};
+	static constexpr int kLongPress = 750;   // control ticks: 0.5s
+	int ledFlash = 0;                 // control ticks left of an 8mu LED flash
+	bool ledFlashBank = false;        // bank flash, else length bar
+	int ledFlashValue = 0;
 	bool lastFaderValid = false;
 	bool prevButton[EightMU::numButtons] = {};
 	bool wasConnected = false;
@@ -401,12 +426,14 @@ private:
 	// A random step other than the current one
 	int OtherStep()
 	{
-		return (cur + 1 + int((NextRandom() >> 8) % uint32_t(kSteps - 1))) % kSteps;
+		int len = seqLength;
+		if (len < 2) return 0;
+		return (cur + 1 + int((NextRandom() >> 8) % uint32_t(len - 1))) % len;
 	}
 
 	int FirstStep() const
 	{
-		return (direction == StepBackward || direction == TrueReverse) ? kSteps - 1 : 0;
+		return (direction == StepBackward || direction == TrueReverse) ? seqLength - 1 : 0;
 	}
 
 	// Load the current step's settings
@@ -442,25 +469,29 @@ private:
 
 	void Advance()
 	{
+		// All within the sequence's length, which may have just shrunk
+		int len = seqLength;
+		if (cur >= len) cur = len - 1;
 		switch (direction)
 		{
 		case StepForward:
-			cur = (cur + 1) % kSteps;
+			cur = (cur + 1) % len;
 			reversed = false;
 			break;
 		case StepBackward:
-			cur = (cur + kSteps - 1) % kSteps;
+			cur = (cur + len - 1) % len;
 			reversed = false;
 			break;
 		case TrueReverse:
-			cur = (cur + kSteps - 1) % kSteps;
+			cur = (cur + len - 1) % len;
 			reversed = true;
 			break;
 		case StepPingPong:
 		{
 			// Turn at the ends without playing the end step twice
 			int n = cur + travel;
-			if (n < 0 || n >= kSteps) {travel = -travel; n = cur + travel;}
+			if (n < 0 || n >= len) {travel = -travel; n = cur + travel;}
+			if (n < 0 || n >= len) n = cur; // a one-step sequence
 			cur = n;
 			reversed = false;
 			break;
@@ -470,7 +501,7 @@ private:
 			reversed = false;
 			break;
 		case RandomReverse:
-			cur = (cur + 1) % kSteps;
+			cur = (cur + 1) % len;
 			reversed = (NextRandom() >> 16) & 1;
 			break;
 		case TrueRandom:
@@ -482,7 +513,7 @@ private:
 			// Turning round plays the end step again, backwards: the
 			// sequence mirrored, so the CV turns round without a jump
 			int n = cur + travel;
-			if (n < 0 || n >= kSteps) {travel = -travel; n = cur;}
+			if (n < 0 || n >= len) {travel = -travel; n = cur;}
 			cur = n;
 			reversed = travel < 0;
 			break;
@@ -763,7 +794,7 @@ private:
 			wasConnected = true;
 			connectHoldoff = 1500; // ~1s at control rate
 			lastFaderValid = false;
-			for (int i = 0; i < kSteps; i++) latched[i] = false;
+			for (int i = 0; i < kBankSize; i++) latched[i] = false;
 		}
 		if (connectHoldoff > 0)
 		{
@@ -771,26 +802,69 @@ private:
 			return;
 		}
 
-		// Page buttons
+		// Buttons, acted on when released: a short press is the page, a
+		// long one the bank, and moving a fader while one is held sets the
+		// last step.  While a button is held the faders edit nothing.
+		bool anyHeld = false;
 		for (int b = 0; b < EightMU::numButtons; b++)
 		{
 			bool down = mu.Button(b);
 			if (down && !prevButton[b])
 			{
-				// Same button again flips between its two pages; another
-				// button starts on its first page
-				page = (page & 3) == b ? (page ^ 4) : b;
-				for (int i = 0; i < kSteps; i++) latched[i] = false;
+				pressTicks[b] = 0;
+				pressSetLength[b] = false;
+				for (int i = 0; i < kBankSize; i++) pressFaders[b][i] = mu.Fader(i);
+			}
+			if (down)
+			{
+				anyHeld = true;
+				if (pressTicks[b] < 0x7FFFFFFF) pressTicks[b]++;
+				for (int i = 0; i < kBankSize; i++)
+				{
+					int32_t d = mu.Fader(i) - pressFaders[b][i];
+					if (d > 192 || d < -192)
+					{
+						seqLength = b * kBankSize + i + 1;
+						pressSetLength[b] = true;
+						pressFaders[b][i] = mu.Fader(i);
+						ledFlash = 1350;
+						ledFlashBank = false;
+						ledFlashValue = i;
+					}
+				}
+			}
+			else if (prevButton[b])
+			{
+				if (!pressSetLength[b])
+				{
+					if (pressTicks[b] >= kLongPress)
+					{
+						bank = b;
+						ledFlash = 1350;
+						ledFlashBank = true;
+						ledFlashValue = b;
+					}
+					else
+					{
+						// Same button again flips between its two pages;
+						// another button starts on its first page
+						page = (page & 3) == b ? (page ^ 4) : b;
+					}
+				}
+				for (int i = 0; i < kBankSize; i++) latched[i] = false;
 			}
 			prevButton[b] = down;
 		}
+		if (ledFlash > 0) ledFlash--;
 
-		// Faders, with pickup
-		for (int i = 0; i < kSteps; i++)
+		// Faders, with pickup, editing the current bank
+		int base = bank * kBankSize;
+		for (int i = 0; i < kBankSize; i++)
 		{
 			int32_t f = mu.Fader(i);
-			volatile int32_t &p = params[page][i];
-			if (!latched[i])
+			volatile int32_t &p = params[page][base + i];
+			if (anyHeld) latched[i] = false;
+			else if (!latched[i])
 			{
 				int32_t d = f - p;
 				bool near = d > -96 && d < 96;
@@ -800,8 +874,19 @@ private:
 			if (latched[i]) p = f;
 			lastFader[i] = f;
 
-			// 8mu LEDs: stored value, playing step full on
-			mu.SetLed(i, i == cur ? 4095 : (p * 9) >> 4);
+			// 8mu LEDs: a bank change flashes that bank's fader three
+			// times; a length change lights the faders up to the last
+			// step; otherwise stored values, the playing step full on and
+			// steps past the end of the sequence off
+			int32_t led;
+			if (ledFlash > 0 && ledFlashBank)
+				led = (i == ledFlashValue && ((1350 - ledFlash) / 225) % 2 == 0) ? 4095 : 0;
+			else if (ledFlash > 0)
+				led = i <= ledFlashValue ? 4095 : 0;
+			else if (base + i == cur) led = 4095;
+			else if (base + i >= seqLength) led = 0;
+			else led = (p * 9) >> 4;
+			mu.SetLed(i, led);
 		}
 		lastFaderValid = true;
 
@@ -899,13 +984,20 @@ public:
 			}
 			break;
 		case sysex::SetAll:
-			if (len >= 1 + sysex::kNumValues && p[0] == sysex::kVersion)
+			if (len >= 2 + sysex::kNumValues && p[0] == sysex::kVersion)
 			{
+				if (p[1] >= 1 && p[1] <= kSteps) seqLength = p[1];
 				for (int i = 0; i < sysex::kNumValues; i++)
 				{
-					params[i / kSteps][i % kSteps] = int32_t(p[1 + i] & 0x7F) << 5;
+					params[i / kSteps][i % kSteps] = int32_t(p[2 + i] & 0x7F) << 5;
 				}
 			}
+			break;
+		case sysex::Bank:
+			if (len >= 1 && p[0] < kBanks) bank = p[0];
+			break;
+		case sysex::Length:
+			if (len >= 1 && p[0] >= 1 && p[0] <= kSteps) seqLength = p[0];
 			break;
 		case sysex::Page:
 			if (len >= 1 && p[0] < kPages) page = p[0];
@@ -942,6 +1034,8 @@ public:
 		int n = sysex::Header(out, sysex::State);
 		out[n++] = sysex::kVersion;
 		out[n++] = uint8_t(page);
+		out[n++] = uint8_t(bank);
+		out[n++] = uint8_t(seqLength);
 		for (int i = 0; i < sysex::kNumValues; i++)
 		{
 			out[n++] = uint8_t((params[i / kSteps][i % kSteps] >> 5) & 0x7F);
@@ -964,6 +1058,8 @@ public:
 		out[n++] = stSmooth;
 		out[n++] = stMorph;
 		out[n++] = stScale;
+		out[n++] = uint8_t(bank);
+		out[n++] = uint8_t(seqLength);
 		out[n++] = 0xF7;
 		return n;
 	}

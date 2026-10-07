@@ -7,14 +7,15 @@
 // All values are 7-bit; wider values are sent as two bytes, high 7 bits first.
 //
 // Step values are in 8mu fader units, 0-127, sent page by page (8 pages of
-// 8): SHAPE 1, SHAPE 2, MORPH, LEVEL, then the second pages START, END,
-// QUANTISE, CHANCE.  Page numbers are button (0-3) + 4 for a button's second
-// page.
+// 32 steps): SHAPE 1, SHAPE 2, MORPH, LEVEL, then the second pages START,
+// END, QUANTISE, CHANCE.  Page numbers are button (0-3) + 4 for a button's
+// second page.  Steps are 0-31, in four banks of eight; the sequence plays
+// steps 0 to length-1.
 //
 // Web -> card
 //   HELLO     01                      card replies with STATE
-//   SET       03 page step value      one step value
-//   SET_ALL   04 version values[64]   every step value
+//   SET       03 page step value      one step value (step 0-31)
+//   SET_ALL   04 version length values[256]   every step value, and length
 //   PAGE      05 page                 page shown on the Computer's LEDs
 //   RESET     06                      default sequence; card replies with STATE
 //   MOTION    08 pitch(2) roll(2)     8mu tilt, each 0-4095 with 2048 level
@@ -22,12 +23,14 @@
 //                                     pings keep arriving
 //   RESTART   0A                      restart from the first step
 //   DIRECTION 0B dir                  0-7, see below
+//   BANK      0C bank                 bank the faders edit, 0-3
+//   LENGTH    0D length               sequence length, 1-32
 //
 // Card -> web
-//   STATE     02 version page values[64]
+//   STATE     02 version page bank length values[256]
 //   STATUS    07 cur progress flags flags2 out(2) speed(2) depth offset
-//                smooth morph scale
-//             cur        step 0-7
+//                smooth morph scale bank length
+//             cur        step 0-31
 //             progress   position through the step, 0-127, in time
 //             flags      bits 0-2 direction, bit 3 clocked, bit 4 8mu on
 //                        card, bit 5 switch up (knobs are scale, depth and
@@ -70,8 +73,8 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x43;
-static constexpr uint8_t kVersion = 1;
-static constexpr int kNumValues = 64;
+static constexpr uint8_t kVersion = 2;
+static constexpr int kNumValues = 256;
 
 enum Cmd : uint8_t
 {
@@ -86,6 +89,8 @@ enum Cmd : uint8_t
 	Ping = 0x09,
 	Restart = 0x0A,
 	Direction = 0x0B,
+	Bank = 0x0C,
+	Length = 0x0D,
 };
 
 // Collects one SysEx message from a byte stream.  Feed() returns true when
@@ -93,7 +98,7 @@ enum Cmd : uint8_t
 // then in cmd, payload and length.
 struct Parser
 {
-	static constexpr int kMax = 80;
+	static constexpr int kMax = 300;
 	uint8_t buf[kMax];
 	int n = 0;
 	bool in = false;
@@ -156,8 +161,8 @@ inline int32_t Get14(const uint8_t *in)
 	return (int32_t(in[0] & 0x7F) << 7) | (in[1] & 0x7F);
 }
 
-static constexpr int kStateLen = 4 + 2 + kNumValues + 1;
-static constexpr int kStatusLen = 4 + 4 + 2 + 2 + 5 + 1;
+static constexpr int kStateLen = 4 + 4 + kNumValues + 1;
+static constexpr int kStatusLen = 4 + 4 + 2 + 2 + 5 + 2 + 1;
 
 } // namespace sysex
 

@@ -1,6 +1,6 @@
 # CVSeq
 
-An eight-step CV sequencer for the Workshop Computer, after the Performer
+A 32-step CV sequencer for the Workshop Computer, after the Performer
 modulator in Native Instruments' Massive. Each step plays a *shape* rather than
 a single voltage, and the steps run on one after another as one continuous
 control voltage. It's edited from a
@@ -65,9 +65,22 @@ the same every time.
 
 ## The 8mu
 
-The eight faders are the eight steps. The four buttons choose the page; press a
-button again to flip to its second page (and again to flip back). Pressing a
-different button always starts on its first page.
+There are 32 steps, in four banks of eight, and the eight faders edit one bank
+at a time. The sequence starts 8 steps long (bank A), and its length can be
+anything from 1 to 32.
+
+The four buttons are acted on when you **let go**, so how long you held one
+decides what it does:
+
+| Do this | To |
+|---|---|
+| **Short press** A-D | Choose the page. Press the same button again for its second page (and again to flip back); another button always starts on its first page |
+| **Long press** A-D (half a second) | Choose the bank the faders edit: A = steps 1-8, B = 9-16, C = 17-24, D = 25-32. The LED of fader 1-4 for that bank flashes three times |
+| **Hold** A-D **and move a fader** | Set the last step: the button is the bank, the fader the step within it. Hold D and move fader 8 for 32 steps; hold A and move fader 4 for 4 steps. The faders up to the last step light briefly. The fader movement doesn't edit anything |
+
+Steps past the end of the sequence keep their settings, so shortening and
+lengthening it again loses nothing. On power-up, steps 9-32 start as copies of
+steps 1-8.
 
 **Pickup.** After a page change the faders don't do anything until they reach
 the value already stored for their step (or pass it), then take it over. So
@@ -98,13 +111,13 @@ binary, LED 1 the lowest bit.
 
 | Direction | Steps | Shapes |
 |---|---|---|
-| Step forward | 1-8 | forwards |
-| Step ping-pong | 1-8, then 7-2 | forwards |
-| Step backward | 8-1 | forwards |
-| True ping-pong | 1-8, then 8-1 | forwards, then backwards |
-| True reverse | 8-1 | backwards |
+| Step forward | 1 to the last step | forwards |
+| Step ping-pong | 1 to the last, then back (end steps once) | forwards |
+| Step backward | the last step to 1 | forwards |
+| True ping-pong | 1 to the last, then the last to 1 | forwards, then backwards |
+| True reverse | the last step to 1 | backwards |
 | Random step | a random step each time, never the same twice running | forwards |
-| Random reverse | 1-8 | each at random forwards or backwards |
+| Random reverse | 1 to the last step | each at random forwards or backwards |
 | True random | a random step each time, never the same twice running | each at random forwards or backwards |
 
 The "step" directions change only the order of the steps; each shape still
@@ -169,15 +182,22 @@ plugged into the Computer's USB socket and the module power-cycled, and press
 **Connect card & 8mu**. It's a single file and needs no network. The page reads
 the sequence from the card, then sends every edit as it's made.
 
-- **Sequence.** The eight steps as one voltage, step 1 on the left, with a
-  playhead that runs backwards through a reversed step. Faint steps have less
-  than full chance. Click a step to select it.
+- **Sequence.** All 32 steps, eight to a row, in the same columns as the
+  faders. Steps in the sequence are drawn full size as one voltage, with a
+  playhead that runs backwards through a reversed step; steps past the end
+  shrink to small grey boxes, so on load there are eight steps and three rows
+  of boxes. The bank the faders edit has an orange box round its row. Faint
+  steps have less than full chance. Click a step to select it (and its row's
+  bank).
+- **Bank and length.** Bank buttons and −/+ for the length, with the 8mu's
+  button instructions right beside them.
 - **Readouts.** Step, rate, depth, offset, smoothing, morph offset and
   whether the card is clocked, live from the card.
 - **Direction** buttons set the card's direction, and follow it when the
   switch is tapped.
 - **CV Out 1.** A scope of the last four seconds of the output.
-- **Faders.** Eight pages of eight, as on the 8mu.
+- **Faders.** Eight pages, each showing the selected bank's eight steps, as on
+  the 8mu.
 - **Shapes.** All 40. Click one to give it to the selected step.
 - **8mu on the computer.** Its faders, buttons and tilt drive the page, with
   the same pickup as the card, and the page lights its LEDs as the card would.
