@@ -5,15 +5,15 @@ summary: >
   A six-track generative drum synthesizer for the Music Thing Modular Workshop Computer.
   Synthesized drums, bass, and melodic percussion draw from 14 synthesis algorithms.
   Three knobs shape the sound, and one flick of the switch generates a new scene.
-  The web editor adds per-track mixing, delay time, single-track randomization,
-  and patch save/recall as files on your computer.
+  The web editor adds per-track mixing, delay time and Auto Pan, scale selection,
+  single-track randomization, and patch save/recall as files on your computer.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Laboratory 0
-Version: "1.1"
+Version: "1.2"
 Status: Released
 License: Laboratory 0 Freeware (see LICENSE.txt)
 date-created: "2026-09-21"
-date-updated: "2026-09-27"
+date-updated: "2026-10-06"
 Editor: web
 demo-link: https://www.youtube.com/shorts/i8sVAtF1YXs
 
@@ -27,8 +27,8 @@ tags:
   - stereo
 
 uf2:
-  - path: Asterisk_Workshop_v1.1.uf2
-    name: Asterisk 1.1
+  - path: Asterisk_Workshop_v1.2.uf2
+    name: Asterisk 1.2
 
 panel:
   inputs:
