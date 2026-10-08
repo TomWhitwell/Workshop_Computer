@@ -3,7 +3,7 @@ Name: CVSeq
 short-description: "A 32-step CV sequencer after the Performer in NI Massive - each step a morph between two of 40 shapes, with level ramps, offset, quantise and chance - edited from a Music Thing 8mu, with a web editor"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
-Version: "0.7.1"
+Version: "0.7.2"
 Status: Beta
 License: MIT
 Editor: web
@@ -20,7 +20,7 @@ contact:
 
 uf2:
   - path: UF2/cvseq.uf2
-    name: CVSeq 0.7.1
+    name: CVSeq 0.7.2
 
 tags:
   - sequencer

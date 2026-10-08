@@ -274,13 +274,13 @@ public:
 			smoothed += (((int64_t(mv) * 65536) - smoothed) * smoothAlpha) >> 24;
 		}
 		int32_t out = int32_t(smoothed >> 16);
-		if (scaleMask && quantN > 0) out = SnapToScale(out, scaleMask);
+		if (scaleMask && quantN > 0) out = SnapToScale(out, scaleTable);
 		if (out > 6000) out = 6000;
 		if (out < -6000) out = -6000;
 		outMv = out;
 
 		CVOut1Millivolts(out);
-		CVOut2Millivolts(SnapToScale(out, scaleMask ? scaleMask : 0xFFF));
+		CVOut2Millivolts(SnapToScale(out, scaleMask ? scaleTable : chromaticTable));
 		AudioOut1(int16_t((out * 349) >> 10));
 		AudioOut2(int16_t(-((out * 349) >> 10)));
 
@@ -377,6 +377,11 @@ private:
 	// Scales, as 12-bit masks of the semitones in each octave (bit 0 = C)
 	static constexpr int kNumScales = 16;
 	uint16_t scaleMask = 0;   // 0 = Off
+	// For SnapToScale: the nearest notes either side of each semitone, for
+	// the chosen scale and for chromatic (CV Out 2 with the scale Off)
+	struct ScaleTable {int8_t lo[12], hi[12];};
+	ScaleTable scaleTable = MakeScaleTable(0xFFF), chromaticTable = MakeScaleTable(0xFFF);
+	uint16_t scaleTableMask = 0xFFF;
 	int scaleIndex = 0;
 	int scaleShow = 0;
 
@@ -631,6 +636,11 @@ private:
 			scaleShow = 1500; // show it on the LEDs for ~1s
 		}
 		scaleMask = kScaleMasks[scaleIndex];
+		if (scaleMask && scaleMask != scaleTableMask)
+		{
+			scaleTable = MakeScaleTable(scaleMask);
+			scaleTableMask = scaleMask;
+		}
 
 		depth = (settings[SetDepth] - 2048) * 2;
 		if (depth > 4096) depth = 4096;
@@ -822,21 +832,37 @@ private:
 	}
 
 	// The nearest note of a scale to a voltage, 1V/oct with C at 0V
-	static int32_t SnapToScale(int32_t mv, uint16_t mask)
+	// For each semitone d of the octave, the nearest scale note at or below
+	// it (lo, which may be in the octave below) and above it (hi, which may
+	// be in the octave above), in semitones from the octave's C
+	static ScaleTable MakeScaleTable(uint16_t mask)
+	{
+		ScaleTable t;
+		for (int d = 0; d < 12; d++)
+		{
+			int n = d;
+			while (!((mask >> ((n + 12) % 12)) & 1)) n--;
+			t.lo[d] = int8_t(n);
+			n = d + 1;
+			while (!((mask >> (n % 12)) & 1)) n++;
+			t.hi[d] = int8_t(n);
+		}
+		return t;
+	}
+
+	// The nearest note of a scale to a voltage, 1V/oct with C at 0V; a tie
+	// goes to the lower note.  Runs on every sample, up to twice, so it uses
+	// a table made when the scale changes rather than searching: two
+	// divisions instead of nearly thirty.
+	static int32_t SnapToScale(int32_t mv, const ScaleTable &t)
 	{
 		int32_t u = mv * 12; // thousandths of a semitone
-		int32_t s = u >= 0 ? u / 1000 : -((-u + 999) / 1000);
-		int32_t best = 0x7FFFFFFF, note = s;
-		for (int d = -6; d <= 7; d++)
-		{
-			int32_t n = s + d;
-			int deg = ((n % 12) + 12) % 12;
-			if (!((mask >> deg) & 1)) continue;
-			int32_t dist = n * 1000 - u;
-			if (dist < 0) dist = -dist;
-			if (dist < best) {best = dist; note = n;}
-		}
-		return (note * 1000) / 12;
+		int32_t oct = u >= 0 ? u / 12000 : -((11999 - u) / 12000);
+		int32_t r = u - oct * 12000;              // 0-11999 through the octave
+		int32_t d = (r * 16778) >> 24;            // r / 1000, exact for 0-11999
+		int32_t lo = t.lo[d], hi = t.hi[d];
+		int32_t n = (r - lo * 1000 <= hi * 1000 - r) ? lo : hi;
+		return ((oct * 12 + n) * 1000) / 12;
 	}
 
 	void HandleEightMU()
