@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 408" width="880" height="408" role="img" aria-label="The Morse code binary tree: each dot turns left, each dash turns right, and common letters sit nearest the top.">
+<style>
+  .e{stroke:#9aa7b4;stroke-width:2}
+  .n{fill:#eef4ff;stroke:#3b6ea5;stroke-width:2}
+  .d{fill:#9aa7b4}
+  .l{font-family:Helvetica,Arial,sans-serif;font-size:18px;font-weight:600;fill:#1b3a5c;text-anchor:middle;dominant-baseline:central}
+  .b{font-family:Helvetica,Arial,sans-serif;font-size:16px;fill:#9aa7b4;text-anchor:middle;dominant-baseline:central}
+  .r{font-family:Helvetica,Arial,sans-serif;font-size:18px;font-weight:600;fill:#1b3a5c;text-anchor:middle;dominant-baseline:central}
+</style>
+<rect width="880" height="408" fill="#ffffff"/>
+<line class="e" x1="440" y1="61" x2="176" y2="107"/>
+<text class="b" x="308" y="84">.</text>
+<line class="e" x1="440" y1="61" x2="638" y2="107"/>
+<text class="b" x="539" y="84">–</text>
+<line class="e" x1="176" y1="141" x2="110" y2="187"/>
+<text class="b" x="143" y="164">.</text>
+<line class="e" x1="176" y1="141" x2="308" y2="187"/>
+<text class="b" x="242" y="164">–</text>
+<line class="e" x1="110" y1="221" x2="44" y2="267"/>
+<text class="b" x="77" y="244">.</text>
+<line class="e" x1="110" y1="221" x2="176" y2="267"/>
+<text class="b" x="143" y="244">–</text>
+<line class="e" x1="44" y1="301" x2="44" y2="347"/>
+<text class="b" x="44" y="324">.</text>
+<line class="e" x1="44" y1="301" x2="110" y2="347"/>
+<text class="b" x="77" y="324">–</text>
+<line class="e" x1="176" y1="301" x2="176" y2="347"/>
+<text class="b" x="176" y="324">.</text>
+<line class="e" x1="308" y1="221" x2="242" y2="267"/>
+<text class="b" x="275" y="244">.</text>
+<line class="e" x1="308" y1="221" x2="308" y2="267"/>
+<text class="b" x="308" y="244">–</text>
+<line class="e" x1="242" y1="301" x2="242" y2="347"/>
+<text class="b" x="242" y="324">.</text>
+<line class="e" x1="308" y1="301" x2="308" y2="347"/>
+<text class="b" x="308" y="324">.</text>
+<line class="e" x1="308" y1="301" x2="374" y2="347"/>
+<text class="b" x="341" y="324">–</text>
+<line class="e" x1="638" y1="141" x2="572" y2="187"/>
+<text class="b" x="605" y="164">.</text>
+<line class="e" x1="638" y1="141" x2="770" y2="187"/>
+<text class="b" x="704" y="164">–</text>
+<line class="e" x1="572" y1="221" x2="440" y2="267"/>
+<text class="b" x="506" y="244">.</text>
+<line class="e" x1="572" y1="221" x2="572" y2="267"/>
+<text class="b" x="572" y="244">–</text>
+<line class="e" x1="440" y1="301" x2="440" y2="347"/>
+<text class="b" x="440" y="324">.</text>
+<line class="e" x1="440" y1="301" x2="506" y2="347"/>
+<text class="b" x="473" y="324">–</text>
+<line class="e" x1="572" y1="301" x2="572" y2="347"/>
+<text class="b" x="572" y="324">.</text>
+<line class="e" x1="572" y1="301" x2="638" y2="347"/>
+<text class="b" x="605" y="324">–</text>
+<line class="e" x1="770" y1="221" x2="704" y2="267"/>
+<text class="b" x="737" y="244">.</text>
+<line class="e" x1="770" y1="221" x2="836" y2="267"/>
+<text class="b" x="803" y="244">–</text>
+<line class="e" x1="704" y1="301" x2="704" y2="347"/>
+<text class="b" x="704" y="324">.</text>
+<line class="e" x1="704" y1="301" x2="770" y2="347"/>
+<text class="b" x="737" y="324">–</text>
+<circle class="d" cx="440" cy="44" r="4"/>
+<circle class="n" cx="176" cy="124" r="17"/>
+<text class="l" x="176" y="124">E</text>
+<circle class="n" cx="110" cy="204" r="17"/>
+<text class="l" x="110" y="204">I</text>
+<circle class="n" cx="44" cy="284" r="17"/>
+<text class="l" x="44" y="284">S</text>
+<circle class="n" cx="44" cy="364" r="17"/>
+<text class="l" x="44" y="364">H</text>
+<circle class="n" cx="110" cy="364" r="17"/>
+<text class="l" x="110" y="364">V</text>
+<circle class="n" cx="176" cy="284" r="17"/>
+<text class="l" x="176" y="284">U</text>
+<circle class="n" cx="176" cy="364" r="17"/>
+<text class="l" x="176" y="364">F</text>
+<circle class="n" cx="308" cy="204" r="17"/>
+<text class="l" x="308" y="204">A</text>
+<circle class="n" cx="242" cy="284" r="17"/>
+<text class="l" x="242" y="284">R</text>
+<circle class="n" cx="242" cy="364" r="17"/>
+<text class="l" x="242" y="364">L</text>
+<circle class="n" cx="308" cy="284" r="17"/>
+<text class="l" x="308" y="284">W</text>
+<circle class="n" cx="308" cy="364" r="17"/>
+<text class="l" x="308" y="364">P</text>
+<circle class="n" cx="374" cy="364" r="17"/>
+<text class="l" x="374" y="364">J</text>
+<circle class="n" cx="638" cy="124" r="17"/>
+<text class="l" x="638" y="124">T</text>
+<circle class="n" cx="572" cy="204" r="17"/>
+<text class="l" x="572" y="204">N</text>
+<circle class="n" cx="440" cy="284" r="17"/>
+<text class="l" x="440" y="284">D</text>
+<circle class="n" cx="440" cy="364" r="17"/>
+<text class="l" x="440" y="364">B</text>
+<circle class="n" cx="506" cy="364" r="17"/>
+<text class="l" x="506" y="364">X</text>
+<circle class="n" cx="572" cy="284" r="17"/>
+<text class="l" x="572" y="284">K</text>
+<circle class="n" cx="572" cy="364" r="17"/>
+<text class="l" x="572" y="364">C</text>
+<circle class="n" cx="638" cy="364" r="17"/>
+<text class="l" x="638" y="364">Y</text>
+<circle class="n" cx="770" cy="204" r="17"/>
+<text class="l" x="770" y="204">M</text>
+<circle class="n" cx="704" cy="284" r="17"/>
+<text class="l" x="704" y="284">G</text>
+<circle class="n" cx="704" cy="364" r="17"/>
+<text class="l" x="704" y="364">Z</text>
+<circle class="n" cx="770" cy="364" r="17"/>
+<text class="l" x="770" y="364">Q</text>
+<circle class="n" cx="836" cy="284" r="17"/>
+<text class="l" x="836" y="284">O</text>
+<text class="r" x="440" y="18">start</text>
+</svg>

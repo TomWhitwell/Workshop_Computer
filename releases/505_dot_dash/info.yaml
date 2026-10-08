@@ -27,8 +27,8 @@ summary: |
   and Knob Main the master audio volume. **CV In 1** transposes the notes
   (1 V/oct, +/-2 octaves), **CV In 2** modulates the speed, **Pulse In 1**
   pauses while held, and **Pulse In 2** clears anything typed but not yet sent.
-  When no keyboard is connected the card loops **SOS** and flashes all six LEDs
-  in that rhythm.
+  When no keyboard is connected the card loops **SOS** on the audio, CV and gate
+  outputs and flashes all six LEDs in that rhythm.
 
 panel:
   inputs:
@@ -53,7 +53,7 @@ panel:
       description: Triangle wave at the character's pitch (follows the same note as CV Out 1), level set by Knob Main
     - id: CVOut1
       name: Character Pitch
-      description: One note per character, rising with the alphabet (A is lowest); dot and dash share it. Calibrated when available, tracks the Transpose input
+      description: One note per character, rising with the alphabet (A is lowest); dot and dash share it. Holds through letter gaps and drops to 0 V at word gaps, idle, or paused. Calibrated when available, tracks the Transpose input
     - id: CVOut2
       name: Speed CV
       description: The current speed as a voltage, 0 V at 5 WPM to +5 V at 60 WPM
