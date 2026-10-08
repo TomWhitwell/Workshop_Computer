@@ -1,7 +1,7 @@
 draft: false
 Name: BYO Benjolin
 short-description: Rungler, Chaotic VCO, Noise Source, Turing Machine, Quantizer
-Language: Pico SDK
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Dune Desormeaux
 Version: 1.1
 Status: Released
@@ -23,7 +23,7 @@ tags:
   - rungler
   - oscillator
   - turing-machine
-  - quantizer
+  - quantiser
 
 summary: |
   Chaotic Benjolin-inspired program combining rungler-style modulation, quantized CV, and pulse generation.

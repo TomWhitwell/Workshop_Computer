@@ -7,10 +7,10 @@ summary: |
   PT2399-style delay. Use Z Down for a compact Wheel Up one-shot gesture,
   Pulse In 1 for a gated siren, or Pulse In 2 for reset plucks and fast-trigger
   textures. Audio In 2 can override the Main pitch knob when patched.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "0.1.0-beta"
-Status: Beta - stable in single-developer testing
+Status: Beta
 License: MIT
 date-created: 2026-08-21
 date-updated: 2026-08-22

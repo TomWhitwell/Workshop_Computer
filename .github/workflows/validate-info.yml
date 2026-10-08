@@ -1,13 +1,15 @@
 name: Validate info.yaml
 
+# Runs on every PR (no path filter) so it can be a required status check: a
+# required check that never runs blocks the merge. PRs that touch no program
+# card succeed immediately without a report.
 on:
   pull_request:
+    # ready_for_review refreshes the eligibility report when a draft is published.
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
       - workshop-ops
-    paths:
-      - 'releases/**'
-      - 'tools/sitegen/src/curation/flairs.yml'
 
 permissions:
   contents: read
@@ -23,12 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: npm
@@ -37,45 +39,33 @@ jobs:
       - name: Install validator dependencies
         run: npm ci --prefix tools/sitegen
 
-      - name: Validate complete changed info.yaml files
+      - name: Validate changed cards
         id: validate
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mapfile -d '' files < <(
-            git diff --name-only --diff-filter=ACMR -z \
-              "$BASE_SHA...$HEAD_SHA" -- ':(glob)releases/**/info.yaml'
-          )
-
+          # The same change-set validation (src/validate/changeSet.js) backs the
+          # pre-commit hook, so local commits and this check agree.
           set +e
-          if (( ${#files[@]} )); then
-            printf 'Validating %s\n' "${files[@]}"
-            node tools/sitegen/src/validate/cli.js --json "${files[@]}" > current-validation.json
-            info_status=$?
-          else
-            printf '{"summary":{"errors":0,"warnings":0,"files":0,"failed":0},"results":[]}\n' > current-validation.json
-            info_status=0
-          fi
-
           git diff --name-status -z "$BASE_SHA...$HEAD_SHA" | \
-            node tools/sitegen/src/validate/prRulesCli.js other-rules.json
-          rules_status=$?
+            node tools/sitegen/src/validate/prValidationCli.js validation-comment.md
+          status=$?
           set -e
 
-          node tools/sitegen/src/validate/githubReportCli.js \
-            current-validation.json other-rules.json validation-comment.md
-          cat validation-comment.md >> "$GITHUB_STEP_SUMMARY"
-          if (( info_status || rules_status )); then
-            echo 'status=1' >> "$GITHUB_OUTPUT"
-          else
-            echo 'status=0' >> "$GITHUB_OUTPUT"
+          if [[ -f validation-comment.md ]]; then
+            cat validation-comment.md >> "$GITHUB_STEP_SUMMARY"
           fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
 
       - name: Post validation report on PR
         if: always() && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('validation-comment.md') != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           REPORT_FILE: validation-comment.md
         with:
@@ -102,7 +92,7 @@ jobs:
 
       - name: Save validation report for fork PR
         if: always() && github.event.pull_request.head.repo.full_name != github.repository && hashFiles('validation-comment.md') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: validation-report-${{ github.event.pull_request.number }}
           path: validation-comment.md

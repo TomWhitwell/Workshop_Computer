@@ -7,7 +7,7 @@ summary: |
 
   Each time Z is pressed, the card builds a new system: voices,
   voltages, rhythms and the connections between them. Its workings stay sealed. What remains open are its inputs, its outputs and its behaviour. Vary an input, observe what changes, and repeat until the behaviour makes sense. Each system is unique and impermanent; press Z again and there is a new one to understand.
-Language: C++ (ComputerCard, Arduino / arduino-pico)
+Language: C++ (Arduino-Pico + ComputerCard)
 Creator: James Saunders
 Version: "0.9.0"
 Status: Beta

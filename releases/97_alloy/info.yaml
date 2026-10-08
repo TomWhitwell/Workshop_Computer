@@ -1,7 +1,7 @@
 draft: false
 Name: Alloy
 short-description: Fixed-point 15-zone cross-modulator with a clocked Turing CV and gate companion.
-Language: C++ (RP2040 Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Eric Gao
 Version: 0.2.0
 Status: Beta
@@ -13,7 +13,7 @@ Repository: https://github.com/Ericxgao/Workshop_Computer/tree/eric/warps-port/r
 tags:
   - dsp
   - modulation
-  - ring-modulation
+  - ring-modulator
   - wavefolder
   - vocoder
   - turing-machine
@@ -66,22 +66,23 @@ panel:
 
 controls:
   knobs:
-    - id: Main
-      name: Algorithm / Probability
-      description: Algorithm in middle; Turing feedback probability up
-    - id: X
-      name: Timbre / Length
-      description: Timbre in middle; Turing loop length up
-    - id: Y
-      name: Drive / Zone Param / Spread
-      description: Input drive in middle (sideband crossfade, bitcrush operator, or doppler depth in those zones); Turing CV spread up
+    - main:
+        name: Algorithm / Probability
+        description: Algorithm in middle; Turing feedback probability up
+      x:
+        name: Timbre / Length
+        description: Timbre in middle; Turing loop length up
+      y:
+        name: Drive / Zone Param / Spread
+        description: Input drive in middle (sideband crossfade, bitcrush operator, or doppler depth in those zones); Turing CV spread up
   leds:
-    - id: LED0-3
-      name: Algorithm / Register
-      description: Algorithm binary display in middle; register bits up
-    - id: LED4
-      name: Overrun / Register
-      description: Latched CPU overrun in middle; register bit up
-    - id: LED5
-      name: Headroom / Register
-      description: CPU headroom in middle; register bit up
+    - items:
+        - id: LED0-3
+          name: Algorithm / Register
+          description: Algorithm binary display in middle; register bits up
+        - id: LED4
+          name: Overrun / Register
+          description: Latched CPU overrun in middle; register bit up
+        - id: LED5
+          name: Headroom / Register
+          description: CPU headroom in middle; register bit up

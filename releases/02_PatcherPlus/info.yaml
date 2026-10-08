@@ -1,7 +1,7 @@
 Name: Patcher+
 short-description: Upcoming patching-interface card
 summary: Upcoming patching-interface card.
-Language: C++
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Chris Johnson
 Version: N/A
 Status: None

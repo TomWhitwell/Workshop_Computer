@@ -1,7 +1,7 @@
 draft: false
 Name: Voder
 short-description: "The 1939 Bell Labs Voder - a filter and formant based voice-synthesis machine, invented by Homer Dudley - played by hand from the panel or from a Music Thing 8mu over USB MIDI Host"
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: "1.0.1"
 Status: Released

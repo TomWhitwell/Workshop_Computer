@@ -14,7 +14,7 @@ summary: |
   stochastically when the two inputs "collide", with the collision's
   "violence" setting both the odds of firing and the pulse width. Switch
   Up swaps Knob X/Y/MAIN into a simple 2-input mixer with a dry/wet blend.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Matt Allison
 Version: "1.0.0"
 Status: Released
@@ -25,7 +25,7 @@ date-updated: 2026-09-05
 tags:
   - analog-computer
   - kick
-  - drum
+  - drums
   - random
   - utility
 

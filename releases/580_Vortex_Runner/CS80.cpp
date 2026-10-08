@@ -34,6 +34,14 @@ static constexpr uint8_t MidiStatusNoteOn = 0x90u;
 static constexpr uint8_t MidiStatusControlChange = 0xB0u;
 static constexpr uint8_t MidiStatusPitchBend = 0xE0u;
 
+// These are the fixed note assignments used by the 8mu's four buttons.
+// They select Vortex Runner fader layers and must never enter the synth's
+// ordinary MIDI-note path.
+static bool isEightMuButtonNote(uint8_t note)
+{
+    return note == 36u || note == 48u || note == 60u || note == 72u;
+}
+
 enum class EightMuLayer : uint8_t
 {
     Tone = 0,
@@ -791,12 +799,16 @@ private:
 
         if (type == MidiStatusNoteOn && midiData[1] > 0)
         {
+            if (eightMu.Connected() && isEightMuButtonNote(midiData[0]))
+                return;
             midiEvents.tryPush({MidiEventType::NoteOn, midiData[0], 0});
             return;
         }
 
         if (type == MidiStatusNoteOff || (type == MidiStatusNoteOn && midiData[1] == 0))
         {
+            if (eightMu.Connected() && isEightMuButtonNote(midiData[0]))
+                return;
             midiEvents.tryPush({MidiEventType::NoteOff, midiData[0], 0});
             return;
         }

@@ -19,6 +19,7 @@ import { parseSourceFile } from './readSource.js';
 import { validateInfoYaml } from './validateInfoYaml.js';
 import { reportText, reportJson, reportGithub } from './reporters/index.js';
 import { readCustomPanelManifest } from '../discover/customPanels.js';
+import { loadKnownValues } from './knownValues.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../../../..');
@@ -86,6 +87,7 @@ async function main() {
     process.exit(2);
   }
 
+  const knownValues = loadKnownValues(RELEASES_DIR);
   const results = [];
   for (const file of files) {
     const source = await parseSourceFile(file);
@@ -95,6 +97,7 @@ async function main() {
     results.push(validateInfoYaml(source, {
       customPanelsPresent: customPanels.present,
       panelIds: customPanels.items.map(item => item.id),
+      knownValues,
       externalDiagnostics: customPanels.diagnostics.map(diagnostic => ({
         ...diagnostic,
         ruleId: 'custom-panel-manifest',

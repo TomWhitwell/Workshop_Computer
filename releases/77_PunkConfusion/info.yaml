@@ -11,10 +11,10 @@ summary: |
   Go Go. Hitting Switch Down or Pulse In 2 throws the current venue's original
   recorded punk-inspired vocal call through the same Broken Venue processing
   chain.
-Language: C++ (Pico SDK / ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.0.0-beta"
-Status: Beta fully tested on one device
+Status: Beta
 License: MIT
 date-created: 2026-08-10
 date-updated: 2026-08-16
@@ -32,7 +32,7 @@ tags:
   - effect
   - sample-playback
   - noise
-  - lofi
+  - lo-fi
   - performance
   - web-serial
 

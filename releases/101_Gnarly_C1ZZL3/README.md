@@ -165,7 +165,8 @@ are in `8mu_banks/`; import them one at a time with the
 [16n Faderbank editor](https://16n-faderbank.github.io/editor/). See
 `8mu_banks/README.md` for the exact import and control guide.
 
-- Bank 1 controls the regular Gnarly performance parameters.
+- Bank 1 controls the regular Gnarly performance parameters. Its A--D buttons
+  send unused CCs 124--127 and therefore do not play notes.
 - Banks 2--7 edit stages 1--8 of Amp1, Amp2, PD1, PD2, Pitch1, and Pitch2.
 - Bank 8 selects the editable custom envelope slot and sets the six lane
   depths plus master depth.

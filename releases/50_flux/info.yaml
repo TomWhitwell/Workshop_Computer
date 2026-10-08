@@ -1,6 +1,6 @@
 Name: Flux
 short-description: Multi-FX processor, polyphonic synthesizer, and CV utility module.
-Language: C++ (RP2040 Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Vincent Maurer
 Version: "1.0.0"
 Status: Released

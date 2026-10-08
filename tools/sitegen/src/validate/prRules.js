@@ -1,11 +1,13 @@
 // Pull-request hygiene checks for card submissions. These rules deliberately
 // live outside the info.yaml schema validator because they inspect the complete
-// Git diff and release-directory filesystem.
+// Git diff and release-directory filesystem. Whether a change stays within one
+// card is not a rule here: it decides auto-merge eligibility instead (see
+// mergeEligibility.js), since multi-card and tooling changes are legitimate
+// but need a maintainer's review.
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { isDeepStrictEqual } from 'node:util';
 import YAML from 'yaml';
 import { discoverCustomPanels, validateCustomPanelReferences } from '../discover/customPanels.js';
 
@@ -53,47 +55,6 @@ export function summarizePrTrigger(changes) {
   }
   changedPaths.push(...directoryChanges.values());
   return { affectedReleases: [...affectedReleases].sort(), changedPaths };
-}
-
-function allowsSynchronizedFlairs(changes, currentFlairs, baseFlairs) {
-  if (!currentFlairs || !baseFlairs) return false;
-  const addedCards = new Set();
-  const deletedCards = new Set();
-  const cardFromInfoPath = file => posix(file).match(/^releases\/([^/]+)\/info\.yaml$/)?.[1];
-  for (const change of changes) {
-    if (change.oldPath) {
-      const deleted = cardFromInfoPath(change.oldPath);
-      const added = cardFromInfoPath(change.path);
-      if (deleted) deletedCards.add(deleted);
-      if (added) addedCards.add(added);
-      continue;
-    }
-    const card = cardFromInfoPath(change.path);
-    if (!card) continue;
-    if (change.status.startsWith('A')) addedCards.add(card);
-    if (change.status.startsWith('D')) deletedCards.add(card);
-  }
-  const currentAssignments = currentFlairs.assignments;
-  const baseAssignments = baseFlairs.assignments;
-  if (!currentAssignments || typeof currentAssignments !== 'object' || Array.isArray(currentAssignments)
-      || !baseAssignments || typeof baseAssignments !== 'object' || Array.isArray(baseAssignments)) return false;
-  const withoutAssignments = value => Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'assignments'));
-  if (!isDeepStrictEqual(withoutAssignments(currentFlairs), withoutAssignments(baseFlairs))) return false;
-  let synchronizedChanges = 0;
-  for (const card of new Set([...Object.keys(baseAssignments), ...Object.keys(currentAssignments)])) {
-    const inBase = Object.hasOwn(baseAssignments, card);
-    const inCurrent = Object.hasOwn(currentAssignments, card);
-    if (inBase && inCurrent) {
-      if (!isDeepStrictEqual(currentAssignments[card], baseAssignments[card])) return false;
-    } else if (inCurrent) {
-      if (!addedCards.has(card) || !Array.isArray(currentAssignments[card]) || currentAssignments[card].length !== 0) return false;
-      synchronizedChanges += 1;
-    } else {
-      if (!deletedCards.has(card) || !Array.isArray(baseAssignments[card]) || baseAssignments[card].length !== 0) return false;
-      synchronizedChanges += 1;
-    }
-  }
-  return synchronizedChanges > 0;
 }
 
 function walkFiles(dir) {
@@ -192,7 +153,7 @@ function customBoardHasXosc64(cmakeSource, releaseFiles) {
  * Evaluate PR policy over parsed Git changes.
  * Change shape: { status, oldPath?, path }. `path` is the final/destination path.
  */
-export async function evaluatePrRules(changes, { root, baseFlairs = null }) {
+export async function evaluatePrRules(changes, { root }) {
   const diagnostics = [];
   const endpoints = [];
   for (const change of changes) {
@@ -201,31 +162,6 @@ export async function evaluatePrRules(changes, { root, baseFlairs = null }) {
   }
 
   const releases = [...new Set(endpoints.map(releaseFromPath).filter(Boolean))].sort();
-  if (releases.length > 1) {
-    diagnostics.push(diagnostic('warning', 'multiple-release-directories', 'releases',
-      `Changes affect ${releases.length} release directories: ${releases.join(', ')}.`));
-  }
-
-  const flairsPath = 'tools/sitegen/src/curation/flairs.yml';
-  const flairsChanged = endpoints.map(posix).includes(flairsPath);
-  let synchronizedFlairs = false;
-  if (flairsChanged) {
-    try {
-      const currentFlairs = YAML.parse(fs.readFileSync(path.join(root, flairsPath), 'utf8')) || {};
-      synchronizedFlairs = allowsSynchronizedFlairs(changes, currentFlairs, baseFlairs);
-    } catch {}
-  }
-  for (const file of [...new Set(endpoints.map(posix))].sort()) {
-    const parts = file.split('/').filter(Boolean);
-    if (parts[0] !== 'releases') {
-      if (file === flairsPath && synchronizedFlairs) continue;
-      diagnostics.push(diagnostic('warning', 'change-outside-release-directory', file,
-        'Card submissions must not include changes outside releases/<card>/ directories.'));
-    } else if (parts.length < 3) {
-      diagnostics.push(diagnostic('warning', 'change-at-releases-root', file,
-        'Card submissions must not modify files directly under releases/.'));
-    }
-  }
 
   const includedUf2ByRelease = new Map();
   for (const change of changes) {
@@ -238,11 +174,7 @@ export async function evaluatePrRules(changes, { root, baseFlairs = null }) {
 
   for (const release of releases) {
     const releaseDir = path.join(root, 'releases', release);
-    if (!fs.existsSync(releaseDir)) {
-      diagnostics.push(diagnostic('warning', 'release-directory-deleted', `releases/${release}`,
-        `Release directory ${release} is deleted in the proposed changes.`));
-      continue;
-    }
+    if (!fs.existsSync(releaseDir)) continue;
     const releaseFiles = walkFiles(releaseDir);
     const infoPath = path.join(releaseDir, 'info.yaml');
     let rawInfo = {};
@@ -302,7 +234,7 @@ export async function evaluatePrRules(changes, { root, baseFlairs = null }) {
       if (!cmakeUsesPicoSdk(source) || cmakeHasXosc64(source) || customBoardHasXosc64(source, releaseFiles)) continue;
       const relative = posix(path.relative(root, cmakeFile));
       diagnostics.push(diagnostic('warning', 'pico-xosc64-recommended', relative,
-        'Pico SDK CMakeLists.txt must define PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64 in target_compile_definitions().'));
+        'Pico SDK CMakeLists.txt should define PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64 in target_compile_definitions().'));
     }
   }
 

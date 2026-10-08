@@ -104,7 +104,7 @@ export function reportMarkdown(results, otherRules = null) {
   const lines = [
     `## ${status.icon} Program card PR validation ${status.label}`,
     '',
-    `_PR validation is intended for maintainers, not card authors. If you're a card author and don't understand this report, don't worry about it!_`,
+    `_Errors must be fixed before this PR can merge. Warnings are suggestions and don't block merging._`,
     '',
     `**${t.files} info.yaml file(s) checked · ${errorCount} error(s) · ${warningCount} warning(s)**`,
     '',
@@ -178,3 +178,16 @@ export function reportOtherRulesGithub(report) {
 }
 
 export const reporters = { text: reportText, json: reportJson, github: reportGithub, markdown: reportMarkdown };
+
+/** Markdown section describing whether a PR would merge without review. */
+export function reportEligibilityMarkdown(eligibility) {
+  const lines = ['## Auto-merge eligibility', ''];
+  if (eligibility.eligible) {
+    lines.push(`✅ **Eligible.** ${escapeMarkdown(eligibility.basis)}`);
+  } else {
+    lines.push('➖ **Not eligible** — a maintainer will review this PR:', '');
+    for (const reason of eligibility.reasons) lines.push(`- ${escapeMarkdown(reason)}`);
+  }
+  lines.push('', '_Report only: nothing is merged automatically yet._', '');
+  return lines.join('\n');
+}

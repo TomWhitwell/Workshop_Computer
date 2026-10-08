@@ -1,10 +1,10 @@
 draft: true
 Name: FreqShift
 short-description: Dual Input Frequency Shifter for Feedback Experimentation
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Ben Regnier
 Version: 1.1
-Status: Functional
+Status: Released
 date-created: 2026-06-14
 date-updated: 2026-06-14
 

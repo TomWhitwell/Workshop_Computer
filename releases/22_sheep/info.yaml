@@ -1,7 +1,7 @@
 draft: false
 Name: Sheep
 short-description: A time-stretching and pitch-shifting granular processor and digital degradation playground with 2 fidelity options.
-Language: Pico SDK
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Dune Desormeaux
 Version: 1.2
 Status: Released
@@ -12,8 +12,8 @@ date-updated: 2026-07-04
 tags:
   - effect
   - granular
-  - time-stretch
-  - pitch-shift
+  - timestretch
+  - pitch-shifter
   - glitch
 
 # certainty: low — structured behavior inferred from source comments in main.cpp; no local README

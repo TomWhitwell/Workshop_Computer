@@ -16,7 +16,8 @@
 # - Use either `cards` for an explicit card-ID list, or `cards_from_flairs` to pull from flairs.yml.
 # - Flair-driven shelves are reverse-sorted by card date (updated, then created) before `limit` caps them.
 # - `link` is optional: `text` and `href` (relative to the site root) add a link at the top right of the shelf,
-#   e.g. `href: ?sort=created-desc` opens the full card list sorted newest first.
+#   e.g. `href: ?sort=created-desc` opens the full card list sorted newest first (by the date each card
+#   was merged to main as a non-draft).
 # - `hide_flairs` suppresses redundant badges inside that shelf, e.g. hide `new` on a New shelf.
 # - `layout` is optional:
 #   - omit it for the normal 3-column card grid
@@ -54,10 +55,10 @@ shelves:
     title: Essentials 
     layout: video-lead
     cards:
+      - 45_bends
       - 369_Asterisk
       - 22_sheep
       - 44_Birds
-      - 21_resonator
 
   - id: new
     title: Recommended new releases
@@ -72,28 +73,6 @@ shelves:
       href: ?sort=created-desc
 
 
-  - id: vos-collection
-    title: The Vos collection
-    layout: video-strip
-    cards:
-      - 54_Tapegrade
-      - 433_sense_of_space
-      - 87_fr330hfr33
-      - 101_Gnarly_C1ZZL3
-
-
-
-  - id: generative-sequencers
-    title: Generative sequencers
-    layout: video-lead
-    cards:
-      - 36_GradualProcess
-      - 16_the_bells
-      - 79_Slag
-      - 82_Computer_Grids
-
-
-
   - id: dune-collection
     title: The Dune collection
     layout: video-strip
@@ -104,6 +83,41 @@ shelves:
       - 04_BYO_Benjolin
 
 
+  - id: old
+    title: Classics you might have missed
+    layout: list
+    cards_from_flairs:
+      - classic
+    hide_flairs:
+      - classic
+    limit: 8
+    link:
+      text: More classics
+      href: ?sort=created-asc&tag=classic
+
+
+
+  - id: generative-sequencers
+    title: Generative sequencers
+    layout: video-lead
+    cards:
+      - 36_GradualProcess
+      - 112_Equanimity
+      - 404_BlackBox
+      - 82_Computer_Grids
+
+
+
+
+
+  - id: vos-collection
+    title: The Vos collection
+    layout: video-strip
+    cards:
+      - 54_Tapegrade
+      - 433_sense_of_space
+      - 87_fr330hfr33
+      - 101_Gnarly_C1ZZL3
 
       
   - id: properly-useful
@@ -134,23 +148,23 @@ shelves:
       - 26_clockwork
 
 
-  - id: samples-and-found-sound
-    title: Samples and found sound
-    layout: video-lead
-    cards:
-      - 66_stretchcore
-      - 67_Fragments
-      - 53_glitter
-      - 73_VSS
-
-
-#   - id: feedback-laboratory
-#     title: Feedback laboratory
+#   - id: samples-and-found-sound
+#     title: Samples and found sound
 #     layout: video-lead
 #     cards:
-#       - 32_vink
-#       - 35_FreqShift
-#       - 59_BitPhase
-#       - 76_hot_fuzz
-#       - 83_Origami
-#       - 97_alloy
+#       - 66_stretchcore
+#       - 67_Fragments
+#       - 53_glitter
+#       - 73_VSS
+
+
+  - id: feedback-laboratory
+    title: Feedback laboratory
+    layout: video-lead
+    cards:
+      - 32_vink
+      - 35_FreqShift
+      - 59_BitPhase
+      - 76_hot_fuzz
+      - 83_Origami
+      - 97_alloy

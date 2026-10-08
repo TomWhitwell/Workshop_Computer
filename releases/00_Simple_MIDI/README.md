@@ -1,34 +1,36 @@
-# Simple MIDI
+# Simple MIDI (v0.7)
 
 Simple MIDI turns the Music Thing Modular Workshop Computer into a USB MIDI
 interface. It sends controls and CV from the Workshop System to a computer, and
-turns incoming MIDI notes, gates, and continuous-controller messages into CV and
+turns incoming MIDI notes, gates, pitch-bend and continuous-controller messages into CV and
 gate signals.
 
 It is also the card used to calibrate the Workshop Computer's two precision CV
-outputs. Other cards, including Turing Machine and Reverb+, can use the saved
+outputs and audio inputs. Other cards, including Turing Machine and Reverb+, can use the saved
 calibration data so that their pitch outputs play in tune.
 
 Simple MIDI was written by Tom Whitwell in Herne Hill, London, between October
-2024 and October 2025.
+2024 and October 2025 (versions up to 0.6.6), and revised by Chris Johnson in Derbyshire between March and August 2026 (version 0.7.0-)
+
 
 ## What it does
 
-Simple MIDI receives two channels of MIDI from a connected computer:
+Simple MIDI receives two channels of MIDI from a connected MIDI device:
 
 - Note pitch
 - Note on/off gates
 - Continuous Controller 42
+- Pitch bend
 
-It sends eight controls from the Workshop System back to the computer:
+It sends eight controls from the Workshop System back to the MIDI device:
 
 - Main, X, and Y knobs
 - The Z switch
 - Both Audio/CV inputs
 - Both precision CV inputs
 
-The Workshop System appears on the connected computer as **Workshop System
-MIDI** or **Music Thing Workshop System MIDI**.
+Simple MIDI can act as a MIDI device (for connection to a computer) or as a MIDI host (for connection to MIDI controllers).
+The Workshop System appears on the connected computer as **MTMComputer MIDI** or **Music Thing MTMComputer MIDI**.
 
 [Watch the 90-second Simple MIDI introduction on
 Instagram](https://www.instagram.com/reel/DBjZivNN67D/).
@@ -42,7 +44,7 @@ Instagram](https://www.instagram.com/reel/DBjZivNN67D/).
 3. Insert the Simple MIDI card with its gold connector facing down.
 4. Press the small Reset/Load button beside the Program Card slot.
 5. The LEDs should blink briefly and then stop.
-6. Select **Workshop System MIDI** or **Music Thing Workshop System MIDI** in
+6. Select **MTMComputer MIDI** or **Music Thing MTMComputer MIDI** in
    your DAW or MIDI software.
 
 If the LEDs continue blinking, the USB connection has not been established:
