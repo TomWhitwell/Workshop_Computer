@@ -2,6 +2,8 @@
 
 A four-track generative soundscape synthesizer for the Music Thing Modular Workshop Computer.
 
+[Watch the demo on YouTube](https://youtube.com/shorts/Psgmo7R4KKM).
+
 **Background, Texture, Voices, and Percussion** combine continuous synthesis, generated note sequences, and probabilistic event triggering. Chaotic and coupled nonlinear modulators vary trigger activity, track levels, timbre, and effect parameters over time.
 
 Three knobs control track crossfade, reverb level, and event activity. Flicking the switch down **generates a new sound configuration on the hardware**: synthesis modes, tuning, note-generation rules, rhythm, modulation, and effect settings are created from a fresh random seed. Audio, events, and modulation continue to be generated during playback.
