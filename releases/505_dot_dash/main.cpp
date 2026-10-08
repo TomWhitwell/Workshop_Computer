@@ -5,13 +5,18 @@
  * Plug a USB keyboard into the Workshop Computer, type letters, and the card
  * sends them as Morse code:
  *   - Audio Out 1  : a square-wave beep for each dot and dash
- *   - CV Out 1     : in "pitch" mode, a note per symbol (dot = high, dash = low)
+ *   - Audio Out 2  : a triangle-wave melody voice at the note pitch
+ *   - CV Out 1     : a note per symbol (dot = high, dash = low)
+ *   - CV Out 2     : the current speed, as a voltage
  *   - Pulse Out 1  : a gate, high for exactly as long as each dot or dash lasts
+ *   - Pulse Out 2  : a short trigger at the start of each symbol
+ *   - CV In 1      : transpose the notes (1 V/oct)
+ *   - CV In 2      : modulate the speed
+ *   - Pulse In 1   : pause while held high
+ *   - Pulse In 2   : clear the typed queue on a rising edge
+ *   - Knob Main    : audio volume
  *   - Knob X       : speed, 5-40 words per minute
  *   - Knob Y       : beep pitch, 300-2000 Hz
- *   - Switch Up    : audio beep mode
- *   - Switch Middle: pitch CV mode
- *   - Switch Down  : momentary "shift" - hold it to flip to the other mode
  *
  * If no keyboard is plugged in, the card loops "... --- ..." (SOS) on the
  * audio and gate outputs and flashes all six LEDs in that rhythm, so you can
@@ -29,6 +34,8 @@
 #include "pico/stdlib.h"
 #include "tusb.h"
 #include "morse_table.h"
+
+#include <math.h>
 
 // How many typed characters we can hold while the current ones are being sent.
 // 64 is about twelve words of typing - plenty of buffer for fast typists.
@@ -65,12 +72,19 @@ public:
 		env = 0;
 		phase = 0;
 		phaseInc = 0;
+		phase2 = 0;
+		melodyInc = 8000;
+		lastMelodyNote = 0xFF;
 		lastNote = kDotNote;
 		beaconIndex = 0;
 		lastKnobX = -1;
 		lastKnobY = -1;
 		lastKnobMain = -1;
-		beepAmp = kAmplitude;
+		audioAmp = kAmplitude;
+		triggerTimer = 0;
+		lastWpm = -1;
+		baseWpm = 20;
+		paused = false;
 	}
 
 	// ---- Core 1 entry point -------------------------------------------------
@@ -177,40 +191,82 @@ public:
 		if (knobMain < 0) knobMain = 0;
 		if (knobMain > 4095) knobMain = 4095;
 
-		// Knob X -> 5..40 words per minute. A Morse "unit" is one dot long;
-		// the classic relationship is dot_ms = 1200 / wpm, and at 48 kHz that
-		// is 57600 / wpm samples.
+		// CV inputs. With the normalisation probe enabled, an unpatched CV jack
+		// reads exactly 0, so no transposition / speed change / pause unless a
+		// cable is actually plugged in.
+		int32_t cvIn1 = CVIn1();
+		int32_t cvIn2 = CVIn2();
+
+		// --- Transpose (CV In 1) ---------------------------------------------
+		// Treat the input as 1 V/oct: a semitone is about 28 counts of the
+		// -2048..2047 range. Clamped to +/-2 octaves so the notes stay usable.
+		int32_t semis = cvIn1 / 28;
+		if (semis < -24) semis = -24;
+		if (semis > 24) semis = 24;
+
+		uint8_t dotNote = (uint8_t)ClampNote((int32_t)kDotNote + semis);
+		uint8_t dashNote = (uint8_t)ClampNote((int32_t)kDashNote + semis);
+
+		// --- Speed (Knob X, modulated by CV In 2) ----------------------------
+		// A Morse "unit" is one dot long; the classic relationship is
+		// dot_ms = 1200 / wpm, and at 48 kHz that is 57600 / wpm samples.
 		//
-		// The RP2040's Cortex-M0+ has no hardware divide, so we only recompute
-		// these divisions when the knob has actually moved. That keeps the
-		// per-sample cost to a couple of compares in the common case.
+		// The RP2040's Cortex-M0+ has no hardware divide, so we compute the
+		// divide-free base speed only when Knob X moves, and the sample counts
+		// only when the resulting speed changes.
 		if (knobX != lastKnobX)
 		{
 			lastKnobX = knobX;
-			int32_t wpm = 5 + (knobX * 35) / 4095;
-			if (wpm < 5) wpm = 5;
-			if (wpm > 40) wpm = 40;
+			baseWpm = 5 + (knobX * 35) / 4095; // 5..40
+		}
+		// CV In 2 adds up to +/-20 WPM on top of the knob.
+		int32_t wpm = baseWpm + ((cvIn2 * 20) >> 11);
+		if (wpm < 5) wpm = 5;
+		if (wpm > 60) wpm = 60;
+		if (wpm != lastWpm)
+		{
+			lastWpm = wpm;
 			int32_t unit = 57600 / wpm;
 			dotSamples = unit;
 			dashSamples = unit * 3;
 			symbolGapSamples = unit;
 			letterGapSamples = unit * 3;
 			wordGapExtraSamples = unit * 4; // letter gap (3) + 4 = 7
+
+			// Speed CV (CV Out 2): 5 WPM = 0 V, 60 WPM = ~+5 V, calibrated.
+			CVOut2Millivolts(((wpm - 5) * 5000) / 55);
 		}
 
-		// Knob Main -> beep volume. The beep and the pitch CV are on separate
-		// jacks (Audio Out 1 and CV Out 1), so they always play together; Main
-		// simply sets how loud the beep is. Pots only reach about 14 at the
-		// minimum, so the lowest bit of travel is treated as true silence.
+		// --- Volume (Knob Main) ----------------------------------------------
+		// Main is the master level for both audio outputs. Pots only reach
+		// about 14 at the minimum, so the lowest bit of travel is silence.
 		if (knobMain != lastKnobMain)
 		{
 			lastKnobMain = knobMain;
 			int32_t m = (knobMain < 64) ? 0 : knobMain;
-			beepAmp = (kAmplitude * m) / 4095;
+			audioAmp = (kAmplitude * m) / 4095;
 		}
 
+		// --- Clear (Pulse In 2) ----------------------------------------------
+		// A rising edge throws away anything typed but not yet sent, and
+		// returns to idle. Handy for aborting a long wrong message.
+		if (PulseIn2RisingEdge())
+		{
+			queue_tail = queue_head;
+			state = StIdle;
+			pattern = nullptr;
+			triggerTimer = 0;
+			beaconIndex = 0;
+		}
+
+		// --- Pause (Pulse In 1) ----------------------------------------------
+		// Held high, the card freezes on the current symbol and goes quiet;
+		// release and it carries on. Unpatched reads low, so it runs normally.
+		paused = PulseIn1();
+
 		// --- Advance the Morse state machine ---------------------------------
-		Tick();
+		if (!paused)
+			Tick();
 
 		// --- Beep pitch ------------------------------------------------------
 		// Knob Y -> 300..2000 Hz. We turn frequency into a 32-bit phase step
@@ -223,44 +279,62 @@ public:
 			phaseInc = (uint32_t)freq * 89478u;
 		}
 
-		bool symbolActive = (state == StSymbol);
+		bool symbolActive = (state == StSymbol) && !paused;
 
 		// --- Outputs ----------------------------------------------------------
-		// Audio Out 1 (beep) and CV Out 1 (pitch) are separate jacks, so both
-		// are driven every sample. Patch whichever you want; use Knob Main to
-		// silence the beep if you only want the CV.
+		// The beep (Audio Out 1), melody (Audio Out 2) and pitch CV (CV Out 1)
+		// are all separate jacks, so they play together; Knob Main is the audio
+		// master volume.
 
 		// Pitch CV: dot and dash are two different notes. We hold the last
 		// note through the gaps (the gate tells you when it is sounding) and
-		// drop to 0 V when idle.
-		if (state == StIdle)
+		// drop to 0 V when idle or paused.
+		if (state == StIdle || paused)
 		{
 			CVOut1(0);
 		}
 		else
 		{
 			if (symbolActive)
-				lastNote = currentSymbolIsDash ? kDashNote : kDotNote;
+				lastNote = currentSymbolIsDash ? dashNote : dotNote;
 			if (CVOutsCalibrated())
 				CVOut1MIDINote(lastNote); // precise, 1V/oct calibrated
 			else
 				CVOut1((int16_t)RawNote(lastNote)); // rough fallback
 		}
 
-		// Audio beep: a square wave, gated on during dots and dashes and
-		// scaled by Knob Main. The short envelope ramp avoids a click when
-		// the beep starts and stops.
-		int32_t target = symbolActive ? beepAmp : 0;
+		// Melody voice: a triangle wave at the current note's pitch. Recompute
+		// the phase step only when the note actually changes.
+		uint8_t melodyNote = symbolActive ? (currentSymbolIsDash ? dashNote : dotNote) : lastNote;
+		if (melodyNote != lastMelodyNote)
+		{
+			lastMelodyNote = melodyNote;
+			melodyInc = NoteToPhaseInc(melodyNote);
+		}
+
+		// Shared click-free envelope for both audio voices.
+		int32_t target = symbolActive ? audioAmp : 0;
 		if (env < target) { env += kEnvStep; if (env > target) env = target; }
 		else if (env > target) { env -= kEnvStep; if (env < target) env = target; }
 
+		// Beep: square wave.
 		phase += phaseInc;
 		int32_t sq = (phase & 0x80000000u) ? 1 : -1;
 		AudioOut1((int16_t)(env * sq));
 
-		// --- Gate -------------------------------------------------------------
-		// High for exactly the length of each dot or dash, low during gaps.
+		// Melody: triangle wave folded out of the top 16 bits of the phase.
+		phase2 += melodyInc;
+		int32_t p16 = (int32_t)(phase2 >> 16); // 0..65535
+		int32_t tri = (p16 < 32768) ? (p16 * 2 - 32767) : (98303 - p16 * 2);
+		AudioOut2((int16_t)((env * tri) >> 15));
+
+		// --- Gates ------------------------------------------------------------
+		// Pulse Out 1: high for exactly the length of each dot or dash.
+		// Pulse Out 2: a short trigger fired at the start of each symbol.
 		PulseOut1(symbolActive);
+		PulseOut2(triggerTimer > 0);
+		if (triggerTimer > 0)
+			triggerTimer--;
 
 		// --- LEDs -------------------------------------------------------------
 		if (!keyboard_connected)
@@ -276,7 +350,7 @@ public:
 			LedOn(1, symbolActive && currentSymbolIsDash);  // dash
 			LedOn(2, state != StIdle);                      // transmitting
 			LedOn(3, overflowFlash > 0);                    // queue overflow
-			LedOn(4, false);                                // (beacon indicator)
+			LedOn(4, paused);                               // paused
 			LedOn(5, true);                                 // keyboard connected
 		}
 		if (overflowFlash > 0)
@@ -293,6 +367,7 @@ private:
 	// knob never stretches a dot or dash that is already playing.
 	static const int32_t kAmplitude = 1700; // below full scale, keeps some headroom
 	static const int32_t kEnvStep = 64;     // ~0.5 ms click-free ramp
+	static const int32_t kTriggerSamples = 96; // ~2 ms symbol-start trigger
 	static const uint8_t kDotNote = 72;     // C5 - the high note
 	static const uint8_t kDashNote = 67;    // G4 - a fifth below
 
@@ -306,15 +381,22 @@ private:
 	int32_t letterGapSamples;
 	int32_t wordGapExtraSamples;
 	bool currentSymbolIsDash;
-	int32_t env;           // current beep amplitude during the click-free ramp
-	uint32_t phase;        // square-wave phase accumulator
+	int32_t env;           // current audio amplitude during the click-free ramp
+	uint32_t phase;        // beep square-wave phase accumulator
 	uint32_t phaseInc;
-	uint8_t lastNote;      // last pitch sent in CV mode
+	uint32_t phase2;       // melody triangle-wave phase accumulator
+	uint32_t melodyInc;    // step per sample for the current melody note
+	uint8_t lastMelodyNote; // note the melody phase step was computed for
+	uint8_t lastNote;      // last pitch sent on CV Out 1
 	uint8_t beaconIndex;   // position in the looping "SOS " beacon
 	int32_t lastKnobX;     // cached raw knob readings, so we only recompute
 	int32_t lastKnobY;     // the speed/pitch maths when a knob actually moves
-	int32_t lastKnobMain;  // cached raw Main reading (beep volume)
-	int32_t beepAmp;       // beep amplitude after the Main volume knob
+	int32_t lastKnobMain;  // cached raw Main reading (volume)
+	int32_t audioAmp;      // audio amplitude after the Main volume knob
+	int32_t triggerTimer;  // samples left on the Pulse Out 2 symbol trigger
+	int32_t lastWpm;       // cached speed, so we only recompute the unit on change
+	int32_t baseWpm;       // Knob X speed before CV In 2 modulation
+	bool paused;           // Pulse In 1 held high
 
 	// Is there something to send right now? (The beacon never runs dry.)
 	static bool CharAvailable()
@@ -341,6 +423,7 @@ private:
 	{
 		currentSymbolIsDash = (pattern[patternIndex] == '-');
 		timer = currentSymbolIsDash ? dashSamples : dotSamples;
+		triggerTimer = kTriggerSamples; // Pulse Out 2: short trigger on the edge
 		state = StSymbol;
 	}
 
@@ -416,6 +499,25 @@ private:
 		if (v < -2048) v = -2048;
 		if (v > 2047) v = 2047;
 		return v;
+	}
+
+	// Keep a note number inside the valid MIDI range after transposition.
+	static int32_t ClampNote(int32_t note)
+	{
+		if (note < 0) note = 0;
+		if (note > 127) note = 127;
+		return note;
+	}
+
+	// Turn a MIDI note number into a 32-bit phase step for the melody voice.
+	// A4 (note 69) is 440 Hz, each semitone is 2^(1/12). 2^32 / 48000 = 89478,
+	// so phaseInc = frequency * 89478. This uses single-precision float, but is
+	// only called when the note changes - never per sample.
+	static uint32_t NoteToPhaseInc(uint8_t note)
+	{
+		float semis = (float)((int32_t)note - 69) * (1.0f / 12.0f);
+		float freq = 440.0f * exp2f(semis);
+		return (uint32_t)(freq * 89478.0f);
 	}
 
 	// ---- Shared state between the two cores ---------------------------------
@@ -540,6 +642,11 @@ int main()
 	// then hand the audio engine to core 1.
 	static DotDash card;
 	DotDash::setCard(&card);
+
+	// Enable jack detection, so unpatched CV/pulse inputs read as zero rather
+	// than floating noise. This must happen before Run() starts on core 1.
+	card.EnableNormalisationProbe();
+
 	multicore_launch_core1(DotDash::core1);
 	sleep_ms(50);
 

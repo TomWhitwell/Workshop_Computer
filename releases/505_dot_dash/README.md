@@ -12,18 +12,25 @@ them out as Morse code — as an audio beep, as a gate, or as a pitch CV sequenc
 
 ## What it does
 
-The beep and the pitch CV are on separate jacks, so they always play together.
-Patch whichever you want; use Knob Main to silence the beep if you only want the CV.
+All outputs are on separate jacks, so they always play together. Patch whichever
+you want; Knob Main is the master level for the two audio outputs.
 
-- **Audio Out 1** — a square-wave beep for every dot and dash, level set by Knob Main.
+- **Audio Out 1** — a square-wave beep for every dot and dash.
+- **Audio Out 2** — a triangle-wave melody voice at the same note pitch, so you
+  can hear the Morse as a tune without external gear.
 - **CV Out 1** — a note for every symbol: dot is the higher note, dash the lower
   one (a musical fifth apart). Uses the card's stored calibration for accurate
-  1 V/oct when available, and falls back to a rough voltage when not.
+  1 V/oct when available, and falls back to a rough voltage when not. Tracks the
+  Transpose input.
+- **CV Out 2** — the current transmission speed as a voltage: 0 V at 5 WPM,
+  +5 V at 60 WPM.
 - **Pulse Out 1** — a gate that is high for exactly as long as each dot or dash
-  lasts and low during the gaps. Patch it to an envelope, a clock, or an LED.
+  lasts and low during the gaps.
+- **Pulse Out 2** — a short ~2 ms trigger at the start of each dot or dash,
+  handy for clocking a sequencer on every symbol.
 - **LEDs** — LED 0 lights on dots, LED 1 on dashes, LED 2 while transmitting,
-  LED 3 flashes if you over-type the buffer, and LED 5 shows a keyboard is
-  connected.
+  LED 3 flashes if you over-type the buffer, LED 4 shows the card is paused, and
+  LED 5 shows a keyboard is connected.
 
 If **no keyboard is plugged in**, the card loops `SOS` (`... --- ...`) on the
 audio and gate outputs and flashes all six LEDs together in that rhythm, so you
@@ -33,10 +40,14 @@ can see it is alive but waiting for a keyboard.
 
 | Control | Does |
 |---------|------|
-| **Switch** | Unused — the beep and pitch CV always play together on their own jacks |
-| **Knob Main** | Beep volume (fully down is silent; pitch CV is unaffected) |
+| **Switch** | Unused — all outputs always play together on their own jacks |
+| **Knob Main** | Master audio volume (fully down is silent; the CV outputs are unaffected) |
 | **Knob X** | Speed, 5–40 words per minute |
 | **Knob Y** | Beep pitch, 300–2000 Hz |
+| **CV In 1** | Transpose the notes, 1 V/oct, clamped to ±2 octaves |
+| **CV In 2** | Modulate the speed, up to ±20 WPM, final speed clamped 5–60 WPM |
+| **Pulse In 1** | Pause while held high (unpatched runs normally) |
+| **Pulse In 2** | A rising edge clears anything typed but not yet sent |
 
 ## Morse timing
 
@@ -64,9 +75,12 @@ card can transmit, the newest key is dropped and LED 3 flashes.
 
 ## Patching ideas
 
-- Beep into a mixer or effects, gate into an envelope: a talking rhythm.
-- Pitch CV into a VCO and gate into an envelope: the Morse spells a melody.
-- Gate into a clock input: Morse becomes a tempo source.
+- Beep or melody into a mixer or effects, gate into an envelope: a talking rhythm.
+- Note CV into a VCO and gate into an envelope: the Morse spells a melody.
+- Transpose CV from a sequencer or keyboard: play the Morse at different pitches.
+- Speed CV from an LFO: the transmission breathes faster and slower.
+- Pulse Out 2 into a clock input: every dot and dash advances a sequencer.
+- Pulse In 1 as a mute: hold a gate high to freeze the card mid-message.
 - Leave it unpatched with no keyboard to use it as an SOS beacon.
 
 ## Building
@@ -87,8 +101,17 @@ drive.
   Core 1 runs `ComputerCard::Run()`, the 48 kHz audio engine. They communicate
   through a small lock-free ring buffer of characters plus a couple of volatile
   flags, so the audio side never blocks waiting for USB.
-- **Integer only.** All timing and the square wave use `int32_t`/`uint32_t`
-  arithmetic, because the RP2040's Cortex-M0+ has no floating-point unit.
+- **Integer audio path.** All per-sample work (timing, square and triangle
+  waves, CV) is `int32_t`/`uint32_t` arithmetic, because the RP2040's Cortex-M0+
+  has no floating-point unit and division is slow. The single exception is the
+  melody note's frequency, which uses a single-precision `exp2f` — but only when
+  the note *changes*, never per sample.
+- **Knob and speed caching.** The WPM division and pitch division are recomputed
+  only when the relevant knob or input actually changes, keeping the hot path to
+  a few compares.
+- **Jack detection.** `EnableNormalisationProbe()` makes unpatched CV/pulse
+  inputs read exactly zero, so with nothing plugged in there is no stray
+  transposition, speed change or pause.
 - **`PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64`** is set in `CMakeLists.txt`; without
   it the card can fail after a reset. Code is copied to RAM (`copy_to_ram`) to
   remove flash timing jitter from the audio path.

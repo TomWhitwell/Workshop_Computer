@@ -3,7 +3,7 @@ Name: Dot Dash
 short-description: Type on a USB keyboard, and the card sends it as Morse code
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
-Version: "1.0"
+Version: "1.1"
 Status: Beta
 License: MIT
 date-created: 2026-10-08
@@ -18,37 +18,62 @@ tags:
 summary: |
   Dot Dash turns a USB keyboard into a Morse code transmitter.
   Plug a keyboard into the Workshop Computer, type letters, and each character
-  is sent as dots and dashes: an audio beep on **Audio Out 1**, a gate on
-  **Pulse Out 1**, and a pitch CV on **CV Out 1**. Both the beep and the pitch
-  CV play at the same time on their separate jacks. Knob X sets the speed
-  (5-40 words per minute), Knob Y the beep pitch, and Knob Main the beep volume.
-  When no keyboard is connected the card loops **SOS** and flashes all six LEDs
-  in that rhythm.
+  is sent as dots and dashes: a square beep on **Audio Out 1**, a triangle
+  melody voice on **Audio Out 2**, a gate on **Pulse Out 1**, a per-symbol
+  trigger on **Pulse Out 2**, and a note CV on **CV Out 1**. All outputs play
+  together on their separate jacks. Knob X sets the speed (5-40 words per
+  minute), Knob Y the beep pitch, and Knob Main the master audio volume.
+  **CV In 1** transposes the notes (1 V/oct, +/-2 octaves), **CV In 2**
+  modulates the speed, **Pulse In 1** pauses while held, and **Pulse In 2**
+  clears anything typed but not yet sent. When no keyboard is connected the
+  card loops **SOS** and flashes all six LEDs in that rhythm.
 
 panel:
+  inputs:
+    - id: CVIn1
+      name: Transpose
+      description: 1 V/oct transpose for the dot/dash notes, clamped to +/-2 octaves
+    - id: CVIn2
+      name: Speed Mod
+      description: Adds up to +/-20 WPM on top of Knob X; final speed clamped to 5-60 WPM
+    - id: PulseIn1
+      name: Pause
+      description: While held high the card freezes and goes quiet; unpatched runs normally
+    - id: PulseIn2
+      name: Clear
+      description: A rising edge discards the typed queue and returns to idle
   outputs:
     - id: AudioOut1
       name: Morse Beep
       description: Square-wave beep for each dot and dash, level set by Knob Main
+    - id: AudioOut2
+      name: Melody Voice
+      description: Triangle wave at the dot/dash note pitch, level set by Knob Main
     - id: CVOut1
-      name: Pitch CV
-      description: One note per symbol - dot high, dash low (calibrated when available); plays alongside the beep
+      name: Note CV
+      description: One note per symbol - dot high, dash low (calibrated when available); tracks the Transpose input
+    - id: CVOut2
+      name: Speed CV
+      description: The current speed as a voltage, 0 V at 5 WPM to +5 V at 60 WPM
     - id: PulseOut1
       name: Key Gate
       description: High for exactly the length of each dot or dash, low during the gaps
+    - id: PulseOut2
+      name: Symbol Trigger
+      description: A short ~2 ms trigger fired at the start of each dot or dash
 
 controls:
   switch:
     middle:
       name: Unused
-      description: The switch does not change behaviour - the beep and the pitch CV always play together on their separate jacks
+      description: The switch does not change behaviour - all outputs play together on their separate jacks
   knobs:
     - main:
-        name: Beep Volume
-        description: Level of the beep on Audio Out 1 (fully down is silent; the pitch CV is unaffected)
+        name: Volume
+        description: Master level for the beep and melody audio outputs (fully down is silent; the CV outputs are unaffected)
       x:
         name: Speed
-        description: Transmission speed, 5-40 words per minute
+        description: Transmission speed, 5-40 words per minute (before CV In 2 modulation)
       y:
         name: Pitch
         description: Beep tone frequency, 300-2000 Hz
@@ -69,8 +94,8 @@ controls:
           name: Queue Full
           description: Flashes when you type faster than the queue can hold
         - id: LED4
-          name: No Keyboard
-          description: Part of the all-LED SOS flash when no keyboard is connected
+          name: Paused
+          description: Lit while Pulse In 1 is held high
         - id: LED5
           name: Keyboard
           description: Lit while a USB keyboard is connected
