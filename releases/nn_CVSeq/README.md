@@ -211,8 +211,7 @@ and + to bring it back; the browser remembers which are folded):
   shift: every step in the sequence moves one place left or right, all its
   settings with it, the end step wrapping round to the other end (steps past
   the length stay put; Undo takes a shift back). Just above the sequence so
-  they stay put as the length changes; the 8mu's button
-  instructions are just below it.
+  they stay put as the length changes.
 - **Sequence.** All 32 steps, eight to a row, in the same columns as the
   faders. Steps in the sequence are drawn full size as one voltage, with a
   playhead that runs backwards through a reversed step; steps past the end
@@ -242,7 +241,11 @@ and + to bring it back; the browser remembers which are folded):
 - **Shapes.** All 40. Click one to give it to the selected step.
 - **8mu on the computer.** Its faders, buttons and tilt drive the page, with
   the same pickup as the card, and the page lights its LEDs as the card would.
-- **Inputs & outputs.** Every jack and what it does, on the right.
+- **Inputs & outputs, 8mu and Sequencer.** Cards on the right: every jack
+  and what it does; the 8mu's buttons (page, bank, last step), pickup, LEDs
+  and tilt; and how a step and the sequence work, with the panel controls.
+- **Readouts** include the rate and, under it, the whole sequence's length in
+  time.
 - **Presets.** Eight built in (Offset melody shows OFFSET as a step sequencer), plus your own, kept in the browser. Save,
   update, rename, delete, export and import as JSON. Loading one sends it to
   the card.

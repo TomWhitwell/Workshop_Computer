@@ -89,6 +89,11 @@
   .readout { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
   .readout.waiting { outline: 2px dotted var(--warm); outline-offset: 2px; }
   .readout .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .readout .sub { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .notes { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .notes p { margin: 6px 0 0; }
+  .notes b { color: var(--ink); font-weight: 600; }
+  .notes .jacks { margin-top: 4px; }
   .readout .v { font-size: 16px; font-variant-numeric: tabular-nums; }
   .caption { color: var(--muted); font-size: 12px; margin-top: 6px; }
   .dirs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
@@ -179,7 +184,7 @@
       <h2>Sequence</h2>
       <div class="readouts">
         <div class="readout"><div class="k">Step</div><div class="v" id="ro-step">-</div></div>
-        <div class="readout"><div class="k">Rate</div><div class="v" id="ro-rate">-</div></div>
+        <div class="readout"><div class="k">Rate</div><div class="v" id="ro-rate">-</div><div class="sub" id="ro-seq"></div></div>
         <div class="readout"><div class="k">Depth</div><div class="v" id="ro-depth">-</div></div>
         <div class="readout"><div class="k">Offset</div><div class="v" id="ro-offset">-</div></div>
         <div class="readout"><div class="k">Smoothing</div><div class="v" id="ro-smooth">-</div></div>
@@ -211,14 +216,6 @@
         <button id="shift-l" title="Move every step in the sequence one place left; step 1 wraps round to the end">&minus;</button><button id="shift-r" title="Move every step in the sequence one place right; the last step wraps round to step 1">+</button>
       </div>
       <canvas id="timeline" aria-label="The 32 steps, eight to a row, as one control voltage"></canvas>
-      <div class="caption" id="timeline-caption"></div>
-      <div class="howto">
-        <b>8mu buttons A-D</b>, acted on when you let go.
-        <b>Short press:</b> the page (press again for its next page: A, B and C have two, D three).
-        <b>Long press</b> (half a second): the bank of steps the faders edit, A = 1-8, B = 9-16, C = 17-24, D = 25-32; that fader's LED flashes three times.
-        <b>Hold a button and move a fader</b> (a good way, about a sixth of its travel): the last step, button = bank, fader = step within it (hold D + fader 8 = 32 steps, hold A + fader 4 = 4 steps).
-        Here: click a row or use the bank buttons; set the length with &minus; and +.
-      </div>
     </section>
 
     <section class="card" id="edit-card">
@@ -319,6 +316,37 @@
         <tr><th>Pulse Out 1</th><td>Trigger at the start of every step that plays (not one that loses its chance)</td></tr>
         <tr><th>Pulse Out 2</th><td>Trigger at the start of the sequence</td></tr>
       </table>
+    </section>
+
+    <section class="card">
+      <h2>8mu</h2>
+      <div class="notes">
+        <p>The 8mu can plug into the module (no computer needed) or into this computer, which passes it on to the card. Its eight faders edit one bank of eight steps; its buttons are acted on <b>when you let go</b>, so how long you hold one decides what it does.</p>
+        <table class="jacks">
+          <tr><th>Short press</th><td>The page. Press the same button again for its next page, and round to the first again:<br>A <b>Shape 1</b> &rarr; Start<br>B <b>Shape 2</b> &rarr; End<br>C <b>Morph</b> &rarr; Offset<br>D <b>Level</b> &rarr; Quant &rarr; Chance<br>Another button always starts on its first page.</td></tr>
+          <tr><th>Long press<br>(&frac12; s)</th><td>The bank the faders edit: A steps 1-8, B 9-16, C 17-24, D 25-32. The LED of fader 1-4 for that bank flashes three times.</td></tr>
+          <tr><th>Hold + move<br>a fader</th><td>The last step: the button is the bank, the fader the step within it. Hold D and move fader 8 for 32 steps; hold A and move fader 4 for 4. Move it a good way (about a sixth of its travel) for it to count. The faders up to the last step light briefly, and nothing is edited.</td></tr>
+          <tr><th>Faders</th><td>Pick up: after a page or bank change a fader does nothing until it reaches (or passes) the stored value, so nothing jumps. While one is waiting, a grey line on its on-screen fader shows where it is.</td></tr>
+          <tr><th>LEDs</th><td>The stored values on the page, the playing step fully lit, steps past the end dark.</td></tr>
+          <tr><th>Tilt</th><td>Forward and back adds to every step's morph, past a dead zone of about 15&deg; so holding it doesn't.</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Sequencer</h2>
+      <div class="notes">
+        <p><b>A step</b> plays a shape: a morph between its <b>Shape 1</b> and <b>Shape 2</b> (40 shapes), times its <b>Level</b>, times a ramp from <b>Start</b> to <b>End</b> (each &minus;100% to +100%: below the centre the shape turns upside down), plus its <b>Offset</b> (&minus;5 to +5 V). <b>Quant</b> turns it into held stairs; <b>Chance</b> is the chance it plays each time round, and a step that doesn't holds the voltage where it was.</p>
+        <p><b>The sequence</b> is steps 1 to its length (1-32), in four banks of eight. The timeline draws each step at full depth, 0 to 5 V between its outer lines, stretching to fit steps that go beyond; steps past the end are small grey boxes, the bank the faders edit has an orange box, a faint step has less than full chance, and the playhead runs backwards through a reversed step. Click a step to select it; <b>Shift</b> moves every step one place, wrapping round.</p>
+        <table class="jacks">
+          <tr><th>Switch up</th><td>Main <b>scale</b>, X <b>depth</b> (&minus;100% to +100%), Y <b>offset</b> (&minus;5 to +5 V)</td></tr>
+          <tr><th>Switch middle</th><td>Main <b>rate</b> (8 s to 10 ms a step), X <b>smoothing</b> (off, then 1 ms to 2 s), Y <b>morph offset</b></td></tr>
+          <tr><th>Switch down</th><td>Hold and turn Main to choose one of eight <b>directions</b>; a tap without turning steps to the next</td></tr>
+          <tr><th>Knob pickup</th><td>After the switch moves, a knob does nothing until it reaches its setting's value; the setting's box above the sequence has a dotted outline until it does</td></tr>
+          <tr><th>Scale</th><td>Off just steps the shape; any other scale also snaps every step with Quant above zero to the scale's notes, last of all, so they stay in key. CV Out 2 always follows the scale</td></tr>
+          <tr><th>Clock</th><td>Pulse In 1: each step lasts one clock, for clocks up to a minute apart. Pulse In 2 restarts</td></tr>
+        </table>
+      </div>
     </section>
 
     <section class="card">
@@ -661,8 +689,7 @@ function drawTimeline() {
     }
   }
   const stepS = L.clocked ? null : Math.pow(2, -L.rateOct);
-  $('timeline-caption').textContent = 'Steps 1-32, eight to a row; grey boxes are past the end of the sequence. Each step\u2019s shape at its level plus its offset, before depth, the offset knob and smoothing (0 to 5V at full depth, between the outer lines; the rows stretch to fit steps that go beyond them, through OFFSET or a negative START or END). Faint steps have less than full chance.' +
-    (stepS ? ' One step: ' + fmtTime(stepS) + '; the sequence of ' + state.length + ': ' + fmtTime(stepS * state.length) + '.' : ' One step per clock.');
+  $('ro-seq').textContent = stepS ? 'sequence ' + fmtTime(stepS * state.length) : 'a step a clock';
 }
 
 function drawHistory(now) {
