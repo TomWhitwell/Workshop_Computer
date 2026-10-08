@@ -303,6 +303,10 @@ private:
 	bool pressSetLength[EightMU::numButtons] = {};
 	int32_t pressFaders[EightMU::numButtons][kBankSize] = {};
 	static constexpr int kLongPress = 750;   // control ticks: 0.5s
+	// How far a fader must move, from where it was when the button went
+	// down, to set the length: about a sixth of its travel, so fader
+	// noise during a long press for a bank doesn't count
+	static constexpr int32_t kLengthMove = 640;
 	int ledFlash = 0;                 // control ticks left of an 8mu LED flash
 	bool ledFlashBank = false;        // bank flash, else length bar
 	int ledFlashValue = 0;
@@ -822,7 +826,7 @@ private:
 				for (int i = 0; i < kBankSize; i++)
 				{
 					int32_t d = mu.Fader(i) - pressFaders[b][i];
-					if (d > 192 || d < -192)
+					if (d > kLengthMove || d < -kLengthMove)
 					{
 						seqLength = b * kBankSize + i + 1;
 						pressSetLength[b] = true;

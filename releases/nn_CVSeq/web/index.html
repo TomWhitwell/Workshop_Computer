@@ -172,7 +172,7 @@
         <b>8mu buttons A-D</b>, acted on when you let go.
         <b>Short press:</b> the page (press again for its second page).
         <b>Long press</b> (half a second): the bank of steps the faders edit, A = 1-8, B = 9-16, C = 17-24, D = 25-32; that fader's LED flashes three times.
-        <b>Hold a button and move a fader:</b> the last step, button = bank, fader = step within it (hold D + fader 8 = 32 steps, hold A + fader 4 = 4 steps).
+        <b>Hold a button and move a fader</b> (a good way, about a sixth of its travel): the last step, button = bank, fader = step within it (hold D + fader 8 = 32 steps, hold A + fader 4 = 4 steps).
         Here: click a row or use the bank buttons; set the length with &minus; and +.
       </div>
       <div class="readouts">
@@ -265,6 +265,7 @@
 const NS = 8;                                   // steps in a bank: one per fader
 const NSTEPS = 32, NBANKS = NSTEPS / NS;        // steps in all, banks
 const LONG_PRESS_MS = 500;
+const LENGTH_MOVE = 20;   // fader travel (of 127) needed while a button is held to set the length, as on the card
 const PAGES = 8;                                // button + 4 * layer
 const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x43, PROTOCOL_VERSION = 2;
 const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9, RESTART: 10, DIRECTION: 11, BANK: 12, LENGTH: 13 };
@@ -721,7 +722,7 @@ function eightmuFader(i, v) {
   if (held >= 0) {
     const p = mu.press[held];
     if (p.faders[i] < 0) p.faders[i] = v;
-    if (Math.abs(v - p.faders[i]) > 6) {
+    if (Math.abs(v - p.faders[i]) > LENGTH_MOVE) {
       p.faders[i] = v; p.setLength = true;
       setLength(held * NS + i + 1, true);
       mu.flash = { until: performance.now() + 900, bank: false, value: i };

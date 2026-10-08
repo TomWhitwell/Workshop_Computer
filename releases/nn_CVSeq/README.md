@@ -76,7 +76,7 @@ decides what it does:
 |---|---|
 | **Short press** A-D | Choose the page. Press the same button again for its second page (and again to flip back); another button always starts on its first page |
 | **Long press** A-D (half a second) | Choose the bank the faders edit: A = steps 1-8, B = 9-16, C = 17-24, D = 25-32. The LED of fader 1-4 for that bank flashes three times |
-| **Hold** A-D **and move a fader** | Set the last step: the button is the bank, the fader the step within it. Hold D and move fader 8 for 32 steps; hold A and move fader 4 for 4 steps. The faders up to the last step light briefly. The fader movement doesn't edit anything |
+| **Hold** A-D **and move a fader** | Set the last step: the button is the bank, the fader the step within it. The fader has to move a good way (about a sixth of its travel) to count, so a fader twitching during a long press doesn't change the length. Hold D and move fader 8 for 32 steps; hold A and move fader 4 for 4 steps. The faders up to the last step light briefly. The fader movement doesn't edit anything |
 
 Steps past the end of the sequence keep their settings, so shortening and
 lengthening it again loses nothing. On power-up, steps 9-32 start as copies of
