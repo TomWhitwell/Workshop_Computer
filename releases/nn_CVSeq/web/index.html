@@ -73,6 +73,12 @@
   #timeline { height: 220px; cursor: pointer; margin-top: 12px; }
   .howto { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 6px; font-size: 12px; color: var(--muted); line-height: 1.5; }
   .howto b { color: var(--ink); font-weight: 600; }
+  .jacks { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.4; }
+  .jacks th, .jacks td { text-align: left; vertical-align: top; padding: 4px 0; border-top: 1px solid var(--line); }
+  .jacks th { white-space: nowrap; padding-right: 10px; font-weight: 600; }
+  .jacks td { color: var(--muted); }
+  .jacks tr.grp th { border-top: 0; padding-top: 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .jacks tr.grp:first-child th { padding-top: 0; }
   .bankbtn.on { background: var(--warm-soft); border-color: var(--warm); }
   .lenv { min-width: 2.2em; text-align: center; font-variant-numeric: tabular-nums; font-size: 16px; }
   .fader.unused { opacity: .45; }
@@ -294,6 +300,25 @@
         <input type="file" id="import-file" accept=".json,application/json" hidden>
       </div>
       <div class="caption">Presets live in this browser. Loading one sends it to the card if one is connected. The card itself keeps nothing over power-off.</div>
+    </section>
+
+    <section class="card">
+      <h2>Inputs &amp; outputs</h2>
+      <table class="jacks">
+        <tr class="grp"><th colspan="2">Inputs</th></tr>
+        <tr><th>CV In 1</th><td>Morph offset: +5 V moves every step all the way from shape 1 to shape 2</td></tr>
+        <tr><th>CV In 2</th><td>Rate, 1 V/oct</td></tr>
+        <tr><th>Pulse In 1</th><td>Clock: each step lasts one clock, for clocks up to a minute apart. Followed from the second pulse; back to the rate knob once four periods (at least 2 s) pass without one</td></tr>
+        <tr><th>Pulse In 2</th><td>Restart from the first step</td></tr>
+        <tr><th>Audio In 1, 2</th><td class="muted">Not used</td></tr>
+        <tr class="grp"><th colspan="2">Outputs</th></tr>
+        <tr><th>CV Out 1</th><td>The sequence: offset knob + depth &times; the steps (0 to 5 V, or beyond with step OFFSET or a negative START or END), smoothed; &plusmn;6 V at most</td></tr>
+        <tr><th>CV Out 2</th><td>CV Out 1 quantised to the scale (to semitones with the scale Off), 1 V/oct</td></tr>
+        <tr><th>Audio Out 1</th><td>CV Out 1, uncalibrated</td></tr>
+        <tr><th>Audio Out 2</th><td>CV Out 1 inverted, uncalibrated</td></tr>
+        <tr><th>Pulse Out 1</th><td>Trigger at the start of every step that plays (not one that loses its chance)</td></tr>
+        <tr><th>Pulse Out 2</th><td>Trigger at the start of the sequence</td></tr>
+      </table>
     </section>
 
     <section class="card">

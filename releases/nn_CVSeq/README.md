@@ -170,7 +170,7 @@ and morph offset 0.
 | CV In 2 | Rate, 1 V/oct |
 | Pulse In 1 | Clock: each step lasts one clock, for clocks up to a minute apart. The card follows the clock from its second pulse, and goes back to the rate knob once four of the clock's periods (at least 2 s) pass without one |
 | Pulse In 2 | Restart from the first step |
-| CV Out 1 | The sequence: offset + depth x (0 to 5 V), smoothed |
+| CV Out 1 | The sequence: offset + depth x the steps (0 to 5 V, or beyond with step OFFSET or a negative START or END), smoothed; ±6 V at most |
 | CV Out 2 | CV Out 1 quantised to the scale (to semitones with scale Off), 1 V/oct |
 | Audio Out 1 | CV Out 1, uncalibrated |
 | Audio Out 2 | CV Out 1 inverted, uncalibrated |
@@ -242,6 +242,7 @@ and + to bring it back; the browser remembers which are folded):
 - **Shapes.** All 40. Click one to give it to the selected step.
 - **8mu on the computer.** Its faders, buttons and tilt drive the page, with
   the same pickup as the card, and the page lights its LEDs as the card would.
+- **Inputs & outputs.** Every jack and what it does, on the right.
 - **Presets.** Eight built in (Offset melody shows OFFSET as a step sequencer), plus your own, kept in the browser. Save,
   update, rename, delete, export and import as JSON. Loading one sends it to
   the card.
