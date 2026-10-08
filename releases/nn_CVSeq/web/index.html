@@ -201,6 +201,8 @@
         <button class="bankbtn" data-bank="3" title="Faders edit steps 25-32 (8mu: long press D)">25-32</button>
         <span class="k" style="margin-left:14px">Length</span>
         <button id="len-dn" title="One step shorter">&minus;</button><span class="lenv" id="len-v">8</span><button id="len-up" title="One step longer">+</button>
+        <span class="k" style="margin-left:14px">Shift</span>
+        <button id="shift-l" title="Move every step in the sequence one place left; step 1 wraps round to the end">&minus;</button><button id="shift-r" title="Move every step in the sequence one place right; the last step wraps round to step 1">+</button>
       </div>
       <canvas id="timeline" aria-label="The 32 steps, eight to a row, as one control voltage"></canvas>
       <div class="caption" id="timeline-caption"></div>
@@ -229,7 +231,7 @@
         <button id="btn-copy" title="Copy the selected steps, every setting (Ctrl/\u2318+C)">Copy</button>
         <button id="btn-paste" title="Paste onto the selection, every setting (Ctrl/\u2318+V)">Paste</button>
         <button id="btn-paste-page" title="Paste only the page the faders show (Ctrl/\u2318+Shift+V)">Paste this page only</button>
-        <button id="btn-undo" title="Undo the last paste or randomise (Ctrl/\u2318+Z)" disabled>Undo</button>
+        <button id="btn-undo" title="Undo the last paste, randomise or shift (Ctrl/\u2318+Z)" disabled>Undo</button>
         <span class="info" id="clip-info">Nothing copied yet.</span>
       </div>
       <div class="dirs" role="group" aria-label="What to randomise">
@@ -255,7 +257,7 @@
         <span><b>Double-click</b> a step</span><span>select its row (bank)</span>
         <span><kbd>Alt</kbd> + click</span><span>select its column (the same fader in every bank)</span>
         <span><kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> + <kbd>C</kbd> &nbsp; <kbd>V</kbd></span><span>copy, paste (every setting); add <kbd>Shift</kbd> to paste only the page the faders show</span>
-        <span><kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> + <kbd>Z</kbd></span><span>undo a paste or randomise</span>
+        <span><kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> + <kbd>Z</kbd></span><span>undo a paste, randomise or shift</span>
         <span><kbd>Esc</kbd></span><span>back to one selected step</span>
         <span><b>Pasting</b></span><span>one copied step fills every selected step; several fill the same number of selected steps in order, or else keep their pattern starting from the first selected step</span>
       </div>
@@ -847,6 +849,20 @@ function undo() {
   state.values = u.values;
   reengage(); sendAll(); changed();
   say('Undid ' + u.label + '.');
+}
+
+// ---- Shift: rotate the steps in the sequence (1 to its length) one place,
+// every setting together, wrapping round; steps past the end stay put.  The
+// selection moves with the steps.
+function shiftSteps(dir) {
+  const len = state.length;
+  if (len < 2) { say('A one-step sequence has nothing to shift.'); return; }
+  const move = (i) => i < len ? (i + dir + len) % len : i;
+  bulkEdit('the shift', () => {
+    state.values = state.values.map(r => { const n = r.slice(); for (let i = 0; i < len; i++) n[move(i)] = r[i]; return n; });
+  });
+  setSelection([...state.selSet].map(move), move(state.sel));
+  say('Shifted steps 1-' + len + ' one place ' + (dir < 0 ? 'left' : 'right') + '.');
 }
 
 // ---- Copy and paste.  The clipboard holds whole steps, every setting, with
@@ -1446,6 +1462,8 @@ function init() {
   document.querySelectorAll('.bankbtn').forEach(b => b.addEventListener('click', () => selectBank(+b.dataset.bank, true)));
   $('len-dn').addEventListener('click', () => setLength(state.length - 1, true));
   $('len-up').addEventListener('click', () => setLength(state.length + 1, true));
+  $('shift-l').addEventListener('click', () => shiftSteps(-1));
+  $('shift-r').addEventListener('click', () => shiftSteps(1));
   window.addEventListener('resize', () => { presetsDirty = true; requestRender(); });
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { presetsDirty = true; requestRender(); });
   if (!navigator.requestMIDIAccess) say('This browser can’t do WebMIDI, so it can’t reach the card or an 8mu. You can still edit and keep presets here.');

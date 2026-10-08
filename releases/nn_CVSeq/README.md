@@ -207,8 +207,11 @@ and + to bring it back; the browser remembers which are folded):
   orange outline; it goes once the knob reaches the value.
 - **Direction** buttons set the card's direction, and follow it when the
   switch is tapped.
-- **Bank and length.** Bank buttons and −/+ for the length, just above the
-  sequence so they stay put as the length changes; the 8mu's button
+- **Bank, length and shift.** Bank buttons, −/+ for the length, and −/+ to
+  shift: every step in the sequence moves one place left or right, all its
+  settings with it, the end step wrapping round to the other end (steps past
+  the length stay put; Undo takes a shift back). Just above the sequence so
+  they stay put as the length changes; the 8mu's button
   instructions are just below it.
 - **Sequence.** All 32 steps, eight to a row, in the same columns as the
   faders. Steps in the sequence are drawn full size as one voltage, with a
@@ -231,7 +234,7 @@ and + to bring it back; the browser remembers which are folded):
   selected steps, a row, a column or the whole sequence. Levels are fitted so
   each step stays within 0 to +5 V or −5 to +5 V (at full depth), as chosen,
   and LEVEL is kept at 31% or more so a step is never lost. Undo (Ctrl/⌘+Z)
-  takes back pastes and randomising. Clicking a shape gives it to every
+  takes back pastes, randomising and shifts. Clicking a shape gives it to every
   selected step. The keys are listed on the page.
 - **Faders.** Nine pages, each showing the selected bank's eight steps, as on
   the 8mu.
