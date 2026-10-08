@@ -1,6 +1,6 @@
-draft: true
+draft: false
 Name: CVSeq
-short-description: "A 32-step CV sequencer after the Performer in NI Massive - each step a morph between two of 40 shapes, with level ramps, offset, quantise and chance - edited from a Music Thing 8mu, with a web editor"
+short-description: "A 32-step performance CV sequencer - edited from a Music Thing 8mu, with a web editor"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
 Version: "0.7.2"
@@ -31,8 +31,7 @@ tags:
   - 8mu
 
 summary: |
-  A step sequencer for control voltages rather than notes, after the
-  Performer modulator in Native Instruments' Massive. Each of its up to 32
+  A step sequencer for control voltages. Each of its up to 32
   steps plays a shape - a ramp, a pluck, a sine, stairs, a random wander -
   and the steps run on one after another as one continuous voltage.<br><br>
 
@@ -60,7 +59,7 @@ summary: |
   reverse and true random roll the dice on which step plays next, which
   way round, or both.<br><br>
 
-  An optional web editor (web/index.html, Chrome or Edge) draws the
+  An optional (but highly recommended) web editor (web/index.html, Chrome or Edge) draws the
   sequence with a live playhead and a scope of the output, shows the shape
   library, and keeps presets. With a computer plugged into the Computer's
   USB socket the card becomes a USB MIDI device for the editor, and an 8mu
