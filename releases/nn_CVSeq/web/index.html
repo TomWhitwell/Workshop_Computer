@@ -81,6 +81,7 @@
   .row > * { flex: 1 1 260px; min-width: 0; }
   .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 10px; }
   .readout { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  .readout.waiting { outline: 2px dotted var(--warm); outline-offset: 2px; }
   .readout .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
   .readout .v { font-size: 16px; font-variant-numeric: tabular-nums; }
   .caption { color: var(--muted); font-size: 12px; margin-top: 6px; }
@@ -672,6 +673,15 @@ function drawReadouts() {
   $('ro-morph').textContent = (L.morph > 0 ? '+' : '') + Math.round(L.morph * 100) + '%';
   $('ro-clock').textContent = L.clocked ? 'Clocked' : 'Free';
   $('ro-scale').textContent = SCALES[L.scale][0];
+  // A dotted box round each setting whose knob is waiting to pick it up: X,
+  // Y and Main are depth, offset and scale with the switch up, smoothing,
+  // morph offset and rate with it in the middle
+  const knobs = L.switchUp ? ['ro-depth', 'ro-offset', 'ro-scale'] : ['ro-smooth', 'ro-morph', 'ro-rate'];
+  const waiting = new Set([L.waitX && knobs[0], L.waitY && knobs[1], L.waitMain && knobs[2]].filter(Boolean));
+  for (const id of ['ro-depth', 'ro-offset', 'ro-scale', 'ro-smooth', 'ro-morph', 'ro-rate']) {
+    const box = $(id).parentElement, w = waiting.has(id) && !!link.cardOnline;
+    if (box.classList.contains('waiting') !== w) { box.classList.toggle('waiting', w); box.title = w ? 'The knob for this is waiting: turn it to (or past) this value to pick it up' : ''; }
+  }
   document.querySelectorAll('.dir').forEach(b => b.classList.toggle('on', +b.dataset.dir === L.direction));
   $('knob-line').textContent = !on ? 'Hold the module’s switch down and turn Main to choose the direction.'
     : 'Switch ' + (L.switchUp ? 'up: Main = scale, X = depth, Y = offset' : 'middle: Main = rate, X = smoothing, Y = morph offset') +
@@ -1166,6 +1176,7 @@ function handleCardMessage(m) {
     L.direction = p[2] & 7; L.clocked = !!(p[2] & 8); L.muOnCard = !!(p[2] & 16);
     L.switchUp = !!(p[2] & 32); L.knobWaiting = !!(p[2] & 64);
     L.reversed = !!(p[3] & 1); L.holding = !!(p[3] & 2);
+    L.waitX = !!(p[3] & 4); L.waitY = !!(p[3] & 8); L.waitMain = !!(p[3] & 16);
     L.outMv = ((p[4] << 7) | p[5]) - 8192;
     L.rateOct = (((p[6] << 7) | p[7]) - 8192) / 256;
     L.depth = twoSided(p[8]); L.offsetMv = twoSided(p[9]) * 5000;
@@ -1225,7 +1236,7 @@ function simulate(now) {
   if (!sim.holding) sim.lastVal = val;
   const L = state.live;
   Object.assign(L, { cur: sim.cur, progress: sim.phase, direction: sim.direction, clocked: false, reversed: sim.reversed,
-    holding: sim.holding, outMv: Math.round(val * 5000), rateOct: 0, depth: 1, offsetMv: 0, smooth: -1, morph: 0, scale: 0, switchUp: false, knobWaiting: false });
+    holding: sim.holding, outMv: Math.round(val * 5000), rateOct: 0, depth: 1, offsetMv: 0, smooth: -1, morph: 0, scale: 0, switchUp: false, knobWaiting: false, waitX: false, waitY: false, waitMain: false });
   state.history.push([now, L.outMv]);
 }
 

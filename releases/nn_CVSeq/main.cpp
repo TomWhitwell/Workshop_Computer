@@ -665,7 +665,8 @@ private:
 		stProgress = uint8_t(phase >> 25);
 		stFlags = uint8_t((direction & 7) | (clocked ? 8 : 0) | (mu.Connected() ? 16 : 0)
 			| (knobBank == 0 ? 32 : 0) | (waiting ? 64 : 0));
-		stFlags2 = uint8_t((reversed ? 1 : 0) | (holding ? 2 : 0));
+		stFlags2 = uint8_t((reversed ? 1 : 0) | (holding ? 2 : 0)
+			| (knobLatched[0] ? 0 : 4) | (knobLatched[1] ? 0 : 8) | (knobLatched[2] ? 0 : 16));
 		stOut = outMv + 8192;
 		stRate = (rateOct >> 4) + 8192;
 		stDepth = uint8_t((settings[SetDepth] >> 5) & 127);

@@ -41,7 +41,9 @@
 //                        offset, not rate, smoothing and morph), bit 6 a
 //                        knob is waiting
 //             flags2     bit 0 this step plays its shape backwards, bit 1
-//                        this step lost its chance roll and is holding
+//                        this step lost its chance roll and is holding,
+//                        bits 2-4 the X, Y and Main knob is waiting to pick
+//                        up its setting (which one by bit 5 of flags)
 //             out        CV Out 1 in millivolts, offset by 8192
 //             speed      step rate in 1/256 octave, offset by 8192, where 0
 //                        is one step per second

@@ -202,7 +202,9 @@ From the top (each section has a − button by its heading that folds it away,
 and + to bring it back; the browser remembers which are folded):
 
 - **Readouts.** Step, rate, depth, offset, smoothing, morph offset, scale
-  and whether the card is clocked, live from the card.
+  and whether the card is clocked, live from the card. While a knob on the
+  module is waiting to pick up its setting, that setting's box has a dotted
+  orange outline; it goes once the knob reaches the value.
 - **Direction** buttons set the card's direction, and follow it when the
   switch is tapped.
 - **Bank and length.** Bank buttons and −/+ for the length, just above the
