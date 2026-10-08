@@ -1,0 +1,107 @@
+draft: false
+Name: UMWELT
+short-description: Four-track generative soundscape synthesis with Crossfade, Reverb, Life, and one-switch randomization.
+summary: >
+  A four-track generative soundscape synthesizer for the Music Thing Modular Workshop Computer.
+  Background, Texture, Voices, and Percussion combine continuous synthesis,
+  generated note sequences, and probabilistic event triggering with stereo spatialization
+  and feedback delay network reverb. Flick the switch down to generate a new sound
+  configuration on the hardware. Allow approximately 1-3 seconds of silence at startup
+  and after randomization, followed by the fade-in.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Laboratory 0
+Version: "1.0"
+Status: Released
+License: Laboratory 0 Freeware (see LICENSE.txt)
+date-created: "2026-10-07"
+date-updated: "2026-10-07"
+Editor: none
+
+tags:
+  - generative
+  - synthesizer
+  - ambient
+  - stereo
+  - reverb
+  - percussion
+
+uf2:
+  - path: UMWELT_Workshop_v1.0.uf2
+    name: UMWELT 1.0
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio Input 1
+      type: audio
+      description: Input envelope modulates activity and track levels. Granular configurations can capture short input segments. Both inputs are averaged to mono when connected.
+    - id: AudioIn2
+      name: Audio Input 2
+      type: audio
+      description: Input envelope modulates activity and track levels. Granular configurations can capture short input segments. Both inputs are averaged to mono when connected.
+    - id: CVIn1
+      name: Life CV
+      type: cv
+      description: Adds a bipolar offset to the Y Life setting.
+    - id: CVIn2
+      name: Pitch CV
+      type: cv
+      description: Smoothed pitch transposition, limited to two octaves in either direction. Nominally 1 V/oct; hardware tracking is not calibrated.
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: Advances sequencing and adjusts the phase of coupled rhythm generators where used. Independent events and sustained synthesis remain active.
+    - id: PulseIn2
+      name: Randomize
+      type: pulse
+      description: Generates a new configuration, including while stopped. Allow approximately 1-3 seconds for generation; a half-second retrigger lockout applies.
+  outputs:
+    - id: AudioOut1
+      name: Left
+      type: audio
+      description: Stereo left audio output.
+    - id: AudioOut2
+      name: Right
+      type: audio
+      description: Stereo right audio output.
+    - id: CVOut1
+      name: Modulation CV
+      type: cv
+      description: Bipolar output from the slow chaotic modulator.
+    - id: CVOut2
+      name: Activity CV
+      type: cv
+      description: Unipolar output proportional to the combined Texture and Voices activity parameters.
+    - id: PulseOut1
+      name: Percussion Triggers
+      type: pulse
+      description: Short triggers indicating Percussion events.
+    - id: PulseOut2
+      name: Phrase Triggers
+      type: pulse
+      description: Short triggers indicating the start of a Voices phrase.
+
+controls:
+  knobs:
+    - main:
+        name: Crossfade
+        description: Background to the left; Texture, Voices, and Percussion to the right. Center retains both groups at their base levels.
+      x:
+        name: Reverb
+        description: Adjusts the reverb return level. Decay time is set by the generated configuration and internal modulation.
+      y:
+        name: Life
+        description: Adjusts trigger probability and event rates. Compare over several seconds; sustained tones, existing notes, and reverb tails continue at low settings.
+  switch:
+    up:
+      name: Stop
+      description: Fades to silence, then pauses synthesis, sequencing, modulation, and effects. Pulse outputs go low and CV outputs hold their latest values.
+    middle:
+      name: Run
+      description: Plays or resumes the current sound. Returning to center does not randomize.
+    down:
+      name: Randomize
+      description: Generates a new configuration once on entry. Allow approximately 1-3 seconds of silence, followed by the fade-in. Holding down does not repeatedly randomize.
+    tap:
+      name: Randomize
+      description: Flick down to generate new synthesis, tuning, sequencing, modulation, and effect settings. Knob positions remain active.
