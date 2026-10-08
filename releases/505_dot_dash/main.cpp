@@ -6,7 +6,7 @@
  * sends them as Morse code:
  *   - Audio Out 1  : a square-wave beep for each dot and dash
  *   - Audio Out 2  : a triangle-wave melody voice at the note pitch
- *   - CV Out 1     : a note per symbol (dot = high, dash = low)
+ *   - CV Out 1     : one pitch per character (A lowest, rising through Z and 0-9)
  *   - CV Out 2     : the current speed, as a voltage
  *   - Pulse Out 1  : a gate, high for exactly as long as each dot or dash lasts
  *   - Pulse Out 2  : a short trigger at the start of each symbol
@@ -75,7 +75,7 @@ public:
 		phase2 = 0;
 		melodyInc = 8000;
 		lastMelodyNote = 0xFF;
-		lastNote = kDotNote;
+		currentNote = kBaseNote;
 		beaconIndex = 0;
 		lastKnobX = -1;
 		lastKnobY = -1;
@@ -204,9 +204,6 @@ public:
 		if (semis < -24) semis = -24;
 		if (semis > 24) semis = 24;
 
-		uint8_t dotNote = (uint8_t)ClampNote((int32_t)kDotNote + semis);
-		uint8_t dashNote = (uint8_t)ClampNote((int32_t)kDashNote + semis);
-
 		// --- Speed (Knob X, modulated by CV In 2) ----------------------------
 		// A Morse "unit" is one dot long; the classic relationship is
 		// dot_ms = 1200 / wpm, and at 48 kHz that is 57600 / wpm samples.
@@ -286,30 +283,29 @@ public:
 		// are all separate jacks, so they play together; Knob Main is the audio
 		// master volume.
 
-		// Pitch CV: dot and dash are two different notes. We hold the last
-		// note through the gaps (the gate tells you when it is sounding) and
-		// drop to 0 V when idle or paused.
-		if (state == StIdle || paused)
+		// Pitch CV: one note per character, rising with the alphabet. We hold
+		// that note through the character's own dots/dashes and its trailing
+		// letter gap (so a new letter changes pitch smoothly), and drop to 0 V
+		// at a word gap or when idle/paused so words separate clearly.
+		uint8_t note = (uint8_t)ClampNote((int32_t)currentNote + semis);
+		if (state == StIdle || state == StWordGap || paused)
 		{
 			CVOut1(0);
 		}
 		else
 		{
-			if (symbolActive)
-				lastNote = currentSymbolIsDash ? dashNote : dotNote;
 			if (CVOutsCalibrated())
-				CVOut1MIDINote(lastNote); // precise, 1V/oct calibrated
+				CVOut1MIDINote(note); // precise, 1V/oct calibrated
 			else
-				CVOut1((int16_t)RawNote(lastNote)); // rough fallback
+				CVOut1((int16_t)RawNote(note)); // rough fallback
 		}
 
-		// Melody voice: a triangle wave at the current note's pitch. Recompute
+		// Melody voice: a triangle wave at the same character pitch. Recompute
 		// the phase step only when the note actually changes.
-		uint8_t melodyNote = symbolActive ? (currentSymbolIsDash ? dashNote : dotNote) : lastNote;
-		if (melodyNote != lastMelodyNote)
+		if (note != lastMelodyNote)
 		{
-			lastMelodyNote = melodyNote;
-			melodyInc = NoteToPhaseInc(melodyNote);
+			lastMelodyNote = note;
+			melodyInc = NoteToPhaseInc(note);
 		}
 
 		// Shared click-free envelope for both audio voices.
@@ -368,8 +364,7 @@ private:
 	static const int32_t kAmplitude = 1700; // below full scale, keeps some headroom
 	static const int32_t kEnvStep = 64;     // ~0.5 ms click-free ramp
 	static const int32_t kTriggerSamples = 96; // ~2 ms symbol-start trigger
-	static const uint8_t kDotNote = 72;     // C5 - the high note
-	static const uint8_t kDashNote = 67;    // G4 - a fifth below
+	static const uint8_t kBaseNote = 60;    // middle C - the pitch of 'A'
 
 	St state;
 	const char *pattern;   // current character's dots and dashes
@@ -387,7 +382,7 @@ private:
 	uint32_t phase2;       // melody triangle-wave phase accumulator
 	uint32_t melodyInc;    // step per sample for the current melody note
 	uint8_t lastMelodyNote; // note the melody phase step was computed for
-	uint8_t lastNote;      // last pitch sent on CV Out 1
+	uint8_t currentNote;   // pitch of the character being sent (held through gaps)
 	uint8_t beaconIndex;   // position in the looping "SOS " beacon
 	int32_t lastKnobX;     // cached raw knob readings, so we only recompute
 	int32_t lastKnobY;     // the speed/pitch maths when a knob actually moves
@@ -441,6 +436,11 @@ private:
 		}
 		pattern = morseFor(c);
 		if (pattern == nullptr) { state = StIdle; return; } // unmapped char
+		// Each character has its own pitch. Punctuation has no note of its own,
+		// so charToNote returns -1 and we keep the previous character's pitch.
+		int note = charToNote(c);
+		if (note >= 0)
+			currentNote = (uint8_t)note;
 		patternIndex = 0;
 		StartSymbol();
 	}

@@ -74,6 +74,27 @@ inline char hidToAscii(uint8_t keycode, bool shift)
 }
 
 // ---------------------------------------------------------------------------
+// Character -> pitch
+// ---------------------------------------------------------------------------
+// Every letter and digit gets its own note, rising in order so that 'A' is the
+// lowest and '9' the highest:
+//   A..Z = MIDI 60..85   (A is middle C)
+//   0..9 = MIDI 86..95   (0 sits just above Z)
+// Returns -1 for anything without its own pitch (punctuation, space). The
+// caller keeps the previous note in that case, so a comma or full stop simply
+// carries on at the pitch of the character before it.
+inline int charToNote(char c)
+{
+	if (c >= 'a' && c <= 'z')
+		c = (char)(c - 32); // fold to upper case
+	if (c >= 'A' && c <= 'Z')
+		return 60 + (c - 'A');
+	if (c >= '0' && c <= '9')
+		return 86 + (c - '0');
+	return -1;
+}
+
+// ---------------------------------------------------------------------------
 // ASCII -> Morse
 // ---------------------------------------------------------------------------
 // Returns a pointer to a static string of '.' (dot) and '-' (dash) characters,

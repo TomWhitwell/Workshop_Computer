@@ -3,7 +3,7 @@ Name: Dot Dash
 short-description: Type on a USB keyboard, and the card sends it as Morse code
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
-Version: "1.1"
+Version: "1.2"
 Status: Beta
 License: MIT
 date-created: 2026-10-08
@@ -20,13 +20,15 @@ summary: |
   Plug a keyboard into the Workshop Computer, type letters, and each character
   is sent as dots and dashes: a square beep on **Audio Out 1**, a triangle
   melody voice on **Audio Out 2**, a gate on **Pulse Out 1**, a per-symbol
-  trigger on **Pulse Out 2**, and a note CV on **CV Out 1**. All outputs play
-  together on their separate jacks. Knob X sets the speed (5-40 words per
-  minute), Knob Y the beep pitch, and Knob Main the master audio volume.
-  **CV In 1** transposes the notes (1 V/oct, +/-2 octaves), **CV In 2**
-  modulates the speed, **Pulse In 1** pauses while held, and **Pulse In 2**
-  clears anything typed but not yet sent. When no keyboard is connected the
-  card loops **SOS** and flashes all six LEDs in that rhythm.
+  trigger on **Pulse Out 2**, and a pitch on **CV Out 1**. Every letter and
+  digit has its own note, rising with the alphabet (A is the lowest), so a
+  typed word becomes a melody. All outputs play together on their separate
+  jacks. Knob X sets the speed (5-40 words per minute), Knob Y the beep pitch,
+  and Knob Main the master audio volume. **CV In 1** transposes the notes
+  (1 V/oct, +/-2 octaves), **CV In 2** modulates the speed, **Pulse In 1**
+  pauses while held, and **Pulse In 2** clears anything typed but not yet sent.
+  When no keyboard is connected the card loops **SOS** and flashes all six LEDs
+  in that rhythm.
 
 panel:
   inputs:
@@ -48,10 +50,10 @@ panel:
       description: Square-wave beep for each dot and dash, level set by Knob Main
     - id: AudioOut2
       name: Melody Voice
-      description: Triangle wave at the dot/dash note pitch, level set by Knob Main
+      description: Triangle wave at the character's pitch (follows the same note as CV Out 1), level set by Knob Main
     - id: CVOut1
-      name: Note CV
-      description: One note per symbol - dot high, dash low (calibrated when available); tracks the Transpose input
+      name: Character Pitch
+      description: One note per character, rising with the alphabet (A is lowest); dot and dash share it. Calibrated when available, tracks the Transpose input
     - id: CVOut2
       name: Speed CV
       description: The current speed as a voltage, 0 V at 5 WPM to +5 V at 60 WPM

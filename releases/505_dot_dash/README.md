@@ -3,7 +3,8 @@
 A Morse code USB keyboard card for the **Music Thing Modular Workshop Computer**.
 
 Plug a USB keyboard into the Workshop Computer, type letters, and the card sends
-them out as Morse code — as an audio beep, as a gate, or as a pitch CV sequence.
+them out as Morse code — as an audio beep, as a gate, or as a per-character
+pitched melody.
 
 ```
       .-  -. -..
@@ -16,12 +17,14 @@ All outputs are on separate jacks, so they always play together. Patch whichever
 you want; Knob Main is the master level for the two audio outputs.
 
 - **Audio Out 1** — a square-wave beep for every dot and dash.
-- **Audio Out 2** — a triangle-wave melody voice at the same note pitch, so you
-  can hear the Morse as a tune without external gear.
-- **CV Out 1** — a note for every symbol: dot is the higher note, dash the lower
-  one (a musical fifth apart). Uses the card's stored calibration for accurate
-  1 V/oct when available, and falls back to a rough voltage when not. Tracks the
-  Transpose input.
+- **Audio Out 2** — a triangle-wave melody voice at the character's pitch, so
+  you can hear the Morse as a tune without external gear.
+- **CV Out 1** — one note per character, rising with the alphabet: **A** is the
+  lowest (middle C), then B, C, … up through Z and the digits 0–9. A dot and a
+  dash within one character share that note, so each letter, number, and symbol
+  has its own pitch and a typed word becomes a melody. Uses the card's stored
+  calibration for accurate 1 V/oct when available, and falls back to a rough
+  voltage when not. Tracks the Transpose input.
 - **CV Out 2** — the current transmission speed as a voltage: 0 V at 5 WPM,
   +5 V at 60 WPM.
 - **Pulse Out 1** — a gate that is high for exactly as long as each dot or dash
@@ -65,6 +68,22 @@ word gap    = 7 units   (letter gap plus 4 more, triggered by the spacebar)
 Because the speed knob is re-read every sample but only *latched when a symbol
 starts*, turning it never stretches a dot or dash that is already playing.
 
+## Character pitches
+
+Every letter and digit has its own note, rising in order so the alphabet plays
+as an ascending scale:
+
+```
+A = middle C (MIDI 60)   B = 61   C = 62   ...   Z = 85
+0 = 86  1 = 87  ...  9 = 95
+```
+
+A character's dots and dashes all sound at that one note; the note is held
+through the gaps *within* a character and its trailing letter gap, then drops
+to 0 V at a word gap or when the card is idle. Punctuation has no note of its
+own — it carries on at the pitch of the character before it. The Transpose
+input shifts the whole ladder up or down.
+
 ## Characters
 
 Letters `A`–`Z`, digits `0`–`9`, the spacebar, and common punctuation
@@ -76,7 +95,7 @@ card can transmit, the newest key is dropped and LED 3 flashes.
 ## Patching ideas
 
 - Beep or melody into a mixer or effects, gate into an envelope: a talking rhythm.
-- Note CV into a VCO and gate into an envelope: the Morse spells a melody.
+- Character pitch CV into a VCO and gate into an envelope: the typed words play as a melody.
 - Transpose CV from a sequencer or keyboard: play the Morse at different pitches.
 - Speed CV from an LFO: the transmission breathes faster and slower.
 - Pulse Out 2 into a clock input: every dot and dash advances a sequencer.
@@ -106,9 +125,9 @@ drive.
   has no floating-point unit and division is slow. The single exception is the
   melody note's frequency, which uses a single-precision `exp2f` — but only when
   the note *changes*, never per sample.
-- **Knob and speed caching.** The WPM division and pitch division are recomputed
-  only when the relevant knob or input actually changes, keeping the hot path to
-  a few compares.
+- **Caching.** The WPM division, the melody note's phase step, and the beep
+  pitch are recomputed only when the relevant knob, input, or character changes,
+  keeping the hot path to a few compares.
 - **Jack detection.** `EnableNormalisationProbe()` makes unpatched CV/pulse
   inputs read exactly zero, so with nothing plugged in there is no stray
   transposition, speed change or pause.
