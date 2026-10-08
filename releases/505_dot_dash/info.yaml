@@ -19,40 +19,39 @@ summary: |
   Dot Dash turns a USB keyboard into a Morse code transmitter.
   Plug a keyboard into the Workshop Computer, type letters, and each character
   is sent as dots and dashes: an audio beep on **Audio Out 1**, a gate on
-  **Pulse Out 1**, and a pitch CV on **CV Out 1** in pitch mode. Knob X sets the
-  speed (5-40 words per minute) and Knob Y sets the beep pitch. When no keyboard
-  is connected the card loops **SOS** and flashes all six LEDs in that rhythm.
+  **Pulse Out 1**, and a pitch CV on **CV Out 1**. Both the beep and the pitch
+  CV play at the same time on their separate jacks. Knob X sets the speed
+  (5-40 words per minute), Knob Y the beep pitch, and Knob Main the beep volume.
+  When no keyboard is connected the card loops **SOS** and flashes all six LEDs
+  in that rhythm.
 
 panel:
   outputs:
     - id: AudioOut1
       name: Morse Beep
-      description: Square-wave beep for each dot and dash (audio mode)
+      description: Square-wave beep for each dot and dash, level set by Knob Main
     - id: CVOut1
       name: Pitch CV
-      description: One note per symbol in pitch mode - dot high, dash low (calibrated when available)
+      description: One note per symbol - dot high, dash low (calibrated when available); plays alongside the beep
     - id: PulseOut1
       name: Key Gate
       description: High for exactly the length of each dot or dash, low during the gaps
 
 controls:
   switch:
-    up:
-      name: Audio Mode
-      description: Beep each symbol on Audio Out 1
     middle:
-      name: Pitch Mode
-      description: Send each symbol as a note on CV Out 1 instead of a beep
-    down:
-      name: Shift
-      description: Hold down to flip to the other mode while held, then spring back
+      name: Unused
+      description: The switch does not change behaviour - the beep and the pitch CV always play together on their separate jacks
   knobs:
-    - x:
+    - main:
+        name: Beep Volume
+        description: Level of the beep on Audio Out 1 (fully down is silent; the pitch CV is unaffected)
+      x:
         name: Speed
         description: Transmission speed, 5-40 words per minute
       y:
         name: Pitch
-        description: Beep tone frequency, 300-2000 Hz (audio mode)
+        description: Beep tone frequency, 300-2000 Hz
 
   leds:
     - display: list

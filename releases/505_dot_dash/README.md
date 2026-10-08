@@ -12,10 +12,13 @@ them out as Morse code — as an audio beep, as a gate, or as a pitch CV sequenc
 
 ## What it does
 
-- **Audio Out 1** — a square-wave beep for every dot and dash (audio mode).
-- **CV Out 1** — a note for every symbol in pitch mode: dot is the higher note,
-  dash the lower one (a musical fifth apart). Uses the card's stored calibration
-  for accurate 1 V/oct when available, and falls back to a rough voltage when not.
+The beep and the pitch CV are on separate jacks, so they always play together.
+Patch whichever you want; use Knob Main to silence the beep if you only want the CV.
+
+- **Audio Out 1** — a square-wave beep for every dot and dash, level set by Knob Main.
+- **CV Out 1** — a note for every symbol: dot is the higher note, dash the lower
+  one (a musical fifth apart). Uses the card's stored calibration for accurate
+  1 V/oct when available, and falls back to a rough voltage when not.
 - **Pulse Out 1** — a gate that is high for exactly as long as each dot or dash
   lasts and low during the gaps. Patch it to an envelope, a clock, or an LED.
 - **LEDs** — LED 0 lights on dots, LED 1 on dashes, LED 2 while transmitting,
@@ -30,12 +33,10 @@ can see it is alive but waiting for a keyboard.
 
 | Control | Does |
 |---------|------|
-| **Switch Up** | Audio mode — beep each symbol |
-| **Switch Middle** | Pitch mode — send each symbol as a CV note |
-| **Switch Down** | Momentary "shift": hold it to flip to the other mode while held |
+| **Switch** | Unused — the beep and pitch CV always play together on their own jacks |
+| **Knob Main** | Beep volume (fully down is silent; pitch CV is unaffected) |
 | **Knob X** | Speed, 5–40 words per minute |
-| **Knob Y** | Beep pitch, 300–2000 Hz (audio mode) |
-| **Knob Main** | Unused in this version |
+| **Knob Y** | Beep pitch, 300–2000 Hz |
 
 ## Morse timing
 
@@ -64,7 +65,7 @@ card can transmit, the newest key is dropped and LED 3 flashes.
 ## Patching ideas
 
 - Beep into a mixer or effects, gate into an envelope: a talking rhythm.
-- Pitch mode into a VCO and gate into an envelope: the Morse spells a melody.
+- Pitch CV into a VCO and gate into an envelope: the Morse spells a melody.
 - Gate into a clock input: Morse becomes a tempo source.
 - Leave it unpatched with no keyboard to use it as an SOS beacon.
 

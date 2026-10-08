@@ -67,9 +67,10 @@ public:
 		phaseInc = 0;
 		lastNote = kDotNote;
 		beaconIndex = 0;
-		latchedSwitch = Switch::Up;
 		lastKnobX = -1;
 		lastKnobY = -1;
+		lastKnobMain = -1;
+		beepAmp = kAmplitude;
 	}
 
 	// ---- Core 1 entry point -------------------------------------------------
@@ -168,10 +169,13 @@ public:
 		// Knobs read roughly 0-4095 but never quite reach zero, so we clamp.
 		int32_t knobX = KnobVal(Knob::X);
 		int32_t knobY = KnobVal(Knob::Y);
+		int32_t knobMain = KnobVal(Knob::Main);
 		if (knobX < 0) knobX = 0;
 		if (knobX > 4095) knobX = 4095;
 		if (knobY < 0) knobY = 0;
 		if (knobY > 4095) knobY = 4095;
+		if (knobMain < 0) knobMain = 0;
+		if (knobMain > 4095) knobMain = 4095;
 
 		// Knob X -> 5..40 words per minute. A Morse "unit" is one dot long;
 		// the classic relationship is dot_ms = 1200 / wpm, and at 48 kHz that
@@ -194,19 +198,21 @@ public:
 			wordGapExtraSamples = unit * 4; // letter gap (3) + 4 = 7
 		}
 
-		// --- Work out the current mode ---------------------------------------
-		// Up = audio beep, Middle = pitch CV. Down is momentary; while it is
-		// held we flip to the opposite mode, then spring back on release.
-		Switch sw = SwitchVal();
-		if (sw != Switch::Down)
-			latchedSwitch = sw; // remember the last stable position
-		bool basePitch = (latchedSwitch == Switch::Middle);
-		bool pitchMode = (sw == Switch::Down) ? !basePitch : basePitch;
+		// Knob Main -> beep volume. The beep and the pitch CV are on separate
+		// jacks (Audio Out 1 and CV Out 1), so they always play together; Main
+		// simply sets how loud the beep is. Pots only reach about 14 at the
+		// minimum, so the lowest bit of travel is treated as true silence.
+		if (knobMain != lastKnobMain)
+		{
+			lastKnobMain = knobMain;
+			int32_t m = (knobMain < 64) ? 0 : knobMain;
+			beepAmp = (kAmplitude * m) / 4095;
+		}
 
 		// --- Advance the Morse state machine ---------------------------------
 		Tick();
 
-		// --- Beep pitch (only used in audio mode) ----------------------------
+		// --- Beep pitch ------------------------------------------------------
 		// Knob Y -> 300..2000 Hz. We turn frequency into a 32-bit phase step
 		// (2^32 / 48000 = 89478 per Hz), so the square wave needs no floats.
 		// As with Knob X, only recompute the division when the knob moves.
@@ -220,39 +226,37 @@ public:
 		bool symbolActive = (state == StSymbol);
 
 		// --- Outputs ----------------------------------------------------------
-		if (pitchMode)
+		// Audio Out 1 (beep) and CV Out 1 (pitch) are separate jacks, so both
+		// are driven every sample. Patch whichever you want; use Knob Main to
+		// silence the beep if you only want the CV.
+
+		// Pitch CV: dot and dash are two different notes. We hold the last
+		// note through the gaps (the gate tells you when it is sounding) and
+		// drop to 0 V when idle.
+		if (state == StIdle)
 		{
-			// Pitch CV: dot and dash are two different notes. We hold the last
-			// note through the gaps (the gate tells you when it is sounding)
-			// and drop to 0 V when idle.
-			AudioOut1(0);
-			if (state == StIdle)
-			{
-				CVOut1(0);
-			}
-			else
-			{
-				if (symbolActive)
-					lastNote = currentSymbolIsDash ? kDashNote : kDotNote;
-				if (CVOutsCalibrated())
-					CVOut1MIDINote(lastNote); // precise, 1V/oct calibrated
-				else
-					CVOut1((int16_t)RawNote(lastNote)); // rough fallback
-			}
+			CVOut1(0);
 		}
 		else
 		{
-			// Audio beep: a square wave, gated on during dots and dashes. The
-			// short envelope ramp avoids a click when the beep starts and stops.
-			CVOut1(0);
-			int32_t target = symbolActive ? kAmplitude : 0;
-			if (env < target) { env += kEnvStep; if (env > target) env = target; }
-			else if (env > target) { env -= kEnvStep; if (env < target) env = target; }
-
-			phase += phaseInc;
-			int32_t sq = (phase & 0x80000000u) ? 1 : -1;
-			AudioOut1((int16_t)(env * sq));
+			if (symbolActive)
+				lastNote = currentSymbolIsDash ? kDashNote : kDotNote;
+			if (CVOutsCalibrated())
+				CVOut1MIDINote(lastNote); // precise, 1V/oct calibrated
+			else
+				CVOut1((int16_t)RawNote(lastNote)); // rough fallback
 		}
+
+		// Audio beep: a square wave, gated on during dots and dashes and
+		// scaled by Knob Main. The short envelope ramp avoids a click when
+		// the beep starts and stops.
+		int32_t target = symbolActive ? beepAmp : 0;
+		if (env < target) { env += kEnvStep; if (env > target) env = target; }
+		else if (env > target) { env -= kEnvStep; if (env < target) env = target; }
+
+		phase += phaseInc;
+		int32_t sq = (phase & 0x80000000u) ? 1 : -1;
+		AudioOut1((int16_t)(env * sq));
 
 		// --- Gate -------------------------------------------------------------
 		// High for exactly the length of each dot or dash, low during gaps.
@@ -307,9 +311,10 @@ private:
 	uint32_t phaseInc;
 	uint8_t lastNote;      // last pitch sent in CV mode
 	uint8_t beaconIndex;   // position in the looping "SOS " beacon
-	Switch latchedSwitch;  // last stable switch position (not the momentary Down)
 	int32_t lastKnobX;     // cached raw knob readings, so we only recompute
 	int32_t lastKnobY;     // the speed/pitch maths when a knob actually moves
+	int32_t lastKnobMain;  // cached raw Main reading (beep volume)
+	int32_t beepAmp;       // beep amplitude after the Main volume knob
 
 	// Is there something to send right now? (The beacon never runs dry.)
 	static bool CharAvailable()
