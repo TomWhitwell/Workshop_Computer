@@ -198,7 +198,8 @@ plugged into the Computer's USB socket and the module power-cycled, and press
 **Connect card & 8mu**. It's a single file and needs no network. The page reads
 the sequence from the card, then sends every edit as it's made.
 
-From the top:
+From the top (each section has a − button by its heading that folds it away,
+and + to bring it back; the browser remembers which are folded):
 
 - **Readouts.** Step, rate, depth, offset, smoothing, morph offset, scale
   and whether the card is clocked, live from the card.

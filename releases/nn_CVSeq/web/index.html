@@ -61,6 +61,13 @@
   #msg.err { color: var(--bad); }
   main { display: grid; gap: 16px; padding: 0 16px 24px; grid-template-columns: minmax(0, 1fr) 340px; }
   @media (max-width: 960px) { main { grid-template-columns: minmax(0, 1fr); } }
+  /* Every card can fold down to its heading (buildCollapsers) */
+  .card > h2 { display: flex; align-items: center; gap: 8px; }
+  .card > h2 .fold { margin-left: auto; padding: 0 7px; min-width: 26px; height: 22px; line-height: 1; font-size: 14px;
+    color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .card > h2 .fold:hover { color: var(--ink); border-color: var(--accent); }
+  .card.folded > :not(h2) { display: none; }
+  .card.folded > h2 { margin-bottom: 0; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: var(--shadow); min-width: 0; }
   canvas { display: block; width: 100%; border-radius: 6px; background: var(--wave-bg); }
   #timeline { height: 220px; cursor: pointer; margin-top: 12px; }
@@ -154,7 +161,7 @@
 <div id="msg"></div>
 
 <main>
-  <div style="display:grid; gap:16px; min-width:0">
+  <div style="display:grid; gap:16px; align-content:start; min-width:0">
     <section class="card">
       <h2>Sequence</h2>
       <div class="readouts">
@@ -200,6 +207,7 @@
     </section>
 
     <section class="card">
+      <h2>Faders</h2>
       <div class="tabs" id="tabs"></div>
       <div class="faders" id="faders"></div>
       <div class="caption" id="page-hint"></div>
@@ -732,6 +740,33 @@ function setLength(n, send) {
 function selectStep(i) { if (state.sel !== i) { state.sel = i; changed(); } }
 
 let renderQueued = false, saveTimer = 0;
+// A button on every card's heading folds the card down to the heading;
+// which cards are folded is remembered in this browser
+function buildCollapsers() {
+  const folded = new Set(store.get('cvseq.folded.v1', []) || []);
+  document.querySelectorAll('section.card').forEach((card) => {
+    const h = card.querySelector(':scope > h2'); if (!h) return;
+    const name = h.textContent.trim();
+    const b = document.createElement('button'); b.className = 'fold'; b.type = 'button';
+    const show = (f) => {
+      card.classList.toggle('folded', f);
+      b.textContent = f ? '+' : '\u2212';
+      b.title = (f ? 'Show ' : 'Hide ') + name; b.setAttribute('aria-label', b.title);
+      b.setAttribute('aria-expanded', String(!f));
+    };
+    show(folded.has(name));
+    b.addEventListener('click', () => {
+      const f = !card.classList.contains('folded');
+      show(f);
+      if (f) folded.add(name); else folded.delete(name);
+      store.set('cvseq.folded.v1', [...folded]);
+      // canvases come back at their proper size
+      presetsDirty = true; requestRender();
+    });
+    h.appendChild(b);
+  });
+}
+
 function requestRender() {
   if (renderQueued) return;
   renderQueued = true;
@@ -1118,7 +1153,7 @@ function init() {
   const lp = last && last.v && cleanPreset(last);
   if (lp) { state.values = lp.v; state.length = lp.len; }
   loadPresets();
-  buildFaders(); buildShapes();
+  buildFaders(); buildShapes(); buildCollapsers();
   $('btn-connect').addEventListener('click', connect);
   $('btn-rescan').addEventListener('click', connect);
   $('btn-read').addEventListener('click', () => { sendRaw(sysex(CMD.HELLO, [])); say('Asked the card for its sequence.'); });
