@@ -170,7 +170,7 @@
       </div>
       <div class="howto">
         <b>8mu buttons A-D</b>, acted on when you let go.
-        <b>Short press:</b> the page (press again for its second page).
+        <b>Short press:</b> the page (press again for its next page: A, B and C have two, D three).
         <b>Long press</b> (half a second): the bank of steps the faders edit, A = 1-8, B = 9-16, C = 17-24, D = 25-32; that fader's LED flashes three times.
         <b>Hold a button and move a fader</b> (a good way, about a sixth of its travel): the last step, button = bank, fader = step within it (hold D + fader 8 = 32 steps, hold A + fader 4 = 4 steps).
         Here: click a row or use the bank buttons; set the length with &minus; and +.
@@ -243,7 +243,7 @@
         <ul class="caption">
           <li>Use Chrome, Edge or another Chromium browser. Safari and iOS browsers can't do WebMIDI with SysEx.</li>
           <li>Press <kbd>Connect card &amp; 8mu</kbd> and allow MIDI with SysEx when the browser asks.</li>
-          <li>8mu buttons A-D choose the page; pressing one again flips to its second page. The tabs here do the same.
+          <li>8mu buttons A-D choose the page; pressing one again moves on to its next page (D has three: Level, Quant, Chance), then back to its first. The tabs here do the same.
             Faders pick up: one does nothing until it reaches the stored value (the dashed line shows where the 8mu's fader is while it waits).</li>
           <li>On-screen faders: drag, or focus one and use the arrow keys. Double-click resets one.</li>
           <li>Direction: hold the module's switch down and turn Main to choose one of the eight directions (tap without turning to step to the next), or use the buttons here.</li>
@@ -266,8 +266,15 @@ const NS = 8;                                   // steps in a bank: one per fade
 const NSTEPS = 32, NBANKS = NSTEPS / NS;        // steps in all, banks
 const LONG_PRESS_MS = 500;
 const LENGTH_MOVE = 20;   // fader travel (of 127) needed while a button is held to set the length, as on the card
-const PAGES = 8;                                // button + 4 * layer
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x43, PROTOCOL_VERSION = 2;
+const PAGES = 9;                                // step settings, numbered as in main.cpp
+// The pages each 8mu button steps through, in order (kButtonPages in main.cpp)
+const BUTTON_PAGES = [[0, 4], [1, 5], [2, 8], [3, 6, 7]];
+const buttonOf = (pg) => BUTTON_PAGES.findIndex(l => l.includes(pg));
+function nextPage(pg, b) {
+  const l = BUTTON_PAGES[b], k = l.indexOf(pg);
+  return k < 0 ? l[0] : l[(k + 1) % l.length];
+}
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x43, PROTOCOL_VERSION = 3;
 const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9, RESTART: 10, DIRECTION: 11, BANK: 12, LENGTH: 13 };
 const DIRECTIONS = ['Step forward', 'Step ping-pong', 'Step backward', 'True ping-pong', 'True reverse',
   'Random step', 'Random reverse', 'True random'];
@@ -302,10 +309,11 @@ const PAGE_INFO = [
   { name: 'Level',   letter: 'D',  hint: 'Each step’s level, multiplying its shape.' },
   { name: 'Start',   letter: 'A2', hint: 'Level at the start of the step. With END it makes a ramp across the step that multiplies the shape and LEVEL. Default 100%.' },
   { name: 'End',     letter: 'B2', hint: 'Level at the end of the step. With START it makes a ramp across the step that multiplies the shape and LEVEL. Default 100%.' },
-  { name: 'Quant',   letter: 'C2', hint: 'Digital stepping: fully down is smooth; above, the step is sampled into held stairs, 32 down to 1 at the top. With a scale chosen (Main knob, switch up), those steps also snap to the scale\u2019s notes.' },
-  { name: 'Chance',  letter: 'D2', hint: 'The chance a step plays each time round. A step that doesn’t play holds the last output for its length and gives no trigger. Default always.' },
+  { name: 'Quant',   letter: 'D2', hint: 'Digital stepping: fully down is smooth; above, the step is sampled into held stairs, 32 down to 1 at the top. With a scale chosen (Main knob, switch up), those steps also snap to the scale\u2019s notes.' },
+  { name: 'Chance',  letter: 'D3', hint: 'The chance a step plays each time round. A step that doesn’t play holds the last output for its length and gives no trigger. Default always.' },
+  { name: 'Offset',  letter: 'C2', hint: 'A voltage added to the step: -5V (down) to +5V (up), 0V at the centre (the default). Depth scales it with the rest, and with a scale chosen a quantised step still snaps to the scale. With LEVEL at 0 the step is just its offset, a plain stepped voltage.' },
 ];
-const TAB_ORDER = [0, 4, 1, 5, 2, 6, 3, 7];
+const TAB_ORDER = [0, 4, 1, 5, 2, 8, 3, 6, 7];
 const SHAPE_NAMES = ['High', 'Middle', 'Low', 'Ramp up', 'Ramp down', 'Triangle', 'Valley', 'Hump',
   'Sine', 'Cosine', 'Exp rise', 'Exp rise x2', 'Exp rise x3', 'Exp fall', 'Exp fall x2', 'Exp fall x3',
   'Log rise', 'Log fall', 'S rise', 'S fall', 'Square', 'Square late', 'Pulse', 'Pulse late',
@@ -323,6 +331,7 @@ const DEFAULT_BANK = [
   [127, 127, 127, 127, 127, 127, 127, 127],
   [0, 0, 0, 0, 0, 0, 0, 0],
   [127, 127, 127, 127, 127, 127, 127, 127],
+  [64, 64, 64, 64, 64, 64, 64, 64],
 ];
 const to32 = (r) => Array.from({ length: NSTEPS }, (_, i) => r[i % r.length]);
 const DEFAULT_VALUES = DEFAULT_BANK.map(to32);
@@ -331,6 +340,8 @@ const DEFAULT_VALUES = DEFAULT_BANK.map(to32);
 const pct = (v) => v >= 127 ? 1 : v / 127;               // Q12() in main.cpp
 const shapeOf = (v) => (v * NSHAPES) >> 7;
 const quantN = (v) => v === 0 ? 0 : 32 - Math.floor((v - 1) * 31 / 126);
+// OFFSET as -1 to 1 (-5V to +5V before depth), 63-65 reading as 0 (OffsetQ12)
+const offsetOf = (v) => (v > 65 ? Math.trunc((v - 65) * 4096 / 62) : v < 63 ? -Math.trunc((63 - v) * 4096 / 63) : 0) / 4096;
 
 // ============================================================================
 // The shapes: shapes.h's definitions, in JavaScript
@@ -387,7 +398,7 @@ function stepValue(values, i, u, morphOffset) {
   const m = Math.min(1, Math.max(0, pct(values[2][i]) + (morphOffset || 0)));
   const a = shapeAt(shapeOf(values[0][i]), u), b = shapeAt(shapeOf(values[1][i]), u);
   const st = pct(values[4][i]), en = pct(values[5][i]);
-  return (a + (b - a) * m) * (st + (en - st) * u) * pct(values[3][i]);
+  return (a + (b - a) * m) * (st + (en - st) * u) * pct(values[3][i]) + offsetOf(values[8][i]);
 }
 
 // ============================================================================
@@ -430,6 +441,7 @@ function describe(page, v) {
     case 2: return v === 0 ? 'shape 1' : v >= 127 ? 'shape 2' : Math.round(pct(v) * 100) + '% to 2';
     case 6: return v === 0 ? 'smooth' : quantN(v) + (quantN(v) === 1 ? ' value' : ' stairs') + (state.live.scale ? ', ' + SCALES[state.live.scale][0] : '');
     case 7: return v === 0 ? 'never' : v >= 127 ? 'always' : Math.round(pct(v) * 100) + '%';
+    case 8: { const o = offsetOf(v) * 5; return o === 0 ? '0 V' : (o > 0 ? '+' : '\u2212') + Math.abs(o).toFixed(2) + ' V'; }
     default: return Math.round(pct(v) * 100) + '%';
   }
 }
@@ -467,18 +479,28 @@ function timelineRows() {
   return { rows, height: y - ROW_GAP };
 }
 
+// The lowest and highest values the steps in the sequence can reach: 0 to 1
+// (0-5V at full depth), widened by their OFFSETs
+function valueRange(v, len) {
+  let lo = 0, hi = 1;
+  for (let i = 0; i < len; i++) { const o = offsetOf(v[8][i]); lo = Math.min(lo, o); hi = Math.max(hi, 1 + o); }
+  return { lo, hi };
+}
+
 function drawTimeline() {
   const cv = $('timeline'), { rows, height } = timelineRows();
   if (cv.style.height !== height + 'px') cv.style.height = height + 'px';
   const { ctx, w: W } = setupCanvas(cv);
   ctx.clearRect(0, 0, W, height);
   const v = state.values, L = state.live, bw = W / NS, mo = morphOffsetLive();
+  // Vertical range: 0 to 5V, widened to take in any step's OFFSET
+  const { lo, hi } = valueRange(v, state.length), yOf = (val, bot, span) => bot - (val - lo) / (hi - lo) * span;
 
   rows.forEach((row, r) => {
     const top = row.y + 18, bot = row.y + row.h - 18, span = bot - top;
     if (row.full) {
       ctx.strokeStyle = cssVar('--grid'); ctx.lineWidth = 1;
-      for (const f of [0, 0.5, 1]) { const y = bot - f * span; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+      for (const f of [0, 0.5, 1]) { const y = yOf(f, bot, span); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
     }
     for (let c = 0; c < NS; c++) {
       const i = r * NS + c, x0 = c * bw, col = stepColor(c);
@@ -493,13 +515,14 @@ function drawTimeline() {
       }
       const chance = pct(v[7][i]);
       ctx.fillStyle = col; ctx.globalAlpha = 0.05 + 0.08 * chance; ctx.fillRect(x0 + 1, top, bw - 2, span); ctx.globalAlpha = 1;
-      // the step's curve, filled beneath
-      ctx.beginPath(); ctx.moveTo(x0 + 1, bot);
-      for (let px = 0; px <= bw - 2; px++) { const u = px / (bw - 2); ctx.lineTo(x0 + 1 + px, bot - shownValue(v, i, u, mo) * span); }
-      ctx.lineTo(x0 + bw - 1, bot); ctx.closePath();
+      // the step's curve, filled to 0V
+      const zero = yOf(0, bot, span);
+      ctx.beginPath(); ctx.moveTo(x0 + 1, zero);
+      for (let px = 0; px <= bw - 2; px++) { const u = px / (bw - 2); ctx.lineTo(x0 + 1 + px, yOf(shownValue(v, i, u, mo), bot, span)); }
+      ctx.lineTo(x0 + bw - 1, zero); ctx.closePath();
       ctx.fillStyle = col; ctx.globalAlpha = 0.18 * (0.3 + 0.7 * chance); ctx.fill(); ctx.globalAlpha = 1;
       ctx.beginPath();
-      for (let px = 0; px <= bw - 2; px++) { const u = px / (bw - 2), y = bot - shownValue(v, i, u, mo) * span;
+      for (let px = 0; px <= bw - 2; px++) { const u = px / (bw - 2), y = yOf(shownValue(v, i, u, mo), bot, span);
         if (px === 0) ctx.moveTo(x0 + 1 + px, y); else ctx.lineTo(x0 + 1 + px, y); }
       ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.globalAlpha = 0.35 + 0.65 * chance; ctx.stroke(); ctx.globalAlpha = 1;
       // labels
@@ -509,7 +532,8 @@ function drawTimeline() {
       ctx.fillStyle = cssVar('--muted'); ctx.font = '11px system-ui';
       if (bw > 70) ctx.fillText(SHAPE_NAMES[shapeOf(v[0][i])] + (v[2][i] > 0 ? ' \u2192 ' + SHAPE_NAMES[shapeOf(v[1][i])] : ''), nameX, top - 5, x0 + bw - 4 - nameX);
       if (chance < 1) { ctx.textAlign = 'right'; ctx.fillText(describe(7, v[7][i]), x0 + bw - 4, bot + 13); ctx.textAlign = 'left'; }
-      if (quantN(v[6][i]) > 0 && bw > 40) ctx.fillText(describe(6, v[6][i]), x0 + 4, bot + 13);
+      const below = [quantN(v[6][i]) > 0 ? describe(6, v[6][i]) : '', offsetOf(v[8][i]) ? describe(8, v[8][i]) : ''].filter(Boolean).join(', ');
+      if (below && bw > 40) ctx.fillText(below, x0 + 4, bot + 13, bw - (chance < 1 ? 44 : 8));
       // selection and current step
       if (i === state.sel) { ctx.strokeStyle = cssVar('--warm'); ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(x0 + 1, top, bw - 2, span); ctx.setLineDash([]); }
       if (i === L.cur) { ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2; ctx.strokeRect(x0 + 1, top, bw - 2, span); }
@@ -532,7 +556,7 @@ function drawTimeline() {
     }
   }
   const stepS = L.clocked ? null : Math.pow(2, -L.rateOct);
-  $('timeline-caption').textContent = 'Steps 1-32, eight to a row; grey boxes are past the end of the sequence. Each step\u2019s shape at its level, before depth, offset and smoothing (0 to 5V at full depth). Faint steps have less than full chance.' +
+  $('timeline-caption').textContent = 'Steps 1-32, eight to a row; grey boxes are past the end of the sequence. Each step\u2019s shape at its level plus its offset, before depth, the offset knob and smoothing (0 to 5V at full depth, between the outer lines; the rows stretch to fit steps offset beyond them). Faint steps have less than full chance.' +
     (stepS ? ' One step: ' + fmtTime(stepS) + '; the sequence of ' + state.length + ': ' + fmtTime(stepS * state.length) + '.' : ' One step per clock.');
 }
 
@@ -610,7 +634,7 @@ function buildFaders() {
   const tabs = $('tabs');
   TAB_ORDER.forEach((i) => {
     const p = PAGE_INFO[i];
-    const t = document.createElement('button'); t.className = 'tab' + (i >= 4 ? ' second' : ''); t.dataset.page = i;
+    const t = document.createElement('button'); t.className = 'tab' + (BUTTON_PAGES[buttonOf(i)][0] !== i ? ' second' : ''); t.dataset.page = i;
     t.innerHTML = '<b>' + p.letter + '</b>' + p.name;
     t.addEventListener('click', () => selectPage(i, true)); tabs.appendChild(t);
   });
@@ -754,7 +778,7 @@ function eightmuButton(b, down) {
   p.down = false;
   if (!p.setLength) {
     if (performance.now() - p.t0 >= LONG_PRESS_MS) selectBank(b, true);
-    else selectPage((state.page & 3) === b ? state.page ^ 4 : b, true);
+    else selectPage(nextPage(state.page, b), true);
   }
   for (let i = 0; i < NS; i++) mu.engaged[i] = false;
   reengage();
@@ -977,18 +1001,21 @@ const store = {
   get(k, d) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
 };
-// A preset: 8 pages of 32 step values and a length.  Presets from before 32
+// A preset: 9 pages of 32 step values and a length.  Presets from before 32
 // steps have 8 values a page and no length: their steps repeat to fill 32,
-// and they play 8.
+// and they play 8.  Presets from before OFFSET have 8 pages: their offsets
+// are all 0V.
 function cleanPreset(o) {   // hoisted: BUILTIN below uses it
-  if (!o || typeof o !== 'object' || !Array.isArray(o.v) || o.v.length !== PAGES) return null;
-  const v = o.v.map(r => Array.isArray(r) && (r.length === NS || r.length === NSTEPS)
+  if (!o || typeof o !== 'object' || !Array.isArray(o.v) || (o.v.length !== PAGES && o.v.length !== PAGES - 1)) return null;
+  const rows = o.v.length === PAGES ? o.v : [...o.v, DEFAULT_BANK[8]];
+  const v = rows.map(r => Array.isArray(r) && (r.length === NS || r.length === NSTEPS)
     ? to32(r.map(x => clamp(Math.round(+x) || 0, 0, 127))) : null);
   if (v.some(r => !r)) return null;
   const len = clamp(Math.round(+o.len) || NS, 1, NSTEPS);
   return { name: String(o.name || 'Preset').slice(0, 60), v, len };
 }
-// Built in: [shape1, shape2, morph, level, start, end, quant, chance]
+// Built in: [shape1, shape2, morph, level, start, end, quant, chance, offset]
+// (offset left out = all 0V)
 const S = shapeFader, ALL = (x) => new Array(NS).fill(x);
 const BUILTIN = [
   { name: 'Default', v: DEFAULT_VALUES },
@@ -997,6 +1024,7 @@ const BUILTIN = [
   { name: 'Triangle LFO', v: [ALL(S(3)), ALL(S(3)), ALL(0), ALL(127), [0, 32, 64, 96, 127, 96, 64, 32], [32, 64, 96, 127, 96, 64, 32, 0], ALL(0), ALL(127)] },
   { name: 'Stepped random', v: [[38, 39, 38, 39, 38, 39, 38, 39].map(S), ALL(S(38)), ALL(0), [127, 110, 90, 127, 100, 80, 127, 90], ALL(127), ALL(127), [80, 100, 120, 80, 100, 120, 127, 60], ALL(110)] },
   { name: 'Gated pulses', v: [ALL(S(22)), ALL(S(20)), [0, 127, 0, 64, 0, 127, 0, 32], ALL(127), ALL(127), [127, 64, 127, 64, 127, 64, 127, 64], ALL(0), [127, 80, 127, 50, 127, 80, 127, 30]] },
+  { name: 'Offset melody', len: 8, v: [ALL(S(0)), ALL(S(0)), ALL(0), ALL(0), ALL(127), ALL(127), ALL(127), ALL(127), [64, 76, 70, 82, 64, 88, 76, 70]] },
   { name: 'Swells', v: [ALL(S(35)), ALL(S(7)), [0, 32, 64, 96, 127, 96, 64, 32], [60, 80, 100, 127, 100, 80, 60, 40], ALL(127), ALL(127), ALL(0), ALL(127)] },
 ].map(cleanPreset);
 let userPresets = [];
@@ -1013,10 +1041,10 @@ function applyPreset(pr) {
 function presetThumb(cv, values, len) {
   const { ctx, w: W, h: H } = setupCanvas(cv);
   ctx.clearRect(0, 0, W, H);
-  const bw = W / len;
+  const bw = W / len, { lo, hi } = valueRange(values, len);
   for (let i = 0; i < len; i++) {
     ctx.strokeStyle = stepColor(i % NS); ctx.lineWidth = 1; ctx.beginPath();
-    for (let px = 0; px <= bw; px++) { const y = H - 1 - stepValue(values, i, px / bw, 0) * (H - 2);
+    for (let px = 0; px <= bw; px++) { const y = H - 1 - (stepValue(values, i, px / bw, 0) - lo) / (hi - lo) * (H - 2);
       if (px === 0) ctx.moveTo(i * bw + px, y); else ctx.lineTo(i * bw + px, y); }
     ctx.stroke();
   }

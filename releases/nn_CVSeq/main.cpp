@@ -9,8 +9,9 @@
 // The 32 steps are in four banks of eight, and the 8mu's eight faders edit one
 // bank at a time.  Its four buttons, acted on when released:
 //
-//   Short press  the page, below.  Pressing a button again flips to its
-//                second page; another button always starts on its first.
+//   Short press  the page, below.  Pressing a button again moves on to its
+//                next page (D has three), and round to its first; another
+//                button always starts on its first.
 //   Long press   (half a second or more) the bank: A = steps 1-8, B = 9-16,
 //                C = 17-24, D = 25-32.  The LED of fader 1-4 for that bank
 //                flashes three times.
@@ -19,16 +20,18 @@
 //                32 steps, hold A and move fader 4 for 4).  The faders up to
 //                the last step light briefly.  The sequence starts 8 long.
 //
-//             First page                          Second page
-//   Button A  SHAPE 1  first shape (of 40)        START  level at the step's start
-//   Button B  SHAPE 2  second shape (of 40)       END    level at the step's end
-//   Button C  MORPH    shape 1 to shape 2         QUANT  digital stepping of the shape
-//   Button D  LEVEL    step level                 CHANCE chance the step plays
+//             First page                Second page                     Third page
+//   Button A  SHAPE 1  first shape      START  level at the step's start
+//   Button B  SHAPE 2  second shape     END    level at the step's end
+//   Button C  MORPH    shape 1 to 2     OFFSET the step's voltage offset
+//   Button D  LEVEL    step level       QUANT  digital stepping          CHANCE chance the step plays
 //
 // START and END make a ramp across the step that multiplies the shape (and
-// LEVEL).  QUANT samples the step into fewer, held stairs as it rises, from
-// smooth (fully down) to a single held value (top).  A step that loses its
-// CHANCE roll holds the last output for its length, and gives no trigger.
+// LEVEL).  OFFSET adds -5V (down) to +5V (up) to the step, 0V at the centre;
+// depth scales it with the rest.  QUANT samples the step into fewer, held
+// stairs as it rises, from smooth (fully down) to a single held value (top).
+// A step that loses its CHANCE roll holds the last output for its length, and
+// gives no trigger.
 //
 // After a page change the faders 'pick up': a fader only takes over its step
 // once it has been moved to (or across) the value already stored.  The 8mu's
@@ -110,9 +113,11 @@ public:
 	static constexpr int kSteps = 32;     // steps in all
 	static constexpr int kBankSize = 8;   // steps a bank, one per fader
 	static constexpr int kBanks = kSteps / kBankSize;
-	// Page = button + 4 * layer
+	// A page is one step setting.  The numbers are the protocol's (and the
+	// web editor's presets'), so OFFSET, added later, comes last.
 	enum Page {PageShape1, PageShape2, PageMorph, PageLevel,
-		PageStart, PageEnd, PageQuant, PageChance, kPages};
+		PageStart, PageEnd, PageQuant, PageChance, PageOffset, kPages};
+	static_assert(sysex::kNumValues == kPages * 32, "protocol carries every page");
 	enum Direction {StepForward, StepPingPong, StepBackward, TruePingPong,
 		TrueReverse, RandomStep, RandomReverse, TrueRandom, kDirections};
 
@@ -156,6 +161,7 @@ public:
 			params[PageEnd][i] = 127 << 5;
 			params[PageQuant][i] = 0;
 			params[PageChance][i] = 127 << 5;
+			params[PageOffset][i] = 64 << 5;
 		}
 		seqLength = kBankSize;
 	}
@@ -230,7 +236,7 @@ public:
 			if (phase < old) Advance();
 		}
 
-		// The step's value, 0-4095
+		// The step's value, 0-4095 for 0-5V before depth, plus its OFFSET
 		int32_t val;
 		if (holding)
 		{
@@ -249,7 +255,7 @@ public:
 			int32_t v = v1 + (((v2 - v1) * morph) >> 12);
 			int32_t t = int32_t(u >> 20); // 0-4095 through the step
 			int32_t env = startLevel + (((endLevel - startLevel) * t) >> 12);
-			val = (((v * env) >> 12) * level) >> 12;
+			val = ((((v * env) >> 12) * level) >> 12) + stepOffset;
 			lastVal = val;
 		}
 
@@ -339,6 +345,7 @@ private:
 	// The current step, refreshed at control rate so edits are heard live
 	const int16_t *shape1 = gShapes[0], *shape2 = gShapes[0];
 	int32_t morph = 0, level = 4096, startLevel = 4096, endLevel = 4096; // Q12
+	int32_t stepOffset = 0;           // Q12, -4096 to 4096 for -5V to +5V
 	int quantN = 0;           // 0 = smooth, else stairs per step
 	uint32_t quantStep = 0;
 
@@ -416,6 +423,48 @@ private:
 	}
 
 	// Stored fader value (0-4064) to 0-4096, so a fader at the top is 100%
+	// OFFSET: a fader value (0-4095) as -4096 to 4096 (-5V to +5V before
+	// depth), with 63-65 of 127 at the centre reading as exactly 0
+	static int32_t OffsetQ12(int32_t raw)
+	{
+		int32_t v = raw >> 5;
+		if (v > 65) return ((v - 65) * 4096) / 62;
+		if (v < 63) return -((63 - v) * 4096) / 63;
+		return 0;
+	}
+
+	// The pages each button steps through, in order
+	static constexpr int kMaxLayers = 3;
+	static constexpr int8_t kButtonPages[4][kMaxLayers] = {
+		{PageShape1, PageStart, -1},
+		{PageShape2, PageEnd, -1},
+		{PageMorph, PageOffset, -1},
+		{PageLevel, PageQuant, PageChance},
+	};
+	// The button (0-3) a page is on, and its place in that button's list
+	static int ButtonOf(int pg, int *layer = nullptr)
+	{
+		for (int b = 0; b < 4; b++)
+			for (int l = 0; l < kMaxLayers; l++)
+				if (kButtonPages[b][l] == pg)
+				{
+					if (layer) *layer = l;
+					return b;
+				}
+		if (layer) *layer = 0;
+		return 0;
+	}
+	// A short press of button b: its next page if one of its pages is
+	// showing, otherwise its first
+	static int NextPage(int pg, int b)
+	{
+		int layer;
+		if (ButtonOf(pg, &layer) != b) return kButtonPages[b][0];
+		int next = layer + 1;
+		if (next >= kMaxLayers || kButtonPages[b][next] < 0) next = 0;
+		return kButtonPages[b][next];
+	}
+
 	static int32_t Q12(int32_t v)
 	{
 		return v >= 4064 ? 4096 : (v * 4096) / 4064;
@@ -450,6 +499,7 @@ private:
 		level = Q12(params[PageLevel][cur]);
 		startLevel = Q12(params[PageStart][cur]);
 		endLevel = Q12(params[PageEnd][cur]);
+		stepOffset = OffsetQ12(params[PageOffset][cur]);
 		// QUANT: down = smooth, then 32 stairs per step down to 1 at the top
 		int q = params[PageQuant][cur] >> 5;
 		int n = q == 0 ? 0 : 32 - ((q - 1) * 31) / 126;
@@ -642,9 +692,11 @@ private:
 			}
 			else if (conn)
 			{
-				// First page lit; second page blinks slowly
-				bool second = page >= 4;
-				LedOn(i, (page & 3) == i && (!second || pageBlink < 450));
+				// First page lit; second page blinks slowly, third fast
+				int layer;
+				int b = ButtonOf(page, &layer);
+				bool lit = layer == 0 || (layer == 1 ? pageBlink < 450 : pageBlink % 300 < 150);
+				LedOn(i, b == i && lit);
 			}
 			else LedBrightness(i, (cur & 3) == i ? (cur < 4 ? 4095 : 1024) : 0);
 		}
@@ -850,9 +902,9 @@ private:
 					}
 					else
 					{
-						// Same button again flips between its two pages;
+						// Same button again moves on through its pages;
 						// another button starts on its first page
-						page = (page & 3) == b ? (page ^ 4) : b;
+						page = NextPage(page, b);
 					}
 				}
 				for (int i = 0; i < kBankSize; i++) latched[i] = false;

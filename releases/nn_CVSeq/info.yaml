@@ -1,9 +1,9 @@
 draft: true
 Name: CVSeq
-short-description: "A 32-step CV sequencer after the Performer in NI Massive - each step a morph between two of 40 shapes, with level ramps, quantise and chance - edited from a Music Thing 8mu, with a web editor"
+short-description: "A 32-step CV sequencer after the Performer in NI Massive - each step a morph between two of 40 shapes, with level ramps, offset, quantise and chance - edited from a Music Thing 8mu, with a web editor"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
-Version: "0.5.1"
+Version: "0.6.0"
 Status: Beta
 License: MIT
 Editor: web
@@ -20,7 +20,7 @@ contact:
 
 uf2:
   - path: UF2/cvseq.uf2
-    name: CVSeq 0.5.1
+    name: CVSeq 0.6.0
 
 tags:
   - sequencer
@@ -37,14 +37,15 @@ summary: |
   and the steps run on one after another as one continuous voltage.<br><br>
 
   Every step has two shapes from a library of 40 and a morph between them,
-  a level, a start and an end level that ramp across the step, a quantise
-  that turns the shape into held stairs, and a chance that it plays at all.
+  a level, a start and an end level that ramp across the step, an offset
+  of -5V to +5V, a quantise that turns the shape into held stairs, and a
+  chance that it plays at all.
   A step that loses its chance holds the voltage where it was.<br><br>
 
   The sequence is edited from a Music Thing 8mu: its eight faders edit one
   bank of eight steps at a time, and its four buttons choose the page - A is
-  SHAPE 1, B SHAPE 2, C MORPH and D LEVEL - with a second press of each
-  giving START, END, QUANT and CHANCE. A long press of a button chooses the
+  SHAPE 1, B SHAPE 2, C MORPH and D LEVEL - with further presses giving
+  START (A), END (B), OFFSET (C), and QUANT then CHANCE (D). A long press of a button chooses the
   bank (A steps 1-8 to D steps 25-32), and holding a button while moving a
   fader sets the last step, from 1 to 32; it starts at 8. Faders pick up, so changing page never makes the
   voltage jump, and the 8mu's LEDs show the stored values. Tilting the 8mu
@@ -170,7 +171,7 @@ controls:
       items:
         - id: LED0
           name: Page A / step
-          description: With an 8mu or the web editor, LEDs 0-3 show the button whose page is selected (A-D), steady for its first page and blinking slowly for its second. Without one, they show the playing step - bright for steps 1-4, dim for 5-8.
+          description: With an 8mu or the web editor, LEDs 0-3 show the button whose page is selected (A-D), steady for its first page, blinking slowly for its second and quickly for its third. Without one, they show the playing step - bright for steps 1-4, dim for 5-8.
         - id: LED1
           name: Page B / step
         - id: LED2

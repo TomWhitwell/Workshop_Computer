@@ -12,19 +12,27 @@ modes, knob pickup, web editor and presets.
 
 ## What a step is
 
-Each step has eight settings, on the 8mu's eight pages:
+Each step has nine settings, on the 8mu's nine pages:
 
-| Button | First page | Second page |
-|---|---|---|
-| A | **SHAPE 1**: one of 40 shapes | **START**: level at the start of the step |
-| B | **SHAPE 2**: one of 40 shapes | **END**: level at the end of the step |
-| C | **MORPH**: from shape 1 (down) to shape 2 (up) | **QUANT**: digital stepping of the shape |
-| D | **LEVEL**: the step's level | **CHANCE**: the chance the step plays |
+| Button | First page | Second page | Third page |
+|---|---|---|---|
+| A | **SHAPE 1**: one of 40 shapes | **START**: level at the start of the step | |
+| B | **SHAPE 2**: one of 40 shapes | **END**: level at the end of the step | |
+| C | **MORPH**: from shape 1 (down) to shape 2 (up) | **OFFSET**: a voltage added to the step | |
+| D | **LEVEL**: the step's level | **QUANT**: digital stepping of the shape | **CHANCE**: the chance the step plays |
 
 A step's voltage is the morph between its two shapes, times its level, times a
-ramp from its START level to its END level across the step. So START and END
-(both 100% by default) let a step fade in or out, or tilt a flat shape into a
-ramp.
+ramp from its START level to its END level across the step, plus its OFFSET.
+So START and END (both 100% by default) let a step fade in or out, or tilt a
+flat shape into a ramp.
+
+**OFFSET** adds −5 V (fader down) to +5 V (fader up) to the step, with the
+centre at 0 V, the default. The middle three fader positions all read as
+exactly 0 V, so it's easy to find. Depth scales the offset along with the rest
+of the step, and the offset knob is added on top. With LEVEL at zero a step is
+just its offset, so the faders become a plain stepped-voltage sequencer. With
+a scale chosen, a quantised step still snaps to the scale, offset and all. The
+output is limited to ±6 V, so a step at full level with a big offset clips.
 
 **QUANT** turns the step into held stairs: fully down is smooth, then 32 stairs
 across the step, fewer as it rises, down to one held value at the top.
@@ -74,7 +82,7 @@ decides what it does:
 
 | Do this | To |
 |---|---|
-| **Short press** A-D | Choose the page. Press the same button again for its second page (and again to flip back); another button always starts on its first page |
+| **Short press** A-D | Choose the page. Press the same button again for its next page, and round to its first again: A, B and C have two pages, D three (LEVEL, QUANT, CHANCE). Another button always starts on its first page |
 | **Long press** A-D (half a second) | Choose the bank the faders edit: A = steps 1-8, B = 9-16, C = 17-24, D = 25-32. The LED of fader 1-4 for that bank flashes three times |
 | **Hold** A-D **and move a fader** | Set the last step: the button is the bank, the fader the step within it. The fader has to move a good way (about a sixth of its travel) to count, so a fader twitching during a long press doesn't change the length. Hold D and move fader 8 for 32 steps; hold A and move fader 4 for 4 steps. The faders up to the last step light briefly. The fader movement doesn't edit anything |
 
@@ -88,7 +96,8 @@ changing page never makes the voltage jump.
 
 **LEDs.** The 8mu's LEDs show the stored values on the current page, and the
 playing step is lit fully. On the Computer, LEDs 1-4 show which button's page
-is selected: lit steadily for its first page, blinking slowly for its second.
+is selected: lit steadily for its first page, blinking slowly for its second
+and quickly for its third.
 
 **Motion.** Tilting the 8mu forward and back adds to every step's MORPH. The
 first 15 degrees or so either side of flat are ignored, so holding it in your
@@ -186,7 +195,8 @@ the sequence from the card, then sends every edit as it's made.
   faders. Steps in the sequence are drawn full size as one voltage, with a
   playhead that runs backwards through a reversed step; steps past the end
   shrink to small grey boxes, so on load there are eight steps and three rows
-  of boxes. The bank the faders edit has an orange box round its row. Faint
+  of boxes. With any step offset below 0 V or above 5 V, the rows stretch to fit
+  it. The bank the faders edit has an orange box round its row. Faint
   steps have less than full chance. Click a step to select it (and its row's
   bank).
 - **Bank and length.** Bank buttons and −/+ for the length, with the 8mu's
@@ -196,19 +206,21 @@ the sequence from the card, then sends every edit as it's made.
 - **Direction** buttons set the card's direction, and follow it when the
   switch is tapped.
 - **CV Out 1.** A scope of the last four seconds of the output.
-- **Faders.** Eight pages, each showing the selected bank's eight steps, as on
+- **Faders.** Nine pages, each showing the selected bank's eight steps, as on
   the 8mu.
 - **Shapes.** All 40. Click one to give it to the selected step.
 - **8mu on the computer.** Its faders, buttons and tilt drive the page, with
   the same pickup as the card, and the page lights its LEDs as the card would.
-- **Presets.** Seven built in, plus your own, kept in the browser. Save,
+- **Presets.** Eight built in (Offset melody shows OFFSET as a step sequencer), plus your own, kept in the browser. Save,
   update, rename, delete, export and import as JSON. Loading one sends it to
   the card.
 
 Without a card the page still edits, previews and keeps presets, with a
 simulated playhead at one step a second.
 
-The protocol is documented in [`sysex.h`](sysex.h).
+The protocol is documented in [`sysex.h`](sysex.h). The card and the editor
+must be the same version: this one (protocol 3, with OFFSET) won't talk to
+older firmware. Presets saved before OFFSET still load, with every offset 0 V.
 
 ## Building
 
