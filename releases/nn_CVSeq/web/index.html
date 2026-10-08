@@ -101,6 +101,12 @@
   .fader { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; border-radius: 6px; padding: 4px 0; cursor: pointer; }
   .fader.cur { background: var(--accent-soft); }
   .fader.sel { outline: 2px solid var(--warm); outline-offset: -2px; }
+  .fader.picked { outline: 1px dashed var(--warm); outline-offset: -2px; }
+  /* Copy, paste and randomise */
+  .opt.on { background: var(--warm-soft); border-color: var(--warm); }
+  .info { font-size: 12px; color: var(--muted); }
+  .keys { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; }
+  kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--panel); color: var(--ink); white-space: nowrap; }
   .fader .name { font-size: 12px; color: var(--muted); }
   .fader .slot { position: relative; height: 150px; width: 32px; }
   .fader input[type=range] {
@@ -206,6 +212,54 @@
       </div>
     </section>
 
+    <section class="card" id="edit-card">
+      <h2>Copy, paste &amp; randomise</h2>
+      <div class="dirs" role="group" aria-label="Select steps">
+        <span class="k">Select</span>
+        <button id="sel-row" title="Every step in the selected step's row (double-click a step)">Row</button>
+        <button id="sel-col" title="The same fader in all four banks (Alt+click a step)">Column</button>
+        <button id="sel-seq" title="Every step in the sequence, 1 to its length">Sequence</button>
+        <button id="sel-all" title="All 32 steps">All 32</button>
+        <button id="sel-none" title="Just the step last clicked (Esc)">Clear</button>
+        <span class="info" id="sel-info"></span>
+      </div>
+      <div class="dirs" role="group" aria-label="Clipboard">
+        <span class="k">Clipboard</span>
+        <button id="btn-copy" title="Copy the selected steps, every setting (Ctrl/\u2318+C)">Copy</button>
+        <button id="btn-paste" title="Paste onto the selection, every setting (Ctrl/\u2318+V)">Paste</button>
+        <button id="btn-paste-page" title="Paste only the page the faders show (Ctrl/\u2318+Shift+V)">Paste this page only</button>
+        <button id="btn-undo" title="Undo the last paste or randomise (Ctrl/\u2318+Z)" disabled>Undo</button>
+        <span class="info" id="clip-info">Nothing copied yet.</span>
+      </div>
+      <div class="dirs" role="group" aria-label="What to randomise">
+        <span class="k">Randomise</span>
+        <button class="opt rmode on" data-mode="shape" title="Shape 1, shape 2 and morph">Shape</button>
+        <button class="opt rmode" data-mode="levels" title="The shape, plus LEVEL, START, END and OFFSET, fitted to the range">Shape + levels</button>
+        <button class="opt rmode" data-mode="all" title="Every setting: the shape, LEVEL, START, END, OFFSET, QUANT and CHANCE">Everything</button>
+        <span class="k" style="margin-left:10px">Keep within</span>
+        <button class="opt rrange on" data-range="uni" title="Each step stays between 0V and +5V (at full depth, before the offset knob)">0 to +5 V</button>
+        <button class="opt rrange" data-range="bi" title="Each step stays between -5V and +5V (at full depth, before the offset knob)">&minus;5 to +5 V</button>
+      </div>
+      <div class="dirs" role="group" aria-label="Randomise steps">
+        <span class="k">Apply to</span>
+        <button class="rnd" data-scope="sel">Selected steps</button>
+        <button class="rnd" data-scope="row">Row</button>
+        <button class="rnd" data-scope="col">Column</button>
+        <button class="rnd" data-scope="seq">Whole sequence</button>
+      </div>
+      <div class="howto keys">
+        <span><b>Click</b> a step</span><span>select it</span>
+        <span><kbd>Shift</kbd> + click</span><span>select a range, from the last step clicked</span>
+        <span><kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> + click</span><span>add a step to the selection, or take it out</span>
+        <span><b>Double-click</b> a step</span><span>select its row (bank)</span>
+        <span><kbd>Alt</kbd> + click</span><span>select its column (the same fader in every bank)</span>
+        <span><kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> + <kbd>C</kbd> &nbsp; <kbd>V</kbd></span><span>copy, paste (every setting); add <kbd>Shift</kbd> to paste only the page the faders show</span>
+        <span><kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> + <kbd>Z</kbd></span><span>undo a paste or randomise</span>
+        <span><kbd>Esc</kbd></span><span>back to one selected step</span>
+        <span><b>Pasting</b></span><span>one copied step fills every selected step; several fill the same number of selected steps in order, or else keep their pattern starting from the first selected step</span>
+      </div>
+    </section>
+
     <section class="card">
       <h2>Faders</h2>
       <div class="tabs" id="tabs"></div>
@@ -222,7 +276,7 @@
     <section class="card">
       <h2>Shapes</h2>
       <div class="shapes" id="shapes"></div>
-      <div class="caption">Click a shape to give it to the selected step (orange outline): as its shape 2 while the Shape 2 page is showing, otherwise as its shape 1. The selected step's shape 1 has a solid outline and its shape 2 a dashed one. Click a step on the timeline, or a fader, to select it.</div>
+      <div class="caption">Click a shape to give it to the selected step (orange outline), or to every selected step: as its shape 2 while the Shape 2 page is showing, otherwise as its shape 1. The selected step's shape 1 has a solid outline and its shape 2 a dashed one. Click a step on the timeline, or a fader, to select it.</div>
     </section>
   </div>
 
@@ -416,7 +470,9 @@ function stepValue(values, i, u, morphOffset) {
 const state = {
   values: DEFAULT_VALUES.map(r => r.slice()),
   page: 0,
-  sel: 0,                                       // selected step, 0-31
+  sel: 0,                                       // selected step, 0-31 (the one last clicked)
+  selSet: new Set([0]),                         // every selected step, sel among them
+  anchor: 0,                                    // where a Shift+click range starts
   bank: 0,                                      // which 8 steps the faders edit
   length: NS,                                   // the sequence plays steps 0..length-1
   // live, from the card's STATUS (or simulated when there's no card)
@@ -499,6 +555,15 @@ function valueRange(v, len) {
   return { lo, hi };
 }
 
+// A selected step: dashed orange outline and a tint; the step last clicked
+// (the one the faders and shapes show) has the heavier outline
+function markSelected(ctx, i, x, y, w, h) {
+  const multi = state.selSet.size > 1;
+  if (multi) { ctx.fillStyle = cssVar('--warm'); ctx.globalAlpha = 0.12; ctx.fillRect(x, y, w, h); ctx.globalAlpha = 1; }
+  ctx.strokeStyle = cssVar('--warm'); ctx.lineWidth = i === state.sel ? 2.5 : 1.5; ctx.setLineDash([4, 3]);
+  ctx.strokeRect(x, y, w, h); ctx.setLineDash([]);
+}
+
 function drawTimeline() {
   const cv = $('timeline'), { rows, height } = timelineRows();
   if (cv.style.height !== height + 'px') cv.style.height = height + 'px';
@@ -522,7 +587,7 @@ function drawTimeline() {
         ctx.fillStyle = cssVar('--track'); ctx.fillRect(x0 + 3, by, bw - 6, bh);
         ctx.fillStyle = cssVar('--muted'); ctx.font = '10px system-ui'; ctx.textAlign = 'left';
         ctx.fillText(String(i + 1), x0 + 7, by + 13);
-        if (i === state.sel) { ctx.strokeStyle = cssVar('--warm'); ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(x0 + 3, by, bw - 6, bh); ctx.setLineDash([]); }
+        if (state.selSet.has(i)) markSelected(ctx, i, x0 + 3, by, bw - 6, bh);
         continue;
       }
       const chance = pct(v[7][i]);
@@ -547,7 +612,7 @@ function drawTimeline() {
       const below = [quantN(v[6][i]) > 0 ? describe(6, v[6][i]) : '', bipolar(v[8][i]) ? describe(8, v[8][i]) : ''].filter(Boolean).join(', ');
       if (below && bw > 40) ctx.fillText(below, x0 + 4, bot + 13, bw - (chance < 1 ? 44 : 8));
       // selection and current step
-      if (i === state.sel) { ctx.strokeStyle = cssVar('--warm'); ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(x0 + 1, top, bw - 2, span); ctx.setLineDash([]); }
+      if (state.selSet.has(i)) markSelected(ctx, i, x0 + 1, top, bw - 2, span);
       if (i === L.cur) { ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2; ctx.strokeRect(x0 + 1, top, bw - 2, span); }
     }
     // the bank the faders edit: a box round its row
@@ -622,9 +687,9 @@ function buildShapes() {
     const cv = document.createElement('canvas'), lab = document.createElement('span'); lab.textContent = name;
     d.append(cv, lab); el.appendChild(d); shapeEls.push({ d, cv });
     d.addEventListener('click', () => {
-      const pg = state.page === 1 ? 1 : 0;
-      userSetValue(pg, state.sel, shapeFader(s));
-      say('Step ' + (state.sel + 1) + ' shape ' + (pg + 1) + ': ' + name + '.');
+      const pg = state.page === 1 ? 1 : 0, steps = [...state.selSet].sort((a, b) => a - b);
+      for (const i of steps) userSetValue(pg, i, shapeFader(s));
+      say((steps.length > 1 ? describeSteps(steps) : 'Step ' + (state.sel + 1)) + ' shape ' + (pg + 1) + ': ' + name + '.');
     });
   });
 }
@@ -678,6 +743,7 @@ function refreshFaders() {
     f.val.textContent = v; f.desc.textContent = describe(state.page, v);
     f.root.classList.toggle('cur', step === state.live.cur);
     f.root.classList.toggle('sel', step === state.sel);
+    f.root.classList.toggle('picked', step !== state.sel && state.selSet.has(step));
     f.root.classList.toggle('unused', step >= state.length);
     const ph = mu.phys[i], waiting = link.muIns.length > 0 && ph >= 0 && !mu.engaged[i];
     f.ghost.style.display = waiting ? 'block' : 'none';
@@ -737,7 +803,146 @@ function setLength(n, send) {
   if (send) queueSend('len', sysex(CMD.LENGTH, [n]));
   changed();
 }
-function selectStep(i) { if (state.sel !== i) { state.sel = i; changed(); } }
+// Select one step; a step already in a wider selection just becomes the
+// main one, so touching a fader doesn't lose the selection
+function selectStep(i) {
+  if (!state.selSet.has(i)) { state.selSet = new Set([i]); state.anchor = i; }
+  if (state.sel !== i) state.sel = i;
+  changed();
+}
+function setSelection(steps, main) {
+  steps = [...new Set(steps)].filter(i => i >= 0 && i < NSTEPS).sort((a, b) => a - b);
+  if (!steps.length) steps = [state.sel];
+  state.selSet = new Set(steps);
+  state.sel = steps.includes(main) ? main : steps[0];
+  changed();
+}
+const rowSteps = (i) => Array.from({ length: NS }, (_, k) => Math.floor(i / NS) * NS + k);
+const colSteps = (i) => Array.from({ length: NBANKS }, (_, k) => (i % NS) + k * NS);
+const seqSteps = () => Array.from({ length: state.length }, (_, k) => k);
+
+// ---- Undo, for pastes and randomising
+const undoStack = [];
+function bulkEdit(label, fn) {
+  undoStack.push({ label, values: state.values.map(r => r.slice()) });
+  if (undoStack.length > 30) undoStack.shift();
+  fn();
+  reengage();
+  sendAll();
+  changed();
+}
+function undo() {
+  const u = undoStack.pop();
+  if (!u) { say('Nothing to undo.'); return; }
+  state.values = u.values;
+  reengage(); sendAll(); changed();
+  say('Undid ' + u.label + '.');
+}
+
+// ---- Copy and paste.  The clipboard holds whole steps, every setting, with
+// the steps they came from so a pattern keeps its spacing.
+let clip = null;   // read from the browser at start-up (init)
+function copySel() {
+  const steps = [...state.selSet].sort((a, b) => a - b);
+  clip = { steps, vals: steps.map(i => state.values.map(r => r[i])) };
+  store.set('cvseq.clip.v1', clip);
+  say('Copied ' + describeSteps(steps) + '.');
+  changed();
+}
+function pasteSel(pageOnly) {
+  if (!clip || !clip.steps || !clip.steps.length) { say('Nothing copied yet: select steps and press Copy.'); return; }
+  const targets = [...state.selSet].sort((a, b) => a - b), src = clip.steps;
+  let pairs;
+  if (src.length === 1) pairs = targets.map(t => [0, t]);                         // one step fills them all
+  else if (targets.length === src.length) pairs = targets.map((t, k) => [k, t]);  // one to one, in order
+  else pairs = src.map((s, k) => [k, targets[0] + s - src[0]]);                  // the pattern, from the first
+  const kept = pairs.filter(([, t]) => t < NSTEPS), lost = pairs.length - kept.length;
+  const pages = pageOnly ? [state.page] : Array.from({ length: PAGES }, (_, p) => p);
+  bulkEdit('the paste', () => { for (const [k, t] of kept) for (const p of pages) state.values[p][t] = clip.vals[k][p]; });
+  const to = kept.map(([, t]) => t);
+  setSelection(to, to[0]);
+  say('Pasted ' + (pageOnly ? PAGE_INFO[state.page].name + ' only ' : '') + 'onto ' + describeSteps(to) + '.' +
+    (lost ? ' ' + lost + ' step' + (lost > 1 ? 's' : '') + ' would have gone past step 32, so ' + (lost > 1 ? 'were' : 'was') + ' left out.' : ''));
+}
+function describeSteps(steps) {
+  if (steps.length === 1) return 'step ' + (steps[0] + 1);
+  const runs = []; let a = steps[0], b = a;
+  for (const i of steps.slice(1).concat([Infinity])) { if (i === b + 1) { b = i; continue; } runs.push(a === b ? String(a + 1) : (a + 1) + '-' + (b + 1)); a = b = i; }
+  return steps.length + ' steps (' + runs.join(', ') + ')';
+}
+
+// ---- Randomise
+const rnd = { mode: 'shape', range: 'uni' };
+const randInt = (n) => Math.floor(Math.random() * n);
+// A value of -1 to 1 as the nearest two-sided fader position (inverse of bipolar)
+const toBipolar = (x) => x === 0 ? 64 : x > 0 ? clamp(65 + Math.round(x * 62), 65, 127) : clamp(63 - Math.round(-x * 63), 0, 63);
+// The lowest and highest a step reaches, before depth and the offset knob
+function stepSpan(v, i) {
+  let lo = Infinity, hi = -Infinity;
+  for (let k = 0; k <= 48; k++) { const x = stepValue(v, i, k / 48, 0); if (x < lo) lo = x; if (x > hi) hi = x; }
+  return { lo, hi };
+}
+function randomiseStep(v, i, mode, range) {
+  // Shape: two shapes, and a morph that is pure shape 1 a third of the time
+  v[0][i] = shapeFader(randInt(NSHAPES));
+  v[1][i] = shapeFader(randInt(NSHAPES));
+  v[2][i] = Math.random() < 1 / 3 ? 0 : randInt(128);
+  if (mode === 'shape') return;
+  v[3][i] = 40 + randInt(88);                                     // level, 31% to 100%
+  if (mode === 'all') {
+    v[6][i] = Math.random() < 0.5 ? 0 : 1 + randInt(127);         // quant: smooth half the time
+    v[7][i] = Math.random() < 0.6 ? 127 : 64 + randInt(64);       // chance: always, or 50%+
+  }
+  // LEVEL above; START, END and OFFSET fitted so the step stays within the range: pick a
+  // ramp, shrink it if the step is then too tall for the range, and choose an
+  // offset that keeps it inside.  A step that comes out nearly flat is tried
+  // again, unless LEVEL leaves it no room.
+  const T = range === 'bi' ? { lo: -1, hi: 1 } : { lo: 0, hi: 1 }, W = T.hi - T.lo;
+  for (let tries = 0; tries < 24; tries++) {
+    v[4][i] = randInt(128); v[5][i] = randInt(128); v[8][i] = 64;
+    let { lo, hi } = stepSpan(v, i);
+    for (let n = 0; n < 8 && hi - lo > W; n++) {
+      const k = (W / (hi - lo)) * 0.97;
+      v[4][i] = toBipolar(bipolar(v[4][i]) * k); v[5][i] = toBipolar(bipolar(v[5][i]) * k);
+      ({ lo, hi } = stepSpan(v, i));
+    }
+    if (hi - lo > W) continue;
+    if (hi - lo < 0.15 && tries < 23 && pct(v[3][i]) > 0.15) continue;
+    const omin = T.lo - lo, omax = T.hi - hi;
+    let o = toBipolar(omin + Math.random() * Math.max(0, omax - omin));
+    // the fader's steps are coarse: nudge it back inside if it lands just out
+    for (let n = 0; n < 8; n++) {
+      const b = bipolar(o);
+      if (lo + b < T.lo - 1e-9) o = o === 63 ? 65 : Math.min(127, o + 1);
+      else if (hi + b > T.hi + 1e-9) o = o === 65 ? 63 : Math.max(0, o - 1);
+      else break;
+    }
+    v[8][i] = o;
+    const b = bipolar(o);
+    if ((lo + b < T.lo - 1e-9 || hi + b > T.hi + 1e-9) && tries < 23) continue;
+    break;
+  }
+}
+function randomise(scope) {
+  const steps = scope === 'row' ? rowSteps(state.sel) : scope === 'col' ? colSteps(state.sel)
+    : scope === 'seq' ? seqSteps() : [...state.selSet].sort((a, b) => a - b);
+  const what = { shape: 'shapes', levels: 'shapes, level, start, end and offset', all: 'every setting' }[rnd.mode];
+  bulkEdit('the randomise', () => { for (const i of steps) randomiseStep(state.values, i, rnd.mode, rnd.range); });
+  setSelection(steps, steps.includes(state.sel) ? state.sel : steps[0]);
+  say('Randomised ' + what + ' of ' + describeSteps(steps) + (rnd.mode === 'shape' ? '' : ', kept within ' + (rnd.range === 'bi' ? '\u22125 to +5 V' : '0 to +5 V')) + '.');
+}
+
+function refreshEditCard() {
+  const steps = [...state.selSet].sort((a, b) => a - b);
+  $('sel-info').textContent = 'Selected: ' + describeSteps(steps) + '.';
+  $('clip-info').textContent = clip && clip.steps && clip.steps.length ? 'Copied: ' + describeSteps(clip.steps) + '.' : 'Nothing copied yet.';
+  $('btn-paste').disabled = $('btn-paste-page').disabled = !(clip && clip.steps && clip.steps.length);
+  $('btn-paste-page').textContent = 'Paste ' + PAGE_INFO[state.page].name + ' only';
+  $('btn-undo').disabled = !undoStack.length;
+  $('btn-undo').textContent = undoStack.length ? 'Undo ' + undoStack[undoStack.length - 1].label.replace(/^the /, '') : 'Undo';
+  document.querySelectorAll('.rmode').forEach(b => b.classList.toggle('on', b.dataset.mode === rnd.mode));
+  document.querySelectorAll('.rrange').forEach(b => { b.classList.toggle('on', b.dataset.range === rnd.range); b.disabled = rnd.mode === 'shape'; });
+}
 
 let renderQueued = false, saveTimer = 0;
 // A button on every card's heading folds the card down to the heading;
@@ -770,7 +975,7 @@ function buildCollapsers() {
 function requestRender() {
   if (renderQueued) return;
   renderQueued = true;
-  requestAnimationFrame(() => { renderQueued = false; refreshFaders(); drawShapes(); renderPresets(); });
+  requestAnimationFrame(() => { renderQueued = false; refreshFaders(); drawShapes(); renderPresets(); refreshEditCard(); });
 }
 function changed() {
   requestRender();
@@ -1153,6 +1358,7 @@ function init() {
   const lp = last && last.v && cleanPreset(last);
   if (lp) { state.values = lp.v; state.length = lp.len; }
   loadPresets();
+  clip = store.get('cvseq.clip.v1', null);
   buildFaders(); buildShapes(); buildCollapsers();
   $('btn-connect').addEventListener('click', connect);
   $('btn-rescan').addEventListener('click', connect);
@@ -1176,15 +1382,55 @@ function init() {
   $('btn-export').addEventListener('click', exportPresets);
   $('btn-import').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', (e) => { if (e.target.files[0]) importPresets(e.target.files[0]); e.target.value = ''; });
-  $('timeline').addEventListener('click', (e) => {
-    // a step, in any row; clicking a row also makes it the bank the faders edit
+  // The step under a click on the timeline
+  const stepAt = (e) => {
     const r = $('timeline').getBoundingClientRect(), y = e.clientY - r.top;
     const { rows } = timelineRows();
     let row = rows.findIndex(o => y >= o.y && y < o.y + o.h + ROW_GAP);
     if (row < 0) row = NBANKS - 1;
-    const col = clamp(Math.floor((e.clientX - r.left) / (r.width / NS)), 0, NS - 1);
-    selectBank(row, true);
-    selectStep(row * NS + col);
+    return row * NS + clamp(Math.floor((e.clientX - r.left) / (r.width / NS)), 0, NS - 1);
+  };
+  $('timeline').addEventListener('mousedown', (e) => { if (e.shiftKey || e.detail > 1) e.preventDefault(); }); // no text selection
+  $('timeline').addEventListener('click', (e) => {
+    // a step, in any row; clicking a row also makes it the bank the faders edit
+    const i = stepAt(e);
+    selectBank(Math.floor(i / NS), true);
+    if (e.shiftKey) {
+      const a = Math.min(state.anchor, i), b = Math.max(state.anchor, i);
+      setSelection(Array.from({ length: b - a + 1 }, (_, k) => a + k), i);
+    } else if (e.ctrlKey || e.metaKey) {
+      const s = new Set(state.selSet);
+      if (s.has(i) && s.size > 1) s.delete(i); else s.add(i);
+      state.anchor = i;
+      setSelection([...s], s.has(i) ? i : [...s][0]);
+    } else if (e.altKey) {
+      setSelection(colSteps(i), i);
+    } else {
+      state.selSet = new Set([i]); state.anchor = i; state.sel = -1; selectStep(i);
+    }
+  });
+  $('timeline').addEventListener('dblclick', (e) => { const i = stepAt(e); setSelection(rowSteps(i), i); say('Selected row ' + (Math.floor(i / NS) + 1) + '.'); });
+  $('sel-row').addEventListener('click', () => setSelection(rowSteps(state.sel), state.sel));
+  $('sel-col').addEventListener('click', () => setSelection(colSteps(state.sel), state.sel));
+  $('sel-seq').addEventListener('click', () => setSelection(seqSteps(), state.sel));
+  $('sel-all').addEventListener('click', () => setSelection(Array.from({ length: NSTEPS }, (_, k) => k), state.sel));
+  $('sel-none').addEventListener('click', () => setSelection([state.sel], state.sel));
+  $('btn-copy').addEventListener('click', copySel);
+  $('btn-paste').addEventListener('click', () => pasteSel(false));
+  $('btn-paste-page').addEventListener('click', () => pasteSel(true));
+  $('btn-undo').addEventListener('click', undo);
+  document.querySelectorAll('.rmode').forEach(b => b.addEventListener('click', () => { rnd.mode = b.dataset.mode; refreshEditCard(); }));
+  document.querySelectorAll('.rrange').forEach(b => b.addEventListener('click', () => { rnd.range = b.dataset.range; refreshEditCard(); }));
+  document.querySelectorAll('.rnd').forEach(b => b.addEventListener('click', () => randomise(b.dataset.scope)));
+  document.addEventListener('keydown', (e) => {
+    // leave typing, and copying text the user has selected, to the browser
+    const t = e.target, typing = t && (t.isContentEditable || /^(TEXTAREA|SELECT)$/.test(t.tagName) || (t.tagName === 'INPUT' && t.type !== 'range'));
+    if (typing) return;
+    const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+    if (mod && k === 'c' && !String(window.getSelection() || '')) { e.preventDefault(); copySel(); }
+    else if (mod && k === 'v') { e.preventDefault(); pasteSel(e.shiftKey); }
+    else if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if (k === 'escape' && state.selSet.size > 1) setSelection([state.sel], state.sel);
   });
   document.querySelectorAll('.bankbtn').forEach(b => b.addEventListener('click', () => selectBank(+b.dataset.bank, true)));
   $('len-dn').addEventListener('click', () => setLength(state.length - 1, true));

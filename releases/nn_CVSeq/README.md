@@ -215,6 +215,21 @@ and + to bring it back; the browser remembers which are folded):
   step to select it (and its row's bank).
 - **Bank and length.** Bank buttons and −/+ for the length, with the 8mu's
   button instructions right beside them.
+- **Copy, paste & randomise.** Select steps on the sequence: click one,
+  Shift+click a range, Ctrl/⌘+click to add or remove single steps,
+  double-click for a whole row, Alt+click for a whole column (the same fader
+  in every bank), or use the Row, Column, Sequence and All 32 buttons. Copy
+  (Ctrl/⌘+C) takes every setting of the selected steps; Paste (Ctrl/⌘+V) puts
+  them back: one copied step fills every selected step, several fill the same
+  number of selected steps in order, or else keep their pattern from the first
+  selected step. Shift+paste pastes only the page the faders show. Randomise
+  changes the shape (shape 1, shape 2 and morph), the shape and levels (plus
+  LEVEL, START, END and OFFSET) or everything (plus QUANT and CHANCE), of the
+  selected steps, a row, a column or the whole sequence. Levels are fitted so
+  each step stays within 0 to +5 V or −5 to +5 V (at full depth), as chosen,
+  and LEVEL is kept at 31% or more so a step is never lost. Undo (Ctrl/⌘+Z)
+  takes back pastes and randomising. Clicking a shape gives it to every
+  selected step. The keys are listed on the page.
 - **Faders.** Nine pages, each showing the selected bank's eight steps, as on
   the 8mu.
 - **CV Out 1.** A scope of the last four seconds of the output.
