@@ -16,15 +16,22 @@ Each step has nine settings, on the 8mu's nine pages:
 
 | Button | First page | Second page | Third page |
 |---|---|---|---|
-| A | **SHAPE 1**: one of 40 shapes | **START**: level at the start of the step | |
-| B | **SHAPE 2**: one of 40 shapes | **END**: level at the end of the step | |
+| A | **SHAPE 1**: one of 40 shapes | **START**: level at the start of the step, −100% to +100% | |
+| B | **SHAPE 2**: one of 40 shapes | **END**: level at the end of the step, −100% to +100% | |
 | C | **MORPH**: from shape 1 (down) to shape 2 (up) | **OFFSET**: a voltage added to the step | |
 | D | **LEVEL**: the step's level | **QUANT**: digital stepping of the shape | **CHANCE**: the chance the step plays |
 
 A step's voltage is the morph between its two shapes, times its level, times a
 ramp from its START level to its END level across the step, plus its OFFSET.
-So START and END (both 100% by default) let a step fade in or out, or tilt a
+So START and END (both +100% by default) let a step fade in or out, or tilt a
 flat shape into a ramp.
+
+START and END are two-sided: fader down is −100%, the centre 0 (the middle
+three positions all read exactly 0) and up +100%. Below the centre the shape is
+turned upside down, so both at −100% inverts the step, down to −5 V at full
+depth, and a ramp from +100% to −100% swings the step from its shape, through
+zero, to its shape inverted. To fade in from silence, start at the centre
+rather than the bottom.
 
 **OFFSET** adds −5 V (fader down) to +5 V (fader up) to the step, with the
 centre at 0 V, the default. The middle three fader positions all read as
@@ -219,8 +226,10 @@ Without a card the page still edits, previews and keeps presets, with a
 simulated playhead at one step a second.
 
 The protocol is documented in [`sysex.h`](sysex.h). The card and the editor
-must be the same version: this one (protocol 3, with OFFSET) won't talk to
-older firmware. Presets saved before OFFSET still load, with every offset 0 V.
+must be the same version: this one (protocol 4) won't talk to older
+firmware. Presets saved before OFFSET still load, with every offset 0 V, and presets
+saved before START and END went two-sided are converted so they sound the
+same (their 0% becomes the centre).
 
 ## Building
 

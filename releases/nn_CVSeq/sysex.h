@@ -9,7 +9,9 @@
 // Step values are in 8mu fader units, 0-127, sent page by page (9 pages of
 // 32 steps), numbered
 //   0 SHAPE 1   1 SHAPE 2   2 MORPH    3 LEVEL    4 START
-//   5 END       6 QUANTISE  7 CHANCE   8 OFFSET (64 = 0V)
+//   5 END       6 QUANTISE  7 CHANCE   8 OFFSET
+// START, END and OFFSET are two-sided, 64 their centre (0% or 0V).  (Before
+// version 4, START and END were 0 to 100%.)
 // On the 8mu, A is pages 0 and 4, B 1 and 5, C 2 and 8, and D 3, 6 and 7.
 // Steps are 0-31, in four banks of eight; the sequence plays steps 0 to
 // length-1.
@@ -75,7 +77,7 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x43;
-static constexpr uint8_t kVersion = 3;
+static constexpr uint8_t kVersion = 4;
 static constexpr int kNumValues = 9 * 32;
 
 enum Cmd : uint8_t

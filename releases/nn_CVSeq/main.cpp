@@ -21,13 +21,14 @@
 //                the last step light briefly.  The sequence starts 8 long.
 //
 //             First page                Second page                     Third page
-//   Button A  SHAPE 1  first shape      START  level at the step's start
-//   Button B  SHAPE 2  second shape     END    level at the step's end
+//   Button A  SHAPE 1  first shape      START  level at the step's start (+-)
+//   Button B  SHAPE 2  second shape     END    level at the step's end (+-)
 //   Button C  MORPH    shape 1 to 2     OFFSET the step's voltage offset
 //   Button D  LEVEL    step level       QUANT  digital stepping          CHANCE chance the step plays
 //
 // START and END make a ramp across the step that multiplies the shape (and
-// LEVEL).  OFFSET adds -5V (down) to +5V (up) to the step, 0V at the centre;
+// LEVEL), each from -100% (down) through 0 (centre) to +100% (up, the
+// default), so a step can be inverted, or swing through zero.  OFFSET adds -5V (down) to +5V (up) to the step, 0V at the centre;
 // depth scales it with the rest.  QUANT samples the step into fewer, held
 // stairs as it rises, from smooth (fully down) to a single held value (top).
 // A step that loses its CHANCE roll holds the last output for its length, and
@@ -344,7 +345,8 @@ private:
 
 	// The current step, refreshed at control rate so edits are heard live
 	const int16_t *shape1 = gShapes[0], *shape2 = gShapes[0];
-	int32_t morph = 0, level = 4096, startLevel = 4096, endLevel = 4096; // Q12
+	int32_t morph = 0, level = 4096; // Q12
+	int32_t startLevel = 4096, endLevel = 4096; // Q12, -4096 to 4096
 	int32_t stepOffset = 0;           // Q12, -4096 to 4096 for -5V to +5V
 	int quantN = 0;           // 0 = smooth, else stairs per step
 	uint32_t quantStep = 0;
@@ -423,9 +425,10 @@ private:
 	}
 
 	// Stored fader value (0-4064) to 0-4096, so a fader at the top is 100%
-	// OFFSET: a fader value (0-4095) as -4096 to 4096 (-5V to +5V before
-	// depth), with 63-65 of 127 at the centre reading as exactly 0
-	static int32_t OffsetQ12(int32_t raw)
+	// A two-sided fader value (0-4095) as -4096 to 4096, with 63-65 of 127
+	// at the centre reading as exactly 0: OFFSET (-5V to +5V before depth),
+	// START and END (-100% to +100%)
+	static int32_t BipolarQ12(int32_t raw)
 	{
 		int32_t v = raw >> 5;
 		if (v > 65) return ((v - 65) * 4096) / 62;
@@ -497,9 +500,9 @@ private:
 		int32_t m = Q12(params[PageMorph][cur]) + morphOffset;
 		morph = m < 0 ? 0 : (m > 4096 ? 4096 : m);
 		level = Q12(params[PageLevel][cur]);
-		startLevel = Q12(params[PageStart][cur]);
-		endLevel = Q12(params[PageEnd][cur]);
-		stepOffset = OffsetQ12(params[PageOffset][cur]);
+		startLevel = BipolarQ12(params[PageStart][cur]);
+		endLevel = BipolarQ12(params[PageEnd][cur]);
+		stepOffset = BipolarQ12(params[PageOffset][cur]);
 		// QUANT: down = smooth, then 32 stairs per step down to 1 at the top
 		int q = params[PageQuant][cur] >> 5;
 		int n = q == 0 ? 0 : 32 - ((q - 1) * 31) / 126;

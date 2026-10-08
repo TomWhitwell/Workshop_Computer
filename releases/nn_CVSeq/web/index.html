@@ -274,7 +274,7 @@ function nextPage(pg, b) {
   const l = BUTTON_PAGES[b], k = l.indexOf(pg);
   return k < 0 ? l[0] : l[(k + 1) % l.length];
 }
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x43, PROTOCOL_VERSION = 3;
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x43, PROTOCOL_VERSION = 4;
 const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9, RESTART: 10, DIRECTION: 11, BANK: 12, LENGTH: 13 };
 const DIRECTIONS = ['Step forward', 'Step ping-pong', 'Step backward', 'True ping-pong', 'True reverse',
   'Random step', 'Random reverse', 'True random'];
@@ -307,8 +307,8 @@ const PAGE_INFO = [
   { name: 'Shape 2', letter: 'B',  hint: 'Each step’s second shape, one of 40. MORPH (C) moves between the two.' },
   { name: 'Morph',   letter: 'C',  hint: 'From shape 1 (down) to shape 2 (up). The morph offset (Y with the switch in the middle, CV In 1, 8mu tilt) is added to every step.' },
   { name: 'Level',   letter: 'D',  hint: 'Each step’s level, multiplying its shape.' },
-  { name: 'Start',   letter: 'A2', hint: 'Level at the start of the step. With END it makes a ramp across the step that multiplies the shape and LEVEL. Default 100%.' },
-  { name: 'End',     letter: 'B2', hint: 'Level at the end of the step. With START it makes a ramp across the step that multiplies the shape and LEVEL. Default 100%.' },
+  { name: 'Start',   letter: 'A2', hint: 'Level at the start of the step, \u2212100% (down) through 0 (centre) to +100% (up). With END it makes a ramp across the step that multiplies the shape and LEVEL: negative inverts the shape, and a ramp from + to \u2212 swings it through zero. Default +100%.' },
+  { name: 'End',     letter: 'B2', hint: 'Level at the end of the step, \u2212100% (down) through 0 (centre) to +100% (up). With START it makes a ramp across the step that multiplies the shape and LEVEL: negative inverts the shape, and a ramp from + to \u2212 swings it through zero. Default +100%.' },
   { name: 'Quant',   letter: 'D2', hint: 'Digital stepping: fully down is smooth; above, the step is sampled into held stairs, 32 down to 1 at the top. With a scale chosen (Main knob, switch up), those steps also snap to the scale\u2019s notes.' },
   { name: 'Chance',  letter: 'D3', hint: 'The chance a step plays each time round. A step that doesn’t play holds the last output for its length and gives no trigger. Default always.' },
   { name: 'Offset',  letter: 'C2', hint: 'A voltage added to the step: -5V (down) to +5V (up), 0V at the centre (the default). Depth scales it with the rest, and with a scale chosen a quantised step still snaps to the scale. With LEVEL at 0 the step is just its offset, a plain stepped voltage.' },
@@ -340,8 +340,9 @@ const DEFAULT_VALUES = DEFAULT_BANK.map(to32);
 const pct = (v) => v >= 127 ? 1 : v / 127;               // Q12() in main.cpp
 const shapeOf = (v) => (v * NSHAPES) >> 7;
 const quantN = (v) => v === 0 ? 0 : 32 - Math.floor((v - 1) * 31 / 126);
-// OFFSET as -1 to 1 (-5V to +5V before depth), 63-65 reading as 0 (OffsetQ12)
-const offsetOf = (v) => (v > 65 ? Math.trunc((v - 65) * 4096 / 62) : v < 63 ? -Math.trunc((63 - v) * 4096 / 63) : 0) / 4096;
+// A two-sided fader as -1 to 1, 63-65 reading as 0 (BipolarQ12): OFFSET
+// (-5V to +5V before depth), START and END (-100% to +100%)
+const bipolar = (v) => (v > 65 ? Math.trunc((v - 65) * 4096 / 62) : v < 63 ? -Math.trunc((63 - v) * 4096 / 63) : 0) / 4096;
 
 // ============================================================================
 // The shapes: shapes.h's definitions, in JavaScript
@@ -397,8 +398,8 @@ function stepValue(values, i, u, morphOffset) {
   if (n > 0) u = Math.floor(u * n) / n;
   const m = Math.min(1, Math.max(0, pct(values[2][i]) + (morphOffset || 0)));
   const a = shapeAt(shapeOf(values[0][i]), u), b = shapeAt(shapeOf(values[1][i]), u);
-  const st = pct(values[4][i]), en = pct(values[5][i]);
-  return (a + (b - a) * m) * (st + (en - st) * u) * pct(values[3][i]) + offsetOf(values[8][i]);
+  const st = bipolar(values[4][i]), en = bipolar(values[5][i]);
+  return (a + (b - a) * m) * (st + (en - st) * u) * pct(values[3][i]) + bipolar(values[8][i]);
 }
 
 // ============================================================================
@@ -441,7 +442,8 @@ function describe(page, v) {
     case 2: return v === 0 ? 'shape 1' : v >= 127 ? 'shape 2' : Math.round(pct(v) * 100) + '% to 2';
     case 6: return v === 0 ? 'smooth' : quantN(v) + (quantN(v) === 1 ? ' value' : ' stairs') + (state.live.scale ? ', ' + SCALES[state.live.scale][0] : '');
     case 7: return v === 0 ? 'never' : v >= 127 ? 'always' : Math.round(pct(v) * 100) + '%';
-    case 8: { const o = offsetOf(v) * 5; return o === 0 ? '0 V' : (o > 0 ? '+' : '\u2212') + Math.abs(o).toFixed(2) + ' V'; }
+    case 4: case 5: { const p = Math.round(bipolar(v) * 100); return p === 0 ? '0%' : (p > 0 ? '+' : '\u2212') + Math.abs(p) + '%'; }
+    case 8: { const o = bipolar(v) * 5; return o === 0 ? '0 V' : (o > 0 ? '+' : '\u2212') + Math.abs(o).toFixed(2) + ' V'; }
     default: return Math.round(pct(v) * 100) + '%';
   }
 }
@@ -479,11 +481,13 @@ function timelineRows() {
   return { rows, height: y - ROW_GAP };
 }
 
-// The lowest and highest values the steps in the sequence can reach: 0 to 1
-// (0-5V at full depth), widened by their OFFSETs
+// The range to draw: 0 to 1 (0-5V at full depth), widened to take in every
+// step in the sequence, which OFFSET and a negative START or END can take
+// outside it
 function valueRange(v, len) {
   let lo = 0, hi = 1;
-  for (let i = 0; i < len; i++) { const o = offsetOf(v[8][i]); lo = Math.min(lo, o); hi = Math.max(hi, 1 + o); }
+  for (let i = 0; i < len; i++) for (let k = 0; k <= 32; k++) {
+    const x = stepValue(v, i, k / 32, 0); if (x < lo) lo = x; if (x > hi) hi = x; }
   return { lo, hi };
 }
 
@@ -532,7 +536,7 @@ function drawTimeline() {
       ctx.fillStyle = cssVar('--muted'); ctx.font = '11px system-ui';
       if (bw > 70) ctx.fillText(SHAPE_NAMES[shapeOf(v[0][i])] + (v[2][i] > 0 ? ' \u2192 ' + SHAPE_NAMES[shapeOf(v[1][i])] : ''), nameX, top - 5, x0 + bw - 4 - nameX);
       if (chance < 1) { ctx.textAlign = 'right'; ctx.fillText(describe(7, v[7][i]), x0 + bw - 4, bot + 13); ctx.textAlign = 'left'; }
-      const below = [quantN(v[6][i]) > 0 ? describe(6, v[6][i]) : '', offsetOf(v[8][i]) ? describe(8, v[8][i]) : ''].filter(Boolean).join(', ');
+      const below = [quantN(v[6][i]) > 0 ? describe(6, v[6][i]) : '', bipolar(v[8][i]) ? describe(8, v[8][i]) : ''].filter(Boolean).join(', ');
       if (below && bw > 40) ctx.fillText(below, x0 + 4, bot + 13, bw - (chance < 1 ? 44 : 8));
       // selection and current step
       if (i === state.sel) { ctx.strokeStyle = cssVar('--warm'); ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(x0 + 1, top, bw - 2, span); ctx.setLineDash([]); }
@@ -556,7 +560,7 @@ function drawTimeline() {
     }
   }
   const stepS = L.clocked ? null : Math.pow(2, -L.rateOct);
-  $('timeline-caption').textContent = 'Steps 1-32, eight to a row; grey boxes are past the end of the sequence. Each step\u2019s shape at its level plus its offset, before depth, the offset knob and smoothing (0 to 5V at full depth, between the outer lines; the rows stretch to fit steps offset beyond them). Faint steps have less than full chance.' +
+  $('timeline-caption').textContent = 'Steps 1-32, eight to a row; grey boxes are past the end of the sequence. Each step\u2019s shape at its level plus its offset, before depth, the offset knob and smoothing (0 to 5V at full depth, between the outer lines; the rows stretch to fit steps that go beyond them, through OFFSET or a negative START or END). Faint steps have less than full chance.' +
     (stepS ? ' One step: ' + fmtTime(stepS) + '; the sequence of ' + state.length + ': ' + fmtTime(stepS * state.length) + '.' : ' One step per clock.');
 }
 
@@ -736,7 +740,7 @@ function requestRender() {
 function changed() {
   requestRender();
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => store.set('cvseq.last.v2', { v: state.values, len: state.length }), 400);
+  saveTimer = setTimeout(() => store.set('cvseq.last.v2', { v: state.values, len: state.length, ver: PRESET_VER }), 400);
 }
 
 // ---- 8mu plugged into this computer -----------------------------------------
@@ -1005,17 +1009,22 @@ const store = {
 // steps have 8 values a page and no length: their steps repeat to fill 32,
 // and they play 8.  Presets from before OFFSET have 8 pages: their offsets
 // are all 0V.
+// Presets from before version 2 (no ver) had START and END from 0 to 100%:
+// they're moved onto the two-sided scale, so they sound the same.
+const PRESET_VER = 2;
+const oldLevelToBipolar = (x) => x >= 127 ? 127 : 65 + Math.round(x * 62 / 127);
 function cleanPreset(o) {   // hoisted: BUILTIN below uses it
   if (!o || typeof o !== 'object' || !Array.isArray(o.v) || (o.v.length !== PAGES && o.v.length !== PAGES - 1)) return null;
   const rows = o.v.length === PAGES ? o.v : [...o.v, DEFAULT_BANK[8]];
   const v = rows.map(r => Array.isArray(r) && (r.length === NS || r.length === NSTEPS)
     ? to32(r.map(x => clamp(Math.round(+x) || 0, 0, 127))) : null);
   if (v.some(r => !r)) return null;
+  if (!(+o.ver >= 2)) for (const p of [4, 5]) v[p] = v[p].map(oldLevelToBipolar);
   const len = clamp(Math.round(+o.len) || NS, 1, NSTEPS);
-  return { name: String(o.name || 'Preset').slice(0, 60), v, len };
+  return { name: String(o.name || 'Preset').slice(0, 60), v, len, ver: PRESET_VER };
 }
 // Built in: [shape1, shape2, morph, level, start, end, quant, chance, offset]
-// (offset left out = all 0V)
+// (offset left out = all 0V), written with START and END as 0-100% (no ver)
 const S = shapeFader, ALL = (x) => new Array(NS).fill(x);
 const BUILTIN = [
   { name: 'Default', v: DEFAULT_VALUES },
@@ -1078,7 +1087,7 @@ function renderPresets() {
 function saveCurrent() {
   const n = prompt('Name for this preset', 'My sequence ' + (userPresets.length + 1));
   if (!n) return;
-  userPresets.push({ name: n.slice(0, 60), v: state.values.map(r => r.slice()), len: state.length });
+  userPresets.push({ name: n.slice(0, 60), v: state.values.map(r => r.slice()), len: state.length, ver: PRESET_VER });
   savePresets(); presetsDirty = true; requestRender(); say('Saved “' + n + '”.');
 }
 function exportPresets() {
