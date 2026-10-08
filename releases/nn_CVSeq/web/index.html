@@ -63,7 +63,7 @@
   @media (max-width: 960px) { main { grid-template-columns: minmax(0, 1fr); } }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: var(--shadow); min-width: 0; }
   canvas { display: block; width: 100%; border-radius: 6px; background: var(--wave-bg); }
-  #timeline { height: 220px; cursor: pointer; }
+  #timeline { height: 220px; cursor: pointer; margin-top: 12px; }
   .howto { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 6px; font-size: 12px; color: var(--muted); line-height: 1.5; }
   .howto b { color: var(--ink); font-weight: 600; }
   .bankbtn.on { background: var(--warm-soft); border-color: var(--warm); }
@@ -157,24 +157,6 @@
   <div style="display:grid; gap:16px; min-width:0">
     <section class="card">
       <h2>Sequence</h2>
-      <canvas id="timeline" aria-label="The 32 steps, eight to a row, as one control voltage"></canvas>
-      <div class="caption" id="timeline-caption"></div>
-      <div class="dirs" role="group" aria-label="Bank and length">
-        <span class="k">Bank</span>
-        <button class="bankbtn" data-bank="0" title="Faders edit steps 1-8 (8mu: long press A)">1-8</button>
-        <button class="bankbtn" data-bank="1" title="Faders edit steps 9-16 (8mu: long press B)">9-16</button>
-        <button class="bankbtn" data-bank="2" title="Faders edit steps 17-24 (8mu: long press C)">17-24</button>
-        <button class="bankbtn" data-bank="3" title="Faders edit steps 25-32 (8mu: long press D)">25-32</button>
-        <span class="k" style="margin-left:14px">Length</span>
-        <button id="len-dn" title="One step shorter">&minus;</button><span class="lenv" id="len-v">8</span><button id="len-up" title="One step longer">+</button>
-      </div>
-      <div class="howto">
-        <b>8mu buttons A-D</b>, acted on when you let go.
-        <b>Short press:</b> the page (press again for its next page: A, B and C have two, D three).
-        <b>Long press</b> (half a second): the bank of steps the faders edit, A = 1-8, B = 9-16, C = 17-24, D = 25-32; that fader's LED flashes three times.
-        <b>Hold a button and move a fader</b> (a good way, about a sixth of its travel): the last step, button = bank, fader = step within it (hold D + fader 8 = 32 steps, hold A + fader 4 = 4 steps).
-        Here: click a row or use the bank buttons; set the length with &minus; and +.
-      </div>
       <div class="readouts">
         <div class="readout"><div class="k">Step</div><div class="v" id="ro-step">-</div></div>
         <div class="readout"><div class="k">Rate</div><div class="v" id="ro-rate">-</div></div>
@@ -197,18 +179,36 @@
         <button class="dir" data-dir="7" title="A random step, at random forwards or backwards">True random</button>
       </div>
       <div class="caption" id="knob-line"></div>
-    </section>
-
-    <section class="card">
-      <h2>CV Out 1</h2>
-      <canvas id="history" aria-label="The last few seconds of CV Out 1"></canvas>
-      <div class="caption" id="history-caption"></div>
+      <canvas id="timeline" aria-label="The 32 steps, eight to a row, as one control voltage"></canvas>
+      <div class="caption" id="timeline-caption"></div>
+      <div class="dirs" role="group" aria-label="Bank and length">
+        <span class="k">Bank</span>
+        <button class="bankbtn" data-bank="0" title="Faders edit steps 1-8 (8mu: long press A)">1-8</button>
+        <button class="bankbtn" data-bank="1" title="Faders edit steps 9-16 (8mu: long press B)">9-16</button>
+        <button class="bankbtn" data-bank="2" title="Faders edit steps 17-24 (8mu: long press C)">17-24</button>
+        <button class="bankbtn" data-bank="3" title="Faders edit steps 25-32 (8mu: long press D)">25-32</button>
+        <span class="k" style="margin-left:14px">Length</span>
+        <button id="len-dn" title="One step shorter">&minus;</button><span class="lenv" id="len-v">8</span><button id="len-up" title="One step longer">+</button>
+      </div>
+      <div class="howto">
+        <b>8mu buttons A-D</b>, acted on when you let go.
+        <b>Short press:</b> the page (press again for its next page: A, B and C have two, D three).
+        <b>Long press</b> (half a second): the bank of steps the faders edit, A = 1-8, B = 9-16, C = 17-24, D = 25-32; that fader's LED flashes three times.
+        <b>Hold a button and move a fader</b> (a good way, about a sixth of its travel): the last step, button = bank, fader = step within it (hold D + fader 8 = 32 steps, hold A + fader 4 = 4 steps).
+        Here: click a row or use the bank buttons; set the length with &minus; and +.
+      </div>
     </section>
 
     <section class="card">
       <div class="tabs" id="tabs"></div>
       <div class="faders" id="faders"></div>
       <div class="caption" id="page-hint"></div>
+    </section>
+
+    <section class="card">
+      <h2>CV Out 1</h2>
+      <canvas id="history" aria-label="The last few seconds of CV Out 1"></canvas>
+      <div class="caption" id="history-caption"></div>
     </section>
 
     <section class="card">

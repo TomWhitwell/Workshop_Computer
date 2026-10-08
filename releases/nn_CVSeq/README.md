@@ -198,23 +198,25 @@ plugged into the Computer's USB socket and the module power-cycled, and press
 **Connect card & 8mu**. It's a single file and needs no network. The page reads
 the sequence from the card, then sends every edit as it's made.
 
+From the top:
+
+- **Readouts.** Step, rate, depth, offset, smoothing, morph offset, scale
+  and whether the card is clocked, live from the card.
+- **Direction** buttons set the card's direction, and follow it when the
+  switch is tapped.
 - **Sequence.** All 32 steps, eight to a row, in the same columns as the
   faders. Steps in the sequence are drawn full size as one voltage, with a
   playhead that runs backwards through a reversed step; steps past the end
   shrink to small grey boxes, so on load there are eight steps and three rows
-  of boxes. With any step offset below 0 V or above 5 V, the rows stretch to fit
-  it. The bank the faders edit has an orange box round its row. Faint
-  steps have less than full chance. Click a step to select it (and its row's
-  bank).
+  of boxes. With any step below 0 V or above 5 V (through OFFSET or a negative
+  START or END), the rows stretch to fit it. The bank the faders edit has an
+  orange box round its row. Faint steps have less than full chance. Click a
+  step to select it (and its row's bank).
 - **Bank and length.** Bank buttons and −/+ for the length, with the 8mu's
   button instructions right beside them.
-- **Readouts.** Step, rate, depth, offset, smoothing, morph offset and
-  whether the card is clocked, live from the card.
-- **Direction** buttons set the card's direction, and follow it when the
-  switch is tapped.
-- **CV Out 1.** A scope of the last four seconds of the output.
 - **Faders.** Nine pages, each showing the selected bank's eight steps, as on
   the 8mu.
+- **CV Out 1.** A scope of the last four seconds of the output.
 - **Shapes.** All 40. Click one to give it to the selected step.
 - **8mu on the computer.** Its faders, buttons and tilt drive the page, with
   the same pickup as the card, and the page lights its LEDs as the card would.
