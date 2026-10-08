@@ -205,6 +205,9 @@ and + to bring it back; the browser remembers which are folded):
   and whether the card is clocked, live from the card.
 - **Direction** buttons set the card's direction, and follow it when the
   switch is tapped.
+- **Bank and length.** Bank buttons and −/+ for the length, just above the
+  sequence so they stay put as the length changes; the 8mu's button
+  instructions are just below it.
 - **Sequence.** All 32 steps, eight to a row, in the same columns as the
   faders. Steps in the sequence are drawn full size as one voltage, with a
   playhead that runs backwards through a reversed step; steps past the end
@@ -213,8 +216,6 @@ and + to bring it back; the browser remembers which are folded):
   START or END), the rows stretch to fit it. The bank the faders edit has an
   orange box round its row. Faint steps have less than full chance. Click a
   step to select it (and its row's bank).
-- **Bank and length.** Bank buttons and −/+ for the length, with the 8mu's
-  button instructions right beside them.
 - **Copy, paste & randomise.** Select steps on the sequence: click one,
   Shift+click a range, Ctrl/⌘+click to add or remove single steps,
   double-click for a whole row, Alt+click for a whole column (the same fader
