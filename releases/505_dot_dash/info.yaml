@@ -1,0 +1,83 @@
+draft: false
+Name: Dot Dash
+short-description: Type on a USB keyboard, and the card sends it as Morse code
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Joep Vermaat
+Version: "1.0"
+Status: Beta
+License: MIT
+date-created: 2026-10-08
+date-updated: 2026-10-08
+
+tags:
+  - usb-host
+  - utility
+  - cv
+  - audio
+
+summary: |
+  Dot Dash turns a USB keyboard into a Morse code transmitter.
+  Plug a keyboard into the Workshop Computer, type letters, and each character
+  is sent as dots and dashes: an audio beep on **Audio Out 1**, a gate on
+  **Pulse Out 1**, and a pitch CV on **CV Out 1** in pitch mode. Knob X sets the
+  speed (5-40 words per minute) and Knob Y sets the beep pitch. When no keyboard
+  is connected the card loops **SOS** and flashes all six LEDs in that rhythm.
+
+panel:
+  outputs:
+    - id: AudioOut1
+      name: Morse Beep
+      description: Square-wave beep for each dot and dash (audio mode)
+    - id: CVOut1
+      name: Pitch CV
+      description: One note per symbol in pitch mode - dot high, dash low (calibrated when available)
+    - id: PulseOut1
+      name: Key Gate
+      description: High for exactly the length of each dot or dash, low during the gaps
+
+controls:
+  switch:
+    up:
+      name: Audio Mode
+      description: Beep each symbol on Audio Out 1
+    middle:
+      name: Pitch Mode
+      description: Send each symbol as a note on CV Out 1 instead of a beep
+    down:
+      name: Shift
+      description: Hold down to flip to the other mode while held, then spring back
+  knobs:
+    - x:
+        name: Speed
+        description: Transmission speed, 5-40 words per minute
+      y:
+        name: Pitch
+        description: Beep tone frequency, 300-2000 Hz (audio mode)
+
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Dot
+          description: Lit while a dot is being sent
+        - id: LED1
+          name: Dash
+          description: Lit while a dash is being sent
+        - id: LED2
+          name: Transmitting
+          description: Lit while any symbol is being sent
+        - id: LED3
+          name: Queue Full
+          description: Flashes when you type faster than the queue can hold
+        - id: LED4
+          name: No Keyboard
+          description: Part of the all-LED SOS flash when no keyboard is connected
+        - id: LED5
+          name: Keyboard
+          description: Lit while a USB keyboard is connected
+
+host:
+  usb:
+    - name: USB Keyboard
+      role: host-controller
+      description: Any standard USB HID keyboard; type letters, digits, space and punctuation to transmit Morse
