@@ -1,6 +1,6 @@
 Name: Grains
 short-description: Granular sampler, live audio cloud processor, and scrubbable tape player.
-Language: C++ (RP2040 Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Vincent Maurer
 Version: "1.0.0"
 Status: Released

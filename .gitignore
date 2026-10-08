@@ -19,6 +19,8 @@ Icon?
 !.vscode/extensions.json
 !.vscode/settings.json
 site/
+# Local merge sheet from `npm run metadata-values -- report`
+/metadata-values.yml
 /node_modules/
 tools/sitegen/node_modules/
 

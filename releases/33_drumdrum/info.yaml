@@ -1,10 +1,10 @@
 draft: false
 Name: drumdrum
 short-description: DFAM-style 8-step sequencer
-Language: C++ (ComputerCard / Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Moses Hoyt
 Version: 1.2.0
-Status: Functional but WIP
+Status: WIP
 License: MIT
 date-created: 2026-05-05
 date-updated: 2026-05-12
@@ -15,7 +15,7 @@ tags:
   - percussion
   - cv
   - usb-host
-  - webmidi
+  - web-midi
 
 summary: |
   drumdrum is an 8-step DFAM-inspired sequencer card.

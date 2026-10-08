@@ -121,7 +121,7 @@ export function renderTile(card, opts = {}) {
   const number = cardNumber(card);
   const summary = card.short_description || '';
   const metadata = card.metadata || {};
-  const sortDate = metadata.created || '';
+  const sortDate = metadata.published || '';
   const firstVideo = Array.isArray(card.videos) && card.videos[0];
   const featuredCopy = showArtwork ? FEATURED_COPY[card.id] : null;
 
@@ -216,7 +216,7 @@ function renderArchiveRow(card, root) {
   const summary = card.short_description || '';
   const searchText = [number, card.title, summary, card.metadata?.creator, ...(Array.isArray(card.tags) ? card.tags : []), ...flair.map(f => f.label)]
     .filter(Boolean).join(' ').toLowerCase();
-  const date = card.metadata?.created || '';
+  const date = card.metadata?.published || '';
   const flairFilter = flair.map(f => f.id);
   const authorTagFilter = (Array.isArray(card.tags) ? card.tags : []).map(tag => curation.slugify(tag)).filter(Boolean);
   const tagFilter = [...new Set([...flairFilter, ...authorTagFilter])].join(' ');

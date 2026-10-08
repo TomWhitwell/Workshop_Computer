@@ -1,6 +1,6 @@
 Name: Utility Pair
 short-description: 25 small utilities, which can be combined in pairs
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Chris Johnson
 Version: 1.0
 Status: Released
@@ -20,7 +20,7 @@ tags:
   - utility
   - multi-tool
   - modulation
-  - effects
+  - effect
 
 summary: |
   Utility Pair splits the Computer module into two halves, each running a 'utility' module to do simple but useful things with the signals in the system.

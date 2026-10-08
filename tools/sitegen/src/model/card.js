@@ -534,6 +534,7 @@ export function buildCanonicalCardModel({
   gitLastDate = '',
   blameDate = '',
   contentDate = '',
+  publishedDate = '',
   customPanels = null,
 }) {
   const warnings = [];
@@ -620,6 +621,9 @@ export function buildCanonicalCardModel({
     contact: sanitizeValue(field(info, 'contact')),
   };
   if (createdInferred) metadata.created_inferred = true;
+  // Date first live on main as a non-draft; drives "newest" sorting. Cards
+  // that are currently drafts have no publish date and sort last.
+  if (publishedDate && !truthy(field(info, 'draft', 'Draft'))) metadata.published = publishedDate;
   if (editor) {
     metadata.editor_url = editor;
     metadata.editor_note = 'Configure this card in your browser';

@@ -2,10 +2,10 @@ Name: Wild Pebble
 draft: false
 summary: MIDI-clockable generative rhythm and melody organism inspired by Pet Rock
 short-description: MIDI-clockable generative rhythm and melody organism inspired by Pet Rock
-Language: C++
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.0"
-Status: Beta - stable in single-developer testing
+Status: Beta
 License: GPL-3.0
 date-created: 2026-06-14
 date-updated: 2026-06-25

@@ -8,6 +8,7 @@ import { extractIframeSrc, classifyAudioUrl, resolveAudioSamples } from '../src/
 import { parseInstagram, instagramEmbedHtml } from '../src/utils/instagram.js';
 import { classifyDemoVideo, videoEmbedHtml } from '../src/utils/video.js';
 import { parseYoutubeId, parseYoutubeStartSeconds, youtubeEmbedHtml } from '../src/utils/youtube.js';
+import { renderMarkdownBlock } from '../src/utils/markdown.js';
 
 test('normalizeYamlKey strips spaces and hyphens, lowercases', () => {
   assert.equal(normalizeYamlKey('demo-link'), 'demolink');
@@ -166,4 +167,14 @@ test('youtubeEmbedHtml includes start= when the source URL has a time offset', (
     /start=1772/,
   );
   assert.doesNotMatch(youtubeEmbedHtml('https://youtu.be/ABbWmZOtmig'), /start=/);
+});
+
+test('renderMarkdownBlock gives headings their text and unique slug ids', () => {
+  const html = renderMarkdownBlock('# Turing *Machine*\n\n## Setup\n\n## Setup\n\nAbout ~20 ms (~2880 cycles).');
+  assert.match(html, /<h1 id="turing-machine">Turing <em>Machine<\/em><\/h1>/);
+  assert.match(html, /<h2 id="setup">Setup<\/h2>/);
+  assert.match(html, /<h2 id="setup-1">Setup<\/h2>/);
+  // Single tildes are approximations, not strikethrough.
+  assert.match(html, /About ~20 ms \(~2880 cycles\)\./);
+  assert.doesNotMatch(html, /object Object|<del>/);
 });

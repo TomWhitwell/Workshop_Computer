@@ -47,7 +47,7 @@ test('staged validator ignores invalid unstaged edits', async t => {
 
   const result = run(process.execPath, ['tools/sitegen/src/validate/validateStaged.js'], root);
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /succeeded|succeeded with warnings/);
+  assert.match(result.stdout, /checks passed/);
 });
 
 test('staged validator blocks invalid staged YAML even when working file is repaired', async t => {
@@ -65,4 +65,63 @@ test('staged validator blocks invalid staged YAML even when working file is repa
   const result = run(process.execPath, ['tools/sitegen/src/validate/validateStaged.js'], root);
   assert.equal(result.status, 1, result.stderr || result.stdout);
   assert.match(`${result.stdout}\n${result.stderr}`, /YAML|Commit blocked/);
+});
+
+test('staged validator does not block on errors already on the base but warns that CI will', async t => {
+  const root = await repositoryFixture(t);
+  const brokenInfo = validInfo.replace('Creator: Test\n', '');
+  await write(root, 'releases/42_test/info.yaml', brokenInfo);
+  await write(root, 'releases/42_test/card.uf2', 'firmware');
+  run('git', ['add', '.'], root);
+  assert.equal(run('git', ['commit', '-qm', 'base'], root).status, 0);
+
+  await write(root, 'releases/42_test/info.yaml', brokenInfo.replace('Version: "1.0"', 'Version: "1.1"'));
+  run('git', ['add', 'releases/42_test/info.yaml'], root);
+
+  const result = run(process.execPath, ['tools/sitegen/src/validate/validateStaged.js'], root);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.doesNotMatch(result.stdout, /Creator|README/);
+  assert.match(result.stdout.split('\n')[0], /Commit allowed, but CI will still reject the PR: releases\/42_test\/info\.yaml already has 1 error\./);
+  assert.match(result.stdout, /already existed on HEAD are not listed/);
+});
+
+test('staged validator leads with a one-line verdict for GUI Git clients', async t => {
+  const root = await repositoryFixture(t);
+  await write(root, 'releases/42_test/info.yaml', validInfo);
+  await write(root, 'releases/42_test/card.uf2', 'firmware');
+  run('git', ['add', '.'], root);
+  assert.equal(run('git', ['commit', '-qm', 'base'], root).status, 0);
+
+  await write(root, 'releases/42_test/info.yaml', validInfo.replace('Creator: Test\n', ''));
+  run('git', ['add', 'releases/42_test/info.yaml'], root);
+
+  const result = run(process.execPath, ['tools/sitegen/src/validate/validateStaged.js'], root);
+  assert.equal(result.status, 1, result.stderr || result.stdout);
+  const firstLine = `${result.stdout}`.split('\n').find(Boolean);
+  assert.match(firstLine, /Commit blocked: 1 new error\. First: releases\/42_test\/info\.yaml \[Creator\]/);
+});
+
+test('staged validator checks the whole branch against its branch point on main', async t => {
+  const root = await repositoryFixture(t);
+  await write(root, 'releases/42_test/info.yaml', validInfo);
+  await write(root, 'releases/42_test/card.uf2', 'firmware');
+  await write(root, 'releases/43_other/info.yaml', validInfo);
+  await write(root, 'releases/43_other/card.uf2', 'firmware');
+  run('git', ['add', '.'], root);
+  assert.equal(run('git', ['commit', '-qm', 'base'], root).status, 0);
+  run('git', ['branch', '-M', 'main'], root);
+  run('git', ['checkout', '-qb', 'feature'], root);
+
+  // An error committed earlier on the branch, bypassing the hook...
+  await write(root, 'releases/42_test/info.yaml', validInfo.replace('Creator: Test\n', ''));
+  run('git', ['commit', '-qam', 'earlier'], root);
+  // ...is still reported when a later commit touches a different card.
+  await write(root, 'releases/43_other/info.yaml', `${validInfo}# comment\n`);
+  run('git', ['add', 'releases/43_other/info.yaml'], root);
+
+  const result = run(process.execPath, ['tools/sitegen/src/validate/validateStaged.js'], root);
+  assert.equal(result.status, 1, result.stderr || result.stdout);
+  assert.match(result.stdout.split('\n')[0], /Commit blocked: 1 new error.*releases\/42_test\/info\.yaml \[Creator\]/);
+  assert.match(result.stdout, /Won't merge automatically: Changes 2 cards \(42_test, 43_other\)/);
+  assert.doesNotMatch(result.stdout, /must not/);
 });

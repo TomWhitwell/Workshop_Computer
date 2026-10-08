@@ -207,29 +207,29 @@
   "usbButtonControls": [
     {
       "channel": 1,
-      "mode": 1,
-      "paramA": 36,
+      "mode": 0,
+      "paramA": 124,
       "paramB": 127,
       "pressed": false
     },
     {
       "channel": 1,
-      "mode": 1,
-      "paramA": 48,
+      "mode": 0,
+      "paramA": 125,
       "paramB": 127,
       "pressed": false
     },
     {
       "channel": 1,
-      "mode": 1,
-      "paramA": 60,
+      "mode": 0,
+      "paramA": 126,
       "paramB": 127,
       "pressed": false
     },
     {
       "channel": 1,
-      "mode": 1,
-      "paramA": 72,
+      "mode": 0,
+      "paramA": 127,
       "paramB": 127,
       "pressed": false
     }

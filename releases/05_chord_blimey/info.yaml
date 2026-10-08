@@ -1,10 +1,10 @@
 draft: true
 Name: Chord Blimey!
 short-description: Generates CV/Pulse arpeggios
-Language: C (RPi Pico SDK)
+Language: C (Pico SDK)
 Creator: Tom Waters
 Version: 0.9
-Status: Mostly complete (for now)
+Status: Beta
 date-created: 2024-11-30
 date-updated: 2025-08-21
 
@@ -12,7 +12,7 @@ tags:
   - arpeggiator
   - sequencer
   - cv
-  - chord
+  - chords
   - generative
 
 summary: |

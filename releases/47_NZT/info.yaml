@@ -1,7 +1,7 @@
 draft: true
 Name: NZT
 short-description: Grain Noise and Noise Tools
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: "@kjnilsson"
 Version: 1.0.0
 Status: Released

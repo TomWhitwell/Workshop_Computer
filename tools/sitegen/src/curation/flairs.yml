@@ -89,6 +89,7 @@ assignments:
   "07_bumpers": []
   "08_bytebeat":
     - chris-pick
+    - classic
   "09_DivCom":
     - wild
     - deep
@@ -104,6 +105,7 @@ assignments:
   "15_MLRws":
     - deep
     - toms-pick
+    - classic
   "16_the_bells":
     - toms-pick
   "17_COMET": []
@@ -125,6 +127,7 @@ assignments:
     - useful
   "26_clockwork":
     - deep
+    - classic
   "27_Siren":
     - start-here
     - instant-win
@@ -135,8 +138,10 @@ assignments:
     - useful
   "32_vink":
     - wild
+    - classic
   "33_drumdrum":
     - useful
+    - classic
   "34_dual_quant": []
   "35_FreqShift":
     - wild
@@ -145,12 +150,12 @@ assignments:
   "37_compulidean": []
   "38_od":
     - chris-pick
-  "39_knots": []
+  "39_knots":
+    - classic
   "41_blackbird":
     - deep
     - useful
   "42_backyard_rain":
-    - classic
     - toms-pick
     - instant-win
   "43_Castle_Process":
@@ -160,9 +165,9 @@ assignments:
   "45_bends": []
   "47_NZT": []
   "48_two_tracks": []
-  "49_Tape_Bias": []
-  "50_flux":
+  "49_Tape_Bias":
     - classic
+  "50_flux":
     - deep
   "51_grains": []
   "52_F1shnet": []
@@ -181,17 +186,20 @@ assignments:
     - deep
   "62_BioMimicry":
     - toms-pick
+    - wild
   "63_Nibble": []
   "64_voices_of_sid": []
   "66_stretchcore":
     - classic
     - wild
-  "67_Fragments": []
+  "67_Fragments":
+    - classic
   "69_trace":
     - magic
   "71_degenerator": []
   "72_motorik":
     - toms-pick
+    - classic
   "73_VSS":
     - instant-win
   "74_Wild_Pebble": []
@@ -201,10 +209,12 @@ assignments:
   "78_Talker": []
   "79_Slag": []
   "81_West_Coast_LPG": []
-  "82_Computer_Grids": []
+  "82_Computer_Grids":
+    - classic
   "83_Origami": []
   "84_CosmikC1zzl3":
     - deep
+    - classic
   "85_plant_holder":
     - useful
   "86_tesserae": []
@@ -231,69 +241,59 @@ assignments:
   "102_Nibble-KO":
     - toms-pick
   "103_spectral": []
-  "104_barbers_pole":
-    - new
-  "105_voder":
-    - new
+  "104_barbers_pole": []
+  "105_voder": []
   "106_uncertainty":
-    - new
     - useful
-  "107_scintillator":
-    - new
+  "107_scintillator": []
   "108_GBA":
     - toms-pick
     - magic
     - deep
   "109_LightPen":
-    - new
     - wild
-  "174_Skipping_Stones":
+  "110_Impermanence":
+    - start-here
+  "111_8mu_cv": []
+  "112_Equanimity":
     - new
-  "202_ScaryLingo":
+    - toms-pick
+  "118_JP8K":
     - new
+  "174_Skipping_Stones": []
+  "197_CosmikM1N1D":
+    - new
+  "202_ScaryLingo": []
   "303_acid": []
   "355_RYK_Pitch-Vocoder": []
   "369_Asterisk":
     - new
     - chris-pick
+  "404_BlackBox": []
   "433_sense_of_space": []
-  "580_Vortex_Runner":
+  "538_bootleg_radio":
     - new
+  "580_Vortex_Runner": []
   "666_ws_doom":
     - toms-pick
     - magic
+  "799_mazerunner":
+    - new
+  "800_graphic_osc":
+    - new
+  "801_WaveSeq":
+    - new
   "818_Bibesque":
-    - new
     - useful
-    - classic
-  "833_BuzzyBee":
-    - new
+  "833_BuzzyBee": []
   "877_RYK_Tape-Sampler":
     - magic
     - chris-pick
+  "907_8mu_eq":
+    - new
   "910_RYK_Pitched-Delay":
     - classic
   "999_Dub_Warning":
     - toms-pick
-  # Impermanence
-  110_Impermanence: []
-  # BlackBox
-  404_BlackBox: []
-  # Graphic Osc
-  800_graphic_osc: []
-  # Mazerunner
-  799_mazerunner: []
-  # JP4k-sandsquall
-  118_JP8K: []
-  # 8mu CV
-  111_8mu_cv: []
-  # 8mu EQ
-  907_8mu_eq: []
-  # Cosmik M1N1
-  197_CosmikM1N1D: []
-  # Equanimity
-  112_Equanimity: []
-  # Bootleg Radio
-  538_bootleg_radio: []
-  # WaveSeq
-  801_WaveSeq: []
+  # You spin me round
+  122_You_Spin_Me_Round: []

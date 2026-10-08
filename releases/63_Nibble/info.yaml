@@ -1,7 +1,7 @@
 draft: false
 Name: NIBBLE
 short-description: Turns the Workshop System's mysterious four buttons into tools to make melodic lines and lo-fi drum loops
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: "1.11.4"
 Status: Released
@@ -27,7 +27,7 @@ uf2:
 tags:
   - keyboard
   - quantiser
-  - scales
+  - scale
   - drums
   - looper
   - sequencer

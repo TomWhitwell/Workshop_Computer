@@ -1,7 +1,7 @@
 Name: Reverb+
 short-description: Reverb, plus a configurable toolkit of MIDI/pulse/CV utilities
 summary: "**Reverb+** combines a CV-controllable Hall Reverb algorithm with a flexible range of other utilities: MIDI to gate/CV, Bernoulli gate, Turing Machine, sample & hold, and two internal clock sources, all with associated clock dividers. These utilities are configured through a browser-based editor."
-Language: C (RPi Pico SDK)
+Language: C (Pico SDK)
 Creator: Chris Johnson
 Version: 1.5
 License: MIT

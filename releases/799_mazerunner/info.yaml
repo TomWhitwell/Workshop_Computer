@@ -2,10 +2,10 @@ draft: false
 Name: Mazerunner
 short-description: Generate a maze and plot two independent solution paths - turn them into pitch cv and gates.
 summary: Load the webapp and connect to the Workshop Computer - on load, a momentary press down of the switch or a trigger detected on CV In 2 generates a maze and two solutions for it, using user-selected algorithms. Internal or external clock steps through the solution paths (resettable with a trigger to Pulse In 2), with Path B having separate clock division/multiplication. Once the end of the maze is reached, the path ping-pongs back and forth, looping indefinitely - depending on your choices and settings the loops can be vastly different lengths to each other, which can make for some happy accidents as they phase against each other over time. The braid control removes walls from dead ends, causing loops that can be quite musical to the ear. There are three choices for ways to map the resulting paths to the 2 quantised pitch CV outputs (1 step per turn, length of straight run mapped to pitch leap, length of opposite path's last straight run mapped to pitch leap) and gates fire each time a corner is turned. There are also sum and difference outputs, with slew that can be activated in the webapp.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: XponentOne, AI-assisted (Claude)
 Version: "0.6.0"
-Status: WIP
+Status: Beta
 License: MIT
 date-created: 2026-09-29
 contact:

@@ -1,0 +1,15 @@
+/build*/
+.DS_Store
+*.uf2
+*.elf
+*.bin
+*.hex
+*.map
+*.dis
+*.o
+
+# Keep only deliberately versioned test/release firmware.
+!uf2/*.uf2
+
+# Reproducible release-candidate bundles.
+/dist/

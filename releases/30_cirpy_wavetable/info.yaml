@@ -4,7 +4,7 @@ short-description: Wavetable oscillator that using wavetables from Plaits, Braid
 Language: CircuitPython
 Creator: Tod Kurt (@todbot)
 Version: 0.1
-Status: Functional but WIP
+Status: WIP
 date-created: 2024-11-30
 date-updated: 2024-11-30
 
