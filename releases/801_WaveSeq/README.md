@@ -133,6 +133,14 @@ and + to bring it back; the browser remembers which are folded):
   on the right lists them). The page lights the 8mu's LEDs as the card
   would. A dashed line on a fader shows where the 8mu's fader is while it
   waits to pick up.
+- **Both editors at once.** With the CVSeq editor open too (each Computer
+  plugged into the computer), one 8mu drives whichever editor you last
+  clicked in, or opened. The header shows **8mu: here** or **8mu:
+  elsewhere**; clicking it, or anywhere on the page, takes the 8mu. The
+  other page ignores the 8mu and leaves its LEDs alone, but follows where
+  the faders are, so they pick up as usual when it comes back. Use two
+  windows side by side rather than tabs: Chrome slows a tab that's been in
+  the background for a few minutes.
 - **Inputs & outputs** and **8mu.** Cards on the right: every jack and what it
   does, and the 8mu's buttons (page, bank, last step), pickup, LEDs and tilt.
 - **Presets.** Seven built in, plus your own, kept in the browser

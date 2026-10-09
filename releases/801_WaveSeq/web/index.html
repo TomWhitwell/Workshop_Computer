@@ -50,6 +50,8 @@
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
   .dot.ok { background: var(--ok); } .dot.warn { background: var(--warm); } .dot.bad { background: var(--bad); }
   .spacer { flex: 1; }
+  .muown { padding: 2px 8px; font-size: 12px; border-color: var(--accent); }
+  .muown.away { color: var(--muted); border-color: var(--line); border-style: dashed; }
   button {
     font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
     background: var(--panel); color: var(--ink); cursor: pointer;
@@ -157,6 +159,7 @@
 <header>
   <h1>Wave Sequencer</h1>
   <div class="status"><span id="dot" class="dot"></span><span id="status-text">Not connected</span></div>
+  <button id="mu-owner" class="muown" hidden></button>
   <div class="spacer"></div>
   <button id="btn-connect" class="primary">Connect card &amp; 8mu</button>
   <button id="btn-rescan" hidden>Rescan</button>
@@ -1068,9 +1071,73 @@ function eightmuButton(b, down) {
   reengage();
   requestRender();
 }
+// ---- Which editor the 8mu drives.  With both the CVSeq and the WaveSeq
+// editors open, one 8mu on this computer drives one of them: the one last
+// clicked in (or opened).  A page claims it by telling the others, over a
+// BroadcastChannel and through localStorage, and they let it go.  A page
+// without it ignores its faders, buttons and tilt and leaves its LEDs alone,
+// but still follows where the faders are, so they pick up on return.
+const EDITOR_NAME = 'WaveSeq';
+const OWNER_KEY = 'workshop.8mu.owner';
+const owner = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), here: true, other: '', chan: null };
+function claim8mu(announce) {
+  const was = owner.here;
+  owner.here = true;
+  const msg = { id: owner.id, name: EDITOR_NAME, t: Date.now() };
+  try { if (owner.chan) owner.chan.postMessage(msg); } catch (e) {}
+  try { localStorage.setItem(OWNER_KEY, JSON.stringify(msg)); } catch (e) {}
+  if (!was) { taken8mu(); if (announce && link.muIns.length) say('The 8mu now drives this editor.'); }
+  refreshOwner();
+}
+function heardClaim(msg) {
+  if (!msg || msg.id === owner.id) return;
+  owner.other = msg.name || '';
+  if (owner.here) {
+    owner.here = false;
+    for (const p of mu.press) p.down = false;
+    mu.engaged.fill(false);
+    requestRender();
+  }
+  refreshOwner();
+}
+// Taking the 8mu back: its faders must meet their values again, and its
+// LEDs are repainted
+function taken8mu() {
+  for (const p of mu.press) p.down = false;
+  mu.engaged.fill(false);
+  reengage();
+  mu.ledSent.fill(-1);
+  mu.lastBlinkOff = 0;
+  requestRender();
+}
+function refreshOwner() {
+  const b = $('mu-owner'); if (!b) return;
+  b.hidden = !link.muIns.length;
+  b.classList.toggle('away', !owner.here);
+  b.textContent = owner.here ? '8mu: here' : '8mu: elsewhere';
+  b.title = owner.here ? 'The 8mu on this computer drives this editor. Click in another editor to hand it over.'
+    : 'The 8mu is driving the ' + (owner.other || 'other') + ' editor. Click here, or anywhere on this page, to take it back.';
+}
+function setupOwnership() {
+  try { owner.chan = new BroadcastChannel('workshop-computer-8mu'); owner.chan.onmessage = (e) => heardClaim(e.data); } catch (e) {}
+  window.addEventListener('storage', (e) => { if (e.key === OWNER_KEY && e.newValue) { try { heardClaim(JSON.parse(e.newValue)); } catch (err) {} } });
+  // the page you're using takes the 8mu
+  const take = () => { if (!owner.here) claim8mu(true); };
+  window.addEventListener('pointerdown', take, true);
+  window.addEventListener('keydown', take, true);
+  window.addEventListener('focus', take);
+  $('mu-owner').addEventListener('click', () => claim8mu(true));
+  claim8mu(false);   // a page just opened takes it
+}
+
 function eightmuMessage(d) {
   if (d.length < 3 || d[0] < 0x80 || d[0] >= 0xF0) return;
   const type = d[0] & 0xF0;
+  if (!owner.here) {
+    // driving another editor: only follow where the faders are
+    if (type === 0xB0 && d[1] >= FIRST_FADER_CC && d[1] < FIRST_FADER_CC + NS) { mu.phys[d[1] - FIRST_FADER_CC] = d[2] & 0x7F; requestRender(); }
+    return;
+  }
   if (type === 0xB0) {
     const cc = d[1];
     if (cc >= FIRST_FADER_CC && cc < FIRST_FADER_CC + NS) eightmuFader(cc - FIRST_FADER_CC, d[2] & 0x7F);
@@ -1093,7 +1160,7 @@ function scheduleMotion() {
 // The 8mu's own LEDs: stored values, playing step full on (as the card does).
 // SysEx to the 8mu must travel on its own, so LED notes pause around it.
 function serviceEightmuLeds() {
-  if (!link.muOuts.length) return;
+  if (!link.muOuts.length || !owner.here) return;
   const now = performance.now();
   if (now - mu.lastBlinkOff > 2000) {
     mu.lastBlinkOff = now;
@@ -1153,6 +1220,7 @@ function scanPorts() {
   link.cardOnline = !!(cardIn && cardOut);
   link.sysexBuf = []; link.sysexOn = false;
   if (!muIns.length) { mu.phys.fill(-1); }
+  refreshOwner();
   mu.lastBlinkOff = 0;
 
   $('btn-read').disabled = $('btn-send').disabled = !link.cardOnline;
@@ -1161,7 +1229,7 @@ function scanPorts() {
   if (link.cardOnline) {
     link.pingTimer = setInterval(() => sendRaw(sysex(CMD.PING, [])), 1000);
     sendRaw(sysex(CMD.PING, []));
-    setStatus('ok', 'Connected: Wave Sequencer card' + (muIns.length ? ' + 8mu' : ''));
+    setStatus('ok', 'Connected: WaveSeq card' + (muIns.length ? ' + 8mu' : ''));
     say(muIns.length ? 'The 8mu drives this page, and this page drives the card.' : 'Card connected. Drag the faders, or plug an 8mu into this computer.' + note);
     if (!wasOnline) sendRaw(sysex(CMD.HELLO, []));       // the card is the source of truth: read it
   } else if (muIns.length) {
@@ -1472,6 +1540,7 @@ function init() {
   if (!navigator.requestMIDIAccess) say('This browser can’t do WebMIDI, so it can’t reach the card or an 8mu. You can still edit and keep presets here.');
   else say('Press “Connect card & 8mu” to reach the card. Until then this page edits and previews on its own.');
   changed();
+  setupOwnership();
   requestAnimationFrame(frame);
 }
 init();
