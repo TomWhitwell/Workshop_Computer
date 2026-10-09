@@ -90,7 +90,8 @@ power-cycle the module, and press **Connect card & 8mu**. The page reads the
 sequence from the card (the card is the source of truth), then sends every
 edit as it's made.
 
-From the top:
+From the top (each section has a − button by its heading that folds it away,
+and + to bring it back; the browser remembers which are folded):
 
 - **Readouts.** Step, pitch (as a note name), speed, crossfade, direction and
   whether the card is clocked, live from the card's knobs, CV and switch.
