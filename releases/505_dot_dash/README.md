@@ -25,6 +25,10 @@ DASH  -.. .- ... ....
 audio outputs. With no keyboard attached the card still runs,
 looping `SOS` so you can see it's alive.
 
+## Watch the video
+
+[![Dot Dash demo video](https://img.youtube.com/vi/37OTUfdDDbk/hqdefault.jpg)](https://youtu.be/37OTUfdDDbk)
+
 ## What it does
 
 Every output lives on its own jack and they all play at the same time, so patch
