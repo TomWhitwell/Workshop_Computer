@@ -1,7 +1,7 @@
 draft: false
 Name: ZX
 short-description: A cycle-accurate ZX Spectrum 128K that turns the modular jacks/knobs/switch into a patchable control surface — plus OneBit (1-bit beeper synth) as an alternate boot mode.
-Language: C++ (Pico SDK / ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: "1.2.1"
 Status: Released

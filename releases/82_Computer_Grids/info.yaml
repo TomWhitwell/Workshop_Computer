@@ -1,6 +1,6 @@
 Name: Computer Grids
 short-description: Grids-inspired trigger sequencer with Web MIDI SysEx configuration.
-Language: C++
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Phil Miller
 Version: 0.1.0
 Status: Released

@@ -6,10 +6,10 @@ summary: Mono-input stereo cassette warble processor with wow, flutter, hiss,
   crackle, and tape wear morphing.
 short-description: Mono-input stereo cassette warble processor with wow,
   flutter, hiss, crackle, and tape wear morphing.
-Language: C++ (RP2040 Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: 0.8.0
-Status: Beta - stable in single-developer testing
+Status: Beta
 License: MIT
 demo-link: https://www.youtube.com/watch?v=X9NSBJfStic
 panel:

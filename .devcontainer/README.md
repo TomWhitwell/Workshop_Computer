@@ -33,8 +33,30 @@ toolchain.
 
 The Dev Container automatically installs the site-generator dependencies and
 enables this repository's pre-commit hook for the clone. The hook runs only
-when staged changes touch `releases/` and validates the exact staged snapshot,
+when staged changes touch `releases/`, and validates the exact staged snapshot,
 so other unstaged edits do not affect its result.
+
+The hook and pull request validation share one change-set check
+(`tools/sitegen/src/validate/changeSet.js`), so they agree on which files are
+validated and what counts as an error. Like CI, the hook evaluates everything
+your branch changes, not just the current commit: it compares the staged tree
+with the point where the branch left `main` (the closest of `upstream/main`,
+`origin/main`, and `main`; override with `git config workshop.baseRef <ref>`).
+
+- Errors the branch introduces are listed and block the commit.
+- Errors that already exist on `main` in a card you changed do not block the
+  commit, but the hook warns that CI will reject the PR until they are fixed,
+  because PR validation fails on any error in a changed card.
+- Warnings never block; only those the branch introduces are listed.
+
+To see every issue in a card, run `npm run validate-info -- releases/<card>`.
+If the installed validator dependencies no longer match `package-lock.json`
+(for example after pulling a Dependabot update), the hook runs `npm ci` first.
+
+Committing from a terminal shows live progress and the full report. GUI clients
+such as VS Code's Source Control view show only the hook's first line (the
+verdict) in their error dialog; use its "Show Command Output" button for the
+full report.
 
 To install the same hook manually outside the Dev Container:
 
@@ -49,9 +71,7 @@ Run the staged checks manually at any time with:
 npm run validate-staged
 ```
 
-The hook reports advisory warnings and blocks a commit only for malformed YAML,
-missing or invalid required core metadata, or an internal validation-rule
-crash. Installation changes only this clone's `core.hooksPath`. If another hook
+Installation changes only this clone's `core.hooksPath`. If another hook
 manager is already configured, invoke `npm run validate-staged` from that
 manager instead. `git commit --no-verify` bypasses the local hook, but pull
 request validation still runs in CI.

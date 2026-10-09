@@ -6,12 +6,14 @@ as two independently coloured audio outputs. Audio Out 1 is Voice A; Audio Out
 2 is Voice B, which can be gently detuned for width or pushed into more obvious
 intervals.
 
-This is a hardware-tested stable release. The supplied firmware is
-`uf2/Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2`.
+This build includes the 8mu button-note fix and has passed a clean compile and
+link. The supplied firmware is
+`uf2/Vortex_Runner_8mu_button_note_fix_20261007.uf2`; hardware verification is
+still required before calling it stable.
 
 ## Install And Start
 
-1. Flash `Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2` to a program
+1. Flash `Vortex_Runner_8mu_button_note_fix_20261007.uf2` to a program
    card with the normal Workshop Computer card-flashing workflow.
 2. Insert the programmed card and power the Workshop Computer.
 3. For a first sound with no controller connected, leave Pulse In 1 unpatched:
@@ -103,7 +105,8 @@ deliberately musical intervals rather than a conventional chorus effect.
 
 ## Included Firmware
 
-- `uf2/Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2`: current
-  hardware-tested stable release
+- `uf2/Vortex_Runner_8mu_button_note_fix_20261007.uf2`: current build; verify
+  that pressing an 8mu button does not alter a CV-keyboard note before treating
+  it as stable
 - the August 2026 rollback firmware and matching source snapshot are archived
   locally and deliberately excluded from the stable-release PR

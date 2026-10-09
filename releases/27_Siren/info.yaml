@@ -1,10 +1,10 @@
 draft: false
 Name: Siren
 short-description: Multi-algorithm drone oscillator. Inspired by the Forge TME Vhikk X.
-Language: C++ (ComputerCard / Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Moses Hoyt
 Version: 0.2
-Status: Functional but WIP
+Status: WIP
 License: MIT
 date-created: 2026-03-25
 date-updated: 2026-03-26

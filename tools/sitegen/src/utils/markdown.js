@@ -90,7 +90,8 @@ function markedWithHeadingIds() {
   const instance = new Marked();
   instance.use({
     renderer: {
-      heading(text, level) {
+      heading({ tokens, depth: level }) {
+        const text = this.parser.parseInline(tokens);
         const base = slugify(String(text).replace(/<[^>]*>/g, ''));
         let id = '';
         if (base) {

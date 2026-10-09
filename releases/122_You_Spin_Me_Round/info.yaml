@@ -1,0 +1,128 @@
+draft: false
+Name: You spin me round
+short-description: Playable rotary speaker with separate horn/drum inertia and an Inside perspective.
+summary: >-
+  A hardware-tested mono-to-stereo Leslie-style rotary speaker for the Workshop
+  Computer. Main sets speed, X opens up movement and stereo spread, and Y adds
+  cabinet drive. Switch between slow and fast, or hold Down to brake and release
+  to resume. Outside is the default; hold Down at boot and use Main to select an
+  exaggerated Inside perspective. Release candidate based on the tested alpha3 DSP.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Adrian Vos
+Version: "0.1.0-rc1"
+Status: Beta
+License: MIT
+date-created: 2026-10-07
+date-updated: 2026-10-07
+Editor: none
+contact:
+  social:
+    github: https://github.com/soveda
+
+tags:
+  - effect
+  - stereo
+
+uf2:
+  - path: uf2/You_Spin_Me_Round_0.1.0-rc1.uf2
+    name: You spin me round 0.1.0 release candidate 1
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Mono Source
+      type: audio
+      description: Mono source feeding the bass drum and treble horn.
+    - id: AudioIn2
+      name: Unused
+      type: audio
+      description: Not used by this card.
+    - id: CVIn1
+      name: Speed CV
+      type: cv
+      description: Bipolar modulation added to Main, clamped to its range.
+    - id: CVIn2
+      name: Intensity CV
+      type: cv
+      description: Bipolar modulation added to X before its curved movement response.
+    - id: PulseIn1
+      name: Fast Gate
+      type: pulse
+      description: When patched, high selects fast and low selects slow, overriding switch Up/Middle.
+    - id: PulseIn2
+      name: Brake Gate
+      type: pulse
+      description: High holds brake; low releases unless switch Down remains held.
+  outputs:
+    - id: AudioOut1
+      name: Left Out
+      type: audio
+      description: Processed stereo left output.
+    - id: AudioOut2
+      name: Right Out
+      type: audio
+      description: Processed stereo right output.
+    - id: CVOut1
+      name: Unused
+      type: cv
+      description: Set to nominal zero.
+    - id: CVOut2
+      name: Unused
+      type: cv
+      description: Set to nominal zero.
+    - id: PulseOut1
+      name: Unused
+      type: pulse
+      description: Held low.
+    - id: PulseOut2
+      name: Unused
+      type: pulse
+      description: Held low.
+
+controls:
+  switch:
+    up:
+      name: Fast
+      description: Fast rotation range unless Pulse In 1 is patched.
+    middle:
+      name: Slow
+      description: Slow rotation range unless Pulse In 1 is patched.
+    down:
+      name: Hold Brake
+      description: Hold to brake and release to resume; hold at boot to select Outside/Inside with Main.
+  knobs:
+    - main:
+        name: Speed
+        description: Sets rate within the slow/fast range; selects Outside/Inside while the boot selector is held.
+      x:
+        name: Intensity
+        description: Rotary movement and stereo spread with a responsive low-end curve; fully left is stationary.
+      y:
+        name: Drive
+        description: Cabinet input drive into soft saturation.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Horn Motion
+          description: Brightness follows actual horn phase and inertia.
+        - id: LED1
+          name: Drum Motion
+          description: Brightness follows actual drum phase and inertia.
+        - id: LED2
+          name: Fast Range
+          description: On when fast is selected, including the gate override.
+        - id: LED3
+          name: Brake
+          description: On while switch Down or the brake gate is held.
+        - id: LED4
+          name: Inside
+          description: On for Inside, off for default Outside.
+        - id: LED5
+          name: Timing Warning
+          description: Latched when this callback takes at least 18 microseconds; not a complete-ISR measurement.
+host:
+  notes: >-
+    Uses ComputerCard 0.4.0 with per-sample audio processing. No USB MIDI or web
+    editor. Listening perspective is selected at boot and is not saved to flash.
+    Both pulse inputs use held gate levels, with a minimum reliable duration of 2 ms.

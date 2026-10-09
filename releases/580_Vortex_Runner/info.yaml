@@ -3,18 +3,20 @@ Name: Vortex Runner
 short-description: Split-output cinematic synth voice with Web MIDI editing.
 summary: >-
   Vortex Runner is a Yamaha CS-80-inspired Workshop Computer synth voice.
-  The current stable firmware keeps a monophonic note path but renders two
+  The current firmware keeps a monophonic note path but renders two
   related output voices: Audio Out 1 is Voice A and Audio Out 2 is Voice B,
   detunable relative to Voice A. Pitch, gate, envelopes, portamento, CV policy,
   MIDI handling, LFO timing, and preset state are shared; only oscillator/filter
   colour is A/B-specific, including source/output levels, pulse/PWM, and filter
   settings. It includes expressive envelopes, 12 dB/octave high-pass and
   low-pass filters with bounded resonance, ring modulation, MIDI/Web MIDI
-  control, a hardware preset browser, and 8mu controller support.
-Language: C++ (Pico SDK)
+  control, a hardware preset browser, and 8mu controller support. The current
+  8mu build prevents its layer-selection buttons from entering the synth MIDI
+  note path.
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
-Version: "0.1"
-Status: Stable - hardware-tested split-output firmware with 8mu control and preset browser
+Version: "0.1.1 8mu button-note fix"
+Status: Beta
 License: MIT
 date-created: 2026-08-26
 Editor: web

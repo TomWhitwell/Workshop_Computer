@@ -6,10 +6,10 @@ summary: >
   reel-to-reel machines. It models record drive, virtual AC-bias calibration,
   tape formulation, transport speed, replay head loss, magnetic memory, and hiss
   without generating an ultrasonic bias carrier at the 48 kHz audio rate.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "0.1.1"
-Status: Beta - stable in single-developer testing
+Status: Beta
 License: MIT
 date-created: 2026-07-30
 date-updated: 2026-07-31

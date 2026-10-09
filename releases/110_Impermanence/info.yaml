@@ -7,7 +7,7 @@ summary: |
   a moved knob throws it away for good, with no undo and no presets. Three layers of different lengths phase
   against each other into a shimmer reverb whose tail rises in octaves and animates as its decay knob opens. Tap the switch **down** for Rhythm mode, where slices
   step to a clock on Pulse In 2.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Matt Allison
 Version: "0.4.2"
 Status: Released

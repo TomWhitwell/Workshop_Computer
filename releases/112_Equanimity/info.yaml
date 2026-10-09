@@ -8,7 +8,7 @@ summary: |
   as it rises, notes come more often and ring brighter, the drone brightens, and the triggers and wander CVs grow restless; as
   it falls, everything settles. Each set has a random root, scale and tone (harp, marimba, xylophone,
   glockenspiel, vibraphone or bell, all from one FM pair). Tap the switch down, or send Pulse In 2, for a new set.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Matt Allison
 Version: "0.3.4"
 Status: Released

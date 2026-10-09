@@ -11,7 +11,7 @@ summary: >
   X spreads seven fixed-point saw oscillators, while Y darkens or brightens the
   stack before it leaves the stereo audio outs. USB MIDI works in both device
   and host modes for note/gate playability, pitch bend, and basic CC control.
-Language: C++ (RP2040 Pico SDK / ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "0.1.23"
 Status: Beta

@@ -55,10 +55,10 @@ shelves:
     title: Essentials 
     layout: video-lead
     cards:
+      - 45_bends
       - 369_Asterisk
       - 22_sheep
       - 44_Birds
-      - 21_resonator
 
   - id: new
     title: Recommended new releases
@@ -73,28 +73,6 @@ shelves:
       href: ?sort=created-desc
 
 
-  - id: vos-collection
-    title: The Vos collection
-    layout: video-strip
-    cards:
-      - 54_Tapegrade
-      - 433_sense_of_space
-      - 87_fr330hfr33
-      - 101_Gnarly_C1ZZL3
-
-
-
-  - id: generative-sequencers
-    title: Generative sequencers
-    layout: video-lead
-    cards:
-      - 36_GradualProcess
-      - 16_the_bells
-      - 79_Slag
-      - 82_Computer_Grids
-
-
-
   - id: dune-collection
     title: The Dune collection
     layout: video-strip
@@ -105,6 +83,41 @@ shelves:
       - 04_BYO_Benjolin
 
 
+  - id: old
+    title: Classics you might have missed
+    layout: list
+    cards_from_flairs:
+      - classic
+    hide_flairs:
+      - classic
+    limit: 8
+    link:
+      text: More classics
+      href: ?sort=created-asc&tag=classic
+
+
+
+  - id: generative-sequencers
+    title: Generative sequencers
+    layout: video-lead
+    cards:
+      - 36_GradualProcess
+      - 112_Equanimity
+      - 404_BlackBox
+      - 82_Computer_Grids
+
+
+
+
+
+  - id: vos-collection
+    title: The Vos collection
+    layout: video-strip
+    cards:
+      - 54_Tapegrade
+      - 433_sense_of_space
+      - 87_fr330hfr33
+      - 101_Gnarly_C1ZZL3
 
       
   - id: properly-useful
@@ -135,23 +148,23 @@ shelves:
       - 26_clockwork
 
 
-  - id: samples-and-found-sound
-    title: Samples and found sound
-    layout: video-lead
-    cards:
-      - 66_stretchcore
-      - 67_Fragments
-      - 53_glitter
-      - 73_VSS
-
-
-#   - id: feedback-laboratory
-#     title: Feedback laboratory
+#   - id: samples-and-found-sound
+#     title: Samples and found sound
 #     layout: video-lead
 #     cards:
-#       - 32_vink
-#       - 35_FreqShift
-#       - 59_BitPhase
-#       - 76_hot_fuzz
-#       - 83_Origami
-#       - 97_alloy
+#       - 66_stretchcore
+#       - 67_Fragments
+#       - 53_glitter
+#       - 73_VSS
+
+
+  - id: feedback-laboratory
+    title: Feedback laboratory
+    layout: video-lead
+    cards:
+      - 32_vink
+      - 35_FreqShift
+      - 59_BitPhase
+      - 76_hot_fuzz
+      - 83_Origami
+      - 97_alloy

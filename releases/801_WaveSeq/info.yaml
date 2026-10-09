@@ -1,7 +1,7 @@
 draft: false
 Name: WaveSeq
 short-description: "Wavestation-style wave sequencing - eight steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: XponentOneAudio
 Version: "0.5.2"
 Status: Beta

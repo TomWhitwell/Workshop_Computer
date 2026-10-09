@@ -82,7 +82,7 @@ contact:
 |-------|----------|------|-------------|
 | `repository` | no | string (URL) | Upstream source repo when firmware or docs live outside this monorepo. Example: [64_voices_of_sid](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/64_voices_of_sid/info.yaml) points at Codeberg. |
 | `discussion` | no | string (URL) | Card-specific feedback or support destination, normally a Discord thread. This replaces the site's general discussion link on that card's detail page. |
-| `tags` | no | string[] | Labels for card type and function. Use lowercase kebab-case (e.g. `sequencer`, `midi-host`, `effect`, `synthesizer`, `polyphonic`, `utility`). Sitegen normalizes and deduplicates. A single comma-separated string is also accepted. |
+| `tags` | no | string[] | Labels for card type and function. Use lowercase kebab-case (e.g. `sequencer`, `midi-host`, `effect`, `synthesizer`, `polyphonic`, `utility`). Sitegen normalizes and deduplicates. A single comma-separated string is also accepted. Prefer tags other cards already use: validation warns when a new tag looks like a different spelling of an existing one (likewise for `Language` and `Status`). |
 
 ```yaml
 discussion: https://discord.com/channels/SERVER_ID/CHANNEL_OR_THREAD_ID
@@ -285,5 +285,6 @@ Every card must include **`Name`** — the site index and detail page title come
 
 - **`pages.yml`** — synchronizes curation, runs `tools/sitegen`, and deploys `site/` (including copied `web/` folders).
 - **`sync-curation.yml`** — after changes land on `main`, synchronizes `tools/sitegen/src/curation/flairs.yml` and commits any update.
+- **`npm run metadata-values -- report`** — maintainer tool: writes `metadata-values.yml` listing every `tags`, `Language` and `Status` value with similar spellings grouped. Edit the right-hand values, preview with `npm run metadata-values -- apply --dry-run`, then run `apply` to rename them across all `releases/*/info.yaml`.
 
 **Future:** per-card `npm` builds in CI before copying `dist/` to Pages; commit built assets and set `Editor: dist` (or whatever your output folder is) until then.

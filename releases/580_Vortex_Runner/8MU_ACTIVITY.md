@@ -1,7 +1,7 @@
 # Vortex Runner 8mu Activity
 
-This guide applies to the stable 8mu firmware:
-`uf2/Vortex_Runner_current_stable_8mu_filter_envelope_hp_20261003.uf2`.
+This guide applies to the 8mu button-note fix firmware:
+`uf2/Vortex_Runner_8mu_button_note_fix_20261007.uf2`.
 
 ## Connecting
 

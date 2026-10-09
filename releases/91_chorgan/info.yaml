@@ -10,7 +10,7 @@ summary: >-
   down to cycle extension presets, hold it a second to store a chord, and clock Pulse In 2 to
   step through up to eight stored chords. Boot with the switch held down for slew mode, where
   chord changes glide instead of detuning.
-Language: C++ (Pico SDK / ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: 1.1.0
 Status: Released
@@ -27,7 +27,7 @@ contact:
 
 tags:
   - synthesizer
-  - chord
+  - chords
   - sequencer
   - polyphonic
   - portamento
