@@ -4,7 +4,7 @@ Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: 0.2.1
 Status: Beta
-License: Mixed - source code/reverb components follow their original project licences; embedded BBC Sound Effects audio is subject to BBC Sound Effects Archive licensing
+License: Mixed - original source and reverb components are MIT; dependencies retain their own licences; embedded BBC Sound Effects audio is subject to BBC Sound Effects Archive licensing
 date-created: 2026-07-14
 date-updated: 2026-07-16
 demo-link: https://www.youtube.com/watch?v=9wxg1nU-I7g

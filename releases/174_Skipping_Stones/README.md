@@ -65,3 +65,10 @@ attributed in [ComputerCard.h](ComputerCard.h).
 The design is inspired by Mutable Instruments Marbles by Emilie Gillet. No
 Mutable Instruments source code is included; the random, loop-memory, and
 distribution logic was independently written for this card.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it, or distribute the ZIP produced by
+`license_tools/package_uf2.py` from the releases directory.

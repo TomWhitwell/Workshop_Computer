@@ -91,7 +91,7 @@ though the actual flash payload still fits comfortably on a 16 MB card.
 
 ## CC0 Mayakovsky Version
 
-A separate copyright-clean version is included in `mayakovsky_cc0/`. It uses a
+A separate CC0 audio version is included in `mayakovsky_cc0/`. It uses a
 Creative Commons 0 Mayakovsky Theatre audience recording from approximately
 4:45-6:16, avoiding speech heard around 6:25, while keeping the same controls,
 LED countdown, pulse inputs, restlessness behaviour, reverb, and chair creak.
@@ -156,3 +156,15 @@ rather than turning the quiet ambience into noise.
 The integer reverb implementation is based on Jon Dattorro's reverb design and
 the [el-visio/dattorro-verb](https://github.com/el-visio/dattorro-verb)
 reference implementation; the source retains its attribution comment.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it, or distribute the ZIP produced by
+`license_tools/package_uf2.py` from the releases directory.
+
+The BBC audio is retained for the permitted uses described in LICENSE.
+BBC terms restrict sharing; the Mayakovsky CC0 audio variant provides
+simpler terms for public redistribution. Neither audio grant relicenses
+the firmware dependencies. See THIRD_PARTY_NOTICES.md.

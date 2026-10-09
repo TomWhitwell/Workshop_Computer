@@ -1,12 +1,14 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Keep the full redistribution notices beside generated firmware outputs.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/../NOTICE.txt"
+    "${CMAKE_CURRENT_BINARY_DIR}/NOTICE.txt" COPYONLY)
+
 # ============================================================
 # Raspberry Pi Pico SDK
 # ============================================================
 
-set(PICO_SDK_PATH "/Users/adrianvos/pico-sdk")
-
-include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/pico_sdk_import.cmake)
 
 # ============================================================
 # Project
@@ -29,10 +31,10 @@ pico_sdk_init()
 
 add_executable(C1ZZL3_FULL_DUAL_OSCILLATORS
     C1ZZL3.cpp
-    C1ZZL3_LUT.cpp
-    usb_descriptors.c
-    usb_midi_host.c
-    usb_midi_host_app_driver.c
+    ../C1ZZL3_LUT.cpp
+    ../usb_descriptors.c
+    ../usb_midi_host.c
+    ../usb_midi_host_app_driver.c
 )
 
 # ============================================================
@@ -41,6 +43,7 @@ add_executable(C1ZZL3_FULL_DUAL_OSCILLATORS
 
 target_include_directories(C1ZZL3_FULL_DUAL_OSCILLATORS PRIVATE
     .
+    ..
 )
 
 # ============================================================

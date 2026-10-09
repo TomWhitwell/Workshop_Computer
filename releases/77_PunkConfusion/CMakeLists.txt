@@ -15,6 +15,10 @@ set(PICO_BOARD pico CACHE STRING "Board type")
 
 cmake_minimum_required(VERSION 3.13)
 
+# Keep the full redistribution notices beside generated firmware outputs.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/NOTICE.txt"
+    "${CMAKE_CURRENT_BINARY_DIR}/NOTICE.txt" COPYONLY)
+
 # The shared ComputerCard import helper consults PICO_SDK_PATH before it can
 # fetch or discover anything else. Ignore stale shell values so this CMake file
 # works both inside Workshop_Computer/releases and in the standalone repo.
@@ -83,6 +87,13 @@ target_link_libraries(${TARGET_NAME}
 pico_set_binary_type(${TARGET_NAME} default)
 
 set(LINKER_TEMPLATE ${PICO_SDK_PATH}/src/rp2_common/pico_crt0/rp2040/memmap_default.ld)
+if(NOT EXISTS "${LINKER_TEMPLATE}")
+  # Pico SDK 2.3 moved the platform linker scripts out of pico_crt0.
+  set(LINKER_TEMPLATE ${PICO_SDK_PATH}/src/rp2040/pico_platform/memmap_default.ld)
+endif()
+if(NOT EXISTS "${LINKER_TEMPLATE}")
+  message(FATAL_ERROR "Cannot locate the RP2040 default linker script in PICO_SDK_PATH")
+endif()
 set(LINKER_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}_memmap_default.ld)
 file(READ ${LINKER_TEMPLATE} LINKER_TEXT)
 string(REPLACE

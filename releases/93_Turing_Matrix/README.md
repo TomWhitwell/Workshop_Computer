@@ -104,3 +104,14 @@ windows. The panel still handles the live lag and mix depth gestures in `Z up`.
 The hosted editor is here:
 
 `https://tomwhitwell.github.io/Workshop_Computer/programs/93-turing-matrix/web/index.html`
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it, or distribute the ZIP produced by
+`license_tools/package_uf2.py` from the releases directory.
+
+This card is GPL-3.0-or-later; see the complete text in LICENSE. When
+distributing a compiled version, provide its corresponding source and
+build instructions along with the applicable dependency notices.

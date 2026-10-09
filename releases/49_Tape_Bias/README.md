@@ -41,3 +41,10 @@ and hiss vary with the virtual bias calibration.
 Version 0.1.1 is the current stable fallback build, hardware-tested by one person
 with sine, square, bass-loop, bias-CV, tape-type, and erase-input checks. It remains
 Beta rather than a calibrated emulation of a particular recorder or tape formulation.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it, or distribute the ZIP produced by
+`license_tools/package_uf2.py` from the releases directory.

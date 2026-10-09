@@ -216,3 +216,10 @@ The Web MIDI SysEx format is documented in
 Fr330hfr33 uses the ComputerCard hardware framework by Chris Johnson. Its USB
 MIDI host support includes the MIT-licensed rppicomidi files, copyright 2023
 rppicomidi; their copyright and licence notices are retained in the source.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it, or distribute the ZIP produced by
+`license_tools/package_uf2.py` from the releases directory.
