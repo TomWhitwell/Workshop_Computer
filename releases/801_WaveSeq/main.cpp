@@ -47,7 +47,10 @@
 // Panel
 //   Main knob   Pitch (C1 to C7), plus CV In 1 at 1V/oct
 //   Switch up   X = sequence speed (1/8x to 8x), Y = crossfade (hard cut to
-//               fading over the whole step)
+//               fading over the whole step).  With a clock, X picks a clock
+//               divider or multiplier instead, in eleven equal zones: /8,
+//               /6, /4, /3, /2, x1 (centre), x2, x3, x4, x6, x8; CV In 2
+//               moves two ratios a volt
 //   Switch mid  X = FM amount (Audio In 1), Y = wave scan amount (Audio In 2)
 //   Switch down Tap to step the direction: forward, ping-pong, random
 //
@@ -62,7 +65,8 @@
 //   CV In 1     Pitch, 1V/oct
 //   CV In 2     Speed, 1V/oct
 //   Pulse In 1  Clock: while clocks arrive, each step lasts its TIME fader's
-//               number of clocks (1-8) instead of a time.  Clocks up to 20s
+//               number of beats (1-8) instead of a time, a beat being a
+//               clock divided or multiplied by the speed knob's ratio.  Clocks up to 20s
 //               apart; followed from the second pulse, and the speed knob
 //               takes over again after four of the clock's periods (at
 //               least 2s) without one
@@ -192,6 +196,28 @@ public:
 		if (periodKnown && samplesSinceClock >= timeout) periodKnown = false;
 		clocked = periodKnown;
 
+		// Beats: the clock multiplied by the speed knob's ratio.  Each clock
+		// is a beat; multiplying adds clkNum - 1 more, evenly spaced at the
+		// clock's measured period, started afresh by every clock so they
+		// never drift from it (and never run on past it if the clock slows)
+		bool beat = false;
+		if (clockEdge)
+		{
+			subPhase = 0;
+			subCount = 0;
+			beat = true;
+		}
+		else if (clocked && subCount < clkNum - 1)
+		{
+			subPhase += clkNum;
+			if (subPhase >= clockPeriod)
+			{
+				subPhase -= clockPeriod;
+				subCount++;
+				beat = true;
+			}
+		}
+
 		if (++controlCount >= 32)
 		{
 			controlCount = 0;
@@ -214,7 +240,7 @@ public:
 				swallowClock = false;
 				elapsed = 0;
 			}
-			else if (clockEdge && ++clockCount >= ClocksForStep(cur))
+			else if (beat && ++clockCount >= ClocksForStep(cur) * clkDen)
 			{
 				Advance();
 			}
@@ -329,6 +355,17 @@ private:
 	// Up to 20s a clock: with up to 8 clocks a step, the step length in
 	// 1/256 samples still fits 32 bits
 	static constexpr int32_t kMaxClockPeriod = 20 * 48000;
+	// Clock ratios for the speed knob while clocked, with their size in
+	// 1/4096 octave (the knob's units)
+	struct Ratio {int8_t num, den; int32_t oct;};
+	static constexpr int kNumRatios = 11;
+	static constexpr Ratio kRatios[kNumRatios] = {
+		{1, 8, -12288}, {1, 6, -10588}, {1, 4, -8192}, {1, 3, -6492}, {1, 2, -4096},
+		{1, 1, 0},
+		{2, 1, 4096}, {3, 1, 6492}, {4, 1, 8192}, {6, 1, 10588}, {8, 1, 12288}};
+	int clkNum = 1, clkDen = 1;   // the ratio now: beats = clocks * num / den
+	int32_t subPhase = 0;         // towards the next beat between clocks
+	int subCount = 0;             // beats since the last clock
 	int controlCount = 0;
 	int stepTrig = 0, seqTrig = 0;
 
@@ -507,9 +544,17 @@ private:
 	}
 
 	// Length of step s in samples, at the current speed or clock
+	// Length of step s when clocked, in samples times scale: its TIME
+	// fader's beats (1-8), each a clock times the ratio.  Held to 31 bits.
+	int32_t ClockedSamples(int s, int scale) const
+	{
+		int64_t n = int64_t(clockPeriod) * ClocksForStep(s) * clkDen * scale / clkNum;
+		return n > 0x7F000000 ? 0x7F000000 : int32_t(n);
+	}
+
 	int32_t StepSamples(int s) const
 	{
-		if (clocked) return clockPeriod * ClocksForStep(s);
+		if (clocked) return ClockedSamples(s, 1);
 		int32_t x = params[PageTime][s] - kSkipBelow;
 		if (x < 0) x = 0;
 		int64_t q8 = ExpScale(960 * 256, (x * 31293) / 3968);
@@ -617,7 +662,7 @@ private:
 	{
 		if (clocked)
 		{
-			stepLen = clockPeriod * ClocksForStep(cur) * 256;
+			stepLen = ClockedSamples(cur, 256);
 		}
 		else
 		{
@@ -646,6 +691,24 @@ private:
 		if (spd < -24576) spd = -24576;
 		if (spd > 24576) spd = 24576;
 		speed = int32_t(ExpScale(256, spd));
+		// With a clock, the knob picks a clock divider or multiplier
+		// instead: eleven equal zones round the knob, /8 to x8 with x1 in the
+		// middle.  CV In 2 moves two ratios a volt, about an octave.
+		if (clocked)
+		{
+			int idx = (settings[SetSpeed] * kNumRatios) >> 12;
+			int32_t cv = CVIn2();
+			idx += (cv * 2 + (cv >= 0 ? 170 : -170)) / 341; // 341 a volt, rounded
+			if (idx < 0) idx = 0;
+			if (idx >= kNumRatios) idx = kNumRatios - 1;
+			clkNum = kRatios[idx].num;
+			clkDen = kRatios[idx].den;
+			spd = kRatios[idx].oct; // shown in the web editor as the ratio
+		}
+		else
+		{
+			clkNum = clkDen = 1;
+		}
 		xfAmount = settings[SetFade];
 		fmAmount = (settings[SetFM] * settings[SetFM]) >> 12;
 		scanAmount = settings[SetScan];

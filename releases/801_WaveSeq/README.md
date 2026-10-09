@@ -160,7 +160,7 @@ The switch's up and middle positions choose what the X and Y knobs do:
 
 | Switch | X knob | Y knob |
 |--------|--------|--------|
-| Up     | Speed, 1/8x to 8x | Crossfade, from a hard cut to fading over the whole step |
+| Up     | Speed, 1/8x to 8x. With a clock: clock divider or multiplier (below) | Crossfade, from a hard cut to fading over the whole step |
 | Middle | FM amount (Audio In 1) | Wave scan amount (Audio In 2) |
 
 All knobs have a small dead zone at each end, so the full range is reached
@@ -185,8 +185,8 @@ three for random. The web editor can set it too.
 | Audio In 1  | Linear FM, depth set by X (switch middle)                  |
 | Audio In 2  | Wave scan, up to +/-32 waves, audio rate, depth set by Y (switch middle) |
 | CV In 1     | Pitch, 1V/oct                                              |
-| CV In 2     | Speed, 1V/oct                                              |
-| Pulse In 1  | Clock. Steps advance on clocks while they keep arriving, for clocks up to 20 s apart. Followed from the second pulse; the speed knob takes over again after four of the clock's periods (at least 2 s) without one |
+| CV In 2     | Speed, 1V/oct. With a clock, moves the clock ratio two steps a volt |
+| Pulse In 1  | Clock. Steps advance on beats while clocks keep arriving: a beat is a clock divided or multiplied by the speed knob, and a step lasts its TIME fader's 1-8 beats. Clocks up to 20 s apart. Followed from the second pulse; the speed knob takes over again after four of the clock's periods (at least 2 s) without one |
 | Pulse In 2  | Restart from the first step                                |
 | Audio Out 1 | Wave sequence                                              |
 | Audio Out 2 | Wave sequence, detuned                                     |
@@ -194,6 +194,16 @@ three for random. The web editor can set it too.
 | CV Out 2    | Current step's level, crossfaded, 0-5V                     |
 | Pulse Out 1 | Gate for each step, length set on the GATE page (D, second page) |
 | Pulse Out 2 | Trigger at the start of the sequence                       |
+
+**Clock divide and multiply.** While a clock is plugged into Pulse In 1, the
+speed knob (X, switch up) stops scaling time and picks a ratio instead, in
+eleven equal zones round the knob: ÷8, ÷6, ÷4, ÷3, ÷2, ×1 (the middle), ×2,
+×3, ×4, ×6, ×8. Dividing, a beat waits for that many clocks; multiplying, each
+clock is split into that many evenly spaced beats, measured from the clock and
+started again by every clock, so they never drift from it (and never run on
+past a clock that slows). CV In 2 moves the ratio two steps a volt, about an
+octave. The web editor shows the ratio in the Speed readout and step times in
+beats and clocks.
 
 ## The waves
 

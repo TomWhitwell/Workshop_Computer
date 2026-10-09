@@ -364,7 +364,7 @@ const EIGHTMU_BLINK_OFF = [0xF0, 0x7D, 0x00, 0x00, 0x30, 0xF7];
 
 const PAGE_INFO = [
   { name: 'Wave',  letter: 'A', hint: 'Which wave each step plays: a position in the 64-wave bank, morphing between neighbours.' },
-  { name: 'Time',  letter: 'B', hint: 'How long each step lasts, 20 ms to 4 s (scaled by the speed setting: X with the switch up). Fully down skips the step. With a clock on Pulse In 1, 1-8 clocks.' },
+  { name: 'Time',  letter: 'B', hint: 'How long each step lasts, 20 ms to 4 s (scaled by the speed setting: X with the switch up). Fully down skips the step. With a clock on Pulse In 1, 1-8 beats: a beat is a clock divided or multiplied by the speed knob (\u00f78 to \u00d78).' },
   { name: 'Pitch', letter: 'C', hint: 'Each step’s pitch, -12 to +12 semitones. The middle is no change.' },
   { name: 'Level', letter: 'D', hint: 'How loud each step is.' },
   { name: 'FM',    letter: 'A2', hint: 'Per-step FM amount: multiplies the FM amount knob (X, switch middle) for each step, crossfading between steps. Default 100%.' },
@@ -401,6 +401,21 @@ const playsStep = (values, i, len) => i < len && isActive(values[1][i]);
 const stepMs = (tv) => 20 * Math.pow(2, Math.floor((Math.max(0, raw(tv) - 128) * 31293) / 3968) / 4096);
 const stepClocks = (tv) => Math.min(8, Math.max(1, 1 + Math.floor((raw(tv) - 128) * 8 / 3968)));
 const semis = (pv) => Math.floor(raw(pv) * 25 / 4096) - 12;
+// With a clock the speed knob is a clock divider or multiplier (main.cpp's
+// kRatios); the card reports it as its size in octaves, read back here
+const RATIOS = [[1, 8], [1, 6], [1, 4], [1, 3], [1, 2], [1, 1], [2, 1], [3, 1], [4, 1], [6, 1], [8, 1]];
+function clockRatio(speed) {
+  let best = RATIOS[5], bd = Infinity;
+  for (const r of RATIOS) { const d = Math.abs(Math.log2(r[0] / r[1]) - Math.log2(speed || 1)); if (d < bd) { bd = d; best = r; } }
+  return best;
+}
+const ratioName = (r) => r[1] > 1 ? '\u00f7' + r[1] : '\u00d7' + r[0];
+// A number of clocks, as a whole number or a fraction
+function fmtClocks(beats) {
+  const [n, d] = clockRatio(state.live.speed), num = beats * d, den = n;
+  const g = (a, b) => b ? g(b, a % b) : a, k = g(num, den);
+  return (den / k === 1 ? String(num / k) : (num / k) + '/' + (den / k)) + ' clk';
+}
 const level = (lv) => Math.floor(raw(lv) * raw(lv) / 4096) / 4096;
 
 // ============================================================================
@@ -492,7 +507,7 @@ function fmtMs(ms) { return ms >= 1000 ? (ms / 1000).toFixed(2) + ' s' : Math.ro
 function describe(page, v) {
   switch (page) {
     case 0: { const p = wavePos(v); return p.toFixed(1) + ' ' + FAMILIES[Math.min(7, Math.floor(Math.round(p) / 8))]; }
-    case 1: return !isActive(v) ? 'skip' : state.live.clocked ? stepClocks(v) + ' clk' : fmtMs(stepMs(v));
+    case 1: return !isActive(v) ? 'skip' : state.live.clocked ? stepClocks(v) + (stepClocks(v) > 1 ? ' beats' : ' beat') + (clockRatio(state.live.speed)[0] * clockRatio(state.live.speed)[1] > 1 ? ' = ' + fmtClocks(stepClocks(v)) : '') : fmtMs(stepMs(v));
     case 2: { const s = semis(v); return (s > 0 ? '+' : '') + s + ' st'; }
     case 3: { const l = level(v); return l <= 0 ? 'off' : Math.round(20 * Math.log10(l)) + ' dB'; }
     case 4: case 5: return Math.round(v >= 127 ? 100 : v * 100 / 127) + '%';
@@ -652,7 +667,7 @@ function drawTimeline() {
     }
   });
   const total = sequenceTotal(v, len);
-  const loop = state.live.clocked ? total + ' clocks' : fmtMs(total / (L.speed || 1)) + ' at ' + L.speed.toFixed(2) + 'x';
+  const loop = state.live.clocked ? fmtClocks(total).replace('clk', 'clocks') + ' (' + total + ' beats at ' + ratioName(clockRatio(L.speed)) + ')' : fmtMs(total / (L.speed || 1)) + ' at ' + L.speed.toFixed(2) + 'x';
   $('timeline-caption').textContent = total > 0
     ? 'Steps 1-32, eight to a row; grey boxes are past the end of the sequence. One pass: ' + loop + (L.direction === 1 ? ' (ping-pong plays the middle steps twice)' : L.direction === 2 ? ' on average (random order)' : '') + '. Within a row width is time, height is level; the shaded end of each step is its crossfade, the bar along the bottom its gate, and a ramp at the top its glide.'
     : 'Every step in the sequence is skipped: the card holds the current step.';
@@ -696,14 +711,14 @@ function drawReadouts() {
   const L = state.live;
   $('ro-step').textContent = (L.cur + 1) + ' → ' + (L.next + 1);
   $('ro-pitch').textContent = link.cardOnline ? noteName(L.note) : '-';
-  $('ro-speed').textContent = L.speed.toFixed(2) + 'x';
+  $('ro-speed').textContent = L.clocked ? 'clock ' + ratioName(clockRatio(L.speed)) : L.speed.toFixed(2) + 'x';
   $('ro-xfade').textContent = Math.round(L.xfade * 100) + '%';
   $('ro-clock').textContent = L.clocked ? 'Clocked' : 'Free';
   $('ro-fm').textContent = Math.round(L.fm * L.fm * 100) + '%';
   $('ro-scan').textContent = Math.round(L.scan * 100) + '%';
   document.querySelectorAll('.dir').forEach(b => b.classList.toggle('on', +b.dataset.dir === L.direction));
   $('knob-line').textContent = !link.cardOnline ? 'Tap the module\u2019s switch down to step the direction.'
-    : 'Switch ' + (L.switchUp ? 'up: X = speed, Y = crossfade' : 'middle: X = FM amount, Y = scan amount') +
+    : 'Switch ' + (L.switchUp ? 'up: X = ' + (L.clocked ? 'clock \u00f7/\u00d7' : 'speed') + ', Y = crossfade' : 'middle: X = FM amount, Y = scan amount') +
       (L.knobWaiting ? '. A knob is waiting to pick up its value.' : '.');
 }
 

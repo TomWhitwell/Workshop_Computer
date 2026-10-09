@@ -3,7 +3,7 @@ Name: WaveSeq
 short-description: "Wavestation-style wave sequencing - up to 32 steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
 Language: C++ (Pico SDK + ComputerCard)
 Creator: XponentOneAudio
-Version: "0.6.0"
+Version: "0.6.1"
 Status: Beta
 License: MIT
 Editor: web
@@ -20,7 +20,7 @@ contact:
 
 uf2:
   - path: UF2/waveseq.uf2
-    name: Wave Sequencer 0.6.0
+    name: Wave Sequencer 0.6.1
 
 tags:
   - synth
@@ -77,14 +77,15 @@ panel:
     - id: CVIn2
       name: Speed
       type: cv
-      description: Sequence speed, 1V/oct - each volt doubles the speed.
+      description: Sequence speed, 1V/oct - each volt doubles the speed. With a clock, moves the clock divider/multiplier two steps a volt.
     - id: PulseIn1
       name: Clock
       type: pulse
       description: >
-        While clocks are arriving, steps advance on the clock instead of by
-        time, each lasting the number of clocks (1-8) set by its TIME fader,
-        for clocks anything up to 20s apart. The card follows the clock from
+        While clocks are arriving, steps advance on beats instead of by
+        time, each lasting the number of beats (1-8) set by its TIME fader,
+        for clocks anything up to 20s apart. A beat is the clock divided or
+        multiplied by the speed knob (X, switch up): /8 to x8. The card follows the clock from
         its second pulse, and returns to free running once four of the
         clock's periods (at least 2s) pass without one.
     - id: PulseIn2
@@ -142,7 +143,7 @@ controls:
         description: C1 to C7.
       x:
         name: Speed
-        description: Scales every step time, from 1/8x to 8x.
+        description: Scales every step time, from 1/8x to 8x. With a clock on Pulse In 1 it picks a clock divider or multiplier instead, in eleven equal zones - /8, /6, /4, /3, /2, x1 (centre), x2, x3, x4, x6, x8.
       y:
         name: Crossfade
         description: From a hard cut between steps to a crossfade lasting the whole step.
