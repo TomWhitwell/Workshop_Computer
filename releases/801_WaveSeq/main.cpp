@@ -66,6 +66,7 @@
 // 8mu motion
 //   Pitch (tilt front/back)  scans every step's wave position, +/-16 waves
 //   Roll (tilt left/right)   detunes Audio Out 2 by up to +/-50 cents
+//   Both are gently smoothed (~40ms), as the 8mu sends tilt in coarse steps
 //
 // USB, chosen once at power-up
 //   Port supplying power (an 8mu, or nothing yet): USB host, reading the 8mu.
@@ -312,6 +313,9 @@ private:
 	bool knobLatched[2] = {};
 	int32_t lastKnob[2] = {};
 	int32_t tiltScan = 0;       // Q8 waves
+	int32_t rawPitch = 0, rawRoll = 0;         // tilt readings, -2048 to 2047
+	int32_t pitchSmooth = 0, rollSmooth = 0;   // the same, smoothed, x256
+	static constexpr int32_t kTiltLag = 64;    // control ticks: ~40ms
 
 	// Voice slots: A is the current step, B the next one being faded into
 	uint32_t phA = 0, phB = 0, ph2A = 0, ph2B = 0;
@@ -617,9 +621,19 @@ private:
 		}
 		else
 		{
-			tiltScan = webPitch * 2;
-			detune = 15 + webRoll / 16;
+			rawPitch = webPitch;
+			rawRoll = webRoll;
 		}
+
+		// Tilt, smoothed: the 8mu sends it in 128 coarse steps, which would
+		// jump the wave scan and detune audibly.  A gentle one-pole lag of
+		// about 40ms (1/64 a control tick, at 1.5kHz) glides between them.
+		// Kept 256 times finer than the readings, so it settles within a
+		// fraction of a reading.
+		pitchSmooth += ((rawPitch * 256) - pitchSmooth) / kTiltLag;
+		rollSmooth += ((rawRoll * 256) - rollSmooth) / kTiltLag;
+		tiltScan = pitchSmooth / 128;         // Pitch * 2, in Q8 waves
+		detune = 15 + rollSmooth / (16 * 256); // up to about +/-50 cents
 
 		// Keep slots and timing following edits, the pitch knob, CV and tilt.
 		// Which step comes next is only chosen again while slot B is silent,
@@ -813,9 +827,9 @@ private:
 		}
 		lastFaderValid = true;
 
-		// Motion
-		tiltScan = mu.Pitch() * 2;
-		detune = 15 + mu.Roll() / 16;
+		// Motion, smoothed in Control
+		rawPitch = mu.Pitch();
+		rawRoll = mu.Roll();
 	}
 
 	//------------------------------------------------------------------------

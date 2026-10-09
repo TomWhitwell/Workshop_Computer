@@ -61,7 +61,9 @@ is selected: lit steadily for its first page, blinking slowly for its second.
 
 **Motion.** Tilting the 8mu forward and back scans every step's wave together,
 up to 16 waves either way. Tilting it left and right detunes Audio Out 2 by up
-to 50 cents. Lying flat, neither does anything.
+to 50 cents. Lying flat, neither does anything. Both are gently smoothed (a
+lag of about 40 ms), as the 8mu sends its tilt in coarse steps that would
+otherwise make the scan and detune zipper.
 
 Without an 8mu the card plays a default sequence, still under the panel
 controls.
