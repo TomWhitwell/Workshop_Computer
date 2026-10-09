@@ -39,12 +39,12 @@ test('author preview infers and honours curated flash sizes', () => {
     { path: 'UF2/goldfish.2.0.16mb.uf2', name: 'goldfish.2.0.16mb.uf2', url: 'https://raw.test/16.uf2' },
   ];
   const inferred = resolvePreviewUf2Downloads({}, available);
-  assert.equal(inferred[0].flash, undefined);
-  assert.equal(inferred[1].flash, '16mb');
+  assert.equal(inferred[0].flash_size, undefined);
+  assert.equal(inferred[1].flash_size, '16mb');
   const curated = resolvePreviewUf2Downloads({ uf2: [
-    { path: 'UF2/goldfish.2.0.16mb.uf2', name: 'Goldfish 16MB', flash: '16mb' },
+    { path: 'UF2/goldfish.2.0.16mb.uf2', name: 'Goldfish 16MB', flash_size: '16mb' },
   ] }, available);
-  assert.equal(curated[0].flash, '16mb');
+  assert.equal(curated[0].flash_size, '16mb');
   assert.equal(curated[0].name, 'Goldfish 16MB');
 });
 

@@ -1,5 +1,5 @@
 import { normalizeYamlKey } from './strings.js';
-import { assignDownloadFlash } from './flash.js';
+import { assignDownloadFlashSize } from './flash.js';
 
 function readUf2Field(raw) {
   for (const [key, value] of Object.entries(raw || {})) {
@@ -29,7 +29,7 @@ function nameFromUrl(value) {
 export function resolvePreviewUf2Downloads(raw, availableDownloads = []) {
   const field = readUf2Field(raw);
   if (field == null || (Array.isArray(field) && field.length === 0)) {
-    return availableDownloads.map(item => assignDownloadFlash({ ...item }));
+    return availableDownloads.map(item => assignDownloadFlashSize({ ...item }));
   }
 
   const available = new Map();
@@ -52,7 +52,7 @@ export function resolvePreviewUf2Downloads(raw, availableDownloads = []) {
       const sha256 = String(entry.download?.sha256 || '').trim().toLowerCase();
       if (sha256) item.sha256 = sha256;
       if (entry.download?.flashable === true) item.flashable = true;
-      assignDownloadFlash(item, entry.flash);
+      assignDownloadFlashSize(item, entry.flash_size ?? entry.flash);
       resolved.push(item);
       continue;
     }
@@ -61,7 +61,7 @@ export function resolvePreviewUf2Downloads(raw, availableDownloads = []) {
     const match = available.get(path.toLowerCase());
     if (match) {
       const item = { ...match, name: String(entry.name || '').trim() || match.name };
-      assignDownloadFlash(item, entry.flash);
+      assignDownloadFlashSize(item, entry.flash_size ?? entry.flash);
       resolved.push(item);
     }
   }

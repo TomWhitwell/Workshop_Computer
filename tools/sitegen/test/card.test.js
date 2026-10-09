@@ -103,16 +103,20 @@ test('authored UF2 entries are retained as a download-availability signal', () =
   assert.equal(build({}).has_uf2_metadata, undefined);
 });
 
-test('card memory is derived only when every UF2 download is 16MB', () => {
-  assert.equal(build({}, { uf2Downloads: [{ name: 'card.uf2' }] }).memory, undefined);
+test('card flash profile reflects the sizes present across UF2 downloads', () => {
+  assert.equal(build({}).flash, undefined);
   assert.deepEqual(
-    build({}, { uf2Downloads: [{ name: 'card.uf2', flash: '16mb' }] }).memory,
-    { size: '16mb', requirement: 'only' },
+    build({}, { uf2Downloads: [{ name: 'card.uf2' }] }).flash,
+    { sizes: ['2mb'], requires16mb: false },
   );
-  assert.equal(build({}, { uf2Downloads: [
+  assert.deepEqual(
+    build({}, { uf2Downloads: [{ name: 'card.uf2', flash_size: '16mb' }] }).flash,
+    { sizes: ['16mb'], requires16mb: true },
+  );
+  assert.deepEqual(build({}, { uf2Downloads: [
     { name: 'card_2mb.uf2' },
-    { name: 'card_16mb.uf2', flash: '16mb' },
-  ] }).memory, undefined);
+    { name: 'card_16mb.uf2', flash_size: '16mb' },
+  ] }).flash, { sizes: ['2mb', '16mb'], requires16mb: false });
 });
 
 test('demo-link YouTube URL produces a videos entry', () => {

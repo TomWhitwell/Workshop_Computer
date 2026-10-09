@@ -10,8 +10,8 @@ import { classifyDemoVideo, videoEmbedHtml } from '../src/utils/video.js';
 import { parseYoutubeId, parseYoutubeStartSeconds, youtubeEmbedHtml } from '../src/utils/youtube.js';
 import { renderMarkdownBlock } from '../src/utils/markdown.js';
 import {
-  inferFlashFromFilename, normalizeFlash, resolveDownloadFlash, assignDownloadFlash,
-  flashAttrFromDownloads, deriveMemoryFromDownloads,
+  inferFlashSizeFromFilename, normalizeFlashSize, resolveDownloadFlashSize, assignDownloadFlashSize,
+  flashAttrFromDownloads, flashSizesFromDownloads, deriveFlashProfile,
 } from '../src/utils/flash.js';
 
 test('normalizeYamlKey strips spaces and hyphens, lowercases', () => {
@@ -184,28 +184,35 @@ test('renderMarkdownBlock gives headings their text and unique slug ids', () => 
 });
 
 test('flash size inference reads 2mb/16mb tokens and ignores unmarked names', () => {
-  assert.equal(inferFlashFromFilename('goldfish.2.0.16mb.uf2'), '16mb');
-  assert.equal(inferFlashFromFilename('backyard_rain_16M_2_0_0.uf2'), '16mb');
-  assert.equal(inferFlashFromFilename('433_sense_of_space_16mb_mayakovsky_cc0.uf2'), '16mb');
-  assert.equal(inferFlashFromFilename('punk_confusion_2mb.uf2'), '2mb');
-  assert.equal(inferFlashFromFilename('backyard_rain_2M_2_0_0.uf2'), '2mb');
-  assert.equal(inferFlashFromFilename('goldfish.1.1.uf2'), null);
-  assert.equal(inferFlashFromFilename('goldfish.2.0.2mb.uf2'), '2mb');
+  assert.equal(inferFlashSizeFromFilename('goldfish.2.0.16mb.uf2'), '16mb');
+  assert.equal(inferFlashSizeFromFilename('backyard_rain_16M_2_0_0.uf2'), '16mb');
+  assert.equal(inferFlashSizeFromFilename('433_sense_of_space_16mb_mayakovsky_cc0.uf2'), '16mb');
+  assert.equal(inferFlashSizeFromFilename('punk_confusion_2mb.uf2'), '2mb');
+  assert.equal(inferFlashSizeFromFilename('backyard_rain_2M_2_0_0.uf2'), '2mb');
+  assert.equal(inferFlashSizeFromFilename('goldfish.1.1.uf2'), null);
+  assert.equal(inferFlashSizeFromFilename('goldfish.2.0.2mb.uf2'), '2mb');
 });
 
 test('authored flash overrides filename inference; omit defaults to 2MB', () => {
-  assert.equal(normalizeFlash('16MB'), '16mb');
-  assert.equal(normalizeFlash('2m'), '2mb');
-  assert.equal(normalizeFlash('32mb'), null);
-  assert.equal(resolveDownloadFlash({ name: 'card_16mb.uf2' }), '16mb');
-  assert.equal(resolveDownloadFlash({ name: 'card_16mb.uf2' }, '2mb'), '2mb');
-  assert.equal(resolveDownloadFlash({ name: 'card.uf2' }), '2mb');
-  assert.equal(assignDownloadFlash({ name: 'card.uf2' }).flash, undefined);
-  assert.equal(assignDownloadFlash({ name: 'card.uf2' }, '16mb').flash, '16mb');
-  assert.equal(assignDownloadFlash({ name: 'card_16mb.uf2' }, '2mb').flash, '2mb');
-  assert.equal(flashAttrFromDownloads([{ name: 'a.uf2' }, { name: 'b.uf2', flash: '16mb' }]), '2mb 16mb');
-  assert.equal(flashAttrFromDownloads([{ flash: '16mb' }]), '16mb');
+  assert.equal(normalizeFlashSize('16MB'), '16mb');
+  assert.equal(normalizeFlashSize('2m'), '2mb');
+  assert.equal(normalizeFlashSize('32mb'), null);
+  assert.equal(resolveDownloadFlashSize({ name: 'card_16mb.uf2' }), '16mb');
+  assert.equal(resolveDownloadFlashSize({ name: 'card_16mb.uf2' }, '2mb'), '2mb');
+  assert.equal(resolveDownloadFlashSize({ name: 'card.uf2' }), '2mb');
+  assert.equal(assignDownloadFlashSize({ name: 'card.uf2' }).flash_size, undefined);
+  assert.equal(assignDownloadFlashSize({ name: 'card.uf2' }, '16mb').flash_size, '16mb');
+  assert.equal(assignDownloadFlashSize({ name: 'card_16mb.uf2' }, '2mb').flash_size, '2mb');
+  assert.equal(flashAttrFromDownloads([{ name: 'a.uf2' }, { name: 'b.uf2', flash_size: '16mb' }]), '2mb 16mb');
+  assert.equal(flashAttrFromDownloads([{ flash_size: '16mb' }]), '16mb');
   assert.equal(flashAttrFromDownloads([]), '2mb');
-  assert.deepEqual(deriveMemoryFromDownloads([{ flash: '16mb' }]), { size: '16mb', requirement: 'only' });
-  assert.equal(deriveMemoryFromDownloads([{ name: 'a.uf2' }, { flash: '16mb' }]), undefined);
+  assert.deepEqual(flashSizesFromDownloads([]), ['2mb']);
+  assert.deepEqual(flashSizesFromDownloads([{ name: 'a.uf2' }, { flash_size: '16mb' }]), ['2mb', '16mb']);
+  assert.deepEqual(deriveFlashProfile([{ flash_size: '16mb' }]), { sizes: ['16mb'], requires16mb: true });
+  assert.deepEqual(
+    deriveFlashProfile([{ name: 'a.uf2' }, { flash_size: '16mb' }]),
+    { sizes: ['2mb', '16mb'], requires16mb: false },
+  );
+  assert.deepEqual(deriveFlashProfile([{ name: 'a.uf2' }]), { sizes: ['2mb'], requires16mb: false });
+  assert.equal(deriveFlashProfile([]), undefined);
 });

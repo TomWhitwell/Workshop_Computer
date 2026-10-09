@@ -93,6 +93,10 @@ a { color: var(--link); }
 /* Filter tags are .program-card-tag badges, so appearance comes from program-cards.css;
    these rules add only the checkbox affordances. */
 .tag-filter-option { cursor: pointer; transition: box-shadow .15s,filter .15s; }
+.flash-filter-group { border: 0; margin: 0; min-width: 0; padding: 0; }
+.flash-filter-group legend { color: var(--muted); font-size: 10px; font-weight: var(--weight-bold); padding: 0; text-transform: uppercase; }
+.flash-filter-options { align-items: center; display: flex; gap: 6px; }
+.flash-filter-option { border-radius: 2px; display: inline-flex; }
 /* Specificity must beat the narrow-viewport .filter-bar .tag-filter-option rule
    below, or the hidden attribute stops hiding tags on mobile. */
 .filter-bar .tag-filter-option[hidden] { display: none; }

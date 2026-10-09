@@ -221,46 +221,68 @@ test('download action requires firmware, an external link, or authored UF2 metad
   assert.match(declared, /href="https:\/\/example\.test\/source"/);
 });
 
-test('16MB firmware is tagged on download tiles and omitted for implicit 2MB', () => {
+test('flash-size chips mark download tiles, including implicit 2MB downloads', () => {
   const html = renderCardArticle({ card: card({ uf2_downloads: [
     { name: 'Local 2MB', url: 'two.uf2', sha256: 'aa' },
-    { name: 'Local 16MB', url: 'sixteen.uf2', sha256: 'bb', flash: '16mb' },
+    { name: 'Local 16MB', url: 'sixteen.uf2', sha256: 'bb', flash_size: '16mb' },
   ] }), panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
-  assert.match(html, /Local 16MB<\/small><small class="program-card-action__tag">16MB<\/small>/);
-  assert.doesNotMatch(html, /Local 2MB<\/small><small class="program-card-action__tag">16MB<\/small>/);
+  assert.match(html, /Local 16MB<\/small><span class="flash-chip flash-chip--16mb"/);
+  assert.match(html, /Local 2MB<\/small><span class="flash-chip flash-chip--2mb"/);
+  assert.doesNotMatch(html, /Local 2MB<\/small><span class="flash-chip flash-chip--16mb"/);
   assert.doesNotMatch(html, /Card memory/);
 });
 
-test('cards whose every UF2 is 16MB show a 16MB-only memory line', () => {
+test('cards that require a 16MB card show a hero note and matching About row', () => {
   const html = renderCardArticle({
     card: card({
-      memory: { size: '16mb', requirement: 'only' },
-      uf2_downloads: [{ name: 'Only', url: 'only.uf2', flash: '16mb' }],
+      flash: { sizes: ['16mb'], requires16mb: true },
+      uf2_downloads: [{ name: 'Only', url: 'only.uf2', flash_size: '16mb' }],
     }),
     panelImg: 'panel.svg', yamlUrl: 'source.yaml',
   });
   assert.match(html, /program-card-hero__meta/);
-  assert.match(html, /16MB card only/);
-  assert.match(html, /<dt>Card memory<\/dt><dd>16MB only<\/dd>/);
+  assert.match(html, /Requires a 16MB program card/);
+  assert.match(html, /<dt>Card memory<\/dt><dd>Requires a 16MB program card<\/dd>/);
 });
 
-test('catalogue tiles expose flash size for search and the 16MB filter', () => {
+test('cards with both 2MB and 16MB builds show a combined About row and no hero requires-line', () => {
+  const html = renderCardArticle({
+    card: card({
+      flash: { sizes: ['2mb', '16mb'], requires16mb: false },
+      uf2_downloads: [
+        { name: 'two.uf2', url: 'two.uf2' },
+        { name: 'sixteen.uf2', url: 'sixteen.uf2', flash_size: '16mb' },
+      ],
+    }),
+    panelImg: 'panel.svg', yamlUrl: 'source.yaml',
+  });
+  assert.match(html, /<dt>Card memory<\/dt><dd>2MB and 16MB builds available<\/dd>/);
+  assert.doesNotMatch(html, /program-card-hero__meta/);
+});
+
+test('catalogue tiles and rows expose the data-flash filter attribute without chips', () => {
   const mixed = card({ uf2_downloads: [
     { name: 'two.uf2' },
-    { name: 'sixteen.uf2', flash: '16mb' },
+    { name: 'sixteen.uf2', flash_size: '16mb' },
   ] });
   const tile = renderTile(mixed);
   assert.match(tile, /data-flash="2mb 16mb"/);
   assert.match(tile, /data-search="[^"]*16mb/);
-  const only = renderTile(card({ uf2_downloads: [{ name: 'sixteen.uf2', flash: '16mb' }] }));
+  assert.doesNotMatch(tile, /flash-chip/);
+  const only = renderTile(card({ uf2_downloads: [{ name: 'sixteen.uf2', flash_size: '16mb' }] }));
   assert.match(only, /data-flash="16mb"/);
-  assert.match(renderArchive([mixed]), /data-flash="2mb 16mb"/);
+  const archive = renderArchive([mixed]);
+  assert.match(archive, /data-flash="2mb 16mb"/);
+  assert.doesNotMatch(archive, /flash-chip/);
   const bar = renderFilterBar({
     creatorOptions: '', sortOptions: '', tagOptions: '',
     linkHref: 'archive/', linkText: 'All cards',
   });
-  assert.match(bar, /id="filter-flash-16mb"/);
-  assert.match(bar, /16MB firmware/);
+  assert.match(bar, /Card size/);
+  assert.match(bar, /id="filter-flash-2mb" type="checkbox" name="filter-flash" value="2mb"/);
+  assert.match(bar, /id="filter-flash-16mb" type="checkbox" name="filter-flash" value="16mb"/);
+  assert.match(bar, /flash-chip flash-chip--2mb/);
+  assert.match(bar, /flash-chip flash-chip--16mb/);
 });
 
 test('card details render configured creation and update dates', () => {
