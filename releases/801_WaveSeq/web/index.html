@@ -91,6 +91,8 @@
   .jacks th, .jacks td { text-align: left; vertical-align: top; padding: 4px 0; border-top: 1px solid var(--line); }
   .jacks th { white-space: nowrap; padding-right: 10px; font-weight: 600; color: var(--ink); }
   .jacks td { color: var(--muted); }
+  .jacks tr.grp th { border-top: 0; padding-top: 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .jacks tr.grp:first-child th { padding-top: 0; }
   #scope { height: 170px; }
   .row { display: flex; gap: 16px; flex-wrap: wrap; }
   .row > * { flex: 1 1 260px; min-width: 0; }
@@ -280,6 +282,26 @@
         <input type="file" id="import-file" accept=".json,application/json" hidden>
       </div>
       <div class="caption">Presets live in this browser. Loading one sends it to the card if one is connected. The card itself keeps nothing over power-off.</div>
+    </section>
+
+    <section class="card">
+      <h2>Inputs &amp; outputs</h2>
+      <table class="jacks">
+        <tr class="grp"><th colspan="2">Inputs</th></tr>
+        <tr><th>Audio In 1</th><td>Linear FM, depth set by X (switch middle) times each step's FM amount</td></tr>
+        <tr><th>Audio In 2</th><td>Wave scan, up to &plusmn;32 waves, at audio rate; depth set by Y (switch middle) times each step's scan amount</td></tr>
+        <tr><th>CV In 1</th><td>Pitch, 1 V/oct, added to the Main knob</td></tr>
+        <tr><th>CV In 2</th><td>Speed, 1 V/oct</td></tr>
+        <tr><th>Pulse In 1</th><td>Clock: each step lasts its TIME fader's number of clocks (1-8), for clocks up to 20 s apart. Followed from the second pulse; back to the speed knob once four periods (at least 2 s) pass without one</td></tr>
+        <tr><th>Pulse In 2</th><td>Restart from the first step</td></tr>
+        <tr class="grp"><th colspan="2">Outputs</th></tr>
+        <tr><th>Audio Out 1</th><td>The wave sequence</td></tr>
+        <tr><th>Audio Out 2</th><td>The wave sequence, detuned by 6 cents (more with the 8mu tilted left or right)</td></tr>
+        <tr><th>CV Out 1</th><td>The step's pitch offset, 1 V/oct (0 V for none), gliding with the Glide page</td></tr>
+        <tr><th>CV Out 2</th><td>The step's level, following the crossfade, 0 to 5 V</td></tr>
+        <tr><th>Pulse Out 1</th><td>A gate for each step, its length set on the Gate page: off, a fraction of the step, or tied into the next</td></tr>
+        <tr><th>Pulse Out 2</th><td>Trigger at the start of the sequence</td></tr>
+      </table>
     </section>
 
     <section class="card">

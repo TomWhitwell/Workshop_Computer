@@ -130,6 +130,8 @@ and + to bring it back; the browser remembers which are folded):
   on the right lists them). The page lights the 8mu's LEDs as the card
   would. A dashed line on a fader shows where the 8mu's fader is while it
   waits to pick up.
+- **Inputs & outputs** and **8mu.** Cards on the right: every jack and what it
+  does, and the 8mu's buttons (page, bank, last step), pickup, LEDs and tilt.
 - **Presets.** Seven built in, plus your own, kept in the browser
   (`localStorage`), with their length. Save, update, rename, delete, and
   export or import as a JSON file. Loading a preset sends it to the card.
