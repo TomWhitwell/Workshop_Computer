@@ -12,11 +12,16 @@
  *   - Pulse Out 2  : a short trigger at the start of each symbol
  *   - CV In 1      : transpose the notes (1 V/oct)
  *   - CV In 2      : modulate the speed
- *   - Pulse In 1   : pause while held high
+ *   - Pulse In 1   : external clock - one rising edge per Morse unit
  *   - Pulse In 2   : clear the typed queue on a rising edge
  *   - Knob Main    : audio volume
- *   - Knob X       : speed, 5-40 words per minute
+ *   - Knob X       : speed, 5-40 words per minute (ignored while clocked)
  *   - Knob Y       : beep pitch, 300-2000 Hz
+ *
+ * Patch a clock into Pulse In 1 and the Morse locks to it: every rising edge
+ * advances one unit (dot = 1 edge, dash = 3, gaps 1 and 3, word gap 7). While a
+ * clock is running, Knob X is ignored. Pull the cable or stop the clock and
+ * after about two seconds the card reverts to the Knob X speed.
  *
  * If no keyboard is plugged in, the card loops "... --- ..." (SOS) on the
  * audio and gate outputs and flashes all six LEDs in that rhythm, so you can
@@ -62,12 +67,10 @@ public:
 		state = StIdle;
 		pattern = nullptr;
 		patternIndex = 0;
-		timer = 0;
-		dotSamples = 4800;
-		dashSamples = 14400;
-		symbolGapSamples = 1600;
-		letterGapSamples = 4800;
-		wordGapExtraSamples = 6400;
+		unitSamples = 4800;        // samples per Morse unit at the default speed
+		stateUnitSamples = 4800;   // unit length latched when the current state began
+		subTimer = 0;              // samples left within the current unit
+		unitsLeft = 0;             // units left in the current state
 		currentSymbolIsDash = false;
 		env = 0;
 		phase = 0;
@@ -84,7 +87,10 @@ public:
 		triggerTimer = 0;
 		lastWpm = -1;
 		baseWpm = 20;
-		paused = false;
+		clocked = false;
+		clockRunning = false;
+		samplesSinceEdge = 0;
+		clockPeriodSamples = 0;
 	}
 
 	// ---- Core 1 entry point -------------------------------------------------
@@ -192,8 +198,8 @@ public:
 		if (knobMain > 4095) knobMain = 4095;
 
 		// CV inputs. With the normalisation probe enabled, an unpatched CV jack
-		// reads exactly 0, so no transposition / speed change / pause unless a
-		// cable is actually plugged in.
+		// reads exactly 0, so no transposition or speed change unless a cable is
+		// actually plugged in.
 		int32_t cvIn1 = CVIn1();
 		int32_t cvIn2 = CVIn2();
 
@@ -204,31 +210,61 @@ public:
 		if (semis < -24) semis = -24;
 		if (semis > 24) semis = 24;
 
+		// --- External clock (Pulse In 1) -------------------------------------
+		// One rising edge = one Morse unit. We measure the gap between edges so
+		// we can report the clocked speed, and time out if the clock stops.
+		bool edge = PulseIn1RisingEdge();
+		if (edge)
+		{
+			// Only trust the gap if the clock was already running; the first
+			// edge after a timeout just restarts the stopwatch.
+			if (clockRunning && samplesSinceEdge > 0)
+				clockPeriodSamples = samplesSinceEdge;
+			samplesSinceEdge = 0;
+			clockRunning = true;
+		}
+		else if (samplesSinceEdge < kClockMaxGap)
+		{
+			samplesSinceEdge++;
+		}
+		else
+		{
+			clockRunning = false; // no edge for ~2 s: hand tempo back to the knob
+		}
+		// A patched, still-running clock owns the tempo.
+		clocked = Connected(Input::Pulse1) && clockRunning;
+
 		// --- Speed (Knob X, modulated by CV In 2) ----------------------------
 		// A Morse "unit" is one dot long; the classic relationship is
 		// dot_ms = 1200 / wpm, and at 48 kHz that is 57600 / wpm samples.
 		//
 		// The RP2040's Cortex-M0+ has no hardware divide, so we compute the
-		// divide-free base speed only when Knob X moves, and the sample counts
+		// divide-free base speed only when Knob X moves, and the unit length
 		// only when the resulting speed changes.
 		if (knobX != lastKnobX)
 		{
 			lastKnobX = knobX;
 			baseWpm = 5 + (knobX * 35) / 4095; // 5..40
 		}
-		// CV In 2 adds up to +/-20 WPM on top of the knob.
-		int32_t wpm = baseWpm + ((cvIn2 * 20) >> 11);
-		if (wpm < 5) wpm = 5;
-		if (wpm > 60) wpm = 60;
+		int32_t wpm;
+		if (clocked && clockPeriodSamples > 0)
+		{
+			// Derive the speed from the measured clock period, for CV Out 2.
+			wpm = 57600 / clockPeriodSamples;
+			if (wpm < 5) wpm = 5;
+			if (wpm > 60) wpm = 60;
+		}
+		else
+		{
+			// Knob X, plus up to +/-20 WPM from CV In 2.
+			wpm = baseWpm + ((cvIn2 * 20) >> 11);
+			if (wpm < 5) wpm = 5;
+			if (wpm > 60) wpm = 60;
+		}
 		if (wpm != lastWpm)
 		{
 			lastWpm = wpm;
-			int32_t unit = 57600 / wpm;
-			dotSamples = unit;
-			dashSamples = unit * 3;
-			symbolGapSamples = unit;
-			letterGapSamples = unit * 3;
-			wordGapExtraSamples = unit * 4; // letter gap (3) + 4 = 7
+			unitSamples = 57600 / wpm;
 
 			// Speed CV (CV Out 2): 5 WPM = 0 V, 60 WPM = ~+5 V, calibrated.
 			CVOut2Millivolts(((wpm - 5) * 5000) / 55);
@@ -256,14 +292,9 @@ public:
 			beaconIndex = 0;
 		}
 
-		// --- Pause (Pulse In 1) ----------------------------------------------
-		// Held high, the card freezes on the current symbol and goes quiet;
-		// release and it carries on. Unpatched reads low, so it runs normally.
-		paused = PulseIn1();
-
 		// --- Advance the Morse state machine ---------------------------------
-		if (!paused)
-			Tick();
+		// Clocked, one edge per unit; internally, one sample per sample.
+		TickStep(edge);
 
 		// --- Beep pitch ------------------------------------------------------
 		// Knob Y -> 300..2000 Hz. We turn frequency into a 32-bit phase step
@@ -276,7 +307,7 @@ public:
 			phaseInc = (uint32_t)freq * 89478u;
 		}
 
-		bool symbolActive = (state == StSymbol) && !paused;
+		bool symbolActive = (state == StSymbol);
 
 		// --- Outputs ----------------------------------------------------------
 		// The beep (Audio Out 1), melody (Audio Out 2) and pitch CV (CV Out 1)
@@ -286,9 +317,9 @@ public:
 		// Pitch CV: one note per character, rising with the alphabet. We hold
 		// that note through the character's own dots/dashes and its trailing
 		// letter gap (so a new letter changes pitch smoothly), and drop to 0 V
-		// at a word gap or when idle/paused so words separate clearly.
+		// at a word gap or when idle so words separate clearly.
 		uint8_t note = (uint8_t)ClampNote((int32_t)currentNote + semis);
-		if (state == StIdle || state == StWordGap || paused)
+		if (state == StIdle || state == StWordGap)
 		{
 			CVOut1(0);
 		}
@@ -346,8 +377,8 @@ public:
 			LedOn(1, symbolActive && currentSymbolIsDash);  // dash
 			LedOn(2, state != StIdle);                      // transmitting
 			LedOn(3, overflowFlash > 0);                    // queue overflow
-			LedOn(4, paused);                               // paused
-			LedOn(5, true);                                 // keyboard connected
+			LedOn(4, clocked);                             // external clock active
+			LedOn(5, true);                                // keyboard connected
 		}
 		if (overflowFlash > 0)
 			overflowFlash--;
@@ -364,17 +395,16 @@ private:
 	static const int32_t kAmplitude = 1700; // below full scale, keeps some headroom
 	static const int32_t kEnvStep = 64;     // ~0.5 ms click-free ramp
 	static const int32_t kTriggerSamples = 96; // ~2 ms symbol-start trigger
+	static const int32_t kClockMaxGap = 96000;  // ~2 s at 48 kHz: clock timeout
 	static const uint8_t kBaseNote = 60;    // middle C - the pitch of 'A'
 
 	St state;
 	const char *pattern;   // current character's dots and dashes
 	int32_t patternIndex;  // which symbol of the pattern we are on
-	int32_t timer;         // samples left in the current state
-	int32_t dotSamples;
-	int32_t dashSamples;
-	int32_t symbolGapSamples;
-	int32_t letterGapSamples;
-	int32_t wordGapExtraSamples;
+	int32_t unitSamples;        // samples per Morse unit (from the knob/CV speed)
+	int32_t stateUnitSamples;   // unit length latched when the state began
+	int32_t subTimer;           // samples left within the current unit (internal)
+	int32_t unitsLeft;          // Morse units left in the current state
 	bool currentSymbolIsDash;
 	int32_t env;           // current audio amplitude during the click-free ramp
 	uint32_t phase;        // beep square-wave phase accumulator
@@ -391,7 +421,10 @@ private:
 	int32_t triggerTimer;  // samples left on the Pulse Out 2 symbol trigger
 	int32_t lastWpm;       // cached speed, so we only recompute the unit on change
 	int32_t baseWpm;       // Knob X speed before CV In 2 modulation
-	bool paused;           // Pulse In 1 held high
+	bool clocked;              // an external clock is currently driving the card
+	bool clockRunning;         // edges are still arriving (false after a timeout)
+	int32_t samplesSinceEdge;  // samples since the last Pulse In 1 rising edge
+	int32_t clockPeriodSamples; // measured clock period, in samples
 
 	// Is there something to send right now? (The beacon never runs dry.)
 	static bool CharAvailable()
@@ -413,13 +446,23 @@ private:
 		return true;
 	}
 
+	// Enter a state that lasts a given number of Morse units. We latch the
+	// current unit length here, so changing the speed mid-symbol never stretches
+	// a dot or dash that is already playing.
+	void EnterState(St s, int32_t units)
+	{
+		state = s;
+		unitsLeft = units;
+		stateUnitSamples = unitSamples;
+		subTimer = stateUnitSamples;
+	}
+
 	// Begin the symbols of the current pattern.
 	void StartSymbol()
 	{
 		currentSymbolIsDash = (pattern[patternIndex] == '-');
-		timer = currentSymbolIsDash ? dashSamples : dotSamples;
 		triggerTimer = kTriggerSamples; // Pulse Out 2: short trigger on the edge
-		state = StSymbol;
+		EnterState(StSymbol, currentSymbolIsDash ? 3 : 1);
 	}
 
 	// Load the next character and either start it, or produce a word gap if it
@@ -430,8 +473,7 @@ private:
 		if (!NextCharacter(&c)) { state = StIdle; return; }
 		if (c == ' ')
 		{
-			state = StWordGap;
-			timer = wordGapExtraSamples; // 4 extra on top of the 3-unit gap
+			EnterState(StWordGap, 4); // 4 extra on top of the 3-unit letter gap
 			return;
 		}
 		pattern = morseFor(c);
@@ -445,49 +487,72 @@ private:
 		StartSymbol();
 	}
 
-	// One tick of the state machine, called once per audio sample.
-	void Tick()
+	// Run out of the current state and move to the next.
+	void AdvanceState()
 	{
 		switch (state)
 		{
-			case StIdle:
-				if (CharAvailable())
-					LoadNext();
-				break;
-
 			case StSymbol:
-				if (--timer <= 0)
+				if (pattern[patternIndex + 1] != '\0')
 				{
-					if (pattern[patternIndex + 1] != '\0')
-					{
-						// More symbols in this letter: a 1-unit gap.
-						patternIndex++;
-						state = StSymbolGap;
-						timer = symbolGapSamples;
-					}
-					else
-					{
-						// Letter finished: a 3-unit letter gap.
-						state = StLetterGap;
-						timer = letterGapSamples;
-					}
+					// More symbols in this letter: a 1-unit gap.
+					patternIndex++;
+					EnterState(StSymbolGap, 1);
+				}
+				else
+				{
+					// Letter finished: a 3-unit letter gap.
+					EnterState(StLetterGap, 3);
 				}
 				break;
 
 			case StSymbolGap:
-				if (--timer <= 0)
-					StartSymbol();
+				StartSymbol();
 				break;
 
 			case StLetterGap:
-				if (--timer <= 0)
-					LoadNext();
+			case StWordGap:
+				LoadNext();
 				break;
 
-			case StWordGap:
-				if (--timer <= 0)
-					LoadNext();
+			case StIdle:
 				break;
+		}
+	}
+
+	// One step of the state machine, called once per audio sample.
+	//
+	// Internal mode counts samples within each unit. Clocked mode ignores the
+	// sample clock and steps only on a Pulse In 1 rising edge, so one edge is
+	// exactly one Morse unit. `edge` is true on the sample an edge arrived.
+	void TickStep(bool edge)
+	{
+		if (state == StIdle)
+		{
+			// Start the next character. In clocked mode this happens on an edge,
+			// so the first symbol lands on the beat.
+			if (clocked ? edge : true)
+			{
+				if (CharAvailable())
+					LoadNext();
+			}
+			return;
+		}
+
+		if (clocked)
+		{
+			if (!edge)
+				return;
+			if (--unitsLeft <= 0)
+				AdvanceState();
+			return;
+		}
+
+		if (--subTimer <= 0)
+		{
+			subTimer = stateUnitSamples;
+			if (--unitsLeft <= 0)
+				AdvanceState();
 		}
 	}
 

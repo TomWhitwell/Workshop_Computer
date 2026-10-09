@@ -3,7 +3,7 @@ Name: Dot Dash
 short-description: Type on a USB keyboard, and the card sends it as Morse code
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
-Version: "1.2"
+Version: "1.3"
 Status: Beta
 License: MIT
 date-created: 2026-10-08
@@ -25,8 +25,9 @@ summary: |
   typed word becomes a melody. All outputs play together on their separate
   jacks. Knob X sets the speed (5-40 words per minute), Knob Y the beep pitch,
   and Knob Main the master audio volume. **CV In 1** transposes the notes
-  (1 V/oct, +/-2 octaves), **CV In 2** modulates the speed, **Pulse In 1**
-  pauses while held, and **Pulse In 2** clears anything typed but not yet sent.
+  (1 V/oct, +/-2 octaves), **CV In 2** modulates the speed, **Pulse In 1** is an
+  external clock (one edge per Morse unit, overriding Knob X while running), and
+  **Pulse In 2** clears anything typed but not yet sent.
   When no keyboard is connected the card loops **SOS** on the audio, CV and gate
   outputs and flashes all six LEDs in that rhythm.
 
@@ -39,8 +40,8 @@ panel:
       name: Speed Mod
       description: Adds up to +/-20 WPM on top of Knob X; final speed clamped to 5-60 WPM
     - id: PulseIn1
-      name: Pause
-      description: While held high the card freezes and goes quiet; unpatched runs normally
+      name: External Clock
+      description: One rising edge per Morse unit (dot = 1, dash = 3, gaps 1/3/4). Overrides Knob X while the clock is running; reverts to the knob after ~2 s without an edge
     - id: PulseIn2
       name: Clear
       description: A rising edge discards the typed queue and returns to idle
@@ -53,10 +54,10 @@ panel:
       description: Triangle wave at the character's pitch (follows the same note as CV Out 1), level set by Knob Main
     - id: CVOut1
       name: Character Pitch
-      description: One note per character, rising with the alphabet (A is lowest); dot and dash share it. Holds through letter gaps and drops to 0 V at word gaps, idle, or paused. Calibrated when available, tracks the Transpose input
+      description: One note per character, rising with the alphabet (A is lowest); dot and dash share it. Holds through letter gaps and drops to 0 V at word gaps or when idle. Calibrated when available, tracks the Transpose input
     - id: CVOut2
       name: Speed CV
-      description: The current speed as a voltage, 0 V at 5 WPM to +5 V at 60 WPM
+      description: The current speed as a voltage, 0 V at 5 WPM to +5 V at 60 WPM; derived from the external clock when one is driving the card
     - id: PulseOut1
       name: Key Gate
       description: High for exactly the length of each dot or dash, low during the gaps
@@ -96,8 +97,8 @@ controls:
           name: Queue Full
           description: Flashes when you type faster than the queue can hold
         - id: LED4
-          name: Paused
-          description: Lit while Pulse In 1 is held high
+          name: Clocked
+          description: Lit while an external clock on Pulse In 1 is driving the card
         - id: LED5
           name: Keyboard
           description: Lit while a USB keyboard is connected

@@ -16,13 +16,14 @@ DASH  -.. .- ... ....
 
 ## Quick start
 
-1. Build and flash `dot_dash.uf2` (see [Building](#building)).
+1. Flash `dot_dash.uf2`.
 2. Plug a USB keyboard into the Workshop Computer.
 3. Type. You'll hear beeps on **Audio Out 1** and see **LED 2** light while the
    card transmits.
 
-**Knob X** sets speed, **Knob Y** the beep pitch, **Knob Main** the volume. With
-no keyboard attached the card still runs, looping `SOS` so you can see it's alive.
+**Knob X** sets speed, **Knob Y** the beep pitch, **Knob Main** the volume of the
+audio outputs. With no keyboard attached the card still runs,
+looping `SOS` so you can see it's alive.
 
 ## What it does
 
@@ -37,8 +38,8 @@ audio outputs.
   middle C (MIDI 60), then up through Z and the digits 0–9. A dot and a dash
   within one character share that note, so each letter, number, and symbol gets
   its own pitch and a typed word turns into a melody. The note holds through the
-  gaps inside a character and its letter gap, then drops to 0 V at a word gap,
-  while idle, or while paused. Uses the card's stored calibration for accurate
+  gaps inside a character and its letter gap, then drops to 0 V at a word gap or
+  when the card is idle. Uses the card's stored calibration for accurate
   1 V/oct when available and a rough voltage when not, and follows the Transpose
   input.
 - **CV Out 2** — transmission speed as a voltage: 0 V at 5 WPM, +5 V at 60 WPM.
@@ -47,8 +48,8 @@ audio outputs.
 - **Pulse Out 2** — short ~2 ms trigger at the start of each dot or dash. Clock
   a sequencer on every symbol.
 - **LEDs** — LED 0 lights on dots, LED 1 on dashes, LED 2 while transmitting,
-  LED 3 flashes if you over-type the buffer, LED 4 while paused, LED 5 while a
-  keyboard is connected.
+  LED 3 flashes if you over-type the buffer, LED 4 while an external clock is
+  driving the card, LED 5 while a keyboard is connected.
 
 With **no keyboard plugged in**, the card loops `SOS` (`... --- ...`) on the
 audio, CV and gate outputs and flashes all six LEDs together in that rhythm.
@@ -64,7 +65,7 @@ It's alive, just waiting for a keyboard.
 | **Knob Y** | Beep pitch, 300–2000 Hz |
 | **CV In 1** | Transpose the notes, 1 V/oct, clamped to ±2 octaves |
 | **CV In 2** | Modulate the speed, up to ±20 WPM on top of Knob X; final speed clamped 5–60 WPM |
-| **Pulse In 1** | Pause while held high. Unpatched, it runs normally |
+| **Pulse In 1** | External clock — one rising edge per Morse unit. Overrides Knob X while running |
 | **Pulse In 2** | A rising edge clears anything typed but not yet sent |
 
 ## Morse timing
@@ -82,6 +83,14 @@ word gap    = 7 units   (letter gap plus 4 more, triggered by the spacebar)
 
 The speed is checked every sample, but a dot or dash locks in its length when it
 starts. Turn the knob mid-symbol and the one already playing finishes unchanged.
+
+If you patch a clock into **Pulse In 1**, the Morse locks to it instead: every
+rising edge advances exactly one unit, so a dot is one clock period, a dash is
+three, and the gaps are one, three, and four edges. A swung or irregular clock
+bends the timing of the whole message. Knob X is ignored while a clock is
+running; the first symbol of a message waits for the next edge, so it lands on
+the beat. Pull the cable, or stop the clock for about two seconds, and the card
+reverts to the Knob X speed.
 
 ## Character pitches
 
@@ -124,7 +133,7 @@ layout — put the characters you use most where they're quickest to reach. For 
 computer, it's also just a binary tree: every dot and dash is a left or right
 turn from the root, and the letters you use most sit closest to the top.
 
-![The Morse code binary tree: each dot turns left, each dash turns right, and the most common letters sit nearest the top](docs/morse-tree.svg)
+![The Morse code binary tree: each dot turns left, each dash turns right, and the most common letters sit nearest the top](morse-tree.svg)
 
 The ten digits are all five symbols long (they live one level below the letters
 shown here).
@@ -136,7 +145,7 @@ shown here).
 - Transpose CV from a sequencer or keyboard: play the Morse at different pitches.
 - Speed CV from an LFO: the transmission breathes faster and slower.
 - Pulse Out 2 into a clock input: every dot and dash advances a sequencer.
-- Pulse In 1 as a mute: hold a gate high to freeze the card mid-message.
+- Clock in from a sequencer or LFO into Pulse In 1: the Morse plays in time with your patch.
 - Leave it unpatched with no keyboard to use it as an SOS beacon.
 
 ## Building
