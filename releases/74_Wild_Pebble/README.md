@@ -229,8 +229,7 @@ licence notices remain with the source dependencies.
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
 copyright and license texts. Keep the accompanying `NOTICE.txt` with
-each UF2 when redistributing it, or distribute the ZIP produced by
-`license_tools/package_uf2.py` from the releases directory.
+each UF2 when redistributing it.
 
 Original Wild Pebble code is MIT licensed; see LICENSE. The earlier GPL
 metadata was stale after the author changed LICENSE to MIT in commit

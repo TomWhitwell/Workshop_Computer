@@ -51,8 +51,7 @@ No Leslie firmware, manuals, graphics or measured cabinet data are included.
 
 Include this file, LICENSE and licenses/TOOLCHAIN_NOTICES.txt with firmware
 distributions. NOTICE.txt beside each UF2 consolidates these materials.
-Use license_tools/package_uf2.py from the releases directory to make a ZIP
-containing the UF2 and its notices. Existing UF2 SDK/toolchain versions
+Existing UF2 SDK/toolchain versions
 have not been reconstructed; do not treat CMake defaults as build records.
 
 ### ComputerCard — Chris Johnson (MIT)

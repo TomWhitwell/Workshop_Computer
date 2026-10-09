@@ -65,8 +65,7 @@ rppicomidi; their copyright and licence notices are retained in the source.
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
 copyright and license texts. Keep the accompanying `NOTICE.txt` with
-each UF2 when redistributing it, or distribute the ZIP produced by
-`license_tools/package_uf2.py` from the releases directory.
+each UF2 when redistributing it.
 
 This card is GPL-3.0-or-later; see the complete text in LICENSE. When
 distributing a compiled version, provide its corresponding source and

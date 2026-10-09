@@ -141,5 +141,4 @@ reference implementation; the source retains its attribution comment.
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
 copyright and license texts. Keep the accompanying `NOTICE.txt` with
-each UF2 when redistributing it, or distribute the ZIP produced by
-`license_tools/package_uf2.py` from the releases directory.
+each UF2 when redistributing it.
