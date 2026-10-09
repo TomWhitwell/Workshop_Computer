@@ -99,6 +99,7 @@
   .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 10px; }
   .readout { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
   .readout .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .readout.waiting { outline: 2px dotted var(--warm); outline-offset: 2px; }
   .readout .v { font-size: 16px; font-variant-numeric: tabular-nums; }
   .caption { color: var(--muted); font-size: 12px; margin-top: 6px; }
   .dirs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
@@ -481,7 +482,7 @@ const state = {
   length: NS,                                   // the sequence plays steps 0..length-1
   // live, from the card's STATUS (or simulated when there's no card)
   live: { cur: 0, next: 1, mix: 0, progress: 0, direction: 0, clocked: false, muOnCard: false,
-          switchUp: false, knobWaiting: false, fm: 0, scan: 0,
+          switchUp: false, knobWaiting: false, waitX: false, waitY: false, fm: 0, scan: 0,
           note: 48, speed: 1, xfade: 32 / 127 },
 };
 const link = { access: null, card: { in: null, out: null }, muIns: [], muOuts: [], cardOnline: false,
@@ -711,6 +712,15 @@ function drawReadouts() {
   const L = state.live;
   $('ro-step').textContent = (L.cur + 1) + ' → ' + (L.next + 1);
   $('ro-pitch').textContent = link.cardOnline ? noteName(L.note) : '-';
+  // A dotted box round each setting whose knob is waiting to pick it up: X
+  // and Y are speed and crossfade with the switch up, FM and scan amounts
+  // with it in the middle
+  const knobs = L.switchUp ? ['ro-speed', 'ro-xfade'] : ['ro-fm', 'ro-scan'];
+  const waiting = new Set([L.waitX && knobs[0], L.waitY && knobs[1]].filter(Boolean));
+  for (const id of ['ro-speed', 'ro-xfade', 'ro-fm', 'ro-scan']) {
+    const box = $(id).parentElement, w = waiting.has(id) && !!link.cardOnline && performance.now() - link.lastStatus < 3000;
+    if (box.classList.contains('waiting') !== w) { box.classList.toggle('waiting', w); box.title = w ? 'The knob for this is waiting: turn it to (or past) this value to pick it up' : ''; }
+  }
   $('ro-speed').textContent = L.clocked ? 'clock ' + ratioName(clockRatio(L.speed)) : L.speed.toFixed(2) + 'x';
   $('ro-xfade').textContent = Math.round(L.xfade * 100) + '%';
   $('ro-clock').textContent = L.clocked ? 'Clocked' : 'Free';
@@ -1192,7 +1202,7 @@ function handleCardMessage(m) {
     const L = state.live;
     L.cur = p[0] & 31; L.next = p[1] & 31; L.mix = p[2] / 127; L.progress = p[3] / 127;
     L.direction = Math.min(2, p[4] & 3); L.clocked = !!(p[4] & 4); L.muOnCard = !!(p[4] & 8);
-    L.switchUp = !!(p[4] & 16); L.knobWaiting = !!(p[4] & 32);
+    L.switchUp = !!(p[4] & 16); L.waitX = !!(p[4] & 32); L.waitY = !!(p[4] & 64); L.knobWaiting = L.waitX || L.waitY;
     L.note = ((p[5] << 7) | p[6]) / 8;
     L.speed = Math.pow(2, (((p[7] << 7) | p[8]) - 2048) / 256);
     L.xfade = p[9] / 127; L.fm = p[10] / 127; L.scan = p[11] / 127;

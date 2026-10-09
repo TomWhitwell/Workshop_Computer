@@ -770,7 +770,7 @@ private:
 		}
 		bool waiting = !knobLatched[0] || !knobLatched[1];
 		stFlags = uint8_t((direction & 3) | (clocked ? 4 : 0) | (mu.Connected() ? 8 : 0)
-			| (knobBank == 0 ? 16 : 0) | (waiting ? 32 : 0));
+			| (knobBank == 0 ? 16 : 0) | (knobLatched[0] ? 0 : 32) | (knobLatched[1] ? 0 : 64));
 		stFM = uint8_t(settings[SetFM] >> 5);
 		stScan = uint8_t(settings[SetScan] >> 5);
 		stNote = baseNote >> 5;

@@ -36,7 +36,8 @@
 //            flags       bits 0-1 direction (0 forward, 1 ping-pong,
 //                        2 random), bit 2 clocked, bit 3 8mu on card,
 //                        bit 4 switch up (X/Y are speed and crossfade, not
-//                        FM and scan), bit 5 a knob is waiting to pick up
+//                        FM and scan), bit 5 the X knob and bit 6 the Y
+//                        knob is waiting to pick up its setting
 //            note        base pitch in 1/8 semitones (MIDI note * 8)
 //            speed       speed in 1/256 octave, offset by 2048
 //            xfade       crossfade setting, 0-127

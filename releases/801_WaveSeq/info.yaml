@@ -3,7 +3,7 @@ Name: WaveSeq
 short-description: "Wavestation-style wave sequencing - up to 32 steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
 Language: C++ (Pico SDK + ComputerCard)
 Creator: XponentOneAudio
-Version: "0.6.1"
+Version: "0.6.2"
 Status: Beta
 License: MIT
 Editor: web
@@ -20,7 +20,7 @@ contact:
 
 uf2:
   - path: UF2/waveseq.uf2
-    name: Wave Sequencer 0.6.1
+    name: Wave Sequencer 0.6.2
 
 tags:
   - synth

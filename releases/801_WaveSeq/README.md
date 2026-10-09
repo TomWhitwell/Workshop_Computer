@@ -94,7 +94,10 @@ From the top (each section has a − button by its heading that folds it away,
 and + to bring it back; the browser remembers which are folded):
 
 - **Readouts.** Step, pitch (as a note name), speed, crossfade, direction and
-  whether the card is clocked, live from the card's knobs, CV and switch.
+  whether the card is clocked, live from the card's knobs, CV and switch. While
+  the X or Y knob on the module is waiting to pick up its setting, that
+  setting's box has a dotted orange outline; it goes once the knob reaches
+  the value.
 - **Bank, length and shift.** Bank buttons, −/+ for the length, and −/+ to
   shift every step in the sequence one place left or right (all its settings
   with it, the end step wrapping round). Just above the sequence, so they stay
