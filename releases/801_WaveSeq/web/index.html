@@ -63,7 +63,27 @@
   @media (max-width: 960px) { main { grid-template-columns: minmax(0, 1fr); } }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: var(--shadow); min-width: 0; }
   canvas { display: block; width: 100%; border-radius: 6px; background: var(--wave-bg); }
-  #timeline { height: 190px; cursor: pointer; }
+  #timeline { height: 190px; cursor: pointer; margin-top: 12px; }
+  .bankbtn.on { background: var(--warm-soft); border-color: var(--warm); }
+  .lenv { min-width: 2.2em; text-align: center; font-variant-numeric: tabular-nums; font-size: 16px; }
+  .fader.unused { opacity: .45; }
+  .fader.picked { outline: 1px dashed var(--warm); outline-offset: -2px; }
+  /* Copy, paste and randomise */
+  .opt.on { background: var(--warm-soft); border-color: var(--warm); }
+  .info { font-size: 12px; color: var(--muted); }
+  .howto { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 6px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .howto b { color: var(--ink); font-weight: 600; }
+  .keys { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; }
+  .keys kbd { font-size: 11px; border-bottom-width: 2px; background: var(--panel); color: var(--ink); white-space: nowrap; }
+  /* Help cards */
+  .notes { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .notes p { margin: 6px 0 0; }
+  .notes p:first-child { margin-top: 0; }
+  .notes b { color: var(--ink); font-weight: 600; }
+  .jacks { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.4; margin-top: 4px; }
+  .jacks th, .jacks td { text-align: left; vertical-align: top; padding: 4px 0; border-top: 1px solid var(--line); }
+  .jacks th { white-space: nowrap; padding-right: 10px; font-weight: 600; color: var(--ink); }
+  .jacks td { color: var(--muted); }
   #scope { height: 170px; }
   .row { display: flex; gap: 16px; flex-wrap: wrap; }
   .row > * { flex: 1 1 260px; min-width: 0; }
@@ -141,8 +161,6 @@
   <div style="display:grid; gap:16px; min-width:0">
     <section class="card">
       <h2>Sequence</h2>
-      <canvas id="timeline" aria-label="The eight steps as a timeline: width is duration, height is level"></canvas>
-      <div class="caption" id="timeline-caption"></div>
       <div class="readouts">
         <div class="readout"><div class="k">Step</div><div class="v" id="ro-step">-</div></div>
         <div class="readout"><div class="k">Pitch</div><div class="v" id="ro-pitch">-</div></div>
@@ -158,6 +176,69 @@
         <button class="dir" data-dir="1">Ping-pong</button>
         <button class="dir" data-dir="2">Random</button>
         <span class="caption" id="knob-line" style="margin:0"></span>
+      </div>
+      <div class="dirs" role="group" aria-label="Bank, length and shift">
+        <span class="k">Bank</span>
+        <button class="bankbtn" data-bank="0" title="Faders edit steps 1-8 (8mu: long press A)">1-8</button>
+        <button class="bankbtn" data-bank="1" title="Faders edit steps 9-16 (8mu: long press B)">9-16</button>
+        <button class="bankbtn" data-bank="2" title="Faders edit steps 17-24 (8mu: long press C)">17-24</button>
+        <button class="bankbtn" data-bank="3" title="Faders edit steps 25-32 (8mu: long press D)">25-32</button>
+        <span class="k" style="margin-left:14px">Length</span>
+        <button id="len-dn" title="One step shorter">&minus;</button><span class="lenv" id="len-v">8</span><button id="len-up" title="One step longer">+</button>
+        <span class="k" style="margin-left:14px">Shift</span>
+        <button id="shift-l" title="Move every step in the sequence one place left; step 1 wraps round to the end">&minus;</button><button id="shift-r" title="Move every step in the sequence one place right; the last step wraps round to step 1">+</button>
+      </div>
+      <canvas id="timeline" aria-label="The 32 steps, eight to a row: width is duration, height is level"></canvas>
+      <div class="caption" id="timeline-caption"></div>
+    </section>
+
+    <section class="card" id="edit-card">
+      <h2>Copy, paste &amp; randomise</h2>
+      <div class="dirs" role="group" aria-label="Select steps">
+        <span class="k">Select</span>
+        <button id="sel-row" title="Every step in the selected step's row (double-click a step)">Row</button>
+        <button id="sel-col" title="The same fader in all four banks (Alt+click a step)">Column</button>
+        <button id="sel-seq" title="Every step in the sequence, 1 to its length">Sequence</button>
+        <button id="sel-all" title="All 32 steps">All 32</button>
+        <button id="sel-none" title="Just the step last clicked (Esc)">Clear</button>
+        <span class="info" id="sel-info"></span>
+      </div>
+      <div class="dirs" role="group" aria-label="Clipboard">
+        <span class="k">Clipboard</span>
+        <button id="btn-copy" title="Copy the selected steps, every setting (Ctrl/⌘+C)">Copy</button>
+        <button id="btn-paste" title="Paste onto the selection, every setting (Ctrl/⌘+V)">Paste</button>
+        <button id="btn-paste-page" title="Paste only the page the faders show (Ctrl/⌘+Shift+V)">Paste this page only</button>
+        <button id="btn-undo" title="Undo the last paste, randomise or shift (Ctrl/⌘+Z)" disabled>Undo</button>
+        <span class="info" id="clip-info">Nothing copied yet.</span>
+      </div>
+      <div class="dirs" role="group" aria-label="What to randomise">
+        <span class="k">Randomise</span>
+        <button class="opt rmode on" data-mode="wave" title="Each step's wave">Wave</button>
+        <button class="opt rmode" data-mode="levels" title="The wave, plus PITCH (within the spread) and LEVEL">Wave, pitch &amp; level</button>
+        <button class="opt rmode" data-mode="all" title="Every setting: wave, time, pitch, level, FM, scan, glide and gate">Everything</button>
+        <span class="k" style="margin-left:10px">Pitch spread</span>
+        <button class="opt rspread" data-spread="2" title="Pitch within 2 semitones of the middle">&plusmn;2 st</button>
+        <button class="opt rspread on" data-spread="7" title="Pitch within a fifth of the middle">&plusmn;7 st</button>
+        <button class="opt rspread" data-spread="12" title="Pitch anywhere, an octave either way">&plusmn;12 st</button>
+      </div>
+      <div class="dirs" role="group" aria-label="Randomise steps">
+        <span class="k">Apply to</span>
+        <button class="rnd" data-scope="sel">Selected steps</button>
+        <button class="rnd" data-scope="row">Row</button>
+        <button class="rnd" data-scope="col">Column</button>
+        <button class="rnd" data-scope="seq">Whole sequence</button>
+      </div>
+      <div class="howto keys">
+        <span><b>Click</b> a step</span><span>select it</span>
+        <span><kbd>Shift</kbd> + click</span><span>select a range, from the last step clicked</span>
+        <span><kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> + click</span><span>add a step to the selection, or take it out</span>
+        <span><b>Double-click</b> a step</span><span>select its row (bank)</span>
+        <span><kbd>Alt</kbd> + click</span><span>select its column (the same fader in every bank)</span>
+        <span><kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> + <kbd>C</kbd> &nbsp; <kbd>V</kbd></span><span>copy, paste (every setting); add <kbd>Shift</kbd> to paste only the page the faders show</span>
+        <span><kbd>Ctrl</kbd>/<kbd>&#8984;</kbd> + <kbd>Z</kbd></span><span>undo a paste, randomise or shift</span>
+        <span><kbd>Esc</kbd></span><span>back to one selected step</span>
+        <span><b>Pasting</b></span><span>one copied step fills every selected step; several fill the same number of selected steps in order, or else keep their pattern starting from the first selected step</span>
+        <span><b>Randomising</b></span><span>Everything never skips a step (TIME stays up), keeps LEVEL audible, leaves glide off and the gate at half more often than not</span>
       </div>
     </section>
 
@@ -180,7 +261,7 @@
     <section class="card">
       <h2>Wave bank</h2>
       <div class="bank" id="bank"></div>
-      <div class="caption">Click a wave to give it to the selected step (orange). Click a step on the timeline, or a fader, to select it. Steps can also sit between two waves, which morphs them.</div>
+      <div class="caption">Click a wave to give it to the selected step (orange), or to every selected step. Click a step on the timeline, or a fader, to select it. Steps can also sit between two waves, which morphs them.</div>
     </section>
   </div>
 
@@ -198,6 +279,21 @@
     </section>
 
     <section class="card">
+      <h2>8mu</h2>
+      <div class="notes">
+        <p>The 8mu can plug into the module (no computer needed) or into this computer, which passes it on to the card. Its eight faders edit one bank of eight steps; its buttons are acted on <b>when you let go</b>, so how long you hold one decides what it does.</p>
+        <table class="jacks">
+          <tr><th>Short press</th><td>The page: A <b>Wave</b>, B <b>Time</b>, C <b>Pitch</b>, D <b>Level</b>. Press the same button again for its second page (A FM, B Scan, C Glide, D Gate), and again to flip back.</td></tr>
+          <tr><th>Long press<br>(&frac12; s)</th><td>The bank the faders edit: A steps 1-8, B 9-16, C 17-24, D 25-32. The LED of fader 1-4 for that bank flashes three times.</td></tr>
+          <tr><th>Hold + move<br>a fader</th><td>The last step: the button is the bank, the fader the step within it. Hold D and move fader 8 for 32 steps; hold A and move fader 4 for 4. Move it a good way (about a sixth of its travel) for it to count. The faders up to the last step light briefly, and nothing is edited.</td></tr>
+          <tr><th>Faders</th><td>Pick up: after a page or bank change a fader does nothing until it reaches (or passes) the stored value, so nothing jumps.</td></tr>
+          <tr><th>LEDs</th><td>The stored values on the page, the playing step fully lit, steps past the end dark.</td></tr>
+          <tr><th>Tilt</th><td>Forward and back scans every step's wave; left and right detunes Audio Out 2. Both gently smoothed.</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
       <h2>How it connects</h2>
       <div class="caption" style="margin-top:0">
         The card picks its USB mode at power-up. <b>8mu plugged into the card</b>: the card reads it directly and this page isn't used.
@@ -209,8 +305,8 @@
         <ul class="caption">
           <li>Use Chrome, Edge or another Chromium browser. Safari and iOS browsers can't do WebMIDI with SysEx.</li>
           <li>Press <kbd>Connect card &amp; 8mu</kbd> and allow MIDI with SysEx when the browser asks.</li>
-          <li>8mu buttons A-D (or the tabs) choose the page. Faders pick up: one does nothing until it reaches the stored value
-            (the dashed line shows where the 8mu's fader is while it waits).</li>
+          <li>8mu buttons A-D (or the tabs) choose the page; a long press chooses the bank, and holding one while moving a fader sets the last step (see 8mu above).
+            Faders pick up: one does nothing until it reaches the stored value (the dashed line shows where the 8mu's fader is while it waits).</li>
           <li>On-screen faders: drag, or focus one and use the arrow keys. Double-click resets one.</li>
           <li>Direction: tap the module’s switch down to step forward, ping-pong, random, or use the buttons here.</li>
           <li>The module’s X and Y knobs: switch up = speed and crossfade, middle = FM and wave scan amounts.</li>
@@ -228,10 +324,13 @@
 // ============================================================================
 // Constants mirroring the firmware (main.cpp, sysex.h, wavetables.h)
 // ============================================================================
-const NS = 8;                                   // steps
+const NS = 8;                                   // steps in a bank: one per fader
+const NSTEPS = 32, NBANKS = NSTEPS / NS;        // steps in all, banks
+const LONG_PRESS_MS = 500;
+const LENGTH_MOVE = 20;   // fader travel (of 127) needed while a button is held to set the length, as on the card
 const PAGES = 8;                                // button + 4 * layer
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x57, PROTOCOL_VERSION = 3;
-const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9, RESTART: 10, DIRECTION: 11 };
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x57, PROTOCOL_VERSION = 4;
+const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9, RESTART: 10, DIRECTION: 11, BANK: 12, LENGTH: 13 };
 const DIRECTIONS = ['Forward', 'Ping-pong', 'Random'];
 const FIRST_FADER_CC = 34, FIRST_MOTION_CC = 42;
 const BUTTON_NOTES = [36, 48, 60, 72];
@@ -248,7 +347,8 @@ const PAGE_INFO = [
   { name: 'Gate',  letter: 'D2', hint: 'Per-step gate on Pulse Out 1, as a fraction of the step (at least 5 ms). Fully down: no pulse for this step. At the top it ties into the next step. Default: half.' },
 ];
 const FAMILIES = ['Sine to saw', 'Saw to square', 'Pulse width', 'Hard sync', 'FM', 'Vowels', 'Wavefold', 'Digital'];
-const DEFAULT_VALUES = [
+// Steps 9-32 start as copies of 1-8, as on the card
+const DEFAULT_BANK = [
   [6, 22, 34, 50, 67, 81, 95, 116],
   [64, 64, 64, 64, 64, 64, 64, 64],
   [64, 64, 64, 64, 64, 64, 64, 64],
@@ -258,6 +358,11 @@ const DEFAULT_VALUES = [
   [0, 0, 0, 0, 0, 0, 0, 0],
   [64, 64, 64, 64, 64, 64, 64, 64],
 ];
+const to32 = (r) => Array.from({ length: NSTEPS }, (_, i) => r[i % r.length]);
+const DEFAULT_VALUES = DEFAULT_BANK.map(to32);
+// A short press of button b: the same button again flips to its second page,
+// another starts on its first (as on the card)
+const nextPage = (pg, b) => (pg & 3) === b ? pg ^ 4 : b;
 const TAB_ORDER = [0, 4, 1, 5, 2, 6, 3, 7];
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -265,6 +370,8 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 const raw = (v) => v << 5;                                        // stored value, 0-4064
 const wavePos = (v) => raw(v) * (63 * 256) / 4064 / 256;          // 0-63
 const isActive = (tv) => raw(tv) >= 128;
+// A step plays if it's in the sequence and its TIME isn't fully down
+const playsStep = (values, i, len) => i < len && isActive(values[1][i]);
 const stepMs = (tv) => 20 * Math.pow(2, Math.floor((Math.max(0, raw(tv) - 128) * 31293) / 3968) / 4096);
 const stepClocks = (tv) => Math.min(8, Math.max(1, 1 + Math.floor((raw(tv) - 128) * 8 / 3968)));
 const semis = (pv) => Math.floor(raw(pv) * 25 / 4096) - 12;
@@ -326,7 +433,11 @@ function waveAt(pos, x) {                       // pos 0-63 (fractional), x 0-1
 const state = {
   values: DEFAULT_VALUES.map(r => r.slice()),
   page: 0,
-  sel: 0,                                       // selected step, for the wave bank
+  sel: 0,                                       // selected step, 0-31 (the one last clicked)
+  selSet: new Set([0]),                         // every selected step, sel among them
+  anchor: 0,                                    // where a Shift+click range starts
+  bank: 0,                                      // which 8 steps the faders edit
+  length: NS,                                   // the sequence plays steps 0..length-1
   // live, from the card's STATUS (or simulated when there's no card)
   live: { cur: 0, next: 1, mix: 0, progress: 0, direction: 0, clocked: false, muOnCard: false,
           switchUp: false, knobWaiting: false, fm: 0, scan: 0,
@@ -336,7 +447,10 @@ const link = { access: null, card: { in: null, out: null }, muIns: [], muOuts: [
                sysexBuf: [], sysexOn: false, lastStatus: 0, pingTimer: 0 };
 // 8mu pickup, mirroring WaveSeq::HandleEightMU in the firmware
 const mu = { phys: new Array(NS).fill(-1), engaged: new Array(NS).fill(false), cc: new Array(16).fill(0),
-             ledSent: new Array(NS).fill(-1), lastBlinkOff: 0, ledTimer: 0, motionTimer: 0 };
+             ledSent: new Array(NS).fill(-1), lastBlinkOff: 0, ledTimer: 0, motionTimer: 0,
+             // buttons: press time, faders at press, whether a fader set the length
+             press: [0, 1, 2, 3].map(() => ({ down: false, t0: 0, faders: [], setLength: false })),
+             flash: { until: 0, bank: true, value: 0 } };
 
 const $ = (id) => document.getElementById(id);
 const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
@@ -376,96 +490,151 @@ function setupCanvas(cv) {
   return { ctx, w: r.width, h: r.height };
 }
 
-// Step widths on the timeline: proportional to duration (or clocks)
-function layout(values, W) {
-  const SKIP_W = 16;
-  const dur = values[1].map(tv => !isActive(tv) ? 0 : state.live.clocked ? stepClocks(tv) : stepMs(tv));
-  const total = dur.reduce((a, b) => a + b, 0);
-  const nSkip = dur.filter(d => d === 0).length;
-  const avail = Math.max(10, W - nSkip * SKIP_W);
-  let x = 0; const boxes = [];
-  for (let i = 0; i < NS; i++) {
-    const w = dur[i] === 0 ? SKIP_W : (total > 0 ? avail * dur[i] / total : avail / NS);
-    boxes.push({ x, w, active: dur[i] > 0, dur: dur[i] }); x += w;
+// Timeline rows: one per bank, full height while any of its steps are in
+// the sequence, otherwise a strip of small grey boxes
+const ROW_FULL = 140, ROW_SMALL = 26, ROW_GAP = 6, SKIP_W = 16;
+function timelineRows() {
+  const rows = []; let y = 0;
+  for (let r = 0; r < NBANKS; r++) {
+    const full = r * NS < state.length, h = full ? ROW_FULL : ROW_SMALL;
+    rows.push({ y, h, full }); y += h + ROW_GAP;
   }
-  return { boxes, total };
+  return { rows, height: y - ROW_GAP };
+}
+// Step boxes across one row: a step in the sequence is as wide as its time
+// (or clocks), a skipped one (TIME fully down) a narrow hatched box, and a
+// step past the end a small grey box.  A row with nothing in the sequence
+// is eight equal grey boxes, in the faders' columns.
+function rowLayout(values, r, W, len) {
+  const steps = Array.from({ length: NS }, (_, k) => r * NS + k);
+  if (r * NS >= len) return steps.map((i, k) => ({ i, x: k * W / NS, w: W / NS, kind: 'unused', dur: 0 }));
+  const greyW = Math.min(44, W / NS);
+  const dur = steps.map(i => i >= len || !isActive(values[1][i]) ? 0 : state.live.clocked ? stepClocks(values[1][i]) : stepMs(values[1][i]));
+  const total = dur.reduce((a, b) => a + b, 0);
+  const nUnused = steps.filter(i => i >= len).length, nSkip = steps.filter((i, k) => i < len && dur[k] === 0).length;
+  const avail = Math.max(10, W - nUnused * greyW - nSkip * SKIP_W), nPlay = NS - nUnused - nSkip;
+  let x = 0; const boxes = [];
+  steps.forEach((i, k) => {
+    const kind = i >= len ? 'unused' : dur[k] === 0 ? 'skip' : 'play';
+    const w = kind === 'unused' ? greyW : kind === 'skip' ? SKIP_W : (total > 0 ? avail * dur[k] / total : avail / Math.max(1, nPlay));
+    boxes.push({ i, x, w, kind, dur: dur[k] }); x += w;
+  });
+  return boxes;
+}
+// The whole sequence's time (or clocks), one pass forwards
+function sequenceTotal(values, len) {
+  let t = 0;
+  for (let i = 0; i < len; i++) if (isActive(values[1][i])) t += state.live.clocked ? stepClocks(values[1][i]) : stepMs(values[1][i]);
+  return t;
+}
+
+// A selected step: dashed orange outline and a tint; the step last clicked
+// (the one the faders and wave bank show) has the heavier outline
+function markSelected(ctx, i, x, y, w, h) {
+  const multi = state.selSet.size > 1;
+  if (multi) { ctx.fillStyle = cssVar('--warm'); ctx.globalAlpha = 0.12; ctx.fillRect(x, y, w, h); ctx.globalAlpha = 1; }
+  ctx.strokeStyle = cssVar('--warm'); ctx.lineWidth = i === state.sel ? 2.5 : 1.5; ctx.setLineDash([4, 3]);
+  ctx.strokeRect(x, y, w, h); ctx.setLineDash([]);
 }
 
 function drawTimeline() {
-  const { ctx, w: W, h: H } = setupCanvas($('timeline'));
-  ctx.clearRect(0, 0, W, H);
-  const v = state.values, L = state.live;
-  const { boxes, total } = layout(v, W);
-  const top = 18, bot = H - 18, mid = (top + bot) / 2, half = (bot - top) / 2;
+  const cv = $('timeline'), { rows, height } = timelineRows();
+  if (cv.style.height !== height + 'px') cv.style.height = height + 'px';
+  const { ctx, w: W } = setupCanvas(cv);
+  ctx.clearRect(0, 0, W, height);
+  const v = state.values, L = state.live, len = state.length;
+  let playheadDrawn = false;
 
-  ctx.strokeStyle = cssVar('--grid'); ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
-
-  for (let i = 0; i < NS; i++) {
-    const b = boxes[i], col = stepColor(i);
-    if (!b.active) {
-      ctx.save(); ctx.strokeStyle = cssVar('--line'); ctx.beginPath();
-      for (let y = top - 16; y < bot; y += 6) { ctx.moveTo(b.x + 2, y + 16); ctx.lineTo(b.x + b.w - 2, y + 4); }
-      ctx.stroke(); ctx.restore();
-      ctx.fillStyle = cssVar('--muted'); ctx.font = '11px system-ui'; ctx.textAlign = 'center';
-      ctx.fillText(String(i + 1), b.x + b.w / 2, top - 5);
-      continue;
+  rows.forEach((row, r) => {
+    const boxes = rowLayout(v, r, W, len);
+    const top = row.y + 18, bot = row.y + row.h - 18, mid = (top + bot) / 2, half = (bot - top) / 2;
+    if (row.full) {
+      ctx.strokeStyle = cssVar('--grid'); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
     }
-    const lv = level(v[3][i]), pos = wavePos(v[0][i]);
-    // block
-    ctx.fillStyle = col; ctx.globalAlpha = 0.10; ctx.fillRect(b.x + 1, top, b.w - 2, bot - top); ctx.globalAlpha = 1;
-    // crossfade ramp into the next step
-    const xf = Math.min(b.w, Math.max(2, b.w * L.xfade));
-    const g = ctx.createLinearGradient(b.x + b.w - xf, 0, b.x + b.w, 0);
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, stepColor(i === L.cur ? L.next : nextActive(i)));
-    ctx.globalAlpha = 0.22; ctx.fillStyle = g; ctx.fillRect(b.x + b.w - xf, top, xf, bot - top); ctx.globalAlpha = 1;
-    // wave, a few cycles, scaled by level
-    const cycles = Math.max(1, Math.min(6, Math.round(b.w / 40)));
-    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath();
-    for (let px = 0; px <= b.w - 4; px++) {
-      const x = (px / (b.w - 4)) * cycles % 1;
-      const y = mid - waveAt(pos, x) * half * 0.9 * lv;
-      if (px === 0) ctx.moveTo(b.x + 2 + px, y); else ctx.lineTo(b.x + 2 + px, y);
-    }
-    ctx.stroke();
-    // labels
-    ctx.fillStyle = cssVar('--ink'); ctx.font = '600 11px system-ui'; ctx.textAlign = 'left';
-    const s = semis(v[2][i]);
-    if (b.w > 18) ctx.fillText(String(i + 1), b.x + 4, top - 5);
-    ctx.fillStyle = cssVar('--muted'); ctx.font = '11px system-ui';
-    if (b.w > 44) ctx.fillText((s > 0 ? '+' : '') + s + ' st', b.x + 18, top - 5);
-    if (b.w > 50) ctx.fillText(describe(1, v[1][i]), b.x + 4, H - 4);
-    // gate on Pulse Out 1, along the bottom edge
-    const gv = v[7][i];
-    if (gv > 0) {
-      const gw = gv >= 127 ? b.w : Math.max(3, b.w * gv / 127);
-      ctx.fillStyle = col; ctx.globalAlpha = 0.6; ctx.fillRect(b.x + 1, bot - 4, gw - (gv >= 127 ? 0 : 1), 4); ctx.globalAlpha = 1;
-    }
-    // glide: a ramp in the top-left corner
-    if (v[6][i] > 0 && b.w > 24) {
-      const gx = Math.min(b.w - 4, b.w * v[6][i] / 127);
+    for (const b of boxes) {
+      const i = b.i, col = stepColor(i % NS);
+      if (b.kind === 'unused') {
+        // Not in the sequence: a small grey box
+        const by = row.full ? row.y + 4 : row.y + 3, bh = 18;
+        ctx.fillStyle = cssVar('--track'); ctx.fillRect(b.x + 3, by, b.w - 6, bh);
+        ctx.fillStyle = cssVar('--muted'); ctx.font = '10px system-ui'; ctx.textAlign = 'left';
+        ctx.fillText(String(i + 1), b.x + 7, by + 13);
+        if (state.selSet.has(i)) markSelected(ctx, i, b.x + 3, by, b.w - 6, bh);
+        continue;
+      }
+      if (b.kind === 'skip') {
+        ctx.save(); ctx.strokeStyle = cssVar('--line'); ctx.beginPath();
+        for (let y = top - 16; y < bot; y += 6) { ctx.moveTo(b.x + 2, y + 16); ctx.lineTo(b.x + b.w - 2, y + 4); }
+        ctx.stroke(); ctx.restore();
+        ctx.fillStyle = cssVar('--muted'); ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+        ctx.fillText(String(i + 1), b.x + b.w / 2, top - 5); ctx.textAlign = 'left';
+        if (state.selSet.has(i)) markSelected(ctx, i, b.x + 1, top, b.w - 2, bot - top);
+        continue;
+      }
+      const lv = level(v[3][i]), pos = wavePos(v[0][i]);
+      // block
+      ctx.fillStyle = col; ctx.globalAlpha = 0.10; ctx.fillRect(b.x + 1, top, b.w - 2, bot - top); ctx.globalAlpha = 1;
+      // crossfade ramp into the next step
+      const xf = Math.min(b.w, Math.max(2, b.w * L.xfade));
+      const g = ctx.createLinearGradient(b.x + b.w - xf, 0, b.x + b.w, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, stepColor((i === L.cur ? L.next : nextActive(i)) % NS));
+      ctx.globalAlpha = 0.22; ctx.fillStyle = g; ctx.fillRect(b.x + b.w - xf, top, xf, bot - top); ctx.globalAlpha = 1;
+      // wave, a few cycles, scaled by level
+      const cycles = Math.max(1, Math.min(6, Math.round(b.w / 40)));
       ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath();
-      ctx.moveTo(b.x + 2, top + 10); ctx.lineTo(b.x + 2 + gx, top + 2); ctx.stroke();
+      for (let px = 0; px <= b.w - 4; px++) {
+        const x = (px / Math.max(1, b.w - 4)) * cycles % 1;
+        const y = mid - waveAt(pos, x) * half * 0.9 * lv;
+        if (px === 0) ctx.moveTo(b.x + 2 + px, y); else ctx.lineTo(b.x + 2 + px, y);
+      }
+      ctx.stroke();
+      // labels
+      ctx.fillStyle = cssVar('--ink'); ctx.font = '600 11px system-ui'; ctx.textAlign = 'left';
+      const st = semis(v[2][i]);
+      if (b.w > 18) ctx.fillText(String(i + 1), b.x + 4, top - 5);
+      ctx.fillStyle = cssVar('--muted'); ctx.font = '11px system-ui';
+      if (b.w > 50) ctx.fillText((st > 0 ? '+' : '') + st + ' st', b.x + (i >= 9 ? 22 : 18), top - 5);
+      if (b.w > 50) ctx.fillText(describe(1, v[1][i]), b.x + 4, bot + 13);
+      // gate on Pulse Out 1, along the bottom edge
+      const gv = v[7][i];
+      if (gv > 0) {
+        const gw = gv >= 127 ? b.w : Math.max(3, b.w * gv / 127);
+        ctx.fillStyle = col; ctx.globalAlpha = 0.6; ctx.fillRect(b.x + 1, bot - 4, gw - (gv >= 127 ? 0 : 1), 4); ctx.globalAlpha = 1;
+      }
+      // glide: a ramp in the top-left corner
+      if (v[6][i] > 0 && b.w > 24) {
+        const gx = Math.min(b.w - 4, b.w * v[6][i] / 127);
+        ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath();
+        ctx.moveTo(b.x + 2, top + 10); ctx.lineTo(b.x + 2 + gx, top + 2); ctx.stroke();
+      }
+      // selection and current step
+      if (state.selSet.has(i)) markSelected(ctx, i, b.x + 1, top, b.w - 2, bot - top);
+      if (i === L.cur) {
+        ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2; ctx.strokeRect(b.x + 1, top, b.w - 2, bot - top);
+        // playhead
+        const x = b.x + b.w * L.progress;
+        ctx.strokeStyle = cssVar('--ink'); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x, top - 2); ctx.lineTo(x, bot + 2); ctx.stroke();
+        playheadDrawn = true;
+      }
     }
-    // selection and current step
-    if (i === state.sel) { ctx.strokeStyle = cssVar('--warm'); ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(b.x + 1, top, b.w - 2, bot - top); ctx.setLineDash([]); }
-    if (i === L.cur) { ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2; ctx.strokeRect(b.x + 1, top, b.w - 2, bot - top); }
-  }
-  // playhead
-  const cb = boxes[L.cur];
-  if (cb && cb.active) {
-    const x = cb.x + cb.w * L.progress;
-    ctx.strokeStyle = cssVar('--ink'); ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(x, top - 2); ctx.lineTo(x, bot + 2); ctx.stroke();
-  }
+    // the bank the faders edit: a box round its row
+    if (r === state.bank) {
+      ctx.strokeStyle = cssVar('--warm'); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(1, row.y + 1, W - 2, row.h - 2, 6); ctx.stroke();
+    }
+  });
+  const total = sequenceTotal(v, len);
   const loop = state.live.clocked ? total + ' clocks' : fmtMs(total / (L.speed || 1)) + ' at ' + L.speed.toFixed(2) + 'x';
   $('timeline-caption').textContent = total > 0
-    ? 'One pass: ' + loop + (L.direction === 1 ? ' (ping-pong plays the middle steps twice)' : L.direction === 2 ? ' on average (random order)' : '') + '. Width is time, height is level; the shaded end of each step is its crossfade, the bar along the bottom its gate, and a ramp at the top its glide.'
-    : 'Every step is skipped: the card holds the current step.';
+    ? 'Steps 1-32, eight to a row; grey boxes are past the end of the sequence. One pass: ' + loop + (L.direction === 1 ? ' (ping-pong plays the middle steps twice)' : L.direction === 2 ? ' on average (random order)' : '') + '. Within a row width is time, height is level; the shaded end of each step is its crossfade, the bar along the bottom its gate, and a ramp at the top its glide.'
+    : 'Every step in the sequence is skipped: the card holds the current step.';
 }
 
+// The step after i, going forwards, among the steps that play
 function nextActive(i) {
-  for (let k = 1; k <= NS; k++) { const j = (i + k) % NS; if (isActive(state.values[1][j])) return j; }
+  for (let k = 1; k <= NSTEPS; k++) { const j = (i + k) % NSTEPS; if (playsStep(state.values, j, state.length)) return j; }
   return i;
 }
 
@@ -522,15 +691,16 @@ function buildBank() {
       const w = f * 8 + j, cv = document.createElement('canvas');
       cv.title = 'Wave ' + w + ' (' + FAMILIES[f] + ')';
       cv.addEventListener('click', () => {
-        userSetValue(0, state.sel, Math.round(w * 4064 / 63 / 32));
-        say('Step ' + (state.sel + 1) + ' now plays wave ' + w + ' (' + FAMILIES[f] + ').');
+        const steps = [...state.selSet].sort((a, b) => a - b);
+        for (const i of steps) userSetValue(0, i, Math.round(w * 4064 / 63 / 32));
+        say((steps.length > 1 ? describeSteps(steps) : 'Step ' + (state.sel + 1)) + ' now ' + (steps.length > 1 ? 'play' : 'plays') + ' wave ' + w + ' (' + FAMILIES[f] + ').');
       });
       el.appendChild(cv); bankThumbs.push(cv);
     }
   }
 }
 function drawBank() {
-  const used = new Set(state.values[0].map(v => Math.round(wavePos(v))));
+  const used = new Set(state.values[0].slice(0, state.length).map(v => Math.round(wavePos(v))));
   const sel = Math.round(wavePos(state.values[0][state.sel]));
   bankThumbs.forEach((cv, w) => {
     drawThumb(cv, x => WAVES[w][Math.floor(x * TABLE) % TABLE]);
@@ -558,25 +728,29 @@ function buildFaders() {
       '<div class="ghost"></div></div><div class="val"></div><div class="desc"></div>';
     const input = f.querySelector('input');
     input.setAttribute('aria-label', 'Step ' + (i + 1));
-    input.addEventListener('input', () => { selectStep(i); userSetValue(state.page, i, +input.value); });
-    input.addEventListener('focus', () => selectStep(i));
-    input.addEventListener('dblclick', () => userSetValue(state.page, i, DEFAULT_VALUES[state.page][i]));
+    const step = () => state.bank * NS + i;
+    input.addEventListener('input', () => { selectStep(step()); userSetValue(state.page, step(), +input.value); });
+    input.addEventListener('focus', () => selectStep(step()));
+    input.addEventListener('dblclick', () => userSetValue(state.page, step(), DEFAULT_VALUES[state.page][step()]));
     // Clicking anywhere in the step's box but the slider (its number, value,
     // description or the space around) selects the step without changing it
-    f.addEventListener('pointerdown', (e) => { if (e.target !== input) selectStep(i); });
+    f.addEventListener('pointerdown', (e) => { if (e.target !== input) selectStep(step()); });
     el.appendChild(f);
-    faderEls.push({ root: f, input, ghost: f.querySelector('.ghost'), val: f.querySelector('.val'), desc: f.querySelector('.desc') });
+    faderEls.push({ root: f, input, name: f.querySelector('.name'), ghost: f.querySelector('.ghost'), val: f.querySelector('.val'), desc: f.querySelector('.desc') });
   }
 }
 function refreshFaders() {
   [...$('tabs').children].forEach((t) => t.classList.toggle('on', +t.dataset.page === state.page));
   $('page-hint').textContent = PAGE_INFO[state.page].hint;
   faderEls.forEach((f, i) => {
-    const v = state.values[state.page][i];
+    const step = state.bank * NS + i, v = state.values[state.page][step];
     if (document.activeElement !== f.input || +f.input.value !== v) f.input.value = v;
+    f.name.textContent = step + 1; f.input.setAttribute('aria-label', 'Step ' + (step + 1));
     f.val.textContent = v; f.desc.textContent = describe(state.page, v);
-    f.root.classList.toggle('cur', i === state.live.cur);
-    f.root.classList.toggle('sel', i === state.sel);
+    f.root.classList.toggle('cur', step === state.live.cur);
+    f.root.classList.toggle('sel', step === state.sel);
+    f.root.classList.toggle('picked', step !== state.sel && state.selSet.has(step));
+    f.root.classList.toggle('unused', step >= state.length);
     const ph = mu.phys[i], waiting = link.muIns.length > 0 && ph >= 0 && !mu.engaged[i];
     f.ghost.style.display = waiting ? 'block' : 'none';
     if (waiting) f.ghost.style.top = ((1 - ph / 127) * 150) + 'px';
@@ -602,34 +776,192 @@ function userSetValue(page, i, v) {
   v = clamp(v | 0, 0, 127);
   if (state.values[page][i] === v) return;
   state.values[page][i] = v;
-  if (page === state.page) mu.engaged[i] = false;   // a physical fader must meet it again
+  // a physical fader must meet it again
+  if (page === state.page && Math.floor(i / NS) === state.bank) mu.engaged[i % NS] = false;
   queueSend('v' + page + '.' + i, sysex(CMD.SET, [page, i, v]));
   changed();
 }
 function selectPage(p, send) {
   if (p === state.page) return;
   state.page = p;
-  for (let i = 0; i < NS; i++) { const ph = mu.phys[i]; mu.engaged[i] = ph >= 0 && Math.abs(ph - state.values[p][i]) <= 1; }
+  reengage();
   if (send) queueSend('page', sysex(CMD.PAGE, [p]));
   changed();
 }
-function selectStep(i) { if (state.sel !== i) { state.sel = i; changed(); } }
+// Which 8mu faders already sit on their step's value (pickup)
+function reengage() {
+  for (let i = 0; i < NS; i++) { const ph = mu.phys[i];
+    mu.engaged[i] = ph >= 0 && Math.abs(ph - state.values[state.page][state.bank * NS + i]) <= 1; }
+}
+function selectBank(b, send) {
+  b = clamp(b | 0, 0, NBANKS - 1);
+  mu.flash = { until: performance.now() + 900, bank: true, value: b };
+  if (b === state.bank) return;
+  state.bank = b;
+  reengage();
+  if (send) queueSend('bank', sysex(CMD.BANK, [b]));
+  changed();
+}
+function setLength(n, send) {
+  n = clamp(n | 0, 1, NSTEPS);
+  if (n === state.length) return;
+  state.length = n;
+  if (send) queueSend('len', sysex(CMD.LENGTH, [n]));
+  changed();
+}
+// Select one step; a step already in a wider selection just becomes the
+// main one, so touching a fader doesn't lose the selection
+function selectStep(i) {
+  if (!state.selSet.has(i)) { state.selSet = new Set([i]); state.anchor = i; }
+  if (state.sel !== i) state.sel = i;
+  changed();
+}
+function setSelection(steps, main) {
+  steps = [...new Set(steps)].filter(i => i >= 0 && i < NSTEPS).sort((a, b) => a - b);
+  if (!steps.length) steps = [state.sel];
+  state.selSet = new Set(steps);
+  state.sel = steps.includes(main) ? main : steps[0];
+  changed();
+}
+const rowSteps = (i) => Array.from({ length: NS }, (_, k) => Math.floor(i / NS) * NS + k);
+const colSteps = (i) => Array.from({ length: NBANKS }, (_, k) => (i % NS) + k * NS);
+const seqSteps = () => Array.from({ length: state.length }, (_, k) => k);
+
+// ---- Undo, for pastes, randomising and shifts
+const undoStack = [];
+function bulkEdit(label, fn) {
+  undoStack.push({ label, values: state.values.map(r => r.slice()) });
+  if (undoStack.length > 30) undoStack.shift();
+  fn();
+  reengage();
+  sendAll();
+  changed();
+}
+function undo() {
+  const u = undoStack.pop();
+  if (!u) { say('Nothing to undo.'); return; }
+  state.values = u.values;
+  reengage(); sendAll(); changed();
+  say('Undid ' + u.label + '.');
+}
+
+// ---- Shift: rotate the steps in the sequence (1 to its length) one place,
+// every setting together, wrapping round; steps past the end stay put.  The
+// selection moves with the steps.
+function shiftSteps(dir) {
+  const len = state.length;
+  if (len < 2) { say('A one-step sequence has nothing to shift.'); return; }
+  const move = (i) => i < len ? (i + dir + len) % len : i;
+  bulkEdit('the shift', () => {
+    state.values = state.values.map(r => { const n = r.slice(); for (let i = 0; i < len; i++) n[move(i)] = r[i]; return n; });
+  });
+  setSelection([...state.selSet].map(move), move(state.sel));
+  say('Shifted steps 1-' + len + ' one place ' + (dir < 0 ? 'left' : 'right') + '.');
+}
+
+// ---- Copy and paste.  The clipboard holds whole steps, every setting, with
+// the steps they came from so a pattern keeps its spacing.
+let clip = null;   // read from the browser at start-up (init)
+function copySel() {
+  const steps = [...state.selSet].sort((a, b) => a - b);
+  clip = { steps, vals: steps.map(i => state.values.map(r => r[i])) };
+  store.set('waveseq.clip.v1', clip);
+  say('Copied ' + describeSteps(steps) + '.');
+  changed();
+}
+function pasteSel(pageOnly) {
+  if (!clip || !clip.steps || !clip.steps.length) { say('Nothing copied yet: select steps and press Copy.'); return; }
+  const targets = [...state.selSet].sort((a, b) => a - b), src = clip.steps;
+  let pairs;
+  if (src.length === 1) pairs = targets.map(t => [0, t]);                         // one step fills them all
+  else if (targets.length === src.length) pairs = targets.map((t, k) => [k, t]);  // one to one, in order
+  else pairs = src.map((s, k) => [k, targets[0] + s - src[0]]);                  // the pattern, from the first
+  const kept = pairs.filter(([, t]) => t < NSTEPS), lost = pairs.length - kept.length;
+  const pages = pageOnly ? [state.page] : Array.from({ length: PAGES }, (_, p) => p);
+  bulkEdit('the paste', () => { for (const [k, t] of kept) for (const p of pages) state.values[p][t] = clip.vals[k][p]; });
+  const to = kept.map(([, t]) => t);
+  setSelection(to, to[0]);
+  say('Pasted ' + (pageOnly ? PAGE_INFO[state.page].name + ' only ' : '') + 'onto ' + describeSteps(to) + '.' +
+    (lost ? ' ' + lost + ' step' + (lost > 1 ? 's' : '') + ' would have gone past step 32, so ' + (lost > 1 ? 'were' : 'was') + ' left out.' : ''));
+}
+function describeSteps(steps) {
+  if (steps.length === 1) return 'step ' + (steps[0] + 1);
+  const runs = []; let a = steps[0], b = a;
+  for (const i of steps.slice(1).concat([Infinity])) { if (i === b + 1) { b = i; continue; } runs.push(a === b ? String(a + 1) : (a + 1) + '-' + (b + 1)); a = b = i; }
+  return steps.length + ' steps (' + runs.join(', ') + ')';
+}
+
+// ---- Randomise
+const rnd = { mode: 'wave', spread: 7 };
+const randInt = (n) => Math.floor(Math.random() * n);
+// The PITCH fader position for a whole number of semitones (-12 to +12):
+// the lowest that semis() reads as it
+const pitchFader = (st) => Math.ceil((clamp(st, -12, 12) + 12) * 128 / 25);
+function randomiseStep(v, i, mode, spread) {
+  v[0][i] = randInt(128);                                         // wave: anywhere in the bank
+  if (mode === 'wave') return;
+  v[2][i] = pitchFader(randInt(2 * spread + 1) - spread);         // pitch, within the spread
+  v[3][i] = 70 + randInt(58);                                     // level: never too quiet (about -10 dB up)
+  if (mode !== 'all') return;
+  v[1][i] = 24 + randInt(80);                                     // time: never skipped, ~60 ms to ~1.5 s
+  v[4][i] = randInt(128);                                         // FM amount
+  v[5][i] = randInt(128);                                         // scan amount
+  v[6][i] = Math.random() < 0.6 ? 0 : 1 + randInt(127);           // glide: off more often than not
+  const g = Math.random();                                        // gate: half, a tie, or anything
+  v[7][i] = g < 0.4 ? 64 : g < 0.55 ? 127 : 16 + randInt(100);
+}
+function randomise(scope) {
+  const steps = scope === 'row' ? rowSteps(state.sel) : scope === 'col' ? colSteps(state.sel)
+    : scope === 'seq' ? seqSteps() : [...state.selSet].sort((a, b) => a - b);
+  const what = { wave: 'the wave', levels: 'wave, pitch and level', all: 'every setting' }[rnd.mode];
+  bulkEdit('the randomise', () => { for (const i of steps) randomiseStep(state.values, i, rnd.mode, rnd.spread); });
+  setSelection(steps, steps.includes(state.sel) ? state.sel : steps[0]);
+  say('Randomised ' + what + ' of ' + describeSteps(steps) + (rnd.mode === 'wave' ? '' : ', pitch within ±' + rnd.spread + ' semitones') + '.');
+}
+
+function refreshEditCard() {
+  const steps = [...state.selSet].sort((a, b) => a - b);
+  $('sel-info').textContent = 'Selected: ' + describeSteps(steps) + '.';
+  $('clip-info').textContent = clip && clip.steps && clip.steps.length ? 'Copied: ' + describeSteps(clip.steps) + '.' : 'Nothing copied yet.';
+  $('btn-paste').disabled = $('btn-paste-page').disabled = !(clip && clip.steps && clip.steps.length);
+  $('btn-paste-page').textContent = 'Paste ' + PAGE_INFO[state.page].name + ' only';
+  $('btn-undo').disabled = !undoStack.length;
+  $('btn-undo').textContent = undoStack.length ? 'Undo ' + undoStack[undoStack.length - 1].label.replace(/^the /, '') : 'Undo';
+  document.querySelectorAll('.rmode').forEach(b => b.classList.toggle('on', b.dataset.mode === rnd.mode));
+  document.querySelectorAll('.rspread').forEach(b => { b.classList.toggle('on', +b.dataset.spread === rnd.spread); b.disabled = rnd.mode === 'wave'; });
+  document.querySelectorAll('.bankbtn').forEach(b => b.classList.toggle('on', +b.dataset.bank === state.bank));
+  $('len-v').textContent = state.length;
+}
 
 let renderQueued = false, saveTimer = 0;
 function requestRender() {
   if (renderQueued) return;
   renderQueued = true;
-  requestAnimationFrame(() => { renderQueued = false; refreshFaders(); drawBank(); renderPresets(); });
+  requestAnimationFrame(() => { renderQueued = false; refreshFaders(); drawBank(); renderPresets(); refreshEditCard(); });
 }
 function changed() {
   requestRender();
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => store.set('waveseq.last.v1', state.values), 400);
+  saveTimer = setTimeout(() => store.set('waveseq.last.v2', { v: state.values, len: state.length }), 400);
 }
 
 // ---- 8mu plugged into this computer -----------------------------------------
 function eightmuFader(i, v) {
-  const last = mu.phys[i], target = state.values[state.page][i];
+  // While a button is held, moving a fader sets the last step instead
+  const held = mu.press.findIndex(p => p.down);
+  if (held >= 0) {
+    const p = mu.press[held];
+    if (p.faders[i] < 0) p.faders[i] = v;
+    if (Math.abs(v - p.faders[i]) > LENGTH_MOVE) {
+      p.faders[i] = v; p.setLength = true;
+      setLength(held * NS + i + 1, true);
+      mu.flash = { until: performance.now() + 900, bank: false, value: i };
+    }
+    mu.phys[i] = v; mu.engaged[i] = false;
+    requestRender();
+    return;
+  }
+  const step = state.bank * NS + i, last = mu.phys[i], target = state.values[state.page][step];
   mu.phys[i] = v;
   if (!mu.engaged[i]) {
     const near = Math.abs(v - target) <= 1;
@@ -637,11 +969,26 @@ function eightmuFader(i, v) {
     if (!near && !crossed) { requestRender(); return; }
     mu.engaged[i] = true;
   }
-  if (state.values[state.page][i] !== v) {
-    state.values[state.page][i] = v;
-    queueSend('v' + state.page + '.' + i, sysex(CMD.SET, [state.page, i, v]));
+  if (state.values[state.page][step] !== v) {
+    state.values[state.page][step] = v;
+    queueSend('v' + state.page + '.' + step, sysex(CMD.SET, [state.page, step, v]));
     changed();
   }
+}
+// Buttons, acted on when released, as on the card: a short press is the
+// page, a long one the bank; a fader moved while held set the length
+function eightmuButton(b, down) {
+  const p = mu.press[b];
+  if (down) { p.down = true; p.t0 = performance.now(); p.setLength = false; p.faders = mu.phys.slice(); return; }
+  if (!p.down) return;
+  p.down = false;
+  if (!p.setLength) {
+    if (performance.now() - p.t0 >= LONG_PRESS_MS) selectBank(b, true);
+    else selectPage(nextPage(state.page, b), true);
+  }
+  for (let i = 0; i < NS; i++) mu.engaged[i] = false;
+  reengage();
+  requestRender();
 }
 function eightmuMessage(d) {
   if (d.length < 3 || d[0] < 0x80 || d[0] >= 0xF0) return;
@@ -650,10 +997,9 @@ function eightmuMessage(d) {
     const cc = d[1];
     if (cc >= FIRST_FADER_CC && cc < FIRST_FADER_CC + NS) eightmuFader(cc - FIRST_FADER_CC, d[2] & 0x7F);
     else if (cc >= FIRST_MOTION_CC && cc < FIRST_MOTION_CC + 8) { mu.cc[cc - FIRST_MOTION_CC] = d[2] & 0x7F; scheduleMotion(); }
-  } else if (type === 0x90 && d[2] > 0) {
-    const p = BUTTON_NOTES.indexOf(d[1]);
-    // Same button again flips to its second page; another starts on its first
-    if (p >= 0) selectPage((state.page & 3) === p ? state.page ^ 4 : p, true);
+  } else if (type === 0x90 || type === 0x80) {
+    const b = BUTTON_NOTES.indexOf(d[1]);
+    if (b >= 0) eightmuButton(b, type === 0x90 && d[2] > 0);
   }
 }
 // Tilt, as EightMU::Pitch/Roll compute it: the difference of a pair of CCs
@@ -678,8 +1024,18 @@ function serviceEightmuLeds() {
     return;
   }
   if (now - mu.lastBlinkOff < 60) return;
+  const f = mu.flash, flashing = now < f.until;
   for (let i = 0; i < NS; i++) {
-    const v = i === state.live.cur ? 127 : (state.values[state.page][i] * 9) >> 4;
+    const step = state.bank * NS + i;
+    let v;
+    // a bank change flashes that bank's fader three times; a length change
+    // lights the faders up to the last step; otherwise stored values, the
+    // playing step full on and steps past the end of the sequence off
+    if (flashing && f.bank) v = (i === f.value && Math.floor((900 - (f.until - now)) / 150) % 2 === 0) ? 127 : 0;
+    else if (flashing) v = i <= f.value ? 127 : 0;
+    else if (step === state.live.cur) v = 127;
+    else if (step >= state.length) v = 0;
+    else v = (state.values[state.page][step] * 9) >> 4;
     if (v === mu.ledSent[i]) continue;
     mu.ledSent[i] = v;
     for (const o of link.muOuts) try { o.send([0x90, i, v]); } catch (e) {}
@@ -746,7 +1102,7 @@ function onCardBytes(d) {
     if (!link.sysexOn) continue;
     if (b === 0xF7) { link.sysexOn = false; handleCardMessage(link.sysexBuf); link.sysexBuf = []; continue; }
     if (b & 0x80) { if (b < 0xF8) link.sysexOn = false; continue; }
-    if (link.sysexBuf.length < 128) link.sysexBuf.push(b); else link.sysexOn = false;
+    if (link.sysexBuf.length < 320) link.sysexBuf.push(b); else link.sysexOn = false;
   }
 }
 
@@ -754,30 +1110,38 @@ function handleCardMessage(m) {
   if (m.length < 3 || m[0] !== SYSEX_MFR || m[1] !== SYSEX_PRODUCT) return;
   const cmd = m[2], p = m.slice(3);
   if (cmd === CMD.STATE) {
-    if (p.length !== 2 + PAGES * NS) { say('The card sent a state message of an unexpected size: is its firmware a different version?', true); return; }
-    if (p[0] !== PROTOCOL_VERSION) { say('The card speaks protocol version ' + p[0] + ' but this page speaks ' + PROTOCOL_VERSION + '.', true); return; }
-    for (let b = 0; b < PAGES; b++) for (let i = 0; i < NS; i++) state.values[b][i] = clamp(p[2 + b * NS + i], 0, 127);
+    if (p[0] !== PROTOCOL_VERSION) { say('The card speaks protocol version ' + p[0] + ' but this page speaks ' + PROTOCOL_VERSION + '. Use the matching editor and firmware.', true); return; }
+    if (p.length !== 4 + PAGES * NSTEPS) { say('The card sent a state message of an unexpected size: is its firmware a different version?', true); return; }
+    for (let b = 0; b < PAGES; b++) for (let i = 0; i < NSTEPS; i++) state.values[b][i] = clamp(p[4 + b * NSTEPS + i], 0, 127);
     const pg = clamp(p[1], 0, PAGES - 1);
     if (pg !== state.page) selectPage(pg, false);
-    for (let i = 0; i < NS; i++) mu.engaged[i] = mu.phys[i] >= 0 && Math.abs(mu.phys[i] - state.values[state.page][i]) <= 1;
+    state.bank = clamp(p[2], 0, NBANKS - 1);
+    state.length = clamp(p[3], 1, NSTEPS);
+    reengage();
     say('Read the sequence from the card.');
     changed();
   } else if (cmd === CMD.STATUS && p.length >= 12) {
     const L = state.live;
-    L.cur = p[0] & 7; L.next = p[1] & 7; L.mix = p[2] / 127; L.progress = p[3] / 127;
+    L.cur = p[0] & 31; L.next = p[1] & 31; L.mix = p[2] / 127; L.progress = p[3] / 127;
     L.direction = Math.min(2, p[4] & 3); L.clocked = !!(p[4] & 4); L.muOnCard = !!(p[4] & 8);
     L.switchUp = !!(p[4] & 16); L.knobWaiting = !!(p[4] & 32);
     L.note = ((p[5] << 7) | p[6]) / 8;
     L.speed = Math.pow(2, (((p[7] << 7) | p[8]) - 2048) / 256);
     L.xfade = p[9] / 127; L.fm = p[10] / 127; L.scan = p[11] / 127;
+    // bank and length, which the 8mu on the card can change
+    if (p.length >= 14) {
+      const bk = clamp(p[12], 0, NBANKS - 1), ln = clamp(p[13], 1, NSTEPS);
+      if (bk !== state.bank) { state.bank = bk; reengage(); changed(); }
+      if (ln !== state.length) { state.length = ln; changed(); }
+    }
     link.lastStatus = performance.now();
   }
 }
 
 function sendAll() {
   if (!link.cardOnline) return;
-  const payload = [PROTOCOL_VERSION];
-  for (let b = 0; b < PAGES; b++) for (let i = 0; i < NS; i++) payload.push(state.values[b][i]);
+  const payload = [PROTOCOL_VERSION, state.length];
+  for (let b = 0; b < PAGES; b++) for (let i = 0; i < NSTEPS; i++) payload.push(state.values[b][i]);
   sendRaw(sysex(CMD.SET_ALL, payload));
 }
 
@@ -787,14 +1151,14 @@ function sendAll() {
 // ============================================================================
 const sim = { cur: 0, next: 1, dir: 1, elapsed: 0, last: 0, direction: 0 };
 function simNext(cur) {                // as WaveSeq::NextStep
-  const act = (i) => isActive(state.values[1][i]);
+  const act = (i) => playsStep(state.values, i, state.length);
   if (sim.direction === 2) {
-    const c = []; for (let i = 0; i < NS; i++) if (act(i) && i !== cur) c.push(i);
+    const c = []; for (let i = 0; i < NSTEPS; i++) if (act(i) && i !== cur) c.push(i);
     return c.length ? c[Math.floor(Math.random() * c.length)] : cur;
   }
   if (sim.direction === 0) { sim.dir = 1; return nextActive(cur); }
   for (let pass = 0; pass < 2; pass++) {
-    for (let i = cur + sim.dir; i >= 0 && i < NS; i += sim.dir) if (act(i)) return i;
+    for (let i = cur + sim.dir; i >= 0 && i < NSTEPS; i += sim.dir) if (act(i)) return i;
     sim.dir = -sim.dir;
   }
   return cur;
@@ -803,9 +1167,10 @@ function simulate(now) {
   const dt = sim.last ? Math.min(100, now - sim.last) : 0; sim.last = now;
   const L = state.live, v = state.values;
   L.direction = sim.direction; L.clocked = false; L.speed = 1; L.xfade = 0.25; L.fm = 0; L.scan = 0;
-  if (!v[1].some(isActive)) { L.next = L.cur = sim.cur; L.mix = 0; L.progress = 0; return; }
-  if (!isActive(v[1][sim.cur])) { sim.cur = nextActive(sim.cur); sim.next = simNext(sim.cur); }
-  if (!isActive(v[1][sim.next]) || sim.next === sim.cur) sim.next = simNext(sim.cur);
+  const act = (i) => playsStep(v, i, state.length);
+  if (!v[1].some((t, i) => act(i))) { L.next = L.cur = sim.cur; L.mix = 0; L.progress = 0; return; }
+  if (!act(sim.cur)) { sim.cur = nextActive(sim.cur); sim.next = simNext(sim.cur); }
+  if (!act(sim.next) || sim.next === sim.cur) sim.next = simNext(sim.cur);
   sim.elapsed += dt;
   let len = stepMs(v[1][sim.cur]);
   if (sim.elapsed >= len) {
@@ -844,33 +1209,39 @@ const BUILTIN = [
   { name: 'FM bells', v: [[68, 70, 72, 74, 76, 78, 72, 70], [90, 30, 30, 90, 30, 30, 60, 60], [64, 88, 64, 76, 64, 88, 69, 64], [127, 90, 80, 127, 90, 80, 110, 90]] },
 ].map(cleanPreset);
 let userPresets = [];
+// A preset: 8 pages of 32 step values and a length.  Presets from before 32
+// steps have 8 values a page and no length: their steps repeat to fill 32,
+// and they play 8.  Presets from before the second pages have 4 rows: the
+// rest take defaults.
 function cleanPreset(o) {   // hoisted: BUILTIN above uses it
-  // Presets from before the second pages have 4 rows: the rest take defaults
   if (!o || typeof o !== 'object' || !Array.isArray(o.v) || (o.v.length !== 4 && o.v.length !== PAGES)) return null;
-  const v = o.v.map(r => Array.isArray(r) && r.length === NS ? r.map(x => clamp(Math.round(+x) || 0, 0, 127)) : null);
+  const v = o.v.map(r => Array.isArray(r) && (r.length === NS || r.length === NSTEPS)
+    ? to32(r.map(x => clamp(Math.round(+x) || 0, 0, 127))) : null);
   if (v.some(r => !r)) return null;
   for (let p = v.length; p < PAGES; p++) v.push(DEFAULT_VALUES[p].slice());
-  return { name: String(o.name || 'Preset').slice(0, 60), v };
+  const len = clamp(Math.round(+o.len) || NS, 1, NSTEPS);
+  return { name: String(o.name || 'Preset').slice(0, 60), v, len };
 }
 function loadPresets() { userPresets = (store.get('waveseq.presets.v1', []) || []).map(cleanPreset).filter(Boolean); }
 function savePresets() { if (!store.set('waveseq.presets.v1', userPresets)) say('Could not save presets: browser storage is unavailable or full.', true); }
 function applyPreset(pr) {
   state.values = pr.v.map(r => r.slice());
-  for (let i = 0; i < NS; i++) mu.engaged[i] = mu.phys[i] >= 0 && Math.abs(mu.phys[i] - state.values[state.page][i]) <= 1;
+  state.length = pr.len;
+  reengage();
   sendAll();
   say('Loaded “' + pr.name + '”' + (link.cardOnline ? ' and sent it to the card.' : '.'));
   changed();
 }
-function presetThumb(cv, values) {
-  // a miniature timeline: wave per step, width by time
+function presetThumb(cv, values, len) {
+  // a miniature timeline of the steps in the sequence: wave per step, width by time
   const { ctx, w: W, h: H } = setupCanvas(cv);
   ctx.clearRect(0, 0, W, H);
-  const dur = values[1].map(t => isActive(t) ? stepMs(t) : 0), total = dur.reduce((a, b) => a + b, 0) || 1;
+  const dur = values[1].slice(0, len).map(t => isActive(t) ? stepMs(t) : 0), total = dur.reduce((a, b) => a + b, 0) || 1;
   let x = 0;
-  for (let i = 0; i < NS; i++) {
+  for (let i = 0; i < len; i++) {
     const w = W * dur[i] / total; if (w < 1) continue;
     const pos = wavePos(values[0][i]), lv = level(values[3][i]);
-    ctx.strokeStyle = stepColor(i); ctx.lineWidth = 1; ctx.beginPath();
+    ctx.strokeStyle = stepColor(i % NS); ctx.lineWidth = 1; ctx.beginPath();
     for (let px = 0; px <= w; px++) { const y = H / 2 - waveAt(pos, (px / Math.max(1, w)) % 1) * (H / 2 - 2) * lv;
       if (px === 0) ctx.moveTo(x + px, y); else ctx.lineTo(x + px, y); }
     ctx.stroke(); x += w;
@@ -892,12 +1263,12 @@ function renderPresets() {
     if (idx < 0) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'built in'; li.append(t); }
     else {
       const mk = (label, title, fn) => { const b = document.createElement('button'); b.textContent = label; b.title = title; b.addEventListener('click', fn); li.append(b); };
-      mk('Update', 'Overwrite with what is on screen now', () => { userPresets[idx].v = state.values.map(r => r.slice()); savePresets(); presetsDirty = true; requestRender(); say('Updated “' + pr.name + '”.'); });
+      mk('Update', 'Overwrite with what is on screen now', () => { userPresets[idx].v = state.values.map(r => r.slice()); userPresets[idx].len = state.length; savePresets(); presetsDirty = true; requestRender(); say('Updated “' + pr.name + '”.'); });
       mk('Rename', 'Rename', () => { const n = prompt('New name', pr.name); if (n) { userPresets[idx].name = n.slice(0, 60); savePresets(); presetsDirty = true; requestRender(); } });
       mk('✕', 'Delete', () => { if (confirm('Delete “' + pr.name + '”?')) { userPresets.splice(idx, 1); savePresets(); presetsDirty = true; requestRender(); } });
     }
     ul.append(li);
-    requestAnimationFrame(() => presetThumb(cv, pr.v));
+    requestAnimationFrame(() => presetThumb(cv, pr.v, pr.len));
   };
   BUILTIN.forEach(pr => add(pr, -1));
   userPresets.forEach((pr, i) => add(pr, i));
@@ -905,7 +1276,7 @@ function renderPresets() {
 function saveCurrent() {
   const n = prompt('Name for this preset', 'My sequence ' + (userPresets.length + 1));
   if (!n) return;
-  userPresets.push({ name: n.slice(0, 60), v: state.values.map(r => r.slice()) });
+  userPresets.push({ name: n.slice(0, 60), v: state.values.map(r => r.slice()), len: state.length });
   savePresets(); presetsDirty = true; requestRender(); say('Saved “' + n + '”.');
 }
 function exportPresets() {
@@ -931,19 +1302,22 @@ function importPresets(file) {
 // Start
 // ============================================================================
 function init() {
-  const last = store.get('waveseq.last.v1', null);
-  const lp = last && cleanPreset({ v: last });
-  if (lp) state.values = lp.v;
+  // the last session (an older save is just the values, 8 steps)
+  const last = store.get('waveseq.last.v2', null) || { v: store.get('waveseq.last.v1', null) };
+  const lp = last && last.v && cleanPreset(last);
+  if (lp) { state.values = lp.v; state.length = lp.len; }
   loadPresets();
+  clip = store.get('waveseq.clip.v1', null);
   buildFaders(); buildBank();
   $('btn-connect').addEventListener('click', connect);
   $('btn-rescan').addEventListener('click', connect);
   $('btn-read').addEventListener('click', () => { sendRaw(sysex(CMD.HELLO, [])); say('Asked the card for its sequence.'); });
   $('btn-send').addEventListener('click', () => { sendAll(); say('Sent the sequence to the card.'); });
-  $('btn-restart').addEventListener('click', () => { if (link.cardOnline) sendRaw(sysex(CMD.RESTART, [])); sim.cur = 0; sim.elapsed = 0; });
+  $('btn-restart').addEventListener('click', () => { if (link.cardOnline) sendRaw(sysex(CMD.RESTART, [])); sim.cur = playsStep(state.values, 0, state.length) ? 0 : nextActive(0); sim.elapsed = 0; });
   $('btn-reset').addEventListener('click', () => {
     if (!confirm('Reset the sequence to the default?')) return;
     state.values = DEFAULT_VALUES.map(r => r.slice());
+    state.length = NS;
     if (link.cardOnline) sendRaw(sysex(CMD.RESET, []));
     changed();
   });
@@ -957,12 +1331,64 @@ function init() {
   $('btn-export').addEventListener('click', exportPresets);
   $('btn-import').addEventListener('click', () => $('import-file').click());
   $('import-file').addEventListener('change', (e) => { if (e.target.files[0]) importPresets(e.target.files[0]); e.target.value = ''; });
+  // The step under a click on the timeline: its row, then the box in that
+  // row's time-based layout
+  const stepAt = (e) => {
+    const r = $('timeline').getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    const { rows } = timelineRows();
+    let row = rows.findIndex(o => y >= o.y && y < o.y + o.h + ROW_GAP);
+    if (row < 0) row = NBANKS - 1;
+    const boxes = rowLayout(state.values, row, r.width, state.length);
+    const b = boxes.find(o => x >= o.x && x < o.x + o.w) || boxes[x < 0 ? 0 : boxes.length - 1];
+    return b.i;
+  };
+  $('timeline').addEventListener('mousedown', (e) => { if (e.shiftKey || e.detail > 1) e.preventDefault(); }); // no text selection
   $('timeline').addEventListener('click', (e) => {
-    const r = $('timeline').getBoundingClientRect(), x = e.clientX - r.left;
-    const { boxes } = layout(state.values, r.width);
-    const i = boxes.findIndex(b => x >= b.x && x < b.x + b.w);
-    if (i >= 0) selectStep(i);
+    // a step, in any row; clicking a row also makes it the bank the faders edit
+    const i = stepAt(e);
+    selectBank(Math.floor(i / NS), true);
+    if (e.shiftKey) {
+      const a = Math.min(state.anchor, i), b = Math.max(state.anchor, i);
+      setSelection(Array.from({ length: b - a + 1 }, (_, k) => a + k), i);
+    } else if (e.ctrlKey || e.metaKey) {
+      const s = new Set(state.selSet);
+      if (s.has(i) && s.size > 1) s.delete(i); else s.add(i);
+      state.anchor = i;
+      setSelection([...s], s.has(i) ? i : [...s][0]);
+    } else if (e.altKey) {
+      setSelection(colSteps(i), i);
+    } else {
+      state.selSet = new Set([i]); state.anchor = i; state.sel = -1; selectStep(i);
+    }
   });
+  $('timeline').addEventListener('dblclick', (e) => { const i = stepAt(e); setSelection(rowSteps(i), i); say('Selected row ' + (Math.floor(i / NS) + 1) + '.'); });
+  $('sel-row').addEventListener('click', () => setSelection(rowSteps(state.sel), state.sel));
+  $('sel-col').addEventListener('click', () => setSelection(colSteps(state.sel), state.sel));
+  $('sel-seq').addEventListener('click', () => setSelection(seqSteps(), state.sel));
+  $('sel-all').addEventListener('click', () => setSelection(Array.from({ length: NSTEPS }, (_, k) => k), state.sel));
+  $('sel-none').addEventListener('click', () => setSelection([state.sel], state.sel));
+  $('btn-copy').addEventListener('click', copySel);
+  $('btn-paste').addEventListener('click', () => pasteSel(false));
+  $('btn-paste-page').addEventListener('click', () => pasteSel(true));
+  $('btn-undo').addEventListener('click', undo);
+  document.querySelectorAll('.rmode').forEach(b => b.addEventListener('click', () => { rnd.mode = b.dataset.mode; refreshEditCard(); }));
+  document.querySelectorAll('.rspread').forEach(b => b.addEventListener('click', () => { rnd.spread = +b.dataset.spread; refreshEditCard(); }));
+  document.querySelectorAll('.rnd').forEach(b => b.addEventListener('click', () => randomise(b.dataset.scope)));
+  document.addEventListener('keydown', (e) => {
+    // leave typing, and copying text the user has selected, to the browser
+    const t = e.target, typing = t && (t.isContentEditable || /^(TEXTAREA|SELECT)$/.test(t.tagName) || (t.tagName === 'INPUT' && t.type !== 'range'));
+    if (typing) return;
+    const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+    if (mod && k === 'c' && !String(window.getSelection() || '')) { e.preventDefault(); copySel(); }
+    else if (mod && k === 'v') { e.preventDefault(); pasteSel(e.shiftKey); }
+    else if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if (k === 'escape' && state.selSet.size > 1) setSelection([state.sel], state.sel);
+  });
+  document.querySelectorAll('.bankbtn').forEach(b => b.addEventListener('click', () => selectBank(+b.dataset.bank, true)));
+  $('len-dn').addEventListener('click', () => setLength(state.length - 1, true));
+  $('len-up').addEventListener('click', () => setLength(state.length + 1, true));
+  $('shift-l').addEventListener('click', () => shiftSteps(-1));
+  $('shift-r').addEventListener('click', () => shiftSteps(1));
   window.addEventListener('resize', () => { presetsDirty = true; requestRender(); });
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { presetsDirty = true; requestRender(); });
   if (!navigator.requestMIDIAccess) say('This browser can’t do WebMIDI, so it can’t reach the card or an 8mu. You can still edit and keep presets here.');

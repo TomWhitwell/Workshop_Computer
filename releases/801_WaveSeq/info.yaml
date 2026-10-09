@@ -1,9 +1,9 @@
 draft: false
 Name: WaveSeq
-short-description: "Wavestation-style wave sequencing - eight steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
+short-description: "Wavestation-style wave sequencing - up to 32 steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
 Language: C++ (Pico SDK + ComputerCard)
 Creator: XponentOneAudio
-Version: "0.5.3"
+Version: "0.6.0"
 Status: Beta
 License: MIT
 Editor: web
@@ -20,7 +20,7 @@ contact:
 
 uf2:
   - path: UF2/waveseq.uf2
-    name: Wave Sequencer 0.5.3
+    name: Wave Sequencer 0.6.0
 
 tags:
   - synth
@@ -36,15 +36,17 @@ summary: |
   waveform, the oscillator plays a sequence of them, each for its own time,
   pitch and level, crossfading from one to the next.<br><br>
 
-  There are eight steps, and a bank of 64 single-cycle waves in eight
+  There are up to 32 steps, and a bank of 64 single-cycle waves in eight
   families - additive, saw to square, pulse width, hard sync, FM, vowels,
   wavefolding and digital. A step's wave is a position in the bank rather
   than a choice from a list, so it can sit between two waves.<br><br>
 
-  The sequence is edited from a Music Thing 8mu. Its eight faders are the
-  eight steps, and its four buttons choose what the faders edit: A is WAVE,
-  B is TIME, C is PITCH and D is LEVEL. Pressing a button again flips to its
-  second page: A gives per-step FM amount and B per-step wave scan amount,
+  The sequence is edited from a Music Thing 8mu. Its eight faders edit
+  one bank of eight steps at a time, and its four buttons choose what the
+  faders edit: A is WAVE, B is TIME, C is PITCH and D is LEVEL. A long
+  press of a button chooses the bank (A steps 1-8 to D steps 25-32), and
+  holding a button while moving a fader sets the last step, from 1 to 32;
+  it starts at 8. Pressing a button again flips to its second page: A gives per-step FM amount and B per-step wave scan amount,
   each multiplying the panel's amount and crossfading between steps; C gives
   per-step glide, sliding into the step's pitch from the last; and D gives a
   per-step gate length on Pulse Out 1, from off through to a tie. After a
@@ -163,7 +165,7 @@ controls:
       items:
         - id: LED0
           name: Page A / step
-          description: With an 8mu or the web editor, LEDs 0-3 show the button whose page is selected (A-D), steady for its first page and blinking slowly for its second. Without one, they show the playing step - bright for steps 1-4, dim for 5-8.
+          description: With an 8mu or the web editor, LEDs 0-3 show the button whose page is selected (A-D), steady for its first page and blinking slowly for its second. Without one, they show the playing step - bright for steps 1-4 of each bank, dim for 5-8.
         - id: LED1
           name: Page B / step
         - id: LED2

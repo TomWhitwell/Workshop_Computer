@@ -3,12 +3,23 @@
 // Wavestation-style wave sequencing for the Music Thing Workshop Computer,
 // edited from a Music Thing 8mu over USB MIDI host.
 //
-// An eight-step sequence, where every step plays a wave from a bank of 64
-// single-cycle waves for a set time, at a set pitch and level, crossfading
-// into the next step.  The 8mu's eight faders edit the eight steps; its four
-// buttons choose which property of the steps the faders are editing.  Each
-// button has two pages: pressing it again flips to its second page, and
-// pressing a different button always starts on that button's first page.
+// A sequence of up to 32 steps, where every step plays a wave from a bank of
+// 64 single-cycle waves for a set time, at a set pitch and level,
+// crossfading into the next step.  The steps are in four banks of eight, and
+// the 8mu's eight faders edit one bank at a time.  Its four buttons, acted on
+// when released:
+//
+//   Short press  the page, below.  Pressing a button again flips to its
+//                second page; another button always starts on its first.
+//   Long press   (half a second or more) the bank: A = steps 1-8, B = 9-16,
+//                C = 17-24, D = 25-32.  The LED of fader 1-4 for that bank
+//                flashes three times.
+//   Hold + move a fader   the sequence's last step: the button is the bank,
+//                the fader the step within it (hold D and move fader 8 for
+//                32 steps, hold A and move fader 4 for 4).  The fader must
+//                move about a sixth of its travel.  The faders up to the
+//                last step light briefly.  The sequence starts 8 long, and
+//                steps 9-32 start as copies of 1-8.
 //
 //             First page                         Second page
 //   Button A  WAVE  position in the 64-wave bank FM    per-step FM amount
@@ -29,7 +40,9 @@
 // After a page change the faders 'pick up': a fader only takes over its step
 // once it has been moved to (or across) the value already stored, so changing
 // page never makes the sound jump.  The 8mu's LEDs show the stored values on
-// the current page, with the playing step lit fully.
+// the current page, with the playing step lit fully and steps past the end of
+// the sequence dark.  Steps past the end are skipped, as a step with TIME
+// fully down is.
 //
 // Panel
 //   Main knob   Pitch (C1 to C7), plus CV In 1 at 1V/oct
@@ -90,10 +103,13 @@ static WaveSeq *gCard = nullptr;
 class WaveSeq : public ComputerCard
 {
 public:
-	static constexpr int kSteps = 8;
+	static constexpr int kSteps = 32;     // steps in all
+	static constexpr int kBankSize = 8;   // steps a bank, one per fader
+	static constexpr int kBanks = kSteps / kBankSize;
 	// Page = button + 4 * layer
 	enum Page {PageWave, PageTime, PagePitch, PageLevel,
 		PageFM, PageScan, PageGlide, PageGate, kPages};
+	static_assert(sysex::kNumValues == kPages * 32, "protocol carries every step");
 
 	WaveSeq()
 	{
@@ -120,10 +136,12 @@ public:
 	// Values are in 8mu fader units (0-127), stored shifted up to 0-4064.
 	void SetDefaults()
 	{
-		static const uint8_t defWave[kSteps] = {6, 22, 34, 50, 67, 81, 95, 116};
+		static const uint8_t defWave[kBankSize] = {6, 22, 34, 50, 67, 81, 95, 116};
+		// Steps 9-32 start as copies of 1-8, so a longer sequence has
+		// something in it straight away
 		for (int i = 0; i < kSteps; i++)
 		{
-			params[PageWave][i] = defWave[i] << 5;
+			params[PageWave][i] = defWave[i % kBankSize] << 5;
 			params[PageTime][i] = 64 << 5;
 			params[PagePitch][i] = 64 << 5;
 			params[PageLevel][i] = 127 << 5;
@@ -132,6 +150,7 @@ public:
 			params[PageGlide][i] = 0;
 			params[PageGate][i] = 64 << 5;
 		}
+		seqLength = kBankSize;
 	}
 
 	virtual void ProcessSample()
@@ -267,8 +286,23 @@ private:
 	// 8mu paging and fader pickup
 	volatile int page = PageWave;
 	int pageBlink = 0;
-	bool latched[kSteps] = {};
-	int32_t lastFader[kSteps] = {};
+	bool latched[kBankSize] = {};
+	int32_t lastFader[kBankSize] = {};
+
+	// Banks and length
+	volatile int bank = 0;            // which 8 steps the faders edit
+	volatile int seqLength = kBankSize;
+	int pressTicks[EightMU::numButtons] = {};
+	bool pressSetLength[EightMU::numButtons] = {};
+	int32_t pressFaders[EightMU::numButtons][kBankSize] = {};
+	static constexpr int kLongPress = 750;   // control ticks: 0.5s
+	// How far a fader must move, from where it was when the button went
+	// down, to set the length: about a sixth of its travel, so fader
+	// noise during a long press for a bank doesn't count
+	static constexpr int32_t kLengthMove = 640;
+	int ledFlash = 0;                 // control ticks left of an 8mu LED flash
+	bool ledFlashBank = false;        // a bank flash, or a length flash
+	int ledFlashValue = 0;
 	bool lastFaderValid = false;
 	bool prevButton[EightMU::numButtons] = {};
 	bool wasConnected = false;
@@ -393,7 +427,8 @@ private:
 		return inc < kMipMaxInc[0] ? 0 : (inc < kMipMaxInc[1] ? 1 : 2);
 	}
 
-	bool Active(int s) const {return params[PageTime][s] >= kSkipBelow;}
+	// A step plays if it's in the sequence and its TIME isn't fully down
+	bool Active(int s) const {return s < seqLength && params[PageTime][s] >= kSkipBelow;}
 
 	int ClocksForStep(int s) const
 	{
@@ -691,7 +726,7 @@ private:
 				bool second = page >= 4;
 				LedOn(i, (page & 3) == i && (!second || pageBlink < 450));
 			}
-			else LedBrightness(i, (cur & 3) == i ? (cur < 4 ? 4095 : 1024) : 0);
+			else LedBrightness(i, (cur & 3) == i ? ((cur & 4) == 0 ? 4095 : 1024) : 0);
 		}
 		LedOn(4, stepTrig > 0);
 		// LED 5: connection, blinking fast while a knob waits to pick up
@@ -785,7 +820,7 @@ private:
 			wasConnected = true;
 			connectHoldoff = 1500; // ~1s at control rate
 			lastFaderValid = false;
-			for (int i = 0; i < kSteps; i++) latched[i] = false;
+			for (int i = 0; i < kBankSize; i++) latched[i] = false;
 		}
 		if (connectHoldoff > 0)
 		{
@@ -793,26 +828,69 @@ private:
 			return;
 		}
 
-		// Page buttons
+		// Buttons, acted on when released: a short press is the page, a
+		// long one the bank, and moving a fader while one is held sets the
+		// last step.  While a button is held the faders edit nothing.
+		bool anyHeld = false;
 		for (int b = 0; b < EightMU::numButtons; b++)
 		{
 			bool down = mu.Button(b);
 			if (down && !prevButton[b])
 			{
-				// Same button again flips between its two pages; another
-				// button starts on its first page
-				page = (page & 3) == b ? (page ^ 4) : b;
-				for (int i = 0; i < kSteps; i++) latched[i] = false;
+				pressTicks[b] = 0;
+				pressSetLength[b] = false;
+				for (int i = 0; i < kBankSize; i++) pressFaders[b][i] = mu.Fader(i);
+			}
+			if (down)
+			{
+				anyHeld = true;
+				if (pressTicks[b] < 0x7FFFFFFF) pressTicks[b]++;
+				for (int i = 0; i < kBankSize; i++)
+				{
+					int32_t d = mu.Fader(i) - pressFaders[b][i];
+					if (d > kLengthMove || d < -kLengthMove)
+					{
+						seqLength = b * kBankSize + i + 1;
+						pressSetLength[b] = true;
+						pressFaders[b][i] = mu.Fader(i);
+						ledFlash = 1350;
+						ledFlashBank = false;
+						ledFlashValue = i;
+					}
+				}
+			}
+			else if (prevButton[b])
+			{
+				if (!pressSetLength[b])
+				{
+					if (pressTicks[b] >= kLongPress)
+					{
+						bank = b;
+						ledFlash = 1350;
+						ledFlashBank = true;
+						ledFlashValue = b;
+					}
+					else
+					{
+						// Same button again flips between its two pages;
+						// another button starts on its first page
+						page = (page & 3) == b ? (page ^ 4) : b;
+					}
+				}
+				for (int i = 0; i < kBankSize; i++) latched[i] = false;
 			}
 			prevButton[b] = down;
 		}
+		if (ledFlash > 0) ledFlash--;
 
-		// Faders, with pickup
-		for (int i = 0; i < kSteps; i++)
+		// Faders, with pickup, editing the current bank
+		int base = bank * kBankSize;
+		for (int i = 0; i < kBankSize; i++)
 		{
 			int32_t f = mu.Fader(i);
-			volatile int32_t &p = params[page][i];
-			if (!latched[i])
+			volatile int32_t &p = params[page][base + i];
+			if (anyHeld) latched[i] = false;
+			else if (!latched[i])
 			{
 				int32_t d = f - p;
 				bool near = d > -96 && d < 96;
@@ -822,8 +900,19 @@ private:
 			if (latched[i]) p = f;
 			lastFader[i] = f;
 
-			// 8mu LEDs: stored value, playing step full on
-			mu.SetLed(i, i == cur ? 4095 : (p * 9) >> 4);
+			// 8mu LEDs: a bank change flashes that bank's fader three
+			// times; a length change lights the faders up to the last
+			// step; otherwise stored values, the playing step full on and
+			// steps past the end of the sequence off
+			int32_t led;
+			if (ledFlash > 0 && ledFlashBank)
+				led = (i == ledFlashValue && ((1350 - ledFlash) / 225) % 2 == 0) ? 4095 : 0;
+			else if (ledFlash > 0)
+				led = i <= ledFlashValue ? 4095 : 0;
+			else if (base + i == cur) led = 4095;
+			else if (base + i >= seqLength) led = 0;
+			else led = (p * 9) >> 4;
+			mu.SetLed(i, led);
 		}
 		lastFaderValid = true;
 
@@ -922,13 +1011,20 @@ public:
 			}
 			break;
 		case sysex::SetAll:
-			if (len >= 1 + sysex::kNumValues && p[0] == sysex::kVersion)
+			if (len >= 2 + sysex::kNumValues && p[0] == sysex::kVersion)
 			{
+				if (p[1] >= 1 && p[1] <= kSteps) seqLength = p[1];
 				for (int i = 0; i < sysex::kNumValues; i++)
 				{
-					params[i / kSteps][i % kSteps] = int32_t(p[1 + i] & 0x7F) << 5;
+					params[i / kSteps][i % kSteps] = int32_t(p[2 + i] & 0x7F) << 5;
 				}
 			}
+			break;
+		case sysex::Bank:
+			if (len >= 1 && p[0] < kBanks) bank = p[0];
+			break;
+		case sysex::Length:
+			if (len >= 1 && p[0] >= 1 && p[0] <= kSteps) seqLength = p[0];
 			break;
 		case sysex::Page:
 			if (len >= 1 && p[0] < kPages) page = p[0];
@@ -965,6 +1061,8 @@ public:
 		int n = sysex::Header(out, sysex::State);
 		out[n++] = sysex::kVersion;
 		out[n++] = uint8_t(page);
+		out[n++] = uint8_t(bank);
+		out[n++] = uint8_t(seqLength);
 		for (int i = 0; i < sysex::kNumValues; i++)
 		{
 			out[n++] = uint8_t((params[i / kSteps][i % kSteps] >> 5) & 0x7F);
@@ -986,6 +1084,8 @@ public:
 		out[n++] = stXfade;
 		out[n++] = stFM;
 		out[n++] = stScan;
+		out[n++] = uint8_t(bank);
+		out[n++] = uint8_t(seqLength);
 		out[n++] = 0xF7;
 		return n;
 	}
