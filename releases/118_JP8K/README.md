@@ -189,3 +189,9 @@ MIDI performance controls are intentionally not saved.
 The versioned `UF2/JP8K_SANDSQUALL_0.1.23.uf2` is the sole release firmware.
 Earlier test builds are kept locally in `UF2/archive/` and are intentionally
 excluded from release commits.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.

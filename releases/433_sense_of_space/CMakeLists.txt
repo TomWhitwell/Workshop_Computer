@@ -14,6 +14,10 @@ endif()
 set(PICO_BOARD pico CACHE STRING "Board type")
 set(PICO_FLASH_SIZE_BYTES "16777216" CACHE STRING "Flash size large enough for both generated variants")
 cmake_minimum_required(VERSION 3.13)
+
+# Keep the full redistribution notices beside generated firmware outputs.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/NOTICE.txt"
+    "${CMAKE_CURRENT_BINARY_DIR}/NOTICE.txt" COPYONLY)
 include(pico_sdk_import.cmake)
 
 project(433_sense_of_space C CXX ASM)

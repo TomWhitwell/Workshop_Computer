@@ -224,3 +224,13 @@ The analogue behavior remains the same unless MIDI clock is connected and runnin
 Wild Pebble uses the ComputerCard hardware framework by Chris Johnson and the
 TinyUSB components supplied with the Raspberry Pi Pico SDK. Their respective
 licence notices remain with the source dependencies.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.
+
+Original Wild Pebble code is MIT licensed; see LICENSE. The earlier GPL
+metadata was stale after the author changed LICENSE to MIT in commit
+24811e2498e7369f7cc1780b299ee01495c11ef8. Pet Rock is a design inspiration.

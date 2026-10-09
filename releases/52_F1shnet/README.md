@@ -186,3 +186,9 @@ The current build uses:
 - The main identity is low-pass auto-wah movement plus a momentary random
   stepped-filter gesture.
 - The firmware favours immediate playability over menu depth or many modes.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.

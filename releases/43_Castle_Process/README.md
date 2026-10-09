@@ -114,3 +114,9 @@ Internal chop pulse output.
 
 Castle Process uses the ComputerCard hardware framework by Chris Johnson. The
 framework's original notice is retained in `ComputerCard.h`.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.

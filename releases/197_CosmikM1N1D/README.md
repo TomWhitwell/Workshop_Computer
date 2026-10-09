@@ -116,3 +116,9 @@ License.
 The USB MIDI host driver files retain the MIT copyright notices from rppicomidi
 (2023). Raspberry Pi Pico SDK and TinyUSB are external build dependencies and
 are not vendored in this release directory.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.

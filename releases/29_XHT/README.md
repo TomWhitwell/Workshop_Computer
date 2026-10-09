@@ -47,8 +47,8 @@ MIDI build additions:
 
 - The sound is a synthesised deep-note-style gesture, not a bundled sample.
 - The project runs at `192 MHz`.
-- The build uses the current authoritative `ComputerCard.h` from the Workshop Computer tree.
-- The synthesis idea was inspired by Tod E. Kurt's GPL-3.0 `derpnote2`, so this project remains GPL-3.0.
+- The build uses the pinned ComputerCard 0.4.0 header included in this card folder.
+- The synthesis idea was inspired by Tod E. Kurt's `derpnote2`. This card is released under GPL-3.0-or-later; see LICENSE and THIRD_PARTY_NOTICES.md.
 - In the MIDI build, `P1` only gates MIDI out when `P1` is physically patched. Unpatched `P1` leaves MIDI out always open.
 - In the MIDI build, note-on/note-off and sustain pedal (`CC64`) now control whether the sound stays open when playing from a keyboard.
 - In current active builds, `CV Out 1` mirrors note position unless `CV1` is patched, when it becomes pitch; `CV Out 2` always mirrors note position.
@@ -60,3 +60,13 @@ MIDI build additions:
 This card uses the ComputerCard hardware framework by Chris Johnson. Its USB
 MIDI host support includes the MIT-licensed rppicomidi files, copyright 2023
 rppicomidi; their copyright and licence notices are retained in the source.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.
+
+This card is GPL-3.0-or-later; see the complete text in LICENSE. When
+distributing a compiled version, provide its corresponding source and
+build instructions along with the applicable dependency notices.

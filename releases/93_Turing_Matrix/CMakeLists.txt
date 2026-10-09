@@ -18,6 +18,10 @@ set(PICO_BOARD pico CACHE STRING "Board type")
 
 cmake_minimum_required(VERSION 3.13)
 
+# Keep the full redistribution notices beside generated firmware outputs.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/NOTICE.txt"
+    "${CMAKE_CURRENT_BINARY_DIR}/NOTICE.txt" COPYONLY)
+
 # Pull in the Pico SDK
 include(pico_sdk_import.cmake)
 

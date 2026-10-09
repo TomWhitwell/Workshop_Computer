@@ -162,3 +162,9 @@ example. [docs/PROCESSING.md](docs/PROCESSING.md) records the processing choice.
 Original code and documentation are released under the [MIT License](LICENSE).
 Dependencies retain their own licenses and notices. See
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for source references and credits.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.
