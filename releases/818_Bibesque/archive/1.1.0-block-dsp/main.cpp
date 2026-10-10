@@ -1,4 +1,4 @@
-// Bib 1.1.2-beta stable firmware: original 64-frame Bib DSP.
+// Bib 1.1.0-beta for Workshop Computer: original 64-frame Bib DSP.
 //
 // This does not use ComputerCard.h. It borrows the Workshop pin map, ADC DNL
 // correction, mux cadence, and MCP4822 formatting from ComputerCard v0.3.0
@@ -20,7 +20,6 @@
 #include "bib_block_support.h"
 #include "tanh_table.h"
 #include "bib_dsp.h"
-#include "bib_clock.h"
 
 namespace
 {
@@ -91,7 +90,7 @@ struct StereoBlock
 
 enum class SwitchPosition : uint8_t { Down, Middle, Up };
 
-struct BibSwitchState : BibClockState
+struct BibSwitchState
 {
     SwitchPosition stable = SwitchPosition::Middle;
     SwitchPosition candidate = SwitchPosition::Middle;
@@ -105,6 +104,12 @@ struct BibSwitchState : BibClockState
     int tapDelayTime = 16384;
     int delayTimePickupControl = 0;
     bool tapDelayActive = false;
+    uint32_t lastPulse1Block = 0;
+    uint32_t clockPeriodSamples = 0;
+    int clockedDelayTime = 16384;
+    int clockHandoffControl = 0;
+    bool clockSync = false;
+    bool clockHandoff = false;
     bool actionsArmed = false;
     // Match Bibesque's audible startup character, while keeping headroom
     // below original Bib's maximum pressure-derived shimmer setting.
@@ -131,8 +136,6 @@ struct ControlSnapshot
     SwitchPosition switchPosition;
     uint8_t pulseRisingMask;
     uint8_t connectedMask;
-    uint32_t sampleClock;
-    uint32_t pulse1EdgeSample;
 };
 
 // Each slot has one producer and one consumer. Core 0 writes input slots and
@@ -164,8 +167,6 @@ int16_t cvValues[2] = {};
 SwitchPosition switchPosition = SwitchPosition::Middle;
 bool previousPulse[2] = {};
 uint8_t pendingPulseRising = 0;
-uint32_t sampleClock = 0;
-uint32_t pendingPulse1EdgeSample = 0;
 uint16_t normalisationHistory = 0;
 uint16_t plugHistory[6] = {};
 bool connected[6] = {};
@@ -459,16 +460,78 @@ void RecordDelayTap(int xControl)
     // takes precedence over an earlier external clock.
     bibSwitchState.clockSync = false;
     bibSwitchState.clockHandoff = false;
-    bibSwitchState.pendingClockPeriod = 0;
-    bibSwitchState.divisionQ16 = 0;
+}
+
+int QuantiseDelayToClock(int target, uint32_t clockPeriod)
+{
+    // Bib's clock selection looks across octaves, then chooses the nearest
+    // 3/4, straight, or dotted division without changing the stored X value.
+    uint64_t period = clockPeriod;
+    for (int attempt = 0; attempt < 24 && period != 0; ++attempt)
+    {
+        const uint64_t dotted = (period * 3u) / 2u;
+        const uint64_t below = dotted / 2u;
+        if (below > static_cast<uint32_t>(target))
+        {
+            period >>= 1;
+            continue;
+        }
+        if (dotted <= static_cast<uint32_t>(target))
+        {
+            period <<= 1;
+            continue;
+        }
+
+        int closest = target;
+        uint32_t distance = 0xffffffffu;
+        const uint64_t candidates[] = {below, period, dotted};
+        for (uint64_t candidate : candidates)
+        {
+            if (candidate < 8 || candidate >= 96u * 1024u) continue;
+            const int value = static_cast<int>(candidate);
+            const uint32_t difference = value > target ? value - target : target - value;
+            if (difference < distance)
+            {
+                distance = difference;
+                closest = value;
+            }
+        }
+        return closest;
+    }
+    return target;
 }
 
 void UpdatePulseClock(const ControlSnapshot &controls, int xControl)
 {
-    UpdateBibClock(bibSwitchState, controls.sampleClock,
-                   (controls.pulseRisingMask & 0x01) != 0 &&
-                   (controls.connectedMask & (1u << 4)) != 0,
-                   controls.pulse1EdgeSample, xControl);
+    if ((controls.pulseRisingMask & 0x01) != 0)
+    {
+        if (bibSwitchState.lastPulse1Block != 0)
+        {
+            const uint32_t interval = (bibSwitchState.blockClock - bibSwitchState.lastPulse1Block) * kBlockFrames;
+            constexpr uint32_t kMinimumClockPeriod = kSampleRate / 20; // 50 ms
+            constexpr uint32_t kMaximumClockPeriod = kSampleRate * 2;
+            const bool plausible = !bibSwitchState.clockSync ||
+                (interval >= (bibSwitchState.clockPeriodSamples >> 1) &&
+                 interval <= (bibSwitchState.clockPeriodSamples << 1));
+            if (interval >= kMinimumClockPeriod && interval < kMaximumClockPeriod && plausible)
+            {
+                bibSwitchState.clockPeriodSamples = interval;
+                bibSwitchState.clockSync = true;
+                bibSwitchState.clockHandoff = false;
+            }
+        }
+        bibSwitchState.lastPulse1Block = bibSwitchState.blockClock;
+    }
+
+    if (bibSwitchState.clockSync && bibSwitchState.lastPulse1Block != 0 &&
+        (bibSwitchState.blockClock - bibSwitchState.lastPulse1Block) * kBlockFrames >
+            (bibSwitchState.clockPeriodSamples << 1))
+    {
+        bibSwitchState.clockSync = false;
+        bibSwitchState.clockHandoff = true;
+        bibSwitchState.clockHandoffControl = xControl;
+        bibSwitchState.lastPulse1Block = 0;
+    }
 }
 
 void UpdateLeds(uint8_t mode, int xValue, int yValue, bool shimmerPage,
@@ -600,7 +663,7 @@ BibParameters UpdateBibParameters(const ControlSnapshot &controls)
     int delayTime = bibSwitchState.tapDelayActive ? bibSwitchState.tapDelayTime : manualDelayTime;
     if (bibSwitchState.clockSync)
     {
-        delayTime = StableClockDelay(bibSwitchState, delayTime);
+        delayTime = QuantiseDelayToClock(delayTime, bibSwitchState.clockPeriodSamples);
         bibSwitchState.clockedDelayTime = delayTime;
     }
     else if (bibSwitchState.clockHandoff)
@@ -698,12 +761,7 @@ void __isr __not_in_flash_func(AudioDmaComplete)()
     uint16_t left1 = adcBuffers[completedPhase][5];
     const bool pulse1 = !gpio_get(kPulseIn1);
     const bool pulse2 = !gpio_get(kPulseIn2);
-    ++sampleClock;
-    if (pulse1 && !previousPulse[0])
-    {
-        pendingPulseRising |= 0x01;
-        pendingPulse1EdgeSample = sampleClock;
-    }
+    if (pulse1 && !previousPulse[0]) pendingPulseRising |= 0x01;
     if (pulse2 && !previousPulse[1]) pendingPulseRising |= 0x02;
     previousPulse[0] = pulse1;
     previousPulse[1] = pulse2;
@@ -763,8 +821,6 @@ void __isr __not_in_flash_func(AudioDmaComplete)()
         switchPosition,
         pendingPulseRising,
         ConnectedMask(),
-        sampleClock,
-        pendingPulse1EdgeSample,
     };
     if (pendingPulseRising & 0x01) pulseFlashBlocks = 75;
     pendingPulseRising = 0;

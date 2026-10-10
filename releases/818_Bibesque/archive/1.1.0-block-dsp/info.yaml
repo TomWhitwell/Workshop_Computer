@@ -5,12 +5,12 @@ summary: >-
   A hardware-tested beta Workshop Computer port of Plinky Synth's Bib. It runs
   the original 64-frame fixed-point DSP with stereo delay, rhythmic multitap,
   modulated reverb, shimmer, clock divisions, and tape transport controls.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
-Version: "1.1.2-beta"
+Version: "1.1.0-beta"
 Status: Beta
 License: MIT
-date-updated: 2026-10-10
+date-updated: 2026-09-18
 repository: https://github.com/soveda/workshop-buddies
 tags:
   - effect
@@ -20,8 +20,8 @@ tags:
   - tape
   - clocked
 uf2:
-  - path: uf2/Bib-1.1.2-beta.uf2
-    name: Bib 1.1.2 beta - current stable firmware
+  - path: uf2/Bib-1.1.0-beta.uf2
+    name: Bib 1.1.0 beta
 panel:
   inputs:
     - id: AudioIn1
@@ -43,7 +43,7 @@ panel:
     - id: PulseIn1
       name: Delay Clock
       type: pulse
-      description: Sample-timed clock with smoothing and stable Bib-style delay-time divisions. X selects a preferred time, not a fixed clock ratio.
+      description: Clock input for Bib-style delay-time divisions.
   outputs:
     - id: AudioOut1
       name: Left Out
