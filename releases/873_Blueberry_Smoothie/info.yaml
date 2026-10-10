@@ -1,0 +1,90 @@
+draft: false
+Name: Blueberry Smoothie
+short-description: Blueberry-inspired quantised CV keyboard recorder with a separate gate input.
+summary: >-
+  A hardware-tested monophonic Workshop Computer control card inspired by
+  [Blueberry](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/blueberry).
+  CV In 1 supplies quantised pitch and Pulse In 2 supplies an independent gate.
+  Down toggles recording, LED 2 shows an active take, and Up replays freely or from Pulse In 1 clock.
+Language: C++ (Pico SDK / ComputerCard 0.4.0)
+Creator: Adrian Vos
+Version: "0.3.0"
+Status: Beta
+License: MIT
+date-created: 2026-09-24
+date-updated: 2026-10-10
+repository: https://github.com/soveda/workshop-buddies
+contact:
+  social:
+    github: https://github.com/soveda
+tags:
+  - sequencer
+  - quantiser
+  - cv
+  - performance
+panel:
+  inputs:
+    - id: CVIn1
+      name: 4 Voltages Keyboard
+      type: cv
+      description: Pitch CV from one 4 Voltages output, quantised to major pentatonic at 1 V/oct.
+    - id: PulseIn2
+      name: Gate In
+      type: pulse
+      description: Independent live and recorded gate from Slopes or an external gate/trigger source.
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: Advances one recorded event per rising edge during loop playback.
+  outputs:
+    - id: CVOut1
+      name: Quantised Pitch
+      type: cv
+      description: Calibrated pitch CV from the live keyboard or recorded loop.
+    - id: PulseOut1
+      name: Gate
+      type: pulse
+      description: High for an active live or recorded note.
+    - id: PulseOut2
+      name: Loop Start
+      type: pulse
+      description: Short pulse at loop restart.
+controls:
+  switch:
+    up:
+      name: Play Loop
+      description: Finishes an active recording and plays the captured phrase.
+    middle:
+      name: Free Play
+      description: Plays live CV pitch and gate; recording continues here until stopped.
+    down:
+      name: Record Toggle
+      description: One Down press starts a new take; release, then press again to stop. Holding does not retrigger.
+  knobs:
+    - main:
+        name: Transpose Notches
+        description: Cross 3 o'clock or 9 o'clock and return through centre for Blueberry-style fifth/octave transposition steps.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Input Calibration
+          description: Reports input calibration data only, not CV output calibration. Off does not prevent use.
+        - id: LED1
+          name: Loop Playback
+          description: Lit while a recorded loop is playing in Switch Up.
+        - id: LED2
+          name: Recording
+          description: Stays lit while recording, including after the switch returns to Middle.
+        - id: LED3
+          name: Clock Patched
+          description: Lit when Pulse In 1 is connected.
+        - id: LED4
+          name: Gate
+          description: Lit while the live or recorded note gate is high.
+        - id: LED5
+          name: Pitch
+          description: Brightness represents current quantised pitch.
+uf2:
+  - path: uf2/Blueberry-Smoothie-0.3.0.uf2
+    name: Blueberry Smoothie 0.3.0
