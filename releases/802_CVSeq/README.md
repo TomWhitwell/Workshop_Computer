@@ -149,7 +149,7 @@ step, so they never settle into a loop.
 | Control | Function |
 |---|---|
 | Switch up | Main = scale, X = depth (-100% to +100%), Y = offset (-5 V to +5 V) |
-| Switch middle | Main = rate (8 s to 10 ms per step), X = smoothing (off across the bottom of the knob, then 1 ms to about 2 s), Y = morph offset (-100% to +100%, all steps) |
+| Switch middle | Main = rate (8 s to 10 ms per step; with a clock, a clock divider or multiplier, below), X = smoothing (off across the bottom of the knob, then 1 ms to about 2 s), Y = morph offset (-100% to +100%, all steps) |
 | Switch down | Hold and turn Main to choose the direction; tap to step to the next |
 
 All knobs have a small dead zone at each end, so the full range is reached
@@ -168,7 +168,7 @@ and morph offset 0.
 |---|---|
 | CV In 1 | Morph offset: +5 V moves every step all the way from shape 1 to shape 2 |
 | CV In 2 | Rate, 1 V/oct |
-| Pulse In 1 | Clock: each step lasts one clock, for clocks up to a minute apart. The card follows the clock from its second pulse, and goes back to the rate knob once four of the clock's periods (at least 2 s) pass without one |
+| Pulse In 1 | Clock: each step lasts one beat, the clock divided or multiplied by Main, for clocks up to a minute apart. The card follows the clock from its second pulse, and goes back to the rate knob once four of the clock's periods (at least 2 s) pass without one |
 | Pulse In 2 | Restart from the first step |
 | CV Out 1 | The sequence: offset + depth x the steps (0 to 5 V, or beyond with step OFFSET or a negative START or END), smoothed; ±6 V at most |
 | CV Out 2 | CV Out 1 quantised to the scale (to semitones with scale Off), 1 V/oct |
@@ -176,6 +176,16 @@ and morph offset 0.
 | Audio Out 2 | CV Out 1 inverted, uncalibrated |
 | Pulse Out 1 | Trigger at the start of every step that plays |
 | Pulse Out 2 | Trigger at the start of the sequence |
+
+**Clock divide and multiply.** While a clock is plugged into Pulse In 1, Main
+(switch middle) stops setting the rate and picks a ratio instead, in eleven
+equal zones round the knob: ÷8, ÷6, ÷4, ÷3, ÷2, ×1 (the middle), ×2, ×3, ×4,
+×6, ×8. Each step lasts one beat. Dividing, a beat waits for that many clocks;
+multiplying, each clock is split into that many evenly spaced beats, measured
+from the clock and started again by every clock, so they never drift from it
+(and never run on past a clock that slows). CV In 2 moves the ratio two steps
+a volt, about an octave. The web editor shows the ratio in the Rate readout,
+and the sequence's length in clocks under it.
 
 Audio In 1 and 2 are unused. LED 5 (bottom left) follows CV Out 1's level.
 

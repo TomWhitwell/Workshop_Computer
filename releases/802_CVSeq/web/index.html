@@ -308,7 +308,7 @@
         <tr class="grp"><th colspan="2">Inputs</th></tr>
         <tr><th>CV In 1</th><td>Morph offset: +5 V moves every step all the way from shape 1 to shape 2</td></tr>
         <tr><th>CV In 2</th><td>Rate, 1 V/oct</td></tr>
-        <tr><th>Pulse In 1</th><td>Clock: each step lasts one clock, for clocks up to a minute apart. Followed from the second pulse; back to the rate knob once four periods (at least 2 s) pass without one</td></tr>
+        <tr><th>Pulse In 1</th><td>Clock: each step lasts one beat (the clock divided or multiplied by Main), for clocks up to a minute apart. Followed from the second pulse; back to the rate knob once four periods (at least 2 s) pass without one</td></tr>
         <tr><th>Pulse In 2</th><td>Restart from the first step</td></tr>
         <tr><th>Audio In 1, 2</th><td class="muted">Not used</td></tr>
         <tr class="grp"><th colspan="2">Outputs</th></tr>
@@ -347,7 +347,7 @@
           <tr><th>Switch down</th><td>Hold and turn Main to choose one of eight <b>directions</b>; a tap without turning steps to the next</td></tr>
           <tr><th>Knob pickup</th><td>After the switch moves, a knob does nothing until it reaches its setting's value; the setting's box above the sequence has a dotted outline until it does</td></tr>
           <tr><th>Scale</th><td>Off just steps the shape; any other scale also snaps every step with Quant above zero to the scale's notes, last of all, so they stay in key. CV Out 2 always follows the scale</td></tr>
-          <tr><th>Clock</th><td>Pulse In 1: each step lasts one clock, for clocks up to a minute apart. Pulse In 2 restarts</td></tr>
+          <tr><th>Clock</th><td>Pulse In 1: each step lasts one beat, for clocks up to a minute apart. A beat is the clock divided or multiplied by Main (switch middle): &divide;8, &divide;6, &divide;4, &divide;3, &divide;2, &times;1 (centre), &times;2, &times;3, &times;4, &times;6, &times;8; CV In 2 moves it two steps a volt. Multiplied beats stay locked to the clock. Pulse In 2 restarts</td></tr>
         </table>
       </div>
     </section>
@@ -570,6 +570,20 @@ function describe(page, v) {
     default: return Math.round(pct(v) * 100) + '%';
   }
 }
+// With a clock, Main is a clock divider or multiplier (main.cpp's kRatios);
+// the card reports it as steps a clock, in octaves, read back here
+const RATIOS = [[1, 8], [1, 6], [1, 4], [1, 3], [1, 2], [1, 1], [2, 1], [3, 1], [4, 1], [6, 1], [8, 1]];
+function clockRatio() {
+  let best = RATIOS[5], bd = Infinity;
+  for (const r of RATIOS) { const d = Math.abs(Math.log2(r[0] / r[1]) - state.live.rateOct); if (d < bd) { bd = d; best = r; } }
+  return best;
+}
+const ratioName = (r) => r[1] > 1 ? '\u00f7' + r[1] : '\u00d7' + r[0];
+// Steps as clocks, a whole number or a fraction
+function fmtClocks(steps) {
+  const [n, d] = clockRatio(), num = steps * d, den = n, g = (a, b) => b ? g(b, a % b) : a, k = g(num, den);
+  return (den / k === 1 ? String(num / k) : (num / k) + '/' + (den / k)) + (num / den === 1 ? ' clock' : ' clocks');
+}
 function morphOffsetLive() { return link.cardOnline ? state.live.morph : 0; }
 
 // ============================================================================
@@ -692,7 +706,7 @@ function drawTimeline() {
     }
   }
   const stepS = L.clocked ? null : Math.pow(2, -L.rateOct);
-  $('ro-seq').textContent = stepS ? 'sequence ' + fmtTime(stepS * state.length) : 'a step a clock';
+  $('ro-seq').textContent = stepS ? 'sequence ' + fmtTime(stepS * state.length) : 'sequence ' + fmtClocks(state.length);
 }
 
 function drawHistory(now) {
@@ -723,7 +737,7 @@ function drawReadouts() {
   $('ro-step').textContent = (L.cur + 1) + ' of ' + state.length + (L.reversed ? ' ◀' : '') + (L.holding ? ' held' : '');
   document.querySelectorAll('.bankbtn').forEach(b => b.classList.toggle('on', +b.dataset.bank === state.bank));
   $('len-v').textContent = state.length;
-  $('ro-rate').textContent = L.clocked ? 'clock' : fmtTime(Math.pow(2, -L.rateOct));
+  $('ro-rate').textContent = L.clocked ? 'clock ' + ratioName(clockRatio()) : fmtTime(Math.pow(2, -L.rateOct));
   $('ro-depth').textContent = Math.round(L.depth * 100) + '%';
   $('ro-offset').textContent = (L.offsetMv / 1000).toFixed(2) + ' V';
   $('ro-smooth').textContent = L.smooth < 0 ? 'off' : fmtTime(0.001 * Math.pow(2, L.smooth * 11));
@@ -741,7 +755,7 @@ function drawReadouts() {
   }
   document.querySelectorAll('.dir').forEach(b => b.classList.toggle('on', +b.dataset.dir === L.direction));
   $('knob-line').textContent = !on ? 'Hold the module’s switch down and turn Main to choose the direction.'
-    : 'Switch ' + (L.switchUp ? 'up: Main = scale, X = depth, Y = offset' : 'middle: Main = rate, X = smoothing, Y = morph offset') +
+    : 'Switch ' + (L.switchUp ? 'up: Main = scale, X = depth, Y = offset' : 'middle: Main = ' + (L.clocked ? 'clock \u00f7/\u00d7' : 'rate') + ', X = smoothing, Y = morph offset') +
       (L.knobWaiting ? '. A knob is waiting to pick up its value.' : '.');
 }
 

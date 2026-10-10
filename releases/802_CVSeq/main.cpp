@@ -42,7 +42,10 @@
 //   Switch up   Main = scale, X = depth (-100% to +100%), Y = offset (-5V
 //               to +5V)
 //   Switch mid  Main = rate (8s to 10ms per step, plus CV In 2 at 1V/oct),
-//               X = smoothing (off to ~2s), Y = morph offset (all steps)
+//               X = smoothing (off to ~2s), Y = morph offset (all steps).
+//               With a clock, Main picks a clock divider or multiplier
+//               instead, in eleven equal zones: /8, /6, /4, /3, /2, x1
+//               (centre), x2, x3, x4, x6, x8; CV In 2 moves two ratios a volt
 //   Switch down Hold and turn Main to choose the direction (eight zones
 //               round the knob); or tap without turning to step to the next.
 //               While held, Main leaves the scale and rate alone
@@ -72,7 +75,8 @@
 // Inputs
 //   CV In 1     Morph offset, added to every step's MORPH (+5V = all the way)
 //   CV In 2     Rate, 1V/oct
-//   Pulse In 1  Clock: each step lasts one clock, up to a minute apart.
+//   Pulse In 1  Clock: each step lasts one beat, a clock divided or
+//               multiplied by the rate knob, for clocks up to a minute apart.
 //               Followed from the second pulse; the rate knob takes over
 //               again after four of the clock's periods (at least 2s)
 //               without one
@@ -205,6 +209,28 @@ public:
 		if (periodKnown && samplesSinceClock >= timeout) periodKnown = false;
 		clocked = periodKnown;
 
+		// Beats: the clock multiplied by the rate knob's ratio.  Each clock
+		// is a beat; multiplying adds clkNum - 1 more, evenly spaced at the
+		// clock's measured period, started afresh by every clock so they
+		// never drift from it (and never run on past it if the clock slows)
+		bool beat = false;
+		if (clockEdge)
+		{
+			subPhase = 0;
+			subCount = 0;
+			beat = true;
+		}
+		else if (clocked && subCount < clkNum - 1)
+		{
+			subPhase += clkNum;
+			if (subPhase >= clockPeriod)
+			{
+				subPhase -= clockPeriod;
+				subCount++;
+				beat = true;
+			}
+		}
+
 		if (++controlCount >= 32)
 		{
 			controlCount = 0;
@@ -222,12 +248,20 @@ public:
 			uint32_t old = phase;
 			phase += phaseInc;
 			if (phase < old) phase = 0xFFFFFFFF;
-			if (clockEdge)
+			// A step lasts one beat: dividing, clkDen clocks
+			if (clockEdge && swallowClock)
 			{
 				// The first clock after a restart starts the step rather
 				// than ending it
-				if (swallowClock) {swallowClock = false; phase = 0;}
-				else {phase = 0; Advance();}
+				swallowClock = false;
+				phase = 0;
+				beatCount = 0;
+			}
+			else if (beat && ++beatCount >= clkDen)
+			{
+				beatCount = 0;
+				phase = 0;
+				Advance();
 			}
 		}
 		else
@@ -339,6 +373,18 @@ private:
 	int32_t samplesSinceClock = 0x7FFFFFFF;
 	int32_t clockPeriod = 24000;
 	static constexpr int32_t kMaxClockPeriod = 60 * 48000; // a minute
+	// Clock ratios for the rate knob while clocked, with their size in
+	// 1/4096 octave (steps a clock)
+	struct Ratio {int8_t num, den; int32_t oct;};
+	static constexpr int kNumRatios = 11;
+	static constexpr Ratio kRatios[kNumRatios] = {
+		{1, 8, -12288}, {1, 6, -10588}, {1, 4, -8192}, {1, 3, -6492}, {1, 2, -4096},
+		{1, 1, 0},
+		{2, 1, 4096}, {3, 1, 6492}, {4, 1, 8192}, {6, 1, 10588}, {8, 1, 12288}};
+	int clkNum = 1, clkDen = 1;   // the ratio now: steps = clocks * num / den
+	int32_t subPhase = 0;         // towards the next beat between clocks
+	int subCount = 0;             // beats since the last clock
+	int beatCount = 0;            // beats into this step (dividing)
 	int controlCount = 0;
 	int stepTrig = 0, seqTrig = 0;
 	uint32_t rng = 0x2545F491;
@@ -592,6 +638,7 @@ private:
 		reversed = direction == TrueReverse;
 		phase = 0;
 		swallowClock = true;
+		beatCount = 0;
 		BeginStep();
 		stepTrig = holding ? 0 : 480;
 		seqTrig = 480;
@@ -608,7 +655,25 @@ private:
 		rateOct = -12288 + (settings[SetRate] * 39485) / 4095 + CVIn2() * 12;
 		if (rateOct < -16384) rateOct = -16384;
 		if (rateOct > 28672) rateOct = 28672;
-		phaseInc = clocked ? 0xFFFFFFFFu / uint32_t(clockPeriod)
+		// With a clock, Main picks a clock divider or multiplier instead:
+		// eleven equal zones round the knob, /8 to x8 with x1 in the middle.
+		// CV In 2 moves two ratios a volt, about an octave.
+		if (clocked)
+		{
+			int idx = (settings[SetRate] * kNumRatios) >> 12;
+			int32_t cv = CVIn2();
+			idx += (cv * 2 + (cv >= 0 ? 170 : -170)) / 341; // 341 a volt, rounded
+			if (idx < 0) idx = 0;
+			if (idx >= kNumRatios) idx = kNumRatios - 1;
+			clkNum = kRatios[idx].num;
+			clkDen = kRatios[idx].den;
+			rateOct = kRatios[idx].oct; // steps a clock, shown in the web editor
+		}
+		else
+		{
+			clkNum = clkDen = 1;
+		}
+		phaseInc = clocked ? uint32_t((uint64_t(0xFFFFFFFFu) * uint32_t(clkNum)) / (uint64_t(clockPeriod) * uint32_t(clkDen)))
 			: ExpScale(89478, rateOct); // 2^32 / 48000: one step a second
 
 		static const uint16_t kScaleMasks[kNumScales] = {
