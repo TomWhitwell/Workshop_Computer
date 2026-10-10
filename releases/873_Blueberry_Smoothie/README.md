@@ -23,7 +23,7 @@ the card itself: patch its pitch and gate outputs to your oscillator/envelope.
 
 | Control | Function |
 | --- | --- |
-| CV In 1 | Pitch voltage from one 4 Voltages output, quantised to C major pentatonic at 1 V/oct. |
+| CV In 1 | Pitch voltage from any suitable CV source, quantised to Blueberry's C major pentatonic scale at 1 V/oct. |
 | Pulse In 2 | Explicit live gate. Pitch changes do not create gates; no gate cable means gate off. |
 | Main | Blueberry-style persistent transposition. Turn past 3 o'clock for one upward notch, return through centre, then repeat. Turn past 9 o'clock for one downward notch. A notch alternates fifth/octave movement exactly like Blueberry's buttons. |
 | Switch Middle | Free play: live keyboard voltage is quantised to C major pentatonic. An active recording continues after releasing Down. |
@@ -42,6 +42,14 @@ not override saved playback. Return Middle for live control. Recorded pitches
 include the Main transposition used during recording.
 
 ## Workshop System Patch
+
+4 Voltages is a suggested source, not a requirement. Its output voltages can
+span several octaves when interpreted as 1 V/oct pitch, so the buttons and
+their combinations need not produce notes close together or within one octave.
+Any CV-plus-gate source compatible with the Workshop inputs can be used:
+patch pitch CV to **CV In 1** and its gate to **Pulse In 2**. The pitch is
+quantised to Blueberry's C major pentatonic scale (C, D, F, G, A), repeating
+across octaves. Pitch and gate may also come from separate modules.
 
 | From | To |
 | --- | --- |
