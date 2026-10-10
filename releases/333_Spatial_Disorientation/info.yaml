@@ -7,7 +7,7 @@ summary: >-
   Pendulum and Wander, selected and saved through the editor or cycled live with
   an 8mu D tap. Separate mode settings, named preset files and source-aware Mixer
   pickup make it playable from panel, CV or 8mu. Beta package of the user-tested
-  alpha14 firmware. Horizontal positioning only; elevation is a future refinement.
+  alpha14 firmware. Horizontal positioning only; elevation will be iterated on at a later date.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "0.1.0-alpha14"
