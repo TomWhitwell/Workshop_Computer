@@ -1,0 +1,31 @@
+{
+  "archive_sha256": "a48e73137390626ef1e45d1de6a4d98530c6aa570e71b40f7c4442241ed5fa22",
+  "profiles": {
+    "32": {
+      "directions": 72,
+      "elevation_degrees": 0,
+      "rate": 48000,
+      "taps": 32,
+      "q_fraction_bits": 14,
+      "global_scale": 0.48727477260326996,
+      "max_direction_ear_l1": 2.50006103515625,
+      "worst_mixture_l1_q14": 69538,
+      "min_energy_retained_before_taper": 0.9457443665763842,
+      "magnitude_error_1k_12k_rms_db": 1.0487261474245853,
+      "magnitude_error_1k_12k_p95_abs_db": 1.7691298941705362
+    },
+    "64": {
+      "directions": 72,
+      "elevation_degrees": 0,
+      "rate": 48000,
+      "taps": 64,
+      "q_fraction_bits": 14,
+      "global_scale": 0.48727477260326996,
+      "max_direction_ear_l1": 2.723388671875,
+      "worst_mixture_l1_q14": 79293,
+      "min_energy_retained_before_taper": 0.9882975222140491,
+      "magnitude_error_1k_12k_rms_db": 0.4181411318220952,
+      "magnitude_error_1k_12k_p95_abs_db": 0.5194354247380916
+    }
+  }
+}
