@@ -1,0 +1,98 @@
+draft: false
+Name: Blueberry Smoothie
+short-description: Conceptual Blueberry-inspired pentatonic CV and gate recorder for the Workshop Computer.
+summary: >-
+  The third card in the Workshop Buddies trilogy, Blueberry Smoothie is a
+  hardware-tested monophonic CV and gate recorder conceptually inspired by
+  [Blueberry](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/blueberry),
+  not a direct firmware port or an exact recreation of its hardware interface.
+  Any compatible pitch CV into CV In 1 is snapped to the nearest note in
+  Blueberry's fixed C, D, F, G, A pentatonic set, repeated across octaves;
+  Pulse In 2 supplies an independent gate. The suggested 4 Voltages patch can
+  span several octaves and is not required. Main transposes the quantised result.
+  Down toggles recording, LED 2 shows an active take, and Up plays the saved
+  phrase with recorded timing or one event per Pulse In 1 clock edge.
+  Loops are held in RAM and clear on reset; the card produces pitch and gate,
+  not audio.
+Language: C++ (Pico SDK / ComputerCard 0.4.0)
+Creator: Adrian Vos
+Version: "0.3.0"
+Status: Beta
+License: MIT
+date-created: 2026-09-24
+date-updated: 2026-10-10
+repository: https://github.com/soveda/workshop-buddies
+contact:
+  social:
+    github: https://github.com/soveda
+tags:
+  - sequencer
+  - quantiser
+  - cv
+  - performance
+panel:
+  inputs:
+    - id: CVIn1
+      name: Pitch CV
+      type: cv
+      description: Any compatible pitch CV, quantised at 1 V/oct to the nearest C, D, F, G or A across octaves before Main transposition. The suggested 4 Voltages source can span several octaves.
+    - id: PulseIn2
+      name: Gate In
+      type: pulse
+      description: Independent live and recorded gate from Slopes or an external gate/trigger source.
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: Advances one recorded event per rising edge during loop playback.
+  outputs:
+    - id: CVOut1
+      name: Quantised Pitch
+      type: cv
+      description: Calibrated 1 V/oct pitch from the live quantiser or recorded loop, including Main transposition.
+    - id: PulseOut1
+      name: Gate
+      type: pulse
+      description: High for an active live or recorded note.
+    - id: PulseOut2
+      name: Loop Start
+      type: pulse
+      description: Short pulse at loop restart.
+controls:
+  switch:
+    up:
+      name: Play Loop
+      description: Finishes an active recording and plays the captured phrase.
+    middle:
+      name: Free Play
+      description: Plays live CV pitch and gate; recording continues here until stopped.
+    down:
+      name: Record Toggle
+      description: One Down press starts a new take; release, then press again to stop. Holding does not retrigger.
+  knobs:
+    - main:
+        name: Transpose Notches
+        description: Cross 3 o'clock for one upward notch or 9 o'clock for one downward notch; return through centre to rearm. Alternating fifth/fourth steps transpose the quantised result, reaching an octave after two upward notches.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Input Calibration
+          description: Reports input calibration data only, not CV output calibration. Off does not prevent use.
+        - id: LED1
+          name: Loop Playback
+          description: Lit while a recorded loop is playing in Switch Up.
+        - id: LED2
+          name: Recording
+          description: Stays lit while recording, including after the switch returns to Middle.
+        - id: LED3
+          name: Clock Patched
+          description: Lit when Pulse In 1 is connected.
+        - id: LED4
+          name: Gate
+          description: Lit while the live or recorded note gate is high.
+        - id: LED5
+          name: Pitch
+          description: Brightness represents current quantised pitch.
+uf2:
+  - path: uf2/Blueberry-Smoothie-0.3.0.uf2
+    name: Blueberry Smoothie 0.3.0
