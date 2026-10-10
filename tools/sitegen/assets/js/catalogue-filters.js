@@ -4,6 +4,7 @@
   // search and creation-date sort.
   var creatorSel=document.getElementById('filter-creator');
   var tagInputs=Array.from(document.querySelectorAll('input[name="filter-tag"]'));
+  var flashInputs=Array.from(document.querySelectorAll('input[name="filter-flash"]'));
   var tagSearch=document.getElementById('filter-tag-search');
   var tagGroup=document.querySelector('.tag-filter-group');
   var toggleAllTags=document.getElementById('toggle-all-tags');
@@ -37,17 +38,19 @@
     return m?parseInt(m[1], 10):null;
   }
 
-  function filterCollection(items, c, selectedTags, s){
+  function filterCollection(items, c, selectedTags, selectedFlash, s){
     var shown=0;
     var wantedNum=cardNumberQuery(s);
     visibleItems=[];
     items.forEach(function(el){
       var cr=(el.getAttribute('data-creator')||'').toLowerCase();
       var tags=(el.getAttribute('data-tags')||'').toLowerCase().split(/\s+/);
+      var flash=(el.getAttribute('data-flash')||'').toLowerCase().split(/\s+/);
       var st=(el.getAttribute('data-search')||'');
       var ok=true;
       if(c && cr!==c) ok=false;
       if(selectedTags.length && !selectedTags.some(function(tag){ return tags.indexOf(tag) !== -1; })) ok=false;
+      if(selectedFlash.length && !selectedFlash.some(function(size){ return flash.indexOf(size) !== -1; })) ok=false;
       if(wantedNum!==null){ if(parseInt(el.getAttribute('data-num'), 10)!==wantedNum) ok=false; }
       else if(s && st.indexOf(s)===-1) ok=false;
       el.style.display=ok?'':'none';
@@ -66,6 +69,8 @@
     setParam('creator', creatorSel ? creatorSel.value : '');
     url.searchParams.delete('tag');
     tagInputs.filter(function(input){ return input.checked; }).forEach(function(input){ url.searchParams.append('tag', input.value); });
+    url.searchParams.delete('flash');
+    flashInputs.filter(function(input){ return input.checked; }).forEach(function(input){ url.searchParams.append('flash', input.value); });
     setParam('sort', sortSel ? sortSel.value : '');
     window.history.replaceState(null, '', url.pathname + url.search + url.hash);
   }
@@ -73,15 +78,18 @@
   function applyFilters(){
     var c=creatorSel&&creatorSel.value?creatorSel.value.toLowerCase():'';
     var selectedTags=tagInputs.filter(function(input){ return input.checked; }).map(function(input){ return input.value.toLowerCase(); });
+    // Card size matches like tags do: a card is kept when it ships firmware
+    // built for any checked size, so 16MB lists only cards made for 16MB.
+    var selectedFlash=flashInputs.filter(function(input){ return input.checked; }).map(function(input){ return input.value.toLowerCase(); });
     var raw=searchInput&&searchInput.value?searchInput.value:'';
     var s=raw.trim().toLowerCase();
 
     // A whitespace-only search - or Enter on an empty box - still counts as a
     // search: it lists every card.
-    var active = !!(c||selectedTags.length||raw||showAll);
+    var active = !!(c||selectedTags.length||selectedFlash.length||raw||showAll);
     // The unfiltered listing, however it was reached (toggle link, Enter or
     // whitespace in the search box).
-    listingAll = active && !c && !selectedTags.length && !s;
+    listingAll = active && !c && !selectedTags.length && !selectedFlash.length && !s;
 
     if(allCardsLink) allCardsLink.textContent = listingAll ? 'Close card list' : allCardsLabel;
     if(searchClear) searchClear.style.display = active ? 'flex' : 'none';
@@ -94,10 +102,10 @@
       if(discoveryEl) discoveryEl.hidden = active;
       resultsEl.hidden = !active;
       if(!active){ visibleItems=[]; return; }
-      filterCollection(resultsList?resultsList.querySelectorAll(itemSelector):[], c, selectedTags, s);
+      filterCollection(resultsList?resultsList.querySelectorAll(itemSelector):[], c, selectedTags, selectedFlash, s);
     } else if(archiveList){
       // Archive: filter rows in place
-      filterCollection(archiveList.querySelectorAll('.program-card-archive-row'), c, selectedTags, s);
+      filterCollection(archiveList.querySelectorAll('.program-card-archive-row'), c, selectedTags, selectedFlash, s);
     }
 
   }
@@ -140,7 +148,9 @@
   }
 
   function wire(sel, ev){if(!sel) return; sel.addEventListener(ev||'change',applyFilters);}
-  wire(creatorSel); tagInputs.forEach(function(input){
+  wire(creatorSel);
+  flashInputs.forEach(function(input){ wire(input); });
+  tagInputs.forEach(function(input){
     wire(input);
     input.addEventListener('change', applyTagOptionSearch);
   });
@@ -191,6 +201,7 @@
     showAll = false;
     if(searchInput) searchInput.value = '';
     if(creatorSel) creatorSel.value = '';
+    flashInputs.forEach(function(input){ input.checked = false; });
     tagInputs.forEach(function(input){ input.checked = false; });
     if(tagSearch) tagSearch.value = '';
     if(tagGroup) tagGroup.classList.remove('is-showing-all');
@@ -214,7 +225,7 @@
   });
   if(sortSel) sortSel.addEventListener('change', function(){ applySort(); syncUrl(); });
 
-  // ?q=, ?creator=, ?tag= (repeatable) and ?sort= preload the controls, so any
+  // ?q=, ?creator=, ?tag= and ?flash= (both repeatable) and ?sort= preload the controls, so any
   // filtered or sorted listing can be linked to and shared.
   if(window.URLSearchParams) {
     var params = new URLSearchParams(window.location.search);
@@ -227,8 +238,10 @@
 
     var requestedTags = params.getAll('tag').map(function(tag){ return tag.toLowerCase(); });
     tagInputs.forEach(function(input){ input.checked = requestedTags.indexOf(input.value.toLowerCase()) !== -1; });
+    var requestedFlash = params.getAll('flash').map(function(flash){ return flash.toLowerCase(); });
+    flashInputs.forEach(function(input){ input.checked = requestedFlash.indexOf(input.value.toLowerCase()) !== -1; });
 
-    if(creatorMatch || requestedTags.length) {
+    if(creatorMatch || requestedTags.length || requestedFlash.length) {
       var advanced = document.querySelector('.advanced-options');
       if(advanced) advanced.open = true;
     }
@@ -244,5 +257,5 @@
     }
   }
   applyTagOptionSearch();
-  if(creatorSel||tagInputs.length||searchInput) applyFilters();
+  if(creatorSel||tagInputs.length||flashInputs.length||searchInput) applyFilters();
 })();

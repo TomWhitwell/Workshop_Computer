@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fsAsync as fs, toPosix, fileExists, sha256File } from '../utils/fs.js';
 import { getTrackedFileSet } from '../utils/git.js';
+import { assignDownloadFlashSize } from '../utils/flash.js';
 
 // Read a string property from an object by a case-insensitive key, trimmed.
 function readKeyCi(obj, name) {
@@ -10,6 +11,19 @@ function readKeyCi(obj, name) {
     if (k.toLowerCase() === target && typeof v === 'string') return v.trim();
   }
   return '';
+}
+
+// Read the authored flash size: `flash_size` first, falling back to the
+// legacy `flash` key for older info.yaml files.
+function readFlashSize(obj) {
+  if (!obj || typeof obj !== 'object') return '';
+  let legacy = '';
+  for (const [k, v] of Object.entries(obj)) {
+    const key = k.toLowerCase();
+    if (key === 'flash_size' && v != null && typeof v !== 'object') return String(v).trim();
+    if (key === 'flash' && v != null && typeof v !== 'object') legacy = String(v).trim();
+  }
+  return legacy;
 }
 
 // A sensible label for an external URL: its filename, else host, else the URL.
@@ -81,6 +95,7 @@ export async function discoverDownloads(absReleaseDir, repoRelBase, makeRawUrl) 
     const entry = { name: it.name, url: it.url, rel: it.rel, path: it.relRelease };
     const sha256 = await sha256File(it.abs);
     if (sha256) entry.sha256 = sha256;
+    assignDownloadFlashSize(entry);
     shaByReleasePath.set(it.relRelease, sha256);
     availableUf2Downloads.push(entry);
   }
@@ -101,6 +116,7 @@ export async function discoverDownloads(absReleaseDir, repoRelBase, makeRawUrl) 
     const entry = { name: it.name, url: it.url, rel: it.rel };
     const sha256 = shaByReleasePath.get(it.relRelease);
     if (sha256) entry.sha256 = sha256;
+    assignDownloadFlashSize(entry);
     uf2Downloads.push(entry);
   }
   const latestUf2 = uf2Downloads[0] || null;
@@ -142,7 +158,8 @@ async function resolveInsensitivePath(baseAbs, relPath) {
  * Build a curated UF2 download list from an author-specified `uf2:` field. When
  * present this fully replaces auto-discovery, letting authors trim noise and
  * annotate firmware. Each entry is an object:
- *   { path?, name?, download?: { url?, sha256? } }
+ *   { path?, name?, flash_size?, download?: { url?, sha256? } }
+ * (the legacy `flash` key is still accepted as a deprecated alias.)
  * An entry needs EITHER a `path` (repo firmware, resolved case-insensitively;
  * missing file is an error) OR a `download.url` (an external/mirror/store link
  * that opens in a new tab and is tagged as external). For repo files the build
@@ -186,6 +203,7 @@ export async function curateUf2Downloads(uf2Field, absReleaseDir, repoRelBase, m
       };
       if (authorHash) item.sha256 = authorHash;
       if (download.flashable === true) item.flashable = true;
+      assignDownloadFlashSize(item, readFlashSize(entry));
       uf2Downloads.push(item);
       continue;
     }
@@ -208,6 +226,7 @@ export async function curateUf2Downloads(uf2Field, absReleaseDir, repoRelBase, m
     };
     const sha256 = await sha256File(path.join(absReleaseDir, realRel));
     if (sha256) item.sha256 = sha256;
+    assignDownloadFlashSize(item, readFlashSize(entry));
     uf2Downloads.push(item);
   }
   return { uf2Downloads, errors };

@@ -459,6 +459,94 @@ uf2:
     d.ruleId === 'ajv-schema' && d.severity === 'error' && d.path === 'uf2.0.download.sha256'));
 });
 
+test('uf2 flash_size defaults to 2MB and accepts 16mb', () => {
+  const omitted = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+`);
+  assert.ok(!omitted.diagnostics.some(d => String(d.path || '').includes('flash')));
+
+  const explicit = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash_size: 16mb
+`);
+  assert.ok(!explicit.diagnostics.some(d => String(d.path || '').includes('flash')));
+});
+
+test('invalid uf2 flash_size values are rejected', () => {
+  const result = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash_size: 32mb
+`);
+  assert.ok(result.diagnostics.some(d =>
+    d.ruleId === 'uf2-entries' && d.severity === 'warning' && d.path === 'uf2[0].flash_size'));
+  assert.ok(result.diagnostics.some(d =>
+    d.ruleId === 'ajv-schema' && d.path === 'uf2.0.flash_size'));
+});
+
+test('legacy uf2 flash key is accepted but flagged as deprecated', () => {
+  const valid = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash: 16mb
+`);
+  assert.ok(!valid.diagnostics.some(d => d.severity === 'error'));
+  assert.ok(valid.diagnostics.some(d =>
+    d.ruleId === 'uf2-entries' && d.severity === 'warning' && d.path === 'uf2[0].flash'
+    && /deprecated/.test(d.message)));
+
+  const invalidValue = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash: 32mb
+`);
+  assert.ok(invalidValue.diagnostics.some(d =>
+    d.ruleId === 'uf2-entries' && d.severity === 'warning' && d.path === 'uf2[0].flash'
+    && /deprecated/.test(d.message)));
+  assert.ok(invalidValue.diagnostics.some(d =>
+    d.ruleId === 'uf2-entries' && d.severity === 'warning' && d.path === 'uf2[0].flash'
+    && /should be "2mb" or "16mb"/.test(d.message)));
+  assert.ok(invalidValue.diagnostics.some(d =>
+    d.ruleId === 'ajv-schema' && d.path === 'uf2.0.flash'));
+});
+
 test('when cannot combine z and panel', () => {
   const result = validate(`
 Name: X
