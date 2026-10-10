@@ -51,6 +51,16 @@ patch pitch CV to **CV In 1** and its gate to **Pulse In 2**. The pitch is
 quantised to Blueberry's C major pentatonic scale (C, D, F, G, A), repeating
 across octaves. Pitch and gate may also come from separate modules.
 
+### Quantised Scale
+
+The fixed scale is Blueberry's five-note pentatonic set: **C, D, F, G, A**.
+Relative to C, these are **0, 2, 5, 7, and 9 semitones**, repeated in every
+octave. Incoming pitch CV snaps to the nearest of these notes rather than
+passing through continuously. E, B, and the sharp/flat notes are not selected.
+This is Blueberry's original note set, not the conventional C major pentatonic
+set C, D, E, G, A. Main transposes the quantised result, so its note names
+change after a transposition notch; the five-note pattern remains the same.
+
 | From | To |
 | --- | --- |
 | 4 Voltages output | Computer CV In 1 |
