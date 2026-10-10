@@ -1,12 +1,12 @@
 # Bib for Workshop Computer
 
-**Version 1.1.2-beta. Current stable firmware, hardware-tested on a Workshop Computer. Catalogue status remains Beta.**
+**Version 1.1.0-beta. Hardware-tested on one Workshop Computer.**
 
 Bib is a stereo dub processor adapted from Plinky Synth's [Bib](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/bib). It runs the original 64-frame Bib DSP directly on the Workshop's second RP2040 core, rather than using `ComputerCard.h`.
 
 ## Install
 
-Flash [Bib-1.1.2-beta.uf2](uf2/Bib-1.1.2-beta.uf2) to a Workshop Computer program card, then reset with the switch in Middle.
+Flash [Bib-1.1.0-beta.uf2](uf2/Bib-1.1.0-beta.uf2) to a Workshop Computer program card, then reset with the switch in Middle.
 
 ## Controls
 
@@ -28,29 +28,6 @@ On Delay, press Switch Down once to start a one-second phrase, then press it aga
 ### Delay tape page
 
 On Delay with Switch Up, X controls the tape rate from stopped (CCW), through normal speed at noon, to 2x (CW). Y adds slow wow/flutter around that rate. Return Switch Middle for normal delay time and feedback. These controls have their own pickup, so entering the page does not jump the audio.
-
-### External delay clock
-
-Patch a clock to Pulse In 1 and use Switch Middle. On the Delay page, LED 4
-indicates clock lock. Accepted pulse intervals are at least 50 ms and less
-than two seconds.
-
-X sets a preferred delay time, not a fixed divider/multiplier position. The
-clock chooses a nearby 3/4, straight or dotted length, scaled by powers of
-two. At 120 BPM with quarter-note pulses, the midpoint's approximately
-512 ms target selects 500 ms. Sixteenth-note pulses can select four pulse
-periods to give the same delay. Switching pulse subdivisions can therefore
-retain approximately the same timing at a fixed X position.
-
-Timing changes move Bib's read head smoothly, so brief smears or pitch bends
-are expected; clearly audible timing steps are not required. This behaviour
-was compared with hardware Bib and found similar. A steady clock and parked
-X should settle without repeated changes between adjacent divisions.
-
-Version 1.1.2 measures edges at sample resolution, smooths small period
-fluctuations and retains the selected ratio around division boundaries. Large
-clock-rate changes are accepted after two consistent intervals. After clock
-loss, the last delay time is held until X moves deliberately.
 
 ### Reverb shimmer page
 
@@ -75,32 +52,18 @@ cmake --build build -j2
 
 The build creates `build/bib_workshop.uf2`.
 
-Clock regression checks can be run without hardware:
-
-```sh
-c++ -std=c++17 -Wall -Wextra tests/clock_test.cpp -o /tmp/bib-clock-test
-/tmp/bib-clock-test
-```
-
 ## Attribution and licence
 
 The original Bib DSP, reverb, lookup tables, and delay behavior are adapted from the software portion of the [Buddies public repository](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/bib), which is MIT-licensed. The upstream repository separately licenses its logos, panel and other graphic design under CC BY-SA 4.0, and its hardware under CERN-OHL-P v2; none of those non-software materials are included here. The Workshop transport borrows the hardware map, ADC correction, mux cadence, and DAC formatting from MIT-licensed [ComputerCard](https://github.com/TomWhitwell/Workshop_Computer/tree/main/Demonstrations%2BHelloWorlds/PicoSDK/ComputerCard).
 
 The Workshop-specific DMA transport, block scheduler, control mapping, safety limits, pickup, CV/clock support, and tape-rate hand-off were written for this port. No original panel artwork, logos, or hardware design is included. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [LICENSE](LICENSE).
 
-The previous `ComputerCard.h` release candidate is preserved in [`archive/1.0.0-computercard-rc1/`](archive/1.0.0-computercard-rc1/).
-
-## Release history
-
-- **1.1.2-beta:** promoted after hardware comparison with original Bib and
-  successful clock/tempo-change tests. Adds sample-level pulse timestamps,
-  small-change smoothing, division hysteresis and large-rate reacquisition.
-  The original DSP, reverb, audio levels, pickup and tape controls are unchanged.
-- **1.1.0-beta:** previous stable code and UF2 are preserved in
-  [archive/1.1.0-block-dsp](archive/1.1.0-block-dsp/README.md).
+This is the preserved 1.1.0-beta fallback. See the [current release](../../README.md)
+for updated clock behaviour. The older ComputerCard release is preserved in
+[the neighbouring archive](../1.0.0-computercard-rc1/).
 
 ## Firmware distribution notices
 
-See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency copyright
-and licence texts. Keep the accompanying `NOTICE.txt` with each redistributed
-UF2. Workshop-specific changes were AI-assisted.
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.
