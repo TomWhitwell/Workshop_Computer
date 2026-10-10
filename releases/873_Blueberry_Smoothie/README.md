@@ -1,7 +1,10 @@
 # Blueberry Smoothie
 
 **Card 873, version 0.3.0, Beta. Hardware test protocol passed on
-2026-10-10.** Blueberry Smoothie is a Blueberry-inspired,
+2026-10-10.** 
+The last in the workshop computer buddies trilogy. Blueberry smoothie is an attempt to match the warkshop system hardware to the quirks of the Blueberry module. By the nature of the different hardware UI it is a conceptual version rather than being acurate in any way!
+
+Blueberry Smoothie is a Blueberry-inspired,
 monophonic quantised keyboard recorder for the Workshop Computer. Patch one
 output from the Workshop System's **4 Voltages** module to CV In 1. The card
 quantises its voltage to pitch. Pulse In 2 supplies an independent gate from
