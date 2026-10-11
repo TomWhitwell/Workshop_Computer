@@ -165,16 +165,6 @@ test('curated firmware attaches explicit and inferred flash sizes', async t => {
   assert.equal(uf2Downloads[3].flash_size, '2mb');
 });
 
-test('curated firmware still honours the legacy flash key', async t => {
-  const release = await fixture(t);
-  await write(path.join(release, 'uf2', 'punk_confusion_16mb.uf2'), 'sixteen');
-  const { uf2Downloads, errors } = await curateUf2Downloads([
-    { path: 'uf2/punk_confusion_16mb.uf2', name: '16 MB (legacy key)', flash: '16mb' },
-  ], release, 'releases/77_fixture', relative => `https://raw.test/${relative}`);
-  assert.deepEqual(errors, []);
-  assert.equal(uf2Downloads[0].flash_size, '16mb');
-});
-
 test('external firmware rejects active protocols and unhashed browser flashing', async t => {
   const release = await fixture(t);
   const { uf2Downloads, errors } = await curateUf2Downloads([

@@ -13,19 +13,6 @@ function readKeyCi(obj, name) {
   return '';
 }
 
-// Read the authored flash size: `flash_size` first, falling back to the
-// legacy `flash` key for older info.yaml files.
-function readFlashSize(obj) {
-  if (!obj || typeof obj !== 'object') return '';
-  let legacy = '';
-  for (const [k, v] of Object.entries(obj)) {
-    const key = k.toLowerCase();
-    if (key === 'flash_size' && v != null && typeof v !== 'object') return String(v).trim();
-    if (key === 'flash' && v != null && typeof v !== 'object') legacy = String(v).trim();
-  }
-  return legacy;
-}
-
 // A sensible label for an external URL: its filename, else host, else the URL.
 function nameFromUrl(u) {
   try {
@@ -159,7 +146,6 @@ async function resolveInsensitivePath(baseAbs, relPath) {
  * present this fully replaces auto-discovery, letting authors trim noise and
  * annotate firmware. Each entry is an object:
  *   { path?, name?, flash_size?, download?: { url?, sha256? } }
- * (the legacy `flash` key is still accepted as a deprecated alias.)
  * An entry needs EITHER a `path` (repo firmware, resolved case-insensitively;
  * missing file is an error) OR a `download.url` (an external/mirror/store link
  * that opens in a new tab and is tagged as external). For repo files the build
@@ -203,7 +189,7 @@ export async function curateUf2Downloads(uf2Field, absReleaseDir, repoRelBase, m
       };
       if (authorHash) item.sha256 = authorHash;
       if (download.flashable === true) item.flashable = true;
-      assignDownloadFlashSize(item, readFlashSize(entry));
+      assignDownloadFlashSize(item, readKeyCi(entry, 'flash_size'));
       uf2Downloads.push(item);
       continue;
     }
@@ -226,7 +212,7 @@ export async function curateUf2Downloads(uf2Field, absReleaseDir, repoRelBase, m
     };
     const sha256 = await sha256File(path.join(absReleaseDir, realRel));
     if (sha256) item.sha256 = sha256;
-    assignDownloadFlashSize(item, readFlashSize(entry));
+    assignDownloadFlashSize(item, readKeyCi(entry, 'flash_size'));
     uf2Downloads.push(item);
   }
   return { uf2Downloads, errors };

@@ -52,7 +52,7 @@ export function resolvePreviewUf2Downloads(raw, availableDownloads = []) {
       const sha256 = String(entry.download?.sha256 || '').trim().toLowerCase();
       if (sha256) item.sha256 = sha256;
       if (entry.download?.flashable === true) item.flashable = true;
-      assignDownloadFlashSize(item, entry.flash_size ?? entry.flash);
+      assignDownloadFlashSize(item, entry.flash_size);
       resolved.push(item);
       continue;
     }
@@ -61,7 +61,7 @@ export function resolvePreviewUf2Downloads(raw, availableDownloads = []) {
     const match = available.get(path.toLowerCase());
     if (match) {
       const item = { ...match, name: String(entry.name || '').trim() || match.name };
-      assignDownloadFlashSize(item, entry.flash_size ?? entry.flash);
+      assignDownloadFlashSize(item, entry.flash_size);
       resolved.push(item);
     }
   }
