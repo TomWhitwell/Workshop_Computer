@@ -713,10 +713,25 @@ function drawThumb(cv, fn) {
   ctx.stroke();
 }
 
+// The pitch readout, steadied: the card's pitch moves by a cent or two with
+// the Main knob's and CV In 1's noise, which made the cents (and, right on a
+// boundary, the note name) flicker.  The readout follows a short average
+// (about 0.2 s) and only changes once that has moved 3 cents from what's
+// shown; a jump of more than half a semitone (turning Main, a new note on
+// CV) is followed at once.  The sound itself isn't touched.
+const pitchShow = { avg: null, shown: null };
+function shownPitch(note) {
+  const p = pitchShow;
+  if (p.avg === null || Math.abs(note - p.avg) > 0.5) p.avg = note;
+  else p.avg += (note - p.avg) * 0.15;
+  if (p.shown === null || Math.abs(p.avg - p.shown) >= 0.03 || Math.abs(note - p.shown) > 0.5) p.shown = Math.round(p.avg * 100) / 100;
+  return p.shown;
+}
+
 function drawReadouts() {
   const L = state.live;
   $('ro-step').textContent = (L.cur + 1) + ' → ' + (L.next + 1);
-  $('ro-pitch').textContent = link.cardOnline ? noteName(L.note) : '-';
+  $('ro-pitch').textContent = link.cardOnline ? noteName(shownPitch(L.note)) : '-';
   $('ro-fine').textContent = link.cardOnline ? 'fine ' + (L.fine > 0 ? '+' : L.fine < 0 ? '\u2212' : '') + Math.abs(L.fine) + ' c' : '';
   // A dotted box round each setting whose knob is waiting to pick it up: X
   // and Y are speed and crossfade with the switch up, FM and scan amounts
