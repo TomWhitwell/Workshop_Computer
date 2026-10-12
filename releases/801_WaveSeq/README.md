@@ -164,8 +164,19 @@ one (protocol 4, 32 steps) won't talk to older firmware.
 
 | Control     | Function                                                   |
 |-------------|------------------------------------------------------------|
-| Main knob   | Pitch, C1 to C7                                            |
-| Switch down | Tap to step the direction: forward, ping-pong, random      |
+| Main knob   | Pitch, C1 to C7. After a fine pitch turn it waits to pick the pitch up again (LED 6 blinks) |
+| Switch down | Tap and let go to step the direction: forward, ping-pong, random. Hold it down and turn Main to set the fine pitch instead |
+
+**Fine pitch.** Hold the switch down and turn Main: the pitch moves by up to
+±100 cents. It's relative, starting from wherever the fine pitch was, so it
+doesn't jump when you take hold of the knob; a full turn of Main covers the
+whole range, and it stops at ±100. While you turn, the top four LEDs show it
+as a bar from the middle (left two flat, right two sharp, the middle two dim
+at exactly 0). Turning Main this way leaves the direction alone: the switch
+only steps the direction when you let go without having turned Main. Once you
+let go, Main waits to pick the pitch up again (LED 6 blinks until it reaches
+it), so the pitch doesn't jump. The web editor shows the fine pitch under the
+Pitch readout, and outlines Pitch while Main waits.
 
 The switch's up and middle positions choose what the X and Y knobs do:
 

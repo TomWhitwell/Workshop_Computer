@@ -3,12 +3,12 @@ Name: WaveSeq
 short-description: "Wavestation-style wave sequencing - up to 32 steps crossfading through a bank of 64 waves - edited from a Music Thing 8mu, with its four buttons paging the faders between wave, time, pitch and level"
 Language: C++ (Pico SDK + ComputerCard)
 Creator: XponentOneAudio
-Version: "0.6.2"
+Version: "0.7.0"
 Status: Beta
 License: MIT
 Editor: web
 date-created: 2026-10-02
-date-updated: 2026-10-09
+date-updated: 2026-10-12
 
 contact:
   email: XponentOneAudio@gmail.com
@@ -20,7 +20,7 @@ contact:
 
 uf2:
   - path: UF2/waveseq.uf2
-    name: Wave Sequencer 0.6.2
+    name: Wave Sequencer 0.7.0
 
 tags:
   - synth
@@ -132,15 +132,18 @@ controls:
     down:
       name: Direction
       description: >
-        Momentary. Each tap steps the direction - forward, ping-pong,
-        random - and the top LEDs show which for a second (one, two or
-        three LEDs).
+        Momentary. A tap steps the direction when you let go - forward,
+        ping-pong, random - and the top LEDs show which for a second (one,
+        two or three LEDs). Holding it down and turning Main sets the fine
+        pitch instead (up to +/-100 cents, relative, a full turn the whole
+        range), shown on the top LEDs as a bar from the middle, and leaves
+        the direction alone; Main then waits to pick the pitch up again.
   knobs:
     - when:
         z: up
       main:
         name: Pitch
-        description: C1 to C7.
+        description: C1 to C7. With the switch held down, fine pitch instead (+/-100 cents).
       x:
         name: Speed
         description: Scales every step time, from 1/8x to 8x. With a clock on Pulse In 1 it picks a clock divider or multiplier instead, in eleven equal zones - /8, /6, /4, /3, /2, x1 (centre), x2, x3, x4, x6, x8.

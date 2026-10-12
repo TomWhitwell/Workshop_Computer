@@ -29,7 +29,7 @@
 // Card -> web
 //   STATE    02 version page bank length values[256]
 //   STATUS   07 cur next mix progress flags note(2) speed(2) xfade fm scan
-//               bank length
+//               bank length fine(2) flags2
 //            cur, next   steps 0-31
 //            mix         crossfade into next, 0-127
 //            progress    position through the current step, 0-127
@@ -38,12 +38,16 @@
 //                        bit 4 switch up (X/Y are speed and crossfade, not
 //                        FM and scan), bit 5 the X knob and bit 6 the Y
 //                        knob is waiting to pick up its setting
-//            note        base pitch in 1/8 semitones (MIDI note * 8)
+//            note        base pitch in cents (MIDI note * 100), fine pitch
+//                        and CV In 1 included
 //            speed       speed in 1/256 octave, offset by 2048
 //            xfade       crossfade setting, 0-127
 //            fm, scan    FM and wave scan amount settings, 0-127
 //            bank        the bank the faders edit, 0-3
 //            length      the sequence's length, 1-32
+//            fine        fine pitch in cents (-100 to +100), offset by 8192
+//            flags2      bit 0 Main is waiting to pick up the pitch (after
+//                        a fine pitch turn)
 
 #ifndef WAVESEQ_SYSEX_H
 #define WAVESEQ_SYSEX_H
@@ -55,7 +59,7 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x57;
-static constexpr uint8_t kVersion = 4;
+static constexpr uint8_t kVersion = 5;
 static constexpr int kNumValues = 8 * 32;
 
 enum Cmd : uint8_t
@@ -144,7 +148,7 @@ inline int32_t Get14(const uint8_t *in)
 }
 
 static constexpr int kStateLen = 4 + 4 + kNumValues + 1;
-static constexpr int kStatusLen = 4 + 5 + 2 + 2 + 3 + 2 + 1;
+static constexpr int kStatusLen = 4 + 5 + 2 + 2 + 3 + 2 + 2 + 1 + 1;
 
 } // namespace sysex
 
