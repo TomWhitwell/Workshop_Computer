@@ -14,13 +14,39 @@ card over WebMIDI SysEx.
    writing flash stops everything; see below.)
 2. Open `index.html` in **Chrome or Edge** (Safari and Firefox have no
    WebMIDI) and click **Connect USB**.
-3. The card appears as a MIDI port named `NIBBLE-KO (Workshop)` — the page
-   finds it by that name, so if `usb_descriptors.c`'s product string changes,
-   change `DEVICE_RE` in `index.html` to match.
+3. The card usually appears as a MIDI port named `NIBBLE-KO (Workshop)`, but
+   the page does not go looking for that name. It **asks**: it sends the
+   `MSG_HELLO` SysEx to each plausible MIDI port and takes whatever answers
+   with a valid `MSG_INFO`. So the card is found under any name, and changing
+   `usb_descriptors.c`'s product string needs no change here.
 
 The card only enumerates once it is in WebUI mode, so "card not found"
 usually means step 1 has not happened yet. The page watches for the device
 appearing rather than making you press Connect again.
+
+## Troubleshooting
+
+**"Card not found", but the pads are glowing and the card is plugged in.**
+
+The page now lists the MIDI ports it actually saw, which is usually enough to
+tell what happened. The likely cause is a **stale cached name**: every card in
+the Workshop System family shares one USB identity (`2E8A:10C1`), and macOS
+CoreMIDI caches a MIDI Studio entry against that identity — so a card plugged
+in after a sibling can inherit the sibling's name. Reported from the field as
+a NIBBLE-KO showing up as `MTMComputer`.
+
+Discovery by handshake means this no longer stops the page connecting. If the
+*names* still bother you, or something else in the chain is confused by them:
+
+> Audio MIDI Setup → Window → Show MIDI Studio → delete the stale entry →
+> unplug and replug the card.
+
+Found and diagnosed by a user who hit it twice, weeks apart, and worked out
+the cause themselves. Thank you.
+
+**Nothing appears at all.** Check the browser: Safari and Firefox have no
+WebMIDI, and the page says so on load. Otherwise the card is probably not in
+WebUI mode — hold the switch Down and press B + D.
 
 ## What is real, and what is not
 

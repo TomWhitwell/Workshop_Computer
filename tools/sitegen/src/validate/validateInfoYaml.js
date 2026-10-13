@@ -47,6 +47,10 @@ function makeContext(source, schema, opts = {}) {
     normKey: normalizeYamlKey,
     customPanelsPresent: opts.customPanelsPresent,
     panelIds: opts.panelIds instanceof Set ? opts.panelIds : new Set(opts.panelIds || []),
+    // Other cards' tag/Language/Status values (see utils/similarValues.js) and
+    // this card's id, so its own values are not counted as "existing".
+    knownValues: opts.knownValues || null,
+    cardId: opts.cardId ?? (String(source.file || '').match(/([^/\\]+)[/\\]info\.yaml$/i)?.[1] || ''),
     entry,
     get: (key) => { const e = entry(key); return e ? e.value : undefined; },
     lineFor,

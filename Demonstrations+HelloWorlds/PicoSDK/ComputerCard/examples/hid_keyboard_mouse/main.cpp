@@ -155,10 +155,12 @@ volatile uint8_t HIDKeyboardMouse::mouse_buttons = 0;
 hid_keyboard_report_t HIDKeyboardMouse::prev_report = {};
 
 
+// The card object, constructed on core 0 in main() and run here on core 1.
+HIDKeyboardMouse *card = nullptr;
+
 void core1()
 {
-	HIDKeyboardMouse card;
-	card.Run();
+	card->Run();
 }
 
 
@@ -272,6 +274,12 @@ void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t instance, uint8_t cons
 int main()
 {
 	sleep_ms(50);
+
+	// Construct the card here, on core 0, so that it exists before core 1
+	// starts running it.
+	static HIDKeyboardMouse hidCard;
+	card = &hidCard;
+
 	multicore_launch_core1(core1);
 	sleep_ms(50);
 

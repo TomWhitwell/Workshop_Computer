@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Keep the full redistribution notices beside generated firmware outputs.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/NOTICE.txt"
+    "${CMAKE_CURRENT_BINARY_DIR}/NOTICE.txt" COPYONLY)
+
 if(NOT PICO_SDK_PATH)
     set(PICO_SDK_PATH "$ENV{PICO_SDK_PATH}" CACHE PATH "Path to pico-sdk")
 endif()

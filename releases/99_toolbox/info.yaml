@@ -1,7 +1,7 @@
 draft: true
 Name: Toolbox
 short-description: Mixer, VCA, noise, S&H, clock generator, etc.
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: divmod
 Version: 0.1.1
 Status: Released

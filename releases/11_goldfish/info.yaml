@@ -1,7 +1,7 @@
 draft: false
 Name: Goldfish
 short-description: Weird delay/looper for audio and CV
-Language: Pico SDK
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Dune Desormeaux
 Version: 2.0
 Status: Released

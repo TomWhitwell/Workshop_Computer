@@ -1,10 +1,10 @@
 draft: true
 Name: Eighties Bass
 short-description: Bass-oriented complete monosynth voice consisting of five detuned saw wave oscillators with mixable white noise and adjustable resonant filter.
-Language: Arduino (arduino-pico) with Mozzi 2
+Language: Arduino-Pico with Mozzi 2
 Creator: Tod Kurt (@todbot)
 Version: 0.1
-Status: Functional but WIP
+Status: WIP
 date-created: 2024-11-30
 date-updated: 2024-11-30
 

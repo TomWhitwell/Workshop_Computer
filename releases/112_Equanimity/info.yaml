@@ -1,0 +1,126 @@
+draft: false
+Name: Equanimity
+short-description: Generative ambient melody loops in six FM tones over a slow drone, into a 1.1s and a 9.7s delay, all stirred by one slow tide.
+summary: |
+  Melody notes repeat on their own loops, a little quieter each time, and the overlapping loops make the melody,
+  in the spirit of Eno and Chilvers' *Bloom* -- over a drone of slowly drifting layers. Everything feeds a **1.1-second**
+  and a **9.7-second** delay whose repeats drift past each other. One slow **tide** rises and falls under it all:
+  as it rises, notes come more often and ring brighter, the drone brightens, and the triggers and wander CVs grow restless; as
+  it falls, everything settles. Each set has a random root, scale and tone (harp, marimba, xylophone,
+  glockenspiel, vibraphone or bell, all from one FM pair). Tap the switch down, or send Pulse In 2, for a new set.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Matt Allison
+Version: "0.3.4"
+Status: Released
+License: MIT
+date-created: 2026-10-02
+date-updated: 2026-10-04
+
+contact:
+  social:
+    github: https://github.com/mrmattallison
+
+uf2:
+  - path: UF2/equanimity.0.3.4.uf2
+    name: Equanimity 0.3.4
+
+tags:
+  - generative
+  - ambient
+  - delay
+  - fm
+  - synthesizer
+  - polyphonic
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Delay In 1
+      type: audio
+      description: Into both delays, not the dry mix
+    - id: AudioIn2
+      name: Delay In 2
+      type: audio
+      description: Into both delays, not the dry mix
+    - id: CVIn1
+      name: 1.1s Feedback CV
+      type: cv
+      description: Added to the 1.1s delay's feedback in every switch position. Positive adds, negative removes
+    - id: CVIn2
+      name: 9.7s Feedback CV
+      type: cv
+      description: Added to the 9.7s delay's feedback in every switch position. Positive adds, negative removes
+    - id: PulseIn1
+      name: New Note
+      type: pulse
+      description: Each rising edge births a new note loop straight away. Unplugging never triggers it
+    - id: PulseIn2
+      name: New Set
+      type: pulse
+      description: The old notes fade, the drone fades and the delays drain; then a fresh random root, scale and tone begin. Ignored while a change is under way
+  outputs:
+    - id: AudioOut1
+      name: Out L
+      type: audio
+      description: Melody and drone (centred) plus both delays, from the left read points
+    - id: AudioOut2
+      name: Out R
+      type: audio
+      description: Melody and drone (centred) plus both delays, from the right read points, which wobble on their own
+    - id: CVOut1
+      name: Ebb
+      type: cv
+      description: Mirror image of CV Out 2 -- the two always add up to about 5V
+    - id: CVOut2
+      name: Flow
+      type: cv
+      description: Smooth random voltage, 0 to about +5V, lazy at low tide and restless at high tide
+    - id: PulseOut1
+      name: Note Trigger
+      type: pulse
+      description: A 10ms trigger on every melody note, repeats included
+    - id: PulseOut2
+      name: Tide Trigger
+      type: pulse
+      description: 10ms random triggers following the tide -- one every 20s or so at low tide, clusters at high tide
+
+controls:
+  switch:
+    up:
+      name: Voices
+      description: Main = tone, X = melody volume, Y = drone volume. Wet/dry and feedback hold their values
+    middle:
+      name: Play
+      description: Main = wet/dry, X / Y = feedback of the 1.1s / 9.7s delay
+    down:
+      name: Play
+      description: Same knob jobs as middle (Down is momentary)
+    tap:
+      name: New Set
+      description: Tap down for a new set, as Pulse In 2 does -- the old notes fade, the delays drain, then a fresh random root, scale and tone
+  knobs:
+    - main: { name: Wet/Dry, description: "Equal-power crossfade of the melody against its echoes; the drone stays out of it. Picks up only after passing its last value" }
+      x: { name: 1.1s Feedback, description: "Up to about 0.97, plus CV In 1. Picks up only after passing its last value" }
+      y: { name: 9.7s Feedback, description: "Up to about 0.97, plus CV In 2. Picks up only after passing its last value" }
+    - when: { z: up }
+      main: { name: Tone, description: "Harp, marimba, xylophone, glockenspiel, vibraphone, bell (left to right). Follows Main only once it moves; heard from each loop's next note" }
+      x: { name: Melody Volume, description: Picks up only after passing its last value }
+      y: { name: Drone Volume, description: Picks up only after passing its last value }
+  leds:
+    - display: list
+      items:
+        - { id: LED4, name: Tide meter (bottom left), description: "The six LEDs fill from the bottom row to the top as the tide rises, flickering softly as each note is born" }
+        - { id: LED5, name: Tide meter (bottom right) }
+        - { id: LED2, name: Tide meter (middle left) }
+        - { id: LED3, name: Tide meter (middle right) }
+        - { id: LED0, name: Tide meter (top left) }
+        - { id: LED1, name: Tide meter (top right) }
+    - when: { z: up }
+      display: list
+      items:
+        - { id: LED0, name: Harp }
+        - { id: LED1, name: Marimba }
+        - { id: LED2, name: Xylophone }
+        - { id: LED3, name: Glockenspiel }
+        - { id: LED4, name: Vibraphone }
+        - { id: LED5, name: Bell }

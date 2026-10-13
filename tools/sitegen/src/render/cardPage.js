@@ -11,6 +11,7 @@ import { renderMarkdownBlock, renderMarkdownInline, sanitizeAuthoredHtml } from 
 import { instagramEmbedHtml } from '../utils/instagram.js';
 import { cardFeedbackHostLabel, cardFeedbackUrl } from './githubIssue.js';
 import { externalLinkArrow } from './icons.js';
+import { renderFlashChip } from './flashChip.js';
 
 const DEFAULT_DISCUSSION = 'https://discord.com/channels/1210238368898879569/1484219323039092938';
 
@@ -200,8 +201,8 @@ function renderGeneratedPanelCopy(snapshot, positionControl = null) {
     </div>`;
   }).join('');
   const switchMarkup = renderSwitchSection(snapshot, positionControl);
-  const inputsMarkup = renderSocketList('Inputs', panel.inputs, panelPositions.inputs);
-  const outputsMarkup = renderSocketList('Outputs', panel.outputs, panelPositions.outputs);
+  const inputsMarkup = renderSocketList('Inputs', panel.inputs, panelPositions.inputs, { showEmpty: true });
+  const outputsMarkup = renderSocketList('Outputs', panel.outputs, panelPositions.outputs, { showEmpty: true });
   const ledsMarkup = renderLedList(snapshot.leds);
 
   return `<div class="program-card-use__reference">
@@ -291,8 +292,9 @@ function renderPanelRail(card, panelImg) {
   return `<aside class="program-card-panel-rail" aria-label="Panel visualization">${panels}</aside>`;
 }
 
-function renderSocketList(title, sockets, positions) {
-  if (!sockets) return '';
+function renderSocketList(title, sockets, positions, { showEmpty = false } = {}) {
+  if (!sockets && !showEmpty) return '';
+  sockets ||= {};
   const items = (positions || []).map(pos => {
     const socket = sockets[pos.key];
     if (!socket || (!socket.description && !socket.label)) {
@@ -303,7 +305,7 @@ function renderSocketList(title, sockets, positions) {
       ${socket.label || socket.description ? `<p>${socket.label ? `<span class="program-card-component-role">${esc(inline(socket.label))}</span>` : ''}${socket.label && socket.description ? '<br>' : ''}${socket.description ? esc(truncate(socket.description, PANEL_DESCRIPTION_THRESHOLD)) : ''}</p>` : ''}
     </div>`;
   }).join('');
-  if (!Object.values(sockets).some(socket => socket && (socket.description || socket.label))) return '';
+  if (!showEmpty && !Object.values(sockets).some(socket => socket && (socket.description || socket.label))) return '';
   return `<section class="program-card-socket-section program-card-socket-section--${esc(title.toLowerCase())}"><h4 class="program-card-socket-section__heading">${esc(title)}</h4><div class="program-card-socket-list">${items}</div></section>`;
 }
 
@@ -440,14 +442,16 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
         if (d.external) {
           const host = d.host ? `<small class="program-card-action__host">${esc(d.host)}</small>` : '';
           const tag = '<small class="program-card-action__tag">External \u2197</small>';
+          const flashChip = renderFlashChip(d.flash_size || '2mb');
           const flashAttrs = d.flashable && d.sha256
             ? ` data-uf2-url="${esc(d.url)}" data-sha256="${esc(d.sha256)}"`
             : '';
-          return `<a class="program-card-action program-card-action--download program-card-action--external" href="${esc(d.url)}" target="_blank" rel="noopener noreferrer"${flashAttrs}><span class="program-card-action__label">Download</span><small>${esc(d.name)}</small>${host}${tag}</a>`;
+          return `<a class="program-card-action program-card-action--download program-card-action--external" href="${esc(d.url)}" target="_blank" rel="noopener noreferrer"${flashAttrs}><span class="program-card-action__label">Download</span><small>${esc(d.name)}</small>${host}${tag}${flashChip}</a>`;
         }
         // A repo file downloads directly, enables WebUSB, and exposes its SHA256.
         const hashAttr = d.sha256 ? ` data-sha256="${esc(d.sha256)}"` : '';
-        return `<a class="program-card-action program-card-action--download" href="${esc(d.url)}" download data-uf2-url="${esc(d.url)}"${hashAttr}><span class="program-card-action__label">Download</span><small class="program-card-action__firmware">${esc(d.name)}</small></a>`;
+        const flashChip = renderFlashChip(d.flash_size || '2mb');
+        return `<a class="program-card-action program-card-action--download" href="${esc(d.url)}" download data-uf2-url="${esc(d.url)}"${hashAttr}><span class="program-card-action__label">Download</span><small class="program-card-action__firmware">${esc(d.name)}</small>${flashChip}</a>`;
       }).join('')
     : (uf2Url || card.has_uf2_metadata ? (() => {
         const downloadHref = uf2Url || sourceUrl;
@@ -458,9 +462,8 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
     ? `<a class="program-card-action program-card-action--editor" href="${esc(metadata.editor_url)}"><span>Launch web editor</span><small>${esc(metadata.editor_note || 'Configure this card in your browser')}</small></a>`
     : '';
 
-  const memoryMarkup = card.memory && card.memory.size
-    ? `<span>${esc(String(card.memory.size).toUpperCase())} card ${esc(card.memory.requirement || 'supported')}</span>`
-    : '';
+  const requires16mb = !!(card.flash && card.flash.requires16mb);
+  const heroFlashMeta = requires16mb ? '<span>Requires a 16MB program card</span>' : '';
 
   const hero = `<header class="program-card-hero">
     <div class="program-card-hero__main">
@@ -468,7 +471,7 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
       ${metadata.creator ? `<div class="program-card-hero__byline">By ${esc(metadata.creator)}</div>` : ''}
       ${basic ? '' : renderTags(card, flairs, root)}
       ${summary ? `<p class="program-card-hero__summary">${markdownInline(summary)}</p>` : ''}
-      ${basic || !memoryMarkup ? '' : `<div class="program-card-hero__meta">${memoryMarkup}</div>`}
+      ${basic || !heroFlashMeta ? '' : `<div class="program-card-hero__meta">${heroFlashMeta}</div>`}
       <div class="program-card-actions" aria-label="Card actions">${downloadActions}${editorAction}</div>
       <div class="program-card-sha" data-sha-display role="status" aria-live="polite" hidden>SHA256: <code class="program-card-sha__value" data-sha-value></code> <button type="button" class="program-card-sha__verify" data-verify-open>How to verify</button></div>
       <div class="program-card-hero__links" aria-label="Further card links">${documentation ? `<a href="#card-documentation">Read more</a>` : ''}<a href="${esc(discussionUrl)}">Support &amp; questions</a><a href="${esc(feedbackUrl)}">Send feedback</a><button id="connectToggle" class="connect-toggle" type="button" role="switch" aria-checked="false" aria-label="Connect to RP2040 via WebUSB" title="Reboot computer into programming mode before connecting"><span class="c-status" aria-hidden="true"></span><span class="c-label">Connect workshop computer</span></button></div>
@@ -501,7 +504,11 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
       ${metadata.license ? `<div><dt>License</dt><dd>${esc(metadata.license)}</dd></div>` : ''}
       ${!metadata.created_inferred && metadata.created && metadata.created !== 'n/a' ? `<div><dt>Created</dt><dd>${esc(metadata.created)}</dd></div>` : ''}
       ${metadata.updated && metadata.updated !== 'n/a' ? `<div><dt>Updated</dt><dd>${esc(metadata.updated)}</dd></div>` : ''}
-      ${card.memory && card.memory.size ? `<div><dt>Card memory</dt><dd>${esc(String(card.memory.size).toUpperCase())} ${esc(card.memory.requirement || 'supported')}</dd></div>` : ''}
+      ${requires16mb
+        ? '<div><dt>Card memory</dt><dd>Requires a 16MB program card</dd></div>'
+        : (card.flash && card.flash.sizes && card.flash.sizes.includes('2mb') && card.flash.sizes.includes('16mb')
+          ? '<div><dt>Card memory</dt><dd>2MB and 16MB builds available</dd></div>'
+          : '')}
       ${readmeUrl ? `<div><dt>Read more</dt><dd><a href="${esc(readmeUrl)}">README in the Workshop Computer repo</a></dd></div>` : ''}
       ${sourceLinkUrl ? `<div><dt>Source</dt><dd><a href="${esc(sourceLinkUrl)}">${sourceLinkLabel}</a></dd></div>` : ''}
       <div><dt>Support</dt><dd><a href="${esc(discussionUrl)}">Ask questions, contact the designer, or share feedback</a></dd></div>

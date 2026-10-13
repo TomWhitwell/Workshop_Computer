@@ -268,3 +268,9 @@ its MIT notice present when copying firmware files into releases or experiments.
 USB MIDI host support includes the MIT-licensed rppicomidi files, copyright
 2023 rppicomidi. Their copyright and licence notices are retained in the
 corresponding source files.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.

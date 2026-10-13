@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(PICO_SDK_PATH "$ENV{HOME}/pico-sdk" CACHE PATH "Path to pico-sdk")
-include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+# Keep the full redistribution notices beside generated firmware outputs.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/NOTICE.txt"
+    "${CMAKE_CURRENT_BINARY_DIR}/NOTICE.txt" COPYONLY)
+
+include(${CMAKE_CURRENT_LIST_DIR}/pico_sdk_import.cmake)
 
 project(XHTCard C CXX ASM)
 set(CMAKE_C_STANDARD 11)
@@ -12,8 +15,7 @@ find_program(PICOTOOL_EXE
     NAMES picotool
     PATHS
         ${CMAKE_BINARY_DIR}/_deps/picotool
-        $ENV{HOME}/coding/GitHub/CozmikC1zzl3/build/_deps/picotool
-        NO_DEFAULT_PATH)
+)
 
 add_executable(XHTCard XHTCard.cpp)
 add_executable(XHTCardMidi
@@ -22,9 +24,9 @@ add_executable(XHTCardMidi
     usb_midi_host.c
     usb_midi_host_app_driver.c)
 
-# Use the authoritative, current ComputerCard header rather than a release copy.
-set(COMPUTERCARD_DIR "$ENV{HOME}/coding/GitHub/Workshop_Computer/Demonstrations+HelloWorlds/PicoSDK/ComputerCard"
-    CACHE PATH "Directory containing the latest ComputerCard.h")
+# Use the pinned ComputerCard header supplied with this release.
+set(COMPUTERCARD_DIR "${CMAKE_CURRENT_LIST_DIR}"
+    CACHE PATH "Directory containing ComputerCard.h")
 target_include_directories(XHTCard PRIVATE ${COMPUTERCARD_DIR})
 target_include_directories(XHTCardMidi PRIVATE ${COMPUTERCARD_DIR} .)
 

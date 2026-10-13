@@ -7,8 +7,18 @@
 
   Ported from WorkshopBio/usb_descriptors.c, byte-identical apart from the
   product string. The VID/PID pair is the Workshop System Computer's own, so
-  every card in the family enumerates the same way and is told apart by that
-  string alone.
+  every card in the family enumerates identically.
+
+  THE PRODUCT STRING IS A HINT, NOT AN IDENTITY. It is what the host SHOWS,
+  not what the host is obliged to show: because every card shares one USB
+  identity, macOS CoreMIDI caches a MIDI Studio name against that VID/PID and
+  hands a newly-plugged card whichever name a SIBLING card registered first.
+  One was reported in the field appearing as "MTMComputer". Windows truncates
+  to ~31 characters or falls back to a generic driver name; ALSA truncates too.
+
+  web/index.html therefore identifies the card by ASKING — it sends MSG_HELLO
+  to each plausible MIDI port and takes whatever answers with a valid MSG_INFO.
+  Renaming the string below is safe. Do not add a matcher for it anywhere.
  */
 
 

@@ -48,16 +48,24 @@
 class WebInterfaceComputerCard : public ComputerCard
 {
 public:
-	WebInterfaceComputerCard()
+	WebInterfaceComputerCard() {}
+
+	// Start the second core.
+	//
+	// Call this from main() after the card is constructed, and before Run().
+	// We don't launch core1 from the constructor: ComputerCard::ThisPtr() is
+	// only set once Run() is called, but core1 needs the instance as soon as
+	// it starts, so we stash a pointer to it here instead.
+	void StartUSBCore()
 	{
-		// Start the second core
+		instance = this;
 		multicore_launch_core1(core1);
 	}
 
 	// Boilerplate static function to call member function as second core
 	static void core1()
 	{
-		((WebInterfaceComputerCard *)ThisPtr())->USBCore();
+		instance->USBCore();
 	}
 
 	// Call to send (potentially large amounts of) data over MIDI.
@@ -184,7 +192,11 @@ private:
 	bool sysexActive;
 	unsigned sysexLen;
 	uint8_t *sysexBuf=nullptr, *rxBuf=nullptr;
+
+	static WebInterfaceComputerCard *instance;
 };
+
+WebInterfaceComputerCard *WebInterfaceComputerCard::instance = nullptr;
 
 
 
@@ -281,6 +293,7 @@ int main()
 	set_sys_clock_khz(144000, true);
 
 	WebInterfaceDemo wid;
+	wid.StartUSBCore();
 	wid.Run();
 }
 

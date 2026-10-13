@@ -29,6 +29,35 @@ function existingTarget(fromFile, rawUrl) {
   return target;
 }
 
+// The author preview hand-maintains the list of shared src/ modules it copies
+// into site/preview/lib/. A module that gains an import the list does not carry
+// still builds and still passes unit tests, but 404s in the browser and aborts
+// the whole module graph, so the editor never leaves its loading state.
+const PREVIEW_PAGES = ['preview/index.html', 'preview/new/index.html'];
+// esbuild outputs are self-contained, so their bodies are not part of that graph.
+const BUNDLED_MODULE = /^preview\/(?:vendor\/|monaco-[\w-]*\.js$)/;
+const STATIC_IMPORT = /^\s*(?:import|export)\b[^'"]*?\bfrom\s*(['"])([^'"]+)\1/gm;
+const SIDE_EFFECT_IMPORT = /^\s*import\s*(['"])([^'"]+)\1/gm;
+const DYNAMIC_IMPORT = /\bimport\s*\(\s*(['"])([^'"]+)\1\s*\)/g;
+
+function documentBase(pageFile, html) {
+  const match = html.match(/<base\s+href=(['"])(.*?)\1/i);
+  return match ? path.resolve(path.dirname(pageFile), match[2]) : path.dirname(pageFile);
+}
+
+function importMapOf(html) {
+  const match = html.match(/<script\s+type=(['"])importmap\1[^>]*>([\s\S]*?)<\/script>/i);
+  return match ? JSON.parse(match[2]).imports || {} : {};
+}
+
+function moduleSpecifiers(source) {
+  const specifiers = new Set();
+  for (const pattern of [STATIC_IMPORT, SIDE_EFFECT_IMPORT, DYNAMIC_IMPORT]) {
+    for (const match of source.matchAll(pattern)) specifiers.add(match[2]);
+  }
+  return specifiers;
+}
+
 function pngSize(file) {
   const header = Buffer.alloc(24);
   const fd = fs.openSync(file, 'r');
@@ -143,6 +172,66 @@ test('generator-owned layouts use external runtime scripts', () => {
       .filter(match => !/\btype=(['"])importmap\1/i.test(match[1]) && match[2].trim());
     assert.deepEqual(executableInline, [], `${relative} contains executable inline runtime code`);
   }
+});
+
+test('author preview ships every module its import graph reaches', () => {
+  const missing = [];
+  const unmapped = [];
+
+  for (const page of PREVIEW_PAGES) {
+    const pageFile = path.join(siteDir, page);
+    const html = fs.readFileSync(pageFile, 'utf8');
+    const base = documentBase(pageFile, html);
+    const imports = importMapOf(html);
+
+    const entries = [...html.matchAll(/<script\b[^>]*\btype=(['"])module\1[^>]*\bsrc=(['"])(.*?)\2/gi)]
+      .map(match => path.resolve(base, match[3].split(/[?#]/, 1)[0]));
+    assert.ok(entries.length, `${page} loads no module entry point`);
+
+    const queue = [...entries];
+    const seen = new Set();
+    while (queue.length) {
+      const file = queue.shift();
+      const relative = path.relative(siteDir, file);
+      if (seen.has(file)) continue;
+      seen.add(file);
+      if (!file.startsWith(siteDir + path.sep) || !fs.existsSync(file)) {
+        missing.push(`${page} -> ${relative}`);
+        continue;
+      }
+      if (BUNDLED_MODULE.test(relative.split(path.sep).join('/'))) continue;
+
+      for (const specifier of moduleSpecifiers(fs.readFileSync(file, 'utf8'))) {
+        if (specifier.startsWith('.') || specifier.startsWith('/')) {
+          queue.push(path.resolve(path.dirname(file), specifier.split(/[?#]/, 1)[0]));
+        } else if (imports[specifier]) {
+          queue.push(path.resolve(base, imports[specifier].split(/[?#]/, 1)[0]));
+        } else {
+          unmapped.push(`${relative} -> ${specifier}`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(missing, [], 'preview modules import files the build never shipped');
+  assert.deepEqual(unmapped, [], 'preview modules import bare specifiers absent from the import map');
+});
+
+test('author preview pages resolve their own stylesheets and scripts', () => {
+  const failures = [];
+  for (const page of PREVIEW_PAGES) {
+    const pageFile = path.join(siteDir, page);
+    const html = fs.readFileSync(pageFile, 'utf8');
+    const base = documentBase(pageFile, html);
+    for (const match of html.replace(/<base\b[^>]*>/i, '').matchAll(/\b(?:href|src)=(['"])(.*?)\1/gi)) {
+      const raw = match[2];
+      if (!raw || raw.startsWith('#') || raw.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(raw)) continue;
+      let target = path.resolve(base, raw.split(/[?#]/, 1)[0]);
+      if (raw.endsWith('/') || (fs.existsSync(target) && fs.statSync(target).isDirectory())) target = path.join(target, 'index.html');
+      if (!target.startsWith(siteDir + path.sep) || !fs.existsSync(target)) failures.push(`${page} -> ${raw}`);
+    }
+  }
+  assert.deepEqual(failures, []);
 });
 
 test('generated pages have Open Graph images pointing at 1200x630 PNGs', () => {

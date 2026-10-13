@@ -1,0 +1,22 @@
+Laboratory 0 Freeware Distribution Terms
+
+Copyright (c) 2026 Laboratory 0
+
+Permission is granted to download and use the Asterisk Workshop firmware, and
+to redistribute unmodified copies of the firmware at no charge, provided that
+these terms and the accompanying third-party notices are retained.
+
+The accompanying documentation may be copied and shared with the firmware.
+These permissions do not grant access to the Asterisk source code or permission
+to distribute modified versions of Laboratory 0's firmware. All other rights
+in Laboratory 0's software and documentation are reserved.
+
+These terms place no restrictions on music or recordings created using Asterisk.
+Third-party components remain governed by their respective licenses in
+THIRD_PARTY_NOTICES.txt; these terms do not limit rights granted by those licenses.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.

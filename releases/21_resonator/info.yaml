@@ -1,7 +1,7 @@
 short-description: Karplus-Strong sympathetic resonator for droning and plucked textures, with chord & tanpura tunings, arpeggiator, pitch tracking and web-configurable CV/pulse outputs.
 draft: false
 Name: Resonator
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Johan Eklund
 Version: 1.2.1
 Status: Released

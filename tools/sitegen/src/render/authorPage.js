@@ -120,6 +120,7 @@ export function renderAuthorPage({ documentKind = 'new', suggestions = {}, socia
     ${datalist('status-suggestions', suggestions.statuses)}
     ${datalist('tag-suggestions', suggestions.tags)}
     ${datalist('editor-suggestions', ['none', 'web', 'dist'])}
+    ${suggestions.knownValues ? `<script type="application/json" id="known-values">${JSON.stringify(suggestions.knownValues).replace(/</g, '\\u003c')}</script>` : ''}
   </main>
 
   <dialog id="license-dialog" class="author-license-dialog" aria-labelledby="license-title">

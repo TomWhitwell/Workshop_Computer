@@ -67,7 +67,7 @@ public:
 		index >>= 8;
 
 		uint32_t nextIndex = index+1;
-		if (nextIndex > numSamples) nextIndex -= numSamples;
+		if (nextIndex >= numSamples) nextIndex -= numSamples;
 		
 		return (dataptr[index]*(256-r) + dataptr[nextIndex]*r)>>8;
 	}

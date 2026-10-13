@@ -277,3 +277,9 @@ untouched.
 
 Punk Confusion code, documentation, and included vocal samples are released
 under the MIT License. See `LICENSE`.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.

@@ -87,7 +87,9 @@ assignments:
   "06_usb_audio":
     - useful
   "07_bumpers": []
-  "08_bytebeat": []
+  "08_bytebeat":
+    - chris-pick
+    - classic
   "09_DivCom":
     - wild
     - deep
@@ -103,6 +105,7 @@ assignments:
   "15_MLRws":
     - deep
     - toms-pick
+    - classic
   "16_the_bells":
     - toms-pick
   "17_COMET": []
@@ -123,8 +126,8 @@ assignments:
     - start-here
     - useful
   "26_clockwork":
-    - new
     - deep
+    - classic
   "27_Siren":
     - start-here
     - instant-win
@@ -135,34 +138,36 @@ assignments:
     - useful
   "32_vink":
     - wild
+    - classic
   "33_drumdrum":
     - useful
+    - classic
   "34_dual_quant": []
   "35_FreqShift":
     - wild
-  "36_GradualProcess": []
+  "36_GradualProcess":
+    - chris-pick
   "37_compulidean": []
-  "38_od": []
-  "39_knots": []
+  "38_od":
+    - chris-pick
+  "39_knots":
+    - classic
   "41_blackbird":
     - deep
     - useful
   "42_backyard_rain":
-    - classic
     - toms-pick
     - instant-win
   "43_Castle_Process":
     - wild
   "44_Birds":
     - instant-win
-  "45_bends":
-    - new
+  "45_bends": []
   "47_NZT": []
-  "48_two_tracks":
-    - new
-  "49_Tape_Bias": []
-  "50_flux":
+  "48_two_tracks": []
+  "49_Tape_Bias":
     - classic
+  "50_flux":
     - deep
   "51_grains": []
   "52_F1shnet": []
@@ -180,80 +185,127 @@ assignments:
     - magic
     - deep
   "62_BioMimicry":
-    - new
     - toms-pick
+    - wild
   "63_Nibble": []
   "64_voices_of_sid": []
   "66_stretchcore":
     - classic
     - wild
-  "67_Fragments": []
+  "67_Fragments":
+    - classic
   "69_trace":
     - magic
   "71_degenerator": []
   "72_motorik":
     - toms-pick
+    - classic
   "73_VSS":
     - instant-win
   "74_Wild_Pebble": []
   "75_Turing_Clouds": []
   "76_hot_fuzz": []
-  "77_PunkConfusion":
-    - new
+  "77_PunkConfusion": []
   "78_Talker": []
-  "79_Slag":
-    - new
+  "79_Slag": []
   "81_West_Coast_LPG": []
-  "82_Computer_Grids": []
+  "82_Computer_Grids":
+    - classic
   "83_Origami": []
   "84_CosmikC1zzl3":
     - deep
+    - classic
   "85_plant_holder":
-    - new
     - useful
   "86_tesserae": []
   "87_fr330hfr33": []
   "88_Blank":
     - included
   "89_Lockstep": []
-  "90_Pantograph":
-    - new
+  "90_Pantograph": []
   "91_chorgan":
     - instant-win
+  "92_usb_midi_host_synth": []
   "93_Turing_Matrix": []
   "94_Ouroboros": []
   "95_offair2":
     - wild
   "96_cathode":
     - magic
+    - chris-pick
   "97_alloy": []
   "98_duo_midi": []
   "99_toolbox": []
   "101_Gnarly_C1ZZL3":
     - wild
   "102_Nibble-KO":
+    - toms-pick
+  "103_spectral": []
+  "104_barbers_pole": []
+  "105_voder": []
+  "106_uncertainty":
+    - useful
+  "107_scintillator": []
+  "108_GBA":
+    - toms-pick
+    - magic
+    - deep
+  "109_LightPen":
+    - wild
+  "110_Impermanence":
+    - start-here
+  "111_8mu_cv": []
+  "112_Equanimity":
     - new
-  "303_acid":
+    - toms-pick
+  "118_JP8K":
     - new
+  "174_Skipping_Stones": []
+  "197_CosmikM1N1D":
+    - new
+  "202_ScaryLingo": []
+  "303_acid": []
   "355_RYK_Pitch-Vocoder": []
+  "369_Asterisk":
+    - new
+    - chris-pick
+  "404_BlackBox": []
   "433_sense_of_space": []
+  "538_bootleg_radio":
+    - new
+  "580_Vortex_Runner": []
   "666_ws_doom":
     - toms-pick
-    - new
     - magic
+  "799_mazerunner":
+    - new
+  "800_graphic_osc":
+    - new
+  "801_WaveSeq":
+    - new
+  "818_Bibesque":
+    - useful
+  "833_BuzzyBee": []
   "877_RYK_Tape-Sampler":
     - magic
+    - chris-pick
+  "907_8mu_eq":
+    - new
   "910_RYK_Pitched-Delay":
     - classic
-  # Dub Warning
-  999_Dub_Warning: []
-  # SPECTRAL
-  103_spectral: []
-  # Barber's Pole
-  104_barbers_pole: []
-  # Vortex Runner
-  580_Vortex_Runner: []
-  # Skipping Stones
-  174_Skipping_Stones: []
-  # Voder
-  105_voder: []
+  "999_Dub_Warning":
+    - toms-pick
+  # You spin me round
+  122_You_Spin_Me_Round: []
+  # CVSeq
+  802_CVSeq: []
+  # UMWELT
+  40_UMWELT: []
+  # Dot Dash
+  505_dot_dash: []
+  # Constancy
+  113_Constancy: []
+  # Spatial Disorientation
+  333_Spatial_Disorientation: []
+  # Blueberry Smoothie
+  873_Blueberry_Smoothie: []

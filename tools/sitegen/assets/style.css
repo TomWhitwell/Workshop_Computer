@@ -75,7 +75,7 @@ a { color: var(--link); }
 .advanced-options > summary::-webkit-details-marker { display: none; }
 .advanced-options > summary::before { content: "+ "; }
 .advanced-options[open] > summary::before { content: "− "; }
-.filter-row { align-items: start; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 3fr); margin-top: 14px; }
+.filter-row { align-items: start; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, auto) minmax(0, 3fr); margin-top: 14px; }
 .filter-group { display: grid; gap: 3px; }
 .tag-filter-group { border: 0; margin: 0; min-width: 0; padding: 0; }
 .tag-filter-group.is-showing-all { grid-column: 1/-1; }
@@ -93,6 +93,11 @@ a { color: var(--link); }
 /* Filter tags are .program-card-tag badges, so appearance comes from program-cards.css;
    these rules add only the checkbox affordances. */
 .tag-filter-option { cursor: pointer; transition: box-shadow .15s,filter .15s; }
+.flash-filter-group { border: 0; margin: 0; min-width: 0; padding: 0; }
+.flash-filter-group legend { color: var(--muted); font-size: 10px; font-weight: var(--weight-bold); padding: 0; text-transform: uppercase; }
+/* Room for the 4px checked rings: they clear the legend and each other. */
+.flash-filter-options { align-items: center; display: flex; gap: 12px; margin-top: 8px; }
+.flash-filter-option { border-radius: 2px; display: inline-flex; }
 /* Specificity must beat the narrow-viewport .filter-bar .tag-filter-option rule
    below, or the hidden attribute stops hiding tags on mobile. */
 .filter-bar .tag-filter-option[hidden] { display: none; }
@@ -151,6 +156,9 @@ a { color: var(--link); }
   .search-clear { min-height: 33px; min-width: 44px; }
   /* inline-flex (not the badge's inline-block) so the label centres in the 44px target */
   .filter-bar .tag-filter-option { align-items: center; display: inline-flex; min-height: 25px; padding: 3px 12px; }
+  /* Card-size chips take the larger target themselves so the checked ring hugs the chip. */
+  .filter-bar .flash-filter-option { min-height: 0; padding: 0; }
+  .filter-bar .flash-filter-option .flash-chip { align-items: center; display: inline-flex; min-height: 25px; padding: 3px 12px; }
   .btn,
   .connect-toggle { align-items: center; display: inline-flex; min-height: 33px; }
 }

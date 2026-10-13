@@ -193,6 +193,15 @@ section h2 {
   margin-bottom: 24px;
 }
 
+/* The connection diagnostic. Shown only when no card answered the probe, and
+   coloured as a problem rather than as advice, because by then the user has
+   already done everything the page told them to. */
+#connect-detail {
+  border-left-color: var(--err);
+  font-style: normal;
+  margin: 0 0 24px;
+}
+
 /* ---- Kit ---- */
 .voice-list { display: flex; flex-direction: column; gap: 2px; max-width: 720px; }
 
@@ -484,6 +493,8 @@ footer {
 </header>
 
 <main>
+
+  <div id="connect-detail" class="notice" hidden></div>
 
   <!-- KIT -->
   <div class="view active" id="view-kit">
@@ -981,9 +992,129 @@ function drainRx() {
   rxQueue.length = 0;
 }
 
-const DEVICE_RE = /nibble|workshop|pico/i;
+// >>> discovery — extracted verbatim by tools/discoversim.js. Keep this block
+// DOM-free and dependent on nothing but MFR and MSG, or the model cannot run it.
+
+/// A USB PRODUCT STRING IS NOT AN IDENTITY.
+///
+/// Every Workshop System card ships the same VID/PID (2E8A:10C1 — see
+/// usb_descriptors.c), and the host is free to name the port whatever it likes:
+///
+///   - macOS CoreMIDI caches a name against that USB identity in its MIDI
+///     Studio database, so a card that enumerates after a sibling appears under
+///     the SIBLING's name. Reported from the field as a card showing up as
+///     "MTMComputer", with the page stuck on "Waiting…" while it sat there
+///     enumerated and breathing.
+///   - Windows WinMM truncates to ~31 characters, and reports some
+///     class-compliant devices under a generic driver name ("USB Audio Device").
+///   - ALSA truncates to "NIBBLE-KO (Work" — which still matches /nibble/ by
+///     luck rather than by design.
+///
+/// So the name only decides what to TRY FIRST. The test is whether the thing
+/// ANSWERS: MSG_HELLO is read-only on the card, and a valid MSG_INFO reply is
+/// an identification no rename can break.
+const NAME_HINT_RE = /nibble|workshop|pico|mtm|computer|rp2040/i;
+
+/// Ports that are never the card and are rude to poke: system loopbacks,
+/// software buses, and Windows' built-in synth.
+const NAME_SKIP_RE = /iac driver|midi through|network session|wavetable|loopmidi|loopbe/i;
+
+function portNames(midi) {
+  const names = (m) => Array.from(m.values(), (p) => p.name || "");
+  return { outputs: names(midi.outputs), inputs: names(midi.inputs) };
+}
+
+/// Ask ONE output whether it is the card, listening on every input for the
+/// answer — the reply does not have to arrive on the input whose name pairs
+/// with that output, and under a cached name the names cannot be paired anyway.
+///
+/// Resolves with the input that answered, or null on timeout. The handlers are
+/// borrowed, so every exit path must put them back: a probe that leaves a
+/// listener installed steals replies from attachMidiIn later.
+function probeOne(out, ins, timeoutMs) {
+  return new Promise((resolve) => {
+    let done = false;
+    let timer = 0;
+    const finish = (port) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      for (const i of ins) i.onmidimessage = null;
+      resolve(port);
+    };
+
+    for (const i of ins) {
+      i.onmidimessage = (e) => {
+        const d = e.data;
+        // Both halves earn their place, and they guard different things. The
+        // TYPE test is what stops a LOOPBACK being read as a card: a software
+        // bus echoes our own HELLO straight back, which is a real F0 7D … F7
+        // message from a real port. The LENGTH test is what stops a v1 card
+        // being adopted here and then refused by the handshake below — it is
+        // the same contract connect() applies to the reply it goes on to parse.
+        if (d[0] === 0xF0 && d[1] === MFR && d[2] === MSG.INFO && d.length >= 21)
+          finish(i);
+      };
+    }
+
+    timer = setTimeout(() => finish(null), timeoutMs);
+    try {
+      out.send([0xF0, MFR, MSG.HELLO, 0xF7]);
+    } catch (e) {
+      finish(null);   // a port can vanish between being enumerated and being sent to
+    }
+  });
+}
+
+/// Find the card by handshake. Returns {out, in} or null.
+async function probeForCard(midi, timeoutMs = 400) {
+  const usable = (p) => !NAME_SKIP_RE.test(p.name || "");
+  const ins  = Array.from(midi.inputs.values()).filter(usable);
+  const outs = Array.from(midi.outputs.values()).filter(usable);
+  if (!ins.length || !outs.length) return null;
+
+  // The name still decides the ORDER, so the ordinary case costs one round trip
+  // and one 400ms timeout is only paid when the name is wrong.
+  const rank = (p) => (NAME_HINT_RE.test(p.name || "") ? 0 : 1);
+  outs.sort((a, b) => rank(a) - rank(b));
+
+  for (const out of outs) {
+    const hit = await probeOne(out, ins, timeoutMs);
+    if (hit) return { out, in: hit };
+  }
+  return null;
+}
+
+// <<< discovery
+
+/// Say what was actually seen. A silent "Waiting…" is what made the CoreMIDI
+/// name-cache bug cost one user two sessions weeks apart — the page had the
+/// port list all along and never showed it. Port names go in by textContent,
+/// never into the template, because they are strings from someone else's host.
+function showConnectDetail(midi) {
+  const el = document.getElementById("connect-detail");
+  if (!el) return;
+  if (!midi) { el.hidden = true; return; }
+
+  const names = portNames(midi);
+  el.innerHTML =
+    `<strong>No card answered.</strong> MIDI outputs seen: <span id="connect-ports"></span><br>` +
+    `If the card <em>is</em> in WebUI mode — all four pads glowing slowly — your computer may be ` +
+    `showing it under another Workshop card's cached name. Every card in the family shares one ` +
+    `USB ID, so the name is the host's guess, not the card's. On macOS: ` +
+    `<strong>Audio MIDI Setup → Window → Show MIDI Studio</strong>, delete the stale entry, ` +
+    `unplug and replug the card, then press Connect again.`;
+  el.querySelector("#connect-ports").textContent =
+    names.outputs.length ? names.outputs.map((n) => `“${n}”`).join(", ") + "." : "none at all.";
+  el.hidden = false;
+}
+
+// One probe at a time: it borrows every input's message handler, so two running
+// at once would clear each other's listeners halfway through.
+let connecting = false;
 
 async function connect() {
+  if (connecting) return;
   let midi;
   try {
     midi = await navigator.requestMIDIAccess({ sysex: true });
@@ -994,23 +1125,39 @@ async function connect() {
 
   state.midiOut = null;
   state.midiIn = null;
-  for (const o of midi.outputs.values()) if (DEVICE_RE.test(o.name)) state.midiOut = o;
-  for (const i of midi.inputs.values())  if (DEVICE_RE.test(i.name)) state.midiIn = i;
+  console.log("NIBBLE-KO: MIDI ports", portNames(midi));
+
+  setStatus("Looking for the card…");
+  connecting = true;
+  let pair = null;
+  try {
+    pair = await probeForCard(midi);
+  } finally {
+    connecting = false;
+  }
+  if (pair) { state.midiOut = pair.out; state.midiIn = pair.in; }
 
   if (!state.midiOut || !state.midiIn) {
     // The card only enumerates once it is in WebUI mode, so "not found" is far
     // more likely to mean "not in that mode yet" than "unplugged". Watch for it
     // appearing rather than making the user press Connect again.
     setStatus("Card not found — on the card, hold the switch Down and press B + D. Waiting…", "err");
+    showConnectDetail(midi);
+    // Retry on ANY port appearing, not only one whose NAME looks right. The old
+    // guard tested the same name the search did, so a card under a cached name
+    // could not resolve the Waiting… state even once it WAS in WebUI mode — the
+    // page ignored the very event it was waiting for. Debounced, because one
+    // device brings its ports up as several separate events.
+    let retry = 0;
     midi.onstatechange = (e) => {
-      if (e.port && e.port.state === "connected" && DEVICE_RE.test(e.port.name)) {
-        midi.onstatechange = null;
-        connect();
-      }
+      if (!e.port || e.port.state !== "connected") return;
+      clearTimeout(retry);
+      retry = setTimeout(() => { midi.onstatechange = null; connect(); }, 250);
     };
     return;
   }
 
+  showConnectDetail(null);
   state.reconnectHint = false;   // they reconnected; the hint has done its job
   attachMidiIn(state.midiIn);
   navigator.permissions && midi.addEventListener &&

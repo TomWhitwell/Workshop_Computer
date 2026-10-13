@@ -19,12 +19,13 @@ class SampleAndHold : public ComputerCard
 {
 public:
 	
-	// random number generator
+	// random number generator, returning values in the -2048 to 2047 range
+	// of the audio outputs
 	int32_t rnd()
 	{
 		static uint32_t lcg_seed = 1;
 		lcg_seed = 1664525 * lcg_seed + 1013904223;
-		return lcg_seed >> 16;
+		return int32_t(lcg_seed >> 20) - 2048;
 	}
 	
 	virtual void ProcessSample()

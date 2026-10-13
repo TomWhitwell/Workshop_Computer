@@ -9,7 +9,7 @@ summary: >-
   role with the switch: pre-scale transpose (up), loop lock and mutation (middle), or scale select
   while held (down). Hold the switch down at power-on for Dual Melody mode, where both engines
   become melodic voices.
-Language: C++ (RP2040 Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: 1.0.0
 Status: Released

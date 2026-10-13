@@ -1,0 +1,13 @@
+build/
+build-host/
+*.elf
+*.bin
+*.hex
+*.map
+*.dis
+test/out/
+.DS_Store
+venv/
+build-bench/
+test/host_tests
+test/render_bin

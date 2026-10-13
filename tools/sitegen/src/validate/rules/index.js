@@ -7,6 +7,8 @@
 //
 // Diagnostic shape: { severity, ruleId, path, message, line?, col?, suggestion? }
 
+import { VALUE_FIELDS, fieldValues, findSimilar } from '../../utils/similarValues.js';
+
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -357,6 +359,14 @@ export const uf2Entries = {
         out.push({ severity: 'warning', path: `${at}.name`, key: 'uf2',
           message: `${at}.name should be a string.` });
       }
+      const flashSizeEntry = Object.entries(entry).find(([k]) => k.toLowerCase() === 'flash_size');
+      if (flashSizeEntry && !isBlank(flashSizeEntry[1])) {
+        const flashSize = String(flashSizeEntry[1]).trim().toLowerCase();
+        if (flashSize !== '2mb' && flashSize !== '16mb') {
+          out.push({ severity: 'warning', path: `${at}.flash_size`, key: 'uf2',
+            message: `${at}.flash_size should be "2mb" or "16mb" (omit for 2MB).` });
+        }
+      }
       if (hasPath && !hasUrl && shaEntry && !isBlank(shaEntry[1])) {
         out.push({ severity: 'warning', path: `${at}.sha256`, key: 'uf2',
           message: `${at}.sha256 is not required for repository-hosted firmware; the build computes it automatically.` });
@@ -382,6 +392,35 @@ export const uf2Entries = {
   },
 };
 
+export const similarValues = {
+  id: 'similar-values',
+  check(ctx) {
+    const known = ctx.knownValues;
+    if (!known) return [];
+    const out = [];
+    for (const field of VALUE_FIELDS) {
+      const index = known[field.key] || {};
+      const usedElsewhere = value => (index[value] || []).filter(id => id !== ctx.cardId);
+      // Only values no other card uses yet can introduce a new spelling.
+      const established = Object.keys(index).filter(value => usedElsewhere(value).length);
+      for (const value of fieldValues(ctx.data, field)) {
+        if (usedElsewhere(value).length) continue;
+        const matches = findSimilar(value, established)
+          .sort((a, b) => usedElsewhere(b).length - usedElsewhere(a).length);
+        if (!matches.length) continue;
+        const listed = matches.slice(0, 3).map(match => {
+          const count = usedElsewhere(match).length;
+          return `"${match}" (${count} card${count === 1 ? '' : 's'})`;
+        }).join(', ');
+        const entry = ctx.entry(field.key);
+        out.push({ severity: 'warning', path: entry?.key || field.key, key: field.key,
+          message: `${field.label} "${value}" looks like existing ${listed}. Use the existing spelling if it means the same thing.` });
+      }
+    }
+    return out;
+  },
+};
+
 export const allRules = [
   unknownTopLevelKeys,
   tagsFormat,
@@ -394,4 +433,5 @@ export const allRules = [
   customPanelReferences,
   uf2Entries,
   generatedModelShape,
+  similarValues,
 ];

@@ -48,6 +48,12 @@ test('created derives from the earliest git signal; updated from content date', 
   assert.equal(card.metadata.updated, '2025-03-01');
 });
 
+test('published date is carried through for non-draft cards only', () => {
+  assert.equal(build({ 'date-created': '2026-09-01' }, { publishedDate: '2026-09-30' }).metadata.published, '2026-09-30');
+  assert.equal(build({ draft: true }, { publishedDate: '2026-09-30' }).metadata.published, undefined);
+  assert.equal(build({}, {}).metadata.published, undefined);
+});
+
 test('updated is never presented as older than created', () => {
   const card = build({ created: '2025-01-01' }, { contentDate: '2024-06-01' });
   assert.equal(card.metadata.created, '2025-01-01');
@@ -95,6 +101,22 @@ test('authored UF2 entries are retained as a download-availability signal', () =
   assert.equal(build({ uf2: [{ download: { url: 'https://example.com/card.uf2' } }] }).has_uf2_metadata, true);
   assert.equal(build({ uf2: [] }).has_uf2_metadata, undefined);
   assert.equal(build({}).has_uf2_metadata, undefined);
+});
+
+test('card flash profile reflects the sizes present across UF2 downloads', () => {
+  assert.equal(build({}).flash, undefined);
+  assert.deepEqual(
+    build({}, { uf2Downloads: [{ name: 'card.uf2' }] }).flash,
+    { sizes: ['2mb'], requires16mb: false },
+  );
+  assert.deepEqual(
+    build({}, { uf2Downloads: [{ name: 'card.uf2', flash_size: '16mb' }] }).flash,
+    { sizes: ['16mb'], requires16mb: true },
+  );
+  assert.deepEqual(build({}, { uf2Downloads: [
+    { name: 'card_2mb.uf2' },
+    { name: 'card_16mb.uf2', flash_size: '16mb' },
+  ] }).flash, { sizes: ['2mb', '16mb'], requires16mb: false });
 });
 
 test('demo-link YouTube URL produces a videos entry', () => {

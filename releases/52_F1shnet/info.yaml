@@ -9,10 +9,10 @@ summary: |
   Audio In 2, CV 1, and CV 2 all influence parameters, with CV 1 and CV 2 keeping the same jobs in every switch position. Pulse In 1 acts as an external clock / retrigger, and Pulse In 2 can also force the sample-and-hold gesture high.
   CV Out 1 always emits the stepped sample-and-hold voltage, CV Out 2 always emits the envelope follower, Pulse Out 1 mirrors the clock, and Pulse Out 2 emits the sample trigger pulse.
   Knobs use soft pickup when switching between middle and up so parameters do not jump until the physical control crosses the stored value for that page. Up exposes output trim and envelope sensitivity while Y remains the shared resonance control from the middle page; envelope release is fixed internally rather than user-facing.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: 0.1.1
-Status: Beta Stable in testing by one individual
+Status: Beta
 License: MIT
 date-created: 2026-07-28
 date-updated: 2026-08-01
@@ -20,7 +20,7 @@ demo-link: https://www.youtube.com/watch?v=XYNgTV4XgsE
 tags:
   - effect
   - filter
-  - sample-hold
+  - sample-and-hold
   - envelope-filter
 contact:
   social:

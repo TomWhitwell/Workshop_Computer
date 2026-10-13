@@ -15,6 +15,9 @@
 # - `intro` is optional. Most shelves read better without one.
 # - Use either `cards` for an explicit card-ID list, or `cards_from_flairs` to pull from flairs.yml.
 # - Flair-driven shelves are reverse-sorted by card date (updated, then created) before `limit` caps them.
+# - `link` is optional: `text` and `href` (relative to the site root) add a link at the top right of the shelf,
+#   e.g. `href: ?sort=created-desc` opens the full card list sorted newest first (by the date each card
+#   was merged to main as a non-draft).
 # - `hide_flairs` suppresses redundant badges inside that shelf, e.g. hide `new` on a New shelf.
 # - `layout` is optional:
 #   - omit it for the normal 3-column card grid
@@ -52,10 +55,10 @@ shelves:
     title: Essentials 
     layout: video-lead
     cards:
-      - 66_stretchcore
+      - 45_bends
+      - 369_Asterisk
+      - 22_sheep
       - 44_Birds
-      - 21_resonator
-      - 42_backyard_rain
 
   - id: new
     title: Recommended new releases
@@ -65,16 +68,32 @@ shelves:
     hide_flairs:
       - new
     limit: 8
+    link:
+      text: Browse all new cards
+      href: ?sort=created-desc
 
 
-  - id: vos-collection
-    title: The Vos collection
+  - id: dune-collection
+    title: The Dune collection
     layout: video-strip
     cards:
-      - 101_Gnarly_C1ZZL3
-      - 54_Tapegrade
-      - 433_sense_of_space
-      - 87_fr330hfr33
+      - 15_MLRws
+      - 41_blackbird
+      - 11_goldfish
+      - 04_BYO_Benjolin
+
+
+  - id: old
+    title: Classics you might have missed
+    layout: list
+    cards_from_flairs:
+      - classic
+    hide_flairs:
+      - classic
+    limit: 8
+    link:
+      text: More classics
+      href: ?sort=created-asc&tag=classic
 
 
 
@@ -82,21 +101,23 @@ shelves:
     title: Generative sequencers
     layout: video-lead
     cards:
-      - 16_the_bells
       - 36_GradualProcess
-      - 79_Slag
+      - 112_Equanimity
+      - 404_BlackBox
       - 82_Computer_Grids
 
 
 
-  - id: vincent-collection
-    title: The Vincent collection
+
+
+  - id: vos-collection
+    title: The Vos collection
     layout: video-strip
     cards:
-      - 26_clockwork
-      - 45_bends
-      - 50_flux
-      - 51_grains
+      - 54_Tapegrade
+      - 433_sense_of_space
+      - 87_fr330hfr33
+      - 101_Gnarly_C1ZZL3
 
       
   - id: properly-useful
@@ -117,33 +138,33 @@ shelves:
       - magic
     limit: 6
 
-  - id: dune-collection
-    title: The Dune collection
+  - id: vincent-collection
+    title: The Vincent collection
     layout: video-strip
     cards:
-      - 04_BYO_Benjolin
-      - 15_MLRws
-      - 41_blackbird
-      - 11_goldfish
+      - 45_bends
+      - 50_flux
+      - 51_grains
+      - 26_clockwork
 
 
-  - id: samples-and-found-sound
-    title: Samples and found sound
-    layout: video-lead
-    cards:
-      - 67_Fragments
-      - 66_stretchcore
-      - 53_glitter
-      - 73_VSS
-
-
-#   - id: feedback-laboratory
-#     title: Feedback laboratory
+#   - id: samples-and-found-sound
+#     title: Samples and found sound
 #     layout: video-lead
 #     cards:
-#       - 32_vink
-#       - 35_FreqShift
-#       - 59_BitPhase
-#       - 76_hot_fuzz
-#       - 83_Origami
-#       - 97_alloy
+#       - 66_stretchcore
+#       - 67_Fragments
+#       - 53_glitter
+#       - 73_VSS
+
+
+  - id: feedback-laboratory
+    title: Feedback laboratory
+    layout: video-lead
+    cards:
+      - 32_vink
+      - 35_FreqShift
+      - 59_BitPhase
+      - 76_hot_fuzz
+      - 83_Origami
+      - 97_alloy

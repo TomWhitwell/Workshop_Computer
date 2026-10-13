@@ -1,6 +1,6 @@
 Name: USB Audio & MIDI
 short-description: 6-channel USB audio interface and USB MIDI device with configurable CV/gate mapping.
-Language: C++ (RPi Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Vincent Maurer
 Version: "1.0"
 Status: Released

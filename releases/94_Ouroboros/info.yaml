@@ -1,10 +1,10 @@
 summary: "A tape loop, eating its own tail. The buffer is the tape: one head assembly records input + feedback over what came round from the last rotation. Tape length, varispeed (repitches the whole loop), freeze, momentary reverse, splice-tick pulse out, position-ramp CV out. Companion prototype for a physical 1/4\" tape loop rig."
 short-description: A tape loop, eating its own tail.
 Name: Ouroboros
-Language: "C++ (ComputerCard)"
+Language: "C++ (Pico SDK + ComputerCard)"
 Creator: "Jason Moore"
 Version: "0.1"
-Status: "Working"
+Status: "Released"
 date-created: 2026-07-24
 date-updated: 2026-07-24
 

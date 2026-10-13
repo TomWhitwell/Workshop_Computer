@@ -1,7 +1,7 @@
 draft: false
 Name: Degenerator
 short-description: "Degenerator — Disintegrating Looper. Capture audio loops and apply irreversible degradation with 6 algorithms (Saturation, Filter Drift, Tape Hiss, Oxide Shedding, Bit Crush, Bit Rot) via preview/apply workflow. Inspired by William Basinski's The Disintegration Loops."
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
 contact:
   email: joep@joep-i.nl

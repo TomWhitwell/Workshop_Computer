@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { getCommitDates, getContentUpdatedDate, getLastCommitDate, getOldestBlameDate } from '../src/utils/git.js';
+import { getCommitDates, getContentUpdatedDate, getLastCommitDate, getOldestBlameDate, getPublishedDate } from '../src/utils/git.js';
 
 test('Git path arguments never undergo shell expansion', t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sitegen-git-'));
@@ -14,5 +14,6 @@ test('Git path arguments never undergo shell expansion', t => {
   getCommitDates(hostile);
   getOldestBlameDate(hostile);
   getContentUpdatedDate(hostile);
+  getPublishedDate(hostile, () => false);
   assert.equal(fs.existsSync(marker), false);
 });

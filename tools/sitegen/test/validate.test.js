@@ -81,12 +81,12 @@ test('PR Markdown report groups diagnostics by changed info.yaml', () => {
       ],
     },
     diagnostics: [
-      { severity: 'warning', ruleId: 'multiple-release-directories', file: 'releases', message: 'Two release directories changed.' },
+      { severity: 'warning', ruleId: 'release-readme-recommended', file: 'releases/43_clean', message: 'Add a README.md to the release.' },
       { severity: 'error', ruleId: 'uf2-required', file: 'releases/42_test', message: 'No UF2 firmware file is included.' },
     ],
   });
   assert.match(markdown, /## ❌ Program card PR validation failed/);
-  assert.match(markdown, /PR validation is intended for maintainers, not card authors/);
+  assert.match(markdown, /Errors must be fixed before this PR can merge\. Warnings are suggestions/);
   assert.equal((markdown.match(/\| Severity \|/g) || []).length, 2);
   assert.match(markdown, /### `42_test\/info\.yaml`/);
   assert.match(markdown, /### `43_clean\/info\.yaml`/);
@@ -457,6 +457,72 @@ uf2:
     d.ruleId === 'uf2-entries' && d.severity === 'warning' && d.path === 'uf2[0].download.sha256'));
   assert.ok(result.diagnostics.some(d =>
     d.ruleId === 'ajv-schema' && d.severity === 'error' && d.path === 'uf2.0.download.sha256'));
+});
+
+test('uf2 flash_size defaults to 2MB and accepts 16mb', () => {
+  const omitted = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+`);
+  assert.ok(!omitted.diagnostics.some(d => String(d.path || '').includes('flash')));
+
+  const explicit = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash_size: 16mb
+`);
+  assert.ok(!explicit.diagnostics.some(d => String(d.path || '').includes('flash')));
+});
+
+test('invalid uf2 flash_size values are rejected', () => {
+  const result = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash_size: 32mb
+`);
+  assert.ok(result.diagnostics.some(d =>
+    d.ruleId === 'uf2-entries' && d.severity === 'warning' && d.path === 'uf2[0].flash_size'));
+  assert.ok(result.diagnostics.some(d =>
+    d.ruleId === 'ajv-schema' && d.path === 'uf2.0.flash_size'));
+});
+
+test('a bare uf2 flash key is not an alias for flash_size', () => {
+  const result = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash: 16mb
+`);
+  assert.ok(result.diagnostics.some(d =>
+    d.ruleId === 'ajv-schema' && d.path === 'uf2.0' && /additional properties/.test(d.message)));
+  assert.ok(!result.diagnostics.some(d => d.ruleId === 'uf2-entries' && String(d.path).includes('flash')));
 });
 
 test('when cannot combine z and panel', () => {

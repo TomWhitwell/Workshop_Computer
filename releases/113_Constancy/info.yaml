@@ -1,0 +1,125 @@
+draft: false
+Name: Constancy
+short-description: One Cornish dawn, forever. A CS-80-style supersaw through an Icarus feedback loop, moving only when you move through the morning's tide, sun and wind, with a scale-aware Turing machine for the rest of the system.
+summary: |
+  Constancy holds a single morning in memory: 17 April 2024 at Calamansac on the Helford River, the last day of
+  the Music Thing Modular residency there, from first light to two hours after sunrise. **Time** (Main) moves
+  through it; nothing else does. The real tide sets every envelope (plucky at low water, long washed swells at
+  high tide), the sun sets the delay time and brightness and calls in the lead once it clears the horizon, and
+  the wind moves a CV output, and a clocked, scale-aware Turing machine (after Tom Whitwell's) plays 1V/octave notes in the card's key for the rest of the system. The voice is a Vangelis-style supersaw through a fixed-point port of
+  the feedback loop from Infinite Digits' [Icarus](https://github.com/schollz/icarus), over Equanimity's note loops
+  and a pure-fifth drone. Sun (X) flies the loop close enough to burn; Water (Y) drowns or thins it.
+Language: C++ (Pico SDK)
+Creator: Matt Allison
+Version: "0.3.2"
+Status: Released
+License: MIT
+date-created: 2026-10-08
+date-updated: 2026-10-08
+
+contact:
+  social:
+    github: https://github.com/mrmattallison
+
+uf2:
+  - path: UF2/constancy.0.3.2.uf2
+    name: Constancy 0.3.2
+
+tags:
+  - generative
+  - sequencer
+  - ambient
+  - delay
+  - synthesizer
+  - polyphonic
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Loop In 1
+      type: audio
+      description: Into the Icarus feedback loop only, not the dry mix
+    - id: AudioIn2
+      name: Loop In 2
+      type: audio
+      description: Into the Icarus feedback loop only, not the dry mix
+    - id: CVIn1
+      name: Time CV
+      type: cv
+      description: Added to Time, so an LFO or random source drifts the morning. +5V moves it about the whole window
+    - id: CVIn2
+      name: Water CV
+      type: cv
+      description: Added to Water. Negative drowns (lowpass), positive thins (low-cut)
+    - id: PulseIn1
+      name: Turing Clock
+      type: pulse
+      description: Each pulse steps the Turing machine once. Unpatched, it holds its note
+    - id: PulseIn2
+      name: Lead Phrase
+      type: pulse
+      description: The lead plays a phrase now, even before sunrise. Ignored while a phrase is playing or a new key is arriving. Unplugging never triggers it
+  outputs:
+    - id: AudioOut1
+      name: Out L
+      type: audio
+      description: Voices, the Icarus loop and the drone, through Water
+    - id: AudioOut2
+      name: Out R
+      type: audio
+      description: Voices, the Icarus loop and the drone, through Water
+    - id: CVOut1
+      name: Tide
+      type: cv
+      description: Smooth random voltage, 0 to about +5V, centred on the tide's height; wanders wider and choppier as the wind rises
+    - id: CVOut2
+      name: Turing Pitch
+      type: cv
+      description: 1V per octave (calibrated with the Simple MIDI card), the Turing machine's notes in the card's key, two octaves up from the root (-1V to +2V)
+    - id: PulseOut1
+      name: Lead Trigger
+      type: pulse
+      description: A 10ms trigger on every lead note
+    - id: PulseOut2
+      name: Turing Trigger
+      type: pulse
+      description: A 10ms trigger with each Turing step whose bit is 1, as on the original Turing Machine
+
+controls:
+  switch:
+    up:
+      name: Levels
+      description: Main = Turing machine, X = melody level, Y = drone level. Time, Sun and Water hold their values
+    middle:
+      name: Play
+      description: Main = Time, X = Sun, Y = Water
+    down:
+      name: Play
+      description: Same knob jobs as middle (Down is momentary)
+    tap:
+      name: New Key
+      description: Tap down for a new key -- every melodic note stops, the drone glides to the new root, then the new key begins
+  knobs:
+    - main: { name: Time, description: "First light (04:17) to two hours after sunrise (08:21). The morning moves only when this (or CV In 1) does. Picks up only after passing its last value" }
+      x: { name: Sun, description: "The loop's feedback and drive: gentle at left, long tails at the centre, burning to the right. Picks up only after passing its last value" }
+      y: { name: Water, description: "Open in the centre; left drowns (lowpass), right thins (low-cut). Plus CV In 2. Crossing the centre never clicks. Picks up only after passing its last value" }
+    - when: { z: up }
+      main: { name: Turing Machine, description: "Fully anticlockwise a locked pendulum (1-8-1), random at the centre, fully clockwise a locked loop playing forwards; in between it slips now and then. Picks up only after passing its last value" }
+      x: { name: Melody Level, description: Picks up only after passing its last value }
+      y: { name: Drone Level, description: Picks up only after passing its last value }
+  leds:
+    - display: list
+      items:
+        - { id: LED4, name: Sun meter (bottom left), description: "The six LEDs fill from the bottom row to the top as the sun climbs; all glow together as it crosses the horizon" }
+        - { id: LED5, name: Sun meter (bottom right) }
+        - { id: LED2, name: Sun meter (middle left) }
+        - { id: LED3, name: Sun meter (middle right) }
+        - { id: LED0, name: Sun meter (top left) }
+        - { id: LED1, name: Sun meter (top right) }
+    - when: { z: up }
+      display: list
+      items:
+        - { id: LED0, name: Turing pendulum (top left), description: "Brightens as the Turing machine locks towards the pendulum; dark at the centre (random)" }
+        - { id: LED1, name: Turing forwards (top right), description: "Brightens as the Turing machine locks towards forwards" }
+        - { id: LED2, name: Melody level (middle row) }
+        - { id: LED4, name: Drone level (bottom row) }

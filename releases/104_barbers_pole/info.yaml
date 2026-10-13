@@ -1,7 +1,7 @@
 draft: false
 Name: Barber's Pole
 short-description: "An infinite glissando — Shepard-Risset tones that rise or fall forever, as sine tones or by octave-stacking live audio"
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: "1.0.0"
 Status: Released
@@ -22,7 +22,7 @@ uf2:
 tags:
   - effect
   - synth
-  - pitch-shift
+  - pitch-shifter
   - shepard
   - barbers-pole
   - glissando

@@ -136,3 +136,9 @@ rather than turning the quiet ambience into noise.
 The integer reverb implementation is based on Jon Dattorro's reverb design and
 the [el-visio/dattorro-verb](https://github.com/el-visio/dattorro-verb)
 reference implementation; the source retains its attribution comment.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.

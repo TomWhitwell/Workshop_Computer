@@ -1,0 +1,81 @@
+cmake_minimum_required(VERSION 3.13)
+
+# Keep the full redistribution notices beside generated firmware outputs.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/NOTICE.txt"
+    "${CMAKE_CURRENT_BINARY_DIR}/NOTICE.txt" COPYONLY)
+
+# ============================================================
+# Raspberry Pi Pico SDK
+# ============================================================
+
+include(${CMAKE_CURRENT_LIST_DIR}/pico_sdk_import.cmake)
+
+# ============================================================
+# Project
+# ============================================================
+
+project(BitPhase C CXX ASM)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+
+# ============================================================
+# Initialise Pico SDK
+# ============================================================
+
+pico_sdk_init()
+
+# ============================================================
+# Executable
+# ============================================================
+
+add_executable(BitPhase
+    BitPhase.cpp
+)
+
+# ============================================================
+# Include paths
+# ============================================================
+
+target_include_directories(BitPhase PRIVATE
+    .
+)
+
+# ============================================================
+# Libraries required by ComputerCard
+# ============================================================
+
+target_link_libraries(BitPhase
+    pico_stdlib
+    pico_unique_id
+
+    hardware_adc
+    hardware_pwm
+    hardware_dma
+    hardware_spi
+    hardware_clocks
+    hardware_flash
+    hardware_i2c
+)
+
+# Stable restart on Workshop Computer hardware.
+target_compile_definitions(BitPhase PRIVATE
+    PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64
+)
+
+# ============================================================
+# Optimisation
+# ============================================================
+
+target_compile_options(BitPhase PRIVATE
+    -O3
+    -ffast-math
+)
+
+pico_set_binary_type(BitPhase copy_to_ram)
+
+# ============================================================
+# Create UF2/BIN/etc
+# ============================================================
+
+pico_add_extra_outputs(BitPhase)

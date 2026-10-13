@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="540" height="640" viewBox="0 0 540 640" font-family="Arial, Helvetica, sans-serif">
+  <title>Morse code tree</title>
+
+  <rect width="540" height="640" fill="#ffffff"/>
+
+  <!-- connectors -->
+  <g stroke="#17191c" stroke-width="3">
+    <line x1="91"  y1="73"  x2="122" y2="73"/>
+    <line x1="168" y1="73"  x2="205" y2="73"/>
+    <line x1="251" y1="73"  x2="305" y2="73"/>
+    <line x1="331" y1="73"  x2="375" y2="73"/>
+    <line x1="401" y1="73"  x2="427" y2="73"/>
+    <line x1="453" y1="73"  x2="487" y2="73"/>
+    <line x1="145" y1="86"  x2="145" y2="142"/>
+    <line x1="145" y1="168" x2="145" y2="219"/>
+    <line x1="80"  y1="155" x2="132" y2="155"/>
+    <line x1="228" y1="86"  x2="228" y2="305"/>
+    <line x1="228" y1="331" x2="228" y2="447"/>
+    <line x1="228" y1="473" x2="228" y2="557"/>
+    <line x1="80"  y1="318" x2="121" y2="318"/>
+    <line x1="167" y1="318" x2="215" y2="318"/>
+    <line x1="144" y1="331" x2="144" y2="377"/>
+    <line x1="167" y1="460" x2="215" y2="460"/>
+    <line x1="318" y1="86"  x2="318" y2="298"/>
+    <line x1="318" y1="338" x2="318" y2="440"/>
+    <line x1="318" y1="480" x2="318" y2="552"/>
+    <line x1="331" y1="318" x2="375" y2="318"/>
+    <line x1="401" y1="318" x2="427" y2="318"/>
+    <line x1="331" y1="460" x2="375" y2="460"/>
+    <line x1="388" y1="86"  x2="388" y2="133"/>
+    <line x1="388" y1="173" x2="388" y2="219"/>
+    <line x1="440" y1="86"  x2="440" y2="133"/>
+  </g>
+
+  <!-- dashes (rectangles) -->
+  <g fill="#c9def2" stroke="#17191c" stroke-width="3">
+    <rect x="45"  y="60"  width="46" height="26"/>
+    <rect x="122" y="60"  width="46" height="26"/>
+    <rect x="205" y="60"  width="46" height="26"/>
+    <rect x="34"  y="142" width="46" height="26"/>
+    <rect x="375" y="133" width="26" height="40"/>
+    <rect x="427" y="133" width="26" height="40"/>
+    <rect x="34"  y="305" width="46" height="26"/>
+    <rect x="121" y="305" width="46" height="26"/>
+    <rect x="305" y="298" width="26" height="40"/>
+    <rect x="121" y="447" width="46" height="26"/>
+    <rect x="305" y="440" width="26" height="40"/>
+    <rect x="305" y="552" width="26" height="40"/>
+  </g>
+
+  <!-- dots (circles) -->
+  <g fill="#c9def2" stroke="#17191c" stroke-width="3">
+    <circle cx="318" cy="73"  r="13"/>
+    <circle cx="388" cy="73"  r="13"/>
+    <circle cx="440" cy="73"  r="13"/>
+    <circle cx="500" cy="73"  r="13"/>
+    <circle cx="145" cy="155" r="13"/>
+    <circle cx="145" cy="232" r="13"/>
+    <circle cx="388" cy="232" r="13"/>
+    <circle cx="228" cy="318" r="13"/>
+    <circle cx="388" cy="318" r="13"/>
+    <circle cx="440" cy="318" r="13"/>
+    <circle cx="144" cy="390" r="13"/>
+    <circle cx="228" cy="460" r="13"/>
+    <circle cx="228" cy="570" r="13"/>
+    <circle cx="388" cy="460" r="13"/>
+  </g>
+
+  <!-- root marker -->
+  <g stroke="#17191c" stroke-width="8">
+    <line x1="263" y1="58" x2="293" y2="88"/>
+    <line x1="293" y1="58" x2="263" y2="88"/>
+  </g>
+
+  <!-- labels -->
+  <g fill="#17191c" font-size="19" font-weight="bold" text-anchor="middle">
+    <text x="68"  y="48">O</text>
+    <text x="145" y="48">M</text>
+    <text x="228" y="48">T</text>
+    <text x="318" y="48">E</text>
+    <text x="388" y="48">I</text>
+    <text x="440" y="48">S</text>
+    <text x="500" y="48">H</text>
+    <text x="57"  y="190">Q</text>
+    <text x="57"  y="299">Y</text>
+    <text x="144" y="299">K</text>
+    <text x="388" y="351">R</text>
+    <text x="440" y="351">L</text>
+    <text x="228" y="603">B</text>
+    <text x="318" y="614">J</text>
+  </g>
+  <g fill="#17191c" font-size="19" font-weight="bold">
+    <text x="163" y="161">G</text>
+    <text x="163" y="238">Z</text>
+    <text x="409" y="238">F</text>
+    <text x="365" y="159" text-anchor="end">U</text>
+    <text x="463" y="159">V</text>
+    <text x="246" y="324">N</text>
+    <text x="295" y="324" text-anchor="end">A</text>
+    <text x="162" y="396">C</text>
+    <text x="111" y="466" text-anchor="end">X</text>
+    <text x="246" y="466">D</text>
+    <text x="295" y="466" text-anchor="end">W</text>
+    <text x="409" y="466">P</text>
+  </g>
+</svg>

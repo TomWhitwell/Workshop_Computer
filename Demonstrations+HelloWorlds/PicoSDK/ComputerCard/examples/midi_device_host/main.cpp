@@ -41,15 +41,24 @@ public:
 		
 		counter = 0;
 		powerState = Unsupported;
-		
-		// Start the second core
+	}
+
+	// Start the second core.
+	//
+	// Call this from main() after the card is constructed, and before Run().
+	// We don't launch core1 from the constructor: ComputerCard::ThisPtr() is
+	// only set once Run() is called, but core1 needs the instance as soon as
+	// it starts, so we stash a pointer to it here instead.
+	void StartUSBCore()
+	{
+		instance = this;
 		multicore_launch_core1(core1);
 	}
 
 	// Boilerplate to call member function as second core
 	static void core1()
 	{
-		((MIDIDeviceHost *)ThisPtr())->USBCore();
+		instance->USBCore();
 	}
 
 
@@ -210,10 +219,13 @@ private:
 	// when the board is unsupported
 	volatile USBPowerState_t powerState;
 	bool isUSBMIDIHost;
+
+	static MIDIDeviceHost *instance;
 };
 
 uint8_t MIDIDeviceHost::device_connected;
 uint8_t MIDIDeviceHost::midi_dev_addr;
+MIDIDeviceHost *MIDIDeviceHost::instance = nullptr;
 
 
 // Four callback functions that rppicomidi/usb_midi_host uses
@@ -284,6 +296,7 @@ int main()
 	set_sys_clock_khz(144000, true);
 
 	MIDIDeviceHost mdh;
+	mdh.StartUSBCore();
 	mdh.Run();
 }
 

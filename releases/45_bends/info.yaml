@@ -1,6 +1,6 @@
 Name: Bends
 short-description: 6-Stage Stereo Multi-FX, Glitch Looper & Digital Degradation Engine
-Language: C++
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Vincent Maurer
 Version: 1.0.0
 Status: Released
@@ -20,7 +20,7 @@ tags:
   - looper
   - filter
   - chorus
-  - bitcrush
+  - bitcrusher
 
 summary: |
   Bends is a 6-stage stereo multi-effects processor, live stutter looper, and signal degradation engine. Inspired by 90s circuit-bent rack units, Bends turns memory corruption, bitwise XOR data bus shorting, and lossy compression into an instrument spanning clean stereo chorus and reverbs to mangled breakbeat slicing, internal Turing Machine pitch sequences, and generative S&H CV.

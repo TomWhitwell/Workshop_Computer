@@ -11,7 +11,7 @@ summary: |
   Z switch selects mode: Up = Play, Middle = Stop, Down (hold) = Edit. While held down,
   turning a knob selects that knob's edit-mode parameter (method / clock divide / scale);
   releasing Z returns to Play/Stop with the new parameter applied.
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: James Saunders
 Version: 1.0.0
 Status: Released

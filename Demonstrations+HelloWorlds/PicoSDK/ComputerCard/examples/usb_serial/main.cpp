@@ -32,16 +32,24 @@ public:
 	}
 };
 
-// Core 1 is used to launch the ComputerCard progrma
+// The card object, constructed on core 0 in main() and run here on core 1.
+USBSerial *card = nullptr;
+
+// Core 1 is used to launch the ComputerCard program
 void core1()
 {
-	USBSerial usbs;
-	usbs.Run();
+	card->Run();
 }
 
 int main()
 {
 	set_sys_clock_khz(144000, true);
+
+	// Construct the card here, on core 0, so that it exists before core 1
+	// starts running it. This has to come after set_sys_clock_khz, since the
+	// constructor sets up the SPI and I2C clock dividers from the system clock.
+	static USBSerial usbs;
+	card = &usbs;
 
 	// Sleep commands not essential, but give some serial terminal programs
 	// time to notice the new virtual COM port / TTY, and connect to it.
