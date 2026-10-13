@@ -13,6 +13,9 @@ Status: Beta
 Editor: web
 date-created: 2026-08-08
 date-updated: 2026-10-13
+contact: 
+  social: 
+    discord: dang1t
 
 # Vendors, unmodified and under their own MIT terms:
 #   usb_midi_host.c/.h + usb_midi_host_app_driver.c
