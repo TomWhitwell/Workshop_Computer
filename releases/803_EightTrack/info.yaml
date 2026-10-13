@@ -67,11 +67,11 @@ panel:
     - id: AudioIn1
       name: Left in
       type: audio
-      description: Left input, recorded onto the tape.
+      description: Left input, recorded onto the tape. With nothing in Audio In 2, it feeds both sides.
     - id: AudioIn2
       name: Right in
       type: audio
-      description: Right input, recorded onto the tape.
+      description: Right input, recorded onto the tape. Unpatched, it takes a copy of Audio In 1.
     - id: CVIn1
       name: Vol / fb
       type: cv

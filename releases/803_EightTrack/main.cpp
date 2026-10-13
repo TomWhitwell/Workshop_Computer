@@ -63,7 +63,8 @@
 //               wins and taps are ignored.
 //
 // Inputs
-//   Audio In 1, 2  left and right in
+//   Audio In 1, 2  left and right in; with only Audio In 1 patched, it
+//               feeds both sides
 //   CV In 1     added to X: +5V adds x1 to volume and feedback
 //   CV In 2     added to Y: +5V adds x1 to pan and width
 //   Pulse In 1  clock, one pulse a beat.  Plugging a jack in syncs the
@@ -220,7 +221,8 @@ public:
 	virtual void ProcessSample()
 	{
 		int32_t inL = int32_t(AudioIn1()) << 4;
-		int32_t inR = int32_t(AudioIn2()) << 4;
+		// Mono in: with only Audio In 1 patched, it feeds both sides
+		int32_t inR = (Connected(Audio1) && Disconnected(Audio2)) ? inL : int32_t(AudioIn2()) << 4;
 		bool odd = (sampleCount++ & 1) != 0;
 
 		// Clock on Pulse In 1, followed only while a jack is in it

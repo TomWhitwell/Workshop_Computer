@@ -81,7 +81,7 @@ pulse; until then it uses the last tempo it had (120 bpm at power-up).
 
 | Jack | Function |
 |---|---|
-| Audio In 1, 2 | Left and right in |
+| Audio In 1, 2 | Left and right in. With only Audio In 1 patched, it feeds both sides (mono in) |
 | CV In 1 | Added to X: +5 V adds ×1 to every head's volume and feedback |
 | CV In 2 | Added to Y: +5 V adds ×1 to every head's pan and width |
 | Pulse In 1 | Clock, one pulse a beat. Plugging a jack in syncs the heads |
