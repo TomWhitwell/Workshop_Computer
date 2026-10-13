@@ -171,6 +171,7 @@
         <div class="readout" id="ro-freeze-box"><div class="k">Freeze</div><div class="v" id="ro-freeze">-</div><div class="sub" id="ro-freeze-sub"></div></div>
         <div class="readout"><div class="k">Levels</div>
           <div class="meter"><span>In</span><span class="bar"><i id="m-in"></i></span><span>Out</span><span class="bar"><i id="m-out"></i></span></div>
+          <div class="sub" id="ro-load" title="The longest the card's audio took over one sample lately, as a share of the time it has. Over 100% means samples are being missed (heard as digital noise)."></div>
         </div>
       </div>
       <canvas id="tape" aria-label="The tape: each head at its delay, its height the volume, the line above it the pan and width, the arc beneath it the feedback"></canvas>
@@ -321,7 +322,7 @@ const state = {
   freeze: false,               // this page's freeze button
   live: { synced: false, clockJack: false, tap: false, frozen: false, muOnCard: false, held: false,
           ratio: 4, beatMs: 500, multOct: 0, macroX: 1, macroY: 1, times: new Array(NH).fill(0),
-          inL: 0, inR: 0, outL: 0, outR: 0 },
+          inL: 0, inR: 0, outL: 0, outR: 0, load: -1 },
 };
 const link = { access: null, card: { in: null, out: null }, muIns: [], muOuts: [], cardOnline: false,
                sysexBuf: [], sysexOn: false, lastStatus: 0, pingTimer: 0 };
@@ -488,6 +489,8 @@ function drawReadouts() {
   $('ro-freeze-box').classList.toggle('frozen', live && L.frozen);
   $('m-in').style.width = (live ? Math.max(L.inL, L.inR) / 127 * 100 : 0) + '%';
   $('m-out').style.width = (live ? Math.max(L.outL, L.outR) / 127 * 100 : 0) + '%';
+  $('ro-load').textContent = live && L.load >= 0 ? 'CPU ' + (L.load >= 127 ? '127+' : L.load) + '%' : '';
+  $('ro-load').style.color = live && L.load > 90 ? cssVar('--bad') : '';
   $('btn-freeze').classList.toggle('on', state.freeze || (live && L.frozen));
 }
 
@@ -828,6 +831,7 @@ function handleCardMessage(m) {
     const pg = clamp(p[28], 0, PAGES - 1);
     if (pg !== state.page) { state.page = pg; reengage(); }
     state.slot = p[29];
+    L.load = p.length >= 31 ? p[30] : -1;
     link.lastStatus = performance.now();
     requestRender();
   } else if (cmd === CMD.SLOTS && p.length >= NSLOTS + NSLOTS * NVALUES) {

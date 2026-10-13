@@ -39,7 +39,7 @@
 //              slot   last slot saved or loaded, 0-7, or 127 for none
 //              maxms  the longest delay the tape holds, in ms
 //   STATUS     07 flags ratio beat(2) mult(2) macroX macroY
-//                 times[8](2 each) inL inR outL outR page slot
+//                 times[8](2 each) inL inR outL outR page slot load
 //              flags   bit 0 tempo synced, bit 1 a jack is in Pulse In 1,
 //                      bit 2 synced to tap tempo, bit 3 frozen, bit 4 8mu
 //                      on the card, bit 5 the switch is held down
@@ -52,6 +52,9 @@
 //              macroY  Y knob + CV In 2, the same
 //              times   each head's delay right now, in ms (it glides)
 //              in/out  peak levels, 0-127
+//              load    the longest the audio took over a sample lately, as a
+//                      percentage of the time a sample has (over 100 means
+//                      samples are being missed)
 //   SLOTS      0F valid[8] values[8][48]
 
 #ifndef EIGHTTRACK_SYSEX_H
@@ -161,7 +164,7 @@ inline int32_t Get14(const uint8_t *in)
 }
 
 static constexpr int kStateLen = 4 + 5 + kNumValues + 1;
-static constexpr int kStatusLen = 4 + 2 + 2 + 2 + 2 + 2 * kHeads + 4 + 2 + 1;
+static constexpr int kStatusLen = 4 + 2 + 2 + 2 + 2 + 2 * kHeads + 4 + 3 + 1;
 static constexpr int kSlotsLen = 4 + kSlots + kSlots * kNumValues + 1;
 
 } // namespace sysex

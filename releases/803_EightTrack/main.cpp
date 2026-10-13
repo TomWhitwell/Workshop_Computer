@@ -104,6 +104,7 @@
 #include "sysex.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
+#include "hardware/structs/systick.h"
 #include <string.h>
 #include <math.h>
 
@@ -189,6 +190,11 @@ public:
 
 		EnableNormalisationProbe();
 
+		// SysTick counting CPU cycles, for the load meter
+		systick_hw->rvr = 0x00FFFFFF;
+		systick_hw->cvr = 0;
+		systick_hw->csr = 0x5;
+
 		// Give the USB power circuitry time to settle, then pick the USB
 		// mode once: host if the port is supplying power (an 8mu, or nothing
 		// yet), device if a computer is (the web editor).  Boards older than
@@ -220,6 +226,7 @@ public:
 
 	virtual void ProcessSample()
 	{
+		uint32_t t0 = systick_hw->cvr;
 		int32_t inL = int32_t(AudioIn1()) << 4;
 		// Mono in: with only Audio In 1 patched, it feeds both sides
 		int32_t inR = (Connected(Audio1) && Disconnected(Audio2)) ? inL : int32_t(AudioIn2()) << 4;
@@ -268,15 +275,32 @@ public:
 			else tiltOct = TiltToOct(webPitch);
 		}
 
+		// The tape runs at 24kHz, half the sample rate, and its work is
+		// shared over each pair of samples so that neither has too much: the
+		// first reads heads 1-4, the second heads 5-8 and records a frame.
+		// Every head's delay still moves on every sample.
+		for (int h = 0; h < kHeads; h++) headD[h] += uint32_t(headInc[h]);
+
+		// Input, low-passed at 48kHz and averaged down to one frame a pair
+		aaL[0] += ((inL - aaL[0]) * kAACoef + 2048) >> 12;
+		aaL[1] += ((aaL[0] - aaL[1]) * kAACoef + 2048) >> 12;
+		aaR[0] += ((inR - aaR[0]) * kAACoef + 2048) >> 12;
+		aaR[1] += ((aaR[0] - aaR[1]) * kAACoef + 2048) >> 12;
+
 		// Heads.  Each reads the tape at its delay, between frames, then
 		// gets its width, pan, volume and feedback.
-		uint32_t wq = (uint32_t(writePos) << 16) | (odd ? 0x8000u : 0u);
-		int32_t wetL = 0, wetR = 0, fbL = 0, fbR = 0;
-		uint32_t active = activeMask;
-		for (int h = 0; h < kHeads; h++)
+		if (!odd)
 		{
-			uint32_t d = headD[h] += uint32_t(headInc[h]);
+			prevL = aaL[1];
+			prevR = aaR[1];
+			accWL = accWR = accFL = accFR = 0;
+		}
+		uint32_t wq = uint32_t(writePos) << 16;
+		uint32_t active = activeMask;
+		for (int h = odd ? kHeads / 2 : 0, e = h + kHeads / 2; h < e; h++)
+		{
 			if (!(active & (1u << h))) continue;
+			uint32_t d = headD[h];
 			uint32_t rp = wq >= d ? wq - d : wq + kTapeQ - d;
 			uint32_t i0 = rp >> 16;
 			uint32_t i1 = i0 + 1;
@@ -291,83 +315,79 @@ public:
 			int32_t side = (((l - r) >> 1) * headWidth[h]) >> 12;
 			l = mid + side;
 			r = mid - side;
-			wetL += (l * gainWL[h]) >> 12;
-			wetR += (r * gainWR[h]) >> 12;
-			fbL += (l * gainFL[h] + 2048) >> 12;
-			fbR += (r * gainFR[h] + 2048) >> 12;
+			accWL += (l * gainWL[h]) >> 12;
+			accWR += (r * gainWR[h]) >> 12;
+			accFL += (l * gainFL[h] + 2048) >> 12;
+			accFR += (r * gainFR[h] + 2048) >> 12;
 		}
 
-		// Record head
-		if (frozen)
+		if (odd)
 		{
-			// The tape loops: each frame is the one a loop's length before
-			if (odd)
+			// Record head
+			if (frozen)
 			{
+				// The tape loops: each frame is the one a loop's length before
 				int src = writePos - freezeLength;
 				if (src < 0) src += kTapeFrames;
 				gTape[writePos * 3] = gTape[src * 3];
 				gTape[writePos * 3 + 1] = gTape[src * 3 + 1];
 				gTape[writePos * 3 + 2] = gTape[src * 3 + 2];
-				if (++writePos >= kTapeFrames) writePos = 0;
-			}
-		}
-		else
-		{
-			// Feedback through the filters
-			fbL = Clip(fbL, 131072);
-			fbR = Clip(fbR, 131072);
-			if (lpOn)
-			{
-				fbL = OnePole(lpL[1], OnePole(lpL[0], fbL, lpCoef), lpCoef);
-				fbR = OnePole(lpR[1], OnePole(lpR[0], fbR, lpCoef), lpCoef);
-			}
-			if (hpOn)
-			{
-				fbL -= OnePole(hpL[0], fbL, hpCoef);
-				fbL -= OnePole(hpL[1], fbL, hpCoef);
-				fbR -= OnePole(hpR[0], fbR, hpCoef);
-				fbR -= OnePole(hpR[1], fbR, hpCoef);
-			}
-
-			// Hiss, a little brighter than white
-			int32_t hissL = 0, hissR = 0;
-			if (hissLevel)
-			{
-				int32_t nL = int32_t(NextRandom()) >> 16, nR = int32_t(NextRandom()) >> 16;
-				hissL = ((nL - hissPrevL) * hissLevel) >> 17;
-				hissR = ((nR - hissPrevR) * hissLevel) >> 17;
-				hissPrevL = nL;
-				hissPrevR = nR;
-			}
-
-			// Onto the tape: dropouts, then saturation
-			int32_t recL = (((inL + fbL) * dropGain) >> 12) + hissL;
-			int32_t recR = (((inR + fbR) * dropGain) >> 12) + hissR;
-			recL = (Tanh(Clip((recL * drive) >> 8, 0x7FFFFF)) * invDrive + 32768) >> 16;
-			recR = (Tanh(Clip((recR * drive) >> 8, 0x7FFFFF)) * invDrive + 32768) >> 16;
-
-			// Down to 24kHz: low-pass, then the average of each pair.  Every
-			// step in the loop rounds to nearest, as rounding down would
-			// circulate as a small DC offset.
-			aaL[0] += ((recL - aaL[0]) * kAACoef + 2048) >> 12;
-			aaL[1] += ((aaL[0] - aaL[1]) * kAACoef + 2048) >> 12;
-			aaR[0] += ((recR - aaR[0]) * kAACoef + 2048) >> 12;
-			aaR[1] += ((aaR[0] - aaR[1]) * kAACoef + 2048) >> 12;
-			if (odd)
-			{
-				WriteFrame(writePos, (aaL[1] + prevL + 1) >> 1, (aaR[1] + prevR + 1) >> 1);
-				if (++writePos >= kTapeFrames) writePos = 0;
 			}
 			else
 			{
-				prevL = aaL[1];
-				prevR = aaR[1];
+				// Feedback through the filters
+				int32_t fbL = Clip(accFL, 131072);
+				int32_t fbR = Clip(accFR, 131072);
+				if (lpOn)
+				{
+					fbL = OnePole(lpL[1], OnePole(lpL[0], fbL, lpCoef), lpCoef);
+					fbR = OnePole(lpR[1], OnePole(lpR[0], fbR, lpCoef), lpCoef);
+				}
+				if (hpOn)
+				{
+					fbL -= OnePole(hpL[0], fbL, hpCoef);
+					fbL -= OnePole(hpL[1], fbL, hpCoef);
+					fbR -= OnePole(hpR[0], fbR, hpCoef);
+					fbR -= OnePole(hpR[1], fbR, hpCoef);
+				}
+
+				// Hiss, a little brighter than white
+				int32_t hissL = 0, hissR = 0;
+				if (hissLevel)
+				{
+					int32_t nL = int32_t(NextRandom()) >> 16, nR = int32_t(NextRandom()) >> 16;
+					hissL = ((nL - hissPrevL) * hissLevel) >> 17;
+					hissR = ((nR - hissPrevR) * hissLevel) >> 17;
+					hissPrevL = nL;
+					hissPrevR = nR;
+				}
+
+				// Onto the tape: the input's frame (the average of the pair,
+				// rounded to nearest, as rounding down would circulate as a
+				// small DC offset), dropouts, then saturation
+				int32_t frL = (aaL[1] + prevL + 1) >> 1, frR = (aaR[1] + prevR + 1) >> 1;
+				int32_t recL = (((frL + fbL) * dropGain) >> 12) + hissL;
+				int32_t recR = (((frR + fbR) * dropGain) >> 12) + hissR;
+				recL = (Tanh(Clip((recL * drive) >> 8, 0x7FFFFF)) * invDrive + 32768) >> 16;
+				recR = (Tanh(Clip((recR * drive) >> 8, 0x7FFFFF)) * invDrive + 32768) >> 16;
+				WriteFrame(writePos, recL, recR);
 			}
+			if (++writePos >= kTapeFrames) writePos = 0;
+
+			// The new wet frame; out at 48kHz, halfway from the last
+			int32_t w0 = Clip(accWL, 262143), w1 = Clip(accWR, 262143);
+			wetL = (wetPrevL + w0) >> 1;
+			wetR = (wetPrevR + w1) >> 1;
+			wetPrevL = w0;
+			wetPrevR = w1;
+		}
+		else
+		{
+			wetL = wetPrevL;
+			wetR = wetPrevR;
 		}
 
 		// Out: dry and wet
-		wetL = Clip(wetL, 262143);
-		wetR = Clip(wetR, 262143);
 		int32_t outL = SoftClip((inL * dryGain + wetL * wetGain) >> 12);
 		int32_t outR = SoftClip((inR * dryGain + wetR * wetGain) >> 12);
 		AudioOut1(int16_t(Clip((outL + 8) >> 4, 2047)));
@@ -389,6 +409,10 @@ public:
 		if (beatTrig) beatTrig--;
 		PulseOut1(beatTrig > 0);
 		PulseOut2(frozen);
+
+		// How long this sample took, in CPU cycles (SysTick counts down)
+		uint32_t took = (t0 - systick_hw->cvr) & 0xFFFFFF;
+		if (took > loadPeak) loadPeak = took;
 	}
 
 private:
@@ -403,7 +427,7 @@ private:
 	static constexpr int32_t kFreeBase = 12000;
 	// Clock periods followed, in samples: 50ms to 4s a beat
 	static constexpr int32_t kMinBeat = 2400, kMaxBeat = 4 * 48000;
-	// 2 x one-pole at ~10kHz, before the tape's 24kHz, Q12
+	// 2 x one-pole at ~10kHz on the input, before the tape's 24kHz, Q12
 	static constexpr int32_t kAACoef = 2990;
 
 	// Settings, stored as raw fader values 0-4064.  Written by core1 in
@@ -437,6 +461,8 @@ private:
 	uint32_t sampleCount = 0;
 	int32_t prevL = 0, prevR = 0;
 	int32_t aaL[2] = {}, aaR[2] = {};
+	int32_t accWL = 0, accWR = 0, accFL = 0, accFR = 0; // heads, over a pair
+	int32_t wetL = 0, wetR = 0, wetPrevL = 0, wetPrevR = 0;
 	bool frozen = false;
 	int freezeLength = 24000;
 
@@ -498,6 +524,14 @@ private:
 	int controlCount = 0;
 	uint32_t rng = 0x2545F491;
 	uint32_t exp2Tab[257];        // 2^(i/256) in Q30
+
+	// CPU load: the longest sample, in cycles, since the editor last read
+	// it, and the time a sample has (200MHz / 48kHz)
+	uint32_t loadPeak = 0;
+	static constexpr uint32_t kSampleCycles = 200000000 / 48000;
+	volatile uint8_t stLoad = 0;
+	uint32_t loadHold = 0;
+	int loadTicks = 0;
 
 	// Levels, collected each control period
 	int32_t peakInL = 0, peakInR = 0, peakOutL = 0, peakOutR = 0, peakWet = 0;
@@ -635,10 +669,10 @@ private:
 		return 0;
 	}
 
-	// One-pole coefficient (Q16) for a cutoff in Hz at 48kHz
+	// One-pole coefficient (Q16) for a cutoff in Hz at the tape's 24kHz
 	static int32_t CoefFor(float hz)
 	{
-		float a = 1.0f - expf(-6.2831853f * hz / 48000.0f);
+		float a = 1.0f - expf(-6.2831853f * hz / 24000.0f);
 		return int32_t(a * 65536.0f);
 	}
 
@@ -929,6 +963,17 @@ private:
 		stInR = Level7(lvInR);
 		stOutL = Level7(lvOutL);
 		stOutR = Level7(lvOutR);
+		// Peak load over about a third of a second, as a percentage of a
+		// sample's time
+		if (loadPeak > loadHold) loadHold = loadPeak;
+		loadPeak = 0;
+		if (++loadTicks >= 500)
+		{
+			uint32_t pc = (loadHold * 100) / kSampleCycles;
+			stLoad = uint8_t(pc > 127 ? 127 : pc);
+			loadHold = 0;
+			loadTicks = 0;
+		}
 
 		// Computer LEDs: the page (or the beat and levels, with no 8mu or
 		// editor), the input, and the connection
@@ -1365,6 +1410,7 @@ public:
 		out[n++] = stOutR;
 		out[n++] = uint8_t(page);
 		out[n++] = store.lastSlot < sysex::kSlots ? store.lastSlot : sysex::kNoSlot;
+		out[n++] = stLoad;
 		out[n++] = 0xF7;
 		return n;
 	}
