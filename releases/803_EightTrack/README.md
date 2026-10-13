@@ -21,7 +21,7 @@ The eight faders are the eight heads. The buttons act **when you let go**:
 
 | Button | First page | Second page (press again) |
 |---|---|---|
-| A | **Time**: each head's delay | |
+| A | **Time**: each head's delay | **Reverse**: each head forwards or backwards |
 | B | **Volume**: each head's level | |
 | C | **Pan**: each head's position | **Width**: each head's stereo width |
 | D | **Feedback**: how much of each head goes back onto the tape | **FX**: filter and tape (see below) |
@@ -38,6 +38,17 @@ it to (or past) the stored value, so nothing jumps. The 8mu's LEDs show the
 stored values on the current page. Tilting the 8mu forwards or back bends
 every head's time by up to an octave, past a dead zone of about 15°, like a
 hand on the reel.
+
+### Reverse page (A, pressed twice)
+
+A fader in the top half plays its head **backwards**; in the bottom half,
+forwards. A reversed head plays the tape back in slices as long as the head's
+time, each slice backwards, arriving on average about one head-time later.
+That's the classic reverse-delay sound. A short fade (4 ms) at each slice
+boundary hides the join. Wow and flutter don't apply to reversed heads.
+
+Presets saved before the Reverse page existed load with every head
+forwards.
 
 ### FX page (D, pressed twice)
 

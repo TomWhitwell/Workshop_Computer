@@ -6,19 +6,21 @@
 // (7D is the MIDI 'non-commercial' manufacturer ID, 45 is 'E').
 // All values are 7-bit; wider values are sent as two bytes, high 7 bits first.
 //
-// Settings are in 8mu fader units, 0-127, sent page by page (6 pages of 8,
+// Settings are in 8mu fader units, 0-127, sent page by page (7 pages of 8,
 // one value per fader), numbered
-//   0 TIME   1 VOLUME   2 PAN   3 WIDTH   4 FEEDBACK   5 FX
-// On the 8mu, A is page 0, B 1, C 2 then 3, and D 4 then 5.
+//   0 TIME   1 VOLUME   2 PAN   3 WIDTH   4 FEEDBACK   5 FX   6 REVERSE
+// On the 8mu, A is page 0 then 6, B 1, C 2 then 3, and D 4 then 5.
+// REVERSE plays a head backwards from 64 up, forwards below.  (Version 1
+// had no REVERSE page, and 48 values.)
 // PAN is two-sided, 64 the centre.  The eight FX values are
 //   0 low-pass   1 high-pass   2 saturation   3 hiss
 //   4 wow        5 flutter     6 dropouts     7 mix (0 dry, 64 both, 127 wet)
-// A preset is the 48 values, page 0 first.
+// A preset is the 56 values, page 0 first.
 //
 // Web -> card
 //   HELLO      01                         card replies with STATE
 //   SET        03 page head value         one value (head 0-7)
-//   SET_ALL    04 version values[48]      every value
+//   SET_ALL    04 version values[56]      every value
 //   PAGE       05 page                    page shown on the Computer's LEDs
 //   RESET      06                         default settings; card replies STATE
 //   MOTION     08 pitch(2) roll(2)        8mu tilt, each 0-4095, 2048 level
@@ -30,12 +32,12 @@
 //                                         the card's flash
 //   LOAD       0D slot                    load slot 0-7; card replies STATE
 //   GET_SLOTS  0E                         card replies SLOTS
-//   STORE      10 slot values[48]         write a preset into slot 0-7
+//   STORE      10 slot values[56]         write a preset into slot 0-7
 //                                         without loading it
 //   ERASE      11 slot                    empty slot 0-7
 //
 // Card -> web
-//   STATE      02 version page slot maxms(2) values[48]
+//   STATE      02 version page slot maxms(2) values[56]
 //              slot   last slot saved or loaded, 0-7, or 127 for none
 //              maxms  the longest delay the tape holds, in ms
 //   STATUS     07 flags ratio beat(2) mult(2) macroX macroY
@@ -55,7 +57,7 @@
 //              load    the longest the audio took over a sample lately, as a
 //                      percentage of the time a sample has (over 100 means
 //                      samples are being missed)
-//   SLOTS      0F valid[8] values[8][48]
+//   SLOTS      0F valid[8] values[8][56]
 
 #ifndef EIGHTTRACK_SYSEX_H
 #define EIGHTTRACK_SYSEX_H
@@ -67,9 +69,9 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x45;
-static constexpr uint8_t kVersion = 1;
+static constexpr uint8_t kVersion = 2;
 static constexpr int kHeads = 8;
-static constexpr int kPages = 6;
+static constexpr int kPages = 7;
 static constexpr int kNumValues = kPages * kHeads;
 static constexpr int kSlots = 8;
 static constexpr uint8_t kNoSlot = 127;

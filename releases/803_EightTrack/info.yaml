@@ -37,7 +37,8 @@ summary: |
   for each fader of a Music Thing 8mu.<br><br>
 
   Every head has its own time, volume, pan, stereo width and feedback. The
-  8mu's buttons choose the page: A is TIME, B VOLUME, C PAN (press again for
+  8mu's buttons choose the page: A is TIME (press again for REVERSE, which
+  plays a head backwards), B VOLUME, C PAN (press again for
   WIDTH) and D FEEDBACK (press again for FX). The feedback runs through a
   low-pass and high-pass filter and a tape model - saturation, hiss, wow,
   flutter and dropouts - on its way back onto the tape, all set from the FX

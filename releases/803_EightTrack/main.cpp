@@ -19,10 +19,14 @@
 //   Hold D + move a fader   save the settings as preset 1-8.
 //
 //             First page                    Second page
-//   Button A  TIME      each head's delay
+//   Button A  TIME      each head's delay       REVERSE  each head backwards
 //   Button B  VOLUME    each head's level
 //   Button C  PAN       each head's pan     WIDTH  each head's stereo width
 //   Button D  FEEDBACK  each head's feedback  FX   filter and tape (below)
+//
+// REVERSE: a fader in the top half plays its head backwards.  A reversed head
+// plays the tape in slices as long as the head's time, each one backwards,
+// arriving on average a head's time later, with a 4ms fade at each join.
 //
 // FX page, one setting a fader
 //   1 Low-pass   in the feedback path, 150Hz to 16kHz, off at the top
@@ -136,7 +140,15 @@ struct PresetStore
 	uint8_t values[sysex::kSlots][sysex::kNumValues];
 };
 static constexpr uint32_t kPresetMagic = 0x4B543845; // "E8TK"
-static constexpr uint8_t kPresetVersion = 1;
+static constexpr uint8_t kPresetVersion = 2;
+// Version 1, before the REVERSE page: read and carried over at power-up
+struct PresetStoreV1
+{
+	uint32_t magic;
+	uint8_t version, lastSlot, pad[2];
+	uint8_t valid[sysex::kSlots];
+	uint8_t values[sysex::kSlots][6 * 8];
+};
 static constexpr uint32_t kPresetOffset = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
 static constexpr int kPresetBytes = (sizeof(PresetStore) + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE * FLASH_PAGE_SIZE;
 static_assert(sizeof(PresetStore) <= FLASH_SECTOR_SIZE, "presets fit a sector");
@@ -147,7 +159,7 @@ class EightTrack : public ComputerCard
 public:
 	static constexpr int kHeads = 8;
 	// The numbers are the protocol's (and the web editor's presets')
-	enum Page {PageTime, PageVolume, PagePan, PageWidth, PageFeedback, PageFX, kPages};
+	enum Page {PageTime, PageVolume, PagePan, PageWidth, PageFeedback, PageFX, PageReverse, kPages};
 	enum Fx {FxLowPass, FxHighPass, FxSaturation, FxHiss, FxWow, FxFlutter, FxDropout, FxMix};
 	static_assert(sysex::kNumValues == kPages * kHeads, "protocol carries every page");
 
@@ -218,6 +230,7 @@ public:
 			{127, 127, 127, 127, 127, 127, 127, 127}, // width
 			{0, 0, 0, 60, 0, 0, 0, 0},            // feedback
 			{100, 12, 24, 6, 14, 10, 0, 64},      // fx
+			{0, 0, 0, 0, 0, 0, 0, 0},             // reverse
 		};
 		for (int p = 0; p < kPages; p++)
 			for (int h = 0; h < kHeads; h++)
@@ -280,6 +293,17 @@ public:
 		// first reads heads 1-4, the second heads 5-8 and records a frame.
 		// Every head's delay still moves on every sample.
 		for (int h = 0; h < kHeads; h++) headD[h] += uint32_t(headInc[h]);
+		uint32_t rev = revMask;
+		if (rev)
+		{
+			// Reversed heads: half a frame a sample through their slice
+			for (int h = 0; h < kHeads; h++)
+			{
+				if (!(rev & (1u << h))) continue;
+				revPhase[h] += 0x8000;
+				if (revPhase[h] >= revLen[h]) revPhase[h] = 0;
+			}
+		}
 
 		// Input, low-passed at 48kHz and averaged down to one frame a pair
 		aaL[0] += ((inL - aaL[0]) * kAACoef + 2048) >> 12;
@@ -301,6 +325,19 @@ public:
 		{
 			if (!(active & (1u << h))) continue;
 			uint32_t d = headD[h];
+			int32_t env = 4096;
+			if (rev & (1u << h))
+			{
+				// Backwards: through each slice the delay grows from
+				// nothing to twice the head's time, so the tape is read
+				// backwards at its own speed, a slice a head's time long
+				// played back after (on average) the head's time.  A short
+				// fade at each end of the slice hides the join.
+				uint32_t p = revPhase[h], q = revLen[h] - p;
+				d = (p << 1) + (uint32_t(kMinDelay) << 16);
+				int32_t x = int32_t((p < q ? p : q) >> 8);   // Q8 frames
+				env = x >= revFade[h] ? 4096 : (x * revFadeK[h]) >> 16;
+			}
 			uint32_t rp = wq >= d ? wq - d : wq + kTapeQ - d;
 			uint32_t i0 = rp >> 16;
 			uint32_t i1 = i0 + 1;
@@ -311,6 +348,11 @@ public:
 			ReadFrame(i1, l1, r1);
 			int32_t l = l0 + (((l1 - l0) * fr) >> 14);
 			int32_t r = r0 + (((r1 - r0) * fr) >> 14);
+			if (env != 4096)
+			{
+				l = (l * env) >> 12;
+				r = (r * env) >> 12;
+			}
 			int32_t mid = (l + r) >> 1;
 			int32_t side = (((l - r) >> 1) * headWidth[h]) >> 12;
 			l = mid + side;
@@ -476,6 +518,11 @@ private:
 	int32_t gainFL[kHeads] = {}, gainFR[kHeads] = {}; // Q12, feedback
 	volatile uint32_t activeMask = 0;
 	volatile uint32_t audibleMask = 0;
+	// Reversed heads: where each is through its slice and the slice's
+	// length (Q16 frames), and its fade (Q8 frames, and 4096 / that, Q16)
+	volatile uint32_t revMask = 0;
+	uint32_t revPhase[kHeads] = {}, revLen[kHeads] = {};
+	int32_t revFade[kHeads] = {}, revFadeK[kHeads] = {};
 	// Glide: a one-pole of about 80ms, at most 1.5 frames a frame
 	static constexpr int32_t kGlide = 544;            // Q16 a UI tick
 	static constexpr int32_t kSlewMax = 24 * 256;     // Q8 frames a tick
@@ -683,7 +730,7 @@ private:
 	// The pages each button steps through, in order
 	static constexpr int kMaxLayers = 2;
 	static constexpr int8_t kButtonPages[4][kMaxLayers] = {
-		{PageTime, -1},
+		{PageTime, PageReverse},
 		{PageVolume, -1},
 		{PagePan, PageWidth},
 		{PageFeedback, PageFX},
@@ -932,6 +979,22 @@ private:
 		activeMask = (vol || fb) ? (activeMask | bit) : (activeMask & ~bit);
 		audibleMask = vol ? (audibleMask | bit) : (audibleMask & ~bit);
 		stTimes[h] = s / 6144;          // Q8 frames at 24kHz to ms
+
+		// Reverse: a slice the head's time long (at most half the tape),
+		// with a fade of 4ms, or a quarter of a short slice
+		if (params[PageReverse][h] >= (64 << 5))
+		{
+			int32_t t = s >> 8;
+			if (t > (kMaxDelay - kMinDelay) / 2) t = (kMaxDelay - kMinDelay) / 2;
+			if (t < 4) t = 4;
+			int32_t fade = t / 4 < 96 ? t / 4 : 96;
+			revFade[h] = fade << 8;
+			revFadeK[h] = 1048576 / fade;
+			revLen[h] = uint32_t(t) << 16;
+			if (!(revMask & bit)) revPhase[h] = 0;
+			revMask |= bit;
+		}
+		else revMask &= ~bit;
 	}
 
 	// Panel LEDs, levels and the web editor's snapshot
@@ -1141,6 +1204,7 @@ private:
 				led = (i == ledFlashValue && ((1350 - ledFlash) / 225) % 2 == 0) ? 4095 : 0;
 			else if (ledFlash > 0)
 				led = (i == ledFlashValue && ((1350 - ledFlash) / 75) % 2 == 0) ? 4095 : 0;
+			else if (page == PageReverse) led = p >= (64 << 5) ? 4095 : 0;
 			else led = (p * 9) >> 4;
 			mu.SetLed(i, led);
 		}
@@ -1156,7 +1220,22 @@ private:
 	void LoadPresetStore()
 	{
 		memcpy(&store, reinterpret_cast<const void *>(XIP_BASE + kPresetOffset), sizeof(store));
-		if (store.magic != kPresetMagic || store.version != kPresetVersion)
+		if (store.magic == kPresetMagic && store.version == 1)
+		{
+			// Carry version 1's presets over, with every head forwards
+			static PresetStoreV1 old;
+			memcpy(&old, reinterpret_cast<const void *>(XIP_BASE + kPresetOffset), sizeof(old));
+			memset(&store, 0, sizeof(store));
+			store.magic = kPresetMagic;
+			store.version = kPresetVersion;
+			store.lastSlot = old.lastSlot;
+			for (int s = 0; s < sysex::kSlots; s++)
+			{
+				store.valid[s] = old.valid[s];
+				memcpy(store.values[s], old.values[s], sizeof(old.values[s]));
+			}
+		}
+		else if (store.magic != kPresetMagic || store.version != kPresetVersion)
 		{
 			memset(&store, 0, sizeof(store));
 			store.magic = kPresetMagic;
