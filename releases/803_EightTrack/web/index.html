@@ -233,7 +233,7 @@
       <div class="notes">
         <p>The 8mu can plug into the module (no computer needed) or into this computer, which passes it on to the card. Its eight faders are the eight heads; its buttons are acted on <b>when you let go</b>.</p>
         <table class="jacks">
-          <tr><th>Short press</th><td>The page. Press the same button again for its second page:<br>A <b>Time</b> &rarr; Reverse<br>B <b>Volume</b><br>C <b>Pan</b> &rarr; Width<br>D <b>Feedback</b> &rarr; FX</td></tr>
+          <tr><th>Short press</th><td>The page. Press the same button again for its second page:<br>A <b>Time</b> &rarr; Reverse (forwards / reverse / reverse clocked, in thirds)<br>B <b>Volume</b><br>C <b>Pan</b> &rarr; Width<br>D <b>Feedback</b> &rarr; FX</td></tr>
           <tr><th>Long press D<br>(&frac12; s)</th><td>Freeze on or off</td></tr>
           <tr><th>Hold A + move<br>a fader</th><td>Load card preset 1-8 (the fader's number). The fader's LED flashes three times</td></tr>
           <tr><th>Hold D + move<br>a fader</th><td>Save the settings as card preset 1-8. The fader's LED blinks fast</td></tr>
@@ -301,7 +301,7 @@ const PAGE_INFO = [
   { name: 'Width',    letter: 'C²', hint: 'Each head’s stereo width: 0 takes the mono sum of the two channels, full keeps them as recorded, and Y (or CV In 2) above the centre widens beyond that.' },
   { name: 'Feedback', letter: 'D',  hint: 'How much of each head goes back onto the tape, through the filters and the tape model, times X and CV In 1. With X above the centre the tape can run away into its own saturation.' },
   { name: 'FX',       letter: 'D²', hint: 'Filters in the feedback path, then the tape: saturation onto it, hiss, wow, flutter and dropouts. Mix sets dry against wet: dry only down, both full at the centre, wet only up.' },
-  { name: 'Reverse',  letter: 'A²', hint: 'Plays a head backwards: fader in the top half for reverse, bottom half for forwards. A reversed head plays back slices of the tape a head’s time long, each one backwards, arriving about a head’s time later, with a short fade at each join.' },
+  { name: 'Reverse',  letter: 'A²', hint: 'Bottom third forwards, middle third reverse, top third reverse clocked. A reversed head plays back slices of the tape a head’s time long, each one backwards, arriving about a head’s time later, with a short fade at each join. Clocked, the slices follow the beat (the clock, tap tempo, or the free-time pulse), so a slice a whole number of beats long starts on a beat.' },
 ];
 const DEFAULTS = [
   [12, 28, 44, 60, 76, 92, 108, 124],
@@ -383,7 +383,7 @@ function describe(page, i, v) {
     case 2: { const p = bipolar(v); return p === 0 ? 'centre' : Math.round(Math.abs(p) * 100) + '% ' + (p < 0 ? 'L' : 'R'); }
     case 3: return v === 0 ? 'mono' : Math.round(q12(v) * 100) + '%';
     case 4: return v === 0 ? 'none' : Math.round(q12(v) * 100) + '%';
-    case 6: return v >= 64 ? 'reverse' : 'forwards';
+    case 6: return revMode(v) === 2 ? 'reverse, clocked' : revMode(v) === 1 ? 'reverse' : 'forwards';
     default:
       switch (i) {
         case 0: return v >= 127 ? 'off' : fmtHz(150 * Math.pow(2, v * 6.74 / 127));
@@ -398,7 +398,9 @@ function describe(page, i, v) {
   }
 }
 function faderName(page, i) { return page === 5 ? FX_NAMES[i] : 'Head ' + (i + 1); }
-const reversed = (i) => state.values[6][i] >= 64;
+// Reverse fader: forwards, reverse, reverse clocked (thirds, as main.cpp)
+const revMode = (v) => v < 43 ? 0 : v < 86 ? 1 : 2;
+const reversed = (i) => revMode(state.values[6][i]) > 0;
 
 // ============================================================================
 // Drawing
@@ -470,12 +472,13 @@ function drawTape() {
     ctx.strokeStyle = col; ctx.lineWidth = 3;
     const cx = x + pan * half, ww = Math.max(1.5, wd * half * 0.5);
     ctx.beginPath(); ctx.moveTo(cx - ww, py); ctx.lineTo(cx + ww, py); ctx.stroke();
-    ctx.fillStyle = col; ctx.fillText(reversed(i) ? '◀' + (i + 1) : String(i + 1), x - (reversed(i) ? 9 : 3), base + 16);
+    ctx.fillStyle = col; const rm = revMode(V[6][i]), lab = (rm === 2 ? '◀♩' : rm === 1 ? '◀' : '') + (i + 1);
+    ctx.fillText(lab, x - 3 - (lab.length - 1) * 6, base + 16);
     ctx.globalAlpha = 1;
   }
   const L = state.live;
   $('tape-caption').textContent = (live ? '' : 'Not connected: free time at ×1. ') +
-    'Each head sits at its delay; height is volume, the line above is pan (where) and width (how long), the arc below is feedback, ◀ is reversed. ' +
+    'Each head sits at its delay; height is volume, the line above is pan (where) and width (how long), the arc below is feedback, ◀ is reversed and ◀♩ reversed to the beat. ' +
     (t.synced ? 'Grid: sixteenths' + (t.ratio !== 4 ? ' ' + RATIO_NAMES[t.ratio] : '') + ', beats darker.' : 'Grid: 100 ms.') +
     ' The tape holds ' + fmtMs(state.maxMs) + '.' + (live && L.frozen ? ' Frozen.' : '');
 }
@@ -937,7 +940,7 @@ const BUILTIN_ROWS = [
   { name: 'Eight-head rhythm', values: flat([[8, 24, 36, 52, 68, 76, 100, 116], [100, 60, 90, 50, 80, 45, 70, 40], [20, 108, 40, 88, 30, 98, 50, 78], [90, 90, 90, 90, 90, 90, 90, 90], [0, 0, 0, 0, 0, 0, 0, 40], [100, 12, 20, 4, 6, 6, 0, 64]]) },
   { name: 'Worn cassette', values: flat([[64, 0, 0, 0, 0, 0, 0, 0], [120, 0, 0, 0, 0, 0, 0, 0], [64, 64, 64, 64, 64, 64, 64, 64], [60, 127, 127, 127, 127, 127, 127, 127], [90, 0, 0, 0, 0, 0, 0, 0], [60, 30, 90, 60, 70, 60, 70, 70]]) },
   { name: 'Shimmer comb', values: flat([[1, 2, 3, 5, 0, 0, 0, 0], [70, 60, 50, 40, 0, 0, 0, 0], [30, 98, 44, 84, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [60, 50, 40, 30, 0, 0, 0, 0], [110, 30, 10, 0, 20, 4, 0, 60]]) },
-  { name: 'Backwards and forwards', values: flat([[28, 60, 92, 124, 0, 0, 0, 0], [100, 100, 80, 70, 0, 0, 0, 0], [30, 98, 50, 78, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [0, 0, 0, 50, 0, 0, 0, 0], [96, 16, 24, 6, 10, 8, 0, 64], [127, 0, 127, 0, 0, 0, 0, 0]]) },
+  { name: 'Backwards and forwards', values: flat([[28, 60, 92, 124, 0, 0, 0, 0], [100, 100, 80, 70, 0, 0, 0, 0], [30, 98, 50, 78, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [0, 0, 0, 50, 0, 0, 0, 0], [96, 16, 24, 6, 10, 8, 0, 64], [64, 0, 64, 0, 0, 0, 0, 0]]) },
   { name: 'Reverse swell', values: flat([[64, 124, 0, 0, 0, 0, 0, 0], [110, 90, 0, 0, 0, 0, 0, 0], [40, 88, 64, 64, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [40, 60, 0, 0, 0, 0, 0, 0], [80, 24, 30, 10, 12, 8, 0, 80], [127, 127, 0, 0, 0, 0, 0, 0]]) },
 ];
 const BUILTIN = BUILTIN_ROWS;

@@ -24,9 +24,12 @@
 //   Button C  PAN       each head's pan     WIDTH  each head's stereo width
 //   Button D  FEEDBACK  each head's feedback  FX   filter and tape (below)
 //
-// REVERSE: a fader in the top half plays its head backwards.  A reversed head
-// plays the tape in slices as long as the head's time, each one backwards,
-// arriving on average a head's time later, with a 4ms fade at each join.
+// REVERSE: the fader's bottom third plays its head forwards, the middle third
+// backwards, and the top third backwards, clocked.  A reversed head plays the
+// tape in slices as long as the head's time, each one backwards, arriving on
+// average a head's time later, with a 4ms fade at each join.  Clocked, the
+// slices follow a grid of beats (the clock, tap tempo, or the free-time
+// pulse), so a slice a whole number of beats long starts on a beat.
 //
 // FX page, one setting a fader
 //   1 Low-pass   in the feedback path, 150Hz to 16kHz, off at the top
@@ -272,7 +275,35 @@ public:
 				beat = true;
 			}
 		}
-		if (beat) beatTrig = 480;
+		if (tapBeat)
+		{
+			tapBeat = false;
+			beat = true;
+		}
+		if (beat)
+		{
+			beatTrig = 480;
+			if (gridRestart)
+			{
+				gridRestart = false;
+				gridBeats = 0;
+			}
+			else if (++gridBeats >= kGridWrap) gridBeats = 0;
+
+			// Clocked reverse: each such head's slice is put back where the
+			// beat grid says it should be, so a slice a whole number of beats
+			// long starts on a beat
+			uint32_t rc = revClockMask;
+			if (rc)
+			{
+				uint32_t pos = gridBeats * uint32_t(beatLength >> 1);
+				for (int h = 0; h < kHeads; h++)
+				{
+					if (!(rc & (1u << h))) continue;
+					revPhase[h] = (pos % (revLen[h] >> 16)) << 16;
+				}
+			}
+		}
 
 		// Control, every 32 samples, shared out across them so that no one
 		// sample has too much to do: the transport on the first, one head on
@@ -521,6 +552,13 @@ private:
 	// Reversed heads: where each is through its slice and the slice's
 	// length (Q16 frames), and its fade (Q8 frames, and 4096 / that, Q16)
 	volatile uint32_t revMask = 0;
+	// Clocked reverse: heads whose slices follow the beat grid, beats since
+	// the grid began (wrapping, 3840 = 2^8 x 15, so slices of most lengths
+	// stay in step across it), and requests to restart it
+	volatile uint32_t revClockMask = 0;
+	static constexpr uint32_t kGridWrap = 3840;
+	uint32_t gridBeats = 0;
+	bool gridRestart = true, tapBeat = false, wasClockJack = false;
 	uint32_t revPhase[kHeads] = {}, revLen[kHeads] = {};
 	int32_t revFade[kHeads] = {}, revFadeK[kHeads] = {};
 	// Glide: a one-pole of about 80ms, at most 1.5 frames a frame
@@ -832,9 +870,10 @@ private:
 				if (d < 0) d = -d;
 				tapPeriod = (tapSynced && d * 5 < tapPeriod) ? (tapPeriod + p) >> 1 : p;
 				if (tapPeriod < kMinBeat) tapPeriod = kMinBeat;
+				if (!tapSynced) gridRestart = true;
 				tapSynced = true;
 				beatCount = 0;
-				beatTrig = 480;
+				tapBeat = true;
 			}
 			lastTapTick = ticks;
 		}
@@ -842,6 +881,8 @@ private:
 		// Synced with a jack in Pulse In 1 (whether or not a clock has come
 		// yet), or with tap tempo
 		clockJack = Connected(Pulse1);
+		if (clockJack && !wasClockJack) gridRestart = true;  // the clock starts the grid
+		wasClockJack = clockJack;
 		synced = clockJack || tapSynced;
 		freeLen = ExpScale(uint32_t(kFreeBase) << 8, multOct + tiltOct);
 		tiltMul = int32_t(ExpScale(4096, tiltOct));
@@ -981,8 +1022,11 @@ private:
 		stTimes[h] = s / 6144;          // Q8 frames at 24kHz to ms
 
 		// Reverse: a slice the head's time long (at most half the tape),
-		// with a fade of 4ms, or a quarter of a short slice
-		if (params[PageReverse][h] >= (64 << 5))
+		// with a fade of 4ms, or a quarter of a short slice.  The fader's
+		// bottom third is forwards, the middle reverse, the top reverse
+		// clocked.
+		int mode = (params[PageReverse][h] >> 5) < 43 ? 0 : ((params[PageReverse][h] >> 5) < 86 ? 1 : 2);
+		if (mode)
 		{
 			int32_t t = s >> 8;
 			if (t > (kMaxDelay - kMinDelay) / 2) t = (kMaxDelay - kMinDelay) / 2;
@@ -993,8 +1037,22 @@ private:
 			revLen[h] = uint32_t(t) << 16;
 			if (!(revMask & bit)) revPhase[h] = 0;
 			revMask |= bit;
+			if (mode == 2 && !(revClockMask & bit))
+			{
+				// Joining the grid: straight to where it says, as of now
+				int32_t since = clockJack ? samplesSinceClock : beatCount;
+				if (since > beatLength) since = beatLength;
+				uint32_t pos = gridBeats * uint32_t(beatLength >> 1) + uint32_t(since >> 1);
+				revPhase[h] = (pos % uint32_t(t)) << 16;
+			}
+			if (mode == 2) revClockMask |= bit;
+			else revClockMask &= ~bit;
 		}
-		else revMask &= ~bit;
+		else
+		{
+			revMask &= ~bit;
+			revClockMask &= ~bit;
+		}
 	}
 
 	// Panel LEDs, levels and the web editor's snapshot
@@ -1204,7 +1262,7 @@ private:
 				led = (i == ledFlashValue && ((1350 - ledFlash) / 225) % 2 == 0) ? 4095 : 0;
 			else if (ledFlash > 0)
 				led = (i == ledFlashValue && ((1350 - ledFlash) / 75) % 2 == 0) ? 4095 : 0;
-			else if (page == PageReverse) led = p >= (64 << 5) ? 4095 : 0;
+			else if (page == PageReverse) led = p >= (86 << 5) ? 4095 : (p >= (43 << 5) ? 1024 : 0);
 			else led = (p * 9) >> 4;
 			mu.SetLed(i, led);
 		}

@@ -10,7 +10,8 @@
 // one value per fader), numbered
 //   0 TIME   1 VOLUME   2 PAN   3 WIDTH   4 FEEDBACK   5 FX   6 REVERSE
 // On the 8mu, A is page 0 then 6, B 1, C 2 then 3, and D 4 then 5.
-// REVERSE plays a head backwards from 64 up, forwards below.  (Version 1
+// REVERSE is forwards below 43, backwards 43-85, and backwards clocked to
+// the beat from 86 up.  (Version 1
 // had no REVERSE page, and 48 values.)
 // PAN is two-sided, 64 the centre.  The eight FX values are
 //   0 low-pass   1 high-pass   2 saturation   3 hiss

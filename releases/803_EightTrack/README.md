@@ -41,11 +41,27 @@ hand on the reel.
 
 ### Reverse page (A, pressed twice)
 
-A fader in the top half plays its head **backwards**; in the bottom half,
-forwards. A reversed head plays the tape back in slices as long as the head's
-time, each slice backwards, arriving on average about one head-time later.
-That's the classic reverse-delay sound. A short fade (4 ms) at each slice
-boundary hides the join. Wow and flutter don't apply to reversed heads.
+Each fader has three zones:
+
+| Fader | Head plays |
+|---|---|
+| Bottom third | **Forwards** |
+| Middle third | **Reverse**: backwards, free-running |
+| Top third | **Reverse clocked**: backwards, with the slices locked to the beat |
+
+A reversed head plays the tape back in slices as long as the head's time,
+each slice backwards, arriving on average about one head-time later. That's
+the classic reverse-delay sound. A short fade (4 ms) at each slice boundary
+hides the join. Wow and flutter don't apply to reversed heads.
+
+**Clocked**, the slices follow a beat grid shared by every clocked head. The
+beat is the clock on Pulse In 1, tap tempo, or, when nothing is synced, the
+free-time pulse (the Pulse Out 1 rate). A slice a whole number of beats long
+starts on a beat. A shorter one (say 1/8) starts on the beat and repeats
+within it, and odd lengths (3/16) cycle against the beat in a fixed pattern.
+The grid restarts when a jack goes into Pulse In 1 or a tap tempo is first
+set. On the 8mu, the Reverse page's LEDs are off for forwards, dim for
+reverse and bright for reverse clocked.
 
 Presets saved before the Reverse page existed load with every head
 forwards.
