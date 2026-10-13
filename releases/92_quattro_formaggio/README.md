@@ -1,6 +1,6 @@
 # Quattro Formaggio
 
-USB MIDI → CV/Gate/Audio for the Music Thing Modular Workshop System Computer, with SETUP + MIDI learn, a 121-patch voice matrix, stroke LED glyphs, and a browser editor.
+4 Voice Poly Synth via USB MIDI → CV/Gate/Audio for the Music Thing Modular Workshop System Computer, with SETUP + MIDI learn, a 121-patch voice matrix, stroke LED glyphs, and a browser editor.
 
 ## Documentation
 
@@ -140,3 +140,10 @@ Flash `UF2/92_quattro_formaggio.uf2`.
 SysEx protocol: [`sysex_spec.json`](sysex_spec.json). Implementation notes: [`docs/developer/CONTROL_FLOW.md`](docs/developer/CONTROL_FLOW.md).
 
 Firmware **0.10.0**.
+
+
+---
+
+### Greetz
+
+Greetz to Dune for the cheesey name.
