@@ -1,0 +1,169 @@
+draft: false
+Name: EightTrack
+short-description: "An eight-head stereo tape delay played from a Music Thing 8mu, with tempo sync, tape effects, flash presets and a web editor"
+Language: C++ (ComputerCard)
+Creator: XponentOneAudio
+Version: "0.1.0"
+Status: Beta
+License: MIT
+Editor: web
+date-created: 2026-10-13
+date-updated: 2026-10-13
+
+contact:
+  email: XponentOneAudio@gmail.com
+
+# Vendors, unmodified and under their own MIT terms:
+#   ComputerCard.h, EightMU.h (which carries the rppicomidi usb_midi_host
+#   driver, (c) 2023 rppicomidi)
+#     (c) Chris Johnson
+
+uf2:
+  - path: UF2/eighttrack.uf2
+    name: EightTrack 0.1.0
+
+tags:
+  - delay
+  - tape
+  - effect
+  - stereo
+  - usb-host
+  - midi
+  - 8mu
+
+summary: |
+  A stereo tape delay, loosely after Zlosynth's Kaseta: one loop of tape,
+  recorded from both audio inputs, with eight playback heads along it - one
+  for each fader of a Music Thing 8mu.<br><br>
+
+  Every head has its own time, volume, pan, stereo width and feedback. The
+  8mu's buttons choose the page: A is TIME, B VOLUME, C PAN (press again for
+  WIDTH) and D FEEDBACK (press again for FX). The feedback runs through a
+  low-pass and high-pass filter and a tape model - saturation, hiss, wow,
+  flutter and dropouts - on its way back onto the tape, all set from the FX
+  page, along with the dry/wet mix. Times glide, so moving them bends the
+  pitch of what is already on the tape.<br><br>
+
+  With a jack in Pulse In 1 (or after two taps on the switch) the heads lock
+  to the tempo, each a whole number of sixteenths up to a bar, and Main picks
+  a ratio from /4 to x4. Free, the faders set up to half a second each and
+  Main multiplies them by x1/4 to x4. X and CV In 1 multiply every head's
+  volume and feedback; Y and CV In 2 its pan and width. Switch up, or a gate
+  in Pulse In 2, freezes the tape into a loop.<br><br>
+
+  Eight presets live in the card's own flash, saved and loaded with the 8mu
+  alone (hold D or A and move a fader), so no computer is needed. An
+  optional web editor (web/index.html, Chrome or Edge) draws the tape and its
+  heads live, keeps unlimited presets in the browser, and copies them to and
+  from the card. With a computer plugged into the Computer's USB socket the
+  card becomes a USB MIDI device for the editor, and an 8mu plugged into the
+  computer is passed on through it.<br><br>
+
+  The tape is about 2.2 seconds of stereo at 24kHz, 12 bits, in RAM; any
+  program card will do.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Left in
+      type: audio
+      description: Left input, recorded onto the tape.
+    - id: AudioIn2
+      name: Right in
+      type: audio
+      description: Right input, recorded onto the tape.
+    - id: CVIn1
+      name: Vol / fb
+      type: cv
+      description: Added to the X knob; +5V adds x1 to every head's volume and feedback (x0 to x2 in all).
+    - id: CVIn2
+      name: Pan / width
+      type: cv
+      description: Added to the Y knob; +5V adds x1 to every head's pan and width (x0 to x2 in all).
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: >
+        One pulse a beat. Plugging a jack in syncs every head to the tempo:
+        to the clock from its second pulse, and until then to the last beat
+        it had (120bpm at first). Taps on the switch are ignored while a jack
+        is in.
+    - id: PulseIn2
+      name: Freeze
+      type: pulse
+      description: Freezes the tape while high.
+  outputs:
+    - id: AudioOut1
+      name: Left out
+      type: audio
+      description: Left output, dry and wet as the Mix fader sets.
+    - id: AudioOut2
+      name: Right out
+      type: audio
+      description: Right output, dry and wet as the Mix fader sets.
+    - id: CVOut1
+      name: Wobble
+      type: cv
+      description: The tape's wow and flutter, +-5V at full depth.
+    - id: CVOut2
+      name: Envelope
+      type: cv
+      description: Envelope of the delayed signal, 0 to 5V.
+    - id: PulseOut1
+      name: Beat
+      type: pulse
+      description: A trigger every beat while synced, or every free-time length (a fader at the top) while free.
+    - id: PulseOut2
+      name: Frozen
+      type: pulse
+      description: High while frozen.
+
+controls:
+  switch:
+    up:
+      name: Freeze
+      description: The input is cut and the tape loops the longest head that is playing, so what is on it repeats unchanged.
+    middle:
+      name: Run
+      description: Normal running.
+    down:
+      name: Tap
+      description: >
+        Momentary tap tempo. Two taps up to 3s apart set the beat and sync
+        the heads to it; holding it down for 1.5s goes back to free time (all
+        four top LEDs blink).
+  knobs:
+    - main:
+        name: Time
+        description: >
+          Free: multiplies every head's time, x1/4 (fully down) to x4 (fully
+          up), x1 at the centre, gliding like a change of tape speed. Synced:
+          a ratio, in nine equal zones - /4, /3, /2, x2/3, x1 (centre), x3/2,
+          x2, x3, x4.
+      x:
+        name: Vol / fb
+        description: Multiplies every head's volume and feedback, x0 to x2, x1 at the centre.
+      y:
+        name: Pan / width
+        description: Multiplies every head's pan and stereo width, x0 (all mono, centred) to x2, x1 at the centre.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Page A / beat
+          description: With an 8mu or the web editor, LEDs 0-3 show the button whose page is selected (A-D), steady for its first page and blinking for its second. Without one, LED 0 flashes on the beat.
+        - id: LED1
+          name: Page B / synced
+          description: Without an 8mu or editor, lit while the heads are synced.
+        - id: LED2
+          name: Page C / left
+          description: Without an 8mu or editor, the left output level.
+        - id: LED3
+          name: Page D / right
+          description: Without an 8mu or editor, the right output level.
+        - id: LED4
+          name: Input / freeze
+          description: The input level; fully lit while frozen.
+        - id: LED5
+          name: 8mu / editor
+          description: Lit while an 8mu, or the web editor, is connected. Blinks when a preset is saved or loaded.

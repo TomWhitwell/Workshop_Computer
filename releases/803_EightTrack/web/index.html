@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EightTrack editor</title>
+<!--
+  EIGHTTRACK - web editor for the Music Thing Modular Workshop Computer card.
+  One static file, no network needed. Talks to the card over WebMIDI + SysEx
+  (protocol: ../sysex.h). The card works without this page; the page adds a
+  picture of the tape and its heads, preset management (in this browser and
+  in the card's own flash), and a way to use an 8mu plugged into this
+  computer rather than into the card.
+
+  The fader units (0-127, as an 8mu sends them) and every conversion below
+  mirror ../main.cpp. Visual style shared with the CVSeq and WaveSeq editors.
+-->
+<style>
+  :root {
+    --bg: #f4f2ee; --panel: #ffffff; --ink: #1c1b19; --muted: #6a675f; --line: #d9d5cc;
+    --wave-bg: #fbfaf7; --grid: #e6e2d8;
+    --accent: #0b7d78; --accent-soft: #cfe9e6; --warm: #b5560a; --warm-soft: #f6dcc6;
+    --ok: #2b7a2b; --bad: #b3261e; --track: #e3dfd5; --shadow: 0 1px 2px rgba(0,0,0,.08);
+    --s0: #0b7d78; --s1: #3a6fb0; --s2: #7a55b0; --s3: #b0457a;
+    --s4: #b5560a; --s5: #8a7a12; --s6: #3f8a3a; --s7: #5a6470;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141514; --panel: #1e201f; --ink: #ecebe6; --muted: #9a978d; --line: #34362f;
+      --wave-bg: #171918; --grid: #2a2d29;
+      --accent: #4fd1c5; --accent-soft: #1d3d3a; --warm: #f0a35e; --warm-soft: #4a3320;
+      --ok: #7ed37e; --bad: #ff8a80; --track: #33352f; --shadow: none;
+      --s0: #4fd1c5; --s1: #7aa8f0; --s2: #b49af0; --s3: #f08ab8;
+      --s4: #f0a35e; --s5: #d8c85a; --s6: #84d07c; --s7: #a8b2bc;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .02em; }
+  h2 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .status { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warm); } .dot.bad { background: var(--bad); }
+  .spacer { flex: 1; }
+  .muown { padding: 2px 8px; font-size: 12px; border-color: var(--accent); }
+  .muown.away { color: var(--muted); border-color: var(--line); border-style: dashed; }
+  button {
+    font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+  button.on { background: var(--warm-soft); border-color: var(--warm); }
+  #msg { padding: 6px 16px; min-height: 1.4em; color: var(--muted); }
+  #msg.err { color: var(--bad); }
+  main { display: grid; gap: 16px; padding: 0 16px 24px; grid-template-columns: minmax(0, 1fr) 360px; }
+  @media (max-width: 960px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .card > h2 { display: flex; align-items: center; gap: 8px; }
+  .card > h2 .fold { margin-left: auto; padding: 0 7px; min-width: 26px; height: 22px; line-height: 1; font-size: 14px;
+    color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .card > h2 .fold:hover { color: var(--ink); border-color: var(--accent); }
+  .card.folded > :not(h2) { display: none; }
+  .card.folded > h2 { margin-bottom: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: var(--shadow); min-width: 0; }
+  canvas { display: block; width: 100%; border-radius: 6px; background: var(--wave-bg); }
+  #tape { height: 230px; margin-top: 12px; }
+  .jacks { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.4; }
+  .jacks th, .jacks td { text-align: left; vertical-align: top; padding: 4px 0; border-top: 1px solid var(--line); }
+  .jacks th { white-space: nowrap; padding-right: 10px; font-weight: 600; }
+  .jacks td { color: var(--muted); }
+  .jacks tr.grp th { border-top: 0; padding-top: 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .jacks tr.grp:first-child th { padding-top: 0; }
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .readout { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+  .readout .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .readout .v { font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .readout .sub { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .readout.frozen { background: var(--warm-soft); border-color: var(--warm); }
+  .meter { display: grid; grid-template-columns: 1.4em 1fr; gap: 2px 6px; align-items: center; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .meter span.bar { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; position: relative; }
+  .meter span.bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); width: 0; }
+  .caption { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .notes { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .notes p { margin: 6px 0 0; }
+  .notes b { color: var(--ink); font-weight: 600; }
+  .notes .jacks { margin-top: 4px; }
+
+  /* Fader pages */
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tab { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer; background: var(--panel); }
+  .tab b { display: inline-block; width: 1.4em; text-align: center; margin-right: 4px; border-radius: 4px; background: var(--track); }
+  .tab.on { border-color: var(--accent); background: var(--accent-soft); }
+  .tab.on b { background: var(--accent); color: var(--panel); }
+  .tab.second { margin-right: 8px; font-size: 13px; }
+  .tab.second b { width: auto; padding: 0 3px; }
+  .faders { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+  .fader { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; border-radius: 6px; padding: 4px 0; }
+  .fader .name { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .fader .slot { position: relative; height: 150px; width: 32px; }
+  .fader input[type=range] {
+    writing-mode: vertical-lr; direction: rtl; width: 32px; height: 150px; margin: 0;
+    cursor: pointer;
+  }
+  .fader .ghost {
+    position: absolute; left: 2px; right: 2px; height: 0; border-top: 2px dashed var(--warm);
+    pointer-events: none; display: none;
+  }
+  .fader .val { font-variant-numeric: tabular-nums; font-size: 13px; }
+  .fader .desc { font-size: 11px; color: var(--muted); text-align: center; min-height: 2.6em; overflow-wrap: anywhere; }
+  @media (max-width: 640px) { .faders { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+  /* Presets */
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+  .slotbox { border: 1px solid var(--line); border-radius: 6px; padding: 4px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .slotbox.cur { border-color: var(--accent); background: var(--accent-soft); }
+  .slotbox.empty canvas { opacity: .25; }
+  .slotbox .sn { font-size: 12px; font-weight: 600; display: flex; justify-content: space-between; }
+  .slotbox .sn span { font-weight: 400; color: var(--muted); }
+  .slotbox canvas { height: 26px; }
+  .slotbox .acts { display: flex; gap: 3px; }
+  .slotbox .acts button { flex: 1; padding: 2px 0; font-size: 12px; min-width: 0; }
+  .slotbox .acts button[data-a=erase] { flex: 0 0 26px; }
+  #presets { list-style: none; padding: 0; margin: 0; max-height: 380px; overflow: auto; }
+  #presets li { display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 6px; }
+  #presets li:hover { background: var(--accent-soft); }
+  #presets li canvas { width: 80px; height: 26px; flex: none; }
+  #presets li .pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  #presets li .tag { font-size: 11px; color: var(--muted); }
+  #presets li button, #presets li select { padding: 2px 6px; font-size: 12px; }
+  #presets li select { font: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
+  .preset-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  details { margin-top: 16px; }
+  details summary { cursor: pointer; color: var(--muted); }
+  kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--panel); color: var(--ink); white-space: nowrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>EightTrack</h1>
+  <div class="status"><span id="dot" class="dot"></span><span id="status-text">Not connected</span></div>
+  <button id="mu-owner" class="muown" hidden></button>
+  <div class="spacer"></div>
+  <button id="btn-connect" class="primary">Connect card &amp; 8mu</button>
+  <button id="btn-rescan" hidden>Rescan</button>
+  <button id="btn-read" disabled>Read from card</button>
+  <button id="btn-send" disabled>Send to card</button>
+  <button id="btn-freeze" title="Freeze: the input is cut and the tape loops the longest head that's playing. Adds to the module's switch and Pulse In 2.">Freeze</button>
+  <button id="btn-tap" title="Tap tempo: two taps set the beat and sync the heads (ignored while a jack is in Pulse In 1)">Tap</button>
+  <button id="btn-reset">Reset</button>
+</header>
+<div id="msg"></div>
+
+<main>
+  <div style="display:grid; gap:16px; align-content:start; min-width:0">
+    <section class="card">
+      <h2>Tape</h2>
+      <div class="readouts">
+        <div class="readout"><div class="k">Timing</div><div class="v" id="ro-timing">-</div><div class="sub" id="ro-beat"></div></div>
+        <div class="readout"><div class="k">Main</div><div class="v" id="ro-main">-</div><div class="sub" id="ro-main-sub"></div></div>
+        <div class="readout"><div class="k">X &middot; vol / fb</div><div class="v" id="ro-x">-</div><div class="sub">X knob + CV In 1</div></div>
+        <div class="readout"><div class="k">Y &middot; pan / width</div><div class="v" id="ro-y">-</div><div class="sub">Y knob + CV In 2</div></div>
+        <div class="readout" id="ro-freeze-box"><div class="k">Freeze</div><div class="v" id="ro-freeze">-</div><div class="sub" id="ro-freeze-sub"></div></div>
+        <div class="readout"><div class="k">Levels</div>
+          <div class="meter"><span>In</span><span class="bar"><i id="m-in"></i></span><span>Out</span><span class="bar"><i id="m-out"></i></span></div>
+        </div>
+      </div>
+      <canvas id="tape" aria-label="The tape: each head at its delay, its height the volume, the line above it the pan and width, the arc beneath it the feedback"></canvas>
+      <div class="caption" id="tape-caption"></div>
+    </section>
+    <section class="card">
+      <h2>Faders</h2>
+      <div class="tabs" id="tabs"></div>
+      <div class="faders" id="faders"></div>
+      <div class="caption" id="page-hint"></div>
+    </section>
+  </div>
+  <aside style="display:grid; gap:16px; align-content:start; min-width:0">
+    <section class="card">
+      <h2>Card presets</h2>
+      <div class="slots" id="slots"></div>
+      <div class="preset-actions">
+        <button id="btn-slots" disabled>Read card presets</button>
+      </div>
+      <div class="caption">Eight presets kept in the card's own flash, which the card loads with the 8mu alone (hold A and move a fader), and saves (hold D and move a fader). At power-up the card loads the last one saved or loaded. <b>Save</b> puts the settings here into the slot.</div>
+    </section>
+    <section class="card">
+      <h2>Browser presets</h2>
+      <ul id="presets"></ul>
+      <div class="preset-actions">
+        <button id="btn-save">Save current…</button>
+        <button id="btn-export">Export</button>
+        <button id="btn-import">Import</button>
+        <button id="btn-backup" disabled title="Copy the card's eight presets into this browser">Back up card</button>
+        <input type="file" id="import-file" accept=".json,application/json" hidden>
+      </div>
+      <div class="caption">Presets in this browser, as many as you like. Click a name to load it (and send it to the card). <b>&rarr; slot</b> copies one into a card preset without loading it.</div>
+    </section>
+    <section class="card">
+      <h2>Inputs &amp; outputs</h2>
+      <table class="jacks">
+        <tr class="grp"><th colspan="2">Inputs</th></tr>
+        <tr><th>Audio In 1, 2</th><td>Left and right in</td></tr>
+        <tr><th>CV In 1</th><td>Added to X: +5 V adds &times;1 to every head's volume and feedback</td></tr>
+        <tr><th>CV In 2</th><td>Added to Y: +5 V adds &times;1 to every head's pan and width</td></tr>
+        <tr><th>Pulse In 1</th><td>Clock, a pulse a beat. A jack plugged in syncs the heads: to the clock from its second pulse, until then to the last beat it had (120 bpm at first)</td></tr>
+        <tr><th>Pulse In 2</th><td>Freeze, while high</td></tr>
+        <tr class="grp"><th colspan="2">Outputs</th></tr>
+        <tr><th>Audio Out 1, 2</th><td>Left and right out, dry and wet as the Mix fader sets</td></tr>
+        <tr><th>CV Out 1</th><td>The tape's wow and flutter, &plusmn;5 V at full depth</td></tr>
+        <tr><th>CV Out 2</th><td>Envelope of the delayed signal, 0 to 5 V</td></tr>
+        <tr><th>Pulse Out 1</th><td>A trigger every beat (synced), or every free-time length (a fader at the top) when free</td></tr>
+        <tr><th>Pulse Out 2</th><td>High while frozen</td></tr>
+        <tr class="grp"><th colspan="2">Panel</th></tr>
+        <tr><th>Main</th><td>Free: time multiplier, &times;&frac14; to &times;4, &times;1 at the centre. Synced: ratio, /4 /3 /2 &times;&frac23; <b>&times;1</b> &times;1&frac12; &times;2 &times;3 &times;4</td></tr>
+        <tr><th>X</th><td>Volume and feedback multiplier, &times;0 to &times;2, &times;1 at the centre</td></tr>
+        <tr><th>Y</th><td>Pan and width multiplier, &times;0 (mono, centred) to &times;2</td></tr>
+        <tr><th>Switch up</th><td>Freeze</td></tr>
+        <tr><th>Switch down</th><td>Tap tempo (momentary). Hold 1.5 s to go back to free time</td></tr>
+      </table>
+    </section>
+    <section class="card">
+      <h2>8mu</h2>
+      <div class="notes">
+        <p>The 8mu can plug into the module (no computer needed) or into this computer, which passes it on to the card. Its eight faders are the eight heads; its buttons are acted on <b>when you let go</b>.</p>
+        <table class="jacks">
+          <tr><th>Short press</th><td>The page. Press the same button again for its second page:<br>A <b>Time</b><br>B <b>Volume</b><br>C <b>Pan</b> &rarr; Width<br>D <b>Feedback</b> &rarr; FX</td></tr>
+          <tr><th>Long press D<br>(&frac12; s)</th><td>Freeze on or off</td></tr>
+          <tr><th>Hold A + move<br>a fader</th><td>Load card preset 1-8 (the fader's number). The fader's LED flashes three times</td></tr>
+          <tr><th>Hold D + move<br>a fader</th><td>Save the settings as card preset 1-8. The fader's LED blinks fast</td></tr>
+          <tr><th>Faders</th><td>Pick up: after a page change a fader does nothing until it reaches (or passes) the stored value. While one is waiting, a dashed line on its on-screen fader shows where it is</td></tr>
+          <tr><th>Tilt</th><td>Forward and back bends every head's time up to an octave, past a dead zone of about 15&deg;, like a hand on the reel</td></tr>
+        </table>
+      </div>
+    </section>
+    <section class="card">
+      <h2>How it connects</h2>
+      <div class="caption" style="margin-top:0">
+        The card picks its USB mode at power-up. <b>8mu plugged into the card</b>: the card reads it directly and this page isn't used.
+        <b>Computer plugged into the card</b>: the card appears as a MIDI device called <b>EightTrack</b>, and an 8mu plugged
+        into this computer is passed on by this page. After plugging a computer in, <b>power-cycle the module</b>.
+      </div>
+      <details>
+        <summary>Help</summary>
+        <ul class="caption">
+          <li>Use Chrome, Edge or another Chromium browser. Safari and iOS browsers can't do WebMIDI with SysEx.</li>
+          <li>Press <kbd>Connect card &amp; 8mu</kbd> and allow MIDI with SysEx when the browser asks.</li>
+          <li>On-screen faders: drag, or focus one and use the arrow keys. Double-click resets one to its default.</li>
+          <li>Ping-pong: give two heads a width of 0 (so each takes the mono sum), pan one hard left and one hard right, and give them feedback.</li>
+          <li>Freeze loops the tape at the length of the longest head that's playing; the heads keep moving over it, so changing times while frozen slides around the loop.</li>
+          <li>Without a card the page still edits and keeps presets; the tape picture then shows free time at &times;1.</li>
+        </ul>
+      </details>
+    </section>
+  </aside>
+</main>
+<script>
+'use strict';
+// ============================================================================
+// Constants mirroring the firmware (main.cpp, sysex.h)
+// ============================================================================
+const NH = 8;                                   // heads: one per fader
+const PAGES = 6;                                // Time, Volume, Pan, Width, Feedback, FX
+const NVALUES = PAGES * NH;
+const NSLOTS = 8;
+const LONG_PRESS_MS = 500;
+const HOLD_MOVE = 20;     // fader travel (of 127) needed while A or D is held, as on the card
+// The pages each 8mu button steps through, in order (kButtonPages in main.cpp)
+const BUTTON_PAGES = [[0], [1], [2, 3], [4, 5]];
+const buttonOf = (pg) => BUTTON_PAGES.findIndex(l => l.includes(pg));
+function nextPage(pg, b) {
+  const l = BUTTON_PAGES[b], k = l.indexOf(pg);
+  return k < 0 ? l[0] : l[(k + 1) % l.length];
+}
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x45, PROTOCOL_VERSION = 1;
+const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9,
+              FREEZE: 10, TAP: 11, SAVE: 12, LOAD: 13, GET_SLOTS: 14, SLOTS: 15, STORE: 16, ERASE: 17 };
+const NO_SLOT = 127;
+const FIRST_FADER_CC = 34, FIRST_MOTION_CC = 42;
+const BUTTON_NOTES = [36, 48, 60, 72];
+const EIGHTMU_BLINK_OFF = [0xF0, 0x7D, 0x00, 0x00, 0x30, 0xF7];
+const RATIOS = [[1, 4], [1, 3], [1, 2], [2, 3], [1, 1], [3, 2], [2, 1], [3, 1], [4, 1]];
+const RATIO_NAMES = ['/4', '/3', '/2', '×2/3', '×1', '×3/2', '×2', '×3', '×4'];
+const FREE_BASE_MS = 500;
+const FX_NAMES = ['Low-pass', 'High-pass', 'Saturation', 'Hiss', 'Wow', 'Flutter', 'Dropouts', 'Mix'];
+
+const PAGE_INFO = [
+  { name: 'Time',     letter: 'A',  hint: 'Each head’s delay. Free: 0 to 0.5 s times the Main knob (×¼ to ×4). Synced: a whole number of sixteenths, 1/16 to 16/16 of a bar of four, times Main’s ratio. Times glide, so moving them bends the pitch, as on tape.' },
+  { name: 'Volume',   letter: 'B',  hint: 'Each head’s level in the output (a square law), times X and CV In 1. A head at zero volume and zero feedback is switched off.' },
+  { name: 'Pan',      letter: 'C',  hint: 'Each head’s place, left (down) to right (up), centre in the middle. Times Y and CV In 2, so turning Y down pulls every head to the centre. Feedback is taken after the pan.' },
+  { name: 'Width',    letter: 'C²', hint: 'Each head’s stereo width: 0 takes the mono sum of the two channels, full keeps them as recorded, and Y (or CV In 2) above the centre widens beyond that.' },
+  { name: 'Feedback', letter: 'D',  hint: 'How much of each head goes back onto the tape, through the filters and the tape model, times X and CV In 1. With X above the centre the tape can run away into its own saturation.' },
+  { name: 'FX',       letter: 'D²', hint: 'Filters in the feedback path, then the tape: saturation onto it, hiss, wow, flutter and dropouts. Mix sets dry against wet: dry only down, both full at the centre, wet only up.' },
+];
+const DEFAULTS = [
+  [12, 28, 44, 60, 76, 92, 108, 124],
+  [110, 92, 78, 66, 0, 0, 0, 0],
+  [36, 92, 24, 104, 64, 64, 64, 64],
+  [127, 127, 127, 127, 127, 127, 127, 127],
+  [0, 0, 0, 60, 0, 0, 0, 0],
+  [100, 12, 24, 6, 14, 10, 0, 64],
+];
+
+// ============================================================================
+// State
+// ============================================================================
+const state = {
+  values: DEFAULTS.map(r => r.slice()),
+  page: 0,
+  slot: NO_SLOT,
+  maxMs: 2208,
+  slots: null,                 // [{ valid, values[48] }] from the card
+  freeze: false,               // this page's freeze button
+  live: { synced: false, clockJack: false, tap: false, frozen: false, muOnCard: false, held: false,
+          ratio: 4, beatMs: 500, multOct: 0, macroX: 1, macroY: 1, times: new Array(NH).fill(0),
+          inL: 0, inR: 0, outL: 0, outR: 0 },
+};
+const link = { access: null, card: { in: null, out: null }, muIns: [], muOuts: [], cardOnline: false,
+               sysexBuf: [], sysexOn: false, lastStatus: 0, pingTimer: 0 };
+// 8mu pickup, mirroring EightTrack::HandleEightMU in the firmware
+const mu = { phys: new Array(NH).fill(-1), engaged: new Array(NH).fill(false), cc: new Array(16).fill(0),
+             ledSent: new Array(NH).fill(-1), lastBlinkOff: 0, motionTimer: 0, freeze: false,
+             press: [0, 1, 2, 3].map(() => ({ down: false, t0: 0, faders: [], used: false })),
+             flash: { until: 0, save: false, value: 0 } };
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+function say(text, isErr) { const m = $('msg'); m.textContent = text || ''; m.className = isErr ? 'err' : ''; }
+function setStatus(kind, text) { $('dot').className = 'dot ' + kind; $('status-text').textContent = text; }
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const online = () => link.cardOnline && performance.now() - link.lastStatus < 1500;
+
+// ============================================================================
+// What a value means (main.cpp's conversions)
+// ============================================================================
+const q12 = (v) => v >= 127 ? 1 : v / 127;
+const bipolar = (v) => v > 65 ? (v - 65) / 62 : v < 63 ? -(63 - v) / 63 : 0;
+function fmtMs(ms) { return ms >= 1000 ? (ms / 1000).toFixed(2) + ' s' : (ms < 10 ? ms.toFixed(1) : Math.round(ms)) + ' ms'; }
+function fmtHz(hz) { return hz >= 1000 ? (hz / 1000).toFixed(hz >= 10000 ? 0 : 1) + ' kHz' : Math.round(hz) + ' Hz'; }
+function sixteenths(v) { return 1 + Math.floor(v * 16 / 128); }
+function sixteenthName(n) {
+  if (n === 16) return '1 bar';
+  let d = 16; while (n % 2 === 0 && d > 1) { n /= 2; d /= 2; }
+  return n + '/' + d;
+}
+// The live or assumed timing
+function timing() {
+  const L = state.live;
+  if (online()) return L;
+  return { synced: false, clockJack: false, tap: false, ratio: 4, beatMs: 500, multOct: 0, macroX: 1, macroY: 1 };
+}
+function headMs(v) {
+  const t = timing();
+  let ms;
+  if (t.synced) {
+    const [num, den] = RATIOS[t.ratio];
+    ms = sixteenths(v) / 4 * t.beatMs * num / den;
+    while (ms > state.maxMs) ms /= 2;
+  } else {
+    ms = q12(v) * FREE_BASE_MS * Math.pow(2, t.multOct);
+  }
+  return Math.min(Math.max(ms, 0.125), state.maxMs);
+}
+function describe(page, i, v) {
+  switch (page) {
+    case 0: {
+      const t = timing();
+      return t.synced ? sixteenthName(sixteenths(v)) + (t.ratio !== 4 ? ' ' + RATIO_NAMES[t.ratio] : '') + ' · ' + fmtMs(headMs(v)) : fmtMs(headMs(v));
+    }
+    case 1: return v === 0 ? 'off' : Math.round(q12(v) * q12(v) * 100) + '%';
+    case 2: { const p = bipolar(v); return p === 0 ? 'centre' : Math.round(Math.abs(p) * 100) + '% ' + (p < 0 ? 'L' : 'R'); }
+    case 3: return v === 0 ? 'mono' : Math.round(q12(v) * 100) + '%';
+    case 4: return v === 0 ? 'none' : Math.round(q12(v) * 100) + '%';
+    default:
+      switch (i) {
+        case 0: return v >= 127 ? 'off' : fmtHz(150 * Math.pow(2, v * 6.74 / 127));
+        case 1: return v <= 0 ? 'off' : fmtHz(20 * Math.pow(2, v * 6.64 / 127));
+        case 2: return 'drive ×' + (1 + v * 6 / 256).toFixed(2);
+        case 3: return v === 0 ? 'off' : Math.round(v / 127 * 100) + '%';
+        case 4: { const ms = v * v * 240 / 64 / 256 / 24; return v === 0 ? 'off' : '±' + ms.toFixed(ms < 1 ? 2 : 1) + ' ms'; }
+        case 5: return v === 0 ? 'off' : '±' + Math.round(v * v * 10 / 64 / 256 / 24 * 1000) + ' µs';
+        case 6: return v === 0 ? 'off' : '~' + (v * v / 128 / 65536 * 1500).toFixed(1) + '/s';
+        default: return v <= 2 ? 'dry' : v >= 125 ? 'wet' : (v >= 62 && v <= 66) ? 'both' : v < 64 ? Math.round(v / 64 * 100) + '% wet' : Math.round((127 - v) / 63 * 100) + '% dry';
+      }
+  }
+}
+function faderName(page, i) { return page === 5 ? FX_NAMES[i] : 'Head ' + (i + 1); }
+
+// ============================================================================
+// Drawing
+// ============================================================================
+function setupCanvas(cv) {
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+  return { ctx, w: r.width, h: r.height };
+}
+const headColour = (i) => cssVar('--s' + i);
+
+function drawTape() {
+  const { ctx, w, h } = setupCanvas($('tape'));
+  ctx.clearRect(0, 0, w, h);
+  const t = timing(), live = online();
+  const padL = 8, padR = 8, top = 34, base = h - 46;
+  const span = state.maxMs;
+  const xOf = (ms) => padL + (w - padL - padR) * ms / span;
+  ctx.font = '11px system-ui, sans-serif';
+  // Grid: sixteenths (times the ratio) when synced, 100ms when free
+  ctx.lineWidth = 1;
+  if (t.synced) {
+    const [num, den] = RATIOS[t.ratio];
+    const step = t.beatMs / 4 * num / den;
+    if (step > 0) for (let k = 0, ms = 0; ms <= span && k < 400; k++, ms = k * step) {
+      ctx.strokeStyle = cssVar(k % 4 === 0 ? '--line' : '--grid');
+      ctx.beginPath(); ctx.moveTo(xOf(ms), top - 6); ctx.lineTo(xOf(ms), base); ctx.stroke();
+    }
+  } else {
+    for (let ms = 0; ms <= span; ms += 100) {
+      ctx.strokeStyle = cssVar(ms % 500 === 0 ? '--line' : '--grid');
+      ctx.beginPath(); ctx.moveTo(xOf(ms), top - 6); ctx.lineTo(xOf(ms), base); ctx.stroke();
+      if (ms % 500 === 0) { ctx.fillStyle = cssVar('--muted'); ctx.fillText(ms / 1000 + ' s', xOf(ms) + 3, base + 40); }
+    }
+  }
+  // The tape and the record head
+  ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(padL, base); ctx.lineTo(w - padR, base); ctx.stroke();
+  ctx.fillStyle = cssVar(live && state.live.frozen ? '--warm' : '--ink');
+  ctx.fillRect(padL - 3, base - 10, 6, 14);
+  // Heads
+  const V = state.values, mX = t.macroX, mY = t.macroY;
+  for (let i = 0; i < NH; i++) {
+    const ms = live ? state.live.times[i] : headMs(V[0][i]);
+    const x = xOf(ms), col = headColour(i);
+    const vol = Math.min(2, q12(V[1][i]) * q12(V[1][i]) * mX), fb = Math.min(2, q12(V[4][i]) * mX);
+    const on = vol > 0 || fb > 0;
+    ctx.globalAlpha = on ? 1 : 0.3;
+    // feedback: an arc back to the record head
+    if (fb > 0) {
+      ctx.strokeStyle = col; ctx.lineWidth = 0.5 + fb * 2.5; ctx.globalAlpha = 0.35 + 0.3 * Math.min(1, fb);
+      ctx.beginPath(); ctx.moveTo(x, base + 2);
+      ctx.quadraticCurveTo((x + padL) / 2, base + 2 + Math.min(34, 10 + (x - padL) / 10), padL, base + 2); ctx.stroke();
+      ctx.globalAlpha = on ? 1 : 0.3;
+    }
+    // volume: the bar's height
+    const bh = (base - top - 10) * Math.min(1, vol / 1.2);
+    ctx.fillStyle = col;
+    ctx.fillRect(x - 3, base - bh, 6, bh);
+    ctx.fillRect(x - 6, base - 3, 12, 6);
+    // pan and width: a line above the bar, its centre the pan, its length the width
+    const pan = clamp(bipolar(V[2][i]) * mY, -1, 1), wd = Math.min(2, q12(V[3][i]) * mY);
+    const py = top - 16 + (i % 2) * 8, half = 11;
+    ctx.strokeStyle = cssVar('--line'); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x - half, py); ctx.lineTo(x + half, py); ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = 3;
+    const cx = x + pan * half, ww = Math.max(1.5, wd * half * 0.5);
+    ctx.beginPath(); ctx.moveTo(cx - ww, py); ctx.lineTo(cx + ww, py); ctx.stroke();
+    ctx.fillStyle = col; ctx.fillText(String(i + 1), x - 3, base + 16);
+    ctx.globalAlpha = 1;
+  }
+  const L = state.live;
+  $('tape-caption').textContent = (live ? '' : 'Not connected: free time at ×1. ') +
+    'Each head sits at its delay; height is volume, the line above is pan (where) and width (how long), the arc below is feedback. ' +
+    (t.synced ? 'Grid: sixteenths' + (t.ratio !== 4 ? ' ' + RATIO_NAMES[t.ratio] : '') + ', beats darker.' : 'Grid: 100 ms.') +
+    ' The tape holds ' + fmtMs(state.maxMs) + '.' + (live && L.frozen ? ' Frozen.' : '');
+}
+
+function drawReadouts() {
+  const live = online(), L = state.live;
+  const t = timing();
+  $('ro-timing').textContent = !live ? '-' : L.clockJack ? 'Clock' : L.tap ? 'Tap tempo' : 'Free';
+  $('ro-beat').textContent = !live ? '' : L.synced ? Math.round(60000 / Math.max(1, L.beatMs)) + ' bpm · beat ' + fmtMs(L.beatMs) : 'Pulse Out 1 every ' + fmtMs(L.beatMs);
+  $('ro-main').textContent = !live ? '-' : L.synced ? RATIO_NAMES[L.ratio] : '×' + Math.pow(2, L.multOct).toFixed(2);
+  $('ro-main-sub').textContent = !live ? '' : L.synced ? 'clock ratio' : 'time multiplier (fader top ' + fmtMs(FREE_BASE_MS * Math.pow(2, L.multOct)) + ')';
+  $('ro-x').textContent = live ? '×' + t.macroX.toFixed(2) : '-';
+  $('ro-y').textContent = live ? '×' + t.macroY.toFixed(2) : '-';
+  $('ro-freeze').textContent = !live ? '-' : L.frozen ? 'Frozen' : 'Running';
+  $('ro-freeze-sub').textContent = state.freeze ? 'held by this page' : mu.freeze ? 'held by the 8mu' : '';
+  $('ro-freeze-box').classList.toggle('frozen', live && L.frozen);
+  $('m-in').style.width = (live ? Math.max(L.inL, L.inR) / 127 * 100 : 0) + '%';
+  $('m-out').style.width = (live ? Math.max(L.outL, L.outR) / 127 * 100 : 0) + '%';
+  $('btn-freeze').classList.toggle('on', state.freeze || (live && L.frozen));
+}
+
+// ============================================================================
+// Faders
+// ============================================================================
+function buildTabs() {
+  const el = $('tabs'); el.innerHTML = '';
+  PAGE_INFO.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (p.letter.length > 1 ? ' second' : '');
+    b.innerHTML = '<b>' + p.letter + '</b>' + p.name;
+    b.addEventListener('click', () => selectPage(i, true));
+    el.appendChild(b);
+  });
+}
+function buildFaders() {
+  const el = $('faders'); el.innerHTML = '';
+  for (let i = 0; i < NH; i++) {
+    const f = document.createElement('div');
+    f.className = 'fader';
+    f.innerHTML = '<div class="name"></div><div class="slot"><input type="range" min="0" max="127" step="1"><div class="ghost"></div></div><div class="val"></div><div class="desc"></div>';
+    const inp = f.querySelector('input');
+    inp.addEventListener('input', () => userSetValue(state.page, i, +inp.value));
+    inp.addEventListener('dblclick', () => userSetValue(state.page, i, DEFAULTS[state.page][i]));
+    el.appendChild(f);
+  }
+}
+function refreshFaders() {
+  const tabs = $('tabs').children;
+  for (let i = 0; i < tabs.length; i++) tabs[i].classList.toggle('on', i === state.page);
+  const fs = $('faders').children;
+  for (let i = 0; i < NH; i++) {
+    const f = fs[i], v = state.values[state.page][i];
+    const inp = f.querySelector('input');
+    if (document.activeElement !== inp || +inp.value !== v) inp.value = v;
+    inp.style.accentColor = state.page === 5 ? cssVar('--accent') : headColour(i);
+    f.querySelector('.name').textContent = faderName(state.page, i);
+    f.querySelector('.val').textContent = v;
+    f.querySelector('.desc').textContent = describe(state.page, i, v);
+    // where the 8mu's fader is while it waits to pick up
+    const g = f.querySelector('.ghost');
+    const waiting = link.muIns.length && owner.here && mu.phys[i] >= 0 && !mu.engaged[i];
+    g.style.display = waiting ? 'block' : 'none';
+    if (waiting) g.style.top = (150 - mu.phys[i] / 127 * 150) + 'px';
+  }
+  $('page-hint').textContent = PAGE_INFO[state.page].hint;
+}
+
+// ============================================================================
+// Changing values (from the screen, the 8mu, a preset or the card)
+// ============================================================================
+let pending = new Map(), flushTimer = 0;
+function queueSend(key, bytes) {
+  if (!link.cardOnline) return;
+  pending.set(key, bytes);
+  if (!flushTimer) flushTimer = setTimeout(() => { flushTimer = 0; const b = pending; pending = new Map(); for (const m of b.values()) sendRaw(m); }, 16);
+}
+function sendRaw(bytes) {
+  if (!link.card.out) return;
+  try { link.card.out.send(bytes); } catch (e) { say('Could not send to the card: ' + e.message, true); }
+}
+const sysex = (cmd, payload) => [0xF0, SYSEX_MFR, SYSEX_PRODUCT, cmd, ...payload, 0xF7];
+function userSetValue(page, i, v) {
+  v = clamp(Math.round(v), 0, 127);
+  if (state.values[page][i] === v) return;
+  state.values[page][i] = v;
+  queueSend('v' + page + '.' + i, sysex(CMD.SET, [page, i, v]));
+  changed();
+}
+function selectPage(p, send) {
+  state.page = clamp(p, 0, PAGES - 1);
+  reengage();
+  if (send) sendRaw(sysex(CMD.PAGE, [state.page]));
+  requestRender();
+}
+// Which 8mu faders already sit on their value (pickup)
+function reengage() {
+  for (let i = 0; i < NH; i++) mu.engaged[i] = mu.phys[i] >= 0 && Math.abs(mu.phys[i] - state.values[state.page][i]) <= 1;
+}
+function setFreeze(on) {
+  state.freeze = on;
+  sendRaw(sysex(CMD.FREEZE, [(state.freeze || mu.freeze) ? 1 : 0]));
+  requestRender();
+}
+function flatValues() { const out = []; for (let p = 0; p < PAGES; p++) for (let i = 0; i < NH; i++) out.push(state.values[p][i]); return out; }
+function setFlat(vals) { for (let k = 0; k < NVALUES; k++) state.values[Math.floor(k / NH)][k % NH] = clamp(vals[k] | 0, 0, 127); }
+function sendAll() {
+  if (!link.cardOnline) return;
+  sendRaw(sysex(CMD.SET_ALL, [PROTOCOL_VERSION, ...flatValues()]));
+}
+
+let renderQueued = false;
+function requestRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; refreshFaders(); drawTape(); drawReadouts(); renderSlots(); });
+}
+function changed() { requestRender(); }
+
+// ============================================================================
+// 8mu plugged into this computer
+// ============================================================================
+function eightmuFader(i, v) {
+  // While A or D is held, moving a fader loads or saves a card preset
+  const held = mu.press.findIndex(p => p.down);
+  if (held >= 0) {
+    const p = mu.press[held];
+    if (p.faders[i] < 0) p.faders[i] = v;
+    if (Math.abs(v - p.faders[i]) > HOLD_MOVE) {
+      p.faders[i] = v; p.used = true;
+      if (held === 0) loadSlot(i);
+      else if (held === 3) saveSlot(i);
+      if (held === 0 || held === 3) mu.flash = { until: performance.now() + 900, save: held === 3, value: i };
+    }
+    mu.phys[i] = v; mu.engaged[i] = false;
+    requestRender();
+    return;
+  }
+  const last = mu.phys[i], target = state.values[state.page][i];
+  mu.phys[i] = v;
+  if (!mu.engaged[i]) {
+    const near = Math.abs(v - target) <= 1;
+    const crossed = last >= 0 && ((last < target) !== (v < target));
+    if (!near && !crossed) { requestRender(); return; }
+    mu.engaged[i] = true;
+  }
+  userSetValue(state.page, i, v);
+}
+// Buttons, acted on when released, as on the card: a short press is the
+// page, a long press of D freeze; a fader moved while A or D was held
+// loaded or saved a preset
+function eightmuButton(b, down) {
+  const p = mu.press[b];
+  if (down) { p.down = true; p.t0 = performance.now(); p.used = false; p.faders = mu.phys.slice(); return; }
+  if (!p.down) return;
+  p.down = false;
+  if (!p.used) {
+    if (b === 3 && performance.now() - p.t0 >= LONG_PRESS_MS) { mu.freeze = !mu.freeze; setFreeze(state.freeze); }
+    else selectPage(nextPage(state.page, b), true);
+  }
+  for (let i = 0; i < NH; i++) mu.engaged[i] = false;
+  reengage();
+  requestRender();
+}
+// ---- Which editor the 8mu drives.  With several Workshop editors open, one
+// 8mu on this computer drives one of them: the one last clicked in (or
+// opened).  A page claims it by telling the others, over a BroadcastChannel
+// and through localStorage, and they let it go.
+const EDITOR_NAME = 'EightTrack';
+const OWNER_KEY = 'workshop.8mu.owner';
+const owner = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), here: true, other: '', chan: null };
+function claim8mu(announce) {
+  const was = owner.here;
+  owner.here = true;
+  const msg = { id: owner.id, name: EDITOR_NAME, t: Date.now() };
+  try { if (owner.chan) owner.chan.postMessage(msg); } catch (e) {}
+  try { localStorage.setItem(OWNER_KEY, JSON.stringify(msg)); } catch (e) {}
+  if (!was) { taken8mu(); if (announce && link.muIns.length) say('The 8mu now drives this editor.'); }
+  refreshOwner();
+}
+function heardClaim(msg) {
+  if (!msg || msg.id === owner.id) return;
+  owner.other = msg.name || '';
+  if (owner.here) {
+    owner.here = false;
+    for (const p of mu.press) p.down = false;
+    mu.engaged.fill(false);
+    requestRender();
+  }
+  refreshOwner();
+}
+function taken8mu() {
+  for (const p of mu.press) p.down = false;
+  mu.engaged.fill(false);
+  reengage();
+  mu.ledSent.fill(-1);
+  mu.lastBlinkOff = 0;
+  requestRender();
+}
+function refreshOwner() {
+  const b = $('mu-owner'); if (!b) return;
+  b.hidden = !link.muIns.length;
+  b.classList.toggle('away', !owner.here);
+  b.textContent = owner.here ? '8mu: here' : '8mu: elsewhere';
+  b.title = owner.here ? 'The 8mu on this computer drives this editor. Click in another editor to hand it over.'
+    : 'The 8mu is driving the ' + (owner.other || 'other') + ' editor. Click here, or anywhere on this page, to take it back.';
+}
+function setupOwnership() {
+  try { owner.chan = new BroadcastChannel('workshop-computer-8mu'); owner.chan.onmessage = (e) => heardClaim(e.data); } catch (e) {}
+  window.addEventListener('storage', (e) => { if (e.key === OWNER_KEY && e.newValue) { try { heardClaim(JSON.parse(e.newValue)); } catch (err) {} } });
+  const take = () => { if (!owner.here) claim8mu(true); };
+  window.addEventListener('pointerdown', take, true);
+  window.addEventListener('keydown', take, true);
+  window.addEventListener('focus', take);
+  $('mu-owner').addEventListener('click', () => claim8mu(true));
+  claim8mu(false);
+}
+function eightmuMessage(d) {
+  if (d.length < 3 || d[0] < 0x80 || d[0] >= 0xF0) return;
+  const type = d[0] & 0xF0;
+  if (!owner.here) {
+    if (type === 0xB0 && d[1] >= FIRST_FADER_CC && d[1] < FIRST_FADER_CC + NH) { mu.phys[d[1] - FIRST_FADER_CC] = d[2] & 0x7F; requestRender(); }
+    return;
+  }
+  if (type === 0xB0) {
+    const cc = d[1];
+    if (cc >= FIRST_FADER_CC && cc < FIRST_FADER_CC + NH) eightmuFader(cc - FIRST_FADER_CC, d[2] & 0x7F);
+    else if (cc >= FIRST_MOTION_CC && cc < FIRST_MOTION_CC + 8) { mu.cc[cc - FIRST_MOTION_CC] = d[2] & 0x7F; scheduleMotion(); }
+  } else if (type === 0x90 || type === 0x80) {
+    const b = BUTTON_NOTES.indexOf(d[1]);
+    if (b >= 0) eightmuButton(b, type === 0x90 && d[2] > 0);
+  }
+}
+// Tilt, as EightMU::Pitch/Roll compute it: the difference of a pair of CCs
+function scheduleMotion() {
+  if (mu.motionTimer) return;
+  mu.motionTimer = setTimeout(() => {
+    mu.motionTimer = 0;
+    const pitch = (mu.cc[0] - mu.cc[1]) * 16, roll = (mu.cc[2] - mu.cc[3]) * 16;
+    const p = clamp(pitch + 2048, 0, 4095), r = clamp(roll + 2048, 0, 4095);
+    sendRaw(sysex(CMD.MOTION, [p >> 7, p & 127, r >> 7, r & 127]));
+  }, 33);
+}
+// The 8mu's own LEDs: stored values, as the card does.  SysEx to the 8mu
+// must travel on its own, so LED notes pause around it.
+function serviceEightmuLeds() {
+  if (!link.muOuts.length || !owner.here) return;
+  const now = performance.now();
+  if (now - mu.lastBlinkOff > 2000) {
+    mu.lastBlinkOff = now;
+    for (const o of link.muOuts) try { o.send(EIGHTMU_BLINK_OFF); } catch (e) {}
+    mu.ledSent.fill(-1);
+    return;
+  }
+  if (now - mu.lastBlinkOff < 60) return;
+  const f = mu.flash, flashing = now < f.until;
+  for (let i = 0; i < NH; i++) {
+    let v;
+    if (flashing) {
+      const period = f.save ? 50 : 150;
+      v = (i === f.value && Math.floor((900 - (f.until - now)) / period) % 2 === 0) ? 127 : 0;
+    } else v = (state.values[state.page][i] * 9) >> 4;
+    if (v === mu.ledSent[i]) continue;
+    mu.ledSent[i] = v;
+    for (const o of link.muOuts) try { o.send([0x90, i, v]); } catch (e) {}
+  }
+}
+
+// ============================================================================
+// WebMIDI
+// ============================================================================
+const isCardName = (n) => /eight\s*track/i.test(n || '');
+const is8mu = (p) => [p.name, p.manufacturer, (p.manufacturer || '') + ' ' + (p.name || '')].some(s => /8mu/i.test(s || ''));
+
+async function connect() {
+  if (!navigator.requestMIDIAccess) { say('This browser has no WebMIDI. Use Chrome or Edge on a computer.', true); return; }
+  say('The browser will ask to use MIDI devices with SysEx: choose Allow.');
+  try { link.access = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { say('MIDI access was refused (' + (e && e.message || e) + '). Allow MIDI with SysEx for this page, then try again.', true); return; }
+  link.access.onstatechange = () => scanPorts();
+  $('btn-rescan').hidden = false;
+  scanPorts();
+}
+
+function scanPorts() {
+  const acc = link.access; if (!acc) return;
+  const ins = [...acc.inputs.values()].filter(p => p.state !== 'disconnected');
+  const outs = [...acc.outputs.values()].filter(p => p.state !== 'disconnected');
+  const cardIn = ins.find(p => isCardName(p.name)) || null, cardOut = outs.find(p => isCardName(p.name)) || null;
+  const muIns = ins.filter(is8mu), muOuts = outs.filter(is8mu);
+  const unrecognised = ins.filter(p => p !== cardIn && !muIns.includes(p));
+
+  for (const p of ins) p.onmidimessage = null;
+  if (cardIn) cardIn.onmidimessage = (ev) => onCardBytes(ev.data);
+  for (const p of muIns) p.onmidimessage = (ev) => eightmuMessage(ev.data);
+  const wasOnline = link.cardOnline;
+  link.card.in = cardIn; link.card.out = cardOut; link.muIns = muIns; link.muOuts = muOuts;
+  link.cardOnline = !!(cardIn && cardOut);
+  link.sysexBuf = []; link.sysexOn = false;
+  if (!muIns.length) mu.phys.fill(-1);
+  refreshOwner();
+  mu.lastBlinkOff = 0;
+
+  for (const id of ['btn-read', 'btn-send', 'btn-slots', 'btn-backup']) $(id).disabled = !link.cardOnline;
+  clearInterval(link.pingTimer);
+  const note = unrecognised.length ? ' Other MIDI inputs: ' + unrecognised.map(p => '“' + (p.name || '?') + '”').join(', ') + '.' : '';
+  if (link.cardOnline) {
+    link.pingTimer = setInterval(() => sendRaw(sysex(CMD.PING, [])), 1000);
+    sendRaw(sysex(CMD.PING, []));
+    setStatus('ok', 'Connected: EightTrack card' + (muIns.length ? ' + 8mu' : ''));
+    say(muIns.length ? 'The 8mu drives this page, and this page drives the card.' : 'Card connected. Drag the faders, or plug an 8mu into this computer.' + note);
+    if (!wasOnline) { sendRaw(sysex(CMD.HELLO, [])); sendRaw(sysex(CMD.GET_SLOTS, [])); }   // the card is the source of truth: read it
+  } else if (muIns.length) {
+    setStatus('warn', 'Connected: 8mu only (no card)');
+    say('No “EightTrack” card found, so editing here only. To reach the card, plug this computer into the Computer’s USB socket and power-cycle the module.', true);
+  } else {
+    setStatus('warn', 'No card or 8mu found');
+    say('Nothing found. Use a USB data cable, close other apps using the device, and power-cycle the module after plugging this computer in.' + note, true);
+  }
+  requestRender();
+}
+
+function onCardBytes(d) {
+  for (const b of d) {
+    if (b === 0xF0) { link.sysexOn = true; link.sysexBuf = []; continue; }
+    if (!link.sysexOn) continue;
+    if (b === 0xF7) { link.sysexOn = false; handleCardMessage(link.sysexBuf); link.sysexBuf = []; continue; }
+    if (b & 0x80) { if (b < 0xF8) link.sysexOn = false; continue; }
+    if (link.sysexBuf.length < 600) link.sysexBuf.push(b); else link.sysexOn = false;
+  }
+}
+
+const get14 = (p, k) => (p[k] << 7) | p[k + 1];
+function handleCardMessage(m) {
+  if (m.length < 3 || m[0] !== SYSEX_MFR || m[1] !== SYSEX_PRODUCT) return;
+  const cmd = m[2], p = m.slice(3);
+  if (cmd === CMD.STATE) {
+    if (p[0] !== PROTOCOL_VERSION) { say('The card speaks protocol version ' + p[0] + ' but this page speaks ' + PROTOCOL_VERSION + '. Use the matching editor and firmware.', true); return; }
+    if (p.length !== 5 + NVALUES) { say('The card sent a state message of an unexpected size: is its firmware a different version?', true); return; }
+    state.page = clamp(p[1], 0, PAGES - 1);
+    state.slot = p[2];
+    state.maxMs = Math.max(100, get14(p, 3));
+    setFlat(p.slice(5));
+    reengage();
+    say('Read the settings from the card.');
+    changed();
+  } else if (cmd === CMD.STATUS && p.length >= 30) {
+    const L = state.live;
+    L.synced = !!(p[0] & 1); L.clockJack = !!(p[0] & 2); L.tap = !!(p[0] & 4);
+    L.frozen = !!(p[0] & 8); L.muOnCard = !!(p[0] & 16); L.held = !!(p[0] & 32);
+    L.ratio = clamp(p[1], 0, RATIOS.length - 1);
+    L.beatMs = get14(p, 2);
+    L.multOct = (get14(p, 4) - 8192) / 256;
+    L.macroX = p[6] / 64; L.macroY = p[7] / 64;
+    for (let i = 0; i < NH; i++) L.times[i] = get14(p, 8 + 2 * i);
+    L.inL = p[24]; L.inR = p[25]; L.outL = p[26]; L.outR = p[27];
+    const pg = clamp(p[28], 0, PAGES - 1);
+    if (pg !== state.page) { state.page = pg; reengage(); }
+    state.slot = p[29];
+    link.lastStatus = performance.now();
+    requestRender();
+  } else if (cmd === CMD.SLOTS && p.length >= NSLOTS + NSLOTS * NVALUES) {
+    state.slots = [];
+    for (let s = 0; s < NSLOTS; s++) state.slots.push({ valid: !!p[s], values: p.slice(NSLOTS + s * NVALUES, NSLOTS + (s + 1) * NVALUES) });
+    requestRender();
+  }
+}
+
+// ============================================================================
+// Card presets (flash slots)
+// ============================================================================
+function loadSlot(s) {
+  if (!link.cardOnline) { say('Connect the card to use its presets.', true); return; }
+  if (state.slots && !state.slots[s].valid) { say('Card preset ' + (s + 1) + ' is empty.', true); return; }
+  sendRaw(sysex(CMD.LOAD, [s]));            // the card replies with STATE
+  say('Loaded card preset ' + (s + 1) + '.');
+}
+function saveSlot(s) {
+  if (!link.cardOnline) { say('Connect the card to use its presets.', true); return; }
+  sendAll();
+  sendRaw(sysex(CMD.SAVE, [s]));            // the card replies with SLOTS
+  state.slot = s;
+  say('Saved as card preset ' + (s + 1) + '.');
+}
+function eraseSlot(s) {
+  if (!confirm('Empty card preset ' + (s + 1) + '?')) return;
+  sendRaw(sysex(CMD.ERASE, [s]));
+}
+function storeSlot(s, values) {
+  if (!link.cardOnline) { say('Connect the card to copy presets to it.', true); return; }
+  if (state.slots && state.slots[s].valid && !confirm('Replace card preset ' + (s + 1) + '?')) return;
+  sendRaw(sysex(CMD.STORE, [s, ...values]));
+  say('Copied to card preset ' + (s + 1) + '.');
+}
+function presetThumb(cv, values) {
+  const { ctx, w, h } = setupCanvas(cv);
+  ctx.clearRect(0, 0, w, h);
+  // heads as bars at their (free, x1) times, height by volume
+  for (let i = 0; i < NH; i++) {
+    const t = q12(values[i]), v = q12(values[NH + i]);
+    if (v <= 0 && values[4 * NH + i] <= 0) continue;
+    ctx.fillStyle = headColour(i);
+    const x = 2 + (w - 6) * t, bh = Math.max(2, (h - 4) * v * v);
+    ctx.fillRect(x, h - 2 - bh, 2.5, bh);
+  }
+}
+function renderSlots() {
+  const el = $('slots');
+  if (el.children.length !== NSLOTS) {
+    el.innerHTML = '';
+    for (let s = 0; s < NSLOTS; s++) {
+      const d = document.createElement('div');
+      d.className = 'slotbox';
+      d.innerHTML = '<div class="sn">' + (s + 1) + '<span></span></div><canvas></canvas><div class="acts"><button data-a="load">Load</button><button data-a="save">Save</button><button data-a="erase" title="Empty this slot">×</button></div>';
+      d.querySelector('[data-a=load]').addEventListener('click', () => loadSlot(s));
+      d.querySelector('[data-a=save]').addEventListener('click', () => {
+        if (state.slots && state.slots[s].valid && !confirm('Replace card preset ' + (s + 1) + ' with the settings here?')) return;
+        saveSlot(s);
+      });
+      d.querySelector('[data-a=erase]').addEventListener('click', () => eraseSlot(s));
+      el.appendChild(d);
+    }
+  }
+  for (let s = 0; s < NSLOTS; s++) {
+    const d = el.children[s], sl = state.slots && state.slots[s];
+    d.classList.toggle('cur', state.slot === s);
+    d.classList.toggle('empty', !sl || !sl.valid);
+    d.querySelector('.sn span').textContent = !link.cardOnline ? '' : !sl ? '?' : sl.valid ? (state.slot === s ? 'current' : '') : 'empty';
+    for (const b of d.querySelectorAll('button')) b.disabled = !link.cardOnline || (b.dataset.a !== 'save' && (!sl || !sl.valid));
+    presetThumb(d.querySelector('canvas'), sl && sl.valid ? sl.values : new Array(NVALUES).fill(0));
+  }
+}
+
+// ============================================================================
+// Browser presets (localStorage)
+// ============================================================================
+const store = {
+  get(k, d) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+};
+const PRESET_KEY = 'eighttrack.presets.v1';
+let userPresets = [];
+function cleanPreset(o) {
+  if (!o || typeof o !== 'object' || !Array.isArray(o.values) || o.values.length !== NVALUES) return null;
+  return { name: String(o.name || 'Untitled').slice(0, 60), values: o.values.map(v => clamp(v | 0, 0, 127)) };
+}
+const flat = (rows) => rows.flat();
+const BUILTIN = [
+  { name: 'Default: four heads, eighths', values: flat(DEFAULTS) },
+  { name: 'Slapback', values: flat([[10, 20, 0, 0, 0, 0, 0, 0], [118, 70, 0, 0, 0, 0, 0, 0], [52, 76, 64, 64, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [10, 0, 0, 0, 0, 0, 0, 0], [110, 20, 50, 10, 6, 8, 0, 64]]) },
+  { name: 'Ping-pong', values: flat([[60, 124, 0, 0, 0, 0, 0, 0], [110, 110, 0, 0, 0, 0, 0, 0], [0, 127, 64, 64, 64, 64, 64, 64], [0, 0, 127, 127, 127, 127, 127, 127], [0, 80, 0, 0, 0, 0, 0, 0], [96, 16, 24, 6, 8, 6, 0, 64]]) },
+  { name: 'Dub chamber', values: flat([[44, 92, 0, 0, 0, 0, 0, 0], [100, 80, 0, 0, 0, 0, 0, 0], [40, 88, 64, 64, 64, 64, 64, 64], [100, 100, 127, 127, 127, 127, 127, 127], [70, 66, 0, 0, 0, 0, 0, 0], [72, 40, 70, 20, 30, 20, 20, 72]]) },
+  { name: 'Eight-head rhythm', values: flat([[8, 24, 36, 52, 68, 76, 100, 116], [100, 60, 90, 50, 80, 45, 70, 40], [20, 108, 40, 88, 30, 98, 50, 78], [90, 90, 90, 90, 90, 90, 90, 90], [0, 0, 0, 0, 0, 0, 0, 40], [100, 12, 20, 4, 6, 6, 0, 64]]) },
+  { name: 'Worn cassette', values: flat([[64, 0, 0, 0, 0, 0, 0, 0], [120, 0, 0, 0, 0, 0, 0, 0], [64, 64, 64, 64, 64, 64, 64, 64], [60, 127, 127, 127, 127, 127, 127, 127], [90, 0, 0, 0, 0, 0, 0, 0], [60, 30, 90, 60, 70, 60, 70, 70]]) },
+  { name: 'Shimmer comb', values: flat([[1, 2, 3, 5, 0, 0, 0, 0], [70, 60, 50, 40, 0, 0, 0, 0], [30, 98, 44, 84, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [60, 50, 40, 30, 0, 0, 0, 0], [110, 30, 10, 0, 20, 4, 0, 60]]) },
+];
+function loadPresets() { userPresets = (store.get(PRESET_KEY, []) || []).map(cleanPreset).filter(Boolean); }
+function savePresets() { if (!store.set(PRESET_KEY, userPresets)) say('Could not save presets: browser storage is unavailable or full.', true); }
+function applyPreset(pr) {
+  setFlat(pr.values);
+  reengage();
+  sendAll();
+  say('Loaded “' + pr.name + '”' + (link.cardOnline ? ' and sent it to the card.' : '.'));
+  changed();
+}
+function renderPresets() {
+  const el = $('presets'); el.innerHTML = '';
+  const all = BUILTIN.map(p => ({ p, builtin: true })).concat(userPresets.map((p, k) => ({ p, builtin: false, k })));
+  for (const { p, builtin, k } of all) {
+    const li = document.createElement('li');
+    const cv = document.createElement('canvas');
+    const name = document.createElement('span'); name.className = 'pname'; name.textContent = p.name; name.title = 'Load ' + p.name;
+    name.addEventListener('click', () => applyPreset(p));
+    li.appendChild(cv); li.appendChild(name);
+    if (builtin) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'built in'; li.appendChild(t); }
+    const sel = document.createElement('select');
+    sel.title = 'Copy into a card preset';
+    sel.innerHTML = '<option value="">→ slot</option>' + Array.from({ length: NSLOTS }, (_, s) => '<option value="' + s + '">' + (s + 1) + '</option>').join('');
+    sel.addEventListener('change', () => { if (sel.value !== '') storeSlot(+sel.value, p.values); sel.value = ''; });
+    li.appendChild(sel);
+    if (!builtin) {
+      const del = document.createElement('button'); del.textContent = '×'; del.title = 'Delete';
+      del.addEventListener('click', () => { if (confirm('Delete “' + p.name + '”?')) { userPresets.splice(k, 1); savePresets(); renderPresets(); } });
+      li.appendChild(del);
+    }
+    el.appendChild(li);
+    requestAnimationFrame(() => presetThumb(cv, p.values));
+  }
+}
+function saveCurrent() {
+  const name = prompt('Name for this preset:', 'My delay');
+  if (name === null) return;
+  userPresets.push({ name: name.slice(0, 60) || 'Untitled', values: flatValues() });
+  savePresets(); renderPresets();
+}
+function exportPresets() {
+  const blob = new Blob([JSON.stringify({ eighttrack: 1, presets: userPresets }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'eighttrack-presets.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function importPresets(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const o = JSON.parse(r.result);
+      const list = (Array.isArray(o) ? o : o.presets || []).map(cleanPreset).filter(Boolean);
+      if (!list.length) throw new Error('no presets in it');
+      userPresets.push(...list); savePresets(); renderPresets();
+      say('Imported ' + list.length + ' preset' + (list.length === 1 ? '' : 's') + '.');
+    } catch (e) { say('Could not import that file: ' + e.message, true); }
+  };
+  r.readAsText(file);
+}
+function backupCard() {
+  if (!state.slots) { say('Read the card presets first.', true); return; }
+  const stamp = new Date().toISOString().slice(0, 10);
+  let n = 0;
+  state.slots.forEach((sl, s) => { if (sl.valid) { userPresets.push({ name: 'Card ' + (s + 1) + ' (' + stamp + ')', values: sl.values.slice() }); n++; } });
+  savePresets(); renderPresets();
+  say(n ? 'Copied ' + n + ' card preset' + (n === 1 ? '' : 's') + ' into this browser.' : 'The card has no presets to back up.');
+}
+
+// ============================================================================
+// Start
+// ============================================================================
+function buildCollapsers() {
+  for (const card of document.querySelectorAll('section.card')) {
+    const h = card.querySelector('h2'); if (!h) continue;
+    const key = 'eighttrack.fold.' + h.textContent.trim().toLowerCase().replace(/\W+/g, '-');
+    const b = document.createElement('button'); b.className = 'fold'; b.type = 'button';
+    const set = (f) => { card.classList.toggle('folded', f); b.textContent = f ? '+' : '−'; b.title = f ? 'Show' : 'Hide'; };
+    set(store.get(key, false));
+    b.addEventListener('click', () => { const f = !card.classList.contains('folded'); set(f); store.set(key, f); requestRender(); });
+    h.appendChild(b);
+  }
+}
+function frame() {
+  serviceEightmuLeds();
+  if (link.cardOnline && performance.now() - link.lastStatus > 1500 && link.lastStatus) { link.lastStatus = 0; requestRender(); }
+  requestAnimationFrame(frame);
+}
+function init() {
+  buildTabs(); buildFaders(); buildCollapsers();
+  loadPresets(); renderPresets();
+  $('btn-connect').addEventListener('click', connect);
+  $('btn-rescan').addEventListener('click', scanPorts);
+  $('btn-read').addEventListener('click', () => { sendRaw(sysex(CMD.HELLO, [])); sendRaw(sysex(CMD.GET_SLOTS, [])); });
+  $('btn-send').addEventListener('click', () => { sendAll(); say('Sent the settings to the card.'); });
+  $('btn-slots').addEventListener('click', () => sendRaw(sysex(CMD.GET_SLOTS, [])));
+  $('btn-backup').addEventListener('click', backupCard);
+  $('btn-freeze').addEventListener('click', () => setFreeze(!state.freeze));
+  $('btn-tap').addEventListener('click', () => { sendRaw(sysex(CMD.TAP, [])); if (!link.cardOnline) say('Connect the card to tap a tempo.', true); });
+  $('btn-reset').addEventListener('click', () => {
+    if (!confirm('Reset every setting to the defaults?')) return;
+    state.values = DEFAULTS.map(r => r.slice()); reengage();
+    sendRaw(sysex(CMD.RESET, []));
+    changed();
+  });
+  $('btn-save').addEventListener('click', saveCurrent);
+  $('btn-export').addEventListener('click', exportPresets);
+  $('btn-import').addEventListener('click', () => $('import-file').click());
+  $('import-file').addEventListener('change', (e) => { if (e.target.files[0]) importPresets(e.target.files[0]); e.target.value = ''; });
+  window.addEventListener('keydown', (e) => {
+    if (e.target.closest && e.target.closest('input, select, textarea')) return;
+    const k = e.key.toLowerCase();
+    if (k >= '1' && k <= '6') selectPage(+k - 1, true);
+    else if (k === 'f') setFreeze(!state.freeze);
+    else if (k === 't') sendRaw(sysex(CMD.TAP, []));
+  });
+  window.addEventListener('resize', requestRender);
+  setupOwnership();
+  requestRender();
+  requestAnimationFrame(frame);
+  if (!navigator.requestMIDIAccess) say('This browser can’t do WebMIDI, so it can’t reach the card or an 8mu. You can still edit and keep presets here.');
+  else say('Press “Connect card & 8mu” to reach the card. Until then this page edits and keeps presets on its own. Keys: 1-6 pages, F freeze, T tap.');
+}
+init();
+</script>
+</body>
+</html>
