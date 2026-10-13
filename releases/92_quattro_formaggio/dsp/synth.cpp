@@ -1,20 +1,20 @@
 #include "synth.h"
 
-#include "adsr.h"
 #include "config_store.h"
 #include "protocol.h"
 #include "voice_matrix.h"
 #include "voices.h"
 
+#include <cmath>
+
 namespace {
 
 uint32_t g_midiPhaseInc[128];
 int16_t g_sinLut[256];
+int32_t g_cutoffFLut[128];
 
-constexpr uint32_t kInv127Q32 = 33701899u; // (1ull << 32) / 127
-constexpr uint64_t kSemiQ32 = 4540449315ull; // round(2^(1/12) * 2^32)
-constexpr int32_t kThirdQ16 = 21845;       // round(65536 / 3)
-constexpr int32_t kSvfStateLim = 4096 << 7;
+constexpr uint64_t kPwmWidthMul = (0xF0000000ull << 32) / 127ull;
+constexpr int32_t kThirdScale = 21845; // 1/3 in Q16
 
 uint32_t noteIncrement(int32_t note)
 {
@@ -25,31 +25,21 @@ uint32_t noteIncrement(int32_t note)
     return g_midiPhaseInc[note];
 }
 
-uint32_t phaseIncRecip(uint32_t inc)
+int32_t polyblepCorr(uint32_t phase, uint32_t invInc)
 {
-    return inc ? (uint32_t)((1ull << 32) / inc) : 0u;
-}
-
-uint32_t phaseOverInc16(uint32_t phase, uint32_t invRecip)
-{
-    return (uint32_t)(((uint64_t)phase * invRecip) >> 16);
-}
-
-int32_t polyblepCorr(uint32_t phase, uint32_t inc, uint32_t invRecip)
-{
-    if (inc == 0 || invRecip == 0)
+    if (invInc == 0)
         return 0;
-    if (phase < inc)
+    if ((uint64_t)phase * invInc < (1ull << 32))
     {
-        uint32_t x = phaseOverInc16(phase, invRecip);
+        uint32_t x = (uint32_t)(((uint64_t)phase * invInc) >> 16);
         int32_t corr =
             (int32_t)(2 * x) - (int32_t)((x * x) >> 16) - 65536;
         return (corr * 2048) >> 16;
     }
     uint32_t inv = 0u - phase;
-    if (inv < inc)
+    if ((uint64_t)inv * invInc < (1ull << 32))
     {
-        uint32_t xn = phaseOverInc16(inv, invRecip);
+        uint32_t xn = (uint32_t)(((uint64_t)inv * invInc) >> 16);
         int32_t up1 = 65536 - (int32_t)xn;
         int32_t corr = (up1 * up1) >> 16;
         return (corr * 2048) >> 16;
@@ -57,10 +47,14 @@ int32_t polyblepCorr(uint32_t phase, uint32_t inc, uint32_t invRecip)
     return 0;
 }
 
-int16_t oscSaw(uint32_t phase, uint32_t inc, uint32_t invRecip)
+int16_t oscSaw(uint32_t phase, uint32_t inc)
 {
     int32_t saw = (int32_t)(phase >> 20) - 2048;
-    saw -= polyblepCorr(phase, inc, invRecip);
+    if (inc != 0)
+    {
+        uint32_t invInc = (uint32_t)((1ull << 32) / inc);
+        saw -= polyblepCorr(phase, invInc);
+    }
     return (int16_t)clamp12(saw);
 }
 
@@ -73,8 +67,7 @@ int16_t oscSquare(uint32_t phase)
 int16_t oscPulse(uint32_t phase, uint8_t pwm)
 {
     uint32_t width =
-        (uint32_t)(((uint64_t)pwm * 0xF0000000ull * kInv127Q32) >> 32) +
-        0x08000000u;
+        (uint32_t)(((uint64_t)pwm * kPwmWidthMul) >> 32) + 0x08000000u;
     return (phase < width) ? (int16_t)2047 : (int16_t)-2048;
 }
 
@@ -101,7 +94,7 @@ void tickFiltEnv(PolyVoice &v, uint8_t decayFeel)
         v.filtEnv -= dec;
 }
 
-// Chamberlin-style SVF (integer). f/q in Q15-ish units; <<7 headroom per directive.
+// Chamberlin-style SVF (integer). f/q in Q15-ish units.
 int32_t voiceSvfLp(int32_t in, int32_t &lp, int32_t &bp, int32_t f, int32_t q)
 {
     if (f < 80)
@@ -113,26 +106,27 @@ int32_t voiceSvfLp(int32_t in, int32_t &lp, int32_t &bp, int32_t f, int32_t q)
     if (q > 30000)
         q = 30000;
 
-    in <<= 7;
     lp += (f * bp) >> 15;
     int32_t hp = in - lp - ((bp * q) >> 15);
     bp += (f * hp) >> 15;
 
-    if (lp > kSvfStateLim)
-        lp = kSvfStateLim;
-    if (lp < -kSvfStateLim)
-        lp = -kSvfStateLim;
-    if (bp > kSvfStateLim)
-        bp = kSvfStateLim;
-    if (bp < -kSvfStateLim)
-        bp = -kSvfStateLim;
-    return clamp12(lp >> 7);
+    if (lp > 4095)
+        lp = 4095;
+    if (lp < -4096)
+        lp = -4096;
+    if (bp > 4095)
+        bp = 4095;
+    if (bp < -4096)
+        bp = -4096;
+    return clamp12(lp);
 }
 
 int32_t cutoffToF(int32_t cut01_127)
 {
     if (cut01_127 < 0)
         cut01_127 = 0;
+    if (cut01_127 <= 127)
+        return g_cutoffFLut[cut01_127];
     if (cut01_127 > 140)
         cut01_127 = 140;
     return 180 + cut01_127 * cut01_127 / 2;
@@ -148,15 +142,13 @@ void voiceChorusStereo(PolyVoice &v, int32_t x, int32_t &outL, int32_t &outR)
     int32_t lfoB = g_sinLut[v.chorusLfo2 >> 24];
     int delayL = 48 + (((lfoA + 2048) * 90) >> 12); // ~1–3 ms
     int delayR = 64 + (((lfoB + 2048) * 100) >> 12);
-    int idxL = (int)v.chorusWr - delayL;
-    if (idxL < 0)
-        idxL += PolyVoice::kChorusLen;
-    int idxR = (int)v.chorusWr - delayR;
-    if (idxR < 0)
-        idxR += PolyVoice::kChorusLen;
+    int idxL = (int)v.chorusWr + PolyVoice::kChorusLen - delayL;
+    int idxR = (int)v.chorusWr + PolyVoice::kChorusLen - delayR;
+    idxL &= (PolyVoice::kChorusLen - 1);
+    idxR &= (PolyVoice::kChorusLen - 1);
     int32_t wetL = v.chorusBuf[idxL];
     int32_t wetR = v.chorusBuf[idxR];
-    v.chorusWr = (uint16_t)((v.chorusWr + 1u) % PolyVoice::kChorusLen);
+    v.chorusWr = (uint16_t)((v.chorusWr + 1u) & (PolyVoice::kChorusLen - 1));
     // Mild wet — character without washing out the DCO.
     outL = clamp12((x * 3 + wetL) >> 2);
     outR = clamp12((x * 3 + wetR) >> 2);
@@ -187,28 +179,19 @@ uint32_t applyGlide(PolyVoice &v, uint32_t targetInc, bool enable)
 
 void initLuts()
 {
-    g_midiPhaseInc[69] = (uint32_t)((440ull << 32) / 48000ull);
-    for (int n = 70; n < 128; ++n)
+    for (int n = 0; n < 128; ++n)
+    {
+        float freq = 440.0f * powf(2.0f, (float)(n - 69) / 12.0f);
         g_midiPhaseInc[n] =
-            (uint32_t)(((uint64_t)g_midiPhaseInc[n - 1] * kSemiQ32) >> 32);
-    for (int n = 68; n >= 0; --n)
-        g_midiPhaseInc[n] = (uint32_t)(((uint64_t)g_midiPhaseInc[n + 1] << 32) /
-                                       kSemiQ32);
-
-    constexpr int32_t sinStepQ15 = 804;  // round(sin(2π/256) * 32768)
-    constexpr int32_t cosStepQ15 = 32757; // round(cos(2π/256) * 32768)
-    int32_t s = 0;
-    int32_t c = 32767;
+            (uint32_t)(freq / 48000.0f * 4294967296.0f + 0.5f);
+    }
     for (int i = 0; i < 256; ++i)
     {
-        g_sinLut[i] = (int16_t)((s * 2047) >> 15);
-        int32_t ns = ((s * cosStepQ15) >> 15) + ((c * sinStepQ15) >> 15);
-        int32_t nc = ((c * cosStepQ15) >> 15) - ((s * sinStepQ15) >> 15);
-        s = ns;
-        c = nc;
+        float t = (float)i / 256.0f * 6.28318530718f;
+        g_sinLut[i] = (int16_t)(sinf(t) * 2047.0f);
     }
-
-    initAdsrLuts();
+    for (int i = 0; i < 128; ++i)
+        g_cutoffFLut[i] = 180 + i * i / 2;
 }
 
 int16_t phaseSin(uint32_t phase) { return g_sinLut[phase >> 24]; }
@@ -245,7 +228,7 @@ uint32_t noteBendIncrement(uint8_t note, int16_t bend14, uint8_t bendSemitones)
 {
     int32_t note8 =
         ((int32_t)note << 8) +
-        (((int32_t)bend14 * (int32_t)bendSemitones * 256) / 8192);
+        (((int32_t)bend14 * (int32_t)bendSemitones * 256) >> 13);
     if (note8 < 0)
         note8 = 0;
     if (note8 > (127 << 8))
@@ -264,7 +247,7 @@ int16_t oscSample(uint32_t phase, uint32_t inc, uint8_t voiceType)
     case 1:
         return oscSine(phase);
     case 2:
-        return oscSaw(phase, inc, phaseIncRecip(inc));
+        return oscSaw(phase, inc);
     case 3:
         return oscTriangle(phase);
     case 0:
@@ -282,12 +265,9 @@ int32_t renderVoiceSample(uint32_t &phase, uint32_t &phase2, uint32_t inc,
     case 4: // dual saw, slight detune
     {
         uint32_t inc2 = inc + (inc >> 7);
-        uint32_t invRecip = phaseIncRecip(inc);
-        uint32_t invRecip2 = phaseIncRecip(inc2);
         phase += inc;
         phase2 += inc2;
-        return ((int32_t)oscSaw(phase, inc, invRecip) +
-                (int32_t)oscSaw(phase2, inc2, invRecip2)) >>
+        return ((int32_t)oscSaw(phase, inc) + (int32_t)oscSaw(phase2, inc2)) >>
                1;
     }
     case 5: // pulse + octave-down square
@@ -307,10 +287,9 @@ int32_t renderVoiceSample(uint32_t &phase, uint32_t &phase2, uint32_t inc,
     }
     case 7: // saw + octave-down square
     {
-        uint32_t invRecip = phaseIncRecip(inc);
         phase += inc;
         phase2 += inc >> 1;
-        return ((int32_t)oscSaw(phase, inc, invRecip) + (int32_t)oscSquare(phase2)) >> 1;
+        return ((int32_t)oscSaw(phase, inc) + (int32_t)oscSquare(phase2)) >> 1;
     }
     default:
         phase += inc;
@@ -320,8 +299,7 @@ int32_t renderVoiceSample(uint32_t &phase, uint32_t &phase2, uint32_t inc,
 
 namespace {
 
-int32_t sampleRowWave(uint8_t row, uint32_t phase, uint32_t inc,
-                      uint32_t invRecip)
+int32_t sampleRowWave(uint8_t row, uint32_t phase, uint32_t inc)
 {
     switch (row)
     {
@@ -332,13 +310,13 @@ int32_t sampleRowWave(uint8_t row, uint32_t phase, uint32_t inc,
     case 2:
         return oscSine(phase);
     case 3:
-        return oscSaw(phase, inc, invRecip);
+        return oscSaw(phase, inc);
     case 4:
         return oscTriangle(phase);
     case 5:
         return oscPulse(phase, 19);
     case 6:
-        return softClip12(oscSaw(phase, inc, invRecip));
+        return softClip12(oscSaw(phase, inc));
     case 7:
         return ((int32_t)oscTriangle(phase) * 3 + (int32_t)oscSquare(phase)) >>
                2;
@@ -424,7 +402,7 @@ void renderNoiseHybrid(PolyVoice &v, uint8_t col, uint32_t targetInc,
 {
     uint32_t inc = applyGlide(v, targetInc, col == 9);
     v.phase += inc;
-    int32_t tone = sampleRowWave(2, v.phase, inc, phaseIncRecip(inc)) >> 2;
+    int32_t tone = sampleRowWave(2, v.phase, inc) >> 2;
     int32_t n = (int32_t)(noiseLfsr(v) & 4095u) - 2048;
     if (col == 7 || col == 10)
         n = voiceSvfLp(n, v.filtLp, v.filtBp, cutoffToF((int32_t)g_ext.cutoff),
@@ -448,17 +426,17 @@ void renderSyncFmCol(PolyVoice &v, uint8_t row, uint32_t inc,
         int32_t mod = oscSine(v.phase2);
         int32_t index = ((int32_t)g_ext.cutoff * 40);
         v.phase += inc + (uint32_t)((mod * index) >> 4);
-        s = sampleRowWave(row, v.phase, inc, phaseIncRecip(inc));
+        s = sampleRowWave(row, v.phase, inc);
         return;
     }
     uint32_t ratio = 64u + (uint32_t)pwm;
-    uint32_t slaveInc = (uint32_t)(((uint64_t)inc * ratio) >> 6);
+    uint32_t slaveInc = (uint32_t)(((uint64_t)inc * ratio) / 64u);
     uint32_t prev = v.phase;
     v.phase += inc;
     if (v.phase < prev)
         v.phase2 = 0;
     v.phase2 += slaveInc;
-    s = oscSaw(v.phase2, slaveInc, phaseIncRecip(slaveInc));
+    s = oscSaw(v.phase2, slaveInc);
 }
 
 void renderWaveMatrix(PolyVoice &v, uint8_t row, uint8_t col,
@@ -470,10 +448,6 @@ void renderWaveMatrix(PolyVoice &v, uint8_t row, uint8_t col,
     uint32_t incDet = inc + (inc >> 7);
     uint32_t incDet2 = inc - (inc >> 8);
     uint32_t incOct = inc << 1;
-    uint32_t invRecip = phaseIncRecip(inc);
-    uint32_t invRecipDet = phaseIncRecip(incDet);
-    uint32_t invRecipDet2 = phaseIncRecip(incDet2);
-    uint32_t invRecipOct = phaseIncRecip(incOct);
     int32_t s = 0;
 
     if (col == 10)
@@ -488,72 +462,72 @@ void renderWaveMatrix(PolyVoice &v, uint8_t row, uint8_t col,
     {
     case 0:
         v.phase += inc;
-        s = sampleRowWave(row, v.phase, inc, invRecip);
+        s = sampleRowWave(row, v.phase, inc);
         applyOptionalTone(s, v, false);
         break;
     case 1:
         v.phase += inc;
         v.phase2 += inc;
-        s = (sampleRowWave(row, v.phase, inc, invRecip) +
-             sampleRowWave(row, v.phase2, inc, invRecip)) >>
+        s = (sampleRowWave(row, v.phase, inc) +
+             sampleRowWave(row, v.phase2, inc)) >>
             1;
         break;
     case 2:
         v.phase += inc;
         v.phase2 += inc;
         v.phase3 += inc;
-        s = (sampleRowWave(row, v.phase, inc, invRecip) +
-             sampleRowWave(row, v.phase2, inc, invRecip) +
-             sampleRowWave(row, v.phase3, inc, invRecip)) *
-            kThirdQ16 >>
-            16;
+        s = (int32_t)((sampleRowWave(row, v.phase, inc) +
+                       sampleRowWave(row, v.phase2, inc) +
+                       sampleRowWave(row, v.phase3, inc)) *
+                      (int64_t)kThirdScale >>
+                      16);
         break;
     case 3:
         v.phase += inc;
         v.phase2 += incDet;
-        s = (sampleRowWave(row, v.phase, inc, invRecip) +
-             sampleRowWave(row, v.phase2, incDet, invRecipDet)) >>
+        s = (sampleRowWave(row, v.phase, inc) +
+             sampleRowWave(row, v.phase2, incDet)) >>
             1;
         break;
     case 4:
         v.phase += inc;
         v.phase2 += inc >> 1;
-        s = (sampleRowWave(row, v.phase, inc, invRecip) + oscSquare(v.phase2)) >> 1;
+        s = (sampleRowWave(row, v.phase, inc) + oscSquare(v.phase2)) >> 1;
         break;
     case 5:
         v.phase += inc;
         v.phase2 += incOct;
-        s = (sampleRowWave(row, v.phase, inc, invRecip) +
-             sampleRowWave(row, v.phase2, incOct, invRecipOct)) >>
+        s = (sampleRowWave(row, v.phase, inc) +
+             sampleRowWave(row, v.phase2, incOct)) >>
             1;
         break;
     case 6:
         v.phase += inc;
         v.phase2 += incDet;
         v.phase3 += incDet2;
-        s = (sampleRowWave(row, v.phase, inc, invRecip) +
-             sampleRowWave(row, v.phase2, incDet, invRecipDet) +
-             sampleRowWave(row, v.phase3, incDet2, invRecipDet2)) >>
+        s = (sampleRowWave(row, v.phase, inc) +
+             sampleRowWave(row, v.phase2, incDet) +
+             sampleRowWave(row, v.phase3, incDet2)) >>
             1;
         break;
     case 7:
         v.phase += inc;
-        s = sampleRowWave(row, v.phase, inc, invRecip);
+        s = sampleRowWave(row, v.phase, inc);
         applyResonantLp(s, v);
         break;
     case 8:
         v.phase += inc;
-        s = sampleRowWave(row, v.phase, inc, invRecip);
+        s = sampleRowWave(row, v.phase, inc);
         applyOptionalTone(s, v, cut < 126);
         voiceChorusStereo(v, s, outL, outR);
         return;
     case 9:
         v.phase += inc;
-        s = sampleRowWave(row, v.phase, inc, invRecip);
+        s = sampleRowWave(row, v.phase, inc);
         break;
     default:
         v.phase += inc;
-        s = sampleRowWave(row, v.phase, inc, invRecip);
+        s = sampleRowWave(row, v.phase, inc);
         break;
     }
 
@@ -631,13 +605,12 @@ int32_t applyCutoff(int32_t x, int32_t &state)
 {
     if (g_ext.cutoff >= 126)
     {
-        state = x << 7;
+        state = x;
         return x;
     }
     int32_t c = 280 + ((int32_t)g_ext.cutoff * (int32_t)g_ext.cutoff * 2);
     if (c > 32767)
         c = 32767;
-    int32_t x7 = x << 7;
-    state += ((x7 - state) * c) >> 15;
-    return state >> 7;
+    state += ((x - state) * c) >> 15;
+    return state;
 }
