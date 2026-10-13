@@ -35,9 +35,15 @@ The eight faders are the eight heads. The buttons act **when you let go**:
 
 Faders **pick up**: after a page change, a fader does nothing until you move
 it to (or past) the stored value, so nothing jumps. The 8mu's LEDs show the
-stored values on the current page. Tilting the 8mu forwards or back bends
-every head's time by up to an octave, past a dead zone of about 15°, like a
-hand on the reel.
+stored values on the current page.
+
+Tilting the 8mu plays the mix. Both tilts ignore about 15° either side of
+flat, so just holding it changes nothing.
+
+| Tilt | Does |
+|---|---|
+| Back up / front up | Multiplies every head's feedback, up to ×2 (back lifted) or down to ×0 (front lifted). It stacks with X and CV In 1, so feedback can reach ×4 |
+| Left / right | Pushes every head's pan towards the side tipped down, as far as fully left or right at 90° |
 
 ### Reverse page (A, pressed twice)
 

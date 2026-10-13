@@ -88,9 +88,12 @@
 //   Pulse Out 2 high while frozen
 //
 // 8mu motion
-//   Pitch (tilt front/back)  bends every head's time up to an octave either
-//                            way, past about 15 degrees from flat, like a
-//                            hand on the reel
+//   Pitch (tilt front/back)  multiplies every head's feedback, x0 (front
+//                            lifted) to x2 (back lifted), on top of X
+//   Roll (tilt left/right)   offsets every head's pan, as far as fully left
+//                            or right, the way the 8mu tips
+//   Both ignore about 15 degrees either side of flat, so holding the 8mu
+//   doesn't change anything
 //
 // The tape is a buffer in RAM: stereo, 12 bits, at 24kHz (so the echoes
 // are a little darker than the dry signal, as on tape), about 2.2 seconds
@@ -316,7 +319,7 @@ public:
 		else if (controlCount == 24)
 		{
 			if (hostMode) HandleEightMU();
-			else tiltOct = TiltToOct(webPitch);
+			else SetTilt(webPitch, webRoll);
 		}
 
 		// The tape runs at 24kHz, half the sample rate, and its work is
@@ -602,9 +605,9 @@ private:
 		{1, 4}, {1, 3}, {1, 2}, {2, 3}, {1, 1}, {3, 2}, {2, 1}, {3, 1}, {4, 1}};
 	int ratioIndex = 4;
 	int32_t multOct = 0;          // free time multiplier, Q12 octaves
-	int32_t tiltOct = 0;          // 8mu tilt, Q12 octaves
+	int32_t tiltFb = 4096;        // 8mu front/back: feedback multiplier, Q12
+	int32_t tiltPan = 0;          // 8mu left/right: pan offset, Q12
 	uint32_t freeLen = 0;         // free time with a fader at the top, Q8 frames
-	int32_t tiltMul = 4096;       // 2^tiltOct, Q12
 	int32_t macroX = 4096, macroY = 4096; // Q12, 0 to 8192
 	int controlCount = 0;
 	uint32_t rng = 0x2545F491;
@@ -814,7 +817,6 @@ private:
 			int32_t beatPeriod = clockJack ? clockPeriod : tapPeriod;
 			int32_t q8 = n * beatPeriod * 32;    // n * beat / 8 frames, Q8
 			q8 = (q8 * kRatios[ratioIndex].num) / kRatios[ratioIndex].den;
-			if (tiltMul != 4096) q8 = int32_t((int64_t(q8) * tiltMul) >> 12);
 			while (q8 > (kMaxDelay << 8)) q8 >>= 1;
 			t = q8;
 		}
@@ -884,8 +886,7 @@ private:
 		if (clockJack && !wasClockJack) gridRestart = true;  // the clock starts the grid
 		wasClockJack = clockJack;
 		synced = clockJack || tapSynced;
-		freeLen = ExpScale(uint32_t(kFreeBase) << 8, multOct + tiltOct);
-		tiltMul = int32_t(ExpScale(4096, tiltOct));
+		freeLen = ExpScale(uint32_t(kFreeBase) << 8, multOct);
 		if (synced) beatLength = clockJack ? clockPeriod : tapPeriod;
 		else beatLength = int32_t(freeLen >> 7);   // Q8 frames to samples
 		if (beatLength < kMinBeat) beatLength = kMinBeat;
@@ -1001,11 +1002,11 @@ private:
 		// X and Y multipliers
 		int32_t vq = Q12(params[PageVolume][h]);
 		int32_t vol = (((vq * vq) >> 12) * macroX) >> 12;
-		int32_t fb = (Q12(params[PageFeedback][h]) * macroX) >> 12;
+		int32_t fb = (((Q12(params[PageFeedback][h]) * macroX) >> 12) * tiltFb) >> 12;
 		if (vol > 8192) vol = 8192;
-		if (fb > 8192) fb = 8192;
+		if (fb > 16384) fb = 16384;    // x4: X and tilt both at x2
 		if (frozen) fb = 0;
-		int32_t pan = (BipolarQ12(params[PagePan][h]) * macroY) >> 12;
+		int32_t pan = ((BipolarQ12(params[PagePan][h]) * macroY) >> 12) + tiltPan;
 		if (pan > 4096) pan = 4096;
 		if (pan < -4096) pan = -4096;
 		int32_t gl = pan > 0 ? 4096 - pan : 4096;
@@ -1077,7 +1078,7 @@ private:
 			| (frozen ? 8 : 0) | (mu.Connected() ? 16 : 0) | (tapHeld ? 32 : 0));
 		stRatio = uint8_t(ratioIndex);
 		stBeatMs = (synced ? (clockJack ? clockPeriod : tapPeriod) : beatLength) / 48;
-		stMult = ((multOct + tiltOct) >> 4) + 8192;
+		stMult = (multOct >> 4) + 8192;
 		stMacroX = uint8_t(macroX >= 8128 ? 127 : macroX >> 6);
 		stMacroY = uint8_t(macroY >= 8128 ? 127 : macroY >> 6);
 		stInL = Level7(lvInL);
@@ -1152,17 +1153,26 @@ private:
 		return 2048 + ((d + kKnobCentreZone) * 2048) / (2048 - kKnobCentreZone);
 	}
 
-	// 8mu front/back tilt (-2032 to 2032 for -90 to +90 degrees) to a time
-	// bend (Q12 octaves), ignoring about 15 degrees either side of flat so
-	// that holding the 8mu doesn't bend anything; beyond that the tilt is
-	// stretched so tipping it right up reaches an octave
+	// 8mu tilt (-2032 to 2032 for -90 to +90 degrees) to -4096 to 4096,
+	// ignoring about 15 degrees either side of flat so that holding the 8mu
+	// doesn't change anything; beyond that the tilt is stretched so tipping
+	// it right up reaches the end
 	static constexpr int32_t kTiltDeadZone = 512;
-	static int32_t TiltToOct(int32_t t)
+	static int32_t TiltQ12(int32_t t)
 	{
 		if (t > -kTiltDeadZone && t < kTiltDeadZone) return 0;
 		int32_t d = t > 0 ? t - kTiltDeadZone : t + kTiltDeadZone;
 		int32_t m = (d * 4096) / (2032 - kTiltDeadZone);
 		return m > 4096 ? 4096 : (m < -4096 ? -4096 : m);
+	}
+
+	// Front/back multiplies feedback, x0 (front lifted) to x2 (back
+	// lifted); left/right offsets pan towards the side tipped down (Roll is
+	// positive with the right lifted)
+	void SetTilt(int32_t pitch, int32_t roll)
+	{
+		tiltFb = 4096 + TiltQ12(pitch);
+		tiltPan = -TiltQ12(roll);
 	}
 
 	void HandleEightMU()
@@ -1171,7 +1181,7 @@ private:
 		if (!conn)
 		{
 			wasConnected = false;
-			tiltOct = 0;
+			SetTilt(0, 0);
 			return;
 		}
 		if (!wasConnected)
@@ -1268,7 +1278,7 @@ private:
 		}
 		lastFaderValid = true;
 
-		tiltOct = TiltToOct(mu.Pitch());
+		SetTilt(mu.Pitch(), mu.Roll());
 	}
 
 	//------------------------------------------------------------------------
