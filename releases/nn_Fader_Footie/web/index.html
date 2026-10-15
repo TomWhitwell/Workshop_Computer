@@ -748,8 +748,9 @@ function onEightmu(d) {
     } else if (cc >= FIRST_MOTION_CC && cc < FIRST_MOTION_CC + 8) {
       mu.cc[cc - FIRST_MOTION_CC] = d[2] & 0x7F;
       // tilt, as EightMU::Pitch/Roll compute it: the difference of a pair of CCs
-      tiltG.y = clamp((mu.cc[0] - mu.cc[1]) / 64, -1, 1);
-      tiltG.x = clamp((mu.cc[2] - mu.cc[3]) / 64, -1, 1);
+      // (negated, so the ball rolls downhill on both axes)
+      tiltG.y = clamp((mu.cc[1] - mu.cc[0]) / 64, -1, 1);
+      tiltG.x = clamp((mu.cc[3] - mu.cc[2]) / 64, -1, 1);
     }
   } else if (type === 0x90 || type === 0x80) {
     const b = BUTTON_NOTES.indexOf(d[1]);
