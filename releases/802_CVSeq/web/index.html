@@ -198,7 +198,7 @@
         <div class="readout"><div class="k">Depth</div><div class="v" id="ro-depth">-</div></div>
         <div class="readout"><div class="k">Offset</div><div class="v" id="ro-offset">-</div></div>
         <div class="readout"><div class="k">Smoothing</div><div class="v" id="ro-smooth">-</div></div>
-        <div class="readout"><div class="k">Morph offset</div><div class="v" id="ro-morph">-</div></div>
+        <div class="readout"><div class="k">Morph offset</div><div class="v" id="ro-morph">-</div><div class="sub" id="ro-morph-all"></div></div>
         <div class="readout"><div class="k">Timing</div><div class="v" id="ro-clock">-</div></div>
         <div class="readout"><div class="k">Scale</div><div class="v" id="ro-scale">-</div></div>
       </div>
@@ -592,7 +592,11 @@ function fmtClocks(steps) {
   const [n, d] = clockRatio(), num = steps * d, den = n, g = (a, b) => b ? g(b, a % b) : a, k = g(num, den);
   return (den / k === 1 ? String(num / k) : (num / k) + '/' + (den / k)) + (num / den === 1 ? ' clock' : ' clocks');
 }
-function morphOffsetLive() { return link.cardOnline ? state.live.morph : 0; }
+// The morph offset added to every step: the whole of it (knob, CV In 1 and
+// tilt) from cards that report it, otherwise the knob's
+function morphOffsetLive() { const L = state.live; return link.cardOnline ? (L.morphAll !== null && L.morphAll !== undefined ? L.morphAll : L.morph) : 0; }
+// How far a step is from shape 1 (0) to shape 2 (1), offset and all
+const stepMorph = (v, i) => Math.min(1, Math.max(0, pct(v[2][i]) + morphOffsetLive()));
 
 // ============================================================================
 // Drawing
@@ -688,7 +692,10 @@ function drawTimeline() {
       ctx.fillText(String(i + 1), x0 + 4, top - 5);
       const nameX = x0 + 10 + ctx.measureText(String(i + 1)).width;
       ctx.fillStyle = cssVar('--muted'); ctx.font = '11px system-ui';
-      if (bw > 70) ctx.fillText(SHAPE_NAMES[shapeOf(v[0][i])] + (v[2][i] > 0 ? ' \u2192 ' + SHAPE_NAMES[shapeOf(v[1][i])] : ''), nameX, top - 5, x0 + bw - 4 - nameX);
+      // the shapes heard: shape 1, shape 2, or a morph between them
+      const sm = stepMorph(v, i);
+      if (bw > 70) ctx.fillText(sm <= 0 ? SHAPE_NAMES[shapeOf(v[0][i])] : sm >= 1 ? SHAPE_NAMES[shapeOf(v[1][i])] + ' (shape 2)'
+        : SHAPE_NAMES[shapeOf(v[0][i])] + ' \u2192 ' + SHAPE_NAMES[shapeOf(v[1][i])], nameX, top - 5, x0 + bw - 4 - nameX);
       if (chance < 1) { ctx.textAlign = 'right'; ctx.fillText(describe(7, v[7][i]), x0 + bw - 4, bot + 13); ctx.textAlign = 'left'; }
       const below = [quantN(v[6][i]) > 0 ? describe(6, v[6][i]) : '', bipolar(v[8][i]) ? describe(8, v[8][i]) : ''].filter(Boolean).join(', ');
       if (below && bw > 40) ctx.fillText(below, x0 + 4, bot + 13, bw - (chance < 1 ? 44 : 8));
@@ -750,6 +757,9 @@ function drawReadouts() {
   $('ro-offset').textContent = (L.offsetMv / 1000).toFixed(2) + ' V';
   $('ro-smooth').textContent = L.smooth < 0 ? 'off' : fmtTime(0.001 * Math.pow(2, L.smooth * 11));
   $('ro-morph').textContent = (L.morph > 0 ? '+' : '') + Math.round(L.morph * 100) + '%';
+  // with CV In 1 and tilt, when they add to it
+  const ma = L.morphAll, extra = link.cardOnline && ma !== null && ma !== undefined && Math.abs(ma - L.morph) >= 0.03;
+  $('ro-morph-all').textContent = extra ? 'with CV & tilt ' + (ma > 0 ? '+' : '') + Math.round(ma * 100) + '%' : '';
   $('ro-clock').textContent = L.clocked ? 'Clocked' : 'Free';
   $('ro-scale').textContent = SCALES[L.scale][0];
   // A dotted box round each setting whose knob is waiting to pick it up: X,
@@ -829,7 +839,11 @@ function refreshFaders() {
     const step = state.bank * NS + i, v = state.values[state.page][step];
     if (document.activeElement !== f.input || +f.input.value !== v) f.input.value = v;
     f.name.textContent = step + 1; f.input.setAttribute('aria-label', 'Step ' + (step + 1));
-    f.val.textContent = v; f.desc.textContent = describe(state.page, v);
+    // a shape morphed fully away isn't heard: say so
+    const sm = state.page <= 1 ? stepMorph(state.values, step) : 0.5;
+    const unheard = (state.page === 0 && sm >= 1) || (state.page === 1 && sm <= 0);
+    f.val.textContent = v; f.desc.textContent = describe(state.page, v) + (unheard ? ' (not heard)' : '');
+    f.desc.title = unheard ? (state.page === 0 ? 'Morph (with the morph offset) is fully at shape 2, so shape 1 isn\u2019t heard' : 'Morph (with the morph offset) is fully at shape 1, so shape 2 isn\u2019t heard') : '';
     f.root.classList.toggle('cur', step === state.live.cur);
     f.root.classList.toggle('sel', step === state.sel);
     f.root.classList.toggle('picked', step !== state.sel && state.selSet.has(step));
@@ -1442,6 +1456,8 @@ function handleCardMessage(m) {
     // As main.cpp: off below a dead zone of 140 (of 4095, after the knob end zone: a raw reading of 260), then 1ms to ~2s
     L.smooth = p[10] * 32 < 140 ? -1 : (p[10] * 32 - 140) / (4095 - 140);
     L.morph = twoSided(p[11]);
+    // the whole morph offset (knob, CV In 1 and tilt), from cards that send it
+    L.morphAll = p.length >= 16 ? (p[15] >= 127 ? 1 : (p[15] - 64) / 64) : null;
     L.scale = p.length >= 13 ? Math.min(SCALES.length - 1, p[12]) : 0;
     if (p.length >= 15) {
       // the card's bank and length, which an 8mu on the card may change
