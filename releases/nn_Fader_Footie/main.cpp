@@ -1,4 +1,4 @@
-// Fussball
+// Fader Footie
 //
 // Table football for two players and a Music Thing 8mu, played in a web page
 // (web/index.html), with the game turned into voltages by the Workshop
@@ -41,7 +41,7 @@
 //   4 / 5       Pulse Out 1 / 2
 //   With no page linked, LEDs 4 and 5 blink slowly in turn.
 //
-// USB: the card is always a USB MIDI device called "Fussball" (protocol in
+// USB: the card is always a USB MIDI device called "Fader Footie" (protocol in
 // sysex.h).  Plug the computer into the Computer's USB socket; the 8mu goes
 // into the computer, not the card.
 
@@ -54,10 +54,10 @@
 #include "sysex.h"
 #include <math.h>
 
-class Fussball;
-static Fussball *gCard = nullptr;
+class FaderFootie;
+static FaderFootie *gCard = nullptr;
 
-class Fussball : public ComputerCard
+class FaderFootie : public ComputerCard
 {
 public:
 	static constexpr int kSampleRate = 48000;
@@ -65,7 +65,7 @@ public:
 	static constexpr int kGapSamples = 48;         // 1ms low before a retrigger
 	static constexpr int kHoldSamples = kSampleRate; // switch hold for a new match
 
-	Fussball()
+	FaderFootie()
 	{
 		for (int i = 0; i < 2; i++)
 		{
@@ -417,6 +417,6 @@ int main()
 {
 	set_sys_clock_khz(200000, true);
 
-	static Fussball card;
+	static FaderFootie card;
 	card.Run();
 }

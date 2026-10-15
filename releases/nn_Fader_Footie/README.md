@@ -1,4 +1,4 @@
-# Fussball
+# Fader Footie
 
 Table football (*Tischfußball*) for two players and a
 [Music Thing 8mu](https://www.musicthing.co.uk/8mu_page/), played in a web
@@ -23,9 +23,9 @@ has not yet been tried on a Workshop Computer with a real 8mu.
 
 ## Quick start
 
-1. Copy `UF2/fussball.uf2` to the card (hold BOOTSEL, plug in, drop the file).
+1. Copy `UF2/fader_footie.uf2` to the card (hold BOOTSEL, plug in, drop the file).
 2. Plug the computer into the Computer's front USB socket and **power-cycle
-   the module**. The card appears as a MIDI device called **Fussball**.
+   the module**. The card appears as a MIDI device called **Fader Footie**.
 3. Plug the 8mu into the computer.
 4. Open `web/index.html` in Chrome, press **Connect card & 8mu**, and allow
    MIDI with SysEx.
@@ -194,7 +194,7 @@ cmake --build build
 
 Needs the Pico SDK. `ComputerCard.h` is copied from
 `Demonstrations+HelloWorlds/PicoSDK/ComputerCard`. The binary is committed at
-`UF2/fussball.uf2`.
+`UF2/fader_footie.uf2`.
 
 ## Credits
 

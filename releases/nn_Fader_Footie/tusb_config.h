@@ -1,10 +1,10 @@
-// TinyUSB configuration for Fussball.
+// TinyUSB configuration for Fader Footie.
 //
 // The card is only ever a USB MIDI device: the game runs in the web page, and
 // the 8mu plugs into the computer, not the card.
 
-#ifndef FUSSBALL_TUSB_CONFIG_H
-#define FUSSBALL_TUSB_CONFIG_H
+#ifndef FADER_FOOTIE_TUSB_CONFIG_H
+#define FADER_FOOTIE_TUSB_CONFIG_H
 
 #define CFG_TUSB_RHPORT0_MODE     OPT_MODE_DEVICE
 

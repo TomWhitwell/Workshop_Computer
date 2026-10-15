@@ -1,5 +1,5 @@
 draft: false
-Name: Fussball
+Name: Fader Footie
 short-description: "Table football for two players on a Music Thing 8mu, played in a web page, with every touch, goal and the ball's position on the Computer's jacks"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
@@ -18,8 +18,8 @@ contact:
 #     (c) Chris Johnson
 
 uf2:
-  - path: UF2/fussball.uf2
-    name: Fussball 0.1.0
+  - path: UF2/fader_footie.uf2
+    name: Fader Footie 0.1.0
 
 tags:
   - game

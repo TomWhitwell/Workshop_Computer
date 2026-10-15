@@ -1,7 +1,7 @@
-// SysEx protocol between the Fussball web page and the card.
+// SysEx protocol between the Fader Footie web page and the card.
 //
 // Every message is  F0 7D 46 cmd payload... F7  (7D: non-commercial
-// manufacturer ID, 46: 'F' for Fussball).  14-bit values are sent as two
+// manufacturer ID, 46: 'F' for Fader Footie).  14-bit values are sent as two
 // bytes, high 7 bits first.
 //
 // Web -> card
@@ -32,8 +32,8 @@
 //             3          Pulse In 1: serve the ball again
 //             4          Pulse In 2: new match
 
-#ifndef FUSSBALL_SYSEX_H
-#define FUSSBALL_SYSEX_H
+#ifndef FADER_FOOTIE_SYSEX_H
+#define FADER_FOOTIE_SYSEX_H
 
 #include <stdint.h>
 

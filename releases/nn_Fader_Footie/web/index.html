@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fussball</title>
+<title>Fader Footie</title>
 <!--
-  FUSSBALL - table football for two players and a Music Thing 8mu, with the
+  FADER FOOTIE - table football for two players and a Music Thing 8mu, with the
   game turned into voltages by the Workshop Computer card (../main.cpp).
   One static file, no network needed. The physics runs here; the card is a
   USB MIDI device that this page drives over WebMIDI + SysEx (protocol:
@@ -121,7 +121,7 @@
 </head>
 <body>
 <header>
-  <h1>Fussball</h1>
+  <h1>Fader Footie</h1>
   <div class="status"><span class="dot" id="dot"></span><span id="status">Not connected</span></div>
   <div class="spacer"></div>
   <label class="muted"><input type="checkbox" id="opt-sound" checked> Sound</label>
@@ -215,7 +215,7 @@
         <label><input type="checkbox" id="opt-numbers" checked> Show numbers</label>
       </div>
       <p><b>Keyboard:</b> team 1 rods <kbd>Q</kbd>/<kbd>A</kbd> <kbd>W</kbd>/<kbd>S</kbd> <kbd>E</kbd>/<kbd>D</kbd> <kbd>R</kbd>/<kbd>F</kbd>, shots <kbd>Z</kbd> hard <kbd>X</kbd> soft; team 2 rods <kbd>U</kbd>/<kbd>J</kbd> <kbd>I</kbd>/<kbd>K</kbd> <kbd>O</kbd>/<kbd>L</kbd> <kbd>P</kbd>/<kbd>;</kbd>, shots <kbd>,</kbd> soft <kbd>.</kbd> hard. <kbd>Space</kbd> serves, <kbd>Esc</kbd> pauses.</p>
-      <p><b>Card:</b> plug this computer into the Computer's USB socket, power-cycle the module, and press Connect: the card appears as the MIDI device <b>Fussball</b>. The 8mu plugs into this computer. Needs Chrome or Edge.</p>
+      <p><b>Card:</b> plug this computer into the Computer's USB socket, power-cycle the module, and press Connect: the card appears as the MIDI device <b>Fader Footie</b>. The 8mu plugs into this computer. Needs Chrome or Edge.</p>
     </section>
   </div>
 </main>
@@ -289,7 +289,7 @@ const PRESETS = {
   'Slow motion': { timeScale: 0.35 },
 };
 const P = { ...DEFAULTS };
-try { Object.assign(P, JSON.parse(lsGet('fussball.params') || '{}')); } catch (e) {}
+try { Object.assign(P, JSON.parse(lsGet('faderfootie.params') || '{}')); } catch (e) {}
 
 const SCALES = {
   'Major': [0, 2, 4, 5, 7, 9, 11], 'Minor': [0, 2, 3, 5, 7, 8, 10], 'Dorian': [0, 2, 3, 5, 7, 9, 10],
@@ -301,11 +301,11 @@ const CVPARAMS = [
   { k: 'trans', label: 'Team 2 transpose', min: -12, max: 12, step: 1, def: 0, fmt: v => (v > 0 ? '+' : '') + v + ' st' },
 ];
 const CV = { mode: 'scale', scale: 'Major', base: 0, trans: 0 };
-try { Object.assign(CV, JSON.parse(lsGet('fussball.cv') || '{}')); } catch (e) {}
+try { Object.assign(CV, JSON.parse(lsGet('faderfootie.cv') || '{}')); } catch (e) {}
 
 const OPT = { spin: 'nearest', first: '5', dist: 'line', burst: 12, invert0: false, invert1: false, order: false, swap: false, numbers: true, sound: true, ctl0: 'human', ctl1: 'easy' };
-try { Object.assign(OPT, JSON.parse(lsGet('fussball.opt') || '{}')); } catch (e) {}
-const saveAll = () => { lsSet('fussball.params', JSON.stringify(P)); lsSet('fussball.cv', JSON.stringify(CV)); lsSet('fussball.opt', JSON.stringify(OPT)); };
+try { Object.assign(OPT, JSON.parse(lsGet('faderfootie.opt') || '{}')); } catch (e) {}
+const saveAll = () => { lsSet('faderfootie.params', JSON.stringify(P)); lsSet('faderfootie.cv', JSON.stringify(CV)); lsSet('faderfootie.opt', JSON.stringify(OPT)); };
 
 // ============================================================================
 // Faders: eight values 0-127, as the 8mu sends them.  Fader i drives a rod.
@@ -673,7 +673,7 @@ function sendCard(msg) {
 function setStatus(kind, text) { $('dot').className = 'dot ' + kind; $('status').textContent = text; }
 function say(text, bad) { const s = $('say'); s.textContent = text; s.className = bad ? 'bad' : ''; }
 
-const isCard = (p) => /fussball/i.test(p.name || '');
+const isCard = (p) => /fader\s*footie/i.test(p.name || '');
 const is8mu = (p) => [p.name, p.manufacturer, (p.manufacturer || '') + ' ' + (p.name || '')].some(s => /8mu/i.test(s || ''));
 
 async function connect() {
@@ -706,8 +706,8 @@ function scanPorts() {
     sendOutputs(true);
   }
   const m = link.muIns.length;
-  if (link.online) { setStatus('ok', 'Connected: Fussball card' + (m ? ' + 8mu' : '')); say(m ? 'Ready: the 8mu plays, the card makes the voltages.' : 'Card connected. Plug an 8mu into this computer, or play with the faders below.' + note); }
-  else if (m) { setStatus('warn', 'Connected: 8mu only (no card)'); say('No “Fussball” card found, so no voltages. Plug this computer into the Computer’s USB socket and power-cycle the module.' + note, true); }
+  if (link.online) { setStatus('ok', 'Connected: Fader Footie card' + (m ? ' + 8mu' : '')); say(m ? 'Ready: the 8mu plays, the card makes the voltages.' : 'Card connected. Plug an 8mu into this computer, or play with the faders below.' + note); }
+  else if (m) { setStatus('warn', 'Connected: 8mu only (no card)'); say('No “Fader Footie” card found, so no voltages. Plug this computer into the Computer’s USB socket and power-cycle the module.' + note, true); }
   else { setStatus('warn', 'No card or 8mu found'); say('Nothing found. Use a USB data cable, close other apps using the device, and power-cycle the module after plugging this computer in.' + note, true); }
   const cpu = [0, 1].filter(t => ctlOf(t) !== 'human');
   if (m && cpu.length) say($('say').textContent + ' Team ' + cpu.map(t => t + 1).join(' and ') + ' is played by the CPU: set it to Human (by the score) for two players.');
