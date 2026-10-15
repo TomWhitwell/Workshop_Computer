@@ -151,6 +151,14 @@ editor draws the tape with each head at its live delay, shows the tempo and
 the knobs, and lets you edit every page, freeze and tap. An 8mu plugged into
 the computer is passed on to the card through the editor.
 
+With two 8mus and several Workshop editors open (EightTrack, MatrixVerb,
+CVSeq, WaveSeq), each 8mu drives one editor and each editor uses one 8mu: it
+takes the one it had last time if that's free, otherwise any free one. The
+picker at the top shows every 8mu and who has it; choose one to take it, and
+**Identify** flashes its LEDs to tell which is which. With one 8mu it drives
+whichever editor you last clicked in. Closing an editor frees its 8mu. Use
+windows side by side rather than tabs: Chrome slows background tabs.
+
 The card chooses its USB mode once, at power-up: if the port is supplying
 power (an 8mu, or nothing yet), it's a USB host for the 8mu; if a computer is
 plugged in, it's a USB MIDI device called **EightTrack** for the editor. The
