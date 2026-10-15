@@ -50,8 +50,12 @@
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
   .dot.ok { background: var(--ok); } .dot.warn { background: var(--warm); } .dot.bad { background: var(--bad); }
   .spacer { flex: 1; }
-  .muown { padding: 2px 8px; font-size: 12px; border-color: var(--accent); }
-  .muown.away { color: var(--muted); border-color: var(--line); border-style: dashed; }
+  .mubox { display: inline-flex; gap: 4px; align-items: center; }
+  .mubox select { font: inherit; font-size: 12px; padding: 2px 4px; border-radius: 6px; border: 1px solid var(--accent); background: var(--panel); color: var(--ink); max-width: 160px; }
+  .mubox select.none { border-color: var(--line); border-style: dashed; color: var(--muted); }
+  .muown { padding: 2px 8px; font-size: 12px; }
+  header > button { padding: 5px 10px; font-size: 13px; }
+  header { gap: 8px 12px; }
   button {
     font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
     background: var(--panel); color: var(--ink); cursor: pointer;
@@ -160,7 +164,10 @@
 <header>
   <h1>Wave Sequencer</h1>
   <div class="status"><span id="dot" class="dot"></span><span id="status-text">Not connected</span></div>
-  <button id="mu-owner" class="muown" hidden></button>
+  <span id="mu-box" class="mubox" hidden>
+    <select id="mu-pick" aria-label="Which 8mu drives this editor" title="Which 8mu on this computer drives this editor"></select>
+    <button id="mu-ident" class="muown" title="Flash this 8mu's LEDs, to tell which one it is">Identify</button>
+  </span>
   <div class="spacer"></div>
   <button id="btn-connect" class="primary">Connect card &amp; 8mu</button>
   <button id="btn-rescan" hidden>Rescan</button>
@@ -320,6 +327,7 @@
           <tr><th>Faders</th><td>Pick up: after a page or bank change a fader does nothing until it reaches (or passes) the stored value, so nothing jumps.</td></tr>
           <tr><th>LEDs</th><td>The stored values on the page, the playing step fully lit, steps past the end dark.</td></tr>
           <tr><th>Tilt</th><td>Forward and back scans every step's wave; left and right detunes Audio Out 2. Both gently smoothed.</td></tr>
+          <tr><th>Two 8mus</th><td>Each drives one editor (CVSeq or WaveSeq). The picker at the top shows which is here; choose another to take it, and <b>Identify</b> flashes its LEDs. With one 8mu, it drives the editor you last clicked in.</td></tr>
         </table>
       </div>
     </section>
@@ -823,7 +831,7 @@ function refreshFaders() {
     f.root.classList.toggle('sel', step === state.sel);
     f.root.classList.toggle('picked', step !== state.sel && state.selSet.has(step));
     f.root.classList.toggle('unused', step >= state.length);
-    const ph = mu.phys[i], waiting = link.muIns.length > 0 && ph >= 0 && !mu.engaged[i];
+    const ph = mu.phys[i], waiting = !!owner.mine && ph >= 0 && !mu.engaged[i];
     f.ghost.style.display = waiting ? 'block' : 'none';
     if (waiting) f.ghost.style.top = ((1 - ph / 127) * 150) + 'px';
   });
@@ -1089,37 +1097,92 @@ function eightmuButton(b, down) {
   reengage();
   requestRender();
 }
-// ---- Which editor the 8mu drives.  With both the CVSeq and the WaveSeq
-// editors open, one 8mu on this computer drives one of them: the one last
-// clicked in (or opened).  A page claims it by telling the others, over a
-// BroadcastChannel and through localStorage, and they let it go.  A page
-// without it ignores its faders, buttons and tilt and leaves its LEDs alone,
-// but still follows where the faders are, so they pick up on return.
+// ---- Which 8mu drives which editor.  Every 8mu on this computer belongs to
+// at most one editor, and each editor uses at most one 8mu.  An editor takes
+// the 8mu it had last time if that's free, otherwise any free one; with only
+// one 8mu it follows the editor you click in.  The header's picker takes a
+// particular 8mu (Identify flashes its LEDs).  Open editors (CVSeq, WaveSeq,
+// or another copy) keep each other told, over a BroadcastChannel and through
+// localStorage, of which 8mu each has; one that goes quiet for 5 s, or
+// closes, frees its 8mu.  An editor reads faders, buttons and tilt only from
+// its own 8mu and lights only its LEDs, but follows every 8mu's faders so they
+// pick up as usual when it takes one over.
 const EDITOR_NAME = 'WaveSeq';
-const OWNER_KEY = 'workshop.8mu.owner';
-const owner = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), here: true, other: '', chan: null };
-function claim8mu(announce) {
-  const was = owner.here;
-  owner.here = true;
-  const msg = { id: owner.id, name: EDITOR_NAME, t: Date.now() };
+const MU_CHAN = 'workshop-computer-8mu-v2', MU_MSG = 'workshop.8mu.msg', MU_PREF = 'workshop.8mu.pref.' + EDITOR_NAME;
+const owner = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), mine: null, peers: new Map(),
+                chan: null, ready: false, identUntil: 0, cache: new Map(), sig: '' };
+const mus = { devices: [] };   // { key, label, in, out }
+
+// The 8mus' input and output ports, paired up by name (two identical 8mus
+// have identical names, so the k-th input of a name goes with its k-th output)
+function pairDevices(ins, outs) {
+  const byName = (list) => { const m = new Map(); for (const p of list) { const n = p.name || '8mu'; if (!m.has(n)) m.set(n, []); m.get(n).push(p); } return m; };
+  const om = byName(outs), devs = [];
+  for (const [n, list] of byName(ins)) list.forEach((p, k) => devs.push({ key: p.id || (n + '#' + k), in: p, out: (om.get(n) || [])[k] || null, name: n }));
+  devs.forEach((d, k) => { d.label = '8mu ' + (k + 1); });
+  return devs;
+}
+const myDevice = () => mus.devices.find(d => d.key === owner.mine) || null;
+const ownedOuts = () => { const d = myDevice(); return d && d.out ? [d.out] : []; };
+function livePeers() {
+  const now = Date.now();
+  for (const [id, p] of owner.peers) if (now - p.t > 5000) owner.peers.delete(id);
+  return owner.peers;
+}
+// The editor holding an 8mu: '' if free, this editor's name if it's ours
+function holderOf(key) {
+  if (owner.mine === key) return EDITOR_NAME;
+  for (const p of livePeers().values()) if (p.owns === key) return p.name || 'another';
+  return '';
+}
+
+function muSend(msg) {
+  msg.from = owner.id; msg.name = EDITOR_NAME; msg.t = Date.now();
   try { if (owner.chan) owner.chan.postMessage(msg); } catch (e) {}
-  try { localStorage.setItem(OWNER_KEY, JSON.stringify(msg)); } catch (e) {}
-  if (!was) { taken8mu(); if (announce && link.muIns.length) say('The 8mu now drives this editor.'); }
+  try { localStorage.setItem(MU_MSG, JSON.stringify(Object.assign({ nonce: Math.random() }, msg))); } catch (e) {}
+}
+function muHear(m) {
+  if (!m || !m.from || m.from === owner.id) return;
+  if (m.type === 'bye') { owner.peers.delete(m.from); refreshOwner(); autoClaim(); return; }
+  owner.peers.set(m.from, { name: m.name, owns: m.owns || null, t: Date.now() });
+  if (m.type === 'hello') muSend({ type: 'state', owns: owner.mine });
+  if (m.type === 'claim' && m.owns && m.owns === owner.mine) lose8mu(m.name);
   refreshOwner();
 }
-function heardClaim(msg) {
-  if (!msg || msg.id === owner.id) return;
-  owner.other = msg.name || '';
-  if (owner.here) {
-    owner.here = false;
-    for (const p of mu.press) p.down = false;
-    mu.engaged.fill(false);
-    requestRender();
-  }
+
+function claim8mu(key, announce) {
+  if (!key || owner.mine === key) return;
+  if (owner.mine) cacheFaders();
+  owner.mine = key;
+  mu.phys = (owner.cache.get(key) || new Array(NS).fill(-1)).slice();
+  taken8mu();
+  try { localStorage.setItem(MU_PREF, key); } catch (e) {}
+  muSend({ type: 'claim', owns: key });
+  const d = myDevice();
+  if (announce && d) say(d.label + ' now drives this editor.');
   refreshOwner();
 }
-// Taking the 8mu back: its faders must meet their values again, and its
-// LEDs are repainted
+function release8mu() {
+  if (!owner.mine) return;
+  cacheFaders();
+  owner.mine = null;
+  for (const p of mu.press) p.down = false;
+  mu.engaged.fill(false);
+  muSend({ type: 'state', owns: null });
+  requestRender(); refreshOwner();
+}
+// Another editor took our 8mu: let it go, and take a free one if there is one
+function lose8mu(byName) {
+  cacheFaders();
+  owner.mine = null;
+  for (const p of mu.press) p.down = false;
+  mu.engaged.fill(false);
+  requestRender(); refreshOwner();
+  setTimeout(autoClaim, 60);
+}
+function cacheFaders() { if (owner.mine) owner.cache.set(owner.mine, mu.phys.slice()); }
+// Taking an 8mu: its faders must meet their values again, and its LEDs are
+// repainted
 function taken8mu() {
   for (const p of mu.press) p.down = false;
   mu.engaged.fill(false);
@@ -1128,34 +1191,77 @@ function taken8mu() {
   mu.lastBlinkOff = 0;
   requestRender();
 }
+// With no 8mu, take a free one: the one used last time if it's free
+function autoClaim() {
+  if (!owner.ready || owner.mine || !mus.devices.length) return;
+  let pref = null; try { pref = localStorage.getItem(MU_PREF); } catch (e) {}
+  const free = mus.devices.filter(d => !holderOf(d.key));
+  const pick = free.find(d => d.key === pref) || free[0];
+  if (pick) claim8mu(pick.key, false);
+}
+// Using this page with no 8mu: take a free one, or else (one 8mu between
+// two editors) take it from the other editor
+function take8mu() {
+  if (owner.mine || !mus.devices.length) return;
+  autoClaim();
+  if (owner.mine) return;
+  let pref = null; try { pref = localStorage.getItem(MU_PREF); } catch (e) {}
+  const d = mus.devices.find(x => x.key === pref) || mus.devices[0];
+  claim8mu(d.key, true);
+}
+// The 8mus plugged in have changed
+function devicesChanged() {
+  if (owner.mine && !myDevice()) { owner.mine = null; mu.engaged.fill(false); }
+  autoClaim();
+  refreshOwner();
+}
 function refreshOwner() {
-  const b = $('mu-owner'); if (!b) return;
-  b.hidden = !link.muIns.length;
-  b.classList.toggle('away', !owner.here);
-  b.textContent = owner.here ? '8mu: here' : '8mu: elsewhere';
-  b.title = owner.here ? 'The 8mu on this computer drives this editor. Click in another editor to hand it over.'
-    : 'The 8mu is driving the ' + (owner.other || 'other') + ' editor. Click here, or anywhere on this page, to take it back.';
+  const box = $('mu-box'); if (!box) return;
+  box.hidden = !mus.devices.length;
+  const sel = $('mu-pick');
+  const opts = [['', 'No 8mu']].concat(mus.devices.map(d => {
+    const h = holderOf(d.key);
+    return [d.key, d.label + ' (' + (h === EDITOR_NAME ? 'here' : h || 'free') + ')'];
+  }));
+  const sig = JSON.stringify(opts) + '|' + owner.mine;
+  if (sig !== owner.sig) {
+    owner.sig = sig;
+    sel.innerHTML = '';
+    for (const [v, t] of opts) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); }
+    sel.value = owner.mine || '';
+  }
+  sel.classList.toggle('none', !owner.mine);
+  sel.title = 'Which 8mu on this computer drives this editor. ' + (mus.devices.map(d => { const h = holderOf(d.key); return d.label + ': ' + (h === EDITOR_NAME ? 'this editor' : h ? 'the ' + h + ' editor' : 'free'); }).join('; ')) + '.';
+  $('mu-ident').hidden = !owner.mine;
 }
 function setupOwnership() {
-  try { owner.chan = new BroadcastChannel('workshop-computer-8mu'); owner.chan.onmessage = (e) => heardClaim(e.data); } catch (e) {}
-  window.addEventListener('storage', (e) => { if (e.key === OWNER_KEY && e.newValue) { try { heardClaim(JSON.parse(e.newValue)); } catch (err) {} } });
-  // the page you're using takes the 8mu
-  const take = () => { if (!owner.here) claim8mu(true); };
-  window.addEventListener('pointerdown', take, true);
-  window.addEventListener('keydown', take, true);
-  window.addEventListener('focus', take);
-  $('mu-owner').addEventListener('click', () => claim8mu(true));
-  claim8mu(false);   // a page just opened takes it
+  try { owner.chan = new BroadcastChannel(MU_CHAN); owner.chan.onmessage = (e) => muHear(e.data); } catch (e) {}
+  window.addEventListener('storage', (e) => { if (e.key === MU_MSG && e.newValue) { try { muHear(JSON.parse(e.newValue)); } catch (err) {} } });
+  window.addEventListener('pointerdown', (e) => { if (!e.target.closest || !e.target.closest('#mu-box')) take8mu(); }, true);
+  window.addEventListener('keydown', take8mu, true);
+  window.addEventListener('focus', take8mu);
+  window.addEventListener('pagehide', () => muSend({ type: 'bye' }));
+  $('mu-pick').addEventListener('change', (e) => { const v = e.target.value; if (!v) { release8mu(); say('No 8mu drives this editor now.'); } else claim8mu(v, true); });
+  $('mu-ident').addEventListener('click', () => { owner.identUntil = performance.now() + 1500; mu.lastBlinkOff = performance.now() - 100; });
+  // ask who has which 8mu, then take one; and keep the others told
+  muSend({ type: 'hello', owns: null });
+  setTimeout(() => { owner.ready = true; autoClaim(); refreshOwner(); }, 350);
+  setInterval(() => { muSend({ type: 'state', owns: owner.mine }); const n = owner.peers.size; livePeers(); if (owner.peers.size !== n) autoClaim(); refreshOwner(); }, 1500);
+}
+
+// Every 8mu's messages: faders are followed on all of them, the rest only
+// from this editor's own
+function eightmuFrom(key, d) {
+  if (d.length >= 3 && (d[0] & 0xF0) === 0xB0 && d[1] >= FIRST_FADER_CC && d[1] < FIRST_FADER_CC + NS && key !== owner.mine) {
+    const c = owner.cache.get(key) || new Array(NS).fill(-1);
+    c[d[1] - FIRST_FADER_CC] = d[2] & 0x7F; owner.cache.set(key, c);
+  }
+  if (key === owner.mine) eightmuMessage(d);
 }
 
 function eightmuMessage(d) {
   if (d.length < 3 || d[0] < 0x80 || d[0] >= 0xF0) return;
   const type = d[0] & 0xF0;
-  if (!owner.here) {
-    // driving another editor: only follow where the faders are
-    if (type === 0xB0 && d[1] >= FIRST_FADER_CC && d[1] < FIRST_FADER_CC + NS) { mu.phys[d[1] - FIRST_FADER_CC] = d[2] & 0x7F; requestRender(); }
-    return;
-  }
   if (type === 0xB0) {
     const cc = d[1];
     if (cc >= FIRST_FADER_CC && cc < FIRST_FADER_CC + NS) eightmuFader(cc - FIRST_FADER_CC, d[2] & 0x7F);
@@ -1178,11 +1284,12 @@ function scheduleMotion() {
 // The 8mu's own LEDs: stored values, playing step full on (as the card does).
 // SysEx to the 8mu must travel on its own, so LED notes pause around it.
 function serviceEightmuLeds() {
-  if (!link.muOuts.length || !owner.here) return;
+  const outs = ownedOuts();
+  if (!outs.length) return;
   const now = performance.now();
   if (now - mu.lastBlinkOff > 2000) {
     mu.lastBlinkOff = now;
-    for (const o of link.muOuts) try { o.send(EIGHTMU_BLINK_OFF); } catch (e) {}
+    for (const o of outs) try { o.send(EIGHTMU_BLINK_OFF); } catch (e) {}
     mu.ledSent.fill(-1);
     return;
   }
@@ -1199,9 +1306,10 @@ function serviceEightmuLeds() {
     else if (step === state.live.cur) v = 127;
     else if (step >= state.length) v = 0;
     else v = (state.values[state.page][step] * 9) >> 4;
+    if (now < owner.identUntil) v = Math.floor((owner.identUntil - now) / 125) % 2 ? 127 : 0;   // Identify
     if (v === mu.ledSent[i]) continue;
     mu.ledSent[i] = v;
-    for (const o of link.muOuts) try { o.send([0x90, i, v]); } catch (e) {}
+    for (const o of outs) try { o.send([0x90, i, v]); } catch (e) {}
   }
 }
 
@@ -1232,13 +1340,14 @@ function scanPorts() {
 
   for (const p of ins) p.onmidimessage = null;
   if (cardIn) cardIn.onmidimessage = (ev) => onCardBytes(ev.data);
-  for (const p of muIns) p.onmidimessage = (ev) => eightmuMessage(ev.data);
+  mus.devices = pairDevices(muIns, muOuts);
+  for (const d of mus.devices) d.in.onmidimessage = (ev) => eightmuFrom(d.key, ev.data);
   const wasOnline = link.cardOnline;
   link.card.in = cardIn; link.card.out = cardOut; link.muIns = muIns; link.muOuts = muOuts;
   link.cardOnline = !!(cardIn && cardOut);
   link.sysexBuf = []; link.sysexOn = false;
   if (!muIns.length) { mu.phys.fill(-1); }
-  refreshOwner();
+  devicesChanged();
   mu.lastBlinkOff = 0;
 
   $('btn-read').disabled = $('btn-send').disabled = !link.cardOnline;
@@ -1247,7 +1356,7 @@ function scanPorts() {
   if (link.cardOnline) {
     link.pingTimer = setInterval(() => sendRaw(sysex(CMD.PING, [])), 1000);
     sendRaw(sysex(CMD.PING, []));
-    setStatus('ok', 'Connected: WaveSeq card' + (muIns.length ? ' + 8mu' : ''));
+    setStatus('ok', 'WaveSeq card' + (muIns.length ? ' + 8mu' : ''));
     say(muIns.length ? 'The 8mu drives this page, and this page drives the card.' : 'Card connected. Drag the faders, or plug an 8mu into this computer.' + note);
     if (!wasOnline) sendRaw(sysex(CMD.HELLO, []));       // the card is the source of truth: read it
   } else if (muIns.length) {

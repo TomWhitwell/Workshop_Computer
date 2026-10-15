@@ -133,12 +133,17 @@ and + to bring it back; the browser remembers which are folded):
   on the right lists them). The page lights the 8mu's LEDs as the card
   would. A dashed line on a fader shows where the 8mu's fader is while it
   waits to pick up.
-- **Both editors at once.** With the CVSeq editor open too (each Computer
-  plugged into the computer), one 8mu drives whichever editor you last
-  clicked in, or opened. The header shows **8mu: here** or **8mu:
-  elsewhere**; clicking it, or anywhere on the page, takes the 8mu. The
-  other page ignores the 8mu and leaves its LEDs alone, but follows where
-  the faders are, so they pick up as usual when it comes back. Use two
+- **8mus and editors.** Each 8mu on the computer drives one editor at a
+  time, and each editor uses one 8mu. With two 8mus and both the CVSeq and
+  WaveSeq editors open (each Computer plugged into the computer), each editor
+  takes its own: the one it had last time if it's free, otherwise a free one.
+  The header's picker shows every 8mu (**8mu 1**, **8mu 2**) and who has it
+  (here, the other editor, or free); choosing one takes it, and the editor
+  that had it takes a free one instead. **Identify** flashes the chosen
+  8mu's LEDs, to tell which is which. With one 8mu it drives whichever
+  editor you last clicked in, as before. An editor ignores the other 8mus
+  and leaves their LEDs alone, but follows their faders, so they pick up as
+  usual when it takes one over. Closing an editor frees its 8mu. Use
   windows side by side rather than tabs: Chrome slows a tab that's been in
   the background for a few minutes.
 - **Inputs & outputs** and **8mu.** Cards on the right: every jack and what it
