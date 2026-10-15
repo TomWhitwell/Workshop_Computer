@@ -459,6 +459,72 @@ uf2:
     d.ruleId === 'ajv-schema' && d.severity === 'error' && d.path === 'uf2.0.download.sha256'));
 });
 
+test('uf2 flash_size defaults to 2MB and accepts 16mb', () => {
+  const omitted = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+`);
+  assert.ok(!omitted.diagnostics.some(d => String(d.path || '').includes('flash')));
+
+  const explicit = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash_size: 16mb
+`);
+  assert.ok(!explicit.diagnostics.some(d => String(d.path || '').includes('flash')));
+});
+
+test('invalid uf2 flash_size values are rejected', () => {
+  const result = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash_size: 32mb
+`);
+  assert.ok(result.diagnostics.some(d =>
+    d.ruleId === 'uf2-entries' && d.severity === 'warning' && d.path === 'uf2[0].flash_size'));
+  assert.ok(result.diagnostics.some(d =>
+    d.ruleId === 'ajv-schema' && d.path === 'uf2.0.flash_size'));
+});
+
+test('a bare uf2 flash key is not an alias for flash_size', () => {
+  const result = validate(`
+Name: Firmware
+short-description: Short
+summary: Long
+Language: C++
+Creator: Someone
+Version: "1.0"
+Status: Released
+uf2:
+  - path: firmware/card.uf2
+    flash: 16mb
+`);
+  assert.ok(result.diagnostics.some(d =>
+    d.ruleId === 'ajv-schema' && d.path === 'uf2.0' && /additional properties/.test(d.message)));
+  assert.ok(!result.diagnostics.some(d => d.ruleId === 'uf2-entries' && String(d.path).includes('flash')));
+});
+
 test('when cannot combine z and panel', () => {
   const result = validate(`
 Name: X

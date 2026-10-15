@@ -359,6 +359,14 @@ export const uf2Entries = {
         out.push({ severity: 'warning', path: `${at}.name`, key: 'uf2',
           message: `${at}.name should be a string.` });
       }
+      const flashSizeEntry = Object.entries(entry).find(([k]) => k.toLowerCase() === 'flash_size');
+      if (flashSizeEntry && !isBlank(flashSizeEntry[1])) {
+        const flashSize = String(flashSizeEntry[1]).trim().toLowerCase();
+        if (flashSize !== '2mb' && flashSize !== '16mb') {
+          out.push({ severity: 'warning', path: `${at}.flash_size`, key: 'uf2',
+            message: `${at}.flash_size should be "2mb" or "16mb" (omit for 2MB).` });
+        }
+      }
       if (hasPath && !hasUrl && shaEntry && !isBlank(shaEntry[1])) {
         out.push({ severity: 'warning', path: `${at}.sha256`, key: 'uf2',
           message: `${at}.sha256 is not required for repository-hosted firmware; the build computes it automatically.` });

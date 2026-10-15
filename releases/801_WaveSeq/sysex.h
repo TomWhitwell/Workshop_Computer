@@ -7,13 +7,15 @@
 // All values are 7-bit; wider values are sent as two bytes, high 7 bits first.
 //
 // Step values are in 8mu fader units, 0-127, sent page by page (8 pages of
-// 8): WAVE, TIME, PITCH, LEVEL, then the second pages FM, SCAN, C2, D2.
-// Page numbers are button (0-3) + 4 for a button's second page.
+// 32 steps): WAVE, TIME, PITCH, LEVEL, then the second pages FM, SCAN,
+// GLIDE, GATE.  Page numbers are button (0-3) + 4 for a button's second
+// page.  Steps are 0-31, in four banks of eight; the sequence plays steps 0
+// to length-1.
 //
 // Web -> card
 //   HELLO    01                      card replies with STATE
-//   SET      03 page step value      one step value
-//   SET_ALL  04 version values[64]   every step value
+//   SET      03 page step value      one step value (step 0-31)
+//   SET_ALL  04 version length values[256]   every step value, and length
 //   PAGE     05 page                 page shown on the Computer's LEDs
 //   RESET    06                      default sequence; card replies with STATE
 //   MOTION   08 pitch(2) roll(2)     8mu tilt, each 0-4095 with 2048 level
@@ -21,21 +23,27 @@
 //                                    pings keep arriving
 //   RESTART  0A                      restart from the first step
 //   DIRECTION 0B dir                 0 forward, 1 ping-pong, 2 random
+//   BANK     0C bank                 bank the faders edit, 0-3
+//   LENGTH   0D length               sequence length, 1-32
 //
 // Card -> web
-//   STATE    02 version page values[64]
+//   STATE    02 version page bank length values[256]
 //   STATUS   07 cur next mix progress flags note(2) speed(2) xfade fm scan
-//            cur, next   steps 0-7
+//               bank length
+//            cur, next   steps 0-31
 //            mix         crossfade into next, 0-127
 //            progress    position through the current step, 0-127
 //            flags       bits 0-1 direction (0 forward, 1 ping-pong,
 //                        2 random), bit 2 clocked, bit 3 8mu on card,
 //                        bit 4 switch up (X/Y are speed and crossfade, not
-//                        FM and scan), bit 5 a knob is waiting to pick up
+//                        FM and scan), bit 5 the X knob and bit 6 the Y
+//                        knob is waiting to pick up its setting
 //            note        base pitch in 1/8 semitones (MIDI note * 8)
 //            speed       speed in 1/256 octave, offset by 2048
 //            xfade       crossfade setting, 0-127
 //            fm, scan    FM and wave scan amount settings, 0-127
+//            bank        the bank the faders edit, 0-3
+//            length      the sequence's length, 1-32
 
 #ifndef WAVESEQ_SYSEX_H
 #define WAVESEQ_SYSEX_H
@@ -47,8 +55,8 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x57;
-static constexpr uint8_t kVersion = 3;
-static constexpr int kNumValues = 64;
+static constexpr uint8_t kVersion = 4;
+static constexpr int kNumValues = 8 * 32;
 
 enum Cmd : uint8_t
 {
@@ -63,6 +71,8 @@ enum Cmd : uint8_t
 	Ping = 0x09,
 	Restart = 0x0A,
 	Direction = 0x0B,
+	Bank = 0x0C,
+	Length = 0x0D,
 };
 
 // Collects one SysEx message from a byte stream.  Feed() returns true when
@@ -70,7 +80,7 @@ enum Cmd : uint8_t
 // then in cmd, payload and length.
 struct Parser
 {
-	static constexpr int kMax = 80;
+	static constexpr int kMax = 300;
 	uint8_t buf[kMax];
 	int n = 0;
 	bool in = false;
@@ -133,8 +143,8 @@ inline int32_t Get14(const uint8_t *in)
 	return (int32_t(in[0] & 0x7F) << 7) | (in[1] & 0x7F);
 }
 
-static constexpr int kStateLen = 4 + 2 + kNumValues + 1;
-static constexpr int kStatusLen = 4 + 5 + 2 + 2 + 3 + 1;
+static constexpr int kStateLen = 4 + 4 + kNumValues + 1;
+static constexpr int kStatusLen = 4 + 5 + 2 + 2 + 3 + 2 + 1;
 
 } // namespace sysex
 

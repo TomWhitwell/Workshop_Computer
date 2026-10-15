@@ -3,12 +3,23 @@
 // Wavestation-style wave sequencing for the Music Thing Workshop Computer,
 // edited from a Music Thing 8mu over USB MIDI host.
 //
-// An eight-step sequence, where every step plays a wave from a bank of 64
-// single-cycle waves for a set time, at a set pitch and level, crossfading
-// into the next step.  The 8mu's eight faders edit the eight steps; its four
-// buttons choose which property of the steps the faders are editing.  Each
-// button has two pages: pressing it again flips to its second page, and
-// pressing a different button always starts on that button's first page.
+// A sequence of up to 32 steps, where every step plays a wave from a bank of
+// 64 single-cycle waves for a set time, at a set pitch and level,
+// crossfading into the next step.  The steps are in four banks of eight, and
+// the 8mu's eight faders edit one bank at a time.  Its four buttons, acted on
+// when released:
+//
+//   Short press  the page, below.  Pressing a button again flips to its
+//                second page; another button always starts on its first.
+//   Long press   (half a second or more) the bank: A = steps 1-8, B = 9-16,
+//                C = 17-24, D = 25-32.  The LED of fader 1-4 for that bank
+//                flashes three times.
+//   Hold + move a fader   the sequence's last step: the button is the bank,
+//                the fader the step within it (hold D and move fader 8 for
+//                32 steps, hold A and move fader 4 for 4).  The fader must
+//                move about a sixth of its travel.  The faders up to the
+//                last step light briefly.  The sequence starts 8 long, and
+//                steps 9-32 start as copies of 1-8.
 //
 //             First page                         Second page
 //   Button A  WAVE  position in the 64-wave bank FM    per-step FM amount
@@ -29,12 +40,17 @@
 // After a page change the faders 'pick up': a fader only takes over its step
 // once it has been moved to (or across) the value already stored, so changing
 // page never makes the sound jump.  The 8mu's LEDs show the stored values on
-// the current page, with the playing step lit fully.
+// the current page, with the playing step lit fully and steps past the end of
+// the sequence dark.  Steps past the end are skipped, as a step with TIME
+// fully down is.
 //
 // Panel
 //   Main knob   Pitch (C1 to C7), plus CV In 1 at 1V/oct
 //   Switch up   X = sequence speed (1/8x to 8x), Y = crossfade (hard cut to
-//               fading over the whole step)
+//               fading over the whole step).  With a clock, X picks a clock
+//               divider or multiplier instead, in eleven equal zones: /8,
+//               /6, /4, /3, /2, x1 (centre), x2, x3, x4, x6, x8; CV In 2
+//               moves two ratios a volt
 //   Switch mid  X = FM amount (Audio In 1), Y = wave scan amount (Audio In 2)
 //   Switch down Tap to step the direction: forward, ping-pong, random
 //
@@ -49,7 +65,11 @@
 //   CV In 1     Pitch, 1V/oct
 //   CV In 2     Speed, 1V/oct
 //   Pulse In 1  Clock: while clocks arrive, each step lasts its TIME fader's
-//               number of clocks (1-8) instead of a time
+//               number of beats (1-8) instead of a time, a beat being a
+//               clock divided or multiplied by the speed knob's ratio.  Clocks up to 20s
+//               apart; followed from the second pulse, and the speed knob
+//               takes over again after four of the clock's periods (at
+//               least 2s) without one
 //   Pulse In 2  Restart from the first step
 //
 // Outputs
@@ -63,6 +83,7 @@
 // 8mu motion
 //   Pitch (tilt front/back)  scans every step's wave position, +/-16 waves
 //   Roll (tilt left/right)   detunes Audio Out 2 by up to +/-50 cents
+//   Both are gently smoothed (~40ms), as the 8mu sends tilt in coarse steps
 //
 // USB, chosen once at power-up
 //   Port supplying power (an 8mu, or nothing yet): USB host, reading the 8mu.
@@ -86,10 +107,13 @@ static WaveSeq *gCard = nullptr;
 class WaveSeq : public ComputerCard
 {
 public:
-	static constexpr int kSteps = 8;
+	static constexpr int kSteps = 32;     // steps in all
+	static constexpr int kBankSize = 8;   // steps a bank, one per fader
+	static constexpr int kBanks = kSteps / kBankSize;
 	// Page = button + 4 * layer
 	enum Page {PageWave, PageTime, PagePitch, PageLevel,
 		PageFM, PageScan, PageGlide, PageGate, kPages};
+	static_assert(sysex::kNumValues == kPages * 32, "protocol carries every step");
 
 	WaveSeq()
 	{
@@ -116,10 +140,12 @@ public:
 	// Values are in 8mu fader units (0-127), stored shifted up to 0-4064.
 	void SetDefaults()
 	{
-		static const uint8_t defWave[kSteps] = {6, 22, 34, 50, 67, 81, 95, 116};
+		static const uint8_t defWave[kBankSize] = {6, 22, 34, 50, 67, 81, 95, 116};
+		// Steps 9-32 start as copies of 1-8, so a longer sequence has
+		// something in it straight away
 		for (int i = 0; i < kSteps; i++)
 		{
-			params[PageWave][i] = defWave[i] << 5;
+			params[PageWave][i] = defWave[i % kBankSize] << 5;
 			params[PageTime][i] = 64 << 5;
 			params[PagePitch][i] = 64 << 5;
 			params[PageLevel][i] = 127 << 5;
@@ -128,6 +154,7 @@ public:
 			params[PageGlide][i] = 0;
 			params[PageGate][i] = 64 << 5;
 		}
+		seqLength = kBankSize;
 	}
 
 	virtual void ProcessSample()
@@ -152,16 +179,44 @@ public:
 		if (samplesSinceClock < 0x7FFFFFFF) samplesSinceClock++;
 		if (clockEdge)
 		{
-			if (haveClock)
+			// Two clocks up to 20s apart give the period; until then (and
+			// after the clock stops) the speed knob keeps time
+			if (haveClock && samplesSinceClock <= kMaxClockPeriod)
 			{
-				clockPeriod = samplesSinceClock;
-				if (clockPeriod < 48) clockPeriod = 48;
-				if (clockPeriod > 4 * 48000) clockPeriod = 4 * 48000;
+				clockPeriod = samplesSinceClock < 48 ? 48 : samplesSinceClock;
+				periodKnown = true;
 			}
 			haveClock = true;
 			samplesSinceClock = 0;
 		}
-		clocked = haveClock && samplesSinceClock < 2 * 48000;
+		// The clock counts as stopped after four of its own periods without
+		// one (never less than 2s), so slow clocks are followed rather than
+		// dropped mid-step
+		int32_t timeout = clockPeriod > 24000 ? clockPeriod * 4 : 2 * 48000;
+		if (periodKnown && samplesSinceClock >= timeout) periodKnown = false;
+		clocked = periodKnown;
+
+		// Beats: the clock multiplied by the speed knob's ratio.  Each clock
+		// is a beat; multiplying adds clkNum - 1 more, evenly spaced at the
+		// clock's measured period, started afresh by every clock so they
+		// never drift from it (and never run on past it if the clock slows)
+		bool beat = false;
+		if (clockEdge)
+		{
+			subPhase = 0;
+			subCount = 0;
+			beat = true;
+		}
+		else if (clocked && subCount < clkNum - 1)
+		{
+			subPhase += clkNum;
+			if (subPhase >= clockPeriod)
+			{
+				subPhase -= clockPeriod;
+				subCount++;
+				beat = true;
+			}
+		}
 
 		if (++controlCount >= 32)
 		{
@@ -175,7 +230,9 @@ public:
 		}
 		else if (clocked)
 		{
+			// Waiting for a late clock holds at the end of the step
 			elapsed += 256;
+			if (elapsed > stepLen) elapsed = stepLen;
 			// The first clock after a restart starts the step rather than
 			// counting towards its end
 			if (clockEdge && swallowClock)
@@ -183,7 +240,7 @@ public:
 				swallowClock = false;
 				elapsed = 0;
 			}
-			else if (clockEdge && ++clockCount >= ClocksForStep(cur))
+			else if (beat && ++clockCount >= ClocksForStep(cur) * clkDen)
 			{
 				Advance();
 			}
@@ -255,8 +312,23 @@ private:
 	// 8mu paging and fader pickup
 	volatile int page = PageWave;
 	int pageBlink = 0;
-	bool latched[kSteps] = {};
-	int32_t lastFader[kSteps] = {};
+	bool latched[kBankSize] = {};
+	int32_t lastFader[kBankSize] = {};
+
+	// Banks and length
+	volatile int bank = 0;            // which 8 steps the faders edit
+	volatile int seqLength = kBankSize;
+	int pressTicks[EightMU::numButtons] = {};
+	bool pressSetLength[EightMU::numButtons] = {};
+	int32_t pressFaders[EightMU::numButtons][kBankSize] = {};
+	static constexpr int kLongPress = 750;   // control ticks: 0.5s
+	// How far a fader must move, from where it was when the button went
+	// down, to set the length: about a sixth of its travel, so fader
+	// noise during a long press for a bank doesn't count
+	static constexpr int32_t kLengthMove = 640;
+	int ledFlash = 0;                 // control ticks left of an 8mu LED flash
+	bool ledFlashBank = false;        // a bank flash, or a length flash
+	int ledFlashValue = 0;
 	bool lastFaderValid = false;
 	bool prevButton[EightMU::numButtons] = {};
 	bool wasConnected = false;
@@ -279,6 +351,21 @@ private:
 	bool haveClock = false, clocked = false, swallowClock = false;
 	int32_t samplesSinceClock = 0x7FFFFFFF;
 	int32_t clockPeriod = 24000;
+	bool periodKnown = false;
+	// Up to 20s a clock: with up to 8 clocks a step, the step length in
+	// 1/256 samples still fits 32 bits
+	static constexpr int32_t kMaxClockPeriod = 20 * 48000;
+	// Clock ratios for the speed knob while clocked, with their size in
+	// 1/4096 octave (the knob's units)
+	struct Ratio {int8_t num, den; int32_t oct;};
+	static constexpr int kNumRatios = 11;
+	static constexpr Ratio kRatios[kNumRatios] = {
+		{1, 8, -12288}, {1, 6, -10588}, {1, 4, -8192}, {1, 3, -6492}, {1, 2, -4096},
+		{1, 1, 0},
+		{2, 1, 4096}, {3, 1, 6492}, {4, 1, 8192}, {6, 1, 10588}, {8, 1, 12288}};
+	int clkNum = 1, clkDen = 1;   // the ratio now: beats = clocks * num / den
+	int32_t subPhase = 0;         // towards the next beat between clocks
+	int subCount = 0;             // beats since the last clock
 	int controlCount = 0;
 	int stepTrig = 0, seqTrig = 0;
 
@@ -297,6 +384,9 @@ private:
 	bool knobLatched[2] = {};
 	int32_t lastKnob[2] = {};
 	int32_t tiltScan = 0;       // Q8 waves
+	int32_t rawPitch = 0, rawRoll = 0;         // tilt readings, -2048 to 2047
+	int32_t pitchSmooth = 0, rollSmooth = 0;   // the same, smoothed, x256
+	static constexpr int32_t kTiltLag = 64;    // control ticks: ~40ms
 
 	// Voice slots: A is the current step, B the next one being faded into
 	uint32_t phA = 0, phB = 0, ph2A = 0, ph2B = 0;
@@ -374,7 +464,8 @@ private:
 		return inc < kMipMaxInc[0] ? 0 : (inc < kMipMaxInc[1] ? 1 : 2);
 	}
 
-	bool Active(int s) const {return params[PageTime][s] >= kSkipBelow;}
+	// A step plays if it's in the sequence and its TIME isn't fully down
+	bool Active(int s) const {return s < seqLength && params[PageTime][s] >= kSkipBelow;}
 
 	int ClocksForStep(int s) const
 	{
@@ -453,9 +544,17 @@ private:
 	}
 
 	// Length of step s in samples, at the current speed or clock
+	// Length of step s when clocked, in samples times scale: its TIME
+	// fader's beats (1-8), each a clock times the ratio.  Held to 31 bits.
+	int32_t ClockedSamples(int s, int scale) const
+	{
+		int64_t n = int64_t(clockPeriod) * ClocksForStep(s) * clkDen * scale / clkNum;
+		return n > 0x7F000000 ? 0x7F000000 : int32_t(n);
+	}
+
 	int32_t StepSamples(int s) const
 	{
-		if (clocked) return clockPeriod * ClocksForStep(s);
+		if (clocked) return ClockedSamples(s, 1);
 		int32_t x = params[PageTime][s] - kSkipBelow;
 		if (x < 0) x = 0;
 		int64_t q8 = ExpScale(960 * 256, (x * 31293) / 3968);
@@ -563,7 +662,7 @@ private:
 	{
 		if (clocked)
 		{
-			stepLen = clockPeriod * ClocksForStep(cur) * 256;
+			stepLen = ClockedSamples(cur, 256);
 		}
 		else
 		{
@@ -584,12 +683,32 @@ private:
 	void Control()
 	{
 		// Panel
-		baseNote = (24 << 8) + (KnobVal(Main) * 72 * 256) / 4095 + CVIn1() * 9;
+		baseNote = (24 << 8) + (MapKnob(KnobVal(Main), false) * 72 * 256) / 4095 + CVIn1() * 9;
 		HandleKnobs();
-		int32_t spd = (settings[SetSpeed] - 2048) * 6 + CVIn2() * 12;
+		// Speed: 1/8x at 0, 1x at 2048, 8x at 4095 (+/-3 octaves), plus CV
+		int32_t sd = settings[SetSpeed] - 2048;
+		int32_t spd = (sd * 12288) / (sd > 0 ? 2047 : 2048) + CVIn2() * 12;
 		if (spd < -24576) spd = -24576;
 		if (spd > 24576) spd = 24576;
 		speed = int32_t(ExpScale(256, spd));
+		// With a clock, the knob picks a clock divider or multiplier
+		// instead: eleven equal zones round the knob, /8 to x8 with x1 in the
+		// middle.  CV In 2 moves two ratios a volt, about an octave.
+		if (clocked)
+		{
+			int idx = (settings[SetSpeed] * kNumRatios) >> 12;
+			int32_t cv = CVIn2();
+			idx += (cv * 2 + (cv >= 0 ? 170 : -170)) / 341; // 341 a volt, rounded
+			if (idx < 0) idx = 0;
+			if (idx >= kNumRatios) idx = kNumRatios - 1;
+			clkNum = kRatios[idx].num;
+			clkDen = kRatios[idx].den;
+			spd = kRatios[idx].oct; // shown in the web editor as the ratio
+		}
+		else
+		{
+			clkNum = clkDen = 1;
+		}
 		xfAmount = settings[SetFade];
 		fmAmount = (settings[SetFM] * settings[SetFM]) >> 12;
 		scanAmount = settings[SetScan];
@@ -600,9 +719,19 @@ private:
 		}
 		else
 		{
-			tiltScan = webPitch * 2;
-			detune = 15 + webRoll / 16;
+			rawPitch = webPitch;
+			rawRoll = webRoll;
 		}
+
+		// Tilt, smoothed: the 8mu sends it in 128 coarse steps, which would
+		// jump the wave scan and detune audibly.  A gentle one-pole lag of
+		// about 40ms (1/64 a control tick, at 1.5kHz) glides between them.
+		// Kept 256 times finer than the readings, so it settles within a
+		// fraction of a reading.
+		pitchSmooth += ((rawPitch * 256) - pitchSmooth) / kTiltLag;
+		rollSmooth += ((rawRoll * 256) - rollSmooth) / kTiltLag;
+		tiltScan = pitchSmooth / 128;         // Pitch * 2, in Q8 waves
+		detune = 15 + rollSmooth / (16 * 256); // up to about +/-50 cents
 
 		// Keep slots and timing following edits, the pitch knob, CV and tilt.
 		// Which step comes next is only chosen again while slot B is silent,
@@ -641,7 +770,7 @@ private:
 		}
 		bool waiting = !knobLatched[0] || !knobLatched[1];
 		stFlags = uint8_t((direction & 3) | (clocked ? 4 : 0) | (mu.Connected() ? 8 : 0)
-			| (knobBank == 0 ? 16 : 0) | (waiting ? 32 : 0));
+			| (knobBank == 0 ? 16 : 0) | (knobLatched[0] ? 0 : 32) | (knobLatched[1] ? 0 : 64));
 		stFM = uint8_t(settings[SetFM] >> 5);
 		stScan = uint8_t(settings[SetScan] >> 5);
 		stNote = baseNote >> 5;
@@ -660,7 +789,7 @@ private:
 				bool second = page >= 4;
 				LedOn(i, (page & 3) == i && (!second || pageBlink < 450));
 			}
-			else LedBrightness(i, (cur & 3) == i ? (cur < 4 ? 4095 : 1024) : 0);
+			else LedBrightness(i, (cur & 3) == i ? ((cur & 4) == 0 ? 4095 : 1024) : 0);
 		}
 		LedOn(4, stepTrig > 0);
 		// LED 5: connection, blinking fast while a knob waits to pick up
@@ -677,6 +806,25 @@ private:
 		return n;
 	}
 
+	// A knob reading (0-4095) with dead zones, as the knobs don't always
+	// reach the very ends of their range: the outer kKnobEndZone at each end
+	// reads as fully 0 or 4095, and the travel between is stretched to fill
+	// the range.  Two-sided controls also get kKnobCentreZone either side of
+	// the middle, which reads as exactly 2048 (speed 1x).
+	static constexpr int32_t kKnobEndZone = 128;
+	static constexpr int32_t kKnobCentreZone = 64;
+	static int32_t MapKnob(int32_t raw, bool twoSided)
+	{
+		int32_t v = ((raw - kKnobEndZone) * 4095) / (4095 - 2 * kKnobEndZone);
+		if (v < 0) v = 0;
+		if (v > 4095) v = 4095;
+		if (!twoSided) return v;
+		int32_t d = v - 2048;
+		if (d > -kKnobCentreZone && d < kKnobCentreZone) return 2048;
+		if (d > 0) return 2048 + ((d - kKnobCentreZone) * 2047) / (2047 - kKnobCentreZone);
+		return 2048 + ((d + kKnobCentreZone) * 2048) / (2048 - kKnobCentreZone);
+	}
+
 	// X and Y knobs, with soft takeover when the switch changes which pair
 	// of settings they control.  Down is momentary and keeps the pair of the
 	// position it was pressed from.
@@ -685,7 +833,9 @@ private:
 		Switch sw = SwitchVal();
 		int bank = sw == Up ? 0 : (sw == Middle ? 1 : knobBank);
 		if (bank < 0) bank = 1;
-		int32_t k[2] = {KnobVal(X), KnobVal(Y)};
+		// Speed is two-sided (1x in the middle), with a centre zone
+		int32_t k[2] = {MapKnob(KnobVal(X), bank * 2 == SetSpeed),
+			MapKnob(KnobVal(Y), false)};
 		if (knobBank < 0)
 		{
 			// Power-up: the current pair takes the knobs as they are
@@ -733,7 +883,7 @@ private:
 			wasConnected = true;
 			connectHoldoff = 1500; // ~1s at control rate
 			lastFaderValid = false;
-			for (int i = 0; i < kSteps; i++) latched[i] = false;
+			for (int i = 0; i < kBankSize; i++) latched[i] = false;
 		}
 		if (connectHoldoff > 0)
 		{
@@ -741,26 +891,69 @@ private:
 			return;
 		}
 
-		// Page buttons
+		// Buttons, acted on when released: a short press is the page, a
+		// long one the bank, and moving a fader while one is held sets the
+		// last step.  While a button is held the faders edit nothing.
+		bool anyHeld = false;
 		for (int b = 0; b < EightMU::numButtons; b++)
 		{
 			bool down = mu.Button(b);
 			if (down && !prevButton[b])
 			{
-				// Same button again flips between its two pages; another
-				// button starts on its first page
-				page = (page & 3) == b ? (page ^ 4) : b;
-				for (int i = 0; i < kSteps; i++) latched[i] = false;
+				pressTicks[b] = 0;
+				pressSetLength[b] = false;
+				for (int i = 0; i < kBankSize; i++) pressFaders[b][i] = mu.Fader(i);
+			}
+			if (down)
+			{
+				anyHeld = true;
+				if (pressTicks[b] < 0x7FFFFFFF) pressTicks[b]++;
+				for (int i = 0; i < kBankSize; i++)
+				{
+					int32_t d = mu.Fader(i) - pressFaders[b][i];
+					if (d > kLengthMove || d < -kLengthMove)
+					{
+						seqLength = b * kBankSize + i + 1;
+						pressSetLength[b] = true;
+						pressFaders[b][i] = mu.Fader(i);
+						ledFlash = 1350;
+						ledFlashBank = false;
+						ledFlashValue = i;
+					}
+				}
+			}
+			else if (prevButton[b])
+			{
+				if (!pressSetLength[b])
+				{
+					if (pressTicks[b] >= kLongPress)
+					{
+						bank = b;
+						ledFlash = 1350;
+						ledFlashBank = true;
+						ledFlashValue = b;
+					}
+					else
+					{
+						// Same button again flips between its two pages;
+						// another button starts on its first page
+						page = (page & 3) == b ? (page ^ 4) : b;
+					}
+				}
+				for (int i = 0; i < kBankSize; i++) latched[i] = false;
 			}
 			prevButton[b] = down;
 		}
+		if (ledFlash > 0) ledFlash--;
 
-		// Faders, with pickup
-		for (int i = 0; i < kSteps; i++)
+		// Faders, with pickup, editing the current bank
+		int base = bank * kBankSize;
+		for (int i = 0; i < kBankSize; i++)
 		{
 			int32_t f = mu.Fader(i);
-			volatile int32_t &p = params[page][i];
-			if (!latched[i])
+			volatile int32_t &p = params[page][base + i];
+			if (anyHeld) latched[i] = false;
+			else if (!latched[i])
 			{
 				int32_t d = f - p;
 				bool near = d > -96 && d < 96;
@@ -770,14 +963,25 @@ private:
 			if (latched[i]) p = f;
 			lastFader[i] = f;
 
-			// 8mu LEDs: stored value, playing step full on
-			mu.SetLed(i, i == cur ? 4095 : (p * 9) >> 4);
+			// 8mu LEDs: a bank change flashes that bank's fader three
+			// times; a length change lights the faders up to the last
+			// step; otherwise stored values, the playing step full on and
+			// steps past the end of the sequence off
+			int32_t led;
+			if (ledFlash > 0 && ledFlashBank)
+				led = (i == ledFlashValue && ((1350 - ledFlash) / 225) % 2 == 0) ? 4095 : 0;
+			else if (ledFlash > 0)
+				led = i <= ledFlashValue ? 4095 : 0;
+			else if (base + i == cur) led = 4095;
+			else if (base + i >= seqLength) led = 0;
+			else led = (p * 9) >> 4;
+			mu.SetLed(i, led);
 		}
 		lastFaderValid = true;
 
-		// Motion
-		tiltScan = mu.Pitch() * 2;
-		detune = 15 + mu.Roll() / 16;
+		// Motion, smoothed in Control
+		rawPitch = mu.Pitch();
+		rawRoll = mu.Roll();
 	}
 
 	//------------------------------------------------------------------------
@@ -870,13 +1074,20 @@ public:
 			}
 			break;
 		case sysex::SetAll:
-			if (len >= 1 + sysex::kNumValues && p[0] == sysex::kVersion)
+			if (len >= 2 + sysex::kNumValues && p[0] == sysex::kVersion)
 			{
+				if (p[1] >= 1 && p[1] <= kSteps) seqLength = p[1];
 				for (int i = 0; i < sysex::kNumValues; i++)
 				{
-					params[i / kSteps][i % kSteps] = int32_t(p[1 + i] & 0x7F) << 5;
+					params[i / kSteps][i % kSteps] = int32_t(p[2 + i] & 0x7F) << 5;
 				}
 			}
+			break;
+		case sysex::Bank:
+			if (len >= 1 && p[0] < kBanks) bank = p[0];
+			break;
+		case sysex::Length:
+			if (len >= 1 && p[0] >= 1 && p[0] <= kSteps) seqLength = p[0];
 			break;
 		case sysex::Page:
 			if (len >= 1 && p[0] < kPages) page = p[0];
@@ -913,6 +1124,8 @@ public:
 		int n = sysex::Header(out, sysex::State);
 		out[n++] = sysex::kVersion;
 		out[n++] = uint8_t(page);
+		out[n++] = uint8_t(bank);
+		out[n++] = uint8_t(seqLength);
 		for (int i = 0; i < sysex::kNumValues; i++)
 		{
 			out[n++] = uint8_t((params[i / kSteps][i % kSteps] >> 5) & 0x7F);
@@ -934,6 +1147,8 @@ public:
 		out[n++] = stXfade;
 		out[n++] = stFM;
 		out[n++] = stScan;
+		out[n++] = uint8_t(bank);
+		out[n++] = uint8_t(seqLength);
 		out[n++] = 0xF7;
 		return n;
 	}

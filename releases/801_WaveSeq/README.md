@@ -3,7 +3,7 @@
 Wavestation-style wave sequencing for the Workshop Computer, edited from a
 [Music Thing 8mu](https://www.musicthing.co.uk/8mu_page/) over USB MIDI host.
 
-An eight-step sequence, where every step plays a wave from a bank of 64
+A sequence of up to 32 steps, where every step plays a wave from a bank of 64
 single-cycle waves for a set time, at a set pitch and level, crossfading into
 the next step.
 
@@ -23,10 +23,22 @@ hardware; older boards are always a USB device.
 
 ## The 8mu
 
-The eight faders are the eight steps. The four buttons on top choose the page,
-which is what the faders edit. Each button has two pages: press it again to
-flip to its second page (and again to flip back). Pressing a different button
-always starts on that button's first page.
+There are 32 steps, in four banks of eight, and the eight faders edit one bank
+at a time. The sequence starts 8 steps long (bank A), and its length can be
+anything from 1 to 32.
+
+The four buttons are acted on when you **let go**, so how long you held one
+decides what it does:
+
+| Do this | To |
+|---|---|
+| **Short press** A-D | Choose the page, which is what the faders edit (below). Press the same button again for its second page (and again to flip back); another button always starts on its first page |
+| **Long press** A-D (half a second) | Choose the bank the faders edit: A = steps 1-8, B = 9-16, C = 17-24, D = 25-32. The LED of fader 1-4 for that bank flashes three times |
+| **Hold** A-D **and move a fader** | Set the last step: the button is the bank, the fader the step within it. Hold D and move fader 8 for 32 steps; hold A and move fader 4 for 4 steps. The fader has to move a good way (about a sixth of its travel) to count. The faders up to the last step light briefly. The fader movement doesn't edit anything |
+
+Steps past the end of the sequence are skipped, as a step with TIME fully down
+is, and keep their settings, so shortening and lengthening the sequence loses
+nothing. On power-up, steps 9-32 start as copies of steps 1-8.
 
 | Button | First page | Fader sets | Second page | Fader sets |
 |--------|------------|------------|-------------|------------|
@@ -55,13 +67,15 @@ default is half the step.
 the value already stored for their step (or pass it), then take it over. So
 switching page never makes the sound jump.
 
-**LEDs.** The 8mu's LEDs show the stored values on the current page, and the
-playing step is lit fully. On the Computer, LEDs 1-4 show which button's page
+**LEDs.** The 8mu's LEDs show the stored values on the current page, the
+playing step is lit fully, and steps past the end of the sequence are dark. On the Computer, LEDs 1-4 show which button's page
 is selected: lit steadily for its first page, blinking slowly for its second.
 
 **Motion.** Tilting the 8mu forward and back scans every step's wave together,
 up to 16 waves either way. Tilting it left and right detunes Audio Out 2 by up
-to 50 cents. Lying flat, neither does anything.
+to 50 cents. Lying flat, neither does anything. Both are gently smoothed (a
+lag of about 40 ms), as the 8mu sends its tilt in coarse steps that would
+otherwise make the scan and detune zipper.
 
 Without an 8mu the card plays a default sequence, still under the panel
 controls.
@@ -76,25 +90,64 @@ power-cycle the module, and press **Connect card & 8mu**. The page reads the
 sequence from the card (the card is the source of truth), then sends every
 edit as it's made.
 
-- **Sequence.** The eight steps as a timeline. Each step's width is its
-  duration, its trace is its wave at its level, and the shaded end is its
-  crossfade into the next. A playhead follows the card. Click a step to select
-  it.
+From the top (each section has a − button by its heading that folds it away,
+and + to bring it back; the browser remembers which are folded):
+
 - **Readouts.** Step, pitch (as a note name), speed, crossfade, direction and
-  whether the card is clocked, live from the card's knobs, CV and switch.
+  whether the card is clocked, live from the card's knobs, CV and switch. While
+  the X or Y knob on the module is waiting to pick up its setting, that
+  setting's box has a dotted orange outline; it goes once the knob reaches
+  the value.
+- **Bank, length and shift.** Bank buttons, −/+ for the length, and −/+ to
+  shift every step in the sequence one place left or right (all its settings
+  with it, the end step wrapping round). Just above the sequence, so they stay
+  put as the length changes.
+- **Sequence.** All 32 steps, eight to a row. In a row with steps in the
+  sequence, each step's width is its duration, its trace is its wave at its
+  level, and the shaded end is its crossfade into the next; steps past the end
+  shrink to small grey boxes, so on load there's one row of eight and three
+  rows of boxes. The bank the faders edit has an orange box round its row. A
+  playhead follows the card. Click a step to select it (and its row's bank).
+- **Copy, paste & randomise.** Select steps on the sequence: click one,
+  Shift+click a range, Ctrl/⌘+click to add or remove single steps,
+  double-click for a whole row, Alt+click for a whole column (the same fader
+  in every bank), or use the buttons. Copy (Ctrl/⌘+C) takes every setting of
+  the selected steps; Paste (Ctrl/⌘+V) puts them back: one copied step fills
+  every selected step, several fill the same number of selected steps in
+  order, or else keep their pattern from the first selected step.
+  Shift+paste pastes only the page the faders show. Randomise changes the
+  wave; the wave, pitch and level; or everything (time, FM, scan, glide and
+  gate too), of the selected steps, a row, a column or the whole sequence.
+  Pitch stays within the spread chosen (±2, ±7 or ±12 semitones), level stays
+  audible, and a randomised step is never skipped. Undo (Ctrl/⌘+Z) takes back
+  pastes, randomising and shifts. The keys are listed on the page.
 - **Now playing.** The wave being heard, including part-way through a
   crossfade.
-- **Faders.** Eight pages of eight, like the 8mu's two pages per button: tabs
-  A, A2, B, B2... choose the page.
+- **Faders.** Eight pages, like the 8mu's two pages per button: tabs A, A2,
+  B, B2... choose the page. They show the selected bank's eight steps.
   Drag, use the arrow keys, or double-click to reset.
-- **Wave bank.** All 64 waves. Click one to give it to the selected step.
+- **Wave bank.** All 64 waves. Click one to give it to the selected step, or
+  to every selected step.
 - **8mu on the computer.** Its faders, buttons and tilt drive the page, with
-  the same pickup as the card. The page lights the 8mu's LEDs as the card
+  the same pickup, banks and last-step setting as the card (the **8mu** card
+  on the right lists them). The page lights the 8mu's LEDs as the card
   would. A dashed line on a fader shows where the 8mu's fader is while it
   waits to pick up.
+- **Both editors at once.** With the CVSeq editor open too (each Computer
+  plugged into the computer), one 8mu drives whichever editor you last
+  clicked in, or opened. The header shows **8mu: here** or **8mu:
+  elsewhere**; clicking it, or anywhere on the page, takes the 8mu. The
+  other page ignores the 8mu and leaves its LEDs alone, but follows where
+  the faders are, so they pick up as usual when it comes back. Use two
+  windows side by side rather than tabs: Chrome slows a tab that's been in
+  the background for a few minutes.
+- **Inputs & outputs** and **8mu.** Cards on the right: every jack and what it
+  does, and the 8mu's buttons (page, bank, last step), pickup, LEDs and tilt.
 - **Presets.** Seven built in, plus your own, kept in the browser
-  (`localStorage`). Save, update, rename, delete, and export or import as a
-  JSON file. Loading a preset sends it to the card.
+  (`localStorage`), with their length. Save, update, rename, delete, and
+  export or import as a JSON file. Loading a preset sends it to the card.
+  Presets from before 32 steps still load, playing 8 steps with steps 9-32 as
+  copies of 1-8.
 - **Direction** buttons (forward, ping-pong, random) set the card's direction,
   and follow it when the switch is tapped. The page also shows what the X and
   Y knobs are doing and whether one is waiting to pick up.
@@ -104,7 +157,8 @@ Without a card the page still edits, previews and keeps presets, with a
 simulated playhead at 1x speed.
 
 The card and page talk SysEx; the protocol is documented in
-[`sysex.h`](sysex.h).
+[`sysex.h`](sysex.h). The card and the editor must be the same version: this
+one (protocol 4, 32 steps) won't talk to older firmware.
 
 ## Panel
 
@@ -117,8 +171,12 @@ The switch's up and middle positions choose what the X and Y knobs do:
 
 | Switch | X knob | Y knob |
 |--------|--------|--------|
-| Up     | Speed, 1/8x to 8x | Crossfade, from a hard cut to fading over the whole step |
+| Up     | Speed, 1/8x to 8x. With a clock: clock divider or multiplier (below) | Crossfade, from a hard cut to fading over the whole step |
 | Middle | FM amount (Audio In 1) | Wave scan amount (Audio In 2) |
+
+All knobs have a small dead zone at each end, so the full range is reached
+even if a knob doesn't quite read its very ends, and speed has one in the
+middle, so exactly 1x is easy to find.
 
 Each of the four settings keeps its value. After the switch moves, a knob does
 nothing until it's turned to (or past) its new setting's value, then takes
@@ -138,8 +196,8 @@ three for random. The web editor can set it too.
 | Audio In 1  | Linear FM, depth set by X (switch middle)                  |
 | Audio In 2  | Wave scan, up to +/-32 waves, audio rate, depth set by Y (switch middle) |
 | CV In 1     | Pitch, 1V/oct                                              |
-| CV In 2     | Speed, 1V/oct                                              |
-| Pulse In 1  | Clock. Steps advance on clocks while they keep arriving    |
+| CV In 2     | Speed, 1V/oct. With a clock, moves the clock ratio two steps a volt |
+| Pulse In 1  | Clock. Steps advance on beats while clocks keep arriving: a beat is a clock divided or multiplied by the speed knob, and a step lasts its TIME fader's 1-8 beats. Clocks up to 20 s apart. Followed from the second pulse; the speed knob takes over again after four of the clock's periods (at least 2 s) without one |
 | Pulse In 2  | Restart from the first step                                |
 | Audio Out 1 | Wave sequence                                              |
 | Audio Out 2 | Wave sequence, detuned                                     |
@@ -147,6 +205,16 @@ three for random. The web editor can set it too.
 | CV Out 2    | Current step's level, crossfaded, 0-5V                     |
 | Pulse Out 1 | Gate for each step, length set on the GATE page (D, second page) |
 | Pulse Out 2 | Trigger at the start of the sequence                       |
+
+**Clock divide and multiply.** While a clock is plugged into Pulse In 1, the
+speed knob (X, switch up) stops scaling time and picks a ratio instead, in
+eleven equal zones round the knob: ÷8, ÷6, ÷4, ÷3, ÷2, ×1 (the middle), ×2,
+×3, ×4, ×6, ×8. Dividing, a beat waits for that many clocks; multiplying, each
+clock is split into that many evenly spaced beats, measured from the clock and
+started again by every clock, so they never drift from it (and never run on
+past a clock that slows). CV In 2 moves the ratio two steps a volt, about an
+octave. The web editor shows the ratio in the Speed readout and step times in
+beats and clocks.
 
 ## The waves
 

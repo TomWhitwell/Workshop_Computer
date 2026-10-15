@@ -3,12 +3,12 @@ Name: CVSeq
 short-description: "A 32-step performance CV sequencer - edited from a Music Thing 8mu, with a web editor"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
-Version: "0.7.2"
+Version: "0.8.0"
 Status: Beta
 License: MIT
 Editor: web
 date-created: 2026-10-05
-date-updated: 2026-10-08
+date-updated: 2026-10-10
 
 contact:
   email: XponentOneAudio@gmail.com
@@ -20,7 +20,7 @@ contact:
 
 uf2:
   - path: UF2/cvseq.uf2
-    name: CVSeq 0.7.2
+    name: CVSeq 0.8.0
 
 tags:
   - sequencer
@@ -82,13 +82,14 @@ panel:
     - id: CVIn2
       name: Rate
       type: cv
-      description: Rate, 1V/oct - each volt doubles the speed.
+      description: Rate, 1V/oct - each volt doubles the speed. With a clock, moves the clock divider/multiplier two steps a volt.
     - id: PulseIn1
       name: Clock
       type: pulse
       description: >
-        While clocks are arriving, each step lasts one clock, for clocks
-        anything up to a minute apart. The card follows the clock from its
+        While clocks are arriving, each step lasts one beat, for clocks
+        anything up to a minute apart. A beat is the clock divided or
+        multiplied by the Main knob (switch middle): /8 to x8. The card follows the clock from its
         second pulse, and returns to the Main knob's rate once four of the
         clock's periods (at least 2s) pass without one.
     - id: PulseIn2
@@ -159,7 +160,7 @@ controls:
         z: middle
       main:
         name: Rate
-        description: 8s to 10ms per step.
+        description: 8s to 10ms per step. With a clock on Pulse In 1 it picks a clock divider or multiplier instead, in eleven equal zones - /8, /6, /4, /3, /2, x1 (centre), x2, x3, x4, x6, x8.
       x:
         name: Smoothing
         description: Off across the bottom few percent of the knob, then a lag of 1ms to about 2s.

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promises as fs } from 'node:fs';
 import { chromium } from '../../../../tools/sitegen/node_modules/playwright/index.mjs';
-import { renderPanelExportPage } from '../../../../tools/sitegen/src/panels/exportPage.js';
+import { renderPanelArtwork } from '../../../../tools/sitegen/src/render/cardPage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../../../..');
@@ -13,8 +13,9 @@ const ASSETS = new Map([
   ['/assets/style.css', path.join(ROOT, 'tools/sitegen/assets/style.css')],
   ['/assets/program-cards.css', path.join(ROOT, 'tools/sitegen/assets/program-cards.css')],
   ['/assets/panel.svg', path.join(ROOT, 'tools/sitegen/assets/program_cards/Standalone_computer_rev1.svg')],
-  ['/assets/panel-export.js', path.join(ROOT, 'tools/sitegen/assets/js/panel-export.js')],
-  ['/assets/fonts/inter-latin-800-normal.woff2', path.join(ROOT, 'tools/sitegen/node_modules/@fontsource/inter/files/inter-latin-800-normal.woff2')],
+  // Same paths the built site uses: panel-export.js loads the font from ../fonts/.
+  ['/assets/js/panel-export.js', path.join(ROOT, 'tools/sitegen/assets/js/panel-export.js')],
+  ['/assets/fonts/inter-latin-wght-normal.woff2', path.join(ROOT, 'tools/sitegen/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2')],
 ]);
 
 function contentType(file) {
@@ -23,6 +24,45 @@ function contentType(file) {
   if (file.endsWith('.svg')) return 'image/svg+xml';
   if (file.endsWith('.woff2')) return 'font/woff2';
   return 'text/html; charset=utf-8';
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Private page that renders each snapshot with the site's panel markup and
+ *  exposes the browser-side SVG exporter (formerly src/panels/exportPage.js). */
+function renderPanelExportPage(items) {
+  const panels = items.map(item => `<section class="export-item" data-export-panel="${escapeHtml(item.id)}">${renderPanelArtwork(item, '/assets/panel.svg')}</section>`).join('');
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Panel image export</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <link rel="stylesheet" href="/assets/program-cards.css">
+  <style>
+    html,body{margin:0;padding:0;background:#fff}.export-item{width:280px}.export-item .program-card-panel{margin:0}
+  </style>
+</head>
+<body>
+${panels}
+<script type="module">
+  import { renderPanelElementToSvg } from '/assets/js/panel-export.js';
+  window.exportPanelSvg = async id => {
+    const root = document.querySelector('[data-export-panel="' + CSS.escape(id) + '"]');
+    if (!root) throw new Error('Unknown panel id: ' + id);
+    return renderPanelElementToSvg(root.querySelector('.program-card-panel'));
+  };
+  window.panelExporterReady = true;
+</script>
+</body>
+</html>`;
 }
 
 function control(label) {

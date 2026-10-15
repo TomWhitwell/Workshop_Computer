@@ -148,6 +148,11 @@
   opacity: 0.85;
 }
 
+.program-card-action .flash-chip {
+  justify-self: start;
+  margin-top: 2px;
+}
+
 .program-card-sha {
   color: var(--program-card-muted, #666);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -370,6 +375,26 @@ a.program-card-tag,
 a.program-card-tag:visited {
   color: var(--program-card-tag-ink, #fff);
   text-decoration: none;
+}
+
+/* Flash-size chip: a program-card silhouette (notched top-right corner, like
+   the physical Workshop Computer program card / a SIM card). */
+.flash-chip {
+  --flash-chip-bg: #707070;
+  background: var(--flash-chip-bg);
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
+  color: #fff;
+  display: inline-block;
+  font-size: 10px;
+  font-weight: var(--weight-heavy);
+  letter-spacing: 0.035em;
+  line-height: 1;
+  padding: 4px 8px 3px;
+  text-transform: uppercase;
+}
+
+.flash-chip--16mb {
+  --flash-chip-bg: var(--accent, #878ed4);
 }
 
 /* Draft banner */
