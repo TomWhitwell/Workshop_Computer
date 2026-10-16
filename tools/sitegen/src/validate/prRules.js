@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import { discoverCustomPanels, validateCustomPanelReferences } from '../discover/customPanels.js';
+import { cardRenames } from './mergeEligibility.js';
 
 const posix = value => String(value || '').replaceAll('\\', '/').replace(/^\.\//, '');
 const isUf2 = file => /\.uf2$/i.test(file);
@@ -24,6 +25,8 @@ function diagnostic(severity, ruleId, file, message) {
 }
 
 export function summarizePrTrigger(changes) {
+  const renamedReleases = cardRenames(changes);
+  const renameOf = new Map(renamedReleases.map(rename => [rename.from, rename]));
   const affectedReleases = new Set();
   const changedPaths = [];
   const directoryChanges = new Map();
@@ -46,7 +49,13 @@ export function summarizePrTrigger(changes) {
       const release = releaseFromPath(file);
       if (release) affectedReleases.add(release);
     }
-    if (change.oldPath) {
+    const rename = change.oldPath ? renameOf.get(releaseFromPath(change.oldPath)) : null;
+    if (rename && releaseFromPath(change.path) === rename.to) {
+      // Files carried along by a card rename collapse into one entry.
+      directoryChanges.set(`R\0releases/${rename.from}/`, {
+        status: 'R', oldPath: `releases/${rename.from}/`, path: `releases/${rename.to}/`, filesUnder: true,
+      });
+    } else if (change.oldPath) {
       addChangedPath('D', change.oldPath);
       addChangedPath('A', change.path);
     } else {
@@ -54,7 +63,7 @@ export function summarizePrTrigger(changes) {
     }
   }
   changedPaths.push(...directoryChanges.values());
-  return { affectedReleases: [...affectedReleases].sort(), changedPaths };
+  return { affectedReleases: [...affectedReleases].sort(), renamedReleases, changedPaths };
 }
 
 function walkFiles(dir) {
