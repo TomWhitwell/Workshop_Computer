@@ -9,10 +9,10 @@ summary: Dual phase-distortion synthesiser and Turing machine release with Core
   and waveform families for both oscillators.
 short-description: Core 1.4 and Rad v9 dual phase-distortion synth and Turing
   machine firmware with shared Web MIDI editing and CZ patch import.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.4"
-Status: Beta - stable in single-developer testing
+Status: Beta
 License: MIT
 demo-link: https://www.youtube.com/watch?v=wv4BscxiBcc
 uf2:

@@ -1,6 +1,6 @@
 Name: Hot Fuzz
 short-description: A stereo fuzz/distortion + resonant wah effects processor with manual and auto-wah modes, built on fixed-point DSP.
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
 contact:
   email: joep@joep-i.nl
@@ -17,7 +17,7 @@ tags:
   - distortion
   - wah
   - filter
-  - effects-processor
+  - effect
   - envelope-follower
 
 summary: |

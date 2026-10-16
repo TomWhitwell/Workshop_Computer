@@ -6,10 +6,10 @@ summary: >-
   BuzzyBee combines a virtual XY pad, recordable motion, original-style comb,
   glide, BOC, wobble, pink noise, calibrated pitch CV, and musical note-memory
   chord modes.
-Language: C++ (Pico SDK / ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.0.0"
-Status: Beta - hardware-tested
+Status: Beta
 License: MIT
 date-created: 2026-09-09
 date-updated: 2026-09-11
@@ -20,7 +20,7 @@ tags:
   - drone
   - stereo
   - cv
-  - webusb
+  - web-usb
 uf2:
   - path: uf2/BuzzyBee-1.0.0.uf2
     name: BuzzyBee 1.0.0

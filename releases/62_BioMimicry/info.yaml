@@ -1,7 +1,7 @@
 draft: false
 Name: BioMimicry
 short-description: Six physics engines generating organic, semi-random triggers, CV and audio
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: "1.2.0"
 Status: Released
@@ -25,7 +25,7 @@ tags:
   - generative
   - rhythm
   - stochastic
-  - triggers
+  - trigger
   - drums
   - swarm
   - organic

@@ -1,7 +1,7 @@
 draft: false
 Name: LIGHTPEN
 short-description: An RGB light-sensor wand as a fourteen-mode controller, sound source and effects box
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: "1.3.0"
 Status: Released
@@ -25,11 +25,11 @@ tags:
   - synthesis
   - percussion
   - looper
-  - quantizer
+  - quantiser
   - filter
   - delay
   - reverb
-  - effects
+  - effect
 
 summary: |
   LIGHTPEN drives an RGB sensor wand: three light-dependent resistors under

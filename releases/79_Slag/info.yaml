@@ -1,11 +1,11 @@
 summary: "A harsh metal-percussion voice wired to a random step sequencer you can lock. Every step re-rolls pitch, decay, noise, corrosion, accent and whether it fires at all; the Steps knob freezes the last N of those rolls into a loop. The metal and the kick come out of separate jacks so each can take its own processing."
 short-description: Metallic percussion driven by a lockable random step sequencer.
 Name: Slag
-Language: "C++ (ComputerCard)"
+Language: "C++ (Pico SDK + ComputerCard)"
 Creator: "Jason Moore"
 contact: { email: "casconed@gmail.com" }
 Version: "0.1"
-Status: "Working"
+Status: "Released"
 License: MIT
 date-created: 2026-08-05
 date-updated: 2026-08-10

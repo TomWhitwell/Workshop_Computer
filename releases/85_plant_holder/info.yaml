@@ -1,6 +1,6 @@
 Name: PlantHolder
 short-description: USB MIDI host and Placeholder-style reverb — built for the Instruo Pocket Scion, happy with any USB MIDI device.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Phil Miller
 Version: "0.2.0"
 Status: Beta

@@ -1,13 +1,23 @@
-// Materialize the exact Git index state for affected releases, then run the
-// staged copy of the card validator. Unstaged working-tree edits are excluded.
+// Materialize the exact Git index state for affected releases, plus the
+// branch point on main as a baseline, then run the staged copy of the card
+// validator. Like PR validation in CI, the whole branch is evaluated (staged
+// tree against the branch point), so the hook reports what the PR will; issues
+// already present on main are hidden. Unstaged working-tree edits are
+// excluded. If the installed validator dependencies no longer match
+// package-lock.json (e.g. after pulling a Dependabot update), they are
+// reinstalled with `npm ci` first.
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { archiveTree, treeContains } from './gitTree.js';
+import { color, interactive, step } from './stagedOutput.js';
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
+const sitegenDir = path.join(sourceRoot, 'tools', 'sitegen');
+const dependencyDir = path.join(sitegenDir, 'node_modules');
 
 function git(args, options = {}) {
   const result = spawnSync('git', args, { cwd: sourceRoot, encoding: 'utf8', ...options });
@@ -37,76 +47,150 @@ function affectedReleases(changeBuffer) {
   return [...releases].sort();
 }
 
-function treeContains(tree, relative) {
-  return spawnSync('git', ['cat-file', '-e', `${tree}:${relative}`], {
-    cwd: sourceRoot, stdio: 'ignore',
-  }).status === 0;
+/**
+ * Why node_modules does not match package-lock.json, or null when it does.
+ * npm records what it installed in node_modules/.package-lock.json; optional
+ * packages for other platforms appear only in the lockfile and are ignored.
+ */
+function dependencyDrift() {
+  if (!fs.existsSync(dependencyDir)) return 'not installed';
+  let locked;
+  let installed;
+  try {
+    locked = JSON.parse(fs.readFileSync(path.join(sitegenDir, 'package-lock.json'), 'utf8')).packages || {};
+  } catch {
+    return null; // Nothing to compare against; let npm report problems itself.
+  }
+  try {
+    installed = JSON.parse(fs.readFileSync(path.join(dependencyDir, '.package-lock.json'), 'utf8')).packages || {};
+  } catch {
+    return 'install record missing';
+  }
+  for (const name of new Set([...Object.keys(locked), ...Object.keys(installed)])) {
+    if (!name) continue;
+    if (!installed[name] && locked[name]?.optional) continue;
+    if (locked[name]?.version !== installed[name]?.version) {
+      return 'package-lock.json changed since the last install';
+    }
+  }
+  return null;
 }
 
-function archive(tree, paths, destination) {
-  return new Promise((resolve, reject) => {
-    const gitArchive = spawn('git', ['archive', '--format=tar', tree, '--', ...paths], {
-      cwd: sourceRoot, stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    const tar = spawn('tar', ['-xf', '-', '-C', destination], { stdio: ['pipe', 'ignore', 'pipe'] });
-    gitArchive.stdout.pipe(tar.stdin);
-    let errors = '';
-    gitArchive.stderr.on('data', chunk => { errors += chunk; });
-    tar.stderr.on('data', chunk => { errors += chunk; });
-    let gitStatus;
-    let tarStatus;
-    const finish = () => {
-      if (gitStatus === undefined || tarStatus === undefined) return;
-      if (gitStatus === 0 && tarStatus === 0) resolve();
-      else reject(new Error(errors.trim() || 'Could not materialize the staged snapshot.'));
-    };
-    gitArchive.on('close', code => { gitStatus = code; finish(); });
-    tar.on('close', code => { tarStatus = code; finish(); });
+function installDependencies(reason) {
+  const progress = step(`Installing validator dependencies (${reason})`);
+  const result = spawnSync('npm', ['ci', '--no-audit', '--no-fund'], {
+    cwd: sitegenDir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
   });
+  // npm can crash ("Exit handler never called!") yet exit 0 with a partial
+  // install, so trust the install record rather than the exit status.
+  if (result.status !== 0 || dependencyDrift()) {
+    progress.fail();
+    const output = `${result.stdout || ''}${result.stderr || ''}`.trim().split('\n')
+      .filter(line => !line.startsWith('npm warn')).slice(-15).join('\n');
+    throw new Error(`npm ci failed${result.error ? ` (${result.error.message})` : ''}. Run it manually: npm ci --prefix tools/sitegen${output ? `\n${output}` : ''}`);
+  }
+  progress.done();
+}
+
+// Candidate refs for the main branch a PR will target, most authoritative
+// first. `git config workshop.baseRef <ref>` overrides them.
+const BASE_REF_CANDIDATES = ['upstream/main', 'origin/main', 'main'];
+
+function revParse(ref) {
+  const result = spawnSync('git', ['rev-parse', '--verify', '-q', ref], { cwd: sourceRoot, encoding: 'utf8' });
+  return result.status === 0 ? result.stdout.trim() : null;
+}
+
+/**
+ * The commit a PR from this branch will be compared against: the merge base
+ * with the most up-to-date available main. Falls back to HEAD, or null for an
+ * initial commit.
+ */
+function findBase() {
+  const head = revParse('HEAD^{commit}');
+  if (!head) return null;
+  const configured = spawnSync('git', ['config', '--get', 'workshop.baseRef'], { cwd: sourceRoot, encoding: 'utf8' });
+  const refs = configured.status === 0 && configured.stdout.trim() ? [configured.stdout.trim()] : BASE_REF_CANDIDATES;
+  let best = null;
+  for (const ref of refs) {
+    if (!revParse(`${ref}^{commit}`)) continue;
+    const mergeBase = spawnSync('git', ['merge-base', 'HEAD', ref], { cwd: sourceRoot, encoding: 'utf8' });
+    if (mergeBase.status !== 0) continue;
+    const commit = mergeBase.stdout.trim();
+    const distance = Number(git(['rev-list', '--count', `${commit}..HEAD`]).trim());
+    if (!best || distance < best.distance) best = { ref, commit, distance };
+  }
+  return best || { ref: 'HEAD', commit: head, distance: 0 };
+}
+
+function nameStatus(args) {
+  const result = spawnSync('git', ['diff', '--cached', '--name-status', '--find-renames=50%', '-z', ...args], {
+    cwd: sourceRoot, encoding: null, maxBuffer: 64 * 1024 * 1024,
+  });
+  if (result.status !== 0) throw new Error(result.stderr?.toString().trim() || 'Could not inspect staged changes.');
+  return result.stdout;
 }
 
 let temporary;
+let snapshotStep;
 try {
-  const dependencyDir = path.join(sourceRoot, 'tools', 'sitegen', 'node_modules');
-  if (!fs.existsSync(dependencyDir)) {
-    throw new Error('Validator dependencies are missing. Run: npm ci --prefix tools/sitegen');
-  }
-
-  const changes = spawnSync('git', ['diff', '--cached', '--name-status', '--find-renames=50%', '-z'], {
-    cwd: sourceRoot, encoding: null, maxBuffer: 64 * 1024 * 1024,
-  });
-  if (changes.status !== 0) throw new Error(changes.stderr?.toString().trim() || 'Could not inspect staged changes.');
-  if (!changes.stdout.length) {
+  // Only commits touching cards are validated...
+  const staged = nameStatus([]);
+  if (!staged.length) {
     console.log('No staged changes to validate.');
     process.exit(0);
   }
-  const releases = affectedReleases(changes.stdout);
-  if (!releases.length) {
+  if (!affectedReleases(staged).length) {
     console.log('No staged program card changes; validation skipped.');
     process.exit(0);
   }
+  // ...but against everything the branch changes, as CI will see it.
+  const base = findBase();
+  const changes = base ? nameStatus([base.commit]) : staged;
+  const releases = affectedReleases(changes);
 
+  if (interactive) console.log(color.bold('Checking staged program cards'));
+  const drift = dependencyDrift();
+  if (drift) installDependencies(drift);
+  snapshotStep = step(`Snapshotting ${releases.length} release${releases.length === 1 ? '' : 's'}`);
   const tree = git(['write-tree']).trim();
+  const baseTree = base ? revParse(`${base.commit}^{tree}`) : null;
   temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'workshop-card-staged-'));
   const snapshot = path.join(temporary, 'snapshot');
   fs.mkdirSync(snapshot);
-  const paths = ['tools/sitegen/src', 'tools/sitegen/package.json'];
-  for (const release of releases) {
-    const relative = `releases/${release}`;
-    if (treeContains(tree, relative)) paths.push(relative);
-  }
-  await archive(tree, paths, snapshot);
+  const releasePaths = treeish => releases
+    .map(release => `releases/${release}`)
+    .filter(relative => treeContains(sourceRoot, treeish, relative));
+  await archiveTree(sourceRoot, tree, ['tools/sitegen/src', 'tools/sitegen/package.json', ...releasePaths(tree)], snapshot);
   fs.symlinkSync(dependencyDir, path.join(snapshot, 'tools', 'sitegen', 'node_modules'), 'dir');
+  let baseline = null;
+  if (baseTree) {
+    baseline = path.join(temporary, 'baseline');
+    fs.mkdirSync(baseline);
+    const paths = releasePaths(baseTree);
+    if (paths.length) await archiveTree(sourceRoot, baseTree, paths, baseline);
+  }
   const changesFile = path.join(temporary, 'changes.bin');
-  fs.writeFileSync(changesFile, changes.stdout);
+  fs.writeFileSync(changesFile, changes);
+  // A configured base may be a raw commit id; keep labels readable.
+  const baseLabel = base && (/^[0-9a-f]{40}$/i.test(base.ref) ? base.ref.slice(0, 8) : base.ref);
+  snapshotStep.done(!base
+    ? 'staged; nothing to compare against'
+    : base.ref === 'HEAD' || baseLabel === base.commit.slice(0, 8)
+      ? `staged vs ${baseLabel}`
+      : `staged vs ${baseLabel} branch point (${base.commit.slice(0, 8)})`);
 
   const runner = spawnSync(process.execPath, [
     path.join(snapshot, 'tools', 'sitegen', 'src', 'validate', 'stagedChangeSetCli.js'),
     changesFile,
+    // The snapshot only holds the changed cards; index the rest from the repo.
+    '--releases', path.join(sourceRoot, 'releases'),
+    ...(baseline ? ['--baseline', baseline, '--base-label', baseLabel] : []),
   ], { cwd: snapshot, stdio: 'inherit' });
   process.exitCode = runner.status ?? 2;
 } catch (error) {
-  console.error(`Pre-commit validation could not run: ${error.message}`);
+  snapshotStep?.fail();
+  console.error(`${color.red('Pre-commit validation could not run:')} ${error.message}`);
   process.exitCode = 2;
 } finally {
   if (temporary) fs.rmSync(temporary, { recursive: true, force: true });

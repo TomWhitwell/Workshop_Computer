@@ -82,7 +82,7 @@ contact:
 |-------|----------|------|-------------|
 | `repository` | no | string (URL) | Upstream source repo when firmware or docs live outside this monorepo. Example: [64_voices_of_sid](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/64_voices_of_sid/info.yaml) points at Codeberg. |
 | `discussion` | no | string (URL) | Card-specific feedback or support destination, normally a Discord thread. This replaces the site's general discussion link on that card's detail page. |
-| `tags` | no | string[] | Labels for card type and function. Use lowercase kebab-case (e.g. `sequencer`, `midi-host`, `effect`, `synthesizer`, `polyphonic`, `utility`). Sitegen normalizes and deduplicates. A single comma-separated string is also accepted. |
+| `tags` | no | string[] | Labels for card type and function. Use lowercase kebab-case (e.g. `sequencer`, `midi-host`, `effect`, `synthesizer`, `polyphonic`, `utility`). Sitegen normalizes and deduplicates. A single comma-separated string is also accepted. Prefer tags other cards already use: validation warns when a new tag looks like a different spelling of an existing one (likewise for `Language` and `Status`). |
 
 ```yaml
 discussion: https://discord.com/channels/SERVER_ID/CHANNEL_OR_THREAD_ID
@@ -98,14 +98,20 @@ Add an optional `uf2:` list to curate this. **When `uf2:` is present it fully re
 |-------|----------|------|-------------|
 | `path` | either path or download | string | Path to the `.uf2` relative to the card folder (e.g. `UF2/goldfish.2.0.2mb.uf2`), matched case-insensitively. The build errors if the file is missing. |
 | `name` | no | string | Friendly label shown on the download tile instead of the filename. |
+| `flash_size` | no | `2mb` \| `16mb` | The program card size this firmware requires. `16mb` marks firmware that **requires a 16MB program card**; **omit for 2MB** (the default) — 2MB firmware runs on both 2MB and 16MB cards. A card whose every UF2 entry is `16mb` requires a 16MB card. When omitted, the build also infers `16mb` from filenames containing `16mb` or `16M` (and `2mb` from `2mb` / `2M`). An explicit `flash_size` value always wins. |
 | `download` | either path or download | object | `{ url, sha256, flashable? }` (`url` and `sha256` are required). `url` is an external mirror, direct firmware URL, or store/purchase page. It opens in a new tab, shows its host, and is tagged "External". Set `flashable: true` only for a direct UF2 URL whose host permits cross-origin browser requests (CORS); the site verifies `sha256` before erasing or writing the connected card. `sha256` is the firmware's hex digest (`shasum -a 256 file.uf2` on macOS). For repo-hosted firmware (via `path`) the build computes it automatically. |
 
 Do not add `sha256` beside a repository-hosted `path`; the build calculates that hash from the tracked file. Validation accepts it only to provide a warning that it is unnecessary.
+
+Do not add `flash_size: 2mb` on ordinary cards; 2MB is implicit and runs on any card. A 16MB-only card is a card whose every UF2 entry has `flash_size: 16mb`.
 
 ```yaml
 uf2:
   - path: UF2/goldfish.2.0.2mb.uf2
     name: Goldfish 2.0 (2MB)
+  - path: UF2/goldfish.2.0.16mb.uf2
+    name: Goldfish 2.0 (16MB)
+    flash_size: 16mb
   - name: Buy a pre-flashed card
     download:
       url: https://example.com/store/goldfish
@@ -285,5 +291,6 @@ Every card must include **`Name`** — the site index and detail page title come
 
 - **`pages.yml`** — synchronizes curation, runs `tools/sitegen`, and deploys `site/` (including copied `web/` folders).
 - **`sync-curation.yml`** — after changes land on `main`, synchronizes `tools/sitegen/src/curation/flairs.yml` and commits any update.
+- **`npm run metadata-values -- report`** — maintainer tool: writes `metadata-values.yml` listing every `tags`, `Language` and `Status` value with similar spellings grouped. Edit the right-hand values, preview with `npm run metadata-values -- apply --dry-run`, then run `apply` to rename them across all `releases/*/info.yaml`.
 
 **Future:** per-card `npm` builds in CI before copying `dist/` to Pages; commit built assets and set `Editor: dist` (or whatever your output folder is) until then.

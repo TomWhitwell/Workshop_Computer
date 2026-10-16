@@ -1,7 +1,7 @@
 draft: false
 Name: SPECTRAL
 short-description: A spectral filter bank with randomly modulated logarithmic bands — the Spectral Clouds mode from Kammerl's Clouds fork, ported to the Workshop Computer
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: "1.0.0"
 Status: Released

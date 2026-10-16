@@ -15,17 +15,19 @@ performance modulation, ring modulation, and expressive envelopes.
 
 ## Current Status
 
-This folder contains the tested split-output firmware baseline and its Web MIDI
-editor.
+This folder contains the split-output firmware baseline and its Web MIDI editor.
 
-- Firmware: `uf2/Vortex_Runner_current_stable_dual_output_20260830.uf2` is the tested
-  dual-output monophonic build, including the two-bank MIDI CC layout, `CC1`
-  vibrato depth, MIDI absolute-pitch handling, and coalesced Web MIDI patch
-  handoff for rapid detune changes
+- Firmware: `uf2/Vortex_Runner_8mu_button_note_fix_20261007.uf2` is the
+  current 8mu button-note fix build. It has compiled successfully and requires
+  hardware verification. It adds 12 dB/octave high-pass and
+  low-pass paths, bounded resonance, the factory-plus-saved hardware preset
+  browser, and 8mu controller support with panel LED feedback. Filter Envelope
+  layer fader 5 controls HP cutoff; fader 6 controls resonance.
 - Web editor: Vortex Runner SysEx v10 patch apply/readback interface with named
   persistent card slots
 - Rollbacks: locally retained rollback UF2s are ignored by git
-- Release status: draft
+- Release status: 8mu button-note fix build (2026-10-07); hardware verification
+  pending
 - Release guide and first patch: [RELEASE_SUMMARY.md](RELEASE_SUMMARY.md) or
   [RELEASE_SUMMARY.txt](RELEASE_SUMMARY.txt)
 
@@ -59,13 +61,47 @@ hardware-test UF2s should go in `test-uf2/`, which is ignored by git.
 - independent saw, square/pulse, sine, and noise mixer levels
 - independent pulse width, PWM amount, LFO-to-pitch, and LFO-to-PWM controls
 - oscillator spread or detune
-- high-pass then low-pass filter character
+- 12 dB/octave high-pass then 12 dB/octave low-pass filter character
 - amp envelope
 - filter envelope
 - LFO for vibrato, tremolo, or filter movement
 - ring modulation as a performance colour
 - gate and MIDI note triggering
 - Web MIDI editor for patch editing, readback, and saving
+
+## Filter Architecture
+
+Each output has its own 12 dB/octave high-pass path feeding a 12 dB/octave
+low-pass path. HP cutoff, LP cutoff, resonance, and filter state are
+independent for Voice A and Voice B; the filter envelope, filter CV routing,
+and LFO-to-filter depth are shared. Resonance is bounded below
+self-oscillation and is applied to both paths for a stronger, controlled
+band-pass focus.
+
+This replaces the earlier, gentler 6 dB/octave filter path. The August 2026
+rollback image and matching source are retained locally in an ignored archive,
+so they are not included in the stable-release PR.
+
+## 8mu Activity
+
+The current firmware supports a Music Thing Modular 8mu connected at power-on.
+The 8mu uses the Computer USB port in host mode, so it cannot be used at the
+same time as the Web MIDI editor. The complete connection, layer, soft-takeover,
+panel-LED, and preset-browser instructions are kept separately in
+[8MU_ACTIVITY.md](8MU_ACTIVITY.md).
+
+### Previous 8mu button-note issue — verify after updating
+
+Earlier 8mu firmware builds also forwarded the four 8mu button-note messages
+to Vortex Runner's ordinary MIDI-note input. When playing from a CV keyboard
+with its gate held high, pressing A, B, C, or D could therefore retrigger the
+voice and switch its pitch to C2, C3, C4, or C5. The corrected firmware consumes
+those button notes exclusively for 8mu layer selection.
+
+After flashing a corrected build, hold a note on a CV keyboard and press then
+release each 8mu button. Only the selected 8mu layer LED should change: the
+pitch and envelope of the CV-played note must remain unchanged. If they do
+change, the card is still running a pre-fix firmware build.
 
 ## Draft Web MIDI Protocol
 
@@ -218,3 +254,9 @@ card's Web MIDI device interface.
 The included `pico_sdk_import.cmake` file is the standard Raspberry Pi Pico SDK
 import helper. It carries the Raspberry Pi (Trading) Ltd. BSD-style notice in
 the file itself.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.

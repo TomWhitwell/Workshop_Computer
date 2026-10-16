@@ -85,3 +85,9 @@ The build produces `build/scarylingo.uf2`.
 ## Credits and License
 
 ScaryLingo firmware and documentation are Copyright 2026 Adrian Vos and released under the MIT License. The card uses the included `ComputerCard.h` framework by Chris Johnson, MIT licensed; see [ATTRIBUTION.md](ATTRIBUTION.md) for the complete attribution record.
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.

@@ -1,6 +1,6 @@
 Name: WS-DOOM
 short-description: Doom, running entirely on the Computer — play it by ear with knobs, CV and the enemy-panned stereo mix
-Language: C (RPi Pico SDK)
+Language: C (Pico SDK)
 Creator: incomputable.io
 Version: 1.0
 License: GPL-2.0

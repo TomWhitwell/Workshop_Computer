@@ -81,6 +81,59 @@ export function getOldestBlameDate(relPath) {
 }
 
 /**
+ * The date (YYYY-MM-DD) a card was first published on the main line: the
+ * earliest first-parent commit (i.e. the merge/squash onto main, not the PR's
+ * own commit dates) where the card folder exists and its info.yaml is not a
+ * draft. `isDraftSource(yamlText)` decides draft state; a missing info.yaml
+ * (pre-metadata cards) counts as published. Draft state can only change at the
+ * folder's first commit or at a commit touching info.yaml, so only those
+ * revisions are read (in one `git cat-file --batch` call). Returns '' when
+ * never published or when git is unavailable.
+ */
+export function getPublishedDate(folderRel, isDraftSource) {
+  const f = String(folderRel || '').replace(/\/+$/, '');
+  if (!f) return '';
+  const infoPath = `${f}/info.yaml`;
+  const run = (args, input) => execFileSync('git', args, {
+    cwd: ROOT, input, stdio: [input == null ? 'ignore' : 'pipe', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024,
+  });
+  try {
+    // One log over the folder; each commit line is followed by the files it changed.
+    const commits = [];
+    for (const line of run(['-c', 'core.quotepath=off', 'log', '--first-parent', '--reverse', '--format=@%H %cs', '--name-only', '--', f]).toString('utf8').split('\n')) {
+      if (line.startsWith('@')) {
+        const [sha, date] = line.slice(1).split(' ');
+        commits.push({ sha, date, touchesInfo: false });
+      } else if (line === infoPath && commits.length) {
+        commits[commits.length - 1].touchesInfo = true;
+      }
+    }
+    if (!commits.length) return '';
+    const revisions = commits.filter((c, i) => i === 0 || c.touchesInfo);
+    // Batch output per object: "<oid> blob <size>\n<content>\n", or "<rev> missing\n".
+    const out = run(['cat-file', '--batch'], revisions.map(({ sha }) => `${sha}:${infoPath}\n`).join(''));
+    let pos = 0;
+    for (const { date } of revisions) {
+      const eol = out.indexOf(10, pos);
+      const header = out.toString('utf8', pos, eol).split(' ');
+      pos = eol + 1;
+      let source = null;
+      if (header[1] === 'blob') {
+        const size = Number(header[2]);
+        source = out.toString('utf8', pos, pos + size);
+        pos += size + 1;
+      }
+      // A missing info.yaml at this revision is a legacy card: published.
+      if (source == null || !isDraftSource(source)) return date;
+    }
+    return '';
+  } catch (e) {
+    debugLog(`getPublishedDate failed for ${f}:`, e?.message || e);
+    return '';
+  }
+}
+
+/**
  * The most recent commit date (YYYY-MM-DD) touching a card's release *content*
  * — everything in its folder except the bulk-edited metadata/docs (info.yaml
  * and README). Used as the "last updated" signal: a firmware or source commit

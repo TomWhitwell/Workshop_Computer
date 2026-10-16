@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Cosmik M1N1D Lab</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="lab-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Workshop Computer / 01</p>
+        <h1>Cosmik M1N1D Lab</h1>
+      </div>
+      <div class="topbar-actions">
+        <button id="midiConnect" class="connect-button" type="button">Connect MIDI</button>
+        <div class="theme-toggle" role="group" aria-label="Colour theme">
+          <button type="button" data-theme="light">Light</button>
+          <button type="button" data-theme="dark">Dark</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="midi-tools" aria-label="MIDI connection and developer monitor">
+      <div class="midi-tools-head">
+        <div>
+          <span class="eyebrow">WebMIDI</span>
+          <h2>Connected Voice</h2>
+        </div>
+        <output id="midiStatus" class="midi-status" aria-live="polite">Not connected</output>
+      </div>
+      <div class="midi-ports">
+        <label>Input<select id="midiInput"><option>No MIDI access</option></select></label>
+        <label>Output<select id="midiOutput"><option>No MIDI access</option></select></label>
+        <button id="midiRefresh" type="button">Refresh ports</button>
+        <button id="midiProbe" type="button">Probe card</button>
+        <button id="midiApply" type="button">Send to card</button>
+      </div>
+      <details class="developer-tools">
+        <summary>Developer monitor</summary>
+        <div class="developer-actions">
+          <button id="midiClearLog" type="button">Clear log</button>
+          <label class="midi-filter"><input id="midiShowAll" type="checkbox"> Include performance MIDI</label>
+        </div>
+        <pre id="midiLog" class="midi-log" aria-live="polite">Waiting for MIDI traffic.</pre>
+        <div class="sysex-send">
+          <label>Raw SysEx<input id="midiSysex" type="text" spellcheck="false" placeholder="F0 7D ... F7"></label>
+          <button id="midiSendSysex" type="button">Send</button>
+        </div>
+      </details>
+    </section>
+
+    <section class="panel-map" aria-label="Physical panel mapping">
+      <div><span>Middle</span><strong>Cutoff · Resonance · Filter contour</strong></div>
+      <div><span>Up</span><strong>OSC 1/2: Tune · Level · Waveform; OSC 3: Offset · Return · Range</strong></div>
+      <div><span>Down &lt;0.5 s</span><strong>OSC 3 offset · Mod depth · Pitch/filter blend</strong></div>
+      <div><span>Down 0.5-5 s</span><strong>Noise level · White/pink · MOD MIX; 4 s warning · 5 s presets</strong></div>
+    </section>
+
+    <section class="preset-workspace" aria-label="Preset library">
+      <div class="preset-heading">
+        <div>
+          <span class="eyebrow">Card-backed preset library</span>
+          <h2>Preset Library</h2>
+        </div>
+        <output id="presetStatus" class="preset-status" aria-live="polite">Factory preset</output>
+      </div>
+      <div class="preset-layout">
+        <label class="preset-name">Preset name<input id="presetName" type="text" maxlength="16" autocomplete="off"></label>
+        <label class="preset-slot">User slot<select id="userSlot" aria-label="User preset slot"></select></label>
+        <div class="preset-actions" aria-label="Preset actions">
+          <button id="presetNew" type="button">New</button>
+          <button id="presetDuplicate" type="button">Duplicate</button>
+          <button id="presetSave" type="button">Save user slot</button>
+          <button id="presetDelete" type="button">Delete user voice</button>
+          <button id="presetReset" type="button">Revert</button>
+        </div>
+      </div>
+      <div class="preset-banks">
+        <div>
+          <h3>Factory voices</h3>
+          <div id="factoryPresets" class="preset-list" role="list"></div>
+        </div>
+        <div>
+          <h3>User voices</h3>
+          <div id="userPresets" class="preset-list" role="list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="control-grid">
+      <fieldset class="module oscillator">
+        <legend>Oscillator 1</legend>
+        <label>Range<select data-param="osc1.range"><option>32'</option><option>16'</option><option selected>8'</option><option>4'</option><option>2'</option></select></label>
+        <label>Tune<input data-param="osc1.tune" data-unit="st" type="range" min="-7" max="7" value="0"></label>
+        <label>Waveform<select data-param="osc1.waveform"><option>Triangle</option><option>Triangle / sawtooth</option><option selected>Sawtooth</option><option>Square</option><option>Wide rectangle</option><option>Narrow rectangle</option></select></label>
+      </fieldset>
+
+      <fieldset class="module oscillator">
+        <legend>Oscillator 2</legend>
+        <label>Range<select data-param="osc2.range"><option>32'</option><option>16'</option><option selected>8'</option><option>4'</option><option>2'</option></select></label>
+        <label>Waveform<select data-param="osc2.waveform"><option>Triangle</option><option>Triangle / sawtooth</option><option>Sawtooth</option><option selected>Square</option><option>Wide rectangle</option><option>Narrow rectangle</option></select></label>
+        <label>Frequency<input data-param="osc2.interval" data-unit="st" type="range" min="-7" max="7" value="0"></label>
+      </fieldset>
+
+      <fieldset class="module external">
+        <legend>External Oscillator 3</legend>
+        <label>Range<select data-param="osc3.range"><option>32'</option><option>16'</option><option selected>8'</option><option>4'</option><option>2'</option></select></label>
+        <label>Frequency adjustment<input data-param="osc3.offset" data-unit="st" type="range" min="-7" max="7" value="0"></label>
+      </fieldset>
+
+      <fieldset class="module mixer">
+        <legend>Mixer</legend>
+        <label>OSC 1 level<input data-param="mixer.osc1Level" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>OSC 2 level<input data-param="mixer.osc2Level" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>External OSC 3 return<input data-param="mixer.osc3Return" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>Noise level<input data-param="mixer.noise" data-unit="%" type="range" min="0" max="100" value="0"></label>
+        <label>Noise colour<select data-param="mixer.noiseColour"><option selected>White</option><option>Pink</option></select></label>
+      </fieldset>
+
+      <fieldset class="module filter wide">
+        <legend>Ladder Filter</legend>
+        <label>Cutoff<input data-param="filter.cutoff" data-unit="Hz" type="range" min="20" max="12000" value="6010"></label>
+        <label>Emphasis<input data-param="filter.emphasis" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>Contour<input data-param="filter.contour" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>Mode<select data-param="filter.range"><option selected>Low pass</option><option>High pass</option></select></label>
+        <label>Keyboard control<select data-param="filter.keyboardTracking"><option>None</option><option>1/3</option><option selected>2/3</option><option>Full</option></select></label>
+      </fieldset>
+
+      <fieldset class="module envelope">
+        <legend>Filter Contour</legend>
+        <label>Attack<input data-param="filterAds.attack" data-unit="ms" type="range" min="1" max="10000" value="1"></label>
+        <label>Decay<input data-param="filterAds.decay" data-unit="ms" type="range" min="4" max="10000" value="500"></label>
+        <label>Sustain<input data-param="filterAds.sustain" data-unit="%" type="range" min="0" max="100" value="0"></label>
+        <label>Decay switch <select data-param="filterAds.decayRelease"><option value="false" selected>Off</option><option value="true">On</option></select></label>
+      </fieldset>
+
+      <fieldset class="module envelope">
+        <legend>Amplifier Contour</legend>
+        <label>Attack<input data-param="ampAds.attack" data-unit="ms" type="range" min="1" max="10000" value="1"></label>
+        <label>Decay<input data-param="ampAds.decay" data-unit="ms" type="range" min="4" max="10000" value="500"></label>
+        <label>Sustain<input data-param="ampAds.sustain" data-unit="%" type="range" min="0" max="100" value="100"></label>
+        <label>Decay switch <select data-param="ampAds.decayRelease"><option value="false" selected>Off</option><option value="true">On</option></select></label>
+      </fieldset>
+
+      <fieldset class="module modulation wide">
+        <legend>Modulation Controllers</legend>
+        <label>MOD SRC A<select data-param="modulation.primarySource"><option selected>External OSC 3 / CV In 2</option><option>Filter contour</option></select></label>
+        <label>MOD SRC B<select data-param="modulation.secondarySource"><option selected>Noise</option><option>External MOD SOURCE / CV In 2</option><option>Internal LFO</option></select></label>
+        <label class="toggle-control"><span>LFO shape</span><span class="toggle-positions"><span>Triangle</span><input aria-label="LFO square wave" data-param="modulation.lfoSquare" type="checkbox"><span>Square</span></span></label>
+        <label>LFO rate<input data-param="modulation.lfoRate" data-unit="Hz" type="range" min="0.05" max="14" step="0.05" value="0.9"></label>
+        <label>Glide<input data-param="modulation.glide" data-unit="ms" type="range" min="0" max="2000" step="10" value="0"></label>
+        <label class="mod-mix-control"><span>MOD MIX</span><span class="mod-mix-slider"><span>A</span><input data-no-readout data-param="modulation.noiseBlend" type="range" min="0" max="100" value="0"><span>B</span></span><output aria-hidden="true" class="range-readout range-placeholder"></output></label>
+        <label>MOD DEPTH<input data-param="modulation.depth" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>Pitch / filter balance<input data-param="modulation.blend" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>Oscillator modulation<select data-param="modulation.oscillatorEnabled"><option selected>On</option><option>Off</option></select></label>
+        <label>Filter modulation<select data-param="modulation.filterEnabled"><option selected>On</option><option>Off</option></select></label>
+      </fieldset>
+    </section>
+
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

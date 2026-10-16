@@ -1,12 +1,14 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Keep the full redistribution notices beside generated firmware outputs.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/NOTICE.txt"
+    "${CMAKE_CURRENT_BINARY_DIR}/NOTICE.txt" COPYONLY)
+
 # ============================================================
 # Raspberry Pi Pico SDK
 # ============================================================
 
-set(PICO_SDK_PATH "/Users/adrianvos/pico-sdk")
-
-include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/pico_sdk_import.cmake)
 
 # ============================================================
 # Project

@@ -1,0 +1,38 @@
+# Dependabot version updates for the website (tools/sitegen) and its CI.
+# Card code under releases/ belongs to each designer and is not tracked here.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /tools/sitegen
+    schedule:
+      interval: weekly
+    # Let new releases settle before proposing them; security updates are not delayed.
+    cooldown:
+      default-days: 7
+    groups:
+      sitegen-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # monaco-yaml 5.5.1 (via monaco-worker-manager 2.0.1) only works with
+      # Monaco <= 0.52: from 0.53 its YAML worker stops answering (schema
+      # validation breaks), and 0.56 removed the esm/vs paths it imports.
+      # Lift this once monaco-yaml supports newer Monaco
+      # (https://github.com/remcohaszing/monaco-worker-manager/issues/3).
+      - dependency-name: monaco-editor
+        versions: [">=0.53.0"]
+    labels:
+      - Website
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - Website

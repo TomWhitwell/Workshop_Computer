@@ -8,10 +8,10 @@ summary: >-
   Dual-oscillator phase distortion synth voice with recipe wave banks, named Web MIDI
   sound presets, separate oscillator amplitude/phase-distortion/pitch envelopes,
   CZ patch import support, and an eight-knob MIDI CC performance block.
-Language: C++ (Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "Gnarly protocol v11 stable"
-Status: Beta - stable in single-developer testing
+Status: Beta
 License: MIT
 date-created: 2026-07-22
 Editor: web
@@ -23,6 +23,7 @@ tags:
   - web-midi
   - phase-distortion
   - dual-oscillator
+  - 8mu
   - stable
 
 panel:
@@ -160,6 +161,11 @@ host:
     CC23 = recipe bank; CC24 = oscillator 2 interval/spread; CC25 = oscillator
     2 phase distortion; CC26 = noise/grit; CC27 = oscillator 1 phase
     distortion for eight-knob controllers.
+
+
+    8mu alternative: import the bundled 8mu bank files when using
+    Gnarly_C1ZZL3_8mu.uf2. Bank 1 button presses send unused CCs 124--127,
+    so they do not play notes; Banks 2--8 retain their envelope-edit actions.
 
 contact:
   social:

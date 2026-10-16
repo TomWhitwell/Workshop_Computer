@@ -1,7 +1,7 @@
 draft: false
 Name: NIBBLE-KO
 short-description: A 12-voice synth/sample percussion looper for the Four Voltages module, with a browser sample manager
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: "1.2.1"
 Status: Released
@@ -28,10 +28,10 @@ tags:
   - drums
   - looper
   - sample-player
-  - effects
+  - effect
   - performance
   - four-voltages
-  - webmidi
+  - web-midi
 
 summary: |
   NIBBLE-KO is the percussion half of NIBBLE (uglifruit/WorkshopNibble),

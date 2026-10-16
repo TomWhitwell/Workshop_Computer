@@ -244,3 +244,9 @@ Potential future enhancements:
 Created by Adrian Vos
 Much thanks to Tom Whitwell for making all this possible, Chris Johnson for the ComputerCard framework and inspiration and everyone on the Workshop System Discord for the encouragement.
 License MIT
+
+## Firmware distribution notices
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency
+copyright and license texts. Keep the accompanying `NOTICE.txt` with
+each UF2 when redistributing it.

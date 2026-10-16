@@ -1,0 +1,121 @@
+draft: false
+Name: Spatial Disorientation
+short-description: Two-source binaural orbits, spatial mixing and Fig8, Pendulum or Wander movement, with web presets and 8mu control.
+summary: >-
+  A headphone spatializer for two independent mono sources. Choose Twin Orbits,
+  Spatial Mixer or Disorientation at startup. Disorientation offers Fig8,
+  Pendulum and Wander, selected and saved through the editor or cycled live with
+  an 8mu D tap. Separate mode settings, named preset files and source-aware Mixer
+  pickup make it playable from panel, CV or 8mu. Beta package of the user-tested
+  alpha14 firmware. Horizontal positioning only; elevation will be iterated on at a later date.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Adrian Vos
+Version: "0.1.0-alpha14"
+Status: Beta
+License: MIT
+date-created: 2026-10-07
+date-updated: 2026-10-10
+Editor: web
+contact:
+  social:
+    github: https://github.com/soveda
+tags:
+  - effect
+  - stereo
+  - midi-host
+uf2:
+  - path: uf2/Spatial_Disorientation_0.1.0-alpha14-movements.uf2
+    name: Spatial Disorientation alpha14 — tested beta
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Source A
+      type: audio
+      description: First independent mono source; unplugged input is silent.
+    - id: AudioIn2
+      name: Source B
+      type: audio
+      description: Second independent mono source; unplugged input is silent.
+    - id: CVIn1
+      name: Position / Shape CV
+      type: cv
+      description: Adds position in Orbits/Mixer; depth or arc-centre modulation in Disorientation.
+    - id: CVIn2
+      name: Distance / Excursion CV
+      type: cv
+      description: Adds distance in Orbits/Mixer; overall movement excursion in Disorientation.
+    - id: PulseIn1
+      name: Movement Clock
+      type: pulse
+      description: Clocks phase cycles in Orbits/Disorientation; unused in Mixer. Default four pulses per cycle.
+    - id: PulseIn2
+      name: Phase Reset
+      type: pulse
+      description: Rising edge resets phase in Orbits/Disorientation, including while frozen; unused in Mixer.
+  outputs:
+    - id: AudioOut1
+      name: Left Ear
+      type: audio
+      description: Binaural left mix; connect through a headphone monitoring path.
+    - id: AudioOut2
+      name: Right Ear
+      type: audio
+      description: Binaural right mix; connect through a headphone monitoring path.
+controls:
+  knobs:
+    - main:
+        name: Position / Shape
+        description: Orbits offset; Mixer selected-source position; Fig8/Wander depth or Pendulum arc centre. Selects the startup mode while Down is held.
+      x:
+        name: Speed / Distance
+        description: Signed movement speed with centre stop in Orbits/Disorientation; selected-source distance in Mixer.
+      y:
+        name: Distance / Level / Excursion
+        description: Orbits distance; Mixer selected-source level; Disorientation excursion.
+  switch:
+    up:
+      name: Linked / Source A
+      description: Linked movement in Orbits/Disorientation; selects A in Mixer.
+    middle:
+      name: Opposing / Retain Source
+      description: Opposing movement in Orbits/Disorientation; retains the selected Mixer source.
+    down:
+      name: Reset / Source B / Hold Freeze
+      description: Orbits resets once per press; Mixer selects B; Disorientation freezes phase while held. Hold at startup and choose a mode with Main, then release.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: A Left
+          description: Source A left/right direction pair; Mixer selected pair blinks while panel pickup is pending.
+        - id: LED1
+          name: A Right
+          description: Source A right-side brightness; equal pair brightness can mean front or back.
+        - id: LED2
+          name: B Left
+          description: Source B left/right direction pair.
+        - id: LED3
+          name: B Right
+          description: Source B right-side brightness; Mixer selected pair blinks while panel pickup is pending.
+        - id: LED4
+          name: Linked / Editing A
+          description: Linked motion in Orbits/Disorientation; editing A in Mixer. During boot selection, left column selects Mixer.
+        - id: LED5
+          name: Timing Warning
+          description: Latches for callback at least 18 us, block at least 1200 us or an audio queue fault. Hardware reset clears it. During boot selection, right column selects Disorientation.
+host:
+  usb:
+    - name: Spatial Disorientation
+      role: MIDI device
+      description: WebMIDI/SysEx editor with Read, Apply, Save, init and named preset import/export.
+    - name: Music Thing Modular 8mu
+      role: MIDI host
+      description: Direct fader/button control with motion for Orbits/Disorientation and source-aware Mixer pickup. Editor and 8mu use separate USB sessions.
+  notes: >-
+    ComputerCard 0.4.0, 192 MHz / 1.15 V, 48 kHz and a 32-tap horizontal HRTF
+    renderer on a 64-frame block worker. Rev 1.1 detects USB role at boot; older
+    boards retain editor/device operation. Reset after changing USB roles.
+    Normal boot selects Twin Orbits; startup choice is not saved. CV outputs are
+    nominal zero and pulse outputs low. Live 8mu overrides do not write flash.
+    MIT covers original code/docs; KEMAR measurement terms and dependency/runtime
+    notices remain separate in THIRD_PARTY_NOTICES.md and uf2/NOTICE.txt.

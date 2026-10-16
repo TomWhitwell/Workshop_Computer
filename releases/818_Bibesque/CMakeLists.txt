@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/NOTICE.txt"
+    "${CMAKE_CURRENT_BINARY_DIR}/NOTICE.txt" COPYONLY)
 include(pico_sdk_import.cmake)
 
 project(bib_workshop C CXX ASM)

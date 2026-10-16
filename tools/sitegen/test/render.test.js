@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { renderCardArticle, renderPanelArtwork, renderReadmeAndDocs } from '../src/render/cardPage.js';
 import { orderFlairShelfCards, renderArchive, renderShelf, renderTile } from '../src/render/discovery.js';
 import { curation } from '../src/curation/index.js';
+import { renderFilterBar } from '../src/render/filterBar.js';
 import { renderLayout } from '../src/render/layout.js';
 import { renderAuthorPage } from '../src/render/authorPage.js';
 import { cardFeedbackUrl, websiteFeedbackUrl } from '../src/render/githubIssue.js';
@@ -220,6 +221,70 @@ test('download action requires firmware, an external link, or authored UF2 metad
   assert.match(declared, /href="https:\/\/example\.test\/source"/);
 });
 
+test('flash-size chips mark download tiles, including implicit 2MB downloads', () => {
+  const html = renderCardArticle({ card: card({ uf2_downloads: [
+    { name: 'Local 2MB', url: 'two.uf2', sha256: 'aa' },
+    { name: 'Local 16MB', url: 'sixteen.uf2', sha256: 'bb', flash_size: '16mb' },
+  ] }), panelImg: 'panel.svg', yamlUrl: 'source.yaml' });
+  assert.match(html, /Local 16MB<\/small><span class="flash-chip flash-chip--16mb"/);
+  assert.match(html, /Local 2MB<\/small><span class="flash-chip flash-chip--2mb"/);
+  assert.doesNotMatch(html, /Local 2MB<\/small><span class="flash-chip flash-chip--16mb"/);
+  assert.doesNotMatch(html, /Card memory/);
+});
+
+test('cards that require a 16MB card show a hero note and matching About row', () => {
+  const html = renderCardArticle({
+    card: card({
+      flash: { sizes: ['16mb'], requires16mb: true },
+      uf2_downloads: [{ name: 'Only', url: 'only.uf2', flash_size: '16mb' }],
+    }),
+    panelImg: 'panel.svg', yamlUrl: 'source.yaml',
+  });
+  assert.match(html, /program-card-hero__meta/);
+  assert.match(html, /Requires a 16MB program card/);
+  assert.match(html, /<dt>Card memory<\/dt><dd>Requires a 16MB program card<\/dd>/);
+});
+
+test('cards with both 2MB and 16MB builds show a combined About row and no hero requires-line', () => {
+  const html = renderCardArticle({
+    card: card({
+      flash: { sizes: ['2mb', '16mb'], requires16mb: false },
+      uf2_downloads: [
+        { name: 'two.uf2', url: 'two.uf2' },
+        { name: 'sixteen.uf2', url: 'sixteen.uf2', flash_size: '16mb' },
+      ],
+    }),
+    panelImg: 'panel.svg', yamlUrl: 'source.yaml',
+  });
+  assert.match(html, /<dt>Card memory<\/dt><dd>2MB and 16MB builds available<\/dd>/);
+  assert.doesNotMatch(html, /program-card-hero__meta/);
+});
+
+test('catalogue tiles and rows expose the data-flash filter attribute without chips', () => {
+  const mixed = card({ uf2_downloads: [
+    { name: 'two.uf2' },
+    { name: 'sixteen.uf2', flash_size: '16mb' },
+  ] });
+  const tile = renderTile(mixed);
+  assert.match(tile, /data-flash="2mb 16mb"/);
+  assert.match(tile, /data-search="[^"]*16mb/);
+  assert.doesNotMatch(tile, /flash-chip/);
+  const only = renderTile(card({ uf2_downloads: [{ name: 'sixteen.uf2', flash_size: '16mb' }] }));
+  assert.match(only, /data-flash="16mb"/);
+  const archive = renderArchive([mixed]);
+  assert.match(archive, /data-flash="2mb 16mb"/);
+  assert.doesNotMatch(archive, /flash-chip/);
+  const bar = renderFilterBar({
+    creatorOptions: '', sortOptions: '', tagOptions: '',
+    linkHref: 'archive/', linkText: 'All cards',
+  });
+  assert.match(bar, /Card size/);
+  assert.match(bar, /id="filter-flash-2mb" type="checkbox" name="filter-flash" value="2mb"/);
+  assert.match(bar, /id="filter-flash-16mb" type="checkbox" name="filter-flash" value="16mb"/);
+  assert.match(bar, /flash-chip flash-chip--2mb/);
+  assert.match(bar, /flash-chip flash-chip--16mb/);
+});
+
 test('card details render configured creation and update dates', () => {
   const html = renderCardArticle({
     card: card({ metadata: { created: '2024-02-03', updated: '2025-06-07' } }),
@@ -243,17 +308,28 @@ test('discovery renderers escape searchable attributes and ignore absent shelf c
   const testCard = card({
     title: 'A "quoted" <card>', slug: 'safe-slug',
     short_description: 'x'.repeat(220),
-    metadata: { creator: 'A&B <maker>', created: '2025-01-01', updated: '2026-01-01' },
+    metadata: { creator: 'A&B <maker>', created: '2025-01-01', updated: '2026-01-01', published: '2025-02-01' },
   });
   const tile = renderTile(testCard, { showCreator: true });
   assert.match(tile, /data-creator="A&amp;B &lt;maker&gt;"/);
-  assert.match(tile, /data-date="2025-01-01"/);
+  assert.match(tile, /data-date="2025-02-01"/);
   assert.match(tile, /data-name="a &quot;quoted&quot; &lt;card&gt;"/);
   assert.match(tile, /…/);
   assert.match(renderArchive([testCard]), /\.\.\/programs\/safe-slug\//);
   const shelf = renderShelf({ title: 'Shelf <One>', cards: ['missing', testCard.id] }, new Map([[testCard.id, testCard]]));
   assert.match(shelf, /Shelf &lt;One&gt;/);
   assert.equal((shelf.match(/program-card-tile__link/g) || []).length, 1);
+});
+
+test('shelves can link to a sorted card list from their header', () => {
+  const testCard = card();
+  const cardsById = new Map([[testCard.id, testCard]]);
+  const linked = renderShelf({
+    title: 'New', cards: [testCard.id],
+    link: { text: 'Browse all new cards', href: '?sort=created-desc' },
+  }, cardsById);
+  assert.match(linked, /<a class="program-card-shelf__link" href="\.\/\?sort=created-desc">Browse all new cards<\/a>/);
+  assert.doesNotMatch(renderShelf({ title: 'Plain', cards: [testCard.id] }, cardsById), /program-card-shelf__link/);
 });
 
 test('flair-driven shelves sort by recency then apply the limit', () => {
@@ -347,12 +423,15 @@ test('video shelf layouts show media on the intended cards', () => {
   assert.doesNotMatch(leadWithoutVideo, /program-card-tile__media|program-card-tile--video/);
 });
 
-test('catalogue sorting uses inferred creation dates', () => {
-  const inferred = card({
-    metadata: { created: '2026-07-29', created_inferred: true },
+test('catalogue sorting uses the publish date, not the declared creation date', () => {
+  const published = card({
+    metadata: { created: '2026-09-01', published: '2026-09-30' },
   });
-  assert.match(renderTile(inferred), /data-date="2026-07-29"/);
-  assert.match(renderArchive([inferred]), /data-date="2026-07-29"/);
+  assert.match(renderTile(published), /data-date="2026-09-30"/);
+  assert.match(renderArchive([published]), /data-date="2026-09-30"/);
+  const draft = card({ metadata: { created: '2026-09-01' } });
+  assert.match(renderTile(draft), /data-date=""/);
+  assert.match(renderArchive([draft]), /data-date=""/);
 });
 
 test('featured blank card overlays its label artwork on the randomized card icon', () => {

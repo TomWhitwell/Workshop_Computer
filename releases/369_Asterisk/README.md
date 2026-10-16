@@ -38,16 +38,20 @@ A cable plugged into Pulse In 1 takes priority over USB MIDI. Without an externa
 
 The web editor adds internal tempo control, per-track mute and solo, and the following controls:
 
-- **Level, Pan and Delay Send:** Click a voice to open its three faders. Pan positions the dry voice; all six sends feed one shared delay, which stays centered.
-- **Delay Time:** Sync follows the active clock. Free sets the time in milliseconds, from 20 to 1000 ms. This replaces the previous global delay amount control.
+- **Level, Pan and Delay Send:** Click a voice to open its three faders. Pan positions the dry voice; all six sends feed one shared delay.
+- **Delay Time:** Sync follows the active clock. Free sets the time in milliseconds, from 20 to 1000 ms.
+- **Auto Pan:** Moves the shared delay return between left and right, independently of the dry voices. Its movement follows Delay Time, with a minimum of 100 ms per crossing. Off keeps the delay centered. This uses the existing delay buffer and feedback path.
+- **Scale:** View the generated scale or choose Minor pentatonic, Major pentatonic, Dorian, Phrygian, Hirajoshi or Lydian. Changes keep the root note, rhythms and sounds, and apply to new hits on the next clock step. Full randomization picks a new scale; single-track randomization keeps it.
 - **Single-track randomization:** Each small star generates a new sound, rhythm, Level, Pan and Send for that track. The other tracks and global settings stay as set, and the shared clock keeps running.
-- **Save / Recall:** Save a patch as a file on your computer and load it later. Hardware knobs and CV remain live; knob positions, playback position and ringing tails are not saved.
+- **Save / Recall:** Save a patch as a file on your computer and load it later, including the scale and Auto Pan setting. Hardware knobs and CV remain live; knob positions, playback position and ringing tails are not saved.
 
-Drag one voice onto another to swap sounds, Pan and Send. Rhythms and Level stay in their original slots. Manually set tempo and delay time, Mute and Solo are preserved when randomizing.
+Drag one voice onto another to swap sounds, Pan and Send. Rhythms and Level stay in their original slots. Manually set tempo and delay time, Auto Pan, Mute and Solo are preserved when randomizing.
 
 Sync divisions longer than the 1.024-second delay buffer are capped and marked **MAX**.
 
-[Open the web editor](https://computer.musicthing.co.uk/programs/369-asterisk/web/index.html). Requires **Asterisk 1.1 firmware**. Connect the Workshop Computer to your computer by USB, then open the editor in Chrome or Edge and allow MIDI and SysEx access.
+[Open the web editor](https://computer.musicthing.co.uk/programs/369-asterisk/web/index.html). Requires **Asterisk 1.2 firmware**. Connect the Workshop Computer to your computer by USB, then open the editor in Chrome or Edge and allow MIDI and SysEx access.
+
+Patch files saved with 1.1 can be loaded in 1.2. New 1.2 files require the 1.2 editor and firmware.
 
 ## Sound demo 2
 
@@ -56,9 +60,9 @@ Sync divisions longer than the 1.024-second delay buffer are capped and marked *
 ## Release
 
 - **Creator:** Laboratory 0
-- **Version:** 1.1
+- **Version:** 1.2
 - **Status:** Released
-- **Firmware:** [Asterisk_Workshop_v1.1.uf2](Asterisk_Workshop_v1.1.uf2)
+- **Firmware:** [Asterisk_Workshop_v1.2.uf2](Asterisk_Workshop_v1.2.uf2)
 
 Follow the [official Program Card installation instructions](https://www.musicthing.co.uk/workshopsystem/program-cards/install/) to write the UF2 to a Workshop Computer Program Card.
 

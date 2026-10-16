@@ -1,10 +1,10 @@
 draft: false
 Name: Turing Machine
 short-description: Dual Turing Machine with quantized outputs and tap tempo
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Tom Whitwell
 Version: "1.5.3"
-Status: Live
+Status: Released
 License: GPL-3.0-or-later
 Editor: https://www.musicthing.co.uk/web_config/turing.html
 date-created: 2024-11-30

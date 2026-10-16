@@ -1,7 +1,7 @@
 draft: true
 Name: Noisebox
 short-description: 13-algorithm noise synth with CV modulation, sample-and-hold, and crusher mode
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Eric Gao
 Version: 1.0
 Status: Released

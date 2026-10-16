@@ -3,7 +3,7 @@ Name: GradualProcess
 short-description: Six generative composition processes in one card (Glass, Reich, Pärt, Rzewski, Ligeti, Lucier)
 summary: |
   GradualProcess is a CV generator and audio processor that produces sequences in the style of composers Philip Glass, Steve Reich, Arvo Pärt, Frederik Rzewski, György Ligeti and Alvin Lucier. It uses simple algorithms to generate material that draws on these composers’ techniques. The card can cycle through multiple modes and more will be added over time. 
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: James Saunders
 Version: 1.2.0
 Status: Released

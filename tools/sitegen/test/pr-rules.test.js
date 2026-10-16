@@ -23,7 +23,7 @@ async function write(root, relative, contents = '') {
   await fs.writeFile(file, contents);
 }
 
-test('release scope rules are advisory warnings', async t => {
+test('card scope is left to auto-merge eligibility, not reported as a rule', async t => {
   const root = await fixture(t);
   await write(root, 'releases/04_card/info.yaml', 'Name: Four');
   await write(root, 'releases/05_card/README.md', 'Five');
@@ -34,10 +34,9 @@ test('release scope rules are advisory warnings', async t => {
     { status: 'M', path: 'documentation/info.yaml.md' },
   ], { root });
   const byRule = rule => diagnostics.filter(item => item.ruleId === rule);
-  assert.equal(byRule('multiple-release-directories').length, 1);
-  assert.match(byRule('multiple-release-directories')[0].message, /04_card, 05_card/);
-  assert.equal(byRule('change-at-releases-root').length, 1);
-  assert.equal(byRule('change-outside-release-directory').length, 1);
+  for (const rule of ['multiple-release-directories', 'change-at-releases-root', 'change-outside-release-directory']) {
+    assert.equal(byRule(rule).length, 0, rule);
+  }
   assert.equal(byRule('uf2-required').length, 2);
   assert.ok(diagnostics.every(item => item.severity === 'warning'));
 });
@@ -130,75 +129,13 @@ test('PR trigger keeps metadata and outside files but condenses release files by
   });
 });
 
-test('sync-curation additions for newly added cards are the only allowed flair change', async t => {
-  const root = await fixture(t);
-  await write(root, 'releases/42_card/info.yaml', 'Name: Card');
-  await write(root, 'releases/42_card/README.md', '# Card');
-  await write(root, 'releases/42_card/card.uf2', 'firmware');
-  const baseFlairs = { available_flairs: [{ id: 'new' }], assignments: { '03_old': ['new'] } };
-  await write(root, 'tools/sitegen/src/curation/flairs.yml', `
-available_flairs:
-  - id: new
-assignments:
-  03_old: [new]
-  42_card: []
-`);
-  const changes = [
-    { status: 'A', path: 'releases/42_card/info.yaml' },
-    { status: 'M', path: 'tools/sitegen/src/curation/flairs.yml' },
-  ];
-  const allowed = await evaluatePrRules(changes, { root, baseFlairs });
-  assert.ok(!allowed.some(item =>
-    item.ruleId === 'change-outside-release-directory'
-    && item.file === 'tools/sitegen/src/curation/flairs.yml'));
-
-  await write(root, 'tools/sitegen/src/curation/flairs.yml', `
-available_flairs:
-  - id: new
-assignments:
-  03_old: []
-  42_card: []
-`);
-  const changedExisting = await evaluatePrRules(changes, { root, baseFlairs });
-  assert.ok(changedExisting.some(item =>
-    item.ruleId === 'change-outside-release-directory'
-    && item.file === 'tools/sitegen/src/curation/flairs.yml'));
-});
-
-test('sync-curation may remove an empty assignment for a deleted card', async t => {
-  const root = await fixture(t);
-  const changes = [
-    { status: 'D', path: 'releases/42_deleted/info.yaml' },
-    { status: 'M', path: 'tools/sitegen/src/curation/flairs.yml' },
-  ];
-  const baseFlairs = { available_flairs: [{ id: 'new' }], assignments: { '03_old': ['new'], '42_deleted': [] } };
-  await write(root, 'tools/sitegen/src/curation/flairs.yml', `
-available_flairs:
-  - id: new
-assignments:
-  03_old: [new]
-`);
-  const allowed = await evaluatePrRules(changes, { root, baseFlairs });
-  assert.ok(!allowed.some(item =>
-    item.ruleId === 'change-outside-release-directory'
-    && item.file === 'tools/sitegen/src/curation/flairs.yml'));
-
-  baseFlairs.assignments['42_deleted'] = ['new'];
-  const assignedDeletion = await evaluatePrRules(changes, { root, baseFlairs });
-  assert.ok(assignedDeletion.some(item =>
-    item.ruleId === 'change-outside-release-directory'
-    && item.file === 'tools/sitegen/src/curation/flairs.yml'));
-});
-
-test('deleting a complete release reports an explicit warning', async t => {
+test('a deleted release reports no release-state rules', async t => {
   const root = await fixture(t);
   const diagnostics = await evaluatePrRules([
     { status: 'D', path: 'releases/42_deleted/info.yaml' },
     { status: 'D', path: 'releases/42_deleted/card.uf2' },
   ], { root });
-  assert.ok(diagnostics.some(item =>
-    item.ruleId === 'release-directory-deleted' && item.severity === 'warning'));
-  assert.ok(!diagnostics.some(item => item.ruleId === 'uf2-required'));
+  assert.deepEqual(diagnostics, []);
 });
 
 test('release without a local README warns', async t => {

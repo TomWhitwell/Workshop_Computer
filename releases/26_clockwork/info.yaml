@@ -1,6 +1,6 @@
 Name: Clockwork
 short-description: 6-channel polyrhythmic timing and modulation generator inspired by Pamela's Workout.
-Language: C++ (RP2040 Pico SDK)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Vincent Maurer
 Version: "1.0.0"
 Status: Released
@@ -21,7 +21,7 @@ tags:
   - envelope
   - sequencer
   - polyrhythm
-  - quantizer
+  - quantiser
 
 summary: |
   6-channel polyrhythmic clock, gate generator, LFO, and envelope card inspired by Pamela's Workout.

@@ -10,6 +10,7 @@
 // the importer, so `Name`, `name`, and `NAME` all resolve to the same value.
 
 import { classifyDemoVideo } from '../utils/video.js';
+import { deriveFlashProfile } from '../utils/flash.js';
 
 // API jack id -> physical panel slot key (ported from the importer constants).
 const API_INPUT_KEYS = {
@@ -534,6 +535,7 @@ export function buildCanonicalCardModel({
   gitLastDate = '',
   blameDate = '',
   contentDate = '',
+  publishedDate = '',
   customPanels = null,
 }) {
   const warnings = [];
@@ -620,6 +622,9 @@ export function buildCanonicalCardModel({
     contact: sanitizeValue(field(info, 'contact')),
   };
   if (createdInferred) metadata.created_inferred = true;
+  // Date first live on main as a non-draft; drives "newest" sorting. Cards
+  // that are currently drafts have no publish date and sort last.
+  if (publishedDate && !truthy(field(info, 'draft', 'Draft'))) metadata.published = publishedDate;
   if (editor) {
     metadata.editor_url = editor;
     metadata.editor_note = 'Configure this card in your browser';
@@ -708,6 +713,8 @@ export function buildCanonicalCardModel({
   if (Array.isArray(docs) && docs.length) card.docs = sanitizeValue(docs);
   if (Array.isArray(downloads) && downloads.length) card.downloads = sanitizeValue(downloads);
   if (Array.isArray(uf2Downloads) && uf2Downloads.length) card.uf2_downloads = sanitizeValue(uf2Downloads);
+  const flash = deriveFlashProfile(card.uf2_downloads);
+  if (flash) card.flash = flash;
   if (Array.isArray(audioSamples) && audioSamples.length) {
     card.audio_samples = sanitizeValue(audioSamples);
     card.audio_sample_url = audioSamples[0].url;

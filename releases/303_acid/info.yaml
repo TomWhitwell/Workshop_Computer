@@ -1,7 +1,7 @@
 draft: false
 Name: Acid
 short-description: A 303-style step sequencer
-Language: C++ (ComputerCard)
+Language: C++ (Pico SDK + ComputerCard)
 Creator: Samuel Smith
 Version: 1.0.0
 Status: Released

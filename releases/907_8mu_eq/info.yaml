@@ -1,0 +1,87 @@
+draft: false
+Name: 8mu EQ
+short-description: Stereo eight-band graphic EQ, played from the faders of an 8mu
+Language: Patcher+
+Creator: Chris Johnson
+Version: "1.0"
+Status: Released
+date-created: 2026-10-02
+date-updated: 2026-10-02
+
+tags:
+  - effect
+  - filter
+  - equaliser
+  - noise
+  - midi-host
+
+summary: |
+  8mu EQ splits each of the two audio channels into eight octave-spaced bands, from 60Hz to 7680Hz,
+  with the level of each band set by one fader of an 8mu. The main knob sets the filter Q, and knob Y
+  controls the maximum slew rate of fader movements. Unpatched inputs are normalled to an
+  internal white or pink-ish noise source. The 8mu's LEDs show the signal level in each band.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Left In
+      type: audio
+      description: Left channel input. If AudioIn2 is unpatched, also feeds the right channel. Normalled to noise.
+    - id: AudioIn2
+      name: Right In
+      type: audio
+      description: Right channel input. Normalled to AudioIn1 if that is patched, otherwise to noise.
+  outputs:
+    - id: AudioOut1
+      name: Left Out
+      type: audio
+      description: Sum of the left channel's eight bands, each scaled by its 8mu fader
+    - id: AudioOut2
+      name: Right Out
+      type: audio
+      description: Sum of the right channel's eight bands, each scaled by its 8mu fader
+
+controls:
+  knobs:
+    - main:
+        name: Q
+        description: Bandpass filter Q, from 0.5 (broad, smooth) to 3.5 (narrow, resonant)
+      x:
+        name: Unused
+      y:
+        name: Fader Slew
+        description: Rate limit on 8mu fader movement, from about 10s for full travel down to about 50ms
+  switch:
+    up:
+      name: Pink Noise
+      description: Unpatched inputs are normalled to pink-ish noise
+    middle:
+      name: White Noise
+      description: Unpatched inputs are normalled to white noise
+    down:
+      name: White Noise
+      description: Unpatched inputs are normalled to white noise
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Left In Level
+          description: Brightness follows the left input signal
+        - id: LED1
+          name: Right In Level
+          description: Brightness follows the right input signal
+        - id: LED4
+          name: Left Out Level
+          description: Brightness follows the left output signal
+        - id: LED5
+          name: Right Out Level
+          description: Brightness follows the right output signal
+
+host:
+  usb:
+    - name: Music Thing Modular 8mu
+      role: controller
+      description: >
+        Required, plugged into the Computer's USB socket.
+        Faders 1-8 set the level of the 60, 120, 240, 480, 960, 1920, 3840 and 7680Hz bands, and the
+        8mu's LEDs show the signal level in each band of the left channel.

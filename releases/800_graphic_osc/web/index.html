@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graphic Osc editor</title>
+<!--
+  GRAPHIC OSC - web editor for the Music Thing Modular Workshop System Computer card.
+  One static file, no network needed. Talks to the card over WebMIDI + SysEx
+  (protocol: ../sysex.h). The card's firmware is the source of truth for every
+  range and meaning; this page only mirrors them (the 0..127 fader units, the
+  scale / sync names and the way each fader is described come from ../ui.h,
+  ../ui.cpp, ../panel.h and ../osc_core.cpp).
+
+  The drawing preview is a JavaScript re-implementation of the card's wave
+  renderer (TableBuilder::RenderChunk and the spectrum shaping in osc_core.cpp).
+  Written with AI assistance; the maths was checked against tables built by the
+  real firmware code (see README, "Web editor").
+-->
+<style>
+  :root {
+    --bg: #f4f2ee; --panel: #ffffff; --ink: #1c1b19; --muted: #6a675f; --line: #d9d5cc;
+    --wave-bg: #fbfaf7; --grid: #e6e2d8;
+    --accent: #0b7d78; --accent-soft: #cfe9e6; --warm: #b5560a; --warm-soft: #f6dcc6;
+    --ok: #2b7a2b; --bad: #b3261e; --track: #e3dfd5; --shadow: 0 1px 2px rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141514; --panel: #1e201f; --ink: #ecebe6; --muted: #9a978d; --line: #34362f;
+      --wave-bg: #171918; --grid: #2a2d29;
+      --accent: #4fd1c5; --accent-soft: #1d3d3a; --warm: #f0a35e; --warm-soft: #4a3320;
+      --ok: #7ed37e; --bad: #ff8a80; --track: #33352f; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  button, select, input { font: inherit; color: inherit; }
+  button {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 12px; cursor: pointer; min-height: 32px;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  @media (prefers-color-scheme: dark) { button.primary { color: #062421; } }
+  button.small { padding: 2px 8px; min-height: 26px; font-size: 12px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  header {
+    display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+    padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: .01em; }
+  .status { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warm); } .dot.bad { background: var(--bad); }
+  .grow { flex: 1; }
+  #msg { padding: 6px 16px; font-size: 13px; color: var(--muted); min-height: 30px; }
+  #msg.err { color: var(--bad); }
+
+  main {
+    display: grid; grid-template-columns: minmax(300px, 1fr) minmax(430px, 560px);
+    gap: 16px; padding: 0 16px 16px; align-items: start;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px; box-shadow: var(--shadow);
+  }
+  .card h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  .left { display: grid; gap: 16px; }
+
+  /* waveform */
+  #wave-wrap { position: relative; }
+  #wave { width: 100%; height: auto; aspect-ratio: 16 / 10; display: block; border-radius: 8px; background: var(--wave-bg); }
+  .wave-title { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 8px; }
+  .wave-title h2 { margin: 0; }
+  #wave-note { font-size: 12px; color: var(--muted); }
+
+  /* banks */
+  .banks { display: grid; gap: 8px; }
+  .bank { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px 8px; background: var(--panel); }
+  .bank.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .bank-head { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
+  .bank-head button { display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 2px 4px; min-height: 0; font-weight: 600; }
+  .badge {
+    width: 20px; height: 20px; border-radius: 5px; display: inline-grid; place-items: center;
+    background: var(--track); font-size: 12px; font-weight: 700;
+  }
+  .bank.current .badge { background: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { .bank.current .badge { color: #062421; } }
+  .bank-hint { font-size: 12px; color: var(--muted); }
+  .faders { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+  .faders.four { grid-template-columns: repeat(4, 1fr); max-width: 300px; }
+  .fader { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; padding: 2px 0; border-radius: 6px; }
+  .fader.active { background: var(--accent-soft); }
+  .fader.inactive { opacity: .5; }
+  .fval { font-variant-numeric: tabular-nums; font-weight: 650; font-size: 14px; line-height: 1.1; }
+  .track {
+    position: relative; width: 30px; height: 88px; border-radius: 6px; background: var(--track);
+    touch-action: none; cursor: ns-resize; user-select: none;
+  }
+  .fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--accent-soft); border-radius: 0 0 6px 6px; pointer-events: none; }
+  .bank.current .fill { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .thumb {
+    position: absolute; left: -2px; right: -2px; height: 10px; margin-top: -5px; border-radius: 4px;
+    background: var(--ink); pointer-events: none;
+  }
+  .ghost {
+    position: absolute; left: 2px; right: 2px; height: 10px; margin-top: -5px; border-radius: 4px;
+    border: 2px dashed var(--warm); pointer-events: none; display: none;
+  }
+  .fname { font-size: 11px; text-align: center; color: var(--muted); line-height: 1.15; min-height: 26px; overflow-wrap: anywhere; }
+  .fdesc { font-size: 11px; text-align: center; min-height: 14px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+  .mode-line { font-size: 12px; color: var(--muted); margin: 0 0 4px; }
+  .mode-line b { color: var(--ink); }
+
+  /* presets */
+  .preset-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
+  .preset-tools input[type=text] { border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; background: var(--panel); min-width: 0; flex: 1 1 140px; }
+  .preset-tools label { font-size: 12px; color: var(--muted); display: inline-flex; gap: 4px; align-items: center; }
+  #presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+  .preset { border: 1px solid var(--line); border-radius: 8px; padding: 6px; display: grid; gap: 4px; background: var(--panel); }
+  .preset.hover { border-color: var(--warm); }
+  .preset canvas { width: 100%; height: 44px; background: var(--wave-bg); border-radius: 5px; display: block; cursor: pointer; }
+  .preset .pname { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .preset .pmeta { font-size: 11px; color: var(--muted); }
+  .preset .pbtns { display: flex; flex-wrap: wrap; gap: 4px; }
+  details { margin: 0 16px 24px; max-width: 900px; color: var(--muted); }
+  details summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+  details li { margin: 4px 0; }
+  kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; font-size: 12px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Graphic Osc</h1>
+  <span class="status" id="status" role="status"><span class="dot" id="dot"></span><span id="status-text">Offline (editing locally)</span></span>
+  <span class="grow"></span>
+  <button class="primary" id="btn-connect">Connect card &amp; 8mu</button>
+  <button id="btn-rescan" title="Look again, e.g. after plugging in an 8mu without reloading the page" hidden>Rescan</button>
+  <button id="btn-read" disabled title="Ask the card for its current settings">Read from card</button>
+  <button id="btn-send" disabled title="Send everything on screen to the card">Send to card</button>
+  <button id="btn-reset" title="Factory defaults (on the card too, if connected)">Reset</button>
+</header>
+<div id="msg" aria-live="polite"></div>
+
+<main>
+  <div class="left">
+    <section class="card">
+      <div class="wave-title">
+        <h2 id="wave-title">Waveform</h2>
+        <span id="wave-note"></span>
+      </div>
+      <div id="wave-wrap"><canvas id="wave" role="img" aria-label="The wave shape drawn by the faders"></canvas></div>
+    </section>
+
+    <section class="card">
+      <h2>Presets (stored in this browser)</h2>
+      <div class="preset-tools">
+        <input type="text" id="preset-name" maxlength="40" placeholder="Name for a new preset" aria-label="Preset name">
+        <button id="btn-save" class="primary">Save current</button>
+        <label><input type="checkbox" id="chk-panel" checked> include Turing / FM / sync settings</label>
+      </div>
+      <div class="preset-tools">
+        <button class="small" id="btn-export">Export all…</button>
+        <button class="small" id="btn-import">Import…</button>
+        <input type="file" id="file-import" accept="application/json,.json" hidden>
+        <span class="bank-hint">Hover a preset to see its wave drawn over the current one.</span>
+      </div>
+      <div id="presets"></div>
+    </section>
+  </div>
+
+  <div class="right">
+    <section class="card">
+      <h2>Faders</h2>
+      <div class="banks" id="banks"></div>
+    </section>
+    <section class="card" style="margin-top:16px">
+      <h2>X / Y knobs</h2>
+      <p class="mode-line" id="mode-line"></p>
+      <div class="faders four" id="panel-faders"></div>
+    </section>
+  </div>
+</main>
+
+<details>
+  <summary>Connecting, and what to expect</summary>
+  <ul>
+    <li><b>Use a USB-C <em>data</em> cable</b> (charge-only cables do not work), and <b>close any other app</b> that might be using the card or the 8mu (a serial monitor, another MIDI editor, another browser tab).</li>
+    <li>Use Chrome, Edge or another Chromium browser. Safari and iOS browsers do not support WebMIDI with SysEx.</li>
+    <li>Press <kbd>Connect card &amp; 8mu</kbd>. The browser asks for permission to use MIDI devices with SysEx: choose <b>Allow</b>. The card appears as <b>Graphic Osc</b>; an 8mu as <b>8mu</b>.</li>
+    <li><b>Three ways to use it.</b> (1) 8mu straight into the module: no computer needed, and this page is not used. (2) 8mu into this computer, this computer into the module: the 8mu drives this page and the page drives the card. (3) Only this computer: click and drag the faders.</li>
+    <li>The card decides <em>once, at power-up</em>, whether its USB port is a host (8mu) or a device (computer). After plugging the computer in, <b>power-cycle the module</b>.</li>
+    <li>The card forgets its settings when it is switched off. Presets live in this browser only; after a power-up, press <kbd>Send to card</kbd> or load a preset.</li>
+    <li>The preview is a re-implementation of the card's renderer. It shows the wave <em>before</em> symmetry, which the card applies while playing, and before band-limiting for pitch.</li>
+    <li>Faders: click and drag, or focus one and use the arrow keys (<kbd>Shift</kbd> = bigger steps). Double-click resets a fader.</li>
+  </ul>
+</details>
+
+<script>
+'use strict';
+
+// ============================================================================
+// Constants that mirror the firmware (ui.h, panel.h, sysex.h, osc_core.cpp)
+// ============================================================================
+const KINDS = 4;              // pages
+const NF = 8;                 // faders per page
+const PROTOCOL_VERSION = 1;
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x47;
+const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6 };
+const KIND_PANEL = 4;
+const FIRST_FADER_CC = 34;    // 8mu factory mapping
+const BUTTON_NOTES = [36, 48, 60, 72];
+
+const BANKS = [
+  { key: 'levels', name: 'Levels', letter: 'A', hint: 'height of each stage' },
+  { key: 'times',  name: 'Times',  letter: 'B', hint: 'how long each stage lasts' },
+  { key: 'curves', name: 'Curves', letter: 'C', hint: 'the path each stage takes' },
+  { key: 'perform', name: 'Perform', letter: 'D', hint: 'tuning, level, shape, tone' },
+];
+const PERFORM = ['Fine tune', 'Output level', 'Symmetry', 'Fold', 'Brightness', 'Odd / even', 'Formant pos', 'Formant amt'];
+const FADER_NAMES = [
+  [1, 2, 3, 4, 5, 6, 7, 8].map(n => 'Stage ' + n),
+  [1, 2, 3, 4, 5, 6, 7, 8].map(n => 'Stage ' + n),
+  [1, 2, 3, 4, 5, 6, 7, 8].map(n => 'Stage ' + n),
+  PERFORM,
+];
+const DEFAULT_VALUES = [
+  [64, 109, 127, 109, 64, 19, 0, 19],
+  [64, 64, 64, 64, 64, 64, 64, 64],
+  [64, 64, 64, 64, 64, 64, 64, 64],
+  [64, 110, 64, 0, 127, 64, 64, 0],
+];
+const SCALES = ['Chromatic', 'Major', 'Minor', 'Major pent.', 'Minor pent.', 'Dorian', 'Whole tone', 'Root+5th'];
+const SYNCS = ['Off', 'Soft', 'Hard'];
+// Panel params, in the firmware's order: lock, scale, FM, symmetry mod, sync.
+// `mode` is which switch position (0 Up, 1 Middle, 2 Down) currently drives this
+// one - lock/scale from a knob when Up, FM/symmetry-mod from a knob when Middle,
+// and sync from a tap of the switch itself when Down (it has no knob at all; a
+// drag here still works, it just does in one step what a tap does one at a time).
+const PANEL = [
+  { key: 'lock', name: 'Turing lock', max: 127, mode: 0, desc: v => v >= 124 ? 'locked' : v <= 3 ? 'inverted' : (v >= 62 && v <= 66) ? 'random' : (v > 64 ? 'keeps loop' : 'inverts') },
+  { key: 'scale', name: 'Scale', max: 7, mode: 0, desc: v => SCALES[v] },
+  { key: 'fm', name: 'FM amount', max: 127, mode: 1, desc: v => Math.round(v * v / 127 / 127 * 100) + '%' },
+  { key: 'symmod', name: 'Sym mod depth', max: 127, mode: 1, desc: v => Math.round(v * v / 127 / 127 * 100) + '%' },
+  { key: 'sync', name: 'Sync type', max: 2, mode: 2, desc: v => SYNCS[v] },
+];
+const DEFAULT_PANEL = [115, 1, 0, 0, 0];   // lock 3700>>5, scale 700>>9, fm 0, symmetry mod 0, sync off
+const MODE_NAMES = ['Up', 'Middle', 'Down'];
+const MODE_TEXT = [
+  'Turing Machine: X = lock, Y = scale',
+  'Modulation: X = FM amount (carrier on Audio In 1), Y = symmetry modulation depth (how much CV In 2 moves symmetry)',
+  'Down: momentary. A quick press steps the sync type (source Audio In 2); held a full second is factory defaults',
+];
+
+// ============================================================================
+// State
+// ============================================================================
+const state = {
+  values: DEFAULT_VALUES.map(r => r.slice()),
+  panel: DEFAULT_PANEL.slice(),
+  page: 0,
+  mode: 0,                 // the card's Z switch position, 0 up / 1 middle / 2 down
+  focus: null,             // {bank, i}: the fader being touched or hovered
+  preview: null,           // a preset's values drawn as a ghost
+};
+const link = {
+  access: null, card: { in: null, out: null }, mus: [],
+  cardOnline: false, sysexBuf: [], sysexOn: false,
+};
+// 8mu pickup, mirroring Ui::OnFader (ui.cpp).
+const eightmu = { phys: new Array(NF).fill(-1), engaged: DEFAULT_VALUES.map((r, p) => r.map(() => p === 0)) };
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+
+function say(text, isErr) { const m = $('msg'); m.textContent = text || ''; m.className = isErr ? 'err' : ''; }
+
+function setStatus(kind, text) {
+  $('dot').className = 'dot ' + kind;
+  $('status-text').textContent = text;
+}
+
+// ============================================================================
+// The wave: a JS version of the firmware's renderer
+// ============================================================================
+function bipolar(v) { return v >= 64 ? (v - 64) / 63 : (v - 64) / 64; }
+function stageWeight(t) { return t <= 64 ? t * 4 : 256 + (t - 64) * 768 / 63; }
+
+function fft(re, im, inverse) {          // in-place radix-2, no scaling
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = (inverse ? 2 : -2) * Math.PI / len;
+    const wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++) {
+        const a = i + k, b = i + k + len / 2;
+        const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+        const nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr;
+      }
+    }
+  }
+}
+
+// Harmonic weights from the four spectral controls (TableBuilder::ShapeBegin / ShapeWeights).
+function spectralWeights(perf, nHarm) {
+  const bright = perf[4], oe = perf[5], fpos = perf[6], famt = perf[7];
+  const cutoff = bright < 124 ? Math.pow(2, 0.5 + 9.5 * bright / 124) : 0;
+  const x = oe / 127;
+  const evenG = Math.min(1, x / 0.47), oddG = Math.min(1, (1 - x) / 0.47);
+  let boost = 0, centre = 0, width = 1;
+  if (famt > 0) { centre = Math.pow(2, 8.5 * fpos / 127); width = 0.3 * centre + 0.7; boost = 15 * (famt / 127) ** 2; }
+  const w = new Float64Array(nHarm + 1);
+  for (let k = 1; k <= nHarm; k++) {
+    let g = 1;
+    if (cutoff > 0) { const r = k / cutoff; g = 1 / (1 + r * r); }
+    g *= (k & 1) ? oddG : evenG;
+    if (boost > 0) { const d = (k - centre) / width; g *= 1 + boost / (1 + d * d); }
+    w[k] = g;
+  }
+  return { w, neutral: cutoff === 0 && oddG === 1 && evenG === 1 && boost === 0 };
+}
+
+// values: [4][8]. Returns everything the drawing code needs. N points per cycle.
+function computeWave(values, N) {
+  const L = values[0].map(bipolar);
+  let W = values[1].map(stageWeight);
+  let total = W.reduce((a, b) => a + b, 0);
+  if (total < NF) { W = W.map(() => 256); total = 256 * NF; }     // every time at zero: treat as equal
+  const bounds = [0]; let acc = 0;
+  for (let i = 0; i < NF; i++) { acc += W[i]; bounds.push(acc / total); }
+  bounds[NF] = 1;
+  const step = values[2].map(c => c < 64 ? (64 - c) / 64 : 0);
+  const smooth = values[2].map(c => c > 64 ? (c - 64) / 63 : 0);
+  const f = values[3][3];
+  const foldGain = 1 + 7 * (f * f) / (127 * 127);
+
+  const drawn = new Float64Array(N);     // levels + times + curves only
+  const raw = new Float64Array(N);       // ... plus fold
+  const stageOf = new Int8Array(N);
+  let s = 0;
+  for (let j = 0; j < N; j++) {
+    const tau = j / N;
+    while (s < NF - 1 && tau >= bounds[s + 1]) s++;
+    const u = (tau - bounds[s]) / (bounds[s + 1] - bounds[s]);
+    const sc = u * u * (3 - 2 * u);
+    const lin = 1 - step[s] - smooth[s];
+    const shape = lin * u + smooth[s] * sc;
+    const from = L[s], to = L[(s + 1) & (NF - 1)];
+    const y = from + (to - from) * shape;
+    drawn[j] = y;
+    let out = y;
+    if (foldGain !== 1) {
+      const v = y * foldGain;
+      let w = (v + 1) % 4; if (w < 0) w += 4;
+      if (w > 2) w = 4 - w;
+      out = w - 1;
+    }
+    raw[j] = out; stageOf[j] = s;
+  }
+
+  // Spectral shaping. The card drops the DC offset; here it is added back so the
+  // curve still passes through the stage dots. (Display only.)
+  const nHarm = N / 2 - 1;
+  const sw = spectralWeights(values[3], nHarm);
+  let shaped = raw, specRaw = null, specShaped = null;
+  const re = Float64Array.from(raw), im = new Float64Array(N);
+  fft(re, im, false);
+  const mag = k => Math.hypot(re[k], im[k]) / (N / 2);
+  specRaw = []; for (let k = 1; k <= 64 && k <= nHarm; k++) specRaw.push(mag(k));
+  if (!sw.neutral) {
+    const dc = re[0] / N;
+    for (let k = 1; k <= nHarm; k++) {
+      re[k] *= sw.w[k]; im[k] *= sw.w[k]; re[N - k] *= sw.w[k]; im[N - k] *= sw.w[k];
+    }
+    re[0] = 0; im[0] = 0; re[N / 2] = 0; im[N / 2] = 0;
+    specShaped = []; for (let k = 1; k <= 64 && k <= nHarm; k++) specShaped.push(mag(k));
+    fft(re, im, true);
+    shaped = new Float64Array(N);
+    // The card never lets the wave exceed 1.25 x a drawn full scale (kPeakLimit in
+    // osc_core.h): if the tone controls boost it further, the whole wave is turned down.
+    let peak = 0;
+    for (let j = 0; j < N; j++) peak = Math.max(peak, Math.abs(re[j] / N));
+    const g = peak > 1.25 ? 1.25 / peak : 1;
+    for (let j = 0; j < N; j++) shaped[j] = re[j] / N * g + dc;
+  }
+  return { L, W, bounds, step, smooth, foldGain, drawn, raw, shaped, stageOf, specRaw, specShaped, neutral: sw.neutral };
+}
+
+// ---- Human-readable descriptions of a fader value (short) -------------------
+function describe(bank, i, v) {
+  if (bank === 0) { const b = bipolar(v); return (b > 0 ? '+' : '') + b.toFixed(2); }
+  if (bank === 1) return v === 0 ? 'jump' : '×' + (stageWeight(v) / 256).toFixed(2);
+  if (bank === 2) return v < 64 ? 'hold ' + Math.round((64 - v) / 64 * 100) + '%' : v > 64 ? 'S ' + Math.round((v - 64) / 63 * 100) + '%' : 'line';
+  switch (i) {
+    case 0: { const c = (v - 64) * 100 / 64; return (c >= 0 ? '+' : '') + c.toFixed(0) + '¢'; }
+    case 1: return Math.round(v * v / (127 * 127) * 100) + '%';
+    case 2: { const s = bipolar(v) * 42; return (s > 0 ? '+' : '') + s.toFixed(0) + '%'; }  // kWarpDepthMax/65536 = 0.42
+    case 3: return '×' + (1 + 7 * v * v / (127 * 127)).toFixed(1);
+    case 4: return v >= 124 ? 'open' : 'H' + Math.round(Math.pow(2, 0.5 + 9.5 * v / 124));
+    case 5: { const x = v / 127, e = Math.min(1, x / 0.47), o = Math.min(1, (1 - x) / 0.47);
+              return e === 1 && o === 1 ? 'both' : e < 1 ? 'even ' + Math.round(e * 100) + '%' : 'odd ' + Math.round(o * 100) + '%'; }
+    case 6: return 'H' + Math.round(Math.pow(2, 8.5 * v / 127));
+    case 7: return v === 0 ? 'off' : '+' + (20 * Math.log10(1 + 15 * (v / 127) ** 2)).toFixed(0) + ' dB';
+  }
+  return '';
+}
+
+// ============================================================================
+// Drawing the waveform
+// ============================================================================
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function setupCanvas(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(50, Math.round(cv.clientWidth * dpr)), h = Math.max(30, Math.round(cv.clientHeight * dpr));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { g, w: cv.clientWidth, h: cv.clientHeight };
+}
+
+function drawMain() {
+  const cv = $('wave');
+  const { g, w, h } = setupCanvas(cv);
+  const C = { ink: cssVar('--ink'), muted: cssVar('--muted'), grid: cssVar('--grid'), accent: cssVar('--accent'),
+              warm: cssVar('--warm'), accentSoft: cssVar('--accent-soft'), warmSoft: cssVar('--warm-soft'), bg: cssVar('--wave-bg') };
+  g.clearRect(0, 0, w, h);
+  const page = state.page;
+  const showSpec = page === 3;
+  const specH = showSpec ? Math.round(h * 0.2) : 0;     // height of the spectrum bars
+  const m = { l: 34, r: 12, t: 14, b: 22 };
+  const pw = w - m.l - m.r;
+  // With the spectrum inset there is room for the x-axis labels, a caption, then the bars.
+  const ph = showSpec ? h - m.t - 40 - specH : h - m.t - m.b;
+  const yr = 1.3;
+  const X = t => m.l + t * pw;
+  const Y = v => m.t + (1 - (clamp(v, -yr, yr) + yr) / (2 * yr)) * ph;
+
+  const N = 1024;
+  const wv = computeWave(state.values, N);
+
+  // grid
+  g.lineWidth = 1; g.font = '11px system-ui, sans-serif'; g.fillStyle = C.muted; g.textBaseline = 'middle';
+  for (const v of [-1, 0, 1]) {
+    g.strokeStyle = C.grid; g.beginPath(); g.moveTo(X(0), Y(v)); g.lineTo(X(1), Y(v)); g.stroke();
+    g.textAlign = 'right'; g.fillText(v > 0 ? '+1' : v < 0 ? '−1' : '0', m.l - 6, Y(v));
+  }
+  g.textAlign = 'center'; g.textBaseline = 'top';
+  for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+    g.strokeStyle = C.grid; g.beginPath(); g.moveTo(X(t), Y(1.3)); g.lineTo(X(t), Y(-1.3)); g.stroke();
+    g.fillStyle = C.muted; g.textAlign = t === 1 ? 'right' : 'center';
+    g.fillText(t === 0 ? '0' : t === 1 ? '1 cycle' : String(t), X(t), m.t + ph + 4);
+  }
+
+  const focusI = state.focus && state.focus.bank === page ? state.focus.i : -1;
+  const stageColor = i => i === focusI ? C.warm : C.accent;
+
+  // page 2: stage bands and widths (drawn first, under the wave)
+  if (page === 1) {
+    for (let i = 0; i < NF; i++) {
+      const x0 = X(wv.bounds[i]), x1 = X(wv.bounds[i + 1]);
+      g.fillStyle = i === focusI ? C.warmSoft : (i % 2 ? 'transparent' : C.accentSoft);
+      g.globalAlpha = i === focusI ? 0.9 : 0.55;
+      g.fillRect(x0, Y(yr), Math.max(0, x1 - x0), Y(-yr) - Y(yr));
+      g.globalAlpha = 1;
+    }
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.font = '11px system-ui, sans-serif';
+    for (let i = 0; i < NF; i++) {
+      const x0 = X(wv.bounds[i]), x1 = X(wv.bounds[i + 1]);
+      const pct = (wv.bounds[i + 1] - wv.bounds[i]) * 100;
+      if (x1 - x0 >= 26) {
+        g.fillStyle = i === focusI ? C.warm : C.ink;
+        g.fillText(String(i + 1), (x0 + x1) / 2, Y(yr) + 12);
+        g.fillStyle = C.muted; g.fillText(pct.toFixed(pct < 10 ? 1 : 0) + '%', (x0 + x1) / 2, Y(yr) + 24);
+      } else if (pct > 0) {
+        g.fillStyle = i === focusI ? C.warm : C.muted; g.fillText(String(i + 1), (x0 + x1) / 2, Y(yr) + 12);
+      }
+    }
+  }
+
+  // stage boundaries on pages 2 and 3
+  if (page === 1 || page === 2) {
+    g.strokeStyle = C.grid; g.setLineDash([3, 3]);
+    for (let i = 0; i <= NF; i++) { g.beginPath(); g.moveTo(X(wv.bounds[i]), Y(yr)); g.lineTo(X(wv.bounds[i]), Y(-yr)); g.stroke(); }
+    g.setLineDash([]);
+  }
+
+  // ghost preset
+  if (state.preview) {
+    const pv = computeWave(state.preview, N);
+    g.strokeStyle = C.warm; g.lineWidth = 2; g.setLineDash([6, 4]); g.beginPath();
+    for (let j = 0; j <= N; j++) { const y = pv.shaped[j % N]; j ? g.lineTo(X(j / N), Y(y)) : g.moveTo(X(0), Y(y)); }
+    g.stroke(); g.setLineDash([]);
+  }
+
+  // page 4: the drawing before fold / tone shaping, dotted, under the final wave
+  if (page === 3 && (!wv.neutral || wv.foldGain !== 1)) {
+    g.strokeStyle = C.muted; g.lineWidth = 1.2; g.setLineDash([2, 3]); g.beginPath();
+    for (let j = 0; j <= N; j++) { const y = wv.drawn[j % N]; j ? g.lineTo(X(j / N), Y(y)) : g.moveTo(X(0), Y(y)); }
+    g.stroke(); g.setLineDash([]);
+  }
+
+  // the wave
+  g.lineJoin = 'round';
+  if (page === 2) {
+    // curves: every stage drawn in its own segment; the touched one is bold
+    for (let i = 0; i < NF; i++) {
+      g.strokeStyle = stageColor(i); g.lineWidth = i === focusI ? 3.5 : 2.2; g.beginPath();
+      let started = false;
+      for (let j = 0; j < N; j++) {
+        if (wv.stageOf[j] !== i) continue;
+        const px = X(j / N), py = Y(wv.shaped[j]);
+        if (!started) { g.moveTo(px, py); started = true; } else g.lineTo(px, py);
+      }
+      g.stroke();
+    }
+  } else {
+    g.strokeStyle = C.accent; g.lineWidth = 2.4; g.beginPath();
+    for (let j = 0; j <= N; j++) { const y = wv.shaped[j % N]; j ? g.lineTo(X(j / N), Y(y)) : g.moveTo(X(0), Y(y)); }
+    g.stroke();
+  }
+
+  // page 1: a marker on every stage's starting level
+  if (page === 0) {
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.font = '600 11px system-ui, sans-serif';
+    for (let i = 0; i < NF; i++) {
+      const cx = X(wv.bounds[i]), cy = Y(wv.L[i]);
+      g.fillStyle = i === focusI ? C.warm : C.ink;
+      g.beginPath(); g.arc(cx, cy, i === focusI ? 6 : 4, 0, Math.PI * 2); g.fill();
+      const above = wv.L[i] < 0.75;
+      g.fillStyle = i === focusI ? C.warm : C.muted;
+      // number on every dot; the value only on the one being touched (less clutter)
+      const label = i === focusI ? (i + 1) + ': ' + describe(0, i, state.values[0][i]) : String(i + 1);
+      g.fillText(label, clamp(cx + 2, m.l + 14, w - m.r - 30), cy + (above ? -9 : 15));
+    }
+  }
+
+  // page 3: label each stage's curve at its middle
+  if (page === 2) {
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.font = '11px system-ui, sans-serif';
+    for (let i = 0; i < NF; i++) {
+      const x0 = wv.bounds[i], x1 = wv.bounds[i + 1];
+      if ((x1 - x0) * pw < 34) continue;
+      const jm = Math.min(N - 1, Math.floor((x0 + x1) / 2 * N));
+      g.fillStyle = i === focusI ? C.warm : C.muted;
+      g.fillText(describe(2, i, state.values[2][i]), X((x0 + x1) / 2), Y(wv.shaped[jm]) + (wv.shaped[jm] > 0 ? 16 : -8));
+    }
+  }
+
+  // page 4: spectrum inset
+  if (showSpec) {
+    const sx = m.l, sy = m.t + ph + 36, sw = pw, sh = specH;
+    g.fillStyle = C.muted; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.font = '11px system-ui, sans-serif';
+    g.fillText('Harmonics 1–64 (0 to −60 dB)', sx, sy - 4);
+    const nb = 64, bw = sw / nb;
+    const db = a => clamp((20 * Math.log10(Math.max(a, 1e-6)) + 60) / 60, 0, 1);
+    const shaped = wv.specShaped || wv.specRaw;
+    for (let k = 0; k < nb; k++) {
+      const hh = db(shaped[k]) * sh;
+      g.fillStyle = focusI >= 4 ? C.warm : C.accent; g.globalAlpha = 0.85;
+      g.fillRect(sx + k * bw + 0.5, sy + sh - hh, Math.max(1, bw - 1), hh);
+      g.globalAlpha = 1;
+      if (wv.specShaped) {
+        const rh = db(wv.specRaw[k]) * sh;
+        g.fillStyle = C.muted; g.fillRect(sx + k * bw, sy + sh - rh - 1, bw, 1.5);
+      }
+    }
+  }
+  $('wave-title').textContent = 'Waveform · ' + BANKS[page].name;
+  $('wave-note').textContent = page === 0 ? 'dots: each stage’s starting level'
+    : page === 1 ? 'bands: how long each stage lasts (% of the cycle)'
+    : page === 2 ? 'colour: one stage each; label: hold / line / S-curve mix'
+    : 'dotted: as drawn; bars: harmonics after brightness, odd/even and formant';
+}
+
+function drawThumb(cv, values) {
+  const { g, w, h } = setupCanvas(cv);
+  g.clearRect(0, 0, w, h);
+  const N = 256, wv = computeWave(values, N), yr = 1.3;
+  g.strokeStyle = cssVar('--grid'); g.lineWidth = 1; g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+  g.strokeStyle = cssVar('--accent'); g.lineWidth = 1.8; g.beginPath();
+  for (let j = 0; j <= N; j++) {
+    const y = wv.shaped[j % N], py = h / 2 - clamp(y, -yr, yr) / yr * (h / 2 - 3);
+    j ? g.lineTo(3 + j / N * (w - 6), py) : g.moveTo(3, py);
+  }
+  g.stroke();
+}
+
+// ============================================================================
+// Faders (the on-screen controls)
+// ============================================================================
+const faderEls = [];        // [bank][i] -> {root, val, fill, thumb, ghost, desc}
+const panelEls = [];
+let dragging = null;        // {kind: 'bank'|'panel', bank, i} while the pointer is down
+
+function makeFader(container, o) {
+  const root = document.createElement('div'); root.className = 'fader';
+  const val = document.createElement('div'); val.className = 'fval';
+  const track = document.createElement('div'); track.className = 'track';
+  track.tabIndex = 0; track.setAttribute('role', 'slider');
+  track.setAttribute('aria-label', o.label); track.setAttribute('aria-valuemin', '0'); track.setAttribute('aria-valuemax', String(o.max));
+  track.setAttribute('aria-orientation', 'vertical');
+  const fill = document.createElement('div'); fill.className = 'fill';
+  const ghost = document.createElement('div'); ghost.className = 'ghost'; ghost.title = 'Where the 8mu’s fader is now; move it through the value to take over';
+  const thumb = document.createElement('div'); thumb.className = 'thumb';
+  track.append(fill, ghost, thumb);
+  const name = document.createElement('div'); name.className = 'fname'; name.textContent = o.name;
+  const desc = document.createElement('div'); desc.className = 'fdesc';
+  root.append(val, track, name, desc); container.append(root);
+
+  const setFromY = (ev) => {
+    const r = track.getBoundingClientRect();
+    const t = 1 - clamp((ev.clientY - r.top) / r.height, 0, 1);
+    o.onInput(Math.round(t * o.max));
+  };
+  track.addEventListener('pointerdown', (ev) => {
+    track.setPointerCapture(ev.pointerId); dragging = o.id; setFocus(o.focus); setFromY(ev); ev.preventDefault();
+  });
+  track.addEventListener('pointermove', (ev) => { if (track.hasPointerCapture(ev.pointerId)) setFromY(ev); });
+  const up = (ev) => { if (track.hasPointerCapture(ev.pointerId)) track.releasePointerCapture(ev.pointerId); dragging = null; };
+  track.addEventListener('pointerup', up); track.addEventListener('pointercancel', up);
+  track.addEventListener('dblclick', () => o.onInput(o.def));
+  track.addEventListener('pointerenter', () => setFocus(o.focus));
+  track.addEventListener('focus', () => setFocus(o.focus));
+  track.addEventListener('keydown', (ev) => {
+    const big = ev.shiftKey ? 8 : 1; let v = o.get();
+    if (ev.key === 'ArrowUp' || ev.key === 'ArrowRight') v += big;
+    else if (ev.key === 'ArrowDown' || ev.key === 'ArrowLeft') v -= big;
+    else if (ev.key === 'PageUp') v += 16; else if (ev.key === 'PageDown') v -= 16;
+    else if (ev.key === 'Home') v = 0; else if (ev.key === 'End') v = o.max;
+    else return;
+    ev.preventDefault(); o.onInput(clamp(v, 0, o.max));
+  });
+  return { root, val, fill, thumb, ghost, desc, track, max: o.max, get: o.get, describe: o.describe };
+}
+
+function setFocus(f) { state.focus = f; drawMain(); refreshFaders(); }
+
+function buildFaders() {
+  const banks = $('banks');
+  BANKS.forEach((b, bi) => {
+    const wrap = document.createElement('div'); wrap.className = 'bank'; wrap.id = 'bank-' + bi;
+    const head = document.createElement('div'); head.className = 'bank-head';
+    const btn = document.createElement('button'); btn.type = 'button';
+    btn.innerHTML = '<span class="badge">' + b.letter + '</span><span>' + b.name + '</span>';
+    btn.title = 'Show this bank on the waveform (like pressing 8mu button ' + b.letter + ')';
+    btn.addEventListener('click', () => selectPage(bi, true));
+    const hint = document.createElement('span'); hint.className = 'bank-hint'; hint.textContent = b.hint;
+    head.append(btn, hint);
+    const row = document.createElement('div'); row.className = 'faders';
+    wrap.append(head, row); banks.append(wrap);
+    faderEls[bi] = [];
+    for (let i = 0; i < NF; i++) {
+      faderEls[bi][i] = makeFader(row, {
+        id: { kind: 'bank', bank: bi, i }, focus: { bank: bi, i }, max: 127, def: DEFAULT_VALUES[bi][i],
+        name: FADER_NAMES[bi][i], label: b.name + ' ' + FADER_NAMES[bi][i],
+        get: () => state.values[bi][i], onInput: (v) => userSetValue(bi, i, v), describe: (v) => describe(bi, i, v),
+      });
+    }
+  });
+  const pf = $('panel-faders');
+  PANEL.forEach((p, i) => {
+    panelEls[i] = makeFader(pf, {
+      id: { kind: 'panel', i }, focus: null, max: p.max, def: DEFAULT_PANEL[i], name: p.name, label: p.name,
+      get: () => state.panel[i], onInput: (v) => userSetPanel(i, v), describe: p.desc,
+    });
+  });
+}
+
+function refreshFaders() {
+  BANKS.forEach((b, bi) => {
+    $('bank-' + bi).classList.toggle('current', bi === state.page);
+    for (let i = 0; i < NF; i++) {
+      const f = faderEls[bi][i], v = state.values[bi][i];
+      f.val.textContent = v; f.desc.textContent = f.describe(v);
+      f.fill.style.height = (v / 127 * 100) + '%'; f.thumb.style.top = ((1 - v / 127) * 100) + '%';
+      f.track.setAttribute('aria-valuenow', String(v)); f.track.setAttribute('aria-valuetext', f.describe(v));
+      f.root.classList.toggle('active', !!state.focus && state.focus.bank === bi && state.focus.i === i);
+      // the 8mu's physical fader position, when it has not taken over yet
+      const ph = eightmu.phys[i];
+      const waiting = bi === state.page && ph >= 0 && !eightmu.engaged[bi][i];
+      f.ghost.style.display = waiting ? 'block' : 'none';
+      if (waiting) f.ghost.style.top = ((1 - ph / 127) * 100) + '%';
+    }
+  });
+  PANEL.forEach((p, i) => {
+    const f = panelEls[i], v = state.panel[i];
+    f.val.textContent = v; f.desc.textContent = p.desc(v);
+    f.fill.style.height = (v / p.max * 100) + '%'; f.thumb.style.top = ((1 - v / p.max) * 100) + '%';
+    f.track.setAttribute('aria-valuenow', String(v)); f.track.setAttribute('aria-valuetext', p.desc(v));
+    f.root.classList.toggle('inactive', p.mode !== state.mode);
+  });
+  $('mode-line').innerHTML = 'Module switch: <b>' + MODE_NAMES[state.mode] + '</b>. ' + MODE_TEXT[state.mode] +
+    (link.cardOnline ? '' : '. (Position shown only while a card is connected.)');
+}
+
+// ============================================================================
+// Changing values (from the mouse, the 8mu, a preset, or the card)
+// ============================================================================
+let pendingSets = new Map();
+let flushTimer = 0;
+
+function queueSend(key, bytes) {
+  if (!link.cardOnline) return;
+  pendingSets.set(key, bytes);
+  if (!flushTimer) flushTimer = setTimeout(flush, 16);
+}
+function flush() {
+  flushTimer = 0;
+  const batch = pendingSets; pendingSets = new Map();
+  for (const bytes of batch.values()) sendRaw(bytes);
+}
+function sendRaw(bytes) {
+  if (!link.card.out) return;
+  try { link.card.out.send(bytes); } catch (e) { say('Could not send to the card: ' + e.message, true); }
+}
+function sysex(cmd, payload) { return [0xF0, SYSEX_MFR, SYSEX_PRODUCT, cmd, ...payload, 0xF7]; }
+
+function userSetValue(bank, i, v) {
+  v = clamp(v | 0, 0, 127);
+  if (state.values[bank][i] === v) return;
+  state.values[bank][i] = v;
+  eightmu.engaged[bank][i] = false;           // a physical fader must meet it again
+  queueSend('v' + bank + '.' + i, sysex(CMD.SET, [bank, i, v]));
+  changed();
+}
+function userSetPanel(i, v) {
+  v = clamp(v | 0, 0, PANEL[i].max);
+  if (state.panel[i] === v) return;
+  state.panel[i] = v;
+  queueSend('p' + i, sysex(CMD.SET, [KIND_PANEL, i, v]));
+  changed();
+}
+function selectPage(p, sendToCard) {
+  if (p === state.page) return;
+  state.page = p;
+  // recompute which 8mu faders already sit on this page's values (Ui::Engage)
+  for (let i = 0; i < NF; i++) {
+    const ph = eightmu.phys[i], v = state.values[p][i];
+    eightmu.engaged[p][i] = ph >= 0 && Math.abs(ph - v) <= 1;
+  }
+  if (sendToCard) queueSend('page', sysex(CMD.PAGE, [p]));
+  changed();
+}
+
+// Rendering (refreshFaders' DOM writes, and drawMain's FFT-based wave redraw) is
+// real work, so it is batched to at most once per animation frame rather than run
+// straight from changed(). That matters here: with an 8mu, moving all eight faders
+// at once can raise a MIDI CC every millisecond or so on each of the eight, and
+// without this, each one used to trigger a full render synchronously - hundreds of
+// full page redraws a second, which starves the single JS thread and is exactly
+// what showed up as the on-screen faders (and the card, fed from the same queue)
+// lagging up to a second behind the physical ones. State updates themselves
+// (below) stay synchronous and cheap; only drawing is deferred and coalesced.
+let renderQueued = false;
+function requestRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; refreshFaders(); drawMain(); });
+}
+
+let saveTimer = 0;
+function changed() {
+  requestRender();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => store.set('gosc.last.v1', { v: state.values, p: state.panel }), 400);
+}
+
+// ---- 8mu (the same pick-up rule as Ui::OnFader in the firmware) ----------------
+function eightmuFader(i, v) {
+  const page = state.page, last = eightmu.phys[i];
+  eightmu.phys[i] = v;
+  const target = state.values[page][i];
+  if (!eightmu.engaged[page][i]) {
+    const near = Math.abs(v - target) <= 1;
+    const crossed = last >= 0 && ((last < target) !== (v < target) || last === target);
+    if (!near && !crossed) { requestRender(); return; }   // still waiting: only the ghost marker moved
+    eightmu.engaged[page][i] = true;
+  }
+  if (state.values[page][i] !== v) {
+    state.values[page][i] = v;
+    queueSend('v' + page + '.' + i, sysex(CMD.SET, [page, i, v]));
+    changed();
+  }
+}
+function eightmuMessage(d) {
+  // One complete channel message per call (WebMIDI delivers them whole). The
+  // accelerometer CCs (42-49) and everything else are ignored.
+  if (d.length < 3 || d[0] < 0x80 || d[0] >= 0xF0) return;
+  const type = d[0] & 0xF0;
+  if (type === 0xB0) {
+    const cc = d[1];
+    if (cc >= FIRST_FADER_CC && cc < FIRST_FADER_CC + NF) eightmuFader(cc - FIRST_FADER_CC, d[2] & 0x7F);
+  } else if (type === 0x90 && d[2] > 0) {
+    const p = BUTTON_NOTES.indexOf(d[1]);
+    if (p >= 0) selectPage(p, true);
+  }
+}
+
+// ============================================================================
+// WebMIDI
+// ============================================================================
+const isCardName = (n) => /graphic\s*osc/i.test(n || '');
+// A bare substring test (no word boundaries), matching what the reference 8mu/16n
+// web editor (16n-faderbank/16n-editor) uses to recognise an 8mu. Checked against
+// the port's name AND its manufacturer field (and the two joined), since which
+// field actually carries "8mu" can differ by OS/browser and has not been verified
+// against real hardware from this codebase.
+const is8muName = (p) => {
+  const cands = [p.name, p.manufacturer, (p.manufacturer || '') + ' ' + (p.name || '')];
+  return cands.some((s) => /8mu/i.test(s || ''));
+};
+
+async function connect() {
+  if (!navigator.requestMIDIAccess) {
+    say('This browser has no WebMIDI. Use Chrome or Edge on a computer (Safari and iOS cannot do this).', true);
+    return;
+  }
+  say('The browser will ask to use MIDI devices with SysEx: choose Allow.');
+  try {
+    // A fresh request each time (cheap once permission is granted): this is also
+    // what "Rescan" uses, for browsers whose hot-plug notifications are unreliable.
+    link.access = await navigator.requestMIDIAccess({ sysex: true });
+  } catch (e) {
+    say('MIDI access was refused (' + (e && e.message || e) + '). Allow MIDI with SysEx for this page, then try again.', true);
+    return;
+  }
+  link.access.onstatechange = () => scanPorts(true);
+  scanPorts(false);
+}
+
+function scanPorts(fromEvent) {
+  const acc = link.access; if (!acc) return;
+  const ins = [...acc.inputs.values()].filter(p => p.state !== 'disconnected');
+  const outs = [...acc.outputs.values()].filter(p => p.state !== 'disconnected');
+  const cardIn = ins.find(p => isCardName(p.name)) || null;
+  const cardOut = outs.find(p => isCardName(p.name)) || null;
+  const mus = ins.filter(p => is8muName(p));
+  const unrecognised = ins.filter(p => p !== cardIn && !mus.includes(p));
+
+  // Visible without opening devtools: exactly what this browser reports, so a
+  // controller that is not recognised can be diagnosed from the names alone.
+  console.log('[Graphic Osc] MIDI inputs:', ins.map(p => ({ name: p.name, manufacturer: p.manufacturer })));
+
+  for (const p of ins) p.onmidimessage = null;
+  if (cardIn) cardIn.onmidimessage = (ev) => onCardBytes(ev.data);
+  for (const p of mus) p.onmidimessage = (ev) => eightmuMessage(ev.data);
+  const wasOnline = link.cardOnline;
+  link.card.in = cardIn; link.card.out = cardOut; link.mus = mus;
+  link.cardOnline = !!(cardIn && cardOut);
+  link.sysexBuf = []; link.sysexOn = false;
+
+  const parts = [];
+  if (link.cardOnline) parts.push('Graphic Osc card');
+  if (mus.length) parts.push('8mu');
+  $('btn-read').disabled = $('btn-send').disabled = !link.cardOnline;
+  const unrecognisedNote = unrecognised.length
+    ? ' Not recognised as an 8mu: ' + unrecognised.map(p => '“' + (p.name || '?') + '”').join(', ') + ' — press Rescan after replugging, or tell the developer this exact name.'
+    : '';
+  if (link.cardOnline) {
+    setStatus('ok', 'Connected: ' + parts.join(' + '));
+    say((mus.length ? 'The 8mu drives this page; this page drives the card.' : 'Card connected. Click and drag the faders, or plug an 8mu into this computer.') + unrecognisedNote, !mus.length && unrecognised.length);
+    if (!wasOnline) sendRaw(sysex(CMD.HELLO, []));       // the card is the source of truth: read it
+  } else if (mus.length) {
+    setStatus('warn', 'Connected: 8mu only (no card)');
+    say('No “Graphic Osc” card found. Editing locally. To reach the card: plug this computer into the Computer’s USB-C socket and power-cycle the module (it picks host or device at power-up).', true);
+  } else {
+    setStatus('warn', 'No card or 8mu found');
+    say('Nothing found. Use a USB-C data cable, close other apps that use the device, and for the card power-cycle the module after plugging this computer in. The card appears as “Graphic Osc”.' + unrecognisedNote, true);
+  }
+  refreshFaders();
+}
+
+function onCardBytes(d) {
+  for (const b of d) {
+    if (b === 0xF0) { link.sysexOn = true; link.sysexBuf = []; continue; }
+    if (!link.sysexOn) continue;
+    if (b === 0xF7) { link.sysexOn = false; handleCardMessage(link.sysexBuf); link.sysexBuf = []; continue; }
+    if (b & 0x80) { link.sysexOn = false; continue; }
+    if (link.sysexBuf.length < 128) link.sysexBuf.push(b); else link.sysexOn = false;
+  }
+}
+
+function handleCardMessage(m) {
+  if (m.length < 3 || m[0] !== SYSEX_MFR || m[1] !== SYSEX_PRODUCT) return;
+  const cmd = m[2], p = m.slice(3);
+  if (cmd !== CMD.STATE) return;
+  if (p.length !== 3 + KINDS * NF + PANEL.length) { say('The card sent a state message of an unexpected size; is the firmware a different version?', true); return; }
+  if (p[0] !== PROTOCOL_VERSION) { say('The card speaks protocol version ' + p[0] + ' but this page speaks ' + PROTOCOL_VERSION + '. Use the matching editor.', true); return; }
+  const dragged = dragging;
+  const page = clamp(p[1], 0, KINDS - 1);
+  state.mode = clamp(p[2], 0, 2);
+  for (let b = 0; b < KINDS; b++) for (let i = 0; i < NF; i++) {
+    if (dragged && dragged.kind === 'bank' && dragged.bank === b && dragged.i === i) continue;
+    state.values[b][i] = clamp(p[3 + b * NF + i], 0, 127);
+  }
+  PANEL.forEach((q, i) => {
+    if (dragged && dragged.kind === 'panel' && dragged.i === i) return;
+    state.panel[i] = clamp(p[3 + KINDS * NF + i], 0, q.max);
+  });
+  if (page !== state.page) selectPage(page, false);
+  changed();
+}
+
+function sendAll() {
+  if (!link.cardOnline) return;
+  const payload = [PROTOCOL_VERSION, state.page, state.mode];
+  for (let b = 0; b < KINDS; b++) for (let i = 0; i < NF; i++) payload.push(state.values[b][i]);
+  for (let i = 0; i < PANEL.length; i++) payload.push(state.panel[i]);
+  sendRaw(sysex(CMD.SET_ALL, payload));
+  say('Sent everything to the card.');
+}
+
+// ============================================================================
+// Presets (localStorage)
+// ============================================================================
+const store = {
+  get(k, dflt) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : dflt; } catch (e) { return dflt; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+};
+const R = (a) => a.map(Math.round);
+const FACTORY = [
+  { id: 'f-sine', name: 'Sine (default)', v: DEFAULT_VALUES },
+  { id: 'f-saw', name: 'Saw', v: [[0, 18, 37, 55, 73, 91, 109, 127], [64, 64, 64, 64, 64, 64, 64, 0], DEFAULT_VALUES[2], DEFAULT_VALUES[3]] },
+  { id: 'f-square', name: 'Square', v: [[127, 127, 127, 127, 0, 0, 0, 0], DEFAULT_VALUES[1], [0, 0, 0, 0, 0, 0, 0, 0], DEFAULT_VALUES[3]] },
+  { id: 'f-tri', name: 'Triangle', v: [[0, 32, 64, 95, 127, 95, 64, 32], DEFAULT_VALUES[1], DEFAULT_VALUES[2], DEFAULT_VALUES[3]] },
+  { id: 'f-fold', name: 'Folded sine', v: [DEFAULT_VALUES[0], DEFAULT_VALUES[1], DEFAULT_VALUES[2], [64, 110, 64, 90, 127, 64, 64, 0]] },
+  { id: 'f-hollow', name: 'Hollow (odd only)', v: [[0, 32, 64, 95, 127, 95, 64, 32], DEFAULT_VALUES[1], DEFAULT_VALUES[2], [64, 110, 64, 0, 127, 127, 64, 0]] },
+  { id: 'f-vowel', name: 'Formant saw', v: [[0, 18, 37, 55, 73, 91, 109, 127], [64, 64, 64, 64, 64, 64, 64, 0], DEFAULT_VALUES[2], [64, 110, 64, 0, 127, 64, 60, 90]] },
+];
+let userPresets = [];
+
+// Whatever is in storage (or an import file) is checked and clamped before use.
+function cleanPreset(o) {
+  if (!o || typeof o !== 'object' || !Array.isArray(o.v) || o.v.length !== KINDS) return null;
+  const v = [];
+  for (let b = 0; b < KINDS; b++) {
+    if (!Array.isArray(o.v[b]) || o.v[b].length !== NF) return null;
+    v.push(o.v[b].map(x => clamp(Math.round(Number(x)) || 0, 0, 127)));
+  }
+  let p = null;
+  if (Array.isArray(o.p) && o.p.length === PANEL.length) p = o.p.map((x, i) => clamp(Math.round(Number(x)) || 0, 0, PANEL[i].max));
+  return { id: String(o.id || ('u-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6))), name: String(o.name || 'Preset').slice(0, 40), v, p, t: Number(o.t) || 0 };
+}
+function loadPresets() {
+  const raw = store.get('gosc.presets.v1', []);
+  userPresets = (Array.isArray(raw) ? raw : []).map(cleanPreset).filter(Boolean);
+}
+function savePresets() { if (!store.set('gosc.presets.v1', userPresets)) say('Could not save presets: browser storage is unavailable or full.', true); }
+
+function applyPreset(pr) {
+  for (let b = 0; b < KINDS; b++) for (let i = 0; i < NF; i++) { state.values[b][i] = pr.v[b][i]; eightmu.engaged[b][i] = false; }
+  if (pr.p) for (let i = 0; i < PANEL.length; i++) state.panel[i] = pr.p[i];
+  state.preview = null;
+  changed(); renderPresets();
+  if (link.cardOnline) { sendAll(); say('Loaded “' + pr.name + '” and sent it to the card.'); }
+  else say('Loaded “' + pr.name + '” (no card connected: not sent).');
+}
+
+function renderPresets() {
+  const box = $('presets'); box.textContent = '';
+  const add = (pr, factory) => {
+    const el = document.createElement('div'); el.className = 'preset';
+    const cv = document.createElement('canvas'); cv.title = 'Load this preset';
+    const nm = document.createElement('div'); nm.className = 'pname'; nm.textContent = pr.name; nm.title = pr.name;
+    const meta = document.createElement('div'); meta.className = 'pmeta';
+    meta.textContent = (factory ? 'Built in' : 'Saved ' + (pr.t ? new Date(pr.t).toLocaleDateString() : '')) + (pr.p ? ' · with knob settings' : '');
+    const btns = document.createElement('div'); btns.className = 'pbtns';
+    const mk = (label, fn, title) => { const b = document.createElement('button'); b.className = 'small'; b.textContent = label; b.title = title || label; b.addEventListener('click', fn); btns.append(b); return b; };
+    mk('Load', () => applyPreset(pr), 'Put it on the faders (and on the card, if connected)');
+    if (!factory) {
+      mk('Update', () => { pr.v = state.values.map(r => r.slice()); if ($('chk-panel').checked) pr.p = state.panel.slice(); pr.t = Date.now(); savePresets(); renderPresets(); say('Updated “' + pr.name + '” with what is on screen.'); }, 'Overwrite with the current faders');
+      mk('Rename', () => { const n = prompt('New name', pr.name); if (n && n.trim()) { pr.name = n.trim().slice(0, 40); savePresets(); renderPresets(); } });
+      mk('Delete', () => { if (confirm('Delete “' + pr.name + '”?')) { userPresets = userPresets.filter(x => x !== pr); savePresets(); renderPresets(); } });
+    }
+    el.append(cv, nm, meta, btns); box.append(el);
+    cv.addEventListener('click', () => applyPreset(pr));
+    el.addEventListener('pointerenter', () => { state.preview = pr.v; el.classList.add('hover'); drawMain(); });
+    el.addEventListener('pointerleave', () => { state.preview = null; el.classList.remove('hover'); drawMain(); });
+    requestAnimationFrame(() => drawThumb(cv, pr.v));
+  };
+  userPresets.forEach(p => add(p, false));
+  FACTORY.forEach(p => add(p, true));
+}
+
+function saveCurrent() {
+  const name = $('preset-name').value.trim() || ('Preset ' + (userPresets.length + 1));
+  userPresets.unshift({ id: 'u-' + Date.now(), name: name.slice(0, 40), v: state.values.map(r => r.slice()), p: $('chk-panel').checked ? state.panel.slice() : null, t: Date.now() });
+  savePresets(); $('preset-name').value = ''; renderPresets(); say('Saved “' + name + '” in this browser.');
+}
+function exportPresets() {
+  const blob = new Blob([JSON.stringify({ format: 'graphic-osc-presets', version: 1, presets: userPresets }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'graphic-osc-presets.json';
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function importPresets(file) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const j = JSON.parse(String(rd.result));
+      const list = (Array.isArray(j) ? j : j.presets) || [];
+      const good = list.map(cleanPreset).filter(Boolean);
+      if (!good.length) { say('That file has no usable presets.', true); return; }
+      good.forEach(g => { g.id = 'u-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6); userPresets.push(g); });
+      savePresets(); renderPresets(); say('Imported ' + good.length + ' preset' + (good.length > 1 ? 's' : '') + '.');
+    } catch (e) { say('Could not read that file: ' + e.message, true); }
+  };
+  rd.readAsText(file);
+}
+
+// ============================================================================
+// Start-up
+// ============================================================================
+function resetAll() {
+  if (!confirm('Restore factory defaults' + (link.cardOnline ? ' on the card as well' : '') + '?')) return;
+  state.values = DEFAULT_VALUES.map(r => r.slice()); state.panel = DEFAULT_PANEL.slice();
+  for (let b = 0; b < KINDS; b++) for (let i = 0; i < NF; i++) eightmu.engaged[b][i] = false;
+  if (link.cardOnline) sendRaw(sysex(CMD.RESET, []));
+  changed(); say('Factory defaults.');
+}
+
+function init() {
+  buildFaders(); loadPresets();
+  const last = store.get('gosc.last.v1', null);
+  const pr = last && cleanPreset({ v: last.v, p: last.p });
+  if (pr) { state.values = pr.v; if (pr.p) state.panel = pr.p; }
+  renderPresets(); refreshFaders(); drawMain();
+  $('btn-connect').addEventListener('click', () => { connect(); $('btn-rescan').hidden = false; });
+  $('btn-rescan').addEventListener('click', connect);
+  $('btn-read').addEventListener('click', () => { sendRaw(sysex(CMD.HELLO, [])); say('Asked the card for its settings.'); });
+  $('btn-send').addEventListener('click', sendAll);
+  $('btn-reset').addEventListener('click', resetAll);
+  $('btn-save').addEventListener('click', saveCurrent);
+  $('btn-export').addEventListener('click', exportPresets);
+  $('btn-import').addEventListener('click', () => $('file-import').click());
+  $('file-import').addEventListener('change', (e) => { if (e.target.files[0]) importPresets(e.target.files[0]); e.target.value = ''; });
+  $('preset-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveCurrent(); });
+  window.addEventListener('resize', () => { drawMain(); renderPresets(); });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { drawMain(); renderPresets(); });
+  if (!navigator.requestMIDIAccess) say('This browser cannot do WebMIDI, so it cannot reach the card or an 8mu. You can still edit and keep presets here.');
+}
+init();
+</script>
+</body>
+</html>
