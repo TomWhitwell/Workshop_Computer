@@ -1,0 +1,29 @@
+{
+ "title": "Gridless",
+ "controls": {
+  "main": "Track Select / Speed",
+  "x": "Gain / Level",
+  "y": "Radiate / Start"
+ },
+ "switch": {
+  "up": "Track Mode",
+  "middle": "Global Mode",
+  "down": "Reset / Arm"
+ },
+ "inputs": {
+  "audio_l": "Record In 1 / Track Offset",
+  "audio_r": "Record In 2 / Speed Mod",
+  "cv_1": "X Mod",
+  "cv_2": "Y Mod",
+  "pulse_1": "Reset",
+  "pulse_2": "Next Track"
+ },
+ "outputs": {
+  "audio_out_l": "Mix Out 1",
+  "audio_out_r": "Mix Out 2",
+  "cv_out_1": "Turing Pitch",
+  "cv_out_2": "Envelope",
+  "pulse_out_1": "Wrap Trigger",
+  "pulse_out_2": "Envelope End"
+ }
+}

@@ -1,0 +1,29 @@
+{
+ "title": "Grid",
+ "controls": {
+  "main": "Master Volume",
+  "x": "Input Gain / Pitch Offset",
+  "y": "Envelope Release"
+ },
+ "switch": {
+  "up": "Record",
+  "middle": "Play",
+  "down": "Record"
+ },
+ "inputs": {
+  "audio_l": "Record In 1",
+  "audio_r": "Record In 2",
+  "cv_1": "Pan Offset",
+  "cv_2": "Cutoff / Rotation",
+  "pulse_1": "Loop Reset",
+  "pulse_2": "Gated Record"
+ },
+ "outputs": {
+  "audio_out_l": "Mix Out 1",
+  "audio_out_r": "Mix Out 2",
+  "cv_out_1": "Cut Pitch",
+  "cv_out_2": "Cut Envelope",
+  "pulse_out_1": "Cut Trigger",
+  "pulse_out_2": "Cut Gate"
+ }
+}

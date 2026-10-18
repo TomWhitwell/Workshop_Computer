@@ -6,30 +6,34 @@ MLRws is a remix of the classic MLR [grid](https://monome.org/docs/grid/)-based 
 
 MLRws is my own six-track, grid-optional spin on MLR that works within the constraints of the Workshop Computer and also gave me an oppotunity to demonstrate a few things that I hadn't tried yet on the Computer and provide example code for these things, namely:
 
-- Sample storage, recording, and playback using the on-card flash. This allows busting out of those [goldfish](https://youtu.be/pdzMC6afrHY?si=pfhao3fF60Qi6n61)-style time limits.
+- Sample storage, recording, and playback using the on-card flash. This allows busting out of those goldfish-style time limits.
 
 - [ADPCM](https://en.wikipedia.org/wiki/Adaptive_differential_pulse-code_modulation-based) audio encoding, further reducing the number of bits needed to store a sample of audio (technically MLRws stores 4-bits per sample). This is the same tech that Brian Dorsey's excellent [Backyard Rain](https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/42_backyard_rain) card uses for playback. I also noticed working on this project that ADPCM has additional compression, saturation, and noise-removal characteristics that I kind of love the sound of.
 
-- USB Serial host-mode communication with a monome or DIY grid device via the monome mext [serial protocol](https://monome.org/docs/serialosc/serial.txt). You plug a grid right into the front of the computer. I'm hoping that the code for this problems can be leveraged to create more cards that have grid interfaces. [There is a detailed monome device protocol api doc here for those interested](docs/Computer_monome_api.md)
+- USB Serial host-mode communication with a monome or DIY grid device via the monome mext [serial protocol](https://monome.org/docs/serialosc/serial.txt). You plug a grid right into the front of the computer. I'm hoping that the code for this problems can be leveraged to create more cards that have grid interfaces. [There is a detailed monome device protocol api doc here for those interested](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/15_MLRws/panels/grid-api.md)
+
+## What's new in 1.2.1
+
+- Tracks are stored at 24 kHz, which doubles the maximum time per track. The first time you boot 1.2.1, samples from earlier versions are converted automatically (the LEDs show progress). This is one-way, so don't go back to 1.1.x afterwards or your samples will play at the wrong speed.
+- Settings save themselves to the card a few seconds after you change them.
+- Fixes for 2021-era grids.
+- Per-track pan. Hold both arm keys on a REC page row to place a track anywhere between Audio Out 1 and 2, or tap the other side's arm key to hop a hard-panned track across. Pan moves glide.
+- Per-track low-pass filter, a 4-pole ladder in the Moog style. Hold a track's reverse key and use the mixer keys to pick the cutoff. It glides too, and you can hold several rows at once.
+- CV In 1 offsets pan and CV In 2 sets the filter cutoff (or rotates the whole recording, if you prefer). Each one can follow the last track you touched or any set of tracks you choose.
+- Gridless mode plays every track with the pan and filter you last set on the grid.
+- The sample manager gets pan and filter controls, previews them, and has a new settings box for the CV inputs.
+
+Everything is in the [grid docs](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/15_MLRws/panels/grid.md) and [sample manager docs](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/15_MLRws/panels/sample-manager.md).
 
 ## Sample manager web app
 
-![web app](docs/images/web.png)
-
 You are going to need source materials on your MLRws travels. It is totally possible to record your own sounds via the audio input(s) on the module but you may also want to upload samples from your (non-workshop) computer. For this there is a basic [web app you can find right here](https://dessertplanet.github.io/MLRws-web/).
 
-The web app automatically encodes your audio to the right format for MLRws, and there is a variable resampling/recording speed (equivalent to recording in grid mode at slower-than-1x) allowing you to trade fidelity for more maximum sample time per track. The table below shows the maximum sample time for the dual-mono firmware at each supported speed.
-
-| Record speed   | Max per track |
-|---------|--------|
-| 1x      | 13.1 s |
-| 0.667x  | 19.7 s |
-| 0.5x    | 26.3 s |
-| 0.25x   | 52.6 s |
+The web app automatically encodes your audio to the right format for MLRws, and there is a variable resampling/recording speed (equivalent to recording in grid mode at slower-than-1x) allowing you to trade fidelity for more maximum sample time per track: from 26.3 s per track at 1x up to 105.1 s at 0.25x.
 
 Via the grid it is possible to record at faster than 1x but **you will encounter potentially interesting weirdness**- only recommended if you like strange digital noise. The resampling trips over itself and encodes who-knows-what.
 
-[Detailed sample manager docs are here](docs/SampleMgr.md)
+[Detailed sample manager docs are here](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/15_MLRws/panels/sample-manager.md)
 
 ## Modes
 
@@ -41,7 +45,7 @@ Note that MLRws does NOT use [iii](https://monome.org/docs/iii), and any grid de
 
 ![grid_host_mov](docs/images/Grid_host.mov)
 
-[Detailed grid docs are here](docs/Gridful.md)
+[Detailed grid docs are here](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/15_MLRws/panels/grid.md)
 
 The primary mode of MLRws is USB host with a grid device connected. This mode will be on you power-on the Workshop Computer (and/or system) with a grid plugged directly into the Computer via the USB-C port. Depending on your grid version you may need a specialized cable for this- older FTDI grids with USB Mini ports were tested using [this cable](https://www.amazon.com/dp/B00UUBS0SS?ref=ppx_pop_mob_ap_share) from amazon.
 
@@ -53,7 +57,7 @@ Note that the Workshop Computer determines whether it is in USB Host or USB Devi
 
 In order to support the broadest-possible range of grid devices, MLRws has a Grid-interaction mode that uses exactly the same protocol as the host-mode but allows a different usb host. The primary use case for this would be using a norns device as a host running the midigrid mod that allows you to use alternative grid controllers. To do this you will also need my purpose-built [gridproxy](https://github.com/dessertplanet/gridproxy) mod, that passes grid device traffic over to the Workshop Computer. install the mod from maiden with `;install https://github.com/dessertplanet/gridproxy` and then restart norns.
 
-Once you have your devices communicating, everything else is identical to the USB host grid mode. [The detailed grid doc applies here too.](docs/Gridful.md)
+Once you have your devices communicating, everything else is identical to the USB host grid mode. [The detailed grid doc applies here too.](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/15_MLRws/panels/grid.md)
 
 ### Gridless mode (no USB device required)
 
@@ -61,7 +65,7 @@ Once you have your devices communicating, everything else is identical to the US
 
 I wanted to make MLRws fun even for folks who don't have a grid- and also thought it would be interesting to design an interface for 6 tracks of audio using only the things on the Computer panel. For this I consulted the discord community and some very wild ideas came in! Where this mode landed is something like if a minimal MTM Radio Music (thanks Tom!) and a Make Noise RxMx had a baby. It's weird and modulatable and fun! Oh and of course it has a built in Turing Machine since that is of the Workshop idiom (thanks again Tom!)
 
-[Detailed gridless docs are here](docs/Gridless.md)
+[Detailed gridless docs are here](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/15_MLRws/panels/gridless.md)
 
 ## Credits / Thank yous
 

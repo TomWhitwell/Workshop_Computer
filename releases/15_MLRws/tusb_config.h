@@ -74,6 +74,8 @@ extern "C" {
 /* Max devices (hub can expose up to 4 ports) */
 #define CFG_TUH_DEVICE_MAX         (CFG_TUH_HUB ? 4 : 1)
 
+#define CFG_TUH_CDC_TX_BUFSIZE     65
+
 /* Line-coding defaults for monome serial: 115200 8N1 */
 #define CFG_TUH_CDC_LINE_CODING_ON_ENUM { 115200, CDC_LINE_CODING_STOP_BITS_1, CDC_LINE_CODING_PARITY_NONE, 8 }
 

@@ -1,0 +1,27 @@
+version: 1
+default: grid
+
+# One tab per doc. Each tab's page is its Markdown file. The panel drawings are
+# custom SVGs so each tab can have its own switch labels (the site only allows
+# one controls.switch per card). They're drawn from labels/*.json, which mirror
+# the when.panel rows in info.yaml: keep the two in step when labels change.
+panels:
+  - id: grid
+    name: "Grid"
+    image: grid.svg
+    content: grid.md
+
+  - id: gridless
+    name: "Gridless"
+    image: gridless.svg
+    content: gridless.md
+
+  - id: sample-manager
+    name: "Sample manager"
+    image: plain.svg
+    content: sample-manager.md
+
+  - id: grid-api
+    name: "Grid API (developers)"
+    image: plain.svg
+    content: grid-api.md

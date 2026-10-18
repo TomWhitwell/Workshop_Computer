@@ -19,6 +19,13 @@
 #define XIP_BASE 0x10000000
 #endif
 
+/* Cold code kept in flash instead of copied to RAM (copy_to_ram binary).
+ * Only for functions core 0 never runs while core 1 may be erasing flash:
+ * boot-time init, or core-1-only work such as the sample-manager rescan. */
+#define MLR_COLD_FUNC __attribute__((section(".flashdata.mlr_cold")))
+
+static void MLR_COLD_FUNC restore_loop_stopped(int track, int col_start, int col_end);
+
 /* ------------------------------------------------------------------ */
 /* Globals                                                            */
 /* ------------------------------------------------------------------ */
@@ -35,6 +42,12 @@ static volatile uint8_t mlr_wrap_event_mask;
 mlr_pattern_t   mlr_patterns[MLR_NUM_PATTERNS];
 mlr_recall_t    mlr_recalls[MLR_NUM_RECALLS];
 volatile bool   mlr_scene_saving = false;
+volatile uint8_t mlr_rot_range_pct = MLR_ROT_RANGE_DEFAULT;
+volatile bool   mlr_settings_save_pending = false;
+volatile uint8_t mlr_cv2_mode = MLR_CV2_MODE_FILTER;
+volatile uint8_t mlr_cv1_target = MLR_CV_TARGET_LAST;
+volatile uint8_t mlr_cv2_target = MLR_CV_TARGET_LAST;
+volatile bool   mlr_pan_enabled = false;
 volatile int    mlr_recall_active = -1;
 static uint32_t mlr_clock_ms = 0;
 
@@ -90,6 +103,16 @@ volatile uint32_t mlr_perf_flash_erase_max_us;
 volatile uint32_t mlr_perf_flash_program_max_us;
 volatile uint32_t mlr_perf_adc_mux_resets;
 volatile uint32_t mlr_perf_adc_fifo_level_max;
+volatile uint32_t mlr_perf_rot_seam_fades;
+volatile uint32_t mlr_perf_rot_seam_hard;
+volatile uint32_t mlr_perf_rot_preview_waits;
+volatile uint32_t mlr_perf_rot_xfade_skips;
+volatile uint32_t mlr_perf_rot_map_errors;
+volatile uint32_t mlr_perf_rot_samples;
+volatile uint32_t mlr_perf_fill_resyncs;
+volatile uint32_t mlr_perf_erase_holds;
+volatile uint32_t mlr_perf_erase_hold_max_us;
+volatile uint32_t mlr_perf_erase_forced;
 
 static inline void perf_update_max(volatile uint32_t *dst, uint32_t value)
 {
@@ -182,11 +205,12 @@ void mlr_perf_reset(void)
 
 void mlr_perf_note_ui_section_us(uint32_t section, uint32_t elapsed_us)
 {
+	const uint32_t sample_budget_us = 1000000u / MLR_SAMPLE_RATE_HZ;
 	if (section >= MLR_PERF_UI_SECTIONS) return;
 	mlr_perf_ui_section_last_us[section] = elapsed_us;
 	if (elapsed_us > mlr_perf_ui_section_max_us[section])
 		mlr_perf_ui_section_max_us[section] = elapsed_us;
-	if (elapsed_us > 20)
+	if (elapsed_us > sample_budget_us)
 		mlr_perf_ui_section_overruns[section]++;
 }
 
@@ -232,10 +256,11 @@ void mlr_perf_count_process_sample(void)
 
 void mlr_perf_note_process_sample_us(uint32_t elapsed_us, bool ui_tick)
 {
+	const uint32_t sample_budget_us = 1000000u / MLR_SAMPLE_RATE_HZ;
 	mlr_perf_process_sample_last_us = elapsed_us;
 	if (elapsed_us > mlr_perf_process_sample_max_us)
 		mlr_perf_process_sample_max_us = elapsed_us;
-	if (elapsed_us > 20) {
+	if (elapsed_us > sample_budget_us) {
 		mlr_perf_process_sample_overruns++;
 		if (ui_tick)
 			mlr_perf_process_sample_ui_overruns++;
@@ -372,6 +397,40 @@ static inline uint32_t track_audio_flash_off(int t)
 static inline uint32_t track_hdr_flash_off(int t)
 {
 	return MLR_TRACK_OFFSET(t);
+}
+
+/* A track's keyframes, straight from its header in flash. Core 1 only (it
+ * never reads them mid-erase); valid once the header is written, which is
+ * always before the track can play. */
+static inline const mlr_keyframe_channels_t *track_keyframes(int t)
+{
+	return ((const mlr_track_header_t *)(XIP_BASE + MLR_TRACK_OFFSET(t)))->keyframes;
+}
+
+#ifdef MLR_PERF_PROFILING
+#define PERF_ROT(counter) (mlr_perf_rot_##counter++)
+#else
+#define PERF_ROT(counter) ((void)0)
+#endif
+#ifdef MLR_PERF_PROFILING
+/* Self-check: the fill decoder's raw audio position must equal the rotated
+ * position for grid position v. */
+#define PERF_ROT_CHECK(tr, v, ws, we) do { \
+	uint32_t raw_ = (tr)->fill_byte_pos * 2u + ((tr)->fill_high_nyb ? 1u : 0u); \
+	mlr_perf_rot_samples++; \
+	if (raw_ != fill_audio_pos((tr), (v), (ws), (we))) mlr_perf_rot_map_errors++; \
+} while (0)
+#else
+#define PERF_ROT_CHECK(tr, v, ws, we) ((void)0)
+#endif
+
+
+/* Where pcm.w/r reset or the fill restarts from scratch. */
+static inline void fill_rot_reset(mlr_track_t *tr)
+{
+	tr->fill_rot = 0;
+	tr->rot_hist_w = 0;
+	tr->rot_hist_n = 0;
 }
 
 static inline uint32_t pcm_ring_avail(mlr_pcm_ring_t *r)
@@ -578,6 +637,12 @@ static inline void maybe_start_wrap_preview_xfade(mlr_track_t *tr, uint32_t wrap
 
 	uint32_t needed = source_span * 2u;
 	if (tr->pcm.w - tr->pcm.r < needed) return;
+	/* The preview must be for this wrap (its rotation is per wrap). */
+	int32_t ahead = (int32_t)(tr->wrap_preview_ring_idx - tr->pcm.r);
+	if (ahead <= 0 || (uint32_t)ahead > needed) {
+		PERF_ROT(xfade_skips);
+		return;
+	}
 
 	tr->seek_preview_count = MLR_SEEK_PREVIEW_SAMPLES;
 	tr->seek_xfade_pos = 0;
@@ -612,7 +677,8 @@ static inline int32_t apply_seek_preview_xfade(mlr_track_t *tr, int32_t old_samp
 	uint32_t old_gain = (uint32_t)count - new_gain;
 	int32_t mixed;
 	if (count == MLR_SEEK_PREVIEW_SAMPLES) {
-		mixed = (old_sample * (int32_t)old_gain + new_sample * (int32_t)new_gain) >> 8;
+		mixed = (old_sample * (int32_t)old_gain + new_sample * (int32_t)new_gain)
+			>> MLR_SEEK_PREVIEW_SHIFT;
 	} else {
 		mixed = (old_sample * (int32_t)old_gain + new_sample * (int32_t)new_gain) / (int32_t)count;
 	}
@@ -744,6 +810,197 @@ void mlr_choke_group_resume(int t, int col)
 	stop_other_group_members(t);
 }
 
+/* Equal-power pan gains, Q15: index = pan + MLR_PAN_STEPS, from hard Out 1
+ * (32768, 0) through centre (23170, 23170) to hard Out 2 (0, 32768). Hard
+ * pans are exactly unity, matching the old per-channel routing. */
+static const uint16_t pan_gain_out1[2 * MLR_PAN_STEPS + 1] = {
+	32768, 32488, 31651, 30274, 28378, 25997, 23170, 19948, 16384, 12540, 8481, 4277, 0,
+};  /* round(32768 * cos(i / 12 * pi / 2)); Out 2 gain is the mirror entry */
+#if MLR_PAN_STEPS != 6
+#error pan_gain tables assume MLR_PAN_STEPS == 6
+#endif
+
+void __not_in_flash_func(mlr_pan_gains)(int pan, uint16_t *gl, uint16_t *gr)
+{
+	if (pan < -MLR_PAN_STEPS) pan = -MLR_PAN_STEPS;
+	if (pan >  MLR_PAN_STEPS) pan =  MLR_PAN_STEPS;
+	*gl = pan_gain_out1[pan + MLR_PAN_STEPS];
+	*gr = pan_gain_out1[MLR_PAN_STEPS - pan];
+}
+
+/* Out 1 gain at a fractional pan position, x = (pan + MLR_PAN_STEPS) * 256.
+ * Linear between table steps keeps power within ~0.5% of equal-power. */
+static inline uint16_t pan_gain_interp(int x)
+{
+	if (x <= 0) return pan_gain_out1[0];
+	if (x >= 2 * MLR_PAN_STEPS * 256) return pan_gain_out1[2 * MLR_PAN_STEPS];
+	int i = x >> 8, f = x & 255;
+	int a = pan_gain_out1[i], b = pan_gain_out1[i + 1];
+	return (uint16_t)(a + (((b - a) * f) >> 8));
+}
+
+static inline int __not_in_flash_func(pan_effective_q8)(const mlr_track_t *tr)
+{
+	int e = (int)(tr->pan_pos >> 12) + tr->pan_cv_q8;  /* pan_pos is 1/2^20 steps */
+	if (e < -MLR_PAN_STEPS * 256) e = -MLR_PAN_STEPS * 256;
+	if (e >  MLR_PAN_STEPS * 256) e =  MLR_PAN_STEPS * 256;
+	return e;
+}
+
+int __not_in_flash_func(mlr_pan_effective_q8)(int track)
+{
+	return pan_effective_q8(&mlr_tracks[track]);
+}
+
+/* Recompute target gains from the (gliding) base pan + CV offset. Gains come
+ * off the equal-power table at every glide position, so a sweep holds level. */
+static void __not_in_flash_func(pan_update_gains)(mlr_track_t *tr)
+{
+	int e = pan_effective_q8(tr);
+	tr->pan_gl = pan_gain_interp(e + MLR_PAN_STEPS * 256);
+	tr->pan_gr = pan_gain_interp(MLR_PAN_STEPS * 256 - e);
+	if (!tr->playing) {  /* nothing audible to slew */
+		tr->pan_gl_cur = tr->pan_gl;
+		tr->pan_gr_cur = tr->pan_gr;
+	}
+}
+
+void __not_in_flash_func(mlr_set_pan_cv)(int track, int offset_q8)
+{
+	if (track < 0 || track >= MLR_NUM_TRACKS) return;
+	if (offset_q8 < -2 * MLR_PAN_STEPS * 256) offset_q8 = -2 * MLR_PAN_STEPS * 256;
+	if (offset_q8 >  2 * MLR_PAN_STEPS * 256) offset_q8 =  2 * MLR_PAN_STEPS * 256;
+	mlr_track_t *tr = &mlr_tracks[track];
+	if (tr->pan_cv_q8 == offset_q8) return;
+	tr->pan_cv_q8 = (int16_t)offset_q8;
+	pan_update_gains(tr);
+}
+
+int __not_in_flash_func(mlr_pan_default)(int track)
+{
+	if (track < 0 || track >= MLR_NUM_TRACKS) return -MLR_PAN_STEPS;
+	return (mlr_tracks[track].recorded_channel & 0x01) ? MLR_PAN_STEPS : -MLR_PAN_STEPS;
+}
+
+void __not_in_flash_func(mlr_set_pan)(int track, int pan)
+{
+	if (track < 0 || track >= MLR_NUM_TRACKS) return;
+	if (pan < -MLR_PAN_STEPS) pan = -MLR_PAN_STEPS;
+	if (pan >  MLR_PAN_STEPS) pan =  MLR_PAN_STEPS;
+	mlr_track_t *tr = &mlr_tracks[track];
+	tr->pan = (int8_t)pan;
+	/* Playing tracks glide there one step per 100 ms (mix_track_route); a
+	 * stopped track has nothing audible to glide, so it lands now. */
+	if (!tr->playing) tr->pan_pos = pan * (1 << 20);
+	pan_update_gains(tr);
+}
+
+/* Ladder stage coefficients, Q15 (G = g / (1 + g), g = tan(pi * fc / 24000)),
+ * chosen so the whole resonant (k = 1) ladder is -3 dB at 250 Hz, 600 Hz,
+ * 1.5 kHz and 4 kHz, peaking +2.3 dB just below; then open (passthrough). */
+static const uint16_t lpf_coef[MLR_LPF_SLOTS] = { 1062, 2441, 5539, 12165, 32768 };
+
+/* Ladder input stage: tanh over 0..2x full scale in steps of 1/64, Q15.
+ * Unity gain for small signals; rounds full-scale peaks by ~2.4 dB. */
+static const int16_t lpf_tanh[129] = {
+	0, 512, 1024, 1535, 2045, 2555, 3063, 3570, 4075, 4578, 5079, 5577,
+	6073, 6566, 7056, 7542, 8025, 8505, 8980, 9452, 9919, 10382, 10840, 11294,
+	11742, 12186, 12625, 13058, 13486, 13908, 14325, 14737, 15142, 15542, 15936, 16324,
+	16706, 17081, 17451, 17815, 18173, 18524, 18869, 19208, 19541, 19868, 20189, 20503,
+	20812, 21114, 21411, 21701, 21986, 22264, 22537, 22804, 23065, 23320, 23570, 23815,
+	24053, 24287, 24515, 24738, 24955, 25168, 25375, 25578, 25775, 25968, 26156, 26339,
+	26518, 26693, 26863, 27029, 27190, 27348, 27501, 27650, 27796, 27937, 28075, 28210,
+	28340, 28468, 28592, 28712, 28829, 28943, 29054, 29162, 29267, 29369, 29469, 29565,
+	29659, 29750, 29839, 29925, 30009, 30090, 30169, 30246, 30321, 30393, 30464, 30532,
+	30599, 30663, 30726, 30787, 30846, 30903, 30959, 31013, 31066, 31117, 31166, 31215,
+	31261, 31306, 31350, 31393, 31435, 31475, 31514, 31552, 31588
+};
+
+/* Q15 multiply for ladder values up to |d| < 2^23 without 64-bit math. */
+static inline int32_t __not_in_flash_func(lpf_mul)(int32_t d, int32_t g)
+{
+	return (((d >> 8) * g) >> 7) + (((d & 255) * g) >> 15);
+}
+
+/* Cache G and the zero-delay feedback terms: G^4 and 1 / (1 + G^4), Q15. */
+static inline void __not_in_flash_func(lpf_set_coef)(mlr_track_t *tr, uint16_t g)
+{
+	uint32_t g2 = ((uint32_t)g * g) >> 15;
+	uint32_t g4 = (g2 * g2) >> 15;
+	tr->lpf_g = g;
+	tr->lpf_g4 = (uint16_t)(g4 > 32768u ? 32768u : g4);
+	tr->lpf_r = (uint16_t)((1u << 30) / (32768u + tr->lpf_g4));
+}
+
+void __not_in_flash_func(mlr_set_lpf)(int track, int slot)
+{
+	if (track < 0 || track >= MLR_NUM_TRACKS) return;
+	if (slot < 0) slot = 0;
+	if (slot > MLR_LPF_OPEN) slot = MLR_LPF_OPEN;
+	mlr_track_t *tr = &mlr_tracks[track];
+	tr->lpf_slot = (uint8_t)slot;
+	uint32_t target = (uint32_t)slot << 20;
+	tr->lpf_target = target;
+	if (!tr->playing) {  /* nothing audible to glide */
+		tr->lpf_pos = target;
+		lpf_set_coef(tr, lpf_coef[slot]);
+		return;
+	}
+	/* constant speed: one key per MLR_LPF_GLIDE_SAMPLES (500 ms per step) */
+	tr->lpf_step = (1u << 20) / MLR_LPF_GLIDE_SAMPLES;
+}
+
+/* Coefficient at a fractional cutoff position (slot << 20): linear between
+ * the two neighbouring slots, which are roughly an octave apart. The fine
+ * scale keeps every 500 ms glide within ~0.5% of its length. */
+static inline uint16_t __not_in_flash_func(lpf_coef_at)(uint32_t pos)
+{
+	uint32_t i = pos >> 20;
+	if (i >= MLR_LPF_OPEN) return lpf_coef[MLR_LPF_OPEN];
+	uint32_t f = (pos >> 12) & 255u;
+	int32_t a = lpf_coef[i], b = lpf_coef[i + 1];
+	return (uint16_t)(a + (((b - a) * (int32_t)f) >> 8));
+}
+
+/* CV: put the cutoff at a position directly, no glide. The nearest key
+ * becomes the track's stored cutoff (what a save or the grid display uses). */
+void __not_in_flash_func(mlr_set_lpf_pos)(int track, uint32_t pos)
+{
+	if (track < 0 || track >= MLR_NUM_TRACKS) return;
+	if (pos > ((uint32_t)MLR_LPF_OPEN << 20)) pos = (uint32_t)MLR_LPF_OPEN << 20;
+	mlr_track_t *tr = &mlr_tracks[track];
+	tr->lpf_target = pos;
+	if (tr->lpf_pos == pos) return;
+	tr->lpf_pos = pos;
+	tr->lpf_slot = (uint8_t)((pos + (1u << 19)) >> 20);
+	lpf_set_coef(tr, lpf_coef_at(pos));
+}
+
+/* mlr_set_lpf_pos for several tracks at once (CV In 2 on a set of tracks):
+ * the coefficients depend only on pos, so they're worked out once and copied,
+ * which keeps a 6-track CV sweep cheap on the audio core. */
+void __not_in_flash_func(mlr_set_lpf_pos_mask)(uint8_t mask, uint32_t pos)
+{
+	if (pos > ((uint32_t)MLR_LPF_OPEN << 20)) pos = (uint32_t)MLR_LPF_OPEN << 20;
+	mlr_track_t *src = NULL;
+	for (int t = 0; t < MLR_NUM_TRACKS; t++) {
+		if (!(mask & (1u << t))) continue;
+		mlr_track_t *tr = &mlr_tracks[t];
+		tr->lpf_target = pos;
+		if (tr->lpf_pos == pos) continue;
+		tr->lpf_pos = pos;
+		tr->lpf_slot = (uint8_t)((pos + (1u << 19)) >> 20);
+		if (!src) {
+			lpf_set_coef(tr, lpf_coef_at(pos));
+			src = tr;
+		} else {
+			tr->lpf_g = src->lpf_g;
+			tr->lpf_g4 = src->lpf_g4;
+			tr->lpf_r = src->lpf_r;
+		}
+	}
+}
+
 /* Smoothly swap a track's output channel. If the track is currently
  * playing, queues a fade-out → swap → fade-in around the change to
  * avoid the click that would otherwise occur from re-routing the active
@@ -754,7 +1011,9 @@ void __not_in_flash_func(mlr_set_recorded_channel)(int track, uint8_t channel)
 	channel &= 0x01;
 	mlr_track_t *tr = &mlr_tracks[track];
 
-	if (!tr->has_content || !tr->playing || tr->stop_pending) {
+	/* Playing modes: the channel only picks the record input; pan sets the
+	 * output, so there's nothing audible to fade. */
+	if (mlr_pan_enabled || !tr->has_content || !tr->playing || tr->stop_pending) {
 		tr->recorded_channel = channel;
 		tr->channel_swap_pending = false;
 		return;
@@ -782,7 +1041,7 @@ void mlr_choke_group_set_loop(int t, int a, int b)
 /* Init — load track metadata from flash, pre-fill rings              */
 /* ------------------------------------------------------------------ */
 
-void mlr_init(void)
+void MLR_COLD_FUNC mlr_init(void)
 {
 	memset(mlr_tracks, 0, sizeof(mlr_tracks));
 	memset(&mlr_page_ring, 0, sizeof(mlr_page_ring));
@@ -807,6 +1066,7 @@ void mlr_init(void)
 		mlr_track_t *tr = &mlr_tracks[t];
 		tr->pcm.w = 0;
 		tr->pcm.r = 0;
+		fill_rot_reset(tr);
 
 		/* default speed/reverse for all tracks (including empty tracks) */
 		tr->speed_shift = 0;
@@ -820,7 +1080,7 @@ void mlr_init(void)
 		tr->volume_frac = 256;
 		tr->volume_target = 256;
 		tr->recorded_channel  = 0;
-		tr->pan_class         = 0;
+		tr->rate_mark         = MLR_RATE_MARK_24K;
 		tr->cv1_pitch_enabled = true;
 		tr->channel_user_chosen = false;
 
@@ -835,13 +1095,11 @@ void mlr_init(void)
 			tr->num_keyframes  = hdr->num_keyframes;
 			tr->record_speed_shift = hdr->record_speed_shift;
 			tr->recorded_channel   = hdr->recorded_channel & 0x01;
-			tr->pan_class          = (hdr->pan_class <= 2) ? hdr->pan_class : 0;
+			tr->rate_mark          = hdr->rate_mark;
 			tr->cv1_pitch_enabled  = (hdr->cv1_pitch_mode == MLR_CV1_PITCH_ENABLED_MODE);
 			tr->playing        = false;
 			tr->playhead       = 0;
 
-			memcpy(tr->keyframes, hdr->keyframes,
-			       hdr->num_keyframes * sizeof(mlr_keyframe_channels_t));
 
 			/* init fill state at beginning */
 			tr->fill_byte_pos   = 0;
@@ -851,8 +1109,8 @@ void mlr_init(void)
 				tr->fill_decode[ch].predictor  = 0;
 				tr->fill_decode[ch].step_index = 0;
 				if (tr->num_keyframes > 0) {
-					tr->fill_decode[ch].predictor  = tr->keyframes[0].ch[ch].predictor;
-					tr->fill_decode[ch].step_index = tr->keyframes[0].ch[ch].step_index;
+					tr->fill_decode[ch].predictor  = hdr->keyframes[0].ch[ch].predictor;
+					tr->fill_decode[ch].step_index = hdr->keyframes[0].ch[ch].step_index;
 				}
 			}
 			tr->fill_seek_pending = false;
@@ -862,13 +1120,22 @@ void mlr_init(void)
 		}
 	}
 
-	/* load saved scene (track state + patterns + recalls) */
+	/* load saved scene (track state + patterns + recalls + settings) */
+	mlr_rot_range_pct = MLR_ROT_RANGE_DEFAULT;
+	mlr_cv2_mode = MLR_CV2_MODE_FILTER;
+	mlr_cv1_target = mlr_cv2_target = MLR_CV_TARGET_LAST;
+	for (int t = 0; t < MLR_NUM_TRACKS; t++) {
+		mlr_set_pan(t, mlr_pan_default(t));  /* until the scene says otherwise */
+		mlr_set_lpf(t, MLR_LPF_OPEN);
+	}
 	mlr_scene_load();
 }
 
 /** Re-read a single track's header from flash.
- *  Call only when the track is stopped (not playing, not recording). */
-void mlr_rescan_track(int track)
+ *  Call only when the track is stopped (not playing, not recording).
+ *  Keeps the track's scene settings (speed, reverse, volume, loop) so a
+ *  sample-manager session doesn't reset them. */
+void MLR_COLD_FUNC mlr_rescan_track(int track)
 {
 	if (track < 0 || track >= MLR_NUM_TRACKS) return;
 
@@ -876,11 +1143,23 @@ void mlr_rescan_track(int track)
 	const mlr_track_header_t *hdr = (const mlr_track_header_t *)
 		(XIP_BASE + MLR_TRACK_OFFSET(track));
 
+	const int8_t  keep_speed_shift = tr->speed_shift;
+	const bool    keep_reverse     = tr->reverse;
+	const uint8_t keep_volume_slot = tr->volume_slot;
+	const bool    keep_loop        = tr->loop_active;
+	const int8_t  keep_pan         = tr->pan;
+	const bool    had_content      = tr->has_content;
+	const uint32_t old_samples     = tr->length_samples;
+	const uint32_t old_bytes       = tr->length_bytes;
+	const int     keep_loop_start  = tr->loop_col_start;
+	const int     keep_loop_end    = tr->loop_col_end;
+
 	/* Reset playback state */
 	tr->playing = false;
 	tr->has_content = false;
 	tr->pcm.w = 0;
 	tr->pcm.r = 0;
+	fill_rot_reset(tr);
 	tr->speed_shift = 0;
 	tr->record_speed_shift = 0;
 	tr->speed_frac  = 256;
@@ -894,7 +1173,7 @@ void mlr_rescan_track(int track)
 	tr->volume_frac = 256;
 	tr->volume_target = 256;
 	tr->recorded_channel  = 0;
-	tr->pan_class         = 0;
+	tr->rate_mark         = MLR_RATE_MARK_24K;
 	tr->cv1_pitch_enabled = true;
 	tr->channel_user_chosen = false;
 	tr->fill_seek_pending = false;
@@ -910,12 +1189,10 @@ void mlr_rescan_track(int track)
 		tr->num_keyframes  = hdr->num_keyframes;
 		tr->record_speed_shift = hdr->record_speed_shift;
 		tr->recorded_channel   = hdr->recorded_channel & 0x01;
-		tr->pan_class          = (hdr->pan_class <= 2) ? hdr->pan_class : 0;
+		tr->rate_mark          = hdr->rate_mark;
 		tr->cv1_pitch_enabled  = (hdr->cv1_pitch_mode == MLR_CV1_PITCH_ENABLED_MODE);
 		tr->playhead       = 0;
 
-		memcpy(tr->keyframes, hdr->keyframes,
-		       hdr->num_keyframes * sizeof(mlr_keyframe_channels_t));
 
 		tr->fill_byte_pos   = 0;
 		tr->fill_high_nyb   = false;
@@ -924,11 +1201,25 @@ void mlr_rescan_track(int track)
 			tr->fill_decode[ch].predictor  = 0;
 			tr->fill_decode[ch].step_index = 0;
 			if (tr->num_keyframes > 0) {
-				tr->fill_decode[ch].predictor  = tr->keyframes[0].ch[ch].predictor;
-				tr->fill_decode[ch].step_index = tr->keyframes[0].ch[ch].step_index;
+				tr->fill_decode[ch].predictor  = hdr->keyframes[0].ch[ch].predictor;
+				tr->fill_decode[ch].step_index = hdr->keyframes[0].ch[ch].step_index;
 			}
 		}
 	}
+
+	/* Same setters mlr_scene_load() uses; loops need content to map columns. */
+	mlr_set_speed(track, keep_speed_shift);
+	mlr_set_reverse(track, keep_reverse);
+	mlr_set_volume(track, keep_volume_slot);
+	if (keep_loop && keep_loop_start >= 0 && keep_loop_end >= 0)
+		restore_loop_stopped(track, keep_loop_start, keep_loop_end);  /* don't start it */
+	/* New audio (uploaded or erased) starts hard to its channel side. */
+	bool same_audio = had_content == tr->has_content &&
+	                  old_samples == tr->length_samples && old_bytes == tr->length_bytes;
+	if (!same_audio) tr->pan_cv_q8 = 0;
+	/* ...unless the sample manager set it for this audio. */
+	mlr_set_pan(track, (same_audio || tr->pan_keep) ? keep_pan : mlr_pan_default(track));
+	tr->pan_keep = false;
 }
 
 /* ------------------------------------------------------------------ */
@@ -963,8 +1254,13 @@ void __not_in_flash_func(mlr_start_record)(int track)
 
 	tr->pcm.w = 0;
 	tr->pcm.r = 0;
-	/* preserve speed_shift / speed_frac — recording is speed-linked */
-	tr->record_speed_shift = tr->speed_shift;
+	fill_rot_reset(tr);
+	/* Recording follows slower speed slots but is capped at 1x. Preserve the
+	 * selected playback speed while storing the actual recording speed. */
+	tr->record_speed_shift = tr->speed_shift > 0 ? 0 : tr->speed_shift;
+	mlr_tracks[track].pan_cv_q8 = 0;
+	mlr_set_pan(track, mlr_pan_default(track));  /* new audio: hard to its channel side */
+	tr->rate_mark = MLR_RATE_MARK_24K;
 	tr->speed_frac  = speed_shift_to_frac(tr->speed_shift);
 	tr->speed_accum = 0;
 	reset_track_audio_state(tr);
@@ -1071,9 +1367,7 @@ void __not_in_flash_func(mlr_stop_record)(void)
 	/* update track metadata — track becomes playable once header is written */
 	tr->length_samples = rec_samples;
 	tr->length_bytes   = actual_bytes;
-	tr->num_keyframes  = rec_num_keyframes;
-	memcpy(tr->keyframes, rec_keyframes,
-	       rec_num_keyframes * sizeof(mlr_keyframe_channels_t));
+	tr->num_keyframes  = rec_num_keyframes;  /* keyframes stay in rec_keyframes until the header write */
 
 	hdr_write_track   = rec_track_idx;
 	hdr_write_start_playback = true;
@@ -1249,13 +1543,92 @@ int16_t __not_in_flash_func(mlr_play_mix)(uint8_t volume)
 	return (int16_t)(mix >> 4);
 }
 
-/* Grid-mode dual-output mix.
- *
- * Walks the same tracks as mlr_play_mix() but routes each track's contribution
- * to L or R based on tr->recorded_channel (0 = L/AudioOut1, 1 = R/AudioOut2).
- * Multiple tracks on the same channel sum on that bus; the other bus stays
- * silent for those tracks. This keeps gridless mode untouched (which still
- * uses the single-output mlr_play_mix). */
+/* Route one track's sample to the two outputs: the ladder filter, then an
+ * equal-power pan slewed ~20 ms end to end so pan moves don't click. Grid and
+ * gridless modes both do this (gridless just has no controls for them).
+ * With mlr_pan_enabled off, hard to the track's recorded channel, unfiltered. */
+#define MLR_PAN_SLEW_STEP 64u
+static inline uint16_t pan_slew(uint16_t cur, uint16_t target)
+{
+	if (cur < target) return (uint16_t)((uint32_t)(target - cur) > MLR_PAN_SLEW_STEP ? cur + MLR_PAN_SLEW_STEP : target);
+	return (uint16_t)((uint32_t)(cur - target) > MLR_PAN_SLEW_STEP ? cur - MLR_PAN_SLEW_STEP : target);
+}
+
+static inline void __not_in_flash_func(mix_track_route)(mlr_track_t *tr, int32_t s,
+	int32_t *mixL, int32_t *mixR)
+{
+	if (!mlr_pan_enabled) {
+		if (tr->recorded_channel == 1) *mixR += s;
+		else                           *mixL += s;
+		return;
+	}
+
+	/* 4-pole ladder low-pass (Moog style, resonance 0): tanh input stage, then
+	 * four TPT one-pole stages. The cutoff position glides to its target at one
+	 * key per 500 ms, in key positions so the sweep is even by ear; open = exact
+	 * passthrough, no saturation. */
+	if (tr->lpf_pos != tr->lpf_target) {
+		uint32_t pos = tr->lpf_pos, target = tr->lpf_target, step = tr->lpf_step;
+		if (pos < target) pos = (target - pos > step) ? pos + step : target;
+		else              pos = (pos - target > step) ? pos - step : target;
+		tr->lpf_pos = pos;
+		lpf_set_coef(tr, lpf_coef_at(pos));
+	}
+	uint16_t G = tr->lpf_g;
+	if (G >= 32768u) {
+		int32_t q = s * 16;  /* keep the states on the signal for a click-free close */
+		tr->lpf_s[0] = tr->lpf_s[1] = tr->lpf_s[2] = tr->lpf_s[3] = q;
+	} else {
+		/* Zero-delay feedback, k = 1. Each TPT stage is y = G*x + (1-G)*s, so
+		 * the ladder output is y4 = G^4*x + S, where S is what the states
+		 * alone contribute. With x = u - y4 the loop solves exactly:
+		 * y4 = (G^4*u + S) / (1 + G^4). Values are Q4 (1/16 sample). */
+		int32_t g = (int32_t)G;
+		int32_t u = s * 16;
+		int32_t S = tr->lpf_s[0] - lpf_mul(tr->lpf_s[0], g);
+		for (int k = 1; k < 4; k++)
+			S = lpf_mul(S, g) + (tr->lpf_s[k] - lpf_mul(tr->lpf_s[k], g));
+		int32_t y4 = lpf_mul(lpf_mul(u, tr->lpf_g4) + S, tr->lpf_r);
+
+		/* input stage: tanh on the fed-back input, unity small-signal gain */
+		int32_t xin = (u - y4) >> 4;
+		uint32_t m = (uint32_t)(xin < 0 ? -xin : xin);
+		int32_t x;
+		if (m >= 65536u) {
+			x = lpf_tanh[128];
+		} else {
+			uint32_t i = m >> 9, f = m & 511u;
+			x = lpf_tanh[i] + (((lpf_tanh[i + 1] - lpf_tanh[i]) * (int32_t)f) >> 9);
+		}
+		int32_t in = (xin < 0 ? -x : x) * 16;
+		/* TPT one-pole: v = G*(in - s); y = v + s; s = y + v */
+		for (int k = 0; k < 4; k++) {
+			int32_t v = lpf_mul(in - tr->lpf_s[k], g);
+			int32_t y = v + tr->lpf_s[k];
+			tr->lpf_s[k] = y + v;
+			in = y;
+		}
+		/* feedback costs 1/(1+k) of the level: make it up (x2) after the drive */
+		s = in >> 3;
+	}
+
+	/* pan glide: constant speed, one step per MLR_PAN_GLIDE_SAMPLES; the
+	 * gain slew below still smooths CV moves and each glide increment */
+	int32_t pan_target = tr->pan * (1 << 20);
+	if (tr->pan_pos != pan_target) {
+		const int32_t step = (int32_t)((1u << 20) / MLR_PAN_GLIDE_SAMPLES);
+		int32_t d = pan_target - tr->pan_pos;
+		tr->pan_pos = (d > step) ? tr->pan_pos + step : (d < -step) ? tr->pan_pos - step : pan_target;
+		pan_update_gains(tr);
+	}
+
+	uint16_t gl = tr->pan_gl_cur, gr = tr->pan_gr_cur;
+	if (gl != tr->pan_gl) tr->pan_gl_cur = gl = pan_slew(gl, tr->pan_gl);
+	if (gr != tr->pan_gr) tr->pan_gr_cur = gr = pan_slew(gr, tr->pan_gr);
+	if (gl) *mixL += (gl == 32768u) ? s : (s * (int32_t)gl) >> 15;
+	if (gr) *mixR += (gr == 32768u) ? s : (s * (int32_t)gr) >> 15;
+}
+
 static inline bool mix_track_steady_integer_dual(int t, mlr_track_t *tr,
 	uint8_t transition_flags, uint32_t wrap_start, uint32_t wrap_end,
 	int32_t *mixL, int32_t *mixR)
@@ -1297,8 +1670,7 @@ static inline bool mix_track_steady_integer_dual(int t, mlr_track_t *tr,
 		int32_t sample_out = tr->last_pcm[0];
 		if (tr->volume_frac != 256)
 			sample_out = (sample_out * (int32_t)tr->volume_frac) >> 8;
-		if (tr->recorded_channel == 1) *mixR += sample_out;
-		else                           *mixL += sample_out;
+		mix_track_route(tr, sample_out, mixL, mixR);
 	}
 	return true;
 }
@@ -1493,10 +1865,8 @@ static int32_t __not_in_flash_func(mlr_play_mix_dual_sum)(int32_t *out_right)
 			}
 		}
 
-		if (!tr->muted) {
-			if (tr->recorded_channel == 1) mixR += sample_out;
-			else                            mixL += sample_out;
-		}
+		if (!tr->muted)
+			mix_track_route(tr, sample_out, &mixL, &mixR);
 	}
 
 	*out_right = mixR;
@@ -1596,6 +1966,29 @@ void __not_in_flash_func(mlr_stop_track)(int track)
 /* ------------------------------------------------------------------ */
 /* Loop-a-section                                                     */
 /* ------------------------------------------------------------------ */
+
+/* Restore a saved loop on a stopped track without starting it (mlr_set_loop
+ * starts a stopped track, which is right for a grid press but not for boot or
+ * a sample-manager rescan). The next cut/play seeks inside the loop. */
+static void MLR_COLD_FUNC restore_loop_stopped(int track, int col_start, int col_end)
+{
+	mlr_track_t *tr = &mlr_tracks[track];
+	if (!tr->has_content || tr->length_samples == 0 || tr->playing) {
+		if (tr->playing) mlr_set_loop(track, col_start, col_end);
+		return;
+	}
+	if (col_start > col_end) { int tmp = col_start; col_start = col_end; col_end = tmp; }
+	if (col_start == col_end) return;
+	uint32_t start_s = (uint32_t)col_start * tr->length_samples / MLR_GRID_COLS;
+	uint32_t end_s   = (uint32_t)(col_end + 1) * tr->length_samples / MLR_GRID_COLS;
+	if (end_s > tr->length_samples) end_s = tr->length_samples;
+	if (start_s >= end_s) return;
+	tr->loop_start_sample = start_s;
+	tr->loop_end_sample   = end_s;
+	tr->loop_col_start    = col_start;
+	tr->loop_col_end      = col_end;
+	tr->loop_active       = true;
+}
 
 void __not_in_flash_func(mlr_set_loop)(int track, int col_start, int col_end)
 {
@@ -1770,11 +2163,17 @@ void __not_in_flash_func(mlr_clear_track)(int track)
 	tr->volume_frac = 256;
 	tr->volume_target = 256;
 	tr->recorded_channel    = 0;
-	tr->pan_class           = 0;
+	tr->pan = -MLR_PAN_STEPS; tr->pan_cv_q8 = 0; tr->pan_keep = false;
+	tr->pan_pos = -MLR_PAN_STEPS * (1 << 20);
+	tr->lpf_slot = MLR_LPF_OPEN; lpf_set_coef(tr, 32768u);
+	tr->lpf_pos = tr->lpf_target = (uint32_t)MLR_LPF_OPEN << 20;
+	tr->pan_gl = tr->pan_gl_cur = 32768u; tr->pan_gr = tr->pan_gr_cur = 0;
+	tr->rate_mark           = MLR_RATE_MARK_24K;
 	tr->cv1_pitch_enabled   = true;
 	tr->channel_user_chosen = false;
 	tr->pcm.w = 0;
 	tr->pcm.r = 0;
+	fill_rot_reset(tr);
 
 	/* schedule flash erase of header sector */
 	clear_track   = track;
@@ -1902,6 +2301,12 @@ static void __not_in_flash_func(event_exec)(const mlr_event_t *e)
 	case MLR_EVT_GROUP_VOLUME:
 		/* legacy event — group-broadcast removed; apply to single track. */
 		mlr_set_volume(e->track, e->param_a);
+		break;
+	case MLR_EVT_PAN:
+		mlr_set_pan(e->track, e->param_a);
+		break;
+	case MLR_EVT_LPF:
+		mlr_set_lpf(e->track, e->param_a);
 		break;
 	case MLR_EVT_CHANNEL:
 		if (e->track < MLR_NUM_TRACKS) {
@@ -2399,18 +2804,28 @@ void __not_in_flash_func(mlr_recall_task)(void)
 					recall_snapshot_track_step = 3;
 					break;
 				case 3:
-					emitted = recall_snapshot_add(MLR_EVT_VOLUME, recall_snapshot_track,
-						(int8_t)tr->volume_slot, 0);
+					emitted = recall_snapshot_add(MLR_EVT_PAN, recall_snapshot_track,
+						tr->pan, 0);
+					recall_snapshot_track_step = 33;
+					break;
+				case 33:
+					emitted = recall_snapshot_add(MLR_EVT_LPF, recall_snapshot_track,
+						(int8_t)tr->lpf_slot, 0);
 					recall_snapshot_track_step = 4;
 					break;
 				case 4:
+					emitted = recall_snapshot_add(MLR_EVT_VOLUME, recall_snapshot_track,
+						(int8_t)tr->volume_slot, 0);
+					recall_snapshot_track_step = 5;
+					break;
+				case 5:
 					if (tr->loop_active) {
 						emitted = recall_snapshot_add(MLR_EVT_LOOP, recall_snapshot_track,
 							(int8_t)tr->loop_col_start, (int8_t)tr->loop_col_end);
 					} else {
 						emitted = recall_snapshot_add(MLR_EVT_LOOP_CLR, recall_snapshot_track, 0, 0);
 					}
-					recall_snapshot_track_step = 5;
+					recall_snapshot_track_step = 6;
 					break;
 				default:
 					if (tr->has_content) {
@@ -2527,6 +2942,12 @@ void mlr_recall_clear(int slot)
  *   [...]  recall events (count * sizeof(mlr_event_t) per recall, concatenated)
  *   [...]  groups_version (uint8_t) + mlr_track_groups[MLR_NUM_TRACKS] (7 bytes)
  *   [...]  gate_version  (uint8_t) + mlr_gate_mode[MLR_NUM_TRACKS]    (7 bytes)
+ *   [...]  settings_version (uint8_t) + mlr_rot_range_pct (uint8_t)    (2 bytes)
+ *   [...]  pan_version (uint8_t) + int8_t pan[MLR_NUM_TRACKS]          (7 bytes)
+ *   [...]  lpf_version (uint8_t) + uint8_t lpf_slot[MLR_NUM_TRACKS]    (7 bytes)
+ *   [...]  cv2_version (uint8_t) + mlr_cv2_mode (uint8_t)              (2 bytes)
+ *   [...]  cvt_version (uint8_t) + mlr_cv1_target + mlr_cv2_target    (3 bytes)
+ *          (v2: track masks; v1: 0 = last touched, 1..6 = one track)
  *   [end]  uint32_t CRC32 (over everything from offset 0 to here)
  *
  * Loaders gate the trailing groups / gate_mode blocks on data_len, so
@@ -2558,6 +2979,11 @@ enum {
 	MLR_SCENE_RECALL_EVENT_BYTES = MLR_NUM_RECALLS * MLR_PATTERN_MAX_EVENTS * sizeof(mlr_event_t),
 	MLR_SCENE_GROUP_BYTES = 1 + MLR_NUM_TRACKS,
 	MLR_SCENE_GATE_BYTES = 1 + MLR_NUM_TRACKS,
+	MLR_SCENE_SETTINGS_BYTES = 2,
+	MLR_SCENE_PAN_BYTES = 1 + MLR_NUM_TRACKS,
+	MLR_SCENE_LPF_BYTES = 1 + MLR_NUM_TRACKS,
+	MLR_SCENE_CV2_BYTES = 2,
+	MLR_SCENE_CVT_BYTES = 3,
 	MLR_SCENE_CRC_BYTES = 4,
 	MLR_SCENE_MAX_SERIALIZED_BYTES =
 		MLR_SCENE_HEADER_BYTES +
@@ -2568,6 +2994,11 @@ enum {
 		MLR_SCENE_RECALL_EVENT_BYTES +
 		MLR_SCENE_GROUP_BYTES +
 		MLR_SCENE_GATE_BYTES +
+		MLR_SCENE_SETTINGS_BYTES +
+		MLR_SCENE_PAN_BYTES +
+		MLR_SCENE_LPF_BYTES +
+		MLR_SCENE_CV2_BYTES +
+		MLR_SCENE_CVT_BYTES +
 		MLR_SCENE_CRC_BYTES,
 	MLR_SCENE_STAGING_BYTES =
 		((MLR_SCENE_MAX_SERIALIZED_BYTES + MLR_PAGE_SIZE - 1) / MLR_PAGE_SIZE) * MLR_PAGE_SIZE
@@ -2673,6 +3104,29 @@ static uint32_t scene_serialize(void)
 	for (int t = 0; t < MLR_NUM_TRACKS; t++)
 		scene_blob[pos++] = mlr_gate_mode[t] ? 1 : 0;
 
+	/* card-wide settings (appended at v1; follows gate_mode) */
+	scene_blob[pos++] = 1;  /* settings version */
+	scene_blob[pos++] = mlr_rot_range_pct;
+
+	/* per-track pan (appended at v1; follows settings) */
+	scene_blob[pos++] = 1;  /* pan version */
+	for (int t = 0; t < MLR_NUM_TRACKS; t++)
+		scene_blob[pos++] = (uint8_t)mlr_tracks[t].pan;
+
+	/* per-track low-pass slot (appended at v1; follows pan) */
+	scene_blob[pos++] = 1;  /* lpf version */
+	for (int t = 0; t < MLR_NUM_TRACKS; t++)
+		scene_blob[pos++] = mlr_tracks[t].lpf_slot;
+
+	/* what CV In 2 drives (appended at v1; follows lpf) */
+	scene_blob[pos++] = 1;  /* cv2 version */
+	scene_blob[pos++] = mlr_cv2_mode;
+
+	/* which tracks each CV input acts on (appended at v1; follows cv2) */
+	scene_blob[pos++] = 2;  /* cvt version: track masks */
+	scene_blob[pos++] = mlr_cv1_target;
+	scene_blob[pos++] = mlr_cv2_target;
+
 	/* write data_len */
 	uint32_t data_len = pos - 8;
 	memcpy(&scene_blob[len_pos], &data_len, 4);
@@ -2687,7 +3141,7 @@ static uint32_t scene_serialize(void)
 	return pos;
 }
 
-void mlr_scene_load(void)
+void MLR_COLD_FUNC mlr_scene_load(void)
 {
 	const uint8_t *flash = (const uint8_t *)(XIP_BASE + MLR_SCENE_OFFSET);
 
@@ -2733,7 +3187,7 @@ void mlr_scene_load(void)
 		/* restore loop boundaries */
 		if (ts.loop_col_start >= 0 && ts.loop_col_end >= 0 &&
 		    mlr_tracks[t].has_content) {
-			mlr_set_loop(t, ts.loop_col_start, ts.loop_col_end);
+			restore_loop_stopped(t, ts.loop_col_start, ts.loop_col_end);  /* don't start it */
 		}
 	}
 
@@ -2823,6 +3277,51 @@ void mlr_scene_load(void)
 			(void)gate_version;
 			for (int t = 0; t < MLR_NUM_TRACKS; t++)
 				mlr_gate_mode[t] = flash[pos++] != 0;
+
+			/* card-wide settings (follow gate_mode) */
+			if (pos + 2 <= end) {
+				uint8_t settings_version = flash[pos++];
+				(void)settings_version;
+				uint8_t pct = flash[pos++];
+				mlr_rot_range_pct = (pct >= 1 && pct <= 100) ? pct : MLR_ROT_RANGE_DEFAULT;
+
+				/* per-track pan (follows settings); older scenes keep the
+				 * channel-side defaults set in mlr_init() */
+				if (pos + 1 + MLR_NUM_TRACKS <= end) {
+					uint8_t pan_version = flash[pos++];
+					(void)pan_version;
+					for (int t = 0; t < MLR_NUM_TRACKS; t++)
+						mlr_set_pan(t, (int8_t)flash[pos++]);
+
+					/* per-track low-pass (follows pan); older scenes stay open */
+					if (pos + 1 + MLR_NUM_TRACKS <= end) {
+						uint8_t lpf_version = flash[pos++];
+						(void)lpf_version;
+						for (int t = 0; t < MLR_NUM_TRACKS; t++)
+							mlr_set_lpf(t, flash[pos++]);
+
+						/* CV In 2 mode (follows lpf); older scenes default to filter */
+						if (pos + 2 <= end) {
+							uint8_t cv2_version = flash[pos++];
+							(void)cv2_version;
+							uint8_t mode = flash[pos++];
+							mlr_cv2_mode = (mode == MLR_CV2_MODE_ROTATION) ? MLR_CV2_MODE_ROTATION : MLR_CV2_MODE_FILTER;
+
+							/* CV targets (follow cv2); older scenes: last touched */
+							if (pos + 3 <= end) {
+								uint8_t cvt_version = flash[pos++];
+								uint8_t t1 = flash[pos++], t2 = flash[pos++];
+								if (cvt_version < 2) {  /* v1: one track number -> mask */
+									t1 = (t1 >= 1 && t1 <= MLR_NUM_TRACKS) ? (uint8_t)(1u << (t1 - 1)) : MLR_CV_TARGET_LAST;
+									t2 = (t2 >= 1 && t2 <= MLR_NUM_TRACKS) ? (uint8_t)(1u << (t2 - 1)) : MLR_CV_TARGET_LAST;
+								}
+								mlr_cv1_target = t1 & MLR_CV_TARGET_ALL;
+								mlr_cv2_target = t2 & MLR_CV_TARGET_ALL;
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -2868,6 +3367,10 @@ void __not_in_flash_func(mlr_scene_reset_params_to_defaults)(void)
 		mlr_set_reverse(t, false);
 		mlr_clear_loop(t);
 		mlr_set_volume(t, 1);
+		mlr_tracks[t].pan_cv_q8 = 0;  /* CV pan offset: back to the grid pan */
+		mlr_set_pan(t, mlr_pan_default(t));
+		mlr_set_lpf(t, MLR_LPF_OPEN);
+		mlr_tracks[t].splice_q16 = 0;  /* CV rotation: back to normal at the next wrap */
 	}
 
 	for (int p = 0; p < MLR_NUM_PATTERNS; p++) {
@@ -2884,7 +3387,123 @@ void __not_in_flash_func(mlr_scene_reset_params_to_defaults)(void)
 /* ------------------------------------------------------------------ */
 
 /** Seek fill state to an arbitrary sample position using keyframes. */
+/* ------------------------------------------------------------------ */
+/* CV rotation (core 1)                                               */
+/* ------------------------------------------------------------------ */
+
+static inline void fill_region(const mlr_track_t *tr, uint32_t *ws, uint32_t *we)
+{
+	*we = tr->loop_active ? tr->loop_end_sample   : tr->length_samples;
+	*ws = tr->loop_active ? tr->loop_start_sample : 0;
+}
+
+/* The rotation turns the whole recording; a loop is a fixed window on the
+ * grid over the rotated material, so turning the CV scrubs what it plays.
+ * The CV rotation right now, in samples (always < the track length). */
+static inline uint32_t fill_latch_rot(const mlr_track_t *tr)
+{
+	return (uint32_t)(((uint64_t)tr->length_samples * tr->splice_q16) >> 16);
+}
+
+/* Grid position of the seam (where the rotated audio reaches the end of the
+ * recording and continues from its start) if it falls strictly inside the
+ * loop/track window [ws, we); 0 = no seam to cross in this window. */
+static inline uint32_t fill_seam_pos(const mlr_track_t *tr, uint32_t ws, uint32_t we)
+{
+	uint32_t rot = tr->fill_rot, len = tr->length_samples;
+	if (rot == 0 || rot >= len) return 0;
+	uint32_t seam = len - rot;
+	return (seam > ws && seam < we) ? seam : 0u;
+}
+
+/* Audio position played at grid position v. */
+static inline uint32_t fill_audio_pos(const mlr_track_t *tr, uint32_t v, uint32_t ws, uint32_t we)
+{
+	(void)ws; (void)we;
+	uint32_t rot = tr->fill_rot, len = tr->length_samples;
+	if (rot == 0 || rot >= len) return v;
+	uint32_t a = v + rot;
+	return a >= len ? a - len : a;
+}
+
+/* Fill wrap: latch the rotation for the new cycle and remember it so the wrap
+ * preview for that wrap can be rendered with the same rotation. */
+static void fill_rot_new_cycle(mlr_track_t *tr)
+{
+	tr->fill_rot = fill_latch_rot(tr);
+	mlr_rot_event_t *ev = &tr->rot_hist[tr->rot_hist_w & (MLR_ROT_HIST_LEN - 1u)];
+	ev->ring_idx = tr->pcm.w;
+	ev->rot = tr->fill_rot;
+	tr->rot_hist_w++;
+	if (tr->rot_hist_n < MLR_ROT_HIST_LEN) tr->rot_hist_n++;
+}
+
+/* The next wrap playback will reach: the oldest recorded fill wrap still ahead
+ * of pcm.r. False if the fill hasn't wrapped yet, or if more wraps are buffered
+ * than recorded (tiny loops), so the rotation for that wrap isn't known. */
+static bool fill_rot_next_wrap(const mlr_track_t *tr, uint32_t *ring_idx, uint32_t *rot)
+{
+	uint32_t r = tr->pcm.r;
+	for (uint8_t i = tr->rot_hist_n; i > 0; i--) {
+		const mlr_rot_event_t *ev = &tr->rot_hist[(uint8_t)(tr->rot_hist_w - i) & (MLR_ROT_HIST_LEN - 1u)];
+		if ((int32_t)(ev->ring_idx - r) > 0) {
+			if (i == MLR_ROT_HIST_LEN) return false;  /* older ones may be ahead too */
+			*ring_idx = ev->ring_idx;
+			*rot = ev->rot;
+			return true;
+		}
+	}
+	return false;
+}
+
+/* Seam fade window: up to MLR_SEAM_XFADE_SAMPLES, kept inside the window on
+ * both sides of the seam. 0 = too tight, hard seam. */
+static inline uint32_t seam_window(uint32_t seam, uint32_t ws, uint32_t we)
+{
+	uint32_t n = MLR_SEAM_XFADE_SAMPLES;
+	if (n > seam - ws) n = seam - ws;
+	if (n > we - seam) n = we - seam;
+	return n >= 8u ? n : 0u;
+}
+
+/* The seam joins the recording's end to its start, so there is no audio past
+ * either end to crossfade into: fade out into the seam and back in after it. */
+static inline int16_t seam_fade(int16_t s, uint32_t dist, uint32_t n)
+{
+	return (int16_t)((int32_t)s * (int32_t)dist / (int32_t)n);
+}
+
+static void seek_fill_raw(mlr_track_t *tr, int t, uint32_t target);
+
+/* Position the fill decoder for grid position target (rotated audio). */
 static void seek_fill_to(mlr_track_t *tr, int t, uint32_t target)
+{
+	uint32_t ws, we;
+	fill_region(tr, &ws, &we);
+	seek_fill_raw(tr, t, fill_audio_pos(tr, target, ws, we));
+	tr->fill_sample_pos = target;
+	tr->fill_dec_synced = true;
+}
+
+/* Forward decode reached the seam: continue from the start of the recording. */
+static inline void fill_cross_seam_forward(mlr_track_t *tr, int t)
+{
+	uint32_t v = tr->fill_sample_pos;
+	seek_fill_raw(tr, t, 0);
+	tr->fill_sample_pos = v;
+}
+
+/* Reverse decode: largest chunk below fill_sample_pos that doesn't span the seam. */
+static inline uint32_t fill_reverse_avail(const mlr_track_t *tr, uint32_t ws, uint32_t we)
+{
+	uint32_t pos = tr->fill_sample_pos;
+	uint32_t seam = fill_seam_pos(tr, ws, we);
+	if (seam && pos > seam) return pos - seam;
+	return pos - ws;
+}
+
+/* Decoder positioning by raw audio position (fill_sample_pos = audio). */
+static void seek_fill_raw(mlr_track_t *tr, int t, uint32_t target)
 {
 	uint32_t kf_idx = target / MLR_KEYFRAME_INTERVAL;
 	if (kf_idx >= tr->num_keyframes && tr->num_keyframes > 0)
@@ -2893,8 +3512,8 @@ static void seek_fill_to(mlr_track_t *tr, int t, uint32_t target)
 	uint32_t kf_sample = kf_idx * MLR_KEYFRAME_INTERVAL;
 	if (tr->num_keyframes > 0) {
 		for (int ch = 0; ch < MLR_NUM_CHANNELS; ch++) {
-			tr->fill_decode[ch].predictor  = tr->keyframes[kf_idx].ch[ch].predictor;
-			tr->fill_decode[ch].step_index = tr->keyframes[kf_idx].ch[ch].step_index;
+			tr->fill_decode[ch].predictor  = track_keyframes(t)[kf_idx].ch[ch].predictor;
+			tr->fill_decode[ch].step_index = track_keyframes(t)[kf_idx].ch[ch].step_index;
 		}
 	} else {
 		for (int ch = 0; ch < MLR_NUM_CHANNELS; ch++) {
@@ -2940,17 +3559,40 @@ static void fill_pcm_ring_forward(int t, uint32_t max_fill)
 	uint32_t wrap_end   = tr->loop_active ? tr->loop_end_sample   : tr->length_samples;
 	uint32_t wrap_start = tr->loop_active ? tr->loop_start_sample : 0;
 
+	/* Reverse chunks leave the decoder at the chunk's end; if the direction
+	 * flipped without a seek, put it back where the fill head is. */
+	if (!tr->fill_dec_synced && tr->fill_sample_pos < wrap_end) {
+		seek_fill_to(tr, t, tr->fill_sample_pos);
+#ifdef MLR_PERF_PROFILING
+		mlr_perf_fill_resyncs++;
+#endif
+	}
+
+	uint32_t seam = fill_seam_pos(tr, wrap_start, wrap_end);
+	uint32_t win = seam ? seam_window(seam, wrap_start, wrap_end) : 0;
+
 	for (uint32_t i = 0; i < to_fill; i++) {
 		if (tr->fill_seek_pending) break;
 
 		if (tr->fill_sample_pos >= wrap_end) {
-			/* wrap: seek back to loop/track start */
+			/* wrap: back to the loop/track start, with this cycle's rotation */
+			fill_rot_new_cycle(tr);
 			seek_fill_to(tr, t, wrap_start);
+			seam = fill_seam_pos(tr, wrap_start, wrap_end);
+			win = seam ? seam_window(seam, wrap_start, wrap_end) : 0;
+		}
+		uint32_t v = tr->fill_sample_pos;
+		if (v == seam && seam) {
+			fill_cross_seam_forward(tr, t);
+			if (win) PERF_ROT(seam_fades); else PERF_ROT(seam_hard);
 		}
 
+		PERF_ROT_CHECK(tr, v, wrap_start, wrap_end);
 		uint8_t byte   = flash_data[tr->fill_byte_pos];
 		uint8_t nybble = tr->fill_high_nyb ? (byte >> 4) : (byte & 0x0F);
 		int16_t sample = adpcm_decode(nybble, &tr->fill_decode[0]);
+		if (win && v + win >= seam && v < seam + win)
+			sample = seam_fade(sample, v < seam ? seam - v : v - seam + 1u, win);
 
 		tr->pcm.buf[(tr->pcm.w % MLR_RING_SAMPLES) * MLR_NUM_CHANNELS] = sample;
 
@@ -2989,13 +3631,16 @@ static void fill_pcm_ring_reverse(int t, uint32_t max_fill)
 	while (to_fill > 0) {
 		if (tr->fill_seek_pending) break;
 
-		/* wrap: if fill_sample_pos is at or below wrap_start, jump to end */
+		/* wrap: if fill_sample_pos is at or below wrap_start, jump to end
+		 * with this cycle's rotation */
 		if (tr->fill_sample_pos <= wrap_start) {
+			fill_rot_new_cycle(tr);
 			tr->fill_sample_pos = wrap_end;
 		}
 
-		/* how many samples backwards from fill_sample_pos in this batch */
-		uint32_t avail = tr->fill_sample_pos - wrap_start;
+		/* how many samples backwards from fill_sample_pos in this batch
+		 * (never across the rotation seam) */
+		uint32_t avail = fill_reverse_avail(tr, wrap_start, wrap_end);
 		uint32_t chunk = to_fill < avail ? to_fill : avail;
 		if (chunk > MLR_KEYFRAME_INTERVAL) chunk = MLR_KEYFRAME_INTERVAL;
 		if (chunk == 0) break;
@@ -3016,14 +3661,34 @@ static void fill_pcm_ring_reverse(int t, uint32_t max_fill)
 			}
 		}
 
-		/* write into ring in reverse order */
+#ifdef MLR_PERF_PROFILING
+		{
+			/* chunk [decode_start, +chunk) must be one contiguous run of audio */
+			uint32_t a0 = fill_audio_pos(tr, decode_start, wrap_start, wrap_end);
+			uint32_t a1 = fill_audio_pos(tr, decode_start + chunk - 1u, wrap_start, wrap_end);
+			mlr_perf_rot_samples++;
+			if (a1 != a0 + chunk - 1u) mlr_perf_rot_map_errors++;
+		}
+#endif
+		/* write into ring in reverse order, smoothing the rotation seam */
+		uint32_t seam = fill_seam_pos(tr, wrap_start, wrap_end);
+		uint32_t win = seam ? seam_window(seam, wrap_start, wrap_end) : 0;
+		uint32_t top = decode_start + chunk;
 		for (uint32_t i = 0; i < chunk; i++) {
-			tr->pcm.buf[(tr->pcm.w % MLR_RING_SAMPLES) * MLR_NUM_CHANNELS] = rev_decode_tmp[chunk - 1 - i];
+			int16_t sample = rev_decode_tmp[chunk - 1 - i];
+			uint32_t u = top - 1u - i;
+			if (win && u + win >= seam && u < seam + win)
+				sample = seam_fade(sample, u >= seam ? u - seam + 1u : seam - u, win);
+			tr->pcm.buf[(tr->pcm.w % MLR_RING_SAMPLES) * MLR_NUM_CHANNELS] = sample;
 			__dmb();
 			tr->pcm.w++;
 		}
+		if (seam && decode_start == seam) {
+			if (win) PERF_ROT(seam_fades); else PERF_ROT(seam_hard);
+		}
 
 		tr->fill_sample_pos = decode_start;
+		tr->fill_dec_synced = false;
 		to_fill -= chunk;
 	}
 }
@@ -3069,6 +3734,8 @@ static uint16_t fill_seek_preview_forward(int t)
 		if (tr->fill_sample_pos >= wrap_end) {
 			seek_fill_to(tr, t, wrap_start);
 		}
+		if (tr->fill_rot && tr->fill_sample_pos == fill_seam_pos(tr, wrap_start, wrap_end))
+			fill_cross_seam_forward(tr, t);
 
 		uint8_t byte   = flash_data[tr->fill_byte_pos];
 		uint8_t nybble = tr->fill_high_nyb ? (byte >> 4) : (byte & 0x0F);
@@ -3099,7 +3766,7 @@ static uint16_t fill_seek_preview_reverse(int t)
 			tr->fill_sample_pos = wrap_end;
 		}
 
-		uint32_t avail = tr->fill_sample_pos - wrap_start;
+		uint32_t avail = fill_reverse_avail(tr, wrap_start, wrap_end);
 		uint32_t remaining = (uint32_t)MLR_SEEK_PREVIEW_SAMPLES - written;
 		uint32_t chunk = remaining < avail ? remaining : avail;
 		if (chunk > MLR_KEYFRAME_INTERVAL) chunk = MLR_KEYFRAME_INTERVAL;
@@ -3125,6 +3792,7 @@ static uint16_t fill_seek_preview_reverse(int t)
 		}
 
 		tr->fill_sample_pos = decode_start;
+		tr->fill_dec_synced = false;
 	}
 
 	return written;
@@ -3143,6 +3811,8 @@ static uint16_t fill_wrap_preview_forward(int t, uint32_t steps)
 			if (tr->fill_sample_pos >= wrap_end) {
 				seek_fill_to(tr, t, wrap_start);
 			}
+			if (tr->fill_rot && tr->fill_sample_pos == fill_seam_pos(tr, wrap_start, wrap_end))
+				fill_cross_seam_forward(tr, t);
 
 			uint8_t byte   = flash_data[tr->fill_byte_pos];
 			uint8_t nybble = tr->fill_high_nyb ? (byte >> 4) : (byte & 0x0F);
@@ -3175,7 +3845,7 @@ static uint16_t fill_wrap_preview_reverse(int t, uint32_t steps)
 			tr->fill_sample_pos = wrap_end;
 		}
 
-		uint32_t avail = tr->fill_sample_pos - wrap_start;
+		uint32_t avail = fill_reverse_avail(tr, wrap_start, wrap_end);
 		uint32_t chunk_outputs = (uint32_t)MLR_SEEK_PREVIEW_SAMPLES - written;
 		uint32_t max_outputs = avail / steps;
 		if (chunk_outputs > max_outputs) chunk_outputs = max_outputs;
@@ -3226,6 +3896,8 @@ static uint16_t render_wrap_preview_forward(int t, uint16_t start_accum)
 		if (tr->fill_sample_pos >= wrap_end) {
 			seek_fill_to(tr, t, wrap_start);
 		}
+		if (tr->fill_rot && tr->fill_sample_pos == fill_seam_pos(tr, wrap_start, wrap_end))
+			fill_cross_seam_forward(tr, t);
 		uint8_t byte   = flash_data[tr->fill_byte_pos];
 		uint8_t nybble = tr->fill_high_nyb ? (byte >> 4) : (byte & 0x0F);
 		rev_decode_tmp[i] = adpcm_decode(nybble, &tr->fill_decode[0]);
@@ -3273,7 +3945,7 @@ static uint16_t render_wrap_preview_reverse(int t, uint16_t start_accum)
 		if (tr->fill_sample_pos <= wrap_start) {
 			tr->fill_sample_pos = wrap_end;
 		}
-		uint32_t avail = tr->fill_sample_pos - wrap_start;
+		uint32_t avail = fill_reverse_avail(tr, wrap_start, wrap_end);
 		uint32_t chunk = source_needed - written;
 		if (chunk > avail) chunk = avail;
 		if (chunk > MLR_KEYFRAME_INTERVAL) chunk = MLR_KEYFRAME_INTERVAL;
@@ -3330,16 +4002,30 @@ static void prepare_wrap_preview(int t)
 	uint32_t source_span = steps ? MLR_SEEK_PREVIEW_SAMPLES * steps :
 		wrap_preview_source_span(tr->speed_frac, tr->speed_accum);
 	if (wrap_end <= wrap_start || wrap_end - wrap_start <= source_span) return;
+
+	/* The preview is for the next wrap playback reaches, rendered with the
+	 * rotation the fill used there (the fill is ahead, so it already wrapped). */
+	uint32_t next_ring_idx, next_rot;
+	if (!fill_rot_next_wrap(tr, &next_ring_idx, &next_rot)) return;
+
 	if (tr->wrap_preview_ready &&
+	    tr->wrap_preview_ring_idx == next_ring_idx &&
+	    tr->wrap_preview_rot == next_rot &&
 	    tr->wrap_preview_reverse == tr->reverse &&
 	    tr->wrap_preview_start == wrap_start &&
 	    tr->wrap_preview_end == wrap_end &&
 	    tr->wrap_preview_speed_frac == tr->speed_frac)
 		return;
 
+	/* Core 0 must not start a crossfade from a half-rewritten preview. */
+	tr->wrap_preview_ready = false;
+	__dmb();
+
 	uint32_t saved_byte_pos = tr->fill_byte_pos;
 	bool saved_high_nyb = tr->fill_high_nyb;
 	uint32_t saved_sample_pos = tr->fill_sample_pos;
+	uint32_t saved_rot = tr->fill_rot;
+	tr->fill_rot = next_rot;
 	adpcm_state_t saved_decode[MLR_NUM_CHANNELS];
 	memcpy(saved_decode, tr->fill_decode, sizeof(saved_decode));
 
@@ -3365,9 +4051,12 @@ static void prepare_wrap_preview(int t)
 	tr->fill_byte_pos = saved_byte_pos;
 	tr->fill_high_nyb = saved_high_nyb;
 	tr->fill_sample_pos = saved_sample_pos;
+	tr->fill_rot = saved_rot;
 	memcpy(tr->fill_decode, saved_decode, sizeof(saved_decode));
 
 	tr->seek_preview_count = preview_count;
+	tr->wrap_preview_ring_idx = next_ring_idx;
+	tr->wrap_preview_rot = next_rot;
 	tr->wrap_preview_reverse = tr->reverse;
 	tr->wrap_preview_start = wrap_start;
 	tr->wrap_preview_end = wrap_end;
@@ -3408,6 +4097,9 @@ static void handle_seek(int t)
 	mlr_perf.seek_count[t]++;
 	mlr_perf_seek_count[t]++;
 #endif
+	/* A cut or loop/direction change starts a new cycle at the current CV. */
+	tr->fill_rot = fill_latch_rot(tr);
+	tr->rot_hist_n = 0;
 	if (target_reverse) tr->fill_sample_pos = target;
 	else                seek_fill_to(tr, t, target);
 
@@ -3470,6 +4162,55 @@ static void handle_seek(int t)
 #endif
 }
 
+/* ---- Erase hold-off (core 1) ------------------------------------------
+ * A sector erase blocks core 1 for up to ~34 ms, so no playback ring is
+ * refilled meanwhile. A track that was just cut has an almost empty ring and
+ * would run dry. Before any erase, require every playing track to hold enough
+ * for ERASE_GUARD_MS at its speed; otherwise skip the erase this pass and keep
+ * refilling. Capped so recording and header writes are never held for long. */
+#define ERASE_GUARD_MS      36u
+#define ERASE_HOLD_MAX_US   100000u
+
+static bool     erase_holding = false;
+static uint32_t erase_hold_since_us;
+
+/* True if the erase should wait. urgent = the data behind it can't wait. */
+static bool erase_hold_off(bool urgent)
+{
+	bool low = false;
+	for (int t = 0; t < MLR_NUM_TRACKS && !low; t++) {
+		const mlr_track_t *tr = &mlr_tracks[t];
+		if (!tr->has_content || !tr->playing || tr->stop_pending) continue;
+		/* Mid-cut the read index still points at the old audio until the
+		 * handoff/crossfade jumps it to seek_handoff_r; count from there. */
+		uint32_t r = (tr->seek_handoff_pending || tr->seek_xfade_active) ? tr->seek_handoff_r : tr->pcm.r;
+		uint32_t avail = tr->pcm.w - r;
+		uint32_t need = (ERASE_GUARD_MS * (MLR_SAMPLE_RATE_HZ / 1000u) * tr->speed_frac) >> 8;
+		if (avail < need) low = true;
+	}
+	uint32_t now = time_us_32();
+	if (low && !urgent) {
+		if (!erase_holding) {
+			erase_holding = true;
+			erase_hold_since_us = now;
+#ifdef MLR_PERF_PROFILING
+			mlr_perf_erase_holds++;
+#endif
+		}
+		if (now - erase_hold_since_us < ERASE_HOLD_MAX_US)
+			return true;
+#ifdef MLR_PERF_PROFILING
+		mlr_perf_erase_forced++;
+#endif
+	}
+#ifdef MLR_PERF_PROFILING
+	if (erase_holding && now - erase_hold_since_us > mlr_perf_erase_hold_max_us)
+		mlr_perf_erase_hold_max_us = now - erase_hold_since_us;
+#endif
+	erase_holding = false;
+	return false;
+}
+
 /** Drain one page from the recording page ring to flash. */
 static void flush_rec_page(void)
 {
@@ -3477,8 +4218,11 @@ static void flush_rec_page(void)
 
 	uint8_t slot = mlr_page_ring.r % MLR_PAGE_RING_COUNT;
 
-	/* erase-ahead: if we've reached the next sector boundary, erase it */
+	/* erase-ahead: if we've reached the next sector boundary, erase it
+	 * (held off while a playback ring is low, unless pages are piling up) */
 	if (rec_flash_offset >= rec_next_erase) {
+		if (erase_hold_off(page_ring_used_pages() >= MLR_PAGE_RING_COUNT / 2u))
+			return;
 		PERF_FLASH_ERASE(rec_next_erase, MLR_SECTOR_SIZE);
 		rec_next_erase += MLR_SECTOR_SIZE;
 	}
@@ -3501,8 +4245,16 @@ static void write_track_header(int t, bool start_playback)
 {
 	mlr_track_t *tr = &mlr_tracks[t];
 
-	/* build header in static buffer (too large for core 1 stack) */
-	memset(hdr_staging, 0xFF, MLR_SECTOR_SIZE);
+	/* build header in static buffer (too large for core 1 stack). Keyframes
+	 * come from the recording that just finished (start_playback), else they
+	 * are the ones already in flash (metadata rewrite). */
+	if (start_playback) {
+		memset(hdr_staging, 0xFF, MLR_SECTOR_SIZE);
+		memcpy(((mlr_track_header_t *)hdr_staging)->keyframes, rec_keyframes,
+		       tr->num_keyframes * sizeof(mlr_keyframe_channels_t));
+	} else {
+		memcpy(hdr_staging, (const void *)(XIP_BASE + track_hdr_flash_off(t)), MLR_SECTOR_SIZE);
+	}
 
 	mlr_track_header_t *hdr = (mlr_track_header_t *)hdr_staging;
 	hdr->magic               = MLR_MAGIC;
@@ -3511,10 +4263,8 @@ static void write_track_header(int t, bool start_playback)
 	hdr->num_keyframes       = tr->num_keyframes;
 	hdr->record_speed_shift  = tr->record_speed_shift;
 	hdr->recorded_channel    = (uint8_t)(tr->recorded_channel & 0x01);
-	hdr->pan_class           = (uint8_t)((tr->pan_class <= 2) ? tr->pan_class : 0);
+	hdr->rate_mark           = tr->rate_mark;
 	hdr->cv1_pitch_mode      = tr->cv1_pitch_enabled ? MLR_CV1_PITCH_ENABLED_MODE : MLR_CV1_PITCH_DISABLED_MODE;
-	memcpy(hdr->keyframes, tr->keyframes,
-	       tr->num_keyframes * sizeof(mlr_keyframe_channels_t));
 
 	uint32_t hdr_off = track_hdr_flash_off(t);
 	PERF_FLASH_ERASE(hdr_off, MLR_SECTOR_SIZE);
@@ -3532,12 +4282,13 @@ static void write_track_header(int t, bool start_playback)
 			tr->fill_decode[ch].predictor  = 0;
 			tr->fill_decode[ch].step_index = 0;
 			if (tr->num_keyframes > 0) {
-				tr->fill_decode[ch].predictor  = tr->keyframes[0].ch[ch].predictor;
-				tr->fill_decode[ch].step_index = tr->keyframes[0].ch[ch].step_index;
+				tr->fill_decode[ch].predictor  = rec_keyframes[0].ch[ch].predictor;
+				tr->fill_decode[ch].step_index = rec_keyframes[0].ch[ch].step_index;
 			}
 		}
 		tr->pcm.w = 0;
 		tr->pcm.r = 0;
+		fill_rot_reset(tr);
 		tr->speed_frac = speed_shift_to_frac(tr->speed_shift);
 		tr->speed_accum = 0;
 		reset_track_audio_state(tr);
@@ -3580,6 +4331,7 @@ static void copy_prepare_destination_ram(int dst)
 	tr->channel_user_chosen = false;
 	tr->pcm.w = 0;
 	tr->pcm.r = 0;
+	fill_rot_reset(tr);
 	reset_track_audio_state(tr);
 	mlr_gate_mode[dst] = false;
 }
@@ -3613,9 +4365,9 @@ static void copy_finish_track(void)
 	hdr->num_keyframes       = src->num_keyframes;
 	hdr->record_speed_shift  = src->record_speed_shift;
 	hdr->recorded_channel    = (uint8_t)(src->recorded_channel & 0x01);
-	hdr->pan_class           = (uint8_t)((src->pan_class <= 2) ? src->pan_class : 0);
+	hdr->rate_mark           = src->rate_mark;
 	hdr->cv1_pitch_mode      = src->cv1_pitch_enabled ? MLR_CV1_PITCH_ENABLED_MODE : MLR_CV1_PITCH_DISABLED_MODE;
-	memcpy(hdr->keyframes, src->keyframes,
+	memcpy(hdr->keyframes, track_keyframes(copy_src_track),
 	       src->num_keyframes * sizeof(mlr_keyframe_channels_t));
 
 	uint32_t hdr_off = track_hdr_flash_off(copy_dst_track);
@@ -3628,16 +4380,16 @@ static void copy_finish_track(void)
 	dst->num_keyframes      = src->num_keyframes;
 	dst->record_speed_shift = src->record_speed_shift;
 	dst->recorded_channel   = src->recorded_channel & 0x01;
-	dst->pan_class          = (src->pan_class <= 2) ? src->pan_class : 0;
+	mlr_set_pan(copy_dst_track, src->pan);
+	mlr_set_lpf(copy_dst_track, src->lpf_slot);
+	dst->rate_mark          = src->rate_mark;
 	dst->cv1_pitch_enabled  = src->cv1_pitch_enabled;
-	memcpy(dst->keyframes, src->keyframes,
-	       src->num_keyframes * sizeof(mlr_keyframe_channels_t));
 	for (int ch = 0; ch < MLR_NUM_CHANNELS; ch++) {
 		dst->fill_decode[ch].predictor  = 0;
 		dst->fill_decode[ch].step_index = 0;
 		if (dst->num_keyframes > 0) {
-			dst->fill_decode[ch].predictor  = dst->keyframes[0].ch[ch].predictor;
-			dst->fill_decode[ch].step_index = dst->keyframes[0].ch[ch].step_index;
+			dst->fill_decode[ch].predictor  = track_keyframes(copy_src_track)[0].ch[ch].predictor;
+			dst->fill_decode[ch].step_index = track_keyframes(copy_src_track)[0].ch[ch].step_index;
 		}
 	}
 }
@@ -3657,6 +4409,7 @@ static void copy_track_task(void)
 	if (copy_bytes_done < copy_bytes_total) {
 		uint32_t dst_off = track_audio_flash_off(copy_dst_track) + copy_bytes_done;
 		if (dst_off >= copy_next_erase) {
+			if (erase_hold_off(false)) return;
 			PERF_FLASH_ERASE(copy_next_erase, MLR_SECTOR_SIZE);
 			copy_next_erase += MLR_SECTOR_SIZE;
 			return;
@@ -3671,6 +4424,7 @@ static void copy_track_task(void)
 		return;
 	}
 
+	if (erase_hold_off(false)) return;  /* the header write erases a sector */
 	copy_finish_track();
 	copy_dst_track = -1;
 	copy_bytes_done = 0;
@@ -3688,6 +4442,13 @@ static int wrap_preview_rr = 0;
 void mlr_io_task(void)
 {
 	PERF_SERVICE_RESET_REQUEST();
+
+	/* Settings changed from the sample manager: save now that it's done
+	 * with flash (this task doesn't run during a sample-manager session). */
+	if (mlr_settings_save_pending) {
+		mlr_settings_save_pending = false;
+		mlr_scene_save_start();
+	}
 
 	/* 1. Handle pending seeks (always scan all — seeks are rare + cheap) */
 	for (int t = 0; t < MLR_NUM_TRACKS; t++) {
@@ -3713,16 +4474,31 @@ void mlr_io_task(void)
 		}
 	}
 
-	/* 3. Refill ONE playing track's ring (round-robin).
-	 *    Spreading work across calls keeps USB/mext responsive,
-	 *    especially with reverse playback's seek_fill_to overhead. */
-	for (int i = 0; i < MLR_NUM_TRACKS; i++) {
-		int t = (fill_rr + i) % MLR_NUM_TRACKS;
-		if (mlr_tracks[t].has_content && mlr_tracks[t].playing &&
-		    !mlr_tracks[t].seek_handoff_pending && !mlr_tracks[t].seek_xfade_active) {
-			fill_pcm_ring(t);
-			fill_rr = (t + 1) % MLR_NUM_TRACKS;
-			break;
+	/* 3. Refill ONE playing track's ring per call (keeps USB/mext
+	 *    responsive), choosing the one that would run dry soonest: least
+	 *    buffered time at its playback speed. A freshly cut track (only its
+	 *    seek prime buffered) gets filled first instead of waiting its turn
+	 *    behind the others. Ties go round-robin. */
+	{
+		int best = -1;
+		uint32_t best_avail = 0, best_speed = 1;
+		for (int i = 0; i < MLR_NUM_TRACKS; i++) {
+			int t = (fill_rr + i) % MLR_NUM_TRACKS;
+			mlr_track_t *tr = &mlr_tracks[t];
+			if (!tr->has_content || !tr->playing ||
+			    tr->seek_handoff_pending || tr->seek_xfade_active) continue;
+			uint32_t avail = tr->pcm.w - tr->pcm.r;
+			uint32_t speed = tr->speed_frac ? tr->speed_frac : 1u;
+			/* avail / speed < best_avail / best_speed, without dividing */
+			if (best < 0 || (uint64_t)avail * best_speed < (uint64_t)best_avail * speed) {
+				best = t;
+				best_avail = avail;
+				best_speed = speed;
+			}
+		}
+		if (best >= 0) {
+			fill_pcm_ring(best);
+			fill_rr = (best + 1) % MLR_NUM_TRACKS;
 		}
 	}
 
@@ -3737,7 +4513,7 @@ void mlr_io_task(void)
 	}
 
 	/* 5. Handle pending clear (quick — one sector erase) */
-	if (clear_pending) {
+	if (clear_pending && !erase_hold_off(false)) {
 		PERF_FLASH_ERASE(track_hdr_flash_off(clear_track), MLR_SECTOR_SIZE);
 		hdr_rewrite_pending_mask &= (uint8_t)~(1u << clear_track);
 		clear_pending = false;
@@ -3763,7 +4539,7 @@ void mlr_io_task(void)
 	}
 
 	/* 6. Write header after recording stops or metadata changes */
-	if (hdr_write_pending && mlr_page_ring.r == mlr_page_ring.w) {
+	if (hdr_write_pending && mlr_page_ring.r == mlr_page_ring.w && !erase_hold_off(false)) {
 		write_track_header(hdr_write_track, hdr_write_start_playback);
 		hdr_write_pending = false;
 		hdr_write_start_playback = false;
@@ -3810,7 +4586,8 @@ void mlr_io_task(void)
 		uint32_t sector_off = MLR_SCENE_OFFSET + (uint32_t)scene_save_sector * MLR_SECTOR_SIZE;
 
 		if (!scene_sector_erased) {
-			/* phase 1: erase the sector (~45ms) */
+			/* phase 1: erase the sector (~30 ms), once the rings can ride it out */
+			if (erase_hold_off(false)) return;
 			PERF_FLASH_ERASE(sector_off, MLR_SECTOR_SIZE);
 			scene_sector_erased = true;
 			scene_page_idx = 0;
@@ -3835,5 +4612,168 @@ void mlr_io_task(void)
 				}
 			}
 		}
+	}
+}
+
+/* ------------------------------------------------------------------ */
+/* 48 kHz -> 24 kHz conversion of tracks from firmware before 1.2.0   */
+/* ------------------------------------------------------------------ */
+
+/* Odd taps h[±1], h[±3], ... h[±29] of a 63-tap Blackman-windowed half-band
+ * low-pass (Q15). The centre tap is 0.5 and the other even taps are zero.
+ * Flat to 10 kHz, -6 dB at 12 kHz, below -60 dB from 14 kHz (at 48 kHz). */
+#define CONV_HB_TAPS 15
+#define CONV_HB_SPAN (2 * CONV_HB_TAPS - 1)  /* input samples each side of centre */
+#define CONV_HIST    64                      /* power of two > 2 * CONV_HB_SPAN */
+
+/* Runs once at boot, so keep it in flash rather than copied to RAM. */
+#define CONV_FLASH_FUNC __attribute__((section(".flashdata.convert_text")))
+static const int32_t __attribute__((section(".flashdata.convert_rodata"))) conv_hb_odd[CONV_HB_TAPS] = {
+	10387, -3347, 1876, -1209, 818, -561, 381, -254,
+	  164,  -102,   60,   -32,  16,  -6,   1,
+};
+
+static void CONV_FLASH_FUNC conv_flash_erase(uint32_t off)
+{
+	uint32_t irq = save_and_disable_interrupts();
+	flash_range_erase(off, MLR_SECTOR_SIZE);
+	restore_interrupts(irq);
+}
+
+static void CONV_FLASH_FUNC conv_flash_write_sector(uint32_t off, const uint8_t *data)
+{
+	uint32_t irq = save_and_disable_interrupts();
+	flash_range_erase(off, MLR_SECTOR_SIZE);
+	flash_range_program(off, data, MLR_SECTOR_SIZE);
+	restore_interrupts(irq);
+}
+
+/* Same test mlr_init() uses to load a track, so every track that would play
+ * gets converted. sample_count <= MLR_MAX_SAMPLES keeps reads in the track. */
+static bool CONV_FLASH_FUNC conv_header_valid(const mlr_track_header_t *hdr)
+{
+	return hdr->magic == MLR_MAGIC &&
+	       hdr->sample_count > 0 &&
+	       hdr->sample_count <= MLR_MAX_SAMPLES &&
+	       hdr->num_keyframes <= MLR_MAX_KEYFRAMES;
+}
+
+/* Decimate one track 2:1 in place. Output is half the size of the input, so
+ * output sector j is only written once input decoding has moved well past
+ * the end of it (input byte ~8192 * (j + 1) vs. sector end 4096 * (j + 1)). */
+static void CONV_FLASH_FUNC convert_track_to_24k(int t, mlr_convert_progress_fn progress)
+{
+	const mlr_track_header_t *hdr =
+		(const mlr_track_header_t *)(XIP_BASE + track_hdr_flash_off(t));
+	const uint32_t in_count = hdr->sample_count;
+	const uint32_t out_count = (in_count + 1) / 2;
+	const uint32_t out_bytes = (out_count + 1) / 2;
+	const uint32_t total_sectors = (out_bytes + MLR_SECTOR_SIZE - 1) / MLR_SECTOR_SIZE;
+	const int8_t record_speed_shift = hdr->record_speed_shift;
+	const uint8_t recorded_channel = hdr->recorded_channel;
+	const uint8_t cv1_pitch_mode = hdr->cv1_pitch_mode;
+	adpcm_state_t dec = {0, 0};
+	if (hdr->num_keyframes > 0) {
+		dec.predictor  = hdr->keyframes[0].ch[0].predictor;
+		dec.step_index = (int8_t)adpcm_clamp_index(hdr->keyframes[0].ch[0].step_index);
+	}
+
+	/* Mark the track first, so a power cut mid-conversion clears it at the
+	 * next boot instead of leaving half-converted audio. */
+	memcpy(hdr_staging, hdr, MLR_SECTOR_SIZE);
+	((mlr_track_header_t *)hdr_staging)->rate_mark = MLR_RATE_MARK_CONVERTING;
+	conv_flash_write_sector(track_hdr_flash_off(t), hdr_staging);
+
+	/* Boot-time scratch: the page ring and rec_keyframes are idle until
+	 * recording starts, and mlr_init() clears the page ring afterwards. */
+	uint8_t *out_sector = &mlr_page_ring.pages[0][0];
+	_Static_assert(sizeof(mlr_page_ring.pages) >= MLR_SECTOR_SIZE,
+		"page ring too small for conversion sector buffer");
+	const uint8_t *in = track_audio_xip(t);
+	const uint32_t audio_off = track_audio_flash_off(t);
+
+	int16_t hist[CONV_HIST] = {0};
+	adpcm_state_t enc = {0, 0};
+	uint32_t num_kf = 1;
+	rec_keyframes[0].ch[0].predictor  = 0;
+	rec_keyframes[0].ch[0].step_index = 0;
+	rec_keyframes[0].ch[0]._pad       = 0;
+
+	uint32_t out_n = 0, out_fill = 0, sectors_done = 0;
+	memset(out_sector, 0xFF, MLR_SECTOR_SIZE);
+	if (progress) progress(t, 0, total_sectors);
+
+	for (uint32_t i = 0; out_n < out_count; i++) {
+		int16_t x = 0;
+		if (i < in_count) {
+			uint8_t b = in[i >> 1];
+			x = adpcm_decode((i & 1) ? (b >> 4) : (b & 0x0F), &dec);
+		}
+		hist[i & (CONV_HIST - 1)] = x;
+
+		/* Output m is centred on input 2m and needs CONV_HB_SPAN samples
+		 * after it; inputs before 0 are zero. */
+		if (i < CONV_HB_SPAN || ((i - CONV_HB_SPAN) & 1)) continue;
+		uint32_t c = i - CONV_HB_SPAN;
+		int32_t acc = (int32_t)hist[c & (CONV_HIST - 1)] * 16384;  /* centre tap 0.5 */
+		for (uint32_t k = 0; k < CONV_HB_TAPS; k++) {
+			uint32_t d = 2 * k + 1;
+			int32_t before = (c >= d) ? hist[(c - d) & (CONV_HIST - 1)] : 0;
+			int32_t after  = hist[(c + d) & (CONV_HIST - 1)];
+			acc += conv_hb_odd[k] * (before + after);
+		}
+		int16_t y = adpcm_clamp16((acc + (1 << 14)) >> 15);
+
+		uint8_t nyb = adpcm_encode(y, &enc);
+		if (out_n & 1) out_sector[out_fill++] |= (uint8_t)(nyb << 4);
+		else           out_sector[out_fill] = nyb;
+		out_n++;
+
+		/* Same keyframe rule as recording: state after every 1024 samples. */
+		if ((out_n % MLR_KEYFRAME_INTERVAL) == 0 && num_kf < MLR_MAX_KEYFRAMES) {
+			rec_keyframes[num_kf].ch[0].predictor  = enc.predictor;
+			rec_keyframes[num_kf].ch[0].step_index = enc.step_index;
+			rec_keyframes[num_kf].ch[0]._pad       = 0;
+			num_kf++;
+		}
+
+		bool last = (out_n == out_count);
+		if (last && (out_n & 1)) out_fill++;  /* keep the trailing low nybble */
+		if (out_fill == MLR_SECTOR_SIZE || (last && out_fill > 0)) {
+			conv_flash_write_sector(audio_off + sectors_done * MLR_SECTOR_SIZE, out_sector);
+			sectors_done++;
+			out_fill = 0;
+			memset(out_sector, 0xFF, MLR_SECTOR_SIZE);
+			if (progress) progress(t, sectors_done, total_sectors);
+		}
+	}
+
+	memset(hdr_staging, 0xFF, MLR_SECTOR_SIZE);
+	mlr_track_header_t *out_hdr = (mlr_track_header_t *)hdr_staging;
+	out_hdr->magic              = MLR_MAGIC;
+	out_hdr->sample_count       = out_count;
+	out_hdr->adpcm_bytes        = out_bytes;
+	out_hdr->num_keyframes      = num_kf;
+	out_hdr->record_speed_shift = record_speed_shift;
+	out_hdr->recorded_channel   = recorded_channel;
+	out_hdr->rate_mark          = MLR_RATE_MARK_24K;
+	out_hdr->cv1_pitch_mode     = cv1_pitch_mode;
+	memcpy(out_hdr->keyframes, rec_keyframes, num_kf * sizeof(mlr_keyframe_channels_t));
+	conv_flash_write_sector(track_hdr_flash_off(t), hdr_staging);
+}
+
+void CONV_FLASH_FUNC mlr_convert_legacy_tracks(mlr_convert_progress_fn progress)
+{
+	for (int t = 0; t < MLR_NUM_TRACKS; t++) {
+		const mlr_track_header_t *hdr =
+			(const mlr_track_header_t *)(XIP_BASE + track_hdr_flash_off(t));
+		if (hdr->magic != MLR_MAGIC || hdr->rate_mark == MLR_RATE_MARK_24K)
+			continue;
+		if (hdr->rate_mark == MLR_RATE_MARK_CONVERTING) {
+			conv_flash_erase(track_hdr_flash_off(t));  /* interrupted: clear the track */
+			continue;
+		}
+		if (conv_header_valid(hdr))
+			convert_track_to_24k(t, progress);
 	}
 }

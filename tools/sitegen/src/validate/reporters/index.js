@@ -113,15 +113,21 @@ export function reportMarkdown(results, otherRules = null) {
   if (trigger?.changedPaths?.length) {
     lines.push('**Triggered by:**', '');
     for (const change of trigger.changedPaths) {
-      const label = change.filesUnder
-        ? `${change.status} files under ${change.path}`
-        : change.oldPath
+      const label = change.oldPath
         ? `${change.status} ${change.oldPath} → ${change.path}`
+        : change.filesUnder
+        ? `${change.status} files under ${change.path}`
         : `${change.status} ${change.path}`;
       lines.push(`- ${code(label)}`);
     }
     if (trigger.affectedReleases?.length) {
-      lines.push('', `**Affected release directories:** ${trigger.affectedReleases.map(code).join(', ')}`, '');
+      const renames = trigger.renamedReleases || [];
+      const renamed = new Set(renames.flatMap(({ from, to }) => [from, to]));
+      const releases = [
+        ...renames.map(({ from, to }) => `${from} → ${to}`),
+        ...trigger.affectedReleases.filter(release => !renamed.has(release)),
+      ];
+      lines.push('', `**Affected release directories:** ${releases.map(code).join(', ')}`, '');
     } else {
       lines.push('');
     }
