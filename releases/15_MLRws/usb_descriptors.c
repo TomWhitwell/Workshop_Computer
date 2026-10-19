@@ -95,10 +95,14 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid)
     } else if (index == STRID_SERIAL) {
         pico_unique_board_id_t id;
         pico_get_unique_board_id(&id);
+        /* 16 upper-case hex digits (no snprintf: keeps printf out of RAM) */
+        static const char hex[] = "0123456789ABCDEF";
         char serial[18];
-        snprintf(serial, sizeof(serial), "%02X%02X%02X%02X%02X%02X%02X%02X",
-                 id.id[0], id.id[1], id.id[2], id.id[3],
-                 id.id[4], id.id[5], id.id[6], id.id[7]);
+        for (int i = 0; i < 8; i++) {
+            serial[2 * i]     = hex[id.id[i] >> 4];
+            serial[2 * i + 1] = hex[id.id[i] & 0x0F];
+        }
+        serial[16] = '\0';
         chr_count = (uint8_t)strlen(serial);
         if (chr_count > 31) chr_count = 31;
         for (uint8_t i = 0; i < chr_count; i++) _desc_str[1 + i] = serial[i];

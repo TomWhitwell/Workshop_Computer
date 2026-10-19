@@ -1,13 +1,13 @@
 draft: false
 Name: MLRws
-short-description: "A remix of monome's classic MLR sample cutting platform (grid controller encouraged but optional). Diagrams here are for Gridless mode."
+short-description: "A remix of monome's classic MLR sample cutting platform (grid controller encouraged but optional)."
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Dune Desormeaux
-Version: 1.1.5
+Version: 1.2.1
 Status: Released
 License: GPL-3.0
 date-created: 2026-05-26
-date-updated: 2026-07-02
+date-updated: 2026-10-14
 Editor: https://dessertplanet.github.io/MLRws-web/
 demo-link: https://youtu.be/fhHJykM1GWk
 
@@ -16,7 +16,13 @@ tags:
   - looper
   - performance
   - usb-host
-  - grid-controller
+  - grid
+  - stereo
+  - filter
+
+uf2:
+  - path: UF2/MLRws.1.2.1.uf2
+    name: MLRws 1.2.1
 
 summary: |
   MLRws is a six-track sample-cutting instrument with grid and gridless workflows. It supports on-card
@@ -24,98 +30,194 @@ summary: |
   manage track selection, level/speed/start-position/radiate behavior, while pulse/CV I/O provides
   reset/clocking and CV envelope/pitch triggers.
 
+# Custom panels (see panels/manifest.yaml), one tab per doc. Every row is tagged
+# with the tab it belongs to, so the sample manager and grid API tabs show a
+# plain panel. controls.switch has to be one flat object, so its text covers
+# both grid and gridless mode.
 panel:
   inputs:
-    - id: AudioIn1
-      name: Audio Input 1
-      description: Recording source / modulation source depending on mode
-    - id: AudioIn2
-      name: Audio Input 2
-      description: Secondary recording source / speed modulation depending on mode
-    - id: CVIn1
-      name: X Modulation CV
-      description: Modulates X-layer behavior in gridless control paths
-    - id: CVIn2
-      name: Y Modulation CV
-      description: Modulates Y-layer behavior in gridless control paths
-    - id: PulseIn1
-      name: Reset / Cut Trigger
-      description: Rising edge triggers reset/cut actions in gridless mode
-    - id: PulseIn2
-      name: Clock / Advance Trigger
-      description: Rising edge advances track/turing clock actions in gridless mode
+    - when: { panel: gridless }
+      id: AudioIn1
+      name: Record In 1 / Track Offset
+      description: Records into the active track when it's the only audio input plugged in. Otherwise it offsets the active-track selection by up to six tracks, wrapping around.
+    - when: { panel: gridless }
+      id: AudioIn2
+      name: Record In 2 / Speed Mod
+      description: Records into the active track when it's the only audio input plugged in. Otherwise it sets the active track's playback speed, always forward (-6 V is 0.25x, 0 V is 1x, +6 V is 4x).
+    - when: { panel: gridless }
+      id: CVIn1
+      name: X Mod
+      description: Adds to the X knob, so it modulates playback gain in global mode and the active track's level in track mode.
+    - when: { panel: gridless }
+      id: CVIn2
+      name: Y Mod
+      description: Adds to the Y knob, so it modulates radiate in global mode and the start position in track mode.
+    - when: { panel: gridless }
+      id: PulseIn1
+      name: Reset
+      description: Rising edge resets the active track to its start position. Also clocks CV Out 1 and starts the CV Out 2 envelope.
+    - when: { panel: gridless }
+      id: PulseIn2
+      name: Next Track
+      description: Rising edge moves to the next track (6 wraps to 1) without resetting any playheads. Also clocks CV Out 1 and starts the CV Out 2 envelope.
+
+    - when: { panel: grid }
+      id: AudioIn1
+      name: Record In 1
+      description: Record source for tracks set to input 1 on the REC page (picked automatically if it's the only input plugged in).
+    - when: { panel: grid }
+      id: AudioIn2
+      name: Record In 2
+      description: Record source for tracks set to input 2 on the REC page.
+    - when: { panel: grid }
+      id: CVIn1
+      name: Pan Offset
+      description: Offsets the pan of the last-touched track, or of the tracks chosen in the sample manager. 5 V covers the full width between the two outputs.
+    - when: { panel: grid }
+      id: CVIn2
+      name: Cutoff / Rotation
+      description: Sets the filter cutoff (0 V darkest, +5 V open) or rotates the whole recording, on the last-touched track or the tracks chosen in the sample manager.
+    - when: { panel: grid }
+      id: PulseIn1
+      name: Loop Reset
+      description: Rising edge jumps every playing track that has a CUT page loop back to the loop start.
+    - when: { panel: grid }
+      id: PulseIn2
+      name: Gated Record
+      description: Records into the armed track for as long as the gate is high.
+
   outputs:
-    - id: AudioOut1
-      name: Stereo Left Mix
-      description: Main mixed output bus L
-    - id: AudioOut2
-      name: Stereo Right Mix
-      description: Main mixed output bus R
-    # certainty: low — CV/pulse output role details inferred from main.cpp
-    - id: CVOut1
-      name: Cut/Turing Pitch CV
-      description: Emits quantized note CV tied to cut or turing events
-    - id: CVOut2
-      name: ASR Envelope CV
-      description: Attack/decay CV envelope output
-    - id: PulseOut1
-      name: Cut/Wrap Trigger
-      description: Trigger pulse on cut/wrap events
-    - id: PulseOut2
-      name: Envelope-End Trigger
-      description: Trigger pulse when CV envelope reaches end
+    - when: { panel: gridless }
+      id: AudioOut1
+      name: Mix Out 1
+      description: Stereo mix, left. Each track plays at the pan and filter last set in grid mode or the sample manager.
+    - when: { panel: gridless }
+      id: AudioOut2
+      name: Mix Out 2
+      description: Stereo mix, right.
+    - when: { panel: gridless }
+      id: CVOut1
+      name: Turing Pitch
+      description: Turing-style pitch CV, clocked by either pulse input. Main sets the probability, X the range and Y the sequence length.
+    - when: { panel: gridless }
+      id: CVOut2
+      name: Envelope
+      description: ASR envelope started by either pulse input, held while a pulse input is high. Down + Y sets the attack and Y sets the release.
+    - when: { panel: gridless }
+      id: PulseOut1
+      name: Wrap Trigger
+      description: Trigger whenever a playing track wraps back to the start of its loop or playback span.
+    - when: { panel: gridless }
+      id: PulseOut2
+      name: Envelope End
+      description: Trigger when the CV Out 2 envelope finishes its release.
+
+    - when: { panel: grid }
+      id: AudioOut1
+      name: Mix Out 1
+      description: Stereo mix, left. Each track is placed between the outputs by its pan.
+    - when: { panel: grid }
+      id: AudioOut2
+      name: Mix Out 2
+      description: Stereo mix, right.
+    - when: { panel: grid }
+      id: CVOut1
+      name: Cut Pitch
+      description: Chromatic pitch from output-enabled CUT keys, left to right with guitar-like row tuning. X adds up to +/-24 semitones.
+    - when: { panel: grid }
+      id: CVOut2
+      name: Cut Envelope
+      description: ASR envelope gated by output-enabled CUT keys. Y sets the release; Down + Y sets the attack.
+    - when: { panel: grid }
+      id: PulseOut1
+      name: Cut Trigger
+      description: 20 ms trigger on each output-enabled CUT key press, including pattern and recall playback.
+    - when: { panel: grid }
+      id: PulseOut2
+      name: Cut Gate
+      description: High while an output-enabled CUT key is held, or while an output-enabled gate-mode track plays.
 
 controls:
   switch:
     up:
-      name: Track Mode
-      description: Locks the active track; knobs set that track's speed/direction, level slot, and start position
+      name: Track Mode / Record
+      description: Gridless, locks the active track so the knobs set its speed and direction, level and start position. Grid, starts recording on the armed track.
     middle:
-      name: Global Mode
-      description: Knobs set global params — track select / turing probability, playback gain, and radiate amount
+      name: Global Mode / Play
+      description: Gridless, the knobs set track select, playback gain and radiate. Grid, the normal playing position, and returning here stops a recording.
     down:
-      name: Reset / Record Arm
-      description: Tap resets the active track to its start position; hold two seconds to arm recording; Y sets CV2 envelope attack
+      name: Reset, Arm / Record
+      description: Gridless, hold two seconds to arm recording, then push Down again to record, and Y sets the envelope attack. Grid, starts recording on the armed track, and with nothing armed Y sets the CV Out 2 envelope attack.
+    tap:
+      name: Reset (gridless)
+      description: In gridless mode, a quick tap Down resets the active track to its start position.
   knobs:
-    - when: { z: middle }
+    - when: { panel: grid }
       main:
-        name: Track Select / Turing Probability
-        description: Selects active track in gridless mode and drives turing probability state
+        name: Master Volume
+        description: Master output level. The bottom row of the grid sets it too, and whichever moved last wins.
       x:
-        name: Mix Gain
-        description: Controls global playback gain layer
+        name: Input Gain / Pitch Offset
+        description: Input gain and monitor level for recording. Also transposes CV Out 1 by up to +/-24 semitones.
       y:
-        name: Radiate
-        description: Controls global radiate amount layer
-    - when: { z: up }
+        name: Envelope Release
+        description: Sets the CV Out 2 release time (10 ms to about 3 s). With the switch held Down and nothing armed, it sets the attack instead (instant to about 1 s).
+    - when: { panel: gridless }
       main:
-        name: Selected Track Speed / Direction
-        description: Sets selected track speed and direction around center
+        name: Track Select / Speed
+        description: Middle, picks the active track. Up, sets the active track's speed and direction (stopped at centre, reverse to the left, forward to the right). In both, sets the CV Out 1 Turing probability.
       x:
-        name: Selected Track Level Slot
-        description: Sets per-track volume slot
+        name: Gain / Level
+        description: Middle, playback gain on top of every track (centre is unity). Up, the active track's level. While recording, input gain. In both, the CV Out 1 Turing range (one note to three octaves).
       y:
-        name: Selected Track Start Position
-        description: Sets per-track cut start column
-    - when: { z: down }
-      y:
-        name: CV2 Envelope Attack
-        description: Sets CV2 envelope attack while in down state
-      main:
-        name: Record-Hold / Reset Gesture
-        description: Used for record/hold/reset gestures in gridless mode
-      x:
-        name: Input Gain
-        description: Sets recording input gain for active source
+        name: Radiate / Start
+        description: Middle, radiate, from only the active track (left) to all six (right). Up, where the active track jumps to on a reset. Down, the CV Out 2 envelope attack. In both Middle and Up, the Turing sequence length (3 to 8 steps).
+  leds:
+    - when: { panel: gridless }
+      display: list
+      items:
+        - id: LED0
+          name: Track 1
+          description: Brightness shows the track's level after radiate and playback gain. When armed or recording, only the active track lights, flashing (slow when armed, fast when recording).
+        - id: LED1
+          name: Track 4
+        - id: LED2
+          name: Track 2
+        - id: LED3
+          name: Track 5
+        - id: LED4
+          name: Track 3
+        - id: LED5
+          name: Track 6
+    - when: { panel: grid }
+      display: list
+      items:
+        - id: LED0
+          name: Input Level
+        - id: LED1
+          name: Output Level
+        - id: LED2
+          name: CV Out 1
+          description: The current cut pitch.
+        - id: LED3
+          name: CV Out 2
+          description: The envelope level.
+        - id: LED4
+          name: Pulse Out 1
+          description: Flashes on each cut trigger.
+        - id: LED5
+          name: Pulse Out 2
+          description: Lit while the cut gate is high.
 
 host:
   usb:
-    - name: Monome grid (USB host)
+    - name: monome grid (USB host)
       role: controller
-      description: Direct grid controller input when device is connected at power-on
+      description: A grid plugged straight into the USB-C port at power-on.
     - name: Grid proxy (USB device workflow)
       role: controller
-      description: Alternate grid workflow via external host/proxy bridge
+      description: A norns running gridproxy passes its grid through.
     - name: MLRws Sample Manager
       role: editor
-      description: External web app for encoding/uploading samples to card flash
+      description: Web app for samples and the pan, filter and CV settings.
+  notes: The mode is picked at power-on from what's in the USB-C port, so power-cycle after plugging in a grid.

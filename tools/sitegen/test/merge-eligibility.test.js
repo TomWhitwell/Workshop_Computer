@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateMergeEligibility, touchesNoCards } from '../src/validate/mergeEligibility.js';
+import { cardRenames, evaluateMergeEligibility, touchesNoCards } from '../src/validate/mergeEligibility.js';
 import { hasCommittedToCard } from '../src/validate/cardCommitters.js';
 import { reportEligibilityMarkdown } from '../src/validate/reporters/index.js';
 
@@ -61,6 +61,35 @@ test('multiple cards, files outside the card, curation, and renames are not elig
     assert.equal(check({ changes }).eligible, false, name);
   }
   assert.match(check({ changes: cases.curation }).reasons.join('\n'), /outside releases\/<card>\/: tools\/sitegen\/src\/curation\/flairs\.yml/);
+});
+
+test('renaming a card is reported as a rename and is not eligible', () => {
+  const rename = [
+    { status: 'R100', oldPath: 'releases/42_card/info.yaml', path: 'releases/42_renamed/info.yaml' },
+    { status: 'R100', oldPath: 'releases/42_card/build/card.uf2', path: 'releases/42_renamed/build/card.uf2' },
+  ];
+  assert.deepEqual(cardRenames(rename), [{ from: '42_card', to: '42_renamed' }]);
+  const result = check({ changes: rename });
+  assert.equal(result.eligible, false);
+  assert.deepEqual(result.reasons, ["Renames card 42_card to 42_renamed; renamed cards need a maintainer's review."]);
+
+  const alsoOther = check({ changes: [...rename, { status: 'M', path: 'releases/43_other/README.md' }] });
+  assert.match(alsoOther.reasons.join('\n'), /Changes 2 cards \(42_card → 42_renamed, 43_other\)/);
+});
+
+test('moving files between cards that both live on is not a rename', () => {
+  const move = { status: 'R100', oldPath: 'releases/42_card/a.uf2', path: 'releases/43_other/a.uf2' };
+  const cases = {
+    'source still edited': [move, { status: 'M', path: 'releases/42_card/info.yaml' }],
+    'destination already exists': [move, { status: 'M', path: 'releases/43_other/info.yaml' }],
+    'split into two cards': [move, { status: 'R100', oldPath: 'releases/42_card/b.uf2', path: 'releases/44_third/b.uf2' }],
+    'merged from two cards': [move, { status: 'R100', oldPath: 'releases/44_third/b.uf2', path: 'releases/43_other/b.uf2' }],
+    'moved out of releases': [move, { status: 'R100', oldPath: 'releases/42_card/c.uf2', path: 'archive/c.uf2' }],
+  };
+  for (const [name, changes] of Object.entries(cases)) {
+    assert.deepEqual(cardRenames(changes), [], name);
+    assert.match(check({ changes }).reasons.join('\n'), /Changes [23] cards/, name);
+  }
 });
 
 test('website and curation updates are never eligible, whoever opens them', () => {

@@ -25,6 +25,8 @@ extern "C" {
 /* Constants                                                          */
 /* ------------------------------------------------------------------ */
 
+#define MLR_SAMPLE_RATE_HZ     24000u
+
 #define MLR_NUM_TRACKS         6
 #define MLR_GRID_COLS          16
 
@@ -53,13 +55,20 @@ extern "C" {
 #define MLR_MAX_KEYFRAMES      ((MLR_MAX_SAMPLES / MLR_KEYFRAME_INTERVAL) + 1)
 
 /* Per-track playback ring buffer (decoded PCM, consumed by core 0) */
-#define MLR_RING_SAMPLES       8192  /* frames (~171ms at 48kHz mono); power-of-two keeps ring indexing cheap */
-#define MLR_DECLICK_SHIFT      5
-#define MLR_DECLICK_SAMPLES    (1u << MLR_DECLICK_SHIFT)  /* 32-sample crossfade */
-#define MLR_FADE_SAMPLES       120                        /* 2.5ms V-fade samples (total 5ms) */
-#define MLR_SEEK_PREVIEW_SAMPLES 256                      /* CUT-page overlap crossfade bridge */
+#define MLR_RING_SAMPLES       8192  /* frames (~341ms at 24kHz mono); power-of-two keeps ring indexing cheap */
+#define MLR_DECLICK_SHIFT      4
+#define MLR_DECLICK_SAMPLES    (1u << MLR_DECLICK_SHIFT)  /* 16-sample crossfade */
+#define MLR_FADE_SAMPLES       60                         /* 2.5ms V-fade samples (total 5ms) */
+#define MLR_SEEK_PREVIEW_SHIFT 7
+#define MLR_SEEK_PREVIEW_SAMPLES (1u << MLR_SEEK_PREVIEW_SHIFT) /* CUT-page overlap crossfade bridge */
 #define MLR_SEEK_PRIME_SAMPLES (MLR_KEYFRAME_INTERVAL * 2)  /* post-seek refill to cover direction changes */
 #define MLR_PERF_UI_SECTIONS   8
+
+/* CV rotation: the seam (recording end -> start) a rotation can put inside a
+ * cycle is faded out and back in over this many source samples each side. */
+#define MLR_SEAM_XFADE_SAMPLES 128u
+#define MLR_ROT_HIST_LEN       8u     /* power of two */
+#define MLR_ROT_RANGE_DEFAULT  100u   /* % of the track that +5 V on CV In 2 rotates by */
 
 #define MLR_TRANS_HANDOFF 0x01u
 #define MLR_TRANS_FADE    0x02u
@@ -79,6 +88,12 @@ extern "C" {
 #define MLR_MAGIC              0x4D4C5234  /* 'MLR4' — mono ADPCM v2 */
 #define MLR_CV1_PITCH_ENABLED_MODE   0u
 #define MLR_CV1_PITCH_DISABLED_MODE  1u
+
+/* Header rate_mark byte. Before 1.2.0 this byte was pan_class and only ever
+ * held 0..2, so any other value is free. Tracks without MLR_RATE_MARK_24K hold
+ * 48 kHz audio from earlier firmware and are converted at boot. */
+#define MLR_RATE_MARK_24K            0x80u  /* audio stored at MLR_SAMPLE_RATE_HZ */
+#define MLR_RATE_MARK_CONVERTING     0x81u  /* 48 -> 24 kHz conversion interrupted */
 
 /* ------------------------------------------------------------------ */
 /* Pattern / recall / scene constants                                 */
@@ -109,6 +124,21 @@ extern "C" {
 #define MLR_EVT_GROUP_VOLUME 18   /* volume change broadcast to every member of track's group */
 #define MLR_EVT_CHANNEL      19   /* per-track input/output channel: param_a=0/1 */
 #define MLR_EVT_CUT_RELEASE  20   /* CUT key release for CV/pulse gate playback only */
+#define MLR_EVT_PAN          21   /* per-track pan: param_a = -MLR_PAN_STEPS..+MLR_PAN_STEPS */
+#define MLR_EVT_LPF          22   /* per-track low-pass: param_a = 0..MLR_LPF_SLOTS-1 */
+
+/* Per-track 4-pole ladder low-pass, Moog style with a little fixed resonance
+ * (feedback k = 1, ~+2.3 dB peak at every setting) (grid modes):
+ * 5 slots on the REC mixer keys, 0 = darkest (-3 dB at 250 Hz) ..
+ * MLR_LPF_OPEN = fully open (bypassed). */
+#define MLR_LPF_SLOTS          5
+#define MLR_LPF_OPEN           (MLR_LPF_SLOTS - 1)
+#define MLR_LPF_GLIDE_SAMPLES  (MLR_SAMPLE_RATE_HZ / 2u)  /* cutoff glides one key per 500 ms */
+#define MLR_PAN_GLIDE_SAMPLES  (MLR_SAMPLE_RATE_HZ / 10u)  /* pan glides one step per 100 ms */
+
+/* Per-track pan (grid modes): -MLR_PAN_STEPS = hard Out 1, 0 = centre,
+ * +MLR_PAN_STEPS = hard Out 2, equal-power law. */
+#define MLR_PAN_STEPS          6
 
 /* Volume slots: 5 levels (cols 2–6 on REC page). Slot 1 = unity. */
 #define MLR_NUM_VOL_SLOTS      5
@@ -152,7 +182,7 @@ typedef struct {
 	uint32_t              num_keyframes;
 	int8_t                record_speed_shift;  /* speed at time of recording */
 	uint8_t               recorded_channel;    /* 0 = Audio1/Out1, 1 = Audio2/Out2 in dual-mono grid mode. */
-	uint8_t               pan_class;           /* Reserved; kept for flash header compatibility. */
+	uint8_t               rate_mark;           /* MLR_RATE_MARK_*; 0..2 (old pan_class) = 48 kHz audio. */
 	uint8_t               cv1_pitch_mode;      /* 0/0xFF = update CV1 pitch on cuts, 1 = leave CV1 pitch unchanged. */
 	mlr_keyframe_channels_t keyframes[MLR_MAX_KEYFRAMES];
 } mlr_track_header_t;
@@ -219,6 +249,12 @@ typedef struct {
 	uint32_t fill;         /* bytes in current page */
 } mlr_page_ring_t;
 
+/* Rotation used for one core-1 fill wrap (core 1 only). */
+typedef struct {
+	uint32_t ring_idx;  /* PCM ring index of the first sample after the wrap */
+	uint32_t rot;
+} mlr_rot_event_t;
+
 /* Per-track state */
 typedef struct {
 	/* metadata (from flash header) */
@@ -238,6 +274,8 @@ typedef struct {
 	bool           fill_high_nyb;
 	adpcm_state_t  fill_decode[MLR_NUM_CHANNELS];
 	uint32_t       fill_sample_pos;    /* frame position of fill head */
+	bool           fill_dec_synced;    /* core 1: decoder is at fill_sample_pos (false after a
+	                                    * reverse chunk, which leaves it at the chunk's end) */
 	volatile bool  fill_seek_pending;  /* set by cut, core 1 refills */
 
 	/* seek target (set by core 0, consumed by core 1) */
@@ -268,6 +306,20 @@ typedef struct {
 	 * heavy check while the playhead is still far from the wrap boundary. */
 	volatile uint32_t wrap_preview_arm_playhead;
 	volatile uint8_t  transition_flags;
+
+	/* CV rotation. splice_q16 (written by core 0) is how far the whole
+	 * recording is rotated, as a Q16 fraction of the track length: grid
+	 * position v plays audio (v + rot) mod length, and a loop is a fixed grid
+	 * window over the rotated material. Core 1 latches it into fill_rot at each
+	 * fill wrap and each seek; the playhead, cuts and LEDs stay in grid
+	 * positions. */
+	volatile uint16_t splice_q16;
+	uint32_t          fill_rot;               /* samples, for the cycle being filled */
+	mlr_rot_event_t   rot_hist[MLR_ROT_HIST_LEN];  /* recent fill wraps (core 1 only) */
+	uint8_t           rot_hist_w;
+	uint8_t           rot_hist_n;
+	volatile uint32_t wrap_preview_ring_idx;  /* fill wrap the preview was rendered for */
+	uint32_t          wrap_preview_rot;
 
 	/* loop-a-section: sub-loop boundaries (set by core 0) */
 	bool           loop_active;
@@ -306,7 +358,20 @@ typedef struct {
 	/* per-track input/output channel routing (set by core 0).
 	 * 0 = Audio1/Out1, 1 = Audio2/Out2. Persisted in the track header. */
 	uint8_t        recorded_channel;
-	uint8_t        pan_class;            /* Reserved; kept for flash header compatibility. */
+	uint8_t        rate_mark;            /* Header rate_mark, persisted as-is. */
+	int8_t         pan;                  /* -MLR_PAN_STEPS..+MLR_PAN_STEPS (grid modes; scene) */
+	int16_t        pan_cv_q8;            /* CV In 1 offset, 1/256 steps; held, not saved */
+	bool           pan_keep;             /* pan set by the sample manager: survives the rescan */
+	int32_t        pan_pos;              /* base pan as heard, pan << 20 once the glide lands */
+	uint8_t        lpf_slot;             /* 0..MLR_LPF_OPEN (scene) */
+	volatile uint32_t lpf_pos;           /* cutoff position, slot << 20 (0 = darkest .. 4 << 20 = open);
+	                                      * glides to lpf_target at one key per 500 ms; read by the grid display */
+	uint32_t       lpf_target, lpf_step; /* destination (slot << 20) and per-sample step */
+	uint16_t       lpf_g;                /* per-stage TPT coefficient at lpf_pos, Q15 (32768 = open) */
+	uint16_t       lpf_g4, lpf_r;        /* G^4 and 1 / (1 + G^4), Q15: zero-delay feedback solve */
+	int32_t        lpf_s[4];             /* ladder stage states, Q4 (1/16-sample precision) */
+	uint16_t       pan_gl, pan_gr;       /* target gains, Q15 (32768 = unity) */
+	uint16_t       pan_gl_cur, pan_gr_cur; /* slewed gains used by the mixer */
 	bool           cv1_pitch_enabled;    /* true = cut keys on this row update CV1 pitch. */
 	bool           channel_user_chosen;  /* RAM-only: true once the user has explicitly picked
 	                                      * a channel on the grid; suppresses auto-detect override */
@@ -314,9 +379,10 @@ typedef struct {
 	bool           channel_swap_pending; /* RAM-only: when true, fade-out completion applies
 	                                      * pending_channel before starting fade-in. */
 
-	/* keyframes (copied to RAM at boot) */
+	/* keyframes: read from the track header in flash (core 1 only; saves
+	 * ~2.5 KB of RAM per track). Recording keeps its own list until the
+	 * header is written. */
 	uint32_t          num_keyframes;
-	mlr_keyframe_channels_t keyframes[MLR_MAX_KEYFRAMES];
 } mlr_track_t;
 
 /* ------------------------------------------------------------------ */
@@ -334,6 +400,18 @@ extern volatile bool     mlr_master_override;   /* true = suppress pattern maste
 extern mlr_pattern_t   mlr_patterns[MLR_NUM_PATTERNS];
 extern mlr_recall_t    mlr_recalls[MLR_NUM_RECALLS];
 extern volatile bool   mlr_scene_saving;  /* true during flash scene write */
+extern volatile uint8_t mlr_rot_range_pct; /* CV rotation range, 1..100 %, card-wide; saved in the scene */
+extern volatile bool   mlr_pan_enabled;  /* playing modes: outputs follow pan + filter; off: route by channel */
+extern volatile bool   mlr_settings_save_pending; /* set by the sample manager; core 1 saves the scene afterwards */
+#define MLR_CV2_MODE_ROTATION  0u
+#define MLR_CV2_MODE_FILTER    1u
+extern volatile uint8_t mlr_cv2_mode;    /* what CV In 2 drives on its target track (scene; default filter) */
+/* Which tracks each CV input acts on: a mask (bit t = track t + 1), or 0 for
+ * the last-touched track (scene). */
+#define MLR_CV_TARGET_LAST     0u
+#define MLR_CV_TARGET_ALL      ((1u << MLR_NUM_TRACKS) - 1u)
+extern volatile uint8_t mlr_cv1_target;  /* CV In 1: pan offset */
+extern volatile uint8_t mlr_cv2_target;  /* CV In 2: filter cutoff / rotation */
 extern volatile int    mlr_recall_active;  /* currently selected recall (-1=none) */
 
 /* Per-track group-membership bitmask (see mlr.c for invariant). */
@@ -398,6 +476,17 @@ extern volatile uint32_t mlr_perf_flash_erase_max_us;
 extern volatile uint32_t mlr_perf_flash_program_max_us;
 extern volatile uint32_t mlr_perf_adc_mux_resets;
 extern volatile uint32_t mlr_perf_adc_fifo_level_max;
+/* CV rotation diagnostics. */
+extern volatile uint32_t mlr_perf_rot_seam_fades;    /* seams faded out and back in */
+extern volatile uint32_t mlr_perf_rot_seam_hard;     /* seams too close to the cycle edge to smooth */
+extern volatile uint32_t mlr_perf_rot_preview_waits; /* wrap preview skipped: next wrap's rotation unknown */
+extern volatile uint32_t mlr_perf_rot_xfade_skips;   /* wrap crossfade skipped: preview for another wrap */
+extern volatile uint32_t mlr_perf_rot_map_errors;    /* decoder not at the rotated audio position */
+extern volatile uint32_t mlr_perf_rot_samples;       /* samples checked */
+extern volatile uint32_t mlr_perf_fill_resyncs;   /* forward fill re-seeked after reverse chunks */
+extern volatile uint32_t mlr_perf_erase_holds;     /* erases held back for a low playback buffer */
+extern volatile uint32_t mlr_perf_erase_hold_max_us; /* longest hold */
+extern volatile uint32_t mlr_perf_erase_forced;    /* erases that went ahead at the cap */
 void mlr_perf_reset(void);
 void mlr_perf_count_grid_frame_drop(void);
 void mlr_perf_count_monome_ws_event_drop(void);
@@ -412,6 +501,13 @@ void mlr_perf_note_adc_fifo_level(uint32_t level);
 /* ------------------------------------------------------------------ */
 /* Core 0 API                                                         */
 /* ------------------------------------------------------------------ */
+
+/* Convert 48 kHz tracks from firmware before 1.2.0 to 24 kHz in place, and
+ * clear any track whose conversion was interrupted. Call once at boot before
+ * mlr_init(), with core 1 and audio not yet running. progress (may be NULL)
+ * is called with done/total output sectors for each track converted. */
+typedef void (*mlr_convert_progress_fn)(int track, uint32_t done, uint32_t total);
+void     mlr_convert_legacy_tracks(mlr_convert_progress_fn progress);
 
 void     mlr_init(void);
 void     mlr_rescan_track(int track);  /* re-read header from flash (call only when track is stopped) */
@@ -433,6 +529,14 @@ void     mlr_set_speed_frac(int track, uint16_t speed_frac); /* fixed 8.8, clamp
 void     mlr_set_speed_frac_nondeclick(int track, uint16_t speed_frac); /* fixed 8.8, clamped to 64..1024 */
 void     mlr_set_reverse(int track, bool reverse);
 void     mlr_set_volume(int track, int slot);
+void     mlr_set_pan(int track, int pan);
+void     mlr_set_pan_cv(int track, int offset_q8);  /* CV offset on top of the base pan */
+void     mlr_set_lpf(int track, int slot);
+void     mlr_set_lpf_pos(int track, uint32_t pos);  /* direct, no glide (CV): slot << 20 */
+void     mlr_set_lpf_pos_mask(uint8_t mask, uint32_t pos);  /* same, for a set of tracks */
+int      mlr_pan_effective_q8(int track);  /* gliding base + CV, clamped, in 1/256 steps */
+int      mlr_pan_default(int track);       /* hard to the track's channel side */
+void     mlr_pan_gains(int pan, uint16_t *gl, uint16_t *gr);
 int      mlr_get_column(int track);
 void     mlr_get_loop_cols(int track, int *col_start, int *col_end);
 uint8_t  mlr_consume_wrap_events(void);

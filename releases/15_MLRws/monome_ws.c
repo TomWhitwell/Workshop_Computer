@@ -41,35 +41,36 @@ static bool monome_ws_send_raw(const uint8_t *data, uint32_t len)
 	if (!g_monome_ws.connected || g_monome_ws.cdc_idx < 0)
 		return false;
 
-	uint8_t padded[64];
+	/* Stage the outgoing bytes. Frames shorter than 64 are padded to 64 with
+	 * 0xFF (a no-op the grid serial parser skips) — this padding is required to
+	 * keep older FTDI grids flushing promptly. */
+	uint8_t padded[65];
+	uint32_t out_len;
 	if (len < 64) {
 		memcpy(padded, data, len);
 		memset(padded + len, 0xFF, 64 - len);
-		if (g_monome_ws.transport == MONOME_WS_TRANSPORT_DEVICE) {
-			if (tud_cdc_n_write_available(g_monome_ws.device_cdc_itf) < 64)
-				return false;
-			tud_cdc_n_write(g_monome_ws.device_cdc_itf, padded, 64);
-			tud_cdc_n_write_flush(g_monome_ws.device_cdc_itf);
-		} else {
-			if (tuh_cdc_write_available((uint8_t)g_monome_ws.cdc_idx) < 64)
-				return false;
-			if (tuh_cdc_write((uint8_t)g_monome_ws.cdc_idx, padded, 64) != 64)
-				return false;
-			tuh_cdc_write_flush((uint8_t)g_monome_ws.cdc_idx);
-		}
+		out_len = 64;
 	} else {
-		if (g_monome_ws.transport == MONOME_WS_TRANSPORT_DEVICE) {
-			if (tud_cdc_n_write_available(g_monome_ws.device_cdc_itf) < len)
-				return false;
-			tud_cdc_n_write(g_monome_ws.device_cdc_itf, data, len);
-			tud_cdc_n_write_flush(g_monome_ws.device_cdc_itf);
-		} else {
-			if (tuh_cdc_write_available((uint8_t)g_monome_ws.cdc_idx) < len)
-				return false;
-			if (tuh_cdc_write((uint8_t)g_monome_ws.cdc_idx, data, len) != len)
-				return false;
-			tuh_cdc_write_flush((uint8_t)g_monome_ws.cdc_idx);
-		}
+		if (len > 64)
+			len = 64;
+		memcpy(padded, data, len);
+		out_len = len;
+	}
+
+	if ((out_len % 64) == 0)
+		padded[out_len++] = 0xFF;
+
+	if (g_monome_ws.transport == MONOME_WS_TRANSPORT_DEVICE) {
+		if (tud_cdc_n_write_available(g_monome_ws.device_cdc_itf) < out_len)
+			return false;
+		tud_cdc_n_write(g_monome_ws.device_cdc_itf, padded, out_len);
+		tud_cdc_n_write_flush(g_monome_ws.device_cdc_itf);
+	} else {
+		if (tuh_cdc_write_available((uint8_t)g_monome_ws.cdc_idx) < out_len)
+			return false;
+		if (tuh_cdc_write((uint8_t)g_monome_ws.cdc_idx, padded, out_len) != out_len)
+			return false;
+		tuh_cdc_write_flush((uint8_t)g_monome_ws.cdc_idx);
 	}
 	return true;
 }

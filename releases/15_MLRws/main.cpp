@@ -19,7 +19,8 @@
  *
  * Recording: hold col 0 (or col 1 on 16-wide, to select input
  *   channel 2) on a track row + switch up/down.
- *   Speed-linked — tape speed controls both record and playback rate.
+ *   Speed-linked up to 1× — slower tape speeds affect recording and
+ *   playback; faster settings remain playback-only.
  *   Records from position 0, variable length up to flash limit.
  *
  * Knob Main      = master output volume
@@ -44,50 +45,86 @@ extern "C" {
 }
 
 /* ------------------------------------------------------------------ */
-/* Grid LED update rate (sub-sampled from 48 kHz)                     */
+/* Grid LED update rate (sub-sampled from MLR_SAMPLE_RATE_HZ)         */
 /* ------------------------------------------------------------------ */
-#define LED_UPDATE_INTERVAL 2400  /* ~50 ms at 48 kHz → 20 fps grid update */
-#define PAT_TICK_INTERVAL     48  /* ~1 ms at 48 kHz → pattern playback resolution */
-#define MAIN_CTRL_DIV        16   /* 48 kHz / 16 = 3 kHz UI/control polling (~333 us quantization) */
+#define LED_UPDATE_INTERVAL (MLR_SAMPLE_RATE_HZ / 20u)    /* ~50 ms → 20 fps grid update */
+#define PAT_TICK_INTERVAL   (MLR_SAMPLE_RATE_HZ / 1000u)  /* ~1 ms pattern playback resolution */
+#define MAIN_CTRL_DIV       (MLR_SAMPLE_RATE_HZ / 3000u)  /* 3 kHz UI/control polling (~333 us quantization) */
 #define GRID_POLL_MAX_EVENTS 16   /* Bound USB/grid event burst work per UI-control tick */
-#define GATE_HOLD_THRESHOLD 48000  /* 1 second at 48 kHz sample rate */
+#define GATE_HOLD_THRESHOLD MLR_SAMPLE_RATE_HZ  /* 1 second */
 
-/* Group-creation/dissolve flash feedback (samples at 48 kHz). */
-#define GROUP_FLASH_CREATE_SAMPLES   24000  /* ~500 ms total */
-#define GROUP_FLASH_CREATE_PERIOD     6000  /* ~125 ms half-period (~4 Hz blink) */
-#define GROUP_FLASH_DISSOLVE_SAMPLES 36000  /* ~750 ms total: three quick confirmation flashes */
-#define GROUP_FLASH_DISSOLVE_PERIOD   6000  /* ~125 ms half-period (~4 Hz blink) */
-#define COPY_FLASH_SAMPLES            24000  /* ~500 ms total */
-#define COPY_FLASH_PERIOD              6000  /* ~125 ms half-period */
+/* Group-creation/dissolve flash feedback (audio-sample counts). */
+#define GROUP_FLASH_CREATE_SAMPLES   (MLR_SAMPLE_RATE_HZ / 2u)        /* ~500 ms total */
+#define GROUP_FLASH_CREATE_PERIOD    (MLR_SAMPLE_RATE_HZ / 8u)        /* ~125 ms half-period (~4 Hz blink) */
+#define GROUP_FLASH_DISSOLVE_SAMPLES ((MLR_SAMPLE_RATE_HZ * 3u) / 4u) /* ~750 ms total: three quick confirmation flashes */
+#define GROUP_FLASH_DISSOLVE_PERIOD  (MLR_SAMPLE_RATE_HZ / 8u)        /* ~125 ms half-period (~4 Hz blink) */
+#define COPY_FLASH_SAMPLES           (MLR_SAMPLE_RATE_HZ / 2u)        /* ~500 ms total */
+#define COPY_FLASH_PERIOD            (MLR_SAMPLE_RATE_HZ / 8u)        /* ~125 ms half-period */
 
 /* How long to highlight each group when DELETE is held (in gate_pulse ticks;
  * gate_pulse advances at the LED refresh rate, ~60 Hz). */
 #define GROUP_CYCLE_TICKS             16    /* two blink pulses per group */
 #define KNOB_HARD_TAKEOVER_THRESHOLD 80  /* ADC counts (0..4095) — must exceed ADC noise floor */
-#define GRIDLESS_REC_HOLD_SAMPLES 96000u  /* 2 seconds at 48 kHz */
-#define RECORD_REARM_DELAY_SAMPLES 24000u /* 0.5 seconds at 48 kHz */
+#define GRIDLESS_REC_HOLD_SAMPLES (MLR_SAMPLE_RATE_HZ * 2u)  /* 2 seconds */
+#define RECORD_REARM_DELAY_SAMPLES (MLR_SAMPLE_RATE_HZ / 2u) /* 0.5 seconds */
 #define FORCE_8X8_GRID_LAYOUT 0  /* for testing: force compact grid layout regardless of detected width */
-#define CUT_PULSE_TRIG_SAMPLES 960u  /* 20 ms at 48 kHz: PulseOut1 trigger width fired on output-enabled cut events (manual or pattern/recall playback) */
+#define CUT_PULSE_TRIG_SAMPLES (MLR_SAMPLE_RATE_HZ / 50u) /* 20 ms: PulseOut1 trigger width fired on output-enabled cut events (manual or pattern/recall playback) */
 #define EMPTY_KEYBOARD_LINGER_US 3000000ull  /* 3 seconds */
 #define RECALL_KEY_GATE_US      100000u
 #define CV_ENV_PEAK            2047  /* CV2 envelope peak (matches CV full positive range) */
 #define CV2_FLOOR_OFFSET       341   /* raw DAC subtract: -1 V at rest (assuming +6 V = +2047 raw) */
 #define CV_ATTACK_MIN_SAMPLES  0u       /* instant attack at Y=0 */
-#define CV_ATTACK_MAX_SAMPLES  48000u   /* 1 s at 48 kHz: attack length at Y=4095 */
-#define CV_DECAY_MIN_SAMPLES   480u     /* 10 ms at 48 kHz: decay length at Y=0 */
-#define CV_DECAY_MAX_SAMPLES   144000u  /* 3 s at 48 kHz: decay length at Y=4095 */
+#define CV_ATTACK_MAX_SAMPLES  MLR_SAMPLE_RATE_HZ          /* 1 s: attack length at Y=4095 */
+#define CV_DECAY_MIN_SAMPLES   (MLR_SAMPLE_RATE_HZ / 100u) /* 10 ms: decay length at Y=0 */
+#define CV_DECAY_MAX_SAMPLES   (MLR_SAMPLE_RATE_HZ * 3u)   /* 3 s: decay length at Y=4095 */
 #define CV_NOTE_BASE_MIDI      48       /* C3: column 0 with X knob centered yields MIDI 48 */
 #define CV_X_OFFSET_SEMITONES  24       /* ±24 semitones (~±2 V) at X knob extremes */
-#define X_KNOB_LPF_SHIFT       10       /* one-pole IIR on Knob::X (sample-rate). tau≈21 ms */
-#define DELETE_RESET_HOLD_SAMPLES 240000u  /* 5 seconds at 48 kHz */
-#define DELETE_RESET_FLASH_PERIOD_SAMPLES 4800u  /* 100 ms half-period */
+#define X_KNOB_LPF_SHIFT       9        /* one-pole IIR on Knob::X (sample-rate). tau≈21 ms */
+#define DELETE_RESET_HOLD_SAMPLES (MLR_SAMPLE_RATE_HZ * 5u) /* 5 seconds */
+/* Save the scene at most every 4 s, and only if the user changed something:
+ * at worst 900 saves an hour (~111 h of nonstop changes to 100k erases). */
+#define SETTINGS_AUTOSAVE_PERIOD_SAMPLES (MLR_SAMPLE_RATE_HZ * 4u)
+#define CV_SPLICE_FULL_SCALE   1707     /* CV In counts at +5 V (+/-2048 ~ +/-6 V) */
+#define CV_PAN_FULL_SCALE      1707     /* +/-5 V on CV In 1 = the full L-R width of pan */
+#define LPF_TAP_SAMPLES        (MLR_SAMPLE_RATE_HZ * 3u / 10u)  /* reverse key: shorter = tap (toggle reverse) */
+
+#ifdef MLR_PERF_PROFILING
+/* Debugger test commands (profiling builds only). Written over OpenOCD while
+ * the card runs: (op << 24) | (track << 16) | (arg << 8); core 0 runs it on a
+ * control tick, clears it and bumps mlr_perf_cmd_ack. */
+enum {
+	PERF_CMD_PLAY      = 1,  /* track, arg = speed_shift + 3 (0..6), bit 7 = reverse */
+	PERF_CMD_STOP      = 2,  /* track */
+	PERF_CMD_REC_START = 3,  /* track: same path as a Pulse In 2 rising edge */
+	PERF_CMD_REC_STOP  = 4,  /* same path as a Pulse In 2 falling edge */
+	PERF_CMD_TOUCH     = 5,  /* mark a setting changed -> autosave within 4 s */
+	PERF_CMD_SPLICE    = 6,  /* track = last-touched, arg = splice (0..255, Q8); 255 track = off */
+	PERF_CMD_LOOP      = 7,  /* track, arg = (start col << 4) | end col; arg 0 = clear loop */
+	PERF_CMD_COPY      = 8,  /* track = source, arg = destination mask (empty tracks only) */
+	PERF_CMD_PAN       = 9,  /* track, arg = pan + MLR_PAN_STEPS (0..12) */
+	PERF_CMD_PAN_CV    = 10, /* track, arg = 128 + offset in 1/10 steps (stands in for CV In 1) */
+	PERF_CMD_LPF       = 11, /* track, arg = low-pass slot 0..4 */
+	PERF_CMD_CV        = 12, /* track = CV input (0 = In 1, 1 = In 2); arg 0 = real jack,
+	                          * 1..254 = held value (arg - 128) * 16, 255 = fast sweep */
+};
+static int perf_splice_override = -1;  /* Q16 splice standing in for CV In 2, -1 = use CV */
+/* Fake CV In 1/2 for the stress test, through the real CV paths: PERF_CV_REAL =
+ * the real jack, PERF_CV_SWEEP = a triangle that moves every control tick. */
+#define PERF_CV_REAL  (-100000)
+#define PERF_CV_SWEEP (-100001)
+static int perf_cv_override[2] = { PERF_CV_REAL, PERF_CV_REAL };
+static int perf_cv_sweep_phase[2] = { 0, 0 };
+volatile uint32_t mlr_perf_cmd = 0;
+volatile uint32_t mlr_perf_cmd_ack = 0;
+#endif
+#define DELETE_RESET_FLASH_PERIOD_SAMPLES (MLR_SAMPLE_RATE_HZ / 10u) /* 100 ms half-period */
 #define DELETE_RESET_FLASH_SAMPLES (DELETE_RESET_FLASH_PERIOD_SAMPLES * 6u)  /* three quick flashes */
 #define EXTRA_GUIDE_ENABLED 0x80u
 #define EXTRA_PATTERN_KEY_MASK 0x7Fu
 #define EXTRA_PATTERN_KEY_NONE 0x70u
 
-/* Monitor fade step per sample (Q8). 256/4 = 64 samples ≈ 1.3 ms fade. */
-#define MLR_MON_FADE_STEP 4
+/* Monitor fade step per sample (Q8). 256/8 = 32 samples ≈ 1.3 ms fade. */
+#define MLR_MON_FADE_STEP 8
 
 /* ------------------------------------------------------------------ */
 /* Pages                                                              */
@@ -209,14 +246,25 @@ public:
 		master_knob_takeover_armed_ = false;
 
 		s_mode_ = mode_;
+
+		/* Upgrade samples left by firmware before 1.2.0 (48 kHz) to 24 kHz.
+		 * Only does work on the first boot after upgrading. */
+		s_convert_card_ = this;
+		mlr_convert_legacy_tracks(convert_progress);
+		for (int i = 0; i < 6; i++) LedOn(i, false);
+		s_convert_card_ = nullptr;
+
 		mlr_init();
+		autosave_master_ref_ = mlr_master_level_raw;
 
 		/* ---- Mode-specific subsystem init ---- */
 		switch (mode_) {
 		case Mode::HostMLR:
+			mlr_pan_enabled = true;  /* grid modes: outputs follow per-track pan */
 			monome_ws_init(MONOME_WS_TRANSPORT_HOST, 0);
 			break;
 		case Mode::DeviceMLR:
+			mlr_pan_enabled = true;
 			monome_ws_init(MONOME_WS_TRANSPORT_DEVICE, 0);
 			monome_ws_connect(0);  /* CDC already connected during detection */
 			if (detect_result.has_pending_byte) {
@@ -224,6 +272,8 @@ public:
 			}
 			break;
 		case Mode::DeviceGridless:
+			/* No pan/filter controls here, but play the grid-set values back. */
+			mlr_pan_enabled = true;
 			gridless_scan_tracks();
 			gl_active_track_ = 0;
 			gridless_restart_all_tracks_from_zero();
@@ -244,6 +294,18 @@ public:
 		multicore_launch_core1(core1_entry);
 	}
 
+	/* LED n = track n: finished tracks lit, the track being converted blinks. */
+	static void __attribute__((section(".flashdata.convert_text"))) convert_progress(int track, uint32_t done, uint32_t total)
+	{
+		(void)total;
+		MLRCard *card = s_convert_card_;
+		if (!card) return;
+		for (int i = 0; i < 6; i++)
+			card->LedOn(i, i < track || (i == track && ((done >> 2) & 1u) == 0));
+		if (s_mode_ != Mode::HostMLR)
+			tud_task();  /* keep the USB device responsive in device modes */
+	}
+
 	static void service_grid_redraw_core1()
 	{
 		if (s_card_)
@@ -259,7 +321,8 @@ public:
 	static bool sample_mgr_wake_byte(uint8_t byte)
 	{
 		return byte == 'I' || byte == 'S' || byte == 'R' ||
-		       byte == 'E' || byte == 'W' || byte == 'P' || byte == 'X';
+		       byte == 'E' || byte == 'W' || byte == 'P' || byte == 'X' ||
+		       byte == 'G' || byte == 'M' || byte == 'C' || byte == 'N' || byte == 'L';
 	}
 
 	static void run_sample_manager_until_disconnect(uint8_t first_byte, bool resume_gridless)
@@ -298,6 +361,7 @@ public:
 			mlr_rescan_track(t);
 
 		s_rescan_needed_ = true;
+		mlr_pan_enabled = true;  /* as at a gridless boot */
 		if (s_card_)
 			s_card_->mode_ = Mode::DeviceGridless;
 		s_mode_ = Mode::DeviceGridless;
@@ -479,6 +543,12 @@ public:
 				process_bottom_master_control();
 				process_extra_rows();
 			}
+			service_settings_autosave();
+			service_cv_splice();
+			service_cv_pan();
+#ifdef MLR_PERF_PROFILING
+			service_perf_cmd();
+#endif
 		}
 		PERF_UI_SECTION_END(0);
 
@@ -498,6 +568,10 @@ public:
 				set_cv2_attack_from_raw((uint16_t)KnobVal(Knob::Y));
 			}
 		}
+
+		/* Pan mode needs nothing armed/recording and the switch in the middle. */
+		if (pan_mode_track_ >= 0 && (rec_modifier || rec_armed_track >= 0 || mlr_rec_track >= 0))
+			pan_mode_track_ = -1;
 
 		if (mlr_flushing) {
 			if (resume_after_arm_track_ == rec_armed_track)
@@ -596,7 +670,7 @@ public:
 		PERF_UI_SECTION_END(1);
 
 		PERF_UI_SECTION_START(2);
-		/* ---- speed-linked recording ---- */
+		/* ---- speed-linked recording (capped at 1x) ---- */
 		int16_t dry_in;
 		{
 			int audio_in1 = (int)AudioIn1();
@@ -620,6 +694,7 @@ public:
 			if (scaled > 2047) scaled = 2047;
 			if (scaled < -2048) scaled = -2048;
 			uint16_t spd = mlr_tracks[mlr_rec_track].speed_frac;
+			if (spd > 256u) spd = 256u;
 			rec_speed_accum += spd;
 			while (rec_speed_accum >= 256) {
 				rec_speed_accum -= 256;
@@ -715,11 +790,13 @@ public:
 					} else if (mlr_recall_active == r) {
 						/* pressing active scene: undo to pre-recall state */
 						mlr_recall_undo_and_record();
+						note_settings_changed();
 					} else if (!mlr_recalls[r].has_data) {
 						mlr_recall_arm(r);
 					} else {
 						/* has data: recall it */
 						mlr_recall_exec_and_record(r);
+						note_settings_changed();
 					}
 				}
 			}
@@ -733,9 +810,21 @@ public:
 		/* ---- page interaction (always active) ---- */
 		PERF_UI_SECTION_START(4);
 		if (run_ui_control && !mlr_flushing && !page_switched) {
+			if (grid.keyDown() && grid.lastY() >= 1 && grid.lastY() <= MLR_NUM_TRACKS) {
+				last_touched_track_ = grid.lastY() - 1;  /* CV rotation/pan target */
+				/* Before this key's cut seeks, so the cut lands on the CV. */
+				service_cv_splice();
+				service_cv_pan();
+			}
 			if (play_page == PAGE_REC) {
+				process_pan_gesture();   /* both arm keys held: pan mode on that row */
+				process_lpf_hold();      /* reverse key: tap = reverse, hold = filter */
 				process_gate_hold();  /* REC play/stop/gate/group-dissolve */
-				process_copy_gesture();  /* REC arm/channel copy/paste gesture */
+				if (!pan_gesture_consumed_)
+					process_copy_gesture();  /* REC arm/channel copy/paste gesture */
+			} else {
+				pan_mode_track_ = -1;
+				lpf_hold_mask_ = 0;  /* left the REC page mid-hold: no toggle */
 			}
 			if (mlr_flushing) {
 				/* A copy gesture just committed; suppress any same-event
@@ -815,6 +904,7 @@ public:
 				mlr_master_level_raw = (uint16_t)knob_main_raw;
 				master_knob_arm_raw_ = knob_main_raw;
 				mlr_master_override = true;  /* knob moved, suppress pattern master */
+				note_master_level_changed();
 			}
 		} else {
 			int diff = knob_main_raw - master_knob_arm_raw_;
@@ -824,6 +914,7 @@ public:
 				mlr_master_level_raw = (uint16_t)knob_main_raw;
 				master_knob_arm_raw_ = knob_main_raw;
 				mlr_master_override = true;  /* knob takeover, suppress pattern master */
+				note_master_level_changed();
 			}
 		}
 		master_knob_last_raw_ = knob_main_raw;
@@ -841,6 +932,8 @@ public:
 			if (mon_track >= 0) {
 				mon_vol_last_ = mlr_tracks[mon_track].volume_frac;
 				mon_ch_last_  = mlr_tracks[mon_track].recorded_channel;
+				mon_gl_last_  = mlr_tracks[mon_track].pan_gl;
+				mon_gr_last_  = mlr_tracks[mon_track].pan_gr;
 			}
 			uint16_t next = (uint16_t)(mon_fade_frac_ + MLR_MON_FADE_STEP);
 			mon_fade_frac_ = (next > 256u) ? 256u : next;
@@ -854,8 +947,15 @@ public:
 			int32_t in_scaled = ((int32_t)dry_in * (int32_t)dry_level) >> 8;
 			in_scaled = (in_scaled * (int32_t)mon_vol_last_) >> 8;
 			in_scaled = (in_scaled * (int32_t)mon_fade_frac_) >> 8;
-			if (mon_ch_last_ == 1) outR += in_scaled;
-			else                   outL += in_scaled;
+			if (mlr_pan_enabled) {
+				/* same pan as the track's playback, so monitoring matches */
+				outL += (in_scaled * (int32_t)mon_gl_last_) >> 15;
+				outR += (in_scaled * (int32_t)mon_gr_last_) >> 15;
+			} else if (mon_ch_last_ == 1) {
+				outR += in_scaled;
+			} else {
+				outL += in_scaled;
+			}
 		}
 		outL = (outL * (int32_t)master_level) >> 8;
 		outR = (outR * (int32_t)master_level) >> 8;
@@ -1022,6 +1122,7 @@ private:
 	bool       small_grid_ = false;  /* true when connected grid is 8x8 or smaller */
 	bool       grid_size_latched_ = false;  /* true once grid size has been detected */
 	volatile int8_t grid_redraw_phase_ = -1;  /* core 1 slices one grid redraw outside ProcessSample */
+	uint8_t    cv_pan_rr_ = 0;                   /* CV In 1: next target track to update */
 	volatile int    grid_redraw_page_ = PAGE_REC;
 	volatile bool   grid_redraw_flushing_ = false;
 	volatile bool   grid_render_rec_pos_ = false;
@@ -1089,11 +1190,20 @@ private:
 	bool       live_gate_high_ = false;
 	uint8_t    replay_gate_mask_ = 0;
 	uint32_t   delete_reset_hold_samples_ = 0;    /* continuous DELETE hold duration */
+	uint32_t   settings_autosave_elapsed_ = 0;    /* samples since the last autosave check */
+	int        last_touched_track_ = -1;          /* last track row pressed on CUT/REC (-1 = none) */
+	bool       settings_dirty_ = false;           /* user changed a saved setting */
+	uint16_t   autosave_master_ref_ = 0;          /* master level at the last user move */
 	uint32_t   delete_reset_flash_samples_remaining_ = 0;  /* confirmation flash countdown */
 	bool       delete_reset_fired_ = false;       /* require DELETE release before another reset */
 	uint16_t   mon_fade_frac_ = 0;   /* monitor fade-in envelope, 0..256 */
 	uint16_t   mon_vol_last_  = 256; /* last-known armed/rec track volume_frac */
 	uint8_t    mon_ch_last_   = 0;   /* last-known armed/rec track recorded_channel */
+	uint16_t   mon_gl_last_   = 32768u, mon_gr_last_ = 0;  /* ...and its pan gains */
+	volatile int8_t pan_mode_track_ = -1; /* REC page pan mode (both arm keys held), -1 = off */
+	volatile uint8_t lpf_hold_mask_ = 0;   /* REC page: reverse keys held -> those rows show/set the low-pass */
+	uint8_t    lpf_edited_mask_ = 0;       /* a cutoff key was pressed during that row's hold */
+	uint32_t   lpf_hold_samples_[MLR_NUM_TRACKS] = {};  /* how long each reverse key has been held */
 	inline static Mode s_mode_ = Mode::HostMLR;
 
 	/* Cross-core volatile state for DeviceGridless ↔ DeviceSampleMgr transitions.
@@ -1102,6 +1212,7 @@ private:
 	inline static volatile bool s_rescan_needed_ = false;
 public:
 	inline static MLRCard *s_card_ = nullptr;
+	inline static MLRCard *s_convert_card_ = nullptr;
 private:
 
 	/* ---- Gridless mode state ---- */
@@ -1678,7 +1789,7 @@ private:
 			gl_post_record_start_track_ = -1;
 		}
 
-		/* Match gridful UI/control rate: 48 kHz / 16 = 3 kHz. */
+		/* Match gridful UI/control rate: 24 kHz / 8 = 3 kHz. */
 		const uint8_t kGridlessControlDiv = MAIN_CTRL_DIV;
 		gl_ctrl_div_++;
 		bool run_control = false;
@@ -1688,6 +1799,8 @@ private:
 		}
 
 		if (run_control) {
+			service_settings_autosave();
+
 			/* Maintenance doesn't need control-rate updates. */
 			gl_start_maint_div_++;
 			if (gl_start_maint_div_ >= 8) {  /* ~1.5 kHz effective */
@@ -1782,6 +1895,8 @@ private:
 				int idx = (mod_x * MLR_NUM_VOL_SLOTS) >> 12;  /* 0..5 */
 			if (idx >= MLR_NUM_VOL_SLOTS) idx = MLR_NUM_VOL_SLOTS - 1;
 			int slot = (MLR_NUM_VOL_SLOTS - 1) - idx;
+			if (!cv1_connected && mlr_tracks[gl_active_track_].volume_slot != slot)
+				note_settings_changed();
 			mlr_set_volume(gl_active_track_, slot);
 			} else if (!gl_recording_active_ && switch_middle && (x_accept || cv1_connected)) {
 			/* Global mode: playback-layer level, unity at center. */
@@ -1841,8 +1956,10 @@ private:
 				if (speed_delta < 0) speed_delta = -speed_delta;
 
 				bool reverse_changed = effective_reverse != target_reverse;
-				if (reverse_changed)
+				if (reverse_changed) {
 					mlr_set_reverse(gl_active_track_, target_reverse);
+					note_settings_changed();
+				}
 
 				/* Main-knob ADC dither can constantly perturb continuous speed,
 				 * which is especially audible in reverse because it invalidates
@@ -1908,8 +2025,8 @@ private:
 		/* ---- Mix and output ----
 		 * Use the same dual-bus soft-clipped mixer as gridful so the
 		 * audio character (per-channel soft-knee limiting) matches across
-		 * modes. Per-track `recorded_channel` selects which output bus
-		 * a track lands on, just like in gridful. Master volume is
+		 * modes. Each track's grid-set pan and filter apply here too (a
+		 * track never panned sits hard on its recorded channel). Master volume is
 		 * intentionally not applied here — gridless has no UI to set it,
 		 * and honoring a stale `mlr_master_level_raw` from a previous
 		 * session would be confusing. */
@@ -2274,6 +2391,7 @@ private:
 		uint16_t raw = (uint16_t)(((uint32_t)inv * 4095u + (uint32_t)(max_col / 2)) / (uint32_t)max_col);
 		if (raw > 4095u) raw = 4095u;
 		mlr_master_level_raw = raw;
+		note_master_level_changed();
 		master_knob_arm_raw_ = KnobVal(Knob::Main);
 		master_knob_last_raw_ = master_knob_arm_raw_;
 		master_knob_takeover_armed_ = true;
@@ -2351,8 +2469,24 @@ private:
 			return;
 		}
 
+		int sw_now = SwitchVal();
+		bool rec_pos = (sw_now == Switch::Up || sw_now == Switch::Down);
+
 		/* 16-wide grid: col 0 = ch1, col 1 = ch2. */
 		if (!small_grid_) {
+			/* Hard-panned track, nothing armed/recording, switch in the middle:
+			 * the other side's arm key hops it across instead of arming, so
+			 * playback carries on. The same side's key still arms. */
+			int pan = mlr_tracks[track].pan;
+			bool hop_ok = mlr_pan_enabled && !rec_pos && rec_armed_track < 0 && mlr_rec_track < 0;
+			if (hop_ok && pan == -MLR_PAN_STEPS && column == 1) {
+				group_set_pan(track, MLR_PAN_STEPS);
+				return;
+			}
+			if (hop_ok && pan == MLR_PAN_STEPS && column == 0) {
+				group_set_pan(track, -MLR_PAN_STEPS);
+				return;
+			}
 			if (rec_armed_track == track &&
 			    mlr_tracks[track].recorded_channel != (uint8_t)column) {
 				set_track_recorded_channel(track, (uint8_t)column, true);
@@ -2363,8 +2497,6 @@ private:
 			}
 		}
 
-		int sw_now = SwitchVal();
-		bool rec_pos = (sw_now == Switch::Up || sw_now == Switch::Down);
 		if (rec_pos && rec_armed_track < 0 && mlr_rec_track < 0 && !mlr_flushing && !rec_limit_latched && rec_start_lockout_samples_ == 0) {
 			mlr_start_record(track);
 			rec_speed_accum = 0;
@@ -2625,7 +2757,10 @@ private:
 			mlr_cut(t, col);
 			pause_other_group_members_for_gate(t);
 		} else {
+			bool had_loop = mlr_tracks[t].loop_active;
 			mlr_choke_group_cut(t, col);
+			if (had_loop && !mlr_tracks[t].loop_active)
+				note_settings_changed();  /* cutting out of a loop clears it */
 		}
 		dispatch_event(MLR_EVT_CUT, (uint8_t)t, (int8_t)col, 0);
 	}
@@ -2640,24 +2775,313 @@ private:
 			mlr_choke_group_set_loop(t, a, b);
 		}
 		dispatch_event(MLR_EVT_LOOP, (uint8_t)t, (int8_t)a, (int8_t)b);
+		note_settings_changed();
 	}
 
 	void __not_in_flash("group_set_speed") group_set_speed(int t, int speed)
 	{
 		mlr_set_speed(t, speed);
 		dispatch_event(MLR_EVT_SPEED, (uint8_t)t, (int8_t)speed, 0);
+		note_settings_changed();
 	}
 
 	void __not_in_flash("group_set_reverse") group_set_reverse(int t, bool reverse)
 	{
 		mlr_set_reverse(t, reverse);
 		dispatch_event(MLR_EVT_REVERSE, (uint8_t)t, reverse ? 1 : 0, 0);
+		note_settings_changed();
 	}
 
 	void __not_in_flash("group_set_volume") group_set_volume(int t, int slot)
 	{
 		mlr_set_volume(t, slot);
 		dispatch_event(MLR_EVT_VOLUME, (uint8_t)t, (int8_t)slot, 0);
+		note_settings_changed();
+	}
+
+	void __not_in_flash("group_set_pan") group_set_pan(int t, int pan)
+	{
+		if (mlr_tracks[t].pan == pan) return;
+		mlr_set_pan(t, pan);
+		dispatch_event(MLR_EVT_PAN, (uint8_t)t, (int8_t)pan, 0);
+		note_settings_changed();
+	}
+
+	void __not_in_flash("group_set_lpf") group_set_lpf(int t, int slot)
+	{
+		if (mlr_tracks[t].lpf_slot == slot) return;
+		mlr_set_lpf(t, slot);
+		dispatch_event(MLR_EVT_LPF, (uint8_t)t, (int8_t)slot, 0);
+		note_settings_changed();
+	}
+
+	/* REC page reverse keys (16-wide): a short tap with no cutoff change
+	 * toggles reverse on release; holding just shows the filter. Any number
+	 * of rows can be held at once, each timed on its own. */
+	void __not_in_flash("process_lpf_hold") process_lpf_hold()
+	{
+		uint8_t mask = lpf_hold_mask_;
+		if (!mask) return;
+		for (int t = 0; t < MLR_NUM_TRACKS; t++) {
+			if (!(mask & (1u << t))) continue;
+			if (lpf_hold_samples_[t] < LPF_TAP_SAMPLES)
+				lpf_hold_samples_[t] += MAIN_CTRL_DIV;
+			bool released = grid.keyUp() && grid.lastX() == 7 && grid.lastY() - 1 == t;
+			if (released) {
+				if (!(lpf_edited_mask_ & (1u << t)) && lpf_hold_samples_[t] < LPF_TAP_SAMPLES)
+					group_set_reverse(t, !mlr_tracks[t].reverse);
+			} else if (grid.held(7, (uint8_t)(t + 1))) {
+				continue;
+			}
+			/* released (or its key-up was missed): end this row's hold */
+			mask &= (uint8_t)~(1u << t);
+		}
+		lpf_hold_mask_ = mask;
+	}
+
+	/* Pan keys are cols 2..15: 2..7 = 6 steps left, 8 and 9 = centre,
+	 * 10..15 = 6 steps right. */
+	static int pan_col_to_value(int col)
+	{
+		if (col <= 7) return col - 8;
+		if (col <= 9) return 0;
+		return col - 9;
+	}
+
+	/* REC page, 16-wide, nothing armed/recording, switch in the middle: holding
+	 * both arm keys on a row enters pan mode for it; releasing either leaves.
+	 * Swallows those arm-key events so they never arm or copy. */
+	bool pan_gesture_consumed_ = false;
+	int  pan_exit_track_ = -1;  /* row whose arm keys are still swallowed after pan mode */
+	void __not_in_flash("process_pan_gesture") process_pan_gesture()
+	{
+		pan_gesture_consumed_ = false;
+		if (small_grid_ || !(grid.keyDown() || grid.keyUp())) return;
+		int column = grid.lastX(), row = grid.lastY();
+		if (column > 1 || row < 1 || row > MLR_NUM_TRACKS) return;
+		int track = row - 1;
+
+		if (grid.keyUp()) {
+			if (track == pan_mode_track_) {
+				pan_mode_track_ = -1;  /* either arm key up ends pan mode */
+				pan_gesture_consumed_ = true;
+			} else if (pan_exit_track_ == track) {
+				pan_gesture_consumed_ = true;  /* the other arm key's later release */
+				if ((grid.heldRowMask((uint8_t)row) & 0x3u) == 0) pan_exit_track_ = -1;
+			}
+			copy_arm_suppress_event_ = pan_gesture_consumed_;
+			return;
+		}
+
+		bool rec_pos = (SwitchVal() == Switch::Up || SwitchVal() == Switch::Down);
+		if (rec_pos || rec_armed_track >= 0 || mlr_rec_track >= 0 || delete_action_held()) return;
+		if ((grid.heldRowMask((uint8_t)row) & 0x3u) != 0x3u) return;
+		pan_mode_track_ = (int8_t)track;
+		pan_exit_track_ = track;
+		reset_copy_gesture();  /* the first arm key started a copy/arm; cancel it */
+		pan_gesture_consumed_ = true;
+		copy_arm_suppress_event_ = true;
+	}
+
+	/* Persist speed/reverse/volume/loop/master changes the user makes. Pattern
+	 * playback calls the mlr_set_* setters directly, so automation never lands
+	 * here and never wears the scene flash. */
+	void __not_in_flash("note_settings_changed") note_settings_changed()
+	{
+		settings_dirty_ = true;
+	}
+
+	/* Master is read straight from the knob and this runs on every jittery
+	 * ADC change, so only count a move past the threshold, then re-centre on
+	 * the new level so jitter around a resting knob never marks a change. */
+	void __not_in_flash("note_master_level_changed") note_master_level_changed()
+	{
+		int diff = (int)mlr_master_level_raw - (int)autosave_master_ref_;
+		if (diff < 0) diff = -diff;
+		if (diff > KNOB_HARD_TAKEOVER_THRESHOLD) {
+			autosave_master_ref_ = mlr_master_level_raw;
+			note_settings_changed();
+		}
+	}
+
+#ifdef MLR_PERF_PROFILING
+	void service_perf_cmd()
+	{
+		uint32_t cmd = mlr_perf_cmd;
+		if (cmd == 0) return;
+		int op = (int)(cmd >> 24), t = (int)((cmd >> 16) & 0xFF), arg = (int)((cmd >> 8) & 0xFF);
+		if (t < MLR_NUM_TRACKS) {
+			switch (op) {
+			case PERF_CMD_PLAY:
+				mlr_set_speed(t, (arg & 0x7F) - 3);
+				mlr_set_reverse(t, (arg & 0x80) != 0);
+				/* like a Pulse In 1 reset: stay inside an active loop */
+				mlr_cut(t, mlr_tracks[t].loop_active ? mlr_tracks[t].loop_col_start : 0);
+				break;
+			case PERF_CMD_STOP:
+				mlr_stop_track(t);
+				break;
+			case PERF_CMD_REC_START:
+				if (mlr_rec_track < 0 && !mlr_flushing && !rec_limit_latched && rec_start_lockout_samples_ == 0) {
+					rec_armed_track = t;
+					if (mlr_tracks[t].playing) {
+						resume_after_arm_track_ = t;
+						mlr_stop_track(t);
+					}
+					mlr_start_record(t);
+					rec_speed_accum = 0;
+					rec_pulse_gated_ = true;
+				}
+				break;
+			case PERF_CMD_REC_STOP:
+				if (rec_pulse_gated_ && mlr_rec_track >= 0) {
+					mlr_stop_record();
+					rec_speed_accum = 0;
+					rec_pulse_gated_ = false;
+				}
+				rec_armed_track = -1;
+				break;
+			case PERF_CMD_TOUCH:
+				note_settings_changed();
+				break;
+			case PERF_CMD_PAN:
+				mlr_set_pan(t, arg - MLR_PAN_STEPS);
+				break;
+			case PERF_CMD_CV:
+				if (t < 2)
+					perf_cv_override[t] = arg == 0 ? PERF_CV_REAL : arg == 255 ? PERF_CV_SWEEP : (arg - 128) * 16;
+				break;
+			case PERF_CMD_LPF:
+				mlr_set_lpf(t, arg);
+				break;
+			case PERF_CMD_PAN_CV:
+				mlr_set_pan_cv(t, ((arg - 128) * 256) / 10);
+				break;
+			case PERF_CMD_COPY:
+				mlr_copy_track_mask(t, (uint8_t)arg);
+				break;
+			case PERF_CMD_LOOP:
+				if (arg) mlr_set_loop(t, arg >> 4, arg & 0x0F);
+				else     mlr_clear_loop(t);
+				break;
+			case PERF_CMD_SPLICE:
+				last_touched_track_ = t;
+				perf_splice_override = arg ? (arg << 8) | arg : 0;
+				break;
+			}
+		} else if (op == PERF_CMD_SPLICE) {
+			perf_splice_override = -1;
+		}
+		mlr_perf_cmd = 0;
+		mlr_perf_cmd_ack = mlr_perf_cmd_ack + 1;
+	}
+#endif
+
+	/* CV In 1/2 as the CV services see them (the profiling build can fake them). */
+	bool __not_in_flash("cv_in_connected") cv_in_connected(int i)
+	{
+#ifdef MLR_PERF_PROFILING
+		if (perf_cv_override[i] != PERF_CV_REAL) return true;
+#endif
+		return Connected(i ? Input::CV2 : Input::CV1);
+	}
+	int __not_in_flash("cv_in_value") cv_in_value(int i)
+	{
+#ifdef MLR_PERF_PROFILING
+		int o = perf_cv_override[i];
+		if (o == PERF_CV_SWEEP) {
+			/* full -5..+5 V triangle, ~0.7 s period at the 3 kHz control rate */
+			int p = perf_cv_sweep_phase[i] = (perf_cv_sweep_phase[i] + 4) & 4095;
+			return p < 2048 ? p * 2 - 2048 : 6143 - p * 2;
+		}
+		if (o != PERF_CV_REAL) return o;
+#endif
+		return i ? CVIn2() : CVIn1();
+	}
+
+	/* Tracks a CV input acts on, as a mask: the chosen set, or the
+	 * last-touched track when none is chosen (0 if none touched yet). Set
+	 * from the sample manager. */
+	uint8_t cv_target_mask(uint8_t target) const
+	{
+		if (target & MLR_CV_TARGET_ALL) return (uint8_t)(target & MLR_CV_TARGET_ALL);
+		return last_touched_track_ >= 0 ? (uint8_t)(1u << last_touched_track_) : 0u;
+	}
+
+	/* CV In 2 rotates its target tracks' whole recordings: the playhead
+	 * still wraps to the first column (or loop start), but "the start" of the
+	 * audio has moved by this fraction of the track length, so a loop scrubs
+	 * through the material. 0 V = normal, +5 V = mlr_rot_range_pct of the
+	 * track (100% = almost a full turn). Core 1 picks it up at the next fill
+	 * wrap or cut. */
+	void __not_in_flash("service_cv_splice") service_cv_splice()
+	{
+		/* Only the targets follow the CV. Other tracks, and the targets once
+		 * the CV is unplugged, keep their last rotation (delete-hold reset
+		 * clears them). */
+		uint8_t mask = cv_target_mask(mlr_cv2_target);
+		if (!mask) return;
+#ifdef MLR_PERF_PROFILING
+		if (perf_splice_override >= 0) {
+			for (int t = 0; t < MLR_NUM_TRACKS; t++)
+				if (mask & (1u << t)) mlr_tracks[t].splice_q16 = (uint16_t)perf_splice_override;
+			return;
+		}
+#endif
+		if (!cv_in_connected(1)) return;
+		int cv = cv_in_value(1);
+		if (mlr_cv2_mode == MLR_CV2_MODE_FILTER) {
+			/* CV In 2 sets the cutoff directly: 0 V darkest .. +5 V open,
+			 * continuous, no glide; the tracks keep it when the CV lets go */
+			uint32_t pos = cv <= 0 ? 0u
+			             : cv >= CV_SPLICE_FULL_SCALE ? ((uint32_t)MLR_LPF_OPEN << 20)
+			             : (((uint32_t)cv * ((uint32_t)MLR_LPF_OPEN << 12)) / CV_SPLICE_FULL_SCALE) << 8;
+			mlr_set_lpf_pos_mask(mask, pos);
+			return;
+		}
+		uint32_t q = 0;
+		if (cv >= CV_SPLICE_FULL_SCALE) q = 65535u;
+		else if (cv > 0) q = ((uint32_t)cv * 65535u) / CV_SPLICE_FULL_SCALE;
+		/* +5 V reaches the configured share of each track (sample manager). */
+		uint16_t splice = (uint16_t)((q * mlr_rot_range_pct) / 100u);
+		for (int t = 0; t < MLR_NUM_TRACKS; t++)
+			if (mask & (1u << t)) mlr_tracks[t].splice_q16 = splice;
+	}
+
+	/* CV In 1 offsets its target tracks' pan: 5 V = the full L-R width
+	 * (12 steps), so 0..+5 V sweeps a hard-left track all the way right and
+	 * -5..0 V a hard-right one all the way left; continuous, clamped at the
+	 * edges. Other tracks, and the target once the
+	 * CV is unplugged, keep their last offset (delete-hold reset clears it).
+	 * Live only: not saved or recorded into patterns. */
+	void __not_in_flash("service_cv_pan") service_cv_pan()
+	{
+		uint8_t mask = cv_target_mask(mlr_cv1_target);
+		if (!mask || !cv_in_connected(0)) return;
+		int cv = cv_in_value(0);
+		int offset = (cv * (2 * MLR_PAN_STEPS * 256)) / CV_PAN_FULL_SCALE;
+		/* Each track's gains come off its own base pan, so they can't be
+		 * shared: update one target per control tick, in turn. Every target
+		 * still gets the CV at >= 500 Hz, and the gain slew smooths the steps. */
+		for (int i = 0; i < MLR_NUM_TRACKS; i++) {
+			cv_pan_rr_ = (uint8_t)((cv_pan_rr_ + 1u) % MLR_NUM_TRACKS);
+			if (mask & (1u << cv_pan_rr_)) {
+				mlr_set_pan_cv(cv_pan_rr_, offset);
+				return;
+			}
+		}
+	}
+
+	void __not_in_flash("service_settings_autosave") service_settings_autosave()
+	{
+		settings_autosave_elapsed_ += MAIN_CTRL_DIV;
+		if (settings_autosave_elapsed_ < SETTINGS_AUTOSAVE_PERIOD_SAMPLES) return;
+		settings_autosave_elapsed_ = 0;
+		if (!settings_dirty_) return;
+		settings_dirty_ = false;
+		/* autosave_master_ref_ is left alone: it tracks user moves only, so a
+		 * pattern-automated master level can't leak in and trigger saves. */
+		mlr_scene_save_start();  /* queued behind any recording/flush by core 1 */
 	}
 
 	void __not_in_flash("group_stop_track") group_stop_track(int t)
@@ -2844,7 +3268,8 @@ private:
 		}
 
 		/* Arm on key-down of play col on any track row (single-hold path). */
-		if (grid.keyDown() && grid.lastX() == pc && grid.lastY() >= 1 && grid.lastY() <= MLR_NUM_TRACKS) {
+		if (grid.keyDown() && grid.lastX() == pc && grid.lastY() >= 1 && grid.lastY() <= MLR_NUM_TRACKS &&
+		    grid.lastY() - 1 != pan_mode_track_) {
 			int track = grid.lastY() - 1;
 			if (group_gesture_mask_ == 0) {
 				play_col_armed[track] = true;
@@ -2955,6 +3380,12 @@ private:
 
 		int track  = grid.lastY() - 1;
 		int column = grid.lastX();
+		if (track == pan_mode_track_) {
+			/* keys 3..16 set pan; keys 9 and 10 are both centre */
+			if (column >= 2 && column <= 15)
+				group_set_pan(track, pan_col_to_value(column));
+			return;
+		}
 		if (dissolve_group_if_delete_touch(track)) return;
 
 		/* Cols 0 / 1 (16-wide only): combined channel-select + record-arm.
@@ -2981,12 +3412,23 @@ private:
 		} else {
 			/* 16x8 REC: cols 0-1=channel+arm (above), cols 2-6=mixer (5 slots),
 			 * col 7=reverse, cols 8-14=speed, col 15=play. */
-			if (column >= 2 && column <= 6) {
+			if (column >= 2 && column <= 6 && (lpf_hold_mask_ & (1u << track))) {
+				/* reverse key held: mixer keys set the low-pass, dark left -> open right
+				 * (ignored on CV In 2 targets while it drives their cutoff) */
+				bool cv_owns = mlr_cv2_mode == MLR_CV2_MODE_FILTER &&
+				               (cv_target_mask(mlr_cv2_target) & (1u << track)) &&
+				               cv_in_connected(1);
+				if (!cv_owns)
+					group_set_lpf(track, column - 2);
+				lpf_edited_mask_ |= (uint8_t)(1u << track);
+			} else if (column >= 2 && column <= 6) {
 				int slot = column - 2;
 				group_set_volume(track, slot);
 			} else if (column == 7) {
-				bool new_rev = !mlr_tracks[track].reverse;
-				group_set_reverse(track, new_rev);
+				/* tap toggles reverse on release; hold shows/sets the filter */
+				lpf_hold_mask_ |= (uint8_t)(1u << track);
+				lpf_edited_mask_ &= (uint8_t)~(1u << track);
+				lpf_hold_samples_[track] = 0;
 			} else if (column >= 8 && column <= 14) {
 				int speed = column - 11;  /* -3 .. +3 */
 				group_set_speed(track, speed);
@@ -3063,6 +3505,7 @@ private:
 				} else if (mlr_tracks[track].loop_active) {
 					mlr_clear_loop(track);
 					dispatch_event(MLR_EVT_LOOP_CLR, (uint8_t)track, 0, 0);
+					note_settings_changed();
 				}
 				return;
 			}
@@ -3292,6 +3735,13 @@ private:
 				if (!has && !armed && !actively_rec) {
 					col0_bright = state_bright;
 					col1_bright = state_bright;
+				} else if (mlr_pan_enabled && !armed && !actively_rec) {
+					/* Output pan across the two keys: hard left = key 1 only
+					 * (like dual-mono channel 1), centre = both at half. */
+					int e = mlr_pan_effective_q8(t) + MLR_PAN_STEPS * 256;  /* 0..3072, includes CV */
+					int span = 2 * MLR_PAN_STEPS * 256;
+					col0_bright = (uint8_t)((state_bright * (span - e) + span / 2) / span);
+					col1_bright = (uint8_t)((state_bright * e + span / 2) / span);
 				} else {
 					uint8_t selected = state_bright;
 					uint8_t other    = 0;
@@ -3385,8 +3835,60 @@ private:
 					grid.frameLedUnchecked(speed_col, row, 14);
 				if (speed_col != 11)
 					grid.frameLedUnchecked(11, row, 3);  /* dim 1x indicator when not selected */
+
+				if (lpf_hold_mask_ & (1u << t)) {
+					/* low-pass at its current (possibly gliding) position: bright
+					 * spot crossfading between keys, fading to the left (darker),
+					 * off to the right; fully open lights the whole mixer row */
+					static const uint8_t fade[] = { 14, 9, 6, 4, 2, 2 };
+					int32_t p = (int32_t)(mlr_tracks[t].lpf_pos >> 12);  /* key position, Q8 */
+					for (int c = 0; c < MLR_LPF_SLOTS; c++) {
+						int32_t d = p - c * 256;  /* how far the cutoff is right of this key */
+						uint8_t lvl;
+						if (d >= 0) {
+							int i = d >> 8, f = d & 255;  /* interpolate the fade by distance */
+							lvl = (uint8_t)(fade[i] + (((fade[i + 1] - fade[i]) * f) >> 8));
+						} else if (d > -256) {
+							lvl = (uint8_t)((14 * (256 + d)) >> 8);  /* next key brightening */
+						} else {
+							lvl = 0;
+						}
+						grid.frameLedUnchecked(c + 2, row, lvl);
+					}
+					grid.frameLedUnchecked(7, row, 15);
+				}
+				if (t == pan_mode_track_) {
+					/* gliding position incl. CV In 1, so the row moves with the sound */
+					draw_pan_row(row, mlr_pan_effective_q8(t));
+				}
 			}
 		}
+	}
+
+	/* Pan mode: keys 3..16 show the pan, bright at the selected step (keys 9
+	 * and 10 together for centre), with a long, gentle fade across the row so
+	 * it reads differently from the short level gradient on other tracks.
+	 * Takes the position in 1/256 steps and blends between keys, so glides
+	 * and CV moves slide across the row instead of hopping key to key. */
+	void __not_in_flash("draw_pan_row") draw_pan_row(int row, int pan_q8)
+	{
+		static const uint8_t fade[] = { 15, 9, 7, 6, 5, 4, 3, 2, 1 };
+		const int N = (int)sizeof(fade) - 1;
+		/* Bright span in columns, Q8: one key off centre, the two centre keys
+		 * at 0; between 0 and +-1 step the span narrows from both to one. */
+		int p = pan_q8;
+		int lo = p < 0 ? p + 8 * 256 : (p < 256 ? 8 * 256 + 2 * p : p + 9 * 256);
+		int hi = p > 0 ? p + 9 * 256 : (p > -256 ? 9 * 256 + 2 * p : p + 8 * 256);
+		for (int c = 2; c <= 15; c++) {
+			int x = c * 256;
+			int d = x < lo ? lo - x : (x > hi ? x - hi : 0);  /* Q8 keys */
+			int i = d >> 8, f = d & 255;
+			uint8_t lvl = i >= N ? fade[N]
+			            : (uint8_t)(fade[i] - (((fade[i] - fade[i + 1]) * f + 128) >> 8));
+			grid.frameLedUnchecked(c, row, lvl);
+		}
+		grid.frameLedUnchecked(0, row, 15);
+		grid.frameLedUnchecked(1, row, 15);
 	}
 
 	/* ================================================================ */

@@ -13,7 +13,7 @@
 ## High-level architecture
 
 - MLRws is a Pico SDK C/C++ Workshop Computer card built as a single dual-mono firmware. `CMakeLists.txt` sets `CARD_NAME` and flash layout macros; the post-build step copies UF2 files into `UF2/` and fails if the binary exceeds the reserved firmware flash area.
-- `ComputerCard.h` is vendored locally and provides the hardware abstraction. `MLRCard` derives from `ComputerCard`, does setup in its constructor, overrides `ProcessSample()`, then calls `Run()`. `ProcessSample()` runs at 48 kHz and must complete in roughly 20 microseconds.
+- `ComputerCard.h` is vendored locally and provides the hardware abstraction. `MLRCard` derives from `ComputerCard`, does setup in its constructor, overrides `ProcessSample()`, then calls `Run()`. `ProcessSample()` runs at 24 kHz and must complete in roughly 42 microseconds.
 - ComputerCard handles ADC/mux sampling, smoothed knobs/CV, switch and jack detection, DAC audio outputs, PWM CV outputs, LEDs, EEPROM calibration, and optional normalisation probing. Jack indexes are zero-based internally even though panel labels are one-based.
 - Real-time audio/control is split from slower I/O across RP2040 cores. Core 0 runs `ComputerCard::ProcessSample()`, handles grid gestures/control state, records ADPCM samples, plays/mixes RAM ring buffers, and outputs audio. Core 1 runs USB tasks plus `mlr_io_task()`, refilling playback rings from flash and erasing/writing recording pages.
 - Runtime mode is selected at startup from USB power/protocol detection:

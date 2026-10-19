@@ -7,9 +7,9 @@ ComputerCard is a header-only C++ library, providing a class that
 manages the hardware aspects of the Music Thing Modular Workshop
 System Computer.
 
-It aims to present a very simple C++ interface for card programmers 
-to use the jacks, knobs, switch and LEDs, for programs running at
-a fixed 48kHz audio sample rate.
+It aims to present a very simple C++ interface for card programmers
+to use the jacks, knobs, switch and LEDs. This MLRws-local copy runs
+at a fixed 24kHz audio sample rate.
 
 See examples/ directory
 */
@@ -84,7 +84,7 @@ protected:
 			return mixf;
 		}
 	private:
-		// 12kHz notch filter, to remove interference from mux lines
+		// Fs/4 notch filter (6kHz at 24kHz), to remove interference from mux lines
 		int32_t mix1, mix2, mixf1, mixf2;
 		static constexpr int32_t ooa0 = 16302, a2oa0 = 16221; // Q = 100, very narrow notch
 
@@ -92,7 +92,7 @@ protected:
 
 	NotchFilter notchLeft, notchRight;
 
-	/// Callback, called once per sample at 48kHz
+	/// Callback, called once per sample at 24kHz
 	virtual void ProcessSample() = 0;
 
 
@@ -541,9 +541,9 @@ void __not_in_flash_func(ComputerCard::AudioWorker)()
 
 
 	// ADC clock runs at 48MHz
-	// 48MHz ÷ (124+1) = 384kHz ADC sample rate
-	//                 = 8×48kHz audio sample rate
-	adc_set_clkdiv(124);
+	// 48MHz ÷ (249+1) = 192kHz ADC sample rate
+	//                 = 8×24kHz audio sample rate
+	adc_set_clkdiv(249);
 
 	// claim and setup DMAs for reading to ADC, and writing to SPI DAC
 	adc_dma = dma_claim_unused_channel(true);
@@ -697,7 +697,9 @@ void __not_in_flash_func(ComputerCard::BufferFull)()
 	CorrectADCDNL(ADC_Buffer[cpuPhase][1]);
 	CorrectADCDNL(ADC_Buffer[cpuPhase][5]);
 	
-	cvsm[cvi] = (15 * (cvsm[cvi]) + 16 * ADC_Buffer[cpuPhase][7]) >> 4;
+	/* Preserve the original CV filter time constant after halving the
+	 * per-input update rate: 15/16 at 24kHz becomes 7/8 at 12kHz. */
+	cvsm[cvi] = (7 * (cvsm[cvi]) + 16 * ADC_Buffer[cpuPhase][7]) >> 3;
 	cv[cvi] = 2048 - (cvsm[cvi] >> 4);
 
 
@@ -706,7 +708,7 @@ void __not_in_flash_func(ComputerCard::BufferFull)()
 	adcInR = -(((ADC_Buffer[cpuPhase][0] + ADC_Buffer[cpuPhase][4]) - 0x1000) >> 1);
 	adcInL = -(((ADC_Buffer[cpuPhase][1] + ADC_Buffer[cpuPhase][5]) - 0x1000) >> 1);
 
-	// 12kHz notch filters
+	// 6kHz notch filters (one quarter of the 24kHz audio sample rate)
 	adcInR = notchRight(adcInR);
 	adcInL = notchLeft(adcInL);
 
@@ -718,7 +720,9 @@ void __not_in_flash_func(ComputerCard::BufferFull)()
 
 	// Set knobs, with ~60Hz LPF
 	int knob = mux_state;
-	knobssm[knob] = (127 * (knobssm[knob]) + 16 * ADC_Buffer[cpuPhase][6]) >> 7;
+	/* Preserve the original knob filter time constant after halving the
+	 * per-knob update rate: 127/128 becomes 63/64. */
+	knobssm[knob] = (63 * (knobssm[knob]) + 16 * ADC_Buffer[cpuPhase][6]) >> 6;
 	knobs[knob] = knobssm[knob] >> 4;
 
 	// Set switch value
@@ -744,13 +748,13 @@ void __not_in_flash_func(ComputerCard::BufferFull)()
 			np = (np<<1)+(normprobe&0x1);
 		}
 
-		// CV sampled at 24kHz comes in over two successive samples
+		// CV sampled at 12kHz comes in over two successive audio samples
 		if (norm_probe_count == 14 || norm_probe_count == 15)
 		{
 			plug_state[2+cvi] = (plug_state[2+cvi]<<1)+(ADC_Buffer[cpuPhase][7]<1800);
 		}
 
-		// Audio and pulse measured every sample at 48kHz
+		// Audio and pulse measured every sample at 24kHz
 		if (norm_probe_count == 15)
 		{
 			plug_state[Input::Audio1] = (plug_state[Input::Audio1]<<1)+(ADC_Buffer[cpuPhase][5]<1800);

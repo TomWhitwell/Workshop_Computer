@@ -35,6 +35,51 @@ export function cardScope(changes) {
   return { cards: [...cards].sort(), outside: [...outside].sort() };
 }
 
+/**
+ * Whole-card renames in a change set, as [{ from, to }]. Git reports a moved
+ * directory file by file, so a card counts as renamed when files move from it
+ * into exactly one other card, it is otherwise only deleted from, and the
+ * destination is otherwise only added to (so it is new, not an existing card
+ * being merged into).
+ */
+export function cardRenames(changes) {
+  const moves = new Map();
+  const disqualified = new Set();
+  for (const change of changes) {
+    const from = change.oldPath ? releaseOf(change.oldPath) : null;
+    const to = releaseOf(change.path);
+    if (change.oldPath && from !== to) {
+      if (from && to) {
+        const targets = moves.get(from) || new Set();
+        targets.add(to);
+        moves.set(from, targets);
+      } else {
+        // A file moved in from or out to somewhere outside releases/.
+        if (from) disqualified.add(from);
+        if (to) disqualified.add(to);
+      }
+    } else if (to) {
+      // In-place changes: a deletion may only leave the source, an addition
+      // may only arrive at the destination.
+      if (!change.status.startsWith('D')) disqualified.add(`from:${to}`);
+      if (!change.status.startsWith('A')) disqualified.add(`to:${to}`);
+    }
+  }
+  const sources = new Map();
+  for (const [from, targets] of moves) {
+    for (const to of targets) sources.set(to, (sources.get(to) || 0) + 1);
+  }
+  const renames = [];
+  for (const [from, targets] of moves) {
+    if (targets.size !== 1) continue;
+    const [to] = targets;
+    if (moves.has(to) || sources.get(to) !== 1) continue;
+    if ([from, to, `from:${from}`, `to:${to}`].some(key => disqualified.has(key))) continue;
+    renames.push({ from, to });
+  }
+  return renames.sort((a, b) => a.from.localeCompare(b.from));
+}
+
 /** True when a change set touches no program card at all. */
 export function touchesNoCards(changes) {
   return cardScope(changes).cards.length === 0;
@@ -44,7 +89,12 @@ export function touchesNoCards(changes) {
 export function scopeReasons(changes) {
   const reasons = [];
   const { cards, outside } = cardScope(changes);
-  if (cards.length > 1) reasons.push(`Changes ${cards.length} cards (${cards.join(', ')}); only single-card PRs merge automatically.`);
+  const renames = cardRenames(changes);
+  const renamed = new Set(renames.flatMap(({ from, to }) => [from, to]));
+  // A renamed card is one card under two names.
+  const units = [...renames.map(({ from, to }) => `${from} → ${to}`), ...cards.filter(card => !renamed.has(card))];
+  if (units.length > 1) reasons.push(`Changes ${units.length} cards (${units.join(', ')}); only single-card PRs merge automatically.`);
+  for (const { from, to } of renames) reasons.push(`Renames card ${from} to ${to}; renamed cards need a maintainer's review.`);
   if (!cards.length) reasons.push('Changes no program card.');
   if (outside.length) {
     const listed = outside.slice(0, 5).join(', ');
