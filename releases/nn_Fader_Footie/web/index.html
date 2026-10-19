@@ -81,7 +81,8 @@
   .fad .cap { position: absolute; left: 2px; right: 2px; height: 14px; border-radius: 4px; }
   .fad.t0 .cap { background: var(--t0); } .fad.t1 .cap { background: var(--t1); }
   .fad .lbl { font-size: 11px; color: var(--muted); text-align: center; line-height: 1.2; }
-  .fad.ai .trk { opacity: .55; cursor: default; }
+  .fad.ai .trk { opacity: .55; }
+  .fad.you .trk { outline: 2px solid var(--warm); outline-offset: 2px; }
   .fad .key { font: 10px ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
 
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 12px; }
@@ -136,7 +137,7 @@
     <div class="team t0">
       <div class="score" id="score0">0</div>
       <div><div class="tname">Team 1 <span class="tsub">(left, red)</span></div>
-        <div class="tsub">Faders 1-4 · buttons A/B · <select id="ctl0"><option value="human">Human</option><option value="easy">CPU easy</option><option value="medium">CPU medium</option><option value="hard">CPU hard</option></select></div></div>
+        <div class="tsub">Faders 1-4 · buttons A/B · <select id="ctl0"><option value="human">Human</option><option value="easy">CPU easy</option><option value="medium">CPU medium</option><option value="hard">CPU hard</option><option value="assist-easy">Human + CPU easy</option><option value="assist-medium">Human + CPU medium</option><option value="assist-hard">Human + CPU hard</option></select></div></div>
     </div>
     <div class="mid">
       <div id="matchinfo">First to 5</div>
@@ -146,7 +147,7 @@
     <div class="team t1">
       <div class="score" id="score1">0</div>
       <div><div class="tname">Team 2 <span class="tsub">(right, blue)</span></div>
-        <div class="tsub">Faders 5-8 · buttons C/D · <select id="ctl1"><option value="human">Human</option><option value="easy">CPU easy</option><option value="medium">CPU medium</option><option value="hard">CPU hard</option></select></div></div>
+        <div class="tsub">Faders 5-8 · buttons C/D · <select id="ctl1"><option value="human">Human</option><option value="easy">CPU easy</option><option value="medium">CPU medium</option><option value="hard">CPU hard</option><option value="assist-easy">Human + CPU easy</option><option value="assist-medium">Human + CPU medium</option><option value="assist-hard">Human + CPU hard</option></select></div></div>
     </div>
   </div>
 
@@ -207,6 +208,7 @@
         <li><b>Draw back</b> (button A for team 1, D for team 2) lifts the men's feet up behind them, so they lie face down over the table and the ball rolls underneath. Hold it as long as you like; it stays drawn back for a moment after you let go.</li>
         <li><b>Shoot</b> (B, C) on its own is a <b>soft shot</b>: a flick forwards, the men facing up at you for a moment. Shoot while drawn back for a <b>hard shot</b>: the men swing down through the ball and right round over the bar.</li>
         <li>The ball rolls under the rods, and under any man whose feet are off the table.</li>
+        <li><b>Human + CPU</b> (next to the score): you play one rod and the CPU plays your other three. Your rod is the one whose fader you moved last, glowing on the table; move any fader at any time to take that rod instead. Draw back and shoot work your rod.</li>
         <li>A goal fires a burst of triggers on that team's pulse out. A dead ball is served again automatically after a few seconds (Physics: Unstick after).</li>
       </ul>
       <div class="opts">
@@ -280,6 +282,7 @@ const PARAMS = [
   { k: 'corner',     label: 'Corner ramps',        min: 0,    max: 140,  step: 5,    def: 45 },
   { k: 'serveSpeed', label: 'Serve speed',         min: 50,   max: 1500, step: 10,   def: 380 },
   { k: 'tilt',       label: '8mu tilt → slope',    min: 0,    max: 2000, step: 25,   def: 0,    fmt: v => v ? String(v) : 'off' },
+  { k: 'drawHold',   label: 'Draw-back hold',      min: 0,    max: 5,    step: 0.05, def: 0.45, fmt: v => v ? v.toFixed(2) + 's' : 'held only' },
   { k: 'stuckTime',  label: 'Unstick after',       min: 0,    max: 12,   step: 0.5,  def: 3,    fmt: v => v ? v.toFixed(1) + 's' : 'off' },
 ];
 const DEFAULTS = Object.fromEntries(PARAMS.map(p => [p.k, p.def]));
@@ -591,8 +594,9 @@ function drawBack(team, on, rods) {
     for (const r of rods || chosenRods(team)) { r.drawHeld = true; r.drawUntil = -1; }
     sfx('spin', 200);
   } else {
-    // a moment's grace, so a tap of draw back and then shoot is a hard shot too
-    for (const r of rods || rodsOf(team)) if (r.drawHeld) { r.drawHeld = false; r.drawUntil = game.time + 0.45; }
+    // stays drawn back a while (Draw-back hold), so a tap of draw back and
+    // then shoot is a hard shot too
+    for (const r of rods || rodsOf(team)) if (r.drawHeld) { r.drawHeld = false; r.drawUntil = game.time + P.drawHold; }
   }
 }
 function shoot(team, rods) {
@@ -617,9 +621,10 @@ const AI = {
   hard: { react: 0.05, speed: 1.0, kick: 1.0, jitter: 3, cool: 0.25, aim: 1, hardBelow: 700, drawWait: 0.02, lift: true },
 };
 const aiState = RODS.map(() => ({ y: CY, cool: 0, jit: 0, jitT: 0, aim: 0, aimT: 0, drawing: false, drawFor: 0 }));
-function aiStep(team, level, dt) {
+function aiStep(team, level, dt, skip) {
   const s = AI[level];
   for (const rod of rodsOf(team)) {
+    if (rod === skip) continue;
     const st = aiState[rod.i];
     // where the ball will cross this rod, bounced off the side walls
     let py = ball.y;
@@ -735,7 +740,7 @@ function sendOutputs(force) {
 const CMD = { STATUS: 0x07, PING: 0x09, OUTPUTS: 0x10, TOUCH: 0x11, GOAL: 0x12, CONFIG: 0x13, EVENT: 0x20 };
 const sysexMsg = (cmd, payload) => [0xF0, 0x7D, 0x46, cmd, ...payload, 0xF7];
 const link = { access: null, cardIn: null, cardOut: null, muIns: [], online: false, buf: [], inSx: false, pingTimer: 0, card: null };
-const mu = { cc: new Array(8).fill(64), buttons: [false, false, false, false] };
+const mu = { cc: new Array(8).fill(64), buttons: [false, false, false, false], phys: new Array(8).fill(-1) };
 
 function sendCard(msg) {
   if (!link.cardOut) return;
@@ -780,7 +785,7 @@ function scanPorts() {
   if (link.online) { setStatus('ok', 'Connected: Fader Footie card' + (m ? ' + 8mu' : '')); say(m ? 'Ready: the 8mu plays, the card makes the voltages.' : 'Card connected. Plug an 8mu into this computer, or play with the faders below.' + note); }
   else if (m) { setStatus('warn', 'Connected: 8mu only (no card)'); say('No “Fader Footie” card found, so no voltages. Plug this computer into the Computer’s USB socket and power-cycle the module.' + note, true); }
   else { setStatus('warn', 'No card or 8mu found'); say('Nothing found. Use a USB data cable, close other apps using the device, and power-cycle the module after plugging this computer in.' + note, true); }
-  const cpu = [0, 1].filter(t => ctlOf(t) !== 'human');
+  const cpu = [0, 1].filter(t => !hasHuman(t));
   if (m && cpu.length) say($('say').textContent + ' Team ' + cpu.map(t => t + 1).join(' and ') + ' is played by the CPU: set it to Human (by the score) for two players.');
   $('cardknobs').textContent = link.online ? 'Card: connected, waiting for its knobs' : 'Card: not connected';
 }
@@ -815,7 +820,10 @@ function onEightmu(d) {
     const cc = d[1];
     if (cc >= FIRST_FADER_CC && cc < FIRST_FADER_CC + 8) {
       const f = cc - FIRST_FADER_CC, rod = rodOfFader(f);
-      if (ctlOf(rod.team) === 'human') fader[f] = d[2] & 0x7F;
+      // a real move, not a fader's one-step jitter, takes the rod
+      const v = d[2] & 0x7F, last = mu.phys[f];
+      mu.phys[f] = v;
+      if (humanFader(f) || last < 0 || Math.abs(v - last) >= 2) touchFader(f, v);
     } else if (cc >= FIRST_MOTION_CC && cc < FIRST_MOTION_CC + 8) {
       mu.cc[cc - FIRST_MOTION_CC] = d[2] & 0x7F;
       // tilt, as EightMU::Pitch/Roll compute it: the difference of a pair of CCs
@@ -829,13 +837,33 @@ function onEightmu(d) {
   }
 }
 const ctlOf = (team) => team === 0 ? OPT.ctl0 : OPT.ctl1;
+// Human + CPU: the player has the rod whose fader they touched last, and the
+// CPU plays the team's other three
+const isAssist = (team) => ctlOf(team).startsWith('assist');
+const hasHuman = (team) => ctlOf(team) === 'human' || isAssist(team);
+const cpuLevel = (team) => isAssist(team) ? ctlOf(team).slice(7) : ctlOf(team) === 'human' ? null : ctlOf(team);
+const humanRod = [RODS[3], RODS[4]];      // the player's rod in Human + CPU: midfield to start
+// Is fader f the player's to move?  Moving one in Human + CPU takes its rod.
+const humanFader = (f) => { const t = rodOfFader(f).team; return ctlOf(t) === 'human' || (isAssist(t) && humanRod[t] === rodOfFader(f)); };
+function touchFader(f, v) {
+  const rod = rodOfFader(f), t = rod.team;
+  if (!hasHuman(t)) return;
+  if (isAssist(t) && humanRod[t] !== rod) {
+    humanRod[t] = rod;
+    const st = aiState[rod.i];
+    if (st.drawing) { rod.drawHeld = false; rod.drawUntil = -1; st.drawing = false; }
+  }
+  fader[f] = v;
+}
 function pressButton(b, down) {
   mu.buttons[b] = down;
   const el = document.querySelectorAll('.mubtn')[b]; if (el) el.classList.toggle('lit', down);
   const [team, draw] = buttonAction(b);
-  if (ctlOf(team) !== 'human') return;
-  if (draw) drawBack(team, down);
-  else if (down && game.phase === 'play') shoot(team);
+  if (!hasHuman(team)) return;
+  // Human + CPU: the buttons work the player's own rod
+  const rods = isAssist(team) ? [humanRod[team]] : undefined;
+  if (draw) drawBack(team, down, rods);
+  else if (down && game.phase === 'play') shoot(team, rods);
 }
 
 // ============================================================================
@@ -1035,6 +1063,12 @@ function draw(now) {
   grd.addColorStop(0, '#ffffff'); grd.addColorStop(1, '#cfcac0');
   ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(ball.x, ball.y, r, 0, Math.PI * 2); ctx.fill();
 
+  // Human + CPU: a glow along the player's own rod
+  for (const t of [0, 1]) if (isAssist(t)) {
+    const x = humanRod[t].x, g = ctx.createLinearGradient(x - 26, 0, x + 26, 0), c = t ? '60,120,255' : '255,70,60';
+    g.addColorStop(0, 'rgba(' + c + ',0)'); g.addColorStop(0.5, 'rgba(' + c + ',0.5)'); g.addColorStop(1, 'rgba(' + c + ',0)');
+    ctx.fillStyle = g; ctx.fillRect(x - 26, 0, 52, W);
+  }
   for (const rod of RODS) {
     // polished steel, with rubber bumpers at the walls
     const g = ctx.createLinearGradient(rod.x - 6, 0, rod.x + 6, 0);
@@ -1084,9 +1118,8 @@ function buildMu() {
     d.innerHTML = '<div class="trk"><div class="cap"></div></div><div class="lbl">' + (f + 1) + ' · ' + ROLE_NAME[rod.role] + '</div><div class="key">' + keys[f] + '</div>';
     const trk = d.querySelector('.trk');
     const set = (ev) => {
-      if (ctlOf(rod.team) !== 'human') return;
       const rc = trk.getBoundingClientRect();
-      fader[f] = clamp((1 - (ev.clientY - rc.top - 7) / (rc.height - 14)) * 127, 0, 127);
+      touchFader(f, clamp((1 - (ev.clientY - rc.top - 7) / (rc.height - 14)) * 127, 0, 127));
     };
     trk.addEventListener('pointerdown', (ev) => { trk.setPointerCapture(ev.pointerId); set(ev); });
     trk.addEventListener('pointermove', (ev) => { if (trk.hasPointerCapture(ev.pointerId)) set(ev); });
@@ -1098,7 +1131,8 @@ function renderMu() {
     const f = +d.dataset.f, rod = rodOfFader(f), trk = d.firstChild, cap = trk.firstChild;
     const h = trk.clientHeight - 14;
     cap.style.top = ((1 - fader[f] / 127) * h) + 'px';
-    d.classList.toggle('ai', ctlOf(rod.team) !== 'human');
+    d.classList.toggle('ai', !humanFader(f));
+    d.classList.toggle('you', isAssist(rod.team) && humanFader(f));
   }
 }
 
@@ -1190,9 +1224,8 @@ addEventListener('keyup', (e) => {
 });
 function keyStep(dt) {
   for (let f = 0; f < 8; f++) {
-    if (ctlOf(rodOfFader(f).team) !== 'human') continue;
     const d = (held.has(KEYS_UP[f]) ? 1 : 0) - (held.has(KEYS_DN[f]) ? 1 : 0);
-    if (d) fader[f] = clamp(fader[f] + d * 160 * dt, 0, 127);
+    if (d) touchFader(f, clamp(fader[f] + d * 160 * dt, 0, 127));
   }
 }
 
@@ -1204,7 +1237,7 @@ function frame(now) {
   let dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
   if (game.paused) dt = 0;
   keyStep(dt);
-  for (const t of [0, 1]) if (ctlOf(t) !== 'human') aiStep(t, ctlOf(t), dt * P.timeScale);
+  for (const t of [0, 1]) if (cpuLevel(t)) aiStep(t, cpuLevel(t), dt * P.timeScale, isAssist(t) ? humanRod[t] : null);
   for (const rod of RODS) rod.target = faderToY(rod);
   acc += dt * P.timeScale;
   let n = 0;

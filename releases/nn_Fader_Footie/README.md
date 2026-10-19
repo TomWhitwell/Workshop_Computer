@@ -63,7 +63,8 @@ their rods, seen from above, each with his own skin tone and hair colour
 - **Draw back** lifts the men's feet up behind them, so they lie face down
   over the table. Their feet are off the table, so the ball rolls underneath
   without touching them. They stay drawn back while the button is held, and
-  for a moment after it is let go.
+  for a moment after it is let go (**Draw-back hold**, 0.45s by default,
+  from held only up to 5s).
 - **Shoot** on its own is a **soft shot**: the men flick their feet forwards,
   face up at you for a moment, then hang down again.
 - **Shoot while drawn back** is a **hard shot**: the men swing down through
@@ -89,7 +90,16 @@ dragged and pressed too.
 
 **CPU.** Either team can be played by the CPU: easy, medium or hard. It draws
 back for a hard shot when it has the ball at its feet, and medium and hard
-lift their rods in front out of the way of their own hard shots. Two CPUs
+lift their rods in front out of the way of their own hard shots.
+
+**Human + CPU.** Each team can also be **Human + CPU** (easy, medium or
+hard): the player plays one rod and the CPU plays the other three, to help
+out. The player's rod is the one whose fader they moved last, and it glows
+on the table and is outlined under it; moving any other fader takes that
+rod instead, at any time. (A fader has to move by two steps to take over,
+so a twitching fader doesn't steal it.) Draw back and shoot work the
+player's rod. A good way to learn, or to play one against the CPU without
+four faders to watch. Two CPUs
 will happily play each other all day, which makes a good generative
 modulation source with nobody at the table.
 
@@ -112,6 +122,7 @@ motion.
 | Ball size | Radius of the ball |
 | Player size | Size of the men |
 | Goal width | Width of both goal mouths |
+| Draw-back hold | How long the men stay drawn back after the button is let go |
 | Kick reach | Length of the men's legs: how far the feet swing, and how long a shot takes |
 | Rod speed | How fast a rod can follow its fader |
 | Corner ramps | The diagonal corners, which keep the ball from sitting in a corner |
