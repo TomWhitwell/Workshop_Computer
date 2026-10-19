@@ -57,7 +57,8 @@ rod. The single goalie can cover the whole width, which leaves the goal open
 when he goes chasing into a corner.
 
 **Shooting, as on a real table.** The men are moulded plastic players on
-their rods, seen from above, and they turn the way real ones do:
+their rods, seen from above, each with his own skin tone and hair colour
+(picked at random when the page opens), and they turn the way real ones do:
 
 - **Draw back** lifts the men's feet up behind them, so they lie face down
   over the table. Their feet are off the table, so the ball rolls underneath

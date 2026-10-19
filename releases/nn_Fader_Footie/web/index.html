@@ -899,9 +899,16 @@ function rrect(x, y, w, h, r) {
 // ----------------------------------------------------------------------------
 const TILT_VIEW = 0.3;        // how far the camera leans: screen y per unit of height
 const PLASTIC = [['#e2332a', '#a8160f', '#ff8a7a'], ['#2456d8', '#122f8c', '#8fb2ff']];
-const SKIN = ['#efc29b', '#c48b62', '#ffe4cc'], HAIR = ['#3a2416', '#1d110a', '#6b4a33'];
+// Every man gets his own skin tone and hair colour, picked at random when
+// the page opens
+const SKINS = ['#f6d5bd', '#efc29b', '#e0ac7e', '#c98e5e', '#a86d43', '#8a5530', '#6b3f22', '#4e2c18'];
+const HAIRS = ['#151110', '#2e1d12', '#4a2e1a', '#7a4b26', '#a5582c', '#c9a15a', '#e3c98a', '#9a9a96'];
+const hexShade = (hex, f) => '#' + [0, 2, 4].map(i => clamp(Math.round(parseInt(hex.slice(1 + i, 3 + i), 16) * f), 0, 255).toString(16).padStart(2, '0')).join('');
+const tones = (hex) => [hex, hexShade(hex, 0.62), hexShade(hex, 1.3)];
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+const LOOKS = RODS.map(r => Array.from({ length: r.n }, () => ({ skin: tones(pick(SKINS)), hair: tones(pick(HAIRS)) })));
 const BOOT = ['#1e1e1e', '#050505', '#5a5a5a'];
-function manParts() {
+function manParts(look) {
   const k = P.manSize, foot = Math.max(P.reach, 16 * k);
   const legTop = Math.min(15 * k, foot - 12 * k);
   return [
@@ -914,8 +921,8 @@ function manParts() {
     ['torso', -13 * k, 10 * k, -11 * k, 11 * k, -15.5 * k, 15.5 * k, 0],
     ['armL', -12 * k, 9 * k, -5.5 * k, 5.5 * k, -21 * k, -14.5 * k, 0],
     ['armR', -12 * k, 9 * k, -5.5 * k, 5.5 * k, 14.5 * k, 21 * k, 0],
-    ['head', -34 * k, -13 * k, -10 * k, 10 * k, -10 * k, 10 * k, SKIN],
-    ['hair', -36 * k, -24 * k, -11.5 * k, 5.5 * k, -10.8 * k, 10.8 * k, HAIR],
+    ['head', -34 * k, -13 * k, -10 * k, 10 * k, -10 * k, 10 * k, look.skin],
+    ['hair', -36 * k, -24 * k, -11.5 * k, 5.5 * k, -10.8 * k, 10.8 * k, look.hair],
   ];
 }
 function shade(hex, f) {
@@ -924,7 +931,7 @@ function shade(hex, f) {
 }
 function drawMan(rod, y, m, now, shadow) {
   const c = Math.cos(rod.ang), sn = Math.sin(rod.ang), d = rod.dir;
-  const team = PLASTIC[rod.team], parts = manParts(), zt = -Math.max(P.reach, 16 * P.manSize);
+  const team = PLASTIC[rod.team], parts = manParts(LOOKS[rod.i][Math.max(0, m)]), zt = -Math.max(P.reach, 16 * P.manSize);
   const boxes = parts.map(([name, s0, s1, t0, t1, y0, y1, col]) => {
     // the box's corners seen from above: x along the table, z height
     let xa = 1e9, xb = -1e9, z = 0, za = 1e9, zb = -1e9;
