@@ -161,6 +161,7 @@
       <div class="presets" id="presets"></div>
       <div id="params"></div>
       <div class="opts">
+        <label>Buttons <select id="opt-buttons"><option value="hardsoft">hard shot + soft shot</option><option value="draw">draw back + shoot</option></select></label>
         <label>Buttons move <select id="opt-spin"><option value="nearest">the rod nearest the ball</option><option value="all">all four rods</option></select></label>
         <label>First to <select id="opt-first"><option value="3">3</option><option value="5" selected>5</option><option value="10">10</option><option value="0">never ends</option></select></label>
       </div>
@@ -205,8 +206,9 @@
       <p>Put the 8mu between the two players, its buttons towards the screen. Each player has the four faders nearest them, one per rod, and the two buttons nearest them:</p>
       <ul>
         <li><b>Faders</b> slide the rods up and down the table. By default the fader nearest you is your goalie, then defence, midfield and attack, so the two attacks meet in the middle of the 8mu.</li>
-        <li><b>Draw back</b> (button A for team 1, D for team 2) lifts the men's feet up behind them, so they lie face down over the table and the ball rolls underneath. Hold it as long as you like; it stays drawn back for a moment after you let go.</li>
-        <li><b>Shoot</b> (B, C) on its own is a <b>soft shot</b>: a flick forwards, the men facing up at you for a moment. Shoot while drawn back for a <b>hard shot</b>: the men swing down through the ball and right round over the bar.</li>
+        <li class="help-hardsoft"><b>Hard shot</b> (button A for team 1, D for team 2) spins the rod right round over the bar; <b>soft shot</b> (B, C) is a flick forwards, the men facing up at you for a moment. (Physics: Buttons, for draw back and shoot instead.)</li>
+        <li class="help-draw"><b>Draw back</b> (button A for team 1, D for team 2) lifts the men's feet up behind them, so they lie face down over the table and the ball rolls underneath. Hold it as long as you like; it stays drawn back for a moment after you let go.</li>
+        <li class="help-draw"><b>Shoot</b> (B, C) on its own is a <b>soft shot</b>: a flick forwards, the men facing up at you for a moment. Shoot while drawn back for a <b>hard shot</b>: the men swing down through the ball and right round over the bar.</li>
         <li>The ball rolls under the rods, and under any man whose feet are off the table.</li>
         <li><b>Human + CPU</b> (next to the score): you play one rod and the CPU plays your other three. Your rod is the one whose fader you moved last, glowing on the table; move any fader at any time to take that rod instead. Draw back and shoot work your rod.</li>
         <li>A goal fires a burst of triggers on that team's pulse out. A dead ball is served again automatically after a few seconds (Physics: Unstick after).</li>
@@ -215,10 +217,10 @@
         <label><input type="checkbox" id="opt-invert0"> Team 1 faders upside down</label>
         <label><input type="checkbox" id="opt-invert1"> Team 2 faders upside down</label>
         <label><input type="checkbox" id="opt-order"> Attack nearest the player</label>
-        <label><input type="checkbox" id="opt-swap"> Swap draw back and shoot</label>
+        <label><input type="checkbox" id="opt-swap"> Swap the two buttons</label>
         <label><input type="checkbox" id="opt-numbers" checked> Show numbers</label>
       </div>
-      <p><b>Keyboard:</b> team 1 rods <kbd>Q</kbd>/<kbd>A</kbd> <kbd>W</kbd>/<kbd>S</kbd> <kbd>E</kbd>/<kbd>D</kbd> <kbd>R</kbd>/<kbd>F</kbd>, <kbd>Z</kbd> draw back, <kbd>X</kbd> shoot; team 2 rods <kbd>U</kbd>/<kbd>J</kbd> <kbd>I</kbd>/<kbd>K</kbd> <kbd>O</kbd>/<kbd>L</kbd> <kbd>P</kbd>/<kbd>;</kbd>, <kbd>.</kbd> draw back, <kbd>,</kbd> shoot. <kbd>Space</kbd> serves, <kbd>Esc</kbd> pauses.</p>
+      <p><b>Keyboard:</b> team 1 rods <kbd>Q</kbd>/<kbd>A</kbd> <kbd>W</kbd>/<kbd>S</kbd> <kbd>E</kbd>/<kbd>D</kbd> <kbd>R</kbd>/<kbd>F</kbd>, <kbd>Z</kbd> and <kbd>X</kbd> its buttons A and B; team 2 rods <kbd>U</kbd>/<kbd>J</kbd> <kbd>I</kbd>/<kbd>K</kbd> <kbd>O</kbd>/<kbd>L</kbd> <kbd>P</kbd>/<kbd>;</kbd>, <kbd>,</kbd> and <kbd>.</kbd> its buttons C and D. <kbd>Space</kbd> serves, <kbd>Esc</kbd> pauses.</p>
       <p><b>Card:</b> plug this computer into the Computer's USB socket, power-cycle the module, and press Connect: the card appears as the MIDI device <b>Fader Footie</b>. The 8mu plugs into this computer. Needs Chrome or Edge.</p>
     </section>
   </div>
@@ -312,7 +314,7 @@ const CVPARAMS = [
 const CV = { mode: 'scale', scale: 'Major', base: 0, trans: 0 };
 try { Object.assign(CV, JSON.parse(lsGet('faderfootie.cv') || '{}')); } catch (e) {}
 
-const OPT = { spin: 'nearest', first: '5', dist: 'line', burst: 12, invert0: false, invert1: false, order: false, swap: false, numbers: true, sound: true, ctl0: 'human', ctl1: 'easy' };
+const OPT = { buttons: 'hardsoft', spin: 'nearest', first: '5', dist: 'line', burst: 12, invert0: false, invert1: false, order: false, swap: false, numbers: true, sound: true, ctl0: 'human', ctl1: 'easy' };
 try { Object.assign(OPT, JSON.parse(lsGet('faderfootie.opt') || '{}')); } catch (e) {}
 const saveAll = () => { lsSet('faderfootie.params', JSON.stringify(P)); lsSet('faderfootie.cv', JSON.stringify(CV)); lsSet('faderfootie.opt', JSON.stringify(OPT)); };
 
@@ -614,13 +616,15 @@ function drawBack(team, on, rods) {
     for (const r of rods || rodsOf(team)) if (r.drawHeld) { r.drawHeld = false; r.drawUntil = game.time + P.drawHold; }
   }
 }
-function shoot(team, rods) {
+// kind: 'hard' or 'soft' forces the shot (the hard + soft buttons); left out,
+// a drawn-back rod shoots hard and a hanging one soft
+function shoot(team, rods, kind) {
   if (!rods) { const d = drawnRods(team); rods = d.length ? d : chosenRods(team); }
   let hard = false;
   for (const r of rods) {
     if (r.mode !== 'rest') continue;
     r.drawHeld = false; r.drawUntil = -1;
-    if (r.ang < DRAWN * 0.6) { r.mode = 'hard'; hard = true; }
+    if (kind === 'hard' || (!kind && r.ang < DRAWN * 0.6)) { r.mode = 'hard'; hard = true; }
     else { r.mode = 'softOut'; }
     r.modeT = 0; r.spinning = true;
   }
@@ -882,7 +886,11 @@ function pressButton(b, down) {
   if (!hasHuman(team)) return;
   // Human + CPU: the buttons work the player's own rod
   const rods = isAssist(team) ? [humanRod[team]] : undefined;
-  if (draw) drawBack(team, down, rods);
+  if (OPT.buttons === 'hardsoft') {
+    // the first button is a hard shot (right round over the bar from
+    // hanging), the second a soft one
+    if (down && game.phase === 'play') shoot(team, rods, draw ? 'hard' : 'soft');
+  } else if (draw) drawBack(team, down, rods);
   else if (down && game.phase === 'play') shoot(team, rods);
 }
 
@@ -1118,13 +1126,17 @@ function draw(now) {
 // ============================================================================
 // Panels
 // ============================================================================
+function helpButtons() {
+  for (const e of document.querySelectorAll('.help-hardsoft')) e.hidden = OPT.buttons !== 'hardsoft';
+  for (const e of document.querySelectorAll('.help-draw')) e.hidden = OPT.buttons === 'hardsoft';
+}
 function buildMu() {
   const box = $('mu'); box.innerHTML = '';
   const bb = document.createElement('div'); bb.className = 'mubtns';
   ['A', 'B', 'C', 'D'].forEach((l, b) => {
     const [team, draw] = buttonAction(b);
     const e = document.createElement('button'); e.className = 'mubtn t' + team;
-    e.textContent = l + ' · team ' + (team + 1) + ' ' + (draw ? 'draw back' : 'shoot');
+    e.textContent = l + ' · team ' + (team + 1) + ' ' + (OPT.buttons === 'hardsoft' ? (draw ? 'hard shot' : 'soft shot') : (draw ? 'draw back' : 'shoot'));
     e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); pressButton(b, true); });
     e.addEventListener('pointerup', () => pressButton(b, false));
     e.addEventListener('pointerleave', () => { if (mu.buttons[b]) pressButton(b, false); });
@@ -1196,7 +1208,7 @@ function buildPanels() {
   };
   bind('opt-spin', 'spin'); bind('opt-first', 'first', updateScore); bind('opt-dist', 'dist');
   bind('opt-invert0', 'invert0'); bind('opt-invert1', 'invert1');
-  bind('opt-order', 'order', buildMu); bind('opt-swap', 'swap', buildMu);
+  bind('opt-order', 'order', buildMu); bind('opt-swap', 'swap', buildMu); bind('opt-buttons', 'buttons', () => { buildMu(); helpButtons(); });
   bind('opt-numbers', 'numbers'); bind('opt-sound', 'sound');
   bind('ctl0', 'ctl0'); bind('ctl1', 'ctl1');
   renderCvTable();
@@ -1291,6 +1303,7 @@ document.addEventListener('fullscreenchange', () => setTimeout(resize, 50));
 
 buildMu();
 buildPanels();
+helpButtons();
 resize();
 for (const rod of RODS) { rod.target = rod.y = faderToY(rod); }
 newMatch();

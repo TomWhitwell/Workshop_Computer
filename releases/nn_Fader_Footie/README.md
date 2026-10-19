@@ -7,7 +7,8 @@ the ball, where the ball is, every touch and every goal.
 
 The 8mu sits on the table between the two players, its buttons towards the
 screen. Each player has the four faders nearest them, one for each of their
-rods, and the two buttons nearest them: draw back and shoot.
+rods, and the two buttons nearest them: a hard and a soft shot, or (if
+you choose) draw back and shoot.
 
 **Status: 0.2.0, beta.** The firmware builds and the web page has been tested
 in Chrome against a simulated card and 8mu, with the CPU playing itself. It
@@ -42,12 +43,12 @@ The page plays without a card (no voltages, of course) and without an 8mu.
 | Fader 2 / 7 | Defence | Defence |
 | Fader 3 / 6 | Midfield | Midfield |
 | Fader 4 / 5 | Attack | Attack |
-| Button A / D | Draw back | Draw back |
-| Button B / C | Shoot | Shoot |
+| Button A / D | Hard shot (or draw back) | Hard shot (or draw back) |
+| Button B / C | Soft shot (or shoot) | Soft shot (or shoot) |
 
 So the fader nearest each player is their goalie, and the two attacks meet in
 the middle of the 8mu. **Attack nearest the player** turns that round, and
-**Swap draw back and shoot** swaps the buttons. A fader pushed up moves its rod up the
+**Swap the two buttons** swaps them. A fader pushed up moves its rod up the
 screen; tick **faders upside down** for a team if it feels backwards from
 where that player sits.
 
@@ -55,6 +56,13 @@ The teams are the classic 1-2-5-3: one goalie, two defenders, five midfielders
 and three attackers, numbered as in football, 1 to 11, top to bottom along each
 rod. The single goalie can cover the whole width, which leaves the goal open
 when he goes chasing into a corner.
+
+**Buttons.** Two ways to play, chosen under Physics (**Buttons**):
+
+- **Hard shot + soft shot** (the default, quickest to pick up): the button
+  nearest you spins the rod right round over the bar, the next one flicks
+  it forwards.
+- **Draw back + shoot**, as on a real table: below.
 
 **Shooting, as on a real table.** The men are moulded plastic players on
 their rods, seen from above, each with his own skin tone and hair colour
@@ -83,9 +91,9 @@ the next starts by itself.
 
 **8mu tilt.** Turn up **8mu tilt → slope** and tipping the 8mu tips the table.
 
-**Keyboard.** Team 1 rods `Q`/`A` `W`/`S` `E`/`D` `R`/`F`, `Z` draw back and
-`X` shoot; team 2 rods `U`/`J` `I`/`K` `O`/`L` `P`/`;`, `.` draw back and `,`
-shoot. `Space` serves, `Esc` pauses. The on-screen faders and buttons can be
+**Keyboard.** Team 1 rods `Q`/`A` `W`/`S` `E`/`D` `R`/`F`, buttons A and B on
+`Z` and `X`; team 2 rods `U`/`J` `I`/`K` `O`/`L` `P`/`;`, buttons C and D on
+`,` and `.`. `Space` serves, `Esc` pauses. The on-screen faders and buttons can be
 dragged and pressed too.
 
 **CPU.** Either team can be played by the CPU: easy, medium or hard. It draws
