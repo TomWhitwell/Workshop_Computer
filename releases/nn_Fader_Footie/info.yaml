@@ -3,12 +3,12 @@ Name: Fader Footie
 short-description: "Table football for two players on a Music Thing 8mu, played in a web page, with every touch, goal and the ball's position on the Computer's jacks"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
-Version: "0.1.0"
+Version: "0.2.0"
 Status: Beta
 License: MIT
 Editor: web
 date-created: 2026-10-15
-date-updated: 2026-10-15
+date-updated: 2026-10-19
 
 contact:
   email: XponentOneAudio@gmail.com
@@ -19,7 +19,7 @@ contact:
 
 uf2:
   - path: UF2/fader_footie.uf2
-    name: Fader Footie 0.1.0
+    name: Fader Footie 0.2.0
 
 tags:
   - game
@@ -36,9 +36,11 @@ summary: |
   The 8mu sits between the players, plugged into the computer. The four
   faders nearest each player slide their four rods - goalie, defence,
   midfield and attack, in the classic 1-2-5-3 - and the two buttons nearest
-  them are a hard and a soft spin shot: the rod spins right round, its feet
-  kicking the ball, and while it is over the top the ball can roll
-  underneath. Either team can be played by the CPU, at three levels.<br><br>
+  them are draw back and shoot, as on a real table: shoot alone is a soft
+  flick, the men facing up for a moment; drawn back, the men lie face down
+  and the ball rolls underneath, and shooting from there is a hard shot,
+  the men swinging right round over the bar. The ball rolls under the rods.
+  Either team can be played by the CPU, at three levels.<br><br>
 
   The physics is all tweakable while you play: friction, rolling
   resistance, wall and player bounciness, grip, shot power, ball speed,

@@ -160,7 +160,7 @@
       <div class="presets" id="presets"></div>
       <div id="params"></div>
       <div class="opts">
-        <label>Shot spins <select id="opt-spin"><option value="nearest">the rod nearest the ball</option><option value="all">all four rods</option></select></label>
+        <label>Buttons move <select id="opt-spin"><option value="nearest">the rod nearest the ball</option><option value="all">all four rods</option></select></label>
         <label>First to <select id="opt-first"><option value="3">3</option><option value="5" selected>5</option><option value="10">10</option><option value="0">never ends</option></select></label>
       </div>
     </section>
@@ -204,17 +204,19 @@
       <p>Put the 8mu between the two players, its buttons towards the screen. Each player has the four faders nearest them, one per rod, and the two buttons nearest them:</p>
       <ul>
         <li><b>Faders</b> slide the rods up and down the table. By default the fader nearest you is your goalie, then defence, midfield and attack, so the two attacks meet in the middle of the 8mu.</li>
-        <li><b>Hard shot</b> (button A for team 1, D for team 2) and <b>soft shot</b> (B, C) spin a rod right round. The feet sweep forward and hit the ball if it is in front of them; while the rod is over the top the men are lifted, so the ball can pass underneath.</li>
+        <li><b>Draw back</b> (button A for team 1, D for team 2) lifts the men's feet up behind them, so they lie face down over the table and the ball rolls underneath. Hold it as long as you like; it stays drawn back for a moment after you let go.</li>
+        <li><b>Shoot</b> (B, C) on its own is a <b>soft shot</b>: a flick forwards, the men facing up at you for a moment. Shoot while drawn back for a <b>hard shot</b>: the men swing down through the ball and right round over the bar.</li>
+        <li>The ball rolls under the rods, and under any man whose feet are off the table.</li>
         <li>A goal fires a burst of triggers on that team's pulse out. A dead ball is served again automatically after a few seconds (Physics: Unstick after).</li>
       </ul>
       <div class="opts">
         <label><input type="checkbox" id="opt-invert0"> Team 1 faders upside down</label>
         <label><input type="checkbox" id="opt-invert1"> Team 2 faders upside down</label>
         <label><input type="checkbox" id="opt-order"> Attack nearest the player</label>
-        <label><input type="checkbox" id="opt-swap"> Swap hard and soft</label>
+        <label><input type="checkbox" id="opt-swap"> Swap draw back and shoot</label>
         <label><input type="checkbox" id="opt-numbers" checked> Show numbers</label>
       </div>
-      <p><b>Keyboard:</b> team 1 rods <kbd>Q</kbd>/<kbd>A</kbd> <kbd>W</kbd>/<kbd>S</kbd> <kbd>E</kbd>/<kbd>D</kbd> <kbd>R</kbd>/<kbd>F</kbd>, shots <kbd>Z</kbd> hard <kbd>X</kbd> soft; team 2 rods <kbd>U</kbd>/<kbd>J</kbd> <kbd>I</kbd>/<kbd>K</kbd> <kbd>O</kbd>/<kbd>L</kbd> <kbd>P</kbd>/<kbd>;</kbd>, shots <kbd>,</kbd> soft <kbd>.</kbd> hard. <kbd>Space</kbd> serves, <kbd>Esc</kbd> pauses.</p>
+      <p><b>Keyboard:</b> team 1 rods <kbd>Q</kbd>/<kbd>A</kbd> <kbd>W</kbd>/<kbd>S</kbd> <kbd>E</kbd>/<kbd>D</kbd> <kbd>R</kbd>/<kbd>F</kbd>, <kbd>Z</kbd> draw back, <kbd>X</kbd> shoot; team 2 rods <kbd>U</kbd>/<kbd>J</kbd> <kbd>I</kbd>/<kbd>K</kbd> <kbd>O</kbd>/<kbd>L</kbd> <kbd>P</kbd>/<kbd>;</kbd>, <kbd>.</kbd> draw back, <kbd>,</kbd> shoot. <kbd>Space</kbd> serves, <kbd>Esc</kbd> pauses.</p>
       <p><b>Card:</b> plug this computer into the Computer's USB socket, power-cycle the module, and press Connect: the card appears as the MIDI device <b>Fader Footie</b>. The 8mu plugs into this computer. Needs Chrome or Edge.</p>
     </section>
   </div>
@@ -248,7 +250,11 @@ const RODS = [
   i, team, role, x: (i + 0.5) * L / NR, dir: team === 0 ? 1 : -1,
   n: ROLE_MEN[role], spacing: ROLE_SPACING[role],
   y: CY, vy: 0, target: CY,
-  ang: 0, omega: 0, spinning: false,
+  // ang: the rod's turn, 0 with the men hanging feet-down, negative with the
+  // feet drawn back (the men face down into the table), positive with the
+  // feet forwards (they face up).  mode: rest, drawn, hard, softOut,
+  // softHold, softBack
+  ang: 0, omega: 0, mode: 'rest', modeT: 0, drawHeld: false, drawUntil: -1, spinning: false,
   lastContact: new Array(5).fill(-1),
 }));
 const rodsOf = (team) => RODS.filter(r => r.team === team);
@@ -319,10 +325,11 @@ function rodOfFader(f) {
   return RODS[near[f]];
 }
 function faderOfRod(rod) { for (let f = 0; f < 8; f++) if (rodOfFader(f) === rod) return f; return 0; }
-// Button b (0-3 = A-D) -> [team, hard?]
+// Button b (0-3 = A-D) -> [team, draw back?].  The button nearest each
+// player (A, D) draws back, the next one (B, C) shoots.
 function buttonAction(b) {
-  const hard = OPT.swap ? (b === 1 || b === 2) : (b === 0 || b === 3);
-  return [b < 2 ? 0 : 1, hard];
+  const draw = OPT.swap ? (b === 1 || b === 2) : (b === 0 || b === 3);
+  return [b < 2 ? 0 : 1, draw];
 }
 
 // ============================================================================
@@ -412,10 +419,7 @@ function step(dt) {
     const t = r.target, max = P.rodSpeed * dt;
     const dy = clamp(t - r.y, -max, max);
     r.vy = dy / dt; r.y += dy;
-    if (r.spinning) {
-      r.ang += r.omega * dt;
-      if (r.ang >= Math.PI * 2) { r.ang = 0; r.omega = 0; r.spinning = false; }
-    }
+    turnRod(r, dt);
   }
   if (game.phase !== 'play') return;
 
@@ -438,7 +442,7 @@ function step(dt) {
     if (!footActive(rod)) continue;
     const cx = rod.x + footOffset(rod);
     if (Math.abs(ball.x - cx) > hx + r + 2) continue;
-    const mvx = rod.spinning ? rod.dir * P.reach * rod.omega * Math.cos(rod.ang) : 0, mvy = rod.vy;
+    const mvx = rod.dir * P.reach * rod.omega * Math.cos(rod.ang), mvy = rod.vy;
     const ys = manYs(rod);
     for (let m = 0; m < ys.length; m++) {
       const cy = ys[m];
@@ -527,39 +531,92 @@ function goal(team) {
   sfx('goal');
 }
 
-// A shot spins a rod right round, feet forwards.  The feet strike a ball in
-// front of the man, and come round from behind fast enough to drag a ball
-// just behind him through to the front.
-function spin(team, hard, rod) {
-  const power = hard ? P.hardShot : P.softShot;
-  let rods;
-  if (rod) rods = [rod];
-  else if (OPT.spin === 'all') rods = rodsOf(team);
-  else {
-    // the rod with the ball nearest its feet, a ball in front counting nearer
-    let best = null, bestScore = 1e9;
-    for (const r of rodsOf(team)) {
-      const rel = (ball.x - r.x) * r.dir, s = rel >= 0 ? rel : -1.5 * rel;
-      if (s < bestScore) { bestScore = s; best = r; }
+// ----------------------------------------------------------------------------
+// Turning the rods.  Like a real table: draw back to lift the men's feet
+// behind them (the ball rolls underneath), shoot to swing them forwards.
+// Shooting from drawn back is a hard shot: the men swing through the ball
+// and right round over the bar once.  Shooting from hanging is a soft shot:
+// a flick, the men facing up for a moment, then back down.
+// ----------------------------------------------------------------------------
+const DRAWN = -1.45;          // drawn back, feet up behind (about 83 degrees)
+const SOFT_UP = 1.9;          // a soft shot's flick, facing up (about 110 degrees)
+const DRAW_RATE = 11;         // radians a second, drawing back
+const DROP_RATE = 6;          // and letting the men fall back down
+const isDrawn = (r) => r.drawHeld || game.time < r.drawUntil;
+function turnRod(r, dt) {
+  const was = r.ang;
+  r.modeT += dt;
+  switch (r.mode) {
+    case 'hard':
+      // from drawn back, forwards through the ball and over the top, to hang again
+      r.ang += P.hardShot / Math.max(5, P.reach) * dt;
+      if (r.ang >= Math.PI * 2) { r.ang = 0; r.mode = 'rest'; r.omega = 0; return; }
+      break;
+    case 'softOut':
+      r.ang = Math.min(SOFT_UP, r.ang + P.softShot / Math.max(5, P.reach) * dt);
+      if (r.ang >= SOFT_UP) { r.mode = 'softHold'; r.modeT = 0; }
+      break;
+    case 'softHold':
+      if (r.modeT > 0.12) r.mode = 'softBack';
+      break;
+    case 'softBack':
+      r.ang = Math.max(0, r.ang - DROP_RATE * dt);
+      if (r.ang <= 0) r.mode = 'rest';
+      break;
+    default: {
+      // rest: hang, or follow the draw-back button
+      const want = isDrawn(r) ? DRAWN : 0, rate = want < r.ang ? DRAW_RATE : DROP_RATE;
+      r.ang += clamp(want - r.ang, -rate * dt, rate * dt);
     }
-    rods = [best];
   }
+  r.omega = (r.ang - was) / dt;
+  r.spinning = r.mode !== 'rest';
+}
+
+// The rods a button moves: the one with the ball nearest its feet (a ball in
+// front counting nearer), or all four
+function chosenRods(team) {
+  if (OPT.spin === 'all') return rodsOf(team);
+  let best = null, bestScore = 1e9;
+  for (const r of rodsOf(team)) {
+    const rel = (ball.x - r.x) * r.dir, s = rel >= 0 ? rel : -1.5 * rel;
+    if (s < bestScore) { bestScore = s; best = r; }
+  }
+  return [best];
+}
+const drawnRods = (team) => rodsOf(team).filter(r => isDrawn(r) && r.mode === 'rest');
+
+function drawBack(team, on, rods) {
+  if (on) {
+    for (const r of rods || chosenRods(team)) { r.drawHeld = true; r.drawUntil = -1; }
+    sfx('spin', 200);
+  } else {
+    // a moment's grace, so a tap of draw back and then shoot is a hard shot too
+    for (const r of rods || rodsOf(team)) if (r.drawHeld) { r.drawHeld = false; r.drawUntil = game.time + 0.45; }
+  }
+}
+function shoot(team, rods) {
+  if (!rods) { const d = drawnRods(team); rods = d.length ? d : chosenRods(team); }
+  let hard = false;
   for (const r of rods) {
-    if (r.spinning) continue;
-    r.spinning = true; r.ang = 0.0001; r.omega = power / Math.max(5, P.reach);
+    if (r.mode !== 'rest') continue;
+    r.drawHeld = false; r.drawUntil = -1;
+    if (r.ang < DRAWN * 0.6) { r.mode = 'hard'; hard = true; }
+    else { r.mode = 'softOut'; }
+    r.modeT = 0; r.spinning = true;
   }
-  sfx('spin', power);
+  sfx('spin', hard ? P.hardShot : P.softShot);
 }
 
 // ============================================================================
 // CPU players
 // ============================================================================
 const AI = {
-  easy: { react: 0.35, speed: 0.35, kick: 0.6, jitter: 34, cool: 0.5, aim: 0.25 },
-  medium: { react: 0.15, speed: 0.6, kick: 0.85, jitter: 14, cool: 0.35, aim: 0.6 },
-  hard: { react: 0.05, speed: 1.0, kick: 1.0, jitter: 3, cool: 0.25, aim: 1 },
+  easy: { react: 0.35, speed: 0.35, kick: 0.75, jitter: 34, cool: 0.45, aim: 0.3, hardBelow: 350, drawWait: 0.3 },
+  medium: { react: 0.15, speed: 0.6, kick: 0.85, jitter: 14, cool: 0.35, aim: 0.6, hardBelow: 450, drawWait: 0.12, lift: true },
+  hard: { react: 0.05, speed: 1.0, kick: 1.0, jitter: 3, cool: 0.25, aim: 1, hardBelow: 700, drawWait: 0.02, lift: true },
 };
-const aiState = RODS.map(() => ({ y: CY, cool: 0, jit: 0, jitT: 0, aim: 0, aimT: 0 }));
+const aiState = RODS.map(() => ({ y: CY, cool: 0, jit: 0, jitT: 0, aim: 0, aimT: 0, drawing: false, drawFor: 0 }));
 function aiStep(team, level, dt) {
   const s = AI[level];
   for (const rod of rodsOf(team)) {
@@ -604,8 +661,20 @@ function aiStep(team, level, dt) {
     const ny = rod.target + clamp(st.y - rod.target, -max, max);
     fader[faderOfRod(rod)] = yToFader(rod, ny);
 
-    // shoot when the ball is in front of a man
+    // shoot when the ball is in front of a man: a hard shot is drawn back
+    // first, and fired once the men are up
     st.cool -= dt;
+    if (st.drawing) {
+      const inReach = rel > -P.ballSize && rel < hx + P.ballSize + P.reach * 0.9;
+      st.drawFor -= dt;
+      if (!inReach || game.phase !== 'play') { drawBack(team, false, [rod]); rod.drawUntil = -1; st.drawing = false; }
+      else if (st.drawFor <= 0 && rod.ang <= DRAWN * 0.9) {
+        shoot(team, [rod]); st.drawing = false;
+        // a good player lifts the rods in front out of the way of the shot
+        if (s.lift) for (const r of rodsOf(team)) if ((r.x - rod.x) * r.dir > 0 && r.mode === 'rest') r.drawUntil = game.time + 0.35;
+      }
+      continue;
+    }
     if (st.cool > 0 || rod.spinning || game.phase !== 'play') continue;
     // still lining up a shot
     if (st.aim && Math.abs(rod.y - st.y) > 4 && st.aimT < 0.5) continue;
@@ -615,8 +684,10 @@ function aiStep(team, level, dt) {
     if (!near) continue;
     st.cool = s.cool;
     if (Math.random() > s.kick) continue;
-    const hard = rod.role === ROLE.A || rod.role === ROLE.M || Math.random() < 0.5;
-    spin(team, hard, rod);
+    // a ball just behind the man can't be drawn back for: flick it through
+    const hard = rel > 0 && Math.hypot(ball.vx, ball.vy) < s.hardBelow && (rod.role === ROLE.A || rod.role === ROLE.M || Math.random() < 0.4);
+    if (hard) { drawBack(team, true, [rod]); st.drawing = true; st.drawFor = s.drawWait; }
+    else shoot(team, [rod]);
   }
 }
 
@@ -761,10 +832,10 @@ const ctlOf = (team) => team === 0 ? OPT.ctl0 : OPT.ctl1;
 function pressButton(b, down) {
   mu.buttons[b] = down;
   const el = document.querySelectorAll('.mubtn')[b]; if (el) el.classList.toggle('lit', down);
-  if (!down) return;
-  const [team, hard] = buttonAction(b);
+  const [team, draw] = buttonAction(b);
   if (ctlOf(team) !== 'human') return;
-  if (game.phase === 'play') spin(team, hard);
+  if (draw) drawBack(team, down);
+  else if (down && game.phase === 'play') shoot(team);
 }
 
 // ============================================================================
@@ -818,6 +889,99 @@ function rrect(x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
 
+// ----------------------------------------------------------------------------
+// A moulded plastic man, seen from above.  He is a set of rounded boxes in
+// his own frame: s runs down his body from the rod (feet at the kick reach),
+// t runs forwards (his front faces the goal he attacks).  Turning the rod by
+// ang swings him about it, and each box is drawn as its outline seen from
+// above, lowest first, so a man lying drawn back shows his back and the top
+// of his head, and one flicked up shows his face.
+// ----------------------------------------------------------------------------
+const TILT_VIEW = 0.3;        // how far the camera leans: screen y per unit of height
+const PLASTIC = [['#e2332a', '#a8160f', '#ff8a7a'], ['#2456d8', '#122f8c', '#8fb2ff']];
+const SKIN = ['#efc29b', '#c48b62', '#ffe4cc'], HAIR = ['#3a2416', '#1d110a', '#6b4a33'];
+const BOOT = ['#1e1e1e', '#050505', '#5a5a5a'];
+function manParts() {
+  const k = P.manSize, foot = Math.max(P.reach, 16 * k);
+  const legTop = Math.min(15 * k, foot - 12 * k);
+  return [
+    // [name, s0, s1, t0, t1, y0, y1, colours]
+    ['legL', legTop, foot - 7 * k, -6.5 * k, 6.5 * k, -12 * k, -2 * k, 0],
+    ['legR', legTop, foot - 7 * k, -6.5 * k, 6.5 * k, 2 * k, 12 * k, 0],
+    ['bootL', foot - 9 * k, foot, -6.5 * k, 11 * k, -12.5 * k, -1.5 * k, BOOT],
+    ['bootR', foot - 9 * k, foot, -6.5 * k, 11 * k, 1.5 * k, 12.5 * k, BOOT],
+    ['shorts', 6 * k, 18 * k, -10 * k, 10 * k, -13.5 * k, 13.5 * k, 1],
+    ['torso', -13 * k, 10 * k, -11 * k, 11 * k, -15.5 * k, 15.5 * k, 0],
+    ['armL', -12 * k, 9 * k, -5.5 * k, 5.5 * k, -21 * k, -14.5 * k, 0],
+    ['armR', -12 * k, 9 * k, -5.5 * k, 5.5 * k, 14.5 * k, 21 * k, 0],
+    ['head', -34 * k, -13 * k, -10 * k, 10 * k, -10 * k, 10 * k, SKIN],
+    ['hair', -36 * k, -24 * k, -11.5 * k, 5.5 * k, -10.8 * k, 10.8 * k, HAIR],
+  ];
+}
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => clamp(Math.round(v * f), 0, 255));
+  return 'rgb(' + c.join(',') + ')';
+}
+function drawMan(rod, y, m, now, shadow) {
+  const c = Math.cos(rod.ang), sn = Math.sin(rod.ang), d = rod.dir;
+  const team = PLASTIC[rod.team], parts = manParts(), zt = -Math.max(P.reach, 16 * P.manSize);
+  const boxes = parts.map(([name, s0, s1, t0, t1, y0, y1, col]) => {
+    // the box's corners seen from above: x along the table, z height
+    let xa = 1e9, xb = -1e9, z = 0, za = 1e9, zb = -1e9;
+    for (const ss of [s0, s1]) for (const tt of [t0, t1]) {
+      const x = d * (ss * sn + tt * c), h = -ss * c + tt * sn;
+      xa = Math.min(xa, x); xb = Math.max(xb, x); z += h; za = Math.min(za, h); zb = Math.max(zb, h);
+    }
+    // seen a little from the side of the table: the higher a part, the
+    // further up the screen, measured from the table, so the feet stay
+    // where they meet the ball
+    const pal = col === 0 ? team : col === 1 ? [shade(team[0], 0.8), team[1], team[2]] : col;
+    return { name, xa, xb, y0: y0 - (zb - zt) * TILT_VIEW, y1: y1 - (za - zt) * TILT_VIEW, z: z / 4, pal };
+  });
+  if (shadow) {
+    // a soft shadow cast down and to the right
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    for (const b of boxes) {
+      if (b.name === 'hair') continue;
+      const lift = Math.max(0, b.z + 30 * P.manSize) * 0.12 + 5;
+      rrect(rod.x + b.xa + lift, y + b.y0 + lift, b.xb - b.xa, b.y1 - b.y0, Math.min(b.xb - b.xa, b.y1 - b.y0) * 0.45); ctx.fill();
+    }
+    return;
+  }
+  boxes.sort((p, q) => p.z - q.z);
+  for (const b of boxes) {
+    const w = b.xb - b.xa, h = b.y1 - b.y0, x0 = rod.x + b.xa, y0 = y + b.y0;
+    const round = b.name === 'head' || b.name === 'hair' ? Math.min(w, h) / 2 : Math.min(w, h) * 0.42;
+    // moulded plastic: rounded across, lit from the top left, a gloss streak
+    const lit = clamp(1 + b.z / 160, 0.75, 1.2);
+    const g = ctx.createLinearGradient(x0, y0, x0 + w, y0 + h);
+    g.addColorStop(0, shade(b.pal[2].startsWith('#') ? b.pal[2] : '#ffffff', lit));
+    g.addColorStop(0.35, typeof b.pal[0] === 'string' && b.pal[0].startsWith('#') ? shade(b.pal[0], lit) : b.pal[0]);
+    g.addColorStop(1, b.pal[1]);
+    ctx.fillStyle = g; rrect(x0, y0, w, h, round); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+    if (w > 6 && h > 6 && b.name !== 'hair') {
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      rrect(x0 + w * 0.18, y0 + h * 0.12, Math.max(2, w * 0.22), h * 0.5, Math.min(w * 0.11, h * 0.25)); ctx.fill();
+    }
+  }
+  // the rod runs through his chest
+  const tor = boxes.find(b => b.name === 'torso');
+  const isLast = m >= 0 && game.lastTouchRod[rod.team] === rod && game.lastTouchMan[rod.team] === m;
+  if (isLast) {
+    const a = clamp(1 - (now - game.flash[rod.team]) / 600, 0.35, 1), k = P.manSize;
+    ctx.strokeStyle = 'rgba(255,236,110,' + a + ')'; ctx.lineWidth = 3;
+    rrect(rod.x + Math.min(tor.xa, -10 * k) - 6, y - 22 * k, Math.max(tor.xb, 10 * k) - Math.min(tor.xa, -10 * k) + 12, 44 * k, 12 * k); ctx.stroke();
+  }
+  if (OPT.numbers) {
+    // his number, on a tag on the rod just past his arm
+    const k = P.manSize, ty = y + 19 * k + 7, label = String(ROLE_FIRST[rod.role] + m);
+    ctx.fillStyle = 'rgba(20,20,20,0.75)'; rrect(rod.x - 9, ty - 7, 18, 14, 7); ctx.fill();
+    ctx.font = '700 10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff'; ctx.fillText(label, rod.x, ty + 0.5);
+  }
+}
+
 function draw(now) {
   const s = cv.width / (L + 2 * MARGIN);
   ctx.setTransform(s, 0, 0, s, MARGIN * s, MARGIN * s);
@@ -848,12 +1012,9 @@ function draw(now) {
   for (const [[ax, ay], [bx, by]] of segs.slice(0, 10)) { ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); }
   ctx.fillStyle = '#eee'; for (const yy of [CY - g, CY + g]) for (const xx of [0, L]) { ctx.beginPath(); ctx.arc(xx, yy, 5, 0, Math.PI * 2); ctx.fill(); }
 
-  // rods
-  for (const rod of RODS) {
-    ctx.strokeStyle = 'rgba(210,214,220,0.8)'; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.moveTo(rod.x, -MARGIN + 4); ctx.lineTo(rod.x, W + MARGIN - 4); ctx.stroke();
-  }
-  // ball shadow + trail
+  // the men's shadows on the field, then the ball, which rolls under the
+  // rods, then the rods and the men on them
+  for (const rod of RODS) for (const y of manYs(rod)) drawMan(rod, y, -1, now, true);
   const r = P.ballSize;
   if (game.phase === 'play') {
     ball.trail.push([ball.x, ball.y]); if (ball.trail.length > 10) ball.trail.shift();
@@ -863,37 +1024,19 @@ function draw(now) {
     }
   }
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(ball.x + 4, ball.y + 5, r, 0, Math.PI * 2); ctx.fill();
-  // ball under the men's feet: draw it before them
   const grd = ctx.createRadialGradient(ball.x - r * 0.35, ball.y - r * 0.35, r * 0.1, ball.x, ball.y, r);
   grd.addColorStop(0, '#ffffff'); grd.addColorStop(1, '#cfcac0');
   ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(ball.x, ball.y, r, 0, Math.PI * 2); ctx.fill();
 
-  // men
-  const { hx, hy } = manDims();
   for (const rod of RODS) {
-    const col = rod.team ? colors.t1 : colors.t0, act = footActive(rod), fo = footOffset(rod);
+    // polished steel, with rubber bumpers at the walls
+    const g = ctx.createLinearGradient(rod.x - 6, 0, rod.x + 6, 0);
+    g.addColorStop(0, '#6d737a'); g.addColorStop(0.35, '#f4f6f8'); g.addColorStop(0.6, '#b9bec4'); g.addColorStop(1, '#5a6066');
+    ctx.fillStyle = g; ctx.fillRect(rod.x - 6, -MARGIN + 2, 12, W + 2 * MARGIN - 4);
+    ctx.fillStyle = '#222';
+    rrect(rod.x - 9, -6, 18, 10, 3); ctx.fill(); rrect(rod.x - 9, W - 4, 18, 10, 3); ctx.fill();
     const ys = manYs(rod);
-    for (let m = 0; m < ys.length; m++) {
-      const y = ys[m];
-      // feet: where the collision is; faded while lifted
-      ctx.globalAlpha = act ? 1 : 0.35;
-      ctx.fillStyle = '#1b1b1b'; rrect(rod.x + fo - hx * 0.75, y - hy * 0.8, hx * 1.5, hy * 1.6, hx * 0.6); ctx.fill();
-      ctx.globalAlpha = 1;
-      // shoulders on the rod
-      ctx.fillStyle = col; rrect(rod.x - hx, y - hy, hx * 2, hy * 2, Math.min(hx, hy) * 0.9); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.18)'; rrect(rod.x - hx + 2, y - hy + 2, hx - 2, hy * 2 - 4, hx * 0.6); ctx.fill();
-      const isLast = game.lastTouchRod[rod.team] === rod && game.lastTouchMan[rod.team] === m;
-      if (isLast) {
-        const a = clamp(1 - (now - game.flash[rod.team]) / 600, 0.35, 1);
-        ctx.strokeStyle = 'rgba(255,240,120,' + a + ')'; ctx.lineWidth = 3;
-        rrect(rod.x - hx - 4, y - hy - 4, hx * 2 + 8, hy * 2 + 8, hx); ctx.stroke();
-      }
-      if (OPT.numbers && hx > 6) {
-        ctx.fillStyle = '#fff'; ctx.font = '700 ' + Math.round(13 * P.manSize) + 'px system-ui, sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(String(ROLE_FIRST[rod.role] + m), rod.x, y + 1);
-      }
-    }
+    for (let m = 0; m < ys.length; m++) drawMan(rod, ys[m], m, now, false);
   }
 
   // messages
@@ -918,9 +1061,9 @@ function buildMu() {
   const box = $('mu'); box.innerHTML = '';
   const bb = document.createElement('div'); bb.className = 'mubtns';
   ['A', 'B', 'C', 'D'].forEach((l, b) => {
-    const [team, hard] = buttonAction(b);
+    const [team, draw] = buttonAction(b);
     const e = document.createElement('button'); e.className = 'mubtn t' + team;
-    e.textContent = l + ' · team ' + (team + 1) + ' ' + (hard ? 'hard' : 'soft') + ' shot';
+    e.textContent = l + ' · team ' + (team + 1) + ' ' + (draw ? 'draw back' : 'shoot');
     e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); pressButton(b, true); });
     e.addEventListener('pointerup', () => pressButton(b, false));
     e.addEventListener('pointerleave', () => { if (mu.buttons[b]) pressButton(b, false); });
@@ -1020,18 +1163,24 @@ function renderOutputs(now) {
 // Keyboard
 // ============================================================================
 const KEYS_UP = ['q', 'w', 'e', 'r', 'u', 'i', 'o', 'p'], KEYS_DN = ['a', 's', 'd', 'f', 'j', 'k', 'l', ';'];
+const KEY_BUTTONS = { z: 0, x: 1, ',': 2, '.': 3 };
 const held = new Set();
 addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   const k = e.key.toLowerCase();
   if (KEYS_UP.includes(k) || KEYS_DN.includes(k)) { held.add(k); e.preventDefault(); return; }
   if (e.repeat) return;
-  const shot = { z: [0, true], x: [0, false], '.': [1, true], ',': [1, false] }[k];
-  if (shot) { if (ctlOf(shot[0]) === 'human' && game.phase === 'play') spin(shot[0], shot[1]); e.preventDefault(); return; }
+  // the keys stand in for the 8mu's buttons A-D
+  const btn = KEY_BUTTONS[k];
+  if (btn !== undefined) { pressButton(btn, true); e.preventDefault(); return; }
   if (k === ' ') { serve(); e.preventDefault(); }
   if (k === 'escape') game.paused = !game.paused;
 });
-addEventListener('keyup', (e) => held.delete(e.key.toLowerCase()));
+addEventListener('keyup', (e) => {
+  const k = e.key.toLowerCase();
+  held.delete(k);
+  if (KEY_BUTTONS[k] !== undefined) pressButton(KEY_BUTTONS[k], false);
+});
 function keyStep(dt) {
   for (let f = 0; f < 8; f++) {
     if (ctlOf(rodOfFader(f).team) !== 'human') continue;

@@ -7,9 +7,9 @@ the ball, where the ball is, every touch and every goal.
 
 The 8mu sits on the table between the two players, its buttons towards the
 screen. Each player has the four faders nearest them, one for each of their
-rods, and the two buttons nearest them, a hard and a soft spin shot.
+rods, and the two buttons nearest them: draw back and shoot.
 
-**Status: 0.1.0, beta.** The firmware builds and the web page has been tested
+**Status: 0.2.0, beta.** The firmware builds and the web page has been tested
 in Chrome against a simulated card and 8mu, with the CPU playing itself. It
 has not yet been tried on a Workshop Computer with a real 8mu.
 
@@ -42,12 +42,12 @@ The page plays without a card (no voltages, of course) and without an 8mu.
 | Fader 2 / 7 | Defence | Defence |
 | Fader 3 / 6 | Midfield | Midfield |
 | Fader 4 / 5 | Attack | Attack |
-| Button A / D | Hard spin shot | Hard spin shot |
-| Button B / C | Soft spin shot | Soft spin shot |
+| Button A / D | Draw back | Draw back |
+| Button B / C | Shoot | Shoot |
 
 So the fader nearest each player is their goalie, and the two attacks meet in
 the middle of the 8mu. **Attack nearest the player** turns that round, and
-**Swap hard and soft** swaps the buttons. A fader pushed up moves its rod up the
+**Swap draw back and shoot** swaps the buttons. A fader pushed up moves its rod up the
 screen; tick **faders upside down** for a team if it feels backwards from
 where that player sits.
 
@@ -56,13 +56,22 @@ and three attackers, numbered as in football, 1 to 11, top to bottom along each
 rod. The single goalie can cover the whole width, which leaves the goal open
 when he goes chasing into a corner.
 
-**Spin shots.** A shot spins a rod right round, feet first. The feet strike a
-ball in front of the man, and come round from behind fast enough to drag a ball
-lying just behind him through to the front. While the rod is over the top the
-men's feet are lifted (drawn faded), so a ball can roll underneath. A shot
-spins the rod nearest the ball, a ball in front counting nearer; **Shot spins:
-all four rods** spins every rod at once, goalie included, which is more
-dramatic and leaves the goal open.
+**Shooting, as on a real table.** The men are moulded plastic players on
+their rods, seen from above, and they turn the way real ones do:
+
+- **Draw back** lifts the men's feet up behind them, so they lie face down
+  over the table. Their feet are off the table, so the ball rolls underneath
+  without touching them. They stay drawn back while the button is held, and
+  for a moment after it is let go.
+- **Shoot** on its own is a **soft shot**: the men flick their feet forwards,
+  face up at you for a moment, then hang down again.
+- **Shoot while drawn back** is a **hard shot**: the men swing down through
+  the ball and on, right round over the bar once, to hang down again.
+
+The ball also rolls under the rods themselves. The buttons move the rod
+nearest the ball, a ball in front counting nearer; **Buttons move: all four
+rods** draws back and shoots every rod at once, goalie included, which is
+more dramatic and leaves the goal open.
 
 **Serving.** The ball is served from the side of the table at the halfway line,
 rolling across it. A ball that stops, or rolls
@@ -72,12 +81,14 @@ the next starts by itself.
 
 **8mu tilt.** Turn up **8mu tilt → slope** and tipping the 8mu tips the table.
 
-**Keyboard.** Team 1 rods `Q`/`A` `W`/`S` `E`/`D` `R`/`F`, shots `Z` hard and
-`X` soft; team 2 rods `U`/`J` `I`/`K` `O`/`L` `P`/`;`, shots `,` soft and `.`
-hard. `Space` serves, `Esc` pauses. The on-screen faders and buttons can be
+**Keyboard.** Team 1 rods `Q`/`A` `W`/`S` `E`/`D` `R`/`F`, `Z` draw back and
+`X` shoot; team 2 rods `U`/`J` `I`/`K` `O`/`L` `P`/`;`, `.` draw back and `,`
+shoot. `Space` serves, `Esc` pauses. The on-screen faders and buttons can be
 dragged and pressed too.
 
-**CPU.** Either team can be played by the CPU: easy, medium or hard. Two CPUs
+**CPU.** Either team can be played by the CPU: easy, medium or hard. It draws
+back for a hard shot when it has the ball at its feet, and medium and hard
+lift their rods in front out of the way of their own hard shots. Two CPUs
 will happily play each other all day, which makes a good generative
 modulation source with nobody at the table.
 
@@ -95,12 +106,12 @@ motion.
 | Wall bounciness | 0 dead, 1 perfectly springy, above 1 the walls kick back |
 | Player bounciness | The same, off the men |
 | Player grip | How much the men grab the ball sideways: high to trap it, low to let it skid off |
-| Hard / soft shot power | How fast the feet move in a hard and a soft spin |
+| Hard / soft shot power | How fast the feet swing in a hard and a soft shot |
 | Max ball speed | A speed limit |
 | Ball size | Radius of the ball |
 | Player size | Size of the men |
 | Goal width | Width of both goal mouths |
-| Kick reach | How far the feet swing; also sets how long a spin takes |
+| Kick reach | Length of the men's legs: how far the feet swing, and how long a shot takes |
 | Rod speed | How fast a rod can follow its fader |
 | Corner ramps | The diagonal corners, which keep the ball from sitting in a corner |
 | Serve speed | How hard the ball comes in at a serve (and a nudge) |
@@ -174,10 +185,12 @@ slowly in turn. The outputs hold their last values.
 ## How it works
 
 The physics runs in the page: a fixed 720Hz step, the ball against the
-walls, the posts and the men's feet. Each man is a rounded box that moves
-with its rod; a spinning man's feet swing forwards and back as the rod turns
-(so their speed is what kicks the ball) and only collide while they are
-down. The card is a USB MIDI device and does the timing that matters on the
+walls, the posts and the men's feet. Each man's feet are a rounded box that
+moves with its rod and swings forwards and back as the rod turns (so their
+speed is what kicks the ball), and they only collide while they are near the
+table. Each man is drawn from his rod's turn: his head, shoulders, arms,
+legs and boots are boxes in his own frame, each drawn as seen from above,
+lowest first. The card is a USB MIDI device and does the timing that matters on the
 jacks: the page sends it the voltages and the touch and goal events as
 SysEx, and the card makes the gates, bursts and smoothing at the audio rate.
 The protocol is in [`sysex.h`](sysex.h).
