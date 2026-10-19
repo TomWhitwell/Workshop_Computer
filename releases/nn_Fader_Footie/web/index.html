@@ -848,8 +848,10 @@ const cpuLevel = (team) => isAssist(team) ? ctlOf(team).slice(7) : ctlOf(team) =
 const humanRod = [RODS[3], RODS[4]];      // the player's rod in Human + CPU: midfield to start
 // Is fader f the player's to move?  Moving one in Human + CPU takes its rod.
 const humanFader = (f) => { const t = rodOfFader(f).team; return ctlOf(t) === 'human' || (isAssist(t) && humanRod[t] === rodOfFader(f)); };
-function touchFader(f, v) {
+function touchFader(f, v, fromKey) {
   const rod = rodOfFader(f), t = rod.team;
+  // a real fader (8mu or on screen) beats a key held for the same rod
+  if (!fromKey) { held.delete(KEYS_UP[f]); held.delete(KEYS_DN[f]); }
   if (!hasHuman(t)) return;
   if (isAssist(t) && humanRod[t] !== rod) {
     humanRod[t] = rod;
@@ -1206,29 +1208,39 @@ function renderOutputs(now) {
 // ============================================================================
 // Keyboard
 // ============================================================================
-const KEYS_UP = ['q', 'w', 'e', 'r', 'u', 'i', 'o', 'p'], KEYS_DN = ['a', 's', 'd', 'f', 'j', 'k', 'l', ';'];
-const KEY_BUTTONS = { z: 0, x: 1, ',': 2, '.': 3 };
+// Physical keys (e.code), so Shift or the keyboard layout can't change which
+// key a release belongs to
+const KEYS_UP = ['KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyU', 'KeyI', 'KeyO', 'KeyP'];
+const KEYS_DN = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon'];
+const KEY_BUTTONS = { KeyZ: 0, KeyX: 1, Comma: 2, Period: 3 };
 const held = new Set();
 addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-  const k = e.key.toLowerCase();
+  // leave shortcuts alone: a key pressed with Cmd held may never send its
+  // release, and would then drive its fader for ever
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.code;
   if (KEYS_UP.includes(k) || KEYS_DN.includes(k)) { held.add(k); e.preventDefault(); return; }
   if (e.repeat) return;
   // the keys stand in for the 8mu's buttons A-D
   const btn = KEY_BUTTONS[k];
-  if (btn !== undefined) { pressButton(btn, true); e.preventDefault(); return; }
-  if (k === ' ') { serve(); e.preventDefault(); }
-  if (k === 'escape') game.paused = !game.paused;
+  if (btn !== undefined) { held.add(k); pressButton(btn, true); e.preventDefault(); return; }
+  if (k === 'Space') { serve(); e.preventDefault(); }
+  if (k === 'Escape') game.paused = !game.paused;
 });
-addEventListener('keyup', (e) => {
-  const k = e.key.toLowerCase();
+addEventListener('keyup', (e) => releaseKey(e.code));
+function releaseKey(k) {
   held.delete(k);
   if (KEY_BUTTONS[k] !== undefined) pressButton(KEY_BUTTONS[k], false);
-});
+}
+// A window that loses focus never hears its keys let go: let them all go
+function releaseAllKeys() { for (const k of [...held]) releaseKey(k); }
+addEventListener('blur', releaseAllKeys);
+document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAllKeys(); });
 function keyStep(dt) {
   for (let f = 0; f < 8; f++) {
     const d = (held.has(KEYS_UP[f]) ? 1 : 0) - (held.has(KEYS_DN[f]) ? 1 : 0);
-    if (d) touchFader(f, clamp(fader[f] + d * 160 * dt, 0, 127));
+    if (d) touchFader(f, clamp(fader[f] + d * 160 * dt, 0, 127), true);
   }
 }
 
