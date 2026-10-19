@@ -346,10 +346,24 @@ const game = {
 };
 const tiltG = { x: 0, y: 0 };
 
-function rodTravel(rod) {
-  // one goalie covers the whole width (leaving the goal open in the corners)
-  const s = P.manSize, hy = 17 * s;
-  return Math.max(0, CY - hy - 4 - (rod.n - 1) * rod.spacing / 2);
+// How far a rod's centre can go, top and bottom: the end men stop at the
+// side wall, or at a corner ramp where it reaches across the rod (one goalie
+// covers the width up to the ramps).  At the top they stop a little sooner:
+// seen slightly from the side, a man's head is drawn above his feet, and it
+// is his head that meets the far wall.
+function rodRange(rod) {
+  const k = P.manSize, hy = 17 * k, half = (rod.n - 1) * rod.spacing / 2, ramp = rampIn(rod);
+  const head = Math.max(0, (36 * k + Math.max(P.reach, 16 * k)) * TILT_VIEW + 10.8 * k - hy);
+  const lo = hy + 4 + ramp + half + head, hi = W - hy - 4 - ramp - half;
+  return lo <= hi ? [lo, hi] : [(lo + hi) / 2, (lo + hi) / 2];
+}
+// How far a corner ramp reaches in from the side wall across a rod's men.
+// The ramps are at 45 degrees, so at x from an end wall a ramp of size c
+// comes c - x in; the men's near edge is where it reaches furthest.
+function rampIn(rod) {
+  const c = Math.min(P.corner, CY - 10, L / 2 - 10), { hx } = manDims();
+  const near = Math.min(rod.x, L - rod.x) - hx;
+  return Math.max(0, c - near);
 }
 function manYs(rod) {
   const ys = [];
@@ -364,11 +378,12 @@ function faderToY(rod) {
   const f = faderOfRod(rod), inv = rod.team === 0 ? OPT.invert0 : OPT.invert1;
   let u = fader[f] / 127;              // 1 = fader up = top of the screen
   if (inv) u = 1 - u;
-  return CY + rodTravel(rod) * (1 - 2 * u);
+  const [lo, hi] = rodRange(rod);
+  return lo + (hi - lo) * (1 - u);
 }
 function yToFader(rod, y) {
-  const t = rodTravel(rod), inv = rod.team === 0 ? OPT.invert0 : OPT.invert1;
-  let u = t > 0 ? (1 - (y - CY) / t) / 2 : 0.5;
+  const [lo, hi] = rodRange(rod), inv = rod.team === 0 ? OPT.invert0 : OPT.invert1;
+  let u = hi > lo ? 1 - (y - lo) / (hi - lo) : 0.5;
   if (inv) u = 1 - u;
   return clamp(u * 127, 0, 127);
 }
@@ -653,11 +668,11 @@ function aiStep(team, level, dt, skip) {
     }
     if (mine) st.aimT += dt;
     // the man that can get there soonest
-    const travel = rodTravel(rod);
+    const [lo, hi] = rodRange(rod);
     let best = rod.y, bd = 1e9;
     for (let m = 0; m < rod.n; m++) {
       const off = (m - (rod.n - 1) / 2) * rod.spacing;
-      const want = clamp(py + st.jit + st.aim - off, CY - travel, CY + travel);
+      const want = clamp(py + st.jit + st.aim - off, lo, hi);
       const miss = Math.abs(want + off - py), d = Math.abs(want - rod.y) + miss * 4;
       if (d < bd) { bd = d; best = want; }
     }

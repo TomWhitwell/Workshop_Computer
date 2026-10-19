@@ -125,7 +125,7 @@ motion.
 | Draw-back hold | How long the men stay drawn back after the button is let go |
 | Kick reach | Length of the men's legs: how far the feet swing, and how long a shot takes |
 | Rod speed | How fast a rod can follow its fader |
-| Corner ramps | The diagonal corners, which keep the ball from sitting in a corner |
+| Corner ramps | The diagonal corners, which keep the ball from sitting in a corner; the men stop where a ramp reaches across their rod |
 | Serve speed | How hard the ball comes in at a serve (and a nudge) |
 | 8mu tilt → slope | How much tipping the 8mu tips the table (off by default) |
 | Unstick after | Seconds a ball may sit still before it is nudged (off: never) |
