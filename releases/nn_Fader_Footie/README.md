@@ -35,6 +35,13 @@ has not yet been tried on a Workshop Computer with a real 8mu.
 
 The page plays without a card (no voltages, of course) and without an 8mu.
 
+When it finds an 8mu, the page sends it the same identify message as the
+Computer's own 8mu driver (`EightMU.h`). That makes the 8mu load its default
+setup (faders CC 34-41, buttons C2-C5) and switches off its bank buttons
+until it is power-cycled, so pressing a top button can never move it to
+another bank, where its faders would send something else. It also asks where
+the faders are, so the rods start where the faders sit.
+
 ## Playing
 
 | 8mu | Team 1 (left, red) | Team 2 (right, blue) |

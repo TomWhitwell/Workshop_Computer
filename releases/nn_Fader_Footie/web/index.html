@@ -323,6 +323,8 @@ const saveAll = () => { lsSet('faderfootie.params', JSON.stringify(P)); lsSet('f
 // ============================================================================
 const fader = new Array(8).fill(64);
 const BUTTON_NOTES = [36, 48, 60, 72];      // 8mu buttons A-D, factory settings
+const EIGHTMU_IDENTIFY = [0xF0, 0x7D, 0x00, 0x00, 0x21, 0xF7];
+const EIGHTMU_FADER_QUERY = [0xF0, 0x7D, 0x00, 0x00, 0x12, 0xF7];
 const FIRST_FADER_CC = 34, FIRST_MOTION_CC = 42;
 function rodOfFader(f) {
   // goalie nearest each player: faders 1-4 are team 1's G D M A, 5-8 team 2's A M D G
@@ -758,7 +760,7 @@ function sendOutputs(force) {
 // ============================================================================
 const CMD = { STATUS: 0x07, PING: 0x09, OUTPUTS: 0x10, TOUCH: 0x11, GOAL: 0x12, CONFIG: 0x13, EVENT: 0x20 };
 const sysexMsg = (cmd, payload) => [0xF0, 0x7D, 0x46, cmd, ...payload, 0xF7];
-const link = { access: null, cardIn: null, cardOut: null, muIns: [], online: false, buf: [], inSx: false, pingTimer: 0, card: null };
+const link = { access: null, cardIn: null, cardOut: null, muIns: [], muOuts: [], online: false, buf: [], inSx: false, pingTimer: 0, card: null };
 const mu = { cc: new Array(8).fill(64), buttons: [false, false, false, false], anchor: new Array(8).fill(-1), lastT: new Array(8).fill(0) };
 
 function sendCard(msg) {
@@ -788,7 +790,20 @@ function scanPorts() {
   for (const p of ins) p.onmidimessage = null;
   link.cardIn = ins.find(isCard) || null; link.cardOut = outs.find(isCard) || null;
   link.muIns = ins.filter(is8mu);
+  const muOuts = outs.filter(is8mu), fresh = muOuts.filter(o => !link.muOuts.includes(o));
+  link.muOuts = muOuts;
   if (link.cardIn) link.cardIn.onmidimessage = (ev) => onCardBytes(ev.data);
+  // An 8mu's top buttons double as bank buttons, and in another bank the
+  // faders send something else.  Identifying it, as the Computer's own 8mu
+  // driver (EightMU.h) does, makes it load its default setup and switches
+  // its bank buttons off until it's power-cycled; then ask where its faders
+  // are, so the rods start where the faders sit.
+  for (const o of fresh) {
+    const send = (m) => { try { o.send(m); } catch (e) {} };
+    send(EIGHTMU_IDENTIFY);
+    setTimeout(() => send(EIGHTMU_IDENTIFY), 300);
+    setTimeout(() => send(EIGHTMU_FADER_QUERY), 600);
+  }
   for (const p of link.muIns) p.onmidimessage = (ev) => onEightmu(ev.data);
   link.online = !!(link.cardIn && link.cardOut);
   clearInterval(link.pingTimer);
@@ -833,6 +848,15 @@ function onCardSysex(m) {
 }
 
 function onEightmu(d) {
+  // its reply to the fader query: F0 7D 00 00 12, then the eight faders
+  if (d[0] === 0xF0 && d.length >= 13 && d[1] === 0x7D && d[2] === 0 && d[3] === 0 && d[4] === 0x12) {
+    for (let f = 0; f < 8; f++) {
+      const v = d[5 + f] & 0x7F;
+      mu.anchor[f] = v; mu.lastT[f] = performance.now();
+      if (humanFader(f)) fader[f] = v;
+    }
+    return;
+  }
   if (d.length < 3 || d[0] < 0x80 || d[0] >= 0xF0) return;
   const type = d[0] & 0xF0;
   if (type === 0xB0) {
@@ -1295,7 +1319,7 @@ function frame(now) {
 }
 
 $('btn-connect').addEventListener('click', connect);
-$('btn-rescan').addEventListener('click', scanPorts);
+$('btn-rescan').addEventListener('click', () => { link.muOuts = []; scanPorts(); });   // and identify the 8mu again
 $('btn-serve').addEventListener('click', () => serve());
 $('btn-new').addEventListener('click', newMatch);
 $('btn-full').addEventListener('click', () => { const el = $('tablewrap'); (el.requestFullscreen ? el.requestFullscreen() : Promise.reject()).catch(() => {}); });
