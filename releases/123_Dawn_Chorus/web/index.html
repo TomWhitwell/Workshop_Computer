@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dawn Chorus host</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night: #1d2438;
+    --panel: #252d47;
+    --rule: #3b4469;
+    --mist: #e6e8f0;
+    --dim: #a0a7bf;
+    --gold: #f0c674;
+    --rose: #e3a092;
+    --bad: #f08a7e;
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --sans: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--night);
+    color: var(--mist);
+    font: 15px/1.5 var(--sans);
+    font-variant-numeric: tabular-nums;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+    gap: 1rem; padding: 1.4rem clamp(1rem, 4vw, 2.5rem) 0.6rem;
+  }
+  h1 { font: 500 2rem/1.1 var(--serif); margin: 0; letter-spacing: 0.01em; }
+  h1 small { font: 400 0.95rem var(--sans); color: var(--dim); margin-left: 0.6rem; }
+  h2 { font: 500 1.25rem/1.2 var(--serif); margin: 0 0 0.8rem; }
+
+  /* The sky band is the page's one bold element */
+  .sky { position: relative; margin: 0.4rem 0 0; }
+  .sky canvas { display: block; width: 100%; height: clamp(150px, 26vw, 240px); }
+  .sky-meta {
+    display: flex; flex-wrap: wrap; gap: 0.4rem 2rem; justify-content: space-between;
+    padding: 0.6rem clamp(1rem, 4vw, 2.5rem); border-bottom: 1px solid var(--rule);
+  }
+  .clock { font: 400 1.7rem/1 var(--serif); }
+  .clock .mode-note { font: 400 0.9rem var(--sans); color: var(--gold); margin-left: 0.6rem; }
+  .sun-times { display: flex; gap: 1.6rem; color: var(--dim); align-items: baseline; }
+  .sun-times b { color: var(--mist); font-weight: 500; }
+
+  main {
+    display: grid; gap: 2rem 3rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    padding: 1.6rem clamp(1rem, 4vw, 2.5rem) 2.5rem;
+    max-width: 1200px;
+  }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+  section + section { margin-top: 2rem; }
+
+  label { display: block; color: var(--dim); font-size: 0.9rem; margin-bottom: 0.25rem; }
+  .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: end; margin-bottom: 0.9rem; }
+  .row > div { flex: 1 1 8rem; }
+  input[type=text], input[type=number], select {
+    width: 100%; padding: 0.5rem 0.6rem; border-radius: 6px;
+    border: 1px solid var(--rule); background: var(--panel); color: var(--mist);
+    font: inherit;
+  }
+  button {
+    font: 500 0.95rem var(--sans); padding: 0.55rem 1rem; border-radius: 6px;
+    border: 1px solid var(--rule); background: var(--panel); color: var(--mist); cursor: pointer;
+  }
+  button.primary { background: var(--gold); color: #2b2410; border-color: var(--gold); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  .modes { display: flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+  .modes button { flex: 1; border: 0; border-radius: 0; background: transparent; color: var(--dim); }
+  .modes button[aria-pressed=true] { background: var(--panel); color: var(--mist); box-shadow: inset 0 -2px 0 var(--gold); }
+  .hint { color: var(--dim); font-size: 0.88rem; margin: 0.2rem 0 0.8rem; max-width: 60ch; }
+  .msg { font-size: 0.9rem; min-height: 1.3em; color: var(--dim); }
+  .msg.bad { color: var(--bad); }
+
+  /* Readouts */
+  .meters { display: grid; gap: 0.55rem; }
+  .meter { display: grid; grid-template-columns: 7.5rem 1fr 5.5rem; gap: 0.8rem; align-items: center; }
+  .meter .name { color: var(--mist); }
+  .meter .bar { height: 8px; background: var(--panel); border-radius: 4px; overflow: hidden; }
+  .meter .bar i { display: block; height: 100%; width: 0; background: var(--gold); border-radius: 4px; }
+  .meter.sun .bar i { background: linear-gradient(90deg, var(--rose), var(--gold)); }
+  .meter .val { color: var(--dim); text-align: right; font-size: 0.9rem; }
+  .meter input[type=range] { width: 100%; accent-color: var(--gold); }
+
+  .card-state { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rule); flex: none; }
+  .dot.on { background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+  .stats { display: flex; gap: 1.6rem; flex-wrap: wrap; color: var(--dim); font-size: 0.92rem; }
+  .stats b { color: var(--mist); font-weight: 500; }
+  details { margin-top: 1rem; }
+  summary { cursor: pointer; color: var(--dim); }
+  pre {
+    background: var(--panel); border-radius: 6px; padding: 0.7rem; margin: 0.6rem 0 0;
+    max-height: 14rem; overflow: auto; font-size: 0.8rem; line-height: 1.45; white-space: pre-wrap;
+  }
+  .manual-only { display: none; }
+  body.manual .manual-only { display: block; }
+  body.manual .meter.manual-only { display: grid; }
+  body.manual .auto-only { display: none; }
+  .fast-only { display: none; }
+  body.fast .fast-only { display: flex; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Dawn Chorus <small>host companion, test build 0.3</small></h1>
+  <div class="card-state">
+    <span class="dot" id="linkDot" aria-hidden="true"></span>
+    <span id="linkText">Card not connected</span>
+    <button class="primary" id="connectBtn">Connect card</button>
+  </div>
+</header>
+
+<div class="sky" aria-label="Sun elevation through the day">
+  <canvas id="sky"></canvas>
+</div>
+<div class="sky-meta">
+  <div class="clock"><span id="clock">--:--</span><span class="mode-note" id="modeNote"></span></div>
+  <div class="sun-times">
+    <span>Sunrise <b id="sunrise">--:--</b></span>
+    <span>Sunset <b id="sunset">--:--</b></span>
+    <span>Sun <b id="elevText">--</b></span>
+  </div>
+</div>
+
+<main>
+  <div>
+    <section>
+      <h2>Place</h2>
+      <div class="row">
+        <div style="flex: 2 1 12rem">
+          <label for="placeQ">Town or city</label>
+          <input type="text" id="placeQ" placeholder="Search for a place">
+        </div>
+        <button id="placeBtn">Find</button>
+        <button id="geoBtn">Use my location</button>
+      </div>
+      <div class="row">
+        <div><label for="lat">Latitude</label><input type="number" id="lat" step="0.0001" min="-90" max="90"></div>
+        <div><label for="lon">Longitude</label><input type="number" id="lon" step="0.0001" min="-180" max="180"></div>
+      </div>
+      <p class="msg" id="placeMsg">Set a place so the page can work out the sun and fetch the weather.</p>
+    </section>
+
+    <section>
+      <h2>Time</h2>
+      <div class="modes" role="group" aria-label="Time mode">
+        <button data-mode="live" aria-pressed="true">Live</button>
+        <button data-mode="fast" aria-pressed="false">Fast</button>
+        <button data-mode="manual" aria-pressed="false">Manual</button>
+      </div>
+      <p class="hint" id="modeHint"></p>
+      <div class="row fast-only">
+        <div>
+          <label for="fastStart">Start</label>
+          <select id="fastStart">
+            <option value="sunrise">Before next sunrise</option>
+            <option value="sunset">Before next sunset</option>
+            <option value="now">Now</option>
+          </select>
+        </div>
+        <div>
+          <label for="speed">Speed</label>
+          <select id="speed">
+            <option value="10">10×</option>
+            <option value="60" selected>60×, an hour a minute</option>
+            <option value="240">240×</option>
+            <option value="1440">1440×, a day a minute</option>
+          </select>
+        </div>
+        <button id="restartBtn">Restart</button>
+      </div>
+    </section>
+  </div>
+
+  <div>
+    <section>
+      <h2>Sent to the card</h2>
+      <div class="meters" id="meters"></div>
+      <p class="msg auto-only" id="weatherMsg"></p>
+    </section>
+
+    <section>
+      <h2>Card</h2>
+      <div class="stats">
+        <span>Frames sent <b id="sent">0</b></span>
+        <span>Received by card <b id="recv">–</b></span>
+        <span>Chimes <b id="chimes">–</b></span>
+        <span>Bird phrases <b id="birds">–</b></span>
+      </div>
+      <p class="msg" id="serialMsg"></p>
+      <details>
+        <summary>Serial log</summary>
+        <pre id="log"></pre>
+      </details>
+    </section>
+  </div>
+</main>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
+const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const fmtTime = (t) => new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+/* ---------------------------------------------------------------
+   Sun position (NOAA solar calculator equations)
+---------------------------------------------------------------- */
+function sunElevation(t, lat, lon) {
+  const rad = Math.PI / 180;
+  const jd = t / 86400000 + 2440587.5;
+  const T = (jd - 2451545) / 36525;
+  const L0 = ((280.46646 + T * (36000.76983 + T * 0.0003032)) % 360 + 360) % 360;
+  const M = 357.52911 + T * (35999.05029 - 0.0001537 * T);
+  const e = 0.016708634 - T * (0.000042037 + 0.0000001267 * T);
+  const C = Math.sin(M * rad) * (1.914602 - T * (0.004817 + 0.000014 * T))
+          + Math.sin(2 * M * rad) * (0.019993 - 0.000101 * T)
+          + Math.sin(3 * M * rad) * 0.000289;
+  const omega = 125.04 - 1934.136 * T;
+  const lambda = L0 + C - 0.00569 - 0.00478 * Math.sin(omega * rad);
+  const eps0 = 23 + (26 + (21.448 - T * (46.815 + T * (0.00059 - T * 0.001813))) / 60) / 60;
+  const eps = eps0 + 0.00256 * Math.cos(omega * rad);
+  const decl = Math.asin(Math.sin(eps * rad) * Math.sin(lambda * rad));
+  const y = Math.tan(eps * rad / 2) ** 2;
+  const eqTime = 4 / rad * (y * Math.sin(2 * L0 * rad) - 2 * e * Math.sin(M * rad)
+    + 4 * e * y * Math.sin(M * rad) * Math.cos(2 * L0 * rad)
+    - 0.5 * y * y * Math.sin(4 * L0 * rad) - 1.25 * e * e * Math.sin(2 * M * rad));
+  const d = new Date(t);
+  const utcMin = d.getUTCHours() * 60 + d.getUTCMinutes() + d.getUTCSeconds() / 60 + d.getUTCMilliseconds() / 60000;
+  const ha = (utcMin + eqTime + 4 * lon) / 4 - 180;
+  const latR = lat * rad;
+  const cosZ = Math.sin(latR) * Math.sin(decl) + Math.cos(latR) * Math.cos(decl) * Math.cos(ha * rad);
+  let el = 90 - Math.acos(Math.min(1, Math.max(-1, cosZ))) / rad;
+  if (el > -1) el += 1.02 / Math.tan((el + 10.3 / (el + 5.11)) * rad) / 60; // refraction
+  return el;
+}
+
+// Next upward (rise) or downward (set) crossing of -0.833° after t, within 36 h
+function nextCrossing(t, lat, lon, rising) {
+  const step = 120000, h = -0.833;
+  let prev = sunElevation(t, lat, lon);
+  for (let u = t + step; u < t + 36 * 3600000; u += step) {
+    const cur = sunElevation(u, lat, lon);
+    if (rising ? (prev < h && cur >= h) : (prev > h && cur <= h)) {
+      return u - step + step * (h - prev) / (cur - prev);
+    }
+    prev = cur;
+  }
+  return null;
+}
+
+/* ---------------------------------------------------------------
+   State
+---------------------------------------------------------------- */
+const S = {
+  lat: null, lon: null,
+  mode: "live", speed: 60, simStart: 0, realStart: 0,
+  weather: null, weatherFor: "",
+  day: null,               // cached sky curve for the day on screen
+  port: null, reader: null, writer: null, writing: false,
+  sent: 0, lastCardLine: 0,
+  manual: { el: -6, ri: 1, cl: 0.4, wi: 0.25, te: 0.5, ra: 0, hu: 0.7 },
+  frame: null,
+};
+
+function store(k, v) { try { localStorage.setItem("dawnchorus." + k, JSON.stringify(v)); } catch (e) {} }
+function recall(k) { try { const v = localStorage.getItem("dawnchorus." + k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+
+function simNow() {
+  if (S.mode === "fast") return S.simStart + (Date.now() - S.realStart) * S.speed;
+  return Date.now();
+}
+
+/* ---------------------------------------------------------------
+   Place
+---------------------------------------------------------------- */
+function setPlace(lat, lon, label) {
+  S.lat = +lat; S.lon = +lon;
+  $("#lat").value = S.lat.toFixed(4);
+  $("#lon").value = S.lon.toFixed(4);
+  $("#placeMsg").textContent = label ? `Using ${label}.` : "Using the coordinates above.";
+  $("#placeMsg").classList.remove("bad");
+  store("place", { lat: S.lat, lon: S.lon, label: label || "" });
+  S.day = null;
+  if (S.mode === "fast") restartFast();
+  fetchWeather();
+}
+
+$("#placeBtn").onclick = async () => {
+  const q = $("#placeQ").value.trim();
+  if (!q) return;
+  $("#placeMsg").textContent = "Searching…";
+  try {
+    const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en`);
+    const j = await r.json();
+    const p = j.results && j.results[0];
+    if (!p) throw new Error(`No place called "${q}" was found. Try a nearby town.`);
+    setPlace(p.latitude, p.longitude, [p.name, p.admin1, p.country].filter(Boolean).join(", "));
+  } catch (e) {
+    $("#placeMsg").textContent = e.message.startsWith("No place") ? e.message : "The place search didn't respond. Check the internet connection, or type the coordinates.";
+    $("#placeMsg").classList.add("bad");
+  }
+};
+$("#placeQ").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#placeBtn").click(); });
+
+$("#geoBtn").onclick = () => {
+  if (!navigator.geolocation) { $("#placeMsg").textContent = "This browser can't share its location. Search for a place instead."; return; }
+  $("#placeMsg").textContent = "Asking the browser for your location…";
+  navigator.geolocation.getCurrentPosition(
+    (p) => setPlace(p.coords.latitude, p.coords.longitude, "your current location"),
+    () => { $("#placeMsg").textContent = "Location wasn't shared. Search for a place instead."; $("#placeMsg").classList.add("bad"); },
+    { timeout: 10000 }
+  );
+};
+for (const id of ["#lat", "#lon"]) {
+  $(id).addEventListener("change", () => {
+    const la = parseFloat($("#lat").value), lo = parseFloat($("#lon").value);
+    if (Number.isFinite(la) && Number.isFinite(lo)) setPlace(la, lo, "");
+  });
+}
+
+/* ---------------------------------------------------------------
+   Weather (Open-Meteo hourly, interpolated at the simulated time)
+---------------------------------------------------------------- */
+async function fetchWeather() {
+  if (S.lat == null) return;
+  const key = `${S.lat.toFixed(2)},${S.lon.toFixed(2)}`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${S.lat}&longitude=${S.lon}` +
+    `&hourly=temperature_2m,relative_humidity_2m,cloud_cover,wind_speed_10m,precipitation` +
+    `&past_days=1&forecast_days=3&timeformat=unixtime&wind_speed_unit=kmh`;
+  $("#weatherMsg").textContent = "Fetching the weather…";
+  try {
+    const j = await (await fetch(url)).json();
+    if (!j.hourly) throw new Error();
+    S.weather = j.hourly; S.weatherFor = key; S.weatherAt = Date.now();
+    $("#weatherMsg").textContent = `Weather from Open-Meteo, fetched at ${fmtTime(Date.now())}.`;
+    $("#weatherMsg").classList.remove("bad");
+  } catch (e) {
+    $("#weatherMsg").textContent = "The weather didn't load, so mild default values are being sent. It will try again in 5 minutes.";
+    $("#weatherMsg").classList.add("bad");
+    S.weatherAt = Date.now() - 25 * 60000;
+  }
+}
+setInterval(() => { if (S.lat != null && Date.now() - (S.weatherAt || 0) > 30 * 60000) fetchWeather(); }, 60000);
+
+function weatherAt(t) {
+  const h = S.weather;
+  const def = { cl: 0.5, wi: 0.2, te: 0.5, ra: 0, hu: 0.6, raw: null };
+  if (!h) return def;
+  const ts = h.time, s = t / 1000;
+  let i = ts.findIndex((x) => x > s) - 1;
+  if (i < 0) i = s < ts[0] ? 0 : ts.length - 2;
+  const f = clamp01((s - ts[i]) / (ts[i + 1] - ts[i]));
+  const lerp = (a) => a[i] + (a[i + 1] - a[i]) * f;
+  const raw = {
+    cloud: lerp(h.cloud_cover), wind: lerp(h.wind_speed_10m), temp: lerp(h.temperature_2m),
+    rain: lerp(h.precipitation), hum: lerp(h.relative_humidity_2m),
+  };
+  return {
+    cl: clamp01(raw.cloud / 100), wi: clamp01(raw.wind / 40), te: clamp01((raw.temp + 5) / 35),
+    ra: clamp01(raw.rain / 4), hu: clamp01(raw.hum / 100), raw,
+  };
+}
+
+/* ---------------------------------------------------------------
+   Frame: everything the card receives
+---------------------------------------------------------------- */
+function buildFrame(t) {
+  let el, ri, w;
+  if (S.mode === "manual") {
+    const m = S.manual;
+    el = m.el; ri = m.ri; w = { cl: m.cl, wi: m.wi, te: m.te, ra: m.ra, hu: m.hu, raw: null };
+  } else {
+    if (S.lat == null) return null;
+    el = sunElevation(t, S.lat, S.lon);
+    ri = sunElevation(t + 60000, S.lat, S.lon) > el ? 1 : 0;
+    w = weatherAt(t);
+  }
+  // Daylight swells from nautical twilight (-12°) to the sun 12° up
+  const li = smoothstep(-12, 12, el);
+  const ch = birdsong(el, ri);
+  return { el, li, ch, ri, cl: w.cl, wi: w.wi, te: w.te, ra: w.ra, hu: w.hu, raw: w.raw };
+}
+
+/* Birdsong through the day (0-1, sent as "ch"):
+   builds slowly from nautical twilight, peaks just after sunrise, settles to
+   BIRDS_DAY through the morning, eases to BIRDS_LULL when the sun is high,
+   lifts again for a smaller evening chorus, then fades through dusk. */
+const BIRDS_DAY = 0.8, BIRDS_LULL = 0.6, BIRDS_EVENING_LIFT = 0.15;
+function birdsong(el, rising) {
+  const day = BIRDS_DAY - (BIRDS_DAY - BIRDS_LULL) * smoothstep(15, 40, el);
+  if (rising) {
+    const wake = smoothstep(-8, 1, el) ** 1.5;
+    const peak = Math.exp(-(((el - 2) / 5) ** 2));
+    return wake * (day + (1 - day) * peak);
+  }
+  const evening = BIRDS_EVENING_LIFT * Math.exp(-(((el - 5) / 5) ** 2));
+  return smoothstep(-6, 3, el) * Math.min(1, day + evening);
+}
+
+function frameLine(f) {
+  return `F el=${f.el.toFixed(2)} li=${f.li.toFixed(4)} ch=${f.ch.toFixed(4)} ri=${f.ri} ` +
+         `cl=${f.cl.toFixed(3)} wi=${f.wi.toFixed(3)} te=${f.te.toFixed(3)} ra=${f.ra.toFixed(3)} hu=${f.hu.toFixed(3)}\n`;
+}
+
+/* ---------------------------------------------------------------
+   Readouts and manual sliders
+---------------------------------------------------------------- */
+const METERS = [
+  { k: "li", name: "Daylight", sun: true },
+  { k: "ch", name: "Birdsong", sun: true },
+  { k: "cl", name: "Cloud", raw: (r) => `${Math.round(r.cloud)}%` },
+  { k: "wi", name: "Wind", raw: (r) => `${Math.round(r.wind)} km/h` },
+  { k: "te", name: "Warmth", raw: (r) => `${r.temp.toFixed(1)} °C` },
+  { k: "ra", name: "Rain", raw: (r) => `${r.rain.toFixed(1)} mm` },
+  { k: "hu", name: "Humidity", raw: (r) => `${Math.round(r.hum)}%` },
+];
+const meterEls = {};
+(function buildMeters() {
+  const box = $("#meters");
+  // manual elevation + direction controls
+  const elRow = document.createElement("div");
+  elRow.className = "meter manual-only";
+  elRow.innerHTML = `<span class="name">Sun height</span>
+    <input type="range" min="-20" max="40" step="0.1" value="${S.manual.el}" aria-label="Sun height in degrees">
+    <span class="val"></span>`;
+  box.appendChild(elRow);
+  const elIn = elRow.querySelector("input"), elVal = elRow.querySelector(".val");
+  const showEl = () => (elVal.textContent = `${(+elIn.value).toFixed(1)}°`);
+  elIn.oninput = () => { S.manual.el = +elIn.value; showEl(); };
+  showEl();
+  const riRow = document.createElement("div");
+  riRow.className = "meter manual-only";
+  riRow.innerHTML = `<span class="name">Sun is</span>
+    <select aria-label="Sun direction"><option value="1">Rising</option><option value="0">Setting</option></select><span></span>`;
+  box.appendChild(riRow);
+  riRow.querySelector("select").onchange = (e) => (S.manual.ri = +e.target.value);
+
+  for (const m of METERS) {
+    const row = document.createElement("div");
+    row.className = "meter" + (m.sun ? " sun" : "");
+    const manualCtl = m.sun ? "" :
+      `<input class="manual-only" type="range" min="0" max="1" step="0.01" value="${S.manual[m.k]}" aria-label="${m.name}">`;
+    row.innerHTML = `<span class="name">${m.name}</span>
+      <div><div class="bar ${m.sun ? "" : "auto-only"}"><i></i></div>${manualCtl}${m.sun ? "" : ""}</div>
+      <span class="val"></span>`;
+    // sun-derived meters always show a bar, even in manual mode
+    if (m.sun) row.querySelector(".bar").classList.remove("auto-only");
+    box.appendChild(row);
+    const inp = row.querySelector("input");
+    if (inp) inp.oninput = () => (S.manual[m.k] = +inp.value);
+    meterEls[m.k] = { bar: row.querySelector(".bar i"), val: row.querySelector(".val"), m };
+  }
+})();
+
+function showFrame(f) {
+  for (const k in meterEls) {
+    const { bar, val, m } = meterEls[k];
+    if (!f) { bar.style.width = "0"; val.textContent = "–"; continue; }
+    bar.style.width = `${(f[k] * 100).toFixed(1)}%`;
+    val.textContent = f.raw && m.raw ? m.raw(f.raw) : f[k].toFixed(2);
+  }
+}
+
+/* ---------------------------------------------------------------
+   Modes
+---------------------------------------------------------------- */
+const HINTS = {
+  live: "Real time and real weather. The card follows today's actual sun.",
+  fast: "Real sun and forecast weather, played back faster so you can hear a dawn or dusk in minutes.",
+  manual: "Move the sliders to audition how the card responds. Daylight and birdsong follow the sun height.",
+};
+function setMode(mode) {
+  S.mode = mode;
+  document.querySelectorAll(".modes button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === mode));
+  document.body.classList.toggle("manual", mode === "manual");
+  document.body.classList.toggle("fast", mode === "fast");
+  $("#modeHint").textContent = HINTS[mode];
+  if (mode === "fast") restartFast();
+  store("mode", mode);
+}
+document.querySelectorAll(".modes button").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
+
+function restartFast() {
+  S.speed = +$("#speed").value;
+  const now = Date.now();
+  let start = now;
+  const which = $("#fastStart").value;
+  if (which !== "now" && S.lat != null) {
+    const c = nextCrossing(now, S.lat, S.lon, which === "sunrise");
+    if (c) start = c - 3600000;
+  }
+  S.simStart = start; S.realStart = now; S.day = null;
+}
+$("#fastStart").onchange = restartFast;
+$("#speed").onchange = () => {
+  // keep the current simulated moment, change the rate from here
+  const t = simNow(); S.speed = +$("#speed").value; S.simStart = t; S.realStart = Date.now();
+};
+$("#restartBtn").onclick = restartFast;
+
+/* ---------------------------------------------------------------
+   Sky band
+---------------------------------------------------------------- */
+const SKY = [ // elevation (°) -> colour
+  [-18, [20, 26, 46]], [-12, [35, 43, 74]], [-7, [70, 62, 110]], [-3, [150, 92, 128]],
+  [0, [226, 140, 120]], [3, [240, 186, 130]], [8, [236, 214, 170]], [15, [170, 198, 222]], [40, [118, 168, 214]],
+];
+function skyRGB(el) {
+  if (el <= SKY[0][0]) return SKY[0][1];
+  for (let i = 1; i < SKY.length; i++) {
+    if (el <= SKY[i][0]) {
+      const [e0, c0] = SKY[i - 1], [e1, c1] = SKY[i], f = (el - e0) / (e1 - e0);
+      return c0.map((v, j) => Math.round(v + (c1[j] - v) * f));
+    }
+  }
+  return SKY[SKY.length - 1][1];
+}
+
+function dayCurve(t) {
+  if (S.mode === "manual" || S.lat == null) return null;
+  const d = new Date(t); d.setHours(0, 0, 0, 0);
+  const start = d.getTime();
+  if (S.day && S.day.start === start && S.day.lat === S.lat && S.day.lon === S.lon) return S.day;
+  const N = 289, els = [];
+  for (let i = 0; i < N; i++) els.push(sunElevation(start + i * 300000, S.lat, S.lon));
+  let rise = null, set = null;
+  for (let i = 1; i < N; i++) {
+    const a = els[i - 1], b = els[i], h = -0.833;
+    const at = start + (i - 1) * 300000 + 300000 * (h - a) / (b - a);
+    if (a < h && b >= h && rise == null) rise = at;
+    if (a > h && b <= h && set == null) set = at;
+  }
+  S.day = { start, els, rise, set, lat: S.lat, lon: S.lon, max: Math.max(...els), min: Math.min(...els) };
+  return S.day;
+}
+
+const cv = $("#sky"), ctx = cv.getContext("2d");
+function drawSky(t, f) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const day = dayCurve(t);
+
+  if (!day) {
+    // Manual mode or no place: a single sky colour for the current elevation
+    const el = f ? f.el : -18;
+    const [r, g, b] = skyRGB(el);
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, `rgb(${r * 0.7 | 0},${g * 0.7 | 0},${b * 0.75 | 0})`);
+    grad.addColorStop(1, `rgb(${r},${g},${b})`);
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+    if (f) {
+      const y = H * 0.62 - (f.el / 40) * H * 0.5;
+      ctx.beginPath(); ctx.arc(W / 2, y, 14, 0, Math.PI * 2);
+      ctx.fillStyle = "#fbe3a6"; ctx.fill();
+      ctx.fillStyle = "rgba(29,36,56,0.55)"; ctx.fillRect(0, H * 0.62, W, H * 0.38);
+    } else {
+      ctx.fillStyle = "rgba(230,232,240,0.75)";
+      ctx.font = "500 16px Figtree, sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("Set a place to draw today's sky", W / 2, H / 2);
+    }
+    return;
+  }
+
+  const top = Math.max(day.max + 6, 20), bot = Math.min(day.min, -20);
+  const yOf = (el) => H * 0.08 + (top - el) / (top - bot) * H * 0.84;
+  // columns of sky colour, one per pixel strip
+  const cols = Math.min(W, 600);
+  for (let x = 0; x < cols; x++) {
+    const i = Math.min(day.els.length - 1, Math.round(x / (cols - 1) * (day.els.length - 1)));
+    const [r, g, b] = skyRGB(day.els[i]);
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(Math.floor(x * W / cols), 0, Math.ceil(W / cols) + 1, H);
+  }
+  // ground below the horizon
+  const yH = yOf(0);
+  ctx.fillStyle = "rgba(29,36,56,0.55)"; ctx.fillRect(0, yH, W, H - yH);
+  ctx.strokeStyle = "rgba(230,232,240,0.35)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, yH + 0.5); ctx.lineTo(W, yH + 0.5); ctx.stroke();
+  // the sun's path
+  ctx.strokeStyle = "rgba(255,248,230,0.8)"; ctx.lineWidth = 1.5; ctx.beginPath();
+  day.els.forEach((el, i) => { const x = i / (day.els.length - 1) * W; i ? ctx.lineTo(x, yOf(el)) : ctx.moveTo(x, yOf(el)); });
+  ctx.stroke();
+  // hour ticks
+  ctx.fillStyle = "rgba(230,232,240,0.7)"; ctx.font = "12px Figtree, sans-serif"; ctx.textAlign = "center";
+  for (let h = 3; h < 24; h += 3) ctx.fillText(String(h).padStart(2, "0"), h / 24 * W, H - 8);
+  // the sun now
+  const fx = (t - day.start) / 86400000;
+  const el = f ? f.el : sunElevation(t, S.lat, S.lon);
+  const x = fx * W, y = yOf(el);
+  ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI * 2); ctx.fillStyle = "rgba(251,227,166,0.25)"; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fillStyle = el > -0.833 ? "#fff1c4" : "#c9cde0"; ctx.fill();
+}
+
+/* ---------------------------------------------------------------
+   Web Serial
+---------------------------------------------------------------- */
+const logEl = $("#log");
+function log(line) {
+  const lines = (logEl.textContent + line + "\n").split("\n");
+  logEl.textContent = lines.slice(-200).join("\n");
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function setLink(on, text) {
+  $("#linkDot").classList.toggle("on", on);
+  $("#linkText").textContent = text;
+  $("#connectBtn").textContent = on ? "Disconnect" : "Connect card";
+}
+
+if (!("serial" in navigator)) {
+  $("#serialMsg").textContent = "This browser can't talk to the card over USB. Open this file in Chrome or Edge on a laptop or desktop.";
+  $("#serialMsg").classList.add("bad");
+  $("#connectBtn").disabled = true;
+}
+
+$("#connectBtn").onclick = async () => {
+  if (S.port) { await disconnect(); return; }
+  try {
+    // 0x2E8A = Raspberry Pi (RP2040). Never open at 1200 baud: that reboots the card into BOOTSEL.
+    const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x2e8a }] });
+    await port.open({ baudRate: 115200 });
+    try { await port.setSignals({ dataTerminalReady: true, requestToSend: true }); } catch (e) {}
+    S.port = port;
+    S.writer = port.writable.getWriter();
+    setLink(true, "Connected, waiting for the card to reply");
+    $("#serialMsg").textContent = ""; $("#serialMsg").classList.remove("bad");
+    readLoop();
+    await S.writer.write(new TextEncoder().encode("HELLO\n"));
+  } catch (e) {
+    if (e.name !== "NotFoundError") {
+      $("#serialMsg").textContent = `The card couldn't be opened (${e.message}). Close any other program using it, then try again.`;
+      $("#serialMsg").classList.add("bad");
+    }
+    await disconnect();
+  }
+};
+
+async function readLoop() {
+  const dec = new TextDecoderStream();
+  const done = S.port.readable.pipeTo(dec.writable).catch(() => {});
+  const reader = dec.readable.getReader();
+  S.reader = reader; S.readDone = done;
+  let buf = "";
+  try {
+    for (;;) {
+      const { value, done: end } = await reader.read();
+      if (end) break;
+      buf += value;
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).replace(/\r$/, "");
+        buf = buf.slice(i + 1);
+        if (line) onCardLine(line);
+      }
+    }
+  } catch (e) { /* port closed */ }
+}
+
+function onCardLine(line) {
+  S.lastCardLine = Date.now();
+  if (line.startsWith("S ")) {
+    const kv = Object.fromEntries(line.slice(2).split(" ").map((p) => p.split("=")));
+    $("#recv").textContent = kv.fr ?? "–";
+    $("#chimes").textContent = kv.ch ?? "–";
+    $("#birds").textContent = kv.bi ?? "–";
+    setLink(true, "Card is receiving");
+  } else {
+    log("card: " + line);
+    if (line.startsWith("HELLO")) setLink(true, "Card is receiving");
+  }
+}
+
+async function disconnect() {
+  const p = S.port; S.port = null;
+  try { if (S.reader) await S.reader.cancel(); } catch (e) {}
+  try { if (S.readDone) await S.readDone; } catch (e) {}
+  try { if (S.writer) { S.writer.releaseLock(); } } catch (e) {}
+  try { if (p) await p.close(); } catch (e) {}
+  S.reader = S.writer = S.readDone = null;
+  setLink(false, "Card not connected");
+}
+if ("serial" in navigator) {
+  navigator.serial.addEventListener("disconnect", (e) => {
+    if (S.port && e.target === S.port) {
+      disconnect();
+      $("#serialMsg").textContent = "The card was unplugged. The card holds its last values until you connect again.";
+    }
+  });
+}
+
+/* ---------------------------------------------------------------
+   Main loop: 10 frames per second
+---------------------------------------------------------------- */
+async function tick() {
+  const t = simNow();
+  const f = buildFrame(t);
+  S.frame = f;
+  showFrame(f);
+  drawSky(t, f);
+
+  if (S.mode === "manual") {
+    $("#clock").textContent = "Manual";
+    $("#modeNote").textContent = "";
+  } else {
+    $("#clock").textContent = new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: S.mode === "fast" ? undefined : "2-digit" });
+    $("#modeNote").textContent = S.mode === "fast" ? `${S.speed}× time` : "";
+  }
+  const day = S.day && S.mode !== "manual" ? S.day : null;
+  $("#sunrise").textContent = day && day.rise ? fmtTime(day.rise) : "--:--";
+  $("#sunset").textContent = day && day.set ? fmtTime(day.set) : "--:--";
+  $("#elevText").textContent = f ? `${f.el.toFixed(1)}° ${f.ri ? "rising" : "setting"}` : "--";
+
+  if (S.port && S.writer && f && !S.writing) {
+    S.writing = true;
+    try {
+      await S.writer.write(new TextEncoder().encode(frameLine(f)));
+      S.sent++;
+      $("#sent").textContent = S.sent;
+      if (S.sent % 50 === 1) log("sent: " + frameLine(f).trim());
+    } catch (e) {
+      $("#serialMsg").textContent = "Sending stopped because the card stopped responding. Reconnect it.";
+      $("#serialMsg").classList.add("bad");
+      disconnect();
+    }
+    S.writing = false;
+  }
+  if (S.port && S.lastCardLine && Date.now() - S.lastCardLine > 3000) setLink(true, "Connected, but the card isn't replying");
+}
+setInterval(tick, 100);
+window.addEventListener("resize", () => drawSky(simNow(), S.frame));
+
+/* ---------------------------------------------------------------
+   Start-up
+---------------------------------------------------------------- */
+(function init() {
+  const p = recall("place");
+  setMode(recall("mode") || "live");
+  if (p && Number.isFinite(p.lat)) setPlace(p.lat, p.lon, p.label);
+})();
+</script>
+</body>
+</html>
