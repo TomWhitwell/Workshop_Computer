@@ -1,4 +1,3 @@
-draft: true   # set to false after the final hardware test (with Version 1.0.0 / Status Released)
 Name: QiGong Timer
 short-description: Interval meditation timer that strikes your own chime and bell, with reverb, delay and true silence between.
 summary: |
