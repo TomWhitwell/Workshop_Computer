@@ -1,0 +1,180 @@
+draft: true
+Name: Guided Wandering
+short-description: "Two voices of random pitch CV, guided by probabilities set on a Music Thing 8mu - with gates, ratchets and envelopes"
+Language: C++ (ComputerCard)
+Creator: XponentOneAudio
+Version: "0.1.0"
+Status: WIP
+License: MIT
+Editor: web
+date-created: 2026-10-21
+date-updated: 2026-10-21
+
+contact:
+  email: XponentOneAudio@gmail.com
+
+# Vendors, unmodified and under their own MIT terms:
+#   ComputerCard.h, EightMU.h (which carries the rppicomidi usb_midi_host
+#   driver, (c) 2023 rppicomidi)
+#     (c) Chris Johnson
+
+uf2:
+  - path: UF2/guided_wandering.uf2
+    name: Guided Wandering 0.1.0
+
+tags:
+  - generative
+  - random
+  - quantizer
+  - microtonal
+  - cv
+  - envelope
+  - usb-host
+  - midi
+  - 8mu
+
+summary: |
+  Random melodies whose randomness you shape by hand. Two voices wander at
+  once; at every step each one draws a note of the scale, an octave, a gate
+  length and a ratchet, and the faders of a Music Thing 8mu set the odds of
+  every choice.<br><br>
+
+  The 8mu's four buttons choose the page: A NOTES (one fader per note of the
+  scale), B OCTAVES (-2V to +5V), C GATES (a rest, one to six sevenths of
+  the step, or tied into the next note) and D RATCHETS (1x, 1.5x, 2x or 3x a
+  step on one note, or the same speeds with a new note at every hit).
+  Pressing a button again gives its second page, voice 2's. While a second
+  page is all at zero, voice 2 draws from the first page too, playing a
+  different line with the same probabilities; raise any fader on it and
+  voice 2 goes its own way. Faders pick up, so changing page never changes
+  anything by accident. For 3 seconds after a touch the 8mu's LEDs show the
+  page's probabilities, then what is playing.<br><br>
+
+  31 scales: the usual modes and pentatonics, just intonation, the harmonic
+  series, gamelan slendro and pelog, maqam Rast and Bayati, and 5-, 7-, 13-,
+  19- and 24-tone equal temperaments. Each voice has a calibrated 1V/oct
+  pitch with slew, a gate, and an attack-decay envelope with a pluckiness
+  control.<br><br>
+
+  It works with an 8mu alone, no computer needed. An optional web editor
+  (web/index.html, Chrome or Edge) shows what each voice plays, mirrors the
+  8mu's LEDs, sets the internal tempo and keeps presets; with a computer
+  plugged into the Computer's USB socket the card becomes a USB MIDI device
+  for it, and an 8mu plugged into the computer is passed on through it.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Unused
+      type: audio
+      description: Not used.
+    - id: AudioIn2
+      name: Unused
+      type: audio
+      description: Not used.
+    - id: CVIn1
+      name: Unused
+      type: cv
+      description: Not used.
+    - id: CVIn2
+      name: Unused
+      type: cv
+      description: Not used.
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: >
+        A step every beat: the clock divided or multiplied by X (switch up),
+        for clocks up to a minute apart. Followed from its second pulse.
+        With nothing plugged in, or once four of its periods (at least 2s)
+        pass without a pulse, the card keeps its own tempo: 120 BPM unless
+        the web editor sets another.
+    - id: PulseIn2
+      name: Unused
+      type: pulse
+      description: Not used.
+  outputs:
+    - id: AudioOut1
+      name: Envelope 1
+      type: audio
+      description: Voice 1's envelope, 0 to +5V, fired at every hit (not on rests, nor on the note after a tied one).
+    - id: AudioOut2
+      name: Envelope 2
+      type: audio
+      description: Voice 2's envelope.
+    - id: CVOut1
+      name: Pitch 1
+      type: cv
+      description: Voice 1's pitch, 1V/oct with C at 0V, calibrated, -2V to nearly +6V, with slew.
+    - id: CVOut2
+      name: Pitch 2
+      type: cv
+      description: Voice 2's pitch.
+    - id: PulseOut1
+      name: Gate 1
+      type: pulse
+      description: Voice 1's gate.
+    - id: PulseOut2
+      name: Gate 2
+      type: pulse
+      description: Voice 2's gate.
+
+controls:
+  switch:
+    up:
+      name: Pitch & clock
+      description: Main sets the scale, X the clock divide/multiply, Y the slew.
+    middle:
+      name: Envelopes
+      description: Main sets the decay, X the attack, Y the pluckiness.
+    down:
+      name: Unused
+      description: Momentary and unused; the knobs keep the settings of the position it was pressed from.
+  knobs:
+    - when:
+        z: up
+      main:
+        name: Scale
+        description: >
+          31 scales round the knob: Chromatic, Major, Natural minor, Harmonic
+          minor, Melodic minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian,
+          Major and Minor pentatonic, Blues, Whole tone, Diminished, Hirajoshi,
+          Fifths, Octaves, Just major, Just minor, Harmonic series, Slendro,
+          Pelog, Pelog selisir, Maqam Rast, Maqam Bayati, 5-TET, 7-TET,
+          13-TET, 19-TET and 24-TET. The Computer's LEDs show its number
+          (1-31) in binary for a second when it changes.
+      x:
+        name: Clock
+        description: Eleven equal zones - /8, /6, /4, /3, /2, x1 (centre), x2, x3, x4, x6, x8. Multiplied beats are spaced from the measured clock and restarted by every clock, so they never drift.
+      y:
+        name: Slew
+        description: On the pitch CVs. Off across the bottom of the knob, then a lag of 1ms to about 2s.
+    - when:
+        z: middle
+      main:
+        name: Decay
+        description: 10ms to 4s. Every knob has a dead zone at each end, and each setting keeps its value; after the switch moves a knob picks up only once turned to its value.
+      x:
+        name: Attack
+        description: 0.5ms to 2s. A retrigger climbs from wherever the envelope is, so fast ratchets don't click.
+      y:
+        name: Pluckiness
+        description: The decay's curve, from a straight line (soft) to a sharp drop with a long tail (a pluck).
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Page A / gate 1
+          description: With an 8mu or the web editor, LEDs 0-3 show the button whose page is selected (A-D), steady for its first page, blinking for its second. Without one, LEDs 0 and 1 show the two gates.
+        - id: LED1
+          name: Page B / gate 2
+        - id: LED2
+          name: Page C
+        - id: LED3
+          name: Page D
+        - id: LED4
+          name: Envelope 1
+          description: Follows voice 1's envelope.
+        - id: LED5
+          name: Envelope 2
+          description: Follows voice 2's envelope. Blinks fast while a knob is waiting to pick up its setting.
