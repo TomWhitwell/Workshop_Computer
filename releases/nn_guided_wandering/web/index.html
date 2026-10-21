@@ -106,14 +106,16 @@
   .notes .jacks { margin-top: 4px; }
 
   /* Pages and faders */
-  .tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
-  .tab { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer; background: var(--panel); }
-  .tab b { display: inline-block; width: 1.4em; text-align: center; margin-right: 4px; border-radius: 4px; background: var(--track); }
+  /* Two rows of tabs: A1 A2 B1 B2 C1 C2 D1 D2 above, A3 A4 B3 B4 C3 C4 D3 D4
+     below, so each button's pages line up in columns */
+  .tabs { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+  .tab { padding: 4px 2px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer; background: var(--panel);
+    font-size: 12px; line-height: 1.3; text-align: center; min-width: 0; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab b { display: inline-block; min-width: 2em; text-align: center; border-radius: 4px; background: var(--track); font-size: 13px; }
   .tab.on { border-color: var(--accent); background: var(--accent-soft); }
   .tab.on b { background: var(--accent); color: var(--panel); }
-  .tab.second { font-size: 13px; }
-  .tab.last { margin-right: 10px; }
-  .tab.second b { width: auto; padding: 0 3px; }
   .tab.shared { border-style: dashed; color: var(--muted); }
   .share { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; color: var(--muted); min-height: 30px; }
   .share button { padding: 3px 8px; font-size: 12px; }
@@ -133,7 +135,7 @@
   .fader .val { font-variant-numeric: tabular-nums; font-size: 13px; }
   .fader .pct { font-variant-numeric: tabular-nums; font-size: 11px; color: var(--muted); }
   .fader .desc { font-size: 11px; color: var(--ink); text-align: center; min-height: 2.6em; overflow-wrap: anywhere; }
-  @media (max-width: 640px) { .faders, .ledrow { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { .faders, .ledrow, .tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
   /* Presets */
   #presets { list-style: none; padding: 0; margin: 0; max-height: 420px; overflow: auto; }
@@ -297,7 +299,8 @@ const NF = 8;                       // faders
 const NPAIRS = 4, NPAGES = 16;
 const KIND_NAMES = ['Notes', 'Octaves', 'Gates', 'Ratchets', 'Attack', 'Decay', 'Pluck', 'Depth'];
 const LETTERS = ['A', 'B', 'C', 'D'];
-const TAB_ORDER = [0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15];
+// Two rows: A1 A2 B1 B2 C1 C2 D1 D2, then A3 A4 B3 B4 C3 C4 D3 D4
+const TAB_ORDER = [0, 4, 1, 5, 2, 6, 3, 7, 8, 12, 9, 13, 10, 14, 11, 15];
 const kindOf = (pg) => (pg & 3) + (pg >= 8 ? 4 : 0);
 const voiceOfPage = (pg) => (pg >> 2) & 1;
 const firstPage = (kind) => kind < 4 ? kind : kind + 4;
@@ -471,8 +474,8 @@ function buildFaders() {
   const tabs = $('tabs');
   TAB_ORDER.forEach((pg) => {
     const b = pg & 3, layer = pg >> 2, kind = kindOf(pg), second = voiceOfPage(pg) === 1;
-    const t = document.createElement('button'); t.className = 'tab' + (layer ? ' second' : '') + (layer === 3 ? ' last' : ''); t.dataset.page = pg;
-    t.innerHTML = '<b>' + LETTERS[b] + ['', '\u00b2', '\u00b3', '\u2074'][layer] + '</b>' + pageName(pg);
+    const t = document.createElement('button'); t.className = 'tab'; t.dataset.page = pg;
+    t.innerHTML = '<b>' + LETTERS[b] + (layer + 1) + '</b><span>' + pageName(pg) + '</span>';
     t.title = (second ? 'Voice 2\u2019s ' + KIND_NAMES[kind].toLowerCase() : KIND_NAMES[kind]) + ' (8mu: button ' + LETTERS[b] + (layer ? ', pressed ' + ['', 'twice', 'three times', 'four times'][layer] : '') + ')';
     t.addEventListener('click', () => selectPage(pg, true)); tabs.appendChild(t);
   });
