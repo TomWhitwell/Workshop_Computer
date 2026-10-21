@@ -136,7 +136,17 @@ static void TestKnobs()
 		CHECK(d0 > 9.5 && d0 < 10.5, "decay min %.2fms", d0);
 		CHECK(d1 > 3.8 && d1 < 4.2, "decay max %.2fs", d1);
 	}
-	CHECK(PeriodFromBpm(120) == 24000 && PeriodFromBpm(5) == PeriodFromBpm(20) && PeriodFromBpm(999) == PeriodFromBpm(300), "tempo");
+	CHECK(PeriodFromBpm(120) == 24000 && PeriodFromBpm(5) == PeriodFromBpm(40) && PeriodFromBpm(999) == PeriodFromBpm(300), "tempo");
+	// Switch down + Main: 40 BPM at the bottom, 300 at the top, exponential
+	CHECK(BpmFromKnob(0) == 40 && BpmFromKnob(4095) == 300, "tempo knob ends %d %d", BpmFromKnob(0), BpmFromKnob(4095));
+	CHECK(abs(BpmFromKnob(2048) - 110) <= 1, "tempo knob middle %d", BpmFromKnob(2048));
+	for (int b = 40; b <= 300; b++) CHECK(abs(BpmFromKnob(KnobFromBpm(b)) - b) <= 1, "tempo %d round trip %d", b, BpmFromKnob(KnobFromBpm(b)));
+	{
+		int prev = 0;
+		bool mono = true;
+		for (int v = 0; v <= 4095; v++) { if (BpmFromKnob(v) < prev) mono = false; prev = BpmFromKnob(v); }
+		CHECK(mono, "tempo rises with the knob");
+	}
 }
 
 //----------------------------------------------------------------------------
@@ -286,6 +296,10 @@ static void TestRatchets()
 		CHECK(e.HitPosition(1, 1) == 16000, "1.5x second hit %d", e.HitPosition(1, 1));
 		CHECK(e.HitPosition(2, 1) == 12000, "2x second hit");
 		CHECK(e.HitPosition(3, 1) == 8000 && e.HitPosition(3, 2) == 16000, "3x hits");
+		CHECK(e.HitPosition(4, 1) == 6000 && e.HitPosition(4, 2) == 12000 && e.HitPosition(4, 3) == 18000, "4x hits");
+		// Faders: 1x 1.5x 2x 3x held, then 1.5x 2x 3x 4x new
+		const int hits[8] = {1, 2, 2, 3, 2, 2, 3, 4};
+		for (int f = 0; f < 8; f++) CHECK(kHits[SpeedOf(f)] == hits[f] && NewNoteEachHit(f) == (f >= 4), "ratchet fader %d", f);
 	}
 	// The envelope fires on every hit (gates not tied)
 	{
@@ -649,7 +663,7 @@ static void TestUi()
 	int fl = EightMuUi::FlashLength(24000) / 10;
 	CHECK(abs(onCount[0] - fl) <= 1 && abs(onCount[1] - 2 * fl) <= 1 && abs(onCount[2] - 2 * fl) <= 1 && abs(onCount[3] - 3 * fl) <= 1,
 		"flash counts %d %d %d %d (flash %d)", onCount[0], onCount[1], onCount[2], onCount[3], fl);
-	CHECK(onCount[4] == 0 && abs(onCount[7] - 3 * fl) <= 1, "zero faders don't flash; fader 8 flashes 3x");
+	CHECK(onCount[4] == 0 && abs(onCount[7] - 4 * fl) <= 1, "zero faders don't flash; fader 8 flashes 4x (%d)", onCount[7]);
 	// ...and after 3s, the ratchet in use flashes at each hit
 	ui.showProbs = 0;
 	e.voice[0].ratchetFader = 2;

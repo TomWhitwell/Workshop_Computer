@@ -95,6 +95,7 @@
   .envbar > div { height: 100%; width: 0; }
   .v1 .envbar > div { background: var(--v1); } .v2 .envbar > div { background: var(--v2); }
   .tempo { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .tempo.waiting { outline: 2px dotted var(--warm); outline-offset: 2px; border-radius: 6px; }
   .tempo .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
   .tempo input[type=number] { width: 5em; font: inherit; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
   .tempo input[type=range] { flex: 1 1 160px; accent-color: var(--accent); }
@@ -178,12 +179,12 @@
         <div class="voice v2"><div class="head"><span class="gate" id="g2"></span>Voice 2 <span class="det" id="src2"></span></div>
           <div class="note" id="n2">-</div><div class="det" id="d2"></div><div class="envbar"><div id="e2"></div></div></div>
       </div>
-      <div class="tempo">
+      <div class="tempo" id="tempo-box">
         <span class="k">Internal tempo</span>
-        <input type="range" id="tempo-r" min="20" max="300" step="1" aria-label="Internal tempo">
-        <input type="number" id="tempo-n" min="20" max="300" step="1" aria-label="Internal tempo, BPM"> BPM
+        <input type="range" id="tempo-r" min="40" max="300" step="1" aria-label="Internal tempo">
+        <input type="number" id="tempo-n" min="40" max="300" step="1" aria-label="Internal tempo, BPM"> BPM
       </div>
-      <div class="caption" id="tempo-note">Used while nothing is plugged into Pulse In 1. A step is one beat, divided or multiplied by X (switch up).</div>
+      <div class="caption" id="tempo-note">Used while nothing is plugged into Pulse In 1; also set on the module by holding the switch down and turning Main. A step is one beat, divided or multiplied by X (switch up).</div>
     </section>
 
     <section class="card">
@@ -237,7 +238,7 @@
           <tr><th>Notes</th><td>One fader per note of the scale, from the root up. A scale with fewer than eight notes ignores the extra faders; one with more shares them out, each fader a run of neighbouring notes.</td></tr>
           <tr><th>Octaves</th><td>Fader 1 &minus;2 V up to fader 8 +5 V (fader 3 is 0 V).</td></tr>
           <tr><th>Gates</th><td>Fader 1 a rest (no gate, no envelope; the pitch still moves), 2-7 one to six sevenths of the time to the next hit, 8 tied: the gate stays up into the next note, which glides in without a new envelope.</td></tr>
-          <tr><th>Ratchets</th><td>Faders 1-4 hit 1&times;, 1.5&times;, 2&times;, 3&times; a step on one note (1.5&times; is two hits, the second two thirds of the way through); 5-8 the same speeds, but each hit draws a new note, octave and gate.</td></tr>
+          <tr><th>Ratchets</th><td>Faders 1-4 hit 1&times;, 1.5&times;, 2&times;, 3&times; a step on one note (1.5&times; is two hits, the second two thirds of the way through); 5-8 hit 1.5&times;, 2&times;, 3&times;, 4&times;, each hit drawing a new note, octave and gate.</td></tr>
           <tr><th>Voice 2</th><td>While a second page is all at zero, voice 2 draws from the first page too: two different lines with the same probabilities. Raise any fader on it and voice 2 uses it, on its own. Each kind of page decides this separately.</td></tr>
           <tr><th>Pickup</th><td>After a page change a fader does nothing until it reaches (or passes) the stored value. While one is waiting, a dashed line on its on-screen fader shows where it is.</td></tr>
           <tr><th>LEDs</th><td>For 3 s after a fader or button is touched: the page's probabilities, the likeliest fully lit (ratchets flash at their own speed, in time). Then what's playing: the note or octave, a bar up to the gate length, the ratchet flashing at each hit. On a first page voice 2 shares, voice 2 shows dimly too.</td></tr>
@@ -251,7 +252,7 @@
         <table class="jacks">
           <tr><th>Switch up</th><td>Main <b>scale</b> (31), X <b>clock</b> &divide;8, &divide;6, &divide;4, &divide;3, &divide;2, &times;1 (centre), &times;2, &times;3, &times;4, &times;6, &times;8, Y <b>slew</b> on the pitch (off across the bottom, then 1 ms to 2 s)</td></tr>
           <tr><th>Switch middle</th><td>Main <b>decay</b> (10 ms to 4 s), X <b>attack</b> (0.5 ms to 2 s), Y <b>pluckiness</b>: the decay's curve, from a straight line to a sharp drop with a long tail</td></tr>
-          <tr><th>Switch down</th><td>Not used; the knobs keep the last position's settings</td></tr>
+          <tr><th>Switch down</th><td>Hold it and turn Main for the <b>internal tempo</b>, 40 to 300 BPM (it picks up first, like the other settings; the top LEDs flash on every step). X and Y keep the last position's settings</td></tr>
           <tr><th>Knobs</th><td>A dead zone at each end, so every setting's whole range is reached. After the switch moves, a knob does nothing until it reaches its setting's value; that setting's box above has a dotted outline until then, and the Computer's bottom right LED blinks fast</td></tr>
           <tr><th>LEDs</th><td>Top four: the 8mu page (lit for a first page, blinking for a second); bottom two: the envelopes. After a scale change, its number (1-31) in binary for a second</td></tr>
         </table>
@@ -340,8 +341,10 @@ function noteName(s, k) {
 const RATIOS = ['÷8', '÷6', '÷4', '÷3', '÷2', '×1', '×2', '×3', '×4', '×6', '×8'];
 const RATIO_NUM = [1, 1, 1, 1, 1, 1, 2, 3, 4, 6, 8], RATIO_DEN = [8, 6, 4, 3, 2, 1, 1, 1, 1, 1, 1];
 // Ratchets: hits a step and where they fall (fractions of the step)
-const HIT_AT = [[0], [0, 2 / 3], [0, 1 / 2], [0, 1 / 3, 2 / 3]];
-const RATCHET_NAMES = ['1×', '1.5×', '2×', '3×', '1× new', '1.5× new', '2× new', '3× new'];
+const HIT_AT = [[0], [0, 2 / 3], [0, 1 / 2], [0, 1 / 3, 2 / 3], [0, 1 / 4, 1 / 2, 3 / 4]];
+// The speed (HIT_AT row) of each RATCHETS fader, as kFaderSpeed
+const FADER_SPEED = [0, 1, 2, 3, 1, 2, 3, 4];
+const RATCHET_NAMES = ['1×', '1.5×', '2×', '3×', '1.5× new', '2× new', '3× new', '4× new'];
 const GATE_NAMES = ['rest', '14%', '29%', '43%', '57%', '71%', '86%', 'tied'];
 const octName = (f) => (f + LOWEST_OCTAVE > 0 ? '+' : '') + (f + LOWEST_OCTAVE) + ' V';
 
@@ -349,7 +352,7 @@ const PAGE_HINT = [
   'The chance of each note of the scale, from the root up. Faders past the end of a short scale do nothing.',
   'The chance of each octave: fader 1 is −2 V, fader 3 0 V, fader 8 +5 V.',
   'The chance of each gate length: a rest, one to six sevenths of the time to the next hit, or tied into the next note.',
-  'The chance of each ratchet: 1×, 1.5×, 2× or 3× a step on one note, then the same speeds with a new note at every hit.',
+  'The chance of each ratchet: 1×, 1.5×, 2× or 3× a step on one note, then 1.5×, 2×, 3× or 4× with a new note at every hit.',
 ];
 
 // Defaults (Engine::DefaultFaders): the second pages start at zero
@@ -375,7 +378,7 @@ const state = {
   tempo: 120,
   // live, from the card's STATUS (or simulated when there's no card)
   live: {
-    clocked: false, muOnCard: false, switchUp: false, waiting: false, waitX: false, waitY: false, waitMain: false,
+    clocked: false, muOnCard: false, switchUp: false, switchDown: false, waiting: false, waitX: false, waitY: false, waitMain: false,
     scale: 1, ratio: 5, slew: 0, attack: 0, decay: 2325, pluck: 2048,
     stepLenMs: 500, stepStart: 0, stepCount: 0,
     voice: [0, 1].map(() => ({ noteFader: 0, note: 0, octaveFader: 2, gateFader: 3, ratchetFader: 0, hitCount: 0, gate: false, env: 0, mv: 0 })),
@@ -416,7 +419,7 @@ function ledValues(now) {
     for (let i = 0; i < NF; i++) {
       if (!((active >> i) & 1)) continue;
       let b = most ? Math.floor(weight(vals[i]) * 4095 / most) : (layer === 0 ? 4095 : 0);
-      if (pair === 3 && !inFlash(i & 3, sinceStep, L.stepLenMs)) b = 0;
+      if (pair === 3 && !inFlash(FADER_SPEED[i], sinceStep, L.stepLenMs)) b = 0;
       led[i] = b;
     }
     return led;
@@ -427,7 +430,7 @@ function ledValues(now) {
     if (pair === 0) light(vc.noteFader, b);
     else if (pair === 1) light(vc.octaveFader, b);
     else if (pair === 2) { if (vc.gateFader === 0) light(0, b === 4095 ? DIM : DIM >> 1); else for (let i = 0; i <= vc.gateFader; i++) light(i, b); }
-    else if (inFlash(vc.ratchetFader & 3, sinceStep, L.stepLenMs)) light(vc.ratchetFader, b);
+    else if (inFlash(FADER_SPEED[vc.ratchetFader], sinceStep, L.stepLenMs)) light(vc.ratchetFader, b);
   };
   if (layer === 0 && shared(pair)) show(1, DIM);
   show(layer, 4095);
@@ -566,7 +569,7 @@ function reengage() {
     mu.engaged[i] = ph >= 0 && Math.abs(ph - state.values[state.page][i]) <= 3; }
 }
 function setTempo(bpm, send) {
-  bpm = clamp(Math.round(+bpm) || 120, 20, 300);
+  bpm = clamp(Math.round(+bpm) || 120, 40, 300);
   state.tempo = bpm;
   $('tempo-r').value = bpm;
   if (document.activeElement !== $('tempo-n')) $('tempo-n').value = bpm;
@@ -784,7 +787,7 @@ function handleCardMessage(m) {
     changed();
   } else if (cmd === CMD.STATUS && p.length >= 32) {
     const L = state.live, now = performance.now();
-    L.clocked = !!(p[0] & 1); L.muOnCard = !!(p[0] & 2); L.switchUp = !!(p[0] & 4); L.waiting = !!(p[0] & 8);
+    L.clocked = !!(p[0] & 1); L.muOnCard = !!(p[0] & 2); L.switchUp = !!(p[0] & 4); L.waiting = !!(p[0] & 8); L.switchDown = !!(p[0] & 16);
     L.waitX = !!(p[1] & 1); L.waitY = !!(p[1] & 2); L.waitMain = !!(p[1] & 4);
     const sc = clamp(p[2], 0, SCALES.length - 1);
     if (sc !== L.scale) { L.scale = sc; requestRender(); }
@@ -800,6 +803,8 @@ function handleCardMessage(m) {
         hitCount: q[5], gate: !!(q[6] & 1), env: q[7] / 127, mv: ((q[8] << 7) | q[9]) - 8192 });
       if (changedNote) requestRender();
     }
+    // the tempo, which Main may have changed with the switch held down
+    if (p.length >= 34) { const t = (p[32] << 7) | p[33]; if (t !== state.tempo && t >= 40) setTempo(t, false); }
     link.lastStatus = now;
     state.history.push([now, L.voice[0].mv, L.voice[1].mv, L.voice[0].gate, L.voice[1].gate]);
   }
@@ -858,7 +863,7 @@ function simulate(now) {
     for (let v = 0; v < 2; v++) {
       const vc = L.voice[v], sv = sim.voice[v];
       vc.ratchetFader = choose(pageFor(v, 3), 0xFF);
-      sv.hitAt = HIT_AT[vc.ratchetFader & 3]; sv.next = 1;
+      sv.hitAt = HIT_AT[FADER_SPEED[vc.ratchetFader]]; sv.next = 1;
       simDraw(v); simHit(v, now, 0);
     }
     requestRender();
@@ -929,7 +934,9 @@ function drawReadouts() {
   $('ro-pluck').textContent = card ? Math.round(L.pluck * 100 / 4095) + '%' : '-';
   // Knobs waiting to pick up: X, Y, Main, of the switch position in use
   const w = card ? (L.switchUp ? { 'rb-clock': L.waitX, 'rb-slew': L.waitY, 'rb-scale': L.waitMain } : { 'rb-attack': L.waitX, 'rb-pluck': L.waitY, 'rb-decay': L.waitMain }) : {};
+  if (card && L.switchDown) { delete w['rb-scale']; delete w['rb-decay']; }
   for (const id of ['rb-scale', 'rb-clock', 'rb-slew', 'rb-decay', 'rb-attack', 'rb-pluck']) $(id).classList.toggle('waiting', !!w[id]);
+  $('tempo-box').classList.toggle('waiting', !!(card && L.switchDown && L.waitMain));
   for (let v = 0; v < 2; v++) {
     const t = voiceText(v), vc = L.voice[v];
     $('n' + (v + 1)).textContent = t.note;
@@ -961,7 +968,7 @@ function cleanPreset(o) {
   if (!o || typeof o !== 'object' || !Array.isArray(o.v) || o.v.length !== NPAGES) return null;
   const v = o.v.map(r => Array.isArray(r) && r.length === NF ? r.map(x => clamp(Math.round(+x) || 0, 0, 127)) : null);
   if (v.some(r => !r)) return null;
-  return { name: String(o.name || 'Preset').slice(0, 60), v, tempo: clamp(Math.round(+o.tempo) || 120, 20, 300) };
+  return { name: String(o.name || 'Preset').slice(0, 60), v, tempo: clamp(Math.round(+o.tempo) || 120, 40, 300) };
 }
 const Z = [0, 0, 0, 0, 0, 0, 0, 0];
 const BUILTIN = [

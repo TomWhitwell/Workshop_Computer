@@ -139,17 +139,20 @@ static inline int32_t NoteMillivolts(const Scale &s, int note, int octaveFader)
 //----------------------------------------------------------------------------
 // Ratchets
 //
-// RATCHETS faders 1-4 play a step's note 1x, 1.5x, 2x or 3x; faders 5-8 the
-// same speeds, but each hit draws a new note, octave and gate.  The hits are
+// RATCHETS faders 1-4 play a step's note 1x, 1.5x, 2x or 3x; faders 5-8
+// play 1.5x, 2x, 3x or 4x, with each hit drawing a new note, octave and gate
+// (a single hit with a new note would be the same as fader 1).  The hits are
 // at these fractions of the step (Q16): 1.5x is two hits, the second two
 // thirds of the way through, so it pushes against the beat.
 //----------------------------------------------------------------------------
-static constexpr int kSpeeds = 4;
-static constexpr int kMaxHits = 3;
-static constexpr int kHits[kSpeeds] = {1, 2, 2, 3};
+enum Speed {Once, OneAndHalf, Twice, Thrice, FourTimes, kSpeeds};
+static constexpr int kMaxHits = 4;
+static constexpr int kHits[kSpeeds] = {1, 2, 2, 3, 4};
 static constexpr int32_t kHitAt[kSpeeds][kMaxHits] = {
-	{0, 0, 0}, {0, 43691, 0}, {0, 32768, 0}, {0, 21845, 43691}};
-static inline int SpeedOf(int ratchetFader) {return ratchetFader & 3;}
+	{0, 0, 0, 0}, {0, 43691, 0, 0}, {0, 32768, 0, 0}, {0, 21845, 43691, 0}, {0, 16384, 32768, 49152}};
+// The speed of each RATCHETS fader
+static constexpr int8_t kFaderSpeed[8] = {Once, OneAndHalf, Twice, Thrice, OneAndHalf, Twice, Thrice, FourTimes};
+static inline int SpeedOf(int ratchetFader) {return kFaderSpeed[ratchetFader & 7];}
 static inline bool NewNoteEachHit(int ratchetFader) {return ratchetFader >= 4;}
 
 // GATES page: fader 1 is a rest (no gate, no envelope), faders 2-7 are 1/7
@@ -294,12 +297,27 @@ static inline uint32_t DecayFromKnob(int32_t v)
 	return ExpScale(4473924, -(v * 35405) / 4095);    // 2^31 / 480 samples
 }
 
-// Internal clock when nothing is plugged into Pulse In 1
+// Internal clock when nothing is plugged into Pulse In 1: 40-300 BPM, set by
+// Main with the switch held down, or by the web editor
+static constexpr int32_t kMinBpm = 40, kMaxBpm = 300;
+static inline int32_t ClampBpm(int32_t bpm) {return bpm < kMinBpm ? kMinBpm : (bpm > kMaxBpm ? kMaxBpm : bpm);}
+// The knob turns the tempo exponentially, the same ratio for every bit of
+// turn: 40 BPM fully down, about 110 in the middle, 300 fully up
+// (300/40 = 7.5 = 2^2.907, and 2.907 octaves is 11908 in 1/4096 octave)
+static inline int32_t BpmFromKnob(int32_t v)
+{
+	return ClampBpm(int32_t((ExpScale(40 << 16, (v * 11908) / 4095) + 32768) >> 16));
+}
+// The knob position for a tempo, for picking it up
+static inline int32_t KnobFromBpm(int32_t bpm)
+{
+	bpm = ClampBpm(bpm);
+	int32_t v = int32_t((log2f(float(bpm) / 40.0f) * 4095.0f) / 2.907f + 0.5f);
+	return v < 0 ? 0 : (v > 4095 ? 4095 : v);
+}
 static inline int32_t PeriodFromBpm(int32_t bpm)
 {
-	if (bpm < 20) bpm = 20;
-	if (bpm > 300) bpm = 300;
-	return (kSampleRate * 60) / bpm;
+	return (kSampleRate * 60) / ClampBpm(bpm);
 }
 
 //----------------------------------------------------------------------------

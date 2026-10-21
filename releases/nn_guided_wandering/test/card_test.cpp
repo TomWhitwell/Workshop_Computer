@@ -136,16 +136,63 @@ static void TestKnobs()
 	c.sw = ComputerCard::Middle;
 	Run(c, 64);
 	CHECK(c.knobLatched[0] && !c.knobLatched[1] && !c.knobLatched[2], "middle knobs waiting");
-	// Switch down keeps the middle settings
+	// Switch down keeps X and Y on the middle settings
 	c.sw = ComputerCard::Down;
 	Run(c, 64);
 	CHECK(c.knobBank == 1, "switch down keeps the last position's settings");
 	c.sw = ComputerCard::Middle;
+	Run(c, 64);
 	// Decay at the ends
 	c.knob[0] = 2048; Run(c, 64);
 	CHECK(c.knobLatched[2], "Main picked up decay");
 	c.knob[0] = 4095; Run(c, 64);
 	CHECK(c.engine.decayInc == DecayFromKnob(4095), "decay at the top: 4s");
+}
+
+// Switch held down: Main is the internal tempo, with pickup
+static void TestTempoKnob()
+{
+	gUsbState = 0;
+	GuidedWandering c;
+	c.sw = ComputerCard::Middle;
+	c.knob[0] = 2048;
+	Run(c, 64);
+	int32_t decay = c.settings[GuidedWandering::SetDecay];
+	PlainGates(c);
+	// Hold the switch down: Main (at the middle, ~110 BPM) must reach 120
+	// BPM's position before it changes anything
+	c.sw = ComputerCard::Down;
+	Run(c, 64);
+	CHECK(c.mainOnTempo && !c.knobLatched[2] && c.tempo == 120, "tempo waits for Main");
+	c.knob[0] = 2400; Run(c, 64);   // past 120 BPM's position (~2280 raw)
+	CHECK(c.knobLatched[2], "Main picked up the tempo");
+	c.knob[0] = 4095; Run(c, 64);
+	CHECK(c.tempo == 300 && c.engine.internalPeriod == 9600, "Main fully up: 300 BPM (%d)", int(c.tempo));
+	c.knob[0] = 0; Run(c, 64);
+	CHECK(c.tempo == 40, "Main fully down: 40 BPM (%d)", int(c.tempo));
+	CHECK(c.settings[GuidedWandering::SetDecay] == decay, "decay untouched while the switch is down");
+	// While held, the top LEDs flash on the steps
+	int on = 0, off = 0;
+	for (int i = 0; i < 200; i++) { Run(c, 480); if (c.led[0]) on++; else off++; }
+	CHECK(on > 20 && off > 20, "LEDs flash on the beat (%d on, %d off)", on, off);
+	// Steps at 40 BPM
+	Counts k = Run(c, 48000 * 6);
+	CHECK(k.rises[0] == 4, "40 BPM: %d steps in 6s", k.rises[0]);
+	// Let go: Main must pick up the decay again, and the tempo stays
+	c.sw = ComputerCard::Middle;
+	Run(c, 64);
+	CHECK(!c.mainOnTempo && !c.knobLatched[2] && c.tempo == 40, "Main waits for decay; tempo kept");
+	CHECK(c.settings[GuidedWandering::SetDecay] == decay, "decay not jumped to 0");
+	CHECK(((c.status[0] >> 4) & 1) == 0, "status: switch not down");
+	// The web editor's tempo: the knob must pick it up afresh
+	c.sw = ComputerCard::Down;
+	c.knob[0] = 0; Run(c, 64);
+	uint8_t t[2] = {0, 90};
+	c.OnSysEx(sysex::Tempo, t, 2);
+	Run(c, 64);
+	CHECK(c.tempo == 90 && !c.knobLatched[2], "web tempo kept until Main reaches it");
+	CHECK(((c.status[0] >> 4) & 1) == 1, "status: switch down");
+	c.sw = ComputerCard::Middle;
 }
 
 static void TestClock()
@@ -255,15 +302,17 @@ static void TestWebEditor()
 	CHECK(c.engine.faders[7][7] == 0 && c.tempo == 120, "wrong version ignored");
 	all[0] = sysex::kVersion;
 	c.OnSysEx(sysex::SetAll, all, sizeof(all));
-	CHECK(c.engine.faders[7][7] == 63 && c.engine.faders[1][0] == 8 && c.tempo == 60, "SET_ALL");
 	Run(c, 64);
+	CHECK(c.engine.faders[7][7] == 63 && c.engine.faders[1][0] == 8 && c.tempo == 60, "SET_ALL");
 	CHECK(c.engine.internalPeriod == 48000, "tempo 60 BPM");
 	// TEMPO, clamped
 	uint8_t t[2] = {0, 5};
 	c.OnSysEx(sysex::Tempo, t, 2);
-	CHECK(c.tempo == 20, "tempo clamped to 20 (%d)", int(c.tempo));
+	Run(c, 64);
+	CHECK(c.tempo == 40, "tempo clamped to 40 (%d)", int(c.tempo));
 	t[0] = 1; t[1] = 52;   // 180
 	c.OnSysEx(sysex::Tempo, t, 2);
+	Run(c, 64);
 	CHECK(c.tempo == 180, "TEMPO");
 	// PAGE, on the Computer's LEDs
 	uint8_t pg = 6;
@@ -302,12 +351,14 @@ static void TestWebEditor()
 	CHECK(p[12] == 0 && p[12 + 10] == 4, "note faders: voice 1 on 1, voice 2 on 5 (%d %d)", p[12], p[22]);
 	int mv2 = ((p[22 + 8] << 7) | p[22 + 9]) - 8192;
 	CHECK(mv2 == c.engine.cvMv[1], "voice 2 pitch %d mV", mv2);
+	CHECK(((p[32] << 7) | p[33]) == 180, "tempo in STATUS");
 }
 
 int main()
 {
 	TestStandalone();
 	TestKnobs();
+	TestTempoKnob();
 	TestClock();
 	TestEightMu();
 	TestWebEditor();

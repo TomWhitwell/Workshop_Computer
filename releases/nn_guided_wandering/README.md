@@ -22,7 +22,7 @@ page**, voice 2's, and again to go back.
 | A | **NOTES**: the scale's notes, from the root up | **NOTES 2** |
 | B | **OCTAVES**: fader 1 −2 V, fader 3 0 V, up to fader 8 +5 V | **OCTAVES 2** |
 | C | **GATES**: fader 1 a rest, 2-7 one to six sevenths, 8 tied | **GATES 2** |
-| D | **RATCHETS**: 1×, 1.5×, 2×, 3× on one note; then the same speeds with a new note at every hit | **RATCHETS 2** |
+| D | **RATCHETS**: 1×, 1.5×, 2×, 3× on one note; then 1.5×, 2×, 3×, 4× with a new note at every hit | **RATCHETS 2** |
 
 **Faders are relative probabilities.** A fader at zero is never chosen, and
 one twice as high as another is chosen twice as often. With a first page all
@@ -55,10 +55,9 @@ least a millisecond before the next hit, so every new note gets a fresh
 rising edge.
 
 **Ratchets.** Faders 1-4 hit 1×, 1.5×, 2× and 3× a step, each hit on the
-step's note, octave and gate. Faders 5-8 play the same speeds, but every hit
-draws a new note, octave and gate. 1.5× is two hits, the second two thirds of
-the way through the step, so it pushes against the beat. (Faders 1 and 5 are
-the same: one hit.)
+step's note, octave and gate. Faders 5-8 hit 1.5×, 2×, 3× and 4×, and every
+hit draws a new note, octave and gate. 1.5× is two hits, the second two
+thirds of the way through the step, so it pushes against the beat.
 
 **Pickup.** After a page change a fader does nothing until it reaches (or
 passes) the value already stored, so changing page never changes the
@@ -85,7 +84,7 @@ panel controls.
 |---|---|
 | Switch up | Main = **scale** (below). X = **clock** ÷8, ÷6, ÷4, ÷3, ÷2, ×1 (centre), ×2, ×3, ×4, ×6, ×8. Y = **slew** on the pitch: off across the bottom of the knob, then 1 ms to about 2 s |
 | Switch middle | Main = **decay**, 10 ms to 4 s. X = **attack**, 0.5 ms to 2 s. Y = **pluckiness**: the decay's curve, from a straight line (soft) to a sharp drop with a long tail (a pluck) |
-| Switch down | Unused. The knobs keep the settings of the position it was pressed from |
+| Switch down | Hold it and turn Main for the **internal tempo**, 40 to 300 BPM (exponential: about 110 in the middle). Like the other settings it picks up: Main does nothing until it reaches the current tempo, and after you let go it has to pick up its scale or decay again. While held, the top four LEDs flash on every step. X and Y keep the settings of the position the switch was pressed from |
 
 Every knob has a dead zone at each end, so the whole range of every setting
 can be reached even if a knob doesn't quite read its ends. The six settings
@@ -107,7 +106,7 @@ LED 1 the lowest bit.
 
 | Jack | Function |
 |---|---|
-| Pulse In 1 | Clock: a step every beat, the clock divided or multiplied by X, for clocks up to a minute apart. Followed from its second pulse. With nothing plugged in, or once four of its periods (at least 2 s) pass without a pulse, the card keeps its own tempo: 120 BPM unless the web editor sets another |
+| Pulse In 1 | Clock: a step every beat, the clock divided or multiplied by X, for clocks up to a minute apart. Followed from its second pulse. With nothing plugged in, or once four of its periods (at least 2 s) pass without a pulse, the card keeps its own tempo: 120 BPM, until set with the switch held down and Main, or from the web editor |
 | CV Out 1, 2 | Voice 1, 2 pitch: 1 V/oct, C at 0 V, calibrated, −2 V to nearly +6 V |
 | Audio Out 1, 2 | Voice 1, 2 envelope, 0 to +5 V |
 | Pulse Out 1, 2 | Voice 1, 2 gate |
@@ -138,7 +137,8 @@ reads the faders from the card, then sends every edit as it's made.
 - **Now playing.** The scale, clock, slew and envelope settings live from the
   card (a dotted outline while a knob is waiting to pick up), and each voice's
   note, voltage, gate, ratchet and envelope. **Internal tempo** sets the
-  card's own clock, 20-300 BPM, used while nothing is plugged into Pulse In 1.
+  card's own clock, 40-300 BPM, used while nothing is plugged into Pulse In 1
+  (it follows Main when that sets it with the switch held down).
 - **Faders.** The eight pages, as on the 8mu, with each fader's meaning in the
   current scale (note names, or cents for microtonal scales) and its share of
   the probability. A second page says whether voice 2 is sharing the first,

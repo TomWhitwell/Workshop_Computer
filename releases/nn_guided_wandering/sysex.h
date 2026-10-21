@@ -19,16 +19,17 @@
 //   RESET     06                        default faders; card replies with STATE
 //   PING      09                        sent every second; STATUS flows while
 //                                       pings keep arriving
-//   TEMPO     0A tempo(2)               internal clock, 20-300 BPM
+//   TEMPO     0A tempo(2)               internal clock, 40-300 BPM
 //
 // Card -> web
 //   STATE     02 version page tempo(2) values[64]
 //   STATUS    07 flags flags2 scale ratio slew attack decay pluck
-//                steplen(2) steppos stepcount  voice1[10] voice2[10]
+//                steplen(2) steppos stepcount  voice1[10] voice2[10] tempo(2)
 //             flags      bit 0 following a clock at Pulse In 1, bit 1 8mu on
 //                        the card, bit 2 switch up (knobs are scale, clock
 //                        and slew, not decay, attack and pluck), bit 3 a
-//                        knob is waiting to pick up its setting
+//                        knob is waiting to pick up its setting, bit 4
+//                        switch held down (Main is the tempo)
 //             flags2     bits 0-2 the X, Y and Main knob is waiting, bits 3-6
 //                        voice 2 shares the NOTES, OCTAVES, GATES, RATCHETS
 //                        first page (its second page is all zero)
@@ -42,6 +43,8 @@
 //                        fader, ratchet fader (0-7 each), hit count (0-127
 //                        and round), bit 0 gate up, envelope (0-127),
 //                        pitch(2) in millivolts offset by 8192
+//             tempo      the internal clock, BPM (from Main with the switch
+//                        held down, or from TEMPO)
 
 #ifndef GUIDED_WANDERING_SYSEX_H
 #define GUIDED_WANDERING_SYSEX_H
@@ -139,7 +142,7 @@ inline int32_t Get14(const uint8_t *in)
 
 static constexpr int kVoiceLen = 10;
 static constexpr int kStateLen = 4 + 4 + kNumValues + 1;
-static constexpr int kStatusLen = 4 + 8 + 4 + 2 * kVoiceLen + 1;
+static constexpr int kStatusLen = 4 + 8 + 4 + 2 * kVoiceLen + 2 + 1;
 
 } // namespace sysex
 

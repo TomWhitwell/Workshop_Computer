@@ -16,8 +16,8 @@
 //   Button A  NOTES     the scale's notes        NOTES 2
 //   Button B  OCTAVES   -2V (fader 1) to +5V     OCTAVES 2
 //   Button C  GATES     rest, 1/7 ... 6/7, tied  GATES 2
-//   Button D  RATCHETS  1x 1.5x 2x 3x held note, then the same with a new
-//                       note at every hit        RATCHETS 2
+//   Button D  RATCHETS  1x 1.5x 2x 3x on one note, then 1.5x 2x 3x 4x
+//                       with a new note at every hit   RATCHETS 2
 //
 // Faders are relative probabilities: one at zero is never chosen, and one
 // twice as high as another is chosen twice as often.  A first page all at
@@ -36,16 +36,18 @@
 //                centre ... x8), Y = slew on the pitch (off, then 1ms to 2s)
 //   Switch mid   Main = decay (10ms to 4s), X = attack (0.5ms to 2s),
 //                Y = pluckiness (the decay's curve, soft to snappy)
-//   Switch down  unused; the knobs keep the settings of the last position
+//   Switch down  (held) Main = internal tempo, 40-300 BPM; X and Y keep the
+//                settings of the position it was pressed from
 // Each knob setting keeps its value; after the switch moves, a knob does
-// nothing until it reaches its new setting's value.  The knobs have a dead
+// nothing until it reaches its new setting's value (so Main picks up the
+// tempo when the switch goes down, and its scale or decay when it comes up).  The knobs have a dead
 // zone at each end, so the whole range of each setting can be reached.
 //
 // Inputs
 //   Pulse In 1   Clock.  Followed from its second pulse; with nothing
 //                plugged in (or four periods, at least 2s, without a pulse)
-//                the card keeps its own time, 120 BPM unless the web editor
-//                sets another
+//                the card keeps its own time: 120 BPM, until set by Main with
+//                the switch held down, or by the web editor
 // Outputs
 //   CV Out 1, 2     Voice 1, 2 pitch, 1V/oct, C at 0V (calibrated)
 //   Audio Out 1, 2  Voice 1, 2 envelope, 0 to +5V
@@ -121,7 +123,8 @@ private:
 	// Knob settings, with soft takeover when the switch moves.
 	// Up: clock ratio (X), slew (Y), scale (Main).
 	// Middle: attack (X), pluckiness (Y), decay (Main).
-	enum Setting {SetScale, SetRatio, SetSlew, SetDecay, SetAttack, SetPluck, kSettings};
+	// Held down: Main is the internal tempo (as a knob position, 40-300 BPM).
+	enum Setting {SetScale, SetRatio, SetSlew, SetDecay, SetAttack, SetPluck, SetTempo, kSettings};
 	int32_t settings[kSettings] = {
 		KnobForZone(1, kNumScales),           // Major
 		KnobForZone(kUnityRatio, kNumRatios), // x1
@@ -129,10 +132,12 @@ private:
 		2325,                                 // decay ~300ms
 		0,                                    // attack 0.5ms
 		2048,                                 // halfway to a pluck
+		KnobFromBpm(120),                     // tempo
 	};
 	static constexpr int kKnobSetting[2][3] = {
 		{SetRatio, SetSlew, SetScale}, {SetAttack, SetPluck, SetDecay}};
-	int knobBank = -1;        // 0 = up, 1 = middle
+	int knobBank = -1;        // 0 = up, 1 = middle: what X and Y (and Main) set
+	bool mainOnTempo = false; // switch held down: Main sets the tempo
 	bool knobLatched[3] = {};
 	int32_t lastKnob[3] = {};
 
@@ -148,7 +153,8 @@ private:
 	bool hostMode = true;
 
 	// Device mode: written on core1, read on core0
-	volatile int32_t tempo = 120;
+	volatile int32_t tempo = 120;      // internal clock, BPM
+	volatile int32_t webTempo = -1;    // a tempo from the web editor, for core0
 	volatile int webPage = -1;
 	volatile bool resetRequest = false;
 	volatile uint32_t lastPingUs = 0;
@@ -171,6 +177,14 @@ private:
 		{
 			resetRequest = false;
 			engine.DefaultFaders();
+		}
+		if (webTempo >= 0)
+		{
+			// The knob must pick the new tempo up before it changes it
+			tempo = ClampBpm(webTempo);
+			settings[SetTempo] = KnobFromBpm(tempo);
+			if (mainOnTempo) knobLatched[2] = false;
+			webTempo = -1;
 		}
 		if (webPage >= 0)
 		{
@@ -198,6 +212,7 @@ private:
 		// number (1-31) in binary, LED 1 the lowest bit.  Otherwise LEDs 1-4
 		// show the 8mu page (lit for a first page, blinking for a second),
 		// or with no 8mu the two gates; LEDs 5 and 6 the two envelopes.
+		// While the switch is held down, LEDs 1-4 flash on every step.
 		// LED 6 blinks fast while a knob is waiting to pick up.
 		bool conn = mu.Connected() || WebLinked();
 		bool waiting = !knobLatched[0] || !knobLatched[1] || !knobLatched[2];
@@ -206,6 +221,15 @@ private:
 		{
 			scaleShow--;
 			for (int i = 0; i < 6; i++) LedOn(i, ((engine.scale + 1) >> i) & 1);
+		}
+		else if (mainOnTempo)
+		{
+			// Switch held down: the top four LEDs flash on every step
+			bool beat = engine.sinceStep < engine.stepLen / 4;
+			for (int i = 0; i < 4; i++) LedOn(i, beat);
+			LedBrightness(4, uint16_t((engine.audio[0] * 4095) / 1706));
+			if (waiting) LedOn(5, blink % 150 < 75);
+			else LedBrightness(5, uint16_t((engine.audio[1] * 4095) / 1706));
 		}
 		else
 		{
@@ -226,8 +250,14 @@ private:
 	}
 
 	// X, Y and Main, with soft takeover when the switch changes which
-	// settings they control.  Down is momentary and keeps the settings of
-	// the position it was pressed from.
+	// settings they control.  Down is momentary: while it's held Main sets the
+	// tempo, and X and Y keep the settings of the position it was pressed
+	// from.
+	int SettingOf(int bank, int knob) const
+	{
+		return (knob == 2 && mainOnTempo) ? SetTempo : kKnobSetting[bank][knob];
+	}
+
 	void HandleKnobs()
 	{
 		Switch sw = SwitchVal();
@@ -241,12 +271,14 @@ private:
 			// Power-up: the current position's settings take the knobs as
 			// they are
 			knobBank = bank;
+			mainOnTempo = sw == Down;
 			for (int i = 0; i < 3; i++)
 			{
-				settings[kKnobSetting[bank][i]] = k[i];
+				settings[SettingOf(bank, i)] = k[i];
 				knobLatched[i] = true;
 				lastKnob[i] = k[i];
 			}
+			if (mainOnTempo) tempo = BpmFromKnob(k[2]);
 			return;
 		}
 		if (bank != knobBank)
@@ -254,9 +286,15 @@ private:
 			knobBank = bank;
 			knobLatched[0] = knobLatched[1] = knobLatched[2] = false;
 		}
+		if ((sw == Down) != mainOnTempo)
+		{
+			mainOnTempo = sw == Down;
+			knobLatched[2] = false;
+		}
 		for (int i = 0; i < 3; i++)
 		{
-			int32_t &v = settings[kKnobSetting[bank][i]];
+			int set = SettingOf(bank, i);
+			int32_t &v = settings[set];
 			if (!knobLatched[i])
 			{
 				int32_t d = k[i] - v;
@@ -264,7 +302,11 @@ private:
 				bool crossed = (lastKnob[i] - v < 0) != (d < 0);
 				if (near || crossed) knobLatched[i] = true;
 			}
-			if (knobLatched[i]) v = k[i];
+			if (knobLatched[i] && v != k[i])
+			{
+				v = k[i];
+				if (set == SetTempo) tempo = BpmFromKnob(v);
+			}
 			lastKnob[i] = k[i];
 		}
 	}
@@ -312,7 +354,7 @@ private:
 		uint8_t shared = 0;
 		for (int p = 0; p < kPairs; p++) if (engine.Shared(p)) shared |= uint8_t(1 << p);
 		status[n++] = uint8_t((engine.clocked ? 1 : 0) | (mu.Connected() ? 2 : 0)
-			| (knobBank == 0 ? 4 : 0) | (waiting ? 8 : 0));
+			| (knobBank == 0 ? 4 : 0) | (waiting ? 8 : 0) | (mainOnTempo ? 16 : 0));
 		status[n++] = uint8_t((knobLatched[0] ? 0 : 1) | (knobLatched[1] ? 0 : 2)
 			| (knobLatched[2] ? 0 : 4) | (shared << 3));
 		status[n++] = uint8_t(engine.scale);
@@ -345,6 +387,8 @@ private:
 			status[n++] = uint8_t(mv >> 7);
 			status[n++] = uint8_t(mv & 127);
 		}
+		status[n++] = uint8_t(tempo >> 7);
+		status[n++] = uint8_t(tempo & 127);
 	}
 
 	//------------------------------------------------------------------------
@@ -439,7 +483,7 @@ public:
 		case sysex::SetAll:
 			if (len >= 3 + sysex::kNumValues && p[0] == sysex::kVersion)
 			{
-				tempo = ClampTempo(sysex::Get14(p + 1));
+				webTempo = sysex::Get14(p + 1);
 				for (int i = 0; i < sysex::kNumValues; i++)
 				{
 					engine.faders[i / kFaders][i % kFaders] = uint8_t(p[3 + i] & 0x7F);
@@ -459,14 +503,12 @@ public:
 			pinged = true;
 			break;
 		case sysex::Tempo:
-			if (len >= 2) tempo = ClampTempo(sysex::Get14(p));
+			if (len >= 2) webTempo = sysex::Get14(p);
 			break;
 		default:
 			break;
 		}
 	}
-
-	static int32_t ClampTempo(int32_t bpm) {return bpm < 20 ? 20 : (bpm > 300 ? 300 : bpm);}
 
 	int EncodeState(uint8_t *out) const
 	{
