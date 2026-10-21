@@ -161,14 +161,15 @@ static inline int32_t NoteMillivolts(const Scale &s, int note, int octaveFader)
 // RATCHETS faders 1-4 play a step's note 1x, 1.5x, 2x or 3x; faders 5-8
 // play 1.5x, 2x, 3x or 4x, with each hit drawing a new note, octave and gate
 // (a single hit with a new note would be the same as fader 1).  The hits are
-// at these fractions of the step (Q16): 1.5x is two hits, the second two
+// at these fractions of the step: 1.5x is two hits, the second two
 // thirds of the way through, so it pushes against the beat.
 //----------------------------------------------------------------------------
 enum Speed {Once, OneAndHalf, Twice, Thrice, FourTimes, kSpeeds};
 static constexpr int kMaxHits = 4;
 static constexpr int kHits[kSpeeds] = {1, 2, 2, 3, 4};
-static constexpr int32_t kHitAt[kSpeeds][kMaxHits] = {
-	{0, 0, 0, 0}, {0, 43691, 0, 0}, {0, 32768, 0, 0}, {0, 21845, 43691, 0}, {0, 16384, 32768, 49152}};
+// Where the hits fall, in twelfths of the step (so the sums stay in 32 bits)
+static constexpr int32_t kHitTwelfths[kSpeeds][kMaxHits] = {
+	{0, 0, 0, 0}, {0, 8, 0, 0}, {0, 6, 0, 0}, {0, 4, 8, 0}, {0, 3, 6, 9}};
 // The speed of each RATCHETS fader
 static constexpr int8_t kFaderSpeed[8] = {Once, OneAndHalf, Twice, Thrice, OneAndHalf, Twice, Thrice, FourTimes};
 static inline int SpeedOf(int ratchetFader) {return kFaderSpeed[ratchetFader & 7];}
@@ -475,6 +476,7 @@ public:
 		fastestDecay = DecayFromKnob(0);
 		slowestDecay = DecayFromKnob(4095);
 		DefaultFaders();
+		Rescan();
 		voice[0].rng = 0x2545F491;
 		voice[1].rng = 0x9E3779B9;
 	}
@@ -513,23 +515,61 @@ public:
 		return true;
 	}
 
+	// The same for every page, as bits, kept up to date by Tick() one page
+	// a sample (so within a third of a millisecond).  The draws at the start
+	// of a step use these rather than looking through every page's faders,
+	// which keeps the audio interrupt short.
+	uint16_t emptyPages = 0;
+	void Rescan()
+	{
+		for (int p = 0; p < kPages; p++) ScanPage(p);
+	}
+
 	// A voice 2 page is in use once any of its faders is up; while it is
 	// all zero, voice 2 shares the first page with voice 1
 	bool Shared(int kind) const {return Empty(SecondPage(kind));}
 
-	// The faders voice v draws its choices of this kind from
-	const volatile uint8_t *Faders(int v, int kind) const
+	// The page voice v draws its choices of this kind from (from the
+	// cached flags)
+	int PageFor(int v, int kind) const
 	{
-		return (v == 1 && !Shared(kind)) ? faders[SecondPage(kind)] : faders[FirstPage(kind)];
+		return (v == 1 && !((emptyPages >> SecondPage(kind)) & 1)) ? SecondPage(kind) : FirstPage(kind);
 	}
+	const volatile uint8_t *Faders(int v, int kind) const {return faders[PageFor(v, kind)];}
 
 	const Scale &CurrentScale() const {return kScales[scale];}
 
 	// One sample.  clockEdge is a rising edge at Pulse In 1.
+	// True after a Tick() that drew new choices, the heaviest work there is,
+	// so that the card can leave its own control work for the next sample
+	bool busy = false;
+
 	void Tick(bool clockEdge)
 	{
-		if (ClockTick(clockEdge)) StartStep();
-		else if (sinceStep < 0x7FFFFFFF) sinceStep++;
+		busy = false;
+		ScanPage(scanPage);
+		scanPage = (scanPage + 1) % kPages;
+
+		// A step starts with voice 1's choices, and voice 2's follow one
+		// sample later, so the two never land in the same interrupt
+		if (ClockTick(clockEdge))
+		{
+			sinceStep = 0;
+			stepCount++;
+			StartVoice(0);
+			voice2Pending = true;
+			busy = true;
+		}
+		else
+		{
+			if (sinceStep < 0x7FFFFFFF) sinceStep++;
+			if (voice2Pending)
+			{
+				voice2Pending = false;
+				StartVoice(1);
+				busy = true;
+			}
+		}
 
 		for (int v = 0; v < kVoices; v++)
 		{
@@ -538,7 +578,7 @@ public:
 			// Ratchet hits after the first, through the step
 			if (vc.nextHit < vc.hits && sinceStep >= vc.hitAt[vc.nextHit])
 			{
-				if (NewNoteEachHit(vc.ratchetFader)) Draw(v);
+				if (NewNoteEachHit(vc.ratchetFader)) {Draw(v); busy = true;}
 				Hit(v);
 			}
 
@@ -576,7 +616,7 @@ public:
 	// Where the hits of a ratchet speed fall in the current step, in samples
 	int32_t HitPosition(int speed, int k) const
 	{
-		return int32_t((int64_t(kHitAt[speed][k]) * stepLen + 32768) >> 16);
+		return (stepLen * kHitTwelfths[speed][k]) / 12;   // stepLen < 2^27: no overflow
 	}
 
 private:
@@ -655,8 +695,9 @@ private:
 		// Dividing: a step every den beats
 		if (++divCount < r.den) return false;
 		divCount = 0;
-		int64_t len = (int64_t(clockPeriod) * r.den) / r.num;
-		stepLen = len > 0x7FFFFFF ? 0x7FFFFFF : int32_t(len < 1 ? 1 : len);
+		// (a clock is at most a minute, 2.9M samples, so x8 fits in 32 bits)
+		int32_t len = (clockPeriod * r.den) / r.num;
+		stepLen = len < 1 ? 1 : (len > 0x7FFFFFF ? 0x7FFFFFF : len);
 		return true;
 	}
 	int32_t extPeriod = 24000;
@@ -682,22 +723,26 @@ private:
 		}
 	}
 
-	// A new step: each voice draws its ratchet and its first note
-	void StartStep()
+	int scanPage = 0;
+	bool voice2Pending = false;
+
+	void ScanPage(int p)
 	{
-		sinceStep = 0;
-		stepCount++;
-		for (int v = 0; v < kVoices; v++)
-		{
-			Voice &vc = voice[v];
-			vc.ratchetFader = Choose(Faders(v, Ratchets), 0xFF, NextRandom(vc.rng));
-			int sp = SpeedOf(vc.ratchetFader);
-			vc.hits = kHits[sp];
-			for (int k = 0; k < vc.hits; k++) vc.hitAt[k] = HitPosition(sp, k);
-			vc.nextHit = 0;
-			Draw(v);
-			Hit(v);
-		}
+		if (Empty(p)) emptyPages |= uint16_t(1 << p);
+		else emptyPages &= uint16_t(~(1 << p));
+	}
+
+	// A new step for voice v: its ratchet and its first note
+	void StartVoice(int v)
+	{
+		Voice &vc = voice[v];
+		vc.ratchetFader = Choose(Faders(v, Ratchets), 0xFF, NextRandom(vc.rng));
+		int sp = SpeedOf(vc.ratchetFader);
+		vc.hits = kHits[sp];
+		for (int k = 0; k < vc.hits; k++) vc.hitAt[k] = HitPosition(sp, k);
+		vc.nextHit = 0;
+		Draw(v);
+		Hit(v);
 	}
 
 	// Draw a note, octave and gate length for voice v
@@ -715,10 +760,8 @@ private:
 		// The envelope's deviations: none from a page all at zero
 		for (int k = 0; k < kEnvKinds; k++)
 		{
-			const volatile uint8_t *f = Faders(v, kPairs + k);
-			bool any = false;
-			for (int i = 0; i < kFaders; i++) if (Weight(f[i]) > 0) any = true;
-			vc.dev[k] = any ? Choose(f, 0xFF, NextRandom(vc.rng)) : -1;
+			int page = PageFor(v, kPairs + k);
+			vc.dev[k] = (emptyPages >> page) & 1 ? -1 : Choose(faders[page], 0xFF, NextRandom(vc.rng));
 		}
 		EnvelopeRates(vc);
 	}

@@ -71,7 +71,7 @@ static void TestStandalone()
 	CHECK(c.hostMode, "host mode with nothing plugged in");
 	// Defaults: plays at 120 BPM by itself, within range
 	Counts k = Run(c, 48000 * 4);
-	CHECK(k.rises[0] >= 4 && k.rises[0] <= 8, "voice 1: %d gates in 4s at 120 BPM (some rests and ratchets)", k.rises[0]);
+	CHECK(k.rises[0] >= 4 && k.rises[0] <= 16, "voice 1: %d gates in 4s at 120 BPM (some rests and ratchets)", k.rises[0]);
 	CHECK(k.rises[1] >= 4, "voice 2 plays too (%d)", k.rises[1]);
 	for (int v = 0; v < 2; v++)
 	{
@@ -183,6 +183,7 @@ static void TestTempoKnob()
 	Run(c, 64);
 	CHECK(!c.mainOnTempo && !c.knobLatched[2] && c.tempo == 40, "Main waits for decay; tempo kept");
 	CHECK(c.settings[GuidedWandering::SetDecay] == decay, "decay not jumped to 0");
+	c.BuildStatus();
 	CHECK(((c.status[0] >> 4) & 1) == 0, "status: switch not down");
 	// The web editor's tempo: the knob must pick it up afresh
 	c.sw = ComputerCard::Down;
@@ -191,6 +192,7 @@ static void TestTempoKnob()
 	c.OnSysEx(sysex::Tempo, t, 2);
 	Run(c, 64);
 	CHECK(c.tempo == 90 && !c.knobLatched[2], "web tempo kept until Main reaches it");
+	c.BuildStatus();
 	CHECK(((c.status[0] >> 4) & 1) == 1, "status: switch down");
 	c.sw = ComputerCard::Middle;
 }

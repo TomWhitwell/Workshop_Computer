@@ -187,6 +187,7 @@
         <input type="range" id="tempo-r" min="40" max="300" step="1" aria-label="Internal tempo">
         <input type="number" id="tempo-n" min="40" max="300" step="1" aria-label="Internal tempo, BPM"> BPM
       </div>
+      <div class="caption" id="busy"></div>
       <div class="caption" id="tempo-note">Used while nothing is plugged into Pulse In 1; also set on the module by holding the switch down and turning Main. A step is one beat, divided or multiplied by X (switch up).</div>
     </section>
 
@@ -841,6 +842,7 @@ function handleCardMessage(m) {
       if (changedNote) requestRender();
     }
     // the tempo, which Main may have changed with the switch held down
+    L.busyUs = p.length >= 43 ? p[42] : -1;
     { const t = (p[40] << 7) | p[41]; if (t !== state.tempo && t >= 40) setTempo(t, false); }
     link.lastStatus = now;
     state.history.push([now, L.voice[0].mv, L.voice[1].mv, L.voice[0].gate, L.voice[1].gate]);
@@ -985,6 +987,11 @@ function drawReadouts() {
   const w = card ? (L.switchUp ? { 'rb-clock': L.waitX, 'rb-slew': L.waitY, 'rb-scale': L.waitMain } : { 'rb-attack': L.waitX, 'rb-pluck': L.waitY, 'rb-decay': L.waitMain }) : {};
   if (card && L.switchDown) { delete w['rb-scale']; delete w['rb-decay']; }
   for (const id of ['rb-scale', 'rb-clock', 'rb-slew', 'rb-decay', 'rb-attack', 'rb-pluck']) $(id).classList.toggle('waiting', !!w[id]);
+  // How long the card's audio interrupt took at most over the last second:
+  // past about 20 us the knobs stop reading properly
+  const b = card && L.busyUs >= 0 ? L.busyUs : -1;
+  $('busy').textContent = b < 0 ? '' : 'Card load: the audio interrupt took at most ' + b + ' µs of the ~20 µs it has' + (b >= 17 ? ' — too close: knobs may stop responding' : '') + '.';
+  $('busy').style.color = b >= 17 ? cssVar('--bad') : '';
   $('tempo-box').classList.toggle('waiting', !!(card && L.switchDown && L.waitMain));
   for (let v = 0; v < 2; v++) {
     const t = voiceText(v), vc = L.voice[v];

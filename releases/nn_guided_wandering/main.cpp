@@ -93,20 +93,36 @@ public:
 		multicore_launch_core1(hostMode ? Core1Host : Core1Device);
 	}
 
+	// Runs 48000 times a second, in the audio interrupt.  It must finish
+	// well inside the ~20us between samples: if it overruns, the Computer's
+	// knob readings stop updating properly.  So the slower control work
+	// (knobs, 8mu, LEDs, the web editor's status) is split into four parts,
+	// each run every 32 samples on a different sample, rather than all at
+	// once, and never on the same sample as the engine drawing new notes.
 	virtual void ProcessSample()
 	{
+		uint32_t startUs = time_us_32();
 		bool clockEdge = PulseIn1RisingEdge();
 		// The exact moment of each clock is a little unpredictable, which
 		// keeps the random lines from repeating after every power-up
-		if (clockEdge) engine.Stir(time_us_32());
-
-		if (++controlCount >= 32)
-		{
-			controlCount = 0;
-			Control();
-		}
+		if (clockEdge) engine.Stir(startUs);
 
 		engine.Tick(clockEdge);
+
+		// On a sample where the engine has just drawn new notes, the control
+		// work waits a sample, so the two never add up
+		if (!engine.busy)
+		{
+			switch (controlCount)
+			{
+			case 0: ControlKnobs(); break;
+			case 8: if (hostMode) EightMuInput(); break;
+			case 16: ControlLeds(); break;
+			case 24: if (WebLinked()) BuildStatus(); break;
+			default: break;
+			}
+			controlCount = (controlCount + 1) & 31;
+		}
 
 		CVOut1Millivolts(engine.cvMv[0]);
 		CVOut2Millivolts(engine.cvMv[1]);
@@ -114,6 +130,16 @@ public:
 		AudioOut2(engine.audio[1]);
 		PulseOut1(engine.gate[0]);
 		PulseOut2(engine.gate[1]);
+
+		// The longest this has taken over the last second, for the web editor
+		uint32_t us = time_us_32() - startUs;
+		if (us > busiestUs) busiestUs = us;
+		if (++busySamples >= 48000)
+		{
+			busySamples = 0;
+			shownBusiestUs = busiestUs;
+			busiestUs = 0;
+		}
 	}
 
 private:
@@ -123,6 +149,9 @@ private:
 
 	int controlCount = 0;
 	bool started = false;
+	bool waiting = false;     // a knob is waiting to pick up its setting
+	uint32_t busiestUs = 0, shownBusiestUs = 0;
+	int32_t busySamples = 0;
 
 	// Knob settings, with soft takeover when the switch moves.
 	// Up: clock ratio (X), slew (Y), scale (Main).
@@ -168,8 +197,9 @@ private:
 	static constexpr int kStatusPayload = sysex::kStatusLen - 5;
 	volatile uint8_t status[kStatusPayload] = {};
 
-	// Runs every 32 samples (1.5kHz)
-	void Control()
+	// Control work, each part every 32 samples (1.5kHz).  First the knobs
+	// and the settings they make.
+	void ControlKnobs()
 	{
 		if (!started)
 		{
@@ -199,18 +229,31 @@ private:
 		HandleKnobs();
 		engine.scale = ScaleFromKnob(settings[SetScale]);
 		engine.ratio = RatioFromKnob(settings[SetRatio]);
-		engine.slewAlpha = SlewFromKnob(settings[SetSlew]);
-		engine.decayInc = DecayFromKnob(settings[SetDecay]);
-		engine.attackInc = AttackFromKnob(settings[SetAttack]);
+		// The exponential settings only when their knob has moved
+		if (settings[SetSlew] != madeFrom[0]) {madeFrom[0] = settings[SetSlew]; engine.slewAlpha = SlewFromKnob(madeFrom[0]);}
+		if (settings[SetDecay] != madeFrom[1]) {madeFrom[1] = settings[SetDecay]; engine.decayInc = DecayFromKnob(madeFrom[1]);}
+		if (settings[SetAttack] != madeFrom[2]) {madeFrom[2] = settings[SetAttack]; engine.attackInc = AttackFromKnob(madeFrom[2]);}
 		engine.pluck = settings[SetPluck];
-		engine.internalPeriod = PeriodFromBpm(tempo);
+		if (tempo != madeFrom[3]) {madeFrom[3] = tempo; engine.internalPeriod = PeriodFromBpm(tempo);}
 		if (engine.scale != lastScale)
 		{
 			if (lastScale >= 0) scaleShow = 1500; // show it for a second
 			lastScale = engine.scale;
 		}
 
-		if (hostMode) HandleEightMU();
+		waiting = !knobLatched[0] || !knobLatched[1] || !knobLatched[2];
+	}
+	int32_t madeFrom[4] = {-1, -1, -1, -1};
+
+	// The LEDs: the 8mu's (when it's on the card) and the Computer's.
+	void ControlLeds()
+	{
+		if (hostMode && mu.Connected() && connectHoldoff == 0)
+		{
+			int32_t led[kFaders];
+			ui.Leds(engine, led);
+			for (int i = 0; i < kFaders; i++) mu.SetLed(i, led[i]);
+		}
 
 		// The Computer's LEDs.  For a second after the scale changes, its
 		// number (1-31) in binary, LED 1 the lowest bit.  Otherwise LEDs 1-4
@@ -220,7 +263,6 @@ private:
 		// While the switch is held down, LEDs 1-4 flash on every step.
 		// LED 6 blinks fast while a knob is waiting to pick up.
 		bool conn = mu.Connected() || WebLinked();
-		bool waiting = !knobLatched[0] || !knobLatched[1] || !knobLatched[2];
 		blink = (blink + 1) % 600;
 		if (scaleShow > 0)
 		{
@@ -251,8 +293,6 @@ private:
 			if (waiting) LedOn(5, blink % 150 < 75);
 			else LedBrightness(5, uint16_t((engine.audio[1] * 4095) / 1706));
 		}
-
-		BuildStatus(waiting);
 	}
 
 	// X, Y and Main, with soft takeover when the switch changes which
@@ -317,7 +357,8 @@ private:
 		}
 	}
 
-	void HandleEightMU()
+	// The 8mu on the card: its buttons and faders
+	void EightMuInput()
 	{
 		if (!mu.Connected())
 		{
@@ -348,13 +389,10 @@ private:
 		uint32_t after = 0;
 		for (int i = 0; i < kFaders; i++) after = after * 31 + uint32_t(engine.faders[ui.page][i]);
 		if (after != before) engine.Stir(after ^ time_us_32());
-
-		int32_t led[kFaders];
-		ui.Leds(engine, led);
-		for (int i = 0; i < kFaders; i++) mu.SetLed(i, led[i]);
 	}
 
-	void BuildStatus(bool waiting)
+	// STATUS for the web editor (only built while one is listening)
+	void BuildStatus()
 	{
 		int n = 0;
 		uint8_t shared = 0;
@@ -373,7 +411,9 @@ private:
 		if (ms > 16383) ms = 16383;
 		status[n++] = uint8_t(ms >> 7);
 		status[n++] = uint8_t(ms & 127);
-		int32_t pos = engine.stepLen > 0 ? int32_t((int64_t(engine.sinceStep) * 128) / engine.stepLen) : 0;
+		// Position through the step, 0-127, in 32-bit sums
+		int32_t len = engine.stepLen > 0 ? engine.stepLen : 1, at = engine.sinceStep < len ? engine.sinceStep : len;
+		int32_t pos = len < (1 << 24) ? (at * 128) / len : at / (len >> 7);
 		status[n++] = uint8_t(pos > 127 ? 127 : pos);
 		status[n++] = uint8_t(engine.stepCount & 127);
 		for (int v = 0; v < kVoices; v++)
@@ -396,6 +436,7 @@ private:
 		}
 		status[n++] = uint8_t(tempo >> 7);
 		status[n++] = uint8_t(tempo & 127);
+		status[n++] = uint8_t(shownBusiestUs > 127 ? 127 : shownBusiestUs);
 	}
 
 	//------------------------------------------------------------------------

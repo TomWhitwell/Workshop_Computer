@@ -16,10 +16,12 @@ static int checks = 0, failures = 0;
 static void SetPage(Engine &e, int page, const int v[8])
 {
 	for (int i = 0; i < 8; i++) e.faders[page][i] = uint8_t(v[i]);
+	e.Rescan();
 }
 static void ClearPage(Engine &e, int page)
 {
 	for (int i = 0; i < 8; i++) e.faders[page][i] = 0;
+	e.Rescan();
 }
 
 // Run until n more steps have started (internal clock unless told otherwise)
@@ -27,6 +29,7 @@ static void RunSteps(Engine &e, int n)
 {
 	uint8_t start = e.stepCount;
 	while (uint8_t(e.stepCount - start) < n) e.Tick(false);
+	e.Tick(false);   // voice 2 draws a sample after voice 1
 }
 
 //----------------------------------------------------------------------------
@@ -171,7 +174,7 @@ static void TestInternalClock()
 	// Tempo change
 	e.internalPeriod = PeriodFromBpm(60);
 	RunSteps(e, 1);
-	int t0 = 0;
+	int t0 = 1;   // RunSteps ends a sample into the step
 	while (true) { uint8_t c = e.stepCount; e.Tick(false); t0++; if (e.stepCount != c) break; }
 	CHECK(t0 == 48000, "60 BPM step %d samples", t0);
 }
