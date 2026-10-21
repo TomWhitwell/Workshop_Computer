@@ -33,6 +33,7 @@ public:
 	enum Knob {Main, X, Y};
 	enum Switch {Down, Middle, Up};
 	enum USBPowerState_t {DFP, UFP, Unsupported};
+	enum Input {Audio1, Audio2, CV1, CV2, Pulse1, Pulse2};
 
 	virtual ~ComputerCard() {}
 	virtual void ProcessSample() = 0;
@@ -42,6 +43,9 @@ public:
 	int32_t knob[3] = {2048, 2048, 2048};
 	Switch sw = Middle;
 	bool pulseIn1 = false, lastPulseIn1 = false;
+	int16_t audioIn[2] = {};
+	bool jack[2] = {};       // a jack in Audio In 1, 2
+	bool probeEnabled = false;
 
 	// Outputs, read by the test
 	int32_t cvMv[2] = {};
@@ -60,6 +64,10 @@ protected:
 	int32_t KnobVal(Knob k) {return knob[k];}
 	Switch SwitchVal() {return sw;}
 	bool PulseIn1RisingEdge() {return pulseIn1 && !lastPulseIn1;}
+	int16_t AudioIn1() {return audioIn[0];}
+	int16_t AudioIn2() {return audioIn[1];}
+	bool Connected(Input i) {return i <= Audio2 && probeEnabled && jack[i];}
+	void EnableNormalisationProbe() {probeEnabled = true;}
 	USBPowerState_t USBPowerState() {return USBPowerState_t(gUsbState);}
 	bool CVOut1Millivolts(int32_t mv) {cvMv[0] = mv; return false;}
 	bool CVOut2Millivolts(int32_t mv) {cvMv[1] = mv; return false;}

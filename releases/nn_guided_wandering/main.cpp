@@ -48,13 +48,17 @@
 // zone at each end, so the whole range of each setting can be reached.
 //
 // Inputs
+//   Audio In 1, 2  Optional: a signal plugged in here comes out of Audio Out
+//                1 or 2 shaped by that voice's envelope, in place of the
+//                envelope itself
 //   Pulse In 1   Clock.  Followed from its second pulse; with nothing
 //                plugged in (or four periods, at least 2s, without a pulse)
 //                the card keeps its own time: 120 BPM, until set by Main with
 //                the switch held down, or by the web editor
 // Outputs
 //   CV Out 1, 2     Voice 1, 2 pitch, 1V/oct, C at 0V (calibrated)
-//   Audio Out 1, 2  Voice 1, 2 envelope, 0 to +5V
+//   Audio Out 1, 2  Voice 1, 2 envelope, 0 to +5V; or, with Audio In 1, 2
+//                   patched, that input through the envelope
 //   Pulse Out 1, 2  Voice 1, 2 gate
 //
 // USB, chosen once at power-up
@@ -89,6 +93,8 @@ public:
 		// Rev 1.1 can't tell, and are always a device.
 		sleep_us(150000);
 		gCard = this;
+		// Lets Connected() tell whether a jack is in Audio In 1 and 2
+		EnableNormalisationProbe();
 		hostMode = USBPowerState() == DFP;
 		multicore_launch_core1(hostMode ? Core1Host : Core1Device);
 	}
@@ -128,8 +134,11 @@ public:
 
 		CVOut1Millivolts(engine.cvMv[0]);
 		CVOut2Millivolts(engine.cvMv[1]);
-		AudioOut1(engine.audio[0]);
-		AudioOut2(engine.audio[1]);
+		// Audio Out 1 and 2: each voice's envelope, or, with a jack in Audio
+		// In 1 or 2, that input through the envelope (a VCA): a full
+		// envelope passes the input at its own level
+		AudioOut1(Connected(Audio1) ? int16_t((AudioIn1() * engine.level[0]) >> 15) : engine.audio[0]);
+		AudioOut2(Connected(Audio2) ? int16_t((AudioIn2() * engine.level[1]) >> 15) : engine.audio[1]);
 		PulseOut1(engine.gate[0]);
 		PulseOut2(engine.gate[1]);
 
@@ -406,7 +415,8 @@ private:
 		uint8_t shared = 0;
 		for (int p = 0; p < kPairs; p++) if (engine.Shared(p)) shared |= uint8_t(1 << p);
 		status[n++] = uint8_t((engine.clocked ? 1 : 0) | (mu.Connected() ? 2 : 0)
-			| (knobBank == 0 ? 4 : 0) | (waiting ? 8 : 0) | (mainOnTempo ? 16 : 0));
+			| (knobBank == 0 ? 4 : 0) | (waiting ? 8 : 0) | (mainOnTempo ? 16 : 0)
+			| (Connected(Audio1) ? 32 : 0) | (Connected(Audio2) ? 64 : 0));
 		status[n++] = uint8_t((knobLatched[0] ? 0 : 1) | (knobLatched[1] ? 0 : 2)
 			| (knobLatched[2] ? 0 : 4) | (shared << 3));
 		status[n++] = uint8_t(engine.scale);

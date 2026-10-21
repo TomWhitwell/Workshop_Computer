@@ -225,10 +225,11 @@
       <table class="jacks">
         <tr class="grp"><th colspan="2">Inputs</th></tr>
         <tr><th>Pulse In 1</th><td>Clock: a step every beat, the clock divided or multiplied by X (switch up). Followed from its second pulse; with nothing plugged in (or four periods, at least 2 s, without a pulse) the card keeps its own tempo</td></tr>
+        <tr><th>Audio In 1, 2</th><td>Optional VCA: a signal plugged in comes out of Audio Out 1 or 2 shaped by that voice's envelope (a full envelope passes it at its own level), in place of the envelope. Unplugged: the envelope again</td></tr>
         <tr><th>Others</th><td>Not used</td></tr>
         <tr class="grp"><th colspan="2">Outputs</th></tr>
         <tr><th>CV Out 1, 2</th><td>Voice 1, 2 pitch: 1 V/oct, C at 0 V, calibrated; &minus;2 V to nearly +6 V</td></tr>
-        <tr><th>Audio Out 1, 2</th><td>Voice 1, 2 envelope, 0 to +5 V: one at every hit (not rests, nor a tied note's next note)</td></tr>
+        <tr><th>Audio Out 1, 2</th><td>Voice 1, 2 envelope, 0 to +5 V: one at every hit (not rests, nor a tied note's next note); or Audio In 1, 2 through it</td></tr>
         <tr><th>Pulse Out 1, 2</th><td>Voice 1, 2 gate</td></tr>
       </table>
     </section>
@@ -824,7 +825,7 @@ function handleCardMessage(m) {
     changed();
   } else if (cmd === CMD.STATUS && p.length >= 42) {
     const L = state.live, now = performance.now();
-    L.clocked = !!(p[0] & 1); L.muOnCard = !!(p[0] & 2); L.switchUp = !!(p[0] & 4); L.waiting = !!(p[0] & 8); L.switchDown = !!(p[0] & 16);
+    L.clocked = !!(p[0] & 1); L.muOnCard = !!(p[0] & 2); L.switchUp = !!(p[0] & 4); L.waiting = !!(p[0] & 8); L.switchDown = !!(p[0] & 16); L.vca = [!!(p[0] & 32), !!(p[0] & 64)];
     L.waitX = !!(p[1] & 1); L.waitY = !!(p[1] & 2); L.waitMain = !!(p[1] & 4);
     const sc = clamp(p[2], 0, SCALES.length - 1);
     if (sc !== L.scale) { L.scale = sc; requestRender(); }
@@ -1003,8 +1004,10 @@ function drawReadouts() {
     $('e' + (v + 1)).style.width = Math.round(vc.env * 100) + '%';
   }
   const own = [0, 1, 2, 3, 4, 5, 6, 7].filter(k => !shared(k)).map(k => KIND_NAMES[k].toLowerCase());
-  $('src1').textContent = '';
-  $('src2').textContent = own.length === 0 ? '\u00b7 shares every page' : own.length === 8 ? '\u00b7 all its own pages' : '\u00b7 own ' + own.join(', ');
+  const vca = card && L.vca ? L.vca : [false, false];
+  $('src1').textContent = vca[0] ? '\u00b7 Audio In 1 through the envelope' : '';
+  $('src2').textContent = (own.length === 0 ? '\u00b7 shares every page' : own.length === 8 ? '\u00b7 all its own pages' : '\u00b7 own ' + own.join(', '))
+    + (vca[1] ? ' \u00b7 Audio In 2 through the envelope' : '');
 }
 
 function frame(now) {

@@ -434,6 +434,7 @@ public:
 	// Outputs, refreshed by Tick()
 	int32_t cvMv[kVoices] = {};       // pitch, millivolts
 	int16_t audio[kVoices] = {};      // envelope, 0 to about +5V
+	int32_t level[kVoices] = {};      // the same as a gain, 0 to 32767 (Q15)
 	bool gate[kVoices] = {};
 
 	// What each voice is playing, for the LEDs and the web editor
@@ -611,9 +612,9 @@ public:
 			int32_t pl = pluck + (vc.dev[2] >= 0 ? kDevPluck[vc.dev[2]] : 0);
 			pl = pl < 0 ? 0 : (pl > 4095 ? 4095 : pl);
 			int32_t e = vc.env.Tick(vc.attackInc, vc.decayInc, pl);
-			int32_t a = (e * 1706) >> 15;
-			if (vc.dev[3] >= 0) a = (a * (vc.dev[3] + 1)) >> 3;
-			audio[v] = int16_t(a);
+			if (vc.dev[3] >= 0) e = (e * (vc.dev[3] + 1)) >> 3;   // DEPTH
+			level[v] = e;
+			audio[v] = int16_t((e * 1706) >> 15);
 		}
 	}
 

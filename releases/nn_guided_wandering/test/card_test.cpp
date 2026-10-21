@@ -197,6 +197,47 @@ static void TestTempoKnob()
 	c.sw = ComputerCard::Middle;
 }
 
+// Audio In 1 and 2: with a jack in, Audio Out is the input through the
+// envelope; without, the envelope itself
+static void TestVca()
+{
+	gUsbState = 0;
+	GuidedWandering c;
+	PlainGates(c);
+	CHECK(c.probeEnabled, "normalisation probe on");
+	// Nothing plugged in: the envelopes
+	Counts k = Run(c, 48000);
+	CHECK(k.audioMax[0] > 1650 && k.audioMin[0] >= 0, "no jack: envelope (%d to %d)", k.audioMin[0], k.audioMax[0]);
+	// +1000 into Audio In 1, -800 into Audio In 2
+	c.jack[0] = c.jack[1] = true;
+	c.audioIn[0] = 1000;
+	c.audioIn[1] = -800;
+	k = Run(c, 48000);
+	CHECK(k.audioMax[0] >= 990 && k.audioMax[0] <= 1000 && k.audioMin[0] >= 0, "VCA 1: 0 to the input at the peak (%d to %d)", k.audioMin[0], k.audioMax[0]);
+	CHECK(k.audioMin[1] <= -790 && k.audioMin[1] >= -800 && k.audioMax[1] <= 0, "VCA 2: negative input (%d to %d)", k.audioMin[1], k.audioMax[1]);
+	// it follows the envelope: silent where the envelope is
+	bool follows = true;
+	for (int i = 0; i < 4800; i++)
+	{
+		Run(c, 1);
+		int expect = (1000 * c.engine.level[0]) >> 15;
+		if (c.audioOut[0] != expect) follows = false;
+	}
+	CHECK(follows, "Audio Out 1 = input x envelope");
+	// DEPTH scales it too
+	c.engine.faders[FirstPage(Depth)][3] = 100;   // half depth
+	Run(c, 48000);
+	k = Run(c, 48000);
+	CHECK(k.audioMax[0] >= 490 && k.audioMax[0] <= 500, "half depth halves it (%d)", k.audioMax[0]);
+	// Unplug 1: back to its envelope; 2 still a VCA
+	c.jack[0] = false;
+	k = Run(c, 48000);
+	CHECK(k.audioMax[0] > 800 && k.audioMax[0] <= 853, "unplugged: half-depth envelope again (%d)", k.audioMax[0]);
+	CHECK(k.audioMax[1] <= 0, "Audio In 2 still enveloped");
+	c.BuildStatus();
+	CHECK((c.status[0] & 96) == 64, "status: jack in Audio In 2 only (%d)", c.status[0]);
+}
+
 static void TestClock()
 {
 	gUsbState = 0;
@@ -376,6 +417,7 @@ int main()
 	TestStandalone();
 	TestKnobs();
 	TestTempoKnob();
+	TestVca();
 	TestClock();
 	TestEightMu();
 	TestWebEditor();

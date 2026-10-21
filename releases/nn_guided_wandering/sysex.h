@@ -32,7 +32,9 @@
 //                        the card, bit 2 switch up (knobs are scale, clock
 //                        and slew, not decay, attack and pluck), bit 3 a
 //                        knob is waiting to pick up its setting, bit 4
-//                        switch held down (Main is the tempo)
+//                        switch held down (Main is the tempo), bits 5 and
+//                        6 a jack in Audio In 1 and 2 (Audio Out 1 and 2
+//                        are then that input through the envelope)
 //             flags2     bits 0-2 the X, Y and Main knob is waiting, bits 3-6
 //                        voice 2 shares the NOTES, OCTAVES, GATES, RATCHETS
 //                        first page (its second page is all zero)

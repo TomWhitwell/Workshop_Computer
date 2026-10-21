@@ -70,13 +70,17 @@ summary: |
 panel:
   inputs:
     - id: AudioIn1
-      name: Unused
+      name: VCA 1
       type: audio
-      description: Not used.
+      description: >
+        Optional. A signal (audio or CV) plugged in here comes out of Audio
+        Out 1 shaped by voice 1's envelope, in place of the envelope itself:
+        a full envelope passes it at its own level. Unplugged, Audio Out 1
+        is the envelope again.
     - id: AudioIn2
-      name: Unused
+      name: VCA 2
       type: audio
-      description: Not used.
+      description: The same for voice 2 and Audio Out 2.
     - id: CVIn1
       name: Unused
       type: cv
@@ -103,11 +107,11 @@ panel:
     - id: AudioOut1
       name: Envelope 1
       type: audio
-      description: Voice 1's envelope, 0 to +5V, fired at every hit (not on rests, nor on the note after a tied one).
+      description: Voice 1's envelope, 0 to +5V, fired at every hit (not on rests, nor on the note after a tied one). With a jack in Audio In 1, that input through the envelope instead.
     - id: AudioOut2
       name: Envelope 2
       type: audio
-      description: Voice 2's envelope.
+      description: Voice 2's envelope, or Audio In 2 through it.
     - id: CVOut1
       name: Pitch 1
       type: cv
