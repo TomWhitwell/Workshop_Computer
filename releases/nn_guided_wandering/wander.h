@@ -509,7 +509,7 @@ public:
 	// Where the hits of a ratchet speed fall in the current step, in samples
 	int32_t HitPosition(int speed, int k) const
 	{
-		return int32_t((int64_t(kHitAt[speed][k]) * stepLen) >> 16);
+		return int32_t((int64_t(kHitAt[speed][k]) * stepLen + 32768) >> 16);
 	}
 
 private:

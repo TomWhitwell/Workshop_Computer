@@ -505,4 +505,5 @@ int main()
 
 	static GuidedWandering card;
 	card.Run();
+	return 0;
 }
