@@ -13,8 +13,10 @@ namespace wander
 class EightMuUi
 {
 public:
-	// The page the faders edit: 0-3 the first pages (NOTES, OCTAVES, GATES,
-	// RATCHETS on buttons A-D), 4-7 their second pages, voice 2's
+	// The page the faders edit (see wander.h): 0-3 the first pages (NOTES,
+	// OCTAVES, GATES, RATCHETS on buttons A-D), 4-7 their second pages,
+	// voice 2's, 8-11 the envelope pages (ATTACK, DECAY, PLUCK, DEPTH) and
+	// 12-15 voice 2's envelope pages
 	int page = Notes;
 
 	// Control ticks (1.5kHz) left of showing the page's probabilities on the
@@ -27,10 +29,10 @@ public:
 	static constexpr int32_t kDim = 640;   // voice 2, on a page it shares
 
 	// A button press: the button's first page, or, if one of its pages is
-	// already showing, its other page
+	// already showing, its next one, round its four
 	static int NextPage(int pg, int button)
 	{
-		return (pg & 3) == button ? pg ^ kPairs : button;
+		return ButtonOf(pg) == button ? (pg + 4) % kPages : button;
 	}
 
 	// Forget where the faders were (on connecting), so none edits anything
@@ -107,15 +109,18 @@ public:
 	// probabilities.  After that: what is playing.
 	void Leds(const Engine &e, int32_t led[kFaders]) const
 	{
-		int pair = page & 3, layer = page >> 2;
+		int kind = KindOf(page), v = VoiceOfPage(page);
 		for (int i = 0; i < kFaders; i++) led[i] = 0;
 
 		if (showProbs > 0)
 		{
 			// Brightness is the probability, the likeliest fully lit.  A
-			// first page all at zero makes every choice equally likely; a
-			// second page all at zero is unused (voice 2 shares the first).
-			uint8_t active = pair == Notes ? ActiveNoteFaders(e.CurrentScale()) : 0xFF;
+			// NOTES, OCTAVES, GATES or RATCHETS page all at zero makes every
+			// choice equally likely.  A second page all at zero is unused
+			// (voice 2 shares the first), and an envelope page all at zero
+			// is off: both dark.
+			uint8_t active = kind == Notes ? ActiveNoteFaders(e.CurrentScale()) : 0xFF;
+			bool uniform = v == 0 && kind < kPairs;
 			int32_t most = 0;
 			for (int i = 0; i < kFaders; i++)
 				if ((active >> i) & 1 && Weight(e.faders[page][i]) > most) most = Weight(e.faders[page][i]);
@@ -123,9 +128,9 @@ public:
 			for (int i = 0; i < kFaders; i++)
 			{
 				if (!((active >> i) & 1)) continue;
-				int32_t b = most ? (Weight(e.faders[page][i]) * kFull) / most : (layer == 0 ? kFull : 0);
+				int32_t b = most ? (Weight(e.faders[page][i]) * kFull) / most : (uniform ? kFull : 0);
 				// Ratchets flash at their own speed, in time with the steps
-				if (pair == Ratchets)
+				if (kind == Ratchets)
 				{
 					int sp = SpeedOf(i);
 					bool on = false;
@@ -143,8 +148,8 @@ public:
 
 		// What's playing: this page's voice brightly, and on a first page
 		// that voice 2 shares, voice 2 dimly as well
-		if (layer == 0 && e.Shared(pair)) Show(e, 1, pair, kDim, led);
-		Show(e, layer, pair, kFull, led);
+		if (v == 0 && e.Shared(kind)) Show(e, 1, kind, kDim, led);
+		Show(e, v, kind, kFull, led);
 	}
 
 private:
@@ -159,10 +164,10 @@ private:
 		if (i >= 0 && i < kFaders && b > led[i]) led[i] = b;
 	}
 
-	static void Show(const Engine &e, int v, int pair, int32_t b, int32_t led[kFaders])
+	static void Show(const Engine &e, int v, int kind, int32_t b, int32_t led[kFaders])
 	{
 		const Engine::Voice &vc = e.voice[v];
-		switch (pair)
+		switch (kind)
 		{
 		case Notes:
 			Light(led, vc.noteFader, b);
@@ -176,9 +181,14 @@ private:
 			if (vc.gateFader == kRestFader) Light(led, 0, b == kFull ? kDim : kDim / 2);
 			else for (int i = 0; i <= vc.gateFader; i++) Light(led, i, b);
 			break;
-		default:
+		case Ratchets:
 			// The ratchet in use flashes at every hit
 			if (vc.sinceHit < FlashLength(e.stepLen)) Light(led, vc.ratchetFader, b);
+			break;
+		default:
+			// The envelope's deviation (or depth) in use; dark when the
+			// page is off
+			Light(led, vc.dev[kind - kPairs], b);
 			break;
 		}
 	}

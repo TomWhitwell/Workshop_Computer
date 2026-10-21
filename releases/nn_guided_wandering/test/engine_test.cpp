@@ -565,9 +565,14 @@ static void TestSharing()
 // The 8mu's pages, pickup and LEDs
 static void TestUi()
 {
-	CHECK(EightMuUi::NextPage(0, 0) == 4 && EightMuUi::NextPage(4, 0) == 0, "A toggles NOTES / NOTES 2");
-	CHECK(EightMuUi::NextPage(0, 1) == 1 && EightMuUi::NextPage(5, 1) == 1 && EightMuUi::NextPage(4, 3) == 3, "other button: its first page");
-	CHECK(EightMuUi::NextPage(3, 3) == 7 && EightMuUi::NextPage(7, 3) == 3, "D toggles RATCHETS 2");
+	CHECK(EightMuUi::NextPage(0, 0) == 4 && EightMuUi::NextPage(4, 0) == 8 && EightMuUi::NextPage(8, 0) == 12 && EightMuUi::NextPage(12, 0) == 0,
+		"A: NOTES, NOTES 2, ATTACK, ATTACK 2, NOTES");
+	CHECK(EightMuUi::NextPage(0, 1) == 1 && EightMuUi::NextPage(5, 1) == 9 && EightMuUi::NextPage(13, 2) == 2 && EightMuUi::NextPage(14, 3) == 3, "other button: its first page");
+	CHECK(EightMuUi::NextPage(3, 3) == 7 && EightMuUi::NextPage(7, 3) == 11 && EightMuUi::NextPage(11, 3) == 15 && EightMuUi::NextPage(15, 3) == 3, "D: RATCHETS ... DEPTH 2");
+	// Page numbers and kinds
+	CHECK(KindOf(8) == Attack && KindOf(9) == Decay && KindOf(10) == Pluck && KindOf(11) == Depth && KindOf(15) == Depth && KindOf(6) == Gates, "kinds");
+	CHECK(FirstPage(Attack) == 8 && SecondPage(Attack) == 12 && SecondPage(Notes) == 4 && FirstPage(Depth) == 11, "pages");
+	CHECK(VoiceOfPage(12) == 1 && VoiceOfPage(8) == 0 && VoiceOfPage(5) == 1, "voice of page");
 
 	Engine e;
 	EightMuUi ui;
@@ -675,6 +680,143 @@ static void TestUi()
 	CHECK(led[2] == 0, "between hits, dark");
 }
 
+//----------------------------------------------------------------------------
+// The envelope pages: ATTACK, DECAY, PLUCK and DEPTH
+static int32_t PeakOfNextStep(Engine &e)
+{
+	RunSteps(e, 1);
+	int32_t peak = 0;
+	uint8_t c = e.stepCount;
+	while (e.stepCount == c) { e.Tick(false); if (e.audio[0] > peak) peak = e.audio[0]; }
+	return peak;
+}
+
+static void TestEnvelopePages()
+{
+	Engine e;
+	int g[8] = {0, 0, 0, 100, 0, 0, 0, 0};
+	SetPage(e, Gates, g);
+	int r[8] = {100, 0, 0, 0, 0, 0, 0, 0};
+	SetPage(e, Ratchets, r);
+	e.attackInc = AttackFromKnob(2048);
+	e.decayInc = DecayFromKnob(2048);
+	e.pluck = 2048;
+	// All zero: off, the knobs' envelope exactly, at full depth
+	RunSteps(e, 2);
+	for (int k = 0; k < kEnvKinds; k++) CHECK(e.voice[0].dev[k] == -1 && e.voice[1].dev[k] == -1, "envelope page %d off by default", k);
+	e.Tick(false);
+	CHECK(e.voice[0].attackInc == e.attackInc && e.voice[0].decayInc == e.decayInc, "no deviation: the knobs' rates");
+	CHECK(PeakOfNextStep(e) >= 1700, "full depth by default");
+	// ATTACK fader 8: four times as long; fader 1: a quarter
+	int hi[8] = {0, 0, 0, 0, 0, 0, 0, 100}, lo[8] = {100, 0, 0, 0, 0, 0, 0, 0};
+	SetPage(e, FirstPage(Attack), hi);
+	RunSteps(e, 1); e.Tick(false);
+	double ratio = double(e.attackInc) / e.voice[0].attackInc;
+	CHECK(e.voice[0].dev[0] == 7 && ratio > 3.9 && ratio < 4.1, "ATTACK fader 8: x4 the time (%.2f)", ratio);
+	SetPage(e, FirstPage(Attack), lo);
+	RunSteps(e, 1); e.Tick(false);
+	ratio = double(e.voice[0].attackInc) / e.attackInc;
+	CHECK(e.voice[0].dev[0] == 0 && ratio > 3.9 && ratio < 4.1, "ATTACK fader 1: a quarter of the time (%.2f)", ratio);
+	// ...kept within the attack's range
+	e.attackInc = AttackFromKnob(0);
+	e.Tick(false);
+	CHECK(e.voice[0].attackInc == AttackFromKnob(0), "no faster than the fastest attack");
+	e.attackInc = AttackFromKnob(2048);
+	ClearPage(e, FirstPage(Attack));
+	// DECAY: each fader its own spread, 4 and 5 a little either side
+	int d5[8] = {0, 0, 0, 0, 100, 0, 0, 0};
+	SetPage(e, FirstPage(Decay), d5);
+	RunSteps(e, 1); e.Tick(false);
+	ratio = double(e.decayInc) / e.voice[0].decayInc;
+	CHECK(e.voice[0].dev[1] == 4 && ratio > 1.2 && ratio < 1.25, "DECAY fader 5: a little longer (%.3f)", ratio);
+	// A knob change is heard straight away, with the same deviation
+	e.decayInc = DecayFromKnob(1000);
+	e.Tick(false);
+	ratio = double(e.decayInc) / e.voice[0].decayInc;
+	CHECK(ratio > 1.2 && ratio < 1.25, "knob change keeps the deviation (%.3f)", ratio);
+	ClearPage(e, FirstPage(Decay));
+	// PLUCK: drawn like the others
+	int p1[8] = {0, 100, 0, 0, 0, 0, 0, 0};
+	SetPage(e, FirstPage(Pluck), p1);
+	RunSteps(e, 1);
+	CHECK(e.voice[0].dev[2] == 1 && e.voice[1].dev[2] == 1, "PLUCK fader 2 for both voices");
+	ClearPage(e, FirstPage(Pluck));
+	// DEPTH: fader 1 an eighth, fader 8 full, faders 1 and 8 equally likely
+	int dep[8] = {100, 0, 0, 0, 0, 0, 0, 0};
+	SetPage(e, FirstPage(Depth), dep);
+	int32_t pk = PeakOfNextStep(e);
+	CHECK(pk > 200 && pk <= 214, "DEPTH fader 1: an eighth (%d)", pk);
+	int dep2[8] = {100, 0, 0, 0, 0, 0, 0, 100};
+	SetPage(e, FirstPage(Depth), dep2);
+	int low = 0, full = 0;
+	for (int i = 0; i < 200; i++) { pk = PeakOfNextStep(e); if (pk <= 214) low++; else if (pk >= 1700) full++; }
+	CHECK(low + full == 200 && low > 70 && full > 70, "DEPTH 1 or 8: %d low, %d full", low, full);
+	// Voice 2: shares ATTACK until ATTACK 2 has a fader up
+	SetPage(e, FirstPage(Attack), hi);
+	RunSteps(e, 1);
+	CHECK(e.voice[0].dev[0] == 7 && e.voice[1].dev[0] == 7, "voice 2 shares ATTACK");
+	SetPage(e, SecondPage(Attack), lo);
+	CHECK(!e.Shared(Attack) && e.Shared(Decay), "ATTACK 2 in use, DECAY 2 still shared");
+	for (int i = 0; i < 20; i++)
+	{
+		RunSteps(e, 1);
+		CHECK(e.voice[0].dev[0] == 7 && e.voice[1].dev[0] == 0, "independent ATTACK: %d %d", e.voice[0].dev[0], e.voice[1].dev[0]);
+	}
+	// An ATTACK page off for voice 1 but not voice 2
+	ClearPage(e, FirstPage(Attack));
+	RunSteps(e, 1);
+	CHECK(e.voice[0].dev[0] == -1 && e.voice[1].dev[0] == 0, "ATTACK off, ATTACK 2 on");
+	// Drawn with the note: held ratchets keep it through the step; new-note
+	// ratchets draw again at each hit
+	ClearPage(e, SecondPage(Attack));
+	int spread[8] = {100, 100, 100, 100, 100, 100, 100, 100};
+	SetPage(e, FirstPage(Attack), spread);
+	for (int held = 0; held < 2; held++)
+	{
+		int rr[8] = {};
+		rr[held ? 3 : 7] = 100;   // 3x on one note, or 4x new notes
+		SetPage(e, Ratchets, rr);
+		RunSteps(e, 1);
+		int changes = 0;
+		for (int s = 0; s < 30; s++)
+		{
+			uint8_t c = e.stepCount;
+			int d = e.voice[0].dev[0];
+			while (true) { e.Tick(false); if (e.stepCount != c) break; if (e.voice[0].dev[0] != d) { changes++; d = e.voice[0].dev[0]; } }
+		}
+		if (held) CHECK(changes == 0, "held ratchet changed its envelope within a step (%d)", changes);
+		else CHECK(changes > 30, "new-note ratchets draw new envelopes (%d)", changes);
+	}
+
+	// The 8mu's LEDs on an envelope page
+	EightMuUi ui;
+	int32_t led[8];
+	Engine f;
+	ui.SetPage(FirstPage(Decay));
+	ui.showProbs = 100;
+	ui.Leds(f, led);
+	bool dark = true;
+	for (int i = 0; i < 8; i++) if (led[i]) dark = false;
+	CHECK(dark, "an envelope page all at zero is dark (off)");
+	int dd[8] = {0, 50, 0, 0, 0, 0, 0, 100};
+	SetPage(f, FirstPage(Decay), dd);
+	ui.Leds(f, led);
+	CHECK(led[7] == 4095 && led[1] == 2047 && led[0] == 0, "probabilities %d %d", led[7], led[1]);
+	ui.showProbs = 0;
+	f.voice[0].dev[1] = 1;
+	f.voice[1].dev[1] = 7;
+	ui.Leds(f, led);
+	CHECK(led[1] == 4095 && led[7] == EightMuUi::kDim, "playing: voice 1's decay lit, voice 2's dim (%d %d)", led[1], led[7]);
+	f.voice[0].dev[1] = -1;
+	f.voice[1].dev[1] = -1;
+	ui.Leds(f, led);
+	CHECK(led[1] == 0 && led[7] == 0, "nothing lit with no deviation");
+	ui.SetPage(SecondPage(Depth));
+	f.voice[1].dev[3] = 2;
+	ui.Leds(f, led);
+	CHECK(led[2] == 4095, "DEPTH 2 shows voice 2's depth");
+}
+
 int main()
 {
 	TestChoose();
@@ -688,6 +830,7 @@ int main()
 	TestSlew();
 	TestSharing();
 	TestUi();
+	TestEnvelopePages();
 	printf("engine: %d checks, %d failures\n", checks, failures);
 	return failures ? 1 : 0;
 }

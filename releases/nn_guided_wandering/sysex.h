@@ -6,15 +6,18 @@
 // (7D is the MIDI 'non-commercial' manufacturer ID, 47 is 'G').
 // All values are 7-bit; wider values are sent as two bytes, high 7 bits first.
 //
-// Fader values are in 8mu fader units, 0-127, sent page by page (8 pages of
-// 8 faders), the pages numbered
+// Fader values are in 8mu fader units, 0-127, sent page by page (16 pages
+// of 8 faders), the pages numbered
 //   0 NOTES     1 OCTAVES     2 GATES     3 RATCHETS      (buttons A-D)
 //   4 NOTES 2   5 OCTAVES 2   6 GATES 2   7 RATCHETS 2    (A-D pressed again)
+//   8 ATTACK    9 DECAY      10 PLUCK    11 DEPTH         (and again)
+//  12 ATTACK 2 13 DECAY 2    14 PLUCK 2  15 DEPTH 2       (and again)
+// (Version 1 had only pages 0-7.)
 //
 // Web -> card
 //   HELLO     01                        card replies with STATE
 //   SET       03 page fader value       one fader value
-//   SET_ALL   04 version tempo(2) values[64]
+//   SET_ALL   04 version tempo(2) values[128]
 //   PAGE      05 page                   page shown on the Computer's LEDs
 //   RESET     06                        default faders; card replies with STATE
 //   PING      09                        sent every second; STATUS flows while
@@ -22,9 +25,9 @@
 //   TEMPO     0A tempo(2)               internal clock, 40-300 BPM
 //
 // Card -> web
-//   STATE     02 version page tempo(2) values[64]
+//   STATE     02 version page tempo(2) values[128]
 //   STATUS    07 flags flags2 scale ratio slew attack decay pluck
-//                steplen(2) steppos stepcount  voice1[10] voice2[10] tempo(2)
+//                steplen(2) steppos stepcount  voice1[14] voice2[14] tempo(2)
 //             flags      bit 0 following a clock at Pulse In 1, bit 1 8mu on
 //                        the card, bit 2 switch up (knobs are scale, clock
 //                        and slew, not decay, attack and pluck), bit 3 a
@@ -42,7 +45,9 @@
 //             voice      note fader, note of the scale, octave fader, gate
 //                        fader, ratchet fader (0-7 each), hit count (0-127
 //                        and round), bit 0 gate up, envelope (0-127),
-//                        pitch(2) in millivolts offset by 8192
+//                        pitch(2) in millivolts offset by 8192, then the
+//                        ATTACK, DECAY, PLUCK and DEPTH faders drawn (0-7,
+//                        or 8 for none: that page is off)
 //             tempo      the internal clock, BPM (from Main with the switch
 //                        held down, or from TEMPO)
 
@@ -56,8 +61,8 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x47;
-static constexpr uint8_t kVersion = 1;
-static constexpr int kNumValues = 8 * 8;
+static constexpr uint8_t kVersion = 2;
+static constexpr int kNumValues = 16 * 8;
 
 enum Cmd : uint8_t
 {
@@ -77,7 +82,7 @@ enum Cmd : uint8_t
 // then in cmd, payload and length.
 struct Parser
 {
-	static constexpr int kMax = 96;
+	static constexpr int kMax = 160;
 	uint8_t buf[kMax];
 	int n = 0;
 	bool in = false;
@@ -140,7 +145,7 @@ inline int32_t Get14(const uint8_t *in)
 	return (int32_t(in[0] & 0x7F) << 7) | (in[1] & 0x7F);
 }
 
-static constexpr int kVoiceLen = 10;
+static constexpr int kVoiceLen = 14;
 static constexpr int kStateLen = 4 + 4 + kNumValues + 1;
 static constexpr int kStatusLen = 4 + 8 + 4 + 2 * kVoiceLen + 2 + 1;
 

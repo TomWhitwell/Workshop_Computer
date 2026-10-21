@@ -225,16 +225,25 @@ static void TestEightMu()
 	CHECK(c.ui.page == 0, "button ignored while connecting");
 	mu.button[0] = false;
 	Run(c, 32 * 600);
-	// A: NOTES 2; A again: NOTES; B: OCTAVES; D twice: RATCHETS 2
+	// A: NOTES 2, ATTACK, ATTACK 2, NOTES; B: OCTAVES; D: RATCHETS 2, DEPTH ...
 	auto press = [&](int b) { mu.button[b] = true; Run(c, 32 * 5); mu.button[b] = false; Run(c, 32 * 5); };
 	press(0);
 	CHECK(c.ui.page == 4, "A pressed again: NOTES 2 (%d)", c.ui.page);
+	press(0);
+	CHECK(c.ui.page == 8, "and again: ATTACK");
+	press(0);
+	CHECK(c.ui.page == 12, "and again: ATTACK 2");
 	press(0);
 	CHECK(c.ui.page == 0, "and back to NOTES");
 	press(1);
 	CHECK(c.ui.page == 1, "B: OCTAVES");
 	press(3); press(3);
 	CHECK(c.ui.page == 7, "D twice: RATCHETS 2");
+	press(3);
+	CHECK(c.ui.page == 11, "D again: DEPTH");
+	press(3);
+	CHECK(c.ui.page == 15, "D again: DEPTH 2");
+	press(3); press(3);
 	// Computer LEDs: D's LED blinks for a second page
 	int on = 0;
 	for (int i = 0; i < 100; i++) { Run(c, 32 * 10); if (c.led[3]) on++; }
@@ -282,7 +291,7 @@ static void TestWebEditor()
 	int s = FindSent(sysex::State);
 	CHECK(s == 0 && gSentLen == sysex::kStateLen, "STATE sent (%d bytes)", gSentLen);
 	CHECK(gSent[4] == sysex::kVersion && sysex::Get14(gSent + 6) == 120, "version and tempo");
-	CHECK(gSent[8] == 127 && gSent[8 + 8 * 4] == 0, "values: NOTES fader 1 127, NOTES 2 fader 1 0");
+	CHECK(gSent[8] == 127 && gSent[8 + 8 * 4] == 0 && gSent[8 + 8 * 15 + 7] == 0, "values: NOTES fader 1 127, NOTES 2 fader 1 0, DEPTH 2 fader 8 0");
 	CHECK(gSent[gSentLen - 1] == 0xF7, "ends F7");
 	for (int i = 1; i < gSentLen - 1; i++) CHECK(gSent[i] < 0x80, "7-bit byte %d", i);
 	// SET, with bad ones ignored
@@ -295,15 +304,15 @@ static void TestWebEditor()
 	c.OnSysEx(sysex::Set, set, 2);
 	CHECK(c.engine.faders[0][0] == 127, "bad SETs ignored");
 	// SET_ALL: every value and the tempo; the wrong version is ignored
-	uint8_t all[3 + 64];
+	uint8_t all[3 + sysex::kNumValues];
 	all[0] = sysex::kVersion + 1; all[1] = 0; all[2] = 60;
-	for (int i = 0; i < 64; i++) all[3 + i] = uint8_t(i);
+	for (int i = 0; i < sysex::kNumValues; i++) all[3 + i] = uint8_t(i);
 	c.OnSysEx(sysex::SetAll, all, sizeof(all));
-	CHECK(c.engine.faders[7][7] == 0 && c.tempo == 120, "wrong version ignored");
+	CHECK(c.engine.faders[7][7] == 0 && c.engine.faders[15][7] == 0 && c.tempo == 120, "wrong version ignored");
 	all[0] = sysex::kVersion;
 	c.OnSysEx(sysex::SetAll, all, sizeof(all));
 	Run(c, 64);
-	CHECK(c.engine.faders[7][7] == 63 && c.engine.faders[1][0] == 8 && c.tempo == 60, "SET_ALL");
+	CHECK(c.engine.faders[7][7] == 63 && c.engine.faders[1][0] == 8 && c.engine.faders[15][7] == 127 && c.tempo == 60, "SET_ALL");
 	CHECK(c.engine.internalPeriod == 48000, "tempo 60 BPM");
 	// TEMPO, clamped
 	uint8_t t[2] = {0, 5};
@@ -322,7 +331,7 @@ static void TestWebEditor()
 	// RESET: the defaults, and the state again
 	gSentLen = 0;
 	c.OnSysEx(sysex::Reset, nullptr, 0);
-	CHECK(c.engine.faders[0][0] == 127 && c.engine.faders[7][7] == 0, "RESET");
+	CHECK(c.engine.faders[0][0] == 127 && c.engine.faders[7][7] == 0 && c.engine.faders[15][7] == 0, "RESET");
 	CHECK(FindSent(sysex::State) == 0, "RESET replies with STATE");
 	// PING links the editor: the Computer's LEDs show the page
 	c.OnSysEx(sysex::Ping, nullptr, 0);
@@ -348,10 +357,16 @@ static void TestWebEditor()
 	CHECK(((p[1] >> 3) & 15) == 14, "voice 2 shares all but NOTES (%d)", (p[1] >> 3) & 15);
 	int ms = (p[8] << 7) | p[9];
 	CHECK(ms == 333, "step length at 180 BPM: %d ms", ms);
-	CHECK(p[12] == 0 && p[12 + 10] == 4, "note faders: voice 1 on 1, voice 2 on 5 (%d %d)", p[12], p[22]);
-	int mv2 = ((p[22 + 8] << 7) | p[22 + 9]) - 8192;
+	const int V = sysex::kVoiceLen;
+	CHECK(p[12] == 0 && p[12 + V] == 4, "note faders: voice 1 on 1, voice 2 on 5 (%d %d)", p[12], p[12 + V]);
+	int mv2 = ((p[12 + V + 8] << 7) | p[12 + V + 9]) - 8192;
 	CHECK(mv2 == c.engine.cvMv[1], "voice 2 pitch %d mV", mv2);
-	CHECK(((p[32] << 7) | p[33]) == 180, "tempo in STATUS");
+	CHECK(((p[12 + 2 * V] << 7) | p[13 + 2 * V]) == 180, "tempo in STATUS");
+	CHECK(p[12 + 10] == 8 && p[12 + 13] == 8, "envelope pages off: 8");
+	c.engine.faders[FirstPage(Depth)][2] = 100;
+	Run(c, 48000);
+	c.EncodeStatus(st);
+	CHECK(p[12 + 13] == 2 && p[12 + V + 13] == 2, "DEPTH fader 3 for both voices (%d %d)", p[12 + 13], p[12 + V + 13]);
 }
 
 int main()

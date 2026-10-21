@@ -21,10 +21,29 @@ static constexpr int32_t kSampleRate = 48000;
 static constexpr int kFaders = 8;
 static constexpr int kVoices = 2;
 
-// The four kinds of page, one per 8mu button.  Pages 0-3 are the first
-// pages, shared by both voices; pages 4-7 the second pages, voice 2's own.
-enum Pair {Notes, Octaves, Gates, Ratchets, kPairs};
-static constexpr int kPages = 2 * kPairs;
+// The kinds of page.  Each has a page shared by both voices, and a page of
+// voice 2's own, used once any of its faders is up.
+//   Button A  NOTES (page 0)     NOTES 2 (4)     ATTACK (8)   ATTACK 2 (12)
+//   Button B  OCTAVES (1)        OCTAVES 2 (5)   DECAY (9)    DECAY 2 (13)
+//   Button C  GATES (2)          GATES 2 (6)     PLUCK (10)   PLUCK 2 (14)
+//   Button D  RATCHETS (3)       RATCHETS 2 (7)  DEPTH (11)   DEPTH 2 (15)
+// The page numbers are the protocol's (sysex.h), so the envelope pages,
+// added later, come last.
+enum Kind {Notes, Octaves, Gates, Ratchets, Attack, Decay, Pluck, Depth, kKinds};
+static constexpr int kPairs = 4;      // kinds on pages 0-7 (first + 4 = second)
+static constexpr int kEnvKinds = 4;   // ATTACK, DECAY, PLUCK, DEPTH on pages 8-15
+static constexpr int kPages = 2 * kPairs + 2 * kEnvKinds;
+
+// Pages are layer * 4 + button: each button cycles through four layers, its
+// first page, voice 2's page, its envelope page and voice 2's envelope page.
+static constexpr int kLayers = 4;
+static constexpr int ButtonOf(int page) {return page & 3;}
+static constexpr int LayerOf(int page) {return page >> 2;}
+static constexpr int KindOf(int page) {return (page & 3) + (page >= 2 * kPairs ? kPairs : 0);}
+// The voice whose page it is: 0 for a first page (both voices), 1 for voice 2's
+static constexpr int VoiceOfPage(int page) {return (page >> 2) & 1;}
+static constexpr int FirstPage(int kind) {return kind < kPairs ? kind : kind + kPairs;}
+static constexpr int SecondPage(int kind) {return FirstPage(kind) + 4;}
 
 // A fader this low (of 127) counts as zero: never chosen.  8mu faders don't
 // always read exactly 0 at the bottom, and a second page only hands voice 2
@@ -154,6 +173,17 @@ static constexpr int32_t kHitAt[kSpeeds][kMaxHits] = {
 static constexpr int8_t kFaderSpeed[8] = {Once, OneAndHalf, Twice, Thrice, OneAndHalf, Twice, Thrice, FourTimes};
 static inline int SpeedOf(int ratchetFader) {return kFaderSpeed[ratchetFader & 7];}
 static inline bool NewNoteEachHit(int ratchetFader) {return ratchetFader >= 4;}
+
+// ATTACK, DECAY and PLUCK pages: how far each hit's envelope strays from the
+// knobs.  The faders are a spread from much less (fader 1) to much more
+// (fader 8), with faders 4 and 5 a little either side.  Attack and decay
+// times go from a quarter to four times the knob's (in 1/4096 octave: +-2
+// octaves); pluckiness from half its range less to half its range more.
+// A page all at zero means no deviation at all: the knobs' envelope.
+// DEPTH pages: the envelope's peak, fader 1 an eighth of full (about 0.6V)
+// up to fader 8 full (5V), for accents; all at zero, every envelope is full.
+static constexpr int32_t kDevOctaves[kFaders] = {-8192, -5851, -3511, -1170, 1170, 3511, 5851, 8192};
+static constexpr int32_t kDevPluck[kFaders] = {-2048, -1463, -878, -293, 293, 878, 1463, 2048};
 
 // GATES page: fader 1 is a rest (no gate, no envelope), faders 2-7 are 1/7
 // to 6/7 of the time to the next hit, and fader 8 is tied: the gate stays up
@@ -410,6 +440,11 @@ public:
 	{
 		uint32_t rng;
 		int noteFader = 0, note = 0, octaveFader = 2, gateFader = 3, ratchetFader = 0;
+		// Envelope deviations (attack, decay, pluck, depth): the fader drawn
+		// on each page, -1 for none
+		int dev[kEnvKinds] = {-1, -1, -1, -1};
+		uint32_t attackInc = 89478485, decayInc = 4473924;  // after deviation
+		uint32_t baseAttack = 0, baseDecay = 0;              // the knobs' at that time
 		int32_t targetMv = 0;
 		int64_t slewed = 0;           // millivolts, Q16
 		int hits = 1, nextHit = 1;
@@ -434,6 +469,11 @@ public:
 
 	Engine()
 	{
+		// The limits of the envelope times, which deviation stays within
+		fastestAttack = AttackFromKnob(0);
+		slowestAttack = AttackFromKnob(4095);
+		fastestDecay = DecayFromKnob(0);
+		slowestDecay = DecayFromKnob(4095);
 		DefaultFaders();
 		voice[0].rng = 0x2545F491;
 		voice[1].rng = 0x9E3779B9;
@@ -465,19 +505,22 @@ public:
 		if (!voice[1].rng) voice[1].rng = 1;
 	}
 
-	// A voice 2 page is in use once any of its faders is up; while it is
-	// all zero, voice 2 shares the first page with voice 1
-	bool Shared(int pair) const
+	// True if every fader on a page is at zero
+	bool Empty(int page) const
 	{
 		for (int i = 0; i < kFaders; i++)
-			if (Weight(faders[kPairs + pair][i]) > 0) return false;
+			if (Weight(faders[page][i]) > 0) return false;
 		return true;
 	}
 
+	// A voice 2 page is in use once any of its faders is up; while it is
+	// all zero, voice 2 shares the first page with voice 1
+	bool Shared(int kind) const {return Empty(SecondPage(kind));}
+
 	// The faders voice v draws its choices of this kind from
-	const volatile uint8_t *Faders(int v, int pair) const
+	const volatile uint8_t *Faders(int v, int kind) const
 	{
-		return (v == 1 && !Shared(pair)) ? faders[kPairs + pair] : faders[pair];
+		return (v == 1 && !Shared(kind)) ? faders[SecondPage(kind)] : faders[FirstPage(kind)];
 	}
 
 	const Scale &CurrentScale() const {return kScales[scale];}
@@ -510,9 +553,15 @@ public:
 			else vc.slewed += ((target - vc.slewed) * slewAlpha) >> 24;
 			cvMv[v] = int32_t(vc.slewed >> 16);
 
-			// Envelope, 0 to about +5V on the audio outputs
-			int32_t e = vc.env.Tick(attackInc, decayInc, pluck);
-			audio[v] = int16_t((e * 1706) >> 15);
+			// Envelope, 0 to about +5V on the audio outputs, with this note's
+			// deviations from the knobs
+			if (vc.baseAttack != attackInc || vc.baseDecay != decayInc) EnvelopeRates(vc);
+			int32_t pl = pluck + (vc.dev[2] >= 0 ? kDevPluck[vc.dev[2]] : 0);
+			pl = pl < 0 ? 0 : (pl > 4095 ? 4095 : pl);
+			int32_t e = vc.env.Tick(vc.attackInc, vc.decayInc, pl);
+			int32_t a = (e * 1706) >> 15;
+			if (vc.dev[3] >= 0) a = (a * (vc.dev[3] + 1)) >> 3;
+			audio[v] = int16_t(a);
 		}
 	}
 
@@ -611,6 +660,27 @@ private:
 		return true;
 	}
 	int32_t extPeriod = 24000;
+	uint32_t fastestAttack = 0, slowestAttack = 0, fastestDecay = 0, slowestDecay = 0;
+
+	// The attack and decay rates for a voice's deviations: a longer time
+	// is a smaller step each sample
+	void EnvelopeRates(Voice &vc)
+	{
+		vc.baseAttack = attackInc;
+		vc.baseDecay = decayInc;
+		vc.attackInc = attackInc;
+		vc.decayInc = decayInc;
+		if (vc.dev[0] >= 0)
+		{
+			uint32_t a = ExpScale(attackInc, -kDevOctaves[vc.dev[0]]);
+			vc.attackInc = a > fastestAttack ? fastestAttack : (a < slowestAttack ? slowestAttack : a);
+		}
+		if (vc.dev[1] >= 0)
+		{
+			uint32_t d = ExpScale(decayInc, -kDevOctaves[vc.dev[1]]);
+			vc.decayInc = d > fastestDecay ? fastestDecay : (d < slowestDecay ? slowestDecay : d);
+		}
+	}
 
 	// A new step: each voice draws its ratchet and its first note
 	void StartStep()
@@ -642,6 +712,15 @@ private:
 		vc.octaveFader = Choose(Faders(v, Octaves), 0xFF, NextRandom(vc.rng));
 		vc.gateFader = Choose(Faders(v, Gates), 0xFF, NextRandom(vc.rng));
 		vc.targetMv = NoteMillivolts(s, vc.note, vc.octaveFader);
+		// The envelope's deviations: none from a page all at zero
+		for (int k = 0; k < kEnvKinds; k++)
+		{
+			const volatile uint8_t *f = Faders(v, kPairs + k);
+			bool any = false;
+			for (int i = 0; i < kFaders; i++) if (Weight(f[i]) > 0) any = true;
+			vc.dev[k] = any ? Choose(f, 0xFF, NextRandom(vc.rng)) : -1;
+		}
+		EnvelopeRates(vc);
 	}
 
 	// Play the next hit of voice v's step: its gate and envelope

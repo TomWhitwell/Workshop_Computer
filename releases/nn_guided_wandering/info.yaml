@@ -43,8 +43,13 @@ summary: |
   scale), B OCTAVES (-2V to +5V), C GATES (a rest, one to six sevenths of
   the step, or tied into the next note) and D RATCHETS (1x, 1.5x, 2x or 3x a
   step on one note, or 1.5x, 2x, 3x or 4x with a new note at every hit).
-  Pressing a button again gives its second page, voice 2's. While a second
-  page is all at zero, voice 2 draws from the first page too, playing a
+  Each button has two more pages of envelope chances, drawn with every
+  note: A ATTACK and B DECAY (a quarter to four times the knob's time), C
+  PLUCK (half its range either way) and D DEPTH (the envelope's peak, an
+  eighth to full); an envelope page all at zero is off.
+  Pressing a button again cycles its four pages: its first, voice 2's, its
+  envelope page and voice 2's envelope page. While a voice 2
+  page is all at zero, voice 2 draws from voice 1's page too, playing a
   different line with the same probabilities; raise any fader on it and
   voice 2 goes its own way. Faders pick up, so changing page never changes
   anything by accident. For 3 seconds after a touch the 8mu's LEDs show the
@@ -171,7 +176,7 @@ controls:
       items:
         - id: LED0
           name: Page A / gate 1
-          description: With an 8mu or the web editor, LEDs 0-3 show the button whose page is selected (A-D), steady for its first page, blinking for its second. Without one, LEDs 0 and 1 show the two gates.
+          description: With an 8mu or the web editor, LEDs 0-3 show the button whose page is selected (A-D), steady for its first page, blinking slowly for its second, fast for its third and faster still for its fourth. Without one, LEDs 0 and 1 show the two gates.
         - id: LED1
           name: Page B / gate 2
         - id: LED2

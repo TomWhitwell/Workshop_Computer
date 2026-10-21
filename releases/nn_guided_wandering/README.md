@@ -14,33 +14,47 @@ windows, and presets. It works with an 8mu alone, no computer needed.
 
 ## The 8mu
 
-The four buttons choose the page. Press a button again for its **second
-page**, voice 2's, and again to go back.
+The four buttons choose the page. Each button has four pages: press it
+again for its **second page** (voice 2's), again for its **envelope page**,
+again for voice 2's envelope page, and again to go back to the first.
 
-| Button | First page | Second page |
-|---|---|---|
-| A | **NOTES**: the scale's notes, from the root up | **NOTES 2** |
-| B | **OCTAVES**: fader 1 −2 V, fader 3 0 V, up to fader 8 +5 V | **OCTAVES 2** |
-| C | **GATES**: fader 1 a rest, 2-7 one to six sevenths, 8 tied | **GATES 2** |
-| D | **RATCHETS**: 1×, 1.5×, 2×, 3× on one note; then 1.5×, 2×, 3×, 4× with a new note at every hit | **RATCHETS 2** |
+| Button | First page | Second page | Third page (envelope) | Fourth page |
+|---|---|---|---|---|
+| A | **NOTES**: the scale's notes, from the root up | **NOTES 2** | **ATTACK**: ÷4 … ×4 the Attack knob's time | **ATTACK 2** |
+| B | **OCTAVES**: fader 1 −2 V, fader 3 0 V, up to fader 8 +5 V | **OCTAVES 2** | **DECAY**: ÷4 … ×4 the Decay knob's time | **DECAY 2** |
+| C | **GATES**: fader 1 a rest, 2-7 one to six sevenths, 8 tied | **GATES 2** | **PLUCK**: −50% … +50% of pluckiness | **PLUCK 2** |
+| D | **RATCHETS**: 1×, 1.5×, 2×, 3× on one note; then 1.5×, 2×, 3×, 4× with a new note at every hit | **RATCHETS 2** | **DEPTH**: the envelope's peak, 1/8 … full | **DEPTH 2** |
 
 **Faders are relative probabilities.** A fader at zero is never chosen, and
 one twice as high as another is chosen twice as often. With a first page all
 at zero, every choice is equally likely. (The bottom two positions of a fader,
 out of 127, count as zero, as faders don't always read exactly 0.)
 
-**Two voices.** Both voices use the first pages. The second pages belong to
-voice 2, once they are used:
+**Two voices.** Both voices use the first and third pages. The second and
+fourth pages belong to voice 2, once they are used:
 
-- While **every fader on a second page is at zero**, voice 2 draws from the
-  first page as well. You get two different lines with the same
+- While **every fader on a voice 2 page is at zero**, voice 2 draws from the
+  matching page of voice 1 as well. You get two different lines with the same
   probabilities.
-- **Raise any fader** on a second page and voice 2 uses that page,
+- **Raise any fader** on a voice 2 page and voice 2 uses that page,
   independently of voice 1.
 
 Each kind of page decides this on its own: voice 2 can have its own notes
 while sharing the octaves, gates and ratchets, for example. Pull every fader
 on a second page back to zero to share again.
+
+**Envelope pages.** Each note's envelope can stray from the knobs. The
+ATTACK and DECAY faders are a spread from a quarter of the knob's time
+(fader 1) to four times it (fader 8), with faders 4 and 5 a little either
+side (÷4, ÷2.7, ÷1.8, ÷1.2, ×1.2, ×1.8, ×2.7, ×4), kept within each
+setting's range. PLUCK goes from half the knob's range less pluck to half
+more (−50%, −36%, −21%, −7%, +7%, +21%, +36%, +50%). DEPTH is the
+envelope's peak: fader 1 an eighth of full (about 0.6 V) up to fader 8 full
+(5 V), for accents. The faders are probabilities as on every page, but an
+envelope page **all at zero is off**: the knobs' envelope exactly, at full
+depth. They are drawn with the note: once a step, and again at every hit of
+a new-note ratchet (faders 5-8 on RATCHETS), so a held-note ratchet repeats
+its envelope.
 
 **Notes.** One fader per note of the scale. A scale with fewer than eight
 notes ignores the extra faders. One with more (Chromatic, 13-, 19- and
@@ -72,6 +86,7 @@ is playing:
 | Notes, Octaves | brightness = probability | the note or octave playing |
 | Gates | brightness = probability | a bar up to the gate length: a rest lights the first LED dimly, a tied note all eight, 3/7 the first four |
 | Ratchets | each fader flashes its own speed, in time with the steps, brightness = probability | the ratchet in use flashes at every hit |
+| Attack, Decay, Pluck, Depth | brightness = probability (dark when the page is off) | the deviation or depth in use |
 
 On a first page that voice 2 shares, voice 2's choice shows dimly too.
 
@@ -112,7 +127,8 @@ LED 1 the lowest bit.
 | Pulse Out 1, 2 | Voice 1, 2 gate |
 
 The other inputs are unused. **LEDs**: the top four show the 8mu's page (lit
-for a first page, blinking for a second), or with no 8mu or editor, LEDs 1
+for a first page, blinking slowly for a second, fast for a third and faster
+still for a fourth), or with no 8mu or editor, LEDs 1
 and 2 show the gates; the bottom two follow the envelopes.
 
 ## Three ways to use it
@@ -139,14 +155,14 @@ reads the faders from the card, then sends every edit as it's made.
   note, voltage, gate, ratchet and envelope. **Internal tempo** sets the
   card's own clock, 40-300 BPM, used while nothing is plugged into Pulse In 1
   (it follows Main when that sets it with the switch held down).
-- **Faders.** The eight pages, as on the 8mu, with each fader's meaning in the
+- **Faders.** The sixteen pages, as on the 8mu, with each fader's meaning in the
   current scale (note names, or cents for microtonal scales) and its share of
   the probability. A second page says whether voice 2 is sharing the first,
   with buttons to copy the first page onto it or clear it to share again. A
   row of dots shows the 8mu's LEDs as the card would light them.
 - **Pitch.** The last eight seconds of both voices.
 - **Presets.** Six built in, plus your own, kept in the browser: save,
-  update, rename, delete, export and import as JSON. A preset is all eight
+  update, rename, delete, export and import as JSON. A preset is all sixteen
   pages and the internal tempo (the scale, clock and envelopes stay on the
   knobs). Loading one sends it to the card.
 - **8mu on the computer.** Its faders and buttons drive the page with the
@@ -159,7 +175,8 @@ Without a card the page still edits and keeps presets, and plays a simulation
 of the card at the internal tempo.
 
 The protocol is documented in [`sysex.h`](sysex.h). The card and the editor
-must be the same version (protocol 1).
+must be the same version (protocol 2). Presets saved before the envelope
+pages load with them off.
 
 ## Building
 

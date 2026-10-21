@@ -9,15 +9,17 @@
 // The musical engine is in wander.h and the 8mu's pages and LEDs in ui.h;
 // this file connects them to the Computer's knobs, jacks and USB.
 //
-// The 8mu (buttons A-D choose the page; press a button again for its second
-// page, voice 2's, and again to go back)
+// The 8mu (buttons A-D choose the page; press a button again for its next
+// page, round four: its first page, voice 2's, its envelope page, voice 2's)
 //
-//             First page                         Second page
-//   Button A  NOTES     the scale's notes        NOTES 2
-//   Button B  OCTAVES   -2V (fader 1) to +5V     OCTAVES 2
-//   Button C  GATES     rest, 1/7 ... 6/7, tied  GATES 2
-//   Button D  RATCHETS  1x 1.5x 2x 3x on one note, then 1.5x 2x 3x 4x
-//                       with a new note at every hit   RATCHETS 2
+//             First page                         Third page (envelope)
+//   Button A  NOTES     the scale's notes        ATTACK  /4 ... x4 the knob
+//   Button B  OCTAVES   -2V (fader 1) to +5V     DECAY   /4 ... x4 the knob
+//   Button C  GATES     rest, 1/7 ... 6/7, tied  PLUCK   -50% ... +50%
+//   Button D  RATCHETS  1x 1.5x 2x 3x on one     DEPTH   1/8 ... full peak
+//                       note, then 1.5x 2x 3x 4x
+//                       with a new note each hit
+// Second and fourth pages: the same, for voice 2 (NOTES 2, ATTACK 2 ...).
 //
 // Faders are relative probabilities: one at zero is never chosen, and one
 // twice as high as another is chosen twice as often.  A first page all at
@@ -25,6 +27,8 @@
 // zero, voice 2 draws from the first page too (two different lines with the
 // same probabilities); once any of its faders is up, voice 2 uses it instead,
 // independently of voice 1.  Each kind of page decides this on its own.
+// The envelope pages are chances of straying from the knobs' envelope, drawn
+// with each note; an envelope page all at zero is off (the knobs exactly).
 //
 // After a page change the faders 'pick up': one only takes over once it has
 // been moved to (or across) the value already stored.  For 3 seconds after a
@@ -210,7 +214,8 @@ private:
 
 		// The Computer's LEDs.  For a second after the scale changes, its
 		// number (1-31) in binary, LED 1 the lowest bit.  Otherwise LEDs 1-4
-		// show the 8mu page (lit for a first page, blinking for a second),
+		// show the 8mu page's button (lit for a first page, blinking slowly
+		// for a second, fast for a third, faster still for a fourth),
 		// or with no 8mu the two gates; LEDs 5 and 6 the two envelopes.
 		// While the switch is held down, LEDs 1-4 flash on every step.
 		// LED 6 blinks fast while a knob is waiting to pick up.
@@ -233,11 +238,12 @@ private:
 		}
 		else
 		{
-			int pair = ui.page & 3, layer = ui.page >> 2;
+			int button = ButtonOf(ui.page), layer = LayerOf(ui.page);
+			static constexpr int kBlink[kLayers] = {1, 600, 200, 80};
 			for (int i = 0; i < 4; i++)
 			{
 				bool on;
-				if (conn) on = pair == i && (layer == 0 || blink < 300);
+				if (conn) on = button == i && (layer == 0 || blink % kBlink[layer] < kBlink[layer] / 2);
 				else on = i < 2 && engine.gate[i];
 				LedOn(i, on);
 			}
@@ -386,6 +392,7 @@ private:
 			if (mv > 16383) mv = 16383;
 			status[n++] = uint8_t(mv >> 7);
 			status[n++] = uint8_t(mv & 127);
+			for (int k = 0; k < kEnvKinds; k++) status[n++] = uint8_t(vc.dev[k] < 0 ? 8 : vc.dev[k]);
 		}
 		status[n++] = uint8_t(tempo >> 7);
 		status[n++] = uint8_t(tempo & 127);

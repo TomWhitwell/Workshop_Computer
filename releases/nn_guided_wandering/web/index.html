@@ -111,7 +111,8 @@
   .tab b { display: inline-block; width: 1.4em; text-align: center; margin-right: 4px; border-radius: 4px; background: var(--track); }
   .tab.on { border-color: var(--accent); background: var(--accent-soft); }
   .tab.on b { background: var(--accent); color: var(--panel); }
-  .tab.second { margin-right: 8px; font-size: 13px; }
+  .tab.second { font-size: 13px; }
+  .tab.last { margin-right: 10px; }
   .tab.second b { width: auto; padding: 0 3px; }
   .tab.shared { border-style: dashed; color: var(--muted); }
   .share { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; color: var(--muted); min-height: 30px; }
@@ -213,7 +214,7 @@
         <button id="btn-import">Import</button>
         <input type="file" id="import-file" accept=".json,application/json" hidden>
       </div>
-      <div class="caption">A preset is all eight pages of faders and the internal tempo; the scale, clock and envelope stay on the knobs. Presets live in this browser. Loading one sends it to the card if one is connected. The card itself keeps nothing over power-off.</div>
+      <div class="caption">A preset is all sixteen pages of faders and the internal tempo; the scale, clock and envelope stay on the knobs. Presets live in this browser. Loading one sends it to the card if one is connected. The card itself keeps nothing over power-off.</div>
     </section>
 
     <section class="card">
@@ -234,14 +235,17 @@
       <div class="notes">
         <p>The 8mu can plug into the module (no computer needed) or into this computer, which passes it on to the card. Its faders are <b>relative probabilities</b>: one at zero is never chosen, one twice as high as another twice as often. A first page all at zero makes every choice equally likely.</p>
         <table class="jacks">
-          <tr><th>Buttons</th><td>A <b>Notes</b>, B <b>Octaves</b>, C <b>Gates</b>, D <b>Ratchets</b>. Press the same button again for its second page, voice 2's, and again to go back.</td></tr>
+          <tr><th>Buttons</th><td>A <b>Notes</b>, B <b>Octaves</b>, C <b>Gates</b>, D <b>Ratchets</b>. Press the same button again for its second page (voice 2's), again for its envelope page (A <b>Attack</b>, B <b>Decay</b>, C <b>Pluck</b>, D <b>Depth</b>), again for voice 2's envelope page, and again to go back.</td></tr>
           <tr><th>Notes</th><td>One fader per note of the scale, from the root up. A scale with fewer than eight notes ignores the extra faders; one with more shares them out, each fader a run of neighbouring notes.</td></tr>
           <tr><th>Octaves</th><td>Fader 1 &minus;2 V up to fader 8 +5 V (fader 3 is 0 V).</td></tr>
           <tr><th>Gates</th><td>Fader 1 a rest (no gate, no envelope; the pitch still moves), 2-7 one to six sevenths of the time to the next hit, 8 tied: the gate stays up into the next note, which glides in without a new envelope.</td></tr>
           <tr><th>Ratchets</th><td>Faders 1-4 hit 1&times;, 1.5&times;, 2&times;, 3&times; a step on one note (1.5&times; is two hits, the second two thirds of the way through); 5-8 hit 1.5&times;, 2&times;, 3&times;, 4&times;, each hit drawing a new note, octave and gate.</td></tr>
-          <tr><th>Voice 2</th><td>While a second page is all at zero, voice 2 draws from the first page too: two different lines with the same probabilities. Raise any fader on it and voice 2 uses it, on its own. Each kind of page decides this separately.</td></tr>
+          <tr><th>Attack, Decay</th><td>Each note's attack or decay time, from a quarter (fader 1) to four times (fader 8) the knob's, faders 4 and 5 a little either side. All at zero: off, the knob exactly.</td></tr>
+          <tr><th>Pluck</th><td>Each note's pluckiness, from half its range below the knob (fader 1) to half above (fader 8). All at zero: off.</td></tr>
+          <tr><th>Depth</th><td>Each note's envelope peak, from an eighth of full (fader 1) to full 5 V (fader 8). All at zero: off, always full.</td></tr>
+          <tr><th>Voice 2</th><td>While a second page is all at zero, voice 2 draws from the first page too: two different lines with the same probabilities. Raise any fader on it and voice 2 uses it, on its own. Each kind of page decides this separately. The envelope pages are drawn with each note: once a step, and at every hit of a new-note ratchet.</td></tr>
           <tr><th>Pickup</th><td>After a page change a fader does nothing until it reaches (or passes) the stored value. While one is waiting, a dashed line on its on-screen fader shows where it is.</td></tr>
-          <tr><th>LEDs</th><td>For 3 s after a fader or button is touched: the page's probabilities, the likeliest fully lit (ratchets flash at their own speed, in time). Then what's playing: the note or octave, a bar up to the gate length, the ratchet flashing at each hit. On a first page voice 2 shares, voice 2 shows dimly too.</td></tr>
+          <tr><th>LEDs</th><td>For 3 s after a fader or button is touched: the page's probabilities, the likeliest fully lit (ratchets flash at their own speed, in time). Then what's playing: the note or octave, a bar up to the gate length, the ratchet flashing at each hit, the envelope's deviation or depth in use (dark when that page is off). On a first page voice 2 shares, voice 2 shows dimly too.</td></tr>
         </table>
       </div>
     </section>
@@ -254,7 +258,7 @@
           <tr><th>Switch middle</th><td>Main <b>decay</b> (10 ms to 4 s), X <b>attack</b> (0.5 ms to 2 s), Y <b>pluckiness</b>: the decay's curve, from a straight line to a sharp drop with a long tail</td></tr>
           <tr><th>Switch down</th><td>Hold it and turn Main for the <b>internal tempo</b>, 40 to 300 BPM (it picks up first, like the other settings; the top LEDs flash on every step). X and Y keep the last position's settings</td></tr>
           <tr><th>Knobs</th><td>A dead zone at each end, so every setting's whole range is reached. After the switch moves, a knob does nothing until it reaches its setting's value; that setting's box above has a dotted outline until then, and the Computer's bottom right LED blinks fast</td></tr>
-          <tr><th>LEDs</th><td>Top four: the 8mu page (lit for a first page, blinking for a second); bottom two: the envelopes. After a scale change, its number (1-31) in binary for a second</td></tr>
+          <tr><th>LEDs</th><td>Top four: the 8mu page's button (lit for a first page, blinking slowly for a second, fast for a third, faster still for a fourth); bottom two: the envelopes. After a scale change, its number (1-31) in binary for a second</td></tr>
         </table>
       </div>
     </section>
@@ -288,17 +292,24 @@
 // Constants mirroring the firmware (wander.h, ui.h, main.cpp, sysex.h)
 // ============================================================================
 const NF = 8;                       // faders
-const NPAIRS = 4, NPAGES = 8;       // NOTES OCTAVES GATES RATCHETS, then voice 2's
-const PAIR_NAMES = ['Notes', 'Octaves', 'Gates', 'Ratchets'];
+// Pages, as wander.h: layer * 4 + button.  Each button cycles through four:
+// its first page, voice 2's, its envelope page, voice 2's envelope page.
+const NPAIRS = 4, NPAGES = 16;
+const KIND_NAMES = ['Notes', 'Octaves', 'Gates', 'Ratchets', 'Attack', 'Decay', 'Pluck', 'Depth'];
 const LETTERS = ['A', 'B', 'C', 'D'];
-const TAB_ORDER = [0, 4, 1, 5, 2, 6, 3, 7];
-const nextPage = (pg, b) => (pg & 3) === b ? pg ^ NPAIRS : b;   // EightMuUi::NextPage
+const TAB_ORDER = [0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15];
+const kindOf = (pg) => (pg & 3) + (pg >= 8 ? 4 : 0);
+const voiceOfPage = (pg) => (pg >> 2) & 1;
+const firstPage = (kind) => kind < 4 ? kind : kind + 4;
+const secondPage = (kind) => firstPage(kind) + 4;
+const nextPage = (pg, b) => (pg & 3) === b ? (pg + 4) % NPAGES : b;   // EightMuUi::NextPage
+const pageName = (pg) => KIND_NAMES[kindOf(pg)] + (voiceOfPage(pg) ? ' 2' : '');
 const ZERO_FADER = 2;               // kZeroFader: a fader this low counts as zero
 const weight = (v) => v <= ZERO_FADER ? 0 : v;
 const SHOW_MS = 3000;               // LEDs show probabilities this long after a touch
 const DIM = 640;                    // voice 2, on a page it shares
 
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x47, PROTOCOL_VERSION = 1;
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x47, PROTOCOL_VERSION = 2;
 const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, PING: 9, TEMPO: 10 };
 const FIRST_FADER_CC = 34;
 const BUTTON_NOTES = [36, 48, 60, 72];
@@ -347,12 +358,23 @@ const FADER_SPEED = [0, 1, 2, 3, 1, 2, 3, 4];
 const RATCHET_NAMES = ['1×', '1.5×', '2×', '3×', '1.5× new', '2× new', '3× new', '4× new'];
 const GATE_NAMES = ['rest', '14%', '29%', '43%', '57%', '71%', '86%', 'tied'];
 const octName = (f) => (f + LOWEST_OCTAVE > 0 ? '+' : '') + (f + LOWEST_OCTAVE) + ' V';
+// Envelope pages (kDevOctaves, kDevPluck): a spread from much less to much
+// more than the knob; DEPTH is the envelope's peak, an eighth to full
+const devOct = (f) => (2 * f - 7) * 2 / 7;           // octaves: -2 (a quarter) to +2 (x4)
+const devPluck = (f) => (2 * f - 7) * 2048 / 7;
+const TIME_DEV_NAMES = ['\u00f74', '\u00f72.7', '\u00f71.8', '\u00f71.2', '\u00d71.2', '\u00d71.8', '\u00d72.7', '\u00d74'];
+const PLUCK_DEV_NAMES = ['\u221250%', '\u221236%', '\u221221%', '\u22127%', '+7%', '+21%', '+36%', '+50%'];
+const depthName = (f) => f === 7 ? 'full' : (f + 1) + '/8';
 
 const PAGE_HINT = [
   'The chance of each note of the scale, from the root up. Faders past the end of a short scale do nothing.',
   'The chance of each octave: fader 1 is −2 V, fader 3 0 V, fader 8 +5 V.',
   'The chance of each gate length: a rest, one to six sevenths of the time to the next hit, or tied into the next note.',
   'The chance of each ratchet: 1×, 1.5×, 2× or 3× a step on one note, then 1.5×, 2×, 3× or 4× with a new note at every hit.',
+  'The chance of each attack time, from a quarter of the Attack knob’s (fader 1) to four times it (fader 8), drawn with each note. All at zero: off, the knob exactly.',
+  'The chance of each decay time, from a quarter of the Decay knob’s (fader 1) to four times it (fader 8), drawn with each note. All at zero: off, the knob exactly.',
+  'The chance of each pluckiness, from half its range below the knob (fader 1) to half above (fader 8), drawn with each note. All at zero: off, the knob exactly.',
+  'The chance of each envelope depth (its peak), from an eighth of full (fader 1, about 0.6 V) to full 5 V (fader 8), drawn with each note. All at zero: off, always full.',
 ];
 
 // Defaults (Engine::DefaultFaders): the second pages start at zero
@@ -360,6 +382,7 @@ const DEFAULTS = [
   [127, 25, 80, 30, 100, 40, 20, 50], [0, 20, 127, 90, 25, 0, 0, 0],
   [10, 15, 40, 90, 110, 60, 30, 25], [127, 10, 30, 12, 0, 6, 16, 6],
   [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0],
+  ...Array.from({ length: 8 }, () => [0, 0, 0, 0, 0, 0, 0, 0]),   // envelope pages: off
 ];
 
 // Knob readouts, as wander.h maps the knobs (values 0-4095 after the dead zones)
@@ -381,7 +404,7 @@ const state = {
     clocked: false, muOnCard: false, switchUp: false, switchDown: false, waiting: false, waitX: false, waitY: false, waitMain: false,
     scale: 1, ratio: 5, slew: 0, attack: 0, decay: 2325, pluck: 2048,
     stepLenMs: 500, stepStart: 0, stepCount: 0,
-    voice: [0, 1].map(() => ({ noteFader: 0, note: 0, octaveFader: 2, gateFader: 3, ratchetFader: 0, hitCount: 0, gate: false, env: 0, mv: 0 })),
+    voice: [0, 1].map(() => ({ noteFader: 0, note: 0, octaveFader: 2, gateFader: 3, ratchetFader: 0, hitCount: 0, gate: false, env: 0, mv: 0, dev: [-1, -1, -1, -1] })),
   },
   history: [],                      // [time ms, mv1, mv2, gate1, gate2]
 };
@@ -398,7 +421,8 @@ function setStatus(kind, text) { $('dot').className = 'dot ' + kind; $('status-t
 const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const scale = () => SCALES[clamp(state.live.scale, 0, SCALES.length - 1)];
 // While a second page is all zero, voice 2 shares the first (Engine::Shared)
-const shared = (pair) => state.values[NPAIRS + pair].every(v => weight(v) === 0);
+const empty = (pg) => state.values[pg].every(v => weight(v) === 0);
+const shared = (kind) => empty(secondPage(kind));
 
 // ============================================================================
 // The 8mu's LEDs, as EightMuUi::Leds lights them (0-4095)
@@ -409,17 +433,18 @@ function inFlash(speed, sinceStep, stepMs) {
   return HIT_AT[speed].some(h => { const d = sinceStep - h * stepMs; return d >= 0 && d < f; });
 }
 function ledValues(now) {
-  const L = state.live, pg = state.page, pair = pg & 3, layer = pg >> 2, vals = state.values[pg];
+  const L = state.live, pg = state.page, kind = kindOf(pg), voice = voiceOfPage(pg), vals = state.values[pg];
   const led = new Array(NF).fill(0);
   const sinceStep = now - L.stepStart;
   if (now < mu.showUntil) {
-    const active = pair === 0 ? activeNotes(scale()) : 0xFF;
+    const active = kind === 0 ? activeNotes(scale()) : 0xFF;
+    const uniform = voice === 0 && kind < 4;   // else an all-zero page is dark
     let most = 0;
     for (let i = 0; i < NF; i++) if ((active >> i) & 1) most = Math.max(most, weight(vals[i]));
     for (let i = 0; i < NF; i++) {
       if (!((active >> i) & 1)) continue;
-      let b = most ? Math.floor(weight(vals[i]) * 4095 / most) : (layer === 0 ? 4095 : 0);
-      if (pair === 3 && !inFlash(FADER_SPEED[i], sinceStep, L.stepLenMs)) b = 0;
+      let b = most ? Math.floor(weight(vals[i]) * 4095 / most) : (uniform ? 4095 : 0);
+      if (kind === 3 && !inFlash(FADER_SPEED[i], sinceStep, L.stepLenMs)) b = 0;
       led[i] = b;
     }
     return led;
@@ -427,13 +452,14 @@ function ledValues(now) {
   const light = (i, b) => { if (i >= 0 && i < NF && b > led[i]) led[i] = b; };
   const show = (v, b) => {
     const vc = L.voice[v];
-    if (pair === 0) light(vc.noteFader, b);
-    else if (pair === 1) light(vc.octaveFader, b);
-    else if (pair === 2) { if (vc.gateFader === 0) light(0, b === 4095 ? DIM : DIM >> 1); else for (let i = 0; i <= vc.gateFader; i++) light(i, b); }
+    if (kind === 0) light(vc.noteFader, b);
+    else if (kind === 1) light(vc.octaveFader, b);
+    else if (kind >= 4) light(vc.dev[kind - 4], b);
+    else if (kind === 2) { if (vc.gateFader === 0) light(0, b === 4095 ? DIM : DIM >> 1); else for (let i = 0; i <= vc.gateFader; i++) light(i, b); }
     else if (inFlash(FADER_SPEED[vc.ratchetFader], sinceStep, L.stepLenMs)) light(vc.ratchetFader, b);
   };
-  if (layer === 0 && shared(pair)) show(1, DIM);
-  show(layer, 4095);
+  if (voice === 0 && shared(kind)) show(1, DIM);
+  show(voice, 4095);
   return led;
 }
 
@@ -444,10 +470,10 @@ const faderEls = [], ledEls = [];
 function buildFaders() {
   const tabs = $('tabs');
   TAB_ORDER.forEach((pg) => {
-    const pair = pg & 3, second = pg >= NPAIRS;
-    const t = document.createElement('button'); t.className = 'tab' + (second ? ' second' : ''); t.dataset.page = pg;
-    t.innerHTML = '<b>' + LETTERS[pair] + (second ? '²' : '') + '</b>' + PAIR_NAMES[pair] + (second ? ' 2' : '');
-    t.title = second ? 'Voice 2’s ' + PAIR_NAMES[pair].toLowerCase() + ' (8mu: press ' + LETTERS[pair] + ' again)' : PAIR_NAMES[pair] + ' (8mu: button ' + LETTERS[pair] + ')';
+    const b = pg & 3, layer = pg >> 2, kind = kindOf(pg), second = voiceOfPage(pg) === 1;
+    const t = document.createElement('button'); t.className = 'tab' + (layer ? ' second' : '') + (layer === 3 ? ' last' : ''); t.dataset.page = pg;
+    t.innerHTML = '<b>' + LETTERS[b] + ['', '\u00b2', '\u00b3', '\u2074'][layer] + '</b>' + pageName(pg);
+    t.title = (second ? 'Voice 2\u2019s ' + KIND_NAMES[kind].toLowerCase() : KIND_NAMES[kind]) + ' (8mu: button ' + LETTERS[b] + (layer ? ', pressed ' + ['', 'twice', 'three times', 'four times'][layer] : '') + ')';
     t.addEventListener('click', () => selectPage(pg, true)); tabs.appendChild(t);
   });
   const row = $('ledrow');
@@ -466,25 +492,31 @@ function buildFaders() {
   }
 }
 // What fader i means on a page
-function describe(pair, i) {
-  const s = scale();
-  if (pair === 0) {
+function describe(kind, i) {
+  const s = scale(), L = state.live;
+  if (kind === 0) {
     const [first, count] = faderNotes(s, i);
     if (!count) return '';
     return count === 1 ? noteName(s, first) : noteName(s, first) + '–' + noteName(s, first + count - 1);
   }
-  if (pair === 1) return octName(i);
-  if (pair === 2) return GATE_NAMES[i];
-  return RATCHET_NAMES[i];
+  if (kind === 1) return octName(i);
+  if (kind === 2) return GATE_NAMES[i];
+  if (kind === 3) return RATCHET_NAMES[i];
+  // with the time it gives, from the knob's setting (within the limits)
+  if (kind === 4) return TIME_DEV_NAMES[i] + ' ' + attackText(clamp(L.attack + devOct(i) * 4095 / 11.966, 0, 4095));
+  if (kind === 5) return TIME_DEV_NAMES[i] + ' ' + decayText(clamp(L.decay + devOct(i) * 4095 / 8.644, 0, 4095));
+  if (kind === 6) return PLUCK_DEV_NAMES[i];
+  return depthName(i) + ' ' + ((i + 1) * 5 / 8).toFixed(1) + ' V';
 }
 function refreshFaders() {
-  const pg = state.page, pair = pg & 3, layer = pg >> 2, vals = state.values[pg];
+  const pg = state.page, kind = kindOf(pg), voice = voiceOfPage(pg), vals = state.values[pg];
+  const kname = KIND_NAMES[kind].toLowerCase();
   [...$('tabs').children].forEach((t) => {
     const p = +t.dataset.page;
     t.classList.toggle('on', p === pg);
-    t.classList.toggle('shared', p >= NPAIRS && shared(p & 3));
+    t.classList.toggle('shared', voiceOfPage(p) === 1 ? shared(kindOf(p)) : (kindOf(p) >= 4 && empty(p)));
   });
-  $('page-hint').textContent = PAGE_HINT[pair];
+  $('page-hint').textContent = PAGE_HINT[kind];
   // Who plays this page
   const sh = $('share');
   sh.innerHTML = '';
@@ -492,12 +524,13 @@ function refreshFaders() {
     const s = document.createElement('span'); s.textContent = text; sh.appendChild(s);
     if (btn) { const b = document.createElement('button'); b.textContent = btn; b.addEventListener('click', fn); sh.appendChild(b); }
   };
-  if (layer === 0) add(shared(pair) ? 'Both voices draw from this page (voice 2’s ' + PAIR_NAMES[pair].toLowerCase() + ' page is all zero).' : 'Voice 1 draws from this page; voice 2 has its own.');
-  else if (shared(pair)) add('All zero: voice 2 shares the first ' + PAIR_NAMES[pair].toLowerCase() + ' page. Raise any fader to give voice 2 its own.',
-    'Copy the first page here', () => bulkSet(pg, state.values[pair].slice()));
+  const off = kind >= 4 && empty(pg) ? ' All zero: off, so ' + (kind === 7 ? 'every envelope is full depth.' : 'the ' + kname + ' is exactly the knob\u2019s.') : '';
+  if (voice === 0) add((shared(kind) ? 'Both voices draw from this page (voice 2\u2019s ' + kname + ' page is all zero).' : 'Voice 1 draws from this page; voice 2 has its own.') + off);
+  else if (shared(kind)) add('All zero: voice 2 shares the first ' + kname + ' page. Raise any fader to give voice 2 its own.',
+    'Copy the first page here', () => bulkSet(pg, state.values[firstPage(kind)].slice()));
   else add('Voice 2 draws from this page, on its own.', 'Clear (share again)', () => bulkSet(pg, new Array(NF).fill(0)));
   // Probabilities: each fader's share of its page
-  const active = pair === 0 ? activeNotes(scale()) : 0xFF;
+  const active = kind === 0 ? activeNotes(scale()) : 0xFF;
   let sum = 0, count = 0;
   for (let i = 0; i < NF; i++) if ((active >> i) & 1) { sum += weight(vals[i]); count++; }
   const L = state.live;
@@ -507,15 +540,15 @@ function refreshFaders() {
     const on = (active >> i) & 1;
     f.root.classList.toggle('unused', !on);
     f.val.textContent = v;
-    f.desc.textContent = describe(pair, i);
+    f.desc.textContent = describe(kind, i);
     let pct = '';
     if (on) {
       if (sum) pct = Math.round(weight(v) * 100 / sum) + '%';
-      else pct = layer === 0 ? Math.round(100 / count) + '%' : '–';
+      else pct = voice === 0 && kind < 4 ? Math.round(100 / count) + '%' : '–';
     }
     f.pct.textContent = pct;
-    const playing = L.voice[layer];
-    const cur = [playing.noteFader, playing.octaveFader, playing.gateFader, playing.ratchetFader][pair];
+    const playing = L.voice[voice];
+    const cur = [playing.noteFader, playing.octaveFader, playing.gateFader, playing.ratchetFader, ...playing.dev][kind];
     f.root.classList.toggle('cur1', i === cur);
     const ph = mu.phys[i], waiting = link.muIns.length > 0 && ph >= 0 && !mu.engaged[i];
     f.ghost.style.display = waiting ? 'block' : 'none';
@@ -785,7 +818,7 @@ function handleCardMessage(m) {
     reengage();
     say('Read the faders from the card.');
     changed();
-  } else if (cmd === CMD.STATUS && p.length >= 32) {
+  } else if (cmd === CMD.STATUS && p.length >= 42) {
     const L = state.live, now = performance.now();
     L.clocked = !!(p[0] & 1); L.muOnCard = !!(p[0] & 2); L.switchUp = !!(p[0] & 4); L.waiting = !!(p[0] & 8); L.switchDown = !!(p[0] & 16);
     L.waitX = !!(p[1] & 1); L.waitY = !!(p[1] & 2); L.waitMain = !!(p[1] & 4);
@@ -797,14 +830,15 @@ function handleCardMessage(m) {
     L.stepStart = now - p[10] / 128 * L.stepLenMs;
     L.stepCount = p[11];
     for (let v = 0; v < 2; v++) {
-      const q = p.slice(12 + 10 * v), vc = L.voice[v];
-      const changedNote = vc.noteFader !== q[0] || vc.octaveFader !== q[2] || vc.gateFader !== q[3] || vc.ratchetFader !== q[4];
+      const q = p.slice(12 + 14 * v), vc = L.voice[v];
+      const dev = [10, 11, 12, 13].map(k => q[k] > 7 ? -1 : q[k]);
+      const changedNote = vc.noteFader !== q[0] || vc.octaveFader !== q[2] || vc.gateFader !== q[3] || vc.ratchetFader !== q[4] || dev.some((d, k) => d !== vc.dev[k]);
       Object.assign(vc, { noteFader: q[0] & 7, note: q[1], octaveFader: q[2] & 7, gateFader: q[3] & 7, ratchetFader: q[4] & 7,
-        hitCount: q[5], gate: !!(q[6] & 1), env: q[7] / 127, mv: ((q[8] << 7) | q[9]) - 8192 });
+        hitCount: q[5], gate: !!(q[6] & 1), env: q[7] / 127, mv: ((q[8] << 7) | q[9]) - 8192, dev });
       if (changedNote) requestRender();
     }
     // the tempo, which Main may have changed with the switch held down
-    if (p.length >= 34) { const t = (p[32] << 7) | p[33]; if (t !== state.tempo && t >= 40) setTempo(t, false); }
+    { const t = (p[40] << 7) | p[41]; if (t !== state.tempo && t >= 40) setTempo(t, false); }
     link.lastStatus = now;
     state.history.push([now, L.voice[0].mv, L.voice[1].mv, L.voice[0].gate, L.voice[1].gate]);
   }
@@ -831,7 +865,7 @@ function choose(vals, active) {
   for (const i of act) { if (t < weight(vals[i])) return i; t -= weight(vals[i]); }
   return act[act.length - 1];
 }
-const pageFor = (v, pair) => v === 1 && !shared(pair) ? state.values[NPAIRS + pair] : state.values[pair];
+const pageFor = (v, kind) => state.values[v === 1 && !shared(kind) ? secondPage(kind) : firstPage(kind)];
 function simDraw(v) {
   const L = state.live, vc = L.voice[v], s = scale();
   vc.noteFader = choose(pageFor(v, 0), activeNotes(s));
@@ -840,6 +874,8 @@ function simDraw(v) {
   vc.octaveFader = choose(pageFor(v, 1), 0xFF);
   vc.gateFader = choose(pageFor(v, 2), 0xFF);
   vc.mv = noteMv(s, vc.note, vc.octaveFader);
+  // envelope deviations: none from a page all at zero
+  vc.dev = [4, 5, 6, 7].map(k => { const f = pageFor(v, k); return f.some(x => weight(x) > 0) ? choose(f, 0xFF) : -1; });
 }
 function simHit(v, now, k) {
   const L = state.live, vc = L.voice[v], sv = sim.voice[v], len = L.stepLenMs;
@@ -877,8 +913,9 @@ function simulate(now) {
       simHit(v, now, sv.next++);
     }
     vc.gate = now < sv.gateUntil;
-    const t = now - sv.envT, decay = 1000 * 0.01 * Math.pow(2, 8.644 * L.decay / 4095);
-    vc.env = t < 0 || t > decay ? 0 : 1 - t / decay;
+    const t = now - sv.envT, d = vc.dev;
+    const decay = 1000 * 0.01 * Math.pow(2, 8.644 * L.decay / 4095) * (d[1] >= 0 ? Math.pow(2, devOct(d[1])) : 1);
+    vc.env = (t < 0 || t > decay ? 0 : 1 - t / decay) * (d[3] >= 0 ? (d[3] + 1) / 8 : 1);
   }
   state.history.push([now, L.voice[0].mv, L.voice[1].mv, L.voice[0].gate, L.voice[1].gate]);
 }
@@ -920,7 +957,16 @@ function voiceText(v) {
   const L = state.live, vc = L.voice[v], s = scale();
   const oct = vc.octaveFader + LOWEST_OCTAVE;
   return { note: noteName(s, Math.min(vc.note, s.n - 1)) + ' ' + (oct > 0 ? '+' : '') + oct,
-    det: (vc.mv / 1000).toFixed(3) + ' V · gate ' + GATE_NAMES[vc.gateFader] + ' · ' + RATCHET_NAMES[vc.ratchetFader] };
+    det: (vc.mv / 1000).toFixed(3) + ' V \u00b7 gate ' + GATE_NAMES[vc.gateFader] + ' \u00b7 ' + RATCHET_NAMES[vc.ratchetFader] + envText(vc.dev) };
+}
+// The envelope deviations in use, if any
+function envText(d) {
+  const parts = [];
+  if (d[0] >= 0) parts.push('A ' + TIME_DEV_NAMES[d[0]]);
+  if (d[1] >= 0) parts.push('D ' + TIME_DEV_NAMES[d[1]]);
+  if (d[2] >= 0) parts.push('P ' + PLUCK_DEV_NAMES[d[2]]);
+  if (d[3] >= 0) parts.push('depth ' + depthName(d[3]));
+  return parts.length ? ' \u00b7 ' + parts.join(' ') : '';
 }
 function drawReadouts() {
   const L = state.live, card = link.cardOnline && performance.now() - link.lastStatus < 3000;
@@ -944,9 +990,9 @@ function drawReadouts() {
     $('g' + (v + 1)).classList.toggle('on', vc.gate);
     $('e' + (v + 1)).style.width = Math.round(vc.env * 100) + '%';
   }
-  const own = [0, 1, 2, 3].filter(p => !shared(p)).map(p => PAIR_NAMES[p].toLowerCase());
+  const own = [0, 1, 2, 3, 4, 5, 6, 7].filter(k => !shared(k)).map(k => KIND_NAMES[k].toLowerCase());
   $('src1').textContent = '';
-  $('src2').textContent = own.length === 0 ? '· shares every page' : own.length === 4 ? '· all its own pages' : '· own ' + own.join(', ');
+  $('src2').textContent = own.length === 0 ? '\u00b7 shares every page' : own.length === 8 ? '\u00b7 all its own pages' : '\u00b7 own ' + own.join(', ');
 }
 
 function frame(now) {
@@ -963,10 +1009,12 @@ const store = {
   get(k, d) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
 };
-// A preset: 8 pages of 8 fader values, and the internal tempo
+// A preset: 16 pages of 8 fader values, and the internal tempo.  Presets
+// from before the envelope pages have 8 pages: those pages come in off.
 function cleanPreset(o) {
-  if (!o || typeof o !== 'object' || !Array.isArray(o.v) || o.v.length !== NPAGES) return null;
-  const v = o.v.map(r => Array.isArray(r) && r.length === NF ? r.map(x => clamp(Math.round(+x) || 0, 0, 127)) : null);
+  if (!o || typeof o !== 'object' || !Array.isArray(o.v) || (o.v.length !== NPAGES && o.v.length !== 8)) return null;
+  const rows = o.v.length === NPAGES ? o.v : [...o.v, ...Array.from({ length: 8 }, () => new Array(NF).fill(0))];
+  const v = rows.map(r => Array.isArray(r) && r.length === NF ? r.map(x => clamp(Math.round(+x) || 0, 0, 127)) : null);
   if (v.some(r => !r)) return null;
   return { name: String(o.name || 'Preset').slice(0, 60), v, tempo: clamp(Math.round(+o.tempo) || 120, 40, 300) };
 }
