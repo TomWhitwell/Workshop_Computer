@@ -25,14 +25,6 @@ uf2:
   - path: UF2/qigong_timer.0.9.0.uf2
     name: QiGong Timer 0.9.0
 
-audio-sample:
-  - url: samples/session_demo.mp3
-    title: A short session (three 10-second intervals) with a stand-in chime and bell, default reverb
-  - url: samples/setup_clicks.mp3
-    title: The soft set-up clicks (intervals, minutes, seconds), after a preview chime and bell for scale
-  - url: samples/preview_mode.mp3
-    title: Preview mode (chime and bell alternately, once a second)
-
 panel:
   inputs:
     - id: AudioIn1
