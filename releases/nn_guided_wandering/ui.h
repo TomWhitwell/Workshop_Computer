@@ -124,7 +124,8 @@ public:
 			int32_t most = 0;
 			for (int i = 0; i < kFaders; i++)
 				if ((active >> i) & 1 && Weight(e.faders[page][i]) > most) most = Weight(e.faders[page][i]);
-			int32_t flash = FlashLength(e.stepLen);
+			int32_t flash12 = 12 * FlashLength(e.stepLen);
+			int32_t at12 = 12 * (e.sinceStep < e.stepLen ? e.sinceStep : e.stepLen);
 			for (int i = 0; i < kFaders; i++)
 			{
 				if (!((active >> i) & 1)) continue;
@@ -132,12 +133,15 @@ public:
 				// Ratchets flash at their own speed, in time with the steps
 				if (kind == Ratchets)
 				{
+					// Compared in twelfths of a step, to avoid dividing (on
+					// this processor a division is slow); a step is under
+					// 2^27 samples, so these stay within 32 bits
 					int sp = SpeedOf(i);
 					bool on = false;
 					for (int k = 0; k < kHits[sp]; k++)
 					{
-						int32_t d = e.sinceStep - e.HitPosition(sp, k);
-						if (d >= 0 && d < flash) on = true;
+						int32_t d = at12 - e.stepLen * kHitTwelfths[sp][k];
+						if (d >= 0 && d < flash12) on = true;
 					}
 					if (!on) b = 0;
 				}

@@ -456,7 +456,15 @@ public:
 		int32_t gap = 0;              // samples of forced gap before a gate
 		uint8_t hitCount = 0;         // counts hits, for the web editor
 		Envelope env;
+
+		// The next set of choices, prepared a step at a time in the quiet
+		// samples between hits (see Prepare), so that a hit only has to
+		// take them.  prepared counts the steps done; kPrepSteps is ready.
+		struct Choices {int ratchet, noteFader, note, octave, gate, dev[kEnvKinds]; int scale;};
+		Choices next = {};
+		int prepared = 0;
 	};
+	static constexpr int kPrepSteps = 4 + kEnvKinds;
 	Voice voice[kVoices];
 
 	// Clock and step timing
@@ -548,7 +556,11 @@ public:
 	{
 		busy = false;
 		ScanPage(scanPage);
-		scanPage = (scanPage + 1) % kPages;
+		scanPage = (scanPage + 1) & (kPages - 1);
+		// One step of preparing the voices' next choices, alternating voices
+		prepVoice ^= 1;
+		if (voice[prepVoice].prepared < kPrepSteps) Prepare(prepVoice);
+		else if (voice[prepVoice ^ 1].prepared < kPrepSteps) Prepare(prepVoice ^ 1);
 
 		// A step starts with voice 1's choices, and voice 2's follow one
 		// sample later, so the two never land in the same interrupt
@@ -726,17 +738,89 @@ private:
 	int scanPage = 0;
 	bool voice2Pending = false;
 
+	int prepVoice = 0;
+	uint32_t pageSig[kPages] = {};
+
+	// Look at one page: is it all at zero, and has it changed?  A change
+	// means the prepared choices may be out of date, so they're redrawn.
 	void ScanPage(int p)
 	{
-		if (Empty(p)) emptyPages |= uint16_t(1 << p);
+		uint32_t sig = 0;
+		bool empty = true;
+		for (int i = 0; i < kFaders; i++)
+		{
+			int w = Weight(faders[p][i]);
+			if (w) empty = false;
+			sig = (sig << 3) ^ (sig >> 29) ^ uint32_t(w);
+		}
+		if (empty) emptyPages |= uint16_t(1 << p);
 		else emptyPages &= uint16_t(~(1 << p));
+		if (sig != pageSig[p])
+		{
+			pageSig[p] = sig;
+			voice[0].prepared = voice[1].prepared = 0;
+		}
+	}
+
+	// One step of drawing voice v's next choices
+	void Prepare(int v)
+	{
+		Voice &vc = voice[v];
+		Voice::Choices &c = vc.next;
+		int step = vc.prepared++;
+		switch (step)
+		{
+		case 0:
+			c.ratchet = Choose(Faders(v, Ratchets), 0xFF, NextRandom(vc.rng));
+			break;
+		case 1:
+		{
+			const Scale &s = CurrentScale();
+			c.scale = scale;
+			c.noteFader = Choose(Faders(v, Notes), ActiveNoteFaders(s), NextRandom(vc.rng));
+			int first, count;
+			FaderNotes(s, c.noteFader, first, count);
+			c.note = first + (count > 1 ? Below(NextRandom(vc.rng), uint32_t(count)) : 0);
+			break;
+		}
+		case 2:
+			c.octave = Choose(Faders(v, Octaves), 0xFF, NextRandom(vc.rng));
+			break;
+		case 3:
+			c.gate = Choose(Faders(v, Gates), 0xFF, NextRandom(vc.rng));
+			break;
+		default:
+		{
+			// The envelope's deviations: none from a page all at zero
+			int k = step - 4;
+			int page = PageFor(v, kPairs + k);
+			c.dev[k] = (emptyPages >> page) & 1 ? -1 : Choose(faders[page], 0xFF, NextRandom(vc.rng));
+			break;
+		}
+		}
+	}
+
+	// Make sure voice v's next choices are ready (normally they long since
+	// are), and that the note suits the scale playing now
+	void Ready(int v)
+	{
+		Voice &vc = voice[v];
+		while (vc.prepared < kPrepSteps) Prepare(v);
+		if (vc.next.scale != scale)
+		{
+			int keep = vc.prepared;
+			vc.prepared = 1;
+			Prepare(v);
+			vc.prepared = keep;
+		}
 	}
 
 	// A new step for voice v: its ratchet and its first note
 	void StartVoice(int v)
 	{
 		Voice &vc = voice[v];
-		vc.ratchetFader = Choose(Faders(v, Ratchets), 0xFF, NextRandom(vc.rng));
+		Ready(v);
+		vc.ratchetFader = vc.next.ratchet;
 		int sp = SpeedOf(vc.ratchetFader);
 		vc.hits = kHits[sp];
 		for (int k = 0; k < vc.hits; k++) vc.hitAt[k] = HitPosition(sp, k);
@@ -745,25 +829,21 @@ private:
 		Hit(v);
 	}
 
-	// Draw a note, octave and gate length for voice v
+	// A new note, octave, gate length and envelope for voice v: the choices
+	// prepared in advance, which then start being prepared afresh
 	void Draw(int v)
 	{
 		Voice &vc = voice[v];
-		const Scale &s = CurrentScale();
-		vc.noteFader = Choose(Faders(v, Notes), ActiveNoteFaders(s), NextRandom(vc.rng));
-		int first, count;
-		FaderNotes(s, vc.noteFader, first, count);
-		vc.note = first + (count > 1 ? Below(NextRandom(vc.rng), uint32_t(count)) : 0);
-		vc.octaveFader = Choose(Faders(v, Octaves), 0xFF, NextRandom(vc.rng));
-		vc.gateFader = Choose(Faders(v, Gates), 0xFF, NextRandom(vc.rng));
-		vc.targetMv = NoteMillivolts(s, vc.note, vc.octaveFader);
-		// The envelope's deviations: none from a page all at zero
-		for (int k = 0; k < kEnvKinds; k++)
-		{
-			int page = PageFor(v, kPairs + k);
-			vc.dev[k] = (emptyPages >> page) & 1 ? -1 : Choose(faders[page], 0xFF, NextRandom(vc.rng));
-		}
+		Ready(v);
+		const Voice::Choices &c = vc.next;
+		vc.noteFader = c.noteFader;
+		vc.note = c.note;
+		vc.octaveFader = c.octave;
+		vc.gateFader = c.gate;
+		for (int k = 0; k < kEnvKinds; k++) vc.dev[k] = c.dev[k];
+		vc.targetMv = NoteMillivolts(CurrentScale(), vc.note, vc.octaveFader);
 		EnvelopeRates(vc);
+		vc.prepared = 0;
 	}
 
 	// Play the next hit of voice v's step: its gate and envelope

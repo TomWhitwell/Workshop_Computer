@@ -843,6 +843,7 @@ function handleCardMessage(m) {
     }
     // the tempo, which Main may have changed with the switch held down
     L.busyUs = p.length >= 43 ? p[42] : -1;
+    L.busyParts = p.length >= 49 ? p.slice(43, 49) : null;
     { const t = (p[40] << 7) | p[41]; if (t !== state.tempo && t >= 40) setTempo(t, false); }
     link.lastStatus = now;
     state.history.push([now, L.voice[0].mv, L.voice[1].mv, L.voice[0].gate, L.voice[1].gate]);
@@ -990,7 +991,8 @@ function drawReadouts() {
   // How long the card's audio interrupt took at most over the last second:
   // past about 20 us the knobs stop reading properly
   const b = card && L.busyUs >= 0 ? L.busyUs : -1;
-  $('busy').textContent = b < 0 ? '' : 'Card load: the audio interrupt took at most ' + b + ' µs of the ~20 µs it has' + (b >= 17 ? ' — too close: knobs may stop responding' : '') + '.';
+  const parts = L.busyParts ? ' (engine ' + L.busyParts[0] + ', drawing ' + L.busyParts[1] + ', knobs ' + L.busyParts[2] + ', 8mu ' + L.busyParts[3] + ', LEDs ' + L.busyParts[4] + ', status ' + L.busyParts[5] + ')' : '';
+  $('busy').textContent = b < 0 ? '' : 'Card load: the audio interrupt took at most ' + b + ' µs of the ~20 µs it has' + parts + (b >= 17 ? ' — too close: knobs may stop responding' : '') + '.';
   $('busy').style.color = b >= 17 ? cssVar('--bad') : '';
   $('tempo-box').classList.toggle('waiting', !!(card && L.switchDown && L.waitMain));
   for (let v = 0; v < 2; v++) {

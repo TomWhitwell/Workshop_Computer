@@ -27,7 +27,7 @@
 // Card -> web
 //   STATE     02 version page tempo(2) values[128]
 //   STATUS    07 flags flags2 scale ratio slew attack decay pluck
-//                steplen(2) steppos stepcount  voice1[14] voice2[14] tempo(2) busy
+//                steplen(2) steppos stepcount  voice1[14] voice2[14] tempo(2) busy parts[6]
 //             flags      bit 0 following a clock at Pulse In 1, bit 1 8mu on
 //                        the card, bit 2 switch up (knobs are scale, clock
 //                        and slew, not decay, attack and pluck), bit 3 a
@@ -52,6 +52,9 @@
 //                        held down, or from TEMPO)
 //             busy       the longest the card's audio interrupt took over the
 //                        last second, in microseconds (it has about 20)
+//             parts      the same for each part of the work: the engine
+//                        alone, the engine drawing new choices, the knobs,
+//                        the 8mu, the LEDs and this status
 
 #ifndef GUIDED_WANDERING_SYSEX_H
 #define GUIDED_WANDERING_SYSEX_H
@@ -149,7 +152,7 @@ inline int32_t Get14(const uint8_t *in)
 
 static constexpr int kVoiceLen = 14;
 static constexpr int kStateLen = 4 + 4 + kNumValues + 1;
-static constexpr int kStatusLen = 4 + 8 + 4 + 2 * kVoiceLen + 2 + 1 + 1;
+static constexpr int kStatusLen = 4 + 8 + 4 + 2 * kVoiceLen + 2 + 1 + 6 + 1;
 
 } // namespace sysex
 

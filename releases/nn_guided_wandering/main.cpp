@@ -111,8 +111,10 @@ public:
 
 		// On a sample where the engine has just drawn new notes, the control
 		// work waits a sample, so the two never add up
+		int part = engine.busy ? 1 : 0;
 		if (!engine.busy)
 		{
+			if ((controlCount & 7) == 0) part = 2 + (controlCount >> 3);
 			switch (controlCount)
 			{
 			case 0: ControlKnobs(); break;
@@ -131,14 +133,19 @@ public:
 		PulseOut1(engine.gate[0]);
 		PulseOut2(engine.gate[1]);
 
-		// The longest this has taken over the last second, for the web editor
+		// The longest this has taken over the last second, for the web
+		// editor: overall, and for each part of the work (0 the engine alone,
+		// 1 the engine drawing new choices, 2-5 the knobs, the 8mu, the LEDs
+		// and the editor's status)
 		uint32_t us = time_us_32() - startUs;
 		if (us > busiestUs) busiestUs = us;
+		if (us > busiestPart[part]) busiestPart[part] = us;
 		if (++busySamples >= 48000)
 		{
 			busySamples = 0;
 			shownBusiestUs = busiestUs;
 			busiestUs = 0;
+			for (int i = 0; i < 6; i++) {shownPart[i] = busiestPart[i]; busiestPart[i] = 0;}
 		}
 	}
 
@@ -151,6 +158,7 @@ private:
 	bool started = false;
 	bool waiting = false;     // a knob is waiting to pick up its setting
 	uint32_t busiestUs = 0, shownBusiestUs = 0;
+	uint32_t busiestPart[6] = {}, shownPart[6] = {};
 	int32_t busySamples = 0;
 
 	// Knob settings, with soft takeover when the switch moves.
@@ -274,9 +282,9 @@ private:
 			// Switch held down: the top four LEDs flash on every step
 			bool beat = engine.sinceStep < engine.stepLen / 4;
 			for (int i = 0; i < 4; i++) LedOn(i, beat);
-			LedBrightness(4, uint16_t((engine.audio[0] * 4095) / 1706));
+			LedBrightness(4, uint16_t((engine.audio[0] * 9831) >> 12));
 			if (waiting) LedOn(5, blink % 150 < 75);
-			else LedBrightness(5, uint16_t((engine.audio[1] * 4095) / 1706));
+			else LedBrightness(5, uint16_t((engine.audio[1] * 9831) >> 12));
 		}
 		else
 		{
@@ -289,9 +297,9 @@ private:
 				else on = i < 2 && engine.gate[i];
 				LedOn(i, on);
 			}
-			LedBrightness(4, uint16_t((engine.audio[0] * 4095) / 1706));
+			LedBrightness(4, uint16_t((engine.audio[0] * 9831) >> 12));
 			if (waiting) LedOn(5, blink % 150 < 75);
-			else LedBrightness(5, uint16_t((engine.audio[1] * 4095) / 1706));
+			else LedBrightness(5, uint16_t((engine.audio[1] * 9831) >> 12));
 		}
 	}
 
@@ -437,6 +445,7 @@ private:
 		status[n++] = uint8_t(tempo >> 7);
 		status[n++] = uint8_t(tempo & 127);
 		status[n++] = uint8_t(shownBusiestUs > 127 ? 127 : shownBusiestUs);
+		for (int i = 0; i < 6; i++) status[n++] = uint8_t(shownPart[i] > 127 ? 127 : shownPart[i]);
 	}
 
 	//------------------------------------------------------------------------
