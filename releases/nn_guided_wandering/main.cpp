@@ -178,7 +178,7 @@ private:
 	// Held down: Main is the internal tempo (as a knob position, 40-300 BPM).
 	enum Setting {SetScale, SetRatio, SetSlew, SetDecay, SetAttack, SetPluck, SetTempo, kSettings};
 	int32_t settings[kSettings] = {
-		KnobForZone(1, kNumScales),           // Major
+		KnobForZone(0, kNumScales),           // Major
 		KnobForZone(kUnityRatio, kNumRatios), // x1
 		2048,                                 // no slew (centre)
 		2325,                                 // decay ~300ms
@@ -275,7 +275,7 @@ private:
 		}
 
 		// The Computer's LEDs.  For a second after the scale changes, its
-		// number (1-31) in binary, LED 1 the lowest bit.  Otherwise LEDs 1-4
+		// number (1-37) in binary, LED 1 the lowest bit.  Otherwise LEDs 1-4
 		// show the 8mu page's button (lit for a first page, blinking slowly
 		// for a second, fast for a third, faster still for a fourth),
 		// or with no 8mu the two gates; LEDs 5 and 6 the two envelopes.

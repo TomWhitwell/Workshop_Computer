@@ -12,7 +12,7 @@
 //   4 NOTES 2   5 OCTAVES 2   6 GATES 2   7 RATCHETS 2    (A-D pressed again)
 //   8 ATTACK    9 DECAY      10 PLUCK    11 DEPTH         (and again)
 //  12 ATTACK 2 13 DECAY 2    14 PLUCK 2  15 DEPTH 2       (and again)
-// (Version 1 had only pages 0-7.)
+// (Version 1 had only pages 0-7; version 2 had a different list of scales.)
 //
 // Web -> card
 //   HELLO     01                        card replies with STATE
@@ -38,7 +38,7 @@
 //             flags2     bits 0-2 the X, Y and Main knob is waiting, bits 3-6
 //                        voice 2 shares the NOTES, OCTAVES, GATES, RATCHETS
 //                        first page (its second page is all zero)
-//             scale      0-30, as kScales in wander.h
+//             scale      0-36, as kScales in wander.h
 //             ratio      0-10: /8 /6 /4 /3 /2 x1 x2 x3 x4 x6 x8
 //             slew attack decay pluck   the knob settings, 0-127
 //             steplen    milliseconds a step lasts, as estimated
@@ -68,7 +68,7 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x47;
-static constexpr uint8_t kVersion = 2;
+static constexpr uint8_t kVersion = 3;
 static constexpr int kNumValues = 16 * 8;
 
 enum Cmd : uint8_t

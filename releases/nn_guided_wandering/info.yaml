@@ -55,9 +55,11 @@ summary: |
   anything by accident. For 3 seconds after a touch the 8mu's LEDs show the
   page's probabilities, then what is playing.<br><br>
 
-  31 scales: the usual modes and pentatonics, just intonation, the harmonic
-  series, gamelan slendro and pelog, maqam Rast and Bayati, and 5-, 7-, 13-,
-  19- and 24-tone equal temperaments. Each voice has a calibrated 1V/oct
+  37 scales of up to eight notes, one fader each: the usual modes and
+  pentatonics, bebop, ragas Bhairav, Todi, Marwa, Malkauns and Hindol in just
+  intonation, maqamat Rast, Bayati, Hijaz and Saba, just intonation, the
+  harmonic and subharmonic series, gamelan slendro and pelog, and 5-, 7- and
+  8-tone equal temperaments. Each voice has a calibrated 1V/oct
   pitch with slew, a gate, and an attack-decay envelope with a pluckiness
   control.<br><br>
 
@@ -151,13 +153,14 @@ controls:
       main:
         name: Scale
         description: >
-          31 scales round the knob: Chromatic, Major, Natural minor, Harmonic
-          minor, Melodic minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian,
-          Major and Minor pentatonic, Blues, Whole tone, Diminished, Hirajoshi,
-          Fifths, Octaves, Just major, Just minor, Harmonic series, Slendro,
-          Pelog, Pelog selisir, Maqam Rast, Maqam Bayati, 5-TET, 7-TET,
-          13-TET, 19-TET and 24-TET. The Computer's LEDs show its number
-          (1-31) in binary for a second when it changes.
+          37 scales round the knob: Major, Natural minor, Harmonic minor, Melodic
+          minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Major pentatonic,
+          Minor pentatonic, Blues, Whole tone, Diminished, Bebop dominant, Hirajoshi,
+          Fifths, Octaves, Raga Bhairav, Raga Todi, Raga Marwa, Raga Malkauns, Raga
+          Hindol, Maqam Rast, Maqam Bayati, Maqam Hijaz, Maqam Saba, Just major, Just
+          minor, Harmonic series, Subharmonic series, Slendro, Pelog, Pelog selisir,
+          5-TET, 7-TET, 8-TET. The Computer's LEDs show its number (1-37) in binary
+          for a second when it changes.
       x:
         name: Clock
         description: Eleven equal zones - /8, /6, /4, /3, /2, x1 (centre), x2, x3, x4, x6, x8. Multiplied beats are spaced from the measured clock and restarted by every clock, so they never drift.

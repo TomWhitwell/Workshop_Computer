@@ -240,7 +240,7 @@
         <p>The 8mu can plug into the module (no computer needed) or into this computer, which passes it on to the card. Its faders are <b>relative probabilities</b>: one at zero is never chosen, one twice as high as another twice as often. A first page all at zero makes every choice equally likely.</p>
         <table class="jacks">
           <tr><th>Buttons</th><td>A <b>Notes</b>, B <b>Octaves</b>, C <b>Gates</b>, D <b>Ratchets</b>. Press the same button again for its second page (voice 2's), again for its envelope page (A <b>Attack</b>, B <b>Decay</b>, C <b>Pluck</b>, D <b>Depth</b>), again for voice 2's envelope page, and again to go back.</td></tr>
-          <tr><th>Notes</th><td>One fader per note of the scale, from the root up. A scale with fewer than eight notes ignores the extra faders; one with more shares them out, each fader a run of neighbouring notes.</td></tr>
+          <tr><th>Notes</th><td>One fader per note of the scale, from the root up. A scale with fewer than eight notes ignores the extra faders; none has more, so every note has its own fader.</td></tr>
           <tr><th>Octaves</th><td>Fader 1 &minus;2 V up to fader 8 +5 V (fader 3 is 0 V).</td></tr>
           <tr><th>Gates</th><td>Fader 1 a rest (no gate, no envelope; the pitch still moves), 2-7 one to six sevenths of the time to the next hit, 8 tied: the gate stays up into the next note, which glides in without a new envelope.</td></tr>
           <tr><th>Ratchets</th><td>Faders 1-4 hit 1&times;, 1.5&times;, 2&times;, 3&times; a step on one note (1.5&times; is two hits, the second two thirds of the way through); 5-8 hit 1.5&times;, 2&times;, 3&times;, 4&times;, each hit drawing a new note, octave and gate.</td></tr>
@@ -258,11 +258,11 @@
       <h2>Panel</h2>
       <div class="notes">
         <table class="jacks">
-          <tr><th>Switch up</th><td>Main <b>scale</b> (31), X <b>clock</b> &divide;8, &divide;6, &divide;4, &divide;3, &divide;2, &times;1 (centre), &times;2, &times;3, &times;4, &times;6, &times;8, Y <b>slew</b> on the pitch, two-sided: off at the centre; right of centre every note glides, 1 ms to 2 s; left of centre only notes a tie leads into glide (the same times), the rest jump</td></tr>
+          <tr><th>Switch up</th><td>Main <b>scale</b> (37: modes, pentatonics, ragas, maqamat, just intonation, harmonic and subharmonic series, gamelan, 5-, 7- and 8-TET), X <b>clock</b> &divide;8, &divide;6, &divide;4, &divide;3, &divide;2, &times;1 (centre), &times;2, &times;3, &times;4, &times;6, &times;8, Y <b>slew</b> on the pitch, two-sided: off at the centre; right of centre every note glides, 1 ms to 2 s; left of centre only notes a tie leads into glide (the same times), the rest jump</td></tr>
           <tr><th>Switch middle</th><td>Main <b>decay</b> (10 ms to 4 s), X <b>attack</b> (0.5 ms to 2 s), Y <b>pluckiness</b>: the decay's curve, from a straight line to a sharp drop with a long tail</td></tr>
           <tr><th>Switch down</th><td>Hold it and turn Main for the <b>internal tempo</b>, 40 to 300 BPM (it picks up first, like the other settings; the top LEDs flash on every step). X and Y keep the last position's settings</td></tr>
           <tr><th>Knobs</th><td>A dead zone at each end, so every setting's whole range is reached. After the switch moves, a knob does nothing until it reaches its setting's value; that setting's box above has a dotted outline until then, and the Computer's bottom right LED blinks fast</td></tr>
-          <tr><th>LEDs</th><td>Top four: the 8mu page's button (lit for a first page, blinking slowly for a second, fast for a third, faster still for a fourth); bottom two: the envelopes. After a scale change, its number (1-31) in binary for a second</td></tr>
+          <tr><th>LEDs</th><td>Top four: the 8mu page's button (lit for a first page, blinking slowly for a second, fast for a third, faster still for a fourth); bottom two: the envelopes. After a scale change, its number (1-37) in binary for a second</td></tr>
         </table>
       </div>
     </section>
@@ -314,7 +314,7 @@ const weight = (v) => v <= ZERO_FADER ? 0 : v;
 const SHOW_MS = 3000;               // LEDs show probabilities this long after a touch
 const DIM = 640;                    // voice 2, on a page it shares
 
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x47, PROTOCOL_VERSION = 2;
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x47, PROTOCOL_VERSION = 3;
 const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, PING: 9, TEMPO: 10 };
 const FIRST_FADER_CC = 34;
 const BUTTON_NOTES = [36, 48, 60, 72];
@@ -322,21 +322,25 @@ const EIGHTMU_BLINK_OFF = [0xF0, 0x7D, 0x00, 0x00, 0x30, 0xF7];
 
 // Scales, as kScales in wander.h: name, notes, equal steps (or 0), cents
 const SCALES = [
-  ['Chromatic', 12, 12], ['Major', 7, 0, [0, 200, 400, 500, 700, 900, 1100]],
-  ['Natural minor', 7, 0, [0, 200, 300, 500, 700, 800, 1000]], ['Harmonic minor', 7, 0, [0, 200, 300, 500, 700, 800, 1100]],
-  ['Melodic minor', 7, 0, [0, 200, 300, 500, 700, 900, 1100]], ['Dorian', 7, 0, [0, 200, 300, 500, 700, 900, 1000]],
-  ['Phrygian', 7, 0, [0, 100, 300, 500, 700, 800, 1000]], ['Lydian', 7, 0, [0, 200, 400, 600, 700, 900, 1100]],
-  ['Mixolydian', 7, 0, [0, 200, 400, 500, 700, 900, 1000]], ['Locrian', 7, 0, [0, 100, 300, 500, 600, 800, 1000]],
-  ['Major pentatonic', 5, 0, [0, 200, 400, 700, 900]], ['Minor pentatonic', 5, 0, [0, 300, 500, 700, 1000]],
-  ['Blues', 6, 0, [0, 300, 500, 600, 700, 1000]], ['Whole tone', 6, 0, [0, 200, 400, 600, 800, 1000]],
-  ['Diminished', 8, 0, [0, 200, 300, 500, 600, 800, 900, 1100]], ['Hirajoshi', 5, 0, [0, 200, 300, 700, 800]],
+  ['Major', 7, 0, [0, 200, 400, 500, 700, 900, 1100]], ['Natural minor', 7, 0, [0, 200, 300, 500, 700, 800, 1000]],
+  ['Harmonic minor', 7, 0, [0, 200, 300, 500, 700, 800, 1100]], ['Melodic minor', 7, 0, [0, 200, 300, 500, 700, 900, 1100]],
+  ['Dorian', 7, 0, [0, 200, 300, 500, 700, 900, 1000]], ['Phrygian', 7, 0, [0, 100, 300, 500, 700, 800, 1000]],
+  ['Lydian', 7, 0, [0, 200, 400, 600, 700, 900, 1100]], ['Mixolydian', 7, 0, [0, 200, 400, 500, 700, 900, 1000]],
+  ['Locrian', 7, 0, [0, 100, 300, 500, 600, 800, 1000]], ['Major pentatonic', 5, 0, [0, 200, 400, 700, 900]],
+  ['Minor pentatonic', 5, 0, [0, 300, 500, 700, 1000]], ['Blues', 6, 0, [0, 300, 500, 600, 700, 1000]],
+  ['Whole tone', 6, 0, [0, 200, 400, 600, 800, 1000]], ['Diminished', 8, 0, [0, 200, 300, 500, 600, 800, 900, 1100]],
+  ['Bebop dominant', 8, 0, [0, 200, 400, 500, 700, 900, 1000, 1100]], ['Hirajoshi', 5, 0, [0, 200, 300, 700, 800]],
   ['Fifths', 2, 0, [0, 700]], ['Octaves', 1, 0, [0]],
-  ['Just major', 7, 0, [0, 204, 386, 498, 702, 884, 1088]], ['Just minor', 7, 0, [0, 204, 316, 498, 702, 814, 1018]],
-  ['Harmonic series', 8, 0, [0, 204, 386, 551, 702, 841, 969, 1088]],
-  ['Slendro', 5, 0, [0, 231, 474, 717, 955]], ['Pelog', 7, 0, [0, 120, 258, 539, 675, 785, 943]],
-  ['Pelog selisir', 5, 0, [0, 120, 258, 675, 785]],
-  ['Maqam Rast', 7, 0, [0, 200, 350, 500, 700, 900, 1050]], ['Maqam Bayati', 7, 0, [0, 150, 300, 500, 700, 800, 1000]],
-  ['5-TET', 5, 5], ['7-TET', 7, 7], ['13-TET', 13, 13], ['19-TET', 19, 19], ['24-TET', 24, 24],
+  ['Raga Bhairav', 7, 0, [0, 112, 386, 498, 702, 814, 1088]], ['Raga Todi', 7, 0, [0, 112, 294, 590, 702, 814, 1088]],
+  ['Raga Marwa', 6, 0, [0, 112, 386, 590, 884, 1088]], ['Raga Malkauns', 5, 0, [0, 316, 498, 814, 996]],
+  ['Raga Hindol', 5, 0, [0, 386, 590, 884, 1088]], ['Maqam Rast', 7, 0, [0, 200, 350, 500, 700, 900, 1050]],
+  ['Maqam Bayati', 7, 0, [0, 150, 300, 500, 700, 800, 1000]], ['Maqam Hijaz', 7, 0, [0, 100, 400, 500, 700, 800, 1000]],
+  ['Maqam Saba', 7, 0, [0, 150, 300, 400, 700, 800, 1000]], ['Just major', 7, 0, [0, 204, 386, 498, 702, 884, 1088]],
+  ['Just minor', 7, 0, [0, 204, 316, 498, 702, 814, 1018]], ['Harmonic series', 8, 0, [0, 204, 386, 551, 702, 841, 969, 1088]],
+  ['Subharmonic series', 8, 0, [0, 112, 231, 359, 498, 649, 814, 996]], ['Slendro', 5, 0, [0, 231, 474, 717, 955]],
+  ['Pelog', 7, 0, [0, 120, 258, 539, 675, 785, 943]], ['Pelog selisir', 5, 0, [0, 120, 258, 675, 785]],
+  ['5-TET', 5, 5], ['7-TET', 7, 7],
+  ['8-TET', 8, 8],
 ].map(([name, n, tet, cents]) => ({ name, n, tet, cents: cents || [] }));
 const noteCents = (s, k) => s.tet ? Math.floor((k * 1200 + (s.tet >> 1)) / s.tet) : s.cents[k];
 function faderNotes(s, f) {          // FaderNotes: [first, count]
@@ -409,7 +413,7 @@ const state = {
   // live, from the card's STATUS (or simulated when there's no card)
   live: {
     clocked: false, muOnCard: false, switchUp: false, switchDown: false, waiting: false, waitX: false, waitY: false, waitMain: false,
-    scale: 1, ratio: 5, slew: 0, attack: 0, decay: 2325, pluck: 2048,
+    scale: 0, ratio: 5, slew: 0, attack: 0, decay: 2325, pluck: 2048,
     stepLenMs: 500, stepStart: 0, stepCount: 0,
     voice: [0, 1].map(() => ({ noteFader: 0, note: 0, octaveFader: 2, gateFader: 3, ratchetFader: 0, hitCount: 0, gate: false, env: 0, mv: 0, dev: [-1, -1, -1, -1] })),
   },

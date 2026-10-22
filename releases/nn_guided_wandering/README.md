@@ -56,10 +56,9 @@ depth. They are drawn with the note: once a step, and again at every hit of
 a new-note ratchet (faders 5-8 on RATCHETS), so a held-note ratchet repeats
 its envelope.
 
-**Notes.** One fader per note of the scale. A scale with fewer than eight
-notes ignores the extra faders. One with more (Chromatic, 13-, 19- and
-24-TET) shares its notes out: each fader covers a run of neighbouring notes,
-and a note is picked evenly from within the chosen fader's run.
+**Notes.** One fader per note of the scale, from the root up. A scale with
+fewer than eight notes ignores the extra faders. No scale has more than
+eight, so every note has a fader of its own.
 
 **Gates.** Fader 1 is a rest: no gate and no envelope, though the pitch still
 moves. Faders 2-7 hold the gate for 1/7 to 6/7 of the time to the next hit.
@@ -109,15 +108,24 @@ while a knob is waiting. At power-up the knobs take over straight away for
 the switch's position; the others start at Major, ×1 and no slew (centre), or a 300 ms
 decay, the shortest attack and pluckiness halfway.
 
-**Scales**, in order round Main: Chromatic, Major, Natural minor, Harmonic
-minor, Melodic minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Major
-pentatonic, Minor pentatonic, Blues, Whole tone, Diminished, Hirajoshi,
-Fifths, Octaves, Just major, Just minor, Harmonic series (harmonics 8-15),
-Slendro, Pelog, Pelog selisir, Maqam Rast, Maqam Bayati, 5-TET, 7-TET,
-13-TET, 19-TET, 24-TET. All have their root at C (0 V). Gamelan tunings vary
-from one orchestra to the next; these are typical values. When the scale
-changes the Computer's six LEDs show its number (1-31) in binary for a second,
-LED 1 the lowest bit.
+**Scales** (37), in order round Main: Major, Natural minor, Harmonic minor,
+Melodic minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Major
+pentatonic, Minor pentatonic, Blues, Whole tone, Diminished, Bebop dominant,
+Hirajoshi, Fifths, Octaves, Raga Bhairav, Raga Todi, Raga Marwa, Raga
+Malkauns, Raga Hindol, Maqam Rast, Maqam Bayati, Maqam Hijaz, Maqam Saba, Just
+major, Just minor, Harmonic series, Subharmonic series, Slendro, Pelog, Pelog
+selisir, 5-TET, 7-TET, 8-TET.
+All have their root at C (0 V), and none has more than eight notes, so each
+note has its own fader. The ragas are in just intonation (pure ratios, as
+they're usually sung): Bhairav and Todi with their flat second and sixth,
+Todi's low minor third (32/27) and sharp fourth, Marwa (six notes, no fifth),
+pentatonic Malkauns and Hindol. Rast, Bayati and Saba have their neutral
+(quarter-tone) steps; Hijaz is in equal semitones. The harmonic series is
+harmonics 8-15 folded into an octave; the subharmonic series is its mirror,
+subharmonics 16 down to 9. Gamelan tunings vary from one orchestra to the
+next; these are typical values. 8-TET divides the octave into eight equal
+150-cent steps. When the scale changes the Computer's six LEDs show its
+number (1-37) in binary for a second, LED 1 the lowest bit.
 
 | Jack | Function |
 |---|---|
@@ -176,7 +184,7 @@ Without a card the page still edits and keeps presets, and plays a simulation
 of the card at the internal tempo.
 
 The protocol is documented in [`sysex.h`](sysex.h). The card and the editor
-must be the same version (protocol 2). Presets saved before the envelope
+must be the same version (protocol 3). Presets saved before the envelope
 pages load with them off.
 
 ## Building

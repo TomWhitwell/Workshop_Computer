@@ -11,6 +11,13 @@
 using namespace wander;
 
 static int checks = 0, failures = 0;
+
+static int ScaleNamed(const char *name)
+{
+	for (int i = 0; i < kNumScales; i++) if (!strcmp(kScales[i].name, name)) return i;
+	printf("no scale %s\n", name);
+	return 0;
+}
 #define CHECK(cond, ...) do { checks++; if (!(cond)) { failures++; printf("FAIL %s:%d: ", __FILE__, __LINE__); printf(__VA_ARGS__); printf("\n"); } } while (0)
 
 static void SetPage(Engine &e, int page, const int v[8])
@@ -100,12 +107,17 @@ static void TestScales()
 		for (int k = 0; k < sc.n; k++) CHECK(covered[k] == 1, "scale %s note %d covered %d times", sc.name, k, covered[k]);
 	}
 	// Particular tunings
-	CHECK(NoteCents(kScales[26], 1) == 240, "5-TET step");
-	CHECK(NoteCents(kScales[27], 1) == 171, "7-TET step");
-	CHECK(NoteCents(kScales[28], 1) == 92, "13-TET step");
-	CHECK(kScales[28].n == 13 && kScales[29].n == 19, "13 and 19 TET sizes");
+	CHECK(NoteCents(kScales[ScaleNamed("5-TET")], 1) == 240, "5-TET step");
+	CHECK(NoteCents(kScales[ScaleNamed("7-TET")], 1) == 171, "7-TET step");
+	CHECK(NoteCents(kScales[ScaleNamed("8-TET")], 1) == 150 && kScales[ScaleNamed("8-TET")].n == 8, "8-TET");
+	CHECK(NoteCents(kScales[ScaleNamed("Raga Todi")], 2) == 294, "Todi's low third");
+	CHECK(kScales[ScaleNamed("Raga Marwa")].n == 6, "Marwa: six notes");
+	// No scale has more than eight notes: one fader each
+	for (int i = 0; i < kNumScales; i++) CHECK(kScales[i].n <= 8, "%s has %d notes", kScales[i].name, kScales[i].n);
+	CHECK(kNumScales <= 63, "scale numbers fit the six LEDs");
 	// Octaves: fader 1 is -2V, fader 3 0V, fader 8 +5V
-	const Scale &maj = kScales[1];
+	const Scale &maj = kScales[ScaleNamed("Major")];
+	CHECK(ScaleNamed("Major") == 0, "Major first (the default)");
 	CHECK(NoteMillivolts(maj, 0, 0) == -2000, "lowest octave %d", NoteMillivolts(maj, 0, 0));
 	CHECK(NoteMillivolts(maj, 0, 2) == 0, "0V octave");
 	CHECK(NoteMillivolts(maj, 0, 7) == 5000, "highest octave");
@@ -585,18 +597,18 @@ static void TestSharing()
 		CHECK(e.voice[1].gateFader == 0, "voice 2 gates");
 	}
 	// Notes ignore faders past the end of a short scale
-	e.scale = 16; // Fifths: 2 notes
+	e.scale = ScaleNamed("Fifths"); // 2 notes
 	int n3[8] = {0, 0, 0, 0, 0, 0, 0, 127};
 	SetPage(e, Notes, n3);
 	for (int s = 0; s < 100; s++) { RunSteps(e, 1); CHECK(e.voice[0].noteFader < 2, "short scale: fader %d", e.voice[0].noteFader); }
-	// Big scales: every note can come up
-	e.scale = 29; // 19-TET
+	// Eight-note scales: every note can come up, one per fader
+	e.scale = ScaleNamed("Subharmonic series");
 	ClearPage(e, Notes);
-	bool seen[19] = {};
-	for (int s = 0; s < 3000; s++) { RunSteps(e, 1); seen[e.voice[0].note] = true; }
+	bool seen[8] = {};
+	for (int s = 0; s < 400; s++) { RunSteps(e, 1); seen[e.voice[0].note] = true; CHECK(e.voice[0].note == e.voice[0].noteFader, "one note per fader"); }
 	int all = 0;
-	for (int k = 0; k < 19; k++) all += seen[k];
-	CHECK(all == 19, "19-TET: %d of 19 notes played", all);
+	for (int k = 0; k < 8; k++) all += seen[k];
+	CHECK(all == 8, "subharmonic series: %d of 8 notes played", all);
 }
 
 //----------------------------------------------------------------------------
@@ -648,7 +660,7 @@ static void TestUi()
 	CHECK(ui.showProbs > 0, "touch shows probabilities");
 	int n[8] = {100, 50, 0, 25, 0, 0, 0, 127};
 	SetPage(e, Notes, n);
-	e.scale = 1; // Major: fader 8 ignored
+	e.scale = ScaleNamed("Major"); // fader 8 ignored
 	ui.Leds(e, led);
 	CHECK(led[0] == 4095 && led[1] == 2047 && led[2] == 0 && led[3] == 1023, "brightness = probability: %d %d %d %d", led[0], led[1], led[2], led[3]);
 	CHECK(led[7] == 0, "ignored fader dark (%d)", led[7]);

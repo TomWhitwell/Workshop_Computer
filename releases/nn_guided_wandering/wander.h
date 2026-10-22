@@ -56,10 +56,9 @@ static inline int Weight(int faderValue) {return faderValue <= kZeroFader ? 0 : 
 //
 // Each scale is its notes within one octave, in cents above the root (C at
 // 0V).  An equal temperament is just its number of steps (tet).  Faders 1-8
-// on the NOTES page are the scale's first eight notes; a scale with fewer
-// ignores the extra faders.  A scale with more than eight notes (chromatic,
-// 13-, 19- and 24-TET) shares them out: each fader covers a run of
-// neighbouring notes, and a note is picked evenly from within its fader's run.
+// on the NOTES page are the scale's notes, one each, from the root up; a
+// scale with fewer than eight ignores the extra faders.  (No scale has more
+// than eight, so every note has a fader of its own.)
 //----------------------------------------------------------------------------
 struct Scale
 {
@@ -69,43 +68,54 @@ struct Scale
 	int16_t cents[8];
 };
 
-static constexpr int kNumScales = 31;
+static constexpr int kNumScales = 37;
 static const Scale kScales[kNumScales] = {
-	{"Chromatic",        12, 12, {}},
-	{"Major",             7, 0, {0, 200, 400, 500, 700, 900, 1100}},
-	{"Natural minor",     7, 0, {0, 200, 300, 500, 700, 800, 1000}},
-	{"Harmonic minor",    7, 0, {0, 200, 300, 500, 700, 800, 1100}},
-	{"Melodic minor",     7, 0, {0, 200, 300, 500, 700, 900, 1100}},
-	{"Dorian",            7, 0, {0, 200, 300, 500, 700, 900, 1000}},
-	{"Phrygian",          7, 0, {0, 100, 300, 500, 700, 800, 1000}},
-	{"Lydian",            7, 0, {0, 200, 400, 600, 700, 900, 1100}},
-	{"Mixolydian",        7, 0, {0, 200, 400, 500, 700, 900, 1000}},
-	{"Locrian",           7, 0, {0, 100, 300, 500, 600, 800, 1000}},
-	{"Major pentatonic",  5, 0, {0, 200, 400, 700, 900}},
-	{"Minor pentatonic",  5, 0, {0, 300, 500, 700, 1000}},
-	{"Blues",             6, 0, {0, 300, 500, 600, 700, 1000}},
-	{"Whole tone",        6, 0, {0, 200, 400, 600, 800, 1000}},
-	{"Diminished",        8, 0, {0, 200, 300, 500, 600, 800, 900, 1100}},
-	{"Hirajoshi",         5, 0, {0, 200, 300, 700, 800}},
-	{"Fifths",            2, 0, {0, 700}},
-	{"Octaves",           1, 0, {0}},
+	{"Major",           7, 0, {0, 200, 400, 500, 700, 900, 1100}},
+	{"Natural minor",   7, 0, {0, 200, 300, 500, 700, 800, 1000}},
+	{"Harmonic minor",  7, 0, {0, 200, 300, 500, 700, 800, 1100}},
+	{"Melodic minor",   7, 0, {0, 200, 300, 500, 700, 900, 1100}},
+	{"Dorian",          7, 0, {0, 200, 300, 500, 700, 900, 1000}},
+	{"Phrygian",        7, 0, {0, 100, 300, 500, 700, 800, 1000}},
+	{"Lydian",          7, 0, {0, 200, 400, 600, 700, 900, 1100}},
+	{"Mixolydian",      7, 0, {0, 200, 400, 500, 700, 900, 1000}},
+	{"Locrian",         7, 0, {0, 100, 300, 500, 600, 800, 1000}},
+	{"Major pentatonic", 5, 0, {0, 200, 400, 700, 900}},
+	{"Minor pentatonic", 5, 0, {0, 300, 500, 700, 1000}},
+	{"Blues",           6, 0, {0, 300, 500, 600, 700, 1000}},
+	{"Whole tone",      6, 0, {0, 200, 400, 600, 800, 1000}},
+	{"Diminished",      8, 0, {0, 200, 300, 500, 600, 800, 900, 1100}},
+	{"Bebop dominant",  8, 0, {0, 200, 400, 500, 700, 900, 1000, 1100}},
+	{"Hirajoshi",       5, 0, {0, 200, 300, 700, 800}},
+	{"Fifths",          2, 0, {0, 700}},
+	{"Octaves",         1, 0, {0}},
+	// Indian ragas, in just intonation (pure ratios, as they're usually
+	// sung).  Todi's flat third is the low 32/27; Marwa has no fifth.
+	{"Raga Bhairav",    7, 0, {0, 112, 386, 498, 702, 814, 1088}},
+	{"Raga Todi",       7, 0, {0, 112, 294, 590, 702, 814, 1088}},
+	{"Raga Marwa",      6, 0, {0, 112, 386, 590, 884, 1088}},
+	{"Raga Malkauns",   5, 0, {0, 316, 498, 814, 996}},
+	{"Raga Hindol",     5, 0, {0, 386, 590, 884, 1088}},
+	// Arabic maqamat: Rast, Bayati and Saba with their neutral (quarter-tone)
+	// steps; Hijaz in equal semitones
+	{"Maqam Rast",      7, 0, {0, 200, 350, 500, 700, 900, 1050}},
+	{"Maqam Bayati",    7, 0, {0, 150, 300, 500, 700, 800, 1000}},
+	{"Maqam Hijaz",     7, 0, {0, 100, 400, 500, 700, 800, 1000}},
+	{"Maqam Saba",      7, 0, {0, 150, 300, 400, 700, 800, 1000}},
 	// Just intonation: pure ratios rather than equal semitones
-	{"Just major",        7, 0, {0, 204, 386, 498, 702, 884, 1088}},
-	{"Just minor",        7, 0, {0, 204, 316, 498, 702, 814, 1018}},
-	// Harmonics 8 to 15 of the root, folded into one octave
-	{"Harmonic series",   8, 0, {0, 204, 386, 551, 702, 841, 969, 1088}},
+	{"Just major",      7, 0, {0, 204, 386, 498, 702, 884, 1088}},
+	{"Just minor",      7, 0, {0, 204, 316, 498, 702, 814, 1018}},
+	// Harmonics 8 to 15 of the root, folded into one octave, and its mirror:
+	// the root's subharmonics 16 down to 9
+	{"Harmonic series", 8, 0, {0, 204, 386, 551, 702, 841, 969, 1088}},
+	{"Subharmonic series", 8, 0, {0, 112, 231, 359, 498, 649, 814, 996}},
 	// Gamelan tunings vary from orchestra to orchestra; these are typical
-	{"Slendro",           5, 0, {0, 231, 474, 717, 955}},
-	{"Pelog",             7, 0, {0, 120, 258, 539, 675, 785, 943}},
-	{"Pelog selisir",     5, 0, {0, 120, 258, 675, 785}},
-	// Arabic maqamat, with their neutral (quarter-tone) seconds and thirds
-	{"Maqam Rast",        7, 0, {0, 200, 350, 500, 700, 900, 1050}},
-	{"Maqam Bayati",      7, 0, {0, 150, 300, 500, 700, 800, 1000}},
-	{"5-TET",             5, 5, {}},
-	{"7-TET",             7, 7, {}},
-	{"13-TET",           13, 13, {}},
-	{"19-TET",           19, 19, {}},
-	{"24-TET",           24, 24, {}},
+	{"Slendro",         5, 0, {0, 231, 474, 717, 955}},
+	{"Pelog",           7, 0, {0, 120, 258, 539, 675, 785, 943}},
+	{"Pelog selisir",   5, 0, {0, 120, 258, 675, 785}},
+	// Equal temperaments: the octave in 5, 7 or 8 equal steps
+	{"5-TET",           5, 5, {}},
+	{"7-TET",           7, 7, {}},
+	{"8-TET",           8, 8, {}},
 };
 
 // The notes fader f covers: count of them from first (count 0 = ignored)
@@ -429,7 +439,7 @@ public:
 	volatile uint8_t faders[kPages][kFaders];
 
 	// Settings, set from the knobs (and the web editor) at control rate
-	int scale = 1;
+	int scale = 0;   // Major
 	int ratio = kUnityRatio;
 	int32_t slewAlpha = 1 << 24;
 	bool slewTiesOnly = false;        // slew only notes a tie leads into

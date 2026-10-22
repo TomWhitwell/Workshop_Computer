@@ -95,11 +95,11 @@ static void TestKnobs()
 	c.knob[0] = 2048; c.knob[1] = 0; c.knob[2] = 4095;
 	Run(c, 64);
 	CHECK(c.settings[GuidedWandering::SetAttack] == 0 && c.settings[GuidedWandering::SetPluck] == 4095, "middle knobs taken at power-up");
-	CHECK(c.engine.scale == 1 && c.engine.ratio == kUnityRatio, "up position defaults: Major, x1");
+	CHECK(c.engine.scale == 0 && c.engine.ratio == kUnityRatio, "up position defaults: Major, x1");
 	// Switch up: the knobs must pick up their new settings first
 	c.sw = ComputerCard::Up;
 	Run(c, 64);
-	CHECK(c.engine.scale == 1, "scale not moved by a knob that hasn't picked up");
+	CHECK(c.engine.scale == 0, "scale not moved by a knob that hasn't picked up");
 	CHECK(!c.knobLatched[2], "Main waiting");
 	// LED 6 blinks fast while waiting
 	int on = 0, off = 0;
