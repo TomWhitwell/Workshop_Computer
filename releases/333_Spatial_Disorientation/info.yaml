@@ -3,14 +3,17 @@ Name: Spatial Disorientation
 short-description: Two-source binaural orbits, spatial mixing and Fig8, Pendulum or Wander movement, with web presets and 8mu control.
 summary: >-
   A headphone spatializer for two independent mono sources. Choose Twin Orbits,
-  Spatial Mixer or Disorientation at startup. Disorientation offers Fig8,
-  Pendulum and Wander, selected and saved through the editor or cycled live with
-  an 8mu D tap. Separate mode settings, named preset files and source-aware Mixer
-  pickup make it playable from panel, CV or 8mu. Beta of the user-tested pitch/roll alpha2: direct pitch front/back and roll
-  left/right motion, with corrected lean direction and no yaw integration. Orbits
-  height/slope pages, elevation tools and the tested save fix remain. Mixer height and vertical/sloping
-  Disorientation remain available. Generic measured HRTFs;
-  perception depends on the listener. Both sources and all 64 taps at 192 MHz.
+  Spatial Mixer or Disorientation at startup. Twin Orbits has a shared height
+  centre and sloping paths; Mixer has independent continuous A/B heights;
+  Disorientation adds vertical movement and slope to Fig8, Pendulum and Wander.
+  Elevation is a subtle headphone effect: height and slope may sound like small
+  tonal or placement changes rather than obvious up/down movement. Results vary
+  with listener, headphones and source material; displayed angles are virtual
+  rendering targets, not guaranteed perceived positions. Separate saved mode
+  settings, web presets and elevation tools, panel/CV control and direct 8mu
+  pitch/roll positioning make it playable. Orbits offers normal/height fader pages;
+  Disorientation elevation is set in the editor. Beta3 includes corrected roll
+  direction and the tested repeated-save fix. Two sources and all 64 taps at 192 MHz.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "0.4.0-beta3"
@@ -110,7 +113,7 @@ host:
   usb:
     - name: Spatial Disorientation
       role: MIDI device
-      description: WebMIDI/SysEx editor with Read, Apply, Save, init and named preset import/export.
+      description: WebMIDI/SysEx editor with per-mode height/slope settings, Read, Apply, Save, init, staged elevation randomise/reset and named preset import/export.
     - name: Music Thing Modular 8mu
       role: MIDI host
       description: Direct fader/button control with pitch/roll motion (right edge down moves right), Orbits normal/height pages selected by short D release, and source-aware Mixer pickup. Editor and 8mu use separate USB sessions.
