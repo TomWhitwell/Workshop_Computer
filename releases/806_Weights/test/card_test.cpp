@@ -1,4 +1,4 @@
-// Whole-card tests of Guided Wandering: main.cpp, run against stand-ins for
+// Whole-card tests of Weights: main.cpp, run against stand-ins for
 // the Computer, the 8mu and the USB stack (test/stubs), checking the knobs,
 // jacks, LEDs, 8mu handling and the web editor's protocol end to end.
 // Built by test/run_tests.sh.
@@ -29,7 +29,7 @@ static uint64_t gSamples = 0;
 // Run the card for n samples, with an optional clock at Pulse In 1 (period
 // in samples, 0 for none), counting rising edges at Pulse Out 1 and 2
 struct Counts {int rises[2]; int32_t cvMin[2], cvMax[2]; int audioMax[2]; int audioMin[2];};
-static Counts Run(GuidedWandering &c, int n, int clockPeriod = 0)
+static Counts Run(Weights &c, int n, int clockPeriod = 0)
 {
 	Counts k = {{0, 0}, {99999, 99999}, {-99999, -99999}, {0, 0}, {99999, 99999}};
 	bool prev[2] = {c.pulseOut[0], c.pulseOut[1]};
@@ -54,7 +54,7 @@ static Counts Run(GuidedWandering &c, int n, int clockPeriod = 0)
 
 // Gates on every step (no rests, no ties, no ratchets) so steps can be
 // counted at the pulse outputs
-static void PlainGates(GuidedWandering &c)
+static void PlainGates(Weights &c)
 {
 	for (int p = 0; p < kPages; p++)
 		for (int i = 0; i < 8; i++) c.engine.faders[p][i] = 0;
@@ -67,7 +67,7 @@ static void PlainGates(GuidedWandering &c)
 static void TestStandalone()
 {
 	gUsbState = 0;
-	GuidedWandering c;
+	Weights c;
 	CHECK(c.hostMode, "host mode with nothing plugged in");
 	// Defaults: plays at 120 BPM by itself, within range
 	Counts k = Run(c, 48000 * 4);
@@ -88,13 +88,13 @@ static void TestStandalone()
 static void TestKnobs()
 {
 	gUsbState = 0;
-	GuidedWandering c;
+	Weights c;
 	// Power-up, switch middle: the knobs take decay, attack and pluck as
 	// they are; the other position keeps its defaults
 	c.sw = ComputerCard::Middle;
 	c.knob[0] = 2048; c.knob[1] = 0; c.knob[2] = 4095;
 	Run(c, 64);
-	CHECK(c.settings[GuidedWandering::SetAttack] == 0 && c.settings[GuidedWandering::SetPluck] == 4095, "middle knobs taken at power-up");
+	CHECK(c.settings[Weights::SetAttack] == 0 && c.settings[Weights::SetPluck] == 4095, "middle knobs taken at power-up");
 	CHECK(c.engine.scale == 0 && c.engine.ratio == kUnityRatio, "up position defaults: Major, x1");
 	// Switch up: the knobs must pick up their new settings first
 	c.sw = ComputerCard::Up;
@@ -155,11 +155,11 @@ static void TestKnobs()
 static void TestTempoKnob()
 {
 	gUsbState = 0;
-	GuidedWandering c;
+	Weights c;
 	c.sw = ComputerCard::Middle;
 	c.knob[0] = 2048;
 	Run(c, 64);
-	int32_t decay = c.settings[GuidedWandering::SetDecay];
+	int32_t decay = c.settings[Weights::SetDecay];
 	PlainGates(c);
 	// Hold the switch down: Main (at the middle, ~110 BPM) must reach 120
 	// BPM's position before it changes anything
@@ -172,7 +172,7 @@ static void TestTempoKnob()
 	CHECK(c.tempo == 300 && c.engine.internalPeriod == 9600, "Main fully up: 300 BPM (%d)", int(c.tempo));
 	c.knob[0] = 0; Run(c, 64);
 	CHECK(c.tempo == 40, "Main fully down: 40 BPM (%d)", int(c.tempo));
-	CHECK(c.settings[GuidedWandering::SetDecay] == decay, "decay untouched while the switch is down");
+	CHECK(c.settings[Weights::SetDecay] == decay, "decay untouched while the switch is down");
 	// While held, the top LEDs flash on the steps
 	int on = 0, off = 0;
 	for (int i = 0; i < 200; i++) { Run(c, 480); if (c.led[0]) on++; else off++; }
@@ -184,7 +184,7 @@ static void TestTempoKnob()
 	c.sw = ComputerCard::Middle;
 	Run(c, 64);
 	CHECK(!c.mainOnTempo && !c.knobLatched[2] && c.tempo == 40, "Main waits for decay; tempo kept");
-	CHECK(c.settings[GuidedWandering::SetDecay] == decay, "decay not jumped to 0");
+	CHECK(c.settings[Weights::SetDecay] == decay, "decay not jumped to 0");
 	c.BuildStatus();
 	CHECK(((c.status[0] >> 4) & 1) == 0, "status: switch not down");
 	// The web editor's tempo: the knob must pick it up afresh
@@ -204,7 +204,7 @@ static void TestTempoKnob()
 static void TestVca()
 {
 	gUsbState = 0;
-	GuidedWandering c;
+	Weights c;
 	PlainGates(c);
 	CHECK(c.probeEnabled, "normalisation probe on");
 	// Nothing plugged in: the envelopes
@@ -243,7 +243,7 @@ static void TestVca()
 static void TestClock()
 {
 	gUsbState = 0;
-	GuidedWandering c;
+	Weights c;
 	PlainGates(c);
 	// A clock at Pulse In 1, 10 a second
 	Counts k = Run(c, 48000, 4800);
@@ -260,7 +260,7 @@ static void TestClock()
 static void TestEightMu()
 {
 	gUsbState = 0;
-	GuidedWandering c;
+	Weights c;
 	EightMU &mu = c.mu;
 	mu.connected = true;
 	for (int i = 0; i < 8; i++) mu.fader[i] = 0;
@@ -327,7 +327,7 @@ static int FindSent(uint8_t cmd)
 static void TestWebEditor()
 {
 	gUsbState = 1;
-	GuidedWandering c;
+	Weights c;
 	CHECK(!c.hostMode, "device mode with a computer plugged in");
 	Run(c, 64);
 	// HELLO: the card replies with its state

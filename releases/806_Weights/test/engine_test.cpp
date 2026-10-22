@@ -1,14 +1,14 @@
-// Host-side tests of the Guided Wandering engine (wander.h) and the 8mu
+// Host-side tests of the Weights engine (weights.h) and the 8mu
 // pages and LEDs (ui.h).  No hardware needed: build and run with
 // test/run_tests.sh.
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../wander.h"
+#include "../weights.h"
 #include "../ui.h"
 
-using namespace wander;
+using namespace weights;
 
 static int checks = 0, failures = 0;
 

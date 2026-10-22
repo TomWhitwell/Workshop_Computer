@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Guided Wandering editor</title>
+<title>Weights editor</title>
 <!--
-  GUIDED WANDERING - web editor for the Music Thing Modular Workshop Computer
+  WEIGHTS - web editor for the Music Thing Modular Workshop Computer
   card. One static file, no network needed. Talks to the card over WebMIDI +
   SysEx (protocol: ../sysex.h). The card works without this page; the page
   adds a picture of what is playing, presets, the internal tempo, and a way to
   use an 8mu plugged into this computer rather than into the card.
 
   The fader units (0-127, as an 8mu sends them), the scales, the pickup and
-  the 8mu's LEDs mirror ../wander.h, ../ui.h and ../main.cpp. Visual style and
+  the 8mu's LEDs mirror ../weights.h, ../ui.h and ../main.cpp. Visual style and
   8mu handling shared with the WaveSeq and CVSeq editors.
 -->
 <style>
@@ -152,7 +152,7 @@
 </head>
 <body>
 <header>
-  <h1>Guided Wandering</h1>
+  <h1>Weights</h1>
   <div class="status"><span id="dot" class="dot"></span><span id="status-text">Not connected</span></div>
   <button id="mu-owner" class="muown" hidden></button>
   <div class="spacer"></div>
@@ -271,7 +271,7 @@
       <h2>How it connects</h2>
       <div class="caption" style="margin-top:0">
         The card picks its USB mode at power-up. <b>8mu plugged into the card</b>: the card reads it directly and this page isn't used.
-        <b>Computer plugged into the card</b>: the card appears as a MIDI device called <b>Guided Wandering</b>, and an 8mu plugged
+        <b>Computer plugged into the card</b>: the card appears as a MIDI device called <b>Weights</b>, and an 8mu plugged
         into this computer is passed on by this page. After plugging a computer in, <b>power-cycle the module</b>.
       </div>
       <details>
@@ -293,10 +293,10 @@
 'use strict';
 
 // ============================================================================
-// Constants mirroring the firmware (wander.h, ui.h, main.cpp, sysex.h)
+// Constants mirroring the firmware (weights.h, ui.h, main.cpp, sysex.h)
 // ============================================================================
 const NF = 8;                       // faders
-// Pages, as wander.h: layer * 4 + button.  Each button cycles through four:
+// Pages, as weights.h: layer * 4 + button.  Each button cycles through four:
 // its first page, voice 2's, its envelope page, voice 2's envelope page.
 const NPAIRS = 4, NPAGES = 16;
 const KIND_NAMES = ['Notes', 'Octaves', 'Gates', 'Ratchets', 'Attack', 'Decay', 'Pluck', 'Depth'];
@@ -320,7 +320,7 @@ const FIRST_FADER_CC = 34;
 const BUTTON_NOTES = [36, 48, 60, 72];
 const EIGHTMU_BLINK_OFF = [0xF0, 0x7D, 0x00, 0x00, 0x30, 0xF7];
 
-// Scales, as kScales in wander.h: name, notes, equal steps (or 0), cents
+// Scales, as kScales in weights.h: name, notes, equal steps (or 0), cents
 const SCALES = [
   ['Major', 7, 0, [0, 200, 400, 500, 700, 900, 1100]], ['Natural minor', 7, 0, [0, 200, 300, 500, 700, 800, 1000]],
   ['Harmonic minor', 7, 0, [0, 200, 300, 500, 700, 800, 1100]], ['Melodic minor', 7, 0, [0, 200, 300, 500, 700, 900, 1100]],
@@ -394,7 +394,7 @@ const DEFAULTS = [
   ...Array.from({ length: 8 }, () => [0, 0, 0, 0, 0, 0, 0, 0]),   // envelope pages: off
 ];
 
-// Knob readouts, as wander.h maps the knobs (values 0-4095 after the dead zones)
+// Knob readouts, as weights.h maps the knobs (values 0-4095 after the dead zones)
 const SLEW_CENTRE = 96;
 const fmtTime = (s) => s >= 1 ? s.toFixed(2) + ' s' : s >= 0.01 ? Math.round(s * 1000) + ' ms' : (s * 1000).toFixed(1) + ' ms';
 // Two-sided: off round the centre; right every note, left only ties
@@ -630,7 +630,7 @@ function requestRender() {
 function changed() {
   requestRender();
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => store.set('gwander.last.v1', { v: state.values, tempo: state.tempo }), 400);
+  saveTimer = setTimeout(() => store.set('weights.last.v1', { v: state.values, tempo: state.tempo }), 400);
 }
 
 // ---- 8mu plugged into this computer -----------------------------------------
@@ -666,7 +666,7 @@ function eightmuButton(b, down) {
 // a BroadcastChannel and through localStorage, and they let it go.  A page
 // without it ignores its faders and buttons and leaves its LEDs alone, but
 // still follows where the faders are, so they pick up on return.
-const EDITOR_NAME = 'Guided Wandering';
+const EDITOR_NAME = 'Weights';
 const OWNER_KEY = 'workshop.8mu.owner';
 const owner = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), here: true, other: '', chan: null };
 function claim8mu(announce) {
@@ -755,12 +755,12 @@ function serviceEightmuLeds(now) {
 // ============================================================================
 // WebMIDI
 // ============================================================================
-const isCardName = (n) => /guided\s*wander/i.test(n || '');
+const isCardName = (n) => /weights/i.test(n || '');
 const is8mu = (p) => [p.name, p.manufacturer, (p.manufacturer || '') + ' ' + (p.name || '')].some(s => /8mu/i.test(s || ''));
 
 async function connect() {
   if (!navigator.requestMIDIAccess) { say('This browser has no WebMIDI. Use Chrome or Edge on a computer.', true); return; }
-  say('The browser will ask to use MIDI devices with SysEx: choose Allow. The card shows up as “Guided Wandering”.');
+  say('The browser will ask to use MIDI devices with SysEx: choose Allow. The card shows up as “Weights”.');
   try { link.access = await navigator.requestMIDIAccess({ sysex: true }); }
   catch (e) { say('MIDI access was refused (' + (e && e.message || e) + '). Allow MIDI with SysEx for this page, then try again.', true); return; }
   link.access.onstatechange = () => scanPorts();
@@ -794,12 +794,12 @@ function scanPorts() {
   if (link.cardOnline) {
     link.pingTimer = setInterval(() => sendRaw(sysex(CMD.PING, [])), 1000);
     sendRaw(sysex(CMD.PING, []));
-    setStatus('ok', 'Connected: Guided Wandering card' + (muIns.length ? ' + ' + mus : ''));
+    setStatus('ok', 'Connected: Weights card' + (muIns.length ? ' + ' + mus : ''));
     say(muIns.length ? 'The ' + mus + ' drive' + (muIns.length > 1 ? '' : 's') + ' this page, and this page drives the card.' : 'Card connected. Drag the faders, or plug an 8mu into this computer.' + note);
     if (!wasOnline) sendRaw(sysex(CMD.HELLO, []));       // the card is the source of truth: read it
   } else if (muIns.length) {
     setStatus('warn', 'Connected: ' + mus + ' only (no card)');
-    say('No “Guided Wandering” card found, so editing here only. To reach the card, plug this computer into the Computer’s USB socket and power-cycle the module.', true);
+    say('No “Weights” card found, so editing here only. To reach the card, plug this computer into the Computer’s USB socket and power-cycle the module.', true);
   } else {
     setStatus('warn', 'No card or 8mu found');
     say('Nothing found. Use a USB data cable, close other apps using the device, and power-cycle the module after plugging this computer in.' + note, true);
@@ -865,7 +865,7 @@ function sendAll() {
 }
 
 // ============================================================================
-// Simulation, when there's no card: the engine's draws (wander.h) at the
+// Simulation, when there's no card: the engine's draws (weights.h) at the
 // internal tempo, x1, with a plain envelope for the picture
 // ============================================================================
 const sim = { last: 0, stepStart: 0, count: 0, voice: [0, 1].map(() => ({ hitAt: [0], next: 1, gateUntil: 0, tied: false, envT: -1e9 })) };
@@ -1027,7 +1027,8 @@ function frame(now) {
 // Presets (localStorage)
 // ============================================================================
 const store = {
-  get(k, d) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch (e) { return d; } },
+  // (falling back to the card's old name's keys, from before it was Weights)
+  get(k, d) { try { const s = localStorage.getItem(k) || localStorage.getItem(k.replace(/^weights\./, 'gwander.')); return s ? JSON.parse(s) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
 };
 // A preset: 16 pages of 8 fader values, and the internal tempo.  Presets
@@ -1051,8 +1052,8 @@ const BUILTIN = [
     [0, 80, 0, 100, 0, 80, 60, 40], [0, 0, 0, 100, 60, 20, 0, 0], [40, 0, 0, 0, 30, 60, 90, 0], [60, 40, 0, 50, 0, 40, 0, 60]] },
 ].map(cleanPreset);
 let userPresets = [];
-function loadPresets() { userPresets = (store.get('gwander.presets.v1', []) || []).map(cleanPreset).filter(Boolean); }
-function savePresets() { if (!store.set('gwander.presets.v1', userPresets)) say('Could not save presets: browser storage is unavailable or full.', true); }
+function loadPresets() { userPresets = (store.get('weights.presets.v1', []) || []).map(cleanPreset).filter(Boolean); }
+function savePresets() { if (!store.set('weights.presets.v1', userPresets)) say('Could not save presets: browser storage is unavailable or full.', true); }
 function applyPreset(pr) {
   state.values = pr.v.map(r => r.slice());
   setTempo(pr.tempo, false);
@@ -1091,8 +1092,8 @@ function saveCurrent() {
   savePresets(); presetsDirty = true; requestRender(); say('Saved “' + n + '”.');
 }
 function exportPresets() {
-  const blob = new Blob([JSON.stringify({ format: 'guided-wandering-presets', version: 1, presets: userPresets }, null, 1)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'guided-wandering-presets.json'; a.click();
+  const blob = new Blob([JSON.stringify({ format: 'weights-presets', version: 1, presets: userPresets }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'weights-presets.json'; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 function importPresets(file) {
@@ -1112,7 +1113,7 @@ function importPresets(file) {
 // A button on every card's heading folds the card down to the heading;
 // which cards are folded is remembered in this browser
 function buildCollapsers() {
-  const folded = new Set(store.get('gwander.folded.v1', []) || []);
+  const folded = new Set(store.get('weights.folded.v1', []) || []);
   document.querySelectorAll('section.card').forEach((card) => {
     const h = card.querySelector(':scope > h2'); if (!h) return;
     const name = h.textContent.trim();
@@ -1128,7 +1129,7 @@ function buildCollapsers() {
       const f = !card.classList.contains('folded');
       show(f);
       if (f) folded.add(name); else folded.delete(name);
-      store.set('gwander.folded.v1', [...folded]);
+      store.set('weights.folded.v1', [...folded]);
     });
     h.appendChild(b);
   });
@@ -1138,7 +1139,7 @@ function buildCollapsers() {
 // Start
 // ============================================================================
 function init() {
-  const last = cleanPreset(Object.assign({ name: 'last' }, store.get('gwander.last.v1', null) || {}));
+  const last = cleanPreset(Object.assign({ name: 'last' }, store.get('weights.last.v1', null) || {}));
   if (last) { state.values = last.v; state.tempo = last.tempo; }
   loadPresets();
   buildFaders(); buildCollapsers();

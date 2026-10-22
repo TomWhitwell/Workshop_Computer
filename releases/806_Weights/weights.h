@@ -1,4 +1,4 @@
-// Guided Wandering: the musical engine, with no hardware in it.
+// Weights: the musical engine, with no hardware in it.
 //
 // Two voices of random pitch CV, a gate and an envelope each.  At every step
 // each voice draws a note of the scale, an octave, a gate length and a
@@ -8,13 +8,13 @@
 // Computer's audio interrupt and in the tests on a PC (test/engine_test.cpp).
 // main.cpp feeds it the clock input once a sample and reads its outputs.
 
-#ifndef GUIDED_WANDERING_WANDER_H
-#define GUIDED_WANDERING_WANDER_H
+#ifndef WEIGHTS_ENGINE_H
+#define WEIGHTS_ENGINE_H
 
 #include <stdint.h>
 #include <math.h>
 
-namespace wander
+namespace weights
 {
 
 static constexpr int32_t kSampleRate = 48000;
@@ -909,6 +909,6 @@ private:
 	}
 };
 
-} // namespace wander
+} // namespace weights
 
 #endif

@@ -16,7 +16,7 @@ $CXX $FLAGS "$here/engine_test.cpp" -o "$build/engine_test"
 if [ -f "$here/card_test.cpp" ]; then
 	# main.cpp's quoted includes are looked for next to it first, so it is
 	# copied beside the stubs for them to be found instead of the real headers
-	cp "$here/../main.cpp" "$here/../wander.h" "$here/../ui.h" "$here/../sysex.h" "$here"/stubs/*.h "$here/card_test.cpp" "$build/"
+	cp "$here/../main.cpp" "$here/../weights.h" "$here/../ui.h" "$here/../sysex.h" "$here"/stubs/*.h "$here/card_test.cpp" "$build/"
 	$CXX $FLAGS -Wno-unused-parameter "$build/card_test.cpp" -o "$build/card_test"
 	"$build/card_test"
 fi

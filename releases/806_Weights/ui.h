@@ -1,19 +1,19 @@
-// Guided Wandering: the 8mu's pages, fader pickup and LEDs, with no hardware
+// Weights: the 8mu's pages, fader pickup and LEDs, with no hardware
 // in it, so it can be tested on a PC (test/engine_test.cpp).  The web editor
 // (web/index.html) does the same for an 8mu plugged into the computer.
 
-#ifndef GUIDED_WANDERING_UI_H
-#define GUIDED_WANDERING_UI_H
+#ifndef WEIGHTS_UI_H
+#define WEIGHTS_UI_H
 
-#include "wander.h"
+#include "weights.h"
 
-namespace wander
+namespace weights
 {
 
 class EightMuUi
 {
 public:
-	// The page the faders edit (see wander.h): 0-3 the first pages (NOTES,
+	// The page the faders edit (see weights.h): 0-3 the first pages (NOTES,
 	// OCTAVES, GATES, RATCHETS on buttons A-D), 4-7 their second pages,
 	// voice 2's, 8-11 the envelope pages (ATTACK, DECAY, PLUCK, DEPTH) and
 	// 12-15 voice 2's envelope pages
@@ -198,6 +198,6 @@ private:
 	}
 };
 
-} // namespace wander
+} // namespace weights
 
 #endif

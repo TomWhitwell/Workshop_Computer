@@ -1,4 +1,4 @@
-// Guided Wandering
+// Weights
 //
 // Random pitch CV for the Music Thing Workshop Computer, with the randomness
 // guided by a Music Thing 8mu: its faders are probabilities.  Two voices
@@ -6,7 +6,7 @@
 // octave, a gate length and a ratchet, each weighted by a page of faders, and
 // plays them as a 1V/oct pitch, a gate and an envelope.
 //
-// The musical engine is in wander.h and the 8mu's pages and LEDs in ui.h;
+// The musical engine is in weights.h and the 8mu's pages and LEDs in ui.h;
 // this file connects them to the Computer's knobs, jacks and USB.
 //
 // The 8mu (buttons A-D choose the page; press a button again for its next
@@ -65,7 +65,7 @@
 //
 // USB, chosen once at power-up
 //   Port supplying power (an 8mu, or nothing yet): USB host, reading the 8mu.
-//   Computer plugged in: USB MIDI device called "Guided Wandering", for the
+//   Computer plugged in: USB MIDI device called "Weights", for the
 //   web editor (protocol in sysex.h).  An 8mu plugged into the computer is
 //   passed on by the editor.  Either way the card runs on its own.
 
@@ -75,19 +75,19 @@
 #include "ComputerCard.h"
 #include "EightMU.h"
 #include "sysex.h"
-#include "wander.h"
+#include "weights.h"
 #include "ui.h"
 
-using namespace wander;
+using namespace weights;
 
-class GuidedWandering;
-static GuidedWandering *gCard = nullptr;
+class Weights;
+static Weights *gCard = nullptr;
 
 
-class GuidedWandering : public ComputerCard
+class Weights : public ComputerCard
 {
 public:
-	GuidedWandering()
+	Weights()
 	{
 		// Give the USB power circuitry time to settle, then pick the USB
 		// mode once: host if the port is supplying power (an 8mu, or nothing
@@ -614,7 +614,7 @@ int main()
 {
 	set_sys_clock_khz(200000, true);
 
-	static GuidedWandering card;
+	static Weights card;
 	card.Run();
 	return 0;
 }

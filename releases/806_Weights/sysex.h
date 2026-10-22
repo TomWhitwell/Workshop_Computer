@@ -1,4 +1,4 @@
-// SysEx protocol between the Guided Wandering card and its web editor
+// SysEx protocol between the Weights card and its web editor
 // (web/index.html), used when a computer is plugged into the Computer's USB
 // socket and the card is acting as a USB MIDI device.
 //
@@ -38,7 +38,7 @@
 //             flags2     bits 0-2 the X, Y and Main knob is waiting, bits 3-6
 //                        voice 2 shares the NOTES, OCTAVES, GATES, RATCHETS
 //                        first page (its second page is all zero)
-//             scale      0-36, as kScales in wander.h
+//             scale      0-36, as kScales in weights.h
 //             ratio      0-10: /8 /6 /4 /3 /2 x1 x2 x3 x4 x6 x8
 //             slew attack decay pluck   the knob settings, 0-127
 //             steplen    milliseconds a step lasts, as estimated
@@ -58,8 +58,8 @@
 //                        alone, the engine drawing new choices, the knobs,
 //                        the 8mu, the LEDs and this status
 
-#ifndef GUIDED_WANDERING_SYSEX_H
-#define GUIDED_WANDERING_SYSEX_H
+#ifndef WEIGHTS_SYSEX_H
+#define WEIGHTS_SYSEX_H
 
 #include <stdint.h>
 

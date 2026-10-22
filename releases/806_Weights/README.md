@@ -1,4 +1,4 @@
-# Guided Wandering
+# Weights
 
 Random pitch CV for the Workshop Computer, with the randomness guided by a
 [Music Thing 8mu](https://www.musicthing.co.uk/8mu_page/): its faders are
@@ -143,7 +143,7 @@ and 2 show the gates; the bottom two follow the envelopes.
 | Plugged into the Computer's USB socket | The card is | The faders are |
 |---|---|---|
 | an 8mu | USB host | the 8mu's, read directly. No computer needed |
-| a computer | a USB MIDI device called **Guided Wandering** | the web editor's, and an 8mu plugged into the *computer* is passed on by the editor |
+| a computer | a USB MIDI device called **Weights** | the web editor's, and an 8mu plugged into the *computer* is passed on by the editor |
 | nothing | USB host, waiting | (plug an 8mu in any time) |
 
 The card picks its mode once, at power-up, so **after plugging a computer in,
@@ -195,7 +195,7 @@ cmake .. && make
 Needs the Pico SDK. `EightMU.h` and `ComputerCard.h` are copied from
 `Demonstrations+HelloWorlds/PicoSDK/ComputerCard`.
 
-The engine (`wander.h`) and the 8mu handling (`ui.h`) have no hardware in
+The engine (`weights.h`) and the 8mu handling (`ui.h`) have no hardware in
 them, and `test/run_tests.sh` builds and runs their tests, and a test of the
 whole card against stand-ins for the Computer, on a PC with any C++17
 compiler.

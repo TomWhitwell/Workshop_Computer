@@ -1,5 +1,5 @@
 draft: false
-Name: Guided Wandering
+Name: Weights
 short-description: "Two voices of random pitch CV, guided by probabilities set on a Music Thing 8mu - with gates, ratchets and envelopes"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
@@ -19,8 +19,8 @@ contact:
 #     (c) Chris Johnson
 
 uf2:
-  - path: UF2/guided_wandering.uf2
-    name: Guided Wandering 0.1.0
+  - path: UF2/weights.uf2
+    name: Weights 0.1.0
 
 tags:
   - generative
