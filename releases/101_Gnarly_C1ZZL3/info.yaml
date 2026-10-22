@@ -1,13 +1,20 @@
 draft: false
 Name: C1ZZL3 Gnarly
 short-description: >-
-  Dual-oscillator phase distortion synth voice with recipe wave banks, named Web MIDI
+  GnarlyC1ZZL3 is a dual-oscillator phase distortion synth voice with recipe wave banks, named Web MIDI
   sound presets, separate oscillator envelopes, CZ patch import support, and an
   eight-knob MIDI CC performance block.
 summary: >-
   Dual-oscillator phase distortion synth voice with recipe wave banks, named Web MIDI
   sound presets, separate oscillator amplitude/phase-distortion/pitch envelopes,
   CZ patch import support, and an eight-knob MIDI CC performance block.
+  An alternative Gnarly_C1ZZL3_8mu.uf2 firmware retains the same sound engine and
+  Web MIDI editor while adding Music Thing 8mu v2 performance and custom-envelope
+  editing through eight bundled controller banks. Bank 1 provides performance
+  controls, Banks 2--7 edit the six envelope lanes, and Bank 8 selects the custom
+  slot and adjusts lane/master depths. Lane-bank buttons select level/time editing,
+  save or revert. Only saved custom sound-preset slots are editable; factory
+  envelopes remain read-only and gesture mappings are disabled.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "Gnarly protocol v11 stable"

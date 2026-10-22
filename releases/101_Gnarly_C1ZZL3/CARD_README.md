@@ -3,7 +3,8 @@
 C1ZZL3 Gnarly is a dual-oscillator phase-distortion synth for the Music Thing
 Modular Workshop Computer. It is a no-Turing, performance-focused C1ZZL3
 version, with two oscillator lanes, recipe wave banks, named sound presets, and
-CZ patch import support.
+CZ patch import support. An optional 8mu v2 firmware adds hands-on performance
+and envelope editing while retaining the same sound engine and Web MIDI editor.
 
 ## What It Does
 
@@ -12,6 +13,7 @@ CZ patch import support.
 - Saves named sound presets from the browser editor.
 - Uses four recipe banks for simple, compound, resonant, and CZ-style sounds.
 - Responds to USB MIDI notes and MIDI CC performance controls.
+- Offers alternative firmware for 8mu v2 performance and custom-envelope editing.
 - Removes Turing CV, pulse, and generated MIDI output so the panel can focus on
   synthesiser control.
 
@@ -124,6 +126,30 @@ MIDI CC controls:
 - `CC25`: oscillator 2 phase distortion.
 - `CC26`: noise/grit amount.
 - `CC27`: oscillator 1 phase distortion, for eight-knob controllers.
+
+## Optional 8mu v2 Firmware
+
+Flash [Gnarly_C1ZZL3_8mu.uf2](uf2/Gnarly_C1ZZL3_8mu.uf2) for the Music Thing
+8mu v2 option. This is alternative firmware; it retains the Gnarly sound engine
+and Web MIDI editor and adds direct performance and envelope control from 8mu.
+
+Import the eight bundled [8mu bank files](8mu_banks/README.md) one at a time with
+the [16n Faderbank editor](https://16n-faderbank.github.io/editor/), selecting the
+destination bank on the 8mu before each import. These controller banks are
+separate from the four synthesiser recipe banks described above.
+
+- **Bank 1:** regular Gnarly performance parameters. Buttons A–D send unused
+  CCs 124–127 and do not play notes.
+- **Banks 2–7:** faders 1–8 edit envelope stages 1–8 for Amp1, Amp2, PD1, PD2,
+  Pitch1 and Pitch2 respectively. Button A selects level editing, B selects time
+  editing, C saves the current custom envelope and D reverts the current lane.
+- **Bank 8:** fader 1 selects the envelope/custom slot; faders 2–7 set Amp1, PD1,
+  Pitch1, Pitch2, PD2 and Amp2 depths; fader 8 sets master depth.
+
+Only saved custom sound-preset slots are editable. Select a saved custom slot
+with bank 8 before editing a lane; factory envelopes remain read-only. Gesture
+mappings are intentionally disabled. See the [main README](README.md#if-you-have-an-8mu)
+and [bank guide](8mu_banks/README.md) for the matching firmware and setup details.
 
 ## Web MIDI Editor
 
