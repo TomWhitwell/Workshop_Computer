@@ -1,0 +1,154 @@
+draft: false
+Name: Fader Footie
+short-description: "Table football for two players on a Music Thing 8mu, played in a web page, with every touch, goal and the ball's position on the Computer's jacks"
+Language: C++ (ComputerCard)
+Creator: XponentOneAudio
+Version: "0.2.0"
+Status: Beta
+License: MIT
+Editor: web
+date-created: 2026-10-15
+date-updated: 2026-10-19
+
+contact:
+  email: XponentOneAudio@gmail.com
+
+# Vendors, unmodified and under its own MIT terms:
+#   ComputerCard.h
+#     (c) Chris Johnson
+
+uf2:
+  - path: UF2/fader_footie.uf2
+    name: Fader Footie 0.2.0
+
+tags:
+  - game
+  - modulation
+  - cv
+  - midi
+  - 8mu
+
+summary: |
+  Table football (Tischfußball) for two players and a Music Thing 8mu,
+  played in a web page (web/index.html, Chrome or Edge), with the Workshop
+  Computer turning the game into voltages.<br><br>
+
+  The 8mu sits between the players, plugged into the computer. The four
+  faders nearest each player slide their four rods - goalie, defence,
+  midfield and attack, in the classic 1-2-5-3 - and the two buttons nearest
+  them are a hard and a soft shot, or, by choice, draw back and shoot, as
+  on a real table: shoot alone is a soft
+  flick, the men facing up for a moment; drawn back, the men lie face down
+  and the ball rolls underneath, and shooting from there is a hard shot,
+  the men swinging right round over the bar. The ball rolls under the rods.
+  Either team can be played by the CPU, at three levels, or by Human +
+  CPU: the player has the rod whose fader they touched last, and the CPU
+  plays the other three.<br><br>
+
+  The physics is all tweakable while you play: friction, rolling
+  resistance, wall and player bounciness, grip, shot power, ball speed,
+  ball and player size, goal width, kick reach, draw-back hold, rod speed, corner ramps,
+  game speed, and tilting the 8mu to tip the table. Presets include Ice
+  rink, Pinball, Mud, Beach ball and Slow motion.<br><br>
+
+  The card is the page's USB MIDI device. CV Out 1 and 2 are the number of
+  the last team 1 and team 2 player to touch the ball, as a voltage - notes
+  of a scale, semitones, a 0-5V spread, or one volt per rod - so the two
+  teams can play a duet. Audio Out 1 and 2 are how far the ball is from the
+  goal each team attacks. Pulse Out 1 and 2 give a gate each time that team
+  touches the ball, and a burst of fast triggers when it scores.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Unused
+      type: audio
+      description: Not used.
+    - id: AudioIn2
+      name: Unused
+      type: audio
+      description: Not used.
+    - id: CVIn1
+      name: Unused
+      type: cv
+      description: Not used.
+    - id: CVIn2
+      name: Unused
+      type: cv
+      description: Not used.
+    - id: PulseIn1
+      name: Serve
+      type: pulse
+      description: Serves the ball again.
+    - id: PulseIn2
+      name: New match
+      type: pulse
+      description: Starts a new match.
+  outputs:
+    - id: AudioOut1
+      name: Distance 1
+      type: audio
+      description: How far the ball is from the goal team 1 attacks (the right-hand one), about 0V in the goal mouth to about +5V at the far corners. Nearness instead with the switch up. Smoothed by Main. Uncalibrated.
+    - id: AudioOut2
+      name: Distance 2
+      type: audio
+      description: How far the ball is from the goal team 2 attacks (the left-hand one).
+    - id: CVOut1
+      name: Team 1 player
+      type: cv
+      description: The number (1-11) of the last team 1 player to touch the ball, as a voltage chosen on the page - by default the notes of a major scale, 1V/oct, player 1 at 0V.
+    - id: CVOut2
+      name: Team 2 player
+      type: cv
+      description: The same for team 2, with its own transpose.
+    - id: PulseOut1
+      name: Team 1 touch / goal
+      type: pulse
+      description: A gate, length set by X, each time team 1 touches the ball; a burst of triggers (12 by default) at the rate set by Y when team 1 scores.
+    - id: PulseOut2
+      name: Team 2 touch / goal
+      type: pulse
+      description: The same for team 2.
+
+controls:
+  switch:
+    up:
+      name: Nearness
+      description: The audio outs show how near the ball is to the goal, +5V in the goal mouth.
+    middle:
+      name: Distance
+      description: The audio outs show how far the ball is from the goal.
+    down:
+      name: Serve / new match
+      description: Momentary. Tap to serve the ball again; hold for a second to start a new match.
+  knobs:
+    - main:
+        name: Smoothing
+        description: Smoothing of the audio outs, from about 1ms to about 1s.
+      x:
+        name: Gate length
+        description: Length of the touch gates on the pulse outs, 2ms to 1s.
+      y:
+        name: Burst rate
+        description: Rate of the goal bursts on the pulse outs, 4Hz to 60Hz.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Audio Out 1
+          description: Brightness follows Audio Out 1.
+        - id: LED1
+          name: Audio Out 2
+          description: Brightness follows Audio Out 2.
+        - id: LED2
+          name: CV Out 1
+          description: Brightness follows CV Out 1, 0 to 5V.
+        - id: LED3
+          name: CV Out 2
+          description: Brightness follows CV Out 2, 0 to 5V.
+        - id: LED4
+          name: Pulse Out 1
+          description: Follows Pulse Out 1. With no web page linked, LEDs 4 and 5 blink slowly in turn.
+        - id: LED5
+          name: Pulse Out 2
+          description: Follows Pulse Out 2.

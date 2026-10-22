@@ -9,7 +9,8 @@ License: MIT
 repository: https://github.com/uglifruit/89_GBA
 Editor: none
 date-created: 2026-07-04
-date-updated: 2026-09-20
+date-updated: 2026-10-19
+demo-link: https://youtu.be/Hya3-_Gx0ko
 
 contact:
   social:
@@ -31,92 +32,32 @@ tags:
   - quantiser
 
 summary: |
-  GBA PSG Voice turns the Workshop Computer into a Game Boy Advance link-cable master and the
-  GBA into a synth voice you play from the rack. No cartridge, no flashcart, no modification to
-  the console: the program is uploaded from the module every time you switch on, in about six
-  seconds. Full guide in README.md.<br><br>
+  Turns a Game Boy Advance into a synth voice for your modular. The Workshop Computer loads custom
+  software onto the GBA over its link cable using the GBA's built-in multiboot - no cartridge, no
+  modifications. Your CV, knobs and gates then play the GBA's four sound channels, and the GBA sends
+  its notes, gates and buttons back to the rack. Sound comes from the GBA's headphone jack; the
+  sound editor is on the GBA's own screen. Works with the Game Boy Advance, GBA SP (with the SP
+  headphone adapter) and Analogue Pocket.<br><br>
 
-  THE CABLE. Use a GAME BOY COLOR link cable, not a third-party GBA one. The connector has been
-  the same six-pin part since the Game Boy Pocket so it fits a GBA, and GBC cables are normally
-  6-CORE - every pin has a wire behind it. Third-party GBA cables often carry only the three or
-  four conductors that cable's intended use needed, and which three varies between production
-  runs, so a signal you need can simply be absent. That fault looks exactly like bad wiring.
-  (The old DMG-era cable, with the big connector, will not fit.)<br><br>
+  THE CABLE. Wire one end of a link cable to the Workshop: GBA pin 5 (SC) to Pulse Out 1 through a
+  1k resistor, pin 3 (SI) to Pulse Out 2 through a 1k resistor, pin 2 (SO) to Pulse In 1, and pin 6
+  to ground. Leave pins 1 and 4 unconnected. Do not leave out the resistors - the pulse outputs swing
+  to about 6V and the GBA runs at 3.3V. A Game Boy Color cable is best, as it has all six wires.<br><br>
 
-  Cut one end off and wire it to the pulse jacks, common ground, with 1k series resistors on the
-  two lines the module drives:<br><br>
+  GETTING STARTED. Take the cartridge out. Switch on the Workshop first, then the GBA. The LEDs light
+  in sequence as the software loads (about six seconds), the GBA screen goes green, and the MAIN page
+  appears. Push the Z switch down to hear a note. If nothing happens, power-cycle the GBA - always
+  needed after re-flashing the Workshop.<br><br>
 
-    Pulse Out 1 -> GBA pin 5, SC  (clock)        1k<br>
-    Pulse Out 2 -> GBA pin 3, SI  (data in)      1k<br>
-    Pulse In 1  -> GBA pin 2, SO  (data out)     NO resistor<br>
-    ground      -> GBA pin 6, GND<br><br>
+  PLAYING. CV In 2 is 1V/oct pitch, the Main knob is channel 3's level, X and Y are attack and
+  release, and the Z switch triggers. CV Out 2 is the quantised pitch, CV Out 1 the gate, and Audio
+  Out 1 and 2 are the GBA's A and B buttons as gates. Everything else is yours to assign.<br><br>
 
-  Pin 1 is 3.3V the GBA SOURCES - leave it floating. Pin 4 is unused. NO RESISTOR ON SO: Pulse
-  In 1 is a transistor gate input whose pull-up biases the stage, and a series resistor fights
-  it. The two that are there protect the console: the pulse outputs swing to about 6V and the
-  GBA's inputs are 3.3V logic.<br><br>
+  THE EDITOR. START opens it, SELECT + Left/Right changes page, A + D-pad changes values. Eleven
+  pages: MEM (16 patch slots), CHAN, TRIG, ENV, MIX, BTN, MAP (modulation matrix), ORN (arpeggios),
+  DRUM, CAL (trim 1V/oct tracking) and SET (key and scale quantising).<br><br>
 
-  Terminate it on a breakout so the resistors cannot be left out by accident - a female link
-  socket, or the board at https://oshpark.com/shared_projects/srSgm3Yj with the two 1k resistors
-  soldered on.<br><br>
-
-  THE CROSSOVER. Peer-to-peer link cables generally swap SO and SI between their two ends, and
-  you cannot tell the ends apart by eye. Do not reason about it: build and flash the cablecheck
-  diagnostic (see diagnostics/) and run MODE 0, which listens on Pulse In 1 and Pulse In 2 at
-  once and reports which wire
-  actually carries SO. If crossed, swap the two data wires at the Workshop end; SC and GND stay
-  put. The failure this prevents is silent - everything looks wired and the GBA simply never sees
-  a valid sync word.<br><br>
-
-  POWERING UP. Computer first, then the GBA - the console only syncs if the master is already
-  clocking when it boots. Cartridge removed, on the logo screen. LED 0 blinks while it looks for
-  a console; LEDs 1-5 sweep as a progress bar during the upload; the GBA's screen goes plain
-  green, which is the payload's own code running and your proof it worked. LED 0 goes solid.<br><br>
-
-  POWER-CYCLE THE GBA WHENEVER YOU RE-FLASH THE WORKSHOP. A console already running a payload
-  never answers a multiboot sync, so the host retries for ever: LED 0 blinking, LED 1 lit. This
-  catches everyone once, and it is not a wiring fault.<br><br>
-
-  If it fails, LEDs 1-3 hold the last result as a 3-bit code: 1 = nothing answered, 2 = handshake
-  failed, 1+2 = transfer error, 3 = CRC mismatch, 1+3 = bad payload. Work down BENCH.md, which
-  isolates one thing at a time.<br><br>
-
-  SOUND comes out of the GBA's HEADPHONE JACK. It is around 1 Vpp against Eurorack's 10 Vpp, so
-  it will be quiet - straight into a mixer channel. The original AGB-001 has a headphone socket;
-  the GBA SP does not and needs the official SP adapter, whose ground can short the signal
-  against a shared ground - use a ground-isolating cable if that happens. The Game Boy Micro
-  uses a different, smaller link connector and needs an adapter to take this cable at all.<br><br>
-
-  PLAYING. It boots playing something: a hard-panned square pair with a sine shimmer over the
-  top, triggered by the module's own switch, so it makes a sound with nothing patched. CV In 2 is
-  1V/oct pitch, the Main knob rides channel 3, X and Y are attack and release. Pulse In 2, CV In
-  1 and the Audio Ins are deliberately unassigned - nothing should move that you did not patch.
-  All four jacks, the three knobs and the switch's UP position are assignable on the GBA's MAP
-  page, each with its own set of per-voice tickboxes. Audio In 1, Audio In 2 and CV In 1 can also
-  be armed as TRIGGER sources on the TRIG page, alongside Pulse In 2, the switch and a GBA
-  button - they fire on a rising level, so loud audio or a gate works and a drifting CV does
-  not. Off by default, like everything else that has to be patched to matter.<br><br>
-
-  CV Out 2 is the quantised note as calibrated 1V/oct, so setting a scale on the SET page turns
-  the pair into a quantiser for the rest of the rack. Audio Out 1 and 2 send the GBA's A and B
-  buttons back out as gates, so a performance gesture can drive another module.<br><br>
-
-  THE EDITOR. START opens it on MEM - patch recall is the one editor action that happens
-  mid-performance, so it is one gesture away - and SELECT + Left/Right walks the eleven pages:
-  MEM, CHAN, TRIG, ENV, MIX, BTN, MAP, ORN, DRUM, CAL, SET. Editing is A + D-pad throughout;
-  inside a menu no button carries its performance meaning.<br><br>
-
-  THE CAL PAGE trims the CV input scale and offset. The module's CV OUTPUTS are factory
-  calibrated from its EEPROM, so the quantised pitch out is in tune for free, but the CV INPUTS
-  are not calibrated at all - so 1V/oct tracking on CV In 2 has to be trimmed once. The page
-  carries a live tuner: an IN line reads CV In 2's raw voltage straight through the current
-  calibration, note name plus cents, and an OUT line shows the note actually sounding - so with
-  a sequence patched in you can watch both at once and trim CV SCALE/OFFSET until IN reads true
-  and OUT matches it.<br><br>
-
-  PATCHES. Sixteen slots on the card itself (MEM page: A+UP saves, A+DOWN loads). The GBA's own
-  RAM is wiped when it is switched off, so the Workshop is where a patch persists. Saving erases
-  a flash sector, which briefly stops the audio - expect a click.
+  See the user manual PDF and README.md for a guided tour, and TECHNICAL.md for the full reference.
 
 panel:
   inputs:
@@ -125,7 +66,7 @@ panel:
       description: 1V/oct pitch CV. Trim tracking on the GBA CAL page (CV inputs are not factory calibrated)
     - id: PulseIn2
       name: Gate
-      description: Gate and trigger. Edges shorter than the 1ms poll are still caught
+      description: Gate and trigger. Off in the factory patch - tick PU2 on the GBA's TRIG page to use it. Edges shorter than the 1ms poll are still caught
     - id: CVIn1
       name: Mod 1
       description: Unassigned by default - nothing should move that you did not patch. Give it a job on the MAP page, or arm it as a trigger source on the TRIG page

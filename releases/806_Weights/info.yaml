@@ -1,0 +1,198 @@
+draft: false
+Name: Weights
+short-description: "Two voices of random pitch CV, guided by probabilities set on a Music Thing 8mu - with gates, ratchets and envelopes"
+Language: C++ (ComputerCard)
+Creator: XponentOneAudio
+Version: "0.1.0"
+Status: Beta
+License: MIT
+Editor: web
+date-created: 2026-10-21
+date-updated: 2026-10-22
+
+contact:
+  email: XponentOneAudio@gmail.com
+
+# Vendors, unmodified and under their own MIT terms:
+#   ComputerCard.h, EightMU.h (which carries the rppicomidi usb_midi_host
+#   driver, (c) 2023 rppicomidi)
+#     (c) Chris Johnson
+
+uf2:
+  - path: UF2/weights.uf2
+    name: Weights 0.1.0
+
+tags:
+  - generative
+  - random
+  - quantiser
+  - microtonal
+  - cv
+  - envelope
+  - usb-host
+  - midi
+  - 8mu
+
+summary: |
+  Random melodies whose randomness you shape by hand. Two voices wander at
+  once; at every step each one draws a note of the scale, an octave, a gate
+  length and a ratchet, and the faders of a Music Thing 8mu set the odds of
+  every choice.<br><br>
+
+  The 8mu's four buttons choose the page: A NOTES (one fader per note of the
+  scale), B OCTAVES (-2V to +5V), C GATES (a rest, one to six sevenths of
+  the step, or tied into the next note) and D RATCHETS (1x, 1.5x, 2x or 3x a
+  step on one note, or 1.5x, 2x, 3x or 4x with a new note at every hit).
+  Each button has two more pages of envelope chances, drawn with every
+  note: A ATTACK and B DECAY (a quarter to four times the knob's time), C
+  PLUCK (half its range either way) and D DEPTH (the envelope's peak, an
+  eighth to full); an envelope page all at zero is off.
+  Pressing a button again cycles its four pages: its first, voice 2's, its
+  envelope page and voice 2's envelope page. While a voice 2
+  page is all at zero, voice 2 draws from voice 1's page too, playing a
+  different line with the same probabilities; raise any fader on it and
+  voice 2 goes its own way. Faders pick up, so changing page never changes
+  anything by accident. For 3 seconds after a touch the 8mu's LEDs show the
+  page's probabilities, then what is playing.<br><br>
+
+  37 scales of up to eight notes, one fader each: the usual modes and
+  pentatonics, bebop, ragas Bhairav, Todi, Marwa, Malkauns and Hindol in just
+  intonation, maqamat Rast, Bayati, Hijaz and Saba, just intonation, the
+  harmonic and subharmonic series, gamelan slendro and pelog, and 5-, 7- and
+  8-tone equal temperaments. Each voice has a calibrated 1V/oct
+  pitch with slew, a gate, and an attack-decay envelope with a pluckiness
+  control.<br><br>
+
+  It works with an 8mu alone, no computer needed. An optional web editor
+  (web/index.html, Chrome or Edge) shows what each voice plays, mirrors the
+  8mu's LEDs, sets the internal tempo and keeps presets; with a computer
+  plugged into the Computer's USB socket the card becomes a USB MIDI device
+  for it, and an 8mu plugged into the computer is passed on through it.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: VCA 1
+      type: audio
+      description: >
+        Optional. A signal (audio or CV) plugged in here comes out of Audio
+        Out 1 shaped by voice 1's envelope, in place of the envelope itself:
+        a full envelope passes it at its own level. Unplugged, Audio Out 1
+        is the envelope again.
+    - id: AudioIn2
+      name: VCA 2
+      type: audio
+      description: The same for voice 2 and Audio Out 2.
+    - id: CVIn1
+      name: Unused
+      type: cv
+      description: Not used.
+    - id: CVIn2
+      name: Unused
+      type: cv
+      description: Not used.
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: >
+        A step every beat: the clock divided or multiplied by X (switch up),
+        for clocks up to a minute apart. Followed from its second pulse.
+        With nothing plugged in, or once four of its periods (at least 2s)
+        pass without a pulse, the card keeps its own tempo: 120 BPM, until
+        set by holding the switch down and turning Main (40-300 BPM), or
+        from the web editor.
+    - id: PulseIn2
+      name: Unused
+      type: pulse
+      description: Not used.
+  outputs:
+    - id: AudioOut1
+      name: Envelope 1
+      type: audio
+      description: Voice 1's envelope, 0 to +5V, fired at every hit (not on rests, nor on the note after a tied one). With a jack in Audio In 1, that input through the envelope instead.
+    - id: AudioOut2
+      name: Envelope 2
+      type: audio
+      description: Voice 2's envelope, or Audio In 2 through it.
+    - id: CVOut1
+      name: Pitch 1
+      type: cv
+      description: Voice 1's pitch, 1V/oct with C at 0V, calibrated, -2V to nearly +6V, with slew.
+    - id: CVOut2
+      name: Pitch 2
+      type: cv
+      description: Voice 2's pitch.
+    - id: PulseOut1
+      name: Gate 1
+      type: pulse
+      description: Voice 1's gate.
+    - id: PulseOut2
+      name: Gate 2
+      type: pulse
+      description: Voice 2's gate.
+
+controls:
+  switch:
+    up:
+      name: Pitch & clock
+      description: Main sets the scale, X the clock divide/multiply, Y the slew.
+    middle:
+      name: Envelopes
+      description: Main sets the decay, X the attack, Y the pluckiness.
+    down:
+      name: Tempo
+      description: >
+        Momentary. Hold it and turn Main for the internal tempo, 40 to 300
+        BPM (about 110 in the middle). Main picks the tempo up before it
+        changes it, and picks its scale or decay up again after. While held,
+        LEDs 0-3 flash on every step. X and Y keep the settings of the
+        position it was pressed from.
+  knobs:
+    - when:
+        z: up
+      main:
+        name: Scale
+        description: >
+          37 scales round the knob: Major, Natural minor, Harmonic minor, Melodic
+          minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Major pentatonic,
+          Minor pentatonic, Blues, Whole tone, Diminished, Bebop dominant, Hirajoshi,
+          Fifths, Octaves, Raga Bhairav, Raga Todi, Raga Marwa, Raga Malkauns, Raga
+          Hindol, Maqam Rast, Maqam Bayati, Maqam Hijaz, Maqam Saba, Just major, Just
+          minor, Harmonic series, Subharmonic series, Slendro, Pelog, Pelog selisir,
+          5-TET, 7-TET, 8-TET. The Computer's LEDs show its number (1-37) in binary
+          for a second when it changes.
+      x:
+        name: Clock
+        description: Eleven equal zones - /8, /6, /4, /3, /2, x1 (centre), x2, x3, x4, x6, x8. Multiplied beats are spaced from the measured clock and restarted by every clock, so they never drift.
+      y:
+        name: Slew
+        description: On the pitch CVs, two-sided. Off in a zone round the centre. Right of centre every note glides, a lag of 1ms to about 2s; left of centre only notes a tied gate leads into glide (the same times), the others jump.
+    - when:
+        z: middle
+      main:
+        name: Decay
+        description: 10ms to 4s. Every knob has a dead zone at each end, and each setting keeps its value; after the switch moves a knob picks up only once turned to its value.
+      x:
+        name: Attack
+        description: 0.5ms to 2s. A retrigger climbs from wherever the envelope is, so fast ratchets don't click.
+      y:
+        name: Pluckiness
+        description: The decay's curve, from a straight line (soft) to a sharp drop with a long tail (a pluck).
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Page A / gate 1
+          description: With an 8mu or the web editor, LEDs 0-3 show the button whose page is selected (A-D), steady for its first page, blinking slowly for its second, fast for its third and faster still for its fourth. Without one, LEDs 0 and 1 show the two gates.
+        - id: LED1
+          name: Page B / gate 2
+        - id: LED2
+          name: Page C
+        - id: LED3
+          name: Page D
+        - id: LED4
+          name: Envelope 1
+          description: Follows voice 1's envelope.
+        - id: LED5
+          name: Envelope 2
+          description: Follows voice 2's envelope. Blinks fast while a knob is waiting to pick up its setting.

@@ -1,0 +1,1174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weights editor</title>
+<!--
+  WEIGHTS - web editor for the Music Thing Modular Workshop Computer
+  card. One static file, no network needed. Talks to the card over WebMIDI +
+  SysEx (protocol: ../sysex.h). The card works without this page; the page
+  adds a picture of what is playing, presets, the internal tempo, and a way to
+  use an 8mu plugged into this computer rather than into the card.
+
+  The fader units (0-127, as an 8mu sends them), the scales, the pickup and
+  the 8mu's LEDs mirror ../weights.h, ../ui.h and ../main.cpp. Visual style and
+  8mu handling shared with the WaveSeq and CVSeq editors.
+-->
+<style>
+  :root {
+    --bg: #f4f2ee; --panel: #ffffff; --ink: #1c1b19; --muted: #6a675f; --line: #d9d5cc;
+    --wave-bg: #fbfaf7; --grid: #e6e2d8;
+    --accent: #0b7d78; --accent-soft: #cfe9e6; --warm: #b5560a; --warm-soft: #f6dcc6;
+    --ok: #2b7a2b; --bad: #b3261e; --track: #e3dfd5; --shadow: 0 1px 2px rgba(0,0,0,.08);
+    --v1: #0b7d78; --v2: #b5560a; --led: #e8401c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141514; --panel: #1e201f; --ink: #ecebe6; --muted: #9a978d; --line: #34362f;
+      --wave-bg: #171918; --grid: #2a2d29;
+      --accent: #4fd1c5; --accent-soft: #1d3d3a; --warm: #f0a35e; --warm-soft: #4a3320;
+      --ok: #7ed37e; --bad: #ff8a80; --track: #33352f; --shadow: none;
+      --v1: #4fd1c5; --v2: #f0a35e; --led: #ff6a3d;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .02em; }
+  h2 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .status { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warm); } .dot.bad { background: var(--bad); }
+  .spacer { flex: 1; }
+  .muown { padding: 2px 8px; font-size: 12px; border-color: var(--accent); }
+  .muown.away { color: var(--muted); border-color: var(--line); border-style: dashed; }
+  button {
+    font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+  #msg { padding: 6px 16px; min-height: 1.4em; color: var(--muted); }
+  #msg.err { color: var(--bad); }
+  main { display: grid; gap: 16px; padding: 0 16px 24px; grid-template-columns: minmax(0, 1fr) 340px; }
+  @media (max-width: 960px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .card > h2 { display: flex; align-items: center; gap: 8px; }
+  .card > h2 .fold { margin-left: auto; padding: 0 7px; min-width: 26px; height: 22px; line-height: 1; font-size: 14px;
+    color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .card > h2 .fold:hover { color: var(--ink); border-color: var(--accent); }
+  .card.folded > :not(h2) { display: none; }
+  .card.folded > h2 { margin-bottom: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: var(--shadow); min-width: 0; }
+  canvas { display: block; width: 100%; border-radius: 6px; background: var(--wave-bg); }
+  #history { height: 200px; }
+  .jacks { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.4; }
+  .jacks th, .jacks td { text-align: left; vertical-align: top; padding: 4px 0; border-top: 1px solid var(--line); }
+  .jacks th { white-space: nowrap; padding-right: 10px; font-weight: 600; }
+  .jacks td { color: var(--muted); }
+  .jacks tr.grp th { border-top: 0; padding-top: 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .jacks tr.grp:first-child th { padding-top: 0; }
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+  .readout { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+  .readout.waiting { outline: 2px dotted var(--warm); outline-offset: 2px; }
+  .readout .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .readout .v { font-size: 16px; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .readout .sub { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .voices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+  @media (max-width: 560px) { .voices { grid-template-columns: minmax(0, 1fr); } }
+  .voice { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; border-left-width: 4px; min-width: 0; }
+  .voice.v1 { border-left-color: var(--v1); } .voice.v2 { border-left-color: var(--v2); }
+  .voice .head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .voice .note { font-size: 22px; font-variant-numeric: tabular-nums; }
+  .voice .det { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .voice .gate { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--line); }
+  .voice .gate.on { background: var(--led); border-color: var(--led); }
+  .envbar { height: 6px; border-radius: 3px; background: var(--track); margin-top: 6px; overflow: hidden; }
+  .envbar > div { height: 100%; width: 0; }
+  .v1 .envbar > div { background: var(--v1); } .v2 .envbar > div { background: var(--v2); }
+  .tempo { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .tempo.waiting { outline: 2px dotted var(--warm); outline-offset: 2px; border-radius: 6px; }
+  .tempo .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .tempo input[type=number] { width: 5em; font: inherit; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .tempo input[type=range] { flex: 1 1 160px; accent-color: var(--accent); }
+  .caption { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .notes { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .notes p { margin: 6px 0 0; }
+  .notes b { color: var(--ink); font-weight: 600; }
+  .notes .jacks { margin-top: 4px; }
+
+  /* Pages and faders */
+  /* Two rows of tabs: A1 A2 B1 B2 C1 C2 D1 D2 above, A3 A4 B3 B4 C3 C4 D3 D4
+     below, so each button's pages line up in columns */
+  .tabs { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+  .tab { padding: 4px 2px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer; background: var(--panel);
+    font-size: 12px; line-height: 1.3; text-align: center; min-width: 0; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab b { display: inline-block; min-width: 2em; text-align: center; border-radius: 4px; background: var(--track); font-size: 13px; }
+  .tab.on { border-color: var(--accent); background: var(--accent-soft); }
+  .tab.on b { background: var(--accent); color: var(--panel); }
+  .tab.shared { border-style: dashed; color: var(--muted); }
+  .share { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; color: var(--muted); min-height: 30px; }
+  .share button { padding: 3px 8px; font-size: 12px; }
+  .ledrow { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; }
+  .ledrow span { justify-self: center; width: 12px; height: 12px; border-radius: 50%; background: var(--led); opacity: .08; border: 1px solid var(--line); }
+  .faders { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+  .fader { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; border-radius: 6px; padding: 4px 0; }
+  .fader.unused { opacity: .35; }
+  .fader.cur1 { background: var(--accent-soft); }
+  .fader .name { font-size: 12px; color: var(--muted); }
+  .fader .slot { position: relative; height: 150px; width: 32px; }
+  .fader input[type=range] {
+    writing-mode: vertical-lr; direction: rtl; width: 32px; height: 150px; margin: 0;
+    accent-color: var(--accent); cursor: pointer;
+  }
+  .fader .ghost { position: absolute; left: 2px; right: 2px; height: 0; border-top: 2px dashed var(--warm); pointer-events: none; display: none; }
+  .fader .val { font-variant-numeric: tabular-nums; font-size: 13px; }
+  .fader .pct { font-variant-numeric: tabular-nums; font-size: 11px; color: var(--muted); }
+  .fader .desc { font-size: 11px; color: var(--ink); text-align: center; min-height: 2.6em; overflow-wrap: anywhere; }
+  @media (max-width: 640px) { .faders, .ledrow, .tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+  /* Presets */
+  #presets { list-style: none; padding: 0; margin: 0; max-height: 420px; overflow: auto; }
+  #presets li { display: flex; align-items: center; gap: 8px; padding: 4px; border-radius: 6px; }
+  #presets li:hover { background: var(--accent-soft); }
+  #presets li .pname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  #presets li .tag { font-size: 11px; color: var(--muted); }
+  #presets li button { padding: 2px 6px; font-size: 12px; }
+  .preset-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  details { margin-top: 16px; }
+  details summary { cursor: pointer; color: var(--muted); }
+  kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Weights</h1>
+  <div class="status"><span id="dot" class="dot"></span><span id="status-text">Not connected</span></div>
+  <button id="mu-owner" class="muown" hidden></button>
+  <div class="spacer"></div>
+  <button id="btn-connect" class="primary">Connect card &amp; 8mu</button>
+  <button id="btn-rescan" hidden>Rescan</button>
+  <button id="btn-read" disabled>Read from card</button>
+  <button id="btn-send" disabled>Send to card</button>
+  <button id="btn-reset">Reset</button>
+</header>
+<div id="msg"></div>
+
+<main>
+  <div style="display:grid; gap:16px; align-content:start; min-width:0">
+    <section class="card">
+      <h2>Now playing</h2>
+      <div class="readouts">
+        <div class="readout" id="rb-scale"><div class="k">Scale</div><div class="v" id="ro-scale">-</div><div class="sub" id="ro-scale-sub"></div></div>
+        <div class="readout" id="rb-clock"><div class="k">Clock</div><div class="v" id="ro-clock">-</div><div class="sub" id="ro-clock-sub"></div></div>
+        <div class="readout" id="rb-slew"><div class="k">Slew</div><div class="v" id="ro-slew">-</div></div>
+        <div class="readout" id="rb-decay"><div class="k">Decay</div><div class="v" id="ro-decay">-</div></div>
+        <div class="readout" id="rb-attack"><div class="k">Attack</div><div class="v" id="ro-attack">-</div></div>
+        <div class="readout" id="rb-pluck"><div class="k">Pluckiness</div><div class="v" id="ro-pluck">-</div></div>
+      </div>
+      <div class="voices">
+        <div class="voice v1"><div class="head"><span class="gate" id="g1"></span>Voice 1 <span class="det" id="src1"></span></div>
+          <div class="note" id="n1">-</div><div class="det" id="d1"></div><div class="envbar"><div id="e1"></div></div></div>
+        <div class="voice v2"><div class="head"><span class="gate" id="g2"></span>Voice 2 <span class="det" id="src2"></span></div>
+          <div class="note" id="n2">-</div><div class="det" id="d2"></div><div class="envbar"><div id="e2"></div></div></div>
+      </div>
+      <div class="tempo" id="tempo-box">
+        <span class="k">Internal tempo</span>
+        <input type="range" id="tempo-r" min="40" max="300" step="1" aria-label="Internal tempo">
+        <input type="number" id="tempo-n" min="40" max="300" step="1" aria-label="Internal tempo, BPM"> BPM
+      </div>
+      <div class="caption" id="busy"></div>
+      <div class="caption" id="tempo-note">Used while nothing is plugged into Pulse In 1; also set on the module by holding the switch down and turning Main. A step is one beat, divided or multiplied by X (switch up).</div>
+    </section>
+
+    <section class="card">
+      <h2>Faders</h2>
+      <div class="tabs" id="tabs"></div>
+      <div class="share" id="share"></div>
+      <div class="ledrow" id="ledrow" title="The 8mu's LEDs, as the card lights them"></div>
+      <div class="faders" id="faders"></div>
+      <div class="caption" id="page-hint"></div>
+    </section>
+
+    <section class="card">
+      <h2>Pitch</h2>
+      <canvas id="history" aria-label="The last few seconds of both voices' pitch"></canvas>
+      <div class="caption">The last eight seconds of CV Out 1 (voice 1) and CV Out 2 (voice 2), &minus;2 to +6 V. Thick while the gate is up.</div>
+    </section>
+  </div>
+
+  <aside style="display:grid; gap:16px; align-content:start; min-width:0">
+    <section class="card">
+      <h2>Presets</h2>
+      <ul id="presets"></ul>
+      <div class="preset-actions">
+        <button id="btn-save">Save current…</button>
+        <button id="btn-export">Export</button>
+        <button id="btn-import">Import</button>
+        <input type="file" id="import-file" accept=".json,application/json" hidden>
+      </div>
+      <div class="caption">A preset is all sixteen pages of faders and the internal tempo; the scale, clock and envelope stay on the knobs. Presets live in this browser. Loading one sends it to the card if one is connected. The card itself keeps nothing over power-off.</div>
+    </section>
+
+    <section class="card">
+      <h2>Inputs &amp; outputs</h2>
+      <table class="jacks">
+        <tr class="grp"><th colspan="2">Inputs</th></tr>
+        <tr><th>Pulse In 1</th><td>Clock: a step every beat, the clock divided or multiplied by X (switch up). Followed from its second pulse; with nothing plugged in (or four periods, at least 2 s, without a pulse) the card keeps its own tempo</td></tr>
+        <tr><th>Audio In 1, 2</th><td>Optional VCA: a signal plugged in comes out of Audio Out 1 or 2 shaped by that voice's envelope (a full envelope passes it at its own level), in place of the envelope. Unplugged: the envelope again</td></tr>
+        <tr><th>Others</th><td>Not used</td></tr>
+        <tr class="grp"><th colspan="2">Outputs</th></tr>
+        <tr><th>CV Out 1, 2</th><td>Voice 1, 2 pitch: 1 V/oct, C at 0 V, calibrated; &minus;2 V to nearly +6 V</td></tr>
+        <tr><th>Audio Out 1, 2</th><td>Voice 1, 2 envelope, 0 to +5 V: one at every hit (not rests, nor a tied note's next note); or Audio In 1, 2 through it</td></tr>
+        <tr><th>Pulse Out 1, 2</th><td>Voice 1, 2 gate</td></tr>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>8mu</h2>
+      <div class="notes">
+        <p>The 8mu can plug into the module (no computer needed) or into this computer, which passes it on to the card. Its faders are <b>relative probabilities</b>: one at zero is never chosen, one twice as high as another twice as often. A first page all at zero makes every choice equally likely.</p>
+        <table class="jacks">
+          <tr><th>Buttons</th><td>A <b>Notes</b>, B <b>Octaves</b>, C <b>Gates</b>, D <b>Ratchets</b>. Press the same button again for its second page (voice 2's), again for its envelope page (A <b>Attack</b>, B <b>Decay</b>, C <b>Pluck</b>, D <b>Depth</b>), again for voice 2's envelope page, and again to go back.</td></tr>
+          <tr><th>Notes</th><td>One fader per note of the scale, from the root up. A scale with fewer than eight notes ignores the extra faders; none has more, so every note has its own fader.</td></tr>
+          <tr><th>Octaves</th><td>Fader 1 &minus;2 V up to fader 8 +5 V (fader 3 is 0 V).</td></tr>
+          <tr><th>Gates</th><td>Fader 1 a rest (no gate, no envelope; the pitch still moves), 2-7 one to six sevenths of the time to the next hit, 8 tied: the gate stays up into the next note, which glides in without a new envelope.</td></tr>
+          <tr><th>Ratchets</th><td>Faders 1-4 hit 1&times;, 1.5&times;, 2&times;, 3&times; a step on one note (1.5&times; is two hits, the second two thirds of the way through); 5-8 hit 1.5&times;, 2&times;, 3&times;, 4&times;, each hit drawing a new note, octave and gate.</td></tr>
+          <tr><th>Attack, Decay</th><td>Each note's attack or decay time, from a quarter (fader 1) to four times (fader 8) the knob's, faders 4 and 5 a little either side. All at zero: off, the knob exactly.</td></tr>
+          <tr><th>Pluck</th><td>Each note's pluckiness, from half its range below the knob (fader 1) to half above (fader 8). All at zero: off.</td></tr>
+          <tr><th>Depth</th><td>Each note's envelope peak, from an eighth of full (fader 1) to full 5 V (fader 8). All at zero: off, always full.</td></tr>
+          <tr><th>Voice 2</th><td>While a second page is all at zero, voice 2 draws from the first page too: two different lines with the same probabilities. Raise any fader on it and voice 2 uses it, on its own. Each kind of page decides this separately. The envelope pages are drawn with each note: once a step, and at every hit of a new-note ratchet.</td></tr>
+          <tr><th>Pickup</th><td>After a page change a fader does nothing until it reaches (or passes) the stored value. While one is waiting, a dashed line on its on-screen fader shows where it is.</td></tr>
+          <tr><th>LEDs</th><td>For 3 s after a fader or button is touched: the page's probabilities, the likeliest fully lit (ratchets flash at their own speed, in time). Then what's playing: the note or octave, a bar up to the gate length, the ratchet flashing at each hit, the envelope's deviation or depth in use (dark when that page is off). On a first page voice 2 shares, voice 2 shows dimly too.</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Panel</h2>
+      <div class="notes">
+        <table class="jacks">
+          <tr><th>Switch up</th><td>Main <b>scale</b> (37: modes, pentatonics, ragas, maqamat, just intonation, harmonic and subharmonic series, gamelan, 5-, 7- and 8-TET), X <b>clock</b> &divide;8, &divide;6, &divide;4, &divide;3, &divide;2, &times;1 (centre), &times;2, &times;3, &times;4, &times;6, &times;8, Y <b>slew</b> on the pitch, two-sided: off at the centre; right of centre every note glides, 1 ms to 2 s; left of centre only notes a tie leads into glide (the same times), the rest jump</td></tr>
+          <tr><th>Switch middle</th><td>Main <b>decay</b> (10 ms to 4 s), X <b>attack</b> (0.5 ms to 2 s), Y <b>pluckiness</b>: the decay's curve, from a straight line to a sharp drop with a long tail</td></tr>
+          <tr><th>Switch down</th><td>Hold it and turn Main for the <b>internal tempo</b>, 40 to 300 BPM (it picks up first, like the other settings; the top LEDs flash on every step). X and Y keep the last position's settings</td></tr>
+          <tr><th>Knobs</th><td>A dead zone at each end, so every setting's whole range is reached. After the switch moves, a knob does nothing until it reaches its setting's value; that setting's box above has a dotted outline until then, and the Computer's bottom right LED blinks fast</td></tr>
+          <tr><th>LEDs</th><td>Top four: the 8mu page's button (lit for a first page, blinking slowly for a second, fast for a third, faster still for a fourth); bottom two: the envelopes. After a scale change, its number (1-37) in binary for a second</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>How it connects</h2>
+      <div class="caption" style="margin-top:0">
+        The card picks its USB mode at power-up. <b>8mu plugged into the card</b>: the card reads it directly and this page isn't used.
+        <b>Computer plugged into the card</b>: the card appears as a MIDI device called <b>Weights</b>, and an 8mu plugged
+        into this computer is passed on by this page. After plugging a computer in, <b>power-cycle the module</b>.
+      </div>
+      <details>
+        <summary>Help</summary>
+        <ul class="caption">
+          <li>Use a USB-C <b>data</b> cable, and close any other app using the card or the 8mu (Serial Monitor, a DAW).</li>
+          <li>Use Chrome, Edge or another Chromium browser. Safari and iOS browsers can't do WebMIDI with SysEx.</li>
+          <li>Press <kbd>Connect card &amp; 8mu</kbd> and allow MIDI with SysEx when the browser asks.</li>
+          <li>On-screen faders: drag, or focus one and use the arrow keys. Double-click sets one to zero.</li>
+          <li>Several 8mus on this computer all drive the page together. With another Workshop editor open too (CVSeq, WaveSeq), one 8mu drives whichever editor you last clicked in; the header shows <b>8mu: here</b> or <b>8mu: elsewhere</b>, and clicking it takes the 8mu back. Use two windows side by side rather than tabs: Chrome slows a tab that's been in the background for a few minutes.</li>
+          <li>Without a card the page still edits, keeps presets and plays a simulation of the card, at the internal tempo, in the scale last read from the card (Major to begin with).</li>
+        </ul>
+      </details>
+    </section>
+  </aside>
+</main>
+
+<script>
+'use strict';
+
+// ============================================================================
+// Constants mirroring the firmware (weights.h, ui.h, main.cpp, sysex.h)
+// ============================================================================
+const NF = 8;                       // faders
+// Pages, as weights.h: layer * 4 + button.  Each button cycles through four:
+// its first page, voice 2's, its envelope page, voice 2's envelope page.
+const NPAIRS = 4, NPAGES = 16;
+const KIND_NAMES = ['Notes', 'Octaves', 'Gates', 'Ratchets', 'Attack', 'Decay', 'Pluck', 'Depth'];
+const LETTERS = ['A', 'B', 'C', 'D'];
+// Two rows: A1 A2 B1 B2 C1 C2 D1 D2, then A3 A4 B3 B4 C3 C4 D3 D4
+const TAB_ORDER = [0, 4, 1, 5, 2, 6, 3, 7, 8, 12, 9, 13, 10, 14, 11, 15];
+const kindOf = (pg) => (pg & 3) + (pg >= 8 ? 4 : 0);
+const voiceOfPage = (pg) => (pg >> 2) & 1;
+const firstPage = (kind) => kind < 4 ? kind : kind + 4;
+const secondPage = (kind) => firstPage(kind) + 4;
+const nextPage = (pg, b) => (pg & 3) === b ? (pg + 4) % NPAGES : b;   // EightMuUi::NextPage
+const pageName = (pg) => KIND_NAMES[kindOf(pg)] + (voiceOfPage(pg) ? ' 2' : '');
+const ZERO_FADER = 2;               // kZeroFader: a fader this low counts as zero
+const weight = (v) => v <= ZERO_FADER ? 0 : v;
+const SHOW_MS = 3000;               // LEDs show probabilities this long after a touch
+const DIM = 640;                    // voice 2, on a page it shares
+
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x47, PROTOCOL_VERSION = 3;
+const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, PING: 9, TEMPO: 10 };
+const FIRST_FADER_CC = 34;
+const BUTTON_NOTES = [36, 48, 60, 72];
+const EIGHTMU_BLINK_OFF = [0xF0, 0x7D, 0x00, 0x00, 0x30, 0xF7];
+
+// Scales, as kScales in weights.h: name, notes, equal steps (or 0), cents
+const SCALES = [
+  ['Major', 7, 0, [0, 200, 400, 500, 700, 900, 1100]], ['Natural minor', 7, 0, [0, 200, 300, 500, 700, 800, 1000]],
+  ['Harmonic minor', 7, 0, [0, 200, 300, 500, 700, 800, 1100]], ['Melodic minor', 7, 0, [0, 200, 300, 500, 700, 900, 1100]],
+  ['Dorian', 7, 0, [0, 200, 300, 500, 700, 900, 1000]], ['Phrygian', 7, 0, [0, 100, 300, 500, 700, 800, 1000]],
+  ['Lydian', 7, 0, [0, 200, 400, 600, 700, 900, 1100]], ['Mixolydian', 7, 0, [0, 200, 400, 500, 700, 900, 1000]],
+  ['Locrian', 7, 0, [0, 100, 300, 500, 600, 800, 1000]], ['Major pentatonic', 5, 0, [0, 200, 400, 700, 900]],
+  ['Minor pentatonic', 5, 0, [0, 300, 500, 700, 1000]], ['Blues', 6, 0, [0, 300, 500, 600, 700, 1000]],
+  ['Whole tone', 6, 0, [0, 200, 400, 600, 800, 1000]], ['Diminished', 8, 0, [0, 200, 300, 500, 600, 800, 900, 1100]],
+  ['Bebop dominant', 8, 0, [0, 200, 400, 500, 700, 900, 1000, 1100]], ['Hirajoshi', 5, 0, [0, 200, 300, 700, 800]],
+  ['Fifths', 2, 0, [0, 700]], ['Octaves', 1, 0, [0]],
+  ['Raga Bhairav', 7, 0, [0, 112, 386, 498, 702, 814, 1088]], ['Raga Todi', 7, 0, [0, 112, 294, 590, 702, 814, 1088]],
+  ['Raga Marwa', 6, 0, [0, 112, 386, 590, 884, 1088]], ['Raga Malkauns', 5, 0, [0, 316, 498, 814, 996]],
+  ['Raga Hindol', 5, 0, [0, 386, 590, 884, 1088]], ['Maqam Rast', 7, 0, [0, 200, 350, 500, 700, 900, 1050]],
+  ['Maqam Bayati', 7, 0, [0, 150, 300, 500, 700, 800, 1000]], ['Maqam Hijaz', 7, 0, [0, 100, 400, 500, 700, 800, 1000]],
+  ['Maqam Saba', 7, 0, [0, 150, 300, 400, 700, 800, 1000]], ['Just major', 7, 0, [0, 204, 386, 498, 702, 884, 1088]],
+  ['Just minor', 7, 0, [0, 204, 316, 498, 702, 814, 1018]], ['Harmonic series', 8, 0, [0, 204, 386, 551, 702, 841, 969, 1088]],
+  ['Subharmonic series', 8, 0, [0, 112, 231, 359, 498, 649, 814, 996]], ['Slendro', 5, 0, [0, 231, 474, 717, 955]],
+  ['Pelog', 7, 0, [0, 120, 258, 539, 675, 785, 943]], ['Pelog selisir', 5, 0, [0, 120, 258, 675, 785]],
+  ['5-TET', 5, 5], ['7-TET', 7, 7],
+  ['8-TET', 8, 8],
+].map(([name, n, tet, cents]) => ({ name, n, tet, cents: cents || [] }));
+const noteCents = (s, k) => s.tet ? Math.floor((k * 1200 + (s.tet >> 1)) / s.tet) : s.cents[k];
+function faderNotes(s, f) {          // FaderNotes: [first, count]
+  if (s.n <= NF) return [f, f < s.n ? 1 : 0];
+  const first = Math.floor(f * s.n / NF);
+  return [first, Math.floor((f + 1) * s.n / NF) - first];
+}
+const activeNotes = (s) => s.n >= NF ? 0xFF : (1 << s.n) - 1;
+const LOWEST_OCTAVE = -2;
+const noteMv = (s, k, oct) => (oct + LOWEST_OCTAVE) * 1000 + Math.floor((noteCents(s, k) * 5 + 3) / 6);
+const NAMES12 = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+// A note's name: its letter for whole semitones, otherwise its cents
+function noteName(s, k) {
+  const c = noteCents(s, k);
+  return c % 100 === 0 ? NAMES12[c / 100] : c + '¢';
+}
+
+const RATIOS = ['÷8', '÷6', '÷4', '÷3', '÷2', '×1', '×2', '×3', '×4', '×6', '×8'];
+const RATIO_NUM = [1, 1, 1, 1, 1, 1, 2, 3, 4, 6, 8], RATIO_DEN = [8, 6, 4, 3, 2, 1, 1, 1, 1, 1, 1];
+// Ratchets: hits a step and where they fall (fractions of the step)
+const HIT_AT = [[0], [0, 2 / 3], [0, 1 / 2], [0, 1 / 3, 2 / 3], [0, 1 / 4, 1 / 2, 3 / 4]];
+// The speed (HIT_AT row) of each RATCHETS fader, as kFaderSpeed
+const FADER_SPEED = [0, 1, 2, 3, 1, 2, 3, 4];
+const RATCHET_NAMES = ['1×', '1.5×', '2×', '3×', '1.5× new', '2× new', '3× new', '4× new'];
+const GATE_NAMES = ['rest', '14%', '29%', '43%', '57%', '71%', '86%', 'tied'];
+const octName = (f) => (f + LOWEST_OCTAVE > 0 ? '+' : '') + (f + LOWEST_OCTAVE) + ' V';
+// Envelope pages (kDevOctaves, kDevPluck): a spread from much less to much
+// more than the knob; DEPTH is the envelope's peak, an eighth to full
+const devOct = (f) => (2 * f - 7) * 2 / 7;           // octaves: -2 (a quarter) to +2 (x4)
+const devPluck = (f) => (2 * f - 7) * 2048 / 7;
+const TIME_DEV_NAMES = ['\u00f74', '\u00f72.7', '\u00f71.8', '\u00f71.2', '\u00d71.2', '\u00d71.8', '\u00d72.7', '\u00d74'];
+const PLUCK_DEV_NAMES = ['\u221250%', '\u221236%', '\u221221%', '\u22127%', '+7%', '+21%', '+36%', '+50%'];
+const depthName = (f) => f === 7 ? 'full' : (f + 1) + '/8';
+
+const PAGE_HINT = [
+  'The chance of each note of the scale, from the root up. Faders past the end of a short scale do nothing.',
+  'The chance of each octave: fader 1 is −2 V, fader 3 0 V, fader 8 +5 V.',
+  'The chance of each gate length: a rest, one to six sevenths of the time to the next hit, or tied into the next note.',
+  'The chance of each ratchet: 1×, 1.5×, 2× or 3× a step on one note, then 1.5×, 2×, 3× or 4× with a new note at every hit.',
+  'The chance of each attack time, from a quarter of the Attack knob’s (fader 1) to four times it (fader 8), drawn with each note. All at zero: off, the knob exactly.',
+  'The chance of each decay time, from a quarter of the Decay knob’s (fader 1) to four times it (fader 8), drawn with each note. All at zero: off, the knob exactly.',
+  'The chance of each pluckiness, from half its range below the knob (fader 1) to half above (fader 8), drawn with each note. All at zero: off, the knob exactly.',
+  'The chance of each envelope depth (its peak), from an eighth of full (fader 1, about 0.6 V) to full 5 V (fader 8), drawn with each note. All at zero: off, always full.',
+];
+
+// Defaults (Engine::DefaultFaders): the second pages start at zero
+const DEFAULTS = [
+  [127, 25, 80, 30, 100, 40, 20, 50], [0, 20, 127, 90, 25, 0, 0, 0],
+  [10, 15, 40, 90, 110, 60, 30, 25], [127, 10, 30, 12, 0, 6, 16, 6],
+  [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0],
+  ...Array.from({ length: 8 }, () => [0, 0, 0, 0, 0, 0, 0, 0]),   // envelope pages: off
+];
+
+// Knob readouts, as weights.h maps the knobs (values 0-4095 after the dead zones)
+const SLEW_CENTRE = 96;
+const fmtTime = (s) => s >= 1 ? s.toFixed(2) + ' s' : s >= 0.01 ? Math.round(s * 1000) + ' ms' : (s * 1000).toFixed(1) + ' ms';
+// Two-sided: off round the centre; right every note, left only ties
+const slewText = (v) => { const d = Math.abs(v - 2048) - SLEW_CENTRE;
+  return d < 0 ? 'off' : fmtTime(0.001 * Math.pow(2, 11 * d / (2047 - SLEW_CENTRE))) + (v < 2048 ? ' ties' : ''); };
+const attackText = (v) => fmtTime(0.0005 * Math.pow(2, 11.966 * v / 4095));
+const decayText = (v) => fmtTime(0.01 * Math.pow(2, 8.644 * v / 4095));
+
+// ============================================================================
+// State
+// ============================================================================
+const state = {
+  values: DEFAULTS.map(r => r.slice()),
+  page: 0,
+  tempo: 120,
+  // live, from the card's STATUS (or simulated when there's no card)
+  live: {
+    clocked: false, muOnCard: false, switchUp: false, switchDown: false, waiting: false, waitX: false, waitY: false, waitMain: false,
+    scale: 0, ratio: 5, slew: 0, attack: 0, decay: 2325, pluck: 2048,
+    stepLenMs: 500, stepStart: 0, stepCount: 0,
+    voice: [0, 1].map(() => ({ noteFader: 0, note: 0, octaveFader: 2, gateFader: 3, ratchetFader: 0, hitCount: 0, gate: false, env: 0, mv: 0, dev: [-1, -1, -1, -1] })),
+  },
+  history: [],                      // [time ms, mv1, mv2, gate1, gate2]
+};
+const link = { access: null, card: { in: null, out: null }, muIns: [], muOuts: [], cardOnline: false,
+               sysexBuf: [], sysexOn: false, lastStatus: 0, pingTimer: 0 };
+// 8mu on this computer: where its faders are, which have picked up
+const mu = { phys: new Array(NF).fill(-1), engaged: new Array(NF).fill(false), touchRef: new Array(NF).fill(-1),
+             ledSent: new Array(NF).fill(-1), lastBlinkOff: 0, showUntil: 0 };
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+function say(text, isErr) { const m = $('msg'); m.textContent = text || ''; m.className = isErr ? 'err' : ''; }
+function setStatus(kind, text) { $('dot').className = 'dot ' + kind; $('status-text').textContent = text; }
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const scale = () => SCALES[clamp(state.live.scale, 0, SCALES.length - 1)];
+// While a second page is all zero, voice 2 shares the first (Engine::Shared)
+const empty = (pg) => state.values[pg].every(v => weight(v) === 0);
+const shared = (kind) => empty(secondPage(kind));
+
+// ============================================================================
+// The 8mu's LEDs, as EightMuUi::Leds lights them (0-4095)
+// ============================================================================
+function flashMs(stepMs) { let f = clamp(stepMs / 8, 20, 200); return Math.min(f, stepMs / 6); }
+function inFlash(speed, sinceStep, stepMs) {
+  const f = flashMs(stepMs);
+  return HIT_AT[speed].some(h => { const d = sinceStep - h * stepMs; return d >= 0 && d < f; });
+}
+function ledValues(now) {
+  const L = state.live, pg = state.page, kind = kindOf(pg), voice = voiceOfPage(pg), vals = state.values[pg];
+  const led = new Array(NF).fill(0);
+  const sinceStep = now - L.stepStart;
+  if (now < mu.showUntil) {
+    const active = kind === 0 ? activeNotes(scale()) : 0xFF;
+    const uniform = voice === 0 && kind < 4;   // else an all-zero page is dark
+    let most = 0;
+    for (let i = 0; i < NF; i++) if ((active >> i) & 1) most = Math.max(most, weight(vals[i]));
+    for (let i = 0; i < NF; i++) {
+      if (!((active >> i) & 1)) continue;
+      let b = most ? Math.floor(weight(vals[i]) * 4095 / most) : (uniform ? 4095 : 0);
+      if (kind === 3 && !inFlash(FADER_SPEED[i], sinceStep, L.stepLenMs)) b = 0;
+      led[i] = b;
+    }
+    return led;
+  }
+  const light = (i, b) => { if (i >= 0 && i < NF && b > led[i]) led[i] = b; };
+  const show = (v, b) => {
+    const vc = L.voice[v];
+    if (kind === 0) light(vc.noteFader, b);
+    else if (kind === 1) light(vc.octaveFader, b);
+    else if (kind >= 4) light(vc.dev[kind - 4], b);
+    else if (kind === 2) { if (vc.gateFader === 0) light(0, b === 4095 ? DIM : DIM >> 1); else for (let i = 0; i <= vc.gateFader; i++) light(i, b); }
+    else if (inFlash(FADER_SPEED[vc.ratchetFader], sinceStep, L.stepLenMs)) light(vc.ratchetFader, b);
+  };
+  if (voice === 0 && shared(kind)) show(1, DIM);
+  show(voice, 4095);
+  return led;
+}
+
+// ============================================================================
+// Faders
+// ============================================================================
+const faderEls = [], ledEls = [];
+function buildFaders() {
+  const tabs = $('tabs');
+  TAB_ORDER.forEach((pg) => {
+    const b = pg & 3, layer = pg >> 2, kind = kindOf(pg), second = voiceOfPage(pg) === 1;
+    const t = document.createElement('button'); t.className = 'tab'; t.dataset.page = pg;
+    t.innerHTML = '<b>' + LETTERS[b] + (layer + 1) + '</b><span>' + pageName(pg) + '</span>';
+    t.title = (second ? 'Voice 2\u2019s ' + KIND_NAMES[kind].toLowerCase() : KIND_NAMES[kind]) + ' (8mu: button ' + LETTERS[b] + (layer ? ', pressed ' + ['', 'twice', 'three times', 'four times'][layer] : '') + ')';
+    t.addEventListener('click', () => selectPage(pg, true)); tabs.appendChild(t);
+  });
+  const row = $('ledrow');
+  for (let i = 0; i < NF; i++) { const s = document.createElement('span'); row.appendChild(s); ledEls.push(s); }
+  const el = $('faders');
+  for (let i = 0; i < NF; i++) {
+    const f = document.createElement('div'); f.className = 'fader';
+    f.innerHTML = '<div class="name">' + (i + 1) + '</div><div class="slot"><input type="range" min="0" max="127" step="1">' +
+      '<div class="ghost"></div></div><div class="val"></div><div class="pct"></div><div class="desc"></div>';
+    const input = f.querySelector('input');
+    input.setAttribute('aria-label', 'Fader ' + (i + 1));
+    input.addEventListener('input', () => { touched(); userSetValue(state.page, i, +input.value); });
+    input.addEventListener('dblclick', () => userSetValue(state.page, i, 0));
+    el.appendChild(f);
+    faderEls.push({ root: f, input, ghost: f.querySelector('.ghost'), val: f.querySelector('.val'), pct: f.querySelector('.pct'), desc: f.querySelector('.desc') });
+  }
+}
+// What fader i means on a page
+function describe(kind, i) {
+  const s = scale(), L = state.live;
+  if (kind === 0) {
+    const [first, count] = faderNotes(s, i);
+    if (!count) return '';
+    return count === 1 ? noteName(s, first) : noteName(s, first) + '–' + noteName(s, first + count - 1);
+  }
+  if (kind === 1) return octName(i);
+  if (kind === 2) return GATE_NAMES[i];
+  if (kind === 3) return RATCHET_NAMES[i];
+  // with the time it gives, from the knob's setting (within the limits)
+  if (kind === 4) return TIME_DEV_NAMES[i] + ' ' + attackText(clamp(L.attack + devOct(i) * 4095 / 11.966, 0, 4095));
+  if (kind === 5) return TIME_DEV_NAMES[i] + ' ' + decayText(clamp(L.decay + devOct(i) * 4095 / 8.644, 0, 4095));
+  if (kind === 6) return PLUCK_DEV_NAMES[i];
+  return depthName(i) + ' ' + ((i + 1) * 5 / 8).toFixed(1) + ' V';
+}
+function refreshFaders() {
+  const pg = state.page, kind = kindOf(pg), voice = voiceOfPage(pg), vals = state.values[pg];
+  const kname = KIND_NAMES[kind].toLowerCase();
+  [...$('tabs').children].forEach((t) => {
+    const p = +t.dataset.page;
+    t.classList.toggle('on', p === pg);
+    t.classList.toggle('shared', voiceOfPage(p) === 1 ? shared(kindOf(p)) : (kindOf(p) >= 4 && empty(p)));
+  });
+  $('page-hint').textContent = PAGE_HINT[kind];
+  // Who plays this page
+  const sh = $('share');
+  sh.innerHTML = '';
+  const add = (text, btn, fn) => {
+    const s = document.createElement('span'); s.textContent = text; sh.appendChild(s);
+    if (btn) { const b = document.createElement('button'); b.textContent = btn; b.addEventListener('click', fn); sh.appendChild(b); }
+  };
+  const off = kind >= 4 && empty(pg) ? ' All zero: off, so ' + (kind === 7 ? 'every envelope is full depth.' : 'the ' + kname + ' is exactly the knob\u2019s.') : '';
+  if (voice === 0) add((shared(kind) ? 'Both voices draw from this page (voice 2\u2019s ' + kname + ' page is all zero).' : 'Voice 1 draws from this page; voice 2 has its own.') + off);
+  else if (shared(kind)) add('All zero: voice 2 shares the first ' + kname + ' page. Raise any fader to give voice 2 its own.',
+    'Copy the first page here', () => bulkSet(pg, state.values[firstPage(kind)].slice()));
+  else add('Voice 2 draws from this page, on its own.', 'Clear (share again)', () => bulkSet(pg, new Array(NF).fill(0)));
+  // Probabilities: each fader's share of its page
+  const active = kind === 0 ? activeNotes(scale()) : 0xFF;
+  let sum = 0, count = 0;
+  for (let i = 0; i < NF; i++) if ((active >> i) & 1) { sum += weight(vals[i]); count++; }
+  const L = state.live;
+  faderEls.forEach((f, i) => {
+    const v = vals[i];
+    if (document.activeElement !== f.input || +f.input.value !== v) f.input.value = v;
+    const on = (active >> i) & 1;
+    f.root.classList.toggle('unused', !on);
+    f.val.textContent = v;
+    f.desc.textContent = describe(kind, i);
+    let pct = '';
+    if (on) {
+      if (sum) pct = Math.round(weight(v) * 100 / sum) + '%';
+      else pct = voice === 0 && kind < 4 ? Math.round(100 / count) + '%' : '–';
+    }
+    f.pct.textContent = pct;
+    const playing = L.voice[voice];
+    const cur = [playing.noteFader, playing.octaveFader, playing.gateFader, playing.ratchetFader, ...playing.dev][kind];
+    f.root.classList.toggle('cur1', i === cur);
+    const ph = mu.phys[i], waiting = link.muIns.length > 0 && ph >= 0 && !mu.engaged[i];
+    f.ghost.style.display = waiting ? 'block' : 'none';
+    if (waiting) f.ghost.style.top = ((1 - ph / 127) * 150) + 'px';
+  });
+}
+function drawLedRow(now) {
+  const led = ledValues(now);
+  ledEls.forEach((s, i) => { s.style.opacity = (0.08 + 0.92 * led[i] / 4095).toFixed(3); });
+}
+
+// ============================================================================
+// Changing values (from the screen, the 8mu, a preset or the card)
+// ============================================================================
+let pending = new Map(), flushTimer = 0;
+function queueSend(key, bytes) {
+  if (!link.cardOnline) return;
+  pending.set(key, bytes);
+  if (!flushTimer) flushTimer = setTimeout(() => { flushTimer = 0; const b = pending; pending = new Map(); for (const m of b.values()) sendRaw(m); }, 16);
+}
+function sendRaw(bytes) {
+  if (!link.card.out) return;
+  try { link.card.out.send(bytes); } catch (e) { say('Could not send to the card: ' + e.message, true); }
+}
+const sysex = (cmd, payload) => [0xF0, SYSEX_MFR, SYSEX_PRODUCT, cmd, ...payload, 0xF7];
+
+function touched() { mu.showUntil = performance.now() + SHOW_MS; }
+function userSetValue(page, i, v) {
+  v = clamp(v | 0, 0, 127);
+  if (state.values[page][i] === v) return;
+  state.values[page][i] = v;
+  if (page === state.page) mu.engaged[i] = false;   // a physical fader must meet it again
+  queueSend('v' + page + '.' + i, sysex(CMD.SET, [page, i, v]));
+  changed();
+}
+function bulkSet(page, vals) {
+  for (let i = 0; i < NF; i++) userSetValue(page, i, vals[i]);
+  reengage();
+}
+function selectPage(p, send) {
+  touched();
+  if (p === state.page) return;
+  state.page = p;
+  reengage();
+  if (send) queueSend('page', sysex(CMD.PAGE, [p]));
+  changed();
+}
+// Which 8mu faders already sit on their value (pickup, as EightMuUi)
+function reengage() {
+  for (let i = 0; i < NF; i++) { const ph = mu.phys[i];
+    mu.engaged[i] = ph >= 0 && Math.abs(ph - state.values[state.page][i]) <= 3; }
+}
+function setTempo(bpm, send) {
+  bpm = clamp(Math.round(+bpm) || 120, 40, 300);
+  state.tempo = bpm;
+  $('tempo-r').value = bpm;
+  if (document.activeElement !== $('tempo-n')) $('tempo-n').value = bpm;
+  if (send) queueSend('tempo', sysex(CMD.TEMPO, [bpm >> 7, bpm & 127]));
+  changed();
+}
+
+let renderQueued = false, saveTimer = 0;
+function requestRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; refreshFaders(); renderPresets(); });
+}
+function changed() {
+  requestRender();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => store.set('weights.last.v1', { v: state.values, tempo: state.tempo }), 400);
+}
+
+// ---- 8mu plugged into this computer -----------------------------------------
+function eightmuFader(i, v) {
+  const last = mu.phys[i], target = state.values[state.page][i];
+  mu.phys[i] = v;
+  // any movement counts as a touch, picked up or not
+  if (mu.touchRef[i] < 0) mu.touchRef[i] = v;
+  else if (Math.abs(v - mu.touchRef[i]) >= 2) { mu.touchRef[i] = v; touched(); }
+  if (!mu.engaged[i]) {
+    const near = Math.abs(v - target) <= 3;
+    const crossed = last >= 0 && ((last < target) !== (v < target));
+    if (!near && !crossed) { requestRender(); return; }
+    mu.engaged[i] = true;
+  }
+  if (state.values[state.page][i] !== v) {
+    state.values[state.page][i] = v;
+    queueSend('v' + state.page + '.' + i, sysex(CMD.SET, [state.page, i, v]));
+    changed();
+  }
+}
+// Buttons act when pressed, as on the card
+function eightmuButton(b, down) {
+  if (!down) return;
+  selectPage(nextPage(state.page, b), true);
+  mu.engaged.fill(false);
+  reengage();
+  requestRender();
+}
+// ---- Which editor the 8mu drives.  With several Workshop editors open (this
+// one, CVSeq, WaveSeq), one 8mu on this computer drives one of them: the one
+// last clicked in (or opened).  A page claims it by telling the others, over
+// a BroadcastChannel and through localStorage, and they let it go.  A page
+// without it ignores its faders and buttons and leaves its LEDs alone, but
+// still follows where the faders are, so they pick up on return.
+const EDITOR_NAME = 'Weights';
+const OWNER_KEY = 'workshop.8mu.owner';
+const owner = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), here: true, other: '', chan: null };
+function claim8mu(announce) {
+  const was = owner.here;
+  owner.here = true;
+  const msg = { id: owner.id, name: EDITOR_NAME, t: Date.now() };
+  try { if (owner.chan) owner.chan.postMessage(msg); } catch (e) {}
+  try { localStorage.setItem(OWNER_KEY, JSON.stringify(msg)); } catch (e) {}
+  if (!was) { taken8mu(); if (announce && link.muIns.length) say('The 8mu now drives this editor.'); }
+  refreshOwner();
+}
+function heardClaim(msg) {
+  if (!msg || msg.id === owner.id) return;
+  owner.other = msg.name || '';
+  if (owner.here) {
+    owner.here = false;
+    mu.engaged.fill(false);
+    requestRender();
+  }
+  refreshOwner();
+}
+// Taking the 8mu back: its faders must meet their values again, and its
+// LEDs are repainted
+function taken8mu() {
+  mu.engaged.fill(false);
+  reengage();
+  mu.ledSent.fill(-1);
+  mu.lastBlinkOff = 0;
+  requestRender();
+}
+function refreshOwner() {
+  const b = $('mu-owner'); if (!b) return;
+  b.hidden = !link.muIns.length;
+  b.classList.toggle('away', !owner.here);
+  b.textContent = owner.here ? '8mu: here' : '8mu: elsewhere';
+  b.title = owner.here ? 'The 8mu on this computer drives this editor. Click in another editor to hand it over.'
+    : 'The 8mu is driving the ' + (owner.other || 'other') + ' editor. Click here, or anywhere on this page, to take it back.';
+}
+function setupOwnership() {
+  try { owner.chan = new BroadcastChannel('workshop-computer-8mu'); owner.chan.onmessage = (e) => heardClaim(e.data); } catch (e) {}
+  window.addEventListener('storage', (e) => { if (e.key === OWNER_KEY && e.newValue) { try { heardClaim(JSON.parse(e.newValue)); } catch (err) {} } });
+  const take = () => { if (!owner.here) claim8mu(true); };
+  window.addEventListener('pointerdown', take, true);
+  window.addEventListener('keydown', take, true);
+  window.addEventListener('focus', take);
+  $('mu-owner').addEventListener('click', () => claim8mu(true));
+  claim8mu(false);   // a page just opened takes it
+}
+
+function eightmuMessage(d) {
+  if (d.length < 3 || d[0] < 0x80 || d[0] >= 0xF0) return;
+  const type = d[0] & 0xF0;
+  if (!owner.here) {
+    // driving another editor: only follow where the faders are
+    if (type === 0xB0 && d[1] >= FIRST_FADER_CC && d[1] < FIRST_FADER_CC + NF) { mu.phys[d[1] - FIRST_FADER_CC] = d[2] & 0x7F; requestRender(); }
+    return;
+  }
+  if (type === 0xB0) {
+    const cc = d[1];
+    if (cc >= FIRST_FADER_CC && cc < FIRST_FADER_CC + NF) eightmuFader(cc - FIRST_FADER_CC, d[2] & 0x7F);
+  } else if (type === 0x90 || type === 0x80) {
+    const b = BUTTON_NOTES.indexOf(d[1]);
+    if (b >= 0) eightmuButton(b, type === 0x90 && d[2] > 0);
+  }
+}
+// The 8mu's own LEDs, as the card lights them.  SysEx to the 8mu must travel
+// on its own, so LED notes pause around it.
+function serviceEightmuLeds(now) {
+  if (!link.muOuts.length || !owner.here) return;
+  if (now - mu.lastBlinkOff > 2000) {
+    mu.lastBlinkOff = now;
+    for (const o of link.muOuts) try { o.send(EIGHTMU_BLINK_OFF); } catch (e) {}
+    mu.ledSent.fill(-1);
+    return;
+  }
+  if (now - mu.lastBlinkOff < 60) return;
+  const led = ledValues(now);
+  for (let i = 0; i < NF; i++) {
+    const v = led[i] >> 5;
+    if (v === mu.ledSent[i]) continue;
+    mu.ledSent[i] = v;
+    for (const o of link.muOuts) try { o.send([0x90, i, v]); } catch (e) {}
+  }
+}
+
+// ============================================================================
+// WebMIDI
+// ============================================================================
+const isCardName = (n) => /weights/i.test(n || '');
+const is8mu = (p) => [p.name, p.manufacturer, (p.manufacturer || '') + ' ' + (p.name || '')].some(s => /8mu/i.test(s || ''));
+
+async function connect() {
+  if (!navigator.requestMIDIAccess) { say('This browser has no WebMIDI. Use Chrome or Edge on a computer.', true); return; }
+  say('The browser will ask to use MIDI devices with SysEx: choose Allow. The card shows up as “Weights”.');
+  try { link.access = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { say('MIDI access was refused (' + (e && e.message || e) + '). Allow MIDI with SysEx for this page, then try again.', true); return; }
+  link.access.onstatechange = () => scanPorts();
+  $('btn-rescan').hidden = false;
+  scanPorts();
+}
+
+function scanPorts() {
+  const acc = link.access; if (!acc) return;
+  const ins = [...acc.inputs.values()].filter(p => p.state !== 'disconnected');
+  const outs = [...acc.outputs.values()].filter(p => p.state !== 'disconnected');
+  const cardIn = ins.find(p => isCardName(p.name)) || null, cardOut = outs.find(p => isCardName(p.name)) || null;
+  const muIns = ins.filter(is8mu), muOuts = outs.filter(is8mu);
+  const unrecognised = ins.filter(p => p !== cardIn && !muIns.includes(p));
+
+  for (const p of ins) p.onmidimessage = null;
+  if (cardIn) cardIn.onmidimessage = (ev) => onCardBytes(ev.data);
+  for (const p of muIns) p.onmidimessage = (ev) => eightmuMessage(ev.data);
+  const wasOnline = link.cardOnline;
+  link.card.in = cardIn; link.card.out = cardOut; link.muIns = muIns; link.muOuts = muOuts;
+  link.cardOnline = !!(cardIn && cardOut);
+  link.sysexBuf = []; link.sysexOn = false;
+  if (!muIns.length) mu.phys.fill(-1);
+  refreshOwner();
+  mu.lastBlinkOff = 0;
+
+  $('btn-read').disabled = $('btn-send').disabled = !link.cardOnline;
+  clearInterval(link.pingTimer);
+  const note = unrecognised.length ? ' Other MIDI inputs: ' + unrecognised.map(p => '“' + (p.name || '?') + '”').join(', ') + '.' : '';
+  const mus = muIns.length > 1 ? muIns.length + ' 8mus' : '8mu';
+  if (link.cardOnline) {
+    link.pingTimer = setInterval(() => sendRaw(sysex(CMD.PING, [])), 1000);
+    sendRaw(sysex(CMD.PING, []));
+    setStatus('ok', 'Connected: Weights card' + (muIns.length ? ' + ' + mus : ''));
+    say(muIns.length ? 'The ' + mus + ' drive' + (muIns.length > 1 ? '' : 's') + ' this page, and this page drives the card.' : 'Card connected. Drag the faders, or plug an 8mu into this computer.' + note);
+    if (!wasOnline) sendRaw(sysex(CMD.HELLO, []));       // the card is the source of truth: read it
+  } else if (muIns.length) {
+    setStatus('warn', 'Connected: ' + mus + ' only (no card)');
+    say('No “Weights” card found, so editing here only. To reach the card, plug this computer into the Computer’s USB socket and power-cycle the module.', true);
+  } else {
+    setStatus('warn', 'No card or 8mu found');
+    say('Nothing found. Use a USB data cable, close other apps using the device, and power-cycle the module after plugging this computer in.' + note, true);
+  }
+  requestRender();
+}
+
+function onCardBytes(d) {
+  for (const b of d) {
+    if (b === 0xF0) { link.sysexOn = true; link.sysexBuf = []; continue; }
+    if (!link.sysexOn) continue;
+    if (b === 0xF7) { link.sysexOn = false; handleCardMessage(link.sysexBuf); link.sysexBuf = []; continue; }
+    if (b & 0x80) { if (b < 0xF8) link.sysexOn = false; continue; }
+    if (link.sysexBuf.length < 200) link.sysexBuf.push(b); else link.sysexOn = false;
+  }
+}
+
+function handleCardMessage(m) {
+  if (m.length < 3 || m[0] !== SYSEX_MFR || m[1] !== SYSEX_PRODUCT) return;
+  const cmd = m[2], p = m.slice(3);
+  if (cmd === CMD.STATE) {
+    if (p[0] !== PROTOCOL_VERSION) { say('The card speaks protocol version ' + p[0] + ' but this page speaks ' + PROTOCOL_VERSION + '. Use the matching editor and firmware.', true); return; }
+    if (p.length !== 4 + NPAGES * NF) { say('The card sent a state message of an unexpected size: is its firmware a different version?', true); return; }
+    for (let pg = 0; pg < NPAGES; pg++) for (let i = 0; i < NF; i++) state.values[pg][i] = clamp(p[4 + pg * NF + i], 0, 127);
+    state.page = clamp(p[1], 0, NPAGES - 1);
+    setTempo((p[2] << 7) | p[3], false);
+    reengage();
+    say('Read the faders from the card.');
+    changed();
+  } else if (cmd === CMD.STATUS && p.length >= 42) {
+    const L = state.live, now = performance.now();
+    L.clocked = !!(p[0] & 1); L.muOnCard = !!(p[0] & 2); L.switchUp = !!(p[0] & 4); L.waiting = !!(p[0] & 8); L.switchDown = !!(p[0] & 16); L.vca = [!!(p[0] & 32), !!(p[0] & 64)];
+    L.waitX = !!(p[1] & 1); L.waitY = !!(p[1] & 2); L.waitMain = !!(p[1] & 4);
+    const sc = clamp(p[2], 0, SCALES.length - 1);
+    if (sc !== L.scale) { L.scale = sc; requestRender(); }
+    L.ratio = clamp(p[3], 0, RATIOS.length - 1);
+    L.slew = p[4] * 32; L.attack = p[5] * 32; L.decay = p[6] * 32; L.pluck = p[7] * 32;
+    L.stepLenMs = Math.max(1, (p[8] << 7) | p[9]);
+    L.stepStart = now - p[10] / 128 * L.stepLenMs;
+    L.stepCount = p[11];
+    for (let v = 0; v < 2; v++) {
+      const q = p.slice(12 + 14 * v), vc = L.voice[v];
+      const dev = [10, 11, 12, 13].map(k => q[k] > 7 ? -1 : q[k]);
+      const changedNote = vc.noteFader !== q[0] || vc.octaveFader !== q[2] || vc.gateFader !== q[3] || vc.ratchetFader !== q[4] || dev.some((d, k) => d !== vc.dev[k]);
+      Object.assign(vc, { noteFader: q[0] & 7, note: q[1], octaveFader: q[2] & 7, gateFader: q[3] & 7, ratchetFader: q[4] & 7,
+        hitCount: q[5], gate: !!(q[6] & 1), env: q[7] / 127, mv: ((q[8] << 7) | q[9]) - 8192, dev });
+      if (changedNote) requestRender();
+    }
+    // the tempo, which Main may have changed with the switch held down
+    L.busyUs = p.length >= 43 ? p[42] : -1;
+    L.busyParts = p.length >= 49 ? p.slice(43, 49) : null;
+    { const t = (p[40] << 7) | p[41]; if (t !== state.tempo && t >= 40) setTempo(t, false); }
+    link.lastStatus = now;
+    state.history.push([now, L.voice[0].mv, L.voice[1].mv, L.voice[0].gate, L.voice[1].gate]);
+  }
+}
+
+function sendAll() {
+  if (!link.cardOnline) return;
+  const payload = [PROTOCOL_VERSION, state.tempo >> 7, state.tempo & 127];
+  for (let pg = 0; pg < NPAGES; pg++) for (let i = 0; i < NF; i++) payload.push(state.values[pg][i]);
+  sendRaw(sysex(CMD.SET_ALL, payload));
+}
+
+// ============================================================================
+// Simulation, when there's no card: the engine's draws (weights.h) at the
+// internal tempo, x1, with a plain envelope for the picture
+// ============================================================================
+const sim = { last: 0, stepStart: 0, count: 0, voice: [0, 1].map(() => ({ hitAt: [0], next: 1, gateUntil: 0, tied: false, envT: -1e9 })) };
+function choose(vals, active) {
+  let sum = 0; const act = [];
+  for (let i = 0; i < NF; i++) if ((active >> i) & 1) { act.push(i); sum += weight(vals[i]); }
+  if (!act.length) return 0;
+  if (!sum) return act[Math.floor(Math.random() * act.length)];
+  let t = Math.random() * sum;
+  for (const i of act) { if (t < weight(vals[i])) return i; t -= weight(vals[i]); }
+  return act[act.length - 1];
+}
+const pageFor = (v, kind) => state.values[v === 1 && !shared(kind) ? secondPage(kind) : firstPage(kind)];
+function simDraw(v) {
+  const L = state.live, vc = L.voice[v], s = scale();
+  vc.noteFader = choose(pageFor(v, 0), activeNotes(s));
+  const [first, count] = faderNotes(s, vc.noteFader);
+  vc.note = first + (count > 1 ? Math.floor(Math.random() * count) : 0);
+  vc.octaveFader = choose(pageFor(v, 1), 0xFF);
+  vc.gateFader = choose(pageFor(v, 2), 0xFF);
+  vc.mv = noteMv(s, vc.note, vc.octaveFader);
+  // envelope deviations: none from a page all at zero
+  vc.dev = [4, 5, 6, 7].map(k => { const f = pageFor(v, k); return f.some(x => weight(x) > 0) ? choose(f, 0xFF) : -1; });
+}
+function simHit(v, now, k) {
+  const L = state.live, vc = L.voice[v], sv = sim.voice[v], len = L.stepLenMs;
+  vc.hitCount = (vc.hitCount + 1) & 127;
+  if (vc.gateFader === 0) { sv.gateUntil = 0; sv.tied = false; return; }
+  if (!(sv.tied && now < sv.gateUntil)) sv.envT = now;
+  const end = k + 1 < sv.hitAt.length ? sv.hitAt[k + 1] : 1;
+  const interval = (end - sv.hitAt[k]) * len;
+  sv.tied = vc.gateFader === 7;
+  sv.gateUntil = sv.tied ? Infinity : now + Math.max(0.5, Math.min(interval * vc.gateFader / 7, interval - 1));
+}
+function simulate(now) {
+  const L = state.live;
+  L.stepLenMs = 60000 / state.tempo;
+  L.clocked = false; L.ratio = 5;
+  if (now - sim.stepStart >= L.stepLenMs || !sim.last) {
+    sim.stepStart = sim.last ? sim.stepStart + L.stepLenMs * Math.floor((now - sim.stepStart) / L.stepLenMs) : now;
+    if (now - sim.stepStart > L.stepLenMs) sim.stepStart = now;
+    L.stepStart = sim.stepStart;
+    sim.count++;
+    for (let v = 0; v < 2; v++) {
+      const vc = L.voice[v], sv = sim.voice[v];
+      vc.ratchetFader = choose(pageFor(v, 3), 0xFF);
+      sv.hitAt = HIT_AT[FADER_SPEED[vc.ratchetFader]]; sv.next = 1;
+      simDraw(v); simHit(v, now, 0);
+    }
+    requestRender();
+  }
+  sim.last = now;
+  const into = (now - L.stepStart) / L.stepLenMs;
+  for (let v = 0; v < 2; v++) {
+    const vc = L.voice[v], sv = sim.voice[v];
+    while (sv.next < sv.hitAt.length && into >= sv.hitAt[sv.next]) {
+      if (vc.ratchetFader >= 4) { simDraw(v); requestRender(); }
+      simHit(v, now, sv.next++);
+    }
+    vc.gate = now < sv.gateUntil;
+    const t = now - sv.envT, d = vc.dev;
+    const decay = 1000 * 0.01 * Math.pow(2, 8.644 * L.decay / 4095) * (d[1] >= 0 ? Math.pow(2, devOct(d[1])) : 1);
+    vc.env = (t < 0 || t > decay ? 0 : 1 - t / decay) * (d[3] >= 0 ? (d[3] + 1) / 8 : 1);
+  }
+  state.history.push([now, L.voice[0].mv, L.voice[1].mv, L.voice[0].gate, L.voice[1].gate]);
+}
+
+// ============================================================================
+// Drawing
+// ============================================================================
+function setupCanvas(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w: r.width, h: r.height };
+}
+const HISTORY_MS = 8000;
+function drawHistory(now) {
+  while (state.history.length && state.history[0][0] < now - HISTORY_MS - 500) state.history.shift();
+  const cv = $('history'); if (cv.closest('.folded')) return;
+  const { ctx, w: W, h: H } = setupCanvas(cv);
+  ctx.clearRect(0, 0, W, H);
+  const lo = -2000, hi = 6000, y = (mv) => H - 4 - (mv - lo) / (hi - lo) * (H - 8);
+  ctx.strokeStyle = cssVar('--grid'); ctx.lineWidth = 1; ctx.fillStyle = cssVar('--muted'); ctx.font = '10px system-ui';
+  for (let v = -2; v <= 6; v++) {
+    ctx.beginPath(); ctx.moveTo(0, Math.round(y(v * 1000)) + 0.5); ctx.lineTo(W, Math.round(y(v * 1000)) + 0.5); ctx.stroke();
+    if (v < 6) ctx.fillText((v > 0 ? '+' : '') + v + ' V', 4, y(v * 1000) - 2);
+  }
+  const x = (t) => W - (now - t) / HISTORY_MS * W;
+  for (let v = 0; v < 2; v++) {
+    ctx.strokeStyle = cssVar(v ? '--v2' : '--v1');
+    const hs = state.history;
+    for (let i = 1; i < hs.length; i++) {
+      const a = hs[i - 1], b = hs[i];
+      ctx.lineWidth = a[3 + v] ? 3 : 1;
+      ctx.beginPath(); ctx.moveTo(x(a[0]), y(a[1 + v])); ctx.lineTo(x(b[0]), y(a[1 + v])); ctx.lineTo(x(b[0]), y(b[1 + v])); ctx.stroke();
+    }
+  }
+}
+function voiceText(v) {
+  const L = state.live, vc = L.voice[v], s = scale();
+  const oct = vc.octaveFader + LOWEST_OCTAVE;
+  return { note: noteName(s, Math.min(vc.note, s.n - 1)) + ' ' + (oct > 0 ? '+' : '') + oct,
+    det: (vc.mv / 1000).toFixed(3) + ' V \u00b7 gate ' + GATE_NAMES[vc.gateFader] + ' \u00b7 ' + RATCHET_NAMES[vc.ratchetFader] + envText(vc.dev) };
+}
+// The envelope deviations in use, if any
+function envText(d) {
+  const parts = [];
+  if (d[0] >= 0) parts.push('A ' + TIME_DEV_NAMES[d[0]]);
+  if (d[1] >= 0) parts.push('D ' + TIME_DEV_NAMES[d[1]]);
+  if (d[2] >= 0) parts.push('P ' + PLUCK_DEV_NAMES[d[2]]);
+  if (d[3] >= 0) parts.push('depth ' + depthName(d[3]));
+  return parts.length ? ' \u00b7 ' + parts.join(' ') : '';
+}
+function drawReadouts() {
+  const L = state.live, card = link.cardOnline && performance.now() - link.lastStatus < 3000;
+  $('ro-scale').textContent = scale().name;
+  $('ro-scale-sub').textContent = scale().n + ' notes' + (card ? '' : ' (not live)');
+  $('ro-clock').textContent = card ? RATIOS[L.ratio] : '×1';
+  $('ro-clock-sub').textContent = (card && L.clocked ? 'Pulse In 1' : state.tempo + ' BPM') + ' · ' + Math.round(L.stepLenMs) + ' ms a step';
+  $('ro-slew').textContent = card ? slewText(L.slew) : '-';
+  $('ro-decay').textContent = card ? decayText(L.decay) : '-';
+  $('ro-attack').textContent = card ? attackText(L.attack) : '-';
+  $('ro-pluck').textContent = card ? Math.round(L.pluck * 100 / 4095) + '%' : '-';
+  // Knobs waiting to pick up: X, Y, Main, of the switch position in use
+  const w = card ? (L.switchUp ? { 'rb-clock': L.waitX, 'rb-slew': L.waitY, 'rb-scale': L.waitMain } : { 'rb-attack': L.waitX, 'rb-pluck': L.waitY, 'rb-decay': L.waitMain }) : {};
+  if (card && L.switchDown) { delete w['rb-scale']; delete w['rb-decay']; }
+  for (const id of ['rb-scale', 'rb-clock', 'rb-slew', 'rb-decay', 'rb-attack', 'rb-pluck']) $(id).classList.toggle('waiting', !!w[id]);
+  // How long the card's audio interrupt took at most over the last second:
+  // past about 20 us the knobs stop reading properly
+  const b = card && L.busyUs >= 0 ? L.busyUs : -1;
+  const parts = L.busyParts ? ' (engine ' + L.busyParts[0] + ', drawing ' + L.busyParts[1] + ', knobs ' + L.busyParts[2] + ', 8mu ' + L.busyParts[3] + ', LEDs ' + L.busyParts[4] + ', status ' + L.busyParts[5] + ')' : '';
+  $('busy').textContent = b < 0 ? '' : 'Card load: the audio interrupt took at most ' + b + ' µs of the ~20 µs it has' + parts + (b >= 17 ? ' — too close: knobs may stop responding' : '') + '.';
+  $('busy').style.color = b >= 17 ? cssVar('--bad') : '';
+  $('tempo-box').classList.toggle('waiting', !!(card && L.switchDown && L.waitMain));
+  for (let v = 0; v < 2; v++) {
+    const t = voiceText(v), vc = L.voice[v];
+    $('n' + (v + 1)).textContent = t.note;
+    $('d' + (v + 1)).textContent = t.det;
+    $('g' + (v + 1)).classList.toggle('on', vc.gate);
+    $('e' + (v + 1)).style.width = Math.round(vc.env * 100) + '%';
+  }
+  const own = [0, 1, 2, 3, 4, 5, 6, 7].filter(k => !shared(k)).map(k => KIND_NAMES[k].toLowerCase());
+  const vca = card && L.vca ? L.vca : [false, false];
+  $('src1').textContent = vca[0] ? '\u00b7 Audio In 1 through the envelope' : '';
+  $('src2').textContent = (own.length === 0 ? '\u00b7 shares every page' : own.length === 8 ? '\u00b7 all its own pages' : '\u00b7 own ' + own.join(', '))
+    + (vca[1] ? ' \u00b7 Audio In 2 through the envelope' : '');
+}
+
+function frame(now) {
+  if (!link.cardOnline || now - link.lastStatus > 3000) simulate(now);
+  drawHistory(now); drawReadouts(); drawLedRow(now);
+  serviceEightmuLeds(now);
+  requestAnimationFrame(frame);
+}
+
+// ============================================================================
+// Presets (localStorage)
+// ============================================================================
+const store = {
+  // (falling back to the card's old name's keys, from before it was Weights)
+  get(k, d) { try { const s = localStorage.getItem(k) || localStorage.getItem(k.replace(/^weights\./, 'gwander.')); return s ? JSON.parse(s) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+};
+// A preset: 16 pages of 8 fader values, and the internal tempo.  Presets
+// from before the envelope pages have 8 pages: those pages come in off.
+function cleanPreset(o) {
+  if (!o || typeof o !== 'object' || !Array.isArray(o.v) || (o.v.length !== NPAGES && o.v.length !== 8)) return null;
+  const rows = o.v.length === NPAGES ? o.v : [...o.v, ...Array.from({ length: 8 }, () => new Array(NF).fill(0))];
+  const v = rows.map(r => Array.isArray(r) && r.length === NF ? r.map(x => clamp(Math.round(+x) || 0, 0, 127)) : null);
+  if (v.some(r => !r)) return null;
+  return { name: String(o.name || 'Preset').slice(0, 60), v, tempo: clamp(Math.round(+o.tempo) || 120, 40, 300) };
+}
+const Z = [0, 0, 0, 0, 0, 0, 0, 0];
+const BUILTIN = [
+  { name: 'Default', v: DEFAULTS },
+  { name: 'Root and fifth, sparse', tempo: 90, v: [[127, 0, 0, 0, 90, 0, 0, 0], [0, 40, 127, 30, 0, 0, 0, 0], [80, 0, 30, 60, 0, 0, 0, 0], [127, 0, 0, 0, 0, 0, 0, 0], Z, Z, Z, Z] },
+  { name: 'Bass and lead', tempo: 110, v: [[127, 10, 40, 10, 90, 10, 0, 30], [60, 127, 20, 0, 0, 0, 0, 0], [5, 0, 60, 100, 40, 0, 0, 0], [127, 0, 20, 0, 0, 0, 0, 0],
+    [60, 40, 110, 50, 100, 60, 40, 80], [0, 0, 0, 100, 127, 40, 0, 0], [20, 30, 60, 80, 50, 30, 10, 40], [80, 20, 40, 10, 0, 20, 30, 10]] },
+  { name: 'Ratchet bursts', tempo: 100, v: [[127, 40, 80, 40, 100, 40, 20, 50], [0, 30, 127, 60, 0, 0, 0, 0], [0, 0, 100, 60, 0, 0, 0, 0], [40, 0, 30, 0, 0, 60, 30, 90], Z, Z, Z, Z] },
+  { name: 'Legato drift', tempo: 70, v: [[100, 60, 80, 60, 100, 60, 40, 60], [0, 0, 127, 40, 0, 0, 0, 0], [0, 0, 0, 0, 20, 40, 60, 127], [127, 0, 0, 0, 0, 0, 0, 0], Z, Z, Z, Z] },
+  { name: 'Two independent', tempo: 120, v: [[127, 0, 60, 0, 90, 0, 0, 0], [0, 100, 127, 0, 0, 0, 0, 0], [0, 40, 100, 40, 0, 0, 0, 0], [127, 0, 30, 0, 0, 0, 0, 0],
+    [0, 80, 0, 100, 0, 80, 60, 40], [0, 0, 0, 100, 60, 20, 0, 0], [40, 0, 0, 0, 30, 60, 90, 0], [60, 40, 0, 50, 0, 40, 0, 60]] },
+].map(cleanPreset);
+let userPresets = [];
+function loadPresets() { userPresets = (store.get('weights.presets.v1', []) || []).map(cleanPreset).filter(Boolean); }
+function savePresets() { if (!store.set('weights.presets.v1', userPresets)) say('Could not save presets: browser storage is unavailable or full.', true); }
+function applyPreset(pr) {
+  state.values = pr.v.map(r => r.slice());
+  setTempo(pr.tempo, false);
+  reengage();
+  sendAll();
+  say('Loaded “' + pr.name + '”' + (link.cardOnline ? ' and sent it to the card.' : '.'));
+  changed();
+}
+let presetsDirty = true, presetSig = '';
+function renderPresets() {
+  const sig = JSON.stringify(userPresets);
+  if (!presetsDirty && sig === presetSig) return;
+  presetsDirty = false; presetSig = sig;
+  const ul = $('presets'); ul.innerHTML = '';
+  const add = (pr, idx) => {
+    const li = document.createElement('li');
+    const name = document.createElement('span'); name.className = 'pname'; name.textContent = pr.name; name.title = 'Load';
+    li.append(name);
+    name.addEventListener('click', () => applyPreset(pr));
+    if (idx < 0) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'built in'; li.append(t); }
+    else {
+      const mk = (label, title, fn) => { const b = document.createElement('button'); b.textContent = label; b.title = title; b.addEventListener('click', fn); li.append(b); };
+      mk('Update', 'Overwrite with what is on screen now', () => { userPresets[idx].v = state.values.map(r => r.slice()); userPresets[idx].tempo = state.tempo; savePresets(); presetsDirty = true; requestRender(); say('Updated “' + pr.name + '”.'); });
+      mk('Rename', 'Rename', () => { const n = prompt('New name', pr.name); if (n) { userPresets[idx].name = n.slice(0, 60); savePresets(); presetsDirty = true; requestRender(); } });
+      mk('✕', 'Delete', () => { if (confirm('Delete “' + pr.name + '”?')) { userPresets.splice(idx, 1); savePresets(); presetsDirty = true; requestRender(); } });
+    }
+    ul.append(li);
+  };
+  BUILTIN.forEach(pr => add(pr, -1));
+  userPresets.forEach((pr, i) => add(pr, i));
+}
+function saveCurrent() {
+  const n = prompt('Name for this preset', 'My wander ' + (userPresets.length + 1));
+  if (!n) return;
+  userPresets.push({ name: n.slice(0, 60), v: state.values.map(r => r.slice()), tempo: state.tempo });
+  savePresets(); presetsDirty = true; requestRender(); say('Saved “' + n + '”.');
+}
+function exportPresets() {
+  const blob = new Blob([JSON.stringify({ format: 'weights-presets', version: 1, presets: userPresets }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'weights-presets.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function importPresets(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const o = JSON.parse(r.result);
+      const list = (Array.isArray(o) ? o : o.presets || []).map(cleanPreset).filter(Boolean);
+      if (!list.length) { say('No presets found in that file.', true); return; }
+      userPresets.push(...list); savePresets(); presetsDirty = true; requestRender();
+      say('Imported ' + list.length + ' preset' + (list.length > 1 ? 's' : '') + '.');
+    } catch (e) { say('That file isn’t a presets file: ' + e.message, true); }
+  };
+  r.readAsText(file);
+}
+
+// A button on every card's heading folds the card down to the heading;
+// which cards are folded is remembered in this browser
+function buildCollapsers() {
+  const folded = new Set(store.get('weights.folded.v1', []) || []);
+  document.querySelectorAll('section.card').forEach((card) => {
+    const h = card.querySelector(':scope > h2'); if (!h) return;
+    const name = h.textContent.trim();
+    const b = document.createElement('button'); b.className = 'fold'; b.type = 'button';
+    const show = (f) => {
+      card.classList.toggle('folded', f);
+      b.textContent = f ? '+' : '−';
+      b.title = (f ? 'Show ' : 'Hide ') + name; b.setAttribute('aria-label', b.title);
+      b.setAttribute('aria-expanded', String(!f));
+    };
+    show(folded.has(name));
+    b.addEventListener('click', () => {
+      const f = !card.classList.contains('folded');
+      show(f);
+      if (f) folded.add(name); else folded.delete(name);
+      store.set('weights.folded.v1', [...folded]);
+    });
+    h.appendChild(b);
+  });
+}
+
+// ============================================================================
+// Start
+// ============================================================================
+function init() {
+  const last = cleanPreset(Object.assign({ name: 'last' }, store.get('weights.last.v1', null) || {}));
+  if (last) { state.values = last.v; state.tempo = last.tempo; }
+  loadPresets();
+  buildFaders(); buildCollapsers();
+  setTempo(state.tempo, false);
+  $('tempo-r').addEventListener('input', (e) => setTempo(e.target.value, true));
+  $('tempo-n').addEventListener('change', (e) => setTempo(e.target.value, true));
+  $('btn-connect').addEventListener('click', connect);
+  $('btn-rescan').addEventListener('click', connect);
+  $('btn-read').addEventListener('click', () => { sendRaw(sysex(CMD.HELLO, [])); say('Asked the card for its faders.'); });
+  $('btn-send').addEventListener('click', () => { sendAll(); say('Sent the faders and tempo to the card.'); });
+  $('btn-reset').addEventListener('click', () => {
+    if (!confirm('Reset every page to the default?')) return;
+    state.values = DEFAULTS.map(r => r.slice());
+    reengage();
+    if (link.cardOnline) sendRaw(sysex(CMD.RESET, []));
+    changed();
+  });
+  $('btn-save').addEventListener('click', saveCurrent);
+  $('btn-export').addEventListener('click', exportPresets);
+  $('btn-import').addEventListener('click', () => $('import-file').click());
+  $('import-file').addEventListener('change', (e) => { if (e.target.files[0]) importPresets(e.target.files[0]); e.target.value = ''; });
+  window.addEventListener('resize', () => requestRender());
+  if (!navigator.requestMIDIAccess) say('This browser can’t do WebMIDI, so it can’t reach the card or an 8mu. You can still edit and keep presets here.');
+  else say('Press “Connect card & 8mu” to reach the card. Until then this page edits and previews on its own.');
+  changed();
+  setupOwnership();
+  requestAnimationFrame(frame);
+}
+init();
+</script>
+</body>
+</html>
