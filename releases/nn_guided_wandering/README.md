@@ -97,7 +97,7 @@ panel controls.
 
 | Control | Function |
 |---|---|
-| Switch up | Main = **scale** (below). X = **clock** ÷8, ÷6, ÷4, ÷3, ÷2, ×1 (centre), ×2, ×3, ×4, ×6, ×8. Y = **slew** on the pitch: off across the bottom of the knob, then 1 ms to about 2 s |
+| Switch up | Main = **scale** (below). X = **clock** ÷8, ÷6, ÷4, ÷3, ÷2, ×1 (centre), ×2, ×3, ×4, ×6, ×8. Y = **slew** on the pitch, two-sided: off in a zone round the centre; turned right, every note glides, 1 ms just past the centre to about 2 s fully right; turned left, only a note that a tied gate leads into glides (the same times, growing to the left), and the other notes jump |
 | Switch middle | Main = **decay**, 10 ms to 4 s. X = **attack**, 0.5 ms to 2 s. Y = **pluckiness**: the decay's curve, from a straight line (soft) to a sharp drop with a long tail (a pluck) |
 | Switch down | Hold it and turn Main for the **internal tempo**, 40 to 300 BPM (exponential: about 110 in the middle). Like the other settings it picks up: Main does nothing until it reaches the current tempo, and after you let go it has to pick up its scale or decay again. While held, the top four LEDs flash on every step. X and Y keep the settings of the position the switch was pressed from |
 
@@ -106,7 +106,7 @@ can be reached even if a knob doesn't quite read its ends. The six settings
 each keep their value: after the switch moves, a knob does nothing until it's
 turned to (or past) its new setting's value. LED 6 (bottom right) blinks fast
 while a knob is waiting. At power-up the knobs take over straight away for
-the switch's position; the others start at Major, ×1 and no slew, or a 300 ms
+the switch's position; the others start at Major, ×1 and no slew (centre), or a 300 ms
 decay, the shortest attack and pluckiness halfway.
 
 **Scales**, in order round Main: Chromatic, Major, Natural minor, Harmonic

@@ -125,12 +125,14 @@ static void TestKnobs()
 	CHECK(k.rises[0] == 16, "x8 of 120 BPM: %d steps a second", k.rises[0]);
 	c.knob[1] = 0; Run(c, 64);
 	CHECK(c.engine.ratio == 0, "X at the bottom: /8");
-	// Y: slew off at the bottom, on above
+	// Y: slew, two-sided: left of centre ties only, centre off, right all
 	c.knob[2] = 4095; Run(c, 64);
 	c.knob[2] = 60; Run(c, 64);
-	CHECK(c.engine.slewAlpha == 1 << 24, "slew off at the bottom");
+	CHECK(c.engine.slewAlpha < (1 << 24) && c.engine.slewTiesOnly, "Y left: slew on ties only");
+	c.knob[2] = 2048; Run(c, 64);
+	CHECK(c.engine.slewAlpha == 1 << 24, "Y centre: slew off");
 	c.knob[2] = 3000; Run(c, 64);
-	CHECK(c.engine.slewAlpha < (1 << 24), "slew on");
+	CHECK(c.engine.slewAlpha < (1 << 24) && !c.engine.slewTiesOnly, "Y right: slew on every note");
 	// Back to middle: Main (at 4060, decay 2048) and Y (at 3000, pluck
 	// 4095) wait for their knobs again; X (at 0, attack 0) is already there
 	c.sw = ComputerCard::Middle;

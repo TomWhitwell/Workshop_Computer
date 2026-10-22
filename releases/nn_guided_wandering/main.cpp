@@ -37,7 +37,9 @@
 //
 // Panel
 //   Switch up    Main = scale, X = clock divide/multiply (/8 ... x1 in the
-//                centre ... x8), Y = slew on the pitch (off, then 1ms to 2s)
+//                centre ... x8), Y = slew on the pitch: off at the centre;
+//                right, every note, 1ms to 2s; left, only notes a tie leads
+//                into (the same times)
 //   Switch mid   Main = decay (10ms to 4s), X = attack (0.5ms to 2s),
 //                Y = pluckiness (the decay's curve, soft to snappy)
 //   Switch down  (held) Main = internal tempo, 40-300 BPM; X and Y keep the
@@ -178,7 +180,7 @@ private:
 	int32_t settings[kSettings] = {
 		KnobForZone(1, kNumScales),           // Major
 		KnobForZone(kUnityRatio, kNumRatios), // x1
-		0,                                    // no slew
+		2048,                                 // no slew (centre)
 		2325,                                 // decay ~300ms
 		0,                                    // attack 0.5ms
 		2048,                                 // halfway to a pluck
@@ -247,7 +249,7 @@ private:
 		engine.scale = ScaleFromKnob(settings[SetScale]);
 		engine.ratio = RatioFromKnob(settings[SetRatio]);
 		// The exponential settings only when their knob has moved
-		if (settings[SetSlew] != madeFrom[0]) {madeFrom[0] = settings[SetSlew]; engine.slewAlpha = SlewFromKnob(madeFrom[0]);}
+		if (settings[SetSlew] != madeFrom[0]) {madeFrom[0] = settings[SetSlew]; engine.slewAlpha = SlewFromKnob(madeFrom[0]); engine.slewTiesOnly = SlewTiesOnly(madeFrom[0]);}
 		if (settings[SetDecay] != madeFrom[1]) {madeFrom[1] = settings[SetDecay]; engine.decayInc = DecayFromKnob(madeFrom[1]);}
 		if (settings[SetAttack] != madeFrom[2]) {madeFrom[2] = settings[SetAttack]; engine.attackInc = AttackFromKnob(madeFrom[2]);}
 		engine.pluck = settings[SetPluck];

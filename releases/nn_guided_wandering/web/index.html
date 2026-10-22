@@ -258,7 +258,7 @@
       <h2>Panel</h2>
       <div class="notes">
         <table class="jacks">
-          <tr><th>Switch up</th><td>Main <b>scale</b> (31), X <b>clock</b> &divide;8, &divide;6, &divide;4, &divide;3, &divide;2, &times;1 (centre), &times;2, &times;3, &times;4, &times;6, &times;8, Y <b>slew</b> on the pitch (off across the bottom, then 1 ms to 2 s)</td></tr>
+          <tr><th>Switch up</th><td>Main <b>scale</b> (31), X <b>clock</b> &divide;8, &divide;6, &divide;4, &divide;3, &divide;2, &times;1 (centre), &times;2, &times;3, &times;4, &times;6, &times;8, Y <b>slew</b> on the pitch, two-sided: off at the centre; right of centre every note glides, 1 ms to 2 s; left of centre only notes a tie leads into glide (the same times), the rest jump</td></tr>
           <tr><th>Switch middle</th><td>Main <b>decay</b> (10 ms to 4 s), X <b>attack</b> (0.5 ms to 2 s), Y <b>pluckiness</b>: the decay's curve, from a straight line to a sharp drop with a long tail</td></tr>
           <tr><th>Switch down</th><td>Hold it and turn Main for the <b>internal tempo</b>, 40 to 300 BPM (it picks up first, like the other settings; the top LEDs flash on every step). X and Y keep the last position's settings</td></tr>
           <tr><th>Knobs</th><td>A dead zone at each end, so every setting's whole range is reached. After the switch moves, a knob does nothing until it reaches its setting's value; that setting's box above has a dotted outline until then, and the Computer's bottom right LED blinks fast</td></tr>
@@ -391,9 +391,11 @@ const DEFAULTS = [
 ];
 
 // Knob readouts, as wander.h maps the knobs (values 0-4095 after the dead zones)
-const SLEW_OFF = 140;
+const SLEW_CENTRE = 96;
 const fmtTime = (s) => s >= 1 ? s.toFixed(2) + ' s' : s >= 0.01 ? Math.round(s * 1000) + ' ms' : (s * 1000).toFixed(1) + ' ms';
-const slewText = (v) => v < SLEW_OFF ? 'off' : fmtTime(0.001 * Math.pow(2, 11 * (v - SLEW_OFF) / (4095 - SLEW_OFF)));
+// Two-sided: off round the centre; right every note, left only ties
+const slewText = (v) => { const d = Math.abs(v - 2048) - SLEW_CENTRE;
+  return d < 0 ? 'off' : fmtTime(0.001 * Math.pow(2, 11 * d / (2047 - SLEW_CENTRE))) + (v < 2048 ? ' ties' : ''); };
 const attackText = (v) => fmtTime(0.0005 * Math.pow(2, 11.966 * v / 4095));
 const decayText = (v) => fmtTime(0.01 * Math.pow(2, 8.644 * v / 4095));
 

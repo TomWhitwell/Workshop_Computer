@@ -303,19 +303,24 @@ static inline int RatioFromKnob(int32_t v) {return (v * kNumRatios) >> 12;}
 // The knob value in the middle of a zone, for defaults
 static inline int32_t KnobForZone(int zone, int zones) {return (zone * 4096 + 2048) / zones;}
 
-// Slew on the pitch CV: off across the bottom of the knob (so off is easy to
-// find), then a time constant of 1ms to about 2s.  Returned as the fraction
-// of the way the output moves towards the note each sample, in Q24; 1<<24
-// means no slew.
-static constexpr int32_t kSlewOffZone = 140;
+// Slew on the pitch CV, two-sided: off in a zone round the middle of the
+// knob (so off is easy to find), then a time constant from 1ms just outside
+// it to about 2s at either end.  Turned right, every note slews; turned
+// left, only a note that a tied gate leads into does, so the ties glide and
+// the rest jump.  Returned as the fraction of the way the output moves
+// towards the note each sample, in Q24; 1<<24 means no slew.
+static constexpr int32_t kSlewCentreZone = 96;
 static inline int32_t SlewFromKnob(int32_t v)
 {
-	int32_t s = v - kSlewOffZone;
+	int32_t d = v - 2048;
+	if (d < 0) d = -d;
+	int32_t s = d - kSlewCentreZone;
 	if (s < 0) return 1 << 24;
-	// 1/(1ms at 48kHz) = 2^24/48, falling 11 octaves (to ~2s) over the knob
-	int32_t a = int32_t(ExpScale(349525, -(s * 45056) / (4095 - kSlewOffZone)));
+	// 1/(1ms at 48kHz) = 2^24/48, falling 11 octaves (to ~2s) by the end
+	int32_t a = int32_t(ExpScale(349525, -(s * 45056) / (2047 - kSlewCentreZone)));
 	return a < 1 ? 1 : a;
 }
+static inline bool SlewTiesOnly(int32_t v) {return v < 2048;}
 
 // Envelope times, as the amount an envelope stage moves on each sample
 // (Q31, 2^31 being the whole stage).  Attack 0.5ms to 2s; decay 10ms to 4s.
@@ -427,6 +432,7 @@ public:
 	int scale = 1;
 	int ratio = kUnityRatio;
 	int32_t slewAlpha = 1 << 24;
+	bool slewTiesOnly = false;        // slew only notes a tie leads into
 	uint32_t attackInc = 89478485, decayInc = 4473924;
 	int32_t pluck = 2048;
 	int32_t internalPeriod = 24000;   // 120 BPM
@@ -449,6 +455,7 @@ public:
 		uint32_t baseAttack = 0, baseDecay = 0;              // the knobs' at that time
 		int32_t targetMv = 0;
 		int64_t slewed = 0;           // millivolts, Q16
+		bool glide = false;           // this note came in through a tie
 		int hits = 1, nextHit = 1;
 		int32_t hitAt[kMaxHits] = {};
 		int32_t sinceHit = 0x7FFFFFF; // samples since the last hit
@@ -600,9 +607,10 @@ public:
 			else if (vc.gateOn && vc.gateLeft > 0 && --vc.gateLeft == 0) vc.gateOn = false;
 			gate[v] = vc.gateOn && vc.gap == 0;
 
-			// Pitch, with slew
+			// Pitch, with slew (or with the knob left of centre, slew only
+			// into a note a tie leads into)
 			int64_t target = int64_t(vc.targetMv) * 65536;
-			if (slewAlpha >= (1 << 24)) vc.slewed = target;
+			if (slewAlpha >= (1 << 24) || (slewTiesOnly && !vc.glide)) vc.slewed = target;
 			else vc.slewed += ((target - vc.slewed) * slewAlpha) >> 24;
 			cvMv[v] = int32_t(vc.slewed >> 16);
 
@@ -860,12 +868,14 @@ private:
 			vc.gateOn = false;
 			vc.gap = 0;
 			vc.tied = false;
+			vc.glide = false;
 			return;
 		}
 		// After a tied note the gate is still up: the new note joins on
 		// without a new envelope.  Otherwise a new envelope, and if the
 		// last gate hasn't fallen yet a short gap so the gate rises afresh.
 		bool legato = vc.tied && vc.gateOn;
+		vc.glide = legato;
 		if (!legato)
 		{
 			vc.env.Trigger();

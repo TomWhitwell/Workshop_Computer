@@ -123,13 +123,15 @@ static void TestKnobs()
 	CHECK(RatioFromKnob(MapKnob(2048)) == kUnityRatio, "ratio centre is x1");
 	for (int z = 0; z < kNumScales; z++) CHECK(ScaleFromKnob(KnobForZone(z, kNumScales)) == z, "scale zone %d", z);
 	for (int z = 0; z < kNumRatios; z++) CHECK(RatioFromKnob(KnobForZone(z, kNumRatios)) == z, "ratio zone %d", z);
-	// Slew: off at the bottom, 1ms just above the off zone, ~2s at the top
-	CHECK(SlewFromKnob(0) == 1 << 24 && SlewFromKnob(kSlewOffZone - 1) == 1 << 24, "slew off");
-	CHECK(abs(SlewFromKnob(kSlewOffZone) - 349525) < 400, "slew 1ms %d", SlewFromKnob(kSlewOffZone));
+	// Slew, two-sided: off round the centre, 1ms just outside it, ~2s at
+	// either end; left of centre only ties slew
+	CHECK(SlewFromKnob(2048) == 1 << 24 && SlewFromKnob(2048 + kSlewCentreZone - 1) == 1 << 24 && SlewFromKnob(2048 - kSlewCentreZone + 1) == 1 << 24, "slew off at the centre");
+	CHECK(abs(SlewFromKnob(2048 + kSlewCentreZone) - 349525) < 400 && abs(SlewFromKnob(2048 - kSlewCentreZone) - 349525) < 400, "slew 1ms either side");
 	{
-		double tau = 16777216.0 / SlewFromKnob(4095) / 48000.0;
-		CHECK(tau > 1.8 && tau < 2.2, "slew top %.2fs", tau);
+		double up = 16777216.0 / SlewFromKnob(4095) / 48000.0, down = 16777216.0 / SlewFromKnob(0) / 48000.0;
+		CHECK(up > 1.8 && up < 2.2 && down > 1.8 && down < 2.2, "slew ends %.2fs %.2fs", up, down);
 	}
+	CHECK(SlewTiesOnly(0) && SlewTiesOnly(1000) && !SlewTiesOnly(3000), "left of centre: ties only");
 	// Envelope times
 	{
 		double a0 = 2147483648.0 / AttackFromKnob(0) / 48.0, a1 = 2147483648.0 / AttackFromKnob(4095) / 48000.0;
@@ -495,6 +497,39 @@ static void TestSlew()
 	RunSteps(e, 1);
 	for (int i = 0; i < 4800; i++) e.Tick(false);
 	CHECK(abs(e.cvMv[0] - 1839) < 60, "slew 100ms: %d mV after 100ms", e.cvMv[0]);
+
+	// Ties only: a note after a tie glides, other notes jump
+	Engine t;
+	int n1[8] = {100, 0, 0, 0, 0, 0, 0, 0};
+	SetPage(t, Notes, n1);
+	int r1[8] = {100, 0, 0, 0, 0, 0, 0, 0};
+	SetPage(t, Ratchets, r1);
+	int lo[8] = {0, 0, 100, 0, 0, 0, 0, 0}, hi[8] = {0, 0, 0, 0, 0, 0, 0, 100};
+	int plain[8] = {0, 0, 0, 100, 0, 0, 0, 0}, tied[8] = {0, 0, 0, 0, 0, 0, 0, 100};
+	t.slewAlpha = int32_t(16777216.0 / (0.1 * 48000));
+	t.slewTiesOnly = true;
+	SetPage(t, Octaves, lo);
+	SetPage(t, Gates, plain);
+	RunSteps(t, 2);
+	SetPage(t, Octaves, hi);
+	RunSteps(t, 1);
+	t.Tick(false);
+	CHECK(t.cvMv[0] == 5000, "ties only: an untied note jumps (%d)", t.cvMv[0]);
+	// now tie into the next note
+	SetPage(t, Gates, tied);
+	RunSteps(t, 1);                 // a tied note at +5V
+	SetPage(t, Octaves, lo);
+	RunSteps(t, 1);                 // the next note, 0V, comes in through the tie
+	for (int i = 0; i < 4800; i++) t.Tick(false);
+	CHECK(t.voice[0].glide && abs(t.cvMv[0] - (5000 - 3161)) < 80, "ties only: the note after a tie glides (%d)", t.cvMv[0]);
+	// and with the knob right of centre every note glides
+	t.slewTiesOnly = false;
+	SetPage(t, Gates, plain);
+	RunSteps(t, 2);
+	SetPage(t, Octaves, hi);
+	RunSteps(t, 1);
+	t.Tick(false);
+	CHECK(t.cvMv[0] < 200, "right of centre: untied notes glide too (%d)", t.cvMv[0]);
 }
 
 //----------------------------------------------------------------------------
