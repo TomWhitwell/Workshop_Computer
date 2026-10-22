@@ -8,6 +8,13 @@ height, vertical Disorientation, elevation randomise/reset tools and the tested
 repeated-save fix. Pitch/roll motion directly places sound, with corrected roll
 polarity: right edge down moves right; yaw is unused.
 
+**Elevation is a subtle headphone effect.** Height and slope add spatial/timbral
+cues; they may sound like a small change in tone or apparent placement rather
+than an obvious sound moving above or below you. Slope can be harder to hear than
+a direct height change. The effect varies with listener, headphones and source
+material; the displayed degrees are virtual rendering targets, not a guarantee
+of an equally precise perceived angle.
+
 Original code and documentation © 2026 Adrian Vos (soveda), [MIT](LICENSE).
 Measured ear filters: Bill Gardner and Keith Martin, MIT Media Laboratory (1994),
 *HRTF Measurements of a KEMAR Dummy-Head Microphone*, Technical Report #280;
@@ -39,8 +46,10 @@ or dependencies. No Quasar firmware, graphics or transfer functions are included
 
 Startup selection is not saved. Each mode has its own saved settings.
 Headphones are the listening target; generic HRTFs vary with listener/headphones.
-Elevation may sound subtle or partly like spectral changes rather than a precise
-physical position. Speaker stereo/mono will not reproduce the same binaural scene.
+Elevation uses generic measured ear filters, interpolated between level and
+above/below banks; it is not personalised to your ears. Expect a subtle cue rather
+than reliably precise vertical localisation. Speaker stereo/mono will not reproduce
+the same binaural scene.
 
 ## Panel and patch controls
 
@@ -104,24 +113,48 @@ Shared settings: separation/phase separation, room reflections, A/B level trims,
 spatial strength and clock division. Separation and clock division are unused in
 Mixer. Mixer Read/Save capture both current placements and applied heights.
 
+### Elevation and sloping paths
+
+- **Twin Orbits:** one saved height centre shifts both sources above/below level.
+  Path tilt adds height according to each source's direction: uphill is higher,
+  the opposite direction lower. The sources can therefore have different heights
+  while sharing the same centre. Orbits has no separate vertical-excursion control.
+- **Spatial Mixer:** A and B have independent, continuous saved heights. They stay
+  at their set heights until edited; Mixer has no automatic vertical movement or
+  sloping path. Editor controls set A and B separately; 8mu fader 8 changes the
+  selected source's height.
+- **Disorientation:** its own saved height centre offsets both sources. Vertical
+  excursion adds phase-related rise/fall; path tilt adds a directional slope.
+  Fig8 rises/falls with phase, Pendulum is higher at its swing ends and lower near
+  its centre, and Wander eases between repeatable height targets. The sources can
+  differ in height because they have independent phases/targets. These settings
+  are edited on the web page; 8mu pitch/roll reshape or turn the path rather than
+  directly adjusting its elevation settings.
+
 | Height/path setting | Behaviour |
 |---|---|
 | Orbits height centre | −40° to +40°, both sources, independently saved from Disorientation |
 | Mixer A/B height | Continuous −40° to +40°, independently saved/exported |
 | Disorientation height centre | −40° to +40°, both sources |
-| Vertical excursion | 0–40° half-range; phase-related Fig8, lifted Pendulum ends, eased Wander height |
+| Disorientation vertical excursion | 0–40° half-range around its height centre, before clipping |
 | Uphill direction | 0° front, 90° right, 180° back, 270° left; continuous diagonals |
 | Path tilt | 0–40° inclination; zero bypasses slope |
 
-Slope rotates horizontal direction toward the chosen uphill bearing and changes
-its horizontal projection. The opposite bearing goes down; perpendicular
-positions remain level. Path distance stays the original path distance. This is
-inclination about the listener, not rotation of the translated path about its own
-centre. Existing height centre/bob is added after slope, then clipped to ±40°;
-combined bob+tilt is not one rigid plane and large settings can flatten peaks.
+Slope inclines the path about the listener: the selected uphill bearing goes
+up, the opposite bearing down, and perpendicular directions receive no added
+height from slope. Its horizontal projection also changes; path distance stays
+unchanged. This is an inclination about the listener, not a tilt about each
+path's own translated centre. Height centre and Disorientation rise/fall are added
+to the slope contribution, then clipped to ±40°. A nonzero centre or combined
+excursion/tilt can therefore flatten the top/bottom of the movement. The combined
+result is not necessarily one rigid inclined plane.
 Start at centre **0°**, excursion **0°**, tilt **40°**, slow X to audition slope
-alone. Reset can return to an elevated point if that reset direction is uphill.
-The live diagram shows direction only; its radius does not represent distance.
+alone (Orbits has no excursion setting). Compare against tilt 0° using Apply;
+the audible difference may remain subtle even at 40°. Keep level and other sound
+settings steady, and listen without relying on the diagram. Resetting phase does
+not reset height settings: it can return to an elevated point if that direction
+is uphill. The live diagram shows horizontal direction only; it is not a 3D view,
+and its radius does not represent distance.
 
 ### Migration and downgrade
 
