@@ -10,8 +10,6 @@ Built from the same template as WaveSeq and CVSeq: the same 8mu handling and
 pickup, USB modes, knob pickup, web editor, 8mu sharing between editor
 windows, and presets. It works with an 8mu alone, no computer needed.
 
-> The folder is `nn_guided_wandering`: give it a release number when it goes in.
-
 ## The 8mu
 
 The four buttons choose the page. Each button has four pages: press it
