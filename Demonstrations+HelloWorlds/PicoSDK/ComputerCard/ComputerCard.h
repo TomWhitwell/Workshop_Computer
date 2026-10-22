@@ -45,6 +45,7 @@ SOFTWARE.
 #define COMPUTERCARD_H
 
 #include "hardware/gpio.h"
+#include "hardware/i2c.h"
 #include "hardware/pwm.h"
 
 #define PULSE_1_RAW_OUT 8
@@ -88,6 +89,22 @@ public:
 
 	/// Use before Run() to enable Connected/Disconnected detection
 	void EnableNormalisationProbe() {useNormProbe = true;}
+
+	/** \brief Use the UART pads for I2C, for example for ii (Teletype, crow).
+
+	    Moves the I2C0 peripheral from the calibration EEPROM, which the
+	    constructor has already read and which isn't needed after, to the
+	    (usually unpopulated) UART pads: TX = GPIO 0 = SDA, RX = GPIO 1 = SCL.
+	    Turns on the RP2040's weak pull-ups there; an I2C bus needs proper
+	    pull-ups too, to 3.3V only, as the RP2040 isn't 5V tolerant.
+
+	    Call before Run(). Define ENABLE_UART_DEBUGGING as well, so that the
+	    constructor doesn't drive the UART pads as debug outputs before this is
+	    called (which would hold the lines of a shared bus low for a moment).
+
+	    Returns i2c0, initialised at `baudrate` and ready to use.
+	*/
+	i2c_inst_t* EnableI2COverUART(uint32_t baudrate = 100 * 1000);
 	
 	static ComputerCard *ThisPtr() {return thisptr;}
 
@@ -575,6 +592,10 @@ private:
 
 #define DEBUG_1 0
 #define DEBUG_2 1
+
+// The UART pads as I2C0, with EnableI2COverUART()
+#define UART_I2C_SDA 0
+#define UART_I2C_SCL 1
 
 #define SPI_PORT spi0
 #define SPI_DREQ DREQ_SPI0_TX
@@ -1207,6 +1228,23 @@ int ComputerCard::ReadIntFromEEPROM(unsigned int eeAddress, bool &failed)
 	uint8_t lowByte = ReadByteFromEEPROM(eeAddress + 1, failed);
 
 	return (highByte << 8) | lowByte;
+}
+
+i2c_inst_t* ComputerCard::EnableI2COverUART(uint32_t baudrate)
+{
+	// The order matters. The I2C controller sees its pins' inputs combined, so
+	// the new pins (pulled up) join before the old ones leave, and the lines
+	// stay high. Dropping the EEPROM pins first looked to the controller like
+	// another I2C leader starting a transfer, and it then waited for the bus
+	// forever. The reset afterwards clears anything it saw anyway.
+	gpio_pull_up(UART_I2C_SDA);
+	gpio_pull_up(UART_I2C_SCL);
+	gpio_set_function(UART_I2C_SDA, GPIO_FUNC_I2C);
+	gpio_set_function(UART_I2C_SCL, GPIO_FUNC_I2C);
+	gpio_set_function(EEPROM_SDA, GPIO_FUNC_NULL);
+	gpio_set_function(EEPROM_SCL, GPIO_FUNC_NULL);
+	i2c_init(i2c0, baudrate);
+	return i2c0;
 }
 
 uint16_t ComputerCard::CRCencode(const uint8_t *data, int length)

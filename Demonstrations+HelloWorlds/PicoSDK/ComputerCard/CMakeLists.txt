@@ -73,6 +73,15 @@ add_example(sample_upload)
 add_example(second_core)
 target_link_libraries(second_core pico_multicore)
 
+# i2c_over_uart: the Computer as an ii (I2C) follower and leader on the UART pads, moved
+# there by EnableI2COverUART(). ENABLE_UART_DEBUGGING keeps ComputerCard's
+# constructor (and stdio) from driving those pins first.
+add_example(i2c_over_uart)
+target_sources(i2c_over_uart PUBLIC ${CMAKE_CURRENT_LIST_DIR}/examples/i2c_over_uart/ii_bus.c)
+target_link_libraries(i2c_over_uart hardware_irq)
+target_compile_definitions(i2c_over_uart PRIVATE ENABLE_UART_DEBUGGING)
+pico_enable_stdio_uart(i2c_over_uart 0)
+
 add_example(sine_wave_lookup)
 
 add_example(sine_wave_float)
