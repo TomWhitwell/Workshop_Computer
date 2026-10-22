@@ -1,14 +1,14 @@
-draft: true
+draft: false
 Name: Guided Wandering
 short-description: "Two voices of random pitch CV, guided by probabilities set on a Music Thing 8mu - with gates, ratchets and envelopes"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
 Version: "0.1.0"
-Status: WIP
+Status: Beta
 License: MIT
 Editor: web
 date-created: 2026-10-21
-date-updated: 2026-10-21
+date-updated: 2026-10-22
 
 contact:
   email: XponentOneAudio@gmail.com
