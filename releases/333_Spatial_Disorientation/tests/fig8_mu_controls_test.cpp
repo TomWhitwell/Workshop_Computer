@@ -34,23 +34,31 @@ int main(){
     // B anchors motion at Main. Tilt/rotation alter depth; panel cannot override.
     r.in.buttons=2;r.Tick(1800);assert(r.mu.Motion()&&r.main==1800);
     r.in.buttons=0;for(int i=0;i<100;++i)r.Tick(3100);assert(r.main==1800);
-    r.in.roll=1200;for(int i=0;i<200;++i)r.Tick(3100);assert(r.main>2500&&r.main<3000);
-    r.in.buttons=1;assert(r.Tick(2200));assert(r.main==2200);assert(!r.Tick(2200));
-    r.in.buttons=0;r.in.yaw=1000;
-    for(int i=0;i<500;++i)r.Tick(3100);assert(r.main>2200);
-    r.in.yaw=0;for(int i=0;i<200;++i)r.Tick(3100);int stationary=r.main;
-    for(int i=0;i<200;++i)r.Tick(3100);assert(std::abs(r.main-stationary)<=1);
-    // Full-scale depth saturates rather than wrapping; opposite rotation returns.
-    r.in.fader[7]=4064;r.in.roll=1200;r.in.yaw=2032;
-    for(int i=0;i<12000;++i){r.Tick(3100);assert(r.main>=0&&r.main<=4095);}
-    assert(r.main==4095);r.in.yaw=-2032;
-    for(int i=0;i<12000;++i)r.Tick(3100);assert(r.main==0);
-    // Amount zero suppresses both tilt and rate. It leaves gyro's held base.
-    r.in.fader[7]=0;r.in.yaw=2032;r.in.roll=-2032;
-    for(int i=0;i<300;++i)r.Tick(3100);assert(r.main==0);
-    // Toggle off preserves depth until Main picks it up, rather than jumping.
-    r.in.buttons=2;r.Tick(3100);assert(!r.mu.Motion()&&r.main==0&&(r.mu.PanelPending()&1));
-    r.in.buttons=0;r.Tick(3000);assert(r.main==0);r.Tick(0);assert(r.main==0&&!(r.mu.PanelPending()&1));
+    r.in.roll=1200;for(int i=0;i<200;++i)r.Tick(3100);assert(r.main==1800&&static_cast<int32_t>(r.mu.Rotation())<0); // Right edge raised = left rotation.
+    r.in.pitch=-1200;for(int i=0;i<200;++i)r.Tick(3100);assert(r.main>2500&&r.main<3000);
+    r.in.buttons=1;assert(r.Tick(2200));assert(r.main==2200&&r.mu.Rotation()==0);assert(!r.Tick(2200));
+    r.in.buttons=0;r.in.yaw=2032;
+    for(int i=0;i<500;++i)r.Tick(3100);assert(r.main==2200&&r.mu.Rotation()==0);
+    r.in.pitch=-1800;for(int i=0;i<300;++i)r.Tick(3100);assert(r.main>2200);
+    int heldDepth=r.main;for(int i=0;i<2000;++i)r.Tick(3100);assert(std::abs(r.main-heldDepth)<=1);
+    // Recenter at flat/full amount; pitch approaches both depth ends, without wrapping.
+    r.in.fader[7]=4064;r.in.pitch=r.in.roll=0;r.in.buttons=1;r.Tick(2048);r.in.buttons=0;
+    r.in.pitch=-2032;for(int i=0;i<400;++i)r.Tick();assert(r.main>4000);
+    r.in.pitch=2032;for(int i=0;i<400;++i)r.Tick();assert(r.main<100);
+    r.in.fader[7]=0;r.in.roll=-2032;
+    for(int i=0;i<400;++i)r.Tick();assert(r.main==2048&&r.mu.Rotation()==0);
+    // Flat recapture/full amount: right edge lowered rotates right, raised rotates left.
+    r.in.fader[7]=4064;r.in.pitch=r.in.roll=0;r.in.buttons=1;r.Tick(2048);r.in.buttons=0;
+    r.in.roll=-1200;for(int i=0;i<400;++i)r.Tick();assert(static_cast<int32_t>(r.mu.Rotation())>0);
+    r.in.roll=1200;for(int i=0;i<400;++i)r.Tick();assert(static_cast<int32_t>(r.mu.Rotation())<0);
+    // Recenter at a tilted pose: offsets retain the same physical polarity.
+    r.in.roll=400;r.in.buttons=1;r.Tick(2048);r.in.buttons=0;
+    r.in.roll=-600;for(int i=0;i<400;++i)r.Tick();assert(static_cast<int32_t>(r.mu.Rotation())>0);
+    r.in.roll=1400;for(int i=0;i<400;++i)r.Tick();assert(static_cast<int32_t>(r.mu.Rotation())<0);
+    r.in.fader[7]=0;for(int i=0;i<400;++i)r.Tick();assert(r.mu.Rotation()==0);
+    // Toggle off preserves depth until panel pickup; rotation returns to unrotated.
+    r.in.buttons=2;r.Tick(3100);assert(!r.mu.Motion()&&r.main==2048&&(r.mu.PanelPending()&1));
+    r.in.buttons=0;r.Tick(3000);assert(r.main==2048);r.Tick(2048);assert(!(r.mu.PanelPending()&1));
     r.Tick(1000);assert(r.main==1000);
     // Disconnect releases C/motion, retains X/Y until their physical pickups.
     r.in.buttons=4;r.Tick(1000);assert(r.mu.Frozen());

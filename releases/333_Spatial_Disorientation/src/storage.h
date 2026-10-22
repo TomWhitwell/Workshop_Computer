@@ -18,7 +18,11 @@ public:
     }
     Settings Load() const {
         if(!valid_)return {};
-        return LoadRecord(Address(),sizeof(Record)); // Migrates v1/v2/v3 in RAM; never writes at boot.
+        return LoadRecord(Address(),sizeof(Record)); // Migrates v1/v2/v3/v4/v5 in RAM; never writes at boot.
+    }
+    bool Unchanged(const Settings& cfg) const {
+        if(!valid_||!cfg.Valid())return false;
+        Record record=MakeRecord(cfg);return std::memcmp(Address(),&record,sizeof(record))==0;
     }
     // Core 1 only, after core 0 acknowledges muted audio. Both cores execute
     // from RAM; lock out core 0 and disable local interrupts around flash access.

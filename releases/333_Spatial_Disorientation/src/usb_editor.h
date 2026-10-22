@@ -3,6 +3,7 @@
 // Fixed buffers, bounded parser and timeouts replace its dynamic allocations.
 #pragma once
 #include "shared.h"
+#include "elevation_control.h"
 #include "storage.h"
 #include "midi_tx.h"
 #include "dsp/hrtf_table.h"
@@ -11,7 +12,7 @@
 namespace spatial {
 class UsbEditor {
 public:
-    UsbEditor(Shared& shared,Storage& storage,const Settings& cfg,void (*worker)()):shared_(shared),storage_(storage),current_(cfg),worker_(worker) {}
+    UsbEditor(Shared& shared,Storage& storage,const Settings& cfg,void (*worker)(),void (*pause)(),bool (*paused)(),void (*resume)(),bool (*running)()):shared_(shared),storage_(storage),current_(cfg),worker_(worker),pause_(pause),paused_(paused),resume_(resume),running_(running) {}
     void Run() {
         tud_init(0); // Only the selected role starts on the single USB controller.
         __dmb();shared_.usb_ready=1;
@@ -24,23 +25,22 @@ public:
                 uint32_t count=tud_midi_stream_read(chunk,sizeof(chunk));
                 for (uint32_t i=0;i<count;++i) Byte(chunk[i]);
             }
-            if (pending_ && !shared_.ready) {
-                __dmb(); current_=pending_cfg_;pending_=false;
-                Ack(2,pending_seq_,0);
-            }
+            FinishApply();
             uint32_t now=time_us_32();
             if (now-last_telemetry_>=50000) {
                 last_telemetry_=now;
-                uint8_t data[13];
+                uint8_t data[17];
                 Pack(shared_.angle_a,data);Pack(shared_.angle_b,data+2);
                 Pack(shared_.distance,data+4);data[6]=shared_.flags&127;data[7]=shared_.mode;Pack(shared_.distance_b,data+8);data[10]=shared_.mixer_state;data[11]=shared_.frozen;
                 if(tx_.Empty()) {
                     data[12]=shared_.movement;
+                    uint32_t heights=shared_.resolved_elevation;
+                    Pack(HeightAt(heights,0),data+13);Pack(HeightAt(heights,1),data+15);
                     Send(0x43,0,data,sizeof(data));
-                    uint8_t timing[5];
+                    uint8_t timing[6];
                     Pack(shared_.callback_peak_us>16383?16383:shared_.callback_peak_us,timing);
                     Pack(shared_.block_peak_us>16383?16383:shared_.block_peak_us,timing+2);
-                    timing[4]=kHrtfTaps;
+                    timing[4]=kHrtfTaps;timing[5]=SPATIAL_ELEVATION_SOLO;
                     Send(0x44,0,timing,sizeof(timing));
                 }
             }
@@ -48,6 +48,9 @@ public:
         }
     }
 private:
+    void FinishApply(){
+        if(pending_&&!shared_.ready){__dmb();current_=pending_cfg_;pending_=false;Ack(2,pending_seq_,0);}
+    }
     static void Pack(uint32_t v,uint8_t* dest) { dest[0]=v&127;dest[1]=(v>>7)&127; }
     bool Send(uint8_t command,uint8_t seq,const uint8_t* data,size_t n) {
         uint8_t msg[64]={0xf0,0x7d,0x53,0x44,kProtocolVersion,command,seq};
@@ -73,7 +76,7 @@ private:
     }
     void Snapshot(uint8_t seq) {
         if(shared_.mode>2||!Capture()){Ack(1,seq,4);return;}
-        uint8_t data[37];size_t n=EncodeSettings(current_,shared_.mode,data);Send(0x41,seq,data,n);
+        uint8_t data[43];size_t n=EncodeSettings(current_,shared_.mode,data);Send(0x41,seq,data,n);
     }
     void Message() {
         if (length_<6 || rx_[0]!=0x7d || rx_[1]!=0x53 || rx_[2]!=0x44) return;
@@ -90,13 +93,34 @@ private:
             // Explicit Save creates a brief audio pause, never a flash write in
             // the ISR. Zero reaches the DAC before core 0 is locked out.
             if(shared_.mode>2||!Capture()){Ack(command,seq,4);return;}
+            // Unchanged saves need neither a mute nor an erase/program cycle.
+            if(storage_.Unchanged(current_)){Ack(command,seq,0);return;}
             __dmb();shared_.save=1;
             uint32_t start=time_us_32();
-            while (shared_.save!=2 && time_us_32()-start<500000) { worker_();tud_task();Pump(); }
+            while(shared_.save!=2&&time_us_32()-start<500000){worker_();tud_task();Pump();}
             bool okay=false;
-            if (shared_.save==2) { __dmb();okay=storage_.Save(current_); }
+            if(shared_.save==2){
+                pause_();start=time_us_32();
+                while(!paused_()&&time_us_32()-start<500000){worker_();tud_task();Pump();}
+                if(paused_()){__dmb();okay=storage_.Save(current_);}
+            }
+            // Always release both requests, including timeout/verification failure.
+            // Keep timing suppression until the sampler is actually running.
+            resume_();start=time_us_32();
+            while(!running_()&&time_us_32()-start<500000){worker_();tud_task();Pump();}
+            okay=okay&&running_();
+            if(!okay)shared_.save_fault=1;
             __dmb();shared_.save=0;
             Ack(command,seq,okay ? 0 : 5);
+        } else if(command==4){
+            uint32_t packed;
+            if(shared_.mode!=1||!DecodeElevation(rx_+6,length_-6,packed)){Ack(command,seq,3);return;}
+            shared_.elevation=packed;Ack(command,seq,0);
+        } else if(command==5&&length_==6){
+            if(shared_.mode!=1){Ack(command,seq,3);return;}
+            uint8_t data[4];uint32_t heights=shared_.elevation;
+            Pack(HeightAt(heights,0),data);Pack(HeightAt(heights,1),data+2);
+            Send(0x45,seq,data,4);
         } else Ack(command,seq,1);
     }
     void Byte(uint8_t value) {
@@ -115,6 +139,7 @@ private:
     bool active_=false,pending_=false;
     uint32_t last_telemetry_=0;
     void (*worker_)();
+    void (*pause_)();bool (*paused_)();void (*resume_)();bool (*running_)();
     MidiTx tx_;
 };
 }

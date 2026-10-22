@@ -4,19 +4,23 @@
 #pragma once
 #include "modes.h"
 #include "mu_controls.h"
+#include "elevation_pickup.h"
 namespace spatial {
 class MixerMuControls {
 public:
-    uint32_t Apply(const MuInput& in,Modes& modes,int32_t& main,int32_t& x,int32_t& y,Config& cfg){
+    uint32_t Apply(const MuInput& in,Modes& modes,int32_t& main,int32_t& x,int32_t& y,Config& cfg,uint32_t heights=kLevelElevations){
+        elevation_change_=-1;
         bool fresh=in.connected&&(!connected_||session_!=in.session);
-        if(fresh){session_=in.session;previous_buttons_=in.buttons;source_=modes.SelectedSource();}
+        if(fresh){session_=in.session;previous_buttons_=in.buttons;source_=modes.SelectedSource();height_.Start(HeightAt(heights,source_));}
         uint32_t pressed=in.connected&&!fresh?in.buttons&~previous_buttons_:0;
         previous_buttons_=in.connected?in.buttons:0;connected_=in.connected;
         if(pressed&1)modes.SelectMixer(0,main,x,y); // A and B select their named source.
         else if(pressed&2)modes.SelectMixer(1,main,x,y);
         if(source_!=modes.SelectedSource()){
-            source_=modes.SelectedSource();controls_.Rearm(7);
+            source_=modes.SelectedSource();controls_.Rearm(7);height_.Start(HeightAt(heights,source_));
         }
+        if(!in.connected)height_.Rearm();
+        else if(in.faders_ready)elevation_change_=height_.Update(in.fader[7],HeightAt(heights,source_));
         int32_t position=modes.MixerValue(0),distance=modes.MixerValue(1),level=modes.MixerValue(2);
         Config mapped=cfg;mapped.value[0]=static_cast<uint16_t>(position);
         // Reuse the tested eight-fader pickup engine: its former
@@ -33,10 +37,12 @@ public:
         for(int i=1;i<5;++i)cfg.value[i]=mapped.value[i]; // Keep unused separation intact.
         return takeover;
     }
-    void Rearm(){controls_.Rearm(7);}
-    uint32_t Feedback()const{return (controls_.Picked()&127u)|(source_?512u:0u)|1024u;}
+    void Rearm(){controls_.Rearm(7);height_.Rearm();}
+    int ElevationChange()const{return elevation_change_;}
+    uint32_t Feedback()const{return (controls_.Picked()&127u)|(height_.Picked()?128u:0u)|(source_?512u:0u)|1024u|((height_.Height()>>5)<<16);}
 private:
-    MuControls controls_;
+    MuControls controls_;ElevationPickup height_;
+    int elevation_change_=-1;
     uint32_t previous_buttons_=0,session_=0;
     int source_=0;bool connected_=false;
 };

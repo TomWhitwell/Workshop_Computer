@@ -408,6 +408,15 @@ protected:
 	  audio in functions above.
 	 */
 
+public:
+    // Local 0.4.0 adaptation (Adrian Vos, 2026, MIT): core 1 requests a
+    // muted flash pause; only core 0 stops/restarts ADC and DMA. Never call
+    // these instead of the card's fade/flash handshake.
+    void RequestAudioPauseForFlash() { __dmb(); flashPauseRequested = 1; }
+    void ResumeAudioAfterFlash() { __dmb(); flashPauseRequested = 0; }
+    bool AudioPausedForFlash() const { return runADCMode == 4; }
+    bool AudioRunningAfterFlash() const { return runADCMode == 0 && !flashPauseRequested; }
+protected:
 	void Abort();
 
 	uint16_t CRCencode(const uint8_t *data, int length);
@@ -468,6 +477,7 @@ private:
 	Switch switchVal, lastSwitchVal;
 	
 	volatile uint8_t runADCMode;
+    alignas(4) volatile uint32_t flashPauseRequested = 0; // Core 1 writes, core 0 reads.
 
 	bool cvOutsCalibrated;
 
@@ -592,6 +602,7 @@ private:
 #define RUN_ADC_MODE_REQUEST_ADC_STOP 1
 #define RUN_ADC_MODE_ADC_STOPPED 2
 #define RUN_ADC_MODE_REQUEST_ADC_RESTART 3
+#define RUN_ADC_MODE_FLASH_PAUSED 4
 
 
 #define EEPROM_ADDR_ID 0
@@ -692,7 +703,11 @@ void __not_in_flash_func(ComputerCard::AudioWorker)()
 		// If ready to restart
 		if (runADCMode == RUN_ADC_MODE_REQUEST_ADC_RESTART)
 		{
-			runADCMode = RUN_ADC_MODE_RUNNING;
+            // Paused DMA was aborted without releasing/reclaiming channels.
+            // Drain completed conversions and restart input 0 on the next mux
+            // state already selected by BufferFull, preserving double buffers.
+            adc_fifo_drain();
+            adc_hw->fcs |= ADC_FCS_OVER_BITS | ADC_FCS_UNDER_BITS;
 
 			dma_hw->ints0 = 1u << adc_dma; // reset adc interrupt flag
 			dma_channel_set_write_addr(adc_dma, ADC_Buffer[dmaPhase], true); // start writing into new buffer
@@ -701,8 +716,15 @@ void __not_in_flash_func(ComputerCard::AudioWorker)()
 			adc_set_round_robin(0);
 			adc_select_input(0);
 			adc_set_round_robin(0b0001111U);
+            irq_set_enabled(DMA_IRQ_0, true);
 			adc_run(true);
+            __dmb();
+            runADCMode = RUN_ADC_MODE_RUNNING;
 		}
+        else if (runADCMode == RUN_ADC_MODE_FLASH_PAUSED && !flashPauseRequested)
+        {
+            runADCMode = RUN_ADC_MODE_REQUEST_ADC_RESTART;
+        }
 		else if (runADCMode == RUN_ADC_MODE_ADC_STOPPED)
 		{
 			// We can't remove the PWM IRQ from within the ADC IRQ callback, so we do it here instead.
@@ -905,6 +927,20 @@ void __not_in_flash_func(ComputerCard::BufferFull)()
 		runADCMode = RUN_ADC_MODE_ADC_STOPPED;
 	}
 
+    // End the current sample only after both DAC buffers contain silence.
+    // The caller requests this after the fade/drain acknowledgement. Stop ADC
+    // before flash lockout, avoiding FIFO overflow and mux/channel desync.
+    if (flashPauseRequested && runADCMode == RUN_ADC_MODE_RUNNING)
+    {
+        adc_run(false);
+        irq_set_enabled(DMA_IRQ_0, false);
+        dma_channel_abort(adc_dma);
+        dma_channel_abort(spi_dma);
+        dma_hw->ints0 = 1u << adc_dma;
+        adc_fifo_drain();
+        __dmb();
+        runADCMode = RUN_ADC_MODE_FLASH_PAUSED;
+    }
 	norm_probe_count = (norm_probe_count + 1) & 0xF;
 
 	lastSwitchVal = switchVal;

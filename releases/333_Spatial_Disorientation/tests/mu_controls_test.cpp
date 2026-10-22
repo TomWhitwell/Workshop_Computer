@@ -40,7 +40,7 @@ int main(){
     r.in.buttons=0;
     for(int i=0;i<100;++i)r.Tick(3000);
     assert(r.main==1800);
-    r.in.roll=1200;
+    r.in.roll=-1200; // Lower the right edge: positive sound direction.
     for(int i=0;i<300;++i)r.Tick(3000);
     assert(r.main>2000&&r.main<3000);
     // A recaptures pose/Main and emits exactly one phase reset.
@@ -50,15 +50,19 @@ int main(){
     for(int i=0;i<50;++i)r.Tick(3200);
     assert(r.main==2200);
     r.Tick(2500,true);assert(r.main==2500); // Panel Down also recentres.
-    // Rotation rate integrates; stopping holds heading instead of springing back.
-    r.in.yaw=1000;
-    for(int i=0;i<500;++i)r.Tick(2500);
+    // Pitch chooses front/back directly. Yaw never changes the target.
+    r.in.pitch=-1000;
+    for(int i=0;i<300;++i)r.Tick(2500);
     int moved=r.main;assert(moved!=2500);
-    r.in.yaw=0;
-    for(int i=0;i<200;++i)r.Tick(2500);
-    int held=r.main;
-    for(int i=0;i<200;++i)r.Tick(2500);
-    assert(std::abs(r.main-held)<=1);
+    r.in.yaw=2032;
+    for(int i=0;i<2000;++i)r.Tick(2500);
+    assert(std::abs(r.main-moved)<=1);
+    // Returning to neutral holds the last direction instead of choosing noise.
+    r.in.pitch=0;
+    for(int i=0;i<300;++i)r.Tick(2500);assert(std::abs(r.main-moved)<=1);
+    // Amount zero returns the captured anchor; no integration remains.
+    r.in.fader[7]=0;
+    for(int i=0;i<400;++i)r.Tick(2500);assert(r.main==2500);
     // B returns Main to the panel; disconnect drops all slider ownership.
     r.in.buttons=2;r.Tick(3100);assert(!r.mu.Motion()&&r.main==3100);
     r.in.connected=0;r.Tick(1900);
@@ -67,12 +71,12 @@ int main(){
     r.in.connected=1;r.in.buttons=0;
     for(auto& f:r.in.fader)f=0;
     r.Tick();assert(r.mu.Picked()==0&&r.x==2048&&r.y==1200);
-    // With motion on, repeatedly cross circular wrap with extreme tilt/rate.
+    // With motion on, exercise bounded placement at extreme tilt.
     r.in.buttons=2;r.Tick();r.in.buttons=0;r.in.yaw=2032;r.in.roll=-2032;
     for(int i=0;i<15000;++i){r.Tick();assert(r.main>=0&&r.main<=4095&&r.cfg.Valid());}
     // Even if a fast detach/attach skips the disconnected snapshot, the new
     // USB session must discard pickup and motion ownership.
     ++r.in.session;for(auto& f:r.in.fader)f=0;
     r.Tick();assert(!r.mu.Motion()&&r.mu.Picked()==0&&r.main==2048);
-    std::puts("PASS: 8mu independent pickup, field mapping, held stop, motion takeover/recenter/toggle, rate integration, disconnect/reconnect and wrap bounds");
+    std::puts("PASS: 8mu independent pickup, field mapping, held stop, motion takeover/recenter/toggle, direct pitch/roll pointer and yaw rejection, disconnect/reconnect and wrap bounds");
 }
