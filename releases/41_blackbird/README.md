@@ -19,6 +19,16 @@ Also check out the examples directory in this repo for some sample scripts (more
 
 Tested with druid, norns, MAX/MSP, pyserial - works with **ANY** serial host that sends compatible strings.
 
+## What's new in 1.2
+
+- **MIDI over USB**: send and receive MIDI from Lua (the same functions as monome iii). Connected to a computer, blackbird is a USB MIDI device; plug a class-compliant controller into the Computer and it's a USB MIDI host. MIDI clock sync and MPE too. See the [MIDI API](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/panels/midi.md).
+- **ii (I2C)**: wire the Computer's UART pads to an ii bus and blackbird talks to Just Friends, crow, Teletype expanders and more, with crow's `ii` syntax, and answers as crow 4. See [ii](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/panels/ii.md).
+- **Smoother, faster outputs**: 24kHz output, sample-accurate audio-rate ASL (`lfo`, `oscillate`, nb_drumcrow's voices), clocks and metros that keep time under load, very long slopes, and the `over`, `under` and `rebound` shapes.
+- **Scripts**: uploads start straight away with no reset, `^^k` always recovers (even from a script that used up all the memory), each new script gets the memory back that libraries loaded by the last one used, `metro[8]` works, metros honor `count`, and Lua runs faster.
+- **Single-file UF2s with a built-in script**, for sharing patches (see [UF2 script injection](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/UF2_SCRIPT_INJECTION.md)).
+
+If you use monome's crow devices in Max for Live: blackbird now shows up as a MIDI device as well as a serial port, so you may need to pick it in the device's menu again once.
+
 ## Hardware Mapping
 
 Blackbird maps the Workshop Computer's hardware to crow's inputs and outputs as shown below. Details in the tables that follow.
@@ -30,10 +40,10 @@ Blackbird maps the Workshop Computer's hardware to crow's inputs and outputs as 
 
 | Crow Script | Workshop Computer | Type |
 |-------------|-------------------|------|
-| `output[1]` | CV Out 1 | CV Output (callibrated)|
-| `output[2]` | CV Out 2 | CV Output (callibrated)|
-| `output[3]` | Audio Out 1 | CV/Audio Output (not callibrated)|
-| `output[4]` | Audio Out 2 | CV/Audio Output (not callibrated)|
+| `output[1]` | CV Out 1 | CV Output (calibrated)|
+| `output[2]` | CV Out 2 | CV Output (calibrated)|
+| `output[3]` | Audio Out 1 | CV/Audio Output (not calibrated)|
+| `output[4]` | Audio Out 2 | CV/Audio Output (not calibrated)|
 
 ### Inputs
 
@@ -66,12 +76,14 @@ Blackbird maps the Workshop Computer's hardware to crow's inputs and outputs as 
 - **Crow Script Reference**: [https://monome.org/docs/crow/reference/](https://monome.org/docs/crow/reference/)
 - **Bowery crow script repository**: [https://github.com/monome/bowery](https://github.com/monome/bowery)
 - **Lua Documentation**: [https://www.lua.org/manual/5.4/](https://www.lua.org/manual/5.4/)
+- **Blackbird basics and First.lua** (the default script): [Basics](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/panels/basics.md), [First.lua](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/panels/first-lua.md)
 - **Blackbird-Specific Features: supplementary docs**:
-  - [Knob & Switch API](docs/KNOB_SWITCH_API.md)
-  - [Using Knobs with ASL Dynamics](docs/KNOBS_WITH_ASL.md)
-  - [MIDI API (`bb.event_midi`, `bb.midi_out`, ...)](docs/MIDI_API.md)
-  - [Pulse Input Detection](docs/PULSEIN_DETECTION.md)
-  - [Pulse Output Actions](docs/PULSEOUT_ACTIONS.md)
+  - [Knob & Switch API](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/KNOB_SWITCH_API.md)
+  - [Using Knobs with ASL Dynamics](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/KNOBS_WITH_ASL.md)
+  - [MIDI API (`bb.event_midi`, `bb.midi_out`, ...)](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/panels/midi.md)
+  - [ii (I2C): wiring, leading, following](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/panels/ii.md)
+  - [Pulse Input Detection](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/PULSEIN_DETECTION.md)
+  - [Pulse Output Actions](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/PULSEOUT_ACTIONS.md)
 
 ## How It Works
 
@@ -122,7 +134,7 @@ Blackbird communicates with host applications (druid, norns, Max/MSP) over USB s
 
 ### Noise Generation
 
-**Audio-rate noise action** with `bb.noise()` - generates noise directly in the audio loop for clean, efficient noise generation on any CV/Audio output. Optional paramater sets the noise level between 0.0 (silence) and 1.0 (full vol, default).
+**Audio-rate noise action** with `bb.noise()` - generates noise directly in the audio loop for clean, efficient noise generation on any CV/Audio output. Optional parameter sets the noise level between 0.0 (silence) and 1.0 (full vol, default).
 
 Example:
 
@@ -173,11 +185,11 @@ end
 ### Performance characteristics
 
 Blackbird uses a dual-core architecture optimized for responsive, jitter-free output:
-- **Core 1 (audio thread)**: Outputs CV slopes sample-by-sample at 24kHz for zero-jitter precision
-- **Core 0 (control thread)**: Processes Lua scripts, metros, and ASL actions with ~1ms latency
-- Timer callbacks (metros, ASL triggers) are processed in 8-sample blocks for optimal balance between responsiveness and CPU efficiency
+- **Core 1 (audio thread)**: Renders outputs sample-by-sample at 24kHz. ASL segments start on the exact sample, so audio-rate ASL (`lfo`, `oscillate`) keeps its pitch with no jitter.
+- **Core 0 (control thread)**: Runs Lua: scripts, metro and clock callbacks, input events. Short (audio-rate) ASL segments are queued one ahead, from inside Lua as it runs, so a long callback, garbage collection or a command arriving over USB doesn't interrupt them.
+- Metros are timed in 8-sample blocks (1/3 ms at 24kHz).
 
-This architecture provides excellent timing accuracy for musical applications while maintaining stability even under heavy scripting loads.
+Timing is exact against the Computer's crystal. crow's audio-rate timing runs about 2.4% slow, so a script tuned by ear on crow plays about 40 cents sharp (or 2.4% fast) on blackbird. nb_drumcrow is the main example: its built-in tuning factor corrects for crow, so on blackbird set its `detune` to about 0.977, or retune by ear.
 
 ## Credits & Thank yous
 
@@ -198,7 +210,5 @@ GPLv3 or later - see [LICENSE](LICENSE.txt) file for details.
 
 A few things that are on the radar but that I don't plan to fix (at least not now). If you think any of them are dealbreakers please file a github issue and we can debate!
 
-- Setting `clock.tempo` above 500 bpm can cause crashes. Slow down!
-- Running scripts with references to the `ii` table produces harmless (but chatty) lua nil global errors. Ideally these would be silent until/unless i2c support is somehow added/defined for an alleged eurorack-computer-only-future-module.
 - System does not prevent receipt of serial comms during startup that are known to cause issues. This is doc'd in the overview but could be prevented in code entirely in a future version.
-- Wobblewobble norns script doesn't play nice with blackbird as is. I think the solution is to turn down the frequency that supercollider is triggering output.volts message dispatch in the norns-side code but this is untested.
+- Audio-rate timing is exact, while crow's runs about 2.4% slow, so scripts tuned on crow (nb_drumcrow especially) play slightly sharp. See [Performance characteristics](#performance-characteristics).

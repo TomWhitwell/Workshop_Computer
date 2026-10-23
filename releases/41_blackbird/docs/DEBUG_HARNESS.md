@@ -66,6 +66,18 @@ block.
     commands, multi-line blocks and script uploads. Send `^^s`/`^^e`/`^^w` in
     their own command, as druid sends them in their own packet.
   - `RESET_STATS` zeroes the worst-case and overrun counters.
+- **Audio-rate probes** (debug builds only, read and armed over SWD):
+  - `g_slope_starved_samples[4]`: samples each output held because a
+    lookahead ASL segment ended before core 0 queued the next (an audible
+    stall), with the times of the last 32 stalls in `g_slope_starve_times`
+    (`time_us_32()`, output index in the low bits) and their count in
+    `g_slope_starve_count`
+  - `g_slope_seg_starts`: the sample positions where output 1's next 64
+    segments start, armed by zeroing `g_slope_seg_start_count`
+  - `g_out_capture`: 512 consecutive samples of one output as the ISR sends
+    them (volts in 1/4096ths), for the output in `g_out_capture_channel`
+    (0-3), armed by zeroing `g_out_capture_count`. See `capture_output()` in
+    `tests/test_audiorate.py`.
 - **Log.** Everything written to USB CDC is mirrored into the `log` ring (the
   link wraps `tud_cdc_n_write`). `print()` from callbacks only reaches the log
   when the card's USB is connected to a host, because blackbird skips printing
@@ -131,11 +143,33 @@ Known problems go in `EXPECTED` (XFAIL) or `SKIP` at the top of
 do anything, add it to `STIMULUS_FOR`. `--report results.json` saves the
 whole compatibility table.
 
+## ii
+
+`tests/test_ii.py` (leader) and `tests/test_ii_follow.py` (follower) need a
+crow on the ii bus: the Computer's TX pad to crow's SDA, RX to SCL, sharing
+ground and with crow's pull-ups on (its default). Patch crow output 1 to CV
+In 1 and CV Out 1 to crow input 1, with nothing else in crow input 1. Without
+a crow answering, the crow tests skip.
+
+- `test_ii` wants crow idle (`^^k` in druid).
+- `test_ii_follow` needs crow running `tests/crow/ii_follow_driver.lua`. Run
+  it with druid's `r`, not `u`: a driver saved with `u` starts at boot and
+  answers every rising edge on crow input 1, so later tests that put an
+  audio-rate LFO on CV Out 1 flood blackbird with ii commands and fail.
+
+## nb_drumcrow
+
+`tests/test_drumcrow.py` plays and stresses nb_drumcrow's crow script, one of
+the heaviest around. nb_drumcrow has no licence, so it isn't in this repo: the
+test fetches it at a pinned commit into `tests/.cache/nb_drumcrow` (ignored by
+git), or uses your checkout from `BB_DRUMCROW_DIR`, and skips if neither is
+available. `BB_DRUMCROW_SECONDS` (default 15) and `BB_DRUMCROW_SOAK`
+(default 30) set the run lengths.
+
 ## norns
 
-`make test-norns NORNS_HOST=<address>` tests blackbird against a real norns.
-`norns.local` doesn't resolve inside the dev container, so use norns' IP
-address. Plug blackbird's USB into norns and keep the SWD probe on blackbird.
+`make test-norns NORNS_HOST=norns.local` tests blackbird against a real norns
+(`norns.local` resolves inside the dev container; an IP address works too). Plug blackbird's USB into norns and keep the SWD probe on blackbird.
 The tests run Lua on norns through matron's REPL websocket (port 5555, the one
 maiden uses; client in `util/nornsws.py`) and check the other end over SWD:
 
@@ -159,8 +193,9 @@ maiden uses; client in `util/nornsws.py`) and check the other end over SWD:
   Each reports min, median, p95 and max. A run fails if any note is lost, if
   p95 is over 10 ms (`BB_LATENCY_P95_MS`), or if the worst note is over 25 ms
   (`BB_LATENCY_MAX_MS`). `BB_LATENCY_NOTES` sets the count (default 50).
-- a script corpus (`NORNS_SCRIPTS` in `tests/test_norns.py`: awake set to crow
-  outputs, and wobblewobble) loads and runs for `BB_NORNS_SECONDS` with the
+- a script corpus (`NORNS_SCRIPTS` in `tests/test_norns.py`: acid_test, awake,
+  buoys, dunes, less_concepts, loom and wobblewobble, each set up to use crow)
+  loads and runs for `BB_NORNS_SECONDS` with the
   generic fake inputs. It must produce no errors on norns, keep blackbird
   connected, and drop no events. Scripts not installed on norns are skipped.
   Add more with `BB_NORNS_SCRIPTS=dir/script.lua,...`, or in the table with
@@ -187,8 +222,10 @@ hand.
   their churn out of the main heap: after the whole bowery corpus, the largest
   free block is 15 KB, where it used to be about 4 KB. The debug build has
   about 11 KB less heap than release, though, because of the harness buffers.
-  So one of the big-memory scripts (bowery's cvdelay or krahenlied, depending
-  on order) can still run out during a long run. Check with
+  Each `^^k` (and upload) unloads the libraries that load on first use
+  (sequins, timeline, hotswap, ii: ~31 KB), so every test starts from the
+  boot-time heap. Before that, a long run left them loaded and a big script
+  after them (nb_drumcrow's) failed to compile. Check with
   `Blackbird.heap_map()`.
 
 - **Reflashing while norns is connected.** After `make flash-debug`, norns
@@ -203,7 +240,8 @@ hand.
   `bbdbg.py` resumes it at once, but while it is halted the ADC keeps
   sampling. The FIFO can overflow, which leaves the input mux misaligned until
   reset. To avoid the halt, either:
-  - use the Tcl server: `--transport tcl` (port 6666)
+  - use the Tcl server: `--transport tcl` (port 6667: `scripts/start_openocd_host.sh`
+    moves it there, leaving 6666 for druid's websocket)
   - start OpenOCD with `-c "rp2040.core0 configure -event gdb-attach {}"`
 
   Don't set breakpoints during a timing test.

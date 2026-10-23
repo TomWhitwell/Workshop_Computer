@@ -7,52 +7,86 @@ Version: 1.2
 Status: Released
 License: GPLv3 or later
 date-created: 2025-11-10
-date-updated: 2026-01-19
+date-updated: 2026-10-22
 Editor: https://dessertplanet.github.io/web-druid/
 demo-link: https://youtu.be/V9HAspnpEWU
+
+contact:
+  website: https://dessertplanet.co
+
+tags:
+  - scripting
+  - crow
+  - cv
+  - utility
+  - midi
+  - midi-device
+  - midi-host
+  - usb-host
+
+uf2:
+  - path: UF2/blackbird.1.2.release.uf2
+    name: Blackbird 1.2
+  - path: UF2/older versions/blackbird.1.1.release.uf2
+    name: Blackbird 1.1 (previous release)
 
 summary: |
   Blackbird runs crow-compatible Lua scripts over USB serial and can also store scripts on card flash.
   Panel control behavior is script-defined: Lua code reads `bb.knob.*`, `bb.switch.position`, and inputs,
   then decides how outputs respond. LEDs always reflect positive output voltages on the six outputs.
+  Scripts can send and receive USB MIDI, as a device (to a computer) or as a host (to a controller plugged
+  into the Computer), and can talk ii (I2C) on the UART pads: leading Just Friends, crow, Teletype expanders and more,
+  and answering as crow 4.
 
 panel:
   inputs:
     - id: CVIn1
+      type: cv
       name: input[1]
       description: Script-readable CV input mapped to crow input[1]
     - id: CVIn2
+      type: cv
       name: input[2]
       description: Script-readable CV input mapped to crow input[2]
     - id: AudioIn1
+      type: audio
       name: bb.audioin[1]
       description: Audio input query source for Lua scripts
     - id: AudioIn2
+      type: audio
       name: bb.audioin[2]
       description: Audio input query source for Lua scripts
     - id: PulseIn1
+      type: pulse
       name: bb.pulsein[1]
       description: Digital input with change/clock detection for Lua callbacks
     - id: PulseIn2
+      type: pulse
       name: bb.pulsein[2]
       description: Digital input with change/clock detection for Lua callbacks
   outputs:
     - id: CVOut1
+      type: cv
       name: output[1]
       description: Calibrated CV output under script control
     - id: CVOut2
+      type: cv
       name: output[2]
       description: Calibrated CV output under script control
     - id: AudioOut1
+      type: audio
       name: output[3]
       description: Uncalibrated CV/audio output under script control
     - id: AudioOut2
+      type: audio
       name: output[4]
       description: Uncalibrated CV/audio output under script control
     - id: PulseOut1
+      type: pulse
       name: bb.pulseout[1]
       description: Digital pulse output for Lua-triggered actions
     - id: PulseOut2
+      type: pulse
       name: bb.pulseout[2]
       description: Digital pulse output for Lua-triggered actions
 
@@ -68,8 +102,7 @@ controls:
       name: position = down
       description: Three-position switch state exposed to Lua; script decides response
   knobs:
-    - when: { z: any }
-      main:
+    - main:
         name: bb.knob.main
         description: Normalized analog knob value exposed to Lua; behavior depends on loaded script
       x:
@@ -78,6 +111,27 @@ controls:
       y:
         name: bb.knob.y
         description: Normalized analog knob value exposed to Lua; behavior depends on loaded script
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: output[3]
+          description: Lights with Audio Out 1's positive voltage
+        - id: LED1
+          name: output[4]
+          description: Lights with Audio Out 2's positive voltage
+        - id: LED2
+          name: output[1]
+          description: Lights with CV Out 1's positive voltage
+        - id: LED3
+          name: output[2]
+          description: Lights with CV Out 2's positive voltage
+        - id: LED4
+          name: bb.pulseout[1]
+          description: On while Pulse Out 1 is high
+        - id: LED5
+          name: bb.pulseout[2]
+          description: On while Pulse Out 2 is high
 
 host:
   usb:
@@ -87,3 +141,17 @@ host:
     - name: Web Druid editor
       role: editor
       description: Browser editor for composing and sending Lua to Blackbird over USB
+    - name: monome norns and Max/Max for Live
+      role: serial
+      description: Talk to Blackbird as they would to crow (norns crow scripts, monome's crow Max for Live devices)
+    - name: USB MIDI device
+      role: midi
+      description: Connected to a computer, Blackbird is also a USB MIDI device (bb.event_midi, bb.midi_out)
+    - name: USB MIDI host
+      role: controller
+      description: A class-compliant USB MIDI controller plugged into the Computer talks to the script directly
+  notes: |
+    Blackbird chooses USB device or host mode at power-up, from the Computer's USB power orientation:
+    power the whole Workshop System off and on to switch. Since 1.2 Blackbird is a USB serial *and* MIDI
+    device, so a host that remembers the serial port (Max for Live's crow devices) may need it chosen again once.
+    ii (I2C) isn't USB: see the README for wiring the Computer's UART pads to the ii bus.

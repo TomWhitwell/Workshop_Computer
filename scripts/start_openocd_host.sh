@@ -17,7 +17,7 @@ Options:
   --gdb-targets <names> OpenOCD target names for GDB max setting
                         (default: "rp2040.core0 rp2040.core1")
   --telnet-port <port>  Telnet port (default: 4444)
-  --tcl-port <port>     TCL port (default: 6666)
+  --tcl-port <port>     TCL port (default: 6667; 6666 is left for druid's websocket)
 
 Environment (equivalent defaults):
   OPENOCD_INTERFACE_CFG, OPENOCD_TARGET_CFG, OPENOCD_ADAPTER_SPEED,

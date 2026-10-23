@@ -9,7 +9,7 @@ Transports:
   gdb  (default) OpenOCD's GDB server, e.g. host.docker.internal:3333. Commands
        go through `monitor`. OpenOCD may halt the target when a GDB client
        attaches; this tool resumes it straight away, but see docs/DEBUG_HARNESS.md.
-  tcl  OpenOCD's Tcl RPC server (port 6666). Never halts the target.
+  tcl  OpenOCD's Tcl RPC server (port 6667). Never halts the target.
 
 Examples:
   util/bbdbg.py stats
@@ -347,7 +347,7 @@ class Blackbird:
         if transport == "gdb":
             self.t = GdbTransport(host, port or 3333, resume=resume)
         elif transport == "tcl":
-            self.t = TclTransport(host, port or 6666)
+            self.t = TclTransport(host, port or 6667)
         else:
             raise ValueError(transport)
         self.mem = Memory(self.t)
@@ -898,7 +898,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--transport", choices=["gdb", "tcl"], default=os.environ.get("BBDBG_TRANSPORT", "gdb"))
     ap.add_argument("--host", default=DEFAULT_HOST)
-    ap.add_argument("--port", type=int, help="default 3333 (gdb) or 6666 (tcl)")
+    ap.add_argument("--port", type=int, help="default 3333 (gdb) or 6667 (tcl)")
     ap.add_argument("--elf", default=DEFAULT_ELF)
     ap.add_argument("--addr", type=lambda s: int(s, 0), help="bb_dbg address, instead of reading the ELF")
     sub = ap.add_subparsers(dest="cmd", required=True)
