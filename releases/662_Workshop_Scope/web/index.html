@@ -71,6 +71,7 @@
   }
   button { cursor: pointer; background: var(--accent); color: #04222c; border: 0; font-weight: 600; padding: 8px 16px; }
   button:active { filter: brightness(.9); }
+  button:disabled { cursor: wait; opacity: .7; }
   input[type=range] { width: 100%; min-height: 32px; accent-color: var(--accent); }
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -84,6 +85,21 @@
     background: #1d232a;
     min-height: 36px;
     cursor: pointer;
+  }
+  .readout {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #1d232a;
+    width: 148px;
+    flex: 0 0 148px;
+    min-height: 36px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
   .chips input, .check input { width: 18px; height: 18px; accent-color: var(--accent); }
 
@@ -140,9 +156,17 @@
       <div id="shows" class="chips"></div>
     </div>
 
+    <div class="field wide">
+      <span class="group-title">Pulse rate</span>
+      <div class="chips">
+        <output class="readout" id="pulse1Bpm">Pulse 1: -- BPM</output>
+        <output class="readout" id="pulse2Bpm">Pulse 2: -- BPM</output>
+      </div>
+    </div>
+
     <label class="field only-scope">
       <span>Trigger channel</span>
-      <select id="trigCh"><option value="0">Audio R</option><option value="1">Audio L</option><option value="2">CV 1</option><option value="3">CV 2</option></select>
+      <select id="trigCh"><option value="0">Audio In 1</option><option value="1">Audio In 2</option><option value="2">CV In 1</option><option value="3">CV In 2</option><option value="4">Pulse In 1</option><option value="5">Pulse In 2</option></select>
     </label>
     <label class="field only-scope">
       <span>Edge</span>
@@ -180,11 +204,11 @@
 
     <label class="field only-xy">
       <span>X axis</span>
-      <select id="xyX"><option value="0">Audio R</option><option value="1">Audio L</option><option value="2">CV 1</option><option value="3">CV 2</option></select>
+      <select id="xyX"><option value="0">Audio In 1</option><option value="1">Audio In 2</option><option value="2">CV In 1</option><option value="3">CV In 2</option><option value="4">Pulse In 1</option><option value="5">Pulse In 2</option></select>
     </label>
     <label class="field only-xy">
       <span>Y axis</span>
-      <select id="xyY"><option value="0">Audio R</option><option value="1" selected>Audio L</option><option value="2">CV 1</option><option value="3">CV 2</option></select>
+      <select id="xyY"><option value="0">Audio In 1</option><option value="1" selected>Audio In 2</option><option value="2">CV In 1</option><option value="3">CV In 2</option><option value="4">Pulse In 1</option><option value="5">Pulse In 2</option></select>
     </label>
 
     <div class="field wide">

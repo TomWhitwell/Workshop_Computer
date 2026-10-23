@@ -1,6 +1,6 @@
 draft: false
 Name: Workshop Scope
-short-description: USB oscilloscope, XY, spectrum and slow-roll display of the four analog inputs in a web page, with pass-through
+short-description: USB oscilloscope, XY, spectrum, slow-roll and pulse BPM display for the Workshop Computer
 Language: C (Pico SDK)
 Creator: MrJoshua
 Version: "0.1.0"
@@ -17,12 +17,13 @@ contact:
 tags:
   - utility
   - cv
+  - pulse
   - web-serial
 
 summary: |
-  Turns the Workshop Computer into a four-channel scope for a connected computer. Audio In 1 and 2 and CV In 1 and 2 are read and streamed over USB to a web page, which shows them as a triggered scope, an XY plot, a spectrum, or a slow rolling chart for envelopes up to two minutes long.
+  Turns the Workshop Computer into a six-input scope for a connected computer. Audio In 1 and 2, CV In 1 and 2, and Pulse In 1 and 2 are streamed over USB to a web page, which shows them as a triggered scope, an XY plot, a spectrum, or a slow rolling chart for envelopes up to two minutes long. Pulse input rates are estimated in BPM from rising edges.
 
-  Each input is passed straight through to its matching output (Audio In 1 to Audio Out 1, and so on), so the scope can sit in a patch without breaking it. Pass-through can be switched off from the web page.
+  Each input is passed through to its matching output, so the scope can sit in a patch without breaking it. Pass-through can be switched off from the web page.
 
   Inputs are DC-coupled and read approximately -6 V to +6 V, so audio and CV can be patched into any of the four jacks. Needs a desktop Chrome or Edge browser (Web Serial). Values and pass-through levels are not calibrated, so voltages are approximate.
 
@@ -48,6 +49,16 @@ panel:
       description: Read at about 24 kS/s, alternating with CV In 1. Accepts audio or CV. Passed through to CV Out 2.
       type: other
 
+    - id: PulseIn1
+      name: Pulse In 1
+      description: Pulse state is shown in the scope and passed through to Pulse Out 1. Very short pulses may be missed in the display.
+      type: pulse
+
+    - id: PulseIn2
+      name: Pulse In 2
+      description: Pulse state is shown in the scope and passed through to Pulse Out 2. Very short pulses may be missed in the display.
+      type: pulse
+
   outputs:
     - id: AudioOut1
       name: Thru (Audio In 1)
@@ -69,13 +80,23 @@ panel:
       description: CV In 2, uncalibrated and stepped, when pass-through is on. About 0 V when it is off.
       type: cv
 
+    - id: PulseOut1
+      name: Thru (Pulse In 1)
+      description: Pulse In 1 when pass-through is on; inactive when it is off.
+      type: pulse
+
+    - id: PulseOut2
+      name: Thru (Pulse In 2)
+      description: Pulse In 2 when pass-through is on; inactive when it is off.
+      type: pulse
+
 host:
   usb:
     - name: USB serial (CDC)
       role: editor
       description: Connected to a computer, streams the sampled inputs to the web page in Chrome or Edge.
   notes: |
-    Open the web page, press Connect and pick the Computer's serial port. The firmware only sends data while a serial connection is open. Pass-through runs whether or not the page is open.
+    Open the web page, press Connect and pick the Computer's serial port. The firmware only sends data while a serial connection is open. Web Serial support varies across Android browsers; desktop Chrome or Edge is recommended. Pass-through runs whether or not the page is open.
 
 uf2:
   - path: UF2/workshop_scope.uf2

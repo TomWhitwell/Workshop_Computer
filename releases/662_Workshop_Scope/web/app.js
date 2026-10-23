@@ -1,8 +1,8 @@
-const NUM_CH = 4;
+const NUM_CH = 6;
 const SAMPLE_RATE = 48000;
 const BLOCK_SAMPLES = 255;
 const FRAME_CH = 3; // ADC0, ADC1, then whichever CV the block's tag selects
-const HEADER = 4;
+const HEADER = 8;
 const FRAME_BYTES = HEADER + BLOCK_SAMPLES * 2;
 const RING = 8192; // frames per channel kept for display
 const FFT_N = 4096;
@@ -28,11 +28,18 @@ let dropped = 0;
 const $ = (id) => document.getElementById(id);
 const cv = $("cv");
 const ctx = cv.getContext("2d");
-const colors = ["#4fd1ff", "#ffb84f", "#7dff7d", "#ff6fb5"];
-const names = ["Audio R", "Audio L", "CV 1", "CV 2"];
-const kinds = Array(NUM_CH).fill("idle");
+const colors = ["#4fd1ff", "#ffb84f", "#7dff7d", "#ff6fb5", "#f4e04d", "#ff8c69"];
+const names = ["Audio In 1", "Audio In 2", "CV In 1", "CV In 2", "Pulse In 1", "Pulse In 2"];
 const lastVals = new Float32Array(NUM_CH);
 const TAG_CV2 = 1;
+const TAG_PULSE_1 = 2;
+const TAG_PULSE_2 = 4;
+const TAG_PULSE_1_EDGE = 8;
+const TAG_PULSE_2_EDGE = 16;
+const pulseTags = [TAG_PULSE_1, TAG_PULSE_2];
+const pulseEdgeTags = [TAG_PULSE_1_EDGE, TAG_PULSE_2_EDGE];
+const pulsePeriods = [[], []];
+const pulseLastSeen = [0, 0];
 
 const hidden = (c) => !$(`show${c}`).checked;
 
@@ -42,35 +49,30 @@ for (let c = 0; c < NUM_CH; c++) {
   $("shows").appendChild(l);
 }
 
-// Classify by fast-change energy: audio-rate content vs slow CV vs flat.
-function classify() {
-  const n = 2048;
-  for (let c = 0; c < NUM_CH; c++) {
-    const d = recent(c, n);
-    let lo = Infinity, hi = -Infinity, diff = 0;
-    for (let i = 0; i < n; i++) {
-      lo = Math.min(lo, d[i]); hi = Math.max(hi, d[i]);
-      if (i) diff += Math.abs(d[i] - d[i - 1]);
-    }
-    const pp = hi - lo;
-    kinds[c] = pp < 0.02 ? "idle" : diff / n / pp > 0.003 ? "audio" : "CV";
-    $(`lbl${c}`).textContent = `${names[c]} (${kinds[c]})`;
-  }
-}
-setInterval(classify, 500);
-
 // Full scale (+/-1) is +/-6 V. The CV not selected in a block, and the first frames after a mux switch, hold their last value.
-function pushSamples(u16, tag) {
+function pushSamples(u16, tag, period1, period2) {
   const invert = $("invert").checked ? -1 : 1;
   const cvIdx = tag & TAG_CV2 ? 1 : 0;
   const frames = u16.length / FRAME_CH;
   const settleFrames = 2;
+
+  for (let pulse = 0; pulse < pulseEdgeTags.length; pulse++) {
+    const period = pulse === 0 ? period1 : period2;
+    if ((tag & pulseEdgeTags[pulse]) && period > 0) {
+      const intervals = pulsePeriods[pulse];
+      intervals.push(period);
+      if (intervals.length > 12) intervals.shift();
+      pulseLastSeen[pulse] = performance.now();
+    }
+  }
 
   for (let f = 0; f < frames; f++) {
     const i = f * FRAME_CH;
     lastVals[0] = invert * (u16[i] - 2048) / 2048;
     lastVals[1] = invert * (u16[i + 1] - 2048) / 2048;
     if (f >= settleFrames) lastVals[2 + cvIdx] = invert * (u16[i + 2] - 2048) / 2048;
+    lastVals[4] = tag & TAG_PULSE_1 ? 1 : 0;
+    lastVals[5] = tag & TAG_PULSE_2 ? 1 : 0;
     for (let c = 0; c < NUM_CH; c++) {
       const v = lastVals[c];
       ring[c][head] = v;
@@ -93,50 +95,172 @@ function pushSamples(u16, tag) {
   totalFrames += frames;
 }
 
+function resetPulseTempo() {
+  for (let pulse = 0; pulse < pulsePeriods.length; pulse++) {
+    pulsePeriods[pulse].length = 0;
+    pulseLastSeen[pulse] = 0;
+  }
+  updatePulseTempo();
+}
+
+function updatePulseTempo() {
+  for (let pulse = 0; pulse < pulsePeriods.length; pulse++) {
+    const intervals = pulsePeriods[pulse];
+    let text = "-- BPM";
+    if (intervals.length > 0) {
+      const sorted = intervals.slice().sort((a, b) => a - b);
+      const middle = Math.floor(sorted.length / 2);
+      const medianMs = sorted.length % 2
+        ? sorted[middle]
+        : (sorted[middle - 1] + sorted[middle]) / 2;
+      const staleAfterMs = Math.max(8000, medianMs * 3);
+      if (performance.now() - pulseLastSeen[pulse] <= staleAfterMs) {
+        text = `${Math.round(60000 / medianMs)} BPM`;
+      }
+    }
+    $(`pulse${pulse + 1}Bpm`).textContent = `Pulse ${pulse + 1}: ${text}`;
+  }
+}
+setInterval(updatePulseTempo, 200);
+
 // P/p switches the card's pass-through on/off.
+const connectButton = $("connect");
+let activePort = null;
 let writer = null;
+let reader = null;
+let startupTimer = null;
+
 function sendSettings() {
-  if (writer) writer.write(new Uint8Array([$("passThru").checked ? 0x50 : 0x70]));
+  if (writer) {
+    writer.write(new Uint8Array([$("passThru").checked ? 0x50 : 0x70]))
+      .catch((error) => ($("status").textContent = `USB write error: ${error.message}`));
+  }
 }
 $("passThru").onchange = sendSettings;
 
-async function connect() {
-  const port = await navigator.serial.requestPort();
-  await port.open({ baudRate: 115200 });
-  $("status").textContent = "Connected";
-  writer = port.writable.getWriter();
-  sendSettings();
-  const reader = port.readable.getReader();
+async function readPort(port, portReader) {
   let buf = new Uint8Array(0);
+  let exitStatus = "Disconnected";
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    const joined = new Uint8Array(buf.length + value.length);
-    joined.set(buf);
-    joined.set(value, buf.length);
-    buf = joined;
+  try {
+    while (port === activePort) {
+      const { value, done } = await portReader.read();
+      if (done) break;
+      const joined = new Uint8Array(buf.length + value.length);
+      joined.set(buf);
+      joined.set(value, buf.length);
+      buf = joined;
 
-    while (buf.length >= FRAME_BYTES) {
-      if (buf[0] !== 0xa5 || buf[1] !== 0x5a) {
-        const next = buf.indexOf(0xa5, 1);
-        buf = next < 0 ? new Uint8Array(0) : buf.slice(next);
-        continue;
+      while (buf.length >= FRAME_BYTES) {
+        if (buf[0] !== 0xa5 || buf[1] !== 0x5a) {
+          const next = buf.indexOf(0xa5, 1);
+          buf = next < 0 ? new Uint8Array(0) : buf.slice(next);
+          continue;
+        }
+        const seq = buf[2];
+        if (lastSeq >= 0 && seq !== ((lastSeq + 1) & 0xff)) {
+          dropped++;
+          lastGapEnd = totalFrames;
+        }
+        lastSeq = seq;
+        const payload = buf.slice(HEADER, FRAME_BYTES);
+        const period1 = buf[4] | (buf[5] << 8);
+        const period2 = buf[6] | (buf[7] << 8);
+        pushSamples(new Uint16Array(payload.buffer), buf[3], period1, period2);
+        if (startupTimer) {
+          clearTimeout(startupTimer);
+          startupTimer = null;
+        }
+        $("status").textContent = `Streaming · dropped blocks: ${dropped}`;
+        buf = buf.slice(FRAME_BYTES);
       }
-      const seq = buf[2];
-      if (lastSeq >= 0 && seq !== ((lastSeq + 1) & 0xff)) {
-        dropped++;
-        lastGapEnd = totalFrames;
-      }
-      lastSeq = seq;
-      const payload = buf.slice(HEADER, FRAME_BYTES);
-      pushSamples(new Uint16Array(payload.buffer), buf[3]);
-      buf = buf.slice(FRAME_BYTES);
     }
-    $("status").textContent = `Connected, dropped blocks: ${dropped}`;
+  } catch (error) {
+    exitStatus = `USB read error: ${error.message}`;
+  } finally {
+    if (port === activePort) await disconnect(exitStatus);
   }
+}
+
+async function connect() {
+  if (!("serial" in navigator)) {
+    $("status").textContent = "Web Serial unavailable in this browser; try desktop Chrome or Edge.";
+    return;
+  }
+
+  connectButton.disabled = true;
+  connectButton.textContent = "Connecting…";
+  $("status").textContent = "Choose the Workshop Computer USB serial port…";
+  let port;
+  try {
+    port = await navigator.serial.requestPort();
+    $("status").textContent = "Opening USB serial port…";
+    await port.open({ baudRate: 115200 });
+    activePort = port;
+    lastSeq = -1;
+    resetPulseTempo();
+    writer = port.writable.getWriter();
+    reader = port.readable.getReader();
+    connectButton.textContent = "Disconnect";
+    connectButton.disabled = false;
+    $("status").textContent = "Connected · waiting for data";
+    startupTimer = setTimeout(() => {
+      if (port === activePort && lastSeq < 0) {
+        $("status").textContent = "USB open, but no scope data received. Check firmware and reconnect.";
+      }
+    }, 2000);
+    sendSettings();
+    void readPort(port, reader);
+  } catch (error) {
+    if (startupTimer) {
+      clearTimeout(startupTimer);
+      startupTimer = null;
+    }
+    if (reader) {
+      try { await reader.cancel(); } catch {}
+      try { reader.releaseLock(); } catch {}
+      reader = null;
+    }
+    try { writer?.releaseLock(); } catch {}
+    writer = null;
+    if (activePort === port) activePort = null;
+    if (port) {
+      try { await port.close(); } catch {}
+    }
+    connectButton.textContent = "Connect";
+    connectButton.disabled = false;
+    $("status").textContent = error.name === "NotFoundError"
+      ? "Connection cancelled"
+      : `Connection failed: ${error.message}`;
+  }
+}
+
+async function disconnect(finalStatus = "Disconnected") {
+  const port = activePort;
+  if (!port) return;
+  activePort = null;
+  if (startupTimer) {
+    clearTimeout(startupTimer);
+    startupTimer = null;
+  }
+  connectButton.disabled = true;
+  connectButton.textContent = "Disconnecting…";
+  try { await reader?.cancel(); } catch {}
+  try { reader?.releaseLock(); } catch {}
+  try { writer?.releaseLock(); } catch {}
+  reader = null;
   writer = null;
-  $("status").textContent = "Disconnected";
+  resetPulseTempo();
+  try { await port.close(); } catch {}
+  connectButton.textContent = "Connect";
+  connectButton.disabled = false;
+  $("status").textContent = finalStatus;
+}
+
+connectButton.onclick = () => activePort ? disconnect() : connect();
+if (!("serial" in navigator)) {
+  $("status").textContent = "Web Serial unavailable in this browser; try desktop Chrome or Edge.";
+  connectButton.disabled = true;
 }
 
 function recent(ch, n) {
