@@ -1,32 +1,33 @@
-# Firmware build and component provenance
+# Firmware build and component provenance — beta3
 
-Original record: Adrian Vos (soveda), 2026, MIT. Third-party notices retain their
-own copyright/license terms. Recorded 2026-10-10 for card 333 beta packaging.
+Original record ©2026 Adrian Vos(soveda), MIT. Third-party notices retain their
+own ownership/terms. Recorded2026-10-15 for0.3.0-beta3.
 
-- Firmware: user-tested 0.1.0-alpha14, preserved byte for byte (not rebuilt for distribution).
-- Source snapshot: Spatial Disorientation commit `3a01fca91a527cf171efcacae5bc93760924d34e`.
-- ComputerCard: unmodified 0.4.0, MIT (vendor/ComputerCard).
-- CPU/audio/FIR: 192 MHz / 1.15 V, 48 kHz, 32 taps; 64-frame block worker.
-- Pico SDK: revision `98a542c1a62fb549ffb5d66a3e5892b06276b670`; BSD-3-Clause and component terms.
-- TinyUSB: revision `86ad6e56c1700e85f1c5678607a762cfe3aa2f47`; MIT, contributor notices in vendor/TinyUSB.
-- Compiler: Arm GNU Toolchain 15.2.Rel1 (Build arm-15.86), GCC 15.2.1 20251203.
-- GNU toolchain manifest: ARM_TOOLCHAIN_MANIFEST.txt (preserved installed manifest).
-- Link map identifies Newlib libg.a (C runtime) and GCC libgcc.a. Retained runtime
-  notices: TOOLCHAIN_NOTICES.txt, copied unchanged from card 122's collection
-  derived from card 369. GCC runtime exception is included; this does not change
-  the application MIT license. The reference notice collection is broader than
-  the linked runtime and is not itself an exact source-version inventory.
-- Linked Pico SDK printf preserves Marco Paland's 2014–2019 MIT notice in
-  PICO_PRINTF_LICENSE.txt, copied from the actual SDK source header.
-- KEMAR measurement authors/terms: Bill Gardner and Keith Martin, MIT Media
-  Laboratory, 1994; vendor/KEMAR/SOURCE_TERMS.md. Not an MIT software license.
+- Distributed firmware: user-tested0.4.0-alpha2-roll-polarity, preserved byte-for-byte; root
+  rebuild matches. Source checkpoint67228dd, with packaging/path/doc changes only.
+- SHA256: `ff641228bbca88632c47de0419f0194238a98026c79164e5411022e0fdc92149`.
+- ComputerCard0.4.0, Chris Johnson MIT, with local Adrian Vos MIT flash-pause/
+  restart additions; vendor/ComputerCard/PATCHES.md records the adaptation.
+- CPU192MHz/1.15V,48kHz, two64tap sources,64frame worker,128frame transport.
+- PicoSDK2.3.0 revision`98a542c1a62fb549ffb5d66a3e5892b06276b670`;
+  BSD-3-Clause plus component terms in vendor/PicoSDK/LICENSE.TXT.
+- TinyUSB revision`86ad6e56c1700e85f1c5678607a762cfe3aa2f47`;
+  MIT/contributor notices in vendor/TinyUSB.
+- Compiler ArmGNU15.2.Rel1, GCC15.2.1; installed ARM_TOOLCHAIN_MANIFEST.txt retained.
+- Linked C/runtime archives Newlib libg.a and GCC libgcc.a; TOOLCHAIN_NOTICES.txt
+  preserves the full notice collection derived from card369 via card122, including
+  the GCC runtime exception. This broad collection is not an exact version inventory.
+- Pico printf Marco Paland2014–2019 MIT notice preserved from SDK source in
+  PICO_PRINTF_LICENSE.txt. ComputerCard/EightMU/rppicomidi/Workshop_BlockAudioCard
+  and related adaptation notices remain in repository and firmware notice bundle.
+- KEMAR measurements Bill Gardner/Keith Martin, MIT Media Laboratory1994:
+  vendor/KEMAR/SOURCE_TERMS.md. Separate measurement terms, not MIT software.
+- User reports pitch/roll alpha2 tests pass; earlier save-fix/pages passed. No new pitch/roll peak or duration
+  supplied; do not present older horizontal/alpha26 timings as beta3 profiling.
 
-SHA-256: `9a9ad50c2719652c40bd4302dca882e2c9d7477e0da6f401a37e3d076978b3ec`.
-User reports alpha14 tests pass, peak callback 13 us / block 997 us. No run duration
-or USB role supplied for those readings; callback is not the complete ISR.
-
-Runtime archive members listed by the original link map (includes discarded
-sections; not every listed member necessarily contributes to final machine code):
+Runtime archive members named in the current link map follow. Inclusion in the
+map can include discarded sections and is not proof that every member contributes
+instructions to the final image:
 
 - `_dvmd_tls.o`
 - `libc_a-calloc.o`

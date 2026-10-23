@@ -57,8 +57,8 @@ public:
         if(candidate<0)return false;
         Slot& slot=slots_[candidate];slot.state=Rendering;__dmb();
         for(unsigned i=0;i<kFrames;++i) {
-            const auto& f=slot.input[i];engine.SetScene(f.scene,f.config);
-            slot.output[i]=engine.Process(f.audio[0],f.audio[1]);
+            const auto& f=slot.input[i];
+            slot.output[i]=engine.Process(f.audio[0],f.audio[1],f.scene,f.config);
         }
         __dmb();
         // Never make an overdue block eligible for a later playback cycle.
