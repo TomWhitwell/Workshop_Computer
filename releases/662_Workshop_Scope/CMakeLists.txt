@@ -11,7 +11,7 @@ pico_sdk_init()
 add_executable(scope main.c)
 
 target_compile_definitions(scope PRIVATE
-    PICO_XOSC_STARTUP_DELAY_MULTIPLIER=173
+    PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64
 )
 
 pico_enable_stdio_usb(scope 1)
