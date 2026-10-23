@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<title>Workshop Scope</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14181d;
+    --line: #262c34;
+    --text: #d5dae0;
+    --dim: #8a94a0;
+    --accent: #4fd1ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    height: 100dvh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  h1 { font-size: 16px; font-weight: 600; margin: 0; flex: 1; white-space: nowrap; }
+  #status { color: var(--dim); font-size: 12px; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(40vh, 1fr) auto;
+    min-height: 0;
+  }
+  .stage { position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: #000; touch-action: none; }
+
+  aside {
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    max-height: 45vh;
+    overflow-y: auto;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field > span, .group-title { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+  .wide { grid-column: 1 / -1; }
+
+  select, button, input[type=range] { font: inherit; color: var(--text); }
+  select, button {
+    background: #1d232a;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    min-height: 40px;
+  }
+  button { cursor: pointer; background: var(--accent); color: #04222c; border: 0; font-weight: 600; padding: 8px 16px; }
+  button:active { filter: brightness(.9); }
+  input[type=range] { width: 100%; min-height: 32px; accent-color: var(--accent); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chips label, .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #1d232a;
+    min-height: 36px;
+    cursor: pointer;
+  }
+  .chips input, .check input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+  /* Show only the controls that matter for the current view. */
+  body[data-view="xy"] .only-scope,
+  body[data-view="fft"] .only-scope,
+  body[data-view="roll"] .only-scope,
+  body[data-view="scope"] .only-xy,
+  body[data-view="fft"] .only-xy,
+  body[data-view="roll"] .only-xy,
+  body:not([data-view="roll"]) .only-roll,
+  body:not([data-view="fft"]) .only-fft { display: none; }
+
+  @media (min-width: 900px) {
+    main { grid-template-columns: 1fr 300px; grid-template-rows: 1fr; }
+    aside {
+      grid-template-columns: 1fr;
+      align-content: start;
+      border-top: 0;
+      border-left: 1px solid var(--line);
+      max-height: none;
+      padding: 16px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    header { padding: 8px 10px; gap: 8px; }
+    h1 { font-size: 15px; }
+    aside { grid-template-columns: 1fr 1fr; padding: 10px; gap: 10px; }
+  }
+</style>
+</head>
+<body data-view="scope">
+<header>
+  <h1>Workshop Scope</h1>
+  <span id="status">Disconnected</span>
+  <button id="connect">Connect</button>
+</header>
+<main>
+  <div class="stage"><canvas id="cv"></canvas></div>
+  <aside>
+    <label class="field wide">
+      <span>View</span>
+      <select id="view">
+        <option value="scope">Scope</option>
+        <option value="xy">XY</option>
+        <option value="fft">Spectrum</option>
+        <option value="roll">Roll (slow envelopes)</option>
+      </select>
+    </label>
+
+    <div class="field wide">
+      <span class="group-title">Inputs</span>
+      <div id="shows" class="chips"></div>
+    </div>
+
+    <label class="field only-scope">
+      <span>Trigger channel</span>
+      <select id="trigCh"><option value="0">Audio R</option><option value="1">Audio L</option><option value="2">CV 1</option><option value="3">CV 2</option></select>
+    </label>
+    <label class="field only-scope">
+      <span>Edge</span>
+      <select id="trigEdge"><option value="rise">Rising</option><option value="fall">Falling</option></select>
+    </label>
+    <label class="field only-scope wide">
+      <span>Trigger level</span>
+      <input id="trigLevel" type="range" min="-1" max="1" step="0.01" value="0">
+    </label>
+    <label class="field only-scope wide">
+      <span>Time span</span>
+      <input id="timeDiv" type="range" min="64" max="2048" step="16" value="512">
+    </label>
+
+    <label class="field only-fft wide">
+      <span>Smoothing</span>
+      <select id="smooth">
+        <option value="0">Off</option>
+        <option value="1">Low</option>
+        <option value="2" selected>Medium</option>
+        <option value="3">High</option>
+      </select>
+    </label>
+
+    <label class="field only-roll wide">
+      <span>Window</span>
+      <select id="rollSpan">
+        <option value="5">5 s</option>
+        <option value="10">10 s</option>
+        <option value="30" selected>30 s</option>
+        <option value="60">60 s</option>
+        <option value="120">120 s</option>
+      </select>
+    </label>
+
+    <label class="field only-xy">
+      <span>X axis</span>
+      <select id="xyX"><option value="0">Audio R</option><option value="1">Audio L</option><option value="2">CV 1</option><option value="3">CV 2</option></select>
+    </label>
+    <label class="field only-xy">
+      <span>Y axis</span>
+      <select id="xyY"><option value="0">Audio R</option><option value="1" selected>Audio L</option><option value="2">CV 1</option><option value="3">CV 2</option></select>
+    </label>
+
+    <div class="field wide">
+      <span class="group-title">Options</span>
+      <div class="chips">
+        <label class="check"><input id="pause" type="checkbox"> Pause</label>
+        <label class="check"><input id="passThru" type="checkbox" checked> Pass-through</label>
+        <label class="check"><input id="invert" type="checkbox" checked> Invert</label>
+      </div>
+    </div>
+  </aside>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
