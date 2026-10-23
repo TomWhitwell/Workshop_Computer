@@ -7,7 +7,7 @@ summary: Dual phase-distortion synthesiser and Turing machine release with Core
   editor and CZ patch Import Lab, optional Turing MIDI output, and Turing CV and
   pulse outputs. Rad v9 adds independently editable envelopes, pitch envelopes,
   and waveform families for both oscillators.
-short-description: Core 1.4 and Rad v9 dual phase-distortion synth and Turing
+short-description: dual phase-distortion synth and Turing
   machine firmware with shared Web MIDI editing and CZ patch import.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
