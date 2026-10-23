@@ -1,0 +1,82 @@
+draft: false
+Name: Workshop Scope
+short-description: USB oscilloscope, XY, spectrum and slow-roll display of the four analog inputs in a web page, with pass-through
+Language: C (Pico SDK)
+Creator: MrJoshua
+Version: "0.1.0"
+Status: Beta
+License: MIT
+Editor: web
+date-created: 2026-10-23
+date-updated: 2026-10-23
+
+contact:
+  social:
+    mastodon: https://mastodon.social/@JoshMurray
+
+tags:
+  - utility
+  - cv
+  - web-serial
+
+summary: |
+  Turns the Workshop Computer into a four-channel scope for a connected computer. Audio In 1 and 2 and CV In 1 and 2 are read and streamed over USB to a web page, which shows them as a triggered scope, an XY plot, a spectrum, or a slow rolling chart for envelopes up to two minutes long.
+
+  Each input is passed straight through to its matching output (Audio In 1 to Audio Out 1, and so on), so the scope can sit in a patch without breaking it. Pass-through can be switched off from the web page.
+
+  Inputs are DC-coupled and read approximately -6 V to +6 V, so audio and CV can be patched into any of the four jacks. Needs a desktop Chrome or Edge browser (Web Serial). Values and pass-through levels are not calibrated, so voltages are approximate.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Channel (Audio In 1)
+      description: Read at 48 kS/s and shown on the scope. Accepts audio or CV. Passed through to Audio Out 1.
+      type: other
+
+    - id: AudioIn2
+      name: Channel (Audio In 2)
+      description: Read at 48 kS/s and shown on the scope. Accepts audio or CV. Passed through to Audio Out 2.
+      type: other
+
+    - id: CVIn1
+      name: Channel (CV In 1)
+      description: Read at about 24 kS/s, alternating with CV In 2. Accepts audio or CV. Passed through to CV Out 1.
+      type: other
+
+    - id: CVIn2
+      name: Channel (CV In 2)
+      description: Read at about 24 kS/s, alternating with CV In 1. Accepts audio or CV. Passed through to CV Out 2.
+      type: other
+
+  outputs:
+    - id: AudioOut1
+      name: Thru (Audio In 1)
+      description: Audio In 1, uncalibrated, when pass-through is on. About 0 V when it is off.
+      type: audio
+
+    - id: AudioOut2
+      name: Thru (Audio In 2)
+      description: Audio In 2, uncalibrated, when pass-through is on. About 0 V when it is off.
+      type: audio
+
+    - id: CVOut1
+      name: Thru (CV In 1)
+      description: CV In 1, uncalibrated and stepped, when pass-through is on. About 0 V when it is off.
+      type: cv
+
+    - id: CVOut2
+      name: Thru (CV In 2)
+      description: CV In 2, uncalibrated and stepped, when pass-through is on. About 0 V when it is off.
+      type: cv
+
+host:
+  usb:
+    - name: USB serial (CDC)
+      role: editor
+      description: Connected to a computer, streams the sampled inputs to the web page in Chrome or Edge.
+  notes: |
+    Open the web page, press Connect and pick the Computer's serial port. The firmware only sends data while a serial connection is open. Pass-through runs whether or not the page is open.
+
+uf2:
+  - path: UF2/workshop_scope.uf2
+    name: Workshop Scope 0.1.0
