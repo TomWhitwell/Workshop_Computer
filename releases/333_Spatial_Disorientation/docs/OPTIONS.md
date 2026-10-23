@@ -1,3 +1,11 @@
+> Current version: **0.3.0-beta2** (2026-10-15). These historical planning notes
+> are retained with attribution; entries marked future below may now be complete.
+> Three modes, 8mu control, per-mode presets, continuous Mixer height, vertical
+> Disorientation and sloping paths are implemented. Orbits height/slope,8mu pages,
+> elevation tools and the repeated-save fix are now included in beta2. Current controls and testing:
+> [README](../README.md) / [tester protocol](TEST_PROTOCOL.md).
+> Original update ©2026 AdrianVos(soveda),MIT; existing data/dependency terms retained.
+
 # Spatial Disorientation — design options
 
 Design sketch by Adrian Vos (soveda), 2026-10-07. Original notes: MIT.

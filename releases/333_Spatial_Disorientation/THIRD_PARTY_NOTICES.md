@@ -2,7 +2,7 @@
 
 Original project code and documentation: Adrian Vos (soveda), 2026, MIT; see LICENSE.
 This grant covers original work, not relicensing of dependencies, measurement data
-or the copied upstream directive. The packaged firmware is the user-tested alpha14 build; historical alpha
+or the copied upstream directive. The current build is 0.4.0-beta3; historical alpha
 sections below identify when particular sources were introduced.
 
 ## Current source-to-file map
@@ -15,7 +15,7 @@ sections below identify when particular sources were introduced.
 | You spin me round, Adrian Vos | Reused values in src/dsp/sine_table.h | vendor/YouSpinMeRound/LICENSE |
 | Raspberry Pi Pico SDK | External linked SDK and copied pico_sdk_import.cmake | vendor/PicoSDK/LICENSE.TXT (BSD-3-Clause) |
 | TinyUSB / contributors | External linked host/device stack; configuration notice in src/tusb_config.h | vendor/TinyUSB/LICENSE and NOTICE.md; full Ha Thach notice in tusb_config.h |
-| Gardner/Martin MIT KEMAR data | vendor/KEMAR/diffuse.zip, src/dsp/hrtf_table_32.h and hrtf_table_64.h; HRTF previews | vendor/KEMAR/SOURCE_TERMS.md; data attribution in generated tables |
+| Gardner/Martin MIT KEMAR data | vendor/KEMAR/diffuse.zip, src/dsp/hrtf_table_32.h, hrtf_table_64.h and elevation_table.h; historical HRTF previews | vendor/KEMAR/SOURCE_TERMS.md; data attribution in generated tables |
 
 WaveSeq source and revision are in vendor/EightMU/SOURCE.md. Its web preset UI and
 switch-bank pickup were reviewed as examples, rather than copied wholesale.
@@ -26,8 +26,9 @@ Retain this file, LICENSE and the referenced vendor notices when redistributing.
 ## ComputerCard 0.4.0
 
 ComputerCard by Chris Johnson, copyright 2024–2026, MIT.
-The unmodified header is in vendor/ComputerCard/ComputerCard.h and the upstream
-license file is preserved beside it. The header also includes the full MIT notice.
+The header in vendor/ComputerCard/ComputerCard.h includes the locally attributed
+flash-pause/resume adaptation described in vendor/ComputerCard/PATCHES.md. The
+upstream license is preserved beside it and the full MIT notice remains in the header.
 The CMake setup follows ComputerCard's example build conventions; the initial
 firmware follows its passthrough example and README (Chris Johnson).
 pico_sdk_import.cmake is copied from the same upstream directory; the Raspberry Pi
@@ -222,18 +223,52 @@ additional external algorithm implementation or dataset is copied. Existing
 sine-table, ComputerCard, WaveSeq/EightMU/rppicomidi, block transport, Pico SDK/
 TinyUSB and Gardner/Martin KEMAR notices remain preserved and applicable.
 
-## Card 333 beta packaging
 
-Card 333 is a mnemonic for three spatial axes; it does not imply that elevation
-is implemented. This package preserves the tested alpha14 firmware and source
-snapshot. Original code/docs remain MIT; no Asterisk freeware terms are adopted.
-Licensing layout follows Adrian Vos's card 122 and its runtime notice collection,
-which preserves the third-party Newlib/GCC notices from Laboratory 0's card 369.
-Those component notices retain their original ownership and license terms.
+## Beta1 measured elevation, optimizations and sloping paths
 
-Keep LICENSE, this file, vendor notices and licenses/ with source distributions.
-The full consolidated uf2/NOTICE.txt accompanies firmware and must travel with
-standalone UF2 redistribution. This includes the KEMAR measurement attribution,
-which is separate from the MIT software grant. Toolchain/build provenance and
-linked runtime inventory: licenses/BUILD_COMPONENTS.md. No historical preview
-files or obsolete firmware are included in this release folder.
+0.2.0-beta1 promotes alpha26. Continuous height blends the existing horizontal
+bank with measured −40°/+40° KEMAR rings, using72direction bins and64tap minimum-
+phase ear filters. Measurements remain Gardner/Martin,MITMediaLaboratory1994,
+under vendor/KEMAR/SOURCE_TERMS.md; they are not covered by the original-code MIT
+license. The original generator is tools/generate_elevation.py; its historical
+record is archive/experimental/mixer-elevation-64/generation.json. Original
+continuous interpolation, HRTF address cache/FIR unroll/slew optimizations,
+Fig8/Pendulum/Wander height and slope rotation/asin table, code/tests/editor/docs:
+AdrianVos(soveda),2026,MIT. Slope introduces mathematical coordinates, not new
+measurements or borrowed Quasar DSP. Compiler/runtime notices in uf2/NOTICE.txt
+and licenses/ cover linked firmware components; preserve them on redistribution.
+
+
+## Beta2 Orbits elevation/pages and repeated-save fix
+
+0.3.0-beta2 promotes user-tested0.3.0alpha3, commitc6906d0. Original additions
+Adrian Vos(soveda),2026,MIT: Orbits saved height/uphill/tilt, layered8mu mapping,
+page-specific pickup/retention, LEDpage feedback, staged elevation randomise/reset
+and verified readback. Existing WaveSeq/EightMU/rppicomidi origins remain credited.
+The root ComputerCard0.4.0 header now carries a local attributed ADC/DMA pause/
+restart adaptation; original Chris Johnson2024–2026 MIT notice and API remain.
+See vendor/ComputerCard/PATCHES.md for exact modifications; beta1 retains the
+unmodified header in archive/beta1/vendor/ComputerCard. The sampler stops after
+mute before flash lockout and resumes in a known state afterwards. No new HRTF
+data or external DSP is added. Measurement and linked-runtime terms stay separate.
+
+
+## Beta3 direct pitch/roll motion
+
+0.4.0-beta3 promotes the user-tested0.4.0-alpha2-roll-polarity, commit67228dd.
+Direct gravity-vector atan lookup, neutral hold, corrected relative roll sign,
+Disorientation captured path rotation and tests/docs: Adrian Vos(soveda),2026,MIT.
+Reuses this project's existing integer atan table and WaveSeq/EightMU-derived
+mapping/pickup; no new external code/data. ComputerCard flash-pause adaptation,
+Gardner/Martin KEMAR terms and all linked dependency/runtime notices remain.
+
+
+## Card333 beta3 release packaging
+
+Workshop Computer Binaural-card release-folder update2026-10-22: Adrian Vos
+(soveda),MIT. Firmware/source correspond to standalone0.4.0-beta3 at75d740e;
+original test runner/docs and relocated comparison headers retain all attribution.
+Card333 denotes three spatial axes. Keep LICENSE, this file, vendor/ and licenses/
+with source; redistribute uf2/NOTICE.txt with UF2. KEMAR measurements retain their
+separate Gardner/Martin terms; no new measurement or Quasar data is included.
+No full development archive, historical previews or alternate firmware are shipped.

@@ -1,213 +1,329 @@
-# Spatial Disorientation — card 333
+# Spatial Disorientation — card 333 · 0.4.0-beta3
 
-**Beta · 0.1.0-alpha14 · Adrian Vos (soveda)**
+Two independent mono sources placed and moved in headphone stereo on the Music
+Thing Modular Workshop Computer. Inspired by Neuzeit Instruments Quasar, with an
+independent implementation. Card333 represents three spatial axes. Three startup modes: **Twin Orbits**, **Spatial Mixer**
+and **Disorientation** (Fig8, Pendulum, Wander). This beta includes Orbits height/slope and two8mu pages, continuous Mixer
+height, vertical Disorientation, elevation randomise/reset tools and the tested
+repeated-save fix. Pitch/roll motion directly places sound, with corrected roll
+polarity: right edge down moves right; yaw is unused.
 
-Two independent mono sources become a binaural stereo mix: orbit around the
-listener, place each source separately, or choose Fig8, Pendulum and Wander
-movement. Musical inspiration: [Neuzeit Instruments Quasar](https://www.neuzeit-instruments.com/Quasar).
-This is an independent implementation, with no Quasar code, graphics or data.
+**Elevation is a subtle headphone effect.** Height and slope add spatial/timbral
+cues; they may sound like a small change in tone or apparent placement rather
+than an obvious sound moving above or below you. Slope can be harder to hear than
+a direct height change. The effect varies with listener, headphones and source
+material; the displayed degrees are virtual rendering targets, not a guarantee
+of an equally precise perceived angle.
 
-Use headphones through a suitable monitoring path. This version renders horizontal
-direction and distance; elevation is a [future refinement](docs/IMPLEMENTATION_PLAN.md#future-refinement-elevation-rendering-staged-2026-10-10).
-**333** is a mnemonic for three spatial axes, not a claim that height is implemented.
+Original code and documentation © 2026 Adrian Vos (soveda), [MIT](LICENSE).
+Measured ear filters: Bill Gardner and Keith Martin, MIT Media Laboratory (1994),
+*HRTF Measurements of a KEMAR Dummy-Head Microphone*, Technical Report #280;
+[separate data terms](vendor/KEMAR/SOURCE_TERMS.md). ComputerCard, Workshop_BlockAudioCard,
+WaveSeq/EightMU/rppicomidi, Pico SDK, TinyUSB and linked runtime credits/licenses:
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [firmware notices](uf2/NOTICE.txt),
+[build-component notices](licenses/BUILD_COMPONENTS.md) and the
+[local ComputerCard0.4.0 flash-pause adaptation](vendor/ComputerCard/PATCHES.md). MIT does not relicense data
+or dependencies. No Quasar firmware, graphics or transfer functions are included.
 
-Original code/documentation © 2026 Adrian Vos (soveda), [MIT](LICENSE). Dependencies
-and measurement data retain their own terms; see [attribution](THIRD_PARTY_NOTICES.md).
-Keep [uf2/NOTICE.txt](uf2/NOTICE.txt) with redistributed firmware. This follows the
-notice packaging of Adrian Vos's card 122 and the component-notice standard of
-card 369; it does not adopt card 369's application freeware license.
+## Get started
 
-## Load and start
+1. Download [the beta UF2](uf2/Spatial_Disorientation_0.4.0-beta3.uf2).
+   [Checksums](uf2/SHA256SUMS.txt) identify the current binary. Back up existing
+   presets with your old editor before using this beta's Save to card.
+2. Put the Computer in its normal BOOTSEL firmware-loading mode and copy the UF2
+   to the mounted drive. Reset with Main/X/Y near centre.
+3. Connect Audio In 1 and/or 2 to mono sources. Unplugged inputs are silent.
+   Audio Out 1 is **left ear**, Audio Out 2 **right ear**. Use an appropriate stereo
+   headphone monitoring path; connect these modular-level outputs through that path.
+4. Normal startup selects Twin Orbits. To select another mode, hold the switch
+   **Down during reset**, choose with Main and release to confirm:
 
-Flash [the tested alpha14 UF2](uf2/Spatial_Disorientation_0.1.0-alpha14-movements.uf2)
-using the Workshop Computer BOOTSEL procedure. The binary is unchanged from the
-user-tested development build; [checksum](uf2/SHA256SUMS.txt).
-Patch mono Audio 1, optionally a different source to Audio 2. Audio Out 1/2 are
-the left/right binaural mix. Unplugged inputs are silent. CV outputs are nominal
-zero and pulse outputs low.
-
-Normal boot always selects **Twin Orbits**. To select another function, hold
-**Down during reset/startup**, choose with Main, then release:
-
-| Main third | Function | Startup LEDs |
+| Main region | Mode | Startup LEDs |
 |---|---|---|
-| Lower | Twin Orbits | All off |
-| Middle | Spatial Mixer | Left column |
-| Upper | Disorientation | Right column |
+| Lower third | Twin Orbits | None |
+| Middle third | Spatial Mixer | Left column |
+| Upper third | Disorientation | Right column |
 
-Audio is muted during selection. Mode remains fixed until reset and is not saved.
+Startup selection is not saved. Each mode has its own saved settings.
+Headphones are the listening target; generic HRTFs vary with listener/headphones.
+Elevation uses generic measured ear filters, interpolated between level and
+above/below banks; it is not personalised to your ears. Expect a subtle cue rather
+than reliably precise vertical localisation. Speaker stereo/mono will not reproduce
+the same binaural scene.
 
-## Twin Orbits
+## Panel and patch controls
 
-Start Main/X at noon, Y low; turn X slightly right to begin a slow orbit.
+| Control | Twin Orbits | Spatial Mixer | Disorientation |
+|---|---|---|---|
+| Main | Position offset | Selected-source position | Fig8/Wander front/back depth; Pendulum arc centre |
+| X | Signed orbit speed | Selected-source distance | Signed traversal speed |
+| Y | Distance | Selected-source level | Path excursion |
+| Switch Up | Linked | Select A | Linked |
+| Switch Middle | Opposing | Keep selected source | Opposing |
+| Down | Reset phase once per press | Select B; release retains B | Hold to freeze phase; release resumes |
+| CV 1 | Adds position | Adds both positions | Adds depth/arc centre |
+| CV 2 | Adds distance | Adds both distances | Adds excursion |
+| Pulse 1 | Movement clock | Unused | Movement clock |
+| Pulse 2 | Phase reset | Unused | Phase reset, including while frozen |
 
-| Control | Behaviour |
-|---|---|
-| Main | Position offset; noon puts A front after phase reset |
-| X | Signed speed; centre stops, extremes approach 1.5 turns/sec |
-| Y | Distance: quieter, darker, later, with greater reflected/direct balance |
-| Up / middle | Linked / opposing traversal |
-| Down | Phase reset once per press; retains the prior relationship while held |
-| CV1 / CV2 | Add position / distance |
-| Pulse1 / Pulse2 | Movement clock / rising-edge phase reset |
+X has a centre stop region; its manual maximum is ±1.5 cycles/second. Clock input
+sets movement cycle length with the editor's pulses/cycle (default 4). CV outputs
+stay nominal zero; pulse outputs stay low. Mixer uses soft pickup after selecting,
+restoring or remotely editing a source; move Main/X/Y near or through the stored
+value to regain control. Each source retains its position/distance/level.
 
-X has a centre deadband of approximately ±3% of total travel (6% total width).
-Clock lock requires two valid edges; intervals 25 ms–60 s. Clocked speed is capped
-at 2 cycles/sec. Unpatching restores manual speed; timeout is the greater of
-3 seconds or three clock intervals. Use pulse widths at least 1 ms. Default clock
-division is four pulses per turn. CV inputs are nominal, not calibrated.
-
-## Spatial Mixer
-
-Up selects A; Down selects B; middle retains the last selection. Main sets that
-source's position (noon front, ends back), X distance and Y panel level. Both
-sources retain their placements. CV1/CV2 modulate both positions/distances without
-changing the saved base; pulse inputs are unused.
-
-Knobs require near/crossing pickup after source selection or placement restoration
-(about 1.6% tolerance). The selected top/middle LED pair blinks until all three
-controls are picked up. Defaults: A front, B back, both near at full panel level.
-Editor A/B trims multiply the individual panel levels. The editor can Read/Apply/
-Save both placements, with separate Mixer settings. Separation/clock fields are
-unused in Mixer.
-
-## Disorientation
-
-Choose **Fig8, Pendulum or Wander** in the editor; Apply auditions and Save retains
-the choice. Fig8 is the default. Begin with a slow X speed and listen without the
-display for the first placement comparison.
-
-| Movement | Main / CV1 | Y / CV2 |
-|---|---|---|
-| Fig8 | Front/back depth of crossing loops | Overall excursion |
-| Pendulum | Arc centre: minimum front, noon right, maximum nearly back | Swing width up to ±90° |
-| Wander | Front/back reach of smooth random positions | Overall excursion |
-
-X controls signed phase speed, centre stops, maximum 1.5 cycles/sec. Up/middle
-links/opposes the two source phases. **Down held freezes phase; release resumes**.
-CV and shape controls can still reshape a frozen position. Pulse1 clocks phase;
-Pulse2 resets even while frozen. Editor separation offsets source path phase.
-
-Fig8 crosses in front and reaches behind at greater depth/excursion. Pendulum
-reverses along the same arc at fixed 25% distance. Wander smoothly joins
-deterministic random positions, with four transitions per phase cycle; reversing
-X retraces the route. Reset restarts its sequence. Y minimum collapses Fig8/Wander
-to a front point and Pendulum to its selected centre; it does not mute audio.
+Fig8 is a crossing path with independently phased sources. Pendulum sweeps an arc
+through the selected centre; Wander follows repeatable smoothly eased targets.
+Changing movement preserves phase. Freeze holds phase only: knobs/CV/live motion
+can still reshape held positions. Pulse reset and 8mu A still reset while frozen.
 
 ## Web editor and presets
 
-Open [web/index.html](web/index.html) in desktop Chrome/Edge. Use a USB-C data
-cable, close Serial Monitor/other apps, enable MIDI with SysEx permission and
-select **Spatial Disorientation** for both ports. iOS is unsupported. If local
-file MIDI access is blocked, serve the self-contained page from localhost:
+Use the **matching beta editor**, [web/index.html](web/index.html), in desktop
+Chrome/Edge with WebMIDI/SysEx permission. Use a USB-C **data** cable, close Serial
+Monitor/other MIDI apps and choose “Spatial Disorientation” for both ports.
+iOS is unsupported. If opening the local file blocks MIDI, run this from the
+unpacked tester bundle or repository:
 
 ```sh
-python3 -m http.server 8793 --bind 127.0.0.1 --directory web
+python3 -m http.server 8804 --bind 127.0.0.1 --directory web
 ```
 
-Visit http://127.0.0.1:8793. The page has no external scripts/services.
+Open `http://127.0.0.1:8804`. Hosted editors require HTTPS. This package does not
+publish a new hosted editor automatically. Editors using protocols before v7 are
+incompatible. Beta2 and the 0.3/0.4 alpha editors using protocol7 work, but this
+editor documents the current motion mapping.
+Select the desired startup mode before connecting or applying its settings.
 
-- **Read:** retrieve applied base settings and current Mixer placements.
-- **Apply:** audition staged edits. Ordinary slider edits are not sent automatically.
-- **Save to card:** persist applied settings/placements/default movement; briefly
-  fades audio during the flash write. Apply dirty edits first.
-- **Reset to init:** apply defaults for the active mode; Save separately to retain.
-- **Export:** download displayed settings, including unapplied edits.
-- **Import:** stage a named JSON preset; choose the matching startup mode, then Apply/Save.
+Changes wait for **Apply**; there is no automatic send. **Read** replaces displayed
+edits with current card values. **Save to card** persists applied settings and
+briefly fades audio for the flash write. **Reset to init** applies factory editor
+settings for the active mode; it does not save automatically. Export downloads the
+displayed settings; Import stages them until Apply. Preset names live in JSON
+files, not card flash. Three separate settings banks preserve inactive modes.
 
-Each mode has its own six base settings: phase/angular separation, room, A/B trims,
-strength and clock division. Mixer adds six placement values; Disorientation adds
-movement. Defaults: 180° separation, about 29% room, 50% trims, full strength,
-four clock pulses/cycle, Fig8. Panel controls, CV, phase, motion and live 8mu
-overrides are excluded from saved configuration.
+At the bottom, **Randomise elevation** stages new height/slope values for the
+shown mode; **Reset elevation** stages level height and zero excursion/tilt.
+These tools leave other sound settings alone and send nothing until Apply.
+Random combinations avoid immediate height clipping. Mixer randomises/resets A/B
+height only. Orbits Apply/init checks height/tilt readback and reports a mismatch
+rather than claiming success if the card returns old values.
 
-This editor/firmware uses SysEx and JSON v3, flash v4. Old v1/v2 presets import;
-old Disorientation presets choose Fig8. Flash v1/v2/v3 migrates in RAM without a
-boot write, preserving prior banks/placements. Only explicit Save writes flash.
-Older firmware cannot read v4; export presets before saving if you may downgrade.
-A corrupt/absent record restores defaults; power-loss recovery is not guaranteed.
-[Protocol details](docs/PROTOCOL.md).
+Shared settings: separation/phase separation, room reflections, A/B level trims,
+spatial strength and clock division. Separation and clock division are unused in
+Mixer. Mixer Read/Save capture both current placements and applied heights.
+
+### Elevation and sloping paths
+
+- **Twin Orbits:** one saved height centre shifts both sources above/below level.
+  Path tilt adds height according to each source's direction: uphill is higher,
+  the opposite direction lower. The sources can therefore have different heights
+  while sharing the same centre. Orbits has no separate vertical-excursion control.
+- **Spatial Mixer:** A and B have independent, continuous saved heights. They stay
+  at their set heights until edited; Mixer has no automatic vertical movement or
+  sloping path. Editor controls set A and B separately; 8mu fader 8 changes the
+  selected source's height.
+- **Disorientation:** its own saved height centre offsets both sources. Vertical
+  excursion adds phase-related rise/fall; path tilt adds a directional slope.
+  Fig8 rises/falls with phase, Pendulum is higher at its swing ends and lower near
+  its centre, and Wander eases between repeatable height targets. The sources can
+  differ in height because they have independent phases/targets. These settings
+  are edited on the web page; 8mu pitch/roll reshape or turn the path rather than
+  directly adjusting its elevation settings.
+
+| Height/path setting | Behaviour |
+|---|---|
+| Orbits height centre | −40° to +40°, both sources, independently saved from Disorientation |
+| Mixer A/B height | Continuous −40° to +40°, independently saved/exported |
+| Disorientation height centre | −40° to +40°, both sources |
+| Disorientation vertical excursion | 0–40° half-range around its height centre, before clipping |
+| Uphill direction | 0° front, 90° right, 180° back, 270° left; continuous diagonals |
+| Path tilt | 0–40° inclination; zero bypasses slope |
+
+Slope inclines the path about the listener: the selected uphill bearing goes
+up, the opposite bearing down, and perpendicular directions receive no added
+height from slope. Its horizontal projection also changes; path distance stays
+unchanged. This is an inclination about the listener, not a tilt about each
+path's own translated centre. Height centre and Disorientation rise/fall are added
+to the slope contribution, then clipped to ±40°. A nonzero centre or combined
+excursion/tilt can therefore flatten the top/bottom of the movement. The combined
+result is not necessarily one rigid inclined plane.
+Start at centre **0°**, excursion **0°**, tilt **40°**, slow X to audition slope
+alone (Orbits has no excursion setting). Compare against tilt 0° using Apply;
+the audible difference may remain subtle even at 40°. Keep level and other sound
+settings steady, and listen without relying on the diagram. Resetting phase does
+not reset height settings: it can return to an elevated point if that direction
+is uphill. The live diagram shows horizontal direction only; it is not a 3D view,
+and its radius does not represent distance.
+
+### Migration and downgrade
+
+Beta3 uses **SysEx7 / preset JSON7 / flash8**, compatible with beta2, the0.3.0
+alpha1–3 and0.4.0 pitch/roll experiments. No settings migration is needed from
+beta2. It reads flash1–7 and imports JSON1–6, preserving supported old fields.
+Migrating beta1 defaults only the new Orbits height/slope to level/zero tilt.
+Older missing Mixer heights default to level; missing vertical excursion/tilt to
+zero. No automatic boot migration write. Beta1’s editor uses an older protocol;
+use the matching beta3 editor. Each mode still has its own settings bank.
+
+**Export old presets before beta3 Save.** Apply-only leaves old flash intact.
+After beta3 Save, beta1 cannot read flash8 and starts defaults. To downgrade,
+load the archived beta1 UF2/editor, import your old exports and explicitly Save
+in each desired startup mode. Beta1 cannot import JSON7. The0.3.0 alpha1/2/3 and
+0.4.0 pitch/roll alphas have the same formats as beta3 and need no schema downgrade. [Archived versions](https://github.com/soveda/Spatial-Disorientation/tree/75d740e/archive).
 
 ## Direct 8mu control
 
-Connect 8mu before reset. Rev 1.1 chooses host/device USB role at boot; earlier
-hardware retains device/editor mode. Change cables and reset when switching roles.
-Editor and 8mu are used in separate sessions. The inherited identify handshake
-temporarily loads the 8mu default assignments/bank 1; controller bank selection
-returns after power-cycling the 8mu. [Host adaptation](vendor/EightMU/SOURCE.md).
+Connect8mu and reset separately from an editor session. Rev1.1 detects USB power
+role at boot; older boards retain editor/device operation. Reset after changing
+roles. Mixer ignores motion; Orbits/Disorientation can replace Main with motion.
+Motion starts off, and CV remains additive. No8mu gesture writes flash.
 
-| Fader | Orbits / Disorientation | Mixer |
+**Twin Orbits D tap/release under500ms toggles normal and height/slope pages.**
+Holding D at least500ms shows timing; releasing that long hold keeps the page.
+Normal is selected on startup/connection. Brief8mu indication after page changes:
+**LEDs1–3 = normal; LEDs6–8 = height**, lit for1second. Then pickup/level feedback
+resumes: there is no persistent page indicator. These are8mu LEDs, not Computer LEDs.
+
+| Fader | Orbits normal | Orbits height/slope | Mixer | Disorientation |
+|---|---|---|---|---|
+|1|Speed/direction|Height −40°..+40°|Selected distance|Speed/direction|
+|2|Distance|Tilt0..40°|Selected level|Excursion|
+|3|Separation|Uphill direction|Selected position|Phase separation|
+|4|Room|Room|Room|Room|
+|5/6|A/B trim|A/B trim|A/B trim|A/B trim|
+|7|Spatial strength|Spatial strength|Spatial strength|Spatial strength|
+|8|Tilt sensitivity|Tilt sensitivity|Selected-source height|Motion amount|
+
+Faders1–3 rearm pickup on each Orbits page switch. Remote-owned speed/distance/
+separation stay held while editing height; return to normal waits for pickup.
+Height/slope values also remain when leaving their page. Shared faders4–8 retain
+ownership. A fader waiting for pickup blinks. Normal panel controls remain available
+when not remotely owned. No change to Disorientation/Mixer page behaviour.
+
+Orbits/Disorientation A resets/recentres at Main/current pose, B toggles motion,
+C holds phase. Motion/CV can still reshape held positions. C release restores the
+prior speed. **Yaw is unused. Pitch controls front/back; roll controls left/right.**
+The8mu reports positive roll when its right edge is raised; the mapping inverts
+that sign so sound follows the lowered edge. Capture neutral approximately flat.
+
+- **Orbits:** tilt is a directional pointer relative to the captured Main anchor.
+  At centre Main/reset phase, back edge raised points front; right edge lowered
+  points right; front edge raised points back; left edge lowered points left.
+  Combined tilt selects intermediate directions. Hold a pose to hold direction;
+  returning near neutral holds the last direction. Fader8 sets tilt sensitivity:
+  lower values need more tilt to engage, zero returns to the anchor. Once engaged,
+  it retains full angular travel. X automatic orbit and CV remain additive; centre
+  X and remove CV for direct positioning. Height/slope pages do not alter motion.
+- **Disorientation:** pitch directly offsets bounded Main depth (positive pitch
+  towards front); roll rotates the whole path towards the lowered edge, about±90°
+  from flat at full amount. Fader8 scales both contributions; zero returns depth
+  to its anchor and rotation to zero. Motion-off/disconnect eases rotation tozero;
+  Main waits for panel pickup. A recaptures both axes/Main and resets rotation.
+  Rotation follows the configured world-space slope. Height/bob/slope are set in
+  the editor; there is no direct8mu elevation page for Disorientation.
+
+Holding a pose does not accumulate movement. A captures neutral on either mode;
+C freezes phase but permits tilt/CV reshaping.
+
+Disorientation D tap cycles Fig8/Pendulum/Wander, with LEDs1/2/3 briefly identifying
+movement; longD keeps timing. Mixer A/B select sources, C is unused and D is timing.
+Mixer LED8 identifies A steady/B blinking, with height brightness/pickup feedback.
+
+Orbits disconnect restores saved height/slope and disables motion. Remotely owned
+X/Y wait for panel pickup; reconnect starts normal with fresh fader pickup. Runtime
+8mu values do not change saved presets. For persistent height/slope use the editor
+and Save in a separate USB boot. Other8mu mapping/ownership rules remain unchanged.
+
+## LEDs, timing and known limits
+
+The four upper LEDs show source A/B left/right direction pairs; equal brightness
+can mean front or back. Mixer selected pairs blink while panel pickup is pending.
+Bottom-left indicates linked movement or editing A in Mixer. **Bottom-right latches
+a general warning**: callback ≥18 µs, block ≥1200 µs, a queue fault or a failed save/resume (once callbacks run).
+Reset clears peaks/warnings. Startup LED patterns override runtime feedback.
+
+Hold 8mu D for offline peak block-time bands: each lit LED represents 150 µs;
+eight lit means above 1050 µs. All eight flash if a timing/queue/save warning latched.
+A lit band alone is not a warning. The editor reports exact latched peaks and
+separate slow-DSP/callback/queue flags. Reboot between comparisons.
+
+ComputerCard **0.4.0**, **192 MHz / 1.15 V**, **48 kHz**, **two sources / 64 taps**.
+Core0 captures audio/controls; core1 renders 64-frame DSP blocks and services
+bounded USB work. Added transport latency is 128 frames, about **2.67 ms**. Block
+deadline is **1333.3 µs**; 1200 µs is an early warning. A missed output block can
+produce 64 frames of silence; late audio is discarded. Flash saves intentionally
+fade, stop ADC/DMA, lock out for verified flash access, then restart sampling in
+a known state before acknowledging. This fixes the tested repeated-save failure.
+Unchanged saves skip mute/erase; failures return an error and latch the general
+faultLED once callbacks run. A stopped core cannot guarantee LED feedback. Save
+pauses are excluded from timing peaks.
+
+**Beta3 ships the exact user-tested0.4.0-alpha2-roll-polarity UF2 bytes.** The user
+reports its tests pass and requests promotion. This adds direct pitch/roll control
+and the corrected lean direction to beta2. Earlier save-fix, elevation and8mu page
+passes remain the baseline. No new peak values or duration were supplied with this
+pass; firmware/build checks supplement the user's hardware acceptance.
+
+Historical timing context from earlier builds (not new beta3 measurements):
+
+| Build / mode | Duration | Callback / block peak |
 |---|---|---|
-| 1 | Signed speed | Selected-source distance |
-| 2 | Distance / excursion | Selected-source panel level |
-| 3 | Angular / path-phase separation | Selected-source position |
-| 4 | Room | Room |
-| 5 / 6 | A / B trims | A / B trims |
-| 7 | Spatial strength | Spatial strength |
-| 8 | Motion amount | Unused |
+| Alpha26 Pendulum |25min|14 /1175µs; clean, no queue warnings|
+| Alpha26 Fig8 |20min|14 /1176µs; no separate listening/queue report|
+| Alpha26 Wander |30min|14 /1193µs; clean, no queue warnings|
+|0.3alpha1 opposing Orbits|22min|12 /1188µs; clean, no queue warnings|
 
-Faders require independent near/crossing pickup. In Mixer, source selection
-rearms faders 1–3 against stored placements. Waiting LEDs blink; picked LEDs show
-level. Mixer LED8 identifies A steady/B blinking; Mixer ignores motion.
+No new pitch/roll alpha2 peak values or run duration were supplied with its pass. Headroom
+remains narrow; historical Wander was only7µs below the block warning. Additional
+testers should log their own board/headphones, controls/CV, duration and USBrole,
+covering editor and separate8mu boots. [Protocol/feedback](docs/TEST_PROTOCOL.md).
 
-| Button | Orbits | Disorientation | Mixer |
-|---|---|---|---|
-| A | Reset/recentre | Reset/recentre | Select A |
-| B | Toggle motion | Toggle motion | Select B |
-| C held | Stop orbit speed temporarily | Freeze phase | Unused |
-| D | Hold for timing | Tap cycles movement; hold for timing | Hold for timing |
+## Source and build
 
-Motion initially off. Orbits motion replaces Main's position; Disorientation
-motion replaces Main's depth/arc centre. Roll offsets the captured pose; gyro yaw
-is integrated as a rate. Disorientation Main values clamp at limits. Fader8 scales
-tilt/rate; zero removes tilt influence and stops rate integration, retaining its
-held base. A recaptures physical Main/current pose. CV remains additive.
+Build with Pico SDK2.3.0 / Arm GNU Toolchain15.2.Rel1 or compatible tools:
 
-In Disorientation, D release before 500 ms cycles Fig8→Pendulum→Wander; a longer
-hold shows timing and never cycles on release. LEDs1/2/3 identify the choice for
-one second. Live choice reverts to the saved movement on disconnect/new session.
-C and panel Down combine: release both to resume. LED8 steady bright indicates
-motion, bright blinking indicates Disorientation freeze; timing/selection notices
-take priority. Turning motion off/disconnecting holds owned Main/X/Y until panel
-pickup. Mixer handback preserves placements with pickup; Orbits returns to panel.
-Shared editor trims return to saved values on disconnect. No 8mu gesture saves flash.
+```sh
+cmake -S . -B build_beta -DPICO_SDK_PATH=/path/to/pico-sdk -DCMAKE_BUILD_TYPE=Release
+cmake --build build_beta -j2
+```
 
-## LEDs, timing and verification
+The beta defaults to64 taps/two sources. Source-A-only is diagnostic, not this
+package. [Build evidence](docs/BUILD_STATUS.md), [protocol](docs/PROTOCOL.md),
+[design record](docs/DESIGN.md), [future options](docs/OPTIONS.md).
+Pre-generated measured tables ship with the source; building firmware needs no
+Python scientific libraries or measurement download. Mathematical slope-table
+reproduction uses `tools/generate_slope_table.py`; measured-bank provenance and
+archived elevation generator are recorded in the notices. Old preview audio is
+historical, not proof of the beta's sound. [Archive](https://github.com/soveda/Spatial-Disorientation/tree/75d740e/archive) holds earlier
+versions; current `uf2/` contains only beta3 and its notices/checksum.
 
-Top LED pair shows A's left/right direction, middle pair B's. Equal brightness
-can mean front or back. Bottom left indicates linked motion or Mixer editing A.
-Bottom right latches for callback ≥18 µs, block ≥1,200 µs or queue fault; hardware
-reset clears it. Crossing a warning threshold does not stop audio. An actual
-missed playback block outputs 64 frames of silence (1.33 ms); late audio is discarded.
-8mu D diagnostics show 150 µs block-time bands; flashing all LEDs indicates a warning.
 
-The user reports alpha14 tests pass, with peak callback **13 µs** and peak block
-**997 µs**, below warning thresholds. Run duration and measurement USB role were
-not supplied; callback timing excludes surrounding framework ISR work. Build and
-twelve sanitizer host suites plus editor lifecycle/preset tests pass. Generic
-short HRTFs may give front/back confusion; headphones and listener differences
-matter. [Hardware protocols and results](docs/TEST_PROTOCOL.md).
+Beta2 is preserved with its source/editor/firmware and original tester bundle in
+[archive/beta2](https://github.com/soveda/Spatial-Disorientation/tree/75d740e/archive/beta2/README.md). The two pitch/roll alpha experiments remain
+under archive/experimental/ for comparison; alpha1 uses the earlier reversed roll convention.
 
-Build: set `PICO_SDK_PATH` to Pico SDK 2.3.0, then `cmake -S . -B build` and
-`cmake --build build -j2`. ComputerCard 0.4.0 is vendored unmodified; 192 MHz / 1.15 V,
-48 kHz, 32 taps, RAM execution, 64-frame block processing with two-block transport
-latency (2.67 ms). [Build provenance](licenses/BUILD_COMPONENTS.md).
 
-## Attribution and licenses
+## Release layout and regression checks
 
-Original DSP, controls, editor and documentation: Adrian Vos (soveda), MIT.
-Hardware/build/editor conventions: Chris Johnson's ComputerCard 0.4.0 and
-web_interface; host integration: Chris Johnson's WaveSeq/EightMU and rppicomidi,
-MIT notices preserved. Block scheduling adapts Adrian Vos/contributors'
-Workshop_BlockAudioCard; mathematical sine values reuse You spin me round.
-Pico SDK is BSD-3-Clause with component notices; TinyUSB is MIT. Newlib/GCC runtime
-notices and the GCC runtime exception accompany the firmware.
+Current source, matching editor and firmware are in `src/`, `web/` and `uf2/`.
+`docs/` contains controls, test protocols and design history; `vendor/` and
+`licenses/` preserve attribution. Run `sh tests/run.sh` with Clang/Node installed
+for all23 ASan/UBSan host programs and editor regressions. Header-only comparison
+baselines are in [tests/reference](tests/reference/README.md); they are not alternate
+firmware. The full old source/UF2/editor archive and original tester packages remain
+in the standalone repository linked above. This release does not ship preview WAVs,
+local build caches or superseded firmware.
 
-Measured HRTF data: **Bill Gardner and Keith Martin, MIT Media Laboratory (1994)**,
-*HRTF Measurements of a KEMAR Dummy-Head Microphone*, Technical Report #280.
-[Original source](https://sound.media.mit.edu/resources/KEMAR.html);
-[retained terms and derivation](vendor/KEMAR/SOURCE_TERMS.md). The measurements
-retain their attribution terms and are not relicensed under MIT. Horizontal
-32-tap minimum-phase filters use separate analytical ear delays and a synthetic
-room model. Full source mapping, revisions and notices:
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+This updates the earlier card333 alpha14 horizontal32-tap package. **Export old
+presets with its old editor before Save.** Its protocol3/JSON3/flash4 differs from
+beta3's protocol7/JSON7/flash8. Beta3 imports old presets/flash in memory without
+an automatic write, with missing height/slope fields defaulting to level/zero.
+After beta3 Save, old firmware cannot read flash8. To downgrade, restore its UF2/
+editor from repository history and import/resave your old exports. Beta2 and the
+pitch/roll alphas already use7/7/8 and need no format migration.
+
+The recorded build uses PicoSDK2.3.0/ArmGNU15.2.Rel1. The SDK embeds the compilation
+date; an ordinary rebuild on another day changes that text. For byte reproduction
+of the distributed2026-10-15 firmware, build with `SOURCE_DATE_EPOCH=1792022400`.
+[Build verification details](docs/BUILD_STATUS.md).

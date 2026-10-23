@@ -1,7 +1,8 @@
-Firmware distribution notices — Spatial Disorientation card 333
-=================================================================
-
-Keep this file with the UF2. Original code/docs MIT; third-party terms retained.
+Spatial Disorientation 0.4.0-beta3 — user-tested pitch/roll alpha2 promotion
+Original code/docs: Adrian Vos (soveda), 2026, MIT.
+Elevation tables derive from Gardner/Martin MIT Media Laboratory 1994 data;
+measurement attribution terms remain separate. Preserve these notices with UF2.
+Pico SDK 2.3.0 / Arm GNU Toolchain 15.2.Rel1; dependency notices follow.
 
 
 ===== LICENSE =====
@@ -28,14 +29,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
 ===== THIRD_PARTY_NOTICES.md =====
 
 # Sources and attribution
 
 Original project code and documentation: Adrian Vos (soveda), 2026, MIT; see LICENSE.
 This grant covers original work, not relicensing of dependencies, measurement data
-or the copied upstream directive. The packaged firmware is the user-tested alpha14 build; historical alpha
+or the copied upstream directive. The current build is 0.4.0-beta3; historical alpha
 sections below identify when particular sources were introduced.
 
 ## Current source-to-file map
@@ -48,7 +48,7 @@ sections below identify when particular sources were introduced.
 | You spin me round, Adrian Vos | Reused values in src/dsp/sine_table.h | vendor/YouSpinMeRound/LICENSE |
 | Raspberry Pi Pico SDK | External linked SDK and copied pico_sdk_import.cmake | vendor/PicoSDK/LICENSE.TXT (BSD-3-Clause) |
 | TinyUSB / contributors | External linked host/device stack; configuration notice in src/tusb_config.h | vendor/TinyUSB/LICENSE and NOTICE.md; full Ha Thach notice in tusb_config.h |
-| Gardner/Martin MIT KEMAR data | vendor/KEMAR/diffuse.zip, src/dsp/hrtf_table_32.h and hrtf_table_64.h; HRTF previews | vendor/KEMAR/SOURCE_TERMS.md; data attribution in generated tables |
+| Gardner/Martin MIT KEMAR data | vendor/KEMAR/diffuse.zip, src/dsp/hrtf_table_32.h, hrtf_table_64.h and elevation_table.h; historical HRTF previews | vendor/KEMAR/SOURCE_TERMS.md; data attribution in generated tables |
 
 WaveSeq source and revision are in vendor/EightMU/SOURCE.md. Its web preset UI and
 switch-bank pickup were reviewed as examples, rather than copied wholesale.
@@ -59,8 +59,9 @@ Retain this file, LICENSE and the referenced vendor notices when redistributing.
 ## ComputerCard 0.4.0
 
 ComputerCard by Chris Johnson, copyright 2024–2026, MIT.
-The unmodified header is in vendor/ComputerCard/ComputerCard.h and the upstream
-license file is preserved beside it. The header also includes the full MIT notice.
+The header in vendor/ComputerCard/ComputerCard.h includes the locally attributed
+flash-pause/resume adaptation described in vendor/ComputerCard/PATCHES.md. The
+upstream license is preserved beside it and the full MIT notice remains in the header.
 The CMake setup follows ComputerCard's example build conventions; the initial
 firmware follows its passthrough example and README (Chris Johnson).
 pico_sdk_import.cmake is copied from the same upstream directory; the Raspberry Pi
@@ -255,22 +256,55 @@ additional external algorithm implementation or dataset is copied. Existing
 sine-table, ComputerCard, WaveSeq/EightMU/rppicomidi, block transport, Pico SDK/
 TinyUSB and Gardner/Martin KEMAR notices remain preserved and applicable.
 
-## Card 333 beta packaging
 
-Card 333 is a mnemonic for three spatial axes; it does not imply that elevation
-is implemented. This package preserves the tested alpha14 firmware and source
-snapshot. Original code/docs remain MIT; no Asterisk freeware terms are adopted.
-Licensing layout follows Adrian Vos's card 122 and its runtime notice collection,
-which preserves the third-party Newlib/GCC notices from Laboratory 0's card 369.
-Those component notices retain their original ownership and license terms.
+## Beta1 measured elevation, optimizations and sloping paths
 
-Keep LICENSE, this file, vendor notices and licenses/ with source distributions.
-The full consolidated uf2/NOTICE.txt accompanies firmware and must travel with
-standalone UF2 redistribution. This includes the KEMAR measurement attribution,
-which is separate from the MIT software grant. Toolchain/build provenance and
-linked runtime inventory: licenses/BUILD_COMPONENTS.md. No historical preview
-files or obsolete firmware are included in this release folder.
+0.2.0-beta1 promotes alpha26. Continuous height blends the existing horizontal
+bank with measured −40°/+40° KEMAR rings, using72direction bins and64tap minimum-
+phase ear filters. Measurements remain Gardner/Martin,MITMediaLaboratory1994,
+under vendor/KEMAR/SOURCE_TERMS.md; they are not covered by the original-code MIT
+license. The original generator is tools/generate_elevation.py; its historical
+record is archive/experimental/mixer-elevation-64/generation.json. Original
+continuous interpolation, HRTF address cache/FIR unroll/slew optimizations,
+Fig8/Pendulum/Wander height and slope rotation/asin table, code/tests/editor/docs:
+AdrianVos(soveda),2026,MIT. Slope introduces mathematical coordinates, not new
+measurements or borrowed Quasar DSP. Compiler/runtime notices in uf2/NOTICE.txt
+and licenses/ cover linked firmware components; preserve them on redistribution.
 
+
+## Beta2 Orbits elevation/pages and repeated-save fix
+
+0.3.0-beta2 promotes user-tested0.3.0alpha3, commitc6906d0. Original additions
+Adrian Vos(soveda),2026,MIT: Orbits saved height/uphill/tilt, layered8mu mapping,
+page-specific pickup/retention, LEDpage feedback, staged elevation randomise/reset
+and verified readback. Existing WaveSeq/EightMU/rppicomidi origins remain credited.
+The root ComputerCard0.4.0 header now carries a local attributed ADC/DMA pause/
+restart adaptation; original Chris Johnson2024–2026 MIT notice and API remain.
+See vendor/ComputerCard/PATCHES.md for exact modifications; beta1 retains the
+unmodified header in archive/beta1/vendor/ComputerCard. The sampler stops after
+mute before flash lockout and resumes in a known state afterwards. No new HRTF
+data or external DSP is added. Measurement and linked-runtime terms stay separate.
+
+
+## Beta3 direct pitch/roll motion
+
+0.4.0-beta3 promotes the user-tested0.4.0-alpha2-roll-polarity, commit67228dd.
+Direct gravity-vector atan lookup, neutral hold, corrected relative roll sign,
+Disorientation captured path rotation and tests/docs: Adrian Vos(soveda),2026,MIT.
+Reuses this project's existing integer atan table and WaveSeq/EightMU-derived
+mapping/pickup; no new external code/data. ComputerCard flash-pause adaptation,
+Gardner/Martin KEMAR terms and all linked dependency/runtime notices remain.
+
+
+## Card333 beta3 release packaging
+
+Workshop Computer Binaural-card release-folder update2026-10-22: Adrian Vos
+(soveda),MIT. Firmware/source correspond to standalone0.4.0-beta3 at75d740e;
+original test runner/docs and relocated comparison headers retain all attribution.
+Card333 denotes three spatial axes. Keep LICENSE, this file, vendor/ and licenses/
+with source; redistribute uf2/NOTICE.txt with UF2. KEMAR measurements retain their
+separate Gardner/Martin terms; no new measurement or Quasar data is included.
+No full development archive, historical previews or alternate firmware are shipped.
 
 ===== vendor/ComputerCard/LICENSE =====
 
@@ -294,8 +328,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 Copyright (c) 2023 rppicomidi
 
-
-===== vendor/EightMU/LICENSE.txt =====
+===== LICENSE.txt =====
 
 MIT License
 
@@ -341,7 +374,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-
 ===== vendor/Workshop_BlockAudioCard/LICENSE =====
 
 MIT License
@@ -365,7 +397,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
 
 ===== vendor/YouSpinMeRound/LICENSE =====
 
@@ -391,7 +422,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
 ===== vendor/PicoSDK/LICENSE.TXT =====
 
 Copyright 2020 (c) 2020 Raspberry Pi (Trading) Ltd.
@@ -415,36 +445,6 @@ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PRO
 SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-===== licenses/PICO_PRINTF_LICENSE.txt =====
-
-///////////////////////////////////////////////////////////////////////////////
-// \author (c) Marco Paland (info@paland.com)
-//             2014-2019, PALANDesign Hannover, Germany
-//
-// \license The MIT License (MIT)
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-//
-
-
-
 ===== vendor/TinyUSB/LICENSE =====
 
 The MIT License (MIT)
@@ -468,7 +468,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
-
 
 ===== vendor/TinyUSB/NOTICE.md =====
 
@@ -574,7 +573,6 @@ src/tusb.c:
 Copyright (c) 2019 Ha Thach (tinyusb.org)
 ```
 
-
 ===== vendor/KEMAR/SOURCE_TERMS.md =====
 
 # MIT KEMAR measurement source and usage terms
@@ -630,109 +628,35 @@ ear-delay bounds for both banks, including partially updated coefficient vectors
 See generation.json for each bank's approximation metrics. The optimization and
 longer filter do not establish personal localization accuracy or on-device timing.
 
+===== PICO_PRINTF_LICENSE.txt =====
 
-===== licenses/BUILD_COMPONENTS.md =====
-
-# Firmware build and component provenance
-
-Original record: Adrian Vos (soveda), 2026, MIT. Third-party notices retain their
-own copyright/license terms. Recorded 2026-10-10 for card 333 beta packaging.
-
-- Firmware: user-tested 0.1.0-alpha14, preserved byte for byte (not rebuilt for distribution).
-- Source snapshot: Spatial Disorientation commit `3a01fca91a527cf171efcacae5bc93760924d34e`.
-- ComputerCard: unmodified 0.4.0, MIT (vendor/ComputerCard).
-- CPU/audio/FIR: 192 MHz / 1.15 V, 48 kHz, 32 taps; 64-frame block worker.
-- Pico SDK: revision `98a542c1a62fb549ffb5d66a3e5892b06276b670`; BSD-3-Clause and component terms.
-- TinyUSB: revision `86ad6e56c1700e85f1c5678607a762cfe3aa2f47`; MIT, contributor notices in vendor/TinyUSB.
-- Compiler: Arm GNU Toolchain 15.2.Rel1 (Build arm-15.86), GCC 15.2.1 20251203.
-- GNU toolchain manifest: ARM_TOOLCHAIN_MANIFEST.txt (preserved installed manifest).
-- Link map identifies Newlib libg.a (C runtime) and GCC libgcc.a. Retained runtime
-  notices: TOOLCHAIN_NOTICES.txt, copied unchanged from card 122's collection
-  derived from card 369. GCC runtime exception is included; this does not change
-  the application MIT license. The reference notice collection is broader than
-  the linked runtime and is not itself an exact source-version inventory.
-- Linked Pico SDK printf preserves Marco Paland's 2014–2019 MIT notice in
-  PICO_PRINTF_LICENSE.txt, copied from the actual SDK source header.
-- KEMAR measurement authors/terms: Bill Gardner and Keith Martin, MIT Media
-  Laboratory, 1994; vendor/KEMAR/SOURCE_TERMS.md. Not an MIT software license.
-
-SHA-256: `9a9ad50c2719652c40bd4302dca882e2c9d7477e0da6f401a37e3d076978b3ec`.
-User reports alpha14 tests pass, peak callback 13 us / block 997 us. No run duration
-or USB role supplied for those readings; callback is not the complete ISR.
-
-Runtime archive members listed by the original link map (includes discarded
-sections; not every listed member necessarily contributes to final machine code):
-
-- `_dvmd_tls.o`
-- `libc_a-calloc.o`
-- `libc_a-callocr.o`
-- `libc_a-categories.o`
-- `libc_a-closer.o`
-- `libc_a-ctype_.o`
-- `libc_a-div.o`
-- `libc_a-environ.o`
-- `libc_a-envlock.o`
-- `libc_a-errno.o`
-- `libc_a-fclose.o`
-- `libc_a-fflush.o`
-- `libc_a-findfp.o`
-- `libc_a-freer.o`
-- `libc_a-fwalk.o`
-- `libc_a-getenv_r.o`
-- `libc_a-gettzinfo.o`
-- `libc_a-gmtime_r.o`
-- `libc_a-impure.o`
-- `libc_a-iswspace.o`
-- `libc_a-iswspace_l.o`
-- `libc_a-jp2uc.o`
-- `libc_a-lcltime_r.o`
-- `libc_a-locale.o`
-- `libc_a-lock.o`
-- `libc_a-lseekr.o`
-- `libc_a-malloc.o`
-- `libc_a-mallocr.o`
-- `libc_a-mbrtowc.o`
-- `libc_a-mbtowc_r.o`
-- `libc_a-memcmp.o`
-- `libc_a-memmove.o`
-- `libc_a-mktime.o`
-- `libc_a-mlock.o`
-- `libc_a-month_lengths.o`
-- `libc_a-readr.o`
-- `libc_a-realloc.o`
-- `libc_a-reallocr.o`
-- `libc_a-reent.o`
-- `libc_a-sbrkr.o`
-- `libc_a-sccl.o`
-- `libc_a-siscanf.o`
-- `libc_a-stdio.o`
-- `libc_a-strcasecmp.o`
-- `libc_a-strcat.o`
-- `libc_a-strchr.o`
-- `libc_a-strcmp.o`
-- `libc_a-strcpy.o`
-- `libc_a-strlcpy.o`
-- `libc_a-strlen-stub.o`
-- `libc_a-strncasecmp.o`
-- `libc_a-strncmp.o`
-- `libc_a-strncpy.o`
-- `libc_a-strtol.o`
-- `libc_a-strtoll.o`
-- `libc_a-strtoul.o`
-- `libc_a-strtoull.o`
-- `libc_a-svfiscanf.o`
-- `libc_a-sysconf.o`
-- `libc_a-tzcalc_limits.o`
-- `libc_a-tzlock.o`
-- `libc_a-tzset.o`
-- `libc_a-tzset_r.o`
-- `libc_a-tzvars.o`
-- `libc_a-ungetc.o`
-- `libc_a-wctomb_r.o`
-- `libc_a-writer.o`
+///////////////////////////////////////////////////////////////////////////////
+// \author (c) Marco Paland (info@paland.com)
+//             2014-2019, PALANDesign Hannover, Germany
+//
+// \license The MIT License (MIT)
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
 
 
-===== licenses/TOOLCHAIN_NOTICES.txt =====
+===== TOOLCHAIN_NOTICES.txt =====
 
 Toolchain reference notices
 ===========================
@@ -3045,3 +2969,143 @@ the library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.  But first, please read
 <http://www.gnu.org/philosophy/why-not-lgpl.html>.
 
+
+Local ComputerCard 0.4.0 pause/resume adaptation: original Chris Johnson MIT notice preserved; additions Adrian Vos (soveda), 2026, MIT. See vendor/ComputerCard/PATCHES.md in this experiment.
+
+===== licenses/BUILD_COMPONENTS.md =====
+
+# Firmware build and component provenance — beta3
+
+Original record ©2026 Adrian Vos(soveda), MIT. Third-party notices retain their
+own ownership/terms. Recorded2026-10-15 for0.3.0-beta3.
+
+- Distributed firmware: user-tested0.4.0-alpha2-roll-polarity, preserved byte-for-byte; root
+  rebuild matches. Source checkpoint67228dd, with packaging/path/doc changes only.
+- SHA256: `ff641228bbca88632c47de0419f0194238a98026c79164e5411022e0fdc92149`.
+- ComputerCard0.4.0, Chris Johnson MIT, with local Adrian Vos MIT flash-pause/
+  restart additions; vendor/ComputerCard/PATCHES.md records the adaptation.
+- CPU192MHz/1.15V,48kHz, two64tap sources,64frame worker,128frame transport.
+- PicoSDK2.3.0 revision`98a542c1a62fb549ffb5d66a3e5892b06276b670`;
+  BSD-3-Clause plus component terms in vendor/PicoSDK/LICENSE.TXT.
+- TinyUSB revision`86ad6e56c1700e85f1c5678607a762cfe3aa2f47`;
+  MIT/contributor notices in vendor/TinyUSB.
+- Compiler ArmGNU15.2.Rel1, GCC15.2.1; installed ARM_TOOLCHAIN_MANIFEST.txt retained.
+- Linked C/runtime archives Newlib libg.a and GCC libgcc.a; TOOLCHAIN_NOTICES.txt
+  preserves the full notice collection derived from card369 via card122, including
+  the GCC runtime exception. This broad collection is not an exact version inventory.
+- Pico printf Marco Paland2014–2019 MIT notice preserved from SDK source in
+  PICO_PRINTF_LICENSE.txt. ComputerCard/EightMU/rppicomidi/Workshop_BlockAudioCard
+  and related adaptation notices remain in repository and firmware notice bundle.
+- KEMAR measurements Bill Gardner/Keith Martin, MIT Media Laboratory1994:
+  vendor/KEMAR/SOURCE_TERMS.md. Separate measurement terms, not MIT software.
+- User reports pitch/roll alpha2 tests pass; earlier save-fix/pages passed. No new pitch/roll peak or duration
+  supplied; do not present older horizontal/alpha26 timings as beta3 profiling.
+
+Runtime archive members named in the current link map follow. Inclusion in the
+map can include discarded sections and is not proof that every member contributes
+instructions to the final image:
+
+- `_dvmd_tls.o`
+- `libc_a-calloc.o`
+- `libc_a-callocr.o`
+- `libc_a-categories.o`
+- `libc_a-closer.o`
+- `libc_a-ctype_.o`
+- `libc_a-div.o`
+- `libc_a-environ.o`
+- `libc_a-envlock.o`
+- `libc_a-errno.o`
+- `libc_a-fclose.o`
+- `libc_a-fflush.o`
+- `libc_a-findfp.o`
+- `libc_a-freer.o`
+- `libc_a-fwalk.o`
+- `libc_a-getenv_r.o`
+- `libc_a-gettzinfo.o`
+- `libc_a-gmtime_r.o`
+- `libc_a-impure.o`
+- `libc_a-iswspace.o`
+- `libc_a-iswspace_l.o`
+- `libc_a-jp2uc.o`
+- `libc_a-lcltime_r.o`
+- `libc_a-locale.o`
+- `libc_a-lock.o`
+- `libc_a-lseekr.o`
+- `libc_a-malloc.o`
+- `libc_a-mallocr.o`
+- `libc_a-mbrtowc.o`
+- `libc_a-mbtowc_r.o`
+- `libc_a-memcmp.o`
+- `libc_a-memmove.o`
+- `libc_a-mktime.o`
+- `libc_a-mlock.o`
+- `libc_a-month_lengths.o`
+- `libc_a-readr.o`
+- `libc_a-realloc.o`
+- `libc_a-reallocr.o`
+- `libc_a-reent.o`
+- `libc_a-sbrkr.o`
+- `libc_a-sccl.o`
+- `libc_a-siscanf.o`
+- `libc_a-stdio.o`
+- `libc_a-strcasecmp.o`
+- `libc_a-strcat.o`
+- `libc_a-strchr.o`
+- `libc_a-strcmp.o`
+- `libc_a-strcpy.o`
+- `libc_a-strlcpy.o`
+- `libc_a-strlen-stub.o`
+- `libc_a-strncasecmp.o`
+- `libc_a-strncmp.o`
+- `libc_a-strncpy.o`
+- `libc_a-strtol.o`
+- `libc_a-strtoll.o`
+- `libc_a-strtoul.o`
+- `libc_a-strtoull.o`
+- `libc_a-svfiscanf.o`
+- `libc_a-sysconf.o`
+- `libc_a-tzcalc_limits.o`
+- `libc_a-tzlock.o`
+- `libc_a-tzset.o`
+- `libc_a-tzset_r.o`
+- `libc_a-tzvars.o`
+- `libc_a-ungetc.o`
+- `libc_a-wctomb_r.o`
+- `libc_a-writer.o`
+
+===== vendor/ComputerCard/PATCHES.md =====
+
+# Local ComputerCard 0.4.0 flash-pause adaptation
+
+Original ComputerCard ©2024–2026 Chris Johnson, MIT. Full original notice is
+preserved in ComputerCard.h and LICENSE. Local additions ©2026 Adrian Vos
+(soveda), MIT. Source baseline: repository vendor/ComputerCard/ComputerCard.h,
+version0.4.0 dated14June2026. This is a local adaptation, not a new upstream version.
+
+Why: the old card faded and locked out core0 while ADC continued running. Its
+FIFO/DMA sampling pipeline can lose channel/mux alignment during flash stalls.
+A user reported failed repeated saves, then rapid false CV and stopped audio.
+This is a plausible sequencing defect; hardware reproduction/confirmation remains
+pending. Do not call the candidate hardware-validated from host tests.
+
+Four added public methods: RequestAudioPauseForFlash, AudioPausedForFlash,
+ResumeAudioAfterFlash, AudioRunningAfterFlash. Only core1 writes the aligned
+flashPauseRequested word. Core0 alone owns hardware/run mode. The existing mute
+handshake precedes a pause request. BufferFull stops ADC, disables DMAIRQ0, aborts
+ADC/SPI DMA, clears the pending ADC IRQ and drains FIFO at the end of a sample.
+The main Run loop stays alive, permitting FIFO flash lockout while audio is paused.
+
+Release clears the request. Foreground Run drains FIFO, clears FIFO errors,
+restarts existing ADC/SPI DMA buffers (without claiming new channels), resets ADC
+round robin/input0 and enables ADCIRQ/sampling, then publishes Running. Existing
+mux state, double-buffer phase, pickup/control history and block transport state
+are preserved. Save holds the output fade/timing suppression until restart.
+A canceled request also clears cleanly if core0 has not paused yet. Existing Abort
+semantics and upstream API access levels remain. Original enum values0–3 are
+preserved; local state4 means flash-paused. No hardware-input read moves outside
+ProcessSample; only the sampling engine's stop/restart is controlled here.
+
+The normal BufferFull path gains a pause-request check outside measured user
+ProcessSample duration. Hardware must validate total framework timing as well as
+reported callback/block peaks; no claim of zero scheduling overhead is made.
+The root vendor header and all beta/alpha1 code/UF2 remain unchanged.

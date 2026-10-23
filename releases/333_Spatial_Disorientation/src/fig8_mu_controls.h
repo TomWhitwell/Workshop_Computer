@@ -25,29 +25,32 @@ public:
         else if(!in.connected)d_ticks_=0;
         if(pressed&2){
             motion_=!motion_;
-            if(motion_)Recenter((pending_&1)?last_[0]:panel[0],in.roll);
+            if(motion_)Recenter((pending_&1)?last_[0]:panel[0],in.pitch,in.roll);
         }
         bool reset=(pressed&1)!=0;
-        if(reset)Recenter(panel[0],in.roll);
+        if(reset)Recenter(panel[0],in.pitch,in.roll);
         // Share the tested fader pickup implementation, but handle Fig8 buttons
         // and bounded depth motion here rather than using circular heading.
-        MuInput faders=in;faders.buttons=0;faders.roll=faders.yaw=0;
+        MuInput faders=in;faders.buttons=0;faders.roll=faders.pitch=faders.yaw=0;
         if(pending_&2)x=last_[1];
         if(pending_&4)y=last_[2];
         controls_.Apply(faders,main,x,y,cfg,false,false);
         uint32_t owners=(controls_.Picked()&1?2u:0u)|(controls_.Picked()&2?4u:0u);
         if(motion_){
             int32_t amount=controls_.MotionDepth();
-            int32_t yaw=Clamp(in.yaw,-2032,2032);
-            if(yaw>-32&&yaw<32)yaw=0;
-            // Integrate rotation rate in Q12 knob units, saturating at both
-            // depth limits. At full amount/rate, the full range takes ~2 s.
-            position_=Clamp(position_+((yaw*amount)>>12)*4,0,4095*4096);
-            int32_t tilt=((Clamp(in.roll,-2032,2032)-roll_zero_)*amount)>>12;
-            int32_t desired=Clamp((position_>>12)+tilt,0,4095);
+            // Pitch places front/back depth directly; roll turns the whole
+            // path left/right. No angular-rate integration or yaw dependency.
+            int32_t forward=((Clamp(in.pitch,-2032,2032)-pitch_zero_)*amount)>>12;
+            // EightMU positive roll lifts the right edge: invert for right-edge-down = right.
+            int32_t sideways=((roll_zero_-Clamp(in.roll,-2032,2032))*amount)>>12;
+            int32_t desired=Clamp(anchor_-forward,0,4095);
+            rotation_target_=static_cast<uint32_t>(sideways)*524288u;
             depth_=Clamp(Slew(depth_,desired,16),0,4095);
             main=depth_;owners|=1;
         }
+        if(!motion_)rotation_target_=0;
+        int32_t angular_delta=static_cast<int32_t>(rotation_target_-rotation_);
+        rotation_+=static_cast<uint32_t>(angular_delta/16+(angular_delta>0?1:(angular_delta<0?-1:0)));
         int32_t values[3]={main,x,y};
         for(int i=0;i<3;++i){
             uint32_t bit=1u<<i;
@@ -66,6 +69,7 @@ public:
         frozen_=in.connected&&(in.buttons&4);
         return reset;
     }
+    uint32_t Rotation()const{return rotation_;}
     bool Motion()const{return motion_;}
     bool Frozen()const{return frozen_;}
     uint32_t Picked()const{return controls_.Picked();}
@@ -76,13 +80,13 @@ public:
             |(movement_<<13)|(d_ticks_>=500?32768u:0u);
     }
 private:
-    void Recenter(int32_t main,int32_t roll){
-        depth_=Clamp(main,0,4095);position_=depth_*4096;roll_zero_=Clamp(roll,-2032,2032);
+    void Recenter(int32_t main,int32_t pitch,int32_t roll){
+        depth_=anchor_=Clamp(main,0,4095);roll_zero_=Clamp(roll,-2032,2032);pitch_zero_=Clamp(pitch,-2032,2032);rotation_=rotation_target_=0;
     }
     MuControls controls_;
-    int32_t last_[3]={},previous_panel_[3]={},depth_=2048,position_=2048*4096,roll_zero_=0;
+    int32_t last_[3]={},previous_panel_[3]={},depth_=2048,anchor_=2048,roll_zero_=0,pitch_zero_=0;
     uint32_t session_=0,previous_buttons_=0,pending_=0,owned_=0;
-    uint32_t movement_=0,d_ticks_=0;
+    uint32_t movement_=0,d_ticks_=0,rotation_=0,rotation_target_=0;
     bool initialized_=false,connected_=false,motion_=false,frozen_=false;
 };
 }
