@@ -48,13 +48,17 @@ Rad v9 keeps the Turing machine hardware interface from Core while adding full d
 - Ring, noise, MIDI channel, Turing range, and Turing MIDI settings persist;
   the baseline for Turing MIDI output is off.
 
+The base PD amount remains shared between oscillators; the PD envelopes are
+independent. CV In 1 modulates the shared PD amount and CV In 2 modulates both
+waveform controls. RAD has no Gnarly recipe banks or oscillator 2 panel page.
+
 ## Controls
 
 Switch middle: synth mode.
 
 - Main: pitch
 - X: phase distortion
-- Y: waveform
+- Y: oscillator 1 waveform (oscillator 2 waveform is set in the editor)
 - `CV In 1`: phase-distortion modulation
 - `CV In 2`: waveform modulation
 - `Pulse In 2`: gate-held envelope trigger/release and oscillator sync
@@ -83,7 +87,7 @@ MIDI CC controls on the selected input channel:
 - `CC20`: oscillator 2 detune
 - `CC21`: ring modulation
 - `CC22`: noise amount
-- `CC23`: waveform
+- `CC23`: oscillator 1 waveform
 - `CC24`: Turing CV octave range, from 1 to 8 octaves
 
 The physical knobs and MIDI CC controls share the same control values. After a
@@ -160,8 +164,10 @@ Import Lab flow:
 ## How To Use The Editor
 
 1. Pick a preset on the left, or add a custom one.
-2. Choose `Amplitude` or `Phase Distortion` to focus the main graph lane.
-3. Use the Pitch Envelope graph below it to adjust pitch movement.
+2. Choose `Amp 1 / Osc 1`, `Amp 2 / Osc 2`, `PD 1 / Osc 1`, or
+   `PD 2 / Osc 2` to edit the corresponding main graph lane.
+3. Use `Pitch 1 / Osc 1` and `Pitch 2 / Osc 2` below the main graph
+   to edit each oscillator's pitch envelope.
 4. Drag points on the graphs to change both level and timing.
 5. Watch the point numbers. When stages stack, only the highest number is shown.
 6. Use the tables below the graphs for exact values when you want precise edits.
@@ -171,9 +177,12 @@ Import Lab flow:
 Button quick reference:
 
 - `Load RAM`: send the envelope to the card until reset.
-- `Load Envelope + Settings`: temporarily load the selected envelope and send
+- `Load Sound Preset`: temporarily load the selected envelope and send
   all current settings in one action.
-- `Save Envelope`: store the selected custom envelope in flash.
+- `Save Envelope Only`: store the six envelope lanes and slot name in flash,
+  leaving the slot's saved performance settings unchanged.
+- `Save Sound Preset`: store the six lanes, slot name, and current performance
+  settings together in the selected custom slot.
 - `Delete Envelope Slot`: clear the selected custom slot from card flash.
 - `Read Envelopes from Card`: load occupied card slots into the editor without
   overwriting changed local drafts.
@@ -181,10 +190,12 @@ Button quick reference:
 - `Send Settings`: send the current performance settings to the card.
 - `Reset Preset`: restore the selected preset to its factory value.
 
-`Load RAM`, `Load Envelope + Settings`, and `Send Settings` are temporary. Use
-`Save Envelope` to retain an envelope in flash. To make the current performance
-settings the startup baseline, move the hardware switch from middle to down and
-hold it until the card confirms the save.
+`Load RAM`, `Load Sound Preset`, and `Send Settings` are temporary. Use
+`Save Envelope Only` to save lane edits without replacing the slot's settings,
+or `Save Sound Preset` to save a complete named sound. Saved slot settings are
+restored when that sound preset is selected. To make the current performance
+settings the global startup baseline, move the hardware switch from middle to
+down and hold it until the card confirms the save.
 
 The card can save up to eight custom envelopes. Factory presets are not
 overwritten. Custom presets are labelled `Local only`, `Saved - slot N`, or
@@ -207,6 +218,8 @@ Envelope behaviour:
 
 ## Build
 
+From this firmware source folder:
+
 ```sh
 cmake -S . -B build
 cmake --build build
@@ -215,14 +228,7 @@ cmake --build build
 The built UF2 will be:
 
 ```text
-build/C1ZZL3.uf2
-```
-
-The production source build currently reports:
-
-```text
-FLASH: 146736 B
-RAM: 155644 B
+build/C1ZZL3_FULL_DUAL_OSCILLATORS.uf2
 ```
 
 ## Stability Notes

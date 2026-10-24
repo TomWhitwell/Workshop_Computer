@@ -19,7 +19,7 @@ CARD_README.md
 Current stable UF2:
 
 ```text
-uf2/C1ZZL3.uf2
+uf2/C1ZZL3_CORE.uf2
 ```
 
 Checksum:
@@ -58,7 +58,16 @@ Lab. RAD v9 adds independently editable Amp1/Amp2, PD1/PD2, and Pitch1/Pitch2
 envelopes, separate oscillator waveform-family settings, named sound-preset
 slots, saved sound-preset settings, and editor readback for those settings.
 
-## Current Stable Feature Set
+Core 1.4 shares its Amp, PD, Pitch, waveform, and base PD controls between both
+oscillators. RAD v9 separates the six envelope lanes and oscillator waveform
+settings while retaining a shared base PD amount and the same panel/CC map.
+Use the [RAD README](rad/README.md) and [RAD card guide](rad/CARD_README.md)
+for its editing, sound-preset saving, and source-build instructions.
+
+Unlike Gnarly, both Core and RAD retain Turing mode, use detune/ring/noise on
+the switch-down page, and have no recipe banks or oscillator 2 panel page.
+
+## Core 1.4 Feature Set
 
 - Phase-distortion synth voice.
 - Factory envelopes plus eight protected custom envelope slots.
@@ -186,8 +195,10 @@ Import Lab flow:
 ## How To Use The Editor
 
 1. Pick a preset on the left, or add a custom one.
-2. Choose `Amplitude` or `Phase Distortion` to focus the main graph lane.
-3. Use the Pitch Envelope graph below it to adjust pitch movement.
+2. Choose `Amp 1 / Osc 1` or `PD 1 / Osc 1` for Core's amplitude or
+   phase-distortion envelope; Core shares these lanes between both oscillators.
+3. Use `Pitch 1 / Osc 1` below the main graph for Core's shared pitch
+   envelope. Independent oscillator 2 lanes require RAD firmware.
 4. Drag points on the graphs to change both level and timing.
 5. Watch the point numbers. When stages stack, only the highest number is shown.
 6. Use the tables below the graphs for exact values when you want precise edits.
@@ -197,9 +208,11 @@ Import Lab flow:
 Button quick reference:
 
 - `Load RAM`: send the envelope to the card until reset.
-- `Load Envelope + Settings`: temporarily load the selected envelope and send
+- `Load Sound Preset`: temporarily load the selected envelope and send
   all current settings in one action.
-- `Save Envelope`: store the selected custom envelope in flash.
+- `Save Envelope Only`: store the selected compatible custom envelope in flash.
+- `Save Sound Preset`: on Core, falls back to a compatible envelope save;
+  per-slot names and performance settings require RAD.
 - `Delete Envelope Slot`: clear the selected custom slot from card flash.
 - `Read Envelopes from Card`: load occupied card slots into the editor without
   overwriting changed local drafts.
@@ -207,8 +220,8 @@ Button quick reference:
 - `Send Settings`: send the current performance settings to the card.
 - `Reset Preset`: restore the selected preset to its factory value.
 
-`Load RAM`, `Load Envelope + Settings`, and `Send Settings` are temporary. Use
-`Save Envelope` to retain an envelope in flash. To make the current performance
+`Load RAM`, `Load Sound Preset`, and `Send Settings` are temporary. Use
+`Save Envelope Only` to retain an envelope in flash. To make the current performance
 settings the startup baseline, move the hardware switch from middle to down and
 hold it until the card confirms the save.
 
@@ -232,6 +245,8 @@ Envelope behaviour:
   to reduce clicks.
 
 ## Build
+
+From this firmware source folder:
 
 ```sh
 cmake -S . -B build

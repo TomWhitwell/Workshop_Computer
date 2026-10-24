@@ -1,9 +1,18 @@
-# C1ZZL3 Card Guide
+# C1ZZL3 RAD Card Guide
 
 C1ZZL3 is a phase-distortion synth card for the Music Thing Modular Workshop
 Computer. It combines a playable digital synth voice, a Turing machine, USB
 MIDI, and a browser editor for custom amplitude, phase-distortion, and pitch
 envelopes.
+
+This guide covers RAD v9. Flash [C1ZZL3_RAD.uf2](../uf2/C1ZZL3_RAD.uf2).
+RAD retains Core 1.4's panel and Turing controls and adds independent Amp1/Amp2,
+PD1/PD2, and Pitch1/Pitch2 envelopes, separate oscillator waveform settings,
+and eight named sound-preset slots with saved performance settings.
+
+The base PD amount remains shared between oscillators; the PD envelopes are
+independent. CV In 1 modulates the shared PD amount and CV In 2 modulates both
+waveform controls. RAD has no Gnarly recipe banks or oscillator 2 panel page.
 
 ## What It Does
 
@@ -21,7 +30,8 @@ Put the switch in the middle.
 
 - Main sets pitch.
 - X sets phase distortion.
-- Y selects or morphs the waveform.
+- Y selects or morphs oscillator 1's waveform; set oscillator 2's waveform
+  separately in the browser editor.
 - `Audio/CV In 1` adds pitch at 1V/oct.
 - `CV In 1` adds phase distortion.
 - `CV In 2` adds wave control.
@@ -40,8 +50,9 @@ Hold the switch down from the middle position.
 - X sets ring modulation.
 - Y sets noise/grit.
 
-Ring and noise start neutral after reset. If the card powers up with the switch
-already down, ring/noise editing waits until the switch has first left down.
+Ring and noise default to neutral; saved performance settings restore at startup.
+If the card powers up with the switch already down, ring/noise editing waits
+until the switch has first left down.
 
 Hold the switch down from the middle position to save the current performance
 settings.
@@ -77,7 +88,7 @@ MIDI CC controls on the selected input channel:
 - `CC20`: oscillator 2 detune
 - `CC21`: ring modulation
 - `CC22`: noise amount
-- `CC23`: waveform
+- `CC23`: oscillator 1 waveform
 - `CC24`: Turing CV octave range, from 1 to 8 octaves
 
 Physical knobs use pickup after MIDI changes, so values do not jump until the
@@ -99,8 +110,10 @@ Use Chrome or another browser with Web MIDI and SysEx support. Press `MIDI`,
 choose the C1ZZL3 output, then:
 
 1. Pick a preset on the left, or add a custom one.
-2. Choose `Amplitude` or `Phase Distortion` to focus the main graph lane.
-3. Use the Pitch Envelope graph below it to adjust pitch movement.
+2. Choose `Amp 1 / Osc 1`, `Amp 2 / Osc 2`, `PD 1 / Osc 1`, or
+   `PD 2 / Osc 2` to edit the corresponding main graph lane.
+3. Use `Pitch 1 / Osc 1` and `Pitch 2 / Osc 2` below the main graph
+   to edit each oscillator's pitch envelope.
 4. Drag points on the graphs to change both level and timing.
 5. Watch the point numbers. When stages stack, only the highest number is shown.
 6. Use the tables below the graphs for exact values when you want precise edits.
@@ -109,20 +122,24 @@ choose the C1ZZL3 output, then:
 Button quick reference:
 
 - `Load RAM` to send a custom envelope until reset.
-- `Load Envelope + Settings` to temporarily send the selected envelope and all
+- `Load Sound Preset` to temporarily send the selected envelope and all
   current settings together.
-- `Save Envelope` to write a custom envelope to the card.
+- `Save Envelope Only` to write the six envelope lanes and slot name while
+  keeping the slot's saved performance settings.
+- `Save Sound Preset` to save the six lanes, name, and current performance
+  settings together.
 - `Delete Envelope Slot` to clear a custom envelope slot.
 - `Read Envelopes from Card` to load saved card envelopes into the editor.
 - `Read Settings from Card` to load the current card settings into the editor.
 - `Send Settings` to send performance settings until reset.
 - `Reset Preset` to restore the selected preset to its factory value.
 
-The card can save up to eight custom envelopes. Factory presets are not
-overwritten. Temporary envelope and settings changes are lost at restart. Use
-`Save Envelope` for the envelope, then hold the hardware switch down from the
-middle position to save the current performance settings as the startup
-baseline.
+The card can save up to eight named custom sound presets. Factory presets are
+not overwritten. Temporary changes are lost at restart. Use `Save Envelope Only`
+for lane edits or `Save Sound Preset` for lanes, name, and performance settings.
+Selecting a saved sound preset restores its settings. Hold the hardware switch
+down from the middle position to save the current performance settings as the
+global startup baseline.
 
 ## C1ZZL3 Import Lab
 
@@ -178,7 +195,7 @@ In startup envelope selection:
 
 ## Build UF2
 
-From the repository root:
+From this firmware source folder:
 
 ```sh
 cmake -S . -B build
@@ -188,5 +205,5 @@ cmake --build build
 The built firmware will be at:
 
 ```text
-build/C1ZZL3.uf2
+build/C1ZZL3_FULL_DUAL_OSCILLATORS.uf2
 ```

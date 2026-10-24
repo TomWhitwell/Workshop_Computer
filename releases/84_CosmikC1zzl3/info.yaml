@@ -1,17 +1,20 @@
 Name: Cosmik C1ZZL3
 draft: false
 date-created: 2026-07-22
-date-updated: 2026-07-24
+date-updated: 2026-10-24
 summary: Dual phase-distortion synthesiser and Turing machine release with Core
   1.4 and alternate Rad v9 firmware. Both support USB MIDI, a shared browser
   editor and CZ patch Import Lab, optional Turing MIDI output, and Turing CV and
-  pulse outputs. Rad v9 adds independently editable envelopes, pitch envelopes,
-  and waveform families for both oscillators.
+  pulse outputs. Core shares its amplitude, phase-distortion, pitch envelopes,
+  and waveform settings between oscillators. Rad v9 adds six independent envelope
+  lanes, separate oscillator waveform settings, and eight named sound-preset
+  slots with saved performance settings. Both retain a shared base PD amount
+  and the same physical controls and MIDI CC map.
 short-description: dual phase-distortion synth and Turing
   machine firmware with shared Web MIDI editing and CZ patch import.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
-Version: "1.4"
+Version: "Core 1.4 / RAD v9"
 Status: Beta
 License: MIT
 demo-link: https://www.youtube.com/watch?v=wv4BscxiBcc
@@ -36,7 +39,8 @@ panel:
       name: |-
         Wave Control
         CV
-      description: Adds wave control in synth and Turing modes
+      description: Adds wave control in synth and Turing modes; modulates both
+        oscillator waveform controls in RAD
       type: cv
     - id: PulseIn1
       name: |-
@@ -103,7 +107,7 @@ controls:
       description: "Z up: MAIN: Mutation; X: Sequence Length; Y: Clock Speed."
     middle:
       name: Synthesiser mode
-      description: "Z middle: MAIN: Pitch; X: Phase Distortion; Y: Waveform Morph."
+      description: "Z middle: MAIN: Pitch; X: shared Phase Distortion amount; Y: Waveform Morph (oscillator 1 in RAD; oscillator 2 is set in the editor)."
     down:
       name: Edit/save
       description: "Z down, hold: MAIN: Detune; X: Ring Modulation; Y: Noise/Grit."
@@ -120,7 +124,8 @@ controls:
         name: |-
           Waveform
           Morph/clock
-        description: Waveform selection/morph
+        description: Waveform selection/morph for both oscillators in Core; oscillator
+          1 only in RAD, with oscillator 2 set in the browser editor
   leds:
     - display: list
       items:
@@ -154,7 +159,8 @@ host:
     for high-PD tones.
 
     Switch middle is PD synth mode (Main = pitch, X = phase distortion, Y =
-    waveform morph). Pulse In 2 and MIDI note-on loop supported envelopes while
+    waveform morph, controlling oscillator 1 in RAD). Pulse In 2 and MIDI
+    note-on loop supported envelopes while
     held; gate/note-off lets the envelope complete naturally.
 
     Hold switch down from middle for performance edit (detune, ring modulation,
@@ -165,8 +171,22 @@ host:
     Turing CV and pulse outputs continue running in synth mode. Turing MIDI
     output is optional and defaults off.
 
-    Factory envelope presets are never overwritten; custom envelopes use
-    separate browser-stored slots.
+    Core shares its Amp, PD, Pitch, and waveform settings between oscillators.
+    RAD provides six independent envelope lanes and separate waveform settings;
+    its base PD amount remains shared. The panel Y knob and CC23 control
+    oscillator 1 waveform in RAD; oscillator 2 waveform is set in the editor.
+    CV In 1 modulates shared PD and CV In 2 modulates both waveform controls.
+
+    Factory envelope presets are never overwritten. Up to eight custom slots
+    are stored in card flash; browser drafts are separate. Save Envelope Only
+    stores compatible envelope data. On RAD, Save Sound Preset stores all six
+    lanes, the slot name, and current performance settings; on Core it falls
+    back to an envelope save. Load RAM, Load Sound Preset, and Send Settings
+    are temporary. Hold the switch down from middle to save the global startup
+    settings baseline.
+
+    Unlike Gnarly, Core and RAD retain Turing mode and do not provide recipe
+    banks or an oscillator 2 panel page.
 
     Envelope Lab edits and reads back envelopes and settings. C1ZZL3 Import Lab
     prepares translated Casio CZ drafts, including pitch envelopes, for review
