@@ -141,12 +141,7 @@ public:
 
     void SendPendingUsbMidiOutput()
     {
-        // This voice has no generated MIDI performance output. Keep the
-        // inherited flags clear, then service only Web MIDI protocol replies.
-        pendingTuringMidiNoteOn = false;
-        pendingTuringMidiNoteOff = false;
-        turingMidiNoteActive = false;
-
+        // This voice sends Web MIDI protocol replies only.
         sendPendingMinimoogResponse();
     }
 
@@ -167,8 +162,6 @@ public:
         int32_t main = KnobVal(Knob::Main);
         int32_t x    = KnobVal(Knob::X);
         int32_t y    = KnobVal(Knob::Y);
-
-        applyMidiControlPickupResets(main, x, y);
 
         Switch previousMode = lastMode;
 
@@ -272,8 +265,6 @@ public:
 
             int32_t wave1 = clamp12(waveControl);
             int32_t wave2 = clamp12(wave2Control);
-
-            clearTuringState();
 
             outputSynthVoice(
                 freq, wave1, wave2,
@@ -849,6 +840,7 @@ private:
         uint16_t ring;
         uint16_t noise;
         uint8_t midiInChannel;
+        // Reserved legacy fields: retain order and widths for preset compatibility.
         uint8_t turingRange;
         uint8_t turingMidiEnabled;
         uint8_t turingMidiChannel;
@@ -865,6 +857,7 @@ private:
         uint16_t ring;
         uint16_t noise;
         uint8_t midiInChannel;
+        // Reserved legacy fields: retain order and widths for preset compatibility.
         uint8_t turingRange;
         uint8_t turingMidiEnabled;
         uint8_t turingMidiChannel;
@@ -1644,43 +1637,35 @@ private:
             else if (midiData[0] == MidiCcOsc1Pd)
             {
                 pdControl = midiCcToControl(midiData[1]);
-                midiResetTuringXPickup = true;
             }
             else if (midiData[0] == MidiCcOsc1Wave)
             {
                 waveControl = midiCcToControl(midiData[1]);
-                midiResetTuringYPickup = true;
             }
             else if (midiData[0] == MidiCcOsc2Wave)
             {
                 wave2Control = midiCcToControl(midiData[1]);
-                midiResetSynthYPickup = true;
             }
             else if (midiData[0] == MidiCcRingAmount)
             {
                 osc2Ring = midiCcToControl(midiData[1]);
-                midiResetAltXPickup = true;
             }
             else if (midiData[0] == MidiCcRecipeBank)
             {
                 uint8_t bank = (uint8_t)(((uint16_t)midiData[1] * 4u) >> 7);
                 recipeBankControl = recipeBankToControl(bank > 3u ? 3u : bank);
-                midiResetAltMainPickup = true;
             }
             else if (midiData[0] == MidiCcOsc2Interval)
             {
                 osc2IntervalControl = midiCcToControl(midiData[1]);
-                midiResetSynthMainPickup = true;
             }
             else if (midiData[0] == MidiCcOsc2Pd)
             {
                 pd2Control = midiCcToControl(midiData[1]);
-                midiResetSynthXPickup = true;
             }
             else if (midiData[0] == MidiCcNoiseAmount)
             {
                 osc2Noise = midiCcToControl(midiData[1]);
-                midiResetAltYPickup = true;
             }
             return;
         }
@@ -2016,27 +2001,16 @@ private:
         recipeBankControl = clamp12(recipeBank);
         midiInChannel = channel;
 
-        // Remote settings hold until each physical control reaches its new value.
-        midiResetAltXPickup = true;
-        midiResetAltYPickup = true;
-        if (extendedSettings)
-        {
-            midiResetSynthXPickup = true;
-            midiResetSynthYPickup = true;
-            midiResetAltMainPickup = true;
-        }
-
         if (sysexLength >= WebMidiRangeSettingsPayloadLength + 6u)
         {
-            // Compatibility padding only in Gnarly: no Turing CV/MIDI output.
+            // Reserved legacy range byte; retain its position in the settings format.
             offset++;
         }
 
         if (extendedSettings)
         {
-            turingMidiOutputEnabled = false;
+            // Reserved legacy MIDI-output byte; accepted but not applied.
             offset++;
-            turingMidiOutputChannel = 0u;
         }
 
         if (persist)
@@ -2544,14 +2518,6 @@ private:
         osc2Noise = clamp12(state.noise);
         midiInChannel = state.midiInChannel & 0x0Fu;
         recipeBankControl = recipeBankToControl(state.recipeBank);
-        turingMidiOutputEnabled = false;
-        turingMidiOutputChannel = 0u;
-
-        midiResetSynthXPickup = true;
-        midiResetSynthYPickup = true;
-        midiResetAltMainPickup = true;
-        midiResetAltXPickup = true;
-        midiResetAltYPickup = true;
     }
 
     uint32_t decodeWebMidiUint21(uint32_t& offset)
@@ -2898,17 +2864,6 @@ private:
         static constexpr uint8_t secondary[8] = {3, 3, 2, 3, 4, 7, 5, 2};
         static constexpr uint16_t amount[8] = {2048, 2048, 2560, 2304, 2560, 2048, 2048, 2816};
         return blendRecipe(phase, primary[slot], secondary[slot], amount[slot]);
-    }
-
-    // =========================================================
-    // GNARLY TURING COMPATIBILITY CLEANUP
-    // =========================================================
-    void clearTuringState()
-    {
-        pendingTuringMidiNoteOn = false;
-        pendingTuringMidiNoteOff = false;
-        turingMidiOutputEnabled = false;
-        turingMidiOutputChannel = 0u;
     }
 
     void updateVoiceControls(int32_t main, int32_t x, int32_t y)
@@ -3526,8 +3481,8 @@ private:
 
     void updateEnvelopeSelectMode(
         int32_t main,
-        int32_t x,
-        int32_t y,
+        int32_t /*x*/,
+        int32_t /*y*/,
         Switch mode,
         Switch previousMode)
     {
@@ -3558,7 +3513,6 @@ private:
             if (envelopeSelectHoldActive)
             {
                 envelopeSelectMode = false;
-                resetSavedSettingPickup(main, x, y);
                 resetEnvelopeSelectHold();
             }
 
@@ -3757,204 +3711,11 @@ private:
         }
     }
 
-    void updateAltControls(int32_t main, int32_t x, int32_t y)
-    {
-        if (altMainPickedUp ||
-            pickupAltControl(main, altMainEntry, recipeBankControl, altMainPickedUp))
-        {
-            recipeBankControl = main;
-        }
-
-        if (altXPickedUp ||
-            pickupAltControl(x, altXEntry, osc2Ring, altXPickedUp))
-            osc2Ring = x;
-
-        if (altYPickedUp ||
-            pickupAltControl(y, altYEntry, osc2Noise, altYPickedUp))
-            osc2Noise = y;
-    }
-
-    void updateSynthModeControls(int32_t main, int32_t x, int32_t y)
-    {
-        if (synthMainPickedUp ||
-            pickupModeControl(main, synthMainEntry, osc2IntervalControl, synthMainPickedUp))
-            osc2IntervalControl = main;
-
-        if (synthXPickedUp ||
-            pickupModeControl(x, synthXEntry, pd2Control, synthXPickedUp))
-            pd2Control = x;
-
-        if (synthYPickedUp ||
-            pickupModeControl(y, synthYEntry, wave2Control, synthYPickedUp))
-            wave2Control = y;
-    }
-
-    void updateOsc2ModeControls(int32_t main, int32_t x, int32_t y)
-    {
-        if (turingMainPickedUp ||
-            pickupModeControl(main, turingMainEntry, pitchControl, turingMainPickedUp))
-            pitchControl = main;
-
-        if (turingXPickedUp ||
-            pickupModeControl(x, turingXEntry, pdControl, turingXPickedUp))
-            pdControl = x;
-
-        if (turingYPickedUp ||
-            pickupModeControl(y, turingYEntry, waveControl, turingYPickedUp))
-            waveControl = y;
-    }
-
-    void applyMidiControlPickupResets(int32_t main, int32_t x, int32_t y)
-    {
-        if (midiResetSynthMainPickup)
-        {
-            synthMainPickedUp = false;
-            synthMainEntry = main;
-            midiResetSynthMainPickup = false;
-        }
-
-        if (midiResetSynthXPickup)
-        {
-            synthXPickedUp = false;
-            synthXEntry = x;
-            midiResetSynthXPickup = false;
-        }
-
-        if (midiResetSynthYPickup)
-        {
-            synthYPickedUp = false;
-            synthYEntry = y;
-            midiResetSynthYPickup = false;
-        }
-
-        if (midiResetTuringXPickup)
-        {
-            turingXPickedUp = false;
-            turingXEntry = x;
-            midiResetTuringXPickup = false;
-        }
-
-        if (midiResetTuringYPickup)
-        {
-            turingYPickedUp = false;
-            turingYEntry = y;
-            midiResetTuringYPickup = false;
-        }
-
-        if (midiResetAltMainPickup)
-        {
-            altMainPickedUp = false;
-            altMainEntry = main;
-            midiResetAltMainPickup = false;
-        }
-
-        if (midiResetAltXPickup)
-        {
-            altXPickedUp = false;
-            altXEntry = x;
-            midiResetAltXPickup = false;
-        }
-
-        if (midiResetAltYPickup)
-        {
-            altYPickedUp = false;
-            altYEntry = y;
-            midiResetAltYPickup = false;
-        }
-    }
-
     void setDetuneFromControl(int32_t control)
     {
         osc2Detune = clamp12(control) - 2048;
         if (osc2Detune > -32 && osc2Detune < 32)
             osc2Detune = 0;
-    }
-
-    void resetModePickup(Switch mode, Switch previousMode, int32_t main, int32_t x, int32_t y)
-    {
-        if (mode == Switch::Up && previousMode != Switch::Up)
-            resetSynthPickup(main, x, y);
-        else if (mode == Switch::Middle && previousMode != Switch::Middle)
-            resetTuringPickup(main, x, y);
-    }
-
-    void resetSynthPickup(int32_t main, int32_t x, int32_t y)
-    {
-        synthMainPickedUp = false;
-        synthXPickedUp = false;
-        synthYPickedUp = false;
-        synthMainEntry = main;
-        synthXEntry = x;
-        synthYEntry = y;
-    }
-
-    void resetTuringPickup(int32_t main, int32_t x, int32_t y)
-    {
-        turingMainPickedUp = false;
-        turingXPickedUp = false;
-        turingYPickedUp = false;
-        turingMainEntry = main;
-        turingXEntry = x;
-        turingYEntry = y;
-    }
-
-    void resetAltPickup(int32_t main, int32_t x, int32_t y)
-    {
-        altMainPickedUp = false;
-        altXPickedUp = false;
-        altYPickedUp = false;
-        altMainEntry = main;
-        altXEntry = x;
-        altYEntry = y;
-    }
-
-    void resetSavedSettingPickup(int32_t main, int32_t x, int32_t y)
-    {
-        // Leave pitch live, but protect saved/browser settings until their
-        // physical controls deliberately catch the stored values.
-        synthXPickedUp = false;
-        synthYPickedUp = false;
-        synthXEntry = x;
-        synthYEntry = y;
-        turingMainPickedUp = false;
-        turingXPickedUp = false;
-        turingYPickedUp = false;
-        turingMainEntry = main;
-        turingXEntry = x;
-        turingYEntry = y;
-        resetAltPickup(main, x, y);
-    }
-
-    bool pickupAltControl(int32_t knob, int32_t entry, int32_t target, bool& pickedUp)
-    {
-        int32_t moved = knob - entry;
-        if (moved < 0)
-            moved = -moved;
-
-        int32_t distance = knob - target;
-        if (distance < 0)
-            distance = -distance;
-
-        if (moved >= 64 && distance <= 96)
-            pickedUp = true;
-
-        return pickedUp;
-    }
-
-    bool pickupModeControl(int32_t knob, int32_t entry, int32_t target, bool& pickedUp)
-    {
-        int32_t moved = knob - entry;
-        if (moved < 0)
-            moved = -moved;
-
-        int32_t distance = knob - target;
-        if (distance < 0)
-            distance = -distance;
-
-        if (moved >= 64 && distance <= 96)
-            pickedUp = true;
-
-        return pickedUp;
     }
 
     SavedPerformanceState currentPerformanceState()
@@ -4825,8 +4586,6 @@ private:
         osc2Ring = clamp12(state.osc2Ring);
         osc2Noise = clamp12(state.osc2Noise);
         midiInChannel = state.reserved[1] & 0x0Fu;
-        turingMidiOutputEnabled = false;
-        turingMidiOutputChannel = 0u;
         envelopePreset = state.envelopePreset < EnvelopePresetCount ?
             state.envelopePreset :
             (uint8_t)EnvelopePreset::Off;
@@ -5330,24 +5089,6 @@ private:
     SavedUserPresetBank userPresetBank = {};
     OscillatorSetupPage oscillatorSetupPage = OscillatorSetupPage::Oscillator1;
     uint32_t waveformFlashSamples = 0;
-    int32_t synthMainEntry = 2048;
-    int32_t synthXEntry = 0;
-    int32_t synthYEntry = 0;
-    int32_t turingMainEntry = 2048;
-    int32_t turingXEntry = 4095;
-    int32_t turingYEntry = 2048;
-    int32_t altMainEntry = 2048;
-    int32_t altXEntry = 0;
-    int32_t altYEntry = 0;
-    bool synthMainPickedUp = true;
-    bool synthXPickedUp = true;
-    bool synthYPickedUp = true;
-    bool turingMainPickedUp = true;
-    bool turingXPickedUp = true;
-    bool turingYPickedUp = true;
-    bool altMainPickedUp = false;
-    bool altXPickedUp = false;
-    bool altYPickedUp = false;
     uint32_t saveHoldSamples = 0;
     uint32_t saveConfirmSamples = 0;
     bool saveHoldCanSave = false;
@@ -5368,27 +5109,12 @@ private:
     uint32_t minimoogResponseLength = 0;
     uint32_t minimoogResponseIndex = 0;
     uint8_t minimoogResponsePhase = 0;
-    volatile bool pendingTuringMidiNoteOn = false;
-    volatile bool pendingTuringMidiNoteOff = false;
-    uint8_t turingMidiLastNote = 60;
-    uint8_t turingMidiLastChannel = 0;
-    bool turingMidiNoteActive = false;
-    volatile bool turingMidiOutputEnabled = false;
-    volatile uint8_t turingMidiOutputChannel = 0;
     uint8_t midiNote = 60;
     uint8_t midiVelocity = 100;
     int32_t midiPitchBend = 0;
     bool midiNoteActive = false;
     bool midiNoteReleased = false;
     volatile uint8_t midiInChannel = 0;
-    volatile bool midiResetSynthMainPickup = false;
-    volatile bool midiResetSynthXPickup = false;
-    volatile bool midiResetSynthYPickup = false;
-    volatile bool midiResetTuringXPickup = false;
-    volatile bool midiResetTuringYPickup = false;
-    volatile bool midiResetAltMainPickup = false;
-    volatile bool midiResetAltXPickup = false;
-    volatile bool midiResetAltYPickup = false;
     EnvelopeProgram customEnvelopes[CustomEnvelopeSlotCount] = {};
     EnvelopeProgram customEnvelopeSaved[CustomEnvelopeSlotCount] = {};
     uint8_t customEnvelopeNames[CustomEnvelopeSlotCount][16] = {};
