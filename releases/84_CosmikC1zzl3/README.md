@@ -291,6 +291,9 @@ sound-preset settings readback. Turing MIDI defaults off in both versions.
 
 ## License Notes
 
+The random-looping sequencer is inspired by Tom Whitwell's
+[Music Thing Modular Turing Machine](https://github.com/TomWhitwell/TuringMachine).
+
 This project is released under the MIT License. The included `computercard.h`
 hardware helper is ComputerCard by Chris Johnson and is also MIT licensed; keep
 its MIT notice present when copying firmware files into releases or experiments.

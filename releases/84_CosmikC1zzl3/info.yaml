@@ -147,6 +147,9 @@ controls:
             custom slot number."
 host:
   notes: >
+    The random-looping sequencer is inspired by Tom Whitwell's
+    [Music Thing Modular Turing Machine](https://github.com/TomWhitwell/TuringMachine).
+
     Core 1.4 is the standard firmware. Rad v9 is an alternate firmware image
     with independently editable Amp1/Amp2, PD1/PD2, and Pitch1/Pitch2 envelopes,
     separate oscillator waveform families, slot names, and saved sound-preset
