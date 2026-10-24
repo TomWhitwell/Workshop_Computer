@@ -105,10 +105,11 @@ On the switch-down page, LEDs 1 and 2 show the selected recipe bank:
 - Bank 4: LEDs 1 and 2 on.
 
 LED 3 shows oscillator 2 interval/spread as brightness increasing away from
-unison. LEDs 4 and 5 show ring modulation and noise/grit. LED 6 shows the edit
-page: half brightness in the middle position, off in the up position, and full
-brightness while held down. On the oscillator pages, LEDs 1 and 2 show that
-oscillator's PD and waveform/recipe position.
+unison. LEDs 4 and 5 show ring modulation and noise/grit. In standard firmware,
+LED 6 shows the panel page: half brightness in the middle position, off in the
+up position, and full brightness while held down. In 8mu firmware, LED 6 shows
+the slider edit mode instead: steady for levels, blinking for times. On the
+oscillator pages, LEDs 1 and 2 show that oscillator's PD and waveform/recipe position.
 
 ## USB MIDI
 
@@ -174,6 +175,18 @@ values directly when moved.
 
 Bank 1 buttons send unused USB CCs 124–127 and do not play notes. In bank 8,
 A/B change the stage edit mode; they do not change the utility sliders' functions.
+
+**Workshop Computer LED 6 shows the selected slider edit mode:**
+
+| Selection | LED 6 |
+|---|---|
+| A: stage levels | Steady on |
+| B: stage times | Blinks twice per second |
+
+Press once; holding A or B is unnecessary. Level mode is selected at startup.
+The indication stays visible across controller banks and panel pages, showing
+which mode banks 2–7 will use. Startup envelope selection and the brief save
+confirmation display temporarily take priority over this indicator.
 
 ### Selecting And Editing A Sound
 

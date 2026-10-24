@@ -355,6 +355,7 @@ private:
     static constexpr uint8_t MidiCc8muEditTimes = 121;
     static constexpr uint8_t MidiCc8muSaveEnvelope = 122;
     static constexpr uint8_t MidiCc8muRevertEnvelope = 123;
+    static constexpr uint32_t EightMuEditLedHalfPeriodSamples = 12000u; // 250 ms at 48 kHz.
     static constexpr int32_t PitchUnitsPerOctave = 4096;
     static constexpr int32_t MainPitchOctaves = 5;
     static constexpr int32_t PitchInputCountsPerVolt = 341;
@@ -2256,7 +2257,24 @@ private:
         LedBrightness(2, bipolarControlBrightness(osc2IntervalControl));
         LedBrightness(3, osc2Ring);
         LedBrightness(4, osc2Noise);
-        LedBrightness(5, mode == Switch::Up ? 0 : mode == Switch::Middle ? 2048 : 4095);
+        updateEightMuEditLed();
+    }
+
+    void updateEightMuEditLed()
+    {
+        // The switch itself identifies the panel page. Reserve LED 6 for the
+        // controller's latched edit mode: steady = levels, 2 Hz blink = times.
+        // Startup selection and save confirmation render after/instead of this.
+        if (!eightMuEditTimes)
+        {
+            eightMuEditLedPhase = 0u;
+            LedBrightness(5, 4095);
+            return;
+        }
+
+        LedBrightness(5, eightMuEditLedPhase < EightMuEditLedHalfPeriodSamples ? 4095 : 0);
+        if (++eightMuEditLedPhase >= 2u * EightMuEditLedHalfPeriodSamples)
+            eightMuEditLedPhase = 0u;
     }
 
     int32_t bipolarControlBrightness(int32_t control)
@@ -3555,6 +3573,7 @@ private:
     volatile int32_t envelopeAmp2Depth = 4095;
     volatile int32_t envelopeMasterDepth = 4095;
     volatile bool eightMuEditTimes = false;
+    uint32_t eightMuEditLedPhase = 0u;
     int32_t synthMainEntry = 2048;
     int32_t synthXEntry = 0;
     int32_t synthYEntry = 0;

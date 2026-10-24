@@ -158,8 +158,8 @@ controls:
           name: Noise / Grit
           description: Shows noise or grit amount.
         - id: LED5
-          name: Current Edit Page
-          description: Shows the current edit page at off, medium, or full brightness.
+          name: Panel Page / 8mu Edit Mode
+          description: Standard firmware shows the panel page at off, medium, or full brightness. In 8mu firmware, steady on means stage levels (A); blinking twice per second means stage times (B). Startup selection and save confirmation take priority.
 
 host:
   notes: >-
@@ -199,6 +199,10 @@ host:
     8mu alternative: import the bundled 8mu bank files when using
     Gnarly_C1ZZL3_8mu.uf2. Bank 1 button presses send unused CCs 124--127,
     so they do not play notes; Banks 2--8 retain their envelope-edit actions.
+    Workshop Computer LED 6 is steady for stage-level editing (A) and blinks
+    twice per second for stage-time editing (B). The mode carries across banks
+    and defaults to levels at startup. Startup selection and save confirmation
+    temporarily override the indicator.
 
 contact:
   social:
