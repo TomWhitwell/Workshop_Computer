@@ -3,45 +3,24 @@
 C1ZZL3 Gnarly is a dual-oscillator phase-distortion synth card for the Music
 Thing Modular Workshop Computer.
 
-Gnarly is the most complexVersion of C1ZZL3. It keeps the Web MIDI sound-preset
-workflow from the advanced C1ZZL3 experiments, but removes the Turing machine
-panel mode so the hardware controls can focus on oscillator editing, recipe wave
-banks, ring modulation, and noise/grit.
+Gnarly provides six-lane envelope editing, named sound presets, independent
+base phase-distortion amounts, an oscillator 2 interval control, and four recipe
+banks. Dedicated oscillator pages and a performance page put sound editing,
+ring modulation, and noise/grit on the hardware controls.
 
-For the user-facing card guide, see:
+Card 84 Cosmik C1ZZL3 is a simpler version of the phase-distortion synth engine.
+See the [Core/RAD comparison](../84_CosmikC1zzl3/README.md#core-and-rad-comparison)
+for those firmware choices.
 
-```text
-CARD_README.md
-```
+## Choose Your Firmware
 
-## Status
-
-This folder contains the stable Gnarly card 101 build.
-
-```text
-release: 101 / Gnarly protocol v11 stable
-draft: false
-```
-
-Core C1ZZL3 remains card 84. Gnarly is prepared here as a separate card identity because
-its hardware behaviour is substantially different.
-
-## Firmware Builds
-
-The standard Gnarly firmware is:
-
-```text
-uf2/C1ZZL3_GNARLY_V11.uf2
-```
-
-The alternative firmware for use with an 8mu v2 controller is:
-
-```text
-uf2/Gnarly_C1ZZL3_8mu.uf2
-```
+| Firmware | Use it for |
+|---|---|
+| [Standard Gnarly](uf2/C1ZZL3_GNARLY_V11.uf2) | Panel and MIDI performance with browser envelope editing. |
+| [Gnarly for 8mu v2](uf2/Gnarly_C1ZZL3_8mu.uf2) | The same sound engine and browser editor, plus 8mu performance and envelope editing. |
 
 Flash one of these UF2 files, not both. Their SHA-256 checksums are in
-`uf2/SHA256SUMS.txt`.
+[checksum file](uf2/SHA256SUMS.txt).
 
 ## What It Does
 
@@ -53,7 +32,7 @@ Flash one of these UF2 files, not both. Their SHA-256 checksums are in
 - Uses four recipe wave banks for simple and CZ-like oscillator pairings.
 - Reads and writes settings through the Gnarly Web MIDI Lab.
 - Imports Casio CZ `.syx` patches through the shared C1ZZL3 Import Lab.
-- Removes Turing CV, Turing pulse, and generated Turing MIDI behaviour.
+- Provides dedicated oscillator editing and performance control pages.
 
 ## Hardware Controls
 
@@ -65,7 +44,7 @@ Switch middle: oscillator 1 page.
 
 Switch up: oscillator 2 page.
 
-- Main: oscillator 2 base interval/spread, centred at unison
+- Main: oscillator 2 base interval, -24 to +24 semitones, centred at unison
 - X: oscillator 2 phase distortion
 - Y: oscillator 2 recipe slot in the selected bank
 
@@ -74,6 +53,21 @@ Switch down hold: performance and bank page.
 - Main: recipe bank
 - X: ring modulation
 - Y: noise/grit
+
+Hold the switch down from the middle position for about eight seconds to save
+the current performance settings as the startup baseline. If powered up with
+the switch down, leave that position before using the performance controls.
+
+The modulation inputs affect both oscillators on every edit page:
+
+- `Audio/CV In 1`: shared 1V/oct pitch modulation.
+- `CV In 1`: adds to both oscillator PD amounts.
+- `CV In 2`: adds to both oscillator recipe-slot/wave controls.
+- `Pulse In 2`: triggers the selected envelopes. Held gates keep loop-capable
+  envelopes cycling; gate-off lets them complete naturally.
+
+Audio Out 1 carries oscillator 1 and Audio Out 2 carries oscillator 2.
+`Pulse In 1` is unused. CV Out 1/2 and Pulse Out 1/2 are held low.
 
 ## Recipe Banks
 
@@ -98,10 +92,10 @@ contains the eight plain C1ZZL3 wave families; Banks 2–4 use fixed compound re
 | 7 | `Resonant triangle window` | `Resonant triangle window + Double sine` | `Resonant saw window + Narrow pulse` | `Square + Resonant saw window` |
 | 8 | `Resonant trapezoid window` | `Resonant trapezoid window + Double sine` | `Resonant trapezoid window + Square` | `Resonant triangle window + Narrow pulse` |
 
-These are not equal 50/50 blends. Each recipe leans toward its first waveform,
-with the second waveform mixed in at a fixed amount chosen in the firmware.
-That is why some pairings feel like a coloured version of one family rather
-than a completely even hybrid.
+Banks 2–4 use fixed blend amounts chosen for each recipe. Some recipes favour
+the first waveform, some are equal 50/50 mixes, and some favour the second.
+For example, Bank 3 slot 8 is approximately 31% Resonant trapezoid window
+and 69% Square. Bank 1 morphs between the eight plain waveform families.
 
 On the switch-down page, LEDs 1 and 2 show the selected recipe bank:
 
@@ -110,7 +104,21 @@ On the switch-down page, LEDs 1 and 2 show the selected recipe bank:
 - Bank 3: LED 2 on.
 - Bank 4: LEDs 1 and 2 on.
 
-## MIDI
+LED 3 shows oscillator 2 interval/spread as brightness increasing away from
+unison. LEDs 4 and 5 show ring modulation and noise/grit. LED 6 shows the edit
+page: half brightness in the middle position, off in the up position, and full
+brightness while held down. On the oscillator pages, LEDs 1 and 2 show that
+oscillator's PD and waveform/recipe position.
+
+## USB MIDI
+
+The card chooses its USB role at boot. Connected to a computer, it appears as
+a USB MIDI device for DAW and browser use. Connected to a class-compliant USB
+MIDI controller, it can run in USB MIDI host mode.
+
+MIDI note-on triggers the selected envelopes as a held gate. Loop-capable
+envelopes cycle until note-off lets them complete naturally.
+
 
 Gnarly uses `CC20` to `CC27` as an eight-knob performance block. `CC1` is also
 kept as oscillator 1 phase distortion so a mod wheel remains useful.
@@ -125,8 +133,6 @@ kept as oscillator 1 phase distortion so a mod wheel remains useful.
 - `CC26`: noise/grit amount.
 - `CC27`: oscillator 1 phase distortion, for eight-knob controllers.
 
-The C1ZZL3 Envelope Lab has a hidden Developer-mode MIDI CC Test Suite for checking these messages without a hardware controller. It sends individual CC values, a neutral reset, and sweep tests through the selected Web MIDI output.
-
 ## If You Have An 8mu
 
 `Gnarly_C1ZZL3_8mu.uf2` is an alternative Gnarly firmware that exposes the
@@ -134,23 +140,68 @@ envelope lanes on a Music Thing 8mu v2. It retains the same Gnarly sound engine
 and Web MIDI editor, but receives its controls from the 8mu instead of using
 only the editor.
 
-The alternative source is self-contained in `8mu/`, so it can be developed
-without changing the standard Gnarly source in this folder. The 8mu bank files
-are in `8mu_banks/`; import them one at a time with the
-[16n Faderbank editor](https://16n-faderbank.github.io/editor/). See
-`8mu_banks/README.md` for the exact import and control guide.
+The JSON bank files are in [8mu_banks/](8mu_banks/). Import them one at a
+time with the [16n Faderbank editor](https://16n-faderbank.github.io/editor/),
+selecting the matching destination bank on the 8mu before each import. The
+supplied USB mappings send on MIDI channel 1; set Gnarly's MIDI input channel
+to match.
 
-- Bank 1 controls the regular Gnarly performance parameters. Its A--D buttons
-  send unused CCs 124--127 and therefore do not play notes.
-- Banks 2--7 edit stages 1--8 of Amp1, Amp2, PD1, PD2, Pitch1, and Pitch2.
-- Bank 8 selects the editable custom envelope slot and sets the six lane
-  depths plus master depth.
-- In a lane bank, Buttons A/B select level/time, C saves, and D reverts.
+The eight controller banks assign sliders as follows. Amp means amplitude,
+PD means phase distortion, and Pitch means pitch-envelope offset. Controller
+banks are separate from the synth's four recipe banks.
 
-Only saved custom sound-preset slots are editable; factory envelopes remain
-read-only. Gesture mappings are intentionally disabled. The 8mu control path,
-save/revert, persistence, and factory-envelope protection have been hardware
-validated.
+| 8mu bank | Slider 1 | Slider 2 | Slider 3 | Slider 4 | Slider 5 | Slider 6 | Slider 7 | Slider 8 |
+|---|---|---|---|---|---|---|---|---|
+| 1: Performance | Osc 1 recipe slot | Osc 2 recipe slot | Ring amount | Recipe bank | Osc 2 interval | Osc 2 PD amount | Noise/grit | Osc 1 PD amount |
+| 2: Amp1 | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Stage 5 | Stage 6 | Stage 7 | Stage 8 |
+| 3: Amp2 | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Stage 5 | Stage 6 | Stage 7 | Stage 8 |
+| 4: PD1 | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Stage 5 | Stage 6 | Stage 7 | Stage 8 |
+| 5: PD2 | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Stage 5 | Stage 6 | Stage 7 | Stage 8 |
+| 6: Pitch1 | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Stage 5 | Stage 6 | Stage 7 | Stage 8 |
+| 7: Pitch2 | Stage 1 | Stage 2 | Stage 3 | Stage 4 | Stage 5 | Stage 6 | Stage 7 | Stage 8 |
+| 8: Envelope utility | Envelope/custom-slot selection | Amp1 depth | PD1 depth | Pitch1 depth | Pitch2 depth | PD2 depth | Amp2 depth | Master depth |
+
+In banks 2–7, each slider edits either the **level** or the **time** of its
+numbered stage in that bank's envelope lane. Press A for levels or B for times;
+the selected edit mode carries across lane banks. These sliders set stage
+values directly when moved.
+
+| Controller bank | Button A | Button B | Button C | Button D |
+|---|---|---|---|---|
+| 1 | Unused | Unused | Unused | Unused |
+| 2–7 | Edit stage levels | Edit stage times | Save all six lanes and current performance settings in the selected custom slot | Revert all six lanes to their last saved values |
+| 8 | Select level edit mode for banks 2–7 | Select time edit mode for banks 2–7 | Same save action as banks 2–7 | Same revert action as banks 2–7 |
+
+Bank 1 buttons send unused USB CCs 124–127 and do not play notes. In bank 8,
+A/B change the stage edit mode; they do not change the utility sliders' functions.
+
+### Selecting And Editing A Sound
+
+1. Save a custom sound-preset slot from the Gnarly browser editor first.
+2. Select controller bank 8 and move slider 1 to choose that saved custom slot.
+   The slider steps through factory presets followed by occupied custom slots;
+   factory presets are available to play but remain read-only.
+3. Select bank 2–7 for the envelope lane you want to edit.
+4. Press A to edit levels or B to edit times, then move sliders 1–8 to edit
+   the corresponding stages. In level mode, Amp/PD run from minimum to maximum;
+   pitch levels run from negative offset through zero at the centre to positive
+   offset. In time mode, each slider sets its stage duration from approximately
+   zero to four seconds.
+5. Press C to save all six lanes and current performance settings in the
+   selected custom slot. Press D to discard unsaved stage edits across all six
+   lanes and restore their saved values; D does not restore performance settings.
+
+Bank 8 depth sliders scale the existing envelopes rather than editing stage
+points. Amp depth changes envelope-controlled output level, PD depth changes
+the envelope's added phase distortion, and pitch depth changes the excursion
+around zero pitch offset. Master depth scales all six lane depths together.
+Depths default to full at startup and act as temporary performance controls;
+they are not stored by button C. In envelope Off mode, amplitude depth does
+not attenuate the continuous oscillator output.
+
+Stage editing, save, and revert require a saved custom slot. Gestures are
+disabled in all supplied banks to avoid unintentional edits.
+
 
 ## Web MIDI Editor
 
@@ -160,19 +211,43 @@ Hosted editor path after Workshop deployment:
 https://computer.musicthing.co.uk/programs/101-gnarly-c1zzl3/web/index.html
 ```
 
-Local editor from this release folder:
+Use Chrome or another browser with Web MIDI and SysEx support. Connect the
+card by USB, enable MIDI in the editor, and choose the card's output. The editor
+automatically checks card settings and saved slots to identify the firmware.
 
-```sh
-python3 -m http.server 5177 --directory web
-```
+1. Pick a preset or create a custom one and choose its card slot.
+2. Edit Amp1/Amp2 and PD1/PD2 in the main graph, and Pitch1/Pitch2 in the pitch
+   graph. Drag points for level/time changes or use the stage tables for exact values.
+3. Use `Load RAM` to audition envelope edits or `Load Sound Preset` to load the
+   envelope and its settings temporarily.
+4. Use `Save Envelope Only` to save the lanes and name while retaining the
+   slot's saved performance settings, or `Save Sound Preset` to save the lanes,
+   name, and current performance settings together.
 
-Open:
+| Editor action | Result |
+|---|---|
+| Load RAM | Loads envelope changes until restart. |
+| Load Sound Preset | Loads the envelope and its settings until restart. |
+| Save Envelope Only | Saves envelope lanes and slot name in card flash. |
+| Save Sound Preset | Saves envelope lanes, name, and performance settings in card flash. |
+| Read Envelopes from Card | Reads saved slots, names, and attached settings. |
+| Read Settings from Card | Reads the current performance settings. |
+| Send Settings | Applies performance settings temporarily. |
+| Delete Envelope Slot | Clears the selected custom slot in card flash. |
+| Reset Preset | Restores the selected editor preset to its factory value. |
 
-```text
-http://localhost:5177
-```
+There are eight custom slots; factory envelopes remain protected. Temporary
+loads are lost at restart. Selecting a saved sound preset restores its attached
+settings. Use the hardware save gesture to set the global startup baseline.
 
-Use Chrome or another browser with Web MIDI and SysEx support. When Web MIDI connects, the editor automatically checks card settings and saved envelope slots so the detected firmware type is shown without requiring a manual read first.
+### Selecting An Envelope At Startup
+
+Hold the switch down while powering up to enter envelope selection, then
+release it. Turn Main to choose a factory envelope or occupied custom slot.
+Move the switch down and release it to finish; hold it down for about eight
+seconds before releasing to save the selection as the startup baseline.
+Audio is muted during selection. Factory presets use the binary LED display;
+custom slots light LED 6 and use LEDs 1–3 for the slot number.
 
 ## C1ZZL3 Import Lab
 
@@ -182,23 +257,36 @@ Hosted import lab path after Workshop deployment:
 https://computer.musicthing.co.uk/programs/101-gnarly-c1zzl3/web/import/index.html
 ```
 
-Local import lab from this release folder:
+Use this page to decode Casio CZ `.syx` patches into C1ZZL3 drafts with separate
+oscillator envelopes, pitch lanes, oscillator wave choices, performance values,
+and recipe-bank-compatible settings.
+
+## Building And Development
+
+### Running The Editors Locally
+
+From this release folder, start either editor with a local HTTP server:
+
+```sh
+python3 -m http.server 5177 --directory web
+```
+
+Open [Envelope Lab](http://localhost:5177). For the standalone Import Lab:
 
 ```sh
 python3 -m http.server 5178 --directory web/import
 ```
 
-Open:
+Open [Import Lab](http://localhost:5178).
 
-```text
-http://localhost:5178
-```
+### MIDI CC Checks
 
-Use this page to decode Casio CZ `.syx` patches into C1ZZL3 drafts with separate
-oscillator envelopes, pitch lanes, oscillator wave choices, performance values,
-and recipe-bank-compatible settings.
+The C1ZZL3 Envelope Lab has a hidden Developer-mode MIDI CC Test Suite for checking these messages without a hardware controller. It sends individual CC values, a neutral reset, and sweep tests through the selected Web MIDI output.
 
-## Build
+### Building Firmware
+
+The alternative 8mu source is self-contained in `8mu/`. It can be developed
+independently of the standard source. From this release folder:
 
 ```sh
 cmake -S . -B build -DPICO_NO_PICOTOOL=1
