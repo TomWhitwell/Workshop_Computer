@@ -28,20 +28,52 @@
 #define CV_OUT_1 23
 #define CV_OUT_2 22
 #define CV_PWM_WRAP 1999 // 0 V is level 1000, +6 V is 0, -6 V is 2000
+#define PULSE_IN_1 2
+#define PULSE_IN_2 3
+#define PULSE_OUT_1 8
+#define PULSE_OUT_2 9
 
-// Frame: 0xA5 0x5A, seq (u8), tag (u8: TAG_CV2 set when the CV sample is CV 2), then BLOCK_SAMPLES little-endian u16 values.
+// Frame tag: bit 0 CV 2 selected; bits 1-2 pulse inputs 1-2 active.
 #define TAG_CV2 0x01
-#define FRAME_BYTES (4 + BLOCK_SAMPLES * 2)
+#define TAG_PULSE_1 0x02
+#define TAG_PULSE_2 0x04
+#define TAG_PULSE_1_EDGE 0x08
+#define TAG_PULSE_2_EDGE 0x10
+#define FRAME_HEADER_BYTES 8
+#define FRAME_BYTES (FRAME_HEADER_BYTES + BLOCK_SAMPLES * 2)
 
 // Host command, one byte: 'P'/'p' pass-through on/off.
 static volatile bool pass_through = true;
 
 static uint16_t bufs[2][BLOCK_SAMPLES];
 static uint8_t tags[2];
+static uint16_t pulse_periods[2][2];
+static volatile uint16_t latest_period_ms[2];
 static int dma_ch[2];
 static volatile uint8_t ready_mask = 0;
+static volatile uint8_t pulse_edge_latch = 0;
+static uint32_t pulse_last_us[2];
 static uint8_t mux_a = 0;
 static volatile uint32_t block_count = 0; // completed blocks; block k fills bufs[k & 1] and carries CV (k & 1) + 1
+
+static void pulse_gpio_isr(uint gpio, uint32_t events)
+{
+    uint8_t pulse = gpio == PULSE_IN_1 ? 0 : 1;
+    uint8_t edge_tag = pulse == 0 ? TAG_PULSE_1_EDGE : TAG_PULSE_2_EDGE;
+    if (!(events & GPIO_IRQ_EDGE_FALL))
+    {
+        return;
+    }
+
+    uint32_t now = time_us_32();
+    if (pulse_last_us[pulse] != 0)
+    {
+        uint32_t period = (now - pulse_last_us[pulse]) / 1000;
+        latest_period_ms[pulse] = period > UINT16_MAX ? UINT16_MAX : (uint16_t)period;
+    }
+    pulse_last_us[pulse] = now;
+    pulse_edge_latch |= edge_tag;
+}
 
 static void dma_isr(void)
 {
@@ -54,7 +86,14 @@ static void dma_isr(void)
             dma_channel_set_write_addr(dma_ch[i], bufs[i], false);
             dma_channel_set_trans_count(dma_ch[i], BLOCK_SAMPLES, false);
 
-            tags[i] = mux_a ? TAG_CV2 : 0;
+            uint8_t pulse_edges = pulse_edge_latch;
+            pulse_edge_latch = 0;
+            tags[i] = (mux_a ? TAG_CV2 : 0) |
+                      (gpio_get(PULSE_IN_1) ? 0 : TAG_PULSE_1) |
+                      (gpio_get(PULSE_IN_2) ? 0 : TAG_PULSE_2) |
+                      pulse_edges;
+            pulse_periods[i][0] = latest_period_ms[0];
+            pulse_periods[i][1] = latest_period_ms[1];
             mux_a ^= 1;
             gpio_put(MUX_PIN_A, mux_a);
             block_count++;
@@ -119,10 +158,26 @@ static void setup_outputs(void)
     pwm_init(pwm_gpio_to_slice_num(CV_OUT_1), &config, true);
     pwm_set_gpio_level(CV_OUT_1, 1000);
     pwm_set_gpio_level(CV_OUT_2, 1000);
+
+    gpio_init(PULSE_OUT_1);
+    gpio_set_dir(PULSE_OUT_1, GPIO_OUT);
+    gpio_put(PULSE_OUT_1, 1);
+    gpio_init(PULSE_OUT_2);
+    gpio_set_dir(PULSE_OUT_2, GPIO_OUT);
+    gpio_put(PULSE_OUT_2, 1);
+
+    gpio_init(PULSE_IN_1);
+    gpio_set_dir(PULSE_IN_1, GPIO_IN);
+    gpio_pull_up(PULSE_IN_1);
+    gpio_init(PULSE_IN_2);
+    gpio_set_dir(PULSE_IN_2, GPIO_IN);
+    gpio_pull_up(PULSE_IN_2);
+    gpio_set_irq_enabled_with_callback(PULSE_IN_1, GPIO_IRQ_EDGE_FALL, true, pulse_gpio_isr);
+    gpio_set_irq_enabled(PULSE_IN_2, GPIO_IRQ_EDGE_FALL, true);
 }
 
 // The ADC reads inverted (+6 V = 0) and the DAC and CV PWM outputs are inverted too, so raw codes pass straight through.
-static inline void __not_in_flash_func(write_outputs)(uint32_t audio_out1, uint32_t audio_out2, uint32_t cv1, uint32_t cv2)
+static inline void __not_in_flash_func(write_outputs)(uint32_t audio_out1, uint32_t audio_out2, uint32_t cv1, uint32_t cv2, bool pulse1, bool pulse2)
 {
     uint16_t words[2] = {
         (uint16_t)(DAC_GAIN1X_ACTIVE | (audio_out1 & 0xFFF)),
@@ -131,6 +186,8 @@ static inline void __not_in_flash_func(write_outputs)(uint32_t audio_out1, uint3
     spi_write16_blocking(spi0, words, 2);
     pwm_set_gpio_level(CV_OUT_1, (cv1 * 125) >> 8);
     pwm_set_gpio_level(CV_OUT_2, (cv2 * 125) >> 8);
+    gpio_put(PULSE_OUT_1, !pulse1);
+    gpio_put(PULSE_OUT_2, !pulse2);
 }
 
 static inline uint32_t __not_in_flash_func(frames_written)(uint32_t k)
@@ -163,6 +220,8 @@ static void __not_in_flash_func(core1_main)(void)
         while (emit_f < avail)
         {
             const uint16_t *s = &buf[emit_f * NUM_CH];
+            bool pulse1 = gpio_get(PULSE_IN_1) == 0;
+            bool pulse2 = gpio_get(PULSE_IN_2) == 0;
             audio2 = s[0];
             audio1 = s[1];
             if (emit_f >= CV_SETTLE_FRAMES)
@@ -173,11 +232,11 @@ static void __not_in_flash_func(core1_main)(void)
 
             if (pass_through)
             {
-                write_outputs(audio1, audio2, cv[0], cv[1]);
+                write_outputs(audio1, audio2, cv[0], cv[1], pulse1, pulse2);
             }
             else
             {
-                write_outputs(2048, 2048, 2048, 2048);
+                write_outputs(2048, 2048, 2048, 2048, false, false);
             }
         }
 
@@ -228,7 +287,11 @@ int main(void)
 
             frame[2] = seq++;
             frame[3] = tags[i];
-            memcpy(&frame[4], bufs[i], BLOCK_SAMPLES * 2);
+            frame[4] = pulse_periods[i][0] & 0xff;
+            frame[5] = pulse_periods[i][0] >> 8;
+            frame[6] = pulse_periods[i][1] & 0xff;
+            frame[7] = pulse_periods[i][1] >> 8;
+            memcpy(&frame[FRAME_HEADER_BYTES], bufs[i], BLOCK_SAMPLES * 2);
             stdio_put_string((const char *)frame, FRAME_BYTES, false, false);
         }
     }
