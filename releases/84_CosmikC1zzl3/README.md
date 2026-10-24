@@ -58,9 +58,26 @@ Lab. RAD v9 adds independently editable Amp1/Amp2, PD1/PD2, and Pitch1/Pitch2
 envelopes, separate oscillator waveform-family settings, named sound-preset
 slots, saved sound-preset settings, and editor readback for those settings.
 
-Core 1.4 shares its Amp, PD, Pitch, waveform, and base PD controls between both
-oscillators. RAD v9 separates the six envelope lanes and oscillator waveform
-settings while retaining a shared base PD amount and the same panel/CC map.
+## Core And RAD Comparison
+
+| Feature | Core 1.4 | RAD v9 |
+|---|---|---|
+| Firmware to flash | `uf2/C1ZZL3_CORE.uf2` | `uf2/C1ZZL3_RAD.uf2` |
+| Amplitude envelopes | One shared envelope for both oscillators | Independent Amp1 and Amp2 envelopes |
+| Phase-distortion envelopes | One shared envelope for both oscillators | Independent PD1 and PD2 envelopes |
+| Pitch envelopes | One shared envelope for both oscillators | Independent Pitch1 and Pitch2 envelopes |
+| Waveform settings | Shared between both oscillators | Separate waveform settings for each oscillator |
+| Panel Y knob / CC23 | Controls both oscillators' waveform | Controls oscillator 1 waveform; set oscillator 2 in the editor |
+| Base phase-distortion amount | Shared between both oscillators | Shared between both oscillators; PD envelopes remain independent |
+| Custom card slots | Eight custom envelope slots | Eight named sound-preset slots with envelopes and performance settings |
+| Save Envelope Only | Saves compatible shared envelope data | Saves six envelope lanes and slot name, retaining the slot's saved settings |
+| Save Sound Preset | Falls back to a compatible envelope save | Saves six envelope lanes, slot name, and current performance settings together |
+| Card readback | Saved envelopes and current settings | Saved envelopes, slot names, per-slot performance settings, and current settings |
+| Turing machine | Audio, CV, pulse, and optional MIDI output | Same as Core |
+| Physical controls and MIDI CC map | Synth, performance edit, and Turing controls | Same layout and CC numbers as Core, with the waveform distinction above |
+| Browser tools | Shared Envelope Lab and CZ Import Lab | Same tools, with independent oscillator editing and sound-preset support |
+| Source-build output | `build/C1ZZL3.uf2` | `build/C1ZZL3_FULL_DUAL_OSCILLATORS.uf2` |
+
 Use the [RAD README](rad/README.md) and [RAD card guide](rad/CARD_README.md)
 for its editing, sound-preset saving, and source-build instructions.
 
