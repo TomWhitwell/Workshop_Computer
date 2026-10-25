@@ -16,6 +16,17 @@ If the Computer and the other modules share a powered case, ground is already sh
 
 **Pull-ups.** An I2C bus needs pull-up resistors, and the Computer has none strong enough on its own. crow and Teletype provide them (crow by default), so with either on the bus you need nothing else. Otherwise fit about 2.2-4.7k from SDA and from SCL to **3.3V**. Never pull up to 5V: the RP2040 isn't 5V tolerant. `ii.pullup(true)` only switches on the RP2040's weak internal pull-ups, which are far too weak to run a bus by themselves.
 
+### Running other cards while wired up
+
+The UART pads belong to the Computer, not the card, so the wiring stays connected whatever card is running, and other cards don't know an ii bus is there:
+
+- **Most cards** built on ComputerCard so far drive both pads low, which **jams the bus** for every other module (crow, Teletype, Just Friends) while they run. Nothing is damaged, and ii works again once blackbird is back. (Newer versions of ComputerCard leave the pads alone.)
+- **A card that uses the pads as a serial port** (UART) drives the SDA line high, against any device that pulls it low. That's out of spec for both chips. It's unlikely to cause instant damage, but it shouldn't be left running on a busy bus. Of the published cards, 45_bends does this.
+
+So either disconnect the ii wires (a switch or a plug-in header makes this easy) when you run other cards, or fit a **220-330Ω resistor in series** with each of SDA and SCL, close to the Computer. That limits the current if any card drives the lines, and doesn't stop ii from working.
+
+Wire the pads to an ii bus *or* to a serial (UART) partner, never both at once.
+
 ## Leading
 
 The syntax is crow's: see crow's [ii reference](https://monome.org/docs/crow/reference/#ii). For example:
