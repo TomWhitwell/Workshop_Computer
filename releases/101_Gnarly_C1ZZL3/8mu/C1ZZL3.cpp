@@ -355,6 +355,9 @@ private:
     static constexpr uint8_t MidiCc8muEditTimes = 121;
     static constexpr uint8_t MidiCc8muSaveEnvelope = 122;
     static constexpr uint8_t MidiCc8muRevertEnvelope = 123;
+    // Reserve notes 120-123 for edit actions and 124-127 for inactive buttons.
+    // Keyboard-mode buttons work on controllers that do not transmit CC buttons.
+    static constexpr uint8_t MidiNote8muButtonBase = 120;
     static constexpr uint32_t EightMuEditLedHalfPeriodSamples = 12000u; // 250 ms at 48 kHz.
     static constexpr int32_t PitchUnitsPerOctave = 4096;
     static constexpr int32_t MainPitchOctaves = 5;
@@ -1010,6 +1013,18 @@ private:
             customEnvelopes[slot] = customEnvelopeSaved[slot];
     }
 
+    void handle8muButtonAction(uint8_t action)
+    {
+        switch (action)
+        {
+            case MidiCc8muEditLevels: eightMuEditTimes = false; break;
+            case MidiCc8muEditTimes: eightMuEditTimes = true; break;
+            case MidiCc8muSaveEnvelope: save8muEnvelope(); break;
+            case MidiCc8muRevertEnvelope: revert8muEnvelope(); break;
+            default: break;
+        }
+    }
+
     void processMidiVoiceByte(uint8_t byte)
     {
         if (byte >= 0xF8u)
@@ -1034,6 +1049,15 @@ private:
         uint8_t channel = midiRunningStatus & 0x0Fu;
         if (channel != midiInChannel)
             return;
+
+        if ((type == 0x90u || type == 0x80u) && midiData[0] >= MidiNote8muButtonBase)
+        {
+            // Act only on presses. Neither releases nor unused bank-1 buttons
+            // enter the synth note path, so controller buttons cannot play notes.
+            if (type == 0x90u && midiData[1] > 0u)
+                handle8muButtonAction(midiData[0]);
+            return;
+        }
 
         if (type == 0x90u && midiData[1] > 0)
         {
@@ -1069,21 +1093,10 @@ private:
             {
                 edit8muEnvelopeStage(midiData[0], midiData[1]);
             }
-            else if (midiData[0] == MidiCc8muEditLevels && midiData[1] > 0u)
+            else if (midiData[0] >= MidiCc8muEditLevels && midiData[0] <= MidiCc8muRevertEnvelope)
             {
-                eightMuEditTimes = false;
-            }
-            else if (midiData[0] == MidiCc8muEditTimes && midiData[1] > 0u)
-            {
-                eightMuEditTimes = true;
-            }
-            else if (midiData[0] == MidiCc8muSaveEnvelope && midiData[1] > 0u)
-            {
-                save8muEnvelope();
-            }
-            else if (midiData[0] == MidiCc8muRevertEnvelope && midiData[1] > 0u)
-            {
-                revert8muEnvelope();
+                if (midiData[1] > 0u)
+                    handle8muButtonAction(midiData[0]);
             }
             else if (midiData[0] == MidiCc8muSelectEnvelope)
             {

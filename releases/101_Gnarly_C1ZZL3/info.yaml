@@ -17,16 +17,17 @@ summary: >-
   Web MIDI editor while adding Music Thing 8mu v2 performance and custom-envelope
   editing through eight bundled controller banks. Bank 1 provides performance
   controls, Banks 2--7 edit the six envelope lanes, and Bank 8 selects the custom
-  slot and adjusts lane/master depths. Lane-bank buttons select level/time editing,
-  save all six lanes and current performance settings or revert all six lanes. Only saved custom sound-preset slots are editable; factory
+  slot and adjusts lane/master depths. Buttons use Keyboard mode: A/note 120
+  selects levels, B/note 121 selects times, C/note 122 saves, and D/note 123
+  reverts in banks 2--8. Only saved custom sound-preset slots are editable; factory
   envelopes remain read-only and gesture mappings are disabled.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "Gnarly protocol v11 stable"
-Status: Beta
+Status: Released
 License: MIT
 date-created: 2026-07-22
-date-updated: 2026-10-24
+date-updated: 2026-10-25
 Editor: web
 demo-link: https://www.youtube.com/watch?v=OwlnbzgJ3Lg
 uf2:
@@ -197,12 +198,21 @@ host:
 
 
     8mu alternative: import the bundled 8mu bank files when using
-    Gnarly_C1ZZL3_8mu.uf2. Bank 1 button presses send unused CCs 124--127,
-    so they do not play notes; Banks 2--8 retain their envelope-edit actions.
+    Gnarly_C1ZZL3_8mu.uf2. Buttons use Keyboard mode on MIDI channel 1 with
+    velocity 127. In banks 2--8: A = note 120 (stage levels), B = note 121
+    (stage times), C = note 122 (save all six lanes and current performance
+    settings), D = note 123 (revert all six lanes to their saved values).
+    Save/revert require a saved custom slot. Bank 1 sends notes 124--127
+    for A--D respectively; these are ignored. Reserved button notes do not
+    play synth pitches. Actions occur on note-on; note-off does not undo them.
+    CC120--123 remain supported for other controllers. Re-import the matching
+    keyboard-mode banks and choose Update controller after each import.
     Workshop Computer LED 6 is steady for stage-level editing (A) and blinks
     twice per second for stage-time editing (B). The mode carries across banks
     and defaults to levels at startup. Startup selection and save confirmation
     temporarily override the indicator.
+    Keyboard-mode A/B selection, LED 6 feedback, and audible operation passed
+    hardware testing on 2026-10-25.
 
 contact:
   social:

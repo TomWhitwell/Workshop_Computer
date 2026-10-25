@@ -105,11 +105,18 @@ On the switch-down page, LEDs 1 and 2 show the selected recipe bank:
 - Bank 4: LEDs 1 and 2 on.
 
 LED 3 shows oscillator 2 interval/spread as brightness increasing away from
-unison. LEDs 4 and 5 show ring modulation and noise/grit. In standard firmware,
-LED 6 shows the panel page: half brightness in the middle position, off in the
-up position, and full brightness while held down. In 8mu firmware, LED 6 shows
-the slider edit mode instead: steady for levels, blinking for times. On the
-oscillator pages, LEDs 1 and 2 show that oscillator's PD and waveform/recipe position.
+unison. LEDs 4 and 5 show ring modulation and noise/grit. On the oscillator
+pages, LEDs 1 and 2 show that oscillator's PD and waveform/recipe position.
+
+**LED 6 has a different purpose in each firmware:**
+
+| Firmware | LED 6 during normal operation |
+|---|---|
+| Standard Gnarly | Shows the panel page: half brightness with the switch in the middle, off with it up, and full brightness while held down. |
+| Gnarly 8mu | Shows slider editing: fully on for levels (A), blinking twice per second for times (B). The switch position does not change it. |
+
+In the 8mu firmware, a fully lit LED 6 is normal at startup because level
+editing is the default. It should start blinking after B sends note 121.
 
 ## USB MIDI
 
@@ -147,6 +154,25 @@ selecting the matching destination bank on the 8mu before each import. The
 supplied USB mappings send on MIDI channel 1; set Gnarly's MIDI input channel
 to match.
 
+Use the current 8mu UF2 together with these bank files. Re-import all eight
+banks after updating, choosing **Update controller** after each import. The
+buttons use **Keyboard** mode, MIDI channel **1**, and velocity **127**.
+The same button mappings apply in every envelope bank, including bank 8:
+
+| Button | Keyboard note number in banks 2–8 | Action |
+|---|---:|---|
+| A | 120 | Select stage-level editing; LED 6 stays fully on. |
+| B | 121 | Select stage-time editing; LED 6 blinks twice per second. |
+| C | 122 | Save all six lanes and current performance settings in the selected custom slot. |
+| D | 123 | Revert all six lanes to their saved values. |
+
+Use numeric note numbers; octave labels differ between editors. Gnarly consumes
+these notes as edit commands, so they do not play synth pitches. Commands act
+on note-on with nonzero velocity; releasing a button does not undo the command
+or change the selected edit mode. CC120–123 remain supported for other
+controllers. Notes 120–127 are reserved for button control in the 8mu firmware;
+ordinary MIDI notes below 120 continue to play.
+
 The eight controller banks assign sliders as follows. Amp means amplitude,
 PD means phase distortion, and Pitch means pitch-envelope offset. Controller
 banks are separate from the synth's four recipe banks.
@@ -173,8 +199,10 @@ values directly when moved.
 | 2–7 | Edit stage levels | Edit stage times | Save all six lanes and current performance settings in the selected custom slot | Revert all six lanes to their last saved values |
 | 8 | Select level edit mode for banks 2–7 | Select time edit mode for banks 2–7 | Same save action as banks 2–7 | Same revert action as banks 2–7 |
 
-Bank 1 buttons send unused USB CCs 124–127 and do not play notes. In bank 8,
-A/B change the stage edit mode; they do not change the utility sliders' functions.
+Bank 1 sends A = note 124, B = note 125, C = note 126, and D = note 127.
+The 8mu firmware ignores these notes, so the buttons do not play sounds or
+change the edit mode. In bank 8, A/B select the stage edit mode for banks 2–7;
+they do not change the utility sliders' functions.
 
 **Workshop Computer LED 6 shows the selected slider edit mode:**
 
@@ -187,6 +215,9 @@ Press once; holding A or B is unnecessary. Level mode is selected at startup.
 The indication stays visible across controller banks and panel pages, showing
 which mode banks 2–7 will use. Startup envelope selection and the brief save
 confirmation display temporarily take priority over this indicator.
+
+Keyboard-mode A/B selection, the matching LED 6 indication, and audible
+operation passed hardware testing on 25 October 2026.
 
 ### Selecting And Editing A Sound
 

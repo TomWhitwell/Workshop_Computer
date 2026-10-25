@@ -6,9 +6,11 @@ const controls = (ccs) => [
   ...ccs.map((cc) => ({ channel: 1, cc, lsb: 0, highResolution: false })),
   ...offGesture(),
 ];
-const buttons = (edit = false) => edit
-  ? [120, 121, 122, 123].map((paramA) => ({ channel: 1, mode: 0, paramA, paramB: 127, pressed: false }))
-  : [36, 48, 60, 72].map((paramA) => ({ channel: 1, mode: 1, paramA, paramB: 127, pressed: false }));
+// The 16n/8mu editor uses mode 0 for keyboard notes and mode 1 for CCs.
+// Use keyboard mode: some 8mu firmware does not transmit buttons in CC mode.
+// The matching Gnarly firmware consumes these reserved notes as actions, not pitches.
+const buttons = (edit = false) => (edit ? [120, 121, 122, 123] : [124, 125, 126, 127])
+  .map((paramA) => ({ channel: 1, mode: 0, paramA, paramB: 127, pressed: false }));
 const config = (ccs, edit = false) => ({
   ledFlash: true, ledFlashAccel: false, controllerFlip: false, midiThru: false,
   deviceId: 6, faderMin: 0, faderMax: 16383, trsMode: 0, firmwareVersion: "1.0.0",
