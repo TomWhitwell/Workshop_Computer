@@ -6,6 +6,8 @@
 #include "pico/time.h"
 #include "tusb.h"
 #include "usb_midi_host.h"
+#include "soft_pickup.h"
+#include "led_feedback.h"
 
 static constexpr uint8_t WebMidiManufacturer = 0x7Du;
 static constexpr uint8_t WebMidiId[4] = {0x43u, 0x31u, 0x5Au, 0x33u}; // C1Z3
@@ -85,7 +87,20 @@ public:
         {
             sysexReceiving = false;
             if (!sysexOverflow)
-                handleWebMidiSysex();
+            {
+                // Read-only editor info reply: manufacturer, command, device index.
+                if (sysexLength >= 8u && sysexBuffer[0] == 0x7Du &&
+                    sysexBuffer[1] == 0u && sysexBuffer[2] == 0u &&
+                    sysexBuffer[3] == 0x0Fu && sysexBuffer[4] == 6u)
+                {
+                    eightMuLeds.identified();
+                    // USB CC assignments start at byte 41 including the F0.
+                    // This detects bank changes even before a slider is moved.
+                    if (sysexLength > 40u) eightMuPickup.beginControl(sysexBuffer[40]);
+                }
+                else
+                    handleWebMidiSysex();
+            }
             return;
         }
 
@@ -121,6 +136,47 @@ public:
             tud_midi_stream_write(0, off, sizeof(off));
         }
         turingMidiNoteActive = false;
+    }
+
+    void Reset8muHostFeedback()
+    {
+        eightMuPickup = EightMuSoftPickup{};
+        eightMuLeds = EightMuLedFeedback{};
+        eightMuLedPreset = envelopePreset;
+    }
+
+    void Service8muHostLeds(uint8_t address)
+    {
+        if (address == 0u || !tuh_midi_configured(address) ||
+            tuh_midih_get_num_tx_cables(address) == 0u)
+            return;
+        if (eightMuLedPreset != envelopePreset)
+        {
+            eightMuPickup.resetStages();
+            eightMuLedPreset = envelopePreset;
+        }
+        uint8_t levels[8];
+        uint8_t slot = 0u;
+        bool readOnly = eightMuPickup.editingStages() && !activeCustomEnvelopeSlot(slot);
+        for (uint8_t i = 0; i < 8u; ++i)
+            levels[i] = readOnly ? 0u : eightMuPickup.ledValue(i);
+        eightMuLeds.poll(time_us_32(), eightMuPickup.wantsLedFeedback(), levels,
+            [address](const uint8_t* bytes, uint32_t length)
+            {
+                uint32_t sent = 0u;
+                for (uint32_t tries = 0; sent < length && tries < 100u; ++tries)
+                {
+                    if (!tuh_midi_configured(address)) return false;
+                    sent += tuh_midi_stream_write(address, 0, bytes + sent, length - sent);
+                    if (sent < length)
+                    {
+                        tuh_midi_stream_flush(address);
+                        tuh_task();
+                    }
+                }
+                tuh_midi_stream_flush(address);
+                return sent == length;
+            });
     }
 
     // =========================================================
@@ -990,7 +1046,15 @@ private:
         if (lane == nullptr)
             return;
 
-        if (eightMuEditTimes)
+        bool times = eightMuEditTimes;
+        uint8_t target = times
+            ? EightMuSoftPickup::timeToMidi(lane[stage].time, MaxWebMidiStageSamples)
+            : EightMuSoftPickup::levelToMidi(lane[stage].level);
+        bool picked = eightMuPickup.stage(cc, value, target, slot, times);
+        if (!picked)
+            return;
+
+        if (times)
             lane[stage].time = 1u + (((uint32_t)value * MaxWebMidiStageSamples) / 127u);
         else
             lane[stage].level = (uint16_t)midiCcToControl(value);
@@ -1003,22 +1067,33 @@ private:
             return;
         customEnvelopeSaved[slot] = customEnvelopes[slot];
         customEnvelopeSavedPerformances[slot] = currentSlotPerformanceState();
-        saveCustomEnvelopeState();
+        customEnvelopePerformances[slot] = customEnvelopeSavedPerformances[slot];
+        if (saveCustomEnvelopeState())
+            saveConfirmSamples = SaveConfirmSamples;
     }
 
     void revert8muEnvelope()
     {
         uint8_t slot = 0;
         if (activeCustomEnvelopeSlot(slot))
+        {
             customEnvelopes[slot] = customEnvelopeSaved[slot];
+            eightMuPickup.resetStages();
+        }
     }
 
     void handle8muButtonAction(uint8_t action)
     {
         switch (action)
         {
-            case MidiCc8muEditLevels: eightMuEditTimes = false; break;
-            case MidiCc8muEditTimes: eightMuEditTimes = true; break;
+            case MidiCc8muEditLevels:
+                if (eightMuEditTimes) eightMuPickup.resetStages();
+                eightMuEditTimes = false;
+                break;
+            case MidiCc8muEditTimes:
+                if (!eightMuEditTimes) eightMuPickup.resetStages();
+                eightMuEditTimes = true;
+                break;
             case MidiCc8muSaveEnvelope: save8muEnvelope(); break;
             case MidiCc8muRevertEnvelope: revert8muEnvelope(); break;
             default: break;
@@ -1084,6 +1159,7 @@ private:
 
         if (type == 0xB0u)
         {
+            eightMuPickup.beginControl(midiData[0]);
             if ((midiData[0] >= MidiCc8muAmp1Stages && midiData[0] < MidiCc8muAmp1Stages + 8u) ||
                 (midiData[0] >= MidiCc8muAmp2Stages && midiData[0] < MidiCc8muAmp2Stages + 8u) ||
                 (midiData[0] >= MidiCc8muPd1Stages && midiData[0] < MidiCc8muPd1Stages + 8u) ||
@@ -1105,27 +1181,27 @@ private:
             }
             else if (midiData[0] == MidiCc8muAmp1Depth || midiData[0] == MidiCc8muAmp1DepthBank)
             {
-                envelopeAmp1Depth = midiCcToControl(midiData[1]);
+                update8muDepth(midiData[0], midiData[1], 0u, envelopeAmp1Depth);
             }
             else if (midiData[0] == MidiCc8muPd1Depth || midiData[0] == MidiCc8muPd1DepthBank)
             {
-                envelopePd1Depth = midiCcToControl(midiData[1]);
+                update8muDepth(midiData[0], midiData[1], 1u, envelopePd1Depth);
             }
             else if (midiData[0] == MidiCc8muPitch1Depth || midiData[0] == MidiCc8muPitch1DepthBank)
             {
-                envelopePitch1Depth = midiCcToControl(midiData[1]);
+                update8muDepth(midiData[0], midiData[1], 2u, envelopePitch1Depth);
             }
             else if (midiData[0] == MidiCc8muPitch2Depth || midiData[0] == MidiCc8muPitch2DepthBank)
             {
-                envelopePitch2Depth = midiCcToControl(midiData[1]);
+                update8muDepth(midiData[0], midiData[1], 3u, envelopePitch2Depth);
             }
             else if (midiData[0] == MidiCc8muPd2Depth || midiData[0] == MidiCc8muPd2DepthBank)
             {
-                envelopePd2Depth = midiCcToControl(midiData[1]);
+                update8muDepth(midiData[0], midiData[1], 4u, envelopePd2Depth);
             }
             else if (midiData[0] == MidiCc8muAmp2Depth || midiData[0] == MidiCc8muAmp2DepthBank)
             {
-                envelopeAmp2Depth = midiCcToControl(midiData[1]);
+                update8muDepth(midiData[0], midiData[1], 5u, envelopeAmp2Depth);
             }
             else if (midiData[0] == MidiCc8muEnvelopeSelect)
             {
@@ -1136,7 +1212,7 @@ private:
             }
             else if (midiData[0] == MidiCc8muEnvelopeMaster || midiData[0] == MidiCc8muMasterDepthBank)
             {
-                envelopeMasterDepth = midiCcToControl(midiData[1]);
+                update8muDepth(midiData[0], midiData[1], 6u, envelopeMasterDepth);
             }
             else if (midiData[0] == MidiCcModWheelOsc1Pd || midiData[0] == MidiCcOsc1Pd)
             {
@@ -1179,6 +1255,7 @@ private:
                 osc2Noise = midiCcToControl(midiData[1]);
                 midiResetAltYPickup = true;
             }
+            eightMuPickup.endControl(midiData[0], midiData[1]);
             return;
         }
 
@@ -1187,6 +1264,13 @@ private:
             int32_t bend = ((int32_t)midiData[1] << 7) | midiData[0];
             midiPitchBend = bend - 8192;
         }
+    }
+
+    void update8muDepth(uint8_t cc, uint8_t value, uint8_t lane, volatile int32_t& depth)
+    {
+        bool picked = eightMuPickup.depth(cc, value, EightMuSoftPickup::levelToMidi(depth), lane);
+        if (picked)
+            depth = midiCcToControl(value);
     }
 
     int32_t midiCcToControl(uint8_t value)
@@ -1704,6 +1788,7 @@ private:
             return;
 
         customEnvelopes[slot] = next;
+        eightMuPickup.resetStages();
         customEnvelopeLoaded[slot] = true;
         customEnvelopePerformances[slot] = incomingPerformance;
         applySlotPerformanceState(incomingPerformance);
@@ -1728,6 +1813,7 @@ private:
 
         uint8_t slot = sysexBuffer[6] & 0x07u;
         customEnvelopes[slot] = {};
+        eightMuPickup.resetStages();
         customEnvelopeSaved[slot] = {};
         clearEnvelopeName(customEnvelopeNames[slot]);
         customEnvelopePerformances[slot] = {};
@@ -3311,14 +3397,14 @@ private:
         restore_interrupts(interrupts);
     }
 
-    void saveCustomEnvelopeState()
+    bool saveCustomEnvelopeState()
     {
         SavedCustomEnvelopeState state = currentCustomEnvelopeState();
         const SavedCustomEnvelopeState& saved = flashCustomEnvelopeState();
 
         if (isValidCustomEnvelopeState(saved) &&
             customEnvelopeStateMatches(state, saved))
-            return;
+            return true;
 
         uint8_t page[FLASH_PAGE_SIZE];
         const uint8_t* stateBytes = reinterpret_cast<const uint8_t*>(&state);
@@ -3345,6 +3431,8 @@ private:
         }
 
         restore_interrupts(interrupts);
+        // Confirm the flash contents before acknowledging a controller save.
+        return isValidCustomEnvelopeState(saved) && customEnvelopeStateMatches(state, saved);
     }
 
     int32_t applyDetune(int32_t freq, int32_t detune)
@@ -3586,6 +3674,9 @@ private:
     volatile int32_t envelopeAmp2Depth = 4095;
     volatile int32_t envelopeMasterDepth = 4095;
     volatile bool eightMuEditTimes = false;
+    EightMuSoftPickup eightMuPickup;
+    EightMuLedFeedback eightMuLeds;
+    uint8_t eightMuLedPreset = 0xFFu;
     uint32_t eightMuEditLedPhase = 0u;
     int32_t synthMainEntry = 2048;
     int32_t synthXEntry = 0;
@@ -3606,7 +3697,7 @@ private:
     bool altXPickedUp = false;
     bool altYPickedUp = false;
     uint32_t saveHoldSamples = 0;
-    uint32_t saveConfirmSamples = 0;
+    volatile uint32_t saveConfirmSamples = 0;
     bool saveHoldCanSave = false;
     bool saveCompletedThisHold = false;
     bool modePickupInitialized = false;
@@ -3659,6 +3750,12 @@ private:
 C1ZZL3 card;
 static volatile uint8_t hostMidiDeviceAddress = 0;
 
+// Flash serialization alone needs ~3.9 KiB, nested inside MIDI/USB handlers.
+// The SDK's default 2 KiB core-1 stack overflows during controller saves.
+// Reserve a separate RAM stack with headroom for TinyUSB and flash helpers.
+static constexpr uint32_t UsbMidiStackBytes = 16u * 1024u;
+alignas(8) static uint32_t usbMidiStack[UsbMidiStackBytes / sizeof(uint32_t)];
+
 extern "C" void tuh_midi_mount_cb(
     uint8_t dev_addr,
     uint8_t in_ep,
@@ -3672,7 +3769,10 @@ extern "C" void tuh_midi_mount_cb(
     (void)num_cables_tx;
 
     if (hostMidiDeviceAddress == 0)
+    {
+        card.Reset8muHostFeedback();
         hostMidiDeviceAddress = dev_addr;
+    }
 }
 
 extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
@@ -3680,7 +3780,10 @@ extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
     (void)instance;
 
     if (dev_addr == hostMidiDeviceAddress)
+    {
         hostMidiDeviceAddress = 0;
+        card.Reset8muHostFeedback();
+    }
 }
 
 extern "C" void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
@@ -3721,6 +3824,7 @@ void usbMidiWorker()
         if (hostMode)
         {
             tuh_task();
+            card.Service8muHostLeds(hostMidiDeviceAddress);
         }
         else
         {
@@ -3745,6 +3849,6 @@ int main()
 #if defined(C1ZZL3_OVERCLOCK_KHZ) && C1ZZL3_OVERCLOCK_KHZ
     set_sys_clock_khz(C1ZZL3_OVERCLOCK_KHZ, true);
 #endif
-    multicore_launch_core1(usbMidiWorker);
+    multicore_launch_core1_with_stack(usbMidiWorker, usbMidiStack, sizeof(usbMidiStack));
     card.Run();
 }

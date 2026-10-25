@@ -20,7 +20,9 @@ summary: >-
   slot and adjusts lane/master depths. Buttons use Keyboard mode: A/note 120
   selects levels, B/note 121 selects times, C/note 122 saves, and D/note 123
   reverts in banks 2--8. Only saved custom sound-preset slots are editable; factory
-  envelopes remain read-only and gesture mappings are disabled.
+  envelopes remain read-only and gesture mappings are disabled. The bundled 8mu
+  release includes soft pickup and individual slider LEDs: dim while waiting
+  for pickup, full after pickup.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "Gnarly protocol v11 stable"
@@ -213,6 +215,30 @@ host:
     temporarily override the indicator.
     Keyboard-mode A/B selection, LED 6 feedback, and audible operation passed
     hardware testing on 2026-10-25.
+    The bundled 8mu release uses soft pickup for stage sliders in banks 2--7
+    and depth sliders 2--8 in bank 8. Reach or cross the current value within
+    one MIDI step to take control; each slider then follows normally. With the
+    8mu connected directly by USB, its slider LED is dim while waiting
+    and full after pickup. Factory stage sliders remain read-only with LEDs
+    off. Bank 8 slider 1 stays full and selects immediately; bank 1 retains
+    immediate performance controls and normal activity LEDs. LED control reads
+    the current bank without resetting its mappings; allow about half a second
+    for the display after changing bank.
+    Stage pickup re-arms on lane, custom slot, or A/B mode changes, D/revert,
+    browser envelope loads, and returning from another bank. Depth pickup
+    re-arms on bank changes. Repeated A/B presses in the same mode preserve
+    pickup. Depths start at full: move each depth slider to the top before
+    lowering it for the first time. C does not save depths; D does not restore
+    depths or performance settings.
+    Soft pickup and dim-to-full slider LED feedback were confirmed on hardware
+    on 2026-10-25; the bundled 8mu UF2 is that tested build. After an 8mu factory
+    reset, re-import all eight Gnarly controller banks.
+    The bundled 8mu release fixes a C-save stack overflow by allocating a
+    dedicated 16 KiB USB/MIDI stack. Flash readback is verified before all six
+    Workshop LEDs flash for about one second to confirm a successful C save.
+    Saved-envelope persistence was confirmed after reset and readback in the
+    web editor on 2026-10-25. C saves the custom slot but does not change startup
+    selection; reselect that slot after reboot.
 
 contact:
   social:

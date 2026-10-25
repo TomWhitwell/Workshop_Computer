@@ -22,6 +22,14 @@ for those firmware choices.
 Flash one of these UF2 files, not both. Their SHA-256 checksums are in
 [checksum file](uf2/SHA256SUMS.txt).
 
+The 8mu release includes soft pickup with dim waiting LEDs and full brightness
+after pickup. See [Soft Pickup And Slider LEDs](#soft-pickup-and-slider-leds).
+
+The 8mu release also includes the C-button save fix: a dedicated USB/MIDI
+stack, flash readback verification, and a one-second Workshop LED confirmation.
+Saved-envelope persistence was confirmed after reset and readback in the web
+editor on 25 October 2026.
+
 ## What It Does
 
 - Runs two phase-distortion oscillator lanes.
@@ -157,6 +165,100 @@ to match.
 Use the current 8mu UF2 together with these bank files. Re-import all eight
 banks after updating, choosing **Update controller** after each import. The
 buttons use **Keyboard** mode, MIDI channel **1**, and velocity **127**.
+
+### First Select A Saved Custom Slot
+
+**Stage editing needs a custom preset already saved on the card.** A browser
+preset marked `Local only`, or an envelope sent with `Load RAM`, is not enough.
+
+1. In the Gnarly browser editor, choose or create a custom sound, select a card
+   slot, and use **Save Sound Preset**. Confirm that the save succeeds; use
+   **Read Envelopes from Card** to check the saved slot if needed.
+2. On the 8mu, select **controller bank 8** and move **slider 1** to select
+   that saved custom slot. The slider steps through the factory presets first,
+   followed by the occupied custom slots. It does not select an empty slot to
+   create a new preset.
+3. Select **controller bank 2–7** for the lane you want to change. Changing the
+   controller bank selects different controls; it keeps the same sound selected.
+4. Press **A** for stage levels or **B** for stage times, then move each slider
+   to the existing stage value before it takes over.
+   Sliders 1–8 edit stages 1–8. For example, in bank 2, slider 3 edits Amp1
+   stage 3; in bank 6, the same slider edits Pitch1 stage 3.
+5. Press **C** to save all six lanes and the current performance settings to
+   the selected custom slot. Press **D** to restore all six lanes to their
+   last saved values. D does not restore performance settings or depth controls.
+   C saves the slot, not its startup selection: after restarting, select the
+   same custom slot again before checking your edits. All six Workshop Computer
+   LEDs flash for about one second after a
+   verified save; factory slots give no save confirmation.
+
+Factory presets can be selected and played, but their stage points are
+read-only. With no saved custom slot selected, stage editing and C/D have no
+effect. A/B still select the edit mode and LED 6 still indicates that mode.
+
+### Stage Editing Versus Envelope Depth
+
+| Control | What changes | Saved by C? |
+|---|---|---|
+| Banks 2–7, A: stage levels | The eight level points that define the selected lane's envelope shape. | Yes, together with the other five lanes. |
+| Banks 2–7, B: stage times | The duration of each of the selected lane's eight stages. | Yes, together with the other five lanes. |
+| Bank 8, sliders 2–7: lane depths | How strongly each existing envelope affects the sound. Its stage points stay unchanged. | No; temporary performance controls. |
+| Bank 8, slider 8: master depth | Scales all six lane depths together. Its stage points stay unchanged. | No; temporary performance control. |
+
+In level mode, Amp/PD stage levels run from minimum to maximum. Pitch stage
+levels run from negative offset through zero at the centre to positive offset.
+In time mode, each slider sets its stage duration from approximately zero to
+four seconds. Stage sliders use soft pickup as described below.
+
+Depth controls scale the existing envelope: Amp depth changes envelope-controlled
+output level, PD depth changes added phase distortion, and pitch depth changes
+the excursion around zero pitch offset. For example, lowering Pitch1 depth
+reduces the pitch sweep without changing any of its eight stage levels or times.
+Master depth scales all six lane depths together. Depths default to full at
+startup and are not stored by C or restored by D. In envelope Off mode,
+amplitude depth does not attenuate the continuous oscillator output.
+
+A/B change the stage edit mode only. They do not change what bank 8's depth
+sliders do. Gesture mappings are disabled in all supplied banks.
+
+### Soft Pickup And Slider LEDs
+
+Stage sliders in banks 2–7 and depth sliders in bank 8 use **soft pickup**.
+Moving a slider does not change the existing value until you reach or cross
+it, within one MIDI step. After pickup, the slider follows normally in either
+direction. The bank 8 preset selector remains immediate; bank 1 performance
+controls keep their existing behaviour.
+
+When the 8mu is connected directly to the Workshop Computer's USB port, its
+own slider LEDs show pickup state independently for each slider:
+
+| 8mu slider LED | Meaning |
+|---|---|
+| Dim glow | Waiting for pickup; the stored stage value or current depth is unchanged. |
+| Full brightness | Picked up; the slider controls that stage or depth. |
+| Off in a stage bank | The selected envelope is a factory preset or has no saved custom slot, so its stages cannot be edited. |
+
+The waiting glow uses MIDI brightness 16/127; picked-up sliders use 127/127.
+
+On bank 8, slider 1's LED stays full because preset selection is immediate.
+In bank 1, the normal 8mu MIDI-activity LEDs resume. Bank-selection animations
+may briefly take priority; the pickup display refreshes after the bank is read,
+normally within about half a second. The controller's stored banks are not
+rewritten. LED feedback needs the direct USB connection; one-way MIDI routing
+cannot return brightness updates to the 8mu.
+
+Stage pickup re-arms when you change envelope lane, A/B level/time mode, or
+custom slot, press D to revert, or load an envelope from the browser. Returning
+from another controller bank re-arms pickup for the stage/depth controls in
+that bank. Depths still start at full after power-up, so move each depth slider
+to the top before lowering it for the first time. A/B presses that select the
+already active mode do not interrupt pickup.
+
+Workshop Computer LED 6 retains its level/time indication. Soft pickup and
+the dim-to-full 8mu slider LEDs are included in the bundled 8mu release UF2.
+
+### Button And Slider Reference
+
 The same button mappings apply in every envelope bank, including bank 8:
 
 | Button | Keyboard note number in banks 2–8 | Action |
@@ -190,8 +292,8 @@ banks are separate from the synth's four recipe banks.
 
 In banks 2–7, each slider edits either the **level** or the **time** of its
 numbered stage in that bank's envelope lane. Press A for levels or B for times;
-the selected edit mode carries across lane banks. These sliders set stage
-values directly when moved.
+the selected edit mode carries across lane banks. Each slider waits for soft
+pickup before changing its stage value.
 
 | Controller bank | Button A | Button B | Button C | Button D |
 |---|---|---|---|---|
@@ -217,34 +319,10 @@ which mode banks 2–7 will use. Startup envelope selection and the brief save
 confirmation display temporarily take priority over this indicator.
 
 Keyboard-mode A/B selection, the matching LED 6 indication, and audible
-operation passed hardware testing on 25 October 2026.
-
-### Selecting And Editing A Sound
-
-1. Save a custom sound-preset slot from the Gnarly browser editor first.
-2. Select controller bank 8 and move slider 1 to choose that saved custom slot.
-   The slider steps through factory presets followed by occupied custom slots;
-   factory presets are available to play but remain read-only.
-3. Select bank 2–7 for the envelope lane you want to edit.
-4. Press A to edit levels or B to edit times, then move sliders 1–8 to edit
-   the corresponding stages. In level mode, Amp/PD run from minimum to maximum;
-   pitch levels run from negative offset through zero at the centre to positive
-   offset. In time mode, each slider sets its stage duration from approximately
-   zero to four seconds.
-5. Press C to save all six lanes and current performance settings in the
-   selected custom slot. Press D to discard unsaved stage edits across all six
-   lanes and restore their saved values; D does not restore performance settings.
-
-Bank 8 depth sliders scale the existing envelopes rather than editing stage
-points. Amp depth changes envelope-controlled output level, PD depth changes
-the envelope's added phase distortion, and pitch depth changes the excursion
-around zero pitch offset. Master depth scales all six lane depths together.
-Depths default to full at startup and act as temporary performance controls;
-they are not stored by button C. In envelope Off mode, amplitude depth does
-not attenuate the continuous oscillator output.
-
-Stage editing, save, and revert require a saved custom slot. Gestures are
-disabled in all supplied banks to avoid unintentional edits.
+operation passed hardware testing on 25 October 2026. Soft pickup and the
+reduced waiting-LED brightness were also confirmed on hardware that day.
+The bundled 8mu UF2 also includes the C-save correction. The saved envelope
+was confirmed present after reset and loading it back into the web editor.
 
 
 ## Web MIDI Editor
@@ -327,13 +405,48 @@ Open [Import Lab](http://localhost:5178).
 
 The C1ZZL3 Envelope Lab has a hidden Developer-mode MIDI CC Test Suite for checking these messages without a hardware controller. It sends individual CC values, a neutral reset, and sweep tests through the selected Web MIDI output.
 
+### Testing Soft Pickup And 8mu LED Feedback
+
+The host-side checks exercise pickup crossings, re-arming, value conversion,
+per-slider LEDs, and the read-only 8mu LED protocol. The save test exercises
+the actual firmware serialization with simulated flash, including all six
+lanes, performance settings, unchanged saves, and failed readback:
+
+```sh
+c++ -std=c++17 -Wall -Wextra -Werror 8mu/tests/soft_pickup_test.cpp -o /tmp/gnarly-soft-pickup-test
+/tmp/gnarly-soft-pickup-test
+python3 8mu/tests/save_state_test.py
+```
+
+After building the current 8mu source, check the following on hardware:
+
+1. Select a saved custom slot with bank 8 slider 1, then choose bank 2.
+   All eight slider LEDs should be dim until their sliders reach
+   or cross the existing stage values, then full independently.
+2. Press B: Workshop LED 6 should blink and the eight slider LEDs should return
+   to a dim glow. Pick up the stage times; press A and repeat for levels.
+3. Change lane bank or custom slot, or press D: stage pickup should re-arm.
+   Pressing A or B again in the already selected mode should preserve pickup.
+4. In bank 8, slider 1 should remain full and select immediately. Sliders 2–8
+   should wait at a dim glow until picked up. Depths start at full after
+   restart, so first move these sliders to the top, then lower them.
+5. Select a factory envelope and return to a stage bank: stage LEDs should be
+   off and stage edits should have no effect. Return to bank 1 and check that
+   its normal activity LEDs and immediate performance controls resume.
+6. Edit a stage and press C. Check for the one-second Workshop LED confirmation,
+   then power off and restart. Manually reselect the same custom slot and check
+   that the edited stages persist. Depths should return to full; D should
+   restore stages without changing depth controls.
+
 ### Building Firmware
 
 The alternative 8mu source is self-contained in `8mu/`. It can be developed
-independently of the standard source. From this release folder:
+independently of the standard source. Install the Pico SDK, CMake, and Arm
+embedded C/C++ toolchain, and set `PICO_SDK_PATH` to your SDK checkout. The SDK
+also needs picotool to generate UF2 output. From this release folder:
 
 ```sh
-cmake -S . -B build -DPICO_NO_PICOTOOL=1
+cmake -S . -B build -DPICO_NO_PICOTOOL=0
 cmake --build build -j2
 ```
 
@@ -346,11 +459,28 @@ build/C1ZZL3_GNARLY_V11.uf2
 To build the alternative 8mu firmware:
 
 ```sh
-cmake -S 8mu -B build-8mu -DPICO_NO_PICOTOOL=1
+cmake -S 8mu -B build-8mu -DPICO_NO_PICOTOOL=0
 cmake --build build-8mu -j2
 ```
 
-This creates `build-8mu/Gnarly_C1ZZL3_8mu.uf2`.
+This creates `build-8mu/Gnarly_C1ZZL3_8mu.uf2`, including soft pickup and
+dim-to-full controller LED feedback and the C-save stack fix. USB/MIDI runs
+on an explicitly allocated 16 KiB RAM stack;
+the default 2 KiB stack cannot hold the flash-save frames. When changing this
+path, compile with `-fstack-usage` and check the nested TinyUSB, envelope-handler,
+and flash-save frames against that stack budget.
+
+If you intentionally configure with `-DPICO_NO_PICOTOOL=1`, the SDK creates
+ELF/BIN outputs without a UF2. Convert the ELF separately with an installed
+picotool, for example:
+
+```sh
+picotool uf2 convert build-8mu/Gnarly_C1ZZL3_8mu.elf build-8mu/Gnarly_C1ZZL3_8mu.uf2 --family 0xe48bff56 --platform rp2040
+```
+
+Keep test builds separate from `uf2/` until hardware checks pass. When publishing
+an updated release, replace the matching UF2, update `uf2/SHA256SUMS.txt`, and
+keep the README, quick reference, bank guide, and metadata in sync.
 
 ## License Notes
 
