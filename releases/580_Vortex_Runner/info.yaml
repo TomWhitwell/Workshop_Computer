@@ -175,7 +175,7 @@ host:
     panel/CV/USB MIDI use, and Vortex_Runner_8mu_0.1.2.uf2 for 8mu layer control.
     CMake targets VortexRunner and VortexRunner8mu build both from CS80.cpp
     with VORTEX_ENABLE_8MU set to 0 and 1 respectively. Old and experimental
-    UF2s remain recoverable in the repository but are excluded from the
+    UF2s remain recoverable under uf2/archive/ but are excluded from the
     catalogue download list. The 0.1.2 binaries compile successfully; hardware
     verification remains pending for both editions.
 

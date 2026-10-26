@@ -21,8 +21,8 @@ pass MIDI edition checks, but still require hardware verification.
 | 8mu | [Vortex_Runner_8mu_0.1.2.uf2](uf2/Vortex_Runner_8mu_0.1.2.uf2) | The same synth and editor, plus the 8mu layers, fader pickup and LED feedback described below. |
 
 Checksums are in [uf2/SHA256SUMS.txt](uf2/SHA256SUMS.txt). The catalogue lists
-only these two editions; older and experimental UF2s remain in the repository
-for recovery. Complete source for both is included; see
+only these two editions; earlier binaries are retained in the
+[firmware archive](uf2/archive/README.md) for recovery. Complete source for both is included; see
 [Building Both Editions](#building-both-editions) at the end of this guide.
 
 ## Quick Start

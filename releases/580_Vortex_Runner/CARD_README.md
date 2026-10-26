@@ -46,7 +46,8 @@ The standard edition omits 8mu controller layers; the 8mu edition adds them.
 Both new binaries still require hardware verification. Full source and separate
 build targets for both are in this folder; see
 [the main README](README.md#building-both-editions).
-Older UF2s are retained for recovery but excluded from catalogue downloads.
+Older UF2s are retained in the [firmware archive](uf2/archive/README.md) for
+recovery and excluded from catalogue downloads.
 
 ## LEDs
 
