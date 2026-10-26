@@ -166,7 +166,7 @@ host:
       description: Browser editor using Web MIDI SysEx for patch apply, readback, and eight persistent named card slots.
     - name: USB MIDI input
       role: host-or-device
-      description: MIDI note/gate, pitch-bend, and performance CC input for the split-output voice, following a Gnarly-style dedicated controller block with standard synth aliases.
+      description: MIDI note/gate, pitch-bend, and performance CC input for the split-output voice, following a dedicated controller block with standard synth aliases.
     - name: Music Thing Modular 8mu
       role: host
       description: 8mu edition only; USB-host controller. Buttons A-D select fader layers; panel LEDs show focused fader feedback. Cannot operate with the Web MIDI editor at the same time.

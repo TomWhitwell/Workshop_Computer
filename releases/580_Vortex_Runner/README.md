@@ -129,9 +129,9 @@ startup slot, the fallback is Doctor Who Theme, including its portamento.
 
 Use **Vortex_Runner_8mu_0.1.2.uf2**. Connect the 8mu directly to a Rev 1.1
 Workshop Computer's USB port **before powering/resetting** the Computer.
-The helper identifies the 8mu and loads its default controller mapping for
-this session; separate Gnarly bank JSON files are not used. Identification
-selects controller bank 1 and temporarily locks its bank buttons until the
+The firmware identifies the 8mu and loads its default controller mapping for
+this session. Identification selects controller bank 1 and temporarily locks
+its bank buttons until the
 8mu is power-cycled. Use **A–D** to select Vortex Runner layers instead.
 
 The 8mu changes sound parameters; it does not supply playable notes or gates.
@@ -181,9 +181,7 @@ LEDs show the most recently moved fader:
 | 4 | Pickup status: dim before capture, bright after capture. |
 | 5–6 | Physical position: LED 5 covers the lower half of travel; LED 6 covers the upper half. |
 
-These are different displays: Vortex Runner does **not** use Gnarly's
-per-slider dim/full pickup LEDs on the 8mu. Unplugging the 8mu restores the
-normal panel display. While the preset browser is open, the Workshop LEDs
+Unplugging the 8mu restores the normal panel display. While the preset browser is open, the Workshop LEDs
 show the preset number instead. To browse with the 8mu attached, use the
 Workshop switch and Main knob as described in [Preset Browser](#preset-browser).
 
