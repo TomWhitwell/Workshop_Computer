@@ -7,6 +7,7 @@
     "prebuild": "npm run check-curation",
     "build": "node ./src/build.js",
     "dev": "npm run build -- --preview && vite --config vite.config.js",
+    "dev:card": "node ./src/devCard.js",
     "validate-info": "node ./src/validate/cli.js",
     "check-curation": "node ./src/curation/cli.js check",
     "sync-curation": "node ./src/curation/cli.js sync",

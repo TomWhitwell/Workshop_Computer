@@ -67,6 +67,20 @@ While it is running, the development server watches:
 
 Successful rebuilds automatically refresh connected browsers.
 
+## Preview a single card
+
+When working on one card, build and watch just that card instead of the whole site:
+
+```sh
+npm run dev:card -- 41_blackbird
+```
+
+The card can also be given as `releases/41_blackbird`, its page slug (`41-blackbird`) or its number (`41`). Running `npm run dev:card` with no argument from inside a card's folder uses that card.
+
+This builds only that card's detail page and the stylesheets and scripts it loads, then opens it at `http://localhost:5173/programs/<slug>/`. Saving any file in the card's folder (`info.yaml`, `README.md`, docs, panels, firmware, web editor) rebuilds the page in about a second and refreshes the browser. Each build prints the card's full `info.yaml` validation report, the same as `npm run validate-info -- releases/<card>`.
+
+Files Git ignores and CMake build directories (`build/`, `build-*/`) inside the card folder are not watched, so compiling firmware does not trigger rebuilds. The home page, archive and author tools are not built in this mode; use `npm run dev` for those.
+
 ## Incremental rebuilds
 
 After the initial complete build, common metadata and curation edits use faster delta builds:
