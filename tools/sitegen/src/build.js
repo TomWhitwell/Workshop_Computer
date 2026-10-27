@@ -121,6 +121,24 @@ ${article}
   });
 }
 
+// Per-card work (git blame, OG rendering) runs off the main thread, so a few
+// cards can be in flight at once.
+const CONCURRENCY = 8;
+
+/** Map `items` through async `fn`, at most `limit` at a time, preserving order. */
+async function mapLimit(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 async function readDevCache() {
   try {
     const parsed = JSON.parse(await fs.readFile(DEV_CACHE_FILE, 'utf8'));
@@ -219,11 +237,14 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
   const panelValidationResults = [];
   const creatorSet = new Set();
   const foldersToDiscover = incrementalRelease ? [incrementalRelease] : (incrementalCuration ? [] : releaseFolders);
-  for (const folder of foldersToDiscover) {
-    const relPath = path.join(RELEASES_DIR, folder);
-    const hasFiles = (await fs.readdir(relPath)).length > 0;
-    if (!hasFiles) continue;
-    const rel = await discoverRelease(folder);
+  // Discovery waits mostly on `git blame`, so overlap several folders.
+  const discovered = await mapLimit(foldersToDiscover, CONCURRENCY, async folder => {
+    const hasFiles = (await fs.readdir(path.join(RELEASES_DIR, folder))).length > 0;
+    return hasFiles ? discoverRelease(folder) : null;
+  });
+  for (const rel of discovered) {
+    if (!rel) continue;
+    const folder = rel.folderName;
     if (incrementalRelease) {
       const index = releases.findIndex(candidate => candidate.folderName === folder);
       if (index >= 0) releases[index] = rel;
@@ -452,7 +473,7 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
   }
 
   const detailOutputs = incrementalCuration === 'flairs' ? releases : releaseOutputs;
-  for (const rel of detailOutputs) {
+  await mapLimit(detailOutputs, CONCURRENCY, async rel => {
     const base = path.join(OUT_DIR, 'programs', rel.slug);
     await ensureDir(base);
     const html = detailPage(rel);
@@ -463,7 +484,7 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
       const webDest = path.join(base, rel.web.siteSubdir || 'web');
       await copyWebAssets(rel.web.copySrc, webDest);
     }
-  }
+  });
 
   // 404 fallback
   if (!incremental) await writeFileEnsured(path.join(OUT_DIR, '404.html'), renderLayout({
