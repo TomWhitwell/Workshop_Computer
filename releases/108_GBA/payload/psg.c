@@ -1,9 +1,12 @@
 // psg.c — GBA PSG register access. See psg.h for the rules that matter.
+//
+// Everything the control tick calls every millisecond is IWRAM_CODE (see synth_tick). psg_init and
+// the unscaled psg_wave_load run once or on a mode change and stay in EWRAM.
 
 #include "psg.h"
+#include "gba.h"
 
 #define REG_BASE 0x04000000
-#define R16(off) (*(volatile uint16_t *)(REG_BASE + (off)))
 
 #define REG_SOUND1CNT_L R16(0x0060)   // sweep
 #define REG_SOUND1CNT_H R16(0x0062)   // duty / length / envelope
@@ -93,7 +96,7 @@ void psg_init(void)
     psg_wave_load(psg_wave_preset[0]);
 }
 
-void psg_master(uint8_t volL, uint8_t volR, uint8_t ratio)
+IWRAM_CODE void psg_master(uint8_t volL, uint8_t volR, uint8_t ratio)
 {
     uint16_t cnt = REG_SOUNDCNT_L;
     cnt = (uint16_t)((cnt & 0xFF00u) | ((volL & 7u) << 4) | (volR & 7u));
@@ -101,7 +104,7 @@ void psg_master(uint8_t volL, uint8_t volR, uint8_t ratio)
     REG_SOUNDCNT_H = (uint16_t)((REG_SOUNDCNT_H & ~0x3u) | (ratio & 0x3u));
 }
 
-void psg_enable(uint8_t maskL, uint8_t maskR)
+IWRAM_CODE void psg_enable(uint8_t maskL, uint8_t maskR)
 {
     uint16_t cnt = REG_SOUNDCNT_L;
     cnt = (uint16_t)((cnt & 0x00FFu) | ((maskL & 0xFu) << 12) | ((maskR & 0xFu) << 8));
@@ -132,26 +135,26 @@ void psg_enable(uint8_t maskL, uint8_t maskR)
 //
 // Envelope step is parked at 0, so the hardware envelope never runs and the value written here
 // IS the instantaneous level. Length is left disabled so a note sustains until we say otherwise.
-void psg_sq_voice(int ch, uint8_t duty, uint8_t vol)
+IWRAM_CODE void psg_sq_voice(int ch, uint8_t duty, uint8_t vol)
 {
     uint16_t v = (uint16_t)(((vol & 0xFu) << 12) | ((duty & 0x3u) << 6));
     if (ch == PSG_CH1) REG_SOUND1CNT_H = v;
     else               REG_SOUND2CNT_L = v;
 }
 
-void psg_sq_period(int ch, uint16_t period)
+IWRAM_CODE void psg_sq_period(int ch, uint16_t period)
 {
     if (ch == PSG_CH1) REG_SOUND1CNT_X = (uint16_t)(period & 0x7FFu);
     else               REG_SOUND2CNT_H = (uint16_t)(period & 0x7FFu);
 }
 
-void psg_sq_trigger(int ch, uint16_t period)
+IWRAM_CODE void psg_sq_trigger(int ch, uint16_t period)
 {
     if (ch == PSG_CH1) REG_SOUND1CNT_X = (uint16_t)((period & 0x7FFu) | TRIGGER);
     else               REG_SOUND2CNT_H = (uint16_t)((period & 0x7FFu) | TRIGGER);
 }
 
-void psg_sq_sweep(uint8_t shift, uint8_t dir, uint8_t time)
+IWRAM_CODE void psg_sq_sweep(uint8_t shift, uint8_t dir, uint8_t time)
 {
     REG_SOUND1CNT_L = (uint16_t)((shift & 7u) | ((dir & 1u) << 3) | ((time & 7u) << 4));
 }
@@ -184,14 +187,14 @@ void psg_wave_load(const uint8_t *wave16)
 // round down, odd ones round up. A fully faded table is 7,8,7,8..., whose mean is exactly the
 // DAC centre and whose only content is at half the wave clock, far above hearing and filtered by
 // SOUNDBIAS anyway. Silence is now genuinely silent and there is nothing left to click.
-static uint8_t scale_nib(uint8_t v, uint8_t amp, int odd)
+static inline __attribute__((always_inline)) uint8_t scale_nib(uint8_t v, uint8_t amp, int odd)
 {
     int d2 = ((int)v * 2 - 15) * (int)amp / 15;   // deviation from 7.5, doubled. Constant divisor.
     int o  = (15 + d2 + (odd ? 1 : 0)) / 2;       // back to a nybble, rounding alternately
     return (uint8_t)(o < 0 ? 0 : (o > 15 ? 15 : o));
 }
 
-void psg_wave_load_scaled(const uint8_t *wave16, uint8_t amp)
+IWRAM_CODE void psg_wave_load_scaled(const uint8_t *wave16, uint8_t amp)
 {
     uint16_t cnt  = REG_SOUND3CNT_L;
     uint16_t bank = (uint16_t)((cnt >> 6) & 1u);
@@ -209,17 +212,17 @@ void psg_wave_load_scaled(const uint8_t *wave16, uint8_t amp)
     REG_SOUND3CNT_L = (uint16_t)((cnt & ~((1u << 5) | (1u << 6))) | ((bank ^ 1u) << 6) | 0x80u);
 }
 
-void psg_wave_voice(uint8_t volSel)
+IWRAM_CODE void psg_wave_voice(uint8_t volSel)
 {
     REG_SOUND3CNT_L = (uint16_t)(REG_SOUND3CNT_L | 0x80u);        // DAC on
     REG_SOUND3CNT_H = (uint16_t)((volSel & 0x3u) << 13);
 }
 
-void psg_wave_period(uint16_t period) { REG_SOUND3CNT_X = (uint16_t)(period & 0x7FFu); }
-void psg_wave_trigger(uint16_t period) { REG_SOUND3CNT_X = (uint16_t)((period & 0x7FFu) | TRIGGER); }
+IWRAM_CODE void psg_wave_period(uint16_t period) { REG_SOUND3CNT_X = (uint16_t)(period & 0x7FFu); }
+IWRAM_CODE void psg_wave_trigger(uint16_t period) { REG_SOUND3CNT_X = (uint16_t)((period & 0x7FFu) | TRIGGER); }
 
 // ---- channel 4, noise ----
-void psg_noise_voice(uint8_t vol)
+IWRAM_CODE void psg_noise_voice(uint8_t vol)
 {
     // A bare zero at volume 0, for the reason spelled out over psg_sq_voice.
     REG_SOUND4CNT_L = (uint16_t)((vol & 0xFu) << 12);
@@ -227,13 +230,13 @@ void psg_noise_voice(uint8_t vol)
 
 static uint8_t g_noiseCtl = 0;
 
-void psg_noise_set(uint8_t divisor, uint8_t shift, uint8_t width)
+IWRAM_CODE void psg_noise_set(uint8_t divisor, uint8_t shift, uint8_t width)
 {
     g_noiseCtl = (uint8_t)((divisor & 0x7u) | ((width & 1u) << 3) | ((shift & 0xFu) << 4));
     REG_SOUND4CNT_H = g_noiseCtl;
 }
 
-void psg_noise_trigger(void)
+IWRAM_CODE void psg_noise_trigger(void)
 {
     REG_SOUND4CNT_H = (uint16_t)(g_noiseCtl | TRIGGER);
 }
