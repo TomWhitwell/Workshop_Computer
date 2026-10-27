@@ -26,14 +26,16 @@ typedef enum{ ToLiteral
 } ToControl;
 
 typedef union{
-    q16_t   q;       // Q16.16 fixed-point value (replaces float f)
+    float   f;       // a number: volts, seconds, or anything ASL computes
     int     dyn;     // index into the dynamics array
     uint16_t var[2]; // 2 indexes into dynamic table
     int     seq;     // reference to a Sequence object
     Shape_t shape;
 } ElemO; // 4bytes
 
-typedef enum{ ElemT_Fixed   // Q16.16 fixed-point (formerly ElemT_Float)
+typedef enum{ ElemT_Float   // float, as crow: ASL runs on core 0, which can afford it. As
+                            // Q16.16, times were rounded to 15us: a 1kHz lfo's 0.5ms
+                            // segments became 0.5035ms (0.7% flat), 4kHz ones 2.3% sharp
             , ElemT_Shape
             , ElemT_Dynamic
             , ElemT_Mutable
@@ -81,11 +83,20 @@ typedef struct{
 
     bool holding;
     bool locked;
+
+    // Slopes sent to the slope engine (see casl.c, next_action)
+    uint16_t seq_sent;     // tag of the last one sent (started or queued)
+    bool queued_valid;     // one is queued to follow the current slope...
+    uint16_t queued_seq;   // ...tagged this,
+    bool queued_lookahead; // and will want the one after queued once it starts,
+    bool queued_done;      // or ends the sequence (asl done when it starts)
 } Casl;
 
 Casl* casl_init( int index );
 void casl_describe( int index, lua_State* L );
-void casl_describe_to_literal_q16( int index, q16_t volts_q16, q16_t seconds_q16, Shape_t shape );
+bool casl_describing( void );        // casl_describe is parsing (see casl.c)
+void casl_describing_clear( void );
+void casl_describe_to_literal( int index, float volts, float seconds, Shape_t shape );
 void casl_action( int index, int action );
 
 // dynamic vars

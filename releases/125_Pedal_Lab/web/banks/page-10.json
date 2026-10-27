@@ -1,0 +1,167 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-chorus-dual-rate",
+    "source": "algorithms/ready/directory-chorus-dual-rate.spn",
+    "instructions": 36,
+    "sha256": "914b5b6ae58284d06fa5eac00fc0652578f5fefdb4cbe5f838172e90de078261",
+    "id": "directory-chorus-dual-rate",
+    "author": "ice-nine",
+    "description": "Rate and Depth controls and sounds just like a normal chorus but adds in the 2nd rate control to spook things up a bit",
+    "controls": [
+      "Chorus Level",
+      "Chorus Rate Special",
+      "Chorus Rate"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/chorus-dual-rate.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=490",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Dual-Rate Chorus",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 262144,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-dervish-dual-lfo-chorus",
+    "source": "algorithms/ready/directory-dervish-dual-lfo-chorus.spn",
+    "instructions": 60,
+    "sha256": "1c7598e09a16b2209d93ef3429df7a3c66d362fdf27f7845919427cd463d7ab0",
+    "id": "directory-dervish-dual-lfo-chorus",
+    "author": "Graham Biswell",
+    "description": "Chorus with Rate and Depth controls and sounds just like a normal chorus but adds in the 2nd rate control to spook things up a bit. Rate 2 completely CCW turns it off.",
+    "controls": [
+      "Chorus rate sin0",
+      "Chorus rate sin1\t(fully CCW turns it off)",
+      "Chorus depth (sin1 is lower than sin0)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dual-lfo-chorus.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Dual LFO Chorus",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 2153724,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-publisher-ga-demo-chorus",
+    "source": "algorithms/ready/directory-publisher-ga-demo-chorus.spn",
+    "instructions": 65,
+    "sha256": "44ea60130a16173b0853a59ab7dcb1e307466eab677a525898661d384a42dec4",
+    "id": "directory-publisher-ga-demo-chorus",
+    "author": "Spin Semi",
+    "description": "Chorus program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Reverb level",
+      "Rate",
+      "Effect level"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_CHORUS.spn"
+    },
+    "source_url": "http://spinsemi.com/guitar_amp_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Chorus",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 425984,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-publisher-rom-chor-rev",
+    "source": "algorithms/ready/directory-publisher-rom-chor-rev.spn",
+    "instructions": 99,
+    "sha256": "0608658a7db3ae187990588398448fc22aad4c603939de2a7bcdfa935a8d065f",
+    "id": "directory-publisher-rom-chor-rev",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Reverb/chorus program from the FV-1 internal ROM",
+    "controls": [
+      "reverb mix (mix from zero to 100% mix)",
+      "chorus rate (scales width with frequency to approximate constant pitch bend)",
+      "chorus mix/width (0 to 100% mix in first 25% of pot swing, control sweep width over entire range)"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "ROM Reverb + Chorus",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 262016,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-stereo-ring-modulators-with-chorus",
+    "source": "algorithms/ready/directory-stereo-ring-modulators-with-chorus.spn",
+    "instructions": 93,
+    "sha256": "75d49fac15290a742e5f24ebef9d40b07d8943c367db49a046f57cb3bf368944",
+    "id": "directory-stereo-ring-modulators-with-chorus",
+    "author": "Digital Larry",
+    "description": "Chorus, Ring Modulator program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Blend",
+      "Carrier offset",
+      "Chorus"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/stereo-ring-modulators-with-chorus.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=384",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Stereo Ring Modulators w/ Chorus",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1047941,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

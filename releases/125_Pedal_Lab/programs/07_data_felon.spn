@@ -1,0 +1,88 @@
+; SPDX-License-Identifier: MPL-2.0
+; Steal This Pedal factory bank — slot 7
+; DATA FELON
+; POT0 = resolution / bit depth
+; POT1 = unstable resonant feedback
+; POT2 = alias-clock frequency and ring-mod amount
+; Wet-only output.
+
+TRASH       MEM 2048
+INPUT       EQU REG0
+CRUSH       EQU REG1
+CLOCK       EQU REG2
+RINGED      EQU REG3
+LOOP        EQU REG4
+
+SKP RUN, init_done
+WLDS SIN0, 80, 32767
+init_done:
+
+; POT2 pushes the internal oscillator from wobble toward audio-rate aliasing.
+LDAX POT2
+MULX POT2
+SOF 0.88, 0.006
+WRAX SIN0_RATE, 0.0
+
+; Capture mono input and quantize in four increasingly criminal regions.
+RDAX ADCL, 0.5
+RDAX ADCR, 0.5
+WRAX INPUT, 0.0
+LDAX POT0
+SOF 1.0, -0.75
+SKP GEZ, crush_8
+LDAX POT0
+SOF 1.0, -0.50
+SKP GEZ, crush_12
+LDAX POT0
+SOF 1.0, -0.25
+SKP GEZ, crush_16
+LDAX INPUT
+AND $FFFFF0
+SKP 0, crush_done
+crush_16:
+LDAX INPUT
+AND $FFFF00
+SKP 0, crush_done
+crush_12:
+LDAX INPUT
+AND $FFF000
+SKP 0, crush_done
+crush_8:
+LDAX INPUT
+AND $FF0000
+crush_done:
+WRAX CRUSH, 0.0
+
+; Read the oscillator, ring the crushed audio, and crossfade by POT2.
+CHO RDAL, SIN0
+WRAX CLOCK, 0.0
+LDAX CRUSH
+MULX CLOCK
+WRAX RINGED, 0.0
+LDAX POT2
+SOF -1.0, 0.999
+MULX CRUSH
+RDAX RINGED, 1.0
+WRAX RINGED, 0.0
+
+; Short dirty loop adds unstable combing without exceeding unity feedback.
+CLR
+RDA TRASH#, 1.0
+RDFX LOOP, 0.20
+WRAX LOOP, 1.0
+MULX POT1
+SOF 0.84, 0.0
+RDAX RINGED, 0.82
+WRA TRASH, 0.0
+
+; Mismatched taps spread the debris across the stereo field.
+CLR
+RDA TRASH+317, 0.72
+RDA TRASH+991, -0.34
+RDAX RINGED, 0.45
+WRAX DACL, 0.0
+CLR
+RDA TRASH+503, 0.66
+RDA TRASH+1517, 0.31
+RDAX RINGED, -0.38
+WRAX DACR, 0.0

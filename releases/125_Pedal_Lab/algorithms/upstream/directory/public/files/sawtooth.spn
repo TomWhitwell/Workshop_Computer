@@ -1,0 +1,56 @@
+; by slacker
+; http://www.spinsemi.com/forum/viewtopic.php?f=4&t=274&start=15
+;sawtooth waveform generator 
+;goes from 7Hz to 2KHz 
+;pot0 - pitch/speed 
+;pot1 - volume 
+;output from left DAC 
+
+;set up some registers 
+equ wave reg0 
+equ count reg1 
+equ temp reg2 
+
+equ wavestep 16      ;number of steps for wave 
+equ countstep 256      ;number of steps for pitch counter 
+
+skp run,START      ;at startup set wave and pitch counters to -1 
+clr 
+sof 1,-1 
+wrax wave,1 
+wrax count,0 
+
+START: 
+
+skp neg,PITCH      ;check if pitch counter is still negative     
+clr         ;if it is skip to pitch counter 
+sof 1,-1         ;if it's gone positive/reached zero then 
+wrax count,0      ;reset it to -1 
+
+ldax wave      ;get the value of wave register    
+sof 1,1/wavestep      ;add one step to it 
+wrax wave,1      ;write new value back to wave register 
+mulx pot1      ;multiply by pot1 
+mulx pot1      ;and again, gives a log type volume taper 
+wrax dacl,1      ;write volume scaled value to left DAC 
+
+skp neg,PITCH      ;check if wave is still negative     
+clr         ;if it is skip to the pitch counter 
+sof 1,-1         ;if it's gone positive/reached zero then 
+wrax wave,0      ;reset to -1 
+
+PITCH:       
+ldax count      ;get value of pitch counter register    
+sof 1,1/countstep      ;add one step to it 
+wrax count,1      ;write new value back to pitch counter register 
+          
+         ;all the pot stuff below is to get an anti log type response 
+ldax pot0      ;get value of pot0 
+sof 1,-1         ;level shift to make it negative 
+wrax temp,1      ;write to temp register, keep value in accumulator 
+mulx temp      ;multiply by temp register 
+wrax temp,1      ;write to temp register, keep value in accumulator 
+mulx temp      ;multiply by temp again 
+sof -1,0.999      ;invert and level shift to make it positive 
+
+rdax count,1      ;add scaled pot value to pitch counter 

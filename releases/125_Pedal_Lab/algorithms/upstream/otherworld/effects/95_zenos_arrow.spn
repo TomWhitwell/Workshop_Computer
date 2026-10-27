@@ -1,0 +1,189 @@
+; @name Zeno's Arrow
+; @tagline Every phrase fires arrows that halve the distance to the downbeat, climbing an octave with every halving
+; @description Zeno's paradox on a beat you set. An arrow catches what you play the
+; @description moment it is fired and plays it back an octave down and slowed to half
+; @description speed, then again at pitch in half the time, then an octave up in a
+; @description quarter of the time, two octaves up in an eighth, each repeat thrown to the
+; @description other side: a ping-pong that accelerates and climbs and lands exactly on
+; @description the step it was aimed at. The arrows themselves follow Zeno too: the phrase
+; @description is 16 steps, and each arrow flies half of what is left, 8 steps, then 4, 2,
+; @description 1 and a last quick one, so a slow, deep flight is followed by shorter and
+; @description shorter ones until the phrase lands in a flurry, and the next long flight
+; @description starts. There is no clock to patch: the Time knob is the step, one every
+; @description 0.05 s to 2 s (300 bpm sixteenths to 30 bpm quarters), and the steps run on
+; @description steadily by themselves, just as a clock patched into the clocked twin would. Your notes are the payload and choose
+; @description the height: a loud note keeps halving up to the 30 ms limit, a soft one
+; @description climbs a step or two, and a rest stays low and slow.
+; @pots Time | Climb | Edge
+; @render 0.4363, 1.0, 0.5
+; @time POT0 0.05 2.0 exp
+; @components free-running step clock set by Time (16-step macro phrase, each arrow covers half the remaining steps), capture-and-freeze ring, geometric repeat schedule (1/2, 1/4, 1/8 ...) with exact octave speeds, loudness-driven halvings, hard ping-pong per repeat, gentle peak limiter
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	buf	32767		; the whole RAM: records each arrow's fragment, then freezes
+
+equ	one	reg7		; 2^-15: one sample of address
+equ	U8	reg8		; one step / 8 (1.0 = 8 s)
+equ	ph	reg9		; step countdown (U8 .. 0)
+equ	Rm	reg10		; (steps left in the phrase - 1) / 32
+equ	F	reg11		; fragment length (address units)
+equ	s	reg12		; reading speed x 2^10
+equ	j	reg13		; position in the fragment
+equ	th	reg14		; time since launch / 2, mod 1/2
+equ	rec	reg15		; capture countdown
+equ	gL	reg17		; left gain; the right gets the rest
+equ	a	reg19
+equ	w	reg20
+equ	env	reg21
+equ	LR	reg23		; log2(R/16)/16 at the launch
+equ	Lem	reg24		; log2(the fragment / (16 U8))/16
+equ	cinc	reg25		; 1/2^(m+1): m halvings of the fragment (m < 0: doublings)
+equ	c	reg26		; repeats played at this speed, x cinc
+
+	or	$000100
+	wrax	one, 0
+
+; ---- Time: one step every T = 0.05 x 40^Time s, 0.05 .. 2 s (the clock period of the
+;      _clk twin), kept as T/8 so 2 s fits a register. log2(T/8)/16 = LU = 0.3326 Time
+;      - 0.457 (+0.0006, taken back by the exp) is recomputed from the pot where needed
+	ldax	pot0
+	sof	0.33264160, -0.45703125	; LU
+	exp	0.99340820, 0		; T/8
+	wrax	U8, 0
+
+; ---- steps; a 16-step phrase. An arrow launches whenever the steps left (R) are a
+;      power of two, so each covers half the distance left: 8, 4, 2, 1, 1
+	ldax	ph
+	rdax	one, -0.125		; one sample per sample (1/8 scale): every step exactly T
+	wrax	ph, 1.0
+	skp	gez, nostep
+	rdax	U8, 1.0
+	wrax	ph, 0
+	ldax	Rm
+	sof	1.0, -0.03125
+	and	$3C0000			; R - 1, counting down 15 .. 0
+	wrax	Rm, 1.0
+	sof	1.0, 0.03125		; R/32
+	log	1.0, 0.0625		; LR = log2(R/16)/16 (exact when R is a power of two)
+	wrax	LR, 1.0
+	and	$07FFFF			; zero iff R is a power of two
+	sof	1.0, -0.0009765625
+	skp	gez, nostep
+	ldax	LR			; a launch. The fragment: a quarter of the arrow (R T/8), kept
+	rdax	pot0, 0.33264160	;   between 15.6 ms and 0.958 s by whole doublings or halvings
+	sof	1.0, 0.16796875		; h = g - log2(15.6 ms / 16)/16, g = LR + LU = log2(R T/128)/16
+	skp	gez, f_hi
+	and	$07FFFF			; too short: doubled until it is not (h mod 1/16)
+f_hi:	sof	1.0, -0.37109375	; h - (cap - floor): g - log2(0.958 s / 16)/16
+	skp	neg, f_fit
+	sof	-1.0, 0
+	and	$07FFFF			; too long: halved until it fits, just under the cap
+	sof	-1.0, 0
+f_fit:	sof	1.0, 0.203125		; g - m/16 - LU (the exact sums cancel LU's product)
+	rdax	pot0, -0.33264160	; log2(R/16)/16 - m/16, an exact multiple of 1/16
+	wrax	Lem, 1.0
+	exp	1.0, 0			; R/16 / 2^m, an exact power of two
+	mulx	U8
+	sof	-2.0, 0			; x16 exactly: F = R T/8 / 2^m
+	sof	-2.0, 0
+	sof	-2.0, 0
+	sof	-2.0, 0
+	wrax	F, 1.0
+	wrax	rec, 0
+	ldax	Lem			; each speed plays the fragment 2^m times, so every speed
+	rdax	LR, -1.0		;   still fills half of what is left of the arrow
+	exp	0.5, 0
+	wrax	cinc, 0
+	wrax	c, 0
+	wrax	j, 0
+	wrax	th, 0
+	or	$7FFFFF		; the first repeat flies hard left (ACC is 0 here)
+	wrax	gL, 0
+	sof	0, 0.015625		; the arrow leaves at half speed (an octave down)
+	wrax	s, 0
+nostep:
+
+; ---- the arrow: each time the fragment has been played through, the next repeat
+;      plays it twice as fast (an octave up, half as long) on the other side, as long
+;      as the next repeat stays longer than 31 ms / (Climb x the arrow's loudness)
+	ldax	j
+	rdax	s, 0.0009765625
+	wrax	j, 1.0
+	rdax	F, -1.0
+	skp	neg, nowrap
+	wrax	j, 0
+	ldax	gL
+	sof	-1.0, 0.999
+	wrax	gL, 0
+	ldax	c			; one more repeat at this speed: after 2^m of them, climb
+	rdax	cinc, 1.0
+	wrax	c, 1.0
+	sof	1.0, -0.5
+	skp	neg, nowrap
+	wrax	c, 0
+	ldax	F
+	mulx	pot1
+	mulx	env
+	rdax	s, -2.0
+	skp	neg, nowrap
+	ldax	s
+	rdax	s, 1.0			; exactly 2s (SOF stops at 1.99994: the repeats would drag 6.8 c flat)
+	wrax	s, 0
+nowrap:	ldax	j			; window: fades over the first and last 1/32 .. 1/128 s of the
+	rdax	F, -0.5			; fragment (Edge), whatever its speed: min(1, k min(j, F - j))
+	absa				; (|j - F/2| - F/2 = -min(j, F - j); LOG takes the magnitude)
+	rdax	F, -0.5
+	log	1.0, 0.3125
+	rdax	pot2, 0.125
+	exp	1.0, 0
+	wrax	w, 0
+	ldax	Rm			; the arrow's last step (R - 1 a power of two, or 0)? Then the
+	log	1.0, 0			;   repeat also fades out over the step's last 4 ms: if Time
+	and	$07FFFF			;   moved while the arrow flew, it would otherwise be cut
+	sof	1.0, -0.0009765625	;   mid-repeat by the next launch
+	skp	gez, w_ok
+	ldax	ph
+	sof	-2.0, 0
+	log	1.0, 0.625		; min(1, (time left) / 3.9 ms)
+	exp	1.0, 0
+	mulx	w
+	wrax	w, 0
+w_ok:
+
+; ---- the ring: records the fragment, then holds still
+	ldax	rec
+	rdax	one, -1.0
+	skp	neg, frozen
+	wrax	rec, 0
+	rdax	adcl, 0.25		; both inputs into the one ring
+	rdax	adcr, 0.25
+	skp	0, ring
+frozen:	clr
+	rda	buf, 1.0
+ring:	wra	buf, 0
+
+; ---- read: offset = t - j (mod 1 s), t the time since the launch
+	ldax	th
+	rdax	one, 0.5
+	and	$3FFFFF
+	wrax	th, 1.0
+	rdax	j, -0.5
+	wrax	a, 1.0			; x2 exactly (SOF 1.99993 slipped a sample every second)
+	rdax	a, 1.0
+	wrax	addr_ptr, 0
+; ---- output: the gentle limiter, then the repeat on its side
+	rmpa	1.99
+	mulx	w
+	wrax	a, 1.0
+	maxx	env, 0.99988		; gentle limiter: peak follower, 0.25 s release
+	wrax	env, 1.0
+	log	-1.0, -0.072265625	; gain min(1, 0.449 / peak)
+	exp	1.0, 0
+	mulx	a
+	sof	1.24, 0			; make-up: 0.56 at the chip, about 0.75 once resampled (fast repeats overshoot)
+	wrax	a, 1.0
+	mulx	gL
+	wrax	dacl, -1.0
+	rdax	a, 1.0
+	wrax	dacr, 0

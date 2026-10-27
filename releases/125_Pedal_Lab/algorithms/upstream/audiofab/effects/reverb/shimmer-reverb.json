@@ -1,0 +1,48 @@
+{
+  "id": "shimmer-reverb",
+  "name": "Shimmer Reverb",
+  "version": "1.0.0",
+  "description": "A lush reverb with an octave-up pitch-shifted shimmer effect that builds slowly over time. Produces ethereal, atmospheric textures with up to 10 seconds of reverb time.",
+  "category": "Reverb",
+  "tags": [
+    "reverb",
+    "shimmer",
+    "pitch-shift",
+    "ambient",
+    "ethereal"
+  ],
+  "author": "DrAlx, Mick Taylor, Audiofab",
+  "hasSource": true,
+  "controls": [
+    {
+      "pot": 0,
+      "name": "Treble",
+      "description": "Amount of treble in the reverb loop.",
+      "unit": "",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "pot": 1,
+      "name": "Reverb Time",
+      "description": "Length of the reverb decay (0–10 s).",
+      "unit": "",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "pot": 2,
+      "name": "Shimmer Level",
+      "description": "Amount of octave-up shimmer effect.",
+      "unit": "",
+      "range": [
+        0,
+        1
+      ]
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-publisher-thru-gain",
+    "source": "algorithms/ready/directory-publisher-thru-gain.spn",
+    "instructions": 21,
+    "sha256": "4e6d8de246cbd2dd827fdb17faa8ddf0f6583e325166fc91f7bd8f039b8f4416",
+    "id": "directory-publisher-thru-gain",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Example program for +/-20dB gain/loss",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "+/-20dB gain/loss",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 924,
+      "peak_output_error_q23": 10,
+      "rms_output_error_q23": 0.117188,
+      "peak_output_q23": 8388607,
+      "output_clip_samples": 3,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-tap-drum",
+    "source": "algorithms/ready/directory-tap-drum.spn",
+    "instructions": 125,
+    "sha256": "5b3fba6a4be43104a74b4444c77a5999ae427909786c737317f105c939df1d8e",
+    "id": "directory-tap-drum",
+    "author": "Michele",
+    "description": "SpinCAD delay patch with tap tampo block. This connects to a drum delay patch, but can be applied to every delay patch. The tap tampo block works perfect.  The only problem is a little kind of 'swish' sound if you tap while playing. See the 'sourced from' URL below for the schematic.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/tap_drum.spn"
+    },
+    "source_url": "/images/tap_schematic.jpg",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Tap Tempo Drum",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 600608,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

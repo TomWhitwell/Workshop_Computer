@@ -1,0 +1,65 @@
+; SPDX-License-Identifier: MPL-2.0
+; Steal This Pedal factory bank — slot 0
+; 55 GALLON SAINT
+; POT0 = movement rate
+; POT1 = chorus depth
+; POT2 = metallic feedback
+; Wet-only output: OpenBrain EN5 performs the global dry/wet mix.
+
+DRUM        MEM 7000
+IN_MONO     EQU REG0
+FEEDBACK    EQU REG1
+
+; Initialize both quadrature modulators once.
+SKP RUN, init_done
+WLDS SIN0, 18, 160
+WLDS SIN1, 13, 210
+init_done:
+
+; POT0 sweeps roughly from a slow sway to seasick motion.
+LDAX POT0
+SOF 0.075, 0.004
+WRAX SIN0_RATE, 1.0
+SOF 0.73, 0.0
+WRAX SIN1_RATE, 0.0
+
+; POT1 varies modulation excursion.  The offset prevents a dead zone.
+LDAX POT1
+SOF 0.010, 0.001
+WRAX SIN0_RANGE, 1.0
+SOF 0.77, 0.0
+WRAX SIN1_RANGE, 0.0
+
+; Mono input and darkened recirculation into the metal tank.
+RDAX ADCL, 0.5
+RDAX ADCR, 0.5
+WRAX IN_MONO, 0.0
+CLR
+RDA DRUM#, 0.70
+RDFX FEEDBACK, 0.16
+WRAX FEEDBACK, 1.0
+MULX POT2
+RDAX IN_MONO, 0.82
+WRA DRUM, 0.0
+
+; Left: two inharmonic, modulated taps.
+CLR
+CHO RDA, SIN0, SIN|REG|COMPC, DRUM+1187
+CHO RDA, SIN0, SIN, DRUM+1188
+SOF 0.78, 0.0
+CHO RDA, SIN1, COS|REG|COMPC, DRUM+2789
+CHO RDA, SIN1, COS, DRUM+2790
+SOF 0.72, 0.0
+RDA DRUM+4631, -0.22
+WRAX DACL, 0.0
+
+; Right: complementary phases and different tap signs.
+CLR
+CHO RDA, SIN0, COS|REG|COMPC, DRUM+1561
+CHO RDA, SIN0, COS, DRUM+1562
+SOF 0.75, 0.0
+CHO RDA, SIN1, SIN|REG|COMPC, DRUM+3323
+CHO RDA, SIN1, SIN, DRUM+3324
+SOF 0.70, 0.0
+RDA DRUM+5219, 0.20
+WRAX DACR, 0.0

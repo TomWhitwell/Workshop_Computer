@@ -1,0 +1,186 @@
+; @name Tesseract_clk
+; @tagline Your playing spins a hypercube: each beat one corner plays on the left and its opposite corner on the right
+; @description The sixteen corners of a tesseract are sixteen ways to replay a slice of
+; @description what you just played: left or right, forwards or backwards, at pitch or an
+; @description octave down, from two or four steps back. On every step of your clock
+; @description the cube turns to a new corner, and you hear that corner on the left and
+; @description the corner opposite it on the right, which is different in every way: a
+; @description slice played forwards at pitch from close by on one side is answered by a
+; @description slice reversed an octave down from further back on the other. As the cube
+; @description turns, the pair walks a tour of all the corners, and the tour is a
+; @description pattern that repeats: sixteen steps when it turns by one corner, eight,
+; @description four, and at eight corners a step it flips straight to the opposite
+; @description corner. Your notes spin it: each note speeds the turning up, so the
+; @description tour gets shorter and wilder while you play, and when it passes half a
+; @description turn a step it snaps still and starts spinning up again; rests let it
+; @description slow down. Turn sets how it turns on its own (0: it rests between notes),
+; @description Spin how hard each note pushes it, Gate how long each slice sounds.
+; @clock
+; @pots Turn | Spin | Gate
+; @render 0.3, 0.4, 0.8
+; @components clock-locked two-voice slicer, hypercube vertex walk (4 bits: side, direction, octave, depth), antipodal second voice, note-driven angular momentum with snap, periodic tours from whole-vertex strides, gated slices
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	ring	32767
+
+equ	clkhp	reg0		; clock detector: low-pass state
+equ	clkin	reg1		; free (the factory clock block's conditioned sample)
+equ	clkst	reg2		; clock state: -0.25 high, -0.5 low (armed)
+equ	clkprev	reg3
+equ	clkcnt	reg4
+equ	clkper	reg5
+equ	ly4	reg6		; log2(4 L / R)/16
+equ	L4	reg7		; 4 L x 1.005 (ADDR units)
+equ	ph	reg8		; step phasor -1 .. 0
+equ	V	reg9		; the vertex: -1 + index/16 (bits: W 1/8, Z 1/4, Y 1/2; X 1/16)
+equ	VL	reg10		; the left voice's vertex (X = 0): V or its antipode
+equ	BqL	reg11		; read slopes (1 - v)/4
+equ	BqR	reg12
+equ	EL	reg13		; slice ends, in units of 4 L
+equ	ER	reg14
+equ	flag	reg15		; onset since the last step
+equ	hpf	reg16
+equ	ef	reg17
+equ	es	reg18
+equ	w	reg19
+equ	t	reg20
+equ	M	reg21		; momentum 0 .. 1/2 (wraps)
+equ	clkinc	reg22		; 2^-18
+
+; ---- clock: rising-edge detector, then the factory count
+	ldax	adcr
+	rdfx	clkhp, 0.06		; low-pass of ADCR, tau ~0.5 ms
+	wrax	clkhp, -1.0
+	rdax	adcr, 1.0		; d = ADCR - low-pass: the recent rise
+	sof	1.0, -0.1875		; high at d >= 0.1875
+	skp	neg, c_lo
+	sof	0, -0.25		; state high
+	wrax	clkst, 0
+	skp	zro, c_hi
+c_lo:	sof	1.0, 0.125		; d - 0.0625: below it the input re-arms; between, hold
+	skp	gez, c_hi
+	sof	0, -0.5			; state low (armed)
+	wrax	clkst, 0
+c_hi:	ldax	clkprev			; latch on low -> high
+	rdax	clkst, -1.0
+	skp	neg, c_latch
+	ldax	clkcnt
+	rdax	clkinc, 1.0
+	and	$3FFFFF
+	wrax	clkcnt, 0
+	skp	zro, c_done
+c_latch: ldax	clkcnt
+	wrax	clkper, 0
+	wrax	clkcnt, 0
+	wrax	ph, 0			; on the beat: a new step starts on this sample
+c_done:	ldax	clkst
+	wrax	clkprev, 0
+; (no first-run default: the OR fold maps clkper = 0 into range)
+; ---- step L: the period folded by whole octaves into [Lmax/2, Lmax), Lmax = 148.6 ms
+	ldax	clkper
+	log	1.0, 0.359375		; log2(32 clkper / R)/16, R = 2^(5 - 368/64)
+	or	$F80000
+	wrax	ly4, 1.0
+	exp	0.59757, 0		; 4 L x 1.005 (the 1.005 undoes the slow phasor)
+	wrax	L4, 0
+; ---- onsets: flag = strongest onset since the last step
+	rdax	adcl, 0.5
+	wra	ring, 0			; (the ring: the last 0.6 s, live)
+	rdax	adcl, 0.5
+	rdfx	hpf, 0.25
+	wrhx	hpf, -1.0
+	absa
+	rdfx	ef, 0.012
+	wrax	ef, 1.0
+	rdfx	es, 0.001
+	wrhx	es, -1.6
+	skp	gez, o_pos
+	clr
+o_pos:	and	$7FFF00			; below 2^-15 reads as 0
+	maxx	flag, 1.0
+	wrax	flag, 0
+; ---- step phasor (0.5 % slow, so the clock edge, not the phasor, starts on-beat steps)
+	ldax	ly4
+	sof	-1.0, -0.8125
+	exp	1.67339, 0
+	rdax	ph, 1.0
+	wrax	ph, 1.0
+	skp	neg, nostep
+	sof	1.0, -1.0
+	wrax	ph, 0
+; a step: notes since the last step spin it up (momentum M, -3 % a step); past half a turn
+; a step it snaps still (AND wraps M to 0) and spins up again. The vertex turns by
+; Turn + M (M up to 8 vertices: nearly the antipode every step)
+	ldax	flag
+	skp	zro, s_walk
+	ldax	pot1
+	sof	0.06, 0.015		; Spin: momentum per note
+s_walk:	rdax	M, 0.97
+	and	$3FFFFF
+	wrax	M, 1.0
+	rdax	pot0, 0.4375		; Turn: 0 .. 7 vertices a step
+	and	$780000			; whole vertices: a periodic tour (stride 1: 16 steps .. 8: 2)
+	rdax	V, 1.0
+	or	$800000			; (index mod 16)
+	wrax	V, 1.0
+; left voice: the vertex with X = 0 (V, or its antipode V XOR all four bits)
+	and	$080000
+	skp	zro, l_v
+	ldax	V
+	xor	$780000
+	skp	0, l_set
+l_v:	ldax	V
+l_set:	wrax	VL, 1.0
+; decode: Bq = 0.375 Y + 0.125 W (straight, octave down, reversed an octave down, reversed),
+; the antipode's 0.5 - Bq; ends 2 or 4 steps back by Z
+	and	$100000
+	wrax	t, 0
+	ldax	VL
+	and	$400000
+	sof	0.75, 0
+	rdax	t, 1.0
+	wrax	BqL, 1.0
+	sof	-1.0, 0.5
+	wrax	BqR, 0
+	ldax	VL
+	and	$200000
+	sof	1.99, 0.5
+	wrax	EL, 1.0
+	sof	-1.0, 0.99755859375
+	sof	1.0, 0.5
+	wrax	ER, 0
+	wrax	flag, 0
+nostep:
+; ---- window sat(32 u (G - u)), u = ph + 1, G = gate 0.35 .. 1
+	ldax	ph
+	sof	1.0, 0.999
+	wrax	t, -1.0
+	rdax	pot2, 0.65
+	sof	1.0, 0.35
+	mulx	t
+	skp	gez, w_ok
+	clr
+w_ok:	log	1.0, 0.3125
+	exp	1.0, 0
+	wrax	w, 0
+; ---- voices: left = the vertex, right = its antipode
+	ldax	ph
+	mulx	BqL
+	rdax	EL, 1.0
+	mulx	L4
+	wrax	addr_ptr, 0
+	rmpa	1.9
+	mulx	w
+	wrax	dacl, 0
+	ldax	ph
+	mulx	BqR
+	rdax	ER, 1.0
+	mulx	L4
+	wrax	addr_ptr, 0
+	rmpa	1.9
+	mulx	w
+	wrax	dacr, 0
+; ---- constant for the next sample's clock counter (ACC is 0 here)
+	or	$000020
+	wrax	clkinc, 0

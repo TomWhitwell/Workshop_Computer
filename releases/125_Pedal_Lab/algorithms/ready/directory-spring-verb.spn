@@ -1,0 +1,264 @@
+; SPRING REVERB         (c) 2016 Don Stavely
+;            Please, not for commercial use!
+; Description:
+; Spring reverbs sound "boingy" because of dispersion in the spring -
+; higher frequencies travel slower than low frequencies.
+; A "spectral delay filter", consisting of many (100's) of unit allpasses
+; will produce the desired "chirp" impulse response.   
+; The number of APs can be reduced by "stretching" the allpass filters, 
+; using delays larger than one.
+; Using different chirp AP lengths spreads the eigentones (?)
+; Reverb loop looks like std X-coupled AP-AP-DELAY loops, but inputs
+; and outputs moved so first echos straight out of delays, not APs.
+;
+;           +-------------------------------------+
+;           |                                     |
+; in---[+]- | --[  D1  ]--[lp]--+--[AP1a]--[AP1b]-+
+;       |   |                   |
+;       |   |                  [+]---------------->[CHIRP APs]--->
+;       |   |                   |
+; in----| -[+]--[  D2  ]--[lp]--+--[AP2a]--[AP2b]-+    
+;       |                                         |
+;       +-----------------------------------------+
+;
+; Delay, AP lengths scaled from GA reverb, modded close to Accutronics
+; 2-spring delay lengths of 33ms and 41ms.
+; Filtering inside the loop and sin/cos LFO smearing of the reverb APs
+; also reduces ringing.
+; Oh, and it has tremolo so my son can use it for surf rock.  You could
+; add tone and reverb time controls instead.
+;
+; Pot0 = Reverb Level
+; Pot1 = Tremolo Rate
+; pot2 = Tremolo Depth
+
+; Declare constants
+
+equ   LEN1   5   ; length of chirp filters
+equ   LEN2   6
+equ   LEN3   6
+equ   LEN4   7
+equ   LEN5   7
+equ   LEN6   8
+equ   KAP   -0.6   ; chirp allpass coefficient
+equ   KLAP   0.6   ; allpass coefficient
+equ   KRT   0.85   ; reverb time
+equ   KRF   0.55   ; reverb lpf freq
+equ   KRS   -1   ; reverb lpf shelf
+
+; Memory declarations
+
+mem   lap1a   404   ;           GA/2 =   404
+mem   lap1b   967   ;      967
+mem   d1   1445   ; 41ms=1344   1244.5
+
+mem   lap2a   608   ;     GA/2 =   508
+mem   lap2b   893   ;      893.5      
+mem   d2   1013   ; 33ms=1081   1143.5
+
+mem   ap1   LEN1   ; chirp allpasses
+mem   ap2   LEN1
+mem   ap3   LEN1
+mem   ap4   LEN1
+mem   ap5   LEN1
+mem   ap6   LEN1
+mem   ap7   LEN1
+mem   ap8   LEN2
+mem   ap9   LEN2
+mem   ap10   LEN2
+mem   ap11   LEN2
+mem   ap12   LEN2
+mem   ap13   LEN2
+mem   ap14   LEN2
+mem   ap15   LEN3
+mem   ap16   LEN3
+mem   ap17   LEN3
+mem   ap18   LEN3
+mem   ap19   LEN3
+mem   ap20   LEN3
+mem   ap21   LEN3
+mem   ap22   LEN4
+mem   ap23   LEN4
+mem   ap24   LEN4
+mem   ap25   LEN4
+mem   ap26   LEN4
+mem   ap27   LEN4
+mem   ap28   LEN4
+mem   ap29   LEN5
+mem   ap30   LEN5
+mem   ap31   LEN5
+mem   ap32   LEN5
+mem   ap33   LEN5
+mem   ap34   LEN5
+mem   ap35   LEN5
+mem   ap36   LEN6
+mem   ap37   LEN6
+mem   ap38   LEN6
+mem   ap39   LEN6
+mem   ap40   LEN6
+mem   ap41   LEN6
+mem   ap42   LEN6
+
+; Register equates
+
+equ   mono   reg0
+equ   lp1   reg1
+equ   lp2   reg2
+equ    trem   reg3
+equ   revout   reg4
+
+; Initialize LFOs
+
+skp   run, endinit
+wlds   sin0,15,40   ; to smear reverb
+wlds   sin1,12,32767   ; for tremolo
+endinit:
+
+; Control and get tremelo sinwave
+
+rdax   pot1, 1      ; rate
+mulx   pot1      
+sof   0.6, 0.1      ; 7:1 range
+wrax   sin1_rate, 0      
+cho   RDAL, sin1
+mulx   pot2      ; depth
+sof   0.5, 0.5      ; 0 to 1
+wrax   trem, 0      ; save LFO value   
+
+; Sum inputs to mono, apply tremolo
+
+rdax   adcl, 0.5
+rdax   adcr, 0.5
+mulx   trem      ; apply tremolo
+wrax   mono, 0   
+
+; Do reverb loops
+
+rda   d1#, KRT   ; get 1st delay output, scaled by RT
+rdfx   lp1, KRF      ; shelving lowpass inside loop
+wrlx   lp1, KRS
+rda   lap1a#, KLAP   ; reverb allpasses
+wrap   lap1a, -KLAP
+rda   lap1b#, KLAP
+wrap   lap1b, -KLAP
+rdax   mono, 1      ; add input
+wra   d2, 0      ; put in 2nd spring delay, clear
+
+rda   d2#, KRT   ; get 2nd delay output, saled by RT
+rdfx   lp2, KRF      ; shelving lowpass inside loop
+wrlx   lp2, KRS
+rda   lap2a#, KLAP   ; reverb allpasses
+wrap   lap2a, -KLAP
+rda   lap2b#, KLAP
+wrap   lap2b, -KLAP
+rdax   mono, 1      ; add input
+wra   d1, 0      ; put in 1st spring delay, clear
+
+; Get reverb output, do chirp filter
+
+rdax   lp1,1
+rdax   lp2,1
+wrax   revout, 1
+rda   ap1#, KAP
+wrap   ap1, -KAP
+rda   ap2#, KAP
+wrap   ap2, -KAP
+rda   ap3#, KAP
+wrap   ap3, -KAP
+rda   ap4#, KAP
+wrap   ap4, -KAP
+rda   ap5#, KAP
+wrap   ap5, -KAP
+rda   ap6#, KAP
+wrap   ap6, -KAP
+rda   ap7#, KAP
+wrap   ap7,-KAP
+rda   ap8#, KAP
+wrap   ap8, -KAP
+rda   ap9#, KAP
+wrap   ap9, -KAP
+rda   ap10#, KAP
+wrap   ap10, -KAP
+rda   ap11#, KAP
+wrap   ap11, -KAP
+rda   ap12#, KAP
+wrap   ap12, -KAP
+rda   ap13#, KAP
+wrap   ap13, -KAP
+rda   ap14#, KAP
+wrap   ap14, -KAP
+rda   ap15#, KAP
+wrap   ap15, -KAP
+rda   ap16#, KAP
+wrap   ap16, -KAP
+rda   ap17#, KAP
+wrap   ap17, -KAP
+rda   ap18#, KAP
+wrap   ap18, -KAP
+rda   ap19#, KAP
+wrap   ap19, -KAP
+rda   ap20#, KAP
+wrap   ap20, -KAP
+rda   ap21#, KAP
+wrap   ap21, -KAP
+rda   ap22#, KAP
+wrap   ap22, -KAP
+rda   ap23#, KAP
+wrap   ap23, -KAP
+rda   ap24#, KAP
+wrap   ap24, -KAP
+rda   ap25#, KAP
+wrap   ap25, -KAP
+rda   ap26#, KAP
+wrap   ap26, -KAP
+rda   ap27#, KAP
+wrap   ap27, -KAP
+rda   ap28#, KAP
+wrap   ap28, -KAP
+rda   ap29#, KAP
+wrap   ap29, -KAP
+rda   ap30#, KAP
+wrap   ap30, -KAP
+rda   ap31#, KAP
+wrap   ap31, -KAP
+rda   ap32#, KAP
+wrap   ap32, -KAP
+rda   ap33#, KAP
+wrap   ap33, -KAP
+rda   ap34#, KAP
+wrap   ap34, -KAP
+rda   ap35#, KAP
+wrap   ap35, -KAP
+rda   ap36#, KAP
+wrap   ap36, -KAP
+rda   ap37#, KAP
+wrap   ap37, -KAP
+rda   ap38#, KAP
+wrap   ap38, -KAP
+rda   ap39#, KAP
+wrap   ap39, -KAP
+rda   ap40#, KAP
+wrap   ap40, -KAP
+rda   ap41#, KAP
+wrap   ap41, -KAP
+;rda   ap42#, KAP   ; as many as can fit
+;wrap   ap42, -KAP
+
+; Chirp out in ACC - add dry, and output it
+   
+mulx   pot0      ; reverb level
+rdax   mono, 1      ; add dry signal
+wrax   dacl, 1   
+wrax   dacr, 0      ; output
+
+; Smooth reverb with LFO modulating APs
+
+cho   rda,sin0,sin|reg|compc,lap1b+25
+cho   rda,sin0,sin,lap1b+26
+wra   lap1b+50,0
+cho   rda,sin0,cos|reg|compc,lap2b+25
+cho   rda,sin0,cos,lap2b+26
+wra   lap2b+50,0
+
+; End
+

@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "otherworld-01-prism-scatter-clk",
+    "source": "algorithms/ready/otherworld-01-prism-scatter-clk.spn",
+    "instructions": 121,
+    "sha256": "7134cc4066fc6250441f11f45fcd6ce25cd9f51cffdaed6aaaa30cf883c54558",
+    "id": "otherworld-01-prism-scatter-clk",
+    "author": "Andreas Jansson",
+    "description": "The clocked Prism Scatter: mono audio on the left input, a clock on the right. A logistic map re-sequences the music slice by slice, and the slices are locked to your clock: each is one clock period long (halved by whole octaves while longer than 250 ms) and starts on the beat. For every slice the map grabs a piece that starts a whole number of slices back, decides whether it plays straight, an octave down, an octave up or backwards at any of those speeds, and where it lands in the stereo field. Scatter sets how far back it reaches: at 0 every slice replays the one just before it, a beat-repeat, and turned up the slices come from anywhere in the last second. The shards regenerate into the buffer, so octaves stack on octaves while the rhythm stays on the beat. Stop playing and the slices fade out within half a second.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/01_prism_scatter_clk.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Prism Scatter_clk",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 1240,
+      "peak_output_error_q23": 2,
+      "rms_output_error_q23": 0.0135316,
+      "peak_output_q23": 453598,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "otherworld-202-grain-bloom",
+    "source": "algorithms/ready/otherworld-202-grain-bloom.spn",
+    "instructions": 128,
+    "sha256": "d5d133eb0cf5a3d999c3c0daab96b299c700555669a3ffcdbab4b34b192dd685",
+    "id": "otherworld-202-grain-bloom",
+    "author": "Andreas Jansson",
+    "description": "A single grain, exactly one step long, is caught from your playing at the first hit of every Euclidean cycle, and the whole cycle is played with it. Time sets the step, the time from one step to the next, as a clock does for the clocked version: from 50 ms (sixteenths at 300 BPM) fully left to 2 s (quarter notes at 30 BPM) fully right, on a log scale; 0.25 s is an eighth note at 120 BPM. The steps run on their own at exactly that period; nothing is guessed from your playing. Hits and Length set k pulses over n steps (1 to 16); only the hits strike. Each hit plays the grain slowed down to fill the gap exactly up to the next hit, so a hit followed by a gap plays it an octave down, two gaps an octave and a fifth down, three gaps two octaves down: the rhythm sings its gaps as the undertone series. Successive hits alternate between the left and right ear, and as each grain plays its send into a long reverb rises from nothing to full, so every grain lands dry and swells into a bloom as loud as the grain by its end, which rings on while the other ear takes the next hit. Set the cycle to a bar (Length 8 with Time on an eighth note of your tempo, or 16 on a sixteenth) and on music that changes chord on the bar every grain is the first step of a new chord. The memory holds half a second, so a step longer than that catches its first half second: the grain still plays at its exact undertone pitch, fills the gap as far as it lasts and fades, and the bloom carries the rest. Stop playing and the hits fade within a few seconds.",
+    "controls": [
+      "Time",
+      "Hits",
+      "Length"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/202_grain_bloom.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Grain Bloom",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 17522,
+      "peak_output_error_q23": 1,
+      "rms_output_error_q23": 0.0340539,
+      "peak_output_q23": 155351,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "otherworld-165-strata",
+    "source": "algorithms/ready/otherworld-165-strata.spn",
+    "instructions": 127,
+    "sha256": "1046cfbd0021f46333c89bb1db3e2d1e5343510ddb3ff5a9c0d12df53c2b93a4",
+    "id": "otherworld-165-strata",
+    "author": "Andreas Jansson",
+    "description": "Strata stacks three impossible spaces by pitch. The treble of what you play lands in a tiny glass box: bright, glittering, gone in half a second. The middle lands in a stone hall with a two-second tail. The bass falls into an abyss: a huge, dark, slowly wavering space that answers from far below, about a seventh of a second late, and rings for 4 to 11 seconds. Both boundaries between the worlds drift as you play. Each note pushes the strata upward, so the abyss climbs through the spectrum and swallows the hall, and the hall climbs into the glass. A held chord migrates downward world by world: its sparkle turns to stone, then sinks into the dark. When the abyss reaches the top, the floor drops away. In a fraction of a second both boundaries fall five octaves, so the next notes spring up into the glass box over the still ringing abyss, and the descent begins again. Busy playing turns the cycle in about ten seconds; in rests it barely creeps. Echoes also move between worlds on their own: the stone hall keeps dripping into the abyss, and with Glass turned up, its echoes rise an octave into the glass box as shimmer, so the glass glitters with harmonics of the hall even after you stop. Left and right go into opposite sides of the hall and the glass box, so the image stays wide.",
+    "controls": [
+      "Abyss",
+      "Drift",
+      "Glass"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/165_strata.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Strata",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 27160,
+      "peak_output_error_q23": 1894,
+      "rms_output_error_q23": 336.807,
+      "peak_output_q23": 571089,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "otherworld-132-phase-ghost",
+    "source": "algorithms/ready/otherworld-132-phase-ghost.spn",
+    "instructions": 128,
+    "sha256": "dd17d37bedf2e41d4b58612398536a6efae7fd58a198ab0edc855e6952df1324",
+    "id": "otherworld-132-phase-ghost",
+    "author": "Andreas Jansson",
+    "description": "A pitch tracker listens for the clearest note under your playing, usually the lowest, and a ghost synth in the style of the old phase-distortion keyboards plays it: a resonance swept through the note's own harmonics, reset on every cycle, so it always stays exactly on the note's pitch. Every note you play makes the ghost zap: its resonance leaps up the harmonic series (as high as Reso lets it) and slides back down to the fundamental, the laser \"peeow\" of a resonant synth sweep, over Sweep. The ghost changes pitch only on your attacks: each new note snaps it to the newest note the tracker has heard, so it walks with your harmony, often your bass line, one note behind, and never jumps in the middle of a note. It sings in the three octaves from C3 to B5: lower notes fold up into its bottom octave and higher ones down into its top one, so a bass line comes back an octave or two up. Its cycles take turns between the speakers, one period left, the next right, so each side alone is a hollow ghost an octave down and only together do they sound the note. Fully wet it is the ghost alone: your own sound comes only from the module's Dry/Wet knob. It also follows a bassline of relentless sixteenths, and the ghost is as loud on a bassline as on a bright pluck. On soft chord pads it picks out one of the chord's notes and holds it until your next attack. Snarl drives the ghost into a wavefolder and pulls its resonance half a harmonic off the note into a hard-sync buzz: at 0 the soft, hollow ghost, at the top a bright, folded growl. Every cycle still restarts on the note, so it stays in tune, and the folding eases off while a zap is high, so each zap stays a clean sweep and the snarl blooms as it lands.",
+    "controls": [
+      "Reso",
+      "Sweep",
+      "Snarl"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/132_phase_ghost.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Phase Ghost",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 973,
+      "peak_output_error_q23": 6,
+      "rms_output_error_q23": 0.187296,
+      "peak_output_q23": 131066,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "otherworld-179-numbers-station",
+    "source": "algorithms/ready/otherworld-179-numbers-station.spn",
+    "instructions": 124,
+    "sha256": "983769d63b0c66c3113aa812bce26bdd8d189dc5166129b16b86ff95ef76c290",
+    "id": "otherworld-179-numbers-station",
+    "author": "Andreas Jansson",
+    "description": "A shortwave numbers station that keys out your own playing as Morse code. Time sets the beat, like the clock pulse of Numbers Station_clk: 0.05 s fully left to 2 s fully right (0.25 s at the render setting). Every beat is cut into a chaotic number of units, two to eight, chosen afresh each beat, and the station keys slices of your input on that grid: dits one unit long, dahs three, with hard, completely silent rests between them. Slice lengths, rest lengths and subdivisions change all the time and never repeat, but every beat starts on time. Each slice jumps hard left or right, away from the last. Nothing is added to your sound: it is only crushed and filtered. Chaos sets how wild it gets: at 0 two units per beat with one-unit rests, turned up finer subdivisions (up to eight) and longer rests (up to four units). Dial tunes the station: fully left, your playing is lightly crushed and open; turning it up lowers the sample rate, coarsens the level steps and closes a resonant band; fully right it is completely crushed and squeezed into a narrow band around 450 Hz.",
+    "controls": [
+      "Time",
+      "Chaos",
+      "Dial"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/179_numbers_station.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Numbers Station",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 11004,
+      "peak_output_error_q23": 23,
+      "rms_output_error_q23": 0.280108,
+      "peak_output_q23": 487683,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "otherworld-258-two-whales",
+    "source": "algorithms/ready/otherworld-258-two-whales.spn",
+    "instructions": 128,
+    "sha256": "b1061acffe2014d444342d76232125a63c63f094389dd9a4c78d92db7d8befae",
+    "id": "otherworld-258-two-whales",
+    "author": "Andreas Jansson",
+    "description": "Two whales are listening to you, one on your left and one on your right. They learn the notes you play, only the ones they are sure of, and take your newest note into their song. They have no clock of their own: a whale only changes note when you move to a new one, and then only if a coin says so. A second coin decides which whale moves, the same for both, so their changes fall on your playing but never on a schedule; now and then the two meet on one note. Each whale has a voice made of a singing resonance on a bright saw that sits on the same vowel in every register, steady, with no vibrato. It slides into each new note on a curve, a scoop up or a fall, and lands on the note; its very first call scoops up out of the deep. Each new note swells in slowly, over about half a second, the whale's voice dropping away as it starts to slide and rising into the note. Every note sings at the same level, however hard or softly you play; when you stop they fade. Ocean takes you under water with them: their song turns muffled and comes from everywhere, through a moving water surface that makes it waver and its resonances swirl. Chance sets the chance that one of your note changes moves a whale: one in ten at 0, every one from 0.9. Depth sets how hard the water moves, from still to a heavy swell. Ocean goes from the whales sung close and dry at 0 to all water at 1. They only sing notes you played, in your octave (below C3 folded up into C3..B3), they listen to both inputs (L + R), and with nothing played they stay silent.",
+    "controls": [
+      "Chance",
+      "Depth",
+      "Ocean"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/258_two_whales.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Two Whales",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 32725,
+      "peak_output_error_q23": 199,
+      "rms_output_error_q23": 24.6289,
+      "peak_output_q23": 1270723,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

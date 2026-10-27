@@ -1,0 +1,280 @@
+; looper with dual tap ping pong delay with adjustable feedback
+; & fixed damping (damping has hpf & lpf)
+; Graham Biswell <graham@gbiswell.com>
+;
+; pot0 adjusts delay time
+; pot1 adjusts feedback
+; pot2 sets record/play mode
+
+;;;http://www.spinsemi.com/forum/viewtopic.php?t=418
+;;;http://www.spinsemi.com/forum/viewtopic.php?t=682
+;;; Add 0.1 to the loop counter.
+;;ldax   loop
+;;sof   1, 0.1
+;;wrax   loop, 1
+;;; IF loop counter is > 0.8, THEN write the temp variable to the output, and reset loop variable to 0
+;;sof   1, -0.8
+;;skp   neg, Done
+;;ldax   temp
+;;wrax   output, 0
+;;wrax   loop, 0
+;;Done: 
+
+
+
+;equ	delay_len	16300
+equ	delay_len	31000
+equ	smooth		0.001
+equ	damp_amount	0.4
+equ	hpf_cutoff	0.05
+equ	lpf_cutoff	0.1
+
+equ	fade_count	0.100		; 500 ~ 15msec
+equ	fade_incr	0.001
+
+equ	holdoff_count	0.05		; 50 ~ 1.5msec
+equ	count		0.001
+
+; values for rp_mode
+equ	record_mode	0.9
+
+; delay time divisors for each tap
+; keep delay0 at 1, vary delay1
+; 1 gives conventional pingpong
+; 11/16 works, as does 0.5
+equ	delay0_time	1
+;equ	delay1_time	11/16
+
+mem	delay0		delay_len	; 2 delay taps
+;mem	delay1		delay_len
+mem	sm0		20		; 2 small smear taps
+mem	sm1		20
+
+equ	delay_pot	pot0
+equ	fb_pot		pot1
+equ	recplay_pot	pot2
+
+equ	offset		reg0
+equ	damping		reg1
+equ	feedback	reg2
+equ	dry_sig		reg3
+equ	delay0_sig	reg4
+;equ	delay1_sig	reg5
+equ	lpf		reg6
+equ	hpf		reg7
+equ	temp		reg8
+
+equ	rp_mode	reg10		; +'ve when recording, -'ve when playback
+; these two are non-zero when record has been started/stopeed but we're waiting for a zero crossing
+equ	fade		reg13
+equ	rp_holdoff	reg14
+
+
+;*******************************************************
+; any initialisation goes here
+skp	RUN,loop
+wlds	sin0, 11, 9
+wlds	sin1, 4, 15
+sof	0, damp_amount
+wrax	damping, 0
+sof	0, record_mode
+wrax	rp_mode, 0
+wrax	fade, 0
+loop:
+
+;*******************************************************
+; delay time pot
+rdax	delay_pot, 1
+sof	0.99, 0.01
+wrax	temp, 0
+or	delay_len * 256
+mulx	temp
+rdfx	offset, smooth
+wrax	offset, 0
+
+;*******************************************************
+; feedback pot
+rdax	fb_pot, 1
+rdfx	feedback, smooth
+wrax	feedback, 0
+
+;*******************************************************
+; get data from taps
+; Tap 0
+or	delay0 * 256
+rdax	offset, delay0_time
+wrax	addr_ptr, 0
+rmpa	1
+wrax	delay0_sig, 0
+
+; Tap 1
+;or	delay1*256
+;rdax	offset, delay1_time
+;wrax	addr_ptr, 0
+;rmpa	1
+;wrax	delay1_sig, 0
+
+;*******************************************************
+; save previous dry signal for comparison shortly for through zero transition test
+rdax	adcl, 0.6
+rdax	adcr, 0.6
+wrax	dry_sig, 0
+
+;*******************************************************
+; If Rec/Play CV is 0 to 0.5 we are in playback mode
+; If Rec/Play CV is 0.51 to 0.999 we are in record mode
+ldax	recplay_pot
+sof	1.0, -0.5	; subtract 0.5
+skp	neg, rp_neg
+
+; *******************
+; ** recording mode **
+rp_pos:
+; if we're already recording then continue recording
+ldax	rp_mode
+;sof	1, -record_mode
+skp	gez, recording
+
+; rec/play cv has changed
+; delay for a short period to allow cv to settle/debounce
+; if this is the first time through here, rp_holdoff will be negative from previous
+; playback mode, so clear it
+; otherwise just increment it until the holdoff_count is reached, when the CV is assumed to be stable
+ldax	rp_holdoff
+skp	gez, 1			; zero out rp_holdoff if this is the first +ve (holdoff is -'ve)
+clr
+sof	1, count		; bump rp_holdoff
+wrax	rp_holdoff, 1
+sof	1, -holdoff_count	; holdoff hasn't reached holdoff_count yet, so continue playing
+skp	neg, playback
+
+; holdoff is zero so we've passed the time where the leading edge has stabilised
+; for the next fade_count samples xfade between the wet & dry signals to reduce glitch
+; after that set rp_mode to record_mode so we skip directly to recording with no xfade
+; fade ramps up
+ldax	dry_sig
+mulx	fade
+wrax	temp, 0
+ldax	fade
+sof	-1, fade_count
+mulx	delay0_sig
+rdax	temp, 1
+wrax	dry_sig, 0.5
+wrax	dry_sig, 0
+
+; now bump fade & test for fade_count
+ldax	fade
+sof	1, fade_incr
+wrax	fade, 1
+sof	1, -fade_count
+skp	neg, recording
+
+; fade_count fade in cycles have elapsed so now we're in record mode
+sof	0, record_mode
+wrax	rp_mode, 0		; set mode flag to recording
+skp	zro, recording
+
+; *******************
+; ** playback mode **
+rp_neg:
+; if we're already playing back then skip this section (rp_mode will contain -record_mode)
+ldax	rp_mode
+;sof	1, record_mode
+skp	neg, playback
+
+; if this is the first time through here, rp_holdoff will be negative from previous
+; playback mode, so clear it
+; otherwise just increment it until the holdoff_count is reached, when the rec/play CV is assumed to be stable
+ldax	rp_holdoff
+skp	neg, 1			; zero out rp_holdoff if this is the first +ve (holdoff is -'ve)
+clr
+sof	1, -count		; bump rp_holdoff
+wrax	rp_holdoff, 1
+sof	1, holdoff_count	; holdoff hasn't reached holdoff_count yet, so continue recording
+skp	gez, recording
+
+; holdoff time is passed (the leading edge has stabilised)
+; so now transition from recording to playback mode for fade_count samples
+; (fade more wet signal into the dry signal to reduce the glitch)
+; after that, set recording mode proper so we skip all this code
+; for the first time through here, fade will contain fade_count from last pass through playback > record transition
+ldax	dry_sig
+mulx	fade
+wrax	temp, 0
+ldax	fade
+sof	-1, fade_count
+mulx	delay0_sig
+rdax	temp, 1
+wrax	dry_sig, 0
+
+; now bump fade & test for zero (fade should be at fade_count from last record start)
+ldax	fade
+sof	1, -fade_incr
+wrax	fade, 1
+skp	gez, recording
+
+; just had a -'ve to 0 or +'ve transition, so clear start_rec flag, start playback
+sof	0, -record_mode
+wrax	rp_mode, 0		; set mode flag to recording
+wrax	fade, 0			; fade is -'ve now, reset to 0
+skp	zro, recording
+
+;*******************************************************
+; playback mode
+;*******************************************************
+playback:
+; for pingpong just swap the delays over
+ldax	delay0_sig
+wra	delay0, 0
+
+;ldax	delay1_sig
+;wra	delay0, 0
+clr
+skp	zro, output
+
+;*******************************************************
+; record mode
+;*******************************************************
+recording:
+; for pingpong now copy delay0 to delay1, delay1 to delay0
+; delay1 delay output straight to delay0 delay input
+;ldax	delay1_sig
+;wra	delay0, 0
+
+; delay0 (single tap) or delay1 (pingpong) delay output attenuated by feedback amount
+; filtered by damping amount (LPF & HPF)
+; small amount of HPF applied
+; mixed with delay0 ADC input then written to delay0 delay input
+ldax	delay0_sig
+mulx	feedback	
+wrax	temp, 1
+rdfx	lpf, lpf_cutoff
+wrlx	lpf, -1
+rdfx    hpf, hpf_cutoff
+wrhx    hpf, -1
+
+rdax	temp, -1
+mulx	damping
+rdax	temp, 1
+rdfx    hpf, 0.01
+wrhx    hpf, -0.5
+rdax	dry_sig, 1
+wra	sm0, 0
+cho	rda, sin0,sin|reg|compc,sm0+10
+cho	rda, sin0,sin,sm0+11
+wra	sm1, 0
+cho	rda, sin1,sin|reg|compc,sm1+10
+cho	rda, sin1,sin,sm1+11
+; delay 1 for pingpong
+wra	delay0, 0
+
+;*******************************************************
+; write to outputs
+output:
+
+ldax	delay0_sig
+wrax	dacl, 0
+
+; for single tap write delay0 to both, for pingpong use delay1
+ldax	delay0_sig
+wrax	dacr, 0

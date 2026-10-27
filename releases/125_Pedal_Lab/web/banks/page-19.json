@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-pingpong",
+    "source": "algorithms/ready/directory-pingpong.spn",
+    "instructions": 41,
+    "sha256": "dcde1d61f096747f68abaebfd76f944f06b2ba1c27944312af7e69347a426288",
+    "id": "directory-pingpong",
+    "author": "Frank Thomson",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Ping time",
+      "Pong time",
+      "Feedback"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/pingpong.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/pingpong.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ping Pong Delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 838848,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-reverse-delay",
+    "source": "algorithms/ready/directory-reverse-delay.spn",
+    "instructions": 25,
+    "sha256": "3d92b4485970e8df0fcd79c400f5c30922efa733c3fe412cd55062441037ec45",
+    "id": "directory-reverse-delay",
+    "author": "Knut Helle",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Reverse segment length",
+      "-",
+      "-"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/reverse_delay.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/reverse_delay.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Reverse delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1048576,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-publisher-ga-demo-echo",
+    "source": "algorithms/ready/directory-publisher-ga-demo-echo.spn",
+    "instructions": 65,
+    "sha256": "af10a3e935d106d01da7ba7df51ce2b7fcb951be4f7f1a29aacc9a62182f4565",
+    "id": "directory-publisher-ga-demo-echo",
+    "author": "Spin Semi",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Reverb level",
+      "delay",
+      "Echo level"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_ECHO.spn"
+    },
+    "source_url": "http://spinsemi.com/guitar_amp_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Echo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 425984,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-publisher-ga-demo-echo-rpt",
+    "source": "algorithms/ready/directory-publisher-ga-demo-echo-rpt.spn",
+    "instructions": 65,
+    "sha256": "39cad534b199e2943d28dbafa1fc31d8356209bfd68d368ea9d0de7856beb7da",
+    "id": "directory-publisher-ga-demo-echo-rpt",
+    "author": "Spin Semi",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Reverb level",
+      "Delay",
+      "Echo level"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_ECHO_RPT.spn"
+    },
+    "source_url": "http://spinsemi.com/guitar_amp_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Echo with Repeats",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 425984,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-stereo-dual-flange-multi-tap-delay",
+    "source": "algorithms/ready/directory-stereo-dual-flange-multi-tap-delay.spn",
+    "instructions": 124,
+    "sha256": "5ee1f98884710def5221b9858bb0144a33b2800bdf5a4cbc6b77ec9a0a522e7b",
+    "id": "directory-stereo-dual-flange-multi-tap-delay",
+    "author": "Digital Larry",
+    "description": "Delay, Flanger program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Feedback",
+      "Resonance and time",
+      "Return level"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/stereo-dual-flange-multi-tap-delay.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=469",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Stereo Dual Flange Multi Tap Delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 131072,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-triple-delay-feedback",
+    "source": "algorithms/ready/directory-triple-delay-feedback.spn",
+    "instructions": 54,
+    "sha256": "144fd2a34c43cd693574bc9b398e2d1438207be3595841c2884b42744d4bedea",
+    "id": "directory-triple-delay-feedback",
+    "author": "Digital Larry",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Time 1",
+      "Times 2 & 3",
+      "Feedback"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/triple-delay-feedback.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=452",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Triple Delay w/ Feedback",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 611664,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

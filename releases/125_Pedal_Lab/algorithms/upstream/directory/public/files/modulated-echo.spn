@@ -1,0 +1,89 @@
+; http://www.spinsemi.com/forum/viewtopic.php?f=4&t=649
+;modulated echo program
+;mono right adc input, two channel out
+;pot0=delay time
+;pot1=modulation depth
+;pot2=echo level, with 2 preset feedback levels
+
+mem delay 32767 ;1s delay block
+;
+equ feedback reg0
+equ delay_time reg1
+equ input_store reg2
+equ level reg3
+equ echo_out_r reg4
+equ right_delay reg5
+equ echotype reg6
+equ mod_depth reg7
+equ tri_original reg8
+equ tri_amp reg9
+equ tri_gain 0.017 ; max triangle amplitude
+;
+; now generate ramp LFO
+skp run,start
+wldr 0,12,4096 ; modulation LFO
+start:
+;
+; modulation
+sof 0,0.004 ; preset modulation speed
+wrax rmp0_rate,0 ; store
+
+rdax pot1,1 ; mod depth pot1
+wrax mod_depth,0
+cho rdal,rmp0 ; 0 - 0.5 ramp
+sof 1,-0.25
+absa ; 0 - 0.25 triangle wave
+mulx mod_depth ; mod amplitude
+wrax tri_original,tri_gain ; triangle
+wrax tri_amp,0
+;
+;delay time pot
+clr
+rdax pot0,1 ;delay pot
+and %01111110_00000000_00000000
+sof 1,0.05 ;40ms - 1s delay
+wrax delay_time,1 ;
+rdax tri_amp,1 ;add mod
+wrax addr_ptr,0 ;store read addr_ptr
+rmpa 1 ;delay signal
+wrax right_delay,0 ;right delay signal
+clr
+
+;pot2
+rdax pot2,1 ; pot2, -1 to +1
+sof 1,-0.5
+wrax echotype,1 ;
+;
+;echo level pot, feedback ;
+sof 0,0.35
+wrax feedback,0 ; preset feedback
+rdax echotype,1 ;
+skp gez,there
+clr
+sof 0,0.05 ; less feedback
+wrax feedback,0
+rdax echotype,1
+sof 1,0.5 ;
+wrax echotype,0
+there:
+clr
+rdax echotype,1
+sof 1.999,0 ;2 level ranges, 0 to max
+wrax level,0
+;
+rdax adcr,1 ;mono right channel
+wrax input_store,0
+;
+rdax right_delay,1
+wrax echo_out_r,1
+mulx feedback ;feedback portion
+rdax input_store,1 ;mix in input
+wra delay,0 ;store input in dram
+;
+rdax echo_out_r,1
+mulx level
+;
+rdax input_store,1 ;mix in original
+wrax dacr,1 ;write right DAC and invert
+wrax dacl,0 ;write left DAC
+;

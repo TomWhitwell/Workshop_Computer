@@ -82,7 +82,7 @@ _start_cart:
     @ being hunted, when both looked like an identical white screen.
     @
     @   still WHITE  -> the image never ran: multiboot, entry point, or header
-    @   stays GREEN  -> we got here, and .bss zeroing or main() died
+    @   stays GREEN  -> we got here, and the IWRAM copy, .bss zeroing or main() died
     @   title drawn  -> normal boot (the green flash is overdrawn within a frame)
     mov r0, #0x04000000
     mov r1, #0x0400                 @ BG2 on
@@ -99,9 +99,32 @@ _start_cart:
     @ IWRAM (system) stack. NOT the conventional 0x03007F00: the BIOS hands our serial IRQ
     @ handler the IRQ stack at 0x03007FA0, and at 0x03007F00 that leaves it only 160 bytes
     @ before it collides with this one. link_pump() calls two levels deeper than a typical
-    @ handler, so we move ours down and give the IRQ stack 416 bytes instead. Nothing else
-    @ uses IWRAM at all — the whole image is linked for EWRAM — so this costs nothing.
+    @ handler, so we move ours down and give the IRQ stack 416 bytes instead. The only other
+    @ IWRAM user is the .iwram code and data below, which grows up from 0x03000000 and ends a
+    @ long way short of this, so the move costs nothing.
     ldr sp, =0x03007E00
+
+    @ Copy .iwram — the drawing primitives and the control tick — from its load address inside
+    @ the image to IWRAM, where it is linked to run. Multiboot can only place the image in
+    @ EWRAM, so this is the only way code gets into the fast memory. The copy fills IWRAM from
+    @ the bottom and the stacks live at the top, so nothing in use is overwritten.
+    @ Nothing in IWRAM may be called before this point.
+    ldr r0, =__iwram_lma
+    ldr r1, =__iwram_start
+    ldr r2, =__iwram_end
+3:  cmp r1, r2
+    ldrlo r3, [r0], #4
+    strlo r3, [r1], #4
+    blo 3b
+
+    @ Zero .iwram_bss: the patch the tick reads every millisecond. NOLOAD for the same reason
+    @ as .bss below.
+    ldr r0, =__iwram_bss_start
+    ldr r1, =__iwram_bss_end
+    mov r2, #0
+4:  cmp r0, r1
+    strlo r2, [r0], #4
+    blo 4b
 
     @ Zero .bss. The section is NOLOAD, so it is NOT part of the multiboot image — whatever
     @ EWRAM happened to contain is still sitting there. C guarantees zero-initialised statics,

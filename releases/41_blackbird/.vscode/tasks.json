@@ -1,0 +1,28 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Blackbird: Build firmware",
+			"type": "shell",
+			"command": "make firmware",
+			"options": { "cwd": "${workspaceFolder}" },
+			"group": "build",
+			"problemMatcher": "$gcc"
+		},
+		{
+			"label": "Blackbird: Build debug harness",
+			"type": "shell",
+			"command": "make debug",
+			"options": { "cwd": "${workspaceFolder}" },
+			"group": "build",
+			"problemMatcher": "$gcc"
+		},
+		{
+			"label": "Blackbird: Run harness tests",
+			"type": "shell",
+			"command": "make test",
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		}
+	]
+}

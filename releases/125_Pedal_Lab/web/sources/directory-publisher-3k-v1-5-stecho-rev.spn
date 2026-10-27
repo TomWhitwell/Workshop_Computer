@@ -1,0 +1,303 @@
+;ECHO+REVERB.
+
+
+
+;Pot0 = delay 100-500ms.
+
+;Pot1 = repeat
+
+;Pot2 = reverb (fixed parameters)
+
+
+
+mem	del	22938
+
+
+
+mem	ap1	123
+
+mem	ap2	245
+
+mem	ap3	625
+
+mem	ap4	856
+
+
+
+mem	lap1a	974
+
+mem	lap1b	1437
+
+mem	d1	1523
+
+
+
+mem	lap2a	1356
+
+mem	lap2b	1168
+
+mem	d2	1445
+
+
+
+;write-first registers:
+
+
+
+equ	apout	reg0
+
+equ	dout	reg1
+
+equ	ef	reg2
+
+equ	mid	reg3
+
+
+
+;read-first registers:
+
+
+
+equ	lf1	reg20
+
+equ	lf2	reg21
+
+equ	efil	reg22
+
+
+
+;constants:
+
+
+
+equ	krt	0.6
+
+equ	kshlf	-0.3
+
+
+
+;clear read-first registers, setup LFO:
+
+
+
+skp	run,endclr
+
+wrax	lf1,0
+
+wrax	lf2,0
+
+wrax	efil,0
+
+wlds	sin0,20,100
+
+
+
+endclr:
+
+
+
+;prepare delay control:
+
+
+
+rdax	pot0,1
+
+and	%01111110_00000000_00000000
+
+sof	0.6,0.1		;100 to 700mS
+
+wrax	addr_ptr,0
+
+
+
+;write inputs to delay and involve feedback:
+
+
+
+rdax	efil,1		;filtered echo out
+
+mulx	pot1		;repeat control
+
+rdax	adcl,0.25
+
+rdax	adcr,0.25
+
+wra	del,1
+
+rda	mid,1
+
+mulx	pot2		;reverb control
+
+
+
+;fall-through, do reverb:
+
+
+
+rda	ap1#,0.5
+
+wrap	ap1,-0.5
+
+rda	ap2#,0.5
+
+wrap	ap2,-0.5
+
+rda	ap3#,0.5
+
+wrap	ap3,-0.5
+
+rda	ap4#,0.5
+
+wrap	ap4,-0.5
+
+wrax	apout,0
+
+
+
+rda	d2#,krt
+
+rdax	apout,1
+
+rda	lap1a#,0.5
+
+wrap	lap1a,-0.5
+
+rda	lap1b#,0.5
+
+wrap	lap1b,-0.5
+
+rdfx	lf1,0.5
+
+wrlx	lf1,kshlf
+
+wra	d1,1.5
+
+rdax	dout,1
+
+wrax	dacl,0
+
+
+
+rda	d1#,krt
+
+rdax	apout,1
+
+rda	lap2a#,0.5
+
+wrap	lap2a,-0.5
+
+rda	lap2b#,0.5
+
+wrap	lap2b,-0.5
+
+rdfx	lf2,0.5
+
+wrlx	lf2,kshlf
+
+wra	d2,1.5
+
+rdax	mid,1
+
+wrax	dacr,0
+
+
+
+;now get dout with address pointer:
+
+
+
+rmpa	1
+
+wrax	dout,0
+
+
+
+;now get mid output:
+
+
+
+rdax	pot0,1
+
+and	%01111110_00000000_00000000
+
+sof	0.3,0.05		;50 to 350mS
+
+wrax	addr_ptr,0
+
+
+
+rmpa	1
+
+wrax	mid,0
+
+
+
+;develop filter coefficient, ef, from pot1:
+
+;make such that ef=1 if pot is zero or max,
+
+;but reduces to 0.5 at mid scale
+
+
+
+rdax	pot1,1
+
+sof	1,-0.5		;make go -.5 to +0.5
+
+sof	1.2,0		;make go -0.6 to +0.6
+
+absa			;now +0.6, 0, +0.6
+
+sof	1,0.4		;now 1, 0.4, 1
+
+wrax	ef,0		;write echo filter coefficient
+
+
+
+;now filter dout into eout:
+
+
+
+rdax	dout,1
+
+rdax	efil,-1
+
+mulx	ef
+
+rdax	efil,1
+
+wrax	efil,0
+
+
+
+;do delay smoothing:
+
+
+
+cho	rda,sin0,sin|reg|compc,d1+100
+
+cho	rda,sin0,sin,d1+101
+
+wra	d1+200,0
+
+
+
+cho	rda,sin0,cos|reg|compc,d1+100
+
+cho	rda,sin0,cos,d1+101
+
+wra	d1+200,0
+
+
+
+
+
+
+
+
+
+
+
+
+
+

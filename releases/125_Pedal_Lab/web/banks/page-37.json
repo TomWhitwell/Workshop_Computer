@@ -1,0 +1,68 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-publisher-rom-rev1",
+    "source": "algorithms/ready/directory-publisher-rom-rev1.spn",
+    "instructions": 117,
+    "sha256": "84f2995d618b231aa37b033a9f83e1bb6141d738ea5eb2057ee5ac4de80f0c04",
+    "id": "directory-publisher-rom-rev1",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Reverb 1 program from the FV-1 internal ROM",
+    "controls": [
+      "reverb time",
+      "low freq response",
+      "high freq response"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "ROM Reverb 1",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 567502,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-publisher-rom-rev2",
+    "source": "algorithms/ready/directory-publisher-rom-rev2.spn",
+    "instructions": 128,
+    "sha256": "b01c58623671b22f21ee6b0f2a087f885717152584306bd3e534030995ceb98c",
+    "id": "directory-publisher-rom-rev2",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Reverb 2 program from the FV-1 internal ROM",
+    "controls": [
+      "reverb time",
+      "low freq response",
+      "high freq response"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "ROM Reverb 2",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 904654,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

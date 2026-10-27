@@ -1,0 +1,43 @@
+draft: false
+Name: Pedal Lab
+short-description: Choose, edit and install stereo effects.
+summary: >
+  Stereo effects for Workshop Computer, using public Spin FV-1 algorithms.
+  Browse the library, choose a bank and install it from the web editor.
+  Audio previews and custom builds run in your browser.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Tom Whitwell
+Version: "0.1"
+Status: Beta
+License: MPL-2.0; algorithm licences vary
+Editor: web
+date-created: "2026-10-27"
+date-updated: "2026-10-27"
+contact:
+  website: https://www.musicthing.co.uk/
+tags: [effect, reverb, delay, stereo]
+uf2:
+  - path: Pedal_Lab.uf2
+    name: Pedal Lab — six reverbs
+panel:
+  inputs:
+    - {id: AudioIn1, name: Left, type: audio, description: Feeds both channels when Audio 2 is unplugged.}
+    - {id: AudioIn2, name: Right, type: audio, description: Stereo right input.}
+    - {id: CVIn1, name: Main CV, type: cv, description: Modulates Main.}
+    - {id: CVIn2, name: X / Clock CV, type: cv, description: Modulates X; modulates the clock with Z up.}
+    - {id: PulseIn1, name: Y boost, type: pulse, description: Adds half the range to Y while high.}
+  outputs:
+    - {id: AudioOut1, name: Left, type: audio, description: Stereo left output.}
+    - {id: AudioOut2, name: Right, type: audio, description: Stereo right output.}
+    - {id: CVOut1, name: Main, type: cv, description: Effective Main setting.}
+    - {id: CVOut2, name: X, type: cv, description: Effective X setting.}
+controls:
+  knobs:
+    - main: {name: Main, description: Effect parameter 1.}
+      x: {name: X, description: Effect parameter 2.}
+      y: {name: Y, description: Effect parameter 3.}
+  switch:
+    up: {name: Clock CV, description: CV 2 modulates the effect clock.}
+    middle: {name: Play, description: Normal operation.}
+    down: {name: Clock, description: Hold for 400 ms and turn Main to change the clock.}
+    tap: {name: Next effect, description: Tap down and release to select the next effect.}

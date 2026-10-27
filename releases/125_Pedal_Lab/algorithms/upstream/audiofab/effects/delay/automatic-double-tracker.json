@@ -1,0 +1,15 @@
+{
+  "id": "automatic-double-tracker",
+  "name": "Automatic Double Tracker",
+  "version": "1.0.0",
+  "description": "Classic ADT effect with a very short delay (up to 43 ms) and mild chorus, simulating the sound of a double-tracked performance for natural vocal and guitar thickening.",
+  "category": "Delay",
+  "tags": ["delay", "doubler", "chorus", "studio", "thickener"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Delay",        "description": "Short delay time (max 43 ms).", "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Chorus Depth",  "description": "Amount of chorus modulation.",  "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Mix",           "description": "Blend between dry and wet signal.", "unit": "", "range": [0, 1] }
+  ]
+}

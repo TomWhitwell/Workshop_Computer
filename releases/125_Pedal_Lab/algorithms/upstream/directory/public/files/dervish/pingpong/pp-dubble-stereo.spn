@@ -1,0 +1,153 @@
+; simple stereo ping pong delay with adjustable feedback & damping
+;
+;pot0 adjusts delay time
+;pot1 adjusts feedback
+;pot2 adjusts damping
+
+equ	delay_len	8190		;Max ping delay length
+equ	smooth		0.001		;Smoothing coefficient, adjust to change speed/zippernoise
+
+; LPF & HPF cutoff frequency for damping
+equ     damp_lpf        0.1
+equ     damp_hpf        0.02
+
+equ	delay1_pot	pot0
+equ	delay2_pot	pot1
+equ	fb_pot		pot2
+
+; amount of damping
+equ	damp		0.7
+
+mem	delay0_a		delay_len
+mem	delay0_b		delay_len
+mem	delay1_a		delay_len
+mem	delay1_b		delay_len
+
+equ	offset1		reg0
+equ	offset2		reg1
+equ	feedback	reg2
+equ	damping		reg3
+equ	lpf_l		reg4
+equ	lpf_r		reg5
+equ	hpf_l		reg6
+equ	hpf_r		reg7
+equ	delay0_a_data	reg8
+equ	delay0_b_data	reg9
+equ	delay1_a_data	reg10
+equ	delay1_b_data	reg11
+equ	temp		reg12
+
+;*******************************************************
+; any initialisation goes here
+skp	RUN,loop
+sof	0, damp
+wrax	damping, 0
+loop:
+
+;*******************************************************
+; read delay1 time pot
+rdax	delay1_pot, 1
+sof	0.99, 0.01
+wrax	temp, 0
+or	delay_len * 256
+mulx	temp
+rdfx	offset1, smooth
+wrax	offset1, 0
+
+; read delay2 time pot
+rdax	delay2_pot, 1
+sof	0.99, 0.01
+wrax	temp, 0
+or	delay_len * 256
+mulx	temp
+rdfx	offset2, smooth
+wrax	offset2, 0
+
+;*******************************************************
+; read feedback pot
+rdax	fb_pot, 1
+rdfx	feedback, smooth
+wrax	feedback, 0
+
+;*******************************************************
+; Tap 0 Left A
+or	delay0_a * 256
+rdax	offset1, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	delay0_a_data, 0
+
+; Tap 1 Left B
+or	delay0_b * 256
+rdax	offset2, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	delay0_b_data, 0
+
+; Tap 2 Right A
+or	delay1_a * 256
+rdax	offset1, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	delay1_a_data, 0
+
+; Tap 3 Right B
+or	delay1_b * 256
+rdax	offset2, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	delay1_b_data, 0
+
+
+;*******************************************************
+; "A" tap data to delay0 output
+rdax	delay0_a_data, 0.6
+rdax	delay1_a_data, 0.6
+wrax	dacl, 0
+
+; "B" tap data to delay1 output
+rdax	delay0_b_data, 0.6
+rdax	delay1_b_data, 0.6
+wrax	dacr, 0
+
+;*******************************************************
+; "A" tap data to "B" tap, unfiltered
+rdax	delay0_a_data, 1
+wra	delay0_b, 0
+rdax	delay1_a_data, 1
+wra	delay1_b, 0
+
+; "B" tap data to "A" after filtering & mixing with ADC data
+rdax	delay0_b_data, 1
+mulx	feedback
+
+; damping code taken from Spin OEM1 echo 
+wrax	temp, 1
+rdfx	lpf_l, damp_lpf
+wrlx	lpf_l, -1
+rdfx	hpf_l, damp_hpf
+wrhx	hpf_l, -1
+rdax	temp, -1
+mulx	damping
+rdax	temp, 1
+
+rdax	adcl, 1
+wra	delay0_a, 0
+
+; "B" tap data to "A" after filtering & mixing with ADC data
+rdax	delay1_b_data, 1
+mulx	feedback
+
+; damping code taken from Spin OEM1 echo 
+wrax	temp, 1
+rdfx	lpf_r, damp_lpf
+wrlx	lpf_r, -1
+rdfx	hpf_r, damp_hpf
+wrhx	hpf_r, -1
+rdax	temp, -1
+mulx	damping
+rdax	temp, 1
+
+rdax	adcr, 1
+wra	delay1_a, 0
+

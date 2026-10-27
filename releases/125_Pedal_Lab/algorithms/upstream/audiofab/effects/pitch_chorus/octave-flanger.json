@@ -1,0 +1,15 @@
+{
+  "id": "octave-flanger",
+  "name": "Octave Flanger",
+  "version": "1.0.0",
+  "description": "Octave-up and octave-down pitch shifting combined with a flanger for a metallic, sweeping harmonic texture.",
+  "category": "Pitch / Chorus",
+  "tags": ["pitch-shift", "octave", "flanger", "modulation", "harmony"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Flanger Speed",     "description": "Flanger modulation speed.",           "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Octave Up Level",   "description": "Level of the octave-up voice.",       "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Octave Down Level", "description": "Level of the octave-down voice.",     "unit": "", "range": [0, 1] }
+  ]
+}

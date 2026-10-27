@@ -1,0 +1,15 @@
+{
+  "id": "multi-voice-chorus",
+  "name": "Multi-Voice Chorus",
+  "version": "1.0.0",
+  "description": "A lush four-voice chorus with adjustable speed, depth, and feedback. Produces a thick, shimmering ensemble effect.",
+  "category": "Pitch / Chorus",
+  "tags": ["chorus", "modulation", "multi-voice", "ensemble"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Speed",    "description": "LFO rate of the chorus modulation.",     "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Depth",    "description": "Amount of pitch modulation.",            "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Feedback", "description": "Feedback for more intense modulation.",  "unit": "", "range": [0, 1] }
+  ]
+}

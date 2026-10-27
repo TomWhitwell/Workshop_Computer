@@ -9,11 +9,13 @@ extern "C" {
 #endif
 
 // Lock-free ring buffer for USB RX messages
-#define USB_RX_QUEUE_SIZE 64
+#define USB_RX_QUEUE_SIZE 32
 #define USB_RX_MSG_MAX_LENGTH 256
 
-// Lock-free ring buffer for USB TX messages
-#define USB_TX_QUEUE_SIZE 64
+// Lock-free ring buffer for USB TX messages. Nothing posts to it at present
+// (all output is written to the CDC FIFO directly, via __wrap_tud_cdc_n_write
+// in main.cpp), so it's kept minimal: 32 slots cost 8KB of Lua heap.
+#define USB_TX_QUEUE_SIZE 2
 #define USB_TX_MSG_MAX_LENGTH 256
 
 typedef struct {

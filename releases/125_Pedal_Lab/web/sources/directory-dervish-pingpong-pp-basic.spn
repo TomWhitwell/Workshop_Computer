@@ -1,0 +1,111 @@
+; basic ping pong delay with adjustable feedback & damping
+; (damping has hpf & lpf)
+; Graham Biswell <graham@gbiswell.com>
+;
+; pot0 adjusts ping delay time
+; pot1 adjusts feedback coefficient
+; pot2 adjusts damping
+
+equ	delay_len	16383
+equ	smooth		0.001		;Smoothing coefficient, adjust to change speed/zippernoise
+
+mem	delay0		delay_len
+mem	delay1		delay_len
+
+equ	delay_pot	pot0
+equ	fb_pot		pot1
+equ	damp_pot	pot2
+
+equ	offset		reg0
+equ	damping		reg1
+equ	feedback	reg2
+equ	delay0_data	reg3
+equ	delay1_data	reg4
+equ	lpf		reg5
+equ	hpf		reg6
+equ	temp		reg7
+
+;*******************************************************
+; any initialisation goes here
+;skp	RUN,loop
+loop:
+
+;*******************************************************
+; Since pot only has 512 states, want to filter pot to avoid jumping
+rdax	delay_pot, 1
+sof	0.99, 0.01
+wrax	temp, 0
+or	delay_len * 256
+mulx	temp
+rdfx	offset, smooth
+wrax	offset, 0
+
+;*******************************************************
+rdax	fb_pot, 1
+rdfx	feedback, smooth
+wrax	feedback, 0
+
+;*******************************************************
+rdax	damp_pot, 1
+mulx	damp_pot
+rdfx	damping, smooth
+wrax	damping, 0
+
+;*******************************************************
+; get data from taps
+; Tap 0
+or	delay0 * 256
+rdax	offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	delay0_data, 0
+
+; Tap 1
+or	delay1*256
+rdax	offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	delay1_data, 0
+
+;*******************************************************
+; write outputs
+rdax	delay0_data, 1
+wrax	dacl, 0
+
+; Right output
+rdax	delay1_data, 1
+wrax	dacr, 0
+
+;*******************************************************
+; now copy delay0 to delay1, delay1 to delay0
+;
+; delay0 delay output straight to delay1 delay input
+rdax	delay0_data, 1
+wra	delay1, 0
+
+; delay1 delay output attenuated by feedback amount
+; filtered by damping amount (LPF & HPF)
+; small amount of HPF applied
+; mixed with delay0 ADC input then written to delay0 delay input
+rdax	delay1_data, 1
+mulx	feedback	
+wrax	temp, 1
+rdfx	lpf, 0.05
+wrlx	lpf, -1
+rdfx    hpf, 0.02
+wrhx    hpf, -1
+
+rdax	temp, -1
+mulx	damping
+rdax	temp, 1
+
+;*******************************************************
+; small amount of HPF in feedback
+; RDFXcoeff = 1 - exp(-2*pi * Freq / 32768)
+rdfx    hpf, 0.01
+wrhx    hpf, -0.5
+
+rdax	adcl, 0.6
+rdax	adcr, 0.6
+wra	delay0, 0
+ 

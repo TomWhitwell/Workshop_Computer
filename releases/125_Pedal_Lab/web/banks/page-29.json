@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-shimmer-dralx",
+    "source": "algorithms/ready/directory-shimmer-dralx.spn",
+    "instructions": 99,
+    "sha256": "d5234c925ab43f27bd0de8f09a4b26828906a040fd4919e77dbef471b82f4e7f",
+    "id": "directory-shimmer-dralx",
+    "author": "Alex Lawrow",
+    "description": "This routine is based on Mick Taylor's (Ice-9s) reverb loop and shimmer code with some changes such as...",
+    "controls": [
+      "Reverb time (0 to 10 seconds).",
+      "Amount of treble in reverb loop.",
+      "Shimmer level"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/shimmer_drAlx.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/shimmer_drAlx.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Reverb + Shimmer (Version 6)",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 16004,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 169984,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-slacker-bf-bf-geoffrey",
+    "source": "algorithms/ready/directory-slacker-bf-bf-geoffrey.spn",
+    "instructions": 46,
+    "sha256": "d5c795839747d63b816870786740b943bc2addb8c3edf39f04bb5bb225b24ebd",
+    "id": "directory-slacker-bf-bf-geoffrey",
+    "author": "slacker",
+    "description": "Pitch shift is +5th, +7th, +1 Octave, +M3rd",
+    "controls": [
+      "Delay",
+      "Pitch select",
+      "Feedback"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_geoffrey.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_geoffrey.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Geoffrey: Pitch shifted delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 2097152,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-publisher-key-rev",
+    "source": "algorithms/ready/directory-publisher-key-rev.spn",
+    "instructions": 87,
+    "sha256": "527e700ced03722c267a21a00f48f736371d361ba0ab2bca8ca8d01f248545ae",
+    "id": "directory-publisher-key-rev",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Pitch, Reverb program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Pitch + Reverb for karaoke apps",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1207868,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-publisher-rom-pitch",
+    "source": "algorithms/ready/directory-publisher-rom-pitch.spn",
+    "instructions": 27,
+    "sha256": "fcdcbb71635d761c005a31473b312f244bec82daad09dac7cd6bd36d6341f3f2",
+    "id": "directory-publisher-rom-pitch",
+    "author": "Frank Thomson (Spin Semiconductor)",
+    "description": "Pitch shifting program from the FV-1 internal ROM",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "ROM Pitch Shift",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 501613,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-publisher-rom-pt-echo",
+    "source": "algorithms/ready/directory-publisher-rom-pt-echo.spn",
+    "instructions": 32,
+    "sha256": "558c3e4be5b88b8ffbf6bd968c27e0bf3f0bbabe2670cc6860c6b694319ede7e",
+    "id": "directory-publisher-rom-pt-echo",
+    "author": "Frank Thomson (Spin Semiconductor)",
+    "description": "Pitch-echo program from the FV-1 internal ROM",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "ROM Pitch Echo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 524288,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-whammy",
+    "source": "algorithms/ready/directory-whammy.spn",
+    "instructions": 32,
+    "sha256": "83853cdcf228078738d402654c409ae0aad3c97029b099e66e5c3b9dad5239e8",
+    "id": "directory-whammy",
+    "author": "deepMago!",
+    "description": "Pitch program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Whammy Pedal",
+      "set the pitch range - only 4 selection allowed (DIVEBOMB, OCT DOWN, FIFTH, OCT uP)",
+      "-"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/whammy.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=296",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Whammy",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 853583,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

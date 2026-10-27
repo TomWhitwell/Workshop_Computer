@@ -1,10 +1,6 @@
 #include "flash_storage.h"
 #include <cstring>
-#include "pico/multicore.h"
 #include "tusb.h"
-
-// External flag from main.cpp to signal core1
-extern volatile bool g_flash_operation_pending;
 
 void FlashStorage::init() {
     // Nothing special needed - XIP is already configured by SDK
@@ -23,22 +19,36 @@ USERSCRIPT_t FlashStorage::which_user_script() {
     }
 }
 
-// Static buffer for flash operations - must not use dynamic allocation during flash write
-static uint8_t flash_write_buffer[USER_SCRIPT_SIZE + 256] __attribute__((aligned(256)));
+// One flash page, staged for programming. Writes stream through this rather
+// than a whole-script buffer, which would cost 16KB of RAM (Lua heap) for
+// something used only during ^^w.
+static uint8_t page_buffer[FLASH_PAGE_SIZE] __attribute__((aligned(4)));
 
-// Helper function in RAM that does the actual flash write
-// Must be in RAM because XIP is disabled during flash operations
-static void __not_in_flash_func(do_flash_write)(uint32_t offset, const uint8_t* data, size_t size) {
-    // Disable interrupts during flash operations
+// Erase the user script sectors, then program `head` followed by `body` from
+// the start of them, padded with 0xFF to a whole page. Both must be in RAM:
+// XIP is unavailable while this runs.
+// Core 1 (audio) keeps running throughout: everything it executes is in RAM
+// (see blackbird_core1_background_service in main.cpp), so XIP being
+// unavailable here doesn't affect it. Core 0 just has interrupts off.
+static void __no_inline_not_in_flash_func(do_flash_write)(const uint8_t* head, size_t head_len,
+                                                          const uint8_t* body, size_t body_len) {
+    const size_t total = head_len + body_len;
     uint32_t ints = save_and_disable_interrupts();
-    
-    // Erase the required sectors
-    flash_range_erase(offset, USER_SCRIPT_SECTORS * 4096);
-    
-    // Program the flash
-    flash_range_program(offset, data, size);
-    
+    flash_range_erase(USER_SCRIPT_OFFSET, USER_SCRIPT_SECTORS * 4096);
+    for (size_t page = 0; page < total; page += FLASH_PAGE_SIZE) {
+        for (size_t i = 0; i < FLASH_PAGE_SIZE; i++) {
+            const size_t pos = page + i;
+            page_buffer[i] = (pos < head_len) ? head[pos]
+                           : (pos < total)    ? body[pos - head_len]
+                           : 0xFF;
+        }
+        flash_range_program(USER_SCRIPT_OFFSET + page, page_buffer, FLASH_PAGE_SIZE);
+    }
     restore_interrupts(ints);
+}
+
+static bool in_ram(const void* p) {
+    return (uintptr_t)p >= SRAM_BASE && (uintptr_t)p < SRAM_END;
 }
 
 bool FlashStorage::write_user_script(const char* script, uint32_t length) {
@@ -54,18 +64,20 @@ bool FlashStorage::write_user_script_with_name(const char* script, uint32_t leng
     // Don't use tud_cdc_write here - it might interfere with USB in some way
     // Just do the work silently
     
-    // Prepare aligned buffer for flash programming (use static buffer to avoid heap allocation)
+    // The script is read straight from its buffer while flash is busy
+    if (!in_ram(script)) {
+        return false;
+    }
+
     // Layout: [status_word:4][script_name:32][script_data:N]
-    const size_t total_size = 4 + MAX_SCRIPT_NAME_LEN + length;
-    const size_t aligned_size = (total_size + FLASH_PAGE_SIZE - 1) & ~(FLASH_PAGE_SIZE - 1);  // Round up to page
-    
-    memset(flash_write_buffer, 0xFF, aligned_size);
+    uint8_t header[4 + MAX_SCRIPT_NAME_LEN];
+    memset(header, 0xFF, sizeof(header));
     
     // Build status word: [magic:4][version:12][length:16]
     uint32_t status_word = USER_MAGIC 
                          | (get_version_word() << 4) 
                          | (length << 16);
-    memcpy(flash_write_buffer, &status_word, 4);
+    memcpy(header, &status_word, 4);
     
     // Copy script name (up to 31 chars + null terminator)
     if (name && name[0]) {
@@ -73,34 +85,13 @@ bool FlashStorage::write_user_script_with_name(const char* script, uint32_t leng
         if (name_len > MAX_SCRIPT_NAME_LEN - 1) {
             name_len = MAX_SCRIPT_NAME_LEN - 1;
         }
-        memcpy(flash_write_buffer + 4, name, name_len);
-        flash_write_buffer[4 + name_len] = '\0';  // Ensure null termination
+        memcpy(header + 4, name, name_len);
+        header[4 + name_len] = '\0';  // Ensure null termination
     } else {
-        flash_write_buffer[4] = '\0';  // Empty name
+        header[4] = '\0';  // Empty name
     }
     
-    // Copy script data after name field
-    memcpy(flash_write_buffer + 4 + MAX_SCRIPT_NAME_LEN, script, length);
-    
-    // CRITICAL: On RP2040 multicore, we MUST stop core1 before flash operations
-    // because flash_range_erase/program disable XIP which would crash core1
-    // We'll reset core1, do the flash write, then restart it
-    // This will cause audio to stop temporarily (~1 second) but is unavoidable
-    
-    // Store core1 entry point so we can restart it
-    extern void core1_entry();
-    
-    // Reset core1 (this stops it completely)
-    multicore_reset_core1();
-    
-    // Now it's safe to write to flash
-    uint32_t ints = save_and_disable_interrupts();
-    flash_range_erase(USER_SCRIPT_OFFSET, USER_SCRIPT_SECTORS * 4096);
-    flash_range_program(USER_SCRIPT_OFFSET, flash_write_buffer, aligned_size);
-    restore_interrupts(ints);
-    
-    // Restart core1
-    multicore_launch_core1(core1_entry);
+    do_flash_write(header, sizeof(header), (const uint8_t*)script, length);
     
     return true;
 }
@@ -151,17 +142,10 @@ const char* FlashStorage::get_script_name() {
 }
 
 void FlashStorage::clear_user_script() {
-    uint8_t buffer[FLASH_PAGE_SIZE];
-    memset(buffer, 0xFF, FLASH_PAGE_SIZE);
-    
     // Write USER_CLEAR magic to indicate intentional clearing
     uint32_t status_word = USER_CLEAR | (get_version_word() << 4);
-    memcpy(buffer, &status_word, 4);
     
-    uint32_t ints = save_and_disable_interrupts();
-    flash_range_erase(USER_SCRIPT_OFFSET, USER_SCRIPT_SECTORS * 4096);
-    flash_range_program(USER_SCRIPT_OFFSET, buffer, FLASH_PAGE_SIZE);
-    restore_interrupts(ints);
+    do_flash_write((const uint8_t*)&status_word, 4, nullptr, 0);
     
     tud_cdc_write_str("User script cleared\n\r");
 }
@@ -169,29 +153,11 @@ void FlashStorage::clear_user_script() {
 // Set flash to use default First.lua script on boot
 // Returns true on success
 bool FlashStorage::set_default_script_mode() {
-    uint8_t buffer[FLASH_PAGE_SIZE];
-    memset(buffer, 0xFF, FLASH_PAGE_SIZE);
-    
     // Write neither USER_MAGIC nor USER_CLEAR - triggers default
     uint32_t status_word = 0x0 | (get_version_word() << 4);
-    memcpy(buffer, &status_word, 4);
     
-    // CRITICAL: On RP2040 multicore, we MUST stop core1 before flash operations
-    // Store core1 entry point so we can restart it
-    extern void core1_entry();
-    
-    // Reset core1 (this stops it completely)
-    multicore_reset_core1();
-    
-    // Now it's safe to write to flash
-    uint32_t ints = save_and_disable_interrupts();
-    // Erase all user script sectors to fully clear any stored script
-    flash_range_erase(USER_SCRIPT_OFFSET, USER_SCRIPT_SECTORS * 4096);
-    flash_range_program(USER_SCRIPT_OFFSET, buffer, FLASH_PAGE_SIZE);
-    restore_interrupts(ints);
-    
-    // Restart core1
-    multicore_launch_core1(core1_entry);
+    // Erases all user script sectors to fully clear any stored script
+    do_flash_write((const uint8_t*)&status_word, 4, nullptr, 0);
     
     return true;
 }

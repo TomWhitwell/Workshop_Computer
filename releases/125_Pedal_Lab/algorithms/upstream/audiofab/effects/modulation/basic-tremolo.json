@@ -1,0 +1,15 @@
+{
+  "id": "basic-tremolo",
+  "name": "Basic Tremolo",
+  "version": "1.0.0",
+  "description": "A classic amplitude-modulation tremolo with a tone control for shaping the wet signal. Smooth, musical pulsing from gentle shimmer to full chop.",
+  "category": "Modulation",
+  "tags": ["tremolo", "modulation", "amplitude"],
+  "author": "Digital Larry, Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Speed", "description": "Tremolo LFO rate.",                 "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Depth", "description": "Amount of amplitude modulation.",   "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Tone",  "description": "Post-tremolo tone / high-frequency roll-off.", "unit": "", "range": [0, 1] }
+  ]
+}

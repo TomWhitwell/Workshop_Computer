@@ -1,0 +1,188 @@
+; @name Numbers Station_clk
+; @tagline Your playing keyed out on the clock by an 8-step loop of whole-pulse slices, half-pulse slices and silent steps that mutates as you turn up Chaos, every slice crushed, filtered and thrown hard left or right
+; @description A shortwave numbers station that keys out your own playing on your clock. An 8-step
+; @description loop runs one step per clock pulse, and each step is a slice the whole pulse long, a
+; @description slice half a pulse long, or a hard, completely silent rest. Chaos is the chance that a
+; @description step is rewritten as it comes round: at 0 the loop repeats exactly, turning it up
+; @description mutates it more and more, and at 1 every pass is new. Turn Chaos up to write a
+; @description rhythm, then down to freeze it; at load the loop is eight whole-pulse slices. Rests is
+; @description the chance that a rewritten step is silent (up to 80 %); the others are whole or half
+; @description at random. Each slice jumps hard left or right, away from the last. Nothing is added
+; @description to your sound: it is only crushed and filtered. Dial tunes the station: fully left,
+; @description your playing is lightly crushed and open; turning it up lowers the sample rate,
+; @description coarsens the level steps and closes a resonant band; fully right it is completely
+; @description crushed and squeezed into a narrow band around 450 Hz.
+; @clock
+; @pots Chaos | Rests | Dial
+; @render 0.85, 0.35, 0.5
+; @components clock-locked 8-step loop (2 bits a step: whole pulse, half pulse, off) rewritten Turing-style with chance Chaos (off with chance 0.8 Rests, else whole or half by a chaos bit), slices timed from the last clock period (96 % or half of it), hard gate with 1 ms edges, chaotic hard left/right side per slice, periodic sample-and-hold crush (8.2 kHz to 780 Hz), log-domain level crush (magnitudes floored to 12 dB steps, depth Dial squared), state-variable filter morphing from an open low-pass to a narrow 450 Hz band, feed-forward peak limiter
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+equ	clkhp	reg0		; clock detector: low-pass state
+equ	clkin	reg1		; free (the factory clock block's conditioned sample)
+equ	clkst	reg2		; clock state: -0.25 high, -0.5 low (armed)
+equ	clkprev	reg3
+equ	pat	reg4		; the 8-step loop: 2 bits a step (bits 15..0), 0 full, 1 half, 2 off
+equ	cnt	reg5		; time since the last clock edge (2^-17 a sample, 1.0 = 4 s)
+equ	t	reg6		; this step's code
+equ	stop	reg8		; when this step's slice ends (in cnt's scale; 0 = off)
+equ	env	reg12		; keying envelope
+equ	pn	reg13		; this slice's side: -1 right .. +1 left
+equ	lp	reg14		; the filter
+equ	bp	reg15
+equ	w	reg16		; filter frequency coefficient (Dial), also the crush rate
+equ	qb	reg17		; w x bp
+equ	ns	reg18		; chaos: a tent map nudged by your input
+equ	lenv	reg19		; limiter peak follower
+equ	xo	reg20		; the transmission, limited and keyed
+equ	hph	reg21		; sample-and-hold phasor, in [-1/2, 0)
+equ	hv	reg22		; held, crushed sample
+equ	tv	reg23		; log2|y| / 16
+equ	e	reg24		; the log crush, as a log2 gain / 16
+equ	y	reg25		; filtered
+equ	g	reg26		; limiter gain
+
+; ---- clock: rising-edge detector, then the count
+	ldax	adcr
+	rdfx	clkhp, 0.06		; low-pass of ADCR, tau ~0.5 ms
+	wrax	clkhp, -1.0
+	rdax	adcr, 1.0		; d = ADCR - low-pass: the recent rise
+	sof	1.0, -0.1875		; high at d >= 0.1875
+	skp	neg, c_lo
+	sof	0, -0.25		; state high
+	wrax	clkst, 0
+	skp	zro, c_hi
+c_lo:	sof	1.0, 0.125		; d - 0.0625: below it the input re-arms; between, hold
+	skp	gez, c_hi
+	sof	0, -0.5			; state low (armed)
+	wrax	clkst, 0
+c_hi:	ldax	clkprev			; latch on low -> high
+	rdax	clkst, -1.0
+	skp	neg, c_latch
+; ---- not an edge: count the time since the edge
+	clr
+	or	$000040			; 2^-17 a sample
+	rdax	cnt, 1.0
+	wrax	cnt, 0
+	skp	zro, c_done
+; ---- a clock edge: the step coming round, rewritten with chance Chaos (Rests: the chance it's off)
+c_latch: ldax	ns
+	absa
+	rdax	pot0, -1.0		; |chaos| below Chaos: a new step
+	skp	neg, c_new
+	ldax	pat			; else the step from 8 pulses back, as it was
+	and	$00C000
+	sof	0.00006103515625, 0	; to bits 1..0
+	skp	gez, c_rot
+c_new:	ldax	ns
+	and	$00FFFF			; a fresh draw from the chaos
+	rdax	pot1, -0.0062255859375	; below 0.8 Rests: off (at most 80 % of new steps)
+	skp	neg, c_off
+	and	$000001			; else full (0) or half (1), from a chaos bit
+	skp	gez, c_rot
+c_off:	clr
+	or	$000002
+c_rot:	wrax	t, 0			; turn the loop: the step goes to the bottom, 7 pulses to the top
+	ldax	pat
+	and	$003FFF
+	sof	-2.0, 0
+	sof	-2.0, 0
+	rdax	t, 1.0
+	wrax	pat, 0
+; ---- play the step: a slice for the whole period (96 %, so it ends silent before the next edge) or half of
+;      it, timed from the last period (cnt at the edge); off: stop 0
+	ldax	t
+	skp	zro, c_full		; 0: full
+	and	$000002
+	skp	zro, c_half		; 1: half
+	clr				; 2: off
+	skp	zro, c_stop
+c_half:	ldax	cnt
+	sof	0.5, 0
+	skp	gez, c_side
+c_full:	ldax	cnt
+	sof	0.96, 0
+c_side:	wrax	stop, 0
+	rdax	ns, 1.99		; its side: chaotic, hard left or right most of the time,
+	rdax	pn, -0.6		; and pushed away from the last one (the key is up: the jump is silent)
+	wrax	pn, 0
+	skp	zro, c_cnt
+c_stop:	wrax	stop, 0
+c_cnt:	wrax	cnt, 0
+c_done:	ldax	clkst
+	wrax	clkprev, 0
+; ---- keying (1 ms edges): down while cnt < stop (env runs 0 .. -1: the output's polarity is irrelevant);
+;      the chaos (a tent map nudged by your input)
+	ldax	cnt
+	rdax	stop, -1.0
+	and	$800000
+	rdfx	env, 0.03
+	wrax	env, 0
+	ldax	ns
+	absa
+	sof	-1.99, 0.999
+	rdax	adcl, 0.001
+	wrax	ns, 0
+; ---- Dial: one exponential sets the filter (w) and the crush rate
+	ldax	pot2
+	sof	-0.2111, -0.009765625
+	exp	1.0, 0
+	wrax	w, 0
+; ---- crush: a periodic sample-and-hold, a whole number of samples (8.2 kHz at Dial 0 .. 780 Hz at 1) ...
+	ldax	hph
+	rdax	w, 0.14
+	wrax	hph, 1.0
+	skp	neg, s_hold
+	sof	0, -0.5
+	wrax	hph, 0
+;      ... of the input, its magnitude floored to 12 dB steps in the log domain, depth by Dial
+	ldax	adcl
+	log	1.0, 0
+	wrax	tv, 1.0
+	and	$F00000
+	rdax	tv, -1.0
+	mulx	pot2
+	mulx	pot2			; depth Dial^2
+	exp	1.0, 0
+	mulx	adcl
+	sof	0.28, 0
+	wrax	hv, 0
+s_hold:
+; ---- the filter: Chamberlin SVF, q = 1.295 w + 0.138 (Q 0.8 at Dial 0 .. 4 at 1)
+	ldax	bp
+	mulx	w
+	wrax	qb, 1.0
+	rdax	lp, 1.0
+	wrax	lp, -1.0
+	rdax	qb, -1.295
+	rdax	bp, -0.138
+	rdax	hv, 1.0
+	mulx	w
+	rdax	bp, 1.0
+	wrax	bp, 0
+;      open low-pass at Dial 0 .. the narrow band at 1
+	rdax	bp, 1.0
+	rdax	lp, -1.5
+	mulx	pot2
+	rdax	lp, 1.5
+; ---- limiter (feed-forward, before the key; ceiling a little lower toward Dial 0), then the key
+	wrax	y, 1.0
+	maxx	lenv, 0.9998
+	wrax	lenv, 1.0
+	log	-1.0, -0.20703125		; (0.7 dB under the old ceiling: full-length slices peak higher)
+	rdax	w, -0.02613
+	exp	1.0, 0
+	wrax	g, 0
+	ldax	y
+	mulx	g
+	mulx	env
+	sof	-2.0, 0
+	sof	-1.99, 0
+	wrax	xo, 1.0
+; ---- out: L = (pn + 0.96) x, R = 1.99 x - L
+	mulx	pn
+	rdax	xo, 0.96
+	wrax	dacl, -1.0
+	rdax	xo, 1.99
+	wrax	dacr, 0

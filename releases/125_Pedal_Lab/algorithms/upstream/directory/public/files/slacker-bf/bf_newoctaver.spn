@@ -1,0 +1,127 @@
+delayd mem 4096 ; Down delay
+
+
+temp mem 1 ; Temp location for partial calculations
+
+
+;
+
+
+skp run,START
+
+
+
+
+
+;
+
+
+wldr RMP0,16384,4096
+
+
+wldr RMP1,-8192,4096
+
+
+;
+
+
+START: ldax ADCL
+
+
+; Write it to left delay and clear ACC
+
+
+wra delayd,0
+
+
+; Read in left
+
+
+ldax ADCL
+
+
+;
+
+
+wra delayd+512,0
+
+
+;
+
+
+cho rda,RMP0,REG|COMPC,delayd
+
+
+cho rda,RMP0,,delayd+1
+
+
+wra temp,0
+
+
+cho rda,RMP0,RPTR2|COMPC,delayd
+
+
+cho rda,RMP0,RPTR2,delayd+1
+
+
+cho sof,RMP0,NA|COMPC,0
+
+
+cho rda,RMP0,NA,temp
+
+
+mulx POT1
+
+
+wrax REG0,0
+
+
+;
+
+
+cho rda,RMP1,REG|COMPC,delayd
+
+
+cho rda,RMP1,,delayd+1
+
+
+wra temp,0
+
+
+cho rda,RMP1,RPTR2|COMPC,delayd
+
+
+cho rda,RMP1,RPTR2,delayd+1
+
+
+cho sof,RMP1,NA|COMPC,0
+
+
+cho rda,RMP1,NA,temp
+
+
+MULX POT2
+
+
+wrax REG1,0
+
+
+;
+
+
+ldax ADCL
+
+
+mulx POT0
+
+
+rdax REG0,1.0
+
+
+rdax REG1,1.0
+
+
+wrax DACL,0
+
+
+wrax DACR,0

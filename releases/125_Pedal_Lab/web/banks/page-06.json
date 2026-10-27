@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "audiofab-reverb-hall-reverb",
+    "source": "algorithms/ready/audiofab-reverb-hall-reverb.spn",
+    "instructions": 101,
+    "sha256": "70f8b2a7634e60d547899da34b476a464ea38f4bd64aaa953070c36388276e34",
+    "id": "audiofab-reverb-hall-reverb",
+    "author": "Audiofab",
+    "description": "A classic hall reverb with a spacious, immersive sound. Ideal for adding depth and grandeur to any instrument.",
+    "controls": [
+      "Pre-delay: Delay before the reverb tail starts.",
+      "Reverb Time: Length of the reverb tail.",
+      "Mix: Blend between dry and wet signal."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/hall-reverb.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Hall Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1048576,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "audiofab-reverb-mn3011-reverb",
+    "source": "algorithms/ready/audiofab-reverb-mn3011-reverb.spn",
+    "instructions": 86,
+    "sha256": "6b582f9b87d655184f73bcf7c994bf832f28e37aabeb2ef1c3203fee326abd2a",
+    "id": "audiofab-reverb-mn3011-reverb",
+    "author": "Audiofab",
+    "description": "An emulation of a classic BBD 'reverb' using the MN3011 bucket-brigade device model. Produces a warm, lo-fi reverb character with analog coloration.",
+    "controls": [
+      "Delay: Delay time.",
+      "Repeats: Feedback amount \u2014 density of the reverb.",
+      "Mix: Blend between dry and wet signal."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/mn3011-reverb.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "MN3011 Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1048576,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "audiofab-reverb-plate-reverb",
+    "source": "algorithms/ready/audiofab-reverb-plate-reverb.spn",
+    "instructions": 119,
+    "sha256": "e31cd959cc0995d18fe3e58b637f713ca7a293d1921dcf080a9981792eeca444",
+    "id": "audiofab-reverb-plate-reverb",
+    "author": "Jon Dattorro, mdroberts1243, Audiofab",
+    "description": "A classic plate reverb derived from the Jon Dattorro design. Dense, smooth, and musically resonant with adjustable damping and decay.",
+    "controls": [
+      "Damping: High-frequency loss in the reverb tank.",
+      "Reverb Time: Length of the reverb decay.",
+      "Mix: Blend between dry and wet signal."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/plate-reverb.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Plate Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 262144,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "audiofab-reverb-room-reverb",
+    "source": "algorithms/ready/audiofab-reverb-room-reverb.spn",
+    "instructions": 122,
+    "sha256": "9ef26f0b947e2ac505be07eecec569964022956ac36c97d62db246db13836cf9",
+    "id": "audiofab-reverb-room-reverb",
+    "author": "Audiofab",
+    "description": "A warm, natural-sounding small-room reverb. Great for adding subtle space to clean tones.",
+    "controls": [
+      "Pre-delay: Delay before the reverb tail starts.",
+      "Time: Length of the reverb tail.",
+      "Mix: Blend between dry and wet signal."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/room-reverb.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Room Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1048576,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "audiofab-reverb-shimmer-reverb",
+    "source": "algorithms/ready/audiofab-reverb-shimmer-reverb.spn",
+    "instructions": 104,
+    "sha256": "1e215d3e26d49bfa40e14fc03da8288f8c79b049c49a963f420e2793f866fd8a",
+    "id": "audiofab-reverb-shimmer-reverb",
+    "author": "DrAlx, Mick Taylor, Audiofab",
+    "description": "A lush reverb with an octave-up pitch-shifted shimmer effect that builds slowly over time. Produces ethereal, atmospheric textures with up to 10 seconds of reverb time.",
+    "controls": [
+      "Treble: Amount of treble in the reverb loop.",
+      "Reverb Time: Length of the reverb decay (0\u201310 s).",
+      "Shimmer Level: Amount of octave-up shimmer effect."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/shimmer-reverb.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Shimmer Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 16726,
+      "peak_output_error_q23": 256,
+      "rms_output_error_q23": 2.23607,
+      "peak_output_q23": 263424,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "audiofab-reverb-spring-reverb",
+    "source": "algorithms/ready/audiofab-reverb-spring-reverb.spn",
+    "instructions": 128,
+    "sha256": "ddf89938151f2a40064098a86aa786db1f634ba8e578fb4026dead3ebc5a2665",
+    "id": "audiofab-reverb-spring-reverb",
+    "author": "Don Stavely, Mick Taylor, Audiofab",
+    "description": "A classic spring reverb with the characteristic 'boingy' dispersion chirp of a real spring tank, inspired by the Fender 6G15. Features spectral delay filtering for authentic spring character.",
+    "controls": [
+      "Tone: Post-reverb tone shaping.",
+      "Reverb Time: Length of the reverb decay.",
+      "Mix: Blend between dry and wet signal."
+    ],
+    "license": {
+      "label": "Non-commercial only \u2014 source header",
+      "status": "non-commercial",
+      "evidence": "algorithms/upstream/audiofab/effects/reverb/spring-reverb.spn"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/spring-reverb.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Spring Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1048576,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

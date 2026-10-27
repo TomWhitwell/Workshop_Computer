@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardRenames, evaluateMergeEligibility, touchesNoCards } from '../src/validate/mergeEligibility.js';
+import {
+  SIZE_LIMITS, cardRenames, evaluateMergeEligibility, measureChanges, parseLabels, touchesNoCards,
+} from '../src/validate/mergeEligibility.js';
 import { hasCommittedToCard } from '../src/validate/cardCommitters.js';
 import { reportEligibilityMarkdown } from '../src/validate/reporters/index.js';
 
@@ -160,4 +162,26 @@ test('introduced near-duplicate values and missing firmware need a maintainer, o
   for (const ruleId of ['metadata-completeness', 'pico-xosc64-recommended', 'ajv-schema', 'draft-card-changed']) {
     assert.equal(check({ introduced: [finding(ruleId, 'advice')] }).eligible, true, ruleId);
   }
+});
+
+test('oversized change sets need a maintainer, typical ones do not', () => {
+  const sizes = { 'releases/42_card/info.yaml': 300, 'releases/42_card/build/card.uf2': 3 * 1024 * 1024 };
+  const typical = measureChanges([update, firmware, { status: 'D', path: 'releases/42_card/old.uf2' }], file => sizes[file] ?? null);
+  assert.deepEqual(typical, { files: 3, totalBytes: 300 + 3 * 1024 * 1024, largest: { path: 'releases/42_card/build/card.uf2', bytes: 3 * 1024 * 1024 } });
+  assert.equal(check({ size: typical }).eligible, true);
+
+  const many = { files: SIZE_LIMITS.files + 1, totalBytes: 0, largest: { path: '', bytes: 0 } };
+  assert.match(check({ size: many }).reasons.join('\n'), /Changes 501 files; PRs over 500 files/);
+  const heavy = { files: 2, totalBytes: 40 * 1024 * 1024, largest: { path: 'releases/42_card/build/card.uf2', bytes: 20 * 1024 * 1024 } };
+  const reasons = check({ size: heavy }).reasons.join('\n');
+  assert.match(reasons, /Adds 40\.0 MB; PRs over 32\.0 MB/);
+  assert.match(reasons, /releases\/42_card\/build\/card\.uf2 is 20\.0 MB; files over 16\.0 MB/);
+});
+
+test('the hold label keeps a PR for review', () => {
+  assert.equal(check({ labels: ['documentation'] }).eligible, true);
+  assert.match(check({ labels: ['hold'] }).reasons.join('\n'), /added the "hold" label/);
+  assert.deepEqual(parseLabels('["hold","docs"]'), ['hold', 'docs']);
+  assert.deepEqual(parseLabels(''), []);
+  assert.deepEqual(parseLabels('not json'), []);
 });

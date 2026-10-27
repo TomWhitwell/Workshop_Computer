@@ -1,0 +1,193 @@
+; by patb
+;http://www.spinsemi.com/forum/viewtopic.php?f=4&t=713
+
+;This is a multi program pitch shifter, inspired by commercial pedals. 
+
+;Its got 6 programs, selectable by pot0. 
+;the first 4 are dual shifts, that is 3 note harmonies. 
+;Crossfade the 2 shifts with pot1, and crossfade effect and dry with pot2. 
+
+;Fifth program is a single manual shift, with +/- 1 octave by pot1. 
+;This one is alot of fun with a microphone. 
+
+;Sixth is a detune chorus, with shift set by pot1. 
+;This one sounds very nice.  Laughing 
+
+;multi program pitch shifter 
+;pot0 6 program select, select one of 4 dual pitch shifts, manual pitch shift or detune chorus 
+;pot1 dual shift crossfade or single pitch 
+;pot2 crossfade between dry and shifts 
+; 
+;shift coeffs up and -down 
+;Unison 1.000000 : 1 0 
+;Semitone or minor second 1.059463 : 1	0.0297315	-0.01486575 
+;Whole tone or major second1.122462 : 1	0.061231	-0.0306155 
+;Minor third 1.189207 : 1	
+;Major third 1.259921 : 1	0.1299605	-0.06498025 
+;Perfect fourth 1.334840 : 1	0.16742	-0.08371 
+;Aug fourth/Dim fifth	1.414214 : 1 
+;Perfect fifth 1.498307 : 1	0.2491535	-0.12457675 
+;Minor sixth 1.587401 : 1 
+;Major sixth 1.681793 : 1 0.3408965	-0.17044825 
+;Minor seventh 1.781797 : 1 
+;Major seventh 1.887749 : 1	0.4438745 -0.22193725 
+;Octave 2.000000 : 1	0.5 -0.25 
+;2 Octaves	4.000000 : 1	0.999969482421875 -0.375 
+; 
+; Memory declarations 
+mem	delay0	4096	;delay 
+mem	delay1	4096 
+mem	temp	1	;Temp location for partial calculations 
+equ	shift0out	reg1 
+equ	shift1out	reg2 
+equ	input	reg3 
+equ	shift1_gain	reg6 
+equ	crossfade0	reg7 
+equ	crossfade1	reg8 
+equ	dry_fade	reg10 
+equ	shift_fade	reg11 
+equ	input_fade	reg12 
+equ	manual	reg13 
+equ	chorus	reg14 
+equ	fade	reg17 
+equ	offset	-0.125	;8 shifts 
+; 
+skp	run,start	; Load up a ramp LFO. 
+wldr	rmp0,0,4096	
+wldr	rmp1,0,4096 
+start: 
+; 
+;crossfading pot 2 fades shift and dry 
+rdax	pot2,1	;crossfade dry and shifts 
+wrax	dry_fade,0 
+rdax	pot2,1 
+sof	-1,0.999 
+wrax	shift_fade,0 
+; 
+;crossfading pot 1 fades shift1 and shift2 
+rdax	pot1,1.2	;2 fading ranges, 0 to 1.2 
+wrax	crossfade1,1 
+sof	-1,0.99 
+sof	1,0.2 
+wrax	crossfade0,0 
+; 
+;pot for manual shift -/+ 1 0ctave 
+rdax	pot1,1	
+sof	1,-0.5 
+wrax	manual,1 
+skp	gez,there 
+sof	0.5,0 
+wrax	manual,0 
+there: 
+clr 
+; 
+;pot for chorus 
+rdax	pot1,0.005	
+wrax	chorus,0 
+; 
+rdax	adcr,1	; Write it to right delay and clear ACC 
+wrax	input,1 
+mulx	dry_fade 
+wrax	input_fade,0 
+
+rdax	input,1 
+wra	delay0,0	;Write it to right delay and clear ACC 
+rdax	input,1 
+wra	delay1,0	
+; 
+cho rda,RMP0,REG|COMPC,delay0	; k*sample[addr+1] + ACC 
+cho rda,RMP0,,delay0+1	; ACC -> memory, ACC*0 -> ACC 
+wra temp,0	; (1-k)*sample[addr+ half ramp] 
+cho rda,RMP0,RPTR2|COMPC,delay0	; k*sample[addr+ half ramp + 1] + ACC 
+cho rda,RMP0,RPTR2,delay0+1	; ACC*(1-XFADE) + 0 
+cho sof,RMP0,NA|COMPC,0	; memory[addr] * XFADE + ACC 
+cho rda,RMP0,NA,temp	; Final result is in ACC 
+mulx	crossfade0 
+wrax shift0out,0 
+; 
+cho rda,RMP1,REG|COMPC,delay1 
+cho rda,RMP1,,delay1+1 
+wra temp,0 
+cho rda,RMP1,RPTR2|COMPC,delay1 
+cho rda,RMP1,RPTR2,delay1+1 
+cho sof,RMP1,NA|COMPC,0 
+cho rda,RMP1,NA,temp; 
+mulx	crossfade1	
+wrax	shift1out,1 
+; 
+rdax	shift0out,1 
+mulx	shift_fade	;fade pitch shifts 
+rdax	input_fade,1	;mix in dry fade	
+wrax dacr,1 
+wrax dacl,0	
+;	; 
+ldax	pot0	;fixed shift intervals for shift0 
+;sof	1,0.01 
+and	%01110000_00000000_00000000	;8 possibles 
+; 
+skp	zro,shift00 
+sof	1,offset 
+skp	zro,shift01 
+sof	1,offset 
+skp	zro,shift02 
+sof	1,offset 
+skp	zro,shift03 
+sof	1,offset 
+skp	zro,shift04 
+sof	1,offset 
+skp	zro,shift05 
+sof	1,offset 
+skp	zro,shift06 
+sof	1,offset 
+skp	neg,shift07 
+; 
+shift07:	
+
+shift06: 
+ldax	chorus	;pitch chorus 
+wrax	rmp0_rate,1 
+wrax	rmp1_rate,0 
+sof	0,0.999 
+wrax	rmp0_range,1 
+wrax	rmp1_range,0	
+skp	zro,end1 
+shift05:	
+
+shift04:	
+ldax	manual	;manual shift 
+wrax	rmp0_rate,1 
+wrax	rmp1_rate,0 
+skp	zro,end0 
+shift03:	;1up 1/4up 
+sof	0,0.16742	
+wrax	rmp0_rate,0 
+sof	0,0.5	
+wrax	rmp1_rate,0 
+skp	zro,end0 
+shift02:	;1down 1up 
+sof	0,-0.25	
+wrax	rmp0_rate,0 
+sof	0,0.5 
+wrax	rmp1_rate,0 
+skp	zro,end0 
+shift01:	;1down 1/5down 
+sof	0,-0.25 
+wrax	rmp0_rate,0 
+sof	0,-0.12457675 
+wrax	rmp1_rate,0 
+skp	zro,end0 
+shift00:	;1down 2down big bass 
+sof	0,-0.375 
+wrax	rmp0_rate,0 
+sof	0,-0.25	
+wrax	rmp1_rate,0 
+skp	zro,end0 
+; 
+end0: 
+rdax	pot2,1 
+wrax	fade,0	
+or	%00111111_11111111_00000000 
+wrax	rmp0_range,1 
+wrax	rmp1_range,0 
+
+end1:

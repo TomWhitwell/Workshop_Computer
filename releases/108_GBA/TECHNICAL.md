@@ -379,7 +379,12 @@ bass, which is the better half of the machine to keep.
 
 ## CAL — trimming 1V/oct
 
-`CV SCALE`, `CV OFFSET`, `BASE NOTE`, `MASTER L`, `MASTER R`, `PSG LEVEL`, `CV 2 IN`, `LINK`.
+`CV SCALE`, `CV OFFSET`, `BASE NOTE`, `MASTER L`, `MASTER R`, `PSG LEVEL`, `CV 2 IN`, `LINK`,
+`TICK LOAD`.
+
+`TICK LOAD` is a read-only meter: how much of each millisecond the control tick (envelopes,
+modulation, pitch) takes, averaged, then the worst single tick since boot (`PK`). The editor
+draws in whatever time the tick leaves.
 
 **You may need this page!** ComputerCard calibrates the CV *outputs* from
 the module's EEPROM, so the quantised pitch coming out is in tune, but 1V/oct tracking on CV In 2 rests on the setting
@@ -486,7 +491,10 @@ in an already six-second payload.
 ## Patch storage
 
 Sixteen slots in the last flash sector of the RP2040 — 256 bytes each, one sector, because the
-sector is the erase unit. A transfer is one byte per link word, each carrying its own index, so a
+sector is the erase unit. GBA FM Voice keeps its patches in the sector below, so the two
+programs never overwrite each other's saves. A slot holding something this program cannot read
+(an FM patch saved before FM moved, say) shows as used, and loading it gives
+`BAD DATA - NOT LOADED` rather than a wrong patch. A transfer is one byte per link word, each carrying its own index, so a
 dropped word leaves a hole the receiver can see rather than silently shifting everything after
 it. A save repeats the whole block until the host acknowledges; the host only ever commits a
 complete one.

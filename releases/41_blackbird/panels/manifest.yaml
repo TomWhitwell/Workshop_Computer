@@ -1,0 +1,26 @@
+version: 1
+default: basics
+
+# One tab per doc, as MLRws. Basics and First.lua have their own panel
+# drawings (labels from labels/*.json, rendered with the generate-panel-images
+# skill); the MIDI and ii tabs use the plain panel.
+panels:
+  - id: basics
+    name: "Basics"
+    image: basics.svg
+    content: basics.md
+
+  - id: first-lua
+    name: "First.lua"
+    image: first-lua.svg
+    content: first-lua.md
+
+  - id: midi
+    name: "MIDI"
+    image: plain.svg
+    content: midi.md
+
+  - id: ii
+    name: "ii (I2C)"
+    image: plain.svg
+    content: ii.md

@@ -1,0 +1,199 @@
+; @name Ventifact
+; @tagline A stone hall in a sandstorm that your playing whips up: each pass through its four corridors wears a different part of the tail away, to breath, bare air, glass and silt, until it crumbles into singing sand
+; @description A ventifact is a rock carved by wind-blown sand. Here the rock is a hall of
+; @description four stone corridors and the wind is your playing. The corridors keep passing
+; @description the sound between them, and each one wears it away differently: two blow sand
+; @description through it, so every note grows a hissing, breathing halo around its own pitch;
+; @description one strips away its body; one sweeps the finest grains up an octave into
+; @description glittering glass; and silt settles over the treble. Because the sound visits
+; @description every corridor in turn, the erosions overlap and compound. A note rings out
+; @description clear for an instant, then each pass leaves less tone and more sand, so the tail
+; @description does not fade into silence but crumbles into a breathing, glittering texture that
+; @description still sings your chord. Play harder and the storm rises within half a second:
+; @description more sand, more glass. Play softly or stop, and it calms over a second or two.
+; @pots Decay | Wind | Glass
+; @render 0.6, 0.7, 0.5
+; @components four-line feedback delay network with Hadamard butterflies, two sand corridors with opposite band-limited noise amplitude modulation, a body-wearing high-pass corridor, an octave-up glass corridor, a silt low-pass, playing-driven wind envelope, five-instruction aperiodic noise source, stereo input diffusers, feed-forward peak limiter
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	L1	3296
+mem	L2	4013
+mem	L3	4817
+mem	L4	5521
+mem	pdel	4096
+mem	temp	1
+mem	apl1	419
+mem	apl2	887
+mem	apr1	337
+mem	apr2	743
+
+equ	g	reg0
+equ	storm	reg2
+equ	pk	reg3
+equ	dep	reg4
+equ	chaos	reg5
+equ	a	reg6
+equ	b	reg7
+equ	c	reg8
+equ	s1	reg10
+equ	d1	reg11
+equ	s2	reg12
+equ	d2	reg13
+equ	hp2	reg14
+equ	lp4	reg16
+equ	inl	reg17
+equ	inr	reg18
+equ	t	reg19
+equ	oL	reg20
+equ	oR	reg21
+equ	env	reg22
+equ	glim	reg23
+equ	gl	reg24
+equ	nz	reg25
+equ	nlp	reg27
+equ	w	reg26
+equ	nlp2	reg28
+
+	skp	run, start
+	wlds	sin0, 23, 40
+	wldr	rmp0, 16384, 4096
+start:
+; ---- pots
+	ldax	pot0
+	sof	0.165, 0.74
+	wrax	g, 0		; loop gain 0.74 .. 0.905 (the Hadamard 1/2 is in the line reads)
+; ---- wind: w = min(1, 2 sqrt(storm)), storm = the input's peak (0.25 s release)
+;      smoothed (tau 0.5 s); dep = w x Wind, gl = w x Glass
+	rdax	adcl, 0.5
+	rdax	adcr, 0.5
+	absa
+	maxx	pk, 0.99988
+	wrax	pk, 1.0
+	rdfx	storm, 0.000061
+	wrax	storm, 1.0
+	log	0.5, 0.0625
+	exp	1.0, 0
+	wrax	w, 1.0
+	mulx	pot1
+	wrax	dep, 0		; breath depth
+	ldax	w
+	mulx	pot2
+	wrax	gl, 0		; glass crossfade
+; ---- noise: x = (0.99 - 1.99 x + a tiny sin0) mod 1: broadband, aperiodic, 0 .. 1
+	ldax	chaos
+	sof	-1.99, 0.99512
+	cho	rdal, sin0
+	and	$7FFFFF
+	wrax	chaos, 1.0
+; ---- breath noise: nz = 15.8 dep (n2 - 0.5), n2 the noise through two one-pole low-passes
+;      (~600 Hz)
+	rdfx	nlp, 0.12
+	wrax	nlp, 1.0
+	rdfx	nlp2, 0.12
+	wrax	nlp2, 1.0
+	sof	1.0, -0.5
+	mulx	dep
+	sof	1.99, 0
+	sof	1.99, 0
+	sof	1.99, 0
+	sof	1.99, 0
+	wrax	nz, 0
+; ---- line 1 end, breath: x (1 + nz)
+	rda	L1#, 0.5
+	wrax	t, 1.0
+	mulx	nz
+	rdax	t, 1.0
+	wrax	a, 0
+; ---- line 3 end, glass: crossfade to an octave up
+	rda	L3#, 0.5
+	wrax	t, 1.0
+	wra	pdel, 0
+	cho	rda, rmp0, reg|compc, pdel
+	cho	rda, rmp0, 0, pdel+1
+	wra	temp, 0
+	cho	rda, rmp0, rptr2|compc, pdel
+	cho	rda, rmp0, rptr2, pdel+1
+	cho	sof, rmp0, na|compc, 0
+	cho	rda, rmp0, na, temp
+	rdax	t, -1.0
+	mulx	gl
+	rdax	t, 1.0
+	wrax	c, 0
+; ---- line 4 end, breath with the opposite noise, -x (1 - nz), then silt: a low-pass
+	rda	L4#, 0.5
+	wrax	t, 1.0
+	mulx	nz
+	rdax	t, -1.0
+	rdfx	lp4, 0.3
+	wrax	lp4, 0		; d = lp4
+; ---- input diffusion
+	rdax	adcl, 0.25
+	rda	apl1#, 0.7
+	wrap	apl1, -0.7
+	rda	apl2#, 0.6
+	wrap	apl2, -0.6
+	wrax	inl, 0
+	rdax	adcr, 0.25
+	rda	apr1#, 0.7
+	wrap	apr1, -0.7
+	rda	apr2#, 0.6
+	wrap	apr2, -0.6
+	wrax	inr, 0
+; ---- line 2 end, wear: a high-pass (b), flowing into the first butterfly
+	rda	L2#, 0.5
+	rdfx	hp2, 0.04
+	wrhx	hp2, -1.0
+	wrax	b, 1.0
+; ---- Hadamard: s1 = a + b, d1 = a - b (= s1 - 2b), s2 = c + d, d2 = c - d; the lines get
+;      g (s1 + s2), g (d1 + d2), g (s1 - s2), g (d1 - d2), plus the input
+	rdax	a, 1.0
+	wrax	s1, 1.0
+	rdax	b, -2.0
+	wrax	d1, 0
+	ldax	c
+	rdax	lp4, 1.0
+	wrax	s2, 1.0
+	rdax	s1, 1.0
+	mulx	g
+	rdax	inl, 1.0
+	wra	L1, 0
+	ldax	s1
+	rdax	s2, -1.0
+	mulx	g
+	rdax	inl, -1.0
+	wra	L3, 0
+	ldax	c
+	rdax	lp4, -1.0
+	wrax	d2, 1.0
+	rdax	d1, 1.0
+	mulx	g
+	rdax	inr, 1.0
+	wra	L2, 0
+	ldax	d1
+	rdax	d2, -1.0
+	mulx	g
+	rdax	inr, 1.0
+	wra	L4, 0
+; ---- outputs
+	rda	L1+1200, 0.675
+	rda	L2+2600, -0.675
+	rda	L3+900, -0.675
+	wrax	oL, 1.0
+	mulx	glim
+	sof	1.99994, 0
+	wrax	dacl, 0
+	rda	L2+700, 0.675
+	rda	L1+2900, 0.675
+	rda	L4+1500, 0.675
+	wrax	oR, 1.0
+	mulx	glim
+	sof	1.99994, 0
+	wrax	dacr, 0
+	ldax	oL
+	maxx	oR, 1.0
+	maxx	env, 0.99988
+	wrax	env, 1.0
+	log	-1.0, -0.1220703125
+	exp	1.0, 0
+	wrax	glim, 0

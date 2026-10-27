@@ -585,7 +585,7 @@ static void scale_bounds(Detect_t* self, int ix, int oct) {
 
 // ========================================================================
 // ULTRA-FAST ISR Processing - INTEGER ONLY, NO FLOATING POINT!
-// Runs on Core 1 at 8kHz - must complete in ~125µs worst case
+// Runs on Core 1 at the ProcessSample rate (PROCESS_SAMPLE_RATE_HZ) - must stay well inside one sample period
 // Only tracks state changes, defers callbacks to Core 0
 // ========================================================================
 void __not_in_flash_func(Detect_process_sample)(int channel, int16_t raw_adc) {

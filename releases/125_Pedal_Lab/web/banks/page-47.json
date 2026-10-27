@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "otherworld-01-prism-scatter-clk",
+    "source": "algorithms/ready/otherworld-01-prism-scatter-clk.spn",
+    "instructions": 121,
+    "sha256": "7134cc4066fc6250441f11f45fcd6ce25cd9f51cffdaed6aaaa30cf883c54558",
+    "id": "otherworld-01-prism-scatter-clk",
+    "author": "Andreas Jansson",
+    "description": "The clocked Prism Scatter: mono audio on the left input, a clock on the right. A logistic map re-sequences the music slice by slice, and the slices are locked to your clock: each is one clock period long (halved by whole octaves while longer than 250 ms) and starts on the beat. For every slice the map grabs a piece that starts a whole number of slices back, decides whether it plays straight, an octave down, an octave up or backwards at any of those speeds, and where it lands in the stereo field. Scatter sets how far back it reaches: at 0 every slice replays the one just before it, a beat-repeat, and turned up the slices come from anywhere in the last second. The shards regenerate into the buffer, so octaves stack on octaves while the rhythm stays on the beat. Stop playing and the slices fade out within half a second.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/01_prism_scatter_clk.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Prism Scatter_clk",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 1240,
+      "peak_output_error_q23": 2,
+      "rms_output_error_q23": 0.0135316,
+      "peak_output_q23": 453598,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "otherworld-113-noocytes",
+    "source": "algorithms/ready/otherworld-113-noocytes.spn",
+    "instructions": 127,
+    "sha256": "64f688140230f10632788550881cb78607936061b4bcd43e7a006414c54ae8d9",
+    "id": "otherworld-113-noocytes",
+    "author": "Andreas Jansson",
+    "description": "The first note you play infects the loop: its first sixteenth of a turn is caught as a cell, a tiny frozen loop that buzzes forwards on the left and backwards on the right. The cell lives on your notes: every note feeds it, and while it is fed it divides every turn into a cell twice as long, swallowing the music that followed it, so the buzz slows into a flutter, a trill, a looping figure and finally a whole mirrored phrase made of everything you played. Starved, it dies where it is. Full grown it stops eating and lives on its store, one whole turn after another, while notes that land inside it are absorbed. When the store runs out it transcends: up an octave, then up another, and it is gone. A beat of silence, and the next note starts a new infection. Food decides its fate, from a buzz that starves at once to an organism that grows huge and lives for seconds; Body sets its size, from a tiny fast creature to a slow one a whole second long.",
+    "controls": [
+      "Body",
+      "Food",
+      "Rise"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/113_noocytes.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Noocytes",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 0,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "otherworld-121-quantum-tunneling-clk",
+    "source": "algorithms/ready/otherworld-121-quantum-tunneling-clk.spn",
+    "instructions": 121,
+    "sha256": "299383d88e81a40af1d7497d24f59cf0b8fbcb21ff9045042c696e548234a02f",
+    "id": "otherworld-121-quantum-tunneling-clk",
+    "author": "Andreas Jansson",
+    "description": "Each step of your clock throws the step you just played at a barrier, the left wall and the right wall in turn. Most of the time it bounces: the step comes straight back reversed on that wall's side, so the beats ping-pong left and right as reversed echoes. Sometimes it tunnels: the bounce never comes, and instead the step appears on the far side an octave down and late, playing its beginning slowly, breaking the ping-pong. Loud attacks tunnel more easily, and every note wears the barrier thinner, so as you play the deep ghosts get more and more frequent. When the barrier is gone it collapses: for a few beats everything floods through, octave-down ghosts that fall back in and tunnel again, an octave lower each time, then a fresh barrier goes up and the reversed ping-pong returns. Rattle throws the bounces back in, so particles keep rattling between the walls, reversing again with each bounce.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/121_quantum_tunneling_clk.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Quantum Tunneling_clk",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 4215,
+      "peak_output_error_q23": 2,
+      "rms_output_error_q23": 0.0440212,
+      "peak_output_q23": 618145,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "otherworld-202-grain-bloom",
+    "source": "algorithms/ready/otherworld-202-grain-bloom.spn",
+    "instructions": 128,
+    "sha256": "d5d133eb0cf5a3d999c3c0daab96b299c700555669a3ffcdbab4b34b192dd685",
+    "id": "otherworld-202-grain-bloom",
+    "author": "Andreas Jansson",
+    "description": "A single grain, exactly one step long, is caught from your playing at the first hit of every Euclidean cycle, and the whole cycle is played with it. Time sets the step, the time from one step to the next, as a clock does for the clocked version: from 50 ms (sixteenths at 300 BPM) fully left to 2 s (quarter notes at 30 BPM) fully right, on a log scale; 0.25 s is an eighth note at 120 BPM. The steps run on their own at exactly that period; nothing is guessed from your playing. Hits and Length set k pulses over n steps (1 to 16); only the hits strike. Each hit plays the grain slowed down to fill the gap exactly up to the next hit, so a hit followed by a gap plays it an octave down, two gaps an octave and a fifth down, three gaps two octaves down: the rhythm sings its gaps as the undertone series. Successive hits alternate between the left and right ear, and as each grain plays its send into a long reverb rises from nothing to full, so every grain lands dry and swells into a bloom as loud as the grain by its end, which rings on while the other ear takes the next hit. Set the cycle to a bar (Length 8 with Time on an eighth note of your tempo, or 16 on a sixteenth) and on music that changes chord on the bar every grain is the first step of a new chord. The memory holds half a second, so a step longer than that catches its first half second: the grain still plays at its exact undertone pitch, fills the gap as far as it lasts and fades, and the bloom carries the rest. Stop playing and the hits fade within a few seconds.",
+    "controls": [
+      "Time",
+      "Hits",
+      "Length"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/202_grain_bloom.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Grain Bloom",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 17522,
+      "peak_output_error_q23": 1,
+      "rms_output_error_q23": 0.0340539,
+      "peak_output_q23": 155351,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "otherworld-202-grain-bloom-clk",
+    "source": "algorithms/ready/otherworld-202-grain-bloom-clk.spn",
+    "instructions": 121,
+    "sha256": "62303258e0faa6fbf9b90d17734011cfd1ee72b21c2e3e760eccda4df04d3b0c",
+    "id": "otherworld-202-grain-bloom-clk",
+    "author": "Andreas Jansson",
+    "description": "A single grain, exactly one clock step long, is caught from your playing at the first hit of every Euclidean cycle, and the whole cycle is played with it. Hits and Length set k pulses over n steps (1 to 16); only the hits strike. Each hit plays the grain slowed down to fill the gap exactly up to the next hit, so a hit followed by a gap plays it an octave down, two gaps an octave and a fifth down, three gaps two octaves down: the rhythm sings its gaps as the undertone series. Successive hits alternate between the left and right ear, and as each grain plays its send into a long reverb rises from nothing to full, so every grain lands dry and swells into a bloom that rings on while the other ear takes the next hit. Bloom sets how big: at 0 the grains are dry, halfway the bloom is as loud as the grain by its end, fully up it takes over. One clock pulse is one step, so a slower clock division slows everything. Set the cycle to a bar (Length 8 at 1/8, or 16 at 1/16) and on music that changes chord on the bar every grain is the first step of a new chord.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/202_grain_bloom_clk.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Grain Bloom_clk",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 0,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "otherworld-73-step-mutator",
+    "source": "algorithms/ready/otherworld-73-step-mutator.spn",
+    "instructions": 114,
+    "sha256": "f0fe52827e13cc8dc6bbf64d03c4e4583a10ee1c9711517d1d6cad380438be5d",
+    "id": "otherworld-73-step-mutator",
+    "author": "Andreas Jansson",
+    "description": "A drum machine for effects, running at the tempo you set with Time. Each step of the 11-step pattern holds one of four moves on the last quarter step: a deep drawl two octaves down, a double repeat an octave down, a four-fold stutter at pitch or an eight-fold roll an octave up, forward on the left and backwards on the right. Every note you play mutates the step it lands on, there and then: the drawl snaps into a repeat, the repeat into a stutter, the stutter into a roll, and a roll collapses back into the drawl. The pattern remembers: it loops its rhythm while you rest and rewrites itself where you play, and eleven steps against your bars spread the changes around. A steady stream of notes lifts the whole pattern up the ladder until it collapses into the deep drawl and climbs again. No clock needed: Time is the time between steps, like the clock pulse of the _clk version, from 0.05 s to 2 s. Past 0.62 s each move keeps its 0.62 s shape and the rest of the step is a rest. Regen feeds the slices back in, so they get sliced again.",
+    "controls": [
+      "Time",
+      "Mutate",
+      "Regen"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/73_step_mutator.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Step Mutator",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 8035,
+      "peak_output_error_q23": 52863,
+      "rms_output_error_q23": 341.633,
+      "peak_output_q23": 121408,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

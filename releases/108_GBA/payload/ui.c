@@ -142,6 +142,15 @@ static void ch_text(char *buf, int c)
     dec_at(buf, scopy(buf, 0, "CH "), (uint32_t)c + 1);
 }
 
+// Percent x 16 -> "7.5%".
+static int pct_at(char *buf, int at, uint32_t p16)
+{
+    at = dec_at(buf, at, p16 >> 4);
+    at = scopy(buf, at, ".");
+    at = dec_at(buf, at, ((p16 & 15) * 10) >> 4);
+    return scopy(buf, at, "%");
+}
+
 static void env_time_text(char *buf, int idx)
 {
     uint16_t ms = ENV_MS[idx & 15];
@@ -183,7 +192,7 @@ static int page_rows(int page)
     case PAGE_ORN:   return 5;                    // SLOT, LENGTH, RATE, MODE, STEPS
     case PAGE_DRUM:  return 2 + DRUM_SRC_COUNT;   // MODE, THRESHOLD, then one row per input
     case PAGE_MEM:   return 1;                    // the grid is the whole page
-    case PAGE_CAL:   return 8;
+    case PAGE_CAL:   return 9;
     default:         return 5;                    // SET
     }
 }
@@ -238,7 +247,8 @@ static const char *field_label(int page, int row)
         case 4: return "MASTER R";
         case 5: return "PSG LEVEL";
         case 6: return "CV 2 IN";
-        default: return "LINK";
+        case 7: return "LINK";
+        default: return "TICK LOAD";
         }
     case PAGE_MEM:
         switch (row) {
@@ -396,7 +406,15 @@ static void field_value(int page, int row, char *buf)
         // apart give CV SCALE directly: scale = 16 * (high - low) / semitones between them.
         // Without it the only way to trim 1V/oct was by ear, one press at a time.
         case 6: sdec32(buf, (int32_t)g_in[SRC_CV2] - 2048, 6); return;
-        default: scopy(buf, 0, link_irq_alive() ? "IRQ" : "POLLED"); return;
+        case 7: scopy(buf, 0, link_irq_alive() ? "IRQ" : "POLLED"); return;
+        default: {
+            // The control tick's share of its ~1 ms period (synth.c), smoothed, then the worst
+            // single tick since boot. What it leaves over is all the screen gets.
+            int at = pct_at(buf, 0, g_tickAvg);
+            at = scopy(buf, at, " PK ");
+            pct_at(buf, at, g_tickPeak);
+            return;
+        }
         }
     case PAGE_MEM:
         switch (row) {
@@ -647,7 +665,7 @@ static void edit_static(void)
         text(6, 124, "ANY INPUT GOING HIGH FIRES ITS SOUND.", COL_DIM, 1);
         text(6, 136, "DRUMS BORROW CH3 AND CH4. SQUARES FREE.", COL_DIM, 1);
     }
-    if (g_page == PAGE_CAL)  text(6, 140, "GBA PSG VOICE   BY ANDY JENKINSON 2026", COL_DIM, 1);
+    if (g_page == PAGE_CAL)  text(6, 141, "GBA PSG VOICE   BY ANDY JENKINSON 2026", COL_DIM, 1);
     if (g_page == PAGE_MEM)  text(0, 140, "D-PAD PICKS SLOT. A+UP=SAVE. A+DOWN=LOAD", COL_DIM, 1);
     if (g_page == PAGE_CHAN) text(6, 138, "D-PAD MOVES   A+UP/DN VALUE   A+L/R x8", COL_DIM, 1);
 }
@@ -1100,13 +1118,14 @@ static void edit_extras(void)
         dec32(tmp, (uint32_t)(g_in[LINK_IN_CV2] & 0xFF0u), 5);
         scopy(buf, at, tmp);
 
-        // y=114, not 104: the list is eight rows now (CV 2 IN was added for the 1V/oct trim)
-        // and ends at y=110, so the old position sat on top of the LINK row - and the clear
-        // rect took a bite out of it every time the reading changed.
+        // y=123: the list is nine rows now (CV 2 IN for the 1V/oct trim, then TICK LOAD) and
+        // its one-time clear reaches y=122, so anything higher sat on top of the last row - and
+        // this line's own clear rect took a bite out of it every time the reading changed. The
+        // two lines and the credit below them are on a 9 px pitch to fit above the hint line.
         if (!streq(buf, lastIn)) {
             scopy(lastIn, 0, buf);
-            srect(10, 114, SCREEN_W - 20, 10, COL_BG);
-            text(14, 114, buf, COL_MID, 1);
+            srect(10, 123, SCREEN_W - 20, 9, COL_BG);
+            text(14, 123, buf, COL_MID, 1);
         }
 
         at = scopy(buf, 0, "OUT ");
@@ -1116,8 +1135,8 @@ static void edit_extras(void)
 
         if (!streq(buf, lastOut)) {
             scopy(lastOut, 0, buf);
-            srect(10, 125, SCREEN_W - 20, 10, COL_BG);
-            text(14, 125, buf, COL_MID, 1);
+            srect(10, 132, SCREEN_W - 20, 9, COL_BG);
+            text(14, 132, buf, COL_MID, 1);
         }
 
         break;

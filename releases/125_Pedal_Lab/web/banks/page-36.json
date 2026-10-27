@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-publisher-3k-v1-5-stecho-rev",
+    "source": "algorithms/ready/directory-publisher-3k-v1-5-stecho-rev.spn",
+    "instructions": 72,
+    "sha256": "284d6c5a287c36d8b65d6780a426ffc3b7044f2fab4a59d4b72fdf81b4e58122",
+    "id": "directory-publisher-3k-v1-5-stecho-rev",
+    "author": "Spin Semi",
+    "description": "Reverb, Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "delay 100-500ms.",
+      "repeat",
+      "reverb (fixed parameters)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_5_STECHO-REV.spn"
+    },
+    "source_url": "http://spinsemi.com/mixer_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Stereo Echo Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 131174,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-publisher-3k-v1-6-chor-rev",
+    "source": "algorithms/ready/directory-publisher-3k-v1-6-chor-rev.spn",
+    "instructions": 59,
+    "sha256": "534dc42ffaac74c85e6384e48813ab17c0892d9e33f04cdbf0202dc9f4cc69a8",
+    "id": "directory-publisher-3k-v1-6-chor-rev",
+    "author": "Spin Semi",
+    "description": "Reverb, Chorus program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "chorus width",
+      "sweep rate",
+      "reverb (fixed parameters)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_6_CHOR-REV.spn"
+    },
+    "source_url": "http://spinsemi.com/mixer_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Chorus Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 151592,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-publisher-dance-ir-fla-l",
+    "source": "algorithms/ready/directory-publisher-dance-ir-fla-l.spn",
+    "instructions": 115,
+    "sha256": "21a454e4ea0a1e4a8b0a73b40f4571d3829418e445acd82e68cb7652e42289b7",
+    "id": "directory-publisher-dance-ir-fla-l",
+    "author": "Dave Spinkler (Spin Semiconductor)",
+    "description": "Reverb plus flange plus 4-pole low pass",
+    "controls": [
+      "reverb to infinity",
+      "flange",
+      "low pass filter (4 pole)"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Reverb+Flange+LP",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 4750,
+      "peak_output_error_q23": 5,
+      "rms_output_error_q23": 0.343172,
+      "peak_output_q23": 363808,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-publisher-dance-ir-h-l",
+    "source": "algorithms/ready/directory-publisher-dance-ir-h-l.spn",
+    "instructions": 128,
+    "sha256": "82613d4f96e5261cf32c5dddab84614047c0527cc990014041db093d2f8722bb",
+    "id": "directory-publisher-dance-ir-h-l",
+    "author": "Dave Spinkler (Spin Semiconductor)",
+    "description": "Reverb plus 2-pole high-pass and 2-pole low-pass",
+    "controls": [
+      "Reverb",
+      "Reverb to infinite RT, scales in and out levels",
+      "High pass filter (2 pole peaking, 8 ocatves)"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Reverb+HP+LP",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 5034,
+      "peak_output_error_q23": 7,
+      "rms_output_error_q23": 0.418826,
+      "peak_output_q23": 56447,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-publisher-dance-ir-ptz-l",
+    "source": "algorithms/ready/directory-publisher-dance-ir-ptz-l.spn",
+    "instructions": 128,
+    "sha256": "00e90d07f79e52735b2004daa845c07534a135300308c8030f29424556e1f216",
+    "id": "directory-publisher-dance-ir-ptz-l",
+    "author": "Dave Spinkler (Spin Semiconductor)",
+    "description": "Reverb plus pitch plus 4-pole low-pass",
+    "controls": [
+      "infinite reverb",
+      "pitch to zero",
+      "4 pole low pass filter"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Reverb+Pitch+LP",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 7524,
+      "peak_output_error_q23": 8,
+      "rms_output_error_q23": 0.703938,
+      "peak_output_q23": 588797,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-publisher-rev-rt-d-f",
+    "source": "algorithms/ready/directory-publisher-rev-rt-d-f.spn",
+    "instructions": 116,
+    "sha256": "c21d05b67cbc1c38a86bdfc8c26bc40e2aafae6d51b5daf5ef2af5d664245e54",
+    "id": "directory-publisher-rev-rt-d-f",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Reverb program that allows three controls, reverb time, diffusion and high/low frequency damping",
+    "controls": [
+      "reverb time",
+      "diffusion",
+      "decay filtering"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Reverb/RT/D/F",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 8509,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 680953,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

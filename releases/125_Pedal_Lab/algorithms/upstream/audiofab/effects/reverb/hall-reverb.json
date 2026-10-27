@@ -1,0 +1,15 @@
+{
+  "id": "hall-reverb",
+  "name": "Hall Reverb",
+  "version": "1.0.0",
+  "description": "A classic hall reverb with a spacious, immersive sound. Ideal for adding depth and grandeur to any instrument.",
+  "category": "Reverb",
+  "tags": ["reverb", "hall", "ambience", "spacious"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Pre-delay",   "description": "Delay before the reverb tail starts.", "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Reverb Time",  "description": "Length of the reverb tail.",          "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Mix",          "description": "Blend between dry and wet signal.",   "unit": "", "range": [0, 1] }
+  ]
+}

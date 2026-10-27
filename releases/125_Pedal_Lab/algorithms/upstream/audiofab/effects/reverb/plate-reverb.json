@@ -1,0 +1,47 @@
+{
+  "id": "plate-reverb",
+  "name": "Plate Reverb",
+  "version": "1.0.0",
+  "description": "A classic plate reverb derived from the Jon Dattorro design. Dense, smooth, and musically resonant with adjustable damping and decay.",
+  "category": "Reverb",
+  "tags": [
+    "reverb",
+    "plate",
+    "studio",
+    "dense"
+  ],
+  "author": "Jon Dattorro, mdroberts1243, Audiofab",
+  "hasSource": true,
+  "controls": [
+    {
+      "pot": 0,
+      "name": "Damping",
+      "description": "High-frequency loss in the reverb tank.",
+      "unit": "",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "pot": 1,
+      "name": "Reverb Time",
+      "description": "Length of the reverb decay.",
+      "unit": "",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "pot": 2,
+      "name": "Mix",
+      "description": "Blend between dry and wet signal.",
+      "unit": "",
+      "range": [
+        0,
+        1
+      ]
+    }
+  ]
+}

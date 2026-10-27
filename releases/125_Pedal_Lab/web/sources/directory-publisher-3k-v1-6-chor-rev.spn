@@ -1,0 +1,245 @@
+;CHORUS+REVERB.
+
+
+
+;Pot0 = chorus width
+
+;Pot1 = sweep rate
+
+;Pot2 = reverb (fixed parameters)
+
+
+
+mem	cdel	2048
+
+
+
+mem	ap1	123
+
+mem	ap2	245
+
+mem	ap3	725
+
+mem	ap4	1156
+
+
+
+mem	lap1a	1974
+
+mem	lap1b	2274
+
+mem	d1	3123
+
+
+
+mem	lap2a	2156
+
+mem	lap2b	1856
+
+mem	d2	2945
+
+
+
+;write-first registers:
+
+
+
+equ	apout	reg0
+
+
+
+;read-first registers:
+
+
+
+equ	lf1	reg20
+
+equ	lf2	reg21
+
+equ	widfil	reg22
+
+
+
+;constants:
+
+
+
+equ	krt	0.5
+
+equ	kshlf	-0.5
+
+
+
+;clear read-first registers:
+
+
+
+skp	run,endclr
+
+wrax	lf1,0
+
+wrax	lf2,0
+
+wrax	widfil,0
+
+
+
+endclr:
+
+
+
+;write inputs to chorus delay:
+
+
+
+rdax	adcl,0.3
+
+rdax	adcr,0.3
+
+wra	cdel,0
+
+
+
+;set up sin LFOs:
+
+
+
+skp	run,2
+
+wlds	sin0,0,0
+
+wlds	sin1,0,0
+
+
+
+;control LFO rate with pot1
+
+
+
+rdax	pot1,1
+
+mulx	pot1
+
+sof	0.05,0.003
+
+wrax	sin0_rate,0.83
+
+wrax	sin1_rate,0
+
+
+
+;control lfo width with pot0, after filtering:
+
+
+
+rdax	pot0,0.04
+
+rdfx	widfil,0.01
+
+wrax	widfil,1
+
+wrax	sin0_range,1
+
+wrax	sin1_range,0
+
+
+
+;do reverb from input (cdel)
+
+
+
+rda	cdel,0.5	;leave headroom
+
+mulx	pot2		;adjust reverb drive
+
+rda	ap1#,0.5
+
+wrap	ap1,-0.5
+
+rda	ap2#,0.5
+
+wrap	ap2,-0.5
+
+rda	ap3#,0.5
+
+wrap	ap3,-0.5
+
+rda	ap4#,0.5
+
+wrap	ap4,-0.5
+
+wrax	apout,0
+
+
+
+rda	d2#,krt
+
+rdax	apout,1
+
+rda	lap1a#,0.5
+
+wrap	lap1a,-0.5
+
+rda	lap1b#,0.5
+
+wrap	lap1b,-0.5
+
+rdfx	lf1,0.5
+
+wrlx	lf1,kshlf
+
+wra	d1,1.5
+
+
+
+cho	rda,sin0,cos|compc|reg,cdel+1000
+
+cho	rda,sin0,cos,cdel+1001
+
+
+
+cho	rda,sin1,cos|compc|reg,cdel+1300
+
+cho	rda,sin1,cos,cdel+1301
+
+
+
+wrax	dacl,0
+
+
+
+rda	d1#,krt
+
+rdax	apout,1
+
+rda	lap2a#,0.5
+
+wrap	lap2a,-0.5
+
+rda	lap2b#,0.5
+
+wrap	lap2b,-0.5
+
+rdfx	lf2,0.5
+
+wrlx	lf2,kshlf
+
+wra	d2,1.5
+
+
+
+cho	rda,sin0,sin|compc|reg,cdel+1100
+
+cho	rda,sin0,sin,cdel+1101
+
+
+
+cho	rda,sin1,sin|compc|reg,cdel+1200
+
+cho	rda,sin1,sin,cdel+1201
+
+
+
+wrax	dacr,0
+
+

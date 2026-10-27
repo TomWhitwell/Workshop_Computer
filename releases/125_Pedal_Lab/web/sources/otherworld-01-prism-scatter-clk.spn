@@ -1,0 +1,188 @@
+; @name Prism Scatter_clk
+; @tagline Clock-locked slicer that shatters the last second into octave shards on your grid
+; @description The clocked Prism Scatter: mono audio on the left input, a clock
+; @description on the right. A logistic map re-sequences the music slice by
+; @description slice, and the slices are locked to your clock: each is one clock
+; @description period long (halved by whole octaves while longer than 250 ms)
+; @description and starts on the beat. For every slice the map grabs a piece
+; @description that starts a whole number of slices back, decides whether it
+; @description plays straight, an octave down, an octave up or backwards at any
+; @description of those speeds, and where it lands in the stereo field. Scatter
+; @description sets how far back it reaches: at 0 every slice replays the one
+; @description just before it, a beat-repeat, and turned up the slices come from
+; @description anywhere in the last second. The shards regenerate into the
+; @description buffer, so octaves stack on octaves while the rhythm stays on the
+; @description beat. Stop playing and the slices fade out within half a second.
+; @clock
+; @pots Scatter | Prism | Regen
+; @render 0.7, 0.8, 0.7
+; @components clock-locked slicer, chaotic re-sequencing on a slice grid, beat repeat, octave prism, reverse slices, regenerating feedback, random pan
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	buf	32767
+
+equ	clkhp	reg0		; clock detector: low-pass state
+equ	clkin	reg1		; free (the factory clock block's conditioned sample)
+equ	clkst	reg2		; clock state: -0.25 high, -0.5 low (armed)
+equ	clkprev	reg3		; state one sample ago
+equ	clkcnt	reg4		; samples since the last edge x 2^-18, wraps at 0.5 (4 s)
+equ	clkper	reg5		; latched period, same scale (0.999 until the first edge pair)
+equ	clkinc	reg6		; 2^-18
+equ	clkmin	reg7		; (unused)
+equ	chaos	reg9
+equ	ginc	reg10		; phasor increment = 1 / L
+equ	ph	reg11
+equ	nxl	reg12		; -log2(32 L / 32768)/16
+equ	pos	reg13		; read address
+equ	step	reg14
+equ	pan	reg15
+equ	spd	reg16		; speed * 2^-15 for the next slice
+equ	w	reg17
+equ	g	reg18
+equ	env	reg19		; output limiter: peak envelope of the slice signal
+equ	xl	reg20		; (unused: the regeneration reads g)
+equ	xr	reg21		; (unused)
+equ	rel	reg22		; release gate
+
+; ---- release gate: 1 while the audio on L sounds, falling to 0 when it stops
+	rdax	adcl, 1.99993896484375	; 4 |L| (saturating)
+	rdax	adcl, 1.99993896484375
+	absa
+	log	1.0, 0.5625		; min(1, x / 2^-9) - 2^-7: exactly 0 below 2^-16 (|L| -66 dBFS)
+	exp	1.0, -0.0078125
+	rdfx	rel, 0.000244140625	; smoothed: fades in and out over 0.125 s
+	wrax	rel, 0
+; ---- constants (every sample, as in the factory code)
+	or	$000020
+	wrax	clkinc, 0
+
+; ---- clock: rising-edge detector, then the factory count
+;      high state -0.25 are our only changes)
+	ldax	adcr
+	rdfx	clkhp, 0.06		; low-pass of ADCR, tau ~0.5 ms
+	wrax	clkhp, -1.0
+	rdax	adcr, 1.0		; d = ADCR - low-pass: the recent rise
+	sof	1.0, -0.1875		; high at d >= 0.1875
+	skp	neg, c_lo
+	sof	0, -0.25		; state high
+	wrax	clkst, 0
+	skp	zro, c_hi
+c_lo:	sof	1.0, 0.125		; d - 0.0625: below it the input re-arms; between, hold
+	skp	gez, c_hi
+	sof	0, -0.5			; state low (armed)
+	wrax	clkst, 0
+c_hi:	ldax	clkprev			; latch on low -> high
+	rdax	clkst, -1.0
+	skp	neg, c_latch
+	ldax	clkcnt
+	rdax	clkinc, 1.0
+	and	$3FFFFF
+	wrax	clkcnt, 0
+	skp	zro, c_done
+c_latch: ldax	clkcnt
+	wrax	clkper, 0
+	wrax	clkcnt, 0
+	wrax	ph, 0			; on the beat (ACC is 0 here): restart the slice phasor
+c_done:	ldax	clkst
+	wrax	clkprev, 0
+
+; ---- first-run default period (no Divide: the clock sets the time at a fixed ratio)
+	skp	run, c_run
+	sof	0, 0.999
+	wrax	clkper, 0
+c_run:
+; ---- chaos source
+	ldax	chaos
+	sof	-1.0, 0.999
+	mulx	chaos
+	sof	1.995, 0
+	sof	1.995, 0
+	rdax	adcl, 0.002		; the input perturbs the map (starts it and keeps it from cycling)
+	absa
+	wrax	chaos, 0
+
+; ---- slice length: y = log2(period / Lmax)/16 (period = 8 clkper), folded down
+;      by whole octaves while the period is longer than Lmax
+	sof	0, 0.00390625		; (ACC is 0 here) floor: the first latch after load
+	maxx	clkper, 1.000854	; measures ~28 samples; max(2^-8, 16398/16384 clkper)
+	log	1.0, 0.3125		; + 5/16 (16398/16384 = 8 / (32 Lmax))
+	skp	neg, l_ok
+	and	$07FFFF			; mod one octave: L = Lmax 2^(16 y'), y' in [-1/16, 0)
+	sof	1.0, -0.0625
+l_ok:	sof	-1.0, -0.1875		; nxl = -log2(32 L')/16, L' = 1.000854 L
+	wrax	nxl, 1.0
+	sof	1.0, -0.625
+	exp	1.000854, 0		; 2^-15 / L
+	wrax	ginc, 0
+
+; ---- slice speed for the next slice: 0.5, 1 or 2 samples per sample, from
+;      v = 0.5 + prism (pan - 0.5): always 1 at Prism 0, spread at Prism 1
+	ldax	pan
+	sof	1.0, -0.5
+	mulx	pot1
+	sof	0.1875, -0.90625	; 3v/16 - 1, floored to sixteenths: q/16 - 1
+	and	$F80000
+	exp	1.0, 0
+	wrax	spd, 0
+
+; ---- buffer: input plus regeneration of the last output
+	rdax	g, 0.42			; the buffer runs at half level (regen 0.42 of the output, L + R = 2 g)
+	mulx	pot2
+	rdax	adcl, 0.435
+	wra	buf, 0
+
+; ---- phasor; a new slice on wrap
+	ldax	ph
+	rdax	ginc, 1.0
+	wrax	ph, 1.0
+	skp	neg, go
+	sof	1.0, -1.0
+	wrax	ph, 0
+	ldax	nxl			; S = j L, j = 1 + floor(scatter chaos (1/L - 4)), as j/32 * 32 L
+	exp	1.0, -0.125
+	mulx	chaos
+	mulx	pot0
+	sof	1.0, 0.03125
+	and	$FC0000
+	log	1.0, 0
+	rdax	nxl, -1.0
+	exp	0.999146, 0		; L' -> L
+	wrax	pos, 0
+	or	$000100			; (ACC is 0 here) reverse: step = 1 + speed
+	rdax	spd, 1.0
+	wrax	step, 0
+	ldax	chaos			; reversed with probability ~prism/2
+	rdax	pot1, -0.5
+	skp	neg, s_set
+	ldax	step			; forward: step = 1 - speed (0 = straight)
+	rdax	spd, -2.0
+	wrax	step, 0
+s_set:
+	ldax	chaos
+	wrax	pan, 0
+go:	ldax	ph			; trapezoid window min(1, 8 (1 - 2|ph + 0.5|))
+	sof	1.0, 0.5
+	absa
+	sof	-2.0, 0.999
+	log	1.0, 0.1875
+	exp	1.0, 0
+	wrax	w, 0
+	ldax	pos
+	rdax	step, 1.0
+	wrax	pos, 1.0
+	wrax	addr_ptr, 0
+	rmpa	1.6			; half-level buffer: g/2
+	mulx	w
+	wrax	g, 1.0
+	maxx	env, 0.99994		; limiter: peak envelope, 0.5 s release
+	wrax	env, 1.0
+	log	-1.0, -0.0947265625	; -log2(env)/16 + log2(0.351)/16: chip-rate peaks <= 0.70 (aliased octave-up slices overshoot ~25% once resampled)
+	exp	1.0, 0
+	mulx	rel			; x the release gate
+	mulx	g
+	wrax	g, 1.99993896484375		; ACC = limited slice signal
+	mulx	pan
+	wrax	dacl, -1.0
+	rdax	g, 1.99993896484375
+	wrax	dacr, 0

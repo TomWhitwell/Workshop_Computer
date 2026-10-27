@@ -1,0 +1,43 @@
+; This example code delays an input by eight seconds.
+; It inteleaves the signal 8 ways in a single max sized delay 
+
+;  by sebxx4
+; http://www.spinsemi.com/forum/viewtopic.php?t=418
+ 
+equ   input   reg0 
+equ   loop   reg1 
+equ   temp   reg2 
+equ   output   reg4 
+mem   delay   32767 
+; Get input, filter it to avoid aliasing &#40;not shown&#41; 
+rdax   adcl, 1
+rdax   adcr, 1 
+; &#40;filter here&#41; 
+wrax   input, 0 
+; IF loop counter variable is 0, THEN read an input sample and put it in the temp variable. 
+rdax   loop, -1 
+skp   neg, NotZro 
+ldax   input 
+wrax   temp, 0 
+NotZro:
+; Put the temp variable in the head-end of the delay. 
+ldax   temp 
+wra   delay, 0 
+; Get a delayed sample out of the tail end of the delay, put it in the temp variable. 
+rda   delay+32767, 1 
+wrax   temp, 0 
+; Add 0.1 to the loop counter. 
+ldax   loop 
+sof   1, 0.1 
+wrax   loop, 1 
+; IF loop counter is > 0.8, THEN write the temp variable to the output, and reset loop variable to 0 
+sof   1, -0.8 
+skp   neg, Done 
+ldax   temp 
+wrax   output, 0 
+wrax   loop, 0 
+Done:
+; Done, write output &#40;you really need to filter it again here&#41; 
+ldax   output 
+wrax   dacl, 1 
+wrax   dacr, 0

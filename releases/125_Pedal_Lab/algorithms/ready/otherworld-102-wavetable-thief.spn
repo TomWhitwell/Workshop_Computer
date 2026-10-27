@@ -1,0 +1,188 @@
+; @name Wavetable Thief
+; @tagline Steals a cycle of every note and plays it on as a frozen digital oscillator with an octave-down shadow, the two trading sides at every theft, rotting into squares as you play on
+; @description Every note gets robbed. Moments after the attack the thief listens for the
+; @description newest note's period; once it hears the same equal-tempered semitone three
+; @description times running, it steals exactly four periods of the note (two below C3, one
+; @description below C2) into a loop that plays on as a static digital oscillator:
+; @description the note's own waveform, frozen, in tune, with no flutter. If it can't hear a
+; @description clean period (a chord, a smear) it steals a whole moment instead, a short loop
+; @description of the sound that stutters on like a frozen tape. The loot plays on one side and
+; @description its shadow on the other: the same loop at half speed, an octave down and darker.
+; @description Every theft makes the two trade places in a quick glide across the field, so
+; @description the bright loot and the dark shadow ping-pong from note to note and over a phrase
+; @description both sides get both. The next note robs again,
+; @description and a held note gets robbed again every second, each time a later, darker
+; @description cycle. Left alone, a stolen tone slowly darkens from its bright attack to
+; @description the body of the note. Your playing feeds the thief's greed: sparse playing
+; @description lets the loot fade like a plucked note, steady playing holds it, and a busy
+; @description patch makes it greedy, the held loops swelling until they clip into hard,
+; @description buzzing squares; over 20 to 30 s of playing the sound rots from clean stolen
+; @description tones to fuzz. Stop, and the last theft rings on for a moment and dies away
+; @description within a second or two.
+; @pots Chunk | Greed | Rot
+; @render 0.4, 0.75, 0.5
+; @time POT0 0.06 0.21 lin
+; @components single-cycle theft into a recirculating loop (static wavetable oscillator), high-band envelope pitch tracker (lis37r2) with equal-tempered snapping, a bass octave fold and a three-in-a-row guard, chunk-freeze fallback for chords, half-speed octave-down shadow, ping-pong stereo: loot and shadow trade sides at every theft in a 20 ms mid/side glide, greed arc (fade, hold, clip-to-square corruption), in-loop darkening
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	slot	32767
+
+equ	in	reg0		; 0.467 (L + R): the capture input (pre-scaled for the loop) and the tracker's input
+equ	hp	reg1		; tracker: in low-passed at k 0.9 (HF = in - hp)
+equ	e1	reg2		; tracker: HF peak envelope
+equ	e2	reg3		; tracker: its smoothed level (also feeds the note detector)
+equ	ef	reg4		; note detector: fast average of 0.68 e2
+equ	es	reg5		; its slow average (of 2 ef): note onsets, and the release gate
+equ	ct	reg6		; < 0: a note waits to be robbed; >= 0: samples since the theft began
+equ	greed	reg7
+equ	z	reg8		; tracker: in low-passed ~100 Hz (bass zero-crossing path)
+equ	sh	reg9		; tracker: smoothed brightness (~1.6 Hz)
+equ	thr	reg10		; tracker: Schmitt threshold
+equ	cap	reg11		; minus the capture length while capturing, else LL
+equ	LL	reg12		; loop length
+equ	hl	reg13
+equ	cand	reg14		; tracker: semitone counter
+equ	gR	reg15		; greed x Rot (from the start of the pass)
+equ	ph	reg16		; half-speed read offset, past LL
+equ	lpl	reg17
+equ	lpr	reg18		; the shadow B
+equ	side	reg19		; +1: loot left, -1: loot right (every theft flips it; 0 before the first)
+equ	ys	reg20		; the glide toward it
+equ	mid	reg22		; M, for the output matrix
+equ	gk	reg23		; loop gain / 1.069: gate - 0.074 + 0.075 greed x Rot
+equ	tef	reg24		; tracker: the Schmitt stage's high-pass state
+
+	or	$FFFFC0			; -2^-17 (ACC is 0 here: the last pass ended with wrax dacr, 0):
+	rdax	greed, 1.0		; greed drains 0.25 per second (below 0 in long rests)
+	wrax	greed, 1.0
+	mulx	pot2
+	wrax	gR, 0
+	or	$000100			; 2^-15: ct counts samples
+	rdax	ct, 1.0
+	wrax	ct, 0
+	rdax	adcl, 0.4673
+	rdax	adcr, 0.4673
+	wrax	in, 1.0
+; ---- tracker front end on in
+	rdfx	z, 0.01934814453125	; z = LP(x) ~100 Hz (bass zero-crossing path)
+	wrhx	z, 0			; ACC = x again (PACC)
+	rdfx	hp, 0.9000244140625
+	wrhx	hp, -1.0		; ACC = x - hp (HF)
+	maxx	e1, 0.972412109375	; peak envelope
+	wrax	e1, 1.46502685546875
+	rdfx	e2, 0.08001708984375
+	wrax	e2, 0.67999267578125		; ACC = 0.68 e2: the note detector's input
+	rdfx	ef, 0.012
+	wrax	ef, 1.99993896484375
+	rdfx	es, 0.001
+	wrax	es, 1.6
+	rdax	ef, -1.99993896484375
+	skp	gez, noon		; (a tie, as in silence, is no note)
+	ldax	ct			; a note counts unless the thief is capturing (cap < 0) or a
+	sof	0.5, 0.45		; note still waits from less than 0.1 s ago (0.5 ct + 0.45 < 0):
+	ldax	cap			; ZRC skips when the signs of cap and 0.5 ct + 0.45 differ (both
+	skp	zrc, noon		; negative never happens: ct >= 0 while capturing)
+	ldax	greed			; every note feeds the greed
+	rdax	pot1, 0.14
+	wrax	greed, 0
+	or	$800000			; ct = -1: a note waits to be robbed
+	wrax	ct, 0
+noon:	ldax	ct			; a second without a new note: rob again (a later, darker cycle)
+	sof	0.5, -0.4990234375	; ct/2 - 0.499 >= 0: ct >= 0.998
+	skp	neg, nore
+	sof	0, -0.97		; ct = -0.97: waiting, past the 30 ms
+	wrax	ct, 0
+nore:	sof	1.0, 0.9384765625	; (ACC = ct/2 - 0.499, or 0) exactly 0 at ct = -0.879:
+	skp	zro, chunk		; 121 ms after a note that still waits, a chunk
+	ldax	es			; the release gate: 1 while the input sounds; when it stops,
+	log	0.5, 0.4375		; es falls into its dead zone and the gate to 0.5
+	exp	0.84375, -0.0625	; (gk is kept x 0.8438: the loop stores at 0.634, not 0.535)
+	rdax	gR, 0.0631103515625
+	wrax	gk, 0
+; ---- tracker: brightness, Schmitt trigger, fold, counter; the thefts at its triggers
+	maxx	in, 0.0059814453125		; (ACC is 0) the level, |in| x 0.006 (for lis37r2's AMP block)
+	sof	-1.0, 0
+	rdax	e2, 1.0			; brightness = e2 - 0.006 |in|
+	rdfx	sh, 0.00030517578125
+	wrax	sh, 1.0			; smoothed (~1.6 Hz)
+	and	$800000			; -1 when dull, 0 when bright
+	mulx	z			; -z when dull
+	rdax	e2, 1.0			; ef stage input = e2 (- z)
+	rdfx	tef, 0.01202392578125
+	wrhx	tef, -1.0		; v = in - ef
+	rdax	thr, 0.1500244140625	; x = v + 0.15 thr
+	skp	neg, low		; x < 0: low state, thr = x
+	mulx	thr			; x*thr < 0 only on the rising edge
+	skp	gez, nox
+	cho	rdal, rmp0		; T (+ negligible x*thr)
+	jam	rmp0
+	log	-1.0, -0.4375		; l = -log2(T)/16 + D: octave = 1/16, C3's semitone bin starts at l = 0
+	skp	gez, fl			; FLOOR (below C3: l < 0)
+	and	$07FFFF			; the same pitch class in [C3, C4), at any depth
+fl:	sof	0.75, -0.13671875	; s = 3/4 l - 35/256: semitone = 2^-8, C3 = -35/256, B5 = 0
+	and	$FF8000			; snap to the 12-TET semitone
+	rdax	cand, -1.00146484375	; s - (1+C) cand, C = 24/16384
+	skp	zro, out		; the same semitone 3 times running (4 after a big jump)
+	rdax	cand, 1.0		; cand = s - C cand (fresh / pending)
+	wrax	cand, 0
+	skp	zro, hyst
+out:	ldax	ct			; confirmed: a pitched theft if a note waits and 30 ms have passed,
+	sof	-1.0, -0.9697265625	; i.e. -0.97 <= ct < 0: then ct and -ct - 0.97 are both negative;
+	skp	zrc, hyst		; otherwise their signs differ (ZRC)
+	ldax	cand			; minus four snapped periods: -4 P/32768 = -0.9812 x 2^(16 (-4/3 s - 0.4951))
+	sof	-1.3353271484375, -0.4951171875
+	exp	-0.981201171875, 0
+	skp	0, steal
+chunk:	ldax	pot0			; (from the rob-again block) no confirmed note by 120 ms: a chunk
+	sof	-0.15, -0.06
+steal:	wrax	cap, 0			; cap = minus the capture length
+	wrax	ct, 0
+	ldax	side			; every theft swaps the sides: 0 -> +1 -> -1 -> +1 ...
+	sof	-2.0, 0.999
+	wrax	side, 0
+hyst:	ldax	e2			; high state, hysteresis level
+low:	wrax	thr, 0
+nox:	wldr	rmp0, -4066, 4096
+	ldax	side			; the swap glide (about 20 ms)
+	rdfx	ys, 0.0015
+	wrax	ys, 0
+; ---- the shadow: the loop at half speed, an octave down (read at LL + ph, ph in 0 .. LL)
+	or	$000080			; (ACC is 0) half a sample, 2^-16
+	rdax	ph, 1.0
+	rdax	LL, -1.0
+	skp	gez, phok		; past LL: back by LL
+	rdax	LL, 1.0
+phok:	wrax	ph, 1.0
+	rdax	LL, 1.0
+	wrax	addr_ptr, 0
+	rmpa	1.349609375
+	rdfx	lpr, 0.3
+	wrax	lpr, 0			; B
+; ---- capture, or the loop: recirculate x 2 (clipped) x 1.069 gk, darkened
+	ldax	cap
+	skp	gez, rec		; not capturing: cap = LL
+	rdax	ct, 1.0			; capturing: until ct reaches the length
+	skp	neg, capt
+	ldax	ct			; the loop closes at its length
+	wrax	LL, 1.0
+	wrax	cap, 1.0		; (cap = LL: idle)
+rec:	wrax	addr_ptr, 0		; (ACC = LL)
+	rmpa	1.998046875		; x 2: the deliberate clip at 0.5 (the only audio rails)
+	mulx	gk
+	skp	0, recd
+capt:	ldax	in
+recd:	rdfx	lpl, 0.85
+	wrax	lpl, 0.634033203125	; (captures land at 0.296 (L + R): 1.5 dB closer to the clip)
+	rdfx	hl, 0.002
+	wrhx	hl, -1.0
+	wra	slot, 0.67578125	; ACC = A/2: the loot A is 1.35 x the loop
+; ---- stereo: M = (A + B)/2, D = (A - B)/2, L = M + y D, R = M - y D (no sum ever exceeds a voice)
+	rdax	lpr, 0.5		; M
+	wrax	mid, 1.0		; (kept in a register: DACL/DACR read back as 0 on the chip)
+	rdax	lpr, -1.0		; D
+	mulx	ys
+	rdax	mid, 1.0		; L
+	wrax	dacl, -1.0
+	rdax	mid, 1.99993896484375	; R = 2M - L
+	wrax	dacr, 0

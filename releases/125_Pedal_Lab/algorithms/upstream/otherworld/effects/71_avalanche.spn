@@ -1,0 +1,187 @@
+; @name Avalanche
+; @tagline Every note piles onto a glittering snowpack until it breaks, plunges down in octaves and opens into a vast hall
+; @description Every note you play is caught as a snowflake. Its body freezes into a
+; @description looping snowpack, replacing half of whatever lay at that spot, and two
+; @description heads half a turn apart play the pack an octave up, so each new flake
+; @description glints back on one side and then the other. Every flake also adds weight:
+; @description the pack swells louder the fuller it gets, and snow keeps settling slowly
+; @description all the while. The note that tips it sets off the avalanche, one long
+; @description slide: the heads flip into reverse and the whole pack rushes backwards,
+; @description then it drops an octave every half second, still reversed, down to a
+; @description rumble three octaves below. Fall sets how long it slides. Past a quarter
+; @description turn the rumble keeps going, and every half second the snow loses one
+; @description more bit, grinding from powder to grit; at full Fall, about seven seconds
+; @description in, the last of it is pure 1-bit. Over the last stages a reverb opens
+; @description around the slide: a small room at first, it grows with every stage into
+; @description a huge, smooth hall, and the slide sinks under it until the hall is the
+; @description whole sound. The hall stays while the slope is wiped and through the
+; @description quiet after it, and the next note you play cuts it off dead. Snow sets
+; @description how much the pack holds: turn it up and it takes longer to tip. Stop
+; @description playing and the pack hangs for a few seconds, then slides by itself.
+; @pots Pack | Snow | Fall
+; @render 0.5714, 0.89, 0.2615
+; @time POT0 0.2 0.9 lin
+; @components onset-driven freeze-loop accumulation, octave-up read heads, threshold-triggered reverse octave cascade, one avalanche per pack, stage-by-stage in-loop requantization to 1 bit, crescendo, two-allpass loop reverb with a feedback tap that grows from a room to a hall over the slide, ducks it, holds and is cut at the next onset, feed-forward peak ceiling
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	pack	29510		; the snowpack loop, up to 0.9 s (0.9002 after coefficient rounding)
+mem	ap1	887		; reverb: two allpasses in the loop
+mem	ap2	1601
+mem	rlp	100		; reverb: the gated line the outputs and the feedback read
+
+equ	ef	reg0
+equ	es	reg1		; slow envelope of -ef (negative)
+equ	hpf	reg2
+equ	e	reg3		; deposit envelope: t smoothed over 15 ms; also drives the cut
+equ	G	reg4		; reverb gate: input, feedback and output
+equ	dump	reg5		; scratch for the cut's WRHX
+equ	sc	reg6		; mass - 1 while building (-1 .. 0), then the slide clock
+equ	gt	reg7		; output gain target
+equ	env	reg8		; peak hold of what is written into the pack since the last wipe
+equ	Lp	reg9		; pack length (ADDR units = seconds)
+equ	glim	reg10		; gt min(1, 0.261 / max(env, G)), smoothed over 3 ms
+equ	kq	reg11		; minus the crushed bits / 16
+equ	off	reg12		; reader A's offset 0 .. Lp (B is half a turn on)
+equ	w	reg13		; seam window x output gain
+equ	sk	reg14		; 2^-k while crushing
+equ	t	reg15		; note hold: 1 on a note, decays (tau 0.25 s)
+equ	k9	reg16		; 2^-9, the address constant (set by the reset)
+
+; ---- pack length; the pack loop write (state from the last sample); the ceiling and duck:
+;      no read of the pack can leave the effect louder than 0.75 x 0.261 x 3.96 = 0.775
+	ldax	Lp			; the pack length, taken from Pack while the pack is wiped
+	wrax	addr_ptr, 0
+	rmpa	-0.5			; - old / 2
+	rdax	hpf, 1.0
+	mulx	e
+	rmpa	1.0			; old + e (in - old / 2)
+	wra	pack, 1.0
+	maxx	env, 1.0		; peak hold of everything written since the wipe
+	wrax	env, 1.0
+	maxx	G, 1.0			; the duck: as the reverb opens, the ceiling sinks
+	log	-1.0, -0.12094
+	exp	1.0, 0			; min(1, T / max(env, G)), T = 0.261
+	mulx	gt
+	rdfx	glim, 0.01		; smoothed over 3 ms: gain steps are soft, the seam notch stays exact
+	wrax	glim, 0
+; ---- input and onsets
+	rdax	adcl, 0.25
+	rdax	adcr, 0.25
+	rdfx	hpf, 0.25
+	wrhx	hpf, -1.0
+	maxx	k9, 0.0625		; |hp| floored at 2^-13: notes down to -40 dBFS fire, noise never does
+	rdfx	ef, 0.02
+	wrax	ef, -2.0		; ACC = -2 ef (x 2: half the relative dead zone in es)
+	rdfx	es, 0.0015		; es follows -2 ef slowly
+	wrhx	es, -1.5		; es stored; ACC = 1.5 |es| - 2 ef (PACC is -2 ef): negative on a note
+	and	$800000			; -1 on a note, exactly 0 otherwise (no floor)
+	maxx	t, 0.99988		; a note: t = 1; else t decays (tau 0.25 s)
+	wrax	t, 1.0
+	rdfx	e, 0.002		; e: t smoothed over 15 ms, so a deposit fades in
+	wrax	e, 0
+; ---- state: build (sc < 0), slide, wipe
+	ldax	sc
+	skp	run|neg, build		; (the first sample always goes to the reset)
+	rdax	k9, 0.00177001953125	; one stage per 0.55 s (29 x 2^-23 per sample)
+	wrax	sc, 1.0
+	rdax	pot2, -0.8125		; sc - thr, thr = 13 Fall / 16
+	skp	run|neg, sliding	; (not on the first sample: it goes to the reset)
+	rdax	Lp, -0.12		; then 1.06 turns of wiping
+	skp	run|neg, clearing
+	sof	0, -1.0			; pack wiped (or the first sample): build again from an empty pack
+	wrax	sc, -0.001953125	; ACC = 2^-9
+	wrax	k9, 0
+clearing:
+	ldax	pot0			; Pack is read only here, while the pack is wiped (and on the first sample):
+	sof	0.7, 0.2		; a moving Pack would splice the frozen loop on every turn
+	wrax	Lp, 0			; 0.2 .. 0.9 s
+	wrax	env, 0
+	wrax	gt, 0			; the dry stops with the slide (3 ms)
+	wrax	e, 0			; deposits fade in again when the next pack starts,
+	wrax	t, 0			; and the cut waits for a new note
+	skp	zro, wipe		; write the zero (the crush's WRA); the heads keep the last slide
+				; step through the silence; G holds
+build:	ldax	G
+	mulx	e
+	wrhx	dump, -0.25		; ACC = G - G e / 4 (PACC is G)
+	wrax	G, 0			; the cut: G holds until a new note, then falls in about 3 ms
+	rdax	e, -0.00006103515625	; snow: + (1 - Snow) e / 16384 per sample (about (1 - Snow) / 2 per note)
+	mulx	pot1
+	rdax	e, 0.00006103515625
+	rdax	k9, 0.00390625		; and it settles all the time, 1/4 per second
+	rdax	sc, 1.0
+	wrax	sc, 1.0			; mass - 1: the avalanche is sc reaching 0
+	sof	0.45, 0.69		; 0.24 + 0.45 mass
+	wrax	gt, 0
+	rdax	k9, -0.015625		; step -1: octave up
+	skp	neg, readers
+sliding:
+	exp	0.99, 0			; reverb gate 0.99 x 2^(16 (sc - thr)): x 2 per stage
+	rdfx	G, 0.002		; smoothed over 15 ms, so it opens without a step (0.971 at the end)
+	wrax	G, 0
+	ldax	sc
+	and	$780000			; stage s0 / 16 (s0 = 0 ..)
+	sof	-1.0, 0.1875
+	wrax	kq, 1.0			; kq = (3 - s0) / 16: from stage 5 on, k = s0 - 3 bits are crushed away
+	skp	gez, stepc
+	exp	1.0, 0
+	wrax	sk, 1.0			; 2^-k
+	log	1.0, 0.375
+	exp	0.75, 0
+	wrax	gt, 0			; crush gain 0.75 x min(1, 2^(6 - k)): the coarse bits are kept at level
+	rmpa	1.0			; the oldest sample t (ADDR_PTR is still Lp)
+	skp	zro, stepc		; exact zeros stay zero (an empty pack stays silent)
+	sof	1.0, 0.5
+	mulx	sk			; (t + 1/2) 2^-k
+	and	$FFE000
+	or	$001000			; floor to 2^-10, + half a step
+	log	1.0, 0
+	rdax	kq, -1.0
+	exp	1.0, -0.5		; t on a grid of 2^(k - 10), mid-rise: k = 9 is 1 bit
+wipe:	wra	pack, 0			; over the write above (the wipe comes here with ACC = 0)
+stepc:	ldax	kq
+	sof	1.0, -1.0		; saturates at -1 from stage 4 on: the fall stops at -3 octaves
+	exp	0.25, 0			; 2^-(s0 + 15)
+	rdax	k9, 0.015625		; step 1 + 2^-s0: reverse, an octave lower each stage
+; ---- readers (ACC = step): A at offset off, B half a turn on; exact steps, wrapped by Lp.
+; One window, from B, notches both seams: 256 x the distance to 0, Lp/2 or Lp.
+readers:
+	rdax	off, 1.0
+	skp	gez, a_pos
+	rdax	Lp, 1.0
+a_pos:	wrax	off, 1.0
+	rdax	Lp, -1.0
+	skp	neg, a_ok
+	wrax	off, 1.0
+a_ok:	rdax	Lp, 0.5			; B = off -+ Lp/2
+	skp	gez, b_ok
+	rdax	Lp, 1.0
+b_ok:	wrax	addr_ptr, 1.0
+	rdax	Lp, -0.5
+	absa
+	rdax	Lp, -0.25
+	absa
+	rdax	Lp, -0.25
+	log	1.0, 0.5
+	exp	1.0, 0
+	mulx	glim
+	wrax	w, 0
+	rmpa	1.99
+	mulx	w
+	sof	1.99, 0			; make-up
+	rda	rlp+76, 1.99		; + reverb
+	wrax	dacr, 0
+	ldax	off
+	wrax	addr_ptr, 0
+	rmpa	1.99
+	mulx	w
+	rda	rlp+40, 1.0		; + reverb
+	sof	1.99, 0			; make-up for both
+	wrax	dacl, 0.505		; reverb in: the L output, so its tap is the feedback (loop gain 1.005 G)
+	rda	ap1#, -0.65		; two allpasses (-k: their residue rounds to exactly 0)
+	wrap	ap1, 0.65
+	rda	ap2#, -0.6
+	wrap	ap2, 0.6
+	mulx	G			; the gate
+	wra	rlp, 0

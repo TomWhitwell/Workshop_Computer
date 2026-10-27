@@ -1,6 +1,6 @@
 // patch_store.h — 16 patch slots in the RP2040's own flash.
 //
-// The GBA's patch lives in EWRAM and is gone the moment the console is switched off, so the
+// The GBA's patch lives in its RAM and is gone the moment the console is switched off, so the
 // Workshop is where a patch has to persist. One 4 kB flash sector holds sixteen 256-byte slots,
 // which is why sizeof(Patch) must stay under GBA_PATCH_SLOT_BYTES.
 //
@@ -23,7 +23,8 @@
 #include <cstdint>
 #include "gba_proto.h"
 
-// True if the slot holds a patch whose magic and version we recognise; `out` gets its bytes.
+// True if the slot has been written (is not erased); `out` gets its bytes. Whether those bytes are
+// a patch this program understands is the GBA's call, not ours - see slot_valid().
 bool patch_store_load(int slot, uint8_t *out);
 
 // Read-modify-erase-rewrite of the whole sector. Returns false if the flash operation could not

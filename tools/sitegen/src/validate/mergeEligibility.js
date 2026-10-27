@@ -19,6 +19,14 @@ const TRUSTED_ASSOCIATIONS = new Set(['CONTRIBUTOR', 'COLLABORATOR', 'MEMBER', '
 // They count only when the PR introduces them.
 const REVIEW_RULES = new Set(['similar-values', 'uf2-required']);
 
+// Card PRs beyond these sizes are unusual (the largest eligible ones so far:
+// 151 files, 10 MB added, a 3.3 MB file) and are often an accidentally
+// committed build folder, so they need a maintainer's review.
+export const SIZE_LIMITS = { files: 500, totalBytes: 32 * 1024 * 1024, fileBytes: 16 * 1024 * 1024 };
+
+// A maintainer adds this label to keep a PR for manual review.
+export const HOLD_LABEL = 'hold';
+
 const releaseOf = file => String(file).match(/^releases\/([^/]+)\/.+/)?.[1] || null;
 
 /** The single card a change set is confined to, or the reasons it is not confined to one. */
@@ -103,6 +111,44 @@ export function scopeReasons(changes) {
   return reasons;
 }
 
+/**
+ * Size of a change set, as { files, totalBytes, largest: { path, bytes } }.
+ * `sizeOf(path)` returns a proposed file's size in bytes, or null when unknown.
+ */
+export function measureChanges(changes, sizeOf) {
+  let totalBytes = 0;
+  let largest = { path: '', bytes: 0 };
+  for (const change of changes) {
+    if (change.status.startsWith('D')) continue;
+    const bytes = sizeOf(change.path) || 0;
+    totalBytes += bytes;
+    if (bytes > largest.bytes) largest = { path: change.path, bytes };
+  }
+  return { files: changes.length, totalBytes, largest };
+}
+
+const megabytes = bytes => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+/** Label names from a JSON array (as GitHub Actions' toJSON gives them); [] when absent or malformed. */
+export function parseLabels(json) {
+  try {
+    const labels = JSON.parse(json || '[]');
+    return Array.isArray(labels) ? labels.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Reasons a change set is too large to merge unreviewed. */
+export function sizeReasons(size) {
+  if (!size) return [];
+  const reasons = [];
+  if (size.files > SIZE_LIMITS.files) reasons.push(`Changes ${size.files} files; PRs over ${SIZE_LIMITS.files} files need a maintainer's review.`);
+  if (size.totalBytes > SIZE_LIMITS.totalBytes) reasons.push(`Adds ${megabytes(size.totalBytes)}; PRs over ${megabytes(SIZE_LIMITS.totalBytes)} need a maintainer's review.`);
+  if (size.largest.bytes > SIZE_LIMITS.fileBytes) reasons.push(`${size.largest.path} is ${megabytes(size.largest.bytes)}; files over ${megabytes(SIZE_LIMITS.fileBytes)} need a maintainer's review.`);
+  return reasons;
+}
+
 /** Reasons introduced findings need a maintainer's look before merging. */
 export function reviewReasons(introduced) {
   return introduced
@@ -122,15 +168,30 @@ export function reviewReasons(introduced) {
  *   cardInHead       the card's directory exists in the PR
  *   authorCommitted  the author has committed to the card on the base
  *                    branch, or null when that could not be determined
+ *   specialEntries   symlinks and submodules in the PR's card, as paths
+ *   size             measureChanges() result, or null to skip size limits
+ *   minifiedWeb      published files that are minified or compiled, as
+ *                    [{ path, reason }] (see webCode.js)
+ *   labels           the PR's label names
  *
  * Returns { eligible, card, reasons, basis }: `reasons` explain an ineligible
  * result, `basis` explains an eligible one.
  */
 export function evaluateMergeEligibility({
   changes, author, association, draft = false, errorCount = 0, introduced = [],
-  cardOnBase = false, cardInHead = true, authorCommitted = null,
+  cardOnBase = false, cardInHead = true, authorCommitted = null, specialEntries = [],
+  size = null, labels = [], minifiedWeb = [],
 }) {
-  const reasons = [...scopeReasons(changes), ...reviewReasons(introduced)];
+  const reasons = [...scopeReasons(changes), ...reviewReasons(introduced), ...sizeReasons(size)];
+  for (const { path, reason } of minifiedWeb.slice(0, 5)) {
+    reasons.push(`Publishes ${reason} (${path}); minified or compiled web code needs a maintainer's review.`);
+  }
+  if (minifiedWeb.length > 5) reasons.push(`Publishes ${minifiedWeb.length - 5} more minified or compiled web files.`);
+  if (labels.includes(HOLD_LABEL)) reasons.push(`A maintainer added the "${HOLD_LABEL}" label.`);
+  if (specialEntries.length) {
+    const listed = specialEntries.slice(0, 5).join(', ');
+    reasons.push(`Contains a symlink or submodule (${listed}${specialEntries.length > 5 ? `, and ${specialEntries.length - 5} more` : ''}); these need a maintainer's review.`);
+  }
   const { cards } = cardScope(changes);
   const card = cards.length === 1 ? cards[0] : null;
 

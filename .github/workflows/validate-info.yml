@@ -5,8 +5,9 @@ name: Validate info.yaml
 # card succeed immediately without a report.
 on:
   pull_request:
-    # ready_for_review refreshes the eligibility report when a draft is published.
-    types: [opened, synchronize, reopened, ready_for_review]
+    # ready_for_review refreshes the eligibility report when a draft is
+    # published; labeled/unlabeled refresh it when "hold" is added or removed.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
     branches:
       - main
       - workshop-ops
@@ -48,6 +49,8 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
           PR_DRAFT: ${{ github.event.pull_request.draft }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          AUTO_MERGE: ${{ vars.AUTO_MERGE }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # The same change-set validation (src/validate/changeSet.js) backs the

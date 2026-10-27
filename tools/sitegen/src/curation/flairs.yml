@@ -321,3 +321,5 @@ assignments:
     - classic
   "999_Dub_Warning":
     - toms-pick
+  # Pedal Lab
+  125_Pedal_Lab: []

@@ -1,0 +1,1506 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-09-08T20:38:47.267Z",
+  "categories": [
+    "Delay",
+    "Modulation",
+    "Pitch / Chorus",
+    "Reverb"
+  ],
+  "effects": [
+    {
+      "id": "automatic-double-tracker",
+      "name": "Automatic Double Tracker",
+      "version": "1.0.0",
+      "description": "Classic ADT effect with a very short delay (up to 43 ms) and mild chorus, simulating the sound of a double-tracked performance for natural vocal and guitar thickening.",
+      "category": "Delay",
+      "tags": [
+        "delay",
+        "doubler",
+        "chorus",
+        "studio",
+        "thickener"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Delay",
+          "description": "Short delay time (max 43 ms).",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Chorus Depth",
+          "description": "Amount of chorus modulation.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Mix",
+          "description": "Blend between dry and wet signal.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/delay",
+      "file": "automatic-double-tracker",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/delay/automatic-double-tracker.spn"
+    },
+    {
+      "id": "delay-chorus-reverb",
+      "name": "Delay Chorus Reverb",
+      "version": "1.0.0",
+      "description": "A crude emulation of a Roland RE-301 Space Echo combining three-tap delay, chorus, and a touch of reverb. 313 ms maximum delay time.",
+      "category": "Delay",
+      "tags": [
+        "delay",
+        "chorus",
+        "reverb",
+        "tape",
+        "echo",
+        "multi-tap"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Delay",
+          "description": "Delay time.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Repeats",
+          "description": "Feedback amount — number of echoes.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Level",
+          "description": "Wet signal level.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/delay",
+      "file": "delay-chorus-reverb",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/delay/delay-chorus-reverb.spn"
+    },
+    {
+      "id": "digital-delay",
+      "name": "Digital Delay",
+      "version": "1.0.0",
+      "description": "A clean, wide-bandwidth digital delay with up to one second of delay time.",
+      "category": "Delay",
+      "tags": [
+        "delay",
+        "digital",
+        "echo"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Time",
+          "description": "Delay time.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Repeats",
+          "description": "Feedback amount — number of echoes.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Level",
+          "description": "Wet signal level.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/delay",
+      "file": "digital-delay",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/delay/digital-delay.spn"
+    },
+    {
+      "id": "eight-tap-delay",
+      "name": "Eight Tap Delay",
+      "version": "1.0.0",
+      "description": "An eight-tap delay with modulated chorus for a lush, rhythmic repeat pattern. Up to one second of delay time.",
+      "category": "Delay",
+      "tags": [
+        "delay",
+        "multi-tap",
+        "rhythmic",
+        "echo",
+        "modulated"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Delay",
+          "description": "Delay time.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Repeats",
+          "description": "Feedback amount — number of echoes.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Level",
+          "description": "Wet signal level.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/delay",
+      "file": "eight-tap-delay",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/delay/eight-tap-delay.spn"
+    },
+    {
+      "id": "mn3011-delay",
+      "name": "MN3011 Delay",
+      "version": "1.0.0",
+      "description": "A delay built on an emulation of the classic Panasonic MN3011 bucket-brigade device, producing rich multi-tap repeats with analog warmth. Up to one second of delay time.",
+      "category": "Delay",
+      "tags": [
+        "delay",
+        "bbd",
+        "analog",
+        "echo",
+        "multi-tap"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Delay",
+          "description": "Delay time.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Repeats",
+          "description": "Feedback amount — number of echoes.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Level",
+          "description": "Wet signal level.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/delay",
+      "file": "mn3011-delay",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/delay/mn3011-delay.spn"
+    },
+    {
+      "id": "modulated-delay",
+      "name": "Modulated Delay",
+      "version": "1.0.0",
+      "description": "A wide-bandwidth delay with subtle chorus modulation on the repeats, adding movement and dimension. 981 ms maximum delay time.",
+      "category": "Delay",
+      "tags": [
+        "delay",
+        "modulated",
+        "chorus",
+        "echo"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Delay",
+          "description": "Delay time.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Repeats",
+          "description": "Feedback amount — number of echoes.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Level",
+          "description": "Wet signal level.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/delay",
+      "file": "modulated-delay",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/delay/modulated-delay.spn"
+    },
+    {
+      "id": "modulated-vintage-delay",
+      "name": "Modulated Vintage Delay",
+      "version": "1.0.0",
+      "description": "Combines the warm, rolled-off character of a vintage delay with gentle chorus modulation on the repeats. 981 ms maximum delay time.",
+      "category": "Delay",
+      "tags": [
+        "delay",
+        "vintage",
+        "modulated",
+        "chorus",
+        "warm"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Delay",
+          "description": "Delay time.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Repeats",
+          "description": "Feedback amount — number of echoes.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Level",
+          "description": "Wet signal level.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/delay",
+      "file": "modulated-vintage-delay",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/delay/modulated-vintage-delay.spn"
+    },
+    {
+      "id": "vintage-delay",
+      "name": "Vintage Delay",
+      "version": "1.0.0",
+      "description": "A digital delay with rolled-off highs for a warm, vintage character. Up to one second of delay time with a natural, tape-like darkness on the repeats.",
+      "category": "Delay",
+      "tags": [
+        "delay",
+        "vintage",
+        "echo",
+        "warm"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Delay",
+          "description": "Delay time.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Repeats",
+          "description": "Feedback amount — number of echoes.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Level",
+          "description": "Wet signal level.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/delay",
+      "file": "vintage-delay",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/delay/vintage-delay.spn"
+    },
+    {
+      "id": "basic-tremolo",
+      "name": "Basic Tremolo",
+      "version": "1.0.0",
+      "description": "A classic amplitude-modulation tremolo with a tone control for shaping the wet signal. Smooth, musical pulsing from gentle shimmer to full chop.",
+      "category": "Modulation",
+      "tags": [
+        "tremolo",
+        "modulation",
+        "amplitude"
+      ],
+      "author": "Digital Larry, Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Speed",
+          "description": "Tremolo LFO rate.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Depth",
+          "description": "Amount of amplitude modulation.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Tone",
+          "description": "Post-tremolo tone / high-frequency roll-off.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/modulation",
+      "file": "basic-tremolo",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/modulation/basic-tremolo.spn"
+    },
+    {
+      "id": "flanger",
+      "name": "Flanger",
+      "version": "1.0.0",
+      "description": "A classic flanger with adjustable rate, sweep width, and feedback for everything from subtle swirl to jet-plane whoosh.",
+      "category": "Modulation",
+      "tags": [
+        "flanger",
+        "modulation",
+        "sweep"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Rate",
+          "description": "Flanger LFO rate.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Width",
+          "description": "Sweep width / depth of the flanger.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Feedback",
+          "description": "Feedback around the delay line — more intense resonance.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/modulation",
+      "file": "flanger",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/modulation/flanger.spn"
+    },
+    {
+      "id": "harmonic-tremolo",
+      "name": "Harmonic Tremolo",
+      "version": "1.0.0",
+      "description": "A two-band tremolo that splits the signal into high and low bands and modulates them out of phase, producing the classic brown-panel harmonic tremolo sound.",
+      "category": "Modulation",
+      "tags": [
+        "tremolo",
+        "harmonic",
+        "modulation",
+        "vintage"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Rate",
+          "description": "Tremolo LFO rate.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Depth",
+          "description": "Amount of amplitude modulation applied to each band.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Cutoff Freq",
+          "description": "Crossover frequency between the high-band and low-band.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/modulation",
+      "file": "harmonic-tremolo",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/modulation/harmonic-tremolo.spn"
+    },
+    {
+      "id": "chorus",
+      "name": "Chorus",
+      "version": "1.0.0",
+      "description": "A classic single-voice chorus with adjustable speed, depth, and feedback for rich, swirling modulation.",
+      "category": "Pitch / Chorus",
+      "tags": [
+        "chorus",
+        "modulation"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Speed",
+          "description": "LFO rate of the chorus modulation.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Depth",
+          "description": "Amount of pitch modulation.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Feedback",
+          "description": "Feedback for more intense modulation.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/pitch_chorus",
+      "file": "chorus",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/pitch_chorus/chorus.spn"
+    },
+    {
+      "id": "fourth-fifth-chorus",
+      "name": "Fourth & Fifth Chorus",
+      "version": "1.0.0",
+      "description": "Perfect fourth and perfect fifth pitch shifting blended with chorus modulation for power-chord-style harmonies.",
+      "category": "Pitch / Chorus",
+      "tags": [
+        "pitch-shift",
+        "harmony",
+        "chorus",
+        "modulation",
+        "intervals"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Chorus Speed",
+          "description": "Chorus modulation speed.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Fourth Level",
+          "description": "Level of the perfect fourth above voice.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Fifth Level",
+          "description": "Level of the perfect fifth above voice.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/pitch_chorus",
+      "file": "fourth-fifth-chorus",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/pitch_chorus/fourth-fifth-chorus.spn"
+    },
+    {
+      "id": "multi-voice-chorus",
+      "name": "Multi-Voice Chorus",
+      "version": "1.0.0",
+      "description": "A lush four-voice chorus with adjustable speed, depth, and feedback. Produces a thick, shimmering ensemble effect.",
+      "category": "Pitch / Chorus",
+      "tags": [
+        "chorus",
+        "modulation",
+        "multi-voice",
+        "ensemble"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Speed",
+          "description": "LFO rate of the chorus modulation.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Depth",
+          "description": "Amount of pitch modulation.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Feedback",
+          "description": "Feedback for more intense modulation.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/pitch_chorus",
+      "file": "multi-voice-chorus",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/pitch_chorus/multi-voice-chorus.spn"
+    },
+    {
+      "id": "octave-chorus",
+      "name": "Octave Chorus",
+      "version": "1.0.0",
+      "description": "Simultaneous octave-up and octave-down pitch shifting blended with chorus modulation. A single knob controls both octave voices together.",
+      "category": "Pitch / Chorus",
+      "tags": [
+        "pitch-shift",
+        "octave",
+        "chorus",
+        "modulation",
+        "harmony"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Speed",
+          "description": "Chorus modulation speed.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Depth",
+          "description": "Chorus modulation depth.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Octave Level",
+          "description": "Combined octave up and down signal level.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/pitch_chorus",
+      "file": "octave-chorus",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/pitch_chorus/octave-chorus.spn"
+    },
+    {
+      "id": "octave-chorus-split",
+      "name": "Octave Chorus Split",
+      "version": "1.0.0",
+      "description": "Octave-up and octave-down pitch shifting with chorus, where each octave voice has its own independent level control.",
+      "category": "Pitch / Chorus",
+      "tags": [
+        "pitch-shift",
+        "octave",
+        "chorus",
+        "modulation",
+        "harmony"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Chorus Speed",
+          "description": "Chorus modulation speed.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Octave Up Level",
+          "description": "Level of the octave-up voice.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Octave Down Level",
+          "description": "Level of the octave-down voice.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/pitch_chorus",
+      "file": "octave-chorus-split",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/pitch_chorus/octave-chorus-split.spn"
+    },
+    {
+      "id": "octave-flanger",
+      "name": "Octave Flanger",
+      "version": "1.0.0",
+      "description": "Octave-up and octave-down pitch shifting combined with a flanger for a metallic, sweeping harmonic texture.",
+      "category": "Pitch / Chorus",
+      "tags": [
+        "pitch-shift",
+        "octave",
+        "flanger",
+        "modulation",
+        "harmony"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Flanger Speed",
+          "description": "Flanger modulation speed.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Octave Up Level",
+          "description": "Level of the octave-up voice.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Octave Down Level",
+          "description": "Level of the octave-down voice.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/pitch_chorus",
+      "file": "octave-flanger",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/pitch_chorus/octave-flanger.spn"
+    },
+    {
+      "id": "octave-multi-chorus",
+      "name": "Octave Multi-Voice Chorus",
+      "version": "1.0.0",
+      "description": "Octave-up and octave-down pitch shifting combined with a lush four-voice chorus for a massive, textured sound.",
+      "category": "Pitch / Chorus",
+      "tags": [
+        "pitch-shift",
+        "octave",
+        "chorus",
+        "multi-voice",
+        "harmony"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Chorus Speed",
+          "description": "Multi-voice chorus modulation speed.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Octave Up Level",
+          "description": "Level of the octave-up voice.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Octave Down Level",
+          "description": "Level of the octave-down voice.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/pitch_chorus",
+      "file": "octave-multi-chorus",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/pitch_chorus/octave-multi-chorus.spn"
+    },
+    {
+      "id": "third-fifth-chorus",
+      "name": "Third & Fifth Chorus",
+      "version": "1.0.0",
+      "description": "Major third and perfect fifth pitch shifting blended with chorus modulation for rich, harmonized textures.",
+      "category": "Pitch / Chorus",
+      "tags": [
+        "pitch-shift",
+        "harmony",
+        "chorus",
+        "modulation",
+        "intervals"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Chorus Speed",
+          "description": "Chorus modulation speed.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Third Level",
+          "description": "Level of the major third above voice.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Fifth Level",
+          "description": "Level of the perfect fifth above voice.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/pitch_chorus",
+      "file": "third-fifth-chorus",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/pitch_chorus/third-fifth-chorus.spn"
+    },
+    {
+      "id": "cascaded-reverb",
+      "name": "Cascaded Reverb",
+      "version": "1.0.0",
+      "description": "A reverb built from three cascaded delay lines with adjustable damping, producing a dense and diffuse sound field.",
+      "category": "Reverb",
+      "tags": [
+        "reverb",
+        "cascaded",
+        "diffuse",
+        "experimental"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Delay",
+          "description": "Base delay time for the cascaded lines.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Repeats",
+          "description": "Feedback amount — density of the reverb.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Damping",
+          "description": "High-frequency loss in the feedback path.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/reverb",
+      "file": "cascaded-reverb",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/reverb/cascaded-reverb.spn"
+    },
+    {
+      "id": "hall-reverb",
+      "name": "Hall Reverb",
+      "version": "1.0.0",
+      "description": "A classic hall reverb with a spacious, immersive sound. Ideal for adding depth and grandeur to any instrument.",
+      "category": "Reverb",
+      "tags": [
+        "reverb",
+        "hall",
+        "ambience",
+        "spacious"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Pre-delay",
+          "description": "Delay before the reverb tail starts.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Reverb Time",
+          "description": "Length of the reverb tail.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Mix",
+          "description": "Blend between dry and wet signal.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/reverb",
+      "file": "hall-reverb",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/reverb/hall-reverb.spn"
+    },
+    {
+      "id": "mn3011-reverb",
+      "name": "MN3011 Reverb",
+      "version": "1.0.0",
+      "description": "An emulation of a classic BBD 'reverb' using the MN3011 bucket-brigade device model. Produces a warm, lo-fi reverb character with analog coloration.",
+      "category": "Reverb",
+      "tags": [
+        "reverb",
+        "bbd",
+        "analog",
+        "lo-fi",
+        "vintage"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Delay",
+          "description": "Delay time.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Repeats",
+          "description": "Feedback amount — density of the reverb.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Mix",
+          "description": "Blend between dry and wet signal.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/reverb",
+      "file": "mn3011-reverb",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/reverb/mn3011-reverb.spn"
+    },
+    {
+      "id": "plate-reverb",
+      "name": "Plate Reverb",
+      "version": "1.0.0",
+      "description": "A classic plate reverb derived from the Jon Dattorro design. Dense, smooth, and musically resonant with adjustable damping and decay.",
+      "category": "Reverb",
+      "tags": [
+        "reverb",
+        "plate",
+        "studio",
+        "dense"
+      ],
+      "author": "Jon Dattorro, mdroberts1243, Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Damping",
+          "description": "High-frequency loss in the reverb tank.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Reverb Time",
+          "description": "Length of the reverb decay.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Mix",
+          "description": "Blend between dry and wet signal.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/reverb",
+      "file": "plate-reverb",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/reverb/plate-reverb.spn"
+    },
+    {
+      "id": "room-reverb",
+      "name": "Room Reverb",
+      "version": "1.0.0",
+      "description": "A warm, natural-sounding small-room reverb. Great for adding subtle space to clean tones.",
+      "category": "Reverb",
+      "tags": [
+        "reverb",
+        "room",
+        "ambience"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Pre-delay",
+          "description": "Delay before the reverb tail starts.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Time",
+          "description": "Length of the reverb tail.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Mix",
+          "description": "Blend between dry and wet signal.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/reverb",
+      "file": "room-reverb",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/reverb/room-reverb.spn"
+    },
+    {
+      "id": "shimmer-reverb",
+      "name": "Shimmer Reverb",
+      "version": "1.0.0",
+      "description": "A lush reverb with an octave-up pitch-shifted shimmer effect that builds slowly over time. Produces ethereal, atmospheric textures with up to 10 seconds of reverb time.",
+      "category": "Reverb",
+      "tags": [
+        "reverb",
+        "shimmer",
+        "pitch-shift",
+        "ambient",
+        "ethereal"
+      ],
+      "author": "DrAlx, Mick Taylor, Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Treble",
+          "description": "Amount of treble in the reverb loop.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Reverb Time",
+          "description": "Length of the reverb decay (0–10 s).",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Shimmer Level",
+          "description": "Amount of octave-up shimmer effect.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/reverb",
+      "file": "shimmer-reverb",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/reverb/shimmer-reverb.spn"
+    },
+    {
+      "id": "spring-reverb",
+      "name": "Spring Reverb",
+      "version": "1.0.0",
+      "description": "A classic spring reverb with the characteristic 'boingy' dispersion chirp of a real spring tank, inspired by the Fender 6G15. Features spectral delay filtering for authentic spring character.",
+      "category": "Reverb",
+      "tags": [
+        "reverb",
+        "spring",
+        "vintage",
+        "surf"
+      ],
+      "author": "Don Stavely, Mick Taylor, Audiofab",
+      "license": "Not for commercial use",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Tone",
+          "description": "Post-reverb tone shaping.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Reverb Time",
+          "description": "Length of the reverb decay.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Mix",
+          "description": "Blend between dry and wet signal.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/reverb",
+      "file": "spring-reverb",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/reverb/spring-reverb.spn"
+    },
+    {
+      "id": "three-tap-reverb",
+      "name": "Three Tap Reverb",
+      "version": "1.0.0",
+      "description": "A reverb based on a three-tap delay with chirp allpass diffusion, producing a smooth and natural reverberant space.",
+      "category": "Reverb",
+      "tags": [
+        "reverb",
+        "multi-tap",
+        "diffuse",
+        "ambience"
+      ],
+      "author": "Audiofab",
+      "hasSource": true,
+      "controls": [
+        {
+          "pot": 0,
+          "name": "Delay",
+          "description": "Base delay time.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 1,
+          "name": "Repeats",
+          "description": "Feedback amount — density of the reverb.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        },
+        {
+          "pot": 2,
+          "name": "Mix",
+          "description": "Blend between dry and wet signal.",
+          "unit": "",
+          "range": [
+            0,
+            1
+          ]
+        }
+      ],
+      "directoryPath": "effects/reverb",
+      "file": "three-tap-reverb",
+      "format": "spn",
+      "formats": [
+        "spn",
+        "spndiagram"
+      ],
+      "sourceUrl": "https://github.com/audiofab/easy-spin-effects/blob/main/effects/reverb/three-tap-reverb.spn"
+    }
+  ]
+}

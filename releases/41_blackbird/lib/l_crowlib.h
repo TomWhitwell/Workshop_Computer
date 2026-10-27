@@ -14,6 +14,16 @@ void l_crowlib_emptyinit(lua_State* L);
 // execute crow.reset() which reverts state of all modules to default
 int l_crowlib_crow_reset( lua_State* L );
 
+// The script's globals: _G's __newindex records each new one in _user
+// (install once, at boot); clear_user_globals deletes them all and starts a
+// fresh _user. Neither compiles Lua, and the clear doesn't allocate (only the
+// new _user table), so they work even when the Lua heap is full.
+void l_crowlib_install_user_tracer( lua_State* L );
+void l_crowlib_clear_user_globals( lua_State* L );
+
+// Install ii.self's default actions (volts, slew, ...), if ii is loaded
+void l_crowlib_ii_follow_defaults( lua_State* L );
+
 int l_crowlib_justvolts(lua_State *L);
 int l_crowlib_just12(lua_State *L);
 int l_crowlib_hztovolts(lua_State *L);

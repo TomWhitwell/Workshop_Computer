@@ -1,0 +1,15 @@
+{
+  "id": "chorus",
+  "name": "Chorus",
+  "version": "1.0.0",
+  "description": "A classic single-voice chorus with adjustable speed, depth, and feedback for rich, swirling modulation.",
+  "category": "Pitch / Chorus",
+  "tags": ["chorus", "modulation"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Speed",    "description": "LFO rate of the chorus modulation.",     "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Depth",    "description": "Amount of pitch modulation.",            "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Feedback", "description": "Feedback for more intense modulation.",  "unit": "", "range": [0, 1] }
+  ]
+}

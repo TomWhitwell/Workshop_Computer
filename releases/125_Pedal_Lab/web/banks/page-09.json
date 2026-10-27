@@ -1,0 +1,35 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-crusher",
+    "source": "algorithms/ready/directory-crusher.spn",
+    "instructions": 11,
+    "sha256": "0b6088147d96003d932c0592bfb301e444e552d2c1b69cf6b6071baee6af4af2",
+    "id": "directory-crusher",
+    "author": "Frank Thomson",
+    "description": "Bitcrusher program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/crusher.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=343",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Bit crusher",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 262144,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

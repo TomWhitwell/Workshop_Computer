@@ -1,4 +1,5 @@
 #include "clock_ll.h"
+#include "pico.h" // __not_in_flash_func
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,14 +37,14 @@ void ll_cleanup(void){
 }
 
 // pop the head of the provided list
-clock_node_t* ll_pop(clock_node_t** head){
+clock_node_t* __not_in_flash_func(ll_pop)(clock_node_t** head){
     if(!*head) return NULL;
     clock_node_t* old_head = *head; // the orphaned head
     *head = old_head->next; // update the head of the provided list
     return old_head; // return the orphaned node
 }
 
-void ll_insert_idle(clock_node_t* node){
+void __not_in_flash_func(ll_insert_idle)(clock_node_t* node){
     // push the provided node onto the idle_head ll
     clock_node_t* old_idle_head = idle_head;
     idle_head = node;

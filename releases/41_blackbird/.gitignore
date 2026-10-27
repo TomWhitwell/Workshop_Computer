@@ -1,5 +1,10 @@
 build/*
+/build-*/
 .vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
 TODO
 druid.log
 *.pptx
+__pycache__/
+tests/.cache/

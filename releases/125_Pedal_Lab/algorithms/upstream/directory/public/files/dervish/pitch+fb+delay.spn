@@ -1,0 +1,129 @@
+; Stereo pitch transposer with feedback & delay
+; based on Spin ROM pitch shifter code
+;
+; feedback & delay added by Graham Biswell, graham@gbiswell.com
+;
+;       ********************
+; --pn "St PitchShift+FB+Dly"
+; --pt1 "Pitch shift"
+; --pt2 "Feedback"
+; --pt3 "Delay Time"
+
+equ	PSDelayLen	4096		; length of delay
+equ	DelayLen	10240		; length of delay
+
+mem	psdlyl		PSDelayLen	; left pitch shift delay
+mem	psdlyr		PSDelayLen	; right pitch shift delay
+
+mem	fbdlyl		DelayLen	; left feedback delay
+mem	fbdlyr		DelayLen	; right feedback delay
+
+mem	dtemp		1		; temporary DRAM data location
+
+equ	smooth		0.001
+
+; pots
+equ	ShiftPot	pot0
+equ	FbackPot	pot1
+equ	DelayPot	pot2
+
+equ	pitchshift	reg0
+equ	feedback	reg1
+equ	offset		reg2
+equ	DelayAmt	reg3
+equ	temp		reg4
+equ	lpfl		reg5
+equ	lpfr		reg6
+equ	hpfl		reg7
+equ	hpfr		reg8
+
+; init
+skp	RUN, LOOP
+wldr 	0, 0, 4096			; Load up ramp0 LFO to shift up 0 octaves, A=0x0 (4096 range)
+LOOP:
+
+;***********************************
+; pots
+; pitch shift pot
+rdax 	ShiftPot, 1
+sof 	0.25, -0.125			; control ranges +/-0.125
+rdfx 	pitchshift, smooth
+wrax  	pitchshift, 1
+wrax 	rmp0_rate, 0
+
+; read feedback level pot
+rdax	FbackPot, 1
+rdfx	feedback, smooth
+wrax	feedback, 0
+
+; delay time pot
+rdax	DelayPot, 1
+sof	0.99, 0.01
+wrax	temp, 0
+or	PSDelayLen * 256
+mulx	temp
+rdfx	offset, smooth
+wrax	offset, 0
+
+;***********************************
+; mix damped signal from feedback delays with dry signal from ADC write to pitch shift delay
+; left feedback delay
+or	fbdlyl * 256
+rdax	offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+; feedback amount set by pot
+mulx	feedback
+; damping
+rdfx	lpfl, 0.6
+wrlx	lpfl, -0.5
+rdfx	hpfl, 0.01
+wrhx	hpfl, -0.4
+; add dry signal
+rdax 	adcl, 1
+;write to delay start
+wra 	psdlyl, 0
+
+; right feedback delay
+or	fbdlyr * 256
+rdax	offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+; feedback amount set by pot
+mulx	feedback
+; damping
+rdfx	lpfr, 0.6
+wrlx	lpfr, -0.5
+rdfx	hpfr, 0.01
+wrhx	hpfr, -0.4
+; add dry signal
+rdax 	adcr, 1
+wra 	psdlyr, 0
+
+;***********************************
+; We use the base of the sample memory block as the
+; address since we are using a positive only ramp
+; that ranges 0 to 1.0 (4095 in this case)
+; left chan:
+cho 	rda, rmp0, reg|compc, psdlyl	; (1-k)*sample[addr]
+cho 	rda, rmp0, 0, psdlyl+1		; k*sample[addr+1] + ACC
+wra 	dtemp, 0			; Save it off to memory and clear ACC
+cho 	rda, rmp0, rptr2|compc, psdlyl	; (1-k)*sample[addr+ half ramp]
+cho 	rda, rmp0, rptr2, psdlyl+1	; k*sample[addr+ half ramp + 1] + ACC
+cho 	sof, rmp0, na|compc, 0		; Result in ACC, multiply it by (1-XFADE) coefficient
+cho 	rda, rmp0, na, dtemp		; Add in earlier value saved in memory, multiply saved value by XFADE coefficient
+wra	fbdlyl, 1
+wrax 	dacl, 0
+
+;***********************************************************
+;now do right chan:
+cho 	rda, rmp0, compc, psdlyr
+cho 	rda, rmp0, 0, psdlyr+1
+wra 	dtemp, 0
+cho 	rda, rmp0, rptr2|compc, psdlyr
+cho 	rda,rmp0, rptr2, psdlyr+1
+cho 	sof, rmp0, na|compc, 0
+cho 	rda, rmp0, na, dtemp
+wra	fbdlyr, 1
+wrax 	dacr, 0
+

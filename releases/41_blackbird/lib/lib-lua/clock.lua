@@ -6,6 +6,22 @@ local clock = { threads = {}
               , id = 0
               }
 
+local source_map = {
+  auto = 0,
+  internal = 1,
+  midi = 2,
+  link = 3,
+  crow = 4,
+}
+
+local source_names = {
+  [0] = 'auto',
+  [1] = 'internal',
+  [2] = 'midi',
+  [3] = 'link',
+  [4] = 'crow',
+}
+
 --- create a coroutine to run but do not immediately run it;
 -- @tparam function f
 -- @treturn integer : coroutine ID that can be used to resume/stop it later
@@ -128,10 +144,27 @@ function clock_start_handler() if clock.transport.start then clock.transport.sta
 function clock_stop_handler()  if clock.transport.stop then clock.transport.stop() end end
 
 clock.__newindex = function(self, ix, val)
-    if ix == 'tempo' then clock_internal_set_tempo(val) end
+  if ix == 'tempo' then
+    clock_internal_set_tempo(val)
+  elseif ix == 'source' then
+    if type(val) == 'string' then
+      val = source_map[val]
+    end
+
+    if val == nil then
+      error('clock.source must be string or number')
+    end
+
+    clock_set_source(val)
+  end
 end
 clock.__index = function(self, ix)
-    if ix == 'tempo' then return clock_get_tempo() end
+  if ix == 'tempo' then
+    return clock_get_tempo()
+  elseif ix == 'source' then
+    local src = clock_get_source() or 1
+    return source_names[src] or src
+  end
 end
 
 setmetatable(clock, clock)

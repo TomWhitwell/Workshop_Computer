@@ -1,0 +1,15 @@
+{
+  "id": "cascaded-reverb",
+  "name": "Cascaded Reverb",
+  "version": "1.0.0",
+  "description": "A reverb built from three cascaded delay lines with adjustable damping, producing a dense and diffuse sound field.",
+  "category": "Reverb",
+  "tags": ["reverb", "cascaded", "diffuse", "experimental"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Delay",   "description": "Base delay time for the cascaded lines.", "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Repeats", "description": "Feedback amount — density of the reverb.", "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Damping", "description": "High-frequency loss in the feedback path.", "unit": "", "range": [0, 1] }
+  ]
+}

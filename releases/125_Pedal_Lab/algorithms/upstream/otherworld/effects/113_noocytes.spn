@@ -1,0 +1,178 @@
+; @name Noocytes
+; @tagline A note becomes a living cell that buzzes, eats the music around it until it is a whole mirrored loop, then rises out of hearing
+; @description The first note you play infects the loop: its first sixteenth of
+; @description a turn is caught as a cell, a tiny frozen loop that buzzes forwards
+; @description on the left and backwards on the right. The cell lives on your
+; @description notes: every note feeds it, and while it is fed it divides every turn
+; @description into a cell twice as long, swallowing the music that followed it, so
+; @description the buzz slows into a flutter, a trill, a looping figure and finally
+; @description a whole mirrored phrase made of everything you played. Starved, it dies
+; @description where it is. Full grown it stops eating and lives on its store, one
+; @description whole turn after another, while notes that land inside it are absorbed.
+; @description When the store runs out it transcends: up an octave, then up another,
+; @description and it is gone. A beat of silence, and the next note starts a new
+; @description infection. Food decides its fate, from a buzz that starves at once to an
+; @description organism that grows huge and lives for seconds; Body sets its size, from
+; @description a tiny fast creature to a slow one a whole second long.
+; @pots Body | Food | Rise
+; @render 0.6, 0.4, 1.0
+; @time POT0 0.3 0.95 lin
+; @components onset infection, frozen cell loop that doubles while fed (stutter to phrase), forward and mirrored readers, notes deposited into the cell, a food store with starvation, octave-up ascent, purge and a beat of silence
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	pack	32000		; the loop, up to 0.95 s
+
+equ	hpf	reg1		; onset high-pass state: its low-pass part is the input we store
+equ	ef	reg2
+equ	es	reg3
+equ	hold	reg4		; 1 on a note, decays (tau 0.25 s): hold-off and deposit gain
+equ	ms	reg5		; pack mix: 0 frozen .. 1 echo, plus the deposit, smoothed (~1.5 ms)
+equ	Lp	reg6		; loop length (ADDR units = seconds), latched at each infection
+equ	phi	reg7		; loop phase since the infection
+equ	psi	reg8		; organism read phase in [0, W); after a purge, the beat of silence (-0.5 .. 0)
+equ	food	reg9
+equ	W	reg10		; organism length: 0 = none, Lp/16 .. Lp
+equ	inc	reg11		; read speed x 2^-15 (one sample per sample): 1, then 2 and 4 in the ascent
+equ	win	reg12		; seam window (0 when there is no organism)
+equ	old	reg13		; the pack one turn ago
+equ	wm	reg14		; right window: win x a dip where the mirror crosses the write head
+
+; ---- input and onsets
+	rdax	adcl, 0.32
+	rdax	adcr, 0.32
+	rdfx	hpf, 0.25
+	wrhx	hpf, -1.0
+	absa
+	rdfx	ef, 0.012
+	wrax	ef, 1.0
+	rdfx	es, 0.001
+	wrax	es, 1.6
+	rdax	ef, -1.0
+	skp	gez, noon
+	ldax	hold
+	sof	1.0, -0.7
+	skp	gez, noon
+	sof	0, 0.999
+	wrax	hold, 0
+	ldax	psi			; psi - W < 0 while it lives and during the beat of
+	rdax	W, -1.0			; silence after a purge
+	skp	neg, feed
+	ldax	pot0			; infection: the loop length is latched, a cell of Lp/16
+	sof	0.65, 0.3		; starts at this note
+	wrax	Lp, 0.0625
+	wrax	W, 0.5			; and a small store of food to start with (W/2)
+	wrax	food, 0
+	wrax	psi, 0
+	wrax	phi, 0
+feed:	ldax	Lp			; every note feeds it Food^2 x (Lp - W): less as it
+	rdax	W, -1.0			; grows, nothing once it is full
+	mulx	pot1
+	mulx	pot1
+	rdax	food, 1.0
+	wrax	food, 0
+noon:	ldax	hold
+	sof	0.99988, 0
+	wrax	hold, 0
+	skp	run, phase		; the first sample after loading: no organism, normal
+	skp	zro, unborn		; speed (whatever the previous program left)
+; ---- loop phase
+phase:	or	$000100			; one sample, 2^-15 (ACC is 0 here)
+	rdax	phi, 1.0
+	wrax	phi, 1.0
+	rdax	Lp, -1.0
+	skp	neg, p_ok
+	wrax	phi, 0
+; ---- organism phase; at each turn: burn food, divide while fed or starve, live on the
+;      store when full grown, then ascend in octaves and purge
+p_ok:	ldax	psi
+	rdax	inc, 1.0
+	wrax	psi, 1.0
+	rdax	W, -1.0
+	skp	neg, r_ok
+	wrax	psi, 0
+	ldax	W			; every turn burns 0.25 W: 0.25 food per second of life
+	sof	-0.25, 0
+	rdax	food, 1.0
+	wrax	food, 0
+	ldax	Lp
+	sof	-0.99, -0.0009765625	; full grown? (never while nothing has been infected)
+	rdax	W, 1.0
+	skp	gez, full
+	ldax	food			; growing: while fed it divides every turn (exact
+	skp	neg, purge		; doubling), eating what followed it; starved, it dies
+	ldax	W
+	rdax	W, 1.0
+	wrax	W, 0
+	skp	zro, r_ok
+full:	ldax	food			; full grown: it lives on its store, then rises
+	skp	gez, r_ok
+	ldax	inc			; store spent: an octave up per turn (exact)
+	rdax	inc, 1.0
+	wrax	inc, 1.0
+	log	-0.79248, -0.732422	; Rise: 2x if Rise > 0.33, 4x if Rise > 0.75
+	rdax	pot2, 0.1174
+	skp	gez, r_ok
+purge:	sof	0, -0.5			; purge: no organism, a beat of silence
+	wrax	psi, -0.05
+	wrax	food, 0			; (a small store, so the empty state never starves)
+unborn:	wrax	W, 0
+	or	$000100			; normal speed
+	wrax	inc, 0
+r_ok:
+; ---- window: 8 ms fades at both ends of each turn
+	ldax	psi
+	rdax	W, -0.5
+	absa
+	rdax	W, -0.5
+	skp	neg, w_ok		; positive only when there is no organism: exactly silent
+	clr
+	skp	zro, w_wr
+w_ok:	log	1.0, 0.4375
+	exp	1.0, 0
+w_wr:	wrax	win, 0
+; ---- the pack, written before the readers so that offset 0 is this sample: frozen
+;      inside the organism (notes deposit into it), an echo outside. The mix ms is
+;      smoothed in time (tau ~1.5 ms), so a division, infection or purge never writes
+;      a splice into it.
+	ldax	phi
+	rdax	W, -1.0
+	skp	gez, edge		; outside the organism: 2^(16 u) rails at 1 (echo)
+	sof	0, -1.0			; inside: 2^-16 (frozen)
+edge:	exp	1.0, 0
+	rdax	hold, 1.0
+	rdfx	ms, 0.02
+	wrax	ms, 0
+	ldax	Lp
+	wrax	addr_ptr, 0
+	rmpa	1.0
+	wrax	old, -0.5
+	rdax	hpf, 1.0
+	mulx	ms
+	rdax	old, 1.0
+	wra	pack, 0
+; ---- forward reader (left) and mirrored reader (right)
+	ldax	phi
+	rdax	psi, -1.0
+	skp	gez, f_ok
+	rdax	Lp, 1.0
+f_ok:	wrax	addr_ptr, 0
+	rmpa	1.46
+	mulx	win
+	wrax	dacl, 0
+	ldax	psi
+	rdax	W, -1.0
+	rdax	phi, 1.0
+	skp	gez, b_ok
+	rdax	Lp, 1.0
+b_ok:	wrax	addr_ptr, 1.0
+	rdax	Lp, -0.5		; 2 ms fades where it crosses the write head (a note
+	absa				; being deposited there would otherwise click)
+	rdax	Lp, -0.5
+	log	1.0, 0.5
+	exp	1.0, 0
+	mulx	win
+	wrax	wm, 0
+	rmpa	1.46
+	mulx	wm
+	wrax	dacr, 0

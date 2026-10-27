@@ -3,6 +3,25 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h> // floorf
+#include "sample_rate.h"
+
+// Volts to Q16.16 for the slope engine, saturating (a plain cast of anything
+// beyond +/-32768 would wrap)
+static q16_t volts_to_q16( float v )
+{
+    if( v >= 32767.0f ){ return 32767 << Q16_SHIFT; }
+    if( v <= -32768.0f ){ return INT32_MIN; }
+    return FLOAT_TO_Q16(v);
+}
+
+// Seconds to samples in Q16 (64 bits), for the slope engine. 0 or less (or
+// NaN) is instant; capped at ~1 year
+static int64_t seconds_to_samples_q16( float seconds )
+{
+    if( !(seconds > 0.0f) ){ return 0; }
+    if( seconds > 3.0e7f ){ seconds = 3.0e7f; }
+    return (int64_t)(seconds * ((float)PROCESS_SAMPLE_RATE_HZ_INT * (float)Q16_ONE));
+}
 
 // TODO
 // add sequins data type
@@ -32,6 +51,12 @@ Casl* casl_init( int index )
 
     self->holding = false;
     self->locked = false;
+
+    self->seq_sent = 0;
+    self->queued_valid = false;
+    self->queued_seq = 0;
+    self->queued_lookahead = false;
+    self->queued_done = false;
 
     return self;
 }
@@ -71,6 +96,15 @@ static void seq_append( Casl* self, To* t )
 
 static void parse_table( Casl* self, lua_State* L );
 static To* to_alloc( Casl* self );
+// Set while casl_describe parses: the Lua collector can run inside it, and
+// drains queued slope callbacks (main.cpp), which mustn't step this casl
+// half-described. Core 0 only.
+// (A Lua error while parsing, from luaL_check*, skips the reset: the main
+// loop calls casl_describing_clear outside Lua, where it can't be set.)
+static bool _describing = false;
+bool casl_describing( void ){ return _describing; }
+void casl_describing_clear( void ){ _describing = false; }
+
 void casl_describe( int index, lua_State* L )
 {
     if(index < 0 || index >= SELVES_COUNT){
@@ -92,15 +126,17 @@ void casl_describe( int index, lua_State* L )
 
     // Check if table is empty before parsing
     if (lua_rawlen(L, -1) > 0) {
+        _describing = true;
         parse_table(self, L);
+        _describing = false;
     }
     // seq_exit(self)? // i think we want to start inside the first Seq anyway
 }
 
-void casl_describe_to_literal_q16( int index, q16_t volts_q16, q16_t seconds_q16, Shape_t shape )
+void casl_describe_to_literal( int index, float volts, float seconds, Shape_t shape )
 {
     if(index < 0 || index >= SELVES_COUNT){
-        printf("casl_describe_to_literal_q16: invalid index %d (valid 0..%d)\n", index, SELVES_COUNT-1);
+        printf("casl_describe_to_literal: invalid index %d (valid 0..%d)\n", index, SELVES_COUNT-1);
         return;
     }
     Casl* self = _selves[index];
@@ -121,10 +157,10 @@ void casl_describe_to_literal_q16( int index, q16_t volts_q16, q16_t seconds_q16
         return;
     }
     t->ctrl = ToLiteral;
-    t->a.type = ElemT_Fixed;
-    t->a.obj.q = volts_q16;
-    t->b.type = ElemT_Fixed;
-    t->b.obj.q = seconds_q16;
+    t->a.type = ElemT_Float;
+    t->a.obj.f = volts;
+    t->b.type = ElemT_Float;
+    t->b.obj.f = seconds;
     t->c.type = ElemT_Shape;
     t->c.obj.shape = shape;
 
@@ -269,14 +305,14 @@ static void capture_elem( Casl* self, Elem* e, lua_State* L, int ix )
     switch( ix_type(L, ix) ){ // type of table elem
         case LUA_TNUMBER:{
             float f = ix_num(L, ix);
-            e->obj.q = FLOAT_TO_Q16(f);  // Convert float to Q16 at Lua boundary
-            e->type = ElemT_Fixed;
+            e->obj.f = f;
+            e->type = ElemT_Float;
             break;}
 
         case LUA_TBOOLEAN:{
             float f = ix_bool(L, ix);
-            e->obj.q = FLOAT_TO_Q16(f);  // Convert bool (as float) to Q16
-            e->type = ElemT_Fixed;
+            e->obj.f = f;
+            e->type = ElemT_Float;
             break;}
 
         case LUA_TSTRING:{
@@ -392,49 +428,117 @@ void casl_action( int index, int action )
     next_action(index);
 }
 
+// Segments shorter than this are looked ahead: each is queued while the
+// previous one runs (S_queue_next_q16), so core 1 starts it on the exact
+// sample. Starting each one only when core 0 heard the previous had ended
+// took 1-3 samples, varying, so audio-rate ASL jittered (heard as noise FM).
+// Longer segments still start when the previous ends, so their values are
+// read as late as before.
+#define LOOKAHEAD_MAX_SAMPLES_Q16 \
+    ((int64_t)(PROCESS_SAMPLE_RATE_HZ_INT * 20 / 1000) << Q16_SHIFT)  // 20ms
+
+extern void L_queue_asl_done(int channel);
+static void step( int index, bool queue );
+
+// Start the next segment now
 static void next_action( int index )
 {
     if(index < 0 || index >= SELVES_COUNT){ return; }
+    step(index, false);
+}
+
+// A (non-lookahead) segment ended: start the next, unless something newer
+// was sent since (a restart, or a segment queued behind it)
+static void on_slope_ended( int index, uint16_t seq )
+{
+    if(index < 0 || index >= SELVES_COUNT){ return; }
+    if( seq != _selves[index]->seq_sent ){ return; }
+    step(index, false);
+}
+
+// The queued segment started: queue the one after it, if it's lookahead
+static void on_slope_started( int index, uint16_t seq )
+{
+    if(index < 0 || index >= SELVES_COUNT){ return; }
     Casl* self = _selves[index];
+    if( !self->queued_valid || seq != self->queued_seq ){ return; } // stale
+    self->queued_valid = false;
+    if( self->queued_done ){ L_queue_asl_done(index); }
+    if( self->queued_lookahead ){ step(index, true); }
+}
+
+static void queue_next( Casl* self, int index
+                      , bool has_jump, q16_t jump_q16
+                      , bool has_slope, q16_t volts_q16, int64_t samples_q16, Shape_t shape
+                      , bool lookahead, bool done )
+{
+    uint16_t seq = ++self->seq_sent;
+    self->queued_valid = true;
+    self->queued_seq = seq;
+    self->queued_lookahead = has_slope && lookahead;
+    self->queued_done = done;
+    S_queue_next_q16( index, has_jump, jump_q16, has_slope, volts_q16, samples_q16, shape
+                    , seq, lookahead, &on_slope_started
+                    , (has_slope && !lookahead) ? &on_slope_ended : NULL );
+}
+
+// Run the sequence up to its next segment. queue false: start it now (and
+// any instant to()s on the way). queue true: queue it to follow the current
+// segment, with instant to()s on the way folded into a jump at its start;
+// the sequence waiting or ending is queued the same way, so it happens when
+// the current segment ends, not now.
+static void step( int index, bool queue )
+{
+    Casl* self = _selves[index];
+    bool has_jump = false;
+    q16_t jump_q16 = 0;
+    if( !queue ){ self->queued_valid = false; } // anything queued is replaced
 
     while(true){ // repeat until halt
         To* t = seq_advance(self);
         if(t){ // To is valid
             switch(t->ctrl){
                 case ToLiteral:{
-                    q16_t volts_q16 = resolve(self, &t->a).q;     // Q16.16 volts
-                    q16_t seconds_q16 = resolve(self, &t->b).q;   // Q16.16 seconds
-                    // Convert seconds to milliseconds: seconds * 1000
-                    q16_t ms_q16 = Q16_MUL(seconds_q16, FLOAT_TO_Q16(1000.0));
+                    q16_t volts_q16 = volts_to_q16(resolve(self, &t->a).f);
+                    // Seconds to samples, in 64 bits: via Q16.16 milliseconds (the
+                    // old path) anything over 32.8s overflowed, and long slopes
+                    // jumped or ran far too fast
+                    int64_t samples_q16 = seconds_to_samples_q16(resolve(self, &t->b).f);
+                    Shape_t shape = resolve(self, &t->c).shape;
 
                     // Coalesce only the simplest possible ASL: a single-stage `to(...)`.
                     // This is what `output[n].volts = x` generates, and it is safe to treat
                     // rapid updates as “last value wins” to avoid queue backlog.
-                    bool coalescable = false;
-                    if (self->seq_ix == 1 && self->seqs[0].length == 1 && self->seqs[0].stage[0] == t) {
-                        coalescable = true;
+                    bool coalescable = (self->seq_ix == 1 && self->seqs[0].length == 1
+                                        && self->seqs[0].stage[0] == t);
+
+                    if( samples_q16 <= 0 ){ // instant
+                        if( queue ){
+                            has_jump = true;
+                            jump_q16 = volts_q16;
+                        } else if( coalescable ){
+                            S_toward_samples_q16_coalescable(index, volts_q16, 0, shape, NULL);
+                        } else {
+                            S_toward_samples_q16(index, volts_q16, 0, shape, NULL);
+                        }
+                        break;
                     }
-                    
-                    if (coalescable) {
-                        S_toward_q16_coalescable( index
-                                                , volts_q16
-                                                , ms_q16
-                                                , resolve(self, &t->c).shape
-                                                , (ms_q16 > 0) ? &next_action : NULL
-                                                );
-                    } else {
-                        S_toward_q16( index
-                                    , volts_q16
-                                    , ms_q16
-                                    , resolve(self, &t->c).shape
-                                    , (ms_q16 > 0) ? &next_action : NULL
-                                    );
+
+                    bool lookahead = !coalescable && samples_q16 < LOOKAHEAD_MAX_SAMPLES_Q16;
+                    if( queue ){
+                        queue_next(self, index, has_jump, jump_q16, true, volts_q16, samples_q16, shape, lookahead, false);
+                        return;
                     }
-                    if(ms_q16 > 0){ return; } // wait for DSP callback before proceeding
-                    break;}
+                    uint16_t seq = ++self->seq_sent;
+                    S_toward_seq_q16( index, volts_q16, samples_q16, shape
+                                    , lookahead ? NULL : &on_slope_ended
+                                    , seq, lookahead, coalescable );
+                    if( lookahead ){ step(index, true); } // queue the one after
+                    return; // wait for the slope engine before proceeding
+                    }
 
                 case ToIf:{
-                    if( resolve(self, &t->a).q <= 0 ){ // Q16 comparison (0 is still 0 in Q16)
+                    if( resolve(self, &t->a).f <= 0.0f ){
                         goto stepup; // WARNING! ensuring only 1 path to asl_done event
                     }
                     break;}
@@ -442,7 +546,9 @@ static void next_action( int index )
                 case ToRecur:{  self->seq_current->pc = 0;    break;}
                 case ToEnter:   seq_down(self, t->a.obj.seq); break;
                 case ToHeld:{   self->holding = true;         break;}
-                case ToWait:    /* halt execution */    return;
+                case ToWait:    /* halt execution */
+                    if( queue ){ queue_next(self, index, has_jump, jump_q16, false, 0, 0, SHAPE_Linear, false, false); }
+                    return;
                 case ToUnheld:{ self->holding = false;        break;} // this is never executed, but here for reference
                 case ToLock:{   self->locked = true;          break;}
                 case ToOpen:{   self->locked = false;         break;}
@@ -451,9 +557,11 @@ static void next_action( int index )
 stepup:
             if( !seq_up(self) ){ // To invalid. Jump up. return if nothing left to do
                 // ASL sequence completed - trigger "done" callback via event system
-                // This is safe with the mailbox inter-core communication system
-                extern void L_queue_asl_done(int channel);
-                L_queue_asl_done(index);
+                if( queue ){
+                    queue_next(self, index, has_jump, jump_q16, false, 0, 0, SHAPE_Linear, false, true);
+                } else {
+                    L_queue_asl_done(index);
+                }
                 return;
             }
         }
@@ -483,7 +591,7 @@ static bool find_control( Casl* self, ToControl ctrl, bool full_search )
 
 // resolves behavioural types to a literal value
 static volatile uint16_t resolving_mutable; // tmp global var for cheaper recursive fn
-#define RESOLVE_VAR_Q16(self, e, n) _resolve(self, &self->dynamics[e->obj.var[n]] ).q
+#define RESOLVE_VAR(self, e, n) _resolve(self, &self->dynamics[e->obj.var[n]] ).f
 static ElemO _resolve( Casl* self, Elem* e )
 {
     switch( e->type ){
@@ -491,24 +599,17 @@ static ElemO _resolve( Casl* self, Elem* e )
         case ElemT_Mutable:{
             resolving_mutable = e->obj.var[0];
             return _resolve(self, &self->dynamics[e->obj.var[0]] );}
-        case ElemT_Negate: return (ElemO){.q = -RESOLVE_VAR_Q16(self,e,0)};
-        case ElemT_Add: return (ElemO){.q = RESOLVE_VAR_Q16(self,e,0) + RESOLVE_VAR_Q16(self,e,1)};
-        case ElemT_Sub: return (ElemO){.q = RESOLVE_VAR_Q16(self,e,0) - RESOLVE_VAR_Q16(self,e,1)};
-        case ElemT_Mul: return (ElemO){.q = Q16_MUL_SMALL(RESOLVE_VAR_Q16(self,e,0), RESOLVE_VAR_Q16(self,e,1))};
-        case ElemT_Div: return (ElemO){.q = Q16_DIV(RESOLVE_VAR_Q16(self,e,0), RESOLVE_VAR_Q16(self,e,1))};
-        case ElemT_Mod:{
-            // Q16.16 modulo operation
-            q16_t val_q16  = RESOLVE_VAR_Q16(self,e,0);
-            q16_t wrap_q16 = RESOLVE_VAR_Q16(self,e,1);
-            // Division: val / wrap, result in Q16
-            q16_t div_result = Q16_DIV(val_q16, wrap_q16);
-            // Floor: extract integer part by shifting down and back up
-            q16_t floored = (div_result >> Q16_SHIFT) << Q16_SHIFT;
-            // Multiply: floor * wrap
-            q16_t mul_result = Q16_MUL_SMALL(wrap_q16, floored);
-            return (ElemO){.q = val_q16 - mul_result};}
+        case ElemT_Negate: return (ElemO){.f = -RESOLVE_VAR(self,e,0)};
+        case ElemT_Add: return (ElemO){.f = RESOLVE_VAR(self,e,0) + RESOLVE_VAR(self,e,1)};
+        case ElemT_Sub: return (ElemO){.f = RESOLVE_VAR(self,e,0) - RESOLVE_VAR(self,e,1)};
+        case ElemT_Mul: return (ElemO){.f = RESOLVE_VAR(self,e,0) * RESOLVE_VAR(self,e,1)};
+        case ElemT_Div: return (ElemO){.f = RESOLVE_VAR(self,e,0) / RESOLVE_VAR(self,e,1)};
+        case ElemT_Mod:{ // floored, as crow (result takes the sign of wrap)
+            float val  = RESOLVE_VAR(self,e,0);
+            float wrap = RESOLVE_VAR(self,e,1);
+            return (ElemO){.f = val - wrap * floorf(val / wrap)};}
         case ElemT_Mutate:{
-            ElemO mutated = (ElemO){.q = RESOLVE_VAR_Q16(self,e,0)};
+            ElemO mutated = (ElemO){.f = RESOLVE_VAR(self,e,0)};
             if(resolving_mutable < DYN_COUNT){
                 self->dynamics[resolving_mutable].obj = mutated; // update value
                 resolving_mutable = DYN_COUNT; // mutation resolved!
@@ -517,7 +618,7 @@ static ElemO _resolve( Casl* self, Elem* e )
         default: return e->obj;
     }
 }
-#undef RESOLVE_VAR_Q16
+#undef RESOLVE_VAR
 
 // wrap _resolve with mutable resolution
 static ElemO resolve( Casl* self, Elem* e )
@@ -563,8 +664,8 @@ void casl_setdynamic( int index, int dynamic_ix, float val )
     if(index < 0 || index >= SELVES_COUNT){ return; }
     Casl* self = _selves[index];
 
-    self->dynamics[dynamic_ix].obj.q = FLOAT_TO_Q16(val);  // Convert float to Q16
-    self->dynamics[dynamic_ix].type  = ElemT_Fixed;
+    self->dynamics[dynamic_ix].obj.f = val;
+    self->dynamics[dynamic_ix].type  = ElemT_Float;
 }
 
 float casl_getdynamic( int index, int dynamic_ix )
@@ -573,8 +674,8 @@ float casl_getdynamic( int index, int dynamic_ix )
     Casl* self = _selves[index];
 
     switch(self->dynamics[dynamic_ix].type){
-        case ElemT_Fixed:
-            return Q16_TO_FLOAT(self->dynamics[dynamic_ix].obj.q);  // Convert Q16 to float
+        case ElemT_Float:
+            return self->dynamics[dynamic_ix].obj.f;
         default:
             printf("getdynamic! wrong type\n");
             return 0.0;

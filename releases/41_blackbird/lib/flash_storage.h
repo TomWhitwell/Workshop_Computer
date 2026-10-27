@@ -9,7 +9,12 @@
 #define MAX_SCRIPT_NAME_LEN  32                // Max length for script name
 #define USER_SCRIPT_SIZE     (16 * 1024 - 4 - MAX_SCRIPT_NAME_LEN)  // 16KB minus header
 #define USER_SCRIPT_SECTORS  4                 // 4 sectors @ 4KB each = 16KB
+
+// Prefer the Pico SDK-provided flash size when available.
+// Fallback to 2MB (RP2040 Pico default) if not defined by the board.
+#ifndef PICO_FLASH_SIZE_BYTES
 #define PICO_FLASH_SIZE_BYTES (2 * 1024 * 1024)
+#endif
 #define USER_SCRIPT_OFFSET    (PICO_FLASH_SIZE_BYTES - (USER_SCRIPT_SECTORS * 4096))
 #define USER_SCRIPT_LOCATION  (XIP_BASE + USER_SCRIPT_OFFSET)
 

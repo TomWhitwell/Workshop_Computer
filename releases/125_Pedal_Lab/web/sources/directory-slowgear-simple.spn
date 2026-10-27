@@ -1,0 +1,29 @@
+; Simple slow attach
+; by Alex MAK 
+; http://www.spinsemi.com/forum/viewtopic.php?f=4&t=174
+;equ   mono   reg0 
+equ   peak   reg1 
+equ   lev   reg2 
+equ   strike   reg3 
+
+rdax   adcl,1 
+absa 
+wrax   peak,0.8 
+rdax   lev,-1 
+skp   neg,nostrike 
+clr 
+wrax   strike,0 
+nostrike: 
+clr 
+rdax   peak,1 
+maxx   lev,0.999 
+wrax   lev,0 
+
+or   %00000000_00000001_00000000 
+rdax   strike,1      ;ramp strike if not a peak signal 
+wrax   strike,0 
+
+
+rdax adcl,1.0 ; Read ADC left 
+mulx   strike 
+wrax dacl,0 ; write to DAC left 
