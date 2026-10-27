@@ -27,8 +27,6 @@ tags:
 uf2:
   - path: UF2/blackbird.1.2.release.uf2
     name: Blackbird 1.2
-  - path: UF2/older versions/blackbird.1.1.release.uf2
-    name: Blackbird 1.1 (previous release)
 
 summary: |
   Blackbird runs crow-compatible Lua scripts over USB serial and can also store scripts on card flash.
