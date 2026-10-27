@@ -163,6 +163,14 @@ function cardNumber(id) {
   return String(id).split('_')[0];
 }
 
+// Some info.yaml Names repeat the card number ("124 Canon"); the site always
+// shows the number beside the title, so drop the duplicate prefix.
+function stripNumberPrefix(title, number) {
+  const match = String(title).match(/^0*(\d+)\s+(\S.*)$/);
+  if (!match || Number(match[1]) !== Number(number)) return title;
+  return match[2];
+}
+
 function titleizeId(id) {
   return String(id)
     .replace(/^\d+_?/, '')
@@ -543,7 +551,7 @@ export function buildCanonicalCardModel({
   const id = folderName;
   const number = cardNumber(id);
 
-  const title = requiredText(field(info, 'Name', 'Title'), warnings, 'Name', titleizeId(id));
+  const title = stripNumberPrefix(requiredText(field(info, 'Name', 'Title'), warnings, 'Name', titleizeId(id)), number);
   const releaseText = optionalText(field(info, 'release'), warnings, 'release');
   let version = optionalText(field(info, 'Version'), warnings, 'Version');
   if (!version && releaseText.includes('/')) version = releaseText.split('/')[1].trim();
