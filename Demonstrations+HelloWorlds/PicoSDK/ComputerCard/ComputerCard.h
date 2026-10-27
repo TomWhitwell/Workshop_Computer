@@ -45,6 +45,7 @@ SOFTWARE.
 #define COMPUTERCARD_H
 
 #include "hardware/gpio.h"
+#include "hardware/i2c.h"
 #include "hardware/pwm.h"
 
 #define PULSE_1_RAW_OUT 8
@@ -88,6 +89,24 @@ public:
 
 	/// Use before Run() to enable Connected/Disconnected detection
 	void EnableNormalisationProbe() {useNormProbe = true;}
+
+	/** \brief Use the UART pads for I2C, for example for ii (Teletype, crow).
+
+	    Moves the I2C0 peripheral from the calibration EEPROM, which the
+	    constructor has already read and which isn't needed after, to the
+	    (usually unpopulated) UART pads: TX = GPIO 0 = SDA, RX = GPIO 1 = SCL.
+	    Turns on the RP2040's internal pull-ups there, but they are too weak
+	    (50-80k) to run a bus: something else must pull the bus up, whether
+	    the Computer leads or follows. crow and Teletype do; otherwise fit
+	    about 2.2-4.7k from SDA and SCL to 3.3V. Pull-ups to 3.3V only, as
+	    the RP2040 isn't 5V tolerant.
+
+	    Call before Run(). The pads must be wired to an I2C bus, not to a UART
+	    partner, whose TX output would fight the bus driving SCL low.
+
+	    Returns i2c0, initialised at `baudrate` and ready to use.
+	*/
+	i2c_inst_t* EnableI2COverUART(uint32_t baudrate = 100 * 1000);
 	
 	static ComputerCard *ThisPtr() {return thisptr;}
 
@@ -573,8 +592,13 @@ private:
 #define PULSE_1_INPUT 2
 #define PULSE_2_INPUT 3
 
+// Debug outputs on the UART pads, set up only when ENABLE_DEBUG_PINS is defined
 #define DEBUG_1 0
 #define DEBUG_2 1
+
+// The UART pads as I2C0, with EnableI2COverUART()
+#define UART_I2C_SDA 0
+#define UART_I2C_SCL 1
 
 #define SPI_PORT spi0
 #define SPI_DREQ DREQ_SPI0_TX
@@ -1133,9 +1157,11 @@ ComputerCard::ComputerCard()
 	gpio_set_function(EEPROM_SCL, GPIO_FUNC_I2C);
 
 	
-	// If not using UART pins for UART, instead use as debug lines
-#ifndef ENABLE_UART_DEBUGGING
-	// Debug pins
+	// The UART pads (GPIO 0/1) are left as inputs, as the RP2040 resets them,
+	// unless a card asks for them as debug outputs. Driven (low) by default,
+	// they held SDA/SCL of an ii (I2C) bus wired to the pads low, jamming it
+	// for every other module while a card that doesn't use ii ran.
+#if defined(ENABLE_DEBUG_PINS) && !defined(ENABLE_UART_DEBUGGING)
 	gpio_init(DEBUG_1);
 	gpio_set_dir(DEBUG_1, GPIO_OUT);
 
@@ -1207,6 +1233,23 @@ int ComputerCard::ReadIntFromEEPROM(unsigned int eeAddress, bool &failed)
 	uint8_t lowByte = ReadByteFromEEPROM(eeAddress + 1, failed);
 
 	return (highByte << 8) | lowByte;
+}
+
+i2c_inst_t* ComputerCard::EnableI2COverUART(uint32_t baudrate)
+{
+	// The order matters. The I2C controller sees its pins' inputs combined, so
+	// the new pins (pulled up) join before the old ones leave, and the lines
+	// stay high. Dropping the EEPROM pins first looked to the controller like
+	// another I2C leader starting a transfer, and it then waited for the bus
+	// forever. The reset afterwards clears anything it saw anyway.
+	gpio_pull_up(UART_I2C_SDA);
+	gpio_pull_up(UART_I2C_SCL);
+	gpio_set_function(UART_I2C_SDA, GPIO_FUNC_I2C);
+	gpio_set_function(UART_I2C_SCL, GPIO_FUNC_I2C);
+	gpio_set_function(EEPROM_SDA, GPIO_FUNC_NULL);
+	gpio_set_function(EEPROM_SCL, GPIO_FUNC_NULL);
+	i2c_init(i2c0, baudrate);
+	return i2c0;
 }
 
 uint16_t ComputerCard::CRCencode(const uint8_t *data, int length)
