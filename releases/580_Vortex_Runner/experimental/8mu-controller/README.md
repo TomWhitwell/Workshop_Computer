@@ -1,9 +1,12 @@
 # Vortex Runner — 8mu Controller Experiment
 
+**Archived experiment:** the UF2 has moved to the [firmware archive](../../uf2/archive/previous-versions-20261026/README.md).
+This source remains available for reference; use the main README for current editions.
+
 This is an experimental firmware branch for card 580. It is separate from the
 stable Vortex Runner release and has its own UF2:
 
-`Vortex_Runner_8mu_controller_experimental_20260920.uf2`
+[Vortex_Runner_8mu_controller_experimental_20260920.uf2](../../uf2/archive/previous-versions-20261026/experimental/8mu-controller/Vortex_Runner_8mu_controller_experimental_20260920.uf2)
 
 It integrates the Workshop Computer `EightMU` helper with Vortex Runner's
 existing combined USB host/device implementation. When the Computer is the USB

@@ -1,0 +1,219 @@
+draft: false
+Name: 124 Canon
+short-description: Generates a four-voice live canon from a v/oct sequence input that is delayed and can make tempo-scaled, inverted (strict or tonal) and octave-shifted copies of the input line
+summary: |
+  Canon takes a melody on CV In 1 (with its gate or clock on Pulse In 1) and
+  plays it back as a four-voice canon. Voice 1 is the input line itself;
+  Voices 2, 3 and 4 follow it. Each delayed voice can be inverted (strict, or
+  tonal within the notes the line uses) and shifted by octaves. Rests in a gate
+  sequence are counted and passed on to every voice.
+
+  The mode is chosen at power-on from the Main knob's six marks. Everything
+  else is set with Z held down while stopped, and saved when Z is released.
+  Each mode keeps its own settings.
+
+    BEAT    Voices enter a set number of steps behind Voice 1, locked to the
+            incoming pulses. Rests are kept.
+    FREE    The same delay patterns, measured in time rather than steps.
+    STEP    All voices share Voice 1's rhythm; each plays the pitch from N
+            notes earlier.
+    TEMPO   Tempo canon, each voice at one constant tempo. DIVERGE: all start
+            together, V2-V4 slower (e.g. 4:5, 3:4, 2:3), drifting apart.
+            CONVERGE: V2-V4 faster (5:4, 4:3, 3:2), entering one by one so
+            that all meet Voice 1 after N steps, then stop.
+    HETEROPHONY  Every note is played by all four voices, each a
+            little early or late within a time window that drifts smoothly
+            from note to note.
+Language: C++ (ComputerCard)
+Creator: James Saunders
+Version: 0.16.0
+Status: WIP
+License: MIT
+date-created: 2026-10-15
+date-updated: 2026-10-18
+contact:
+  website: https://www.james-saunders.com
+tags:
+  - canon
+  - inversion
+  - heterophony
+  - tempo-canon
+  - sequencer
+  - cv
+  - multi-mode
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Pitch In
+      type: cv
+      description: "V/oct melody to be canonised, quantised to semitones. Calibrate once: patch CV Out 1 -> CV In 1, hold Z Down and power on; an LED bar fills over ~4 s, all six LEDs = saved, LEDs 1+6 blinking = failed."
+    - id: PulseIn1
+      name: Gate / Clock In
+      type: pulse
+      description: >-
+        Gate (or clock) from the sequencer. Each pulse is a note; the card learns
+        the step length and keeps counting steps through rests. Gates of 20 ms or
+        longer also pass their rests on to the delayed voices. Unpatched, BEAT and
+        STEP run from the internal tempo (Main).
+  outputs:
+    - id: CVOut1
+      name: Voice 1
+      type: cv
+      description: Calibrated 1V/oct — the input line (never inverted)
+    - id: PulseOut1
+      name: Voice 1 Gate
+      type: pulse
+      description: High while Voice 1 sounds; drops 3 ms before each new note
+    - id: CVOut2
+      name: Voice 2
+      type: cv
+      description: Calibrated 1V/oct
+    - id: PulseOut2
+      name: Voice 2 Gate
+      type: pulse
+      description: High while Voice 2 sounds
+    - id: AudioOut1
+      name: Voice 3
+      type: audio
+      description: Built-in triangle synth voice
+    - id: AudioOut2
+      name: Voice 4
+      type: audio
+      description: Built-in triangle synth voice
+
+controls:
+  switch:
+    up:
+      name: Play
+      description: With Pulse In 1 patched, the canon starts on the next pulse.
+    middle:
+      name: Stop
+      description: All outputs follow the input; LEDs show the input note name.
+    down:
+      name: Settings (only while stopped)
+      description: >-
+        Hold and turn a knob = page 1 (the mode's own settings). Hold 1 s without
+        touching a knob until the LEDs flash = page 2 (voice octaves and
+        strict/tonal), then keep holding and turn knobs. Release Z to save.
+        A knob does nothing until you turn it a little; the LEDs show the knob
+        turned last.
+    tap:
+      name: Next inversion pattern
+      description: >-
+        Quick press and release of Down (under 0.4 s, no knob moved). Order: none,
+        V2, V3, V4, V2+V4, V3+V4, V2+V3, V2+V3+V4. The LEDs show the pattern for
+        1.5 s (LED 1 = marker, LEDs 2-4 = Voices 2-4 inverted). Hold 0.4-1 s and
+        release to just view it.
+
+  knobs:
+    - when: { z: up }
+      main:
+        name: Internal tempo
+        description: 20-300 BPM, only when Pulse In 1 is unpatched. After Settings it waits until you move it.
+      x:
+        name: Unused
+      y:
+        name: Unused
+    - when: { z: middle }
+      main:
+        name: Unused
+      x:
+        name: Unused
+      y:
+        name: Unused
+    - when: { z: down }
+      x:
+        name: Delay / Ratio / Spread (page 1) · Voice octave (page 2)
+        description: >-
+          Page 1. BEAT: delay pattern in steps. FREE: delay pattern in units.
+          STEP: notes back. (Delay patterns in summary; default LED 2 = 2-4-6.)
+          TEMPO: tempo ratios (in summary; default LED 4 = 4:5, 3:4, 2:3).
+          HETERO: spread window — LED 1 0 ms (unison) | LED 2 50 | LED 3 100 |
+          LED 4 200 | LED 5 300 | LED 6 500 (default) | not 1 750 | not 2 1 s |
+          not 3 1.5 s | not 4 2 s | not 5 3 s | not 6 4 s.
+          Page 2: octave of the voice chosen with Y — LED 1 -2 | LED 2 -1 |
+          LED 3 0 (default) | LED 4 +1 | LED 5 +2.
+      main:
+        name: Step size / Unit / Converge (page 1) · Inversion type (page 2)
+        description: >-
+          Page 1. BEAT: step size — LED 1 1/4 | LED 2 1/3 | LED 3 1/2 |
+          LED 4 1 step (default) | LED 5 x2 | LED 6 x3 | not 1 x4.
+          FREE: time of one unit — LED 1 100 ms | LED 2 150 | LED 3 200 |
+          LED 4 250 | LED 5 300 | LED 6 400 | not 1 500 (default) | not 2 600 |
+          not 3 750 | not 4 1 s | not 5 1.5 s | not 6 2 s.
+          TEMPO: LED 1 DIVERGE (default) | LED 2 converge at 8 steps | LED 3 16 |
+          LED 4 32 | LED 5 64 | LED 6 128 | not 1 256.
+          STEP, HETERO: unused.
+          Page 2: LED 1 strict (default; C D E -> C Bb Ab) | LED 2 tonal
+          (within the scale played; C D E -> C B A).
+      y:
+        name: Octave of Voices 3+4 (page 1) · Voice to edit (page 2)
+        description: >-
+          Page 1, all modes: LED 1 -3 | LED 2 -2 | LED 3 -1 | LED 4 0 (default) |
+          LED 5 +1. Page 2: LED 1-4 = Voice 1-4.
+
+  leds:
+    - when: { z: up }
+      display: list
+      items:
+        - id: LED0
+          name: Voice 1
+          description: Flashes on each Voice 1 note
+        - id: LED1
+          name: Voice 2
+          description: Flashes on each Voice 2 note
+        - id: LED2
+          name: Voice 3
+          description: Flashes on each Voice 3 note
+        - id: LED3
+          name: Voice 4
+          description: Flashes on each Voice 4 note
+        - id: LED4
+          name: Input Pulse
+          description: Flashes on each pulse at Pulse In 1
+        - id: LED5
+          name: Clock Present
+          description: On while a clock is coming in
+    - when: { z: middle }
+      display: list
+      items:
+        - id: LED0
+          name: C / F#
+          description: Input note name — alone = C; all on except this one = F#
+        - id: LED1
+          name: C# / G
+          description: Alone = C#; all on except this one = G
+        - id: LED2
+          name: D / G#
+          description: Alone = D; all on except this one = G#
+        - id: LED3
+          name: D# / A
+          description: Alone = D#; all on except this one = A
+        - id: LED4
+          name: E / A#
+          description: Alone = E; all on except this one = A#
+        - id: LED5
+          name: F / B
+          description: Alone = F; all on except this one = B
+    - when: { z: down }
+      display: list
+      items:
+        - id: LED0
+          name: Value step 1 / 7
+          description: Alone = setting step 1 ("LED 1"); off with all others on = step 7 ("not 1"). After a tap, LED 1 is the inversion-pattern marker. On page 2 with Y, LEDs 1-4 = Voice 1-4.
+        - id: LED1
+          name: Value step 2 / 8
+          description: Alone = setting step 2 ("LED 2"); off with all others on = step 8 ("not 2"). After a tap, lit = Voice 2 inverted.
+        - id: LED2
+          name: Value step 3 / 9
+          description: Alone = setting step 3 ("LED 3"); off with all others on = step 9 ("not 3"). After a tap, lit = Voice 3 inverted.
+        - id: LED3
+          name: Value step 4 / 10
+          description: Alone = setting step 4 ("LED 4"); off with all others on = step 10 ("not 4"). After a tap, lit = Voice 4 inverted.
+        - id: LED4
+          name: Value step 5 / 11
+          description: Alone = setting step 5 ("LED 5"); off with all others on = step 11 ("not 5").
+        - id: LED5
+          name: Value step 6 / 12
+          description: Alone = setting step 6 ("LED 6"); off with all others on = step 12 ("not 6"). All six flash when page 2 opens.

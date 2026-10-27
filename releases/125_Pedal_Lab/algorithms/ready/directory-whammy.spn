@@ -1,0 +1,85 @@
+; Whammy; 
+; by  deepMago!
+; http://www.spinsemi.com/forum/viewtopic.php?f=4&t=296
+; Based on Application note AN-0001 program AN0001-4.spn 
+
+;POT0: Whammy Pedal 
+;Pot1: set the pitch range - only 4 selection allowed (DIVEBOMB, OCT DOWN, FIFTH, OCT uP) 
+
+;Memory declarations 
+
+delayl mem 2048 ; delay. Could be 1024?
+temp mem 1 ; Temp location for partial calculations 
+pitch equ REG0 
+DVBMB equ -0.47 ; four octaves down 
+OCDWN equ -0.25 ; one octave down 
+FFTH equ 0.25 ; one fifth up 
+OCTUP equ 0.5 ; one octave up 
+
+skp run,START 
+wldr RMP0,0,2048 ;faster tracking 
+
+START: 
+
+ldax ADCL ; Read in the current sample, ADCR -> ACC 
+wra delayl,0 ; Write it to left delay and clear ACC 
+
+; (1-k)*sample[addr] 
+cho rda,RMP0,REG|COMPC,delayl 
+; k*sample[addr+1] + ACC 
+cho rda,RMP0,,delayl+1 
+; ACC -> memory, ACC*0 -> ACC 
+wra temp,0 
+; (1-k)*sample[addr+ half ramp] 
+cho rda,RMP0,RPTR2|COMPC,delayl 
+; k*sample[addr+ half ramp + 1] + ACC 
+cho rda,RMP0,RPTR2,delayl+1 
+; ACC*(1-XFADE) + 0 
+cho sof,RMP0,NA|COMPC,0 
+; memory[addr] * XFADE + ACC 
+cho rda,RMP0,NA,temp 
+; Final result is in ACC, write it to DACL and clear ACC 
+wrax DACL,0 
+
+;Program Select: 
+
+rdax POT1,1	
+and	%01100000_00000000_00000000 ;mask off only 2 bits, leaving only 4 possibilities 
+skp	zro,DIVEBOMB	;if zero, skip over 
+sof	1,-0.25	;subtract 1/4 
+skp	zro,OCTDOWN	;if zero, skip over 
+sof	1,-0.25	;subtract 1/4 
+skp	zro,FIFTH	;if zero, skip over 
+clr	;clear the accumulator, there's 1/4 left in it! 
+skp	zro,OCTAVEUP	;skip over 
+
+DIVEBOMB: 
+
+;ldax DVBMB 
+sof 0,DVBMB ; correction added by a comment in forum.  http://www.spinsemi.com/forum/viewtopic.php?t=296
+skp neg,WHAMMY 
+
+OCTDOWN: 
+
+;ldax OCDWN 
+sof 0,OCDWN
+skp neg,WHAMMY 
+
+FIFTH: 
+
+;ldax FFTH 
+sof 0,FFTH 
+skp gez,WHAMMY 
+
+OCTAVEUP: 
+
+;ldax OCTUP 
+sof 0,OCTUP 
+
+WHAMMY: 
+
+wrax pitch,0 
+ldax POT0 ; Read POT0 into ACC 
+mulx pitch ; Move from no pitch shift (0) to value set by "pitch" value 
+
+wrax RMP0_RATE,0 ; Load ACC into ramp rate register and clear ACC

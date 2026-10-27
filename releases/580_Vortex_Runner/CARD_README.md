@@ -1,11 +1,8 @@
 # Vortex Runner Card Guide
 
-Vortex Runner is a draft split-output synthesiser card inspired by the performance feel
-of the Yamaha CS-80.
-
-The firmware is in first-pass bring-up. This guide records the current panel
-layout so firmware, metadata, and the Web MIDI editor can grow in the same
-direction.
+Vortex Runner is a Beta split-output synthesiser card inspired by the performance
+feel of the Yamaha CS-80. This guide covers the shared panel layout; the main
+README lists the standard and 8mu firmware editions and their build targets.
 
 ## Panel
 
@@ -41,11 +38,16 @@ Switch down hold: performance page.
 
 CV and pulse outputs are reserved while the split-output voice is refined.
 
-## Stable Rollback
+## Firmware Editions
 
-The current stable firmware is the hardware-tested 8mu/filter/preset-browser
-build in `uf2/`. The previous August 2026 dual-output stable UF2 and matching
-source are recoverably archived locally and ignored by the stable-release PR.
+The catalogue offers two 0.1.2 Beta downloads: standard and 8mu. Both use the
+current synth/filter/preset implementation and shared Web MIDI editor.
+The standard edition omits 8mu controller layers; the 8mu edition adds them.
+Both new binaries still require hardware verification. Full source and separate
+build targets for both are in this folder; see
+[the main README](README.md#building-both-editions).
+Older UF2s are retained in the [firmware archive](uf2/archive/README.md) for
+recovery and excluded from catalogue downloads.
 
 ## LEDs
 
@@ -61,7 +63,7 @@ fader number, soft-takeover state, and fader position. See
 
 ## Filter Architecture
 
-The stable 8mu firmware uses a 12 dB/octave high-pass path feeding a 12 dB/octave
+Both firmware editions uses a 12 dB/octave high-pass path feeding a 12 dB/octave
 low-pass path for each output. Voice A and Voice B retain independent cutoff,
 resonance, and filter state; the filter envelope and modulation routings are
 shared. Resonance is bounded below self-oscillation and affects both paths.

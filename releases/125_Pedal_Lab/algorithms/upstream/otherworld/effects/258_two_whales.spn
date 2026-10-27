@@ -1,0 +1,189 @@
+; @name Two Whales
+; @tagline Two whales on either side of you learn the notes you play and sing them back in a whale's voice, one at a time and only on your note changes, sliding into each new note, never on the same one, into a warm, dense sea
+; @description Two whales are listening to you, one on your left and one on your right. They learn the notes
+; @description you play, only the ones they are sure of, and take your newest note into their song. They have
+; @description no clock of their own: a whale only changes note when you move to a new one, and then only if a
+; @description coin says so. A second coin decides which whale moves, the same for both, so their changes fall
+; @description on your playing but never on a schedule; now and then the two meet on one note. Each whale has
+; @description a voice made of a singing resonance on a bright saw
+; @description that sits on the same vowel in every register, steady, with no vibrato. It slides into each new note
+; @description on a curve, a scoop up or a fall, and lands on the note; its very first call scoops up out of the
+; @description deep. Each new note swells in slowly, over about half a second, the whale's voice dropping away
+; @description as it starts to slide and rising into the note. Every note sings at the same level, however hard
+; @description or softly you play; when you stop they fade. Ocean takes you under water with them: their song turns muffled and comes from everywhere,
+; @description through a moving water surface that makes it waver and its resonances swirl. Chance sets the
+; @description chance that one of your note changes moves a whale: one in ten at 0, every one from 0.9. Depth
+; @description sets how hard the water moves, from still to a heavy swell. Ocean goes from the whales sung close
+; @description and dry at 0 to all water at 1. They only sing notes you
+; @description played, in your octave (below C3 folded up into C3..B3), they listen to both inputs (L + R), and with nothing
+; @description played they stay silent.
+; @pots Chance | Depth | Ocean
+; @render 0.4, 0.5, 0.5
+; @components hill-climbed pitch tracker (lis37r2, its HF path) in a 4x log domain whose own confirmation is the note gate (the same semitone 4 times running), on (L + R)/2, its semitone grid offset by half a bin so a zeroed candidate can't confirm a C3 out of the input's noise floor; newest-note memory with a dedupe against both whales; a new confirmed note is the event; a per-event coin from tent-map noise (its size: Chance; its sign: which whale); silent whales take the first notes; one voice per whale: a centred-saw phasor through a resonant formant filter (Chamberlin, feedback x 1/2, Q ~15) that tracks the pitch 1:1 at 2.4 x f0, heard from its low-pass; a log-domain glide per whale (one-pole, tau 50 ms) toward its note, out of the deep on its first call; a 3.5 Hz vibrato x Vibrato, sine left, cosine right; the same level for every note (fading from your last confirmed note, tau 0.5 s); left / right whales; a warm, dense reverb with no pre-delay (an input allpass, then a loop of two allpasses, a low-pass and a delay; taps at 1 and 17 ms) fed by Ocean; wet only
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	wl	700		; the water: a short line with feedback
+
+equ	hp	reg0		; tracker: hp = LP(x) at k 0.9
+equ	e1	reg1		; tracker: HF peak envelope
+equ	e2	reg2		; tracker: its low-pass
+equ	ef	reg3		; tracker: the Schmitt stage's high-pass state
+equ	thr	reg4		; tracker: Schmitt threshold
+equ	cand	reg5		; tracker: the candidate semitone (4x domain, half-bin offset)
+equ	cd	reg6		; your newest note (pitch code, 0 = none yet)
+equ	TA	reg7		; the left whale's note (0 = none yet: silent)
+equ	TB	reg8		; the right whale's note
+equ	pr	reg9		; presence: 1 at every confirmed note, decays (tau 0.5 s)
+equ	aA	reg10		; the left whale's level (follows pr, tau 0.25 s; a tenth when it takes a note)
+equ	ch	reg11		; tent-map noise (the coins)
+equ	PA	reg12		; left whale: sung pitch (log2 domain /16, C7 at 0; glides)
+equ	PB	reg13		; right whale: sung pitch
+equ	FA	reg14		; left whale: formant coefficient (2.4 x f0)
+equ	FB	reg15		; right whale: formant coefficient
+equ	oA	reg16		; left whale: saw phasor (0 .. 0.5)
+equ	oB	reg17		; right whale: saw phasor
+equ	lpA	reg18		; left whale: formant filter low-pass state
+equ	lpB	reg19		; right whale: formant filter low-pass state
+equ	bpA	reg20		; left whale: formant filter band-pass state
+equ	bpB	reg21		; right whale: formant filter band-pass state
+equ	wlp	reg22		; the water: its low-pass (muffled)
+equ	aB	reg24		; the right whale's level
+equ	wfb	reg23		; the water: its feedback (the left tap)
+
+	wlds	sin0, 4, 20		; the water's swell, left: 0.16 Hz; its depth is written below (x Depth)
+; ---- pitch tracker: lis37r2 (its HF path) in a 4x log domain, on (L + R)/2;
+;      confirmation C 48/16384 (the same semitone 4 times running); a new confirmed note is the event
+	rdax	adcl, 0.5		; x = (L + R)/2 (a mono patch is L, which the module normals to R)
+	rdax	adcr, 0.5
+	rdfx	hp, 0.9000244140625	; hp = LP(x) at k ~0.9
+	wrhx	hp, -1.0		; ACC = x - hp (HF)
+	maxx	e1, 0.972412109375	; e1 = max(|HF|, decay e1): peak envelope
+	wrax	e1, 1.46502685546875
+	rdfx	e2, 0.08001708984375	; e2 = LP(envelope)
+	wrax	e2, 1.0
+	rdfx	ef, 0.01202392578125	; high-pass: v = e2 - LP(e2)
+	wrhx	ef, -1.0
+	rdax	thr, 0.1500244140625	; Schmitt: x = v + hys thr
+	skp	neg, low
+	mulx	thr
+	skp	gez, nox
+	cho	rdal, rmp0		; T = the period (RMP0 timer)
+	jam	rmp0
+	log	-2.0, -0.875		; l = -log2(T)/8 + D: octave 1/8, C3's semitone bin starts at 0
+	skp	gez, fl
+	and	$0FFFFF			; below C3: the same pitch class in [C3, C4)
+fl:	sof	1.5, 0			; s = 3/2 l: semitone = 2^-6
+	and	$FE0000			; snap to the semitone
+	or	$010000			; + half a bin: never 0, so a zeroed candidate can't confirm a C3 on the noise floor
+	rdax	cand, -1.0029296875
+	skp	zro, out		; the same semitone 4 times running: confirmed
+	rdax	cand, 1.0
+	wrax	cand, 0
+	skp	zro, hyst
+out:	rdax	cand, 1.33721923828125	; p = 4/3 s': C3 1/96 .. B6 95/96 (C7 and up saturate at 1)
+	xor	$7FFFFF			; code = 1 - p; C7 and up exactly 0
+	skp	zro, hyst		; C7 and up: dropped (the input's noise floor confirms only those)
+	sof	0, 0.999		; a confirmed note: you are playing
+	wrhx	pr, 0			; pr = 1; ACC = code again (PACC)
+	rdax	cd, -1.0
+	skp	zro, hyst		; the same note as before
+	rdax	cd, 1.0
+	wrax	cd, 1.0			; a new note: the event
+	ldax	ch			; Chance: P(|noise| > 0.9 - Chance) = 0.1 + Chance
+	absa
+	rdax	pot0, 1.0
+	sof	1.0, -0.900390625
+	mulx	TA			; but while either whale has no note, every new note counts
+	mulx	TB
+	skp	neg, hyst
+	ldax	ch			; whose turn: the same noise's sign, a fair coin
+	skp	gez, takeB
+takeA:	ldax	cd
+	wrax	TA, 0
+	rdax	aA, 0.1
+	wrax	aA, 0			; the whale takes it; its glide starts by itself
+	skp	zro, hyst
+takeB:	ldax	cd
+	wrax	TB, 0
+	rdax	aB, 0.1
+	wrax	aB, 0
+hyst:	ldax	e2			; high state: thr = the envelope
+low:	wrax	thr, 0
+nox:	wldr	rmp0, -4066, 4096	; timer: RMP0 rate -4066, range 4096 (set every sample)
+; ---- coin noise: tent map x' = 0.999 - 2 |x|, nudged by SIN1
+	ldax	ch
+	absa
+	sof	-2.0, 0.999
+	rdax	hp, 0.01		; nudged by your input (it never cycles while you play)
+	wrax	ch, 0
+	rdax	pot1, 0.0358886719	; Depth: the water moves the taps 0 .. +-294 / +-196 samples (<= 15 cents of Doppler)
+	wrax	sin0_range, 0
+; ---- level: the same for every note, fading from your last confirmed note
+	rdfx	pr, 0.00006103515625	; pr decays, tau 0.5 s
+	wrax	pr, 1.0
+	rdfx	aA, 0.0001220703125	; each whale's level follows pr, tau 0.25 s: the slow attack
+	wrhx	aA, 0			; (ACC = pr again)
+	rdfx	aB, 0.0001220703125
+	wrax	aB, 0
+; ---- left whale: its voice, gliding to its note
+	rdax	TA, -0.25		; target = -code / 4 (C3 -0.25, C7 0; octave 1/16)
+	or	$800000			; no note yet: -1 (16 octaves down: the filter stands still, silent)
+	rdfx	PA, 0.0006103515625	; glide: log-domain one-pole, tau 50 ms (first call: up out of the deep)
+	wrax	PA, 1.0
+	exp	1.304931640625, 0	; F = 2.4 x f0 (1.34, less the half-bin offset, + 2 cents)
+	wrax	FA, 0.023803711		; phasor increment = F x 0.0238 (the voice's ratio)
+	rdax	oA, 1.0
+	and	$3FFFFF
+	wrax	oA, 1.99
+	sof	0.18, -0.09		; centred saw x 0.18
+	mulx	aA
+	rdax	lpA, -0.5		; formant filter (Chamberlin, feedback x 1/2: states at 2x, Q ~15)
+	rdax	bpA, -0.0495
+	mulx	FA
+	rdax	bpA, 1.0
+	wrax	bpA, 1.0
+	mulx	FA
+	rdax	lpA, 1.0
+	wrax	lpA, 0			; the voice: the low-pass (the voice's dark body), out through the water below
+; ---- right whale (cosine vibrato)
+	rdax	TB, -0.25
+	or	$800000
+	rdfx	PB, 0.0006103515625
+	wrax	PB, 1.0
+	exp	1.304931640625, 0
+	wrax	FB, 0.023803711
+	rdax	oB, 1.0
+	and	$3FFFFF
+	wrax	oB, 1.99
+	sof	0.18, -0.09
+	mulx	aB
+	rdax	lpB, -0.5
+	rdax	bpB, -0.0495
+	mulx	FB
+	rdax	bpB, 1.0
+	wrax	bpB, 1.0
+	mulx	FB
+	rdax	lpB, 1.0
+	wrax	lpB, 0
+; ---- the water: the whales muffled in a short line with feedback, read by two taps that drift on two slow
+;      swells (a moving water surface between you and them); Ocean dives from the dry whales into it
+	rdax	lpA, 0.5		; both whales (in both ears: under water, sound comes from everywhere)
+	rdax	lpB, 0.5
+	rdax	wfb, 0.6		; + the water's feedback
+	rdfx	wlp, 0.0999755859375	; muffled: one-pole near 520 Hz
+	wrax	wlp, 1.0
+	wra	wl, 0
+	cho	rda, sin0, sin|reg|compc, wl+330	; left tap: 10 ms, +- 9 ms x Depth on the 0.16 Hz swell
+	cho	rda, sin0, sin, wl+331
+	wrax	wfb, 1.0		; (the feedback is the left tap)
+	rdax	lpA, -0.8		; out = 0.8 lp + Ocean x (tap - 0.8 lp): from the dry whale to all water
+	mulx	pot2
+	rdax	lpA, 0.8
+	wrax	dacl, 0
+	cho	rda, sin0, cos|reg|compc, wl+620	; right tap: 19 ms, +- 6 ms x Depth on the 0.24 Hz swell
+	cho	rda, sin0, cos, wl+621
+	rdax	lpB, -0.8
+	mulx	pot2
+	rdax	lpB, 0.8
+	wrax	dacr, 0

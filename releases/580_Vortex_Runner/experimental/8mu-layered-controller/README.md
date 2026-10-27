@@ -1,9 +1,12 @@
 # Vortex Runner — 8mu Layered Controller Experiment
 
+**Archived experiment:** the UF2 has moved to the [firmware archive](../../uf2/archive/previous-versions-20261026/README.md).
+This source remains available for reference; use the main README for current editions.
+
 This is the second experimental 8mu pass for card 580. It is independent of
 both the stable Vortex Runner release and the first direct-fader experiment.
 
-Flash `Vortex_Runner_8mu_layered_controller_experimental_20260920.uf2` to test
+Flash [Vortex_Runner_8mu_layered_controller_experimental_20260920.uf2](../../uf2/archive/previous-versions-20261026/experimental/8mu-layered-controller/Vortex_Runner_8mu_layered_controller_experimental_20260920.uf2) to test
 it. The Computer must boot in USB host mode with an 8mu attached; it cannot
 also run the Web MIDI editor from the same USB port.
 

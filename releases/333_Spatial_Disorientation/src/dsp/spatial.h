@@ -5,15 +5,21 @@
 #include "movements.h"
 #include "hrtf.h"
 #include "../config.h"
+#include "../elevation_control.h"
 namespace spatial {
 struct Stereo { int32_t left = 0, right = 0; };
 struct Scene {
     uint32_t angle[2] = {0, 0x80000000u}; // 0 front; quarter turn right.
     int32_t distance = 0;
     int32_t level_a = 4096, level_b = 4096; // Panel gain; unity for Twin Orbits.
-    uint16_t shape=0,excursion=0;bool fig8=false; // Dynamic Disorientation path.
+    uint16_t shape=0,excursion=0;
+    uint16_t vertical_centre=2048,vertical_depth=0; // Captured alongside phase; never read live in DSP.
+    uint16_t slope_bearing=0,slope_tilt=0; // Captured with phase: uphill bearing / 0..40 degree tilt.
+    bool orbit=false; // Apply independently saved Orbits height/slope at geometry rate.
+    bool fig8=false; // Dynamic Disorientation path.
     uint8_t movement=0;uint32_t path_epoch=0;
     int32_t distance_b = -1; // Negative shares A distance; otherwise independent B.
+    uint32_t rotation=0; // Captured Disorientation roll placement; zero preserves beta2.
 };
 class Delay {
 public:
@@ -44,8 +50,8 @@ private:
 };
 class Source {
 public:
-    void Geometry(uint32_t phase,int32_t distance,int32_t level,int32_t strength,int32_t room){
-        hrtf_.Geometry(phase,strength);
+    void Geometry(uint32_t phase,int32_t distance,int32_t level,int32_t strength,int32_t room,int elevation=2048){
+        hrtf_.Geometry(phase,strength,elevation);
         int32_t lateral=(static_cast<int32_t>(Sin(phase)>>3)*strength)>>12;
         int32_t front=(static_cast<int32_t>(Sin(phase+0x40000000u)>>3)*strength)>>12;
         base_target_=(64<<8)+distance*20;
@@ -60,18 +66,22 @@ public:
         int32_t directGain=((3072-((distance*2304)>>12))*level)>>12;
         gain_target_=(directGain*(4096-((room*(256+(distance>>3)))>>12)))>>12;
         tone_target_=32700-((distance*6500)>>12);
-        delay_target_[0]=lateral>0?lateral*2:0;
-        delay_target_[1]=lateral<0?-lateral*2:0;
+        // Elevation reduces projected lateral ITD by cos(40 degrees), Q12.
+        int32_t height=elevation>=2048?elevation-2048:2048-elevation;
+        int32_t projection=4096-((height*958)>>11);
+        int32_t itd=(lateral*projection)>>12;
+        delay_target_[0]=itd>0?itd*2:0;
+        delay_target_[1]=itd<0?-itd*2:0;
     }
     Stereo Process(int32_t input){
         int32_t q8=Clamp(input,-2048,2047)*256;
         dc_=q8-previous_+dc_-(dc_>>10);previous_=q8;
         line_.Write(dc_>>8);
-        base_=Slew(base_,base_target_,256);
-        room_[0]=Slew(room_[0],room_target_[0],512);
-        room_[1]=Slew(room_[1],room_target_[1],512);
-        early_=Slew(early_,early_target_,256);gain_=Slew(gain_,gain_target_,128);
-        tone_=Slew(tone_,tone_target_,128);
+        base_=SlewPower<8>(base_,base_target_);
+        room_[0]=SlewPower<9>(room_[0],room_target_[0]);
+        room_[1]=SlewPower<9>(room_[1],room_target_[1]);
+        early_=SlewPower<8>(early_,early_target_);gain_=SlewPower<7>(gain_,gain_target_);
+        tone_=SlewPower<7>(tone_,tone_target_);
         // Shared Q3 low-pass state replaces two Q8/int64 multiplies. With input
         // bounded to [-4096,4095], |difference|<=65528 and tone<=32700, so the
         // signed 32-bit product is <=2,142,765,600. State remains in input range.
@@ -79,8 +89,8 @@ public:
         shadow_+=((direct*8-shadow_)*tone_)>>15;
         hrtf_.Update();
         EarPair filtered=hrtf_.Process(Clamp(shadow_>>3,-4096,4095));
-        delay_[0]=Slew(delay_[0],delay_target_[0],256);
-        delay_[1]=Slew(delay_[1],delay_target_[1],256);
+        delay_[0]=SlewPower<8>(delay_[0],delay_target_[0]);
+        delay_[1]=SlewPower<8>(delay_[1],delay_target_[1]);
         filtered=ears_.Process(filtered,delay_);
         int32_t reflected[2]={};
         // Unequal arrival times (7–24 ms after the direct sound) give the ears
@@ -112,34 +122,51 @@ private:
 };
 class Engine {
 public:
+    void SetSolo(bool solo){solo_=solo;}
+    void SetElevation(uint32_t packed){elevation_=packed;}
+    uint32_t RenderedElevation()const{return resolved_elevation_;}
     const Scene& RenderedScene()const{return rendered_;}
     void SetScene(const Scene& scene,const Config& config) { scene_=scene;config_=config; }
-    Stereo Process(int32_t a,int32_t b) {
+    // Compatibility path retains owned copies for standalone callers/tests.
+    Stereo Process(int32_t a,int32_t b){return Process(a,b,scene_,config_);}
+    // Worker reads the immutable captured frame only for this call. No reference
+    // or pointer survives it; geometry cadence and sample alignment are unchanged.
+    Stereo Process(int32_t a,int32_t b,const Scene& scene,const Config& config) {
         // Stagger the two geometry calculations to spread work within each DSP block.
         int e=(count_&31)==0?0:((count_&31)==16?1:-1);
-        if(e>=0){
-            uint32_t angle=scene_.angle[e];
-            int32_t distance=e&&scene_.distance_b>=0?scene_.distance_b:scene_.distance;
-            if(scene_.fig8){
-                auto point=scene_.movement==1?Pendulum(angle,scene_.shape,scene_.excursion):
-                    scene_.movement==2?wander_[e].Point(angle,scene_.shape,scene_.excursion,scene_.path_epoch):
-                    FigureEight(angle,scene_.shape,scene_.excursion);
-                angle=point.angle;distance=point.distance;
+        if(e>=0&&!(solo_&&e==1)){
+            uint32_t angle=scene.angle[e];
+            int32_t height=HeightAt(elevation_,e);
+            int32_t distance=e&&scene.distance_b>=0?scene.distance_b:scene.distance;
+            if(scene.fig8){
+                auto point=scene.movement==1?Pendulum(angle,scene.shape,scene.excursion):
+                    scene.movement==2?wander_[e].Point(angle,scene.shape,scene.excursion,scene.path_epoch,scene.vertical_depth!=0):
+                    FigureEight(angle,scene.shape,scene.excursion);
+                height=PathHeight(angle,scene.movement,scene.vertical_centre,scene.vertical_depth,wander_[e].Height());
+                auto slope=SlopePath(point.angle+scene.rotation,scene.slope_bearing,scene.slope_tilt);
+                height=Clamp(height+slope.height,0,4096);
+                angle=slope.angle;distance=point.distance;
             }
+            if(scene.orbit){
+                auto slope=SlopePath(angle,scene.slope_bearing,scene.slope_tilt);
+                height=Clamp(scene.vertical_centre+slope.height,0,4096);angle=slope.angle;
+            }
+            resolved_elevation_=(resolved_elevation_&~(8191u<<(e*13)))|(uint32_t(height)<<(e*13));
             rendered_.angle[e]=angle;
             if(e)rendered_.distance_b=distance;else rendered_.distance=distance;
-            int32_t level=e?scene_.level_b:scene_.level_a;
-            source_[e].Geometry(angle,distance,(config_.value[e+2]*level)>>12,config_.value[4],config_.value[1]);
+            int32_t level=e?scene.level_b:scene.level_a;
+            source_[e].Geometry(angle,distance,(config.value[e+2]*level)>>12,config.value[4],config.value[1],height);
         }
         ++count_;
-        Stereo x=source_[0].Process(a),y=source_[1].Process(b);
+        Stereo x=source_[0].Process(a),y=solo_?Stereo{}:source_[1].Process(b);
         return {Clamp(((x.left+y.left)*3)>>2,-2048,2047),Clamp(((x.right+y.right)*3)>>2,-2048,2047)};
     }
 private:
     Scene scene_,rendered_;
+    bool solo_=false;
     Config config_;
     Source source_[2];
     Wander wander_[2];
-    uint32_t count_=0;
+    uint32_t count_=0,elevation_=kLevelElevations,resolved_elevation_=kLevelElevations;
 };
 }

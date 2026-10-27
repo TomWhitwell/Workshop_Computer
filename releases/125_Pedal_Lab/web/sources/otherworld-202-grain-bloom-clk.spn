@@ -1,0 +1,181 @@
+; @name Grain Bloom_clk
+; @tagline Once every Euclidean cycle one clock step of your playing is caught as a grain; every hit strikes it, slowed to fill the gap to the next hit, in alternate ears, blooming into reverb as it plays
+; @description A single grain, exactly one clock step long, is caught from your playing at
+; @description the first hit of every Euclidean cycle, and the whole cycle is played with it.
+; @description Hits and Length set k pulses over n steps (1 to 16); only the hits strike. Each
+; @description hit plays the grain slowed down to fill the gap exactly up to the next hit, so a
+; @description hit followed by a gap plays it an octave down, two gaps an octave and a fifth
+; @description down, three gaps two octaves down: the rhythm sings its gaps as the undertone
+; @description series. Successive hits alternate between the left and right ear, and as each
+; @description grain plays its send into a long reverb rises from nothing to full, so every
+; @description grain lands dry and swells into a bloom that rings on while the other ear takes
+; @description the next hit. Bloom sets how big: at 0 the grains are dry, halfway the bloom is as
+; @description loud as the grain by its end, fully up it takes over. One clock pulse is one step, so a slower
+; @description clock division slows everything. Set the cycle to a bar (Length 8 at 1/8, or 16
+; @description at 1/16) and on music that changes chord on the bar every grain is the first
+; @description step of a new chord.
+; @clock
+; @pots Hits | Length | Bloom
+; @render 0.75, 0.84, 0.2
+; @components clock-locked Euclidean striker with k hits over n steps by integer Bresenham, one-step grain caught at the first hit of every cycle into a recirculating loop, each hit replays the grain slowed to exactly fill its gap with the stretch computed per hit, alternating ears, windowed stretch, reverb send that ramps over each grain into a damped two-allpass loop tank with stereo taps
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	grain	16383		; the grain loop (0.5 s, at address 0): records, then goes round
+mem	ap1	557
+mem	ap2	1187
+mem	dl	9973
+
+equ	clkhp	reg0		; clock detector: low-pass state
+equ	clkin	reg1		; free (the factory clock block's conditioned sample)
+equ	clkst	reg2		; clock state: -0.25 high, -0.5 low (armed)
+equ	clkprev	reg3
+equ	clkcnt	reg4
+equ	nPa	reg6		; - grain length (address units) = -min(P, 0.5 s)
+equ	lP	reg7		; log2(grain / 0.5 s) / 16
+equ	clkinc	reg8		; 2^-18, the clock counter's step (set at load)
+equ	nn	reg9
+equ	kk	reg10
+equ	E	reg11		; -e, the Bresenham error negated
+equ	hc	reg12		; hits left before the next capture
+equ	recf	reg13		; nonzero (-2^-23): this step records the grain
+equ	age	reg14		; time since the capture (mod 0.5 s)
+equ	u	reg15		; progress through the stretch 0 .. 1
+equ	du	reg16
+equ	side	reg17		; 0 right, -1 left
+equ	w	reg18
+equ	d	reg19
+equ	t	reg20
+equ	lt	reg21
+equ	lpd	reg22
+
+; ---- clock: rising-edge detector, then the factory count
+	ldax	adcr
+	rdfx	clkhp, 0.06		; low-pass of ADCR, tau ~0.5 ms
+	wrax	clkhp, -1.0
+	rdax	adcr, 1.0		; d = ADCR - low-pass: the recent rise
+	sof	1.0, -0.1875		; high at d >= 0.1875
+	skp	neg, c_lo
+	sof	0, -0.25		; state high
+	wrax	clkst, 0
+	skp	zro, c_hi
+c_lo:	sof	1.0, 0.125		; d - 0.0625: below it the input re-arms; between, hold
+	skp	gez, c_hi
+	sof	0, -0.5			; state low (armed)
+	wrax	clkst, 0
+c_hi:	ldax	clkprev			; latch on low -> high
+	rdax	clkst, -1.0
+	skp	neg, c_latch
+	ldax	clkcnt
+	rdax	clkinc, 1.0
+	and	$3FFFFF
+	wrax	clkcnt, 0
+	skp	zro, c_done
+c_latch: ldax	clkcnt			; the period P, kept as lP (only a hit reads it)
+	log	1.0, 0.25		; log2(8 P / 0.5 s) / 16
+	wrax	lP, 0
+	wrax	clkcnt, 0
+	wrax	recf, 0			; the beat, one step: a recording lasts one step
+	ldax	pot1
+	sof	0.5, 0.03125
+	and	$7C0000
+	wrax	nn, 1.0
+	mulx	pot0
+	sof	1.0, 0.03125
+	and	$7C0000			; k = 1 + floor(Hits n): 1 .. n
+	wrax	kk, -1.0
+	rdax	E, 1.0
+	wrax	E, 1.0			; e += k
+	skp	gez, c_done		; a hit when e > 0
+	rdax	nn, 1.0			; e -= n; this hit fills m = 1 + floor(|e| / k) steps
+	wrax	E, 1.0
+	log	1.0, -0.25
+	wrax	t, 0
+	ldax	lP			; the grain: one clock period, capped at the 0.5 s loop
+	exp	-0.49853515625, 0	; (EXP saturates at 1: the cap) 3 x 2^-10 short: the read never passes the write
+	wrax	nPa, 0
+	ldax	kk
+	log	-1.0, 0
+	rdax	t, 1.0
+	exp	1.0, 0.0634765625	; |e| / 16 k + 1/16 (+ 2^-10 for the LOG/EXP rounding)
+	and	$780000			; m / 16
+	log	-1.0, -0.5		; -log2(m) / 16 - 1/4
+	rdax	lP, -1.0
+	exp	0.0009765625, 0		; du = 1 / (m x grain samples) (grains of 31 ms .. 0.5 s)
+	rdax	clkinc, 0.03125		; + 1 LSB (2^-18 x 2^-5): never slower than exact, so u reaches 1 by the next hit
+	wrax	du, 0
+	wrax	u, 0
+	ldax	side			; the other ear
+	xor	$800000
+	wrax	side, 0
+	ldax	hc			; every k hits (one Euclidean cycle) a new grain
+	sof	1.0, -0.03125
+	wrax	hc, 1.0
+	skp	gez, c_done
+	rdax	kk, 1.0
+	wrax	hc, 0
+	or	$FFFFFF
+	wrax	recf, 0
+	wrax	age, 0
+c_done:	ldax	clkst
+	wrax	clkprev, 0
+	skp	run, c_run		; at load (a slot change keeps the previous program's registers):
+	sof	0, 0.03125		; preload the counter with 0.25 s: the edge at load (a clock that is
+	wrax	clkcnt, 0.0001220703125	; high at power-up) reads as a plausible first period; ACC = 2^-18
+	wrax	clkinc, 1.0		; the counter's step
+	wrax	hc, 1.0			; 2^-18 (as good as 0): the first hit catches a grain
+	wrax	E, 0			; 2^-18 (as good as 0): the first step is a hit
+	wrax	side, 0			; the first hit goes left (a stray value would mix the ears for good)
+c_run:
+; ---- the loop: records the input during a capture step, otherwise goes round
+	ldax	recf
+	skp	zro, l_hold
+	rdax	adcl, 0.5
+	skp	0, l_wr
+l_hold:	rda	grain#, 1.0
+l_wr:	wra	grain, 0
+	or	$000100			; age += 2^-15 (ACC is 0 here)
+	rdax	age, 1.0
+	and	$3FFFFF
+	wrax	age, 0
+; ---- the stretch: u runs 0 .. 1 over the gap, then parks at 1
+	ldax	u
+	rdax	du, 1.0
+	wrax	u, 1.0
+; ---- window sat(K u (1 - u)) over the stretch: silent at every hit, so the side flips cleanly
+	sof	1.0, -1.0
+	mulx	u			; u^2 - u: LOG takes |.|, exactly 0 at the end of the stretch
+	log	1.0, 0.3125
+	exp	1.0, 0
+	wrax	w, 0
+; ---- the grain read at 1/m speed, from the capture's start to its end
+	ldax	u
+	mulx	nPa
+	rdax	age, 1.0
+	and	$3FFFFF
+	wrax	addr_ptr, 0
+	rmpa	1.85
+	mulx	w
+	wrax	d, 1.0
+; ---- bloom: the send grows with the stretch (x Bloom) into one tank (two allpasses in
+;      the loop)
+	mulx	u
+	mulx	pot2
+	rda	dl#, 0.7		; feedback 0.7 (the denser, longer bloom)
+	rdfx	lpd, 0.5		; damping: the tail darkens as it goes round
+	wrax	lpd, 1.0
+	rda	ap1#, 0.6
+	wrap	ap1, -0.6
+	rda	ap2#, -0.6
+	wrap	ap2, 0.6
+	wra	dl, 0
+; ---- ears: the voice on its side, the tank's taps on both
+	ldax	d
+	mulx	side
+	wrax	lt, -1.0
+	rda	dl+3001, 0.7
+	wrax	dacl, 0
+	rdax	d, 1.0
+	rdax	lt, 1.0
+	rda	dl+7211, 0.7
+	wrax	dacr, 0

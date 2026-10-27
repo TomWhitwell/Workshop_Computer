@@ -1,0 +1,459 @@
+;Hall.
+
+
+
+;Pot0 = predelay 0-100ms.
+
+;Pot1 = reverb time
+
+;Pot2 = damping
+
+
+
+mem	pdel	3277	;100ms predelay space
+
+
+
+mem	idel	8000	;initial sound space
+
+
+
+mem	iap0	31
+
+mem	iap1	47
+
+mem	iap2	73
+
+mem	iap3	171
+
+mem	iap4	196
+
+mem	iap5	371
+
+mem	iap6	496	;thickening all passes imbeded in intial delay
+
+
+
+mem	ap1	234
+
+mem	ap2	356
+
+mem	ap3	962
+
+mem	ap4	1263	;reverb loop input all passes
+
+
+
+mem	lap1a	1921
+
+mem	lap1b	2645
+
+mem	d1	3534
+
+mem	lap2a	2294
+
+mem	lap2b	2767
+
+mem	d2	3745	;loop constants
+
+
+
+;write-first registers:
+
+
+
+equ	kirt	reg0	;coefficint to scale initial sound
+
+equ	krt	reg1	;coefficient to affect RT of loop
+
+equ	apout	reg2	;output of loop input all passes
+
+equ	kd	reg3	;damping coefficient (for shelving)
+
+equ	temp	reg4	;temp register for filter routines
+
+equ	gain	reg5	;adjust gain with RT
+
+
+
+;read-first registers:
+
+
+
+equ	lf1	reg20	;reverb loop filter 1
+
+equ	lf2	reg21	;reverb loop filter 2
+
+equ	hf1	reg22	;loop high pass 1 (fixed)
+
+equ	hf2	reg23	;loop high pass 2 (fixed)
+
+equ	lfin2	reg25	;LPF for imbedding in intial delay
+
+equ	lf	reg26	;input low pass (shelving with kd)
+
+
+
+;clear read-first registers, setup lfo:
+
+
+
+skp	run,endclr
+
+wrax	lf1,0
+
+wrax	lf2,0
+
+wrax	hf1,0
+
+wrax	hf2,0
+
+wrax	lfin2,0
+
+wlds	sin0,20,100
+
+endclr:
+
+
+
+;initial sound tap positions (30.5uS/location, 100=3.05mS):
+
+
+
+equ	ld1	2074	;first tap, left
+
+equ	rd1	2174	;first tap, right
+
+equ	ld2	3556	;and so on...
+
+equ	rd2	3962
+
+equ	ld3	3345
+
+equ	rd3	3121
+
+equ	ld4	3656
+
+equ	rd4	3453
+
+equ	ld5	5121
+
+equ	rd5	5624
+
+equ	ld6	6579
+
+equ	rd6	7940
+
+
+
+;prepare predelay pot:
+
+
+
+rdax	pot0,0.1		;to 1/10th total delay (100ms)
+
+and	%01111110_00000000_00000000
+
+wrax	addr_ptr,0		;write to memory pointer
+
+
+
+;prepare decay pot:
+
+
+
+rdax	pot1,0.97		;get pot, limit to less than infinite
+
+wrax	krt,1			;write loop decay time
+
+sof	0.4,0.6			;scale to 0.6 to 1.0
+
+wrax	kirt,0			;write impulse filter gains
+
+sof	-1,0.99			;scale to decrease gain with RT
+
+wrax	gain,0			;write gain factor
+
+
+
+;prepare damping pot:
+
+
+
+rdax	pot2,-1
+
+wrax	kd,0			;increases shelf to -1 (infinite loss)
+
+
+
+;do inputs to predelay:
+
+
+
+rdax	adcl,0.5
+
+rdax	adcr,0.5		;get inputs
+
+mulx	gain			;give greater gain to short RT
+
+wra	pdel,0
+
+
+
+;read predelay and write initial response delay:
+
+
+
+rmpa	1
+
+rda	iap0#,0.5
+
+wrap	iap0,-0.5		;complicate input to initial delay
+
+wrax	temp,1
+
+rdfx	lf,0.4
+
+wrhx	lf,-1
+
+mulx	kd
+
+rdax	temp,1			;low pass fiter entire input
+
+wra	idel,0			;write initial sound delay
+
+
+
+;complicate initial sound:
+
+
+
+rda	idel+500,1
+
+rda	iap1#,0.5
+
+wrap	iap1,-0.5
+
+wra	idel+500,0
+
+
+
+rda	idel+1000,1
+
+rda	iap2#,0.5
+
+wrap	iap2,-0.5
+
+wra	idel+1000,0
+
+
+
+rda	idel+1500,1
+
+rda	iap3#,0.5
+
+wrap	iap3,-0.5
+
+wra	idel+1500,0
+
+
+
+rda	idel+2000,1
+
+rda	iap4#,0.5
+
+wrap	iap4,-0.5
+
+wra	idel+2000,0
+
+
+
+rda	idel+2500,1
+
+rda	iap5#,0.5
+
+wrap	iap5,-0.5
+
+wrax	temp,1			;save filter input
+
+rdfx	lfin2,0.3
+
+wrhx	lfin2,-1		;make HP filter
+
+mulx	kd			;multiply by negative shelving coef
+
+rdax	temp,1			;add back input (shelving LPF)
+
+wra	idel+2500,0
+
+
+
+rda	idel+3000,1
+
+rda	iap6#,0.5
+
+wrap	iap6,-0.5
+
+wra	idel+3000,0
+
+
+
+;do reverb input all passes:
+
+
+
+rda	idel,1
+
+rda	ap1#,0.5
+
+wrap	ap1,-0.5
+
+rda	ap2#,0.5
+
+wrap	ap2,-0.5
+
+rda	ap3#,0.5
+
+wrap	ap3,-0.5
+
+rda	ap4#,0.5
+
+wrap	ap4,-0.5
+
+wrax	apout,0
+
+
+
+;do reverb loop and sum all outputs:
+
+
+
+rda	d2#,1
+
+mulx	krt
+
+rdax	apout,1
+
+rda	lap1a#,0.5
+
+wrap	lap1a,-0.5
+
+rda	lap1b#,0.5
+
+wrap	lap1b,-0.5
+
+wrax	temp,1			;save filter input
+
+rdfx	lf1,0.4
+
+wrhx	lf1,-1			;make HP filter
+
+mulx	kd			;multiply by negative shelving coef
+
+rdax	temp,1			;add back input (shelving LPF)
+
+rdfx	hf1,0.005
+
+wrhx	hf1,-0.5		;roll out lows in loop
+
+wra	d1,1.99
+
+
+
+rda	idel+ld6,-0.5
+
+mulx	kirt
+
+rda	idel+ld5,0.7
+
+mulx	kirt
+
+rda	idel+ld4,0.6
+
+mulx	kirt
+
+rda	idel+ld3,0.5
+
+mulx	kirt
+
+rda	idel+ld2,0.6
+
+rda	idel+ld1,-0.6
+
+wrax	dacl,0
+
+
+
+rda	d1#,1
+
+mulx	krt
+
+rdax	apout,1
+
+rda	lap2a#,0.5
+
+wrap	lap2a,-0.5
+
+rda	lap2b#,0.5
+
+wrap	lap2b,-0.5
+
+wrax	temp,1
+
+rdfx	lf2,0.4
+
+wrhx	lf2,-1
+
+mulx	kd
+
+rdax	temp,1
+
+rdfx	hf2,0.005
+
+wrhx	hf2,-0.5
+
+wra	d2,1.99
+
+
+
+rda	idel+rd6,0.6
+
+mulx	kirt
+
+rda	idel+rd5,-0.5
+
+mulx	kirt
+
+rda	idel+rd4,0.6
+
+mulx	kirt
+
+rda	idel+rd3,0.5
+
+mulx	kirt
+
+rda	idel+rd2,-0.6
+
+rda	idel+rd1,0.5
+
+wrax	dacr,0
+
+
+
+;do delay smoothing:
+
+
+
+cho	rda,sin0,sin|reg|compc,d1+100
+
+cho	rda,sin0,sin,d1+101
+
+wra	d1+200,0
+
+
+
+cho	rda,sin0,cos|reg|compc,d1+100
+
+cho	rda,sin0,cos,d1+101
+
+wra	d1+200,0

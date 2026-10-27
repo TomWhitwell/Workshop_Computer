@@ -152,6 +152,7 @@ assignments:
     - chris-pick
   "39_knots":
     - classic
+  "40_UMWELT": []
   "41_blackbird":
     - deep
     - useful
@@ -198,7 +199,6 @@ assignments:
     - magic
   "71_degenerator": []
   "72_motorik":
-    - toms-pick
     - classic
   "73_VSS":
     - instant-win
@@ -225,6 +225,8 @@ assignments:
   "90_Pantograph": []
   "91_chorgan":
     - instant-win
+  "92_quattro_formaggio":
+    - new
   "93_Turing_Matrix": []
   "94_Ouroboros": []
   "95_offair2":
@@ -233,15 +235,16 @@ assignments:
     - magic
     - chris-pick
   "97_alloy": []
-  "98_duo_midi": []
+  "98_duo_midi":
+    - useful
   "99_toolbox": []
-  "101_Gnarly_C1ZZL3":
-    - wild
+  "101_Gnarly_C1ZZL3": []
   "102_Nibble-KO":
     - toms-pick
   "103_spectral": []
   "104_barbers_pole": []
-  "105_voder": []
+  "105_voder":
+    - wild
   "106_uncertainty":
     - useful
   "107_scintillator": []
@@ -251,40 +254,64 @@ assignments:
     - deep
   "109_LightPen":
     - wild
-  "110_Impermanence":
-    - start-here
+  "110_Impermanence": []
   "111_8mu_cv": []
   "112_Equanimity":
     - new
     - toms-pick
-  "118_JP8K":
+    - start-here
+  "113_Constancy":
+    - new
+  "118_JP8K": []
+  "122_You_Spin_Me_Round": []
+  "123_Dawn_Chorus":
+    - new
+  "124_canon":
     - new
   "174_Skipping_Stones": []
-  "197_CosmikM1N1D":
-    - new
+  "197_CosmikM1N1D": []
   "202_ScaryLingo": []
   "303_acid": []
+  "333_Spatial_Disorientation":
+    - new
   "355_RYK_Pitch-Vocoder": []
   "369_Asterisk":
-    - new
     - chris-pick
-  "404_BlackBox": []
-  "433_sense_of_space": []
-  "538_bootleg_radio":
+  "389_Qi_Gong_Timer":
     - new
-  "580_Vortex_Runner": []
+    - useful
+  "404_BlackBox":
+    - deep
+  "433_sense_of_space": []
+  "505_dot_dash":
+    - wild
+  "538_bootleg_radio":
+    - magic
+  "580_Vortex_Runner":
+    - new
+  "662_Workshop_Scope":
+    - new
   "666_ws_doom":
     - toms-pick
     - magic
   "799_mazerunner":
-    - new
-  "800_graphic_osc":
-    - new
+    - wild
+  "800_graphic_osc": []
   "801_WaveSeq":
+    - toms-pick
+  "802_CVSeq":
+    - new
+  "805_Fader_Footie":
+    - new
+    - wild
+  "806_Weights":
     - new
   "818_Bibesque":
     - useful
+    - classic
   "833_BuzzyBee": []
+  "873_Blueberry_Smoothie":
+    - new
   "877_RYK_Tape-Sampler":
     - magic
     - chris-pick
@@ -294,19 +321,5 @@ assignments:
     - classic
   "999_Dub_Warning":
     - toms-pick
-  # You spin me round
-  122_You_Spin_Me_Round: []
-  # CVSeq
-  802_CVSeq: []
-  # UMWELT
-  40_UMWELT: []
-  # Dot Dash
-  505_dot_dash: []
-  # Constancy
-  113_Constancy: []
-  # Spatial Disorientation
-  333_Spatial_Disorientation: []
-  # Blueberry Smoothie
-  873_Blueberry_Smoothie: []
-  # Quattro Formaggio
-  92_quattro_formaggio: []
+  # Pedal Lab
+  125_Pedal_Lab: []

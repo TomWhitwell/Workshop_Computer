@@ -1,0 +1,211 @@
+; 3 tap delay
+; taps are treated in parallel
+; feedback & damping are fixed, but
+; f/b varies slighly depending on delay time (longer time, less f/b)
+; damping for each tap is different
+;
+; Graham Biswell <graham@gbiswell.com>
+;
+; pot0 adjusts time of tap0
+; pot1 adjusts time of tap1
+; pot2 adjusts time of tap2
+
+equ	delay_len	10700		; max. delay length for all 3 taps
+equ	smooth		0.001		; Smoothing coefficient for pot reads
+
+; damping 
+equ	damp_long	0.7
+equ	damp_mid	0.4
+equ	damp_short	0.3
+
+; cutoffs for lpf & hpf in damping
+equ	t0_lpfval	0.7
+equ	t0_hpfval	0.1
+equ	t1_lpfval	0.6
+equ	t1_hpfval	0.1
+equ	t2_lpfval	0.5
+equ	t2_hpfval	0.05
+
+mem	tap0		delay_len
+mem	tap1		delay_len
+mem	tap2		delay_len
+mem	chor0		200
+mem	chor1		200
+
+
+equ	t0_pot	pot0
+equ	t1_pot	pot1
+equ	t2_pot	pot2
+
+equ	temp		reg8
+equ	input		reg9
+
+equ	t0_offset	reg0
+equ	t0_data		reg1
+equ	t0_delay	reg2
+equ	t0_lpf		reg3
+equ	t0_hpf		reg4
+equ	t0_damp		reg5
+equ	t0_fb		reg6
+
+equ	t1_offset	reg10
+equ	t1_data		reg11
+equ	t1_delay	reg12
+equ	t1_lpf		reg13
+equ	t1_hpf		reg14
+equ	t1_damp		reg15
+equ	t1_fb		reg16
+
+equ	t2_offset	reg20
+equ	t2_data		reg21
+equ	t2_delay	reg22
+equ	t2_lpf		reg23
+equ	t2_hpf		reg24
+equ	t2_damp		reg25
+equ	t2_fb		reg26
+
+
+; Clear register on start
+skp	RUN, loop
+wlds	sin0, 10, 10
+wlds	sin1, 11, 10
+sof	0, damp_short
+wrax	t0_damp, 0
+sof	0, damp_mid
+wrax	t1_damp, 0
+sof	0, damp_long
+wrax	t2_damp, 0
+loop:
+clr					; Clear the ACC
+
+; set pointer for each tap based on pot value
+rdax	t0_pot, 1
+sof	0.99, 0.01
+wrax	t0_delay, 0
+or	delay_len*256			; Put delay length into ACC aligned to ACC[22:8]
+mulx	t0_delay			; Multiply by delay amount
+rdfx	t0_offset, smooth
+wrax	t0_offset, 0
+; 
+rdax	t0_pot, 1
+sof	-1, 0.999
+sof	0.4, 0.6
+wrax	t0_fb, 0
+
+;;
+rdax	t1_pot, 1
+sof	0.99, 0.01
+wrax	t1_delay, 0
+or	delay_len*256
+mulx	t1_delay
+rdfx	t1_offset, smooth
+wrax	t1_offset, 0
+
+rdax	t1_pot, 1
+sof	-1, 0.999
+sof	0.5, 0.5
+wrax	t1_fb, 0
+
+;;
+rdax	t2_pot, 1
+sof	0.99, 0.01
+wrax	t2_delay, 0
+or	delay_len*256
+mulx	t2_delay
+rdfx	t2_offset, smooth
+wrax	t2_offset, 0
+
+rdax	t2_pot, 1
+sof	-1, 0.999
+sof	0.3, 0.7
+wrax	t2_fb, 0
+
+; Tap 0
+or	tap0 * 256			; Load left base address
+rdax	t0_offset, 1			; add pointer offset
+wrax	addr_ptr, 0			; Write it to the address pointer register
+rmpa	1				; Read from memory
+wrax	t0_data, 0			; Write data from delay output to register
+
+; Tap 1
+or	tap1 * 256			; Load right base address
+rdax	t1_offset, 1			; add pointer offset
+wrax	addr_ptr, 0			; Write it to the address pointer register
+rmpa	1				; Read from memory
+wrax	t1_data, 0			; Write data from delay output to register
+
+; Tap 2
+or	tap2 * 256			; Load center base address
+rdax	t2_offset, 1			; add pointer offset
+wrax	addr_ptr, 0			; Write it to the address pointer register
+rmpa	1				; Read from memory
+wrax	t2_data, 0			; Write data from delay output to register
+
+rdax	t0_data, 0.5
+rdax	t1_data, 0.5
+rdax	t2_data, 0.5
+wrax	temp, 1
+wra	chor0, 1	
+wra	chor1, 0	
+cho	rda, sin0, sin | reg | compc, chor0^
+cho	rda, sin0, sin, chor0^+1
+wrax	dacl, 0
+cho	rda, sin1, cos | reg | compc, chor1^
+cho	rda, sin1, cos, chor1^+1
+wrax	dacr, 0
+
+; read input & save for now
+rdax	adcl, 0.6
+rdax	adcr, 0.6
+wrax	input, 0
+
+; each tap is processed in teh same way
+; take current data, attenuate for f/b, filter for damping, add input & write back
+;
+rdax    t0_data, 1
+mulx    t0_fb
+wrax    temp, 1
+rdfx    t0_lpf, t0_lpfval
+wrlx    t0_lpf, -1
+rdfx    t0_hpf, t0_hpfval
+wrhx    t0_hpf, -1
+;
+rdax    temp, -1
+mulx    t0_damp
+rdax    temp, 1
+;
+rdax	input, 1
+wra	tap0, 0
+
+; now tap1
+rdax    t1_data, 1
+mulx    t1_fb
+wrax    temp, 1
+rdfx    t1_lpf, t1_lpfval
+wrlx    t1_lpf, -1
+rdfx    t1_hpf, t1_hpfval
+wrhx    t1_hpf, -1
+;
+rdax    temp, -1
+mulx    t1_damp
+rdax    temp, 1
+;
+rdax	input, 1
+wra	tap1, 0
+
+; now tap2
+rdax    t2_data, 1
+mulx    t2_fb
+wrax    temp, 1 
+rdfx    t2_lpf, t2_lpfval
+wrlx    t2_lpf, -1
+rdfx    t2_hpf, t2_hpfval
+wrhx    t2_hpf, -1
+;
+rdax    temp, -1
+mulx    t2_damp
+rdax    temp, 1
+;
+rdax	input, 1
+wra	tap2, 0
+ 

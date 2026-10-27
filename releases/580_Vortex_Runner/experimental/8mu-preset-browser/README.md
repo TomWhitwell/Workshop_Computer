@@ -1,10 +1,13 @@
 # Vortex Runner — 8mu Preset Browser Experiment
 
+**Archived experiment:** the UF2 has moved to the [firmware archive](../../uf2/archive/previous-versions-20261026/README.md).
+This source remains available for reference; use the main README for current editions.
+
 This third 8mu experiment retains the layered 8mu controller and adds a
 hardware preset browser. It is separate from the stable release and earlier
 8mu experiments.
 
-Flash `Vortex_Runner_8mu_preset_browser_experimental_20261003.uf2` using the
+Flash [Vortex_Runner_8mu_preset_browser_experimental_20261003.uf2](../../uf2/archive/previous-versions-20261026/experimental/8mu-preset-browser/Vortex_Runner_8mu_preset_browser_experimental_20261003.uf2) using the
 normal Workshop Computer card-flashing workflow. This is experimental
 firmware: it does not replace the stable card-580 release.
 

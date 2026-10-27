@@ -1,228 +1,320 @@
 # Vortex Runner
 
-Vortex Runner is a Workshop Computer card for a CS-80-inspired split-output
-synthesiser voice.
+Vortex Runner is a CS-80-inspired monophonic synth voice for the Workshop
+Computer. It plays one shared note and gate through two separately coloured
+outputs: **Audio Out 1 is Voice A; Audio Out 2 is Voice B**. Detune Voice B
+for width, or give each output its own oscillator mix and filter settings.
 
-The current stable target is still deliberately modest: keep one playable
-monophonic note path, but render it as two related output voices so Audio Out 2
-can be detuned against Audio Out 1.
+Both editions include 12 dB/octave high-pass and low-pass filters, amp and
+filter envelopes, portamento, ring modulation, 31 factory presets, and eight
+named saved presets. This is an independent instrument inspired by the
+CS-80's musical gestures, with no Yamaha affiliation.
 
-This card is not affiliated with Yamaha and is not intended to be a circuit
-emulation of the Yamaha CS-80. The goal is a playable Workshop Computer
-instrument inspired by the broad musical gestures of that synthesiser: two
-oscillator lanes, animated pulse/saw tone, high-pass into low-pass filtering,
-performance modulation, ring modulation, and expressive envelopes.
+## Choose Your Firmware
 
-## Current Status
+Flash **one** edition. Version **0.1.2 is Beta**: both binaries compile and
+pass MIDI edition checks, but still require hardware verification.
 
-This folder contains the split-output firmware baseline and its Web MIDI editor.
+| Edition | Download | Choose this for |
+|---|---|---|
+| Standard | [Vortex_Runner_0.1.2.uf2](uf2/Vortex_Runner_0.1.2.uf2) | Panel and CV/gate playing, ordinary USB MIDI keyboards/controllers, and the Web MIDI editor. |
+| 8mu | [Vortex_Runner_8mu_0.1.2.uf2](uf2/Vortex_Runner_8mu_0.1.2.uf2) | The same synth and editor, plus the 8mu layers, fader pickup and LED feedback described below. |
 
-- Firmware: `uf2/Vortex_Runner_8mu_button_note_fix_20261007.uf2` is the
-  current 8mu button-note fix build. It has compiled successfully and requires
-  hardware verification. It adds 12 dB/octave high-pass and
-  low-pass paths, bounded resonance, the factory-plus-saved hardware preset
-  browser, and 8mu controller support with panel LED feedback. Filter Envelope
-  layer fader 5 controls HP cutoff; fader 6 controls resonance.
-- Web editor: Vortex Runner SysEx v10 patch apply/readback interface with named
-  persistent card slots
-- Rollbacks: locally retained rollback UF2s are ignored by git
-- Release status: 8mu button-note fix build (2026-10-07); hardware verification
-  pending
-- Release guide and first patch: [RELEASE_SUMMARY.md](RELEASE_SUMMARY.md) or
-  [RELEASE_SUMMARY.txt](RELEASE_SUMMARY.txt)
+Checksums are in [uf2/SHA256SUMS.txt](uf2/SHA256SUMS.txt). The catalogue lists
+only these two editions; earlier binaries are retained in the
+[firmware archive](uf2/archive/README.md) for recovery. Complete source for both is included; see
+[Building Both Editions](#building-both-editions) at the end of this guide.
 
-Release firmware should go in `uf2/` when a build is ready to publish. Local
-hardware-test UF2s should go in `test-uf2/`, which is ignored by git.
+## Quick Start
 
-## Design Target
+1. Flash the chosen UF2 to a program card using the normal Workshop Computer
+   BOOTSEL workflow, then insert the card.
+2. Connect Audio Outs 1 and 2 to two mixer channels. Pan them left and right
+   to hear the A/B differences, or use either output on its own.
+3. For panel auditioning, leave USB and Pulse In 1 unpatched and start with
+   the switch in Middle. The voice drones without a gate/controller. With
+   no saved startup slot, the fallback sound is **Doctor Who Theme**.
+4. For CV playing, connect pitch to **Audio/CV In 1** and gate to **Pulse In 1**.
+   The editor selects the pitch range: `-3 V to +3 V, C4 at 0 V` or
+   `0 V to +5 V, C4 at +3 V`.
+5. For a USB MIDI keyboard, connect it before powering/resetting the Computer
+   so USB boots in host mode. With USB MIDI connected and no external gate,
+   play a MIDI note to hear the voice.
+6. For an 8mu, use the **8mu edition** and follow [Using The 8mu](#using-the-8mu).
+   For browser editing, connect the Computer directly to your computer instead;
+   see [Web MIDI Editor And Saving](#web-midi-editor-and-saving).
 
-- RP2040 clock: 192 MHz
-- Firmware should use `pico_set_binary_type(... copy_to_ram)`
-- Audio rendering should stay on core 0
-- USB MIDI, Web MIDI SysEx, and editor communication run on core 1
-- The audio loop should avoid division, float-heavy code, blocking calls, flash
-  writes, and MIDI parsing
-- Complete Web MIDI patches cross from core 1 to core 0 through a bounded,
-  lockless SPSC queue; core 0 publishes readback snapshots through a second queue
-- The playable note path remains monophonic while Audio Out 1 and Audio Out 2
-  render separate A/B voices for detune and shaping experiments
+## Panel Controls
 
-## Current Voice Shape
+A short Down tap selects whether the panel edits **Voice A or Voice B**.
+Workshop LEDs 1 and 2 identify the selected voice. Switch pages and voice
+changes use soft pickup: move a knob near its stored value before it takes
+control, so changing pages does not jump the sound.
 
-- monophonic note/gate path with two split audio outputs
-- `Audio Out 1`: Voice A
-- `Audio Out 2`: Voice B, detunable relative to Voice A
-- one shared pitch, gate, amp/filter envelope, portamento, pitch-CV policy,
-  CV routing, MIDI state, LFO timing, and preset state for both outputs
-- A/B differences are limited to oscillator/filter colour: source levels,
-  output level, detune, pulse width, PWM amount, HP cutoff, LP cutoff, and
-  resonance
-- web-first portamento for smooth CV/pitch glides
-- independent saw, square/pulse, sine, and noise mixer levels
-- independent pulse width, PWM amount, LFO-to-pitch, and LFO-to-PWM controls
-- oscillator spread or detune
-- 12 dB/octave high-pass then 12 dB/octave low-pass filter character
-- amp envelope
-- filter envelope
-- LFO for vibrato, tremolo, or filter movement
-- ring modulation as a performance colour
-- gate and MIDI note triggering
-- Web MIDI editor for patch editing, readback, and saving
+| Switch position | Main | X | Y |
+|---|---|---|---|
+| Middle: oscillator page | Shared base-pitch offset | Selected voice's pulse width | Selected voice's PWM amount |
+| Up: filter page | Selected voice's LP cutoff | Selected voice's HP cutoff | Selected voice's resonance |
+| Down, held: performance page | Voice B detune | Ring-modulation amount | Vibrato / LFO-to-pitch depth |
 
-## Filter Architecture
+A brief Down tap changes A/B focus; holding Down exposes the performance
+controls. Holding it for about **two seconds** opens the preset browser.
 
-Each output has its own 12 dB/octave high-pass path feeding a 12 dB/octave
-low-pass path. HP cutoff, LP cutoff, resonance, and filter state are
-independent for Voice A and Voice B; the filter envelope, filter CV routing,
-and LFO-to-filter depth are shared. Resonance is bounded below
-self-oscillation and is applied to both paths for a stronger, controlled
-band-pass focus.
+The source mixer, separate A/B output levels, envelope shapes, CV policy and
+additional LFO destinations are available in the Web editor. Saw, pulse, sine
+and noise levels add together. Each voice has its own HP/LP filter settings;
+resonance affects both filter paths and is bounded below self-oscillation.
+Pitch, gate, amp/filter envelopes, portamento, expression and LFO timing are
+shared between A and B.
 
-This replaces the earlier, gentler 6 dB/octave filter path. The August 2026
-rollback image and matching source are retained locally in an ignored archive,
-so they are not included in the stable-release PR.
+### Panel LEDs
 
-## 8mu Activity
+LED numbers here are **1–6**, left-to-right, top-to-bottom: `1 2 / 3 4 / 5 6`.
 
-The current firmware supports a Music Thing Modular 8mu connected at power-on.
-The 8mu uses the Computer USB port in host mode, so it cannot be used at the
-same time as the Web MIDI editor. The complete connection, layer, soft-takeover,
-panel-LED, and preset-browser instructions are kept separately in
-[8MU_ACTIVITY.md](8MU_ACTIVITY.md).
+| LEDs | Normal panel operation |
+|---|---|
+| 1 / 2 | Voice A / Voice B selection; the selected voice is brighter. |
+| 3 / 4 | Stored X value / X pickup status: dim while waiting, bright after pickup. |
+| 5 / 6 | Stored Y value / Y pickup status. LED 5 also indicates a long Down hold. |
 
-### Previous 8mu button-note issue — verify after updating
+With an identified 8mu attached, these become the fader-feedback display
+[described below](#8mu-led-feedback). Preset browsing temporarily takes priority.
 
-Earlier 8mu firmware builds also forwarded the four 8mu button-note messages
-to Vortex Runner's ordinary MIDI-note input. When playing from a CV keyboard
-with its gate held high, pressing A, B, C, or D could therefore retrigger the
-voice and switch its pitch to C2, C3, C4, or C5. The corrected firmware consumes
-those button notes exclusively for 8mu layer selection.
+## Inputs And Outputs
 
-After flashing a corrected build, hold a note on a CV keyboard and press then
-release each 8mu button. Only the selected 8mu layer LED should change: the
-pitch and envelope of the CV-played note must remain unchanged. If they do
-change, the card is still running a pre-fix firmware build.
+| Jack | Function |
+|---|---|
+| Audio/CV In 1 | 1 V/oct pitch, with the range selected in the Web editor. |
+| Audio In 2 | Reserved; there is no external-audio processing path in this release. |
+| CV In 1 / CV In 2 | Filter and expression modulation, selected as a pair in the editor; see below. |
+| Pulse In 1 | Amp/filter gate. When patched, it takes priority over MIDI gate. |
+| Pulse In 2 | Unused. |
+| Audio Out 1 / Audio Out 2 | Voice A / Voice B. |
+| CV Out 1 / CV Out 2 | Unused. |
+| Pulse Out 1 / Pulse Out 2 | Unused. |
 
-## Draft Web MIDI Protocol
+The editor's CV pairing options are:
 
-The editor and firmware now share a small non-commercial SysEx protocol:
+| CV mode | CV In 1 | CV In 2 |
+|---|---|---|
+| Contour Sweep + Expression | Moves HP and LP cutoff together | Adds LP brightness and resonance |
+| High-Pass Focus + Brightness | Moves HP cutoff | Adds LP brightness |
+| Low-Pass Brightness + Resonance | Moves LP cutoff | Changes resonance |
 
-- manufacturer byte: `0x7d`
-- legacy wire id: `CS80` (retained for existing editor and firmware compatibility)
-- protocol version: `10`
-- commands: apply patch, save slot, request current patch, request slot map,
-  request slot, slot response, delete slot, and set startup slot
+MIDI notes use absolute pitch while active; the panel base-pitch offset does
+not transpose them. Pitch bend is ±2 semitones. After a MIDI release tail,
+pitch returns to the CV/manual source. USB MIDI host mode and browser/device
+mode are chosen at boot; reconnect and reset when changing between them.
 
-pitch-CV range mode, portamento, separate A/B pulse width, PWM amount,
-saw/pulse/sine/noise source levels, output level, HP cutoff, LP cutoff, and
-resonance, plus shared expression depth, amp/filter ADSR controls, LFO rate,
-LFO routings, ring amount, and ring speed. The source levels are summed rather
-than crossfaded. Save applies the patch and writes it, with a 24-character
-name, to one of eight persistent card slots. The first saved patch becomes the
-startup patch automatically; use the editor's `Start Here` button to choose a
-different saved startup slot.
-`Refresh Slots` reads the card's saved-slot map, `Read Patch` syncs the current
-live card patch, and `Load Slot` recalls the selected saved slot.
+## Preset Browser
 
-Factory presets remain immutable editor choices and load both outputs in
-unison. Users can create named browser presets alongside them, then use Save to
-Card to persist the current sound and its name in a selected hardware slot.
+The hardware browser offers **31 factory presets followed by occupied saved
+slots**. Empty saved slots are skipped. It works with either edition and with
+an 8mu connected.
 
-At startup, holding the Down switch during the short boot selection window enters
-patch-slot select. Main chooses among saved slots while the LEDs show only the
-selected slot number in binary. Release Down to keep browsing, then press Down
-again to load the selected slot, store it as the default startup slot, and enter
-normal performance mode.
+1. Hold Down during startup, or hold Down for about two seconds during play.
+2. Turn Main to choose a preset. The six panel LEDs show its one-based number
+   in binary, with LED 1 as the low bit.
+3. Release Down to arm the selection, then press Down again to load it.
 
-Factory/example presets preserve the editor's current CV policy when loaded.
-Saved card slots are full snapshots: the pitch-CV range is part of each saved
-patch, so the startup slot also restores its `-3 V to +3 V, C4 at 0 V` or
-`0 V to +5 V, C4 at +3 V` pitch reference.
-If no saved startup slot exists yet, the compiled fallback patch is the Web
-editor's `Doctor Who Theme` preset: an eerie lead using sine plus pulse,
-resonant filtering, portamento, vibrato, PWM wobble, and a little ring modulation.
+Loading a saved slot also makes it the startup slot. Loading a factory preset
+does not change the saved startup choice. Browsing recalls presets; it does
+not save the sound you have been editing over an existing slot.
 
-## MIDI CC Map
+Factory presets are immutable and initially load A/B in unison. Saved slots
+can retain separate A/B colours and include the pitch-CV range. With no saved
+startup slot, the fallback is Doctor Who Theme, including its portamento.
 
-Following the Gnarly habit, Vortex Runner now exposes a simple two-bank encoder layout
-for controllers such as the M-VAVE SMK-25:
+## Using The 8mu
 
-- `CC1`: vibrato depth via LFO to pitch
-- Bank A, `CC20-27`: saw level, pulse level, sine level, noise level, pulse width, PWM amount, LP cutoff, resonance
-- Bank B, `CC28-31`: HP cutoff, ring amount, ring speed, portamento
-- Bank B, `CC32-35`: linked amp/filter attack, decay, sustain, release
+Use **Vortex_Runner_8mu_0.1.2.uf2**. Connect the 8mu directly to a Rev 1.1
+Workshop Computer's USB port **before powering/resetting** the Computer.
+The firmware identifies the 8mu and loads its default controller mapping for
+this session. Identification selects controller bank 1 and temporarily locks
+its bank buttons until the
+8mu is power-cycled. Use **A–D** to select Vortex Runner layers instead.
 
-The Web UI stores separate amp and filter ADSR values. `CC32-35` move the amp
-and filter envelope values together by offset, so controller changes keep the
-relative Web UI envelope shape instead of collapsing both envelopes to identical
-values.
+The 8mu changes sound parameters; it does not supply playable notes or gates.
+For pitched playing, provide pitch on Audio/CV In 1 and gate on Pulse In 1.
+With only an 8mu connected and no gate source, MIDI mode waits for a note.
 
-Secondary synth controls stay available on:
+The 8mu and Web MIDI editor cannot operate together because they use opposite
+roles on the same USB port. Prepare and save your presets in an editor session,
+then reconnect/reset with the 8mu attached for performance.
 
-- `CC2` or `CC11`: expression depth
-- `CC7`: voice level
-- `CC76`: LFO rate
-- `CC77` or `CC93`: LFO to PWM
-- `CC91`: LFO to VCF
-- `CC92`: LFO to VCA
+### 8mu Button And Fader Table
 
-Pitch bend is also supported at a fixed `+/-2 semitone` range. It is kept
-separate from the editor's performance-pitch parameter, so Web patch changes
-cannot overwrite an active MIDI bend or alter MIDI note pitch unexpectedly.
+Press a button once to select its layer. The corresponding **8mu LED 1–4**
+lights. Each column below is a physical fader, numbered left-to-right.
 
-MIDI note-on and note-off drive the monophonic note path directly. While a MIDI
-note is held, it takes over pitch and gate for the synth voice, including
-portamento and pitch bend; the panel base-pitch offset no longer transposes MIDI
-notes. With USB MIDI connected and `Pulse In 1` unpatched, the card is silent
-until it receives a MIDI note. A patched `Pulse In 1` remains the gate source.
-After a MIDI release tail ends, pitch returns to the card CV/manual source.
+| Button / layer | Fader 1 | Fader 2 | Fader 3 | Fader 4 | Fader 5 | Fader 6 | Fader 7 | Fader 8 |
+|---|---|---|---|---|---|---|---|---|
+| **A / LED 1: Tone** | Saw level | Pulse level | Sine level | Noise level | Pulse width | PWM amount | LP cutoff | Resonance |
+| **B / LED 2: Amp envelope** | Amp attack | Amp decay | Amp sustain | Amp release | Output level | Expression depth | Portamento | Vibrato depth |
+| **C / LED 3: Filter envelope** | Filter attack | Filter decay | Filter sustain | Filter release | HP cutoff | Resonance | LFO-to-filter depth | LFO-to-amp depth |
+| **D / LED 4: Performance** | Voice B detune | Ring amount | Ring speed | LFO rate | Vibrato depth | LFO-to-PWM depth | LFO-to-filter depth | LFO-to-amp depth |
 
-## Firmware
+Tone controls set the corresponding A/B parameters together. The envelopes
+and modulation controls are shared; D's first fader specifically detunes
+Voice B. Use the panel or editor for separate A/B tone editing.
 
-`CS80.cpp` is a lean starting point rather than a finished synth. It currently
-drives one monophonic note path with two audio output voices:
+**A–D select layers; they do not save, revert, or select presets.** In
+particular, C selects the filter-envelope layer. Controller edits are live
+RAM changes and are not written to flash by these buttons. Recalling a preset
+or resetting can replace those edits. There is no 8mu preset-save action in
+this firmware; use the Web editor to create persistent presets in advance.
 
-- `Audio Out 1`: Voice A
-- `Audio Out 2`: Voice B, detuned relative to Voice A
+Each layer-button press re-arms pickup for that layer's faders. Move a fader
+slowly near the stored parameter value until it captures; after capture it
+follows normally. Pickup is proximity-based, so a very fast sweep can skip
+the capture window. Fader movement still updates the feedback display while
+waiting, so you can tell which fader needs pickup.
 
-Short-tapping Down toggles whether the hardware panel is editing Voice A or
-Voice B. Holding Down exposes performance controls for Voice B detune, ring
-modulation, and LFO depth.
-When `Pulse In 1` is unpatched the gate is held open for oscillator bring-up;
-when it is patched, `Pulse In 1` gates the monophonic note path.
-`Audio/CV In 1` is the pitch input. The Web editor selects either unipolar
-0 V to +5 V, with C4 at +3 V (0 V is C1), or bipolar -3 V to +3 V, with C4 at
-0 V. Both use 1V/oct. The Web editor also provides one combined CV filter
-pairing selector. `CV1 Contour Sweep + CV2 Expression` keeps the broad sweep
-behaviour, with CV1 moving HP and LP while CV2 adds LP brightness and resonance.
-`CV1 High-Pass Focus + CV2 Brightness` gives separate lower-edge and upper-edge
-filter movement. `CV1 Low-Pass Brightness + CV2 Resonance` leaves CV2 as a
-resonance-only performance input.
+### 8mu LED Feedback
 
-Panel controls use soft pickup so switching pages does not immediately overwrite
-stored values. LEDs 0/2/4 show the stored Main/X/Y values for the current switch
-page, while LEDs 1/3/5 go bright once each physical knob has picked up its stored
-value.
+The 8mu's own LEDs indicate its selected layer. The **Workshop Computer**
+LEDs show the most recently moved fader:
 
-Web MIDI never writes live audio parameters directly. Core 1 parses each complete
-SysEx patch or MIDI CC update and retains only the newest complete patch for the
-audio core; core 0 applies at most one patch on each 64-sample control tick
-(about 750 Hz at 48 kHz). This single-value mailbox coalesces rapid detune or
-editor updates rather than making audio apply stale intermediate states. A
-second, best-effort queue returns core-0 snapshots to the editor for safe
-readback. Apply messages do not generate a full patch reply; explicit read,
-slot load, save verification, and slot refresh continue to do so.
+| Workshop LEDs | Meaning |
+|---|---|
+| 1–3 | Fader number in binary: `000` = fader 1 through `111` = fader 8; LED 1 is the low bit. |
+| 4 | Pickup status: dim before capture, bright after capture. |
+| 5–6 | Physical position: LED 5 covers the lower half of travel; LED 6 covers the upper half. |
 
-The first pass uses small lookup tables in `CS80_LUT.*` for pitch ratios, filter
-curves, envelope rates, and LFO/ring sine values. This follows the C1ZZL3 habit
-of keeping expensive shaping out of the 48 kHz audio path.
+Unplugging the 8mu restores the normal panel display. While the preset browser is open, the Workshop LEDs
+show the preset number instead. To browse with the 8mu attached, use the
+Workshop switch and Main knob as described in [Preset Browser](#preset-browser).
 
-Build locally with:
+If an A–D button changes pitch or retriggers a held CV note, check that you
+flashed the current 8mu edition. Layer button notes should not enter the
+synth-note path once the 8mu is identified.
+
+## Web MIDI Editor And Saving
+
+Both editions use the same [Web MIDI editor](web/index.html). Connect the
+Workshop Computer directly to your computer with a USB data cable and reset
+into USB device mode. Use a browser with Web MIDI and SysEx support, such as
+Chrome or Edge, and choose **Connect MIDI** in the editor.
+
+If serving the editor locally, run this from the card folder:
 
 ```sh
-cmake -S . -B build -DPICO_NO_PICOTOOL=1
+python3 -m http.server 5177 --directory web
+```
+
+Open `http://localhost:5177`. Editing A/B source levels, pulse/PWM, filters and
+output levels is separate; envelopes, glide, expression, LFO and ring settings
+belong to the shared patch.
+
+| Editor action | What it does |
+|---|---|
+| Apply Settings | Sends the displayed patch to the live card without saving it. |
+| Read Patch in slot | Despite the button label, reads the **current live patch** into the editor. |
+| Refresh Slots | Reads the saved-slot map and names. |
+| Load Slot | Reads/recalls the selected saved slot. |
+| Save Settings | Applies and saves the displayed patch and name in the selected card slot. Wait for verification. |
+| Set Start Slot | Chooses an already saved slot for startup. |
+| Delete Preset | Deletes the selected saved card slot. |
+
+To keep a sound, select one of eight card slots, enter a name, and use
+**Save Settings**. The first saved slot becomes the startup slot automatically;
+use **Set Start Slot** to change it. Names can be up to 24 characters. A local
+browser preset and an applied live patch are not a flash save.
+
+Factory/example choices preserve the editor's current pitch-CV policy when
+loaded. Saved card slots are complete snapshots and restore their own CV range.
+
+## MIDI CC Reference
+
+Standard USB MIDI notes, pitch bend and CCs are available in both editions.
+In the 8mu edition, identified 8mu faders use the layer table above instead
+of their ordinary CC34–41 interpretation.
+
+| CC | Control |
+|---|---|
+| 1 | Vibrato / LFO-to-pitch depth |
+| 20–27 | Saw, pulse, sine, noise, pulse width, PWM, LP cutoff, resonance |
+| 28–31 | HP cutoff, ring amount, ring speed, portamento |
+| 32–35 | Linked amp/filter attack, decay, sustain, release offsets |
+| 2 or 11 | Expression depth |
+| 7 | Output level |
+| 76 | LFO rate |
+| 77 or 93 | LFO-to-PWM depth |
+| 91 | LFO-to-filter depth |
+| 92 | LFO-to-amp depth |
+
+CC32–35 offset the amp and filter envelopes together while preserving their
+relative settings; the editor and the 8mu's B/C layers edit them separately.
+Ordinary keyboard notes, including C2/C3/C4/C5, remain playable in the standard
+edition without 8mu note interception.
+
+## Firmware Development
+
+All instructions above describe using the card. The following sections are for
+building or modifying it yourself. Both editions share [CS80.cpp](CS80.cpp),
+[CS80_LUT.cpp](CS80_LUT.cpp), the USB support files and one Web MIDI editor.
+Only 8mu integration is conditional; the synth and saved-preset layouts match.
+
+### Architecture And Protocol
+
+- RP2040 at 192 MHz; copy-to-RAM firmware.
+- Audio runs on core 0. USB MIDI and Web MIDI processing run on core 1.
+- Complete patches cross through a bounded lockless handoff; rapid editor
+  updates coalesce to the newest patch before the next 64-sample control tick.
+  Readback snapshots cross through a separate queue.
+- Web MIDI manufacturer `0x7d`, wire ID `CS80`, protocol version `10`.
+- Commands cover apply/read patch, save/read/delete slot, slot map and startup
+  slot selection. The payload includes separate A/B tone settings and shared
+  envelope, CV, LFO and performance settings.
+- The catalogue's explicit `uf2` list in [info.yaml](info.yaml) selects only the
+  two current editions. Preserve historical binaries without adding them to
+  that public list. Local test builds belong in ignored `test-uf2/`.
+
+## Building Both Editions
+
+Install the Pico SDK, CMake, Arm embedded toolchain, and picotool, and set
+`PICO_SDK_PATH` to your SDK checkout. Run from this card folder:
+
+```sh
+cmake -S . -B build -DPICO_NO_PICOTOOL=0 -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j2
 ```
+
+This builds both `build/Vortex_Runner_0.1.2.uf2` and
+`build/Vortex_Runner_8mu_0.1.2.uf2`. To build just one edition:
+
+```sh
+cmake --build build --target VortexRunner -j2
+cmake --build build --target VortexRunner8mu -j2
+```
+
+Both targets compile [CS80.cpp](CS80.cpp), [CS80_LUT.cpp](CS80_LUT.cpp), and the
+included USB support files. Only the 8mu target includes [EightMU.h](EightMU.h).
+No separately fetched or private source is needed beyond the Pico SDK and its
+normal dependencies. Preset layouts and Web MIDI protocol v10 are unchanged. Both targets reserve a
+16 KiB USB/MIDI stack for nested Web MIDI save handling and a 4 KiB main stack
+for audio-side preset selection; the former default 2 KiB stacks were smaller
+than the measured save/browser frames.
+
+If configuring with `-DPICO_NO_PICOTOOL=1`, the SDK emits ELF/BIN files without
+UF2s. Convert both ELF files using an installed picotool:
+
+```sh
+picotool uf2 convert build/Vortex_Runner_0.1.2.elf build/Vortex_Runner_0.1.2.uf2 --family 0xe48bff56 --platform rp2040
+picotool uf2 convert build/Vortex_Runner_8mu_0.1.2.elf build/Vortex_Runner_8mu_0.1.2.uf2 --family 0xe48bff56 --platform rp2040
+```
+
+Run the host-side MIDI edition regression checks with:
+
+```sh
+python3 tests/midi_editions_test.py
+```
+
+On hardware, check panel/CV playing, ordinary USB MIDI notes and CCs, shared
+Web MIDI patch/slot readback and save/reload for each edition. In the 8mu
+edition, additionally check A-D layer changes during held CV notes, fader
+pickup, controller LEDs, and the hardware preset browser. Neither new binary
+has been hardware-verified yet.
 
 ## References
 

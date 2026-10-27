@@ -1,0 +1,149 @@
+; afx_reverse_delay.spn
+; reverse-delay by igor@shift-line.com 2018
+; simplified part of A+ Paradox delay
+; https://github.com/igorpie/Spin-FV-1/blob/master/afx_reverse_delay.spn
+
+	equ	size  32767
+	mem	mem_dly size
+
+	equ	FC0  0.98	; tails filter
+
+	equ	out_fwd reg0	; classic delay out
+	equ	out_bwd reg1	; reverse delay out
+
+	EQU	f1	reg3	; tails LPF
+	EQU	f4	reg4	; delay loop HPF
+	EQU	f5	reg5	; x-fade envelope (LPF)
+
+	equ	fbk	reg6	; feedback 
+
+	EQU	cf1	reg10	; cross-fade
+	EQU	th1	reg11   ; time threshold1 before step
+	EQU	th2	reg12	; time threshold2 after step
+
+	equ	ad_fbk	reg14	; current address pointer fbk of forward delay. 
+	equ	ad_reg  reg15	; current address reverse
+
+	EQU	temp	reg16
+
+	equ	f2 	reg31
+
+;	equ	pot_unzip 	pot0 	; bit crush value
+	equ	pot_delay   	pot2 
+	equ	pot_feedback  	pot1
+
+
+
+	skp	run , start
+	clr
+	wrax	ad_reg , 0
+start:
+
+;{ controls smooth
+;}
+
+
+
+;{ DELAY
+	ldax	fbk
+	rdax	adcl,   1.0/2	; classic forvard delay
+	wra	mem_dly , 0
+
+;{{ dly
+	or	size*256
+	mulx	pot_delay	;
+	wrax	ad_fbk , 1	; save for reverse delay starting point
+	wrax	addr_ptr,  0
+	rmpa	1		; read delayed value
+;}}     
+
+;filter HPF 
+	rdfx	f4, 0.003202	; HPF remove highs to avoid constant voltage accumulation. dirty way WRHX
+	wrax	f4 , -1
+	rmpa	1
+
+; dummy LPF for repeats
+	RDFX	f1 ,	FC0	; LPF fbk 
+	WRAX 	f1 , 	1
+	wrax	out_fwd , 1	; output of forward delay 
+
+     	mulx	pot_feedback	; feedback value 12 +/-
+     	mulx	pot_feedback
+
+	sof 	1.1 , 0
+	wrax	fbk , 0
+;} end delay
+
+
+
+;{ REVERSE read
+	or 	0xFFFE00	; move pointer of reverse delay
+	rdax	ad_reg , 1	; reverse ptr -= 2
+	skp 	gez , ok1
+	ldax	ad_fbk		; load initial reverse pointer value by forward delay value
+	wrax	ad_reg , 1
+ok1:
+	and	0x7FFFFF
+;	wrax 	dacr , 1	; *** debug
+
+	wrax	ad_reg ,  -1   	; (+1 = octave up , -1 = reverse read)
+	wrax	addr_ptr,   0   ; reverse read pointer
+
+	rmpa	1		; read reverse delay
+	mulx	f5		; do x-fade , may be one more mulx needed for smooth
+	wrax	out_bwd , 0
+;}
+
+
+
+; ********************************
+;    prepare x-fade envelope
+; ********************************
+; fade envelope
+;{				; compare reverse pointer address with (reverse - 256 ) and (reverse + 256).
+	rdax	ad_reg , -1
+	and	0x7FFFFF
+;	wrax	dacl , 1	; *** debug
+	wrax	temp , 1	; temp 2 == LFO
+; (A=LFO value)
+
+
+; (ramp begin)
+	sof	1 , - 1/256 	
+	skp 	gez , gez1
+	clr
+	wrax 	th1 , 0		; dirty step down (zero volume)
+	skp 	run , gez2
+gez1:
+	sof 	0 , 0.998	; (volume normal)
+	wrax 	th1 , 0
+gez2:	
+
+; (ramp end)
+	ldax	temp		; mostly the same
+	sof	1 , - 255/256 	; 
+	skp 	gez , gez3
+	sof 	0 , 0.998	
+	wrax 	th2 , 0
+	skp 	run , gez4
+gez3:
+	clr
+	wrax 	th2 , 0
+gez4:	
+	ldax th2		; Acc = sum of fades (if before or after step is zero, result = zero) 
+	mulx th1		
+	
+	rdfx	f5, 0.0006*64	; capacitor for declicking (smooth angles of square) , |_| will be \/
+	wrax	f5 , 0
+;}
+
+
+
+;{ ========= OUT ==============
+	rdax	out_bwd , -2
+	wrax 	dacl , 0	; ***
+;}	
+
+	
+
+eof:

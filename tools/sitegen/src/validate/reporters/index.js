@@ -89,8 +89,13 @@ function displayInfoPath(file) {
   return index >= 0 ? normalized.slice(index + marker.length) : normalized;
 }
 
-/** Rich Markdown used by the PR comment and GitHub job summary. */
-export function reportMarkdown(results, otherRules = null) {
+/**
+ * Rich Markdown used by the PR comment and GitHub job summary. When an
+ * auto-merge `eligibility` result is supplied, the headline follows it rather
+ * than the warning count: errors fail, an ineligible PR needs review, and an
+ * eligible PR is green even with warnings, since those do not block merging.
+ */
+export function reportMarkdown(results, otherRules = null, eligibility = null) {
   const t = totals(results);
   const otherErrors = Number(otherRules?.errorCount || 0);
   const otherWarnings = Number(otherRules?.warningCount || 0);
@@ -98,9 +103,13 @@ export function reportMarkdown(results, otherRules = null) {
   const warningCount = t.warnings + otherWarnings;
   const status = errorCount
     ? { icon: '❌', label: 'failed' }
-    : warningCount
-      ? { icon: '⚠️', label: 'succeeded with warnings' }
-      : { icon: '✅', label: 'succeeded' };
+    : eligibility
+      ? eligibility.eligible
+        ? { icon: '✅', label: 'succeeded' }
+        : { icon: '⚠️', label: 'succeeded, needs maintainer review' }
+      : warningCount
+        ? { icon: '⚠️', label: 'succeeded with warnings' }
+        : { icon: '✅', label: 'succeeded' };
   const lines = [
     `## ${status.icon} Program card PR validation ${status.label}`,
     '',
@@ -113,15 +122,21 @@ export function reportMarkdown(results, otherRules = null) {
   if (trigger?.changedPaths?.length) {
     lines.push('**Triggered by:**', '');
     for (const change of trigger.changedPaths) {
-      const label = change.filesUnder
-        ? `${change.status} files under ${change.path}`
-        : change.oldPath
+      const label = change.oldPath
         ? `${change.status} ${change.oldPath} → ${change.path}`
+        : change.filesUnder
+        ? `${change.status} files under ${change.path}`
         : `${change.status} ${change.path}`;
       lines.push(`- ${code(label)}`);
     }
     if (trigger.affectedReleases?.length) {
-      lines.push('', `**Affected release directories:** ${trigger.affectedReleases.map(code).join(', ')}`, '');
+      const renames = trigger.renamedReleases || [];
+      const renamed = new Set(renames.flatMap(({ from, to }) => [from, to]));
+      const releases = [
+        ...renames.map(({ from, to }) => `${from} → ${to}`),
+        ...trigger.affectedReleases.filter(release => !renamed.has(release)),
+      ];
+      lines.push('', `**Affected release directories:** ${releases.map(code).join(', ')}`, '');
     } else {
       lines.push('');
     }
@@ -179,8 +194,11 @@ export function reportOtherRulesGithub(report) {
 
 export const reporters = { text: reportText, json: reportJson, github: reportGithub, markdown: reportMarkdown };
 
-/** Markdown section describing whether a PR would merge without review. */
-export function reportEligibilityMarkdown(eligibility) {
+/**
+ * Markdown section describing whether a PR would merge without review.
+ * `autoMerge` says whether auto-merge is switched on (AUTO_MERGE=true).
+ */
+export function reportEligibilityMarkdown(eligibility, { autoMerge = false } = {}) {
   const lines = ['## Auto-merge eligibility', ''];
   if (eligibility.eligible) {
     lines.push(`✅ **Eligible.** ${escapeMarkdown(eligibility.basis)}`);
@@ -188,6 +206,8 @@ export function reportEligibilityMarkdown(eligibility) {
     lines.push('➖ **Not eligible** — a maintainer will review this PR:', '');
     for (const reason of eligibility.reasons) lines.push(`- ${escapeMarkdown(reason)}`);
   }
-  lines.push('', '_Report only: nothing is merged automatically yet._', '');
+  lines.push('', autoMerge
+    ? '_Eligible PRs merge automatically an hour after their last push, unless a maintainer adds the `hold` label._'
+    : '_Report only: nothing is merged automatically yet._', '');
   return lines.join('\n');
 }

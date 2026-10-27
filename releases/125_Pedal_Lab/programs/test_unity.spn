@@ -1,0 +1,6 @@
+; SPDX-License-Identifier: MPL-2.0
+; Hardware test: exact native stereo unity, no pot scaling or delay.
+LDAX ADCL
+WRAX DACL,0
+LDAX ADCR
+WRAX DACR,0

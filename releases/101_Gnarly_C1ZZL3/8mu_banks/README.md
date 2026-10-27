@@ -1,15 +1,22 @@
-# Gnarly C1ZZL3 8mu v2 Banks
+# Gnarly C1ZZL3 8mu v2 Bank Files
 
-Import these files one at a time with the [16n Faderbank editor](https://16n-faderbank.github.io/editor/).
-Use the 8mu's bank buttons to select the destination bank before importing.
+The complete setup instructions, per-bank slider and button tables, and
+save/revert guide are in the [main Gnarly README](../README.md#if-you-have-an-8mu).
 
-1. `01-performance.json` keeps the original Gnarly performance controls. Its
-   A--D buttons send unused CCs 124--127, so they cannot play notes.
-2. `02-amp1-stages.json` through `07-pitch2-stages.json` map faders 1-8 to stages 1-8 of the named envelope lane.
-3. In the lane banks, Button A selects level editing, Button B selects time editing, Button C saves the current custom envelope, and Button D reverts the current lane.
-4. `08-envelope-utility.json` maps fader 1 to envelope/custom-slot selection, faders 2-7 to Amp1, PD1, Pitch1, Pitch2, PD2, and Amp2 depth, and fader 8 to master depth.
+Import each numbered JSON file into the matching 8mu controller bank and choose
+**Update controller** after each import. Use these files with the current 8mu
+UF2. Buttons use **Keyboard** mode (mode 0): notes 120–123 select edit actions
+in banks 2–8, and notes 124–127 are ignored in bank 1. The firmware consumes
+these reserved notes without playing synth pitches. Re-import all banks if
+you used the earlier CC-button files.
 
-Only saved custom sound-preset slots are editable. Select one with bank 8 before moving to a lane bank; factory envelopes remain read-only. Gestures are disabled in all supplied banks to avoid unintentional edits.
+The bank mappings are unchanged by the soft pickup update. The bundled 8mu
+release UF2 shows dim slider LEDs while waiting for pickup and full brightness
+after pickup, using a direct USB connection to the Workshop Computer. A factory
+reset of the 8mu replaces these mappings; re-import all eight banks afterwards.
+See [Soft Pickup And Slider LEDs](../README.md#soft-pickup-and-slider-leds)
+for the complete behaviour, including factory envelopes and bank 8 depths.
 
-Hardware validation passed for every bank, level/time editing, save/revert,
-power-cycle persistence, factory-envelope protection, and disabled gestures.
+The release UF2 includes the C-save stack correction, confirmed after reset
+and readback in the web editor. It does not change these bank files. C saves the selected custom slot; reselect that same
+slot after restarting to check persistence.

@@ -1,0 +1,187 @@
+; @name Numbers Station
+; @tagline Your playing keyed out at the beat you dial as chaotic Morse slices, short and long with hard silent rests, every slice crushed, filtered and thrown hard left or right
+; @description A shortwave numbers station that keys out your own playing as Morse code. Time
+; @description sets the beat, like the clock pulse of Numbers Station_clk: 0.05 s fully left to 2 s
+; @description fully right (0.25 s at the render setting). Every beat is cut into a chaotic number
+; @description of units, two to eight, chosen afresh each beat, and the station keys slices of your
+; @description input on that grid: dits one unit long, dahs three, with hard, completely silent
+; @description rests between them. Slice lengths, rest lengths and subdivisions change all the time
+; @description and never repeat, but every beat starts on time. Each slice jumps hard left or right,
+; @description away from the last. Nothing is added to your sound: it is only crushed and filtered.
+; @description Chaos sets how wild it gets: at 0 two units per beat with one-unit rests, turned up
+; @description finer subdivisions (up to eight) and longer rests (up to four units). Dial tunes the
+; @description station: fully left, your playing is lightly crushed and open; turning it up lowers
+; @description the sample rate, coarsens the level steps and closes a resonant band; fully right it
+; @description is completely crushed and squeezed into a narrow band around 450 Hz.
+; @pots Time | Chaos | Dial
+; @render 0.4363, 0.85, 0.5
+; @time POT0 0.05 2.0 exp
+; @components Time-knob beat (0.05 x 40^Time s), each beat split into 2-8 units chosen per beat by a chaos map, dits (1 unit) and dahs (3 units) chosen by chaos, chaotic silent rests (1-4 units, growing with Chaos), hard gate with 1 ms edges, chaotic hard left/right side per slice, periodic sample-and-hold crush (8.2 kHz to 780 Hz), log-domain level crush (magnitudes floored to 12 dB steps, depth Dial squared), state-variable filter morphing from an open low-pass to a narrow 450 Hz band, feed-forward peak limiter
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+equ	in	reg1		; your playing, 0.5 (L + R)
+equ	su	reg4		; units left in this slice, then in the rest after it (1/64 a unit)
+equ	cnt	reg5		; time since the beat began (1.0 = 4.13 s)
+equ	k	reg6		; constant $0F8000: the count's step (x 2^-14) and the 10 ms floor
+equ	d	reg8		; this period's unit: period / m
+equ	nt	reg9		; the next unit's start (in cnt's scale, before the 1 % margin)
+equ	key	reg11		; key: 0.999 down, 0 up
+equ	env	reg12		; keying envelope
+equ	pn	reg13		; this slice's side: -1 right .. +1 left
+equ	lp	reg14		; the filter
+equ	bp	reg15
+equ	w	reg16		; filter frequency coefficient (Dial), also the crush rate
+equ	qb	reg17		; w x bp
+equ	ns	reg18		; chaos: a tent map nudged by your input
+equ	lenv	reg19		; limiter peak follower
+equ	xo	reg20		; the transmission, limited and keyed
+equ	hph	reg21		; sample-and-hold phasor, in [-1/2, 0)
+equ	hv	reg22		; held, crushed sample
+equ	tv	reg23		; log2|y| / 16
+equ	e	reg24		; the log crush, as a log2 gain / 16
+equ	y	reg25		; filtered
+equ	g	reg26		; limiter gain
+
+
+	or	$0F8000			; k (ACC is 0 here)
+	wrax	k, 0
+	rdax	adcl, 0.5		; your playing: L and R both audio
+	rdax	adcr, 0.5
+	wrax	in, 0
+	skp	run, go
+	sof	0, 0.99			; at load: the first beat starts at once
+	wrax	cnt, 0
+go:
+; ---- Time's beat: T = 0.05 x 40^Time s, counted by cnt (1.0 = 4.13 s)
+	ldax	cnt
+	rdax	k, 0.00006103515625	; + k x 2^-14 a sample
+	wrax	cnt, 0
+	or	$CD0EE3			; log2(0.05 x k x 2^-14 x 32768)/16, exact
+	rdax	pot0, 0.3326416		; + log2(40)/16 x Time
+	exp	-1.0, 0			; -T in cnt's scale
+	rdax	cnt, 1.0
+	skp	gez, c_latch		; the beat is over
+; ---- not the beat's end: a new unit when cnt reaches 1.01 nt
+	ldax	nt
+	sof	1.01, 0
+	rdax	cnt, -1.0
+	mulx	d
+	skp	gez, c_done
+	skp	neg, c_add
+; ---- the beat's end: the next beat's subdivision m = 2..8, chaotic (Chaos), d = T / m
+c_latch: ldax	ns
+	and	$03F800			; u x 2^-5, u in [0, 1) (bits 17..11)
+	mulx	pot1
+	sof	0.875, 0
+	and	$078000			; j x 2^-8, j = floor(7 u Chaos) = 0..6
+	sof	1.0, 0.0078125		; m = j + 2 = 2..8
+	log	-1.0, -0.5
+	exp	1.0, 0			; 1/m
+	mulx	cnt
+	maxx	k, 0.02			; at least 10 ms
+	wrax	d, 0
+	wrax	cnt, 0
+	wrax	nt, 0
+c_add:	ldax	nt
+	rdax	d, 1.0
+	wrax	nt, 0
+; ---- every unit: su counts down the units left in the slice, then in the rest after it
+	ldax	su
+	sof	1.0, -0.015625
+	wrax	su, 1.0
+	skp	gez, c_done
+	ldax	key
+	skp	zro, n_elem
+; ---- the slice is over: the key goes up for a rest of 1 + floor(3.3 u Chaos) units (1..4)
+	ldax	ns
+	absa
+	mulx	pot1			; rests grow with Chaos: 0.41 Chaos (0.35 at the render's 0.85)
+	sof	0.41, 0
+	and	$700000
+	sof	0.125, 0
+	wrax	su, 0
+	wrax	key, 0			; key up (ACC is 0)
+	skp	zro, c_done
+; ---- the rest is over: the next slice, a dit (1 unit) or a dah (3), on its own side
+n_elem:	ldax	ns
+	and	$040000			; bit 18 of the chaos: 2/64, a dah (2 units more), or 0, a dit
+	wrax	su, 0
+	rdax	ns, 1.99		; its side: chaotic, hard left or right most of the time,
+	rdax	pn, -0.6		; and pushed away from the last one (back and forth)
+	wrax	pn, 0
+	sof	0, 0.999		; key down
+	wrax	key, 0
+c_done:
+; ---- keying (1 ms edges); the chaos (a tent map nudged by your input)
+	ldax	key
+	rdfx	env, 0.03
+	wrax	env, 0
+	ldax	ns
+	absa
+	sof	-1.99, 0.999
+	rdax	in, 0.001
+	wrax	ns, 0
+; ---- Dial: one exponential sets the filter (w) and the crush rate
+	ldax	pot2
+	sof	-0.2111, -0.009765625
+	exp	1.0, 0
+	wrax	w, 0
+; ---- crush: a periodic sample-and-hold, a whole number of samples (8.2 kHz at Dial 0 .. 780 Hz at 1) ...
+	ldax	hph
+	rdax	w, 0.14
+	wrax	hph, 1.0
+	skp	neg, s_hold
+	sof	0, -0.5
+	wrax	hph, 0
+;      ... of the input, its magnitude floored to 12 dB steps in the log domain, depth by Dial
+	ldax	in
+	log	1.0, 0
+	wrax	tv, 1.0
+	and	$F00000
+	rdax	tv, -1.0
+	mulx	pot2
+	mulx	pot2			; depth Dial^2
+	exp	1.0, 0
+	wrax	e, 0
+	rdax	in, 0.33
+	mulx	e
+	wrax	hv, 0
+s_hold:
+; ---- the filter: Chamberlin SVF, q = 1.295 w + 0.138 (Q 0.8 at Dial 0 .. 4 at 1)
+	ldax	bp
+	mulx	w
+	wrax	qb, 1.0
+	rdax	lp, 1.0
+	wrax	lp, -1.0
+	rdax	qb, -1.295
+	rdax	bp, -0.138
+	rdax	hv, 1.0
+	mulx	w
+	rdax	bp, 1.0
+	wrax	bp, 0
+;      open low-pass at Dial 0 .. the narrow band at 1
+	rdax	bp, 1.0
+	rdax	lp, -1.5
+	mulx	pot2
+	rdax	lp, 1.5
+; ---- limiter (feed-forward, before the key; ceiling a little lower toward Dial 0), then the key
+	wrax	y, 1.0
+	maxx	lenv, 0.9998
+	wrax	lenv, 1.0
+	log	-1.0, -0.2001953125
+	rdax	w, -0.02613
+	exp	1.0, 0
+	wrax	g, 0
+	ldax	y
+	mulx	g
+	mulx	env
+	sof	-2.0, 0
+	sof	-1.99, 0
+	wrax	xo, 1.0
+; ---- out: L = (pn + 0.96) x, R = 1.99 x - L
+	mulx	pn
+	rdax	xo, 0.96
+	wrax	dacl, -1.0
+	rdax	xo, 1.99
+	wrax	dacr, 0

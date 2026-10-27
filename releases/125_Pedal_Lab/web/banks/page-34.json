@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-holy-city-audio-room-reverb-3-4-5",
+    "source": "algorithms/ready/directory-holy-city-audio-room-reverb-3-4-5.spn",
+    "instructions": 78,
+    "sha256": "62756c84febc1851514abe478d1833f94806f1f451da78dbea8f07416072262f",
+    "id": "directory-holy-city-audio-room-reverb-3-4-5",
+    "author": "Digital Larry",
+    "description": "This one uses 3 delay lines with relative lengths in a ratio of 3 - 4 - 5",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/room-reverb-3-4-5.spn"
+    },
+    "source_url": "https://www.diystompboxes.com/smfforum/index.php?topic=123725.0",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Room reverb: 3-4-5",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1048576,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-holy-city-audio-shimmer",
+    "source": "algorithms/ready/directory-holy-city-audio-shimmer.spn",
+    "instructions": 113,
+    "sha256": "07e7304b3b9dae93ee2099a0c9ef1886d28cc8b2a87a57a20f7cbaf59aadd46c",
+    "id": "directory-holy-city-audio-shimmer",
+    "author": "Digital Larry",
+    "description": "Reverb, Shimmer program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Level",
+      "Filter",
+      "Time"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/shimmer.spn"
+    },
+    "source_url": "https://www.diystompboxes.com/smfforum/index.php?topic=123725.0",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Shimmer",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 842847,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-holy-city-audio-tremolo-aliaser-reverb",
+    "source": "algorithms/ready/directory-holy-city-audio-tremolo-aliaser-reverb.spn",
+    "instructions": 103,
+    "sha256": "e9e17bf5707dfddea99e83d827eb26720f4a9a53e2d104041fd6fed4470ee4b5",
+    "id": "directory-holy-city-audio-tremolo-aliaser-reverb",
+    "author": "Digital Larry",
+    "description": "Square Wave Tremolo with envelope controlled aliaser and reverb. Because why not?",
+    "controls": [
+      "Speed",
+      "Depth",
+      "Reverb level and Envelope sensitivity"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/tremolo-aliaser-reverb.spn"
+    },
+    "source_url": "https://www.diystompboxes.com/smfforum/index.php?topic=123725.0",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Square wave Tremolo, Aliaser, Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 377705,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-rev-pl-1",
+    "source": "algorithms/ready/directory-rev-pl-1.spn",
+    "instructions": 121,
+    "sha256": "b9c9bdca12946d6e35c0da53ed5704273a1ee0208ac297795a258e8cca588531",
+    "id": "directory-rev-pl-1",
+    "author": "Harmon Grold (Spin Semiconductor)",
+    "description": "Lush (large), characterized by very high density, explosive initial sound, large",
+    "controls": [
+      "reverb time",
+      "lf loss",
+      "hf loss"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Plate Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 4826,
+      "peak_output_error_q23": 153,
+      "rms_output_error_q23": 0.845214,
+      "peak_output_q23": 286132,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-rev-pl-2",
+    "source": "algorithms/ready/directory-rev-pl-2.spn",
+    "instructions": 121,
+    "sha256": "c9a1337eb68cbcd24e17111dfffa60d67ea382487ec53d3e7499bee598b9fc4b",
+    "id": "directory-rev-pl-2",
+    "author": "Harmon Grold (Spin Semiconductor)",
+    "description": "Tight, characterized by very high density, slight tinnyness, explosive initial sound",
+    "controls": [
+      "reverb time",
+      "lf loss",
+      "hf loss"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Plate Reverb: Tight",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 4826,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 255078,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-rev-pl-3",
+    "source": "algorithms/ready/directory-rev-pl-3.spn",
+    "instructions": 121,
+    "sha256": "79ee7ff82d122c278e7842a6ef0bbd3df6618efb3b2e533a72d8fc4e5b5ca8b3",
+    "id": "directory-rev-pl-3",
+    "author": "Harmon Grold (Spin Semiconductor)",
+    "description": "Very tight, characterized by extreme density, slight tinnyness, explosive initial sound",
+    "controls": [
+      "reverb time",
+      "lf loss",
+      "hf loss"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Plate Reverb: Very Tight",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 4572,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 282279,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

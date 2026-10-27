@@ -103,6 +103,7 @@ test('NUL name-status parsing preserves renames and spaces', () => {
   ]);
   assert.deepEqual(summarizePrTrigger(parsed), {
     affectedReleases: ['04 card'],
+    renamedReleases: [],
     changedPaths: [
       { status: 'M', path: 'releases/04 card/info.yaml' },
       { status: 'D', path: 'old/file.uf2' },
@@ -120,11 +121,30 @@ test('PR trigger keeps metadata and outside files but condenses release files by
     { status: 'M', path: 'documentation/info.yaml.md' },
   ]), {
     affectedReleases: ['42_card'],
+    renamedReleases: [],
     changedPaths: [
       { status: 'M', path: 'releases/42_card/info.yaml' },
       { status: 'M', path: 'documentation/info.yaml.md' },
       { status: 'A', path: 'releases/42_card/firmware/', filesUnder: true },
       { status: 'D', path: 'releases/42_card/firmware/', filesUnder: true },
+    ],
+  });
+});
+
+test('PR trigger reports a card rename as one rename, not a deletion and an addition', () => {
+  assert.deepEqual(summarizePrTrigger([
+    { status: 'R100', oldPath: 'releases/42_old/info.yaml', path: 'releases/42_new/info.yaml' },
+    { status: 'R100', oldPath: 'releases/42_old/firmware/card.uf2', path: 'releases/42_new/firmware/card.uf2' },
+    { status: 'R087', oldPath: 'releases/42_old/README.md', path: 'releases/42_new/README.md' },
+    { status: 'A', path: 'releases/42_new/firmware/extra.uf2' },
+    { status: 'D', path: 'releases/42_old/stale.txt' },
+  ]), {
+    affectedReleases: ['42_new', '42_old'],
+    renamedReleases: [{ from: '42_old', to: '42_new' }],
+    changedPaths: [
+      { status: 'R', oldPath: 'releases/42_old/', path: 'releases/42_new/', filesUnder: true },
+      { status: 'A', path: 'releases/42_new/firmware/', filesUnder: true },
+      { status: 'D', path: 'releases/42_old/', filesUnder: true },
     ],
   });
 });

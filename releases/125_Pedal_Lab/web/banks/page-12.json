@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-publisher-min-rev1",
+    "source": "algorithms/ready/directory-publisher-min-rev1.spn",
+    "instructions": 22,
+    "sha256": "b1a53b3bb189584471c29829d9296695fa8003345efbea426539834b3fd28bc2",
+    "id": "directory-publisher-min-rev1",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Mini reverb example",
+    "controls": [
+      "-",
+      "-",
+      "-"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Mini reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 252981,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-publisher-rms-lim-exp",
+    "source": "algorithms/ready/directory-publisher-rms-lim-exp.spn",
+    "instructions": 32,
+    "sha256": "18004c1cdcaefb51448543809cffa5582db230caf7b61378385a7b520ad1acea",
+    "id": "directory-publisher-rms-lim-exp",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Simple RMS limiter/expander example",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "RMS limiter/expander example",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 6359,
+      "peak_output_error_q23": 2,
+      "rms_output_error_q23": 0.143472,
+      "peak_output_q23": 736496,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-publisher-rms-limiter",
+    "source": "algorithms/ready/directory-publisher-rms-limiter.spn",
+    "instructions": 16,
+    "sha256": "7509096f452ec5d646943845fd66fd5f773e06f0b53f087dc4ed09409595f9ff",
+    "id": "directory-publisher-rms-limiter",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Approx 10dB limiting range, stereo I/O, common control (to maintain image)",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "RMS limiter",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1572862,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-publisher-rms-soft-knee",
+    "source": "algorithms/ready/directory-publisher-rms-soft-knee.spn",
+    "instructions": 22,
+    "sha256": "f9f27cfbf8b6ce6c3061aa82c12120326b1e3318be3c9f2ea1c1fea4cf980b87",
+    "id": "directory-publisher-rms-soft-knee",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Code snippet program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Soft knee RMS limiter",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 945,
+      "peak_output_error_q23": 6,
+      "rms_output_error_q23": 0.148232,
+      "peak_output_q23": 903414,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-publisher-simp-limiter",
+    "source": "algorithms/ready/directory-publisher-simp-limiter.spn",
+    "instructions": 17,
+    "sha256": "7231499fa1aaeb17d633f1c1ad3a291cff44d66e01d68e286743d3700ee60a64",
+    "id": "directory-publisher-simp-limiter",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Simple limiter, -12dB threshold, peak detecting",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Simple limiter",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 3145725,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-publisher-singen",
+    "source": "algorithms/ready/directory-publisher-singen.spn",
+    "instructions": 48,
+    "sha256": "b91e6c6350b472d784afd4db8d808207248ae80899f1700b2dc23343df34b003",
+    "id": "directory-publisher-singen",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Sine wave generator, uses POT0 and POT1 for coarse and fine adjustment, POT2 for amplitude control",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Sine wave generator",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 232,
+      "peak_output_error_q23": 1,
+      "rms_output_error_q23": 0.0669782,
+      "peak_output_q23": 743613,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

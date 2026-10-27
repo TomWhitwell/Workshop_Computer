@@ -149,10 +149,12 @@ test('PR validation CLI reports eligibility against the PR base', async t => {
   const clean = await propose('03_clean', 'phase');
   assert.equal(clean.result.status, 0, clean.result.stdout);
   assert.match(clean.summary, /✅ \*\*Eligible\.\*\* New card from maker/);
+  assert.match(clean.summary, /^## ✅ Program card PR validation succeeded$/m);
 
   const nearDuplicate = await propose('04_typo', 'phaser');
   assert.equal(nearDuplicate.result.status, 0, 'a review warning does not fail the check');
   assert.match(nearDuplicate.summary, /Not eligible/);
+  assert.match(nearDuplicate.summary, /^## ⚠️ Program card PR validation succeeded, needs maintainer review$/m);
   assert.match(nearDuplicate.summary, /Needs a maintainer's look: Tag "phaser" looks like existing "phase"/);
 
   const noFirmware = await propose('05_bare', 'phase', { firmware: false });

@@ -1,0 +1,84 @@
+; SPDX-License-Identifier: MPL-2.0
+; Steal This Pedal factory bank — slot 1
+; LAST KNOWN COPY
+; POT0 = tape time
+; POT1 = feedback / repeats
+; POT2 = damage, dulling and flutter
+; Wet-only output.
+
+TAPE        MEM 30000
+WOW         MEM 900
+DELAYED     EQU REG0
+DARK        EQU REG1
+CRUSHED     EQU REG2
+FEEDBACK    EQU REG3
+
+SKP RUN, init_done
+WLDS SIN0, 9, 90
+init_done:
+
+; Damage also makes the capstan increasingly unstable.
+LDAX POT2
+SOF 0.055, 0.003
+WRAX SIN0_RATE, 0.0
+LDAX POT2
+SOF 0.004, 0.0004
+WRAX SIN0_RANGE, 0.0
+
+; POT0 becomes a moving read pointer spanning useful tape-delay times.
+LDAX POT0
+SOF 0.72, 0.18
+AND $7FFF00
+WRAX ADDR_PTR, 0.0
+CLR
+RMPA 1.0
+WRAX DELAYED, 0.0
+
+; Progressive bit loss: three deliberately coarse quality regions.
+LDAX POT2
+SOF 1.0, -0.67
+SKP GEZ, crush_hard
+LDAX POT2
+SOF 1.0, -0.34
+SKP GEZ, crush_mid
+LDAX DELAYED
+AND $FFFF00
+SKP 0, crush_done
+crush_mid:
+LDAX DELAYED
+AND $FFF000
+SKP 0, crush_done
+crush_hard:
+LDAX DELAYED
+AND $FF0000
+crush_done:
+WRAX CRUSHED, 0.0
+
+; Fixed low-pass storage, then cross toward the dull copy as damage rises.
+LDAX CRUSHED
+RDFX DARK, 0.10
+WRAX DARK, 0.0
+LDAX CRUSHED
+WRAX FEEDBACK, 0.0
+LDAX POT2
+SOF -1.0, 0.999
+MULX FEEDBACK
+RDAX DARK, 1.0
+WRAX CRUSHED, 0.0
+
+; Modulated short playback stage supplies wow and flutter.
+LDAX CRUSHED
+WRA WOW, 0.0
+CLR
+CHO RDA, SIN0, SIN|REG|COMPC, WOW+240
+CHO RDA, SIN0, SIN, WOW+241
+WRAX DACL, 1.0
+WRAX DACR, 0.0
+
+; Record fresh input plus controlled damaged feedback at the tape head.
+LDAX CRUSHED
+MULX POT1
+SOF 0.78, 0.0
+RDAX ADCL, 0.36
+RDAX ADCR, 0.36
+WRA TAPE, 0.0

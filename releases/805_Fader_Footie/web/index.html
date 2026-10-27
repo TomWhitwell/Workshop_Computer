@@ -1,0 +1,1337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fader Footie</title>
+<!--
+  FADER FOOTIE - table football for two players and a Music Thing 8mu, with the
+  game turned into voltages by the Workshop Computer card (../main.cpp).
+  One static file, no network needed. The physics runs here; the card is a
+  USB MIDI device that this page drives over WebMIDI + SysEx (protocol:
+  ../sysex.h). The page plays on its own too, without a card or an 8mu.
+-->
+<style>
+  :root {
+    --bg: #f4f2ee; --panel: #ffffff; --ink: #1c1b19; --muted: #6a675f; --line: #d9d5cc;
+    --accent: #0b7d78; --warm: #b5560a; --ok: #2b7a2b; --bad: #b3261e; --track: #e3dfd5;
+    --shadow: 0 1px 2px rgba(0,0,0,.08);
+    --t0: #d1453b; --t0-soft: #f7d9d6; --t1: #2f68c8; --t1-soft: #d6e2f7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141514; --panel: #1e201f; --ink: #ecebe6; --muted: #9a978d; --line: #34362f;
+      --accent: #4fd1c5; --warm: #f0a35e; --ok: #7ed37e; --bad: #ff8a80; --track: #33352f;
+      --shadow: none;
+      --t0: #ff7a6e; --t0-soft: #4a2420; --t1: #7aa8f0; --t1-soft: #1f2d48;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .02em; }
+  h2 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .status { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warm); } .dot.bad { background: var(--bad); }
+  .spacer { flex: 1; }
+  button, select {
+    font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); cursor: pointer;
+  }
+  select { padding: 4px 8px; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+  #say { padding: 6px 16px; color: var(--muted); min-height: 1.4em; }
+  #say.bad { color: var(--bad); }
+  main { max-width: 1280px; margin: 0 auto; padding: 8px 16px 32px; }
+
+  /* scoreboard */
+  .board { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; margin: 4px 0 8px; }
+  .team { display: flex; align-items: center; gap: 10px; }
+  .team.t1 { flex-direction: row-reverse; text-align: right; }
+  .score { font: 700 40px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; min-width: 1.4em; text-align: center; }
+  .t0 .score { color: var(--t0); } .t1 .score { color: var(--t1); }
+  .tname { font-weight: 600; }
+  .tsub { color: var(--muted); font-size: 12px; }
+  .mid { text-align: center; color: var(--muted); font-size: 12px; }
+  .mid button { margin-top: 4px; padding: 3px 10px; font-size: 12px; }
+
+  .tablewrap { position: relative; width: 100%; }
+  .tablewrap:fullscreen { display: flex; align-items: center; justify-content: center; background: #000; }
+  canvas#table { display: block; width: 100%; height: auto; border-radius: 10px; box-shadow: var(--shadow); touch-action: none; }
+
+  /* 8mu mirror */
+  .mu { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 10px;
+        background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  .mubtns { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .mubtn { padding: 8px 4px; font-size: 12px; }
+  .mubtn.t0 { border-color: var(--t0); } .mubtn.t1 { border-color: var(--t1); }
+  .mubtn.lit { background: var(--warm); color: var(--panel); }
+  .fad { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .fad .trk { position: relative; width: 34px; height: 120px; background: var(--track); border-radius: 6px; cursor: ns-resize; touch-action: none; }
+  .fad .cap { position: absolute; left: 2px; right: 2px; height: 14px; border-radius: 4px; }
+  .fad.t0 .cap { background: var(--t0); } .fad.t1 .cap { background: var(--t1); }
+  .fad .lbl { font-size: 11px; color: var(--muted); text-align: center; line-height: 1.2; }
+  .fad.ai .trk { opacity: .55; }
+  .fad.you .trk { outline: 2px solid var(--warm); outline-offset: 2px; }
+  .fad .key { font: 10px ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: var(--shadow); min-width: 0; }
+  .row { display: grid; grid-template-columns: 9.5em 1fr 4.2em; align-items: center; gap: 8px; margin: 3px 0; }
+  .row label { font-size: 13px; }
+  .row output { font: 12px ui-monospace, Menlo, Consolas, monospace; text-align: right; color: var(--muted); }
+  .row input[type=range] { width: 100%; accent-color: var(--accent); }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+  .opts label { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .presets button { padding: 3px 9px; font-size: 12px; }
+
+  /* outputs */
+  .outs { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; }
+  .bar { height: 12px; background: var(--track); border-radius: 6px; overflow: hidden; }
+  .bar > div { height: 100%; width: 0; }
+  .bar.t0 > div { background: var(--t0); } .bar.t1 > div { background: var(--t1); }
+  .lamp { width: 14px; height: 14px; border-radius: 50%; background: var(--track); display: inline-block; vertical-align: middle; }
+  .lamp.on.t0 { background: var(--t0); } .lamp.on.t1 { background: var(--t1); }
+  .mono { font: 12px ui-monospace, Menlo, Consolas, monospace; }
+  .muted { color: var(--muted); }
+  p { margin: 6px 0; }
+  ul { margin: 6px 0; padding-left: 20px; }
+  kbd { font: 11px ui-monospace, Menlo, Consolas, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+  table.map { border-collapse: collapse; width: 100%; font-size: 12px; }
+  table.map td, table.map th { border-bottom: 1px solid var(--line); padding: 3px 4px; text-align: left; }
+  .team { min-width: 0; }
+  @media (max-width: 640px) {
+    .board { grid-template-columns: 1fr 1fr; }
+    .mid { grid-column: 1 / -1; grid-row: 2; }
+    .fad .trk { width: 26px; height: 90px; }
+    .score { font-size: 30px; }
+    .row { grid-template-columns: 8em 1fr 3.6em; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Fader Footie</h1>
+  <div class="status"><span class="dot" id="dot"></span><span id="status">Not connected</span></div>
+  <div class="spacer"></div>
+  <label class="muted"><input type="checkbox" id="opt-sound" checked> Sound</label>
+  <button id="btn-full" title="Fill the screen with the table">Full screen</button>
+  <button id="btn-rescan" hidden>Rescan</button>
+  <button id="btn-connect" class="primary">Connect card &amp; 8mu</button>
+</header>
+<div id="say">Plays on its own: drag the faders under the table, use the keyboard, or press Connect for an 8mu and the card.</div>
+
+<main>
+  <div class="board">
+    <div class="team t0">
+      <div class="score" id="score0">0</div>
+      <div><div class="tname">Team 1 <span class="tsub">(left, red)</span></div>
+        <div class="tsub">Faders 1-4 · buttons A/B · <select id="ctl0"><option value="human">Human</option><option value="easy">CPU easy</option><option value="medium">CPU medium</option><option value="hard">CPU hard</option><option value="assist-easy">Human + CPU easy</option><option value="assist-medium">Human + CPU medium</option><option value="assist-hard">Human + CPU hard</option></select></div></div>
+    </div>
+    <div class="mid">
+      <div id="matchinfo">First to 5</div>
+      <button id="btn-serve" title="Serve the ball again (switch down on the card, or Pulse In 1)">Serve</button>
+      <button id="btn-new" title="New match (hold switch down on the card, or Pulse In 2)">New match</button>
+    </div>
+    <div class="team t1">
+      <div class="score" id="score1">0</div>
+      <div><div class="tname">Team 2 <span class="tsub">(right, blue)</span></div>
+        <div class="tsub">Faders 5-8 · buttons C/D · <select id="ctl1"><option value="human">Human</option><option value="easy">CPU easy</option><option value="medium">CPU medium</option><option value="hard">CPU hard</option><option value="assist-easy">Human + CPU easy</option><option value="assist-medium">Human + CPU medium</option><option value="assist-hard">Human + CPU hard</option></select></div></div>
+    </div>
+  </div>
+
+  <div class="tablewrap" id="tablewrap"><canvas id="table" width="1280" height="760"></canvas></div>
+
+  <div class="mu" id="mu"></div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Physics</h2>
+      <div class="presets" id="presets"></div>
+      <div id="params"></div>
+      <div class="opts">
+        <label>Buttons <select id="opt-buttons"><option value="hardsoft">hard shot + soft shot</option><option value="draw">draw back + shoot</option></select></label>
+        <label>Buttons move <select id="opt-spin"><option value="nearest">the rod nearest the ball</option><option value="all">all four rods</option></select></label>
+        <label>First to <select id="opt-first"><option value="3">3</option><option value="5" selected>5</option><option value="10">10</option><option value="0">never ends</option></select></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Players → CV Out 1 / 2</h2>
+      <p class="muted">CV Out 1 is the number of the last <b style="color:var(--t0)">team 1</b> player to touch the ball, CV Out 2 the last <b style="color:var(--t1)">team 2</b> player. Players are numbered as in football: 1 goalie, 2-3 defence, 4-8 midfield, 9-11 attack, top to bottom on each rod.</p>
+      <div class="opts">
+        <label>Map as <select id="cv-mode">
+          <option value="scale">notes of a scale</option>
+          <option value="semi">semitones</option>
+          <option value="spread">spread 0-5V</option>
+          <option value="rod">rods, 1V apart</option>
+        </select></label>
+        <label id="cv-scale-wrap">Scale <select id="cv-scale"></select></label>
+      </div>
+      <div id="cvparams"></div>
+      <table class="map" id="cvtable"></table>
+    </section>
+
+    <section class="card">
+      <h2>Outputs</h2>
+      <div class="outs" id="outs">
+        <span class="mono">CV 1</span><div class="bar t0"><div id="bar-cv0"></div></div><span class="mono" id="v-cv0">–</span>
+        <span class="mono">CV 2</span><div class="bar t1"><div id="bar-cv1"></div></div><span class="mono" id="v-cv1">–</span>
+        <span class="mono">Audio 1</span><div class="bar t0"><div id="bar-d0"></div></div><span class="mono" id="v-d0">–</span>
+        <span class="mono">Audio 2</span><div class="bar t1"><div id="bar-d1"></div></div><span class="mono" id="v-d1">–</span>
+        <span class="mono">Pulse 1</span><div class="muted" style="font-size:12px">gate on each touch, burst on a goal</div><span class="lamp t0" id="lamp0"></span>
+        <span class="mono">Pulse 2</span><div class="muted" style="font-size:12px">gate on each touch, burst on a goal</div><span class="lamp t1" id="lamp1"></span>
+      </div>
+      <p class="muted">Audio 1 is how far the ball is from the goal team 1 attacks (the right-hand one); Audio 2 from the left-hand one. About 0V in the goal mouth to about +5V at the far corners; the card's switch up turns it into nearness instead.</p>
+      <div class="opts">
+        <label>Distance <select id="opt-dist"><option value="line">straight line to the goal</option><option value="length">along the table only</option></select></label>
+        <label>Triggers in a goal burst <select id="opt-burst"></select></label>
+      </div>
+      <p class="mono muted" id="cardknobs">Card: not connected</p>
+    </section>
+
+    <section class="card">
+      <h2>How to play</h2>
+      <p>Put the 8mu between the two players, its buttons towards the screen. Each player has the four faders nearest them, one per rod, and the two buttons nearest them:</p>
+      <ul>
+        <li><b>Faders</b> slide the rods up and down the table. By default the fader nearest you is your goalie, then defence, midfield and attack, so the two attacks meet in the middle of the 8mu.</li>
+        <li class="help-hardsoft"><b>Hard shot</b> (button A for team 1, D for team 2) spins the rod right round over the bar; <b>soft shot</b> (B, C) is a flick forwards, the men facing up at you for a moment. (Physics: Buttons, for draw back and shoot instead.)</li>
+        <li class="help-draw"><b>Draw back</b> (button A for team 1, D for team 2) lifts the men's feet up behind them, so they lie face down over the table and the ball rolls underneath. Hold it as long as you like; it stays drawn back for a moment after you let go.</li>
+        <li class="help-draw"><b>Shoot</b> (B, C) on its own is a <b>soft shot</b>: a flick forwards, the men facing up at you for a moment. Shoot while drawn back for a <b>hard shot</b>: the men swing down through the ball and right round over the bar.</li>
+        <li>The ball rolls under the rods, and under any man whose feet are off the table.</li>
+        <li><b>Human + CPU</b> (next to the score): you play one rod and the CPU plays your other three. Your rod is the one whose fader you moved last, glowing on the table; move any fader at any time to take that rod instead. Draw back and shoot work your rod.</li>
+        <li>A goal fires a burst of triggers on that team's pulse out. A dead ball is served again automatically after a few seconds (Physics: Unstick after).</li>
+      </ul>
+      <div class="opts">
+        <label><input type="checkbox" id="opt-invert0"> Team 1 faders upside down</label>
+        <label><input type="checkbox" id="opt-invert1"> Team 2 faders upside down</label>
+        <label><input type="checkbox" id="opt-order"> Attack nearest the player</label>
+        <label><input type="checkbox" id="opt-swap"> Swap the two buttons</label>
+        <label><input type="checkbox" id="opt-numbers" checked> Show numbers</label>
+      </div>
+      <p><b>Keyboard:</b> team 1 rods <kbd>Q</kbd>/<kbd>A</kbd> <kbd>W</kbd>/<kbd>S</kbd> <kbd>E</kbd>/<kbd>D</kbd> <kbd>R</kbd>/<kbd>F</kbd>, <kbd>Z</kbd> and <kbd>X</kbd> its buttons A and B; team 2 rods <kbd>U</kbd>/<kbd>J</kbd> <kbd>I</kbd>/<kbd>K</kbd> <kbd>O</kbd>/<kbd>L</kbd> <kbd>P</kbd>/<kbd>;</kbd>, <kbd>,</kbd> and <kbd>.</kbd> its buttons C and D. <kbd>Space</kbd> serves, <kbd>Esc</kbd> pauses.</p>
+      <p><b>Card:</b> plug this computer into the Computer's USB socket, power-cycle the module, and press Connect: the card appears as the MIDI device <b>Fader Footie</b>. The 8mu plugs into this computer. Needs Chrome or Edge.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+
+// ============================================================================
+// Table geometry, in table units (about a millimetre: a real table's field is
+// about 1200 x 680 mm)
+// ============================================================================
+const L = 1200, W = 680, CY = W / 2;
+const MARGIN = 40;            // canvas border around the field
+const NR = 8;                 // rods
+const ROLE = { G: 0, D: 1, M: 2, A: 3 };
+const ROLE_NAME = ['goalie', 'defence', 'midfield', 'attack'];
+const ROLE_MEN = [1, 2, 5, 3];
+const ROLE_SPACING = [0, 240, 120, 185];
+const ROLE_FIRST = [1, 2, 4, 9];       // shirt number of the top man on the rod
+
+// Rods left to right, as on a real table
+const RODS = [
+  [0, ROLE.G], [0, ROLE.D], [1, ROLE.A], [0, ROLE.M],
+  [1, ROLE.M], [0, ROLE.A], [1, ROLE.D], [1, ROLE.G],
+].map(([team, role], i) => ({
+  i, team, role, x: (i + 0.5) * L / NR, dir: team === 0 ? 1 : -1,
+  n: ROLE_MEN[role], spacing: ROLE_SPACING[role],
+  y: CY, vy: 0, target: CY,
+  // ang: the rod's turn, 0 with the men hanging feet-down, negative with the
+  // feet drawn back (the men face down into the table), positive with the
+  // feet forwards (they face up).  mode: rest, drawn, hard, softOut,
+  // softHold, softBack
+  ang: 0, omega: 0, mode: 'rest', modeT: 0, drawHeld: false, drawUntil: -1, spinning: false,
+  lastContact: new Array(5).fill(-1),
+}));
+const rodsOf = (team) => RODS.filter(r => r.team === team);
+
+// ============================================================================
+// Settings
+// ============================================================================
+const PARAMS = [
+  { k: 'timeScale',  label: 'Game speed',          min: 0.25, max: 2,    step: 0.05, def: 1,    fmt: v => v.toFixed(2) + '×' },
+  { k: 'drag',       label: 'Friction',            min: 0,    max: 3,    step: 0.05, def: 0.45, fmt: v => v.toFixed(2) },
+  { k: 'rolling',    label: 'Rolling resistance',  min: 0,    max: 400,  step: 5,    def: 40 },
+  { k: 'wallBounce', label: 'Wall bounciness',     min: 0,    max: 1.1,  step: 0.01, def: 0.65, fmt: v => v.toFixed(2) },
+  { k: 'manBounce',  label: 'Player bounciness',   min: 0,    max: 1.1,  step: 0.01, def: 0.45, fmt: v => v.toFixed(2) },
+  { k: 'grip',       label: 'Player grip',         min: 0,    max: 1,    step: 0.01, def: 0.25, fmt: v => v.toFixed(2) },
+  { k: 'hardShot',   label: 'Hard shot power',     min: 300,  max: 3500, step: 50,   def: 1500 },
+  { k: 'softShot',   label: 'Soft shot power',     min: 100,  max: 1500, step: 25,   def: 550 },
+  { k: 'maxSpeed',   label: 'Max ball speed',      min: 400,  max: 6000, step: 100,  def: 3500 },
+  { k: 'ballSize',   label: 'Ball size',           min: 6,    max: 45,   step: 1,    def: 16 },
+  { k: 'manSize',    label: 'Player size',         min: 0.5,  max: 2.2,  step: 0.05, def: 1,    fmt: v => v.toFixed(2) + '×' },
+  { k: 'goalWidth',  label: 'Goal width',          min: 60,   max: 560,  step: 5,    def: 210 },
+  { k: 'reach',      label: 'Kick reach',          min: 10,   max: 80,   step: 1,    def: 50 },
+  { k: 'rodSpeed',   label: 'Rod speed',           min: 200,  max: 5000, step: 50,   def: 2000 },
+  { k: 'corner',     label: 'Corner ramps',        min: 0,    max: 140,  step: 5,    def: 45 },
+  { k: 'serveSpeed', label: 'Serve speed',         min: 50,   max: 1500, step: 10,   def: 380 },
+  { k: 'tilt',       label: '8mu tilt → slope',    min: 0,    max: 2000, step: 25,   def: 0,    fmt: v => v ? String(v) : 'off' },
+  { k: 'drawHold',   label: 'Draw-back hold',      min: 0,    max: 5,    step: 0.05, def: 0.45, fmt: v => v ? v.toFixed(2) + 's' : 'held only' },
+  { k: 'stuckTime',  label: 'Unstick after',       min: 0,    max: 12,   step: 0.5,  def: 3,    fmt: v => v ? v.toFixed(1) + 's' : 'off' },
+];
+const DEFAULTS = Object.fromEntries(PARAMS.map(p => [p.k, p.def]));
+const PRESETS = {
+  'Classic': {},
+  'Ice rink': { drag: 0.03, rolling: 0, wallBounce: 0.9, manBounce: 0.6, grip: 0.02 },
+  'Pinball': { drag: 0.1, rolling: 5, wallBounce: 1.05, manBounce: 1.0, maxSpeed: 4500, hardShot: 1900, corner: 90 },
+  'Mud': { drag: 2.2, rolling: 300, wallBounce: 0.25, manBounce: 0.2, grip: 0.6, serveSpeed: 700 },
+  'Beach ball': { ballSize: 38, drag: 1.1, rolling: 60, maxSpeed: 1600, wallBounce: 0.8, manBounce: 0.75, hardShot: 1000 },
+  'Marble': { ballSize: 8, drag: 0.2, rolling: 10, maxSpeed: 5000, hardShot: 2200, manBounce: 0.6 },
+  'Giants': { manSize: 1.9, goalWidth: 300, reach: 60 },
+  'Barn door': { goalWidth: 480, manSize: 0.8 },
+  'Slow motion': { timeScale: 0.35 },
+};
+const P = { ...DEFAULTS };
+try { Object.assign(P, JSON.parse(lsGet('faderfootie.params') || '{}')); } catch (e) {}
+
+const SCALES = {
+  'Major': [0, 2, 4, 5, 7, 9, 11], 'Minor': [0, 2, 3, 5, 7, 8, 10], 'Dorian': [0, 2, 3, 5, 7, 9, 10],
+  'Mixolydian': [0, 2, 4, 5, 7, 9, 10], 'Major pentatonic': [0, 2, 4, 7, 9], 'Minor pentatonic': [0, 3, 5, 7, 10],
+  'Blues': [0, 3, 5, 6, 7, 10], 'Whole tone': [0, 2, 4, 6, 8, 10], 'Fifths': [0, 7], 'Octaves': [0],
+};
+const CVPARAMS = [
+  { k: 'base',  label: 'Player 1 at',     min: -2, max: 3, step: 1 / 12, def: 0, fmt: v => (v >= 0 ? '+' : '') + v.toFixed(2) + 'V' },
+  { k: 'trans', label: 'Team 2 transpose', min: -12, max: 12, step: 1, def: 0, fmt: v => (v > 0 ? '+' : '') + v + ' st' },
+];
+const CV = { mode: 'scale', scale: 'Major', base: 0, trans: 0 };
+try { Object.assign(CV, JSON.parse(lsGet('faderfootie.cv') || '{}')); } catch (e) {}
+
+const OPT = { buttons: 'hardsoft', spin: 'nearest', first: '5', dist: 'line', burst: 12, invert0: false, invert1: false, order: false, swap: false, numbers: true, sound: true, ctl0: 'human', ctl1: 'easy' };
+try { Object.assign(OPT, JSON.parse(lsGet('faderfootie.opt') || '{}')); } catch (e) {}
+const saveAll = () => { lsSet('faderfootie.params', JSON.stringify(P)); lsSet('faderfootie.cv', JSON.stringify(CV)); lsSet('faderfootie.opt', JSON.stringify(OPT)); };
+
+// ============================================================================
+// Faders: eight values 0-127, as the 8mu sends them.  Fader i drives a rod.
+// ============================================================================
+const fader = new Array(8).fill(64);
+const BUTTON_NOTES = [36, 48, 60, 72];      // 8mu buttons A-D, factory settings
+const EIGHTMU_IDENTIFY = [0xF0, 0x7D, 0x00, 0x00, 0x21, 0xF7];
+const EIGHTMU_FADER_QUERY = [0xF0, 0x7D, 0x00, 0x00, 0x12, 0xF7];
+const FIRST_FADER_CC = 34, FIRST_MOTION_CC = 42;
+function rodOfFader(f) {
+  // goalie nearest each player: faders 1-4 are team 1's G D M A, 5-8 team 2's A M D G
+  const near = OPT.order ? [5, 3, 1, 0, 7, 6, 4, 2] : [0, 1, 3, 5, 2, 4, 6, 7];
+  return RODS[near[f]];
+}
+function faderOfRod(rod) { for (let f = 0; f < 8; f++) if (rodOfFader(f) === rod) return f; return 0; }
+// Button b (0-3 = A-D) -> [team, draw back?].  The button nearest each
+// player (A, D) draws back, the next one (B, C) shoots.
+function buttonAction(b) {
+  const draw = OPT.swap ? (b === 1 || b === 2) : (b === 0 || b === 3);
+  return [b < 2 ? 0 : 1, draw];
+}
+
+// ============================================================================
+// Game state
+// ============================================================================
+const ball = { x: L / 2, y: CY, vx: 0, vy: 0, slowFor: 0, trail: [] };
+const game = {
+  score: [0, 0], lastTouch: [0, 0], lastTouchRod: [null, null], lastTouchMan: [-1, -1],
+  phase: 'play', phaseT: 0, scorer: -1, winner: -1, paused: false, serveSide: 1,
+  flash: [0, 0], burstUntil: [0, 0], time: 0, touchTime: 0,
+};
+const tiltG = { x: 0, y: 0 };
+
+// How far a rod's centre can go, top and bottom: the end men stop at the
+// side wall, or at a corner ramp where it reaches across the rod (one goalie
+// covers the width up to the ramps).  At the top they stop a little sooner:
+// seen slightly from the side, a man's head is drawn above his feet, and it
+// is his head that meets the far wall.
+function rodRange(rod) {
+  const k = P.manSize, hy = 17 * k, half = (rod.n - 1) * rod.spacing / 2, ramp = rampIn(rod);
+  const head = Math.max(0, (36 * k + Math.max(P.reach, 16 * k)) * TILT_VIEW + 10.8 * k - hy);
+  const lo = hy + 4 + ramp + half + head, hi = W - hy - 4 - ramp - half;
+  return lo <= hi ? [lo, hi] : [(lo + hi) / 2, (lo + hi) / 2];
+}
+// How far a corner ramp reaches in from the side wall across a rod's men.
+// The ramps are at 45 degrees, so at x from an end wall a ramp of size c
+// comes c - x in; the men's near edge is where it reaches furthest.
+function rampIn(rod) {
+  const c = Math.min(P.corner, CY - 10, L / 2 - 10), { hx } = manDims();
+  const near = Math.min(rod.x, L - rod.x) - hx;
+  return Math.max(0, c - near);
+}
+function manYs(rod) {
+  const ys = [];
+  for (let k = 0; k < rod.n; k++) ys.push(rod.y + (k - (rod.n - 1) / 2) * rod.spacing);
+  return ys;
+}
+function manDims() { const s = P.manSize; return { hx: 10 * s, hy: 17 * s }; }
+function footOffset(rod) { return rod.dir * P.reach * Math.sin(rod.ang); }
+function footActive(rod) { return Math.cos(rod.ang) > 0.34; }
+
+function faderToY(rod) {
+  const f = faderOfRod(rod), inv = rod.team === 0 ? OPT.invert0 : OPT.invert1;
+  let u = fader[f] / 127;              // 1 = fader up = top of the screen
+  if (inv) u = 1 - u;
+  const [lo, hi] = rodRange(rod);
+  return lo + (hi - lo) * (1 - u);
+}
+function yToFader(rod, y) {
+  const [lo, hi] = rodRange(rod), inv = rod.team === 0 ? OPT.invert0 : OPT.invert1;
+  let u = hi > lo ? 1 - (y - lo) / (hi - lo) : 0.5;
+  if (inv) u = 1 - u;
+  return clamp(u * 127, 0, 127);
+}
+
+function serve(side) {
+  // from the side of the table at the halfway line, like a real serve hole
+  const r = P.ballSize, s = side === undefined ? (game.serveSide = -game.serveSide) : side;
+  ball.x = L / 2 + (Math.random() - 0.5) * 40;
+  ball.y = s > 0 ? r + 6 : W - r - 6;
+  ball.vx = (Math.random() - 0.5) * P.serveSpeed * 0.5;
+  ball.vy = s > 0 ? P.serveSpeed : -P.serveSpeed;
+  ball.slowFor = 0; ball.trail = [];
+  game.phase = 'play'; game.touchTime = game.time;
+}
+function newMatch() {
+  game.score = [0, 0]; game.lastTouch = [0, 0]; game.lastTouchRod = [null, null]; game.lastTouchMan = [-1, -1];
+  game.winner = -1;
+  updateScore();
+  serve();
+  sendOutputs(true);
+}
+function updateScore() {
+  $('score0').textContent = game.score[0]; $('score1').textContent = game.score[1];
+  const first = +OPT.first;
+  $('matchinfo').textContent = game.winner >= 0 ? 'Team ' + (game.winner + 1) + ' wins!' : first ? 'First to ' + first : 'Endless match';
+}
+
+// ============================================================================
+// Physics
+// ============================================================================
+const DT = 1 / 720;
+
+function walls() {
+  const c = Math.min(P.corner, CY - 10, L / 2 - 10), g = Math.min(P.goalWidth, W - 2 * c - 10) / 2;
+  const gd = 2 * P.ballSize + 20;      // goal depth: deep enough for any ball to cross the line
+  const pts = [
+    [[c, 0], [L - c, 0]], [[L - c, 0], [L, c]], [[L, c], [L, CY - g]],
+    [[L, CY + g], [L, W - c]], [[L, W - c], [L - c, W]], [[L - c, W], [c, W]],
+    [[c, W], [0, W - c]], [[0, W - c], [0, CY + g]], [[0, CY - g], [0, c]], [[0, c], [c, 0]],
+    // the goals' sides and backs, so a ball going in stays in
+    [[L, CY - g], [L + gd, CY - g]], [[L + gd, CY - g], [L + gd, CY + g]], [[L + gd, CY + g], [L, CY + g]],
+    [[0, CY - g], [-gd, CY - g]], [[-gd, CY - g], [-gd, CY + g]], [[-gd, CY + g], [0, CY + g]],
+  ];
+  return { segs: pts, g, gd };
+}
+
+function step(dt) {
+  game.time += dt;
+  // rods
+  for (const r of RODS) {
+    const t = r.target, max = P.rodSpeed * dt;
+    const dy = clamp(t - r.y, -max, max);
+    r.vy = dy / dt; r.y += dy;
+    turnRod(r, dt);
+  }
+  if (game.phase !== 'play') return;
+
+  // ball
+  const r = P.ballSize;
+  ball.vx += tiltG.x * P.tilt * dt; ball.vy += tiltG.y * P.tilt * dt;
+  const k = Math.exp(-P.drag * dt);
+  ball.vx *= k; ball.vy *= k;
+  let sp = Math.hypot(ball.vx, ball.vy);
+  if (sp > 0) {
+    const ns = Math.max(0, sp - P.rolling * dt);
+    const cap = Math.min(ns, P.maxSpeed);
+    ball.vx *= cap / sp; ball.vy *= cap / sp; sp = cap;
+  }
+  ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+
+  // players
+  const { hx, hy } = manDims(), rr = Math.min(hx, hy) * 0.9;
+  for (const rod of RODS) {
+    if (!footActive(rod)) continue;
+    const cx = rod.x + footOffset(rod);
+    if (Math.abs(ball.x - cx) > hx + r + 2) continue;
+    const mvx = rod.dir * P.reach * rod.omega * Math.cos(rod.ang), mvy = rod.vy;
+    const ys = manYs(rod);
+    for (let m = 0; m < ys.length; m++) {
+      const cy = ys[m];
+      const ix = hx - rr, iy = hy - rr;
+      const dx = ball.x - cx, dy = ball.y - cy;
+      const qx = clamp(dx, -ix, ix), qy = clamp(dy, -iy, iy);
+      let px = dx - qx, py = dy - qy, d = Math.hypot(px, py), nx, ny, pen;
+      if (d > rr + r) continue;
+      if (d < 1e-6) {
+        // centre inside the man: out the shortest way
+        const ox = ix + rr + r - Math.abs(dx), oy = iy + rr + r - Math.abs(dy);
+        if (ox < oy) { nx = Math.sign(dx) || rod.dir; ny = 0; pen = ox; } else { nx = 0; ny = Math.sign(dy) || 1; pen = oy; }
+      } else { nx = px / d; ny = py / d; pen = rr + r - d; }
+      ball.x += nx * pen; ball.y += ny * pen;
+      let rvx = ball.vx - mvx, rvy = ball.vy - mvy;
+      const vn = rvx * nx + rvy * ny;
+      let impact = 0;
+      if (vn < 0) {
+        const tx = rvx - vn * nx, ty = rvy - vn * ny;
+        const vn2 = -vn * P.manBounce, keep = 1 - P.grip;
+        rvx = nx * vn2 + tx * keep; rvy = ny * vn2 + ty * keep;
+        ball.vx = rvx + mvx; ball.vy = rvy + mvy;
+        impact = -vn;
+      }
+      // a new touch once the ball has been away from this man for a moment,
+      // so a ball held against him is one touch, not a stream of them
+      if (game.time - rod.lastContact[m] > 0.08) touched(rod, m, impact);
+      rod.lastContact[m] = game.time;
+    }
+  }
+
+  // walls and posts
+  const { segs, g } = walls();
+  for (const [[ax, ay], [bx, by]] of segs) {
+    const ex = bx - ax, ey = by - ay, len2 = ex * ex + ey * ey;
+    let t = len2 ? ((ball.x - ax) * ex + (ball.y - ay) * ey) / len2 : 0;
+    t = clamp(t, 0, 1);
+    const qx = ax + ex * t, qy = ay + ey * t;
+    const dx = ball.x - qx, dy = ball.y - qy, d = Math.hypot(dx, dy);
+    if (d >= r || d < 1e-6) continue;
+    const nx = dx / d, ny = dy / d;
+    ball.x = qx + nx * r; ball.y = qy + ny * r;
+    const vn = ball.vx * nx + ball.vy * ny;
+    if (vn < 0) {
+      ball.vx -= (1 + P.wallBounce) * vn * nx; ball.vy -= (1 + P.wallBounce) * vn * ny;
+      if (-vn > 120) sfx('wall', -vn);
+    }
+  }
+
+  // goal?
+  if (Math.abs(ball.y - CY) < g) {
+    if (ball.x < -r * 0.5) return goal(1);
+    if (ball.x > L + r * 0.5) return goal(0);
+  }
+  // lost (shouldn't happen): serve again
+  if (ball.x < -80 || ball.x > L + 80 || ball.y < -40 || ball.y > W + 40 || !isFinite(ball.x + ball.y)) serve();
+
+  // dead ball
+  if (sp < 20) ball.slowFor += dt; else ball.slowFor = 0;
+  // nobody can reach it: rolling round where no man can get to it
+  if (P.stuckTime > 0 && game.time - game.touchTime > P.stuckTime + 6) { serve(); game.touchTime = game.time; return; }
+  if (P.stuckTime > 0 && ball.slowFor > P.stuckTime) {
+    const a = Math.random() * Math.PI * 2;
+    ball.vx = Math.cos(a) * P.serveSpeed; ball.vy = Math.sin(a) * P.serveSpeed; ball.slowFor = 0;
+  }
+}
+
+function touched(rod, m, impact) {
+  const num = ROLE_FIRST[rod.role] + m, t = rod.team;
+  game.touchTime = game.time;
+  game.lastTouch[t] = num; game.lastTouchRod[t] = rod; game.lastTouchMan[t] = m;
+  game.flash[t] = performance.now();
+  sendCard(sysexMsg(CMD.TOUCH, [t]));
+  sendOutputs(true);
+  sfx('kick', impact);
+}
+
+function goal(team) {
+  game.score[team]++;
+  game.scorer = team; game.phase = 'goal'; game.phaseT = performance.now();
+  game.burstUntil[team] = performance.now() + OPT.burst * 50;
+  sendCard(sysexMsg(CMD.GOAL, [team]));
+  const first = +OPT.first;
+  if (first && game.score[team] >= first) game.winner = team;
+  updateScore();
+  sfx('goal');
+}
+
+// ----------------------------------------------------------------------------
+// Turning the rods.  Like a real table: draw back to lift the men's feet
+// behind them (the ball rolls underneath), shoot to swing them forwards.
+// Shooting from drawn back is a hard shot: the men swing through the ball
+// and right round over the bar once.  Shooting from hanging is a soft shot:
+// a flick, the men facing up for a moment, then back down.
+// ----------------------------------------------------------------------------
+const DRAWN = -1.45;          // drawn back, feet up behind (about 83 degrees)
+const SOFT_UP = 1.9;          // a soft shot's flick, facing up (about 110 degrees)
+const DRAW_RATE = 11;         // radians a second, drawing back
+const DROP_RATE = 6;          // and letting the men fall back down
+const isDrawn = (r) => r.drawHeld || game.time < r.drawUntil;
+function turnRod(r, dt) {
+  const was = r.ang;
+  r.modeT += dt;
+  switch (r.mode) {
+    case 'hard':
+      // from drawn back, forwards through the ball and over the top, to hang again
+      r.ang += P.hardShot / Math.max(5, P.reach) * dt;
+      if (r.ang >= Math.PI * 2) { r.ang = 0; r.mode = 'rest'; r.omega = 0; return; }
+      break;
+    case 'softOut':
+      r.ang = Math.min(SOFT_UP, r.ang + P.softShot / Math.max(5, P.reach) * dt);
+      if (r.ang >= SOFT_UP) { r.mode = 'softHold'; r.modeT = 0; }
+      break;
+    case 'softHold':
+      if (r.modeT > 0.12) r.mode = 'softBack';
+      break;
+    case 'softBack':
+      r.ang = Math.max(0, r.ang - DROP_RATE * dt);
+      if (r.ang <= 0) r.mode = 'rest';
+      break;
+    default: {
+      // rest: hang, or follow the draw-back button
+      const want = isDrawn(r) ? DRAWN : 0, rate = want < r.ang ? DRAW_RATE : DROP_RATE;
+      r.ang += clamp(want - r.ang, -rate * dt, rate * dt);
+    }
+  }
+  r.omega = (r.ang - was) / dt;
+  r.spinning = r.mode !== 'rest';
+}
+
+// The rods a button moves: the one with the ball nearest its feet (a ball in
+// front counting nearer), or all four
+function chosenRods(team) {
+  if (OPT.spin === 'all') return rodsOf(team);
+  let best = null, bestScore = 1e9;
+  for (const r of rodsOf(team)) {
+    const rel = (ball.x - r.x) * r.dir, s = rel >= 0 ? rel : -1.5 * rel;
+    if (s < bestScore) { bestScore = s; best = r; }
+  }
+  return [best];
+}
+const drawnRods = (team) => rodsOf(team).filter(r => isDrawn(r) && r.mode === 'rest');
+
+function drawBack(team, on, rods) {
+  if (on) {
+    for (const r of rods || chosenRods(team)) { r.drawHeld = true; r.drawUntil = -1; }
+    sfx('spin', 200);
+  } else {
+    // stays drawn back a while (Draw-back hold), so a tap of draw back and
+    // then shoot is a hard shot too
+    for (const r of rods || rodsOf(team)) if (r.drawHeld) { r.drawHeld = false; r.drawUntil = game.time + P.drawHold; }
+  }
+}
+// kind: 'hard' or 'soft' forces the shot (the hard + soft buttons); left out,
+// a drawn-back rod shoots hard and a hanging one soft
+function shoot(team, rods, kind) {
+  if (!rods) { const d = drawnRods(team); rods = d.length ? d : chosenRods(team); }
+  let hard = false;
+  for (const r of rods) {
+    if (r.mode !== 'rest') continue;
+    r.drawHeld = false; r.drawUntil = -1;
+    if (kind === 'hard' || (!kind && r.ang < DRAWN * 0.6)) { r.mode = 'hard'; hard = true; }
+    else { r.mode = 'softOut'; }
+    r.modeT = 0; r.spinning = true;
+  }
+  sfx('spin', hard ? P.hardShot : P.softShot);
+}
+
+// ============================================================================
+// CPU players
+// ============================================================================
+const AI = {
+  easy: { react: 0.35, speed: 0.35, kick: 0.75, jitter: 34, cool: 0.45, aim: 0.3, hardBelow: 350, drawWait: 0.3 },
+  medium: { react: 0.15, speed: 0.6, kick: 0.85, jitter: 14, cool: 0.35, aim: 0.6, hardBelow: 450, drawWait: 0.12, lift: true },
+  hard: { react: 0.05, speed: 1.0, kick: 1.0, jitter: 3, cool: 0.25, aim: 1, hardBelow: 700, drawWait: 0.02, lift: true },
+};
+const aiState = RODS.map(() => ({ y: CY, cool: 0, jit: 0, jitT: 0, aim: 0, aimT: 0, drawing: false, drawFor: 0 }));
+function aiStep(team, level, dt, skip) {
+  const s = AI[level];
+  for (const rod of rodsOf(team)) {
+    if (rod === skip) continue;
+    const st = aiState[rod.i];
+    // where the ball will cross this rod, bounced off the side walls
+    let py = ball.y;
+    const tt = (rod.x - ball.x) / (ball.vx || 1e-6);
+    if (tt > 0 && tt < 1.2) {
+      py = ball.y + ball.vy * tt;
+      const span = W - 2 * P.ballSize;
+      let q = ((py - P.ballSize) % (2 * span) + 2 * span) % (2 * span);
+      py = P.ballSize + (q > span ? 2 * span - q : q);
+    }
+    st.jitT -= dt;
+    if (st.jitT <= 0) { st.jitT = 0.4 + Math.random() * 0.6; st.jit = (Math.random() - 0.5) * 2 * s.jitter; }
+    // with the ball at a forward's feet, line up to strike it off-centre,
+    // away from the other goalie
+    const { hx, hy } = manDims(), rel = (ball.x - rod.x) * rod.dir;
+    const mine = (rod.role === ROLE.A || rod.role === ROLE.M) && rel > -P.ballSize && rel < hx + P.ballSize + P.reach * 0.8
+      && Math.hypot(ball.vx, ball.vy) < 400;
+    if (!mine) { st.aim = 0; st.aimT = 0; }
+    else if (st.aimT === 0) {
+      st.aimT = 1e-6;
+      if (Math.random() < s.aim) {
+        const keeper = rodsOf(1 - team).find(r => r.role === ROLE.G), g = Math.min(P.goalWidth, W) / 2;
+        const goalY = keeper.y > CY ? CY - g * 0.6 : CY + g * 0.6;
+        st.aim = (goalY < ball.y ? 1 : -1) * (hy + P.ballSize) * 0.55;
+      }
+    }
+    if (mine) st.aimT += dt;
+    // the man that can get there soonest
+    const [lo, hi] = rodRange(rod);
+    let best = rod.y, bd = 1e9;
+    for (let m = 0; m < rod.n; m++) {
+      const off = (m - (rod.n - 1) / 2) * rod.spacing;
+      const want = clamp(py + st.jit + st.aim - off, lo, hi);
+      const miss = Math.abs(want + off - py), d = Math.abs(want - rod.y) + miss * 4;
+      if (d < bd) { bd = d; best = want; }
+    }
+    st.y += (best - st.y) * Math.min(1, dt / s.react);
+    const max = P.rodSpeed * s.speed * dt;
+    const ny = rod.target + clamp(st.y - rod.target, -max, max);
+    fader[faderOfRod(rod)] = yToFader(rod, ny);
+
+    // shoot when the ball is in front of a man: a hard shot is drawn back
+    // first, and fired once the men are up
+    st.cool -= dt;
+    if (st.drawing) {
+      const inReach = rel > -P.ballSize && rel < hx + P.ballSize + P.reach * 0.9;
+      st.drawFor -= dt;
+      if (!inReach || game.phase !== 'play') { drawBack(team, false, [rod]); rod.drawUntil = -1; st.drawing = false; }
+      else if (st.drawFor <= 0 && rod.ang <= DRAWN * 0.9) {
+        shoot(team, [rod]); st.drawing = false;
+        // a good player lifts the rods in front out of the way of the shot
+        if (s.lift) for (const r of rodsOf(team)) if ((r.x - rod.x) * r.dir > 0 && r.mode === 'rest') r.drawUntil = game.time + 0.35;
+      }
+      continue;
+    }
+    if (st.cool > 0 || rod.spinning || game.phase !== 'play') continue;
+    // still lining up a shot
+    if (st.aim && Math.abs(rod.y - st.y) > 4 && st.aimT < 0.5) continue;
+    // in front, or just behind (the feet drag it through)
+    if (rel < -(hx + P.ballSize + P.reach * 0.6) || rel > hx + P.ballSize + P.reach * 0.8) continue;
+    const near = manYs(rod).some(y => Math.abs(y - ball.y) < hy + P.ballSize * (st.aim ? 0.9 : 0.4));
+    if (!near) continue;
+    st.cool = s.cool;
+    if (Math.random() > s.kick) continue;
+    // a ball just behind the man can't be drawn back for: flick it through
+    const hard = rel > 0 && Math.hypot(ball.vx, ball.vy) < s.hardBelow && (rod.role === ROLE.A || rod.role === ROLE.M || Math.random() < 0.4);
+    if (hard) { drawBack(team, true, [rod]); st.drawing = true; st.drawFor = s.drawWait; }
+    else shoot(team, [rod]);
+  }
+}
+
+// ============================================================================
+// Outputs: players -> CV, distances, and the card
+// ============================================================================
+function playerMv(team, num) {
+  if (!num) return 0;
+  const n = num - 1;
+  let st;
+  switch (CV.mode) {
+    case 'semi': st = n; break;
+    case 'spread': return Math.round((CV.base + n / 10 * 5) * 1000 + (team ? CV.trans * 1000 / 12 : 0));
+    case 'rod': { const role = num === 1 ? 0 : num <= 3 ? 1 : num <= 8 ? 2 : 3; return Math.round((CV.base + role) * 1000 + (team ? CV.trans * 1000 / 12 : 0)); }
+    default: {
+      const sc = SCALES[CV.scale] || SCALES.Major, o = Math.floor(n / sc.length);
+      st = o * 12 + sc[n % sc.length];
+    }
+  }
+  return Math.round(CV.base * 1000 + (st + (team ? CV.trans : 0)) * 1000 / 12);
+}
+function distances() {
+  const r = P.ballSize;
+  const bx = clamp(ball.x, 0, L), by = ball.y;
+  if (OPT.dist === 'length') return [(L - bx) / L, bx / L];
+  const maxD = Math.hypot(L, CY);
+  return [Math.hypot(L - bx, by - CY) / maxD, Math.hypot(bx, by - CY) / maxD].map(v => clamp(v, 0, 1));
+}
+const out = { cv: [0, 0], d: [1, 1], lastSent: 0, sentKey: '' };
+function sendOutputs(force) {
+  out.cv = [playerMv(0, game.lastTouch[0]), playerMv(1, game.lastTouch[1])];
+  out.d = distances();
+  const vals = [out.cv[0] + 8192, out.cv[1] + 8192, Math.round(out.d[0] * 4095), Math.round(out.d[1] * 4095)].map(v => clamp(v, 0, 16383));
+  const key = vals.join(','), now = performance.now();
+  if (!force && key === out.sentKey && now - out.lastSent < 250) return;
+  out.sentKey = key; out.lastSent = now;
+  const b = [];
+  for (const v of vals) b.push(v >> 7, v & 127);
+  sendCard(sysexMsg(CMD.OUTPUTS, b));
+}
+
+// ============================================================================
+// WebMIDI: the card, and an 8mu plugged into this computer
+// ============================================================================
+const CMD = { STATUS: 0x07, PING: 0x09, OUTPUTS: 0x10, TOUCH: 0x11, GOAL: 0x12, CONFIG: 0x13, EVENT: 0x20 };
+const sysexMsg = (cmd, payload) => [0xF0, 0x7D, 0x46, cmd, ...payload, 0xF7];
+const link = { access: null, cardIn: null, cardOut: null, muIns: [], muOuts: [], online: false, buf: [], inSx: false, pingTimer: 0, card: null };
+const mu = { cc: new Array(8).fill(64), buttons: [false, false, false, false], anchor: new Array(8).fill(-1), lastT: new Array(8).fill(0) };
+
+function sendCard(msg) {
+  if (!link.cardOut) return;
+  try { link.cardOut.send(msg); } catch (e) {}
+}
+function setStatus(kind, text) { $('dot').className = 'dot ' + kind; $('status').textContent = text; }
+function say(text, bad) { const s = $('say'); s.textContent = text; s.className = bad ? 'bad' : ''; }
+
+const isCard = (p) => /fader\s*footie/i.test(p.name || '');
+const is8mu = (p) => [p.name, p.manufacturer, (p.manufacturer || '') + ' ' + (p.name || '')].some(s => /8mu/i.test(s || ''));
+
+async function connect() {
+  if (!navigator.requestMIDIAccess) { say('This browser has no WebMIDI. Use Chrome or Edge on a computer.', true); return; }
+  say('The browser will ask to use MIDI devices with SysEx: choose Allow.');
+  try { link.access = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { say('MIDI access was refused (' + (e && e.message || e) + '). Allow MIDI with SysEx for this page, then try again.', true); return; }
+  link.access.onstatechange = () => scanPorts();
+  $('btn-rescan').hidden = false;
+  scanPorts();
+}
+
+function scanPorts() {
+  const acc = link.access; if (!acc) return;
+  const ins = [...acc.inputs.values()].filter(p => p.state !== 'disconnected');
+  const outs = [...acc.outputs.values()].filter(p => p.state !== 'disconnected');
+  for (const p of ins) p.onmidimessage = null;
+  link.cardIn = ins.find(isCard) || null; link.cardOut = outs.find(isCard) || null;
+  link.muIns = ins.filter(is8mu);
+  const muOuts = outs.filter(is8mu), fresh = muOuts.filter(o => !link.muOuts.includes(o));
+  link.muOuts = muOuts;
+  if (link.cardIn) link.cardIn.onmidimessage = (ev) => onCardBytes(ev.data);
+  // An 8mu's top buttons double as bank buttons, and in another bank the
+  // faders send something else.  Identifying it, as the Computer's own 8mu
+  // driver (EightMU.h) does, makes it load its default setup and switches
+  // its bank buttons off until it's power-cycled; then ask where its faders
+  // are, so the rods start where the faders sit.
+  for (const o of fresh) {
+    const send = (m) => { try { o.send(m); } catch (e) {} };
+    send(EIGHTMU_IDENTIFY);
+    setTimeout(() => send(EIGHTMU_IDENTIFY), 300);
+    setTimeout(() => send(EIGHTMU_FADER_QUERY), 600);
+  }
+  for (const p of link.muIns) p.onmidimessage = (ev) => onEightmu(ev.data);
+  link.online = !!(link.cardIn && link.cardOut);
+  clearInterval(link.pingTimer);
+  const others = ins.filter(p => p !== link.cardIn && !link.muIns.includes(p));
+  const note = others.length ? ' Other MIDI inputs: ' + others.map(p => '“' + (p.name || '?') + '”').join(', ') + '.' : '';
+  if (link.online) {
+    const ping = () => sendCard(sysexMsg(CMD.PING, []));
+    link.pingTimer = setInterval(ping, 1000); ping();
+    sendCard(sysexMsg(CMD.CONFIG, [OPT.burst]));
+    sendOutputs(true);
+  }
+  const m = link.muIns.length;
+  if (link.online) { setStatus('ok', 'Connected: Fader Footie card' + (m ? ' + 8mu' : '')); say(m ? 'Ready: the 8mu plays, the card makes the voltages.' : 'Card connected. Plug an 8mu into this computer, or play with the faders below.' + note); }
+  else if (m) { setStatus('warn', 'Connected: 8mu only (no card)'); say('No “Fader Footie” card found, so no voltages. Plug this computer into the Computer’s USB socket and power-cycle the module.' + note, true); }
+  else { setStatus('warn', 'No card or 8mu found'); say('Nothing found. Use a USB data cable, close other apps using the device, and power-cycle the module after plugging this computer in.' + note, true); }
+  const cpu = [0, 1].filter(t => !hasHuman(t));
+  if (m && cpu.length) say($('say').textContent + ' Team ' + cpu.map(t => t + 1).join(' and ') + ' is played by the CPU: set it to Human (by the score) for two players.');
+  $('cardknobs').textContent = link.online ? 'Card: connected, waiting for its knobs' : 'Card: not connected';
+}
+
+function onCardBytes(d) {
+  for (const b of d) {
+    if (b === 0xF0) { link.inSx = true; link.buf = []; continue; }
+    if (!link.inSx) continue;
+    if (b === 0xF7) { link.inSx = false; onCardSysex(link.buf); continue; }
+    if (b & 0x80) { if (b < 0xF8) link.inSx = false; continue; }
+    link.buf.push(b);
+  }
+}
+function onCardSysex(m) {
+  if (m.length < 3 || m[0] !== 0x7D || m[1] !== 0x46) return;
+  const p = m.slice(3);
+  if (m[2] === CMD.STATUS && p.length >= 5) {
+    const sw = ['down', 'middle', 'up'][p[0] & 3] || '?';
+    const gate = (p[1] << 7) | p[2];
+    link.card = { sw, gate, rate: p[3], smooth: p[4] };
+    $('cardknobs').textContent = 'Card: switch ' + sw + (sw === 'up' ? ' (audio = nearness)' : '') + ' · gate ' + gate + 'ms (X) · burst ' + p[3] + 'Hz (Y) · smoothing ' + Math.round(p[4] / 1.27) + '% (Main)';
+  } else if (m[2] === CMD.EVENT && p.length >= 1) {
+    if (p[0] === 1 || p[0] === 3) serve();
+    else if (p[0] === 2 || p[0] === 4) newMatch();
+  }
+}
+
+function onEightmu(d) {
+  // its reply to the fader query: F0 7D 00 00 12, then the eight faders
+  if (d[0] === 0xF0 && d.length >= 13 && d[1] === 0x7D && d[2] === 0 && d[3] === 0 && d[4] === 0x12) {
+    for (let f = 0; f < 8; f++) {
+      const v = d[5 + f] & 0x7F;
+      mu.anchor[f] = v; mu.lastT[f] = performance.now();
+      if (humanFader(f)) fader[f] = v;
+    }
+    return;
+  }
+  if (d.length < 3 || d[0] < 0x80 || d[0] >= 0xF0) return;
+  const type = d[0] & 0xF0;
+  if (type === 0xB0) {
+    const cc = d[1];
+    if (cc >= FIRST_FADER_CC && cc < FIRST_FADER_CC + 8) {
+      const f = cc - FIRST_FADER_CC, rod = rodOfFader(f);
+      // a real move, not a fader's one-step jitter, takes the rod.  The move
+      // is measured from where the fader last sat still, because a slow move
+      // arrives one step at a time.
+      const v = d[2] & 0x7F, now = performance.now();
+      if (mu.anchor[f] < 0 || now - mu.lastT[f] > 400) mu.anchor[f] = v;
+      mu.lastT[f] = now;
+      if (humanFader(f) || Math.abs(v - mu.anchor[f]) >= 2) { touchFader(f, v); mu.anchor[f] = v; }
+    } else if (cc >= FIRST_MOTION_CC && cc < FIRST_MOTION_CC + 8) {
+      mu.cc[cc - FIRST_MOTION_CC] = d[2] & 0x7F;
+      // tilt, as EightMU::Pitch/Roll compute it: the difference of a pair of CCs
+      // (negated, so the ball rolls downhill on both axes)
+      tiltG.y = clamp((mu.cc[1] - mu.cc[0]) / 64, -1, 1);
+      tiltG.x = clamp((mu.cc[3] - mu.cc[2]) / 64, -1, 1);
+    }
+  } else if (type === 0x90 || type === 0x80) {
+    const b = BUTTON_NOTES.indexOf(d[1]);
+    if (b >= 0) pressButton(b, type === 0x90 && d[2] > 0);
+  }
+}
+const ctlOf = (team) => team === 0 ? OPT.ctl0 : OPT.ctl1;
+// Human + CPU: the player has the rod whose fader they touched last, and the
+// CPU plays the team's other three
+const isAssist = (team) => ctlOf(team).startsWith('assist');
+const hasHuman = (team) => ctlOf(team) === 'human' || isAssist(team);
+const cpuLevel = (team) => isAssist(team) ? ctlOf(team).slice(7) : ctlOf(team) === 'human' ? null : ctlOf(team);
+const humanRod = [RODS[3], RODS[4]];      // the player's rod in Human + CPU: midfield to start
+// Is fader f the player's to move?  Moving one in Human + CPU takes its rod.
+const humanFader = (f) => { const t = rodOfFader(f).team; return ctlOf(t) === 'human' || (isAssist(t) && humanRod[t] === rodOfFader(f)); };
+function touchFader(f, v, fromKey) {
+  const rod = rodOfFader(f), t = rod.team;
+  // a real fader (8mu or on screen) beats a key held for the same rod
+  if (!fromKey) { held.delete(KEYS_UP[f]); held.delete(KEYS_DN[f]); }
+  if (!hasHuman(t)) return;
+  if (isAssist(t) && humanRod[t] !== rod) {
+    humanRod[t] = rod;
+    const st = aiState[rod.i];
+    if (st.drawing) { rod.drawHeld = false; rod.drawUntil = -1; st.drawing = false; }
+  }
+  fader[f] = v;
+}
+function pressButton(b, down) {
+  mu.buttons[b] = down;
+  const el = document.querySelectorAll('.mubtn')[b]; if (el) el.classList.toggle('lit', down);
+  const [team, draw] = buttonAction(b);
+  if (!hasHuman(team)) return;
+  // Human + CPU: the buttons work the player's own rod
+  const rods = isAssist(team) ? [humanRod[team]] : undefined;
+  if (OPT.buttons === 'hardsoft') {
+    // the first button is a hard shot (right round over the bar from
+    // hanging), the second a soft one
+    if (down && game.phase === 'play') shoot(team, rods, draw ? 'hard' : 'soft');
+  } else if (draw) drawBack(team, down, rods);
+  else if (down && game.phase === 'play') shoot(team, rods);
+}
+
+// ============================================================================
+// Sound (quiet, optional)
+// ============================================================================
+let actx = null;
+function sfx(kind, amount) {
+  if (!OPT.sound) return;
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state !== 'running') return;
+    const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+    o.connect(g); g.connect(actx.destination);
+    if (kind === 'goal') {
+      o.type = 'square'; o.frequency.setValueAtTime(440, t); o.frequency.setValueAtTime(554, t + 0.1); o.frequency.setValueAtTime(659, t + 0.2);
+      g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.5); o.start(t); o.stop(t + 0.5);
+      return;
+    }
+    const v = clamp((amount || 300) / 3000, 0.02, 1);
+    o.type = kind === 'kick' ? 'triangle' : 'sine';
+    o.frequency.setValueAtTime(kind === 'kick' ? 300 + v * 500 : kind === 'wall' ? 140 : 90, t);
+    o.frequency.exponentialRampToValueAtTime(60, t + 0.06);
+    g.gain.setValueAtTime((kind === 'spin' ? 0.03 : 0.12) * v, t); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.08);
+    o.start(t); o.stop(t + 0.09);
+  } catch (e) {}
+}
+addEventListener('pointerdown', () => { try { if (actx && actx.state !== 'running') actx.resume(); else if (!actx && OPT.sound) { actx = new (window.AudioContext || window.webkitAudioContext)(); } } catch (e) {} }, { capture: true });
+
+// ============================================================================
+// Drawing
+// ============================================================================
+const cv = $('table'), ctx = cv.getContext('2d');
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let colors = {};
+function readColors() { colors = { t0: css('--t0'), t1: css('--t1'), warm: css('--warm') }; }
+readColors();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1, aspect = (L + 2 * MARGIN) / (W + 2 * MARGIN);
+  let w = $('tablewrap').clientWidth;
+  if (document.fullscreenElement) w = Math.min(innerWidth, innerHeight * aspect);
+  const h = w / aspect;
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+}
+addEventListener('resize', resize);
+
+function rrect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+// ----------------------------------------------------------------------------
+// A moulded plastic man, seen from above.  He is a set of rounded boxes in
+// his own frame: s runs down his body from the rod (feet at the kick reach),
+// t runs forwards (his front faces the goal he attacks).  Turning the rod by
+// ang swings him about it, and each box is drawn as its outline seen from
+// above, lowest first, so a man lying drawn back shows his back and the top
+// of his head, and one flicked up shows his face.
+// ----------------------------------------------------------------------------
+const TILT_VIEW = 0.3;        // how far the camera leans: screen y per unit of height
+const PLASTIC = [['#e2332a', '#a8160f', '#ff8a7a'], ['#2456d8', '#122f8c', '#8fb2ff']];
+// Every man gets his own skin tone and hair colour, picked at random when
+// the page opens
+const SKINS = ['#f6d5bd', '#efc29b', '#e0ac7e', '#c98e5e', '#a86d43', '#8a5530', '#6b3f22', '#4e2c18'];
+const HAIRS = ['#151110', '#2e1d12', '#4a2e1a', '#7a4b26', '#a5582c', '#c9a15a', '#e3c98a', '#9a9a96'];
+const hexShade = (hex, f) => '#' + [0, 2, 4].map(i => clamp(Math.round(parseInt(hex.slice(1 + i, 3 + i), 16) * f), 0, 255).toString(16).padStart(2, '0')).join('');
+const tones = (hex) => [hex, hexShade(hex, 0.62), hexShade(hex, 1.3)];
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+const LOOKS = RODS.map(r => Array.from({ length: r.n }, () => ({ skin: tones(pick(SKINS)), hair: tones(pick(HAIRS)) })));
+const BOOT = ['#1e1e1e', '#050505', '#5a5a5a'];
+function manParts(look) {
+  const k = P.manSize, foot = Math.max(P.reach, 16 * k);
+  const legTop = Math.min(15 * k, foot - 12 * k);
+  return [
+    // [name, s0, s1, t0, t1, y0, y1, colours]
+    ['legL', legTop, foot - 7 * k, -6.5 * k, 6.5 * k, -12 * k, -2 * k, 0],
+    ['legR', legTop, foot - 7 * k, -6.5 * k, 6.5 * k, 2 * k, 12 * k, 0],
+    ['bootL', foot - 9 * k, foot, -6.5 * k, 11 * k, -12.5 * k, -1.5 * k, BOOT],
+    ['bootR', foot - 9 * k, foot, -6.5 * k, 11 * k, 1.5 * k, 12.5 * k, BOOT],
+    ['shorts', 6 * k, 18 * k, -10 * k, 10 * k, -13.5 * k, 13.5 * k, 1],
+    ['torso', -13 * k, 10 * k, -11 * k, 11 * k, -15.5 * k, 15.5 * k, 0],
+    ['armL', -12 * k, 9 * k, -5.5 * k, 5.5 * k, -21 * k, -14.5 * k, 0],
+    ['armR', -12 * k, 9 * k, -5.5 * k, 5.5 * k, 14.5 * k, 21 * k, 0],
+    ['head', -34 * k, -13 * k, -10 * k, 10 * k, -10 * k, 10 * k, look.skin],
+    ['hair', -36 * k, -24 * k, -11.5 * k, 5.5 * k, -10.8 * k, 10.8 * k, look.hair],
+  ];
+}
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => clamp(Math.round(v * f), 0, 255));
+  return 'rgb(' + c.join(',') + ')';
+}
+function drawMan(rod, y, m, now, shadow) {
+  const c = Math.cos(rod.ang), sn = Math.sin(rod.ang), d = rod.dir;
+  const team = PLASTIC[rod.team], parts = manParts(LOOKS[rod.i][Math.max(0, m)]), zt = -Math.max(P.reach, 16 * P.manSize);
+  const boxes = parts.map(([name, s0, s1, t0, t1, y0, y1, col]) => {
+    // the box's corners seen from above: x along the table, z height
+    let xa = 1e9, xb = -1e9, z = 0, za = 1e9, zb = -1e9;
+    for (const ss of [s0, s1]) for (const tt of [t0, t1]) {
+      const x = d * (ss * sn + tt * c), h = -ss * c + tt * sn;
+      xa = Math.min(xa, x); xb = Math.max(xb, x); z += h; za = Math.min(za, h); zb = Math.max(zb, h);
+    }
+    // seen a little from the side of the table: the higher a part, the
+    // further up the screen, measured from the table, so the feet stay
+    // where they meet the ball
+    const pal = col === 0 ? team : col === 1 ? [shade(team[0], 0.8), team[1], team[2]] : col;
+    return { name, xa, xb, y0: y0 - (zb - zt) * TILT_VIEW, y1: y1 - (za - zt) * TILT_VIEW, z: z / 4, pal };
+  });
+  if (shadow) {
+    // a soft shadow cast down and to the right
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    for (const b of boxes) {
+      if (b.name === 'hair') continue;
+      const lift = Math.max(0, b.z + 30 * P.manSize) * 0.12 + 5;
+      rrect(rod.x + b.xa + lift, y + b.y0 + lift, b.xb - b.xa, b.y1 - b.y0, Math.min(b.xb - b.xa, b.y1 - b.y0) * 0.45); ctx.fill();
+    }
+    return;
+  }
+  boxes.sort((p, q) => p.z - q.z);
+  for (const b of boxes) {
+    const w = b.xb - b.xa, h = b.y1 - b.y0, x0 = rod.x + b.xa, y0 = y + b.y0;
+    const round = b.name === 'head' || b.name === 'hair' ? Math.min(w, h) / 2 : Math.min(w, h) * 0.42;
+    // moulded plastic: rounded across, lit from the top left, a gloss streak
+    const lit = clamp(1 + b.z / 160, 0.75, 1.2);
+    const g = ctx.createLinearGradient(x0, y0, x0 + w, y0 + h);
+    g.addColorStop(0, shade(b.pal[2].startsWith('#') ? b.pal[2] : '#ffffff', lit));
+    g.addColorStop(0.35, typeof b.pal[0] === 'string' && b.pal[0].startsWith('#') ? shade(b.pal[0], lit) : b.pal[0]);
+    g.addColorStop(1, b.pal[1]);
+    ctx.fillStyle = g; rrect(x0, y0, w, h, round); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+    if (w > 6 && h > 6 && b.name !== 'hair') {
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      rrect(x0 + w * 0.18, y0 + h * 0.12, Math.max(2, w * 0.22), h * 0.5, Math.min(w * 0.11, h * 0.25)); ctx.fill();
+    }
+  }
+  // the rod runs through his chest
+  const tor = boxes.find(b => b.name === 'torso');
+  const isLast = m >= 0 && game.lastTouchRod[rod.team] === rod && game.lastTouchMan[rod.team] === m;
+  if (isLast) {
+    const a = clamp(1 - (now - game.flash[rod.team]) / 600, 0.35, 1), k = P.manSize;
+    ctx.strokeStyle = 'rgba(255,236,110,' + a + ')'; ctx.lineWidth = 3;
+    rrect(rod.x + Math.min(tor.xa, -10 * k) - 6, y - 22 * k, Math.max(tor.xb, 10 * k) - Math.min(tor.xa, -10 * k) + 12, 44 * k, 12 * k); ctx.stroke();
+  }
+  if (OPT.numbers) {
+    // his number, on a tag on the rod just past his arm
+    const k = P.manSize, ty = y + 19 * k + 7, label = String(ROLE_FIRST[rod.role] + m);
+    ctx.fillStyle = 'rgba(20,20,20,0.75)'; rrect(rod.x - 9, ty - 7, 18, 14, 7); ctx.fill();
+    ctx.font = '700 10px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff'; ctx.fillText(label, rod.x, ty + 0.5);
+  }
+}
+
+function draw(now) {
+  const s = cv.width / (L + 2 * MARGIN);
+  ctx.setTransform(s, 0, 0, s, MARGIN * s, MARGIN * s);
+  ctx.clearRect(-MARGIN, -MARGIN, L + 2 * MARGIN, W + 2 * MARGIN);
+  // cabinet
+  ctx.fillStyle = '#3b2a1e'; rrect(-MARGIN, -MARGIN, L + 2 * MARGIN, W + 2 * MARGIN, 26); ctx.fill();
+  const { segs, g, gd } = walls();
+  // goals
+  ctx.fillStyle = '#16120e';
+  ctx.fillRect(-gd - 2, CY - g, gd + 2, 2 * g); ctx.fillRect(L, CY - g, gd + 2, 2 * g);
+  // field
+  ctx.fillStyle = '#2f8f46';
+  ctx.beginPath(); ctx.moveTo(segs[0][0][0], segs[0][0][1]);
+  for (let i = 0; i < 10; i++) ctx.lineTo(segs[i][1][0], segs[i][1][1]);
+  ctx.closePath(); ctx.fill();
+  ctx.save(); ctx.clip();
+  for (let i = 0; i < 12; i += 2) { ctx.fillStyle = 'rgba(255,255,255,0.045)'; ctx.fillRect(i * L / 12, 0, L / 12, W); }
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(L / 2, 0); ctx.lineTo(L / 2, W); ctx.stroke();
+  ctx.beginPath(); ctx.arc(L / 2, CY, 80, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(L / 2, CY, 4, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fill();
+  const box = Math.min(g + 70, CY - 4);
+  ctx.strokeRect(-2, CY - box, 110, 2 * box); ctx.strokeRect(L - 108, CY - box, 110, 2 * box);
+  ctx.strokeRect(-2, CY - g - 10, 46, 2 * g + 20); ctx.strokeRect(L - 44, CY - g - 10, 46, 2 * g + 20);
+  ctx.restore();
+  // walls
+  ctx.strokeStyle = '#d8c7a8'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  for (const [[ax, ay], [bx, by]] of segs.slice(0, 10)) { ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); }
+  ctx.fillStyle = '#eee'; for (const yy of [CY - g, CY + g]) for (const xx of [0, L]) { ctx.beginPath(); ctx.arc(xx, yy, 5, 0, Math.PI * 2); ctx.fill(); }
+
+  // the men's shadows on the field, then the ball, which rolls under the
+  // rods, then the rods and the men on them
+  for (const rod of RODS) for (const y of manYs(rod)) drawMan(rod, y, -1, now, true);
+  const r = P.ballSize;
+  if (game.phase === 'play') {
+    ball.trail.push([ball.x, ball.y]); if (ball.trail.length > 10) ball.trail.shift();
+    for (let i = 0; i < ball.trail.length; i++) {
+      const [tx, ty] = ball.trail[i];
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.03 * i) + ')'; ctx.beginPath(); ctx.arc(tx, ty, r * (0.4 + 0.06 * i), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(ball.x + 4, ball.y + 5, r, 0, Math.PI * 2); ctx.fill();
+  const grd = ctx.createRadialGradient(ball.x - r * 0.35, ball.y - r * 0.35, r * 0.1, ball.x, ball.y, r);
+  grd.addColorStop(0, '#ffffff'); grd.addColorStop(1, '#cfcac0');
+  ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(ball.x, ball.y, r, 0, Math.PI * 2); ctx.fill();
+
+  // Human + CPU: a glow along the player's own rod
+  for (const t of [0, 1]) if (isAssist(t)) {
+    const x = humanRod[t].x, g = ctx.createLinearGradient(x - 26, 0, x + 26, 0), c = t ? '60,120,255' : '255,70,60';
+    g.addColorStop(0, 'rgba(' + c + ',0)'); g.addColorStop(0.5, 'rgba(' + c + ',0.5)'); g.addColorStop(1, 'rgba(' + c + ',0)');
+    ctx.fillStyle = g; ctx.fillRect(x - 26, 0, 52, W);
+  }
+  for (const rod of RODS) {
+    // polished steel, with rubber bumpers at the walls
+    const g = ctx.createLinearGradient(rod.x - 6, 0, rod.x + 6, 0);
+    g.addColorStop(0, '#6d737a'); g.addColorStop(0.35, '#f4f6f8'); g.addColorStop(0.6, '#b9bec4'); g.addColorStop(1, '#5a6066');
+    ctx.fillStyle = g; ctx.fillRect(rod.x - 6, -MARGIN + 2, 12, W + 2 * MARGIN - 4);
+    ctx.fillStyle = '#222';
+    rrect(rod.x - 9, -6, 18, 10, 3); ctx.fill(); rrect(rod.x - 9, W - 4, 18, 10, 3); ctx.fill();
+    const ys = manYs(rod);
+    for (let m = 0; m < ys.length; m++) drawMan(rod, ys[m], m, now, false);
+  }
+
+  // messages
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (game.phase === 'goal') {
+    const col = game.scorer ? colors.t1 : colors.t0;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; rrect(L / 2 - 260, CY - 70, 520, 140, 20); ctx.fill();
+    ctx.fillStyle = col; ctx.font = '900 76px system-ui, sans-serif';
+    ctx.fillText(game.winner >= 0 ? 'TEAM ' + (game.winner + 1) + ' WINS' : 'TOR!', L / 2, CY - 8);
+    ctx.fillStyle = '#fff'; ctx.font = '600 22px system-ui, sans-serif';
+    ctx.fillText(game.score[0] + ' : ' + game.score[1] + (game.winner >= 0 ? '   ·   new match coming' : ''), L / 2, CY + 46);
+  } else if (game.paused) {
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; rrect(L / 2 - 160, CY - 40, 320, 80, 16); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '800 40px system-ui, sans-serif'; ctx.fillText('PAUSED', L / 2, CY);
+  }
+}
+
+// ============================================================================
+// Panels
+// ============================================================================
+function helpButtons() {
+  for (const e of document.querySelectorAll('.help-hardsoft')) e.hidden = OPT.buttons !== 'hardsoft';
+  for (const e of document.querySelectorAll('.help-draw')) e.hidden = OPT.buttons === 'hardsoft';
+}
+function buildMu() {
+  const box = $('mu'); box.innerHTML = '';
+  const bb = document.createElement('div'); bb.className = 'mubtns';
+  ['A', 'B', 'C', 'D'].forEach((l, b) => {
+    const [team, draw] = buttonAction(b);
+    const e = document.createElement('button'); e.className = 'mubtn t' + team;
+    e.textContent = l + ' · team ' + (team + 1) + ' ' + (OPT.buttons === 'hardsoft' ? (draw ? 'hard shot' : 'soft shot') : (draw ? 'draw back' : 'shoot'));
+    e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); pressButton(b, true); });
+    e.addEventListener('pointerup', () => pressButton(b, false));
+    e.addEventListener('pointerleave', () => { if (mu.buttons[b]) pressButton(b, false); });
+    bb.appendChild(e);
+  });
+  box.appendChild(bb);
+  const keys = ['Q/A', 'W/S', 'E/D', 'R/F', 'U/J', 'I/K', 'O/L', 'P/;'];
+  for (let f = 0; f < 8; f++) {
+    const rod = rodOfFader(f);
+    const d = document.createElement('div'); d.className = 'fad t' + rod.team; d.dataset.f = f;
+    d.innerHTML = '<div class="trk"><div class="cap"></div></div><div class="lbl">' + (f + 1) + ' · ' + ROLE_NAME[rod.role] + '</div><div class="key">' + keys[f] + '</div>';
+    const trk = d.querySelector('.trk');
+    const set = (ev) => {
+      const rc = trk.getBoundingClientRect();
+      touchFader(f, clamp((1 - (ev.clientY - rc.top - 7) / (rc.height - 14)) * 127, 0, 127));
+    };
+    trk.addEventListener('pointerdown', (ev) => { trk.setPointerCapture(ev.pointerId); set(ev); });
+    trk.addEventListener('pointermove', (ev) => { if (trk.hasPointerCapture(ev.pointerId)) set(ev); });
+    box.appendChild(d);
+  }
+}
+function renderMu() {
+  for (const d of document.querySelectorAll('.fad')) {
+    const f = +d.dataset.f, rod = rodOfFader(f), trk = d.firstChild, cap = trk.firstChild;
+    const h = trk.clientHeight - 14;
+    cap.style.top = ((1 - fader[f] / 127) * h) + 'px';
+    d.classList.toggle('ai', !humanFader(f));
+    d.classList.toggle('you', isAssist(rod.team) && humanFader(f));
+  }
+}
+
+function slider(host, def, obj, onchange) {
+  const row = document.createElement('div'); row.className = 'row';
+  const id = 'p-' + def.k;
+  row.innerHTML = '<label for="' + id + '">' + def.label + '</label><input type="range" id="' + id + '" min="' + def.min + '" max="' + def.max + '" step="' + def.step + '"><output></output>';
+  const inp = row.querySelector('input'), o = row.querySelector('output');
+  const show = () => { o.textContent = def.fmt ? def.fmt(obj[def.k]) : String(Math.round(obj[def.k])); };
+  inp.value = obj[def.k]; show();
+  inp.addEventListener('input', () => { obj[def.k] = +inp.value; show(); saveAll(); onchange && onchange(); });
+  row.refresh = () => { inp.value = obj[def.k]; show(); };
+  host.appendChild(row);
+  return row;
+}
+const paramRows = [];
+function buildPanels() {
+  const host = $('params');
+  for (const def of PARAMS) paramRows.push(slider(host, def, P, () => sendOutputs(true)));
+  const pr = $('presets');
+  for (const name of Object.keys(PRESETS)) {
+    const b = document.createElement('button'); b.textContent = name;
+    b.addEventListener('click', () => { Object.assign(P, DEFAULTS, PRESETS[name]); paramRows.forEach(r => r.refresh()); saveAll(); });
+    pr.appendChild(b);
+  }
+  const ch = $('cvparams');
+  for (const def of CVPARAMS) slider(ch, def, CV, renderCvTable);
+  const sc = $('cv-scale');
+  for (const n of Object.keys(SCALES)) { const o = document.createElement('option'); o.value = o.textContent = n; sc.appendChild(o); }
+  sc.value = CV.scale; $('cv-mode').value = CV.mode;
+  sc.addEventListener('change', () => { CV.scale = sc.value; saveAll(); renderCvTable(); });
+  $('cv-mode').addEventListener('change', () => { CV.mode = $('cv-mode').value; saveAll(); renderCvTable(); });
+  const bs = $('opt-burst');
+  for (const n of [1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64]) { const o = document.createElement('option'); o.value = o.textContent = n; bs.appendChild(o); }
+  bs.value = OPT.burst;
+  bs.addEventListener('change', () => { OPT.burst = +bs.value; saveAll(); sendCard(sysexMsg(CMD.CONFIG, [OPT.burst])); });
+  const bind = (id, key, after) => {
+    const e = $(id), isBox = e.type === 'checkbox';
+    if (isBox) e.checked = !!OPT[key]; else e.value = OPT[key];
+    e.addEventListener('change', () => { OPT[key] = isBox ? e.checked : e.value; saveAll(); after && after(); });
+  };
+  bind('opt-spin', 'spin'); bind('opt-first', 'first', updateScore); bind('opt-dist', 'dist');
+  bind('opt-invert0', 'invert0'); bind('opt-invert1', 'invert1');
+  bind('opt-order', 'order', buildMu); bind('opt-swap', 'swap', buildMu); bind('opt-buttons', 'buttons', () => { buildMu(); helpButtons(); });
+  bind('opt-numbers', 'numbers'); bind('opt-sound', 'sound');
+  bind('ctl0', 'ctl0'); bind('ctl1', 'ctl1');
+  renderCvTable();
+}
+function renderCvTable() {
+  $('cv-scale-wrap').style.display = CV.mode === 'scale' ? '' : 'none';
+  let h = '<tr><th>Player</th><th>Team 1 (CV 1)</th><th>Team 2 (CV 2)</th></tr>';
+  for (let n = 1; n <= 11; n++) h += '<tr><td>' + n + ' ' + (n === 1 ? 'goalie' : n <= 3 ? 'defence' : n <= 8 ? 'midfield' : 'attack') + '</td><td class="mono">' + (playerMv(0, n) / 1000).toFixed(3) + 'V</td><td class="mono">' + (playerMv(1, n) / 1000).toFixed(3) + 'V</td></tr>';
+  $('cvtable').innerHTML = h;
+  sendOutputs(true);
+}
+function renderOutputs(now) {
+  for (let t = 0; t < 2; t++) {
+    const mv = out.cv[t], has = game.lastTouch[t] > 0;
+    $('bar-cv' + t).style.width = clamp((mv + 2000) / 7000 * 100, 0, 100) + '%';
+    $('v-cv' + t).textContent = has ? '#' + game.lastTouch[t] + ' ' + (mv / 1000).toFixed(2) + 'V' : '–';
+    $('bar-d' + t).style.width = (out.d[t] * 100) + '%';
+    $('v-d' + t).textContent = (out.d[t] * 5).toFixed(2) + 'V';
+    const lit = now - game.flash[t] < 60 || (now < game.burstUntil[t] && Math.floor(now / 50) % 2 === 0);
+    $('lamp' + t).classList.toggle('on', lit);
+  }
+}
+
+// ============================================================================
+// Keyboard
+// ============================================================================
+// Physical keys (e.code), so Shift or the keyboard layout can't change which
+// key a release belongs to
+const KEYS_UP = ['KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyU', 'KeyI', 'KeyO', 'KeyP'];
+const KEYS_DN = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon'];
+const KEY_BUTTONS = { KeyZ: 0, KeyX: 1, Comma: 2, Period: 3 };
+const held = new Set();
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  // leave shortcuts alone: a key pressed with Cmd held may never send its
+  // release, and would then drive its fader for ever
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.code;
+  if (KEYS_UP.includes(k) || KEYS_DN.includes(k)) { held.add(k); e.preventDefault(); return; }
+  if (e.repeat) return;
+  // the keys stand in for the 8mu's buttons A-D
+  const btn = KEY_BUTTONS[k];
+  if (btn !== undefined) { held.add(k); pressButton(btn, true); e.preventDefault(); return; }
+  if (k === 'Space') { serve(); e.preventDefault(); }
+  if (k === 'Escape') game.paused = !game.paused;
+});
+addEventListener('keyup', (e) => releaseKey(e.code));
+function releaseKey(k) {
+  held.delete(k);
+  if (KEY_BUTTONS[k] !== undefined) pressButton(KEY_BUTTONS[k], false);
+}
+// A window that loses focus never hears its keys let go: let them all go
+function releaseAllKeys() { for (const k of [...held]) releaseKey(k); }
+addEventListener('blur', releaseAllKeys);
+document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAllKeys(); });
+function keyStep(dt) {
+  for (let f = 0; f < 8; f++) {
+    const d = (held.has(KEYS_UP[f]) ? 1 : 0) - (held.has(KEYS_DN[f]) ? 1 : 0);
+    if (d) touchFader(f, clamp(fader[f] + d * 160 * dt, 0, 127), true);
+  }
+}
+
+// ============================================================================
+// Main loop
+// ============================================================================
+let lastT = performance.now(), acc = 0;
+function frame(now) {
+  let dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  if (game.paused) dt = 0;
+  keyStep(dt);
+  for (const t of [0, 1]) if (cpuLevel(t)) aiStep(t, cpuLevel(t), dt * P.timeScale, isAssist(t) ? humanRod[t] : null);
+  for (const rod of RODS) rod.target = faderToY(rod);
+  acc += dt * P.timeScale;
+  let n = 0;
+  while (acc >= DT && n < 400) { step(DT); acc -= DT; n++; }
+  if (game.phase === 'goal' && now - game.phaseT > (game.winner >= 0 ? 4000 : 1300)) {
+    if (game.winner >= 0) newMatch(); else serve(game.scorer === 0 ? -1 : 1);
+  }
+  sendOutputs(false);
+  draw(now);
+  renderMu();
+  renderOutputs(now);
+  requestAnimationFrame(frame);
+}
+
+$('btn-connect').addEventListener('click', connect);
+$('btn-rescan').addEventListener('click', () => { link.muOuts = []; scanPorts(); });   // and identify the 8mu again
+$('btn-serve').addEventListener('click', () => serve());
+$('btn-new').addEventListener('click', newMatch);
+$('btn-full').addEventListener('click', () => { const el = $('tablewrap'); (el.requestFullscreen ? el.requestFullscreen() : Promise.reject()).catch(() => {}); });
+document.addEventListener('fullscreenchange', () => setTimeout(resize, 50));
+
+buildMu();
+buildPanels();
+helpButtons();
+resize();
+for (const rod of RODS) { rod.target = rod.y = faderToY(rod); }
+newMatch();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+; @name Comet Harp
+; @tagline Every note flings two tuned combs out through the reverb, one diving and one soaring in octave leaps, and they swing back to land on your note and ring
+; @description Your playing pours into a big, smooth, misty hall, and two invisible harps hang in it, one on
+; @description each side: comb filters that make the hall ring at a pitch. A careful listener hears
+; @description each new note you play, and only when it is sure, and both harps take that note an
+; @description octave apart, one high and one low. On every new note they trade places, so the high
+; @description and the low voice keep moving from side to side. Every attack, and every new note,
+; @description flings them apart like comets: the high harp dives one or two octaves and the low one
+; @description soars, each landing on an octave of your note, and within a third of a second they
+; @description swing back in octave leaps. On a new note that swing carries each harp across the
+; @description other to its new octave, so every phrase draws glowing V shapes that cross the hall from
+; @description side to side. With each strike the harps flare and ring harder, then settle back into
+; @description a softer glow. The harps only ever sing your notes: when a new note is confirmed they
+; @description glide to it, and if no sure note has come for about half a second their glow and their
+; @description throws fade and the hall turns back into a plain reverb, so they never hang on a note
+; @description you have left. Space sets the size of the hall, Sweep how far the harps are thrown, and
+; @description Ring how strongly they sing between strikes.
+; @pots Space | Sweep | Ring
+; @render 0.85, 1.0, 0.65
+; @components sure-note pitch listener (the shared lis37r2 tracker: brightness-switched zero-crossing bass path, Schmitt gate, the same semitone three times running, notes below C3 folded), onset and new-note strikes, two interpolated comb filters on log-domain servo-steered ramp-LFO taps, contrary octave staircase whose high and low harps trade sides on every new note (16 ms glides), near-normalised comb (the plain hall as before, a full flare rings up to 4.7 dB at the resonance), strike flare and freshness-gated glow (tau 0.25 s), dense allpass ring hall (four allpasses of unrelated lengths in one loop fed from a low-passed mid), stereo-linked peak limiter
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	r0	157
+mem	r1	118
+mem	r2	419
+mem	r3	1201
+mem	bA	2900
+mem	cL	514		; left comb (delays stay under 512 once a note is sure)
+mem	cR	514		; right comb
+
+equ	hp	reg0		; tracker: x low-passed at k 0.9; x - hp is its HF band; |hp| is the level
+equ	e1	reg1		; tracker: HF peak envelope
+equ	e2	reg2		; tracker: smoothed HF envelope (Schmitt high level; also the onsets' envelope)
+equ	ef	reg3		; tracker: the ~63 Hz high-pass stage before the Schmitt gate
+equ	es	reg4		; onsets: slow follower of e2 (zeroed by a new sure note)
+equ	tc	reg5		; tracker timer: + 254/2^23 per sample (lis37r2's RMP0 at -4066), saturating
+equ	thr	reg6		; tracker: Schmitt threshold/state
+equ	cand	reg7		; tracker: confirmation counter
+equ	hl	reg8		; (L + R)/2 low-passed at ~1.5 kHz: the hall's input
+equ	tmp	reg9
+equ	lt	reg10		; newest sure note: the combs' log delay, -1/4 + pitch class, falling with pitch
+equ	fresh	reg11		; 1 at every sure note, fades with tau 0.25 s
+equ	h	reg12		; strike kick (throw and flare), falls with tau 0.25 s
+equ	u	reg13		; the harps' octave split and throw, glided (log delay; an octave = 1/16)
+equ	E	reg14		; comb feedback (x 0.97)
+equ	fL	reg15
+equ	fR	reg16
+equ	env	reg17		; limiter: peak of the outputs
+equ	gl	reg18		; limiter gain
+equ	xl	reg19		; the left output, for the limiter (DACL does not read back on the chip)
+equ	bhp	reg20		; the ring's high-pass state
+equ	z	reg21		; tracker: (L + R)/2 low-passed at ~100 Hz (bass zero-crossing path)
+equ	sh	reg22		; tracker: smoothed dullness (its sign picks the bass path)
+equ	q	reg23		; which harp is high: +1 left, -1 right (flips on every new sure note)
+
+; ---- envelopes (ACC holds the onset block's result from the end of the last sample: fresh after a strike)
+	maxx	h, 0.9998779296875	; the kick: h = fresh after a strike, else h falls with tau 0.25 s
+	wrax	h, 0.375
+	mulx	pot1			; 3/8 h Sweep
+	and	$F00000			; whole octaves k/8
+	sof	0.5, -0.03125		; k/16 - 1/32: the split (k = 0) or the throw
+	mulx	q			; u = q (k - 1/2)/16
+	rdfx	u, 0.002		; glide between octaves
+	wrax	u, 0
+	rdfx	fresh, 0.0001220703125	; freshness fades with tau 0.250 s
+	wrax	fresh, 1.99		; sat(2 fresh)
+	mulx	pot2			; Ring: the glow
+	rdax	h, 0.75			; + the strike flare
+	rdfx	E, 0.002		; follows in ~15 ms, never steps
+	wrax	E, 0
+; ---- the tracker's timer (RMP0 and RMP1 steer the combs): lis37r2's RMP0 step, as a register
+	or	$0000FE			; ACC is 0 here: + 254/2^23 per sample
+	rdax	tc, 1.0
+	wrax	tc, 0
+; ---- left harp: target delay 2^(16 (lt + u) - 2.5) ramp units: the note in octave 4 when u = -1/32, octave 3 when u = +1/32
+	cho	rdal, rmp0		; tap (ACC is 0 here)
+	log	1.99993896484375, 0.3125	; 2 (log2(tap)/16 + 5/32)
+	rdax	lt, -1.99993896484375
+	rdax	u, -1.99993896484375	; 2e, e = log2(tap / target)/16
+	sof	1.99993896484375, 0	; 4e
+	wrax	rmp0_rate, 0
+	cho	rda, rmp0, reg|compc, cL-1
+	cho	rda, rmp0, 0, cL
+	rdfx	fL, 0.5
+	wrax	fL, 0.97
+	rda	bA+300, -1.84
+	mulx	E
+	rda	bA+300, 1.9400
+	mulx	gl			; the limiter gain (also shortens the ring while it acts)
+	wra	cL, 1.998
+	wrax	dacl, 1.0
+	wrax	xl, 0
+; ---- right harp: target 2^(16 (lt - u) - 2.5): octave 3 when u = -1/32, octave 4 when u = +1/32 (ACC is 0 here)
+	cho	rdal, rmp1		; tap (ACC is 0 here)
+	log	1.99993896484375, 0.3125	; 2 (log2(tap)/16 + 5/32)
+	rdax	lt, -1.99993896484375
+	rdax	u, 1.99993896484375	; 2e, e = log2(tap / target)/16
+	sof	1.99993896484375, 0	; 4e
+	wrax	rmp1_rate, 0
+	cho	rda, rmp1, reg|compc, cR-1
+	cho	rda, rmp1, 0, cR
+	rdfx	fR, 0.5
+	wrax	fR, 0.97
+	rda	bA+900, -1.84
+	mulx	E
+	rda	bA+900, 1.9400
+	mulx	gl			; (full level, as the left)
+	wra	cR, 1.998
+	wrax	dacr, 1.0
+; ---- limiter (feedback form): gain min(1, 0.35/peak), applied next sample
+	maxx	xl, 1.0
+	maxx	env, 0.9998
+	wrax	env, 1.0
+	log	-1.0, -0.0947265625
+	exp	1.0, 0
+	wrax	gl, 0
+; ---- hall (it needs ACC = 0): one ring of four allpasses of unrelated lengths (no long one: no regular echo train)
+	rda	bA#, 0.88
+	mulx	pot0
+	rdax	hl, 0.45			; (both combs at full level)
+	rda	r0#, 0.7
+	wrap	r0, -0.7
+	rda	r1#, 0.7
+	wrap	r1, -0.7
+	rda	r2#, 0.65
+	wrap	r2, -0.65
+	rda	r3#, 0.55
+	wrap	r3, -0.55
+	rdfx	bhp, 0.007641
+	wrhx	bhp, -1.0		; DC and sub-bass high-pass in the ring
+	wra	bA, 0
+; ---- listen: tracker lis37r2, every decision as the standalone tracker
+	rdax	adcl, 0.5		; x = (L + R) / 2
+	rdax	adcr, 0.5
+	rdfx	z, 0.01934814453125	; z = LP(x) ~100 Hz (bass zero-crossing path)
+	wrhx	z, 0			; ACC = x again (PACC)
+	rdfx	hl, 0.25		; the hall's input: (L + R)/2 below ~1.5 kHz
+	wrhx	hl, 0			; ACC = x again
+	rdfx	hp, 0.9000244140625	; hp = LP(x) at k ~0.9
+	wrhx	hp, -1.0		; ACC = x - hp (HF)
+	maxx	e1, 0.972412109375	; e1 = max(|HF|, decay e1): peak envelope
+	wrax	e1, 1.46502685546875
+	rdfx	e2, 0.08001708984375	; e2 = LP(envelope)
+	wrax	e2, 0
+	maxx	hp, 0.00616455078125	; the level, in place of lis37r2's AMP block: 0.00617 |x| = its threshold 0.000671 x amp (9.2 |x|), unsaturated, unsmoothed (sh smooths)
+	sof	-1.0, 0
+	rdax	e2, 1.0			; brightness = e2 - 0.00617 |x|
+	rdfx	sh, 0.00030517578125	; smoothed (~1.6 Hz; only its sign is used)
+	wrax	sh, 1.0
+	and	$800000			; -1 when dull, 0 when bright
+	mulx	z			; -z when dull
+	rdax	e2, 1.0			; ef stage input = e2 (- z when dull)
+	rdfx	ef, 0.01202392578125	; high-pass: v = in - LP(in)
+	wrhx	ef, -1.0		; v
+	rdax	thr, 0.1500244140625	; Schmitt: x = v + hys thr
+	skp	neg, low		; x < 0: low state, thr = x
+	mulx	thr			; x thr < 0 only on the rising edge; tiny, so no clr
+	skp	gez, nox
+	rdax	tc, 1.0			; T = the period (+ negligible x thr)
+	log	-1.0, -0.4375		; l = -log2(T)/16 + D: octave = 1/16, C3's semitone bin starts at l = 0
+	skp	gez, flo		; FLOOR (below C3: l < 0)
+	and	$07FFFF			; the same pitch class in [C3, C4), at any depth
+flo:	sof	0.75, -0.13671875	; s = 3/4 l - 35/256: semitone = 2^-8, C3 = -35/256, B5 = 0
+	and	$FF8000			; snap to the 12-TET semitone
+	rdax	cand, -1.00146484375	; s - (1+C) cand, C = 24/16384
+	skp	zro, out		; zero: the same semitone 3 times running (4 after a jump of > ~14): confirmed
+	rdax	cand, 1.0		; pending: cand = s - C cand
+	wrax	cand, 0
+	skp	zro, hyst
+out:	sof	0, 0.999		; confirmed: a sure note, fresh again
+	wrax	fresh, -0.184326171875	; ACC = c = -3/16 + 0.00335 (also sets where the pitch classes wrap: B | C)
+	rdax	cand, -1.33526611328125	; c - y, y = 4/3 s (B5 at 0, octave 1/16): in [-1/4, 0) for C3..B6
+	and	$E7FFFF			; lt = -1/4 + ((c - y) mod 1/16): the pitch class, falling with pitch (C highest)
+	rdax	lt, -1.0
+	skp	zro, hyst
+	rdax	lt, 1.0
+	wrax	lt, 0			; a new note: both harps glide to it
+	rdax	q, 1.0			; and they trade places: q = sat(-2 q - 1) (0 -> -1, -1 -> +1, +1 -> -1)
+	sof	-2.0, -1.0
+	wrax	q, 0
+	wrax	es, 0			; and it strikes (the onset test fires at the end of this sample)
+hyst:	wrax	tc, 0			; (ACC is 0 on every edge path) restart the timer: lis37r2's jam
+	ldax	e2			; high state: thr = the envelope (falling-edge hysteresis)
+low:	wrax	thr, 0
+nox:
+; ---- onsets (last, so a strike can leave fresh in ACC for the first instruction): e2 over 1.6 x slow, small floor; nothing before a sure note
+	ldax	e2
+	rdfx	es, 0.001
+	wrhx	es, -1.6
+	sof	1.0, -0.0009765625
+	skp	neg, no_on		; no onset: ACC keeps the (negative) margin
+	ldax	fresh			; kick = fresh (written as h by the first instruction)
+no_on:

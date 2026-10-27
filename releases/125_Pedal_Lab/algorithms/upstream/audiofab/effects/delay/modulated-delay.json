@@ -1,0 +1,15 @@
+{
+  "id": "modulated-delay",
+  "name": "Modulated Delay",
+  "version": "1.0.0",
+  "description": "A wide-bandwidth delay with subtle chorus modulation on the repeats, adding movement and dimension. 981 ms maximum delay time.",
+  "category": "Delay",
+  "tags": ["delay", "modulated", "chorus", "echo"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Delay",   "description": "Delay time.",                       "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Repeats", "description": "Feedback amount — number of echoes.", "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Level",   "description": "Wet signal level.",                  "unit": "", "range": [0, 1] }
+  ]
+}

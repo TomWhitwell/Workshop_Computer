@@ -1,0 +1,59 @@
+; SPDX-License-Identifier: MPL-2.0
+; Steal This Pedal factory bank — slot 4
+; COLD CASE
+; POT0 = grain size
+; POT1 = live input < hold > frozen recirculation
+; POT2 = slow detune / drift around center
+; Wet-only output.
+
+GRAIN       MEM 8192
+TEMP        MEM 1
+FROZEN      EQU REG0
+INPUT       EQU REG1
+INV_HOLD    EQU REG2
+INJECT      EQU REG3
+
+SKP RUN, init_done
+WLDR RMP0, 0, 4096
+init_done:
+
+; Very slow bidirectional drift keeps a held slice from feeling static.
+LDAX POT2
+SOF 0.012, -0.006
+WRAX RMP0_RATE, 0.0
+LDAX POT0
+SOF 0.110, 0.012
+WRAX RMP0_RANGE, 0.0
+
+; Calculate (1 - hold), crossfade new audio against the last grain output.
+LDAX POT1
+SOF -1.0, 0.999
+WRAX INV_HOLD, 0.0
+RDAX ADCL, 0.5
+RDAX ADCR, 0.5
+MULX INV_HOLD
+WRAX INJECT, 0.0
+LDAX FROZEN
+MULX POT1
+SOF 0.995, 0.0
+RDAX INJECT, 1.0
+WRA GRAIN, 0.0
+
+; Seamless two-head grain reader.
+CLR
+CHO RDA, RMP0, REG|COMPC, GRAIN
+CHO RDA, RMP0, 0, GRAIN+1
+WRA TEMP, 0.0
+CHO RDA, RMP0, RPTR2|COMPC, GRAIN
+CHO RDA, RMP0, RPTR2, GRAIN+1
+CHO SOF, RMP0, NA|COMPC, 0
+CHO RDA, RMP0, NA, TEMP
+SOF 0.92, 0.0
+WRAX FROZEN, 1.0
+WRAX DACL, 0.0
+
+; Alternate tap provides a smeared stereo shadow.
+CLR
+RDA GRAIN+977, 0.28
+RDAX FROZEN, 0.82
+WRAX DACR, 0.0

@@ -1,4 +1,4 @@
-VORTEX RUNNER 0.1
+VORTEX RUNNER 0.1.2
 =================
 
 Vortex Runner is a CS-80-inspired, monophonic Workshop Computer synth voice.
@@ -7,17 +7,17 @@ as two independently coloured audio outputs. Audio Out 1 is Voice A; Audio Out 2
 is Voice B, which can be gently detuned for width or pushed into more obvious
 intervals.
 
-This build includes the 8mu button-note fix and has passed a clean compile and
-link. Hardware verification is still required before calling it stable. The
-supplied firmware is:
+Two 0.1.2 Beta editions are supplied:
+- uf2/Vortex_Runner_0.1.2.uf2: standard panel/CV/ordinary USB MIDI edition.
+- uf2/Vortex_Runner_8mu_0.1.2.uf2: same synth plus 8mu controller layers.
 
-uf2/Vortex_Runner_8mu_button_note_fix_20261007.uf2
-
+Complete shared source and separate CMake targets are included; see README.md.
+Checksums are in uf2/SHA256SUMS.txt. Both editions need hardware verification.
 
 INSTALL AND START
 -----------------
 
-1. Flash Vortex_Runner_8mu_button_note_fix_20261007.uf2 to a program
+1. Choose the standard or 8mu edition above and flash that one UF2 to a program
    card with the normal Workshop Computer card-flashing workflow.
 2. Insert the programmed card and power the Workshop Computer.
 3. For a first sound with no controller connected, leave Pulse In 1 unpatched.
@@ -114,8 +114,7 @@ PERFORMANCE NOTES
 INCLUDED FIRMWARE
 -----------------
 
-- uf2/Vortex_Runner_8mu_button_note_fix_20261007.uf2
-  Current build. Verify that pressing an 8mu button does not alter a
-  CV-keyboard note before treating it as stable.
-- The August 2026 rollback firmware and matching source snapshot are archived
-  locally and deliberately excluded from the stable-release PR.
+The catalogue lists only the two current editions above. Older and experimental
+UF2s remain recoverable in the repository but are excluded through the curated
+uf2 list in info.yaml. Use the 8mu edition for controller layers; the standard
+edition keeps ordinary MIDI notes and CCs without 8mu takeover.

@@ -1,0 +1,183 @@
+; @name Bellfounder
+; @tagline Every note strikes a ring-modulated bell cast from the pitch it heard, and the bells grow until they crack
+; @description Every note you play strikes a bell. The bell is a resonator tuned to a
+; @description pitch the founder heard: when the note it follows (the newest note you play,
+; @description or the bass when the sound is dull) lands on the same semitone three periods
+; @description running, it casts the bell from that note, and it keeps that mold for three
+; @description seconds. When it hears nothing it can trust, the bell comes from
+; @description the tower, and the Tower knob picks it: semitone steps over two octaves, from
+; @description huge, deep bourdons up to small high bells. The note itself strikes the bell,
+; @description and the ringing is ring-modulated by a carrier locked to the bell's pitch;
+; @description each strike rings a new carrier from a peal of up to eight (half the bell's
+; @description pitch up to four times it). The Peal knob sets how far up the peal reaches:
+; @description at the bottom every bell rings hollow and an octave down; turned up, ever
+; @description brighter, clanging bells join the ringing. Left and right hear the bell
+; @description through quadrature carriers, so it rings wide. Every strike also adds heat:
+; @description the bells ring longer and longer until the bell cracks and the next ones ring
+; @description short again. The Ring knob sets how far they grow, from dry clanks that die in
+; @description a fifth of a second to a carillon that rings for seconds.
+; @pots Tower | Ring | Peal
+; @render 0.52, 1.0, 0.9
+; @components semitone-confirmed pitch tracker (lis37r2), two-octave tower key, onset-struck comb resonator bell, pitch-locked quadrature ring modulation (leapfrog carrier), peal of up to eight carriers, heat-and-crack ring-time cycle, look-ahead peak limiter
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	cb	1200		; the bell (period up to 512 samples; output taps at 300, 700)
+
+equ	inp	reg0		; (L + R) x 0.41
+equ	hp	reg1		; tracker: x low-passed at k 0.9 (HF = x - hp)
+equ	e1	reg2		; tracker: HF peak envelope
+equ	e2	reg3		; tracker: its smoothed level (the brightness envelope)
+equ	tef	reg4		; tracker: the Schmitt stage's high-pass state
+equ	thr	reg5		; tracker: Schmitt threshold
+equ	cand	reg6		; tracker: semitone counter
+equ	z	reg7		; tracker: x low-passed ~100 Hz (bass zero-crossing path)
+equ	mold	reg8		; the last confirmed note: log2(P/32768)/16 (only its fraction is used)
+equ	sh	reg9		; tracker: smoothed brightness (~1.6 Hz)
+equ	amp	reg10		; tracker: the input's peak level (its level register)
+equ	hpf	reg11		; onset detector
+equ	ef	reg12
+equ	es	reg13
+equ	hold	reg14		; 1 at a strike, decays: hold-off and strike envelope
+equ	oc	reg16		; heat 0 .. 0.5
+equ	xl	reg17		; strike low-pass
+equ	e	reg18		; carrier coefficient
+equ	sn	reg19		; carrier sine, negated
+equ	cs	reg20		; carrier cosine
+equ	dmp	reg21		; comb damping state
+equ	env	reg23		; limiter
+equ	gl	reg24
+
+	skp	run, start
+	wldr	rmp1, -16, 4096		; lock age: 1 LSB per sample
+	sof	0, 0.939453125		; the carrier starts at 0.94, as before
+	wrax	cs, 0.064453125
+	wrax	mold, 0			; a first mold of pitch class C (log2 fraction of 250.5 samples)
+start:
+	rdax	adcl, 0.41
+	rdax	adcr, 0.41
+	wrax	inp, 1.0
+	maxx	amp, 0.9971923828125	; amp = max(|x|, decay amp): the input's peak level
+	wrhx	amp, 0			; ACC = x again (PACC)
+; ---- tracker: lis37r2 on x = inp (its AMP block replaced by amp, its folds by the strike's)
+	rdfx	z, 0.01934814453125	; z = LP(x) ~100 Hz (bass zero-crossing path)
+	wrhx	z, 0			; ACC = x again (PACC)
+	rdfx	hp, 0.9000244140625	; hp = LP(x) at k ~0.9
+	wrhx	hp, -1.0		; ACC = x - hp (HF)
+	maxx	e1, 0.972412109375	; e1 = max(|HF|, decay e1): peak envelope
+	wrax	e1, 1.46502685546875
+	rdfx	e2, 0.08001708984375	; e2 = LP(envelope)
+	wrax	e2, 1.0			; ACC = e2
+	rdax	amp, -0.00201416015625	; brightness = e2 - th amp
+	rdfx	sh, 0.00030517578125	; smoothed (~1.6 Hz)
+	wrax	sh, 1.0
+	and	$800000			; -1 when dull, 0 when bright
+	mulx	z			; -z when dull
+	rdax	e2, 1.0			; ef stage input = e2 (- z when dull)
+	rdfx	tef, 0.01202392578125	; high-pass: v = in - LP(in)
+	wrhx	tef, -1.0		; v
+	rdax	thr, 0.1500244140625	; Schmitt: x = v + hys thr
+	skp	neg, low		; x < 0: low state, thr = x
+	mulx	thr			; x thr < 0 only on the rising edge; tiny, so no clr
+	skp	gez, nox
+	cho	rdal, rmp0		; T = the period (RMP0 timer, + negligible x thr)
+	jam	rmp0			; restart the timer
+	log	-0.75, -0.46875		; s = -3/4 log2(T)/16 - 120/256: semitone = 2^-8 (lis37r2's s - 1/256, no floor fold)
+	and	$FF8000			; snap to the 12-TET semitone
+	rdax	cand, -1.00146484375	; s - (1+C) cand, C = 24/16384
+	skp	zro, out		; zero: the same semitone 3 times running (4 after a jump of > ~14 semitones)
+	rdax	cand, 1.0		; pending: cand = s - C cand
+	wrax	cand, 0
+	skp	zro, hyst
+out:	rdax	cand, -1.33526611328125	; confirmed: the mold = -4/3 (1+C) cand - 2/1024 = log2(P/32768)/16
+	sof	1.0, -0.001953125	; of the 12-TET period, up to whole octaves (0.3 c)
+	wrax	mold, 0
+	jam	rmp1			; the lock's age restarts
+hyst:	ldax	e2			; high state: thr = the envelope (falling-edge hysteresis)
+low:	wrax	thr, 0
+nox:	wldr	rmp0, -4066, 4096	; timer: RMP0 rate -4066, range 4096 (set every sample)
+; ---- strikes: cast the mold, set the carrier, step the peal, add heat
+	ldax	inp
+	rdfx	hpf, 0.25
+	wrhx	hpf, -1.0
+	absa
+	rdfx	ef, 0.012
+	wrax	ef, 1.0
+	rdfx	es, 0.001
+	wrhx	es, -1.6		; ACC = ef - 1.6 es (PACC is ef)
+	rdax	hold, -0.5		; hold-off
+	sof	-1.0, 0.0009765625	; 1.6 es + 0.5 hold - ef + floor (leftovers never strike in silence)
+	skp	gez, nostr
+	sof	0, 0.999
+	wrax	hold, -0.01171875	; ACC = -0.0117 x 0.999 = -3 s
+	cho	rdal, rmp1		; + the lock's age (RDAL adds to ACC)
+	skp	gez, tower
+	ldax	mold
+	or	$F80000			; fold by octaves
+	sof	1.0, -0.4375		; into 128 .. 256 samples
+	skp	0, cast
+tower:	ldax	pot0			; Tower: 24 semitones up from C2
+	sof	0.75, 0
+	and	$FC0000			; q/32
+	sof	-0.16666, -0.376953125	; log2(P)/16 = log2(501/32768)/16 - q/192
+cast:	exp	1.0, 0
+	wrax	addr_ptr, 1.0		; the comb length; nothing else uses ADDR_PTR
+	log	-1.0, -0.5625
+	exp	0.7854, 0		; 2 pi / P / 8
+	wrax	e, 0
+	rdax	cs, 0.52081298828125	; the peal: the carrier's phase at the strike picks the bell (ACC is 0;
+	absa				; 0.5 x 0.9785 / 0.9394: the carrier's level)
+	mulx	pot2			; Peal: how many of the eight bells are in play
+	and	$380000
+	sof	1.0, 0.0625		; (i + 1)/16
+	mulx	e
+	wrax	e, 0
+	ldax	oc			; heat
+	sof	1.0, 0.009765625
+	and	$3FFFFF			; past 1/2: the crack
+	wrax	oc, 0
+; ---- carrier at k fc, k = 1/2 .. 4: leapfrog circle (sn holds -sin)
+nostr:	ldax	sn
+	mulx	e
+	sof	0.5, 0
+	rdax	cs, 1.0
+	wrax	cs, -1.0		; c -= e/2 s
+	mulx	e
+	rdax	sn, 1.0
+	wrax	sn, 0.5			; s += e c
+	mulx	e
+	rdax	cs, 1.0
+	wrax	cs, 0			; c -= e/2 s
+; ---- the bell: comb at the mold's period, struck by the note
+	rdax	hold, 0.9985		; strike envelope (20 ms) times the note (ACC is 0)
+	wrax	hold, 0.45		; the bell runs 7 dB down: a hot bass at its pitch rang it into the rails
+	mulx	inp
+	rdfx	xl, 0.15
+	wrax	xl, 1.0
+	rmpa	1.0			; + the bell's last period
+	rdfx	dmp, 0.5
+	wrax	dmp, 0.06
+	mulx	oc
+	rdax	dmp, 0.11
+	mulx	pot1			; Ring
+	rdax	dmp, 0.85		; feedback 0.85 + Ring (0.11 + 0.06 heat)
+	wra	cb, 1.0
+; ---- limiter, looking ahead: the outputs read the comb 9 and 21 ms later
+	maxx	env, 0.99994
+	wrax	env, 1.0
+	log	-1.0, -0.150390625	; gain min(1, 0.189 / peak)
+	exp	1.0, 0
+	wrax	gl, 0
+; ---- out: quadrature ring modulation
+	rda	cb+300, 1.103515625	; (never past 1: the make-up comes after the limiter's gain)
+	mulx	cs
+	mulx	gl
+	sof	1.99, 0
+	sof	2.0, 0
+	wrax	dacl, 0
+	rda	cb+700, -1.103515625	; sn is -sin
+	mulx	sn
+	mulx	gl
+	sof	1.99, 0
+	sof	2.0, 0
+	wrax	dacr, 0

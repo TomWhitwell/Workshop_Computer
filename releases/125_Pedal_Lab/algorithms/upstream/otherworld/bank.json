@@ -1,0 +1,195 @@
+{
+ "title": "Otherworld vol. 1",
+ "subtitle": "fx aid effect bank",
+ "firmware": "otherworld-vol1-fxaid-xl.wav",
+ "slots": [
+  {
+   "id": "01_prism_scatter",
+   "category": "slicer"
+  },
+  {
+   "id": "01_prism_scatter_clk",
+   "category": "slicer"
+  },
+  {
+   "id": "202_grain_bloom",
+   "category": "slicer"
+  },
+  {
+   "id": "202_grain_bloom_clk",
+   "category": "slicer",
+   "clock": "x4"
+  },
+  {
+   "id": "95_zenos_arrow",
+   "category": "slicer"
+  },
+  {
+   "id": "95_zenos_arrow_clk",
+   "category": "slicer"
+  },
+  {
+   "id": "121_quantum_tunneling",
+   "category": "slicer"
+  },
+  {
+   "id": "121_quantum_tunneling_clk",
+   "category": "slicer"
+  },
+  {
+   "id": "18_turtle_grammar",
+   "category": "slicer"
+  },
+  {
+   "id": "18_turtle_grammar_clk",
+   "category": "slicer"
+  },
+  {
+   "id": "73_step_mutator",
+   "category": "slicer"
+  },
+  {
+   "id": "73_step_mutator_clk",
+   "category": "slicer"
+  },
+  {
+   "id": "93_tesseract",
+   "category": "slicer"
+  },
+  {
+   "id": "93_tesseract_clk",
+   "category": "slicer"
+  },
+  {
+   "id": "85_mitosis",
+   "category": "slicer"
+  },
+  {
+   "id": "113_noocytes",
+   "category": "slicer"
+  },
+  {
+   "id": "122_brownian_dust",
+   "category": "slicer"
+  },
+  {
+   "id": "165_strata",
+   "category": "reverb"
+  },
+  {
+   "id": "172_fog_bank",
+   "category": "reverb"
+  },
+  {
+   "id": "216_comet_harp",
+   "category": "reverb"
+  },
+  {
+   "id": "215_ventifact",
+   "category": "reverb"
+  },
+  {
+   "id": "71_avalanche",
+   "category": "distortion"
+  },
+  {
+   "id": "179_numbers_station",
+   "category": "distortion"
+  },
+  {
+   "id": "179_numbers_station_clk",
+   "category": "distortion",
+   "clock": "x4"
+  },
+  {
+   "id": "103_pitch_locked_decimator",
+   "category": "distortion"
+  },
+  {
+   "id": "247_transmutation",
+   "category": "voice"
+  },
+  {
+   "id": "102_wavetable_thief",
+   "category": "voice"
+  },
+  {
+   "id": "258_two_whales",
+   "category": "voice"
+  },
+  {
+   "id": "112_bellfounder",
+   "category": "voice"
+  },
+  {
+   "id": "132_phase_ghost",
+   "category": "voice"
+  },
+  {
+   "id": "186_talking_chip",
+   "category": "voice"
+  },
+  {
+   "id": "211_moonquake_clk",
+   "category": "voice",
+   "clock": "x4"
+  }
+ ],
+ "categories": [
+  {
+   "key": "slicer",
+   "name": "Slicer"
+  },
+  {
+   "key": "reverb",
+   "name": "Reverb"
+  },
+  {
+   "key": "distortion",
+   "name": "Distortion"
+  },
+  {
+   "key": "voice",
+   "name": "Voice"
+  }
+ ],
+ "loops": [
+  {
+   "id": "d",
+   "name": "Rings live",
+   "source": "Rings, 4-voice 1/16 clusters, 120 BPM"
+  },
+  {
+   "id": "ebm",
+   "name": "EBM bass",
+   "source": "Plaits classic waveshapes + filter, E minor 16ths, 120 BPM"
+  },
+  {
+   "id": "s",
+   "name": "Rings synco",
+   "source": "Rings string model, syncopated chords, 120 BPM"
+  },
+  {
+   "id": "p1",
+   "name": "String machine",
+   "source": "Plaits string machine chords, 120 BPM"
+  },
+  {
+   "id": "p2",
+   "name": "Vowel duet",
+   "source": "Plaits speech engine duet, 120 BPM"
+  },
+  {
+   "id": "p3",
+   "name": "Wavetable seq",
+   "source": "Plaits wavetable 16ths, 120 BPM"
+  }
+ ],
+ "default_loop": {
+  "slicer": "d",
+  "distortion": "ebm",
+  "reverb": "s",
+  "voice": "s"
+ },
+ "clock_seconds": 0.5
+}

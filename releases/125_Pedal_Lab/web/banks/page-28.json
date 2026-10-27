@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-arpeggio",
+    "source": "algorithms/ready/directory-arpeggio.spn",
+    "instructions": 114,
+    "sha256": "fc29ec84dd4c611e320f031a002ec62de233137b921a2e28c3078ce409f0af3c",
+    "id": "directory-arpeggio",
+    "author": "Alex Lawrow",
+    "description": "Produces a major chord arpeggio based on the root note you play into the input.",
+    "controls": [
+      "Volume",
+      "Speed (i.e. where we tap each delay line)",
+      "Number of notes in arpeggio."
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/ARPEGGIO.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/ARPEGGIO.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Arpeggio",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 362479,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-arpeggio-minor",
+    "source": "algorithms/ready/directory-arpeggio-minor.spn",
+    "instructions": 114,
+    "sha256": "9d2ee74d04ab95707bf392c91d1074023c5d35e8e65c6e30ea66c033ddbd3575",
+    "id": "directory-arpeggio-minor",
+    "author": "Alex Lawrow",
+    "description": "Produces an  ascending arpeggio for a minor chord based on the root note you play into the input.",
+    "controls": [
+      "Volume",
+      "Speed (i.e. where we tap each delay line)",
+      "Number of notes in arpeggio."
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/ARPEGGIO_MINOR.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/ARPEGGIO_MINOR.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Arpeggio",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 362479,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-ionian",
+    "source": "algorithms/ready/directory-ionian.spn",
+    "instructions": 128,
+    "sha256": "0c7f654dc06fcb3e1e5deab07aa792d5cdbe84a02229f8612fac718177f77e69",
+    "id": "directory-ionian",
+    "author": "Alex Lawrow",
+    "description": "Produces a major scale (Ionian mode) based on on whatever note you play into the input.",
+    "controls": [
+      "Volume",
+      "Speed (i.e. where we tap each delay line)",
+      "Number of notes in the scale (Min = 2, Max = 8)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/IONIAN.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/IONIAN.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ionian",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 67696,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-drolo-pitch-step-glider",
+    "source": "algorithms/ready/directory-drolo-pitch-step-glider.spn",
+    "instructions": 76,
+    "sha256": "63fc43659c122619f72a59d135bb0f7b2923724901374a29087875676c58d7c7",
+    "id": "directory-drolo-pitch-step-glider",
+    "author": "David Rolo",
+    "description": "Pitch program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "rate",
+      "depth",
+      "glide"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/pitch-step-glider.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/pitch-step-glider.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Pitch Step Glider.spn",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 422538,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-multipitch",
+    "source": "algorithms/ready/directory-multipitch.spn",
+    "instructions": 106,
+    "sha256": "e468e7d5b78b666080bae001bd01d1f708c6f78f2e4c099e65220509c687b443",
+    "id": "directory-multipitch",
+    "author": "patb",
+    "description": "Inspired by commercial pedals. It has 6 programs, selectable by pot0",
+    "controls": [
+      "Program select",
+      "Cross fade",
+      "Wet / dry mix"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/multipitch.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/multipitch.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Multi program pitch shifter",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 264038,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-pitch-transpose-stereo",
+    "source": "algorithms/ready/directory-pitch-transpose-stereo.spn",
+    "instructions": 33,
+    "sha256": "ecb3612a883675b32e359beb6437cb7d6f180d7c53fd93a0c64f7ccf2aeba2ec",
+    "id": "directory-pitch-transpose-stereo",
+    "author": "ExertionMusic",
+    "description": "Pitch program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/pitch-transpose-stereo.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?t=235",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Pitch Transposer - Stereo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 501613,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

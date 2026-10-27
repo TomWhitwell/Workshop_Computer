@@ -1,0 +1,247 @@
+;softclipping overdrive Spin FV-1 DSP
+
+;written by Jeroen Korterik dec 2013 / some cosmetic mods feb2014
+
+
+
+;preOD HPF scales with gain, higher gain attenuates bass a bit
+
+;softclipping overdrive function V(out)=V(in) / ( abs(V(in)) + threshold )
+
+;postOD parametric EQ copied from active xover Keith Barr
+
+;mod: para EQ depth scales with tone POT2
+
+;fixed Q=0.5 fixed f=3000Hz
+
+;postOD shelving LPF still scales with tone
+
+
+
+;POT0 gain (threshold)
+
+;POT1 volume
+
+;POT2 tone
+
+
+
+;Equations for setting EQ bands, thanks to Keith Barr:
+
+;kp(x) = peak/dip; range from -1 (inf notch) to +1.9999 (+6dB)
+
+;kf(x) = sqrt((4*kts)/(1+(kt/q)+kts))
+
+;kq(x) = (1-(kt/q)+kts)/(1+(kt/q)+kts)
+
+;kg(x) = (kt/q)/(1+(kt/q)+kts)
+
+;where:
+
+;kt=tan(pi*f/Fs)
+
+;kts=kt^2
+
+;f=center frequency
+
+;Fs=sample rate
+
+;q=Q of filter peak
+
+;precalculated examples:
+
+;kfl 0.4653 kq1 0.2859 kg1 0.3570 f=3000Hz q=0.5 works fine
+
+;kfl 0.5134 kq1 0.5654 kg1 0.2173 f=3000Hz q=1 is reasonably good
+
+;kfl 0.5437 kq1 0.7563 kg1 0.1218 f=3000Hz q=2 too narrow banded
+
+
+
+equ	mono	reg0
+
+equ	gain	reg1	;pot0 gain which is threshold dist
+
+equ	temp	reg2	;temp signal for lowpass shelving
+
+equ	fil		reg3	;another temp signal for lowpass shelving
+
+equ	fil2	reg4	;temp signal for pre OD highpass shelving
+
+equ	lowcut	-0.7	;max low cut preOD adjusted with equ lowcut -0.7
+
+equ	temp2	reg9	;for highpass filter above 5Hz needed for accurate 0 for OD
+
+equ	fil3	reg10	;
+
+equ	hpfmix	reg11	;mix for HPF signal
+
+equ	orgmix	reg12	;mix for original signal which is 1-HPF
+
+
+
+			;constants for parametric EQ 1band post OD
+
+equ	kf1	0.4653	;band frequency 3000Hz on 32kHz sampling rate
+
+equ	kq1	0.2859	;band Q = 0.5
+
+;equ	kp1	-0.8	;-1 (inf notch) to +1.9999 (+6dB)
+
+equ	kg1	0.3570	;3000Hz  Q = 0.5
+
+equ	eqin	reg5	;EQ input
+
+equ	temp3	reg6	;reg high freq XOVER output and temp store
+
+equ	b1a	reg7	;
+
+equ	b1b	reg8	;end of parametric EQ constants
+
+equ	kp1	reg13	;peak depth param EQ is a variable
+
+
+
+			;read and scale gain pot
+
+rdax	POT0,1		;read gain POT0 and mult by 1
+
+wrax	hpfmix,1		;save POT0to lowmix and keep in acc
+
+sof	-1,0.999		;1-x action
+
+wrax	orgmix,1		;
+
+;sof	0.5,0		;scale between 0 and 0.5
+
+wrax	gain,0		;save POT0 to gain dont keep in acc
+
+
+
+rdax	adcl,0.5		;read input mono signal
+
+rdax	adcr,0.5
+
+wrax	mono,1		;write to mono
+
+
+
+			;pre OD highpass shelving
+
+			;shelving lowpass consists of a high pass filter that is subtracted from input
+
+			;if you attenuate it before subtracting, you get shelving.
+
+			;max low cut preOD adjusted with equ lowcut -0.7
+
+rdfx 	fil2,0.1		;do an RDFX operation on FIL, at about 0.1*Fs/2pi, about 520Hz at Fs=32768
+
+wrhx 	fil2,lowcut	;causes a high pass filter at this frequency, -1 for infinite shelf 0 for flat response
+
+mulx	hpfmix		;scale hpf signal depending on gain
+
+wrax	temp,0		;
+
+rdax	mono,1		;mix org signal back in depending on gain
+
+mulx	orgmix		;
+
+rdax	temp,1		;
+
+rdfx 	fil3,0.001	;do an RDFX operation on FIL, at about 0.001*Fs/2pi, about 5Hz at Fs=32768
+
+wrhx 	fil3,-1 		;causes a high pass filter at this frequency, with an infinite shelf
+
+wrax	mono,1		;save to mono, keep in acc
+
+
+
+			;overdrive softclipping V(out) = V(in) / ( abs(V(in)) + threshold )
+
+absa			;take abs val
+
+rdax	gain,1		;add gain to mono
+
+log	-1,-0.3		;1/x and offset so result after exp CHECK softclip jeroen with limitations semi.vi
+
+exp	1,0		;is 2^16*0.3 = 28*smaller
+
+mulx	mono		;mult result by nominator
+
+
+
+mulx	POT1		;apply volume control
+
+sof	-2,0		;bring up gain
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	1.9999389,0	;don't want to end up with signal inversion, this is max pos multiplier; close enough to 2.0
+
+;sof	-2,0
+
+
+
+			;parametric eq
+
+wrax	eqin,0		;sum inputs to eqin
+
+rdax	eqin,kg1		;scaling coeff
+
+rdax	b1b,-kf1
+
+rdax	b1a,1
+
+wrax	temp3,kq1
+
+rdax	eqin,kg1
+
+wrax	b1a,0
+
+rdax	temp3,kf1
+
+rdax	b1b,1
+
+wrax	b1b,0		;everything stored, acc empty!
+
+rdax	POT2,-0.7	;read tone pot and mult by -0.7 which is depth at tone max
+
+wrax	kp1,0		;write to kp1, dont keep in acc
+
+rdax	temp3,1
+
+mulx	kp1
+
+rdax	eqin,1
+
+;rdax	temp3,kp1
+
+wrax	eqin,1		;end of parametric EQ
+
+
+
+			;shelving lowpass
+
+wrax   	temp,-1 		;save filter input in temp, and pass on in negated form
+
+rdfx 	fil,0.4 		;do an RDFX operation on FIL, at about 0.1*Fs/2pi, about 520Hz at Fs=32768
+
+wrhx 	fil,-1 		;causes a high pass filter at this frequency, with an infinite shelf
+
+mulx 	POT2 		;scale HPF filter output by FCON, (which ranges 0 to 1.0)
+
+rdax 	temp,1   		;add back the signal at the filter input
+
+
+
+wrax	dacl,1
+
+wrax	dacr,0		;write outputs
+
+;sof	0,0
+
+

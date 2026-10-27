@@ -1,4 +1,4 @@
-# Vortex Runner 0.1
+# Vortex Runner 0.1.2
 
 Vortex Runner is a CS-80-inspired, monophonic Workshop Computer synth voice.
 It has one shared note, gate, envelope, LFO, CV, MIDI, and preset path, rendered
@@ -6,14 +6,18 @@ as two independently coloured audio outputs. Audio Out 1 is Voice A; Audio Out
 2 is Voice B, which can be gently detuned for width or pushed into more obvious
 intervals.
 
-This build includes the 8mu button-note fix and has passed a clean compile and
-link. The supplied firmware is
-`uf2/Vortex_Runner_8mu_button_note_fix_20261007.uf2`; hardware verification is
-still required before calling it stable.
+Two 0.1.2 Beta editions are supplied:
+
+- [Standard](uf2/Vortex_Runner_0.1.2.uf2): current synth with panel, CV and ordinary USB MIDI; no 8mu controller layers.
+- [8mu](uf2/Vortex_Runner_8mu_0.1.2.uf2): same synth plus 8mu layers, pickup and button-note protection.
+
+Both compile from the shared source in this folder using separate CMake targets.
+See [source and build instructions](README.md#building-both-editions) and
+[checksums](uf2/SHA256SUMS.txt). Hardware verification is still required for both.
 
 ## Install And Start
 
-1. Flash `Vortex_Runner_8mu_button_note_fix_20261007.uf2` to a program
+1. Choose the standard or 8mu edition above and flash that one UF2 to a program
    card with the normal Workshop Computer card-flashing workflow.
 2. Insert the programmed card and power the Workshop Computer.
 3. For a first sound with no controller connected, leave Pulse In 1 unpatched:
@@ -105,8 +109,7 @@ deliberately musical intervals rather than a conventional chorus effect.
 
 ## Included Firmware
 
-- `uf2/Vortex_Runner_8mu_button_note_fix_20261007.uf2`: current build; verify
-  that pressing an 8mu button does not alter a CV-keyboard note before treating
-  it as stable
-- the August 2026 rollback firmware and matching source snapshot are archived
-  locally and deliberately excluded from the stable-release PR
+The catalogue lists only the two current editions above. Older and experimental
+UF2s remain recoverable in the repository but are excluded through the curated
+`uf2` list in `info.yaml`. Use the 8mu edition for the controller workflow;
+the standard edition keeps ordinary MIDI notes and CCs without 8mu takeover.

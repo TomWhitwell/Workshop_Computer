@@ -19,6 +19,14 @@ const TRUSTED_ASSOCIATIONS = new Set(['CONTRIBUTOR', 'COLLABORATOR', 'MEMBER', '
 // They count only when the PR introduces them.
 const REVIEW_RULES = new Set(['similar-values', 'uf2-required']);
 
+// Card PRs beyond these sizes are unusual (the largest eligible ones so far:
+// 151 files, 10 MB added, a 3.3 MB file) and are often an accidentally
+// committed build folder, so they need a maintainer's review.
+export const SIZE_LIMITS = { files: 500, totalBytes: 32 * 1024 * 1024, fileBytes: 16 * 1024 * 1024 };
+
+// A maintainer adds this label to keep a PR for manual review.
+export const HOLD_LABEL = 'hold';
+
 const releaseOf = file => String(file).match(/^releases\/([^/]+)\/.+/)?.[1] || null;
 
 /** The single card a change set is confined to, or the reasons it is not confined to one. */
@@ -35,6 +43,51 @@ export function cardScope(changes) {
   return { cards: [...cards].sort(), outside: [...outside].sort() };
 }
 
+/**
+ * Whole-card renames in a change set, as [{ from, to }]. Git reports a moved
+ * directory file by file, so a card counts as renamed when files move from it
+ * into exactly one other card, it is otherwise only deleted from, and the
+ * destination is otherwise only added to (so it is new, not an existing card
+ * being merged into).
+ */
+export function cardRenames(changes) {
+  const moves = new Map();
+  const disqualified = new Set();
+  for (const change of changes) {
+    const from = change.oldPath ? releaseOf(change.oldPath) : null;
+    const to = releaseOf(change.path);
+    if (change.oldPath && from !== to) {
+      if (from && to) {
+        const targets = moves.get(from) || new Set();
+        targets.add(to);
+        moves.set(from, targets);
+      } else {
+        // A file moved in from or out to somewhere outside releases/.
+        if (from) disqualified.add(from);
+        if (to) disqualified.add(to);
+      }
+    } else if (to) {
+      // In-place changes: a deletion may only leave the source, an addition
+      // may only arrive at the destination.
+      if (!change.status.startsWith('D')) disqualified.add(`from:${to}`);
+      if (!change.status.startsWith('A')) disqualified.add(`to:${to}`);
+    }
+  }
+  const sources = new Map();
+  for (const [from, targets] of moves) {
+    for (const to of targets) sources.set(to, (sources.get(to) || 0) + 1);
+  }
+  const renames = [];
+  for (const [from, targets] of moves) {
+    if (targets.size !== 1) continue;
+    const [to] = targets;
+    if (moves.has(to) || sources.get(to) !== 1) continue;
+    if ([from, to, `from:${from}`, `to:${to}`].some(key => disqualified.has(key))) continue;
+    renames.push({ from, to });
+  }
+  return renames.sort((a, b) => a.from.localeCompare(b.from));
+}
+
 /** True when a change set touches no program card at all. */
 export function touchesNoCards(changes) {
   return cardScope(changes).cards.length === 0;
@@ -44,12 +97,55 @@ export function touchesNoCards(changes) {
 export function scopeReasons(changes) {
   const reasons = [];
   const { cards, outside } = cardScope(changes);
-  if (cards.length > 1) reasons.push(`Changes ${cards.length} cards (${cards.join(', ')}); only single-card PRs merge automatically.`);
+  const renames = cardRenames(changes);
+  const renamed = new Set(renames.flatMap(({ from, to }) => [from, to]));
+  // A renamed card is one card under two names.
+  const units = [...renames.map(({ from, to }) => `${from} → ${to}`), ...cards.filter(card => !renamed.has(card))];
+  if (units.length > 1) reasons.push(`Changes ${units.length} cards (${units.join(', ')}); only single-card PRs merge automatically.`);
+  for (const { from, to } of renames) reasons.push(`Renames card ${from} to ${to}; renamed cards need a maintainer's review.`);
   if (!cards.length) reasons.push('Changes no program card.');
   if (outside.length) {
     const listed = outside.slice(0, 5).join(', ');
     reasons.push(`Changes files outside releases/<card>/: ${listed}${outside.length > 5 ? `, and ${outside.length - 5} more` : ''}.`);
   }
+  return reasons;
+}
+
+/**
+ * Size of a change set, as { files, totalBytes, largest: { path, bytes } }.
+ * `sizeOf(path)` returns a proposed file's size in bytes, or null when unknown.
+ */
+export function measureChanges(changes, sizeOf) {
+  let totalBytes = 0;
+  let largest = { path: '', bytes: 0 };
+  for (const change of changes) {
+    if (change.status.startsWith('D')) continue;
+    const bytes = sizeOf(change.path) || 0;
+    totalBytes += bytes;
+    if (bytes > largest.bytes) largest = { path: change.path, bytes };
+  }
+  return { files: changes.length, totalBytes, largest };
+}
+
+const megabytes = bytes => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+/** Label names from a JSON array (as GitHub Actions' toJSON gives them); [] when absent or malformed. */
+export function parseLabels(json) {
+  try {
+    const labels = JSON.parse(json || '[]');
+    return Array.isArray(labels) ? labels.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Reasons a change set is too large to merge unreviewed. */
+export function sizeReasons(size) {
+  if (!size) return [];
+  const reasons = [];
+  if (size.files > SIZE_LIMITS.files) reasons.push(`Changes ${size.files} files; PRs over ${SIZE_LIMITS.files} files need a maintainer's review.`);
+  if (size.totalBytes > SIZE_LIMITS.totalBytes) reasons.push(`Adds ${megabytes(size.totalBytes)}; PRs over ${megabytes(SIZE_LIMITS.totalBytes)} need a maintainer's review.`);
+  if (size.largest.bytes > SIZE_LIMITS.fileBytes) reasons.push(`${size.largest.path} is ${megabytes(size.largest.bytes)}; files over ${megabytes(SIZE_LIMITS.fileBytes)} need a maintainer's review.`);
   return reasons;
 }
 
@@ -72,15 +168,30 @@ export function reviewReasons(introduced) {
  *   cardInHead       the card's directory exists in the PR
  *   authorCommitted  the author has committed to the card on the base
  *                    branch, or null when that could not be determined
+ *   specialEntries   symlinks and submodules in the PR's card, as paths
+ *   size             measureChanges() result, or null to skip size limits
+ *   minifiedWeb      published files that are minified or compiled, as
+ *                    [{ path, reason }] (see webCode.js)
+ *   labels           the PR's label names
  *
  * Returns { eligible, card, reasons, basis }: `reasons` explain an ineligible
  * result, `basis` explains an eligible one.
  */
 export function evaluateMergeEligibility({
   changes, author, association, draft = false, errorCount = 0, introduced = [],
-  cardOnBase = false, cardInHead = true, authorCommitted = null,
+  cardOnBase = false, cardInHead = true, authorCommitted = null, specialEntries = [],
+  size = null, labels = [], minifiedWeb = [],
 }) {
-  const reasons = [...scopeReasons(changes), ...reviewReasons(introduced)];
+  const reasons = [...scopeReasons(changes), ...reviewReasons(introduced), ...sizeReasons(size)];
+  for (const { path, reason } of minifiedWeb.slice(0, 5)) {
+    reasons.push(`Publishes ${reason} (${path}); minified or compiled web code needs a maintainer's review.`);
+  }
+  if (minifiedWeb.length > 5) reasons.push(`Publishes ${minifiedWeb.length - 5} more minified or compiled web files.`);
+  if (labels.includes(HOLD_LABEL)) reasons.push(`A maintainer added the "${HOLD_LABEL}" label.`);
+  if (specialEntries.length) {
+    const listed = specialEntries.slice(0, 5).join(', ');
+    reasons.push(`Contains a symlink or submodule (${listed}${specialEntries.length > 5 ? `, and ${specialEntries.length - 5} more` : ''}); these need a maintainer's review.`);
+  }
   const { cards } = cardScope(changes);
   const card = cards.length === 1 ? cards[0] : null;
 

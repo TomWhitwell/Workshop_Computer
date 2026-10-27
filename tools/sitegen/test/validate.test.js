@@ -59,6 +59,21 @@ test('GitHub reporter emits inline annotations and a PR-check summary', () => {
   assert.match(output, /::notice title=info\.yaml validation::1 file\(s\), 1 failing — 1 error\(s\), 1 warning\(s\)\./);
 });
 
+test('PR Markdown report shows a card rename as one entry', () => {
+  const markdown = reportMarkdown([], {
+    errorCount: 0,
+    warningCount: 0,
+    trigger: {
+      affectedReleases: ['42_new', '42_old'],
+      renamedReleases: [{ from: '42_old', to: '42_new' }],
+      changedPaths: [{ status: 'R', oldPath: 'releases/42_old/', path: 'releases/42_new/', filesUnder: true }],
+    },
+    diagnostics: [],
+  });
+  assert.match(markdown, /`R releases\/42_old\/ → releases\/42_new\/`/);
+  assert.match(markdown, /\*\*Affected release directories:\*\* `42_old → 42_new`\n/);
+});
+
 test('PR Markdown report groups diagnostics by changed info.yaml', () => {
   const failed = [{
     file: 'releases/42_test/info.yaml', diagnostics: [
@@ -118,6 +133,19 @@ test('PR Markdown report groups diagnostics by changed info.yaml', () => {
     ], ok: true, errorCount: 0, warningCount: 1,
   }]);
   assert.match(warned, /## ⚠️ Program card PR validation succeeded with warnings/);
+
+  // With an eligibility verdict, the headline follows it instead of the warning count.
+  const warnedResults = [{
+    file: 'releases/44_warning/info.yaml', diagnostics: [
+      { severity: 'warning', ruleId: 'tags', path: 'tags', message: 'Check tags.' },
+    ], ok: true, errorCount: 0, warningCount: 1,
+  }];
+  assert.match(reportMarkdown(warnedResults, null, { eligible: true }), /## ✅ Program card PR validation succeeded\n/);
+  const cleanResults = [{ file: 'releases/43_clean/info.yaml', diagnostics: [], ok: true, errorCount: 0, warningCount: 0 }];
+  assert.match(reportMarkdown(cleanResults, null, { eligible: false }),
+    /## ⚠️ Program card PR validation succeeded, needs maintainer review/);
+  assert.match(reportMarkdown(cleanResults, { errorCount: 1, diagnostics: [] }, { eligible: false }),
+    /## ❌ Program card PR validation failed/);
 });
 
 test('canonical card validates clean', () => {

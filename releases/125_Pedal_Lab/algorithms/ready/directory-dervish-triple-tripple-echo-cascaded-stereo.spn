@@ -1,0 +1,151 @@
+; triple tap cascaded delay
+;
+; pot0 adjusts time of tap 0
+; pot1 adjusts time of tap 1
+; pot2 adjusts time of tap 2
+
+equ	delay_len	10800		; max. delay length for all 3 taps
+
+mem	tap0		delay_len
+mem	tap1		delay_len
+mem	tap2		delay_len
+
+equ	smooth		0.001		; Smoothing coefficient, adjust to change speed/zippernoise
+
+;; dampint & feedback values, remove comment for the one required
+; long
+;equ	damping_amount	0.7
+;equ	feedback_amount	0.7
+; mid
+;equ	damping_amount	0.4
+;equ	feedback_amount	0.5
+; short
+equ	damping_amount	0.3
+equ	feedback_amount	0.3
+
+; LP & HP cutoff values for damping in feedback loop
+equ	lpfval		0.7
+equ	hpfval		0.01
+
+
+equ	tap0_pot	pot0
+equ	tap1_pot	pot1
+equ	tap2_pot	pot2
+
+equ	t0_offset	reg0
+equ	t1_offset	reg1
+equ	t2_offset	reg2
+equ	t0_data		reg4
+equ	t1_data		reg5
+equ	t2_data		reg6
+equ	t0_delay	reg7
+equ	t1_delay	reg8
+equ	t2_delay	reg9
+equ	damping		reg10
+equ	feedback	reg11
+equ	temp		reg12
+equ	input		reg13
+equ	lpf		reg14
+equ	hpf		reg15
+
+; initialisation
+skp	RUN, loop
+sof	0, feedback_amount
+wrax	feedback, 0
+sof	0, damping_amount
+wrax	damping, 0
+
+loop:
+clr
+
+; set pointer for each tap based on pot value
+rdax	tap0_pot, 1
+sof	0.99, 0.01
+wrax	t0_delay, 0
+or	delay_len * 256
+mulx	t0_delay
+rdfx	t0_offset, smooth
+wrax	t0_offset, 0
+
+rdax	tap1_pot, 1
+sof	0.99, 0.01
+wrax	t1_delay, 0
+or	delay_len * 256
+mulx	t1_delay
+rdfx	t1_offset, smooth
+wrax	t1_offset, 0
+
+rdax	tap2_pot, 1
+sof	0.99, 0.01
+wrax	t2_delay, 0
+or	delay_len * 256
+mulx	t2_delay
+rdfx	t2_offset, smooth
+wrax	t2_offset, 0
+
+; Tap 0
+or	tap0 * 256
+rdax	t0_offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	t0_data, 0
+
+; Tap 1, output written to the chorus
+or	tap1 * 256
+rdax	t1_offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	t1_data, 0
+
+; Tap 2
+or	tap2 * 256
+rdax	t2_offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	t2_data, 0
+
+; mix output from the 3 taps & write to outputs
+; left
+rdax	t0_data, 0.8
+rdax	t1_data, 0.5
+rdax	t2_data, 0.2
+wrax	dacl, 0
+
+; right
+rdax	t0_data, 0.2
+rdax	t1_data, 0.5
+rdax	t2_data, 0.8
+wrax	dacr, 0
+
+; cascade the 3 taps
+; tap0 -> tap1
+; tap1 -> tap2
+; tap2 is filtered/damped & attenuated by f/b level then
+; input is added & result is written to tap0
+
+; tap0 -> tap1
+rdax    t0_data, 1
+wra	tap1, 0
+
+; tap1 -> tap2
+rdax    t1_data, 1
+wra	tap2, 0
+
+; now tap2
+rdax    t2_data, 1
+mulx    feedback
+wrax    temp, 1
+rdfx    lpf, lpfval
+wrlx    lpf, -1
+rdfx    hpf, hpfval
+wrhx    hpf, -1
+
+rdax    temp, -1
+mulx    damping
+rdax    temp, 1
+
+; mix in input to tap2 data & write back to tap0
+rdax	adcl, 0.5
+rdax	adcr, 0.5
+wra	tap0, 0
+ 

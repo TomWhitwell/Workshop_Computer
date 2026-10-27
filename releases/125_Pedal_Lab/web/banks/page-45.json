@@ -1,0 +1,134 @@
+[
+  {
+    "slot": 0,
+    "name": "otherworld-103-pitch-locked-decimator",
+    "source": "algorithms/ready/otherworld-103-pitch-locked-decimator.spn",
+    "instructions": 128,
+    "sha256": "2b12e252c727b331df07bbe0c273b4ecc82f21a57928aff2b26f20cd1446c5f5",
+    "id": "otherworld-103-pitch-locked-decimator",
+    "author": "Andreas Jansson",
+    "description": "A pitch tracker finds the note under your playing, and a sample-and-hold chops the sound a whole number of times per period of that note, so all the crunch lands on its harmonics: a lo-fi chip voice that stays in tune. Every phrase starts clean and travels down a staircase: the clean sound crossfades into the chip at 16 samples per period, then 8, then it is crushed through and through at 4 and 2 samples per period, a raw square-wave buzz, and then it climbs back up the same way to clean and starts again, so even a stream of notes with no gaps keeps cycling. Speed sets how fast it travels, from about 24 seconds down to the bottom at 0 to a fifth of a second at 1 (the middle is about 2 seconds), and Crush how far down it goes. Pause for 0.4 s and it fades back to clean within about a tenth of a second; the next note starts a fresh journey. A note that lands while no throw is under way is thrown: a fifth of a second later its crushed sound plays backwards for a fifth of a second, swelling into its own attack, and the throw rides the crossfade, swinging left as the sound crushes and right as it clears. Low notes are measured one period at a time, so it also locks onto a bassline of relentless sixteenths that never rests; notes below C3 are counted an octave or two up, so a bass is chopped two or four times as finely. On pads the tracker cannot follow, the hold runs at the input rate (clean) and only the throws remain.",
+    "controls": [
+      "Crush",
+      "Speed",
+      "Throw"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/103_pitch_locked_decimator.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Pitch-Locked Decimator",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 3340,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 784848,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "otherworld-179-numbers-station",
+    "source": "algorithms/ready/otherworld-179-numbers-station.spn",
+    "instructions": 124,
+    "sha256": "983769d63b0c66c3113aa812bce26bdd8d189dc5166129b16b86ff95ef76c290",
+    "id": "otherworld-179-numbers-station",
+    "author": "Andreas Jansson",
+    "description": "A shortwave numbers station that keys out your own playing as Morse code. Time sets the beat, like the clock pulse of Numbers Station_clk: 0.05 s fully left to 2 s fully right (0.25 s at the render setting). Every beat is cut into a chaotic number of units, two to eight, chosen afresh each beat, and the station keys slices of your input on that grid: dits one unit long, dahs three, with hard, completely silent rests between them. Slice lengths, rest lengths and subdivisions change all the time and never repeat, but every beat starts on time. Each slice jumps hard left or right, away from the last. Nothing is added to your sound: it is only crushed and filtered. Chaos sets how wild it gets: at 0 two units per beat with one-unit rests, turned up finer subdivisions (up to eight) and longer rests (up to four units). Dial tunes the station: fully left, your playing is lightly crushed and open; turning it up lowers the sample rate, coarsens the level steps and closes a resonant band; fully right it is completely crushed and squeezed into a narrow band around 450 Hz.",
+    "controls": [
+      "Time",
+      "Chaos",
+      "Dial"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/179_numbers_station.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Numbers Station",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 11004,
+      "peak_output_error_q23": 23,
+      "rms_output_error_q23": 0.280108,
+      "peak_output_q23": 487683,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "otherworld-179-numbers-station-clk",
+    "source": "algorithms/ready/otherworld-179-numbers-station-clk.spn",
+    "instructions": 128,
+    "sha256": "8e3f1344467fd594f868daf41389e7ff2fab12a79f1e4c16878945c861f6f91c",
+    "id": "otherworld-179-numbers-station-clk",
+    "author": "Andreas Jansson",
+    "description": "A shortwave numbers station that keys out your own playing on your clock. An 8-step loop runs one step per clock pulse, and each step is a slice the whole pulse long, a slice half a pulse long, or a hard, completely silent rest. Chaos is the chance that a step is rewritten as it comes round: at 0 the loop repeats exactly, turning it up mutates it more and more, and at 1 every pass is new. Turn Chaos up to write a rhythm, then down to freeze it; at load the loop is eight whole-pulse slices. Rests is the chance that a rewritten step is silent (up to 80 %); the others are whole or half at random. Each slice jumps hard left or right, away from the last. Nothing is added to your sound: it is only crushed and filtered. Dial tunes the station: fully left, your playing is lightly crushed and open; turning it up lowers the sample rate, coarsens the level steps and closes a resonant band; fully right it is completely crushed and squeezed into a narrow band around 450 Hz.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/179_numbers_station_clk.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Numbers Station_clk",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 9259,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 0,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "otherworld-71-avalanche",
+    "source": "algorithms/ready/otherworld-71-avalanche.spn",
+    "instructions": 127,
+    "sha256": "4e6fa1691128a83c1a59530eb417c3d7b8dec36552b956fe3116c14f7e2cd715",
+    "id": "otherworld-71-avalanche",
+    "author": "Andreas Jansson",
+    "description": "Every note you play is caught as a snowflake. Its body freezes into a looping snowpack, replacing half of whatever lay at that spot, and two heads half a turn apart play the pack an octave up, so each new flake glints back on one side and then the other. Every flake also adds weight: the pack swells louder the fuller it gets, and snow keeps settling slowly all the while. The note that tips it sets off the avalanche, one long slide: the heads flip into reverse and the whole pack rushes backwards, then it drops an octave every half second, still reversed, down to a rumble three octaves below. Fall sets how long it slides. Past a quarter turn the rumble keeps going, and every half second the snow loses one more bit, grinding from powder to grit; at full Fall, about seven seconds in, the last of it is pure 1-bit. Over the last stages a reverb opens around the slide: a small room at first, it grows with every stage into a huge, smooth hall, and the slide sinks under it until the hall is the whole sound. The hall stays while the slope is wiped and through the quiet after it, and the next note you play cuts it off dead. Snow sets how much the pack holds: turn it up and it takes longer to tip. Stop playing and the pack hangs for a few seconds, then slides by itself.",
+    "controls": [
+      "Pack",
+      "Snow",
+      "Fall"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/71_avalanche.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Avalanche",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 337,
+      "peak_output_error_q23": 2,
+      "rms_output_error_q23": 0.0078125,
+      "peak_output_q23": 61788,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

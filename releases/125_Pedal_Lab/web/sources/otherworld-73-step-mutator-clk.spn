@@ -1,0 +1,188 @@
+; @name Step Mutator_clk
+; @tagline An 11-step pattern of octave ratchets that every note rewrites on the spot
+; @description A drum machine for effects. Each clock pulse is a step, and each of the 11
+; @description steps holds one of four moves on the last quarter beat: a deep drawl two
+; @description octaves down, a double repeat an octave down, a four-fold stutter at pitch
+; @description or an eight-fold roll an octave up, forward on the left and backwards on
+; @description the right. Every note you play mutates the step it lands on, there and then:
+; @description the drawl snaps into a repeat, the repeat into a stutter, the stutter into a
+; @description roll, and a roll collapses back into the drawl. The pattern remembers: it
+; @description loops its rhythm while you rest and rewrites itself where you play, and
+; @description eleven steps against your bars spread the changes around. A steady stream of
+; @description notes lifts the whole pattern up the ladder until it collapses into the deep
+; @description drawl and climbs again. Reach moves the replayed slice back onto the beat's
+; @description own attack; Regen feeds the slices back in, so they get sliced again.
+; @clock
+; @pots Mutate | Reach | Regen
+; @render 1.0, 0.6, 0.35
+; @components 11-step pattern memory (2-bit register sequencer), note-driven mutation, octave-ratchet ladder, forward/reverse mirror pair, regeneration
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	buf	32767
+
+equ	clkhp	reg0		; clock detector: low-pass state
+equ	clkin	reg1		; free (the factory clock block's conditioned sample)
+equ	clkst	reg2		; clock state: -0.25 high, -0.5 low (armed)
+equ	clkprev	reg3
+equ	clkcnt	reg4
+equ	clkper	reg5
+equ	clkinc	reg6		; 2^-18
+
+equ	U	reg7		; 2^-15: one sample of address
+equ	envf	reg8		; onset detector envelopes
+equ	envs	reg9
+equ	pat	reg10		; the 11-step pattern
+equ	lgL	reg11		; log2(L)/16 (L in seconds = address units)
+equ	Lr	reg12		; step length L, address units
+equ	anc	reg13		; time since the step began, address units
+equ	q	reg14		; sub-step phase 0..1
+equ	w	reg15		; window
+equ	t	reg16
+equ	ohp	reg17		; onset high-pass
+equ	rr	reg18		; right output x 0.2 for the regeneration (DACR reads 0 on the chip)
+equ	rh	reg19		; Reach, taken at each step (a moving Reach would slide the read heads)
+
+; ---- init: constants, default period, preloaded counter
+	skp	run, i_done
+	or	$000100
+	wrax	U, 0.125
+	wrax	clkinc, 0
+	sof	0, 0.999
+	wrax	clkper, 1.0
+	wrax	clkcnt, 0
+	ldax	pot1
+	wrax	rh, 0
+i_done:
+
+; ---- clock: rising-edge detector, then the factory count
+	ldax	adcr
+	rdfx	clkhp, 0.06		; low-pass of ADCR, tau ~0.5 ms
+	wrax	clkhp, -1.0
+	rdax	adcr, 1.0		; d = ADCR - low-pass: the recent rise
+	sof	1.0, -0.1875		; high at d >= 0.1875
+	skp	neg, c_lo
+	sof	0, -0.25		; state high
+	wrax	clkst, 0
+	skp	zro, c_hi
+c_lo:	sof	1.0, 0.125		; d - 0.0625: below it the input re-arms; between, hold
+	skp	gez, c_hi
+	sof	0, -0.5			; state low (armed)
+	wrax	clkst, 0
+c_hi:	ldax	clkprev			; latch on low -> high
+	rdax	clkst, -1.0
+	skp	neg, c_latch
+	ldax	clkcnt
+	rdax	clkinc, 1.0
+	and	$3FFFFF
+	wrax	clkcnt, 0
+	skp	zro, c_done
+c_latch: ldax	clkcnt
+	wrax	clkper, 0
+	wrax	clkcnt, 0
+	sof	0, 0.999		; on the beat: force a step on this sample
+	wrax	anc, 0
+c_done:	ldax	clkst
+	wrax	clkprev, 0
+
+; ---- step length: period floored at 62 ms, folded into [Lmax/2, Lmax), Lmax = 2^(-66/64) s
+	sof	0, 0.0078125
+	maxx	clkper, 1.0
+	log	1.0, 0.251953125	; y = log2(8 clkper / Lmax) / 16
+	skp	neg, l_ok
+	and	$07FFFF			; whole octaves down
+	sof	1.0, -0.0625
+l_ok:	sof	1.0, -0.064453125	; + log2(Lmax)/16
+	wrax	lgL, 1.0
+	exp	1.0, 0
+	wrax	Lr, 0
+
+; ---- onsets: high-passed (1.5 kHz) fast envelope above 2 x slow; the slow one
+;      jumps to twice the fast one on a hit (the hold-off: one trigger per pluck)
+	ldax	adcl
+	rdfx	ohp, 0.25
+	wrhx	ohp, -1.0
+	absa
+	rdfx	envf, 0.02
+	wrax	envf, 1.0
+	rdfx	envs, 0.003
+	wrax	envs, -2.0
+	rdax	envf, 1.0
+	sof	1.0, -0.0048828125	; threshold 5/1024: still 62 of 64 plucks at -12 dB
+	skp	neg, noev
+	and	$00FFFF			; dice: the low bits of the detection margin
+	rdax	pot0, -0.0078125	; mutate with probability Mutate
+	skp	gez, nomut
+	ldax	pat			; mutate the current step: a + 1, 3 wraps to 0 (the carry
+	sof	1.0, 0.125		; into bit 22 is dropped by the next rotation)
+	wrax	pat, 0
+nomut:	ldax	envf			; hold-off: the slow envelope jumps to twice the fast one
+	sof	1.99, 0
+	wrax	envs, 0
+noev:
+
+; ---- step: rotate the pattern one field
+	ldax	anc
+	rdax	U, 1.0
+	wrax	anc, 1.0
+	rdax	Lr, -1.005
+	skp	neg, nostep
+	clr
+	wrax	anc, 0
+	wrax	q, 0
+	ldax	pot1			; Reach for this step: it moves only here, where the window is 0
+	wrax	rh, 0
+	ldax	pat
+	and	$300000
+	sof	0.00006103515625, 0	; top field x 2^-20: to bits 1-0
+	sof	0.015625, 0
+	wrax	t, 0
+	ldax	pat
+	and	$0FFFFF
+	sof	-2.0, 0
+	sof	-2.0, 0
+	rdax	t, 1.0
+	wrax	pat, 0
+nostep:
+
+; ---- sub-step phase: q += 2^a / (4L) per sample, wrapping at 1/4; window 8 x tri(4q)
+	ldax	pat
+	and	$300000			; a/8
+	sof	0.5, -1.0		; a/16 - 16/16 (and EXP's 0.5): q runs 0..1/4
+	rdax	lgL, -1.0
+	exp	0.5, 0
+	rdax	q, 1.0
+	and	$1FFFFF			; wrap at 1/4 (the sum never reaches 1, so it never saturates)
+	wrax	q, 1.0
+	sof	1.0, -0.125
+	absa
+	sof	-2.0, 0.25		; tri / 4
+	log	1.0, 0.3125		; x 32, saturating: 8 tri
+	exp	1.0, 0
+	wrax	w, 0
+
+; ---- right: the window backwards
+	ldax	q
+	rdax	rh, 0.5
+	mulx	Lr			; L (q + Reach/2) = 4W q + Reach L/2
+	rdax	anc, 1.0
+	wrax	addr_ptr, 0
+	rmpa	1.6
+	mulx	w
+	wrax	dacr, 0.2		; keep R x 0.2 for the regeneration (DACR reads 0 on the chip)
+	wrax	rr, 0
+; ---- left: the window forwards
+	ldax	q
+	sof	-1.0, 0.25
+	rdax	rh, 0.5
+	mulx	Lr			; L (1/4 - q + Reach/2) = W (1 - 4q) + Reach L/2
+	rdax	anc, 1.0
+	wrax	addr_ptr, 0
+	rmpa	1.6
+	mulx	w
+; ---- tape: the input at half level plus regeneration
+	wrax	dacl, 0.2		; L x 0.2 from ACC, R x 0.2 from rr (DACL/DACR read 0 on the chip)
+	rdax	rr, 1.0
+	mulx	pot2
+	rdax	adcl, 0.5
+	wra	buf, 0

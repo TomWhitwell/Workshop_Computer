@@ -1,0 +1,35 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-drolo-ring-pitchulator",
+    "source": "algorithms/ready/directory-drolo-ring-pitchulator.spn",
+    "instructions": 50,
+    "sha256": "b2fd8ff30ac05005333b5b1c6d7215a7c5e74ab8540e099697bc4bb5cbed2926",
+    "id": "directory-drolo-ring-pitchulator",
+    "author": "David Rolo",
+    "description": "Ring Modulator, Pitch program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "ringmod rate",
+      "pitch shifter blend",
+      "pitch sifter"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/ring-pitchulator.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/ring-pitchulator.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ring Pitchulator",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 580096,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

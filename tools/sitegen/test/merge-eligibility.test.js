@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateMergeEligibility, touchesNoCards } from '../src/validate/mergeEligibility.js';
+import {
+  SIZE_LIMITS, cardRenames, evaluateMergeEligibility, measureChanges, parseLabels, touchesNoCards,
+} from '../src/validate/mergeEligibility.js';
 import { hasCommittedToCard } from '../src/validate/cardCommitters.js';
 import { reportEligibilityMarkdown } from '../src/validate/reporters/index.js';
 
@@ -61,6 +63,35 @@ test('multiple cards, files outside the card, curation, and renames are not elig
     assert.equal(check({ changes }).eligible, false, name);
   }
   assert.match(check({ changes: cases.curation }).reasons.join('\n'), /outside releases\/<card>\/: tools\/sitegen\/src\/curation\/flairs\.yml/);
+});
+
+test('renaming a card is reported as a rename and is not eligible', () => {
+  const rename = [
+    { status: 'R100', oldPath: 'releases/42_card/info.yaml', path: 'releases/42_renamed/info.yaml' },
+    { status: 'R100', oldPath: 'releases/42_card/build/card.uf2', path: 'releases/42_renamed/build/card.uf2' },
+  ];
+  assert.deepEqual(cardRenames(rename), [{ from: '42_card', to: '42_renamed' }]);
+  const result = check({ changes: rename });
+  assert.equal(result.eligible, false);
+  assert.deepEqual(result.reasons, ["Renames card 42_card to 42_renamed; renamed cards need a maintainer's review."]);
+
+  const alsoOther = check({ changes: [...rename, { status: 'M', path: 'releases/43_other/README.md' }] });
+  assert.match(alsoOther.reasons.join('\n'), /Changes 2 cards \(42_card → 42_renamed, 43_other\)/);
+});
+
+test('moving files between cards that both live on is not a rename', () => {
+  const move = { status: 'R100', oldPath: 'releases/42_card/a.uf2', path: 'releases/43_other/a.uf2' };
+  const cases = {
+    'source still edited': [move, { status: 'M', path: 'releases/42_card/info.yaml' }],
+    'destination already exists': [move, { status: 'M', path: 'releases/43_other/info.yaml' }],
+    'split into two cards': [move, { status: 'R100', oldPath: 'releases/42_card/b.uf2', path: 'releases/44_third/b.uf2' }],
+    'merged from two cards': [move, { status: 'R100', oldPath: 'releases/44_third/b.uf2', path: 'releases/43_other/b.uf2' }],
+    'moved out of releases': [move, { status: 'R100', oldPath: 'releases/42_card/c.uf2', path: 'archive/c.uf2' }],
+  };
+  for (const [name, changes] of Object.entries(cases)) {
+    assert.deepEqual(cardRenames(changes), [], name);
+    assert.match(check({ changes }).reasons.join('\n'), /Changes [23] cards/, name);
+  }
 });
 
 test('website and curation updates are never eligible, whoever opens them', () => {
@@ -131,4 +162,26 @@ test('introduced near-duplicate values and missing firmware need a maintainer, o
   for (const ruleId of ['metadata-completeness', 'pico-xosc64-recommended', 'ajv-schema', 'draft-card-changed']) {
     assert.equal(check({ introduced: [finding(ruleId, 'advice')] }).eligible, true, ruleId);
   }
+});
+
+test('oversized change sets need a maintainer, typical ones do not', () => {
+  const sizes = { 'releases/42_card/info.yaml': 300, 'releases/42_card/build/card.uf2': 3 * 1024 * 1024 };
+  const typical = measureChanges([update, firmware, { status: 'D', path: 'releases/42_card/old.uf2' }], file => sizes[file] ?? null);
+  assert.deepEqual(typical, { files: 3, totalBytes: 300 + 3 * 1024 * 1024, largest: { path: 'releases/42_card/build/card.uf2', bytes: 3 * 1024 * 1024 } });
+  assert.equal(check({ size: typical }).eligible, true);
+
+  const many = { files: SIZE_LIMITS.files + 1, totalBytes: 0, largest: { path: '', bytes: 0 } };
+  assert.match(check({ size: many }).reasons.join('\n'), /Changes 501 files; PRs over 500 files/);
+  const heavy = { files: 2, totalBytes: 40 * 1024 * 1024, largest: { path: 'releases/42_card/build/card.uf2', bytes: 20 * 1024 * 1024 } };
+  const reasons = check({ size: heavy }).reasons.join('\n');
+  assert.match(reasons, /Adds 40\.0 MB; PRs over 32\.0 MB/);
+  assert.match(reasons, /releases\/42_card\/build\/card\.uf2 is 20\.0 MB; files over 16\.0 MB/);
+});
+
+test('the hold label keeps a PR for review', () => {
+  assert.equal(check({ labels: ['documentation'] }).eligible, true);
+  assert.match(check({ labels: ['hold'] }).reasons.join('\n'), /added the "hold" label/);
+  assert.deepEqual(parseLabels('["hold","docs"]'), ['hold', 'docs']);
+  assert.deepEqual(parseLabels(''), []);
+  assert.deepEqual(parseLabels('not json'), []);
 });

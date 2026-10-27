@@ -1,0 +1,135 @@
+draft: false
+Name: Dawn Chorus
+short-description: An ambient soundscape that follows the real sun and the local weather, fed live over USB from a browser page. It swells at sunrise and fades to silence through dusk.
+summary: |
+  Connect the Computer to a laptop, open the Dawn Chorus page in Chrome or Edge, and set your location.
+  The page works out where the sun is and fetches the local weather, then streams both to the card over USB.
+  As the sun rises, a drone swells and brightens, chimes ring out, and synthetic birds wake from first light,
+  peak just after sunrise and stay through the day. Through dusk, everything settles back to silence.
+
+  The weather is the score. Cloud dulls the drone. Wind adds vibrato, beating and gusts, and makes the echoes
+  and chimes waver. Warmth brightens the chimes, humidity lengthens the echoes, and rain brings a soft vinyl crackle.
+  Because the data comes from the real sky above you, no two sun rises and sun sets sound the same.
+
+  A **Fast** mode plays a whole sunrise or sunset in a couple of minutes, and **Manual** mode lets you audition
+  each value with sliders. Inspired by the tides of Matt Allison's [Equanimity](https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/112_Equanimity) card.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Joe Hedinger (isbn) with (significant) support from James Saunders
+Version: "0.6"
+Status: Beta
+date-created: 2026-10-05
+date-updated: 2026-10-09
+Editor: web
+tags:
+  - generative
+  - ambient
+  - drone
+  - fm
+  - phase-distortion
+  - delay
+  - reverb
+  - web-serial
+  - experimental
+
+uf2:
+  - path: UF2/dawn_chorus_v0.6.uf2
+    name: Dawn Chorus 0.6
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Bird Type CV
+      type: cv
+      description: Added to the X knob. Patch a slope here and the species changes from phrase to phrase. About 0 to +5 V covers most of the range, so start with X well anticlockwise. Does nothing when unplugged.
+    - id: CVIn2
+      name: Chime Tone CV
+      type: cv
+      description: Added to the Y knob, stepping through the six chime instruments. About 0 to +5 V covers most of the range, so start with Y well anticlockwise. Does nothing when unplugged.
+    - id: PulseIn1
+      name: Strike Chime
+      type: pulse
+      description: Each rising edge strikes a chime straight away, using the current key, instrument and daylight.
+    - id: PulseIn2
+      name: Start Bird
+      type: pulse
+      description: Each rising edge starts a bird phrase straight away, if one of the three bird voices is free.
+  outputs:
+    - id: AudioOut1
+      name: Drone
+      type: audio
+      description: Root, fifth and octave. Daylight raises its level and brightness, cloud dulls it, and wind adds vibrato, beating and slow gusting swells. Rain adds a soft crackle and faint hiss.
+    - id: AudioOut2
+      name: Chimes and Birds
+      type: audio
+      description: Chimes through a feedback delay that wind wobbles like tape, plus dry birds with a light reverb of their own. Chimes are quieter and softer before sunrise. Rain adds its own independent crackle.
+    - id: CVOut1
+      name: Daylight
+      type: cv
+      description: 0 V at night, rising to +5 V in full daylight. Patch it to a filter's FM input to open other sounds with the dawn.
+    - id: CVOut2
+      name: Chime Pitch
+      type: cv
+      description: 1 V/oct pitch of the most recent chime, so other voices can follow the melody.
+    - id: PulseOut1
+      name: Chime Trigger
+      type: pulse
+      description: A 10 ms trigger on every chime, including those struck from Pulse In 1.
+    - id: PulseOut2
+      name: Bird Trigger
+      type: pulse
+      description: A 10 ms trigger at the start of every bird phrase.
+
+controls:
+  switch:
+    middle:
+      name: Normal
+      description: The full soundscape, following the sun and weather sent from the page.
+    up:
+      name: Sparse
+      description: Chimes and birds at 40% of normal density. The drone and weather responses are unchanged.
+    tap:
+      name: Daylight Preview
+      description: Tap down to hear full daylight for 10 seconds. It fades in over half a second and back out over the last two, then returns to the real sky. Tapping again during a preview restarts the 10 seconds.
+  knobs:
+    - main:
+        name: Key
+        description: 12 o'clock is D, and each of the 12 steps is a semitone. The drone, chimes and CV Out 2 all follow, with a short glide when you change key.
+      x:
+        name: Bird Type
+        description: Anticlockwise gives low, slow coos, 12 o'clock gives warbling songbirds, and clockwise gives small, fast tweets. CV In 1 is added.
+      y:
+        name: Chime Instrument
+        description: Anticlockwise to clockwise, marimba, harp, xylophone, bell, vibraphone and glockenspiel. The first three use Casio CZ-style phase distortion and the last three use FM. CV In 2 is added.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Daylight
+          description: Brightness follows the daylight level, as CV Out 1.
+        - id: LED1
+          name: USB Link
+          description: Solid while the page is sending. Blinking slowly means no page has connected yet, or the link has dropped and the card is holding its last values.
+        - id: LED2
+          name: Birdsong
+          description: Brightness follows how active the birds are at this time of day.
+        - id: LED3
+          name: Cloud
+          description: Brightness follows the cloud cover.
+        - id: LED4
+          name: Chime
+          description: Flashes on each chime.
+        - id: LED5
+          name: Bird
+          description: Flashes at the start of each bird phrase.
+
+host:
+  usb:
+    - name: Dawn Chorus host page
+      role: editor
+      description: Opens from the Web Editor button in Chrome or Edge on a laptop or desktop. It calculates the sun's position for your location, fetches hourly weather from Open-Meteo (free, no account), and sends both to the card ten times a second over USB serial.
+  notes: |
+    The card needs the page to know where the sun is. With nothing connected it sits at night, so it is almost
+    silent apart from the occasional chime. Tap the switch down to preview daylight. If the USB link drops,
+    the card holds its last values until the page reconnects.
+
+    Web Serial is supported in Chrome and Edge on desktop only. Safari and Firefox can't connect.

@@ -1,0 +1,2034 @@
+[
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/8_seconds_delay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/8_seconds_delay.spn",
+    "bytes": 1217
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/IONIAN.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/IONIAN.spn",
+    "bytes": 7093
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/ARPEGGIO_MINOR.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/ARPEGGIO_MINOR.spn",
+    "bytes": 6892
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/RevRev.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/RevRev.spn",
+    "bytes": 3161
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/bm-pi.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/bm-pi.spn",
+    "bytes": 1095
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/afx_reverse_delay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/afx_reverse_delay.spn",
+    "bytes": 3040
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/ARPEGGIO.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/ARPEGGIO.spn",
+    "bytes": 6892
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/aliaser.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/aliaser.spn",
+    "bytes": 1075
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/chorus-dual-rate.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/chorus-dual-rate.spn",
+    "bytes": 1821
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/crusher.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/crusher.spn",
+    "bytes": 422
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dattorro.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dattorro.spn",
+    "bytes": 7887
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro-var_filter-var_damping.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-var_filter-var_damping.spn",
+    "bytes": 7328
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro-shimmer_oct_var-lvl.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-shimmer_oct_var-lvl.spn",
+    "bytes": 8904
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro-var_filter-var_predelay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-var_filter-var_predelay.spn",
+    "bytes": 7863
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro-var_predelay-var_damping-1k.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-var_predelay-var_damping-1k.spn",
+    "bytes": 7836
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro-var_predelay-var_damping-2k.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-var_predelay-var_damping-2k.spn",
+    "bytes": 7836
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro-var_predelay-var_damping-500.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-var_predelay-var_damping-500.spn",
+    "bytes": 7868
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro-var_predelay-var_damping-4k.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-var_predelay-var_damping-4k.spn",
+    "bytes": 7836
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro-var_predelay-var_damping-8k.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-var_predelay-var_damping-8k.spn",
+    "bytes": 7835
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro_var_pitch-ip+fb-4k.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro_var_pitch-ip%2Bfb-4k.spn",
+    "bytes": 9709
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro_1oct_pitch-ip-4k.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro_1oct_pitch-ip-4k.spn",
+    "bytes": 9588
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro_1oct_pitch-ip+fb-2k.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro_1oct_pitch-ip%2Bfb-2k.spn",
+    "bytes": 9662
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-mixed/dattorro_var_pitch-ip-4k.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro_var_pitch-ip-4k.spn",
+    "bytes": 9690
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-shimmer/dattorro-shimmer_val-lvl.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-shimmer/dattorro-shimmer_val-lvl.spn",
+    "bytes": 8905
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-var_predelay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-var_predelay.spn",
+    "bytes": 7836
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dattorro-shimmer/dattorro-shimmer_val_pitch.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-shimmer/dattorro-shimmer_val_pitch.spn",
+    "bytes": 8890
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/drv102/dv102-1head-reverb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv102/dv102-1head-reverb.spn",
+    "bytes": 5777
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/drv102/dv102-pp-1head-reverb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv102/dv102-pp-1head-reverb.spn",
+    "bytes": 6455
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/drv102/dv102-pp-2head-reverb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv102/dv102-pp-2head-reverb.spn",
+    "bytes": 6481
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/drv102/dv102-2head-reverb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv102/dv102-2head-reverb.spn",
+    "bytes": 5779
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/drv103/dv103-1head-4xreverb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-1head-4xreverb.spn",
+    "bytes": 4970
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/drv103/dv103-1head-pp-2_1-4xreverb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-1head-pp-2_1-4xreverb.spn",
+    "bytes": 6170
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/drv103/dv103-1head-pp-2_1.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-1head-pp-2_1.spn",
+    "bytes": 3350
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/drv103/dv103-1head-pp.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-1head-pp.spn",
+    "bytes": 3350
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/drv103/dv103-1head.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-1head.spn",
+    "bytes": 2582
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/drv103/dv103-2head-2_1-reverb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-2head-2_1-reverb.spn",
+    "bytes": 5498
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/dual-lfo-chorus.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dual-lfo-chorus.spn",
+    "bytes": 3196
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/looper/looper-pingpong-fb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/looper/looper-pingpong-fb.spn",
+    "bytes": 7341
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/pingpong/pp-basic-wonky.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-basic-wonky.spn",
+    "bytes": 3012
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/looper/looper-simple-fb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/looper/looper-simple-fb.spn",
+    "bytes": 7359
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/pingpong/pp-basic.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-basic.spn",
+    "bytes": 2401
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/pingpong/pp-dubble-stereo.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-dubble-stereo.spn",
+    "bytes": 3003
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/pingpong/pp-simple-2_1.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-simple-2_1.spn",
+    "bytes": 2423
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/pingpong/pp-dubble.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-dubble.spn",
+    "bytes": 2518
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/pingpong/pp-simple-stereo-2_1.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-simple-stereo-2_1.spn",
+    "bytes": 2898
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/pingpong/pp-simple-stereo.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-simple-stereo.spn",
+    "bytes": 2896
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/pingpong/pp-simple.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-simple.spn",
+    "bytes": 2075
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/pingpong/pp-tripple.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-tripple.spn",
+    "bytes": 3027
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/pitch+fb+delay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pitch%2Bfb%2Bdelay.spn",
+    "bytes": 3111
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/triple/tripple_echo-var_fb+chorus.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo-var_fb%2Bchorus.spn",
+    "bytes": 4154
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/triple/tripple_echo-var_fb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo-var_fb.spn",
+    "bytes": 3896
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/triple/tripple_echo_cascaded.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo_cascaded.spn",
+    "bytes": 2490
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/triple/tripple_echo_cascaded_stereo+chorus.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo_cascaded_stereo%2Bchorus.spn",
+    "bytes": 3932
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/triple/tripple_echo_cascaded_stereo.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo_cascaded_stereo.spn",
+    "bytes": 2648
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/dervish/triple/tripple_echo_parallel.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo_parallel.spn",
+    "bytes": 3852
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/drolo/envelope-phaser.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/envelope-phaser.spn",
+    "bytes": 3180
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/drolo/filter-env-LP-HP-up.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/filter-env-LP-HP-up.spn",
+    "bytes": 2869
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/drolo/pitch-step-glider.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/pitch-step-glider.spn",
+    "bytes": 2063
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/drolo/random-loop-delay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/random-loop-delay.spn",
+    "bytes": 2328
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/drolo/flanger.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/flanger.spn",
+    "bytes": 1758
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/drolo/reverb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/reverb.spn",
+    "bytes": 2885
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/drolo/ring-pitchulator.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/ring-pitchulator.spn",
+    "bytes": 1605
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/faux-phaser-2.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/faux-phaser-2.spn",
+    "bytes": 3545
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/faux-phaser.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/faux-phaser.spn",
+    "bytes": 3104
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/firesledge/bass-processor-p0-flanger.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p0-flanger.spn",
+    "bytes": 3290
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/firesledge/bass-processor-p1-phaser.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p1-phaser.spn",
+    "bytes": 3201
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/firesledge/bass-processor-p2-delay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p2-delay.spn",
+    "bytes": 2089
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/firesledge/bass-processor-p4-autowah.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p4-autowah.spn",
+    "bytes": 3386
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/firesledge/bass-processor-p3-reverb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p3-reverb.spn",
+    "bytes": 2784
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/firesledge/bass-processor-p5-disto.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p5-disto.spn",
+    "bytes": 2889
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/firesledge/bass-processor-p6-filter-tremolo-disto.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p6-filter-tremolo-disto.spn",
+    "bytes": 2883
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/firesledge/bass-processor-p7-harm-trem-delay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p7-harm-trem-delay.spn",
+    "bytes": 3489
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/greenwood-delay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/greenwood-delay.spn",
+    "bytes": 1759
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/freeverb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/freeverb.spn",
+    "bytes": 6637
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/holy-city-audio/filter-tremolo-example.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/filter-tremolo-example.spn",
+    "bytes": 313
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/hall_goldmine.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/hall_goldmine.spn",
+    "bytes": 4615
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/holy-city-audio/new-flanger.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/new-flanger.spn",
+    "bytes": 1700
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/holy-city-audio/oil-can-delay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/oil-can-delay.spn",
+    "bytes": 1656
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/holy-city-audio/percussion-ambience.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/percussion-ambience.spn",
+    "bytes": 2346
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/holy-city-audio/room-reverb-3-4-5.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/room-reverb-3-4-5.spn",
+    "bytes": 2214
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/holy-city-audio/shimmer.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/shimmer.spn",
+    "bytes": 2601
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/holy-city-audio/tremolo-aliaser-reverb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/tremolo-aliaser-reverb.spn",
+    "bytes": 2743
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/improved_octave_up.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/improved_octave_up.spn",
+    "bytes": 2455
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/interesting-1.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/interesting-1.spn",
+    "bytes": 2270
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/interesting-2.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/interesting-2.spn",
+    "bytes": 2352
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/madbeanpedals/choir-saw.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/madbeanpedals/choir-saw.spn",
+    "bytes": 2499
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/madbeanpedals/parallax.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/madbeanpedals/parallax.spn",
+    "bytes": 3259
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/lfsr_random.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/lfsr_random.spn",
+    "bytes": 1169
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/madbeanpedals/starfield.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/madbeanpedals/starfield.spn",
+    "bytes": 2320
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/madbeanpedals/spacedash.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/madbeanpedals/spacedash.spn",
+    "bytes": 1712
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/parametric-eq-7.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/parametric-eq-7.spn",
+    "bytes": 2936
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/modulated-echo.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/modulated-echo.spn",
+    "bytes": 1845
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/multipitch.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/multipitch.spn",
+    "bytes": 4562
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/pitch-transpose-stereo.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/pitch-transpose-stereo.spn",
+    "bytes": 3162
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/pingpong.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/pingpong.spn",
+    "bytes": 3077
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/resonator.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/resonator.spn",
+    "bytes": 821
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/rev_pl_1.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/rev_pl_1.spn",
+    "bytes": 3698
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/rev_pl_2.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/rev_pl_2.spn",
+    "bytes": 3703
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/rev_pl_3.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/rev_pl_3.spn",
+    "bytes": 3703
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/reverse_delay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/reverse_delay.spn",
+    "bytes": 1552
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/sawtooth.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/sawtooth.spn",
+    "bytes": 1941
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/shimmer-1.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/shimmer-1.spn",
+    "bytes": 5570
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/shimmer_drAlx.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/shimmer_drAlx.spn",
+    "bytes": 7451
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/shimmer-2.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/shimmer-2.spn",
+    "bytes": 7109
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/slacker-bf/bf_geoffrey.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_geoffrey.spn",
+    "bytes": 1456
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/slacker-bf/bf_digifuzzer.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_digifuzzer.spn",
+    "bytes": 2733
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/slacker-bf/bf_johnny.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_johnny.spn",
+    "bytes": 1904
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/slacker-bf/bf_newoctaver.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_newoctaver.spn",
+    "bytes": 928
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/slacker-bf/bf_phaser.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_phaser.spn",
+    "bytes": 2431
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/slocum-phaser.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slocum-phaser.spn",
+    "bytes": 4620
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/slowgear-2.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slowgear-2.spn",
+    "bytes": 1470
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/slowgear-simple.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slowgear-simple.spn",
+    "bytes": 545
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/softclipping_overdrive.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/softclipping_overdrive.spn",
+    "bytes": 4740
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/3K_V1_0_Hall.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_0_Hall.spn",
+    "bytes": 4772
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/3K_V1_1_Room.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_1_Room.spn",
+    "bytes": 4926
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/3K_V1_2_PLATE.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_2_PLATE.spn",
+    "bytes": 3477
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/3K_V1_4_ECHO-REV.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_4_ECHO-REV.spn",
+    "bytes": 2338
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/3K_V1_3_GATED.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_3_GATED.spn",
+    "bytes": 3419
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/3K_V1_5_STECHO-REV.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_5_STECHO-REV.spn",
+    "bytes": 2485
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/3K_V1_6_CHOR-REV.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_6_CHOR-REV.spn",
+    "bytes": 1971
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/3K_V1_7_FLANGE.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_7_FLANGE.spn",
+    "bytes": 2214
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/GA_DEMO_CHORUS.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_CHORUS.spn",
+    "bytes": 2376
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/GA_DEMO_ECHO.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_ECHO.spn",
+    "bytes": 2243
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/GA_DEMO_ECHO_RPT.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_ECHO_RPT.spn",
+    "bytes": 2232
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/GA_DEMO_PHASE.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_PHASE.spn",
+    "bytes": 3298
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/GA_DEMO_FLANGE.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_FLANGE.spn",
+    "bytes": 2980
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/GA_DEMO_TREM.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_TREM.spn",
+    "bytes": 2327
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/GA_DEMO_VIBRATO.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_VIBRATO.spn",
+    "bytes": 2833
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/GA_DEMO_WAH.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_WAH.spn",
+    "bytes": 3214
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/act_xover.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/act_xover.spn",
+    "bytes": 4811
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/battling_lfos.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/battling_lfos.spn",
+    "bytes": 1114
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/dance_ir_fla_l.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/dance_ir_fla_l.spn",
+    "bytes": 3801
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/dance_ir_h_l.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/dance_ir_h_l.spn",
+    "bytes": 4195
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/dance_ir_ptz_l.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/dance_ir_ptz_l.spn",
+    "bytes": 3937
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/dist.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/dist.spn",
+    "bytes": 1932
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/key_rev.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/key_rev.spn",
+    "bytes": 3472
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/min_rev1.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/min_rev1.spn",
+    "bytes": 1137
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/rev_rt_d_f.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/rev_rt_d_f.spn",
+    "bytes": 4153
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/rms_lim_exp.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/rms_lim_exp.spn",
+    "bytes": 1108
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/rms_limiter.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/rms_limiter.spn",
+    "bytes": 537
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/rms_soft_knee.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/rms_soft_knee.spn",
+    "bytes": 638
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/rom_chor_rev.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/rom_chor_rev.spn",
+    "bytes": 6208
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/rom_fla_rev.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/rom_fla_rev.spn",
+    "bytes": 7831
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/rom_pitch.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/rom_pitch.spn",
+    "bytes": 2029
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/rom_pt_echo.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/rom_pt_echo.spn",
+    "bytes": 2293
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/rom_rev1.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/rom_rev1.spn",
+    "bytes": 3477
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/rom_rev2.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/rom_rev2.spn",
+    "bytes": 3298
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/simp_limiter.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/simp_limiter.spn",
+    "bytes": 467
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/rom_trem_rev.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/rom_trem_rev.spn",
+    "bytes": 2484
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/singen.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/singen.spn",
+    "bytes": 1075
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spinsemi/thru_gain.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/thru_gain.spn",
+    "bytes": 417
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/spring_verb.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spring_verb.spn",
+    "bytes": 6312
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/stereo-dual-flange-multi-tap-delay.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/stereo-dual-flange-multi-tap-delay.spn",
+    "bytes": 2264
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/stereo-ring-modulators-with-chorus.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/stereo-ring-modulators-with-chorus.spn",
+    "bytes": 1252
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/stereo-tremolo.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/stereo-tremolo.spn",
+    "bytes": 657
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/tremolo-shapes-reduced.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/tremolo-shapes-reduced.spn",
+    "bytes": 2005
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/tap_drum.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/tap_drum.spn",
+    "bytes": 2977
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/thru-gain.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/thru-gain.spn",
+    "bytes": 417
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/tremolo-shapes.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/tremolo-shapes.spn",
+    "bytes": 2029
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/triple-delay-feedback.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/triple-delay-feedback.spn",
+    "bytes": 1124
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/up-down-octaver.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/up-down-octaver.spn",
+    "bytes": 811
+  },
+  {
+    "collection": "directory",
+    "repo": "mstratman/fv1-programs",
+    "commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "path": "public/files/whammy.spn",
+    "url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/whammy.spn",
+    "bytes": 2070
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/LICENSE",
+    "bytes": 1065
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/delay-chorus-reverb.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/delay-chorus-reverb.json",
+    "bytes": 759
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/README.md",
+    "bytes": 4380
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/automatic-double-tracker.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/automatic-double-tracker.json",
+    "bytes": 803
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/automatic-double-tracker.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/automatic-double-tracker.spn",
+    "bytes": 1449
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/delay-chorus-reverb.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/delay-chorus-reverb.spn",
+    "bytes": 2222
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/digital-delay.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/digital-delay.json",
+    "bytes": 659
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/eight-tap-delay.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/eight-tap-delay.json",
+    "bytes": 725
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/digital-delay.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/digital-delay.spn",
+    "bytes": 1416
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/eight-tap-delay.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/eight-tap-delay.spn",
+    "bytes": 2318
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/mn3011-delay.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/mn3011-delay.json",
+    "bytes": 771
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/modulated-delay.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/modulated-delay.json",
+    "bytes": 727
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/mn3011-delay.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/mn3011-delay.spn",
+    "bytes": 1924
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/modulated-delay.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/modulated-delay.spn",
+    "bytes": 1067
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/modulated-vintage-delay.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/modulated-vintage-delay.json",
+    "bytes": 759
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/modulated-vintage-delay.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/modulated-vintage-delay.spn",
+    "bytes": 1246
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/vintage-delay.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/vintage-delay.json",
+    "bytes": 743
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/delay/vintage-delay.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/vintage-delay.spn",
+    "bytes": 1570
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/index.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/index.json",
+    "bytes": 37821
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/modulation/basic-tremolo.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/modulation/basic-tremolo.json",
+    "bytes": 759
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/modulation/basic-tremolo.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/modulation/basic-tremolo.spn",
+    "bytes": 1682
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/modulation/flanger.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/modulation/flanger.spn",
+    "bytes": 1010
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/modulation/flanger.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/modulation/flanger.json",
+    "bytes": 746
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/modulation/harmonic-tremolo.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/modulation/harmonic-tremolo.json",
+    "bytes": 854
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/modulation/harmonic-tremolo.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/modulation/harmonic-tremolo.spn",
+    "bytes": 1758
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/chorus.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/chorus.json",
+    "bytes": 692
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/chorus.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/chorus.spn",
+    "bytes": 1055
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/fourth-fifth-chorus.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/fourth-fifth-chorus.json",
+    "bytes": 784
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/multi-voice-chorus.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/multi-voice-chorus.json",
+    "bytes": 754
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/multi-voice-chorus.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/multi-voice-chorus.spn",
+    "bytes": 1591
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/fourth-fifth-chorus.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/fourth-fifth-chorus.spn",
+    "bytes": 2204
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/octave-chorus-split.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/octave-chorus-split.json",
+    "bytes": 768
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/octave-chorus-split.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/octave-chorus-split.spn",
+    "bytes": 2211
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/octave-chorus.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/octave-chorus.json",
+    "bytes": 802
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/octave-chorus.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/octave-chorus.spn",
+    "bytes": 2138
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/octave-multi-chorus.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/octave-multi-chorus.spn",
+    "bytes": 2771
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/octave-flanger.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/octave-flanger.json",
+    "bytes": 767
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/octave-multi-chorus.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/octave-multi-chorus.json",
+    "bytes": 788
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/octave-flanger.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/octave-flanger.spn",
+    "bytes": 2415
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/third-fifth-chorus.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/third-fifth-chorus.spn",
+    "bytes": 2202
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/pitch_chorus/third-fifth-chorus.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/pitch_chorus/third-fifth-chorus.json",
+    "bytes": 771
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/cascaded-reverb.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/cascaded-reverb.json",
+    "bytes": 743
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/cascaded-reverb.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/cascaded-reverb.spn",
+    "bytes": 2256
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/mn3011-reverb.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/mn3011-reverb.json",
+    "bytes": 768
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/hall-reverb.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/hall-reverb.json",
+    "bytes": 722
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/hall-reverb.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/hall-reverb.spn",
+    "bytes": 2218
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/mn3011-reverb.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/mn3011-reverb.spn",
+    "bytes": 2259
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/plate-reverb.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/plate-reverb.json",
+    "bytes": 944
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/plate-reverb.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/plate-reverb.spn",
+    "bytes": 7385
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/room-reverb.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/room-reverb.json",
+    "bytes": 694
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/room-reverb.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/room-reverb.spn",
+    "bytes": 2562
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/shimmer-reverb.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/shimmer-reverb.json",
+    "bytes": 1018
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/spring-reverb.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/spring-reverb.json",
+    "bytes": 1024
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/shimmer-reverb.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/shimmer-reverb.spn",
+    "bytes": 7265
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/three-tap-reverb.json",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/three-tap-reverb.json",
+    "bytes": 740
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/three-tap-reverb.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/three-tap-reverb.spn",
+    "bytes": 2631
+  },
+  {
+    "collection": "audiofab",
+    "repo": "audiofab/easy-spin-effects",
+    "commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "path": "effects/reverb/spring-reverb.spn",
+    "url": "https://raw.githubusercontent.com/audiofab/easy-spin-effects/0681b66792c8729646b94a5032bf155c435470a1/effects/reverb/spring-reverb.spn",
+    "bytes": 7416
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "LICENSE",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/LICENSE",
+    "bytes": 1292
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "README.md",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/README.md",
+    "bytes": 11117
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "bank.json",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/bank.json",
+    "bytes": 3186
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/01_prism_scatter.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/01_prism_scatter.spn",
+    "bytes": 5702
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/01_prism_scatter_clk.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/01_prism_scatter_clk.spn",
+    "bytes": 6204
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/103_pitch_locked_decimator.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/103_pitch_locked_decimator.spn",
+    "bytes": 9541
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/102_wavetable_thief.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/102_wavetable_thief.spn",
+    "bytes": 8971
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/121_quantum_tunneling.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/121_quantum_tunneling.spn",
+    "bytes": 7098
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/112_bellfounder.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/112_bellfounder.spn",
+    "bytes": 7692
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/113_noocytes.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/113_noocytes.spn",
+    "bytes": 6094
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/122_brownian_dust.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/122_brownian_dust.spn",
+    "bytes": 5368
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/121_quantum_tunneling_clk.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/121_quantum_tunneling_clk.spn",
+    "bytes": 6020
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/132_phase_ghost.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/132_phase_ghost.spn",
+    "bytes": 10134
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/165_strata.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/165_strata.spn",
+    "bytes": 5751
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/172_fog_bank.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/172_fog_bank.spn",
+    "bytes": 5674
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/179_numbers_station.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/179_numbers_station.spn",
+    "bytes": 6626
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/179_numbers_station_clk.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/179_numbers_station_clk.spn",
+    "bytes": 6844
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/18_turtle_grammar.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/18_turtle_grammar.spn",
+    "bytes": 4718
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/186_talking_chip.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/186_talking_chip.spn",
+    "bytes": 7799
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/18_turtle_grammar_clk.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/18_turtle_grammar_clk.spn",
+    "bytes": 6294
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/202_grain_bloom.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/202_grain_bloom.spn",
+    "bytes": 7900
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/202_grain_bloom_clk.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/202_grain_bloom_clk.spn",
+    "bytes": 6735
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/211_moonquake_clk.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/211_moonquake_clk.spn",
+    "bytes": 9056
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/215_ventifact.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/215_ventifact.spn",
+    "bytes": 5005
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/216_comet_harp.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/216_comet_harp.spn",
+    "bytes": 9621
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/73_step_mutator.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/73_step_mutator.spn",
+    "bytes": 6458
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/71_avalanche.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/71_avalanche.spn",
+    "bytes": 8201
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/247_transmutation.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/247_transmutation.spn",
+    "bytes": 6354
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/258_two_whales.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/258_two_whales.spn",
+    "bytes": 9683
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/85_mitosis.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/85_mitosis.spn",
+    "bytes": 6425
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/73_step_mutator_clk.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/73_step_mutator_clk.spn",
+    "bytes": 5880
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/93_tesseract.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/93_tesseract.spn",
+    "bytes": 5759
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/95_zenos_arrow_clk.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/95_zenos_arrow_clk.spn",
+    "bytes": 6258
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/93_tesseract_clk.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/93_tesseract_clk.spn",
+    "bytes": 5872
+  },
+  {
+    "collection": "otherworld",
+    "repo": "andreasjansson/otherworld",
+    "commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "path": "effects/95_zenos_arrow.spn",
+    "url": "https://raw.githubusercontent.com/andreasjansson/otherworld/8505568090db52310a255be3f95a0018145e90e6/effects/95_zenos_arrow.spn",
+    "bytes": 7041
+  }
+]

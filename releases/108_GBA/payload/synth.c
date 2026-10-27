@@ -1,6 +1,7 @@
 // synth.c — the instrument.
 
 #include "synth.h"
+#include "gba.h"
 #include "psg.h"
 #include "link.h"
 #include "notes.h"
@@ -14,6 +15,8 @@ typedef char patch_fits_a_slot[(sizeof(Patch) <= GBA_PATCH_SLOT_BYTES) ? 1 : -1]
 #define REG_KEYINPUT (*(volatile uint16_t *)(REG_BASE + 0x0130))
 #define REG_TM0CNT_L (*(volatile uint16_t *)(REG_BASE + 0x0100))
 #define REG_TM0CNT_H (*(volatile uint16_t *)(REG_BASE + 0x0102))
+#define REG_TM3CNT_L (*(volatile uint16_t *)(REG_BASE + 0x010C))
+#define REG_TM3CNT_H (*(volatile uint16_t *)(REG_BASE + 0x010E))
 
 #define KEY_A      (1u << 0)
 #define KEY_B      (1u << 1)
@@ -111,7 +114,8 @@ static const DrumVoice DRUM[DRUM_PRESETS] = {
     { 0, 80, 36,  4, 13, 0,  2 },   // ZAP      saw, huge fall
 };
 
-Patch g_patch;
+// In IWRAM, with the tick that reads it a thousand times a second. bss, so crt0 zeroes it.
+IWRAM_BSS Patch g_patch;
 
 int32_t  g_pitchQ8 = 60 << 8;
 int32_t  g_chPitch[4] = { 60 << 8, 60 << 8, 60 << 8, 60 << 8 };
@@ -173,7 +177,13 @@ static uint32_t udiv32(uint32_t n, uint32_t d)
 static int32_t g_cvRecip = 0;
 static int16_t g_cvRecipFor = 0;
 
-static void refresh_cv_recip(void)
+// Helpers the IWRAM tick calls are IWRAM_CODE or ALWAYS inlined: a plain static inline can be left
+// out of line in EWRAM, and the tick would then call out to it.
+#define ALWAYS_INLINE static inline __attribute__((always_inline))
+
+// Every tick, though it almost always returns at once. The udiv32 it reaches only on a CV SCALE
+// change stays in EWRAM.
+IWRAM_CODE static void refresh_cv_recip(void)
 {
     if (g_patch.cvScale == g_cvRecipFor) return;
     g_cvRecipFor = g_patch.cvScale;
@@ -189,7 +199,7 @@ static void refresh_cv_recip(void)
 
 void synth_patch_applied(void) { g_cvRecipFor = 0; refresh_cv_recip(); }
 
-static int32_t clampi(int32_t v, int32_t lo, int32_t hi)
+ALWAYS_INLINE int32_t clampi(int32_t v, int32_t lo, int32_t hi)
 {
     return v < lo ? lo : (v > hi ? hi : v);
 }
@@ -401,13 +411,18 @@ void synth_init(void)
     // off a timer rather than VBlank because 60 Hz modulation on a CV-driven voice is steppy.
     REG_TM0CNT_L = 0;
     REG_TM0CNT_H = 0x0083;
+
+    // Timer 3 free-running at the CPU clock (prescaler 1), for the CAL page's TICK LOAD meter.
+    REG_TM3CNT_L = 0;
+    REG_TM3CNT_H = 0x0080;
 }
 
 // ---- buttons ----
 static uint16_t g_btnPrev = 0;
 static uint16_t g_repTimer[16];
 
-static void scan_buttons(void)
+// The link_set_buttons() it ends on is a single store in link.c and stays there.
+IWRAM_CODE static void scan_buttons(void)
 {
     uint16_t now = (uint16_t)((~REG_KEYINPUT) & 0x03FFu);
     g_btnEdge = (uint16_t)(now & ~g_btnPrev);
@@ -431,7 +446,7 @@ static void scan_buttons(void)
 }
 
 // ---- pitch ----------------------------------------------------------------------------------
-static uint16_t period_for(int32_t pitchQ8, int semitoneShift)
+IWRAM_CODE static uint16_t period_for(int32_t pitchQ8, int semitoneShift)
 {
     int32_t p = pitchQ8 + ((int32_t)semitoneShift << 8);
     p = clampi(p, (int32_t)NOTE_MIN << 8, ((int32_t)NOTE_MAX - 1) << 8);
@@ -446,7 +461,7 @@ static uint16_t period_for(int32_t pitchQ8, int semitoneShift)
 // idx is never SCALE_FREE here - both call sites below skip quantise() entirely for it, since
 // it would otherwise land on SCALE_MASK[-1]. Everything else shifts down by one to reach the
 // SCALE_MASK/userScale arrays; see SCALE_FREE's comment in synth.h.
-static uint16_t scale_mask_for(int idx)
+ALWAYS_INLINE uint16_t scale_mask_for(int idx)
 {
     if (idx <= SCALE_BUILTIN) return SCALE_MASK[idx - 1];
     uint16_t m = g_patch.userScale[(idx - 1 - SCALE_BUILTIN) & 3];
@@ -461,7 +476,7 @@ static uint16_t scale_mask_for(int idx)
 // the "every semitone valid" mask, so the loop below finds a match at d=0 and returns the input
 // note unchanged - correctly, since rounding to the nearest of twelve-out-of-twelve degrees is
 // just rounding to the nearest semitone, which the caller already did before calling in.
-static int32_t quantise(int32_t note, int scaleIdx, int key)
+IWRAM_CODE static int32_t quantise(int32_t note, int scaleIdx, int key)
 {
     uint16_t mask = scale_mask_for(scaleIdx);
     int32_t  rel  = note - key;
@@ -525,7 +540,12 @@ static void drum_fire(int preset)
 }
 
 // ---- the control tick -------------------------------------------------------------------------
-static void synth_tick(void)
+// RUNS FROM IWRAM, with everything it calls every tick. From EWRAM - 16-bit bus, two wait states,
+// about six cycles per ARM instruction fetched - against one from IWRAM, and gfx_idle() runs owed
+// ticks after every character drawn, so the editor paid that price per character.
+// The CAL page's TICK LOAD row measures it; watch that after adding anything here. Calls made only
+// on an event (drum_fire, link_post_note, psg_wave_load on leaving drum mode) stay in EWRAM.
+IWRAM_CODE static void synth_tick(void)
 {
     Patch *p = &g_patch;
     scan_buttons();
@@ -1156,6 +1176,13 @@ static void synth_tick(void)
     }
 }
 
+// TICK LOAD: wall time inside synth_tick() against its ~1 ms period, percent x 16. Wall time on
+// purpose - a serial interrupt landing inside the tick is counted, because that is exactly the
+// time the screen does not get. Average is a one-pole kept x64 so it can move; peak is since boot.
+volatile uint16_t g_tickAvg  = 0;
+volatile uint16_t g_tickPeak = 0;
+static uint32_t   s_tickAcc  = 0;
+
 void synth_update(void)
 {
     static uint16_t last = 0;
@@ -1168,7 +1195,13 @@ void synth_update(void)
     int budget = 8;
     while ((uint16_t)(now - last) >= 16 && budget--) {
         last = (uint16_t)(last + 16);
+        uint16_t t0 = REG_TM3CNT_L;
         synth_tick();
+        // The period is 16 Timer 0 ticks of 1024 cycles = 16384 cycles, so x1600/16384 is x25/256.
+        uint32_t pct = ((uint32_t)(uint16_t)(REG_TM3CNT_L - t0) * 25u) >> 8;
+        s_tickAcc += pct - (s_tickAcc >> 6);
+        g_tickAvg = (uint16_t)(s_tickAcc >> 6);
+        if (pct > g_tickPeak) g_tickPeak = (uint16_t)pct;
     }
     if ((uint16_t)(now - last) >= 16) last = now;
 }

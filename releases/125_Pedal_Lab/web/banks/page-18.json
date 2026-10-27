@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-firesledge-bass-processor-p7-harm-trem-delay",
+    "source": "algorithms/ready/directory-firesledge-bass-processor-p7-harm-trem-delay.spn",
+    "instructions": 125,
+    "sha256": "1fd1d71ecffb8142c5518d0c2bbaaaebeee463a9e3a97bdc5c4cc0dc05990aba",
+    "id": "directory-firesledge-bass-processor-p7-harm-trem-delay",
+    "author": "Firesledge",
+    "description": "Harmonic tremolo mixed with a delay. Based on Madbeanpedals Starfield.",
+    "controls": [
+      "Delay",
+      "Speed + Delay/Tremolo Mix",
+      "Mix"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p7-harm-trem-delay.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p7-harm-trem-delay.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Starfield+",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 1018,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1153536,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-greenwood-delay",
+    "source": "algorithms/ready/directory-greenwood-delay.spn",
+    "instructions": 46,
+    "sha256": "9874785e4f4b51ab2033479f95d991f313bc2b18b10cfb13c0d2c5991b15ca03",
+    "id": "directory-greenwood-delay",
+    "author": "slacker",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Speed",
+      "Time",
+      "Randomness"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/greenwood-delay.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?t=290",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Greenwood Delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 0,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-holy-city-audio-oil-can-delay",
+    "source": "algorithms/ready/directory-holy-city-audio-oil-can-delay.spn",
+    "instructions": 49,
+    "sha256": "9cfc06e589ccf3468badb480b2a002a139df47ab42c2662a718721ab76d61375",
+    "id": "directory-holy-city-audio-oil-can-delay",
+    "author": "Digital Larry",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "delay time/wobble frequency",
+      "wobble depth",
+      "feedback"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/oil-can-delay.spn"
+    },
+    "source_url": "https://www.diystompboxes.com/smfforum/index.php?topic=123725.0",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Oil can delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1048576,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-madbeanpedals-choir-saw",
+    "source": "algorithms/ready/directory-madbeanpedals-choir-saw.spn",
+    "instructions": 85,
+    "sha256": "0f677bb63cd5799866caeb9988cde55a2d76766624454d06da95d72d993bc898",
+    "id": "directory-madbeanpedals-choir-saw",
+    "author": "madbeanpedals",
+    "description": "A delay with pitch shift in the feedback path. Kind of a discount EQD Rainbow Machine",
+    "controls": [
+      "Delay time",
+      "Feedback and Pitch Volume",
+      "Speed"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/madbeanpedals/choir-saw.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/madbeanpedals/choir-saw.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Choir Saw",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 536260,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-madbeanpedals-starfield",
+    "source": "algorithms/ready/directory-madbeanpedals-starfield.spn",
+    "instructions": 76,
+    "sha256": "3a4e162676ff6aa6b3e1587c1db76ebcb50915b9c21665b40e34cd37e0e8629b",
+    "id": "directory-madbeanpedals-starfield",
+    "author": "madbeanpedals",
+    "description": "This is a delay that allows you to mix in a phaser with the delays",
+    "controls": [
+      "Delay time",
+      "Feedback",
+      "Sweep"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/madbeanpedals/starfield.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/madbeanpedals/starfield.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Starfield",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1242520,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-modulated-echo",
+    "source": "algorithms/ready/directory-modulated-echo.spn",
+    "instructions": 51,
+    "sha256": "0a0b5eed642b7afc98734ba8413b0a0fcb7e6faeaddcb33d83b601d72bd9fccc",
+    "id": "directory-modulated-echo",
+    "author": "patb",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "delay time",
+      "modulation depth",
+      "echo level, with 2 preset feedback levels"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/modulated-echo.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=649",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Modulated Echo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 524288,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

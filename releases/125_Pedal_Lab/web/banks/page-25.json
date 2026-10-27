@@ -1,0 +1,68 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-improved-octave-up",
+    "source": "algorithms/ready/directory-improved-octave-up.spn",
+    "instructions": 22,
+    "sha256": "913a69e9f662537f91c1ff3d9ef964f05f708f81d3334b78638ca85e1cb2e564",
+    "id": "directory-improved-octave-up",
+    "author": "Don Stavely",
+    "description": "This solves for the 'crossfade cancellation' issue...",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/improved_octave_up.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=467",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Improved Octave Up",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 216747,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-up-down-octaver",
+    "source": "algorithms/ready/directory-up-down-octaver.spn",
+    "instructions": 31,
+    "sha256": "6a2ba47595bcab8167fa41610d84b5d48fcbfc581a37a487643fc3007734d970",
+    "id": "directory-up-down-octaver",
+    "author": "Unknown (not credited in directory)",
+    "description": "Octave, Pitch program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Mix",
+      "Octave up",
+      "Octave down"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/up-down-octaver.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?t=116",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Octave Up and Down",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 257337,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

@@ -55,10 +55,12 @@ shelves:
     title: Essentials 
     layout: video-lead
     cards:
-      - 45_bends
+      - 26_clockwork
       - 369_Asterisk
       - 22_sheep
       - 44_Birds
+      - 112_Equanimity
+      - 16_the_bells
 
   - id: new
     title: Recommended new releases
@@ -73,14 +75,14 @@ shelves:
       href: ?sort=created-desc
 
 
-  - id: dune-collection
-    title: The Dune collection
+  - id: vos-collection
+    title: The Vos collection
     layout: video-strip
     cards:
-      - 15_MLRws
-      - 41_blackbird
-      - 11_goldfish
-      - 04_BYO_Benjolin
+      - 54_Tapegrade
+      - 433_sense_of_space
+      - 87_fr330hfr33
+      - 101_Gnarly_C1ZZL3
 
 
   - id: old
@@ -104,20 +106,21 @@ shelves:
       - 36_GradualProcess
       - 112_Equanimity
       - 404_BlackBox
-      - 82_Computer_Grids
+      - 113_Constancy
 
 
 
 
 
-  - id: vos-collection
-    title: The Vos collection
+
+  - id: vincent-collection
+    title: The Vincent collection
     layout: video-strip
     cards:
-      - 54_Tapegrade
-      - 433_sense_of_space
-      - 87_fr330hfr33
-      - 101_Gnarly_C1ZZL3
+      - 45_bends
+      - 50_flux
+      - 51_grains
+      - 26_clockwork
 
       
   - id: properly-useful
@@ -129,6 +132,36 @@ shelves:
       - useful
     limit: 6
     
+    
+    
+    
+
+  - id: 8mu controlled
+    title: Controlled by an 8mu
+    layout: video-lead
+    cards:
+      - 101_Gnarly_C1ZZL3
+      - 806_Weights
+      - 805_Fader_Footie
+      - 800_graphic_osc
+      - 801_WaveSeq
+      - 907_8mu_eq
+
+
+
+
+
+
+  - id: dune-collection
+    title: The Dune collection
+    layout: video-strip
+    cards:
+      - 15_MLRws
+      - 41_blackbird
+      - 11_goldfish
+      - 04_BYO_Benjolin
+
+
   - id: amazing
     title:  🤯 Mind blown
     layout: list
@@ -137,15 +170,6 @@ shelves:
     hide_flairs:
       - magic
     limit: 6
-
-  - id: vincent-collection
-    title: The Vincent collection
-    layout: video-strip
-    cards:
-      - 45_bends
-      - 50_flux
-      - 51_grains
-      - 26_clockwork
 
 
 #   - id: samples-and-found-sound
@@ -158,13 +182,14 @@ shelves:
 #       - 73_VSS
 
 
-  - id: feedback-laboratory
-    title: Feedback laboratory
-    layout: video-lead
-    cards:
-      - 32_vink
-      - 35_FreqShift
-      - 59_BitPhase
-      - 76_hot_fuzz
-      - 83_Origami
-      - 97_alloy
+#   - id: feedback-laboratory
+#     title: Feedback laboratory
+#     layout: video-lead
+#     cards:
+#       - 32_vink
+#       - 35_FreqShift
+#       - 59_BitPhase
+#       - 76_hot_fuzz
+#       - 83_Origami
+#       - 97_alloy
+

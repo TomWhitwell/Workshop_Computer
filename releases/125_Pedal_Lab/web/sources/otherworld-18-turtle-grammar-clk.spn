@@ -1,0 +1,181 @@
+; @name Turtle Grammar_clk
+; @tagline Two mirrored tape turtles scratch a golden-angle grammar on the beat
+; @description The clocked Turtle Grammar. Two turtles walk the last second of
+; @description tape, one per channel, taking a step on every clock pulse, and
+; @description their heading decides how they play it: east forwards, north an
+; @description octave up at double speed, west backwards, south an octave down
+; @description at half speed. Every step they turn by the same angle, so a
+; @description quarter turn scratches out a four-step loop locked to the beat, a
+; @description fifth of a turn a five-step figure that cycles against the bar,
+; @description and the golden angle a pattern that never repeats. On a Fibonacci
+; @description rhythm the pen lifts and the turtles sprout: that pulse splits into
+; @description two half steps at double speed, an octave-up miniature of their
+; @description path. The right turtle is the left one's mirror image (when one
+; @description climbs an octave the other drops one), both walk on their own ink,
+; @description and a slow wave bends the angle so the figure keeps precessing.
+; @clock
+; @pots Sprout | Turn | Ink
+; @render 0.5, 0.764, 0.5
+; @components clock-locked turtle-graphics tape heads (heading = playback gear), rotation-word grammar (periodic to Sturmian), Fibonacci pen-up sprouts (half steps an octave up), mirrored stereo, crossed ink feedback
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	buf	32767
+
+equ	clkhp	reg0		; clock detector: low-pass state
+equ	clkin	reg1		; free (the factory clock block's conditioned sample)
+equ	clkst	reg2		; clock state: -0.25 high, -0.5 low (armed)
+equ	clkprev	reg3		; state one sample ago
+equ	clkcnt	reg4		; samples since the last edge x 2^-18, wraps at 0.5 (4 s)
+equ	p2c	reg31		; capped Ink pot
+equ	clkper	reg5		; latched period, same scale (0.999 until the first edge pair)
+equ	clkinc	reg6		; 2^-18
+equ	clkmin	reg7		; 2^-14 = 2 samples of address, the minimum delay
+
+equ	th	reg10		; turning phase / 2 (0 .. 0.5)
+equ	stl	reg11		; offset steps x 2^13
+equ	str	reg12
+equ	pl	reg13		; read offsets (ADDR_PTR units)
+equ	pr	reg14
+equ	a	reg15
+equ	ps	reg16		; pen phase / 2 (golden rotation)
+equ	hfl	reg17		; pen: >= 0 down, -1 up (half step pending), -0.5 up (taken)
+equ	outl	reg18		; the outputs, kept for the ink (DACL/DACR read 0 on the chip)
+equ	outr	reg19
+equ	inkhp	reg20		; the ink's high-pass (one pole, ~210 Hz)
+
+	skp	run, tinit
+	wlds	sin0, 1, 500		; turning drift, 25 s
+tinit:
+; ---- constants (every sample, as in the factory code)
+	or	$000020
+	wrax	clkinc, 0
+	or	$000200
+	wrax	clkmin, 0
+
+; ---- clock: rising-edge detector, then the factory count
+	ldax	adcr
+	rdfx	clkhp, 0.06		; low-pass of ADCR, tau ~0.5 ms
+	wrax	clkhp, -1.0
+	rdax	adcr, 1.0		; d = ADCR - low-pass: the recent rise
+	sof	1.0, -0.1875		; high at d >= 0.1875
+	skp	neg, c_lo
+	sof	0, -0.25		; state high
+	wrax	clkst, 0
+	skp	zro, c_hi
+c_lo:	sof	1.0, 0.125		; d - 0.0625: below it the input re-arms; between, hold
+	skp	gez, c_hi
+	sof	0, -0.5			; state low (armed)
+	wrax	clkst, 0
+c_hi:	ldax	clkprev			; latch on low -> high
+	rdax	clkst, -1.0
+	skp	neg, c_latch
+	ldax	clkcnt
+	rdax	clkinc, 1.0
+	and	$3FFFFF
+	wrax	clkcnt, 0
+	skp	zro, c_done
+c_latch: ldax	clkcnt
+	wrax	clkper, 0
+	wrax	clkcnt, 0
+c_done:	ldax	clkst
+	wrax	clkprev, 0
+
+; ---- first-run default period (no Divide: the clock sets the time)
+	skp	run, c_run
+	sof	0, 0.999
+	wrax	clkper, 0
+c_run:
+
+; ---- tape: mono input plus crossed ink
+	ldax	pot2			; Ink above 0.83 holds at 0.25 (L + R): at the full 0.3
+	sof	1.2, 0			; the ink outlived a 10 s tail at Turn 180 degrees
+	wrax	p2c, 0
+	rdax	outl, 0.5		; (ACC is 0 here) the tape runs at half level: ink
+	rdax	outr, 0.5		; 0.3 (L + R), input x0.5
+	mulx	p2c			; Ink, capped at the top: min(1, 1.2 Ink)
+	sof	0.31250, 0
+	rdfx	inkhp, 0.04		; the ink loses its bass (one pole, ~210 Hz), so a bassline
+	wrhx	inkhp, -1.0		; cannot pile up in the trails
+	rdax	adcl, 0.5
+	wra	buf, 0
+
+; ---- events: a step on every rising clock edge; with the pen up, a second
+;      (half) step when half the period has gone
+	ldax	clkcnt
+	sof	-1.0, 0
+	skp	neg, nolat
+	ldax	ps			; edge: lift the pen? golden rotation, up when
+	sof	1.0, 0.30908203125	; ps < Sprout / 2 (ps held / 2)
+	and	$3FFFFF
+	wrax	ps, 1.0
+	rdax	pot0, -0.25
+	skp	gez, pdn
+	sof	0, -0.999		; pen up: hfl = -1, half step pending
+pdn:	wrax	hfl, 0			; pen down: hfl >= 0
+	skp	zro, step
+nolat:	ldax	hfl			; half step pending (hfl < -0.75) ...
+	sof	1.0, 0.75
+	skp	gez, move
+	sof	0, 0.0078125		; ... and half the period gone? (period floored at
+	maxx	clkper, 1.0		; 2^-7: the first latch after load measures ~28 samples)
+	sof	-0.5, 0
+	rdax	clkcnt, 1.0
+	skp	neg, move
+	sof	0, -0.5			; pen still up, half step taken
+	wrax	hfl, 0
+; ---- step: turn, set both gears
+step:	cho	rdal, sin0		; theta += alpha = pot1 / 2 + slow drift
+	rdax	pot1, 0.25
+	rdax	th, 1.0
+	and	$3FFFFF
+	wrax	th, 1.0
+	and	$300000			; heading quadrant x/8 (0 E, 1 N, 2 W, 3 S)
+	sof	1.0, -0.25		; W: both backwards, step 2 -> 0.5
+	skp	zro, rev
+	sof	1.0, 0.125
+	absa
+	sof	-0.5, -0.0625		; (e - 2)/16, e = 1 - |x - 1|
+	wrax	a, 1.0
+	exp	1.0, 0			; speed / 4 = 2^(e - 2)
+	sof	-1.0, 0.25		; (1 - speed) / 4
+	wrax	stl, 0
+	ldax	a			; mirror: speed 2^-e
+	sof	-1.0, -0.25
+	exp	1.0, 0
+	sof	-1.0, 0.25
+	wrax	str, 0
+	skp	zro, pen
+rev:	sof	0, 0.5
+	wrax	stl, 1.0
+	wrax	str, 0
+pen:	ldax	hfl			; pen up: both turtles at twice their gear speed,
+	skp	gez, move		; an octave-up miniature of the path
+	ldax	stl
+	sof	2.0, -0.25		; (1 - 2 speed)/4 = 2 (1 - speed)/4 - 1/4
+	wrax	stl, 0
+	ldax	str
+	sof	2.0, -0.25
+	wrax	str, 0
+
+; ---- move the turtles, clamp to 62.5 ms .. 1 s, read
+move:	ldax	pl
+	rdax	stl, 0.0001220703125
+	sof	1.0, -0.5625		; clamp: 0.5625 - 0.5 sat(-2 (x - 0.5625)),
+	sof	-2.0, 0			; exact inside, 62.5 ms at the near wall, and
+	sof	-0.5, 0.5625		; ACC saturation at 1 s is the far wall
+	wrax	pl, 1.0
+	wrax	addr_ptr, 0
+	rmpa	1.5			; x2 for the half-level tape, x0.75 trim
+	wrax	outl, 1.0
+	wrax	dacl, 0
+	ldax	pr
+	rdax	str, 0.0001220703125
+	sof	1.0, -0.5625		; clamp: 0.5625 - 0.5 sat(-2 (x - 0.5625)),
+	sof	-2.0, 0			; exact inside, 62.5 ms at the near wall, and
+	sof	-0.5, 0.5625		; ACC saturation at 1 s is the far wall
+	wrax	pr, 1.0
+	wrax	addr_ptr, 0
+	rmpa	1.5
+	wrax	outr, 1.0
+	wrax	dacr, 0

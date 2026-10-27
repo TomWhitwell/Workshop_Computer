@@ -1,0 +1,200 @@
+;Reverse reverb
+; from Malekko
+
+;pot0 = predelay
+;pot1 = decay time
+;pot2 = damping
+
+;fixed reverse tapped delay
+
+;memory locations:
+
+mem	pdel	9900	;300ms
+mem	rdel	18000
+mem	ap1	1234
+mem	ap2	957
+mem	ap3	765
+mem	ap4	321
+
+;register equates:
+
+equ	f1	reg0
+equ	f2	reg1
+equ	f3	reg2
+equ	f4	reg3
+equ	pdlo	reg4
+equ	dfil	reg5
+equ	kfil	reg6
+
+;this is tough, as we really want to change the tap positions, 
+;which is computationally intensive
+
+;gather inputs:
+
+rdax	adcl,0.5		;get left input
+rdax	adcr,0.5		;get right input
+wra	pdel,0		;write predelay input
+
+;get predelay output into pdlo:
+
+rdax	pot0,0.3		;get pot0 (to 0.3 of memory range)
+rdfx	dfil,0.001	;filter delay control
+wrax	dfil,1		;write delay control filter
+wrax	addr_ptr,0	;write to address pointer
+rmpa	1		;read delay from address pointer
+wrax	pdlo,0		;write result to pdlo
+wra	rdel,0		;clear reverse delay input
+
+;now write the pdlo register to the reverse delay, depending on pot1:
+
+rdax	 pot1,1
+skp	zro,wr1
+sof	1,-0.125
+skp	neg,wr2
+sof	1,-0.125
+skp	neg,wr3
+sof	1,-0.125
+skp	neg,wr4
+sof	1,-0.125
+skp	neg,wr5
+sof	1,-0.125
+skp	neg,wr6
+sof	1,-0.125
+skp	neg,wr7
+skp	run,wr8
+
+wr1:
+ldax	pdlo
+wra	rdel+14000,0
+skp	zro,wr9
+
+wr2:
+ldax	pdlo
+wra	rdel+12000,0
+skp	zro,wr9
+
+wr3:
+ldax	pdlo
+wra	rdel+10000,0
+skp	zro,wr9
+
+wr4:
+ldax	pdlo
+wra	rdel+8000,0
+skp	zro,wr9
+
+wr5:
+ldax	pdlo
+wra	rdel+6000,0
+skp	zro,wr9
+
+wr6:
+ldax	pdlo
+wra	rdel+4000,0
+skp	zro,wr9
+
+wr7:
+ldax	pdlo
+wra	rdel+2000,0
+skp	zro,wr9
+
+wr8:
+ldax	pdlo
+wra	rdel,0			
+
+wr9:
+
+;prepare filter coefficient from pot2:
+
+rdax	pot2,1
+sof	0.8,0.1		;treble increases CW
+wrax	kfil,0
+
+;do reverse reverb taps with interspersed filtering and allpasses:
+
+rda	rdel+1,0.05
+rda	rdel+303,-0.05
+rda	rdel+569,0.06
+rda	rdel+911,0.07
+rda	rdel+1256,-0.008
+rda	rdel+1478,0.008
+rda	rdel+1818,-0.01
+rda	rdel+2089,0.01
+rda	rdel+2358,-0.011
+rda	rdel+2710,0.012
+rda	rdel+3018,0.0135
+rda	rdel+3345,-0.012
+rda	rdel+3567,-0.015
+rda	rdel+3922,0.02
+rda	rdel+4167,-0.02
+
+rdax	f1,-1
+mulx	kfil
+rdax	f1,1
+wrax	f1,1
+rda	ap1#,0.5
+wrap	ap1,-0.5
+
+rda	rdel+4522,-0.029
+rda	rdel+4754,0.04
+rda	rdel+5156,-0.034
+rda	rdel+5342,-0.04
+rda	rdel+5657,0.035
+rda	rdel+6008,0.04
+rda	rdel+6283,-0.04
+rda	rdel+6623,-0.045
+rda	rdel+6845,-0.055
+rda	rdel+7219,0.06
+rda	rdel+7487,-0.06
+rda	rdel+7832,-0.05
+rda	rdel+8065,0.07
+
+rdax	f2,-1
+mulx	kfil
+rdax	f2,1
+wrax	f2,1
+rda	ap2#,0.5
+wrap	ap2,-0.5
+
+rda	rdel+8404,0.08
+rda	rdel+8713,-0.07
+rda	rdel+8967,-0.08
+rda	rdel+9307,0.08
+rda	rdel+9576,-0.09
+rda	rdel+9924,-0.09
+rda	rdel+10298,-0.11
+rda	rdel+10578,0.1
+rda	rdel+10835,0.12
+rda	rdel+11207,-0.1
+rda	rdel+11523,-0.14
+rda	rdel+11765,-0.18
+rda	rdel+12113,0.16
+rda	rdel+12324,-0.13
+rda	rdel+12735,-0.17
+
+rdax	f3,-1
+mulx	kfil
+rdax	f3,1
+wrax	f3,1
+rda	ap3#,0.5
+wrap	ap3,-0.5
+
+rda	rdel+13003,0.19
+rda	rdel+13267,-0.14
+rda	rdel+13610,0.16
+rda	rdel+13945,-0.18
+rda	rdel+14130,0.2
+rda	rdel+14550,-0.25
+rda	rdel+14800,-0.25
+
+rdax	f4,-1
+mulx	kfil
+rdax	f4,1
+wrax	f4,1
+rda	ap4#,0.5
+wrap	ap4,-0.5
+
+rda	rdel+16000,1
+wrax	dacl,1
+wrax	dacr,0
+

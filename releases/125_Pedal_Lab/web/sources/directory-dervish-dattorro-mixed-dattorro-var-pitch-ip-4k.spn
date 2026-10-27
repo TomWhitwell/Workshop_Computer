@@ -1,0 +1,295 @@
+; Dattorro reverb with variable frequency pitch shift applied to input signal
+;
+; Dattorro reverb code from
+;  http://www.spinsemi.com/forum/viewtopic.php?t=236
+; shimmer code partly from
+;  http://www.spinsemi.com/forum/viewtopic.php?p=3073
+;
+; Plate Reverb -- derived from Jon Dattorro paper "Effect Design"
+; - Supposedly good sounding with minimal required resources
+; - available at: https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf
+; - coded by mdroberts1243 'at' gmail.com
+; - shimmer hacked by graham @ gbiswell.com
+
+;pot0=freq shift
+;pot1=reverb time (decay... all the way up is infinite sustain in the tank)
+;pot2 = hf loss in the tank (damping... turn up for MORE damping)
+
+; =====================================
+; tunables - take care adjusting these, it's very easy to saturate 
+equ	ps_level	0.50		; amount of shifted signal into first tap
+equ	wet_level	0.85		; amount of unshifted wet signal in feedback
+equ	dry_level	0.50		; amount of unshifted dry signal in feedback
+equ	ps_dry_level	0.45		; amount of input signal into pitch shift 
+;equ	ps_wet_level	0.45		; amount of wet signal into pitch shift 
+
+; k1 for freqs:
+; F=12000 perl -e 'printf("%f\n", 1 - exp(-2 * 22/7 * $ARGV[0] / 32768))' $F
+equ	k1_1kHz		0.174549
+equ	k1_2kHz		0.318630
+equ	k1_4kHz		0.535735
+equ	k1_8kHz		0.784458
+equ	k1_12kHz	0.899931
+equ	bandwidth	k1_4kHz ; coefficient for input low-pass
+
+; reverb pre-delay. can go to 3810 samples
+; 655=20ms, 3802=116ms
+;mem	predelay	655
+mem	predelay	1310
+;mem	predelay	3802
+
+; frequency for two sin tap modulators
+; paper calls for 1-2Hz, 25=1Hz, 50=2Hz
+; original was 27 & 23, shimmer seems to suits lower frequency lfos
+equ	sin0freq	11
+equ	sin1freq	4
+
+; peak excursion for tap modulation
+; original has one level, i've changed it to 2
+equ	excursion0	7
+equ	excursion1	32
+
+; fixed parameters from the paper
+equ	decay_diffusion_1	0.70	;default parameters from Dattorro paper
+equ	input_diffusion_1	0.75
+equ	input_diffusion_2	0.625
+
+; lpf & hpf post-ptch shift parameters
+equ	lpfk		0.6		;lpf coefficent for lpfp after pitch shifting
+equ	lpfs		-0.5		;Shelving coefficent for lpfp
+equ	hpfk		0.05		;hpf coefficent for hpfp after pitch shifting
+equ	hpfs		-0.5		;Shelving coefficent for hpfp
+
+
+; =====================================
+; delay memory regions
+; allpass names are formed from the Dattorro paper node numbers in Figure 1
+; all the memory sizes have been scaled up by 1.1010x to account for difference in sampling
+; original paper specified sample rate of 29761 Hz, we have 32768
+
+mem	psdel		4096   ; delay for pitch shift
+mem	stemp		1
+
+mem	ap13_14		156		; coeff is input_diffusion_1
+mem	ap19_20		117		; coeff is input_diffusion_1
+mem	ap15_16		417		; coeff is input_diffusion_2
+mem	ap21_22		305		; coeff is input_diffusion_2
+
+mem	ap23_24		 740+excursion0	; coeff is decay_diffusion_1
+mem	ap46_48		1000+excursion0	; coeff is decay_diffusion_1
+
+mem	del24_30	4903
+mem	del48_54	4643
+mem	ap31_33		1982+excursion1	; coeff is decay_diffusion_2 (derived from pot1)
+mem	ap55_59		2924+excursion1	; coeff is decay_diffusion_2
+mem	del33_39	4096
+mem	del59_63	3483
+
+; =====================================
+; register defines
+equ	decay			reg1	; coeff for reverb time (from pot1)
+equ	decay_diffusion_2	reg2	; related to coeff for reverb time (from delay)
+equ	damping			reg3	; coeff for high-frequency decay within the tank (from pot2)
+equ	one_minus_dmpg		reg4
+equ	lp_inp			reg5	; 'bandwidth' low-pass at input
+equ	lp30_31			reg6	; tank low-pass set by 'damping'
+equ	lp54_55			reg7	; tank low-pass set by 'damping'
+equ	diffuse_in		reg9	; output of input diffusers
+equ	temp			reg10	; temp for expanded allpass calculations
+equ	temp2			reg11	; another temp value for allpass
+
+equ	pslvl			reg13	; pitch shift level into first tap
+equ	lpfp			reg14	; post-pitch shift lp filter
+equ	hpfp			reg15	; post-pitch shift hp filter
+
+; =====================================
+; code starts here!
+;
+; initialisation section
+skp	run, loop
+; generate a pair of LFOs to modulate the APs in the loop:
+wlds	SIN0, sin0freq, excursion0	; paper calls for 1-2Hz, 25=1Hz, 50=2Hz
+wlds	SIN1, sin1freq, excursion1
+sof	0, ps_level
+wrax	pslvl, 0			; shimmer amount, write for later use
+
+; ramp for pitch shift
+wldr    rmp0, 16384, 4096		;load shift up for shimmer dept must match psdel size
+
+; =====================================
+loop:
+
+; derive control coefficients from pots:
+; pitch shift
+rdax	pot0, 1				; control shimmer pitch
+sof	1, -0.5				; scale to +/-0.5
+wrax    rmp0_rate, 0    		; write to rate of lfo1, clear accumulator
+
+; reverb decay time
+rdax	pot1, 1
+;mulx	pot1				; could square it if you like.
+wrax	decay, 1
+
+; decay_diffusion_2 = decay + 0.15 but must range between 0.25 to 0.5
+sof	1.0,-0.35		; check to see if we will go higher than ceiling (0.35 + 0.15)
+skp	neg,1			;
+clr				; set ceiling to 0.35 if we are still positive (after restoration below)
+sof	1.0,0.35		; restore ACC (could combine with below)
+sof	1.0,-0.10		; check to see if we will be below floor (0.10 + 0.15)
+skp	gez,1
+clr				; clr ACC will set floor to 0.25 after restoration below
+sof	1.0,0.25		; restore ACC (+ 0.10) and add 0.15
+wrax	decay_diffusion_2,0
+
+; damping
+rdax	pot2, 1			; control high freq loss in the tank (low pass filter)
+wrax	damping, -1		; low-pass coefficient
+sof	1, 0.9990234375		; make '1-damping' control from 1- pot2
+wrax	one_minus_dmpg, 0	; other low pass damping coefficient
+
+
+; =====================================
+; sum inputs to mono, with 0.5x input gain adjustment & write to pre-delay
+rdax	adcl, 0.5	;
+rdax	adcr, 0.5
+wra	predelay, 0
+
+; input low-pass
+rda	predelay#, bandwidth
+rdax	lp_inp, 1-bandwidth
+wrax	lp_inp, 1
+
+; now do input all passes:
+rda	ap13_14#, -input_diffusion_1
+wrap	ap13_14, input_diffusion_1
+rda	ap19_20#, -input_diffusion_1
+wrap	ap19_20, input_diffusion_1
+rda	ap15_16#, -input_diffusion_2
+wrap	ap15_16, input_diffusion_2
+rda	ap21_22#, -input_diffusion_2
+wrap	ap21_22, input_diffusion_2
+
+wrax	diffuse_in, ps_dry_level	; carry a small amount into the pitch shift
+
+; =====================================
+; pitch shift
+; see AN-0001 for details on this
+
+;rda	del59_63#, ps_wet_level
+wra	psdel, 0			; write to pitch shift delay
+
+cho    rda, rmp0, REG|COMPC, psdel
+cho    rda, rmp0,, psdel+1
+wra    stemp, 0
+cho    rda, rmp0, RPTR2|COMPC, psdel
+cho    rda, rmp0, RPTR2, psdel+1
+cho    sof, rmp0, NA|COMPC, 0
+cho    rda, rmp0, NA, stemp
+
+; LPF & HPF of pitch shifted signal, then attenuate
+rdfx   lpfp, lpfk
+wrlx   lpfp, lpfs
+rdfx   hpfp, hpfk
+wrhx   hpfp, hpfs
+mulx   pslvl
+
+; =====================================
+;allpassed input in place, now process the tank (two sides), with filtering
+; - all the delays & ap-delays are modulated by LFOs... four different variations
+
+rda	del59_63#, wet_level
+mulx	decay
+rdax	diffuse_in, dry_level
+wrax	temp,0
+
+cho	rda,sin0,sin|reg|compc,ap23_24#-excursion0-1
+cho	rda,sin0,sin,ap23_24#-excursion0
+wrax	temp2,decay_diffusion_1		; store, apply coeff (note flipped sign for this AP)
+rdax	temp,1				; add input
+wra	ap23_24,-decay_diffusion_1	; write to head of delay
+rdax	temp2,1				; add modulated tail
+
+wra	del24_30,0			; delay
+rda	del24_30#,1
+
+; simple low-pass with variable control
+mulx	one_minus_dmpg
+wrax	temp,0
+rdax	lp30_31,1	
+mulx	damping				; damping derived from pot
+rdax	temp,1
+wrax	lp30_31,1
+
+mulx	decay				; apply decay
+wrax	temp,0				; save for applying a bit later...
+
+; another allpass, but WRAP replaced to use variable coefficient
+cho	 rda,sin1,cos|reg|compc,ap31_33#-excursion1-1
+cho	 rda,sin1,cos,ap31_33#-excursion1
+wrax	temp2,-1			; store temporarily, and negate
+mulx	decay_diffusion_2		; mult with 'negative' coefficient from pot
+rdax	temp,1				; add input from temp register
+wra	ap31_33,1			; store to delay
+mulx	decay_diffusion_2		; apply coeff
+rdax	temp2,1				; add back in the modulated tail stored in temp
+
+wra	del33_39,0			; delay
+rda	del33_39#,1
+
+; right side of Figure 1 tank, delay output already in ACC
+mulx	decay
+rdax	diffuse_in,1
+wrax	temp,0
+
+cho	 rda,sin0,cos|reg|compc,ap46_48#-excursion0-1
+cho	 rda,sin0,cos,ap46_48#-excursion0
+wrax	temp2,decay_diffusion_1		; store, apply coeff (note flipped sign for this AP)
+rdax	temp,1				; add input
+wra	ap46_48,-decay_diffusion_1
+rdax	temp2,1				; add modulated tail
+
+wra	del48_54,0			; delay
+rda	del48_54#,1
+
+; simple low-pass with variable control
+mulx	one_minus_dmpg
+wrax	temp,0
+rdax	lp54_55,1	
+mulx	damping				; damping derived from pot
+rdax	temp,1
+wrax	lp54_55,1
+
+mulx	decay				; apply decay
+wrax	temp,0				; save for applying a bit later...
+
+; another allpass, but WRAP replaced to use variable coefficient
+cho	rda,sin1,sin|reg|compc,ap55_59#-excursion1-1
+cho	rda,sin1,sin,ap55_59#-excursion1
+wrax	temp2,-1			; store temporarily, and negate
+mulx	decay_diffusion_2		; mult with 'negative' coefficient from pot
+rdax	temp,1				; add input from temp register
+wra	ap55_59,1			; store to delay
+mulx	decay_diffusion_2		; apply coeff
+rdax	temp2,1				; add back in the modulated tail stored in temp
+wra	del59_63,0			; write delay leaving ACC clear
+
+;now gather outputs from loop delays (values scaled for different sampling freq):
+
+rda	del48_54+292,0.6
+rda	del48_54+3274,0.6
+rda	ap55_59+2107,-0.6
+rda	del59_63+2198,0.6
+rda	del24_30+2192,-0.6
+rda	ap31_33+205,-0.6
+rda	del33_39+1174,-0.6
+wrax	dacl,0
+
+rda	del24_30+389,0.6
+rda	del24_30+3993,0.6
+rda	ap31_33+1352,-0.6
+rda	del33_39+2943,0.6
+rda	del48_54+2325,-0.6
+rda	ap55_59+369,-0.6
+rda	del59_63+133,-0.6
+wrax	dacr,0
+

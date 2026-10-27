@@ -1,0 +1,421 @@
+;development program: copy to target when done
+
+;Guitar reverb/flange
+
+;pot0 = reverb mix
+
+;pot1 = flange rate
+
+;pot2 = flange mix
+
+;
+
+mem	fladel	512
+
+;
+
+mem	ap1	150	;reverb allpass at reverb input
+
+mem	ap2	221	;reverb allpass at reverb input
+
+mem	ap3	345	;reverb allpass at reverb input
+
+mem	ap4	431	;reverb allpass at reverb input
+
+mem	rap1	1157	;reverb ring AP
+
+mem	rap1b	2257	;reverb ring AP
+
+mem	rap2	1978	;reverb ring AP
+
+mem	rap2b	1678	;reverb ring AP
+
+mem 	rap3	1850	;reverb ring AP
+
+mem	rap3b	2456	;reverb ring AP
+
+mem	rap4	1234	;reverb ring AP
+
+mem	rap4b	1567	;reverb ring AP
+
+mem	d1	2180	;reverb ring delay
+
+mem	d2	3956	;reverb ring delay
+
+mem	d3	4165	;reverb ring delay
+
+mem	d4	3456	;reverb ring delay
+
+;
+
+equ	fladel_138  fladel+138	;mid pointer to flange delay
+
+equ	fladel_139  fladel+139	;mid pointer to flange delay +1
+
+
+
+
+
+equ	ramp	reg0	;used to generate ramp waveform
+
+equ	tri	reg2	;triangle made from ramp
+
+equ	flaout	reg3	;mixed flanger output
+
+equ	fladout	reg4	;flange delay output
+
+equ	mix	reg5	;mix coefficient for flanger
+
+equ	fbk	reg6	;fbk coefficient for feedback around mixed flanger
+
+equ	fract	reg7	;fractional portion of flange read address
+
+equ	k1	reg8	;first coefficient for linear interpolation
+
+equ	k2	reg9	;second coefficient for linear interpolation
+
+equ	temp	reg10	;general temp register
+
+equ	revin	reg11	;input to reverb ring
+
+equ	rfil	reg12	;reverb ring filter register
+
+equ	rt	0.5	;reverb time
+
+;-------------------------------------------------------
+
+;set up lfo for reverb, 0.5Hz, +/-20 samples:
+
+;-------------------------------------------------------
+
+skp	RUN,	LOOP
+
+wlds	0,	12,	160 	;setup LFO0
+
+LOOP:
+
+;-------------------------------------------------------
+
+
+
+;--------------------------------------------------------
+
+;prepare mix values from pot2:
+
+;--------------------------------------------------------
+
+rdax	pot2,	1.999	;make pot2 cause mix to be 1:1 at 50% rotation and greater.
+
+wrax	mix,	0	;flange mix is pot2, gain causes saturation limit at approx 1.0, pot2 at midscale
+
+rdax	pot2,	1.0
+
+mulx	pot2
+
+wrax	fbk,	0	;feedback is squared pot2, 0 to 1.0
+
+;--------------------------------------------------------
+
+;write input to flanger:
+
+;--------------------------------------------------------
+
+rdax	fladout,	0.6	;get fraction of flange output
+
+mulx	fbk		;multiply by feedback function
+
+rdax	adcl,	0.5	;add inputs * 0.5 each
+
+rdax	adcr,	0.5
+
+wra	fladel,	0	;write flange delay input, clear acc
+
+
+
+;--------------------------------------------------------
+
+; flange rate from pot 1
+
+; as adder value to ramp
+
+; gen, filtered at 0.3Hz:
+
+;--------------------------------------------------------
+
+rdax	pot1,	1.0	;read pot1
+
+mulx	pot1		;square value, range = 0 to 1
+
+sof	0.05,	0.005	;scale to range of 0.005 to 0.55
+
+sof	.001,	0	;scale further to 0.00005 to 0.0055
+
+rdax	ramp,	1.0	;add to ramp value
+
+and	0xbfffff		;allow for rollover (bypasses saturation limiting)
+
+wrax	ramp,	1.0	;write back to ramp register, keep acc
+
+sof	1.0,	-0.25	;subtract 0.25 to center rampwave about 0
+
+maxx	reg0,	0	;get absolute value (make triangle wave from 0 to 0.25)
+
+sof	1.0,	-0.125	;subtract 0.125 to make triangle wave go -0.125 to +0.125
+
+sof	.00015,	0	;scale to filter
+
+rdax 	tri,	0.9999	;filter triangle waveform so that pitch bend does not get too great at high rates
+
+wrax	tri,	0	;write triangle wave to register, clear accumulator
+
+
+
+;--------------------------------------------------------
+
+; now formulate delay pointer,
+
+; and pass through to fract calc:
+
+;--------------------------------------------------------
+
+or	fladel_138 < 8		;fladel^ + 138	;get midpoint address pointer
+
+rdax	tri, 0.03125		;add triangle wave modulation, scaled to fit delay range
+
+wrax	addr_ptr,	1.0	;establish address for lower interpolation sample
+
+;--------------------------------------------------------
+
+; address pointer set, now develop fraction of tri:
+
+;-------------------------------------------------------
+
+and	0x0000ff		;mask off integer portion of address, leaving a fractional value in the lowest acc byte
+
+sof 	-2.0,	0	;these operations shift the resulting fractional value to the range 0.0 to 0.999...
+
+sof 	-2.0,	0	;only -2.0 is exact, but it changes sign of shifted value
+
+sof 	-2.0,	0
+
+sof 	-2.0,	0
+
+sof	 -2.0,	0
+
+sof 	-2.0,	0
+
+sof 	-2.0,	0
+
+sof 	-2.0,	0
+
+sof 	-2.0,	0
+
+sof 	-2.0,	0
+
+sof 	-2.0,	0
+
+sof 	-2.0,	0
+
+sof 	-2.0,	0
+
+sof 	-2.0,	0
+
+sof 	1.9999	,0	;15 shifts, last one is positive, and 1.9999 is nearly 2.0...
+
+wrax	k2,	1.0	;write result as coefficient for second sample read
+
+sof	-1.0,	0.999	;K1 is 1-K2 (or very nearly)
+
+wrax	k1,	0.0	;write result as coefficient for first sample read
+
+;-------------------------------------------------------
+
+;read from first pointer:
+
+;-------------------------------------------------------
+
+rmpa	1.0	;read memory for first sample read
+
+mulx	k1		;multiply by K1
+
+wrax	temp,	0	;and store in temp, while clearing the acc
+
+;-------------------------------------------------------
+
+;get second pointer:
+
+;-------------------------------------------------------
+
+or	fladel_139 < 8	;fladel^ + 139	;form second pointer
+
+rdax	tri,	0.03125	;add triangle waveform again
+
+wrax	addr_ptr,	0	;establish address for upper interpolation sample
+
+rmpa	1.0	;read second interpolation sample
+
+mulx	k2		;multiply by K2
+
+rdax	temp,	1.0	;add temp (first value*K1)
+
+wrax	fladout,	1.0	;write the result to the flanger delay output
+
+mulx	mix		;multiply by the mix value
+
+rda	fladel,	1.0	;add the input to the flanger delay
+
+wrax	flaout,	0.0	;write result to flaout and clear acc
+
+;
+
+;-------------------------------------------------------
+
+;do ap smearing to reverb ring allpass filters, modulating them with LFO0, sin, cos, inv sin, inv cos:
+
+;-------------------------------------------------------
+
+
+
+cho	RDA,	SIN0,	0x06,	rap1+50
+
+cho	RDA,	SIN0,	0,	rap1+51
+
+wra	rap1+100,	0
+
+cho	RDA,	SIN0,	0x07,	rap2+50
+
+cho	RDA,	SIN0,	1,	rap2+51
+
+wra	rap2+100,	0
+
+cho 	RDA,	SIN0,	0x0E,	rap3+50
+
+cho	RDA,	SIN0,	0x08,	rap3+51
+
+wra	rap3+100,	0
+
+cho 	RDA,	SIN0,	0x0F,	rap4+50
+
+cho	RDA,	SIN0,	0x09,	rap4+51
+
+wra	rap4+100,	0
+
+;
+
+;do reverb input allpass filters:
+
+;
+
+rdax	flaout,	0.5	;read value from flanger process
+
+rda	ap1#,	-0.6	;do 4 all pass filters:
+
+wrap	ap1,	0.6
+
+rda	ap2#,	-0.6
+
+wrap	ap2,	0.6
+
+rda	ap3#,	-0.6
+
+wrap	ap3,	0.6
+
+rda	ap4#,	-0.6
+
+wrap	ap4,	0.6
+
+wrax	revin,	0.0	;write result to revin, clear acc
+
+;
+
+rda	d4#,	rt	;ring process, read last delay
+
+rda	rap1#,	-0.6	;do 1st ring allpass
+
+wrap	rap1,	0.6
+
+rda	rap1b#,	-0.7	;do second ring allpass
+
+wrap	rap1b,	0.7
+
+rdax	revin,	0.5	;read value from input allpass filters.
+
+wra	d1,	0.0	;write the output to the next delay, clear acc
+
+;
+
+rda	d1#,	rt	;do 3 more:
+
+rda	rap2#,	-0.6
+
+wrap	rap2,	0.6
+
+rda	rap2b#,	-0.7
+
+wrap	rap2b,	0.7
+
+rdax	revin,	0.5
+
+wra	d2,	0.0
+
+;
+
+rda	d2#,	rt
+
+rda	rap3#,	-0.6
+
+wrap	rap3,	0.6
+
+rda	rap3b#,	-0.7
+
+wrap	rap3b,	0.7
+
+rdax	revin,	0.5
+
+wra	d3,	0.0
+
+;
+
+rda	d3#,	rt
+
+rda	rap4#,	-0.6
+
+wrap	rap4,	0.6
+
+rda	rap4b#,	-0.7
+
+wrap	rap4b,	0.7
+
+rdax	revin,	0.5
+
+wra	d4,	0.0
+
+;
+
+rda	d1+3000,	1.5	;sum weighted taps from the reverb ring delays
+
+rda	d2+1239,	1.2
+
+rda	d3+2341,	1.05
+
+rda	d4+302,	0.9
+
+rdfx	rfil,	0.5
+
+;
+
+mulx	pot0		;multiply reverb output by pot0
+
+mulx	pot0		;do again (as if pot0 was a square function)
+
+rdax	flaout,	0.5	;add flaout
+
+sof	1.999, 	0	;scale gain back up
+
+wrax	dacr,	1.0	;write to right output, save accumulator
+
+wrax	dacl,	0	;write to left output, clear acc
+
+;
+
+

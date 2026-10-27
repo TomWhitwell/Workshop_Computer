@@ -12,14 +12,24 @@ summary: >-
   low-pass filters with bounded resonance, ring modulation, MIDI/Web MIDI
   control, a hardware preset browser, and 8mu controller support. The current
   8mu build prevents its layer-selection buttons from entering the synth MIDI
-  note path.
+  note path. Standard and 8mu editions share the current synth, Web MIDI editor,
+  saved presets, and complete source tree. The standard edition omits 8mu
+  discovery and controller layers while retaining ordinary USB MIDI host/device
+  support. Both 0.1.2 editions require hardware verification.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
-Version: "0.1.1 8mu button-note fix"
+Version: "0.1.2 standard and 8mu editions"
 Status: Beta
 License: MIT
 date-created: 2026-08-26
+date-updated: 2026-10-26
 Editor: web
+
+uf2:
+  - path: uf2/Vortex_Runner_0.1.2.uf2
+    name: Vortex Runner 0.1.2 - Standard
+  - path: uf2/Vortex_Runner_8mu_0.1.2.uf2
+    name: Vortex Runner 0.1.2 - 8mu
 
 tags:
   - synth
@@ -156,16 +166,23 @@ host:
       description: Browser editor using Web MIDI SysEx for patch apply, readback, and eight persistent named card slots.
     - name: USB MIDI input
       role: host-or-device
-      description: MIDI note/gate, pitch-bend, and performance CC input for the split-output voice, following a Gnarly-style dedicated controller block with standard synth aliases.
+      description: MIDI note/gate, pitch-bend, and performance CC input for the split-output voice, following a dedicated controller block with standard synth aliases.
     - name: Music Thing Modular 8mu
       role: host
-      description: Hardware-tested USB-host controller. Buttons A-D select fader layers; panel LEDs show focused fader feedback. Cannot operate with the Web MIDI editor at the same time.
+      description: 8mu edition only; USB-host controller. Buttons A-D select fader layers; panel LEDs show focused fader feedback. Cannot operate with the Web MIDI editor at the same time.
   notes: >-
+    Two curated downloads are published: Vortex_Runner_0.1.2.uf2 for standard
+    panel/CV/USB MIDI use, and Vortex_Runner_8mu_0.1.2.uf2 for 8mu layer control.
+    CMake targets VortexRunner and VortexRunner8mu build both from CS80.cpp
+    with VORTEX_ENABLE_8MU set to 0 and 1 respectively. Old and experimental
+    UF2s remain recoverable under uf2/archive/ but are excluded from the
+    catalogue download list. The 0.1.2 binaries compile successfully; hardware
+    verification remains pending for both editions.
+
     Draft architecture target: RP2040 at 192 MHz, copy-to-RAM firmware, audio
     rendering on core 0, USB MIDI/Web MIDI work on core 1, and bounded lockless
-    queues for complete patch handoff and core-0 readback. The current stable
-    firmware keeps one monophonic note path and renders split A/B audio outputs.
-    Stable firmware stores eight named Web MIDI patch slots in flash and embeds
+    queues for complete patch handoff and core-0 readback. Both firmware editions keep one monophonic note path and renders split A/B audio outputs.
+    Both editions store eight named Web MIDI patch slots in flash and embeds
     31 factory presets. Holding Down at boot opens a combined factory-plus-saved
     browser: Main selects an entry, panel LEDs show its one-based number in
     binary, release Down arms it, and a second Down press loads it. Choosing a

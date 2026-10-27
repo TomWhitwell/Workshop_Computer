@@ -1,0 +1,210 @@
+; @name Phase Ghost
+; @tagline A phase-distortion synth ghost hears the note under your playing and zaps it back on every note, its cycles ping-ponging between the speakers, and Snarl folds it from a hollow saw into a buzzing growl
+; @description A pitch tracker listens for the clearest note under your playing, usually
+; @description the lowest, and a ghost synth in the style of the old phase-distortion
+; @description keyboards plays it: a resonance swept through the note's own harmonics,
+; @description reset on every cycle, so it always stays exactly on the note's pitch. Every
+; @description note you play makes the ghost zap: its resonance leaps up the harmonic
+; @description series (as high as Reso lets it) and slides back down to the fundamental,
+; @description the laser "peeow" of a resonant synth sweep, over Sweep. The ghost changes
+; @description pitch only on your attacks: each new note snaps it to the newest note the
+; @description tracker has heard, so it walks with your harmony, often your bass line, one
+; @description note behind, and never jumps in the middle of a note. It sings in the three
+; @description octaves from C3 to B5: lower notes fold up into its bottom octave and higher
+; @description ones down into its top one, so a bass line comes back an octave or two up.
+; @description Its cycles take turns between the speakers, one period left, the next
+; @description right, so each side alone is a hollow ghost an octave down and only together
+; @description do they sound the note. Fully wet it is the ghost alone: your own sound
+; @description comes only from the module's Dry/Wet knob. It also follows a bassline of
+; @description relentless sixteenths, and the ghost is as loud on a bassline as on a bright
+; @description pluck. On soft chord pads it picks out one of the chord's notes and holds it
+; @description until your next attack. Snarl drives the ghost into a wavefolder and pulls
+; @description its resonance half a harmonic off the note into a hard-sync buzz: at 0 the
+; @description soft, hollow ghost, at the top a bright, folded growl. Every cycle still
+; @description restarts on the note, so it stays in tune, and the folding eases off while a
+; @description zap is high, so each zap stays a clean sweep and the snarl blooms as it lands.
+; @pots Reso | Sweep | Snarl
+; @render 0.6, 0.45, 0.5
+; @time POT1 0.062 2.0 exp
+; @components lis37r2 pitch tracker (HF envelope / zero-crossing brightness switch, 12-TET, folded into C3-B5, forgotten in silence), pitch taken only at onsets, onset-triggered resonance sweep, phase-distortion resonance resynthesis (sine at m f0 reset each period under a saw window), triangle wavefolder whose drive eases off as the resonance climbs, hard-sync detune, per-period left/right alternation (octave-down halves), broadband level follower, wet only, DC block
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+equ	m	reg0
+equ	thp	reg1		; tracker: the front end's low-pass (k 0.9)
+equ	te1	reg2		; tracker: peak envelope of the HF
+equ	e2	reg3		; tracker: smoothed envelope (Schmitt high level)
+equ	tef	reg4		; tracker: the HP63 stage
+equ	thr	reg5		; tracker: Schmitt state
+equ	cand	reg6		; tracker: candidate semitone (one-step counter)
+equ	z	reg7		; tracker: ~100 Hz low-pass (bass zero-crossing path)
+equ	sh	reg8		; tracker: smoothed brightness (~1.6 Hz)
+
+equ	fot	reg9		; the newest heard note (8 f/32774 = 8 / period, 12-TET, C3..B5), taken at the next onset; 0 = none
+equ	hp	reg10
+equ	ef	reg11
+equ	es	reg12
+equ	flip	reg13		; +1 / -1: which side this period plays on (self-correcting toggle)
+equ	sw	reg15		; the sweep: 1 at a note, falling
+equ	cd	reg16		; master phasor, counting down 0.5 .. 0 once per period
+equ	hg	reg17		; the ghost's DC block
+equ	rp	reg18		; resonance phasor
+equ	mm	reg19		; resonance ratio / 16
+equ	w	reg20
+equ	t	reg21
+equ	fo16	reg22		; 16 x the master step: the note the ghost plays
+equ	lev	reg23		; the ghost's level
+equ	mk	reg26		; mm x Snarl: how much the fold eases off during a zap
+equ	eb	reg24		; broadband level envelope of (L + R)/4
+equ	k	reg28		; 2^-15 for the onset floor, rebuilt every sample
+
+; ---- pitch tracker: lis37r2, verbatim except its input (1.99 m = 0.995 (L + R)/2,
+;      the same sum as its own two reads), its level input and its output scale. Level: the ghost's lev =
+;      min(1, 10.4 eb) (previous sample) stands in for the AMP block at the same brightness coefficient
+;      (the same notes in 99.4-100 % of the frames on the page loops).
+;      Output: fot = 8 f/32774 (lis37r2's nt / 4: the ghost uses it as its phase step, unsmoothed), always C3..B5.
+	rdax	adcl, 0.25
+	rdax	adcr, 0.25
+	wrax	m, 1.99			; ACC = x = 0.995 (L + R)/2
+	rdfx	z, 0.01934814453125	; z = LP(x) ~100 Hz (bass zero-crossing path)
+	wrhx	z, 0			; ACC = x again (PACC)
+	rdfx	thp, 0.9000244140625	; LP(x) at k ~0.9
+	wrhx	thp, -1.0		; ACC = x - LP (HF)
+	maxx	te1, 0.972412109375	; e1 = max(|HF|, decay e1): peak envelope
+	wrax	te1, 1.46502685546875
+	rdfx	e2, 0.08001708984375	; e2 = LP(envelope)
+	wrax	e2, 1.0			; ACC = e2
+	rdax	lev, -0.00067138671875	; brightness = e2 - bth level
+	rdfx	sh, 0.00030517578125	; smoothed (~1.6 Hz)
+	wrax	sh, 1.0
+	and	$800000			; -1 when dull, 0 when bright
+	mulx	z			; -z when dull
+	rdax	e2, 1.0			; ef stage input = e2 (- z when dull)
+	rdfx	tef, 0.01202392578125	; high-pass: v = in - LP(in)
+	wrhx	tef, -1.0		; v
+	rdax	thr, 0.1500244140625	; Schmitt: x = v + hys thr
+	skp	neg, low		; x < 0: low state, thr = x
+	mulx	thr			; x thr < 0 only on the rising edge; tiny, so no clr
+	skp	gez, nox
+	cho	rdal, rmp0		; T = the period (RMP0 timer, + negligible x thr)
+	jam	rmp0			; restart the timer
+	log	-1.0, -0.4375		; l = -log2(T)/16 + D: octave = 1/16, C3's semitone bin starts at l = 0
+	skp	gez, fl			; FLOOR (below C3: l < 0)
+	and	$07FFFF			; the same pitch class in [C3, C4), at any depth
+fl:	sof	0.75, -0.13671875	; s = 3/4 l - 35/256: semitone = 2^-8, C3 = -35/256, B5 = 0
+	and	$FF8000			; snap to the 12-TET semitone
+	rdax	cand, -1.00146484375	; s - (1+C) cand, C = 24/16384
+	skp	zro, out		; zero: the same semitone 3 times running (4 after a big jump): confirmed
+	rdax	cand, 1.0		; pending: cand = s - C cand
+	wrax	cand, 0
+	skp	zro, hyst
+out:	rdax	cand, 1.33526611328125	; y = 4/3 s: the EXP domain (octave = 1/16), B5 at y = 0
+	skp	neg, ex			; CEILING (above B5: y > 0)
+	or	$F80000			; the same pitch class in (B4, B5]
+ex:	exp	0.2410888671875, 0	; fot = 8 f/32774 = fot(B5) 2^(16 y)
+	wrax	fot, 0
+hyst:	ldax	e2			; high state: thr = the envelope (falling-edge hysteresis)
+low:	wrax	thr, 0
+nox:	wldr	rmp0, -4066, 4096	; timer: RMP0 rate -4066, range 4096 (set every sample)
+; ---- onsets (the guide's ringing-Rings settings plus a floor): each note restarts the
+;      sweep, and only now does the ghost take the newest note it heard
+	ldax	m
+	rdfx	hp, 0.25
+	wrhx	hp, -1.0
+	absa
+	rdfx	ef, 0.012
+	wrax	ef, 1.0
+	rdfx	es, 0.001
+	wrax	es, -1.6
+	rdax	ef, 1.0
+	rdax	k, -1.962890625		; o = ef - 1.6 es - floor (6e-5: silence and leftovers never fire), 1 LSB low: the
+					; negated products truncate the other way, so o >= 0 is exactly the old test (1.6 es - ef + 1.9661 k < 0)
+	mulx	fo16			; o fo16 >= 0: an onset (o >= 0), or a ghost without a note yet (fo16 = 0),
+	skp	neg, no_on		; which takes one as soon as the tracker hears it (wet only, it would be
+					; silent until the next attack, for good on a held note)
+on:	ldax	fot			; a note: the ghost changes pitch (octave included) right here
+	wrax	fo16, 0
+	sof	0, 0.999		; and zaps
+	wrax	sw, 0
+no_on:
+; ---- the sweep (Sweep), resonance ratio m = 1 + 14.5 Reso x sweep + 0.5 Snarl (mm = m / 16)
+	ldax	pot1			; the sweep falls with tau 62 ms .. 2 s: d = 2^-(11 + 5 Sweep)
+	sof	-0.3125, -0.6875
+	exp	-1.0, 0
+	mulx	sw
+	rdax	sw, 1.0
+	wrax	sw, 1.0
+	mulx	pot0
+	sof	0.90625, 0.0625
+	rdax	pot2, 0.03125		; Snarl's hard-sync detune: up to half a harmonic
+	wrax	mm, 1.0
+	mulx	pot2
+	wrax	mk, 0
+; ---- the ghost's level: min(1, 10.4 eb), eb the broadband envelope of (L + R)/4 (tau 30 ms),
+;      so a bassline drives the ghost as hard as a bright pluck
+	ldax	m
+	absa
+	rdfx	eb, 0.001
+	wrax	eb, -1.0		; ACC = -eb (LOG takes |ACC|)
+	skp	neg, live
+; ---- silence (eb decayed to exactly 0; the -90 dBFS input noise can't lift it): the note is forgotten
+;      and the ghost parked at phase 0 without a note, where its sine is 0, so it is silent although LOG's
+;      floor leaves lev at 2^-12.6; the next phrase starts on its own first note (no click)
+rest:	wrax	fot, 0			; (ACC is 0)
+	wrax	fo16, 0
+	wrax	cd, 0
+	wrax	rp, 0
+live:	log	1.0, 0.2109375
+	exp	1.0, 0
+	wrax	lev, 0
+	or	$000100			; k = 2^-15 (ACC is 0 here; the chip reads RMP0_RATE as 0)
+	wrax	k, 0
+; ---- the ghost: a sine at m f0, restarted every period (the CZ resonance), under a falling
+;      saw window; whole periods take turns between left and right
+	ldax	cd
+	rdax	fo16, -0.0625
+	wrax	cd, 1.0
+	skp	gez, nowrap
+	and	$3FFFFF			; wrapped: back up to 0.5
+	wrax	cd, 0
+	ldax	flip			; each period goes to the other side: flip = sat(0.999 - 2 flip) settles
+	sof	-2.0, 0.999		; on +1 / -1 from whatever a previous program left in the register
+	wrax	flip, 0
+	wrax	rp, 0			; and the resonance restarts
+nowrap:	ldax	mm
+	mulx	fo16
+	rdax	rp, 1.0
+	and	$3FFFFF
+	wrax	rp, 1.99
+	sof	1.99, -0.999
+	wrax	w, 1.0
+	absa
+	sof	-1.0, 0.999
+	mulx	w			; a (parabolic) sine at the resonance, restarted at 0
+	wrax	t, 0
+	ldax	cd			; the window (2 cd) x Snarl's drive, easing off while the zap is high
+	log	1.0, -0.125
+	rdax	pot2, 0.329296875
+	rdax	mk, -0.3125
+	exp	1.0, 0
+	mulx	t
+; ---- Snarl's wavefolder (triangle, period 1/4, slope 4, peaks +-1/8)
+	sof	1.99, 0.0625
+	and	$1FFFFF
+	sof	1.0, -0.125
+	absa
+	sof	-2.0, 0.125
+	mulx	lev
+; ---- out: wet only (the module mixes the dry signal in outside the chip). The ghost
+;      DC-blocked at 20 Hz (the windowed resonance has a mean), made up x 2.16 (x 4.3 with the split), and split
+;      by period: left = ghost x (1 + flip)/2, right = ghost x (1 - flip)/2
+	rdfx	hg, 0.004
+	wrhx	hg, -1.0
+	sof	1.96, 0
+	sof	1.1, 0
+	wrax	t, 0.995
+	mulx	flip			; the periods take turns: left, right, left ...
+	rdax	t, 0.995
+	wrax	dacl, -1.0
+	rdax	t, 1.99
+	wrax	dacr, 0

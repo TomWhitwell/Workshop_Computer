@@ -1,0 +1,167 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-bm-pi",
+    "source": "algorithms/ready/directory-bm-pi.spn",
+    "instructions": 31,
+    "sha256": "e959e999a87687352b0eb5d05f99d93e3481dccc9b2d524514d3f04c05042da6",
+    "id": "directory-bm-pi",
+    "author": "Unknown (not credited in directory)",
+    "description": "Distortion program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Gain",
+      "Tone",
+      "-"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/bm-pi.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/bm-pi.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "BM Pi",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1321169,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-firesledge-bass-processor-p5-disto",
+    "source": "algorithms/ready/directory-firesledge-bass-processor-p5-disto.spn",
+    "instructions": 96,
+    "sha256": "fa79123dfefd375eaa9cfada052e52ba92cc6829435d72c34b359256cabd7b84",
+    "id": "directory-firesledge-bass-processor-p5-disto",
+    "author": "Firesledge",
+    "description": "Simple distortion with variable gain, tone and mix. Designed for bass",
+    "controls": [
+      "Gain",
+      "Tone",
+      "Mix"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p5-disto.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p5-disto.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Distortion",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 4921,
+      "peak_output_error_q23": 2,
+      "rms_output_error_q23": 0.0612671,
+      "peak_output_q23": 1047377,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-slacker-bf-bf-digifuzzer",
+    "source": "algorithms/ready/directory-slacker-bf-bf-digifuzzer.spn",
+    "instructions": 110,
+    "sha256": "e5b0629877358058a54655ebda58b5b099a10ab397c9884050a80285df5c61f9",
+    "id": "directory-slacker-bf-bf-digifuzzer",
+    "author": "slacker",
+    "description": "Distortion program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Sample rate reduction",
+      "Bit depth + distortion",
+      "Volume"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_digifuzzer.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_digifuzzer.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Digifuzzer",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 178215,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-softclipping-overdrive",
+    "source": "algorithms/ready/directory-softclipping-overdrive.spn",
+    "instructions": 52,
+    "sha256": "2982193c3dbe5de4c48b413d904a24a4370d47f5e48689a9442fa42c8bc38cc0",
+    "id": "directory-softclipping-overdrive",
+    "author": "Jeroen Korterik",
+    "description": "Distortion program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Gain Threshold",
+      "Volume",
+      "Tone"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/softclipping_overdrive.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/softclipping_overdrive.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Soft Clipping Overdrive",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 33,
+      "peak_output_error_q23": 29,
+      "rms_output_error_q23": 0.27814,
+      "peak_output_q23": 44944,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-publisher-dist",
+    "source": "algorithms/ready/directory-publisher-dist.spn",
+    "instructions": 24,
+    "sha256": "e1f5e2af2ac33436615f62d238038d5b0ef4f3714c86a2d6863b7d294ada565f",
+    "id": "directory-publisher-dist",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Distortion, Code snippet program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "-",
+      "-",
+      "-"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Distortion",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1047552,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

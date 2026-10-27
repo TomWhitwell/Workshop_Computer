@@ -1,0 +1,110 @@
+; simple ping pong delay with adjustable feedback & lpf damping
+; Graham Biswell <graham@gbiswell.com>
+;
+;pot0 adjusts ping delay time
+;pot1 adjusts feedback coefficient
+;pot2 adjusts damping
+
+equ	delay_len	16383
+equ	smooth		0.001		;Smoothing coefficient, adjust to change speed/zippernoise
+
+; LPF & HPF cutoff frequency for damping
+equ     damp_lpf        0.1
+equ     damp_hpf        0.02
+
+equ	delay_pot	pot0
+equ	fb_pot		pot1
+equ	damp_pot	pot2
+
+; divide for second tap
+; teh default is 0.5 (hence the name 2:1) but this could be any divider
+; you can use fractions as well as decimals
+; (i like odd ones like 13/16, 11/16)
+; equ  div		2/3     ; 1/4 triplet
+; equ  div		3/4     ; Dotted 1/8
+; equ  div		1/2     ; 1/8
+; equ  div		1/3     ; 1/8 triplet
+equ	div		0.5
+
+; two equally sized delays
+mem	delay0		delay_len
+mem	delay1		delay_len
+
+; register definitions
+equ	temp		reg0
+equ	offset		reg1
+equ	feedback	reg2
+equ	damping		reg3
+equ	delay0_data	reg4
+equ	delay1_data	reg5
+equ	lpf		reg6
+equ	hpf		reg7
+
+;*******************************************************
+; any initialisation goes here
+;skp	RUN,loop
+loop:
+
+;*******************************************************
+; read delay time pot
+rdax	delay_pot, 1
+sof	0.99, 0.01
+wrax	temp, 0
+or	delay_len * 256
+mulx	temp
+rdfx	offset, smooth
+wrax	offset, 0
+
+;*******************************************************
+; read feedback pot
+rdax	fb_pot, 1
+rdfx	feedback, smooth
+wrax	feedback, 0
+
+;*******************************************************
+; read damping pot
+rdax	damp_pot, 1
+rdfx	damping, smooth
+wrax	damping, 0
+
+;*******************************************************
+; Tap 0
+or	delay0 * 256
+rdax	offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	delay0_data, 0
+
+; Tap 1
+or	delay1 * 256
+rdax	offset, div
+wrax	addr_ptr, 0
+rmpa	1
+wrax	delay1_data, 0
+
+;*******************************************************
+; Left tap data to delay0 output & delay1 tap
+rdax	delay0_data, 1
+wrax	dacl, 1
+wra	delay1, 0
+
+; Right tap data to delay1 output & filtered then to delay0 tap
+rdax	delay1_data, 1
+wrax	dacr, 1
+mulx	feedback
+
+;*******************************************************
+; damping code taken from Spin OEM1 echo 
+wrax	temp, 1
+rdfx	lpf, damp_lpf
+wrlx	lpf, -1
+rdfx	hpf, damp_hpf
+wrhx	hpf, -1
+rdax	temp, -1
+mulx	damping
+rdax	temp, 1
+
+rdax	adcr, 0.6
+rdax	adcl, 0.6
+wra	delay0, 0
+

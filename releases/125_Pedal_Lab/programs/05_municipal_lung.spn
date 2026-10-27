@@ -1,0 +1,63 @@
+; SPDX-License-Identifier: MPL-2.0
+; Steal This Pedal factory bank — slot 5
+; MUNICIPAL LUNG
+; POT0 = resonant length / pitch
+; POT1 = decay
+; POT2 = material brightness
+; Wet-only output.
+; Spin Computer adaptation: RAW renamed RAW_TAP (RAW is an assembler directive).
+
+TUNNEL      MEM 29000
+RAW_TAP         EQU REG0
+DARK        EQU REG1
+BRIGHT      EQU REG2
+INV_TONE    EQU REG3
+LEFT        EQU REG4
+
+; First moving tap: short metallic pipe through long concrete cavity.
+LDAX POT0
+SOF 0.145, 0.004
+AND $7FFF00
+WRAX ADDR_PTR, 0.0
+CLR
+RMPA 1.0
+WRAX RAW_TAP, 0.0
+
+; Low-pass the recirculation, then POT2 blends dark and raw materials.
+LDAX RAW_TAP
+RDFX DARK, 0.14
+WRAX DARK, 0.0
+LDAX POT2
+SOF -1.0, 0.999
+WRAX INV_TONE, 0.0
+LDAX DARK
+MULX INV_TONE
+WRAX BRIGHT, 0.0
+LDAX RAW_TAP
+MULX POT2
+RDAX BRIGHT, 1.0
+WRAX BRIGHT, 1.0
+SOF 0.82, 0.0
+WRAX LEFT, 0.0
+
+; Regenerative comb injection.  The fixed 0.86 ceiling protects the loop.
+LDAX BRIGHT
+MULX POT1
+SOF 0.86, 0.0
+RDAX ADCL, 0.33
+RDAX ADCR, 0.33
+WRA TUNNEL, 0.0
+
+; Left is the main resonator.
+LDAX LEFT
+WRAX DACL, 0.0
+
+; Right uses a non-integer-related cavity length for concrete stereo slap.
+LDAX POT0
+SOF 0.207, 0.011
+AND $7FFF00
+WRAX ADDR_PTR, 0.0
+CLR
+RMPA 0.72
+RDAX LEFT, 0.38
+WRAX DACR, 0.0

@@ -1,0 +1,134 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-faux-phaser-2",
+    "source": "algorithms/ready/directory-faux-phaser-2.spn",
+    "instructions": 128,
+    "sha256": "37d5dfe54855c9bf7ecc7d6108fb45df8875587ec90ef026c633a8e8bcb61f59",
+    "id": "directory-faux-phaser-2",
+    "author": "Digital Larry",
+    "description": "Sounds like a phaser but in fact it is not one, strictly speaking. It is built up from resonant high pass and low pass filters mixed together. Adds another delay to the resonant low pass",
+    "controls": [
+      "Speed and Width",
+      "Time",
+      "delay level/feedback"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/faux-phaser-2.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=490",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Faux Phase Shifter - extra delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 22262,
+      "peak_output_error_q23": 196,
+      "rms_output_error_q23": 5.60877,
+      "peak_output_q23": 363408,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-faux-phaser",
+    "source": "algorithms/ready/directory-faux-phaser.spn",
+    "instructions": 110,
+    "sha256": "e0685a0f3095dbec11d17a48059aca22d7f160a3ac78c87aede411cd325ed978",
+    "id": "directory-faux-phaser",
+    "author": "Digital Larry",
+    "description": "Sounds like a phaser but in fact it is not one, strictly speaking. It is built up from resonant high pass and low pass filters mixed together",
+    "controls": [
+      "Speed and Width",
+      "Time",
+      "delay level/feedback"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/faux-phaser.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=490",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Faux Phase Shifter",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 21218,
+      "peak_output_error_q23": 436,
+      "rms_output_error_q23": 29.3036,
+      "peak_output_q23": 195532,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-firesledge-bass-processor-p1-phaser",
+    "source": "algorithms/ready/directory-firesledge-bass-processor-p1-phaser.spn",
+    "instructions": 122,
+    "sha256": "ab879c78eb4ba5152ee14cc36a5a81c0fba96bdf9ce64369cedc90265092b665",
+    "id": "directory-firesledge-bass-processor-p1-phaser",
+    "author": "Firesledge",
+    "description": "A basic phaser with some overdrive in the feedback path. Designed for bass",
+    "controls": [
+      "Speed",
+      "Depth",
+      "Feedback"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p1-phaser.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p1-phaser.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Phaser OD",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 9573,
+      "peak_output_error_q23": 338,
+      "rms_output_error_q23": 33.926,
+      "peak_output_q23": 1561954,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-publisher-ga-demo-phase",
+    "source": "algorithms/ready/directory-publisher-ga-demo-phase.spn",
+    "instructions": 121,
+    "sha256": "d326c5d0930796b7c7fe4b6a0d49efd8b578e904d6d337520c292d0799819771",
+    "id": "directory-publisher-ga-demo-phase",
+    "author": "Spin Semi",
+    "description": "Phaser program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Reverb level",
+      "Phase rate",
+      "Sweep width"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_PHASE.spn"
+    },
+    "source_url": "http://spinsemi.com/guitar_amp_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Phase shifter",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 2922,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 496100,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

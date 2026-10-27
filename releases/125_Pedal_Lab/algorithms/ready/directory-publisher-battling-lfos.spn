@@ -1,0 +1,95 @@
+;Battling LFOs
+;multiple interactive sin generators
+;just let it run!
+
+equ	s1	reg0
+equ	c1	reg1
+equ	s2	reg2
+equ	c2	reg3
+equ	s3	reg4
+equ	c3	reg5
+equ	s4	reg6
+equ	c4	reg7
+
+equ	k1	reg8
+equ	k2	reg9
+equ	k3	reg10
+
+;prepare pots for defining weapons and the battle zone:
+
+rdax	pot0,1
+sof	0.01,0.002
+wrax	k1,0
+
+rdax	pot1,1
+sof	0.03,0.01
+wrax	k2,0
+
+rdax	pot2,1
+sof	0.2,0.05
+wrax	k3,0
+
+;charge weapons for all three players:
+
+skp	run,5
+sof	0,0.5
+wrax	c1,1
+wrax	c2,1
+wrax	c3,1
+wrax	c4,0
+
+;do oscillators:
+
+rdax	c1,1
+mulx	k1
+mulx	c4
+rdax	s1,1
+wrax	s1,-1
+mulx	k1
+mulx	c4
+rdax	c1,1
+wrax	c1,0
+
+rdax	c2,1
+mulx	k2
+mulx	c1
+rdax	s2,1
+wrax	s2,-1
+mulx	k2
+mulx	c1
+rdax	c2,1
+wrax	c2,0
+
+rdax	c3,1
+mulx	k3
+mulx	c2
+rdax	s3,1
+wrax	s3,-1
+mulx	k3
+mulx	c2
+rdax	c3,1
+wrax	c3,0
+
+rdax	c4,0.5		;newbie, no weapon control.
+mulx	c3
+rdax	s4,1
+wrax	s4,-0.5
+mulx	c3
+rdax	c4,1
+wrax	c4,0
+
+;sum outputs, lowest freq down middle:
+
+rdax	c1,0.4
+rdax	c2,0.2
+rdax	s3,0.2
+rdax	c4,0.2
+wrax	dacl,0	
+
+rdax	c1,0.4
+rdax	c2,0.2
+rdax	c3,0.2
+rdax	s4,0.2
+wrax	dacr,0
+
+;KB 7/12/06

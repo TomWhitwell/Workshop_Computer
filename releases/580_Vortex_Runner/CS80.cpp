@@ -1,6 +1,12 @@
 #include "computercard.h"
+// Keep direct builds compatible with the original controller-enabled source.
+#ifndef VORTEX_ENABLE_8MU
+#define VORTEX_ENABLE_8MU 1
+#endif
+#if VORTEX_ENABLE_8MU
 #define EIGHTMU_NOUSBDRIVER
 #include "EightMU.h"
+#endif
 #include "CS80_LUT.h"
 
 #include "hardware/clocks.h"
@@ -34,6 +40,7 @@ static constexpr uint8_t MidiStatusNoteOn = 0x90u;
 static constexpr uint8_t MidiStatusControlChange = 0xB0u;
 static constexpr uint8_t MidiStatusPitchBend = 0xE0u;
 
+#if VORTEX_ENABLE_8MU
 // These are the fixed note assignments used by the 8mu's four buttons.
 // They select Vortex Runner fader layers and must never enter the synth's
 // ordinary MIDI-note path.
@@ -50,6 +57,8 @@ enum class EightMuLayer : uint8_t
     Performance,
     Count
 };
+
+#endif
 
 // These are the 31 factory patches from the accompanying Web editor, resolved
 // into the firmware's current parameter model so they can be browsed without
@@ -127,6 +136,7 @@ public:
         __dmb();
     }
 
+#if VORTEX_ENABLE_8MU
     // The card owns a combined USB host/device stack, so service the 8mu
     // helper from the existing host loop rather than letting it launch core 1.
     void ProcessEightMuMidiByte(uint8_t deviceAddress, uint8_t byte)
@@ -218,6 +228,8 @@ public:
         eightMu.Poll();
         updateEightMuLayer();
     }
+
+#endif
 
     void ProcessUsbMidiByte(uint8_t byte)
     {
@@ -732,6 +744,7 @@ private:
     uint8_t midiRunningStatus = 0;
     uint8_t midiData[2] = {};
     uint8_t midiDataCount = 0;
+#if VORTEX_ENABLE_8MU
     EightMU eightMu = {};
     uint8_t eightMuMessage[16] = {};
     uint8_t eightMuMessageLength = 0;
@@ -748,6 +761,7 @@ private:
     uint8_t eightMuLastFader = 0;
     bool eightMuLastFaderPickedUp = false;
     int32_t eightMuLastFaderPosition = 0;
+#endif
     bool patchResponsePending = false;
     bool patchResponseHasPatch = false;
     PatchState patchResponsePatch = {};
@@ -799,16 +813,20 @@ private:
 
         if (type == MidiStatusNoteOn && midiData[1] > 0)
         {
+#if VORTEX_ENABLE_8MU
             if (eightMu.Connected() && isEightMuButtonNote(midiData[0]))
                 return;
+#endif
             midiEvents.tryPush({MidiEventType::NoteOn, midiData[0], 0});
             return;
         }
 
         if (type == MidiStatusNoteOff || (type == MidiStatusNoteOn && midiData[1] == 0))
         {
+#if VORTEX_ENABLE_8MU
             if (eightMu.Connected() && isEightMuButtonNote(midiData[0]))
                 return;
+#endif
             midiEvents.tryPush({MidiEventType::NoteOff, midiData[0], 0});
             return;
         }
@@ -853,11 +871,13 @@ private:
 
     void handleMidiControlChange(uint8_t cc, uint8_t value)
     {
+#if VORTEX_ENABLE_8MU
         if (eightMu.Connected() && cc >= 34u && cc < 42u)
         {
             handleEightMuFader(cc - 34u, value);
             return;
         }
+#endif
 
         handleStandardMidiControlChange(cc, value);
     }
@@ -965,6 +985,7 @@ private:
         pushMidiControlPatch();
     }
 
+#if VORTEX_ENABLE_8MU
     void updateEightMuLayer()
     {
         if (!eightMu.Connected())
@@ -1140,6 +1161,8 @@ private:
 
         pushMidiControlPatch();
     }
+
+#endif
 
     void offsetLinkedEnvelope(int32_t& ampValue, int32_t& filterValue, int32_t newAmpValue)
     {
@@ -1832,6 +1855,7 @@ private:
         if (startupSelectMode || livePresetSelectMode)
             return;
 
+#if VORTEX_ENABLE_8MU
         if (eightMu.Connected())
         {
             // The 8mu identifies its own A-D layer. The panel focuses on the
@@ -1848,6 +1872,8 @@ private:
             LedBrightness(5, clamp12((position - 2048) * 2));
             return;
         }
+
+#endif
 
         int32_t xValue = 0;
         int32_t yValue = 0;
@@ -2586,6 +2612,10 @@ private:
 CS80Card card;
 static volatile uint8_t hostMidiDeviceAddress = 0;
 
+// Web MIDI save handling alone needs >2 KiB, before TinyUSB/caller frames.
+// Keep both editions off the SDK's undersized default core-1 stack.
+alignas(8) static uint32_t usbMidiStack[4096]; // 16 KiB in main RAM.
+
 void core1Worker()
 {
     sleep_ms(100);
@@ -2601,7 +2631,11 @@ void core1Worker()
         card.FlushPendingWebPatch();
         if (hostMode)
         {
+#if VORTEX_ENABLE_8MU
             card.ServiceEightMuHost();
+#else
+            tuh_task();
+#endif
         }
         else
         {
@@ -2632,7 +2666,9 @@ extern "C" void tuh_midi_mount_cb(
     if (hostMidiDeviceAddress == 0)
     {
         hostMidiDeviceAddress = dev_addr;
+#if VORTEX_ENABLE_8MU
         card.MountEightMu(dev_addr);
+#endif
         card.SetUsbMidiConnected(true);
     }
 }
@@ -2643,7 +2679,9 @@ extern "C" void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance)
 
     if (dev_addr == hostMidiDeviceAddress)
     {
+#if VORTEX_ENABLE_8MU
         card.UnmountEightMu(dev_addr);
+#endif
         hostMidiDeviceAddress = 0;
         card.SetUsbMidiConnected(false);
     }
@@ -2664,7 +2702,9 @@ extern "C" void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets)
 
         for (uint32_t i = 0; i < count; ++i)
         {
+#if VORTEX_ENABLE_8MU
             card.ProcessEightMuMidiByte(dev_addr, bytes[i]);
+#endif
             card.ProcessUsbMidiByte(bytes[i]);
         }
     }
@@ -2680,7 +2720,7 @@ int main()
 #if defined(CS80_OVERCLOCK_KHZ) && CS80_OVERCLOCK_KHZ
     set_sys_clock_khz(CS80_OVERCLOCK_KHZ, true);
 #endif
-    multicore_launch_core1(core1Worker);
+    multicore_launch_core1_with_stack(core1Worker, usbMidiStack, sizeof(usbMidiStack));
     card.EnableNormalisationProbe();
     card.Run();
 }

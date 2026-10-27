@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-8-seconds-delay",
+    "source": "algorithms/ready/directory-8-seconds-delay.spn",
+    "instructions": 22,
+    "sha256": "94062b5da4220ffc8ede97fc9d573272b8b37f6e90fd4edad875046976023306",
+    "id": "directory-8-seconds-delay",
+    "author": "Don Stavely",
+    "description": "This delays an input by eight seconds. It inteleaves the signal 8 ways in a single max sized delay",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/8_seconds_delay.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?t=418",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "8 second delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 0,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-afx-reverse-delay",
+    "source": "algorithms/ready/directory-afx-reverse-delay.spn",
+    "instructions": 56,
+    "sha256": "cefd82d276643056097115b87adf035ff2938edbad97dfd9c08036fb0899e659",
+    "id": "directory-afx-reverse-delay",
+    "author": "igore pie",
+    "description": "Simplified part of A+ Paradox delay",
+    "controls": [
+      "-",
+      "Feedback",
+      "Delay"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/afx_reverse_delay.spn"
+    },
+    "source_url": "https://github.com/igorpie/Spin-FV-1/blob/master/afx_reverse_delay.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Reverse delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 561510,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-dervish-drv103-dv103-1head-4xreverb",
+    "source": "algorithms/ready/directory-dervish-drv103-dv103-1head-4xreverb.spn",
+    "instructions": 114,
+    "sha256": "8ab056d0221c91b7d91d150b3e0121bbc45d2438eb6cf452d39518624183fb23",
+    "id": "directory-dervish-drv103-dv103-1head-4xreverb",
+    "author": "Unknown (not credited in directory)",
+    "description": "Delay, Reverb program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Time",
+      "Feedback",
+      "Damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-1head-4xreverb.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Single Head Tape Echo + Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 13805,
+      "peak_output_error_q23": 180,
+      "rms_output_error_q23": 6.38238,
+      "peak_output_q23": 209116,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-dervish-drv103-dv103-1head-pp-2-1-4xreverb",
+    "source": "algorithms/ready/directory-dervish-drv103-dv103-1head-pp-2-1-4xreverb.spn",
+    "instructions": 123,
+    "sha256": "59ab2eaf8ea588f7f797bedecfa4a9fb2c9fd7f86aa2af60a44b64066bc23454",
+    "id": "directory-dervish-drv103-dv103-1head-pp-2-1-4xreverb",
+    "author": "Unknown (not credited in directory)",
+    "description": "reverb code is a 2 tap version of the Spin OEM1 Vocal Plate",
+    "controls": [
+      "Time",
+      "Feedback",
+      "Damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-1head-pp-2_1-4xreverb.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Dual Head Tape Echo + Reverb, w/ Ping Pong",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 188,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 184778,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-dervish-drv103-dv103-1head-pp-2-1",
+    "source": "algorithms/ready/directory-dervish-drv103-dv103-1head-pp-2-1.spn",
+    "instructions": 70,
+    "sha256": "a99be1b9b36d4fe15a807d4a1ad7385ac19a77359f181597f25a0b7c5f39bf16",
+    "id": "directory-dervish-drv103-dv103-1head-pp-2-1",
+    "author": "Unknown (not credited in directory)",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Time",
+      "Feedback",
+      "Damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-1head-pp-2_1.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ping Pong 2:1",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 218,
+      "peak_output_error_q23": 256,
+      "rms_output_error_q23": 2.04435,
+      "peak_output_q23": 239104,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-dervish-drv103-dv103-1head-pp",
+    "source": "algorithms/ready/directory-dervish-drv103-dv103-1head-pp.spn",
+    "instructions": 70,
+    "sha256": "30c578e11a8b0789d28792329947340013b1eaf248d9510b66a45ca8abeba030",
+    "id": "directory-dervish-drv103-dv103-1head-pp",
+    "author": "Unknown (not credited in directory)",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Time",
+      "Feedback",
+      "Damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-1head-pp.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ping Pong",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 315,
+      "peak_output_error_q23": 256,
+      "rms_output_error_q23": 2.68631,
+      "peak_output_q23": 235775,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]
