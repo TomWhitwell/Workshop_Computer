@@ -33,10 +33,8 @@ uf2:
 summary: |
   Blackbird runs crow-compatible Lua scripts over USB serial and can also store scripts on card flash.
   Panel control behavior is script-defined: Lua code reads `bb.knob.*`, `bb.switch.position`, and inputs,
-  then decides how outputs respond. LEDs always reflect positive output voltages on the six outputs.
-  Scripts can send and receive USB MIDI, as a device (to a computer) or as a host (to a controller plugged
-  into the Computer), and can talk ii (I2C) on the UART pads: leading Just Friends, crow, Teletype expanders and more,
-  and answering as crow 4.
+  then decides how outputs respond. Scripts can send and receive USB MIDI and I2C messages for added connectivity. Version 1.2 has dramatically
+  improved performance as well as addressing a bunch of requests and bugs that were reported in version 1.1.
 
 panel:
   inputs:
@@ -135,23 +133,14 @@ controls:
 
 host:
   usb:
-    - name: crow-compatible serial host
+    - name: crow hosts (druid, web-druid, norns, Max for Live)
       role: serial
-      description: USB serial protocol compatible with crow hosts (druid, norns, Max/MSP, pyserial)
-    - name: Web Druid editor
-      role: editor
-      description: Browser editor for composing and sending Lua to Blackbird over USB
-    - name: monome norns and Max/Max for Live
-      role: serial
-      description: Talk to Blackbird as they would to crow (norns crow scripts, monome's crow Max for Live devices)
+      description: Live code, upload scripts, or run norns and Max patches that use crow
     - name: USB MIDI device
       role: midi
-      description: Connected to a computer, Blackbird is also a USB MIDI device (bb.event_midi, bb.midi_out)
+      description: Connected to a computer, blackbird is also a MIDI device
     - name: USB MIDI host
       role: controller
-      description: A class-compliant USB MIDI controller plugged into the Computer talks to the script directly
+      description: A class-compliant MIDI controller plugged into the Computer
   notes: |
-    Blackbird chooses USB device or host mode at power-up, from the Computer's USB power orientation:
-    power the whole Workshop System off and on to switch. Since 1.2 Blackbird is a USB serial *and* MIDI
-    device, so a host that remembers the serial port (Max for Live's crow devices) may need it chosen again once.
-    ii (I2C) isn't USB: see the README for wiring the Computer's UART pads to the ii bus.
+    USB device or host mode is chosen at power-up: power the whole system off and on to switch.

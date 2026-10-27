@@ -1,6 +1,6 @@
 # Blackbird basics
 
-Blackbird turns the Workshop Computer into a [monome crow](https://monome.org/docs/crow/): it runs crow's Lua scripts, and anything that talks to crow over USB (druid, [web-druid](https://dessertplanet.github.io/web-druid/), norns, Max for Live) talks to blackbird the same way, without knowing the difference. Crow's [documentation](https://monome.org/docs/crow/) and [script reference](https://monome.org/docs/crow/reference/) apply as they are, with the jacks mapped as shown here.
+Blackbird speaks the same language as [monome crow](https://monome.org/docs/crow/): it runs crow's Lua scripts, and anything that talks to crow over USB (druid, [web-druid](https://dessertplanet.github.io/web-druid/), norns, Max for Live) talks to blackbird the same way, without knowing the difference. Crow's [documentation](https://monome.org/docs/crow/) and [script reference](https://monome.org/docs/crow/reference/) apply as they are, with the jacks mapped as shown here.
 
 ## Getting started
 
@@ -8,7 +8,7 @@ Blackbird turns the Workshop Computer into a [monome crow](https://monome.org/do
 2. Type Lua at the prompt, for example `output[1].volts = 3`.
 3. Upload a script with druid's `u` (saved to the program card and run at power-up) or `r` (run without saving). It starts straight away. Make the first line start with `---` to name it: the name is printed at startup.
 
-With no script uploaded, blackbird runs [First.lua](#first-lua), crow's "unique melody box".
+With no script uploaded, blackbird runs [First.lua](https://computer.musicthing.co.uk/programs/41-blackbird/?panel=first-lua), crow's "unique melody box".
 
 ## Jacks
 
@@ -30,12 +30,8 @@ The knobs and switch do nothing until a script uses them. The LEDs always show t
 - **`bb.noise(level)`**: an ASL action that generates noise in the audio loop, for example `output[4](bb.noise(0.5))`.
 - **`bb.asap`**: a function run as often as possible on the control thread, for following knobs smoothly. Keep it light. `bb.asap = nil` stops it.
 - **`bb.connected`**: whether a cable is plugged into each input (`cv1`, `cv2`, `pulse1`, `pulse2`, `audio1`, `audio2`), from the Computer's normalisation probe.
-- **MIDI** over USB, as a device or a host: see the MIDI tab.
-- **ii (I2C)** on the Computer's UART pads: see the ii tab.
-
-## Timing
-
-Outputs are rendered at 24kHz, and ASL segments start on the exact sample, so audio-rate ASL (`lfo`, `oscillate`) keeps its pitch. Timing is exact against the Computer's crystal, while crow's audio-rate timing runs about 2.4% slow: scripts tuned by ear on crow play about 40 cents sharp on blackbird. nb_drumcrow corrects for crow, so on blackbird set its `detune` to about 0.977.
+- **MIDI** over USB, as a device or a host: see the [MIDI tab](https://computer.musicthing.co.uk/programs/41-blackbird/?panel=midi).
+- **ii (I2C)** on the Computer's UART pads: see the [ii tab](https://computer.musicthing.co.uk/programs/41-blackbird/?panel=ii).
 
 ## More
 
