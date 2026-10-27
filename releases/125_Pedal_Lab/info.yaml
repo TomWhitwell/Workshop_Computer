@@ -2,8 +2,8 @@ draft: false
 Name: Pedal Lab
 short-description: Choose, edit and install stereo effects.
 summary: >
-  Stereo effects for Workshop Computer, using public Spin FV-1 algorithms.
-  Browse the library, choose a bank and install it from the web editor.
+  Pedal Lab is a very experimental attempt to emulate the Spin FV-1 chip on Workshop Computer. Stereo effects for Workshop Computer, using public Spin FV-1 algorithms.
+  Browse the library, build a bank and install it from the web editor.
   Audio previews and custom builds run in your browser.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Tom Whitwell
