@@ -90,3 +90,8 @@ After the initial complete build, common metadata and curation edits use faster 
 - Changing `flairs.yml` updates curation-dependent indexes and card pages.
 
 Mixed changes, deleted metadata, and structural or generator changes safely fall back to a clean complete build.
+## Pull request previews
+
+Pull requests opened from a branch in `TomWhitwell/Workshop_Computer` itself get a live preview of the whole site at `https://computer.musicthing.co.uk/pr/<number>/`, linked from a comment on the PR. Pull requests from forks do not get previews.
+
+Previews are part of the production Pages deployment. Each deploy rebuilds `main` and every open upstream-branch PR, each from its own branch with its own generator. Pushing to such a PR triggers a deploy (via `.github/workflows/pr-preview.yml`), and closing it removes its preview on that deploy. A PR that fails to build only loses its own preview; production still deploys. Preview pages carry `noindex` so search engines skip them, and their firmware download links point at the PR's commit.
