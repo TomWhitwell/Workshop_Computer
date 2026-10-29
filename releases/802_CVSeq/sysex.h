@@ -33,7 +33,7 @@
 // Card -> web
 //   STATE     02 version page bank length values[288]
 //   STATUS    07 cur progress flags flags2 out(2) speed(2) depth offset
-//                smooth morph scale bank length
+//                smooth morph scale bank length morphall
 //             cur        step 0-31
 //             progress   position through the step, 0-127, in time
 //             flags      bits 0-2 direction, bit 3 clocked, bit 4 8mu on
@@ -55,6 +55,8 @@
 //                        Harmonic minor, Dorian, Phrygian, Lydian,
 //                        Mixolydian, Major pentatonic, Minor pentatonic,
 //                        Blues, Whole tone, Diminished, Fifths, Octaves
+//             morphall   the whole morph offset added to every step - the
+//                        knob, CV In 1 and 8mu tilt - as 0-127 with 64 = none
 //
 // Directions
 //   0 step forward     steps 1-8, shapes forwards
@@ -168,7 +170,7 @@ inline int32_t Get14(const uint8_t *in)
 }
 
 static constexpr int kStateLen = 4 + 4 + kNumValues + 1;
-static constexpr int kStatusLen = 4 + 4 + 2 + 2 + 5 + 2 + 1;
+static constexpr int kStatusLen = 4 + 4 + 2 + 2 + 5 + 2 + 1 + 1;
 
 } // namespace sysex
 

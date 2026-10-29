@@ -444,7 +444,7 @@ private:
 
 	// Snapshot for the web editor: written on core0, read on core1
 	volatile uint8_t stCur = 0, stProgress = 0, stFlags = 0, stFlags2 = 0;
-	volatile uint8_t stDepth = 0, stOffset = 0, stSmooth = 0, stMorph = 0, stScale = 0;
+	volatile uint8_t stDepth = 0, stOffset = 0, stSmooth = 0, stMorph = 0, stScale = 0, stMorphAll = 64;
 	volatile int32_t stOut = 0, stRate = 0;
 
 	// base * 2^(oct/4096)
@@ -748,6 +748,12 @@ private:
 		stOffset = uint8_t((settings[SetOffset] >> 5) & 127);
 		stSmooth = uint8_t((settings[SetSmooth] >> 5) & 127);
 		stMorph = uint8_t((settings[SetMorph] >> 5) & 127);
+		// the whole morph offset: knob, CV In 1 and tilt, 64 = none
+		{
+			int32_t mo = morphOffset < -4096 ? -4096 : (morphOffset > 4096 ? 4096 : morphOffset);
+			int32_t b = 64 + mo / 64;
+			stMorphAll = uint8_t(b < 0 ? 0 : (b > 127 ? 127 : b));
+		}
 		stScale = uint8_t(scaleIndex);
 		if (dirShow > 0) dirShow--;
 		if (scaleShow > 0) scaleShow--;
@@ -1211,6 +1217,7 @@ public:
 		out[n++] = stScale;
 		out[n++] = uint8_t(bank);
 		out[n++] = uint8_t(seqLength);
+		out[n++] = stMorphAll;
 		out[n++] = 0xF7;
 		return n;
 	}
