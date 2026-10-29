@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 include(pico_sdk_import.cmake)
 
-set(CARD_NAME "eighttrack")
+set(CARD_NAME "8heads")
 project(${CARD_NAME} C CXX ASM)
 set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()

@@ -1,9 +1,8 @@
-# EightTrack
+# 8Heads
 
 An eight-head stereo tape delay for the Music Thing Workshop Computer, played
-from a Music Thing 8mu. Loosely inspired by Zlosynth's Kaseta: there's one
-loop of tape, recorded from both audio inputs, with eight playback heads along
-it, one for each 8mu fader.
+from a Music Thing 8mu. There's one loop of tape, recorded from both audio
+inputs, with eight playback heads along it, one for each 8mu fader.
 
 Each head has its own **time, volume, pan, stereo width and feedback**. The
 feedback goes back onto the tape through a **low-pass and high-pass filter**
@@ -173,7 +172,7 @@ editor draws the tape with each head at its live delay, shows the tempo and
 the knobs, and lets you edit every page, freeze and tap. An 8mu plugged into
 the computer is passed on to the card through the editor.
 
-With two 8mus and several Workshop editors open (EightTrack, MatrixVerb,
+With two 8mus and several Workshop editors open (8Heads, MatrixVerb,
 CVSeq, WaveSeq), each 8mu drives one editor and each editor uses one 8mu: it
 takes the one it had last time if that's free, otherwise any free one. The
 picker at the top shows every 8mu and who has it; choose one to take it, and
@@ -183,7 +182,7 @@ windows side by side rather than tabs: Chrome slows background tabs.
 
 The card chooses its USB mode once, at power-up: if the port is supplying
 power (an 8mu, or nothing yet), it's a USB host for the 8mu; if a computer is
-plugged in, it's a USB MIDI device called **EightTrack** for the editor. The
+plugged in, it's a USB MIDI device called **8Heads** for the editor. The
 card runs on its own either way. The protocol is documented in `sysex.h`.
 
 ## Tips

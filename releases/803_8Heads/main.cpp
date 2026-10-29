@@ -1,8 +1,7 @@
-// EightTrack
+// 8Heads
 //
-// A stereo multi-head tape delay for the Music Thing Workshop Computer,
-// loosely after Zlosynth's Kaseta: one loop of tape, recorded at the input,
-// with eight playback heads along it.  Each head has its own time, volume,
+// A stereo multi-head tape delay for the Music Thing Workshop Computer: one
+// loop of tape, recorded at the input, with eight playback heads along it.  Each head has its own time, volume,
 // pan, stereo width and feedback, and the feedback runs through a low-pass
 // and high-pass filter and a tape model (saturation, hiss, wow, flutter and
 // dropouts) on its way back onto the tape.  Edited from a Music Thing 8mu,
@@ -109,7 +108,7 @@
 //
 // USB, chosen once at power-up
 //   Port supplying power (an 8mu, or nothing yet): USB host, reading the 8mu.
-//   Computer plugged in: USB MIDI device called "EightTrack", for the web
+//   Computer plugged in: USB MIDI device called "8Heads", for the web
 //   editor (protocol in sysex.h).  An 8mu plugged into the computer is passed
 //   on by the editor.  Either way the card runs on its own.
 
@@ -126,8 +125,8 @@
 #include <string.h>
 #include <math.h>
 
-class EightTrack;
-static EightTrack *gCard = nullptr;
+class EightHeads;
+static EightHeads *gCard = nullptr;
 
 // The tape: stereo frames of two 12-bit samples packed into three bytes, at
 // 24kHz.  Sized to fill what RAM the program leaves.
@@ -160,7 +159,7 @@ static constexpr int kPresetBytes = (sizeof(PresetStore) + FLASH_PAGE_SIZE - 1) 
 static_assert(sizeof(PresetStore) <= FLASH_SECTOR_SIZE, "presets fit a sector");
 
 
-class EightTrack : public ComputerCard
+class EightHeads : public ComputerCard
 {
 public:
 	static constexpr int kHeads = 8;
@@ -170,7 +169,7 @@ public:
 	enum Fx {FxLowPass, FxHighPass, FxSaturation, FxHiss, FxWow, FxFlutter, FxDropout, FxMix};
 	static_assert(sysex::kNumValues == kPages * kHeads, "protocol carries every page");
 
-	EightTrack()
+	EightHeads()
 	{
 		for (int i = 0; i <= 512; i++)
 		{
@@ -1792,6 +1791,6 @@ int main()
 {
 	set_sys_clock_khz(200000, true);
 
-	static EightTrack card;
+	static EightHeads card;
 	card.Run();
 }

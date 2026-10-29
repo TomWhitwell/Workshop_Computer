@@ -1,5 +1,5 @@
 draft: false
-Name: EightTrack
+Name: 8Heads
 short-description: "An eight-head stereo tape delay played from a Music Thing 8mu, with tempo sync, tape effects, flash presets and a web editor"
 Language: C++ (ComputerCard)
 Creator: XponentOneAudio
@@ -19,8 +19,8 @@ contact:
 #     (c) Chris Johnson
 
 uf2:
-  - path: UF2/eighttrack.uf2
-    name: EightTrack 0.1.0
+  - path: UF2/8heads.uf2
+    name: 8Heads 0.1.0
 
 tags:
   - delay
@@ -32,8 +32,7 @@ tags:
   - 8mu
 
 summary: |
-  A stereo tape delay, loosely after Zlosynth's Kaseta: one loop of tape,
-  recorded from both audio inputs, with eight playback heads along it - one
+  A stereo tape delay: one loop of tape, recorded from both audio inputs, with eight playback heads along it - one
   for each fader of a Music Thing 8mu.<br><br>
 
   Every head has its own time, volume, pan, stereo width and feedback. The

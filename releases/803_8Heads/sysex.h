@@ -1,4 +1,4 @@
-// SysEx protocol between the EightTrack card and its web editor
+// SysEx protocol between the 8Heads card and its web editor
 // (web/index.html), used when a computer is plugged into the Computer's USB
 // socket and the card is acting as a USB MIDI device.
 //
@@ -63,8 +63,8 @@
 //                      samples are being missed)
 //   SLOTS      0F valid[8] values[8][72]
 
-#ifndef EIGHTTRACK_SYSEX_H
-#define EIGHTTRACK_SYSEX_H
+#ifndef EIGHTHEADS_SYSEX_H
+#define EIGHTHEADS_SYSEX_H
 
 #include <stdint.h>
 

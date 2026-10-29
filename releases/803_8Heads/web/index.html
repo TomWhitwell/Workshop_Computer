@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EightTrack editor</title>
+<title>8Heads editor</title>
 <!--
-  EIGHTTRACK - web editor for the Music Thing Modular Workshop Computer card.
+  8HEADS - web editor for the Music Thing Modular Workshop Computer card.
   One static file, no network needed. Talks to the card over WebMIDI + SysEx
   (protocol: ../sysex.h). The card works without this page; the page adds a
   picture of the tape and its heads, preset management (in this browser and
@@ -149,7 +149,7 @@
 </head>
 <body>
 <header>
-  <h1>EightTrack</h1>
+  <h1>8Heads</h1>
   <div class="status"><span id="dot" class="dot"></span><span id="status-text">Not connected</span></div>
   <span id="mu-box" class="mubox" hidden>
     <select id="mu-pick" aria-label="Which 8mu drives this editor" title="Which 8mu on this computer drives this editor"></select>
@@ -254,7 +254,7 @@
       <h2>How it connects</h2>
       <div class="caption" style="margin-top:0">
         The card picks its USB mode at power-up. <b>8mu plugged into the card</b>: the card reads it directly and this page isn't used.
-        <b>Computer plugged into the card</b>: the card appears as a MIDI device called <b>EightTrack</b>, and an 8mu plugged
+        <b>Computer plugged into the card</b>: the card appears as a MIDI device called <b>8Heads</b>, and an 8mu plugged
         into this computer is passed on by this page. After plugging a computer in, <b>power-cycle the module</b>.
       </div>
       <details>
@@ -341,7 +341,7 @@ const state = {
 };
 const link = { access: null, card: { in: null, out: null }, muIns: [], muOuts: [], cardOnline: false,
                sysexBuf: [], sysexOn: false, lastStatus: 0, pingTimer: 0 };
-// 8mu pickup, mirroring EightTrack::HandleEightMU in the firmware
+// 8mu pickup, mirroring EightHeads::HandleEightMU in the firmware
 const mu = { phys: new Array(NH).fill(-1), engaged: new Array(NH).fill(false), cc: new Array(16).fill(0),
              ledSent: new Array(NH).fill(-1), lastBlinkOff: 0, motionTimer: 0, freeze: false,
              press: [0, 1, 2, 3].map(() => ({ down: false, t0: 0, faders: [], used: false })),
@@ -664,12 +664,12 @@ function eightmuButton(b, down) {
 // the 8mu it had last time if that's free, otherwise any free one; with only
 // one 8mu it follows the editor you click in.  The header's picker takes a
 // particular 8mu (Identify flashes its LEDs).  Open Workshop editors (this
-// one, CVSeq, WaveSeq, EightTrack, MatrixVerb ...) keep each other told, over a BroadcastChannel and through
+// one, CVSeq, WaveSeq, 8Heads, MatrixVerb ...) keep each other told, over a BroadcastChannel and through
 // localStorage, of which 8mu each has; one that goes quiet for 5 s, or
 // closes, frees its 8mu.  An editor reads faders, buttons and tilt only from
 // its own 8mu and lights only its LEDs, but follows every 8mu's faders so they
 // pick up as usual when it takes one over.
-const EDITOR_NAME = 'EightTrack';
+const EDITOR_NAME = '8Heads';
 const MU_CHAN = 'workshop-computer-8mu-v2', MU_MSG = 'workshop.8mu.msg', MU_PREF = 'workshop.8mu.pref.' + EDITOR_NAME;
 const owner = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), mine: null, peers: new Map(),
                 chan: null, ready: false, identUntil: 0, cache: new Map(), sig: '' };
@@ -873,7 +873,8 @@ function serviceEightmuLeds() {
 // ============================================================================
 // WebMIDI
 // ============================================================================
-const isCardName = (n) => /eight\s*track/i.test(n || '');
+// The card's USB name; EightTrack is what it was called in earlier firmware
+const isCardName = (n) => /8\s*heads|eight\s*track/i.test(n || '');
 const is8mu = (p) => [p.name, p.manufacturer, (p.manufacturer || '') + ' ' + (p.name || '')].some(s => /8mu/i.test(s || ''));
 
 async function connect() {
@@ -912,12 +913,12 @@ function scanPorts() {
   if (link.cardOnline) {
     link.pingTimer = setInterval(() => sendRaw(sysex(CMD.PING, [])), 1000);
     sendRaw(sysex(CMD.PING, []));
-    setStatus('ok', 'EightTrack card' + (muIns.length ? ' + 8mu' : ''));
+    setStatus('ok', '8Heads card' + (muIns.length ? ' + 8mu' : ''));
     say(muIns.length ? 'The 8mu drives this page, and this page drives the card.' : 'Card connected. Drag the faders, or plug an 8mu into this computer.' + note);
     if (!wasOnline) { sendRaw(sysex(CMD.HELLO, [])); sendRaw(sysex(CMD.GET_SLOTS, [])); }   // the card is the source of truth: read it
   } else if (muIns.length) {
     setStatus('warn', 'Connected: 8mu only (no card)');
-    say('No “EightTrack” card found, so editing here only. To reach the card, plug this computer into the Computer’s USB socket and power-cycle the module.', true);
+    say('No “8Heads” card found, so editing here only. To reach the card, plug this computer into the Computer’s USB socket and power-cycle the module.', true);
   } else {
     setStatus('warn', 'No card or 8mu found');
     say('Nothing found. Use a USB data cable, close other apps using the device, and power-cycle the module after plugging this computer in.' + note, true);
@@ -1044,7 +1045,8 @@ const store = {
   get(k, d) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
 };
-const PRESET_KEY = 'eighttrack.presets.v1';
+const PRESET_KEY = '8heads.presets.v1';
+const OLD_PRESET_KEY = 'eighttrack.presets.v1';   // from when the card was called EightTrack
 let userPresets = [];
 function cleanPreset(o) {
   // Older presets have 48 or 56 values; padValues fills in the rest
@@ -1070,7 +1072,12 @@ const BUILTIN_ROWS = [
   { name: 'Bitcrushed taps', values: flat([[16, 40, 64, 88, 112, 0, 0, 0], [110, 95, 85, 75, 65, 0, 0, 0], [24, 104, 40, 88, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [0, 0, 0, 0, 55, 0, 0, 0], [100, 20, 30, 0, 8, 6, 0, 64], [0, 0, 0, 0, 0, 0, 0, 0], [127, 90, 70, 50, 30, 127, 127, 127], [127, 70, 50, 35, 20, 127, 127, 127]]) },
 ];
 const BUILTIN = BUILTIN_ROWS;
-function loadPresets() { userPresets = (store.get(PRESET_KEY, []) || []).map(cleanPreset).filter(Boolean); }
+function loadPresets() {
+  // Presets kept before the card was renamed come across the first time
+  let list = store.get(PRESET_KEY, null);
+  if (list === null) { list = store.get(OLD_PRESET_KEY, []); if (list && list.length) store.set(PRESET_KEY, list); }
+  userPresets = (list || []).map(cleanPreset).filter(Boolean);
+}
 function savePresets() { if (!store.set(PRESET_KEY, userPresets)) say('Could not save presets: browser storage is unavailable or full.', true); }
 function applyPreset(pr) {
   setFlat(pr.values);
@@ -1110,8 +1117,8 @@ function saveCurrent() {
   savePresets(); renderPresets();
 }
 function exportPresets() {
-  const blob = new Blob([JSON.stringify({ eighttrack: 1, presets: userPresets }, null, 1)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'eighttrack-presets.json'; a.click();
+  const blob = new Blob([JSON.stringify({ '8heads': 1, presets: userPresets }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '8heads-presets.json'; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 function importPresets(file) {
@@ -1142,7 +1149,7 @@ function backupCard() {
 function buildCollapsers() {
   for (const card of document.querySelectorAll('section.card')) {
     const h = card.querySelector('h2'); if (!h) continue;
-    const key = 'eighttrack.fold.' + h.textContent.trim().toLowerCase().replace(/\W+/g, '-');
+    const key = '8heads.fold.' + h.textContent.trim().toLowerCase().replace(/\W+/g, '-');
     const b = document.createElement('button'); b.className = 'fold'; b.type = 'button';
     const set = (f) => { card.classList.toggle('folded', f); b.textContent = f ? '+' : '−'; b.title = f ? 'Show' : 'Hide'; };
     set(store.get(key, false));
