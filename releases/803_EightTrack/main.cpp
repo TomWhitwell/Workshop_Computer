@@ -288,21 +288,31 @@ public:
 			tapBeat = false;
 			beat = true;
 		}
+		if (samplesSinceBeat < 0x7FFFFFFF) samplesSinceBeat++;
 		if (beat)
 		{
 			beatTrig = 480;
+			// The beat grid, in tape frames since it began: each beat adds
+			// the time it actually took, so the grid moves exactly as the
+			// heads do, however the clock wobbles
 			if (gridRestart)
 			{
 				gridRestart = false;
-				gridBeats = 0;
+				gridFrames = 0;
+				gridCarry = 0;
 			}
-			else if (++gridBeats >= kGridWrap) gridBeats = 0;
+			else
+			{
+				int32_t s2 = (samplesSinceBeat < kMaxBeat ? samplesSinceBeat : kMaxBeat) + gridCarry;
+				gridFrames += uint32_t(s2 >> 1);
+				gridCarry = s2 & 1;
+			}
+			samplesSinceBeat = 0;
 
-			// Clocked reverse: each such head's slice is put back where the
-			// beat grid says it should be, so a slice a whole number of beats
-			// long starts on a beat.  Done as each head is next read, so the
-			// divisions are shared out.
-			gridPos = gridBeats * uint32_t(beatLength >> 1);
+			// Clocked reverse: each such head's slice is checked against
+			// the grid, so a slice a whole number of beats long starts on a
+			// beat.  Done as each head is next read, so the divisions are
+			// shared out.
 			revRealign = revClockMask;
 		}
 
@@ -360,6 +370,7 @@ public:
 		uint32_t wq = uint32_t(writePos) << 16;
 		uint32_t active = activeMask;
 		int32_t aWL = accWL, aWR = accWR, aFL = accFL, aFR = accFR;
+		bool realigned = false;
 		for (int h = odd ? kHeads / 2 : 0, e = h + kHeads / 2; h < e; h++)
 		{
 			// Each head moves on a pair's worth (two samples) as it's read
@@ -370,13 +381,9 @@ public:
 				// Reversed: a frame a pair through its slice
 				k.revPhase += 0x10000;
 				if (k.revPhase >= k.revLen) k.revPhase = 0;
-				if (revRealign & (1u << h))
-				{
-					// The first read since the beat: back onto the grid,
-					// as of the beat plus the samples since
-					revRealign &= ~(1u << h);
-					k.revPhase = ((gridPos + (odd ? 1 : 0)) % (k.revLen >> 16)) << 16;
-				}
+				// Getting back onto the beat grid (clocked), out of line as
+				// it's rarely needed
+				if ((revRealign | fixMask) & (1u << h)) RevCorrect(k, 1u << h, realigned);
 			}
 			if (!(active & (1u << h))) continue;
 			uint32_t d = k.d;
@@ -388,10 +395,11 @@ public:
 				// backwards at its own speed, a slice a head's time long
 				// played back after (on average) the head's time.  A short
 				// fade at each end of the slice hides the join.
-				uint32_t p = k.revPhase, q = k.revLen - p;
+				uint32_t p = k.revPhase, q = p < k.revLen ? k.revLen - p : 0;
 				d = (p << 1) + (uint32_t(kMinDelay) << 16);
 				int32_t x = int32_t((p < q ? p : q) >> 8);   // Q8 frames
 				env = x >= k.revFade ? 4096 : (x * k.revFadeK) >> 16;
+				if ((fixMask & (1u << h)) && k.jumpEnv < 4096) env = (env * k.jumpEnv) >> 12;
 			}
 			// RATE: a head below the tape's rate holds its last sample
 			// until its own clock ticks (and doesn't read the tape at all
@@ -592,19 +600,30 @@ private:
 		// (Q16 frames), and its fade (Q8 frames, and 4096 / that, Q16)
 		uint32_t revPhase, revLen;
 		int32_t revFade, revFadeK;
+		// Clocked: a small correction still to make by nudging the speed
+		// (Q16 frames), or a bigger one made by fading out, moving and
+		// fading back in, and that fade (Q12)
+		int32_t revSlew, revJump;
+		int32_t jumpEnv = 4096;
+		bool jumping;
 	};
 	Head hd[kHeads] = {};
 	int32_t headSmooth[kHeads] = {};          // smoothed delays, Q8 frames
 	volatile uint32_t activeMask = 0;
 	volatile uint32_t audibleMask = 0;
 	volatile uint32_t revMask = 0;
-	// Clocked reverse: heads whose slices follow the beat grid, beats since
-	// the grid began (wrapping, 3840 = 2^8 x 15, so slices of most lengths
-	// stay in step across it), and requests to restart it
+	// Clocked reverse: heads whose slices follow the beat grid, frames
+	// since the grid began (as of the last beat, with any half frame left
+	// over), the samples since that beat, heads still to check against it,
+	// and requests to restart it
 	volatile uint32_t revClockMask = 0;
-	static constexpr uint32_t kGridWrap = 3840;
-	uint32_t gridBeats = 0;
-	uint32_t gridPos = 0, revRealign = 0;     // the grid at the last beat, frames
+	uint32_t gridFrames = 0, revRealign = 0;
+	uint32_t fixMask = 0;           // heads with a correction under way
+	int32_t gridCarry = 0, samplesSinceBeat = 0;
+	// Corrections: up to 8 frames drawn back at 1/32 frame a frame (a 3%
+	// speed nudge, 8ms at most); beyond that a 2ms fade out and back in
+	static constexpr int32_t kRevSlewMax = 8 << 16, kRevSlewStep = 0x800;
+	static constexpr int32_t kJumpStep = 4096 / 48;
 	bool gridRestart = true, tapBeat = false, wasClockJack = false;
 	// Glide: a one-pole of about 80ms, at most 1.5 frames a frame
 	static constexpr int32_t kGlide = 544;            // Q16 a UI tick
@@ -701,6 +720,69 @@ private:
 		// 12-bit two's complement, sign extended and scaled to Q15
 		l = int32_t((b0 | (b1 << 8)) << 20) >> 16;
 		r = int32_t(((b1 >> 4) | (b2 << 4)) << 20) >> 16;
+	}
+
+	// A clocked reversed head, back onto the beat grid: checked on its
+	// first read after a beat (one head a sample, to share out the
+	// divisions; against the grid as of now, so waiting doesn't matter).  A
+	// few frames off is drawn back gently, by nudging the head's speed;
+	// further, the head fades out, moves, and fades back in.  Never a jump,
+	// which would click.
+	void __attribute__((noinline)) RevCorrect(Head &k, uint32_t bit, bool &realigned)
+	{
+		if ((revRealign & bit) && !realigned)
+		{
+			revRealign &= ~bit;
+			realigned = true;
+			uint32_t len = k.revLen >> 16;
+			uint32_t g = gridFrames + uint32_t((samplesSinceBeat + gridCarry) >> 1);
+			int32_t e = int32_t(((g % len) << 16) - k.revPhase);
+			int32_t half = int32_t(k.revLen >> 1);
+			if (e > half) e -= int32_t(k.revLen);
+			else if (e < -half) e += int32_t(k.revLen);
+			if (e <= kRevSlewMax && e >= -kRevSlewMax) k.revSlew = e;
+			else
+			{
+				k.revSlew = 0;
+				k.revJump = e;
+				k.jumping = true;
+			}
+			if (e) fixMask |= bit;
+		}
+		if (!(fixMask & bit)) return;
+		if (k.revSlew)
+		{
+			int32_t st = k.revSlew > kRevSlewStep ? kRevSlewStep : (k.revSlew < -kRevSlewStep ? -kRevSlewStep : k.revSlew);
+			k.revSlew -= st;
+			MovePhase(k, st);
+		}
+		if (k.jumping)
+		{
+			k.jumpEnv -= kJumpStep;
+			if (k.jumpEnv <= 0)
+			{
+				k.jumpEnv = 0;
+				MovePhase(k, k.revJump);
+				k.jumping = false;
+			}
+		}
+		else if (k.jumpEnv < 4096)
+		{
+			k.jumpEnv += kJumpStep;
+			if (k.jumpEnv > 4096) k.jumpEnv = 4096;
+		}
+		if (!k.revSlew && !k.jumping && k.jumpEnv >= 4096) fixMask &= ~bit;
+	}
+
+	// Move a reversed head through its slice by d (Q16 frames, either way),
+	// wrapping round the slice
+	static inline void MovePhase(Head &k, int32_t d)
+	{
+		int64_t len = k.revLen;
+		int64_t p = int64_t(k.revPhase) + d;
+		while (p < 0) p += len;
+		while (p >= len) p -= len;
+		k.revPhase = uint32_t(p);
 	}
 
 	static inline void WriteFrame(int i, int32_t l, int32_t r)
@@ -1123,15 +1205,22 @@ private:
 			hd[h].revFade = fade << 8;
 			hd[h].revFadeK = 1048576 / fade;
 			hd[h].revLen = uint32_t(t) << 16;
-			if (!(revMask & bit)) hd[h].revPhase = 0;
+			bool wasRev = (revMask & bit) != 0;
+			if (!wasRev) hd[h].revPhase = 0;
 			revMask |= bit;
 			if (mode == 2 && !(revClockMask & bit))
 			{
-				// Joining the grid: straight to where it says, as of now
-				int32_t since = clockJack ? samplesSinceClock : beatCount;
-				if (since > beatLength) since = beatLength;
-				uint32_t pos = gridBeats * uint32_t(beatLength >> 1) + uint32_t(since >> 1);
-				hd[h].revPhase = (pos % uint32_t(t)) << 16;
+				// Joining the grid: to where it says, as of now, faded if
+				// the head was already playing backwards
+				uint32_t pos = (gridFrames + uint32_t((samplesSinceBeat + gridCarry) >> 1)) % uint32_t(t);
+				int32_t e = int32_t(pos << 16) - int32_t(hd[h].revPhase);
+				if (!wasRev) hd[h].revPhase = pos << 16;
+				else if (e)
+				{
+					hd[h].revJump = e;
+					hd[h].jumping = true;
+					fixMask |= bit;
+				}
 			}
 			if (mode == 2) revClockMask |= bit;
 			else revClockMask &= ~bit;

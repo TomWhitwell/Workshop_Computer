@@ -84,7 +84,11 @@ free-time pulse (the Pulse Out 1 rate). A slice a whole number of beats long
 starts on a beat. A shorter one (say 1/8) starts on the beat and repeats
 within it, and odd lengths (3/16) cycle against the beat in a fixed pattern.
 The grid restarts when a jack goes into Pulse In 1 or a tap tempo is first
-set. On the 8mu, the Reverse page's LEDs are off for forwards, dim for
+set. The grid follows the clock's actual timing, so a wobbly clock doesn't
+throw the slices around. If a slice drifts a little off the grid, the head
+is drawn back by nudging its speed. If it's well off (after a tempo change,
+or when a head first joins the grid), it fades out, moves, and fades back in
+over a few milliseconds, so there's never a click. On the 8mu, the Reverse page's LEDs are off for forwards, dim for
 reverse and bright for reverse clocked.
 
 Presets saved before the Reverse page existed load with every head
