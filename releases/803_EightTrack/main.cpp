@@ -39,7 +39,8 @@
 //
 // FX page, one setting a fader
 //   1 Low-pass   in the feedback path, 150Hz to 16kHz, off at the top
-//   2 High-pass  in the feedback path, off at the bottom, then 20Hz to 2kHz
+//   2 High-pass  in the feedback path, 30Hz to 2kHz, always on, so rumble
+//                can't build up in the feedback
 //   3 Saturation tape drive on the way onto the tape
 //   4 Hiss       tape noise recorded with the feedback
 //   5 Wow        slow, drifting pitch wobble
@@ -183,11 +184,11 @@ public:
 		{
 			exp2Tab[i] = uint32_t(1073741824.0f * exp2f(float(i) / 256.0f));
 		}
-		// Low-pass 150Hz to 16kHz, high-pass 20Hz to 2kHz
+		// Low-pass 150Hz to 16kHz, high-pass 30Hz to 2kHz
 		for (int v = 0; v < 128; v++)
 		{
 			gLpCoef[v] = CoefFor(150.0f * exp2f(float(v) * (6.74f / 127.0f)));
-			gHpCoef[v] = CoefFor(20.0f * exp2f(float(v) * (6.64f / 127.0f)));
+			gHpCoef[v] = CoefFor(30.0f * exp2f(float(v) * (6.06f / 127.0f)));
 		}
 
 		SetDefaults();
@@ -612,7 +613,7 @@ private:
 	// Filters in the feedback path, Q16 coefficients
 	int32_t lpL[2] = {}, lpR[2] = {}, hpL[2] = {}, hpR[2] = {};
 	int32_t lpCoef = 65536, hpCoef = 0;
-	bool lpOn = false, hpOn = false;
+	bool lpOn = false, hpOn = true;
 	int lpFor = -1, hpFor = -1;
 
 	// Tape model
@@ -995,7 +996,7 @@ private:
 		if (v != hpFor)
 		{
 			hpFor = v;
-			hpOn = v > 0;
+			hpOn = true;   // always: below 30Hz, rumble builds up and saturates
 			hpCoef = gHpCoef[v];
 		}
 		v = fx[FxSaturation] >> 5;

@@ -401,7 +401,7 @@ function describe(page, i, v) {
     default:
       switch (i) {
         case 0: return v >= 127 ? 'off' : fmtHz(150 * Math.pow(2, v * 6.74 / 127));
-        case 1: return v <= 0 ? 'off' : fmtHz(20 * Math.pow(2, v * 6.64 / 127));
+        case 1: return fmtHz(30 * Math.pow(2, v * 6.06 / 127));
         case 2: return 'drive ×' + (1 + v * 6 / 256).toFixed(2);
         case 3: return v === 0 ? 'off' : Math.round(v / 127 * 100) + '%';
         case 4: { const ms = v * v * 240 / 64 / 256 / 24; return v === 0 ? 'off' : '±' + ms.toFixed(ms < 1 ? 2 : 1) + ' ms'; }

@@ -95,7 +95,7 @@ forwards.
 | Fader | Setting |
 |---|---|
 | 1 | **Low-pass** in the feedback path, 150 Hz to 16 kHz, off at the top |
-| 2 | **High-pass** in the feedback path, off at the bottom, then 20 Hz to 2 kHz |
+| 2 | **High-pass** in the feedback path, 30 Hz (bottom) to 2 kHz (top). Always on, so rumble can't build up in the feedback and saturate |
 | 3 | **Saturation**: tape drive on the way onto the tape (×1 to ×4, with the level brought back down, so loud signals get squashed and quiet ones pass at the same level) |
 | 4 | **Hiss**: tape noise, recorded with the feedback so it builds up over the repeats |
 | 5 | **Wow**: a slow, drifting pitch wobble (up to ±10 ms) |
