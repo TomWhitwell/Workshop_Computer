@@ -203,7 +203,7 @@ public:
 		for (int h = 0; h < kHeads; h++)
 		{
 			headSmooth[h] = HeadTarget(h);
-			headD[h] = uint32_t(headSmooth[h]) << 8;
+			hd[h].d = uint32_t(headSmooth[h]) << 8;
 		}
 
 		EnableNormalisationProbe();
@@ -252,7 +252,8 @@ public:
 		int32_t inL = int32_t(AudioIn1()) << 4;
 		// Mono in: with only Audio In 1 patched, it feeds both sides
 		int32_t inR = (Connected(Audio1) && Disconnected(Audio2)) ? inL : int32_t(AudioIn2()) << 4;
-		bool odd = (sampleCount++ & 1) != 0;
+		uint32_t sc = sampleCount++;
+		bool odd = (sc & 1) != 0;
 
 		// Clock on Pulse In 1, followed only while a jack is in it
 		if (samplesSinceClock < 0x7FFFFFFF) samplesSinceClock++;
@@ -298,49 +299,45 @@ public:
 
 			// Clocked reverse: each such head's slice is put back where the
 			// beat grid says it should be, so a slice a whole number of beats
-			// long starts on a beat
-			uint32_t rc = revClockMask;
-			if (rc)
-			{
-				uint32_t pos = gridBeats * uint32_t(beatLength >> 1);
-				for (int h = 0; h < kHeads; h++)
-				{
-					if (!(rc & (1u << h))) continue;
-					revPhase[h] = (pos % (revLen[h] >> 16)) << 16;
-				}
-			}
+			// long starts on a beat.  Done as each head is next read, so the
+			// divisions are shared out.
+			gridPos = gridBeats * uint32_t(beatLength >> 1);
+			revRealign = revClockMask;
 		}
 
-		// Control, every 32 samples, shared out across them so that no one
-		// sample has too much to do: the transport on the first, one head on
-		// every fourth from the third, the panel in the middle and the 8mu
-		// at three quarters
-		if (++controlCount >= 32) controlCount = 0;
-		if (controlCount == 0) Control();
-		else if ((controlCount & 3) == 2) ControlHead(controlCount >> 2);
-		else if (controlCount == 16) ControlUI();
-		else if (controlCount == 24)
+		// Control, every 32 samples, shared out across them in small pieces
+		// so that no one sample has much to do.  Each head's time on every
+		// fourth sample from the third; its mix, rate, bits and reverse on
+		// the sample after; the rest on the first sample of the other pairs.
+		controlCount = int(sc & 31);
+		switch (controlCount & 3)
 		{
-			if (hostMode) HandleEightMU();
-			else SetTilt(webPitch, webRoll);
+		case 2: ControlHeadTime(controlCount >> 2); break;
+		case 3: ControlHeadMix(controlCount >> 2); break;
+		case 0:
+			switch (controlCount >> 2)
+			{
+			case 0: ControlTransport(); break;
+			case 1: ControlTape(); break;
+			case 2: if (hostMode) HandleEightMU(0); break;
+			case 3: if (hostMode) HandleEightMU(1); break;
+			case 4: ControlLevels(); break;
+			case 5: ControlLeds(); break;
+			case 6:
+				if (hostMode) HandleEightMU(2);
+				else SetTilt(webPitch, webRoll);
+				break;
+			default: break;
+			}
+			break;
+		default: break;
 		}
 
 		// The tape runs at 24kHz, half the sample rate, and its work is
 		// shared over each pair of samples so that neither has too much: the
-		// first reads heads 1-4, the second heads 5-8 and records a frame.
-		// Every head's delay still moves on every sample.
-		for (int h = 0; h < kHeads; h++) headD[h] += uint32_t(headInc[h]);
+		// first reads heads 1-4 and records the left channel, the second
+		// heads 5-8, records the right and writes the frame.
 		uint32_t rev = revMask;
-		if (rev)
-		{
-			// Reversed heads: half a frame a sample through their slice
-			for (int h = 0; h < kHeads; h++)
-			{
-				if (!(rev & (1u << h))) continue;
-				revPhase[h] += 0x8000;
-				if (revPhase[h] >= revLen[h]) revPhase[h] = 0;
-			}
-		}
 
 		// Input, low-passed at 48kHz and averaged down to one frame a pair
 		aaL[0] += ((inL - aaL[0]) * kAACoef + 2048) >> 12;
@@ -349,19 +346,39 @@ public:
 		aaR[1] += ((aaR[0] - aaR[1]) * kAACoef + 2048) >> 12;
 
 		// Heads.  Each reads the tape at its delay, between frames, then
-		// gets its width, pan, volume and feedback.
+		// gets its width, pan, volume and feedback.  At the start of each
+		// pair the last pair's feedback is taken for recording, a frame on.
 		if (!odd)
 		{
 			prevL = aaL[1];
 			prevR = aaR[1];
+			fbFrameL = accFL;
+			fbFrameR = accFR;
 			accWL = accWR = accFL = accFR = 0;
 		}
 		uint32_t wq = uint32_t(writePos) << 16;
 		uint32_t active = activeMask;
+		int32_t aWL = accWL, aWR = accWR, aFL = accFL, aFR = accFR;
 		for (int h = odd ? kHeads / 2 : 0, e = h + kHeads / 2; h < e; h++)
 		{
+			// Each head moves on a pair's worth (two samples) as it's read
+			Head &k = hd[h];
+			k.d += uint32_t(k.inc) << 1;
+			if (rev & (1u << h))
+			{
+				// Reversed: a frame a pair through its slice
+				k.revPhase += 0x10000;
+				if (k.revPhase >= k.revLen) k.revPhase = 0;
+				if (revRealign & (1u << h))
+				{
+					// The first read since the beat: back onto the grid,
+					// as of the beat plus the samples since
+					revRealign &= ~(1u << h);
+					k.revPhase = ((gridPos + (odd ? 1 : 0)) % (k.revLen >> 16)) << 16;
+				}
+			}
 			if (!(active & (1u << h))) continue;
-			uint32_t d = headD[h];
+			uint32_t d = k.d;
 			int32_t env = 4096;
 			if (rev & (1u << h))
 			{
@@ -370,33 +387,31 @@ public:
 				// backwards at its own speed, a slice a head's time long
 				// played back after (on average) the head's time.  A short
 				// fade at each end of the slice hides the join.
-				uint32_t p = revPhase[h], q = revLen[h] - p;
+				uint32_t p = k.revPhase, q = k.revLen - p;
 				d = (p << 1) + (uint32_t(kMinDelay) << 16);
 				int32_t x = int32_t((p < q ? p : q) >> 8);   // Q8 frames
-				env = x >= revFade[h] ? 4096 : (x * revFadeK[h]) >> 16;
+				env = x >= k.revFade ? 4096 : (x * k.revFadeK) >> 16;
 			}
 			// RATE: a head below the tape's rate holds its last sample
 			// until its own clock ticks (and doesn't read the tape at all
 			// meanwhile)
 			bool fresh = true;
-			uint32_t hi = holdInc[h];
+			uint32_t hi = k.holdInc;
 			if (hi < 0x10000)
 			{
-				uint32_t ph = holdPhase[h] + hi;
+				uint32_t ph = k.holdPhase + hi;
 				fresh = ph >= 0x10000;
-				holdPhase[h] = fresh ? ph - 0x10000 : ph;
+				k.holdPhase = fresh ? ph - 0x10000 : ph;
 			}
 			int32_t l, r;
 			if (fresh)
 			{
 				uint32_t rp = wq >= d ? wq - d : wq + kTapeQ - d;
 				uint32_t i0 = rp >> 16;
-				uint32_t i1 = i0 + 1;
-				if (i1 >= uint32_t(kTapeFrames)) i1 = 0;
 				int32_t fr = int32_t((rp >> 2) & 0x3FFF);
 				int32_t l0, r0, l1, r1;
 				ReadFrame(i0, l0, r0);
-				ReadFrame(i1, l1, r1);
+				ReadFrame(i0 + 1 < uint32_t(kTapeFrames) ? i0 + 1 : 0, l1, r1);
 				l = l0 + (((l1 - l0) * fr) >> 14);
 				r = r0 + (((r1 - r0) * fr) >> 14);
 				if (env != 4096)
@@ -406,34 +421,42 @@ public:
 				}
 				// BITS: rounded to the nearest step, so silence stays
 				// silent
-				int sh = crushShift[h];
+				int sh = k.crush;
 				if (sh)
 				{
 					int32_t half = 1 << (sh - 1);
 					l = ((l + half) >> sh) << sh;
 					r = ((r + half) >> sh) << sh;
 				}
-				heldL[h] = l;
-				heldR[h] = r;
+				k.heldL = l;
+				k.heldR = r;
 			}
 			else
 			{
-				l = heldL[h];
-				r = heldR[h];
+				l = k.heldL;
+				r = k.heldR;
 			}
 			int32_t mid = (l + r) >> 1;
-			int32_t side = (((l - r) >> 1) * headWidth[h]) >> 12;
+			int32_t side = (((l - r) >> 1) * k.width) >> 12;
 			l = mid + side;
 			r = mid - side;
-			accWL += (l * gainWL[h]) >> 12;
-			accWR += (r * gainWR[h]) >> 12;
-			accFL += (l * gainFL[h] + 2048) >> 12;
-			accFR += (r * gainFR[h] + 2048) >> 12;
+			aWL += (l * k.gWL) >> 12;
+			aWR += (r * k.gWR) >> 12;
+			aFL += (l * k.gFL + 2048) >> 12;
+			aFR += (r * k.gFR + 2048) >> 12;
 		}
+		accWL = aWL; accWR = aWR; accFL = aFL; accFR = aFR;
 
+		// Record head, a frame behind the heads: the left channel on the
+		// first sample of the pair, the right and the write on the second,
+		// so the two share the work
+		if (!frozen)
+		{
+			if (!odd) recL = Record(fbFrameL, inFrameL, lpL, hpL, hissPrevL);
+			else recR = Record(fbFrameR, inFrameR, lpR, hpR, hissPrevR);
+		}
 		if (odd)
 		{
-			// Record head
 			if (frozen)
 			{
 				// The tape loops: each frame is the one a loop's length before
@@ -443,49 +466,17 @@ public:
 				gTape[writePos * 3 + 1] = gTape[src * 3 + 1];
 				gTape[writePos * 3 + 2] = gTape[src * 3 + 2];
 			}
-			else
-			{
-				// Feedback through the filters
-				int32_t fbL = Clip(accFL, 131072);
-				int32_t fbR = Clip(accFR, 131072);
-				if (lpOn)
-				{
-					fbL = OnePole(lpL[1], OnePole(lpL[0], fbL, lpCoef), lpCoef);
-					fbR = OnePole(lpR[1], OnePole(lpR[0], fbR, lpCoef), lpCoef);
-				}
-				if (hpOn)
-				{
-					fbL -= OnePole(hpL[0], fbL, hpCoef);
-					fbL -= OnePole(hpL[1], fbL, hpCoef);
-					fbR -= OnePole(hpR[0], fbR, hpCoef);
-					fbR -= OnePole(hpR[1], fbR, hpCoef);
-				}
-
-				// Hiss, a little brighter than white
-				int32_t hissL = 0, hissR = 0;
-				if (hissLevel)
-				{
-					int32_t nL = int32_t(NextRandom()) >> 16, nR = int32_t(NextRandom()) >> 16;
-					hissL = ((nL - hissPrevL) * hissLevel) >> 17;
-					hissR = ((nR - hissPrevR) * hissLevel) >> 17;
-					hissPrevL = nL;
-					hissPrevR = nR;
-				}
-
-				// Onto the tape: the input's frame (the average of the pair,
-				// rounded to nearest, as rounding down would circulate as a
-				// small DC offset), dropouts, then saturation
-				int32_t frL = (aaL[1] + prevL + 1) >> 1, frR = (aaR[1] + prevR + 1) >> 1;
-				int32_t recL = (((frL + fbL) * dropGain) >> 12) + hissL;
-				int32_t recR = (((frR + fbR) * dropGain) >> 12) + hissR;
-				recL = (Tanh(Clip((recL * drive) >> 8, 0x7FFFFF)) * invDrive + 32768) >> 16;
-				recR = (Tanh(Clip((recR * drive) >> 8, 0x7FFFFF)) * invDrive + 32768) >> 16;
-				WriteFrame(writePos, recL, recR);
-			}
+			else WriteFrame(writePos, recL, recR);
 			if (++writePos >= kTapeFrames) writePos = 0;
 
+			// The input's frame for the next pair: the average of this
+			// pair, rounded to nearest (rounding down would circulate as a
+			// small DC offset)
+			inFrameL = (aaL[1] + prevL + 1) >> 1;
+			inFrameR = (aaR[1] + prevR + 1) >> 1;
+
 			// The new wet frame; out at 48kHz, halfway from the last
-			int32_t w0 = Clip(accWL, 262143), w1 = Clip(accWR, 262143);
+			int32_t w0 = Clip(aWL, 262143), w1 = Clip(aWR, 262143);
 			wetL = (wetPrevL + w0) >> 1;
 			wetR = (wetPrevR + w1) >> 1;
 			wetPrevL = w0;
@@ -563,6 +554,7 @@ private:
 	bool ledFlashSave = false; // save flash, else load
 	int ledFlashValue = 0;
 	bool wasConnected = false;
+	bool muReady = false, anyHeld = false;   // between HandleEightMU's parts
 	int connectHoldoff = 0;
 	bool muFreeze = false;
 
@@ -572,29 +564,38 @@ private:
 	int32_t prevL = 0, prevR = 0;
 	int32_t aaL[2] = {}, aaR[2] = {};
 	int32_t accWL = 0, accWR = 0, accFL = 0, accFR = 0; // heads, over a pair
+	// Recording, a frame behind: the last pair's feedback and input, and
+	// the left channel's result, made on the first sample of a pair
+	int32_t fbFrameL = 0, fbFrameR = 0, inFrameL = 0, inFrameR = 0, recL = 0, recR = 0;
 	int32_t wetL = 0, wetR = 0, wetPrevL = 0, wetPrevR = 0;
 	bool frozen = false;
 	int freezeLength = 24000;
 
-	// Heads: delays in frames, Q16, stepped every sample towards the
-	// control rate's targets; smoothed delays Q8
-	uint32_t headD[kHeads] = {};
-	int32_t headInc[kHeads] = {};
-	int32_t headSmooth[kHeads] = {};
-	int32_t headWidth[kHeads] = {};          // Q12, 0 to 8192
-	int32_t gainWL[kHeads] = {}, gainWR[kHeads] = {}; // Q12, wet
-	int32_t gainFL[kHeads] = {}, gainFR[kHeads] = {}; // Q12, feedback
+	// Heads.  What the audio needs of each is kept together, so it is all
+	// a short reach from one pointer (the M0+ pays for long offsets).
+	struct Head
+	{
+		uint32_t d;           // delay, frames Q16, stepped every sample
+		int32_t inc;          // towards the control rate's target
+		int32_t width;        // Q12, 0 to 8192
+		int32_t gWL, gWR;     // Q12: wet
+		int32_t gFL, gFR;     // Q12: feedback
+		// RATE and BITS: the head's sample clock (Q16 of the tape's 24kHz,
+		// 0x10000 for every frame) and where it is, the sample it holds,
+		// and how many bits it drops below the tape's 12 (as a shift of
+		// Q15 samples)
+		uint32_t holdInc = 0x10000, holdPhase;
+		int32_t heldL, heldR;
+		int32_t crush;
+		// Reversed: where it is through its slice and the slice's length
+		// (Q16 frames), and its fade (Q8 frames, and 4096 / that, Q16)
+		uint32_t revPhase, revLen;
+		int32_t revFade, revFadeK;
+	};
+	Head hd[kHeads] = {};
+	int32_t headSmooth[kHeads] = {};          // smoothed delays, Q8 frames
 	volatile uint32_t activeMask = 0;
 	volatile uint32_t audibleMask = 0;
-	// Reversed heads: where each is through its slice and the slice's
-	// length (Q16 frames), and its fade (Q8 frames, and 4096 / that, Q16)
-	// RATE and BITS: each head's sample clock (Q16 of the tape's 24kHz,
-	// 0x10000 for every frame) and where it is, the sample it holds, and how
-	// many bits it drops below the tape's 12 (as a shift of Q15 samples)
-	uint32_t holdInc[kHeads] = {0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000};
-	uint32_t holdPhase[kHeads] = {};
-	int32_t heldL[kHeads] = {}, heldR[kHeads] = {};
-	uint8_t crushShift[kHeads] = {};
 	volatile uint32_t revMask = 0;
 	// Clocked reverse: heads whose slices follow the beat grid, beats since
 	// the grid began (wrapping, 3840 = 2^8 x 15, so slices of most lengths
@@ -602,15 +603,14 @@ private:
 	volatile uint32_t revClockMask = 0;
 	static constexpr uint32_t kGridWrap = 3840;
 	uint32_t gridBeats = 0;
+	uint32_t gridPos = 0, revRealign = 0;     // the grid at the last beat, frames
 	bool gridRestart = true, tapBeat = false, wasClockJack = false;
-	uint32_t revPhase[kHeads] = {}, revLen[kHeads] = {};
-	int32_t revFade[kHeads] = {}, revFadeK[kHeads] = {};
 	// Glide: a one-pole of about 80ms, at most 1.5 frames a frame
 	static constexpr int32_t kGlide = 544;            // Q16 a UI tick
 	static constexpr int32_t kSlewMax = 24 * 256;     // Q8 frames a tick
 
 	// Filters in the feedback path, Q16 coefficients
-	int64_t lpL[2] = {}, lpR[2] = {}, hpL[2] = {}, hpR[2] = {};
+	int32_t lpL[2] = {}, lpR[2] = {}, hpL[2] = {}, hpR[2] = {};
 	int32_t lpCoef = 65536, hpCoef = 0;
 	bool lpOn = false, hpOn = false;
 	int lpFor = -1, hpFor = -1;
@@ -717,11 +717,37 @@ private:
 		return v > m ? m : (v < -m - 1 ? -m - 1 : v);
 	}
 
-	// One-pole low-pass, state Q16 of the signal
-	static inline int32_t OnePole(int64_t &y, int32_t x, int32_t a)
+	// One-pole low-pass, state Q8 of the signal (|x| up to 2^17), a Q16.  The
+	// step's product is split in two, as a 64-bit multiply costs the M0+ a
+	// library call.
+	static inline int32_t OnePole(int32_t &y, int32_t x, int32_t a)
 	{
-		y += (((int64_t(x) << 16) - y) * a) >> 16;
-		return int32_t((y + 32768) >> 16);
+		int32_t diff = (x << 8) - y;
+		y += (diff >> 16) * a + int32_t((uint32_t(diff & 0xFFFF) * uint32_t(a)) >> 16);
+		return (y + 128) >> 8;
+	}
+
+	// One channel onto the tape: its feedback through the filters, hiss,
+	// the input, dropouts, then saturation
+	int32_t Record(int32_t fb, int32_t in, int32_t *lp, int32_t *hp, int32_t &hissPrev)
+	{
+		fb = Clip(fb, 131071);
+		if (lpOn) fb = OnePole(lp[1], OnePole(lp[0], fb, lpCoef), lpCoef);
+		if (hpOn)
+		{
+			fb -= OnePole(hp[0], fb, hpCoef);
+			fb -= OnePole(hp[1], fb, hpCoef);
+		}
+		// Hiss, a little brighter than white
+		int32_t hiss = 0;
+		if (hissLevel)
+		{
+			int32_t n = int32_t(NextRandom()) >> 16;
+			hiss = ((n - hissPrev) * hissLevel) >> 17;
+			hissPrev = n;
+		}
+		int32_t rec = (((in + fb) * dropGain) >> 12) + hiss;
+		return (Tanh(Clip((rec * drive) >> 8, 0x7FFFFF)) * invDrive + 32768) >> 16;
 	}
 
 	// tanh, Q15 in (32768 = 1.0) and out
@@ -785,7 +811,7 @@ private:
 	// Stored fader value (0-4064) to 0-4096, so a fader at the top is 100%
 	static int32_t Q12(int32_t v)
 	{
-		return v >= 4064 ? 4096 : (v * 4096) / 4064;
+		return v >= 4064 ? 4096 : (v * 4129) >> 12;   // 4129 = 4096 * 4096 / 4064
 	}
 
 	// A two-sided fader value as -4096 to 4096, with 63-65 of 127 at the
@@ -793,8 +819,8 @@ private:
 	static int32_t BipolarQ12(int32_t raw)
 	{
 		int32_t v = raw >> 5;
-		if (v > 65) return ((v - 65) * 4096) / 62;
-		if (v < 63) return -((63 - v) * 4096) / 63;
+		if (v > 65) return ((v - 65) * 4228) >> 6;     // 4096 / 62, Q6
+		if (v < 63) return -(((63 - v) * 4161) >> 6);  // 4096 / 63, Q6
 		return 0;
 	}
 
@@ -870,8 +896,8 @@ private:
 		return t;
 	}
 
-	// The tape transport and the tape model
-	void Control()
+	// The tape transport: knobs, tap tempo, sync and freeze
+	void ControlTransport()
 	{
 		ticks++;
 		Switch sw = SwitchVal();
@@ -941,7 +967,7 @@ private:
 			int32_t longest = 0, any = 0;
 			for (int h = 0; h < kHeads; h++)
 			{
-				int32_t d = int32_t(headD[h] >> 16);
+				int32_t d = int32_t(hd[h].d >> 16);
 				if (d > any) any = d;
 				if ((audibleMask & (1 << h)) && d > longest) longest = d;
 			}
@@ -951,8 +977,12 @@ private:
 			freezeLength = longest;
 		}
 		frozen = fz;
+	}
 
-		// Tape model
+	// The tape model: filters, saturation, hiss, dropouts, wow and flutter,
+	// and the mix
+	void ControlTape()
+	{
 		const volatile int32_t *fx = params[PageFX];
 		int v = fx[FxLowPass] >> 5;
 		if (v != lpFor)
@@ -1018,8 +1048,8 @@ private:
 		wetGain = m >= 2048 ? 4096 : m * 2;
 	}
 
-	// One head, each in its own sample of the control period
-	void ControlHead(int h)
+	// One head's time, each in its own sample of the control period
+	void ControlHeadTime(int h)
 	{
 		// Glide towards the target, a one-pole with a slew limit
 		int32_t target = HeadTarget(h);
@@ -1037,7 +1067,14 @@ private:
 		int64_t d = (int64_t(s) + mod) << 8;
 		if (d < int64_t(kMinDelay) << 16) d = int64_t(kMinDelay) << 16;
 		if (d > int64_t(kMaxDelay) << 16) d = int64_t(kMaxDelay) << 16;
-		headInc[h] = int32_t((d - int64_t(headD[h])) >> 5);
+		hd[h].inc = int32_t((d - int64_t(hd[h].d)) >> 5);
+		stTimes[h] = s / 6144;          // Q8 frames at 24kHz to ms
+	}
+
+	// The rest of one head, on the sample after its time
+	void ControlHeadMix(int h)
+	{
+		int32_t s = headSmooth[h];
 
 		// Volume (a square law), feedback, pan and width, with the
 		// X and Y multipliers
@@ -1053,24 +1090,23 @@ private:
 		int32_t gl = pan > 0 ? 4096 - pan : 4096;
 		int32_t gr = pan < 0 ? 4096 + pan : 4096;
 		int32_t w = (Q12(params[PageWidth][h]) * macroY) >> 12;
-		headWidth[h] = w > 8192 ? 8192 : w;
-		gainWL[h] = (vol * gl) >> 12;
-		gainWR[h] = (vol * gr) >> 12;
-		gainFL[h] = (fb * gl) >> 12;
-		gainFR[h] = (fb * gr) >> 12;
+		hd[h].width = w > 8192 ? 8192 : w;
+		hd[h].gWL = (vol * gl) >> 12;
+		hd[h].gWR = (vol * gr) >> 12;
+		hd[h].gFL = (fb * gl) >> 12;
+		hd[h].gFR = (fb * gr) >> 12;
 		uint32_t bit = 1u << h;
 		activeMask = (vol || fb) ? (activeMask | bit) : (activeMask & ~bit);
 		audibleMask = vol ? (audibleMask | bit) : (audibleMask & ~bit);
-		stTimes[h] = s / 6144;          // Q8 frames at 24kHz to ms
 
 		// RATE: full at the top, then down exponentially to about 250Hz
 		// (6.6 octaves below the tape's 24kHz) at the bottom
 		int32_t rv = params[PageRate][h] >> 5;
-		holdInc[h] = rv >= 127 ? 0x10000 : ExpScale(0x10000, ((rv - 127) * 27034) / 127);
-		if (holdInc[h] < 1) holdInc[h] = 1;
+		hd[h].holdInc = rv >= 127 ? 0x10000 : ExpScale(0x10000, ((rv - 127) * 27034) / 127);
+		if (hd[h].holdInc < 1) hd[h].holdInc = 1;
 		// BITS: 12 at the top, down to 1 at the bottom
 		int32_t bits = 1 + ((params[PageBits][h] >> 5) * 11) / 127;
-		crushShift[h] = uint8_t(bits >= 12 ? 0 : 16 - bits);
+		hd[h].crush = bits >= 12 ? 0 : 16 - bits;
 
 		// Reverse: a slice the head's time long (at most half the tape),
 		// with a fade of 4ms, or a quarter of a short slice.  The fader's
@@ -1083,10 +1119,10 @@ private:
 			if (t > (kMaxDelay - kMinDelay) / 2) t = (kMaxDelay - kMinDelay) / 2;
 			if (t < 4) t = 4;
 			int32_t fade = t / 4 < 96 ? t / 4 : 96;
-			revFade[h] = fade << 8;
-			revFadeK[h] = 1048576 / fade;
-			revLen[h] = uint32_t(t) << 16;
-			if (!(revMask & bit)) revPhase[h] = 0;
+			hd[h].revFade = fade << 8;
+			hd[h].revFadeK = 1048576 / fade;
+			hd[h].revLen = uint32_t(t) << 16;
+			if (!(revMask & bit)) hd[h].revPhase = 0;
 			revMask |= bit;
 			if (mode == 2 && !(revClockMask & bit))
 			{
@@ -1094,7 +1130,7 @@ private:
 				int32_t since = clockJack ? samplesSinceClock : beatCount;
 				if (since > beatLength) since = beatLength;
 				uint32_t pos = gridBeats * uint32_t(beatLength >> 1) + uint32_t(since >> 1);
-				revPhase[h] = (pos % uint32_t(t)) << 16;
+				hd[h].revPhase = (pos % uint32_t(t)) << 16;
 			}
 			if (mode == 2) revClockMask |= bit;
 			else revClockMask &= ~bit;
@@ -1106,8 +1142,8 @@ private:
 		}
 	}
 
-	// Panel LEDs, levels and the web editor's snapshot
-	void ControlUI()
+	// Levels, the CV outs and the web editor's snapshot
+	void ControlLevels()
 	{
 		// Levels: peaks over the last control period, with a fall
 		int32_t pw = peakWet;
@@ -1146,7 +1182,10 @@ private:
 			loadHold = 0;
 			loadTicks = 0;
 		}
+	}
 
+	void ControlLeds()
+	{
 		// Computer LEDs: the page (or the beat and levels, with no 8mu or
 		// editor), the input, and the connection
 		bool conn = mu.Connected() || WebLinked();
@@ -1225,13 +1264,25 @@ private:
 		tiltPan = -TiltQ12(roll);
 	}
 
-	void HandleEightMU()
+	// In three parts, on separate samples: the connection and buttons,
+	// then faders 1-4, then faders 5-8 and the tilt
+	void HandleEightMU(int part)
 	{
+		if (part > 0)
+		{
+			if (muReady) EightMUFaders(part == 1 ? 0 : kHeads / 2);
+			if (part == 2)
+			{
+				if (muReady) lastFaderValid = true;
+				SetTilt(muReady ? mu.Pitch() : 0, muReady ? mu.Roll() : 0);
+			}
+			return;
+		}
+		muReady = false;
 		bool conn = mu.Connected();
 		if (!conn)
 		{
 			wasConnected = false;
-			SetTilt(0, 0);
 			return;
 		}
 		if (!wasConnected)
@@ -1253,7 +1304,8 @@ private:
 		// long press of D freeze, and moving a fader while A or D is held
 		// loads or saves a preset.  While a button is held the faders edit
 		// nothing.
-		bool anyHeld = false;
+		muReady = true;
+		anyHeld = false;
 		for (int b = 0; b < EightMU::numButtons; b++)
 		{
 			bool down = mu.Button(b);
@@ -1297,9 +1349,12 @@ private:
 			prevButton[b] = down;
 		}
 		if (ledFlash > 0) ledFlash--;
+	}
 
-		// Faders, with pickup
-		for (int i = 0; i < kHeads; i++)
+	// Four of the faders, with pickup, and their LEDs
+	void EightMUFaders(int from)
+	{
+		for (int i = from; i < from + kHeads / 2; i++)
 		{
 			int32_t f = mu.Fader(i);
 			volatile int32_t &p = params[page][i];
@@ -1326,9 +1381,6 @@ private:
 			else led = (p * 9) >> 4;
 			mu.SetLed(i, led);
 		}
-		lastFaderValid = true;
-
-		SetTilt(mu.Pitch(), mu.Roll());
 	}
 
 	//------------------------------------------------------------------------
