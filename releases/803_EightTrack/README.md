@@ -19,12 +19,12 @@ host/device split, the same style of SysEx protocol and web editor.
 
 The eight faders are the eight heads. The buttons act **when you let go**:
 
-| Button | First page | Second page (press again) |
-|---|---|---|
-| A | **Time**: each head's delay | **Reverse**: each head forwards or backwards |
-| B | **Volume**: each head's level | |
-| C | **Pan**: each head's position | **Width**: each head's stereo width |
-| D | **Feedback**: how much of each head goes back onto the tape | **FX**: filter and tape (see below) |
+| Button | First page | Second page (press again) | Third page |
+|---|---|---|---|
+| A | **Time**: each head's delay | **Reverse**: each head forwards or backwards | |
+| B | **Volume**: each head's level | **Rate**: each head's sample rate | **Bits**: each head's bit depth |
+| C | **Pan**: each head's position | **Width**: each head's stereo width | |
+| D | **Feedback**: how much of each head goes back onto the tape | **FX**: filter and tape (see below) | |
 
 | Gesture | What it does |
 |---|---|
@@ -44,6 +44,24 @@ flat, so just holding it changes nothing.
 |---|---|
 | Back up / front up | Multiplies every head's feedback, up to ×2 (back lifted) or down to ×0 (front lifted). It stacks with X and CV In 1, so feedback can reach ×4 |
 | Left / right | Pushes every head's pan towards the side tipped down, as far as fully left or right at 90° |
+
+### Rate and Bits pages (B, pressed twice and three times)
+
+These downsample each head separately, for lo-fi voices alongside clean ones.
+
+- **Rate**: the head's sample rate, from the tape's full 24 kHz (fader at
+  the top) down to about 250 Hz (bottom). The head holds each sample until
+  its own clock ticks, with no smoothing filter, so it aliases on purpose:
+  crunchy, metallic, and pitched down where the rate is low.
+- **Bits**: the head's bit depth, from the tape's full 12 bits (top) down to
+  1 bit (bottom). It rounds to the nearest step, so silence stays silent.
+
+Both act on the head before its feedback is taken. A crushed head that feeds
+back gets crunchier on every repeat. A clean head's feedback stays clean
+even if another head is crushed.
+
+Presets saved before these pages existed load with every head at full rate
+and 12 bits.
 
 ### Reverse page (A, pressed twice)
 

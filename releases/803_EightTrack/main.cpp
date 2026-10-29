@@ -20,9 +20,15 @@
 //
 //             First page                    Second page
 //   Button A  TIME      each head's delay       REVERSE  each head backwards
-//   Button B  VOLUME    each head's level
+//   Button B  VOLUME    each head's level       RATE  each head's sample rate
+//                                               (third page) BITS  its bit depth
 //   Button C  PAN       each head's pan     WIDTH  each head's stereo width
 //   Button D  FEEDBACK  each head's feedback  FX   filter and tape (below)
+//
+// RATE and BITS: each head's sample rate, from the tape's 24kHz (top) down
+// to about 250Hz (bottom), with no filtering, so it aliases; and its bit
+// depth, 12 (top) down to 1 (bottom).  Both come before the feedback, so the
+// crunch builds up over the repeats.
 //
 // REVERSE: the fader's bottom third plays its head forwards, the middle third
 // backwards, and the top third backwards, clocked.  A reversed head plays the
@@ -115,6 +121,7 @@
 #include "hardware/flash.h"
 #include "hardware/sync.h"
 #include "hardware/structs/systick.h"
+#include <stddef.h>
 #include <string.h>
 #include <math.h>
 
@@ -146,15 +153,7 @@ struct PresetStore
 	uint8_t values[sysex::kSlots][sysex::kNumValues];
 };
 static constexpr uint32_t kPresetMagic = 0x4B543845; // "E8TK"
-static constexpr uint8_t kPresetVersion = 2;
-// Version 1, before the REVERSE page: read and carried over at power-up
-struct PresetStoreV1
-{
-	uint32_t magic;
-	uint8_t version, lastSlot, pad[2];
-	uint8_t valid[sysex::kSlots];
-	uint8_t values[sysex::kSlots][6 * 8];
-};
+static constexpr uint8_t kPresetVersion = 3;
 static constexpr uint32_t kPresetOffset = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
 static constexpr int kPresetBytes = (sizeof(PresetStore) + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE * FLASH_PAGE_SIZE;
 static_assert(sizeof(PresetStore) <= FLASH_SECTOR_SIZE, "presets fit a sector");
@@ -165,7 +164,8 @@ class EightTrack : public ComputerCard
 public:
 	static constexpr int kHeads = 8;
 	// The numbers are the protocol's (and the web editor's presets')
-	enum Page {PageTime, PageVolume, PagePan, PageWidth, PageFeedback, PageFX, PageReverse, kPages};
+	enum Page {PageTime, PageVolume, PagePan, PageWidth, PageFeedback, PageFX, PageReverse,
+		PageRate, PageBits, kPages};
 	enum Fx {FxLowPass, FxHighPass, FxSaturation, FxHiss, FxWow, FxFlutter, FxDropout, FxMix};
 	static_assert(sysex::kNumValues == kPages * kHeads, "protocol carries every page");
 
@@ -223,24 +223,27 @@ public:
 		multicore_launch_core1(hostMode ? Core1Host : Core1Device);
 	}
 
+	static constexpr uint8_t kDefaults[kPages][kHeads] = {
+		{12, 28, 44, 60, 76, 92, 108, 124},   // time
+		{110, 92, 78, 66, 0, 0, 0, 0},        // volume
+		{36, 92, 24, 104, 64, 64, 64, 64},    // pan
+		{127, 127, 127, 127, 127, 127, 127, 127}, // width
+		{0, 0, 0, 60, 0, 0, 0, 0},            // feedback
+		{100, 12, 24, 6, 14, 10, 0, 64},      // fx
+		{0, 0, 0, 0, 0, 0, 0, 0},             // reverse
+		{127, 127, 127, 127, 127, 127, 127, 127}, // rate: full
+		{127, 127, 127, 127, 127, 127, 127, 127}, // bits: 12
+	};
+
 	// Default settings, so the card does something with no 8mu: four heads
 	// on the eighth notes of a bar, panned across the stereo field, the
 	// last feeding back.  Values are in 8mu fader units (0-127), stored
 	// shifted up to 0-4064.
 	void SetDefaults()
 	{
-		static const uint8_t def[kPages][kHeads] = {
-			{12, 28, 44, 60, 76, 92, 108, 124},   // time
-			{110, 92, 78, 66, 0, 0, 0, 0},        // volume
-			{36, 92, 24, 104, 64, 64, 64, 64},    // pan
-			{127, 127, 127, 127, 127, 127, 127, 127}, // width
-			{0, 0, 0, 60, 0, 0, 0, 0},            // feedback
-			{100, 12, 24, 6, 14, 10, 0, 64},      // fx
-			{0, 0, 0, 0, 0, 0, 0, 0},             // reverse
-		};
 		for (int p = 0; p < kPages; p++)
 			for (int h = 0; h < kHeads; h++)
-				params[p][h] = def[p][h] << 5;
+				params[p][h] = kDefaults[p][h] << 5;
 	}
 
 	virtual void ProcessSample()
@@ -372,20 +375,51 @@ public:
 				int32_t x = int32_t((p < q ? p : q) >> 8);   // Q8 frames
 				env = x >= revFade[h] ? 4096 : (x * revFadeK[h]) >> 16;
 			}
-			uint32_t rp = wq >= d ? wq - d : wq + kTapeQ - d;
-			uint32_t i0 = rp >> 16;
-			uint32_t i1 = i0 + 1;
-			if (i1 >= uint32_t(kTapeFrames)) i1 = 0;
-			int32_t fr = int32_t((rp >> 2) & 0x3FFF);
-			int32_t l0, r0, l1, r1;
-			ReadFrame(i0, l0, r0);
-			ReadFrame(i1, l1, r1);
-			int32_t l = l0 + (((l1 - l0) * fr) >> 14);
-			int32_t r = r0 + (((r1 - r0) * fr) >> 14);
-			if (env != 4096)
+			// RATE: a head below the tape's rate holds its last sample
+			// until its own clock ticks (and doesn't read the tape at all
+			// meanwhile)
+			bool fresh = true;
+			uint32_t hi = holdInc[h];
+			if (hi < 0x10000)
 			{
-				l = (l * env) >> 12;
-				r = (r * env) >> 12;
+				uint32_t ph = holdPhase[h] + hi;
+				fresh = ph >= 0x10000;
+				holdPhase[h] = fresh ? ph - 0x10000 : ph;
+			}
+			int32_t l, r;
+			if (fresh)
+			{
+				uint32_t rp = wq >= d ? wq - d : wq + kTapeQ - d;
+				uint32_t i0 = rp >> 16;
+				uint32_t i1 = i0 + 1;
+				if (i1 >= uint32_t(kTapeFrames)) i1 = 0;
+				int32_t fr = int32_t((rp >> 2) & 0x3FFF);
+				int32_t l0, r0, l1, r1;
+				ReadFrame(i0, l0, r0);
+				ReadFrame(i1, l1, r1);
+				l = l0 + (((l1 - l0) * fr) >> 14);
+				r = r0 + (((r1 - r0) * fr) >> 14);
+				if (env != 4096)
+				{
+					l = (l * env) >> 12;
+					r = (r * env) >> 12;
+				}
+				// BITS: rounded to the nearest step, so silence stays
+				// silent
+				int sh = crushShift[h];
+				if (sh)
+				{
+					int32_t half = 1 << (sh - 1);
+					l = ((l + half) >> sh) << sh;
+					r = ((r + half) >> sh) << sh;
+				}
+				heldL[h] = l;
+				heldR[h] = r;
+			}
+			else
+			{
+				l = heldL[h];
+				r = heldR[h];
 			}
 			int32_t mid = (l + r) >> 1;
 			int32_t side = (((l - r) >> 1) * headWidth[h]) >> 12;
@@ -554,6 +588,13 @@ private:
 	volatile uint32_t audibleMask = 0;
 	// Reversed heads: where each is through its slice and the slice's
 	// length (Q16 frames), and its fade (Q8 frames, and 4096 / that, Q16)
+	// RATE and BITS: each head's sample clock (Q16 of the tape's 24kHz,
+	// 0x10000 for every frame) and where it is, the sample it holds, and how
+	// many bits it drops below the tape's 12 (as a shift of Q15 samples)
+	uint32_t holdInc[kHeads] = {0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000, 0x10000};
+	uint32_t holdPhase[kHeads] = {};
+	int32_t heldL[kHeads] = {}, heldR[kHeads] = {};
+	uint8_t crushShift[kHeads] = {};
 	volatile uint32_t revMask = 0;
 	// Clocked reverse: heads whose slices follow the beat grid, beats since
 	// the grid began (wrapping, 3840 = 2^8 x 15, so slices of most lengths
@@ -769,12 +810,12 @@ private:
 	//------------------------------------------------------------------------
 
 	// The pages each button steps through, in order
-	static constexpr int kMaxLayers = 2;
+	static constexpr int kMaxLayers = 3;
 	static constexpr int8_t kButtonPages[4][kMaxLayers] = {
-		{PageTime, PageReverse},
-		{PageVolume, -1},
-		{PagePan, PageWidth},
-		{PageFeedback, PageFX},
+		{PageTime, PageReverse, -1},
+		{PageVolume, PageRate, PageBits},
+		{PagePan, PageWidth, -1},
+		{PageFeedback, PageFX, -1},
 	};
 	// The button (0-3) a page is on, and its place in that button's list
 	static int ButtonOf(int pg, int *layer = nullptr)
@@ -1021,6 +1062,15 @@ private:
 		activeMask = (vol || fb) ? (activeMask | bit) : (activeMask & ~bit);
 		audibleMask = vol ? (audibleMask | bit) : (audibleMask & ~bit);
 		stTimes[h] = s / 6144;          // Q8 frames at 24kHz to ms
+
+		// RATE: full at the top, then down exponentially to about 250Hz
+		// (6.6 octaves below the tape's 24kHz) at the bottom
+		int32_t rv = params[PageRate][h] >> 5;
+		holdInc[h] = rv >= 127 ? 0x10000 : ExpScale(0x10000, ((rv - 127) * 27034) / 127);
+		if (holdInc[h] < 1) holdInc[h] = 1;
+		// BITS: 12 at the top, down to 1 at the bottom
+		int32_t bits = 1 + ((params[PageBits][h] >> 5) * 11) / 127;
+		crushShift[h] = uint8_t(bits >= 12 ? 0 : 16 - bits);
 
 		// Reverse: a slice the head's time long (at most half the tape),
 		// with a fade of 4ms, or a quarter of a short slice.  The fader's
@@ -1288,19 +1338,27 @@ private:
 	void LoadPresetStore()
 	{
 		memcpy(&store, reinterpret_cast<const void *>(XIP_BASE + kPresetOffset), sizeof(store));
-		if (store.magic == kPresetMagic && store.version == 1)
+		if (store.magic == kPresetMagic && (store.version == 1 || store.version == 2))
 		{
-			// Carry version 1's presets over, with every head forwards
-			static PresetStoreV1 old;
-			memcpy(&old, reinterpret_cast<const void *>(XIP_BASE + kPresetOffset), sizeof(old));
+			// Carry older presets over: version 1 had 6 pages, version 2
+			// added REVERSE.  The same header, then each slot's values; the
+			// pages they lack take their defaults (forwards, full rate, 12
+			// bits).
+			const uint8_t *f = reinterpret_cast<const uint8_t *>(XIP_BASE + kPresetOffset);
+			int n = (store.version == 1 ? 6 : 7) * kHeads;
+			uint8_t lastSlot = store.lastSlot;
+			uint8_t valid[sysex::kSlots];
+			memcpy(valid, store.valid, sizeof(valid));
 			memset(&store, 0, sizeof(store));
 			store.magic = kPresetMagic;
 			store.version = kPresetVersion;
-			store.lastSlot = old.lastSlot;
+			store.lastSlot = lastSlot;
+			const uint8_t *old = f + offsetof(PresetStore, values);
 			for (int s = 0; s < sysex::kSlots; s++)
 			{
-				store.valid[s] = old.valid[s];
-				memcpy(store.values[s], old.values[s], sizeof(old.values[s]));
+				store.valid[s] = valid[s];
+				for (int i = 0; i < sysex::kNumValues; i++)
+					store.values[s][i] = i < n ? old[s * n + i] : kDefaults[i / kHeads][i % kHeads];
 			}
 		}
 		else if (store.magic != kPresetMagic || store.version != kPresetVersion)

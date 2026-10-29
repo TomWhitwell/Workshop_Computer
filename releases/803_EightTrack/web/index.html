@@ -240,7 +240,7 @@
       <div class="notes">
         <p>The 8mu can plug into the module (no computer needed) or into this computer, which passes it on to the card. Its eight faders are the eight heads; its buttons are acted on <b>when you let go</b>.</p>
         <table class="jacks">
-          <tr><th>Short press</th><td>The page. Press the same button again for its second page:<br>A <b>Time</b> &rarr; Reverse (forwards / reverse / reverse clocked, in thirds)<br>B <b>Volume</b><br>C <b>Pan</b> &rarr; Width<br>D <b>Feedback</b> &rarr; FX</td></tr>
+          <tr><th>Short press</th><td>The page. Press the same button again for its next page:<br>A <b>Time</b> &rarr; Reverse (forwards / reverse / reverse clocked, in thirds)<br>B <b>Volume</b> &rarr; Rate &rarr; Bits<br>C <b>Pan</b> &rarr; Width<br>D <b>Feedback</b> &rarr; FX</td></tr>
           <tr><th>Long press D<br>(&frac12; s)</th><td>Freeze on or off</td></tr>
           <tr><th>Hold A + move<br>a fader</th><td>Load card preset 1-8 (the fader's number). The fader's LED flashes three times</td></tr>
           <tr><th>Hold D + move<br>a fader</th><td>Save the settings as card preset 1-8. The fader's LED blinks fast</td></tr>
@@ -277,20 +277,20 @@
 // Constants mirroring the firmware (main.cpp, sysex.h)
 // ============================================================================
 const NH = 8;                                   // heads: one per fader
-const PAGES = 7;                                // Time, Volume, Pan, Width, Feedback, FX, Reverse
-const TAB_ORDER = [0, 6, 1, 2, 3, 4, 5];          // as the 8mu's buttons go: A, A², B, C, C², D, D²
+const PAGES = 9;                                // Time, Volume, Pan, Width, Feedback, FX, Reverse, Rate, Bits
+const TAB_ORDER = [0, 6, 1, 7, 8, 2, 3, 4, 5];    // as the 8mu's buttons go: A, A², B, B², B³, C, C², D, D²
 const NVALUES = PAGES * NH;
 const NSLOTS = 8;
 const LONG_PRESS_MS = 500;
 const HOLD_MOVE = 20;     // fader travel (of 127) needed while A or D is held, as on the card
 // The pages each 8mu button steps through, in order (kButtonPages in main.cpp)
-const BUTTON_PAGES = [[0, 6], [1], [2, 3], [4, 5]];
+const BUTTON_PAGES = [[0, 6], [1, 7, 8], [2, 3], [4, 5]];
 const buttonOf = (pg) => BUTTON_PAGES.findIndex(l => l.includes(pg));
 function nextPage(pg, b) {
   const l = BUTTON_PAGES[b], k = l.indexOf(pg);
   return k < 0 ? l[0] : l[(k + 1) % l.length];
 }
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x45, PROTOCOL_VERSION = 2;
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x45, PROTOCOL_VERSION = 3;
 const CMD = { HELLO: 1, STATE: 2, SET: 3, SET_ALL: 4, PAGE: 5, RESET: 6, STATUS: 7, MOTION: 8, PING: 9,
               FREEZE: 10, TAP: 11, SAVE: 12, LOAD: 13, GET_SLOTS: 14, SLOTS: 15, STORE: 16, ERASE: 17 };
 const NO_SLOT = 127;
@@ -310,6 +310,8 @@ const PAGE_INFO = [
   { name: 'Feedback', letter: 'D',  hint: 'How much of each head goes back onto the tape, through the filters and the tape model, times X and CV In 1. With X above the centre the tape can run away into its own saturation.' },
   { name: 'FX',       letter: 'D²', hint: 'Filters in the feedback path, then the tape: saturation onto it, hiss, wow, flutter and dropouts. Mix sets dry against wet: dry only down, both full at the centre, wet only up.' },
   { name: 'Reverse',  letter: 'A²', hint: 'Bottom third forwards, middle third reverse, top third reverse clocked. A reversed head plays back slices of the tape a head’s time long, each one backwards, arriving about a head’s time later, with a short fade at each join. Clocked, the slices follow the beat (the clock, tap tempo, or the free-time pulse), so a slice a whole number of beats long starts on a beat.' },
+  { name: 'Rate',     letter: 'B²', hint: 'Each head’s sample rate: the tape’s 24 kHz at the top, down to about 250 Hz at the bottom. The head holds each sample until its own clock ticks, with no filtering, so it aliases. It comes before the feedback, so repeats get crunchier each time round.' },
+  { name: 'Bits',     letter: 'B³', hint: 'Each head’s bit depth: the tape’s 12 bits at the top, down to 1 bit at the bottom. Rounded to the nearest step, so silence stays silent. Like Rate, it comes before the feedback.' },
 ];
 const DEFAULTS = [
   [12, 28, 44, 60, 76, 92, 108, 124],
@@ -319,6 +321,8 @@ const DEFAULTS = [
   [0, 0, 0, 60, 0, 0, 0, 0],
   [100, 12, 24, 6, 14, 10, 0, 64],
   [0, 0, 0, 0, 0, 0, 0, 0],
+  [127, 127, 127, 127, 127, 127, 127, 127],
+  [127, 127, 127, 127, 127, 127, 127, 127],
 ];
 
 // ============================================================================
@@ -392,6 +396,8 @@ function describe(page, i, v) {
     case 3: return v === 0 ? 'mono' : Math.round(q12(v) * 100) + '%';
     case 4: return v === 0 ? 'none' : Math.round(q12(v) * 100) + '%';
     case 6: return revMode(v) === 2 ? 'reverse, clocked' : revMode(v) === 1 ? 'reverse' : 'forwards';
+    case 7: return v >= 127 ? 'full' : fmtHz(24000 * Math.pow(2, (v - 127) * 6.6 / 127));
+    case 8: { const b = 1 + Math.floor(v * 11 / 127); return b >= 12 ? '12 bit (full)' : b + ' bit'; }
     default:
       switch (i) {
         case 0: return v >= 127 ? 'off' : fmtHz(150 * Math.pow(2, v * 6.74 / 127));
@@ -925,7 +931,7 @@ function onCardBytes(d) {
     if (!link.sysexOn) continue;
     if (b === 0xF7) { link.sysexOn = false; handleCardMessage(link.sysexBuf); link.sysexBuf = []; continue; }
     if (b & 0x80) { if (b < 0xF8) link.sysexOn = false; continue; }
-    if (link.sysexBuf.length < 600) link.sysexBuf.push(b); else link.sysexOn = false;
+    if (link.sysexBuf.length < 1000) link.sysexBuf.push(b); else link.sysexOn = false;
   }
 }
 
@@ -1041,13 +1047,16 @@ const store = {
 const PRESET_KEY = 'eighttrack.presets.v1';
 let userPresets = [];
 function cleanPreset(o) {
-  // Presets from before the Reverse page have 48 values: every head forwards
-  if (!o || typeof o !== 'object' || !Array.isArray(o.values) || (o.values.length !== NVALUES && o.values.length !== 48)) return null;
+  // Older presets have 48 or 56 values; padValues fills in the rest
+  if (!o || typeof o !== 'object' || !Array.isArray(o.values) || ![48, 56, NVALUES].includes(o.values.length)) return null;
   const values = o.values.map(v => clamp(v | 0, 0, 127));
-  while (values.length < NVALUES) values.push(0);
+  padValues(values);
   return { name: String(o.name || 'Untitled').slice(0, 60), values };
 }
-const flat = (rows) => { const v = rows.flat(); while (v.length < NVALUES) v.push(0); return v; };
+// Presets from before the Reverse page (48 values) or the Rate and Bits
+// pages (56) take those pages' defaults: forwards, full rate, 12 bits
+function padValues(v) { while (v.length < NVALUES) v.push(DEFAULTS[Math.floor(v.length / NH)][v.length % NH]); return v; }
+const flat = (rows) => padValues(rows.flat());
 const BUILTIN_ROWS = [
   { name: 'Default: four heads, eighths', values: flat(DEFAULTS) },
   { name: 'Slapback', values: flat([[10, 20, 0, 0, 0, 0, 0, 0], [118, 70, 0, 0, 0, 0, 0, 0], [52, 76, 64, 64, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [10, 0, 0, 0, 0, 0, 0, 0], [110, 20, 50, 10, 6, 8, 0, 64]]) },
@@ -1058,6 +1067,7 @@ const BUILTIN_ROWS = [
   { name: 'Shimmer comb', values: flat([[1, 2, 3, 5, 0, 0, 0, 0], [70, 60, 50, 40, 0, 0, 0, 0], [30, 98, 44, 84, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [60, 50, 40, 30, 0, 0, 0, 0], [110, 30, 10, 0, 20, 4, 0, 60]]) },
   { name: 'Backwards and forwards', values: flat([[28, 60, 92, 124, 0, 0, 0, 0], [100, 100, 80, 70, 0, 0, 0, 0], [30, 98, 50, 78, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [0, 0, 0, 50, 0, 0, 0, 0], [96, 16, 24, 6, 10, 8, 0, 64], [64, 0, 64, 0, 0, 0, 0, 0]]) },
   { name: 'Reverse swell', values: flat([[64, 124, 0, 0, 0, 0, 0, 0], [110, 90, 0, 0, 0, 0, 0, 0], [40, 88, 64, 64, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [40, 60, 0, 0, 0, 0, 0, 0], [80, 24, 30, 10, 12, 8, 0, 80], [127, 127, 0, 0, 0, 0, 0, 0]]) },
+  { name: 'Bitcrushed taps', values: flat([[16, 40, 64, 88, 112, 0, 0, 0], [110, 95, 85, 75, 65, 0, 0, 0], [24, 104, 40, 88, 64, 64, 64, 64], [127, 127, 127, 127, 127, 127, 127, 127], [0, 0, 0, 0, 55, 0, 0, 0], [100, 20, 30, 0, 8, 6, 0, 64], [0, 0, 0, 0, 0, 0, 0, 0], [127, 90, 70, 50, 30, 127, 127, 127], [127, 70, 50, 35, 20, 127, 127, 127]]) },
 ];
 const BUILTIN = BUILTIN_ROWS;
 function loadPresets() { userPresets = (store.get(PRESET_KEY, []) || []).map(cleanPreset).filter(Boolean); }
@@ -1169,7 +1179,7 @@ function init() {
   window.addEventListener('keydown', (e) => {
     if (e.target.closest && e.target.closest('input, select, textarea')) return;
     const k = e.key.toLowerCase();
-    if (k >= '1' && k <= '7') selectPage(TAB_ORDER[+k - 1], true);
+    if (k >= '1' && k <= '9') selectPage(TAB_ORDER[+k - 1], true);
     else if (k === 'f') setFreeze(!state.freeze);
     else if (k === 't') sendRaw(sysex(CMD.TAP, []));
   });
@@ -1178,7 +1188,7 @@ function init() {
   requestRender();
   requestAnimationFrame(frame);
   if (!navigator.requestMIDIAccess) say('This browser can’t do WebMIDI, so it can’t reach the card or an 8mu. You can still edit and keep presets here.');
-  else say('Press “Connect card & 8mu” to reach the card. Until then this page edits and keeps presets on its own. Keys: 1-7 pages, F freeze, T tap.');
+  else say('Press “Connect card & 8mu” to reach the card. Until then this page edits and keeps presets on its own. Keys: 1-9 pages, F freeze, T tap.');
 }
 init();
 </script>
