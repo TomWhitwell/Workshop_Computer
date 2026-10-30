@@ -180,8 +180,9 @@ as a bar from the middle (left two flat, right two sharp, the middle two dim
 at exactly 0). Turning Main this way leaves the direction alone: the switch
 only steps the direction when you let go without having turned Main. Once you
 let go, Main waits to pick the pitch up again (LED 6 blinks until it reaches
-it), so the pitch doesn't jump. The web editor shows the fine pitch under the
-Pitch readout, and outlines Pitch while Main waits.
+it), so the pitch doesn't jump. The web editor's Pitch readout is the pitch
+you hear, coarse and fine together (and CV In 1), and is outlined while Main
+waits.
 
 The switch's up and middle positions choose what the X and Y knobs do:
 

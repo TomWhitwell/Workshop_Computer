@@ -184,7 +184,7 @@
       <h2>Sequence</h2>
       <div class="readouts">
         <div class="readout"><div class="k">Step</div><div class="v" id="ro-step">-</div></div>
-        <div class="readout"><div class="k">Pitch</div><div class="v" id="ro-pitch">-</div><div class="sub" id="ro-fine"></div></div>
+        <div class="readout"><div class="k">Pitch</div><div class="v" id="ro-pitch">-</div></div>
         <div class="readout"><div class="k">Speed</div><div class="v" id="ro-speed">-</div></div>
         <div class="readout"><div class="k">Crossfade</div><div class="v" id="ro-xfade">-</div></div>
         <div class="readout"><div class="k">Timing</div><div class="v" id="ro-clock">-</div></div>
@@ -740,7 +740,6 @@ function drawReadouts() {
   const L = state.live;
   $('ro-step').textContent = (L.cur + 1) + ' → ' + (L.next + 1);
   $('ro-pitch').textContent = link.cardOnline ? noteName(shownPitch(L.note)) : '-';
-  $('ro-fine').textContent = link.cardOnline ? 'fine ' + (L.fine > 0 ? '+' : L.fine < 0 ? '\u2212' : '') + Math.abs(L.fine) + ' c' : '';
   // A dotted box round each setting whose knob is waiting to pick it up: X
   // and Y are speed and crossfade with the switch up, FM and scan amounts
   // with it in the middle
