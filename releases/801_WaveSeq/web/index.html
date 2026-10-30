@@ -726,9 +726,14 @@ function drawThumb(cv, fn) {
 // boundary, the note name) flicker.  The readout follows a short average
 // (about 0.2 s) and only changes once that has moved 3 cents from what's
 // shown; a jump of more than half a semitone (turning Main, a new note on
-// CV) is followed at once.  The sound itself isn't touched.
+// CV) is followed at once.  The sound itself isn't touched.  The fine pitch
+// (switch held, Main turned) is set on purpose and has no noise, so it's left
+// out of the smoothing and added back exactly: a fine tweak shows at once.
 const pitchShow = { avg: null, shown: null };
-function shownPitch(note) {
+function shownPitch(note, fine) {
+  return smoothPitch(note - fine / 100) + fine / 100;
+}
+function smoothPitch(note) {
   const p = pitchShow;
   if (p.avg === null || Math.abs(note - p.avg) > 0.5) p.avg = note;
   else p.avg += (note - p.avg) * 0.15;
@@ -739,7 +744,7 @@ function shownPitch(note) {
 function drawReadouts() {
   const L = state.live;
   $('ro-step').textContent = (L.cur + 1) + ' → ' + (L.next + 1);
-  $('ro-pitch').textContent = link.cardOnline ? noteName(shownPitch(L.note)) : '-';
+  $('ro-pitch').textContent = link.cardOnline ? noteName(shownPitch(L.note, L.fine || 0)) : '-';
   // A dotted box round each setting whose knob is waiting to pick it up: X
   // and Y are speed and crossfade with the switch up, FM and scan amounts
   // with it in the middle
