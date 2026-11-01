@@ -255,6 +255,31 @@ static void TestClock()
 	CHECK(!c.engine.clocked, "back to the internal clock");
 	k = Run(c, 48000 * 2);
 	CHECK(k.rises[0] == 4, "120 BPM again: %d", k.rises[0]);
+
+	// A noisy clock, chattering for 1ms at each edge: still a step a clock,
+	// not one every millisecond
+	{
+		Weights d;
+		PlainGates(d);
+		uint32_t r = 1;
+		int rises = 0;
+		bool prev = d.pulseOut[0];
+		for (int i = 0; i < 48000 * 2; i++)
+		{
+			int ph = int(gSamples % 4800);
+			bool in = ph < 2400;
+			if (ph < 48 || (ph >= 2400 && ph < 2448)) { r = r * 1664525u + 1013904223u; in = (r >> 31) & 1; }
+			d.pulseIn1 = in;
+			d.Sample();
+			gSamples++;
+			gTimeUs = uint32_t((gSamples * 125) / 6);
+			if (i >= 48000 && d.pulseOut[0] && !prev) rises++;
+			prev = d.pulseOut[0];
+		}
+		CHECK(d.engine.clocked, "following the noisy clock");
+		CHECK(abs(d.engine.clockPeriod - 4800) <= 48, "noisy clock period %d", d.engine.clockPeriod);
+		CHECK(rises == 10, "a step a noisy clock: %d", rises);
+	}
 }
 
 static void TestEightMu()
