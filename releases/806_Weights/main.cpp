@@ -53,7 +53,9 @@
 //   Audio In 1, 2  Optional: a signal plugged in here comes out of Audio Out
 //                1 or 2 shaped by that voice's envelope, in place of the
 //                envelope itself
-//   Pulse In 1   Clock.  Followed from its second pulse; with nothing
+//   Pulse In 1   Clock.  Followed from its second pulse (a rising edge
+//                counts after 2ms low, and at most every 4ms, so noise and
+//                slow edges aren't taken for extra clocks); with nothing
 //                plugged in (or four periods, at least 2s, without a pulse)
 //                the card keeps its own time: 120 BPM, until set by Main with
 //                the switch held down, or by the web editor
@@ -110,7 +112,8 @@ public:
 	virtual void ProcessSample()
 	{
 		uint32_t startUs = time_us_32();
-		bool clockEdge = PulseIn1RisingEdge();
+		// Filtered, so that noise or a slow edge isn't taken for many clocks
+		bool clockEdge = clockIn.Tick(PulseIn1());
 		// The exact moment of each clock is a little unpredictable, which
 		// keeps the random lines from repeating after every power-up
 		if (clockEdge) engine.Stir(startUs);
@@ -162,6 +165,7 @@ public:
 
 private:
 	Engine engine;
+	ClockInput clockIn;          // Pulse In 1, debounced
 	EightMuUi ui;
 	EightMU mu;
 

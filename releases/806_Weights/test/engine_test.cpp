@@ -193,6 +193,52 @@ static void TestInternalClock()
 	CHECK(t0 == 48000, "60 BPM step %d samples", t0);
 }
 
+//----------------------------------------------------------------------------
+// Pulse In 1's filter: chatter on slow or noisy edges isn't extra clocks
+static void TestClockInput()
+{
+	// A clean 1ms trigger, 10 a second: every one counts, on its edge
+	{
+		ClockInput c;
+		int n = 0, late = 0;
+		for (int t = 0; t < 48000; t++)
+		{
+			bool in = (t % 4800) < 48;
+			if (c.Tick(in)) { n++; if (t % 4800) late++; }
+		}
+		CHECK(n == 10 && late == 0, "clean clock: %d clocks, %d late", n, late);
+	}
+	// Each edge chatters for 0.5ms (on the way up and on the way down): one
+	// clock each
+	{
+		ClockInput c;
+		int n = 0;
+		uint32_t r = 12345;
+		for (int t = 0; t < 48000; t++)
+		{
+			int ph = t % 4800;
+			bool in = ph < 2400;
+			if (ph < 24 || (ph >= 2400 && ph < 2424)) { r = r * 1664525u + 1013904223u; in = (r >> 31) & 1; }
+			n += c.Tick(in);
+		}
+		CHECK(n == 10, "chattering clock: %d clocks for 10", n);
+	}
+	// Short dropouts while high (noise on a held gate) don't retrigger
+	{
+		ClockInput c;
+		int n = 0;
+		for (int t = 0; t < 24000; t++) n += c.Tick(t % 500 != 0);
+		CHECK(n == 1, "dropouts on a held gate: %d clocks", n);
+	}
+	// Fastest clean clock followed: 250 Hz, 50% duty
+	{
+		ClockInput c;
+		int n = 0;
+		for (int t = 0; t < 48000; t++) n += c.Tick((t % 192) < 96);
+		CHECK(n == 250, "250 Hz clock: %d", n);
+	}
+}
+
 // Run with an external clock of the given period, counting the samples at
 // which steps start
 static int ClockedSteps(Engine &e, int period, int clocks, int *stepTimes, int maxSteps)
@@ -874,6 +920,7 @@ int main()
 	TestKnobs();
 	TestInternalClock();
 	TestExternalClock();
+	TestClockInput();
 	TestRatchets();
 	TestGates();
 	TestEnvelope();
