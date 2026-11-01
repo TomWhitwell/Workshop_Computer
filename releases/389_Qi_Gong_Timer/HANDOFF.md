@@ -1,4 +1,4 @@
-# HANDOFF: QiGong Timer (kept current; read this first)
+# HANDOFF: Qigong Timer (kept current; read this first)
 
 ## 0. First five minutes
 1. Unzip; read this file, `docs/DESIGN_HISTORY.md`, `docs/ORIGINAL_BRIEF.md`. The onboarding pack (`Workshop_Card_Onboarding_*`) is the platform background.
@@ -11,7 +11,7 @@
 6. Ask the owner what they found on hardware (`docs/STAGE2_HARDWARE_TEST.md`), then continue with the next stage.
 
 ## 1. The project in one paragraph
-A program card for the Music Thing Workshop System **Computer**: an **interval meditation timer for Qi Gong**, set with the knobs alone.
+A program card for the Music Thing Workshop System **Computer**: an **interval meditation timer for Qigong**, set with the knobs alone.
 It counts N intervals of a set length and sends **Pulse 1** (a double chime at the start, then each interval) and **Pulse 2** (end)
 to trigger the player's own patched chime and bell; it adds **reverb + delay** to those sounds on two independent channels
 (Audio In 1/2 -> Out 1/2) and keeps the quiet between them truly silent (silence keeper). Set-up is by **LEDs and soft clicks**.
@@ -26,7 +26,7 @@ tables, demos for audible changes, honesty about what is verified. Will test on 
 2. **Set-up knobs take over immediately** (owner's choice, 7 Oct): no soft pickup in Z-up. Merely flipping Z up must never change a
    value (each knob is armed until it moves `kTakeoverMove`). **Set-up = Main intervals, X minutes, Y seconds; LEDs rule A; soft
    calm clicks; no voice** (owner, 8 Oct).
-3. The card makes **no sounds of its own** except the very soft set-up clicks. No drones, samples or backgrounds (dropped by the owner).
+3. The card makes **no sounds of its own** except the very soft set-up clicks. **Settings are saved only when stopped and silent.** No drones, samples or backgrounds (dropped by the owner).
 4. Two **independent** effect chains. **Sounds pass bit-for-bit; the dry signal is gated only in the quiet between them**
    (owner chose send + dry, 8 Oct). The wet part is limited into the dry's headroom. **Only the card's own pulses open the silence
    keeper, at all times: silent before, between and after sessions** (owner, 19 Oct). Hand-triggered sounds are not heard; tune in preview.
@@ -114,12 +114,12 @@ Per sample: timer counter + switch + slice job + outputs.
 * Words "paused"/"stopped" are in the planned script but not yet used (speaking during meditation may disturb; owner to decide).
 
 ## 8. Next
-**Stage 4 (release) is drafted** (20 Oct): `README.md` (patching, quick start, set-up with the LED number table, a session, preview,
-effects, silence, LEDs, jacks, troubleshooting, building, credits), `info.yaml` (core fields + structured panel / switch / knobs /
-LEDs, validated with the repository's `npm run validate-info`: no errors, 1 warning: `contact`), `LICENSE` (MIT), `lib/ComputerCard.LICENSE`,
-`UF2/qigong_timer.0.9.0.uf2`, `samples/` (3 demos from the current code), `docs/SUBMITTING.md` (pull request steps).
-Creator: **Joe Hedinger (isbn)**; folder **`389_QiGong_Timer`** (owner's choice; free on 20 Oct). Still needed: optional contact,
-the final hardware test of this build (`docs/STAGE3_HARDWARE_TEST.md`), then Version 1.0.0 / Status Released / draft false, and the pull request.
+**Published:** https://computer.musicthing.co.uk/programs/389-qi-gong-timer/ as `releases/389_Qi_Gong_Timer` (0.9.0 Beta).
+**Version 1.1 (21 Oct) is ready:** saved settings (timer + effects; hold Z at power-up = defaults), no audio samples on the page.
+**Spelling (1 Nov): "Qigong"** everywhere it is shown (owner); folder `389_Qi_Gong_Timer` unchanged (it sets the page address).
+**Hardware test of 1.1 passed (owner, 1 Nov): saves, power cycles, defaults gesture, inputs normal after a save. Status: Released.**
+Owner to: hardware-test 1.1 (done) (`docs/STAGE4_HARDWARE_TEST.md`, step 2 = Robopera's input-converter trap), then update the published folder
+(`docs/UPDATE_TO_1.1.md`). Open: README-before-Panel on the page needs a site change (the template's order is fixed).
 
 ## 9. Ideas backlog (proposals only)
 Speak "paused"/"stopped"; a distinct start signal; saved settings (flash, risky); optional freeze; trimming CPU further so 144 MHz is comfortable.

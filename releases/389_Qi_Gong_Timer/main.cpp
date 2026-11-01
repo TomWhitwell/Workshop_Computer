@@ -1,4 +1,4 @@
-// QiGong Timer: a Workshop Computer program card (AI-assisted: Claude / Anthropic).
+// Qigong Timer: a Workshop Computer program card (AI-assisted: Claude / Anthropic).
 #include "pico/stdlib.h"
 #ifdef CARD_BENCH
 // BENCH BUILD ONLY (cmake -DCARD_BENCH=ON): lets scripts/bench_cycles.py reach ComputerCard's inputs and the engine

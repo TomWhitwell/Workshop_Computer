@@ -1,4 +1,4 @@
-# QiGong Timer: CMake for a Workshop Computer program card.
+# Qigong Timer: CMake for a Workshop Computer program card.
 # Included: lib/ComputerCard.h (v0.4.0, MIT, Chris Johnson) and pico_sdk_import.cmake (from pico-sdk 2.1.1).
 # (ComputerCard.h lives in lib/ so the PC tests pick up their mock instead: see host/mock/.)
 cmake_minimum_required(VERSION 3.13)

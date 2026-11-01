@@ -1,6 +1,6 @@
-# QiGong Timer
+# Qigong Timer
 
-**An interval meditation timer for Qi Gong (or any practice), set with the knobs and played by your own Workshop System voices.**
+**An interval meditation timer for Qigong (or any practice), set with the knobs and played by your own Workshop System voices.**
 
 The card counts a session of intervals. At the start, at the end of every interval and at the end of the session it sends a
 **pulse** that strikes *your* patched sounds: a chime for the intervals, a bell or gong for the end. It adds a calm **reverb and
@@ -12,6 +12,7 @@ every step, and the LEDs show the numbers.
 * A chime at the end of every interval, a **bell at the end** of the session.
 * Pause, resume, stop. A **preview mode** to tune and dial in your sounds.
 * Two separate effect chains (chime and bell never mix): reverb up to 25 s, delay up to 1 s.
+* **Remembers your settings** (timer and effects) when the power is off.
 * The card makes no sound of its own except very soft clicks while you set it.
 
 ---
@@ -80,7 +81,16 @@ Leave CV Out 1/2, CV In 1/2 and Pulse In 1/2 unpatched: the card does not use th
   value. (If a knob is already at the end you want, nudge it away and back.)
 * **0 minutes** gives intervals of just the seconds (no LEDs). 0 minutes and 0 seconds counts as 10 seconds.
 * Settings can only be changed while the timer is stopped; Z up during a session is ignored.
-* At power-up: **6 intervals of 5:00**. Settings are not saved when the power is off.
+* **Your settings are remembered** when the power is off (section 3.1). The very first time: **6 intervals of 5:00**.
+
+### 3.1 Saving, and starting afresh
+
+* The card **saves your timer and effect settings by itself**, a few seconds after your last change, whenever it is
+  stopped and silent. It never saves during a session or preview mode (a save pauses the card for a moment, and nobody
+  should hear that). Effect changes you make during a session are saved after it ends.
+* So before switching off, give it **3 seconds** after your last change (while stopped).
+* **Back to the defaults:** hold **Z down while switching the power on**. All six LEDs glow and fade to confirm; the timer
+  is back to 6 intervals of 5:00 and the effects to their starting sounds (and that is saved too).
 
 ### Reading the LEDs
 
@@ -153,7 +163,8 @@ adjusted at any time with Z in the middle, also during a session.
   towards it until it stops flickering, then the bar follows your knob.
 * Both mix knobs fully anticlockwise = no effect at all.
 * Changing the echo time while echoes ring makes them glide, like tape. Feedback never runs away: the repeats always fade.
-* At power-up: a medium-long (about 8 s), darkish reverb at a moderate level; the delay is off. Not saved when the power is off.
+* Remembered when the power is off, like the timer (section 3.1). The very first time: a medium-long (about 8 s), darkish
+  reverb at a moderate level; the delay is off.
 
 ### Silence between the sounds
 
@@ -172,6 +183,7 @@ to your voices, use preview mode.
 | What the card is doing | What you see |
 |---|---|
 | Stopped, ready | All six breathe slowly and dimly |
+| Switched on holding Z down (back to the defaults) | All six glow, then fade out |
 | Setting the timer (Z up) | The number for the knob you touched last (section 3) |
 | Settling (10 s after start) | All six bright, going out one by one |
 | Each strike (start, intervals, end) | A soft flash of all six |
@@ -214,6 +226,8 @@ Everything is kept dim on purpose: this card is used with eyes closed or the lig
 | A tap seems slow | It acts 0.4 s after you let go (so a triple tap can be recognised). |
 | The chime changes pitch over the session | Something is modulating your oscillator's pitch (an old patch cable to a CV jack?). |
 | The tail of a very long bell is cut | The way out closes at the latest 20 s after the bell's pulse (the reverb's own tail carries on). |
+| My settings were not remembered | It saves 3 s after your last change, while stopped and silent: wait a moment before switching off. |
+| I want to start afresh | Hold Z down while switching the power on (section 3.1). |
 
 ---
 
@@ -227,8 +241,11 @@ scripts/build_uf2.sh            # fetches the toolchain the first time; builds o
 cd host && make fast && ./test_render_fast quick       # the PC test suite (about 1 minute)
 ```
 
-* Every tuning value is in `qi_config.h`; the card logic is in `qi_engine.h` (timer, switch, set-up, LEDs) and `qi_fx.h`
-  (reverb, delay, silence keeper); `qi_card.h` connects them to the hardware.
+* Every tuning value is in `qi_config.h`; the card logic is in `qi_engine.h` (timer, switch, set-up, LEDs, saved settings) and
+  `qi_fx.h` (reverb, delay, silence keeper); `qi_card.h` connects them to the hardware.
+* Settings are stored in the last 4 kB sector of the flash, as a small record with a checksum (anything doubtful is ignored).
+  Writing follows the official pattern (core 0 paused, interrupts off) and also stops ComputerCard's input converter first:
+  otherwise, after the pause, the inputs can come back read in the wrong order until a restart.
 * It runs at 144 MHz, with the audio on core 0 and the knobs and LEDs on core 1 (worst case 77% of the time available per sample,
   measured with `scripts/bench_cycles.py`).
 * Build options: `-DCARD_192MHZ=ON` (not recommended: it caused a whine on CV Out 1 on at least one unit),

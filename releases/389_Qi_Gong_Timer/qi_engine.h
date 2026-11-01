@@ -1,5 +1,5 @@
 // =============================================================================
-//  qi_engine.h : the QiGong Timer, with no hardware dependency (testable on a PC).
+//  qi_engine.h : the Qigong Timer, with no hardware dependency (testable on a PC).
 //  AI-assisted (Claude / Anthropic).
 //
 //  Timer state machine, Z switch (taps, triple tap, hold), set-up knobs (notches, take-over) with LED display and
@@ -103,6 +103,18 @@ struct NotchKnob
 	}
 };
 
+// ---- the saved settings: a small, self-checking record (stored in one 256-byte flash page) ----
+//   bytes 0-3 "QGT1", 4-5 version, 6-7 payload length, 8.. payload (9 x int16: intervals, minutes, seconds step,
+//   then the six effect settings), then a CRC-16 of everything before it.  Anything doubtful is refused (-> defaults).
+static const int kStoreValues = 9;
+static const int kStoreBytes = 8 + 2 * kStoreValues + 2;
+static inline uint16_t Crc16(const uint8_t* p, int n)
+{
+	uint16_t c = 0xFFFF;
+	for (int i = 0; i < n; ++i) { c ^= (uint16_t)(p[i] << 8); for (int b = 0; b < 8; ++b) c = (uint16_t)((c & 0x8000) ? (c << 1) ^ 0x1021 : c << 1); }
+	return c;
+}
+
 class Engine
 {
 public:
@@ -143,6 +155,8 @@ public:
 
 		out.pulse1 = pulse1_ > 0; if (pulse1_ > 0) --pulse1_;
 		out.pulse2 = pulse2_ > 0; if (pulse2_ > 0) --pulse2_;
+		if (out.audio1 != 0 || out.audio2 != 0) silentRun_ = 0;   // (core 1 saves only after a stretch of true silence)
+		else if (silentRun_ < kSaveSilence) silentRun_ = silentRun_ + 1;
 	}
 
 	// Core 1, every 32 samples: all the slow work (was one job per sample on core 0 before; same 1.5 kHz rate).
@@ -153,6 +167,8 @@ public:
 		FxSmooth();
 		fx_[0].Wander(); fx_[1].Wander();
 		fx_[0].KeeperLearn(); fx_[1].KeeperLearn();
+		if (bootDefaults_ && !defaultsDone_) RestoreDefaults();
+		SaveCheck();
 		UpdateLeds();
 	}
 	// The LED values Control() worked out (core 1 writes them to the hardware).
@@ -161,6 +177,29 @@ public:
 		for (int i = 0; i < 6; ++i) out.led[i] = led_[i];
 	}
 	uint32_t SampleCount() const { return n_; }
+
+	// ---- saved settings ----
+	// Before Run(): restore what was stored (a 256-byte page).  Returns false (and keeps the defaults) if it is not valid.
+	bool LoadSaved(const uint8_t* page)
+	{
+		int16_t v[kStoreValues];
+		if (!Decode(page, v)) { MakeImage(savedImg_); return false; }
+		set_.intervals = v[0]; set_.minutes = v[1]; set_.secIdx = v[2];
+		for (int i = 0; i < FK_COUNT; ++i) { pk_[i].value = v[3 + i]; pk_[i].engaged = false; }
+		fxp_ = Targets();
+		MakeImage(savedImg_);                                 // (what is stored = what we have: nothing to save)
+		return true;
+	}
+	// Core 1, after Control(): is a save due?  If so, fills `page` (256 bytes) and returns true; call SaveDone() once written.
+	bool TakeSaveRequest(uint8_t* page)
+	{
+		if (!saveDue_) return false;
+		for (int i = 0; i < 256; ++i) page[i] = 0xFF;
+		Encode(pendingImg_, page);
+		return true;
+	}
+	void SaveDone() { for (int i = 0; i < kStoreValues; ++i) savedImg_[i] = pendingImg_[i]; saveDue_ = false; saveTimer_ = 0; ++saves_; }
+	uint32_t Saves() const { return saves_; }
 
 	// ---- read-only views (for the glue, the LEDs and the tests) ----
 	State   GetState() const { return state_; }
@@ -247,7 +286,7 @@ private:
 		if (bootGuard_ > 0)
 		{
 			--bootGuard_; lastSw_ = (int)sw; setupMode_ = (sw == 2);
-			if (bootGuard_ == 0 && sw == 0) ignoreRelease_ = true;   // held down at power-up: ignore that press entirely
+			if (bootGuard_ == 0 && sw == 0) { ignoreRelease_ = true; bootDefaults_ = true; }   // held down at power-up: back to the defaults
 			return;
 		}
 		if (tapWait_ > 0 && sw != 0 && --tapWait_ == 0) ResolveTaps();   // (the wait pauses while Z is held down)
@@ -405,6 +444,57 @@ private:
 		return (int32_t)((num * (uint32_t)full) / den);
 	}
 
+	// ---- saved settings (core 1) ----
+	void MakeImage(int16_t* v) const
+	{
+		v[0] = (int16_t)set_.intervals; v[1] = (int16_t)set_.minutes; v[2] = (int16_t)set_.secIdx;
+		for (int i = 0; i < FK_COUNT; ++i) v[3 + i] = (int16_t)pk_[i].value;
+	}
+	static bool SameImage(const int16_t* a, const int16_t* b) { for (int i = 0; i < kStoreValues; ++i) if (a[i] != b[i]) return false; return true; }
+	// Every 32 samples: a save becomes due 3 s after the last change, once stopped and silent, if it differs from what is stored.
+	void SaveCheck()
+	{
+		if (saveDue_) return;                                // (waiting for core 1 to write it)
+		int16_t cur[kStoreValues];
+		MakeImage(cur);
+		if (!SameImage(cur, seenImg_)) { for (int i = 0; i < kStoreValues; ++i) seenImg_[i] = cur[i]; saveTimer_ = 0; return; }   // still changing
+		if (SameImage(cur, savedImg_)) { saveTimer_ = 0; return; }                    // nothing new to store
+		if (saveTimer_ < kSaveAfter) { saveTimer_ += 32; return; }
+		if (state_ != ST_STOPPED || silentRun_ < kSaveSilence) return;   // only when stopped and silent (Z up is fine)
+		for (int i = 0; i < kStoreValues; ++i) pendingImg_[i] = cur[i];
+		saveDue_ = true;
+	}
+	static void Encode(const int16_t* v, uint8_t* p)
+	{
+		p[0] = 'Q'; p[1] = 'G'; p[2] = 'T'; p[3] = '1';
+		p[4] = (uint8_t)(kStoreVersion & 0xFF); p[5] = (uint8_t)(kStoreVersion >> 8);
+		p[6] = (uint8_t)(2 * kStoreValues); p[7] = 0;
+		for (int i = 0; i < kStoreValues; ++i) { p[8 + 2 * i] = (uint8_t)(v[i] & 0xFF); p[9 + 2 * i] = (uint8_t)((uint16_t)v[i] >> 8); }
+		uint16_t c = Crc16(p, kStoreBytes - 2);
+		p[kStoreBytes - 2] = (uint8_t)(c & 0xFF); p[kStoreBytes - 1] = (uint8_t)(c >> 8);
+	}
+	static bool Decode(const uint8_t* p, int16_t* v)
+	{
+		if (p[0] != 'Q' || p[1] != 'G' || p[2] != 'T' || p[3] != '1') return false;            // blank (0xFF) or not ours
+		if ((p[4] | (p[5] << 8)) != kStoreVersion || p[6] != 2 * kStoreValues || p[7] != 0) return false;
+		uint16_t c = Crc16(p, kStoreBytes - 2);
+		if (p[kStoreBytes - 2] != (c & 0xFF) || p[kStoreBytes - 1] != (c >> 8)) return false;   // damaged (e.g. power cut mid-save)
+		for (int i = 0; i < kStoreValues; ++i) v[i] = (int16_t)(p[8 + 2 * i] | (p[9 + 2 * i] << 8));
+		if (v[0] < kMinIntervals || v[0] > kMaxIntervals || v[1] < kMinMinutes || v[1] > kMaxMinutes) return false;
+		if (v[2] < 0 || v[2] >= kSecondsNotches) return false;
+		for (int i = 0; i < FK_COUNT; ++i) if (v[3 + i] < 0 || v[3 + i] > 4095) return false;
+		return true;
+	}
+	// Hold Z down while switching on: back to the power-up defaults (the end glow confirms it; they are then saved as usual).
+	void RestoreDefaults()
+	{
+		defaultsDone_ = true;
+		set_ = Settings();
+		const int32_t def[FK_COUNT] = {kDefRevTime, kDefRevBright, kDefRevMix, kDefDelMix, kDefDelTime, kDefDelFb};
+		for (int i = 0; i < FK_COUNT; ++i) { pk_[i].value = def[i]; pk_[i].engaged = false; }
+		doneGlow_ = kDoneGlowSamples;                        // (core 1 owns the glow)
+	}
+
 	// ---- LEDs (see the legend in docs/LED_LEGEND.md) ----
 	void Bar(int32_t fillQ12, int32_t level)                 // fillQ12: 0 .. 6*4096 (how many LEDs are lit, fractionally)
 	{
@@ -509,6 +599,13 @@ private:
 	volatile uint32_t n_ = 0;                                // samples processed (core 1 paces itself by this)
 	// events from core 0 to core 1 (counters: core 1 notices the change) and from core 1 to core 0 (the click request)
 	volatile uint32_t pulseSeq_ = 0, finishSeq_ = 0, pauseSeq_ = 0, clickCmd_ = 0;
+	// saved settings (core 1), the silence counter (core 0) and the power-up defaults gesture (core 0 -> core 1)
+	volatile int32_t silentRun_ = 0;
+	volatile bool bootDefaults_ = false;
+	bool defaultsDone_ = false, saveDue_ = false;
+	int16_t savedImg_[kStoreValues] = {0}, seenImg_[kStoreValues] = {0}, pendingImg_[kStoreValues] = {0};
+	int32_t saveTimer_ = 0;
+	uint32_t saves_ = 0;
 	uint32_t pulseSeen_ = 0, finishSeen_ = 0, pauseSeen_ = 0, clickSeen_ = 0, clickSeq_ = 0;
 	// timer
 	State state_ = ST_STOPPED;
