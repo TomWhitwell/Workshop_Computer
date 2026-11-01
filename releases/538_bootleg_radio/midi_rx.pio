@@ -1,0 +1,27 @@
+;
+; MIDI RX for the Workshop Computer.
+;
+; Pulse In 2 is a 100k resistor into an MMBT3904 with the collector on the
+; GPIO and the internal pull-up enabled. That inverts the signal: UART idle is
+; 3.3V on the jack, which turns the transistor on and pulls the GPIO low. So:
+; wait for a RISING edge as the start bit, and invert the byte in software.
+;
+; 8 PIO cycles per bit. Clock divider = sysclk / (8 * 31250), i.e. 500 at
+; 125MHz. The byte is left-justified in the FIFO word (word >> 24), the same
+; as the SDK's own uart_rx example.
+;
+.program midi_rx
+.wrap_target
+start:
+    wait 1 pin 0        ; start bit (inverted)
+    set x, 7 [10]       ; 8 data bits, delay to middle of first bit
+bitloop:
+    in pins, 1
+    jmp x-- bitloop [6] ; 8 cycles per bit
+    jmp pin, error      ; stop bit should be low; high = framing error
+    push
+    jmp start
+error:
+    wait 0 pin 0        ; wait for the line to return to idle (low)
+    jmp start
+.wrap
