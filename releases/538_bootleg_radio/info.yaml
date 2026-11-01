@@ -3,12 +3,12 @@ Name: Bootleg Radio
 short-description: "A lo-fi bootleg tribute to Music Thing's Radio Music: tune through WAV files on a USB stick, like a pirate station"
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
-Version: "1.0.0"
+Version: "1.1.0"
 Status: Released
 License: MIT
 Editor: none
 date-created: 2026-10-03
-date-updated: 2026-10-04
+date-updated: 2026-11-01
 
 contact:
   email: joep@joep-i.nl
@@ -23,7 +23,7 @@ contact:
 
 uf2:
   - path: UF2/bootleg_radio.uf2
-    name: Bootleg Radio 1.0.0
+    name: Bootleg Radio 1.1.0
 
 tags:
   - sampler
@@ -31,6 +31,7 @@ tags:
   - wav
   - usb-host
   - radio
+  - midi
   - utility
 
 summary: |
@@ -45,8 +46,9 @@ summary: |
   page is a great set of loops and samples to load onto the stick and try the
   card. The Main knob and CV in 1 pick the station, the X knob and CV in 2 set the
   tape speed, the Y knob and Audio in 1 set the loop start, and Audio in 2 sets
-  the loop length. Each station loops over its window; the switch retriggers,
-  selects banks, or (held) changes the tune mode.<br><br>
+  the loop end. If the end is before the start, the loop plays backwards. Each
+  station loops over its window; the switch retriggers, selects banks, or (held)
+  changes the tune mode.<br><br>
 
   Files are grouped into banks: the root directory is bank 0, and each
   subdirectory that holds WAV files is another bank (up to 32). Hold the switch
@@ -66,7 +68,21 @@ summary: |
   stick keeps its place instead of restarting everything at the beginning. This
   is the default "Sync" mode; holding switch-down toggles to "Loop" mode, where a
   new station starts at its loop start point. A deliberate retrigger, or reaching
-  the loop end, restarts from the live loop start point.<br><br>
+  the loop end, restarts from the live loop start point. A station can loop,
+  play once, or ping-pong forwards and backwards; the order of the loop start
+  and loop end faders sets the direction, so an end before the start plays
+  backwards.<br><br>
+
+  An optional Music Thing 8mu can act as a wired remote over its TRS MIDI
+  output: eight faders for speed, speed range, loop start, loop end, station,
+  loop mode, performance mode and pulse out 1 mode. Clock BPM and pulse out 2
+  live in settings.txt. Its top-left button retriggers; the bank buttons change
+  bank, and holding them turns the tuning static off or on; the fourth button
+  taps Loop/Sync and, held, releases the remote. It plugs into Pulse In 2 with a
+  stereo cable and the 8mu set to Type A.
+  With the default <code>remote = auto</code> setting, the jack still works as an
+  external retrigger until an 8mu is heard. The link is one-way (the 8mu's TRS
+  port cannot receive), so there is no LED feedback or handshake.<br><br>
 
   Needs a Rev 1.1 or later Computer (the revision with USB host support), and
   nothing else may be in the front USB socket, because the Computer has to act
@@ -87,8 +103,9 @@ panel:
       type: cv
       description: >
         Tape speed, added to the X knob: about -6V is the slowest (-2 octaves),
-        0V is normal speed, +6V the fastest (+2 octaves). The CV inputs are
-        bipolar, so a unipolar source sweeps only half the range.
+        0V is normal speed, +6V the fastest (+2 octaves). The range is set by
+        speedRange (2oct, 1oct, fine or off). The CV inputs are bipolar, so a
+        unipolar source sweeps only half the range.
     - id: AudioIn1
       name: Loop Start CV
       type: cv
@@ -97,12 +114,12 @@ panel:
         file, +6V the end. The audio inputs are DC-coupled, so they read a
         steady voltage just like a CV input.
     - id: AudioIn2
-      name: Loop Length CV
+      name: Loop End CV
       type: cv
       description: >
-        Loop length, as a fraction of the file: about -6V is a very short loop,
-        0V is half the file, +6V the whole file. Unpatched, the loop runs to the
-        end of the file.
+        Loop end point, as a fraction of the file: about -6V is the start of the
+        file, 0V the middle, +6V the end. Unpatched, the end is the end of the
+        file. If the end is before the start, the loop plays backwards.
     - id: PulseIn1
       name: Clock
       type: pulse
@@ -112,11 +129,23 @@ panel:
         here to drive them from it. The tempo glides to the new rate and falls
         back to 120 BPM if the clock stops.
     - id: PulseIn2
-      name: Retrigger
+      name: TRS MIDI In / Retrigger
       type: pulse
       description: >
-        A rising edge retriggers the current station from the loop start, just
-        like a short switch-down tap.
+        Receives a Music Thing 8mu's TRS MIDI output (Type A). Eight faders
+        control speed, speed range, loop start, loop end, station, loop mode,
+        performance mode and pulse out 1 mode. The performance fader can scan
+        stations or beat-repeat the current loop on the clock; clock BPM and
+        pulse out 2 are in settings.txt. The top-left button retriggers; the bank
+        buttons change bank on a tap and turn the tuning static off/on when
+        held; the fourth button taps Loop/Sync and, held, releases the remote.
+        With the default <code>remote = auto</code> the jack still retriggers
+        until an 8mu is heard. <code>remote = on</code> forces MIDI,
+        <code>off</code> forces the retrigger. This is not an opto-isolated MIDI
+        input: it reuses the pulse input's 100k/NPN voltage input, so there is no
+        galvanic isolation, and a standard 5V current-loop MIDI output will not
+        work directly. One-way only: the 8mu's TRS port cannot receive, so there
+        is no LED feedback.
   outputs:
     - id: AudioOut1
       name: Audio Out 1
@@ -164,7 +193,8 @@ controls:
         Momentary. A short tap restarts the current station from the loop start,
         so the switch acts as a trigger input for the loop. Holding it for about
         a second toggles the tune mode between Loop and Sync; the whole panel
-        blinks 2 times for Loop and 3 times for Sync.
+        blinks 2 times for Loop and 3 times for Sync. Tapping B4 on the 8mu does
+        the same.
     up:
       name: Select Bank
       description: >
@@ -193,7 +223,8 @@ controls:
         name: Loop Start
         description: >
           Where the loop begins, as a fraction of the file. The loop plays from
-          here for the loop length, then wraps back. Audio in 1 adds to it.
+          here to the loop end, then wraps back. If the end is before the start,
+          it plays backwards. Audio in 1 adds to it.
   leds:
     - display: list
       items:
@@ -245,6 +276,10 @@ host:
     accident. WAV files are natural-sorted (case-insensitive, digits compared as
     numbers), so the station and bank order matches Finder. Files are read from
     the root directory and from each subfolder that holds WAV files. An optional
-    settings.txt in the root sets the power-on mode, start bank, internal clock
-    tempo, triangle rate, the two pulse-output modes and the LED mode; it is read
-    once per mount, and a missing or malformed value falls back to the default.
+    settings.txt in the root sets the power-on mode, loop mode, performance mode,
+    performance clock divider, start bank, speed range, internal clock tempo,
+    triangle rate, the two pulse-output modes, the LED mode, the Pulse In 2 remote
+    mode and the tuning-static settings; it is read once per mount, and a missing
+    or malformed value falls back to the default. The 8mu's B4 tap and B2/B3 holds change the running mode and static
+    without writing the file; a later settings reload re-applies mode, and a
+    static value there overrides a B2/B3 change.
