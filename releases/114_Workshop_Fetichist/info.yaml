@@ -1,6 +1,6 @@
 draft: false
 Name: Workshop Fetichist
-short-description: Semi-random harsh drum machine, noise source and audio processor
+short-description: Semi-random harsh drum machine, inspired by the Body Synths Metal Fetishist.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: ikkini
 Version: "1.0.0"
@@ -28,9 +28,11 @@ summary: |
   the Music Thing Modular Workshop Computer (hardware revision 1.1). Inspired by
   the Body Synths Metal Fetishist, it combines a looping random CV sequencer,
   probability-based trigger skipping, white noise, external audio processing,
-  and two aggressive effects: Rust and Corrosion.
+  and two aggressive effects: Bitcrusher and Distortion.
 
   It can also be used as a random CV sequencer and rhythmic trigger source.
+
+  The sequencer has an internal clock, but can be synchronized via Pulse In 1 or MIDI USB.
 
 panel:
   inputs:
@@ -115,7 +117,7 @@ controls:
         description: In Play, selects fresh random values or a fixed random loop from 2 to 32 steps. In Down, controls effects dry/wet.
       x:
         name: Crossfade / Effect Blend
-        description: In Play, attenuates sequencer CV modulation of the audio/noise crossfader. In Down, blends Rust and Corrosion.
+        description: In Play, attenuates sequencer CV modulation of the audio/noise crossfader. In Down, blends Bitcrusher and Distortion.
       y:
         name: Skip / Tempo
         description: In Play, sets skipped-step probability from 0 to 95%. In Down, sets internal tempo from 20 to 300 BPM.

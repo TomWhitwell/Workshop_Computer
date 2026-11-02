@@ -1,19 +1,12 @@
 # Workshop Fetichist
 
-**Workshop Fetichist** is a harsh, semi-random drum machine and noise processor for the Music Thing Modular Workshop Computer (hardware revision 1.1). Inspired by the Body Synths Metal Fetishist, it combines a looping random CV sequencer, probability-based trigger skipping, white noise, external audio processing and two aggressive effects.
+**Workshop Fetichist** turns the Music Thing Modular Workshop System into a harsh, semi-random drum machine and noise processor inspired by the Body Synths Metal Fetishist. It combines a looping random CV sequencer, probability-based trigger skipping, a white noise generator, external audio processing and two aggressive effects.
 
 The sequencer can also be used on its own as a source of random control voltage and rhythmic gates.
 
 - Firmware: **v1.0.0**
 - Creator: **ikkini**
 - Source code: [github.com/ikkini1/workshop-fetichist](https://github.com/ikkini1/workshop-fetichist)
-
-## Installation
-
-1. Download the `.uf2` firmware file from this release folder.
-2. Connect the Workshop Computer to your computer in bootloader mode.
-3. Copy the UF2 file to the mounted **RPI-RP2** drive.
-4. Wait for the board to reboot, then insert/load the Program Card as usual.
 
 The firmware is designed for Workshop Computer hardware revision 1.1.
 
@@ -23,9 +16,12 @@ The firmware is designed for Workshop Computer hardware revision 1.1.
 2. Leave Pulse In 1 unpatched to use the internal clock.
 3. Turn Main fully counter-clockwise for a new random CV value on every step.
 4. Turn Y to introduce skipped steps. Played steps appear at Pulse Out 1; skipped steps appear at Pulse Out 2.
-5. Patch CV Out 1 to a destination for the random sequence.
-6. Patch Audio Out 1 to your mixer. With no external audio connected, the output is the internal white noise shaped by the crossfader and effects.
-7. Move Z to **Down** to adjust the effects and internal tempo while the sequencer keeps running.
+5. Patch VCO1 Sine output to the Audio Input 1 of the Computer.
+6. Patch CV2 out to the FM input of VCO1.
+7. Patch Audio Out 1 to your mixer.
+8. Move Z to **Down** to adjust the effects and internal tempo while the sequencer keeps running.
+
+![Workshop Fetichist Basic patch](Images/WorkshopFetichist.png)
 
 ## Controls
 
@@ -33,9 +29,7 @@ The firmware is designed for Workshop Computer hardware revision 1.1.
 
 - **Up — Stop:** stops the sequencer, clears the trigger outputs and envelope.
 - **Middle — Play:** runs the sequencer. Main controls random/loop behaviour, X controls the crossfader CV amount and Y controls skip probability.
-- **Down — Effects / Tempo:** the sequencer continues running. Main controls effect dry/wet, X blends Rust and Corrosion, and Y sets the internal tempo from 20 to 300 BPM.
-
-The effects settings are retained when leaving and returning to Down. The sequencer controls are kept separate from the effects controls, with pickup when returning to Play.
+- **Down — Effects / Tempo:** the sequencer continues running. Main controls effect dry/wet, X blends Bitcrusher and Distortion, and Y sets the internal tempo from 20 to 300 BPM.
 
 ### Main
 
@@ -50,7 +44,7 @@ In Down mode, Main adjusts the effects dry/wet amount.
 
 In Play mode, X attenuates the sequencer CV used internally to control the crossfader. This lets the sequence move the mix between the external audio input and white noise.
 
-In Down mode, X blends the two effects: Rust at one end, Corrosion at the other.
+In Down mode, X blends the two effects: Bitcrusher at one end, Distortion at the other.
 
 ### Y
 
@@ -66,7 +60,7 @@ The clock source priority is:
 2. Pulse In 1
 3. Internal clock
 
-USB MIDI Clock follows standard MIDI timing (24 clock ticks per quarter note). The sequencer advances every 6 MIDI ticks in normal speed and every 3 ticks when double speed is enabled.
+USB MIDI Clock follows standard MIDI timing (24 clock ticks per quarter note).
 
 With no MIDI clock and no cable in Pulse In 1, the internal clock runs at the tempo set by Y in Down mode (20–300 BPM).
 
@@ -118,10 +112,10 @@ The crossfaded signal passes through the effects section and then the VCA. CV In
 
 The effects are adjusted in Z Down mode:
 
-- **Rust:** bitcrushing, downsampling, sample jitter and hard clipping.
-- **Corrosion:** aggressive saturation.
+- **Bitcrusher:** bitcrushing, downsampling, sample jitter and hard clipping.
+- **Distortion:** aggressive saturation.
 - **Main:** dry/wet amount.
-- **X:** blend between Rust and Corrosion.
+- **X:** blend between Bitcrusher and Distortion.
 - **Y:** internal tempo.
 
 The effects are placed after the crossfader and before the VCA.
