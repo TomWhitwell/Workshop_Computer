@@ -5,10 +5,9 @@ Modular Workshop Computer. It combines two internal band-limited oscillators,
 an external OSC3 pitch/CV loop, a four-pole resonant filter, noise, ADS
 contours, a free-running LFO, USB MIDI, and Web MIDI preset management.
 
-## Release 1.0.0
+## Install
 
-Flash `uf2/COSMIK_M1N1_1.0.0.uf2`. The release UF2 is built from the accepted
-musical-glide firmware and is accompanied by `SHA256SUMS.txt`.
+Flash `uf2/COSMIK_M1N1_1.0.0.uf2`. Its checksum is in `SHA256SUMS.txt`.
 
 ## Voice
 
@@ -39,13 +38,13 @@ musical-glide firmware and is accompanied by `SHA256SUMS.txt`.
 - **Preset selection:** hold Down at startup, or hold it for five seconds
   during operation. LED 4 warns after four seconds. Factory voices and only
   populated user slots are available; LED 5 identifies the user bank.
-- Soft pickup prevents knob jumps whenever the switch position or oscillator
-  page changes.
+- Knobs use soft pickup when you change switch position or oscillator page:
+  move a knob to the stored value before it starts changing the sound.
 
 ## Filter, Contours, And Modulation
 
-`Audio Out 1` uses a four-pole resonant ladder filter with accepted low-pass
-and high-pass modes. The Web UI supplies cutoff mode, emphasis, filter contour,
+`Audio Out 1` uses a four-pole resonant ladder filter with low-pass and high-pass
+modes. In the web editor you can set cutoff mode, emphasis, filter contour,
 independent amplifier and filter ADS controls, independent decay-release
 switches, and None/1/3/2/3/Full keyboard tracking.
 
@@ -55,7 +54,7 @@ those sources; MOD DEPTH and pitch/filter balance set their amount and
 destination. The internal LFO is free-running, triangle or square, and covers
 0.05--14 Hz. Oscillator and filter modulation can be independently enabled.
 
-Glide is preset-backed and acts on the underlying MIDI or 1 V/oct pitch before
+Glide is saved with each preset and acts on the MIDI or 1 V/oct pitch before
 modulation. `CV Out 1` follows the same glide, keeping a patched external OSC3
 in step with OSC1 and OSC2.
 
@@ -75,12 +74,27 @@ in step with OSC1 and OSC2.
 ## Web MIDI
 
 Serve `web/` locally in Chrome or Edge, connect the card with the Web MIDI
-button, then use the complete voice editor, eight factory voices, and eight
-named card-backed user slots. The UI can save, recall, duplicate, and delete
-user voices, provides a developer MIDI monitor, and polls live card changes
-back into the interface. Earlier user slots migrate safely with Glide at zero.
+button. There are eight factory voices and eight named user slots saved on the
+card. You can save, recall, duplicate and delete user voices. The editor also
+provides a developer MIDI monitor and polls live card changes to keep its controls
+up to date. Earlier user slots migrate safely with Glide at zero.
 
-## Release Verification
+## Build
+
+Set `PICO_SDK_PATH` to a Raspberry Pi Pico SDK checkout, then run:
+
+```sh
+cmake -S . -B build -DPICO_NO_PICOTOOL=1
+cmake --build build -j2
+```
+
+## Release notes
+
+### 1.0.0
+
+This release includes the tested musical-glide behaviour.
+
+### Verification
 
 Release 1.0.0 passed the following Workshop System and Keystep tests:
 
@@ -92,15 +106,6 @@ Release 1.0.0 passed the following Workshop System and Keystep tests:
   mirror output.
 - Factory/user preset selection, Web MIDI sync, save/recall/delete, and
   persistence across power cycles.
-
-## Build
-
-Set `PICO_SDK_PATH` to a Raspberry Pi Pico SDK checkout, then run:
-
-```sh
-cmake -S . -B build -DPICO_NO_PICOTOOL=1
-cmake --build build -j2
-```
 
 ## Provenance
 

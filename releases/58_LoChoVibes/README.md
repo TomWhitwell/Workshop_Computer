@@ -1,325 +1,125 @@
 # LoCho Vibes
 
-LoCho Vibes is a stereo lo-fi chorus and vibrato effect for the Music Thing Modular Workshop Computer.
+Add gentle stereo wobble, worn-cassette warble, or crushed and noisy vibrato to
+the Music Thing Modular Workshop Computer. LoCho Vibes takes inspiration from
+the ZVEX Lo-Fi Junky, with chorus, vibrato, saturation and compression-style
+colour. It sums incoming audio to mono, then creates a stereo output.
 
-Inspired by the unstable movement and degraded character of the ZVEX Lo-Fi Junky, this card focuses on animated pitch movement, stereo widening, saturation, compression-style coloration, and degraded cassette-inspired modulation.
+## Controls
 
----
+| Control | Function |
+| --- | --- |
+| Main | Modulation rate |
+| X | Modulation depth |
+| Y | Character: lo-fi to the left, neutral at noon, compression to the right |
+| Switch Up | Vibrato |
+| Switch Middle | Chorus |
+| Switch Down (tap) | Cycle through Triangle, Sine and Random Drift LFO shapes |
 
-# Features
+## Inputs and outputs
 
-* Stereo chorus and vibrato modes
-* Triangle, sine, and Random Drift LFO shapes
-* Bipolar Character control
-* Progressive lo-fi degradation
-* Bit-crushing and saturation
-* Soft limiting and compression coloration
-* Stereo modulated delay architecture
-* Stereo chorus widening
-* External pulse-clockable LFO
-* CV modulation inputs
-* Dual animated CV LFO outputs
+| Input / output | Function |
+| --- | --- |
+| Audio In 1 + 2 | Summed mono audio input |
+| Audio Out 1 | Left audio output |
+| Audio Out 2 | Right audio output |
+| CV In 1 | Modulates depth (X) |
+| CV In 2 | Modulates Character (Y) |
+| Pulse In 1 | External LFO clock |
+| CV Out 1 | Main LFO waveform |
+| CV Out 2 | Inverted LFO waveform |
 
----
+## Chorus and vibrato
 
-# Controls
+Set the switch to Middle for chorus. The dry signal is blended with a modulated
+delay, with different delay offsets and opposing modulation on the left and
+right. Low depth adds restrained movement; higher settings widen the stereo
+image and can become chaotic.
 
-| Control                 | Function                        |
-| ----------------------- | ------------------------------- |
-| Main                    | Modulation Rate                 |
-| X                       | Modulation Depth                |
-| Y                       | Character (Lo-Fi ↔ Compression) |
-| Switch Up               | Vibrato Mode                    |
-| Switch Middle           | Chorus Mode                     |
-| Switch Down (momentary) | Cycle LFO Shape                 |
+Switch Up selects fully wet vibrato, so the pitch movement is much more obvious.
+Low depth gives a gentle tape wobble. Turn it up for warped-cassette sounds that
+can become quite seasick.
 
----
+## Character
 
-# Inputs & Outputs
+Y moves through three regions. CV In 2 modulates the same control, so you can
+use a slow voltage to drift between textures or faster modulation for more
+rapid changes in tone.
 
-| Input / Output | Function                       |
-| -------------- | ------------------------------ |
-| Audio In 1 + 2 | Mono summed audio input        |
-| Audio Out 1    | Left audio output              |
-| Audio Out 2    | Right audio output             |
-| CV In 1        | Modulates modulation depth     |
-| CV In 2        | Modulates Character control    |
-| Pulse In 1     | External LFO clock input       |
-| CV Out 1       | Main LFO modulation output     |
-| CV Out 2       | Inverted LFO modulation output |
+### Left: lo-fi
 
----
+Turn Y anticlockwise for tape-style saturation, reduced bit resolution,
+softened transients and a dirtier, grainier sound. The signal level also drops
+as you turn further left.
 
-# External Clocking
+### Noon: neutral
 
-LoCho Vibes supports external pulse clocking via Pulse In 1.
+Around 12 o'clock you get the cleanest modulation, with minimal saturation,
+no bit reduction and no compression coloration.
 
-When a pulse source is connected:
+### Right: compression
 
-* the internal LFO synchronizes to incoming clock pulses
-* modulation speed follows pulse timing
-* clock changes are smoothed internally
-* automatic fallback to internal clock occurs if pulses stop
+Turn Y clockwise to increase input drive, soft limiting, saturation, transient
+compression and makeup gain. Higher settings produce a louder, denser sound,
+like a heavily driven modulation pedal or compressed tape playback.
 
-This allows synchronized chorus and vibrato movement from sequencers, clocks, trigger generators, and rhythm systems.
+## Modulation depth
 
----
+X controls the amount of pitch movement and stereo spread. CV In 1 modulates
+this control, affecting chorus movement and vibrato depth. Incoming CV is
+attenuated internally to keep the response useful across its range.
 
-# CV Modulation
+## LFO shapes
 
-## CV In 1 — Depth Modulation
+Tap the switch Down to cycle through the three shapes. The LEDs briefly show
+which one you've selected, then return to their normal display.
 
-CV In 1 modulates the X control.
+| Shape | Sound | Selection LEDs |
+| --- | --- | --- |
+| Triangle | An even rise and fall for regular chorus movement | LEDs 1–2 |
+| Sine | Smooth pitch movement and gentle tape-style wobble | LEDs 3–4 |
+| Random Drift | Slow modulation mixed with random wandering for irregular pitch and stereo movement | LEDs 5–6 |
 
-This affects:
+Main sets the rate and X sets the depth, including in Random Drift. That shape
+adds some of the uneven motion of an old tape transport: it doesn't wander the
+same way each time.
 
-* modulation intensity
-* stereo width
-* chorus movement
-* vibrato depth
+## External clock
 
-Incoming CV is attenuated internally for musical response.
+Patch a pulse clock to Pulse In 1 to synchronise the LFO. Modulation follows the
+incoming pulse timing, and changes in clock speed are smoothed. If the pulses
+stop, the card returns to its internal clock.
 
----
+Use this to keep chorus or vibrato in time with a sequencer, trigger pattern or
+other clock source.
 
-## CV In 2 — Character Modulation
+## CV outputs
 
-CV In 2 modulates the Y Character control.
+CV Out 1 carries the main LFO, and CV Out 2 carries its inverse. Both follow the
+selected waveform and clock state. Patch them to filters, panning or other
+modulation inputs for movement that follows the effect. The inverted output is
+useful when you want two destinations to move in opposite directions.
 
-This allows external movement between:
+## LEDs
 
-* degraded cassette textures
-* neutral response
-* compressed and saturated modulation
+| LED | Meaning |
+| --- | --- |
+| LED 1 | LFO timing: one flash per cycle internally, or a flash on each incoming external clock pulse |
+| LED 2 | Modulation activity and depth; brighter movement means greater depth, and remains visible at slow rates |
+| LED 3 | Lo-fi amount; off at neutral, brighter as Y turns anticlockwise |
+| LED 4 | Compression and drive amount; off at neutral, brighter as Y turns clockwise |
+| LEDs 5 and 6 | Animation of the selected LFO shape |
 
-Slow modulation sources can create evolving texture shifts while faster CV creates animated tonal movement.
+The last pair shows a pendulum-like motion for Triangle: the LEDs brighten and
+dim in opposite directions. For Sine, they brighten and dim together in a smooth
+breathing motion. Random Drift shifts the balance between them irregularly.
 
----
+LED brightness follows the parameter values and modulation as you play. Tapping
+Down briefly replaces this display with the shape-selection LEDs listed above.
 
-# CV Outputs
+## Release notes
 
-LoCho Vibes outputs the internal modulation waveform as CV.
-
-## CV Out 1
-
-Outputs the main LFO.
-
-## CV Out 2
-
-Outputs an inverted version of the same LFO.
-
-Applications include:
-
-* filter modulation
-* stereo panning
-* synchronized movement
-* clocked animation
-* opposing modulation sources
-
-The outputs always reflect the selected waveform and clock state.
-
----
-
-# Character Control
-
-
-## Counter-Clockwise — Lo-Fi
-
-Turning the control counter-clockwise progressively introduces:
-
-* reduced signal level
-* increasing tape-style saturation
-* reduced resolution through bit reduction
-* softened transients
-* degraded cassette texture
-* dirtier and grainier modulation
-
-
----
-
-## Center Position — Neutral
-
-At approximately 12 o'clock:
-
-* minimal saturation
-* no bit reduction
-* no compression coloration
-* cleanest modulation response
-
----
-
-## Clockwise — Compression
-
-Turning clockwise progressively introduces:
-
-* increased input drive
-* soft limiting
-* stronger saturation
-* transient compression
-* makeup gain
-* denser modulation texture
-
-Higher settings create a louder, more forward sound that resembles heavily driven modulation pedals and compressed tape playback.
-
----
-
-# Modes
-
-## Chorus
-
-In chorus mode:
-
-* dry signal remains blended with the delay line
-* stereo modulation widens the image
-* modulation varies from restrained and subtle to over the top and chaotic.
----
-
-## Vibrato
-
-In vibrato mode:
-
-* the effect becomes fully wet
-* pitch modulation becomes significantly more obvious
-* behaviour resembles unstable tape transport and warped cassette playback
-
-At higher depth settings the result can become heavily seasick and degraded.
-
----
-
-# LFO Shapes
-
-## Triangle
-
-Classic linear modulation.
-
-Provides traditional chorus movement and predictable stereo animation.
-
----
-
-## Sine
-
-Smooth and fluid.
-
-Useful for subtle pitch movement and gentle tape-style wobble.
-
----
-
-## Random Drift
-
-A combination of slow modulation and random wandering movement.
-Modulation is affected by the depth knob and rate cotrol
-* unstable tape transport behaviour
-* slow wandering pitch drift
-* imperfect mechanical motion
-* less predictable stereo movement
-* degraded cassette-style character
-
-This mode is intended to emulate old tape machines that never move quite the same way twice.
-
----
-
-# Stereo Behaviour
-
-LoCho Vibes converts incoming audio to mono internally before creating a stereo modulation field.
-
-The left and right channels use opposing delay modulation and offset delay times to create:
-
-* stereo widening
-* animated movement
-* asymmetrical modulation
-* tape-style instability
-
----
-
-# LED Behaviour
-
-## Shape Display Overlay
-
-When the switch is tapped downward:
-
-* the LFO shape changes
-* LEDs briefly display the selected waveform
-* normal LED operation returns automatically
-
-| Shape        | LEDs     |
-| ------------ | -------- |
-| Triangle     | LEDs 1–2 |
-| Sine         | LEDs 3–4 |
-| Random Drift | LEDs 5–6 |
-
----
-
-## Normal Display Mode
-
-| LED   | Function                    |
-| ----- | --------------------------- |
-| LED 1 | Clock / Rate Indicator      |
-| LED 2 | Modulation Activity & Depth |
-| LED 3 | Lo-Fi Amount                |
-| LED 4 | Compression Amount          |
-| LED 5 | Shape Animation A           |
-| LED 6 | Shape Animation B           |
-
-### LED 1 — Clock Indicator
-
-LED 1 displays modulation timing.
-
-* Internal clock: flashes once per LFO cycle
-* External clock: flashes on incoming pulse clocks
-
-This provides immediate visual feedback of modulation speed and clock synchronization.
-
-### LED 2 — Modulation Activity
-
-LED 2 displays modulation movement and depth.
-
-* brighter modulation indicates greater movement
-* responds to both modulation depth and LFO activity
-* makes modulation intensity visible even at slow rates
-
-### LED 3 — Lo-Fi Amount
-
-Displays the amount of lo-fi processing applied by the Character control.
-
-* off at the centre position
-* increases as the Character control is turned counter-clockwise
-
-### LED 4 — Compression Amount
-
-Displays the amount of compression and drive applied by the Character control.
-
-* off at the centre position
-* increases as the Character control is turned clockwise
-
-### LEDs 5 & 6 — LFO Shape Animation
-
-The final LED pair visualizes the currently selected modulation shape.
-
-#### Triangle
-
-A pendulum-style animation.
-
-The LEDs move in opposite directions, reflecting the linear rise and fall of the triangle waveform.
-
-#### Sine
-
-A smooth breathing animation.
-
-Both LEDs brighten and dim together, matching the rounded motion of the sine wave.
-
-#### Random Drift
-
-A wandering imbalance animation.
-
-Brightness slowly shifts between the two LEDs, reflecting the unstable and imperfect movement of worn tape mechanisms.
-
----
-
-LED brightness reflects both parameter values and modulation movement, providing continuous visual feedback during performance.
-
----
-
-# Current Status
+### Development status
 
 Actively under development and testing.
 

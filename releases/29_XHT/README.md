@@ -1,13 +1,19 @@
 # XHT Card
 
-This folder now contains the main and MIDI firmware builds, plus rollback-safe fallback UF2s, for the Music Thing Modular Workshop Computer.
+XHT is a deep-note-inspired stereo chord swarm for the Music Thing Modular
+Workshop Computer. Turn Main to move through the sound, or press the switch Down
+to start a one-shot that travels towards the position you've chosen. Add delay
+with X and reverb with Y, and use CV or an external pulse clock to control the
+movement.
+
+## Choose your firmware
+
+Flash `uf2/XHTCard.uf2` for the current recommended version. Choose the MIDI
+version if you want to play from a keyboard, use a mod wheel, or send the chord
+notes to another instrument:
 
 - `uf2/XHTCard.uf2` — current main build
-- `uf2/XHTCard_fallback.uf2` — last accepted rollback-safe build
 - `uf2/XHTCardMidi.uf2` — current tested MIDI build
-- `uf2/XHTCardMidi_fallback.uf2` — last accepted MIDI rollback-safe build
-
-If you just want the current recommended build, flash `uf2/XHTCard.uf2`.
 
 ## Short Control Summary
 
@@ -39,21 +45,34 @@ MIDI build additions:
 ## Quick Guide
 
 - [README_main.md](/Users/adrianvos/coding/GitHub/XHT_card/README_main.md) — current recommended build
-- [README_fallback.md](/Users/adrianvos/coding/GitHub/XHT_card/README_fallback.md) — rollback-safe build
 - [README_midi.md](/Users/adrianvos/coding/GitHub/XHT_card/README_midi.md) — tested MIDI build
-- [README_midi_fallback.md](/Users/adrianvos/coding/GitHub/XHT_card/README_midi_fallback.md) — MIDI rollback-safe build
 
 ## Notes
 
-- The sound is a synthesised deep-note-style gesture, not a bundled sample.
+- The card synthesises its deep-note sound; it does not play a bundled sample.
 - The project runs at `192 MHz`.
 - The build uses the pinned ComputerCard 0.4.0 header included in this card folder.
 - The synthesis idea was inspired by Tod E. Kurt's `derpnote2`. This card is released under GPL-3.0-or-later; see LICENSE and THIRD_PARTY_NOTICES.md.
 - In the MIDI build, `P1` only gates MIDI out when `P1` is physically patched. Unpatched `P1` leaves MIDI out always open.
-- In the MIDI build, note-on/note-off and sustain pedal (`CC64`) now control whether the sound stays open when playing from a keyboard.
-- In current active builds, `CV Out 1` mirrors note position unless `CV1` is patched, when it becomes pitch; `CV Out 2` always mirrors note position.
-- In current active builds, analog `CV2` is scaled so 0-5V controller/mod-wheel sources can cover the full note-position travel.
+- In the MIDI build, MIDI notes and the sustain pedal (`CC64`) control whether the sound stays open when playing from a keyboard.
+- `CV Out 1` mirrors note position unless `CV1` is patched, when it becomes pitch; `CV Out 2` always mirrors note position.
+- A 0–5 V controller or mod-wheel signal patched to `CV2` can cover the full note-position range.
 - Pulse Out 1 mirrors note gate behavior and Pulse Out 2 mirrors the `P2` input pulse.
+
+## Release notes
+
+### Previous accepted builds
+
+These fallback UF2s are included so you can return to a previous accepted build
+if needed:
+
+- `uf2/XHTCard_fallback.uf2` — previous accepted main build
+- `uf2/XHTCardMidi_fallback.uf2` — previous accepted MIDI build
+
+Their guides are:
+
+- [README_fallback.md](/Users/adrianvos/coding/GitHub/XHT_card/README_fallback.md) — previous accepted main build
+- [README_midi_fallback.md](/Users/adrianvos/coding/GitHub/XHT_card/README_midi_fallback.md) — previous accepted MIDI build
 
 ## Attribution
 
