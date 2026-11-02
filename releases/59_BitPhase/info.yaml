@@ -1,10 +1,10 @@
 Name: BitPhase
 draft: false
-summary: Resonant 4-stage phaser with wide modulation sweeps, tremolo blending,
-  and Burst-mode degradation
-short-description: Resonant 4-stage phaser for the Workshop Computer with deep
-  notch filtering, wide modulation sweeps, controllable resonance, tremolo
-  blending, and digital Burst-mode degradation.
+summary: Start with gentle phasing, widen the sweep, then turn up resonance for sharper
+  notches. This 4-stage phaser also blends in tremolo and adds digital degradation in
+  Burst mode.
+short-description: Resonant 4-stage phasing, wide notch sweeps, tremolo blending and digital Burst
+  degradation.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: 0.1.0
@@ -109,15 +109,11 @@ controls:
           name: LED 6
           description: LED 6 monitors Pulse In 1.
 host:
-  notes: >
-    BitPhase combines a resonant 4-stage all-pass phaser, independent phaser and
-    tremolo LFOs, CV control of rate and resonance, and a Burst-mode digital
-    degradation path.
-
-    Main controls LFO rate, X controls phaser sweep depth, and Y controls
-    resonance/ feedback. Switch up is pure phaser, middle blends phaser with
-    tremolo, and down enables Burst degradation. Pulse In 1 resets the phaser
-    LFO for clock-synchronised sweeps.
+  notes: Main sets LFO rate, X sets sweep depth and Y sets resonance/feedback. Switch Up
+    gives pure phasing, Middle blends the phaser with tremolo, and Down adds Burst
+    degradation. The 4-stage all-pass phaser and tremolo have independent LFOs. CV
+    controls rate and resonance, and Pulse In 1 resets the phaser LFO for
+    clock-synchronised sweeps.
 contact:
   social:
     github: https://github.com/soveda

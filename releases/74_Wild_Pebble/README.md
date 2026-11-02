@@ -1,44 +1,11 @@
 # Wild Pebble
 
-MIDI-enabled Wild Pebble for the Music Thing Modular Workshop Computer.
-
-Wild Pebble is a generative rhythm and melody organism inspired by the spirit of Jonah Senzel's Pet Rock. It creates evolving rhythmic structures, quantised melodic patterns, drum voices, and modulation voltages that slowly transform while staying musically connected.
-
-The goal is not precise repeatability, but constrained musical evolution.
-
----
-
-# MIDI Additions
-
-Wild Pebble includes USB MIDI device support.
-
-It does not use USB MIDI host mode.
-
-## MIDI Clock Input
-
-Wild Pebble listens for USB MIDI realtime clock messages.
-
-* MIDI Clock `0xF8` drives the sequencer when MIDI transport is running.
-* MIDI Start `0xFA` resets the sequence to the beginning and starts clock following.
-* MIDI Continue `0xFB` resumes MIDI clock following without resetting the step.
-* MIDI Stop `0xFC` stops MIDI clock following and releases any active MIDI note.
-
-MIDI clock is 24 PPQN. Wild Pebble advances one sequencer step every 12 MIDI clock ticks, so incoming MIDI clock drives the sequencer at an 8th-note step feel.
-
-When MIDI clock is active it overrides the internal clock. If Pulse Input 1 is active and running faster than MIDI, the pulse clock takes priority. If no MIDI or pulse clock is active, the Main knob controls the internal clock speed.
-
-## MIDI Note Output
-
-The generated melody is sent over USB MIDI as note events.
-
-* MIDI channel: 1
-* Note source: the current generated `currentMIDINote`
-* Trigger source: Pulse Output 1
-* Velocity: shaped by internal energy and tension
-* Note length: shaped by the active clock period, energy, and tension
-* Retriggers: become more likely as energy and tension rise
-
-This keeps the MIDI line feeling connected to the card's internal motion instead of acting like a rigid copy of the raw pulse width. The analogue CV and pulse outputs continue to work as in the original card.
+Wild Pebble makes rhythms and melodies that gradually change as they play.
+Inspired by Jonah Senzel's Pet Rock, it combines related trigger patterns,
+quantised pitch CV, kick and snare voices, and slowly moving modulation for the
+Music Thing Modular Workshop Computer. Turn up mutation when you want the
+pattern to wander further. USB MIDI lets it follow a clock and send its melody
+to another instrument.
 
 ---
 
@@ -84,7 +51,8 @@ Used internally to:
 
 Quantised melodic pitch output.
 
-Generated from evolving scale-constrained note sequences. Wild Pebble slowly changes between related scales over time depending on mutation amount and switch mode, creating harmonic drift without fully losing musical coherence.
+The melody stays within a scale, then gradually moves between related scales.
+The mutation amount and switch mode set how much it changes.
 
 ## CV Output 2
 
@@ -159,14 +127,8 @@ Automatically overrides the internal clock while active.
 
 ## Pulse Input 2
 
-Freeze input.
-
-While held high:
-
-* mutation is disabled
-* current structure is preserved
-
-Clocking and playback continue normally.
+Hold this input high to freeze the current pattern and stop mutation. Clocking
+and playback continue normally.
 
 ---
 
@@ -180,6 +142,41 @@ Clocking and playback continue normally.
 | LED 4 | Energy       | Displays smoothed internal energy/modulation level  |
 | LED 5 | Clock Source | Fully lit when pulse or MIDI clock is active        |
 | LED 6 | Tension      | Displays evolving internal tension state            |
+
+---
+
+# USB MIDI
+
+Wild Pebble includes USB MIDI device support.
+
+It does not use USB MIDI host mode.
+
+## MIDI Clock Input
+
+Wild Pebble listens for USB MIDI realtime clock messages.
+
+* MIDI Clock `0xF8` drives the sequencer when MIDI transport is running.
+* MIDI Start `0xFA` resets the sequence to the beginning and starts clock following.
+* MIDI Continue `0xFB` resumes MIDI clock following without resetting the step.
+* MIDI Stop `0xFC` stops MIDI clock following and releases any active MIDI note.
+
+MIDI clock is 24 PPQN. Wild Pebble advances one sequencer step every 12 MIDI clock ticks, so incoming MIDI clock drives the sequencer at an 8th-note step feel.
+
+When MIDI clock is active it overrides the internal clock. If Pulse Input 1 is active and running faster than MIDI, the pulse clock takes priority. If no MIDI or pulse clock is active, the Main knob controls the internal clock speed.
+
+## MIDI Note Output
+
+The generated melody is sent over USB MIDI as note events.
+
+* MIDI channel: 1
+* Note source: the current generated `currentMIDINote`
+* Trigger source: Pulse Output 1
+* Velocity: shaped by internal energy and tension
+* Note length: shaped by the active clock period, energy, and tension
+* Retriggers: become more likely as energy and tension rise
+
+Energy and tension shape the MIDI phrasing as well as the internal pattern.
+The analogue CV and pulse outputs continue to work as in the original card.
 
 ---
 
@@ -210,7 +207,7 @@ The firmware runs the Workshop Computer audio/card engine on core 1 and the USB 
 
 This is an AI-assisted card.
 
-The MIDI implementation is intentionally small:
+MIDI support has these limits:
 
 * no SysEx editor
 * no USB host mode

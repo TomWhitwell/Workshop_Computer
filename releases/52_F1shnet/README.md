@@ -1,11 +1,9 @@
 # F1shnet
 
-F1shnet is an FSH-1-inspired filter/sample-hold effect card for the Music Thing
-Modular Workshop Computer.
-
-It is not a schematic clone. The card is a Workshop Computer interpretation of
-the Maestro FSH-1 filter/sample-hold effect: a resonant low-pass filter animated
-either by an envelope follower or by stepped sample-and-hold movement.
+F1shnet turns your input into sweeping auto-wah or stepped random filter
+patterns. Inspired by the Maestro FSH-1, it uses a resonant low-pass filter driven
+by an envelope follower or sample-and-hold. It is a Workshop Computer
+interpretation of the effect, rather than a schematic clone.
 
 The current stable behaviour is tuned for Workshop/euro-level synth signals.
 Normal 5-6Vpp oscillators should move the envelope without immediately pinning
@@ -15,7 +13,7 @@ it open, and the output trim starts safely low on boot.
 
 - `Middle`: main envelope-filter page.
 - `Up`: setup page for output trim, envelope sensitivity, and shared resonance.
-- `Down`: momentary sample-and-hold performance gesture.
+- `Down`: hold for sample-and-hold.
 
 `Up` and `Middle` use soft pickup. A knob will keep the stored value for that
 page until the physical knob crosses near it, preventing jumps when switching
@@ -43,7 +41,7 @@ soft pickup for the page you return to.
 - `Y`: resonance, shared with the Middle page. It uses soft pickup, but once
   picked up it changes the same resonance setting as Middle `Y`.
 
-`Down` momentary gesture:
+Hold `Down`:
 
 - `Main`: internal S&H clock speed. Minimum is slowest, maximum is fastest.
 - `X` and `Y`: not changed by the Down gesture; the S&H voice uses the stored
@@ -63,7 +61,7 @@ with opposite envelope directions:
   stored range.
 
 Holding `Down` or holding `Pulse In 2` replaces the envelope movement with the
-sample-and-hold gesture. In S&H mode, the stepped low-pass voice ping-pongs
+sample-and-hold movement. In S&H mode, the stepped low-pass voice ping-pongs
 between the two audio outputs on each new S&H sample. The active side is full
 level and the opposite side stays quietly present rather than hard muted. The
 pan movement uses a short crossfade to avoid clicks at the start of each step.
@@ -103,18 +101,18 @@ mode it can kick the envelope open.
 
 `Pulse In 2`
 
-S&H gate input. After seeing a real low-to-high gate, it forces the S&H gesture
-high while held. This is qualified to avoid a floating input stealing the normal
+S&H gate input. After a low-to-high transition, a held gate keeps S&H active.
+The transition check prevents a floating input from taking over the normal
 envelope-filter path.
 
 `Audio Out 1`
 
-Fully wet envelope-up low-pass output. During S&H gesture this is one side of
+Fully wet envelope-up low-pass output. While S&H is active this is one side of
 the ping-pong S&H low-pass voice.
 
 `Audio Out 2`
 
-Fully wet envelope-down low-pass output. During S&H gesture this is the other
+Fully wet envelope-down low-pass output. While S&H is active this is the other
 side of the ping-pong S&H low-pass voice.
 
 `CV Out 1`
@@ -137,25 +135,14 @@ Divided sample trigger pulse. It fires once for every four new S&H values.
 
 - LED `0`: lit when the `Up` setup page is active.
 - LED `1`: follows `Main`; while `Down` is held it follows Down-Main S&H speed.
-- LED `2`: lit while the S&H gesture is active from `Down` or `Pulse In 2`.
+- LED `2`: lit while S&H is active from `Down` or `Pulse In 2`.
 - LED `3`: follows `X`.
 - LED `4`: lit when the `Middle` main page is active.
 - LED `5`: follows `Y`.
 
-## Stable Fallback
-
-This folder includes a tested fallback UF2:
-
-- `UF2/stable-fallback/F1shnet.0.1.0.stable-fallback.uf2`
-- SHA256:
-  `3555612944e22b2fd5f7e43f47b37cf9cb009db79590191a3bb5dd2187bd59d7`
-
-The local Git tag `stable-fallback` points at the fallback marker commit. See
-`STABLE_FALLBACK.md` for the hardware-tested behaviour list.
-
 ## Build
 
-This is a self-contained Workshop Computer release-style folder:
+The files needed to build this card are included here:
 
 - `main.cpp`
 - `ComputerCard.h`
@@ -164,7 +151,7 @@ This is a self-contained Workshop Computer release-style folder:
 - `info.yaml`
 - `UF2/F1shnet.0.1.1.uf2`
 
-Typical Pico SDK build flow:
+Build with the Pico SDK:
 
 ```bash
 mkdir -p build
@@ -182,10 +169,22 @@ The current build uses:
 
 ## Notes
 
-- F1shnet is a simple performance filter effect, not a generic S&H utility.
-- The main identity is low-pass auto-wah movement plus a momentary random
-  stepped-filter gesture.
-- The firmware favours immediate playability over menu depth or many modes.
+Use the envelope follower for low-pass auto-wah, then hold Down for a burst of
+random filter steps. The CV outputs let you patch the follower and S&H movement
+elsewhere in your system.
+
+## Release notes
+
+### Tested fallback
+
+This folder includes a tested fallback UF2:
+
+- `UF2/stable-fallback/F1shnet.0.1.0.stable-fallback.uf2`
+- SHA256:
+  `3555612944e22b2fd5f7e43f47b37cf9cb009db79590191a3bb5dd2187bd59d7`
+
+The local Git tag `stable-fallback` points at the fallback marker commit. See
+`STABLE_FALLBACK.md` for the hardware-tested behaviour list.
 
 ## Firmware distribution notices
 

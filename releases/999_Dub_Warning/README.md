@@ -1,17 +1,17 @@
 # Dub Warning
 
-Beta status: passed single-device hardware testing.
+Status: Beta.
 
 Dub Warning is a playable siren oscillator for the Music Thing Modular Workshop
 Computer. It makes a bright triangle-to-square tone, bends it with an internal
 LFO, adds a short noisy attack on triggers, and feeds it into a PT2399-style
 delay that can smear into a reverb-like dub wash at high repeat settings.
-Z Down fires a compact Wheel Up one-shot gesture for punctuation before drops,
+Press Z Down for a short Wheel Up one-shot before a drop,
 while Pulse In 1 fires the normal gated siren.
 Pulse In 2 is a reset pluck: at fast or audio-rate triggers it becomes a useful
 rhythmic/noisy exciter, especially while sweeping Main pitch.
 
-The card is meant to be immediate: patch either audio output, grab the knobs, and
+Patch either audio output, grab the knobs, and
 hit the switch or a pulse input when you want the siren to shout.
 
 ## Controls
@@ -67,9 +67,9 @@ and output test checklist is in `TEST_PROCESS.md`.
 
 The firmware uses the `ComputerCard` framework and keeps the audio callback
 integer-only. `CV In 2` handles oscillator color so the Y knob can stay focused
-on the effect. `DubWarning.uf2` is the shippable PT2399-style delay version:
+on the effect. `DubWarning.uf2` includes the PT2399-style delay:
 darker repeats, slight clock dirt, smeared feedback, and reverb-like wash at
-longer settings. The Wheel Up gesture is fired from the switch and temporarily
+longer settings. Press the switch Down to fire Wheel Up. It temporarily
 overrides the free siren sweep with a short trilled pitch phrase and stronger
 delay send. Audio In 2 uses jack detection, so the Main knob is only defeated
 when a cable is patched.
@@ -82,6 +82,12 @@ make
 
 The dev container will configure CMake, build the firmware, and stage the UF2 in
 `UF2/`.
+
+## Release notes
+
+### Beta testing
+
+Passed hardware testing on a single device.
 
 ## Credits
 

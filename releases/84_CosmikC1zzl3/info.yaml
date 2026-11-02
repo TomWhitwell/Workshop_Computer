@@ -2,16 +2,15 @@ Name: Cosmik C1ZZL3
 draft: false
 date-created: 2026-07-22
 date-updated: 2026-10-24
-summary: Dual phase-distortion synthesiser and Turing machine release with Core
-  1.4 and alternate Rad v9 firmware. Both support USB MIDI, a shared browser
-  editor and CZ patch Import Lab, optional Turing MIDI output, and Turing CV and
-  pulse outputs. Core shares its amplitude, phase-distortion, pitch envelopes,
-  and waveform settings between oscillators. Rad v9 adds six independent envelope
-  lanes, separate oscillator waveform settings, and eight named sound-preset
-  slots with saved performance settings. Both retain a shared base PD amount
-  and the same physical controls and MIDI CC map.
-short-description: dual phase-distortion synth and Turing
-  machine firmware with shared Web MIDI editing and CZ patch import.
+summary: Play two phase-distortion oscillators or let the Turing machine generate a pattern.
+  Choose Core 1.4 for shared amplitude, phase-distortion, pitch envelopes and waveform
+  settings, or Rad v9 for six independent envelope lanes, separate oscillator waveforms
+  and eight named sound-preset slots that save performance settings. Both keep a shared
+  base PD amount and the same panel controls and MIDI CC map. Both also support USB
+  MIDI, the shared browser editor and CZ patch Import Lab, Turing CV and pulse outputs,
+  and optional Turing MIDI output.
+short-description: Dual phase-distortion synth and Turing machine, with shared Web MIDI editing and CZ
+  patch import.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "Core 1.4 / RAD v9"
@@ -147,72 +146,67 @@ controls:
             custom slot number."
 host:
   notes: >
-    The random-looping sequencer is inspired by Tom Whitwell's
-    [Music Thing Modular Turing Machine](https://github.com/TomWhitwell/TuringMachine).
+    The random-looping sequencer is inspired by Tom Whitwell's [Music Thing Modular
+    Turing Machine](https://github.com/TomWhitwell/TuringMachine).
 
-    Core 1.4 is the standard firmware. Rad v9 is an alternate firmware image
-    with independently editable Amp1/Amp2, PD1/PD2, and Pitch1/Pitch2 envelopes,
-    separate oscillator waveform families, slot names, and saved sound-preset
-    settings. Flash one firmware image at a time; both use the same hosted
-    Envelope Lab and C1ZZL3 Import Lab.
+    Core 1.4 is the standard firmware. Rad v9 is an alternate firmware image with
+    independently editable Amp1/Amp2, PD1/PD2, and Pitch1/Pitch2 envelopes, separate
+    oscillator waveform families, slot names, and saved sound-preset settings. Flash one
+    firmware image at a time; both use the same hosted Envelope Lab and C1ZZL3 Import
+    Lab.
 
-    Both firmware variants provide a phase-distortion synth card with Turing
-    machine mode, USB MIDI, browser editor tools, CZ Import Lab handoff,
-    gate-held envelope looping, natural trigger completion, and audio smoothing
-    for high-PD tones.
+    Both firmware variants provide a phase-distortion synth card with Turing machine
+    mode, USB MIDI, browser editor tools, CZ Import Lab transfers, gate-held envelope
+    looping, natural trigger completion, and audio smoothing for high-PD tones.
 
-    Switch middle is PD synth mode (Main = pitch, X = phase distortion, Y =
-    waveform morph, controlling oscillator 1 in RAD). Pulse In 2 and MIDI
-    note-on loop supported envelopes while
-    held; gate/note-off lets the envelope complete naturally.
+    Switch middle is PD synth mode (Main = pitch, X = phase distortion, Y = waveform
+    morph, controlling oscillator 1 in RAD). Pulse In 2 and MIDI note-on loop supported
+    envelopes while held; gate/note-off lets the envelope complete naturally.
 
     Hold switch down from middle for performance edit (detune, ring modulation,
     noise/grit) and save.
 
     Switch up is Turing mode (Main = mutation, X = length, Y = clock speed).
 
-    Turing CV and pulse outputs continue running in synth mode. Turing MIDI
-    output is optional and defaults off.
+    Turing CV and pulse outputs continue running in synth mode. Turing MIDI output is
+    optional and defaults off.
 
-    Core shares its Amp, PD, Pitch, and waveform settings between oscillators.
-    RAD provides six independent envelope lanes and separate waveform settings;
-    its base PD amount remains shared. The panel Y knob and CC23 control
-    oscillator 1 waveform in RAD; oscillator 2 waveform is set in the editor.
-    CV In 1 modulates shared PD and CV In 2 modulates both waveform controls.
+    Core shares its Amp, PD, Pitch, and waveform settings between oscillators. RAD
+    provides six independent envelope lanes and separate waveform settings; its base PD
+    amount remains shared. The panel Y knob and CC23 control oscillator 1 waveform in
+    RAD; oscillator 2 waveform is set in the editor. CV In 1 modulates shared PD and CV
+    In 2 modulates both waveform controls.
 
-    Factory envelope presets are never overwritten. Up to eight custom slots
-    are stored in card flash; browser drafts are separate. Save Envelope Only
-    stores compatible envelope data. On RAD, Save Sound Preset stores all six
-    lanes, the slot name, and current performance settings; on Core it falls
-    back to an envelope save. Load RAM, Load Sound Preset, and Send Settings
-    are temporary. Hold the switch down from middle to save the global startup
-    settings baseline.
+    Factory envelope presets are never overwritten. Up to eight custom slots are stored
+    in card flash; browser drafts are separate. Save Envelope Only stores compatible
+    envelope data. On RAD, Save Sound Preset stores all six lanes, the slot name, and
+    current performance settings; on Core it falls back to an envelope save. Load RAM,
+    Load Sound Preset, and Send Settings are temporary. Hold the switch down from middle
+    to save the global startup settings.
 
-    Unlike Gnarly, Core and RAD retain Turing mode and do not provide recipe
-    banks or an oscillator 2 panel page.
+    Unlike Gnarly, Core and RAD retain Turing mode and do not provide recipe banks or an
+    oscillator 2 panel page.
 
-    Envelope Lab edits and reads back envelopes and settings. C1ZZL3 Import Lab
-    prepares translated Casio CZ drafts, including pitch envelopes, for review
-    before sending them on to the card.
-
+    Envelope Lab edits and reads back envelopes and settings. C1ZZL3 Import Lab prepares
+    translated Casio CZ drafts, including pitch envelopes, for review before sending
+    them on to the card.
 
 
-    Envelope Lab: Browser editor for amplitude, phase-distortion, and pitch
-    envelopes, envelope readback, and performance settings.
+
+    Envelope Lab: Browser editor for amplitude, phase-distortion, and pitch envelopes,
+    envelope readback, and performance settings.
 
 
-    C1ZZL3 Import Lab: Hosted browser translator for Casio CZ `.syx` patches,
-    with pitch-aware handoff into Envelope Lab for final editing and sending.
+    C1ZZL3 Import Lab: Hosted browser translator for Casio CZ `.syx` patches, including
+    pitch envelopes, ready for final editing and sending in Envelope Lab.
 
-    Demo video note: for the separate no-Turing branch with recipe-bank
-    performance controls, also refer to the C1ZZL3 Gnarly demo video.
+    Demo video note: for the separate no-Turing branch with recipe-bank performance
+    controls, also refer to the C1ZZL3 Gnarly demo video.
 
 
-    MIDI CC1 controls phase distortion, CC20 detune, CC21 ring modulation, CC22
-    noise,
+    MIDI CC1 controls phase distortion, CC20 detune, CC21 ring modulation, CC22 noise,
 
-    CC23 waveform, and CC24 Turing CV octave range. Turing MIDI output defaults
-    off.
+    CC23 waveform, and CC24 Turing CV octave range. Turing MIDI output defaults off.
 contact:
   social:
     github: https://github.com/soveda

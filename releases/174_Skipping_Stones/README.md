@@ -1,11 +1,11 @@
 # Skipping Stones
 
-Skipping Stones is a controlled-random patch conductor for the Music Thing
-Workshop Computer. It is inspired by the ideas in Mutable Instruments Marbles:
-related random gates and voltages, deja-vu loop memory, bias/spread shaping,
-clocked uncertainty, and repeatable musical chance.
+Skipping Stones makes related random gates and voltages for the Music Thing
+Workshop Computer. Inspired by Mutable Instruments Marbles, it lets you move
+between fresh randomness and repeating loops, shape their bias and spread, and
+add uncertainty to the timing.
 
-It is designed for the Workshop System as a complete performance setup. Patch
+Try it as the centre of a Workshop System patch. Connect
 CV Out 1 to a SineSquare oscillator pitch input, Pulse Out 1 to a Slope trigger,
 CV Out 2 to a filter, slope time, or VCA/ring-mod control, and Pulse Out 2 to a
 second Slope or accent destination. The audio outputs provide closed and open
@@ -38,7 +38,7 @@ hi-hats so the card still makes a useful rhythm bed before any analogue patching
 | Audio Out 1 | Embedded TR-606 closed-hat sample, triggered by the main gate stream |
 | Audio Out 2 | Embedded TR-606 open-hat sample, triggered by the accent/fill gate stream |
 
-## Notes
+## Technical notes
 
 The firmware runs the RP2040 at 192 MHz and is copied to RAM by the linker to
 avoid flash-cache timing jitter in the audio interrupt. The samples are stored

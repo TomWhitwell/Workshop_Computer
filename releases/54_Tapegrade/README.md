@@ -1,10 +1,8 @@
 # Tapegrade
 
-Tapegrade is a cassette-style warble and degradation effect for the Workshop Computer platform.
-
-It turns a mono input signal into a wide stereo tape texture using wow, flutter, saturation, hiss, and crackle.
-
-Designed for everything from subtle tape movement to heavily damaged cassette sounds.
+Give your audio a gentle cassette wobble or push it into worn-out tape sounds.
+Tapegrade turns a mono input into stereo using wow, flutter, saturation, hiss
+and crackle on the Workshop Computer.
 
 ---
 
@@ -20,100 +18,6 @@ Designed for everything from subtle tape movement to heavily damaged cassette so
 * Pulse-controlled tape damage bursts
 * Rhythmic crackle injection
 * CV passthrough attenuation outputs
-
----
-
-# Inputs
-
-## Audio In 1
-
-Main mono audio input.
-
-Tapegrade is designed for mono input only.
-
----
-
-## Audio In 2
-
-Tape-condition modulation input.
-
-Use audio or CV signals to continuously morph between:
-
-* clean tape
-* old tape
-* damaged tape
-
----
-
-## CV1
-
-Modulates tape depth.
-
-Controls the amount of wow and pitch movement.
-
-Audio rate around C3 encouraged
-
-Also routed to CV Out 1 through the X knob attenuator.
-
----
-
-## CV2
-
-Modulates instability.
-
-Controls flutter speed and transport agitation.
-
-Audio rate around C3 encouraged
-
-Also routed to CV Out 2 through the Y knob attenuator.
-
----
-
-## Pulse In 1
-
-Tape damage burst trigger.
-
-Each rising edge briefly forces the tape into a heavily degraded state.
-
-Recommend high rate triggers!
-
-Could be useful for rhythmic tape-drop effects and transient degradation bursts.
-
----
-
-## Pulse In 2
-
-Crackle gate input.
-
-While high, Pulse In 2 forces strong crackle generation regardless of tape condition.
-
-
-
----
-
-# Outputs
-
-## Audio Out 1 / 2
-
-Stereo cassette-processed output.
-
-Stereo width is generated internally using decorrelated wow/flutter modulation.
-
----
-
-## CV Out 1
-
-CV1 passthrough output scaled by the X knob.
-
-Functions as a CV attenuator output.
-
----
-
-## CV Out 2
-
-CV2 passthrough output scaled by the Y knob.
-
-Functions as a CV attenuator output.
 
 ---
 
@@ -162,6 +66,84 @@ Darker tone with moderate hiss and instability.
 ## Down — Damaged
 
 Heavy degradation with strong hiss, crackle, and unstable tape behaviour.
+
+---
+
+# Inputs
+
+## Audio In 1
+
+Patch your mono audio source here.
+
+---
+
+## Audio In 2
+
+Patch audio or CV here to move continuously between:
+
+* clean tape
+* old tape
+* damaged tape
+
+---
+
+## CV1
+
+Modulates tape depth.
+
+Controls the amount of wow and pitch movement.
+
+Try audio-rate modulation around C3.
+
+Also routed to CV Out 1 through the X knob attenuator.
+
+---
+
+## CV2
+
+Modulates instability.
+
+Controls flutter speed and transport agitation.
+
+Try audio-rate modulation around C3.
+
+Also routed to CV Out 2 through the Y knob attenuator.
+
+---
+
+## Pulse In 1
+
+Each rising edge triggers a short burst of heavy tape damage.
+
+Try fast triggers for rhythmic tape dropouts and short bursts of damage.
+
+---
+
+## Pulse In 2
+
+Hold this input high to add strong crackle, whatever tape condition is selected.
+
+---
+
+# Outputs
+
+## Audio Out 1 / 2
+
+Stereo cassette-processed output.
+
+Stereo width is generated internally using decorrelated wow/flutter modulation.
+
+---
+
+## CV Out 1
+
+Passes CV1 through an attenuator controlled by X.
+
+---
+
+## CV Out 2
+
+Passes CV2 through an attenuator controlled by Y.
 
 ---
 

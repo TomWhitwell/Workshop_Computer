@@ -1,13 +1,17 @@
 # JP8k-sandsquall
 
-JP8k-sandsquall is a JP-inspired Supersaw voice for the Music Thing Workshop
-Computer, a wide animated stack of saw oscillators.
+JP8k-sandsquall brings a wide, moving stack of saw oscillators to the Music
+Thing Workshop Computer. Play it from CV/gate or USB MIDI, or use the built-in
+sequencer and edit its pattern in the browser. The default sequence may be
+familiar...
 
-The card includes a built-in sequencer which is accessible through the webUI. The default sequence may be familiar...
+## Install
+
+Flash `UF2/JP8K_SANDSQUALL_0.1.23.uf2` to your program card.
 
 ## Initial Setup: Supersaw Lead
 
-For the intended first patch, start with a Sandstorm-inspired supersaw lead:
+Try these settings for a Sandstorm-inspired supersaw lead:
 
 | Control | Starting position |
 | --- | --- |
@@ -75,7 +79,7 @@ low closes it. When the envelope reaches zero, the audio path is hard-muted.
 | Pulse Out 1 | Gate monitor; falls at note-off before the short audio release tail |
 | Pulse Out 2 | Square pulse from the centre oscillator while the voice is active |
 
-## Notes
+## USB MIDI and sound
 
 The audio engine uses seven integer saw oscillators, fixed-point detune, a
 neutral two-pole low-pass tone filter, and an attack/release envelope. Control
@@ -113,8 +117,8 @@ file:
 B B B B B - B B  B B B B B - E E
 E E E E E - D D  D D D D D - A A
 ```
- Main
-sets the internal tempo from about 60-240 BPM when Pulse In 2 is unpatched.
+
+Main sets the internal tempo from about 60-240 BPM when Pulse In 2 is unpatched.
 With neither Pulse In 2 nor active USB MIDI Clock present, dip Z down and back
 to middle to start or stop the internal clock. Patch a clock to Pulse In 2 to
 step the sequence externally; Pulse In 1 resets back to step 1. The factory
@@ -129,6 +133,21 @@ tempo, accents, gates, and basic performance controls over Web MIDI SysEx.
 The card runs the RP2040 at 192 MHz by default. A `JP8K_SANDSQUALL_OVERCLOCK_240` build
 define is provided for later testing if the voice grows heavier, but the first
 version should not need it.
+
+The Audio In 1 pitch CV input is calibrated when the Workshop Computer has
+valid input calibration in EEPROM. On Computers without that data, the card uses
+the documented raw audio-input fallback, so it remains musically playable but
+should be trimmed and checked by ear.
+
+For pitch testing, set **Z Up** with a gate patched,
+set **Main** to 12 o'clock, set **X** fully counter-clockwise, leave **CV In
+1** and **CV In 2** unpatched, and set **Y** high enough to hear a bright saw.
+Patch the pitch source to **Audio In 1**. In that position the card disables
+the detuned side oscillators and outputs only the centre saw, so 1V/oct
+tracking can be checked without the supersaw beating confusing the tuner.
+Bring X up after tuning to restore the JP-style spread.
+
+## Release notes
 
 Version 0.1.14 updates the card to ComputerCard 0.4.0. Its corrected input bounds
 and full-travel knob scaling are used directly by this card; its existing
@@ -160,19 +179,6 @@ Version 0.1.20 replaces the brightness stage with two neutral fixed-point
 low-pass poles in series. Y and MIDI brightness keep their existing mapping;
 the extra pole adds more useful warmth at low settings without adding
 resonance, filter modulation, or a new voice mode.
-
-The Audio In 1 pitch CV input is calibrated when the Workshop Computer has
-valid input calibration in EEPROM. On Computers without that data, the card uses
-the documented raw audio-input fallback, so it remains musically playable but
-should be trimmed and checked by ear.
-
-For pitch testing, set **Z Up** with a gate patched,
-set **Main** to 12 o'clock, set **X** fully counter-clockwise, leave **CV In
-1** and **CV In 2** unpatched, and set **Y** high enough to hear a bright saw.
-Patch the pitch source to **Audio In 1**. In that position the card disables
-the detuned side oscillators and outputs only the centre saw, so 1V/oct
-tracking can be checked without the supersaw beating confusing the tuner.
-Bring X up after tuning to restore the JP-style spread.
 
 Version 0.1.21 moves calibrated 1V/oct pitch control to Audio In 1 and assigns
 CV In 1 to bipolar low-pass cutoff modulation. CV In 2 remains Supersaw spread

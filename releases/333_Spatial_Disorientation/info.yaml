@@ -1,19 +1,22 @@
 draft: false
 Name: Spatial Disorientation
-short-description: Two-source binaural orbits, spatial mixing and Fig8, Pendulum or Wandering movement, with web presets and 8mu control.
+short-description: Place two sounds around your head with orbits, spatial mixing or Fig8, Pendulum and
+  Wander paths, plus web presets and 8mu control.
 summary: >-
-  A headphone spatializer for two independent mono sources. Choose Twin Orbits,
-  Spatial Mixer or Disorientation at startup. Twin Orbits has a shared height
-  centre and sloping paths; Mixer has independent continuous A/B heights;
+  Place two independent mono sources in a headphone sound field. Choose Twin Orbits,
+  Spatial Mixer or Disorientation at startup. Twin Orbits shares a height centre between
+  sources and offers sloping paths. Mixer gives A and B independent continuous heights.
   Disorientation adds vertical movement and slope to Fig8, Pendulum and Wander.
-  Elevation is a subtle headphone effect: height and slope may sound like small
-  tonal or placement changes rather than obvious up/down movement. Results vary
-  with listener, headphones and source material; displayed angles are virtual
-  rendering targets, not guaranteed perceived positions. Separate saved mode
-  settings, web presets and elevation tools, panel/CV control and direct 8mu
-  pitch/roll positioning make it playable. Orbits offers normal/height fader pages;
-  Disorientation elevation is set in the editor. Beta3 includes corrected roll
-  direction and the tested repeated-save fix. Two sources and all 64 taps at 192 MHz.
+
+
+  Elevation is subtle: height and slope may sound like small changes in tone or
+  position. What you hear depends on your ears, headphones and source; the displayed
+  angles describe rendering targets rather than guaranteed perceived positions. Each
+  mode has separate saved settings. Use web presets and elevation tools, panel/CV
+  controls, or direct 8mu pitch/roll positioning. Orbits has normal/height fader pages;
+  set Disorientation elevation in the editor. Beta3 includes the corrected roll
+  direction and tested repeated-save fix. It runs two sources and all 64 taps at 192
+  MHz.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "0.4.0-beta3"
@@ -116,7 +119,9 @@ host:
       description: WebMIDI/SysEx editor with per-mode height/slope settings, Read, Apply, Save, init, staged elevation randomise/reset and named preset import/export.
     - name: Music Thing Modular 8mu
       role: MIDI host
-      description: Direct fader/button control with pitch/roll motion (right edge down moves right), Orbits normal/height pages selected by short D release, and source-aware Mixer pickup. Editor and 8mu use separate USB sessions.
+      description: Use faders, buttons and pitch/roll motion to place sounds; right edge down moves
+        right. A short D release switches Orbits normal/height pages. Mixer uses pickup
+        for the selected source. Use separate USB sessions for the editor and 8mu.
   notes: >-
     ComputerCard 0.4.0 with a local attributed flash-pause adaptation, 192 MHz / 1.15 V, 48 kHz and a 64-tap continuous-elevation HRTF
     renderer on a 64-frame block worker. Rev 1.1 detects USB role at boot; older

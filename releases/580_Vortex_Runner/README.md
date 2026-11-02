@@ -1,9 +1,9 @@
 # Vortex Runner
 
 Vortex Runner is a CS-80-inspired monophonic synth voice for the Workshop
-Computer. It plays one shared note and gate through two separately coloured
-outputs: **Audio Out 1 is Voice A; Audio Out 2 is Voice B**. Detune Voice B
-for width, or give each output its own oscillator mix and filter settings.
+Computer. Both voices follow the same note and gate, with **Voice A on Audio
+Out 1 and Voice B on Audio Out 2**. Detune Voice B for width, or give each output
+its own oscillator mix and filter settings.
 
 Both editions include 12 dB/octave high-pass and low-pass filters, amp and
 filter envelopes, portamento, ring modulation, 31 factory presets, and eight
@@ -12,18 +12,16 @@ CS-80's musical gestures, with no Yamaha affiliation.
 
 ## Choose Your Firmware
 
-Flash **one** edition. Version **0.1.2 is Beta**: both binaries compile and
-pass MIDI edition checks, but still require hardware verification.
+Flash **one** edition. Version **0.1.2 is Beta** and still needs hardware
+verification; see the release notes below for checks completed so far.
 
 | Edition | Download | Choose this for |
 |---|---|---|
 | Standard | [Vortex_Runner_0.1.2.uf2](uf2/Vortex_Runner_0.1.2.uf2) | Panel and CV/gate playing, ordinary USB MIDI keyboards/controllers, and the Web MIDI editor. |
 | 8mu | [Vortex_Runner_8mu_0.1.2.uf2](uf2/Vortex_Runner_8mu_0.1.2.uf2) | The same synth and editor, plus the 8mu layers, fader pickup and LED feedback described below. |
 
-Checksums are in [uf2/SHA256SUMS.txt](uf2/SHA256SUMS.txt). The catalogue lists
-only these two editions; earlier binaries are retained in the
-[firmware archive](uf2/archive/README.md) for recovery. Complete source for both is included; see
-[Building Both Editions](#building-both-editions) at the end of this guide.
+Checksums are in [uf2/SHA256SUMS.txt](uf2/SHA256SUMS.txt). Complete source for both
+editions is included; see [Building Both Editions](#building-both-editions).
 
 ## Quick Start
 
@@ -58,7 +56,7 @@ control, so changing pages does not jump the sound.
 | Down, held: performance page | Voice B detune | Ring-modulation amount | Vibrato / LFO-to-pitch depth |
 
 A brief Down tap changes A/B focus; holding Down exposes the performance
-controls. Holding it for about **two seconds** opens the preset browser.
+controls. Keep holding for about **two seconds** to open the preset browser.
 
 The source mixer, separate A/B output levels, envelope shapes, CV policy and
 additional LFO destinations are available in the Web editor. Saw, pulse, sine
@@ -121,7 +119,7 @@ Loading a saved slot also makes it the startup slot. Loading a factory preset
 does not change the saved startup choice. Browsing recalls presets; it does
 not save the sound you have been editing over an existing slot.
 
-Factory presets are immutable and initially load A/B in unison. Saved slots
+Factory presets cannot be overwritten and initially load A/B in unison. Saved slots
 can retain separate A/B colours and include the pitch-CV range. With no saved
 startup slot, the fallback is Doctor Who Theme, including its portamento.
 
@@ -218,8 +216,8 @@ belong to the shared patch.
 
 To keep a sound, select one of eight card slots, enter a name, and use
 **Save Settings**. The first saved slot becomes the startup slot automatically;
-use **Set Start Slot** to change it. Names can be up to 24 characters. A local
-browser preset and an applied live patch are not a flash save.
+use **Set Start Slot** to change it. Names can be up to 24 characters. Saving a preset in
+your browser or applying a live patch does not save it to the card.
 
 Factory/example choices preserve the editor's current pitch-CV policy when
 loaded. Saved card slots are complete snapshots and restore their own CV range.
@@ -250,8 +248,8 @@ edition without 8mu note interception.
 
 ## Firmware Development
 
-All instructions above describe using the card. The following sections are for
-building or modifying it yourself. Both editions share [CS80.cpp](CS80.cpp),
+To build or modify the firmware, start with the shared source. Both editions use
+[CS80.cpp](CS80.cpp),
 [CS80_LUT.cpp](CS80_LUT.cpp), the USB support files and one Web MIDI editor.
 Only 8mu integration is conditional; the synth and saved-preset layouts match.
 
@@ -315,6 +313,16 @@ Web MIDI patch/slot readback and save/reload for each edition. In the 8mu
 edition, additionally check A-D layer changes during held CV notes, fader
 pickup, controller LEDs, and the hardware preset browser. Neither new binary
 has been hardware-verified yet.
+
+## Release notes
+
+### 0.1.2 — Beta
+
+Both editions compile and pass MIDI edition checks. Neither new binary has been
+hardware-verified yet.
+
+The catalogue lists only these two editions. Earlier binaries are kept in the
+[firmware archive](uf2/archive/README.md) for recovery.
 
 ## References
 

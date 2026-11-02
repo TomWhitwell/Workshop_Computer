@@ -1,8 +1,12 @@
 # Bib for Workshop Computer
 
-**Version 1.1.2-beta. Current stable firmware, hardware-tested on a Workshop Computer. Catalogue status remains Beta.**
+**Version 1.1.2-beta. Catalogue status: Beta.**
 
-Bib is a stereo dub processor adapted from Plinky Synth's [Bib](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/bib). It runs the original 64-frame Bib DSP directly on the Workshop's second RP2040 core, rather than using `ComputerCard.h`.
+Send audio through drive, delay and reverb, then hold Down on the Mix page to
+push it into dub feedback. Bib adapts Plinky Synth's
+[Bib](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/bib) for the
+Workshop Computer. The original 64-frame DSP runs on the second RP2040 core,
+using a dedicated audio transport instead of `ComputerCard.h`.
 
 ## Install
 
@@ -42,13 +46,12 @@ two. At 120 BPM with quarter-note pulses, the midpoint's approximately
 periods to give the same delay. Switching pulse subdivisions can therefore
 retain approximately the same timing at a fixed X position.
 
-Timing changes move Bib's read head smoothly, so brief smears or pitch bends
-are expected; clearly audible timing steps are not required. This behaviour
-was compared with hardware Bib and found similar. A steady clock and parked
-X should settle without repeated changes between adjacent divisions.
+Changing the timing moves Bib's read head smoothly, so you may hear a brief
+smear or pitch bend without a distinct timing step. With a steady clock and X
+left alone, it should settle without hopping between adjacent divisions.
 
-Version 1.1.2 measures edges at sample resolution, smooths small period
-fluctuations and retains the selected ratio around division boundaries. Large
+The card measures clock edges at sample resolution, smooths small period
+fluctuations and keeps the selected ratio around division boundaries. Large
 clock-rate changes are accepted after two consistent intervals. After clock
 loss, the last delay time is held until X moves deliberately.
 
@@ -63,7 +66,8 @@ On Reverb with Switch Up, X controls a retained shimmer amount. It starts at a s
 - Pulse In 1 clock-quantises Delay to Bib-style 3/4, straight, and dotted divisions. After clock loss, the last division is held until X moves.
 - Audio Outs 1 and 2 provide the processed stereo signal.
 
-Audio In 1 is not normalised to Audio In 2. Mono duplication was evaluated but raised the idle noise floor in the direct stereo DSP path.
+Audio In 1 is not normalised to Audio In 2. Patch both inputs when you want to
+feed both sides of the stereo processor.
 
 ## Build
 
@@ -82,15 +86,15 @@ c++ -std=c++17 -Wall -Wextra tests/clock_test.cpp -o /tmp/bib-clock-test
 /tmp/bib-clock-test
 ```
 
-## Attribution and licence
+## Release notes
 
-The original Bib DSP, reverb, lookup tables, and delay behavior are adapted from the software portion of the [Buddies public repository](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/bib), which is MIT-licensed. The upstream repository separately licenses its logos, panel and other graphic design under CC BY-SA 4.0, and its hardware under CERN-OHL-P v2; none of those non-software materials are included here. The Workshop transport borrows the hardware map, ADC correction, mux cadence, and DAC formatting from MIT-licensed [ComputerCard](https://github.com/TomWhitwell/Workshop_Computer/tree/main/Demonstrations%2BHelloWorlds/PicoSDK/ComputerCard).
+The current stable firmware has been tested on a Workshop Computer. Delay timing
+was compared with hardware Bib and found similar.
 
-The Workshop-specific DMA transport, block scheduler, control mapping, safety limits, pickup, CV/clock support, and tape-rate hand-off were written for this port. No original panel artwork, logos, or hardware design is included. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [LICENSE](LICENSE).
+Mono duplication was evaluated but raised the idle noise floor in the direct
+stereo DSP path.
 
 The previous `ComputerCard.h` release candidate is preserved in [`archive/1.0.0-computercard-rc1/`](archive/1.0.0-computercard-rc1/).
-
-## Release history
 
 - **1.1.2-beta:** promoted after hardware comparison with original Bib and
   successful clock/tempo-change tests. Adds sample-level pulse timestamps,
@@ -98,6 +102,12 @@ The previous `ComputerCard.h` release candidate is preserved in [`archive/1.0.0-
   The original DSP, reverb, audio levels, pickup and tape controls are unchanged.
 - **1.1.0-beta:** previous stable code and UF2 are preserved in
   [archive/1.1.0-block-dsp](archive/1.1.0-block-dsp/README.md).
+
+## Attribution and licence
+
+The original Bib DSP, reverb, lookup tables, and delay behavior are adapted from the software portion of the [Buddies public repository](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/bib), which is MIT-licensed. The upstream repository separately licenses its logos, panel and other graphic design under CC BY-SA 4.0, and its hardware under CERN-OHL-P v2; none of those non-software materials are included here. The Workshop transport borrows the hardware map, ADC correction, mux cadence, and DAC formatting from MIT-licensed [ComputerCard](https://github.com/TomWhitwell/Workshop_Computer/tree/main/Demonstrations%2BHelloWorlds/PicoSDK/ComputerCard).
+
+The Workshop-specific DMA transport, block scheduler, control mapping, safety limits, pickup, CV/clock support, and tape-rate hand-off were written for this port. No original panel artwork, logos, or hardware design is included. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [LICENSE](LICENSE).
 
 ## Firmware distribution notices
 

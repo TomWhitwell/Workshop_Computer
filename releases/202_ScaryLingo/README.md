@@ -2,7 +2,10 @@
 
 Card 202 for the Music Thing Modular Workshop Computer.
 
-ScaryLingo is a hardware-tested ring modulator with an internal carrier, an external-carrier input, a voltage-controlled LFO, and a dry/wet crossfade. It is designed for voice processing, metallic sidebands, slow tremolo, and patchable modulation.
+Turn voices and other sounds into metallic tones, or slow the modulation down
+for tremolo. ScaryLingo combines a ring modulator, an internal carrier and a
+voltage-controlled LFO, with a dry/wet control to blend the result. Patch your
+own carrier into Audio In 2 to replace the internal one.
 
 ## Flashing
 
@@ -29,7 +32,8 @@ Unpatched audio inputs are muted. With no programme input, both audio outputs ar
 
 ## Controls
 
-All knob pages use soft pickup: when you enter Middle or Up, a knob begins changing its stored value only after its physical position crosses that value.
+When you enter Middle or Up, move each knob through its stored value before it
+takes control. This soft pickup keeps the sound from jumping as you change pages.
 
 ### Middle: Performance
 
@@ -81,6 +85,12 @@ cmake --build build
 ```
 
 The build produces `build/scarylingo.uf2`.
+
+## Release notes
+
+### Testing status
+
+ScaryLingo has been tested on hardware.
 
 ## Credits and License
 

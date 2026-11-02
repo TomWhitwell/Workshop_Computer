@@ -1,11 +1,11 @@
 draft: false
 Name: BuzzyBee
-short-description: Hardware-tested Buzzrito saw and sub swarm with virtual XY motion and note-memory chords.
-summary: >-
-  A Workshop Computer adaptation of the Buddies Buzzrito stereo swarm oscillator.
-  BuzzyBee combines a virtual XY pad, recordable motion, original-style comb,
-  glide, BOC, wobble, pink noise, calibrated pitch CV, and musical note-memory
-  chord modes.
+short-description: Buzzrito saw-and-sub swarm with recorded XY motion and chords built from note memory;
+  tested on hardware.
+summary: Move through Buzzrito's stereo swarm with a virtual XY pad, record a path, or build
+  chords from notes you play. BuzzyBee adapts the Buddies Buzzrito for the Workshop
+  Computer, keeping its comb character, glide, BOC, wobble and pink noise, with
+  calibrated pitch CV and note-memory chord modes.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.0.0"

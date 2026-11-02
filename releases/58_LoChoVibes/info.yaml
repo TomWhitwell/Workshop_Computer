@@ -2,11 +2,10 @@ Name: LoCho Vibes
 draft: false
 date-created: 2026-06-14
 date-updated: 2026-07-09
-summary: Stereo chorus and vibrato effect featuring triangle, sine, and slow
-  drift LFO modes, modulation-based delay movement, and tape-style saturation.
-short-description: Stereo chorus and vibrato effect featuring triangle, sine,
-  and slow drift LFO modes, modulation-based delay movement, and tape-style
-  saturation.
+summary: Add stereo chorus, gentle tape wobble or seasick vibrato. Choose triangle, sine or
+  slow drift LFO movement to modulate the delay, then add tape-style saturation.
+short-description: Stereo lo-fi chorus and vibrato with triangle, sine or wandering LFO movement and
+  tape-style saturation.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: 0.1.0
@@ -118,19 +117,10 @@ controls:
           description: When the switch is tapped down, LEDs 1-2 show triangle, LEDs 3-4
             show sine, and LEDs 5-6 show random drift.
 host:
-  notes: >
-    Stereo lo-fi chorus/vibrato with clockable LFO and character shaping.
-
-    Main controls modulation rate, X controls modulation depth, Y controls
-    Character
-
-    (lo-fi degradation <-> compression coloration). Switch up selects vibrato
-    mode
-
-    (fully wet), middle selects chorus mode (dry/wet blend), and a momentary
-    move
-
-    to down cycles LFO shape (triangle, sine, random drift).
+  notes: Main sets modulation rate, X sets depth and Y sets Character, moving from lo-fi
+    degradation to compression coloration. Switch Up selects fully wet vibrato; Middle
+    blends dry and wet sound for chorus. Tap Down to cycle through triangle, sine and
+    random drift LFO shapes. The LFO can follow an external clock.
 contact:
   social:
     github: https://github.com/soveda

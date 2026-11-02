@@ -24,17 +24,17 @@ the idea of a performance.
 | Pulse In 1 | Trigger musician-shifts-in-seat one-shot on rising edge |
 | Pulse In 2 | Restart the three-loop performance from the beginning |
 
-The card powers up armed rather than playing. Move the switch Up to stop, reset
-the audio position, clear the reverb tail, and relight the three countdown LEDs.
+The card waits silently at startup. Move the switch Up to stop and arm it:
+this resets playback, clears the reverb tail and relights the three countdown LEDs.
 Move the switch to Middle to begin a complete 4'33" performance: three passes
 through the 91 second ambience loop, then automatic stop and mute. Moving the
 switch Down during a performance, or sending a rising edge to Pulse In 1, triggers
 the chair/stool creak one-shot; returning to Middle does not restart the performance
 while it is already running. Sending a rising edge to Pulse In 2 restarts the
-three-loop performance immediately, as if the card had been stopped/armed and then
-started again.
+three-loop performance immediately, just as stopping, arming and starting again
+would.
 
-The creak is intentionally quiet and sits behind the room ambience, as if the
+The creak sits quietly behind the room ambience, as if the
 performer has shifted slightly rather than knocked over the furniture.
 
 Main adds a little unattended human presence. Fully anticlockwise keeps the card
@@ -64,9 +64,20 @@ the third loop, the card stops and the audio mutes.
 
 The right column glows dimly while the performance is running.
 
+## Pulse Input
+
+Pulse In 1 triggers the chair/stool creak on a rising edge. It retriggers the same
+one-shot used by Switch Down, with no extra audio data. Pulse-triggered creaks use
+the same level as Switch Down creaks, so they are more deliberate than the quieter
+automatic restlessness fidgets.
+
+Pulse In 2 restarts the full 4'33" performance from the beginning. It resets the
+loop position, relights the three countdown LEDs, clears the reverb tail, starts
+playback immediately, and restarts the 20 second restlessness grace period.
+
 ## Builds
 
-This stable version has both 2 MB and 16 MB builds:
+Choose the build for your card size:
 
 | File | Card size | Audio asset |
 |------|-----------|-------------|
@@ -108,24 +119,13 @@ Mayakovsky CC0 UF2s:
 | `mayakovsky_cc0/UF2/433_sense_of_space_2mb_mayakovsky_cc0.uf2` | 2 MB | 91 seconds, 10 kHz stereo signed 8-bit, sourced from 4:45-6:16 |
 | `mayakovsky_cc0/UF2/433_sense_of_space_16mb_mayakovsky_cc0.uf2` | 16 MB | 91 seconds, 24 kHz stereo signed 16-bit, sourced from 4:45-6:16 |
 
-## Pulse Input
+## Chair creak recording
 
-Pulse In 1 triggers the chair/stool creak on a rising edge. It retriggers the same
-one-shot used by Switch Down, with no extra audio data. Pulse-triggered creaks use
-the same level as Switch Down creaks, so they are more deliberate than the quieter
-automatic restlessness fidgets.
-
-Pulse In 2 restarts the full 4'33" performance from the beginning. It resets the
-loop position, relights the three countdown LEDs, clears the reverb tail, starts
-playback immediately, and restarts the 20 second restlessness grace period.
-
-## Seat Creak Candidate
-
-Selected candidate:
+The chair creak comes from:
 https://freesound.org/people/unkleceeg/sounds/276473/
 
 `Chair creaking back and forth 01.wav` by `unkleceeg`, licensed Creative Commons 0.
-The one-shot currently baked into the firmware is a 1.35 second stereo signed 8-bit
+The firmware includes a 1.35 second stereo signed 8-bit
 12 kHz excerpt from around 7.95 seconds in the original WAV. It is mixed into the dry
 loop before the reverb, so it appears inside the selected performance space.
 
@@ -146,16 +146,23 @@ licence.
 
 ## Technical Notes
 
-The source is baked into the firmware as a 91 second stereo signed 8-bit loop taken
-from 1:30-3:01 of BBC Sound Effects Archive item `07003043`. Playback is linearly
+The BBC-derived ambience is a 91 second stereo loop taken from 1:30-3:01 of
+BBC Sound Effects Archive item `07003043`. The 2 MB build uses signed 8-bit audio
+and the 16 MB build uses signed 16-bit audio, as listed above. Playback is linearly
 interpolated to the Workshop Computer's 48 kHz audio rate, then sent through the
-integer Dattorro-style reverb from Reverb+. The X control deliberately avoids the
+integer Dattorro-style reverb from Reverb+. The X control avoids the
 near-freeze end of the reverb algorithm so the largest setting remains musical
 rather than turning the quiet ambience into noise.
 
 The integer reverb implementation is based on Jon Dattorro's reverb design and
 the [el-visio/dattorro-verb](https://github.com/el-visio/dattorro-verb)
 reference implementation; the source retains its attribution comment.
+
+## Release notes
+
+### Build status
+
+The 2 MB and 16 MB builds are stable.
 
 ## Firmware distribution notices
 

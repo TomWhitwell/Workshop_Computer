@@ -1,10 +1,11 @@
 draft: false
 Name: Bib
-short-description: Original Bib block-DSP stereo dub delay, reverb, shimmer, and tape processor.
-summary: >-
-  A hardware-tested beta Workshop Computer port of Plinky Synth's Bib. It runs
-  the original 64-frame fixed-point DSP with stereo delay, rhythmic multitap,
-  modulated reverb, shimmer, clock divisions, and tape transport controls.
+short-description: Stereo dub delay, rhythmic multitap, reverb, shimmer and tape controls using the
+  original Bib block DSP.
+summary: Send stereo audio through delay, rhythmic multitap, modulated reverb, shimmer and tape
+  transport effects. This beta adapts Plinky Synth's Bib for the Workshop Computer,
+  using its original 64-frame fixed-point DSP and clock divisions. It has been tested on
+  hardware.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.1.0-beta"
@@ -103,10 +104,8 @@ controls:
           name: Page State B
           description: Ping-pong, multitap count, mix, or output level by page.
 host:
-  notes: >-
-    Original Bib DSP is adapted from the public Buddies repository. The
-    Workshop runtime is a custom DMA block-audio implementation and does not
-    use ComputerCard.h.
+  notes: The original Bib DSP comes from the public Buddies repository. Workshop audio is
+    handled by a custom DMA block-audio runtime, which does not use ComputerCard.h.
 contact:
   social:
     github: https://github.com/soveda

@@ -1,5 +1,6 @@
 Name: 433 Sense of Space
-short-description: "Whimsical 4'33\"-inspired ambience looper with a three-loop transport, LED countdown, restlessness fidgets, Pulse In restart, and chair creak one-shot."
+short-description: A 4'33"-inspired room-ambience loop with a three-loop performance, countdown LEDs,
+  restless fidgets, pulse restart and chair creaks.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: 0.2.1
@@ -20,17 +21,14 @@ tags:
   - experimental
   - foley
 
-summary: |
-  433 Sense of Space is supplied as 2 MB and 16 MB builds. The 2 MB build uses a
-  compact 10 kHz stereo 8-bit ambience asset, while the 16 MB build uses a cleaner
-  24 kHz stereo 16-bit ambience asset.
-  It is not a recording or reconstruction of a 4'33" performance, but a sound work
-  about the anticipation, room tone, and incidental activity around one.
-  Switch Up stops and arms the performance, Switch Middle starts three 91 second
-  loops sourced from 1:30-3:01 of the BBC recording, and the left column LEDs count
-  down from three loops to zero. Switch Down or Pulse In 1 triggers a short
-  chair/stool creak one-shot representing the musician shifting in their seat.
-  Pulse In 2 restarts the full performance from the beginning.
+summary: Listen to the room, audience and small movements around an imagined performance. This
+  is a sound work inspired by 4'33", not a recording or reconstruction of a performance.
+  Choose the 2 MB build for compact 10 kHz stereo 8-bit ambience, or the 16 MB build for
+  cleaner 24 kHz stereo 16-bit ambience. Switch Up stops and arms the card; Middle
+  starts three 91 second loops sourced from 1:30-3:01 of the BBC recording. The
+  left-column LEDs count down from three loops to zero. Press Down or trigger Pulse In 1
+  for a short chair/stool creak, as if the musician shifted in their seat. Pulse In 2
+  restarts the whole performance.
 
 panel:
   inputs:

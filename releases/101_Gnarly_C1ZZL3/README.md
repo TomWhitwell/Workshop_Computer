@@ -3,10 +3,10 @@
 C1ZZL3 Gnarly is a dual-oscillator phase-distortion synth card for the Music
 Thing Modular Workshop Computer.
 
-Gnarly provides six-lane envelope editing, named sound presets, independent
-base phase-distortion amounts, an oscillator 2 interval control, and four recipe
-banks. Dedicated oscillator pages and a performance page put sound editing,
-ring modulation, and noise/grit on the hardware controls.
+Shape each oscillator with its own amplitude, phase-distortion and pitch
+envelopes. Choose sounds from four recipe banks, set oscillator 2's interval,
+and add ring modulation or noise/grit from the panel. The browser editor lets
+you draw envelopes and save named sounds on the card.
 
 Card 84 Cosmik C1ZZL3 is a simpler version of the phase-distortion synth engine.
 See the [Core/RAD comparison](../84_CosmikC1zzl3/README.md#core-and-rad-comparison)
@@ -20,15 +20,10 @@ for those firmware choices.
 | [Gnarly for 8mu v2](uf2/Gnarly_C1ZZL3_8mu.uf2) | The same sound engine and browser editor, plus 8mu performance and envelope editing. |
 
 Flash one of these UF2 files, not both. Their SHA-256 checksums are in
-[checksum file](uf2/SHA256SUMS.txt).
+the [checksum file](uf2/SHA256SUMS.txt).
 
 The 8mu release includes soft pickup with dim waiting LEDs and full brightness
 after pickup. See [Soft Pickup And Slider LEDs](#soft-pickup-and-slider-leds).
-
-The 8mu release also includes the C-button save fix: a dedicated USB/MIDI
-stack, flash readback verification, and a one-second Workshop LED confirmation.
-Saved-envelope persistence was confirmed after reset and readback in the web
-editor on 25 October 2026.
 
 ## What It Does
 
@@ -63,7 +58,7 @@ Switch down hold: performance and bank page.
 - Y: noise/grit
 
 Hold the switch down from the middle position for about eight seconds to save
-the current performance settings as the startup baseline. If powered up with
+the current performance settings for startup. If powered up with
 the switch down, leave that position before using the performance controls.
 
 The modulation inputs affect both oscillators on every edit page:
@@ -135,7 +130,6 @@ MIDI controller, it can run in USB MIDI host mode.
 MIDI note-on triggers the selected envelopes as a held gate. Loop-capable
 envelopes cycle until note-off lets them complete naturally.
 
-
 Gnarly uses `CC20` to `CC27` as an eight-knob performance block. `CC1` is also
 kept as oscillator 1 phase distortion so a mod wheel remains useful.
 
@@ -151,10 +145,9 @@ kept as oscillator 1 phase distortion so a mod wheel remains useful.
 
 ## If You Have An 8mu
 
-`Gnarly_C1ZZL3_8mu.uf2` is an alternative Gnarly firmware that exposes the
-envelope lanes on a Music Thing 8mu v2. It retains the same Gnarly sound engine
-and Web MIDI editor, but receives its controls from the 8mu instead of using
-only the editor.
+Use `Gnarly_C1ZZL3_8mu.uf2` to edit the six envelope lanes from a Music Thing
+8mu v2. It uses the same sound engine and Web MIDI editor as standard Gnarly;
+the 8mu gives you hands-on control of the envelopes.
 
 The JSON bank files are in [8mu_banks/](8mu_banks/). Import them one at a
 time with the [16n Faderbank editor](https://16n-faderbank.github.io/editor/),
@@ -318,13 +311,6 @@ The indication stays visible across controller banks and panel pages, showing
 which mode banks 2–7 will use. Startup envelope selection and the brief save
 confirmation display temporarily take priority over this indicator.
 
-Keyboard-mode A/B selection, the matching LED 6 indication, and audible
-operation passed hardware testing on 25 October 2026. Soft pickup and the
-reduced waiting-LED brightness were also confirmed on hardware that day.
-The bundled 8mu UF2 also includes the C-save correction. The saved envelope
-was confirmed present after reset and loading it back into the web editor.
-
-
 ## Web MIDI Editor
 
 Hosted editor path after Workshop deployment:
@@ -360,14 +346,14 @@ automatically checks card settings and saved slots to identify the firmware.
 
 There are eight custom slots; factory envelopes remain protected. Temporary
 loads are lost at restart. Selecting a saved sound preset restores its attached
-settings. Use the hardware save gesture to set the global startup baseline.
+settings. Hold the hardware switch Down to save the global startup settings, as described below.
 
 ### Selecting An Envelope At Startup
 
 Hold the switch down while powering up to enter envelope selection, then
 release it. Turn Main to choose a factory envelope or occupied custom slot.
 Move the switch down and release it to finish; hold it down for about eight
-seconds before releasing to save the selection as the startup baseline.
+seconds before releasing to save the selection as the startup default.
 Audio is muted during selection. Factory presets use the binary LED display;
 custom slots light LED 6 and use LEDs 1–3 for the slot number.
 
@@ -463,9 +449,8 @@ cmake -S 8mu -B build-8mu -DPICO_NO_PICOTOOL=0
 cmake --build build-8mu -j2
 ```
 
-This creates `build-8mu/Gnarly_C1ZZL3_8mu.uf2`, including soft pickup and
-dim-to-full controller LED feedback and the C-save stack fix. USB/MIDI runs
-on an explicitly allocated 16 KiB RAM stack;
+This creates `build-8mu/Gnarly_C1ZZL3_8mu.uf2` with soft pickup and dim-to-full
+controller LED feedback. USB/MIDI runs on an explicitly allocated 16 KiB RAM stack;
 the default 2 KiB stack cannot hold the flash-save frames. When changing this
 path, compile with `-fstack-usage` and check the nested TinyUSB, envelope-handler,
 and flash-save frames against that stack budget.
@@ -481,6 +466,23 @@ picotool uf2 convert build-8mu/Gnarly_C1ZZL3_8mu.elf build-8mu/Gnarly_C1ZZL3_8mu
 Keep test builds separate from `uf2/` until hardware checks pass. When publishing
 an updated release, replace the matching UF2, update `uf2/SHA256SUMS.txt`, and
 keep the README, quick reference, bank guide, and metadata in sync.
+
+## Release notes
+
+### 8mu save correction
+
+The 8mu release also includes the C-button save fix: a dedicated USB/MIDI
+stack, flash readback verification, and a one-second Workshop LED confirmation.
+Saved-envelope persistence was confirmed after reset and readback in the web
+editor on 25 October 2026.
+
+### Hardware checks — 25 October 2026
+
+Keyboard-mode A/B selection, the matching LED 6 indication, and audible
+operation passed hardware testing on 25 October 2026. Soft pickup and the
+reduced waiting-LED brightness were also confirmed on hardware that day.
+The bundled 8mu UF2 also includes the C-save correction. The saved envelope
+was confirmed present after reset and loading it back into the web editor.
 
 ## License Notes
 

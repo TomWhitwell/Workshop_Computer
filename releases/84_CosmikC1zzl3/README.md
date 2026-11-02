@@ -1,9 +1,10 @@
 # Cosmik C1ZZL3
 
 Cosmik C1ZZL3 is a dual phase-distortion synth card for the Music Thing Modular
-Workshop Computer. It combines a playable synth voice, a Turing machine with
-CV and pulse outputs, USB MIDI, browser envelope editing, and Casio CZ patch import.
-Turing MIDI output is optional and defaults off.
+Workshop Computer. Play it from USB MIDI, shape its envelopes in the browser,
+or let the Turing machine generate a pattern. The Turing section also sends CV
+and pulses to your other modules. You can import Casio CZ patches in the browser;
+Turing MIDI output is optional and starts off.
 
 ## Choose Your Firmware
 
@@ -14,7 +15,6 @@ Turing MIDI output is optional and defaults off.
 
 Flash one image at a time. Both use the same hardware controls, MIDI CC map,
 Envelope Lab, and Import Lab. Checksums are in [SHA256SUMS.txt](uf2/SHA256SUMS.txt).
-Both versions have been hardware tested.
 
 ## Core And RAD Comparison
 
@@ -34,7 +34,6 @@ Both versions have been hardware tested.
 | Turing machine | Audio, CV, pulse, and optional MIDI output | Same as Core |
 | Physical controls and MIDI CC map | Synth, performance edit, and Turing controls | Same layout and CC numbers as Core, with the waveform distinction above |
 | Browser tools | Shared Envelope Lab and CZ Import Lab | Same tools, with independent oscillator editing and sound-preset support |
-
 
 ## Controls
 
@@ -58,7 +57,7 @@ Switch down from middle: performance edit and save.
 - Y: noise/grit
 
 Hold down from middle for about eight seconds to save the current performance
-settings as the global startup baseline. Ring and noise default to neutral;
+settings as the global startup settings. Ring and noise default to neutral;
 saved settings restore at startup. If powered up with the switch down, leave
 that position before using the performance controls.
 
@@ -138,16 +137,18 @@ Button quick reference:
 
 `Load RAM`, `Load Sound Preset`, and `Send Settings` are temporary. Use
 `Save Envelope Only` to retain an envelope in flash. To make the current performance
-settings the startup baseline, move the hardware switch from middle to down and
+settings the startup default, move the hardware switch from middle to down and
 hold it until the card confirms the save.
 
 On RAD, selecting a saved sound preset restores its attached performance
-settings. The hardware save gesture sets the global startup baseline separately.
+settings. Holding the hardware switch Down saves the global startup settings separately.
 
-The card can save up to eight custom envelopes or RAD sound presets. Factory presets are not
-overwritten. Custom presets are labelled `Local only`, `Saved - slot N`, or
-`Changed - slot N`. Envelope readback confirms which custom slots are occupied
-and verifies saves and deletions when supported by the firmware. The editor also runs a quiet settings/envelope check automatically when MIDI connects or ports change, so the firmware type is visible without first pressing the read buttons.
+The card can save up to eight custom envelopes or RAD sound presets, while
+factory presets stay protected. Custom presets are labelled `Local only`,
+`Saved - slot N`, or `Changed - slot N`. Read envelopes back to see which slots
+are occupied and verify saves or deletions where the firmware supports it.
+The editor also checks settings and envelopes when MIDI connects or ports change,
+so you can see the firmware type without pressing a read button.
 
 Envelope behaviour:
 
@@ -173,7 +174,7 @@ the result in Envelope Lab for final editing and sending.
 Current Import Lab features:
 
 - Light and dark mode toggle matching the Envelope Lab palette.
-- Larger `C1ZZL3 Import Lab` header and a clearer guided import workflow.
+- A `C1ZZL3 Import Lab` header and guided import steps.
 - Drag-and-drop or file-picker import for Casio CZ `.syx` files.
 - Browser-side validation, patch summary, decoded data, and draft mapping.
 - CZ frame awareness for common patch-send SysEx files, including command,
@@ -209,7 +210,7 @@ Factory presets:
 To select an envelope at startup, hold the switch down while powering up,
 then release it and turn Main to choose. Move down and release to finish;
 hold down for about eight seconds before releasing to save the selection as
-the startup baseline. Audio is muted during selection.
+the startup default. Audio is muted during selection.
 
 Saved custom envelopes appear after the factory presets during startup envelope
 selection. Custom slots light LED 6 and use LEDs 1-3 for the slot number.
@@ -281,7 +282,13 @@ Output: `build-rad/C1ZZL3_FULL_DUAL_OSCILLATORS.uf2`. The packaged download is
 named `uf2/C1ZZL3_RAD.uf2`. RAD sources are in `rad/` and share lookup tables
 and USB MIDI support files with Core.
 
-### Implementation And Validation Notes
+## Release notes
+
+### Core 1.4 and RAD v9
+
+Both versions have been hardware tested.
+
+### Implementation details
 
 Both versions include lookup-table oscillators, the 192 MHz clock, settings
 readback, CC/knob pickup, high-PD audio smoothing, and phase continuity on rapid
