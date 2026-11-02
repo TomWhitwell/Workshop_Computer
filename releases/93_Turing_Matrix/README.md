@@ -97,7 +97,7 @@ Beta implementation. The firmware source is copied from card **03_Turing_Machine
 
 ## Web editor
 
-The local `web/` editor allows acces to  the Turing settings plus the mixer-layer settings: timing,
+The local `web/` editor allows access to the Turing settings plus the mixer-layer settings: timing,
 scale/range, pulse behavior, mix curve, lane link, rise/fall timing, and per-lane minimum/maximum
 windows. The panel still handles the live lag and mix depth gestures in `Z up`.
 
