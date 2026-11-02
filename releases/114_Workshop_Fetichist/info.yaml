@@ -2,7 +2,7 @@ draft: false
 Name: Workshop Fetichist
 short-description: Semi-random harsh drum machine, noise source and audio processor
 Language: C++ (Pico SDK + ComputerCard)
-Creator: ikkin
+Creator: ikkini
 Version: "1.0.0"
 Status: Released
 License: MIT
