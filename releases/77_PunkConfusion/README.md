@@ -160,6 +160,12 @@ Use it like this:
    `Send sounds to card`.
 8. Restart the card and use it normally with the new shouts.
 
+The USB serial device is named `Pico` (manufacturer `Raspberry Pi`); macOS may
+also show a `/dev/cu.usbmodem…` path. The loader identifies itself when the
+browser connects and responds to the page's `PCID` identification request, so
+you can connect after it has been waiting in loader mode. Use the updated UF2
+and web page together if an older build misses the firmware greeting.
+
 During upload the status panel shows four stages: asking whether the card is
 ready, sending the sounds, waiting while the card saves them, and upload
 complete. Larger banks can take a little while to write, so wait for the final

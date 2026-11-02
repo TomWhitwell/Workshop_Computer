@@ -25,6 +25,7 @@ uf2:
     name: 8mu CV 0.1.0
 
 tags:
+  - 8mu
   - midi-host
   - midi-to-cv
   - utility
