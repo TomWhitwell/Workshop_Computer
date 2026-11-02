@@ -5,6 +5,7 @@ const FORMAT_MULAW_8 = 1;
 const SAMPLE_COUNT = 4;
 const LOADER_MAGIC = 0x444c4350; // PCLD
 const RESTORE_MAGIC = 0x524c4350; // PCLR
+const IDENTIFY_MAGIC = 0x44494350; // PCID
 const HEADER_BYTES = 32 + SAMPLE_COUNT * 8;
 
 const targets = {
@@ -58,7 +59,6 @@ function log(message) {
 function appendLog(message) {
   serialText = `${serialText}${serialText ? "\n" : ""}${message}`.slice(-3000);
   logEl.textContent = serialText;
-  notifySerialWaiters(serialText);
 }
 
 function setFirmwareNotice(message, kind = "") {
@@ -393,14 +393,14 @@ function updateSummary() {
   updateSampleStatus(ready, totalBytes, target);
 }
 
-function notifySerialWaiters(text) {
+function notifySerialWaiters(line) {
   for (let i = serialWaiters.length - 1; i >= 0; i--) {
     const waiter = serialWaiters[i];
-    const match = text.slice(waiter.from).match(waiter.pattern);
+    const match = line.match(waiter.pattern);
     if (match) {
       clearTimeout(waiter.timer);
       serialWaiters.splice(i, 1);
-      waiter.resolve({ text, match });
+      waiter.resolve({ text: line, match });
     }
   }
 }
@@ -409,8 +409,8 @@ function waitForSerial(pattern, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
     const waiter = {
       pattern,
-      from: serialText.length,
       resolve,
+      reject,
       timer: setTimeout(() => {
         const index = serialWaiters.indexOf(waiter);
         if (index >= 0) serialWaiters.splice(index, 1);
@@ -529,22 +529,34 @@ connectButton.addEventListener("click", async () => {
     return;
   }
 
-  port = await navigator.serial.requestPort();
-  await port.open({ baudRate: 115200 });
-  loaderGreetingSeen = false;
-  clearTimeout(firmwareCheckTimer);
-  log("Connected. Checking the card firmware...");
-  setFirmwareNotice("Connected. Waiting for the Punk Confusion sample loader to identify itself...", "warn");
-  readSerial(port);
-  firmwareCheckTimer = setTimeout(() => {
-    if (!loaderGreetingSeen) {
-      setFirmwareNotice(
-        "The card connected, but this page has not seen the Punk Confusion WebSerial loader. Flash the latest WebSerial UF2, then hold the switch down while resetting so LEDs 1, 3, and 5 stay lit.",
-        "warn"
-      );
-      appendLog("Firmware check: loader greeting not seen. If uploads do not start, update the card with the latest Punk Confusion WebSerial UF2.");
-    }
-  }, 4500);
+  connectButton.disabled = true;
+  try {
+    const selectedPort = await navigator.serial.requestPort();
+    await selectedPort.open({ baudRate: 115200 });
+    port = selectedPort;
+    loaderGreetingSeen = false;
+    clearTimeout(firmwareCheckTimer);
+    log("Connected. Checking the card firmware...");
+    setFirmwareNotice("Connected. Waiting for the Punk Confusion sample loader to identify itself...", "warn");
+    readSerial(selectedPort);
+    firmwareCheckTimer = setTimeout(() => {
+      if (!loaderGreetingSeen) {
+        setFirmwareNotice(
+          "The card connected, but this page has not seen the Punk Confusion WebSerial loader. Flash the latest WebSerial UF2, then hold the switch down while resetting so LEDs 1, 3, and 5 stay lit.",
+          "warn"
+        );
+        appendLog("Firmware check: loader greeting not seen. If uploads do not start, update the card with the latest Punk Confusion WebSerial UF2.");
+      }
+    }, 4500);
+    // Ask after the reader starts; reconnecting must not depend on boot output.
+    await selectedPort.setSignals({ dataTerminalReady: true });
+    const identify = new Uint8Array(4);
+    writeU32(new DataView(identify.buffer), 0, IDENTIFY_MAGIC);
+    await writeToCard(identify);
+  } catch (error) {
+    appendLog(error.message || String(error));
+    if (!port) connectButton.disabled = false;
+  }
   updateSummary();
 });
 
@@ -552,15 +564,21 @@ buildSelect.addEventListener("change", updateSummary);
 
 async function readSerial(serialPort) {
   const decoder = new TextDecoder();
-  while (serialPort.readable) {
-    const reader = serialPort.readable.getReader();
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        if (value) {
-          const text = decoder.decode(value, { stream: true }).trimEnd();
+  let pending = "";
+  const reader = serialPort.readable.getReader();
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) {
+        // USB chunks can split a line anywhere, including inside the greeting.
+        pending += decoder.decode(value, { stream: true });
+        let newline;
+        while ((newline = pending.indexOf("\n")) >= 0) {
+          const text = pending.slice(0, newline).replace(/\r$/, "");
+          pending = pending.slice(newline + 1);
           appendLog(text);
+          notifySerialWaiters(text);
           if (text.includes("PUNKCONF LOADER READY")) {
             loaderGreetingSeen = true;
             clearTimeout(firmwareCheckTimer);
@@ -576,11 +594,24 @@ async function readSerial(serialPort) {
           }
         }
       }
-    } catch (error) {
-      appendLog(error.message || String(error));
-    } finally {
-      reader.releaseLock();
     }
+  } catch (error) {
+    appendLog(error.message || String(error));
+  } finally {
+    reader.releaseLock();
+    clearTimeout(firmwareCheckTimer);
+    for (const waiter of serialWaiters.splice(0)) {
+      clearTimeout(waiter.timer);
+      waiter.reject(new Error("Card disconnected. Reconnect in loader mode and try again."));
+    }
+    try {
+      await serialPort.close();
+    } catch (_) { /* The USB device may already be gone. */ }
+    port = null;
+    loaderGreetingSeen = false;
+    connectButton.disabled = false;
+    setFirmwareNotice("Card disconnected. Connect again to load sounds.", "warn");
+    updateSummary();
   }
 }
 

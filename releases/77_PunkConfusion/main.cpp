@@ -763,14 +763,32 @@ uint32_t ReadU32Blocking()
 
 constexpr uint32_t kLoaderCommandUpload = 0x444C4350u; // "PCLD" little-endian.
 constexpr uint32_t kLoaderCommandClear = 0x524C4350u;  // "PCLR" little-endian.
+constexpr uint32_t kLoaderCommandIdentify = 0x44494350u; // "PCID" little-endian.
+
+void PrintLoaderGreeting()
+{
+    printf("PUNKCONF LOADER READY\n");
+    printf("FLASH_BYTES %lu\n", static_cast<unsigned long>(PICO_FLASH_SIZE_BYTES));
+    printf("SAMPLE_BANK_BYTES %lu\n", static_cast<unsigned long>(PunkSampleBank::kBankSize));
+    stdio_flush();
+}
 
 uint32_t WaitForLoaderCommand()
 {
     uint8_t window[4] = {};
     uint32_t count = 0;
+    bool connected = false;
 
     while (true)
     {
+        const bool nowConnected = stdio_usb_connected();
+        if (nowConnected && !connected)
+        {
+            // Boot-time output is discarded before the browser opens CDC.
+            PrintLoaderGreeting();
+        }
+        if (!nowConnected) count = 0;
+        connected = nowConnected;
         const int c = getchar_timeout_us(1000);
         if (c < 0)
         {
@@ -791,7 +809,12 @@ uint32_t WaitForLoaderCommand()
             | (static_cast<uint32_t>(window[(start + 2) & 0x03u]) << 16)
             | (static_cast<uint32_t>(window[(start + 3) & 0x03u]) << 24);
 
-        if (command == kLoaderCommandUpload || command == kLoaderCommandClear)
+        if (command == kLoaderCommandIdentify)
+        {
+            PrintLoaderGreeting();
+            count = 0;
+        }
+        else if (command == kLoaderCommandUpload || command == kLoaderCommandClear)
         {
             return command;
         }
@@ -915,11 +938,6 @@ void ClearUploadedBank()
 void RunWebSerialLoader()
 {
     stdio_usb_init();
-    sleep_ms(1200);
-    printf("PUNKCONF LOADER READY\n");
-    printf("FLASH_BYTES %lu\n", static_cast<unsigned long>(PICO_FLASH_SIZE_BYTES));
-    printf("SAMPLE_BANK_BYTES %lu\n", static_cast<unsigned long>(PunkSampleBank::kBankSize));
-    printf("Waiting for the web page to send sounds or restore built-in sounds.\n");
 
     while (true)
     {
