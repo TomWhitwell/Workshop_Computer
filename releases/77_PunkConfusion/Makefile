@@ -10,6 +10,7 @@ webui:
 smoke:
 	$(PYTHON) -m py_compile tools/generate_vocal_samples.py
 	node --check web/app.js
+	node tools/test_web_serial.cjs
 
 build:
 	cmake -S . -B $(BUILD_DIR)
