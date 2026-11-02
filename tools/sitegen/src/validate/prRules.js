@@ -14,6 +14,9 @@ import { cardRenames } from './mergeEligibility.js';
 
 const posix = value => String(value || '').replaceAll('\\', '/').replace(/^\.\//, '');
 const isUf2 = file => /\.uf2$/i.test(file);
+const cardOfInfoFile = file => posix(file).match(/^releases\/([^/]+)\/info\.yaml$/)?.[1] || null;
+
+export const FLAIRS_FILE = 'tools/sitegen/src/curation/flairs.yml';
 
 function releaseFromPath(file) {
   const parts = posix(file).split('/').filter(Boolean);
@@ -64,6 +67,30 @@ export function summarizePrTrigger(changes) {
   }
   changedPaths.push(...directoryChanges.values());
   return { affectedReleases: [...affectedReleases].sort(), renamedReleases, changedPaths };
+}
+
+/**
+ * Cards whose info.yaml the change set takes away. Moving it to another card's
+ * info.yaml is a rename, which needs a maintainer's review (see scopeReasons)
+ * but keeps the card on the site.
+ */
+function cardsLosingInfo(changes) {
+  const cards = new Set();
+  for (const change of changes) {
+    const card = cardOfInfoFile(change.oldPath || (change.status.startsWith('D') ? change.path : ''));
+    if (card && !(change.oldPath && cardOfInfoFile(change.path))) cards.add(card);
+  }
+  return cards;
+}
+
+/** True when flairs.yml assigns the card a flair. The file is absent from trees holding only cards. */
+function hasFlairs(root, card) {
+  try {
+    const { assignments } = YAML.parse(fs.readFileSync(path.join(root, FLAIRS_FILE), 'utf8'));
+    return assignments[card].length > 0;
+  } catch {
+    return false;
+  }
 }
 
 function walkFiles(dir) {
@@ -181,11 +208,23 @@ export async function evaluatePrRules(changes, { root }) {
     includedUf2ByRelease.set(release, list);
   }
 
+  const losingInfo = cardsLosingInfo(changes);
+
   for (const release of releases) {
     const releaseDir = path.join(root, 'releases', release);
     if (!fs.existsSync(releaseDir)) continue;
     const releaseFiles = walkFiles(releaseDir);
     const infoPath = path.join(releaseDir, 'info.yaml');
+    // An error, not a review warning: the site lists a folder only if it has an
+    // info.yaml, so this drops the card silently, and its flairs then fail the
+    // post-merge sync. Removing a card means deleting its whole folder.
+    if (losingInfo.has(release) && !fs.existsSync(infoPath) && releaseFiles.length) {
+      const flairNote = hasFlairs(root, release)
+        ? ` Its flairs in ${FLAIRS_FILE} would also fail the post-merge "Synchronize repository metadata" job, which skips the Pages deploy.`
+        : '';
+      diagnostics.push(diagnostic('error', 'info-yaml-removed', `releases/${release}/info.yaml`,
+        `This removes info.yaml but leaves other files in releases/${release}/, so the card would disappear from the site. Restore info.yaml, or delete the whole folder to remove the card.${flairNote}`));
+    }
     let rawInfo = {};
     try {
       rawInfo = YAML.parse(fs.readFileSync(infoPath, 'utf8')) || {};

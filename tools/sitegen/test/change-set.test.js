@@ -68,6 +68,18 @@ test('baseline diagnostics are existing, including across renames', async t => {
   assert.ok(entry.result.diagnostics.some(item => item.path === 'Creator'));
 });
 
+test('a lost info.yaml is introduced by the change set, and counts as an error', async t => {
+  const root = await fixture(t);
+  const baselineRoot = await fixture(t);
+  await write(baselineRoot, 'releases/42_card/info.yaml', validInfo);
+  await write(baselineRoot, 'releases/42_card/README.md', '# Card');
+  await write(root, 'releases/42_card/README.md', '# Card');
+  const report = await evaluateChangeSet([{ status: 'D', path: 'releases/42_card/info.yaml' }], { root, baselineRoot });
+  assert.equal(report.info.length, 0);
+  assert.ok(report.rules.introduced.some(item => item.ruleId === 'info-yaml-removed' && item.severity === 'error'));
+  assert.ok(!report.rules.existing.some(item => item.ruleId === 'info-yaml-removed'));
+});
+
 test('release-state rules already true on the base are existing, not introduced', async t => {
   const root = await fixture(t);
   const baselineRoot = await fixture(t);
