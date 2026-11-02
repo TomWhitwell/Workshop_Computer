@@ -17,7 +17,7 @@ Inspired by the tides of Matt Allison's Equanimity card. A repo-ready release fo
 
 1. Flash `firmware/dawn_chorus_v0.15.uf2` to a program card.
 2. Power the system and connect the Computer to the laptop over USB.
-3. Open `host/dawn-chorus-host.html` in Chrome or Edge (double-click it; nothing to install).
+3. Open `web/index.html` in Chrome or Edge (double-click it; nothing to install).
 4. Set your location by searching for a town, choosing **Use my location**, or typing coordinates.
 5. Click **Connect card** and choose the Raspberry Pi / Pico serial device.
 6. The top-right LED goes solid and the page shows **Card is receiving**.
@@ -166,7 +166,7 @@ F el=-4.21 li=0.1830 ch=0.4200 ri=1 cl=0.400 wi=0.250 te=0.550 ra=0.000 hu=0.700
 
 The page also sends `HELLO`, and the card replies with its name and version. Twice a second the card sends `S fr=<frames> ch=<chimes> bi=<birds> li=<0-1000> x=<0-4> ld=<%> pk=<%> lt=<n>`. The page shows the counts, uses `x` (X's position: 0 all four, 1–4 the lead) to highlight the lead bird, and shows `ld` and `pk`, the average and peak audio load. `lt` counts audio interrupts that started late (ignoring the first second after power-on, while the card starts up); it should always be 0.
 
-The card ignores keys it doesn't recognise, and the mapping from raw data to 0–1 lives in the page (`weatherAt`, `buildFrame`, `birdsong`, `fetchBirds` and `birdsNow` in `host/dawn-chorus-host.html`). That means new data feeds can be added, or the mappings retuned, without reflashing. Anything that can write to a serial port can drive the card, for example a Python script or a Raspberry Pi in an installation.
+The card ignores keys it doesn't recognise, and the mapping from raw data to 0–1 lives in the page (`weatherAt`, `buildFrame`, `birdsong`, `fetchBirds` and `birdsNow` in `web/index.html`). That means new data feeds can be added, or the mappings retuned, without reflashing. Anything that can write to a serial port can drive the card, for example a Python script or a Raspberry Pi in an installation.
 
 Never open the port at 1200 baud: the Pico SDK treats that as a request to reboot into BOOTSEL.
 
