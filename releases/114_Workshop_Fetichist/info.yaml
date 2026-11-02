@@ -1,0 +1,127 @@
+draft: false
+Name: Workshop Fetichist
+short-description: Semi-random harsh drum machine, noise source and audio processor
+Language: C++ (Pico SDK + ComputerCard)
+Creator: ikkin
+Version: "1.0.0"
+Status: Released
+License: MIT
+date-created: 2026-11-02
+date-updated: 2026-11-02
+
+contact:
+  social:
+    github: https://github.com/ikkini1
+
+tags:
+  - drum-machine
+  - noise
+  - random
+  - sequencer
+  - audio-effects
+  - bitcrusher
+  - cv
+  - midi
+
+summary: |
+  Workshop Fetichist is a harsh, semi-random drum machine and noise processor for
+  the Music Thing Modular Workshop Computer (hardware revision 1.1). Inspired by
+  the Body Synths Metal Fetishist, it combines a looping random CV sequencer,
+  probability-based trigger skipping, white noise, external audio processing,
+  and two aggressive effects: Rust and Corrosion.
+
+  It can also be used as a random CV sequencer and rhythmic trigger source.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Audio In 1
+      description: First external audio input; summed with Audio In 2.
+      type: audio
+
+    - id: AudioIn2
+      name: Audio In 2
+      description: Second external audio input; summed with Audio In 1. The internal white-noise generator remains active independently.
+      type: audio
+
+    - id: CVIn1
+      name: VCA CV
+      description: Controls the main output VCA. If unpatched, the VCA is fully open.
+      type: cv
+
+    - id: CVIn2
+      name: Crossfade CV
+      description: Overrides the internal sequencer CV and controls the crossfade between external audio and white noise.
+      type: cv
+
+    - id: PulseIn1
+      name: Clock In
+      description: External clock input. Takes priority over the internal clock when USB MIDI Clock is not active.
+      type: pulse
+
+    - id: PulseIn2
+      name: Double Speed
+      description: A high gate doubles the sequencer step rate.
+      type: pulse
+
+  outputs:
+    - id: AudioOut1
+      name: Main Audio Out
+      description: Main signal output after the audio/noise crossfader, effects and VCA.
+      type: audio
+
+    - id: AudioOut2
+      name: Noise Out
+      description: Independent white-noise output, before the crossfader, effects and VCA.
+      type: audio
+
+    - id: CVOut1
+      name: Random CV
+      description: Sequencer CV output, updated on every step, including skipped steps; 0–5 V.
+      type: cv
+
+    - id: CVOut2
+      name: AD Envelope
+      description: Exponential attack-decay envelope triggered by played steps; 0–5 V.
+      type: cv
+
+    - id: PulseOut1
+      name: Played Trigger
+      description: 5 ms trigger when a step is played.
+      type: pulse
+
+    - id: PulseOut2
+      name: Skipped Trigger
+      description: 5 ms trigger when a step is skipped.
+      type: pulse
+
+controls:
+  switch:
+    up:
+      name: Stop
+      description: Stops the sequencer and clears the trigger outputs and envelope.
+
+    middle:
+      name: Play
+      description: Runs the sequencer. Main, X and Y control the sequencer and crossfader.
+
+    down:
+      name: Effects / Tempo
+      description: Keeps the sequencer running while Main, X and Y adjust effect mix, effect blend and internal tempo.
+
+  knobs:
+    - main:
+        name: Random / Loop
+        description: In Play, selects fresh random values or a fixed random loop from 2 to 32 steps. In Down, controls effects dry/wet.
+      x:
+        name: Crossfade / Effect Blend
+        description: In Play, attenuates sequencer CV modulation of the audio/noise crossfader. In Down, blends Rust and Corrosion.
+      y:
+        name: Skip / Tempo
+        description: In Play, sets skipped-step probability from 0 to 95%. In Down, sets internal tempo from 20 to 300 BPM.
+
+host:
+  usb:
+    - name: USB MIDI Clock
+      role: clock
+      description: Receives USB MIDI Clock and MIDI Start/Stop/Continue messages when the Workshop Computer operates as a USB host.
