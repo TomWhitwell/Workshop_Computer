@@ -4,8 +4,10 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import YAML from 'yaml';
+import { validate } from '../src/curation/cli.js';
 import {
-  FLAIRS_FILE,
+  CURATION_DIR,
   cmakeHasXosc64,
   cmakeUsesPicoSdk,
   evaluatePrRules,
@@ -220,6 +222,7 @@ panels:
 });
 
 const removed = diagnostics => diagnostics.filter(item => item.ruleId === 'info-yaml-removed');
+const curated = diagnostics => diagnostics.filter(item => item.ruleId === 'curated-card-removed');
 
 test('deleting info.yaml while other files remain is an error', async t => {
   const root = await fixture(t);
@@ -285,21 +288,105 @@ test('folders that keep or never had an info.yaml are not reported', async t => 
   assert.deepEqual(removed(diagnostics), []);
 });
 
-test('a lost info.yaml names the post-merge failure only when the card has flairs', async t => {
-  const message = async flairs => {
+const FLAIRS_FILE = `${CURATION_DIR}/flairs.yml`;
+const DISCOVERY_FILE = `${CURATION_DIR}/discovery.yml`;
+const flaired = 'assignments:\n  "42_card":\n    - new\n';
+
+test('a lost info.yaml names the post-merge failure only when the card is curated', async t => {
+  const message = async (flairs, discovery = '') => {
     const root = await fixture(t);
     await write(root, 'releases/42_card/README.md', '# Card');
     await write(root, FLAIRS_FILE, flairs);
+    await write(root, DISCOVERY_FILE, discovery);
     const diagnostics = await evaluatePrRules([{ status: 'D', path: 'releases/42_card/info.yaml' }], { root });
     assert.equal(removed(diagnostics)[0].severity, 'error');
+    assert.deepEqual(curated(diagnostics), []);
     return removed(diagnostics)[0].message;
   };
-  assert.match(await message('assignments:\n  "42_card":\n    - new\n'), /Synchronize repository metadata/);
+  assert.match(await message(flaired), /\(flairs\.yml: assignments\).*Synchronize repository metadata/);
+  assert.match(await message('', 'hero:\n  featured: [42_card]\n'), /\(discovery\.yml: hero\.featured\)/);
   for (const flairs of ['assignments:\n  "42_card": []\n', 'assignments:\n  "43_other":\n    - new\n', 'assignments: [', '']) {
     assert.doesNotMatch(await message(flairs), /Synchronize repository metadata/, flairs);
   }
 });
 
-test('the flair assignments the rule reads are where the curation tools keep them', async () => {
-  await fs.access(fileURLToPath(new URL(`../../../${FLAIRS_FILE}`, import.meta.url)));
+test('removing a whole curated card warns about the post-merge failure', async t => {
+  const root = await fixture(t);
+  await write(root, FLAIRS_FILE, flaired);
+  const diagnostics = await evaluatePrRules([
+    { status: 'D', path: 'releases/42_card/info.yaml' },
+    { status: 'D', path: 'releases/42_card/README.md' },
+  ], { root });
+  const [item] = curated(diagnostics);
+  assert.equal(item.severity, 'warning');
+  assert.equal(item.file, 'releases/42_card/info.yaml');
+  assert.match(item.message, /removes card 42_card.*Synchronize repository metadata.*in this PR/);
+  assert.deepEqual(removed(diagnostics), []);
+});
+
+test('renaming a curated card warns until the curation files follow it', async t => {
+  const rename = [
+    { status: 'R100', oldPath: 'releases/42_card/info.yaml', path: 'releases/43_new/info.yaml' },
+    { status: 'R100', oldPath: 'releases/42_card/README.md', path: 'releases/43_new/README.md' },
+  ];
+  const root = await fixture(t);
+  await write(root, 'releases/43_new/info.yaml', 'Name: Card');
+  await write(root, 'releases/43_new/README.md', '# Card');
+  await write(root, FLAIRS_FILE, flaired);
+  const [item] = curated(await evaluatePrRules(rename, { root }));
+  assert.equal(item.severity, 'warning');
+  assert.match(item.message, /renames card 42_card/);
+
+  await write(root, FLAIRS_FILE, 'assignments:\n  "43_new":\n    - new\n');
+  assert.deepEqual(curated(await evaluatePrRules(rename, { root })), []);
+});
+
+test('a rename leaving files behind warns rather than errors', async t => {
+  const root = await fixture(t);
+  await write(root, 'releases/42_card/notes.txt', 'left behind');
+  await write(root, 'releases/43_new/info.yaml', 'Name: Card');
+  await write(root, FLAIRS_FILE, flaired);
+  const diagnostics = await evaluatePrRules([
+    { status: 'R100', oldPath: 'releases/42_card/info.yaml', path: 'releases/43_new/info.yaml' },
+  ], { root });
+  assert.equal(curated(diagnostics).length, 1);
+  assert.deepEqual(removed(diagnostics), []);
+});
+
+test('removing an uncurated card or a folder that never had info.yaml does not warn', async t => {
+  const root = await fixture(t);
+  await write(root, FLAIRS_FILE, 'assignments:\n  "42_card": []\n  "259_wip":\n    - new\n');
+  await write(root, DISCOVERY_FILE, 'hero:\n  featured: [43_other]\n');
+  const diagnostics = await evaluatePrRules([
+    { status: 'D', path: 'releases/42_card/info.yaml' },
+    { status: 'D', path: 'releases/259_wip/README.md' },
+  ], { root });
+  assert.deepEqual(curated(diagnostics), []);
+});
+
+test('the warning names what the curation check would reject', async t => {
+  const flairs = YAML.parse(flaired);
+  const discovery = {
+    hero: { featured: ['42_card'] },
+    embeds: { footer: { cards: ['42_card', '43_other'] } },
+    shelves: [{ id: 'one', cards: ['43_other'] }, { id: 'two', cards: ['42_card'] }],
+  };
+  const root = await fixture(t);
+  await write(root, FLAIRS_FILE, YAML.stringify(flairs));
+  await write(root, DISCOVERY_FILE, YAML.stringify(discovery));
+  const [item] = curated(await evaluatePrRules([{ status: 'D', path: 'releases/42_card/info.yaml' }], { root }));
+  const { errors } = validate({ available_flairs: [{ id: 'new' }], ...flairs }, discovery, [{ id: '43_other', title: 'Other' }]);
+  for (const location of ['discovery.yml: hero.featured', 'discovery.yml: embeds.footer.cards', 'discovery.yml: shelves[1].cards']) {
+    assert.ok(item.message.includes(location), location);
+    assert.ok(errors.includes(`${location} references unknown card 42_card`), location);
+  }
+  assert.ok(item.message.includes('flairs.yml: assignments'));
+  assert.ok(errors.includes('flairs.yml: stale assignment for 42_card'));
+  assert.ok(!item.message.includes('shelves[0]'));
+});
+
+test('the curation files the rule reads are where the curation tools keep them', async () => {
+  for (const file of [FLAIRS_FILE, DISCOVERY_FILE]) {
+    await fs.access(fileURLToPath(new URL(`../../../${file}`, import.meta.url)));
+  }
 });
