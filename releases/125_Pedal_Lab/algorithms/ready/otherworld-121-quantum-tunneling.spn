@@ -1,0 +1,198 @@
+; @name Quantum Tunneling
+; @tagline Every beat throws your last beat at a wall: it bounces back reversed, or tunnels through to the far side an octave down, until your notes wear the barrier away
+; @description Each step throws the step you just played at a barrier, the left wall
+; @description and the right wall in turn. Most of the time it bounces: the step comes
+; @description straight back reversed on that wall's side, so the beats ping-pong left
+; @description and right as reversed echoes. Sometimes it tunnels: the bounce never
+; @description comes, and instead the step appears on the far side an octave down and
+; @description late, playing its beginning slowly, breaking the ping-pong. Loud attacks
+; @description tunnel more easily, and every note wears the barrier thinner, so as you
+; @description play the deep ghosts get more and more frequent. When the barrier is gone
+; @description it collapses: for a few beats everything floods through, octave-down
+; @description ghosts that fall back in and tunnel again, an octave lower each time, then
+; @description a fresh barrier goes up and the reversed ping-pong returns. Time is the
+; @description step, the gap between clock pulses on the clocked twin: from 50 ms (300
+; @description BPM sixteenths) to 2 s (30 BPM quarters), and a throw really comes every
+; @description Time. Steps up to about half a second bounce back whole; longer steps
+; @description throw back their last half second, as much as the one second of memory
+; @description holds, and rest until the next throw. Erode sets how fast your notes wear
+; @description the barrier down; Rattle throws the bounces back in, so particles keep
+; @description rattling between the walls, reversing again with each bounce.
+; @pots Time | Erode | Rattle
+; @render 0.4363, 0.35, 0.4
+; @time POT0 0.05 2.0 exp
+; @components beat-locked step slicer, alternating walls, reversed bounce vs octave-down tunnelling chosen by a random draw against the tunnelling probability, attack-strength energy, note-eroded barrier with collapse and flood, feedback rattle with flood cascade, hard stereo throws
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	ring	32767
+
+equ	m	reg4		; (L + R) / 2
+equ	xF	reg5		; log2(F / 0.4756) / 16 (the window's fade scale)
+equ	Us	reg6		; where a tunnel starts reading (ADDR units, 1.0 = 1 s)
+equ	pc	reg7		; time since the step started (1.0 = 4 s)
+equ	hpf	reg8
+equ	ef	reg9
+equ	es	reg10
+equ	flag	reg11		; the strongest attack in this step (0: none)
+equ	d	reg12		; barrier thickness 0 .. 1
+equ	r	reg13		; random 0 .. 1/4
+equ	tun	reg14		; this step's particle tunnelled (1) or bounced (0)
+equ	sg	reg15		; the wall it hits: 0.999 left, 0 right (alternates every step)
+equ	side	reg16		; where this step sounds: 0.999 left, 0 right
+equ	fl	reg17		; flood: decays x 0.75 a step
+equ	w	reg18
+equ	t	reg19		; time into the fragment, min(4 pc, F) (ADDR units)
+equ	a	reg20		; this step's voice
+equ	env	reg21		; limiter peak follower
+equ	y	reg22		; the limited voice
+equ	F	reg23		; this step's fragment: min(T, 0.476 s)
+equ	rem	reg24		; F - t
+equ	rt	reg25		; Rattle (a flood rattles at full)
+
+	skp	run, start		; at load (a slot change keeps the previous program's registers):
+	sof	0, 0.999
+	wrax	d, 0			; a thick barrier to start
+	sof	0, 0.375
+	wrax	pc, 0			; the first step comes within 0.5 s of loading
+	wrax	sg, 0			; the walls in order (a stray value would mix the sides for good)
+	wrax	fl, 0			; no flood
+start:
+; ---- the ring: the input, plus the voice thrown back in (Rattle)
+	ldax	pot2
+	maxx	fl, 1.0
+	wrax	rt, 0
+	rdax	adcl, 0.5
+	rdax	adcr, 0.5
+	wrax	m, 0
+	rdax	a, 0.26			; (ACC is 0 here)
+	rdax	m, -0.1
+	mulx	rt
+	rdax	m, 0.5
+	wra	ring, 0
+	rdax	m, 0.5
+; ---- onsets: flag = the strongest attack in this step (fast env above 1.6 x slow)
+	rdfx	hpf, 0.25
+	wrhx	hpf, -1.0
+	absa
+	rdfx	ef, 0.012
+	wrax	ef, 1.0
+	rdfx	es, 0.001
+	wrax	es, 1.6
+	rdax	ef, -1.0
+	skp	gez, no_on
+	maxx	flag, 1.0
+	wrax	flag, 0
+no_on:
+; ---- the fragment: t = min(4 pc, F) runs at 1 sample a sample, then holds (silence until
+;      the next step when T > 0.476 s); window sat(150 t (F - t) / F)^2: 3 .. 7 ms fades
+;      that start and end with zero slope, whatever the step (a 50 ms step still reaches
+;      full level)
+	clr
+	or	$000040			; pc counts 2^-17 a sample (1.0 = 4 s)
+	rdax	pc, 1.0
+	wrax	pc, 1.0
+	sof	-2.0, 0
+	sof	2.0, 0			; -4 pc: minus the time into the step
+	rdax	F, 1.0
+	skp	gez, f_in
+	clr
+f_in:	wrax	rem, 1.0		; F - t
+	skp	zro, f_over
+	sof	-1.0, 0
+	rdax	F, 1.0
+	wrax	t, 1.0
+	mulx	rem
+	log	1.0, 0.5185546875
+	rdax	xF, -1.0
+	sof	2.0, 0			; squared
+	exp	1.0, 0
+	wrax	w, 0
+	skp	zro, nostep		; (ACC = 0: always) no step while a fragment plays
+f_over:	wrax	w, 0			; past the fragment: w = 0 (LOG of 0 would leave a trickle)
+; ---- steps: one every T = 0.05 x 40^POT0 s, once the fragment is over (it always is by
+;      then, unless Time was just turned down)
+	ldax	pot0
+	sof	0.3326416, -0.3955078125	; log2(T / 4 / 0.0124468) / 16
+	exp	-1.00412, 0			; -T / 4
+	rdax	pc, 1.0
+	skp	neg, nostep
+	clr
+	wrax	pc, 0
+; this step's fragment F = min(T, 0.476 s): a bounce reads back 2 F, the memory is 1 s
+	ldax	pot0
+	sof	0.3326416, -0.203125	; log2(T / 0.4756) / 16
+	skp	neg, f_fit
+	clr
+f_fit:	wrax	xF, 1.0
+	exp	0.4756, 0
+	wrax	F, 0
+; a tunnel starts T back (the last step's beginning), or above 0.75 s T halved by whole
+; octaves into [0.375, 0.75) s, as far back as the memory allows and still on the beat
+	ldax	pot0
+	sof	0.3326416, -0.244140625	; log2(T / 0.74967) / 16
+	skp	neg, u_fit
+	or	$F80000
+u_fit:	exp	0.74967, 0
+	wrax	Us, 0
+; the last step's particle hits a wall, the left and right walls in turn. It tunnels
+; with probability P = 2^(16 (E - 0.3 d)), E its attack; else it bounces back
+	ldax	r			; random: x' = 1.9 x + 0.15 mod 1/4
+	sof	1.9, 0.15
+	and	$1FFFFF
+	wrax	r, 0
+	ldax	sg			; the other wall
+	sof	-1.0, 0.999
+	wrax	sg, 0
+	rdax	d, -0.3			; the barrier (the clocked twin's Barrier at 0.5)
+	rdax	flag, 1.0
+	exp	1.0, 0			; P
+	sof	-0.25, 0
+	rdax	r, 1.0
+	rdax	fl, -1.0		; a flood: everything tunnels
+	and	$800000
+	sof	-1.0, 0
+	wrax	tun, 1.0		; 1: tunnelled
+	rdax	sg, -1.0
+	absa
+	wrax	side, 0			; a bounce sounds at the wall, a tunnel beyond the far wall
+; notes erode the barrier (Erode); when it is gone, a flood, and it is rebuilt
+	ldax	flag
+	skp	zro, nonote
+	ldax	pot1
+	sof	-0.1, -0.01
+	rdax	d, 1.0
+	wrax	d, 1.0
+	skp	gez, nonote
+	sof	0, 0.999		; collapse
+	wrax	fl, 1.0
+	wrax	d, 0
+nonote:	ldax	fl
+	sof	0.75, 0
+	wrax	fl, 0
+	wrax	flag, 0
+nostep:
+; ---- the voice: a bounce plays the last F reversed (offset 2t); a tunnel plays from Us
+;      back at half speed (offset Us + t/2), an octave down
+	ldax	t
+	sof	-1.5, 0
+	rdax	Us, 1.0
+	mulx	tun
+	rdax	t, 1.99993896484375
+	wrax	addr_ptr, 0
+	rmpa	1.99
+	mulx	w
+	wrax	a, 1.0
+; ---- gentle feed-forward limiter: peak follower of the voice, 0.25 s release, gain
+;      min(1, 0.439 / peak) on the same sample, then the make-up x1.45: a 0.64 ceiling
+	maxx	env, 0.99988
+	wrax	env, 1.0
+	log	-1.0, -0.07421875
+	exp	1.0, 0
+	mulx	a
+	sof	1.45, 0			; make-up
+	wrax	y, 1.0
+	mulx	side
+	wrax	dacl, -1.0
+	rdax	y, 1.0
+	wrax	dacr, 0

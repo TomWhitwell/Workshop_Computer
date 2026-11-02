@@ -7,6 +7,9 @@ summary: |
   As the sun rises, a drone swells and brightens, chimes ring out, and synthetic birds wake from first light,
   peak just after sunrise and stay through the day. Through dusk, everything settles back to silence.
 
+  The birds are local and seasonal. The page finds the four birds most likely near you at this time of year,
+  and the card gives each its own voice and songs. X picks which of them leads.
+
   The weather is the score. Cloud dulls the drone. Wind adds vibrato, beating and gusts, and makes the echoes
   and chimes waver. Warmth brightens the chimes, humidity lengthens the echoes, and rain brings a soft vinyl crackle.
   Because the data comes from the real sky above you, no two sun rises and sun sets sound the same.
@@ -15,10 +18,10 @@ summary: |
   each value with sliders. Inspired by the tides of Matt Allison's [Equanimity](https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/112_Equanimity) card.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Joe Hedinger (isbn) with (significant) support from James Saunders
-Version: "0.6"
+Version: "0.15"
 Status: Beta
 date-created: 2026-10-05
-date-updated: 2026-10-09
+date-updated: 2026-11-02
 Editor: web
 tags:
   - generative
@@ -32,19 +35,19 @@ tags:
   - experimental
 
 uf2:
-  - path: UF2/dawn_chorus_v0.6.uf2
-    name: Dawn Chorus 0.6
+  - path: firmware/dawn_chorus_v0.15.uf2
+    name: Dawn Chorus 0.15
 
 panel:
   inputs:
     - id: CVIn1
-      name: Bird Type CV
+      name: Lead Bird CV
       type: cv
-      description: Added to the X knob. Patch a slope here and the species changes from phrase to phrase. About 0 to +5 V covers most of the range, so start with X well anticlockwise. Does nothing when unplugged.
+      description: Moves X, choosing which bird leads, with the knob as an offset. 0 to +5 V covers the whole range, so a slope here passes the lead from bird to bird. Does nothing when unplugged.
     - id: CVIn2
       name: Chime Tone CV
       type: cv
-      description: Added to the Y knob, stepping through the six chime instruments. About 0 to +5 V covers most of the range, so start with Y well anticlockwise. Does nothing when unplugged.
+      description: Moves Y, stepping through the six chime instruments, with the knob as an offset. 0 to +5 V covers the whole range. Does nothing when unplugged.
     - id: PulseIn1
       name: Strike Chime
       type: pulse
@@ -52,7 +55,7 @@ panel:
     - id: PulseIn2
       name: Start Bird
       type: pulse
-      description: Each rising edge starts a bird phrase straight away, if one of the three bird voices is free.
+      description: Each rising edge starts a bird phrase straight away, usually from the lead bird, if a bird voice is free.
   outputs:
     - id: AudioOut1
       name: Drone
@@ -95,11 +98,11 @@ controls:
         name: Key
         description: 12 o'clock is D, and each of the 12 steps is a semitone. The drone, chimes and CV Out 2 all follow, with a short glide when you change key.
       x:
-        name: Bird Type
-        description: Anticlockwise gives low, slow coos, 12 o'clock gives warbling songbirds, and clockwise gives small, fast tweets. CV In 1 is added.
+        name: Lead Bird
+        description: Fully anticlockwise, all four local birds share the singing. Each step clockwise picks one to lead, from the most likely to the fourth. Turning to a new position plays that bird straight away. CV In 1 moves it too.
       y:
         name: Chime Instrument
-        description: Anticlockwise to clockwise, marimba, harp, xylophone, bell, vibraphone and glockenspiel. The first three use Casio CZ-style phase distortion and the last three use FM. CV In 2 is added.
+        description: Anticlockwise to clockwise, marimba, harp, xylophone, bell, vibraphone and glockenspiel. The first three use Casio CZ-style phase distortion and the last three use FM. Turning to a new instrument plays a chime. CV In 2 moves it too.
   leds:
     - display: list
       items:
@@ -126,7 +129,7 @@ host:
   usb:
     - name: Dawn Chorus host page
       role: editor
-      description: Opens from the Web Editor button in Chrome or Edge on a laptop or desktop. It calculates the sun's position for your location, fetches hourly weather from Open-Meteo (free, no account), and sends both to the card ten times a second over USB serial.
+      description: Opens from the Web Editor button in Chrome or Edge on a laptop or desktop. It calculates the sun's position for your location, fetches hourly weather from Open-Meteo and local bird records from GBIF (both free, no account), and sends them to the card ten times a second over USB serial.
   notes: |
     The card needs the page to know where the sun is. With nothing connected it sits at night, so it is almost
     silent apart from the occasional chime. Tap the switch down to preview daylight. If the USB link drops,

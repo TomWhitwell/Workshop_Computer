@@ -13,6 +13,8 @@
 //   PR_AUTHOR              PR author login            (eligibility report)
 //   PR_AUTHOR_ASSOCIATION  PR author_association      (eligibility report)
 //   PR_DRAFT               "true" for draft PRs       (eligibility report)
+//   PR_LABELS              JSON array of label names  (eligibility report)
+//   AUTO_MERGE             "true" once auto-merge is on (eligibility report)
 //   GITHUB_REPOSITORY, GITHUB_TOKEN                   (card committer lookup)
 
 import fs from 'node:fs';
@@ -22,8 +24,9 @@ import { fileURLToPath } from 'node:url';
 import { evaluateChangeSet } from './changeSet.js';
 import { hasCommittedToCard } from './cardCommitters.js';
 import { archiveTree, treeContains } from './gitTree.js';
-import { cardScope, evaluateMergeEligibility, touchesNoCards } from './mergeEligibility.js';
+import { cardScope, evaluateMergeEligibility, measureChanges, parseLabels, touchesNoCards } from './mergeEligibility.js';
 import { parseNameStatusZ } from './prRules.js';
+import { minifiedWebFiles } from './webCode.js';
 import {
   reportEligibilityMarkdown, reportGithub, reportMarkdown, reportOtherRulesGithub, reportText,
 } from './reporters/index.js';
@@ -85,14 +88,29 @@ if (base && process.env.PR_AUTHOR) {
     cardOnBase,
     cardInHead: card ? fs.existsSync(path.join(root, 'releases', card)) : false,
     authorCommitted,
+    size: measureChanges(changes, file => {
+      try {
+        return fs.statSync(path.join(root, file)).size;
+      } catch {
+        return null;
+      }
+    }),
+    labels: parseLabels(process.env.PR_LABELS),
+    minifiedWeb: minifiedWebFiles(changes, file => {
+      try {
+        return fs.readFileSync(path.join(root, file));
+      } catch {
+        return null;
+      }
+    }),
   });
   console.log(`Auto-merge eligibility (report only): ${eligibility.eligible ? 'eligible' : 'not eligible'}`);
   for (const line of eligibility.eligible ? [eligibility.basis] : eligibility.reasons) console.log(`  ${line}`);
 }
 
 if (summaryFile) {
-  const sections = [reportMarkdown(results, otherRules)];
-  if (eligibility) sections.push(reportEligibilityMarkdown(eligibility));
+  const sections = [reportMarkdown(results, otherRules, eligibility)];
+  if (eligibility) sections.push(reportEligibilityMarkdown(eligibility, { autoMerge: process.env.AUTO_MERGE === 'true' }));
   fs.writeFileSync(summaryFile, sections.join('\n'));
 }
 

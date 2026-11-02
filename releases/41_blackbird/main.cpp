@@ -25,6 +25,8 @@ License is GPLv3 or later- see LICENSE file for details.
 
 #include "ComputerCard.h"
 #include "pico/multicore.h"
+#include "hardware/vreg.h"
+#include "hardware/structs/systick.h"
 #include "pico/stdlib.h"
 #include "hardware/timer.h"
 #include "hardware/irq.h"
@@ -33,6 +35,8 @@ License is GPLv3 or later- see LICENSE file for details.
 
 #include "lib/fastmath.h"
 #include "class/cdc/cdc_device.h"
+#include "class/midi/midi_device.h"
+#include "lib/usb_midi_host.h"
 #include "lib/debug.h"
 #include "lib/usb_lockfree.h"
 #include <cstdio>
@@ -55,12 +59,15 @@ extern "C" {
 #include "lib/detect.h"
 #include "lib/l_crowlib.h"
 #include "lib/l_bootstrap.h"
+#include "lib/l_ii_mod.h"
 #include "lib/ll_timers.h"
 #include "lib/metro.h"
 #include "lib/mailbox.h"
 #include "lib/clock.h"
 #include "lib/events_lockfree.h"
+#include "lib/ii.h"
 #include "lib/flash_storage.h"
+#include "lib/lua_pool.h"
 #include "lib/caw.h"
 #include "lib/sample_rate.h"
 }
@@ -86,6 +93,7 @@ extern const unsigned int clock_len;
 #include "quote.h"
 #include "timeline.h"
 #include "hotswap.h"
+#include "ii.h"  // ii.lua bytecode (generated, in the build dir; the C API is lib/ii.h)
 
 // ============================================================================
 // GLOBAL VARIABLES
@@ -96,39 +104,40 @@ extern const unsigned int clock_len;
 // Stores stacked registers and active vector, then BKPTs.
 // NOTE: Avoids any USB/stdio calls in fault context.
 // ============================================================================
+// HardFault capture, per core. Both the handler and what it calls are in RAM:
+// a core can fault while the other is writing flash, and a handler in flash
+// would then fault on its own fetch and lock the core up with no record.
+// Read g_fault_info over SWD; util/bbdbg.py reports it.
+#define FAULT_INFO_MAGIC 0xFA017ED0u
 extern "C" {
-static volatile uint32_t g_hardfault_stack[8]; // r0,r1,r2,r3,r12,lr,pc,xpsr
-static volatile uint32_t g_hardfault_lr = 0;
-static volatile uint32_t g_hardfault_sp = 0;
-static volatile uint32_t g_hardfault_icsr = 0;
-}
+// per core: magic, pc, lr, xpsr, sp, r0, r1, r2, r3, r12, icsr
+__attribute__((used)) volatile uint32_t g_fault_info[2][11];
 
-extern "C" void hardfault_capture_c(uint32_t *sp) {
-    g_hardfault_sp = (uint32_t)sp;
-    // Active vector number in ICSR[8:0]
-    g_hardfault_icsr = *((volatile uint32_t*)0xE000ED04);
-    // Stacked registers
-    g_hardfault_stack[0] = sp[0];  // r0
-    g_hardfault_stack[1] = sp[1];  // r1
-    g_hardfault_stack[2] = sp[2];  // r2
-    g_hardfault_stack[3] = sp[3];  // r3
-    g_hardfault_stack[4] = sp[4];  // r12
-    g_hardfault_stack[5] = sp[5];  // lr
-    g_hardfault_stack[6] = sp[6];  // pc
-    g_hardfault_stack[7] = sp[7];  // xpsr
-    __asm volatile("mov %0, lr" : "=r"(g_hardfault_lr));
-
+void __not_in_flash_func(hardfault_capture_c)(uint32_t *sp) {
+    uint32_t core = sio_hw->cpuid & 1;
+    volatile uint32_t *f = g_fault_info[core];
+    f[1] = sp[6];   // pc
+    f[2] = sp[5];   // lr
+    f[3] = sp[7];   // xpsr
+    f[4] = (uint32_t)sp;
+    f[5] = sp[0]; f[6] = sp[1]; f[7] = sp[2]; f[8] = sp[3]; f[9] = sp[4];
+    f[10] = *((volatile uint32_t*)0xE000ED04);  // ICSR
+    f[0] = FAULT_INFO_MAGIC;
     __asm volatile("bkpt #0");
     while (1) {
         __asm volatile("nop");
     }
 }
 
-extern "C" __attribute__((naked)) void HardFault_Handler(void) {
+// Replaces the SDK's weak isr_hardfault (which lives in flash)
+__attribute__((naked, section(".time_critical.isr_hardfault"))) void isr_hardfault(void) {
     __asm volatile(
         "mov r0, sp\n"
-        "b hardfault_capture_c\n"
+        "ldr r1, =hardfault_capture_c\n"
+        "bx r1\n"
+        ".ltorg\n"
     );
+}
 }
 
 // CV Output & Input State
@@ -209,31 +218,79 @@ static uint32_t g_noise_state = 0xDEADBEEF;
 #define SLOPE_ACTION_QUEUE_SIZE 64
 typedef struct {
     uint8_t channel;
+    uint16_t seq;
     Callback_t callback;
 } slope_action_entry_t;
 static volatile slope_action_entry_t g_slope_action_queue[SLOPE_ACTION_QUEUE_SIZE];
 static volatile uint32_t g_slope_action_write_idx = 0;
 static volatile uint32_t g_slope_action_read_idx = 0;
 static volatile uint32_t g_slope_action_drop_count = 0;
+static volatile uint32_t g_slope_action_count = 0;  // segment-end callbacks queued (wraps)
 static volatile uint32_t g_slope_action_null_callback_count = 0;
 
 // Queue slope action callback from Core 1 (called in ISR)
 // IMPORTANT: Callback pointer is captured here to avoid race with new S_toward calls
-extern "C" void queue_slope_action_callback(int channel, Callback_t callback) {
+extern "C" void __not_in_flash_func(queue_slope_action_callback)(int channel, Callback_t callback, uint16_t seq) {
     if (callback == NULL) {
         g_slope_action_null_callback_count++;
         return;  // Don't queue NULL callbacks
     }
+    // Core 1 posts from both its background render (a queued slope starting)
+    // and the audio ISR (slope ends; renders when a buffer runs dry): with
+    // interrupts on, the ISR could post between another post's reading and
+    // advancing the write index, and one event was lost (a lookahead ASL
+    // chain then stopped dead)
+    uint32_t irq = save_and_disable_interrupts();
+    g_slope_action_count = g_slope_action_count + 1;
     
     uint32_t next_write = (g_slope_action_write_idx + 1) % SLOPE_ACTION_QUEUE_SIZE;
     if (next_write != g_slope_action_read_idx) {
         g_slope_action_queue[g_slope_action_write_idx].channel = (uint8_t)channel;
+        g_slope_action_queue[g_slope_action_write_idx].seq = seq;
         g_slope_action_queue[g_slope_action_write_idx].callback = callback;
+        __dmb();  // the entry before the index, for core 0
         g_slope_action_write_idx = next_write;
+        lua_interrupt_pending = 1;  // drain it from inside Lua, if Lua is running
     } else {
         // Queue full - track drops for diagnostic reporting
         g_slope_action_drop_count++;
     }
+    restore_interrupts(irq);
+}
+
+// Run the queued slope callbacks: casl's, which queue each lookahead segment's
+// successor (on_slope_started) or start the next segment (on_slope_ended).
+// C only: they never call into Lua.
+static void drain_slope_action_callbacks() {
+    while (g_slope_action_read_idx != g_slope_action_write_idx) {
+        uint32_t read_idx = g_slope_action_read_idx;
+        uint8_t channel = g_slope_action_queue[read_idx].channel;
+        uint16_t seq = g_slope_action_queue[read_idx].seq;
+        Callback_t callback = g_slope_action_queue[read_idx].callback;
+        g_slope_action_read_idx = (read_idx + 1) % SLOPE_ACTION_QUEUE_SIZE;
+        if (callback != NULL) {
+            callback((int)channel, seq);
+        }
+    }
+}
+
+// Drain them from inside Lua too. A lookahead segment's successor must be
+// queued before core 1 renders past its end, and with short (audio-rate)
+// segments core 1's render-ahead gave core 0 ~1.5ms, each successor being
+// queued only once its predecessor starts. Long stretches of Lua ran that dry,
+// and the output held then jumped (heard as clicks/distortion): nb_drumcrow's
+// 100Hz update (3ms of Lua) every 10ms, the collector's atomic phase (~2.6ms,
+// can't be split) every few seconds, compiling each REPL line or command
+// norns sends (~2-5ms). So drain from inside Lua (blackbird additions to its
+// Lua): from the VM, at its next call, jump or loop back-edge once core 1
+// sets lua_interrupt_pending (queue_slope_action_callback); from the
+// collector as it works (lua_setgcinterrupt); and from the allocator, which
+// compiling calls throughout. (A count hook did this at first, but cost ~45%
+// of Lua's speed: Lua 5.4 then traces every instruction.) The latter two can
+// run inside a C function: not while casl_describe is parsing an ASL, as a
+// half-described casl mustn't be stepped.
+static void drain_slope_action_callbacks_from_lua() {
+    if (!casl_describing()) drain_slope_action_callbacks();
 }
 
 // Process slope action callbacks on Core 0 (called from MainControlLoop)
@@ -264,19 +321,9 @@ static void process_slope_action_callbacks() {
     //     last_reported_cmd_drops = cmd_drops;
     // }
 
-    
-    while (g_slope_action_read_idx != g_slope_action_write_idx) {
-        // Read volatile struct members individually to avoid copy issues
-        uint32_t read_idx = g_slope_action_read_idx;
-        uint8_t channel = g_slope_action_queue[read_idx].channel;
-        Callback_t callback = g_slope_action_queue[read_idx].callback;
-        g_slope_action_read_idx = (read_idx + 1) % SLOPE_ACTION_QUEUE_SIZE;
-        
-        // Execute the queued callback
-        if (callback != NULL) {
-            callback((int)channel);
-        }
-    }
+
+    casl_describing_clear();  // not in Lua here
+    drain_slope_action_callbacks();
 }
 
 // ============================================================================
@@ -288,28 +335,48 @@ static constexpr uint32_t kProcessSampleOverrunThresholdUs =
     static_cast<uint32_t>(kProcessSampleBudgetUs + 0.5);  // >=100% utilization (~100us)
 static constexpr uint32_t kClockServiceRateHz = 1000;      // crow-compatible cadence
 static constexpr uint32_t kTimerServiceRateHz = 1500;      // ~1.5kHz target (crow-compatible cadence)
-static constexpr int kLuaGcStepSize = 2; // small incremental GC step per main loop
 static constexpr uint32_t kMainLoopSoftBudgetUs = 8000; // soft budget per loop to reduce stalls
 static constexpr int kMaxLogMessagesPerLoop = 4; // cap logs per loop to avoid large spikes
 // ProcessSample (Core 1 audio thread) performance
 static volatile bool g_performance_warning = false;
 static volatile uint32_t g_worst_case_us = 0;
 static volatile uint32_t g_overrun_count = 0;
-// Suppress perf warnings during/after flash write/clear operations.
-// These flows prompt the user to reset, so the warning is noise.
+// Suppress perf warnings briefly around flash writes (^^w, ^^c): core 0 has
+// interrupts off while flash is erased and programmed.
 static volatile uint32_t g_suppress_perf_warnings_until_us = 0;
-// Keep all LEDs lit for a while after operations that ask the user to reset.
-static volatile uint32_t g_force_all_leds_on_until_us = 0;
-static volatile bool g_force_all_leds_armed = false;
-static constexpr uint32_t kResetIndicatorHoldUs = 30000000u; // 30s
-static constexpr uint32_t kResetIndicatorBlinkHalfPeriodUs = 1000000u; // 1s on, 1s off => 0.5 Hz
+static constexpr uint32_t kFlashWriteQuietUs = 2000000u; // 2s
+// All LEDs blink at 0.5 Hz after a crash, asking for a reset
+static constexpr uint32_t kResetIndicatorBlinkHalfPeriodUs = 1000000u; // 1s on, 1s off
 
 static inline bool u32_time_before(uint32_t a, uint32_t b) {
     return (int32_t)(a - b) < 0;
 }
 
+// Lua allocations that failed (each is followed by an emergency GC and retry)
+static volatile uint32_t g_lua_alloc_failures = 0;
+
 // MainControlLoop (Core 0) performance
 static volatile uint32_t g_loop_worst_case_us = 0;
+
+#ifdef BB_DEBUG_HARNESS
+// Worst time per MainControlLoop section (debug builds), to find stalls.
+// Section numbers are listed in util/bbdbg.py (LOOP_SECTIONS).
+#define BB_LOOP_SECTIONS 16
+static volatile uint32_t g_loop_section_max_us[BB_LOOP_SECTIONS];
+static uint32_t g_loop_section = 0, g_loop_section_start = 0;
+static inline void loop_section(uint32_t next) {
+    uint32_t now = time_us_32();
+    uint32_t d = now - g_loop_section_start;
+    if (d > g_loop_section_max_us[g_loop_section]) g_loop_section_max_us[g_loop_section] = d;
+    g_loop_section = next;
+    g_loop_section_start = now;
+}
+#define LOOP_BEGIN(t) do { g_loop_section = 0; g_loop_section_start = (t); } while (0)
+#define LOOP_SECTION(n) loop_section(n)
+#else
+#define LOOP_BEGIN(t) do {} while (0)
+#define LOOP_SECTION(n) do {} while (0)
+#endif
 static volatile uint32_t g_loop_iteration_count = 0;
 
 // ============================================================================
@@ -395,6 +462,14 @@ static int32_t get_output_state_simple(int channel) {
     return 0;
 }
 
+// For ii follower getters (lib/ii.c), from the I2C interrupt: cached values only
+extern "C" float bb_ii_input_volts(int index) {
+    return (index >= 0 && index < 2) ? get_input_state_simple(index) : 0.0f;
+}
+extern "C" float bb_ii_output_volts(int index) {
+    return (float)get_output_state_simple(index) * 0.001f;
+}
+
 // Forward declarations
 static void public_update();
 
@@ -422,7 +497,79 @@ static inline bool check_for_backticks(const char* buffer, int pos) {
 
 class BlackbirdCrow;
 static volatile BlackbirdCrow* g_blackbird_instance = nullptr;
-void core1_entry(); // defined after BlackbirdCrow - non-static so flash_storage can call it
+#ifdef BB_DEBUG_HARNESS
+static void bb_dbg_alloc_note(size_t size, int dir);
+static void bb_dbg_init(ComputerCard* card);
+static void bb_dbg_service(lua_State* L);
+#endif
+enum UsbRole { USB_ROLE_DEVICE, USB_ROLE_HOST };
+static UsbRole g_usb_role = USB_ROLE_DEVICE;
+static ComputerCard::USBPowerState_t g_usb_power_state = ComputerCard::Unsupported;
+static uint8_t g_midi_host_addr = 0;
+static volatile uint8_t g_midi_host_connected = 0;
+static volatile uint8_t g_host_ready = 0;
+void core1_entry(); // defined after BlackbirdCrow
+
+static inline bool usb_console_ready() {
+    return g_usb_role == USB_ROLE_DEVICE && tud_cdc_connected();
+}
+
+// tud_task(), tracking nesting so CDC writes made from inside it (from
+// TinyUSB callbacks) know not to call it again.
+static volatile uint32_t g_usb_task_depth = 0;
+static inline void usb_task(void) {
+    g_usb_task_depth++;
+    tud_task();
+    g_usb_task_depth--;
+}
+
+// All USB serial output passes through here (linked with
+// -Wl,--wrap=tud_cdc_n_write). A write is taken whole or dropped whole, never
+// cut short: TinyUSB writes what fits in its 2KB FIFO and loses the rest, and
+// a cut-off line corrupts the crow protocol for the host (norns' parser
+// choked on half-sent ^^midi events during bursts). If a host is listening
+// and the FIFO is short of room, keep the USB task running for up to 5ms to
+// drain it first.
+static volatile uint32_t g_usb_tx_dropped = 0;
+static constexpr uint32_t kUsbTxWaitUs = 5000;
+#ifdef BB_DEBUG_HARNESS
+static void bb_dbg_log_mirror(const void* buffer, uint32_t size);
+#endif
+extern "C" uint32_t __real_tud_cdc_n_write(uint8_t itf, void const* buffer, uint32_t bufsize);
+extern "C" uint32_t __wrap_tud_cdc_n_write(uint8_t itf, void const* buffer, uint32_t bufsize) {
+#ifdef BB_DEBUG_HARNESS
+    bb_dbg_log_mirror(buffer, bufsize);
+#endif
+    if (!tud_cdc_n_connected(itf)) {
+        return __real_tud_cdc_n_write(itf, buffer, bufsize);  // nobody listening
+    }
+    const uint8_t* p = (const uint8_t*)buffer;
+    uint32_t done = 0;
+    while (done < bufsize) {
+        // Writes bigger than the FIFO go in FIFO-sized pieces
+        uint32_t want = bufsize - done;
+        if (want > CFG_TUD_CDC_TX_BUFSIZE) want = CFG_TUD_CDC_TX_BUFSIZE;
+        uint32_t start = time_us_32();
+        while (tud_cdc_n_write_available(itf) < want) {
+            tud_cdc_n_write_flush(itf);
+            if (g_usb_task_depth > 0 || time_us_32() - start >= kUsbTxWaitUs) {
+                g_usb_tx_dropped++;
+                return done;
+            }
+            usb_task();
+        }
+        done += __real_tud_cdc_n_write(itf, p + done, want);
+    }
+    return done;
+}
+
+static inline void usb_console_write(const char* s) {
+    if (usb_console_ready()) tud_cdc_write_str(s);
+}
+
+static inline void usb_console_flush() {
+    if (usb_console_ready()) tud_cdc_write_flush();
+}
 
 
 // Forward declaration of C interface function (implemented after BlackbirdCrow class)
@@ -432,15 +579,38 @@ extern "C" void hardware_pulse_output_set(int channel, bool state);
 
 // Forward declaration for pulse input connection check (defined after BlackbirdCrow class)
 static bool is_pulse_input_connected(int pulse_idx);
-static void service_clock_from_core1(void);
-static void service_timer_from_core1(void);
+static bool service_clock_from_core1(void);
+static bool service_timer_from_core1(void);
 static void blackbird_core1_background_service(void);
+static void process_usb_midi_packets_device(void);
+static void process_usb_midi_packets_host(void);
+static void handle_usb_midi_packet(const uint8_t packet[4]);
+static void dispatch_midi_event(uint8_t b1, uint8_t b2, uint8_t b3);
+static void dispatch_mpe_note_event(bool is_on, uint8_t note, float velocity, uint8_t channel);
+static void dispatch_mpe_bend_event(uint16_t bend14, uint8_t channel);
+static void dispatch_mpe_value_event(const char* field, const char* host_name, uint8_t value, uint8_t channel);
+static void midi_clock_handle_tick(void);
+static void midi_clock_handle_start(void);
+static void midi_clock_handle_continue(void);
+static void midi_clock_handle_stop(void);
+static int lua_bb_midi_tx(lua_State* L);
+static int lua_bb_midi_out(lua_State* L);
+static int lua_bb_midi_to_msg(lua_State* L);
+static int lua_bb_midi_note_on(lua_State* L);
+static int lua_bb_midi_note_off(lua_State* L);
+static int lua_bb_midi_cc(lua_State* L);
+static int lua_bb_mpe_mode(lua_State* L);
+static void mpe_set_mode(bool enable);
+static void mpe_flush_pending(void);
+
+// MPE routing: when enabled, route note/bend/pressure/CC74 to bb.event_mpe_* instead of bb.event_midi
+static volatile bool g_mpe_mode_enabled = false;
 
 // Chooses between internal and external clock based on clock-mode inputs and normalization probe connectivity.
 // Implemented later in the file (after the card helpers are available).
 static void auto_update_clock_source_from_connections(void);
 
-static void service_clock_from_core1(void) {
+static bool __not_in_flash_func(service_clock_from_core1)(void) {
     uint32_t ticks = 0;
     uint32_t irq_state = save_and_disable_interrupts();
     if (g_clock_ticks_pending) {
@@ -450,16 +620,17 @@ static void service_clock_from_core1(void) {
     restore_interrupts(irq_state);
 
     if (ticks == 0) {
-        return;
+        return false;
     }
 
     for (uint32_t i = 0; i < ticks; i++) {
-        uint32_t time_now_ms = to_ms_since_boot(get_absolute_time());
+        uint32_t time_now_ms = clock_ms_since_boot();
         clock_update(time_now_ms);
     }
+    return true;
 }
 
-static void service_timer_from_core1(void) {
+static bool __not_in_flash_func(service_timer_from_core1)(void) {
     uint32_t ticks = 0;
     uint32_t irq_state = save_and_disable_interrupts();
     if (g_timer_ticks_pending) {
@@ -469,18 +640,37 @@ static void service_timer_from_core1(void) {
     restore_interrupts(irq_state);
 
     if (ticks == 0) {
-        return;
+        return false;
     }
 
     for (uint32_t i = 0; i < ticks; i++) {
         Timer_Process();
     }
+    return true;
 }
 
-static void blackbird_core1_background_service(void) {
-    S_slope_buffer_background_service();
-    service_timer_from_core1();
-    service_clock_from_core1();
+// Everything core 1 runs must live in RAM, so it keeps running while core 0
+// erases/programs flash (see FlashStorage). Check with util/core1_flash_audit.py.
+#ifdef BB_DEBUG_HARNESS
+// Core 1 cycles spent in background passes that found nothing to do (load profiling)
+static volatile uint32_t g_core1_idle_cycles = 0;
+#endif
+
+static void __not_in_flash_func(blackbird_core1_background_service)(void) {
+#ifdef BB_DEBUG_HARNESS
+    uint32_t start = systick_hw->cvr;
+    uint32_t isr_before = ComputerCard::profileIsrCycles;
+#endif
+    bool worked = S_slope_buffer_background_service();
+    worked |= service_timer_from_core1();
+    worked |= service_clock_from_core1();
+#ifdef BB_DEBUG_HARNESS
+    if (!worked) {
+        uint32_t elapsed = (start - systick_hw->cvr) & 0xFFFFFF;
+        uint32_t in_isr = ComputerCard::profileIsrCycles - isr_before;  // the ISR may have run meanwhile
+        g_core1_idle_cycles = g_core1_idle_cycles + (elapsed > in_isr ? elapsed - in_isr : 0);
+    }
+#endif
 }
 static int bb_connected_index(lua_State* L);
 extern "C" void L_handle_input_lockfree(input_event_lockfree_t* event);
@@ -499,7 +689,7 @@ static bool output_is_batching();
 
 class LuaManager;
 
-#define MESSAGE_QUEUE_SIZE 32
+#define MESSAGE_QUEUE_SIZE 8  // only rare "queue full" warnings use it; each slot is ~250 bytes of RAM
 #define MESSAGE_MAX_LENGTH 240
 
 typedef struct {
@@ -1141,7 +1331,7 @@ static inline void flush_if_needed() {
         uint32_t timeout = 0;
         while (tud_cdc_write_available() < 128 && timeout < 10000) {
             sleep_us(10);
-            tud_task();  // Process USB tasks
+            usb_task();  // Process USB tasks
             timeout++;
         }
     }
@@ -1219,7 +1409,7 @@ static void print_table_recursive(lua_State* L, int index, int depth) {
         tud_cdc_write_flush();
         uint32_t timeout = 0;
         while (tud_cdc_write_available() < 256 && timeout < 100000) {
-            tud_task();
+            usb_task();
             sleep_us(100);
             timeout++;
         }
@@ -1229,70 +1419,65 @@ static void print_table_recursive(lua_State* L, int index, int depth) {
     }
     
     // Custom allocator with memory tracking and diagnostics
+    // Lua's allocator. Objects <= LUA_POOL_MAX_SIZE go to the small-object
+    // pool (lib/lua_pool.c), larger ones to malloc. Lua passes the real old
+    // size whenever ptr != NULL; for a new block, osize is an object type.
+    // A failed (re)allocation returns NULL and leaves the old block intact:
+    // Lua then runs an emergency full GC and retries.
+    static void* lua_realloc_block(void* ptr, size_t osize, size_t nsize) {
+        if (ptr == NULL) {
+            void* p = lua_pool_alloc(nsize);
+            return p ? p : malloc(nsize);
+        }
+        if (lua_pool_fits(ptr, nsize)) {
+            return ptr;  // same size class: stays put
+        }
+        bool old_in_pool = osize <= LUA_POOL_MAX_SIZE && lua_pool_owns(ptr);
+        if (!old_in_pool && nsize > LUA_POOL_MAX_SIZE) {
+            return realloc(ptr, nsize);
+        }
+        // Moving between pool and malloc, or between pool size classes
+        void* p = (nsize <= LUA_POOL_MAX_SIZE) ? lua_pool_alloc(nsize) : NULL;
+        if (!p) p = malloc(nsize);
+        if (!p) return NULL;
+        memcpy(p, ptr, osize < nsize ? osize : nsize);
+        if (old_in_pool) lua_pool_free(ptr);
+        else free(ptr);
+        return p;
+    }
+
     static void* lua_custom_alloc(void* ud, void* ptr, size_t osize, size_t nsize) {
         (void)ud;  // unused
-        
-        // Track memory allocation statistics for diagnostics
-        static size_t total_allocated = 0;
-        static size_t peak_allocated = 0;
-        static size_t allocation_count = 0;
-        
+        drain_slope_action_callbacks_from_lua();
+
         if (nsize == 0) {
             // Free
             if (ptr) {
-                total_allocated -= osize;
-                free(ptr);
+                if (!lua_pool_free(ptr)) free(ptr);
+#ifdef BB_DEBUG_HARNESS
+                bb_dbg_alloc_note(osize, -1);
+#endif
             }
             return NULL;
-        } else {
-            // Allocate or reallocate
-            void* new_ptr = realloc(ptr, nsize);
-            
-            if (new_ptr == NULL) {
-                // Allocation failed! Use TinyUSB CDC for output
-                char buffer[256];
-                
-                tud_cdc_write_str("\n\r");
-                tud_cdc_write_str("========================================\n\r");
-                tud_cdc_write_str("*** LUA MEMORY ALLOCATION FAILED ***\n\r");
-                tud_cdc_write_str("========================================\n\r");
-                
-                snprintf(buffer, sizeof(buffer), "Requested: %zu bytes\n\r", nsize);
-                tud_cdc_write_str(buffer);
-                
-                snprintf(buffer, sizeof(buffer), "Old size: %zu bytes\n\r", osize);
-                tud_cdc_write_str(buffer);
-                
-                snprintf(buffer, sizeof(buffer), "Total allocated: %zu bytes (%.2f KB)\n\r", 
-                         total_allocated, total_allocated / 1024.0f);
-                tud_cdc_write_str(buffer);
-                
-                snprintf(buffer, sizeof(buffer), "Peak allocated: %zu bytes (%.2f KB)\n\r", 
-                         peak_allocated, peak_allocated / 1024.0f);
-                tud_cdc_write_str(buffer);
-                
-                snprintf(buffer, sizeof(buffer), "Allocation #%zu\n\r", allocation_count);
-                tud_cdc_write_str(buffer);
-                
-                tud_cdc_write_str("========================================\n\r");
-                tud_cdc_write_str("Try: 1) Run collectgarbage()\n\r");
-                tud_cdc_write_str("     2) Simplify your script\n\r");
-                tud_cdc_write_str("     3) Remove unused libraries\n\r");
-                tud_cdc_write_str("========================================\n\r");
-                
-                
-                return NULL;  // Return NULL to let Lua handle it
-            }
-            
-            // Update statistics
-            total_allocated = total_allocated - osize + nsize;
-            if (total_allocated > peak_allocated) {
-                peak_allocated = total_allocated;
-            }
-            allocation_count++;
-            
-            return new_ptr;
         }
+
+        void* new_ptr = lua_realloc_block(ptr, osize, nsize);
+        if (new_ptr == NULL) {
+            // Give the pool's spare empty pages back to the heap and try once more
+            lua_pool_trim();
+            new_ptr = lua_realloc_block(ptr, osize, nsize);
+        }
+        if (new_ptr == NULL) {
+            // Lua handles this: it runs an emergency full GC and retries,
+            // and only raises "not enough memory" if that fails too.
+            g_lua_alloc_failures++;
+            return NULL;
+        }
+#ifdef BB_DEBUG_HARNESS
+        if (ptr) bb_dbg_alloc_note(osize, -1);
+        bb_dbg_alloc_note(nsize, +1);
+#endif
+        return new_ptr;
     }
 
 public:
@@ -1314,6 +1499,7 @@ public:
         }
         
         // Create Lua state with custom allocator for memory tracking
+        lua_pool_init();  // the pool's arena goes in before any Lua allocation
         L = lua_newstate(lua_custom_alloc, NULL);
         if (!L) {
             printf("Error: Could not create Lua state\n\r");
@@ -1322,6 +1508,10 @@ public:
         
         // Register panic handler
         lua_atpanic(L, lua_panic_handler);
+
+        // Keep audio-rate ASL fed during long Lua callbacks (coroutines inherit it)
+        lua_setinterrupt(drain_slope_action_callbacks_from_lua);
+        lua_setgcinterrupt(drain_slope_action_callbacks_from_lua);
         
         
         // Load basic Lua libraries
@@ -1331,12 +1521,22 @@ public:
         // (e.g. `local sin = math.sin`) bind to the fast versions.
         fastmath_lua_install(L, 1);
         
-        // CRITICAL: Set aggressive garbage collection like crow does
-        // Without this, Lua will run out of memory on embedded systems!
-        // setpause = 55 (default 200) - run GC more frequently
-        // setstepmul = 260 (default 200) - do more work per GC cycle
-        lua_gc(L, LUA_GCSETPAUSE, 55);
-        lua_gc(L, LUA_GCSETSTEPMUL, 260);
+        // GC tuning (pause, stepmul, stepsize):
+        // pause = 110: start a cycle once the heap is 10% over what the last
+        // one left live. crow uses 55, but any pause <= 100 keeps the
+        // collector running all the time, and on RP2040 that cost most of the
+        // main loop: measured, the loop fell to ~700Hz idle, ~90Hz while
+        // outputs changed and 7Hz under allocation-heavy scripts, and
+        // compiling a one-line REPL command took ~4.7ms. 110 rather than 120:
+        // with no idle GC step (see MainControlLoop), peaks rose ~12KB under
+        // heavy allocation at 120 (cvdelay 122KB, vs 110KB at 110); 110 costs
+        // main loop time only while scripts allocate constantly.
+        // When memory is tight, failed allocations return NULL
+        // (PICO_MALLOC_PANIC=0) and Lua does an emergency full GC and retries.
+        // stepmul = 260 (default 200): do more work per GC step.
+        // stepsize = 2^10 bytes (default 2^13): the same work in smaller
+        // incremental steps, for shorter pauses in the middle of scripts.
+        lua_gc(L, LUA_GCINC, 110, 260, 10);
         
         // Override print function
         lua_register(L, "print", lua_print);
@@ -1436,6 +1636,7 @@ public:
     lua_register(L, "clock_schedule_beat", lua_clock_schedule_beat);
     lua_register(L, "clock_get_time_beats", lua_clock_get_time_beats);
     lua_register(L, "clock_get_tempo", lua_clock_get_tempo);
+    lua_register(L, "clock_get_source", lua_clock_get_source);
     lua_register(L, "clock_set_source", lua_clock_set_source);
     lua_register(L, "clock_internal_set_tempo", lua_clock_internal_set_tempo);
     lua_register(L, "clock_internal_start", lua_clock_internal_start);
@@ -1470,18 +1671,8 @@ public:
         load_embedded_asl();
 
         // Track user-created globals so crow.reset() can clear them reliably
-        if (luaL_dostring(L, R"(
-            _user = {}
-            local function __bb_trace(t, k, v)
-                _user[k] = true
-                rawset(t, k, v)
-            end
-            setmetatable(_G, { __newindex = __bb_trace })
-        )") != LUA_OK) {
-            const char* error = lua_tostring(L, -1);
-            printf("Error setting up _user tracking: %s\n\r", error ? error : "unknown error");
-            lua_pop(L, 1);
-        }
+        l_crowlib_install_user_tracer(L);
+        install_lazy_libs();
     }
     
     // Load embedded ASL libraries from compiled bytecode
@@ -1631,6 +1822,67 @@ public:
     }
     
     // Load crow ecosystem libraries that don't conflict with our custom setup
+    // sequins, timeline, hotswap and ii load on first use rather than at boot:
+    // together they hold ~24KB of Lua heap (and ii's device tables more),
+    // which scripts that don't use them can have instead. _G's __index loads one the first time its name is read
+    // (sequins{...}, if timeline then ..., type(hotswap) all count) and
+    // rawsets the global, so it then behaves as if it had always been there.
+    // Loading timeline or hotswap reads `sequins`/`timeline`, which loads
+    // those first. rawset keeps them out of _user, so crow.reset/^^k keep them.
+    struct LazyLib { const char* name; const unsigned char* bytecode; size_t len; };
+    static int lazy_lib_index(lua_State* L) {
+        static const LazyLib libs[] = {
+            { "sequins", sequins, sequins_len },
+            { "timeline", timeline, timeline_len },
+            { "hotswap", hotswap, hotswap_len },
+            { "ii", ii, ii_len },  // its C functions are registered at boot (l_ii_mod_preload)
+        };
+        const char* key = lua_type(L, 2) == LUA_TSTRING ? lua_tostring(L, 2) : nullptr;
+        if (key) {
+            for (const LazyLib& lib : libs) {
+                if (strcmp(key, lib.name) == 0) {
+                    // Globals the library defines (ii.lua's ii_LeadRx_handler,
+                    // ...) belong to the firmware, not the script that happened
+                    // to load it: switch the _user tracer (__newindex) off
+                    // meanwhile, or crow.reset/^^k would delete them
+                    lua_getmetatable(L, 1);                // _G, key, mt
+                    lua_getfield(L, -1, "__newindex");     // _G, key, mt, tracer
+                    lua_pushnil(L);
+                    lua_setfield(L, -3, "__newindex");
+                    int status = luaL_loadbuffer(L, (const char*)lib.bytecode, lib.len, lib.name);
+                    if (status == LUA_OK) status = lua_pcall(L, 0, 1, 0);  // _G, key, mt, tracer, lib|err
+                    lua_pushvalue(L, -2);
+                    lua_setfield(L, -4, "__newindex");     // tracer back on
+                    if (status != LUA_OK) return lua_error(L);
+                    lua_replace(L, 3);                     // _G, key, lib, tracer
+                    lua_settop(L, 3);                      // stack: _G, key, lib
+                    lua_pushvalue(L, 2);
+                    lua_pushvalue(L, 3);
+                    lua_rawset(L, 1);        // _G[key] = lib, bypassing the _user tracer
+                    if (strcmp(key, "ii") == 0) {
+                        l_crowlib_ii_follow_defaults(L);  // ii.self.volts etc.
+                        lua_settop(L, 3);
+                    }
+                    return 1;                // lib
+                }
+            }
+        }
+        lua_pushnil(L);
+        return 1;
+    }
+
+    void install_lazy_libs() {
+        lua_pushglobaltable(L);
+        if (!lua_getmetatable(L, -1)) {
+            lua_newtable(L);
+            lua_pushvalue(L, -1);
+            lua_setmetatable(L, -3);
+        }
+        lua_pushcfunction(L, lazy_lib_index);
+        lua_setfield(L, -2, "__index");
+        lua_pop(L, 2);
+    }
+
     void load_crow_ecosystem() {
         if (!L) return;
         
@@ -1651,15 +1903,14 @@ public:
         };
         
         // Load only essential libraries (sequins before public!)
-        load_lib("sequins.lua", "sequins", sequins, sequins_len);
+        // sequins, timeline, hotswap load on first use: see install_lazy_libs(),
+        // called in init() once _G's metatable (the _user tracer) is in place
         load_lib("public.lua", "public", public_lua, public_len);
         load_lib("clock.lua", "clock", clock, clock_len);
         
         // Optional libraries - comment these out to save memory:
         // load_lib("calibrate.lua", "cal", calibrate, calibrate_len);
         load_lib("quote.lua", "quote", quote, quote_len);
-        load_lib("timeline.lua", "timeline", timeline, timeline_len);
-        load_lib("hotswap.lua", "hotswap", hotswap, hotswap_len);
         
         // Define delay() function (from l_crowlib.c)
         // This creates a closure using clock.run and clock.sleep
@@ -1676,26 +1927,9 @@ public:
             lua_pop(L, 1);
         }
 
-                // ii is optional / not implemented in the emulator; ensure scripts that
-                // reference ii.* in init() don't crash and abort initialization.
-                if (luaL_dostring(L, R"(
-                        if ii == nil then
-                            local function __bb_ii_stub()
-                                return setmetatable({}, {
-                                    __index = function(t, k)
-                                        local v = __bb_ii_stub()
-                                        rawset(t, k, v)
-                                        return v
-                                    end,
-                                    __call = function(...) end,
-                                })
-                            end
-                            ii = __bb_ii_stub()
-                        end
-                )") != LUA_OK) {
-                        printf("  ERROR installing ii stub: %s\n\r", lua_tostring(L, -1));
-                        lua_pop(L, 1);
-                }
+        // ii (leader, on the UART pads): its C functions now; ii.lua itself
+        // loads on first use of `ii` (lazy_lib_index)
+        l_ii_mod_preload(L);
         
         // Create Workshop Computer namespace table with knob and switch
         create_bb_table(L);
@@ -1939,6 +2173,31 @@ public:
             printf("Error adding bb.noise: %s\n\r", error ? error : "unknown error");
             lua_pop(L, 1);
         }
+
+        // MIDI functions, named as on monome iii (bb.event_midi / bb.event_mpe_* are left for the
+        // script to define). Without handlers, dispatch_* forward to the host via Caw_printf.
+        lua_getglobal(L, "bb");
+        if (!lua_istable(L, -1)) {
+            lua_pop(L, 1);
+            lua_newtable(L);
+            lua_setglobal(L, "bb");
+            lua_getglobal(L, "bb");
+        }
+        static const luaL_Reg bb_midi_funcs[] = {
+            {"midi_tx", lua_bb_midi_tx},
+            {"midi_out", lua_bb_midi_out},
+            {"midi_to_msg", lua_bb_midi_to_msg},
+            {"midi_note_on", lua_bb_midi_note_on},
+            {"midi_note_off", lua_bb_midi_note_off},
+            {"midi_cc", lua_bb_midi_cc},
+            {"mpe_mode", lua_bb_mpe_mode},
+            {NULL, NULL}
+        };
+        luaL_setfuncs(L, bb_midi_funcs, 0);
+        lua_pop(L, 1); // pop bb
+
+        // A fresh Lua state starts with MPE routing off.
+        mpe_set_mode(false);
         
         // Set up default pulse output actions
         const char* setup_pulseout_defaults = R"(
@@ -2095,6 +2354,7 @@ public:
     static int lua_clock_schedule_beat(lua_State* L);
     static int lua_clock_get_time_beats(lua_State* L);
     static int lua_clock_get_tempo(lua_State* L);
+    static int lua_clock_get_source(lua_State* L);
     static int lua_clock_set_source(lua_State* L);
     static int lua_clock_internal_set_tempo(lua_State* L);
     static int lua_clock_internal_start(lua_State* L);
@@ -2350,11 +2610,845 @@ static bool __isr __time_critical_func(usb_tx_service_callback)(struct repeating
     return true;
 }
 
+// MIDI clock tracking (24 PPQN)
+static constexpr uint8_t kMidiClockPPQN = 24;
+static constexpr uint8_t kMidiClockWindow = 12;           // samples used for averaging
+static constexpr uint32_t kMidiClockTimeoutUs = 500000u;  // drop state after 0.5s gap
+
+
+// High-resolution velocity (MIDI 1.0 convention): CC88 acts as a velocity prefix
+// for the next Note On on the same channel, providing extra 7 fine bits.
+// We expose this to Lua by passing velocity as a float: vel = vel7 + (fine7 / 128).
+static constexpr uint8_t kMidiHiResVelocityCC = 88;
+static constexpr uint32_t kMidiHiResVelocityTimeoutUs = 50000u; // 50ms: tolerate small scheduling jitter
+static volatile uint8_t g_midi_vel_fine7[16] = {0};
+static volatile uint32_t g_midi_vel_fine_time_us[16] = {0};
+static volatile bool g_midi_vel_fine_valid[16] = {false};
+
+// MIDI->Lua throttling
+// Limit the number of Lua calls we do per USB service tick (1kHz) so arpeggiators
+// and fast playing can't outpace Lua GC. Note-offs always pass to avoid stuck notes.
+// Continuous controllers (CC, pressure, bend) reaching Lua per 1ms tick; notes
+// always pass. Was 1, from when every Lua call carried several ms of GC work.
+static constexpr int kMaxMidiLuaDispatchPerUsbTick = 16;
+static int g_midi_lua_dispatch_budget = 0;
+
+static struct {
+    bool running;
+    uint32_t tick_count;
+    uint64_t last_tick_us;
+    uint32_t intervals_us[kMidiClockWindow];
+    uint8_t intervals_len;
+    uint8_t intervals_pos;
+    uint64_t interval_sum_us;
+} g_midi_clock = {false, 0, 0, {0}, 0, 0, 0};
+
+static inline void lua_mem_snapshot_if_console(lua_State* L, const char* tag) {
+    if (!L || !usb_console_ready()) return;
+    int kb_used = lua_gc(L, LUA_GCCOUNT, 0);
+    int bytes = lua_gc(L, LUA_GCCOUNTB, 0);
+    char buf[128];
+    snprintf(buf, sizeof(buf), "[lua-mem] %s: %d KB + %d B\n\r", tag ? tag : "(null)", kb_used, bytes);
+    tud_cdc_write_str(buf);
+}
+
+static inline void lua_call_init_if_present(lua_State* L, const char* tag) {
+    if (!L) return;
+
+    lua_getglobal(L, "init");
+    if (!lua_isfunction(L, -1)) {
+        lua_pop(L, 1);
+        return;
+    }
+
+    lua_mem_snapshot_if_console(L, tag);
+    int rc = lua_pcall(L, 0, 0, 0);
+    if (rc != LUA_OK) {
+        if (usb_console_ready()) {
+            if (rc == LUA_ERRMEM) {
+                tud_cdc_write_str("init() OOM (LUA_ERRMEM)\n\r");
+                lua_mem_snapshot_if_console(L, "init-oom");
+            } else {
+                const char* err = lua_tostring(L, -1);
+                tud_cdc_write_str("init() error: ");
+                tud_cdc_write_str(err ? err : "unknown error");
+                tud_cdc_write_str("\n\r");
+            }
+            tud_cdc_write_flush();
+        }
+        lua_pop(L, 1);
+    } else {
+        lua_mem_snapshot_if_console(L, tag);
+    }
+
+    lua_settop(L, 0);
+}
+
+static inline bool midi_clock_is_active_source() {
+    return clock_get_source() == CLOCK_SOURCE_MIDI;
+}
+
+static void midi_clock_reset_state(void) {
+    g_midi_clock.running = false;
+    g_midi_clock.tick_count = 0;
+    g_midi_clock.last_tick_us = 0;
+    g_midi_clock.intervals_len = 0;
+    g_midi_clock.intervals_pos = 0;
+    g_midi_clock.interval_sum_us = 0;
+    for (int i = 0; i < kMidiClockWindow; i++) g_midi_clock.intervals_us[i] = 0;
+}
+
+// Run a MIDI handler already pushed with its nargs arguments; report errors to the console.
+static bool midi_pcall_handler(lua_State* L, int nargs, const char* name) {
+    int rc = lua_pcall(L, nargs, 0, 0);
+    if (rc == LUA_OK) return true;
+    if (usb_console_ready()) {
+        tud_cdc_write_str("bb.");
+        tud_cdc_write_str(name);
+        if (rc == LUA_ERRMEM) {
+            tud_cdc_write_str(" handler OOM (LUA_ERRMEM)\n\r");
+        } else {
+            const char* err = lua_tostring(L, -1);
+            tud_cdc_write_str(" handler error: ");
+            tud_cdc_write_str(err ? err : "unknown error");
+            tud_cdc_write_str("\n\r");
+        }
+        tud_cdc_write_flush();
+    }
+    lua_pop(L, 1);
+    return false;
+}
+
+// Push bb[field] if it is a function. Returns false and leaves the stack unchanged otherwise.
+static bool push_bb_midi_handler(lua_State* L, const char* field) {
+    int base = lua_gettop(L);
+    lua_getglobal(L, "bb");
+    if (lua_istable(L, -1)) {
+        lua_getfield(L, -1, field);
+        lua_remove(L, -2);
+        if (lua_isfunction(L, -1)) return true;
+    }
+    lua_settop(L, base);
+    return false;
+}
+
+// Dispatch a raw MIDI message into Lua as bb.event_midi(byte1, byte2, byte3), like monome iii's event_midi.
+// Without a handler (and outside MPE mode), channel voice messages are forwarded to the host as ^^midi(...).
+// ---------------------------------------------------------------------------
+// Paced echoes of incoming MIDI to the host
+// ---------------------------------------------------------------------------
+// Incoming MIDI that no Lua handler takes is echoed to the host as ^^midi /
+// ^^mpe lines. They go out at most one per kMidiEchoIntervalUs: a burst (a
+// host's all-notes-off is ~128 messages) sent at full speed outruns norns'
+// crow reader, which reuses one line buffer and loses bytes when a second
+// read lands before Lua has handled the first (norns device_crow.cc).
+// A lone message still goes out on the next main loop iteration.
+enum MidiEchoKind : uint8_t { kEchoMidi, kEchoMpeNote, kEchoMpeBend, kEchoMpePressure, kEchoMpeSlide };
+struct midi_echo_t { uint8_t kind, a, b, c; float f; };
+static constexpr uint32_t kMidiEchoQueueSize = 128;      // power of two; excess echoes are dropped
+static constexpr uint32_t kMidiEchoIntervalUs = 4000;
+static midi_echo_t g_midi_echo_queue[kMidiEchoQueueSize];
+static uint32_t g_midi_echo_head = 0, g_midi_echo_tail = 0;  // core 0 only
+static uint32_t g_midi_echo_last_us = 0;
+static volatile uint32_t g_midi_echo_dropped = 0;
+
+static void midi_echo_push(uint8_t kind, uint8_t a, uint8_t b, uint8_t c, float f = 0.0f) {
+    if (g_midi_echo_head - g_midi_echo_tail >= kMidiEchoQueueSize) {
+        g_midi_echo_dropped++;
+        return;
+    }
+    g_midi_echo_queue[g_midi_echo_head & (kMidiEchoQueueSize - 1)] = { kind, a, b, c, f };
+    g_midi_echo_head++;
+}
+
+static void midi_echo_send(const midi_echo_t& e) {
+    switch (e.kind) {
+        case kEchoMidi: {
+            uint8_t b1 = e.a, b2 = e.b, b3 = e.c;
+            uint8_t channel = (b1 & 0x0F) + 1;
+            switch (b1 & 0xF0) {
+                case 0x90:
+                    Caw_printf("^^midi('%s',%u,%u,%u)", b3 > 0 ? "on" : "off", b2, b3, channel);
+                    break;
+                case 0x80:
+                    Caw_printf("^^midi('off',%u,%u,%u)", b2, b3, channel);
+                    break;
+                case 0xB0:
+                    Caw_printf("^^midi('cc',%u,%u,%u)", b2, b3, channel);
+                    break;
+                case 0xE0: {
+                    float val = (float)((int32_t)(b2 | (b3 << 7)) - 8192) / 8192.0f;
+                    if (val > 1.0f) val = 1.0f;
+                    if (val < -1.0f) val = -1.0f;
+                    Caw_printf("^^midi('bend',%.9g,%u)", (double)val, channel);
+                    break;
+                }
+                case 0xD0:
+                    Caw_printf("^^midi('aftertouch',%u,%u)", b2, channel);
+                    break;
+                case 0xA0:
+                    Caw_printf("^^midi('aftertouch',%u,%u)", b3, channel);
+                    break;
+                default:
+                    break;
+            }
+            break;
+        }
+        case kEchoMpeNote:
+            Caw_printf("^^mpe('%s',%u,%.9g,%u)", e.a ? "on" : "off", e.b, (double)e.f, e.c);
+            break;
+        case kEchoMpeBend:
+            Caw_printf("^^mpe('bend',%.9g,%u)", (double)e.f, e.c);
+            break;
+        case kEchoMpePressure:
+            Caw_printf("^^mpe('%s',%u,%u)", "pressure", e.b, e.c);
+            break;
+        case kEchoMpeSlide:
+            Caw_printf("^^mpe('%s',%u,%u)", "slide", e.b, e.c);
+            break;
+    }
+}
+
+// Called every main loop iteration
+static void midi_echo_service(void) {
+    if (g_midi_echo_head == g_midi_echo_tail) return;
+    uint32_t now = time_us_32();
+    if (now - g_midi_echo_last_us < kMidiEchoIntervalUs) return;
+    g_midi_echo_last_us = now;
+    midi_echo_send(g_midi_echo_queue[g_midi_echo_tail & (kMidiEchoQueueSize - 1)]);
+    g_midi_echo_tail++;
+}
+
+static void dispatch_midi_event(uint8_t b1, uint8_t b2, uint8_t b3) {
+    bool handled = false;
+    LuaManager* lua_mgr = LuaManager::getInstance();
+    if (lua_mgr && lua_mgr->L) {
+        lua_State* L = lua_mgr->L;
+        int base = lua_gettop(L);
+        if (push_bb_midi_handler(L, "event_midi")) {
+            lua_pushinteger(L, b1);
+            lua_pushinteger(L, b2);
+            lua_pushinteger(L, b3);
+            handled = midi_pcall_handler(L, 3, "event_midi");
+        }
+        lua_settop(L, base);
+
+        // (No per-event GC step: at 25KB of debt it took ~1.7ms per event, so
+        // an 8-note chord reached Lua spread over ~12ms. Lua's own
+        // allocation-driven GC keeps pace with what handlers allocate.)
+    }
+
+    if (handled || g_mpe_mode_enabled) return;
+
+    midi_echo_push(kEchoMidi, b1, b2, b3);
+}
+
+// MPE mode: Note On/Off -> bb.event_mpe_note(type, note, vel, ch), or forward ^^mpe('on'|'off',...)
+static void dispatch_mpe_note_event(bool is_on, uint8_t note, float velocity, uint8_t channel) {
+    bool handled = false;
+    LuaManager* lua_mgr = LuaManager::getInstance();
+    if (lua_mgr && lua_mgr->L) {
+        lua_State* L = lua_mgr->L;
+        int base = lua_gettop(L);
+        if (push_bb_midi_handler(L, "event_mpe_note")) {
+            lua_pushstring(L, is_on ? "note_on" : "note_off");
+            lua_pushinteger(L, note);
+            lua_pushnumber(L, (lua_Number)velocity);
+            lua_pushinteger(L, channel);
+            handled = midi_pcall_handler(L, 4, "event_mpe_note");
+        }
+        lua_settop(L, base);
+    }
+    if (!handled) {
+        // Velocity may include fractional CC88 data.
+        midi_echo_push(kEchoMpeNote, is_on ? 1 : 0, note, channel, velocity);
+    }
+}
+
+// MPE mode: pitch bend (14-bit, centre 8192) -> bb.event_mpe_bend(-1.0..1.0, ch)
+static void dispatch_mpe_bend_event(uint16_t bend14, uint8_t channel) {
+    float val = (float)((int32_t)bend14 - 8192) / 8192.0f;
+    if (val > 1.0f) val = 1.0f;
+    if (val < -1.0f) val = -1.0f;
+
+    bool handled = false;
+    LuaManager* lua_mgr = LuaManager::getInstance();
+    if (lua_mgr && lua_mgr->L) {
+        lua_State* L = lua_mgr->L;
+        int base = lua_gettop(L);
+        if (push_bb_midi_handler(L, "event_mpe_bend")) {
+            lua_pushnumber(L, val);
+            lua_pushinteger(L, channel);
+            handled = midi_pcall_handler(L, 2, "event_mpe_bend");
+        }
+        lua_settop(L, base);
+    }
+    if (!handled) {
+        midi_echo_push(kEchoMpeBend, 0, 0, channel, val);
+    }
+}
+
+// MPE mode: channel or poly pressure -> bb.event_mpe_pressure(val, ch), and
+// CC74 -> bb.event_mpe_slide(val, ch). Per-note identification is via MPE channel assignment.
+static void dispatch_mpe_value_event(const char* field, const char* host_name, uint8_t value, uint8_t channel) {
+    bool handled = false;
+    LuaManager* lua_mgr = LuaManager::getInstance();
+    if (lua_mgr && lua_mgr->L) {
+        lua_State* L = lua_mgr->L;
+        int base = lua_gettop(L);
+        if (push_bb_midi_handler(L, field)) {
+            lua_pushinteger(L, value);
+            lua_pushinteger(L, channel);
+            handled = midi_pcall_handler(L, 2, field);
+        }
+        lua_settop(L, base);
+    }
+    if (!handled) {
+        midi_echo_push(strcmp(host_name, "slide") == 0 ? kEchoMpeSlide : kEchoMpePressure, 0, value, channel);
+    }
+}
+
+// MPE expression is coalesced rather than dropped: we keep the latest bend/pressure/slide per
+// channel and deliver changed values to Lua as the dispatch budget allows (round-robin across
+// slots), so the final value of every gesture arrives even when a controller floods us.
+enum { kMpeDimBend = 0, kMpeDimPressure, kMpeDimSlide, kMpeDimCount };
+static constexpr uint8_t kMpeSlotCount = 16 * kMpeDimCount;
+static uint16_t g_mpe_pending_value[16][kMpeDimCount] = {};
+static uint8_t g_mpe_pending_mask[16] = {};
+static uint8_t g_mpe_flush_pos = 0;
+
+static inline void mpe_set_pending(uint8_t channel, uint8_t dim, uint16_t value) {
+    g_mpe_pending_value[channel - 1][dim] = value;
+    g_mpe_pending_mask[channel - 1] |= (uint8_t)(1u << dim);
+}
+
+static void mpe_dispatch_pending(uint8_t ch_idx, uint8_t dim) {
+    uint16_t value = g_mpe_pending_value[ch_idx][dim];
+    uint8_t channel = (uint8_t)(ch_idx + 1);
+    g_mpe_pending_mask[ch_idx] &= (uint8_t)~(1u << dim);
+    switch (dim) {
+        case kMpeDimBend: dispatch_mpe_bend_event(value, channel); break;
+        case kMpeDimPressure: dispatch_mpe_value_event("event_mpe_pressure", "pressure", (uint8_t)value, channel); break;
+        case kMpeDimSlide: dispatch_mpe_value_event("event_mpe_slide", "slide", (uint8_t)value, channel); break;
+        default: break;
+    }
+}
+
+// Deliver a channel's pending expression immediately (unbudgeted, at most 3 calls) so it keeps its
+// order relative to that channel's notes: MPE controllers send initial bend/pressure before Note On.
+static void mpe_flush_channel(uint8_t channel) {
+    uint8_t ch_idx = (uint8_t)(channel - 1);
+    for (uint8_t dim = 0; dim < kMpeDimCount; dim++) {
+        if (g_mpe_pending_mask[ch_idx] & (1u << dim)) mpe_dispatch_pending(ch_idx, dim);
+    }
+}
+
+// Called on every main loop pass after incoming packets are drained; dispatch
+// is limited by the per-1ms-tick budget.
+static void mpe_flush_pending(void) {
+    if (!g_mpe_mode_enabled) return;
+    for (uint8_t n = 0; n < kMpeSlotCount && g_midi_lua_dispatch_budget > 0; n++) {
+        uint8_t slot = g_mpe_flush_pos;
+        g_mpe_flush_pos = (uint8_t)((slot + 1) % kMpeSlotCount);
+        uint8_t ch_idx = slot / kMpeDimCount;
+        uint8_t dim = slot % kMpeDimCount;
+        if (g_mpe_pending_mask[ch_idx] & (1u << dim)) {
+            g_midi_lua_dispatch_budget--;
+            mpe_dispatch_pending(ch_idx, dim);
+        }
+    }
+}
+
+static void mpe_set_mode(bool enable) {
+    g_mpe_mode_enabled = enable;
+    memset(g_mpe_pending_mask, 0, sizeof(g_mpe_pending_mask));
+}
+
+// bb.mpe_mode(enable) - turn MPE routing on/off; bb.mpe_mode() returns the current state
+static int lua_bb_mpe_mode(lua_State* L) {
+    if (!lua_isnoneornil(L, 1)) {
+        luaL_checktype(L, 1, LUA_TBOOLEAN);
+        mpe_set_mode(lua_toboolean(L, 1));
+    }
+    lua_pushboolean(L, g_mpe_mode_enabled);
+    return 1;
+}
+
+static void midi_clock_handle_start(void) {
+    if (!midi_clock_is_active_source()) return;
+    midi_clock_reset_state();
+    g_midi_clock.running = true;
+    // MIDI Start implies transport reset to beat 0.
+    // We may not have enough clock ticks yet to estimate tempo, so preserve the current reference tempo
+    // (or fall back to 120 BPM) and reset position immediately.
+    float bpm = clock_get_tempo();
+    if (!(bpm > 0.0f)) bpm = 120.0f;
+    clock_update_reference_from(0.0f, 60.0f / bpm, CLOCK_SOURCE_MIDI);
+    clock_start_from(CLOCK_SOURCE_MIDI);
+}
+
+static void midi_clock_handle_continue(void) {
+    if (!midi_clock_is_active_source()) return;
+    // Keep current counters; just mark running again
+    g_midi_clock.running = true;
+    g_midi_clock.last_tick_us = 0; // re-sync on next tick
+    clock_start_from(CLOCK_SOURCE_MIDI);
+}
+
+static void midi_clock_handle_stop(void) {
+    if (!midi_clock_is_active_source()) return;
+    midi_clock_reset_state();
+    clock_stop_from(CLOCK_SOURCE_MIDI);
+}
+
+static void midi_clock_handle_tick(void) {
+    if (!midi_clock_is_active_source()) return;
+    uint64_t now_us = time_us_64();
+
+    // If we've been stopped or had a long gap, reset interval history
+    if (g_midi_clock.last_tick_us != 0) {
+        uint64_t interval = now_us - g_midi_clock.last_tick_us;
+        if (interval > kMidiClockTimeoutUs) {
+            midi_clock_reset_state();
+        } else {
+            // Ring buffer average
+            if (g_midi_clock.intervals_len < kMidiClockWindow) {
+                g_midi_clock.intervals_len++;
+            } else {
+                g_midi_clock.interval_sum_us -= g_midi_clock.intervals_us[g_midi_clock.intervals_pos];
+            }
+            g_midi_clock.intervals_us[g_midi_clock.intervals_pos] = (uint32_t)interval;
+            g_midi_clock.interval_sum_us += interval;
+            g_midi_clock.intervals_pos = (g_midi_clock.intervals_pos + 1) % kMidiClockWindow;
+        }
+    }
+
+    g_midi_clock.last_tick_us = now_us;
+    g_midi_clock.running = true;
+    g_midi_clock.tick_count++;
+
+    if (g_midi_clock.intervals_len > 0 && (g_midi_clock.tick_count % kMidiClockPPQN) == 0) {
+        float avg_interval_us = (float)g_midi_clock.interval_sum_us / (float)g_midi_clock.intervals_len;
+        float beat_duration_sec = (avg_interval_us * (float)kMidiClockPPQN) * 1e-6f;
+        float beat = (float)g_midi_clock.tick_count / (float)kMidiClockPPQN;
+        clock_update_reference_from(beat, beat_duration_sec, CLOCK_SOURCE_MIDI);
+    }
+}
+
+// Length of the MIDI message starting with `status`, or 0 for data bytes and sysex (variable length).
+static inline uint8_t midi_message_length(uint8_t status) {
+    if (status < 0x80 || status == 0xF0) return 0;
+    switch (status & 0xF0) {
+        case 0xC0: case 0xD0: return 2;
+        case 0xF0: break;
+        default: return 3;
+    }
+    switch (status) {
+        case 0xF1: case 0xF3: return 2;
+        case 0xF2: return 3;
+        default: return 1;
+    }
+}
+
+static void midi_send_bytes(const uint8_t* data, uint32_t len) {
+    if (len == 0) return;
+    if (g_usb_role == USB_ROLE_DEVICE) {
+#if CFG_TUD_MIDI
+        tud_midi_stream_write(0, data, len);
+#endif
+    } else {
+#if TUSB_OPT_HOST_ENABLED
+        if (g_midi_host_addr && tuh_midi_configured(g_midi_host_addr)) {
+            uint8_t cables = tuh_midih_get_num_tx_cables(g_midi_host_addr);
+            uint8_t cable = cables ? (uint8_t)(cables - 1) : 0;
+            tuh_midi_stream_write(g_midi_host_addr, cable, data, len);
+            tuh_midi_stream_flush(g_midi_host_addr);
+        }
+#endif
+    }
+}
+
+// Send a group of up to 3 bytes (unused bytes zero). A status byte sends exactly its message
+// length, so bb.midi_tx(0xC0, 5) is a 2-byte program change; data/sysex bytes are sent as given.
+static void midi_send_group(const uint8_t bytes[3], uint8_t count) {
+    uint8_t len = midi_message_length(bytes[0]);
+    midi_send_bytes(bytes, len ? len : count);
+}
+
+static void midi_send_channel_msg(uint8_t status, lua_Integer data1, lua_Integer data2, lua_Integer channel) {
+    if (channel < 1) channel = 1;
+    if (channel > 16) channel = 16;
+    uint8_t bytes[3] = {(uint8_t)(status | (channel - 1)), (uint8_t)(data1 & 0x7F), (uint8_t)(data2 & 0x7F)};
+    midi_send_group(bytes, 3);
+}
+
+// Send a Lua array of raw bytes in groups of 3, as iii's midi_out({...}).
+static void midi_send_raw_table(lua_State* L, int idx) {
+    idx = lua_absindex(L, idx);
+    lua_Integer n = (lua_Integer)lua_rawlen(L, idx);
+    for (lua_Integer i = 1; i <= n; i += 3) {
+        uint8_t bytes[3] = {0, 0, 0};
+        uint8_t count = (uint8_t)((n - i + 1) < 3 ? (n - i + 1) : 3);
+        for (uint8_t j = 0; j < count; j++) {
+            lua_rawgeti(L, idx, i + j);
+            bytes[j] = (uint8_t)lua_tointeger(L, -1);
+            lua_pop(L, 1);
+        }
+        midi_send_group(bytes, count);
+    }
+}
+
+// bb.midi_tx(byte1, byte2, byte3) - send one raw MIDI message
+static int lua_bb_midi_tx(lua_State* L) {
+    int count = lua_gettop(L);
+    if (count > 3) count = 3;
+    uint8_t bytes[3];
+    for (int i = 0; i < 3; i++) bytes[i] = (uint8_t)luaL_optinteger(L, i + 1, 0);
+    midi_send_group(bytes, (uint8_t)count);
+    return 0;
+}
+
+// bb.midi_note_on(note, vel, ch) - defaults as iii: note 66, vel 100, ch 1
+static int lua_bb_midi_note_on(lua_State* L) {
+    midi_send_channel_msg(0x90, luaL_optinteger(L, 1, 66), luaL_optinteger(L, 2, 100), luaL_optinteger(L, 3, 1));
+    return 0;
+}
+
+// bb.midi_note_off(note, vel, ch)
+static int lua_bb_midi_note_off(lua_State* L) {
+    midi_send_channel_msg(0x80, luaL_optinteger(L, 1, 66), luaL_optinteger(L, 2, 100), luaL_optinteger(L, 3, 1));
+    return 0;
+}
+
+// bb.midi_cc(cc, val, ch) - defaults as iii: cc 1, val 100, ch 1
+static int lua_bb_midi_cc(lua_State* L) {
+    midi_send_channel_msg(0xB0, luaL_optinteger(L, 1, 1), luaL_optinteger(L, 2, 100), luaL_optinteger(L, 3, 1));
+    return 0;
+}
+
+static lua_Integer midi_msg_field(lua_State* L, const char* key, lua_Integer def) {
+    lua_getfield(L, 1, key);
+    lua_Integer v = lua_isnil(L, -1) ? def : luaL_checkinteger(L, -1);
+    lua_pop(L, 1);
+    return v;
+}
+
+// bb.midi_out(msg) - send a message table (as produced by bb.midi_to_msg) or an array of raw bytes
+static int lua_bb_midi_out(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+    lua_getfield(L, 1, "type");
+    if (lua_isnil(L, -1)) {
+        midi_send_raw_table(L, 1);
+        return 0;
+    }
+    const char* type = luaL_checkstring(L, -1); // stays on the stack while in use
+    lua_Integer ch = midi_msg_field(L, "ch", 1);
+
+    if (strcmp(type, "note_on") == 0) {
+        midi_send_channel_msg(0x90, midi_msg_field(L, "note", 0), midi_msg_field(L, "vel", 100), ch);
+    } else if (strcmp(type, "note_off") == 0) {
+        midi_send_channel_msg(0x80, midi_msg_field(L, "note", 0), midi_msg_field(L, "vel", 100), ch);
+    } else if (strcmp(type, "cc") == 0) {
+        midi_send_channel_msg(0xB0, midi_msg_field(L, "cc", 0), midi_msg_field(L, "val", 0), ch);
+    } else if (strcmp(type, "pitchbend") == 0) {
+        lua_Integer val = midi_msg_field(L, "val", 8192);
+        midi_send_channel_msg(0xE0, val, val >> 7, ch);
+    } else if (strcmp(type, "key_pressure") == 0) {
+        midi_send_channel_msg(0xA0, midi_msg_field(L, "note", 0), midi_msg_field(L, "val", 0), ch);
+    } else if (strcmp(type, "channel_pressure") == 0) {
+        midi_send_channel_msg(0xD0, midi_msg_field(L, "val", 0), 0, ch);
+    } else if (strcmp(type, "program_change") == 0) {
+        midi_send_channel_msg(0xC0, midi_msg_field(L, "val", 0), 0, ch);
+    } else if (strcmp(type, "start") == 0) {
+        const uint8_t b = 0xFA; midi_send_bytes(&b, 1);
+    } else if (strcmp(type, "stop") == 0) {
+        const uint8_t b = 0xFC; midi_send_bytes(&b, 1);
+    } else if (strcmp(type, "continue") == 0) {
+        const uint8_t b = 0xFB; midi_send_bytes(&b, 1);
+    } else if (strcmp(type, "clock") == 0) {
+        const uint8_t b = 0xF8; midi_send_bytes(&b, 1);
+    } else if (strcmp(type, "song_position") == 0) {
+        const uint8_t b[3] = {0xF2, (uint8_t)(midi_msg_field(L, "lsb", 0) & 0x7F), (uint8_t)(midi_msg_field(L, "msb", 0) & 0x7F)};
+        midi_send_bytes(b, 3);
+    } else if (strcmp(type, "song_select") == 0) {
+        const uint8_t b[2] = {0xF3, (uint8_t)(midi_msg_field(L, "val", 0) & 0x7F)};
+        midi_send_bytes(b, 2);
+    } else if (strcmp(type, "sysex") == 0 || strcmp(type, "other") == 0) {
+        lua_getfield(L, 1, "raw");
+        if (lua_istable(L, -1)) midi_send_raw_table(L, -1);
+    } else {
+        return luaL_error(L, "bb.midi_out: unknown message type '%s'", type);
+    }
+    return 0;
+}
+
+// bb.midi_to_msg(data) - decode {byte1, byte2, byte3} into a labelled table, matching iii's midi_to_msg
+static int lua_bb_midi_to_msg(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+    uint8_t d[3];
+    for (int i = 0; i < 3; i++) {
+        lua_rawgeti(L, 1, i + 1);
+        d[i] = (uint8_t)lua_tointeger(L, -1);
+        lua_pop(L, 1);
+    }
+    const uint8_t status = d[0];
+    const lua_Integer ch = (status & 0x0F) + 1;
+
+    lua_createtable(L, 0, 4);
+    auto set_int = [L](const char* key, lua_Integer v) {
+        lua_pushinteger(L, v);
+        lua_setfield(L, -2, key);
+    };
+    auto set_type = [L](const char* type) {
+        lua_pushstring(L, type);
+        lua_setfield(L, -2, "type");
+    };
+
+    switch (status & 0xF0) {
+        case 0x90:
+            // Note On with velocity zero is a Note Off
+            set_type(d[2] > 0 ? "note_on" : "note_off");
+            set_int("note", d[1]); set_int("vel", d[2]); set_int("ch", ch);
+            return 1;
+        case 0x80:
+            set_type("note_off");
+            set_int("note", d[1]); set_int("vel", d[2]); set_int("ch", ch);
+            return 1;
+        case 0xB0:
+            set_type("cc");
+            set_int("cc", d[1]); set_int("val", d[2]); set_int("ch", ch);
+            return 1;
+        case 0xE0:
+            set_type("pitchbend");
+            set_int("val", d[1] + (d[2] << 7)); set_int("ch", ch);
+            return 1;
+        case 0xA0:
+            set_type("key_pressure");
+            set_int("note", d[1]); set_int("val", d[2]); set_int("ch", ch);
+            return 1;
+        case 0xD0:
+            set_type("channel_pressure");
+            set_int("val", d[1]); set_int("ch", ch);
+            return 1;
+        case 0xC0:
+            set_type("program_change");
+            set_int("val", d[1]); set_int("ch", ch);
+            return 1;
+        default:
+            break;
+    }
+
+    switch (status) {
+        case 0xFA: set_type("start"); break;
+        case 0xFC: set_type("stop"); break;
+        case 0xFB: set_type("continue"); break;
+        case 0xF8: set_type("clock"); break;
+        case 0xF2: set_type("song_position"); set_int("lsb", d[1]); set_int("msb", d[2]); break;
+        case 0xF3: set_type("song_select"); set_int("val", d[1]); break;
+        case 0xFE: break; // active sensing: empty table
+        default:
+            set_type(status == 0xF0 ? "sysex" : "other");
+            lua_pushvalue(L, 1);
+            lua_setfield(L, -2, "raw");
+            break;
+    }
+    return 1;
+}
+
+// Parse a single USB MIDI event packet: drive MIDI clock, route MPE, and surface raw bytes to bb.event_midi
+static void handle_usb_midi_packet(const uint8_t packet[4]) {
+#if CFG_TUD_MIDI || TUSB_OPT_HOST_ENABLED
+    // CIN 0x0/0x1 are reserved (misc / cable events) and carry no MIDI message
+    if ((packet[0] & 0x0F) < 0x2) return;
+
+    uint8_t status = packet[1];
+    uint8_t data1 = packet[2];
+    uint8_t data2 = packet[3];
+    uint8_t msg = status & 0xF0;
+    uint8_t channel = (status & 0x0F) + 1; // MIDI channels are 1-16 for users
+
+    // Helper: consume CC88 fine velocity for this channel, if still fresh.
+    auto pop_fine_velocity7 = [&](uint8_t ch, uint8_t* fine_out) -> bool {
+        if (ch < 1 || ch > 16) return false;
+        uint8_t idx = (uint8_t)(ch - 1);
+        if (!g_midi_vel_fine_valid[idx]) return false;
+        uint32_t now_us = time_us_32();
+        uint32_t age_us = (uint32_t)(now_us - g_midi_vel_fine_time_us[idx]);
+        // Always consume when we check, to preserve the "applies to next note" behavior.
+        uint8_t fine = g_midi_vel_fine7[idx];
+        g_midi_vel_fine_valid[idx] = false;
+        if (age_us > kMidiHiResVelocityTimeoutUs) return false;
+        *fine_out = (uint8_t)(fine & 0x7F);
+        return true;
+    };
+
+    // Helper: clear any pending fine velocity on this channel.
+    auto clear_fine_velocity = [&](uint8_t ch) {
+        if (ch < 1 || ch > 16) return;
+        g_midi_vel_fine_valid[ch - 1] = false;
+    };
+
+    // Realtime messages drive the clock engine, then reach Lua like any other message.
+    if (status == 0xF8) {
+        midi_clock_handle_tick();
+    } else if (status == 0xFA) {
+        midi_clock_handle_start();
+    } else if (status == 0xFB) {
+        midi_clock_handle_continue();
+    } else if (status == 0xFC) {
+        midi_clock_handle_stop();
+    } else if (status == 0xFE) {
+        return; // active sensing
+    }
+
+    if (msg == 0xB0 && data1 == kMidiHiResVelocityCC) {
+        uint8_t idx = (uint8_t)(channel - 1);
+        g_midi_vel_fine7[idx] = (uint8_t)(data2 & 0x7F);
+        g_midi_vel_fine_time_us[idx] = time_us_32();
+        g_midi_vel_fine_valid[idx] = true;
+    }
+
+    if (g_mpe_mode_enabled) {
+        // Route the MPE subset to bb.event_mpe_*; everything else still goes to bb.event_midi.
+        // Expression is coalesced per channel (see mpe_flush_pending) instead of throttled.
+        if (msg == 0xE0) {
+            mpe_set_pending(channel, kMpeDimBend, (uint16_t)(data1 | (data2 << 7)));
+            return;
+        }
+        if (msg == 0xD0) {
+            mpe_set_pending(channel, kMpeDimPressure, data1 & 0x7F);
+            return;
+        }
+        if (msg == 0xA0) {
+            mpe_set_pending(channel, kMpeDimPressure, data2 & 0x7F);
+            return;
+        }
+        if (msg == 0xB0 && data1 == 74) {
+            mpe_set_pending(channel, kMpeDimSlide, data2 & 0x7F);
+            return;
+        }
+        if (msg == 0x90 && data2 > 0) {
+            mpe_flush_channel(channel);
+            // Consume CC88 fine velocity: vel = vel7 + (fine7 / 128)
+            uint8_t fine7 = 0;
+            float vel = (float)data2;
+            if (pop_fine_velocity7(channel, &fine7)) vel += ((float)fine7 / 128.0f);
+            dispatch_mpe_note_event(true, data1, vel, channel);
+            return;
+        }
+        if (msg == 0x90 || msg == 0x80) {
+            mpe_flush_channel(channel);
+            clear_fine_velocity(channel);
+            dispatch_mpe_note_event(false, data1, (float)data2, channel);
+            return;
+        }
+    }
+
+    // Throttle continuous controllers so fast controllers can't outpace Lua GC.
+    // Notes (especially note-offs), realtime and system messages always pass.
+    bool throttled = (msg == 0xB0 || msg == 0xD0 || msg == 0xA0 || msg == 0xE0);
+    if (throttled) {
+        if (g_midi_lua_dispatch_budget <= 0) return;
+        g_midi_lua_dispatch_budget--;
+    }
+
+    dispatch_midi_event(status, data1, data2);
+#else
+    (void)packet;
+#endif
+}
+
+// Drain a few MIDI packets per loop to avoid starving other USB work.
+static void process_usb_midi_packets_device(void) {
+#if CFG_TUD_MIDI
+    uint8_t packet[4];
+    const int kMaxMidiPacketsPerLoop = 16;
+    int processed = 0;
+    while (processed < kMaxMidiPacketsPerLoop && tud_midi_available()) {
+        bool got_packet = tud_midi_packet_read(packet); // returns bool in TinyUSB
+        if (got_packet) {
+            handle_usb_midi_packet(packet);
+            processed++;
+        } else {
+            // Nothing parsed; advance to avoid tight loop
+            processed++;
+        }
+    }
+#endif
+}
+
+// Drain host-side USB-MIDI event packets and surface events into Lua dispatch.
+// NOTE: `tuh_midi_stream_read()` returns raw MIDI bytes, not 4-byte USB-MIDI event packets.
+// We must use `tuh_midi_packet_read()` here since `handle_usb_midi_packet()` expects a 4-byte event packet.
+static void drain_host_midi_packets(uint8_t dev_addr) {
+#if TUSB_OPT_HOST_ENABLED
+    if (dev_addr == 0 || !tuh_midi_configured(dev_addr)) {
+        return;
+    }
+
+    uint8_t packet[4];
+    // Keep host-mode bounded similarly to device-mode to avoid starving the
+    // main loop and overwhelming Lua/GC under high-rate arpeggiators.
+    const int kMaxMidiPacketsPerLoop = 16;
+    int processed = 0;
+    while (processed < kMaxMidiPacketsPerLoop && tuh_midi_packet_read(dev_addr, packet)) {
+        handle_usb_midi_packet(packet);
+        processed++;
+    }
+#else
+    (void)dev_addr;
+#endif
+}
+
+static void process_usb_midi_packets_host(void) {
+#if TUSB_OPT_HOST_ENABLED
+    drain_host_midi_packets(g_midi_host_addr);
+#endif
+}
+
+#if TUSB_OPT_HOST_ENABLED
+void tuh_midi_mount_cb(uint8_t dev_addr, uint8_t in_ep, uint8_t out_ep, uint8_t num_cables_rx, uint16_t num_cables_tx) {
+    (void)in_ep; (void)out_ep; (void)num_cables_rx; (void)num_cables_tx;
+    if (g_midi_host_addr == 0) {
+        g_midi_host_addr = dev_addr;
+        g_midi_host_connected = 1;
+        g_host_ready = 1;
+    }
+}
+
+void tuh_midi_umount_cb(uint8_t dev_addr, uint8_t instance) {
+    (void)instance;
+    if (dev_addr == g_midi_host_addr) {
+        g_midi_host_addr = 0;
+        g_midi_host_connected = 0;
+        g_host_ready = 0;
+    }
+}
+
+void tuh_midi_rx_cb(uint8_t dev_addr, uint32_t num_packets) {
+    // IMPORTANT: Do not call into Lua (or do heavy work) from TinyUSB host
+    // callbacks. `drain_host_midi_packets()` dispatches into Lua, so we only
+    // drain from the main loop (see `usb_service_poll_from_main`).
+    (void)dev_addr;
+    (void)num_packets;
+}
+
+void tuh_midi_tx_cb(uint8_t dev_addr) {
+    (void)dev_addr;
+}
+#endif
+
 static inline void usb_service_poll_from_main(void) {
-    // Coalesce ticks to bounded work per loop iteration
+    // Reset MIDI->Lua dispatch budget once per USB service tick (1kHz).
     if (g_usb_service_tick) {
         g_usb_service_tick = 0;
-        tud_task();
+        g_midi_lua_dispatch_budget = kMaxMidiLuaDispatchPerUsbTick;
+    }
+
+    // Service USB on every main loop pass (it used to wait for the 1kHz
+    // tick), so input from the host is seen as soon as the loop comes round.
+    if (g_usb_role == USB_ROLE_DEVICE) {
+        usb_task();
 
         // RX: Read available data and queue for main loop processing
         while (tud_cdc_available()) {
@@ -2363,9 +3457,18 @@ static inline void usb_service_poll_from_main(void) {
             if (count == 0) break;
             usb_rx_lockfree_post((char*)buf, count);
         }
+
+        process_usb_midi_packets_device();
+    } else {
+#if TUSB_OPT_HOST_ENABLED
+        tuh_task();
+        process_usb_midi_packets_host();
+#endif
     }
 
-    if (g_usb_tx_tick) {
+    mpe_flush_pending();
+
+    if (g_usb_tx_tick && g_usb_role == USB_ROLE_DEVICE) {
         g_usb_tx_tick = 0;
         usb_process_tx_bounded();
     }
@@ -2398,9 +3501,6 @@ static inline void usb_process_tx_bounded(void) {
 // ============================================================================
 // Queue output changes during Lua execution, flush all at once to avoid
 // redundant calibration calculations and hardware writes
-
-// Global flag to signal core1 to pause for flash operations
-volatile bool g_flash_operation_pending = false;
 
 typedef struct {
     bool pending;       // Has this output changed?
@@ -2536,27 +3636,6 @@ public:
     void IndicatorLedOn(uint32_t index, bool state) { this->LedOn(index, state); }
     void IndicatorLedOff(uint32_t index) { this->LedOff(index); }
     void UpdateOutputLeds() {
-        uint32_t now_us = time_us_32();
-        // Only blink all LEDs when explicitly armed (e.g. after flash operations).
-        // This avoids a confusing crash-like LED pattern if memory corruption ever
-        // clobbers the timestamp variable.
-        if (g_force_all_leds_armed && u32_time_before(now_us, g_force_all_leds_on_until_us)) {
-            bool on = ((now_us / kResetIndicatorBlinkHalfPeriodUs) & 1u) == 0u;
-            uint16_t level = on ? 4095 : 0;
-            LedBrightness(0, level);
-            LedBrightness(1, level);
-            LedBrightness(2, level);
-            LedBrightness(3, level);
-            LedOn(4, on);
-            LedOn(5, on);
-            return;
-        }
-
-        // Auto-disarm once the hold period has elapsed.
-        if (g_force_all_leds_armed && !u32_time_before(now_us, g_force_all_leds_on_until_us)) {
-            g_force_all_leds_armed = false;
-        }
-
         int32_t cv1_mv = g_output_state_mv[0];
         int32_t cv2_mv = g_output_state_mv[1];
         int32_t audio1_mv = g_output_state_mv[2];
@@ -2755,13 +3834,17 @@ public:
                 // Load First.lua from compiled bytecode
                 if (luaL_loadbuffer(lua_manager->L, (const char*)First, First_len, "First.lua") != LUA_OK 
                     || lua_pcall(lua_manager->L, 0, 0, 0) != LUA_OK) {
-                    tud_cdc_write_str(" Failed to load First.lua\n\r");
-                    tud_cdc_write_flush();
+                    if (usb_console_ready()) {
+                        tud_cdc_write_str(" Failed to load First.lua\n\r");
+                        tud_cdc_write_flush();
+                    }
                 } else {
-                    tud_cdc_write_str(" Loaded: First.lua (default)\n\r");
-                    tud_cdc_write_flush();
+                    if (usb_console_ready()) {
+                        tud_cdc_write_str(" Loaded: First.lua (default)\n\r");
+                        tud_cdc_write_flush();
+                    }
                     // Call init() like real crow does (no crow.reset() before init on startup)
-                    lua_manager->evaluate_safe("if init then init() end");
+                    lua_call_init_if_present(lua_manager->L, "boot:init");
                 }
                 break;
                 
@@ -2774,29 +3857,37 @@ public:
                     // Execute directly from flash (XIP)
                     if (script_addr && luaL_loadbuffer(lua_manager->L, script_addr, script_len, "=userscript") == LUA_OK
                         && lua_pcall(lua_manager->L, 0, 0, 0) == LUA_OK) {
-                        char msg[128];
-                        if (script_name && script_name[0]) {
-                            snprintf(msg, sizeof(msg), " Loaded: %s (%u bytes)\n\r", script_name, script_len);
-                        } else {
-                            snprintf(msg, sizeof(msg), " Loaded: Untitled User Script (%u bytes)\n\r", script_len);
+                        if (usb_console_ready()) {
+                            char msg[128];
+                            if (script_name && script_name[0]) {
+                                snprintf(msg, sizeof(msg), " Loaded: %s (%u bytes)\n\r", script_name, script_len);
+                            } else {
+                                snprintf(msg, sizeof(msg), " Loaded: Untitled User Script (%u bytes)\n\r", script_len);
+                            }
+                            tud_cdc_write_str(msg);
+                            tud_cdc_write_flush();
                         }
-                        tud_cdc_write_str(msg);
-                        tud_cdc_write_flush();
                         // Call init() like real crow does (no crow.reset() before init on startup)
-                        lua_manager->evaluate_safe("if init then init() end");
+                        lua_call_init_if_present(lua_manager->L, "boot:init");
                     } else {
-                        tud_cdc_write_str(" Failed to load user script from flash, loading First.lua\n\r");
-                        tud_cdc_write_flush();
+                        if (usb_console_ready()) {
+                            tud_cdc_write_str(" Failed to load user script from flash, loading First.lua\n\r");
+                            tud_cdc_write_flush();
+                        }
                         // Fallback to First.lua
                         if (luaL_loadbuffer(lua_manager->L, (const char*)First, First_len, "First.lua") == LUA_OK 
                             && lua_pcall(lua_manager->L, 0, 0, 0) == LUA_OK) {
-                            tud_cdc_write_str(" Loaded First.lua fallback\n\r");
-                            tud_cdc_write_flush();
+                            if (usb_console_ready()) {
+                                tud_cdc_write_str(" Loaded First.lua fallback\n\r");
+                                tud_cdc_write_flush();
+                            }
                             // Call init() like real crow does (no crow.reset() before init on startup)
-                            lua_manager->evaluate_safe("if init then init() end");
+                            lua_call_init_if_present(lua_manager->L, "boot:init");
                         } else {
-                            tud_cdc_write_str(" Failed to load First.lua fallback\n\r");
-                            tud_cdc_write_flush();
+                            if (usb_console_ready()) {
+                                tud_cdc_write_str(" Failed to load First.lua fallback\n\r");
+                                tud_cdc_write_flush();
+                            }
                         }
                     }
                 }
@@ -2813,6 +3904,11 @@ public:
     {
         // Initialize USB lock-free queues
         usb_lockfree_init();
+        ii_init();  // ii leader on the UART pads (ComputerCard moved I2C0 there)
+
+#ifdef BB_DEBUG_HARNESS
+        bb_dbg_init(this);
+#endif
         
         // Initialize USB buffer
         g_rx_buffer_pos = 0;
@@ -2852,10 +3948,15 @@ public:
         while (1) {
             // === PERFORMANCE MONITORING: Track loop iteration time ===
             uint32_t loop_start_time = time_us_32();
+            LOOP_BEGIN(loop_start_time);
 
             // Service USB from main loop (timer IRQs only set tick flags)
             usb_service_poll_from_main();
+            LOOP_SECTION(1);
+            midi_echo_service();
+
             
+            LOOP_SECTION(2);
             // Process USB RX messages from lock-free queue
             usb_rx_message_t rx_msg;
             while (usb_rx_lockfree_get(&rx_msg)) {
@@ -2878,6 +3979,13 @@ public:
                 }
             }
 
+            LOOP_SECTION(3);
+#ifdef BB_DEBUG_HARNESS
+            // Debugger mailbox: after RX so injected REPL bytes are seen as processed
+            bb_dbg_service(lua_manager ? lua_manager->L : nullptr);
+#endif
+
+            LOOP_SECTION(4);
             uint32_t now_us = time_us_32();
             if ((now_us - last_led_update_us) >= led_update_interval_us) {
                 last_led_update_us = now_us;
@@ -2886,21 +3994,23 @@ public:
             
             // Send welcome message 1.5s after startup
             if (!welcome_sent && absolute_time_diff_us(get_absolute_time(), welcome_time) <= 0) {
-                char card_id_str[48];
-                
-                tud_cdc_write_str("\n\r");
-                tud_cdc_write_str(" Blackbird-v1.1\n\r");
-                tud_cdc_write_str(" Music Thing Modular Workshop Computer\n\r");
+                if (usb_console_ready()) {
+                    char card_id_str[48];
+                    
+                    tud_cdc_write_str("\n\r");
+                    tud_cdc_write_str(" Blackbird-v1.2\n\r");
+                    tud_cdc_write_str(" Music Thing Modular Workshop Computer\n\r");
 
-                tud_cdc_write_flush(); // flush manually due to long welcome string
-                
-                snprintf(card_id_str, sizeof(card_id_str), " Program Card ID: 0x%08X%08X\n\r", 
-                         (uint32_t)(cached_unique_id >> 32), (uint32_t)(cached_unique_id & 0xFFFFFFFF));
-                
-                tud_cdc_write_str(card_id_str);
-                
+                    tud_cdc_write_flush(); // flush manually due to long welcome string
+                    
+                    snprintf(card_id_str, sizeof(card_id_str), " Program Card ID: 0x%08X%08X\n\r", 
+                             (uint32_t)(cached_unique_id >> 32), (uint32_t)(cached_unique_id & 0xFFFFFFFF));
+                    
+                    tud_cdc_write_str(card_id_str);
+                }
+
                 welcome_sent = true;
-                
+
                 // NOW load the boot script - all hardware is initialized
                 load_boot_script();
             }
@@ -2913,16 +4023,19 @@ public:
                 g_performance_warning = false;  // Clear flag
                 uint32_t now_us = time_us_32();
                 if (!u32_time_before(now_us, g_suppress_perf_warnings_until_us)) {
-                    char perf_msg[256];
-                    snprintf(perf_msg, sizeof(perf_msg),
-                             "\n\r[PERF WARNING] ProcessSample exceeded budget: worst=%luus, overruns=%lu\n\r",
-                             (unsigned long)g_worst_case_us, (unsigned long)g_overrun_count);
-                    tud_cdc_write_str(perf_msg);
+                    if (usb_console_ready()) {
+                        char perf_msg[256];
+                        snprintf(perf_msg, sizeof(perf_msg),
+                                 "\n\r[PERF WARNING] ProcessSample exceeded budget: worst=%luus, overruns=%lu\n\r",
+                                 (unsigned long)g_worst_case_us, (unsigned long)g_overrun_count);
+                        tud_cdc_write_str(perf_msg);
+                    }
                 }
                 
                 // Note: Don't reset g_worst_case_us here - let user query via perf_stats()
             }
             
+            LOOP_SECTION(5);
             // Process queued messages from audio thread (bounded to avoid stalls)
             process_queued_messages_limited(kMaxLogMessagesPerLoop);
             
@@ -2938,6 +4051,7 @@ public:
             // Update stream-equivalent values for .volts queries (always maintained)
             update_input_stream_values();
 
+            LOOP_SECTION(6);
             // Process lock-free clock resume events before anything else can stall them
             const int max_clock_events_per_loop = 32;  // allow higher rates, still bounded
             clock_event_lockfree_t clock_event;
@@ -2957,6 +4071,7 @@ public:
                 }
             }
 
+            LOOP_SECTION(7);
             // Process lock-free metro events (high priority but bounded per loop)
             const int max_metro_events_per_loop = 32;
             metro_event_lockfree_t metro_event;
@@ -2976,6 +4091,7 @@ public:
                 }
             }
             
+            LOOP_SECTION(8);
             // Process lock-free input detection events (high priority)
             // IMPORTANT: Limit events per iteration to prevent starving clock system
             // Fast triggers can fill the queue, blocking clock_update() and coroutines
@@ -3033,6 +4149,7 @@ public:
                 }
             }
             
+            LOOP_SECTION(9);
             // Process lock-free ASL done events (medium priority, bounded)
             const int max_asl_done_events_per_loop = 32;
             asl_done_event_lockfree_t asl_done_event;
@@ -3045,6 +4162,7 @@ public:
                 }
             }
             
+            LOOP_SECTION(10);
             // Check for switch changes and fire callback
             static ComputerCard::Switch last_switch = ComputerCard::Switch::Middle;
             static bool first_switch_check = true;
@@ -3098,6 +4216,7 @@ public:
                 }
             }
 
+            LOOP_SECTION(11);
             // === ASAP CALLBACK: User-defined high-frequency function (bb.asap) ===
             // Runs every MainControlLoop iteration. Intended for lightweight mapping logic
             // (e.g. reading knobs and updating outputs). Heavy work will degrade performance.
@@ -3126,6 +4245,7 @@ public:
                 lua_settop(lua_manager->L, 0); // clean stack
             }
             
+            LOOP_SECTION(12);
             // Check for pulse input changes and fire callbacks
             // Edge detection happens at the ProcessSample() rate, we just check flags here
             // REENTRANCY PROTECTION: Skip callback if one is already running (prevents crashes from fast clocks)
@@ -3167,11 +4287,18 @@ public:
                 }
             }
             
-            // Smooth Lua GC to avoid long pauses; tiny step each loop
-            if (lua_manager && lua_manager->L) {
-                lua_gc(lua_manager->L, LUA_GCSTEP, kLuaGcStepSize);
-            }
+            LOOP_SECTION(13);
+            // ii: start queued messages, finish ones in flight (never waits on
+            // the bus). Replies go straight to Lua, so this is outside Lua.
+            ii_leader_process();
+            ii_follower_process();
 
+            // No idle GC step here: Lua's own allocation-driven GC does the
+            // work. An idle step adds GC debt even when nothing allocates, so
+            // the collector cycled continuously, and each cycle's atomic phase
+            // stalled this loop ~1ms (audio-rate ASL clicked ~10x a second).
+
+            LOOP_SECTION(14);
             // Update public view monitoring (~15fps), but skip if we've blown budget
             static uint32_t last_pubview_time = 0;
             if (now - last_pubview_time >= 66) { // ~15fps (66ms = 1000/15)
@@ -3181,6 +4308,15 @@ public:
                 }
             }
             
+            // Send this pass's USB serial output now, rather than waiting for
+            // the 2ms periodic flush (TinyUSB sends the rest when each packet
+            // completes)
+            if (g_usb_role == USB_ROLE_DEVICE && tud_cdc_connected() &&
+                tud_cdc_write_available() < CFG_TUD_CDC_TX_BUFSIZE) {
+                tud_cdc_write_flush();
+            }
+
+            LOOP_SECTION(15);
             // === PERFORMANCE MONITORING: Track loop worst-case time ===
             uint32_t loop_elapsed = time_us_32() - loop_start_time;
             if (loop_elapsed > g_loop_worst_case_us) {
@@ -3242,12 +4378,120 @@ public:
     }
     
     // Handle commands and send responses directly (single-core)
+    // Stop what the running script started (metros, input detectors, slopes,
+    // noise, clock coroutines) before another script runs
+    void stop_script_activity() {
+        Metro_stop_all();
+        for (int i = 0; i < 2; i++) {
+            Detect_none(Detect_ix_to_p(i));
+        }
+        for (int i = 0; i < 4; i++) {
+            S_toward(i, 0.0, 0.0, SHAPE_Linear, NULL);
+            g_noise_active[i] = false;
+            g_noise_gain[i] = 0;
+            g_noise_lock_counter[i] = 0;
+        }
+        g_noise_active_mask = 0;
+        clock_cancel_coro_all();
+        // Drop events the old script's detectors, metros and clocks queued
+        // before they stopped: the new script would get them before its
+        // init() (e.g. an input stream callback reading a table init() fills)
+        events_lockfree_clear();
+    }
+
+    // Clear the old script (its globals, then a full GC) and reset the crow
+    // modules (crow.reset), compiling no Lua: after a script ran the heap
+    // out, compiling even "crow.reset()" failed, so ^^k and uploads couldn't
+    // free anything and only a power cycle recovered
+    void reset_lua_script() {
+        lua_State* L = lua_manager->L;
+        l_crowlib_clear_user_globals(L);
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        lua_pushcfunction(L, l_crowlib_crow_reset);
+        if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
+            tud_cdc_write_str("crow.reset error: ");
+            const char* e = lua_tostring(L, -1);
+            tud_cdc_write_str(e ? e : "?");
+            tud_cdc_write_str("\n\r");
+            lua_pop(L, 1);
+        }
+    }
+
+    static int init_nop(lua_State* L) { (void)L; return 0; }
+
+    // init = a no-op, set raw (not one of the script's globals)
+    void reset_init() {
+        lua_State* L = lua_manager->L;
+        lua_pushglobaltable(L);
+        lua_pushliteral(L, "init");
+        lua_pushcfunction(L, init_nop);
+        lua_rawset(L, -3);
+        lua_pop(L, 1);
+    }
+
+    // Call the script's init(), if it has one
+    void call_init() {
+        lua_State* L = lua_manager->L;
+        lua_getglobal(L, "init");
+        if (!lua_isfunction(L, -1)) { lua_pop(L, 1); return; }
+        if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
+            tud_cdc_write_str("lua runtime error: ");
+            const char* e = lua_tostring(L, -1);
+            tud_cdc_write_str(e ? e : "?");
+            tud_cdc_write_str("\n\r");
+            lua_pop(L, 1);
+        }
+    }
+
+    // Run the uploaded script (^^e, ^^w) and call its init(). With
+    // save_to_flash, a script that ran is also saved, so it runs at boot; one
+    // that failed to evaluate isn't, so it can't replace a working script.
+    void run_uploaded_script(bool save_to_flash) {
+        stop_script_activity();
+        if (!lua_manager->evaluate_safe(g_new_script)) {
+            tud_cdc_write_str(save_to_flash ? "\\script evaluation failed, not saved to flash\n\r"
+                                            : "\\script evaluation failed\n\r");
+            return;
+        }
+        lua_gc(lua_manager->L, LUA_GCCOLLECT, 1);
+
+        if (save_to_flash) {
+            g_suppress_perf_warnings_until_us = time_us_32() + kFlashWriteQuietUs;
+            g_performance_warning = false;
+            if (FlashStorage::write_user_script_with_name(g_new_script, g_new_script_len, g_new_script_name)) {
+                char msg[96];
+                snprintf(msg, sizeof(msg), "User script saved to flash%s%s\n\r",
+                         g_new_script_name[0] ? ": " : "", g_new_script_name);
+                tud_cdc_write_str(msg);
+            } else {
+                tud_cdc_write_str("flash write failed\n\r");
+            }
+        }
+
+        // Real crow does NOT call crow.reset() before init() on script upload
+        call_init();
+        tud_cdc_write_str("^^ready()\n\r"); // Inform host that script is running
+    }
+
+    // Load First.lua (the default script) from compiled bytecode and run it
+    void load_first_lua() {
+        reset_lua_script();
+        if (luaL_loadbuffer(lua_manager->L, (const char*)First, First_len, "First.lua") != LUA_OK 
+            || lua_pcall(lua_manager->L, 0, 0, 0) != LUA_OK) {
+            tud_cdc_write_str(" Failed to load First.lua\n\r");
+        } else {
+            tud_cdc_write_str(" Loaded: First.lua (default)\n\r");
+            // Call init() like real crow does (no crow.reset() before init on startup)
+            call_init();
+        }
+    }
+
     void handle_command_with_response(C_cmd_t cmd)
     {
         switch (cmd) {
             case C_version: {
                 // Embed build date/time and debug format so a late serial connection can verify firmware
-                tud_cdc_write_str("^^version('blackbird-1.1')\n\r");
+                tud_cdc_write_str("^^version('blackbird-1.2')\n\r");
                 
                 break; }
                 
@@ -3320,24 +4564,12 @@ public:
                     // 4. Cancel all clock coroutines
                     clock_cancel_coro_all();
                     
-                    // 6. Reset crow modules to defaults (calls crow.reset() in Lua)
-                    lua_manager->evaluate_safe("if crow and crow.reset then crow.reset() end");
-                    
-                    // 7. Clear user globals using Crow's _user table approach
-                    lua_manager->evaluate_safe(
-                        "if _user then "
-                        "  for k,_ in pairs(_user) do "
-                        "    _G[k] = nil "
-                        "  end "
-                        "end "
-                        "_G._user = {}"
-                    );
+                    // 6. Clear the script's globals, then reset crow modules to
+                    // defaults (crow.reset), compiling no Lua (see reset_lua_script)
+                    reset_lua_script();
 
-                    // 8. Reset init() to nop_fn to prevent errors if new script doesn't define it
-                    lua_manager->evaluate_safe("init = nop_fn");
-                    
-                    // 8. Reset init() to empty function
-                    lua_manager->evaluate_safe("_G.init = function() end");
+                    // 7. Reset init() so a new script that doesn't define one is fine
+                    reset_init();
                     
                     // 9. Garbage collect twice for thorough cleanup
                     lua_gc(lua_manager->L, LUA_GCCOLLECT, 1);
@@ -3356,7 +4588,7 @@ public:
                 g_new_script_len = 0;
                 memset(g_new_script, 0, sizeof(g_new_script));
                 g_new_script_name[0] = '\0';  // Clear script name
-                lua_manager->evaluate_safe("crow.reset()"); // Reset crow state before upload
+                reset_lua_script(); // Reset crow state before upload (frees the old script's memory)
                 g_repl_mode = REPL_reception;
                 tud_cdc_write_str("script upload started\n\r");
                 
@@ -3366,55 +4598,7 @@ public:
                 if (g_repl_mode == REPL_discard) {
                     tud_cdc_write_str("upload failed, returning to normal mode\n\r");
                 } else if (g_new_script_len > 0 && lua_manager) {
-                    // Perform aggressive reset before loading new script (matches ^^k behavior)
-                    // This ensures a clean slate with no lingering state from previous script
-                    
-                    // 1. Stop all metros
-                    Metro_stop_all();
-                    
-                    // 2. Clear input detectors
-                    for (int i = 0; i < 2; i++) {
-                        Detect_none(Detect_ix_to_p(i));
-                    }
-                    
-                    // 3. Stop all output slopes
-                    for (int i = 0; i < 4; i++) {
-                        S_toward(i, 0.0, 0.0, SHAPE_Linear, NULL);
-                    }
-                    
-                    // 3b. Stop all noise modes
-                    for (int i = 0; i < 4; i++) {
-                        g_noise_active[i] = false;
-                        g_noise_gain[i] = 0;
-                        g_noise_lock_counter[i] = 0;
-                    }
-                    g_noise_active_mask = 0;  // Clear all bits in mask
-                    
-                    // 4. Cancel all clock coroutines
-                    // 3b. Stop all noise modes
-                    for (int i = 0; i < 4; i++) {
-                        g_noise_active[i] = false;
-                        g_noise_gain[i] = 0;
-                        g_noise_lock_counter[i] = 0;
-                    }
-                    g_noise_active_mask = 0;  // Clear all bits in mask
-                    
-                    // 4. Cancel all clock coroutines
-                    clock_cancel_coro_all();
-                    
-                    // Run script in RAM (temporary) - matches crow's REPL_upload(0)
-                    if (lua_manager->evaluate_safe(g_new_script)) {
-                        // Garbage collect for cleanup
-                        lua_gc(lua_manager->L, LUA_GCCOLLECT, 1);
-                        
-                        // Script loaded successfully - now call init() to start it (like Lua_crowbegin)
-                        // Real crow does NOT call crow.reset() before init() on script upload
-                        lua_manager->evaluate_safe("if init then init() end");
-                        tud_cdc_write_str("^^ready()\n\r"); // Inform host that script is running
-                        // Silent success - script is now running
-                    } else {
-                        tud_cdc_write_str("\\script evaluation failed\n\r");
-                    }
+                    run_uploaded_script(false);
                 } else {
                     tud_cdc_write_str("\\no script data received\n\r");
                 }
@@ -3423,53 +4607,14 @@ public:
                 break;
                 
             case C_flashupload: {
-                // Suppress perf warnings caused by upload/flash write stalls.
-                // Druid flow instructs user to reset after completion.
-                g_suppress_perf_warnings_until_us = time_us_32() + kResetIndicatorHoldUs;
-                g_performance_warning = false;
-
                 if (g_repl_mode == REPL_discard) {
                     tud_cdc_write_str("upload failed, discard mode\n\r");
-                    
                 } else if (g_new_script_len > 0 && lua_manager) {
-                    // Try to extract script name from first comment line
+                    // Like crow's ^^w: run the script, and save it to flash
+                    // only if it ran. No reset needed: core 1 runs from RAM
+                    // and keeps going through the flash write.
                     extract_script_name(g_new_script, g_new_script_len);
-                    
-                    // Run script AND save to flash - matches crow's REPL_upload(1)
-                    // Tell user to prepare for manual reset BEFORE we write to flash
-                    
-                    tud_cdc_write_str("\n\r");
-                    tud_cdc_write_str("========================================\n\r");
-                    
-                    if (g_new_script_name[0]) {
-                        char msg[64];
-                        snprintf(msg, sizeof(msg), "Writing %s to flash...\n\r", g_new_script_name);
-                        tud_cdc_write_str(msg);
-                    } else {
-                        tud_cdc_write_str("Writing script to flash...\n\r");
-                    }
-                    
-                    
-                    // Write to flash (this will reset core1, do the flash write, then restart core1)
-                    if (FlashStorage::write_user_script_with_name(g_new_script, g_new_script_len, g_new_script_name)) {
-                        // Give USB time to stabilize after core1 restart
-                        
-                        
-                        tud_cdc_write_str("User script saved to flash!\n\r");
-                        tud_cdc_write_str("\n\r");
-                        tud_cdc_write_str("Press the RESET button (next to card slot)\n\r");
-                        tud_cdc_write_str("on your Workshop Computer to load your script.\n\r");
-                        tud_cdc_write_str("========================================\n\r");
-                        tud_cdc_write_str("\n\r");
-
-                        // Light up all LEDs (and keep them lit) to indicate upload complete
-                        g_force_all_leds_on_until_us = time_us_32() + kResetIndicatorHoldUs;
-                        g_force_all_leds_armed = true;
-                        UpdateOutputLeds();
-                    } else {
-                        tud_cdc_write_str("flash write failed\n\r");
-                        
-                    }
+                    run_uploaded_script(true);
                 } else {
                     char debug_buf[128];
                     snprintf(debug_buf, sizeof(debug_buf), "no script data (len=%lu, lua_manager=%p)\n\r", 
@@ -3482,62 +4627,22 @@ public:
             }
                 
             case C_flashclear:
-                // Suppress perf warnings caused by flash erase/program stalls.
-                // Clear flow instructs user to reset after completion.
-                g_suppress_perf_warnings_until_us = time_us_32() + kResetIndicatorHoldUs;
+                g_suppress_perf_warnings_until_us = time_us_32() + kFlashWriteQuietUs;
                 g_performance_warning = false;
-
-                // Output status BEFORE flash operation (which disables interrupts)
-                
-                tud_cdc_write_str("\n\r");
-                tud_cdc_write_str("========================================\n\r");
-                tud_cdc_write_str("Clearing user script...\n\r");
-                
-                // Write to flash (this will disable interrupts briefly)
                 if (FlashStorage::set_default_script_mode()) {
-                    
                     tud_cdc_write_str("User script cleared!\n\r");
-                    
-                    
-                    // Reset Lua environment immediately (matches real crow behavior)
-                    // This will call crow.reset() which calls public.clear()
-                    // which sends ^^pub("_clear")
+                    // Back to the default script now, as after a reset
                     if (lua_manager) {
-                        // Call crow.reset() to clear state and trigger public.clear()
-                        lua_manager->evaluate_safe("if crow and crow.reset then crow.reset() end");
-                        
-                        // Call init() if it exists (but there's no user script now)
-                        lua_manager->evaluate_safe("if init then init() end");
+                        stop_script_activity();
+                        load_first_lua();
                     }
-                    
-                    tud_cdc_write_str("========================================\n\r");
-                    tud_cdc_write_str("Press the RESET button (next to card slot)\n\r");
-                    tud_cdc_write_str("on your Workshop Computer to finalize.\n\r");
-                    tud_cdc_write_str("\n\r");
-
-                    // Light up all LEDs (and keep them lit) to indicate operation complete
-                    g_force_all_leds_on_until_us = time_us_32() + kResetIndicatorHoldUs;
-                    g_force_all_leds_armed = true;
-                    UpdateOutputLeds();
-
                 } else {
                     tud_cdc_write_str("flash write failed\n\r");
-                    
                 }
                 break;
                 
             case C_loadFirst:
-                // Load First.lua from compiled bytecode
-                lua_manager->evaluate_safe("if crow and crow.reset then crow.reset() end");
-                
-                if (luaL_loadbuffer(lua_manager->L, (const char*)First, First_len, "First.lua") != LUA_OK 
-                    || lua_pcall(lua_manager->L, 0, 0, 0) != LUA_OK) {
-                    tud_cdc_write_str(" Failed to load First.lua\n\r");
-                } else {
-                    tud_cdc_write_str(" Loaded: First.lua (default)\n\r");
-                    // Call init() like real crow does (no crow.reset() before init on startup)
-                    lua_manager->evaluate_safe("if init then init() end");
-                }
+                load_first_lua();
                 break;
                 
             default:
@@ -3583,7 +4688,7 @@ public:
     
     // ULTRA-LIGHTWEIGHT audio callback - ONLY READ INPUTS!
     // NO output processing in ISR - prevents multiplexer misalignment
-    virtual void ProcessSample() override
+    virtual void __not_in_flash("ProcessSample") ProcessSample() override
     {
         // Performance monitoring: capture start time (low-cost)
         uint32_t start_time = time_us_32();
@@ -3743,7 +4848,7 @@ public:
         
         // === PERFORMANCE MONITORING (low-cost) ===
         // Check if ProcessSample exceeded time budget
-        // Each sample has a budget of kProcessSampleBudgetUs (≈104us at 9.6kHz); only >=100% counts as an overrun
+        // Each sample has a budget of kProcessSampleBudgetUs (≈42us at 24kHz); only >=100% counts as an overrun
         uint32_t elapsed = time_us_32() - start_time;
         
         // Always track worst-case execution time (available via perf_stats())
@@ -3766,6 +4871,370 @@ public:
         }
     }
 };
+
+#ifdef BB_DEBUG_HARNESS
+#include <malloc.h>   // mallinfo
+#include <unistd.h>   // sbrk
+// ============================================================================
+// DEBUG HARNESS (debug builds only: make debug)
+// ============================================================================
+// A mailbox in RAM that a host reads and writes over SWD (OpenOCD) while the
+// card runs, without halting it. util/bbdbg.py is the host side; keep its
+// layout constants in step with this struct (checked by the static_asserts).
+//
+// Host -> card: write script/script_len/cmd, then increment cmd_seq. Core 0
+// runs the command from MainControlLoop and sets ack_seq = cmd_seq when done.
+// Card -> host: stats are refreshed every main loop iteration; all USB CDC
+// output is mirrored into the log ring (log_head counts bytes ever written).
+
+#define BB_DBG_MAGIC       0x47444242u  // "BBDG"
+#define BB_DBG_VERSION     14u
+#define BB_DBG_SCRIPT_MAX  2048
+#define BB_DBG_OUT_MAX     1024
+#define BB_DBG_LOG_MAX     2048         // power of two
+#define BB_DBG_ALLOC_BUCKETS 24         // 8-byte steps to 128, then 192, 256, 512, 1K, 2K, 4K, more
+
+enum {
+    BB_DBG_CMD_NONE = 0,
+    BB_DBG_CMD_EVAL = 1,        // run script as a Lua chunk; print() and results -> out
+    BB_DBG_CMD_REPL = 2,        // feed script into the USB REPL path, as if druid sent it
+    BB_DBG_CMD_RESET_STATS = 3, // zero worst-case / overrun / loop counters
+};
+
+enum {
+    BB_DBG_OK = 0,
+    BB_DBG_ERR_LOAD = 1,        // Lua syntax error (message in out)
+    BB_DBG_ERR_RUNTIME = 2,     // Lua runtime error (message in out)
+    BB_DBG_ERR_BAD_CMD = 3,
+    BB_DBG_ERR_NO_LUA = 4,
+};
+
+typedef struct {
+    // --- identification (constant) ---
+    uint32_t magic;
+    uint32_t version;
+    uint32_t struct_size;
+    uint32_t sample_rate_hz;
+    // --- stats (card -> host) ---
+    uint32_t heartbeat;            // MainControlLoop iterations since boot
+    uint32_t uptime_ms;
+    uint32_t ps_worst_us;          // ProcessSample worst case since reset
+    uint32_t ps_overruns;          // ProcessSample runs over the per-sample budget
+    uint32_t ps_budget_us;
+    uint32_t loop_worst_us;        // MainControlLoop worst iteration since reset
+    uint32_t loop_iterations;      // since reset
+    uint32_t lua_mem_bytes;
+    uint32_t lua_mem_peak_bytes;   // since reset
+    uint32_t drops_metro;
+    uint32_t drops_clock;
+    uint32_t drops_input;
+    uint32_t drops_asl_done;
+    uint32_t drops_slope_action;
+    uint32_t drops_slope_cmd;
+    uint32_t drops_usb_rx;
+    uint32_t heap_free_bytes;      // C heap free: unallocated top + free chunks (refreshed ~10Hz)
+    uint32_t lua_alloc_failures;   // failed Lua allocations (each retried after an emergency GC)
+    uint32_t drops_usb_tx;         // USB serial writes dropped whole (host not draining)
+    uint32_t out_changes[4];       // times each output's value changed, seen at main loop rate
+    uint32_t drops_midi_echo;      // MIDI echoes to the host dropped (paced queue full)
+    uint32_t pool_pages;           // Lua small-object pool: 1KB pages held
+    uint32_t pool_slot_bytes;      // bytes in pool slots handed out
+    uint32_t pool_capacity_bytes;  // bytes in all pool slots
+    uint32_t pool_arena_free_pages; // pool arena pages not in use
+    uint32_t core1_isr_cycles;     // audio ISR cycles, total (wraps; take differences)
+    uint32_t core1_isr_count;      // audio ISR runs
+    uint32_t core1_isr_max_cycles; // longest audio ISR, cycles
+    uint32_t core1_idle_cycles;    // core 1 cycles idle in its background loop (wraps)
+    uint32_t slope_underruns;      // output samples rendered in the ISR because a buffer ran dry
+    uint32_t slope_actions;        // ASL segment-end callbacks core 1 queued for core 0 (wraps)
+    uint32_t cv_pwm_wraps;         // CV output PWM updates run (one per 10.4us PWM period if none missed; wraps)
+    uint32_t reserved[1];         // room for more stats without moving the mailbox
+    // --- command mailbox ---
+    uint32_t cmd_seq;              // host increments to submit
+    uint32_t cmd;
+    uint32_t ack_seq;              // card sets to cmd_seq when done
+    int32_t  status;
+    uint32_t script_len;
+    uint32_t out_len;
+    uint32_t out_truncated;
+    uint32_t log_head;             // total bytes ever written to log (ring index = head % LOG_MAX)
+    ComputerCard::InputOverrides inputs;
+    char script[BB_DBG_SCRIPT_MAX];
+    char out[BB_DBG_OUT_MAX];
+    char log[BB_DBG_LOG_MAX];
+    // Lua allocation sizes, per bucket (see bb_dbg_alloc_bucket): live
+    // objects, their bytes, and allocations ever made
+    uint32_t alloc_live[BB_DBG_ALLOC_BUCKETS];
+    uint32_t alloc_live_bytes[BB_DBG_ALLOC_BUCKETS];
+    uint32_t alloc_total[BB_DBG_ALLOC_BUCKETS];
+    uint32_t loop_section_max_us[BB_LOOP_SECTIONS];  // worst time per MainControlLoop section
+} bb_dbg_t;
+
+static_assert(offsetof(bb_dbg_t, heartbeat) == 16, "bbdbg.py layout");
+static_assert(offsetof(bb_dbg_t, cmd_seq) == 160, "bbdbg.py layout");
+static_assert(offsetof(bb_dbg_t, inputs) == 192, "bbdbg.py layout");
+static_assert(sizeof(ComputerCard::InputOverrides) == 10 * 24 + 8, "bbdbg.py layout");
+static_assert(offsetof(bb_dbg_t, script) == 192 + 248, "bbdbg.py layout");
+static_assert((BB_DBG_LOG_MAX & (BB_DBG_LOG_MAX - 1)) == 0, "log ring must be a power of two");
+
+extern "C" {
+__attribute__((used)) volatile bb_dbg_t bb_dbg;
+}
+
+// REPL injection progress (bytes of script already posted to the RX queue)
+static uint32_t g_bb_dbg_repl_pos = 0;
+static bool g_bb_dbg_busy = false;
+
+static uint32_t bb_dbg_alloc_bucket(size_t size) {
+    if (size <= 128) return size == 0 ? 0 : (uint32_t)((size - 1) >> 3);  // 0..15
+    if (size <= 192) return 16;
+    if (size <= 256) return 17;
+    if (size <= 512) return 18;
+    if (size <= 1024) return 19;
+    if (size <= 2048) return 20;
+    if (size <= 4096) return 21;
+    return 22;
+}
+
+static void bb_dbg_alloc_note(size_t size, int dir) {
+    uint32_t b = bb_dbg_alloc_bucket(size);
+    if (dir > 0) {
+        bb_dbg.alloc_live[b] = bb_dbg.alloc_live[b] + 1;
+        bb_dbg.alloc_live_bytes[b] = bb_dbg.alloc_live_bytes[b] + (uint32_t)size;
+        bb_dbg.alloc_total[b] = bb_dbg.alloc_total[b] + 1;
+    } else {
+        bb_dbg.alloc_live[b] = bb_dbg.alloc_live[b] - 1;
+        bb_dbg.alloc_live_bytes[b] = bb_dbg.alloc_live_bytes[b] - (uint32_t)size;
+    }
+}
+
+static void bb_dbg_out_append(const char* s, size_t n) {
+    uint32_t len = bb_dbg.out_len;
+    if (len + n > BB_DBG_OUT_MAX) {
+        n = BB_DBG_OUT_MAX - len;
+        bb_dbg.out_truncated = 1;
+    }
+    memcpy((char*)bb_dbg.out + len, s, n);
+    bb_dbg.out_len = len + n;
+}
+
+// Mirror of all USB CDC output, called from __wrap_tud_cdc_n_write
+static void bb_dbg_log_mirror(const void* buffer, uint32_t size) {
+    const char* p = (const char*)buffer;
+    uint32_t head = bb_dbg.log_head;
+    for (uint32_t i = 0; i < size; i++) {
+        bb_dbg.log[(head + i) & (BB_DBG_LOG_MAX - 1)] = p[i];
+    }
+    __dmb();
+    bb_dbg.log_head = head + size;
+}
+
+// bb_dbg_us(): microsecond timer for latency tests. Wraps every ~71 minutes;
+// differences of two readings are right (as 32-bit integers) for ~35 minutes.
+static int bb_dbg_us(lua_State* L) {
+    lua_pushinteger(L, (lua_Integer)time_us_32());
+    return 1;
+}
+
+// print() replacement while a BB_DBG_CMD_EVAL chunk runs
+static int bb_dbg_print(lua_State* L) {
+    int n = lua_gettop(L);
+    for (int i = 1; i <= n; i++) {
+        size_t len;
+        const char* s = luaL_tolstring(L, i, &len);
+        if (i > 1) bb_dbg_out_append("\t", 1);
+        bb_dbg_out_append(s, len);
+        lua_pop(L, 1);
+    }
+    bb_dbg_out_append("\n", 1);
+    return 0;
+}
+
+static int32_t bb_dbg_eval(lua_State* L) {
+    int top = lua_gettop(L);
+
+    // Swap print for the capturing version. rawset, so _G's newindex
+    // tracking of user globals (crow.reset) never sees it.
+    lua_pushglobaltable(L);
+    lua_getfield(L, -1, "print");
+    int saved_print = lua_gettop(L);
+    lua_pushliteral(L, "print");
+    lua_pushcfunction(L, bb_dbg_print);
+    lua_rawset(L, top + 1);
+
+    int32_t status = BB_DBG_OK;
+    output_batch_begin();
+    if (luaL_loadbuffer(L, (const char*)bb_dbg.script, bb_dbg.script_len, "=bbdbg") != LUA_OK) {
+        status = BB_DBG_ERR_LOAD;
+    } else if (lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK) {
+        status = BB_DBG_ERR_RUNTIME;
+    }
+    output_batch_flush();
+
+    if (status != BB_DBG_OK) {
+        size_t len;
+        const char* err = lua_tolstring(L, -1, &len);
+        if (err) bb_dbg_out_append(err, len);
+    } else if (lua_gettop(L) > saved_print) {
+        // Like the REPL, show returned values
+        lua_pushcfunction(L, bb_dbg_print);
+        lua_insert(L, saved_print + 1);
+        lua_call(L, lua_gettop(L) - saved_print - 1, 0);
+    }
+
+    lua_settop(L, saved_print);
+    lua_pushliteral(L, "print");
+    lua_insert(L, -2);
+    lua_rawset(L, top + 1);
+    lua_settop(L, top);
+    return status;
+}
+
+// Feed script bytes into the USB RX queue in 64-byte packets, a few per call,
+// so MainControlLoop processes them exactly as it would bytes from druid.
+// Returns true once everything has been posted and processed.
+static bool bb_dbg_repl_step(void) {
+    const uint32_t kPacket = 64;
+    uint32_t len = bb_dbg.script_len;
+    for (int i = 0; i < 4 && g_bb_dbg_repl_pos < len; i++) {
+        if (usb_rx_lockfree_pending_count() >= USB_RX_QUEUE_SIZE - 2) break;
+        uint32_t n = len - g_bb_dbg_repl_pos;
+        if (n > kPacket) n = kPacket;
+        usb_rx_lockfree_post((const char*)bb_dbg.script + g_bb_dbg_repl_pos, (uint16_t)n);
+        g_bb_dbg_repl_pos += n;
+    }
+    return g_bb_dbg_repl_pos >= len && usb_rx_lockfree_pending_count() == 0;
+}
+
+static void bb_dbg_reset_stats(void) {
+    ComputerCard::profileIsrMaxCycles = 0;
+    for (int i = 0; i < BB_LOOP_SECTIONS; i++) g_loop_section_max_us[i] = 0;
+    g_worst_case_us = 0;
+    g_overrun_count = 0;
+    g_loop_worst_case_us = 0;
+    g_loop_iteration_count = 0;
+    bb_dbg.lua_mem_peak_bytes = 0;
+}
+
+static void bb_dbg_update_stats(lua_State* L) {
+    bb_dbg.heartbeat = bb_dbg.heartbeat + 1;
+    bb_dbg.uptime_ms = clock_ms_since_boot();
+    bb_dbg.ps_worst_us = g_worst_case_us;
+    bb_dbg.ps_overruns = g_overrun_count;
+    bb_dbg.loop_worst_us = g_loop_worst_case_us;
+    bb_dbg.loop_iterations = g_loop_iteration_count;
+    if (L) {
+        uint32_t mem = (uint32_t)lua_gc(L, LUA_GCCOUNT, 0) * 1024u + (uint32_t)lua_gc(L, LUA_GCCOUNTB, 0);
+        bb_dbg.lua_mem_bytes = mem;
+        if (mem > bb_dbg.lua_mem_peak_bytes) bb_dbg.lua_mem_peak_bytes = mem;
+    }
+    bb_dbg.drops_metro = metro_events_dropped_count();
+    bb_dbg.drops_clock = clock_events_dropped_count();
+    bb_dbg.drops_input = input_events_dropped_count();
+    bb_dbg.drops_asl_done = asl_done_events_dropped_count();
+    bb_dbg.drops_slope_action = g_slope_action_drop_count;
+    bb_dbg.drops_slope_cmd = S_get_cmd_drop_count();
+    bb_dbg.drops_usb_rx = usb_rx_lockfree_drop_count();
+    bb_dbg.lua_alloc_failures = g_lua_alloc_failures;
+    bb_dbg.drops_usb_tx = g_usb_tx_dropped;
+    bb_dbg.drops_midi_echo = g_midi_echo_dropped;
+    lua_pool_stats_t pool;
+    lua_pool_get_stats(&pool);
+    bb_dbg.pool_pages = pool.pages;
+    bb_dbg.pool_slot_bytes = pool.slot_bytes;
+    bb_dbg.pool_capacity_bytes = pool.capacity_bytes;
+    bb_dbg.pool_arena_free_pages = pool.arena_free_pages;
+    bb_dbg.core1_isr_cycles = ComputerCard::profileIsrCycles;
+    bb_dbg.core1_isr_count = ComputerCard::profileIsrCount;
+    bb_dbg.core1_isr_max_cycles = ComputerCard::profileIsrMaxCycles;
+    bb_dbg.core1_idle_cycles = g_core1_idle_cycles;
+    bb_dbg.slope_underruns = g_slope_inline_renders;
+    bb_dbg.slope_actions = g_slope_action_count;
+    bb_dbg.cv_pwm_wraps = ComputerCard::profilePwmWraps;
+    for (int i = 0; i < BB_LOOP_SECTIONS; i++) bb_dbg.loop_section_max_us[i] = g_loop_section_max_us[i];
+
+    static int32_t last_out_mv[4];
+    for (int ch = 0; ch < 4; ch++) {
+        int32_t mv = g_output_state_mv[ch];
+        if (mv != last_out_mv[ch]) {
+            last_out_mv[ch] = mv;
+            bb_dbg.out_changes[ch] = bb_dbg.out_changes[ch] + 1;
+        }
+    }
+
+    static uint32_t last_heap_ms = 0;
+    uint32_t now_ms = bb_dbg.uptime_ms;
+    if (now_ms - last_heap_ms >= 100) {
+        last_heap_ms = now_ms;
+        extern char __HeapLimit;
+        struct mallinfo mi = mallinfo();
+        char* top = (char*)sbrk(0);
+        bb_dbg.heap_free_bytes = (uint32_t)mi.fordblks + (uint32_t)(&__HeapLimit - top);
+    }
+}
+
+static void bb_dbg_init(ComputerCard* card) {
+    // Everything but the allocation histogram, which already holds the Lua
+    // state's boot-time allocations (bb_dbg starts zeroed, in .bss)
+    memset((void*)&bb_dbg, 0, offsetof(bb_dbg_t, alloc_live));
+    bb_dbg.version = BB_DBG_VERSION;
+    bb_dbg.struct_size = sizeof(bb_dbg_t);
+    bb_dbg.sample_rate_hz = PROCESS_SAMPLE_RATE_HZ_INT;
+    bb_dbg.ps_budget_us = kProcessSampleOverrunThresholdUs;
+    __dmb();
+    card->SetInputOverrides((ComputerCard::InputOverrides*)&bb_dbg.inputs);
+    bb_dbg.magic = BB_DBG_MAGIC;  // last, so the host never sees a half-initialised mailbox
+}
+
+// Called once per MainControlLoop iteration (core 0, same thread as Lua)
+static void bb_dbg_service(lua_State* L) {
+    bb_dbg_update_stats(L);
+
+    static bool lua_helpers_installed = false;
+    if (L && !lua_helpers_installed) {
+        // rawset, so crow.reset()/^^k (which clear tracked user globals) keep it
+        lua_pushglobaltable(L);
+        lua_pushliteral(L, "bb_dbg_us");
+        lua_pushcfunction(L, bb_dbg_us);
+        lua_rawset(L, -3);
+        lua_pop(L, 1);
+        lua_helpers_installed = true;
+    }
+
+    uint32_t seq = bb_dbg.cmd_seq;
+    if (seq == bb_dbg.ack_seq) return;
+    __dmb();  // read the command after seeing the new sequence number
+
+    int32_t status = BB_DBG_OK;
+    if (!g_bb_dbg_busy) {
+        g_bb_dbg_busy = true;
+        g_bb_dbg_repl_pos = 0;
+        bb_dbg.out_len = 0;
+        bb_dbg.out_truncated = 0;
+        if (bb_dbg.script_len > BB_DBG_SCRIPT_MAX) bb_dbg.script_len = BB_DBG_SCRIPT_MAX;
+    }
+
+    switch (bb_dbg.cmd) {
+        case BB_DBG_CMD_EVAL:
+            status = L ? bb_dbg_eval(L) : BB_DBG_ERR_NO_LUA;
+            break;
+        case BB_DBG_CMD_REPL:
+            if (!bb_dbg_repl_step()) return;  // more to feed next iteration
+            break;
+        case BB_DBG_CMD_RESET_STATS:
+            bb_dbg_reset_stats();
+            break;
+        default:
+            status = BB_DBG_ERR_BAD_CMD;
+            break;
+    }
+
+    g_bb_dbg_busy = false;
+    bb_dbg.status = status;
+    __dmb();  // results visible before the ack
+    bb_dbg.ack_seq = seq;
+}
+#endif // BB_DEBUG_HARNESS
 
 // Static wrapper function implementations (after BlackbirdCrow class is fully defined)
 static void handle_usb_command(const char* command) {
@@ -3802,6 +5271,11 @@ static bool is_pulse_input_connected(int pulse_idx) {
 // If any clock-mode input is enabled *and* the normalization probe reports it connected, use external (CROW) clock.
 // Otherwise, fall back to internal clock so clock.tempo / internal timing works again.
 static void auto_update_clock_source_from_connections(void) {
+    // Respect manual clock source selection (e.g., MIDI clock)
+    if (clock_is_source_manual()) {
+        return;
+    }
+
     static bool using_external = false;
 
     BlackbirdCrow* card = (BlackbirdCrow*)g_blackbird_instance;
@@ -3987,10 +5461,7 @@ int LuaManager::lua_LL_set_volts(lua_State* L) {
     casl_cleardynamics(idx);
 
     Shape_t shape = S_str_to_shape(shape_str);
-    casl_describe_to_literal_q16(idx,
-                                FLOAT_TO_Q16(volts),
-                                FLOAT_TO_Q16(slew_seconds),
-                                shape);
+    casl_describe_to_literal(idx, volts, slew_seconds, shape);
 
     // Match lua_casl_action noise-clearing behavior (LL_set_volts bypasses lua_casl_action).
     if (idx >= 0 && idx < 4 && g_noise_active[idx]) {
@@ -4962,43 +6433,50 @@ int LuaManager::lua_set_input_none(lua_State* L) {
 
 // Metro system Lua bindings implementation
 
-// metro_start(id, time) - Start a metro with specified interval
+// Lua numbers metros from 1 (metro[1]..metro[8]), the C side from 0, as crow.
+
+// metro_start(id, time, count, stage) - Start a metro: tick every `time` seconds,
+// `count` times (negative: forever), numbering ticks from `stage`
 int LuaManager::lua_metro_start(lua_State* L) {
-    int id = luaL_checkinteger(L, 1);
+    int ix = (int)luaL_checkinteger(L, 1) - 1;
     float time = (float)luaL_checknumber(L, 2);
-    
+    int count = (int)luaL_optinteger(L, 3, -1);
+    int stage = (int)luaL_optinteger(L, 4, 1);
+
     // Set time first, then start (crow-style)
-    Metro_set_time(id, time);
-    Metro_start(id);
+    Metro_set_time(ix, time);
+    Metro_set_count(ix, count);
+    Metro_set_stage(ix, stage);
+    Metro_start(ix);
     return 0;
 }
 
 // metro_stop(id) - Stop a metro
 int LuaManager::lua_metro_stop(lua_State* L) {
-    int id = luaL_checkinteger(L, 1);
-    
+    int ix = (int)luaL_checkinteger(L, 1) - 1;
+
     // Call C metro backend
-    Metro_stop(id);
+    Metro_stop(ix);
     return 0;
 }
 
 // metro_set_time(id, time) - Change metro interval
 int LuaManager::lua_metro_set_time(lua_State* L) {
-    int id = luaL_checkinteger(L, 1);
+    int ix = (int)luaL_checkinteger(L, 1) - 1;
     float time = (float)luaL_checknumber(L, 2);
-    
+
     // Call C metro backend
-    Metro_set_time(id, time);
+    Metro_set_time(ix, time);
     return 0;
 }
 
 // metro_set_count(id, count) - Set metro repeat count
 int LuaManager::lua_metro_set_count(lua_State* L) {
-    int id = luaL_checkinteger(L, 1);
+    int ix = (int)luaL_checkinteger(L, 1) - 1;
     int count = luaL_checkinteger(L, 2);
-    
+
     // Call C metro backend
-    Metro_set_count(id, count);
+    Metro_set_count(ix, count);
     return 0;
 }
 
@@ -5066,10 +6544,27 @@ int LuaManager::lua_clock_get_tempo(lua_State* L) {
     return 1;
 }
 
+// clock_get_source() - Get current clock source (1-based: 1=internal,2=MIDI,3=LINK,4=CROW)
+int LuaManager::lua_clock_get_source(lua_State* L) {
+    lua_pushinteger(L, (lua_Integer)(clock_get_source() + 1));
+    return 1;
+}
+
 // clock_set_source(source) - Set clock source (1-based in Lua)
 int LuaManager::lua_clock_set_source(lua_State* L) {
     int source = (int)luaL_checkinteger(L, 1);
-    clock_set_source((clock_source_t)(source - 1)); // Convert to 0-based
+    if (source <= 0) {
+        clock_set_source_auto_mode();
+        clock_set_source(CLOCK_SOURCE_INTERNAL);
+        midi_clock_reset_state();
+    } else {
+        clock_source_t src = (clock_source_t)(source - 1);
+        if (src < 0 || src >= CLOCK_SOURCE_LIST_LENGTH) {
+            return luaL_error(L, "clock source out of range");
+        }
+        clock_set_source_manual(src);
+        midi_clock_reset_state();
+    }
     lua_pop(L, 1);
     return 0;
 }
@@ -5085,7 +6580,7 @@ int LuaManager::lua_clock_internal_set_tempo(lua_State* L) {
 // clock_internal_start(new_beat) - Start internal clock at specified beat
 int LuaManager::lua_clock_internal_start(lua_State* L) {
     float new_beat = (float)luaL_checknumber(L, 1);
-    clock_set_source(CLOCK_SOURCE_INTERNAL);
+    clock_set_source_manual(CLOCK_SOURCE_INTERNAL);
     clock_internal_start(new_beat, true);
     lua_pop(L, 1);
     return 0;
@@ -5093,7 +6588,7 @@ int LuaManager::lua_clock_internal_start(lua_State* L) {
 
 // clock_internal_stop() - Stop internal clock
 int LuaManager::lua_clock_internal_stop(lua_State* L) {
-    clock_set_source(CLOCK_SOURCE_INTERNAL);
+    clock_set_source_manual(CLOCK_SOURCE_INTERNAL);
     clock_internal_stop();
     return 0;
 }
@@ -5241,41 +6736,95 @@ int LuaManager::lua_tell(lua_State* L) {
     int nargs = lua_gettop(L);
     
     // Need at least the event name
-    if (nargs == 0) {
-        return luaL_error(L, "tell: no event name provided");
+    if (nargs < 1) {
+        lua_settop(L, 0);
+        return 0;
     }
-    
-    switch(nargs) {
-        case 1:
-            Caw_printf("^^%s()", luaL_checkstring(L, 1));
-            break;
-        case 2:
-            Caw_printf("^^%s(%s)", luaL_checkstring(L, 1),
-                                   luaL_checkstring(L, 2));
-            break;
-        case 3:
-            Caw_printf("^^%s(%s,%s)", luaL_checkstring(L, 1),
-                                      luaL_checkstring(L, 2),
-                                      luaL_checkstring(L, 3));
-            break;
-        case 4:
-            Caw_printf("^^%s(%s,%s,%s)", luaL_checkstring(L, 1),
-                                         luaL_checkstring(L, 2),
-                                         luaL_checkstring(L, 3),
-                                         luaL_checkstring(L, 4));
-            break;
-        case 5:
-            Caw_printf("^^%s(%s,%s,%s,%s)", luaL_checkstring(L, 1),
-                                            luaL_checkstring(L, 2),
-                                            luaL_checkstring(L, 3),
-                                            luaL_checkstring(L, 4),
-                                            luaL_checkstring(L, 5));
-            break;
-        default:
-            return luaL_error(L, "tell: too many arguments (max 5)");
+
+    const char* event_type = luaL_checkstring(L, 1);
+
+    // Preserve existing arity cap; avoid allocating an error string in low-memory conditions.
+    if (nargs > 5) {
+        nargs = 5;
     }
-    
-    lua_pop(L, nargs);
+
+    if (!tud_cdc_connected()) {
+        lua_settop(L, 0);
+        return 0;
+    }
+
+    // Format: ^^event_type(arg1,arg2,...)
+    // Accept numbers/booleans directly to avoid per-call tostring() allocations in Lua.
+    char msg[240];
+    int pos = snprintf(msg, sizeof(msg), "^^%s(", event_type);
+    if (pos < 0) {
+        lua_settop(L, 0);
+        return 0;
+    }
+
+    for (int i = 2; i <= nargs; i++) {
+        if (i > 2) {
+            if (pos < (int)sizeof(msg) - 1) msg[pos++] = ',';
+        }
+
+        char numbuf[32];
+        const char* arg = NULL;
+        int t = lua_type(L, i);
+        switch (t) {
+            case LUA_TSTRING:
+                arg = lua_tostring(L, i);
+                break;
+            case LUA_TNUMBER:
+                if (lua_isinteger(L, i)) {
+                    snprintf(numbuf, sizeof(numbuf), "%lld", (long long)lua_tointeger(L, i));
+                } else {
+                    snprintf(numbuf, sizeof(numbuf), "%g", (double)lua_tonumber(L, i));
+                }
+                arg = numbuf;
+                break;
+            case LUA_TBOOLEAN:
+                arg = lua_toboolean(L, i) ? "1" : "0";
+                break;
+            case LUA_TNIL:
+                arg = "nil";
+                break;
+            case LUA_TTABLE:
+                arg = "[table]";
+                break;
+            default:
+                arg = luaL_typename(L, i);
+                break;
+        }
+
+        if (!arg) arg = "";
+        int remaining = (int)sizeof(msg) - pos;
+        if (remaining <= 1) {
+            break;
+        }
+        int w = snprintf(msg + pos, (size_t)remaining, "%s", arg);
+        if (w < 0) {
+            break;
+        }
+        if (w >= remaining) {
+            pos = (int)sizeof(msg) - 1;
+            break;
+        }
+        pos += w;
+    }
+
+    if (pos < (int)sizeof(msg) - 3) {
+        msg[pos++] = ')';
+        msg[pos++] = '\n';
+        msg[pos++] = '\r';
+        msg[pos] = '\0';
+    } else {
+        msg[sizeof(msg) - 3] = '\n';
+        msg[sizeof(msg) - 2] = '\r';
+        msg[sizeof(msg) - 1] = '\0';
+        pos = (int)sizeof(msg) - 1;
+    }
+
+    tud_cdc_write(msg, (uint32_t)(pos - 1));
     lua_settop(L, 0);
     return 0;
 }
@@ -5720,11 +7269,14 @@ extern "C" lua_State* get_lua_state(void) {
 BlackbirdCrow crow;
 
 // Simple MIDI-style LED animation while waiting for USB host connection
+// Device mode: around-the-world loop. Host mode: top-to-bottom sweep.
 static void usb_wait_led_step() {
-    static const uint8_t led_path[] = {0, 1, 3, 5, 4, 2};
+    static const uint8_t device_path[] = {0, 1, 3, 5, 4, 2};
+    static const uint8_t host_path[]   = {0, 2, 4, 1, 3, 5};
     static size_t path_index = 0;
     static int last_led = -1;
     static uint64_t last_step_us = 0;
+    static UsbRole last_role = USB_ROLE_DEVICE;
 
     uint64_t now = time_us_64();
     if (now - last_step_us < 50000) {
@@ -5732,15 +7284,30 @@ static void usb_wait_led_step() {
     }
     last_step_us = now;
 
+    // Reset animation when role changes
+    if (g_usb_role != last_role) {
+        path_index = 0;
+        if (last_led >= 0) {
+            crow.IndicatorLedOff(last_led);
+            last_led = -1;
+        }
+        last_role = g_usb_role;
+    }
+
+    const uint8_t* path = (g_usb_role == USB_ROLE_HOST) ? host_path : device_path;
+    size_t path_len = (g_usb_role == USB_ROLE_HOST)
+        ? (sizeof(host_path) / sizeof(host_path[0]))
+        : (sizeof(device_path) / sizeof(device_path[0]));
+
     if (last_led >= 0) {
         crow.IndicatorLedOff(last_led);
     }
 
-    int current_led = led_path[path_index];
+    int current_led = path[path_index];
     crow.IndicatorLedOn(current_led);
     last_led = current_led;
 
-    path_index = (path_index + 1) % (sizeof(led_path) / sizeof(led_path[0]));
+    path_index = (path_index + 1) % path_len;
 }
 
 static void usb_wait_led_clear() {
@@ -5823,7 +7390,7 @@ extern "C" {
         // Force flush loop - keep servicing USB tasks to push data out
         uint32_t timeout = 0;
         while (tud_cdc_write_available() < 256 && timeout < 100000) {
-            tud_task();
+            usb_task();
             sleep_us(100);
             timeout++;
         }
@@ -5847,22 +7414,56 @@ extern "C" {
 
 int main()
 {
-    set_sys_clock_khz(200000, true);
+    // Match MLRws: raise core voltage for overclock margin, let it settle, then 192MHz
+    vreg_set_voltage(VREG_VOLTAGE_1_20);
+    sleep_ms(10);
+    set_sys_clock_khz(192000, true);
 
-    // Initialize TinyUSB (replaces stdio_init_all)
-    tusb_init();
+    // Decide USB role based on power orientation with a short debounce
+    sleep_us(150000);
+#if TUSB_OPT_HOST_ENABLED
+    ComputerCard::USBPowerState_t ps1 = crow.GetUSBPowerState();
+    sleep_us(50000); // allow the hardware switch to settle
+    ComputerCard::USBPowerState_t ps2 = crow.GetUSBPowerState();
+    g_usb_power_state = ps2;
+    bool dfp_confident = (ps1 == ComputerCard::DFP) && (ps2 == ComputerCard::DFP);
+    g_usb_role = dfp_confident ? USB_ROLE_HOST : USB_ROLE_DEVICE;
+#else
+    g_usb_power_state = ComputerCard::Unsupported;
+    g_usb_role = USB_ROLE_DEVICE; // force device when host stack is disabled
+#endif
+
+    // Initialize TinyUSB stack according to role
+    if (g_usb_role == USB_ROLE_DEVICE) {
+        const tusb_rhport_init_t dev_init = { .role = TUSB_ROLE_DEVICE, .speed = TUSB_SPEED_FULL };
+        tusb_init(BOARD_DEVICE_RHPORT_NUM, &dev_init);
+    } else {
+#if TUSB_OPT_HOST_ENABLED
+        const tusb_rhport_init_t host_init = { .role = TUSB_ROLE_HOST, .speed = TUSB_SPEED_FULL };
+        tusb_init(BOARD_DEVICE_RHPORT_NUM, &host_init);
+#endif
+    }
     
     // Disable stdio buffering for immediate console output
     setvbuf(stdout, NULL, _IONBF, 0);
     
-    // Wait briefly (up to 1500ms) for a USB serial host to connect so the boot banner is visible
-    {
-        absolute_time_t until = make_timeout_time_ms(1500);
+    // Wait for initial USB activity; some hosts (e.g., larger audio/MIDI devices) can take a few seconds
+    if (g_usb_role == USB_ROLE_DEVICE) {
+        absolute_time_t until = make_timeout_time_ms(2000);
         while (!tud_cdc_connected() && absolute_time_diff_us(get_absolute_time(), until) > 0) {
-            tud_task();  // Must service TinyUSB while waiting
+            usb_task();  // Must service TinyUSB while waiting
             usb_wait_led_step();
             tight_loop_contents();
         }
+    } else {
+#if TUSB_OPT_HOST_ENABLED
+        absolute_time_t until = make_timeout_time_ms(2000);
+        while (absolute_time_diff_us(get_absolute_time(), until) > 0) {
+            tuh_task();
+            usb_wait_led_step(); // host-specific animation path
+            tight_loop_contents();
+        }
+#endif
     }
 
     usb_wait_led_clear();

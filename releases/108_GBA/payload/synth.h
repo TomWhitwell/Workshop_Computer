@@ -244,6 +244,8 @@ extern uint8_t  g_chOrnStep[4];
 extern uint8_t  g_anyNoteOn;
 extern uint8_t  g_btnTrigHeld;
 extern uint8_t  g_drumHit[DRUM_SRC_COUNT];   // counts down after a hit; lights the DRUM page
+// The control tick's wall time against its ~1 ms period, percent x 16 (CAL page, TICK LOAD).
+extern volatile uint16_t g_tickAvg, g_tickPeak;
 
 extern const uint16_t ENV_MS[16];
 

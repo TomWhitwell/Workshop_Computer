@@ -1,0 +1,5 @@
+{
+ "title": "First.lua",
+ "inputs": {"cv_1": "Clock", "cv_2": "Range"},
+ "outputs": {"cv_out_1": "Pitch 1", "cv_out_2": "Pitch 2", "audio_out_l": "Env 1", "audio_out_r": "Env 2"}
+}

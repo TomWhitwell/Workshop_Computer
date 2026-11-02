@@ -1,18 +1,19 @@
-Name: QiGong Timer
+Name: Qigong Timer
 short-description: Interval meditation timer that strikes your own chime and bell, with reverb, delay and true silence between.
 summary: |
-  An interval timer for Qi Gong or any practice, set by touch: **Main** = number of intervals (1-36), **X** = minutes (0-36),
+  An interval timer for Qigong or any practice, set by touch: **Main** = number of intervals (1-36), **X** = minutes (0-36),
   **Y** = extra seconds (0-60), each step a soft click, the LEDs show the numbers. After a 10 s settling period a **double chime**
   starts the session; **Pulse Out 1** strikes your patched chime at the end of every interval and **Pulse Out 2** your bell at the
   end. Two separate reverb + delay chains (In 1 to Out 1, In 2 to Out 2), and complete silence between the strikes, even when your
   filters leak. Tap to start or pause, hold 3 s to stop, triple-tap for a preview mode to tune and dial in your sounds.
+  Your timer and effect settings are remembered when the power is off; hold Z down while switching on to go back to the defaults.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Joe Hedinger (isbn)
-Version: "0.9.0"
-Status: Beta
+Version: "1.1.0"
+Status: Released
 License: MIT
 date-created: 2026-10-07
-date-updated: 2026-10-19
+date-updated: 2026-10-21
 
 tags:
   - utility
@@ -22,8 +23,8 @@ tags:
   - delay
 
 uf2:
-  - path: UF2/qigong_timer.0.9.0.uf2
-    name: QiGong Timer 0.9.0
+  - path: UF2/qigong_timer.1.1.0.uf2
+    name: Qigong Timer 1.1.0
 
 panel:
   inputs:
@@ -69,7 +70,7 @@ controls:
       description: Normal position. Main chooses an effect page (fully anticlockwise reverb, 12 o'clock mix, fully clockwise delay); X and Y adjust it.
     down:
       name: Stop
-      description: Hold 3 s to stop the session (the LEDs fill up from 0.8 s; let go earlier to cancel). Hold 3 s in preview mode to leave it.
+      description: Hold 3 s to stop the session (the LEDs fill up from 0.8 s; let go earlier to cancel). Hold 3 s in preview mode to leave it. Hold while switching on to go back to the default settings.
     tap:
       name: Start / Pause / Preview
       description: Tap to start (10 s settling, then the double chime), tap again to pause or resume. Triple-tap while stopped for preview mode; one tap ends it. Taps act 0.4 s after release.

@@ -1,0 +1,188 @@
+; @name Transmutation
+; @tagline Four resonators tuned to the note you play, like the modes of Mutable Rings or the four bands of XAOC Oradea: the first on your note, the other three spread from the harmonic series out to the partials of a metal bar, like the Spread of Noise Engineering's Basimilus Iteritas, morphing from pure sines to soft triangle waves at any level, in still stereo
+; @pots Spread | Decay | Shape
+; @render 0.15, 0.6, 0.6
+; @components sure-note pitch listener (the shared lis37r2 tracker with its brightness-switched bass path, as in 216 Comet Harp; 12-TET, the same semitone four times running, notes below C3 folded into C3..B3), four tracker-tuned Chamberlin band-pass modes (one bank, driven from (L + R)/2, retuned at once on each new note), log-domain partial ratios (harmonic -> free-bar, geometric in Spread), log-domain damping (Decay), drive x (1 - 0.8 Decay), a gentle sine-to-triangle morph relative to the ring's own peak, y = 0.8 M (1 - 0.363 Shape (1 - |M|/peak)) in the log domain (full-range LOGs, coefficient 1) (the same shape at any level), a DC/rumble blocker (one-pole high-pass ~50 Hz) after it, a peak limiter that raises every mode's damping, stereo from a short all-pass on R (a fixed phase per partial: wide, still)
+; @description A listener hears the notes you play, and as soon as it is sure of one, four resonators tune
+; @description themselves to it: the first on the note itself, the other three above it. Everything you play
+; @description rings through them, so the body sings your note and its overtones; on a new note they jump to
+; @description it at once. Spread sets where the three upper resonators sit: at 0 on the note's own harmonics
+; @description (2, 3 and 4 times the note: a string), turning up they stretch apart into the clangorous partials
+; @description of a struck metal bar (2.76, 5.40 and 8.93 times the note at 1). Off the harmonics they no
+; @description longer sing along with a held note; your attacks strike them. Decay is how long they ring, from
+; @description a quarter of a second to six seconds on middle C (lower notes ring longer, higher shorter, as on
+; @description real strings and bars). Shape turns the ring from pure sine tones towards triangle waves: at 0
+; @description round and pure, turning up the waves straighten and their tips sharpen a little, a gentle,
+; @description woody, slightly hollow brightening, never a distortion.
+; @description It works on the ring's own shape, not its loudness, so a soft note morphs just as far as a loud
+; @description one, all the way down the tail. The stereo is wide and still: every partial sits at its own place
+; @description between the speakers, nothing sways.
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	apR	113		; stereo: R's all-pass (a fixed phase per partial, nothing moves)
+equ	hp	reg0		; tracker: x low-passed at k 0.9; x - hp is its HF band
+equ	e1	reg1		; tracker: HF peak envelope
+equ	e2	reg2		; tracker: smoothed HF envelope (Schmitt high level)
+equ	ef	reg3		; tracker: the high-pass stage before the Schmitt gate
+equ	z	reg4		; tracker: (L + R)/2 low-passed at ~100 Hz (bass path)
+equ	thr	reg5		; tracker: Schmitt threshold/state
+equ	cand	reg6		; tracker: candidate semitone
+equ	sh	reg7		; tracker: smoothed dullness (its sign picks the bass path)
+equ	cd	reg8		; newest sure note: code - K (0 before the first note: A3)
+equ	F1	reg10		; 2 f of each mode (Chamberlin coefficient x 2)
+equ	F2	reg11
+equ	F3	reg12
+equ	F4	reg13
+equ	Q1	reg14		; damping x S (fundamental)
+equ	cb	reg15		; scratch (WRHX target; the mix for the shaper)
+equ	ex	reg16		; excitation / 4
+equ	B1	reg17		; band-pass states / 2
+equ	B2	reg18
+equ	B3	reg19
+equ	B4	reg20
+equ	L1	reg21		; low-pass states / 2
+equ	L2	reg22
+equ	L3	reg23
+equ	L4	reg24
+equ	lam	reg26
+equ	env	reg27
+equ	el	reg28		; -2 log2(env)/16 - 0.165 (the limiter's and the shaper's)
+equ	dcb	reg25		; the DC/rumble blocker's low-pass (~50 Hz)
+; ---- listen: lis37r2 with the bass path (as in 216), back end as in 258
+	rdax	adcl, 0.5
+	rdax	adcr, 0.5
+	mulx	pot1
+	wrhx	cb, -0.8
+	wrax	ex, 1.0
+	rdfx	z, 0.01934814453125
+	wrhx	z, 0
+	rdfx	hp, 0.9000244140625
+	wrhx	hp, -1.0
+	maxx	e1, 0.972412109375
+	wrax	e1, 1.46502685546875
+	rdfx	e2, 0.08001708984375
+	wrax	e2, 0
+	maxx	hp, 0.00616455078125
+	sof	-1.0, 0
+	rdax	e2, 1.0
+	rdfx	sh, 0.00030517578125
+	wrax	sh, 1.0
+	and	$800000
+	mulx	z
+	rdax	e2, 1.0
+	rdfx	ef, 0.01202392578125
+	wrhx	ef, -1.0
+	rdax	thr, 0.1500244140625
+	skp	neg, low
+	mulx	thr
+	skp	gez, nox
+	cho	rdal, rmp0
+	jam	rmp0
+	log	-2.0, -0.875
+	skp	gez, fl
+	and	$0FFFFF
+fl:	sof	1.5, 0
+	and	$FE0000
+	rdax	cand, -1.000732421875
+	skp	zro, out
+	rdax	cand, 1.0
+	wrax	cand, 0
+	skp	zro, hyst
+out:	rdax	cand, 1.33721923828125
+	xor	$7FFFFF
+	skp	zro, hyst
+	sof	-0.25, 0.0625
+	wrax	cd, 0
+hyst:	ldax	e2
+low:	wrax	thr, 0
+nox:	wldr	rmp0, -4066, 4096
+; ---- the modes' tuning
+	rdax	cd, 1.0
+	exp	0.40126, 0
+	wrhx	F1, 0
+	rdax	pot0, 0.028911
+	exp	0.80252, 0
+	wrhx	F2, 0
+	rdax	pot0, 0.024156
+	exp	1.20378, 0
+	wrhx	F3, 0
+	rdax	pot0, 0.019380
+	exp	1.60504, 0
+	wrax	F4, 0
+; ---- damping
+	rdax	pot1, -0.28652
+	rdax	lam, 1.99993896484375
+	exp	1.0, 0
+	wrax	Q1, 0
+; ---- mode 1
+	rdax	B1, -0.268938
+	mulx	Q1
+	rdax	ex, 0.037
+	rdax	L1, -0.5
+	mulx	F1
+	rdax	B1, 1.0
+	wrax	B1, 0.5
+	mulx	F1
+	rdax	L1, 1.0
+	wrax	L1, 0
+; ---- mode 2
+	rdax	B2, -0.134469
+	mulx	Q1
+	rdax	ex, 0.037
+	rdax	L2, -0.5
+	mulx	F2
+	rdax	B2, 1.0
+	wrax	B2, 0.5
+	mulx	F2
+	rdax	L2, 1.0
+	wrax	L2, 0
+; ---- mode 3
+	rdax	B3, -0.089646
+	mulx	Q1
+	rdax	ex, 0.037
+	rdax	L3, -0.5
+	mulx	F3
+	rdax	B3, 1.0
+	wrax	B3, 0.5
+	mulx	F3
+	rdax	L3, 1.0
+	wrax	L3, 0
+; ---- mode 4
+	rdax	B4, -0.067235
+	mulx	Q1
+	rdax	ex, 0.037
+	rdax	L4, -0.5
+	mulx	F4
+	rdax	B4, 1.0
+	wrax	B4, 0.5
+	mulx	F4
+	rdax	L4, 1.0
+	wrax	L4, 0.7
+; ---- out: the mix (mode 4 as its low-pass state, seeded by its last write); Shape: sine -> triangle at any level
+	rdax	B1, 0.8
+	rdax	B2, 0.7
+	rdax	B3, 0.9333
+	wrax	cb, 1.0
+	log	1.0, 0.0830078125
+	rdax	el, 1.0
+	exp	0.2904, 0
+	sof	1.0, -0.2900390625
+	mulx	pot2
+	mulx	cb
+	rdax	cb, 0.8
+	rdfx	dcb, 0.0096
+	wrhx	dcb, -1.0
+; ---- stereo: L dry, R through a short all-pass; the limiter reads the peak (MAXX, then WRHX keeps y in ACC)
+	wrax	dacl, 1.0
+	rda	apR#, -0.65
+	wrap	apR, 0.65
+	wrax	dacr, 0
+	rdax	cb, 1.0
+	maxx	env, 0.9998
+	wrax	env, 1.0
+	log	-1.0, -0.0830078125
+	wrax	el, 1.0
+	exp	1.0, 0
+	log	-2.0, -0.125
+	wrax	lam, 0

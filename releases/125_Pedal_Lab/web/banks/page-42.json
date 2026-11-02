@@ -1,0 +1,68 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-slowgear-2",
+    "source": "algorithms/ready/directory-slowgear-2.spn",
+    "instructions": 35,
+    "sha256": "72d3ffddb28c88a35345aff2df4bb5f4306fdc2ca51b90e2d0f930c63934a2c7",
+    "id": "directory-slowgear-2",
+    "author": "patb, Don Stavely",
+    "description": "Uncategorized program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "attack rate",
+      "-",
+      "-"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slowgear-2.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=174",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Slow Gear",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 1200,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 33,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-slowgear-simple",
+    "source": "algorithms/ready/directory-slowgear-simple.spn",
+    "instructions": 17,
+    "sha256": "4be8de2c8f9abe7df2314377f60492bcbc980be7a3b611e6f3e4863a09bcadf8",
+    "id": "directory-slowgear-simple",
+    "author": "Alex MAK",
+    "description": "Uncategorized program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slowgear-simple.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=174",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Slow Gear (simple)",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 128817,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

@@ -1,0 +1,401 @@
+;development program: copy to target when done
+
+;10/3/05
+
+;re-configure for clarity
+
+;Guitar reverb/chorus
+
+;pot0 = reverb mix (mix from zero to 100% mix)
+
+;pot1 = chorus rate (scales width with frequency to approximate constant pitch bend)
+
+;pot2 = chorus mix/width (0 to 100% mix in first 25% of pot swing, control sweep width over entire range)
+
+;
+
+mem 	chordel	2000
+
+;
+
+mem	ap1	150	;reverb allpass at reverb input
+
+mem	ap2	221	;reverb allpass at reverb input
+
+mem	ap3	345	;reverb allpass at reverb input
+
+mem	ap4	431	;reverb allpass at reverb input
+
+mem	rap1	1157	;reverb ring AP
+
+mem	rap1b	2257	;reverb ring AP
+
+mem	rap2	1978	;reverb ring AP
+
+mem	rap2b	1678	;reverb ring AP
+
+mem 	rap3	1850	;reverb ring AP
+
+mem	rap3b	2456	;reverb ring AP
+
+mem	rap4	1234	;reverb ring AP
+
+mem	rap4b	1567	;reverb ring AP
+
+mem	d1	2180	;reverb ring delay
+
+mem	d2	3956	;reverb ring delay
+
+mem	d3	4165	;reverb ring delay
+
+mem	d4	3456	;reverb ring delay
+
+;
+
+equ	sigin	reg0	;sum of inputs, mono
+
+equ	chorout	reg1	;output of chorus process, input to reverb allpass filters
+
+equ	revin	reg2	;input to reverb ring
+
+equ	width	reg3	;chorus width from pot2
+
+equ	width2	reg4	;smoothed value of total chorus width
+
+equ	effmix	reg5	;value for mixing chorus from pot2
+
+equ	temp	reg6	;temp value for calculations
+
+equ	rfil	reg7	;reverb ring filter register
+
+equ	rt	0.5	;reverb time
+
+;
+
+
+
+;initialize lfos for reverb and chorus:
+
+
+
+skp		RUN,	LOOP
+
+wlds		0,	12,	160		;lfo for modulating ap lengths in reverb ring
+
+wlds		1,	12,	1500		;lfo for chorus delay modulation (will be modified in loop)
+
+LOOP:
+
+
+
+;
+
+;Pot0 will be used directly in reverb mix, but the other pots control multiple values and
+
+;require value modifications.
+
+;
+
+;Pot1 will control both sin1 rate and amplitude, pot2 will control mix and delay sweep width:
+
+;set up pot 2 to control mix and scale width:
+
+;
+
+
+
+rdax 	pot2,	1.9999		;read pot2 times approx. 2.0
+
+sof	1.9999,	0		;pot2 * approx. 4, saturation limits to approx. 1
+
+sof	0.002,	0		;scale limited value to 0.002 max as input to smoothing filter
+
+rdax	effmix,	0.998		;effmix becomes smoothing register, feedback=(1-input drive)
+
+wrax	effmix,	0		;effmix ranges 0 to 0.9999 during the first 1/4 turn of pot2
+
+rdax	pot2,	0.05		;set maximum width value (sweeps most of delay maximum)
+
+sof	0.002,	0		;scale value as input to smoothing filter
+
+rdax	width,	0.998		;read smoothing filter times (1-input drive)
+
+wrax	width,	0		;store temporary width value (from pot 2), clear accumulator
+
+
+
+;
+
+;set up pot 1 to control chorus sinwave rate and modify width control from pot2 :
+
+
+
+rdax	pot1,	1.0		;read pot 1
+
+mulx	pot1			;square value (acc=0 to 1.0)
+
+mulx	pot1			;cubed
+
+sof	0.3,	0.01		;set range of sin1 frequency from 0.01 to 0.31
+
+wrax	sin1_rate,0		;write value to set sin1 rate, clear accumulator
+
+rdax	pot1,	1.0		;generate function of pot1 that decreases as LFO frequency increases
+
+sof	-0.50,	0.999		;multiply by -0.6, add 1. This makes output function go roughly 1 to 0.5
+
+wrax	temp,	1.0		;write to temp and keep in accumulator
+
+mulx	temp			;function squared, now ranges 1 to 0.25
+
+mulx	temp			;pot function cubed, now ranges 1 to 0.125
+
+mulx	temp			;pot function ^4, now ranges 1 to 0.0625
+
+mulx	width			;multiply by previous width value
+
+sof	0.002,	0		;scale to input of smoothing filter
+
+rdax	width2,	0.998		;do filter
+
+wrax	width2,	1.0		;store filter value, keep in acc
+
+wrax	sin1_range,0		;control lfo width with result, clear acc
+
+
+
+;do chorus:
+
+rdax	adcl,	0.5		;read inputs, each * 0.5
+
+rdax	adcr,	0.5
+
+wrax	sigin,	1.0		;write to register sigin, keep value in accumulator
+
+wra	chordel,	0		;write to delay input
+
+cho	RDA,	SIN1,0x06,	chordel+1000	;sweep about midpoint
+
+cho	RDA,	SIN1,0,	chordel+1001	;interpolate between ajacent samples
+
+mulx	effmix			;multiply chorus delay output by effmix
+
+rdax	sigin,	1.0		;add to sigin
+
+wrax	chorout,	0		;write chorus out, clear accumulator
+
+;
+
+;Now do reverb using chorout as an input signal
+
+;first, do ap smearing to loop aps. sin0 is used to vary ap lengths.
+
+;four aps in reverb ring, use sin, cos, inv sin and inv cos as modulating values:
+
+;
+
+cho	RDA,	SIN0,	0x06,	rap1+50
+
+cho	RDA,	SIN0,	0,	rap1+51
+
+wra	rap1+100,	0
+
+cho	RDA,	SIN0,	0x07,	rap2+50
+
+cho	RDA,	SIN0,	1,	rap2+51
+
+wra	rap2+100,	0
+
+cho 	RDA,	SIN0,	0x0E,	rap3+50
+
+cho	RDA,	SIN0,	0x08,	rap3+51
+
+wra	rap3+100,	0
+
+cho 	RDA,	SIN0,	0x0F,	rap4+50
+
+cho	RDA,	SIN0,	0x09,	rap4+51
+
+wra	rap4+100,	0
+
+;
+
+rdax	chorout,	0.5		;read effect output into reverb
+
+rda	ap1#,	-0.6	 	;do 4 series allpass filters
+
+wrap	ap1,	0.6
+
+rda	ap2#,	-0.6
+
+wrap	ap2,	0.6
+
+rda	ap3#,	-0.6
+
+wrap	ap3,	0.6
+
+rda	ap4#,	-0.6
+
+wrap	ap4,	0.6
+
+wrax	revin,	0.0
+
+;
+
+rda	d4#,	rt		;read last delay times RT setting coefficient
+
+rda	rap1#,	-0.6		;do a ring allpass
+
+wrap	rap1,	0.6
+
+rda	rap1b#,	-0.7		;do second reverb ring allpass
+
+wrap	rap1b,	0.7
+
+rdax	revin,	0.5		;bring in the input signal from the input allpass filters
+
+wra	d1,	0.0		;write output to next delay
+
+;
+
+rda	d1#,	rt		;do as above 3 more times
+
+rda	rap2#,	-0.6
+
+wrap	rap2,	0.6
+
+rda	rap2b#,	-0.7
+
+wrap	rap2b,	0.7
+
+rdax	revin,	0.5
+
+wra	d2,	0.0
+
+;
+
+rda	d2#,	rt
+
+rda	rap3#,	-0.6
+
+wrap	rap3,	0.6
+
+rda	rap3b#,	-0.7
+
+wrap	rap3b,	0.7
+
+rdax	revin,	0.5
+
+wra	d3,	0.0
+
+;
+
+rda	d3#,	rt
+
+rda	rap4#,	-0.6
+
+wrap	rap4,	0.6
+
+rda	rap4b#,	-0.7
+
+wrap	rap4b,	0.7
+
+rdax	revin,	0.7
+
+wra	d4,	0.0
+
+;
+
+rda	d1+3000,	1.0		;sum outpts from taps on the 4 reverb ring delays
+
+rda	d2+1239,	0.8
+
+rda	d3+2341,	0.7
+
+rda	d4+302,	0.6
+
+rdfx	rfil,	0.5
+
+;
+
+sof	1.5,	0
+
+mulx	pot0
+
+mulx	pot0			;multiply reverb output by pot0 value (mix) twice (sqr func)
+
+rdax	chorout,	0.5		;add chorus output * 0.5
+
+sof	1.999, 	0		;scale back up (lower internal levels keep from clipping)
+
+wrax	dacr,	1.0		;write to right output, keep in acc
+
+wrax	dacl,	0		;write to left out, clear acc
+
+;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

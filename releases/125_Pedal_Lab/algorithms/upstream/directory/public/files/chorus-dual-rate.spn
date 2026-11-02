@@ -1,0 +1,78 @@
+;http://www.spinsemi.com/forum/viewtopic.php?f=4&t=456
+;Chorus
+
+;Pot0=Chorus Level
+;Pot1=Chorus Rate Special
+;Pot2=Chorus Rate
+
+;memory declarations
+
+mem 	chodel 	4096
+
+;register equates
+
+equ	mono	reg0
+equ	chorout	reg1
+
+skp 	run,	START
+wlds 	SIN0,	0,800	;alter the 800 and 1200 valuea to adjust the amount of
+wlds	SIN1,	0,1200	;pitch bend lower number = shorter freq span.
+
+START:
+
+;sum inputs to mono
+
+rdax 	adcl,0.5		;read left input /2
+rdax	adcr,0.5		;read right input /2
+wra	chodel,1		;write to head of chorus delay line
+wrax	mono,0.5	;write to mono register /2
+
+;prepare pot2 for chorus rate sin0 rate
+
+rdax 	pot2,1
+mulx 	pot2
+sof	0.02,0.01	;apprx 1Hz to 3Hz
+wrax	sin0_rate,0	;load sin0 rate register
+
+;prepare pot1 for chorus rate sin0 rate
+
+rdax 	pot1,1
+mulx 	pot1
+sof	0.04,0.01
+wrax	sin1_rate,0	;load sin1 rate register
+
+;Do chorus lines
+
+cho 	rda, SIN0,SIN|REG|COMPC,chodel+1400
+cho 	rda, SIN0,SIN,chodel+1401
+
+cho 	rda, SIN0,COS|REG|COMPC,chodel+1200
+cho 	rda, SIN0,COS,chodel+1201
+
+cho 	rda, SIN0,SIN|REG|COMPA,chodel+1600
+cho 	rda, SIN0,SIN|COMPC|COMPA,chodel+1601
+
+cho 	rda, SIN0,COS|REG|COMPA,chodel+1200
+cho 	rda, SIN0,COS|COMPC|COMPA,chodel+1201
+
+
+cho 	rda, SIN1,SIN|REG|COMPC,chodel+900
+cho 	rda, SIN1,SIN,chodel+901
+
+cho 	rda, SIN1,COS|REG|COMPC,chodel+1100
+cho 	rda, SIN1,COS,chodel+1101
+
+cho 	rda, SIN1,SIN|REG|COMPA,chodel+700
+cho 	rda, SIN1,SIN|COMPC|COMPA,chodel+701
+
+cho 	rda, SIN1,COS|REG|COMPA,chodel+1600
+cho 	rda, SIN1,COS|COMPC|COMPA,chodel+1601
+
+mulx 	pot0
+wrax	chorout,0	;write chorus result to chotusout
+
+;mix dry and chorus signals together and send to left output
+
+rdax	mono,1		;read mono dry signal into acc and keep
+rdax	chorout,0.5	;add chorus signal /2 into acc
+wrax 	dacl,0		;write result to left output

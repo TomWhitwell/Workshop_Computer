@@ -1,5 +1,5 @@
 // =============================================================================
-//  qi_config.h : EVERY tuning number for the QiGong Timer lives here.
+//  qi_config.h : EVERY tuning number for the Qigong Timer lives here.
 //  Change behaviour by editing numbers here, not the engine code.
 //  AI-assisted (Claude / Anthropic).
 //
@@ -163,4 +163,16 @@ static const int32_t kKeeperSnap     = 33;      // below -60 dB the gain snaps t
 // as during them").  History: first it also opened for any sound louder than the learned hum (so hand-triggered sounds worked while
 // stopped); a leak growing with pitch (CV ramps) and then a BEATING leak (FM: it swells and fades, so the learned level kept dropping
 // and each swell looked like a sound) got through.  To hear the voices while tuning, use preview mode (its pulses open the keeper).
+}  // namespace qi
+
+// =============================================================================
+//  SAVED SETTINGS (version 1.1, owner 20 Oct): the 3 timer settings and the 6 effect settings survive power cycles.
+//  Stored in the last 4 kB sector of the flash.  A save freezes the card for ~50 ms, so it only happens when nobody can
+//  hear it: stopped (never in a session or preview), 3 s after the last change, once the outputs have been silent for
+//  0.5 s, and only if something differs from what is stored.  Hold Z down while switching on = back to the defaults.
+// =============================================================================
+namespace qi {
+static const int32_t kSaveAfter      = 3 * kSampleRate;     // wait this long after the last change
+static const int32_t kSaveSilence    = kSampleRate / 2;      // ... and until the outputs have been silent this long
+static const uint16_t kStoreVersion  = 1;                    // bump if the stored settings change shape (old data is then ignored)
 }  // namespace qi

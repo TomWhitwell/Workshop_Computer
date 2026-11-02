@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-shimmer-1",
+    "source": "algorithms/ready/directory-shimmer-1.spn",
+    "instructions": 115,
+    "sha256": "21758b90d4ff9093ee27d7622bccdfeb33d5539b0dceddbf0be27fd16007e32d",
+    "id": "directory-shimmer-1",
+    "author": "Sweetalk",
+    "description": "Reverb, Shimmer program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Damping",
+      "Feedback",
+      "Decay"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/shimmer-1.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/shimmer-1.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Hall Reverb w/ Shimmer",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 417795,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-publisher-3k-v1-0-hall",
+    "source": "algorithms/ready/directory-publisher-3k-v1-0-hall.spn",
+    "instructions": 128,
+    "sha256": "70f3edd62ba9e057947a99dbf6945fb56049a80b9e31f9686960460d371d6443",
+    "id": "directory-publisher-3k-v1-0-hall",
+    "author": "Spin Semi",
+    "description": "Reverb program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "predelay 0-100ms.",
+      "reverb time",
+      "damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_0_Hall.spn"
+    },
+    "source_url": "http://spinsemi.com/mixer_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Hall Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 255236,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-publisher-3k-v1-1-room",
+    "source": "algorithms/ready/directory-publisher-3k-v1-1-room.spn",
+    "instructions": 128,
+    "sha256": "ff0a505320c84c0d86a4b026fb8672f27da352fd65fe5b922ef35e1849a10aed",
+    "id": "directory-publisher-3k-v1-1-room",
+    "author": "Spin Semi",
+    "description": "Reverb program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "predelay 0-100ms.",
+      "reverb time",
+      "damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_1_Room.spn"
+    },
+    "source_url": "http://spinsemi.com/mixer_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Room Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 268975,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-publisher-3k-v1-2-plate",
+    "source": "algorithms/ready/directory-publisher-3k-v1-2-plate.spn",
+    "instructions": 127,
+    "sha256": "edbe72a8e1f042971eb917cbea8f31b523984e800232bcc8a3744e03be82523f",
+    "id": "directory-publisher-3k-v1-2-plate",
+    "author": "Spin Semi",
+    "description": "Reverb program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "predelay (0-127)",
+      "RT (0-127)",
+      "damping (0-127)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_2_PLATE.spn"
+    },
+    "source_url": "http://spinsemi.com/mixer_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Plate Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 265700,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-publisher-3k-v1-3-gated",
+    "source": "algorithms/ready/directory-publisher-3k-v1-3-gated.spn",
+    "instructions": 127,
+    "sha256": "65a886a263b8cbd21f13bc05a174815dc7eae97a74e34d74236c538df6c1f6af",
+    "id": "directory-publisher-3k-v1-3-gated",
+    "author": "Spin Semi",
+    "description": "Reverb program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "predelay 0-100ms.",
+      "gate time",
+      "damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_3_GATED.spn"
+    },
+    "source_url": "http://spinsemi.com/mixer_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Gated Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 247185,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-publisher-3k-v1-4-echo-rev",
+    "source": "algorithms/ready/directory-publisher-3k-v1-4-echo-rev.spn",
+    "instructions": 66,
+    "sha256": "8b96ba49cbff91a7d5bd0705870e61f179141a9248815c7bdd60785f414496be",
+    "id": "directory-publisher-3k-v1-4-echo-rev",
+    "author": "Spin Semi",
+    "description": "Reverb, Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "delay 100-500ms.",
+      "repeat",
+      "reverb (fixed parameters)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_4_ECHO-REV.spn"
+    },
+    "source_url": "http://spinsemi.com/mixer_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Echo Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 132128,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

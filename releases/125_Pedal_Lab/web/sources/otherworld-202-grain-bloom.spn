@@ -1,0 +1,195 @@
+; @name Grain Bloom
+; @tagline Once every Euclidean cycle one step of your playing is caught as a grain; every hit strikes it, slowed to fill the gap to the next hit, in alternate ears, blooming into reverb as it plays, on a step you set with Time
+; @description A single grain, exactly one step long, is caught from your playing at
+; @description the first hit of every Euclidean cycle, and the whole cycle is played with it.
+; @description Time sets the step, the time from one step to the next, as a clock does for the
+; @description clocked version: from 50 ms (sixteenths at 300 BPM) fully left to 2 s (quarter
+; @description notes at 30 BPM) fully right, on a log scale; 0.25 s is an eighth note at 120 BPM.
+; @description The steps run on their own at exactly that period; nothing is guessed from your
+; @description playing. Hits and Length set k pulses over n steps (1 to 16); only the hits
+; @description strike. Each hit plays the grain slowed down to fill the gap exactly up to the
+; @description next hit, so a hit followed by a gap plays it an octave down, two gaps an octave
+; @description and a fifth down, three gaps two octaves down: the rhythm sings its gaps as the
+; @description undertone series. Successive hits alternate between the left and right ear, and
+; @description as each grain plays its send into a long reverb rises from nothing to full, so every
+; @description grain lands dry and swells into a bloom as loud as the grain by its end, which rings
+; @description on while the other ear takes the next hit. Set the cycle to a bar (Length 8 with Time on an eighth note of your
+; @description tempo, or 16 on a sixteenth) and on music that changes chord on the bar every grain
+; @description is the first step of a new chord. The memory holds half a second, so a step longer
+; @description than that catches its first half second: the grain still plays at its exact
+; @description undertone pitch, fills the gap as far as it lasts and fades, and the bloom carries
+; @description the rest. Stop playing and the hits fade within a few seconds.
+; @pots Time | Hits | Length
+; @render 0.4363, 0.75, 0.84
+; @time POT0 0.05 2.0 exp
+; @components Time-knob step clock (sample-exact, latched at each hit), Euclidean striker with k hits over n steps by integer Bresenham, one-step grain (capped at the 0.5 s memory) caught at the first hit of every cycle into a recirculating loop, each hit replays the grain slowed to exactly fill its gap (a stretch clock with a power-of-two step and a separate mantissa keeps the pitch exact), alternating ears, windowed stretch, reverb send that ramps over each grain into a damped two-allpass loop tank with stereo taps, input gate, feed-forward peak limiter
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	grain	16383		; the grain loop (0.5 s, at address 0): records, then goes round
+mem	ap1	557
+mem	ap2	1187
+mem	dl	9973
+
+equ	t	reg0		; countdown to the next step, -T .. 0 (2^-17 per sample)
+equ	L	reg1		; log2(T / 3.2 s) / 16, read from Time at each hit
+equ	xin	reg2		; (L + R) x 0.28
+equ	env	reg3		; input peak hold
+equ	gi	reg4		; input gate
+equ	f	reg5		; 2^-frac(log2(2 m G)): the stretch's fine rate
+equ	nPa	reg6		; - grain length (address units) = -min(T, 0.5 s)
+equ	lq	reg7		; log2(min(T, 0.5 s) / 0.5 s) / 16
+equ	sinc	reg8		; 2^-floor(log2(2 m G)): the stretch clock's step
+equ	nn	reg9		; n / 32
+equ	kk	reg10		; k / 32
+equ	E	reg11		; -e, the Bresenham error negated
+equ	hc	reg12		; hits left before the next capture
+equ	nG	reg13		; -grain while it records; >= 0 once it is in
+equ	age	reg14		; time since the capture (mod 0.5 s)
+equ	u	reg15		; progress through the stretch 0 .. 1
+equ	s	reg16		; the stretch clock: samples since the hit x sinc
+equ	side	reg17		; 0 right, -1 left
+equ	w	reg18
+equ	d	reg19
+equ	tt	reg20
+equ	lt	reg21
+equ	lpd	reg22
+equ	pk	reg23		; the voice's peak, for the limiter
+
+; ---- input: both channels; the gate follows your playing
+	rdax	adcl, 0.28
+	rdax	adcr, 0.28
+	wrax	xin, 1.0
+	maxx	env, 0.99995
+	wrax	env, 1.0
+	log	1.99993896484375, 0.9990234375	; gate = min(1, (256 env)^2): open while you play, 2^-16 in silence
+	exp	1.0, 0
+	wrax	gi, 0
+	skp	run, i_run		; at load (a slot change keeps the previous program's registers):
+	wrax	E, 0			; a fresh Euclidean cycle, its first step a hit
+	wrax	hc, 0			; that hit catches a grain
+i_run:
+; ---- the step clock: one step every T, to the sample
+	or	$000040			; t += 2^-17 (ACC is 0 here)
+	rdax	t, 1.0
+	wrax	t, 1.0
+	skp	neg, s_wr		; no step (s_wr rewrites t unchanged and clears ACC)
+	ldax	pot2
+	sof	0.5, 0.03125
+	and	$7C0000			; n = 1 + floor(16 Length): 1 .. 16
+	wrax	nn, 1.0
+	mulx	pot1
+	sof	1.0, 0.03125
+	and	$7C0000			; k = 1 + floor(Hits n): 1 .. n
+	wrax	kk, -1.0
+	rdax	E, 1.0
+	wrax	E, 1.0			; e += k
+	skp	gez, s_next		; a hit when e > 0
+	rdax	nn, 1.0			; e -= n; this hit fills m = 1 + floor(|e| / k) steps
+	wrax	E, 1.0
+	log	1.0, -0.25
+	wrax	tt, 0
+	ldax	pot0			; Time, read at each hit: T = 0.05 x 40^Time s
+	sof	0.332642, -0.375		; L = log2(T / 3.2 s) / 16, T = 0.05 x 40^Time s
+	wrax	L, 1.0
+	sof	1.0, 0.1669921875	; log2(T / 0.5 s) / 16 (rounded down: the grain ends 0.4 % early)
+	skp	neg, h_fit
+	clr				; T > 0.5 s: the grain is capped at the 0.5 s loop
+h_fit:	wrax	lq, 1.0
+	exp	-0.49920654296875, 0	; -grain, 3 x 2^-11 short of the stretch's (and of the 0.5 s loop): the read never passes the write
+	wrax	nPa, 0
+	ldax	kk
+	log	-1.0, 0
+	rdax	tt, 1.0
+	exp	0.5, 0.0322265625	; |e| / 32 k + 1/32 (+ 2^-10 for the LOG/EXP rounding)
+	and	$7C0000			; m / 32
+	log	1.0, 0.25		; log2(m) / 16 - 1/16
+	rdax	lq, 1.0			; A = (log2(2 m G) - 16) / 16, G = grain samples
+	wrax	tt, 1.0
+	and	$F80000
+	sof	-1.0, -0.8125
+	exp	0.125, 0		; sinc = 2^-floor(log2(2 m G)), exact
+	wrax	sinc, 0
+	ldax	tt
+	and	$07FFFF
+	sof	-1.0, 0
+	exp	1.0, 0			; f = 2^-frac(log2(2 m G)), 0.5 .. 1
+	wrax	f, 0
+	wrax	s, 0
+	rdax	side, -1.99		; the other ear: 0 -> -1, -1 -> 0 (to an LSB), and any stray
+	sof	1.0, -1.0		; value left by the previous program settles there within a few hits
+	wrax	side, 0
+	ldax	hc			; every k hits (one Euclidean cycle) a new grain
+	sof	1.0, -0.03125
+	wrax	hc, 1.0
+	skp	gez, s_next
+	rdax	kk, 1.0
+	wrax	hc, 0
+	wrax	age, 0
+	ldax	nPa
+	wrax	nG, 0			; record min(T, 0.5 s) from this hit
+s_next:	ldax	L			; the next step one period later
+	exp	-0.8, 0			; -T = -3.2 s x 2^(16 L)
+	rdax	t, 1.0
+s_wr:	wrax	t, 0
+; ---- the loop: records one grain length after a capture, otherwise goes round
+	or	$000100			; age += 2^-15 (ACC is 0 here)
+	rdax	age, 1.0
+	and	$3FFFFF
+	wrax	age, 1.0
+	rdax	nG, 1.0			; age - grain: negative while the grain records
+	skp	gez, l_hold
+	ldax	xin
+	skp	0, l_wr
+l_hold:	wrax	nG, 0			; (age - grain >= 0 from now on: holds until the next capture)
+	rda	grain#, 1.0
+l_wr:	wra	grain, 0
+; ---- the stretch clock: u = 2 s f runs 0 .. 1 in exactly m grain lengths, then parks at 1
+	ldax	s
+	rdax	sinc, 1.0
+	wrax	s, 1.0
+	mulx	f
+	sof	1.99993896484375, 0
+	wrax	u, 1.0
+; ---- window sat(32 u (1 - u)), times the input gate: silent at every hit
+	sof	1.0, -1.0
+	mulx	u
+	log	1.0, 0.3125
+	exp	1.0, 0
+	mulx	gi
+	wrax	w, 0
+; ---- the stretch: the grain read at 1/m speed, from the capture's start to its end
+	ldax	u
+	mulx	nPa
+	rdax	age, 1.0
+	and	$3FFFFF
+	wrax	addr_ptr, 0
+	rmpa	1.85
+	mulx	w
+	wrax	d, 1.0
+	maxx	pk, 0.9999		; feed-forward peak limiter on the voice: instant attack, 0.3 s release
+	wrax	pk, 1.0
+	log	-1.0, -0.048828125	; min(1, 0.42 / peak)
+	exp	1.0, 0
+	mulx	d
+	wrax	d, 0.7			; (x 0.7: the fixed Bloom)
+; ---- bloom: the send grows with the stretch into one tank (two allpasses in the loop)
+	mulx	u
+	rda	dl#, 0.7		; feedback 0.7 (the denser, longer bloom)
+	rdfx	lpd, 0.5
+	wrax	lpd, 1.0
+	rda	ap1#, 0.6
+	wrap	ap1, -0.6
+	rda	ap2#, -0.6
+	wrap	ap2, 0.6
+	wra	dl, 0
+; ---- ears: the voice on its side, the tank's taps on both
+	ldax	d
+	mulx	side
+	wrax	lt, -1.0
+	rda	dl+3001, 0.7
+	wrax	dacl, 0
+	rdax	d, 1.0
+	rdax	lt, 1.0
+	rda	dl+7211, 0.7
+	wrax	dacr, 0

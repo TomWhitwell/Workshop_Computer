@@ -24,6 +24,10 @@ void clock_update_reference_from( float beats, float beat_duration, clock_source
 void clock_start_from( clock_source_t source );
 void clock_stop_from( clock_source_t source );
 void clock_set_source( clock_source_t source );
+void clock_set_source_manual(clock_source_t source);
+void clock_set_source_auto_mode(void);
+clock_source_t clock_get_source(void);
+bool clock_is_source_manual(void);
 
 float clock_get_time_beats(void);
 float clock_get_time_seconds(void);
@@ -43,6 +47,7 @@ void clock_reset_stats(void);
 void clock_set_sample_counter(uint64_t samples);
 uint64_t clock_get_sample_counter(void);
 void clock_increment_sample_counter(void);
+uint32_t clock_ms_since_boot(void);
 
 
 ///////////////////////////////////

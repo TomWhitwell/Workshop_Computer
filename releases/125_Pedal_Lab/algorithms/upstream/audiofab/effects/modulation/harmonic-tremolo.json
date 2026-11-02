@@ -1,0 +1,15 @@
+{
+  "id": "harmonic-tremolo",
+  "name": "Harmonic Tremolo",
+  "version": "1.0.0",
+  "description": "A two-band tremolo that splits the signal into high and low bands and modulates them out of phase, producing the classic brown-panel harmonic tremolo sound.",
+  "category": "Modulation",
+  "tags": ["tremolo", "harmonic", "modulation", "vintage"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Rate",        "description": "Tremolo LFO rate.",                                          "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Depth",       "description": "Amount of amplitude modulation applied to each band.",       "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Cutoff Freq", "description": "Crossover frequency between the high-band and low-band.",    "unit": "", "range": [0, 1] }
+  ]
+}

@@ -1,0 +1,215 @@
+; http://www.spinsemi.com/forum/viewtopic.php?f=4&t=707
+;Slocum Phase shifter  (From GA_DEMO - mods by Doug Slocum 10/20/2017) 
+; Uses every last bloody program line! 
+
+;Pot0 = Phase rate (manual if fully CCW) 
+;Pot1 = Sweep width (or manual) 
+;Pot2 = Num of Stages (4,6,8,10) 
+
+
+;register equates: 
+
+equ   mono   reg0 
+;equ   lp1   reg1 
+;equ   lp2   reg2 
+equ   phase   reg3 
+equ   p1   reg4 
+equ   p2   reg5 
+equ   p3   reg6 
+equ   p4   reg7 
+equ   p5   reg8 
+equ   p6   reg9 
+equ   p7   reg10 
+equ   p8   reg11 
+equ   p9   reg12 
+equ   p10   reg13 
+equ   temp   reg14 
+equ   temp1   reg15 
+
+
+;clear registers and initialize LFOs: 
+
+skp   run,endclr 
+
+;wrax   lp1,0 
+;wrax   lp2,0 
+wlds   sin0,12,100     ;sin0 used for phaser operations 
+wlds   sin1,0,32767    ;sin1 used for LFO 
+
+endclr: 
+
+;sum inputs to mono: 
+rdax   adcl, 0.5 
+rdax   adcr, 0.5 
+wrax   mono, 0 
+
+;Do phase shifter from sin1 
+; Manual or LFO mode test 
+ldax    pot0           ;read pot0, if it's zero then accumulator will be zero, else it will be positive 
+skp    zro, MANUAL      ;if zero, then skip to MANUAL otherwise do LFO stuff 
+
+;LFO stuff 
+rdax   pot0, 1 
+mulx   pot0 
+sof   0.12, 0.003 
+wrax   sin1_rate, 0 
+cho   rdal, sin1      ;read sin1 as +/-1 
+sof   0.5,0.5      ;make positive only sin ranges 0 to 1 
+log   0.5,0 
+exp   1,0      ;square root function 
+sof   1,-0.5      ;make +/-0.5 
+sof   1.999,0      ;make +/-1 again 
+mulx   pot1      ;pot1 controls phaser depth 
+sof   0.26,0.72 
+
+skp    gez, PHASER   ;accumulator will always be positive so skip to PHASER: 
+
+
+MANUAL: 
+rdax   pot1, 1 
+mulx    pot1   ;multiply by pot1 for variable range 
+sof   -.999,.999 
+log   0.9, 0 
+exp   1,0 
+
+
+PHASER: 
+wrax    phase,0   ;write to modulation register 
+
+rdax   mono, 1/64   ;input to phase shift network 
+wrax   temp1, 0   ; save it away 
+
+; pot ship routines for selecting number of stages 
+rdax   pot2, 1 
+and   %01100000_00000000_00000000     ;mask off only 2 bits, leaving only 4 possibilities 
+skp   zro,STAGES4   ;if zero, the skip over other code to reverb1 
+sof   1,-0.25   ;subtract 1/4 
+skp   zro,STAGES6   ;if zero, skip over other code to reverb2 
+sof   1,-0.25   ;subtract 1/4 
+skp   zro,STAGES8   ;if zero, skip over other code to reverb3 
+clr       ;clear the accumulator, there's 1/4 left in it! 
+
+
+STAGES10: 
+rdax   p1,1 
+wrax   temp,1 
+mulx   phase 
+rdax   temp1,1 
+wrax   p1,-1 
+mulx   phase 
+rdax   temp,1 
+wrax   temp1,0 
+
+rdax   p2,1 
+wrax   temp,1 
+mulx   phase 
+rdax   temp1,1 
+wrax   p2,-1 
+mulx   phase 
+rdax   temp,1 
+wrax   temp1,0 
+
+
+STAGES8: 
+rdax   p3,1 
+wrax   temp,1 
+mulx   phase 
+rdax   temp1,1 
+wrax   p3,-1 
+mulx   phase 
+rdax   temp,1 
+wrax   temp1,0 
+
+rdax   p4,1 
+wrax   temp,1 
+mulx   phase 
+rdax   temp1,1 
+wrax   p4,-1 
+mulx   phase 
+rdax   temp,1 
+wrax   temp1,0 
+
+
+STAGES6: 
+rdax   p5,1 
+wrax   temp,1 
+mulx   phase 
+rdax   temp1,1 
+wrax   p5,-1 
+mulx   phase 
+rdax   temp,1 
+wrax   temp1,0 
+
+rdax   p6,1 
+wrax   temp,1 
+mulx   phase 
+rdax   temp1,1 
+wrax   p6,-1 
+mulx   phase 
+rdax   temp,1 
+wrax   temp1,0 
+
+
+STAGES4: 
+rdax   p7,1 
+wrax   temp,1 
+mulx   phase 
+rdax   temp1,1 
+wrax   p7,-1 
+mulx   phase 
+rdax   temp,1 
+wrax   temp1,0 
+
+rdax   p8,1 
+wrax   temp,1 
+mulx   phase 
+rdax   temp1,1 
+wrax   p8,-1 
+mulx   phase 
+rdax   temp,1 
+wrax   temp1,0 
+
+rdax   p9,1 
+wrax   temp,1 
+mulx   phase 
+rdax   temp1,1 
+wrax   p9,-1 
+mulx   phase 
+rdax   temp,1 
+wrax   temp1,0 
+
+rdax   p10,1 
+wrax   temp,1 
+mulx   phase 
+rdax   temp1,1 
+wrax   p10,-1 
+mulx   phase 
+rdax   temp,1 
+
+
+sof   -2,0 
+sof   -2,0 
+sof   -2,0 
+sof   -2,0 
+sof   -2,0 
+sof   -2,0   ;output of phase shifter in acc 
+
+rdax   mono,1 
+wrax   dacl,1 
+sof   1,-0.04 
+wrax   dacr,0 
+
+
+;A couple of things that might save a few lines: The final "sof 1, -0.04" I believe was only necessary to avoid a glitch around zero in the D/A converter on an early rev of the FV-1. Note that there was a "sof 1, 0.02" on the other channel in the original GA code. Maybe Frank can clarify. 
+
+;Also, there is the 64X attenuation before the phaser code, and then six "sof -2, 0" lines to gain it back up again. This seems like overkill for avoiding clipping in the math. Maybe 4X would be more reasonable. Again, it would be good for Frank to weigh in.
+
+;You can delete these references as well: 
+
+;equ lp1 reg1 
+;equ lp2 reg2 
+
+;wrax lp1,0 
+;wrax lp2,0 
+
+;lp1 and lp2 are never used beyond being cleared to zero at init time. 

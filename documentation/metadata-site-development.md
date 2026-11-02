@@ -67,6 +67,20 @@ While it is running, the development server watches:
 
 Successful rebuilds automatically refresh connected browsers.
 
+## Preview a single card
+
+When working on one card, build and watch just that card instead of the whole site:
+
+```sh
+npm run dev:card -- 41_blackbird
+```
+
+The card can also be given as `releases/41_blackbird`, its page slug (`41-blackbird`) or its number (`41`). Running `npm run dev:card` with no argument from inside a card's folder uses that card.
+
+This builds only that card's detail page and the stylesheets and scripts it loads, then opens it at `http://localhost:5173/programs/<slug>/`. Saving any file in the card's folder (`info.yaml`, `README.md`, docs, panels, firmware, web editor) rebuilds the page in about a second and refreshes the browser. Each build prints the card's full `info.yaml` validation report, the same as `npm run validate-info -- releases/<card>`.
+
+Files Git ignores and CMake build directories (`build/`, `build-*/`) inside the card folder are not watched, so compiling firmware does not trigger rebuilds. The home page, archive and author tools are not built in this mode; use `npm run dev` for those.
+
 ## Incremental rebuilds
 
 After the initial complete build, common metadata and curation edits use faster delta builds:
@@ -76,3 +90,12 @@ After the initial complete build, common metadata and curation edits use faster 
 - Changing `flairs.yml` updates curation-dependent indexes and card pages.
 
 Mixed changes, deleted metadata, and structural or generator changes safely fall back to a clean complete build.
+## Pull request previews
+
+Pull requests opened from a branch in `TomWhitwell/Workshop_Computer` itself get a live preview of the whole site at `https://computer.musicthing.co.uk/pr/<number>/`, linked from a comment on the PR. Pull requests from forks do not get previews.
+
+Each push builds the preview in the pull request's own workflow run (`.github/workflows/pr-preview.yml`), with that branch's generator and without running dependency install scripts, then redeploys the site. The Pages workflow on `main` only downloads finished previews. It never runs pull request code, and preview builds never share `main`'s Actions caches. Closing a PR removes its preview on the next deploy.
+
+A preview that fails, times out (10 minutes) or is over 100 MB is left out with an explanation on the PR. All previews together are capped at 600 MB so the site stays under GitHub Pages' 1 GB limit. Production always deploys, with or without previews. Preview pages carry `noindex` so search engines skip them, and their firmware download links point at the PR's commit.
+
+**Do not push someone else's fork branch into this repository to get it a preview.** Previews are served from the production origin, so a preview's JavaScript can use any WebUSB and Web Serial devices visitors have already allowed for the site, without a prompt, and can read the site's `localStorage` (for example author-tool drafts). Only branches whose code has been read and trusted by someone with write access belong here.

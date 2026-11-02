@@ -1,0 +1,300 @@
+; dual head tape echo + spring reverb
+;
+; Graham Biswell <graham@gbiswell.com>
+;
+; reverb code mostly from
+; http://www.spinsemi.com/forum/viewtopic.php?t=598
+;
+; pot 0 echo delay time
+; pot 1 echo feedback
+; pot 2 reverb level
+
+
+; ***********************
+; delay declarations
+equ	DelayLen	27000		; gives 0.8sec delay time
+equ	sm0len		50
+equ	sm1len		20
+
+mem	DelayMem	DelayLen
+mem	sm0		sm0len
+mem	sm1		sm1len
+
+; general smothing filter coeff
+equ	smooth		0.001
+
+; pots
+equ	TimePot		pot0
+equ	FbackPot	pot1
+equ	RvbMixPot	pot2
+
+; level of Delay signal in output (reverb is from RvbMixPot)
+equ	DelayMix	0.8
+
+; level of each heads signal in the delay signal (doesn't have to sum to 1)
+equ	Hd2Mix		0.3
+equ	Hd3Mix		0.75
+
+; Hd2Delay is delay time scaling factor for second head, assuming head 3 is "1"
+;
+; RE301 min/max delay times for each head in msec
+;  Head  Min   Max
+;  1     60    165
+;  2     117   324
+;  3     176   487
+;
+; this could also be regular intervals eg
+; equ  Hd2Delay 2/3	; 1/4 triplet
+; equ  Hd2Delay 3/4	; Dotted 1/8
+; equ  Hd2Delay 1/2	; 1/8
+; equ  Hd2Delay 1/3	; 1/8 triplet
+;
+equ	Hd2Delay	324/487
+
+; damping lpf & hpf cutoff freqs & shelf in feedback
+; corner frequency == ~100Hz (32768 * freq)/(2 * pi)
+; shelf (-1 = infinite shelf, -0.5 = 6DB)
+equ	DampLpf		0.55
+equ	DampLpfSlf	0.50
+equ	DampHpf		0.035
+equ	DampHpfSlf	-0.5
+
+; amount to scale fb pot by
+equ	FbScale		0.7
+
+equ	RvbMix		reg0
+equ	feedback	reg1
+equ	SigIn		reg2
+equ	offset		reg3
+equ	DelaySig	reg4
+equ	temp		reg5
+equ	rnd		reg6
+equ	damping		reg7
+equ	time		reg8
+equ	SigAvg		reg9
+equ	lpf1		reg10
+equ	hpf1		reg11
+
+; ***********************
+; EQ declarations
+; (code from Spin active xover example)
+equ	kf1	0.65	; frequency
+equ	kg1	0.4	; gain
+equ	kp1	0.5	; peak
+equ	kq1	0.5	; q
+
+equ	b1a	reg16
+equ	b1b	reg17
+equ	eqin	reg18
+
+
+; ***********************
+; reverb declarations
+
+equ	lp1		reg21
+equ	lp2		reg22
+
+
+equ	RvbSigInLvl	0.5		; level of dry signal to reverb
+equ	RvbDelayLvl	0.5		; level of delay signal to reverb
+equ	kap0		-0.65		; chirp allpass coefficient
+equ	kap1		-0.70		; chirp allpass coefficient
+equ	kap2		-0.60		; chirp allpass coefficient
+equ	kap3		-0.55		; chirp allpass coefficient
+equ	klap		0.6		; allpass coefficient
+equ	krt		0.85		; reverb time
+equ	krf		0.55		; reverb lpf freq
+equ	krs		-1		; reverb lpf shelf
+
+mem	lap1a		404		; GA/2 =	404
+mem	lap1b		967		; 967
+mem	d1		1244		; 41ms=1344	1244.5
+mem	lap2a		506		; GA/2 =	508
+mem	lap2b		890		; 893.5
+mem	d2		1081		; 33ms=1081	1143.5
+
+; spring taps
+equ	baselen1	4
+equ	baselen2	7
+mem	ap1		baselen1
+mem	ap2		baselen1
+mem	ap3		baselen1
+mem	ap4		baselen1
+mem	ap5		baselen1
+mem	ap6		baselen1
+mem	ap7		baselen1
+mem	ap8		baselen2
+mem	ap9		baselen2
+mem	ap10		baselen2
+
+; ***********************
+; initialisation
+skp	run, loop
+wlds	sin0, 7, sm0len/2
+wlds	sin1, 32, 10
+
+; main loop
+loop:
+
+; ***********************
+; pots
+; read reverb level pot
+rdax	RvbMixPot, 1
+rdfx	RvbMix, smooth
+wrax	RvbMix, 0
+
+; read feedback level pot
+; damping factor is based from feedback - more feedback, slightly more damping
+rdax	FbackPot, FbScale
+rdfx	feedback, smooth
+wrax	feedback, 1
+sof	0.7, 0.1
+wrax	damping,0
+
+; read delay time pot
+rdax	TimePot, 1
+sof	0.95, 0.05
+wrax	time, 0
+
+; ***********************
+; delay
+; start with a small amount of randomness to the delay time
+cho	rdal, cos0
+cho	rdal, cos1
+and	31
+
+or	DelayLen * 256
+mulx	time
+rdfx	offset, smooth
+wrax	offset, 0
+
+; ***********************
+; get input signal
+rdax	adcl, 0.6
+rdax	adcr, 0.6
+wrax	SigIn, 0
+
+;; head 2 (second head, smaller delay time, reduced level)
+rdax	offset, Hd2Delay
+wrax	addr_ptr, 0
+rmpa	Hd2Mix
+wrax	DelaySig, 0
+
+;; head 3
+rdax	offset, 1
+wrax	addr_ptr, 0
+rmpa	Hd3Mix
+rdax	DelaySig, 1
+
+; some wow & flutter
+wra	sm0, 0
+cho	rda, sin0, sin | reg | compc, sm0^
+cho	rda, sin0, sin, sm0^+1
+wra	sm1, 0
+cho	rda, sin1, cos | reg | compc, sm1^
+cho	rda, sin1, cos, sm1^+1
+wrax	DelaySig, 1
+
+; mix delay signal with input
+mulx	feedback
+rdax	SigIn, 1
+
+; damping
+wrax	temp, 1
+rdfx	lpf1, DampLpf
+wrlx	lpf1, DampLpfSlf
+rdfx	hpf1, DampHpf
+wrhx	hpf1, DampHpfSlf
+rdax	temp, -1
+mulx	damping
+rdax	temp, 1
+
+; soft knee limiter & write result to delay memory
+wrax	temp, 1
+mulx	temp
+rdfx	SigAvg, smooth
+wrax	SigAvg, 0
+rdax	time, -1
+sof	0.01, 0.14
+rdax	SigAvg, 1
+log	-0.5, -0.155
+exp	1, 0
+mulx	temp
+sof	-2, 0
+sof	1.5, 0
+wra	0, 0
+
+;******************************
+; Do reverb loops on dry & delay sig
+rda	d1#, krt
+rdfx	lp1, krf
+wrlx	lp1, krs
+rda	lap1a#, klap
+wrap	lap1a, -klap
+rda	lap1b#, klap
+wrap	lap1b, -klap
+rdax	SigIn, RvbSigInLvl
+rdax	DelaySig, RvbDelayLvl
+wra	d2, 0
+
+rda	d2#, krt
+rdfx	lp2, krf
+wrlx	lp2, krs
+rda	lap2a#, klap
+wrap	lap2a, -klap
+rda	lap2b#, klap
+wrap	lap2b, -klap
+rdax	SigIn, RvbSigInLvl
+rdax	DelaySig, RvbDelayLvl
+wra	d1, 0
+
+rdax	lp1, 0.6
+rdax	lp2, 0.6
+rda	ap1#, kap0
+wrap	ap1, -kap0
+rda	ap2#, kap1
+wrap	ap2, -kap1
+rda	ap3#, kap2
+wrap	ap3, -kap2
+rda	ap4#, kap3
+wrap	ap4, -kap3
+rda	ap5#, kap0
+wrap	ap5, -kap0
+rda	ap6#, kap1
+wrap	ap6, -kap1
+rda	ap7#, kap2
+wrap	ap7, -kap2
+rda	ap8#, kap3
+wrap	ap8, -kap3
+rda	ap9#, kap0
+wrap	ap9, -kap0
+rda	ap10#, kap1
+wrap	ap10, -kap1
+
+; EQ from Spin active crossover example
+wrax	eqin, 0
+rdax	eqin,kg1
+rdax	b1b,-kf1
+rdax	b1a,1
+wrax	temp,kq1
+rdax	eqin,kg1
+wrax	b1a,0
+rdax	temp,kf1
+rdax	b1b,1
+wrax	b1b,0
+rdax	eqin,1
+rdax	temp,kp1
+
+mulx	RvbMix
+
+rdax	DelaySig, DelayMix
+wrax	dacl, 1
+wrax	dacr, 0
+
+; smooth reverbs
+cho	rda, sin0,cos|reg|compc,lap1b+25
+cho	rda, sin0,cos,lap1b+26
+wra	lap1b+50, 0
+cho	rda, sin1,cos|reg|compc,lap2b+25
+cho	rda, sin1,cos,lap2b+26
+wra	lap2b+50, 0

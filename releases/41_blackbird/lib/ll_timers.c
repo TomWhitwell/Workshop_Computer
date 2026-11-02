@@ -76,16 +76,15 @@ void Timer_Start(int timer_id, timer_callback_t callback) {
     // printf("Timer: Start timer %d (next trigger at sample %u)\n", timer_id, timers[timer_id].next_trigger_sample);
 }
 
-void Timer_Stop(int timer_id) {
+// Called from core 1 (Metro_bang), so must stay in RAM and must not printf.
+void __not_in_flash_func(Timer_Stop)(int timer_id) {
     if (timer_id < 0 || timer_id >= max_timers) {
-        printf("Timer: Invalid timer ID %d\n", timer_id);
         return;
     }
 
     uint32_t irq_state = spin_lock_blocking(timers_lock);
     timers[timer_id].active = false;
     spin_unlock(timers_lock, irq_state);
-    printf("Timer: Stop timer %d\n", timer_id);
 }
 
 void Timer_Set_Params(int timer_id, float seconds) {

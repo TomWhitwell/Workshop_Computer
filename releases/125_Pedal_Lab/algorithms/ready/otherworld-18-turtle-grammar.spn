@@ -1,0 +1,175 @@
+; @name Turtle Grammar
+; @tagline Two mirrored tape turtles scratch out a golden-angle grammar
+; @description Two turtles walk the last half second of tape, one per channel,
+; @description and their heading decides how they play it: east forwards, north
+; @description an octave up at double speed, west backwards, south an octave
+; @description down at half speed. At every step a turtle turns by the same
+; @description angle, so a quarter turn draws a square (a four-step scratch loop),
+; @description a fifth of a turn a pentagon, and the golden angle a pattern that
+; @description never repeats. The right turtle is the left one's mirror image.
+; @description On a Fibonacci rhythm the pen lifts: the turtle walks on silently
+; @description while an octave-up miniature of its path sprouts from where it
+; @description stood, then the line resumes from wherever the turtle has got to.
+; @description Both turtles walk on their own ink, and slow waves bend the angle
+; @description and the step, so the figure keeps precessing.
+; @pots Turn | Step | Sprout
+; @render 0.764, 0.4, 0.5
+; @components turtle-graphics tape heads (heading = playback gear), rotation-word grammar (periodic to Sturmian), octave gears and reverse, Fibonacci pen-up sprouts, mirrored stereo with crossed ink feedback
+; @time POT1 0.07 1.2 exp
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	bufl	16383
+mem	bufr	16383
+
+equ	th	reg0		; turning phase / 2 (0 .. 0.5)
+equ	ps	reg1		; pen phase / 2
+equ	evadd	reg2		; 0, or 1/16 on pen-up steps (twice as fast)
+equ	stl	reg3		; offset step x 2^13
+equ	str	reg4
+equ	pl	reg5		; read offsets (ADDR_PTR units)
+equ	pr	reg6
+equ	ph	reg7		; step phasor -1 .. 0
+equ	pc	reg8		; child (sprout) read offset
+equ	stc	reg9		; child step x 2^13
+equ	pent	reg10		; pen target: 1 down, 0 up
+equ	pens	reg11		; smoothed pen: parent gain (the child gets 1 - pens)
+equ	cl	reg12
+equ	cr	reg13
+equ	outl	reg14		; the outputs, kept for the crossed ink (DACL/DACR read 0 on the chip)
+equ	outr	reg15
+
+	skp	run, start
+	wlds	sin0, 1, 250		; turning drift, 25 s
+	wlds	sin1, 2, 410		; step breathing, 12.5 s
+	sof	0, 0.25
+	wrax	pl, 1.0
+	wrax	pr, 0
+start:
+; ---- tapes: input plus crossed ink (the turtles' own trails)
+	rdax	outr, 0.28571		; (ACC is 0 here) the tapes run at half level: ink 0.4 of
+	rdax	adcl, 0.5		; input x0.5
+	wra	bufl, 0
+	rdax	outl, 0.28571
+	rdax	adcr, 0.5
+	wra	bufr, 0
+
+; ---- step clock (pen-up steps run twice as fast)
+	ldax	pot1			; step T = 70 ms .. 1.2 s, breathing +-0.2 octave
+	sof	-0.256, -0.6975
+	rdax	evadd, 1.0
+	cho	rdal, sin1
+	exp	1.0, 0
+	rdax	ph, 1.0
+	wrax	ph, 1.0
+	skp	neg, move
+	sof	1.0, -1.0
+	wrax	ph, 0
+; ---- new step: turn, set both gears, then the pen
+	cho	rdal, sin0		; turn: theta += alpha, alpha = pot0 / 2 + slow drift
+	rdax	pot0, 0.25
+	rdax	th, 1.0
+	and	$3FFFFF
+	wrax	th, 1.0
+	and	$300000			; heading L = quadrant x/8 (0 E, 1 N, 2 W, 3 S)
+	sof	1.0, -0.25		; W: backwards, step 2 -> 0.5
+	skp	zro, revl
+	sof	1.0, 0.125
+	absa
+	sof	-0.5, -0.0625		; (e - 2)/16, e = 1 - |x - 1|
+	exp	1.0, 0			; speed / 4 = 2^(e - 2)
+	sof	-1.0, 0.25		; (1 - speed) / 4
+	skp	0, setl
+revl:	sof	0, 0.5
+setl:	wrax	stl, 0
+	ldax	th			; heading R = quadrant of -theta (mirror)
+	sof	-1.0, 0
+	and	$300000
+	sof	1.0, -0.25
+	skp	zro, revr
+	sof	1.0, 0.125
+	absa
+	sof	-0.5, -0.0625
+	exp	1.0, 0
+	sof	-1.0, 0.25
+	skp	0, setr
+revr:	sof	0, 0.5
+setr:	wrax	str, 0
+	ldax	ps			; pen: golden rotation, up with density pot2/2
+	sof	1.0, 0.30908203125
+	and	$3FFFFF
+	wrax	ps, 1.0
+	rdax	pot2, -0.25
+	skp	gez, pdown
+	sof	0, 0.0625		; pen up: half-length step, sprout a child
+	wrax	evadd, 0
+	wrax	pent, 0
+	ldax	pl
+	wrax	pc, 0
+	ldax	stl
+	sof	2.0, -0.25
+	wrax	stc, 0
+	skp	zro, move
+pdown:	clr
+	wrax	evadd, 0
+	sof	0, 0.999
+	wrax	pent, 0
+; ---- per sample: pen crossfade, child, then the two turtles
+move:	ldax	pent
+	rdfx	pens, 0.004
+	wrax	pens, 0
+	ldax	pc			; child: octave-up miniature
+	rdax	stc, 0.0001220703125
+	sof	1.0, -0.0625
+	skp	gez, c1
+	clr
+c1:	sof	1.0, -0.4275
+	skp	neg, c2
+	clr
+c2:	sof	1.0, 0.49
+	wrax	pc, 1.0
+	wrax	addr_ptr, 0
+	rmpa	0.7000
+	wrax	cl, 0
+	ldax	pc
+	sof	1.0, 0.5
+	wrax	addr_ptr, 0
+	rmpa	0.7000
+	wrax	cr, 0
+	ldax	pl
+	rdax	stl, 0.0001220703125
+	sof	1.0, -0.0625
+	skp	gez, l1
+	clr
+l1:	sof	1.0, -0.4275
+	skp	neg, l2
+	clr
+l2:	sof	1.0, 0.49
+	wrax	pl, 1.0
+	wrax	addr_ptr, 0
+	rmpa	0.7000
+	rdax	cl, -1.0
+	mulx	pens
+	rdax	cl, 1.0
+	sof	2.0, 0			; x2 make-up (reads at half the output level, x0.7 trim)
+	wrax	outl, 1.0
+	wrax	dacl, 0
+	ldax	pr
+	rdax	str, 0.0001220703125
+	sof	1.0, -0.0625
+	skp	gez, r1
+	clr
+r1:	sof	1.0, -0.4275
+	skp	neg, r2
+	clr
+r2:	sof	1.0, 0.49
+	wrax	pr, 1.0
+	sof	1.0, 0.5
+	wrax	addr_ptr, 0
+	rmpa	0.7000
+	rdax	cr, -1.0
+	mulx	pens
+	rdax	cr, 1.0
+	sof	2.0, 0
+	wrax	outr, 1.0
+	wrax	dacr, 0

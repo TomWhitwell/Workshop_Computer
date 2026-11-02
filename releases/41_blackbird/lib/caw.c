@@ -66,7 +66,7 @@ void Caw_printf(const char* text, ...) {
 
 void Caw_send_luachunk(char* text) {
     if (text) {
-        printf("CAW_LUACHUNK: %s\n", text);
+        Caw_printf("%s", text);
     }
 }
 
@@ -80,9 +80,12 @@ void Caw_send_value(uint8_t type, float value) {
     printf("CAW_VALUE: type=%d, value=%f\n", type, value);
 }
 
+// Long text (ii help): already has its line endings. The USB write wrapper
+// splits it into FIFO-sized pieces.
 void Caw_stream_constchar(const char* stream) {
-    if (stream) {
-        printf("CAW_STREAM: %s\n", stream);
+    if (stream && tud_cdc_connected()) {
+        tud_cdc_write(stream, strlen(stream));
+        tud_cdc_write_flush();
     }
 }
 

@@ -1,0 +1,181 @@
+; @name Zeno's Arrow_clk
+; @tagline Every phrase fires arrows that halve the distance to the downbeat, climbing an octave with every halving
+; @description Zeno's paradox on your clock. An arrow catches what you play the moment
+; @description it is fired and plays it back an octave down and slowed to half speed,
+; @description then again at pitch in half the time, then an octave up in a quarter of
+; @description the time, two octaves up in an eighth, each repeat thrown to the other
+; @description side: a ping-pong that accelerates and climbs and lands exactly on the
+; @description clock edge it was aimed at. The arrows themselves follow Zeno too: the
+; @description phrase is 16 clock steps, and each arrow flies half of what is left, 8
+; @description steps, then 4, 2, 1 and a last quick one, so a slow, deep, two-second
+; @description flight is followed by shorter and shorter ones until the phrase lands in
+; @description a flurry, and the next long flight starts. Your notes are the payload and
+; @description choose the height: a loud note keeps halving up to the 30 ms limit, a
+; @description soft one climbs a step or two, and a rest stays low and slow.
+; @clock
+; @pots Climb | Edge | Spread
+; @render 1.0, 0.5, 1.0
+; @components clock-locked macro phrase (each arrow covers half the remaining steps), capture-and-freeze ring, geometric repeat schedule (1/2, 1/4, 1/8 ...) with exact octave speeds, loudness-driven halvings, ping-pong per repeat, gentle peak limiter
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	buf	32767		; the whole RAM: records each arrow's fragment, then freezes
+
+equ	clkhp	reg0		; clock detector: low-pass state
+equ	clkin	reg1		; free (the factory clock block's conditioned sample)
+equ	clkst	reg2		; clock state: -0.25 high, -0.5 low (armed)
+equ	clkprev	reg3
+equ	clkcnt	reg4
+equ	clkper	reg5
+equ	one	reg7		; 2^-15: one sample of address
+equ	U2	reg8		; twice the unit (address units)
+equ	ph	reg9		; unit countdown
+equ	Rm	reg10		; (units left in the phrase - 1) / 32
+equ	F	reg11		; fragment length (address units)
+equ	s	reg12		; reading speed x 2^10
+equ	j	reg13		; position in the fragment
+equ	th	reg14		; time since launch / 2, mod 1/2
+equ	rec	reg15		; capture countdown
+equ	gL	reg17		; left gain; the right gets the rest
+equ	tq	reg18
+equ	a	reg19
+equ	w	reg20
+equ	env	reg21
+
+	or	$000100
+	wrax	one, 0
+
+; ---- clock: rising-edge detector, then the factory count
+	ldax	adcr
+	rdfx	clkhp, 0.06		; low-pass of ADCR, tau ~0.5 ms
+	wrax	clkhp, -1.0
+	rdax	adcr, 1.0		; d = ADCR - low-pass: the recent rise
+	sof	1.0, -0.1875		; high at d >= 0.1875
+	skp	neg, c_lo
+	sof	0, -0.25		; state high
+	wrax	clkst, 0
+	skp	zro, c_hi
+c_lo:	sof	1.0, 0.125		; d - 0.0625: below it the input re-arms; between, hold
+	skp	gez, c_hi
+	sof	0, -0.5			; state low (armed)
+	wrax	clkst, 0
+c_hi:	ldax	clkprev			; latch on low -> high
+	rdax	clkst, -1.0
+	skp	neg, c_latch
+	ldax	clkcnt
+	rdax	one, 0.125		; + 2^-18 (the factory's clkinc register, the same value)
+	and	$3FFFFF
+	wrax	clkcnt, 0
+	skp	zro, c_done
+c_latch: ldax	clkcnt
+	wrax	clkper, 0
+	wrax	clkcnt, 0
+	wrax	ph, 0			; the beat: a unit starts on this very sample
+c_done:	ldax	clkst
+	wrax	clkprev, 0
+
+; ---- unit: the period folded down by octaves below 0.4785 s
+	sof	0, 0.015		; floor 0.117 s: no clock (or the junk first latch) runs on 0.117 s units
+	maxx	clkper, 1.0
+	rdax	one, 0.125		; + the sample the block's count leaves out: the true period P
+	log	1.0, 0.25390625		; log2(8 P / 0.4785 s)/16
+	skp	neg, u_fit
+	or	$F80000			; (x mod 1/16) - 1/16 in one op: whole octaves down
+u_fit:	sof	1.0, -0.00390625	; take the 1/16 octave back: U2 = 16 P 2^-k, exactly 2U
+	exp	1.0, 0
+	wrax	U2, 0
+
+; ---- unit steps; a 16-unit phrase. An arrow launches whenever the units left (R)
+;      are a power of two, so each covers half the distance left: 8, 4, 2, 1, 1
+	ldax	ph
+	rdax	one, -0.995		; 0.5 % slow: the edge, not the countdown, starts each unit
+	wrax	ph, 1.0
+	skp	gez, nostep
+	rdax	U2, 0.5
+	wrax	ph, 0
+	ldax	Rm
+	sof	1.0, -0.03125
+	and	$3C0000			; R - 1, counting down 15 .. 0
+	wrax	Rm, 1.0
+	sof	-1.0, -0.03125
+	wrax	tq, 1.0			; -R/32 (LOG takes the magnitude)
+	log	1.0, 0
+	and	$07FFFF			; zero iff R is a power of two
+	skp	zro, launch
+	skp	0, nostep
+launch:	ldax	tq			; fragment F = R U / 8, a quarter of the arrow (U/8 for the last)
+	mulx	U2
+	sof	-2.0, 0			; x2 exactly (SOF 2.0 is really 1.99994; -2.0 is exact)
+	wrax	F, 1.0
+	wrax	rec, 0
+	wrax	j, 0
+	wrax	th, 0
+	rdax	pot2, 0.5		; Spread: the first repeat flies to the left
+	sof	1.0, 0.5
+	wrax	gL, 0
+	sof	0, 0.015625		; the arrow leaves at half speed (an octave down)
+	wrax	s, 0
+nostep:
+
+; ---- the arrow: each time the fragment has been played through, the next repeat
+;      plays it twice as fast (an octave up, half as long) on the other side, as long
+;      as the next repeat stays longer than 31 ms / (Climb x the arrow's loudness)
+	ldax	j
+	rdax	s, 0.0009765625
+	wrax	j, 1.0
+	rdax	F, -1.0
+	skp	neg, nowrap
+	wrax	j, 0
+	ldax	gL
+	sof	-1.0, 0.999
+	wrax	gL, 0
+	ldax	F
+	mulx	pot0
+	mulx	env
+	rdax	s, -2.0
+	skp	neg, nowrap
+	ldax	s
+	rdax	s, 1.0			; exactly 2s (SOF 2.0 left the repeats 6.8 c flat and late, cut by the launch)
+	wrax	s, 0
+nowrap:	ldax	j			; window: fades over the first and last 1/32 .. 1/128 s of the
+	rdax	F, -0.5			; fragment (Edge), whatever its speed: min(1, k min(j, F - j))
+	absa				; (|j - F/2| - F/2 = -min(j, F - j); LOG takes the magnitude)
+	rdax	F, -0.5
+	log	1.0, 0.3125
+	rdax	pot1, 0.125
+	exp	1.0, 0
+	wrax	w, 0
+
+; ---- the ring: records the fragment, then holds still
+	ldax	rec
+	rdax	one, -1.0
+	skp	neg, frozen
+	wrax	rec, 0
+	rdax	adcl, 0.5
+	skp	0, ring
+frozen:	clr
+	rda	buf, 1.0
+ring:	wra	buf, 0
+
+; ---- read: offset = t - j (mod 1 s), t the time since the launch
+	ldax	th
+	rdax	one, 0.5
+	and	$3FFFFF
+	wrax	th, -1.0
+	rdax	j, 0.5
+	sof	-2.0, 0			; 2 (th - j/2) exactly (SOF 1.99993 slipped a sample every second)
+	wrax	addr_ptr, 0
+; ---- output: the gentle limiter, then the repeat on its side
+	rmpa	1.99
+	mulx	w
+	wrax	a, 1.0
+	maxx	env, 0.99988		; gentle limiter: peak follower, 0.25 s release
+	wrax	env, 1.0
+	log	-1.0, -0.0703125	; gain min(1, 0.459 / peak)
+	exp	1.0, 0
+	mulx	a
+	wrax	a, 1.24			; make-up x1.24, folded into the two output writes
+	mulx	gL
+	wrax	dacl, -1.0
+	rdax	a, 1.24
+	wrax	dacr, 0

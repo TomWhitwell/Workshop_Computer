@@ -1,0 +1,240 @@
+; freeverb from
+; http://www.spinsemi.com/forum/viewtopic.php?t=309
+
+; pot0: combfeedback
+; pot1: 
+; pot2: 
+
+equ comb1filt 32
+equ comb2filt 33
+equ comb3filt 34
+equ comb4filt 35
+equ comb5filt 36
+equ comb6filt 37
+equ comb7filt 38
+equ comb8filt 39
+
+equ combR1filt 32+12
+equ combR2filt 33+12
+equ combR3filt 34+12
+equ combR4filt 35+12
+equ combR5filt 36+12
+equ combR6filt 37+12
+equ combR7filt 38+12
+equ combR8filt 39+12
+
+equ combfeedback pot0
+equ stereospread 23
+equ filtco 0.5
+equ allpassamt 0.5
+mem comb1 1116
+mem comb2 1188
+mem comb3 1277
+mem comb4 1356
+mem comb5 1422
+mem comb6 1491
+mem comb7 1557
+mem comb8 1617
+
+mem combR1 1116+stereospread
+mem combR2 1188+stereospread
+mem combR3 1277+stereospread
+mem combR4 1356+stereospread
+mem combR5 1422+stereospread
+mem combR6 1491+stereospread
+mem combR7 1557+stereospread
+mem combR8 1617+stereospread
+
+mem allpass1 556
+mem allpass2 441
+mem allpass3 341
+mem allpass4 225
+
+mem allpassR1 556+stereospread
+mem allpassR2 441+stereospread
+mem allpassR3 341+stereospread
+mem allpassR4 225+stereospread
+
+; LEFT CHANNEL
+
+;* NOW do freeverb style comb with lowpass filters, sum outputs
+; output = delay output
+; delay-input = [filteredoutput * feedback + input]
+
+; get delay and one pole low pass
+rda comb1#, 1-filtco ; read delay output
+rdax comb1filt, filtco ; filter using one sample delay
+wrax comb1filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra comb1, 0 ; write to the buffer
+
+rda comb2#, 1-filtco ; read delay output
+rdax comb2filt, filtco ; filter using one sample delay
+wrax comb2filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra comb2, 0 ; write to the buffer
+
+rda comb3#, 1-filtco ; read delay output
+rdax comb3filt, filtco ; filter using one sample delay
+wrax comb3filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra comb3, 0 ; write to the buffer
+
+rda comb4#, 1-filtco ; read delay output
+rdax comb4filt, filtco ; filter using one sample delay
+wrax comb4filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra comb4, 0 ; write to the buffer
+
+rda comb5#, 1-filtco ; read delay output
+rdax comb5filt, filtco ; filter using one sample delay
+wrax comb5filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra comb5, 0 ; write to the buffer
+
+rda comb6#, 1-filtco ; read delay output
+rdax comb6filt, filtco ; filter using one sample delay
+wrax comb6filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra comb6, 0 ; write to the buffer
+
+rda comb7#, 1-filtco ; read delay output
+rdax comb7filt, filtco ; filter using one sample delay
+wrax comb7filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra comb7, 0 ; write to the buffer
+
+rda comb8#, 1-filtco ; read delay output
+rdax comb8filt, filtco ; filter using one sample delay
+wrax comb8filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra comb8, 0 ; write to the buffer
+
+; RIGHT CHANNEL
+
+;* NOW do freeverb style combR with lowpass filters, sum outputs
+; output = delay output
+; delay-input = [filteredoutput * feedback + input]
+
+; get delay and one pole low pass
+rda combR1#, 1-filtco ; read delay output
+rdax combR1filt, filtco ; filter using one sample delay
+wrax combR1filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra combR1, 0 ; write to the buffer
+
+rda combR2#, 1-filtco ; read delay output
+rdax combR2filt, filtco ; filter using one sample delay
+wrax combR2filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra combR2, 0 ; write to the buffer
+
+rda combR3#, 1-filtco ; read delay output
+rdax combR3filt, filtco ; filter using one sample delay
+wrax combR3filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra combR3, 0 ; write to the buffer
+
+rda combR4#, 1-filtco ; read delay output
+rdax combR4filt, filtco ; filter using one sample delay
+wrax combR4filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra combR4, 0 ; write to the buffer
+
+rda combR5#, 1-filtco ; read delay output
+rdax combR5filt, filtco ; filter using one sample delay
+wrax combR5filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra combR5, 0 ; write to the buffer
+
+rda combR6#, 1-filtco ; read delay output
+rdax combR6filt, filtco ; filter using one sample delay
+wrax combR6filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra combR6, 0 ; write to the buffer
+
+rda combR7#, 1-filtco ; read delay output
+rdax combR7filt, filtco ; filter using one sample delay
+wrax combR7filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra combR7, 0 ; write to the buffer
+
+rda combR8#, 1-filtco ; read delay output
+rdax combR8filt, filtco ; filter using one sample delay
+wrax combR8filt, 1 ; store one sample delay, scale by feedback amount
+mulx combfeedback
+rdax adcl, 0.5 ; add the input
+wra combR8, 0 ; write to the buffer
+
+
+;LEFT CHANNEL
+
+;* NOW sum outputs
+rda comb1#, 1
+rda comb2#, 1
+rda comb3#, 1
+rda comb4#, 1
+rda comb5#, 1
+rda comb6#, 1
+rda comb7#, 1
+rda comb8#, 1
+
+; feed through allpass filters in series
+
+; get delay -> add to -1*acc ->
+
+rda allpass1#, -allpassamt
+wrap allpass1, allpassamt
+rda allpass2#, -allpassamt
+wrap allpass2, allpassamt
+rda allpass3#, -allpassamt
+wrap allpass3, allpassamt
+rda allpass4#, -allpassamt
+wrap allpass4, allpassamt
+
+
+;** OUTPUT
+wrax dacl, 0
+
+; RIGHT CHANNEL
+
+;* NOW sum outputs
+rda combR1#, 1
+rda combR2#, 1
+rda combR3#, 1
+rda combR4#, 1
+rda combR5#, 1
+rda combR6#, 1
+rda combR7#, 1
+rda combR8#, 1
+
+; feed through allpass filters in series
+
+; get delay -> add to -1*acc ->
+
+rda allpassR1#, -allpassamt
+wrap allpassR1, allpassamt
+rda allpassR2#, -allpassamt
+wrap allpassR2, allpassamt
+rda allpassR3#, -allpassamt
+wrap allpassR3, allpassamt
+;rda allpassR4#, -allpassamt
+;wrap allpassR4, allpassamt
+
+;** OUTPUT
+wrax dacr, 0 

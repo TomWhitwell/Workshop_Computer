@@ -1,182 +1,47 @@
-# Blackbird v1.1
+# Blackbird v1.2
 
-A fully monome-crow-compatible program card for the Music Thing Modular Workshop Computer.
+A program card for the Music Thing Modular Workshop Computer that speaks the same language as [monome crow](https://monome.org/docs/crow/). It runs crow's Lua scripts, and anything that talks to crow over USB talks to blackbird the same way:
 
-This enables you to:
-- Live code with the workshop computer connected to a non-workshop computer running [druid](https://monome.org/docs/crow/druid/)
-- Connect a [monome norns](https://monome.org/docs/norns/) via USB and run scripts on norns that interact with crow natively (try [awake](https://llllllll.co/t/awake/21022), [buoys](https://llllllll.co/t/buoys-v1-2-0/37639), [loom](https://llllllll.co/t/loom/21091) ... many of these also allow you do use a monome grid for WS interactions)
-- Connect the workshop to a non-WS computer running [Max MSP or MaxforLive](https://monome.org/docs/crow/max-m4l/) with Ableton and use the monome-built M4L instruments to make the WS interact with Ableton or your own Max creations. 
-- Write and upload your own (simple) program cards in the [Lua (5.4.8) language](https://www.lua.org/manual/5.4/). Upload to the WS computer via the "u" command in druid (on a non-WS computer). Uploaded scripts are saved to flash on the **physical card itself**- So you can write many different blackbird cards and hot-swap! If you want the name of your patch saved to flash for future reference (printed to host at startup) make the first line of your script start with three hypens `---`.
+- Live code from [druid](https://monome.org/docs/crow/druid/) or [web-druid](https://dessertplanet.github.io/web-druid/) on a computer.
+- Connect a [monome norns](https://monome.org/docs/norns/) over USB and run norns scripts that use crow (try [awake](https://llllllll.co/t/awake/21022), [buoys](https://llllllll.co/t/buoys-v1-2-0/37639), [loom](https://llllllll.co/t/loom/21091) ... many also let you use a monome grid).
+- Use [Max/MSP or Max for Live](https://monome.org/docs/crow/max-m4l/) with monome's crow devices, or your own Max patches.
+- Write your own scripts in [Lua 5.4](https://www.lua.org/manual/5.4/) and upload them with druid's `u` command. They start straight away and are saved to flash on the **physical card itself**, so you can keep several blackbird cards with different scripts and swap them.
 
-  > [NOTE] 
-  > Make sure you wait for blackbird to fully start up before attempting to upload a lua script from druid. Startup is complete when welcome messages are printed in druid and the bottom-left LED starts flashing. Sending commands before blackbird is fully online can cause weirdness.
+Crow's [documentation](https://monome.org/docs/crow/) and examples apply as they are. Blackbird adds the Computer's knobs, switch and pulse jacks in the `bb` namespace: see [Basics](https://computer.musicthing.co.uk/programs/41-blackbird/?panel=basics) for the jack mapping and how to get started.
 
-Blackbird does everything monome crow can do and works with all (I hope!) existing crow scripts. It has also been extended with Blackbird-specific functionality via the `bb` namespace. 
+## What's new in 1.2
 
-A great place to get started is the [original crow documentation](https://monome.org/docs/crow/) since the examples there work here perfectly according to the hardware mapping below. More docs linked below.
+- **MIDI over USB**: send and receive MIDI from Lua (the same functions as monome iii). Connected to a computer, blackbird is a USB MIDI device; plug a class-compliant controller into the Computer and it's a USB MIDI host. MIDI clock sync and MPE too. See the [MIDI API](https://computer.musicthing.co.uk/programs/41-blackbird/?panel=midi).
+- **ii (I2C)**: wire the Computer's UART pads to an ii bus and blackbird talks to Just Friends, crow, Teletype expanders and more, with crow's `ii` syntax, and answers as crow 4. See [ii](https://computer.musicthing.co.uk/programs/41-blackbird/?panel=ii).
+- **Outputs**: audio-rate ASL (`lfo`, `oscillate`, nb_drumcrow's voices) stays in tune, clocks and metros keep time while a script is busy, slopes can be very long, and the `over`, `under` and `rebound` shapes are in.
+- **Scripts**: uploads start straight away with no reset, `^^k` always recovers (even from a script that used up all the memory), each new script starts with all the memory, `metro[8]` works, and metros honor `count`.
+- **Single-file UF2s with a built-in script**, for sharing patches (see [UF2 script injection](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/UF2_SCRIPT_INJECTION.md)).
 
-Also check out the examples directory in this repo for some sample scripts (more to be added soon!)
-
-Tested with druid, norns, MAX/MSP, pyserial - works with **ANY** serial host that sends compatible strings.
-
-## Hardware Mapping
-
-Blackbird maps the Workshop Computer's hardware to crow's inputs and outputs as shown below. Details in the tables that follow.
-
-![Hardware Mapping Diagram](docs/HARDWARE_MAPPING.jpeg)
-
-
-### Outputs
-
-| Crow Script | Workshop Computer | Type |
-|-------------|-------------------|------|
-| `output[1]` | CV Out 1 | CV Output (callibrated)|
-| `output[2]` | CV Out 2 | CV Output (callibrated)|
-| `output[3]` | Audio Out 1 | CV/Audio Output (not callibrated)|
-| `output[4]` | Audio Out 2 | CV/Audio Output (not callibrated)|
-
-### Inputs
-
-| Crow Script | Workshop Computer | Type |
-|-------------|-------------------|------|
-| `input[1]` | CV In 1 | CV Input |
-| `input[2]` | CV In 2 | CV Input |
-
-### Blackbird-Specific Hardware
-
-> [NOTE]
-> The WS computer's LEDs always show the positive output voltages for each of the six outputs (negative voltages are not shown).
-
-| Lua API | Workshop Computer | Type |
-|---------|-------------------|------|
-| `bb.knob.main` | Main Knob | Analog Input |
-| `bb.knob.x` | X Knob | Analog Input |
-| `bb.knob.y` | Y Knob | Analog Input |
-| `bb.switch.position` | 3-Position Switch | Digital Input |
-| `bb.audioin[1]` | Audio In L | Audio Input (query only, no detection)|
-| `bb.audioin[2]` | Audio In R | Audio Input (query only, no detection)|
-| `bb.pulsein[1]` | Pulse In 1 | Digital Input (supports change/clock detection)|
-| `bb.pulsein[2]` | Pulse In 2 | Digital Input (supports change/clock detection)|
-| `bb.pulseout[1]` | Pulse Out 1 | Digital Output |
-| `bb.pulseout[2]` | Pulse Out 2 | Digital Output |
+If you use monome's crow devices in Max for Live: blackbird now shows up as a MIDI device as well as a serial port, so you may need to pick it in the device's menu again once.
 
 ## Documentation
 
-- **Crow Documentation**: [https://monome.org/docs/crow/](https://monome.org/docs/crow/)
-- **Crow Script Reference**: [https://monome.org/docs/crow/reference/](https://monome.org/docs/crow/reference/)
-- **Bowery crow script repository**: [https://github.com/monome/bowery](https://github.com/monome/bowery)
-- **Lua Documentation**: [https://www.lua.org/manual/5.4/](https://www.lua.org/manual/5.4/)
-- **Blackbird-Specific Features: supplementary docs**:
-  - [Knob & Switch API](docs/KNOB_SWITCH_API.md)
-  - [Using Knobs with ASL Dynamics](docs/KNOBS_WITH_ASL.md)
-  - [Pulse Input Detection](docs/PULSEIN_DETECTION.md)
-  - [Pulse Output Actions](docs/PULSEOUT_ACTIONS.md)
+- [Crow documentation](https://monome.org/docs/crow/) and [script reference](https://monome.org/docs/crow/reference/)
+- [Bowery](https://github.com/monome/bowery) crow scripts, and [bbbowery](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/bbbowery), versions adapted to the Computer's knobs, switch and pulse jacks
+- [Lua 5.4 manual](https://www.lua.org/manual/5.4/)
+- Blackbird's own docs: [Basics](https://computer.musicthing.co.uk/programs/41-blackbird/?panel=basics), [First.lua](https://computer.musicthing.co.uk/programs/41-blackbird/?panel=first-lua) (the default script), [MIDI](https://computer.musicthing.co.uk/programs/41-blackbird/?panel=midi), [ii](https://computer.musicthing.co.uk/programs/41-blackbird/?panel=ii)
+- More detail:
+  - [Knobs & switch](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/KNOB_SWITCH_API.md)
+  - [Knobs in ASL](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/KNOBS_WITH_ASL.md)
+  - [Pulse inputs](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/PULSEIN_DETECTION.md)
+  - [Pulse outputs](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/PULSEOUT_ACTIONS.md)
+  - [Sharing scripts as a single UF2](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/UF2_SCRIPT_INJECTION.md)
+  - [Integer-only Lua, for heavy DSP-style scripts](https://github.com/TomWhitwell/Workshop_Computer/blob/main/releases/41_blackbird/docs/INT_MATH.md)
 
-## How It Works
+## Talking to blackbird from your own software
 
-Blackbird communicates with host applications (druid, norns, Max/MSP) over USB serial by using exactly the same protocol as real crow, and presents itself over USB in such a way that existing hosts don't know the difference between blackbird and crow.
+Blackbird uses crow's USB serial protocol, so any serial host works (tested with druid, norns, Max/MSP and pyserial):
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         HOST APPLICATION                            │
-│    (druid / norns / MaxMSP / Python / Anything that speaks serial)  │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │
-                             │ USB Serial Connection
-                             │ (Sends: Lua code, commands, queries)
-                             │ (Receives: Print output, values, events)
-                             ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                    BLACKBIRD (Workshop Computer)                   │
-│                                                                    │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │ USB Serial Handler                                           │  │
-│  │ • Receives commands and code via USB                         │  │
-│  │ • Anything with a ^^ prefix is read as a crow command        │  │
-│  │ • Anything else is interpreted as lua code                   │  │
-│  │ • Newline character '\n' tells system packet is complete.    │  │
-│  │ • multi-line chunks can be sent between triple back-ticks ```│  │
-│  │ • Sends responses and print() output back to host            │  │
-│  └───────────────────┬──────────────────────────────────────────┘  │
-│                      │                                             │
-│                      ▼                                             │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │ Lua Script Execution                                         │  │
-│  │ • Runs code sent from USB host OR loaded from flash memory   │  │
-│  │ • Manages timing (metros, clocks)                            │  │
-│  │ • Controls outputs via ASL actions and direct voltage        │  │
-│  │ • Monitors inputs and fires user-defined lua callbacks       │  │
-│  └───────────────────┬──────────────────────────────────────────┘  │
-│                      │                                             │
-│                      ▼                                             │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │ Hardware I/O interaction via Chris Johnson's ComputerCard.h  │  │
-│  │ • Inputs/outputs/knobs/switch                                │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                    │
-└────────────────────────────────────────────────────────────────────┘
-```
+- A line starting with `^^` is a command (`^^k` stops the script, `^^v` prints the version, ...); anything else is run as Lua.
+- A newline ends a line; send multi-line code between triple backticks (```` ``` ````).
+- `print()` output and replies come back over the same port.
 
-## Other Blackbird-specific goodness
-
-### Noise Generation
-
-**Audio-rate noise action** with `bb.noise()` - generates noise directly in the audio loop for clean, efficient noise generation on any CV/Audio output. Optional paramater sets the noise level between 0.0 (silence) and 1.0 (full vol, default).
-
-Example:
-
-```lua
-output[4]( bb.noise() )
-
---OR
-
-output[2].action = bb.noise(0.5) -- define action
-output[2]() -- run the action
-```
-
-### Define an 'ASAP' function
-`bb.asap` - Run code as fast as possible in the control thread with no detection. Useful for updating parameters smoothly with knobs. Use carefully as if you do much in here then performance will be impacted.
-
-Only runs if it exists. To clear/stop this function use `bb.asap = nil`
-
-Example:
-```lua
-bb.asap = function()
-    myParameter = bb.knob.main
-end
-```
-
-### Check which inputs are plugged in
-
-**Check if inputs are connected** with `bb.connected` - Query whether a cable is plugged into any input jack. This uses the Workshop Computer's built-in normalization probe hardware to detect physical cable presence.
-
-Available for all six input jacks:
-- `bb.connected.cv1` / `bb.connected.cv2` - CV inputs
-- `bb.connected.pulse1` / `bb.connected.pulse2` - Pulse inputs  
-- `bb.connected.audio1` / `bb.connected.audio2` - Audio inputs
-
-Returns `true` if a cable is plugged in, `false` if the jack is empty.
-
-Example:
-```lua
--- optionally attenuate an incoming voltage with a knob,
--- but use the knob if nothing is plugged in
-bb.asap = function()
-  myparameter = bb.knob.main
-  if bb.connected.cv1 then
-    myparameter = myparameter * input[1].volts
-  end
-end
-```
-
-### Performance characteristics
-
-Blackbird uses a dual-core architecture optimized for responsive, jitter-free output:
-- **Core 1 (audio thread)**: Outputs CV slopes sample-by-sample at 9.6kHz for zero-jitter precision
-- **Core 0 (control thread)**: Processes Lua scripts, metros, and ASL actions with ~1ms latency
-- Timer callbacks (metros, ASL triggers) are processed in 8-sample blocks for optimal balance between responsiveness and CPU efficiency
-
-This architecture provides excellent timing accuracy for musical applications while maintaining stability even under heavy scripting loads.
+Wait for blackbird's welcome message before sending anything after power-up.
 
 ## Credits & Thank yous
 
@@ -192,12 +57,3 @@ Special thanks to:
 ## License
 
 GPLv3 or later - see [LICENSE](LICENSE.txt) file for details.
-
-## Known Issues
-
-A few things that are on the radar but that I don't plan to fix (at least not now). If you think any of them are dealbreakers please file a github issue and we can debate!
-
-- Setting `clock.tempo` above 500 bpm can cause crashes. Slow down!
-- Running scripts with references to the `ii` table produces harmless (but chatty) lua nil global errors. Ideally these would be silent until/unless i2c support is somehow added/defined for an alleged eurorack-computer-only-future-module.
-- System does not prevent receipt of serial comms during startup that are known to cause issues. This is doc'd in the overview but could be prevented in code entirely in a future version.
-- Wobblewobble norns script doesn't play nice with blackbird as is. I think the solution is to turn down the frequency that supercollider is triggering output.volts message dispatch in the norns-side code but this is untested.

@@ -1,0 +1,145 @@
+; ping pong delay with 3 taps - left, right, centre
+; centre is mixed with both left & right taps
+; Graham Biswell <graham@gbiswell.com>
+;
+; pot0 adjusts time of center tap
+; pot1 adjusts delay time of left tap relative to right
+; pot2 adjusts delay time
+
+equ	delay_len	10920		; max. delay length for all 3 taps
+equ	smooth		0.001		; Smoothing coefficient, adjust to change speed/zippernoise
+
+; LPF & HPF cutoff frequency for damping
+equ     damp_lpf        0.1
+equ     damp_hpf        0.02
+
+equ	damping_amount	0.25
+equ	feedback_amount	0.5
+equ	center_lvl	0.5
+
+mem	left		delay_len
+mem	right		delay_len
+mem	center		delay_len
+
+
+equ	c_delay_pot	pot0
+equ	l_delay_pot	pot1
+equ	r_delay_pot	pot2
+
+equ	l_offset	reg0
+equ	r_offset	reg1
+equ	c_offset	reg2
+equ	damping		reg3
+equ	feedback	reg4
+equ	left_data	reg5
+equ	right_data	reg6
+equ	center_data	reg7
+equ	lpf		reg8
+equ	hpf		reg9
+equ	temp		reg10
+equ	div		reg11
+equ	l_delay		reg12
+equ	r_delay		reg13
+equ	c_delay		reg14
+
+;*******************************************************
+; any initialisation goes here
+skp	RUN,loop
+sof	0, feedback_amount
+wrax	feedback, 0
+sof	0, damping_amount
+wrax	damping, 0
+loop:
+;clr
+
+;*******************************************************
+; get offset into each tap from 3 pot settings
+; pots values are filtered
+rdax	r_delay_pot, 1
+sof	0.99, 0.01
+wrax	r_delay, 0
+or	delay_len * 256
+mulx	r_delay
+rdfx	r_offset, smooth
+wrax	r_offset, 0
+
+rdax	l_delay_pot, 1
+sof	0.99, 0.01
+wrax	l_delay, 0
+or	delay_len * 256
+mulx	l_delay
+rdfx	l_offset, smooth
+wrax	l_offset, 0
+
+rdax	c_delay_pot, 1
+sof	0.99, 0.01
+wrax	c_delay, 0
+or	delay_len * 256
+mulx	c_delay
+rdfx	c_offset, smooth
+wrax	c_offset, 0
+
+;*******************************************************
+; read data from taps using offsets
+; Tap 0
+or	left * 256
+rdax	l_offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	left_data, 0
+
+; Tap 1
+or	right*256
+rdax	r_offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	right_data, 0
+
+; Tap 2
+or	center * 256
+rdax	c_offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	center_data, 0
+
+
+;*******************************************************
+; write outputs
+rdax	center_data, center_lvl
+rdax	left_data, 1
+wrax	dacl, 0
+
+; Right output
+rdax	center_data, center_lvl
+rdax	right_data, 1
+wrax	dacr, 0
+
+;*******************************************************
+; now copy left to right, right to left
+;
+; left delay output straight to right delay input
+rdax	left_data, 1
+wra	right, 0
+
+; right delay output attenuated by feedback amount
+; filtered by damping amount (LPF & HPF)
+; small amount of HPF applied
+; mixed with left ADC input then written to left delay input
+rdax	right_data, 1
+mulx	feedback
+wrax	temp, 1
+rdfx	lpf, damp_lpf
+wrlx	lpf, -1
+rdfx    hpf, damp_hpf
+wrhx    hpf, -1
+rdax	temp, -1
+mulx	damping
+rdax	temp, 1
+
+; now add l & r input data, write to left tap, add right hand tap data & write to centre
+rdax	adcl, 0.6
+rdax	adcr, 0.6
+wra	left, 1
+rda	right, 1
+wra	center, 0
+ 

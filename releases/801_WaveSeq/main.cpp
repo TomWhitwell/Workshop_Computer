@@ -52,7 +52,10 @@
 //               /6, /4, /3, /2, x1 (centre), x2, x3, x4, x6, x8; CV In 2
 //               moves two ratios a volt
 //   Switch mid  X = FM amount (Audio In 1), Y = wave scan amount (Audio In 2)
-//   Switch down Tap to step the direction: forward, ping-pong, random
+//   Switch down Hold and turn Main to set the fine pitch (+/-100 cents,
+//               relative: a full turn is the whole range); Main then waits
+//               to pick the pitch up again.  Let go without turning to step
+//               the direction: forward, ping-pong, random
 //
 // The four X/Y settings each keep their value.  After the switch moves, a
 // knob does nothing until it reaches (or passes) its new setting's value,
@@ -165,13 +168,6 @@ public:
 		{
 			restartRequest = false;
 			restart = true;
-		}
-
-		// A tap down on the switch steps the direction
-		if (SwitchChanged() && SwitchVal() == Down)
-		{
-			direction = (direction + 1) % kDirections;
-			dirShow = 1500; // show it on the LEDs for ~1s
 		}
 
 		// Clock on Pulse In 1
@@ -371,6 +367,13 @@ private:
 
 	// Global controls, updated at control rate
 	int32_t baseNote = 60 << 8; // Q8 semitones
+	// Main: the pitch setting (0-4095, with pickup) and the fine pitch
+	int32_t pitchSetting = 2048, lastMain = 2048;
+	bool pitchLatched = true;
+	int32_t fineCents = 0;        // -100 to +100
+	bool downHeld = false, fineTurned = false;
+	int32_t pressKnob = 0, fineAtPress = 0;
+	int fineShow = 0;             // control ticks left of the fine pitch on the LEDs
 	int32_t detune = 15;        // Q8 semitones, for Audio Out 2
 	int32_t xfAmount = 0;       // Q12
 	int32_t fmAmount = 0;       // Q12, squared law
@@ -411,7 +414,8 @@ private:
 	// Snapshot for the web editor: written on core0, read on core1
 	volatile uint8_t stCur = 0, stNext = 0, stMix = 0, stProgress = 0, stFlags = 0;
 	volatile uint8_t stXfade = 0, stFM = 0, stScan = 0;
-	volatile int32_t stNote = 0, stSpeed = 0;
+	volatile int32_t stNote = 0, stSpeed = 0, stFine = 8192;
+	volatile uint8_t stFlags2 = 0;
 	int32_t lastMix = 0;
 
 	static constexpr int32_t kSkipBelow = 128;
@@ -683,7 +687,8 @@ private:
 	void Control()
 	{
 		// Panel
-		baseNote = (24 << 8) + (MapKnob(KnobVal(Main), false) * 72 * 256) / 4095 + CVIn1() * 9;
+		HandleMainAndSwitch();
+		baseNote = (24 << 8) + (pitchSetting * 72 * 256) / 4095 + (fineCents * 256) / 100 + CVIn1() * 9;
 		HandleKnobs();
 		// Speed: 1/8x at 0, 1x at 2048, 8x at 4095 (+/-3 octaves), plus CV
 		int32_t sd = settings[SetSpeed] - 2048;
@@ -768,12 +773,14 @@ private:
 			int32_t pr = stepLen > 0 ? int32_t((int64_t(elapsed) * 127) / stepLen) : 0;
 			stProgress = uint8_t(pr < 0 ? 0 : (pr > 127 ? 127 : pr));
 		}
-		bool waiting = !knobLatched[0] || !knobLatched[1];
+		bool waiting = !knobLatched[0] || !knobLatched[1] || !pitchLatched;
 		stFlags = uint8_t((direction & 3) | (clocked ? 4 : 0) | (mu.Connected() ? 8 : 0)
 			| (knobBank == 0 ? 16 : 0) | (knobLatched[0] ? 0 : 32) | (knobLatched[1] ? 0 : 64));
 		stFM = uint8_t(settings[SetFM] >> 5);
 		stScan = uint8_t(settings[SetScan] >> 5);
-		stNote = baseNote >> 5;
+		stNote = (baseNote * 100) >> 8;   // cents
+		stFine = fineCents + 8192;
+		stFlags2 = uint8_t(pitchLatched ? 0 : 1);
 		stSpeed = (spd >> 4) + 2048;
 		stXfade = uint8_t(xfAmount >> 5);
 		if (dirShow > 0) dirShow--;
@@ -782,7 +789,18 @@ private:
 		bool conn = mu.Connected() || WebLinked();
 		for (int i = 0; i < 4; i++)
 		{
-			if (dirShow > 0) LedOn(i, i <= direction && i < 3); // 1, 2 or 3 LEDs
+			if (fineShow > 0)
+			{
+				// Fine pitch as a bar from the middle: LEDs 2 and 1 flat,
+				// 3 and 4 sharp, the middle two dim at exactly 0
+				int32_t f = fineCents;
+				int32_t lv = 0;
+				if (f == 0) lv = (i == 1 || i == 2) ? 600 : 0;
+				else if (f < 0) lv = i == 1 ? 4095 * (-f > 50 ? 50 : -f) / 50 : (i == 0 ? 4095 * (-f > 50 ? -f - 50 : 0) / 50 : 0);
+				else lv = i == 2 ? 4095 * (f > 50 ? 50 : f) / 50 : (i == 3 ? 4095 * (f > 50 ? f - 50 : 0) / 50 : 0);
+				LedBrightness(i, uint16_t(lv));
+			}
+			else if (dirShow > 0) LedOn(i, i <= direction && i < 3); // 1, 2 or 3 LEDs
 			else if (conn)
 			{
 				// First page lit; second page blinks slowly
@@ -797,6 +815,65 @@ private:
 		static int blink = 0;
 		blink = (blink + 1) % 300;
 		LedBrightness(5, waiting ? (blink < 150 ? 4095 : 0) : (conn ? 4095 : 0));
+	}
+
+	// Main and the switch's down position.  Main is the pitch, C1 to C7.
+	// Holding the switch down and turning Main sets the fine pitch instead,
+	// relative to where it was (a full turn is +/-100 cents, clamped there),
+	// and afterwards Main waits to pick the pitch up again, so it doesn't
+	// jump.  Letting go of the switch without turning Main steps the
+	// direction: forward, ping-pong, random.
+	static constexpr int32_t kFineStart = 96;   // Main travel before fine pitch moves
+	void HandleMainAndSwitch()
+	{
+		int32_t m = MapKnob(KnobVal(Main), false);
+		bool down = SwitchVal() == Down;
+		if (down && !downHeld)
+		{
+			pressKnob = m;
+			fineAtPress = fineCents;
+			fineTurned = false;
+		}
+		if (down)
+		{
+			int32_t d = m - pressKnob;
+			if (!fineTurned && (d > kFineStart || d < -kFineStart)) fineTurned = true;
+			if (fineTurned)
+			{
+				int32_t e = d > 0 ? d - kFineStart : d + kFineStart;
+				int32_t f = fineAtPress + (e * 200) / (4095 - kFineStart);
+				fineCents = f < -100 ? -100 : (f > 100 ? 100 : f);
+				fineShow = 1500;
+			}
+		}
+		else if (downHeld)
+		{
+			if (!fineTurned)
+			{
+				direction = (direction + 1) % kDirections;
+				dirShow = 1500; // show it on the LEDs for ~1s
+			}
+			// Main picks the pitch up again only once it reaches it (a tap
+			// that barely moved Main carries straight on)
+			int32_t d = m - pitchSetting;
+			pitchLatched = d > -48 && d < 48;
+		}
+		downHeld = down;
+
+		// The pitch, with pickup; held still while the switch is down
+		if (!down)
+		{
+			if (!pitchLatched)
+			{
+				int32_t d = m - pitchSetting;
+				bool near = d > -48 && d < 48;
+				bool crossed = (lastMain - pitchSetting < 0) != (d < 0);
+				if (near || crossed) pitchLatched = true;
+			}
+			if (pitchLatched) pitchSetting = m;
+		}
+		lastMain = m;
+		if (fineShow > 0) fineShow--;
 	}
 
 	int ActiveCount() const
@@ -1149,6 +1226,8 @@ public:
 		out[n++] = stScan;
 		out[n++] = uint8_t(bank);
 		out[n++] = uint8_t(seqLength);
+		n += sysex::Put14(out + n, stFine);
+		out[n++] = stFlags2;
 		out[n++] = 0xF7;
 		return n;
 	}

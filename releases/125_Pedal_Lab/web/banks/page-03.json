@@ -1,0 +1,101 @@
+[
+  {
+    "slot": 0,
+    "name": "audiofab-modulation-basic-tremolo",
+    "source": "algorithms/ready/audiofab-modulation-basic-tremolo.spn",
+    "instructions": 51,
+    "sha256": "8ad271cd5e12b51c31dbcbf2ce520a97572292935b52922266d788c796f2551b",
+    "id": "audiofab-modulation-basic-tremolo",
+    "author": "Digital Larry, Audiofab",
+    "description": "A classic amplitude-modulation tremolo with a tone control for shaping the wet signal. Smooth, musical pulsing from gentle shimmer to full chop.",
+    "controls": [
+      "Speed: Tremolo LFO rate.",
+      "Depth: Amount of amplitude modulation.",
+      "Tone: Post-tremolo tone / high-frequency roll-off."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/modulation/basic-tremolo.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Basic Tremolo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 693024,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "audiofab-modulation-flanger",
+    "source": "algorithms/ready/audiofab-modulation-flanger.spn",
+    "instructions": 31,
+    "sha256": "e51e7988343da8c3781e8e2b24cfa29a77ebd183f1deb62caa313a1e4d0d5c64",
+    "id": "audiofab-modulation-flanger",
+    "author": "Audiofab",
+    "description": "A classic flanger with adjustable rate, sweep width, and feedback for everything from subtle swirl to jet-plane whoosh.",
+    "controls": [
+      "Rate: Flanger LFO rate.",
+      "Width: Sweep width / depth of the flanger.",
+      "Feedback: Feedback around the delay line \u2014 more intense resonance."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/modulation/flanger.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Flanger",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 742336,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "audiofab-modulation-harmonic-tremolo",
+    "source": "algorithms/ready/audiofab-modulation-harmonic-tremolo.spn",
+    "instructions": 59,
+    "sha256": "390ada30d5692059b58f009d17853805c008db47aabcb8acd9efa7aed6b69879",
+    "id": "audiofab-modulation-harmonic-tremolo",
+    "author": "Audiofab",
+    "description": "A two-band tremolo that splits the signal into high and low bands and modulates them out of phase, producing the classic brown-panel harmonic tremolo sound.",
+    "controls": [
+      "Rate: Tremolo LFO rate.",
+      "Depth: Amount of amplitude modulation applied to each band.",
+      "Cutoff Freq: Crossover frequency between the high-band and low-band."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/modulation/harmonic-tremolo.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Harmonic Tremolo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1618050,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

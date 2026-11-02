@@ -127,7 +127,7 @@ number (1-37) in binary for a second, LED 1 the lowest bit.
 
 | Jack | Function |
 |---|---|
-| Pulse In 1 | Clock: a step every beat, the clock divided or multiplied by X, for clocks up to a minute apart. Followed from its second pulse. With nothing plugged in, or once four of its periods (at least 2 s) pass without a pulse, the card keeps its own tempo: 120 BPM, until set with the switch held down and Main, or from the web editor |
+| Pulse In 1 | Clock: a step every beat, the clock divided or multiplied by X, for clocks up to a minute apart. Followed from its second pulse. The input is filtered so that a noisy or slow edge isn't read as a burst of clocks: a rising edge counts only after the input has been low for 2 ms, and at most every 4 ms (clocks up to 250 Hz). With nothing plugged in, or once four of its periods (at least 2 s) pass without a pulse, the card keeps its own tempo: 120 BPM, until set with the switch held down and Main, or from the web editor |
 | CV Out 1, 2 | Voice 1, 2 pitch: 1 V/oct, C at 0 V, calibrated, −2 V to nearly +6 V |
 | Audio In 1, 2 | Optional VCA: a signal (audio or CV) plugged in comes out of Audio Out 1 or 2 shaped by that voice's envelope, depth and all, in place of the envelope itself. A full envelope passes it at its own level. Unplug it and the output is the envelope again |
 | Audio Out 1, 2 | Voice 1, 2 envelope, 0 to +5 V, or the Audio In through it |

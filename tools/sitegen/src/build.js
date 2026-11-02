@@ -24,6 +24,9 @@ import {
   absoluteSiteUrl,
 } from './render/socialMeta.js';
 import { ogImageOptionsForCard, ogImageOptionsForSite, writeOgPng } from './render/ogImage.js';
+import { validateInfoFile } from './validate/validateFile.js';
+import { loadKnownValues } from './validate/knownValues.js';
+import { reportText } from './validate/reporters/index.js';
 
 // ========== Path & Globals ==========
 const __filename = fileURLToPath(import.meta.url);
@@ -121,6 +124,24 @@ ${article}
   });
 }
 
+// Per-card work (git blame, OG rendering) runs off the main thread, so a few
+// cards can be in flight at once.
+const CONCURRENCY = 8;
+
+/** Map `items` through async `fn`, at most `limit` at a time, preserving order. */
+async function mapLimit(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 async function readDevCache() {
   try {
     const parsed = JSON.parse(await fs.readFile(DEV_CACHE_FILE, 'utf8'));
@@ -134,6 +155,107 @@ async function writeDevCache(releases) {
   await writeFileEnsured(DEV_CACHE_FILE, JSON.stringify({ version: 2, releases }));
 }
 
+/** Copy the stylesheets, fonts, icons and scripts every page loads. */
+async function copySharedAssets() {
+  const assetsDir = path.join(ROOT, 'tools', 'sitegen', 'assets');
+  const outAssets = path.join(OUT_DIR, 'assets');
+  await ensureDir(outAssets);
+  // Site, GitHub-flavoured markdown (embedded README bodies) and detail-page stylesheets.
+  for (const css of ['style.css', 'github-markdown.css', 'program-cards.css']) {
+    await fs.copyFile(path.join(assetsDir, css), path.join(outAssets, css));
+  }
+  await ensureDir(path.join(outAssets, 'favicon'));
+  await fs.copyFile(path.join(assetsDir, 'favicon', 'favicon.png'), path.join(outAssets, 'favicon', 'favicon.png'));
+
+  // Variable Inter (weight axis 100-900) is the only self-hosted face; it
+  // backs both the body text and the "Workshop Panel" font (panel rendering
+  // and SVG export select their weight from its axis).
+  await ensureDir(path.join(outAssets, 'fonts'));
+  await fs.copyFile(
+    path.join(ROOT, 'tools', 'sitegen', 'node_modules', '@fontsource-variable', 'inter', 'files', 'inter-latin-wght-normal.woff2'),
+    path.join(outAssets, 'fonts', 'inter-latin-wght-normal.woff2')
+  );
+
+  // Program-card panel diagrams.
+  await ensureDir(path.join(outAssets, 'program_cards'));
+  for (const f of await fs.readdir(path.join(assetsDir, 'program_cards'))) {
+    await fs.copyFile(path.join(assetsDir, 'program_cards', f), path.join(outAssets, 'program_cards', f));
+  }
+
+  // JS assets (picoboot / uf2 libs for WebUSB programmer).
+  await ensureDir(path.join(outAssets, 'js'));
+  for (const f of await fs.readdir(path.join(assetsDir, 'js'))) {
+    if (f.endsWith('.js')) await fs.copyFile(path.join(assetsDir, 'js', f), path.join(outAssets, 'js', f));
+  }
+}
+
+/** Write a card's raw info.yaml and the build-only extras the author preview reads. */
+async function writeRawInfo(rel) {
+  if (!rel.rawInfoSource) return;
+  await writeFileEnsured(path.join(OUT_DIR, 'raw-info', rel.folderName, 'info.yaml'), rel.rawInfoSource);
+  // Ship the build-only "extras" (rendered README + PDF links with absolute
+  // raw URLs) so the author preview can show the same Documentation section.
+  const extraDocs = (rel.docs || []).map(d => ({
+    name: d.name,
+    url: makeRawUrl(toPosix(path.join('releases', rel.folderName, d.rel))),
+  }));
+  await writeFileEnsured(
+    path.join(OUT_DIR, 'raw-info', rel.folderName, 'extras.json'),
+    JSON.stringify({ readmeHtml: rel.readmeHtml || '', docs: extraDocs }),
+  );
+}
+
+/** Write a card's detail page, share image and (optionally) its web editor. */
+async function writeCardPage(rel, { copyWeb = true } = {}) {
+  const base = path.join(OUT_DIR, 'programs', rel.slug);
+  await ensureDir(base);
+  await writeFileEnsured(path.join(base, 'index.html'), detailPage(rel));
+  await writeOgPng(path.join(base, 'og.png'), ogImageOptionsForCard(rel.card));
+  if (copyWeb && rel.web?.copySrc) {
+    await copyWebAssets(rel.web.copySrc, path.join(base, rel.web.siteSubdir || 'web'));
+  }
+}
+
+/**
+ * Build just one card's detail page (plus the shared assets it loads) for
+ * `npm run dev:card`. Skips the indexes, author tools and every other card, so
+ * a rebuild takes about a second. Prints the card's full validation report.
+ */
+async function buildCard(folder) {
+  if (!(await listSubdirs(RELEASES_DIR)).includes(folder)) {
+    throw new Error(`No card folder releases/${folder}`);
+  }
+  await fs.rm(OUT_DIR, { recursive: true, force: true });
+  await copySharedAssets();
+  const rel = await discoverRelease(folder);
+  const panelErrors = (rel.panelDiagnostics || []).filter(diagnostic => diagnostic.severity === 'error');
+  if (panelErrors.length) {
+    throw new Error(`${folder} has invalid custom panels: ${panelErrors.map(item => item.message).join(' ')}`);
+  }
+  await writeRawInfo(rel);
+  await writeCardPage(rel);
+
+  // The detail page links back to the home page and author tools, which this
+  // build skips; say so instead of serving a 404.
+  const cardHref = `programs/${encodeURIComponent(rel.slug)}/`;
+  await writeFileEnsured(path.join(OUT_DIR, 'index.html'), renderLayout({
+    title: `${rel.card.title} (single-card preview) – Workshop Computer`,
+    relativeRoot: '.',
+    repoUrl: `https://github.com/${REPO}`,
+    social: pageSocial('', { title: rel.card.title }),
+    content: `<h1>Single-card preview</h1>
+<p>This development server only builds <a href="${escapeAttr(cardHref)}">${escapeAttr(rel.card.title)}</a>.
+Run <code>npm run dev</code> to preview the whole site, including the home page and author tools.</p>`,
+  }));
+
+  console.log(`Built releases/${folder} -> ${path.join(OUT_DIR, 'programs', rel.slug)}`);
+  const infoFile = path.join(RELEASES_DIR, folder, 'info.yaml');
+  if (await fs.stat(infoFile).catch(() => null)) {
+    console.log(reportText([await validateInfoFile(infoFile, { root: ROOT, knownValues: loadKnownValues(RELEASES_DIR) })]));
+  }
+  reportPanelValidation((rel.panelDiagnostics || []).map(diagnostic => ({ ...diagnostic, file: `releases/${folder}/${diagnostic.path || 'panels'}` })));
+}
+
 async function build({ incrementalRelease = '', incrementalCuration = '' } = {}) {
   const incremental = Boolean(incrementalRelease || incrementalCuration);
   // The output is fully generated. Clear it first so renamed/removed pages and
@@ -141,65 +263,9 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
   if (!incremental) await fs.rm(OUT_DIR, { recursive: true, force: true });
   await ensureDir(OUT_DIR);
   if (!incremental) {
-    await ensureDir(path.join(OUT_DIR, 'assets'));
     await writeFileEnsured(path.join(OUT_DIR, 'schema', 'info-yaml.json'), JSON.stringify(infoYamlJsonSchema, null, 2));
-  }
-  // Copy physical CSS asset
-  const cssSrc = path.join(ROOT, 'tools', 'sitegen', 'assets', 'style.css');
-  const cssDest = path.join(OUT_DIR, 'assets', 'style.css');
-  if (!incremental) await fs.copyFile(cssSrc, cssDest);
-
-  // Copy GitHub-flavoured markdown stylesheet (used by embedded README bodies)
-  if (!incremental) await fs.copyFile(
-    path.join(ROOT, 'tools', 'sitegen', 'assets', 'github-markdown.css'),
-    path.join(OUT_DIR, 'assets', 'github-markdown.css')
-  );
-
-  // Copy program-card detail-page stylesheet
-  if (!incremental) await fs.copyFile(
-    path.join(ROOT, 'tools', 'sitegen', 'assets', 'program-cards.css'),
-    path.join(OUT_DIR, 'assets', 'program-cards.css')
-  );
-  if (!incremental) {
-    const faviconDestDir = path.join(OUT_DIR, 'assets', 'favicon');
-    await ensureDir(faviconDestDir);
-    await fs.copyFile(
-      path.join(ROOT, 'tools', 'sitegen', 'assets', 'favicon', 'favicon.png'),
-      path.join(faviconDestDir, 'favicon.png')
-    );
-  }
-  if (!incremental) {
-    const fontsDir = path.join(OUT_DIR, 'assets', 'fonts');
-    const nodeModules = path.join(ROOT, 'tools', 'sitegen', 'node_modules');
-    await ensureDir(fontsDir);
-    // Variable Inter (weight axis 100-900) is the only self-hosted face; it
-    // backs both the body text and the "Workshop Panel" font (panel rendering
-    // and SVG export select their weight from its axis).
-    await fs.copyFile(
-      path.join(nodeModules, '@fontsource-variable', 'inter', 'files', 'inter-latin-wght-normal.woff2'),
-      path.join(fontsDir, 'inter-latin-wght-normal.woff2')
-    );
-  }
-
-  // Copy program-card panel diagram asset
-  const panelSrcDir = path.join(ROOT, 'tools', 'sitegen', 'assets', 'program_cards');
-  const panelDestDir = path.join(OUT_DIR, 'assets', 'program_cards');
-  if (!incremental) {
-    await ensureDir(panelDestDir);
-    for (const f of await fs.readdir(panelSrcDir)) {
-      await fs.copyFile(path.join(panelSrcDir, f), path.join(panelDestDir, f));
-    }
+    await copySharedAssets();
     await writeOgPng(path.join(OUT_DIR, 'assets', 'og', 'default.png'), ogImageOptionsForSite());
-  }
-
-  // Copy JS assets (picoboot / uf2 libs for WebUSB programmer)
-  const jsSrcDir = path.join(ROOT, 'tools', 'sitegen', 'assets', 'js');
-  const jsDestDir = path.join(OUT_DIR, 'assets', 'js');
-  if (!incremental) {
-    await ensureDir(jsDestDir);
-    for (const f of await fs.readdir(jsSrcDir)) {
-      if (f.endsWith('.js')) await fs.copyFile(path.join(jsSrcDir, f), path.join(jsDestDir, f));
-    }
   }
 
   const releaseFolders = (await listSubdirs(RELEASES_DIR)).sort();
@@ -219,11 +285,14 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
   const panelValidationResults = [];
   const creatorSet = new Set();
   const foldersToDiscover = incrementalRelease ? [incrementalRelease] : (incrementalCuration ? [] : releaseFolders);
-  for (const folder of foldersToDiscover) {
-    const relPath = path.join(RELEASES_DIR, folder);
-    const hasFiles = (await fs.readdir(relPath)).length > 0;
-    if (!hasFiles) continue;
-    const rel = await discoverRelease(folder);
+  // Discovery waits mostly on `git blame`, so overlap several folders.
+  const discovered = await mapLimit(foldersToDiscover, CONCURRENCY, async folder => {
+    const hasFiles = (await fs.readdir(path.join(RELEASES_DIR, folder))).length > 0;
+    return hasFiles ? discoverRelease(folder) : null;
+  });
+  for (const rel of discovered) {
+    if (!rel) continue;
+    const folder = rel.folderName;
     if (incrementalRelease) {
       const index = releases.findIndex(candidate => candidate.folderName === folder);
       if (index >= 0) releases[index] = rel;
@@ -435,35 +504,10 @@ ${renderFilterBar({ creatorOptions, sortOptions, tagOptions, linkHref: 'archive/
   const releaseOutputs = incrementalRelease
     ? releases.filter(rel => rel.folderName === incrementalRelease)
     : (incrementalCuration ? [] : releases);
-  for (const rel of releaseOutputs) {
-    if (rel.rawInfoSource) {
-      await writeFileEnsured(path.join(OUT_DIR, 'raw-info', rel.folderName, 'info.yaml'), rel.rawInfoSource);
-      // Ship the build-only "extras" (rendered README + PDF links with absolute
-      // raw URLs) so the author preview can show the same Documentation section.
-      const extraDocs = (rel.docs || []).map(d => ({
-        name: d.name,
-        url: makeRawUrl(toPosix(path.join('releases', rel.folderName, d.rel))),
-      }));
-      await writeFileEnsured(
-        path.join(OUT_DIR, 'raw-info', rel.folderName, 'extras.json'),
-        JSON.stringify({ readmeHtml: rel.readmeHtml || '', docs: extraDocs }),
-      );
-    }
-  }
+  for (const rel of releaseOutputs) await writeRawInfo(rel);
 
   const detailOutputs = incrementalCuration === 'flairs' ? releases : releaseOutputs;
-  for (const rel of detailOutputs) {
-    const base = path.join(OUT_DIR, 'programs', rel.slug);
-    await ensureDir(base);
-    const html = detailPage(rel);
-    await writeFileEnsured(path.join(base, 'index.html'), html);
-    await writeOgPng(path.join(base, 'og.png'), ogImageOptionsForCard(rel.card));
-
-    if (!incrementalCuration && rel.web?.copySrc) {
-      const webDest = path.join(base, rel.web.siteSubdir || 'web');
-      await copyWebAssets(rel.web.copySrc, webDest);
-    }
-  }
+  await mapLimit(detailOutputs, CONCURRENCY, rel => writeCardPage(rel, { copyWeb: !incrementalCuration }));
 
   // 404 fallback
   if (!incremental) await writeFileEnsured(path.join(OUT_DIR, '404.html'), renderLayout({
@@ -716,6 +760,7 @@ function reportPanelValidation(diagnostics) {
 const args = process.argv.slice(2);
 const releaseArg = args.indexOf('--incremental-release');
 const curationArg = args.indexOf('--incremental-curation');
+const cardArg = args.indexOf('--card');
 const options = {
   incrementalRelease: releaseArg >= 0 ? String(args[releaseArg + 1] || '') : '',
   incrementalCuration: curationArg >= 0 ? String(args[curationArg + 1] || '') : '',
@@ -724,7 +769,7 @@ if (options.incrementalCuration && !['discovery', 'flairs'].includes(options.inc
   throw new Error(`Unknown incremental curation target: ${options.incrementalCuration}`);
 }
 
-build(options).catch(err => {
+(cardArg >= 0 ? buildCard(String(args[cardArg + 1] || '')) : build(options)).catch(err => {
   console.error(err);
   process.exit(1);
 });

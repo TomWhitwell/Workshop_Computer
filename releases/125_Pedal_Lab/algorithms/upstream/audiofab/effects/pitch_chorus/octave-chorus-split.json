@@ -1,0 +1,15 @@
+{
+  "id": "octave-chorus-split",
+  "name": "Octave Chorus Split",
+  "version": "1.0.0",
+  "description": "Octave-up and octave-down pitch shifting with chorus, where each octave voice has its own independent level control.",
+  "category": "Pitch / Chorus",
+  "tags": ["pitch-shift", "octave", "chorus", "modulation", "harmony"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Chorus Speed",     "description": "Chorus modulation speed.",     "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Octave Up Level",   "description": "Level of the octave-up voice.",  "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Octave Down Level", "description": "Level of the octave-down voice.", "unit": "", "range": [0, 1] }
+  ]
+}

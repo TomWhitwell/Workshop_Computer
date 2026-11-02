@@ -17,9 +17,9 @@ tusb_desc_device_t const desc_device =
     .bLength            = sizeof(tusb_desc_device_t),
     .bDescriptorType    = TUSB_DESC_DEVICE,
     .bcdUSB             = USB_BCD,
-    .bDeviceClass       = TUSB_CLASS_CDC,
-    .bDeviceSubClass    = CDC_COMM_SUBCLASS_ABSTRACT_CONTROL_MODEL,
-    .bDeviceProtocol    = CDC_COMM_PROTOCOL_NONE,
+  .bDeviceClass       = TUSB_CLASS_MISC,
+  .bDeviceSubClass    = MISC_SUBCLASS_COMMON,
+  .bDeviceProtocol    = MISC_PROTOCOL_IAD,
     .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
     .idVendor           = USB_VID,
     .idProduct          = USB_PID,
@@ -45,14 +45,18 @@ enum
 {
   ITF_NUM_CDC = 0,
   ITF_NUM_CDC_DATA,
+  ITF_NUM_MIDI_CONTROL,
+  ITF_NUM_MIDI_STREAMING,
   ITF_NUM_TOTAL
 };
 
-#define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN)
+#define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + TUD_MIDI_DESC_LEN)
 
 #define EPNUM_CDC_NOTIF   0x81
 #define EPNUM_CDC_OUT     0x02
 #define EPNUM_CDC_IN      0x82
+#define EPNUM_MIDI_OUT    0x03
+#define EPNUM_MIDI_IN     0x83
 
 uint8_t const desc_fs_configuration[] =
 {
@@ -61,6 +65,9 @@ uint8_t const desc_fs_configuration[] =
 
   // Interface number, string index, EP notification address and size, EP data address (out, in) and size.
   TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8, EPNUM_CDC_OUT, EPNUM_CDC_IN, 64),
+
+  // MIDI interface (USB MIDI v1.0)
+  TUD_MIDI_DESCRIPTOR(ITF_NUM_MIDI_CONTROL, 5, EPNUM_MIDI_OUT, EPNUM_MIDI_IN, 64),
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
@@ -84,6 +91,7 @@ enum
   STRID_PRODUCT,
   STRID_SERIAL,
   STRID_CDC_INTERFACE,
+  STRID_MIDI_INTERFACE,
 };
 
 // Array of pointer to string descriptors
@@ -94,6 +102,7 @@ char const* string_desc_arr [] =
   "crow: telephone line",         // 2: Product (MUST MATCH CROW - druid searches for this!)
   NULL,                           // 3: Serial number (filled dynamically)
   "VCP Interface",                // 4: CDC Interface
+  "MIDI Interface",               // 5: MIDI Interface
 };
 
 static uint16_t _desc_str[32];

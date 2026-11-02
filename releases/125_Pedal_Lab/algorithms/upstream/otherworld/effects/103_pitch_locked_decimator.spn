@@ -1,0 +1,197 @@
+; @name Pitch-Locked Decimator
+; @tagline Every phrase crushes down an in-tune staircase into a raw chip buzz and climbs back to clean, again and again, while reversed shards of the crush swing across the stereo field
+; @description A pitch tracker finds the note under your playing, and a sample-and-hold
+; @description chops the sound a whole number of times per period of that note, so all the
+; @description crunch lands on its harmonics: a lo-fi chip voice that stays in tune. Every
+; @description phrase starts clean and travels down a staircase: the clean sound crossfades
+; @description into the chip at 16 samples per period, then 8, then it is crushed through
+; @description and through at 4 and 2 samples per period, a raw square-wave buzz, and then
+; @description it climbs back up the same way to clean and starts again, so even a stream of
+; @description notes with no gaps keeps cycling. Speed sets how fast it travels, from about
+; @description 24 seconds down to the bottom at 0 to a fifth of a second at 1 (the middle is
+; @description about 2 seconds), and Crush how far down it goes. Pause for 0.4 s and it fades
+; @description back to clean within about a tenth of a second; the next note starts a fresh
+; @description journey. A note that lands while no throw is under way is thrown: a fifth of
+; @description a second later its crushed sound plays backwards for a fifth of a second,
+; @description swelling into its own attack, and the throw rides the crossfade, swinging left
+; @description as the sound crushes and right as it clears. Low notes are measured one
+; @description period at a time, so it also locks onto a bassline of relentless sixteenths
+; @description that never rests; notes below C3 are counted an octave or two up, so a bass
+; @description is chopped two or four times as finely. On pads the tracker cannot follow,
+; @description the hold runs at the input rate (clean) and only the throws remain.
+; @pots Crush | Speed | Throw
+; @render 1.0, 0.75, 0.8
+; @components shared pitch tracker lis37r2 (HF-envelope / zero-crossing with brightness switch, 12-TET, folded up to C3), pitch-locked sample-and-hold (16 / 8 / 4 / 2 per period), cycling clean-to-crushed-to-clean journey with an exponential Speed, rest gate that fades and restarts it, clean-to-crushed crossfade, reversed note throws panned by the crossfade
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	tb	32767		; throw buffer: the crushed left (written at tb+19648, see the throw)
+
+equ	thp	reg0		; tracker: the front end's low-pass (k 0.9); also the level's and the onsets' input
+equ	te1	reg1		; tracker: peak envelope of the HF
+equ	e2	reg2		; tracker: smoothed envelope (Schmitt high level)
+equ	tef	reg3		; tracker: the HP63 stage
+equ	thr	reg4		; tracker: Schmitt state
+equ	cand	reg5		; tracker: candidate semitone (one-step counter)
+equ	z	reg6		; tracker: ~100 Hz low-pass (bass zero-crossing path)
+equ	sh	reg7		; tracker: smoothed brightness (~1.6 Hz)
+equ	LP	reg15		; the confirmed note's period, log domain: P = 33.18 x 2^(16 LP) samples; -0.5 = no note
+equ	x	reg9		; journey phase, -1 .. 0, wrapping
+equ	hp	reg10
+equ	ef	reg11		; minus the onsets' fast envelope
+equ	es	reg12		; minus the onsets' slow envelope
+equ	m	reg13		; crushed share, smoothed
+equ	G	reg26		; rest gate: 1 while the phrase goes on
+equ	xe	reg27		; crush depth 0 .. 1
+equ	f	reg14		; minus the phrase fuel: -0.4 on each note, rises 1 per second; >= 0 is a rest
+equ	cL	reg16		; S&H countdown to the next latch
+equ	hL	reg18
+equ	hR	reg19
+equ	w	reg20		; throw timer (ADDR units): < 0 waiting, 0 .. 0.4 playing
+equ	tw	reg22
+equ	dl	reg24
+equ	dr	reg25
+equ	k	reg28		; 2^-14, rebuilt every sample (the chip's RMP0_RATE reads as 0)
+
+; ---- pitch tracker: lis37r2 (its parameters, its fold up to C3), except three things:
+;      the level min(1, 9.2 |thp|) is computed at its one use with the brightness gain in EXP's coefficient
+;      (unsmoothed: sh smooths it at k 0.0003); no fold down; a confirmed note goes to LP
+;      (-y, the log-domain period on the same 12-TET grid) instead of nt
+	rdax	adcl, 0.5		; x = (L + R) / 2
+	rdax	adcr, 0.5
+	rdfx	z, 0.01934814453125	; z = LP(x) ~100 Hz (bass zero-crossing path)
+	wrhx	z, 0			; ACC = x again (PACC)
+	rdfx	thp, 0.9000244140625	; thp = LP(x) at k ~0.9
+	wrhx	thp, -1.0		; ACC = x - thp (HF)
+	maxx	te1, 0.972412109375	; e1 = max(|HF|, decay e1): peak envelope
+	wrax	te1, 1.46502685546875
+	rdfx	e2, 0.08001708984375	; e2 = LP(envelope)
+	wrax	e2, 0
+	ldax	thp			; level: -0.00067 min(1, 9.2 |thp|) (EXP saturates at 1 before its coefficient)
+	log	1.0, 0.2001953125
+	exp	-0.00067138671875, 0
+	rdax	e2, 1.0			; brightness = e2 - bth amp
+	rdfx	sh, 0.00030517578125	; smoothed (~1.6 Hz)
+	wrax	sh, 1.0
+	and	$800000			; -1 when dull, 0 when bright
+	mulx	z			; -z when dull
+	rdax	e2, 1.0			; ef stage input = e2 (- z when dull)
+	rdfx	tef, 0.01202392578125	; high-pass: v = in - LP(in)
+	wrhx	tef, -1.0		; v
+	rdax	thr, 0.1500244140625	; Schmitt: x = v + hys thr
+	skp	neg, low		; x < 0: low state, thr = x
+	mulx	thr			; x thr < 0 only on the rising edge; tiny, so no clr
+	skp	gez, nox
+	cho	rdal, rmp0		; T = the period (RMP0 timer, + negligible x thr)
+	jam	rmp0			; restart the timer
+	log	-1.0, -0.4375		; l = -log2(T)/16 + D: octave = 1/16, C3's semitone bin starts at l = 0
+	skp	gez, fl			; FLOOR (below C3: l < 0)
+	and	$07FFFF			; keep the place in the octave: the same pitch class in [C3, C4), at any depth
+fl:	sof	0.75, -0.13671875	; s = 3/4 l - 35/256: semitone = 2^-8, C3 = -35/256, B5 = 0
+	and	$FF8000			; snap to the 12-TET semitone
+	rdax	cand, -1.00146484375	; s - (1+C) cand
+	skp	zro, out		; zero: the same semitone 3 times running (4 after a jump of > ~14 semitones): confirmed
+	rdax	cand, 1.0		; pending: cand = s - C cand
+	wrax	cand, 0
+	skp	zro, hyst
+out:	rdax	cand, -1.33526611328125	; confirmed (ACC was 0): LP = -(4/3) s = -y, B5 at 0, an octave = 1/16 (no fold down)
+	wrax	LP, 0
+hyst:	ldax	e2			; high state: thr = the envelope (falling-edge hysteresis)
+low:	wrax	thr, 0
+nox:	wldr	rmp0, -4066, 4096	; timer: RMP0 rate -4066, range 4096 (set every sample)
+; ---- onsets: each note keeps the phrase going, restarts it after a rest, and may start a throw
+;      (the released detector on the tracker's thp, the (L + R)/2 sum below ~12 kHz)
+	ldax	thp
+	rdfx	hp, 0.25		; hp keeps the 1.3 kHz low-pass
+	wrhx	hp, -1.0
+	absa
+	rdfx	ef, 0.012
+	wrax	ef, -1.0		; ACC = -fast
+	rdfx	es, 0.001		; es = LP(-fast) = -slow
+	wrhx	es, -1.6		; ACC = 1.6 slow - fast: onset when < 0 (exact silence never fires)
+	skp	gez, no_on
+	ldax	f
+	skp	neg, refill		; fuel left: the phrase goes on
+	sof	0, -0.5			; the first note after a rest: the journey starts again from clean (V = 0 at -0.5)
+	wrax	x, 1.0
+	wrax	LP, 0			; and the old note is forgotten (LP -0.5: the hold follows every sample until the next lock)
+refill:	sof	0, -0.4			; the phrase goes on until 0.4 s after its last note
+	wrax	f, 1.25			; ACC = -0.5
+	rdax	w, 1.0			; w - 0.5 >= 0: no throw under way, this note will be thrown
+	skp	neg, no_on
+	sof	0, -0.4			; wait 0.2 s, then 0.2 s reversed
+	wrax	w, 0
+no_on:
+; ---- the journey: a phase that cycles at the Speed rate; a rest fades it out and the next phrase restarts it
+	ldax	f
+	rdax	k, 0.5			; the fuel burns 1 per second
+	wrax	f, -1.0			; ACC = the fuel
+	exp	1.0, 0			; G = 1 while fuel is left, fading in a rest (0.5 after 60 ms)
+	wrax	G, -0.469		; ACC = -0.469 G (G = 1 while playing)
+	rdax	pot1, 0.395
+	exp	0.0001220703125, 0	; rate 2^-13 x 2^(6.3 Speed - 7.5): a cycle of 1 / rate
+	rdax	x, 1.0
+	or	$800000			; the phase wraps from 0 to -1, so a stream without rests keeps cycling
+	wrax	x, 1.0
+	sof	1.99, 0.995		; V = |1.99 x + 0.995|: 0 at -0.5 (where a phrase starts), 0.995 at the wrap
+	absa
+	mulx	G
+	wrax	xe, 1.99		; xe = V G: 0 .. 1
+	rdfx	m, 0.005		; m = min(1, 2 xe), smoothed (6 ms)
+	wrax	m, 0
+	wrax	tw, 0			; (ACC is 0 here) no throw unless the throw below plays
+	or	$000200			; k = 2^-14: two samples of address (the chip's RMP0_RATE reads as 0)
+	wrax	k, 0
+; ---- pitch-locked sample-and-hold: count down; when the count passes 0, latch both sides
+;      and add the next interval dk = P / k, k = 16 >> floor(4 x Crush)
+	ldax	cL
+	rdax	k, -0.5
+	wrax	cL, 1.0
+	skp	gez, hl_ok
+	ldax	xe
+	mulx	pot0
+	and	$E00000
+	sof	0.25, -0.875		; n/16 - 0.875
+	rdax	LP, 1.0
+	exp	1.036865234375, 0	; dk = P x 2^(n - 4) x 2^-15 = 33.18 x 2^(16 LP + n - 19) (EXP at integer octaves)
+	rdax	cL, 1.0
+	wrax	cL, 0
+	rdax	adcl, 0.5
+	wrax	hL, 0
+	rdax	adcr, 0.5
+	wrax	hR, 0
+hl_ok:
+; ---- the throw: played backwards (offset grows 2 per sample), swelling into the attack
+	ldax	w			; the timer runs at 2 samples of address per sample
+	rdax	k, 1.0
+	wrax	w, 1.0
+	skp	neg, t_off
+	sof	1.0, -0.4
+	skp	gez, t_off
+	wrax	addr_ptr, 0		; ADDR_PTR = w - 0.4004 (wraps mod 32768): the buffer is written 19648 samples
+	rmpa	1.25			; on (tb+19648), so this reads offset w
+	mulx	w			; swell 0 .. 0.5
+	mulx	pot2			; Throw
+	wrax	tw, 0
+t_off:
+; ---- outputs: 1.5 (0.5 in + m (hold - 0.5 in)) with the throw panned by m, DC-blocked (the hold at fixed phases has a mean)
+	ldax	hL
+	wra	tb+19648, 1.0		; the crushed left feeds the throw buffer
+	rdax	tw, 1.0			; the throw rides the crossfade: left as it crushes, right when clean
+	rdax	adcl, -0.5
+	mulx	m
+	rdax	adcl, 0.5		; 0.5 in + m (hold + throw - 0.5 in)
+	sof	1.5, 0
+	rdfx	dl, 0.002
+	wrhx	dl, -1.0
+	wrax	dacl, 0
+	rdax	hR, 1.0
+	rdax	tw, -1.0
+	rdax	adcr, -0.5
+	mulx	m
+	rdax	adcr, 0.5
+	rdax	tw, 1.0			; 0.5 in + tw + m (hold - tw - 0.5 in)
+	sof	1.5, 0
+	rdfx	dr, 0.002
+	wrhx	dr, -1.0
+	wrax	dacr, 0

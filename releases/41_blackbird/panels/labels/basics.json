@@ -1,0 +1,7 @@
+{
+ "title": "Basics",
+ "controls": {"main": "bb.knob. main", "x": "bb.knob.x", "y": "bb.knob.y"},
+ "switch": {"up": "up", "middle": "middle", "down": "down"},
+ "inputs": {"audio_l": "bb. audioin [1]", "audio_r": "bb. audioin [2]", "cv_1": "input[1]", "cv_2": "input[2]", "pulse_1": "bb. pulsein [1]", "pulse_2": "bb. pulsein [2]"},
+ "outputs": {"audio_out_l": "output[3]", "audio_out_r": "output[4]", "cv_out_1": "output[1]", "cv_out_2": "output[2]", "pulse_out_1": "bb. pulseout [1]", "pulse_out_2": "bb. pulseout [2]"}
+}

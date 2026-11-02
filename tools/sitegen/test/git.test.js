@@ -5,14 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { getCommitDates, getContentUpdatedDate, getLastCommitDate, getOldestBlameDate, getPublishedDate } from '../src/utils/git.js';
 
-test('Git path arguments never undergo shell expansion', t => {
+test('Git path arguments never undergo shell expansion', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sitegen-git-'));
   const marker = path.join(dir, 'expanded');
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const hostile = `$(touch ${marker})`;
   getLastCommitDate(hostile);
   getCommitDates(hostile);
-  getOldestBlameDate(hostile);
+  await getOldestBlameDate(hostile);
   getContentUpdatedDate(hostile);
   getPublishedDate(hostile, () => false);
   assert.equal(fs.existsSync(marker), false);

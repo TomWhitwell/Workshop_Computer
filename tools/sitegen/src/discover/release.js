@@ -160,7 +160,7 @@ export async function discoverRelease(rootReleasesDir, folderName, outDirProgram
   //    info.yaml/README. A content commit is a real update, and metadata bulk
   //    edits are excluded, so this advances on each release and survives the
   //    bulk clobber that ruins the folder's last-commit date.
-  const blameDate = getOldestBlameDate(sourceFile);
+  const blameDate = await getOldestBlameDate(sourceFile);
   const contentDate = getContentUpdatedDate(path.join('releases', folderName));
   // "Newest" sorting uses when the card landed on main and was not a draft.
   const publishedDate = getPublishedDate(path.join('releases', folderName), isDraftSource);

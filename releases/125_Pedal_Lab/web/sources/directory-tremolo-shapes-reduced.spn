@@ -1,0 +1,141 @@
+; Tremolo with multiple LFO waveshapes
+; by Slacker
+; http://www.spinsemi.com/forum/viewtopic.php?f=3&t=516
+
+;POT0 wave shape 
+;POT1 depth 
+;POT2 speed 
+;set up LFOs, only at start up 
+
+equ sine reg0 
+equ tri reg1 
+equ rampup reg2 
+equ rampdown reg3 
+equ square reg4 
+equ hypsin reg5 
+equ trap reg6 
+equ hump reg7 
+equ wave reg8 
+
+
+skp run, START 
+wlds   sin0,0,16384 
+wlds   sin1,0,16384 
+wldr   rmp0,0,4096 
+
+START: 
+
+;get LFO speed from POT2 
+
+ldax pot2 
+sof 0.985,0.015 
+wrax   rmp0_rate,1 
+sof 0.7849,0 
+wrax sin0_rate,1 
+sof 0.5,0 
+wrax sin1_rate,0 
+
+cho   rdal,sin0 
+sof 1,0.5 
+wrax sine,0 ;sine wave 
+
+cho rdal,sin1 
+absa 
+sof -2,0.999 
+sof 1,0.001 
+wrax hypsin,1 ;Hyper triangle sort of 
+
+sof -1,0.999 
+sof 1,0.001 
+wrax hump,0 ;rectified sine humps 
+
+cho rdal,rmp0 
+sof -2,0.999 
+sof 1,0.001 
+wrax rampdown,1 ;downwards ramp 
+
+sof -1,0.999 
+sof 1,0.001 
+wrax rampup,1 ;upwards ramp 
+
+sof 1,-0.5 
+absa 
+sof -2,0.999 
+sof 1,0.001 
+wrax tri,1 ;triangle 
+
+sof 1,-0.5 
+sof -2,0 
+sof -2,0 
+sof 0.5,0.5 
+wrax trap,1 ;trapezoid 
+
+sof 1,-0.5 
+sof -2,0 
+sof -2,0 
+sof -2,0 
+sof -2,0 
+sof -2,0 
+sof 0.5,0.5 
+wrax square,0 ;square sort of might need more sofs to straighten the sides up more 
+
+ldax pot0 
+and %01110000_00000000_00000000 
+skp neg,ONE 
+sof 1,-0.167     
+skp neg,TWO 
+sof 1,-0.167     
+skp neg,THREE 
+sof 1,-0.167     
+skp neg,FOUR 
+sof 1,-0.167     
+skp neg,SEVEN 
+
+EIGHT: 
+ldax square 
+wrax wave,0 
+skp zro,TREM 
+
+ONE: 
+ldax sine 
+wrax wave,0 
+skp zro,TREM 
+
+TWO: 
+ldax hump 
+wrax wave,0 
+skp zro,TREM 
+
+THREE: 
+ldax hypsin 
+wrax wave,0 
+skp zro,TREM 
+
+FOUR: 
+ldax tri 
+wrax wave,0 
+skp zro,TREM 
+
+; This is clicky
+;FIVE: 
+;ldax rampup 
+;wrax wave,0 
+;skp zro,TREM 
+
+; This is clicky
+;SIX: 
+;ldax rampdown 
+;wrax wave,0 
+;skp zro,TREM 
+
+SEVEN: 
+ldax trap 
+wrax wave,0 
+skp zro,TREM 
+
+TREM: 
+ldax wave 
+mulx pot1 
+sof -1,0.99 
+mulx adcl 
+wrax dacl,0 

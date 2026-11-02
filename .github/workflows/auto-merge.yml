@@ -1,0 +1,117 @@
+name: Auto-merge eligible PRs
+
+# Merges card PRs that are eligible for auto-merge once they have been
+# eligible for the grace period and pass Validate info.yaml.
+#
+#   select  recomputes each open PR's verdict with main's code and times the
+#           grace period from merge-eligibility.yml's verdict artifacts
+#           (tools/sitegen/src/validate/autoMergeCli.js). Read-only, no secrets.
+#   merge   merges what select chose, pinned to the checked commit. It is the
+#           only job that holds the App key, and sees no PR content.
+#
+# Switched off unless the repository variable AUTO_MERGE is exactly "true".
+# Merges use a GitHub App token, because pushes made with GITHUB_TOKEN do not
+# trigger other workflows and the site would not rebuild. Requires an
+# Environment named "auto-merge", limited to the main branch, holding:
+#   vars.AUTO_MERGE_APP_ID              the App's ID
+#   secrets.AUTO_MERGE_APP_PRIVATE_KEY  its private key
+# The App needs Contents and Pull requests read & write on this repository,
+# and must never be given the Workflows permission: without it, GitHub refuses
+# to merge any PR that changes workflow files.
+#
+# To stop all auto-merging without admin rights, disable this workflow in the
+# Actions tab; to stop one PR, add the "hold" label.
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: auto-merge
+  cancel-in-progress: false
+
+jobs:
+  select:
+    name: Choose PRs to merge
+    if: vars.AUTO_MERGE == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      pull-requests: read
+    outputs:
+      candidates: ${{ steps.select.outputs.candidates }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Install validator dependencies
+        run: npm ci --prefix tools/sitegen --ignore-scripts
+
+      - name: Choose PRs
+        id: select
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node tools/sitegen/src/validate/autoMergeCli.js
+
+  merge:
+    name: Merge chosen PRs
+    needs: select
+    if: needs.select.outputs.candidates != '[]' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: auto-merge
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Create App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.AUTO_MERGE_APP_ID }}
+          private-key: ${{ secrets.AUTO_MERGE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Merge
+        uses: actions/github-script@v9
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          CANDIDATES: ${{ needs.select.outputs.candidates }}
+        with:
+          script: |
+            const app = getOctokit(process.env.APP_TOKEN);
+            const { owner, repo } = context.repo;
+            for (const { number, sha, reason } of JSON.parse(process.env.CANDIDATES)) {
+              // Last look in case the PR changed since select ran.
+              const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+              if (pr.state !== 'open' || pr.draft || pr.head.sha !== sha || pr.base.ref !== 'main'
+                || pr.labels.some(label => label.name === 'hold')) {
+                core.info(`#${number}: changed since it was chosen; skipped.`);
+                continue;
+              }
+              try {
+                // `sha` makes GitHub refuse the merge if the head moves now.
+                await app.rest.pulls.merge({
+                  owner, repo, pull_number: number, sha, merge_method: 'squash',
+                  commit_title: `${pr.title} (#${number})`,
+                });
+              } catch (error) {
+                core.warning(`#${number}: merge refused: ${error.message}`);
+                continue;
+              }
+              await app.rest.issues.createComment({
+                owner, repo, issue_number: number,
+                body: `Merged automatically at \`${sha.slice(0, 7)}\`.\n\n${reason}`,
+              });
+            }

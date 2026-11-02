@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-drolo-flanger",
+    "source": "algorithms/ready/directory-drolo-flanger.spn",
+    "instructions": 58,
+    "sha256": "f5034ad80471acaa1523551d83382039c399973d6fa1d555522e074fe8d3cfa0",
+    "id": "directory-drolo-flanger",
+    "author": "David Rolo",
+    "description": "Flanger program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "rate",
+      "feedback",
+      "range"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/flanger.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/flanger.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Flanger",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1537046,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-firesledge-bass-processor-p0-flanger",
+    "source": "algorithms/ready/directory-firesledge-bass-processor-p0-flanger.spn",
+    "instructions": 120,
+    "sha256": "6fcce8c811c4bfa9a304e40e4364f8c432445a40ea1d00b318a6d485c1d19a86",
+    "id": "directory-firesledge-bass-processor-p0-flanger",
+    "author": "Firesledge",
+    "description": "A basic flanger. Designed for bass",
+    "controls": [
+      "Speed",
+      "Depth",
+      "Feedback"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p0-flanger.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p0-flanger.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Flanger",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 508,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1843519,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-holy-city-audio-new-flanger",
+    "source": "algorithms/ready/directory-holy-city-audio-new-flanger.spn",
+    "instructions": 50,
+    "sha256": "91a0f80b5c65c5a97509a1032a691c30e7770422eabe43001a725ad90765e186",
+    "id": "directory-holy-city-audio-new-flanger",
+    "author": "Digital Larry",
+    "description": "Flanger using rectified-sine modulation.  LFO frequency and width are in inverse relationship from the pot to give good results over a wide frequency range with one knob.",
+    "controls": [
+      "LFO rate/width",
+      "Resonance",
+      "Delay offset"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/new-flanger.spn"
+    },
+    "source_url": "https://www.diystompboxes.com/smfforum/index.php?topic=123725.0",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "New Flanger",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1844031,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-interesting-1",
+    "source": "algorithms/ready/directory-interesting-1.spn",
+    "instructions": 127,
+    "sha256": "38f25e7c84a7d3d360075fba23ab533c6afab177f315a473d22ceff2569ea88d",
+    "id": "directory-interesting-1",
+    "author": "Digital Larry",
+    "description": "There is an overdrive going to the flanger and highpass/delay, but the reverb is driven directly from the input.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/interesting-1.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=465",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Interesting - w/ Overdrive",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 13731,
+      "peak_output_error_q23": 56,
+      "rms_output_error_q23": 1.97822,
+      "peak_output_q23": 724275,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-interesting-2",
+    "source": "algorithms/ready/directory-interesting-2.spn",
+    "instructions": 123,
+    "sha256": "8eb761af38207d543c14a19d14969823055dffe308dad7679e703933ebf1a9f4",
+    "id": "directory-interesting-2",
+    "author": "Digital Larry",
+    "description": "Flanger and highpass/delay, but the reverb is driven directly from the input. With some envelope control on the filter.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/interesting-2.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=465",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Interesting - v1",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 8768,
+      "peak_output_error_q23": 49,
+      "rms_output_error_q23": 1.61711,
+      "peak_output_q23": 450880,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-slacker-bf-bf-phaser",
+    "source": "algorithms/ready/directory-slacker-bf-bf-phaser.spn",
+    "instructions": 97,
+    "sha256": "5ebba603c2024b1cd7d6cd4b6a2660862bdd5b428f2f5ac6865ea2c6ef25dc60",
+    "id": "directory-slacker-bf-bf-phaser",
+    "author": "slacker",
+    "description": "Flanger, Phaser program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Feedback (+/-)",
+      "Range",
+      "Speed"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_phaser.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_phaser.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Phaser",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 17044,
+      "peak_output_error_q23": 256,
+      "rms_output_error_q23": 5.73429,
+      "peak_output_q23": 8220648,
+      "output_clip_samples": 27080,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

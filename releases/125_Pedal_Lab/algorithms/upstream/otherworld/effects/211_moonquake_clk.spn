@@ -1,0 +1,190 @@
+; @name Moonquake_clk
+; @tagline A drum machine whose kick is tuned to the newest note you play; Busy turns a kick-and-offbeat grid into a dense random rhythm that repeats or mutates every 16 triggers, Ratio sets kicks against hits, and every hit zaps down onto a pitch that is in tune, a tritone off, or a hiss
+; @description Your clock drives a 16-step drum machine, one step per pulse, so 1/8 runs at
+; @description half the speed of 1/16. A careful listener (the shared pitch tracker) picks out the
+; @description newest note you play, only when it is sure, and every kick is struck on that note:
+; @description notes from one octave land in a deep register (F#1 to F2), notes from the next octave
+; @description an octave up (F#2 to F3), so the pitch also reads on small speakers (anything below C2
+; @description counts as the C2 octave). Each kick starts
+; @description two octaves up, drops onto your note in about 35 ms with a click, and rings for about a
+; @description second. Until the listener has heard a note, the kick sits on F#3. At Busy 0 the kick
+; @description plays every 4th trigger and the hit every 4th trigger offset by 2. Turning Busy up hands
+; @description more and more steps to a 16-step Turing machine; at full every trigger plays. Ratio
+; @description sets kicks against hits (default 40 %; at 0 there are no kicks). Mutate is the chance that
+; @description a step coming round is rewritten with a random bit: at 0 the rhythm repeats every 16
+; @description triggers, at 1 it is redrawn every time. Each hit is a strike into a short delay line
+; @description fed back on itself (a hollow comb with odd harmonics). The Turing machine picks its
+; @description tuning per hit: on your note, a tritone off it (disharmonic), or four to five and a half
+; @description octaves up, where the comb turns into a bright hiss. Every hit starts higher and zaps
+; @description down onto its pitch in about 10 ms, by up to an octave on the loudest strikes. Rings last
+; @description from about 40 ms (hiss) to 0.4 s (low notes). Kick and hits play at a fixed level.
+; @clock
+; @pots Busy | Mutate | Ratio
+; @render 0.75, 0.5, 0.4
+; @components factory clock block with a rising-edge latch (one step per pulse; 16-step bar), the shared lis37r2 pitch tracker on L (brightness-switched zero-crossing bass path, Schmitt gate, the same semitone three times running; notes below C2 folded into C2-B2), kick pitch folded into two octaves by the played note's octave parity (F#1-F3; exact equal temperament), magic-circle kick with a two-octave glide onto the note and a cosine-phase click (T60 about 1 s), 16-bit Turing loop seeded at load and rewritten by Mutate from the input's low bits, Busy-0 grid (kick on 1 of 4 and hit on 3 of 4) that Busy hands step by step to the Turing loop, Ratio sets kicks against hits on random steps, hit voice as a strike into a negative-feedback comb whose tuning the Turing loop picks per hit (the note; a tritone off; 4 to 5.5 octaves up), log-domain pitch drop of up to an octave as the strike decays
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+equ	clkhp	reg0		; clock detector: low-pass state
+equ	clkin	reg1		; free (the factory clock block's conditioned sample)
+equ	clkst	reg2		; clock state: -0.25 high, -0.5 low (armed)
+equ	clkprev	reg3
+equ	hp	reg4		; tracker: low-pass state (k 0.9); x - hp is the HF band
+equ	e1	reg5		; tracker: HF peak envelope
+equ	e2	reg6		; tracker: smoothed HF envelope (also the Schmitt high level)
+equ	ef	reg7		; tracker: the ~63 Hz high-pass stage before the Schmitt gate
+equ	thr	reg8		; tracker: Schmitt threshold/state
+equ	amp	reg9		; tracker: level, smooth(min(1, 9.2 |x|)) (lis37r2's AMP block)
+equ	cand	reg10		; tracker: confirmation counter
+equ	zl	reg11		; tracker: L low-passed at ~100 Hz (the bass zero-crossing path)
+equ	sh	reg12		; tracker: smoothed brightness
+equ	q0	reg13
+equ	ex	reg14
+equ	st	reg15
+equ	tm	reg16
+equ	et	reg17
+equ	vx	reg18
+equ	vy	reg19
+equ	vc	reg20
+equ	kx	reg21
+equ	ky	reg22
+equ	we	reg23
+equ	kw	reg24
+mem	cb	1024
+
+; ---- seed (once): the groove in the Turing loop
+	skp	run, go
+	or	$684F00
+	wrax	tm, 0
+go:
+; ---- clock: rising-edge detector, then the factory count
+	ldax	adcr
+	rdfx	clkhp, 0.06		; low-pass of ADCR, tau ~0.5 ms
+	wrax	clkhp, -1.0
+	rdax	adcr, 1.0		; d = ADCR - low-pass: the recent rise
+	sof	1.0, -0.1875		; high at d >= 0.1875
+	skp	neg, c_lo
+	sof	0, -0.25		; state high
+	wrax	clkst, 0
+	skp	zro, c_hi
+c_lo:	sof	1.0, 0.125		; d - 0.0625: below it the input re-arms; between, hold
+	skp	gez, c_hi
+	sof	0, -0.5			; state low (armed)
+	wrax	clkst, 0
+c_hi:	ldax	clkprev			; latch on low -> high
+	rdax	clkst, -1.0
+	skp	neg, c_latch
+	skp	gez, c_done
+; ---- a step on every clock pulse
+c_latch: ldax	st			; next step: st reads 1/32 (kick slot), 1/16, 3/32 (hit slot), 0
+	sof	1.0, 0.03125
+	and	$0C0000
+	wrax	st, 0
+	ldax	adcl			; Mutate's dice: the input's low bits
+	and	$007FFF
+	rdax	pot1, -0.00390625
+	skp	neg, rnd
+	ldax	tm
+rnd:	and	$000080			; the bit from 16 steps back (or a random one)
+	skp	zro, z
+	sof	0, 0.5
+z:	rdax	tm, 0.5			; turn the loop one bit
+	wrax	tm, 1.0
+	rdax	pot0, -1.05		; tm < 1.05 Busy: this step is random
+	skp	neg, r
+	ldax	st			; grid: the kick and hit slots have bit 18, the others rest
+	and	$040000
+	skp	zro, c_done
+	rdax	st, 1.2			; x = 1/32 + 1.2 st + 0.031 tm: kick slot 0.069 .. 0.1, hit slot 0.144 .. 0.175
+	rdax	tm, 0.031
+r:	and	$1FFFFF			; random step: x = low bits of tm - 1.05 Busy, 0 .. 1/4 (the grid's x passes unchanged)
+	rdax	pot2, -0.25		; a kick when x < Ratio / 4
+	skp	neg, kick
+hit:	ldax	tm			; the hit: strike level tm (also how far its pitch drops)
+	wrax	ex, 1.0
+	and	$2C0000			; three bits pick the tuning: unison, tritone, octave, octave + tritone, or 4 to 5.5 octaves up
+	sof	-1.0, -0.4375
+	rdax	q0, -1.0		; the kick's note (default F#3)
+	wrax	et, 0			; the comb delay's exponent (one period of the note at that offset)
+	skp	zro, c_done
+kick:	ldax	q0			; the kick: newest note (two octaves by parity)
+	exp	0.141845703, 0
+	wrax	we, 0.25		; the glide starts two octaves up
+	wrax	kw, 0			; ... and lands on the note
+	sof	0, -0.45
+	wrax	kx, 0			; strike (the click)
+c_done:	ldax	clkst
+	wrax	clkprev, 0
+; ---- listen: lis37r2, on L only (R is the clock), folded below C2
+	ldax	hp			; AMP: amp = smooth(min(1, 9.2 |x|)), k 0.0028
+	log	1.0, 0.2001953125
+	exp	1.0, 0
+	rdfx	amp, 0.0028076171875
+	wrax	amp, 0
+	rdax	adcl, 1.0
+	rdfx	zl, 0.01934814453125	; zl = LP(x) ~100 Hz (bass zero-crossing path)
+	wrhx	zl, 0			; ACC = x again (PACC)
+	rdfx	hp, 0.9000244140625	; hp = LP(x) at k ~0.9
+	wrhx	hp, -1.0		; ACC = x - hp (HF)
+	maxx	e1, 0.972412109375	; e1 = max(|HF|, 0.9724 e1): peak envelope
+	wrax	e1, 1.46502685546875
+	rdfx	e2, 0.08001708984375	; e2 = LP(envelope)
+	wrax	e2, 1.0			; ACC = e2
+	rdax	amp, -0.00067138671875	; brightness = e2 - th*amp
+	rdfx	sh, 0.00030517578125	; ~1.6 Hz
+	wrax	sh, 1.0			; smoothed
+	and	$800000			; -1 when dull, 0 when bright
+	mulx	zl			; -zl when dull
+	rdax	e2, 1.0			; ef stage input = e2 (- zl)
+	rdfx	ef, 0.01202392578125	; high-pass: v = in - LP(in)
+	wrhx	ef, -1.0		; v = in - ef
+	rdax	thr, 0.1500244140625	; Schmitt: x = v + 0.15 thr
+	skp	neg, low		; x < 0: low state, thr = x
+	mulx	thr			; x*thr < 0 only on the rising edge; tiny, so no clr
+	skp	gez, nox
+	cho	rdal, rmp0		; T (+ negligible x*thr)
+	jam	rmp0
+	log	-1.0, -0.375		; l = -log2(T)/16 + D: octave = 1/16, C2's semitone bin starts at l = 0
+	skp	gez, fl			; FLOOR (below C2: l < 0)
+	and	$07FFFF			; the same pitch class in [C2, C3), at any depth
+fl:	sof	0.75, -0.18359375	; s = 3/4 l + D: semitone = 2^-8, C3 = -35/256, B5 = 0 (as lis37r2)
+	and	$FF8000			; snap to the 12-TET semitone
+	rdax	cand, -1.00146484375	; s - (1+C) cand, C = 24/16384
+	skp	zro, out		; zero: the same semitone 3 times running (4 after a jump of > ~14): confirmed
+	rdax	cand, 1.0		; pending: cand = s - C cand
+	wrax	cand, 0
+	skp	zro, hyst
+out:	rdax	amp, 1.0		; level gate: L quiet (amp < 5/1024, about -65 dBFS): keep the note,
+	sof	1.0, -0.0048828125	; so the -90 dBFS input noise can't move the kick in rests
+	skp	neg, hyst
+	ldax	cand
+	sof	1.00146484375, 0.01953125	; (1+C) cand = s exactly, + 5 semitones (the kick's F#-based code)
+	sof	1.33331298828125, 0	; y = 4/3 s: the EXP domain (octave = 1/16)
+	or	$F00000			; pitch class + octave parity: two octaves, F# at the bottom
+	wrax	q0, 0
+hyst:	ldax	e2			; high state, hysteresis level
+low:	wrax	thr, 0
+nox:	wldr	rmp0, -4066, 4096
+; ---- kick: glide onto the note, magic circle with the decay on kx
+	ldax	kw
+	rdfx	we, 0.0061
+	wrax	we, 1.0
+	mulx	ky
+	rdax	kx, 0.9996
+	wrax	kx, -1.0
+	mulx	we
+	rdax	ky, 1.0
+	wrax	ky, 0
+; ---- hit: a strike into a comb tuned by the register; its pitch drops onto the note as the strike decays
+	rdax	ex, 0.985		; the strike decays (tau 2 ms)
+	wrax	ex, -0.0625		; its pitch starts ex octaves up and glides down onto the note
+	rdax	et, 1.0
+	exp	0.692261, 0
+	wrax	addr_ptr, 0
+	rmpa	-0.85			; - 0.85 y(n - D): odd harmonics, no DC build-up
+	rdax	ex, 0.6			; + the strike
+	wra	cb, 1.0
+; ---- out
+	rdax	kx, 0.99
+	wrax	dacl, 1.0
+	wrax	dacr, 0

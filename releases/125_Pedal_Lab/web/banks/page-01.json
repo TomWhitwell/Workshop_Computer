@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "audiofab-delay-automatic-double-tracker",
+    "source": "algorithms/ready/audiofab-delay-automatic-double-tracker.spn",
+    "instructions": 52,
+    "sha256": "2190e1d47443d41cdf4a3e6c0814eb1dcc8b92ff92ecf7cdd2c23566a5bfc17f",
+    "id": "audiofab-delay-automatic-double-tracker",
+    "author": "Audiofab",
+    "description": "Classic ADT effect with a very short delay (up to 43 ms) and mild chorus, simulating the sound of a double-tracked performance for natural vocal and guitar thickening.",
+    "controls": [
+      "Delay: Short delay time (max 43 ms).",
+      "Chorus Depth: Amount of chorus modulation.",
+      "Mix: Blend between dry and wet signal."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/automatic-double-tracker.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Automatic Double Tracker",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1484672,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "audiofab-delay-delay-chorus-reverb",
+    "source": "algorithms/ready/audiofab-delay-delay-chorus-reverb.spn",
+    "instructions": 88,
+    "sha256": "02754e49257be53f198f7af94cdf84d05375eb83fe68dd1de1cfb8316bb394ea",
+    "id": "audiofab-delay-delay-chorus-reverb",
+    "author": "Audiofab",
+    "description": "A crude emulation of a Roland RE-301 Space Echo combining three-tap delay, chorus, and a touch of reverb. 313 ms maximum delay time.",
+    "controls": [
+      "Delay: Delay time.",
+      "Repeats: Feedback amount \u2014 number of echoes.",
+      "Level: Wet signal level."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/delay-chorus-reverb.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Delay Chorus Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1484612,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "audiofab-delay-digital-delay",
+    "source": "algorithms/ready/audiofab-delay-digital-delay.spn",
+    "instructions": 42,
+    "sha256": "a07366b03ffad0c4e34bb86b79557cd287f056b82878c36acb8a5b539676f6d5",
+    "id": "audiofab-delay-digital-delay",
+    "author": "Audiofab",
+    "description": "A clean, wide-bandwidth digital delay with up to one second of delay time.",
+    "controls": [
+      "Time: Delay time.",
+      "Repeats: Feedback amount \u2014 number of echoes.",
+      "Level: Wet signal level."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/digital-delay.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Digital Delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1869056,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "audiofab-delay-eight-tap-delay",
+    "source": "algorithms/ready/audiofab-delay-eight-tap-delay.spn",
+    "instructions": 84,
+    "sha256": "5261235a44109e65f063217779681821a6228b740c3cc149d8a2823ee35970d7",
+    "id": "audiofab-delay-eight-tap-delay",
+    "author": "Audiofab",
+    "description": "An eight-tap delay with modulated chorus for a lush, rhythmic repeat pattern. Up to one second of delay time.",
+    "controls": [
+      "Delay: Delay time.",
+      "Repeats: Feedback amount \u2014 number of echoes.",
+      "Level: Wet signal level."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/eight-tap-delay.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Eight Tap Delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1869056,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "audiofab-delay-mn3011-delay",
+    "source": "algorithms/ready/audiofab-delay-mn3011-delay.spn",
+    "instructions": 66,
+    "sha256": "86ddee346715b27b4c8a681382c395c5f981f2496573bee9f62d0d8b4ac182d1",
+    "id": "audiofab-delay-mn3011-delay",
+    "author": "Audiofab",
+    "description": "A delay built on an emulation of the classic Panasonic MN3011 bucket-brigade device, producing rich multi-tap repeats with analog warmth. Up to one second of delay time.",
+    "controls": [
+      "Delay: Delay time.",
+      "Repeats: Feedback amount \u2014 number of echoes.",
+      "Level: Wet signal level."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/mn3011-delay.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "MN3011 Delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1869056,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "audiofab-delay-modulated-delay",
+    "source": "algorithms/ready/audiofab-delay-modulated-delay.spn",
+    "instructions": 34,
+    "sha256": "a3beb0330286252cec3e8fec9d1ab785eee60185b7fa5b553225498310a9d02a",
+    "id": "audiofab-delay-modulated-delay",
+    "author": "Audiofab",
+    "description": "A wide-bandwidth delay with subtle chorus modulation on the repeats, adding movement and dimension. 981 ms maximum delay time.",
+    "controls": [
+      "Delay: Delay time.",
+      "Repeats: Feedback amount \u2014 number of echoes.",
+      "Level: Wet signal level."
+    ],
+    "license": {
+      "label": "MIT (repository; effect-specific notices take precedence)",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/audiofab/LICENSE"
+    },
+    "source_url": "https://github.com/audiofab/easy-spin-effects/blob/0681b66792c8729646b94a5032bf155c435470a1/effects/delay/modulated-delay.spn",
+    "upstream_commit": "0681b66792c8729646b94a5032bf155c435470a1",
+    "title": "Modulated Delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1869056,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

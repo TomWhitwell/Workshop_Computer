@@ -1,0 +1,182 @@
+; @name Brownian Dust
+; @tagline Every note heats a cloud of glittering dust: it flies two octaves up and all over the field, then cools, slows and hangs in place
+; @description Two motes of dust drift through the last second of your playing. Each is a
+; @description stream of short grains an octave up, and each grain takes a random step, in
+; @description time and across the stereo field, from where the last one was: Brownian
+; @description motion. Every note you play heats the dust. Hot motes jitter wildly, leaping
+; @description up to a quarter of a second through your playing and flying to the far walls
+; @description of the stereo field, and they glitter two octaves up. As they cool, the steps
+; @description shrink, they drop back to an octave up, and they slow to a crawl. Cold motes
+; @description stand still: each keeps replaying almost the same moment, a frozen sparkle
+; @description hanging at its place in the field, and every half second or so it lets go and
+; @description catches a newer one. So every cluster of notes throws up a burst of glitter
+; @description that settles into hanging glints in the rests. Cool sets how fast they cool,
+; @description Heat how much a note heats them, and Scatter how far they wander in time.
+; @pots Cool | Heat | Scatter
+; @render 0.25, 0.5, 0.7
+; @time POT0 0.19 2.5 exp
+; @components onset-driven temperature with exponential cooling, two Brownian random walks in time and stereo (step size from the temperature), rotating overlapped grain streams, temperature-chosen octave speeds (x2 / x4), write-head-safe grain starts, mid/side panning, zero-lag peak limiter
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	buf	32767
+
+equ	hpf	reg0
+equ	ef	reg1
+equ	es	reg2
+equ	T	reg3		; temperature 0 .. 1
+equ	psi	reg4		; sub-phasor 0 .. 1/4: grain k is at phase psi + k/4 (of 1/2)
+equ	b0	reg5		; grain read offsets at their start (0 .. 1 = 1 s)
+equ	b1	reg6
+equ	n0	reg7		; -(speed - 1) x 2 GL: how the offset moves through a grain
+equ	n1	reg8
+equ	s0	reg9		; pans -1 .. 1
+equ	s1	reg10
+equ	r	reg11
+equ	pt	reg12
+equ	wt	reg13
+equ	tg	reg14
+equ	mid	reg15
+equ	side	reg16
+equ	env	reg17
+equ	glim	reg18
+equ	lpm	reg19
+equ	xl	reg20		; pre-limiter outputs (DACL/DACR do not read back on the chip)
+equ	xr	reg21
+
+	rdax	adcl, 0.25
+	rdax	adcr, 0.25
+	rdfx	lpm, 0.6		; a gentle 5 kHz low-pass: less aliasing at x4, softer peaks
+	wrax	lpm, 1.0
+	wra	buf, 1.0		; the memory: the last second, live
+; ---- onsets: every note heats the dust
+	rdfx	hpf, 0.25
+	wrhx	hpf, -1.0
+	absa
+	rdfx	ef, 0.012
+	wrax	ef, 1.0
+	rdfx	es, 0.001
+	wrax	es, 1.6
+	rdax	ef, -1.0
+	skp	gez, no_on
+	ldax	ef			; re-arm (hold-off): the slow envelope jumps to 2 x the fast
+	sof	2.0, 0
+	wrax	es, 0
+	ldax	pot1			; a note heats the dust by 0.1 .. 0.6 (Heat)
+	sof	0.5, 0.1
+	rdax	T, 1.0
+	wrax	T, 0
+no_on:
+; ---- cooling: T decays with a time constant of 0.19 .. 2.5 s (Cool)
+	ldax	pot0
+	sof	-0.233, -0.60
+	exp	-0.125, 0		; -c
+	mulx	T
+	rdax	T, 1.0
+	wrax	T, 0
+; ---- grains: 88 ms, two overlapping; every 44 ms the older one ends and that mote
+;      takes its next Brownian step
+	or	$0005B0			; (ACC is 0 here) psi step 0.711 x 2^-12 (the LFO rate register reads 0 on the chip)
+	rdax	psi, 1.0
+	wrax	psi, 1.0
+	sof	1.0, -0.25
+	skp	neg, noev
+	wrax	psi, 0
+	ldax	r			; random: x' = 1.9 x + 0.04 mod 1/2
+	sof	1.9, 0.04
+	and	$3FFFFF
+	wrax	r, 1.0
+	sof	1.0, -0.25		; time step: +-0.24 s x T x Scatter
+	mulx	T
+	mulx	pot2
+	sof	0.96, 0.0879		; and the 88 ms the moment has moved back
+	rdax	adcl, 0.03		; a little thermal jitter, even when cold (+-10 ms)
+	rdax	b1, 1.0
+	and	$3FFFFF
+	sof	1.0, 0.27		; grains start 0.27 .. 0.77 s back: clear of the write head
+	wrax	pt, 0
+	ldax	r
+	xor	$1F0F0F
+	sof	-2.0, 0.5
+	sof	-2.0, 0
+	mulx	T			; pan step: +-T (sticks at the sides)
+	rdax	s1, 1.0
+	wrax	wt, 0
+	ldax	T			; speed: two octaves up when hot, one octave up below T = 0.45
+	sof	0.1375, -0.0625
+	and	$F80000			; floor: -1/16 below T = 0.45, else 0
+	exp	-0.7031, 0.1758		; -(s - 1) x 2 GL: s = 2, or 4 when hot
+	wrax	tg, 0
+	ldax	b0
+	wrax	b1, 0
+	ldax	pt
+	wrax	b0, 0
+	ldax	n0
+	wrax	n1, 0
+	ldax	tg
+	wrax	n0, 0
+	ldax	s0
+	wrax	s1, 0
+	ldax	wt
+	wrax	s0, 0
+noev:
+; ---- grain 0 (the younger): offset b0 + n0 u, u = psi
+	ldax	psi
+	mulx	n0
+	rdax	b0, 1.0
+	and	$7FFFFF
+	wrax	addr_ptr, 0
+	ldax	psi			; triangle window 1 - |4 u - 1|
+	sof	1.99, -0.5
+	absa
+	sof	-2.0, 0.999
+	sof	1.99, 0			; flat top: fades over a quarter grain at each end
+	wrax	wt, 0
+	rmpa	0.65
+	mulx	wt
+	wrax	mid, 1.0
+	mulx	s0
+	wrax	side, 0
+; ---- grain 1 (the older), u = psi + 1/4
+	ldax	psi
+	sof	1.0, 0.25
+	wrax	pt, 1.0
+	mulx	n1
+	rdax	b1, 1.0
+	and	$7FFFFF
+	wrax	addr_ptr, 0
+	ldax	pt
+	sof	1.99, -0.5
+	absa
+	sof	-2.0, 0.999
+	sof	1.99, 0			; flat top: fades over a quarter grain at each end
+	wrax	wt, 0
+	rmpa	0.65
+	mulx	wt
+	wrax	tg, 1.0
+	rdax	mid, 1.0
+	wrax	mid, 0
+	ldax	tg
+	mulx	s1
+	rdax	side, 1.0
+	wrax	side, 1.0
+	rdax	mid, 1.0
+	wrax	xl, 1.0
+	rdax	side, -2.0
+	wrax	xr, 0
+; ---- gentle limiter: peak follower of this very output (0.25 s release), gain
+;      min(1, 0.66 / peak) applied at once (no overshoot at the chip rate)
+	ldax	xl
+	maxx	xr, 1.0			; max(|L|, |R|)
+	maxx	env, 0.99988
+	wrax	env, 1.0
+	log	-1.0, -0.099609375	; min(1, 0.331 / peak)
+	exp	1.0, 0
+	wrax	glim, 1.0
+	mulx	xl
+	sof	1.99, 0			; the grains run at half scale: x2 after the limiter
+	wrax	dacl, 0
+	ldax	glim
+	mulx	xr
+	sof	1.99, 0
+	wrax	dacr, 0

@@ -1,0 +1,30 @@
+SKP RUN,3 ; http://www.spinsemi.com/forum/viewtopic.php?f=4&t=382
+WRAX 33,0.0
+SOF 0.0,-1.0
+WRAX 34,0.0
+RDAX 33,0.001     ; change this factor &#40;and the one below&#41; to set the max left LFO speed
+MULX 16
+RDAX 34,1.0
+WRAX 34,-0.001  ; change together with the one above
+MULX 16
+RDAX 33,1.0
+WRAX 33,1.0
+MULX 20
+WRAX 32,0.0
+SKP RUN,3
+WRAX 36,0.0
+SOF 0.0,-1.0
+WRAX 37,0.0
+RDAX 36,0.001  ; change this factor &#40;and the one below&#41; to set the max right LFO speed
+MULX 17
+RDAX 37,1.0
+WRAX 37,-0.001 ; right LFO speed factor
+MULX 17
+RDAX 36,1.0
+WRAX 36,1.0
+MULX 21
+WRAX 35,0.0
+RDAX 32,1.0
+WRAX 22,0.0
+RDAX 35,1.0
+WRAX 23,0.0

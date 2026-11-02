@@ -1,0 +1,72 @@
+; aliaser.spn
+; Frank Thomson
+; OCT Distribution
+; &#40;c&#41; 2010 OCT Distribution
+;
+; Input: Left
+; Output: Left
+; POT0 : set "sample" rate
+; POT 1 and POT2 not used
+
+
+;  http://www.spinsemi.com/forum/viewtopic.php?f=4&t=262&p=1116&hilit=aliaser#p1116
+
+
+;
+old	equ	reg0
+new	equ	reg1
+fptr	equ	reg2
+temp	equ	reg3
+temp2	equ	reg4
+ptrmax	equ	1.1;  High sample rate, need to be just over 1.0 if we want no aliasing at high setting. 
+ptrmin	equ	0.001; Low sample rate 
+
+skp	run, start
+clr
+wrax	old,0
+wrax	new,0
+wrax	fptr,0
+
+start:
+clr
+rdax	pot0,0.5
+sof	ptrmax-ptrmin,ptrmin
+rdax	fptr,1
+wrax	fptr,1
+sof	1,-0.5
+skp	neg,interp
+wrax	fptr,0
+rdax	new,1
+wrax	old,0
+rdax	adcl,1.0
+wrax	new,0
+interp:
+clr
+rdax	new,1.0
+mulx	fptr
+wrax	temp,1
+rdax	temp,1
+wrax	temp,0
+rdax	fptr,-1.0	
+sof	1.0,0.5
+wrax	temp2,0
+rdax	old,1
+mulx	temp2
+wrax	temp2,1
+rdax	temp2,1
+rdax	temp,1.0	
+wrax	temp2,1
+absa
+wrax	temp,0
+;
+rdax	temp2,1.0
+skp	gez, gogo
+clr
+rdax	temp,1.0
+sof	-1.0,0
+wrax	temp,0
+gogo:
+clr
+rdax	temp,1.0
+wrax	dacl,1.0
+wrax	dacr,0

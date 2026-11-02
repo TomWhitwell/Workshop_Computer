@@ -1,0 +1,249 @@
+;FLANGE
+
+
+
+;mono effect, searing regeneration.
+
+
+
+;Pot0 = delay
+
+;Pot1 = sweep rate
+
+;Pot2 = sweep width
+
+
+
+;memory locations:
+
+
+
+mem	fdel	2000
+
+
+
+;write-first registers:
+
+
+
+equ	fout	reg0
+
+equ	tri	reg1
+
+equ	addr	reg2
+
+equ	interp	reg3
+
+equ	int1	reg4
+
+equ	int2	reg5
+
+equ	ptr	reg6
+
+
+
+;read first registers:
+
+
+
+equ	rmpfil	reg30	;filters triangle wave
+
+equ	fhp	reg20
+
+
+
+;clear read-first registers:
+
+
+
+skp	run,endclr
+
+wrax	rmpfil,0
+
+wrax	fhp,0
+
+
+
+endclr:
+
+
+
+;put signal into delay, with feedback:
+
+
+
+rdax	fout,0.8	;feedback
+
+rdax	adcl,0.3
+
+rdax	adcr,0.3
+
+wra	fdel,1.99
+
+wrax	dacl,1
+
+wrax	dacr,0
+
+
+
+;initialize ramp generator:
+
+
+
+skp	run,1
+
+wldr	rmp0,0,4096
+
+
+
+;derive a rate for the oscillator with pot1:
+
+
+
+rdax	pot1,1
+
+mulx	pot1		;square
+
+mulx	pot1		;cube
+
+sof	0.3,0.005	;set limits
+
+wrax	rmp0_rate,0	;write to ramp register
+
+
+
+cho	rdal,rmp0
+
+sof	1,-0.25
+
+absa
+
+sof	-2,0
+
+sof	-2,0
+
+wrax	tri,0
+
+
+
+;derive a manual control from pot0,
+
+;and crossfade between manual and LFO
+
+;with the width control:
+
+
+
+
+
+rdax	tri,1		;read triangle
+
+rdax	pot0,-1		;read manual pot, inverse
+
+mulx	pot2		;crossfade with width control
+
+rdax	pot0,1		;add back manual pot
+
+rdfx	rmpfil,0.001	;filter to minimize pitch bend
+
+wrax	rmpfil,1
+
+sof	0.003,0		;scale to fit address pointer
+
+wrax	ptr,1		;save pointer (goes to zero)
+
+rdax	ptr,1
+
+wrax	addr_ptr,1	;write address pointer
+
+wrax	addr,1		;save a copy
+
+and	%00000000_00000000_11111111	;preserve fractional part
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	-2,0
+
+sof	1.999,0
+
+wrax	interp,0	;write interpolator value
+
+
+
+;now read two taps and interpolate:
+
+
+
+rmpa	1
+
+wrax	int1,0
+
+
+
+;add one to the address pointer:
+
+
+
+or	%00000000_00000001_00000000
+
+rdax	addr,1
+
+wrax	addr_ptr,0
+
+
+
+rmpa	1
+
+wrax	int2,0
+
+
+
+;now interpolate:
+
+
+
+rdax	int2,1
+
+rdax	int1,-1
+
+mulx	interp
+
+rdax	int1,1
+
+
+
+;and high pass filter to fout
+
+
+
+rdfx	fhp,0.1
+
+wrhx	fhp,-1
+
+wrax	fout,0
+
+

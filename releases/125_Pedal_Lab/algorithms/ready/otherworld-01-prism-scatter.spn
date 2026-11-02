@@ -1,0 +1,195 @@
+; @name Prism Scatter
+; @tagline Chaotic re-sequencer that shatters the last second into octave shards
+; @description A logistic map re-sequences the music grain by grain. For every
+; @description grain it grabs a slice from anywhere in the last second, snapped
+; @description to whole grain lengths, and decides whether that slice plays
+; @description straight, an octave down, an octave up or backwards at any of
+; @description those speeds, and where it lands in the stereo field. Grain sweeps
+; @description the slice length smoothly from 31 ms stutter to quarter-second
+; @description shards. The shards regenerate into the buffer, so octaves stack on
+; @description octaves and the phrase dissolves into a glittering prism of itself.
+; @description Stop playing and the prism fades out within a second.
+; @pots Grain | Prism | Regen
+; @render 0.7, 0.8, 0.7
+; @components chaotic re-sequencing, granular slices on a grain-length grid, octave prism, reverse grains, regenerating feedback, random pan
+; @time 0 0.03125 0.2486 exp
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	buf	32767
+
+equ	chaos	reg0
+equ	ginc	reg1		; phasor increment = 1 / L
+equ	ph	reg2
+equ	e3	reg3		; 0.187 pot0 = log2(32 L / 32768) / 16
+equ	gm	reg4		; 2^(-2.992 pot0) - 1/8 = (1/L - 4) / 32 in ADDR_PTR units
+equ	posa	reg5		; read address of stream A (starts at S)
+equ	posb	reg6
+equ	stepa	reg7
+equ	stepb	reg8
+equ	pana	reg9
+equ	panb	reg10
+equ	spd	reg11		; speed * 2^-15 for the next grain
+equ	wa	reg12		; window of stream A (B uses 1 - wa)
+equ	ga	reg13		; stream A grain (half level)
+equ	lp	reg14
+equ	sq	reg15		; S = k L for whichever stream starts next
+equ	gb	reg16		; stream B grain (half level)
+equ	one	reg17		; 2^-15: one sample of ADDR_PTR
+equ	env	reg18		; output limiter envelope
+equ	xa	reg19		; A's left share
+equ	xl	reg20		; outputs in our own registers (DACL/DACR do not read back on the chip)
+equ	xr	reg21
+equ	nstep	reg22		; the read step for the next grain
+equ	plast	reg23		; the most recently drawn pan
+equ	rel	reg24		; release gate
+
+	skp	run, start
+	wlds	sin0, 23, 40		; perturbation: starts the map from 0 and keeps it from cycling
+
+start:
+; ---- chaos source
+	ldax	chaos
+	sof	-1.0, 0.999
+	mulx	chaos
+	sof	1.995, 0
+	sof	1.995, 0
+	cho	rdal, sin0
+	absa
+	wrax	chaos, 0
+	or	$000100
+	wrax	one, 0
+; ---- release gate: 1 while the input sounds, falling to 0 when it stops
+	rdax	adcl, 1.99993896484375	; 2 |L + R| (saturating)
+	rdax	adcr, 1.99993896484375
+	absa
+	log	1.0, 0.5625		; min(1, x / 2^-9) - 2^-7: exactly 0 below 2^-16
+	exp	1.0, -0.0078125
+	rdfx	rel, 0.000244140625		; smoothed: fades in and out over 0.125 s
+	wrax	rel, 0
+
+; ---- grain length and the grain-length grid
+	ldax	pot0
+	sof	0.187, 0
+	wrax	e3, -1.0
+	exp	1.0, -0.125
+	wrhx	gm, 0			; ACC = -e3 again (PACC)
+	sof	1.0, -0.625
+	exp	1.0, 0
+	wrax	ginc, 0			; 2^(-10 - 2.992 pot0)
+	ldax	chaos			; next start: k/32, k = 1 + floor(chaos (1/L - 4))
+	mulx	gm
+	sof	1.0, 0.03125
+	and	$FC0000
+	log	1.0, 0
+	rdax	e3, 1.0
+	exp	1.0, 0			; S = k L
+	wrax	sq, 0
+
+; ---- grain speed for whichever stream starts next: 2^(q - 16) * 32768 =
+;      0.5, 1 or 2 samples per sample, q = floor(3 * pana) (A's last pan, an
+;      independent earlier draw)
+	ldax	pana
+	sof	0.1875, -1.0		; the -1 is on the AND grid
+	and	$F80000
+	exp	1.0, 0
+	wrax	spd, 0
+; ---- the read step for whichever stream starts next, decided by the most recent pan
+;      (an independent earlier draw): 0 straight, 1 - speed forward, 1 + speed reversed
+	ldax	plast			; transformed?
+	rdax	pot1, -1.0
+	skp	gez, n_norm
+	rdax	pot1, 0.5		; plast - pot1/2
+	skp	neg, n_rev
+	ldax	one			; forward: step = 1 - speed
+	rdax	spd, -1.0
+	skp	0, n_set
+n_rev:	ldax	one			; reverse: step = 1 + speed
+	rdax	spd, 1.0
+	skp	0, n_set
+n_norm:	clr
+n_set:	wrax	nstep, 0
+
+; ---- buffer (0.41 level): mono input plus low-passed regeneration of the last output
+;      (lp takes the mean output at the end of the previous sample)
+	rdax	lp, 0.37848		; regeneration 0.42, at the buffer's level
+	mulx	pot2
+	rdax	adcl, 0.207
+	rdax	adcr, 0.207
+	wra	buf, 0
+
+; ---- phasor; stream A starts a grain on wrap
+	ldax	ph
+	rdax	ginc, 1.0
+	wrax	ph, 1.0
+	skp	neg, a_go
+	sof	1.0, -1.0
+	wrax	ph, 0
+	ldax	sq
+	wrax	posa, 0
+	ldax	nstep
+	wrax	stepa, 0
+	ldax	chaos
+	wrax	pana, 1.0
+	wrax	plast, 0
+a_go:	ldax	ph			; window A = 1 - 2|ph + 0.5|
+	sof	1.0, 0.5
+	absa
+	sof	-2.0, 0.999
+	wrax	wa, 0
+	ldax	posa
+	rdax	stepa, 1.0
+	wrax	posa, 1.0
+	wrax	addr_ptr, 0
+	rmpa	1.998
+	mulx	wa
+	wrax	ga, 1.0
+	mulx	pana
+	wrax	xa, 0			; A's left share (half level)
+
+; ---- stream B starts a grain when the phasor crosses -0.5
+	ldax	ph
+	sof	1.0, 0.5
+	skp	neg, b_go
+	rdax	ginc, -1.0
+	skp	gez, b_go
+	ldax	sq
+	wrax	posb, 0
+	ldax	nstep
+	wrax	stepb, 0
+	ldax	chaos
+	wrax	panb, 1.0
+	wrax	plast, 0
+b_go:	ldax	posb
+	rdax	stepb, 1.0
+	wrax	posb, 1.0
+	wrax	addr_ptr, 0
+	rmpa	-1.998			; -b
+	mulx	wa
+	wrhx	gb, -1.0		; -b - (-b) wa: PACC is -b (window B = 1 - window A); ACC = -B
+	wrax	gb, -1.0		; gb holds -B, ACC = B
+	mulx	panb			; B: pan to the right, (1 - pan) to the left
+	rdax	ga, 1.0
+	rdax	xa, -1.0
+	wrax	xr, -1.0		; R = A (1 - pana) + B panb
+	rdax	ga, 1.0
+	rdax	gb, -1.0
+	wrax	xl, 1.0			; L = A + B - R
+
+; ---- output peak limiter (buffer level): gain min(1, T/env), env = peak of both, 0.5 s release
+	maxx	xr, 1.0
+	maxx	env, 0.99994
+	wrax	env, 1.0
+	log	-1.0, -0.099609375	; T = 2^-1.59375 = 0.331
+	exp	1.0, 0			; g
+	mulx	rel			; x the release gate
+	mulx	xl
+	wrhx	xl, 0			; xl = g L; ACC = g (PACC)
+	mulx	xr
+	wrax	xr, 1.99993896484375	; xr = g R; ACC = the right output
+	wrax	dacr, 0
+	rdax	xl, 2.0
+	wrax	dacl, 0.5		; ACC = half the left output
+	rdax	xr, 1.0
+	rdfx	lp, 0.3			; regeneration low-pass of the mean output, read by the buffer next sample
+	wrax	lp, 0

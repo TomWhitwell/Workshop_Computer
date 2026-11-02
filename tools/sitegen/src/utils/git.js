@@ -1,4 +1,5 @@
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
+import { promisify } from 'node:util';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { debugLog } from './logger.js';
@@ -40,20 +41,125 @@ export function getLastCommitDate(relPath) {
   }
 }
 
+
+const execFileAsync = promisify(execFile);
+
+let _historyCache;
+
+// Release folder key (`releases/<folder>`) for a repo-relative path.
+function folderKey(relPath) {
+  return String(relPath || '').replace(/\\/g, '/').replace(/\/+$/, '');
+}
+
+function releaseFolderOf(file) {
+  const parts = file.split('/');
+  return parts.length > 2 && parts[0] === 'releases' ? `releases/${parts[1]}` : '';
+}
+
+function isMetadataFile(folder, file) {
+  const name = file.slice(folder.length + 1);
+  return name === 'info.yaml' || name.toLowerCase() === 'readme.md';
+}
+
 /**
- * Returns { first, last } short commit dates (YYYY-MM-DD) for a path, or '' when unavailable.
+ * Per-folder Git history for everything under releases/, built from two
+ * repo-wide log walks and one `cat-file --batch`, then cached for the process
+ * lifetime. Spawning a path-limited `git log` per card costs ~40ms each, so
+ * walking the history once is far cheaper than ~5 lookups for every card.
+ *
+ * `--no-renames` lists both sides of a move, and the combined diff lists a
+ * merge's own changes, so each folder sees the same commits as a log limited
+ * to that folder. Returns null when git is unavailable.
+ */
+function getReleaseHistory() {
+  if (_historyCache !== undefined) return _historyCache;
+  const run = (args, input) => execFileSync('git', ['-c', 'core.quotepath=off', ...args], {
+    cwd: ROOT, input, stdio: [input == null ? 'ignore' : 'pipe', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024,
+  });
+  try {
+    const folders = new Map();
+    const entry = key => {
+      if (!folders.has(key)) folders.set(key, { first: '', last: '', contentDate: '', mainline: [], revisions: [] });
+      return folders.get(key);
+    };
+
+    // Newest first, as `git log -- <folder>` would list them.
+    let date = '';
+    let touched = new Set();
+    for (const line of run(['log', '--no-renames', '--diff-merges=combined', '--format=@%cs', '--name-only', '--', 'releases']).toString('utf8').split('\n')) {
+      if (line.startsWith('@')) {
+        date = line.slice(1);
+        touched = new Set();
+        continue;
+      }
+      const key = releaseFolderOf(line);
+      if (!key) continue;
+      const folder = entry(key);
+      if (!touched.has(key)) {
+        touched.add(key);
+        if (!folder.last) folder.last = date;
+        folder.first = date;
+      }
+      if (!folder.contentDate && !isMetadataFile(key, line)) folder.contentDate = date;
+    }
+
+    // Main-line commits, oldest first, noting which ones touch info.yaml.
+    let commit = null;
+    for (const line of run(['log', '--first-parent', '--reverse', '--no-renames', '--format=@%H %cs', '--name-only', '--', 'releases']).toString('utf8').split('\n')) {
+      if (line.startsWith('@')) {
+        const [sha, cs] = line.slice(1).split(' ');
+        commit = { sha, date: cs };
+        continue;
+      }
+      const key = releaseFolderOf(line);
+      if (!key || !commit) continue;
+      const { mainline } = entry(key);
+      const last = mainline[mainline.length - 1];
+      if (last?.sha !== commit.sha) mainline.push({ ...commit, touchesInfo: false });
+      if (line === `${key}/info.yaml`) mainline[mainline.length - 1].touchesInfo = true;
+    }
+
+    // Draft state can only change at a folder's first main-line commit or at a
+    // commit touching its info.yaml, so read just those revisions, all at once.
+    const wanted = [];
+    for (const [key, folder] of folders) {
+      folder.mainline.forEach((c, i) => {
+        if (i === 0 || c.touchesInfo) wanted.push({ folder, date: c.date, rev: `${c.sha}:${key}/info.yaml` });
+      });
+      delete folder.mainline;
+    }
+    if (wanted.length) {
+      // Batch output per object: "<oid> blob <size>\n<content>\n", or "<rev> missing\n".
+      const out = run(['cat-file', '--batch'], wanted.map(({ rev }) => `${rev}\n`).join(''));
+      let pos = 0;
+      for (const { folder, date: revDate } of wanted) {
+        const eol = out.indexOf(10, pos);
+        const header = out.toString('utf8', pos, eol).split(' ');
+        pos = eol + 1;
+        let source = null;
+        if (header[1] === 'blob') {
+          const size = Number(header[2]);
+          source = out.toString('utf8', pos, pos + size);
+          pos += size + 1;
+        }
+        folder.revisions.push({ date: revDate, source });
+      }
+    }
+    _historyCache = folders;
+  } catch (e) {
+    debugLog('getReleaseHistory failed:', e?.message || e);
+    _historyCache = null;
+  }
+  return _historyCache;
+}
+
+/**
+ * Returns { first, last } short commit dates (YYYY-MM-DD) for a release folder, or '' when unavailable.
  * Mirrors the MTM importer's git_date(:first/:last) fallback used for created/updated metadata.
  */
-export function getCommitDates(relPath) {
-  try {
-    const out = execFileSync('git', ['log', '--format=%cs', '--', String(relPath)], { cwd: ROOT, encoding: 'utf8' });
-    const dates = out.split('\n').map(s => s.trim()).filter(Boolean);
-    if (!dates.length) return { first: '', last: '' };
-    return { first: dates[dates.length - 1], last: dates[0] };
-  } catch (e) {
-    debugLog(`getCommitDates failed for ${relPath}:`, e?.message || e);
-    return { first: '', last: '' };
-  }
+export function getCommitDates(folderRel) {
+  const folder = getReleaseHistory()?.get(folderKey(folderRel));
+  return { first: folder?.first || '', last: folder?.last || '' };
 }
 
 /**
@@ -64,14 +170,14 @@ export function getCommitDates(relPath) {
  * therefore a bulk-edit-resistant estimate of when a file's content first
  * existed — a stable date floor for cards that don't declare one explicitly.
  * Returns a YYYY-MM-DD string, or '' when unavailable (e.g. untracked file).
+ * Asynchronous so callers can run several blames at once.
  */
-export function getOldestBlameDate(relPath) {
+export async function getOldestBlameDate(relPath) {
   try {
-    const out = execFileSync('git', ['blame', '--date=short', '--', String(relPath)], {
+    const { stdout } = await execFileAsync('git', ['blame', '--date=short', '--', String(relPath)], {
       cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
-      stdio: ['ignore', 'pipe', 'ignore'],
     });
-    const dates = out.match(/\d{4}-\d{2}-\d{2}/g);
+    const dates = stdout.match(/\d{4}-\d{2}-\d{2}/g);
     if (!dates || !dates.length) return '';
     return dates.reduce((a, b) => (a < b ? a : b));
   } catch (e) {
@@ -85,52 +191,16 @@ export function getOldestBlameDate(relPath) {
  * earliest first-parent commit (i.e. the merge/squash onto main, not the PR's
  * own commit dates) where the card folder exists and its info.yaml is not a
  * draft. `isDraftSource(yamlText)` decides draft state; a missing info.yaml
- * (pre-metadata cards) counts as published. Draft state can only change at the
- * folder's first commit or at a commit touching info.yaml, so only those
- * revisions are read (in one `git cat-file --batch` call). Returns '' when
- * never published or when git is unavailable.
+ * (pre-metadata cards) counts as published. Returns '' when never published or
+ * when git is unavailable.
  */
 export function getPublishedDate(folderRel, isDraftSource) {
-  const f = String(folderRel || '').replace(/\/+$/, '');
-  if (!f) return '';
-  const infoPath = `${f}/info.yaml`;
-  const run = (args, input) => execFileSync('git', args, {
-    cwd: ROOT, input, stdio: [input == null ? 'ignore' : 'pipe', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024,
-  });
-  try {
-    // One log over the folder; each commit line is followed by the files it changed.
-    const commits = [];
-    for (const line of run(['-c', 'core.quotepath=off', 'log', '--first-parent', '--reverse', '--format=@%H %cs', '--name-only', '--', f]).toString('utf8').split('\n')) {
-      if (line.startsWith('@')) {
-        const [sha, date] = line.slice(1).split(' ');
-        commits.push({ sha, date, touchesInfo: false });
-      } else if (line === infoPath && commits.length) {
-        commits[commits.length - 1].touchesInfo = true;
-      }
-    }
-    if (!commits.length) return '';
-    const revisions = commits.filter((c, i) => i === 0 || c.touchesInfo);
-    // Batch output per object: "<oid> blob <size>\n<content>\n", or "<rev> missing\n".
-    const out = run(['cat-file', '--batch'], revisions.map(({ sha }) => `${sha}:${infoPath}\n`).join(''));
-    let pos = 0;
-    for (const { date } of revisions) {
-      const eol = out.indexOf(10, pos);
-      const header = out.toString('utf8', pos, eol).split(' ');
-      pos = eol + 1;
-      let source = null;
-      if (header[1] === 'blob') {
-        const size = Number(header[2]);
-        source = out.toString('utf8', pos, pos + size);
-        pos += size + 1;
-      }
-      // A missing info.yaml at this revision is a legacy card: published.
-      if (source == null || !isDraftSource(source)) return date;
-    }
-    return '';
-  } catch (e) {
-    debugLog(`getPublishedDate failed for ${f}:`, e?.message || e);
-    return '';
+  const folder = getReleaseHistory()?.get(folderKey(folderRel));
+  for (const { date, source } of folder?.revisions || []) {
+    // A missing info.yaml at this revision is a legacy card: published.
+    if (source == null || !isDraftSource(source)) return date;
   }
+  return '';
 }
 
 /**
@@ -143,17 +213,5 @@ export function getPublishedDate(folderRel, isDraftSource) {
  * the card has no content files (e.g. placeholder / external-only cards).
  */
 export function getContentUpdatedDate(folderRel) {
-  const f = String(folderRel || '').replace(/\/+$/, '');
-  if (!f) return '';
-  try {
-    const out = execFileSync(
-      'git',
-      ['log', '-1', '--format=%cs', '--', f, `:(exclude)${f}/info.yaml`, `:(exclude,icase)${f}/readme.md`],
-      { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
-    ).trim();
-    return out || '';
-  } catch (e) {
-    debugLog(`getContentUpdatedDate failed for ${f}:`, e?.message || e);
-    return '';
-  }
+  return getReleaseHistory()?.get(folderKey(folderRel))?.contentDate || '';
 }

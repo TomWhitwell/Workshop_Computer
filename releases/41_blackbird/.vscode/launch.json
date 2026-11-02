@@ -1,0 +1,53 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Blackbird: Debug external OpenOCD",
+			"type": "cortex-debug",
+			"request": "launch",
+			"servertype": "external",
+			"cwd": "${workspaceFolder}",
+			"executable": "${workspaceFolder}/build/blackbird.elf",
+			"gdbTarget": "host.docker.internal:3333",
+			"gdbPath": "arm-none-eabi-gdb",
+			"device": "RP2040",
+			"svdFile": "${env:PICO_SDK_PATH}/src/rp2040/hardware_regs/rp2040.svd",
+			"runToEntryPoint": "main",
+			"preLaunchTask": "Blackbird: Build firmware",
+			"overrideLaunchCommands": [
+				"monitor reset init",
+				"load \"${workspaceFolder}/build/blackbird.elf\""
+			],
+			"postRestartCommands": [
+				"break main",
+				"continue"
+			]
+		},
+		{
+			"name": "Blackbird: Debug harness external OpenOCD",
+			"type": "cortex-debug",
+			"request": "launch",
+			"servertype": "external",
+			"cwd": "${workspaceFolder}",
+			"executable": "${workspaceFolder}/build-debug/blackbird_debug.elf",
+			"gdbTarget": "host.docker.internal:3333",
+			"gdbPath": "arm-none-eabi-gdb",
+			"device": "RP2040",
+			"svdFile": "${env:PICO_SDK_PATH}/src/rp2040/hardware_regs/rp2040.svd",
+			"liveWatch": {
+				"enabled": true,
+				"samplesPerSecond": 4
+			},
+			"runToEntryPoint": "main",
+			"preLaunchTask": "Blackbird: Build debug harness",
+			"overrideLaunchCommands": [
+				"monitor reset init",
+				"load \"${workspaceFolder}/build-debug/blackbird_debug.elf\""
+			],
+			"postRestartCommands": [
+				"break main",
+				"continue"
+			]
+		}
+	]
+}

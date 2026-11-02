@@ -79,6 +79,14 @@
   .hint { color: var(--dim); font-size: 0.88rem; margin: 0.2rem 0 0.8rem; max-width: 60ch; }
   .msg { font-size: 0.9rem; min-height: 1.3em; color: var(--dim); }
   .msg.bad { color: var(--bad); }
+  h3.sub { font: 500 1rem var(--serif); margin: 0.6rem 0 0.6rem; color: var(--mist); }
+  #birdsNow .meter { grid-template-columns: 12rem 1fr 5.5rem; }
+  #birdsNow .meter .name { white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+  #birdsNow .meter .bar i { background: var(--rose); }
+  #birdsNow .meter.lead .name { color: var(--gold); }
+  #birdsNow .meter.lead .bar i { background: var(--gold); }
+  #birdLead { color: var(--mist); }
+  @media (max-width: 520px) { #birdsNow .meter { grid-template-columns: 9rem 1fr 4.5rem; } }
 
   /* Readouts */
   .meters { display: grid; gap: 0.55rem; }
@@ -112,7 +120,7 @@
 </head>
 <body>
 <header>
-  <h1>Dawn Chorus <small>host companion, test build 0.3</small></h1>
+  <h1>Dawn Chorus <small>host companion, 0.11</small></h1>
   <div class="card-state">
     <span class="dot" id="linkDot" aria-hidden="true"></span>
     <span id="linkText">Card not connected</span>
@@ -180,6 +188,28 @@
         <button id="restartBtn">Restart</button>
       </div>
     </section>
+
+    <section>
+      <h2>Birds</h2>
+      <div class="row">
+        <div>
+          <label for="birdMonth">Season</label>
+          <select id="birdMonth">
+            <option value="auto">This month</option>
+            <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+            <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+        </div>
+      </div>
+      <p class="msg" id="birdMsg">Set a place to find out which birds are around.</p>
+      <h3 class="sub">Your four birds</h3>
+      <p class="msg" id="birdLead"></p>
+      <div class="meters" id="birdsNow"></div>
+      <p class="hint" id="birdsNowEmpty">None of them sing at this hour.</p>
+      <p class="hint">The most likely birds here this season. Bars show how much each is singing at this hour. X on the card picks: fully anticlockwise they all share the singing; each step clockwise picks one to lead (1 to 4), and the others sing quietly in the background.</p>
+    </section>
   </div>
 
   <div>
@@ -196,6 +226,7 @@
         <span>Received by card <b id="recv">–</b></span>
         <span>Chimes <b id="chimes">–</b></span>
         <span>Bird phrases <b id="birds">–</b></span>
+        <span>Card load <b id="load">–</b></span>
       </div>
       <p class="msg" id="serialMsg"></p>
       <details>
@@ -270,6 +301,7 @@ const S = {
   port: null, reader: null, writer: null, writing: false,
   sent: 0, lastCardLine: 0,
   manual: { el: -6, ri: 1, cl: 0.4, wi: 0.25, te: 0.5, ra: 0, hu: 0.7 },
+  birds: null, birdsKey: "", birdsBusy: false, birdsTriedAt: 0,
   frame: null,
 };
 
@@ -294,6 +326,7 @@ function setPlace(lat, lon, label) {
   S.day = null;
   if (S.mode === "fast") restartFast();
   fetchWeather();
+  S.birdsKey = ""; S.birdsTriedAt = 0;
 }
 
 $("#placeBtn").onclick = async () => {
@@ -388,8 +421,9 @@ function buildFrame(t) {
   }
   // Daylight swells from nautical twilight (-12°) to the sun 12° up
   const li = smoothstep(-12, 12, el);
-  const ch = birdsong(el, ri);
-  return { el, li, ch, ri, cl: w.cl, wi: w.wi, te: w.te, ra: w.ra, hu: w.hu, raw: w.raw };
+  const b = birdsNow(el);
+  const ch = Math.max(birdsong(el, ri), b.owlCh);
+  return { el, li, ch, ri, cl: w.cl, wi: w.wi, te: w.te, ra: w.ra, hu: w.hu, raw: w.raw, four: b.four };
 }
 
 /* Birdsong through the day (0-1, sent as "ch"):
@@ -410,7 +444,265 @@ function birdsong(el, rising) {
 
 function frameLine(f) {
   return `F el=${f.el.toFixed(2)} li=${f.li.toFixed(4)} ch=${f.ch.toFixed(4)} ri=${f.ri} ` +
-         `cl=${f.cl.toFixed(3)} wi=${f.wi.toFixed(3)} te=${f.te.toFixed(3)} ra=${f.ra.toFixed(3)} hu=${f.hu.toFixed(3)}\n`;
+         `cl=${f.cl.toFixed(3)} wi=${f.wi.toFixed(3)} te=${f.te.toFixed(3)} ra=${f.ra.toFixed(3)} hu=${f.hu.toFixed(3)}` +
+         ` n=${f.four.length}` + [0, 1, 2, 3].map((k) => { const b = f.four[k];
+           return b ? ` t${k}=${b.type} s${k}=${b.seed} w${k}=${b.avail.toFixed(3)}` : ` t${k}=0 s${k}=0 w${k}=0`; }).join("") + "\n";
+}
+
+/* ---------------------------------------------------------------
+   Birds: which kinds are around here in this season (GBIF records)
+---------------------------------------------------------------- */
+// Ten bird types the card can synthesise. Order matches b0..b9 in the frame.
+const BIRD_TYPES = [
+  { name: "Screamer", eg: "swifts" },
+  { name: "Flute",    eg: "blackbird, thrushes, curlew" },
+  { name: "Warbler",  eg: "robin, warblers, swallows" },
+  { name: "Trill",    eg: "wren, chaffinch, finches" },
+  { name: "Two-note", eg: "great tit, chiffchaff, sparrows" },
+  { name: "Coo",      eg: "pigeons and doves" },
+  { name: "Cuckoo",   eg: "cuckoo" },
+  { name: "Harsh",    eg: "crows, gulls, geese" },
+  { name: "Owl",      eg: "owls, at night" },
+  { name: "Skylark",  eg: "larks" },
+];
+// Bird families (scientific names) and the type that suits their voices
+const FAMILY_TYPE = {
+  Apodidae: 0, Psittaculidae: 0, Psittacidae: 0,
+  Turdidae: 1, Oriolidae: 1, Scolopacidae: 1, Charadriidae: 1, Haematopodidae: 1, Recurvirostridae: 1,
+  Muscicapidae: 2, Sylviidae: 2, Acrocephalidae: 2, Locustellidae: 2, Hirundinidae: 2, Motacillidae: 2,
+  Regulidae: 2, Prunellidae: 2, Sturnidae: 2, Mimidae: 2, Aegithalidae: 2, Meliphagidae: 2,
+  Pycnonotidae: 2, Parulidae: 2, Vireonidae: 2, Cisticolidae: 2, Zosteropidae: 2, Bombycillidae: 2,
+  Troglodytidae: 3, Fringillidae: 3, Emberizidae: 3, Passerellidae: 3, Certhiidae: 3, Sittidae: 3, Picidae: 3,
+  Paridae: 4, Phylloscopidae: 4, Passeridae: 4, Cardinalidae: 4, Tyrannidae: 4, Icteridae: 4, Estrildidae: 4,
+  Columbidae: 5, Upupidae: 5,
+  Cuculidae: 6,
+  Corvidae: 7, Laridae: 7, Anatidae: 7, Phasianidae: 7, Ardeidae: 7, Rallidae: 7, Cacatuidae: 7,
+  Accipitridae: 7, Gruidae: 7, Threskiornithidae: 7, Podicipedidae: 7, Phalacrocoracidae: 7,
+  Strigidae: 8, Tytonidae: 8,
+  Alaudidae: 9,
+};
+// GBIF keys for a few families, so fewer names need looking up
+const FAMILY_SEED = { 2877: "Accipitridae", 2878: "Aegithalidae", 2984: "Alcedinidae", 2985: "Alcidae",
+  2986: "Anatidae", 2993: "Apodidae", 3685: "Ardeidae", 5215: "Bombycillidae", 5225: "Caprimulgidae", 5227: "Certhiidae" };
+// Records over-represent big, conspicuous birds (crows, gulls, ducks, pigeons) and
+// under-represent songbirds compared with what you'd hear, so each type is rebalanced
+const TYPE_BALANCE = [1, 1.3, 1.3, 1.1, 1, 0.6, 1, 0.35, 1, 1];
+// Owls and cuckoos are rare in the records but unmistakable, so when they're in
+// season they're kept in contention at this fraction of the top bird's score
+const CHARACTER_FLOOR = { 6: 0.3, 8: 0.2 };
+// Within some types there are two song styles; the species decides which
+// (Flute: blackbird 0 / song thrush 1; Trill: wren 0 / chaffinch 1; Two-note: great tit 0 /
+// chiffchaff 1; Coo: wood pigeon 0 / collared dove 1; Harsh: crow 0 / gull 1)
+const SPECIES_VARIANT = { "Turdus merula": 0, "Turdus philomelos": 1, "Turdus viscivorus": 0, "Turdus pilaris": 1, "Turdus iliacus": 1 };
+const GENUS_VARIANT = { Phylloscopus: 1, Parus: 0, Cyanistes: 0, Periparus: 0, Poecile: 0, Lophophanes: 0, Passer: 1,
+  Troglodytes: 0, Fringilla: 1, Carduelis: 1, Chloris: 1, Spinus: 1, Corvus: 0, Coloeus: 0, Pica: 0, Garrulus: 0,
+  Larus: 1, Chroicocephalus: 1, Rissa: 1, Ichthyaetus: 1, Columba: 0, Streptopelia: 1 };
+const FOUR = 4;
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const GBIF = "https://api.gbif.org/v1";
+
+function birdMonth() {
+  const v = $("#birdMonth").value;
+  return v === "auto" ? new Date(simNow()).getMonth() + 1 : +v;
+}
+
+async function gbif(path) {
+  const r = await fetch(GBIF + path);
+  if (!r.ok) throw new Error("GBIF " + r.status);
+  return r.json();
+}
+
+// Look up a GBIF name once, then remember it in this browser
+async function gbifName(key, kind) {
+  const k = `${kind}.${key}`;
+  if (kind === "fam" && FAMILY_SEED[key]) return FAMILY_SEED[key];
+  const known = recall(k);
+  if (known) return known;
+  const j = await gbif(`/species/${key}`);
+  const name = kind === "fam" ? (j.canonicalName || j.family || "") : (j.vernacularName || j.canonicalName || "");
+  store(k, name);
+  return name;
+}
+
+async function namesFor(keys, kind) {
+  const out = {};
+  for (let i = 0; i < keys.length; i += 8) {   // a few at a time, to be polite
+    const batch = keys.slice(i, i + 8);
+    const names = await Promise.all(batch.map((k) => gbifName(k, kind).catch(() => "")));
+    batch.forEach((k, j) => (out[k] = names[j]));
+  }
+  return out;
+}
+
+// Look up a species once (common name, genus, family), then remember it in this browser
+async function speciesInfo(key) {
+  const k = `spinfo.${key}`;
+  const known = recall(k);
+  if (known) return known;
+  const j = await gbif(`/species/${key}`);
+  const info = { name: j.vernacularName || j.canonicalName || "", sci: j.canonicalName || j.species || "",
+                 genus: j.genus || "", family: j.family || "" };
+  store(k, info);
+  return info;
+}
+async function speciesInfos(keys) {
+  const out = {};
+  for (let i = 0; i < keys.length; i += 8) {   // a few at a time, to be polite
+    const batch = keys.slice(i, i + 8);
+    const infos = await Promise.all(batch.map((k) => speciesInfo(k).catch(() => null)));
+    batch.forEach((k, j) => (out[k] = infos[j]));
+  }
+  return out;
+}
+
+// The likely birds for this place and month, best first, each with a bird type and a
+// personality seed that fixes its voice and songs
+async function fetchBirds(month) {
+  const lat = S.lat, lon = S.lon;
+  const cacheKey = `birds2.${lat.toFixed(2)},${lon.toFixed(2)},${month}`;
+  const cached = recall(cacheKey);
+  if (cached && Date.now() - cached.at < 30 * 86400000) return cached;
+
+  const y = new Date().getFullYear();
+  const years = `year=${y - 10},${y - 1}`;
+  let km = 0, mj = null, box = "";
+  for (km of [30, 60, 120]) {   // widen the area until there are enough records
+    const dLat = km / 111, dLon = km / (111 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
+    box = `decimalLatitude=${(lat - dLat).toFixed(3)},${(lat + dLat).toFixed(3)}` +
+          `&decimalLongitude=${Math.max(-180, lon - dLon).toFixed(3)},${Math.min(180, lon + dLon).toFixed(3)}`;
+    mj = await gbif(`/occurrence/search?taxonKey=212&${box}&${years}&month=${month}&limit=0&facet=speciesKey&speciesKey.facetLimit=40`);
+    if (mj.count >= 300) break;
+  }
+  const facet = (j) => ((j.facets && j.facets[0] && j.facets[0].counts) || []).map((c) => ({ key: +c.name, n: c.count }));
+  const yj = await gbif(`/occurrence/search?taxonKey=212&${box}&${years}&limit=0&facet=speciesKey&speciesKey.facetLimit=200`);
+  // Owls and cuckoos are seldom among the most-recorded species, so look for them separately
+  const fj = await gbif(`/occurrence/search?taxonKey=212&${box}&${years}&month=${month}&limit=0&facet=familyKey&familyKey.facetLimit=80`);
+  const famNames = await namesFor(facet(fj).map((c) => c.key), "fam");
+  const rareFams = facet(fj).filter((c) => [6, 8].includes(FAMILY_TYPE[famNames[c.key]])).map((c) => c.key);
+  let extra = [];
+  if (rareFams.length) {
+    const xj = await gbif(`/occurrence/search?${rareFams.map((k) => "taxonKey=" + k).join("&")}&${box}&${years}&month=${month}&limit=0&facet=speciesKey&speciesKey.facetLimit=6`);
+    extra = facet(xj);
+  }
+
+  const yearShare = {};
+  facet(yj).forEach((c) => (yearShare[c.key] = c.n / Math.max(1, yj.count)));
+  const counts = new Map();
+  [...facet(mj), ...extra].forEach((c) => counts.set(c.key, Math.max(c.n, counts.get(c.key) || 0)));
+  const infos = await speciesInfos([...counts.keys()]);
+
+  let birds = [];
+  for (const [key, n] of counts) {
+    const info = infos[key];
+    if (!info || n < 5) continue;                 // a handful of records: probably strays
+    const type = FAMILY_TYPE[info.family];
+    if (type === undefined) continue;             // families the card has no voice for
+    const share = n / Math.max(1, mj.count);
+    const ys = yearShare[key];
+    const idx = ys ? share / ys : 1;
+    if (idx < 0.3) continue;                      // far below its usual level: out of season
+    const score = share * Math.sqrt(Math.min(idx, 4)) * TYPE_BALANCE[type];
+    const variant = SPECIES_VARIANT[info.sci] ?? GENUS_VARIANT[info.genus] ?? (key & 1);
+    const seed = ((Math.imul(key, 2654435761) >>> 16) & 0xfffe) | variant;
+    birds.push({ key, name: info.name || info.sci, type, seed, score });
+  }
+  const top = Math.max(0, ...birds.map((b) => b.score));
+  birds.forEach((b) => { if (CHARACTER_FLOOR[b.type]) b.score = Math.max(b.score, CHARACTER_FLOOR[b.type] * top); });
+  birds.sort((a, b) => b.score - a.score);
+  birds = birds.slice(0, 16);
+
+  const result = { at: Date.now(), month, km, count: mj.count, years: [y - 10, y - 1], birds };
+  if (mj.count > 0) store(cacheKey, result);
+  return result;
+}
+
+// Keep the bird data in step with the place and season
+async function updateBirds() {
+  if (S.lat == null || S.birdsBusy) return;
+  const month = birdMonth();
+  const key = `${S.lat.toFixed(2)},${S.lon.toFixed(2)},${month}`;
+  if (key === S.birdsKey) return;
+  if (S.birdsFailedKey === key && Date.now() - S.birdsTriedAt < 5 * 60000) return;
+  S.birdsBusy = true; S.birdsTriedAt = Date.now();
+  $("#birdMsg").textContent = `Looking up bird records for ${MONTHS[month - 1]}…`;
+  $("#birdMsg").classList.remove("bad");
+  try {
+    const b = await fetchBirds(month);
+    S.birds = b; S.birdsKey = key; S.birdsFailedKey = "";
+    $("#birdMsg").textContent = !b.birds.length
+      ? `There are too few bird records near here for ${MONTHS[month - 1]}, so the card plays a general mix of birds.`
+      : `${MONTHS[month - 1]}, from ${b.count.toLocaleString("en-GB")} records within ${b.km} km, ${b.years[0]}–${b.years[1]}.`;
+  } catch (e) {
+    S.birds = null; S.birdsFailedKey = key;
+    $("#birdMsg").textContent = "The bird records didn't load, so the card plays a general mix of birds. It will try again in 5 minutes.";
+    $("#birdMsg").classList.add("bad");
+  }
+  S.birdsBusy = false;
+}
+$("#birdMonth").onchange = () => { store("birdMonth", $("#birdMonth").value); S.birdsKey = ""; S.birdsFailedKey = ""; updateBirds(); };
+setInterval(updateBirds, 1000);
+
+/* The cast: the four most likely birds for this place and season, in a fixed order,
+   so X always points at the same bird. Each is present only at its time of day:
+   robins and blackbirds start first at dawn, the rest join as the sun comes up,
+   and at night an owl takes the fourth place. At most two of any one type. */
+function availability(type, el) {
+  if (type === 8) return 1 - smoothstep(-8, -2, el);
+  if (type === 1 || type === 2) return smoothstep(-10, -4, el);
+  return smoothstep(-6, 0, el);
+}
+function birdsNow(el) {
+  const list = S.birds && S.birds.birds;
+  if (!list || !list.length) return { four: [], owlCh: 0 };
+  const four = [], perType = {};
+  for (const b of list) {
+    if (b.type === 8 || (perType[b.type] || 0) >= 2) continue;
+    perType[b.type] = (perType[b.type] || 0) + 1;
+    four.push({ ...b, avail: availability(b.type, el) });
+    if (four.length === FOUR) break;
+  }
+  const owl = list.find((b) => b.type === 8);
+  let owlCh = 0;
+  if (owl) {
+    const oa = availability(8, el);
+    if (four.length < FOUR) four.push({ ...owl, avail: oa });
+    else if (oa > four[FOUR - 1].avail) four[FOUR - 1] = { ...owl, avail: oa };
+    owlCh = 0.05 * oa;   // owls can call even when the birdsong curve is at zero
+  }
+  return { four, owlCh };
+}
+
+const nowEls = [];
+(function buildBirdsNow() {
+  const box = $("#birdsNow");
+  for (let i = 0; i < FOUR; i++) {
+    const row = document.createElement("div");
+    row.className = "meter";
+    row.innerHTML = `<span class="name"></span><div class="bar"><i></i></div><span class="val"></span>`;
+    box.appendChild(row);
+    nowEls.push({ row, name: row.querySelector(".name"), bar: row.querySelector("i"), val: row.querySelector(".val") });
+  }
+})();
+function showBirdsNow(four) {
+  nowEls.forEach((el, i) => {
+    const b = four[i];
+    el.row.style.visibility = b ? "visible" : "hidden";
+    if (!b) return;
+    el.name.textContent = `${i + 1}  ${b.name}`;
+    el.name.title = `Sung as: ${BIRD_TYPES[b.type].name.toLowerCase()} (${BIRD_TYPES[b.type].eg})`;
+    el.bar.style.width = `${(b.avail * 100).toFixed(1)}%`;
+    el.val.textContent = BIRD_TYPES[b.type].name.toLowerCase();
+    el.row.style.opacity = b.avail > 0.02 ? 1 : 0.45;
+    el.row.classList.toggle("lead", S.cardPick === i + 1);
+  });
+  $("#birdsNowEmpty").style.display = four.some((b) => b.avail > 0.02) ? "none" : "block";
+  let lead = "";
+  if (S.port && S.cardPick != null && four.length) {
+    const k = Math.min(S.cardPick, four.length);
+    lead = S.cardPick === 0 ? "X on the card: all four share the singing."
+      : `X on the card: ${four[k - 1].name} leads${four[k - 1].avail > 0.02 ? "" : " (asleep at this hour, so the others sing)"}.`;
+  }
+  $("#birdLead").textContent = lead;
 }
 
 /* ---------------------------------------------------------------
@@ -637,6 +929,7 @@ $("#connectBtn").onclick = async () => {
     try { await port.setSignals({ dataTerminalReady: true, requestToSend: true }); } catch (e) {}
     S.port = port;
     S.writer = port.writable.getWriter();
+    S.lateTotal = 0;
     setLink(true, "Connected, waiting for the card to reply");
     $("#serialMsg").textContent = ""; $("#serialMsg").classList.remove("bad");
     readLoop();
@@ -678,6 +971,19 @@ function onCardLine(line) {
     $("#recv").textContent = kv.fr ?? "–";
     $("#chimes").textContent = kv.ch ?? "–";
     $("#birds").textContent = kv.bi ?? "–";
+    if (kv.x !== undefined) S.cardPick = +kv.x;
+    if (kv.ld !== undefined) {
+      $("#load").textContent = `${kv.ld}%, peak ${kv.pk}%`;
+      // The card reports interrupts that started late: the cause of scrambled knobs in earlier versions
+      const late = +kv.lt || 0;
+      S.lateTotal = (S.lateTotal || 0) + late;
+      if (late > 0) log(`card: ${late} late audio interrupt${late > 1 ? "s" : ""} (peak load ${kv.pk}%)`);
+      const warn = S.lateTotal > 0 || +kv.pk >= 95;
+      $("#serialMsg").textContent = warn
+        ? `The card has run short of processing time ${S.lateTotal} time${S.lateTotal === 1 ? "" : "s"} since connecting (peak load ${kv.pk}%). If the knobs misbehave, note what was happening.`
+        : $("#serialMsg").textContent;
+      $("#serialMsg").classList.toggle("bad", warn);
+    }
     setLink(true, "Card is receiving");
   } else {
     log("card: " + line);
@@ -711,6 +1017,7 @@ async function tick() {
   const f = buildFrame(t);
   S.frame = f;
   showFrame(f);
+  showBirdsNow(f ? f.four : []);
   drawSky(t, f);
 
   if (S.mode === "manual") {
@@ -749,6 +1056,8 @@ window.addEventListener("resize", () => drawSky(simNow(), S.frame));
 ---------------------------------------------------------------- */
 (function init() {
   const p = recall("place");
+  const bm = recall("birdMonth");
+  if (bm) $("#birdMonth").value = bm;
   setMode(recall("mode") || "live");
   if (p && Number.isFinite(p.lat)) setPlace(p.lat, p.lon, p.label);
 })();

@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-dervish-drv103-dv103-1head",
+    "source": "algorithms/ready/directory-dervish-drv103-dv103-1head.spn",
+    "instructions": 62,
+    "sha256": "39e01b5a6989e0eee76a92025d2be084dca1d07184a0cb754990f7ee0d61f803",
+    "id": "directory-dervish-drv103-dv103-1head",
+    "author": "Unknown (not credited in directory)",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Time",
+      "Feedback",
+      "Damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-1head.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Single Head Tape Echo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 270,
+      "peak_output_error_q23": 256,
+      "rms_output_error_q23": 2.94889,
+      "peak_output_q23": 231666,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-dervish-drv103-dv103-2head-2-1-reverb",
+    "source": "algorithms/ready/directory-dervish-drv103-dv103-2head-2-1-reverb.spn",
+    "instructions": 119,
+    "sha256": "9eecc087f43d82b8642c4de9e4a6a199d815724842fb2569519d083d90efcd4c",
+    "id": "directory-dervish-drv103-dv103-2head-2-1-reverb",
+    "author": "Unknown (not credited in directory)",
+    "description": "reverb code is a 2 tap version of the Spin OEM1 Vocal Plate",
+    "controls": [
+      "Delay time",
+      "Feedback",
+      "Damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv103/dv103-2head-2_1-reverb.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Dual Head Tape Echo + Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 265,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 185884,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-dervish-pingpong-pp-basic-wonky",
+    "source": "algorithms/ready/directory-dervish-pingpong-pp-basic-wonky.spn",
+    "instructions": 64,
+    "sha256": "641611d70fb8a5e33759d25dc0e429db1909d2f3c3e00e7b3e3271c6a641c5c4",
+    "id": "directory-dervish-pingpong-pp-basic-wonky",
+    "author": "Graham Biswell",
+    "description": "Basic pingpong with adjustable feedback & damping ; damping has hpf & lpf ; some added wonkiness",
+    "controls": [
+      "Time",
+      "Feedback",
+      "Damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-basic-wonky.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ping Pong: Basic Wonky",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 182784,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-dervish-pingpong-pp-basic",
+    "source": "algorithms/ready/directory-dervish-pingpong-pp-basic.spn",
+    "instructions": 45,
+    "sha256": "0ca2c62d70fe5519548945b7c43902a6eb224ad9af8791995ac0675ce5db9e19",
+    "id": "directory-dervish-pingpong-pp-basic",
+    "author": "Graham Biswell",
+    "description": "Basic pingpong with adjustable feedback & damping ; damping has hpf & lpf",
+    "controls": [
+      "Time",
+      "Feedback",
+      "Damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-basic.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ping Pong: Basic",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 191232,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-dervish-pingpong-pp-dubble-stereo",
+    "source": "algorithms/ready/directory-dervish-pingpong-pp-dubble-stereo.spn",
+    "instructions": 74,
+    "sha256": "7170649b88b961d9e7d40f657ac0d56c149a0ca5e308161ce5ff5eb4050736e7",
+    "id": "directory-dervish-pingpong-pp-dubble-stereo",
+    "author": "Graham Biswell",
+    "description": "Simple stereo ping pong delay with adjustable feedback & damping",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-dubble-stereo.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ping Pong: Stereo with Dual Taps",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 164651,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-dervish-pingpong-pp-dubble",
+    "source": "algorithms/ready/directory-dervish-pingpong-pp-dubble.spn",
+    "instructions": 49,
+    "sha256": "8f52edcf678071c2dedee995729dca5e8c69b061ef5fb992317503fead302494",
+    "id": "directory-dervish-pingpong-pp-dubble",
+    "author": "Graham Biswell",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Time 1",
+      "Time 2",
+      "Feedback"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-dubble.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ping Pong with Dual Taps",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 174336,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

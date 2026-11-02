@@ -1,0 +1,68 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-dervish-looper-looper-pingpong-fb",
+    "source": "algorithms/ready/directory-dervish-looper-looper-pingpong-fb.spn",
+    "instructions": 117,
+    "sha256": "d2fc845390dcbe5dab1ea222202d4fbb65fb5e44739bda8e85c6d278560f1148",
+    "id": "directory-dervish-looper-looper-pingpong-fb",
+    "author": "Graham Biswell",
+    "description": "Looper with dual tap ping pong delay with adjustable feedback and fixed damping (damping has hpf & lpf)",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/looper/looper-pingpong-fb.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Looper ping pong",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 155098,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-dervish-looper-looper-simple-fb",
+    "source": "algorithms/ready/directory-dervish-looper-looper-simple-fb.spn",
+    "instructions": 108,
+    "sha256": "6380723afc7aaee96f57102adf5a0c9baf3de2ffb17ff55c7525a71d454abf47",
+    "id": "directory-dervish-looper-looper-simple-fb",
+    "author": "Graham Biswell",
+    "description": "Looper with dual tap ping pong delay with adjustable feedback and fixed damping (damping has hpf & lpf)",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/looper/looper-simple-fb.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Looper simple",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 313088,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

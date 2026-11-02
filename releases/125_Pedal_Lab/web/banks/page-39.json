@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-firesledge-bass-processor-p6-filter-tremolo-disto",
+    "source": "algorithms/ready/directory-firesledge-bass-processor-p6-filter-tremolo-disto.spn",
+    "instructions": 101,
+    "sha256": "aae5b0ec73847a01b10e7bf732a7469390974196e2f1d5ee1bb1df1c229f07fb",
+    "id": "directory-firesledge-bass-processor-p6-filter-tremolo-disto",
+    "author": "Firesledge, Digital Larry",
+    "description": "Harmonic tremolo with distortion. Designed for bass",
+    "controls": [
+      "Speed",
+      "Resonance",
+      "Gain"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p6-filter-tremolo-disto.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p6-filter-tremolo-disto.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Filter tremolo+",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 898,
+      "peak_output_error_q23": 6,
+      "rms_output_error_q23": 0.0653641,
+      "peak_output_q23": 2018614,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-holy-city-audio-filter-tremolo-example",
+    "source": "algorithms/ready/directory-holy-city-audio-filter-tremolo-example.spn",
+    "instructions": 5,
+    "sha256": "6fcefc567a08ea045a10ea9ec4bcb420ae3ba4b780609be747aea9da14b155c4",
+    "id": "directory-holy-city-audio-filter-tremolo-example",
+    "author": "Digital Larry",
+    "description": "We have both filter tremolo and volume modulation with LFO 90 degrees phase shifted.  This is similar to harmonic tremolo as found in some vintage tube amps.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/filter-tremolo-example.spn"
+    },
+    "source_url": "https://www.diystompboxes.com/smfforum/index.php?topic=123725.0",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Filter tremolo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 0,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-madbeanpedals-parallax",
+    "source": "algorithms/ready/directory-madbeanpedals-parallax.spn",
+    "instructions": 124,
+    "sha256": "138ffc13ac2a86409898b2148f229c65c922b07bf370979ea71d82388f5a15b2",
+    "id": "directory-madbeanpedals-parallax",
+    "author": "madbeanpedals",
+    "description": "Emulates the Function F(x) Parallax pedal. It's a tremolo with a phase shifter and speed controls for each",
+    "controls": [
+      "Phaser speed",
+      "Feedback and Width",
+      "Tremolo speed"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/madbeanpedals/parallax.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/madbeanpedals/parallax.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Parallax",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 5356,
+      "peak_output_error_q23": 154,
+      "rms_output_error_q23": 4.93331,
+      "peak_output_q23": 147610,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-publisher-ga-demo-trem",
+    "source": "algorithms/ready/directory-publisher-ga-demo-trem.spn",
+    "instructions": 62,
+    "sha256": "79977cfe04559a2ddaa4924171e6c1b5dbddf9eab9159bc0e0cd55c72a134d67",
+    "id": "directory-publisher-ga-demo-trem",
+    "author": "Spin Semi",
+    "description": "Tremolo program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Reverb level",
+      "Tremelo rate",
+      "Effect level"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_TREM.spn"
+    },
+    "source_url": "http://spinsemi.com/guitar_amp_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Tremolo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1941376,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-publisher-rom-trem-rev",
+    "source": "algorithms/ready/directory-publisher-rom-trem-rev.spn",
+    "instructions": 80,
+    "sha256": "89d5758ffb7e291eec07b07a381fba1c360887110a4124759d1c480aad9634a3",
+    "id": "directory-publisher-rom-trem-rev",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Combination tremelo/reverb program from the FV-1 internal ROM",
+    "controls": [
+      "reverb mix",
+      "trem rate",
+      "trem mix"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "ROM Tremolo + Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 259526,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-spring-verb",
+    "source": "algorithms/ready/directory-spring-verb.spn",
+    "instructions": 128,
+    "sha256": "679909552bf3fc6162e521ce69651c3bdfe7fdf16e83cff63787084abb2f4503",
+    "id": "directory-spring-verb",
+    "author": "Don Stavely",
+    "description": "Spring reverbs sound 'boingy' because of dispersion in the spring - higher frequencies travel slower than low frequencies. A 'spectral delay filter', consisting of many (100's) of unit allpasses will produce the desired 'chirp' impulse response...",
+    "controls": [
+      "Reverb Level",
+      "Tremolo Rate",
+      "Tremolo Depth"
+    ],
+    "license": {
+      "label": "Non-commercial only \u2014 source header",
+      "status": "non-commercial",
+      "evidence": "algorithms/upstream/directory/public/files/spring_verb.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spring_verb.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Spring Reverb + Tremolo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 131072,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

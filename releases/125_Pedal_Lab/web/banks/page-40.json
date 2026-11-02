@@ -1,0 +1,101 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-stereo-tremolo",
+    "source": "algorithms/ready/directory-stereo-tremolo.spn",
+    "instructions": 30,
+    "sha256": "0b5539b9591c3a7ad73e3832bd40fdb954ade827d35cb112cf9ab762df0524bb",
+    "id": "directory-stereo-tremolo",
+    "author": "Digital Larry",
+    "description": "Tremolo program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Left speed",
+      "Right speed",
+      "-"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/stereo-tremolo.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=382",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Stereo Tremolo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 244297,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-tremolo-shapes-reduced",
+    "source": "algorithms/ready/directory-tremolo-shapes-reduced.spn",
+    "instructions": 81,
+    "sha256": "3b76d2a57329afd10a7ae63497111bd3e9a68f5f6217ff19fa2966c04b822760",
+    "id": "directory-tremolo-shapes-reduced",
+    "author": "Slacker, mstratman",
+    "description": "Tremolo program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Wave shape",
+      "Depth",
+      "Speed"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/tremolo-shapes-reduced.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=3&t=516",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Tremolo w/ Multiple LFO Waveshapes (no clicks)",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1038336,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-tremolo-shapes",
+    "source": "algorithms/ready/directory-tremolo-shapes.spn",
+    "instructions": 91,
+    "sha256": "bea987c850e64036f985b7620755e1686555aadf5abc836028ce19286d6bb0b9",
+    "id": "directory-tremolo-shapes",
+    "author": "Slacker",
+    "description": "Tremolo program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Wave shape",
+      "Depth",
+      "Speed"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/tremolo-shapes.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=3&t=516",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Tremolo w/ Multiple LFO Waveshapes",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1038336,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

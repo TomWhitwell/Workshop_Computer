@@ -1,0 +1,54 @@
+; Reverse Delay 
+; Knut Helle 
+; June 2017 
+; 
+; POT0 = Reverse segment length 
+; 
+equ   length   32767    ; Buffer length 
+equ   inc   512   ; increment 
+; 
+mem   echo   length   ; Delay Buffer 
+; 
+equ   addr   reg0   ; rmpa / addr_ptr addres 
+equ   size   reg1   ; delay buffer size value 
+; 
+; Startup Initialization ################################ 
+; 
+skp   RUN,   loop 
+clr 
+wrax   addr, 0      ; Clear reg on startup 
+loop: 
+; 
+; Reset address pointer ################################ 
+; 
+sof   0, 0.1      ; +0.1 
+rdax   POT0, 0.9   ; Pot / 'size' range 0.1 to 1 
+wrax   size, 0      ; write to reg, clear 
+; 
+clr    
+or   length*256   ; add max delay addres   ( or 8388352 ) 
+mulx   size      ; * size variable 
+rdax   addr, -1      ; subtract current addres 
+; 
+skp   GEZ, reset   ; if NEG (addr > max addres) 
+clr 
+wrax   addr, 0      ; Reset addr ( = 0 ) 
+reset: 
+; 
+; Set address pointer    USES '-1' instead og 1.0 for better accuracy ################### 
+; 
+clr         ; acc = 0 
+or   inc      ; add increment (+) 
+sof   -1, 0      ; -> (-) 
+rdax   addr, -1      ; add addr (-) 
+sof   -1, 0      ; -> (+) 
+wrax   addr, -1      ; write to addr, then (-) 
+sof   -1, 0      ; -> (+) 
+wrax   ADDR_PTR, 0   ; write to addr_ptr (+), clear acc 
+; 
+; Audio In/Out   ########################################### 
+; 
+ldax   ADCL      ; Get input 
+wra   echo, 0      ; Write it to the head of the delay buffer 
+rmpa   1      ; Read from memory (set by ADDR_PTR) 
+wrax   DACL, 0      ; ACC-> DAC 

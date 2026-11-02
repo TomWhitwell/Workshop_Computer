@@ -1,0 +1,200 @@
+; @name Strata
+; @tagline Three worlds stacked by pitch: a glass box over a stone hall over a vast dark abyss, and your playing slowly sinks everything until the floor drops away
+; @description Strata stacks three impossible spaces by pitch. The treble of what you play
+; @description lands in a tiny glass box: bright, glittering, gone in half a second. The middle
+; @description lands in a stone hall with a two-second tail. The bass falls into an abyss:
+; @description a huge, dark, slowly wavering space that answers from far below, about a
+; @description seventh of a second late, and rings for 4 to 11 seconds. Both boundaries
+; @description between the worlds drift as you play. Each note pushes the strata upward, so
+; @description the abyss climbs through the spectrum and swallows the hall, and the hall
+; @description climbs into the glass. A held chord migrates downward world by world: its
+; @description sparkle turns to stone, then sinks into the dark. When the abyss reaches the
+; @description top, the floor drops away. In a fraction of a second both boundaries fall
+; @description five octaves, so the next notes spring up into the glass box over the still
+; @description ringing abyss, and the descent begins again. Busy playing turns the cycle
+; @description in about ten seconds; in rests it barely creeps. Echoes also move
+; @description between worlds on their own: the stone hall keeps dripping into the abyss,
+; @description and with Glass turned up, its echoes rise an octave into the glass box as
+; @description shimmer, so the glass glitters with harmonics of the hall even after you
+; @description stop. Left and right go into opposite sides of the hall and the glass box,
+; @description so the image stays wide.
+; @pots Abyss | Drift | Glass
+; @render 0.5, 0.55, 0.6
+; @components pitch-split into three reverb worlds (two drifting crossovers), vast dark modulated abyss tank, stone hall tank, tiny modulated glass box, playing-driven tectonic drift with a floor drop, hall-to-abyss sediment, octave-up hall-to-glass shimmer
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	shm	5196
+mem	stmp	1
+mem	aap1	2203
+mem	ad1	7411
+mem	aap2	2707
+mem	ad2	6977
+mem	hap1	883
+mem	hd1	2617
+mem	hap2	1103
+mem	hd2	2213
+mem	gap1	131
+mem	gd1	467
+mem	gap2	173
+mem	gd2	389
+mem	gx1	97
+mem	gx2	157
+
+equ	g	reg0
+equ	m	reg1
+equ	em	reg2
+equ	T	reg3
+equ	env	reg4
+equ	k1	reg5
+equ	k2	reg6
+equ	la1	reg7
+equ	la2	reg8
+equ	lhl	reg9
+equ	lhr	reg10
+equ	ga	reg11
+equ	dla1	reg12
+equ	dlh1	reg13
+equ	ahp	reg15
+equ	ghp1	reg14
+
+	skp	run, start
+	wlds	sin0, 8, 400
+	wlds	sin1, 45, 90
+	wldr	rmp0, 16384, 4096
+start:
+; ---- input: m = (L+R)/8; the sides are re-read from the ADCs where needed
+	rdax	adcl, 0.125
+	rdax	adcr, 0.125
+	wrax	m, 1.0
+; ---- tectonic drift: T/2 rises with how much you play (Drift) and wraps from 0.5 to 0
+	absa
+	rdfx	em, 0.0001
+	wrax	em, 1.0
+	log	0.25, -0.4375
+	exp	0.0009765625, 0
+	mulx	pot1
+	rdax	T, 1.0
+	and	$3FFFFF
+	wrax	T, 1.0
+; ---- crossovers: hall/glass k2 = 2^(16 (0.27 T - 0.3)), smoothed; abyss/hall k1 = 2^(16 (0.375 T - 0.46)),
+;      computed from the smoothed k2 (k1 = 2^(16 (1.3889 log2(k2)/16 - 0.0433)))
+	xor	$200000			; T/2 = (stored + 0.25) mod 0.5: a zeroed register starts mid-cycle
+	sof	0.54, -0.3
+	exp	1.0, 0
+	rdfx	k2, 0.0005
+	wrax	k2, 1.0
+	log	1.388889, -0.043333
+	exp	1.0, 0
+	wrax	k1, 0
+; ---- split: abyss = 2-pole LP of m at k1 (la2)
+	ldax	m
+	rdax	la1, -1.0
+	mulx	k1
+	rdax	la1, 1.0
+	wrax	la1, 1.0
+	rdax	la2, -1.0
+	mulx	k1
+	rdax	la2, 1.0
+	wrax	la2, 0
+; ---- left LP at k2 (lhl), flowing straight into hall half 1 (mid band: 2 lhl - la2)
+	rdax	adcl, 0.125
+	rdax	lhl, -1.0
+	mulx	k2
+	rdax	lhl, 1.0
+	wrax	lhl, 1.99
+	rdax	la2, -1.0
+	cho	rda, sin0, cos|reg|compc, hd2+2100
+	cho	rda, sin0, cos, hd2+2101
+	rda	hap1#, 0.6
+	wrap	hap1, -0.6
+	rdfx	dlh1, 0.4
+	wrax	dlh1, 0.72
+	wra	hd1, 1.0
+	wra	shm, 0			; the shimmer's source (its reads sit 1100 samples in)
+; ---- right LP at k2 (lhr), flowing straight into hall half 2
+	rdax	adcr, 0.125
+	rdax	lhr, -1.0
+	mulx	k2
+	rdax	lhr, 1.0
+	wrax	lhr, 1.99
+	rdax	la2, -1.0
+	rda	hd1#, 0.72
+	rda	hap2#, -0.6
+	wrap	hap2, 0.6
+	wra	hd2, 0
+; ---- abyss tank (figure 8): low band + sediment from the hall; gain 0.65 .. 0.86 (Abyss)
+	ldax	pot0
+	sof	0.21, 0.65
+	wrax	ga, 0
+	cho	rda, sin0, reg|compc, ad2+6870
+	cho	rda, sin0, 0, ad2+6871
+	mulx	ga
+	rdax	la2, 1.3
+	rda	hd2+1500, 0.5
+	rda	aap1#, 0.6
+	wrap	aap1, -0.6
+	rdfx	dla1, 0.15
+	wrax	dla1, 1.0
+	rdfx	ahp, 0.009542
+	wrhx	ahp, -1.0		; sub-bass high-pass in the loop
+	wra	ad1, 0
+	rda	ad1#, 1.0
+	mulx	ga
+	rdax	la2, 1.3
+	rda	hd1+1100, 0.5
+	rda	aap2#, -0.6
+	wrap	aap2, 0.6
+	wra	ad2, 0
+; ---- glass shimmer: the hall an octave up (Glass)
+	cho	rda, rmp0, reg|compc, shm+1100
+	cho	rda, rmp0, 0, shm+1101
+	wra	stmp, 0
+	cho	rda, rmp0, rptr2|compc, shm+1100
+	cho	rda, rmp0, rptr2, shm+1101
+	cho	sof, rmp0, na|compc, 0
+	cho	rda, rmp0, na, stmp
+	mulx	pot2
+; ---- glass box: high band per side x2, high-passed in the loop
+	rdax	adcl, 0.2487793
+	rdax	lhl, -1.99
+	cho	rda, sin1, reg|compc, gd2+360
+	cho	rda, sin1, 0, gd2+361
+	rda	gap1#, 0.6
+	wrap	gap1, -0.6
+	rda	gx1#, 0.6
+	wrap	gx1, -0.6
+	rdfx	ghp1, 0.1
+	wrhx	ghp1, -1.0
+	wra	gd1, 0
+	rda	gd1#, 0.74
+	rdax	adcr, 0.2487793
+	rdax	lhr, -1.99
+	rda	gap2#, -0.6
+	wrap	gap2, 0.6
+	rda	gx2#, -0.6
+	wrap	gx2, 0.6
+	wra	gd2, 0
+; ---- outputs at half level, through a stereo-linked peak limiter (feedback form, 3:1 above 0.70),
+;      then made up x2
+	rda	ad1+2300, 0.96
+	rda	ad2+4100, -0.96
+	rda	hd1+900, 0.995
+	rda	gd1+150, 0.90
+	mulx	g
+	sof	1.99994, 0
+	wrax	dacl, 1.0
+	maxx	env, 0.999878
+	wrax	env, 0
+	rda	ad2+1900, 0.96
+	rda	ad1+5900, -0.96
+	rda	hd2+700, 0.995
+	rda	gd2+200, 0.90
+	mulx	g
+	sof	1.99994, 0
+	wrax	dacr, 1.0
+	maxx	env, 1.0
+	wrax	env, 1.0
+	log	-2.0, -0.064322
+	exp	1.0, 0
+	wrax	g, 0

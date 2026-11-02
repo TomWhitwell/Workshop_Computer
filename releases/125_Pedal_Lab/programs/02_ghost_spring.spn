@@ -1,0 +1,86 @@
+; SPDX-License-Identifier: MPL-2.0
+; Steal This Pedal factory bank — slot 2
+; GHOST SPRING
+; POT0 = decay
+; POT1 = drip / pick-transient injection
+; POT2 = dispersion / dwell
+; Wet-only output.  This is a spring-flavored network, not a literal model.
+; Spin Computer adaptation: reduce late feedback from 0.84 to 0.40.
+; The early dwell path also feeds the tank; their combined gain must stay <1.
+
+PRE         MEM 431
+AP1         MEM 37
+AP2         MEM 61
+AP3         MEM 109
+AP4         MEM 181
+TANK        MEM 11700
+INPUT       EQU REG0
+LPSTATE     EQU REG1
+DRIP        EQU REG2
+DIFFUSED    EQU REG3
+TAIL        EQU REG4
+
+; Average the inputs and form a crude transient/high-pass signal.
+RDAX ADCL, 0.5
+RDAX ADCR, 0.5
+WRAX INPUT, 1.0
+RDFX LPSTATE, 0.055
+WRAX LPSTATE, 0.0
+LDAX INPUT
+RDAX LPSTATE, -1.0
+MULX POT1
+SOF 1.65, 0.0
+WRAX DRIP, 0.0
+
+; A short predelay makes the initial clank separate from the wash.
+LDAX INPUT
+SOF 0.62, 0.0
+RDAX DRIP, 0.85
+WRA PRE, 0.0
+CLR
+RDA PRE#, 1.0
+
+; Short stretched allpasses create the spring-like dispersive chirp.
+RDA AP1#, 0.63
+WRAP AP1, -0.63
+RDA AP2#, -0.57
+WRAP AP2, 0.57
+RDA AP3#, 0.51
+WRAP AP3, -0.51
+RDA AP4#, -0.46
+WRAP AP4, 0.46
+WRAX DIFFUSED, 0.0
+
+; Dwell adds an earlier dispersed reflection back into the tank input.
+LDAX POT2
+SOF 0.50, 0.15
+WRAX REG5, 0.0
+CLR
+RDA TANK+1873, 1.0
+MULX REG5
+RDAX DIFFUSED, 0.78
+WRAX DIFFUSED, 0.0
+
+; Dark, pot-controlled recirculation.
+CLR
+RDA TANK#, 1.0
+RDFX TAIL, 0.12
+WRAX TAIL, 1.0
+MULX POT0
+SOF 0.40, 0.0
+RDAX DIFFUSED, 1.0
+WRA TANK, 0.0
+
+; Unequal taps make a wide, clangy stereo spring field.
+CLR
+RDA TANK+1541, 0.72
+RDA TANK+4327, -0.38
+RDA TANK+7883, 0.47
+RDA TANK+10391, -0.24
+WRAX DACL, 0.0
+CLR
+RDA TANK+2213, 0.66
+RDA TANK+5891, 0.41
+RDA TANK+9067, -0.36
+RDA TANK+11279, 0.22
+WRAX DACR, 0.0

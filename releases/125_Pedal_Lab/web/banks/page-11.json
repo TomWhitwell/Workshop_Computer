@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-holy-city-audio-percussion-ambience",
+    "source": "algorithms/ready/directory-holy-city-audio-percussion-ambience.spn",
+    "instructions": 119,
+    "sha256": "3bbc3a6ef1f9023d9bf7836525e4c22e6139bd6f489597e2dc6a5b04dc2374c1",
+    "id": "directory-holy-city-audio-percussion-ambience",
+    "author": "Digital Larry",
+    "description": "Try this on some percussive material.",
+    "controls": [
+      "effect level",
+      "tuning",
+      "feedback"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/percussion-ambience.spn"
+    },
+    "source_url": "https://www.diystompboxes.com/smfforum/index.php?topic=123725.0",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Percussion Ambience",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 2097152,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-lfsr-random",
+    "source": "algorithms/ready/directory-lfsr-random.spn",
+    "instructions": 23,
+    "sha256": "2e70bdbd18d79d42a4222ac5beddb1dd272c9906b2f13ce2bb15508bf29a5925",
+    "id": "directory-lfsr-random",
+    "author": "Frank Thomson, OCT Distribution",
+    "description": "Code snippet program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/lfsr_random.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=245&p=1301",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "LFSR",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 8388538,
+      "output_clip_samples": 16344,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-parametric-eq-7",
+    "source": "algorithms/ready/directory-parametric-eq-7.spn",
+    "instructions": 83,
+    "sha256": "06062ea59ff4e4cc84d0142909592454f9009e0e19ea22c39b04ecb3f3895998",
+    "id": "directory-parametric-eq-7",
+    "author": "Unknown (not credited in directory)",
+    "description": "Code snippet program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/parametric-eq-7.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/parametric-eq-7.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "7-Band Parametric EQ",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 262144,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-sawtooth",
+    "source": "algorithms/ready/directory-sawtooth.spn",
+    "instructions": 30,
+    "sha256": "5832d74bf56d951f78e899934b5ca96a5a9ef1d3dee2579d021b5108db16cce5",
+    "id": "directory-sawtooth",
+    "author": "slacker",
+    "description": "Code snippet program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/sawtooth.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?f=4&t=274&start=15",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Sawtooth waveform generator",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 7833630,
+      "output_clip_samples": 2001,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-publisher-act-xover",
+    "source": "algorithms/ready/directory-publisher-act-xover.spn",
+    "instructions": 127,
+    "sha256": "367bfb300842414bceb658c3c81c4963a2c21b0f7448c5aa30d5b83f796afa1d",
+    "id": "directory-publisher-act-xover",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Active cross-over program for speaker equalization. Multiple bands of parametric EQ, etc.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Active crossover",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 174928,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-publisher-battling-lfos",
+    "source": "algorithms/ready/directory-publisher-battling-lfos.spn",
+    "instructions": 59,
+    "sha256": "c260b8070e94d864c4eef97be2336436a0849f7ce3f4a319c3b34b9cd076a20d",
+    "id": "directory-publisher-battling-lfos",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "What happens when one LFO controls another, and that controls another and that controls another and that controls the first one?",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Battling LFOs",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 4229383,
+      "output_clip_samples": 6,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

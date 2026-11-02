@@ -27,6 +27,13 @@ test('Name wins, legacy Title is the fallback', () => {
   assert.equal(build({ Title: 'Old Title' }).title, 'Old Title');
 });
 
+test('a Name that repeats the card number drops the duplicate prefix', () => {
+  assert.equal(build({ Name: '42 Test Card' }).title, 'Test Card');
+  assert.equal(build({ Name: '042 Test Card' }).title, 'Test Card');
+  assert.equal(build({ Name: '43 Test Card' }).title, '43 Test Card');
+  assert.equal(build({ Name: '42' }).title, '42');
+});
+
 test('summary and short-description are carried through verbatim', () => {
   const card = build({
     'short-description': 'One line.',

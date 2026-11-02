@@ -97,6 +97,8 @@ panel:
       description: >
         A step every beat: the clock divided or multiplied by X (switch up),
         for clocks up to a minute apart. Followed from its second pulse.
+        A rising edge counts only after 2ms low and at most every 4ms, so
+        noisy or slow edges aren't read as extra clocks.
         With nothing plugged in, or once four of its periods (at least 2s)
         pass without a pulse, the card keeps its own tempo: 120 BPM, until
         set by holding the switch down and turning Main (40-300 BPM), or

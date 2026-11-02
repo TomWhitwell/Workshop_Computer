@@ -1,0 +1,15 @@
+; filter-tremolo-example.spcd
+; Patch saved from SpinCAD Designer version 998
+; Pot 0: 
+; Pot 1: 
+; Pot 2: 
+; 
+; 
+; ----------------------------
+;------ Input
+;------ SVF 2P
+SOF 0.0000000000,0.0000000000
+RDAX ADCL,1.0000000000
+RDAX REG2,-1.0000000000
+RDAX REG1,-0.0588235294
+WRAX REG0,0.1871854256

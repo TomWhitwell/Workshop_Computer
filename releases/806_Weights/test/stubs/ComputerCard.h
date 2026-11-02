@@ -63,6 +63,7 @@ public:
 protected:
 	int32_t KnobVal(Knob k) {return knob[k];}
 	Switch SwitchVal() {return sw;}
+	bool PulseIn1() {return pulseIn1;}
 	bool PulseIn1RisingEdge() {return pulseIn1 && !lastPulseIn1;}
 	int16_t AudioIn1() {return audioIn[0];}
 	int16_t AudioIn2() {return audioIn[1];}

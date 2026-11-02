@@ -1,0 +1,35 @@
+{
+  "source": "https://computer.musicthing.co.uk/",
+  "author": "Piers Finlayson",
+  "license": "MIT",
+  "files": [
+    {
+      "file": "picoboot.js",
+      "url": "https://computer.musicthing.co.uk/assets/js/picoboot.js"
+    },
+    {
+      "file": "uf2.js",
+      "url": "https://computer.musicthing.co.uk/assets/js/uf2.js"
+    },
+    {
+      "file": "target.js",
+      "url": "https://computer.musicthing.co.uk/assets/js/target.js"
+    },
+    {
+      "file": "connection.js",
+      "url": "https://computer.musicthing.co.uk/assets/js/connection.js"
+    },
+    {
+      "file": "errors.js",
+      "url": "https://computer.musicthing.co.uk/assets/js/errors.js"
+    },
+    {
+      "file": "constants.js",
+      "url": "https://computer.musicthing.co.uk/assets/js/constants.js"
+    },
+    {
+      "file": "commands.js",
+      "url": "https://computer.musicthing.co.uk/assets/js/commands.js"
+    }
+  ]
+}

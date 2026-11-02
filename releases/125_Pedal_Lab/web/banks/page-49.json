@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "otherworld-102-wavetable-thief",
+    "source": "algorithms/ready/otherworld-102-wavetable-thief.spn",
+    "instructions": 128,
+    "sha256": "a4c51d07f5f580bcb2f46134e7a61d916c262128801756c53690cf15050345d3",
+    "id": "otherworld-102-wavetable-thief",
+    "author": "Andreas Jansson",
+    "description": "Every note gets robbed. Moments after the attack the thief listens for the newest note's period; once it hears the same equal-tempered semitone three times running, it steals exactly four periods of the note (two below C3, one below C2) into a loop that plays on as a static digital oscillator: the note's own waveform, frozen, in tune, with no flutter. If it can't hear a clean period (a chord, a smear) it steals a whole moment instead, a short loop of the sound that stutters on like a frozen tape. The loot plays on one side and its shadow on the other: the same loop at half speed, an octave down and darker. Every theft makes the two trade places in a quick glide across the field, so the bright loot and the dark shadow ping-pong from note to note and over a phrase both sides get both. The next note robs again, and a held note gets robbed again every second, each time a later, darker cycle. Left alone, a stolen tone slowly darkens from its bright attack to the body of the note. Your playing feeds the thief's greed: sparse playing lets the loot fade like a plucked note, steady playing holds it, and a busy patch makes it greedy, the held loops swelling until they clip into hard, buzzing squares; over 20 to 30 s of playing the sound rots from clean stolen tones to fuzz. Stop, and the last theft rings on for a moment and dies away within a second or two.",
+    "controls": [
+      "Chunk",
+      "Greed",
+      "Rot"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/102_wavetable_thief.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Wavetable Thief",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 170,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 72977,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "otherworld-132-phase-ghost",
+    "source": "algorithms/ready/otherworld-132-phase-ghost.spn",
+    "instructions": 128,
+    "sha256": "dd17d37bedf2e41d4b58612398536a6efae7fd58a198ab0edc855e6952df1324",
+    "id": "otherworld-132-phase-ghost",
+    "author": "Andreas Jansson",
+    "description": "A pitch tracker listens for the clearest note under your playing, usually the lowest, and a ghost synth in the style of the old phase-distortion keyboards plays it: a resonance swept through the note's own harmonics, reset on every cycle, so it always stays exactly on the note's pitch. Every note you play makes the ghost zap: its resonance leaps up the harmonic series (as high as Reso lets it) and slides back down to the fundamental, the laser \"peeow\" of a resonant synth sweep, over Sweep. The ghost changes pitch only on your attacks: each new note snaps it to the newest note the tracker has heard, so it walks with your harmony, often your bass line, one note behind, and never jumps in the middle of a note. It sings in the three octaves from C3 to B5: lower notes fold up into its bottom octave and higher ones down into its top one, so a bass line comes back an octave or two up. Its cycles take turns between the speakers, one period left, the next right, so each side alone is a hollow ghost an octave down and only together do they sound the note. Fully wet it is the ghost alone: your own sound comes only from the module's Dry/Wet knob. It also follows a bassline of relentless sixteenths, and the ghost is as loud on a bassline as on a bright pluck. On soft chord pads it picks out one of the chord's notes and holds it until your next attack. Snarl drives the ghost into a wavefolder and pulls its resonance half a harmonic off the note into a hard-sync buzz: at 0 the soft, hollow ghost, at the top a bright, folded growl. Every cycle still restarts on the note, so it stays in tune, and the folding eases off while a zap is high, so each zap stays a clean sweep and the snarl blooms as it lands.",
+    "controls": [
+      "Reso",
+      "Sweep",
+      "Snarl"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/132_phase_ghost.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Phase Ghost",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 973,
+      "peak_output_error_q23": 6,
+      "rms_output_error_q23": 0.187296,
+      "peak_output_q23": 131066,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "otherworld-186-talking-chip",
+    "source": "algorithms/ready/otherworld-186-talking-chip.spn",
+    "instructions": 128,
+    "sha256": "888a40cf62f12ca0fd46698d262441a3cc4e1a30998ef76ef4715a329adcacce",
+    "id": "otherworld-186-talking-chip",
+    "author": "Andreas Jansson",
+    "description": "Something is still alive inside the chip, and it sings along with you. It listens for the newest note you play and sings it back on a vowel, in the octave you played it (from C3 to B5: lower and higher notes are folded into that range), following your playing's level. Notes you play legato slide into each other; after a rest it starts right on the new note, and playing the same note again never retriggers it. The controls follow the vowel engine of a well-known macro oscillator. Vowel (CV1) morphs smoothly through oo, oh, ah, eh and ee: sweep it with an LFO or an envelope and the chip says \"wow\" or \"yeah\". Species (CV2) sets the singer's size, from a deep, slow giant to a chipmunk. Vibrato (CV3) sets how deep the vibrato grows: after each rest the voice starts straight and the vibrato swells in over a second or two, the way a singer holds a note. The voice is clean: a smooth glottal pulse through four vocal resonances, with no breath noise at all. Add a delay or reverb after it for a choir in a cave.",
+    "controls": [
+      "Vowel",
+      "Species",
+      "Vibrato"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/186_talking_chip.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Talking Chip",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 31418,
+      "peak_output_error_q23": 207,
+      "rms_output_error_q23": 21.6979,
+      "peak_output_q23": 117032,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "otherworld-211-moonquake-clk",
+    "source": "algorithms/ready/otherworld-211-moonquake-clk.spn",
+    "instructions": 128,
+    "sha256": "f9f7d27d4637bbfebd89ff98da025af81d58499e16d57338df9b90a93bebb387",
+    "id": "otherworld-211-moonquake-clk",
+    "author": "Andreas Jansson",
+    "description": "Your clock drives a 16-step drum machine, one step per pulse, so 1/8 runs at half the speed of 1/16. A careful listener (the shared pitch tracker) picks out the newest note you play, only when it is sure, and every kick is struck on that note: notes from one octave land in a deep register (F#1 to F2), notes from the next octave an octave up (F#2 to F3), so the pitch also reads on small speakers (anything below C2 counts as the C2 octave). Each kick starts two octaves up, drops onto your note in about 35 ms with a click, and rings for about a second. Until the listener has heard a note, the kick sits on F#3. At Busy 0 the kick plays every 4th trigger and the hit every 4th trigger offset by 2. Turning Busy up hands more and more steps to a 16-step Turing machine; at full every trigger plays. Ratio sets kicks against hits (default 40 %; at 0 there are no kicks). Mutate is the chance that a step coming round is rewritten with a random bit: at 0 the rhythm repeats every 16 triggers, at 1 it is redrawn every time. Each hit is a strike into a short delay line fed back on itself (a hollow comb with odd harmonics). The Turing machine picks its tuning per hit: on your note, a tritone off it (disharmonic), or four to five and a half octaves up, where the comb turns into a bright hiss. Every hit starts higher and zaps down onto its pitch in about 10 ms, by up to an octave on the loudest strikes. Rings last from about 40 ms (hiss) to 0.4 s (low notes). Kick and hits play at a fixed level.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/211_moonquake_clk.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Moonquake_clk",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 5058,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 0,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "otherworld-247-transmutation",
+    "source": "algorithms/ready/otherworld-247-transmutation.spn",
+    "instructions": 128,
+    "sha256": "e859e17b4b0851b1cd8b4413646d503ac44f7c465665749ee08b73a6f7c63106",
+    "id": "otherworld-247-transmutation",
+    "author": "Andreas Jansson",
+    "description": "A listener hears the notes you play, and as soon as it is sure of one, four resonators tune themselves to it: the first on the note itself, the other three above it. Everything you play rings through them, so the body sings your note and its overtones; on a new note they jump to it at once. Spread sets where the three upper resonators sit: at 0 on the note's own harmonics (2, 3 and 4 times the note: a string), turning up they stretch apart into the clangorous partials of a struck metal bar (2.76, 5.40 and 8.93 times the note at 1). Off the harmonics they no longer sing along with a held note; your attacks strike them. Decay is how long they ring, from a quarter of a second to six seconds on middle C (lower notes ring longer, higher shorter, as on real strings and bars). Shape turns the ring from pure sine tones towards triangle waves: at 0 round and pure, turning up the waves straighten and their tips sharpen a little, a gentle, woody, slightly hollow brightening, never a distortion. It works on the ring's own shape, not its loudness, so a soft note morphs just as far as a loud one, all the way down the tail. The stereo is wide and still: every partial sits at its own place between the speakers, nothing sways.",
+    "controls": [
+      "Spread",
+      "Decay",
+      "Shape"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/247_transmutation.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Transmutation",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 32158,
+      "peak_output_error_q23": 190,
+      "rms_output_error_q23": 38.2001,
+      "peak_output_q23": 65335,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "otherworld-258-two-whales",
+    "source": "algorithms/ready/otherworld-258-two-whales.spn",
+    "instructions": 128,
+    "sha256": "b1061acffe2014d444342d76232125a63c63f094389dd9a4c78d92db7d8befae",
+    "id": "otherworld-258-two-whales",
+    "author": "Andreas Jansson",
+    "description": "Two whales are listening to you, one on your left and one on your right. They learn the notes you play, only the ones they are sure of, and take your newest note into their song. They have no clock of their own: a whale only changes note when you move to a new one, and then only if a coin says so. A second coin decides which whale moves, the same for both, so their changes fall on your playing but never on a schedule; now and then the two meet on one note. Each whale has a voice made of a singing resonance on a bright saw that sits on the same vowel in every register, steady, with no vibrato. It slides into each new note on a curve, a scoop up or a fall, and lands on the note; its very first call scoops up out of the deep. Each new note swells in slowly, over about half a second, the whale's voice dropping away as it starts to slide and rising into the note. Every note sings at the same level, however hard or softly you play; when you stop they fade. Ocean takes you under water with them: their song turns muffled and comes from everywhere, through a moving water surface that makes it waver and its resonances swirl. Chance sets the chance that one of your note changes moves a whale: one in ten at 0, every one from 0.9. Depth sets how hard the water moves, from still to a heavy swell. Ocean goes from the whales sung close and dry at 0 to all water at 1. They only sing notes you played, in your octave (below C3 folded up into C3..B3), they listen to both inputs (L + R), and with nothing played they stay silent.",
+    "controls": [
+      "Chance",
+      "Depth",
+      "Ocean"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/258_two_whales.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Two Whales",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 32725,
+      "peak_output_error_q23": 199,
+      "rms_output_error_q23": 24.6289,
+      "peak_output_q23": 1270723,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

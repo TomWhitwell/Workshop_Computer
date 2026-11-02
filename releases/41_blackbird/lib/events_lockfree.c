@@ -91,7 +91,7 @@ void events_lockfree_clear(void) {
 // Metro queue functions
 
 // Post metro event from Core 1 (audio) - NEVER BLOCKS!
-bool metro_lockfree_post(int metro_id, int stage) {
+bool __not_in_flash_func(metro_lockfree_post)(int metro_id, int stage) {
     metro_lockfree_queue_t* queue = &g_metro_lockfree_queue;
     
     // Load current write index
@@ -147,7 +147,7 @@ bool metro_lockfree_post(int metro_id, int stage) {
 
 // Clock queue functions
 
-bool clock_lockfree_post(int coro_id) {
+bool __not_in_flash_func(clock_lockfree_post)(int coro_id) {
     clock_lockfree_queue_t* queue = &g_clock_lockfree_queue;
     uint32_t current_write = queue->header.write_idx;
     uint32_t next_write = (current_write + 1) & queue->header.mask;

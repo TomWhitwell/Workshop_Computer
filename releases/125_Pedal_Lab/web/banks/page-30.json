@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-revrev",
+    "source": "algorithms/ready/directory-revrev.spn",
+    "instructions": 128,
+    "sha256": "7536c7aee0347b0647080555ca05f514e6f4cd6c5037f4dabfaaf939a9c23ccf",
+    "id": "directory-revrev",
+    "author": "Malekko",
+    "description": "Reverb program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "predelay",
+      "decay time",
+      "damping"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/RevRev.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/RevRev.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Reverse Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 258792,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-dattorro",
+    "source": "algorithms/ready/directory-dattorro.spn",
+    "instructions": 113,
+    "sha256": "476b3be10fe8e72f88e5de41e9d4502f58f200ea5d4d0692169f3cf2f4beeb9e",
+    "id": "directory-dattorro",
+    "author": "mdroberts1243 (FV-1 implementation); Jon Dattorro (reverb design)",
+    "description": "Jon Dattorro's plate-reverb topology adapted to FV-1 by mdroberts1243, using input diffusion, a recirculating tank and modulated taps. Decay can approach infinite sustain.",
+    "controls": [
+      "reverb level",
+      "reverb time (decay... all the way up is infinite sustain in the tank)",
+      "hf loss in the tank (damping... turn up for MORE damping)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dattorro.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dattorro.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Plate Reverb - Dattorro",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 5695,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-dervish-dattorro-mixed-dattorro-shimmer-oct-var-lvl",
+    "source": "algorithms/ready/directory-dervish-dattorro-mixed-dattorro-shimmer-oct-var-lvl.spn",
+    "instructions": 125,
+    "sha256": "5e5446f4e6821d6e9e84158b085c2467ee9a3b57b4fbb9cb7cad6033a7349d45",
+    "id": "directory-dervish-dattorro-mixed-dattorro-shimmer-oct-var-lvl",
+    "author": "mdroberts1243 (FV-1 implementation); Jon Dattorro (reverb design)",
+    "description": "Dattorro Mix Reverb",
+    "controls": [
+      "shimmer level",
+      "reverb time (decay... all the way up is infinite sustain in the tank)",
+      "hf loss in the tank (damping... turn up for MORE damping)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-shimmer_oct_var-lvl.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "dattorro-shimmer_oct_var-lvl.spn",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 128581,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-dervish-dattorro-mixed-dattorro-var-filter-var-damping",
+    "source": "algorithms/ready/directory-dervish-dattorro-mixed-dattorro-var-filter-var-damping.spn",
+    "instructions": 116,
+    "sha256": "21cc946ef7431bbc9fb14bce59f4bf38b22a4d365308549ba7597d1f77b72a29",
+    "id": "directory-dervish-dattorro-mixed-dattorro-var-filter-var-damping",
+    "author": "mdroberts1243 (FV-1 implementation); Jon Dattorro (reverb design)",
+    "description": "Dattorro Mix Reverb",
+    "controls": [
+      "lpf frequency on input",
+      "reverb time (decay... all the way up is infinite sustain in the tank)",
+      "hf loss in the tank (damping... turn up for MORE damping)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-var_filter-var_damping.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "dattorro-var_filter-var_damping.spn",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 34690,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-dervish-dattorro-mixed-dattorro-var-filter-var-predelay",
+    "source": "algorithms/ready/directory-dervish-dattorro-mixed-dattorro-var-filter-var-predelay.spn",
+    "instructions": 124,
+    "sha256": "9001b439d2f018ef98cad7896d3ffbe60dbddc116937e19a3f16a10adfaad2a1",
+    "id": "directory-dervish-dattorro-mixed-dattorro-var-filter-var-predelay",
+    "author": "mdroberts1243 (FV-1 implementation); Jon Dattorro (reverb design)",
+    "description": "Dattorro Mix Reverb",
+    "controls": [
+      "pre-delay",
+      "reverb time (decay... all the way up is infinite sustain in the tank)",
+      "lpf frequency on input"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-var_filter-var_predelay.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "dattorro-var_filter-var_predelay.spn",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 36381,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-dervish-dattorro-mixed-dattorro-var-predelay-var-damping-1k",
+    "source": "algorithms/ready/directory-dervish-dattorro-mixed-dattorro-var-predelay-var-damping-1k.spn",
+    "instructions": 114,
+    "sha256": "f33888dcfef9c3e77a23351187d106c30a60e70703496aabf47501b73794ed83",
+    "id": "directory-dervish-dattorro-mixed-dattorro-var-predelay-var-damping-1k",
+    "author": "mdroberts1243 (FV-1 implementation); Jon Dattorro (reverb design)",
+    "description": "Dattorro Mix Reverb",
+    "controls": [
+      "pre-delay",
+      "reverb time (decay... all the way up is infinite sustain in the tank)",
+      "hf loss in the tank (damping... turn up for MORE damping)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-mixed/dattorro-var_predelay-var_damping-1k.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "dattorro-var_predelay-var_damping-1k.spn",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 92406,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

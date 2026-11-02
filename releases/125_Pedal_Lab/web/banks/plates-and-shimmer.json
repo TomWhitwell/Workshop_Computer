@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-dattorro",
+    "source": "algorithms/ready/directory-dattorro.spn",
+    "instructions": 113,
+    "sha256": "476b3be10fe8e72f88e5de41e9d4502f58f200ea5d4d0692169f3cf2f4beeb9e",
+    "id": "directory-dattorro",
+    "author": "mdroberts1243 (FV-1 implementation); Jon Dattorro (reverb design)",
+    "description": "Jon Dattorro's plate-reverb topology adapted to FV-1 by mdroberts1243, using input diffusion, a recirculating tank and modulated taps. Decay can approach infinite sustain.",
+    "controls": [
+      "reverb level",
+      "reverb time (decay... all the way up is infinite sustain in the tank)",
+      "hf loss in the tank (damping... turn up for MORE damping)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dattorro.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dattorro.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Plate Reverb - Dattorro",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 5695,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-rev-pl-1",
+    "source": "algorithms/ready/directory-rev-pl-1.spn",
+    "instructions": 121,
+    "sha256": "b9c9bdca12946d6e35c0da53ed5704273a1ee0208ac297795a258e8cca588531",
+    "id": "directory-rev-pl-1",
+    "author": "Harmon Grold (Spin Semiconductor)",
+    "description": "Lush (large), characterized by very high density, explosive initial sound, large",
+    "controls": [
+      "reverb time",
+      "lf loss",
+      "hf loss"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Plate Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 4826,
+      "peak_output_error_q23": 153,
+      "rms_output_error_q23": 0.845214,
+      "peak_output_q23": 286132,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-freeverb",
+    "source": "algorithms/ready/directory-freeverb.spn",
+    "instructions": 128,
+    "sha256": "203acd6f62436c3792cd90491f570dae715e8ba4afd080ebe03a99e9a2114c83",
+    "id": "directory-freeverb",
+    "author": "basilrush",
+    "description": "FV-1 implementation of the Freeverb approach: parallel filtered comb delays followed by allpass diffusion, with a stereo spread. POT0 sets comb feedback; other pots are not documented.",
+    "controls": [
+      "combfeedback",
+      "-",
+      "-"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/freeverb.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?t=309",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Freeverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1633544,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-shimmer-1",
+    "source": "algorithms/ready/directory-shimmer-1.spn",
+    "instructions": 115,
+    "sha256": "21758b90d4ff9093ee27d7622bccdfeb33d5539b0dceddbf0be27fd16007e32d",
+    "id": "directory-shimmer-1",
+    "author": "Sweetalk",
+    "description": "Reverb, Shimmer program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Damping",
+      "Feedback",
+      "Decay"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/shimmer-1.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/shimmer-1.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Hall Reverb w/ Shimmer",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 417795,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-shimmer-dralx",
+    "source": "algorithms/ready/directory-shimmer-dralx.spn",
+    "instructions": 99,
+    "sha256": "d5234c925ab43f27bd0de8f09a4b26828906a040fd4919e77dbef471b82f4e7f",
+    "id": "directory-shimmer-dralx",
+    "author": "Alex Lawrow",
+    "description": "This routine is based on Mick Taylor's (Ice-9s) reverb loop and shimmer code with some changes such as...",
+    "controls": [
+      "Reverb time (0 to 10 seconds).",
+      "Amount of treble in reverb loop.",
+      "Shimmer level"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/shimmer_drAlx.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/shimmer_drAlx.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Reverb + Shimmer (Version 6)",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 16004,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 169984,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-holy-city-audio-shimmer",
+    "source": "algorithms/ready/directory-holy-city-audio-shimmer.spn",
+    "instructions": 113,
+    "sha256": "07e7304b3b9dae93ee2099a0c9ef1886d28cc8b2a87a57a20f7cbaf59aadd46c",
+    "id": "directory-holy-city-audio-shimmer",
+    "author": "Digital Larry",
+    "description": "Reverb, Shimmer program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Level",
+      "Filter",
+      "Time"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/holy-city-audio/shimmer.spn"
+    },
+    "source_url": "https://www.diystompboxes.com/smfforum/index.php?topic=123725.0",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Shimmer",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 842847,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

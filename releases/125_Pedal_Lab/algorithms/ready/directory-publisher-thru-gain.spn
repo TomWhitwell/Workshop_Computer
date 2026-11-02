@@ -1,0 +1,30 @@
+;program for gain and loss (pot0)
+;+/- 20dB
+;adc to dac
+
+equ	pfil	reg0
+equ	pexp	reg1
+
+or	$800000			;put -1 in acc
+rdax	pot0,1			;pot out = -1 to 0
+rdfx	pfil,0.01
+wrax	pfil,1			;filter pot
+sof	0.41666,0		;-40dB to 0 dB 
+exp	1,0
+wrax	pexp,0
+
+rdax	adcl,1
+mulx	pexp
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-1.25,0
+wrax	dacl,0
+
+rdax	adcr,1
+mulx	pexp
+sof	-2,0
+sof	-2,0
+sof	-2,0
+sof	-1.25,0
+wrax	dacr,0

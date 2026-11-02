@@ -1,0 +1,13 @@
+algorithms/upstream/** -text -whitespace
+algorithms/ready/** -text -whitespace
+web/sources/** -text -whitespace
+vendor/** -text -whitespace
+web/vendor/** -text -whitespace
+web/compiler/python/** -text -whitespace
+web/compiler/notices/** -text -whitespace
+LICENSE -text -whitespace
+*.uf2 -text
+*.wasm -text
+*.tgz -text
+*.gz -text
+*.zip -text

@@ -1,0 +1,15 @@
+{
+  "id": "third-fifth-chorus",
+  "name": "Third & Fifth Chorus",
+  "version": "1.0.0",
+  "description": "Major third and perfect fifth pitch shifting blended with chorus modulation for rich, harmonized textures.",
+  "category": "Pitch / Chorus",
+  "tags": ["pitch-shift", "harmony", "chorus", "modulation", "intervals"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Chorus Speed", "description": "Chorus modulation speed.",              "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Third Level",  "description": "Level of the major third above voice.", "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Fifth Level",  "description": "Level of the perfect fifth above voice.", "unit": "", "range": [0, 1] }
+  ]
+}

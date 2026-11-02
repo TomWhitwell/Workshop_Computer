@@ -1,0 +1,241 @@
+; http://www.spinsemi.com/forum/viewtopic.php?p=3073
+;New Shimmer Reverb Program
+;from 3k Room
+;09/01/2013	 rev 1.01 Mick Taylor
+;22/11/2015	 rev 2.1 Set pre Delay: Reverb freq. response and gain changes Steve Mitchell/ Mick Taylor
+;					 pre delay removed for shimmer code space
+;07/12/2015	  Shimmer code added Mick Taylor
+
+;Pot0 = Shimmer
+;Pot1 = reverb level
+;Pot2 = reverb time
+
+mem	shimdel	4096	;delay for shimmer
+mem	stemp	1
+mem	idel	4000	;initial sound space  122mS
+mem	iap0	11
+mem	iap1	27
+mem	iap2	43
+mem	iap5	171
+mem	iap6	296	;thickening all passes embedded in initial delay
+
+mem	ap1	134	;4.1mS
+mem	ap2	256	;7.8mS
+mem	ap3	562	;17.1mS
+mem	ap4	763	;reverb loop input all passes
+
+mem	lap1a	1421	;43mS
+mem	lap1b	1945	;59mS
+mem	d1	2434	;74mS
+mem	lap2a	1894	;58mS
+mem	lap2b	1767	;54mS
+mem	d2	2645	;80.7mS  : loop constants
+
+;write constants registers
+
+equ	kd	-0.5	;damping coefficient (for shelving)
+
+;write-first registers:
+
+equ	dry	reg0
+equ	rev_in	reg1
+equ	kirt	reg2	;coefficient to scale initial sound
+equ	krt	reg3	;coefficient to affect RT of loop
+equ	apout	reg4	;output of loop input all passes
+equ	temp	reg5	;temp register for filter routines
+equ	gain	reg6	;adjust gain with RT
+equ	revout	reg7
+equ	pitchout  reg8		;octave up output
+
+;read-first registers:
+
+equ	lf1	reg20	;reverb loop filter 1
+equ	lf2	reg21	;reverb loop filter 2
+equ	hf1	reg22	;loop high pass 1 (fixed)
+equ	hf2	reg23	;loop high pass 2 (fixed)
+equ	lfin1	reg24	;LPF for imbedding in intial delay
+equ	lfin2	reg25	;LPF for imbedding in intial delay
+equ	lf	reg26	;input low pass (shelving with kd)
+equ	lpfp	reg27
+
+equ	lpfk	0.3	;lpf coefficent for lpfp after pitch shifting 1.85kHz
+equ	lpfs	-0.5	;Shelving coefficent for lpfp
+
+;clear read-first registers:
+
+skp	run,endclr
+wrax	lf1,0
+wrax	lf2,0
+wrax	hf1,0
+wrax	hf2,0
+wrax	lfin1,0
+wrax	lfin2,0
+wrax	lf,0
+endclr:
+
+;initial sound tap positions (30.5uS/location, 100=3.05mS):
+
+equ	ld1	874	;first tap, left	26.7mS
+equ	rd1	874	;first tap, right 26.7mS
+equ	ld2	1156	;and so on...	 35.3mS
+equ	rd2	962	;29.3mS
+equ	ld3	1345	;41mS
+equ	rd3	1121	;34.2mS
+equ	ld4	1456	;44.4mS
+equ	rd4	1423	;43.4mS
+equ	ld5	2121	;64.7mS
+equ	rd5	2124	;64.7mS
+equ	ld6	3245	;99mS
+equ	rd6	3646	;111.2mS
+
+;initialize sin LFO:
+
+skp	run,endset
+wlds	sin0,25,100
+wldr	 RMP0,16384,4096	;load octave up
+endset:
+;--------------Off and Running Program Loops to Here--------------------------
+;prepare decay pot: Reverb Time
+
+rdax	pot2,0.97	;get pot, limit to less than infinite
+wrax	krt,1		;write loop decay time
+sof	0.4,0.6		;scale Pot to 0.6 to 1.0 range
+wrax	kirt,1		;write impulse filter gains changed to 1 from 0 (MT 22-11-15) gain always +0.99 before=too high
+sof	-0.88,0.99	;scale to decrease gain with RT:need to assess the -1 & the 0.99 range offset for  gain Vs RT now changed to -0.88
+			; Range allowed=-2.0 to +0.9999389: e.g. From scale above if pot2=0.6 then 0.6*(-0.88)+0.99=0.46;if pot2=1 then gain=0.11 (23-11-2015)
+wrax	gain,0		;write gain factor and clear ACC
+
+;------------------------------Octave up------------------------------------
+
+cho	rda,RMP0,REG|COMPC,shimdel
+cho	rda,RMP0,,shimdel+1
+wra	stemp,0
+cho	rda,RMP0,RPTR2|COMPC,shimdel
+cho	rda,RMP0,RPTR2,shimdel+1
+cho	sof,RMP0,NA|COMPC,0
+cho	rda,RMP0,NA,stemp
+mulx	POT0
+rdfx	lpfp,	lpfk	;Freq coef
+wrhx	lpfp,	lpfs	;Shelving coef.
+wrax	 pitchout,0
+
+;-------------do inputs to predelay:-------------------
+;rdax	pitchout,1
+rdax	adcl,0.5
+rdax	adcr,0.5		;get inputs sum & divide by 2
+wrax	dry,1			;22/11/2015 write dry input signal to dry register and keep in ACC for mulx next instruction:
+mulx	gain			;Acc=Acc*[reg] give greater gain to short RT See code above for adjusting this 23-11-2015(Steve)
+wrax	rev_in,1		;22/11/2015 write gain adjusted dry input to rev_in register and clear ACC: Reg1
+wra	shimdel,0
+;--------------------read predelay and write initial all pass response delay:------------------
+
+rdax	pitchout,1
+rdax	rev_in, 0.5		;use 97mS delayed signal divided by 2 for reverb input
+rda	iap0#,0.5		;Read from end of initial all pass memory0 divide by 2 adding to rev_in data
+wrap	iap0,-0.5		;complicate input to initial delay
+wrax	temp,1			; Write ACC to register;multiply ACC x 1.
+rdfx	lf,0.404		;Low pass <2.7kHz
+wrhx	lf,-1			;Register=ACC; ACC=ACC*(-1)+previous contents of ACC
+mulx	kd			;ACC=ACC*[Reg];  kd = damping coefficient for shelving from POT0
+rdax	temp,1			;low pass filter entire input
+wra	idel,0			;write initial sound delay  clear ACC
+
+;complicate initial sound:
+
+rda	idel+500,1		;read from 15.2mS position Retain ACC
+rda	iap1#,0.5		;read from end of iap1 delay stream divided by 2
+wrap	iap1,-0.5		;write to beginning of iap1,
+wra	idel+500,0		;[data at delay ram address]=ACC; ACC=ACC*0 , i.e. clear ACC
+
+rda	idel+1000,1		;read from 30.5mS position
+rda	iap2#,0.5		;read from end of iap2 delay stream divided by 2
+wrap	iap2,-0.5		;write to beginning of iap2,
+wrax	temp,1			;save filter input
+rdfx	lfin1,0.2		;0.2=~1.2kHz perhaps too high for Abbey Road reverb try 600Hz = 0.109
+wrhx	lfin1,-1		;make HP filter
+mulx	kd			;multiply by negative shelving coef
+rdax	temp,1			;add back input (shelving LPF)
+wra	idel+1000,0		;now modify idel+1000 but clear ACC
+
+rda	idel+2500,1		;read from 76.3mS position retain ACC
+rda	iap5#,0.5
+wrap	iap5,-0.5
+wrax	temp,1			;save filter input
+rdfx	lfin2,0.2		;0.2 =~1.2kHz
+wrhx	lfin2,-1		;make HP filter
+mulx	kd			;multiply by negative shelving coef
+rdax	temp,1			;add back input (shelving LPF)
+wra	idel+2500,0		;[data at delay ram address]=ACC; ACC=ACC*0 , i.e. clear ACC
+
+
+rda	idel+3000,1		;read from 91.5mS position retain ACC
+rda	iap6#,0.5
+wrap	iap6,-0.5
+wra	idel+3000,0
+
+;do reverb input all passes:
+
+rda	idel,0.9		;leave some headroom:
+rda	ap1#,0.5
+wrap	ap1,-0.5
+rda	ap2#,0.5
+wrap	ap2,-0.5
+rda	ap3#,0.5
+wrap	ap3,-0.5
+rda	ap4#,0.5
+wrap	ap4,-0.5
+wrax	apout,0			;Save all pass out to
+
+;do reverb loop and sum all outputs:
+
+rda	d2#,1			;Read from end of d2, retain ACC
+mulx	krt			;krt = Reverb Time coefficient
+rdax	apout,1
+rda	lap1a#,0.5
+wrap	lap1a,-0.5
+rda	lap1b#,0.5
+wrap	lap1b,-0.5
+wrax	temp,1			;save filter input
+rdfx	lf1,0.404				;2.7kHz
+wrhx	lf1,-1			;make LP filter
+mulx	kd			;multiply by negative shelving coef
+rdax	temp,1			;add back temporary filter input keep ACC
+rdfx	hf1,0.01		;ACC=ACC+([reg]-ACC)*0.01
+wrhx	hf1,-0.5		;roll out lows in loop
+wra	d1,0			;Write sum to d1 location clear ACC
+
+rda	d1#,1			;Read from end of d1 memory
+mulx	krt
+rdax	apout,1
+rda	lap2a#,0.5
+wrap	lap2a,-0.5
+rda	lap2b#,0.5
+wrap	lap2b,-0.5
+wrax	temp,1
+rdfx	lf2,0.404		;Again use 2.7kHz
+wrhx	lf2,-1
+mulx	kd
+rdax	temp,1
+rdfx	hf2,0.01
+wrhx	hf2,-0.5
+wra	d2,1.99
+rda	d1,1.99
+mulx	pot1
+mulx	pot1
+wrax	revout,0		;Reverb output saved to register, ACC cleared
+
+;do reverb smoothing:
+
+cho	rda,sin0,sin|reg|compc,d1+100
+cho	rda,sin0,sin,d1+101
+wra	d1+200,0
+
+cho	rda,sin0,cos|reg|compc,d2+100
+cho	rda,sin0,cos,d2+101
+wra	d2+200,0
+
+;now combine to output
+
+rdax	dry,1
+rdax	revout,1
+wrax	dacl,0

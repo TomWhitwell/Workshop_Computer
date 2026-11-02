@@ -1,0 +1,85 @@
+;Ping-pong delay 
+;Frank Thomson 
+;OCT Distribution (310)348-9626 
+; 
+;pot0 adjusts ping delay time 
+;pot1 adjusts pong delay time 
+;pot2 adjusts feedback coefficient 
+
+equ   ping_len   16383      ;Max ping delay length (left) 
+equ   pong_len   16383      ;Max pong delay length (right) 
+equ   smooth   0.001      ;Smoothing coefficient, adjust to change speed/zippernoise 
+equ   feedforward   0.8   ;The dry (input) coefficient, increase to make louder 
+equ   del_out      0.8   ;The output from the delay coefficient, increase to make louder 
+
+mem   ping   ping_len 
+mem   pong   pong_len 
+
+equ   ping_addr   reg0 
+equ   pong_addr   reg1 
+equ   feedback      reg2 
+equ   ping_data   reg3 
+equ   pong_data   reg4 
+
+; Clear register on start 
+skp   RUN,   loop 
+clr 
+wrax   ping_addr,0 
+wrax   pong_addr,0 
+wrax   feedback,0 
+loop: 
+
+; Select tap from delay based on pot0, should range 0 to length 
+; Since pot only has 512 states, want to filter pot to avoid jumping 
+
+; Smooth POT0 
+clr            ; Clear the ACC 
+or    ping_len*256      ; Put delay length into ACC alligned to ACC[22:8] 
+mulx    pot0         ; Multiply by POT0, new target value 
+rdfx    ping_addr, smooth      ; Smooth it : (target - current) * C + current 
+wrax    ping_addr, 0      ; Save it 
+or   ping*256         ; Load ping base address 
+rdax   ping_addr,1.0      ; add pointer offset 
+wrax    addr_ptr, 0      ; Write it to the address pointer register 
+rmpa    1         ; Read from memory 
+wrax   ping_data,0      ; Write data from delay output to register 
+
+; Smooth POT1 
+or    pong_len*256      ; Put delay length into ACC alligned to ACC[22:8] 
+mulx    pot1         ; Multiply by POT1, new target value 
+rdfx    pong_addr, smooth   ; Smooth it : (target - current) * C + current 
+wrax    pong_addr, 0      ; Save it 
+or   pong*256      ; Load pong base address 
+rdax   pong_addr,1.0      ; add pointer offset 
+wrax    addr_ptr, 0      ; Write it to the address pointer register 
+rmpa    1         ; Read from memory 
+wrax   pong_data,0      ; Write data from delay output to register 
+
+; Smooth POT2 
+rdax    pot2,1.0         ; Get target 
+rdfx    feedback, smooth      ; Smooth it : (target - current) * C + current 
+wrax    feedback, 0      ; Save it 
+
+; At this point, we have the delay data and feedback coefficient 
+
+; Left output 
+rdax   adcl, feedforward      ; Left in * coefficient 
+rdax   ping_data,del_out      ; add in ping delay 
+wrax   dacl,0         ; write to DAC 
+
+; Right output 
+rdax   adcr, feedforward      ; Right in * coefficient 
+rdax   pong_data,del_out      ; add in pong delay 
+wrax   dacr,0         ; write to DAC 
+
+; Ping delay input 
+rdax   pong_data,1.0      ; get pong delay 
+mulx   feedback 
+rdax   adcl, feedforward      ; add Left in * coefficient 
+wra   ping,0         ; write to ping delay 
+
+; Pong delay input 
+rdax   ping_data,1.0      ; get ping delay 
+mulx   feedback    
+rdax   adcr, feedforward      ; add Right in * coefficient 
+wra   pong,0         ; write to pong

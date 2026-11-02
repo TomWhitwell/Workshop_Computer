@@ -1,9 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Resvg } from '@resvg/resvg-js';
+import { renderAsync } from '@resvg/resvg-js';
 import wawoff2 from 'wawoff2';
-import { writeFileEnsured } from '../utils/fs.js';
+import { fsAsync as fs, writeFileEnsured } from '../utils/fs.js';
 import {
   DEFAULT_OG_DESCRIPTION,
   OG_IMAGE_HEIGHT,
@@ -13,6 +15,10 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FONT_SOURCE_DIR = path.join(here, '../../node_modules/@fontsource-variable/inter/files');
 const FONT_CACHE_DIR = path.join(here, '../../node_modules/.cache/og-fonts');
+const PNG_CACHE_DIR = path.join(here, '../../node_modules/.cache/og-images');
+const RESVG_VERSION = createRequire(import.meta.url)('@resvg/resvg-js/package.json').version;
+// Bump when rendering changes in a way the SVG text does not capture.
+const PNG_CACHE_VERSION = 1;
 const FONT_SOURCES = [
   'inter-latin-wght-normal.woff2',
   'inter-latin-ext-wght-normal.woff2',
@@ -184,35 +190,82 @@ export function renderOgSvg({
 </svg>`;
 }
 
-async function ogFontFiles() {
-  if (preparedFontFiles) return preparedFontFiles;
-  mkdirSync(FONT_CACHE_DIR, { recursive: true });
-  const files = [];
-  for (const name of FONT_SOURCES) {
-    const dest = path.join(FONT_CACHE_DIR, name.replace(/\.woff2$/, '.ttf'));
-    if (!existsSync(dest)) {
-      const ttf = Buffer.from(await wawoff2.decompress(readFileSync(path.join(FONT_SOURCE_DIR, name))));
-      writeFileSync(dest, ttf);
+const sha256 = data => createHash('sha256').update(data).digest('hex');
+
+// Write via a temporary file so an interrupted build never leaves a truncated
+// cache entry behind for later builds to reuse.
+function tempPathFor(file) {
+  return `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+}
+
+/**
+ * Decompressed TTFs for resvg, plus a digest of their sources. Each TTF is
+ * named after its woff2's content hash, so a font package upgrade that keeps
+ * the same file names still produces fresh fonts (and fresh share images).
+ */
+function ogFonts() {
+  // Cache the promise so concurrent renders share one decompression pass.
+  preparedFontFiles ??= (async () => {
+    mkdirSync(FONT_CACHE_DIR, { recursive: true });
+    const files = [];
+    const hashes = [];
+    for (const name of FONT_SOURCES) {
+      const woff2 = readFileSync(path.join(FONT_SOURCE_DIR, name));
+      const hash = sha256(woff2);
+      hashes.push(hash);
+      const dest = path.join(FONT_CACHE_DIR, name.replace(/\.woff2$/, `-${hash.slice(0, 16)}.ttf`));
+      if (!existsSync(dest)) {
+        const tmp = tempPathFor(dest);
+        writeFileSync(tmp, Buffer.from(await wawoff2.decompress(woff2)));
+        renameSync(tmp, dest);
+      }
+      files.push(dest);
     }
-    files.push(dest);
-  }
-  preparedFontFiles = files;
-  return files;
+    return { files, digest: sha256(hashes.join('\n')) };
+  })();
+  return preparedFontFiles;
+}
+
+// Everything passed to resvg except the font file paths, which the PNG cache
+// key covers through the font digest instead.
+const RENDER_OPTIONS = {
+  fitTo: { mode: 'original' },
+  font: { loadSystemFonts: false, defaultFontFamily: FONT_FAMILY },
+};
+
+async function renderSvgToPng(svg) {
+  const { files } = await ogFonts();
+  const image = await renderAsync(svg, {
+    ...RENDER_OPTIONS,
+    font: { ...RENDER_OPTIONS.font, fontFiles: files },
+  });
+  return image.asPng();
 }
 
 export async function renderOgPng(options) {
-  const svg = renderOgSvg(options);
-  const resvg = new Resvg(svg, {
-    fitTo: { mode: 'original' },
-    font: {
-      fontFiles: await ogFontFiles(),
-      loadSystemFonts: false,
-      defaultFontFamily: FONT_FAMILY,
-    },
-  });
-  return resvg.render().asPng();
+  return renderSvgToPng(renderOgSvg(options));
 }
 
+/**
+ * Write a card's share image, reusing a cached PNG when the SVG, fonts,
+ * render options and renderer are unchanged. Most cards are identical between
+ * builds, and rasterising is the slowest part of writing a card page.
+ */
 export async function writeOgPng(filePath, options) {
-  await writeFileEnsured(filePath, await renderOgPng(options));
+  const svg = renderOgSvg(options);
+  const { digest: fontDigest } = await ogFonts();
+  const key = sha256(JSON.stringify([PNG_CACHE_VERSION, RESVG_VERSION, fontDigest, RENDER_OPTIONS, svg]));
+  const cached = path.join(PNG_CACHE_DIR, `${key}.png`);
+  let png;
+  try {
+    png = await fs.readFile(cached);
+  } catch {
+    png = await renderSvgToPng(svg);
+    // The cache is an optimisation only; an unwritable cache must not fail the build.
+    const tmp = tempPathFor(cached);
+    await writeFileEnsured(tmp, png)
+      .then(() => fs.rename(tmp, cached))
+      .catch(() => fs.rm(tmp, { force: true }).catch(() => {}));
+  }
+  await writeFileEnsured(filePath, png);
 }

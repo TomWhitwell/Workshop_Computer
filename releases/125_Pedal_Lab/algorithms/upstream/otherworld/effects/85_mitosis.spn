@@ -1,0 +1,184 @@
+; @name Mitosis
+; @tagline One note becomes a cell that splits into octave twins, doubles and doubles across the field, then starves
+; @description The first note you play into an empty dish founds a culture: its first quarter
+; @description second is frozen as a cell, and you hear the founder at once. After one cycle the
+; @description cell divides: a daughter an octave up on the left and her mirror twin an octave
+; @description down on the right. Every cycle the culture divides again: the clones double in
+; @description number and come twice as fast, up to thirty-two in a cycle, and their octaves
+; @description spread up to three either way, always mirrored: when the left clone climbs, the
+; @description right one sinks.
+; @description Your playing is the food. Every attack feeds the culture, and each division
+; @description costs more than the last. When food runs short, or the culture reaches its
+; @description peak, it dies back a generation per cycle, the clones thinning out. Meanwhile
+; @description the dish keeps the newest note you played, and the moment the last cell dies
+; @description that note takes over as the founder of the next culture, so the waves run back
+; @description to back with no gap: one note, a swarm of its clones, the next note. Stop
+; @description playing and the culture fades away with your sound; it races through the rest of
+; @description its life unheard, and the dish waits for your next note.
+; @pots Cycle | Food | Peak
+; @render 0.4, 0.5, 1.0
+; @time POT0 0.5 1.1 exp
+; @components founder-cell freeze, newest-note seed cell, gapless refounding, cleavage clock with 2^g slots per cycle, mirrored octave clones (up left, down right), food and starvation population dynamics
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	buf	32767
+
+equ	inp	reg0
+equ	hpf	reg1
+equ	ef	reg2
+equ	es	reg3
+equ	nfa	reg4		; minus the founder age, mod 1 s (the live cell began at 0.25)
+equ	c	reg5		; onset clock: -1 at a capture's start, recording below -0.875, stale from 0
+equ	s	reg6		; the seed: the shift that makes it the founder (0 = keep the founder)
+equ	sp	reg7		; slot phase, 0.5 down to 0
+equ	cnt	reg8		; slots left in this generation / 64
+equ	g16	reg9		; generation / 16; < 0 empty dish
+equ	N	reg10		; food
+equ	spL	reg11		; left speed 2^(o - 4)
+equ	spR	reg12		; right speed 2^(-o - 4)
+equ	tL	reg13		; 0.25 minus the cell position, wrapping
+equ	tR	reg14
+equ	w	reg15		; slot window
+equ	tmp	reg16
+equ	one	reg17		; 2^-14, two samples (set while the dish is empty)
+equ	rel	reg18		; release gate
+
+	rdax	adcl, 0.25
+	rdax	adcr, 0.25
+	wrax	inp, 1.0
+; ---- onsets: every attack feeds the culture and refreshes the onset clock; where the
+;      live cell is safe it also starts a capture of the newest note (the seed)
+	rdfx	hpf, 0.25
+	wrhx	hpf, -1.0
+	absa
+	rdfx	ef, 0.012
+	wrax	ef, 1.0
+	rdfx	es, 0.001
+	wrhx	es, -1.6		; ACC = ef - 1.6 es (PACC = ef)
+	rdax	one, -1.99994		; minus the floor 2^-13: the ADC's noise is no attack
+	skp	neg, noon
+	ldax	N			; food
+	rdax	pot1, 0.000061
+	wrax	N, 0
+	ldax	c			; a capture is recording: leave it alone
+	sof	1.0, 0.875
+	skp	neg, noon
+	ldax	nfa			; outside the capture window: only refresh the clock
+	sof	1.0, -0.5
+	skp	neg, noon
+	sof	-1.0, -0.25		; the seed: s = 0.25 - nfa - 1 sample (nfa is a
+	wrax	s, 0			; sample behind here), and c = -1
+	sof	0, -1.0
+	wrax	c, 0
+noon:
+	ldax	es			; release gate: min(1, es / 2^-13) - 1/8, exactly 0 once es
+	log	1.0, 0.8125		; has sunk into its dead zone (about 0.15 s after the input stops)
+	exp	1.0, -0.125
+	wrax	rel, 0
+	ldax	nfa			; the founder ages (AND wraps going down)
+	rdax	one, -0.5
+	and	$7FFFFF
+	wrax	nfa, 0
+; ---- the capture: 0.25 s, enveloped, into the ring (c runs at half a sample per sample)
+	ldax	c
+	rdax	one, 0.25
+	wrax	c, 1.0
+	sof	1.0, 0.9375
+	absa
+	sof	-2.0, 0.125
+	skp	neg, nowr
+	log	1.99994, 0.999		; (256 x)^2, clamped at 1; 2^-16 at the edges
+	exp	1.0, 0
+	mulx	inp
+	wra	buf, 0
+nowr:
+; ---- an empty dish: while you play, the seed founds the next culture at once
+	ldax	g16			; (the first sample after loading never skips here:
+	skp	run|gez, alive		; it parks the dish below)
+	ldax	c
+	skp	run|neg, refnd
+	sof	0, 0.75			; you stopped: park nfa in the capture window, mute
+	wrax	nfa, 0
+	or	$000200			; the dish empty (g16 < 0) and the
+	wrax	one, -1.0		; two-sample constant (2^-14)
+	wrax	g16, 0
+	skp	zro, mute
+refnd:	ldax	s			; the seed becomes the founder: generation 0, no food yet
+	rdax	nfa, 1.0
+	and	$7FFFFF
+	wrax	nfa, 0
+	wrax	g16, 0
+	wrax	N, 0
+	skp	zro, gok2		; (gok2 sets cnt ~ 0: one founder slot)
+; ---- cleavage clock: 2^g slots per cycle P
+alive:	rdax	pot0, -0.0703		; Cycle P = 0.5 .. 1.1 s
+	sof	1.0, -0.875		; (half the rate inside EXP, so g = 0 at Cycle 1 does not
+	exp	-0.5, 0			; hit the rail)
+	rdax	sp, 1.0
+	wrax	sp, 1.0
+	skp	gez, noslot
+	sof	1.0, 0.5
+	wrax	sp, 0
+	ldax	cnt
+	sof	1.0, -0.015625
+	wrax	cnt, 1.0
+	skp	gez, slot
+; ---- a new generation: grow if fed (cost g / 128), else die back; past the peak it dies
+	ldax	N
+	rdax	g16, -0.125
+	wrax	N, 1.0
+	and	$800000
+	sof	0.125, 0.0625		; +1 fed, -1 hungry
+	rdax	g16, 1.0
+	wrax	g16, 1.0
+	rdax	pot2, -0.18		; Peak: generation 2 .. 5
+	sof	1.0, -0.125
+	skp	neg, gok
+	sof	0, -1.0			; the peak: no more growth, it dies back
+	wrax	N, 0
+gok:	ldax	c			; 2^g + 1 slots; after a pause of ~2 s, one
+	and	$800000
+gok2:	sof	-0.625, -1.0		; -0.375 while you play, -1 after a pause
+	rdax	g16, 1.0
+	exp	1.0, 0
+	wrax	cnt, 0
+; ---- a new slot: a clone at octave o on the left, -o on the right
+slot:	ldax	g16			; r = ceil(g / 2); o = 2 floor(draw (r + 1)) - r
+	sof	0.5, 0.28125
+	and	$780000
+	wrax	tmp, 1.0		; r / 16 + 1/4
+	sof	2.0, -0.375		; (r + 1) / 8
+	mulx	nfa			; the draw: the founder age at the slot start
+	and	$700000			; floor(draw (r + 1)) / 8
+	rdax	tmp, -1.0		; (o - 4) / 16
+	exp	1.0, 0
+	wrax	spL, 1.0		; 2^(o - 4)
+	log	-1.0, -0.5
+	exp	1.0, 0
+	wrax	spR, 0			; 2^(-o - 4)
+	wrax	tL, 0
+	wrax	tR, 0
+noslot:	log	1.0, 0.3125		; window: min(1, 32 sp) (ACC = sp here; 0 on a slot's
+	exp	1.0, 0			; first sample, which reads the cell's silent edge)
+	mulx	rel			; x the release gate
+mute:	wrax	w, 0
+; ---- out: read the cell at 0.25 - t behind the founder
+	ldax	tL
+	rdax	spL, -0.00048828125
+	and	$1FFFFF
+	wrax	tL, 1.0
+	rdax	nfa, -1.0
+	wrax	addr_ptr, 0
+	rmpa	1.828125
+	mulx	w
+	wrax	dacl, 0
+	ldax	tR
+	rdax	spR, -0.00048828125
+	and	$1FFFFF
+	wrax	tR, 1.0
+	rdax	nfa, -1.0
+	wrax	addr_ptr, 0
+	rmpa	1.828125
+	mulx	w
+	wrax	dacr, 0

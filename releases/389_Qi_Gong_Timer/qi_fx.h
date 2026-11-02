@@ -1,5 +1,5 @@
 // =============================================================================
-//  qi_fx.h : the effects for the QiGong Timer (stage 2).  No hardware dependency.
+//  qi_fx.h : the effects for the Qigong Timer (stage 2).  No hardware dependency.
 //  AI-assisted (Claude / Anthropic).  The reverb is adapted from the Story OST card's FDN
 //  (4 lines, Hadamard mixing, damping, wandering line lengths, input diffusers, half rate),
 //  with overflow-safe multiplies and a gain compensation suited to very long tails.

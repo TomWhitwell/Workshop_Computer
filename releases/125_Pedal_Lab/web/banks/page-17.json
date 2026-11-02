@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-dervish-triple-tripple-echo-cascaded",
+    "source": "algorithms/ready/directory-dervish-triple-tripple-echo-cascaded.spn",
+    "instructions": 64,
+    "sha256": "1e9b21441928019da5e3ea53d178c15cbeaa73017127691a1ce5b84fa2c9854c",
+    "id": "directory-dervish-triple-tripple-echo-cascaded",
+    "author": "Graham Biswell",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Time 1",
+      "Time 2",
+      "Time 3"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo_cascaded.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Triple Tap Cascaded Delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 299648,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-dervish-triple-tripple-echo-cascaded-stereo-chorus",
+    "source": "algorithms/ready/directory-dervish-triple-tripple-echo-cascaded-stereo-chorus.spn",
+    "instructions": 74,
+    "sha256": "92212e6191189a0046029e82d8b0ba6cd934f69dc5049c3a0fc60e4bb73622cd",
+    "id": "directory-dervish-triple-tripple-echo-cascaded-stereo-chorus",
+    "author": "Graham Biswell",
+    "description": "Delay, Chorus program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Time 1",
+      "Time 2",
+      "Time 3"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo_cascaded_stereo%2Bchorus.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Triple Tap Cascaded Delay - Stereo w/ Chorus",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 377565,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-dervish-triple-tripple-echo-cascaded-stereo",
+    "source": "algorithms/ready/directory-dervish-triple-tripple-echo-cascaded-stereo.spn",
+    "instructions": 67,
+    "sha256": "0a2b4fe008cb69de17f28b486d14dd4a4f2dae08e22ffe1fc2dd627bf05dfbf3",
+    "id": "directory-dervish-triple-tripple-echo-cascaded-stereo",
+    "author": "Graham Biswell",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Time 1",
+      "Time 2",
+      "Time 3"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo_cascaded_stereo.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Triple Tap Cascaded Delay - Stereo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 235289,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-dervish-triple-tripple-echo-parallel",
+    "source": "algorithms/ready/directory-dervish-triple-tripple-echo-parallel.spn",
+    "instructions": 94,
+    "sha256": "37b94ea3ab71019a655617703e2ac90d76fb8793d941d5890347b4cee257331b",
+    "id": "directory-dervish-triple-tripple-echo-parallel",
+    "author": "Graham Biswell",
+    "description": "taps are treated in parallel ; feedback & damping are fixed",
+    "controls": [
+      "Time 1",
+      "Time 2",
+      "Time 3"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo_parallel.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Triple Tap Delay - Parallel",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 342144,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-drolo-random-loop-delay",
+    "source": "algorithms/ready/directory-drolo-random-loop-delay.spn",
+    "instructions": 87,
+    "sha256": "71c5779324521dcd985d523ceb9ca4124e0bb8bd027877712052267345b01ffd",
+    "id": "directory-drolo-random-loop-delay",
+    "author": "David Rolo",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/random-loop-delay.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/random-loop-delay.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Random Loop Delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1048576,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-firesledge-bass-processor-p2-delay",
+    "source": "algorithms/ready/directory-firesledge-bass-processor-p2-delay.spn",
+    "instructions": 66,
+    "sha256": "3f689b9fd1acf51cded3899f076e2792dc1018fdf9c6e276a4fc024619600393",
+    "id": "directory-firesledge-bass-processor-p2-delay",
+    "author": "Firesledge",
+    "description": "A delay with filtered overdrive in the feedback path. Designed for bass",
+    "controls": [
+      "Time",
+      "Feedback",
+      "Mix"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p2-delay.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p2-delay.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Delay OD",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 10640,
+      "peak_output_error_q23": 3763,
+      "rms_output_error_q23": 36.3906,
+      "peak_output_q23": 1048576,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

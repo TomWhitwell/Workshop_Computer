@@ -1,0 +1,323 @@
+;development program: copy to target when done
+
+;Guitar reverb/tremelo
+
+;pot0 = reverb mix
+
+;pot1 = trem rate
+
+;pot2 = trem mix
+
+;
+
+mem	ap1	150
+
+mem	ap2	221
+
+mem	ap3	345
+
+mem	ap4	431
+
+mem	rap1	1157
+
+mem	rap1b	2257
+
+mem	rap2	1978
+
+mem	rap2b	1678
+
+mem 	rap3	1850
+
+mem	rap3b	2456
+
+mem	rap4	1234
+
+mem	rap4b	1567
+
+mem	d1	2180
+
+mem	d2	3956
+
+mem	d3	4165
+
+mem	d4	3456
+
+;
+
+equ 	p0	reg0
+
+equ	sigin	reg1
+
+equ	trem	reg2
+
+equ	tremout	reg3
+
+equ	revin	reg4
+
+equ	rfil	reg5	;reverb ring filter register
+
+
+
+equ	rt	0.5	;reverb time
+
+;
+
+;set up lfo for reverb and tremelo, 0.5Hz, +/-20 samples:
+
+skp	RUN,	start
+
+wlds	SIN0,	12,	160
+
+wlds	SIN1,	12,	32767
+
+start:
+
+;do ap smearing to loop aps:
+
+cho 	rda,SIN0,0x06,	rap1+50
+
+cho	rda,SIN0,0x00,	rap1+51
+
+wra	rap1+100,	0
+
+cho 	rda,SIN0,0x07,	rap2+50
+
+cho	rda,SIN0,1,		rap2+51
+
+wra	rap2+100,	0
+
+cho 	rda,SIN0,0x0E,	rap3+50
+
+cho	rda,SIN0,8,		rap3+51
+
+wra	rap3+100,	0
+
+cho 	rda,SIN0,0x0F,	rap4+50
+
+cho	rda,SIN0,0x09,	rap4+51
+
+wra	rap4+100,	0;
+
+;
+
+;
+
+;control and get tremelo sinwave:
+
+rdax	pot1,		1.0
+
+mulx	pot1
+
+sof	0.4, 		0.1	; 5:1 range
+
+wrax	sin1_rate,	0
+
+cho	RDAL,SIN1
+
+mulx	pot2
+
+sof	0.5,		0.5
+
+wrax	trem,		0
+
+;
+
+;do tremelo
+
+rdax	adcl,		0.5
+
+rdax	adcr,		0.5
+
+mulx	trem
+
+wrax	tremout,	0
+
+;
+
+;set up pot0:
+
+;reverb mix:
+
+rdax	pot0,	0.8
+
+wrax	p0,		0.0
+
+;
+
+rdax	tremout,	0.5
+
+rda	ap1#,	-0.6
+
+wrap	ap1,	0.6
+
+rda	ap2#,	-0.6
+
+wrap	ap2,	0.6
+
+rda	ap3#,	-0.6
+
+wrap	ap3,	0.6
+
+rda	ap4#,	-0.6
+
+wrap	ap4,	0.6
+
+wrax	revin,	0.0
+
+;
+
+rda	d4#,	rt
+
+rda	rap1#,	-0.6
+
+wrap	rap1,	0.6
+
+rda	rap1b#,	-0.7
+
+wrap	rap1b,	0.7
+
+rdax	revin,	0.5
+
+wra	d1,	0.0
+
+;
+
+rda	d1#,	rt
+
+rda	rap2#,	-0.6
+
+wrap	rap2,	0.6
+
+rda	rap2b#,	-0.7
+
+wrap	rap2b,	0.7
+
+rdax	revin,	0.5
+
+wra	d2,	0.0
+
+;
+
+rda	d2#,	rt
+
+rda	rap3#,	-0.6
+
+wrap	rap3,	0.6
+
+rda	rap3b#,	-0.7
+
+wrap	rap3b,	0.7
+
+rdax	revin,	0.5
+
+wra	d3,	0.0
+
+;
+
+rda	d3#,	rt
+
+rda	rap4#,	-0.6
+
+wrap	rap4,	0.6
+
+rda	rap4b#,	-0.7
+
+wrap	rap4b,	0.7
+
+rdax	revin,	0.5
+
+wra	d4,	0.0
+
+;
+
+rda	d1+3000,	1.0
+
+rda	d2+1239,	0.8
+
+rda	d3+2341,	0.7
+
+rda	d4+302,	0.6
+
+rdfx	rfil,	0.5
+
+;
+
+mulx	pot0
+
+mulx	pot0
+
+sof	1.5,	0
+
+rdax	tremout,	0.5
+
+sof	1.99,0
+
+sof	1.99,0
+
+wrax	dacr,	1.0
+
+wrax	dacl,	0
+
+;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

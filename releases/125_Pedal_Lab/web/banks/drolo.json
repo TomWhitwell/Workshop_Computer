@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-drolo-envelope-phaser",
+    "source": "algorithms/ready/directory-drolo-envelope-phaser.spn",
+    "instructions": 115,
+    "sha256": "8f0beca028b0d08dbea4462616261c16292305eb755db347c19ffee124ac39fe",
+    "id": "directory-drolo-envelope-phaser",
+    "author": "David Rolo",
+    "description": "Filter, Phaser program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "rate",
+      "depth",
+      "regen"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/envelope-phaser.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/envelope-phaser.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Envelope Phaser",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 4799,
+      "peak_output_error_q23": 265,
+      "rms_output_error_q23": 6.99931,
+      "peak_output_q23": 1430242,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-drolo-filter-env-lp-hp-up",
+    "source": "algorithms/ready/directory-drolo-filter-env-lp-hp-up.spn",
+    "instructions": 97,
+    "sha256": "e5b2ffc32c725dfac68cd5e85312b9a9977ce6dcebe252db74f29c130916718d",
+    "id": "directory-drolo-filter-env-lp-hp-up",
+    "author": "David Rolo",
+    "description": "Filter program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "env sensitivity",
+      "filter type",
+      "volume"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/filter-env-LP-HP-up.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/filter-env-LP-HP-up.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Filter: env LP HP up",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 2646,
+      "peak_output_error_q23": 1,
+      "rms_output_error_q23": 0.0259111,
+      "peak_output_q23": 34682,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-drolo-flanger",
+    "source": "algorithms/ready/directory-drolo-flanger.spn",
+    "instructions": 58,
+    "sha256": "f5034ad80471acaa1523551d83382039c399973d6fa1d555522e074fe8d3cfa0",
+    "id": "directory-drolo-flanger",
+    "author": "David Rolo",
+    "description": "Flanger program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "rate",
+      "feedback",
+      "range"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/flanger.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/flanger.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Flanger",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1537046,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-drolo-pitch-step-glider",
+    "source": "algorithms/ready/directory-drolo-pitch-step-glider.spn",
+    "instructions": 76,
+    "sha256": "63fc43659c122619f72a59d135bb0f7b2923724901374a29087875676c58d7c7",
+    "id": "directory-drolo-pitch-step-glider",
+    "author": "David Rolo",
+    "description": "Pitch program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "rate",
+      "depth",
+      "glide"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/pitch-step-glider.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/pitch-step-glider.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Pitch Step Glider.spn",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 422538,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-drolo-random-loop-delay",
+    "source": "algorithms/ready/directory-drolo-random-loop-delay.spn",
+    "instructions": 87,
+    "sha256": "71c5779324521dcd985d523ceb9ca4124e0bb8bd027877712052267345b01ffd",
+    "id": "directory-drolo-random-loop-delay",
+    "author": "David Rolo",
+    "description": "Delay program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/random-loop-delay.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/random-loop-delay.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Random Loop Delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1048576,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-drolo-ring-pitchulator",
+    "source": "algorithms/ready/directory-drolo-ring-pitchulator.spn",
+    "instructions": 50,
+    "sha256": "b2fd8ff30ac05005333b5b1c6d7215a7c5e74ab8540e099697bc4bb5cbed2926",
+    "id": "directory-drolo-ring-pitchulator",
+    "author": "David Rolo",
+    "description": "Ring Modulator, Pitch program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "ringmod rate",
+      "pitch shifter blend",
+      "pitch sifter"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/ring-pitchulator.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/ring-pitchulator.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ring Pitchulator",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 580096,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

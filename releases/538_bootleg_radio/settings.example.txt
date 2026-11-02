@@ -10,10 +10,34 @@
 # Power-on "tune" mode: loop | sync
 #   loop  a new station starts at its loop start point
 #   sync  a new station keeps the proportional position (synchronised jump)
+# Tapping B4 on the 8mu changes the running mode; this is the power-on value.
 mode = sync
+
+# What happens at the end of a station: loop | one-shot | ping-pong
+#   loop       wrap back to the loop start (default)
+#   one-shot   play once and stop until retriggered
+#   ping-pong  alternate forward and reverse passes
+loopMode = loop
+
+# F7 performance mode: off | scan | repeat
+#   off     normal playback
+#   scan    advance station on the clock
+#   repeat  retrigger the current loop on the clock
+performanceMode = off
+
+# Clock pulses per scan/repeat step, 1-16
+perfDiv = 1
 
 # Bank to start on, 0-31 (0 = the root directory; 1.. = subfolders in order)
 bank = 0
+
+# Speed control range: 2oct | 1oct | fine | off
+#   2oct  -2..+2 octaves (default)
+#   1oct  -1..+1 octave
+#   fine  about -1..+1 semitone
+#   off   fixed 1x; X, CV in 2 and 8mu F1 do nothing
+# The 8mu's F2 overrides this while it is above its dead zone.
+speedRange = 2oct
 
 # Internal clock tempo in BPM, 30-240 (used when Pulse in 1 is unpatched)
 clockBpm = 120
@@ -36,3 +60,17 @@ pulse2 = tick
 #   verbose  level, playing, station-change, mounted, underrun/fault
 #   quiet    level, playing and mounted only (LEDs 3 and 5 stay dark)
 led = verbose
+
+# Pulse in 2 / TRS MIDI remote: auto | on | off
+#   auto  retrigger until a Music Thing 8mu is heard, then MIDI
+#   on    always the 8mu input (Pulse in 2 no longer retriggers)
+#   off   always the external retrigger (MIDI ignored)
+remote = auto
+
+# Tuning static: off | on
+#   adds a short filtered noise burst when you change station or bank
+# Holding B2/B3 on the 8mu changes the running state; this is the power-on value.
+static = off
+
+# Static level, 0-100
+staticLevel = 50

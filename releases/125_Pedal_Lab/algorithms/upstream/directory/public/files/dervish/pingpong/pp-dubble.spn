@@ -1,0 +1,119 @@
+; ping pong delay with dual taps
+; Graham Biswell <graham@gbiswell.com>
+;
+; pot0 adjusts delay time of delay0 tap relative to right
+; pot1 adjusts delay time
+; pot2 adjusts feedback coefficient
+
+equ	delay_len	16383		; max. delay length
+equ	smooth		0.001		; Smoothing coefficient, adjust to change speed/zippernoise
+
+; LPF & HPF cutoff frequency for damping
+equ     damp_lpf        0.1
+equ     damp_hpf        0.02
+equ	damping_amount	0.25		; change for more/less damping
+
+mem	delay0		delay_len
+mem	delay1		delay_len
+
+equ	delay0_pot	pot0
+equ	delay1_pot	pot1
+equ	fb_pot		pot2
+
+equ	offset0		reg0
+equ	offset1		reg1
+equ	damping		reg2
+equ	feedback	reg3
+equ	delay0_data	reg4
+equ	delay1_data	reg5
+equ	lpf		reg8
+equ	hpf		reg9
+equ	temp		reg10
+equ	div		reg11
+
+;*******************************************************
+; any initialisation goes here
+skp	RUN,loop
+sof	0, damping_amount
+wrax	damping, 0
+
+loop:
+;clr
+
+;*******************************************************
+; get offset into each tap from pot settings
+; pots values are filtered
+rdax	delay1_pot, 1
+sof	0.99, 0.01
+wrax	temp, 0
+or	delay_len * 256
+mulx	temp
+rdfx	offset1, smooth
+wrax	offset1, 0
+
+rdax	delay0_pot, 1
+sof	0.99, 0.01
+wrax	temp, 0
+or	delay_len * 256
+mulx	temp
+rdfx	offset0, smooth
+wrax	offset0, 0
+
+;*******************************************************
+; Smooth feedback pot value
+rdax	fb_pot, 1
+rdfx	feedback, smooth
+wrax	feedback, 0
+
+;*******************************************************
+; get data from each tap at offsets 
+; Tap 0
+or	delay0 * 256
+rdax	offset0, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	delay0_data, 0
+
+; Tap 1
+or	delay1*256
+rdax	offset1, 1
+wrax	addr_ptr, 0
+rmpa	1
+wrax	delay1_data, 0
+
+;*******************************************************
+; write outputs
+rdax	delay0_data, 1
+wrax	dacl, 0
+
+; Right output
+rdax	delay1_data, 1
+wrax	dacr, 0
+
+;*******************************************************
+; now copy delay0 to delay1, delay1 to delay0
+;
+; delay0 delay output straight to delay1 delay input
+rdax	delay0_data, 1
+wra	delay1, 0
+
+; delay1 delay output attenuated by feedback amount
+; filtered by damping amount (LPF & HPF)
+; small amount of HPF applied
+; mixed with left ADC input then written to delay0 delay input
+rdax	delay1_data, 1
+mulx	feedback
+wrax	temp, 1
+rdfx	lpf, damp_lpf
+wrlx	lpf, -1
+rdfx    hpf, damp_hpf
+wrhx    hpf, -1
+
+rdax	temp, -1
+mulx	damping
+rdax	temp, 1
+
+rdax	adcl, 0.6
+rdax	adcr, 0.6
+wra	delay0, 0
+ 

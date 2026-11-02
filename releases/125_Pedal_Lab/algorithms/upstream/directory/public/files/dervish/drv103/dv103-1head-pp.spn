@@ -1,0 +1,184 @@
+; dual head tape echo with added ping pong (not very tape echo like really)
+;
+; Graham Biswell <graham@gbiswell.com>
+;
+; pot 0 echo delay time
+; pot 1 echo feedback
+; pot 2 damping
+
+
+; ***********************
+; delay declarations
+equ	DelayLen	15500
+equ	sm0len		40
+equ	sm1len		20
+
+mem	Delay1		DelayLen
+mem	Delay2		DelayLen
+mem	sm0		sm0len
+mem	sm1		sm1len
+
+; general smothing filter coeff
+equ	smooth		0.001
+
+; pots
+equ	TimePot		pot0
+equ	FbackPot	pot1
+equ	DampPot		pot2
+
+; Hd2Delay is delay time scaling factor for second head, assuming head 3 is "1"
+;
+; RE301 min/max delay times for each head in msec
+;  Head  Min   Max
+;  1     60    165
+;  2     117   324
+;  3     176   487
+;
+; this could also be regular intervals eg
+; equ  Hd2Delay 2/3	; 1/4 triplet
+; equ  Hd2Delay 3/4	; Dotted 1/8
+; equ  Hd2Delay 1/2	; 1/8
+; equ  Hd2Delay 1/3	; 1/8 triplet
+;
+;equ	Hd2Delay	324/487
+equ	Hd2Delay	1/1
+
+; damping lpf & hpf cutoff freqs & shelf in feedback
+equ	DampLpf		0.60
+equ	DampLpfSlf	0.50
+equ	DampHpf		0.20
+equ	DampHpfSlf	-0.6
+
+; amount to scale fb pot by
+equ	FbackScale	0.75
+equ	DampScale	0.80
+
+equ	feedback	reg1
+equ	SigIn		reg2
+equ	offset		reg3
+equ	Delay1Sig	reg4
+equ	Delay2Sig	reg5
+equ	temp		reg6
+equ	rnd		reg7
+equ	damping		reg8
+equ	time		reg9
+equ	SigAvg		reg10
+equ	lpf1		reg11
+equ	hpf1		reg12
+equ	lpf2		reg13
+
+; ***********************
+; initialisation
+skp	run, loop
+wlds	sin0, 5, sm0len/2
+wlds	sin1, 32, sm1len/2
+
+; main loop
+loop:
+
+; ***********************
+; pots
+; read reverb level pot
+rdax    DampPot, 1
+sof     DampScale, 0.1
+rdfx    damping, smooth
+wrax    damping, 0
+
+; read feedback level pot
+rdax	FbackPot, FbackScale
+rdfx	feedback, smooth
+wrax	feedback, 0
+
+; read delay time pot
+rdax	TimePot, 1
+sof	0.99, 0.01
+wrax	time, 0
+
+; ***********************
+; get input signal
+rdax	adcl, 0.5
+rdax	adcr, 0.5
+wrax	SigIn, 0
+
+; ***********************
+; delay
+; start with a small amount of randomness to the delay0 time
+cho	rdal, cos0
+cho	rdal, cos1
+and	7
+
+or	DelayLen * 256
+mulx	time
+rdfx	offset, smooth
+wrax	offset, 0
+
+; ***********************
+; delay0
+or	Delay1 * 256
+rdax	offset, 1
+wrax	addr_ptr, 0
+rmpa	1
+wra	sm0, 0
+
+; ***********************
+; delay1
+;; head 2 (second head, smaller delay time, reduced level)
+or	Delay2 * 256
+rdax	offset, Hd2Delay
+wrax	addr_ptr, 0
+rmpa	1
+wra	sm1, 0
+
+; ***********************
+; some wow & flutter
+; sm0 goes directly to Delay2
+cho	rda, sin0, sin | reg | compc, sm0^
+cho	rda, sin0, sin, sm0^+1
+wrax	Delay1Sig, 1
+wra	Delay2, 0
+
+; sm1 gets some processing before going to Delay1
+cho	rda, sin1, cos | reg | compc, sm1^
+cho	rda, sin1, cos, sm1^+1
+wrax	Delay2Sig, 1
+
+; mix delay signal with input
+mulx	feedback
+rdax	SigIn, 1
+
+; soft knee limiter
+wrax	temp, 1
+mulx	temp
+rdfx	SigAvg, smooth
+wrax	SigAvg, 0
+
+; delay time has some influence over limiter level
+rdax	time, -1
+sof	0.06, 0.25
+rdax	SigAvg, 1
+log	-0.4, -0.17
+exp	1, 0
+mulx	temp
+sof	-2, 0
+sof	-2, 0
+sof	1.5, 0
+
+; damping
+wrax	temp, 1
+rdfx	lpf1, DampLpf
+wrlx	lpf1, DampLpfSlf
+rdfx	hpf1, DampHpf
+wrhx	hpf1, DampHpfSlf
+rdfx	lpf2, 0.40
+wrlx	lpf2, -0.6
+rdax	temp, -1
+mulx	damping
+rdax	temp, 1
+
+wra	Delay1, 0
+
+rdax    Delay1Sig, 1
+wrax    dacl, 0
+
+rdax    Delay2Sig, 1
+wrax    dacr, 0

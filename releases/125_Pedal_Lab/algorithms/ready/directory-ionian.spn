@@ -1,0 +1,237 @@
+; Ascending Major Scale (Ionian Mode) by Alex Lawrow
+; ==================================================
+;
+; The note produced by each pitch-shifter is fed into a delay line.
+; The output of which is used to feed the next pitch-shifter.
+; 
+; Input--->PitchUp->Delay--->PitchUp->Delay--->PitchUp->Delay---> etc
+;       |                 |                 |                 | 
+;       V                 V                 V                 V
+;     Note0             Note1             Note2              Note3
+;
+;
+; POT0 = Volume
+; POT1 = Speed (i.e. where we tap each delay line)
+; POT2 = Number of notes in the scale (Min = 2, Max = 8)
+;
+; There are two ramp LFOs for the pitch-shifters.
+; Use RMP0 in a pitch-shifter to shift up one tone (T)
+; Use RMP1 in a pitch-shifter to shift up one semi-tone (S)
+;
+; So for the Major scale, we use this pattern for the
+; 7 pitch shifters T T S T T T S
+
+
+; 7 delay lines.  One after each pitch shifter
+MEM Line0 2630
+MEM Line1 2630
+MEM Line2 2630
+MEM Line3 2630
+MEM Line4 2630
+MEM Line5 2630
+MEM Line6 2630
+
+; 7 pitch shifters.  Named after the note at the **input** of each shifter
+MEM Note0 2048
+MEM Note1 2048
+MEM Note2 2048
+MEM Note3 2048
+MEM Note4 2048
+MEM Note5 2048
+MEM Note6 2048
+MEM tmp   1         ; Temp memory for pitch shifters
+
+EQU offset REG0     ; An offset into each "Line", based on POT1 value
+EQU Note7  REG1     ; To store the final note (an octave above the input)
+
+
+;-------------- Initialize LFOs ------------------
+SKP	RUN,end_init
+WLDR RMP0,2006,2048 ; Ramp LFO for shift up 1 tone
+WLDR RMP1,974,2048  ; Ramp LFO for shift up 1 semi-tone
+end_init:
+;-------------------------------------------------
+
+
+;------ POT1 gives offset into delay lines -------
+OR   2630 * 256     ; ACC = Size of each delay line (top 16 bits)
+MULX POT1
+WRAX offset,0.0
+;-------------------------------------------------
+
+
+;-------------- Just using L input ---------------
+RDAX ADCL,1.0
+;-------------------------------------------------
+
+
+;-------- The pitch shifters and delays ----------
+; The input is "Note0"
+
+; Pitch-shift up 1 tone
+WRA  Note0,0.0
+CHO  RDA,RMP0,REG|COMPC,Note0
+CHO  RDA,RMP0,0,Note0+1
+WRA  tmp,0.0
+CHO  RDA,RMP0,RPTR2|COMPC,Note0
+CHO  RDA,RMP0,RPTR2,Note0+1
+CHO  SOF,RMP0,NA|COMPC,0
+CHO  RDA,RMP0,NA,tmp
+WRA  Line0,0.0      ; Write pitch-shifted note into Line0
+;OR   Line0 * 256    ; ACC = address of Line0 (which is 0, so leave out this line)
+RDAX offset,1.0
+WRAX addr_ptr,0.0
+RMPA 1.0
+; Output of Line0 is "Note1"
+
+; Pitch-shift up 1 tone
+WRA  Note1,0.0
+CHO  RDA,RMP0,REG|COMPC,Note1
+CHO  RDA,RMP0,0,Note1+1
+WRA  tmp,0.0
+CHO  RDA,RMP0,RPTR2|COMPC,Note1
+CHO  RDA,RMP0,RPTR2,Note1+1
+CHO  SOF,RMP0,NA|COMPC,0
+CHO  RDA,RMP0,NA,tmp
+WRA  Line1,0.0      ; Write pitch-shifted note into Line1
+OR   Line1 * 256    ; ACC = address of Line1 (top 16 bits)
+RDAX offset,1.0
+WRAX addr_ptr,0.0
+RMPA 1.0
+; Output of Line1 is "Note2"
+
+; Pitch-shift up 1 semi-tone
+WRA  Note2,0.0
+CHO  RDA,RMP1,REG|COMPC,Note2
+CHO  RDA,RMP1,0,Note2+1
+WRA  tmp,0.0
+CHO  RDA,RMP1,RPTR2|COMPC,Note2
+CHO  RDA,RMP1,RPTR2,Note2+1
+CHO  SOF,RMP1,NA|COMPC,0
+CHO  RDA,RMP1,NA,tmp
+WRA  Line2,0.0      ; Write pitch shifted note into Line2
+OR   Line2 * 256    ; ACC = address of Line2 (top 16 bits)
+RDAX offset,1.0
+WRAX addr_ptr,0.0
+RMPA 1.0
+; Output of Line2 is "Note3"
+
+; Pitch-shift up 1 tone
+WRA  Note3,0.0
+CHO  RDA,RMP0,REG|COMPC,Note3
+CHO  RDA,RMP0,0,Note3+1
+WRA  tmp,0.0
+CHO  RDA,RMP0,RPTR2|COMPC,Note3
+CHO  RDA,RMP0,RPTR2,Note3+1
+CHO  SOF,RMP0,NA|COMPC,0
+CHO  RDA,RMP0,NA,tmp
+WRA  Line3,0.0      ; Write pitch shifted note into Line3
+OR   Line3 * 256    ; ACC = address of Line3 (top 16 bits)
+RDAX offset,1.0
+WRAX addr_ptr,0.0
+RMPA 1.0
+; Output of Line3 is "Note4"
+
+; Pitch-shift up 1 tone
+WRA  Note4,0.0
+CHO  RDA,RMP0,REG|COMPC,Note4
+CHO  RDA,RMP0,0,Note4+1
+WRA  tmp,0.0
+CHO  RDA,RMP0,RPTR2|COMPC,Note4
+CHO  RDA,RMP0,RPTR2,Note4+1
+CHO  SOF,RMP0,NA|COMPC,0
+CHO  RDA,RMP0,NA,tmp
+WRA  Line4,0.0      ; Write pitch shifted note into Line4
+OR   Line4 * 256    ; ACC = address of Line4 (top 16 bits)
+RDAX offset,1.0
+WRAX addr_ptr,0.0
+RMPA 1.0
+; Output of Line4 is "Note5"
+
+; Pitch-shift up 1 tone
+WRA  Note5,0.0
+CHO  RDA,RMP0,REG|COMPC,Note5
+CHO  RDA,RMP0,0,Note5+1
+WRA  tmp,0.0
+CHO  RDA,RMP0,RPTR2|COMPC,Note5
+CHO  RDA,RMP0,RPTR2,Note5+1
+CHO  SOF,RMP0,NA|COMPC,0
+CHO  RDA,RMP0,NA,tmp
+WRA  Line5,0.0      ; Write pitch shifted note into Line5
+OR   Line5 * 256    ; ACC = address of Line5 (top 16 bits)
+RDAX offset,1.0
+WRAX addr_ptr,0.0
+RMPA 1.0
+; Output of Line5 is "Note6"
+
+; Pitch-shift up 1 semi-tone
+WRA  Note6,0.0
+CHO  RDA,RMP1,REG|COMPC,Note6
+CHO  RDA,RMP1,0,Note6+1
+WRA  tmp,0.0
+CHO  RDA,RMP1,RPTR2|COMPC,Note6
+CHO  RDA,RMP1,RPTR2,Note6+1
+CHO  SOF,RMP1,NA|COMPC,0
+CHO  RDA,RMP1,NA,tmp
+WRA  Line6,0.0      ; Write pitch shifted note into Line6
+OR   Line6 * 256    ; ACC = address of Line6 (top 16 bits)
+RDAX offset,1.0
+WRAX addr_ptr,0.0
+RMPA 1.0
+; Output of Line6 is "Note 7"
+
+WRAX Note7,0.0
+;-------------------------------------------------
+
+
+
+;------ Determine how many notes to output -------
+; Split the POT2 range into 7 sections.
+; Treat the full range as 0.0 to 0.7.
+; The sections then go (0.0 to 0.1, 0.1 to 0.2, etc)
+
+RDAX POT2,0.7       ; Scale POT2 to the range 0.0 to 0.7
+SOF 1.0,-0.6        ; ACC = -0.6 to 0.1
+SKP GEZ,label_note7 ; i.e. Skip if POT2 in range 0.6 to 0.7
+SOF 1.0,0.2         ; ACC = -0.4 to 0.2
+SKP GEZ,notes5and6  ; i.e. Skip if POT2 in range 0.4 to 0.6
+SOF 1.0,0.2         ; ACC = -0.2 to 0.2
+SKP GEZ,notes3and4  ; i.e. Skip if POT2 in range 0.2 to 0.4
+
+notes1and2:         ; ACC = -0.2 to 0.0     (POT2 is in range 0.0 to 0.2)
+SOF 1.0,0.1         ; ACC = -0.1 to 0.1
+CLR
+SKP ZRC,label_note1 ; (POT2 is in range 0.0 to 0.1)
+JMP     label_note2 ; (POT2 is in range 0.1 to 0.2)
+
+notes3and4:         ; ACC =  0.0 to 0.2     (POT2 is in range 0.2 to 0.4)
+SOF 1.0,-0.1        ; ACC = -0.1 to 0.1
+CLR
+SKP ZRC,label_note3 ; (POT2 is in range 0.2 to 0.3)
+JMP     label_note4 ; (POT2 is in range 0.3 to 0.4)
+
+notes5and6:         ; ACC =  0.0 to 0.2     (POT2 is in range 0.4 to 0.6)
+SOF 1.0,-0.1        ; ACC = -0.1 to 0.1
+CLR
+SKP ZRC,label_note5 ; (POT2 is in range 0.4 to 0.5)
+JMP     label_note6 ; (POT2 is in range 0.5 to 0.6)
+;-------------------------------------------------
+
+
+;------ Produce output by summing notes ----------
+; Can read notes from the pitch-shifter inputs
+
+label_note7:    CLR
+                RDAX Note7,0.5  ; Octave
+label_note6:    RDA  Note6,0.5  ; Major Seventh
+label_note5:    RDA  Note5,0.5  ; Major Sixth
+label_note4:    RDA  Note4,0.5  ; Perfect Fifth
+label_note3:    RDA  Note3,0.5  ; Perfect Fourth
+label_note2:    RDA  Note2,0.5  ; Major Third
+label_note1:    RDA  Note1,0.5  ; Major Second
+label_note0:    RDA  Note0,0.5  ; Tonic (i.e. dry)
+
+MULX POT0       ; Scale by POT0
+WRAX DACL,0     ; Just using L output     
+;-------------------------------------------------
+

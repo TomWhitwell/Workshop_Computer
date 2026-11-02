@@ -29,12 +29,13 @@ builds with a bare `arm-none-eabi` toolchain targeting the GBA's ARM7TDMI (armv4
 | `psg.c/.h`      | PSG registers, wavetables |
 | `synth.c/.h`    | Voice: pitch, modulation, envelopes, ornaments, drums, performance controls |
 | `ui.c/.h`       | Performance screen + eleven-page editor |
-| `gfx.c/.h`      | Mode-3 drawing and text |
+| `gfx.c/.h`      | Mode-3 drawing and text (the primitives run from IWRAM) |
+| `gba.h`         | `IWRAM_CODE` / `IWRAM_RODATA` / `IWRAM_BSS` placement macros |
 | `diag.c/.h`     | Link-characterisation screens (used by `linkrate`/`bandwidth`) |
 | `notes.h`       | **Generated** by `gen_notes.py`: PSG period register per MIDI note |
 | `font5x7.h`     | 5×7 ASCII font |
 | `crt0.s`        | GBA ROM header + multiboot entry (`_start` sits at offset `0xC0`) |
-| `multiboot.ld`  | Links the image for EWRAM (`0x02000000`) |
+| `multiboot.ld`  | Links the image for EWRAM (`0x02000000`); `.iwram` is copied to IWRAM by `crt0.s` |
 | `build.sh`      | Compile every `.c` → link → `.mb` → logo/checksum → `../gba_payload.h` |
 | `bin2h.py`      | Converts `payload.mb` to the C byte array |
 

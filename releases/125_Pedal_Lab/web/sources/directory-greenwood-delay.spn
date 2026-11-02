@@ -1,0 +1,70 @@
+; http://www.spinsemi.com/forum/viewtopic.php?t=290
+;pot 0 LFO speed
+;pot 1 max delay time
+;pot 2 randomness of delay time anticlockwise no randomness, clockwise max randomness
+
+; Define delays
+del   mem   32767
+
+;set up registers
+equ division reg0
+
+;set up LFO, only at start up
+skp run, START
+wlds sin0,0,32767      ;sin0 used for LFO
+
+
+
+START:
+
+ldax pot0      ;sets LFO speed
+mulx pot0      ;multiply it by its self a few time to get a nicer taper, needs work
+mulx pot0
+sof 175/511,0.2/511   ;set minimum and maximum rates
+wrax sin0_rate,1      ;write to sin0 rate
+cho rdal,sin0      ;get sin0 value
+
+skp   gez,play      ; If ACC is >=0 we are in playback mode so jump to play
+rdax adcl,1      ;read adcl
+and %000000000000000000011111      ;mask off upper bits leaving a random 5 bit number (32 possible values)
+sof -2,0               ;apply gain to get it up to 0 - 1 ish levels
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+sof -2,0
+absa      ;just to make sure it's positive
+wrax division,0   ;write to division register
+
+ldax   adcl      ;Read in ADC left
+wra   del,1      ; Write to delay line
+wrax   dacl,1      ;and to dacl
+wrax   dacr,0     ;and to dacr
+skp   zro, end      ;Jump to end
+
+; Play back mode
+play:
+ldax pot2
+and %011111000000000000000000
+mulx division
+sof -1,0.999
+mulx pot1   ;multiply by division, to give some random time up to max set by pot1
+wrax addr_ptr,0   ;write to address pointer
+rmpa 1      ;read from delay position set by addresss pointer
+wra del,1   ;write to head of delay
+wrax   dacl,1    ;Write it to dacl
+wrax   dacr,0      ;Write it to dacr
+
+end:

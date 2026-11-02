@@ -1,0 +1,119 @@
+; based on chorus from here
+; http://www.spinsemi.com/forum/viewtopic.php?t=456&sid=f013a432b35be1d6483ec333eceafba3
+;
+; dual delay, delay level added by Graham Biswell <graham@gbiswell.com>
+; sin0 controlled by pot0 is slower but higher amplitude
+; sin1 controlled by pot1 is faster but lower amplitude
+; depth is logarithmic, depth of each sin varies
+;
+;Chorus
+
+;Pot0=Chorus rate sin0
+;Pot1=Chorus rate sin1	(fully CCW turns it off) 
+;Pot2=Chorus depth (sin1 is lower than sin0)
+
+;memory declarations
+mem	chodel_l	4096
+mem	chodel_r	4096
+
+;register equates
+equ	chorout_l	reg0
+equ	chorout_r	reg1
+equ	pot0sav		reg2
+equ	pot1sav		reg3
+equ	pot2fil		reg4
+equ	temp		reg5
+
+;initialisation
+skp	run,	START
+wlds	SIN0,	0,1600	;alter the 800 and 1200 valuea to adjust the amount of
+wlds	SIN1,	0,800	;pitch bend lower number = shorter freq span.
+clr
+wrax	pot2fil,0
+
+START:
+
+rdax	adcl,0.6		;read left input /2
+wra	chodel_l,0		;write to head of chorus delay line
+
+rdax	adcr,0.6		;read right input /2
+wra	chodel_r,0		;write to head of chorus delay line
+
+; pot0 for chorus rate sin0 rate
+rdax	pot0,1
+wrax	pot0sav,1
+mulx	pot0
+sof	0.10,0.001
+wrax	sin0_rate,0
+
+; pot1 for chorus rate sin1 rate
+; sin1 has potential to be faster lfo
+rdax	pot1,1
+wrax	pot1sav,1
+mulx	pot1
+sof	0.40,0
+wrax	sin1_rate,0
+
+; pot2 for lfo depth
+ldax	pot2
+mulx	pot2				; log type scale
+mulx	pot2
+mulx	pot2
+rdfx	pot2fil,0.02			;filter pot 2 values to give smoother control
+wrax	pot2fil,1
+sof	0.15,0				; careful not to overdo the level here, else LFOs bleed into other delay
+wrax	sin0_range,0			;control lfo width with result, clear acc
+ldax	pot2fil
+sof	0.05,0				; careful not to overdo the level here, else LFOs bleed into other delay
+wrax	sin1_range,0			;control lfo width with result, clear acc
+
+;Do chorus lines left hand delay
+
+cho	rda, SIN0,COS|REG|COMPC,	chodel_l^	; middle of delay memory
+cho	rda, SIN0,COS,			chodel_l^+1
+
+cho	rda, SIN0,SIN|REG|COMPC,	chodel_l^
+cho	rda, SIN0,SIN,			chodel_l^+1
+
+cho	rda, SIN0,SIN|REG|COMPA,	chodel_l^-512
+cho	rda, SIN0,SIN|COMPA|COMPC,	chodel_l^-511
+
+cho	rda, SIN0,SIN|REG|COMPA,	chodel_l^+512
+cho	rda, SIN0,SIN|COMPA|COMPC,	chodel_l^+513
+
+cho	rda, SIN1,SIN|REG|COMPC,	chodel_l^
+cho	rda, SIN1,SIN,			chodel_l^+1
+
+cho	rda, SIN1,SIN|REG|COMPA,	chodel_l^
+cho	rda, SIN1,SIN|COMPA|COMPC,	chodel_l^+1
+
+wrax	chorout_l,0	;save result
+
+;Do chorus lines right hand delay
+
+cho	rda, SIN0,SIN|REG|COMPC,	chodel_r^	; middle of delay memory
+cho	rda, SIN0,SIN,			chodel_r^+1
+
+cho	rda, SIN0,COS|REG|COMPC,	chodel_r^
+cho	rda, SIN0,COS,			chodel_r^+1
+
+cho	rda, SIN0,COS|REG|COMPA,	chodel_r^-512
+cho	rda, SIN0,COS|COMPA|COMPC,	chodel_r^-511
+
+cho	rda, SIN0,COS|REG|COMPA,	chodel_r^+512
+cho	rda, SIN0,COS|COMPA|COMPC,	chodel_r^+513
+
+cho	rda, SIN1,COS|REG|COMPC,	chodel_r^
+cho	rda, SIN1,COS,			chodel_r^+1
+
+cho	rda, SIN0,COS|REG|COMPA,	chodel_r^
+cho	rda, SIN0,COS|COMPA|COMPC,	chodel_r^+1
+
+wrax	chorout_r,0	;save result
+
+rdax	chorout_l,1	;add chorus signal /2 into acc
+wrax	dacl,0		;write result to left output 
+
+rdax	chorout_r,1	;add chorus signal /2 into acc
+wrax	dacr,0		;write result to left output 
+

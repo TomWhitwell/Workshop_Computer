@@ -76,7 +76,9 @@ typedef enum{ SHAPE_Linear
             , SHAPE_Rebound
 } Shape_t;
 
-typedef void (*Callback_t)(int channel);
+// Slope events for core 0 (ASL): `seq` is the tag the slope was started or
+// queued with, so the receiver can tell stale events from current ones
+typedef void (*Callback_t)(int channel, uint16_t seq);
 
 typedef struct{
     int         index;
@@ -95,6 +97,11 @@ typedef struct{
     
     Shape_t     shape;
     Callback_t  action;
+    bool        action_fired;  // ended and handed its action to core 0; the next
+                               // slope (started by that action) may carry overflow
+    uint16_t    seq;           // tag from S_toward_seq_q16 / S_queue_next_q16
+    bool        lookahead;     // core 0 will queue the next slope (S_queue_next_q16):
+                               // rendering pauses at the end until it's there
 } Slope_t;
 
 #define SLOPE_CHANNELS 4
@@ -142,6 +149,40 @@ void S_toward_samples_q16_coalescable( int        index
                                     , Callback_t cb
                                     );
 // Float wrapper for samples-based duration
+// Start a slope now, tagged `seq` (passed back with its events). With
+// lookahead, core 0 promises to queue the following slope with
+// S_queue_next_q16, and `cb` is NULL: there's no end event.
+void S_toward_seq_q16( int        index
+                     , q16_t      destination_q16
+                     , int64_t    samples_q16
+                     , Shape_t    shape
+                     , Callback_t cb
+                     , uint16_t   seq
+                     , bool       lookahead
+                     , bool       coalesce
+                     );
+
+// ASL look-ahead: the slope to start when the current one ends, on that
+// exact sample, carrying the fraction of a sample the current one overshot.
+// Without it, each segment waited 1-3 samples (varying) for core 0 to start
+// the next: audio-rate ASL had cycle-to-cycle jitter, heard as noise FM.
+// Optionally jump to `jump_q16` first (instant to()s before it); with no
+// slope (has_slope false), just jump/hold: the sequence waits or is done.
+// `started` is called (on core 0) with `seq` once it has begun; `ended` when
+// it ends, if it isn't lookahead itself.
+void S_queue_next_q16( int        index
+                     , bool       has_jump
+                     , q16_t      jump_q16
+                     , bool       has_slope
+                     , q16_t      destination_q16
+                     , int64_t    samples_q16
+                     , Shape_t    shape
+                     , uint16_t   seq
+                     , bool       lookahead
+                     , Callback_t started
+                     , Callback_t ended
+                     );
+
 void S_toward_samples( int        index
                      , float      destination
                      , int32_t    samples
@@ -167,7 +208,8 @@ bool S_slope_buffer_needs_fill(int index);
 void S_slope_buffer_fill_block(int index, int samples);
 void S_request_slope_buffer_fill(int index);
 q16_t S_consume_buffered_sample_q16(int index);
-void S_slope_buffer_background_service(void);
+bool S_slope_buffer_background_service(void);  // true if it rendered samples
+extern volatile uint32_t g_slope_inline_renders;  // buffer underruns (sample rendered in the ISR instead)
 
 // Process any queued cross-core slope commands (Core1 only).
 // This avoids cross-core races on 64-bit slope state.

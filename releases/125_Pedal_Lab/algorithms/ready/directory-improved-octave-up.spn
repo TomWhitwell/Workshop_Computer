@@ -1,0 +1,57 @@
+; Improved octave up
+;by donstavely 
+;http://www.spinsemi.com/forum/viewtopic.php?f=4&t=467
+
+;Hey all. 
+
+;Folks who have played with the pitch-shift routine for octave-up and octave-down know about the "crossfade phase cancellation" issue. 
+;For octave-down, you get a tremolo effect due to the slower ramp speed (-8192). But for octave-up, the fast ramp (16384) results in an unpleasant warble. 
+;We can't use a longer delay than 4096, so we are stuck with it, right?
+
+;Here is a trick I just came up with: Do two pitch shifts in a row, each shifting up by the square root of two. 
+;The magic ramp speed is 6783. Voila, an octave up with a pleasing tremolo instead of the warble. 
+;It requires another 4096 memory and 8 instructions, but still only 1 ramp (so you can still use the other for octave down, etc).
+
+;Try this code:
+;
+delay1 mem 4096	; longest possible 
+delay2 mem 4096	; so use two of them
+temp mem 1 
+;
+skp run, START
+wldr RMP0, 6783, 4096	; pitch up sqrt(2) ramp
+START: 
+;
+rdax ADCL, 1	; read inputs
+rdax ADCR, 1
+wra delay1+512, 0 ; write to first delay, clear ACC
+; 
+cho rda,RMP0,REG|COMPC,delay1	; std pitch shift code
+cho rda,RMP0,,delay1+1
+wra temp,0
+cho rda,RMP0,RPTR2|COMPC,delay1
+cho rda,RMP0,RPTR2,delay1+1
+cho sof,RMP0,NA|COMPC,0
+cho rda,RMP0,NA,temp
+;
+wra delay2+512, 0 ; do it again in second delay
+;
+cho rda,RMP0,REG|COMPC,delay2
+cho rda,RMP0,,delay2+1
+wra temp,0
+cho rda,RMP0,RPTR2|COMPC,delay2
+cho rda,RMP0,RPTR2,delay2+1
+cho sof,RMP0,NA|COMPC,0
+cho rda,RMP0,NA,temp
+;
+wrax DACL, 1	; write to outputs
+wrax DACR, 0
+
+
+;Yes, the tradeoff is latency. In the application I am working on I am going for more of a chorus effect - i.e. multiple instruments rather than a single instrument like a 12-string.
+
+;Notice that I write 512 words into the 4096-word delay. This reduces the latency by that amount. 
+;The reason you can do this is that the crossfade waveform is zero for the first 1/8th of the delay. If you try a 2048 word delay you will have to change the "wra delay1+512,0" to "wra delay1+256, 0" in both places. This is probably why it sounded worse than the standard single-step 4096 algorithm.
+
+;Frank commented in an older thread that this trick of writing 1/8th of the way into the buffer shouldn't work. 
+;I assure you (and Frank) that does. It is totally glitchless, and reduces the average latency by 1/4 for free. I don't think Frank considered it carefully.

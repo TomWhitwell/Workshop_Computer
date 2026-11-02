@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,11 +9,32 @@ const ROOT = path.resolve(__dirname, '../..');
 const SITE_DIR = path.join(ROOT, 'site');
 // Watching releases covers every info.yaml (plus README/docs/assets). Curation
 // is under src/curation, so edits and sync-curation output are covered by src.
+// `npm run dev:card` sets SITEGEN_CARD to a release folder name. The server
+// then builds and watches only that card (see src/devCard.js).
+const CARD = process.env.SITEGEN_CARD || '';
+const CARD_DIR = CARD ? path.join(ROOT, 'releases', CARD) : '';
 const INPUT_DIRS = [
-  path.join(ROOT, 'releases'),
+  CARD_DIR || path.join(ROOT, 'releases'),
   path.join(__dirname, 'assets'),
   path.join(__dirname, 'src'),
 ];
+// Card folders hold CMake output (build/, build-debug-*/…) that changes
+// constantly while firmware compiles and never affects the site.
+const CARD_BUILD_OUTPUT = /[\\/]releases[\\/][^\\/]+[\\/]build(?:-[^\\/]*)?[\\/]/;
+
+/** Drop files Git ignores (editor swap files, local build products, …). */
+function withoutIgnored(files) {
+  try {
+    const ignored = execFileSync('git', ['check-ignore', '--stdin'], {
+      cwd: ROOT, input: files.join('\n'), encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'],
+    });
+    const skip = new Set(ignored.split('\n').filter(Boolean).map(file => path.resolve(ROOT, file)));
+    return files.filter(file => !skip.has(file));
+  } catch {
+    // Exit status 1 means nothing was ignored; any other failure keeps everything.
+    return files;
+  }
+}
 
 function isWithin(file, directory) {
   const relative = path.relative(directory, path.resolve(file));
@@ -27,6 +48,7 @@ function rebuildSite() {
   let server;
 
   function buildArgs(files) {
+    if (CARD) return [path.join(__dirname, 'src', 'build.js'), '--preview', '--card', CARD];
     const preview = ['--prefix', 'tools/sitegen', 'run', 'build', '--', '--preview'];
     if (files.length !== 1) return preview;
     const relative = path.relative(ROOT, files[0]).replaceAll(path.sep, '/');
@@ -48,14 +70,15 @@ function rebuildSite() {
       return;
     }
 
-    const files = [...pending];
+    const files = CARD ? withoutIgnored([...pending]) : [...pending];
     pending.clear();
     if (!files.length) return;
     running = true;
     const relative = files.map(file => path.relative(ROOT, file)).join(', ');
     console.log(`\n[sitegen] ${relative} changed; rebuilding…`);
+    // Card builds skip npm (and its curation prebuild check) to stay fast.
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const child = spawn(npm, buildArgs(files), { cwd: ROOT, stdio: 'inherit' });
+    const child = spawn(CARD ? process.execPath : npm, buildArgs(files), { cwd: ROOT, stdio: 'inherit' });
 
     child.on('error', error => {
       running = false;
@@ -85,6 +108,7 @@ function rebuildSite() {
       server.watcher.add(INPUT_DIRS);
       const schedule = file => {
         if (!INPUT_DIRS.some(directory => isWithin(file, directory))) return;
+        if (CARD && CARD_BUILD_OUTPUT.test(path.resolve(file))) return;
         pending.add(path.resolve(file));
         clearTimeout(timer);
         timer = setTimeout(runBuild, 100);
@@ -122,6 +146,7 @@ export default defineConfig({
         '**/node_modules/**',
         '**/build/**',
         `${SITE_DIR.replaceAll(path.sep, '/')}/**`,
+        ...(CARD ? [CARD_BUILD_OUTPUT] : []),
       ],
     },
   },

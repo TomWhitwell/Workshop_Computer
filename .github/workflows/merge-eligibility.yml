@@ -1,0 +1,119 @@
+name: Auto-merge eligibility
+
+# Decides whether a PR may merge without review, using only code from the base
+# branch. pull_request_target runs this file and the validator as they are on
+# main, so a PR cannot change the code that judges it. The PR's commits are
+# fetched as Git objects and read as data: never checked out, installed or run.
+#
+# The verdict is saved as an artifact whose name records the PR, commit and
+# outcome; auto-merge.yml times its grace period from those artifacts and
+# recomputes the verdict itself before merging. The check run published here
+# is for people only: auto-merge never trusts check runs, since a PR's own
+# workflows can create them under any name.
+on:
+  pull_request_target:
+    # labeled/unlabeled re-decide when a maintainer adds or removes "hold".
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled, unlabeled]
+    branches:
+      - main
+
+permissions: {}
+
+concurrency:
+  group: merge-eligibility-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Reads untrusted PR content, so it holds a read-only token and nothing else.
+  decide:
+    name: Decide auto-merge eligibility
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      verdict: ${{ steps.decide.outputs.verdict }}
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      # Base-branch lockfile; no install scripts. No dependency cache, so
+      # nothing written here can be restored into another workflow.
+      - name: Install validator dependencies
+        run: npm ci --prefix tools/sitegen --ignore-scripts
+
+      - name: Fetch PR head as data
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags --no-recurse-submodules origin "refs/pull/${PR_NUMBER}/head"
+          git cat-file -e "${HEAD_SHA}^{commit}"
+
+      - name: Decide eligibility
+        id: decide
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          AUTO_MERGE: ${{ vars.AUTO_MERGE }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node tools/sitegen/src/validate/trustedEligibilityCli.js merge-eligibility.json
+
+      - name: Save verdict
+        uses: actions/upload-artifact@v7
+        with:
+          name: merge-eligibility-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}-${{ steps.decide.outputs.verdict }}
+          path: merge-eligibility.json
+          retention-days: 30
+
+  # Never sees PR content: it only turns the saved verdict into a check run.
+  publish:
+    name: Publish auto-merge verdict
+    needs: decide
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+    steps:
+      - name: Download verdict
+        uses: actions/download-artifact@v8
+        with:
+          pattern: merge-eligibility-*
+          path: verdict
+          merge-multiple: true
+
+      - name: Publish verdict check
+        uses: actions/github-script@v9
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          AUTO_MERGE: ${{ vars.AUTO_MERGE }}
+        with:
+          script: |
+            const fs = require('fs');
+            const verdict = JSON.parse(fs.readFileSync('verdict/merge-eligibility.json', 'utf8'));
+            if (verdict.head !== process.env.HEAD_SHA) throw new Error('Verdict is for a different commit.');
+            const lines = verdict.eligible ? [verdict.basis] : verdict.reasons.map(reason => `- ${reason}`);
+            await github.rest.checks.create({
+              ...context.repo,
+              name: 'Auto-merge verdict',
+              head_sha: verdict.head,
+              status: 'completed',
+              conclusion: verdict.eligible ? 'success' : 'neutral',
+              output: {
+                title: verdict.eligible ? 'Eligible for auto-merge' : 'Needs a maintainer to merge',
+                summary: [...lines, '', process.env.AUTO_MERGE === 'true'
+                  ? 'Eligible PRs merge automatically an hour after their last push, unless a maintainer adds the `hold` label.'
+                  : 'Report only: auto-merge is switched off.'].join('\n'),
+              },
+            });

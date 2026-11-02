@@ -133,6 +133,19 @@ test('PR Markdown report groups diagnostics by changed info.yaml', () => {
     ], ok: true, errorCount: 0, warningCount: 1,
   }]);
   assert.match(warned, /## ⚠️ Program card PR validation succeeded with warnings/);
+
+  // With an eligibility verdict, the headline follows it instead of the warning count.
+  const warnedResults = [{
+    file: 'releases/44_warning/info.yaml', diagnostics: [
+      { severity: 'warning', ruleId: 'tags', path: 'tags', message: 'Check tags.' },
+    ], ok: true, errorCount: 0, warningCount: 1,
+  }];
+  assert.match(reportMarkdown(warnedResults, null, { eligible: true }), /## ✅ Program card PR validation succeeded\n/);
+  const cleanResults = [{ file: 'releases/43_clean/info.yaml', diagnostics: [], ok: true, errorCount: 0, warningCount: 0 }];
+  assert.match(reportMarkdown(cleanResults, null, { eligible: false }),
+    /## ⚠️ Program card PR validation succeeded, needs maintainer review/);
+  assert.match(reportMarkdown(cleanResults, { errorCount: 1, diagnostics: [] }, { eligible: false }),
+    /## ❌ Program card PR validation failed/);
 });
 
 test('canonical card validates clean', () => {

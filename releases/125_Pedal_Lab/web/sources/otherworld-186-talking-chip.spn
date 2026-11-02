@@ -1,0 +1,196 @@
+; @name Talking Chip
+; @tagline The chip sings your melody on a vowel you set with CV, oo oh ah eh ee, sliding between legato notes, its vibrato swelling as you hold them
+; @description Something is still alive inside the chip, and it sings along with you. It listens for the newest note
+; @description you play and sings it back on a vowel, in the octave you played it (from C3 to B5: lower and higher
+; @description notes are folded into that range), following your playing's level.
+; @description Notes you play legato slide into each other; after a rest it starts right on the new note, and
+; @description playing the same note again never retriggers it.
+; @description The controls follow the vowel engine of a well-known macro oscillator. Vowel (CV1) morphs smoothly
+; @description through oo, oh, ah, eh and ee: sweep it with an LFO or an envelope and the chip says "wow" or "yeah".
+; @description Species (CV2) sets the singer's size, from a deep, slow giant to a chipmunk. Vibrato (CV3) sets how
+; @description deep the vibrato grows: after each rest the voice starts straight and the vibrato swells in over a
+; @description second or two, the way a singer holds a note. The voice is clean: a smooth glottal pulse through four vocal
+; @description resonances, with no breath noise at all. Add a delay or reverb after it for a choir in a cave.
+; @pots Vowel | Species | Vibrato
+; @render 0.5, 0.5, 0.6
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+equ	hp	reg0
+equ	e1	reg1
+equ	e2	reg2
+equ	ef	reg3
+equ	thr	reg4
+equ	cand	reg5
+equ	nt	reg6
+equ	z	reg7
+equ	sh	reg8
+equ	pg	reg9
+equ	amp	reg10
+equ	nts	reg11
+equ	vd	reg12
+equ	F1g	reg13
+equ	F2g	reg14
+equ	F3c	reg15
+equ	ph	reg16
+equ	l1	reg17
+equ	b1	reg18
+equ	l2	reg19
+equ	b2	reg20
+equ	l3	reg21
+equ	b3	reg22
+equ	l4	reg23
+equ	b4	reg24
+	rdax	adcl, 0.5		; x = (L + R) / 2
+	rdax	adcr, 0.5
+	rdfx	z, 0.01934814453125		; z = LP(x) ~100 Hz (bass zero-crossing path)
+	wrhx	z, 0		; ACC = x again (PACC)
+	rdfx	hp, 0.9000244140625		; hp = LP(x) at k ~0.9 (also the host's level source)
+	wrhx	hp, -1.0		; ACC = x - hp (HF)
+	maxx	e1, 0.972412109375		; e1 = max(|HF|, decay e1): peak envelope
+	wrax	e1, 1.46502685546875
+	rdfx	e2, 0.08001708984375		; e2 = LP(envelope)
+	wrax	e2, 1.0		; ACC = e2
+	rdax	amp, -0.00067138671875		; brightness = e2 - bth amp
+	rdfx	sh, 0.00030517578125		; smoothed (~1.6 Hz)
+	wrax	sh, 1.0
+	and	$800000		; -1 when dull, 0 when bright
+	mulx	z		; -z when dull
+	rdax	e2, 1.0		; ef stage input = e2 (- z when dull)
+	rdfx	ef, 0.01202392578125		; high-pass: v = in - LP(in)
+	wrhx	ef, -1.0		; v
+	rdax	thr, 0.1500244140625		; Schmitt: x = v + hys thr
+	skp	neg, low		; x < 0: low state, thr = x
+	mulx	thr		; x thr < 0 only on the rising edge; tiny, so no clr
+	skp	gez, nox
+	cho	rdal, rmp0		; T = the period (RMP0 timer, + negligible x thr)
+	jam	rmp0		; restart the timer
+	log	-1.0, -0.4375		; l = -log2(T)/16 + D: octave = 1/16 ($080000), C3's semitone bin starts at l = 0
+	skp	gez, fl		; FLOOR (below C3: l < 0)
+	and	$07FFFF		; keep the place in the octave: the same pitch class in [C3, C4), at any depth
+fl:	sof	0.75, -0.13671875		; s = 3/4 l - 35/256: semitone = 2^-8, C3 = -35/256, B5 = 0
+	and	$FF8000		; snap to the 12-TET semitone
+	rdax	cand, -1.00146484375		; s - (1+C) cand
+	skp	zro, out		; zero: the same semitone 3 times running (4 after a jump of > ~14 semitones): confirmed
+	rdax	cand, 1.0		; pending: cand = s - C cand
+	wrax	cand, 0
+	skp	zro, hyst
+out:	rdax	cand, 1.33526611328125		; y = 4/3 s: the EXP domain (octave = 1/16), B5 at y = 0
+	skp	neg, ex		; CEILING (above B5: y > 0)
+	or	$F80000		; set the octave bits: y - 1/16 k, the same pitch class in (B4, B5]
+ex:	exp	0.96441650390625, 0		; nt = 32 f/32774 = 32 nt(B5) 2^(16 y) (x32: a host's glide keeps its resolution)
+	wrax	nt, 0
+hyst:	ldax	e2		; high state: thr = the envelope (falling-edge hysteresis)
+low:	wrax	thr, 0
+nox:	wldr	rmp0, -4066, 4096		; timer: RMP0 rate -4066, range 4096 (set every sample)
+; ---- Vowel (CV1) and Species (CV2), in the log domain: x 2^(0.60 (2 Species - 1)), i.e. +-0.60 octave
+;      (no smoothing here: the module smooths its pots, tau ~123 ms)
+;      F2 rises log-linearly u -> i (870 .. 2290 Hz): exponent e2 = K2 Vowel + 0.075 Species + D2 + 36/1024
+;      (EXP saturates at e >= 0, so the offset stays in the exponent; EXP's C = 2^-0.5625 takes the 36/1024 back)
+	ldax	pot0
+	sof	0.086669921875, -0.1640625
+	rdax	pot1, 0.075000
+	exp	0.6771240234375, 0
+	wrhx	F2g, 0		; F2g stored; ACC = PACC = e2 (the exponent, before EXP)
+;      F3 rises log-linearly u -> i (2240 .. 3010 Hz), F4 = 1.25 F3; both x Species:
+;      e3 = e2 + (K3 - K2) Vowel (below e2, so no saturation), C = 2^(16 (D3 - D2 - 36/1024))
+	rdax	pot0, -0.06060791015625
+	exp	1.7373046875, 0
+	wrax	F3c, 0
+;      F1 is a hump peaking at "a", geometric (300 .. 730 .. 300 Hz)
+	ldax	pot0
+	sof	1.99, -0.995
+	absa
+	sof	-0.080525, -0.1523437500
+	rdax	pot1, 0.075000
+	exp	1.0, 0
+	wrax	F1g, 0
+; ---- vibrato depth vd: swells toward the Vibrato knob (CV3) after each rest; the glottis uses vd^2 (starts straight)
+	ldax	pot2
+	rdfx	vd, 0.00006000
+	wrax	vd, 0
+; ---- the voice's level: |your sound| x gain (ceiling 1); no retriggers, it just follows you
+	ldax	hp
+	log	1.0, 0.200195
+	exp	1.0, 0
+	rdfx	amp, 0.002808
+	wrax	amp, 1.0
+; ---- a rest (your level below ~-45 dBFS): the voice forgets its note and stops (phase parked at 0,
+;      where the pulse is 0), and the vibrato restarts. It starts again on the listener's next sure note.
+	sof	1.0, -0.0400390625
+	skp	neg, rest
+	ldax	nts
+	skp	zro, start
+; ---- glide: the sung pitch slides to the note (tau 35 ms); same note = nothing happens
+;      (nt and nts are 32 f/32774: at f/32774 the one-pole's truncation stalled up to ~0.5 semitone short of a note
+;      approached from below, 2^-23 / k; at 32x the stall is under ~2 cents)
+	ldax	nt
+	rdfx	nts, 0.00087000
+	skp	0, glided
+rest:	wrax	vd, 0		; vd = ACC = level - threshold (> -1.2e-4 here: 0 for the vibrato), ACC = 0
+	wrax	nt, 0
+	wrax	ph, 0
+	wlds	sin0, 138, 61		; SIN0 is loaded at rests (a slot change clears amp, so the first sample is one)
+; ---- (after a rest nts = 0.) No pitch yet: start right on the note, no slide, and swell in from the rest level
+;      (~11-22 ms; starting at the threshold, not 0, keeps the next sample from counting as a rest)
+start:	sof	0, 0.0400390625
+	wrax	amp, 0
+	ldax	nt
+glided:	wrax	nts, 1.0
+; ---- the pitch's level, from the sung pitch so it follows every slide (a step here clicked):
+;      pg = min(1, (110 Hz / f)^1.3)
+	log	-1.300000, -0.261536
+	exp	1.0, 0
+	wrax	pg, 0
+; ---- glottis: phasor step nts / 32 x (1 + vd^2 sin0) (SIN0's amplitude carries the / 32), a parabola of the exact phase (ph^2 - ph: 0 while no note), x level x pg
+	cho	rdal, sin0
+	mulx	vd
+	mulx	vd
+	mulx	nts
+	rdax	nts, -0.03125
+	rdax	ph, 1.0
+	and	$7FFFFF
+	wrax	ph, 1.0
+	mulx	ph
+	rdax	ph, -1.0
+	mulx	amp
+	mulx	pg
+; ---- four formant resonators (Chamberlin, constant bandwidth: b <- b (1 - d) + f (x - l)), in cascade,
+;      ordered F4, F1, F3, F2 so the level only rises toward the output (the band-passes drop level, so they go first)
+;      F4 = 1.25 F3, band-pass out (bw 250 Hz): its band state is stored / 1.25, so F3's coefficient serves
+	rdax	l4, -1.0
+	mulx	F3c
+	rdax	b4, 0.952072
+	wrax	b4, 1.562500
+	mulx	F3c
+	rdax	l4, 1.0
+	wrax	l4, 0
+	rdax	b4, 1.990000
+;      F1: states doubled, band-pass out (bw 70 Hz)
+	rdax	l1, -0.5
+	mulx	F1g
+	rdax	b1, 0.986580
+	wrax	b1, 0.5
+	mulx	F1g
+	rdax	l1, 1.0
+	wrax	l1, 0
+	rdax	b1, 1.990000
+;      F3: low-pass (bw 160 Hz)
+	rdax	l3, -1.0
+	mulx	F3c
+	rdax	b3, 0.969326
+	wrax	b3, 1.0
+	mulx	F3c
+	rdax	l3, 1.0
+	wrax	l3, 1.990000
+;      F2: low-pass + band-pass (bw 150 Hz)
+	rdax	l2, -1.0
+	mulx	F2g
+	rdax	b2, 0.971243
+	wrax	b2, 1.0
+	mulx	F2g
+	rdax	l2, 1.0
+	wrax	l2, 1.680000
+	rdax	b2, 1.990000
+	wrax	dacl, 1.0
+	wrax	dacr, 0

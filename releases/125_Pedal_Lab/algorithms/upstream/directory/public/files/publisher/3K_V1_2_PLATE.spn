@@ -1,0 +1,421 @@
+;Plate program.
+
+
+
+;pot0 = predelay (0-127)
+
+;pot1 = RT (0-127)
+
+;pot2 = damping (0-127)
+
+
+
+mem	pdel	3276
+
+
+
+mem	ap1	123
+
+mem	ap2	234
+
+mem	ap3	345
+
+mem	ap4	456
+
+
+
+mem	lap1a	567
+
+mem	lap1b	1267
+
+mem	d1	1536
+
+mem	lap2a	468
+
+mem	lap2b	1367
+
+mem	d2	1691
+
+mem	lap3a	678
+
+mem	lap3b	1127
+
+mem	d3	1436
+
+mem	lap4a	863
+
+mem	lap4b	1098
+
+mem	d4	1354
+
+mem	lap5a	357
+
+mem	lap5b	1491
+
+mem	d5	1294
+
+mem	lap6a	792
+
+mem	lap6b	1010
+
+mem	d6	1346
+
+
+
+;declare registers:
+
+
+
+equ	krt	reg0
+
+equ	apout	reg1
+
+equ	temp	reg4
+
+
+
+;read-first registers:
+
+
+
+equ	lp1	reg20
+
+equ	lp2	reg21
+
+equ	lp3	reg22
+
+equ	lp4	reg23
+
+equ	lp5	reg24
+
+equ	lp6	reg25
+
+equ	hp1	reg26
+
+equ	hp2	reg27
+
+
+
+equ	hp4	reg29
+
+equ	hp5	reg30
+
+
+
+;program:
+
+
+
+;first clear read-first registers:
+
+
+
+skp	run,endclr
+
+wrax	lp1,0
+
+wrax	lp2,0
+
+wrax	lp3,0
+
+wrax	lp4,0
+
+wrax	lp5,0
+
+wrax	lp6,0
+
+wrax	hp1,0
+
+wrax	hp2,0
+
+wrax	hp4,0
+
+wrax	hp5,0
+
+
+
+endclr:
+
+
+
+;make up krt from pot1:
+
+
+
+rdax	pot1,1
+
+sof	0.7,0.3
+
+wrax	krt,0
+
+
+
+;calculate an address pointer for predelay:
+
+
+
+rdax	pot0,1
+
+and	%01111100_00000000_00000000
+
+sof	0.1,0		;limit to 1/10th of space
+
+wrax	addr_ptr,0
+
+
+
+;feed inputs to predelay:
+
+
+
+rdax	adcl,0.25
+
+rdax	adcr,0.25	;leave headroom
+
+wra	pdel,0		;write to predelay
+
+
+
+;read predelay into ap filters:
+
+
+
+rmpa	1
+
+
+
+;now do reverb:
+
+
+
+rda	ap1#,0.65
+
+wrap	ap1,-0.65
+
+rda	ap2#,-0.65
+
+wrap	ap2,0.65
+
+rda	ap3#,0.65
+
+wrap	ap3,-0.65
+
+rda	ap4#,0.65
+
+wrap	ap4,-0.65
+
+wrax	apout,0
+
+
+
+rda	d6#,1		;read last delay output
+
+rdax	apout,1		;read apout
+
+mulx	krt		;scale by Krt
+
+rda	lap1a#,0.6	;do loop all passes
+
+wrap	lap1a,-0.6
+
+rda	lap1b#,-0.5
+
+wrap	lap1b,0.5
+
+rdfx	hp1,0.05	;high pass filter (fixed)
+
+wrhx	hp1,-0.6
+
+wrax	temp,-1		;write to temp (for shelving LP)
+
+rdfx	lp1,0.5		;do the LP as a HP
+
+wrhx	lp1,-1
+
+mulx	pot2		;kd is a shelf (neg number)
+
+rdax	temp,1		;add filter input
+
+wra	d1,0		;write to next delay input
+
+
+
+rda	d1#,-1
+
+mulx	krt
+
+rdax	apout,1
+
+rda	lap2a#,0.6
+
+wrap	lap2a,-0.6
+
+rda	lap2b#,0.5
+
+wrap	lap2b,-0.5
+
+rdfx	hp2,0.05
+
+wrhx	hp2,-0.6
+
+wrax	temp,-1
+
+rdfx	lp2,0.5
+
+wrhx	lp2,-1
+
+mulx	pot2
+
+rdax	temp,1
+
+wra	d2,1.9
+
+wrax	dacl,0
+
+
+
+rda	d2#,-1
+
+rdax	apout,1
+
+mulx	krt
+
+rda	lap3a#,0.6
+
+wrap	lap3a,-0.6
+
+rda	lap3b#,0.5
+
+wrap	lap3b,-0.5
+
+wrax	temp,-1
+
+rdfx	lp3,0.5
+
+wrhx	lp3,-1
+
+mulx	pot2
+
+rdax	temp,1
+
+wra	d3,0
+
+
+
+rda	d3#,-1
+
+rdax	apout,1
+
+mulx	krt
+
+rda	lap4a#,0.6
+
+wrap	lap4a,-0.6
+
+rda	lap4b#,0.5
+
+wrap	lap4b,-0.5
+
+rdfx	hp4,0.05
+
+wrhx	hp4,-0.6
+
+wrax	temp,-1
+
+rdfx	lp4,0.5
+
+wrhx	lp4,-1
+
+mulx	pot2
+
+rdax	temp,1
+
+wra	d4,0
+
+
+
+rda	d4#,-1
+
+mulx	krt
+
+rdax	apout,1
+
+rda	lap5a#,0.6
+
+wrap	lap5a,-0.6
+
+rda	lap5b#,0.5
+
+wrap	lap5b,-0.5
+
+rdfx	hp5,0.05
+
+wrhx	hp5,-0.6
+
+wrax	temp,-1
+
+rdfx	lp5,0.5
+
+wrhx	lp5,-1
+
+mulx	pot2
+
+rdax	temp,1
+
+wra	d5,1.9
+
+wrax	dacr,0
+
+
+
+rda	d5#,-1
+
+rdax	apout,1
+
+mulx	krt
+
+rda	lap6a#,0.6
+
+wrap	lap6a,-0.6
+
+rda	lap6b#,0.5
+
+wrap	lap6b,-0.5
+
+wrax	temp,-1
+
+rdfx	lp6,0.5
+
+wrhx	lp6,-1
+
+mulx	pot2
+
+rdax	temp,1
+
+wra	d6,0
+
+
+
+;de-ring:
+
+
+
+skp	run,1
+
+wlds	sin0,28,100
+
+
+
+cho	rda,sin0,sin|reg|compc,d2+100
+
+cho	rda,sin0,sin,d2+101
+
+wra	d2+200,0
+
+
+
+cho	rda,sin0,cos|reg|compc,d5+100
+
+cho	rda,sin0,cos,d5+101
+
+wra	d5+200,0

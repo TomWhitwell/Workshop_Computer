@@ -1,0 +1,68 @@
+[
+  {
+    "slot": 0,
+    "name": "otherworld-165-strata",
+    "source": "algorithms/ready/otherworld-165-strata.spn",
+    "instructions": 127,
+    "sha256": "1046cfbd0021f46333c89bb1db3e2d1e5343510ddb3ff5a9c0d12df53c2b93a4",
+    "id": "otherworld-165-strata",
+    "author": "Andreas Jansson",
+    "description": "Strata stacks three impossible spaces by pitch. The treble of what you play lands in a tiny glass box: bright, glittering, gone in half a second. The middle lands in a stone hall with a two-second tail. The bass falls into an abyss: a huge, dark, slowly wavering space that answers from far below, about a seventh of a second late, and rings for 4 to 11 seconds. Both boundaries between the worlds drift as you play. Each note pushes the strata upward, so the abyss climbs through the spectrum and swallows the hall, and the hall climbs into the glass. A held chord migrates downward world by world: its sparkle turns to stone, then sinks into the dark. When the abyss reaches the top, the floor drops away. In a fraction of a second both boundaries fall five octaves, so the next notes spring up into the glass box over the still ringing abyss, and the descent begins again. Busy playing turns the cycle in about ten seconds; in rests it barely creeps. Echoes also move between worlds on their own: the stone hall keeps dripping into the abyss, and with Glass turned up, its echoes rise an octave into the glass box as shimmer, so the glass glitters with harmonics of the hall even after you stop. Left and right go into opposite sides of the hall and the glass box, so the image stays wide.",
+    "controls": [
+      "Abyss",
+      "Drift",
+      "Glass"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/165_strata.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Strata",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 27160,
+      "peak_output_error_q23": 1894,
+      "rms_output_error_q23": 336.807,
+      "peak_output_q23": 571089,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "otherworld-216-comet-harp",
+    "source": "algorithms/ready/otherworld-216-comet-harp.spn",
+    "instructions": 128,
+    "sha256": "30f3c91a9c3fc3ea0b1f523a2485661ed3397ba5afec5845fa2a72a9f735b1cc",
+    "id": "otherworld-216-comet-harp",
+    "author": "Andreas Jansson",
+    "description": "Your playing pours into a big, smooth, misty hall, and two invisible harps hang in it, one on each side: comb filters that make the hall ring at a pitch. A careful listener hears each new note you play, and only when it is sure, and both harps take that note an octave apart, one high and one low. On every new note they trade places, so the high and the low voice keep moving from side to side. Every attack, and every new note, flings them apart like comets: the high harp dives one or two octaves and the low one soars, each landing on an octave of your note, and within a third of a second they swing back in octave leaps. On a new note that swing carries each harp across the other to its new octave, so every phrase draws glowing V shapes that cross the hall from side to side. With each strike the harps flare and ring harder, then settle back into a softer glow. The harps only ever sing your notes: when a new note is confirmed they glide to it, and if no sure note has come for about half a second their glow and their throws fade and the hall turns back into a plain reverb, so they never hang on a note you have left. Space sets the size of the hall, Sweep how far the harps are thrown, and Ring how strongly they sing between strikes.",
+    "controls": [
+      "Space",
+      "Sweep",
+      "Ring"
+    ],
+    "license": {
+      "label": "MIT \u2014 Andreas Jansson",
+      "status": "MIT",
+      "evidence": "algorithms/upstream/otherworld/LICENSE"
+    },
+    "source_url": "https://github.com/andreasjansson/otherworld/blob/8505568090db52310a255be3f95a0018145e90e6/effects/216_comet_harp.spn",
+    "upstream_commit": "8505568090db52310a255be3f95a0018145e90e6",
+    "title": "Comet Harp",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 1392,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 176225,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

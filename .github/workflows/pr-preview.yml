@@ -1,0 +1,93 @@
+name: PR preview
+
+# Builds a site preview for pull requests from branches in this repository
+# (never forks), served from the production Pages deployment under
+# /pr/<number>/. The preview is built here, in the pull request's own workflow
+# run, so PR code never runs on main or shares main's Actions caches. The
+# Pages workflow on main then downloads the uploaded preview (see pages.yml
+# and .github/scripts/collect-pr-previews.sh).
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+
+permissions: {}
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Only PRs from branches in the upstream repository itself; fork PRs and
+    # PRs inside forks never get previews.
+    if: github.repository == 'TomWhitwell/Workshop_Computer' && github.event.pull_request.head.repo.full_name == github.repository && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # Full history: card dates come from Git.
+          fetch-depth: 0
+          persist-credentials: false
+
+      # No dependency cache: preview builds never share caches with main.
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Build preview
+        run: bash .github/scripts/build-pr-preview.sh "$NUMBER" "$HEAD_SHA" https://computer.musicthing.co.uk/
+        env:
+          NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+
+      - name: Upload preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-preview-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: site
+          retention-days: 90
+
+  # Redeploy so the new (or removed) preview goes live, even if this build
+  # failed: the deploy then reports the failure on the PR.
+  deploy:
+    needs: build
+    # Dependabot-triggered runs get a read-only token and cannot dispatch, so
+    # its PRs' previews go live with the next deploy instead.
+    if: ${{ !cancelled() && github.repository == 'TomWhitwell/Workshop_Computer' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      pull-requests: write
+    steps:
+      - name: Rebuild the site with current PR previews
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run pages.yml --ref "${{ github.event.repository.default_branch }}"
+
+      - name: Checkout scripts
+        if: github.event.action == 'closed'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Note the removed preview
+        if: github.event.action == 'closed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Only rewrite an existing preview comment; never start one on close.
+          marker='<!-- site-pr-preview -->'
+          if gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" --jq ".[].body" | grep -qF "$marker"; then
+            bash .github/scripts/pr-preview-comment.sh "$NUMBER" "**Site preview removed** because this PR was closed."
+          fi

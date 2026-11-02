@@ -37,6 +37,8 @@ npm run build
 npm run dev
 ```
 
+Working on a single card? `npm run dev:card -- <card folder or card number>` builds and live-reloads just that card's page.
+
 Details: [documentation/metadata-site-development.md](documentation/metadata-site-development.md).
 
 Useful scripts from the repo root:

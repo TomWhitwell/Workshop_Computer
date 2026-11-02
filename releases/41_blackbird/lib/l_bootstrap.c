@@ -131,8 +131,8 @@ const struct lua_lib_locator Lua_libs[] =
 
 
 void l_bootstrap_init(lua_State* L){
-    // collectgarbage('setpause', 55)
-    lua_gc(L, LUA_GCSETPAUSE, 55);
+    // collectgarbage('setpause', 120): see the GC note in LuaManager::init (main.cpp)
+    lua_gc(L, LUA_GCSETPAUSE, 120);
     lua_gc(L, LUA_GCSETSTEPMUL, 260);
 
     // dofile just calls c_dofile

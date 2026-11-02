@@ -1,0 +1,55 @@
+; SPDX-License-Identifier: MPL-2.0
+; Steal This Pedal factory bank — slot 3
+; GRAVITY CLERK
+; POT0 = grain size / smoothness
+; POT1 = regenerative feedback
+; POT2 = falling < center > rising pitch motion
+; Wet-only output.
+
+SHIFT       MEM 8192
+TEMP        MEM 1
+PITCHED     EQU REG0
+INPUT       EQU REG1
+
+SKP RUN, init_done
+WLDR RMP0, 0, 4096
+init_done:
+
+; Center POT2 is stationary; either side moves the dual read heads.
+LDAX POT2
+SOF 0.090, -0.045
+WRAX RMP0_RATE, 0.0
+
+; Grain excursion from compact/warbly to broad/smoother.
+LDAX POT0
+SOF 0.105, 0.020
+WRAX RMP0_RANGE, 0.0
+
+; New signal plus restrained regenerative pitch feedback.
+RDAX ADCL, 0.5
+RDAX ADCR, 0.5
+WRAX INPUT, 0.0
+LDAX PITCHED
+MULX POT1
+SOF 0.76, 0.0
+RDAX INPUT, 0.78
+WRA SHIFT, 0.0
+
+; Canonical FV-1 two-head interpolated pitch transposer.
+CLR
+CHO RDA, RMP0, REG|COMPC, SHIFT
+CHO RDA, RMP0, 0, SHIFT+1
+WRA TEMP, 0.0
+CHO RDA, RMP0, RPTR2|COMPC, SHIFT
+CHO RDA, RMP0, RPTR2, SHIFT+1
+CHO SOF, RMP0, NA|COMPC, 0
+CHO RDA, RMP0, NA, TEMP
+SOF 0.86, 0.0
+WRAX PITCHED, 1.0
+WRAX DACL, 0.0
+
+; Slightly displaced second view gives width without another shifter.
+CLR
+RDA SHIFT+613, 0.18
+RDAX PITCHED, 0.90
+WRAX DACR, 0.0

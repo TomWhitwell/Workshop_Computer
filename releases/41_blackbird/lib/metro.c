@@ -1,4 +1,5 @@
 #include "metro.h"
+#include "pico.h"             // __not_in_flash_func
 
 #include <stdlib.h>            // malloc()
 #include <stdio.h>
@@ -102,14 +103,19 @@ float Metro_get_period_seconds(int ix)
     return metros[ix].seconds;
 }
 
-static void Metro_bang( int ix )
+// Timer callback: runs on core 1, so must stay in RAM.
+static void __not_in_flash_func(Metro_bang)( int ix )
 {
     L_queue_metro( ix, metros[ix].stage );
     metros[ix].stage++;
     if( metros[ix].stage == 0x7FFFFFFF ){ metros[ix].stage = 0x7FFFFFFE; } // overflow
     if( metros[ix].count >= 0 ){ // negative values are infinite
         if( metros[ix].stage > metros[ix].count ){
-            Metro_stop(ix);
+            // Inline Metro_stop(): ix is already valid, and Metro_stop() lives in flash
+            if( metros[ix].status == METRO_STATUS_RUNNING ){
+                metros[ix].status = METRO_STATUS_STOPPED;
+                Timer_Stop( ix );
+            }
         }
     }
 }

@@ -1,0 +1,101 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-drolo-envelope-phaser",
+    "source": "algorithms/ready/directory-drolo-envelope-phaser.spn",
+    "instructions": 115,
+    "sha256": "8f0beca028b0d08dbea4462616261c16292305eb755db347c19ffee124ac39fe",
+    "id": "directory-drolo-envelope-phaser",
+    "author": "David Rolo",
+    "description": "Filter, Phaser program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "rate",
+      "depth",
+      "regen"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/envelope-phaser.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/envelope-phaser.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Envelope Phaser",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 4799,
+      "peak_output_error_q23": 265,
+      "rms_output_error_q23": 6.99931,
+      "peak_output_q23": 1430242,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-drolo-filter-env-lp-hp-up",
+    "source": "algorithms/ready/directory-drolo-filter-env-lp-hp-up.spn",
+    "instructions": 97,
+    "sha256": "e5b2ffc32c725dfac68cd5e85312b9a9977ce6dcebe252db74f29c130916718d",
+    "id": "directory-drolo-filter-env-lp-hp-up",
+    "author": "David Rolo",
+    "description": "Filter program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "env sensitivity",
+      "filter type",
+      "volume"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/filter-env-LP-HP-up.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/filter-env-LP-HP-up.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Filter: env LP HP up",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 2646,
+      "peak_output_error_q23": 1,
+      "rms_output_error_q23": 0.0259111,
+      "peak_output_q23": 34682,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-firesledge-bass-processor-p4-autowah",
+    "source": "algorithms/ready/directory-firesledge-bass-processor-p4-autowah.spn",
+    "instructions": 121,
+    "sha256": "2b33c80caa192e4ccb79e71d745682ccc4ed79d50c15ae2441f4a8752429cacb",
+    "id": "directory-firesledge-bass-processor-p4-autowah",
+    "author": "Firesledge",
+    "description": "Automatic wah effect based on the signal volume. Designed for bass",
+    "controls": [
+      "Amount",
+      "Resonance",
+      "Frequency"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p4-autowah.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p4-autowah.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Autowah",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 8,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

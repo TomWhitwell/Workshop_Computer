@@ -1,0 +1,15 @@
+{
+  "id": "three-tap-reverb",
+  "name": "Three Tap Reverb",
+  "version": "1.0.0",
+  "description": "A reverb based on a three-tap delay with chirp allpass diffusion, producing a smooth and natural reverberant space.",
+  "category": "Reverb",
+  "tags": ["reverb", "multi-tap", "diffuse", "ambience"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Delay",   "description": "Base delay time.",                       "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Repeats", "description": "Feedback amount — density of the reverb.", "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Mix",     "description": "Blend between dry and wet signal.",       "unit": "", "range": [0, 1] }
+  ]
+}

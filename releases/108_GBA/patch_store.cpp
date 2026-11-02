@@ -15,6 +15,11 @@ static_assert(GBA_PATCH_SLOTS * GBA_PATCH_SLOT_BYTES == SECTOR_BYTES,
 
 // The last sector of the 2 MB part. Firmware is under 60 kB, so there is no chance of collision,
 // and putting it at the very end keeps it clear of anything the linker might grow into.
+//
+// THIS SECTOR IS 108'S AND STAYS WHERE IT IS: moving it would strand every user's saved patches.
+// A UF2 flash never erases it, so a sibling GBA program must use a sector of its own. GBA FM Voice
+// shared this one until 2026-10-26, and each program's saves wrote over the other's patches; it now
+// uses the sector below this one. FM patches saved before that move are still here.
 static constexpr uint32_t kFlashOffset = PICO_FLASH_SIZE_BYTES - SECTOR_BYTES;
 
 static const uint8_t *slot_ptr(int slot)
@@ -22,12 +27,18 @@ static const uint8_t *slot_ptr(int slot)
     return (const uint8_t *)(XIP_BASE + kFlashOffset + (uint32_t)slot * GBA_PATCH_SLOT_BYTES);
 }
 
-// A stored slot begins with the same two magic bytes and version the GBA's Patch does. Erased
-// flash reads as 0xFF, so a never-written slot fails this and reads as empty rather than as a
-// patch full of 0xFF.
+// A slot is in use if it is not ERASED. Erased flash reads as 0xFF, and every patch starts with a
+// magic that is not 0xFFFF, so a never-written slot reads as empty rather than as a patch full of
+// 0xFF.
+//
+// THE HOST DOES NOT JUDGE WHAT KIND OF PATCH IT IS - the GBA does, on load (synth_patch_valid()).
+// This used to check for 108's own magic 'GB', which made a slot written by GBA FM Voice ('FM')
+// look EMPTY: it showed FREE, a load said SLOT IS EMPTY, and nothing warned that saving there would
+// replace someone's patch. Now such a slot shows USED, and loading it is rejected on the GBA as
+// BAD DATA - NOT LOADED, which is the truth.
 static bool slot_valid(const uint8_t *p)
 {
-    return p[0] == 0x42 && p[1] == 0x47;      // 'B','G' little-endian PATCH_MAGIC
+    return !(p[0] == 0xFF && p[1] == 0xFF);
 }
 
 bool patch_store_load(int slot, uint8_t *out)

@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-dervish-pingpong-pp-simple-stereo",
+    "source": "algorithms/ready/directory-dervish-pingpong-pp-simple-stereo.spn",
+    "instructions": 68,
+    "sha256": "631c7edda77c8844be5e820cd24b754fab07e4a2bf9b8dfcbcb96ae99a250452",
+    "id": "directory-dervish-pingpong-pp-simple-stereo",
+    "author": "Graham Biswell",
+    "description": "Simple stereo ing pong delay with adjustable feedback & lpf damping",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-simple-stereo.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ping Pong: Simple Stereo",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 191224,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-dervish-pingpong-pp-simple",
+    "source": "algorithms/ready/directory-dervish-pingpong-pp-simple.spn",
+    "instructions": 40,
+    "sha256": "577bc7041bb232d6d25000016dfcb7dd099196ac2d39ced385515c5d6e1be315",
+    "id": "directory-dervish-pingpong-pp-simple",
+    "author": "Graham Biswell",
+    "description": "Simple ping pong delay with adjustable feedback & lpf damping",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-simple.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ping Pong: Simple",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 186624,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-dervish-pingpong-pp-tripple",
+    "source": "algorithms/ready/directory-dervish-pingpong-pp-tripple.spn",
+    "instructions": 64,
+    "sha256": "15598bd0fd9f5c2be4a86b0c21fd86eefbbf4de8057138c2ff438a6480919bd3",
+    "id": "directory-dervish-pingpong-pp-tripple",
+    "author": "Graham Biswell",
+    "description": "Ping pong delay with 3 taps - left, right, centre ; centre is mixed with both left & right taps",
+    "controls": [
+      "Time 1",
+      "Time 2",
+      "Time 3"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-tripple.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Ping Pong: Triple",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 421888,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-dervish-pitch-fb-delay",
+    "source": "algorithms/ready/directory-dervish-pitch-fb-delay.spn",
+    "instructions": 57,
+    "sha256": "f15bf8fcedbe80ba1dd6a4274fd77a3cd3c50625e1a2b2fed57f4d1b26c5bb25",
+    "id": "directory-dervish-pitch-fb-delay",
+    "author": "Unknown (not credited in directory)",
+    "description": "Delay, Pitch program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Pitch",
+      "Feedback",
+      "Delay"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pitch%2Bfb%2Bdelay.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Stereo Pitch Transposer w/ Feedback and Delay",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 520068,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-dervish-triple-tripple-echo-var-fb-chorus",
+    "source": "algorithms/ready/directory-dervish-triple-tripple-echo-var-fb-chorus.spn",
+    "instructions": 109,
+    "sha256": "ea3c29b0e5e39accd1214416ac407ba11078721682720800245b7c6e028e1200",
+    "id": "directory-dervish-triple-tripple-echo-var-fb-chorus",
+    "author": "Graham Biswell",
+    "description": "taps are treated in parallel ; feedback & damping are fixed, but f/b varies slighly depending on delay time (longer time, less f/b) ; damping for each tap is different; With chorus",
+    "controls": [
+      "Time 1",
+      "Time 2",
+      "Time 3"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo-var_fb%2Bchorus.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Triple Tap Delay - Parallel, Varying Feedback, w/ Chorus",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 575996,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-dervish-triple-tripple-echo-var-fb",
+    "source": "algorithms/ready/directory-dervish-triple-tripple-echo-var-fb.spn",
+    "instructions": 100,
+    "sha256": "bfbce314ec258d8bab7826f3a952f059eb17412964826c81286c4390311c27de",
+    "id": "directory-dervish-triple-tripple-echo-var-fb",
+    "author": "Graham Biswell",
+    "description": "taps are treated in parallel ; feedback & damping are fixed, but f/b varies slighly depending on delay time (longer time, less f/b) ; damping for each tap is different",
+    "controls": [
+      "Time 1",
+      "Time 2",
+      "Time 3"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/triple/tripple_echo-var_fb.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Triple Tap Delay - Parallel, Varying Feedback",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 560896,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

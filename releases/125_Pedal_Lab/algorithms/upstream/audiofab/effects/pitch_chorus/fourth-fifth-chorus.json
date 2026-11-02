@@ -1,0 +1,15 @@
+{
+  "id": "fourth-fifth-chorus",
+  "name": "Fourth & Fifth Chorus",
+  "version": "1.0.0",
+  "description": "Perfect fourth and perfect fifth pitch shifting blended with chorus modulation for power-chord-style harmonies.",
+  "category": "Pitch / Chorus",
+  "tags": ["pitch-shift", "harmony", "chorus", "modulation", "intervals"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Chorus Speed", "description": "Chorus modulation speed.",                "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Fourth Level", "description": "Level of the perfect fourth above voice.", "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Fifth Level",  "description": "Level of the perfect fifth above voice.",  "unit": "", "range": [0, 1] }
+  ]
+}

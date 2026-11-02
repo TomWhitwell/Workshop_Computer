@@ -1,0 +1,80 @@
+; SPDX-License-Identifier: MPL-2.0
+; Steal This Pedal factory bank — slot 6
+; REVERSE WITNESS
+; POT0 = reverse-grain sweep speed
+; POT1 = feedback
+; POT2 = smear / diffusion
+; Wet-only output.  Deliberately grainy rather than studio-clean reverse.
+; Spin Computer adaptation: reduce recirculation from 0.72 to 0.40,
+; accounting for the summed grain and diffusion paths at maximum smear.
+
+REVERSE     MEM 8192
+TEMP        MEM 1
+AP1         MEM 421
+AP2         MEM 733
+AP3         MEM 1201
+RITUAL      MEM 9000
+GRAIN       EQU REG0
+SMEAR       EQU REG1
+INPUT       EQU REG2
+
+SKP RUN, init_done
+WLDR RMP0, -16384, 4096
+init_done:
+
+; Stay on the negative side: slow backward crawl through hard reverse grains.
+LDAX POT0
+SOF 0.42, -0.49
+WRAX RMP0_RATE, 0.0
+LDAX POT2
+SOF 0.09, 0.035
+WRAX RMP0_RANGE, 0.0
+
+; Write new input and the prior ritual tail into the reverse window.
+RDAX ADCL, 0.5
+RDAX ADCR, 0.5
+WRAX INPUT, 0.0
+CLR
+RDA RITUAL#, 0.40
+MULX POT1
+RDAX INPUT, 0.72
+WRA REVERSE, 0.0
+
+; Two-head backward grain reader.
+CLR
+CHO RDA, RMP0, REG|COMPC, REVERSE
+CHO RDA, RMP0, 0, REVERSE+1
+WRA TEMP, 0.0
+CHO RDA, RMP0, RPTR2|COMPC, REVERSE
+CHO RDA, RMP0, RPTR2, REVERSE+1
+CHO SOF, RMP0, NA|COMPC, 0
+CHO RDA, RMP0, NA, TEMP
+WRAX GRAIN, 0.0
+
+; Diffusion turns the chunks into a rising, smeared backmask cloud.
+LDAX GRAIN
+RDA AP1#, 0.61
+WRAP AP1, -0.61
+RDA AP2#, -0.53
+WRAP AP2, 0.53
+RDA AP3#, 0.47
+WRAP AP3, -0.47
+WRAX SMEAR, 0.0
+LDAX GRAIN
+MULX POT2
+RDAX SMEAR, 0.88
+WRA RITUAL, 0.0
+
+; Increasingly distant taps imitate a reverse-reverb ramp.
+CLR
+RDA RITUAL+1103, 0.20
+RDA RITUAL+2489, 0.29
+RDA RITUAL+4337, 0.41
+RDA RITUAL+6911, 0.58
+WRAX DACL, 0.0
+CLR
+RDA RITUAL+1511, 0.19
+RDA RITUAL+3271, 0.31
+RDA RITUAL+5261, 0.43
+RDA RITUAL+8179, 0.55
+WRAX DACR, 0.0

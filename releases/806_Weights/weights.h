@@ -343,6 +343,41 @@ static inline uint32_t DecayFromKnob(int32_t v)
 	return ExpScale(4473924, -(v * 35405) / 4095);    // 2^31 / 480 samples
 }
 
+// Pulse In 1, cleaned up.  The raw input is read once a sample, so a slow or
+// noisy edge (an LFO, a sloppy gate, a long cable) can chatter across the
+// threshold and look like a burst of clocks a sample or two apart, which the
+// card would then follow at ~1ms a step.  So a rising edge only counts once
+// the input has been low for kClockLowSamples (chatter at either edge never
+// stays low that long) and kClockMinPeriod has passed since the last clock.
+// That still follows a clean clock or trigger up to 250 Hz (15000 BPM).
+static constexpr int32_t kClockLowSamples = kSampleRate / 500;   // 2ms
+static constexpr int32_t kClockMinPeriod = kSampleRate / 250;    // 4ms
+struct ClockInput
+{
+	int32_t lowFor = kClockLowSamples;   // samples the input has been low
+	int32_t sinceClock = kClockMinPeriod;
+	bool armed = true;
+
+	// One sample of the raw input; true on a clean rising edge
+	bool Tick(bool in)
+	{
+		if (sinceClock < 0x7FFFFFFF) sinceClock++;
+		if (!in)
+		{
+			if (lowFor < 0x7FFFFFFF) lowFor++;
+			if (lowFor >= kClockLowSamples) armed = true;
+			return false;
+		}
+		lowFor = 0;
+		if (!armed) return false;
+		// An edge too soon after the last clock is dropped, not delayed
+		armed = false;
+		if (sinceClock < kClockMinPeriod) return false;
+		sinceClock = 0;
+		return true;
+	}
+};
+
 // Internal clock when nothing is plugged into Pulse In 1: 40-300 BPM, set by
 // Main with the switch held down, or by the web editor
 static constexpr int32_t kMinBpm = 40, kMaxBpm = 300;

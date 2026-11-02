@@ -1,0 +1,101 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-publisher-3k-v1-7-flange",
+    "source": "algorithms/ready/directory-publisher-3k-v1-7-flange.spn",
+    "instructions": 64,
+    "sha256": "afa54bc926e1c4ac17268e272f65823c9adcfa074c683fdb040713ff3864a1ba",
+    "id": "directory-publisher-3k-v1-7-flange",
+    "author": "Spin Semi",
+    "description": "Flanger program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "delay",
+      "sweep rate",
+      "sweep width"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/3K_V1_7_FLANGE.spn"
+    },
+    "source_url": "http://spinsemi.com/mixer_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Flanger",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 376494,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-publisher-ga-demo-flange",
+    "source": "algorithms/ready/directory-publisher-ga-demo-flange.spn",
+    "instructions": 83,
+    "sha256": "439c87f95d62d895bd454cf1ec88cfd4f621288fb31a06ce34fe127b379ddb3c",
+    "id": "directory-publisher-ga-demo-flange",
+    "author": "Spin Semi",
+    "description": "Flanger program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Reverb level",
+      "Flange rate",
+      "Effect level w/ feedback"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_FLANGE.spn"
+    },
+    "source_url": "http://spinsemi.com/guitar_amp_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Flanger",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 425984,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-publisher-rom-fla-rev",
+    "source": "algorithms/ready/directory-publisher-rom-fla-rev.spn",
+    "instructions": 121,
+    "sha256": "a754fbb0b3ec39dba5dde7165c7ded5de783df7ec96148ff12d33de70402307c",
+    "id": "directory-publisher-rom-fla-rev",
+    "author": "Keith Barr (Spin Semiconductor)",
+    "description": "Combination flange/reverb program from the FV-1 internal ROM",
+    "controls": [
+      "reverb mix",
+      "flange rate",
+      "flange mix"
+    ],
+    "license": {
+      "label": "Spin Semiconductor Open Reverb License (see publisher statement)",
+      "status": "publisher-permission",
+      "evidence": "http://www.spinsemi.com/programs.php"
+    },
+    "source_url": "http://spinsemi.com/programs.php",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "ROM Flanger + Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 262016,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

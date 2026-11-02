@@ -1,0 +1,197 @@
+; @name Fog Bank
+; @tagline Your notes bloom into a fog bank and echo back from deep inside it, each return more blurred than the last; the fog rolls in and lifts as you play
+; @description A bank of fog sits out in the dark in front of you. Every note blooms softly
+; @description into it, and from somewhere inside the fog it echoes back, a faint outline of
+; @description the note riding in the reverb rather than a slap on top of it. The echo keeps
+; @description bouncing from side to side, and every bounce passes deeper into the fog: each
+; @description return is more blurred than the last, until the echoes melt into a soft,
+; @description slowly drifting fog pad. Weather is how thick the fog gets: at 0 the air is
+; @description clear, the pad is light and you hear the returns bright and distinct as they
+; @description ping-pong away; turning it up the fog rolls in, the returns smear sooner, the
+; @description air darkens and the pad thickens, until at 1 the echoes are only a shape inside
+; @description a dense cloud. Your playing keeps the weather moving: the fog thickens and lifts
+; @description again within that range, a turn in about 11 to 16 seconds of busy playing; in
+; @description rests it barely drifts.
+; @pots Range | Weather | Fog
+; @render 0.5, 0.75, 0.6
+; @time POT0 0.11 0.24 lin
+; @components soft fog bloom from the note, faint first return, stereo ping-pong loop whose every pass runs through three variable-coefficient allpasses (diffusion grows with age), playing-driven weather cycle of fog density (diffusion, damping, echo absorption, bloom and fog send), modulated fog-pad tank, gentle limiter
+;
+; Otherworld vol. 1 (github.com/andreasjansson/otherworld), MIT licence.
+
+mem	dl	8100
+mem	dr	8100
+mem	a1x	331
+mem	a2x	557		; also the first allpass's output line: a2x+331 is its y[n-331]
+mem	a2y	557
+mem	a3x	883
+mem	a3y	883
+mem	b1x	373
+mem	b2x	619		; also the first allpass's output line: b2x+373 is its y[n-373]
+mem	b2y	619
+mem	b3x	947
+mem	b3y	947
+mem	fap1	1201
+mem	fd1	2903
+mem	fap2	1433
+mem	fd2	2609
+
+equ	em	reg2
+equ	phi	reg3
+equ	kd	reg4
+equ	kl	reg5
+equ	g	reg6
+equ	lens	reg7
+equ	el	reg8
+equ	er	reg9
+equ	fl	reg10
+equ	fr	reg11
+equ	lpl	reg12
+equ	lpr	reg13
+equ	gf	reg14
+equ	fin	reg15
+equ	flp	reg16
+equ	fs	reg17
+equ	env	reg18
+equ	glim	reg19
+equ	xl	reg20
+equ	fhp	reg21		; left output for the limiter (DACL does not read back on the chip)
+
+	skp	run, start
+	wlds	sin0, 9, 200
+	wldr	rmp0, 0, 4096		; the echo read pointer (steered below)
+start:
+; ---- input level for the weather: (L + R) x 0.29
+	rdax	adcl, 0.29
+	rdax	adcr, 0.29
+; ---- weather: phi (0 .. 0.5) advances by Weather x em^(1/4) x 2^-9 x 2^-9; fog density
+;      F2 = |2 phi - 0.5| (0 clear .. 0.5 thick), mapped by one SOF chain:
+;      kl 0.75 .. 0.2, kd 0.15 .. 0.75, fs 0.15 .. 0.7, g 0.62 .. 0.30
+	absa
+	rdfx	em, 0.0001
+	wrax	em, 1.0
+	log	0.25, -0.56
+	exp	0.00146484375, 0	; the cycle's speed, fixed
+	rdax	phi, 1.0
+	and	$3FFFFF
+	wrax	phi, 1.0
+	sof	2.0, -0.5
+	absa
+	sof	0.8, 0.1		; the cycle: 0.1 (clearest) .. 0.5 (thickest)
+	mulx	pot1			; x Weather: 0 clear air .. the full cycle
+	sof	-1.5, 0.85
+	wrax	kl, 1.0
+	sof	-1.0667, 0.9567
+	wrax	kd, 1.0
+	sof	0.75, 0.1125
+	wrax	fs, 1.0
+	sof	-0.5833, 0.7375
+	wrax	g, 0
+	ldax	pot2
+	sof	0.13, 0.8
+	wrax	gf, 0
+; ---- Range steers RMP0 (the read pointer of both echo lines): its rate is the distance to the
+;      target, so it glides there (tau 2048 samples, 62 ms, as the old smoother) and the CHO
+;      reads interpolate
+	cho	rdal, rmp0		; (ACC is 0 here) + the pointer
+	rdax	pot0, -0.488		; - the target: 3998 Pot0 samples
+	sof	1.99, 0
+	wrax	rmp0_rate, 0
+; ---- left loop: crisp echo, then three variable allpasses, damping, gain
+	cho	rda, rmp0, reg|compc, dl+3712
+	cho	rda, rmp0, 0, dl+3713
+	wrax	el, 1.0
+	wra	a1x, 1.0
+	rda	a2x+331, -1.0		; y1[n-331], stored in a2x (it holds y1 anyway)
+	mulx	kd
+	rda	a1x#, 1.0
+	wra	a2x, 1.0
+	rda	a2y#, -1.0
+	mulx	kd
+	rda	a2x#, 1.0
+	wra	a2y, 1.0
+	wra	a3x, 1.0
+	rda	a3y#, -1.0
+	mulx	kd
+	rda	a3x#, 1.0
+	wra	a3y, 1.0
+	rdax	lpl, -1.0
+	mulx	kl
+	rdax	lpl, 1.0
+	wrax	lpl, 1.0
+	mulx	g
+	wrax	fl, 1.0
+	rdax	adcr, 0.29
+	wra	dr, 0			; ping-pong: the left echo feeds the right line
+; ---- right loop
+	cho	rda, rmp0, reg|compc, dr+4091
+	cho	rda, rmp0, 0, dr+4092
+	wrax	er, 1.0
+	wra	b1x, 1.0
+	rda	b2x+373, -1.0		; y1[n-373], stored in b2x
+	mulx	kd
+	rda	b1x#, 1.0
+	wra	b2x, 1.0
+	rda	b2y#, -1.0
+	mulx	kd
+	rda	b2x#, 1.0
+	wra	b2y, 1.0
+	wra	b3x, 1.0
+	rda	b3y#, -1.0
+	mulx	kd
+	rda	b3x#, 1.0
+	wra	b3y, 1.0
+	rdax	lpr, -1.0
+	mulx	kl
+	rdax	lpr, 1.0
+	wrax	lpr, 1.0
+	mulx	g
+	wrax	fr, 1.0
+	rdax	adcl, 0.29
+	wra	dl, 1.0			; ping-pong: the right echo feeds the left line
+; ---- fog tank: the diffused echoes x fs (0.15 clear .. 0.7 thick), figure 8 at half level,
+;      both halves read through SIN0 (0.36 Hz, +-50 samples, about 6 cents), gain gf per half
+	rdax	adcl, -0.14
+	rdax	fl, 1.0
+	rdax	adcr, 0.15
+	mulx	fs
+	wrax	fin, 0
+	cho	rda, sin0, reg|compc, fd2+2520
+	cho	rda, sin0, 0, fd2+2521
+	mulx	gf
+	rdax	fin, 0.9950
+	rda	fap1#, 0.6
+	wrap	fap1, -0.6
+	rdfx	flp, 0.35
+	wrax	flp, 1.0
+	rdfx	fhp, 0.007641
+	wrhx	fhp, -1.0		; sub-bass high-pass in the loop
+	wra	fd1, 0
+	cho	rda, sin0, cos|reg|compc, fd1+2800
+	cho	rda, sin0, cos, fd1+2801
+	mulx	gf
+	rdax	fin, 0.9950
+	rda	fap2#, -0.6
+	wrap	fap2, 0.6
+	wra	fd2, 0
+; ---- outputs
+	rdax	fl, 1.0
+	rda	fd1+1100, 1.05500
+	rda	fd2+1900, -0.79500
+	mulx	glim
+	sof	1.99994, 0
+	wrax	dacl, 1.0
+	wrax	xl, 0
+	rdax	fr, 1.0
+	rda	fd2+800, 1.05500
+	rda	fd1+2300, -0.79500
+	mulx	glim
+	sof	1.99994, 0
+	wrax	dacr, 1.0
+; ---- gentle limiter: stereo-linked output peak, 0.25 s release, gain min(1, 0.5 / peak)
+	maxx	xl, 1.0
+	maxx	env, 0.99988
+	wrax	env, 1.0
+	log	-1.0, -0.062500
+	exp	1.0, 0
+	wrax	glim, 0

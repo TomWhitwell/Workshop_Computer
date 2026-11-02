@@ -1,0 +1,17 @@
+; BitCrusher
+; http://www.spinsemi.com/forum/viewtopic.php?f=4&t=343
+
+crush equ 0xfc0000 ;define the bit mask - 6 bits here 
+clr 
+rdax adcl,0.5 
+rdax adcr,0.5 
+skp neg,invit; working with 2's comp numbers, if negative skip down 
+and crush 
+skp gez,outter 
+invit: 
+sof -1.0,0 ; for negative samples, invert them, 
+and crush ; mask the data 
+sof -1.0,0 ; invert it back 
+outter: 
+wrax dacl,1.0 
+wrax dacr,1.0

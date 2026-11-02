@@ -1,0 +1,73 @@
+;------ Resonator
+
+
+
+equ freq reg1
+
+equ reso reg2
+
+equ input reg3
+
+equ output reg4
+
+
+
+
+
+RDAX POT0, 0.2		; frequency pot
+
+WRAX freq, 0		; store frequency and clear
+
+
+
+RDAX POT1, 0.01		; resonance pot
+
+WRAX reso, 0.		; store reso and clear
+
+
+
+LDAX output		; load output for feedback
+
+MULX freq		; multiply by freq
+
+RDAX REG0, 1.		; ACC+reg0
+
+WRAX REG0, -1		; write reg0, invert
+
+RDAX ADCL, 1		; add adcl
+
+WRAX input, 1		; write input
+
+
+
+LDAX output		; load output
+
+MULX reso 		; mult by resonance
+
+SOF -1, 0	 		; invert
+
+RDAX input, 1.		; add input
+
+WRAX input, 1.		; write input
+
+MULX freq		; times frequency
+
+
+
+RDAX output, 1		; add output
+
+WRAX output, 0		; write output and clear
+
+
+
+
+
+;------ Output
+
+RDAX output, 1
+
+
+
+WRAX DACL, 1
+
+WRAX DACR, 0

@@ -71,6 +71,9 @@ add_executable(${CARD_NAME}
 	${CMAKE_CURRENT_LIST_DIR}/fatfs/ffunicode.c
 )
 
+# PIO UART receiver for the optional TRS MIDI remote (Pulse In 2).
+pico_generate_pio_header(${CARD_NAME} ${CMAKE_CURRENT_LIST_DIR}/midi_rx.pio)
+
 target_compile_options(${CARD_NAME} PRIVATE
 	-Wdouble-promotion -Wfloat-conversion -Wall -Wextra -O2)
 
@@ -93,6 +96,7 @@ target_link_libraries(${CARD_NAME}
 	hardware_clocks
 	hardware_dma
 	hardware_i2c
+	hardware_pio
 	hardware_pwm
 	hardware_adc
 	hardware_spi

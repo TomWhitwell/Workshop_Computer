@@ -1,0 +1,15 @@
+{
+  "id": "flanger",
+  "name": "Flanger",
+  "version": "1.0.0",
+  "description": "A classic flanger with adjustable rate, sweep width, and feedback for everything from subtle swirl to jet-plane whoosh.",
+  "category": "Modulation",
+  "tags": ["flanger", "modulation", "sweep"],
+  "author": "Audiofab",
+  "hasSource": true,
+  "controls": [
+    { "pot": 0, "name": "Rate",     "description": "Flanger LFO rate.",                           "unit": "", "range": [0, 1] },
+    { "pot": 1, "name": "Width",    "description": "Sweep width / depth of the flanger.",         "unit": "", "range": [0, 1] },
+    { "pot": 2, "name": "Feedback", "description": "Feedback around the delay line — more intense resonance.", "unit": "", "range": [0, 1] }
+  ]
+}

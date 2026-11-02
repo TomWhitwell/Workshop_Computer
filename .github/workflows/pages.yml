@@ -1,28 +1,68 @@
-name: Build and Deploy GitHub Pages 
+name: Build and Deploy GitHub Pages
 
 on:
   workflow_run:
     workflows: ["Synchronize repository metadata"]
     types: [completed]
+  # Also dispatched by "Request PR previews" whenever an upstream-branch PR
+  # changes, so its preview under /pr/<number>/ is rebuilt.
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  # Fork previews retain their own github.io project URL. The upstream
+  # production build emits canonical web-editor links on the custom domain.
+  SITE_BASE_URL: ${{ github.repository == 'TomWhitwell/Workshop_Computer' && 'https://computer.musicthing.co.uk/' || '' }}
+
 jobs:
-  build:
-    if: github.event_name == 'workflow_dispatch' || (github.event.repository.fork != true && github.event.workflow_run.conclusion == 'success')
+  # Every deploy replaces the whole site, so each one gathers the latest built
+  # preview of every open PR from a branch in this repository (never forks).
+  # Previews are built in each PR's own workflow run (pr-preview.yml); this job
+  # only downloads them and never runs PR code.
+  previews:
+    if: github.repository == 'TomWhitwell/Workshop_Computer' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
-    env:
-      # Fork previews retain their own github.io project URL. The upstream
-      # production build emits canonical web-editor links on the custom domain.
-      SITE_BASE_URL: ${{ github.repository == 'TomWhitwell/Workshop_Computer' && 'https://computer.musicthing.co.uk/' || '' }}
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    outputs:
+      results: ${{ steps.collect.outputs.results }}
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Collect PR previews
+        id: collect
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/collect-pr-previews.sh "$RUNNER_TEMP/pr-previews"
+
+      - name: Upload PR previews
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-previews
+          path: ${{ runner.temp }}/pr-previews
+          if-no-files-found: ignore
+          retention-days: 1
+
+  build:
+    needs: previews
+    # Runs even when previews are skipped (forks) or failed: production must
+    # never wait on a pull request.
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || (github.event.repository.fork != true && github.event.workflow_run.conclusion == 'success')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -46,16 +86,67 @@ jobs:
         run: |
           npm test --prefix tools/sitegen
 
+      - name: Add PR previews
+        if: needs.previews.result == 'success'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-previews
+          path: site/pr
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
   deploy:
-    if: github.event.repository.fork != true || github.event_name == 'workflow_dispatch'
+    if: ${{ !cancelled() && needs.build.result == 'success' && (github.event.repository.fork != true || github.event_name == 'workflow_dispatch') }}
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  # Point each previewed PR at its preview (or why it has none) once live.
+  comment-previews:
+    needs: [previews, deploy]
+    if: ${{ !cancelled() && needs.deploy.result == 'success' && needs.previews.result == 'success' && needs.previews.outputs.results != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Update preview comments
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULTS: ${{ needs.previews.outputs.results }}
+        run: |
+          jq -c '.[]' <<< "$RESULTS" | while read -r result; do
+            number=$(jq -r .number <<< "$result")
+            sha=$(jq -r .sha <<< "$result")
+            run_url=$(jq -r .run_url <<< "$result")
+            # This job can write to pull requests; only act on well-formed values.
+            [[ $number =~ ^[0-9]+$ && $sha =~ ^[0-9a-f]{40}$ ]] || continue
+            [[ -z $run_url || $run_url =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/actions/runs/[0-9]+$ ]] || run_url=''
+            log=${run_url:+ See the [build log](${run_url}).}
+            case "$(jq -r .status <<< "$result")" in
+              success) body="**Site preview:** ${SITE_BASE_URL}pr/${number}/
+
+          Built from ${sha:0:7}. It updates on every push and is removed when this PR closes." ;;
+              failure) body="**Site preview failed** for ${sha:0:7}.${log}" ;;
+              too-large) body="**Site preview skipped** for ${sha:0:7}: it is too large to publish alongside the site.${log}" ;;
+              missing) body="**No site preview** for ${sha:0:7} yet. Push a commit to build one." ;;
+              *) continue ;; # Still building; the build's own deploy will update this.
+            esac
+            bash .github/scripts/pr-preview-comment.sh "$number" "$body"
+          done

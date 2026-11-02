@@ -1,0 +1,478 @@
+;Digifuzzer
+
+
+;Pot0 - Sample rate reduction
+
+
+;Pot1 - Bit depth reduction and digital distortion effects
+
+
+;Pot2 - Volume
+
+
+
+
+
+equ temp reg0
+
+
+equ filter reg1
+
+
+equ temp1 reg2
+
+
+
+
+
+skp run,START
+
+
+wldr rmp0,0.999,4096	;set up rmp0
+
+
+
+
+
+START:
+
+
+
+
+
+;Sample rate reduction
+
+
+
+
+
+sof 0,0.999
+
+
+wrax rmp0_rate,0		;set speed of rmp0
+
+
+cho rdal,rmp0		;read value of rmp0
+
+
+sof -2,0.999		;scale to 0 -1 ramp
+
+
+sof 1, 0.003
+
+
+rdax pot0,-0.026		;deduct value of POT0
+
+
+skp neg,ENDSRR		;if negative skip to ENDSRR
+
+
+jam rmp0		;else reset ramp1
+
+
+ldax adcl			;read ADCL
+
+
+sof -2,0			;boost
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+wrax temp,0		;write to temp
+
+
+ENDSRR:
+
+
+
+
+
+;bit manipulation
+
+
+
+
+
+ldax temp
+
+
+wrax temp1,1
+
+
+skp gez,BM
+
+
+sof -1,0
+
+
+wrax temp1,0
+
+
+
+
+
+BM:
+
+
+ldax pot1
+
+
+and %01110000_00000000_00000000
+
+
+skp zro,SKIP
+
+
+sof 1,-0.125
+
+
+skp zro,SEVEN
+
+
+sof 1,-0.125
+
+
+skp zro,SIX
+
+
+sof 1,-0.125
+
+
+skp zro,FIVE
+
+
+sof 1,-0.125
+
+
+skp zro,FOUR
+
+
+sof 1,-0.125
+
+
+skp zro,THREE
+
+
+sof 1,-0.125
+
+
+skp zro,TWO
+
+
+
+
+
+ONE:
+
+
+ldax temp1
+
+
+xor %10101010_10101010_10101010
+
+
+sof 0.5,0
+
+
+wrax temp1,0
+
+
+skp zro,ENDBM
+
+
+
+
+
+TWO:
+
+
+ldax temp1
+
+
+and %00000000_11111111_11111111
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+wrax temp1,0
+
+
+skp zro,ENDBM
+
+
+
+
+
+THREE:
+
+
+ldax temp1
+
+
+sof 1,-0.3
+
+
+wrax temp1,0
+
+
+skp zro,ENDBM
+
+
+
+
+
+FOUR:
+
+
+ldax temp1
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+and %01000000_00000000_00000000
+
+
+wrax temp1,0
+
+
+skp zro,ENDBM
+
+
+
+
+
+SKIP:
+
+
+skp run,ENDBM
+
+
+
+
+
+FIVE:
+
+
+ldax temp1
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+and %01100000_00000000_00000000
+
+
+wrax temp1,0
+
+
+skp zro,ENDBM
+
+
+
+
+
+SIX:
+
+
+ldax temp1
+
+
+sof -2,0
+
+
+sof -2,0
+
+
+and %01111000_00000000_00000000
+
+
+wrax temp1,0
+
+
+skp zro,ENDBM
+
+
+
+
+
+SEVEN:
+
+
+ldax temp1
+
+
+and %011111111_10000000_00000000
+
+
+wrax temp1,0
+
+
+
+
+
+ENDBM:
+
+
+
+
+
+;uninvert
+
+
+
+
+
+ldax temp
+
+
+skp gez,NOISEGATE
+
+
+ldax temp1
+
+
+sof -1,0
+
+
+wrax temp1,0
+
+
+
+
+
+NOISEGATE:
+
+
+
+
+
+ldax adcl
+
+
+absa
+
+
+rdfx filter, 0.0005
+
+
+wrlx filter,-1
+
+
+sof 1,-0.001
+
+
+skp neg, FADE
+
+
+
+
+
+ldax temp1
+
+
+sof -0.5,0
+
+
+mulx pot2
+
+
+mulx pot2
+
+
+wrax dacl,1
+
+
+wrax dacr,0
+
+
+skp zro, END
+
+
+
+
+
+FADE:
+
+
+ldax temp1
+
+
+mulx filter
+
+
+wrax dacl,0
+
+
+wrax dacr,0
+
+
+
+
+
+END:
+
+
+

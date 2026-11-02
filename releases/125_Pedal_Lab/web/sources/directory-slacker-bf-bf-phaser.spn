@@ -1,0 +1,409 @@
+;Flanger
+
+
+;Pot 0 LFO speed
+
+
+;Pot 1 range
+
+
+;Pot 2 feedback, clockwise positive, anticlockwise negative
+
+
+
+
+
+;Set up delays and register equates
+
+
+
+
+
+equ phase reg0
+
+
+equ temp reg1
+
+
+equ temp1 reg2
+
+
+equ ap1 reg3
+
+
+equ ap2 reg4
+
+
+equ ap3 reg5
+
+
+equ ap4 reg6
+
+
+equ led reg7
+
+
+equ fback reg8
+
+
+equ ap5 reg9
+
+
+equ ap6 reg10
+
+
+equ ap7 reg11
+
+
+equ ap8 reg12
+
+
+
+
+
+;set up LFOs, only at start up
+
+
+skp run, START
+
+
+wlds	sin0,0,32767
+
+
+
+
+
+START:
+
+
+
+
+
+;get LFO speed from POT0
+
+
+
+
+
+ldax	pot2
+
+
+mulx	pot2
+
+
+sof	0.2,0.02
+
+
+wrax	sin0_rate,0
+
+
+cho	rdal,sin0		;read sin1 as +/-1
+
+
+sof	0.5,0.5		;make positive only sin ranges 0 to 1
+
+
+log	0.5,0
+
+
+exp	1,0		;square root function
+
+
+sof	1,-0.5		;make +/-0.5
+
+
+sof	1.999,0		;make +/-1 again
+
+
+wrax	led,1
+
+
+mulx	pot1		;pot1 controls width and mix
+
+
+sof	0.25,0.65
+
+
+wrax	phase,0		;phase variable ranges 0.8 to 0.95
+
+
+
+
+
+ldax pot0
+
+
+mulx fback
+
+
+sof 1/64,0
+
+
+wrax fback,0
+
+
+
+
+
+rdax	ap1,1
+
+
+wrax	temp,1
+
+
+mulx	phase
+
+
+rdax	adcl,1/64	;input to phase shift network
+
+
+wrax	ap1,-1
+
+
+mulx	phase
+
+
+rdax	temp,1
+
+
+wrax	temp1,1
+
+
+rdax	fback,1
+
+
+wrax	temp1,0
+
+
+
+
+
+rdax	ap2,1
+
+
+wrax	temp,1
+
+
+mulx	phase
+
+
+rdax	temp1,1
+
+
+wrax	ap2,-1
+
+
+mulx	phase
+
+
+rdax	temp,1
+
+
+wrax	temp1,0
+
+
+
+
+
+rdax	ap3,1
+
+
+wrax	temp,1
+
+
+mulx	phase
+
+
+rdax	temp1,1
+
+
+wrax	ap3,-1
+
+
+mulx	phase
+
+
+rdax	temp,1
+
+
+wrax	temp1,0
+
+
+
+
+
+rdax	ap4,1
+
+
+wrax	temp,1
+
+
+mulx	phase
+
+
+rdax	temp1,1
+
+
+wrax	ap4,-1
+
+
+mulx	phase
+
+
+rdax	temp,1
+
+
+wrax	temp1,0
+
+
+
+
+
+rdax	ap5,1
+
+
+wrax	temp,1
+
+
+mulx	phase
+
+
+rdax	temp1,1
+
+
+wrax	ap5,-1
+
+
+mulx	phase
+
+
+rdax	temp,1
+
+
+wrax	temp1,0
+
+
+
+
+
+rdax	ap6,1
+
+
+wrax	temp,1
+
+
+mulx	phase
+
+
+rdax	temp1,1
+
+
+wrax	ap6,-1
+
+
+mulx	phase
+
+
+rdax	temp,1
+
+
+wrax	temp1,0
+
+
+
+
+
+rdax	ap7,1
+
+
+wrax	temp,1
+
+
+mulx	phase
+
+
+rdax	temp1,1
+
+
+wrax	ap7,-1
+
+
+mulx	phase
+
+
+rdax	temp,1
+
+
+wrax	temp1,0
+
+
+
+
+
+rdax	ap8,1
+
+
+wrax	temp,1
+
+
+mulx	phase
+
+
+rdax	temp1,1
+
+
+wrax	ap8,-1
+
+
+mulx	phase
+
+
+rdax	temp,1
+
+
+
+
+
+sof	-2,0
+
+
+sof	-2,0
+
+
+sof	-2,0
+
+
+sof	-2,0
+
+
+sof	-2,0
+
+
+sof	-2,0
+
+
+
+
+
+rdax adcl,1
+
+
+wrax fback,1
+
+
+wrax dacl,0
+
+
+ldax led
+
+
+sof 0.49,0.49
+
+
+wrax dacr,0
+
+
+
+
+
+

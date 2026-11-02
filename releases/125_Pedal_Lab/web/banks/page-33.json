@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-dervish-drv102-dv102-pp-1head-reverb",
+    "source": "algorithms/ready/directory-dervish-drv102-dv102-pp-1head-reverb.spn",
+    "instructions": 128,
+    "sha256": "1bca96f7d181eec9d49835858ba02089afeffa5d30e039bf901166506f8b8007",
+    "id": "directory-dervish-drv102-dv102-pp-1head-reverb",
+    "author": "Unknown (not credited in directory)",
+    "description": "Not very tape echo like, really",
+    "controls": [
+      "Time",
+      "Feedback",
+      "Level"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv102/dv102-pp-1head-reverb.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Single Head Tape Echo + Spring Reverb w/ Ping Pong",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 50,
+      "peak_output_error_q23": 205,
+      "rms_output_error_q23": 1.8854,
+      "peak_output_q23": 249776,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-dervish-drv102-dv102-pp-2head-reverb",
+    "source": "algorithms/ready/directory-dervish-drv102-dv102-pp-2head-reverb.spn",
+    "instructions": 128,
+    "sha256": "f6373777fe1dc89e6b60fce71675979dba70820878296ba1d97cf14c77031366",
+    "id": "directory-dervish-drv102-dv102-pp-2head-reverb",
+    "author": "Unknown (not credited in directory)",
+    "description": "Not very tape echo like, really",
+    "controls": [
+      "Time",
+      "Feedback",
+      "Level"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/drv102/dv102-pp-2head-reverb.spn"
+    },
+    "source_url": "https://www.muffwiggler.com/forum/viewtopic.php?t=160436",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Dual Head Tape Echo + Spring Reverb w/ Ping Pong",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 223764,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-drolo-reverb",
+    "source": "algorithms/ready/directory-drolo-reverb.spn",
+    "instructions": 116,
+    "sha256": "f00f4101d55a9a3d14efefa36b47604e0eae14f3a2c07cdfecd5d24016ceec44",
+    "id": "directory-drolo-reverb",
+    "author": "David Rolo",
+    "description": "Reverb program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "decay",
+      "pre delay",
+      "filter"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/reverb.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/drolo/reverb.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 677376,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-firesledge-bass-processor-p3-reverb",
+    "source": "algorithms/ready/directory-firesledge-bass-processor-p3-reverb.spn",
+    "instructions": 114,
+    "sha256": "4a766bc813e61c61d04797429093f53b87cab7d7c605b4e511b96c8ba4c02bda",
+    "id": "directory-firesledge-bass-processor-p3-reverb",
+    "author": "Firesledge",
+    "description": "Simple reverberation effect. Designed for bass",
+    "controls": [
+      "Time",
+      "Filter",
+      "Mix"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p3-reverb.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/firesledge/bass-processor-p3-reverb.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Reverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1048575,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-freeverb",
+    "source": "algorithms/ready/directory-freeverb.spn",
+    "instructions": 128,
+    "sha256": "203acd6f62436c3792cd90491f570dae715e8ba4afd080ebe03a99e9a2114c83",
+    "id": "directory-freeverb",
+    "author": "basilrush",
+    "description": "FV-1 implementation of the Freeverb approach: parallel filtered comb delays followed by allpass diffusion, with a stereo spread. POT0 sets comb feedback; other pots are not documented.",
+    "controls": [
+      "combfeedback",
+      "-",
+      "-"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/freeverb.spn"
+    },
+    "source_url": "http://www.spinsemi.com/forum/viewtopic.php?t=309",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Freeverb",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1633544,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-hall-goldmine",
+    "source": "algorithms/ready/directory-hall-goldmine.spn",
+    "instructions": 107,
+    "sha256": "a52ac1ccf7bfd59d7ed26038067f74a816130f28ea746289c9b09142d8ca0d01",
+    "id": "directory-hall-goldmine",
+    "author": "Unknown (not credited in directory)",
+    "description": "Reverb program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Reverb Damping",
+      "Reverb Level",
+      "Reverb Time"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/hall_goldmine.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/hall_goldmine.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Hall - modified",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 259584,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

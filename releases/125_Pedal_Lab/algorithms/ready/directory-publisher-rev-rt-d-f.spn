@@ -1,0 +1,209 @@
+;Stereo reverb with 3 variables:
+;pot0 = reverb time
+;pot1 = diffusion
+;pot2 = decay filtering
+;95 ticks
+
+equ	krt	reg0	;reverb time
+equ	kdiff	reg1	;input AP diffusion coefficients
+equ	kfh	reg2	;high freq shelf
+equ	kfl	reg3	;low freq shelf
+equ	temp1	reg4	;temporary register
+equ	temp2	reg5
+equ	temp3	reg6
+equ	fil_ll	reg7
+equ	fil_lh	reg8
+equ	fil_rl	reg9
+equ	fil_rh	reg10
+equ	kin	reg11	;input scaling, function of Krt
+
+equ	kap	0.6	;loop AP coefficients
+equ	kapi	0.65	;input AP coefficient
+equ	kluph	0.3	;loop high cut freq
+equ	klupl	0.03	;loop low cut freq
+
+mem	apl1	420
+mem	apl2	867
+mem	apl3	1578
+mem	apl4	390
+
+mem	apr1	450
+mem	apr2	909
+mem	apr3	1630
+mem	apr4	576
+
+mem	apcl1	3402
+mem	apcl2	2202
+mem	dcl	7678
+
+mem	apcr1	3167
+mem	apcr2	2009
+mem	dcr	7353
+
+;prepare pots:
+
+rdax	pot0,1
+log	0.5,0
+exp	1,0		;square root of pot
+sof	0.7,0.2		;rt spans 0.2 to 0.9
+wrax	krt,-0.8
+sof	1,0.999
+wrax	kin,0		;input scaling coefficient
+
+
+rdax	pot1,0.7
+wrax	kdiff,0		;input AP Ks from 0 to 0.7
+
+sof	0,-0.5		;load -0.5
+rdax	pot2,1		;add pot2, ranges -0.5 to +0.5
+sof	1.9999,0	;ranges -1 to +1
+wrax	temp1,1
+skp	neg,1
+clr			;do not allow to go positive
+wrax	kfh,0		;store low shelf, -1 to 0 (at mid pos)
+rdax	temp1,1		;get pot back
+sof	-1,0		;change sign
+skp	neg,1
+clr
+wrax	kfl,0		;same with high shelf, 0 (at mid pos) to -1
+
+;now do reverb:
+
+;do 3 input all passes, controlled by the variable Kdiff
+
+rdax	adcl,0.5	;read in left side, leave headroom
+mulx	kin
+wrax	temp3,0
+
+rda	apl1#,1		;read first AP output
+mulx	kdiff		;mult by diffusion
+rdax	temp3,1		;read in left side, leave headroom
+wra	apl1,-1		;write result to AP delay, change sign
+mulx	kdiff		;mult by diffusion
+rda	apl1#,1		;read AP out again
+wrax	temp1,0		;save to temp and clear ACC
+
+rda	apl2#,1		
+mulx	kdiff		
+rdax	temp1,1		
+wra	apl2,-1		
+mulx	kdiff		
+rda	apl2#,1		
+wrax	temp1,0		
+
+rda	apl3#,1		
+mulx	kdiff		
+rdax	temp1,1		
+wra	apl3,-1		
+mulx	kdiff		
+rda	apl3#,1		
+
+rda	apl4#,kapi	;read fourth input AP, fixed coefficient
+wrap	apl4,-kapi	
+rdax	temp1,0		;save in temp reg
+
+;input all passes are now done. Now we add in the loop signal and filter:
+
+rda	dcr#,1		;read right delay output
+rdfx	fil_ll,klupl	;set up low pass filter for high pass operation
+wrax	fil_ll,1	;change sign on lpf output
+mulx	kfl		;scale by lower end of pot2 range
+rda	dcr#,1		;read back the delay output
+wrax	temp2,1		;save, continue in ACC
+rdfx	fil_lh,kluph	;do low pass for high end control
+wrhx	fil_lh,-1	;create infinite shelf high pass
+mulx	kfh		;scale by upper end of pot2 range
+rdax	temp2,1		;sum back temp value
+
+;Loop feedback is now in place, filtered. 
+;scale by Krt, sum in input AP signal.
+
+mulx	krt
+rdax	temp1,1		;sum in input all pass filters
+rda	apcl1#,kap
+wrap	apcl1,-kap	;do left loop all pass
+rda	apcl2#,kap
+wrap	apcl2,-kap	;do left loop all pass
+wra	dcl,0		;write result to left loop delay
+
+;now do the same to the right channel:
+
+rdax	adcr,0.5	;read in right side, leave headroom
+mulx	kin
+wrax	temp3,0
+
+rda	apr1#,1		
+mulx	kdiff		
+rdax	temp3,1	
+wra	apr1,-1		
+mulx	kdiff		
+rda	apr1#,1		
+wrax	temp1,0		
+
+rda	apr2#,1		
+mulx	kdiff		
+rdax	temp1,1		
+wra	apr2,-1		
+mulx	kdiff		
+rda	apr2#,1		
+wrax	temp1,0		
+
+rda	apr3#,1		
+mulx	kdiff		
+rdax	temp1,1		
+wra	apr3,-1		
+mulx	kdiff		
+rda	apr3#,1		
+
+rda	apr4#,kapi	;read fourth input AP, fixed coefficient
+wrap	apr4,-kapi	
+rdax	temp1,0		;save in temp reg
+
+;input all passes are now done. Now we add in the loop signal and filter:
+
+rda	dcl#,1				
+rdfx	fil_rl,klupl	
+wrax	fil_rl,1	
+mulx	kfl		
+rda	dcl#,1		
+wrax	temp2,1		
+rdfx	fil_rh,kluph	
+wrhx	fil_rh,-1			
+mulx	kfh		
+rdax	temp2,1		
+
+;Loop feedback is now in place, filtered. Now sum in input AP signal.
+
+mulx	krt
+rdax	temp1,1		;sum in input all pass filters
+rda	apcr1#,kap
+wrap	apcr1,-kap
+rda	apcr2#,kap
+wrap	apcr2,-kap
+wra	dcr,0		;write result to right loop delay
+
+;now grab outputs from each delay input:
+
+rda	dcl,1.99
+rda	dcl#,0.8
+rda	dcr#,0.9
+wrax	dacl,0
+rda	dcr,1.99
+rda	dcr#,0.8
+rda	dcl#,0.9
+wrax	dacr,0
+clr
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,15 @@
+; SPDX-License-Identifier: MPL-2.0
+; Hardware test: 200 ms mono echo, conservative fixed gains.
+; At 32.768 kHz: 6554 samples = 200 ms. No pot dependence.
+MEM echo 6553
+LDAX ADCL
+SOF 0.5,0
+RDAX ADCR,0.5
+RDA echo#,0.25
+WRA echo,0
+RDA echo#,0.35
+RDAX ADCL,0.5
+WRAX DACL,0
+RDA echo#,0.35
+RDAX ADCR,0.5
+WRAX DACR,0

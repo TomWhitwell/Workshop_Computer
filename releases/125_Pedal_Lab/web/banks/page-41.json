@@ -1,0 +1,200 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-dervish-dattorro-shimmer-dattorro-shimmer-val-pitch",
+    "source": "algorithms/ready/directory-dervish-dattorro-shimmer-dattorro-shimmer-val-pitch.spn",
+    "instructions": 126,
+    "sha256": "0d2f4e732cecb8ce2e989e473f1d178cf9ae7474164d49ebe5cae3a28dd717c8",
+    "id": "directory-dervish-dattorro-shimmer-dattorro-shimmer-val-pitch",
+    "author": "mdroberts1243 (FV-1 implementation); Jon Dattorro (reverb design)",
+    "description": "Uncategorized program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "shimmer level",
+      "reverb time (decay... all the way up is infinite sustain in the tank)",
+      "hf loss in the tank (damping... turn up for MORE damping)"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-shimmer/dattorro-shimmer_val_pitch.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/dattorro-shimmer/dattorro-shimmer_val_pitch.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "dattorro-shimmer_val_pitch",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 239307,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 1,
+    "name": "directory-dervish-pingpong-pp-simple-2-1",
+    "source": "algorithms/ready/directory-dervish-pingpong-pp-simple-2-1.spn",
+    "instructions": 40,
+    "sha256": "afcffeafc542232de2bc50a68c037ae66c9a4219239c779fbd1eff632c7ad215",
+    "id": "directory-dervish-pingpong-pp-simple-2-1",
+    "author": "Unknown (not credited in directory)",
+    "description": "Uncategorized program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-simple-2_1.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-simple-2_1.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "pp-simple-2_1",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 188672,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 2,
+    "name": "directory-dervish-pingpong-pp-simple-stereo-2-1",
+    "source": "algorithms/ready/directory-dervish-pingpong-pp-simple-stereo-2-1.spn",
+    "instructions": 68,
+    "sha256": "32a168ebd6860395832b69ec885623b5417549bacdd1250e588ac87320bd6ab6",
+    "id": "directory-dervish-pingpong-pp-simple-stereo-2-1",
+    "author": "Unknown (not credited in directory)",
+    "description": "Uncategorized program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Not documented",
+      "Not documented",
+      "Not documented"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-simple-stereo-2_1.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/dervish/pingpong/pp-simple-stereo-2_1.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "pp-simple-stereo-2_1",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 189687,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 3,
+    "name": "directory-madbeanpedals-spacedash",
+    "source": "algorithms/ready/directory-madbeanpedals-spacedash.spn",
+    "instructions": 63,
+    "sha256": "b0c72b3453a7e860da25690b764114649f0e47bdcb2e06abf36b7781f9e091a5",
+    "id": "directory-madbeanpedals-spacedash",
+    "author": "madbeanpedals",
+    "description": "Uncategorized program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Intensity",
+      "Rate",
+      "Mix"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/madbeanpedals/spacedash.spn"
+    },
+    "source_url": "https://www.diystompboxes.com/smfforum/index.php?topic=123725.0",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Spacedash",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 1048576,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 4,
+    "name": "directory-resonator",
+    "source": "algorithms/ready/directory-resonator.spn",
+    "instructions": 21,
+    "sha256": "965d41dd7301cb0dbb9c73bd4233bc11fd2768a11f6905f84dbd0e7a02ea3f7e",
+    "id": "directory-resonator",
+    "author": "Unknown (not credited in directory)",
+    "description": "Uncategorized program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Frequency",
+      "Resonance",
+      "-"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/resonator.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/resonator.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Resonator",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 285832,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  },
+  {
+    "slot": 5,
+    "name": "directory-slacker-bf-bf-newoctaver",
+    "source": "algorithms/ready/directory-slacker-bf-bf-newoctaver.spn",
+    "instructions": 31,
+    "sha256": "45a5eb5f64faccb198a952f41ad67d9c5d4a99debaa60f16f4e934155a5d9a29",
+    "id": "directory-slacker-bf-bf-newoctaver",
+    "author": "slacker",
+    "description": "Uncategorized program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Dry mix",
+      "Octave up",
+      "Octave down"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_newoctaver.spn"
+    },
+    "source_url": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/slacker-bf/bf_newoctaver.spn",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "New octaver",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 0,
+      "peak_output_error_q23": 0,
+      "rms_output_error_q23": 0,
+      "peak_output_q23": 265259,
+      "output_clip_samples": 0,
+      "status": "exact-reference-match",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]

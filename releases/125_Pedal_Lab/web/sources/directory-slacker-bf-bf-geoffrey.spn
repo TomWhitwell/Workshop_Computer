@@ -1,0 +1,253 @@
+;pitch shifted delay
+
+
+;pot 0 - delay time
+
+
+;pot 1 - pitch shift currently +M3rd, +5th, +7th, +1 Octave
+
+
+;pot 2 - feedback
+
+
+
+
+
+mem delay 16383
+
+
+mem pitch 4096
+
+
+
+
+
+mem temp 1
+
+
+
+
+
+equ	fback	reg0
+
+
+equ 	delayout	reg1
+
+
+equ	filter	reg2
+
+
+equ	filter1	reg3
+
+
+
+
+
+skp run,START
+
+
+wldr rmp0,4096,4096
+
+
+
+
+
+START:
+
+
+
+
+
+ldax pot1
+
+
+and 	%01100000_00000000_00000000
+
+
+skp zro, P1
+
+
+sof 1,-0.25
+
+
+skp zro, P2
+
+
+sof 1,-0.25
+
+
+skp zro, P3
+
+
+
+
+
+sof 0,0.1299605249
+
+
+wrax rmp0_rate,0
+
+
+skp zro, PEND
+
+
+
+
+
+P1:
+
+
+sof 0,0.2491535384
+
+
+wrax rmp0_rate,0
+
+
+skp zro, PEND
+
+
+
+
+
+P2:
+
+
+sof 0,0.4438743127
+
+
+wrax rmp0_rate,0
+
+
+skp zro, PEND
+
+
+
+
+
+P3:
+
+
+sof 0,0.5
+
+
+wrax rmp0_rate,0
+
+
+
+
+
+PEND:
+
+
+
+
+
+ldax adcl
+
+
+rdax fback,1
+
+
+
+
+
+wra delay,0
+
+
+
+
+
+ldax pot0
+
+
+sof 0.48,0
+
+
+wrax addr_ptr,0
+
+
+
+
+
+rmpa 1
+
+
+
+
+
+wrax delayout,1
+
+
+
+
+
+wra pitch,0
+
+
+
+
+
+cho rda,rmp0,reg|compc,pitch
+
+
+cho rda,rmp0,,pitch+1
+
+
+wra temp,0
+
+
+cho rda,rmp0,rptr2|compc,pitch+1
+
+
+cho rda,rmp0,rptr2,pitch+1
+
+
+cho sof,rmp0,na|compc,0
+
+
+cho rda,rmp0,na,temp
+
+
+
+
+
+mulx pot2
+
+
+
+
+
+rdfx filter,0.5		;lowpass filter
+
+
+wrlx filter,-1
+
+
+rdfx filter1,0.5		;lowpass filter
+
+
+wrlx filter1,-1
+
+
+
+
+
+wrax fback,0
+
+
+
+
+
+ldax delayout
+
+
+rdax adcl,1
+
+
+
+
+
+wrax dacl,1
+
+
+wrax dacr,0

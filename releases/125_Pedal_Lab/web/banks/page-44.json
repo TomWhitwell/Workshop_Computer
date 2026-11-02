@@ -1,0 +1,35 @@
+[
+  {
+    "slot": 0,
+    "name": "directory-publisher-ga-demo-wah",
+    "source": "algorithms/ready/directory-publisher-ga-demo-wah.spn",
+    "instructions": 97,
+    "sha256": "692f8f0cdbc741a940cf96602d6c404ea9de45f3ab856d01feabb99bc06bfd2a",
+    "id": "directory-publisher-ga-demo-wah",
+    "author": "Spin Semi",
+    "description": "Wah program for the FV-1. Explore the documented controls below; the source header contains implementation notes.",
+    "controls": [
+      "Reverb level (post wah)",
+      "Sensitivity",
+      "Effect level / filter Q"
+    ],
+    "license": {
+      "label": "Public source; no explicit licence identified",
+      "status": "unspecified",
+      "evidence": "https://raw.githubusercontent.com/mstratman/fv1-programs/6feb3276757e229b69b1943e7858c6d4d04bd128/public/files/spinsemi/GA_DEMO_WAH.spn"
+    },
+    "source_url": "http://spinsemi.com/guitar_amp_application.html",
+    "upstream_commit": "6feb3276757e229b69b1943e7858c6d4d04bd128",
+    "title": "Wah",
+    "validation": {
+      "samples": 32768,
+      "state_mismatch_samples": 28307,
+      "peak_output_error_q23": 216,
+      "rms_output_error_q23": 26.6636,
+      "peak_output_q23": 484087,
+      "output_clip_samples": 0,
+      "status": "reference-difference",
+      "scope": "Native 32.768 kHz; inherited 16-bit delay model; software only, no hardware timing or fidelity claim."
+    }
+  }
+]
