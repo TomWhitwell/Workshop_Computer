@@ -1,19 +1,17 @@
 draft: false
 Name: Blueberry Smoothie
-short-description: Conceptual Blueberry-inspired pentatonic CV and gate recorder for the Workshop Computer.
-summary: >-
-  The third card in the Workshop Buddies trilogy, Blueberry Smoothie is a
-  hardware-tested monophonic CV and gate recorder conceptually inspired by
-  [Blueberry](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/blueberry),
-  not a direct firmware port or an exact recreation of its hardware interface.
-  Any compatible pitch CV into CV In 1 is snapped to the nearest note in
-  Blueberry's fixed C, D, F, G, A pentatonic set, repeated across octaves;
-  Pulse In 2 supplies an independent gate. The suggested 4 Voltages patch can
-  span several octaves and is not required. Main transposes the quantised result.
-  Down toggles recording, LED 2 shows an active take, and Up plays the saved
-  phrase with recorded timing or one event per Pulse In 1 clock edge.
-  Loops are held in RAM and clear on reset; the card produces pitch and gate,
-  not audio.
+short-description: Blueberry-inspired pentatonic pitch-CV and gate recorder for the Workshop Computer.
+summary: Play live, record a phrase and loop it back. Blueberry Smoothie is the third card in
+  the Workshop Buddies trilogy, a hardware-tested monophonic CV and gate recorder
+  inspired by
+  [Blueberry](https://github.com/plinkysynth/buddies_public/tree/main/sw/src/blueberry).
+  It is a new implementation with different hardware controls, rather than a direct
+  firmware port. Compatible pitch CV into CV In 1 snaps to the nearest C, D, F, G or A
+  across octaves, with an independent gate from Pulse In 2. The suggested 4 Voltages
+  source can span several octaves; other sources work too. Main transposes the quantised
+  result. Press Down to toggle recording, watch LED 2 for an active take, and switch Up
+  to play with recorded timing or one event per Pulse In 1 clock edge. Loops stay in RAM
+  and clear on reset. The card sends pitch and gate, not audio.
 Language: C++ (Pico SDK / ComputerCard 0.4.0)
 Creator: Adrian Vos
 Version: "0.3.0"

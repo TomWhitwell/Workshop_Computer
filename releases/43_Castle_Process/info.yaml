@@ -1,11 +1,11 @@
 Name: Castle Process
 draft: false
-short-description: Fort Processor-inspired harsh noise processor with chopped
-  external audio and a bass pulse voice
-summary: Castle Process is a performance card built around chopped external
-  audio, crude internal squarewave energy, aggressive switching between sources,
-  and a separate bass pulse layer. It is designed as a playable
-  sound-destruction tool rather than a clean effect or faithful clone.
+short-description: Chop external audio against internal square waves, with a separate bass pulse voice;
+  inspired by the Fort Processor.
+summary: Chop up drums, voices or oscillators and switch them against crude internal square
+  waves. Castle Process is a harsh noise processor inspired by the Fort Processor, with
+  a separate bass pulse beneath the chopped sound. It is a playable interpretation of
+  the idea rather than a faithful clone or clean effect.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.0"
@@ -20,8 +20,7 @@ panel:
       name: |-
         Audio
         In 1
-      description: Main external audio input to be broken up, gated, and forced into
-        the processor rather than passed through cleanly
+      description: Patch audio here to chop, gate and distort it.
       type: audio
     - id: CVIn1
       name: |-
@@ -39,8 +38,8 @@ panel:
       name: |-
         Bass
         Trigger
-      description: External bass trigger input that takes over bass timing and
-        suppresses the internal bass trigger behaviour
+      description: Patch a trigger here to set the bass timing yourself, replacing the internal
+        bass triggers.
       type: pulse
     - id: PulseIn2
       name: |-

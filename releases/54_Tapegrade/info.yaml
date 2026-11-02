@@ -2,10 +2,10 @@ Name: Tapegrade
 draft: false
 date-created: 2026-06-14
 date-updated: 2026-07-09
-summary: Mono-input stereo cassette warble processor with wow, flutter, hiss,
-  crackle, and tape wear morphing.
-short-description: Mono-input stereo cassette warble processor with wow,
-  flutter, hiss, crackle, and tape wear morphing.
+summary: Give a mono signal gentle stereo wobble or worn-out cassette sounds. Tapegrade uses
+  wow, flutter, hiss, crackle and changing tape wear to move between those textures.
+short-description: Turn a mono input into stereo cassette wobble, with wow, flutter, hiss, crackle and
+  changing tape wear.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: 0.8.0
@@ -124,16 +124,10 @@ controls:
           name: LED 5
           description: LED 5 follows tape condition and damage state.
 host:
-  notes: >
-    Tapegrade emulates cassette-style instability and wear from subtle movement
-    to heavily damaged textures.
-
-    Main controls wet/dry mix, X controls tape depth and CV1 attenuation, and Y
-    controls instability and CV2 attenuation.
-
-    Switch positions choose clean/old/damaged tape base states, Audio In 2
-    morphs tape condition continuously, Pulse In 1 injects temporary heavy
-    damage, and Pulse In 2 forces strong crackle while high.
+  notes: Main blends dry and wet sound. X sets tape depth and CV1 attenuation; Y sets
+    instability and CV2 attenuation. Choose clean, old or damaged tape with the switch,
+    or use Audio In 2 to move continuously between tape conditions. Pulse In 1 triggers
+    a short burst of heavy damage. Hold Pulse In 2 high for strong crackle.
 contact:
   social:
     github: https://github.com/soveda

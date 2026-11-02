@@ -1,14 +1,34 @@
 draft: false
 Name: F1shnet
-short-description: Fishy filter/sample-hold card with synth-friendly envelope follower motion and random stepped filter gestures.
-summary: |
-  A Workshop Computer interpretation of the Maestro FSH-1 filter/sample-hold effect.
-  Envelope mode uses an envelope follower and ratio-style low-pass cutoff movement with a low base range, so rectified input dynamics move the filter like a low-pass auto-wah rather than adding a simple linear cutoff offset.
-  Envelope sensitivity and output trim are scaled for modular/euro-level sources, so 5-6Vpp oscillators should move the filter without immediately pinning the envelope open or clipping the output.
-  In the S&H gesture, random values move the filter frequency around the stored middle-page range with a wide pitch-style response rather than changing the envelope, with a moderate lower S&H cutoff floor, moderately damped resonance, and click-reduced ping-pong movement between the two audio outputs.
-  Audio In 2, CV 1, and CV 2 all influence parameters, with CV 1 and CV 2 keeping the same jobs in every switch position. Pulse In 1 acts as an external clock / retrigger, and Pulse In 2 can also force the sample-and-hold gesture high.
-  CV Out 1 always emits the stepped sample-and-hold voltage, CV Out 2 always emits the envelope follower, Pulse Out 1 mirrors the clock, and Pulse Out 2 emits the sample trigger pulse.
-  Knobs use soft pickup when switching between middle and up so parameters do not jump until the physical control crosses the stored value for that page. Up exposes output trim and envelope sensitivity while Y remains the shared resonance control from the middle page; envelope release is fixed internally rather than user-facing.
+short-description: Fishy auto-wah and random stepped-filter movement, with an envelope follower tuned for
+  synth signals.
+summary: >-
+  Sweep a resonant low-pass filter from your input dynamics, or hold Down for random
+  stepped movement. F1shnet takes inspiration from the Maestro FSH-1.
+
+
+  Envelope mode uses an envelope follower and ratio-style cutoff movement around a low
+  base range, rather than a simple linear cutoff offset. Sensitivity and output trim are
+  scaled for modular/euro-level signals: 5-6Vpp oscillators should move the filter
+  without immediately holding the envelope open or clipping the output.
+
+
+  S&H moves the cutoff around the stored Middle-page range with a wide pitch-style
+  response. It uses a moderate lower cutoff floor, moderately damped resonance and short
+  crossfades for click-reduced ping-pong movement between the audio outputs. It changes
+  filter frequency rather than the envelope.
+
+
+  Audio In 2, CV 1 and CV 2 modulate parameters; CV 1 and CV 2 keep the same jobs in
+  every switch position. Pulse In 1 clocks or retriggers movement. After a low-to-high
+  gate, Pulse In 2 can hold S&H active. CV Out 1 always sends the stepped S&H voltage,
+  CV Out 2 sends the envelope follower, Pulse Out 1 mirrors the clock, and Pulse Out 2
+  sends the sample trigger pulse.
+
+
+  When moving between Middle and Up, knobs use soft pickup: move through the stored
+  value before taking control. Up gives you output trim and envelope sensitivity, while
+  Y keeps the same resonance setting as Middle. Envelope release is fixed internally.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: 0.1.1
@@ -76,7 +96,7 @@ panel:
       type: pulse
     - id: PulseIn2
       name: S&H Gate
-      description: Qualified gate input that forces the sample-and-hold gesture high while held after a real low-to-high gate.
+      description: After a low-to-high gate transition, hold high to keep sample-and-hold active.
       type: pulse
   outputs:
     - id: AudioOut1
@@ -128,7 +148,9 @@ controls:
     - when: { z: up }
       main:
         name: Output Trim
-        description: Post-filter output level trim for taming hot modular signals before the output clips; it is not an input attenuator and does not change envelope sensitivity; stored startup value is minimum trim.
+        description: Sets the output level after the filter, with minimum trim at startup. Use it
+          to tame hot modular signals before the output clips. It does not attenuate the
+          input or change envelope sensitivity.
       x:
         name: Envelope Sensitivity
         description: Input sensitivity for the envelope follower; higher settings make smaller dynamics open the filter more.
@@ -138,7 +160,8 @@ controls:
     - when: { z: down }
       main:
         name: S&H Speed
-        description: Live internal sample-and-hold clock speed while the momentary down gesture is held; uses soft pickup; minimum is slowest, maximum is fastest.
+        description: Hold Down and use Main to set the internal S&H clock speed. It uses soft
+          pickup; minimum is slowest and maximum is fastest.
   switch:
     up:
       name: Alt Page
@@ -148,7 +171,8 @@ controls:
       description: Default control page for the core filter voice; knobs use soft pickup when returning from the alternate page.
     down:
       name: Sample Hold Gesture
-      description: Hold the spring-loaded down position to replace the envelope with random stepped filter movement; Main controls S&H clock speed while down is held.
+      description: Hold Down to replace envelope movement with random filter steps. Main sets S&H
+        clock speed while held.
   leds:
     - display: list
       items:

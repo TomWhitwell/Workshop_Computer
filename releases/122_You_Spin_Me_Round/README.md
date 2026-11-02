@@ -1,15 +1,17 @@
 # You spin me round for Workshop Computer
 
-**Version 0.1.0-rc1. Hardware-tested release candidate.**
+**Version 0.1.0-rc1. Release candidate.**
 
-You spin me round is a mono-to-stereo Leslie-style rotary speaker effect by
-Adrian Vos. Separate bass-drum and treble-horn motion creates a slow roll or a
-fast shimmer, with Doppler pitch movement, changing loudness and tone, cabinet
-drive, and different acceleration and braking times for each rotor.
+You spin me round is a Leslie-style rotary speaker effect by Adrian Vos.
+Send it a mono signal and listen in stereo for a slow roll or fast shimmer.
+The bass drum and treble horn move independently, with Doppler pitch shifts,
+changes in loudness and tone, cabinet drive, and different acceleration and
+braking times.
 
 Choose the familiar **Outside** perspective or an exaggerated **Inside the
 cabinet** perspective with opposing stereo motion and deeper Doppler movement.
-The controls stay immediate: three knobs, slow/fast, and a hold-to-brake gesture.
+Use three knobs to shape the sound, switch between slow and fast, and hold Down
+to brake.
 
 Card **122** is a nod to the [Leslie 122 speaker](https://hammondorganco.com/products/leslie-speakers/122-147-981-147a).
 The release folder is `122_You_Spin_Me_Round`. This is a creative rotary
@@ -21,10 +23,6 @@ Flash [You_Spin_Me_Round_0.1.0-rc1.uf2](uf2/You_Spin_Me_Round_0.1.0-rc1.uf2)
 to a Workshop Computer program card using BOOTSEL, then reset with the switch
 in Middle. Patch a mono source into Audio In 1 and listen to Audio Outs 1/2 as
 left/right. Start with Main and X at noon and Y low.
-
-RC1 uses the exact firmware bytes of the alpha3 build that passed the author's
-hardware tests and listening checks. This folder contains the release candidate,
-source, documentation and previews for the Workshop Computer catalogue.
 
 ## Controls
 
@@ -110,19 +108,6 @@ lights if this card's callback takes at least 18 microseconds. It measures the
 callback rather than the full ComputerCard interrupt; it is not a complete-ISR
 timing certification.
 
-## Test
-
-The author reports all alpha3 hardware tests pass and the sound works nicely.
-RC1 is byte-identical to that tested firmware. The repeatable test protocol is
-in [docs/HARDWARE_CHECK.md](docs/HARDWARE_CHECK.md), and the validation record is
-in [docs/BUILD_STATUS.md](docs/BUILD_STATUS.md). A measured complete-ISR maximum
-has not been recorded.
-
-The [Outside](previews/outside.wav), [Inside](previews/inside.wav) and
-[dry source](previews/dry-organ.wav) previews are synthetic host renders through
-the same DSP, not recordings from the hardware. Slow starts at 0 s, fast is
-selected at 4 s, and brake at 12 s. All use the same source and gain.
-
 ## Build
 
 Set `PICO_SDK_PATH` to an installed Raspberry Pi Pico SDK checkout, then run with
@@ -144,6 +129,27 @@ Run `sh tests/run.sh` for host sanitizer tests, and
 Clang C++ compiler; preview generation also needs Python 3. The original
 phase-accumulator lookup-table approach follows ComputerCard's sine_wave_lookup
 example. [docs/PROCESSING.md](docs/PROCESSING.md) records the processing choice.
+
+## Release notes
+
+### 0.1.0-rc1
+
+RC1 uses the exact firmware bytes of the alpha3 build that passed the author's
+hardware tests and listening checks. This folder contains the release candidate,
+source, documentation and previews for the Workshop Computer catalogue.
+
+### Test results and previews
+
+The author reports all alpha3 hardware tests pass and the sound works nicely.
+RC1 is byte-identical to that tested firmware. The repeatable test protocol is
+in [docs/HARDWARE_CHECK.md](docs/HARDWARE_CHECK.md), and the validation record is
+in [docs/BUILD_STATUS.md](docs/BUILD_STATUS.md). A measured complete-ISR maximum
+has not been recorded.
+
+The [Outside](previews/outside.wav), [Inside](previews/inside.wav) and
+[dry source](previews/dry-organ.wav) previews are synthetic host renders through
+the same DSP, not recordings from the hardware. Slow starts at 0 s, fast is
+selected at 4 s, and brake at 12 s. All use the same source and gain.
 
 ## Credits
 

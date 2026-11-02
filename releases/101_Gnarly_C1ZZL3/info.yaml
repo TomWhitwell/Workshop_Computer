@@ -1,28 +1,24 @@
 draft: false
 Name: C1ZZL3 Gnarly
-short-description: >-
-  Performance-focused dual-oscillator phase-distortion synth with four recipe banks, six envelope
-  lanes, named sound presets, CZ patch import, and optional 8mu v2 editing.
-summary: >-
-  Performance-focused dual-oscillator phase-distortion synth voice with recipe wave banks, named Web MIDI
-  sound presets, separate oscillator amplitude/phase-distortion/pitch envelopes,
-  CZ patch import support, and an eight-knob MIDI CC performance block.
-  Card 84 Cosmik C1ZZL3 offers a simpler version of the phase-distortion synth
-  engine with Core 1.4 and RAD v9 firmware choices. Gnarly retains RAD's
-  six-lane envelope editing and named sound-preset workflow.
-  Dedicated oscillator pages provide independent base PD amounts and an
-  oscillator 2 interval of -24 to +24 semitones around unison. A performance
-  page controls recipe bank, ring modulation, and noise/grit.
-  An alternative Gnarly_C1ZZL3_8mu.uf2 firmware retains the same sound engine and
-  Web MIDI editor while adding Music Thing 8mu v2 performance and custom-envelope
-  editing through eight bundled controller banks. Bank 1 provides performance
-  controls, Banks 2--7 edit the six envelope lanes, and Bank 8 selects the custom
-  slot and adjusts lane/master depths. Buttons use Keyboard mode: A/note 120
-  selects levels, B/note 121 selects times, C/note 122 saves, and D/note 123
-  reverts in banks 2--8. Only saved custom sound-preset slots are editable; factory
-  envelopes remain read-only and gesture mappings are disabled. The bundled 8mu
-  release includes soft pickup and individual slider LEDs: dim while waiting
-  for pickup, full after pickup.
+short-description: Dual-oscillator phase-distortion synth with four recipe banks, six envelope lanes,
+  named sound presets, CZ patch import, and optional 8mu v2 editing.
+summary: "Shape two phase-distortion oscillators with separate amplitude, phase-distortion and
+  pitch envelopes. Choose recipe wave banks, save named sounds through Web MIDI, import
+  CZ patches, or play from an eight-knob MIDI CC controller. Card 84 Cosmik C1ZZL3
+  offers a simpler version of the phase-distortion synth engine with Core 1.4 and RAD v9
+  firmware choices. Gnarly keeps RAD's six-lane envelope editing and named sound
+  presets. Dedicated oscillator pages provide independent base PD amounts and an
+  oscillator 2 interval of -24 to +24 semitones around unison. A performance page
+  controls recipe bank, ring modulation, and noise/grit. Use Gnarly_C1ZZL3_8mu.uf2 to
+  add Music Thing 8mu v2 performance and custom-envelope editing. It uses the same sound
+  engine and Web MIDI editor, with eight bundled controller banks. Bank 1 provides
+  performance controls, Banks 2--7 edit the six envelope lanes, and Bank 8 selects the
+  custom slot and adjusts lane/master depths. Buttons use Keyboard mode: A/note 120
+  selects levels, B/note 121 selects times, C/note 122 saves, and D/note 123 reverts in
+  banks 2--8. Only saved custom sound-preset slots are editable; factory envelopes
+  remain read-only and gesture mappings are disabled. The bundled 8mu release includes
+  soft pickup and individual slider LEDs: dim while waiting for pickup, full after
+  pickup."
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "Gnarly protocol v11 stable"
@@ -105,7 +101,8 @@ controls:
       description: Edit oscillator 1. Main sets shared pitch, X sets oscillator 1 phase distortion, and Y selects oscillator 1 recipe slot in the current bank.
     down:
       name: Performance / Bank Page
-      description: Hold down to edit performance controls. Main selects recipe bank, X sets ring modulation, and Y sets noise or grit.
+      description: Hold Down to choose a recipe bank with Main, set ring modulation with X, and add
+        noise or grit with Y.
   knobs:
     - when:
         z: middle
@@ -153,7 +150,7 @@ controls:
           description: With LED0, encodes the selected recipe bank. Both LEDs off = bank 1; LED 1 on = bank 2; LED 2 on = bank 3; both on = bank 4.
         - id: LED2
           name: Oscillator 2 Interval / Spread
-          description: Shows oscillator 2 interval or spread as a bipolar brightness from center.
+          description: Gets brighter as oscillator 2 moves away from unison in either direction.
         - id: LED3
           name: Ring Modulation
           description: Shows ring modulation amount.
@@ -166,79 +163,68 @@ controls:
 
 host:
   notes: >-
-    Gnarly is a performance-focused C1ZZL3 version with dual-oscillator editing,
-    four recipe banks, ring modulation, and noise/grit. Card 84 Cosmik C1ZZL3
-    provides a simpler version of the phase-distortion synth engine, with Core
-    1.4 and RAD v9 firmware choices. Gnarly retains RAD's six-lane envelope
-    editing and named sound presets and adds independent base PD amounts
-    and an oscillator 2 interval control.
+    Gnarly lets you edit both C1ZZL3 oscillators independently, with four recipe banks,
+    ring modulation, and noise/grit. Card 84 Cosmik C1ZZL3 provides a simpler version of
+    the phase-distortion synth engine, with Core 1.4 and RAD v9 firmware choices. Like
+    RAD, Gnarly gives you six envelope lanes and named sound presets. You can also set
+    each oscillator's base PD amount and oscillator 2's interval.
 
 
-    Switch middle edits oscillator 1, switch up edits oscillator 2, and
-    switch down controls recipe bank, ring modulation, and noise/grit.
+    Switch middle edits oscillator 1, switch up edits oscillator 2, and switch down
+    controls recipe bank, ring modulation, and noise/grit.
 
 
-    Web MIDI: use the GnarlyC1zzl3 Lab for Amp1/Amp2, PD1/PD2, Pitch1/Pitch2,
-    recipe bank, named sound presets, and CZ Import Lab handoff.
+    Web MIDI: use the GnarlyC1zzl3 Lab for Amp1/Amp2, PD1/PD2, Pitch1/Pitch2, recipe
+    bank, named sound presets, and CZ Import Lab handoff.
 
-    Demo video note: for Core 1.4 / RAD v9, also refer to the Cosmik C1ZZL3
-    demo video.
-
-
-    MIDI CC map: CC1 = oscillator 1 phase distortion; CC20 = oscillator 1
-    recipe slot; CC21 = oscillator 2 recipe slot; CC22 = ring modulation;
-    CC23 = recipe bank; CC24 = oscillator 2 interval/spread; CC25 = oscillator
-    2 phase distortion; CC26 = noise/grit; CC27 = oscillator 1 phase
-    distortion for eight-knob controllers.
+    Demo video note: for Core 1.4 / RAD v9, also refer to the Cosmik C1ZZL3 demo video.
 
 
-    Recipe banks 2--4 use fixed waveform blends. Depending on the recipe,
-    the blend favours the first waveform, is equal, or favours the second.
-    Bank 1 morphs between the eight plain waveform families. CV In 1
-    modulates both oscillator PD amounts; CV In 2 modulates both recipe-slot
-    or waveform controls on every page.
+    MIDI CC map: CC1 = oscillator 1 phase distortion; CC20 = oscillator 1 recipe slot;
+    CC21 = oscillator 2 recipe slot; CC22 = ring modulation; CC23 = recipe bank; CC24 =
+    oscillator 2 interval/spread; CC25 = oscillator 2 phase distortion; CC26 =
+    noise/grit; CC27 = oscillator 1 phase distortion for eight-knob controllers.
 
 
-    8mu alternative: import the bundled 8mu bank files when using
-    Gnarly_C1ZZL3_8mu.uf2. Buttons use Keyboard mode on MIDI channel 1 with
-    velocity 127. In banks 2--8: A = note 120 (stage levels), B = note 121
-    (stage times), C = note 122 (save all six lanes and current performance
-    settings), D = note 123 (revert all six lanes to their saved values).
-    Save/revert require a saved custom slot. Bank 1 sends notes 124--127
-    for A--D respectively; these are ignored. Reserved button notes do not
-    play synth pitches. Actions occur on note-on; note-off does not undo them.
-    CC120--123 remain supported for other controllers. Re-import the matching
-    keyboard-mode banks and choose Update controller after each import.
-    Workshop Computer LED 6 is steady for stage-level editing (A) and blinks
-    twice per second for stage-time editing (B). The mode carries across banks
-    and defaults to levels at startup. Startup selection and save confirmation
-    temporarily override the indicator.
-    Keyboard-mode A/B selection, LED 6 feedback, and audible operation passed
-    hardware testing on 2026-10-25.
-    The bundled 8mu release uses soft pickup for stage sliders in banks 2--7
-    and depth sliders 2--8 in bank 8. Reach or cross the current value within
-    one MIDI step to take control; each slider then follows normally. With the
-    8mu connected directly by USB, its slider LED is dim while waiting
-    and full after pickup. Factory stage sliders remain read-only with LEDs
-    off. Bank 8 slider 1 stays full and selects immediately; bank 1 retains
-    immediate performance controls and normal activity LEDs. LED control reads
-    the current bank without resetting its mappings; allow about half a second
-    for the display after changing bank.
-    Stage pickup re-arms on lane, custom slot, or A/B mode changes, D/revert,
-    browser envelope loads, and returning from another bank. Depth pickup
-    re-arms on bank changes. Repeated A/B presses in the same mode preserve
-    pickup. Depths start at full: move each depth slider to the top before
-    lowering it for the first time. C does not save depths; D does not restore
-    depths or performance settings.
-    Soft pickup and dim-to-full slider LED feedback were confirmed on hardware
-    on 2026-10-25; the bundled 8mu UF2 is that tested build. After an 8mu factory
-    reset, re-import all eight Gnarly controller banks.
-    The bundled 8mu release fixes a C-save stack overflow by allocating a
-    dedicated 16 KiB USB/MIDI stack. Flash readback is verified before all six
-    Workshop LEDs flash for about one second to confirm a successful C save.
-    Saved-envelope persistence was confirmed after reset and readback in the
-    web editor on 2026-10-25. C saves the custom slot but does not change startup
-    selection; reselect that slot after reboot.
+    Recipe banks 2--4 use fixed waveform blends. Depending on the recipe, the blend
+    favours the first waveform, is equal, or favours the second. Bank 1 morphs between
+    the eight plain waveform families. CV In 1 modulates both oscillator PD amounts; CV
+    In 2 modulates both recipe-slot or waveform controls on every page.
+
+
+    8mu alternative: import the bundled 8mu bank files when using Gnarly_C1ZZL3_8mu.uf2.
+    Buttons use Keyboard mode on MIDI channel 1 with velocity 127. In banks 2--8: A =
+    note 120 (stage levels), B = note 121 (stage times), C = note 122 (save all six
+    lanes and current performance settings), D = note 123 (revert all six lanes to their
+    saved values). Save/revert require a saved custom slot. Bank 1 sends notes 124--127
+    for A--D respectively; these are ignored. Reserved button notes do not play synth
+    pitches. Actions occur on note-on; note-off does not undo them. CC120--123 remain
+    supported for other controllers. Re-import the matching keyboard-mode banks and
+    choose Update controller after each import. Workshop Computer LED 6 is steady for
+    stage-level editing (A) and blinks twice per second for stage-time editing (B). The
+    mode carries across banks and defaults to levels at startup. Startup selection and
+    save confirmation temporarily override the indicator. Keyboard-mode A/B selection,
+    LED 6 feedback, and audible operation passed hardware testing on 2026-10-25. The
+    bundled 8mu release uses soft pickup for stage sliders in banks 2--7 and depth
+    sliders 2--8 in bank 8. Reach or cross the current value within one MIDI step to
+    take control; each slider then follows normally. With the 8mu connected directly by
+    USB, its slider LED is dim while waiting and full after pickup. Factory stage
+    sliders remain read-only with LEDs off. Bank 8 slider 1 stays full and selects
+    immediately; bank 1 retains immediate performance controls and normal activity LEDs.
+    LED control reads the current bank without resetting its mappings; allow about half
+    a second for the display after changing bank. Stage pickup re-arms on lane, custom
+    slot, or A/B mode changes, D/revert, browser envelope loads, and returning from
+    another bank. Depth pickup re-arms on bank changes. Repeated A/B presses in the same
+    mode preserve pickup. Depths start at full: move each depth slider to the top before
+    lowering it for the first time. C does not save depths; D does not restore depths or
+    performance settings. Soft pickup and dim-to-full slider LED feedback were confirmed
+    on hardware on 2026-10-25; the bundled 8mu UF2 is that tested build. After an 8mu
+    factory reset, re-import all eight Gnarly controller banks. The bundled 8mu release
+    fixes a C-save stack overflow by allocating a dedicated 16 KiB USB/MIDI stack. Flash
+    readback is verified before all six Workshop LEDs flash for about one second to
+    confirm a successful C save. Saved-envelope persistence was confirmed after reset
+    and readback in the web editor on 2026-10-25. C saves the custom slot but does not
+    change startup selection; reselect that slot after reboot.
 
 contact:
   social:

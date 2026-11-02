@@ -1,10 +1,10 @@
 # BuzzyBee
 
-BuzzyBee is a hardware-tested Workshop Computer adaptation of the Buddies
-Buzzrito stereo saw and sub swarm oscillator. It keeps the original seven-point
-XY preset interpolation, comb character, glide, BOC, seeded wobble, pink noise,
-note-memory chord behavior, and recordable XY movement while adapting the
-instrument to Workshop Computer controls and I/O.
+BuzzyBee brings the Buddies Buzzrito saw-and-sub swarm to the Workshop
+Computer. Move X and Y to blend between seven presets, record a path through
+them, or build chords from notes you play. It keeps Buzzrito's comb character,
+glide, BOC, seeded wobble and pink noise, with controls and I/O adapted to the
+Workshop.
 
 ## Install
 
@@ -26,9 +26,10 @@ switch Middle for normal performance.
 | Switch Down tap | Cycles chord modes 1-4. |
 | Switch Down hold | With Pulse In 1 patched, forces the gate open; otherwise mutes the drone. |
 
-Switch Up records a new path. A closed gesture loops and an open gesture
-ping-pongs. Leaving X/Y stationary records a parked point. Motion is stored in
-RAM, lasts about 2.05 seconds at full length, and clears on power cycling.
+Switch Up records a new path. Finish where you started for a loop, or leave
+the path open to play it forwards and backwards. Leave X/Y still to record a
+fixed point. Motion lasts about 2.05 seconds at full length, is stored in RAM,
+and clears when you power-cycle the Computer.
 
 Chord modes use original Buzzrito note memory, not fixed chord shapes. In
 modes 2-4, hold successive pitches briefly using Main or pitch CV. BuzzyBee
@@ -63,6 +64,12 @@ export PICO_SDK_PATH=/path/to/pico-sdk
 cmake -S releases/833_BuzzyBee -B /private/tmp/buzzybee -DCMAKE_BUILD_TYPE=Release
 cmake --build /private/tmp/buzzybee -j2
 ```
+
+## Release notes
+
+### 1.0.0 testing status
+
+BuzzyBee has been tested on Workshop Computer hardware.
 
 ## Attribution And Licence
 

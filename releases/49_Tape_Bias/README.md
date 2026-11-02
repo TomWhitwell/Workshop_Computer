@@ -1,12 +1,11 @@
 # Tape Bias
 
-Tape Bias is an experimental 1960s-inspired reel-to-reel record/replay processor.
-It models the practical consequences of AC bias calibration: record drive,
-under-bias roughness, over-bias treble loss, magnetic saturation, tape formulation,
-transport speed, replay EQ, and residual hiss.
+Tape Bias gives your audio the drive, hiss and changing tone of a 1960s-style
+reel-to-reel recorder. Explore rough under-biased sounds, softer over-biased
+treble, magnetic saturation, tape formulations, transport speeds and replay EQ.
 
-It is deliberately separate from Tapegrade. Tapegrade is a cassette warble and
-damage effect; Tape Bias is a steadier record/replay machine model.
+Compared with Tapegrade's cassette warble and damage, Tape Bias focuses on a
+steadier record/replay sound.
 
 ## Controls
 
@@ -36,7 +35,9 @@ Computer's 48 kHz audio rate that would require substantial oversampling. Instea
 it uses an averaged magnetic transfer curve whose saturation, high-frequency loss,
 and hiss vary with the virtual bias calibration.
 
-## Status
+## Release notes
+
+### 0.1.1 and testing
 
 Version 0.1.1 is the current stable fallback build, hardware-tested by one person
 with sine, square, bass-loop, bias-CV, tape-type, and erase-input checks. It remains

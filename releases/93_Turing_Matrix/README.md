@@ -1,12 +1,12 @@
 # Turing Matrix
 
-This is a beta Workshop Computer card built from the official
-**03_Turing_Machine** firmware, reshaped into two switch-selected layers inspired by the
-Music Thing Modular **Turing Machine + Vactrol Mix Expander** combination.
+Turing Matrix pairs a Turing-style pattern generator with a random stereo
+mixer on the Workshop Computer. Put Z in Middle to shape the sequence, or Up
+to use it to move your audio and CV between two outputs.
 
-The card builds on ideas and code originally developed by Tom Whitwell and Chris Johnson.
-Their work on the Turing Machine family and mixer concepts is the foundation this beta card is
-based on.
+This beta builds on the official **03_Turing_Machine** firmware and the ideas
+behind Music Thing Modular's **Turing Machine + Vactrol Mix Expander**. It uses
+ideas and code developed by Tom Whitwell and Chris Johnson.
 
 The original Vactrol Mix Expander is a four-input, two-output vactrol matrix mixer
 for the hardware Turing Machine. On the Workshop Computer we have two audio inputs,
@@ -15,7 +15,7 @@ card treats the idea as a two-input, two-output random matrix/mixer.
 
 ## Basic idea
 
-- **Z middle** is the Turing control layer and is intended to feel like the original Turing card.
+- **Z middle** gives you the familiar Turing controls.
 - **Z up** is the mixer layer and uses the card's Turing-style control signals to animate a
   two-input, two-output audio/CV mixer.
 - **Z down** remains tap tempo.
@@ -85,7 +85,19 @@ In the mixer layer, the card uses the Turing-style control signal as a crossfade
 The same crossfade is mirrored on the CV pair: CV Out 1 crossfades CV In 1 against CV In 2, and CV
 Out 2 crossfades CV In 2 against CV In 1.
 
-## Status
+## Web editor
+
+The local `web/` editor allows access to the Turing settings plus the mixer-layer settings: timing,
+scale/range, pulse behavior, mix curve, lane link, rise/fall timing, and per-lane minimum/maximum
+windows. Use the panel to change lag and mix depth while playing in `Z up`.
+
+The hosted editor is here:
+
+`https://tomwhitwell.github.io/Workshop_Computer/programs/93-turing-matrix/web/index.html`
+
+## Release notes
+
+### Beta changes
 
 Beta implementation. The firmware source is copied from card **03_Turing_Machine** with:
 
@@ -94,16 +106,6 @@ Beta implementation. The firmware source is copied from card **03_Turing_Machine
 - the original Audio In 2 switch override behavior removed
 - a new `Z up` mixer layer added alongside the Turing control layer
 - startup knob values applied directly to the active layer, with pickup only applied after layer changes
-
-## Web editor
-
-The local `web/` editor allows access to the Turing settings plus the mixer-layer settings: timing,
-scale/range, pulse behavior, mix curve, lane link, rise/fall timing, and per-lane minimum/maximum
-windows. The panel still handles the live lag and mix depth gestures in `Z up`.
-
-The hosted editor is here:
-
-`https://tomwhitwell.github.io/Workshop_Computer/programs/93-turing-matrix/web/index.html`
 
 ## Firmware distribution notices
 

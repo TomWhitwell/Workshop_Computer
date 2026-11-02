@@ -1,12 +1,13 @@
 draft: false
 Name: You spin me round
-short-description: Playable rotary speaker with separate horn/drum inertia and an Inside perspective.
-summary: >-
-  A hardware-tested mono-to-stereo Leslie-style rotary speaker for the Workshop
-  Computer. Main sets speed, X opens up movement and stereo spread, and Y adds
-  cabinet drive. Switch between slow and fast, or hold Down to brake and release
-  to resume. Outside is the default; hold Down at boot and use Main to select an
-  exaggerated Inside perspective. Release candidate based on the tested alpha3 DSP.
+short-description: Leslie-style rotary speaker with separate horn and drum inertia and an Inside
+  listening perspective.
+summary: Send a mono signal through a Leslie-style rotary speaker and listen in stereo. Main
+  sets speed, X adds movement and stereo spread, and Y adds cabinet drive. Switch
+  between slow and fast, or hold Down to brake and release to resume. It starts with the
+  Outside perspective; hold Down at startup and use Main to choose the exaggerated
+  Inside perspective. This release candidate uses the tested alpha3 DSP and has been
+  tested on hardware.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "0.1.0-rc1"
@@ -96,7 +97,8 @@ controls:
         description: Sets rate within the slow/fast range; selects Outside/Inside while the boot selector is held.
       x:
         name: Intensity
-        description: Rotary movement and stereo spread with a responsive low-end curve; fully left is stationary.
+        description: Sets rotary movement and stereo spread, with more response in the lower knob
+          range. Turn fully left to stop the movement.
       y:
         name: Drive
         description: Cabinet input drive into soft saturation.
@@ -122,7 +124,7 @@ controls:
           name: Timing Warning
           description: Latched when this callback takes at least 18 microseconds; not a complete-ISR measurement.
 host:
-  notes: >-
-    Uses ComputerCard 0.4.0 with per-sample audio processing. No USB MIDI or web
-    editor. Listening perspective is selected at boot and is not saved to flash.
-    Both pulse inputs use held gate levels, with a minimum reliable duration of 2 ms.
+  notes: Uses ComputerCard 0.4.0 for per-sample audio processing. There is no USB MIDI or web
+    editor. Choose the listening perspective at startup; it is not saved to flash. Both
+    pulse inputs respond to held gate levels, which must last at least 2 ms to be
+    reliably sampled.

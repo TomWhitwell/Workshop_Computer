@@ -2,9 +2,10 @@
 
 BitPhase is a resonant 4-stage phaser for the Music Thing Modular Workshop Computer.
 
-Inspired by the behaviour of classic feedback phasers such as the EarthQuaker Devices Grand Orbiter, BitPhase combines deep notch filtering, wide modulation sweeps, controllable resonance, tremolo blending, and a digital Burst mode for degraded and unstable textures.
-
-At low settings it provides subtle movement and phase animation. At higher resonance settings it produces pronounced notch emphasis and can approach self-oscillation for synth-like tones and feedback sweeps.
+Start with gentle phasing, turn up the resonance for deep moving notches, or
+switch to Burst for unstable digital textures. BitPhase takes inspiration from
+classic feedback phasers such as the EarthQuaker Devices Grand Orbiter, with
+wide sweeps, tremolo blending and feedback that can approach self-oscillation.
 
 ---
 
@@ -43,40 +44,17 @@ Controls the speed of both internal LFOs.
 
 ### X Knob — Sweep Depth
 
-Controls phaser modulation depth.
-
-Low settings:
-
-* Narrow notch movement
-* Subtle phase animation
-
-High settings:
-
-* Wide frequency sweeps
-* Deep moving notches
-* More dramatic modulation
+Turn X up to widen the phaser sweep. Low settings give narrow notch movement
+and subtle phasing; high settings produce deep moving notches and more dramatic
+frequency sweeps.
 
 ---
 
 ### Y Knob — Resonance
 
-Controls phaser feedback amount.
-
-Low settings:
-
-* Smooth phasing
-* Gentle notch emphasis
-
-Mid settings:
-
-* Stronger resonance
-* More pronounced phaser character
-
-High settings:
-
-* Aggressive feedback
-* Sharper notches
-* Edge-of-self-oscillation behaviour
+Y sets the feedback. Start low for smooth phasing and gentle notch emphasis,
+then turn it up for stronger resonance. High settings sharpen the notches and
+push the feedback towards self-oscillation.
 
 At maximum settings the phaser can approach self-generated tones depending on sweep position and input material.
 
@@ -86,26 +64,15 @@ At maximum settings the phaser can approach self-generated tones depending on sw
 
 ### CV In 1 — Rate CV
 
-Modulates phaser and tremolo speed.
-
-Useful for:
-
-* Clock-derived sweeps
-* Envelope-controlled rate changes
-* Random modulation
+Modulates phaser and tremolo speed. Try clock-derived voltages, an envelope or
+a random voltage to vary the rate.
 
 ---
 
 ### CV In 2 — Resonance CV
 
-Modulates phaser feedback amount.
-
-Useful for:
-
-* Dynamic resonance changes
-* Envelope-controlled emphasis
-* Oscillation bursts
-* Performance modulation
+Modulates the phaser feedback. Use an envelope for changing emphasis, or push
+the resonance up briefly for bursts of near-oscillation while you play.
 
 ---
 
@@ -165,7 +132,8 @@ Burst mode operates on the resonant phaser signal and can create highly animated
 
 ## Burst Degradation System
 
-Burst mode introduces controlled digital corruption.
+Burst combines three ways of breaking up the phaser signal, with extra dry
+signal to keep the result audible:
 
 ### Sample & Hold
 
@@ -181,7 +149,7 @@ Randomly repeats previous samples.
 
 ### Presence Compensation
 
-Additional dry reinforcement prevents complete collapse of the signal during extreme degradation.
+Adds dry signal so the sound does not disappear under extreme degradation.
 
 ---
 
@@ -197,7 +165,7 @@ Each rising edge:
 * Synchronises modulation cycles
 * Enables clock-locked phase movement
 
-The tremolo LFO continues independently.
+The tremolo LFO keeps running independently of these resets.
 
 ---
 

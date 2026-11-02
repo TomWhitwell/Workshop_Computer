@@ -1,10 +1,10 @@
 # Castle Process
 
-Fort Processor-inspired harsh noise processor for the Music Thing Modular Workshop Computer.
-
-Castle Process is a performance card built around chopped external audio, crude internal squarewave energy, aggressive switching between sources, and a separate bass pulse layer.
-
-It is designed as a playable sound-destruction tool rather than a clean effect or faithful clone.
+Chop up drums, voices or oscillators and switch them against crude internal
+square waves. Castle Process is a harsh noise processor for the Music Thing
+Modular Workshop Computer, inspired by the Fort Processor. A separate bass
+pulse adds a low layer beneath the chopped sound. It is an interpretation of
+the idea, rather than a faithful clone.
 
 ---
 
@@ -40,21 +40,15 @@ Controls tuning and internal interaction.
 
 ## Switch Middle
 
-Default mode.
-
-This is the tighter and more direct chopped mode.
+The default mode gives tighter, more direct chopping.
 
 ## Switch Up
 
-Alternate latched mode.
-
-This lets a little more body through and adds more squarewave colour.
+Leave the switch Up for more body and squarewave colour.
 
 ## Switch Down
 
-Momentary bend / chaos gesture while held.
-
-This is intended as a live performance action.
+Hold Down to bend the sound and add chaos while you play.
 
 ---
 
@@ -64,7 +58,7 @@ This is intended as a live performance action.
 
 Main external audio input.
 
-The signal is meant to be broken up, gated, and forced into the processor rather than passed through cleanly.
+The processor chops, gates and distorts this signal.
 
 ## CV 1 / CV 2
 
@@ -74,7 +68,8 @@ Internal control modulation inputs.
 
 External bass trigger input.
 
-When used, it takes over bass timing and suppresses the internal bass trigger behaviour.
+Patch a trigger here to set the bass rhythm yourself; it replaces the internal
+bass timing.
 
 ## Pulse In 2
 

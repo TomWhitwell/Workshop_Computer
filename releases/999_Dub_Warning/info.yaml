@@ -1,12 +1,11 @@
 draft: false
 Name: Dub Warning
-short-description: Playable dub warning siren with PT2399-style delay.
-summary: |
-  A small, immediate dub warning siren for the Workshop Computer. Main sets the base
-  pitch, X drives the sweep, CV In 2 colors the oscillator, and Y opens up the
-  PT2399-style delay. Use Z Down for a compact Wheel Up one-shot gesture,
-  Pulse In 1 for a gated siren, or Pulse In 2 for reset plucks and fast-trigger
-  textures. Audio In 2 can override the Main pitch knob when patched.
+short-description: Dub warning siren with a PT2399-style delay to smear the repeats.
+summary: Patch an audio output, grab the knobs and fire the siren. Main sets base pitch, X
+  drives the sweep, CV In 2 colours the oscillator and Y opens up the PT2399-style
+  delay. Press Z Down for a short Wheel Up one-shot, use Pulse In 1 for a gated siren,
+  or send Pulse In 2 reset plucks and fast triggers for rougher textures. A cable in
+  Audio In 2 overrides the Main pitch knob.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "0.1.0-beta"

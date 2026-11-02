@@ -25,7 +25,7 @@ dirty room and damaged PA treatment for external audio. `Switch Down` and
 
 ### Switch Up: Atari Punk Console
 
-This is a simple dual-555-style APC model rather than an audio effect.
+Switch Up plays a simple dual-555-style Atari Punk Console synth.
 
 - `Main`: APC output volume.
 - `X`: trigger oscillator rate, like APC pot 1. Clockwise is faster.
@@ -81,7 +81,7 @@ filtering engine.
 
 ### Switch Down: Vocal Calls
 
-`Switch Down` is a momentary performance layer, not a separate full mode.
+Hold `Switch Down` to play the selected vocal call through Broken Venue.
 
 - Pressing or holding Down triggers the vocal call for the currently selected
   venue.
@@ -89,7 +89,7 @@ filtering engine.
 - `Pulse In 2` mirrors this behaviour: high gates the call, rising edges
   retrigger it, and low stops it.
 - Driving `Pulse In 2` at audio rate can chop the shout into a raw vocal
-  texture. That is intentional.
+  texture.
 - `Audio In 2` is a beta vocal slice/reverse CV input.
   When patched, positive voltage selects a later start slice for the next
   trigger; negative voltage selects a slice and plays it backwards. Unpatched,
@@ -112,10 +112,10 @@ as a full-range Workshop System Slopes output, are safe but do not give extra
 slice range: high positive voltages hold the last forward slice, and high
 negative voltages hold the last reverse slice.
 
-While holding Down, `Main` edits the saved vocal-call trim rather than the main
-room input gain. The trim has soft pickup and is multiplied by the saved room
-gain, so later input-gain changes still scale the shout level. The default trim
-is midpoint.
+Hold Down and turn `Main` to adjust the saved vocal-call trim. It uses soft
+pickup, so move the knob to the stored value before changing it. The trim is
+multiplied by the saved room gain; later input-gain changes still scale the
+shout level. The default trim is midpoint.
 
 ## Vocal Samples
 
@@ -130,11 +130,10 @@ avoid extra digital clipping after the Colourbox drive.
 | `100 Club` | `No Future` |
 | `Whisky a Go Go` | `Let's Go` |
 
-The source WAVs are kept in `samples/`, matching the organisation used by other
-sample-based releases in this repo. The beta firmware includes those calls as
-factory fallback samples, but the normal user workflow is now WebSerial loading:
-flash the card once, then change the four vocal calls from a browser without
-rebuilding or reflashing the UF2.
+The original WAVs are in `samples/`, and the beta firmware includes them as
+factory fallback sounds. To use your own calls, flash the card once, then load
+four sounds from the browser. You can change them again without rebuilding or
+reflashing the UF2.
 
 ### WebSerial Sample Loader
 
@@ -178,7 +177,7 @@ mode again and press `Use built-in sounds again` in the web page. That erases
 the uploaded sample-bank header, so the firmware falls back to `VocalSamples.h`.
 
 The WebSerial builds use 24 kHz 8-bit µ-law samples in the flash sample bank.
-This is deliberately more compact than the embedded 16-bit PCM header and lets
+This uses less space than the embedded 16-bit PCM header and lets
 the firmware jump to slice points or play backwards without loading whole files
 into RAM. The standard 2 MB build reserves about `1 MB` for uploaded samples;
 the 16 MB build reserves about `14 MB`.
@@ -191,7 +190,7 @@ onto the page without reloading the original WAV or AIFF files. Factory
 fallback WAVs and `VocalSamples.h` are backed up in `factory-samples/` for
 maintainers.
 
-The folder picker is intentionally general: it looks for visible `.wav` files
+The folder picker accepts any visible `.wav` files
 and ignores other files, including hidden macOS sidecar files such as
 `._Sample.wav`. File names do not need to match the factory samples. Pick any
 four detected WAVs, audition them in the browser, and assign them to the four
@@ -274,7 +273,7 @@ Then open `http://127.0.0.1:8765/` in a Chromium-based browser.
 - `ComputerCard` library: Chris Johnson, MIT licensed.
 - Workshop Computer platform: Music Thing Modular and Tom Whitwell.
 
-This card intentionally builds against the local
+This card builds against the local
 [`ComputerCard.h`](ComputerCard.h) copy in this release folder. The upstream
 `Demonstrations+HelloWorlds/PicoSDK/ComputerCard/ComputerCard.h` copy is left
 untouched.

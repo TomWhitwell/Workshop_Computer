@@ -1,13 +1,13 @@
 # Fr330hfr33
 
-Fr330hfr33 is a hardware-tested acid bass instrument for the Music Thing
+Fr330hfr33 is an acid bass instrument for the Music Thing
 Modular Workshop Computer. It combines a saw or square oscillator, resonant
 diode-style filter, accent, glide, distortion, USB MIDI, and a persistent
 16-step sequencer.
 
-## Current release
+## Install
 
-Version `0.9.3`:
+Flash version `0.9.3` to your program card:
 
 ```text
 uf2/Fr330hfr33-v0.9.3.uf2
@@ -19,20 +19,6 @@ SHA-256:
 8124a6a0b34d9cf393a4ba5973f10973f22485d5a8b22695c7e0dd81f9d2f17d
 ```
 
-The release has passed functional, USB disconnect/reconnect, persistence,
-extended-running, processor-stress, Swing, pitch-bend, sequencer-rest,
-sustain-pedal, Intensity, and editor workflow hardware tests.
-
-### New in 0.9.3
-
-- Internal and MIDI-clock Swing with a `1.00:1`–`2.00:1` ratio display
-- Standard ±2-semitone MIDI pitch bend
-- Simplified Gate and Legato choices in the Web editor
-- Per-step Mute for explicit sequencer rests
-- Mutate Pattern for restrained one-to-three-step variations
-- MIDI CC64 sustain-pedal support
-- Volatile MIDI CC20 Intensity performance macro
-
 ## Playing the card
 
 The three knobs retain the same jobs in all modes:
@@ -41,9 +27,8 @@ The three knobs retain the same jobs in all modes:
 - **X:** resonance
 - **Y:** envelope decay and glide time
 
-Main has a wide performance sweep. The lower range is dark and plucky, while
-the upper half continues opening progressively rather than becoming fully
-bright around noon. The filter can be switched between 24 dB/octave four-pole
+Turn Main from dark, plucky notes into brighter sounds. The upper half keeps
+opening the filter, giving you useful range beyond noon. The filter can be switched between 24 dB/octave four-pole
 and 18 dB/octave three-pole responses.
 
 X moves from gentle body and nasal emphasis into strong resonance and
@@ -62,7 +47,7 @@ more pronounced slides.
 - MIDI CC20 controls the temporary performance Intensity
 
 Overlapping MIDI notes create 303-style legato slides without retriggering the
-envelope. The most recently played held note has priority.
+envelope. When you hold several notes, the most recent one takes priority.
 
 The sustain pedal holds released MIDI notes until the pedal is lifted. Intensity
 progressively opens the filter, strengthens its contour, adds a restrained
@@ -210,6 +195,22 @@ optional.
 
 The Web MIDI SysEx format is documented in
 [`protocol.md`](protocol.md).
+
+## Release notes
+
+The release has passed functional, USB disconnect/reconnect, persistence,
+extended-running, processor-stress, Swing, pitch-bend, sequencer-rest,
+sustain-pedal, Intensity, and editor workflow hardware tests.
+
+### New in 0.9.3
+
+- Internal and MIDI-clock Swing with a `1.00:1`–`2.00:1` ratio display
+- Standard ±2-semitone MIDI pitch bend
+- Simplified Gate and Legato choices in the Web editor
+- Per-step Mute for explicit sequencer rests
+- Mutate Pattern for restrained one-to-three-step variations
+- MIDI CC64 sustain-pedal support
+- Volatile MIDI CC20 Intensity performance macro
 
 ## Attribution
 

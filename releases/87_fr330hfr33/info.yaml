@@ -1,10 +1,9 @@
 Name: Fr330hfr33
-summary: Performance-focused acid voice with diode filtering, distortion, MIDI,
-  and a persistent sequencer
-short-description: Hardware-tested acid bass synthesiser with selectable saw or
-  square oscillator, switchable 18 or 24 dB diode-style filtering, accent and
-  glide, distortion, USB MIDI device/host operation, and a persistent editable
-  sequencer.
+summary: Play acid bass with diode-style filtering, distortion and MIDI, or build a pattern in
+  the sequencer and save it on the card.
+short-description: Acid bass with saw or square waves, 18 or 24 dB diode-style filters, accent, glide,
+  distortion, USB MIDI host/device support and a saved editable sequencer; tested on
+  hardware.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: 0.9.3
@@ -86,15 +85,14 @@ controls:
         envelope.
     middle:
       name: Generative mode
-      description: History-aware generative sequencer that avoids recent repeats,
-        favors nearby scale motion, and occasionally makes wider or octave
-        jumps. Pulse In 2 supplies an exact external clock; otherwise the
-        configured internal tempo or optional MIDI clock can use adjustable
-        swing.
+      description: Generates scale-based patterns, remembering recent notes to avoid repeats,
+        favouring nearby notes and occasionally making wider or octave jumps. Pulse In 2
+        supplies an exact external clock; otherwise the configured internal tempo or
+        optional MIDI clock can use adjustable swing.
     down:
       name: Battery sag
-      description: Momentary battery pull. The gate falls, the current VCA level is
-        held briefly, then pitch, filter, resonance, and both audio outputs
+      description: Hold Down to simulate pulling the batteries. The gate falls and the current VCA
+        level holds briefly, then pitch, filter, resonance and both audio outputs
         collapse with the virtual supply.
   knobs:
     - main:
@@ -139,104 +137,98 @@ controls:
           description: LED 6 displays note brightness, or stays fully lit in 18 dB three-pole mode.
 host:
   notes: >-
-    The Web MIDI editor configures major pentatonic, minor pentatonic, Ionian,
-    Lydian, ascending melodic minor, or chromatic scale plus root note, base
-    octave, accent probability, sequencer octave span, gate length,
-    legato-transition probability, MIDI input channel, internal tempo, swing,
-    and MIDI clock sync.
+    The Web MIDI editor configures major pentatonic, minor pentatonic, Ionian, Lydian,
+    ascending melodic minor, or chromatic scale plus root note, base octave, accent
+    probability, sequencer octave span, gate length, legato-transition probability, MIDI
+    input channel, internal tempo, swing, and MIDI clock sync.
 
 
-    Swing ranges from straight timing to a 2:1 long-short shuffle for internal
-    and MIDI-clock sequencing; external Pulse In 2 timing remains unchanged.
+    Swing ranges from straight timing to a 2:1 long-short shuffle for internal and
+    MIDI-clock sequencing; external Pulse In 2 timing remains unchanged.
 
 
-    The editor can enable a 1-16 step pattern with separate note, octave,
-    accent, gate, and tie lanes; notes can be muted to create explicit rests,
-    each lane can be randomized independently, and note randomization uses the
-    currently selected scale.
+    The editor can enable a 1-16 step pattern with separate note, octave, accent, gate,
+    and tie lanes; notes can be muted to create explicit rests, each lane can be
+    randomized independently, and note randomization uses the currently selected scale.
 
 
     Generator gate and legato controls use four musical choices instead of raw
     percentages: Pluck, Short, Medium, or Long, and None, Low, Medium, or High.
 
 
-    Initial Step selects the first stored lane column read; Reverse Playback
-    runs backward from it, with both controls wrapping inside the selected
-    pattern length.
+    Initial Step selects the first stored lane column read; Reverse Playback runs
+    backward from it, with both controls wrapping inside the selected pattern length.
 
 
-    Pendulum playback bounces without repeating turnaround steps, and ties
-    follow the current direction.
+    Pendulum playback bounces without repeating turnaround steps, and ties follow the
+    current direction.
 
 
-    Four checksummed card-flash pattern slots and general editor settings
-    persist across power cycles; flash is only rewritten when state changes.
+    Four checksummed card-flash pattern slots and general editor settings persist across
+    power cycles; flash is only rewritten when state changes.
 
 
-    Acidness coordinates generator interval size, octave jumps, gate length,
-    accent density, and legato density; Acidify Pattern applies the same musical
-    profile to the editable lanes using the selected scale.
+    Acidness coordinates generator interval size, octave jumps, gate length, accent
+    density, and legato density; Acidify Pattern applies the same musical profile to the
+    editable lanes using the selected scale.
 
 
-    In USB host mode, incoming MIDI CC1 controls filter cutoff; the physical
-    Main knob resumes control only after crossing the current CC1 position.
+    In USB host mode, incoming MIDI CC1 controls filter cutoff; the physical Main knob
+    resumes control only after crossing the current CC1 position.
 
 
-    MIDI CC64 operates as a standard sustain pedal, retaining released notes
-    until the pedal is lifted.
+    MIDI CC64 operates as a standard sustain pedal, retaining released notes until the
+    pedal is lifted.
 
 
-    MIDI CC20 controls a volatile performance Intensity macro that opens the
-    filter, adds restrained resonance and contour, and increases drive only when
-    distortion is already enabled; it resets to zero at startup and is not
-    saved.
+    MIDI CC20 controls a volatile performance Intensity macro that opens the filter,
+    adds restrained resonance and contour, and increases drive only when distortion is
+    already enabled; it resets to zero at startup and is not saved.
 
 
-    The Web editor's Mutate Pattern action changes only one to three steps,
-    preserving the current pattern's overall identity and leaving muted steps
-    muted.
+    Use Mutate Pattern for a nearby variation: it changes only one to three steps and
+    leaves muted steps muted.
 
 
-    Sequencer legato transitions are prepared one step ahead so the gate remains
-    high: most selected transitions slide to a new pitch without retriggering,
-    while one quarter become true repeated-note ties.
+    Sequencer legato transitions are prepared one step ahead so the gate remains high:
+    most selected transitions slide to a new pitch without retriggering, while one
+    quarter become true repeated-note ties.
 
 
-    Accent reserves output headroom, applies a 62.5% level lift, and adds a
-    short bright contour so accented notes remain distinct near maximum cutoff
-    and through distortion.
+    Accent reserves output headroom, applies a 62.5% level lift, and adds a short bright
+    contour so accented notes remain distinct near maximum cutoff and through
+    distortion.
 
 
-    The accent sweep has capacitor memory: rapid accented notes accumulate
-    charge and push successive cutoff sweeps higher, while resonance crossfades
-    from the direct contour toward the smoother stored charge.
+    The accent sweep has capacitor memory: rapid accented notes accumulate charge and
+    push successive cutoff sweeps higher, while resonance crossfades from the direct
+    contour toward the smoother stored charge.
 
 
-    MIDI device or host disconnection latches the gate low until USB reconnects
-    or a fresh physical gate edge explicitly hands control back to CV.
+    MIDI device or host disconnection latches the gate low until USB reconnects or a
+    fresh physical gate edge explicitly hands control back to CV.
 
 
-    LED 6 is fully lit in 18 dB three-pole mode, confirming that the
-    experimental editor setting reached the hardware.
+    LED 6 stays fully lit in 18 dB three-pole mode, confirming that the setting reached
+    the hardware.
 
 
-    Hardware testing confirms that RAT-style and Tube Screamer-style clipping
-    sound clearly different with the saw but can sound similar with the square.
-    The square is already a two-level, rail-shaped waveform, so additional
-    symmetrical clipping changes its level more than its shape; both tone
-    controls remain active.
+    Hardware testing confirms that RAT-style and Tube Screamer-style clipping sound
+    clearly different with the saw but can sound similar with the square. The square is
+    already a two-level, rail-shaped waveform, so additional symmetrical clipping
+    changes its level more than its shape; both tone controls remain active.
 
 
-    The default sequencer base is MIDI note 36 (C2); the editor can select C1,
-    C2, C3, or C4 before root-note transposition.
+    The default sequencer base is MIDI note 36 (C2); the editor can select C1, C2, C3,
+    or C4 before root-note transposition.
 
 
-    The note generator remembers recent scale positions to reduce repetition
-    while retaining occasional melodic and octave jumps.
+    The note generator remembers recent scale positions to reduce repetition while
+    retaining occasional melodic and octave jumps.
 
 
-    Open web/index.html in Chrome or Edge, connect to the Fr330hfr33 MIDI
-    output, then use Apply to send settings.
+    Open web/index.html in Chrome or Edge, connect to the Fr330hfr33 MIDI output, then
+    use Apply to send settings.
 
 
     Editor settings and four pattern slots persist across power cycles.
@@ -245,37 +237,33 @@ host:
     MIDI velocity 112-127 produces an accent.
 
 
-    Each articulated note fires a decaying filter contour; accent pushes that
-    contour much harder and adds post-filter gain for a brighter, louder,
-    punchier note.
+    Each articulated note fires a decaying filter contour; accent pushes that contour
+    much harder and adds post-filter gain for a brighter, louder, punchier note.
 
 
-    USB MIDI automatically operates as a device or host according to the
-    Workshop Computer USB power role.
+    USB MIDI automatically operates as a device or host according to the Workshop
+    Computer USB power role.
 
 
-    Monophonic MIDI uses last-note priority and clears held notes when USB
-    disconnects.
+    Monophonic MIDI uses last-note priority and clears held notes when USB disconnects.
 
 
-    Standard 14-bit MIDI pitch bend provides a fixed plus or minus two-semitone
-    range and is reflected by both the audio voice and calibrated pitch CV
-    output.
+    Standard 14-bit MIDI pitch bend provides a fixed plus or minus two-semitone range
+    and is reflected by both the audio voice and calibrated pitch CV output.
 
 
-    In CV/MIDI mode, Pulse In 2 high enables manual glide. MIDI note overlaps
-    also create automatic legato glide while keeping the gate and envelope open.
+    In CV/MIDI mode, Pulse In 2 high enables manual glide. MIDI note overlaps also
+    create automatic legato glide while keeping the gate and envelope open.
 
 
-    The firmware runs the RP2040 at 192 MHz, copies the complete binary to RAM,
-    and keeps division, locks, waits, USB work, and software 64-bit
-    multiplication out of the audio callback.
+    The firmware runs the RP2040 at 192 MHz, copies the complete binary to RAM, and
+    keeps division, locks, waits, USB work, and software 64-bit multiplication out of
+    the audio callback.
 
 
-    Version 0.9.3 passed functional, disconnect/reconnect, persistence,
-    long-running, processor-stress, Swing, pitch-bend, sequencer-rest,
-    sustain-pedal, Intensity, editor workflow, and slot-recall UI-sync hardware
-    testing.
+    Version 0.9.3 passed functional, disconnect/reconnect, persistence, long-running,
+    processor-stress, Swing, pitch-bend, sequencer-rest, sustain-pedal, Intensity,
+    editor workflow, and slot-recall UI-sync hardware testing.
 contact:
   social:
     github: https://github.com/soveda

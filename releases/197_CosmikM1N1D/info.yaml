@@ -1,13 +1,11 @@
 draft: false
 Name: Cosmik M1N1
-short-description: >-
-  Minimoog-influenced mono synth voice with two internal oscillators, external
-  OSC3 pitch/CV integration, ladder filtering, USB MIDI, and Web MIDI presets.
-summary: >-
-  A monophonic Workshop Computer synth voice with two band-limited wavetable
-  oscillators, external OSC3 pitch CV and audio return, a four-pole resonant
-  low/high-pass filter, noise, ADS contours, internal LFO, MIDI CC1 modulation,
-  glide, and eight factory plus eight named user presets.
+short-description: Minimoog-influenced mono voice with two internal oscillators, an external OSC3 loop,
+  ladder filtering and Web MIDI presets.
+summary: Build a monophonic sound from two band-limited wavetable oscillators and an external
+  OSC3, connected by pitch CV and an audio return. Shape it with a four-pole resonant
+  low/high-pass filter, noise, ADS contours, an internal LFO, MIDI CC1 modulation and
+  glide. Choose from eight factory presets or save eight named user presets.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.0.0"
@@ -122,12 +120,12 @@ host:
   usb:
     - name: MIDI device
       role: midi
-      description: Mono last-note-wins MIDI input with note on/off, +/-2 semitone pitch bend, CC1 modulation depth, and Web MIDI preset communication.
-  notes: >-
-    Hold Down at startup, or for five seconds during operation, to select factory
-    and populated user presets. A short Down press cycles oscillator setup pages.
-    Web MIDI manages oscillator ranges, full ADS contours, filter mode/tracking,
-    modulation sources, LFO, glide, and named user slots.
+      description: Monophonic MIDI input with last-note priority, note on/off, +/-2 semitone pitch
+        bend, CC1 modulation depth and Web MIDI preset communication.
+  notes: Hold Down at startup, or for five seconds during play, to choose a factory preset or
+    occupied user slot. A short Down press cycles the oscillator setup pages. Use Web
+    MIDI to edit oscillator ranges, full ADS contours, filter mode and tracking,
+    modulation sources, LFO, glide and named user slots.
 
 contact:
   social:

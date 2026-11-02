@@ -1,7 +1,11 @@
 Name: DualQuant
 draft: false
-summary: Dual quantised granular pitch shifter with calibrated 1V/oct CV outputs
-short-description: Dual quantised granular pitch shifter with calibrated 1V/oct CV outputs
+summary: Turn one audio input into two granular pitch-shifted signals. Set their offsets
+  together with Main or separately with X and Y, and use CV In 1 and 2 to modulate them.
+  Middle enables chromatic quantisation. Calibrated 1V/oct CV outputs follow the
+  pitches.
+short-description: Two granular pitch shifters with chromatic quantisation and calibrated 1V/oct CV
+  outputs.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.0"
@@ -59,15 +63,15 @@ controls:
   switch:
     up:
       name: Unquantised
-      description: "Z up: MAIN: Global Pitch Offset; X: Output A Offset; Y: Output B
-        Offset."
+      description: Continuous, unquantised pitch shifting. Main shifts both outputs; X sets output
+        A offset and Y sets output B offset.
     middle:
       name: Quantised semitones
-      description: "Z middle: MAIN: Quantize Enable."
+      description: Snap pitch shifts to chromatic semitones.
     down:
       name: Unquantised
-      description: "Z down: MAIN: Global Pitch Offset; X: Output A Offset; Y: Output B
-        Offset."
+      description: Continuous, unquantised pitch shifting. Main shifts both outputs; X sets output
+        A offset and Y sets output B offset.
   knobs:
     - main:
         name: Global Pitch Offset
@@ -89,20 +93,18 @@ controls:
           description: "Unquantized state: all LEDs off"
 host:
   notes: >
-    DualQuantPitch runs two independent granular pitch-shifted outputs from one
-    shared circular buffer.
+    DualQuantPitch runs two independent granular pitch-shifted outputs from one shared
+    circular buffer.
 
-    Main sets global pitch offset, X sets output A offset, and Y sets output B
-    offset.
+    Main sets global pitch offset, X sets output A offset, and Y sets output B offset.
 
     CV In 1 and CV In 2 modulate pitch for outputs A and B respectively.
 
-    Switch middle enables chromatic semitone quantization; other switch
-    positions run continuously unquantized.
+    Switch middle enables chromatic semitone quantization; other switch positions run
+    continuously unquantized.
 
-    The design intentionally favors gritty/lo-fi granular character over
-    transparent pitch shifting. # certainty: medium (README is marked LLM
-    output)
+    Expect gritty, lo-fi granular textures. Documentation certainty is medium because
+    the README was marked as LLM output.
 contact:
   social:
     github: https://github.com/soveda

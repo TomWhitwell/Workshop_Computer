@@ -1,8 +1,7 @@
 draft: false
 Name: XHT Card
-short-description: A playable deep-note-inspired stereo chord swarm with manual
-  scrubbing, one-shot movement, delay, reverb, CV, pulse, and optional MIDI
-  control.
+short-description: Deep-note-inspired stereo chord swarm with scrubbing, one-shots, delay, reverb and
+  optional MIDI control.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: 0.1.0
@@ -22,35 +21,20 @@ tags:
   - cv
   - clocked
   - workshop-computer
-summary: >
-  XHT Card is a synthesised deep-note-style gesture rather than a bundled
-  sample.
-
-  Main sets the note position and one-shot destination. The momentary down
-  switch
-
-  resets the note and launches a one-shot from the start toward the current
-
-  destination. CV2 also participates in destination control. P2 can clock
-  stepped
-
-  movement through the note. X controls delay and Y controls reverb.
+summary: >-
+  Move through a synthesised deep-note-style chord swarm with Main, or press Down to
+  launch a one-shot from the start towards your chosen destination. CV2 also controls
+  that destination, and P2 can clock stepped movement through the sound. X adds delay
+  and Y adds reverb. The sound is synthesised, not a bundled sample.
 
 
-  CV1 input transposes pitch. CV Out 1 mirrors note position unless CV1 is
-
-  patched, in which case CV Out 1 becomes pitch. CV Out 2 always mirrors note
-
-  position. P1 gates the note when patched and leaves the note sustained when
-
-  unpatched.
+  CV1 transposes pitch. CV Out 1 follows note position until CV1 is patched, when it
+  switches to pitch; CV Out 2 always follows position. P1 gates the note when patched
+  and leaves it sustained when unpatched.
 
 
-  The separate MIDI build adds MIDI note input, CC1/mod-wheel destination
-
-  control, sustain pedal on CC64, and MIDI note output of the current chord.
-
-  MIDI clock is ignored.
+  Choose the separate MIDI build for MIDI note input, CC1/mod-wheel destination control,
+  a CC64 sustain pedal and MIDI output of the current chord. MIDI clock is ignored.
 panel:
   inputs:
     - id: AudioIn1
@@ -69,8 +53,8 @@ panel:
     - id: CVIn2
       name: Position / Destination
       type: cv
-      description: Controls note position and the one-shot destination; scaled so 0-5V
-        controller sources cover the full travel.
+      description: Sets note position and the one-shot destination. A 0-5V controller signal can
+        cover the full range.
     - id: PulseIn1
       name: Gate
       type: pulse
@@ -116,7 +100,7 @@ controls:
       description: Normal pitch range.
     down:
       name: Reset / One-Shot
-      description: Momentary reset that launches the note from the start toward the
+      description: Press Down to reset the note and launch a one-shot from the start towards the
         current destination.
   knobs:
     - main:
@@ -162,10 +146,9 @@ host:
       role: host
       description: Connects directly to a USB MIDI controller when the card boots in
         host mode.
-  notes: |
-    The MIDI build boots as either USB host or USB device, not both at once.
-    For direct USB controller use, connect the controller before powering the
-    card. Pressing reset alone may not force USB role renegotiation.
+  notes: The MIDI build starts in either USB host or USB device mode; it cannot use both at
+    once. For a direct USB controller connection, attach the controller before powering
+    the card. Pressing reset alone may not make it renegotiate the USB role.
 contact:
   social:
     github: https://github.com/soveda

@@ -1,7 +1,8 @@
 Name: Wild Pebble
 draft: false
-summary: MIDI-clockable generative rhythm and melody organism inspired by Pet Rock
-short-description: MIDI-clockable generative rhythm and melody organism inspired by Pet Rock
+summary: Make rhythms and melodies that gradually change as they play. Inspired by Pet Rock,
+  Wild Pebble generates patterns and can follow MIDI clock.
+short-description: Pet Rock-inspired evolving rhythms and melodies, with USB MIDI clock and note output.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.0"
@@ -114,24 +115,13 @@ controls:
           name: Tension
           description: Displays the evolving internal tension state.
 host:
-  notes: >
-    Generative rhythm/melody organism with coupled trigger streams, quantized
-    melody CV,
-
-    internal kick/snare voices, evolving energy/tension modulation, and USB MIDI
-    clock/note
-
-    behavior. Main controls internal tempo when no external clock is present, X
-    controls
-
-    rhythmic density, and Y controls mutation amount. The switch selects Steady,
-    Drift, or
-
-    Surge behavior, moving from restrained patterns to more animated swing,
-    mutation, and
-
-    melodic activity. Pulse In 1 is external clock and Pulse In 2 freezes
-    mutation while high.
+  notes: Wild Pebble combines related trigger streams, quantised melody CV, internal
+    kick/snare voices, evolving energy/tension modulation and USB MIDI clock/note
+    behaviour. Main sets internal tempo when no external clock is active, X sets
+    rhythmic density and Y sets mutation. Choose Steady, Drift or Surge with the switch
+    to move from restrained patterns towards more swing, mutation and melodic activity.
+    Pulse In 1 takes an external clock. Hold Pulse In 2 high to freeze mutation while
+    playback continues.
 contact:
   social:
     github: https://github.com/soveda

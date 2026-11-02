@@ -1,17 +1,16 @@
 draft: false
 Name: Skipping Stones
-short-description: Marbles-inspired controlled-random patch conductor for the Workshop System.
-summary: >
-  Skipping Stones is a controlled-random patch conductor inspired by the ideas
-  of Mutable Instruments Marbles: related random gates and voltages, deja-vu
-  loop memory, bias/spread shaping, clocked uncertainty, and musical repetition.
-  It is adapted for the Workshop Computer and Workshop System rather than being
-  a literal panel clone. CV Out 1 is a calibrated quantized pitch stream for a
-  SineSquare oscillator, CV Out 2 is a related smoothed modulation voltage,
-  Pulse Out 1 and 2 drive slopes, filters, or accents. Embedded TR-606 closed
-  and open hi-hat samples on the audio outputs provide a rhythm bed before any
-  analogue patching is done. Their attack shaping and short retrigger crossfade
-  prevent abrupt sample-playback clicks during dense patterns.
+short-description: Marbles-inspired random gates, pitch CV and modulation, with repeating loops and
+  TR-606 hi-hats.
+summary: Make related random gates and voltages, then lock them into repeating loops. Skipping
+  Stones takes inspiration from Mutable Instruments Marbles, with deja-vu memory, bias
+  and spread controls, timing uncertainty and musical repetition adapted to the Workshop
+  Computer and Workshop System. It is not a literal panel clone. CV Out 1 sends
+  calibrated quantised pitch to a SineSquare oscillator, CV Out 2 provides related
+  smoothed modulation, and Pulse Out 1 and 2 can drive slopes, filters or accents.
+  TR-606 closed and open hi-hat samples give you a rhythm before any analogue patching.
+  Softened attacks and short retrigger crossfades prevent abrupt sample-playback clicks
+  in dense patterns.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Adrian Vos
 Version: "1.0.0"
@@ -85,14 +84,14 @@ controls:
       description: More gaps and independent pulse decisions
     down:
       name: Write
-      description: Momentary write mode; newly generated steps replace the loop aggressively
+      description: Hold Down to write newly generated steps into the loop more aggressively.
   knobs:
     - main:
         name: Density / Rate
         description: Sets internal clock speed and trigger activity; CV In 1 adds to it
       x:
         name: Deja Vu
-        description: Moves from constantly rewritten randomness to repeating loop memory
+        description: Move from constantly changing randomness to a repeating loop.
       y:
         name: Spread / Jitter
         description: Widens the voltage range and timing jitter; CV In 2 adds to it
