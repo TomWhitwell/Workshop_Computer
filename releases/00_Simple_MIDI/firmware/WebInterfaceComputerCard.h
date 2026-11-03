@@ -2,6 +2,7 @@
 #define WEBINTERFACECOMPUTERCARD_H
 
 #include "ComputerCard.h"
+#include <atomic>
 #include "pico/multicore.h"
 #include "pico/stdlib.h"
 #include "tusb.h"
@@ -57,6 +58,16 @@ public:
 	void SetDeviceHostMode()
 	{
 		isUSBMIDIHost = (USBPowerState() == DFP);
+	}
+
+	// Connection-presence indication for the application LED display. This is
+	// deliberately separate from the active connection state used below: a
+	// suspended USB device is still physically present, so it should not show
+	// the "nothing connected" animation. Relaxed atomic access is sufficient
+	// because this is display-only state shared between the USB and audio cores.
+	bool MIDIConnectionPresent() const
+	{
+		return midiConnectionPresent.load(std::memory_order_relaxed);
 	}
 
 	// True if in host mode and the connected device can accept MIDI from us
@@ -193,6 +204,10 @@ public:
 				}
 			}
 
+			midiConnectionPresent.store(
+				isUSBMIDIHost ? (midiDevAddr != 0) : tud_mounted(),
+				std::memory_order_relaxed);
+
 			// Detect loss of connection, so that the application can release held notes
 			bool connected = isUSBMIDIHost ? (midiDevAddr != 0) : (tud_mounted() && !tud_suspended());
 			if (wasConnected && !connected)
@@ -321,6 +336,7 @@ private:
 	bool sysexActive;
 	unsigned sysexLen;
 	bool wasConnected = false;
+	std::atomic<bool> midiConnectionPresent{false};
 	uint8_t rxBuf[rxBufSize];
 
 	// State for parsing MIDI channel messages (running status)
