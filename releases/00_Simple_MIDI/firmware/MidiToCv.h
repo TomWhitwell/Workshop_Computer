@@ -17,6 +17,8 @@ class MidiToCv : public WebInterfaceComputerCard
 	volatile bool midiGate[2] = { false, false };
 	volatile int16_t pitchbend[2] = { 0, 0 };
 	volatile int16_t ccInputs[8] = {};
+	uint32_t connectionAnimationSamples = 0;
+	static constexpr uint32_t CONNECTION_ANIMATION_STEP_SAMPLES = 2400; // 50 ms at 48 kHz
 
 	NoteDownStore nds[2];
 
@@ -112,18 +114,41 @@ class MidiToCv : public WebInterfaceComputerCard
 public:
 	void __not_in_flash_func(ProcessSample)() override final
 	{
+		const bool midiConnected = MIDIConnectionPresent();
+
 		for (int i = 0; i < 2; i++)
 		{
 			AudioOut(i, midiAudioOut[i]);
-			LedBrightness(i, midiCC42[i] << 5);
+			if (midiConnected)
+				LedBrightness(i, midiCC42[i] << 5);
 			// Apply pitch bend: ±2 semitones, pitchbend ±8192 -> subNote ±512 (1/256 semitone units)
 			int32_t currentPitch = ((int32_t)lastPlayedNote[i] << 8) + (pitchbend[i] >> 4);
 			if (currentPitch < 0) currentPitch = 0;
 			if (currentPitch > (127 << 8)) currentPitch = 127 << 8;
 			CVOutMIDINote8(i, (uint8_t)(currentPitch >> 8), currentPitch & 0xFF);
-			LedBrightness(2 + i, lastPlayedNote[i] << 5);
+			if (midiConnected)
+				LedBrightness(2 + i, lastPlayedNote[i] << 5);
 			PulseOut(i, midiGate[i]);
-			LedOn(4 + i, midiGate[i]);
+			if (midiConnected)
+				LedOn(4 + i, midiGate[i]);
+		}
+
+		// Match the legacy Simple MIDI connection animation without blocking any
+		// USB, audio, CV or gate processing: one full-brightness LED advances every
+		// 50 ms while no USB MIDI host/device is present.
+		if (!midiConnected)
+		{
+			uint32_t ledIndex = connectionAnimationSamples / CONNECTION_ANIMATION_STEP_SAMPLES;
+			for (uint32_t i = 0; i < 6; i++)
+				LedOn(i, i == ledIndex);
+
+			connectionAnimationSamples++;
+			if (connectionAnimationSamples >= CONNECTION_ANIMATION_STEP_SAMPLES * 6)
+				connectionAnimationSamples = 0;
+		}
+		else
+		{
+			connectionAnimationSamples = 0;
 		}
 
 		// Sample all sources for MIDI CCs to be sent

@@ -3,10 +3,10 @@ Name: Simple MIDI
 short-description: USB MIDI interface and Computer calibrator.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Tom Whitwell, Chris Johnson
-Version: "0.7.0"
+Version: "0.7.1"
 Status: Released
 date-created: 2024-11-30
-date-updated: 2026-10-02
+date-updated: 2026-11-02
 license: MIT
 contact:
   email: tom@musicthing.co.uk
@@ -29,7 +29,7 @@ summary: |
 
 uf2:
   - path: uf2/simple_midi_2.uf2
-    name: Simple MIDI 0.7.0
+    name: Simple MIDI 0.7.1
 
 panel:
   inputs:

@@ -1,4 +1,4 @@
-# Simple MIDI (v0.7)
+# Simple MIDI (v0.7.1)
 
 Simple MIDI turns the Music Thing Modular Workshop Computer into a USB MIDI
 interface. It sends controls and CV from the Workshop System to a computer, and
@@ -10,7 +10,8 @@ outputs and audio inputs. Other cards, including Turing Machine and Reverb+, can
 calibration data so that their pitch outputs play in tune.
 
 Simple MIDI was written by Tom Whitwell in Herne Hill, London, between October
-2024 and October 2025 (versions up to 0.6.6), and revised by Chris Johnson in Derbyshire between March and August 2026 (version 0.7.0-)
+2024 and October 2025 (versions up to 0.6.6), and revised by Chris Johnson in
+Derbyshire between March and November 2026 (versions 0.7.0 onwards).
 
 
 ## What it does
