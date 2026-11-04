@@ -1,3 +1,10 @@
+/*
+ * Copied from Temperance 0.1.0 by Matt Allison.
+ * Copyright (c) 2026 Matt Allison. Original code: MIT license.
+ * Source: releases/115_Temperance/src/Dsp.h
+ * Experimental derivative: 0.1.0-flash-exp.1, 2026-11-04.
+ * See ../ATTRIBUTION.md and ../LICENSES/Temperance-MIT.txt.
+ */
 #pragma once
 #include <cstdint>
 

@@ -1,3 +1,7 @@
+# Raspberry Pi Pico SDK import helper, via Temperance.
+# Copyright 2020 (c) 2020 Raspberry Pi (Trading) Ltd. BSD-3-Clause.
+# Source: pico-sdk/external/pico_sdk_import.cmake.
+# See ATTRIBUTION.md and LICENSES/Pico-SDK-BSD-3-Clause.txt.
 # This is a copy of <PICO_SDK_PATH>/external/pico_sdk_import.cmake
 
 # This can be dropped into an external project to help locate this SDK

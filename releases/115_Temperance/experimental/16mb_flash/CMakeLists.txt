@@ -1,3 +1,6 @@
+# Adapted from Temperance 0.1.0 by Matt Allison, copyright (c) 2026, MIT.
+# Source: releases/115_Temperance/CMakeLists.txt. Modified for flash experiment.
+# See ATTRIBUTION.md and LICENSES/Temperance-MIT.txt.
 cmake_minimum_required(VERSION 3.13)
 
 set(PICO_BOARD temperance_16mb CACHE STRING "Board")

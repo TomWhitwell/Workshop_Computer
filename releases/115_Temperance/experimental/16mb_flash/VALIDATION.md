@@ -6,12 +6,15 @@ Date: 2026-11-04. Status: experimental; physical hardware validation pending.
 
 - Release firmware built successfully with Pico SDK 2.3.0, ARM GNU 15.2.1,
   `copy_to_ram`, a 16MiB board configuration and a 192MHz processor clock.
-- Linker report: 115,736 bytes used in the 256KiB main RAM region (44.15%);
-  2KiB stack reservations in each 4KiB scratch bank. Flash image: 41,220 bytes,
+- Linker report: 115,960 bytes used in the 256KiB main RAM region (44.24%);
+  2KiB stack reservations in each 4KiB scratch bank. Flash image: 41,448 bytes,
   comfortably below the 512KiB audio-storage boundary.
 - ELF section inspection places runtime `.text` and `.data` in SRAM. The
   flash-resident boot/initialisation sections run before flash recording.
 - Picotool recognises the RP2040 UF2 and its experimental name/version.
+  Following the attribution audit, the rebuilt UF2 also embeds upstream credits;
+  source-file attribution headers and bundled license texts were added. These
+  changes do not alter the audio or storage implementation.
 - Host storage/looper/instrument tests passed with AddressSanitizer and
   UndefinedBehaviorSanitizer, warnings treated as errors.
 - Both channels' ADPCM playback matched a reference decoder for independent

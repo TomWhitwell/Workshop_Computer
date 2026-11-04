@@ -1,3 +1,6 @@
+// Tests created for this experiment with OpenAI Codex, 2026-11-04.
+// Exercises Matt Allison's Temperance and Dune Desormeaux's ADPCM codec.
+// See ../ATTRIBUTION.md for source origins and license notices.
 #include "FlashStore.h"
 #include "Looper.h"
 #include "Temperance.h"

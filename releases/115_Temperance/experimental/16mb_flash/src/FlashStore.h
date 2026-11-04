@@ -1,3 +1,12 @@
+/*
+ * Temperance 16MB flash experiment, 2026-11-04.
+ * QSPI helpers and streaming approach adapted from Goldfish 2.0 by
+ * Dune Desormeaux: releases/11_goldfish/goldfish_stream.c and .h.
+ * Uses Dune Desormeaux's MLRws ADPCM implementation via Goldfish (GPL-3.0).
+ * Per-page format, independent queues and cache integration generated with
+ * OpenAI Codex at the user's direction; upstream authors retain their credit.
+ * Goldfish release has no explicit license notice: see ../ATTRIBUTION.md.
+ */
 #pragma once
 #include <cstdint>
 

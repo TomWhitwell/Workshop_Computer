@@ -143,10 +143,14 @@ They do not emulate the QSPI controller or prove real-time timing.
 
 ## Credits
 
-Temperance and its design: Matt Allison; original MIT license retained here.
-Goldfish 2.0: Dune Desormeaux. QSPI helpers and the erase-suspend streaming
-approach are adapted from `releases/11_goldfish/goldfish_stream.c`.
-`vendor/adpcm.h` is copied unchanged from Goldfish, where it is credited to
-MLRws. The per-page format, independent queues and cache integration are
-specific to this experiment. ComputerCard by Chris Johnson is used from the
-unchanged original `../../lib/` directory; its license remains there.
+**This is Matt Allison's Temperance adapted with flash-recording code and
+techniques from Dune Desormeaux's Goldfish and MLRws.** ComputerCard is by
+Chris Johnson; the plate design is by Jon Dattorro. The upstream Temperance
+README acknowledges development support from Claude (Anthropic). Experimental
+integration and tests were generated with OpenAI Codex at the user's direction.
+
+See [ATTRIBUTION.md](ATTRIBUTION.md) for the file-by-file origins and
+[LICENSES/](LICENSES/) for preserved license texts. The original `LICENSE`
+is Matt's MIT notice, not a blanket license for all included code: MLRws
+identifies its codec as GPL-3.0, and the Goldfish release has no explicit
+license notice. That missing license scope is recorded in the attribution audit.

@@ -1,4 +1,11 @@
 /*
+ * Adapted from Temperance 0.1.0 by Matt Allison.
+ * Copyright (c) 2026 Matt Allison. Original code: MIT license.
+ * Source: releases/115_Temperance/src/main.cpp
+ * Experimental derivative: 0.1.0-flash-exp.1, 2026-11-04.
+ * See ../ATTRIBUTION.md and ../LICENSES/Temperance-MIT.txt.
+ */
+/*
   Temperance -- a Workshop Computer program card.
 
   Two micro loopers sharing one clock, feeding a bit crusher and a plate
@@ -20,12 +27,18 @@
 
 #include "ComputerCard.h"
 #include "Temperance.h"
+#include "pico/binary_info.h"
 #include "hardware/clocks.h"
 #include "hardware/sync.h"
 #include "hardware/timer.h"
 #include "hardware/vreg.h"
 #include "pico/multicore.h"
 #include "pico/rand.h"
+
+bi_decl(bi_program_description(
+    "Temperance: Matt Allison; Goldfish/MLRws: Dune Desormeaux; "
+    "ComputerCard: Chris Johnson; plate design: Jon Dattorro. "
+    "Experimental integration: OpenAI Codex. See ATTRIBUTION.md and LICENSES; includes GPL-3.0 codec."));
 
 // The instrument's reverb and input delay buffers belong outside the stack.
 static tem::Temperance instrument;

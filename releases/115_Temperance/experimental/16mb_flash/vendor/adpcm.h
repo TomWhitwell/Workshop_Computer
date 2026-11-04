@@ -1,3 +1,10 @@
+/*
+ * IMA-ADPCM implementation by Dune Desormeaux, from MLRws via Goldfish 2.0.
+ * Source: releases/15_MLRws/adpcm.h; releases/11_goldfish/adpcm.h.
+ * Upstream MLRws release metadata specifies GPL-3.0.
+ * Codec implementation unchanged; attribution header added 2026-11-04.
+ * See ../ATTRIBUTION.md and ../LICENSES/MLRws-GPL-3.0.txt.
+ */
 /**
  * adpcm.h — IMA-ADPCM codec (header-only).
  *
