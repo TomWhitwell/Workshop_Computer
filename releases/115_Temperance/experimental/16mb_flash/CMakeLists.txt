@@ -1,0 +1,66 @@
+cmake_minimum_required(VERSION 3.13)
+
+set(PICO_BOARD temperance_16mb CACHE STRING "Board")
+set(PICO_FLASH_SIZE_BYTES 16777216 CACHE STRING "16MiB flash address space")
+list(APPEND PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/boards)
+include(pico_sdk_import.cmake)
+
+project(Temperance_16MB_FLASH_EXPERIMENTAL C CXX ASM)
+set(CMAKE_CXX_STANDARD 17)
+
+pico_sdk_init()
+
+add_executable(${PROJECT_NAME}
+    src/main.cpp
+    src/FlashStore.cpp
+)
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/src
+    ${CMAKE_CURRENT_LIST_DIR}/../../lib
+    ${CMAKE_CURRENT_LIST_DIR}/vendor
+)
+
+# Warnings from the ComputerCard examples: -Wdouble-promotion and
+# -Wfloat-conversion catch accidental (very slow) double-precision maths.
+target_compile_options(${PROJECT_NAME} PRIVATE
+    -Wdouble-promotion -Wfloat-conversion -Wall -Wextra
+)
+
+# Print RAM use on every build: code and the loop, delay and reverb buffers
+# share the RP2040's 264KB, so this is the number to watch.
+target_link_options(${PROJECT_NAME} PRIVATE -Wl,--print-memory-usage)
+
+# Run everything from RAM: no flash-cache misses stalling the audio
+# interrupt, while core 1 erases/programs the flash.
+pico_set_binary_type(${PROJECT_NAME} copy_to_ram)
+
+# PICO_XOSC_STARTUP_DELAY_MULTIPLIER: without it the card works on first
+# flash but fails after a reset -- the crystal needs longer to start.
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64
+)
+
+target_link_libraries(${PROJECT_NAME}
+    pico_unique_id
+    pico_stdlib
+    pico_rand
+    hardware_dma
+    hardware_i2c
+    hardware_pwm
+    hardware_adc
+    hardware_spi
+    hardware_flash
+    hardware_clocks
+    hardware_vreg
+    pico_multicore
+)
+
+# USB stdio off: it interferes with the normalisation probe.
+pico_enable_stdio_usb(${PROJECT_NAME} 0)
+pico_enable_stdio_uart(${PROJECT_NAME} 0)
+
+pico_add_extra_outputs(${PROJECT_NAME})
+pico_set_program_name(${PROJECT_NAME} "Temperance 16MB Flash Experimental")
+pico_set_program_version(${PROJECT_NAME} "0.1.0-flash-exp.1")
+
