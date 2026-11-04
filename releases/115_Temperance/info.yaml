@@ -1,0 +1,127 @@
+draft: false
+Name: Temperance
+short-description: Two micro loopers on one clock, into a bit crusher and a plate reverb. Slow the clock and the loops get longer, lower and grittier in one move.
+summary: |
+  A Mood-style micro looper. Two loopers share one clock (ten steps, 48kHz down to 2kHz, alternating fifths and
+  fourths) that sets their sample rate. Slowing the clock retunes both loops together and brings out the
+  sample-and-hold grit. The dry input bypasses the effects, clean, at its own level. **Tap** down to record both loops, tap again to play; two quick taps clear. **X** and **Y** set each loop's
+  speed and direction (reverse or forward, double, normal or half speed). Switch up for the **Wash** (a Dattorro plate
+  at a fixed 24kHz: send, decay and damping in one knob), the **dry level** and the **crush** (12 bits to 4).
+  Pulse In 1 and 2 record each loop on its own. CV Out 1 is a stepped random voltage (whole volts, -2 to +2V) that
+  moves at each start of Loop A, made to patch into CV In 1 and jump the clock; CV Out 2 a smooth random voltage
+  (0 to 5V) that glides over each pass of Loop B, made for CV In 2 and the wash. Pulse Out 1 fires at random, Pulse
+  Out 2 at each start of Loop B.
+Language: C++ (Pico SDK)
+Creator: Matt Allison
+Version: "0.1.0"
+Status: Released
+License: MIT
+date-created: 2026-11-02
+date-updated: 2026-11-04
+
+contact:
+  social:
+    github: https://github.com/mrmattallison
+
+uf2:
+  - path: UF2/temperance.0.1.0.uf2
+    name: Temperance 0.1.0
+
+tags:
+  - looper
+  - bitcrusher
+  - reverb
+  - lo-fi
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: In A
+      type: audio
+      description: Loop A's input, and the dry signal (clean, at the dry level)
+    - id: AudioIn2
+      name: In B
+      type: audio
+      description: Loop B's input, normalled to Audio In 1. Patched, the dry signal is the mix of both
+    - id: CVIn1
+      name: Clock
+      type: cv
+      description: Clock offset, one step per volt (+1V one step faster), with hysteresis
+    - id: CVIn2
+      name: Wash
+      type: cv
+      description: Added to the Wash knob; +5V is the whole knob
+    - id: PulseIn1
+      name: Record A
+      type: pulse
+      description: Start or stop recording Loop A on its own. Acts 20ms after the edge, with the loop's input delayed to match
+    - id: PulseIn2
+      name: Record B
+      type: pulse
+      description: Start or stop recording Loop B on its own
+  outputs:
+    - id: AudioOut1
+      name: Left
+      type: audio
+      description: The dry input, both loops, and the reverb's left side
+    - id: AudioOut2
+      name: Right
+      type: audio
+      description: The same, with the reverb's right side
+    - id: CVOut1
+      name: Stepped random
+      type: cv
+      description: At each start of Loop A, a new whole volt from -2 to +2V (never the same twice running). Patched into CV In 1, it jumps the clock by whole steps. Holds with no loop playing
+    - id: CVOut2
+      name: Smooth random
+      type: cv
+      description: At each start of Loop B, a new level from 0 to +5V, eased to over one pass. Patched into CV In 2, the wash comes and goes. Holds with no loop playing
+    - id: PulseOut1
+      name: Random
+      type: pulse
+      description: A 10ms trigger at random, 200ms to 2s apart
+    - id: PulseOut2
+      name: Start B
+      type: pulse
+      description: A 10ms trigger at each start of Loop B
+
+controls:
+  switch:
+    up:
+      name: Alt
+      description: Main = wash, X = dry level, Y = crush
+    middle:
+      name: Play
+      description: Main = clock, X = Loop A speed, Y = Loop B speed
+    down:
+      name: Play
+      description: Same knob jobs as middle (Down is momentary)
+    tap:
+      name: Record
+      description: Start recording both loops; tap again to stop and play. A tap while playing records over the old loop. Two taps within 300ms clear both loops
+  knobs:
+    - main: { name: Clock, description: "Ten steps, 2kHz fully left to 48kHz fully right. Picks up only after passing its last value" }
+      x: { name: Speed A, description: "Six zones: reverse x2, x1, x1/2, then forward x1/2, x1, x2. Picks up only after passing its last value" }
+      y: { name: Speed B, description: "The same, for Loop B. Picks up only after passing its last value" }
+    - when: { z: up }
+      main: { name: Wash, description: "The reverb's send, decay and damping together: more is longer and darker. Picks up only after passing its last value" }
+      x: { name: Dry level, description: "The clean input under the loops, bypassing the clock, crush and reverb: none fully left (loops only), unity fully right. Picks up only after passing its last value" }
+      y: { name: Crush, description: "12 bits (clean) fully left down to 4 fully right. Picks up only after passing its last value" }
+  leds:
+    - display: list
+      items:
+        - { id: LED0, name: State A (top left), description: "Off empty, fast blink recording, on playing; flashes on stop" }
+        - { id: LED1, name: State B (top right) }
+        - { id: LED2, name: Speed A (middle left), description: "Dim at x1/2, brighter at x1, full at x2" }
+        - { id: LED3, name: Speed B (middle right) }
+        - { id: LED4, name: Playhead A (bottom left), description: "Bright at the loop's start, fading to its end (a falling saw forward, a rising one in reverse). Empty or recording: the input level; full for 100ms on clipping" }
+        - { id: LED5, name: Playhead B (bottom right) }
+    - display: list
+      items:
+        - { id: LED0, name: Clock view, description: "For 1.5s after Main turns: fills from the bottom row up, one LED at 48kHz to five and a half at 2kHz" }
+    - when: { z: up }
+      display: list
+      items:
+        - { id: LED0, name: Wash (top row), description: "Each row is a two-LED bar: left LED 0 to 50%, right 50 to 100%. A row breathes until its knob picks up" }
+        - { id: LED2, name: Dry level (middle row) }
+        - { id: LED4, name: Crush (bottom row) }
