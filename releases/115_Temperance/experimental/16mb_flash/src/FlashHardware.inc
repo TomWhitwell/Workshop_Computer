@@ -5,7 +5,7 @@
  * Uses Dune Desormeaux's MLRws ADPCM implementation via Goldfish (GPL-3.0).
  * Per-page format, independent queues and cache integration generated with
  * OpenAI Codex at the user's direction; upstream authors retain their credit.
- * Goldfish release has no explicit license notice: see ../ATTRIBUTION.md.
+ * Overall experiment: GNU GPL version 3. See ../LICENSE and ../ATTRIBUTION.md.
  */
 // QSPI command/ROM helpers adapted from Goldfish 2.0 goldfish_stream.c,
 // by Dune Desormeaux. Included only by FlashStore.cpp (core 1, RAM-resident).

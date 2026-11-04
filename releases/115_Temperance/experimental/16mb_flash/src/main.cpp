@@ -38,7 +38,7 @@
 bi_decl(bi_program_description(
     "Temperance: Matt Allison; Goldfish/MLRws: Dune Desormeaux; "
     "ComputerCard: Chris Johnson; plate design: Jon Dattorro. "
-    "Experimental integration: OpenAI Codex. See ATTRIBUTION.md and LICENSES; includes GPL-3.0 codec."));
+    "Experimental integration: OpenAI Codex. Overall licence: GPL-3.0. See LICENSE, ATTRIBUTION.md and LICENSES."));
 
 // The instrument's reverb and input delay buffers belong outside the stack.
 static tem::Temperance instrument;

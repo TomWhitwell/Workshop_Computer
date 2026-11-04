@@ -6,8 +6,11 @@ ComputerCard by **Chris Johnson**, and a plate reverb design by **Jon Dattorro**
 Experimental integration was generated with OpenAI Codex at the user's direction.
 
 Keep [ATTRIBUTION.md](../ATTRIBUTION.md) and [LICENSES/](../LICENSES/) with
-firmware copies. Matt's MIT notice does not cover every dependency: the MLRws
-codec is GPL-3.0, and the Goldfish release supplies no explicit license notice.
-See the attribution audit for that unresolved license scope.
+firmware copies, together with the overall [GPL-3.0 licence](../LICENSE).
+The combined experiment uses GPL version 3 following the Goldfish/MLRws
+author's recommendation, as reported by the maintainer. Matt's original MIT
+notice and the other upstream notices remain preserved separately.
+Corresponding source for this UF2 is in the parent experimental directory;
+its unchanged ComputerCard dependency is in `../../../lib/`.
 
 `picotool info -a temperance.0.1.0-flash-exp.1.16mb.uf2` displays embedded credits.

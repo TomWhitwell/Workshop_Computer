@@ -5,6 +5,19 @@ Attribution audit: 2026-11-04. This is a derivative of Matt Allison's
 Temperance, with flash recording adapted from Dune Desormeaux's work.
 It is not an original instrument implementation by Codex.
 
+## Overall experimental licence — GNU GPL version 3
+
+The combined experimental source and firmware are distributed under the
+**GNU General Public License, version 3 (GPL-3.0)**; see [LICENSE](LICENSE).
+On 2026-11-04, the maintainer reported that Dune Desormeaux, author of Goldfish
+and MLRws, suggested GPL-3.0 as the overall licence. This experiment adopts
+that licence for the combined derivative and its experimental integration.
+
+Upstream copyright and licence notices remain intact. Matt Allison's original
+Temperance release remains MIT-licensed and unchanged; ComputerCard's MIT
+and the Pico SDK's BSD notices are retained. GPL-3.0 applies to this combined
+experiment without rewriting the licences of the original upstream releases.
+
 ## Matt Allison — Temperance 0.1.0
 
 Copyright (c) 2026 Matt Allison. Original code licensed under MIT.
@@ -27,9 +40,10 @@ The original README credits Matt's design and states that its code, tests and
 documentation were written with support from Claude (Anthropic). That upstream
 acknowledgement is preserved here; Matt remains credited as the original creator.
 
-The original MIT notice is preserved verbatim in `LICENSE` and
-`LICENSES/Temperance-MIT.txt`. It applies to the upstream Temperance code;
-**it is not a blanket MIT license for every dependency in this experiment.**
+The original MIT notice is preserved verbatim in
+`LICENSES/Temperance-MIT.txt`. It applies to the upstream Temperance code.
+The experiment's top-level `LICENSE` contains GNU GPL version 3 for the
+combined derivative; it does not replace the original release's MIT licence.
 
 ## Dune Desormeaux — Goldfish 2.0 and MLRws
 
@@ -53,12 +67,12 @@ Its complete license text is preserved verbatim as
 `LICENSES/MLRws-GPL-3.0.txt`. The included codec must not be represented as
 Matt's MIT-licensed code or as newly authored code.
 
-The Goldfish release in this repository contains **no explicit license file
-or license field**. Its attribution is clear, but this audit cannot supply
-missing license terms for its copied/adapted portions. Those portions have
-not been relabelled MIT or GPL merely by this experiment. This unresolved
-license scope should be checked with the upstream author before external
-redistribution. Including credits does not itself establish permission.
+The upstream Goldfish release in this repository has no explicit licence
+file or licence field. For this derivative, the maintainer has reported
+Dune's recommendation to use GPL-3.0 overall, as recorded above. Goldfish-derived
+portions are included in this experiment under that overall licence; this
+does not modify the separate Goldfish release or claim that its metadata
+has been updated.
 
 ## Chris Johnson — ComputerCard
 

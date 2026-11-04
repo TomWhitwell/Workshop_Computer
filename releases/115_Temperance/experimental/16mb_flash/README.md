@@ -2,6 +2,10 @@
 
 **Version 0.1.0-flash-exp.1. Built and host-tested; not yet tested on physical hardware.**
 
+**Overall licence: GNU GPL version 3 (GPL-3.0)** — see [LICENSE](LICENSE).
+Upstream author credits and MIT/BSD notices are retained. The original
+Temperance release remains unchanged and MIT-licensed.
+
 An isolated derivative of Temperance 0.1.0. The original source, metadata,
 manual and `../../UF2/temperance.0.1.0.uf2` are unchanged. This experiment
 uses Goldfish 2.0's buffered ADPCM recording and flash erase-suspend approach
@@ -150,7 +154,7 @@ README acknowledges development support from Claude (Anthropic). Experimental
 integration and tests were generated with OpenAI Codex at the user's direction.
 
 See [ATTRIBUTION.md](ATTRIBUTION.md) for the file-by-file origins and
-[LICENSES/](LICENSES/) for preserved license texts. The original `LICENSE`
-is Matt's MIT notice, not a blanket license for all included code: MLRws
-identifies its codec as GPL-3.0, and the Goldfish release has no explicit
-license notice. That missing license scope is recorded in the attribution audit.
+[LICENSES/](LICENSES/) for preserved upstream notices. The combined experiment
+uses GPL-3.0 following the Goldfish/MLRws author's recommendation, as reported
+by the maintainer. Matt's original MIT notice remains in
+`LICENSES/Temperance-MIT.txt`; the top-level `LICENSE` is GPL version 3.
