@@ -176,7 +176,7 @@ section.panel { background: var(--surface); border: 1px solid var(--line); borde
 }
 .bit:nth-child(8n) { border-right-color: var(--muted); }
 .bit.on { background: var(--on); }
-.bit.unused { opacity: .45; }
+.bit.fixed { opacity: .45; }
 .bit.flip::after { content: ""; position: absolute; inset: 40% 30%; border-radius: 50%; background: var(--accent); }
 
 .lane .trk { height: 26px; border-bottom: 1px solid var(--line); cursor: crosshair; touch-action: none; }
@@ -601,7 +601,7 @@ function renderLoops() {
     trk.appendChild(h);
   });
   const used2 = new Set(); cfg.loops.forEach((l, i) => { for (let j = 0; j < l.length; j++) used2.add(starts[i] + j); });
-  $('bitTrk').childNodes.forEach((d, b) => d.classList.toggle('unused', !used2.has(b)));
+  $('bitTrk').childNodes.forEach((d, b) => d.classList.toggle('fixed', !used2.has(b)));
 }
 
 function renderLanes() {
