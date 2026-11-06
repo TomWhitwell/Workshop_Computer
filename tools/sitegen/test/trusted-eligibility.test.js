@@ -66,6 +66,30 @@ test('a card update is judged from the PR commit while the working tree stays on
   assert.match(rejected.eligibility.reasons.join('\n'), /Validation reports/);
 });
 
+test('a PR that removes info.yaml but leaves the card folder is not eligible', async t => {
+  const { root, base, propose } = await repository(t);
+  const head = await propose(async ({ git }) => {
+    git('rm', '-q', 'releases/42_card/info.yaml');
+  });
+  const { eligibility, errorCount, report } = await assess(root, base, head);
+  assert.equal(errorCount, 1);
+  assert.equal(report.info.length, 0);
+  assert.ok(report.rules.introduced.some(item => item.ruleId === 'info-yaml-removed'));
+  assert.equal(eligibility.eligible, false);
+  assert.match(eligibility.reasons.join('\n'), /Validation reports 1 error/);
+});
+
+test('a PR that removes a whole card is refused as a deletion, not a lost info.yaml', async t => {
+  const { root, base, propose } = await repository(t);
+  const head = await propose(async ({ git }) => {
+    git('rm', '-rq', 'releases/42_card');
+  });
+  const { eligibility, errorCount } = await assess(root, base, head);
+  assert.equal(errorCount, 0);
+  assert.equal(eligibility.eligible, false);
+  assert.match(eligibility.reasons.join('\n'), /Deletes card 42_card/);
+});
+
 test('a PR that edits the validator is not eligible', async t => {
   const { root, base, propose } = await repository(t);
   const head = await propose(async ({ write }) => {
