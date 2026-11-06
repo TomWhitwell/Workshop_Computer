@@ -1,4 +1,4 @@
-# Shift Voice
+# Palette
 
 An experiment for a larger card: a simple synth voice where **every** parameter is
 read from a Turing-Machine-style shift register.

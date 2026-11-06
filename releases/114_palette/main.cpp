@@ -1,5 +1,5 @@
 /*
-  Shift Voice — Workshop Computer program card
+  Palette — Workshop Computer program card
   ============================================
 
   An experiment: a simple monophonic synth voice where EVERY synthesis
@@ -268,7 +268,7 @@ static bool Deserialise(Config &c, const uint8_t *b)
 // Flash storage: last 4 kB sector of the card
 
 constexpr uint32_t FLASH_OFFSET = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
-constexpr uint32_t FLASH_MAGIC = 0x53564F31; // "SVO1"
+constexpr uint32_t FLASH_MAGIC = 0x50414C31; // "PAL1"
 
 struct FlashImage
 {
@@ -534,10 +534,10 @@ static void FromNibbles(const uint8_t *in, int n, uint8_t *out)
 ////////////////////////////////////////////////////////////////////////////////
 // The card
 
-class ShiftVoice : public WebInterfaceComputerCard
+class Palette : public WebInterfaceComputerCard
 {
 public:
-	ShiftVoice()
+	Palette()
 	{
 		BuildTables();
 		EnableNormalisationProbe(); // lets us tell whether Pulse In 1 is patched
@@ -978,7 +978,7 @@ private:
 int main()
 {
 	set_sys_clock_khz(144000, true);
-	static ShiftVoice card;
+	static Palette card;
 	card.StartUSBCore();
 	card.Run();
 }

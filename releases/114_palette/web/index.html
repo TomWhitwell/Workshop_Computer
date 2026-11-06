@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Shift Voice Editor</title>
+<title>Palette Editor</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Web editor for the Shift Voice program card for the Music Thing Modular Workshop Computer: lay out shift-register loops and assign bits to synth parameters.">
+<meta name="description" content="Web editor for the Palette program card for the Music Thing Modular Workshop Computer: lay out shift-register loops and assign bits to synth parameters.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -263,7 +263,7 @@ textarea#json { width: 100%; min-height: 90px; font-family: var(--font-mono); fo
 
 <header class="top">
   <div class="brand">
-    <h1>Shift Voice</h1>
+    <h1>Palette</h1>
     <span class="sub">64-bit register → 16 synth parameters · Workshop Computer card 114</span>
   </div>
   <div class="conn">
@@ -330,7 +330,7 @@ textarea#json { width: 100%; min-height: 90px; font-family: var(--font-mono); fo
         <button class="btn small" id="importJson">Load JSON from box</button>
         <button class="btn small" id="resetDefaults">Factory defaults</button>
       </div>
-      <textarea id="json" spellcheck="false" aria-label="Layout JSON" style="margin-top:10px" placeholder="Paste a Shift Voice layout here, then press Load JSON from box."></textarea>
+      <textarea id="json" spellcheck="false" aria-label="Layout JSON" style="margin-top:10px" placeholder="Paste a Palette layout here, then press Load JSON from box."></textarea>
       <div class="notes" style="margin-top:10px">
         <p>Use Chrome, Edge or another Chromium browser with a USB-C data cable. Close any other app that is using the Workshop Computer's MIDI port. When the browser asks, allow MIDI access for <b>MTMComputer</b>. iOS is not supported.</p>
         <p>"Send" changes how the card plays now. "Save to card" keeps the layout, and the current register pattern, after a reset.</p>
@@ -362,7 +362,7 @@ textarea#json { width: 100%; min-height: 90px; font-family: var(--font-mono); fo
 <script>
 'use strict';
 /*
-  Shift Voice editor.
+  Palette editor.
   The firmware (main.cpp) is the source of truth; the tables and the byte
   layout below mirror it exactly. Change both together.
 */
@@ -939,14 +939,14 @@ const fromNib = (n) => { const o = []; for (let i = 0; i + 1 < n.length; i += 2)
 function toJSON() {
   validate();
   return JSON.stringify({
-    format: 'shift-voice', version: 1,
+    format: 'palette', version: 1,
     loops: cfg.loops, scale: cfg.scaleMask.toString(2).padStart(12, '0').split('').reverse().map(Number), root: cfg.root,
     params: Object.fromEntries(cfg.params.map((p, i) => [PARAMS[i].id, { ...p }])),
   }, null, 1);
 }
 function fromJSON(text) {
   const j = JSON.parse(text);
-  if (j.format !== 'shift-voice') throw new Error('This is not a Shift Voice layout (missing "format": "shift-voice").');
+  if (j.format !== 'palette') throw new Error('This is not a Palette layout (missing "format": "palette").');
   const d = defaultConfig();
   const c = {
     loops: Array.isArray(j.loops) ? j.loops.map((l) => ({ length: +l.length, divider: +l.divider || 1, chaos: l.chaos ?? 100 })) : d.loops,
@@ -1058,7 +1058,7 @@ function wire() {
   };
   $('downloadJson').onclick = () => {
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([toJSON()], { type: 'application/json' }));
-    a.download = 'shift-voice-layout.json'; document.body.appendChild(a); a.click(); a.remove();
+    a.download = 'palette-layout.json'; document.body.appendChild(a); a.click(); a.remove();
   };
   $('importFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { fromJSON(await f.text()); toast('Layout loaded'); } catch (err) { toast(err.message); } e.target.value = ''; };
   $('importJson').onclick = () => { try { fromJSON($('json').value); toast('Layout loaded'); } catch (err) { toast(err.message.startsWith('This') ? err.message : 'That text is not valid JSON.'); } };
