@@ -345,6 +345,19 @@ static inline int32_t Mul64(int32_t a, int32_t b, int shift)
 	return int32_t((int64_t(a) * b) >> shift);
 }
 
+// Soft clip for the audio output. Below the knee (±1400) the signal passes
+// unchanged. Above it, the excess d is squashed as d * 600 / (d + 600), which
+// starts at a slope of 1 (no corner to hear) and can never quite reach ±2000.
+static inline int32_t SoftClip(int32_t x)
+{
+	const int32_t knee = 1400, room = 600;
+	int32_t a = x < 0 ? -x : x;
+	if (a <= knee) return x;
+	int32_t d = a - knee;
+	int32_t y = knee + (d * room) / (d + room);
+	return x < 0 ? -y : y;
+}
+
 // Bandlimiting is deliberately not done: these are raw digital waveforms,
 // the low-pass filter after them tames the harshness.
 static inline int32_t Sine(uint32_t phase)
@@ -405,7 +418,9 @@ struct Envelope
 		{
 			phase += envInc[atk];
 			if (phase >= (1u << 24)) { stage = 2; phase = 0; level = 65535; }
-			else level = startLevel + (((65535 - startLevel) * Curve(phase >> 8, c)) >> 16);
+			// Unsigned: (65535 - start) x curve can reach 2^32, which
+			// overflows a signed 32-bit int (heard as a pop mid-attack)
+			else level = startLevel + int32_t((uint32_t(65535 - startLevel) * uint32_t(Curve(phase >> 8, c))) >> 16);
 		}
 		else if (stage == 2)
 		{
@@ -717,12 +732,12 @@ protected:
 			svfLow = Clamp(svfLow, -262144, 262143);
 		}
 
-		// Soft-ish saturation, then VCA
-		int32_t y = svfLow;
-		if (y > 20000) y = 20000 + ((y - 20000) >> 3);
-		else if (y < -20000) y = -20000 + ((y + 20000) >> 3);
-		y = Mul64(y, ve, 16) >> 3;
-		AudioOut1(Clamp(y, -2047, 2047));
+		// VCA, then a soft clip. A full-level note with no resonance peaks
+		// around ±1700 of the DAC's ±2047, leaving headroom. Louder than the
+		// knee (resonance peaks), the level bends smoothly towards ±2000, so
+		// the output never reaches the DAC's limit and hard-clips.
+		int32_t y = Mul64(svfLow, ve, 16) * 7 >> 6; // ±16384 nominal -> ±1792
+		AudioOut1(SoftClip(y));
 		AudioOut2(fe >> 5);
 		CVOut2(ve >> 5);
 
