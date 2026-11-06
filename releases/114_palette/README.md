@@ -140,9 +140,16 @@ cmake .. -DPICO_SDK_PATH=/path/to/pico-sdk
 make
 ```
 
-Builds against Pico SDK 2.1.1. The DSP was checked on a desktop build with
-stubbed hardware; it has not yet been timed on hardware, so check ProcessSample stays inside
-its ~20 µs budget if you change it.
+Builds against Pico SDK 2.1.1.
+
+`ProcessSample` must finish inside ~20 µs (about 3000 cycles at 144 MHz) on every sample, or
+the Computer's knob and CV readings get mixed up. So no sample does a burst of work: after a
+clock step the loops shift one per sample and the parameters are re-read one per sample; a
+layout from the editor is prepared on the USB core and swapped in by pointer; pitch, smoothing,
+knobs, LEDs and the editor snapshot each run on their own staggered samples. Measured in an
+emulated Cortex-M (QEMU, instruction counts, hardware divider modelled) the worst sample is
+about 1,400 instructions and the average about 900. It has not yet been timed on hardware;
+if you change the audio path, check it with a scope on a spare GPIO.
 
 ## Credits
 

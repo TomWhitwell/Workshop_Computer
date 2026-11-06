@@ -332,7 +332,7 @@ static void BuildTables()
 	{
 		if (i == 0) { slewCoef[i] = 65536; continue; }
 		float tc = 0.0005f * exp2f(float(i) * 11.0f / 1023.0f);
-		slewCoef[i] = int32_t(65536.0f * (1.0f - expf(-1.0f / (tc * 48000.0f))));
+		slewCoef[i] = int32_t(65536.0f * (1.0f - expf(-1.0f / (tc * 12000.0f)))); // pitch runs at 12 kHz
 		if (slewCoef[i] < 1) slewCoef[i] = 1;
 	}
 }
@@ -424,6 +424,43 @@ static inline uint32_t Popcount64(uint64_t v)
 }
 
 static inline uint64_t BitMask(int width) { return width >= 64 ? ~0ull : ((1ull << width) - 1); }
+////////////////////////////////////////////////////////////////////////////////
+// Everything the audio core needs from a layout, worked out in advance.
+// Two of these exist: the audio core plays one while the USB core prepares
+// the next, then the audio core switches over by swapping a pointer. That
+// keeps the 48 kHz interrupt free of any big burst of work when the editor
+// sends a layout (it sends them continuously while you drag).
+
+struct Engine
+{
+	Config cfg;
+	uint8_t loopOffset[MAX_LOOPS];
+	uint64_t loopMask[MAX_LOOPS];
+	int32_t loopChaosQ8[MAX_LOOPS];  // chaos 0-100 % as 0-256
+	uint64_t usedMask;               // bits inside some loop
+	uint64_t paramMask[NUM_PARAMS];  // bits each parameter reads
+	int8_t scaleNotes[12];
+	int32_t scaleLen;
+};
+
+static void BuildEngine(Engine &e, const Config &c)
+{
+	e.cfg = c;
+	int offset = 0;
+	e.usedMask = 0;
+	for (int i = 0; i < MAX_LOOPS; i++)
+	{
+		e.loopOffset[i] = uint8_t(offset);
+		e.loopMask[i] = i < c.numLoops ? BitMask(c.loops[i].length) : 0;
+		e.loopChaosQ8[i] = (c.loops[i].chaos * 256 + 50) / 100;
+		if (i < c.numLoops) { e.usedMask |= e.loopMask[i] << offset; offset += c.loops[i].length; }
+	}
+	for (int i = 0; i < NUM_PARAMS; i++)
+		e.paramMask[i] = BitMask(c.params[i].width) << c.params[i].start;
+	e.scaleLen = 0;
+	for (int s = 0; s < 12; s++)
+		if (c.scaleMask & (1 << s)) e.scaleNotes[e.scaleLen++] = int8_t(s);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // The card
@@ -444,6 +481,7 @@ public:
 		rng = uint32_t(id ^ (id >> 32)) | 1u;
 
 		// Load saved settings, or defaults on a fresh card
+		Config cfg;
 		const FlashImage *img = reinterpret_cast<const FlashImage *>(XIP_BASE + FLASH_OFFSET);
 		bool loaded = false;
 		if (img->magic == FLASH_MAGIC &&
@@ -460,52 +498,41 @@ public:
 			reg = (uint64_t(Rand()) << 32) | Rand();
 		}
 		shadowCfg = cfg;
-		ApplyConfig();
+		BuildEngine(engines[0], cfg);
+		eng = &engines[0];
+		for (int i = 0; i < NUM_PARAMS; i++) paramVal[i] = ParamValue(i);
+		FinishRefresh(false);
+		for (int j = 0; j < NUM_SMOOTHED; j++) smooth[j] = paramVal[smoothedIds[j]] << 8;
 	}
 
 protected:
 	////////////////////////////////////////////////////////////////////////////
 	// Audio core
+	//
+	// ProcessSample must finish well inside ~20 us (about 3000 cycles at
+	// 144 MHz), every sample: if it overruns, the Computer's knob and CV
+	// readings get mixed up. So nothing here does a big burst of work:
+	//  - after a clock step the loops are shifted one per sample, then the
+	//    16 parameters re-read one per sample (about half a millisecond);
+	//  - a new layout from the editor arrives ready-made (see Engine);
+	//  - pitch maths and smoothing each run every 4th sample, the knobs one
+	//    at a time, and the LEDs and the editor's snapshot every 32nd sample,
+	//    each on a different sample so their costs never add up.
 
 	uint32_t Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return rng; }
-
-	// Recompute everything derived from cfg. Runs on the audio core only.
-	void ApplyConfig()
-	{
-		int offset = 0;
-		usedMask = 0;
-		for (int i = 0; i < cfg.numLoops; i++)
-		{
-			loopOffset[i] = uint8_t(offset);
-			loopMask[i] = BitMask(cfg.loops[i].length);
-			loopChaosQ8[i] = (cfg.loops[i].chaos * 256 + 50) / 100;
-			usedMask |= loopMask[i] << offset;
-			offset += cfg.loops[i].length;
-			if (loopCounter[i] >= cfg.loops[i].divider) loopCounter[i] = 0;
-		}
-		for (int i = 0; i < NUM_PARAMS; i++)
-			paramMask[i] = BitMask(cfg.params[i].width) << cfg.params[i].start;
-
-		// Build the scale: list of semitone offsets present in scaleMask
-		scaleLen = 0;
-		for (int s = 0; s < 12; s++)
-			if (cfg.scaleMask & (1 << s)) scaleNotes[scaleLen++] = int8_t(s);
-
-		UpdateParams(0);
-	}
 
 	// Read one parameter's bits and scale them into its Min..Max range
 	int32_t ParamValue(int i)
 	{
-		const ParamCfg &p = cfg.params[i];
+		const ParamCfg &p = eng->cfg.params[i];
 		if (!p.enabled) return p.min;
-		uint64_t bits = (reg >> p.start) & BitMask(p.width);
+		uint32_t bits = uint32_t((reg >> p.start) & BitMask(p.width)); // width <= 16
 		// x = normalised value, 0..65535
 		uint32_t x;
 		if (p.flags & FLAG_POPCOUNT)
-			x = (Popcount64(bits) * 65535u) / p.width;
+			x = (uint32_t(__builtin_popcount(bits)) * 65535u) / p.width;
 		else
-			x = p.width == 16 ? uint32_t(bits) : (uint32_t(bits) * 65535u) / uint32_t((1u << p.width) - 1);
+			x = p.width == 16 ? bits : (bits * 65535u) / ((1u << p.width) - 1);
 		if (p.flags & FLAG_INVERT) x = 65535 - x;
 		return p.min + ((int32_t(p.max - p.min) * int32_t(x) + 32768) >> 16);
 	}
@@ -513,27 +540,45 @@ protected:
 	// Convert a (possibly negative) scale degree into a MIDI note
 	int32_t DegreeToNote(int32_t deg)
 	{
-		int32_t oct = 0;
-		while (deg < 0) { deg += scaleLen; oct--; }
-		while (deg >= scaleLen) { deg -= scaleLen; oct++; }
-		return cfg.root + oct * 12 + scaleNotes[deg];
+		int32_t oct = 0, len = eng->scaleLen;
+		while (deg < 0) { deg += len; oct--; }
+		while (deg >= len) { deg -= len; oct++; }
+		return eng->cfg.root + oct * 12 + eng->scaleNotes[deg];
 	}
 
-	// Called on every clock tick, with the mask of bits that just moved
-	void UpdateParams(uint64_t moved)
+	// Start re-reading every parameter, one per sample. moved = the bits
+	// that just moved (0 if this isn't a clock step).
+	void StartRefresh(uint64_t moved)
 	{
-		for (int i = 0; i < NUM_PARAMS; i++) paramVal[i] = ParamValue(i);
+		refreshMoved |= moved;
+		refreshIndex = 0;
+	}
 
+	// One step of the refresh; when the last parameter is in, work out the
+	// notes and whether to fire the envelopes.
+	void RefreshStep()
+	{
+		if (refreshIndex >= NUM_PARAMS) return;
+		paramVal[refreshIndex] = ParamValue(refreshIndex);
+		if (++refreshIndex == NUM_PARAMS)
+		{
+			FinishRefresh(refreshMoved != 0);
+			refreshMoved = 0;
+		}
+	}
+
+	void FinishRefresh(bool stepped)
+	{
 		int32_t deg1 = paramVal[P_PITCH1];
 		note1 = DegreeToNote(deg1);
 		note2 = DegreeToNote(deg1 + paramVal[P_PITCH2]);
 
 		// The trigger is only evaluated when its own bits have moved (so a
 		// slow loop doesn't fire repeatedly on unchanged bits). Unassigned,
-		// it fires on every tick if its Min is in the top half.
-		if (moved)
+		// it fires on every step if its Min is in the top half.
+		if (stepped)
 		{
-			bool relevant = cfg.params[P_TRIG].enabled ? (moved & paramMask[P_TRIG]) != 0 : true;
+			bool relevant = eng->cfg.params[P_TRIG].enabled ? (refreshMoved & eng->paramMask[P_TRIG]) != 0 : true;
 			if (relevant && paramVal[P_TRIG] >= 512) FireEnvelopes();
 		}
 	}
@@ -546,7 +591,8 @@ protected:
 		trigCount++;
 	}
 
-	// Advance the shift register by one clock tick
+	// A clock step. The loops are then shifted one per sample (ShiftStep),
+	// and the parameters re-read after the last one.
 	void Tick()
 	{
 		// Flip probability from the Main setting + CV 2 (Turing Machine style).
@@ -558,93 +604,109 @@ protected:
 		else probQ16 = ((3945 - k) * 17685) >> 10;
 		if (SwitchVal() == Up) probQ16 = 0; // lock
 		probDisplay = probQ16;
+		tickProb = probQ16;
 
-		uint64_t moved = 0;
-		for (int i = 0; i < cfg.numLoops; i++)
-		{
-			if (++loopCounter[i] < cfg.loops[i].divider) continue;
-			loopCounter[i] = 0;
-
-			int len = cfg.loops[i].length, off = loopOffset[i];
-			uint64_t m = loopMask[i];
-			uint64_t seg = (reg >> off) & m;
-			uint32_t top = uint32_t(seg >> (len - 1)) & 1;
-			int32_t p = (probQ16 * loopChaosQ8[i]) >> 8;
-			if (int32_t(Rand() >> 16) < p) top ^= 1;
-			seg = ((seg << 1) | top) & m;
-			reg = (reg & ~(m << off)) | (seg << off);
-			moved |= m << off;
-		}
-		UpdateParams(moved);
+		// A step that arrives before the last one finished (only with a very
+		// fast external clock) finishes that one at once
+		while (shiftIndex < MAX_LOOPS) ShiftStep();
+		shiftIndex = 0;
+		shiftMoved = 0;
 		clockPulse = 240;
 		tickCount++;
 	}
 
+	// Shift one loop, if its clock divider is due
+	void ShiftStep()
+	{
+		int i = shiftIndex++;
+		const Engine &e = *eng;
+		if (i < e.cfg.numLoops && ++loopCounter[i] >= e.cfg.loops[i].divider)
+		{
+			loopCounter[i] = 0;
+			int len = e.cfg.loops[i].length, off = e.loopOffset[i];
+			uint64_t m = e.loopMask[i];
+			uint64_t seg = (reg >> off) & m;
+			uint32_t top = uint32_t(seg >> (len - 1)) & 1;
+			int32_t p = (tickProb * e.loopChaosQ8[i]) >> 8;
+			if (int32_t(Rand() >> 16) < p) top ^= 1;
+			seg = ((seg << 1) | top) & m;
+			reg = (reg & ~(m << off)) | (seg << off);
+			shiftMoved |= m << off;
+		}
+		if (shiftIndex == MAX_LOOPS) StartRefresh(shiftMoved);
+	}
+
 	virtual void ProcessSample()
 	{
-		// Pick up changes sent from the editor (core 1) between samples
-		if (configPending) { cfg = pendingCfg; __dmb(); configPending = false; ApplyConfig(); }
-		if (regPending) { reg = pendingReg; __dmb(); regPending = false; UpdateParams(0); }
-		HandleKnobs();
+		frame++;
+		uint32_t slot = frame & 31;
+
+		// A new layout from the editor: switch to it (a pointer swap)
+		Engine *ne = pendingEngine;
+		if (ne)
+		{
+			eng = ne;
+			pendingEngine = nullptr;
+			for (int i = 0; i < MAX_LOOPS; i++)
+				if (loopCounter[i] >= eng->cfg.loops[i].divider) loopCounter[i] = 0;
+			StartRefresh(0);
+		}
+		if (regPending) { reg = pendingReg; __dmb(); regPending = false; StartRefresh(0); }
 
 		// Z down: scramble the register
 		if (SwitchChanged() && SwitchVal() == Down)
 		{
 			uint64_t r = (uint64_t(Rand()) << 32) | Rand();
-			reg = (reg & ~usedMask) | (r & usedMask);
-			UpdateParams(0);
+			reg = (reg & ~eng->usedMask) | (r & eng->usedMask);
+			StartRefresh(0);
 		}
 
-		// Clock: external on Pulse In 1 if patched, otherwise Y knob
+		// Clock: external on Pulse In 1 if patched, otherwise the Y setting
 		if (Connected(Input::Pulse1))
 		{
 			if (PulseIn1RisingEdge()) Tick();
 		}
-		else
+		else if (++clockCount >= clockPeriod)
 		{
-			// Y: ~1 Hz (CCW) to ~16 Hz (CW), exponential
-			int32_t yq = settings[KY] * 4;
-			int32_t base = 48000 >> (yq >> 12);
-			int32_t period = base - ((base * (yq & 4095)) >> 13);
-			if (++clockCount >= period) { clockCount = 0; Tick(); }
+			clockCount = 0;
+			Tick();
 		}
 		if (PulseIn2RisingEdge()) FireEnvelopes();
 
-		// Smooth the continuous parameters (they jump on each tick) to avoid
-		// zipper clicks: ~3 ms one-pole, values kept at 8 extra bits.
-		for (int j = 0; j < NUM_SMOOTHED; j++)
-		{
-			int i = smoothedIds[j];
-			smooth[j] += ((paramVal[i] << 8) - smooth[j]) >> 7;
-		}
-		int32_t shape1 = smooth[0] >> 8, shape2 = smooth[1] >> 8, mix = smooth[2] >> 8;
-		int32_t cutoff = smooth[3] >> 8, res = smooth[4] >> 8, envAmt = smooth[5] >> 8;
+		// After a step: shift one loop per sample, then re-read one
+		// parameter per sample
+		if (shiftIndex < MAX_LOOPS) ShiftStep();
+		else RefreshStep();
 
-		// Pitch: scale note + X transpose + CV 1 (1V/oct, semitone-quantised)
-		int32_t transpose = (settings[KX] * 25) >> 12;
-		int32_t cvSemis = (CVIn1() * 72 + (CVIn1() >= 0 ? 1024 : -1024)) / 2048;
-		int32_t n1 = Clamp(note1 + transpose + cvSemis, 0, 127);
-		int32_t n2 = Clamp(note2 + transpose + cvSemis, 0, 127);
-		int32_t t1 = n1 << 16, t2 = n2 << 16;
-		int32_t k = slewCoef[Clamp(paramVal[P_SLEW], 0, 1023)];
-		pitch1 += Mul64(t1 - pitch1, k, 16);
-		pitch2 += Mul64(t2 - pitch2, k, 16);
+		// Control-rate jobs, each on its own sample
+		switch (slot & 3)
+		{
+		case 0: UpdatePitch(); break;                     // 12 kHz
+		case 1: HandleKnob((frame >> 2) % 3); break;      // each knob at 4 kHz
+		case 2: UpdateSmoothing(); break;                 // 12 kHz
+		default:
+			if (slot == 3) PublishSnapshot();             // 1.5 kHz
+			else if (slot == 7) UpdateLeds();             // 1.5 kHz
+			break;
+		}
 
 		// Oscillators
-		phase1 += PitchToInc(pitch1);
-		phase2 += PitchToInc(pitch2);
-		int32_t o1 = Wave(phase1, shape1);
-		int32_t o2 = Wave(phase2, shape2);
+		phase1 += inc1;
+		phase2 += inc2;
+		int32_t mix = smooth[2] >> 8;
+		int32_t o1 = Wave(phase1, smooth[0] >> 8);
+		int32_t o2 = Wave(phase2, smooth[1] >> 8);
 		int32_t osc = ((o1 * (1023 - mix) + o2 * mix) >> 10) >> 1; // ±16384
 
 		// Envelopes
 		int32_t fe = fltEnv.Process(paramVal[P_FATK], paramVal[P_FDEC], paramVal[P_FSHAPE]);
 		int32_t ve = volEnv.Process(paramVal[P_VATK], paramVal[P_VDEC], paramVal[P_VSHAPE]);
+		volLevel = ve;
 
 		// Filter: Chamberlin state-variable low-pass, run twice per sample
-		int32_t cut = Clamp(cutoff + ((envAmt * fe) >> 16), 0, 1023);
+		int32_t cut = Clamp((smooth[3] >> 8) + (((smooth[5] >> 8) * fe) >> 16), 0, 1023);
 		int32_t f = cutoffCoef[cut];
-		int32_t q = 32768 - res * 31; // damping, Q14: 2.0 (none) .. ~0.06 (screaming)
+		int32_t q = 32768 - (smooth[4] >> 8) * 31; // damping, Q14: 2.0 (none) .. ~0.06 (screaming)
 		for (int n = 0; n < 2; n++)
 		{
 			svfLow += Mul64(f, svfBand, 15);
@@ -662,9 +724,6 @@ protected:
 		y = Mul64(y, ve, 16) >> 3;
 		AudioOut1(Clamp(y, -2047, 2047));
 		AudioOut2(fe >> 5);
-
-		// CV outs: calibrated pitch (MIDI 60 = 0 V) and volume envelope
-		CVOut1Millivolts(int32_t((int64_t(pitch1 - (60 << 16)) * 5333) >> 22));
 		CVOut2(ve >> 5);
 
 		// Pulse outs: envelope trigger and clock, 5 ms each
@@ -672,25 +731,63 @@ protected:
 		PulseOut2(clockPulse > 0);
 		if (trigPulse) trigPulse--;
 		if (clockPulse) clockPulse--;
+	}
 
-		// LEDs: bits 0..3 of the register, clock, volume envelope.
-		// LED 5 blinks fast instead while a knob is waiting to pick up.
+	// Every 4th sample: smoothing and the internal clock rate
+	void UpdateSmoothing()
+	{
+		// Smooth the continuous parameters (they jump on each step) to avoid
+		// zipper clicks: ~3 ms one-pole, values kept at 8 extra bits.
+		for (int j = 0; j < NUM_SMOOTHED; j++)
+			smooth[j] += ((paramVal[smoothedIds[j]] << 8) - smooth[j]) >> 5;
+
+		// Y: ~1 Hz (CCW) to ~16 Hz (CW), exponential
+		int32_t yq = settings[KY] * 4;
+		int32_t base = 48000 >> (yq >> 12);
+		clockPeriod = base - ((base * (yq & 4095)) >> 13);
+	}
+
+	// Every 4th sample (a different one): pitch, glide, CV Out 1
+	void UpdatePitch()
+	{
+		// Pitch: scale note + X transpose + CV 1 (1V/oct, semitone-quantised)
+		int32_t transpose = (settings[KX] * 25) >> 12;
+		int32_t cv = CVIn1();
+		int32_t cvSemis = (cv * 72 + (cv >= 0 ? 1024 : -1024)) / 2048;
+		curNote1 = Clamp(note1 + transpose + cvSemis, 0, 127);
+		curNote2 = Clamp(note2 + transpose + cvSemis, 0, 127);
+		int32_t k = slewCoef[Clamp(paramVal[P_SLEW], 0, 1023)];
+		pitch1 += Mul64((curNote1 << 16) - pitch1, k, 16);
+		pitch2 += Mul64((curNote2 << 16) - pitch2, k, 16);
+		inc1 = PitchToInc(pitch1);
+		inc2 = PitchToInc(pitch2);
+
+		// Calibrated pitch out (MIDI 60 = 0 V)
+		CVOut1Millivolts(int32_t((int64_t(pitch1 - (60 << 16)) * 5333) >> 22));
+	}
+
+	// LEDs: bits 0..3 of the register, clock, volume envelope.
+	// LED 5 blinks fast instead while a knob is waiting to pick up.
+	void UpdateLeds()
+	{
 		uint32_t lo = uint32_t(reg);
 		for (int i = 0; i < 4; i++) LedOn(i, (lo >> i) & 1);
 		LedOn(4, clockPulse > 0);
 		bool waiting = !knobLatched[0] || !knobLatched[1] || !knobLatched[2];
-		blink = (blink + 1) % 6000;
-		LedBrightness(5, waiting ? (blink < 3000 ? 4095 : 0) : (ve >> 4));
+		LedBrightness(5, waiting ? ((frame >> 12) & 1 ? 4095 : 0) : (volLevel >> 4));
+	}
 
-		// Publish a snapshot for the editor (seqlock: odd = being written)
-		Snapshot &sn = snap;
+	// Publish a snapshot for the editor (seqlock: odd = being written)
+	void PublishSnapshot()
+	{
 		stateSeq++; __dmb();
-		sn.reg = reg; sn.tick = tickCount; sn.trig = trigCount; sn.prob = probDisplay;
-		sn.flags = uint8_t((SwitchVal() == Up ? 2 : SwitchVal() == Middle ? 1 : 0)
+		snap.reg = reg; snap.tick = tickCount; snap.trig = trigCount; snap.prob = probDisplay;
+		Switch sw = SwitchVal();
+		snap.flags = uint8_t((sw == Up ? 2 : sw == Middle ? 1 : 0)
 			| (Connected(Input::Pulse1) ? 4 : 0)
 			| (knobLatched[KMain] ? 0 : 8) | (knobLatched[KX] ? 0 : 16) | (knobLatched[KY] ? 0 : 32));
-		for (int i = 0; i < 3; i++) { sn.setting[i] = settings[i]; sn.knob[i] = lastKnob[i]; }
-		sn.note1 = uint8_t(n1); sn.note2 = uint8_t(n2);
+		for (int i = 0; i < 3; i++) { snap.setting[i] = settings[i]; snap.knob[i] = lastKnob[i]; }
+		snap.note1 = uint8_t(curNote1); snap.note2 = uint8_t(curNote2);
 		__dmb(); stateSeq++;
 	}
 
@@ -706,33 +803,30 @@ protected:
 
 	static int32_t MapKnob(int32_t raw)
 	{
-		int32_t v = ((raw - kKnobEndZone) * 4095) / (4095 - 2 * kKnobEndZone);
+		// (raw - 40) * 4095 / 4015, as a multiply and shift
+		int32_t v = ((raw - kKnobEndZone) * 16712) >> 14;
 		return v < 0 ? 0 : (v > 4095 ? 4095 : v);
 	}
 
-	void HandleKnobs()
+	void HandleKnob(int i)
 	{
-		const Knob knobs[3] = {Main, X, Y};
-		for (int i = 0; i < 3; i++)
+		static const Knob knobs[3] = {Main, X, Y};
+		int32_t k = MapKnob(KnobVal(knobs[i]));
+		if (!knobStarted[i]) { settings[i] = k; lastKnob[i] = k; knobStarted[i] = true; return; }
+
+		int32_t req = knobRequest[i];
+		if (req >= 0) { settings[i] = req; knobRequest[i] = -1; knobLatched[i] = false; }
+
+		int32_t &v = settings[i];
+		if (!knobLatched[i])
 		{
-			int32_t k = MapKnob(KnobVal(knobs[i]));
-			if (!knobsStarted) { settings[i] = k; knobLatched[i] = true; lastKnob[i] = k; continue; }
-
-			int32_t req = knobRequest[i];
-			if (req >= 0) { settings[i] = req; knobRequest[i] = -1; knobLatched[i] = false; }
-
-			int32_t &v = settings[i];
-			if (!knobLatched[i])
-			{
-				int32_t d = k - v;
-				bool near = d > -48 && d < 48;
-				bool crossed = (lastKnob[i] - v < 0) != (d < 0);
-				if (near || crossed) knobLatched[i] = true;
-			}
-			if (knobLatched[i]) v = k;
-			lastKnob[i] = k;
+			int32_t d = k - v;
+			bool near = d > -48 && d < 48;
+			bool crossed = (lastKnob[i] - v < 0) != (d < 0);
+			if (near || crossed) knobLatched[i] = true;
 		}
-		knobsStarted = true;
+		if (knobLatched[i]) v = k;
+		lastKnob[i] = k;
 	}
 
 	static inline uint32_t PitchToInc(int32_t pitchQ16)
@@ -865,14 +959,16 @@ private:
 		}
 	}
 
-	// Hand a new config to the audio core, and keep a copy for STATE and saving
+	// Prepare a new layout in the engine the audio core isn't playing, then
+	// hand it over. Waits (briefly) until the previous hand-over is taken.
 	void QueueConfig(const Config &c)
 	{
-		while (configPending) tight_loop_contents();
-		pendingCfg = c;
+		while (pendingEngine) tight_loop_contents();
+		Engine *spare = (eng == &engines[0]) ? &engines[1] : &engines[0];
+		BuildEngine(*spare, c);
 		shadowCfg = c;
 		__dmb();
-		configPending = true;
+		pendingEngine = spare;
 	}
 
 	struct Snapshot
@@ -952,46 +1048,43 @@ private:
 		restore_interrupts(ints);
 	}
 
-private:
 	// Running state (audio core)
-	Config cfg;
+	Engine engines[2];
+	Engine *volatile eng = nullptr;            // the layout being played
+	Engine *volatile pendingEngine = nullptr;  // a new one from the USB core
 	uint64_t reg = 0;
-	uint64_t usedMask = 0;
-	uint64_t loopMask[MAX_LOOPS] = {};
-	uint64_t paramMask[NUM_PARAMS] = {};
-	uint8_t loopOffset[MAX_LOOPS] = {};
 	uint8_t loopCounter[MAX_LOOPS] = {};
-	int32_t loopChaosQ8[MAX_LOOPS] = {};
-	int8_t scaleNotes[12] = {};
-	int32_t scaleLen = 12;
 	int32_t paramVal[NUM_PARAMS] = {};
-	int32_t note1 = 48, note2 = 48;
+	int refreshIndex = NUM_PARAMS;             // next parameter to re-read
+	uint64_t refreshMoved = 0;
+	int shiftIndex = MAX_LOOPS;                // next loop to shift after a step
+	uint64_t shiftMoved = 0;
+	int32_t tickProb = 0;
+	int32_t note1 = 48, note2 = 48, curNote1 = 48, curNote2 = 48;
 	int32_t pitch1 = 48 << 16, pitch2 = 48 << 16;
+	uint32_t inc1 = 0, inc2 = 0;
 	uint32_t phase1 = 0, phase2 = 0;
 	int32_t svfLow = 0, svfBand = 0;
 	Envelope fltEnv, volEnv;
-	int32_t clockCount = 0;
+	int32_t volLevel = 0;
+	int32_t clockCount = 0, clockPeriod = 6000;
 	uint32_t trigPulse = 0, clockPulse = 0;
-	uint32_t tickCount = 0;
+	uint32_t tickCount = 0, trigCount = 0;
 	int32_t probDisplay = 0;
 	uint32_t rng = 1;
+	uint32_t frame = 0;
 
 	static constexpr int NUM_SMOOTHED = 6;
 	const uint8_t smoothedIds[NUM_SMOOTHED] = {P_SHAPE1, P_SHAPE2, P_MIX, P_CUTOFF, P_RES, P_ENVAMT};
 	int32_t smooth[NUM_SMOOTHED] = {};
 
-	uint32_t trigCount = 0;
-	int32_t blink = 0;
-
 	// Knob settings (Main randomness, X transpose, Y clock rate), 0-4095
 	int32_t settings[3] = {2048, 0, 3000};
 	bool knobLatched[3] = {true, true, true};
+	bool knobStarted[3] = {};
 	int32_t lastKnob[3] = {};
-	bool knobsStarted = false;
 
 	// Shared between cores
-	Config pendingCfg;
-	volatile bool configPending = false;
 	volatile uint64_t pendingReg = 0;
 	volatile bool regPending = false;
 	volatile int32_t knobRequest[3] = {-1, -1, -1};  // from the editor
@@ -1001,7 +1094,7 @@ private:
 	volatile bool pinged = false;
 
 	// USB core only
-	Config shadowCfg; // the config core 1 last handed to the audio core
+	Config shadowCfg; // the layout core 1 last handed to the audio core
 };
 
 int main()
