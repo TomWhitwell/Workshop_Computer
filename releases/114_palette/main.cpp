@@ -35,6 +35,9 @@
     13 Vol Attack
     14 Vol Decay
     15 Vol Shape
+    16 FM On            Osc 2 frequency-modulates Osc 1 (on when value >= 1)
+    17 FM Amount        FM index 0 – 4; above 1 Osc 1's frequency swings
+                        through zero and runs backwards (through-zero FM)
 
   Panel
     Main knob   Randomness (Turing): noon = random, CW = locked,
@@ -79,18 +82,19 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Firmware / protocol versions
 
-constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 2, FW_PATCH = 0;
-constexpr uint8_t CONFIG_FORMAT = 1;   // bump when the serialised layout changes
+constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 3, FW_PATCH = 0;
+constexpr uint8_t CONFIG_FORMAT = 2;   // bump when the serialised layout changes
 
 constexpr int MAX_LOOPS = 8;
-constexpr int NUM_PARAMS = 16;
+constexpr int NUM_PARAMS = 18;
 constexpr int REG_BITS = 64;
 constexpr int MAX_WIDTH = 16;
 
 enum ParamId
 {
 	P_TRIG = 0, P_PITCH1, P_PITCH2, P_SLEW, P_SHAPE1, P_SHAPE2, P_MIX,
-	P_CUTOFF, P_RES, P_ENVAMT, P_FATK, P_FDEC, P_FSHAPE, P_VATK, P_VDEC, P_VSHAPE
+	P_CUTOFF, P_RES, P_ENVAMT, P_FATK, P_FDEC, P_FSHAPE, P_VATK, P_VDEC, P_VSHAPE,
+	P_FMON, P_FMAMT
 };
 
 // Native range of each parameter. The editor mirrors this table; Min/Max
@@ -109,6 +113,8 @@ static const ParamRange paramRange[NUM_PARAMS] = {
 	{-1023, 1023},  // Cutoff env amount
 	{0, 1023}, {0, 1023}, {0, 1023},  // Filter A, D, shape
 	{0, 1023}, {0, 1023}, {0, 1023},  // Vol A, D, shape
+	{0, 1},         // FM on
+	{0, 1023},      // FM amount: index = value / 256
 };
 
 // Assignment flags
@@ -144,7 +150,7 @@ struct Config
 };
 
 // Serialised size: see Serialise() for the byte layout
-constexpr int CONFIG_BYTES = 2 + MAX_LOOPS * 3 + 3 + NUM_PARAMS * 8; // 157
+constexpr int CONFIG_BYTES = 2 + MAX_LOOPS * 3 + 3 + NUM_PARAMS * 8; // 173
 
 static void DefaultConfig(Config &c)
 {
@@ -176,6 +182,8 @@ static void DefaultConfig(Config &c)
 	c.params[P_VATK]   = {1, 56, 2, 0,           0,  250};
 	c.params[P_VDEC]   = {1, 58, 4, 0,         300,  800};
 	c.params[P_VSHAPE] = {1, 62, 2, 0,         512, 1023};
+	c.params[P_FMON]   = {1, 47, 1, 0,           0,    1};  // slow loop: FM comes and goes
+	c.params[P_FMAMT]  = {1, 16, 4, 0,           0,  512};  // up to index 2: through zero
 }
 
 static int32_t Clamp(int32_t v, int32_t lo, int32_t hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -221,7 +229,7 @@ static void ValidateConfig(Config &c)
 //   [0]  CONFIG_FORMAT            [1] numLoops
 //   [2..25]  8 x (length, divider, chaos)
 //   [26,27] scaleMask (lo, hi)    [28] root
-//   [29..156] 16 x (enabled, start, width, flags, minLo, minHi, maxLo, maxHi)
+//   [29..172] 18 x (enabled, start, width, flags, minLo, minHi, maxLo, maxHi)
 static void Serialise(const Config &c, uint8_t *b)
 {
 	int n = 0;
@@ -273,7 +281,7 @@ static bool Deserialise(Config &c, const uint8_t *b)
 // Flash storage: last 4 kB sector of the card
 
 constexpr uint32_t FLASH_OFFSET = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
-constexpr uint32_t FLASH_MAGIC = 0x50414C31; // "PAL1"
+constexpr uint32_t FLASH_MAGIC = 0x50414C32; // "PAL2"
 
 struct FlashImage
 {
@@ -518,6 +526,7 @@ public:
 		for (int i = 0; i < NUM_PARAMS; i++) paramVal[i] = ParamValue(i);
 		FinishRefresh(false);
 		for (int j = 0; j < NUM_SMOOTHED; j++) smooth[j] = paramVal[smoothedIds[j]] << 8;
+		fmSmooth = (paramVal[P_FMON] ? paramVal[P_FMAMT] : 0) << 8;
 	}
 
 protected:
@@ -705,12 +714,26 @@ protected:
 			break;
 		}
 
-		// Oscillators
-		phase1 += inc1;
+		// Oscillators. Osc 2 first: it is the FM modulator.
 		phase2 += inc2;
+		int32_t o2 = Wave(phase2, smooth[1] >> 8);
+
+		// Through-zero FM: Osc 1's frequency is scaled by (1 + index x Osc 2),
+		// index = amount / 256 (0 to 4). Above index 1 the frequency goes
+		// negative for part of each cycle and the phase runs backwards,
+		// which keeps the pitch centre steady however deep the FM goes.
+		uint32_t i1 = inc1;
+		int32_t fm = fmSmooth >> 8;
+		if (fm > 0)
+		{
+			int64_t f1 = int64_t(int32_t(inc1)) + ((int64_t(int32_t(inc1)) * (o2 * fm)) >> 23);
+			if (f1 > 0x7FFFFFFF) f1 = 0x7FFFFFFF;
+			else if (f1 < -0x7FFFFFFF) f1 = -0x7FFFFFFF;
+			i1 = uint32_t(int32_t(f1));
+		}
+		phase1 += i1;
 		int32_t mix = smooth[2] >> 8;
 		int32_t o1 = Wave(phase1, smooth[0] >> 8);
-		int32_t o2 = Wave(phase2, smooth[1] >> 8);
 		int32_t osc = ((o1 * (1023 - mix) + o2 * mix) >> 10) >> 1; // ±16384
 
 		// Envelopes
@@ -755,6 +778,10 @@ protected:
 		// zipper clicks: ~3 ms one-pole, values kept at 8 extra bits.
 		for (int j = 0; j < NUM_SMOOTHED; j++)
 			smooth[j] += ((paramVal[smoothedIds[j]] << 8) - smooth[j]) >> 5;
+		// FM depth glides to its new value, and to or from zero when FM
+		// turns on or off, so switching it never clicks
+		int32_t fmTarget = paramVal[P_FMON] ? paramVal[P_FMAMT] : 0;
+		fmSmooth += ((fmTarget << 8) - fmSmooth) >> 5;
 
 		// Y: ~1 Hz (CCW) to ~16 Hz (CW), exponential
 		int32_t yq = settings[KY] * 4;
@@ -1092,6 +1119,7 @@ private:
 	static constexpr int NUM_SMOOTHED = 6;
 	const uint8_t smoothedIds[NUM_SMOOTHED] = {P_SHAPE1, P_SHAPE2, P_MIX, P_CUTOFF, P_RES, P_ENVAMT};
 	int32_t smooth[NUM_SMOOTHED] = {};
+	int32_t fmSmooth = 0;  // FM amount actually used, 8 extra bits
 
 	// Knob settings (Main randomness, X transpose, Y clock rate), 0-4095
 	int32_t settings[3] = {2048, 0, 3000};

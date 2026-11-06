@@ -10,7 +10,7 @@
 //
 // Web -> card
 //   HELLO      01                         card replies with STATE
-//   SET_CONFIG 03 version cfg[157 x 2]    the whole layout (see main.cpp
+//   SET_CONFIG 03 version cfg[173 x 2]    the whole layout (see main.cpp
 //                                         Serialise), applied at once
 //   SAVE       04                         save layout + register to flash;
 //                                         card replies SAVED
@@ -25,7 +25,7 @@
 //                                         pings keep arriving
 //
 // Card -> web
-//   STATE      02 version cfg[157 x 2] settings[3 x 2]
+//   STATE      02 version cfg[173 x 2] settings[3 x 2]
 //   STATUS     07 reg[8 x 2] tick trig flags settings[3 x 2] knobs[3 x 2]
 //                 prob note1 note2
 //              tick      clock steps so far, low 7 bits (changes = a step)
@@ -51,7 +51,7 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x50;
-static constexpr uint8_t kVersion = 2;
+static constexpr uint8_t kVersion = 3;
 
 enum Cmd : uint8_t
 {

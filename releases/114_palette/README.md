@@ -6,7 +6,7 @@ read from a Turing-Machine-style shift register.
 The register is 64 bits long. In the [web editor](web/index.html) you split it into
 1–8 loops (one 64-bit loop, four 16-bit loops, 20 + 12 + 16 + 16, anything that adds up
 to 64 or less). Each loop rotates on its own clock divider, and each has a chaos amount
-that scales how often the Main knob flips its bits. Then you drag each of the 16
+that scales how often the Main knob flips its bits. Then you drag each of the 18
 synthesis parameters onto any window of 1–16 bits and give it an output range.
 Windows may overlap, and may straddle two loops.
 
@@ -21,7 +21,7 @@ Windows may overlap, and may straddle two loops.
 ## The voice
 
 Two oscillators (morphing sine → triangle → saw → square) → mix → resonant 12 dB low-pass
-(state-variable, run at 96 kHz) → VCA. Two attack/decay envelopes, one for the filter
+(state-variable, run at 96 kHz) → VCA. Osc 2 can frequency-modulate Osc 1 (through-zero FM). Two attack/decay envelopes, one for the filter
 and one for volume, each with a curve control.
 
 | # | Parameter | Range | Notes |
@@ -38,6 +38,8 @@ and one for volume, each with a curve control.
 | 9 | Cutoff Env Amt | −1023…+1023 | Bipolar |
 | 10–12 | Filter Attack / Decay / Shape | 0–1023 | 1 ms – 4 s; shape: slow start ↔ linear ↔ snappy |
 | 13–15 | Vol Attack / Decay / Shape | 0–1023 | as above |
+| 16 | FM On | 0–1 | Osc 2 modulates Osc 1's frequency when 1. The depth glides in and out over ~3 ms, so switching doesn't click |
+| 17 | FM Amount | 0–1023 | FM index 0–4 (256 = index 1). Linear through-zero FM: above index 1 Osc 1's frequency swings through zero and its phase runs backwards, so the pitch stays centred at any depth. Osc 2's pitch and shape set the ratio and colour |
 
 ### How bits become values
 
@@ -118,8 +120,8 @@ Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> …
 | Cmd | Direction | Data |
 |---|---|---|
 | `01` HELLO | editor → card | card replies with STATE |
-| `02` STATE | card → editor | protocol version, layout (157 bytes as nibbles), Main/X/Y settings |
-| `03` SET_CONFIG | editor → card | protocol version, layout (157 bytes as nibbles) |
+| `02` STATE | card → editor | protocol version, layout (173 bytes as nibbles), Main/X/Y settings |
+| `03` SET_CONFIG | editor → card | protocol version, layout (173 bytes as nibbles) |
 | `04` SAVE | editor → card | save layout and register to flash; card replies SAVED (`08`) |
 | `05` SET_REG | editor → card | the register, 8 bytes little endian, as nibbles |
 | `06` RESET | editor → card | factory layout; card replies with STATE |
@@ -127,9 +129,9 @@ Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> …
 | `09` PING | editor → card | every second; keeps STATUS flowing |
 | `0A` KNOB | editor → card | knob (0 Main, 1 X, 2 Y), value 0–4095 as two 7-bit bytes; the knob then picks up |
 
-Layout byte layout (`CONFIG_FORMAT` 1): `[0]` format, `[1]` number of loops,
+Layout byte layout (`CONFIG_FORMAT` 2): `[0]` format, `[1]` number of loops,
 `[2..25]` 8 × (length, divider, chaos), `[26..27]` scale mask (bit n = n semitones above root),
-`[28]` root MIDI note, `[29..156]` 16 × (enabled, start, width, flags, min lo, min hi, max lo, max hi)
+`[28]` root MIDI note, `[29..172]` 18 × (enabled, start, width, flags, min lo, min hi, max lo, max hi)
 with flags bit 0 = count mode, bit 1 = invert, and min/max as signed 16-bit little endian.
 
 ## Building
@@ -148,7 +150,8 @@ clock step the loops shift one per sample and the parameters are re-read one per
 layout from the editor is prepared on the USB core and swapped in by pointer; pitch, smoothing,
 knobs, LEDs and the editor snapshot each run on their own staggered samples. Measured in an
 emulated Cortex-M (QEMU, instruction counts, hardware divider modelled) the worst sample is
-about 1,400 instructions and the average about 900. It has not yet been timed on hardware;
+about 1,500 instructions and the average about 1,000, with FM at full depth. It has not yet
+been timed on hardware;
 if you change the audio path, check it with a scope on a spare GPIO.
 
 ## Credits

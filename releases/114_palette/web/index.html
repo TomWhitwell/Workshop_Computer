@@ -8,7 +8,7 @@
   PALETTE - web editor for the Music Thing Modular Workshop Computer card.
   One static file, no network needed. Talks to the card over WebMIDI + SysEx
   (protocol: ../sysex.h). The card works without this page; the page lays out
-  the shift register's loops, assigns the 16 synth parameters to bits, and
+  the shift register's loops, assigns the 18 synth parameters to bits, and
   shows the card's register, knobs and switch live.
 
   The parameter table, the byte layout, the bit-to-value mapping and the clock
@@ -379,7 +379,7 @@
 */
 
 // ---------------------------------------------------------------- parameters
-const GROUP_COLOR = { trig: '--s4', pitch: '--s1', osc: '--s2', filter: '--s0', amp: '--s5' };
+const GROUP_COLOR = { trig: '--s4', pitch: '--s1', osc: '--s2', filter: '--s0', amp: '--s5', fm: '--s3' };
 const PARAMS = [
   { id: 'trig',   name: 'Env Trigger',    short: 'Trig',   group: 'trig',   lo: 0,     hi: 1023, w: 1, desc: 'Fires both envelopes when the value is in the top half. Only checked on steps where its own bits move. Unassigned, it fires on every clock step if Min is 512 or more.' },
   { id: 'pitch1', name: 'Osc 1 Pitch',    short: 'Pitch 1', group: 'pitch', lo: 0,     hi: 48,   w: 5, desc: 'Scale degrees above the root note, quantised to the scale.' },
@@ -397,8 +397,10 @@ const PARAMS = [
   { id: 'vatk',   name: 'Vol Attack',     short: 'V Atk',  group: 'amp',    lo: 0,     hi: 1023, w: 2, desc: 'Volume envelope attack, 1 ms to 4 s.' },
   { id: 'vdec',   name: 'Vol Decay',      short: 'V Dec',  group: 'amp',    lo: 0,     hi: 1023, w: 4, desc: 'Volume envelope decay, 1 ms to 4 s.' },
   { id: 'vshape', name: 'Vol Shape',      short: 'V Shape', group: 'amp',   lo: 0,     hi: 1023, w: 2, desc: 'Volume envelope curve: slow start (low), linear (middle), snappy (high).' },
+  { id: 'fmon',   name: 'FM On',          short: 'FM',     group: 'fm',     lo: 0,     hi: 1,    w: 1, desc: 'Osc 2 frequency-modulates Osc 1 when the value is 1. The FM depth glides in and out over a few milliseconds, so switching never clicks.' },
+  { id: 'fmamt',  name: 'FM Amount',      short: 'FM Amt', group: 'fm',     lo: 0,     hi: 1023, w: 4, desc: 'Through-zero FM index, 0 to 4 (256 = index 1). Above index 1, Osc 1’s frequency swings through zero and runs backwards for part of each cycle, which keeps the pitch centred however deep the FM goes. Osc 2’s pitch and shape set the FM ratio and colour.' },
 ];
-const MAX_LOOPS = 8, REG = 64, MAX_W = 16, CONFIG_FORMAT = 1, CONFIG_BYTES = 157;
+const MAX_LOOPS = 8, REG = 64, MAX_W = 16, CONFIG_FORMAT = 2, CONFIG_BYTES = 29 + 8 * PARAMS.length; // 173
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const SCALES = [
   ['Chromatic', 0xFFF], ['Major', 0xAB5], ['Natural minor', 0x5AD], ['Dorian', 0x6AD],
@@ -416,6 +418,7 @@ function defaultConfig() {
       P(32, 4, 0, 1023), P(36, 4, 0, 1023, false, true), P(22, 4, 200, 800, true), P(6, 6, 300, 800),
       P(40, 3, 100, 850), P(44, 4, 0, 700), P(48, 2, 0, 300), P(50, 3, 250, 750),
       P(53, 2, 512, 1023), P(56, 2, 0, 250), P(58, 4, 300, 800), P(62, 2, 512, 1023),
+      P(47, 1, 0, 1), P(16, 4, 0, 512),
     ],
   };
 }
@@ -504,6 +507,8 @@ function fmt(i, v, short = false) {
     case 'envamt': return `${v > 0 ? '+' : ''}${Math.round(v / 10.23)}%`;
     case 'fatk': case 'fdec': case 'vatk': case 'vdec': return fmtMs(ms(v));
     case 'fshape': case 'vshape': return curveName(v);
+    case 'fmon': return v >= 1 ? 'on' : 'off';
+    case 'fmamt': { const ix = v / 256; return short ? '×' + ix.toFixed(1) : `index ${ix.toFixed(2)}${ix > 1 ? ', through zero' : ''}`; }
   }
   return String(v);
 }
@@ -682,7 +687,7 @@ function renderLanes() {
 function renderTray() {
   const tray = $('tray'); tray.innerHTML = '';
   const un = cfg.params.map((p, i) => i).filter((i) => !cfg.params[i].enabled);
-  if (!un.length) { tray.innerHTML = '<span class="empty">All 16 parameters are assigned. Drag a bar here to unassign it.</span>'; return; }
+  if (!un.length) { tray.innerHTML = '<span class="empty">All ' + PARAMS.length + ' parameters are assigned. Drag a bar here to unassign it.</span>'; return; }
   un.forEach((i) => {
     const c = document.createElement('span'); c.className = 'chip'; c.style.setProperty('--c', colorOf(i)); c.tabIndex = 0;
     c.innerHTML = `<span class="sw"></span>${PARAMS[i].name}`;
@@ -981,7 +986,7 @@ function deserialise(b) {
   const n = b[1];
   for (let i = 0; i < MAX_LOOPS; i++) { const o = 2 + i * 3; if (i < n) c.loops.push({ length: b[o], divider: b[o + 1], chaos: b[o + 2] }); }
   c.scaleMask = b[26] | (b[27] << 8); c.root = b[28];
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < PARAMS.length; i++) {
     const o = 29 + i * 8;
     c.params.push({ enabled: !!b[o], start: b[o + 1], width: b[o + 2], popcount: !!(b[o + 3] & 1), invert: !!(b[o + 3] & 2), min: s16(b[o + 4], b[o + 5]), max: s16(b[o + 6], b[o + 7]) });
   }
@@ -1012,7 +1017,7 @@ function fromJSON(text) {
 }
 
 // ---------------------------------------------------------------- WebMIDI (protocol: ../sysex.h)
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 2;
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 3;
 const CMD = { HELLO: 1, STATE: 2, SET_CONFIG: 3, SAVE: 4, SET_REG: 5, RESET: 6, STATUS: 7, SAVED: 8, PING: 9, KNOB: 10 };
 const link = { access: null, card: { in: null, out: null }, cardOnline: false, pingTimer: 0, sysexOn: false, sysexBuf: [], lastStatus: 0, lastTick: -1 };
 
