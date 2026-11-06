@@ -8,7 +8,7 @@
   PALETTE - web editor for the Music Thing Modular Workshop Computer card.
   One static file, no network needed. Talks to the card over WebMIDI + SysEx
   (protocol: ../sysex.h). The card works without this page; the page lays out
-  the shift register's loops, assigns the 29 synth parameters to bits, and
+  the shift register's loops, assigns the 30 synth parameters to bits, and
   shows the card's register, knobs and switch live.
 
   The parameter table, the byte layout, the bit-to-value mapping and the clock
@@ -436,8 +436,9 @@ const PARAMS = [
   { id: 'p2atk',  name: 'Osc 2 P.Env Atk', short: 'P2 Atk', group: 'penv', lo: 0,     hi: 1023, w: 2, desc: 'Osc 2 pitch envelope attack, 1 ms to 4 s.' },
   { id: 'p2dec',  name: 'Osc 2 P.Env Dec', short: 'P2 Dec', group: 'penv', lo: 0,     hi: 1023, w: 3, desc: 'Osc 2 pitch envelope decay, 1 ms to 4 s.' },
   { id: 'p2shape', name: 'Osc 2 P.Env Shape', short: 'P2 Shp', group: 'penv', lo: 0,   hi: 1023, w: 2, desc: 'Osc 2 pitch envelope curve: slow start (low), linear (middle), snappy (high).' },
+  { id: 'sync',   name: 'Sync',           short: 'Sync',   group: 'osc',    lo: 0,     hi: 2,    w: 2, desc: 'Osc 2 follows Osc 1. Hard (2): each time Osc 1 starts a cycle, Osc 2 starts its cycle again, so it plays at Osc 1’s pitch with Osc 2’s pitch setting the brightness. Soft (1): Osc 2 reverses direction instead, a gentler version. Off (0): independent. Sweep Osc 2’s pitch or pitch envelope for the classic sync sound.' },
 ];
-const MAX_LOOPS = 8, REG = 64, MAX_W = 16, CONFIG_FORMAT = 4, CONFIG_BYTES = 29 + 8 * PARAMS.length; // 261
+const MAX_LOOPS = 8, REG = 64, MAX_W = 16, CONFIG_FORMAT = 5, CONFIG_BYTES = 29 + 8 * PARAMS.length; // 269
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const SCALES = [
   ['Chromatic', 0xFFF], ['Major', 0xAB5], ['Natural minor', 0x5AD], ['Dorian', 0x6AD],
@@ -458,6 +459,7 @@ function defaultConfig() {
       P(53, 2, 512, 1023), P(56, 2, 0, 250), P(58, 4, 300, 800), P(62, 2, 512, 1023),
       P(47, 1, 0, 1), P(16, 4, 0, 256), P(24, 4, 0, 700), U(0), P(28, 3, 250, 750),
       P(33, 2, 0, 256), U(0), U(350), U(900), U(0), U(0), U(350), U(900),
+      U(0),
     ],
   };
 }
@@ -552,6 +554,7 @@ function fmt(i, v, short = false) {
     case 'fmatk': case 'fmdec': case 'p1atk': case 'p1dec': case 'p2atk': case 'p2dec': return fmtMs(ms(v));
     case 'p1amt': case 'p2amt': { const st = v * 48 / 1023; return (st > 0 ? '+' : st < 0 ? '−' : '') + Math.abs(st).toFixed(st && Math.abs(st) < 10 ? 1 : 0) + (short ? '' : ' semitones at peak'); }
     case 'p1shape': case 'p2shape': return curveName(v);
+    case 'sync': return ['off', 'soft', 'hard'][v] || 'off';
   }
   return String(v);
 }
@@ -1124,7 +1127,7 @@ function fromJSON(text) {
 }
 
 // ---------------------------------------------------------------- WebMIDI (protocol: ../sysex.h)
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 6;
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 7;
 const CMD = { HELLO: 1, STATE: 2, SET_CONFIG: 3, SAVE: 4, SET_REG: 5, RESET: 6, STATUS: 7, SAVED: 8, PING: 9, KNOB: 10,
   LOAD_SLOT: 11, CLEAR_SLOT: 12, GET_SLOTS: 13, SLOTS: 14, RENAME_SLOT: 15 };
 const NUM_SLOTS = 6, NAME_LEN = 16;

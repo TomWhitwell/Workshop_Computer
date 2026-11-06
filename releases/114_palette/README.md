@@ -6,7 +6,7 @@ read from a Turing-Machine-style shift register.
 The register is 64 bits long. In the [web editor](web/index.html) you split it into
 1–8 loops (one 64-bit loop, four 16-bit loops, 20 + 12 + 16 + 16, anything that adds up
 to 64 or less). Each loop rotates on its own clock divider, and each has a chaos amount
-that scales how often the Main knob flips its bits. Then you drag each of the 29
+that scales how often the Main knob flips its bits. Then you drag each of the 30
 synthesis parameters onto any window of 1–16 bits and give it an output range.
 Windows may overlap, and may straddle two loops.
 
@@ -22,7 +22,7 @@ Windows may overlap, and may straddle two loops.
 
 Two oscillators (morphing sine → triangle → saw → square) → mix → resonant 12 dB low-pass
 (state-variable, run at 96 kHz) → VCA. Osc 2 can frequency-modulate Osc 1 (through-zero FM),
-with its own envelope on the FM depth. Five attack/decay envelopes, all fired together: filter, volume, FM depth, and a
+with its own envelope on the FM depth, and Osc 2 can be soft- or hard-synced to Osc 1. Five attack/decay envelopes, all fired together: filter, volume, FM depth, and a
 pitch envelope for each oscillator. All but the FM one have a curve control.
 
 | # | Parameter | Range | Notes |
@@ -46,6 +46,7 @@ pitch envelope for each oscillator. All but the FM one have a curve control.
 | 21 | Osc 1 P.Env Amt | −1023…+1023 | Osc 1 pitch envelope depth, ±48 semitones (256 = an octave), smooth rather than quantised; it starts from and returns to the scale note |
 | 22–24 | Osc 1 P.Env Attack / Decay / Shape | 0–1023 | 1 ms – 4 s; shape: slow start ↔ linear ↔ snappy |
 | 25–28 | Osc 2 P.Env Amt / Attack / Decay / Shape | as Osc 1 | With FM on, sweeping Osc 2 sweeps the FM ratio |
+| 29 | Sync | 0–2 | 0 off, 1 soft, 2 hard. Osc 2 follows Osc 1: each time Osc 1 starts a cycle (either way round, with through-zero FM), hard sync restarts Osc 2's cycle, so it plays at Osc 1's pitch with Osc 2's pitch setting the brightness; soft sync reverses Osc 2's direction instead, a gentler version. Sweep Osc 2's pitch or pitch envelope for the classic sync sound |
 
 ### How bits become values
 
@@ -115,8 +116,11 @@ pattern it was saved with, and a name (up to 16 characters).
   *Save here* saves what is playing into a slot under the name typed above the list; *Load*,
   *Rename* and *Clear* (two clicks) do the rest. **Save to card** in the header saves into the slot
   that is playing.
-* Firmware before 0.6 kept one layout; the first time 0.6 starts, that layout becomes slot 1,
-  "Saved". A fresh card starts with the factory layout in slot 1.
+* Firmware before 0.6 kept one layout; the first time 0.6 or later starts, that layout becomes
+  slot 1, "Saved". A fresh card starts with the factory layout in slot 1.
+* New firmware keeps your slots: each layout format only adds parameters at the end, so the card
+  reads layouts saved by earlier firmware, and the parameters they lack take their factory
+  settings (Sync off, for example).
 
 ## Web editor
 
@@ -149,8 +153,8 @@ Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> …
 | Cmd | Direction | Data |
 |---|---|---|
 | `01` HELLO | editor → card | card replies with STATE and SLOTS |
-| `02` STATE | card → editor | protocol version, layout (261 bytes as nibbles), Main/X/Y settings |
-| `03` SET_CONFIG | editor → card | protocol version, layout (261 bytes as nibbles) |
+| `02` STATE | card → editor | protocol version, layout (269 bytes as nibbles), Main/X/Y settings |
+| `03` SET_CONFIG | editor → card | protocol version, layout (269 bytes as nibbles) |
 | `04` SAVE | editor → card | slot, name (16 bytes): save the playing layout and register into a slot and play from it; card replies SAVED (`08`, slot) and SLOTS |
 | `05` SET_REG | editor → card | the register, 8 bytes little endian, as nibbles |
 | `06` RESET | editor → card | factory layout; card replies with STATE |
@@ -163,9 +167,9 @@ Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> …
 | `0E` SLOTS | card → editor | count, playing slot, then per slot: used, number of loops, 8 loop lengths, name (16) |
 | `0F` RENAME_SLOT | editor → card | slot, name (16) |
 
-Layout byte layout (`CONFIG_FORMAT` 4): `[0]` format, `[1]` number of loops,
+Layout byte layout (`CONFIG_FORMAT` 5): `[0]` format, `[1]` number of loops,
 `[2..25]` 8 × (length, divider, chaos), `[26..27]` scale mask (bit n = n semitones above root),
-`[28]` root MIDI note, `[29..260]` 29 × (enabled, start, width, flags, min lo, min hi, max lo, max hi)
+`[28]` root MIDI note, `[29..268]` 30 × (enabled, start, width, flags, min lo, min hi, max lo, max hi)
 with flags bit 0 = count mode, bit 1 = invert, and min/max as signed 16-bit little endian.
 
 ## Building
@@ -184,8 +188,8 @@ clock step the loops shift one per sample and the parameters are re-read one per
 layout from the editor is prepared on the USB core and swapped in by pointer; pitch, smoothing,
 pitch envelopes, knobs, LEDs and the editor snapshot each run on their own staggered samples. Measured in an
 emulated Cortex-M (QEMU, instruction counts, hardware divider modelled) the worst sample is
-about 1,600 instructions and the average about 1,100, with FM at full depth and both
-pitch envelopes running. It has not yet
+about 1,650 instructions and the average about 1,150, with FM at full depth, hard sync
+and both pitch envelopes running. It has not yet
 been timed on hardware;
 if you change the audio path, check it with a scope on a spare GPIO.
 

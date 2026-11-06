@@ -46,6 +46,9 @@
     23 Osc 1 P.Env Dec  1 ms – 4 s
     24 Osc 1 P.Env Shp  curve: slow start / linear / snappy
     25-28               the same for Osc 2
+    29 Sync             0 off, 1 soft, 2 hard: Osc 2 follows Osc 1. Each
+                        time Osc 1 starts a cycle, hard sync restarts Osc 2's
+                        cycle; soft sync reverses its direction instead
 
   Panel
     Main knob   Randomness (Turing): noon = random, CW = locked,
@@ -92,11 +95,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Firmware / protocol versions
 
-constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 6, FW_PATCH = 0;
-constexpr uint8_t CONFIG_FORMAT = 4;   // bump when the serialised layout changes
+constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 7, FW_PATCH = 0;
+constexpr uint8_t CONFIG_FORMAT = 5;   // bump when the serialised layout changes
 
 constexpr int MAX_LOOPS = 8;
-constexpr int NUM_PARAMS = 29;
+constexpr int NUM_PARAMS = 30;
 constexpr int REG_BITS = 64;
 constexpr int MAX_WIDTH = 16;
 
@@ -105,7 +108,8 @@ enum ParamId
 	P_TRIG = 0, P_PITCH1, P_PITCH2, P_SLEW, P_SHAPE1, P_SHAPE2, P_MIX,
 	P_CUTOFF, P_RES, P_ENVAMT, P_FATK, P_FDEC, P_FSHAPE, P_VATK, P_VDEC, P_VSHAPE,
 	P_FMON, P_FMOFF, P_FMENVAMT, P_FMATK, P_FMDEC,
-	P_P1AMT, P_P1ATK, P_P1DEC, P_P1SHAPE, P_P2AMT, P_P2ATK, P_P2DEC, P_P2SHAPE
+	P_P1AMT, P_P1ATK, P_P1DEC, P_P1SHAPE, P_P2AMT, P_P2ATK, P_P2DEC, P_P2SHAPE,
+	P_SYNC
 };
 
 // Native range of each parameter. The editor mirrors this table; Min/Max
@@ -130,6 +134,7 @@ static const ParamRange paramRange[NUM_PARAMS] = {
 	{0, 1023}, {0, 1023},  // FM attack, decay
 	{-1023, 1023}, {0, 1023}, {0, 1023}, {0, 1023},  // Osc 1 pitch env: amount, A, D, shape
 	{-1023, 1023}, {0, 1023}, {0, 1023}, {0, 1023},  // Osc 2 pitch env
+	{0, 2},         // Sync: off, soft, hard
 };
 
 // Assignment flags
@@ -165,7 +170,7 @@ struct Config
 };
 
 // Serialised size: see Serialise() for the byte layout
-constexpr int CONFIG_BYTES = 2 + MAX_LOOPS * 3 + 3 + NUM_PARAMS * 8; // 261
+constexpr int CONFIG_BYTES = 2 + MAX_LOOPS * 3 + 3 + NUM_PARAMS * 8; // 269
 
 static void DefaultConfig(Config &c)
 {
@@ -212,6 +217,7 @@ static void DefaultConfig(Config &c)
 	c.params[P_P2ATK]   = {0,  0, 1, 0,           0,    0};
 	c.params[P_P2DEC]   = {0,  0, 1, 0,         350,  350};
 	c.params[P_P2SHAPE] = {0,  0, 1, 0,         900,  900};
+	c.params[P_SYNC]    = {0,  0, 1, 0,           0,    0};  // off until assigned
 }
 
 static int32_t Clamp(int32_t v, int32_t lo, int32_t hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -257,7 +263,7 @@ static void ValidateConfig(Config &c)
 //   [0]  CONFIG_FORMAT            [1] numLoops
 //   [2..25]  8 x (length, divider, chaos)
 //   [26,27] scaleMask (lo, hi)    [28] root
-//   [29..260] 29 x (enabled, start, width, flags, minLo, minHi, maxLo, maxHi)
+//   [29..268] 30 x (enabled, start, width, flags, minLo, minHi, maxLo, maxHi)
 static void Serialise(const Config &c, uint8_t *b)
 {
 	int n = 0;
@@ -281,9 +287,27 @@ static void Serialise(const Config &c, uint8_t *b)
 	}
 }
 
+// How many parameters each layout format holds. Each format only added
+// parameters at the end, so an older layout reads as a prefix, and the
+// parameters it doesn't have take their factory settings.
+static int ParamsInFormat(int format)
+{
+	switch (format)
+	{
+	case 1: return 16;  // first release
+	case 2: return 18;  // + FM On, FM Amount
+	case 3: return 21;  // + FM envelope
+	case 4: return 29;  // + pitch envelopes
+	case 5: return 30;  // + sync
+	default: return 0;
+	}
+}
+
 static bool Deserialise(Config &c, const uint8_t *b)
 {
-	if (b[0] != CONFIG_FORMAT) return false;
+	int count = ParamsInFormat(b[0]);
+	if (count == 0 || count > NUM_PARAMS) return false;
+	DefaultConfig(c);
 	int n = 1;
 	c.numLoops = b[n++];
 	for (int i = 0; i < MAX_LOOPS; i++)
@@ -294,7 +318,7 @@ static bool Deserialise(Config &c, const uint8_t *b)
 	}
 	c.scaleMask = b[n] | (b[n + 1] << 8); n += 2;
 	c.root = b[n++];
-	for (int i = 0; i < NUM_PARAMS; i++)
+	for (int i = 0; i < count; i++)
 	{
 		ParamCfg &p = c.params[i];
 		p.enabled = b[n++]; p.start = b[n++]; p.width = b[n++]; p.flags = b[n++];
@@ -795,8 +819,9 @@ protected:
 		default: UpdatePitchEnvelopes(); break;           // 12 kHz
 		}
 
-		// Oscillators. Osc 2 first: it is the FM modulator.
-		phase2 += inc2;
+		// Oscillators. Osc 2 first: it is the FM modulator. With soft sync
+		// it may be running backwards (dir2 < 0).
+		if (dir2 > 0) phase2 += inc2; else phase2 -= inc2;
 		int32_t o2 = Wave(phase2, smooth[1] >> 8);
 
 		// Through-zero FM: Osc 1's frequency is scaled by (1 + index x Osc 2),
@@ -816,7 +841,21 @@ protected:
 			else if (f1 < -0x7FFFFFFF) f1 = -0x7FFFFFFF;
 			i1 = uint32_t(int32_t(f1));
 		}
+		uint32_t was1 = phase1;
 		phase1 += i1;
+
+		// Sync: Osc 2 follows Osc 1. When Osc 1 starts a new cycle (its phase
+		// wraps, either way round with through-zero FM), hard sync restarts
+		// Osc 2's cycle and soft sync reverses its direction. Heard from the
+		// next sample. Not band-limited: the edges alias, which is part of
+		// the classic sync sound.
+		int32_t sync = paramVal[P_SYNC];
+		if (sync != 1) dir2 = 1;
+		if (sync && (int32_t(i1) >= 0 ? phase1 < was1 : phase1 > was1))
+		{
+			if (sync == 2) phase2 = 0;
+			else dir2 = -dir2;
+		}
 		int32_t mix = smooth[2] >> 8;
 		int32_t o1 = Wave(phase1, smooth[0] >> 8);
 		int32_t osc = ((o1 * (1023 - mix) + o2 * mix) >> 10) >> 1; // ±16384
@@ -1090,6 +1129,7 @@ private:
 			memcpy(&store, f, sizeof(Store));
 			return;
 		}
+		if (MigrateStore()) return;
 		// A fresh card: slot 1 is the factory layout, or the layout saved by
 		// earlier firmware, which kept just one
 		memset(&store, 0, sizeof(Store));
@@ -1113,6 +1153,37 @@ private:
 			PutSlot(store.slots[0], c, (uint64_t(Rand()) << 32) | Rand());
 			SetName(store.slots[0].name, "Factory");
 		}
+	}
+
+	// Slots saved by firmware 0.6, whose layouts held 29 parameters (format
+	// 4): carry them over, each layout read as format 4 and stored again in
+	// today's format. The flash itself is rewritten at the next save.
+	bool MigrateStore()
+	{
+		constexpr int kOldCfg = 2 + MAX_LOOPS * 3 + 3 + 29 * 8;  // 261
+		constexpr int kOldSlot = 1 + NAME_LEN + kOldCfg + 8;      // 286
+		constexpr int kOldChecksumAt = 8 + NUM_SLOTS * kOldSlot;   // 1724
+		const uint8_t *f = reinterpret_cast<const uint8_t *>(XIP_BASE + FLASH_OFFSET);
+		uint32_t magic, sum;
+		memcpy(&magic, f, 4);
+		memcpy(&sum, f + kOldChecksumAt, 4);
+		if (magic != STORE_MAGIC || f[4] != 4 || f[5] >= NUM_SLOTS || sum != Checksum(f, kOldChecksumAt)) return false;
+
+		memset(&store, 0, sizeof(Store));
+		store.magic = STORE_MAGIC;
+		store.format = CONFIG_FORMAT;
+		store.current = f[5];
+		for (int s = 0; s < NUM_SLOTS; s++)
+		{
+			const uint8_t *o = f + 8 + s * kOldSlot;
+			Config c;
+			if (!o[0] || !Deserialise(c, o + 1 + NAME_LEN)) continue;
+			uint64_t r = 0;
+			for (int i = 7; i >= 0; i--) r = (r << 8) | o[1 + NAME_LEN + kOldCfg + i];
+			PutSlot(store.slots[s], c, r);
+			memcpy(store.slots[s].name, o + 1, NAME_LEN);
+		}
+		return true;
 	}
 
 	void UpdateUsedMask()
@@ -1403,6 +1474,7 @@ private:
 	int32_t pitch1 = 48 << 16, pitch2 = 48 << 16;
 	uint32_t inc1 = 0, inc2 = 0;
 	uint32_t phase1 = 0, phase2 = 0;
+	int32_t dir2 = 1;  // Osc 2's direction: soft sync flips it
 	int32_t svfLow = 0, svfBand = 0;
 	Envelope fltEnv, volEnv, fmEnv, pEnv1, pEnv2;
 	int32_t sweep1 = 0, sweep2 = 0;  // pitch envelope sweeps, Q16 semitones
