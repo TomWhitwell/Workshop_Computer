@@ -1,0 +1,112 @@
+draft: false
+Name: Shift Voice
+short-description: A synth voice whose every parameter is read from a Turing-Machine-style shift register
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Martyn Quickenden
+Version: 0.1.0
+Status: WIP
+License: MIT
+date-created: 2026-11-06
+date-updated: 2026-11-06
+
+tags:
+  - synth-voice
+  - turing-machine
+  - shift-register
+  - generative
+  - web-editor
+
+summary: |
+  An experiment for a larger card. A simple two-oscillator, filtered, enveloped voice where all
+  16 synthesis parameters (envelope trigger, quantised pitches, glide, oscillator shapes and mix,
+  cutoff, resonance, filter envelope amount and both AD envelopes with curve shape) are read from
+  windows of bits on a 64-bit Turing-Machine-style shift register. The web editor splits the
+  register into 1-8 independently looping, independently clocked loops and lets you drag each
+  parameter onto any range of bits, with its own output range. Assignments may overlap and may
+  span loop boundaries.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Unused
+      type: audio
+      description: Not used
+    - id: AudioIn2
+      name: Unused
+      type: audio
+      description: Not used
+    - id: CVIn1
+      name: Pitch
+      type: cv
+      description: 1V/oct transpose, quantised to semitones
+    - id: CVIn2
+      name: Randomness
+      type: cv
+      description: Added to the Main knob
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: External clock. When unplugged the Y knob sets an internal clock
+    - id: PulseIn2
+      name: Trigger
+      type: pulse
+      description: Fires both envelopes
+  outputs:
+    - id: AudioOut1
+      name: Voice
+      type: audio
+      description: The synth voice
+    - id: AudioOut2
+      name: Filter Envelope
+      type: audio
+      description: Filter envelope, 0 to about +6 V
+    - id: CVOut1
+      name: Pitch
+      type: cv
+      description: Osc 1 pitch, calibrated 1V/oct (MIDI note 60 = 0 V), with glide
+    - id: CVOut2
+      name: Volume Envelope
+      type: cv
+      description: Volume envelope, 0 to about +6 V
+    - id: PulseOut1
+      name: Trigger
+      type: pulse
+      description: 5 ms pulse whenever the envelopes fire
+    - id: PulseOut2
+      name: Clock
+      type: pulse
+      description: 5 ms pulse on every clock step
+
+controls:
+  switch:
+    up:
+      name: Lock
+      description: No bits flip; every loop repeats
+    middle:
+      name: Run
+      description: Main knob sets how often bits flip
+    down:
+      name: Scramble
+      description: Randomise every bit inside a loop
+  knobs:
+    - main:
+        name: Randomness
+        description: Noon = random, fully CW = locked, fully CCW = locked and inverting (repeats at twice the loop length)
+      x:
+        name: Transpose
+        description: 0 to +24 semitones
+      y:
+        name: Clock Rate
+        description: Internal clock, about 1 to 16 steps per second
+  leds:
+    - display: list
+      items:
+        - id: LED0-3
+          name: Register
+          description: Bits 0-3 of the register
+        - id: LED4
+          name: Clock
+          description: Flashes on each clock step
+        - id: LED5
+          name: Volume
+          description: Brightness follows the volume envelope

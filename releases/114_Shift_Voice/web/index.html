@@ -1,0 +1,1074 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shift Voice Editor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Web editor for the Shift Voice program card for the Music Thing Modular Workshop Computer: lay out shift-register loops and assign bits to synth parameters.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a Eurorack-panel bench. One wide register grid (bits flow left to right,
+   one lane per parameter) with an inspector beside it; stacks on phones. */
+:root {
+  --bg: #e4e7e5;        /* brushed aluminium */
+  --surface: #f3f4f2;
+  --sunk: #d8dcd9;
+  --ink: #1b2120;
+  --muted: #5b6662;
+  --line: #c3c9c5;
+  --accent: #d9481a;    /* signal orange: live activity, triggers */
+  --on: #1b2120;        /* a set bit */
+  --off: #f3f4f2;
+  --g-trig: #d9481a;
+  --g-pitch: #2b66c9;
+  --g-osc: #8246c2;
+  --g-filter: #137f63;
+  --g-amp: #a8740c;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --label-w: 168px;
+  --radius: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141817; --surface: #1d2220; --sunk: #101312; --ink: #e3e8e5; --muted: #8e9a95;
+    --line: #313936; --accent: #ff7440; --on: #e3e8e5; --off: #1d2220;
+    --g-trig: #ff7440; --g-pitch: #6d9cf0; --g-osc: #b588ec; --g-filter: #3fc39d; --g-amp: #e3ac3c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141817; --surface: #1d2220; --sunk: #101312; --ink: #e3e8e5; --muted: #8e9a95;
+  --line: #313936; --accent: #ff7440; --on: #e3e8e5; --off: #1d2220;
+  --g-trig: #ff7440; --g-pitch: #6d9cf0; --g-osc: #b588ec; --g-filter: #3fc39d; --g-amp: #e3ac3c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Header */
+header.top {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+  padding-block: 18px 14px; border-bottom: 1px solid var(--line); margin-bottom: 16px;
+}
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-right: auto; }
+.brand h1 {
+  font-family: var(--font-display); font-stretch: 75%; font-weight: 800; font-size: 30px;
+  letter-spacing: 0.01em; margin: 0; text-transform: uppercase; line-height: 1;
+}
+.brand .sub { color: var(--muted); font-size: 13px; }
+.conn { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); font-size: 12px; white-space: nowrap;
+}
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.pill.live .dot { background: var(--g-filter); }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius);
+  padding: 6px 12px; cursor: pointer; white-space: nowrap;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.small { padding: 3px 8px; font-size: 12px; }
+label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+
+.banner {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 14px; margin-bottom: 14px;
+  border: 1px solid var(--accent); border-radius: var(--radius); background: var(--surface);
+}
+
+/* Main layout */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+@media (max-width: 980px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { :root { --label-w: 124px; } :root .lane .lab .val { max-width: 44px; } .brand h1 { font-size: 26px; } }
+section.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; min-width: 0; }
+.panel h2 {
+  font-family: var(--font-display); font-stretch: 75%; font-weight: 700; font-size: 13px;
+  text-transform: uppercase; letter-spacing: .08em; margin: 0 0 10px; color: var(--muted);
+}
+.stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* Simulation transport */
+.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 12px; }
+.transport .ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.transport input[type=range] { width: 120px; accent-color: var(--accent); }
+.led { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--line); background: var(--sunk); transition: background .08s; }
+.led.on { background: var(--accent); border-color: var(--accent); }
+.hint { color: var(--muted); font-size: 12px; }
+
+/* Tray of unassigned parameters */
+.tray {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 40px;
+  padding: 6px 8px; border: 1px dashed var(--line); border-radius: var(--radius); margin-bottom: 10px;
+}
+.tray.over { border-color: var(--accent); }
+.tray .empty { color: var(--muted); font-size: 12px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 6px; border-radius: 999px;
+  background: var(--bg); border: 1px solid var(--line); cursor: grab; touch-action: none; user-select: none; font-size: 12px;
+}
+.chip .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.ghost { position: fixed; pointer-events: none; z-index: 50; opacity: .9; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+
+/* Register grid */
+.gridwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); }
+.grid { min-width: calc(var(--label-w) + 64 * 13px); }
+.row { display: flex; align-items: stretch; }
+.row > .lab {
+  position: sticky; left: 0; z-index: 2; flex: 0 0 var(--label-w); width: var(--label-w);
+  background: var(--surface); border-right: 1px solid var(--line); padding: 3px 8px;
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+}
+.row > .trk { position: relative; flex: 1 1 auto; min-width: 0; }
+.ruler .trk { height: 20px; }
+.ruler .tick { position: absolute; top: 3px; font-size: 10px; color: var(--muted); transform: translateX(2px); }
+.cols {
+  background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(100%/64 - 1px), var(--line) calc(100%/64 - 1px), var(--line) calc(100%/64));
+}
+.cols8 {
+  background-image:
+    repeating-linear-gradient(to right, transparent 0, transparent calc(100%/8 - 1px), var(--muted) calc(100%/8 - 1px), var(--muted) calc(100%/8)),
+    repeating-linear-gradient(to right, transparent 0, transparent calc(100%/64 - 1px), var(--line) calc(100%/64 - 1px), var(--line) calc(100%/64));
+  background-blend-mode: normal;
+}
+
+.loops .trk { height: 34px; border-top: 1px solid var(--line); }
+.loopseg {
+  position: absolute; top: 3px; bottom: 3px; border-radius: 4px; border: 1px solid var(--muted);
+  background: var(--surface); font-size: 11px; padding: 2px 6px; overflow: hidden; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px; cursor: default;
+}
+.loopseg.alt { background: var(--sunk); }
+.loopseg b { font-family: var(--font-display); font-stretch: 75%; font-weight: 700; }
+.loopseg .ret { color: var(--muted); }
+.unused {
+  position: absolute; top: 3px; bottom: 3px; border-radius: 4px; font-size: 11px; color: var(--muted);
+  display: flex; align-items: center; padding: 0 6px; overflow: hidden; white-space: nowrap;
+  background: repeating-linear-gradient(135deg, transparent 0 5px, var(--line) 5px 6px);
+}
+.handle {
+  position: absolute; top: 0; bottom: 0; width: 14px; margin-left: -7px; z-index: 3; cursor: ew-resize; touch-action: none;
+  display: flex; justify-content: center;
+}
+.handle::after { content: ""; width: 4px; margin-block: 6px; border-radius: 2px; background: var(--ink); }
+
+.bits .trk { height: 28px; display: flex; border-top: 1px solid var(--line); border-bottom: 2px solid var(--line); }
+.bit {
+  flex: 1 1 0; min-width: 0; border-right: 1px solid var(--line); background: var(--off); cursor: pointer; position: relative;
+}
+.bit:nth-child(8n) { border-right-color: var(--muted); }
+.bit.on { background: var(--on); }
+.bit.unused { opacity: .45; }
+.bit.flip::after { content: ""; position: absolute; inset: 40% 30%; border-radius: 50%; background: var(--accent); }
+
+.lane .trk { height: 26px; border-bottom: 1px solid var(--line); cursor: crosshair; touch-action: none; }
+.lane.sel > .lab { box-shadow: inset 3px 0 0 var(--c); }
+.lane.sel .trk { background-color: color-mix(in srgb, var(--c) 7%, transparent); }
+.lane .lab { cursor: pointer; font-size: 12px; }
+.lane .lab .sw { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.lane .lab .nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lane .lab .val { flex: 0 0 auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lane.fire .lab .val { color: var(--accent); font-weight: 600; }
+.lane .meter { position: absolute; left: 8px; right: 8px; bottom: 1px; height: 2px; }
+.meter .win { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--c) 45%, transparent); }
+.meter .pos { position: absolute; top: -1px; width: 2px; height: 4px; background: var(--c); }
+.bar {
+  position: absolute; top: 3px; bottom: 3px; border-radius: 4px; background: var(--c); color: #fff;
+  font-size: 10.5px; font-weight: 600; display: flex; align-items: center; padding: 0 10px; overflow: hidden; white-space: nowrap;
+  cursor: grab; touch-action: none; box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 60%, #000);
+}
+:root[data-theme="dark"] .bar { color: #101312; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bar { color: #101312; } }
+.bar .eh { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
+.bar .eh.l { left: 0; } .bar .eh.r { right: 0; }
+.bar .eh::after { content: ""; position: absolute; top: 5px; bottom: 5px; left: 3px; width: 2px; border-radius: 1px; background: currentColor; opacity: .55; }
+.lane .placeholder { position: absolute; inset: 0; display: flex; align-items: center; padding-left: 8px; font-size: 11px; color: var(--muted); pointer-events: none; }
+
+/* Inspector */
+.insp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.insp-head .sw { width: 14px; height: 14px; border-radius: 4px; background: var(--c); }
+.insp-head h3 { margin: 0; font-family: var(--font-display); font-stretch: 85%; font-size: 20px; font-weight: 700; }
+.desc { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+.field input, .field select { color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; width: 100%; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.seg button { border: 0; background: var(--bg); padding: 4px 10px; cursor: pointer; font-size: 12px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.opts { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+
+.range { margin: 6px 0 4px; }
+.range .rtrack { position: relative; height: 34px; touch-action: none; }
+.range .rbase { position: absolute; left: 0; right: 0; top: 14px; height: 6px; border-radius: 3px; background: var(--sunk); }
+.range .rwin { position: absolute; top: 12px; height: 10px; border-radius: 3px; background: var(--c); opacity: .55; }
+.range .rlive { position: absolute; top: 6px; width: 2px; height: 22px; background: var(--accent); margin-left: -1px; }
+.range .thumb {
+  position: absolute; top: 7px; width: 18px; height: 20px; margin-left: -9px; border-radius: 4px; background: var(--surface);
+  border: 2px solid var(--c); cursor: ew-resize; display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: var(--ink);
+}
+.range .thresh { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--muted); }
+.range .rlabels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.readout { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 12px; margin-top: 8px; }
+.readout dt { color: var(--muted); } .readout dd { margin: 0; font-family: var(--font-mono); font-size: 11.5px; overflow-wrap: anywhere; }
+
+/* Loops table */
+.tablewrap { overflow-x: auto; }
+table.loops-t { border-collapse: collapse; width: 100%; font-size: 13px; }
+.loops-t th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.loops-t td { padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.loops-t input { width: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
+.rowbtns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+
+/* Scale */
+.keys { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; margin-bottom: 10px; }
+.key {
+  min-width: 0; height: 46px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface);
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px; font-size: 10px; cursor: pointer;
+}
+.key.blk { background: var(--sunk); }
+.key[aria-pressed="true"] { background: var(--g-pitch); border-color: var(--g-pitch); color: #fff; }
+
+canvas#envs { width: 100%; height: 120px; display: block; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
+textarea#json { width: 100%; min-height: 90px; font-family: var(--font-mono); font-size: 11px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 60;
+  background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: var(--radius); font-size: 13px;
+}
+.notes { font-size: 12.5px; color: var(--muted); max-width: 70ch; }
+.notes p { margin: 0 0 6px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <h1>Shift Voice</h1>
+    <span class="sub">64-bit register → 16 synth parameters · Workshop Computer card 114</span>
+  </div>
+  <div class="conn">
+    <span class="pill" id="status"><span class="dot"></span><span id="statusText">Not connected, simulating</span></span>
+    <button class="btn" id="btnConnect">Connect</button>
+    <button class="btn" id="btnRead" disabled>Read from card</button>
+    <button class="btn" id="btnSend" disabled>Send</button>
+    <button class="btn primary" id="btnSave" disabled>Save to card</button>
+    <label class="check"><input type="checkbox" id="autoSend" checked> Send changes live</label>
+  </div>
+</header>
+
+<div class="banner" id="banner" hidden>
+  <span id="bannerText">The card has different settings from this editor.</span>
+  <button class="btn small" id="bannerLoad">Use card's settings</button>
+  <button class="btn small" id="bannerPush">Send editor's settings</button>
+</div>
+
+<div class="layout">
+  <div class="stack">
+    <section class="panel" aria-labelledby="h-reg">
+      <h2 id="h-reg">Register</h2>
+      <div class="transport">
+        <button class="btn small" id="simPlay">Pause</button>
+        <div class="ctl"><label for="simRate">Clock</label><input type="range" id="simRate" min="0" max="4095" value="3000"><span class="mono" id="simRateV"></span></div>
+        <div class="ctl"><label for="simMain">Main</label><input type="range" id="simMain" min="0" max="4095" value="2048"><span class="mono" id="simMainV"></span></div>
+        <label class="check"><input type="checkbox" id="simLock"> Lock (Z up)</label>
+        <button class="btn small" id="simScramble">Scramble (Z down)</button>
+        <div class="ctl"><span class="led" id="ledClock" title="Clock"></span><span class="led" id="ledTrig" title="Envelope trigger"></span></div>
+      </div>
+      <div class="tray" id="tray" aria-label="Unassigned parameters"></div>
+      <div class="gridwrap" id="gridwrap">
+        <div class="grid" id="grid">
+          <div class="row ruler"><div class="lab hint">bit</div><div class="trk" id="ruler"></div></div>
+          <div class="row loops"><div class="lab hint">loops</div><div class="trk" id="loopTrk"></div></div>
+          <div class="row bits"><div class="lab hint">state</div><div class="trk" id="bitTrk"></div></div>
+          <div id="lanes"></div>
+        </div>
+      </div>
+      <p class="hint" style="margin:8px 0 0">Bits move left to right on each step; the bit leaving a loop's right end returns at its left end, flipped at random by the Main knob and the loop's chaos. Drag a chip from the tray onto the grid to assign it. Drag a bar to move it, drag its ends to resize it, drag it back to the tray to unassign it. Drag on an empty lane to draw a range. Click a state bit to flip it.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-loops">
+      <h2 id="h-loops">Loops</h2>
+      <div class="tablewrap"><table class="loops-t" id="loopTable"></table></div>
+      <div class="rowbtns">
+        <button class="btn small" id="addLoop">Add loop</button>
+        <span class="hint">Layouts:</span>
+        <button class="btn small" data-preset="1">1 × 64</button>
+        <button class="btn small" data-preset="2">2 × 32</button>
+        <button class="btn small" data-preset="4">4 × 16</button>
+        <button class="btn small" data-preset="8">8 × 8</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-file">
+      <h2 id="h-file">Share a layout</h2>
+      <div class="rowbtns" style="margin-top:0">
+        <button class="btn small" id="exportJson">Show JSON</button>
+        <button class="btn small" id="copyJson">Copy JSON</button>
+        <button class="btn small" id="downloadJson">Download .json</button>
+        <label class="btn small" for="importFile">Open .json</label>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+        <button class="btn small" id="importJson">Load JSON from box</button>
+        <button class="btn small" id="resetDefaults">Factory defaults</button>
+      </div>
+      <textarea id="json" spellcheck="false" aria-label="Layout JSON" style="margin-top:10px" placeholder="Paste a Shift Voice layout here, then press Load JSON from box."></textarea>
+      <div class="notes" style="margin-top:10px">
+        <p>Use Chrome, Edge or another Chromium browser with a USB-C data cable. Close any other app that is using the Workshop Computer's MIDI port. When the browser asks, allow MIDI access for <b>MTMComputer</b>. iOS is not supported.</p>
+        <p>"Send" changes how the card plays now. "Save to card" keeps the layout, and the current register pattern, after a reset.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="panel" id="inspector" aria-live="polite"></section>
+    <section class="panel" aria-labelledby="h-scale">
+      <h2 id="h-scale">Scale</h2>
+      <div class="keys" id="keys"></div>
+      <div class="fields">
+        <label class="field">Root note<select id="root"></select></label>
+        <label class="field">Preset<select id="scalePreset"></select></label>
+      </div>
+      <p class="hint" style="margin:0">Both oscillators are quantised to these notes. Osc 1 Pitch counts scale degrees up from the root; Osc 2 Pitch counts degrees up or down from Osc 1.</p>
+    </section>
+    <section class="panel" aria-labelledby="h-env">
+      <h2 id="h-env">Envelopes now</h2>
+      <canvas id="envs" width="600" height="240"></canvas>
+      <p class="hint" style="margin:6px 0 0"><span style="color:var(--g-filter)">■</span> filter <span style="color:var(--g-amp)">■</span> volume · width = <span id="envSpan"></span></p>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+'use strict';
+/*
+  Shift Voice editor.
+  The firmware (main.cpp) is the source of truth; the tables and the byte
+  layout below mirror it exactly. Change both together.
+*/
+
+// ---------------------------------------------------------------- parameters
+const GROUP_COLOR = { trig: '--g-trig', pitch: '--g-pitch', osc: '--g-osc', filter: '--g-filter', amp: '--g-amp' };
+const PARAMS = [
+  { id: 'trig',   name: 'Env Trigger',    short: 'Trig',   group: 'trig',   lo: 0,     hi: 1023, w: 1, desc: 'Fires both envelopes when the value is in the top half. Only checked on steps where its own bits move. Unassigned, it fires on every clock step if Min is 512 or more.' },
+  { id: 'pitch1', name: 'Osc 1 Pitch',    short: 'Pitch 1', group: 'pitch', lo: 0,     hi: 48,   w: 5, desc: 'Scale degrees above the root note, quantised to the scale.' },
+  { id: 'pitch2', name: 'Osc 2 Pitch',    short: 'Pitch 2', group: 'pitch', lo: -24,   hi: 24,   w: 3, desc: 'Scale degrees relative to Osc 1, in the same scale. 0 = unison.' },
+  { id: 'slew',   name: 'Slew',           short: 'Slew',   group: 'pitch',  lo: 0,     hi: 1023, w: 3, desc: 'Pitch glide time for both oscillators. 0 = no glide.' },
+  { id: 'shape1', name: 'Osc 1 Shape',    short: 'Shape 1', group: 'osc',   lo: 0,     hi: 1023, w: 4, desc: 'Morphs sine → triangle → saw → square.' },
+  { id: 'shape2', name: 'Osc 2 Shape',    short: 'Shape 2', group: 'osc',   lo: 0,     hi: 1023, w: 4, desc: 'Morphs sine → triangle → saw → square.' },
+  { id: 'mix',    name: 'Osc Mix',        short: 'Mix',    group: 'osc',    lo: 0,     hi: 1023, w: 4, desc: 'Balance between Osc 1 (low) and Osc 2 (high).' },
+  { id: 'cutoff', name: 'Cutoff',         short: 'Cutoff', group: 'filter', lo: 0,     hi: 1023, w: 6, desc: 'Low-pass filter cutoff, 20 Hz to 14.5 kHz on an exponential scale.' },
+  { id: 'res',    name: 'Resonance',      short: 'Res',    group: 'filter', lo: 0,     hi: 1023, w: 3, desc: 'Filter resonance, up to self-oscillation near the top.' },
+  { id: 'envamt', name: 'Cutoff Env Amt', short: 'Env Amt', group: 'filter', lo: -1023, hi: 1023, w: 4, desc: 'How far the filter envelope moves the cutoff. Negative values close the filter.' },
+  { id: 'fatk',   name: 'Filter Attack',  short: 'F Atk',  group: 'filter', lo: 0,     hi: 1023, w: 2, desc: 'Filter envelope attack, 1 ms to 4 s.' },
+  { id: 'fdec',   name: 'Filter Decay',   short: 'F Dec',  group: 'filter', lo: 0,     hi: 1023, w: 3, desc: 'Filter envelope decay, 1 ms to 4 s.' },
+  { id: 'fshape', name: 'Filter Shape',   short: 'F Shape', group: 'filter', lo: 0,    hi: 1023, w: 2, desc: 'Filter envelope curve: slow start (low), linear (middle), snappy (high).' },
+  { id: 'vatk',   name: 'Vol Attack',     short: 'V Atk',  group: 'amp',    lo: 0,     hi: 1023, w: 2, desc: 'Volume envelope attack, 1 ms to 4 s.' },
+  { id: 'vdec',   name: 'Vol Decay',      short: 'V Dec',  group: 'amp',    lo: 0,     hi: 1023, w: 4, desc: 'Volume envelope decay, 1 ms to 4 s.' },
+  { id: 'vshape', name: 'Vol Shape',      short: 'V Shape', group: 'amp',   lo: 0,     hi: 1023, w: 2, desc: 'Volume envelope curve: slow start (low), linear (middle), snappy (high).' },
+];
+const MAX_LOOPS = 8, REG = 64, MAX_W = 16, CONFIG_FORMAT = 1, CONFIG_BYTES = 157;
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const SCALES = [
+  ['Chromatic', 0xFFF], ['Major', 0xAB5], ['Natural minor', 0x5AD], ['Dorian', 0x6AD],
+  ['Major pentatonic', 0x295], ['Minor pentatonic', 0x4A9], ['Blues', 0x4E9], ['Whole tone', 0x555],
+  ['Harmonic minor', 0x9AD], ['Fifths', 0x081], ['Octaves', 0x001],
+];
+
+function defaultConfig() {
+  const P = (start, width, min, max, popcount = false, invert = false) => ({ enabled: true, start, width, popcount, invert, min, max });
+  return {
+    loops: [16, 16, 16, 16].map((length, i) => ({ length, divider: [1, 2, 4, 8][i], chaos: 100 })),
+    scaleMask: 0x4A9, root: 48,
+    params: [
+      P(0, 1, 0, 1023), P(1, 5, 0, 10), P(20, 2, 0, 5), P(26, 3, 0, 350),
+      P(32, 4, 0, 1023), P(36, 4, 0, 1023, false, true), P(22, 4, 200, 800, true), P(6, 6, 300, 800),
+      P(40, 3, 100, 850), P(44, 4, 0, 700), P(48, 2, 0, 300), P(50, 3, 250, 750),
+      P(53, 2, 512, 1023), P(56, 2, 0, 250), P(58, 4, 300, 800), P(62, 2, 512, 1023),
+    ],
+  };
+}
+
+// ---------------------------------------------------------------- state
+let cfg = defaultConfig();
+let bits = new Uint8Array(REG);
+for (let i = 0; i < REG; i++) bits[i] = Math.random() < 0.5 ? 1 : 0;
+let flipped = new Uint8Array(REG);
+let selected = 1;               // selected parameter index
+let dirty = false;              // edited since last read/send
+let loopCounters = new Array(MAX_LOOPS).fill(0);
+let firedAt = 0, clockAt = 0;
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const $ = (id) => document.getElementById(id);
+const colorOf = (i) => `var(${GROUP_COLOR[PARAMS[i].group]})`;
+
+function loopStarts() { const s = []; let o = 0; for (const l of cfg.loops) { s.push(o); o += l.length; } return s; }
+function usedBits() { return cfg.loops.reduce((a, l) => a + l.length, 0); }
+
+function validate() {
+  cfg.loops = cfg.loops.slice(0, MAX_LOOPS);
+  let used = 0;
+  cfg.loops = cfg.loops.filter((l) => {
+    l.length = clamp(Math.round(l.length) || 1, 1, REG); l.divider = clamp(Math.round(l.divider) || 1, 1, 32); l.chaos = clamp(Math.round(l.chaos), 0, 100);
+    if (used + l.length > REG) l.length = REG - used;
+    if (l.length < 1) return false;
+    used += l.length; return true;
+  });
+  if (!cfg.loops.length) cfg.loops = [{ length: 64, divider: 1, chaos: 100 }];
+  cfg.scaleMask &= 0xFFF; if (!cfg.scaleMask) cfg.scaleMask = 0xFFF;
+  cfg.root = clamp(cfg.root | 0, 0, 96);
+  cfg.params.forEach((p, i) => {
+    p.start = clamp(p.start | 0, 0, REG - 1); p.width = clamp(p.width | 0, 1, MAX_W);
+    if (p.start + p.width > REG) p.width = REG - p.start;
+    p.min = clamp(p.min | 0, PARAMS[i].lo, PARAMS[i].hi); p.max = clamp(p.max | 0, PARAMS[i].lo, PARAMS[i].hi);
+  });
+}
+
+// ---------------------------------------------------------------- mapping (mirrors firmware ParamValue)
+function rawBits(p) { let v = 0; for (let j = 0; j < p.width; j++) v += bits[p.start + j] * 2 ** j; return v; }
+function paramValue(i) {
+  const p = cfg.params[i];
+  if (!p.enabled) return p.min;
+  const v = rawBits(p);
+  let x;
+  if (p.popcount) { let c = 0; for (let j = 0; j < p.width; j++) c += bits[p.start + j]; x = Math.floor(c * 65535 / p.width); }
+  else x = p.width === 16 ? v : Math.floor(v * 65535 / (2 ** p.width - 1));
+  if (p.invert) x = 65535 - x;
+  return p.min + Math.floor(((p.max - p.min) * x + 32768) / 65536);
+}
+function scaleNotes() { const s = []; for (let n = 0; n < 12; n++) if (cfg.scaleMask & (1 << n)) s.push(n); return s; }
+function degreeToNote(deg) {
+  const s = scaleNotes(), k = s.length;
+  const oct = Math.floor(deg / k), idx = ((deg % k) + k) % k;
+  return cfg.root + oct * 12 + s[idx];
+}
+const noteName = (n) => NOTE_NAMES[((n % 12) + 12) % 12] + (Math.floor(n / 12) - 1);
+const ms = (v) => 2 ** (v * 12 / 1023);
+const fmtMs = (t) => t < 1000 ? `${t < 10 ? t.toFixed(1) : Math.round(t)} ms` : `${(t / 1000).toFixed(2)} s`;
+function shapeName(v) {
+  const names = ['sine', 'tri', 'saw', 'square'];
+  const u = v * 3 / 1024, seg = Math.min(2, Math.floor(u)), t = Math.round((u - seg) * 100);
+  if (t <= 2) return names[seg]; if (t >= 98) return names[seg + 1];
+  return `${names[seg]}→${names[seg + 1]} ${t}%`;
+}
+function curveName(v) { const c = v - 512; return Math.abs(c) < 25 ? 'linear' : (c > 0 ? `snappy ${Math.round(c / 5.11)}%` : `slow ${Math.round(-c / 5.12)}%`); }
+
+// Human-readable value, in the parameter's own units
+function fmt(i, v, short = false) {
+  switch (PARAMS[i].id) {
+    case 'trig': return v >= 512 ? 'fire' : 'rest';
+    case 'pitch1': { const n = degreeToNote(v); return short ? noteName(n) : `${v} deg · ${noteName(n)}`; }
+    case 'pitch2': { const s = (v > 0 ? '+' : '') + v; if (short) return s; const n = degreeToNote(paramValue(1) + v); return `${s} deg · ${noteName(n)}`; }
+    case 'slew': return v === 0 ? 'off' : fmtMs(0.5 * 2 ** (v * 11 / 1023));
+    case 'shape1': case 'shape2': return shapeName(v);
+    case 'mix': return short ? `${Math.round(v / 10.23)}%` : `${Math.round(100 - v / 10.23)}% O1 / ${Math.round(v / 10.23)}% O2`;
+    case 'cutoff': { const hz = 20 * 2 ** (v * 9.5 / 1023); return hz >= 1000 ? `${(hz / 1000).toFixed(1)} kHz` : `${Math.round(hz)} Hz`; }
+    case 'res': return `${Math.round(v / 10.23)}%`;
+    case 'envamt': return `${v > 0 ? '+' : ''}${Math.round(v / 10.23)}%`;
+    case 'fatk': case 'fdec': case 'vatk': case 'vdec': return fmtMs(ms(v));
+    case 'fshape': case 'vshape': return curveName(v);
+  }
+  return String(v);
+}
+
+// ---------------------------------------------------------------- simulation (mirrors firmware Tick)
+function flipProb(k) { if ($('simLock').checked) return 0; if (k < 150) return 1; if (k > 3945) return 0; return (3945 - k) / 3795; }
+function simTick() {
+  const p = flipProb(+$('simMain').value);
+  const starts = loopStarts();
+  const movedMask = new Uint8Array(REG);
+  flipped.fill(0);
+  cfg.loops.forEach((l, i) => {
+    if (++loopCounters[i] < l.divider) return;
+    loopCounters[i] = 0;
+    const o = starts[i], n = l.length;
+    let top = bits[o + n - 1];
+    if (Math.random() < p * l.chaos / 100) { top ^= 1; flipped[o] = 1; }
+    for (let j = n - 1; j > 0; j--) bits[o + j] = bits[o + j - 1];
+    bits[o] = top;
+    for (let j = 0; j < n; j++) movedMask[o + j] = 1;
+  });
+  clockAt = performance.now();
+  const t = cfg.params[0];
+  let relevant = true;
+  if (t.enabled) { relevant = false; for (let j = 0; j < t.width; j++) if (movedMask[t.start + j]) relevant = true; }
+  if (relevant && paramValue(0) >= 512) firedAt = performance.now();
+  renderLive();
+}
+
+function clockHz(y) { // mirrors firmware: period in samples from the Y knob
+  const yq = y * 4, base = 48000 >> (yq >> 12), period = base - ((base * (yq & 4095)) >> 13);
+  return 48000 / period;
+}
+let simRunning = true, simAcc = 0, lastFrame = performance.now();
+function frame(now) {
+  const dt = Math.min(0.25, (now - lastFrame) / 1000); lastFrame = now;
+  if (simRunning && !midi.active) {
+    simAcc += dt * clockHz(+$('simRate').value);
+    while (simAcc >= 1) { simAcc -= 1; simTick(); }
+  }
+  $('ledClock').classList.toggle('on', now - clockAt < 60);
+  $('ledTrig').classList.toggle('on', now - firedAt < 90);
+  document.querySelectorAll('.lane')[0]?.classList.toggle('fire', now - firedAt < 120);
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- rendering
+function buildStatic() {
+  const ruler = $('ruler');
+  for (let b = 0; b < REG; b += 8) { const t = document.createElement('span'); t.className = 'tick mono'; t.style.left = (b / REG * 100) + '%'; t.textContent = b; ruler.appendChild(t); }
+  const bt = $('bitTrk');
+  for (let b = 0; b < REG; b++) {
+    const d = document.createElement('div'); d.className = 'bit'; d.title = `bit ${b}`;
+    d.addEventListener('click', () => { bits[b] ^= 1; flipped.fill(0); if (midi.active) sendReg(); renderLive(); });
+    bt.appendChild(d);
+  }
+  const lanes = $('lanes');
+  PARAMS.forEach((P, i) => {
+    const row = document.createElement('div'); row.className = 'row lane'; row.style.setProperty('--c', colorOf(i)); row.dataset.i = i;
+    row.innerHTML = `<div class="lab" role="button" tabindex="0"><span class="sw"></span><span class="nm">${P.name}</span><span class="val"></span>
+      <div class="meter"><div class="win"></div><div class="pos"></div></div></div><div class="trk cols8"></div>`;
+    row.querySelector('.lab').addEventListener('click', () => select(i));
+    row.querySelector('.lab').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(i); } });
+    attachLaneDrag(row.querySelector('.trk'), i);
+    lanes.appendChild(row);
+  });
+  // Keys and selects for the scale
+  const keys = $('keys');
+  for (let n = 0; n < 12; n++) {
+    const k = document.createElement('button'); k.className = 'key' + ([1, 3, 6, 8, 10].includes(n) ? ' blk' : ''); k.textContent = NOTE_NAMES[n];
+    k.title = `${n} semitones above the root`;
+    k.addEventListener('click', () => { if (n === 0) return toast('The root is always in the scale'); cfg.scaleMask ^= (1 << n); changed(); });
+    keys.appendChild(k);
+  }
+  const root = $('root');
+  for (let n = 24; n <= 84; n++) { const o = document.createElement('option'); o.value = n; o.textContent = noteName(n); root.appendChild(o); }
+  root.addEventListener('change', () => { cfg.root = +root.value; changed(); });
+  const sp = $('scalePreset');
+  sp.innerHTML = '<option value="">Custom</option>' + SCALES.map(([n, m]) => `<option value="${m}">${n}</option>`).join('');
+  sp.addEventListener('change', () => { if (sp.value) { cfg.scaleMask = +sp.value; changed(); } });
+}
+
+function render() {
+  validate();
+  renderLoops(); renderLanes(); renderTray(); renderLoopTable(); renderScale(); renderInspector(); renderLive();
+}
+
+function renderLoops() {
+  const trk = $('loopTrk'); trk.innerHTML = '';
+  const starts = loopStarts();
+  cfg.loops.forEach((l, i) => {
+    const s = document.createElement('div'); s.className = 'loopseg' + (i % 2 ? ' alt' : '');
+    s.style.left = `calc(${starts[i] / REG * 100}% + 1px)`; s.style.width = `calc(${l.length / REG * 100}% - 2px)`;
+    s.title = `Loop ${i + 1}: bits ${starts[i]}–${starts[i] + l.length - 1}, steps every ${l.divider} clock${l.divider > 1 ? 's' : ''}, chaos ${l.chaos}%`;
+    s.innerHTML = `<b>L${i + 1}</b><span class="mono">${l.length}b ÷${l.divider}</span><span class="ret">${l.chaos < 100 ? 'chaos ' + l.chaos + '%' : ''}</span>`;
+    trk.appendChild(s);
+  });
+  const used = usedBits();
+  if (used < REG) {
+    const u = document.createElement('div'); u.className = 'unused';
+    u.style.left = (used / REG * 100) + '%'; u.style.width = ((REG - used) / REG * 100) + '%';
+    u.textContent = `${REG - used} fixed bits`; u.title = 'Bits outside every loop never move. Assignments can still read them.';
+    trk.appendChild(u);
+  }
+  // Boundary handles: between loops, and at the end of the last loop
+  cfg.loops.forEach((l, i) => {
+    const h = document.createElement('div'); h.className = 'handle';
+    h.style.left = ((starts[i] + l.length) / REG * 100) + '%';
+    h.title = i < cfg.loops.length - 1 ? `Drag to move the boundary between L${i + 1} and L${i + 2}` : `Drag to change the length of L${i + 1}`;
+    attachBoundaryDrag(h, i);
+    trk.appendChild(h);
+  });
+  const used2 = new Set(); cfg.loops.forEach((l, i) => { for (let j = 0; j < l.length; j++) used2.add(starts[i] + j); });
+  $('bitTrk').childNodes.forEach((d, b) => d.classList.toggle('unused', !used2.has(b)));
+}
+
+function renderLanes() {
+  document.querySelectorAll('.lane').forEach((row) => {
+    const i = +row.dataset.i, p = cfg.params[i], trk = row.querySelector('.trk');
+    row.classList.toggle('sel', i === selected);
+    trk.innerHTML = '';
+    if (p.enabled) {
+      const bar = document.createElement('div'); bar.className = 'bar';
+      bar.style.left = `calc(${p.start / REG * 100}% + 1px)`; bar.style.width = `calc(${p.width / REG * 100}% - 2px)`;
+      bar.innerHTML = `<span class="eh l"></span>${p.width > 2 ? PARAMS[i].short : ''}${p.popcount && p.width > 4 ? ' Σ' : ''}${p.invert && p.width > 5 ? ' ¬' : ''}<span class="eh r"></span>`;
+      bar.title = `${PARAMS[i].name}: bits ${p.start}–${p.start + p.width - 1}${p.popcount ? ', count of set bits' : ''}${p.invert ? ', inverted' : ''}`;
+      trk.appendChild(bar);
+    } else {
+      const ph = document.createElement('div'); ph.className = 'placeholder'; ph.textContent = `unassigned: holds ${fmt(i, p.min)}. Drag here to draw a range`;
+      trk.appendChild(ph);
+    }
+    const P = PARAMS[i], span = P.hi - P.lo;
+    const a = (Math.min(p.min, p.max) - P.lo) / span, b = (Math.max(p.min, p.max) - P.lo) / span;
+    const w = row.querySelector('.meter .win'); w.style.left = (a * 100) + '%'; w.style.width = Math.max(1, (b - a) * 100) + '%';
+  });
+}
+
+function renderTray() {
+  const tray = $('tray'); tray.innerHTML = '';
+  const un = cfg.params.map((p, i) => i).filter((i) => !cfg.params[i].enabled);
+  if (!un.length) { tray.innerHTML = '<span class="empty">All 16 parameters are assigned. Drag a bar here to unassign it.</span>'; return; }
+  un.forEach((i) => {
+    const c = document.createElement('span'); c.className = 'chip'; c.style.setProperty('--c', colorOf(i)); c.tabIndex = 0;
+    c.innerHTML = `<span class="sw"></span>${PARAMS[i].name}`;
+    c.title = 'Drag onto the register to assign';
+    attachChipDrag(c, i);
+    c.addEventListener('keydown', (e) => { if (e.key === 'Enter') { select(i); } });
+    tray.appendChild(c);
+  });
+}
+
+function renderLoopTable() {
+  const t = $('loopTable'), starts = loopStarts();
+  t.innerHTML = `<thead><tr><th>Loop</th><th>Bits</th><th>Length</th><th>Clock ÷</th><th>Chaos %</th><th></th></tr></thead>`;
+  const tb = document.createElement('tbody');
+  cfg.loops.forEach((l, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><b>L${i + 1}</b></td><td class="mono">${starts[i]}–${starts[i] + l.length - 1}</td>
+      <td><input type="number" min="1" max="64" value="${l.length}" data-k="length" id="loop${i}len" aria-label="Loop ${i + 1} length"></td>
+      <td><input type="number" min="1" max="32" value="${l.divider}" data-k="divider" id="loop${i}div" aria-label="Loop ${i + 1} clock divider"></td>
+      <td><input type="number" min="0" max="100" value="${l.chaos}" data-k="chaos" id="loop${i}chaos" aria-label="Loop ${i + 1} chaos"></td>
+      <td><button class="btn small" data-a="split" ${l.length < 2 || cfg.loops.length >= MAX_LOOPS ? 'disabled' : ''}>Split</button>
+          <button class="btn small" data-a="merge" ${i === cfg.loops.length - 1 ? 'disabled' : ''}>Merge →</button>
+          <button class="btn small" data-a="del" ${cfg.loops.length < 2 ? 'disabled' : ''}>Remove</button></td>`;
+    tr.querySelectorAll('input').forEach((inp) => inp.addEventListener('change', () => {
+      const k = inp.dataset.k, v = +inp.value;
+      if (k === 'length') { const others = usedBits() - l.length; l.length = clamp(v, 1, REG - others); } else l[k] = v;
+      changed();
+    }));
+    tr.querySelector('[data-a=split]').addEventListener('click', () => { const a = Math.ceil(l.length / 2); cfg.loops.splice(i + 1, 0, { length: l.length - a, divider: l.divider, chaos: l.chaos }); l.length = a; changed(); });
+    tr.querySelector('[data-a=merge]').addEventListener('click', () => { l.length += cfg.loops[i + 1].length; cfg.loops.splice(i + 1, 1); changed(); });
+    tr.querySelector('[data-a=del]').addEventListener('click', () => { cfg.loops.splice(i, 1); changed(); });
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+  const free = REG - usedBits();
+  $('addLoop').disabled = free < 1 || cfg.loops.length >= MAX_LOOPS;
+  $('addLoop').textContent = free ? `Add loop (${free} free bits)` : 'Add loop';
+}
+
+function renderScale() {
+  $('keys').childNodes.forEach((k, n) => k.setAttribute('aria-pressed', String(!!(cfg.scaleMask & (1 << n)))));
+  $('root').value = cfg.root;
+  const m = SCALES.find(([, mask]) => mask === cfg.scaleMask);
+  $('scalePreset').value = m ? m[1] : '';
+}
+
+function renderInspector() {
+  const i = selected, P = PARAMS[i], p = cfg.params[i], el = $('inspector');
+  el.style.setProperty('--c', colorOf(i));
+  el.innerHTML = `
+    <h2>Parameter</h2>
+    <div class="insp-head"><span class="sw"></span><h3>${P.name}</h3></div>
+    <p class="desc">${P.desc}</p>
+    <div class="opts">
+      <div class="seg" role="group" aria-label="Read bits as">
+        <button id="mBin" aria-pressed="${!p.popcount}" title="Read the bits as a binary number">Binary</button>
+        <button id="mPop" aria-pressed="${p.popcount}" title="Count how many bits are set">Count</button>
+      </div>
+      <label class="check"><input type="checkbox" id="inv" ${p.invert ? 'checked' : ''}> Invert</label>
+      ${p.enabled ? '<button class="btn small" id="unassign">Unassign</button>' : '<button class="btn small" id="assign">Assign</button>'}
+    </div>
+    <div class="fields">
+      <label class="field">Start bit<input type="number" id="fStart" min="0" max="63" value="${p.start}" ${p.enabled ? '' : 'disabled'}></label>
+      <label class="field">Width (bits)<input type="number" id="fWidth" min="1" max="16" value="${p.width}" ${p.enabled ? '' : 'disabled'}></label>
+      <label class="field">Min<input type="number" id="fMin" min="${P.lo}" max="${P.hi}" value="${p.min}"></label>
+      <label class="field">Max<input type="number" id="fMax" min="${P.lo}" max="${P.hi}" value="${p.max}"></label>
+    </div>
+    <div class="range" id="range">
+      <div class="rtrack" id="rtrack">
+        <div class="rbase"></div><div class="rwin" id="rwin"></div>
+        ${P.id === 'trig' ? `<div class="thresh" style="left:${(512 - P.lo) / (P.hi - P.lo) * 100}%" title="fires above this line"></div>` : ''}
+        <div class="rlive" id="rlive"></div>
+        <div class="thumb" id="thMin" title="Min" tabindex="-1">▾</div><div class="thumb" id="thMax" title="Max" tabindex="-1">▴</div>
+      </div>
+      <div class="rlabels"><span>${fmt(i, P.lo, true)}</span><span>${fmt(i, P.hi, true)}</span></div>
+    </div>
+    <dl class="readout">
+      <dt>Min</dt><dd id="roMin"></dd><dt>Max</dt><dd id="roMax"></dd>
+      <dt>Bits</dt><dd id="roBits"></dd><dt>Now</dt><dd id="roNow"></dd>
+      <dt>Steps</dt><dd id="roSteps"></dd>
+    </dl>`;
+  $('mBin').onclick = () => { p.popcount = false; changed(); };
+  $('mPop').onclick = () => { p.popcount = true; changed(); };
+  $('inv').onchange = (e) => { p.invert = e.target.checked; changed(); };
+  if ($('unassign')) $('unassign').onclick = () => { p.enabled = false; changed(); };
+  if ($('assign')) $('assign').onclick = () => { p.enabled = true; changed(); };
+  const num = (id, fn) => { $(id).onchange = (e) => { fn(+e.target.value); changed(); }; };
+  num('fStart', (v) => { p.start = clamp(v, 0, REG - p.width); });
+  num('fWidth', (v) => { p.width = clamp(v, 1, Math.min(MAX_W, REG - p.start)); });
+  num('fMin', (v) => { p.min = v; });
+  num('fMax', (v) => { p.max = v; });
+  attachRangeDrag(i);
+  updateInspectorLive();
+}
+
+function updateInspectorLive() {
+  const i = selected, P = PARAMS[i], p = cfg.params[i];
+  if (!$('rwin')) return;
+  const pos = (v) => (v - P.lo) / (P.hi - P.lo) * 100;
+  const a = Math.min(p.min, p.max), b = Math.max(p.min, p.max), v = paramValue(i);
+  $('rwin').style.left = pos(a) + '%'; $('rwin').style.width = Math.max(0.5, pos(b) - pos(a)) + '%';
+  $('thMin').style.left = pos(p.min) + '%'; $('thMax').style.left = pos(p.max) + '%';
+  $('rlive').style.left = pos(v) + '%';
+  $('roMin').textContent = `${p.min} · ${fmt(i, p.min)}`;
+  $('roMax').textContent = `${p.max} · ${fmt(i, p.max)}`;
+  if (p.enabled) {
+    let s = ''; for (let j = p.width - 1; j >= 0; j--) s += bits[p.start + j];
+    $('roBits').textContent = `${p.start}–${p.start + p.width - 1}: ${s} (${p.popcount ? s.split('').filter((c) => c === '1').length + ' set' : rawBits(p)})`;
+    const n = p.popcount ? p.width + 1 : 2 ** p.width;
+    $('roSteps').textContent = `${n} possible values${loopsTouched(p)}`;
+  } else { $('roBits').textContent = 'unassigned'; $('roSteps').textContent = 'fixed at Min'; }
+  $('roNow').textContent = `${v} · ${fmt(i, v)}`;
+}
+function loopsTouched(p) {
+  const s = loopStarts(), hit = [];
+  cfg.loops.forEach((l, i) => { if (p.start < s[i] + l.length && p.start + p.width > s[i]) hit.push('L' + (i + 1)); });
+  if (p.start + p.width > usedBits()) hit.push('fixed bits');
+  return hit.length ? `, reads ${hit.join(' + ')}` : '';
+}
+
+function renderLive() {
+  $('bitTrk').childNodes.forEach((d, b) => { d.classList.toggle('on', !!bits[b]); d.classList.toggle('flip', !!flipped[b]); });
+  document.querySelectorAll('.lane').forEach((row) => {
+    const i = +row.dataset.i, P = PARAMS[i], v = paramValue(i);
+    row.querySelector('.val').textContent = fmt(i, v, true);
+    row.querySelector('.meter .pos').style.left = `calc(${(v - P.lo) / (P.hi - P.lo) * 100}% - 1px)`;
+  });
+  updateInspectorLive();
+  drawEnvs();
+}
+
+function select(i) { selected = i; renderLanes(); renderInspector(); }
+
+// ---------------------------------------------------------------- envelope drawing (same curve as firmware)
+function curve(p, c) { // p 0..1, c -512..511
+  const cube = p * p * p, snappy = 1 - (1 - p) ** 3;
+  return c >= 0 ? p + (snappy - p) * c / 512 : p + (cube - p) * (-c) / 512;
+}
+function drawEnvs() {
+  const cv = $('envs'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+  const css = getComputedStyle(document.documentElement);
+  ctx.clearRect(0, 0, W, H);
+  const v = PARAMS.map((_, i) => paramValue(i));
+  const envs = [[v[10], v[11], v[12], css.getPropertyValue('--g-filter')], [v[13], v[14], v[15], css.getPropertyValue('--g-amp')]];
+  const total = Math.max(...envs.map(([a, d]) => ms(a) + ms(d)));
+  $('envSpan').textContent = fmtMs(total);
+  ctx.strokeStyle = css.getPropertyValue('--line'); ctx.lineWidth = 1;
+  for (let g = 1; g < 4; g++) { ctx.beginPath(); ctx.moveTo(0, H * g / 4); ctx.lineTo(W, H * g / 4); ctx.stroke(); }
+  const pad = 8;
+  envs.forEach(([a, d, s, col], k) => {
+    const ta = ms(a), td = ms(d), c = s - 512;
+    ctx.beginPath(); ctx.strokeStyle = col.trim(); ctx.lineWidth = 3 - k;
+    for (let x = 0; x <= W; x++) {
+      const t = x / W * total; let y;
+      if (t < ta) y = curve(t / ta, c); else if (t < ta + td) y = 1 - curve((t - ta) / td, c); else y = 0;
+      const py = H - pad - y * (H - 2 * pad);
+      x ? ctx.lineTo(x, py) : ctx.moveTo(x, py);
+    }
+    ctx.stroke();
+  });
+}
+
+// ---------------------------------------------------------------- dragging
+function bitAt(clientX, el, round = false) {
+  const r = el.getBoundingClientRect(), f = (clientX - r.left) / r.width * REG;
+  return round ? clamp(Math.round(f), 0, REG) : clamp(Math.floor(f), 0, REG - 1);
+}
+function overTray(x, y) { const r = $('tray').getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; }
+
+function attachLaneDrag(trk, i) {
+  trk.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const p = cfg.params[i];
+    select(i);
+    const b0 = bitAt(e.clientX, trk);
+    let mode, grab = 0, anchor = b0, end = p.start + p.width;
+    if (e.target.closest('.eh.l')) mode = 'left';
+    else if (e.target.closest('.eh.r')) mode = 'right';
+    else if (e.target.closest('.bar')) { mode = 'move'; grab = b0 - p.start; }
+    else { mode = 'draw'; p.enabled = true; p.start = b0; p.width = 1; renderLanes(); renderTray(); }
+    trk.setPointerCapture(e.pointerId);
+    const move = (ev) => {
+      const b = bitAt(ev.clientX, trk);
+      if (mode === 'move') p.start = clamp(b - grab, 0, REG - p.width);
+      else if (mode === 'left') { const s = clamp(b, end - MAX_W, end - 1); p.start = Math.max(0, s); p.width = end - p.start; }
+      else if (mode === 'right') p.width = clamp(b - p.start + 1, 1, Math.min(MAX_W, REG - p.start));
+      else { const w = Math.min(MAX_W, Math.abs(b - anchor) + 1); p.width = w; p.start = b < anchor ? anchor - w + 1 : anchor; }
+      $('tray').classList.toggle('over', mode === 'move' && overTray(ev.clientX, ev.clientY));
+      renderLanes(); renderLive(); updateInspectorFields();
+    };
+    const up = (ev) => {
+      trk.removeEventListener('pointermove', move); trk.removeEventListener('pointerup', up); trk.removeEventListener('pointercancel', up);
+      $('tray').classList.remove('over');
+      if (mode === 'move' && overTray(ev.clientX, ev.clientY)) p.enabled = false;
+      changed();
+    };
+    trk.addEventListener('pointermove', move); trk.addEventListener('pointerup', up); trk.addEventListener('pointercancel', up);
+  });
+}
+function updateInspectorFields() { const p = cfg.params[selected]; if ($('fStart')) { $('fStart').value = p.start; $('fWidth').value = p.width; } }
+
+function attachChipDrag(chip, i) {
+  chip.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    select(i);
+    let ghost = null; const x0 = e.clientX, y0 = e.clientY;
+    chip.setPointerCapture(e.pointerId);
+    const laneTrk = () => document.querySelector(`.lane[data-i="${i}"] .trk`);
+    const move = (ev) => {
+      if (!ghost && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 4) return;
+      if (!ghost) { ghost = chip.cloneNode(true); ghost.classList.add('ghost'); document.body.appendChild(ghost); }
+      ghost.style.left = (ev.clientX + 8) + 'px'; ghost.style.top = (ev.clientY + 8) + 'px';
+    };
+    const up = (ev) => {
+      chip.removeEventListener('pointermove', move); chip.removeEventListener('pointerup', up); chip.removeEventListener('pointercancel', up);
+      if (ghost) ghost.remove();
+      if (!ghost) return; // a click: just selected
+      const g = $('grid').getBoundingClientRect();
+      if (ev.clientX >= g.left && ev.clientX <= g.right && ev.clientY >= g.top && ev.clientY <= g.bottom) {
+        const trk = laneTrk(), r = trk.getBoundingClientRect();
+        if (ev.clientX >= r.left) {
+          const p = cfg.params[i];
+          p.width = PARAMS[i].w; p.start = clamp(bitAt(ev.clientX, trk), 0, REG - p.width); p.enabled = true;
+          changed();
+          laneTrk().scrollIntoView({ block: 'nearest' });
+        }
+      }
+    };
+    chip.addEventListener('pointermove', move); chip.addEventListener('pointerup', up); chip.addEventListener('pointercancel', up);
+  });
+}
+
+function attachBoundaryDrag(h, i) {
+  h.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const trk = $('loopTrk'); // handles are rebuilt while dragging, so capture on the track
+    trk.setPointerCapture(e.pointerId);
+    const move = (ev) => {
+      const starts = loopStarts(), s = starts[i], last = i === cfg.loops.length - 1;
+      const limit = last ? REG : starts[i + 1] + cfg.loops[i + 1].length - 1;
+      const pos = clamp(bitAt(ev.clientX, trk, true), s + 1, limit);
+      const delta = pos - (s + cfg.loops[i].length);
+      if (!delta) return;
+      cfg.loops[i].length += delta;
+      if (!last) cfg.loops[i + 1].length -= delta;
+      renderLoops(); renderLoopTable(); renderLive();
+    };
+    const up = () => { trk.removeEventListener('pointermove', move); trk.removeEventListener('pointerup', up); trk.removeEventListener('pointercancel', up); changed(); };
+    trk.addEventListener('pointermove', move); trk.addEventListener('pointerup', up); trk.addEventListener('pointercancel', up);
+  });
+}
+
+function attachRangeDrag(i) {
+  const trk = $('rtrack'), P = PARAMS[i], p = cfg.params[i];
+  trk.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const r = trk.getBoundingClientRect();
+    const val = (x) => clamp(Math.round(P.lo + (x - r.left) / r.width * (P.hi - P.lo)), P.lo, P.hi);
+    const v0 = val(e.clientX);
+    // Grab whichever end is nearer (the thumbs can cross: Min above Max reverses the mapping)
+    const key = e.target.id === 'thMin' ? 'min' : e.target.id === 'thMax' ? 'max' : (Math.abs(v0 - p.min) <= Math.abs(v0 - p.max) ? 'min' : 'max');
+    trk.setPointerCapture(e.pointerId);
+    const move = (ev) => { p[key] = val(ev.clientX); $('fMin').value = p.min; $('fMax').value = p.max; renderLanes(); renderLive(); };
+    move(e);
+    const up = () => { trk.removeEventListener('pointermove', move); trk.removeEventListener('pointerup', up); trk.removeEventListener('pointercancel', up); changed(); };
+    trk.addEventListener('pointermove', move); trk.addEventListener('pointerup', up); trk.addEventListener('pointercancel', up);
+  });
+}
+
+// ---------------------------------------------------------------- change handling
+let sendTimer = 0;
+function changed() {
+  dirty = true;
+  render();
+  if (midi.active && $('autoSend').checked) { clearTimeout(sendTimer); sendTimer = setTimeout(sendConfig, 120); }
+}
+
+// ---------------------------------------------------------------- serialisation (byte layout = firmware Serialise)
+function serialise() {
+  validate();
+  const b = [CONFIG_FORMAT, cfg.loops.length];
+  for (let i = 0; i < MAX_LOOPS; i++) { const l = cfg.loops[i] || { length: 8, divider: 1, chaos: 100 }; b.push(l.length, l.divider, l.chaos); }
+  b.push(cfg.scaleMask & 0xFF, cfg.scaleMask >> 8, cfg.root);
+  cfg.params.forEach((p) => {
+    const mn = p.min & 0xFFFF, mx = p.max & 0xFFFF;
+    b.push(p.enabled ? 1 : 0, p.start, p.width, (p.popcount ? 1 : 0) | (p.invert ? 2 : 0), mn & 0xFF, mn >> 8, mx & 0xFF, mx >> 8);
+  });
+  return b;
+}
+function deserialise(b) {
+  if (b.length !== CONFIG_BYTES || b[0] !== CONFIG_FORMAT) return null;
+  const s16 = (lo, hi) => { const v = lo | (hi << 8); return v >= 0x8000 ? v - 0x10000 : v; };
+  const c = { loops: [], params: [] };
+  const n = b[1];
+  for (let i = 0; i < MAX_LOOPS; i++) { const o = 2 + i * 3; if (i < n) c.loops.push({ length: b[o], divider: b[o + 1], chaos: b[o + 2] }); }
+  c.scaleMask = b[26] | (b[27] << 8); c.root = b[28];
+  for (let i = 0; i < 16; i++) {
+    const o = 29 + i * 8;
+    c.params.push({ enabled: !!b[o], start: b[o + 1], width: b[o + 2], popcount: !!(b[o + 3] & 1), invert: !!(b[o + 3] & 2), min: s16(b[o + 4], b[o + 5]), max: s16(b[o + 6], b[o + 7]) });
+  }
+  return c;
+}
+const toNib = (b) => b.flatMap((x) => [x >> 4, x & 15]);
+const fromNib = (n) => { const o = []; for (let i = 0; i + 1 < n.length; i += 2) o.push(((n[i] & 15) << 4) | (n[i + 1] & 15)); return o; };
+
+function toJSON() {
+  validate();
+  return JSON.stringify({
+    format: 'shift-voice', version: 1,
+    loops: cfg.loops, scale: cfg.scaleMask.toString(2).padStart(12, '0').split('').reverse().map(Number), root: cfg.root,
+    params: Object.fromEntries(cfg.params.map((p, i) => [PARAMS[i].id, { ...p }])),
+  }, null, 1);
+}
+function fromJSON(text) {
+  const j = JSON.parse(text);
+  if (j.format !== 'shift-voice') throw new Error('This is not a Shift Voice layout (missing "format": "shift-voice").');
+  const d = defaultConfig();
+  const c = {
+    loops: Array.isArray(j.loops) ? j.loops.map((l) => ({ length: +l.length, divider: +l.divider || 1, chaos: l.chaos ?? 100 })) : d.loops,
+    scaleMask: Array.isArray(j.scale) ? j.scale.reduce((m, v, n) => m | (v ? 1 << n : 0), 0) : d.scaleMask,
+    root: j.root ?? d.root,
+    params: PARAMS.map((P, i) => ({ ...d.params[i], ...(j.params?.[P.id] || {}) })),
+  };
+  cfg = c; changed();
+}
+
+// ---------------------------------------------------------------- WebMIDI / SysEx (protocol = firmware MSG_*)
+const MSG = { HELLO: 0x01, VERSION: 0x02, SET_CONFIG: 0x10, ACK: 0x11, GET_CONFIG: 0x12, CONFIG: 0x13, SAVE: 0x14, SET_REG: 0x16, DEFAULTS: 0x17, STATE: 0x20 };
+const IFACE_VERSION = [0, 1, 0];
+const midi = { access: null, input: null, output: null, active: false, fw: null, pendingRead: false };
+
+function setStatus() {
+  const s = $('status');
+  s.classList.toggle('live', midi.active);
+  $('statusText').textContent = midi.active ? `Connected${midi.fw ? ' · firmware ' + midi.fw : ''}` : (midi.access ? 'Waiting for card, simulating' : 'Not connected, simulating');
+  ['btnRead', 'btnSend', 'btnSave'].forEach((id) => { $(id).disabled = !midi.active; });
+  $('btnConnect').hidden = !!midi.access;
+  ['simPlay', 'simRate', 'simMain', 'simLock', 'simScramble'].forEach((id) => { $(id).disabled = midi.active; });
+}
+async function connect() {
+  if (!navigator.requestMIDIAccess) { toast('This browser has no WebMIDI. Use Chrome or Edge on a desktop or Android.'); return; }
+  try {
+    midi.access = await navigator.requestMIDIAccess({ sysex: true });
+    midi.access.addEventListener('statechange', bind);
+    bind(); setStatus();
+  } catch (err) { toast('MIDI access was refused: ' + err.message); }
+}
+function bind() {
+  const find = (m) => [...m.values()].find((p) => p.name && p.name.includes('MTMComputer') && p.state === 'connected');
+  const inp = find(midi.access.inputs), out = find(midi.access.outputs);
+  if (midi.active && (!inp || !out)) { midi.active = false; midi.input = midi.output = null; midi.fw = null; setStatus(); toast('Card disconnected'); return; }
+  if (!midi.active && inp && out) {
+    midi.input = inp; midi.output = out; midi.active = true;
+    inp.onmidimessage = onMidi;
+    sysex([MSG.HELLO, ...IFACE_VERSION]);
+    midi.pendingRead = 'compare'; sysex([MSG.GET_CONFIG]);
+    setStatus();
+  }
+}
+function sysex(data) { if (midi.active) midi.output.send([0xF0, 0x7D, ...data, 0xF7]); }
+function sendConfig() { sysex([MSG.SET_CONFIG, ...toNib(serialise())]); dirty = false; }
+function sendReg() { const b = []; for (let k = 0; k < 8; k++) { let v = 0; for (let j = 0; j < 8; j++) v |= bits[k * 8 + j] << j; b.push(v); } sysex([MSG.SET_REG, ...toNib(b)]); }
+
+let cardCfg = null;
+function onMidi(ev) {
+  const d = Array.from(ev.data);
+  if (d.length < 4 || d[0] !== 0xF0 || d[1] !== 0x7D || d[d.length - 1] !== 0xF7) return;
+  const m = d.slice(2, -1), cmd = m[0];
+  if (cmd === MSG.VERSION) { midi.fw = `v${m[1]}.${m[2]}.${m[3]}`; if (m[4] !== CONFIG_FORMAT) toast('Firmware and editor versions do not match. Update the card or the editor.'); setStatus(); }
+  else if (cmd === MSG.CONFIG) {
+    const c = deserialise(fromNib(m.slice(1)));
+    if (!c) return toast('Could not read the card settings');
+    const mode = midi.pendingRead; midi.pendingRead = false;
+    if (mode === 'compare' && dirty) {
+      const ours = JSON.stringify(serialise()); const saved = cfg; cfg = c; const theirs = JSON.stringify(serialise()); cfg = saved;
+      if (ours !== theirs) { cardCfg = c; $('banner').hidden = false; return; }
+    }
+    cfg = c; dirty = false; render(); if (mode !== 'compare') toast('Read settings from the card');
+  }
+  else if (cmd === MSG.ACK) {
+    if (m[1] === MSG.SAVE) toast('Saved to card');
+    else if (m[1] === MSG.SET_CONFIG && m[2]) toast('The card rejected those settings');
+  }
+  else if (cmd === MSG.STATE) {
+    const b = fromNib(m.slice(1, 17));
+    const prev = bits.slice();
+    for (let i = 0; i < REG; i++) bits[i] = (b[i >> 3] >> (i & 7)) & 1;
+    let movedAny = false; for (let i = 0; i < REG; i++) if (prev[i] !== bits[i]) movedAny = true;
+    if (movedAny) clockAt = performance.now();
+    flipped.fill(0);
+    if (m[17]) firedAt = performance.now();
+    renderLive();
+  }
+}
+
+// ---------------------------------------------------------------- misc UI
+let toastTimer = 0;
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600); }
+
+function wire() {
+  $('btnConnect').onclick = connect;
+  $('btnRead').onclick = () => { midi.pendingRead = 'read'; sysex([MSG.GET_CONFIG]); };
+  $('btnSend').onclick = () => { sendConfig(); toast('Sent to card'); };
+  $('btnSave').onclick = () => { sendConfig(); sysex([MSG.SAVE]); };
+  $('bannerLoad').onclick = () => { cfg = cardCfg; dirty = false; $('banner').hidden = true; render(); };
+  $('bannerPush').onclick = () => { $('banner').hidden = true; sendConfig(); toast('Sent to card'); };
+  $('simPlay').onclick = () => { simRunning = !simRunning; $('simPlay').textContent = simRunning ? 'Pause' : 'Play'; if (!simRunning) $('simPlay').textContent = 'Play'; };
+  $('simScramble').onclick = () => { const used = usedBits(); for (let b = 0; b < used; b++) bits[b] = Math.random() < 0.5 ? 1 : 0; flipped.fill(0); renderLive(); };
+  const showKnobs = () => {
+    $('simRateV').textContent = clockHz(+$('simRate').value).toFixed(1) + ' Hz';
+    const p = flipProb(+$('simMain').value);
+    $('simMainV').textContent = p === 0 ? 'locked' : p === 1 ? 'locked ×2' : `${Math.round(p * 100)}% flip`;
+  };
+  ['simRate', 'simMain'].forEach((id) => $(id).addEventListener('input', showKnobs)); $('simLock').addEventListener('change', showKnobs); showKnobs();
+  $('addLoop').onclick = () => { const free = REG - usedBits(); if (free > 0) { cfg.loops.push({ length: Math.min(free, 16), divider: 1, chaos: 100 }); changed(); } };
+  document.querySelectorAll('[data-preset]').forEach((b) => b.onclick = () => {
+    const n = +b.dataset.preset, old = cfg.loops;
+    cfg.loops = Array.from({ length: n }, (_, i) => ({ length: REG / n, divider: old[i]?.divider ?? 1, chaos: old[i]?.chaos ?? 100 }));
+    loopCounters.fill(0); changed();
+  });
+  $('exportJson').onclick = () => { $('json').value = toJSON(); };
+  $('copyJson').onclick = () => {
+    const text = toJSON(); $('json').value = text;
+    navigator.clipboard?.writeText(text).then(() => toast('Copied layout JSON'), () => { $('json').select(); toast('Select-all done: press Ctrl+C to copy'); });
+  };
+  $('downloadJson').onclick = () => {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([toJSON()], { type: 'application/json' }));
+    a.download = 'shift-voice-layout.json'; document.body.appendChild(a); a.click(); a.remove();
+  };
+  $('importFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { fromJSON(await f.text()); toast('Layout loaded'); } catch (err) { toast(err.message); } e.target.value = ''; };
+  $('importJson').onclick = () => { try { fromJSON($('json').value); toast('Layout loaded'); } catch (err) { toast(err.message.startsWith('This') ? err.message : 'That text is not valid JSON.'); } };
+  $('resetDefaults').onclick = () => { cfg = defaultConfig(); changed(); toast('Factory defaults loaded'); };
+  // Connect automatically if the browser already granted MIDI permission
+  navigator.permissions?.query({ name: 'midi', sysex: true }).then((s) => { if (s.state === 'granted') connect(); }).catch(() => {});
+  if (!navigator.requestMIDIAccess) $('btnConnect').title = 'WebMIDI is not available in this browser';
+}
+
+buildStatic(); wire(); render(); setStatus(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
