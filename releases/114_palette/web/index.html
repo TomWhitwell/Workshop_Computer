@@ -229,6 +229,24 @@
   .key.blk { background: var(--track); }
   .key[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--panel); }
   #envs { height: 120px; }
+
+  /* Layout slots on the card */
+  .slots { display: grid; gap: 6px; margin-top: 8px; }
+  .slot { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+  .slot.cur { border-color: var(--accent); background: var(--accent-soft); }
+  .slot .num { grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--track); color: var(--muted); }
+  .slot.cur .num { background: var(--accent); color: var(--panel); }
+  .slot .nm { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+  .slot .nm b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slot .nm .tag { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .slot.empty .nm b { font-weight: 400; color: var(--muted); }
+  .slot .strip { display: flex; height: 8px; border-radius: 3px; overflow: hidden; background: var(--track); }
+  .slot .strip span { height: 100%; border-right: 1px solid var(--panel); background: var(--accent); opacity: .55; }
+  .slot .strip span:nth-child(2n) { opacity: .3; }
+  .slot .acts { grid-column: 2; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .slot .acts button { padding: 2px 8px; font-size: 12px; }
+  .slot .acts button.sure { border-color: var(--bad); color: var(--bad); }
+  #slot-name { font: inherit; width: 100%; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
   textarea#json { width: 100%; min-height: 90px; font: 11px ui-monospace, monospace; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px; margin-top: 8px; }
   @media (max-width: 600px) { :root { --label-w: 124px; } :root .lane .lab .val { max-width: 44px; } }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -243,7 +261,7 @@
   <button id="btn-rescan" hidden>Rescan</button>
   <button id="btn-read" disabled>Read from card</button>
   <button id="btn-send" disabled>Send to card</button>
-  <button id="btn-save" disabled title="Keep the layout and the register pattern on the card after power-off">Save to card</button>
+  <button id="btn-save" disabled title="Save the layout and register pattern into the slot that is playing, so they come back after power-off">Save to card</button>
   <button id="btn-reset" title="The factory layout">Reset</button>
 </header>
 <div id="msg"></div>
@@ -323,7 +341,14 @@
     </section>
 
     <section class="card">
-      <h2>Layouts</h2>
+      <h2>Layouts on the card</h2>
+      <label class="field">Name for saving<input id="slot-name" maxlength="16" placeholder="e.g. Bells" autocomplete="off"></label>
+      <div class="slots" id="slot-list"></div>
+      <div class="caption" id="slot-caption"></div>
+    </section>
+
+    <section class="card">
+      <h2>Share a layout</h2>
       <div class="dirs" style="margin-top:0">
         <button class="small" id="exportJson">Show JSON</button>
         <button class="small" id="copyJson">Copy</button>
@@ -333,7 +358,7 @@
         <button class="small" id="importJson">Load from box</button>
       </div>
       <textarea id="json" spellcheck="false" aria-label="Layout JSON" placeholder="Paste a Palette layout here, then Load from box."></textarea>
-      <div class="caption">The card keeps its layout after power-off only once you press <b>Save to card</b>. Edits here go to a connected card straight away.</div>
+      <div class="caption">A layout as a file, to keep or pass on. Loading one sends it to a connected card, but doesn't save it into a slot.</div>
     </section>
 
     <section class="card">
@@ -358,11 +383,12 @@
     <section class="card">
       <h2>Panel</h2>
       <table class="jacks">
-        <tr><th>Main</th><td>Randomness: noon random, fully clockwise locked, fully anticlockwise locked and inverting (repeats at twice the loop length)</td></tr>
+        <tr><th>Main</th><td>Randomness: noon random, fully clockwise locked, fully anticlockwise locked and inverting (repeats at twice the loop length). With the switch up, Main chooses the layout instead</td></tr>
         <tr><th>X</th><td>Transpose, 0 to +24 semitones</td></tr>
         <tr><th>Y</th><td>Internal clock, about 1 to 16 steps a second</td></tr>
         <tr><th>Pick up</th><td>After this page sets a knob's value, the knob does nothing until it reaches (or passes) that value, so nothing jumps. The dotted box and the orange line show a knob that is waiting, and where it is; LED 5 blinks fast on the module.</td></tr>
         <tr><th>Switch</th><td>Up locks every loop; middle runs; down scrambles every bit inside a loop</td></tr>
+        <tr><th>Layouts</th><td>With the switch up, Main chooses one of six layout slots: six zones from fully anticlockwise (slot 1) to fully clockwise (slot 6). Flicking the switch up just shows the playing slot on the LEDs; a layout loads once you turn Main into another slot's zone. The chosen slot's LED lights for 1.5 s, and blinks if the slot is empty (nothing loads). Back in the middle, Main picks up its randomness setting again. The card starts up with the slot it last played</td></tr>
         <tr><th>LEDs</th><td>LEDs 0-3 show register bits 0-3, LED 4 the clock, LED 5 the volume envelope (blinking fast while a knob is waiting)</td></tr>
       </table>
       <div class="notes"><p>Use Chrome or Edge with a USB-C data cable, plugged into the Computer's USB socket; close other apps using the card. Choose <b>Allow</b> when the browser asks about MIDI devices. iOS can't do WebMIDI.</p></div>
@@ -585,14 +611,16 @@ function renderKnobs() {
   const on = link.cardOnline;
   for (let i = 0; i < 3; i++) {
     const v = knobs.set[i], w = on && knobs.waiting[i];
-    $('kv' + i).textContent = (i === 2 && on && knobs.ext) ? 'Pulse In 1 clock' : knobText(i, v);
+    const slotMode = i === 0 && on && knobs.mainSlot;
+    $('kv' + i).textContent = slotMode ? 'Layout ' + (slots.current + 1) + ((slots.list && slots.list[slots.current] && slots.list[slots.current].name) ? ' · ' + slots.list[slots.current].name : '')
+      : (i === 2 && on && knobs.ext) ? 'Pulse In 1 clock' : knobText(i, v);
     if (knobs.dragging !== i) $('knob' + i).value = v;
     const box = $('rk' + i);
     if (box.classList.contains('waiting') !== w) { box.classList.toggle('waiting', w); box.title = w ? 'The knob is waiting: turn it to (or past) this value to pick it up' : ''; }
     const g = $('kg' + i), ph = knobs.phys[i];
     g.hidden = !w || ph < 0;
     if (!g.hidden) g.style.left = (ph / 4095 * 100) + '%';
-    $('ks' + i).textContent = w ? 'knob at ' + knobText(i, ph) + ', turn to pick up' : (i === 0 && on && knobs.sw === 2 ? 'switch up: locked' : '');
+    $('ks' + i).textContent = slotMode ? 'switch up: Main chooses the layout' : w ? 'knob at ' + knobText(i, ph) + ', turn to pick up' : '';
   }
   document.querySelectorAll('#swpos span').forEach((s) => s.classList.toggle('on', on ? +s.dataset.sw === knobs.sw : (+s.dataset.sw === (simLock ? 2 : 1))));
   ['sim-k', 'sim-play', 'sim-lock', 'sim-scramble'].forEach((id) => { $(id).hidden = on; });
@@ -604,6 +632,62 @@ function renderKnobs() {
   $('knob-line').textContent = on
     ? (knobs.waiting.some(Boolean) ? 'A knob is waiting to pick up the value set here. The orange line shows where the module’s knob is: turn it to (or past) the slider’s value.' : 'The sliders follow the module’s knobs. Moving one here sets that value on the card; the knob then picks up from it.')
     : 'Simulating: the sliders stand in for the module’s knobs.';
+}
+
+// ---------------------------------------------------------------- layout slots on the card
+function renderSlots() {
+  const el = $('slot-list'), on = link.cardOnline && slots.list;
+  $('slot-name').disabled = !on;
+  if (!on) {
+    el.innerHTML = '<div class="caption">' + (link.cardOnline ? 'Reading the card’s layouts…' : 'Connect the card to see the six layouts saved on it.') + '</div>';
+    $('slot-caption').textContent = '';
+    return;
+  }
+  el.innerHTML = '';
+  slots.list.forEach((sl, i) => {
+    const cur = i === slots.current;
+    const row = document.createElement('div');
+    row.className = 'slot' + (cur ? ' cur' : '') + (sl.used ? '' : ' empty');
+    const strip = sl.used ? '<div class="strip" title="' + sl.loops.length + ' loop' + (sl.loops.length === 1 ? '' : 's') + ': ' + sl.loops.join(' + ') + ' bits">'
+      + sl.loops.map(n => '<span style="width:' + (n / REG * 100) + '%"></span>').join('') + '</div>' : '<div class="strip"></div>';
+    const tag = cur ? (sl.used ? (slots.edited ? 'playing, edited' : 'playing') : 'playing, not saved') : '';
+    row.innerHTML = '<span class="num" title="LED ' + i + ' on the module">' + (i + 1) + '</span>'
+      + '<div class="nm"><b></b><span class="tag">' + tag + '</span></div>'
+      + strip
+      + '<div class="acts">'
+      + (sl.used ? '<button data-a="load"' + (cur && !slots.edited ? ' disabled' : '') + ' title="Play this layout and its saved register pattern">' + (cur ? 'Reload' : 'Load') + '</button>' : '')
+      + '<button data-a="save" title="Save what is playing into this slot, with the name above">Save here</button>'
+      + (sl.used ? '<button data-a="rename" title="Give this slot the name above">Rename</button>' : '')
+      + (sl.used ? '<button data-a="clear" class="' + (slots.confirmClear === i ? 'sure' : '') + '">' + (slots.confirmClear === i ? 'Clear: sure?' : 'Clear') + '</button>' : '')
+      + '</div>';
+    row.querySelector('.nm b').textContent = sl.used ? (sl.name || 'Layout ' + (i + 1)) : 'Empty';
+    row.querySelectorAll('button').forEach((b) => b.onclick = () => slotAction(b.dataset.a, i));
+    el.appendChild(row);
+  });
+  $('slot-caption').textContent = 'With the switch up, Main chooses between these on the module. Save here keeps the layout and register pattern playing now, under the name above.';
+}
+
+function saveSlot(i) {
+  sendConfig(); // the card saves what it is playing: make sure it has the latest edits
+  sendRaw(sysex(CMD.SAVE, [i, ...nameBytes($('slot-name').value.trim())]));
+  say('Saving into slot ' + (i + 1) + '…');
+}
+
+function slotAction(a, i) {
+  if (a !== 'clear') slots.confirmClear = -1;
+  if (a === 'load') { sendRaw(sysex(CMD.LOAD_SLOT, [i])); say('Loading slot ' + (i + 1) + '…'); }
+  else if (a === 'save') saveSlot(i);
+  else if (a === 'rename') {
+    const n = $('slot-name').value.trim();
+    if (!n) { say('Type a name above first.', true); return; }
+    sendRaw(sysex(CMD.RENAME_SLOT, [i, ...nameBytes(n)]));
+  } else if (a === 'clear') {
+    // Two clicks: the first asks, the second clears
+    if (slots.confirmClear !== i) { slots.confirmClear = i; renderSlots(); setTimeout(() => { if (slots.confirmClear === i) { slots.confirmClear = -1; renderSlots(); } }, 3000); return; }
+    slots.confirmClear = -1;
+    sendRaw(sysex(CMD.CLEAR_SLOT, [i]));
+    say('Cleared slot ' + (i + 1) + '.' + (i === slots.current ? ' Its layout keeps playing until you load another.' : ''));
+  }
 }
 
 // ---------------------------------------------------------------- rendering
@@ -983,6 +1067,7 @@ function attachRangeDrag(i) {
 let sendTimer = 0;
 function changed() {
   dirty = true;
+  if (!slots.edited && slots.list) { slots.edited = true; requestAnimationFrame(renderSlots); }
   render();
   // Every edit goes to a connected card straight away (batched while dragging)
   if (link.cardOnline) { clearTimeout(sendTimer); sendTimer = setTimeout(sendConfig, 60); }
@@ -1039,8 +1124,14 @@ function fromJSON(text) {
 }
 
 // ---------------------------------------------------------------- WebMIDI (protocol: ../sysex.h)
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 5;
-const CMD = { HELLO: 1, STATE: 2, SET_CONFIG: 3, SAVE: 4, SET_REG: 5, RESET: 6, STATUS: 7, SAVED: 8, PING: 9, KNOB: 10 };
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 6;
+const CMD = { HELLO: 1, STATE: 2, SET_CONFIG: 3, SAVE: 4, SET_REG: 5, RESET: 6, STATUS: 7, SAVED: 8, PING: 9, KNOB: 10,
+  LOAD_SLOT: 11, CLEAR_SLOT: 12, GET_SLOTS: 13, SLOTS: 14, RENAME_SLOT: 15 };
+const NUM_SLOTS = 6, NAME_LEN = 16;
+// The card's layout slots, from its SLOTS messages (null until it sends them)
+const slots = { list: null, current: -1, edited: false, confirmClear: -1, announced: -1, justSaved: false };
+// Names travel as 16 bytes of printable 7-bit ASCII
+function nameBytes(t) { const b = []; for (const ch of (t || '').slice(0, NAME_LEN)) { const c = ch.charCodeAt(0); b.push(c >= 32 && c < 127 ? c : 63); } while (b.length < NAME_LEN) b.push(0); return b; }
 const link = { access: null, card: { in: null, out: null }, cardOnline: false, pingTimer: 0, sysexOn: false, sysexBuf: [], lastStatus: 0, lastTick: -1 };
 
 function say(text, isErr) { const m = $('msg'); m.textContent = text || ''; m.className = isErr ? 'err' : ''; }
@@ -1084,13 +1175,15 @@ function scanPorts() {
     link.pingTimer = setInterval(() => sendRaw(sysex(CMD.PING, [])), 1000);
     sendRaw(sysex(CMD.PING, []));
     setStatus('ok', 'Palette card');
-    if (!wasOnline) { say('Card connected. Reading its layout…'); sendRaw(sysex(CMD.HELLO, [])); } // the card is the source of truth: read it
+    if (!wasOnline) { say('Card connected. Reading its layouts…'); sendRaw(sysex(CMD.HELLO, [])); } // the card is the source of truth: read it
   } else {
-    knobs.waiting = [false, false, false]; knobs.notes = null;
+    knobs.waiting = [false, false, false]; knobs.notes = null; knobs.mainSlot = false;
+    slots.list = null; slots.current = -1; slots.announced = -1;
     setStatus('warn', 'No card found');
     say('No “Palette” card found. Use a USB data cable into the Computer’s USB socket, close other apps using it, and power-cycle the module after plugging in.' + note, true);
   }
   render();
+  renderSlots();
 }
 
 function onCardBytes(d) {
@@ -1112,7 +1205,7 @@ function handleCardMessage(m) {
     if (p.length !== 1 + 2 * CONFIG_BYTES + 6) { say('The card sent a state message of an unexpected size: is its firmware a different version?', true); return; }
     const c = deserialise(fromNib(p.slice(1, 1 + 2 * CONFIG_BYTES)));
     if (!c) { say('Could not read the card’s layout.', true); return; }
-    cfg = c; dirty = false;
+    cfg = c; dirty = false; slots.edited = false;
     for (let i = 0; i < 3; i++) knobs.set[i] = get14(p, 1 + 2 * CONFIG_BYTES + 2 * i);
     say('Read the layout from the card.');
     render();
@@ -1127,9 +1220,31 @@ function handleCardMessage(m) {
     knobs.waiting = [!!(p[18] & 8), !!(p[18] & 16), !!(p[18] & 32)];
     for (let i = 0; i < 3; i++) { if (knobs.dragging !== i) knobs.set[i] = get14(p, 19 + 2 * i); knobs.phys[i] = get14(p, 25 + 2 * i); }
     knobs.notes = [p[32], p[33]];
+    knobs.mainSlot = !!(p[18] & 64);
+    if (p.length >= 36 && slots.list && p[34] !== slots.current) { slots.current = p[34]; renderSlots(); }
     renderLive();
   } else if (cmd === CMD.SAVED) {
-    say('Saved to the card: it keeps this layout and register pattern after power-off.');
+    slots.edited = false; slots.justSaved = true;
+    const sl = slots.list && slots.list[p[0]], nm = $('slot-name').value.trim() || (sl && sl.name);
+    say('Saved into slot ' + (p[0] + 1) + (nm ? ', “' + nm + '”' : '') + '. The card keeps it, and starts with it, after power-off.');
+  } else if (cmd === CMD.SLOTS && p.length >= 2 + NUM_SLOTS * (2 + 8 + NAME_LEN)) {
+    const had = !!slots.list;
+    slots.current = p[1];
+    slots.list = [];
+    for (let i = 0; i < p[0] && i < NUM_SLOTS; i++) {
+      const o = 2 + i * (2 + 8 + NAME_LEN);
+      const name = String.fromCharCode(...p.slice(o + 10, o + 10 + NAME_LEN).filter(c => c)).trim();
+      slots.list.push({ used: !!p[o], loops: p.slice(o + 2, o + 2 + p[o + 1]), name });
+    }
+    // Say when the card moves to another slot (Main with the switch up, or
+    // a Load), whichever order its messages arrive in; a save says so itself
+    if (had && slots.current !== slots.announced && !slots.justSaved) {
+      const sl = slots.list[slots.current];
+      say('The card is playing slot ' + (slots.current + 1) + (sl && sl.name ? ', “' + sl.name + '”' : '') + '.');
+    }
+    slots.announced = slots.current; slots.justSaved = false;
+    if (!$('slot-name').value || document.activeElement !== $('slot-name')) $('slot-name').value = (slots.list[slots.current] || {}).name || '';
+    renderSlots();
   }
 }
 
@@ -1162,7 +1277,7 @@ function wire() {
   $('btn-rescan').onclick = scanPorts;
   $('btn-read').onclick = () => sendRaw(sysex(CMD.HELLO, []));
   $('btn-send').onclick = () => { sendConfig(); say('Sent the layout to the card.'); };
-  $('btn-save').onclick = () => { sendConfig(); sendRaw(sysex(CMD.SAVE, [])); say('Saving to the card…'); };
+  $('btn-save').onclick = () => saveSlot(slots.current >= 0 ? slots.current : 0);
   $('btn-reset').onclick = () => {
     cfg = defaultConfig(); dirty = false;
     if (link.cardOnline) sendRaw(sysex(CMD.RESET, [])); // the card replies with its new state
@@ -1203,7 +1318,7 @@ function wire() {
   else say('Simulating. Connect the card to edit it live.');
 }
 
-buildStatic(); buildCollapsers(); wire(); render(); setStatus('', 'Not connected'); requestAnimationFrame(frame);
+buildStatic(); buildCollapsers(); wire(); render(); renderSlots(); setStatus('', 'Not connected'); requestAnimationFrame(frame);
 </script>
 </body>
 </html>

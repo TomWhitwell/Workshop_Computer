@@ -9,11 +9,15 @@
 // high nibble first.
 //
 // Web -> card
-//   HELLO      01                         card replies with STATE
+//   HELLO      01                         card replies with STATE and SLOTS
 //   SET_CONFIG 03 version cfg[261 x 2]    the whole layout (see main.cpp
 //                                         Serialise), applied at once
-//   SAVE       04                         save layout + register to flash;
-//                                         card replies SAVED
+//   SAVE       04 slot name[16]           save the playing layout + register
+//                                         into a slot (0-5) with a name (7-bit
+//                                         ASCII, 0-padded; empty keeps the old
+//                                         one) and play from it; no payload =
+//                                         the slot playing. Card replies SAVED
+//                                         and SLOTS
 //   SET_REG    05 reg[8 x 2]              the 64-bit register, little endian
 //   RESET      06                         factory layout; card replies STATE
 //   KNOB       0A knob value(2)           set a knob setting from the editor,
@@ -21,25 +25,34 @@
 //                                         The physical knob then does nothing
 //                                         until it is turned to (or past) the
 //                                         new value: soft takeover
+//   LOAD_SLOT  0B slot                    play a slot; card replies STATE, SLOTS
+//   CLEAR_SLOT 0C slot                    empty a slot; card replies SLOTS
+//   GET_SLOTS  0D                         card replies SLOTS
+//   RENAME_SLOT 0F slot name[16]          card replies SLOTS
 //   PING       09                         sent every second; STATUS flows while
 //                                         pings keep arriving
 //
 // Card -> web
 //   STATE      02 version cfg[261 x 2] settings[3 x 2]
 //   STATUS     07 reg[8 x 2] tick trig flags settings[3 x 2] knobs[3 x 2]
-//                 prob note1 note2
+//                 prob note1 note2 slot used
 //              tick      clock steps so far, low 7 bits (changes = a step)
 //              trig      envelope triggers so far, low 7 bits
 //              flags     bits 0-1 switch (0 down, 1 middle, 2 up), bit 2
 //                        external clock on Pulse In 1, bits 3-5 the Main, X
-//                        and Y knob is waiting to pick up its setting
+//                        and Y knob is waiting to pick up its setting, bit 6
+//                        Main is choosing a layout slot (switch up)
 //              settings  Main (randomness), X (transpose), Y (clock rate)
 //                        as the card is using them, 0-4095
 //              knobs     where the physical knobs are, 0-4095
 //              prob      bit flip probability, 0-127 (127 = always)
+//              slot      the slot playing (last loaded or saved), 0-5
+//              used      bit n: slot n holds a layout
 //              note1/2   MIDI notes the oscillators are heading for,
 //                        transpose and CV In 1 included
-//   SAVED      08                         flash write finished
+//   SAVED      08 slot                    flash write finished
+//   SLOTS      0E count current then per slot: used, number of loops,
+//                 8 loop lengths, name[16]
 
 #ifndef PALETTE_SYSEX_H
 #define PALETTE_SYSEX_H
@@ -51,7 +64,7 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x50;
-static constexpr uint8_t kVersion = 5;
+static constexpr uint8_t kVersion = 6;
 
 enum Cmd : uint8_t
 {
@@ -65,6 +78,11 @@ enum Cmd : uint8_t
 	Saved = 0x08,
 	Ping = 0x09,
 	Knob = 0x0A,
+	LoadSlot = 0x0B,
+	ClearSlot = 0x0C,
+	GetSlots = 0x0D,
+	Slots = 0x0E,
+	RenameSlot = 0x0F,
 };
 
 // Collects one SysEx message from a byte stream.  Feed() returns true when
@@ -146,7 +164,7 @@ inline void GetNibbles(uint8_t *out, const uint8_t *in, int n)
 	for (int i = 0; i < n; i++) out[i] = uint8_t(((in[2 * i] & 0x0F) << 4) | (in[2 * i + 1] & 0x0F));
 }
 
-static constexpr int kStatusPayload = 16 + 1 + 1 + 1 + 6 + 6 + 1 + 2;
+static constexpr int kStatusPayload = 16 + 1 + 1 + 1 + 6 + 6 + 1 + 2 + 2;
 
 } // namespace sysex
 

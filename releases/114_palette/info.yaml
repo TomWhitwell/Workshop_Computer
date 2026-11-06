@@ -3,7 +3,7 @@ Name: Palette
 short-description: A synth voice whose every parameter is read from a Turing-Machine-style shift register
 Language: C++ (Pico SDK + ComputerCard)
 Creator: XponentOneAudio
-Version: 0.5.0
+Version: 0.6.0
 Status: WIP
 License: MIT
 Editor: web
@@ -29,7 +29,8 @@ summary: |
   windows of bits on a 64-bit Turing-Machine-style shift register. The web editor splits the
   register into 1-8 independently looping, independently clocked loops and lets you drag each
   parameter onto any range of bits, with its own output range. Assignments may overlap and may
-  span loop boundaries.
+  span loop boundaries. Six layouts can be saved on the card and chosen with the Main knob while
+  the switch is up.
 
 panel:
   inputs:
@@ -86,8 +87,8 @@ panel:
 controls:
   switch:
     up:
-      name: Lock
-      description: No bits flip; every loop repeats
+      name: Lock / Layout
+      description: No bits flip; every loop repeats. Main chooses one of six layout slots saved on the card
     middle:
       name: Run
       description: Main knob sets how often bits flip
@@ -95,7 +96,18 @@ controls:
       name: Scramble
       description: Randomise every bit inside a loop
   knobs:
-    - main:
+    - when: { z: up }
+      main:
+        name: Layout
+        description: Chooses one of six layout slots (six zones, slot 1 fully CCW). Flicking the switch up shows the playing slot on the LEDs; a layout loads once Main is turned into another slot's zone. Empty slots blink and load nothing. Back in the middle, Main picks up its randomness setting again
+      x:
+        name: Transpose
+        description: 0 to +24 semitones
+      y:
+        name: Clock Rate
+        description: Internal clock, about 1 to 16 steps per second
+    - when: { z: middle }
+      main:
         name: Randomness
         description: Noon = random, fully CW = locked, fully CCW = locked and inverting (repeats at twice the loop length). Main, X and Y pick up (soft takeover) after the editor sets their value
       x:
@@ -105,6 +117,12 @@ controls:
         name: Clock Rate
         description: Internal clock, about 1 to 16 steps per second
   leds:
+    - when: { z: up }
+      display: list
+      items:
+        - id: LED0-5
+          name: Layout Slot
+          description: For 1.5 s after a layout is chosen, the LED of its slot lights (blinks if the slot is empty)
     - display: list
       items:
         - id: LED0-3

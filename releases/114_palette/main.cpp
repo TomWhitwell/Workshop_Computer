@@ -55,7 +55,9 @@
                 The editor can set these three too; the knob then picks up
                 (soft takeover) once turned to the new value. LED 5 blinks
                 fast while a knob is waiting.
-    Z switch    Up = lock all loops, Middle = normal, Down = scramble register
+    Z switch    Up = lock all loops, and Main chooses one of six layout slots
+                saved on the card (its LED lights for 1.5 s); Middle = normal;
+                Down = scramble register
     Pulse In 1  External clock
     Pulse In 2  Extra envelope trigger
     CV In 1     Pitch, 1V/oct (quantised to semitones)
@@ -90,7 +92,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Firmware / protocol versions
 
-constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 5, FW_PATCH = 0;
+constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 6, FW_PATCH = 0;
 constexpr uint8_t CONFIG_FORMAT = 4;   // bump when the serialised layout changes
 
 constexpr int MAX_LOOPS = 8;
@@ -304,17 +306,43 @@ static bool Deserialise(Config &c, const uint8_t *b)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Flash storage: last 4 kB sector of the card
+// Flash storage: the last 4 kB sector of the card holds six layout slots.
+// Each slot keeps a layout, the register pattern it was saved with, and a
+// name. The card starts up playing the slot it last played.
 
 constexpr uint32_t FLASH_OFFSET = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
-constexpr uint32_t FLASH_MAGIC = 0x50414C34; // "PAL4"
+constexpr uint32_t STORE_MAGIC = 0x534C4150;  // "PALS"
+constexpr int NUM_SLOTS = 6;                  // one per LED
+constexpr int NAME_LEN = 16;                  // 7-bit ASCII, 0-padded
 
-struct FlashImage
+struct SlotImage
+{
+	uint8_t used;
+	char name[NAME_LEN];
+	uint8_t cfg[CONFIG_BYTES];
+	uint8_t reg[8];    // the register pattern, little endian
+};
+
+struct Store
+{
+	uint32_t magic;
+	uint8_t format;    // CONFIG_FORMAT the slots were saved with
+	uint8_t current;   // the slot played at power-up
+	uint8_t pad[2];
+	SlotImage slots[NUM_SLOTS];
+	uint32_t checksum;
+};
+static_assert(sizeof(Store) <= FLASH_SECTOR_SIZE, "slots must fit one flash sector");
+
+// The single-layout image firmware 0.2-0.5 saved, read once to carry a
+// saved layout over into slot 1
+constexpr uint32_t LEGACY_MAGIC = 0x50414C34; // "PAL4"
+struct LegacyImage
 {
 	uint32_t magic;
 	uint8_t cfg[CONFIG_BYTES];
 	uint8_t pad[3];
-	uint64_t reg;      // the register pattern at the time of saving
+	uint64_t reg;
 	uint32_t checksum;
 };
 
@@ -323,6 +351,26 @@ static uint32_t Checksum(const uint8_t *d, int n)
 	uint32_t h = 2166136261u; // FNV-1a
 	for (int i = 0; i < n; i++) { h ^= d[i]; h *= 16777619u; }
 	return h;
+}
+
+static void SetName(char *dst, const char *src)
+{
+	memset(dst, 0, NAME_LEN);
+	for (int i = 0; i < NAME_LEN && src[i]; i++) dst[i] = char(src[i] >= 32 && src[i] < 127 ? src[i] : '?');
+}
+
+static void PutSlot(SlotImage &sl, const Config &c, uint64_t reg)
+{
+	sl.used = 1;
+	Serialise(c, sl.cfg);
+	for (int i = 0; i < 8; i++) sl.reg[i] = uint8_t(reg >> (8 * i));
+}
+
+static uint64_t SlotReg(const SlotImage &sl)
+{
+	uint64_t r = 0;
+	for (int i = 7; i >= 0; i--) r = (r << 8) | sl.reg[i];
+	return r;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -530,16 +578,16 @@ public:
 		uint64_t id = UniqueCardID();
 		rng = uint32_t(id ^ (id >> 32)) | 1u;
 
-		// Load saved settings, or defaults on a fresh card
+		// Read the layout slots, then play the one played last
+		LoadStore();
 		Config cfg;
-		const FlashImage *img = reinterpret_cast<const FlashImage *>(XIP_BASE + FLASH_OFFSET);
 		bool loaded = false;
-		if (img->magic == FLASH_MAGIC &&
-			img->checksum == Checksum(reinterpret_cast<const uint8_t *>(img), offsetof(FlashImage, checksum)))
+		const SlotImage &cur = store.slots[store.current];
+		if (cur.used)
 		{
 			uint8_t b[CONFIG_BYTES];
-			memcpy(b, img->cfg, CONFIG_BYTES);
-			if (Deserialise(cfg, b)) { reg = img->reg; loaded = true; }
+			memcpy(b, cur.cfg, CONFIG_BYTES);
+			if (Deserialise(cfg, b)) { reg = SlotReg(cur); loaded = true; }
 		}
 		if (!loaded)
 		{
@@ -547,6 +595,8 @@ public:
 			ValidateConfig(cfg);
 			reg = (uint64_t(Rand()) << 32) | Rand();
 		}
+		currentSlot = store.current;
+		UpdateUsedMask();
 		shadowCfg = cfg;
 		BuildEngine(engines[0], cfg);
 		eng = &engines[0];
@@ -858,8 +908,16 @@ protected:
 
 	// LEDs: bits 0..3 of the register, clock, volume envelope.
 	// LED 5 blinks fast instead while a knob is waiting to pick up.
+	// For 1.5 s after a layout is chosen, they show its slot instead: that
+	// slot's LED lit, or blinking if the slot is empty.
 	void UpdateLeds()
 	{
+		if (int32_t(slotLedUntil - frame) > 0)
+		{
+			bool on = !slotLedEmpty || ((frame >> 12) & 1);
+			for (int i = 0; i < 6; i++) LedOn(i, i == slotLedShow && on);
+			return;
+		}
 		uint32_t lo = uint32_t(reg);
 		for (int i = 0; i < 4; i++) LedOn(i, (lo >> i) & 1);
 		LedOn(4, clockPulse > 0);
@@ -875,7 +933,8 @@ protected:
 		Switch sw = SwitchVal();
 		snap.flags = uint8_t((sw == Up ? 2 : sw == Middle ? 1 : 0)
 			| (Connected(Input::Pulse1) ? 4 : 0)
-			| (knobLatched[KMain] ? 0 : 8) | (knobLatched[KX] ? 0 : 16) | (knobLatched[KY] ? 0 : 32));
+			| (knobLatched[KMain] ? 0 : 8) | (knobLatched[KX] ? 0 : 16) | (knobLatched[KY] ? 0 : 32)
+			| (mainSelectsSlot ? 64 : 0));
 		for (int i = 0; i < 3; i++) { snap.setting[i] = settings[i]; snap.knob[i] = lastKnob[i]; }
 		snap.note1 = uint8_t(curNote1); snap.note2 = uint8_t(curNote2);
 		__dmb(); stateSeq++;
@@ -904,6 +963,16 @@ protected:
 		int32_t k = MapKnob(KnobVal(knobs[i]));
 		if (!knobStarted[i]) { settings[i] = k; lastKnob[i] = k; knobStarted[i] = true; return; }
 
+		// Switch up locks the loops, so Main has nothing to do: it chooses a
+		// layout slot instead. Back in the middle, Main picks up its
+		// randomness setting again.
+		if (i == KMain)
+		{
+			bool up = SwitchVal() == Up;
+			if (up) { SelectSlotWithMain(k); lastKnob[i] = k; return; }
+			if (mainSelectsSlot) { mainSelectsSlot = false; knobLatched[KMain] = false; }
+		}
+
 		int32_t req = knobRequest[i];
 		if (req >= 0) { settings[i] = req; knobRequest[i] = -1; knobLatched[i] = false; }
 
@@ -919,6 +988,35 @@ protected:
 		lastKnob[i] = k;
 	}
 
+	// Main chooses one of six slots: six zones round the knob. Flicking the
+	// switch up just shows the current slot; a layout only changes once Main
+	// is turned into a different zone, and only if that slot has one.
+	void SelectSlotWithMain(int32_t k)
+	{
+		// The zone k is clearly in (48 away from a boundary), or -1
+		int32_t lo = ((k > 48 ? k - 48 : 0) * NUM_SLOTS) >> 12;
+		int32_t hi = ((k < 4047 ? k + 48 : 4095) * NUM_SLOTS) >> 12;
+		int32_t zone = lo == hi ? lo : -1;
+		if (!mainSelectsSlot)
+		{
+			mainSelectsSlot = true;
+			slotZone = zone;
+			ShowSlot(currentSlot);
+			return;
+		}
+		if (zone < 0 || zone == slotZone) return;
+		slotZone = zone;
+		ShowSlot(zone);
+		if ((slotUsedMask >> zone) & 1) slotRequest = int8_t(zone); // core 1 loads it
+	}
+
+	void ShowSlot(int s)
+	{
+		slotLedShow = s;
+		slotLedEmpty = !((slotUsedMask >> s) & 1);
+		slotLedUntil = frame + 72000; // 1.5 s
+	}
+
 	static inline uint32_t PitchToInc(int32_t pitchQ16)
 	{
 		int32_t i = pitchQ16 >> 16;
@@ -931,12 +1029,14 @@ protected:
 	// USB, on core 1 (same pattern as the CVSeq and WaveSeq cards)
 
 public:
-	void StartUSB()
+	void StartCore1()
 	{
 		gCard = this;
 		// Only talk to a computer: if the Computer is supplying USB power
-		// (host side), there is no editor to talk to.
-		if (USBPowerState() != DFP) multicore_launch_core1(Core1Device);
+		// (host side), there is no editor to talk to. Core 1 runs either way,
+		// as it also loads and saves layout slots.
+		usbDevice = USBPowerState() != DFP;
+		multicore_launch_core1(Core1Main);
 	}
 
 private:
@@ -946,13 +1046,17 @@ private:
 		return pinged && (time_us_32() - lastPingUs) < 3000000;
 	}
 
-	static void Core1Device()
+	static void Core1Main()
 	{
-		tusb_init();
+		Palette &c = *gCard;
+		if (c.usbDevice) tusb_init();
 		static sysex::Parser parser;
 		uint32_t lastStatusUs = 0;
 		while (true)
 		{
+			c.ServiceSlots();
+			if (!c.usbDevice) continue;
+
 			tud_task();
 			uint8_t buf[64];
 			while (tud_midi_available())
@@ -960,18 +1064,149 @@ private:
 				uint32_t n = tud_midi_stream_read(buf, sizeof(buf));
 				if (n == 0) break;
 				for (uint32_t i = 0; i < n; i++)
-					if (parser.Feed(buf[i])) gCard->OnSysEx(parser.cmd, parser.payload, parser.length);
+					if (parser.Feed(buf[i])) c.OnSysEx(parser.cmd, parser.payload, parser.length);
 			}
 
 			// Live status, about 30 times a second, while the editor is there
 			uint32_t now = time_us_32();
-			if (gCard->WebLinked() && now - lastStatusUs >= 33000)
+			if (c.WebLinked() && now - lastStatusUs >= 33000)
 			{
 				lastStatusUs = now;
 				static uint8_t msg[4 + sysex::kStatusPayload + 1];
-				Write(msg, gCard->EncodeStatus(msg));
+				Write(msg, c.EncodeStatus(msg));
 			}
 		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	// Layout slots (core 1, apart from LoadStore at power-up)
+
+	void LoadStore()
+	{
+		const Store *f = reinterpret_cast<const Store *>(XIP_BASE + FLASH_OFFSET);
+		if (f->magic == STORE_MAGIC && f->format == CONFIG_FORMAT && f->current < NUM_SLOTS
+			&& f->checksum == Checksum(reinterpret_cast<const uint8_t *>(f), offsetof(Store, checksum)))
+		{
+			memcpy(&store, f, sizeof(Store));
+			return;
+		}
+		// A fresh card: slot 1 is the factory layout, or the layout saved by
+		// earlier firmware, which kept just one
+		memset(&store, 0, sizeof(Store));
+		store.magic = STORE_MAGIC;
+		store.format = CONFIG_FORMAT;
+		const LegacyImage *old = reinterpret_cast<const LegacyImage *>(XIP_BASE + FLASH_OFFSET);
+		Config c;
+		uint8_t b[CONFIG_BYTES];
+		memcpy(b, old->cfg, CONFIG_BYTES);
+		if (old->magic == LEGACY_MAGIC
+			&& old->checksum == Checksum(reinterpret_cast<const uint8_t *>(old), offsetof(LegacyImage, checksum))
+			&& Deserialise(c, b))
+		{
+			PutSlot(store.slots[0], c, old->reg);
+			SetName(store.slots[0].name, "Saved");
+		}
+		else
+		{
+			DefaultConfig(c);
+			ValidateConfig(c);
+			PutSlot(store.slots[0], c, (uint64_t(Rand()) << 32) | Rand());
+			SetName(store.slots[0].name, "Factory");
+		}
+	}
+
+	void UpdateUsedMask()
+	{
+		uint8_t m = 0;
+		for (int i = 0; i < NUM_SLOTS; i++) if (store.slots[i].used) m |= uint8_t(1 << i);
+		slotUsedMask = m;
+	}
+
+	// Called round core 1's loop: load a slot the Main knob chose, and note
+	// which slot is playing in flash once it has stayed put for 5 s (so a
+	// sweep of the knob doesn't wear the flash).
+	void ServiceSlots()
+	{
+		int r = slotRequest;
+		if (r >= 0) { slotRequest = -1; LoadSlot(r); }
+		if (store.current != currentSlot && time_us_32() - slotChangedUs > 5000000)
+		{
+			store.current = uint8_t(currentSlot);
+			WriteStore();
+		}
+	}
+
+	bool LoadSlot(int s)
+	{
+		if (s < 0 || s >= NUM_SLOTS || !store.slots[s].used) return false;
+		uint8_t b[CONFIG_BYTES];
+		memcpy(b, store.slots[s].cfg, CONFIG_BYTES);
+		Config c;
+		if (!Deserialise(c, b)) return false;
+		QueueConfig(c);
+		while (regPending) tight_loop_contents();
+		pendingReg = SlotReg(store.slots[s]); __dmb(); regPending = true;
+		currentSlot = s;
+		slotChangedUs = time_us_32();
+		if (usbDevice && WebLinked()) { SendState(); SendSlots(); }
+		return true;
+	}
+
+	// Save the playing layout and register into a slot, and play from it
+	void SaveSlot(int s, const char *name)
+	{
+		SlotImage &sl = store.slots[s];
+		PutSlot(sl, shadowCfg, ReadSnapshot().reg);
+		if (name && name[0]) SetName(sl.name, name);
+		else if (!sl.name[0]) { char n[NAME_LEN] = "Layout 1"; n[7] = char('1' + s); SetName(sl.name, n); }
+		currentSlot = s;
+		store.current = uint8_t(s);
+		WriteStore();
+		UpdateUsedMask();
+	}
+
+	// Write all six slots to flash. The audio core runs entirely from RAM
+	// (copy_to_ram), so it keeps playing while flash is busy; only core 1's
+	// own interrupts need stopping.
+	void __not_in_flash_func(WriteStore)()
+	{
+		static uint8_t sector[FLASH_SECTOR_SIZE] __attribute__((aligned(4)));
+		store.magic = STORE_MAGIC;
+		store.format = CONFIG_FORMAT;
+		store.checksum = Checksum(reinterpret_cast<const uint8_t *>(&store), offsetof(Store, checksum));
+		memset(sector, 0xFF, sizeof(sector));
+		memcpy(sector, &store, sizeof(Store));
+		uint32_t ints = save_and_disable_interrupts();
+		flash_range_erase(FLASH_OFFSET, FLASH_SECTOR_SIZE);
+		flash_range_program(FLASH_OFFSET, sector, FLASH_SECTOR_SIZE);
+		restore_interrupts(ints);
+	}
+
+	// SLOTS: count, current, then per slot: used, number of loops, 8 loop
+	// lengths, name[16]
+	void SendSlots()
+	{
+		static uint8_t msg[4 + 2 + NUM_SLOTS * (2 + MAX_LOOPS + NAME_LEN) + 1];
+		int n = sysex::Header(msg, sysex::Slots);
+		msg[n++] = NUM_SLOTS;
+		msg[n++] = uint8_t(currentSlot);
+		for (int s = 0; s < NUM_SLOTS; s++)
+		{
+			const SlotImage &sl = store.slots[s];
+			msg[n++] = sl.used ? 1 : 0;
+			// cfg bytes: [1] number of loops, then (length, divider, chaos) x 8
+			msg[n++] = sl.used ? uint8_t(sl.cfg[1] & 0x7F) : 0;
+			for (int l = 0; l < MAX_LOOPS; l++) msg[n++] = sl.used ? uint8_t(sl.cfg[2 + 3 * l] & 0x7F) : 0;
+			for (int i = 0; i < NAME_LEN; i++) msg[n++] = uint8_t(sl.name[i] & 0x7F);
+		}
+		msg[n++] = 0xF7;
+		Write(msg, n);
+	}
+
+	static void GetName(char *dst, const uint8_t *p)
+	{
+		for (int i = 0; i < NAME_LEN; i++) dst[i] = char(p[i] & 0x7F);
+		dst[NAME_LEN] = 0;
 	}
 
 	// Send a whole message, waiting briefly for room if need be. If the
@@ -998,6 +1233,32 @@ private:
 		{
 		case sysex::Hello:
 			SendState();
+			SendSlots();
+			break;
+		case sysex::LoadSlot:
+			if (len >= 1) LoadSlot(p[0]);
+			break;
+		case sysex::ClearSlot:
+			if (len >= 1 && p[0] < NUM_SLOTS)
+			{
+				memset(&store.slots[p[0]], 0, sizeof(SlotImage));
+				WriteStore();
+				UpdateUsedMask();
+				SendSlots();
+			}
+			break;
+		case sysex::RenameSlot:
+			if (len >= 1 + NAME_LEN && p[0] < NUM_SLOTS && store.slots[p[0]].used)
+			{
+				char name[NAME_LEN + 1];
+				GetName(name, p + 1);
+				SetName(store.slots[p[0]].name, name);
+				WriteStore();
+				SendSlots();
+			}
+			break;
+		case sysex::GetSlots:
+			SendSlots();
 			break;
 		case sysex::SetConfig:
 			if (len == 1 + 2 * CONFIG_BYTES && p[0] == sysex::kVersion)
@@ -1010,11 +1271,18 @@ private:
 			break;
 		case sysex::Save:
 		{
-			SaveToFlash();
-			uint8_t msg[5];
+			// [slot, name x 16]; with no payload, the slot that is playing
+			int s = len >= 1 ? p[0] : currentSlot;
+			if (s >= NUM_SLOTS) break;
+			char name[NAME_LEN + 1] = {};
+			if (len >= 1 + NAME_LEN) GetName(name, p + 1);
+			SaveSlot(s, name);
+			uint8_t msg[6];
 			int n = sysex::Header(msg, sysex::Saved);
+			msg[n++] = uint8_t(s);
 			msg[n++] = 0xF7;
 			Write(msg, n);
+			SendSlots();
 			break;
 		}
 		case sysex::SetReg:
@@ -1113,29 +1381,10 @@ private:
 		out[n++] = uint8_t(Clamp(s.prob >> 9, 0, 127));
 		out[n++] = s.note1 & 0x7F;
 		out[n++] = s.note2 & 0x7F;
+		out[n++] = uint8_t(currentSlot & 0x7F);
+		out[n++] = uint8_t(slotUsedMask & 0x7F);
 		out[n++] = 0xF7;
 		return n;
-	}
-
-	// Write config + current register to flash, from core 1. The audio core runs
-	// entirely from RAM (copy_to_ram), so it keeps playing while flash is
-	// busy; we only need to stop core 1's own interrupts.
-	void __not_in_flash_func(SaveToFlash)()
-	{
-		static uint8_t sector[FLASH_SECTOR_SIZE] __attribute__((aligned(4)));
-		memset(sector, 0xFF, sizeof(sector));
-		FlashImage img;
-		memset(&img, 0, sizeof(img));
-		img.magic = FLASH_MAGIC;
-		Serialise(shadowCfg, img.cfg);
-		img.reg = ReadSnapshot().reg;
-		img.checksum = Checksum(reinterpret_cast<const uint8_t *>(&img), offsetof(FlashImage, checksum));
-		memcpy(sector, &img, sizeof(img));
-
-		uint32_t ints = save_and_disable_interrupts();
-		flash_range_erase(FLASH_OFFSET, FLASH_SECTOR_SIZE);
-		flash_range_program(FLASH_OFFSET, sector, FLASH_SECTOR_SIZE);
-		restore_interrupts(ints);
 	}
 
 	// Running state (audio core)
@@ -1187,14 +1436,28 @@ private:
 	volatile uint32_t lastPingUs = 0;
 	volatile bool pinged = false;
 
-	// USB core only
-	Config shadowCfg; // the layout core 1 last handed to the audio core
+	// Layout slots. Main selects one with the switch up (audio core);
+	// core 1 loads and saves them.
+	bool mainSelectsSlot = false;
+	int32_t slotZone = -1;
+	int slotLedShow = 0;
+	bool slotLedEmpty = false;
+	uint32_t slotLedUntil = 0;
+	volatile int8_t slotRequest = -1;   // audio core -> core 1
+	volatile int currentSlot = 0;       // the slot last loaded or saved
+	volatile uint8_t slotUsedMask = 1;  // bit n: slot n holds a layout
+
+	// Core 1 only
+	Config shadowCfg;    // the layout core 1 last handed to the audio core
+	Store store;         // RAM copy of the slots in flash
+	uint32_t slotChangedUs = 0;
+	bool usbDevice = false;
 };
 
 int main()
 {
 	set_sys_clock_khz(144000, true);
 	static Palette card;
-	card.StartUSB();
+	card.StartCore1();
 	card.Run();
 }

@@ -79,7 +79,7 @@ Bits outside every loop never move. Assignments can still read them, as fixed va
 | Main | Randomness (see above) |
 | X | Transpose 0 to +24 semitones |
 | Y | Internal clock, about 1–16 steps/s (used when Pulse In 1 is unplugged) |
-| Switch up | Lock |
+| Switch up | Lock; Main chooses the layout slot (see below) |
 | Switch middle | Run |
 | Switch down | Scramble every bit inside a loop |
 | Pulse In 1 | Clock |
@@ -95,6 +95,28 @@ Bits outside every loop never move. Assignments can still read them, as fixed va
 | LEDs 0–3 | Register bits 0–3 |
 | LED 4 | Clock |
 | LED 5 | Volume envelope; blinks fast while a knob is waiting to pick up |
+| LEDs 0–5 | For 1.5 s after a layout is chosen: the LED of its slot (blinking if the slot is empty) |
+
+## Layout slots
+
+The card keeps six layouts in flash, one per LED. Each slot holds a layout, the register
+pattern it was saved with, and a name (up to 16 characters).
+
+* **On the module:** with the switch up the loops are locked, so Main is free to choose a slot.
+  Its travel is split into six zones, slot 1 fully anticlockwise to slot 6 fully clockwise.
+  Flicking the switch up only shows the playing slot on the LEDs; a layout loads once you turn
+  Main into another slot's zone, and its LED lights for 1.5 s. An empty slot's LED blinks and
+  nothing loads. Back in the middle, Main does nothing until it reaches its randomness setting
+  again (pick-up), so the loops don't suddenly unlock at a different setting.
+* **At power-up** the card plays the slot it last played. (It notes the slot in flash once it has
+  stayed chosen for 5 s, so sweeping Main doesn't wear the flash.)
+* **In the editor**, the *Layouts on the card* panel lists the six slots when the card connects,
+  with their names and loop layouts and the one playing, and follows any change made with Main.
+  *Save here* saves what is playing into a slot under the name typed above the list; *Load*,
+  *Rename* and *Clear* (two clicks) do the rest. **Save to card** in the header saves into the slot
+  that is playing.
+* Firmware before 0.6 kept one layout; the first time 0.6 starts, that layout becomes slot 1,
+  "Saved". A fresh card starts with the factory layout in slot 1.
 
 ## Web editor
 
@@ -115,7 +137,8 @@ layout when it connects, then shows the card's register, knobs and switch about 
   length, clock divider and chaos per loop, and can split, merge or remove loops.
 * Click a state bit to flip it (on the card too, when connected).
 * Every edit goes to a connected card straight away. **Save to card** stores the layout and
-  the current register pattern in flash so they come back after power-off.
+  the current register pattern in the slot that is playing, so they come back after power-off;
+  the *Layouts on the card* panel saves into, loads, renames and clears any of the six slots.
 * Layouts can be exported and imported as JSON.
 
 ## SysEx protocol
@@ -125,15 +148,20 @@ Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> …
 
 | Cmd | Direction | Data |
 |---|---|---|
-| `01` HELLO | editor → card | card replies with STATE |
+| `01` HELLO | editor → card | card replies with STATE and SLOTS |
 | `02` STATE | card → editor | protocol version, layout (261 bytes as nibbles), Main/X/Y settings |
 | `03` SET_CONFIG | editor → card | protocol version, layout (261 bytes as nibbles) |
-| `04` SAVE | editor → card | save layout and register to flash; card replies SAVED (`08`) |
+| `04` SAVE | editor → card | slot, name (16 bytes): save the playing layout and register into a slot and play from it; card replies SAVED (`08`, slot) and SLOTS |
 | `05` SET_REG | editor → card | the register, 8 bytes little endian, as nibbles |
 | `06` RESET | editor → card | factory layout; card replies with STATE |
-| `07` STATUS | card → editor | ~30/s while pings arrive: register, step and trigger counters, switch / external clock / knob-waiting flags, Main/X/Y settings, physical knob positions, flip probability, the two notes |
+| `07` STATUS | card → editor | ~30/s while pings arrive: register, step and trigger counters, switch / external clock / knob-waiting flags, Main/X/Y settings, physical knob positions, flip probability, the two notes, the playing slot and which slots hold layouts |
 | `09` PING | editor → card | every second; keeps STATUS flowing |
 | `0A` KNOB | editor → card | knob (0 Main, 1 X, 2 Y), value 0–4095 as two 7-bit bytes; the knob then picks up |
+| `0B` LOAD_SLOT | editor → card | slot: play it; card replies STATE and SLOTS |
+| `0C` CLEAR_SLOT | editor → card | slot: empty it; card replies SLOTS |
+| `0D` GET_SLOTS | editor → card | card replies SLOTS |
+| `0E` SLOTS | card → editor | count, playing slot, then per slot: used, number of loops, 8 loop lengths, name (16) |
+| `0F` RENAME_SLOT | editor → card | slot, name (16) |
 
 Layout byte layout (`CONFIG_FORMAT` 4): `[0]` format, `[1]` number of loops,
 `[2..25]` 8 × (length, divider, chaos), `[26..27]` scale mask (bit n = n semitones above root),
