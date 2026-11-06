@@ -125,7 +125,7 @@
 
   /* Register grid */
   .gridwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--wave-bg); margin-top: 10px; }
-  .grid { min-width: calc(var(--label-w) + 64 * 13px); }
+  .grid { min-width: calc(var(--label-w) + 64 * 12px); }
   .row { display: flex; align-items: stretch; }
   .row > .lab {
     position: sticky; left: 0; z-index: 2; flex: 0 0 var(--label-w); width: var(--label-w);
@@ -159,6 +159,8 @@
     display: flex; justify-content: center;
   }
   .handle::after { content: ""; width: 4px; margin-block: 6px; border-radius: 2px; background: var(--accent); }
+  /* At the right edge of the register the handle sits inside the grid, so it doesn't widen it */
+  .handle.end { margin-left: -14px; justify-content: flex-end; }
   .bits .trk { height: 28px; display: flex; border-top: 1px solid var(--line); border-bottom: 2px solid var(--line); }
   .bit { flex: 1 1 0; min-width: 0; border-right: 1px solid var(--grid); background: var(--panel); cursor: pointer; position: relative; }
   .bit:nth-child(8n) { border-right-color: var(--line); }
@@ -178,10 +180,14 @@
   .meter .pos { position: absolute; top: -1px; width: 2px; height: 4px; background: var(--c); }
   .bar {
     position: absolute; top: 3px; bottom: 3px; border-radius: 4px; background: var(--c); color: var(--panel);
-    font-size: 11px; font-weight: 600; display: flex; align-items: center; padding: 0 10px; overflow: hidden; white-space: nowrap;
+    font-size: 11px; font-weight: 600; display: flex; align-items: center; padding: 0; overflow: hidden; white-space: nowrap;
     cursor: grab; touch-action: none;
   }
+  /* Padding sits on the label, not the bar, so a 1-bit bar can be as narrow as its bit */
+  .bar .bl { padding: 0 10px; pointer-events: none; }
   .bar .eh { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
+  .bar.one .eh { width: 4px; }
+  .bar.one .eh::after { left: 1px; }
   .bar .eh.l { left: 0; } .bar .eh.r { right: 0; }
   .bar .eh::after { content: ""; position: absolute; top: 5px; bottom: 5px; left: 3px; width: 2px; border-radius: 1px; background: currentColor; opacity: .6; }
   .lane .placeholder { position: absolute; inset: 0; display: flex; align-items: center; padding-left: 8px; font-size: 11px; color: var(--muted); pointer-events: none; }
@@ -640,6 +646,7 @@ function renderLoops() {
   cfg.loops.forEach((l, i) => {
     const h = document.createElement('div'); h.className = 'handle';
     h.style.left = ((starts[i] + l.length) / REG * 100) + '%';
+    if (starts[i] + l.length === REG) h.classList.add('end');
     h.title = i < cfg.loops.length - 1 ? `Drag to move the boundary between L${i + 1} and L${i + 2}` : `Drag to change the length of L${i + 1}`;
     attachBoundaryDrag(h, i);
     trk.appendChild(h);
@@ -656,7 +663,10 @@ function renderLanes() {
     if (p.enabled) {
       const bar = document.createElement('div'); bar.className = 'bar';
       bar.style.left = `calc(${p.start / REG * 100}% + 1px)`; bar.style.width = `calc(${p.width / REG * 100}% - 2px)`;
-      bar.innerHTML = `<span class="eh l"></span>${p.width > 2 ? PARAMS[i].short : ''}${p.popcount && p.width > 4 ? ' Σ' : ''}${p.invert && p.width > 5 ? ' ¬' : ''}<span class="eh r"></span>`;
+      bar.classList.toggle('one', p.width === 1);
+      const label = (p.width > 2 ? PARAMS[i].short : '') + (p.popcount && p.width > 4 ? ' Σ' : '') + (p.invert && p.width > 5 ? ' ¬' : '');
+      // A 1-bit bar gets one slim handle (drag right to widen), leaving its body to grab and move
+      bar.innerHTML = (p.width > 1 ? '<span class="eh l"></span>' : '') + (label ? `<span class="bl">${label}</span>` : '') + '<span class="eh r"></span>';
       bar.title = `${PARAMS[i].name}: bits ${p.start}–${p.start + p.width - 1}${p.popcount ? ', count of set bits' : ''}${p.invert ? ', inverted' : ''}`;
       trk.appendChild(bar);
     } else {
