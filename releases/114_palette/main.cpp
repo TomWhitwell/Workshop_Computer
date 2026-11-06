@@ -41,6 +41,9 @@
                 CCW = locked + inverted (pattern repeats at twice the length)
     X knob      Transpose, 0 – +24 semitones
     Y knob      Internal clock rate (used when Pulse In 1 is unplugged)
+                The editor can set these three too; the knob then picks up
+                (soft takeover) once turned to the new value. LED 5 blinks
+                fast while a knob is waiting.
     Z switch    Up = lock all loops, Middle = normal, Down = scramble register
     Pulse In 1  External clock
     Pulse In 2  Extra envelope trigger
@@ -55,10 +58,11 @@
 
   Code layout
     Core 0 runs ProcessSample() at 48 kHz: clock, shift register, voice.
-    Core 1 runs USB-MIDI: SysEx from the web editor, and flash saves.
+    Core 1 runs USB-MIDI: SysEx from the web editor (protocol in sysex.h),
+    live status to it, and flash saves.
 
-  Code written with AI assistance (Claude), based on Chris Johnson's
-  ComputerCard web_interface example.
+  Code written with AI assistance (Claude), following the USB/SysEx
+  pattern of the CVSeq and WaveSeq cards.
 */
 
 #include "ComputerCard.h"
@@ -66,6 +70,7 @@
 #include "hardware/flash.h"
 #include "hardware/sync.h"
 #include "tusb.h"
+#include "sysex.h"
 #include <cmath>
 #include <cstring>
 #include <cstddef>
@@ -74,7 +79,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Firmware / protocol versions
 
-constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 1, FW_PATCH = 0;
+constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 2, FW_PATCH = 0;
 constexpr uint8_t CONFIG_FORMAT = 1;   // bump when the serialised layout changes
 
 constexpr int MAX_LOOPS = 8;
@@ -421,120 +426,12 @@ static inline uint32_t Popcount64(uint64_t v)
 static inline uint64_t BitMask(int width) { return width >= 64 ? ~0ull : ((1ull << width) - 1); }
 
 ////////////////////////////////////////////////////////////////////////////////
-// USB-MIDI SysEx plumbing (adapted from ComputerCard's web_interface example)
-
-class WebInterfaceComputerCard : public ComputerCard
-{
-public:
-	void StartUSBCore() { instance = this; multicore_launch_core1(core1); }
-	static void core1() { instance->USBCore(); }
-
-	void MIDIStreamWriteBlocking(uint8_t cable, uint8_t const *data, uint32_t size)
-	{
-		uint32_t sent = 0;
-		while (sent < size)
-		{
-			uint32_t n = tud_midi_stream_write(cable, data + sent, size - sent);
-			sent += n;
-			if (!n)
-			{
-				tud_task();
-				if (!tud_midi_mounted()) return; // host went away mid-message
-			}
-		}
-	}
-
-	void SendSysEx(const uint8_t *data, uint32_t size)
-	{
-		if (!tud_midi_mounted()) return;
-		uint8_t header[] = {0xF0, MIDI_MANUFACTURER_ID};
-		uint8_t footer[] = {0xF7};
-		MIDIStreamWriteBlocking(0, header, 2);
-		MIDIStreamWriteBlocking(0, data, size);
-		MIDIStreamWriteBlocking(0, footer, 1);
-	}
-
-	void USBCore()
-	{
-		sysexActive = false;
-		sysexLen = 0;
-		tusb_init();
-		while (1)
-		{
-			tud_task();
-			while (tud_midi_available())
-			{
-				uint32_t n = tud_midi_stream_read(rxBuf, rxBufSize);
-				if (n > 0) ParseMIDIBytes(rxBuf, n);
-			}
-			MIDICore();
-		}
-	}
-
-	void ParseMIDIBytes(uint8_t *buf, unsigned n)
-	{
-		for (unsigned i = 0; i < n; i++)
-		{
-			uint8_t b = buf[i];
-			if (!sysexActive)
-			{
-				if (b == 0xF0) { sysexActive = true; sysexLen = 0; sysexBuf[sysexLen++] = b; }
-			}
-			else
-			{
-				if (sysexLen < sysexBufSize) sysexBuf[sysexLen++] = b;
-				if (b == 0xF7)
-				{
-					if (sysexLen >= 3 && sysexBuf[1] == MIDI_MANUFACTURER_ID)
-						ProcessIncomingSysEx(sysexBuf + 2, sysexLen - 3);
-					sysexActive = false;
-					sysexLen = 0;
-				}
-			}
-		}
-	}
-
-	virtual void MIDICore() {}
-	virtual void ProcessIncomingSysEx(uint8_t *, uint32_t) {}
-
-private:
-	static constexpr unsigned sysexBufSize = 512;
-	static constexpr uint8_t MIDI_MANUFACTURER_ID = 0x7D; // prototyping / private use
-	static constexpr unsigned rxBufSize = 64;
-	bool sysexActive = false;
-	unsigned sysexLen = 0;
-	uint8_t sysexBuf[sysexBufSize];
-	uint8_t rxBuf[rxBufSize];
-	static WebInterfaceComputerCard *instance;
-};
-WebInterfaceComputerCard *WebInterfaceComputerCard::instance = nullptr;
-
-// SysEx message IDs (first data byte). E = editor, F = firmware.
-constexpr uint8_t MSG_HELLO = 0x01;        // E->F  [maj, min, patch]
-constexpr uint8_t MSG_VERSION = 0x02;      // F->E  [maj, min, patch, cfgFormat, maxLoops, numParams]
-constexpr uint8_t MSG_SET_CONFIG = 0x10;   // E->F  [config bytes as nibbles]
-constexpr uint8_t MSG_ACK = 0x11;          // F->E  [request id, status 0 = ok]
-constexpr uint8_t MSG_GET_CONFIG = 0x12;   // E->F
-constexpr uint8_t MSG_CONFIG = 0x13;       // F->E  [config bytes as nibbles]
-constexpr uint8_t MSG_SAVE = 0x14;         // E->F  save running config + register to flash
-constexpr uint8_t MSG_SET_REG = 0x16;      // E->F  [8 register bytes as nibbles]
-constexpr uint8_t MSG_DEFAULTS = 0x17;     // E->F  load factory defaults (not saved)
-constexpr uint8_t MSG_STATE = 0x20;        // F->E  [reg nibbles x16, flags, prob 0..127]
-
-// SysEx can only carry 7-bit bytes, so each 8-bit byte is sent as two nibbles
-static void ToNibbles(const uint8_t *in, int n, uint8_t *out)
-{
-	for (int i = 0; i < n; i++) { out[2 * i] = in[i] >> 4; out[2 * i + 1] = in[i] & 0x0F; }
-}
-static void FromNibbles(const uint8_t *in, int n, uint8_t *out)
-{
-	for (int i = 0; i < n; i++) out[i] = uint8_t(((in[2 * i] & 0x0F) << 4) | (in[2 * i + 1] & 0x0F));
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // The card
 
-class Palette : public WebInterfaceComputerCard
+class Palette;
+static Palette *gCard = nullptr;
+
+class Palette : public ComputerCard
 {
 public:
 	Palette()
@@ -646,15 +543,15 @@ protected:
 		fltEnv.Trigger();
 		volEnv.Trigger();
 		trigPulse = 240; // 5 ms
-		trigFlag = true;
+		trigCount++;
 	}
 
 	// Advance the shift register by one clock tick
 	void Tick()
 	{
-		// Flip probability from Main knob + CV 2 (Turing Machine style).
+		// Flip probability from the Main setting + CV 2 (Turing Machine style).
 		// probQ16 = 65536 means "always flip", 0 means "never flip".
-		int32_t k = Clamp(KnobVal(Main) + CVIn2(), 0, 4095);
+		int32_t k = Clamp(settings[KMain] + CVIn2(), 0, 4095);
 		int32_t probQ16;
 		if (k < 150) probQ16 = 65536;
 		else if (k > 3945) probQ16 = 0;
@@ -688,6 +585,7 @@ protected:
 		// Pick up changes sent from the editor (core 1) between samples
 		if (configPending) { cfg = pendingCfg; __dmb(); configPending = false; ApplyConfig(); }
 		if (regPending) { reg = pendingReg; __dmb(); regPending = false; UpdateParams(0); }
+		HandleKnobs();
 
 		// Z down: scramble the register
 		if (SwitchChanged() && SwitchVal() == Down)
@@ -705,7 +603,7 @@ protected:
 		else
 		{
 			// Y: ~1 Hz (CCW) to ~16 Hz (CW), exponential
-			int32_t yq = KnobVal(Y) * 4;
+			int32_t yq = settings[KY] * 4;
 			int32_t base = 48000 >> (yq >> 12);
 			int32_t period = base - ((base * (yq & 4095)) >> 13);
 			if (++clockCount >= period) { clockCount = 0; Tick(); }
@@ -723,10 +621,11 @@ protected:
 		int32_t cutoff = smooth[3] >> 8, res = smooth[4] >> 8, envAmt = smooth[5] >> 8;
 
 		// Pitch: scale note + X transpose + CV 1 (1V/oct, semitone-quantised)
-		int32_t transpose = (KnobVal(X) * 25) >> 12;
+		int32_t transpose = (settings[KX] * 25) >> 12;
 		int32_t cvSemis = (CVIn1() * 72 + (CVIn1() >= 0 ? 1024 : -1024)) / 2048;
-		int32_t t1 = Clamp(note1 + transpose + cvSemis, 0, 127) << 16;
-		int32_t t2 = Clamp(note2 + transpose + cvSemis, 0, 127) << 16;
+		int32_t n1 = Clamp(note1 + transpose + cvSemis, 0, 127);
+		int32_t n2 = Clamp(note2 + transpose + cvSemis, 0, 127);
+		int32_t t1 = n1 << 16, t2 = n2 << 16;
 		int32_t k = slewCoef[Clamp(paramVal[P_SLEW], 0, 1023)];
 		pitch1 += Mul64(t1 - pitch1, k, 16);
 		pitch2 += Mul64(t2 - pitch2, k, 16);
@@ -774,16 +673,66 @@ protected:
 		if (trigPulse) trigPulse--;
 		if (clockPulse) clockPulse--;
 
-		// LEDs: bits 0..3 of the register, clock, volume envelope
+		// LEDs: bits 0..3 of the register, clock, volume envelope.
+		// LED 5 blinks fast instead while a knob is waiting to pick up.
 		uint32_t lo = uint32_t(reg);
 		for (int i = 0; i < 4; i++) LedOn(i, (lo >> i) & 1);
 		LedOn(4, clockPulse > 0);
-		LedBrightness(5, ve >> 4);
+		bool waiting = !knobLatched[0] || !knobLatched[1] || !knobLatched[2];
+		blink = (blink + 1) % 6000;
+		LedBrightness(5, waiting ? (blink < 3000 ? 4095 : 0) : (ve >> 4));
 
 		// Publish a snapshot for the editor (seqlock: odd = being written)
+		Snapshot &sn = snap;
 		stateSeq++; __dmb();
-		stateReg = reg; stateTick = tickCount; stateProb = probDisplay;
+		sn.reg = reg; sn.tick = tickCount; sn.trig = trigCount; sn.prob = probDisplay;
+		sn.flags = uint8_t((SwitchVal() == Up ? 2 : SwitchVal() == Middle ? 1 : 0)
+			| (Connected(Input::Pulse1) ? 4 : 0)
+			| (knobLatched[KMain] ? 0 : 8) | (knobLatched[KX] ? 0 : 16) | (knobLatched[KY] ? 0 : 32));
+		for (int i = 0; i < 3; i++) { sn.setting[i] = settings[i]; sn.knob[i] = lastKnob[i]; }
+		sn.note1 = uint8_t(n1); sn.note2 = uint8_t(n2);
 		__dmb(); stateSeq++;
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	// Knobs, with soft takeover.
+	// Main, X and Y each drive a stored setting (randomness, transpose, clock
+	// rate). At power-up the settings take the knobs as they are. When the web
+	// editor sets one, the knob does nothing until it is turned to (or past)
+	// the new value, so nothing jumps. LED 5 blinks fast while one is waiting.
+
+	enum KnobSetting {KMain, KX, KY};
+	static constexpr int32_t kKnobEndZone = 40;  // ignore the last bit of travel each end
+
+	static int32_t MapKnob(int32_t raw)
+	{
+		int32_t v = ((raw - kKnobEndZone) * 4095) / (4095 - 2 * kKnobEndZone);
+		return v < 0 ? 0 : (v > 4095 ? 4095 : v);
+	}
+
+	void HandleKnobs()
+	{
+		const Knob knobs[3] = {Main, X, Y};
+		for (int i = 0; i < 3; i++)
+		{
+			int32_t k = MapKnob(KnobVal(knobs[i]));
+			if (!knobsStarted) { settings[i] = k; knobLatched[i] = true; lastKnob[i] = k; continue; }
+
+			int32_t req = knobRequest[i];
+			if (req >= 0) { settings[i] = req; knobRequest[i] = -1; knobLatched[i] = false; }
+
+			int32_t &v = settings[i];
+			if (!knobLatched[i])
+			{
+				int32_t d = k - v;
+				bool near = d > -48 && d < 48;
+				bool crossed = (lastKnob[i] - v < 0) != (d < 0);
+				if (near || crossed) knobLatched[i] = true;
+			}
+			if (knobLatched[i]) v = k;
+			lastKnob[i] = k;
+		}
+		knobsStarted = true;
 	}
 
 	static inline uint32_t PitchToInc(int32_t pitchQ16)
@@ -795,60 +744,128 @@ protected:
 	}
 
 	////////////////////////////////////////////////////////////////////////////
-	// USB core
+	// USB, on core 1 (same pattern as the CVSeq and WaveSeq cards)
 
-	void ProcessIncomingSysEx(uint8_t *data, uint32_t size) override
+public:
+	void StartUSB()
 	{
-		if (size < 1) return;
-		uint8_t cmd = data[0];
-		if (cmd == MSG_HELLO)
+		gCard = this;
+		// Only talk to a computer: if the Computer is supplying USB power
+		// (host side), there is no editor to talk to.
+		if (USBPowerState() != DFP) multicore_launch_core1(Core1Device);
+	}
+
+private:
+	// The web editor counts as linked while its pings keep arriving
+	bool WebLinked() const
+	{
+		return pinged && (time_us_32() - lastPingUs) < 3000000;
+	}
+
+	static void Core1Device()
+	{
+		tusb_init();
+		static sysex::Parser parser;
+		uint32_t lastStatusUs = 0;
+		while (true)
 		{
-			uint8_t v[] = {MSG_VERSION, FW_MAJOR, FW_MINOR, FW_PATCH, CONFIG_FORMAT, MAX_LOOPS, NUM_PARAMS};
-			SendSysEx(v, sizeof(v));
+			tud_task();
+			uint8_t buf[64];
+			while (tud_midi_available())
+			{
+				uint32_t n = tud_midi_stream_read(buf, sizeof(buf));
+				if (n == 0) break;
+				for (uint32_t i = 0; i < n; i++)
+					if (parser.Feed(buf[i])) gCard->OnSysEx(parser.cmd, parser.payload, parser.length);
+			}
+
+			// Live status, about 30 times a second, while the editor is there
+			uint32_t now = time_us_32();
+			if (gCard->WebLinked() && now - lastStatusUs >= 33000)
+			{
+				lastStatusUs = now;
+				static uint8_t msg[4 + sysex::kStatusPayload + 1];
+				Write(msg, gCard->EncodeStatus(msg));
+			}
 		}
-		else if (cmd == MSG_SET_CONFIG)
+	}
+
+	// Send a whole message, waiting briefly for room if need be. If the
+	// computer isn't reading, the rest is dropped; the editor's parser
+	// resynchronises on the next F0.
+	static void Write(const uint8_t *msg, int len)
+	{
+		uint32_t start = time_us_32();
+		int sent = 0;
+		while (sent < len && tud_mounted())
 		{
-			uint8_t ok = 1;
-			if (size == 1 + 2 * CONFIG_BYTES)
+			sent += int(tud_midi_stream_write(0, msg + sent, uint32_t(len - sent)));
+			if (sent < len)
+			{
+				if (time_us_32() - start > 50000) return;
+				tud_task();
+			}
+		}
+	}
+
+	void OnSysEx(uint8_t cmd, const uint8_t *p, int len)
+	{
+		switch (cmd)
+		{
+		case sysex::Hello:
+			SendState();
+			break;
+		case sysex::SetConfig:
+			if (len == 1 + 2 * CONFIG_BYTES && p[0] == sysex::kVersion)
 			{
 				uint8_t b[CONFIG_BYTES];
-				FromNibbles(data + 1, CONFIG_BYTES, b);
+				sysex::GetNibbles(b, p + 1, CONFIG_BYTES);
 				Config c;
-				if (Deserialise(c, b)) { QueueConfig(c); ok = 0; }
+				if (Deserialise(c, b)) QueueConfig(c);
 			}
-			uint8_t a[] = {MSG_ACK, cmd, ok};
-			SendSysEx(a, sizeof(a));
-		}
-		else if (cmd == MSG_GET_CONFIG)
-		{
-			SendConfig();
-		}
-		else if (cmd == MSG_SAVE)
+			break;
+		case sysex::Save:
 		{
 			SaveToFlash();
-			uint8_t a[] = {MSG_ACK, cmd, 0};
-			SendSysEx(a, sizeof(a));
+			uint8_t msg[5];
+			int n = sysex::Header(msg, sysex::Saved);
+			msg[n++] = 0xF7;
+			Write(msg, n);
+			break;
 		}
-		else if (cmd == MSG_SET_REG && size == 1 + 16)
-		{
-			uint8_t b[8];
-			FromNibbles(data + 1, 8, b);
-			uint64_t r = 0;
-			for (int i = 7; i >= 0; i--) r = (r << 8) | b[i];
-			while (regPending) tight_loop_contents();
-			pendingReg = r; __dmb(); regPending = true;
-		}
-		else if (cmd == MSG_DEFAULTS)
+		case sysex::SetReg:
+			if (len == 16)
+			{
+				uint8_t b[8];
+				sysex::GetNibbles(b, p, 8);
+				uint64_t r = 0;
+				for (int i = 7; i >= 0; i--) r = (r << 8) | b[i];
+				while (regPending) tight_loop_contents();
+				pendingReg = r; __dmb(); regPending = true;
+			}
+			break;
+		case sysex::Reset:
 		{
 			Config c;
 			DefaultConfig(c);
 			ValidateConfig(c);
 			QueueConfig(c);
-			SendConfig();
+			SendState();
+			break;
+		}
+		case sysex::Knob:
+			if (len >= 3 && p[0] < 3) knobRequest[p[0]] = Clamp(sysex::Get14(p + 1), 0, 4095);
+			break;
+		case sysex::Ping:
+			lastPingUs = time_us_32();
+			pinged = true;
+			break;
+		default:
+			break;
 		}
 	}
 
-	// Hand a new config to the audio core, and keep a copy for GET_CONFIG
+	// Hand a new config to the audio core, and keep a copy for STATE and saving
 	void QueueConfig(const Config &c)
 	{
 		while (configPending) tight_loop_contents();
@@ -858,28 +875,60 @@ protected:
 		configPending = true;
 	}
 
-	void SendConfig()
+	struct Snapshot
 	{
-		Config c = shadowCfg;
-		uint8_t b[CONFIG_BYTES];
-		Serialise(c, b);
-		static uint8_t msg[1 + 2 * CONFIG_BYTES];
-		msg[0] = MSG_CONFIG;
-		ToNibbles(b, CONFIG_BYTES, msg + 1);
-		SendSysEx(msg, sizeof(msg));
-	}
+		uint64_t reg;
+		uint32_t tick, trig;
+		int32_t prob;
+		uint8_t flags;
+		int32_t setting[3], knob[3];
+		uint8_t note1, note2;
+	};
 
-	uint64_t ReadStateReg(uint32_t &tick, int32_t &prob)
+	Snapshot ReadSnapshot()
 	{
-		uint32_t s;
-		uint64_t r;
+		Snapshot s;
+		uint32_t q;
 		do
 		{
-			s = stateSeq; __dmb();
-			r = stateReg; tick = stateTick; prob = stateProb;
+			q = stateSeq; __dmb();
+			s = snap;
 			__dmb();
-		} while ((s & 1) || s != stateSeq);
-		return r;
+		} while ((q & 1) || q != stateSeq);
+		return s;
+	}
+
+	void SendState()
+	{
+		static uint8_t msg[4 + 1 + 2 * CONFIG_BYTES + 6 + 1];
+		int n = sysex::Header(msg, sysex::State);
+		msg[n++] = sysex::kVersion;
+		uint8_t b[CONFIG_BYTES];
+		Serialise(shadowCfg, b);
+		n += sysex::PutNibbles(msg + n, b, CONFIG_BYTES);
+		Snapshot s = ReadSnapshot();
+		for (int i = 0; i < 3; i++) n += sysex::Put14(msg + n, s.setting[i]);
+		msg[n++] = 0xF7;
+		Write(msg, n);
+	}
+
+	int EncodeStatus(uint8_t *out)
+	{
+		Snapshot s = ReadSnapshot();
+		int n = sysex::Header(out, sysex::Status);
+		uint8_t b[8];
+		for (int i = 0; i < 8; i++) b[i] = uint8_t(s.reg >> (8 * i));
+		n += sysex::PutNibbles(out + n, b, 8);
+		out[n++] = uint8_t(s.tick & 0x7F);
+		out[n++] = uint8_t(s.trig & 0x7F);
+		out[n++] = s.flags & 0x7F;
+		for (int i = 0; i < 3; i++) n += sysex::Put14(out + n, s.setting[i]);
+		for (int i = 0; i < 3; i++) n += sysex::Put14(out + n, s.knob[i]);
+		out[n++] = uint8_t(Clamp(s.prob >> 9, 0, 127));
+		out[n++] = s.note1 & 0x7F;
+		out[n++] = s.note2 & 0x7F;
+		out[n++] = 0xF7;
+		return n;
 	}
 
 	// Write config + current register to flash, from core 1. The audio core runs
@@ -893,8 +942,7 @@ protected:
 		memset(&img, 0, sizeof(img));
 		img.magic = FLASH_MAGIC;
 		Serialise(shadowCfg, img.cfg);
-		uint32_t tick; int32_t prob;
-		img.reg = ReadStateReg(tick, prob);
+		img.reg = ReadSnapshot().reg;
 		img.checksum = Checksum(reinterpret_cast<const uint8_t *>(&img), offsetof(FlashImage, checksum));
 		memcpy(sector, &img, sizeof(img));
 
@@ -902,31 +950,6 @@ protected:
 		flash_range_erase(FLASH_OFFSET, FLASH_SECTOR_SIZE);
 		flash_range_program(FLASH_OFFSET, sector, FLASH_SECTOR_SIZE);
 		restore_interrupts(ints);
-	}
-
-	// Stream the live register to the editor, at most ~50 times a second
-	void MIDICore() override
-	{
-		if (!tud_midi_mounted()) return;
-		uint32_t now = time_us_32();
-		if (now - lastStateSend < 20000) return;
-		uint32_t tick; int32_t prob;
-		uint64_t r = ReadStateReg(tick, prob);
-		bool trig = trigFlag;
-		if (tick == lastSentTick && r == lastSentReg && !trig && now - lastStateSend < 250000) return;
-		trigFlag = false;
-		lastStateSend = now;
-		lastSentTick = tick;
-		lastSentReg = r;
-
-		uint8_t b[8];
-		for (int i = 0; i < 8; i++) b[i] = uint8_t(r >> (8 * i));
-		uint8_t msg[1 + 16 + 2];
-		msg[0] = MSG_STATE;
-		ToNibbles(b, 8, msg + 1);
-		msg[17] = trig ? 1 : 0;
-		msg[18] = uint8_t(Clamp(prob >> 9, 0, 127));
-		SendSysEx(msg, sizeof(msg));
 	}
 
 private:
@@ -957,28 +980,34 @@ private:
 	const uint8_t smoothedIds[NUM_SMOOTHED] = {P_SHAPE1, P_SHAPE2, P_MIX, P_CUTOFF, P_RES, P_ENVAMT};
 	int32_t smooth[NUM_SMOOTHED] = {};
 
+	uint32_t trigCount = 0;
+	int32_t blink = 0;
+
+	// Knob settings (Main randomness, X transpose, Y clock rate), 0-4095
+	int32_t settings[3] = {2048, 0, 3000};
+	bool knobLatched[3] = {true, true, true};
+	int32_t lastKnob[3] = {};
+	bool knobsStarted = false;
+
 	// Shared between cores
 	Config pendingCfg;
 	volatile bool configPending = false;
 	volatile uint64_t pendingReg = 0;
 	volatile bool regPending = false;
+	volatile int32_t knobRequest[3] = {-1, -1, -1};  // from the editor
 	volatile uint32_t stateSeq = 0;
-	volatile uint64_t stateReg = 0;
-	volatile uint32_t stateTick = 0;
-	volatile int32_t stateProb = 0;
-	volatile bool trigFlag = false;
+	Snapshot snap = {};                               // guarded by stateSeq
+	volatile uint32_t lastPingUs = 0;
+	volatile bool pinged = false;
 
 	// USB core only
 	Config shadowCfg; // the config core 1 last handed to the audio core
-	uint32_t lastStateSend = 0;
-	uint32_t lastSentTick = 0xFFFFFFFF;
-	uint64_t lastSentReg = 0;
 };
 
 int main()
 {
 	set_sys_clock_khz(144000, true);
 	static Palette card;
-	card.StartUSBCore();
+	card.StartUSB();
 	card.Run();
 }

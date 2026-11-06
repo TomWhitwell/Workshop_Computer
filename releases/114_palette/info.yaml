@@ -2,12 +2,16 @@ draft: false
 Name: Palette
 short-description: A synth voice whose every parameter is read from a Turing-Machine-style shift register
 Language: C++ (Pico SDK + ComputerCard)
-Creator: Martyn Quickenden
-Version: 0.1.0
+Creator: XponentOneAudio
+Version: 0.2.0
 Status: WIP
 License: MIT
+Editor: web
 date-created: 2026-11-06
 date-updated: 2026-11-06
+
+contact:
+  email: XponentOneAudio@gmail.com
 
 tags:
   - synth-voice
@@ -91,7 +95,7 @@ controls:
   knobs:
     - main:
         name: Randomness
-        description: Noon = random, fully CW = locked, fully CCW = locked and inverting (repeats at twice the loop length)
+        description: Noon = random, fully CW = locked, fully CCW = locked and inverting (repeats at twice the loop length). Main, X and Y pick up (soft takeover) after the editor sets their value
       x:
         name: Transpose
         description: 0 to +24 semitones
@@ -109,4 +113,4 @@ controls:
           description: Flashes on each clock step
         - id: LED5
           name: Volume
-          description: Brightness follows the volume envelope
+          description: Brightness follows the volume envelope; blinks fast while a knob is waiting to pick up a value set in the editor

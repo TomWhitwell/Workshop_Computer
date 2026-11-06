@@ -2,362 +2,367 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Palette Editor</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Web editor for the Palette program card for the Music Thing Modular Workshop Computer: lay out shift-register loops and assign bits to synth parameters.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palette editor</title>
+<!--
+  PALETTE - web editor for the Music Thing Modular Workshop Computer card.
+  One static file, no network needed. Talks to the card over WebMIDI + SysEx
+  (protocol: ../sysex.h). The card works without this page; the page lays out
+  the shift register's loops, assigns the 16 synth parameters to bits, and
+  shows the card's register, knobs and switch live.
+
+  The parameter table, the byte layout, the bit-to-value mapping and the clock
+  and flip-probability maths mirror ../main.cpp. Visual style shared with the
+  CVSeq and WaveSeq editors.
+-->
 <style>
-/* Layout: a Eurorack-panel bench. One wide register grid (bits flow left to right,
-   one lane per parameter) with an inspector beside it; stacks on phones. */
-:root {
-  --bg: #e4e7e5;        /* brushed aluminium */
-  --surface: #f3f4f2;
-  --sunk: #d8dcd9;
-  --ink: #1b2120;
-  --muted: #5b6662;
-  --line: #c3c9c5;
-  --accent: #d9481a;    /* signal orange: live activity, triggers */
-  --on: #1b2120;        /* a set bit */
-  --off: #f3f4f2;
-  --g-trig: #d9481a;
-  --g-pitch: #2b66c9;
-  --g-osc: #8246c2;
-  --g-filter: #137f63;
-  --g-amp: #a8740c;
-  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
-  --font-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --label-w: 168px;
-  --radius: 6px;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #141817; --surface: #1d2220; --sunk: #101312; --ink: #e3e8e5; --muted: #8e9a95;
-    --line: #313936; --accent: #ff7440; --on: #e3e8e5; --off: #1d2220;
-    --g-trig: #ff7440; --g-pitch: #6d9cf0; --g-osc: #b588ec; --g-filter: #3fc39d; --g-amp: #e3ac3c;
-    color-scheme: dark;
+  :root {
+    --bg: #f4f2ee; --panel: #ffffff; --ink: #1c1b19; --muted: #6a675f; --line: #d9d5cc;
+    --wave-bg: #fbfaf7; --grid: #e6e2d8;
+    --accent: #0b7d78; --accent-soft: #cfe9e6; --warm: #b5560a; --warm-soft: #f6dcc6;
+    --ok: #2b7a2b; --bad: #b3261e; --track: #e3dfd5; --shadow: 0 1px 2px rgba(0,0,0,.08);
+    --s0: #0b7d78; --s1: #3a6fb0; --s2: #7a55b0; --s3: #b0457a;
+    --s4: #b5560a; --s5: #8a7a12; --s6: #3f8a3a; --s7: #5a6470;
+    --label-w: 168px;
   }
-}
-:root[data-theme="dark"] {
-  --bg: #141817; --surface: #1d2220; --sunk: #101312; --ink: #e3e8e5; --muted: #8e9a95;
-  --line: #313936; --accent: #ff7440; --on: #e3e8e5; --off: #1d2220;
-  --g-trig: #ff7440; --g-pitch: #6d9cf0; --g-osc: #b588ec; --g-filter: #3fc39d; --g-amp: #e3ac3c;
-  color-scheme: dark;
-}
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141514; --panel: #1e201f; --ink: #ecebe6; --muted: #9a978d; --line: #34362f;
+      --wave-bg: #171918; --grid: #2a2d29;
+      --accent: #4fd1c5; --accent-soft: #1d3d3a; --warm: #f0a35e; --warm-soft: #4a3320;
+      --ok: #7ed37e; --bad: #ff8a80; --track: #33352f; --shadow: none;
+      --s0: #4fd1c5; --s1: #7aa8f0; --s2: #b49af0; --s3: #f08ab8;
+      --s4: #f0a35e; --s5: #d8c85a; --s6: #84d07c; --s7: #a8b2bc;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .02em; }
+  h2 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .status { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warm); } .dot.bad { background: var(--bad); }
+  .spacer { flex: 1; }
+  header > button { padding: 5px 10px; font-size: 13px; }
+  button {
+    font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+  button.small { padding: 3px 8px; font-size: 12px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #msg { padding: 6px 16px; min-height: 1.4em; color: var(--muted); }
+  #msg.err { color: var(--bad); }
+  main { display: grid; gap: 16px; padding: 0 16px 24px; grid-template-columns: minmax(0, 1fr) 340px; }
+  @media (max-width: 960px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .col { display: grid; gap: 16px; align-content: start; min-width: 0; }
+  /* Every card can fold down to its heading (buildCollapsers) */
+  .card > h2 { display: flex; align-items: center; gap: 8px; }
+  .card > h2 .fold { margin-left: auto; padding: 0 7px; min-width: 26px; height: 22px; line-height: 1; font-size: 14px;
+    color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .card > h2 .fold:hover { color: var(--ink); border-color: var(--accent); }
+  .card.folded > :not(h2) { display: none; }
+  .card.folded > h2 { margin-bottom: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: var(--shadow); min-width: 0; }
+  canvas { display: block; width: 100%; border-radius: 6px; background: var(--wave-bg); }
+  .howto { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 6px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .howto b { color: var(--ink); font-weight: 600; }
+  .caption { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .info { font-size: 12px; color: var(--muted); }
+  .dirs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+  .dirs .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-right: 4px; }
+  .jacks { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.4; }
+  .jacks th, .jacks td { text-align: left; vertical-align: top; padding: 4px 0; border-top: 1px solid var(--line); }
+  .jacks th { white-space: nowrap; padding-right: 10px; font-weight: 600; }
+  .jacks td { color: var(--muted); }
+  .jacks tr.grp th { border-top: 0; padding-top: 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .jacks tr.grp:first-child th { padding-top: 0; }
+  .notes { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .notes p { margin: 6px 0 0; }
+  .notes b { color: var(--ink); font-weight: 600; }
 
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html, body { margin: 0; }
-body {
-  background: var(--bg); color: var(--ink);
-  font-family: var(--font-body); font-size: 14px; line-height: 1.45;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 0 48px;
-}
-button, input, select, textarea { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  /* Knobs: one readout per knob, with an editable slider */
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .readout { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+  .readout.waiting { outline: 2px dotted var(--warm); outline-offset: 2px; }
+  .readout .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .readout .v { font-size: 16px; font-variant-numeric: tabular-nums; }
+  .readout .sub { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 1.4em; }
+  .kslot { position: relative; margin-top: 4px; }
+  .kslot input[type=range] { width: 100%; margin: 0; accent-color: var(--accent); cursor: pointer; }
+  .kslot .ghost { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 2px dashed var(--warm); pointer-events: none; }
+  .led { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--line); background: var(--track); vertical-align: -1px; }
+  .led.on { background: var(--warm); border-color: var(--warm); }
+  .swpos { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; font-size: 12px; }
+  .swpos span { padding: 2px 7px; color: var(--muted); }
+  .swpos span.on { background: var(--accent-soft); color: var(--ink); }
 
-/* Header */
-header.top {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
-  padding-block: 18px 14px; border-bottom: 1px solid var(--line); margin-bottom: 16px;
-}
-.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-right: auto; }
-.brand h1 {
-  font-family: var(--font-display); font-stretch: 75%; font-weight: 800; font-size: 30px;
-  letter-spacing: 0.01em; margin: 0; text-transform: uppercase; line-height: 1;
-}
-.brand .sub { color: var(--muted); font-size: 13px; }
-.conn { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.pill {
-  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
-  border: 1px solid var(--line); background: var(--surface); font-size: 12px; white-space: nowrap;
-}
-.pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-.pill.live .dot { background: var(--g-filter); }
-.btn {
-  border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius);
-  padding: 6px 12px; cursor: pointer; white-space: nowrap;
-}
-.btn:hover { border-color: var(--muted); }
-.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.btn:disabled { opacity: .45; cursor: default; }
-.btn.small { padding: 3px 8px; font-size: 12px; }
-label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+  /* Tray of unassigned parameters */
+  .tray {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 38px; margin-top: 10px;
+    padding: 6px 8px; border: 1px dashed var(--line); border-radius: 6px;
+  }
+  .tray.over { border-color: var(--warm); background: var(--warm-soft); }
+  .tray .empty { color: var(--muted); font-size: 12px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 6px; border-radius: 6px;
+    background: var(--panel); border: 1px solid var(--line); cursor: grab; touch-action: none; user-select: none; font-size: 12px;
+  }
+  .chip:hover { border-color: var(--accent); }
+  .chip .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+  .ghostchip { position: fixed; pointer-events: none; z-index: 50; opacity: .9; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
 
-.banner {
-  display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 14px; margin-bottom: 14px;
-  border: 1px solid var(--accent); border-radius: var(--radius); background: var(--surface);
-}
+  /* Register grid */
+  .gridwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--wave-bg); margin-top: 10px; }
+  .grid { min-width: calc(var(--label-w) + 64 * 13px); }
+  .row { display: flex; align-items: stretch; }
+  .row > .lab {
+    position: sticky; left: 0; z-index: 2; flex: 0 0 var(--label-w); width: var(--label-w);
+    background: var(--panel); border-right: 1px solid var(--line); padding: 3px 8px;
+    display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; color: var(--muted);
+  }
+  .row > .trk { position: relative; flex: 1 1 auto; min-width: 0; }
+  .ruler .trk { height: 20px; }
+  .ruler .tick { position: absolute; top: 3px; font-size: 10px; color: var(--muted); transform: translateX(2px); font-variant-numeric: tabular-nums; }
+  .cols8 {
+    background-image:
+      repeating-linear-gradient(to right, transparent 0, transparent calc(100%/8 - 1px), var(--line) calc(100%/8 - 1px), var(--line) calc(100%/8)),
+      repeating-linear-gradient(to right, transparent 0, transparent calc(100%/64 - 1px), var(--grid) calc(100%/64 - 1px), var(--grid) calc(100%/64));
+  }
+  .loops .trk { height: 34px; border-top: 1px solid var(--line); }
+  .loopseg {
+    position: absolute; top: 3px; bottom: 3px; border-radius: 4px; border: 1px solid var(--accent);
+    background: var(--accent-soft); font-size: 11px; padding: 2px 6px; overflow: hidden; white-space: nowrap;
+    display: flex; align-items: center; gap: 6px; color: var(--ink);
+  }
+  .loopseg.alt { background: var(--panel); }
+  .loopseg b { font-weight: 600; }
+  .loopseg .ret { color: var(--muted); }
+  .unusedseg {
+    position: absolute; top: 3px; bottom: 3px; border-radius: 4px; font-size: 11px; color: var(--muted);
+    display: flex; align-items: center; padding: 0 6px; overflow: hidden; white-space: nowrap;
+    background: repeating-linear-gradient(135deg, transparent 0 5px, var(--line) 5px 6px);
+  }
+  .handle {
+    position: absolute; top: 0; bottom: 0; width: 14px; margin-left: -7px; z-index: 3; cursor: ew-resize; touch-action: none;
+    display: flex; justify-content: center;
+  }
+  .handle::after { content: ""; width: 4px; margin-block: 6px; border-radius: 2px; background: var(--accent); }
+  .bits .trk { height: 28px; display: flex; border-top: 1px solid var(--line); border-bottom: 2px solid var(--line); }
+  .bit { flex: 1 1 0; min-width: 0; border-right: 1px solid var(--grid); background: var(--panel); cursor: pointer; position: relative; }
+  .bit:nth-child(8n) { border-right-color: var(--line); }
+  .bit.on { background: var(--ink); }
+  .bit.fixed { opacity: .45; }
+  .bit.flip::after { content: ""; position: absolute; inset: 40% 30%; border-radius: 50%; background: var(--warm); }
+  .lane .trk { height: 26px; border-bottom: 1px solid var(--grid); cursor: crosshair; touch-action: none; }
+  .lane.sel > .lab { box-shadow: inset 3px 0 0 var(--c); color: var(--ink); }
+  .lane.sel .trk { background-color: var(--accent-soft); }
+  .lane .lab { cursor: pointer; }
+  .lane .lab .sw { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+  .lane .lab .nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .lane .lab .val { flex: 0 0 auto; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lane.fire .lab .val { color: var(--warm); font-weight: 600; }
+  .lane .meter { position: absolute; left: 8px; right: 8px; bottom: 1px; height: 2px; }
+  .meter .win { position: absolute; top: 0; bottom: 0; background: var(--c); opacity: .45; }
+  .meter .pos { position: absolute; top: -1px; width: 2px; height: 4px; background: var(--c); }
+  .bar {
+    position: absolute; top: 3px; bottom: 3px; border-radius: 4px; background: var(--c); color: var(--panel);
+    font-size: 11px; font-weight: 600; display: flex; align-items: center; padding: 0 10px; overflow: hidden; white-space: nowrap;
+    cursor: grab; touch-action: none;
+  }
+  .bar .eh { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
+  .bar .eh.l { left: 0; } .bar .eh.r { right: 0; }
+  .bar .eh::after { content: ""; position: absolute; top: 5px; bottom: 5px; left: 3px; width: 2px; border-radius: 1px; background: currentColor; opacity: .6; }
+  .lane .placeholder { position: absolute; inset: 0; display: flex; align-items: center; padding-left: 8px; font-size: 11px; color: var(--muted); pointer-events: none; }
 
-/* Main layout */
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
-@media (max-width: 980px) { .layout { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 600px) { :root { --label-w: 124px; } :root .lane .lab .val { max-width: 44px; } .brand h1 { font-size: 26px; } }
-section.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; min-width: 0; }
-.panel h2 {
-  font-family: var(--font-display); font-stretch: 75%; font-weight: 700; font-size: 13px;
-  text-transform: uppercase; letter-spacing: .08em; margin: 0 0 10px; color: var(--muted);
-}
-.stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  /* Parameter inspector */
+  .insp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .insp-head .sw { width: 14px; height: 14px; border-radius: 4px; background: var(--c); }
+  .insp-head h3 { margin: 0; font-size: 16px; }
+  .desc { color: var(--muted); font-size: 12px; margin: 0 0 10px; line-height: 1.5; }
+  .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .field { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .field input, .field select { font: inherit; font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; width: 100%; }
+  .opt.on { background: var(--warm-soft); border-color: var(--warm); }
+  .range { margin: 6px 0 4px; }
+  .range .rtrack { position: relative; height: 34px; touch-action: none; }
+  .range .rbase { position: absolute; left: 0; right: 0; top: 14px; height: 6px; border-radius: 3px; background: var(--track); }
+  .range .rwin { position: absolute; top: 12px; height: 10px; border-radius: 3px; background: var(--c); opacity: .5; }
+  .range .rlive { position: absolute; top: 6px; width: 2px; height: 22px; background: var(--warm); margin-left: -1px; }
+  .range .thumb {
+    position: absolute; top: 7px; width: 18px; height: 20px; margin-left: -9px; border-radius: 4px; background: var(--panel);
+    border: 2px solid var(--c); cursor: ew-resize; display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: var(--ink);
+  }
+  .range .thresh { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--muted); }
+  .range .rlabels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 12px; margin: 8px 0 0; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 
-/* Simulation transport */
-.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 12px; }
-.transport .ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.transport input[type=range] { width: 120px; accent-color: var(--accent); }
-.led { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--line); background: var(--sunk); transition: background .08s; }
-.led.on { background: var(--accent); border-color: var(--accent); }
-.hint { color: var(--muted); font-size: 12px; }
+  /* Loops table */
+  .tablewrap { overflow-x: auto; }
+  table.loops-t { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .loops-t th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 4px 6px; }
+  .loops-t td { padding: 4px 6px; border-top: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .loops-t input { font: inherit; width: 64px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 5px; }
 
-/* Tray of unassigned parameters */
-.tray {
-  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 40px;
-  padding: 6px 8px; border: 1px dashed var(--line); border-radius: var(--radius); margin-bottom: 10px;
-}
-.tray.over { border-color: var(--accent); }
-.tray .empty { color: var(--muted); font-size: 12px; }
-.chip {
-  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 6px; border-radius: 999px;
-  background: var(--bg); border: 1px solid var(--line); cursor: grab; touch-action: none; user-select: none; font-size: 12px;
-}
-.chip .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
-.ghost { position: fixed; pointer-events: none; z-index: 50; opacity: .9; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
-
-/* Register grid */
-.gridwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); }
-.grid { min-width: calc(var(--label-w) + 64 * 13px); }
-.row { display: flex; align-items: stretch; }
-.row > .lab {
-  position: sticky; left: 0; z-index: 2; flex: 0 0 var(--label-w); width: var(--label-w);
-  background: var(--surface); border-right: 1px solid var(--line); padding: 3px 8px;
-  display: flex; align-items: center; gap: 6px; min-width: 0;
-}
-.row > .trk { position: relative; flex: 1 1 auto; min-width: 0; }
-.ruler .trk { height: 20px; }
-.ruler .tick { position: absolute; top: 3px; font-size: 10px; color: var(--muted); transform: translateX(2px); }
-.cols {
-  background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(100%/64 - 1px), var(--line) calc(100%/64 - 1px), var(--line) calc(100%/64));
-}
-.cols8 {
-  background-image:
-    repeating-linear-gradient(to right, transparent 0, transparent calc(100%/8 - 1px), var(--muted) calc(100%/8 - 1px), var(--muted) calc(100%/8)),
-    repeating-linear-gradient(to right, transparent 0, transparent calc(100%/64 - 1px), var(--line) calc(100%/64 - 1px), var(--line) calc(100%/64));
-  background-blend-mode: normal;
-}
-
-.loops .trk { height: 34px; border-top: 1px solid var(--line); }
-.loopseg {
-  position: absolute; top: 3px; bottom: 3px; border-radius: 4px; border: 1px solid var(--muted);
-  background: var(--surface); font-size: 11px; padding: 2px 6px; overflow: hidden; white-space: nowrap;
-  display: flex; align-items: center; gap: 6px; cursor: default;
-}
-.loopseg.alt { background: var(--sunk); }
-.loopseg b { font-family: var(--font-display); font-stretch: 75%; font-weight: 700; }
-.loopseg .ret { color: var(--muted); }
-.unused {
-  position: absolute; top: 3px; bottom: 3px; border-radius: 4px; font-size: 11px; color: var(--muted);
-  display: flex; align-items: center; padding: 0 6px; overflow: hidden; white-space: nowrap;
-  background: repeating-linear-gradient(135deg, transparent 0 5px, var(--line) 5px 6px);
-}
-.handle {
-  position: absolute; top: 0; bottom: 0; width: 14px; margin-left: -7px; z-index: 3; cursor: ew-resize; touch-action: none;
-  display: flex; justify-content: center;
-}
-.handle::after { content: ""; width: 4px; margin-block: 6px; border-radius: 2px; background: var(--ink); }
-
-.bits .trk { height: 28px; display: flex; border-top: 1px solid var(--line); border-bottom: 2px solid var(--line); }
-.bit {
-  flex: 1 1 0; min-width: 0; border-right: 1px solid var(--line); background: var(--off); cursor: pointer; position: relative;
-}
-.bit:nth-child(8n) { border-right-color: var(--muted); }
-.bit.on { background: var(--on); }
-.bit.fixed { opacity: .45; }
-.bit.flip::after { content: ""; position: absolute; inset: 40% 30%; border-radius: 50%; background: var(--accent); }
-
-.lane .trk { height: 26px; border-bottom: 1px solid var(--line); cursor: crosshair; touch-action: none; }
-.lane.sel > .lab { box-shadow: inset 3px 0 0 var(--c); }
-.lane.sel .trk { background-color: color-mix(in srgb, var(--c) 7%, transparent); }
-.lane .lab { cursor: pointer; font-size: 12px; }
-.lane .lab .sw { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
-.lane .lab .nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lane .lab .val { flex: 0 0 auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lane.fire .lab .val { color: var(--accent); font-weight: 600; }
-.lane .meter { position: absolute; left: 8px; right: 8px; bottom: 1px; height: 2px; }
-.meter .win { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--c) 45%, transparent); }
-.meter .pos { position: absolute; top: -1px; width: 2px; height: 4px; background: var(--c); }
-.bar {
-  position: absolute; top: 3px; bottom: 3px; border-radius: 4px; background: var(--c); color: #fff;
-  font-size: 10.5px; font-weight: 600; display: flex; align-items: center; padding: 0 10px; overflow: hidden; white-space: nowrap;
-  cursor: grab; touch-action: none; box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 60%, #000);
-}
-:root[data-theme="dark"] .bar { color: #101312; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bar { color: #101312; } }
-.bar .eh { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
-.bar .eh.l { left: 0; } .bar .eh.r { right: 0; }
-.bar .eh::after { content: ""; position: absolute; top: 5px; bottom: 5px; left: 3px; width: 2px; border-radius: 1px; background: currentColor; opacity: .55; }
-.lane .placeholder { position: absolute; inset: 0; display: flex; align-items: center; padding-left: 8px; font-size: 11px; color: var(--muted); pointer-events: none; }
-
-/* Inspector */
-.insp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.insp-head .sw { width: 14px; height: 14px; border-radius: 4px; background: var(--c); }
-.insp-head h3 { margin: 0; font-family: var(--font-display); font-stretch: 85%; font-size: 20px; font-weight: 700; }
-.desc { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
-.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
-.field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
-.field input, .field select { color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; width: 100%; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-.seg button { border: 0; background: var(--bg); padding: 4px 10px; cursor: pointer; font-size: 12px; }
-.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
-.opts { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
-
-.range { margin: 6px 0 4px; }
-.range .rtrack { position: relative; height: 34px; touch-action: none; }
-.range .rbase { position: absolute; left: 0; right: 0; top: 14px; height: 6px; border-radius: 3px; background: var(--sunk); }
-.range .rwin { position: absolute; top: 12px; height: 10px; border-radius: 3px; background: var(--c); opacity: .55; }
-.range .rlive { position: absolute; top: 6px; width: 2px; height: 22px; background: var(--accent); margin-left: -1px; }
-.range .thumb {
-  position: absolute; top: 7px; width: 18px; height: 20px; margin-left: -9px; border-radius: 4px; background: var(--surface);
-  border: 2px solid var(--c); cursor: ew-resize; display: flex; align-items: center; justify-content: center;
-  font-size: 9px; font-weight: 700; color: var(--ink);
-}
-.range .thresh { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--muted); }
-.range .rlabels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
-.readout { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 12px; margin-top: 8px; }
-.readout dt { color: var(--muted); } .readout dd { margin: 0; font-family: var(--font-mono); font-size: 11.5px; overflow-wrap: anywhere; }
-
-/* Loops table */
-.tablewrap { overflow-x: auto; }
-table.loops-t { border-collapse: collapse; width: 100%; font-size: 13px; }
-.loops-t th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 4px 6px; border-bottom: 1px solid var(--line); }
-.loops-t td { padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-.loops-t input { width: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; }
-.rowbtns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
-
-/* Scale */
-.keys { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; margin-bottom: 10px; }
-.key {
-  min-width: 0; height: 46px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface);
-  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px; font-size: 10px; cursor: pointer;
-}
-.key.blk { background: var(--sunk); }
-.key[aria-pressed="true"] { background: var(--g-pitch); border-color: var(--g-pitch); color: #fff; }
-
-canvas#envs { width: 100%; height: 120px; display: block; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
-textarea#json { width: 100%; min-height: 90px; font-family: var(--font-mono); font-size: 11px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px; }
-
-.toast {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 60;
-  background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: var(--radius); font-size: 13px;
-}
-.notes { font-size: 12.5px; color: var(--muted); max-width: 70ch; }
-.notes p { margin: 0 0 6px; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  /* Scale */
+  .keys { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; margin-bottom: 10px; }
+  .key { min-width: 0; height: 46px; padding: 0 0 4px; border-radius: 4px; display: flex; align-items: flex-end; justify-content: center; font-size: 10px; }
+  .key.blk { background: var(--track); }
+  .key[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+  #envs { height: 120px; }
+  textarea#json { width: 100%; min-height: 90px; font: 11px ui-monospace, monospace; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px; margin-top: 8px; }
+  @media (max-width: 600px) { :root { --label-w: 124px; } :root .lane .lab .val { max-width: 44px; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-
-<header class="top">
-  <div class="brand">
-    <h1>Palette</h1>
-    <span class="sub">64-bit register → 16 synth parameters · Workshop Computer card 114</span>
-  </div>
-  <div class="conn">
-    <span class="pill" id="status"><span class="dot"></span><span id="statusText">Not connected, simulating</span></span>
-    <button class="btn" id="btnConnect">Connect</button>
-    <button class="btn" id="btnRead" disabled>Read from card</button>
-    <button class="btn" id="btnSend" disabled>Send</button>
-    <button class="btn primary" id="btnSave" disabled>Save to card</button>
-    <label class="check"><input type="checkbox" id="autoSend" checked> Send changes live</label>
-  </div>
+<header>
+  <h1>Palette</h1>
+  <div class="status"><span id="dot" class="dot"></span><span id="status-text">Not connected</span></div>
+  <div class="spacer"></div>
+  <button id="btn-connect" class="primary">Connect card</button>
+  <button id="btn-rescan" hidden>Rescan</button>
+  <button id="btn-read" disabled>Read from card</button>
+  <button id="btn-send" disabled>Send to card</button>
+  <button id="btn-save" disabled title="Keep the layout and the register pattern on the card after power-off">Save to card</button>
+  <button id="btn-reset" title="The factory layout">Reset</button>
 </header>
+<div id="msg"></div>
 
-<div class="banner" id="banner" hidden>
-  <span id="bannerText">The card has different settings from this editor.</span>
-  <button class="btn small" id="bannerLoad">Use card's settings</button>
-  <button class="btn small" id="bannerPush">Send editor's settings</button>
-</div>
-
-<div class="layout">
-  <div class="stack">
-    <section class="panel" aria-labelledby="h-reg">
-      <h2 id="h-reg">Register</h2>
-      <div class="transport">
-        <button class="btn small" id="simPlay">Pause</button>
-        <div class="ctl"><label for="simRate">Clock</label><input type="range" id="simRate" min="0" max="4095" value="3000"><span class="mono" id="simRateV"></span></div>
-        <div class="ctl"><label for="simMain">Main</label><input type="range" id="simMain" min="0" max="4095" value="2048"><span class="mono" id="simMainV"></span></div>
-        <label class="check"><input type="checkbox" id="simLock"> Lock (Z up)</label>
-        <button class="btn small" id="simScramble">Scramble (Z down)</button>
-        <div class="ctl"><span class="led" id="ledClock" title="Clock"></span><span class="led" id="ledTrig" title="Envelope trigger"></span></div>
+<main>
+  <div class="col">
+    <section class="card">
+      <h2>Knobs &amp; clock</h2>
+      <div class="readouts">
+        <div class="readout" id="rk0"><div class="k">Main · Randomness</div><div class="v" id="kv0">-</div>
+          <div class="kslot"><input type="range" id="knob0" min="0" max="4095" value="2048" aria-label="Main: randomness"><span class="ghost" id="kg0" hidden></span></div><div class="sub" id="ks0"></div></div>
+        <div class="readout" id="rk1"><div class="k">X · Transpose</div><div class="v" id="kv1">-</div>
+          <div class="kslot"><input type="range" id="knob1" min="0" max="4095" value="0" aria-label="X: transpose"><span class="ghost" id="kg1" hidden></span></div><div class="sub" id="ks1"></div></div>
+        <div class="readout" id="rk2"><div class="k">Y · Clock</div><div class="v" id="kv2">-</div>
+          <div class="kslot"><input type="range" id="knob2" min="0" max="4095" value="3000" aria-label="Y: clock rate"><span class="ghost" id="kg2" hidden></span></div><div class="sub" id="ks2"></div></div>
+        <div class="readout"><div class="k">Notes</div><div class="v" id="ro-notes">-</div><div class="sub" id="ro-trig"><span class="led" id="led-clock" title="Clock"></span> clock <span class="led" id="led-trig" title="Envelope trigger"></span> trigger</div></div>
       </div>
+      <div class="dirs">
+        <span class="k">Switch</span>
+        <span class="swpos" id="swpos"><span data-sw="2">Up · lock</span><span data-sw="1">Middle · run</span><span data-sw="0">Down · scramble</span></span>
+        <span class="k" style="margin-left:10px" id="sim-k">Simulation</span>
+        <button class="small" id="sim-play">Pause</button>
+        <button class="small opt" id="sim-lock" title="As the switch up: no bits flip">Lock</button>
+        <button class="small" id="sim-scramble" title="As the switch down: every bit inside a loop at random">Scramble</button>
+      </div>
+      <div class="caption" id="knob-line"></div>
+    </section>
+
+    <section class="card">
+      <h2>Register</h2>
       <div class="tray" id="tray" aria-label="Unassigned parameters"></div>
       <div class="gridwrap" id="gridwrap">
         <div class="grid" id="grid">
-          <div class="row ruler"><div class="lab hint">bit</div><div class="trk" id="ruler"></div></div>
-          <div class="row loops"><div class="lab hint">loops</div><div class="trk" id="loopTrk"></div></div>
-          <div class="row bits"><div class="lab hint">state</div><div class="trk" id="bitTrk"></div></div>
+          <div class="row ruler"><div class="lab">bit</div><div class="trk" id="ruler"></div></div>
+          <div class="row loops"><div class="lab">loops</div><div class="trk" id="loopTrk"></div></div>
+          <div class="row bits"><div class="lab">state</div><div class="trk" id="bitTrk"></div></div>
           <div id="lanes"></div>
         </div>
       </div>
-      <p class="hint" style="margin:8px 0 0">Bits move left to right on each step; the bit leaving a loop's right end returns at its left end, flipped at random by the Main knob and the loop's chaos. Drag a chip from the tray onto the grid to assign it. Drag a bar to move it, drag its ends to resize it, drag it back to the tray to unassign it. Drag on an empty lane to draw a range. Click a state bit to flip it.</p>
+      <div class="howto">
+        <b>Bits move left to right</b> on each step. The bit leaving a loop's right end comes back at its left end, flipped at random by Main and the loop's chaos.<br>
+        <b>Drag a chip</b> from the tray onto the grid to assign it. <b>Drag a bar</b> to move it, its ends to resize it, or back to the tray to unassign it. <b>Drag on an empty lane</b> to draw a range. <b>Click a state bit</b> to flip it.
+      </div>
     </section>
 
-    <section class="panel" aria-labelledby="h-loops">
-      <h2 id="h-loops">Loops</h2>
+    <section class="card">
+      <h2>Loops</h2>
       <div class="tablewrap"><table class="loops-t" id="loopTable"></table></div>
-      <div class="rowbtns">
-        <button class="btn small" id="addLoop">Add loop</button>
-        <span class="hint">Layouts:</span>
-        <button class="btn small" data-preset="1">1 × 64</button>
-        <button class="btn small" data-preset="2">2 × 32</button>
-        <button class="btn small" data-preset="4">4 × 16</button>
-        <button class="btn small" data-preset="8">8 × 8</button>
-      </div>
-    </section>
-
-    <section class="panel" aria-labelledby="h-file">
-      <h2 id="h-file">Share a layout</h2>
-      <div class="rowbtns" style="margin-top:0">
-        <button class="btn small" id="exportJson">Show JSON</button>
-        <button class="btn small" id="copyJson">Copy JSON</button>
-        <button class="btn small" id="downloadJson">Download .json</button>
-        <label class="btn small" for="importFile">Open .json</label>
-        <input type="file" id="importFile" accept=".json,application/json" hidden>
-        <button class="btn small" id="importJson">Load JSON from box</button>
-        <button class="btn small" id="resetDefaults">Factory defaults</button>
-      </div>
-      <textarea id="json" spellcheck="false" aria-label="Layout JSON" style="margin-top:10px" placeholder="Paste a Palette layout here, then press Load JSON from box."></textarea>
-      <div class="notes" style="margin-top:10px">
-        <p>Use Chrome, Edge or another Chromium browser with a USB-C data cable. Close any other app that is using the Workshop Computer's MIDI port. When the browser asks, allow MIDI access for <b>MTMComputer</b>. iOS is not supported.</p>
-        <p>"Send" changes how the card plays now. "Save to card" keeps the layout, and the current register pattern, after a reset.</p>
+      <div class="dirs">
+        <button class="small" id="addLoop">Add loop</button>
+        <span class="k" style="margin-left:10px">Layout</span>
+        <button class="small" data-preset="1">1 × 64</button>
+        <button class="small" data-preset="2">2 × 32</button>
+        <button class="small" data-preset="4">4 × 16</button>
+        <button class="small" data-preset="8">8 × 8</button>
       </div>
     </section>
   </div>
 
-  <div class="stack">
-    <section class="panel" id="inspector" aria-live="polite"></section>
-    <section class="panel" aria-labelledby="h-scale">
-      <h2 id="h-scale">Scale</h2>
+  <aside class="col">
+    <section class="card"><h2>Parameter</h2><div id="inspector" aria-live="polite"></div></section>
+
+    <section class="card">
+      <h2>Scale</h2>
       <div class="keys" id="keys"></div>
       <div class="fields">
         <label class="field">Root note<select id="root"></select></label>
         <label class="field">Preset<select id="scalePreset"></select></label>
       </div>
-      <p class="hint" style="margin:0">Both oscillators are quantised to these notes. Osc 1 Pitch counts scale degrees up from the root; Osc 2 Pitch counts degrees up or down from Osc 1.</p>
+      <div class="caption">Both oscillators are quantised to these notes. Osc 1 Pitch counts scale degrees up from the root; Osc 2 Pitch counts degrees up or down from Osc 1.</div>
     </section>
-    <section class="panel" aria-labelledby="h-env">
-      <h2 id="h-env">Envelopes now</h2>
-      <canvas id="envs" width="600" height="240"></canvas>
-      <p class="hint" style="margin:6px 0 0"><span style="color:var(--g-filter)">■</span> filter <span style="color:var(--g-amp)">■</span> volume · width = <span id="envSpan"></span></p>
-    </section>
-  </div>
-</div>
 
-<div class="toast" id="toast" hidden></div>
+    <section class="card">
+      <h2>Envelopes</h2>
+      <canvas id="envs" width="600" height="240" aria-label="The filter and volume envelopes as the register sets them now"></canvas>
+      <div class="caption"><span style="color:var(--s0)">■</span> filter <span style="color:var(--s5)">■</span> volume · full width <span id="envSpan"></span></div>
+    </section>
+
+    <section class="card">
+      <h2>Layouts</h2>
+      <div class="dirs" style="margin-top:0">
+        <button class="small" id="exportJson">Show JSON</button>
+        <button class="small" id="copyJson">Copy</button>
+        <button class="small" id="downloadJson">Export</button>
+        <button class="small" id="importBtn">Import</button>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+        <button class="small" id="importJson">Load from box</button>
+      </div>
+      <textarea id="json" spellcheck="false" aria-label="Layout JSON" placeholder="Paste a Palette layout here, then Load from box."></textarea>
+      <div class="caption">The card keeps its layout after power-off only once you press <b>Save to card</b>. Edits here go to a connected card straight away.</div>
+    </section>
+
+    <section class="card">
+      <h2>Inputs &amp; outputs</h2>
+      <table class="jacks">
+        <tr class="grp"><th colspan="2">Inputs</th></tr>
+        <tr><th>CV In 1</th><td>Pitch, 1 V/oct, quantised to semitones</td></tr>
+        <tr><th>CV In 2</th><td>Added to Main (randomness)</td></tr>
+        <tr><th>Pulse In 1</th><td>Clock; Y sets an internal clock when unplugged</td></tr>
+        <tr><th>Pulse In 2</th><td>Fires both envelopes</td></tr>
+        <tr><th>Audio In 1, 2</th><td>Not used</td></tr>
+        <tr class="grp"><th colspan="2">Outputs</th></tr>
+        <tr><th>Audio Out 1</th><td>The voice</td></tr>
+        <tr><th>Audio Out 2</th><td>Filter envelope, 0 to about +6 V</td></tr>
+        <tr><th>CV Out 1</th><td>Osc 1 pitch, calibrated 1 V/oct (MIDI note 60 = 0 V), with glide</td></tr>
+        <tr><th>CV Out 2</th><td>Volume envelope, 0 to about +6 V</td></tr>
+        <tr><th>Pulse Out 1</th><td>Trigger whenever the envelopes fire</td></tr>
+        <tr><th>Pulse Out 2</th><td>Trigger on every clock step</td></tr>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Panel</h2>
+      <table class="jacks">
+        <tr><th>Main</th><td>Randomness: noon random, fully clockwise locked, fully anticlockwise locked and inverting (repeats at twice the loop length)</td></tr>
+        <tr><th>X</th><td>Transpose, 0 to +24 semitones</td></tr>
+        <tr><th>Y</th><td>Internal clock, about 1 to 16 steps a second</td></tr>
+        <tr><th>Pick up</th><td>After this page sets a knob's value, the knob does nothing until it reaches (or passes) that value, so nothing jumps. The dotted box and the orange line show a knob that is waiting, and where it is; LED 5 blinks fast on the module.</td></tr>
+        <tr><th>Switch</th><td>Up locks every loop; middle runs; down scrambles every bit inside a loop</td></tr>
+        <tr><th>LEDs</th><td>LEDs 0-3 show register bits 0-3, LED 4 the clock, LED 5 the volume envelope (blinking fast while a knob is waiting)</td></tr>
+      </table>
+      <div class="notes"><p>Use Chrome or Edge with a USB-C data cable, plugged into the Computer's USB socket; close other apps using the card. Choose <b>Allow</b> when the browser asks about MIDI devices. iOS can't do WebMIDI.</p></div>
+    </section>
+  </aside>
+</main>
 
 <script>
 'use strict';
@@ -368,7 +373,7 @@ textarea#json { width: 100%; min-height: 90px; font-family: var(--font-mono); fo
 */
 
 // ---------------------------------------------------------------- parameters
-const GROUP_COLOR = { trig: '--g-trig', pitch: '--g-pitch', osc: '--g-osc', filter: '--g-filter', amp: '--g-amp' };
+const GROUP_COLOR = { trig: '--s4', pitch: '--s1', osc: '--s2', filter: '--s0', amp: '--s5' };
 const PARAMS = [
   { id: 'trig',   name: 'Env Trigger',    short: 'Trig',   group: 'trig',   lo: 0,     hi: 1023, w: 1, desc: 'Fires both envelopes when the value is in the top half. Only checked on steps where its own bits move. Unassigned, it fires on every clock step if Min is 512 or more.' },
   { id: 'pitch1', name: 'Osc 1 Pitch',    short: 'Pitch 1', group: 'pitch', lo: 0,     hi: 48,   w: 5, desc: 'Scale degrees above the root note, quantised to the scale.' },
@@ -418,6 +423,11 @@ let selected = 1;               // selected parameter index
 let dirty = false;              // edited since last read/send
 let loopCounters = new Array(MAX_LOOPS).fill(0);
 let firedAt = 0, clockAt = 0;
+// The three knob settings (0-4095), as the card uses them: Main randomness,
+// X transpose, Y clock rate. phys = where the module's knobs are, waiting =
+// the knob hasn't picked up its setting yet. sw: 0 down, 1 middle, 2 up.
+const knobs = { set: [2048, 0, 3000], phys: [-1, -1, -1], waiting: [false, false, false], sw: 1, ext: false, notes: null, dragging: -1 };
+let simLock = false;
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const $ = (id) => document.getElementById(id);
@@ -493,9 +503,11 @@ function fmt(i, v, short = false) {
 }
 
 // ---------------------------------------------------------------- simulation (mirrors firmware Tick)
-function flipProb(k) { if ($('simLock').checked) return 0; if (k < 150) return 1; if (k > 3945) return 0; return (3945 - k) / 3795; }
+// Flip probability from Main (k, 0-4095), as main.cpp: below 150 always, above 3945 never
+function flipProbOf(k) { if (k < 150) return 1; if (k > 3945) return 0; return (3945 - k) / 3795; }
+function flipProb() { return (link.cardOnline ? knobs.sw === 2 : simLock) ? 0 : flipProbOf(knobs.set[0]); }
 function simTick() {
-  const p = flipProb(+$('simMain').value);
+  const p = flipProb();
   const starts = loopStarts();
   const movedMask = new Uint8Array(REG);
   flipped.fill(0);
@@ -517,21 +529,53 @@ function simTick() {
   renderLive();
 }
 
-function clockHz(y) { // mirrors firmware: period in samples from the Y knob
+function clockHz(y) { // mirrors firmware: period in samples from the Y setting
   const yq = y * 4, base = 48000 >> (yq >> 12), period = base - ((base * (yq & 4095)) >> 13);
   return 48000 / period;
 }
 let simRunning = true, simAcc = 0, lastFrame = performance.now();
 function frame(now) {
   const dt = Math.min(0.25, (now - lastFrame) / 1000); lastFrame = now;
-  if (simRunning && !midi.active) {
-    simAcc += dt * clockHz(+$('simRate').value);
+  if (simRunning && !link.cardOnline) {
+    simAcc += dt * clockHz(knobs.set[2]);
     while (simAcc >= 1) { simAcc -= 1; simTick(); }
   }
-  $('ledClock').classList.toggle('on', now - clockAt < 60);
-  $('ledTrig').classList.toggle('on', now - firedAt < 90);
+  $('led-clock').classList.toggle('on', now - clockAt < 60);
+  $('led-trig').classList.toggle('on', now - firedAt < 90);
   document.querySelectorAll('.lane')[0]?.classList.toggle('fire', now - firedAt < 120);
   requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- knobs
+const transposeOf = (v) => (v * 25) >> 12;               // as main.cpp: 0 to +24 semitones
+function knobText(i, v) {
+  if (i === 0) { const p = flipProbOf(v); return p === 0 ? 'locked' : p === 1 ? 'locked, inverting' : Math.round(p * 100) + '% flip'; }
+  if (i === 1) return '+' + transposeOf(v) + ' semitones';
+  return clockHz(v).toFixed(1) + ' steps/s';
+}
+function renderKnobs() {
+  const on = link.cardOnline;
+  for (let i = 0; i < 3; i++) {
+    const v = knobs.set[i], w = on && knobs.waiting[i];
+    $('kv' + i).textContent = (i === 2 && on && knobs.ext) ? 'Pulse In 1 clock' : knobText(i, v);
+    if (knobs.dragging !== i) $('knob' + i).value = v;
+    const box = $('rk' + i);
+    if (box.classList.contains('waiting') !== w) { box.classList.toggle('waiting', w); box.title = w ? 'The knob is waiting: turn it to (or past) this value to pick it up' : ''; }
+    const g = $('kg' + i), ph = knobs.phys[i];
+    g.hidden = !w || ph < 0;
+    if (!g.hidden) g.style.left = (ph / 4095 * 100) + '%';
+    $('ks' + i).textContent = w ? 'knob at ' + knobText(i, ph) + ', turn to pick up' : (i === 0 && on && knobs.sw === 2 ? 'switch up: locked' : '');
+  }
+  document.querySelectorAll('#swpos span').forEach((s) => s.classList.toggle('on', on ? +s.dataset.sw === knobs.sw : (+s.dataset.sw === (simLock ? 2 : 1))));
+  ['sim-k', 'sim-play', 'sim-lock', 'sim-scramble'].forEach((id) => { $(id).hidden = on; });
+  $('sim-lock').classList.toggle('on', simLock);
+  let n1, n2;
+  if (on && knobs.notes) [n1, n2] = knobs.notes;
+  else { const t = transposeOf(knobs.set[1]), d = paramValue(1); n1 = degreeToNote(d) + t; n2 = degreeToNote(d + paramValue(2)) + t; }
+  $('ro-notes').textContent = noteName(n1) + ' · ' + noteName(n2);
+  $('knob-line').textContent = on
+    ? (knobs.waiting.some(Boolean) ? 'A knob is waiting to pick up the value set here. The orange line shows where the module’s knob is: turn it to (or past) the slider’s value.' : 'The sliders follow the module’s knobs. Moving one here sets that value on the card; the knob then picks up from it.')
+    : 'Simulating: the sliders stand in for the module’s knobs.';
 }
 
 // ---------------------------------------------------------------- rendering
@@ -541,7 +585,7 @@ function buildStatic() {
   const bt = $('bitTrk');
   for (let b = 0; b < REG; b++) {
     const d = document.createElement('div'); d.className = 'bit'; d.title = `bit ${b}`;
-    d.addEventListener('click', () => { bits[b] ^= 1; flipped.fill(0); if (midi.active) sendReg(); renderLive(); });
+    d.addEventListener('click', () => { bits[b] ^= 1; flipped.fill(0); if (link.cardOnline) sendReg(); renderLive(); });
     bt.appendChild(d);
   }
   const lanes = $('lanes');
@@ -559,7 +603,7 @@ function buildStatic() {
   for (let n = 0; n < 12; n++) {
     const k = document.createElement('button'); k.className = 'key' + ([1, 3, 6, 8, 10].includes(n) ? ' blk' : ''); k.textContent = NOTE_NAMES[n];
     k.title = `${n} semitones above the root`;
-    k.addEventListener('click', () => { if (n === 0) return toast('The root is always in the scale'); cfg.scaleMask ^= (1 << n); changed(); });
+    k.addEventListener('click', () => { if (n === 0) return say('The root is always in the scale.'); cfg.scaleMask ^= (1 << n); changed(); });
     keys.appendChild(k);
   }
   const root = $('root');
@@ -587,7 +631,7 @@ function renderLoops() {
   });
   const used = usedBits();
   if (used < REG) {
-    const u = document.createElement('div'); u.className = 'unused';
+    const u = document.createElement('div'); u.className = 'unusedseg';
     u.style.left = (used / REG * 100) + '%'; u.style.width = ((REG - used) / REG * 100) + '%';
     u.textContent = `${REG - used} fixed bits`; u.title = 'Bits outside every loop never move. Assignments can still read them.';
     trk.appendChild(u);
@@ -649,9 +693,9 @@ function renderLoopTable() {
       <td><input type="number" min="1" max="64" value="${l.length}" data-k="length" id="loop${i}len" aria-label="Loop ${i + 1} length"></td>
       <td><input type="number" min="1" max="32" value="${l.divider}" data-k="divider" id="loop${i}div" aria-label="Loop ${i + 1} clock divider"></td>
       <td><input type="number" min="0" max="100" value="${l.chaos}" data-k="chaos" id="loop${i}chaos" aria-label="Loop ${i + 1} chaos"></td>
-      <td><button class="btn small" data-a="split" ${l.length < 2 || cfg.loops.length >= MAX_LOOPS ? 'disabled' : ''}>Split</button>
-          <button class="btn small" data-a="merge" ${i === cfg.loops.length - 1 ? 'disabled' : ''}>Merge →</button>
-          <button class="btn small" data-a="del" ${cfg.loops.length < 2 ? 'disabled' : ''}>Remove</button></td>`;
+      <td><button class="small" data-a="split" ${l.length < 2 || cfg.loops.length >= MAX_LOOPS ? 'disabled' : ''}>Split</button>
+          <button class="small" data-a="merge" ${i === cfg.loops.length - 1 ? 'disabled' : ''}>Merge →</button>
+          <button class="small" data-a="del" ${cfg.loops.length < 2 ? 'disabled' : ''}>Remove</button></td>`;
     tr.querySelectorAll('input').forEach((inp) => inp.addEventListener('change', () => {
       const k = inp.dataset.k, v = +inp.value;
       if (k === 'length') { const others = usedBits() - l.length; l.length = clamp(v, 1, REG - others); } else l[k] = v;
@@ -679,16 +723,14 @@ function renderInspector() {
   const i = selected, P = PARAMS[i], p = cfg.params[i], el = $('inspector');
   el.style.setProperty('--c', colorOf(i));
   el.innerHTML = `
-    <h2>Parameter</h2>
     <div class="insp-head"><span class="sw"></span><h3>${P.name}</h3></div>
     <p class="desc">${P.desc}</p>
-    <div class="opts">
-      <div class="seg" role="group" aria-label="Read bits as">
-        <button id="mBin" aria-pressed="${!p.popcount}" title="Read the bits as a binary number">Binary</button>
-        <button id="mPop" aria-pressed="${p.popcount}" title="Count how many bits are set">Count</button>
-      </div>
-      <label class="check"><input type="checkbox" id="inv" ${p.invert ? 'checked' : ''}> Invert</label>
-      ${p.enabled ? '<button class="btn small" id="unassign">Unassign</button>' : '<button class="btn small" id="assign">Assign</button>'}
+    <div class="dirs" style="margin:0 0 10px">
+      <span class="k">Read as</span>
+      <button class="small opt ${p.popcount ? '' : 'on'}" id="mBin" aria-pressed="${!p.popcount}" title="Read the bits as a binary number">Binary</button>
+      <button class="small opt ${p.popcount ? 'on' : ''}" id="mPop" aria-pressed="${p.popcount}" title="Count how many bits are set">Count</button>
+      <button class="small opt ${p.invert ? 'on' : ''}" id="inv" aria-pressed="${p.invert}" title="Turn the value upside down">Invert</button>
+      ${p.enabled ? '<button class="small" id="unassign">Unassign</button>' : '<button class="small" id="assign">Assign</button>'}
     </div>
     <div class="fields">
       <label class="field">Start bit<input type="number" id="fStart" min="0" max="63" value="${p.start}" ${p.enabled ? '' : 'disabled'}></label>
@@ -705,14 +747,14 @@ function renderInspector() {
       </div>
       <div class="rlabels"><span>${fmt(i, P.lo, true)}</span><span>${fmt(i, P.hi, true)}</span></div>
     </div>
-    <dl class="readout">
+    <dl class="kv">
       <dt>Min</dt><dd id="roMin"></dd><dt>Max</dt><dd id="roMax"></dd>
       <dt>Bits</dt><dd id="roBits"></dd><dt>Now</dt><dd id="roNow"></dd>
       <dt>Steps</dt><dd id="roSteps"></dd>
     </dl>`;
   $('mBin').onclick = () => { p.popcount = false; changed(); };
   $('mPop').onclick = () => { p.popcount = true; changed(); };
-  $('inv').onchange = (e) => { p.invert = e.target.checked; changed(); };
+  $('inv').onclick = () => { p.invert = !p.invert; changed(); };
   if ($('unassign')) $('unassign').onclick = () => { p.enabled = false; changed(); };
   if ($('assign')) $('assign').onclick = () => { p.enabled = true; changed(); };
   const num = (id, fn) => { $(id).onchange = (e) => { fn(+e.target.value); changed(); }; };
@@ -758,6 +800,7 @@ function renderLive() {
   });
   updateInspectorLive();
   drawEnvs();
+  renderKnobs();
 }
 
 function select(i) { selected = i; renderLanes(); renderInspector(); }
@@ -772,10 +815,10 @@ function drawEnvs() {
   const css = getComputedStyle(document.documentElement);
   ctx.clearRect(0, 0, W, H);
   const v = PARAMS.map((_, i) => paramValue(i));
-  const envs = [[v[10], v[11], v[12], css.getPropertyValue('--g-filter')], [v[13], v[14], v[15], css.getPropertyValue('--g-amp')]];
+  const envs = [[v[10], v[11], v[12], css.getPropertyValue('--s0')], [v[13], v[14], v[15], css.getPropertyValue('--s5')]];
   const total = Math.max(...envs.map(([a, d]) => ms(a) + ms(d)));
   $('envSpan').textContent = fmtMs(total);
-  ctx.strokeStyle = css.getPropertyValue('--line'); ctx.lineWidth = 1;
+  ctx.strokeStyle = css.getPropertyValue('--grid'); ctx.lineWidth = 1;
   for (let g = 1; g < 4; g++) { ctx.beginPath(); ctx.moveTo(0, H * g / 4); ctx.lineTo(W, H * g / 4); ctx.stroke(); }
   const pad = 8;
   envs.forEach(([a, d, s, col], k) => {
@@ -841,7 +884,7 @@ function attachChipDrag(chip, i) {
     const laneTrk = () => document.querySelector(`.lane[data-i="${i}"] .trk`);
     const move = (ev) => {
       if (!ghost && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 4) return;
-      if (!ghost) { ghost = chip.cloneNode(true); ghost.classList.add('ghost'); document.body.appendChild(ghost); }
+      if (!ghost) { ghost = chip.cloneNode(true); ghost.classList.add('ghostchip'); document.body.appendChild(ghost); }
       ghost.style.left = (ev.clientX + 8) + 'px'; ghost.style.top = (ev.clientY + 8) + 'px';
     };
     const up = (ev) => {
@@ -905,7 +948,8 @@ let sendTimer = 0;
 function changed() {
   dirty = true;
   render();
-  if (midi.active && $('autoSend').checked) { clearTimeout(sendTimer); sendTimer = setTimeout(sendConfig, 120); }
+  // Every edit goes to a connected card straight away (batched while dragging)
+  if (link.cardOnline) { clearTimeout(sendTimer); sendTimer = setTimeout(sendConfig, 60); }
 }
 
 // ---------------------------------------------------------------- serialisation (byte layout = firmware Serialise)
@@ -957,94 +1001,147 @@ function fromJSON(text) {
   cfg = c; changed();
 }
 
-// ---------------------------------------------------------------- WebMIDI / SysEx (protocol = firmware MSG_*)
-const MSG = { HELLO: 0x01, VERSION: 0x02, SET_CONFIG: 0x10, ACK: 0x11, GET_CONFIG: 0x12, CONFIG: 0x13, SAVE: 0x14, SET_REG: 0x16, DEFAULTS: 0x17, STATE: 0x20 };
-const IFACE_VERSION = [0, 1, 0];
-const midi = { access: null, input: null, output: null, active: false, fw: null, pendingRead: false };
+// ---------------------------------------------------------------- WebMIDI (protocol: ../sysex.h)
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 2;
+const CMD = { HELLO: 1, STATE: 2, SET_CONFIG: 3, SAVE: 4, SET_REG: 5, RESET: 6, STATUS: 7, SAVED: 8, PING: 9, KNOB: 10 };
+const link = { access: null, card: { in: null, out: null }, cardOnline: false, pingTimer: 0, sysexOn: false, sysexBuf: [], lastStatus: 0, lastTick: -1 };
 
-function setStatus() {
-  const s = $('status');
-  s.classList.toggle('live', midi.active);
-  $('statusText').textContent = midi.active ? `Connected${midi.fw ? ' · firmware ' + midi.fw : ''}` : (midi.access ? 'Waiting for card, simulating' : 'Not connected, simulating');
-  ['btnRead', 'btnSend', 'btnSave'].forEach((id) => { $(id).disabled = !midi.active; });
-  $('btnConnect').hidden = !!midi.access;
-  ['simPlay', 'simRate', 'simMain', 'simLock', 'simScramble'].forEach((id) => { $(id).disabled = midi.active; });
-}
+function say(text, isErr) { const m = $('msg'); m.textContent = text || ''; m.className = isErr ? 'err' : ''; }
+function setStatus(kind, text) { $('dot').className = 'dot ' + kind; $('status-text').textContent = text; }
+const sysex = (cmd, payload) => [0xF0, SYSEX_MFR, SYSEX_PRODUCT, cmd, ...payload, 0xF7];
+function sendRaw(bytes) { if (link.cardOnline && link.card.out) { try { link.card.out.send(bytes); } catch (e) { console.warn(e); } } }
+const put14 = (v) => [(v >> 7) & 0x7F, v & 0x7F];
+const get14 = (p, i) => ((p[i] & 0x7F) << 7) | (p[i + 1] & 0x7F);
+function sendConfig() { sendRaw(sysex(CMD.SET_CONFIG, [PROTOCOL_VERSION, ...toNib(serialise())])); dirty = false; }
+function sendReg() { const b = []; for (let k = 0; k < 8; k++) { let v = 0; for (let j = 0; j < 8; j++) v |= bits[k * 8 + j] << j; b.push(v); } sendRaw(sysex(CMD.SET_REG, toNib(b))); }
+function sendKnob(i, v) { sendRaw(sysex(CMD.KNOB, [i, ...put14(v)])); }
+
+const isCardName = (n) => /palette/i.test(n || '');
+
 async function connect() {
-  if (!navigator.requestMIDIAccess) { toast('This browser has no WebMIDI. Use Chrome or Edge on a desktop or Android.'); return; }
-  try {
-    midi.access = await navigator.requestMIDIAccess({ sysex: true });
-    midi.access.addEventListener('statechange', bind);
-    bind(); setStatus();
-  } catch (err) { toast('MIDI access was refused: ' + err.message); }
+  if (!navigator.requestMIDIAccess) { say('This browser has no WebMIDI. Use Chrome or Edge on a computer.', true); return; }
+  say('The browser will ask to use MIDI devices with SysEx: choose Allow.');
+  try { link.access = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { say('MIDI access was refused (' + (e && e.message || e) + '). Allow MIDI with SysEx for this page, then try again.', true); return; }
+  link.access.onstatechange = () => scanPorts();
+  $('btn-connect').hidden = true; $('btn-rescan').hidden = false;
+  scanPorts();
 }
-function bind() {
-  const find = (m) => [...m.values()].find((p) => p.name && p.name.includes('MTMComputer') && p.state === 'connected');
-  const inp = find(midi.access.inputs), out = find(midi.access.outputs);
-  if (midi.active && (!inp || !out)) { midi.active = false; midi.input = midi.output = null; midi.fw = null; setStatus(); toast('Card disconnected'); return; }
-  if (!midi.active && inp && out) {
-    midi.input = inp; midi.output = out; midi.active = true;
-    inp.onmidimessage = onMidi;
-    sysex([MSG.HELLO, ...IFACE_VERSION]);
-    midi.pendingRead = 'compare'; sysex([MSG.GET_CONFIG]);
-    setStatus();
-  }
-}
-function sysex(data) { if (midi.active) midi.output.send([0xF0, 0x7D, ...data, 0xF7]); }
-function sendConfig() { sysex([MSG.SET_CONFIG, ...toNib(serialise())]); dirty = false; }
-function sendReg() { const b = []; for (let k = 0; k < 8; k++) { let v = 0; for (let j = 0; j < 8; j++) v |= bits[k * 8 + j] << j; b.push(v); } sysex([MSG.SET_REG, ...toNib(b)]); }
 
-let cardCfg = null;
-function onMidi(ev) {
-  const d = Array.from(ev.data);
-  if (d.length < 4 || d[0] !== 0xF0 || d[1] !== 0x7D || d[d.length - 1] !== 0xF7) return;
-  const m = d.slice(2, -1), cmd = m[0];
-  if (cmd === MSG.VERSION) { midi.fw = `v${m[1]}.${m[2]}.${m[3]}`; if (m[4] !== CONFIG_FORMAT) toast('Firmware and editor versions do not match. Update the card or the editor.'); setStatus(); }
-  else if (cmd === MSG.CONFIG) {
-    const c = deserialise(fromNib(m.slice(1)));
-    if (!c) return toast('Could not read the card settings');
-    const mode = midi.pendingRead; midi.pendingRead = false;
-    if (mode === 'compare' && dirty) {
-      const ours = JSON.stringify(serialise()); const saved = cfg; cfg = c; const theirs = JSON.stringify(serialise()); cfg = saved;
-      if (ours !== theirs) { cardCfg = c; $('banner').hidden = false; return; }
-    }
-    cfg = c; dirty = false; render(); if (mode !== 'compare') toast('Read settings from the card');
+function scanPorts() {
+  const acc = link.access; if (!acc) return;
+  const ins = [...acc.inputs.values()].filter(p => p.state !== 'disconnected');
+  const outs = [...acc.outputs.values()].filter(p => p.state !== 'disconnected');
+  const cardIn = ins.find(p => isCardName(p.name)) || null, cardOut = outs.find(p => isCardName(p.name)) || null;
+  for (const p of ins) p.onmidimessage = null;
+  if (cardIn) cardIn.onmidimessage = (ev) => onCardBytes(ev.data);
+  const wasOnline = link.cardOnline;
+  link.card.in = cardIn; link.card.out = cardOut;
+  link.cardOnline = !!(cardIn && cardOut);
+  link.sysexBuf = []; link.sysexOn = false;
+  $('btn-read').disabled = $('btn-send').disabled = $('btn-save').disabled = !link.cardOnline;
+  clearInterval(link.pingTimer);
+  const others = ins.filter(p => p !== cardIn);
+  const note = others.length ? ' Other MIDI inputs: ' + others.map(p => '“' + (p.name || '?') + '”').join(', ') + '.' : '';
+  if (link.cardOnline) {
+    link.pingTimer = setInterval(() => sendRaw(sysex(CMD.PING, [])), 1000);
+    sendRaw(sysex(CMD.PING, []));
+    setStatus('ok', 'Palette card');
+    if (!wasOnline) { say('Card connected. Reading its layout…'); sendRaw(sysex(CMD.HELLO, [])); } // the card is the source of truth: read it
+  } else {
+    knobs.waiting = [false, false, false]; knobs.notes = null;
+    setStatus('warn', 'No card found');
+    say('No “Palette” card found. Use a USB data cable into the Computer’s USB socket, close other apps using it, and power-cycle the module after plugging in.' + note, true);
   }
-  else if (cmd === MSG.ACK) {
-    if (m[1] === MSG.SAVE) toast('Saved to card');
-    else if (m[1] === MSG.SET_CONFIG && m[2]) toast('The card rejected those settings');
+  render();
+}
+
+function onCardBytes(d) {
+  for (const b of d) {
+    if (b === 0xF0) { link.sysexOn = true; link.sysexBuf = []; continue; }
+    if (!link.sysexOn) continue;
+    if (b === 0xF7) { link.sysexOn = false; handleCardMessage(link.sysexBuf); link.sysexBuf = []; continue; }
+    if (b & 0x80) { if (b < 0xF8) link.sysexOn = false; continue; }
+    if (link.sysexBuf.length < 400) link.sysexBuf.push(b); else link.sysexOn = false;
   }
-  else if (cmd === MSG.STATE) {
-    const b = fromNib(m.slice(1, 17));
-    const prev = bits.slice();
+}
+
+let lastTrig = -1;
+function handleCardMessage(m) {
+  if (m.length < 3 || m[0] !== SYSEX_MFR || m[1] !== SYSEX_PRODUCT) return;
+  const cmd = m[2], p = m.slice(3);
+  if (cmd === CMD.STATE) {
+    if (p[0] !== PROTOCOL_VERSION) { say('The card speaks protocol version ' + p[0] + ' but this page speaks ' + PROTOCOL_VERSION + '. Use the matching editor and firmware.', true); return; }
+    if (p.length !== 1 + 2 * CONFIG_BYTES + 6) { say('The card sent a state message of an unexpected size: is its firmware a different version?', true); return; }
+    const c = deserialise(fromNib(p.slice(1, 1 + 2 * CONFIG_BYTES)));
+    if (!c) { say('Could not read the card’s layout.', true); return; }
+    cfg = c; dirty = false;
+    for (let i = 0; i < 3; i++) knobs.set[i] = get14(p, 1 + 2 * CONFIG_BYTES + 2 * i);
+    say('Read the layout from the card.');
+    render();
+  } else if (cmd === CMD.STATUS && p.length >= 34) {
+    // The register, 30 times a second
+    const b = fromNib(p.slice(0, 16));
     for (let i = 0; i < REG; i++) bits[i] = (b[i >> 3] >> (i & 7)) & 1;
-    let movedAny = false; for (let i = 0; i < REG; i++) if (prev[i] !== bits[i]) movedAny = true;
-    if (movedAny) clockAt = performance.now();
     flipped.fill(0);
-    if (m[17]) firedAt = performance.now();
+    if (p[16] !== link.lastTick) { if (link.lastTick >= 0) clockAt = performance.now(); link.lastTick = p[16]; }
+    if (p[17] !== lastTrig) { if (lastTrig >= 0) firedAt = performance.now(); lastTrig = p[17]; }
+    knobs.sw = p[18] & 3; knobs.ext = !!(p[18] & 4);
+    knobs.waiting = [!!(p[18] & 8), !!(p[18] & 16), !!(p[18] & 32)];
+    for (let i = 0; i < 3; i++) { if (knobs.dragging !== i) knobs.set[i] = get14(p, 19 + 2 * i); knobs.phys[i] = get14(p, 25 + 2 * i); }
+    knobs.notes = [p[32], p[33]];
     renderLive();
+  } else if (cmd === CMD.SAVED) {
+    say('Saved to the card: it keeps this layout and register pattern after power-off.');
   }
 }
 
-// ---------------------------------------------------------------- misc UI
-let toastTimer = 0;
-function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600); }
+// ---------------------------------------------------------------- folding cards (as CVSeq)
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private window */ } },
+};
+function buildCollapsers() {
+  const folded = new Set(store.get('palette.folded.v1', []) || []);
+  document.querySelectorAll('section.card').forEach((card) => {
+    const h = card.querySelector(':scope > h2'); if (!h) return;
+    const name = h.textContent.trim();
+    const b = document.createElement('button'); b.className = 'fold'; b.type = 'button';
+    const show = (f) => {
+      card.classList.toggle('folded', f);
+      b.textContent = f ? '+' : '−';
+      b.title = (f ? 'Show ' : 'Hide ') + name; b.setAttribute('aria-label', b.title);
+      b.setAttribute('aria-expanded', String(!f));
+    };
+    show(folded.has(name));
+    b.addEventListener('click', () => { const f = !card.classList.contains('folded'); show(f); f ? folded.add(name) : folded.delete(name); store.set('palette.folded.v1', [...folded]); });
+    h.appendChild(b);
+  });
+}
 
+// ---------------------------------------------------------------- wiring
 function wire() {
-  $('btnConnect').onclick = connect;
-  $('btnRead').onclick = () => { midi.pendingRead = 'read'; sysex([MSG.GET_CONFIG]); };
-  $('btnSend').onclick = () => { sendConfig(); toast('Sent to card'); };
-  $('btnSave').onclick = () => { sendConfig(); sysex([MSG.SAVE]); };
-  $('bannerLoad').onclick = () => { cfg = cardCfg; dirty = false; $('banner').hidden = true; render(); };
-  $('bannerPush').onclick = () => { $('banner').hidden = true; sendConfig(); toast('Sent to card'); };
-  $('simPlay').onclick = () => { simRunning = !simRunning; $('simPlay').textContent = simRunning ? 'Pause' : 'Play'; if (!simRunning) $('simPlay').textContent = 'Play'; };
-  $('simScramble').onclick = () => { const used = usedBits(); for (let b = 0; b < used; b++) bits[b] = Math.random() < 0.5 ? 1 : 0; flipped.fill(0); renderLive(); };
-  const showKnobs = () => {
-    $('simRateV').textContent = clockHz(+$('simRate').value).toFixed(1) + ' Hz';
-    const p = flipProb(+$('simMain').value);
-    $('simMainV').textContent = p === 0 ? 'locked' : p === 1 ? 'locked ×2' : `${Math.round(p * 100)}% flip`;
+  $('btn-connect').onclick = connect;
+  $('btn-rescan').onclick = scanPorts;
+  $('btn-read').onclick = () => sendRaw(sysex(CMD.HELLO, []));
+  $('btn-send').onclick = () => { sendConfig(); say('Sent the layout to the card.'); };
+  $('btn-save').onclick = () => { sendConfig(); sendRaw(sysex(CMD.SAVE, [])); say('Saving to the card…'); };
+  $('btn-reset').onclick = () => {
+    cfg = defaultConfig(); dirty = false;
+    if (link.cardOnline) sendRaw(sysex(CMD.RESET, [])); // the card replies with its new state
+    render(); say('Factory layout loaded.');
   };
-  ['simRate', 'simMain'].forEach((id) => $(id).addEventListener('input', showKnobs)); $('simLock').addEventListener('change', showKnobs); showKnobs();
+  // Knob sliders: in simulation they stand in for the knobs; with a card they
+  // set the value, and the module's knob then picks up from it
+  for (let i = 0; i < 3; i++) {
+    const s = $('knob' + i);
+    s.addEventListener('input', () => { knobs.dragging = i; knobs.set[i] = +s.value; if (link.cardOnline) sendKnob(i, knobs.set[i]); renderKnobs(); });
+    s.addEventListener('change', () => { knobs.dragging = -1; });
+    s.addEventListener('pointerup', () => { knobs.dragging = -1; });
+  }
+  $('sim-play').onclick = () => { simRunning = !simRunning; $('sim-play').textContent = simRunning ? 'Pause' : 'Play'; };
+  $('sim-lock').onclick = () => { simLock = !simLock; renderKnobs(); };
+  $('sim-scramble').onclick = () => { const used = usedBits(); for (let b = 0; b < used; b++) bits[b] = Math.random() < 0.5 ? 1 : 0; flipped.fill(0); renderLive(); };
   $('addLoop').onclick = () => { const free = REG - usedBits(); if (free > 0) { cfg.loops.push({ length: Math.min(free, 16), divider: 1, chaos: 100 }); changed(); } };
   document.querySelectorAll('[data-preset]').forEach((b) => b.onclick = () => {
     const n = +b.dataset.preset, old = cfg.loops;
@@ -1054,21 +1151,22 @@ function wire() {
   $('exportJson').onclick = () => { $('json').value = toJSON(); };
   $('copyJson').onclick = () => {
     const text = toJSON(); $('json').value = text;
-    navigator.clipboard?.writeText(text).then(() => toast('Copied layout JSON'), () => { $('json').select(); toast('Select-all done: press Ctrl+C to copy'); });
+    navigator.clipboard?.writeText(text).then(() => say('Copied the layout as JSON.'), () => { $('json').select(); say('Press Ctrl+C to copy the selected JSON.'); });
   };
   $('downloadJson').onclick = () => {
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([toJSON()], { type: 'application/json' }));
     a.download = 'palette-layout.json'; document.body.appendChild(a); a.click(); a.remove();
   };
-  $('importFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { fromJSON(await f.text()); toast('Layout loaded'); } catch (err) { toast(err.message); } e.target.value = ''; };
-  $('importJson').onclick = () => { try { fromJSON($('json').value); toast('Layout loaded'); } catch (err) { toast(err.message.startsWith('This') ? err.message : 'That text is not valid JSON.'); } };
-  $('resetDefaults').onclick = () => { cfg = defaultConfig(); changed(); toast('Factory defaults loaded'); };
-  // Connect automatically if the browser already granted MIDI permission
+  $('importBtn').onclick = () => $('importFile').click();
+  $('importFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { fromJSON(await f.text()); say('Layout loaded.'); } catch (err) { say(err.message, true); } e.target.value = ''; };
+  $('importJson').onclick = () => { try { fromJSON($('json').value); say('Layout loaded.'); } catch (err) { say(err.message.startsWith('This') ? err.message : 'That text is not valid JSON.', true); } };
+  // Connect straight away if the browser already allows MIDI for this page
   navigator.permissions?.query({ name: 'midi', sysex: true }).then((s) => { if (s.state === 'granted') connect(); }).catch(() => {});
-  if (!navigator.requestMIDIAccess) $('btnConnect').title = 'WebMIDI is not available in this browser';
+  if (!navigator.requestMIDIAccess) say('This browser can’t do WebMIDI, so it can’t reach the card. You can still design layouts here and watch them simulated.');
+  else say('Simulating. Connect the card to edit it live.');
 }
 
-buildStatic(); wire(); render(); setStatus(); requestAnimationFrame(frame);
+buildStatic(); buildCollapsers(); wire(); render(); setStatus('', 'Not connected'); requestAnimationFrame(frame);
 </script>
 </body>
 </html>

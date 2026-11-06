@@ -86,42 +86,48 @@ Bits outside every loop never move. Assignments can still read them, as fixed va
 | Pulse Out 2 | Clock |
 | LEDs 0–3 | Register bits 0–3 |
 | LED 4 | Clock |
-| LED 5 | Volume envelope |
+| LED 5 | Volume envelope; blinks fast while a knob is waiting to pick up |
 
 ## Web editor
 
-`web/index.html` is a single static page. It works without a card: it simulates the
-register so you can design layouts and watch the parameter values move. With a card
-connected over USB (WebMIDI SysEx, Chrome/Edge on desktop or Android; not iOS) it shows the
-card's live register instead.
+`web/index.html` is a single static page, styled and connected the same way as the CVSeq and
+WaveSeq editors. It works without a card: it simulates the register so you can design layouts
+and watch the parameter values move. With a card connected over USB (WebMIDI SysEx, Chrome/Edge
+on desktop or Android; not iOS) the card is the source of truth: the page reads the card's
+layout when it connects, then shows the card's register, knobs and switch about 30 times a second.
 
+* **Knobs & clock** shows Main, X and Y as the card is using them, and the switch position.
+  Move a slider to set that value on the card: the module's knob then **picks up** (soft
+  takeover). It does nothing until it is turned to, or past, the new value, so nothing jumps.
+  While a knob is waiting, its box has a dotted outline, an orange line shows where the knob
+  is, and LED 5 on the module blinks fast.
 * Drag a parameter chip from the tray onto the grid to assign it. Drag a bar to move it, drag
   its ends to resize, drag it back to the tray to unassign. Drag on an empty lane to draw a range.
-* Drag the dark handles on the loop strip to move loop boundaries. The Loops table sets
+* Drag the handles on the loop strip to move loop boundaries. The Loops table sets
   length, clock divider and chaos per loop, and can split, merge or remove loops.
 * Click a state bit to flip it (on the card too, when connected).
-* **Send** changes how the card plays now; with *Send changes live* ticked, every edit is sent.
-  **Save to card** stores the layout and the current register pattern in flash so they come back after a reset.
+* Every edit goes to a connected card straight away. **Save to card** stores the layout and
+  the current register pattern in flash so they come back after power-off.
 * Layouts can be exported and imported as JSON.
 
 ## SysEx protocol
 
-Manufacturer ID `0x7D`. Config bytes are sent as nibbles (two 7-bit bytes per byte).
+Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> … F7`
+(`50` is 'P'); the card shows up as a MIDI device named **Palette**.
 
-| ID | Direction | Data |
+| Cmd | Direction | Data |
 |---|---|---|
-| `0x01` | editor → card | hello, editor version (3 bytes) |
-| `0x02` | card → editor | firmware version (3), config format, max loops, number of params |
-| `0x10` | editor → card | set config (157 bytes as nibbles) |
-| `0x11` | card → editor | ack: request ID, status (0 = ok) |
-| `0x12` | editor → card | get config |
-| `0x13` | card → editor | config (157 bytes as nibbles) |
-| `0x14` | editor → card | save config and register to flash |
-| `0x16` | editor → card | set register (8 bytes, little endian, as nibbles) |
-| `0x17` | editor → card | load factory defaults (not saved) |
-| `0x20` | card → editor | live state: register (8 bytes as nibbles), trigger flag, flip probability 0–127 |
+| `01` HELLO | editor → card | card replies with STATE |
+| `02` STATE | card → editor | protocol version, layout (157 bytes as nibbles), Main/X/Y settings |
+| `03` SET_CONFIG | editor → card | protocol version, layout (157 bytes as nibbles) |
+| `04` SAVE | editor → card | save layout and register to flash; card replies SAVED (`08`) |
+| `05` SET_REG | editor → card | the register, 8 bytes little endian, as nibbles |
+| `06` RESET | editor → card | factory layout; card replies with STATE |
+| `07` STATUS | card → editor | ~30/s while pings arrive: register, step and trigger counters, switch / external clock / knob-waiting flags, Main/X/Y settings, physical knob positions, flip probability, the two notes |
+| `09` PING | editor → card | every second; keeps STATUS flowing |
+| `0A` KNOB | editor → card | knob (0 Main, 1 X, 2 Y), value 0–4095 as two 7-bit bytes; the knob then picks up |
 
-Config byte layout (`CONFIG_FORMAT` 1): `[0]` format, `[1]` number of loops,
+Layout byte layout (`CONFIG_FORMAT` 1): `[0]` format, `[1]` number of loops,
 `[2..25]` 8 × (length, divider, chaos), `[26..27]` scale mask (bit n = n semitones above root),
 `[28]` root MIDI note, `[29..156]` 16 × (enabled, start, width, flags, min lo, min hi, max lo, max hi)
 with flags bit 0 = count mode, bit 1 = invert, and min/max as signed 16-bit little endian.
@@ -140,5 +146,5 @@ its ~20 µs budget if you change it.
 
 ## Credits
 
-Firmware and editor written with AI assistance (Claude). USB-MIDI/SysEx code adapted from
-Chris Johnson's ComputerCard `web_interface` example. MIT licence.
+Firmware and editor written with AI assistance (Claude). The USB/SysEx link, knob pick-up
+and editor style follow the CVSeq and WaveSeq cards. MIT licence.
