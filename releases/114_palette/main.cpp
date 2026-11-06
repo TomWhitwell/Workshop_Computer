@@ -41,6 +41,11 @@
     18 FM Env Amt       bipolar: how far the FM envelope moves the FM index
     19 FM Attack        FM envelope attack, 1 ms – 4 s
     20 FM Decay         FM envelope decay, 1 ms – 4 s (fixed snappy curve)
+    21 Osc 1 P.Env Amt  Osc 1 pitch envelope depth, ±48 semitones, unquantised
+    22 Osc 1 P.Env Atk  1 ms – 4 s
+    23 Osc 1 P.Env Dec  1 ms – 4 s
+    24 Osc 1 P.Env Shp  curve: slow start / linear / snappy
+    25-28               the same for Osc 2
 
   Panel
     Main knob   Randomness (Turing): noon = random, CW = locked,
@@ -85,11 +90,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Firmware / protocol versions
 
-constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 4, FW_PATCH = 0;
-constexpr uint8_t CONFIG_FORMAT = 3;   // bump when the serialised layout changes
+constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 5, FW_PATCH = 0;
+constexpr uint8_t CONFIG_FORMAT = 4;   // bump when the serialised layout changes
 
 constexpr int MAX_LOOPS = 8;
-constexpr int NUM_PARAMS = 21;
+constexpr int NUM_PARAMS = 29;
 constexpr int REG_BITS = 64;
 constexpr int MAX_WIDTH = 16;
 
@@ -97,7 +102,8 @@ enum ParamId
 {
 	P_TRIG = 0, P_PITCH1, P_PITCH2, P_SLEW, P_SHAPE1, P_SHAPE2, P_MIX,
 	P_CUTOFF, P_RES, P_ENVAMT, P_FATK, P_FDEC, P_FSHAPE, P_VATK, P_VDEC, P_VSHAPE,
-	P_FMON, P_FMOFF, P_FMENVAMT, P_FMATK, P_FMDEC
+	P_FMON, P_FMOFF, P_FMENVAMT, P_FMATK, P_FMDEC,
+	P_P1AMT, P_P1ATK, P_P1DEC, P_P1SHAPE, P_P2AMT, P_P2ATK, P_P2DEC, P_P2SHAPE
 };
 
 // Native range of each parameter. The editor mirrors this table; Min/Max
@@ -120,6 +126,8 @@ static const ParamRange paramRange[NUM_PARAMS] = {
 	{0, 1023},      // FM offset: index = value / 256
 	{-1023, 1023},  // FM env amount
 	{0, 1023}, {0, 1023},  // FM attack, decay
+	{-1023, 1023}, {0, 1023}, {0, 1023}, {0, 1023},  // Osc 1 pitch env: amount, A, D, shape
+	{-1023, 1023}, {0, 1023}, {0, 1023}, {0, 1023},  // Osc 2 pitch env
 };
 
 // Assignment flags
@@ -155,7 +163,7 @@ struct Config
 };
 
 // Serialised size: see Serialise() for the byte layout
-constexpr int CONFIG_BYTES = 2 + MAX_LOOPS * 3 + 3 + NUM_PARAMS * 8; // 197
+constexpr int CONFIG_BYTES = 2 + MAX_LOOPS * 3 + 3 + NUM_PARAMS * 8; // 261
 
 static void DefaultConfig(Config &c)
 {
@@ -192,6 +200,16 @@ static void DefaultConfig(Config &c)
 	c.params[P_FMENVAMT] = {1, 24, 4, 0,         0,  700};  // envelope adds up to ~index 2.7
 	c.params[P_FMATK]  = {0,  0, 1, 0,           0,    0};  // unassigned: instant attack
 	c.params[P_FMDEC]  = {1, 28, 3, 0,         250,  750};
+	// Pitch envelopes: Osc 1 sometimes starts with a quick downward zap of
+	// up to an octave; Osc 2's envelope is off (amount held at 0)
+	c.params[P_P1AMT]   = {1, 33, 2, 0,           0,  256};
+	c.params[P_P1ATK]   = {0,  0, 1, 0,           0,    0};
+	c.params[P_P1DEC]   = {0,  0, 1, 0,         350,  350};
+	c.params[P_P1SHAPE] = {0,  0, 1, 0,         900,  900};
+	c.params[P_P2AMT]   = {0,  0, 1, 0,           0,    0};
+	c.params[P_P2ATK]   = {0,  0, 1, 0,           0,    0};
+	c.params[P_P2DEC]   = {0,  0, 1, 0,         350,  350};
+	c.params[P_P2SHAPE] = {0,  0, 1, 0,         900,  900};
 }
 
 static int32_t Clamp(int32_t v, int32_t lo, int32_t hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -237,7 +255,7 @@ static void ValidateConfig(Config &c)
 //   [0]  CONFIG_FORMAT            [1] numLoops
 //   [2..25]  8 x (length, divider, chaos)
 //   [26,27] scaleMask (lo, hi)    [28] root
-//   [29..196] 21 x (enabled, start, width, flags, minLo, minHi, maxLo, maxHi)
+//   [29..260] 29 x (enabled, start, width, flags, minLo, minHi, maxLo, maxHi)
 static void Serialise(const Config &c, uint8_t *b)
 {
 	int n = 0;
@@ -289,7 +307,7 @@ static bool Deserialise(Config &c, const uint8_t *b)
 // Flash storage: last 4 kB sector of the card
 
 constexpr uint32_t FLASH_OFFSET = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
-constexpr uint32_t FLASH_MAGIC = 0x50414C33; // "PAL3"
+constexpr uint32_t FLASH_MAGIC = 0x50414C34; // "PAL4"
 
 struct FlashImage
 {
@@ -427,12 +445,13 @@ struct Envelope
 
 	void Trigger() { stage = 1; phase = 0; startLevel = level; }
 
-	int32_t Process(int32_t atk, int32_t dec, int32_t shape)
+	// shift: run at 1/2^shift of the sample rate (e.g. 2 for every 4th sample)
+	int32_t Process(int32_t atk, int32_t dec, int32_t shape, int shift = 0)
 	{
 		int32_t c = shape - 512;
 		if (stage == 1)
 		{
-			phase += envInc[atk];
+			phase += envInc[atk] << shift;
 			if (phase >= (1u << 24)) { stage = 2; phase = 0; level = 65535; }
 			// Unsigned: (65535 - start) x curve can reach 2^32, which
 			// overflows a signed 32-bit int (heard as a pop mid-attack)
@@ -440,7 +459,7 @@ struct Envelope
 		}
 		else if (stage == 2)
 		{
-			phase += envInc[dec];
+			phase += envInc[dec] << shift;
 			if (phase >= (1u << 24)) { stage = 0; level = 0; }
 			else level = 65535 - Curve(phase >> 8, c);
 		}
@@ -547,9 +566,9 @@ protected:
 	//  - after a clock step the loops are shifted one per sample, then the
 	//    16 parameters re-read one per sample (about half a millisecond);
 	//  - a new layout from the editor arrives ready-made (see Engine);
-	//  - pitch maths and smoothing each run every 4th sample, the knobs one
-	//    at a time, and the LEDs and the editor's snapshot every 32nd sample,
-	//    each on a different sample so their costs never add up.
+	//  - pitch maths, pitch envelopes and smoothing each run every 4th
+	//    sample, the knobs one at a time, and the LEDs and the editor's
+	//    snapshot every 32nd sample, staggered so their costs never add up.
 
 	uint32_t Rand() { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return rng; }
 
@@ -620,6 +639,8 @@ protected:
 		fltEnv.Trigger();
 		volEnv.Trigger();
 		fmEnv.Trigger();
+		pEnv1.Trigger();
+		pEnv2.Trigger();
 		trigPulse = 240; // 5 ms
 		trigCount++;
 	}
@@ -715,12 +736,13 @@ protected:
 		switch (slot & 3)
 		{
 		case 0: UpdatePitch(); break;                     // 12 kHz
-		case 1: HandleKnob((frame >> 2) % 3); break;      // each knob at 4 kHz
-		case 2: UpdateSmoothing(); break;                 // 12 kHz
-		default:
-			if (slot == 3) PublishSnapshot();             // 1.5 kHz
-			else if (slot == 7) UpdateLeds();             // 1.5 kHz
+		case 1:
+			HandleKnob((frame >> 2) % 3);                 // each knob at 4 kHz
+			if (slot == 1) PublishSnapshot();             // 1.5 kHz
+			else if (slot == 5) UpdateLeds();             // 1.5 kHz
 			break;
+		case 2: UpdateSmoothing(); break;                 // 12 kHz
+		default: UpdatePitchEnvelopes(); break;           // 12 kHz
 		}
 
 		// Oscillators. Osc 2 first: it is the FM modulator.
@@ -802,6 +824,17 @@ protected:
 		clockPeriod = base - ((base * (yq & 4095)) >> 13);
 	}
 
+	// Every 4th sample: the two pitch envelopes, at 12 kHz. Env Amt is
+	// ±1023 for ±48 semitones, unquantised, added on top of the (quantised)
+	// note by UpdatePitch.
+	void UpdatePitchEnvelopes()
+	{
+		int32_t pe1 = pEnv1.Process(paramVal[P_P1ATK], paramVal[P_P1DEC], paramVal[P_P1SHAPE], 2);
+		int32_t pe2 = pEnv2.Process(paramVal[P_P2ATK], paramVal[P_P2DEC], paramVal[P_P2SHAPE], 2);
+		sweep1 = (((smooth[8] >> 8) * pe1) >> 16) * 3075;  // 3075 = 48 st / 1023 in Q16
+		sweep2 = (((smooth[9] >> 8) * pe2) >> 16) * 3075;
+	}
+
 	// Every 4th sample (a different one): pitch, glide, CV Out 1
 	void UpdatePitch()
 	{
@@ -814,8 +847,10 @@ protected:
 		int32_t k = slewCoef[Clamp(paramVal[P_SLEW], 0, 1023)];
 		pitch1 += Mul64((curNote1 << 16) - pitch1, k, 16);
 		pitch2 += Mul64((curNote2 << 16) - pitch2, k, 16);
-		inc1 = PitchToInc(pitch1);
-		inc2 = PitchToInc(pitch2);
+
+		// Add the pitch envelopes' sweeps (worked out on another sample)
+		inc1 = PitchToInc(Clamp(pitch1 + sweep1, 0, 127 << 16));
+		inc2 = PitchToInc(Clamp(pitch2 + sweep2, 0, 127 << 16));
 
 		// Calibrated pitch out (MIDI 60 = 0 V)
 		CVOut1Millivolts(int32_t((int64_t(pitch1 - (60 << 16)) * 5333) >> 22));
@@ -1120,7 +1155,8 @@ private:
 	uint32_t inc1 = 0, inc2 = 0;
 	uint32_t phase1 = 0, phase2 = 0;
 	int32_t svfLow = 0, svfBand = 0;
-	Envelope fltEnv, volEnv, fmEnv;
+	Envelope fltEnv, volEnv, fmEnv, pEnv1, pEnv2;
+	int32_t sweep1 = 0, sweep2 = 0;  // pitch envelope sweeps, Q16 semitones
 	static constexpr int32_t kFmEnvShape = 896; // fixed curve: snappy, like a struck bell
 	int32_t volLevel = 0;
 	int32_t clockCount = 0, clockPeriod = 6000;
@@ -1130,8 +1166,9 @@ private:
 	uint32_t rng = 1;
 	uint32_t frame = 0;
 
-	static constexpr int NUM_SMOOTHED = 8;
-	const uint8_t smoothedIds[NUM_SMOOTHED] = {P_SHAPE1, P_SHAPE2, P_MIX, P_CUTOFF, P_RES, P_ENVAMT, P_FMOFF, P_FMENVAMT};
+	static constexpr int NUM_SMOOTHED = 10;
+	const uint8_t smoothedIds[NUM_SMOOTHED] = {P_SHAPE1, P_SHAPE2, P_MIX, P_CUTOFF, P_RES, P_ENVAMT, P_FMOFF, P_FMENVAMT,
+		P_P1AMT, P_P2AMT};
 	int32_t smooth[NUM_SMOOTHED] = {};
 	int32_t fmGate = 0;  // FM On, faded: 0-256 with 8 extra bits
 

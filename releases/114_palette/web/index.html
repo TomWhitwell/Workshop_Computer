@@ -8,7 +8,7 @@
   PALETTE - web editor for the Music Thing Modular Workshop Computer card.
   One static file, no network needed. Talks to the card over WebMIDI + SysEx
   (protocol: ../sysex.h). The card works without this page; the page lays out
-  the shift register's loops, assigns the 21 synth parameters to bits, and
+  the shift register's loops, assigns the 29 synth parameters to bits, and
   shows the card's register, knobs and switch live.
 
   The parameter table, the byte layout, the bit-to-value mapping and the clock
@@ -318,8 +318,8 @@
 
     <section class="card">
       <h2>Envelopes</h2>
-      <canvas id="envs" width="600" height="240" aria-label="The filter and volume envelopes as the register sets them now"></canvas>
-      <div class="caption"><span style="color:var(--s0)">■</span> filter <span style="color:var(--s5)">■</span> volume <span style="color:var(--s3)">■</span> FM · full width <span id="envSpan"></span></div>
+      <canvas id="envs" width="600" height="240" aria-label="The filter, volume, FM and pitch envelopes as the register sets them now"></canvas>
+      <div class="caption"><span style="color:var(--s0)">■</span> filter <span style="color:var(--s5)">■</span> volume <span style="color:var(--s3)">■</span> FM <span style="color:var(--s6)">■</span> pitch (Osc 2 dashed) · full width <span id="envSpan"></span></div>
     </section>
 
     <section class="card">
@@ -379,7 +379,7 @@
 */
 
 // ---------------------------------------------------------------- parameters
-const GROUP_COLOR = { trig: '--s4', pitch: '--s1', osc: '--s2', filter: '--s0', amp: '--s5', fm: '--s3' };
+const GROUP_COLOR = { trig: '--s4', pitch: '--s1', osc: '--s2', filter: '--s0', amp: '--s5', fm: '--s3', penv: '--s6' };
 const PARAMS = [
   { id: 'trig',   name: 'Env Trigger',    short: 'Trig',   group: 'trig',   lo: 0,     hi: 1023, w: 1, desc: 'Fires both envelopes when the value is in the top half. Only checked on steps where its own bits move. Unassigned, it fires on every clock step if Min is 512 or more.' },
   { id: 'pitch1', name: 'Osc 1 Pitch',    short: 'Pitch 1', group: 'pitch', lo: 0,     hi: 48,   w: 5, desc: 'Scale degrees above the root note, quantised to the scale.' },
@@ -402,8 +402,16 @@ const PARAMS = [
   { id: 'fmenvamt', name: 'FM Env Amt',   short: 'FM Env', group: 'fm',     lo: -1023, hi: 1023, w: 4, desc: 'How far the FM envelope moves the FM index from the offset: 256 adds index 1 at the envelope’s peak. Negative values dip the FM instead. The total stays between index 0 and 4.' },
   { id: 'fmatk',  name: 'FM Attack',      short: 'FM Atk', group: 'fm',     lo: 0,     hi: 1023, w: 2, desc: 'FM envelope attack, 1 ms to 4 s. The FM envelope fires with the other two, and has a fixed snappy curve.' },
   { id: 'fmdec',  name: 'FM Decay',       short: 'FM Dec', group: 'fm',     lo: 0,     hi: 1023, w: 3, desc: 'FM envelope decay, 1 ms to 4 s. A short decay gives struck, bell-like attacks; a long one a slowly mellowing tone.' },
+  { id: 'p1amt',  name: 'Osc 1 P.Env Amt', short: 'P1 Env', group: 'penv', lo: -1023, hi: 1023, w: 3, desc: 'How far Osc 1’s pitch envelope bends its pitch: ±1023 is ±48 semitones, so 256 is an octave. The sweep is smooth, not quantised; it starts from and returns to the scale note. Positive sweeps down from above, negative up from below (with an instant attack).' },
+  { id: 'p1atk',  name: 'Osc 1 P.Env Atk', short: 'P1 Atk', group: 'penv', lo: 0,     hi: 1023, w: 2, desc: 'Osc 1 pitch envelope attack, 1 ms to 4 s. Short for zaps and drum toms; long for risers.' },
+  { id: 'p1dec',  name: 'Osc 1 P.Env Dec', short: 'P1 Dec', group: 'penv', lo: 0,     hi: 1023, w: 3, desc: 'Osc 1 pitch envelope decay, 1 ms to 4 s.' },
+  { id: 'p1shape', name: 'Osc 1 P.Env Shape', short: 'P1 Shp', group: 'penv', lo: 0,   hi: 1023, w: 2, desc: 'Osc 1 pitch envelope curve: slow start (low), linear (middle), snappy (high). Snappy gives the classic fast drop of a drum or zap.' },
+  { id: 'p2amt',  name: 'Osc 2 P.Env Amt', short: 'P2 Env', group: 'penv', lo: -1023, hi: 1023, w: 3, desc: 'How far Osc 2’s pitch envelope bends its pitch: ±1023 is ±48 semitones. With FM on, sweeping Osc 2 sweeps the FM ratio.' },
+  { id: 'p2atk',  name: 'Osc 2 P.Env Atk', short: 'P2 Atk', group: 'penv', lo: 0,     hi: 1023, w: 2, desc: 'Osc 2 pitch envelope attack, 1 ms to 4 s.' },
+  { id: 'p2dec',  name: 'Osc 2 P.Env Dec', short: 'P2 Dec', group: 'penv', lo: 0,     hi: 1023, w: 3, desc: 'Osc 2 pitch envelope decay, 1 ms to 4 s.' },
+  { id: 'p2shape', name: 'Osc 2 P.Env Shape', short: 'P2 Shp', group: 'penv', lo: 0,   hi: 1023, w: 2, desc: 'Osc 2 pitch envelope curve: slow start (low), linear (middle), snappy (high).' },
 ];
-const MAX_LOOPS = 8, REG = 64, MAX_W = 16, CONFIG_FORMAT = 3, CONFIG_BYTES = 29 + 8 * PARAMS.length; // 197
+const MAX_LOOPS = 8, REG = 64, MAX_W = 16, CONFIG_FORMAT = 4, CONFIG_BYTES = 29 + 8 * PARAMS.length; // 261
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const SCALES = [
   ['Chromatic', 0xFFF], ['Major', 0xAB5], ['Natural minor', 0x5AD], ['Dorian', 0x6AD],
@@ -423,6 +431,7 @@ function defaultConfig() {
       P(40, 3, 100, 850), P(44, 4, 0, 700), P(48, 2, 0, 300), P(50, 3, 250, 750),
       P(53, 2, 512, 1023), P(56, 2, 0, 250), P(58, 4, 300, 800), P(62, 2, 512, 1023),
       P(47, 1, 0, 1), P(16, 4, 0, 256), P(24, 4, 0, 700), U(0), P(28, 3, 250, 750),
+      P(33, 2, 0, 256), U(0), U(350), U(900), U(0), U(0), U(350), U(900),
     ],
   };
 }
@@ -514,7 +523,9 @@ function fmt(i, v, short = false) {
     case 'fmon': return v >= 1 ? 'on' : 'off';
     case 'fmoffset': { const ix = v / 256; return short ? '×' + ix.toFixed(1) : `index ${ix.toFixed(2)}${ix > 1 ? ', through zero' : ''}`; }
     case 'fmenvamt': { const ix = v / 256; return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(ix).toFixed(short ? 1 : 2) + (short ? '' : ' index at peak'); }
-    case 'fmatk': case 'fmdec': return fmtMs(ms(v));
+    case 'fmatk': case 'fmdec': case 'p1atk': case 'p1dec': case 'p2atk': case 'p2dec': return fmtMs(ms(v));
+    case 'p1amt': case 'p2amt': { const st = v * 48 / 1023; return (st > 0 ? '+' : st < 0 ? '−' : '') + Math.abs(st).toFixed(st && Math.abs(st) < 10 ? 1 : 0) + (short ? '' : ' semitones at peak'); }
+    case 'p1shape': case 'p2shape': return curveName(v);
   }
   return String(v);
 }
@@ -836,16 +847,19 @@ function drawEnvs() {
   const css = getComputedStyle(document.documentElement);
   ctx.clearRect(0, 0, W, H);
   const v = PARAMS.map((_, i) => paramValue(i));
-  // filter, volume, and FM (fixed shape 896, as main.cpp kFmEnvShape)
+  // filter, volume, FM (fixed shape 896, as main.cpp kFmEnvShape), and the
+  // two pitch envelopes when their amount isn't zero (Osc 2's dashed)
   const envs = [[v[10], v[11], v[12], css.getPropertyValue('--s0')], [v[13], v[14], v[15], css.getPropertyValue('--s5')], [v[19], v[20], 896, css.getPropertyValue('--s3')]];
+  if (v[21]) envs.push([v[22], v[23], v[24], css.getPropertyValue('--s6')]);
+  if (v[25]) envs.push([v[26], v[27], v[28], css.getPropertyValue('--s6'), true]);
   const total = Math.max(...envs.map(([a, d]) => ms(a) + ms(d)));
   $('envSpan').textContent = fmtMs(total);
   ctx.strokeStyle = css.getPropertyValue('--grid'); ctx.lineWidth = 1;
   for (let g = 1; g < 4; g++) { ctx.beginPath(); ctx.moveTo(0, H * g / 4); ctx.lineTo(W, H * g / 4); ctx.stroke(); }
   const pad = 8;
-  envs.forEach(([a, d, s, col], k) => {
+  envs.forEach(([a, d, s, col, dashed], k) => {
     const ta = ms(a), td = ms(d), c = s - 512;
-    ctx.beginPath(); ctx.strokeStyle = col.trim(); ctx.lineWidth = k === 1 ? 2.5 : 2;
+    ctx.beginPath(); ctx.strokeStyle = col.trim(); ctx.lineWidth = k === 1 ? 2.5 : 2; ctx.setLineDash(dashed ? [6, 4] : []);
     for (let x = 0; x <= W; x++) {
       const t = x / W * total; let y;
       if (t < ta) y = curve(t / ta, c); else if (t < ta + td) y = 1 - curve((t - ta) / td, c); else y = 0;
@@ -1025,7 +1039,7 @@ function fromJSON(text) {
 }
 
 // ---------------------------------------------------------------- WebMIDI (protocol: ../sysex.h)
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 4;
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 5;
 const CMD = { HELLO: 1, STATE: 2, SET_CONFIG: 3, SAVE: 4, SET_REG: 5, RESET: 6, STATUS: 7, SAVED: 8, PING: 9, KNOB: 10 };
 const link = { access: null, card: { in: null, out: null }, cardOnline: false, pingTimer: 0, sysexOn: false, sysexBuf: [], lastStatus: 0, lastTick: -1 };
 
@@ -1085,7 +1099,7 @@ function onCardBytes(d) {
     if (!link.sysexOn) continue;
     if (b === 0xF7) { link.sysexOn = false; handleCardMessage(link.sysexBuf); link.sysexBuf = []; continue; }
     if (b & 0x80) { if (b < 0xF8) link.sysexOn = false; continue; }
-    if (link.sysexBuf.length < 600) link.sysexBuf.push(b); else link.sysexOn = false;
+    if (link.sysexBuf.length < 800) link.sysexBuf.push(b); else link.sysexOn = false;
   }
 }
 

@@ -3,7 +3,7 @@ Name: Palette
 short-description: A synth voice whose every parameter is read from a Turing-Machine-style shift register
 Language: C++ (Pico SDK + ComputerCard)
 Creator: XponentOneAudio
-Version: 0.4.0
+Version: 0.5.0
 Status: WIP
 License: MIT
 Editor: web
@@ -23,9 +23,9 @@ tags:
 
 summary: |
   An experiment for a larger card. A simple two-oscillator, filtered, enveloped voice where all
-  21 synthesis parameters (envelope trigger, quantised pitches, glide, oscillator shapes and mix,
-  through-zero FM on/off, offset and its own AD envelope, cutoff, resonance, filter envelope
-  amount and both AD envelopes with curve shape) are read from
+  29 synthesis parameters (envelope trigger, quantised pitches with a pitch envelope each,
+  glide, oscillator shapes and mix, through-zero FM on/off, offset and its own AD envelope,
+  cutoff, resonance, filter envelope amount and both AD envelopes with curve shape) are read from
   windows of bits on a 64-bit Turing-Machine-style shift register. The web editor splits the
   register into 1-8 independently looping, independently clocked loops and lets you drag each
   parameter onto any range of bits, with its own output range. Assignments may overlap and may

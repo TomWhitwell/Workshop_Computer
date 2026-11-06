@@ -6,7 +6,7 @@ read from a Turing-Machine-style shift register.
 The register is 64 bits long. In the [web editor](web/index.html) you split it into
 1–8 loops (one 64-bit loop, four 16-bit loops, 20 + 12 + 16 + 16, anything that adds up
 to 64 or less). Each loop rotates on its own clock divider, and each has a chaos amount
-that scales how often the Main knob flips its bits. Then you drag each of the 21
+that scales how often the Main knob flips its bits. Then you drag each of the 29
 synthesis parameters onto any window of 1–16 bits and give it an output range.
 Windows may overlap, and may straddle two loops.
 
@@ -22,8 +22,8 @@ Windows may overlap, and may straddle two loops.
 
 Two oscillators (morphing sine → triangle → saw → square) → mix → resonant 12 dB low-pass
 (state-variable, run at 96 kHz) → VCA. Osc 2 can frequency-modulate Osc 1 (through-zero FM),
-with its own envelope on the FM depth. Three attack/decay envelopes, for the filter, the volume
-and the FM depth, all fired together; the filter and volume ones each have a curve control.
+with its own envelope on the FM depth. Five attack/decay envelopes, all fired together: filter, volume, FM depth, and a
+pitch envelope for each oscillator. All but the FM one have a curve control.
 
 | # | Parameter | Range | Notes |
 |---|---|---|---|
@@ -43,6 +43,9 @@ and the FM depth, all fired together; the filter and volume ones each have a cur
 | 17 | FM Offset | 0–1023 | Base FM index 0–4 (256 = index 1). Linear through-zero FM: above index 1 Osc 1's frequency swings through zero and its phase runs backwards, so the pitch stays centred at any depth. Osc 2's pitch and shape set the ratio and colour |
 | 18 | FM Env Amt | −1023…+1023 | How far the FM envelope moves the index from the offset (256 = index 1 at the peak); negative dips it. The total stays within index 0–4 |
 | 19–20 | FM Attack / Decay | 0–1023 | 1 ms – 4 s, fixed snappy curve |
+| 21 | Osc 1 P.Env Amt | −1023…+1023 | Osc 1 pitch envelope depth, ±48 semitones (256 = an octave), smooth rather than quantised; it starts from and returns to the scale note |
+| 22–24 | Osc 1 P.Env Attack / Decay / Shape | 0–1023 | 1 ms – 4 s; shape: slow start ↔ linear ↔ snappy |
+| 25–28 | Osc 2 P.Env Amt / Attack / Decay / Shape | as Osc 1 | With FM on, sweeping Osc 2 sweeps the FM ratio |
 
 ### How bits become values
 
@@ -123,8 +126,8 @@ Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> …
 | Cmd | Direction | Data |
 |---|---|---|
 | `01` HELLO | editor → card | card replies with STATE |
-| `02` STATE | card → editor | protocol version, layout (197 bytes as nibbles), Main/X/Y settings |
-| `03` SET_CONFIG | editor → card | protocol version, layout (197 bytes as nibbles) |
+| `02` STATE | card → editor | protocol version, layout (261 bytes as nibbles), Main/X/Y settings |
+| `03` SET_CONFIG | editor → card | protocol version, layout (261 bytes as nibbles) |
 | `04` SAVE | editor → card | save layout and register to flash; card replies SAVED (`08`) |
 | `05` SET_REG | editor → card | the register, 8 bytes little endian, as nibbles |
 | `06` RESET | editor → card | factory layout; card replies with STATE |
@@ -132,9 +135,9 @@ Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> …
 | `09` PING | editor → card | every second; keeps STATUS flowing |
 | `0A` KNOB | editor → card | knob (0 Main, 1 X, 2 Y), value 0–4095 as two 7-bit bytes; the knob then picks up |
 
-Layout byte layout (`CONFIG_FORMAT` 3): `[0]` format, `[1]` number of loops,
+Layout byte layout (`CONFIG_FORMAT` 4): `[0]` format, `[1]` number of loops,
 `[2..25]` 8 × (length, divider, chaos), `[26..27]` scale mask (bit n = n semitones above root),
-`[28]` root MIDI note, `[29..196]` 21 × (enabled, start, width, flags, min lo, min hi, max lo, max hi)
+`[28]` root MIDI note, `[29..260]` 29 × (enabled, start, width, flags, min lo, min hi, max lo, max hi)
 with flags bit 0 = count mode, bit 1 = invert, and min/max as signed 16-bit little endian.
 
 ## Building
@@ -151,9 +154,10 @@ Builds against Pico SDK 2.1.1.
 the Computer's knob and CV readings get mixed up. So no sample does a burst of work: after a
 clock step the loops shift one per sample and the parameters are re-read one per sample; a
 layout from the editor is prepared on the USB core and swapped in by pointer; pitch, smoothing,
-knobs, LEDs and the editor snapshot each run on their own staggered samples. Measured in an
+pitch envelopes, knobs, LEDs and the editor snapshot each run on their own staggered samples. Measured in an
 emulated Cortex-M (QEMU, instruction counts, hardware divider modelled) the worst sample is
-about 1,600 instructions and the average about 1,100, with FM at full depth. It has not yet
+about 1,600 instructions and the average about 1,100, with FM at full depth and both
+pitch envelopes running. It has not yet
 been timed on hardware;
 if you change the audio path, check it with a scope on a spare GPIO.
 
