@@ -57,7 +57,13 @@ least significant bit, either
 * **Count**: the number of set bits divided by the width (smoother, more "probabilistic" movement),
 
 optionally **inverted** (1 − x), then scaled to `Min + x × (Max − Min)`. Setting Min above
-Max also reverses the direction. An unassigned parameter holds its Min value.
+Max also reverses the direction. An unassigned parameter is fixed at its Min value.
+
+A **held** parameter keeps the value it had when you held it: the register goes on stepping,
+but that parameter no longer follows it. Hold is saved with the layout. When a slot loads, a
+held parameter takes the value the slot's saved register pattern gives, and holds that. A held
+Env Trigger acts like a fixed setting: held at "fire" it fires on every clock step, held at
+"rest" never.
 
 ### How the loops move
 
@@ -135,8 +141,11 @@ layout when it connects, then shows the card's register, knobs and switch about 
   takeover). It does nothing until it is turned to, or past, the new value, so nothing jumps.
   While a knob is waiting, its box has a dotted outline, an orange line shows where the knob
   is, and LED 5 on the module blinks fast.
-* Drag a parameter chip from the tray onto the grid to assign it. Drag a bar to move it, drag
-  its ends to resize, drag it back to the tray to unassign. Drag on an empty lane to draw a range.
+* The dashed box above the grid (the tray) holds any unassigned parameters, as small chips: drag
+  one onto the grid to give it bits, or drag a bar into the tray to unassign it. Drag a bar to
+  move it, or its ends to resize it. Drag on an empty lane to draw a range.
+* **H**, beside each parameter's name, holds it at its current value; its bar greys out. Click
+  again to let the register move it. The parameter panel has the same Hold button.
 * Drag the handles on the loop strip to move loop boundaries. The Loops table sets
   length, clock divider and chaos per loop, and can split, merge or remove loops.
 * Click a state bit to flip it (on the card too, when connected).
@@ -153,7 +162,7 @@ Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> …
 | Cmd | Direction | Data |
 |---|---|---|
 | `01` HELLO | editor → card | card replies with STATE and SLOTS |
-| `02` STATE | card → editor | protocol version, layout (269 bytes as nibbles), Main/X/Y settings |
+| `02` STATE | card → editor | protocol version, layout (269 bytes as nibbles), Main/X/Y settings, each parameter's value in use (14-bit, offset by 8192) |
 | `03` SET_CONFIG | editor → card | protocol version, layout (269 bytes as nibbles) |
 | `04` SAVE | editor → card | slot, name (16 bytes): save the playing layout and register into a slot and play from it; card replies SAVED (`08`, slot) and SLOTS |
 | `05` SET_REG | editor → card | the register, 8 bytes little endian, as nibbles |
@@ -170,7 +179,7 @@ Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> …
 Layout byte layout (`CONFIG_FORMAT` 5): `[0]` format, `[1]` number of loops,
 `[2..25]` 8 × (length, divider, chaos), `[26..27]` scale mask (bit n = n semitones above root),
 `[28]` root MIDI note, `[29..268]` 30 × (enabled, start, width, flags, min lo, min hi, max lo, max hi)
-with flags bit 0 = count mode, bit 1 = invert, and min/max as signed 16-bit little endian.
+with flags bit 0 = count mode, bit 1 = invert, bit 2 = hold, and min/max as signed 16-bit little endian.
 
 ## Building
 

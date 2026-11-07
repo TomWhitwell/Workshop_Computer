@@ -23,7 +23,7 @@
     --ok: #2b7a2b; --bad: #b3261e; --track: #e3dfd5; --shadow: 0 1px 2px rgba(0,0,0,.08);
     --s0: #0b7d78; --s1: #3a6fb0; --s2: #7a55b0; --s3: #b0457a;
     --s4: #b5560a; --s5: #8a7a12; --s6: #3f8a3a; --s7: #5a6470;
-    --label-w: 168px;
+    --label-w: 188px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -185,6 +185,13 @@
   }
   /* Padding sits on the label, not the bar, so a 1-bit bar can be as narrow as its bit */
   .bar .bl { padding: 0 10px; pointer-events: none; }
+  /* Held: the bar greys out (striped), the value stays put */
+  .bar.held { background: repeating-linear-gradient(135deg, var(--track) 0 5px, var(--line) 5px 10px); color: var(--muted); }
+  .lane.held .lab .val { color: var(--warm); }
+  .lane.held .meter .pos { background: var(--warm); }
+  .hold { flex: 0 0 auto; width: 20px; height: 18px; padding: 0; border-radius: 4px; font-size: 10px; line-height: 1; font-weight: 700; color: var(--muted); background: transparent; border: 1px solid var(--line); }
+  .hold[aria-pressed="true"] { background: var(--warm); border-color: var(--warm); color: var(--panel); }
+  .hold:disabled { opacity: .3; }
   .bar .eh { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
   .bar.one .eh { width: 4px; }
   .bar.one .eh::after { left: 1px; }
@@ -303,7 +310,7 @@
       </div>
       <div class="howto">
         <b>Bits move left to right</b> on each step. The bit leaving a loop's right end comes back at its left end, flipped at random by Main and the loop's chaos.<br>
-        <b>Drag a chip</b> from the tray onto the grid to assign it. <b>Drag a bar</b> to move it, its ends to resize it, or back to the tray to unassign it. <b>Drag on an empty lane</b> to draw a range. <b>Click a state bit</b> to flip it.
+        The dashed box above the grid holds any <b>unassigned</b> parameters; drag one onto the grid to give it bits, or drag a bar into the box to unassign it. <b>Drag a bar</b> to move it, or its ends to resize it. <b>Drag on an empty lane</b> to draw a range. <b>H</b> beside a parameter holds it at its current value (its bar greys out). <b>Click a state bit</b> to flip it.
       </div>
     </section>
 
@@ -448,7 +455,7 @@ const SCALES = [
 
 function defaultConfig() {
   const P = (start, width, min, max, popcount = false, invert = false) => ({ enabled: true, start, width, popcount, invert, min, max });
-  const U = (min) => ({ enabled: false, start: 0, width: 1, popcount: false, invert: false, min, max: min }); // unassigned: holds min
+  const U = (min) => ({ enabled: false, start: 0, width: 1, popcount: false, invert: false, min, max: min }); // unassigned: fixed at min
   return {
     loops: [16, 16, 16, 16].map((length, i) => ({ length, divider: [1, 2, 4, 8][i], chaos: 100 })),
     scaleMask: 0x4A9, root: 48,
@@ -507,15 +514,32 @@ function validate() {
 
 // ---------------------------------------------------------------- mapping (mirrors firmware ParamValue)
 function rawBits(p) { let v = 0; for (let j = 0; j < p.width; j++) v += bits[p.start + j] * 2 ** j; return v; }
+// Held parameters keep the value they had when held (or that the card says
+// it is using, from STATE). heldVal[i] is undefined until first needed.
+const heldVal = [];
 function paramValue(i) {
   const p = cfg.params[i];
   if (!p.enabled) return p.min;
+  if (p.hold) { if (heldVal[i] === undefined) heldVal[i] = liveValue(i); return heldVal[i]; }
+  return liveValue(i);
+}
+// The value the register gives now (as main.cpp ParamValue)
+function liveValue(i) {
+  const p = cfg.params[i];
   const v = rawBits(p);
   let x;
   if (p.popcount) { let c = 0; for (let j = 0; j < p.width; j++) c += bits[p.start + j]; x = Math.floor(c * 65535 / p.width); }
   else x = p.width === 16 ? v : Math.floor(v * 65535 / (2 ** p.width - 1));
   if (p.invert) x = 65535 - x;
   return p.min + Math.floor(((p.max - p.min) * x + 32768) / 65536);
+}
+function setHold(i, on) {
+  const p = cfg.params[i];
+  if (!p.enabled) return;
+  heldVal[i] = on ? liveValue(i) : undefined;
+  p.hold = on;
+  changed();
+  say(on ? PARAMS[i].name + ' held at ' + fmt(i, heldVal[i]) + '.' : PARAMS[i].name + ' follows the register again.');
 }
 function scaleNotes() { const s = []; for (let n = 0; n < 12; n++) if (cfg.scaleMask & (1 << n)) s.push(n); return s; }
 function degreeToNote(deg) {
@@ -581,7 +605,7 @@ function simTick() {
   clockAt = performance.now();
   const t = cfg.params[0];
   let relevant = true;
-  if (t.enabled) { relevant = false; for (let j = 0; j < t.width; j++) if (movedMask[t.start + j]) relevant = true; }
+  if (t.enabled && !t.hold) { relevant = false; for (let j = 0; j < t.width; j++) if (movedMask[t.start + j]) relevant = true; }
   if (relevant && paramValue(0) >= 512) firedAt = performance.now();
   renderLive();
 }
@@ -706,8 +730,10 @@ function buildStatic() {
   const lanes = $('lanes');
   PARAMS.forEach((P, i) => {
     const row = document.createElement('div'); row.className = 'row lane'; row.style.setProperty('--c', colorOf(i)); row.dataset.i = i;
-    row.innerHTML = `<div class="lab" role="button" tabindex="0"><span class="sw"></span><span class="nm">${P.name}</span><span class="val"></span>
+    row.innerHTML = `<div class="lab" role="button" tabindex="0"><span class="sw"></span><span class="nm" title="${P.name}">${P.name}</span><span class="val"></span>
+      <button class="hold" type="button" aria-pressed="false" aria-label="Hold ${P.name}">H</button>
       <div class="meter"><div class="win"></div><div class="pos"></div></div></div><div class="trk cols8"></div>`;
+    row.querySelector('.hold').addEventListener('click', (e) => { e.stopPropagation(); setHold(i, !cfg.params[i].hold); });
     row.querySelector('.lab').addEventListener('click', () => select(i));
     row.querySelector('.lab').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(i); } });
     attachLaneDrag(row.querySelector('.trk'), i);
@@ -768,18 +794,23 @@ function renderLanes() {
   document.querySelectorAll('.lane').forEach((row) => {
     const i = +row.dataset.i, p = cfg.params[i], trk = row.querySelector('.trk');
     row.classList.toggle('sel', i === selected);
+    const held = p.enabled && !!p.hold;
+    row.classList.toggle('held', held);
+    const hb = row.querySelector('.hold');
+    hb.setAttribute('aria-pressed', String(held)); hb.disabled = !p.enabled;
+    hb.title = !p.enabled ? 'Unassigned parameters are fixed at their Min already' : held ? 'Held at ' + fmt(i, paramValue(i)) + ': click to let the register move it again' : 'Hold: keep this parameter at its current value';
     trk.innerHTML = '';
     if (p.enabled) {
-      const bar = document.createElement('div'); bar.className = 'bar';
+      const bar = document.createElement('div'); bar.className = 'bar' + (held ? ' held' : '');
       bar.style.left = `calc(${p.start / REG * 100}% + 1px)`; bar.style.width = `calc(${p.width / REG * 100}% - 2px)`;
       bar.classList.toggle('one', p.width === 1);
       const label = (p.width > 2 ? PARAMS[i].short : '') + (p.popcount && p.width > 4 ? ' Σ' : '') + (p.invert && p.width > 5 ? ' ¬' : '');
       // A 1-bit bar gets one slim handle (drag right to widen), leaving its body to grab and move
       bar.innerHTML = (p.width > 1 ? '<span class="eh l"></span>' : '') + (label ? `<span class="bl">${label}</span>` : '') + '<span class="eh r"></span>';
-      bar.title = `${PARAMS[i].name}: bits ${p.start}–${p.start + p.width - 1}${p.popcount ? ', count of set bits' : ''}${p.invert ? ', inverted' : ''}`;
+      bar.title = `${PARAMS[i].name}: bits ${p.start}–${p.start + p.width - 1}${p.popcount ? ', count of set bits' : ''}${p.invert ? ', inverted' : ''}${held ? ', held at ' + fmt(i, paramValue(i)) : ''}`;
       trk.appendChild(bar);
     } else {
-      const ph = document.createElement('div'); ph.className = 'placeholder'; ph.textContent = `unassigned: holds ${fmt(i, p.min)}. Drag here to draw a range`;
+      const ph = document.createElement('div'); ph.className = 'placeholder'; ph.textContent = `unassigned: fixed at ${fmt(i, p.min)}. Drag here to draw a range`;
       trk.appendChild(ph);
     }
     const P = PARAMS[i], span = P.hi - P.lo;
@@ -791,7 +822,7 @@ function renderLanes() {
 function renderTray() {
   const tray = $('tray'); tray.innerHTML = '';
   const un = cfg.params.map((p, i) => i).filter((i) => !cfg.params[i].enabled);
-  if (!un.length) { tray.innerHTML = '<span class="empty">All ' + PARAMS.length + ' parameters are assigned. Drag a bar here to unassign it.</span>'; return; }
+  if (!un.length) { tray.innerHTML = '<span class="empty">Unassigned parameters wait here. All ' + PARAMS.length + ' are assigned now: drag a bar from the grid into this box to unassign it.</span>'; return; }
   un.forEach((i) => {
     const c = document.createElement('span'); c.className = 'chip'; c.style.setProperty('--c', colorOf(i)); c.tabIndex = 0;
     c.innerHTML = `<span class="sw"></span>${PARAMS[i].name}`;
@@ -849,6 +880,7 @@ function renderInspector() {
       <button class="small opt ${p.popcount ? '' : 'on'}" id="mBin" aria-pressed="${!p.popcount}" title="Read the bits as a binary number">Binary</button>
       <button class="small opt ${p.popcount ? 'on' : ''}" id="mPop" aria-pressed="${p.popcount}" title="Count how many bits are set">Count</button>
       <button class="small opt ${p.invert ? 'on' : ''}" id="inv" aria-pressed="${p.invert}" title="Turn the value upside down">Invert</button>
+      <button class="small opt ${p.hold ? 'on' : ''}" id="holdBtn" aria-pressed="${!!p.hold}" ${p.enabled ? '' : 'disabled'} title="Keep this parameter at its current value while the register moves">Hold</button>
       ${p.enabled ? '<button class="small" id="unassign">Unassign</button>' : '<button class="small" id="assign">Assign</button>'}
     </div>
     <div class="fields">
@@ -874,6 +906,7 @@ function renderInspector() {
   $('mBin').onclick = () => { p.popcount = false; changed(); };
   $('mPop').onclick = () => { p.popcount = true; changed(); };
   $('inv').onclick = () => { p.invert = !p.invert; changed(); };
+  $('holdBtn').onclick = () => setHold(i, !p.hold);
   if ($('unassign')) $('unassign').onclick = () => { p.enabled = false; changed(); };
   if ($('assign')) $('assign').onclick = () => { p.enabled = true; changed(); };
   const num = (id, fn) => { $(id).onchange = (e) => { fn(+e.target.value); changed(); }; };
@@ -1084,7 +1117,7 @@ function serialise() {
   b.push(cfg.scaleMask & 0xFF, cfg.scaleMask >> 8, cfg.root);
   cfg.params.forEach((p) => {
     const mn = p.min & 0xFFFF, mx = p.max & 0xFFFF;
-    b.push(p.enabled ? 1 : 0, p.start, p.width, (p.popcount ? 1 : 0) | (p.invert ? 2 : 0), mn & 0xFF, mn >> 8, mx & 0xFF, mx >> 8);
+    b.push(p.enabled ? 1 : 0, p.start, p.width, (p.popcount ? 1 : 0) | (p.invert ? 2 : 0) | (p.hold ? 4 : 0), mn & 0xFF, mn >> 8, mx & 0xFF, mx >> 8);
   });
   return b;
 }
@@ -1097,7 +1130,7 @@ function deserialise(b) {
   c.scaleMask = b[26] | (b[27] << 8); c.root = b[28];
   for (let i = 0; i < PARAMS.length; i++) {
     const o = 29 + i * 8;
-    c.params.push({ enabled: !!b[o], start: b[o + 1], width: b[o + 2], popcount: !!(b[o + 3] & 1), invert: !!(b[o + 3] & 2), min: s16(b[o + 4], b[o + 5]), max: s16(b[o + 6], b[o + 7]) });
+    c.params.push({ enabled: !!b[o], start: b[o + 1], width: b[o + 2], popcount: !!(b[o + 3] & 1), invert: !!(b[o + 3] & 2), hold: !!(b[o + 3] & 4), min: s16(b[o + 4], b[o + 5]), max: s16(b[o + 6], b[o + 7]) });
   }
   return c;
 }
@@ -1123,11 +1156,11 @@ function fromJSON(text) {
     // 'fmamt' was FM Offset's name before the FM envelope arrived
     params: PARAMS.map((P, i) => ({ ...d.params[i], ...(j.params?.[P.id] || (P.id === 'fmoffset' ? j.params?.fmamt : null) || {}) })),
   };
-  cfg = c; changed();
+  cfg = c; heldVal.length = 0; changed();
 }
 
 // ---------------------------------------------------------------- WebMIDI (protocol: ../sysex.h)
-const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 7;
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 8;
 const CMD = { HELLO: 1, STATE: 2, SET_CONFIG: 3, SAVE: 4, SET_REG: 5, RESET: 6, STATUS: 7, SAVED: 8, PING: 9, KNOB: 10,
   LOAD_SLOT: 11, CLEAR_SLOT: 12, GET_SLOTS: 13, SLOTS: 14, RENAME_SLOT: 15 };
 const NUM_SLOTS = 6, NAME_LEN = 16;
@@ -1205,11 +1238,14 @@ function handleCardMessage(m) {
   const cmd = m[2], p = m.slice(3);
   if (cmd === CMD.STATE) {
     if (p[0] !== PROTOCOL_VERSION) { say('The card speaks protocol version ' + p[0] + ' but this page speaks ' + PROTOCOL_VERSION + '. Use the matching editor and firmware.', true); return; }
-    if (p.length !== 1 + 2 * CONFIG_BYTES + 6) { say('The card sent a state message of an unexpected size: is its firmware a different version?', true); return; }
+    if (p.length !== 1 + 2 * CONFIG_BYTES + 6 + 2 * PARAMS.length) { say('The card sent a state message of an unexpected size: is its firmware a different version?', true); return; }
     const c = deserialise(fromNib(p.slice(1, 1 + 2 * CONFIG_BYTES)));
     if (!c) { say('Could not read the card’s layout.', true); return; }
     cfg = c; dirty = false; slots.edited = false;
     for (let i = 0; i < 3; i++) knobs.set[i] = get14(p, 1 + 2 * CONFIG_BYTES + 2 * i);
+    // The values the card is using: the held ones can't be worked out from the register
+    heldVal.length = 0;
+    PARAMS.forEach((_, i) => { if (c.params[i].hold) heldVal[i] = get14(p, 1 + 2 * CONFIG_BYTES + 6 + 2 * i) - 8192; });
     say('Read the layout from the card.');
     render();
   } else if (cmd === CMD.STATUS && p.length >= 34) {
@@ -1282,7 +1318,7 @@ function wire() {
   $('btn-send').onclick = () => { sendConfig(); say('Sent the layout to the card.'); };
   $('btn-save').onclick = () => saveSlot(slots.current >= 0 ? slots.current : 0);
   $('btn-reset').onclick = () => {
-    cfg = defaultConfig(); dirty = false;
+    cfg = defaultConfig(); dirty = false; heldVal.length = 0;
     if (link.cardOnline) sendRaw(sysex(CMD.RESET, [])); // the card replies with its new state
     render(); say('Factory layout loaded.');
   };

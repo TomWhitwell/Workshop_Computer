@@ -3,7 +3,7 @@ Name: Palette
 short-description: A synth voice whose every parameter is read from a Turing-Machine-style shift register
 Language: C++ (Pico SDK + ComputerCard)
 Creator: XponentOneAudio
-Version: 0.7.0
+Version: 0.8.0
 Status: WIP
 License: MIT
 Editor: web

@@ -95,7 +95,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Firmware / protocol versions
 
-constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 7, FW_PATCH = 0;
+constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 8, FW_PATCH = 0;
 constexpr uint8_t CONFIG_FORMAT = 5;   // bump when the serialised layout changes
 
 constexpr int MAX_LOOPS = 8;
@@ -140,6 +140,7 @@ static const ParamRange paramRange[NUM_PARAMS] = {
 // Assignment flags
 constexpr uint8_t FLAG_POPCOUNT = 1;   // count set bits instead of binary value
 constexpr uint8_t FLAG_INVERT = 2;     // flip the normalised value (1 - x)
+constexpr uint8_t FLAG_HOLD = 4;       // keep the current value: register steps don't change it
 
 ////////////////////////////////////////////////////////////////////////////////
 // Configuration: everything the web editor can change
@@ -253,7 +254,7 @@ static void ValidateConfig(Config &c)
 		p.start = Clamp(p.start, 0, REG_BITS - 1);
 		p.width = Clamp(p.width, 1, MAX_WIDTH);
 		if (p.start + p.width > REG_BITS) p.width = REG_BITS - p.start;
-		p.flags &= (FLAG_POPCOUNT | FLAG_INVERT);
+		p.flags &= (FLAG_POPCOUNT | FLAG_INVERT | FLAG_HOLD);
 		p.min = Clamp(p.min, paramRange[i].lo, paramRange[i].hi);
 		p.max = Clamp(p.max, paramRange[i].lo, paramRange[i].hi);
 	}
@@ -264,6 +265,7 @@ static void ValidateConfig(Config &c)
 //   [2..25]  8 x (length, divider, chaos)
 //   [26,27] scaleMask (lo, hi)    [28] root
 //   [29..268] 30 x (enabled, start, width, flags, minLo, minHi, maxLo, maxHi)
+//   flags: bit 0 count mode, bit 1 invert, bit 2 hold
 static void Serialise(const Config &c, uint8_t *b)
 {
 	int n = 0;
@@ -624,7 +626,7 @@ public:
 		shadowCfg = cfg;
 		BuildEngine(engines[0], cfg);
 		eng = &engines[0];
-		for (int i = 0; i < NUM_PARAMS; i++) paramVal[i] = ParamValue(i);
+		for (int i = 0; i < NUM_PARAMS; i++) pubVal[i] = paramVal[i] = ParamValue(i);
 		FinishRefresh(false);
 		for (int j = 0; j < NUM_SMOOTHED; j++) smooth[j] = paramVal[smoothedIds[j]] << 8;
 		fmGate = paramVal[P_FMON] ? (256 << 8) : 0;
@@ -680,15 +682,19 @@ protected:
 	}
 
 	// One step of the refresh; when the last parameter is in, work out the
-	// notes and whether to fire the envelopes.
+	// notes and whether to fire the envelopes. A held parameter keeps its
+	// value, except when a whole new layout and register arrive (a slot is
+	// loaded): then it takes the value they give, and holds that.
 	void RefreshStep()
 	{
 		if (refreshIndex >= NUM_PARAMS) return;
-		paramVal[refreshIndex] = ParamValue(refreshIndex);
+		if (refreshFull || !(eng->cfg.params[refreshIndex].flags & FLAG_HOLD))
+			pubVal[refreshIndex] = paramVal[refreshIndex] = ParamValue(refreshIndex);
 		if (++refreshIndex == NUM_PARAMS)
 		{
 			FinishRefresh(refreshMoved != 0);
 			refreshMoved = 0;
+			refreshFull = false;
 		}
 	}
 
@@ -701,11 +707,15 @@ protected:
 		// The trigger is only evaluated when its own bits have moved (so a
 		// slow loop doesn't fire repeatedly on unchanged bits). Unassigned,
 		// it fires on every step if its Min is in the top half.
+		// Held, it is like a fixed setting: fire on every step, or never.
 		if (stepped)
 		{
-			bool relevant = eng->cfg.params[P_TRIG].enabled ? (refreshMoved & eng->paramMask[P_TRIG]) != 0 : true;
+			const ParamCfg &t = eng->cfg.params[P_TRIG];
+			bool relevant = (t.enabled && !(t.flags & FLAG_HOLD)) ? (refreshMoved & eng->paramMask[P_TRIG]) != 0 : true;
 			if (relevant && paramVal[P_TRIG] >= 512) FireEnvelopes();
 		}
+
+		refreshCount++;  // pubVal (for the editor) is complete
 	}
 
 	void FireEnvelopes()
@@ -777,6 +787,7 @@ protected:
 			pendingEngine = nullptr;
 			for (int i = 0; i < MAX_LOOPS; i++)
 				if (loopCounter[i] >= eng->cfg.loops[i].divider) loopCounter[i] = 0;
+			if (fullRefreshRequest) { refreshFull = true; fullRefreshRequest = false; }
 			StartRefresh(0);
 		}
 		if (regPending) { reg = pendingReg; __dmb(); regPending = false; StartRefresh(0); }
@@ -1214,13 +1225,22 @@ private:
 		memcpy(b, store.slots[s].cfg, CONFIG_BYTES);
 		Config c;
 		if (!Deserialise(c, b)) return false;
-		QueueConfig(c);
+		uint32_t count = refreshCount;
+		QueueConfig(c, true);
 		while (regPending) tight_loop_contents();
 		pendingReg = SlotReg(store.slots[s]); __dmb(); regPending = true;
 		currentSlot = s;
 		slotChangedUs = time_us_32();
-		if (usbDevice && WebLinked()) { SendState(); SendSlots(); }
+		if (usbDevice && WebLinked()) { WaitForRefresh(count); SendState(); SendSlots(); }
 		return true;
+	}
+
+	// Wait (up to 20 ms) until the audio core has taken a new layout or
+	// register and re-read every parameter, so STATE carries its values
+	void WaitForRefresh(uint32_t since)
+	{
+		uint32_t t0 = time_us_32();
+		while ((pendingEngine || regPending || refreshCount == since) && time_us_32() - t0 < 20000) tight_loop_contents();
 	}
 
 	// Save the playing layout and register into a slot, and play from it
@@ -1372,7 +1392,9 @@ private:
 			Config c;
 			DefaultConfig(c);
 			ValidateConfig(c);
-			QueueConfig(c);
+			uint32_t count = refreshCount;
+			QueueConfig(c, true);
+			WaitForRefresh(count);
 			SendState();
 			break;
 		}
@@ -1390,9 +1412,11 @@ private:
 
 	// Prepare a new layout in the engine the audio core isn't playing, then
 	// hand it over. Waits (briefly) until the previous hand-over is taken.
-	void QueueConfig(const Config &c)
+	// full: re-read held parameters too (a whole new layout, not an edit)
+	void QueueConfig(const Config &c, bool full = false)
 	{
 		while (pendingEngine) tight_loop_contents();
+		fullRefreshRequest = full;
 		Engine *spare = (eng == &engines[0]) ? &engines[1] : &engines[0];
 		BuildEngine(*spare, c);
 		shadowCfg = c;
@@ -1425,7 +1449,7 @@ private:
 
 	void SendState()
 	{
-		static uint8_t msg[4 + 1 + 2 * CONFIG_BYTES + 6 + 1];
+		static uint8_t msg[4 + 1 + 2 * CONFIG_BYTES + 6 + 2 * NUM_PARAMS + 1];
 		int n = sysex::Header(msg, sysex::State);
 		msg[n++] = sysex::kVersion;
 		uint8_t b[CONFIG_BYTES];
@@ -1433,6 +1457,9 @@ private:
 		n += sysex::PutNibbles(msg + n, b, CONFIG_BYTES);
 		Snapshot s = ReadSnapshot();
 		for (int i = 0; i < 3; i++) n += sysex::Put14(msg + n, s.setting[i]);
+		// Each parameter's value now, offset by 8192: the editor needs the
+		// held ones, which the register alone no longer gives
+		for (int i = 0; i < NUM_PARAMS; i++) n += sysex::Put14(msg + n, pubVal[i] + 8192);
 		msg[n++] = 0xF7;
 		Write(msg, n);
 	}
@@ -1503,6 +1530,10 @@ private:
 	volatile uint64_t pendingReg = 0;
 	volatile bool regPending = false;
 	volatile int32_t knobRequest[3] = {-1, -1, -1};  // from the editor
+	volatile bool fullRefreshRequest = false;        // with the next layout: re-read held parameters
+	bool refreshFull = false;
+	volatile int32_t pubVal[NUM_PARAMS] = {};        // parameter values, for STATE
+	volatile uint32_t refreshCount = 0;
 	volatile uint32_t stateSeq = 0;
 	Snapshot snap = {};                               // guarded by stateSeq
 	volatile uint32_t lastPingUs = 0;

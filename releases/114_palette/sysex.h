@@ -33,7 +33,8 @@
 //                                         pings keep arriving
 //
 // Card -> web
-//   STATE      02 version cfg[269 x 2] settings[3 x 2]
+//   STATE      02 version cfg[269 x 2] settings[3 x 2] values[30 x 2]
+//              values: each parameter's value in use, offset by 8192
 //   STATUS     07 reg[8 x 2] tick trig flags settings[3 x 2] knobs[3 x 2]
 //                 prob note1 note2 slot used
 //              tick      clock steps so far, low 7 bits (changes = a step)
@@ -64,7 +65,7 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x50;
-static constexpr uint8_t kVersion = 7;
+static constexpr uint8_t kVersion = 8;
 
 enum Cmd : uint8_t
 {
