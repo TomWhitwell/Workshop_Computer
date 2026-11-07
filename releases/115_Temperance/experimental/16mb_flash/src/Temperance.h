@@ -1,3 +1,4 @@
+// 2026-11-07: exp.2 checks storage health once per clock tick; dry path stays live.
 /*
  * Adapted from Temperance 0.1.0 by Matt Allison.
  * Copyright (c) 2026 Matt Allison. Original code: MIT license.
@@ -135,12 +136,18 @@ public:
 		// The clocked section, once per tick.
 		if (clock_.Process(p.clockStep))
 		{
-			int32_t la = loopA_.Tick(lateA, kZoneSpeed[p.zone[0]], p.clockStep);
-			int32_t lb = loopB_.Tick(lateB, kZoneSpeed[p.zone[1]], p.clockStep);
+            int32_t la = 0, lb = 0;
+            // A storage fault mutes both loopers; the dry path and controls live
+            // on. Check once per clock tick, not inside every cached read.
+            bool storageHealthy = temflash::Healthy();
+            if (storageHealthy) {
+                la = loopA_.Tick(lateA, kZoneSpeed[p.zone[0]], p.clockStep);
+                lb = loopB_.Tick(lateB, kZoneSpeed[p.zone[1]], p.clockStep);
+            }
 			// Each loop at 3/4, so two loops over the dry input sit in the
 			// mix without leaning on the output's soft clip.
 			held_ = Crush(((la + lb) * 3) >> 2, p.crushBits);
-			if (loopB_.Wrapped())
+			if (storageHealthy && loopB_.Wrapped())
 				trigger_[1] = kTriggerSamples;
 		}
 

@@ -13,4 +13,4 @@ notice and the other upstream notices remain preserved separately.
 Corresponding source for this UF2 is in the parent experimental directory;
 its unchanged ComputerCard dependency is in `../../../lib/`.
 
-`picotool info -a temperance.0.1.0-flash-exp.1.16mb.uf2` displays embedded credits.
+`picotool info -a temperance.0.1.0-flash-exp.2.16mb.uf2` displays embedded credits.

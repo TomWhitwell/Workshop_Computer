@@ -1,7 +1,7 @@
 # Temperance: original versus 16MB flash experiment
 
-Versions: original **0.1.0** and experimental **0.1.0-flash-exp.1**.
-Status: protocol prepared on 2026-11-04; hardware results have not been collected.
+Versions: original **0.1.0** and experimental **0.1.0-flash-exp.2**.
+Status: protocol prepared on 2026-11-04; user reported functional hardware tests pass on 2026-11-07. See VALIDATION.md for scope and unmeasured checks.
 
 ## What changes
 
@@ -278,3 +278,14 @@ A useful first report is T1–T6 plus one T8 run, with short original/experiment
 audio captures. Passing the listening protocol supports an initial hardware
 trial; it does not establish every flash-chip variant, long-term endurance or
 a proven worst-case execution bound.
+
+## T11 — exp.2 retest of the reported lock-up
+
+Record a long loop (at least 10 seconds), then use switch middle, Main fully
+clockwise and Y fully clockwise. Move X slowly and rapidly across every speed
+and direction zone for at least one minute. Repeat while moving Y, then both.
+Repeat at full wash, and while the other loop records. Pass: controls and
+playheads keep responding, audio keeps playing, and there is no freeze, reset
+or all-LED storage-fault indication. The exp.1 hardware freeze is a known
+failure; the user reported that the exp.2 physical retest passes on 2026-11-07.
+The procedure remains here for repeat testing and additional cards.

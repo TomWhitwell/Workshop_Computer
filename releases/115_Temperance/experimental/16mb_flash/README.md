@@ -1,6 +1,6 @@
 # Temperance — experimental 16MB flash looper
 
-**Version 0.1.0-flash-exp.1. Built and host-tested; not yet tested on physical hardware.**
+**Version 0.1.0-flash-exp.2. Built and host-tested; user-reported functional hardware tests passed on 2026-11-07.**
 
 **Overall licence: GNU GPL version 3 (GPL-3.0)** — see [LICENSE](LICENSE).
 Upstream author credits and MIT/BSD notices are retained. The original
@@ -11,9 +11,27 @@ manual and `../../UF2/temperance.0.1.0.uf2` are unchanged. This experiment
 uses Goldfish 2.0's buffered ADPCM recording and flash erase-suspend approach
 to give Temperance two much longer, independently recordable loops.
 
+## exp.2 — 48kHz parameter-change fix
+
+The first hardware trial of exp.1 froze the LEDs and stopped audio when X or
+Y moved with Main at maximum, including with a long loop and Y at maximum.
+An emulator cycle estimate found the old playback/crossfade path exceeding
+its 4,000-cycle sample budget at 192MHz. Exp.2 adds constant-time cached reads,
+removes repeated audio-thread divisions/cache searches and publishes position
+separately from playback configuration. Original controls, ADPCM format and
+loop capacities are retained. The previous exp.1 UF2 remains in `UF2/`.
+
+The old tested long-loop crossfade exceeded the sample deadline (about 24us
+in the initial model). The stricter exp.2 model includes the normalisation
+probe and estimates about 17.3us in its worst tested seam/crossfade case. This
+model excludes real bus contention. The user subsequently confirmed that the
+Main-max/X/Y retest and the recommended functional hardware checks pass.
+Direct audio-interrupt timing has not been measured; see
+[VALIDATION.md](VALIDATION.md) for the reported scope and remaining checks.
+
 ## Firmware and supported card
 
-Flash `UF2/temperance.0.1.0-flash-exp.1.16mb.uf2` onto a **16MB Winbond
+Flash `UF2/temperance.0.1.0-flash-exp.2.16mb.uf2` onto a **16MB Winbond
 W25Q128 program card**. The processor runs at **192MHz / 1.15V**, as in
 the original Temperance. The binary checks the JEDEC manufacturer and
 capacity before allowing any recording writes; a 2MB card or an unrecognised
@@ -88,8 +106,8 @@ Use the [original manual](../../README.md) for the full panel and patch guide.
   and recovery metadata are not implemented**. Clear is a logical clear, not
   a full-chip erase. There is no continuous wrapping delay mode.
 - The original cycle-bench figures do not validate this derivative. Live
-  timing, audio noise, erase-suspend compatibility and worst-case simultaneous
-  recording/playback still need hardware testing.
+  interrupt timing still needs direct measurement. Functional hardware checks
+  are user-reported as passing; other flash variants/endurance are unverified.
 
 ## Implementation
 
@@ -123,7 +141,7 @@ From this directory, with the Pico SDK and ARM GNU toolchain installed:
 
 ```sh
 cmake -S . -B /tmp/temperance-16mb-build \
-  -DPICO_SDK_PATH=/path/to/pico-sdk -DCMAKE_BUILD_TYPE=Release
+  -DPICO_SDK_PATH=/path/to/pico-sdk -DCMAKE_BUILD_TYPE=Release -DTEMPERANCE_BENCH=OFF
 cmake --build /tmp/temperance-16mb-build -j2
 ```
 

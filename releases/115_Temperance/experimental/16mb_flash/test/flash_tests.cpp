@@ -179,6 +179,79 @@ static void FullCapacity() {
     std::printf("PASS complete %u-sample capacity, final flash page, full-buffer stop\n", kCapacity);
 }
 
+static void ParameterChangeRegression() {
+    // Hardware report: long recorded loops, Main fully up (48kHz), switch
+    // middle, Y at max, then moving X or Y freezes LEDs and stops audio.
+    tem::Temperance instrument;
+    tem::Inputs in{};
+    tem::Outputs out{};
+    int32_t led[6];
+    in.knob[0] = in.knob[1] = in.knob[2] = 4095;
+    in.sw = tem::kSwitchMiddle;
+    in.pulsePatched[0] = in.pulsePatched[1] = true;
+    in.audio2Patched = true;
+    in.cv[1] = 1707; // full wash
+    uint32_t previousPos[2] = {};
+    unsigned moves[2] = {}, zoneMask[2] = {};
+    for (unsigned i = 0; i < 720000; ++i) {
+        in.rise[0] = in.rise[1] = i == 50000 || i == 300001;
+        in.audio[0] = Tone(i);
+        in.audio[1] = Tone(i, 1);
+        if (i >= 320000) {
+            // Across all six zones every 2ms: restart crossfades before the
+            // previous 256-tick fade ends, first X, then Y, then both.
+            unsigned zone = ((i - 320000) / 96) % 6;
+            int value = int(zone * 683 + 341);
+            in.knob[1] = i < 440000 || i >= 560000 ? value : 4095;
+            in.knob[2] = i >= 440000 ? value : 4095;
+        }
+        instrument.Audio(in, out);
+        if (i % 48 == 0) {
+            instrument.ControlTick(led);
+            Service(nullptr);
+        }
+        if (i > 320000) {
+            assert(instrument.Params().clockStep == 0);
+            for (unsigned k = 0; k < 2; ++k) {
+                assert(instrument.Loop(k).Len() == 250001);
+                auto pos = uint32_t(instrument.Loop(k).Pos());
+                assert(pos < 250001);
+                moves[k] += pos != previousPos[k];
+                previousPos[k] = pos;
+                zoneMask[k] |= 1u << instrument.Params().zone[k];
+            }
+            assert(out.audio[0] >= -2048 && out.audio[0] <= 2047);
+            assert(out.audio[1] >= -2048 && out.audio[1] <= 2047);
+        }
+    }
+    assert(Healthy());
+    assert(moves[0] > 100000 && moves[1] > 100000);
+    assert(zoneMask[0] == 63 && zoneMask[1] == 63);
+    std::puts("PASS 48kHz long-loop parameter regression: Y max, rapid X/Y changes, full wash");
+}
+
+static void CachePublicationRegression() {
+    CachedBlock block;
+    block.generation = 7;
+    block.block = 1;
+    block.start = 504;
+    block.pcm[12] = 1600;
+    PlaybackReader r{&block, 504, 7, 0};
+    int32_t value;
+    assert(ReadCached(r, 516, value) && value == 100);
+    block.sequence = 1;
+    assert(!ReadCached(r, 516, value)); // worker writing PCM
+    block.sequence = 2;
+    block.generation = 8;
+    assert(!ReadCached(r, 516, value)); // another recording
+    block.generation = 7;
+    block.start = 1008;
+    assert(!ReadCached(r, 516, value)); // slot evicted/reused
+    assert(!ReadCached(r, 503, value)); // unsigned underflow at range start
+    assert(!ReadCached(r, 1008, value)); // exclusive end
+    std::puts("PASS cached-reader sequence/session/eviction/range guards");
+}
+
 static unsigned delayCalls = 0;
 static void DuringProgram() {
     ++delayCalls;
@@ -205,7 +278,21 @@ static void Overflow() {
     assert(diagnostics.queueOverruns == 1 && !Healthy());
     Stop(0);
     Service(nullptr);
+    tem::Temperance instrument;
+    tem::Inputs in{};
+    tem::Outputs out{};
+    int32_t led[6];
+    in.sw = tem::kSwitchMiddle;
+    in.knob[0] = 4095;
+    in.audio[0] = 600;
+    for (unsigned i = 0; i < 10000; ++i) {
+        instrument.Audio(in, out);
+        if (i % 48 == 0) instrument.ControlTick(led);
+    }
+    assert(out.audio[0] == 600 && out.audio[1] == 600);
+    assert(!out.pulse[1]);
     std::puts("PASS stalled-worker queue overflow latches fault without overwriting pending pages");
+    std::puts("PASS storage fault leaves clean dry audio and control updates running");
 }
 
 int main() {
@@ -217,6 +304,8 @@ int main() {
     IndependentRecordings();
     LooperControls();
     Instrument();
+    ParameterChangeRegression();
+    CachePublicationRegression();
     FullCapacity();
     ConcurrentProducer();
     assert(diagnostics.maxQueued <= kQueuePages);

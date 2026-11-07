@@ -65,5 +65,16 @@ pico_enable_stdio_uart(${PROJECT_NAME} 0)
 
 pico_add_extra_outputs(${PROJECT_NAME})
 pico_set_program_name(${PROJECT_NAME} "Temperance 16MB Flash Experimental")
-pico_set_program_version(${PROJECT_NAME} "0.1.0-flash-exp.1")
+pico_set_program_version(${PROJECT_NAME} "0.1.0-flash-exp.2")
+
+option(TEMPERANCE_BENCH "Build emulator-only timing hooks; do not flash" OFF)
+if(TEMPERANCE_BENCH)
+    target_sources(${PROJECT_NAME} PRIVATE
+        ../../tools/bench/offsets.cpp tools/bench/fixture.cpp)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE TEMPERANCE_BENCH=1)
+    target_link_options(${PROJECT_NAME} PRIVATE
+        -Wl,--undefined=bench_offsets -Wl,--undefined=bench_control_tick
+        -Wl,--undefined=bench_prepare -Wl,--undefined=bench_service)
+    target_link_options(${PROJECT_NAME} PRIVATE -Wl,--undefined=bench_norm_offset)
+endif()
 

@@ -1,6 +1,6 @@
 # Code attribution and license scope
 
-Temperance 16MB flash experiment, **0.1.0-flash-exp.1**.
+Temperance 16MB flash experiment, **0.1.0-flash-exp.2**.
 Attribution audit: 2026-11-04. This is a derivative of Matt Allison's
 Temperance, with flash recording adapted from Dune Desormeaux's work.
 It is not an original instrument implementation by Codex.

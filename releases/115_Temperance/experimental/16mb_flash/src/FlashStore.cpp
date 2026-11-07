@@ -1,3 +1,4 @@
+// 2026-11-07: exp.2 audio-deadline fix; upstream notices retained below.
 /*
  * Temperance 16MB flash experiment, 2026-11-04.
  * QSPI helpers and streaming approach adapted from Goldfish 2.0 by
@@ -30,17 +31,11 @@ struct Page {
     uint32_t generation, block, usedBytes;
     uint8_t bytes[kPageBytes];
 };
-struct CachedBlock {
-    volatile uint32_t sequence = 0, generation = 0, block = ~0u;
-    volatile int16_t pcm[kBlockSamples] = {};
-};
 struct Head {
     // Seqlock: core 0 publishes requests; core 1 publishes decoded blocks.
-    volatile uint32_t sequence = 0, generation = 0, pos = 0, length = 0;
-    volatile int32_t direction = 1;
-    volatile bool active = false;
+    PlaybackConfig config;
     CachedBlock cache[3];
-    int32_t last = 0; // core 0 only
+    PlaybackReader reader;
 };
 struct Channel {
     Page pages[kQueuePages];
@@ -192,13 +187,14 @@ void Refill() {
     for (unsigned n = 0; n < 2 && Healthy(); ++n) {
         Channel &c = channels[n];
         for (Head &h : c.heads) {
-            uint32_t seq = h.sequence;
+            auto &config = h.config;
+            uint32_t seq = config.sequence;
             __dmb();
-            uint32_t gen = h.generation, pos = h.pos, len = h.length;
-            int dir = h.direction;
-            bool active = h.active;
+            uint32_t gen = config.generation, pos = h.reader.position, len = config.length;
+            int dir = config.direction;
+            bool active = config.active;
             __dmb();
-            if ((seq & 1u) || seq != h.sequence || !active || !len ||
+            if ((seq & 1u) || seq != config.sequence || !active || !len ||
                 gen != c.flushedGeneration || pos >= len) continue;
             uint32_t blocks = (len + kBlockSamples - 1) / kBlockSamples;
             uint32_t block = pos / kBlockSamples;
@@ -234,6 +230,7 @@ void Refill() {
                 }
                 dest->generation = gen;
                 dest->block = wanted[i];
+                dest->start = wanted[i] * kBlockSamples;
                 __dmb();
                 ++dest->sequence;
                 break; // at most one decoded block per head per service pass
@@ -258,6 +255,22 @@ bool Init() {
 
 bool Healthy() { return enabled && !diagnostics.hardwareFault && !diagnostics.queueOverruns; }
 
+#ifdef TEMPERANCE_BENCH
+// Emulator fixture: flash is mapped to zero-filled ADPCM pages by the driver.
+extern "C" void bench_flash_prepare(uint32_t length) {
+    enabled = true;
+    for (unsigned n = 0; n < 2; ++n) {
+        Channel &c = channels[n];
+        c.generation = c.flushedGeneration = c.ioGeneration = 1;
+        c.samples = length;
+        c.flushedBlocks = (length + kBlockSamples - 1) / kBlockSamples;
+        for (auto &h : c.heads) {
+            h.reader.generation = 1; h.reader.cache = h.cache; h.reader.config = &h.config;
+        }
+    }
+}
+#endif
+
 void Start(unsigned n) {
     Channel &c = channels[n];
     // Monotonic queues retain old pages: consumer finishes their session
@@ -267,7 +280,8 @@ void Start(unsigned n) {
     c.encoder = {0, 0};
     c.recording = Healthy();
     for (unsigned h = 0; h < 2; ++h) {
-        channels[n].heads[h].last = 0;
+        Head &head = channels[n].heads[h];
+        head.reader = {nullptr, 0, c.generation, 0, head.cache, 0, &head.config};
         Request(n, h, 0, 1, 0, false);
     }
 }
@@ -308,21 +322,26 @@ bool Ready(unsigned n) {
     Channel &c = channels[n];
     uint32_t gen = c.flushedGeneration;
     __dmb();
-    return Healthy() && gen == c.generation &&
-        c.flushedBlocks >= (c.samples + kBlockSamples - 1) / kBlockSamples;
+    return Healthy() && !c.recording && gen == c.generation && c.read == c.write;
 }
 
 void Request(unsigned n, unsigned head, uint32_t pos, int dir, uint32_t len, bool active) {
     Head &h = channels[n].heads[head];
-    ++h.sequence;
+    auto &config = h.config;
+    dir = dir < 0 ? -1 : 1;
+    h.reader.position = pos;
+    // Position is an aligned atomic word. Only configuration changes need a
+    // seqlock; a slightly old position is covered by the decode runway.
+    if (config.generation == channels[n].generation && config.length == len &&
+        config.active == active && config.direction == dir) return;
+    ++config.sequence;
     __dmb();
-    h.generation = channels[n].generation;
-    h.pos = pos;
-    h.direction = dir;
-    h.length = len;
-    h.active = active;
+    config.generation = channels[n].generation;
+    config.direction = dir;
+    config.length = len;
+    config.active = active;
     __dmb();
-    ++h.sequence;
+    ++config.sequence;
 }
 
 bool Available(unsigned n, unsigned head, uint32_t pos) {
@@ -332,22 +351,25 @@ bool Available(unsigned n, unsigned head, uint32_t pos) {
     return false;
 }
 
+bool TryRead(unsigned n, unsigned head, uint32_t pos, int32_t &value) {
+    if (!Healthy()) { value = 0; return false; }
+    auto &r = channels[n].heads[head].reader;
+    if (ReadCached(r, pos, value)) return true;
+    return ReadNext(r, pos, value);
+}
+
+
 int32_t Read(unsigned n, unsigned head, uint32_t pos) {
-    if (!Healthy()) return 0;
-    Channel &c = channels[n];
-    Head &h = c.heads[head];
-    for (auto &b : h.cache) {
-        uint32_t seq = b.sequence;
-        __dmb();
-        if ((seq & 1u) || b.generation != c.generation || b.block != pos / kBlockSamples) continue;
-        int32_t value = b.pcm[pos % kBlockSamples];
-        __dmb();
-        if (seq != b.sequence) continue;
-        h.last = value / 16;
-        return h.last;
-    }
-    ++diagnostics.readMisses;
-    return h.last; // bounded hold, never fetch flash from the audio core
+    int32_t value;
+    TryRead(n, head, pos, value);
+    return value;
+}
+
+PlaybackReader *Reader(unsigned n, unsigned head) {
+    auto &h = channels[n].heads[head];
+    h.reader.cache = h.cache;
+    h.reader.config = &h.config;
+    return &h.reader;
 }
 
 void Service(void (*hook)()) {

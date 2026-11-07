@@ -1,3 +1,4 @@
+// 2026-11-07: exp.2 audio-deadline fix; upstream notices retained below.
 /*
  * Adapted from Temperance 0.1.0 by Matt Allison.
  * Copyright (c) 2026 Matt Allison. Original code: MIT license.
@@ -141,6 +142,7 @@ private:
 TemperanceCard *TemperanceCard::core1Card = nullptr;
 
 #ifdef TEMPERANCE_BENCH
+extern "C" tem::Temperance *bench_instrument() { return &instrument; }
 // Cycle-counting builds only (tools/bench/cycles.py): an emulator drives
 // core 1's update directly.
 extern "C" __attribute__((used, noinline)) bool bench_control_tick(int32_t *led)

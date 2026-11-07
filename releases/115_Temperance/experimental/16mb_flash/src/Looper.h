@@ -1,3 +1,4 @@
+// 2026-11-07: exp.2 audio-deadline fix; upstream notices retained below.
 /*
  * Adapted from Temperance 0.1.0 by Matt Allison.
  * Copyright (c) 2026 Matt Allison. Original code: MIT license.
@@ -21,7 +22,11 @@ class Looper
 public:
 	static constexpr int32_t kEmpty = 0, kRecording = 1, kPlaying = 2;
 
-    void Channel(unsigned channel) { channel_ = channel; }
+    void Channel(unsigned channel) {
+        channel_ = channel;
+        reader_[0] = temflash::Reader(channel, 0);
+        reader_[1] = temflash::Reader(channel, 1);
+    }
     static constexpr int32_t kSeam = 256;
     static constexpr int32_t kMaxLen = temflash::kCapacity;
     static constexpr int32_t kMinLen = 2 * kSeam;
@@ -45,6 +50,7 @@ public:
 	// One clock tick: record `in` (if recording), move the read heads at
 	// `speed` (16.16 samples per tick) and return the loop's output.
 	// `clockStep` sets the seam's length, if the buffer fills this tick.
+    // The instrument gates Tick with temflash::Healthy() once for both loops.
 	int32_t Tick(int32_t in, int32_t speed, int32_t clockStep)
 	{
 		speed_ = speed;
@@ -68,12 +74,14 @@ public:
 		}
 
         int32_t out = 0;
-        if (state_ == kPlaying && temflash::Ready(channel_))
+        bool ready = state_ == kPlaying &&
+            (playingReady_ || (playingReady_ = temflash::Ready(channel_)));
+        if (ready)
         {
-            temflash::Request(channel_, 0, head_.pos / 2, speed, len_, true);
+            RequestHead(0, head_.pos / 2, speed);
             // Pause until the first block arrives; don't skip the attack.
-            if (!temflash::Available(channel_, 0, head_.pos / 2)) {
-                (void)temflash::Read(channel_, 0, head_.pos / 2);
+            int32_t sample;
+            if (!ReadHead(0, head_.pos / 2, sample)) {
                 return lastOut_;
             }
             wrapped_ = wrapPending_;
@@ -88,7 +96,7 @@ public:
 				ghostStep_ = kUnity / kSeam;
 				head_.speed = speed;
 			}
-			out = Sample(head_.pos / 2, 0);
+			out = Sample(head_.pos / 2, sample);
 			if (Advance(head_, len_))
 				wrapPending_ = true;
 			if (inGain_ < kUnity)
@@ -99,14 +107,16 @@ public:
 			}
 		}
         // Keep the second cache warm before a direction/speed crossfade.
-        if (state_ == kPlaying && temflash::Ready(channel_)) {
+        if (ready) {
             const Head &g = ghostGain_ > 0 ? ghost_ : head_;
-            temflash::Request(channel_, 1, g.pos / 2, g.speed, len_, true);
+            RequestHead(1, g.pos / 2, g.speed);
         }
 		if (ghostGain_ > 0)
 		{
 			int32_t i = ghost_.pos / 2;
-			int32_t g = Sample(i, 1);
+            int32_t cached;
+            ReadHead(1, i, cached);
+			int32_t g = Sample(i, cached);
 			Advance(ghost_, ghostLen_);
 			if (state_ == kPlaying)
 				out += ((g - out) * ghostGain_) >> 16; // crossfade
@@ -134,6 +144,23 @@ public:
 
 
 private:
+    struct RequestState { uint32_t length = 0; int direction = 0; } request_[2];
+    temflash::PlaybackReader *reader_[2] = {temflash::Reader(0, 0), temflash::Reader(0, 1)};
+
+    inline bool ReadHead(unsigned head, uint32_t pos, int32_t &value) {
+        if (temflash::ReadCached(*reader_[head], pos, value)) return true;
+        return temflash::ReadNext(*reader_[head], pos, value);
+    }
+
+    inline void RequestHead(unsigned head, uint32_t pos, int speed) {
+        auto &r = request_[head];
+        int direction = speed < 0 ? -1 : 1;
+        reader_[head]->position = pos;
+        if (r.length == (uint32_t)len_ && r.direction == direction) return;
+        r.length = len_;
+        r.direction = direction;
+        temflash::ConfigurePlayback(*reader_[head], direction, len_);
+    }
 	static constexpr int32_t kUnity = 65536;
 
 	struct Head
@@ -147,7 +174,9 @@ private:
 		if (state_ == kPlaying)
 			FadeOut(clockStep);
         ghostGain_ = 0;
+        playingReady_ = false;
         temflash::Start(channel_);
+        request_[0] = request_[1] = {};
 		state_ = kRecording;
 		w_ = 0;
 		tail_ = kSeam;
@@ -209,9 +238,8 @@ private:
 	// first samples, from the tail (what followed the loop's end) into the
 	// loop's own start. Only as far as the tail has been written: on the
 	// first pass it's still being recorded.
-	int32_t Sample(int32_t i, unsigned head) const
+	int32_t Sample(int32_t i, int32_t v) const
 	{
-		int32_t v = temflash::Read(channel_, head, i);
 		if (i < tail_)
 		{
 			int32_t t = tailPcm_[i];
@@ -248,6 +276,7 @@ private:
 	uint32_t startedAt_ = 0;
 	uint32_t starts_ = 0, stops_ = 0, passes_ = 0;
 	unsigned channel_ = 0;
+    bool playingReady_ = false;
     int16_t tailPcm_[kSeam] = {};
     int32_t lastOut_ = 0, restartValue_ = 0, restartGain_ = 0, restartStep_ = 0;
 };
