@@ -91,6 +91,15 @@ function renderTags(card, flairs = [], root = '../..') {
   return `<span class="program-card-tags">${flairMarkup}${authorMarkup}</span>`;
 }
 
+// The creator name links back to the index filtered by that creator, the same
+// view as picking them from the Creator dropdown in Advanced options
+// (catalogue-filters.js reads ?creator= and preselects the matching option).
+function renderCreatorLink(creator, root = '../..') {
+  const name = String(creator || '').trim();
+  if (!name) return '';
+  return `<a class="program-card-creator-link" href="${esc(`${root}/?creator=${encodeURIComponent(name)}`)}">${esc(name)}</a>`;
+}
+
 // At the panel label's 11px type and narrow socket width, roughly 15 visible
 // characters (counting normalized whitespace) fit across three word-wrapped
 // lines. No unbroken token longer than eight characters is allowed to overrun
@@ -468,7 +477,7 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
   const hero = `<header class="program-card-hero">
     <div class="program-card-hero__main">
       <h1><span class="program-card-page__number">${esc(cardNumber(card))}</span> ${esc(inline(card.title || card.id || 'Untitled card'))}</h1>
-      ${metadata.creator ? `<div class="program-card-hero__byline">By ${esc(metadata.creator)}</div>` : ''}
+      ${metadata.creator ? `<div class="program-card-hero__byline">By ${renderCreatorLink(metadata.creator, root)}</div>` : ''}
       ${basic ? '' : renderTags(card, flairs, root)}
       ${summary ? `<p class="program-card-hero__summary">${markdownInline(summary)}</p>` : ''}
       ${basic || !heroFlashMeta ? '' : `<div class="program-card-hero__meta">${heroFlashMeta}</div>`}
@@ -497,7 +506,7 @@ export function renderCardArticle({ card, panelImg, yamlUrl, uf2Url, extraDocs =
 
   const about = `<footer class="program-card-about">
     <details class="program-card-section program-card-collapsible" open><summary><h3>About this card</h3></summary><dl>
-      ${metadata.creator ? `<div><dt>Creator</dt><dd>${esc(metadata.creator)}</dd></div>` : ''}
+      ${metadata.creator ? `<div><dt>Creator</dt><dd>${renderCreatorLink(metadata.creator, root)}</dd></div>` : ''}
       ${metadata.language ? `<div><dt>Language</dt><dd>${esc(metadata.language)}</dd></div>` : ''}
       ${metadata.version ? `<div><dt>Version</dt><dd>${esc(metadata.version)}</dd></div>` : ''}
       ${metadata.status ? `<div><dt>Status</dt><dd>${esc(metadata.status)}</dd></div>` : ''}

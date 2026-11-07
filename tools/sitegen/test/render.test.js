@@ -37,7 +37,8 @@ test('card renderer exposes accessible generated panel tabs and default state', 
   assert.match(html, /program-card-switch-position--tap">\s*<button type="button" class="program-card-position-button" disabled>Tap<\/button>\s*<p>Set tempo<\/p>/);
   assert.doesNotMatch(html, /data-panel-position-button="tap"/);
   assert.match(html, /Test &amp; &quot;Card&quot;/);
-  assert.match(html, /By A &amp; B/);
+  assert.match(html, /By <a class="program-card-creator-link" href="\.\.\/\.\.\/\?creator=A%20%26%20B">A &amp; B<\/a>/);
+  assert.match(html, /<dt>Creator<\/dt><dd><a class="program-card-creator-link" href="\.\.\/\.\.\/\?creator=A%20%26%20B">A &amp; B<\/a><\/dd>/);
 });
 
 test('generated socket descriptions preserve unused physical jack positions', () => {
