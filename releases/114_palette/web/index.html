@@ -74,13 +74,18 @@
   }
   .area-knobs { grid-area: knobs; } .area-scale { grid-area: scale; } .area-reg { grid-area: reg; }
   .area-left { grid-area: left; } .area-right { grid-area: right; align-self: stretch; }
-  /* The parameter card stays in view beside the register grid as the page
-     scrolls; the cards after it slide up underneath it */
-  #param-card { position: sticky; top: 8px; z-index: 5; max-height: calc(100vh - 16px); overflow-y: auto;
-    box-shadow: 0 6px 16px -8px rgba(0,0,0,.35); }
+  /* The right-hand column (Parameter, then the other cards) stays in view
+     beside the register grid as the page scrolls; when it is taller than
+     the window it scrolls on its own, Parameter always at its top */
+  .right-stack {
+    position: sticky; top: 8px; max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain;
+    display: grid; gap: 16px; align-content: start; min-width: 0;
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+    padding-bottom: 2px; /* room for the last card's shadow */
+  }
   @media (max-width: 960px) {
     main { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "knobs" "scale" "reg" "left" "right"; }
-    #param-card { position: static; max-height: none; box-shadow: var(--shadow); }
+    .right-stack { position: static; max-height: none; overflow: visible; }
   }
   .col { display: grid; gap: 16px; align-content: start; min-width: 0; }
   /* Every card can fold down to its heading (buildCollapsers) */
@@ -205,7 +210,9 @@
   .bar.held { background: repeating-linear-gradient(135deg, var(--track) 0 5px, var(--line) 5px 10px); color: var(--muted); }
   .lane.held .lab .val { color: var(--warm); }
   .lane.held .meter .pos { background: var(--warm); }
-  .hold { flex: 0 0 auto; width: 20px; height: 18px; padding: 0; border-radius: 4px; font-size: 10px; line-height: 1; font-weight: 700; color: var(--muted); background: transparent; border: 1px solid var(--line); }
+  .hold { flex: 0 0 auto; width: 20px; height: 18px; padding: 0; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); background: transparent; border: 1px solid var(--line); }
+  .hold svg, #holdBtn svg { display: block; width: 8px; height: 10px; fill: currentColor; }
+  #holdBtn { display: inline-flex; align-items: center; gap: 5px; }
   .hold[aria-pressed="true"] { background: var(--warm); border-color: var(--warm); color: var(--panel); }
   .hold:disabled { opacity: .3; }
   .bar .eh { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
@@ -303,9 +310,10 @@
 
 <main>
   <!-- Knobs | scale on top; below, the register grid and loops on the left,
-       and on the right the selected parameter (level with the grid, and
-       pinned while the page scrolls) with the other cards following on
-       beneath it, sliding up under it as you scroll -->
+       and on the right the selected parameter, level with the grid, with
+       the other cards beneath it. That right-hand column moves as one: it
+       stays in view as the page scrolls, and scrolls on its own when it is
+       taller than the window, so no card ever covers another -->
     <section class="card area-knobs">
       <h2>Knobs &amp; clock</h2>
       <div class="readouts">
@@ -351,7 +359,7 @@
       </div>
       <div class="howto">
         <b>Bits move left to right</b> on each step. The bit leaving a loop's right end comes back at its left end, flipped at random by Main and the loop's chaos.<br>
-        The dashed box above the grid holds any <b>unassigned</b> parameters; drag one onto the grid to give it bits, or drag a bar into the box to unassign it. <b>Drag a bar</b> to move it, or its ends to resize it. <b>Drag on an empty lane</b> to draw a range. <b>H</b> beside a parameter holds it at its current value (its bar greys out). <b>Click a state bit</b> to flip it.
+        The dashed box above the grid holds any <b>unassigned</b> parameters; drag one onto the grid to give it bits, or drag a bar into the box to unassign it. <b>Drag a bar</b> to move it, or its ends to resize it. <b>Drag on an empty lane</b> to draw a range. The <b>pause button</b> beside a parameter holds it at its current value (its bar greys out). <b>Click a state bit</b> to flip it.
       </div>
     </section>
 
@@ -371,7 +379,8 @@
       </section>
     </div>
 
-    <div class="col area-right">
+    <div class="area-right">
+     <div class="right-stack" id="right-stack">
       <section class="card" id="param-card"><h2>Parameter</h2><div id="inspector" aria-live="polite"></div></section>
       <section class="card">
         <h2>Envelopes</h2>
@@ -432,6 +441,7 @@
         </table>
         <div class="notes"><p>Use Chrome or Edge with a USB-C data cable, plugged into the Computer's USB socket; close other apps using the card. Choose <b>Allow</b> when the browser asks about MIDI devices. iOS can't do WebMIDI.</p></div>
       </section>
+     </div>
     </div>
 </main>
 
@@ -565,6 +575,8 @@ function liveValue(i) {
   if (p.invert) x = 65535 - x;
   return p.min + Math.floor(((p.max - p.min) * x + 32768) / 65536);
 }
+// Hold's icon: pause, two bars
+const PAUSE_ICON = '<svg viewBox="0 0 8 10" aria-hidden="true"><rect x="0" y="0" width="3" height="10" rx="0.6"/><rect x="5" y="0" width="3" height="10" rx="0.6"/></svg>';
 function setHold(i, on) {
   const p = cfg.params[i];
   if (!p.enabled) return;
@@ -763,7 +775,7 @@ function buildStatic() {
   PARAMS.forEach((P, i) => {
     const row = document.createElement('div'); row.className = 'row lane'; row.style.setProperty('--c', colorOf(i)); row.dataset.i = i;
     row.innerHTML = `<div class="lab" role="button" tabindex="0"><span class="sw"></span><span class="nm" title="${P.name}">${P.name}</span><span class="val"></span>
-      <button class="hold" type="button" aria-pressed="false" aria-label="Hold ${P.name}">H</button>
+      <button class="hold" type="button" aria-pressed="false" aria-label="Hold ${P.name}">${PAUSE_ICON}</button>
       <div class="meter"><div class="win"></div><div class="pos"></div></div></div><div class="trk cols8"></div>`;
     row.querySelector('.hold').addEventListener('click', (e) => { e.stopPropagation(); setHold(i, !cfg.params[i].hold); });
     row.querySelector('.lab').addEventListener('click', () => select(i));
@@ -913,7 +925,7 @@ function renderInspector() {
       <button class="small opt ${p.popcount ? '' : 'on'}" id="mBin" aria-pressed="${!p.popcount}" title="Read the bits as a binary number">Binary</button>
       <button class="small opt ${p.popcount ? 'on' : ''}" id="mPop" aria-pressed="${p.popcount}" title="Count how many bits are set">Count</button>
       <button class="small opt ${p.invert ? 'on' : ''}" id="inv" aria-pressed="${p.invert}" title="Turn the value upside down">Invert</button>
-      <button class="small opt ${p.hold ? 'on' : ''}" id="holdBtn" aria-pressed="${!!p.hold}" ${p.enabled ? '' : 'disabled'} title="Keep this parameter at its current value while the register moves">Hold</button>
+      <button class="small opt ${p.hold ? 'on' : ''}" id="holdBtn" aria-pressed="${!!p.hold}" ${p.enabled ? '' : 'disabled'} title="Keep this parameter at its current value while the register moves">${PAUSE_ICON}Hold</button>
       ${p.enabled ? '<button class="small" id="unassign">Unassign</button>' : '<button class="small" id="assign">Assign</button>'}
     </div>
     <div class="fields">
