@@ -1,0 +1,140 @@
+draft: false
+Name: "Turing's Palette"
+short-description: A synth voice whose every parameter is read from a Turing-Machine-style shift register
+Language: C++ (Pico SDK + ComputerCard)
+Creator: XponentOneAudio
+Version: 0.9.0
+Status: WIP
+License: MIT
+Editor: web
+date-created: 2026-11-06
+date-updated: 2026-11-06
+
+contact:
+  email: XponentOneAudio@gmail.com
+
+tags:
+  - synth-voice
+  - turing-machine
+  - shift-register
+  - generative
+  - web-editor
+  - fm
+  - sync
+  - lfo
+
+summary: |
+  An experiment for a larger card. A simple two-oscillator, filtered, enveloped voice where all
+  30 synthesis parameters (envelope trigger, quantised pitches with a pitch envelope each,
+  glide, oscillator shapes and mix, soft/hard sync, through-zero FM on/off, offset and its own AD envelope,
+  pitch, volume and filter LFOs (free or tempo-synced),
+  cutoff, resonance, filter envelope amount and both AD envelopes with curve shape) are read from
+  windows of bits on a 64-bit Turing-Machine-style shift register. The web editor splits the
+  register into 1-8 independently looping, independently clocked loops and lets you drag each
+  parameter onto any range of bits, with its own output range. Assignments may overlap and may
+  span loop boundaries. Audio Out 2, both CV outs and both pulse outs each choose what they send:
+  their own register lane (raw or quantised), a pitch, an envelope, an LFO, a gate, trigger or clock. Six layouts can be saved on the card and chosen with the Main knob while
+  the switch is up.
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Unused
+      type: audio
+      description: Not used
+    - id: AudioIn2
+      name: Unused
+      type: audio
+      description: Not used
+    - id: CVIn1
+      name: Pitch
+      type: cv
+      description: 1V/oct transpose, quantised to semitones
+    - id: CVIn2
+      name: Randomness
+      type: cv
+      description: Added to the Main knob
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: External clock. When unplugged the Y knob sets an internal clock
+    - id: PulseIn2
+      name: Trigger
+      type: pulse
+      description: Fires both envelopes
+  outputs:
+    - id: AudioOut1
+      name: Voice
+      type: audio
+      description: The synth voice
+    - id: AudioOut2
+      name: Assignable
+      type: audio
+      description: Chosen in the editor - an envelope, LFO, oscillator pitch or register lane (default filter envelope)
+    - id: CVOut1
+      name: Assignable
+      type: cv
+      description: Chosen in the editor (default Osc 1 pitch, calibrated 1V/oct, MIDI note 60 = 0 V)
+    - id: CVOut2
+      name: Assignable
+      type: cv
+      description: Chosen in the editor (default volume envelope), calibrated
+    - id: PulseOut1
+      name: Assignable
+      type: pulse
+      description: Chosen in the editor - envelope trigger (default), clock, register gate or register trigger
+    - id: PulseOut2
+      name: Assignable
+      type: pulse
+      description: Chosen in the editor - clock (default), envelope trigger, register gate or register trigger
+
+controls:
+  switch:
+    up:
+      name: Lock / Layout
+      description: No bits flip; every loop repeats. Main chooses one of six layout slots saved on the card
+    middle:
+      name: Run
+      description: Main knob sets how often bits flip
+    down:
+      name: Scramble
+      description: Randomise every bit inside a loop
+  knobs:
+    - when: { z: up }
+      main:
+        name: Layout
+        description: Chooses one of six layout slots (six zones, slot 1 fully CCW). Flicking the switch up shows the playing slot on the LEDs; a layout loads once Main is turned into another slot's zone. Empty slots blink and load nothing. Back in the middle, Main picks up its randomness setting again
+      x:
+        name: Transpose
+        description: 0 to +24 semitones
+      y:
+        name: Clock Rate
+        description: Internal clock, about 1 to 16 steps per second
+    - when: { z: middle }
+      main:
+        name: Randomness
+        description: Noon = random, fully CW = locked, fully CCW = locked and inverting (repeats at twice the loop length). Main, X and Y pick up (soft takeover) after the editor sets their value
+      x:
+        name: Transpose
+        description: 0 to +24 semitones
+      y:
+        name: Clock Rate
+        description: Internal clock, about 1 to 16 steps per second
+  leds:
+    - when: { z: up }
+      display: list
+      items:
+        - id: LED0-5
+          name: Layout Slot
+          description: For 1.5 s after a layout is chosen, the LED of its slot lights (blinks if the slot is empty)
+    - display: list
+      items:
+        - id: LED0-3
+          name: Register
+          description: Bits 0-3 of the register
+        - id: LED4
+          name: Clock
+          description: Flashes on each clock step
+        - id: LED5
+          name: Volume
+          description: Brightness follows the volume envelope; blinks fast while a knob is waiting to pick up a value set in the editor
