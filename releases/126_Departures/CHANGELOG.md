@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.1 — 8 November 2026
+
+- Lower pad audio by approximately 2.18 dB in Bells and Wood Chimes to give the
+  melody more room when pad breaths overlap. Melody and bass gains are unchanged.
+- Preserve breathing, shared-note transitions, phrasing, tide, effects settings,
+  scale/chord CVs, pitch/gate outputs and startup palette controls.
+- Promote the exact tested image after Adrian preferred the balance and reported
+  hardware tests passed. Update release documentation, notices and metadata.
+- Ship only `uf2/Departures_0.5.1.uf2`; remove the previous release UF2. Earlier
+  stable and experimental images remain preserved on the fork.
+
 ## 0.5.0 — 8 November 2026
 
 - Hold Z Down at boot/reset to open a silent sound selector. Main left chooses

@@ -14,6 +14,13 @@ Adrian reported hardware tests passed.
 - Runtime Down still advances a chord. The boot gesture is consumed separately.
 - Previous stable 0.4.1 is preserved for comparison in the archive.
 
+## Completed: pad and melody balance
+
+Promoted to stable **0.5.1** on 8 November 2026 after Adrian preferred the quieter
+pads and reported hardware tests passed. Pad audio is approximately 2.18 dB lower
+in both palettes; melody and bass gains remain unchanged. Earlier firmware is
+preserved on the fork through the [archive index](archive/README.md).
+
 See [README.md](README.md) for operating instructions and
 [CHANGELOG.md](CHANGELOG.md) for release history. No further sound-palette
 changes are currently scheduled.
