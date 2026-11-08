@@ -146,6 +146,10 @@ layout when it connects, then shows the card's register, knobs and switch about 
   move it, or its ends to resize it. Drag on an empty lane to draw a range.
 * **H**, beside each parameter's name, holds it at its current value; its bar greys out. Click
   again to let the register move it. The parameter panel has the same Hold button.
+* Click a parameter's name to select it. The *Parameter* card beside the grid shows its own bits
+  live, in the grid's order with their bit numbers, what they read as (the binary number, or how
+  many are set in Count mode) and the value that gives. It stays in view while you scroll down the
+  grid. Below that are its range, mode, Invert, Hold, and where it sits.
 * Drag the handles on the loop strip to move loop boundaries. The Loops table sets
   length, clock divider and chaos per loop, and can split, merge or remove loops.
 * Click a state bit to flip it (on the card too, when connected).

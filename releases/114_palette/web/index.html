@@ -64,8 +64,20 @@
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   #msg { padding: 6px 16px; min-height: 1.4em; color: var(--muted); }
   #msg.err { color: var(--bad); }
-  main { display: grid; gap: 16px; padding: 0 16px 24px; grid-template-columns: minmax(0, 1fr) 340px; }
-  @media (max-width: 960px) { main { grid-template-columns: minmax(0, 1fr); } }
+  main {
+    display: grid; gap: 16px; padding: 0 16px 24px; align-items: start;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas: "knobs scale" "reg param" "left right";
+  }
+  .area-knobs { grid-area: knobs; } .area-scale { grid-area: scale; } .area-reg { grid-area: reg; }
+  .area-param { grid-area: param; align-self: stretch; min-width: 0; }
+  .area-left { grid-area: left; } .area-right { grid-area: right; }
+  /* The parameter card stays in view beside the register grid as the page scrolls */
+  #param-card { position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow-y: auto; }
+  @media (max-width: 960px) {
+    main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "knobs" "reg" "param" "scale" "left" "right"; }
+    #param-card { position: static; max-height: none; }
+  }
   .col { display: grid; gap: 16px; align-content: start; min-width: 0; }
   /* Every card can fold down to its heading (buildCollapsers) */
   .card > h2 { display: flex; align-items: center; gap: 8px; }
@@ -203,6 +215,18 @@
   .insp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
   .insp-head .sw { width: 14px; height: 14px; border-radius: 4px; background: var(--c); }
   .insp-head h3 { margin: 0; font-size: 16px; }
+  /* The selected parameter's own bits, live, in grid order */
+  .word { margin: 4px 0 10px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--wave-bg); }
+  .word .cells { display: flex; gap: 2px; }
+  .word .cell { flex: 1 1 0; min-width: 0; max-width: 26px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .word .cell i { display: block; width: 100%; height: 22px; border: 1px solid var(--c); border-radius: 3px; background: var(--panel); position: relative; }
+  .word .cell.on i { background: var(--c); }
+  .word .cell.flip i::after { content: ""; position: absolute; inset: 35% 30%; border-radius: 50%; background: var(--warm); }
+  .word .cell span { font-size: 9px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .word .sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .word .sum b { font-size: 15px; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .word .sum .heldv { color: var(--warm); }
+  .word.unassigned { font-size: 12px; color: var(--muted); }
   .desc { color: var(--muted); font-size: 12px; margin: 0 0 10px; line-height: 1.5; }
   .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
   .field { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
@@ -274,8 +298,10 @@
 <div id="msg"></div>
 
 <main>
-  <div class="col">
-    <section class="card">
+  <!-- Rows, so each card lines up with its neighbour: knobs | scale, then
+       the register grid | the selected parameter (which stays in view while
+       the grid scrolls past), then everything else -->
+    <section class="card area-knobs">
       <h2>Knobs &amp; clock</h2>
       <div class="readouts">
         <div class="readout" id="rk0"><div class="k">Main · Randomness</div><div class="v" id="kv0">-</div>
@@ -297,7 +323,17 @@
       <div class="caption" id="knob-line"></div>
     </section>
 
-    <section class="card">
+    <section class="card area-scale">
+      <h2>Scale</h2>
+      <div class="keys" id="keys"></div>
+      <div class="fields">
+        <label class="field">Root note<select id="root"></select></label>
+        <label class="field">Preset<select id="scalePreset"></select></label>
+      </div>
+      <div class="caption">Both oscillators are quantised to these notes. Osc 1 Pitch counts scale degrees up from the root; Osc 2 Pitch counts degrees up or down from Osc 1.</div>
+    </section>
+
+    <section class="card area-reg">
       <h2>Register</h2>
       <div class="tray" id="tray" aria-label="Unassigned parameters"></div>
       <div class="gridwrap" id="gridwrap">
@@ -314,93 +350,86 @@
       </div>
     </section>
 
-    <section class="card">
-      <h2>Loops</h2>
-      <div class="tablewrap"><table class="loops-t" id="loopTable"></table></div>
-      <div class="dirs">
-        <button class="small" id="addLoop">Add loop</button>
-        <span class="k" style="margin-left:10px">Layout</span>
-        <button class="small" data-preset="1">1 × 64</button>
-        <button class="small" data-preset="2">2 × 32</button>
-        <button class="small" data-preset="4">4 × 16</button>
-        <button class="small" data-preset="8">8 × 8</button>
-      </div>
-    </section>
-  </div>
+    <div class="area-param">
+      <section class="card" id="param-card"><h2>Parameter</h2><div id="inspector" aria-live="polite"></div></section>
+    </div>
 
-  <aside class="col">
-    <section class="card"><h2>Parameter</h2><div id="inspector" aria-live="polite"></div></section>
+    <div class="col area-left">
+      <section class="card">
+        <h2>Loops</h2>
+        <div class="tablewrap"><table class="loops-t" id="loopTable"></table></div>
+        <div class="dirs">
+          <button class="small" id="addLoop">Add loop</button>
+          <span class="k" style="margin-left:10px">Layout</span>
+          <button class="small" data-preset="1">1 × 64</button>
+          <button class="small" data-preset="2">2 × 32</button>
+          <button class="small" data-preset="4">4 × 16</button>
+          <button class="small" data-preset="8">8 × 8</button>
+        </div>
+      </section>
+    </div>
 
-    <section class="card">
-      <h2>Scale</h2>
-      <div class="keys" id="keys"></div>
-      <div class="fields">
-        <label class="field">Root note<select id="root"></select></label>
-        <label class="field">Preset<select id="scalePreset"></select></label>
-      </div>
-      <div class="caption">Both oscillators are quantised to these notes. Osc 1 Pitch counts scale degrees up from the root; Osc 2 Pitch counts degrees up or down from Osc 1.</div>
-    </section>
+    <div class="col area-right">
+      <section class="card">
+        <h2>Envelopes</h2>
+        <canvas id="envs" width="600" height="240" aria-label="The filter, volume, FM and pitch envelopes as the register sets them now"></canvas>
+        <div class="caption"><span style="color:var(--s0)">■</span> filter <span style="color:var(--s5)">■</span> volume <span style="color:var(--s3)">■</span> FM <span style="color:var(--s6)">■</span> pitch (Osc 2 dashed) · full width <span id="envSpan"></span></div>
+      </section>
 
-    <section class="card">
-      <h2>Envelopes</h2>
-      <canvas id="envs" width="600" height="240" aria-label="The filter, volume, FM and pitch envelopes as the register sets them now"></canvas>
-      <div class="caption"><span style="color:var(--s0)">■</span> filter <span style="color:var(--s5)">■</span> volume <span style="color:var(--s3)">■</span> FM <span style="color:var(--s6)">■</span> pitch (Osc 2 dashed) · full width <span id="envSpan"></span></div>
-    </section>
+      <section class="card">
+        <h2>Layouts on the card</h2>
+        <label class="field">Name for saving<input id="slot-name" maxlength="16" placeholder="e.g. Bells" autocomplete="off"></label>
+        <div class="slots" id="slot-list"></div>
+        <div class="caption" id="slot-caption"></div>
+      </section>
 
-    <section class="card">
-      <h2>Layouts on the card</h2>
-      <label class="field">Name for saving<input id="slot-name" maxlength="16" placeholder="e.g. Bells" autocomplete="off"></label>
-      <div class="slots" id="slot-list"></div>
-      <div class="caption" id="slot-caption"></div>
-    </section>
+      <section class="card">
+        <h2>Share a layout</h2>
+        <div class="dirs" style="margin-top:0">
+          <button class="small" id="exportJson">Show JSON</button>
+          <button class="small" id="copyJson">Copy</button>
+          <button class="small" id="downloadJson">Export</button>
+          <button class="small" id="importBtn">Import</button>
+          <input type="file" id="importFile" accept=".json,application/json" hidden>
+          <button class="small" id="importJson">Load from box</button>
+        </div>
+        <textarea id="json" spellcheck="false" aria-label="Layout JSON" placeholder="Paste a Palette layout here, then Load from box."></textarea>
+        <div class="caption">A layout as a file, to keep or pass on. Loading one sends it to a connected card, but doesn't save it into a slot.</div>
+      </section>
 
-    <section class="card">
-      <h2>Share a layout</h2>
-      <div class="dirs" style="margin-top:0">
-        <button class="small" id="exportJson">Show JSON</button>
-        <button class="small" id="copyJson">Copy</button>
-        <button class="small" id="downloadJson">Export</button>
-        <button class="small" id="importBtn">Import</button>
-        <input type="file" id="importFile" accept=".json,application/json" hidden>
-        <button class="small" id="importJson">Load from box</button>
-      </div>
-      <textarea id="json" spellcheck="false" aria-label="Layout JSON" placeholder="Paste a Palette layout here, then Load from box."></textarea>
-      <div class="caption">A layout as a file, to keep or pass on. Loading one sends it to a connected card, but doesn't save it into a slot.</div>
-    </section>
+      <section class="card">
+        <h2>Inputs &amp; outputs</h2>
+        <table class="jacks">
+          <tr class="grp"><th colspan="2">Inputs</th></tr>
+          <tr><th>CV In 1</th><td>Pitch, 1 V/oct, quantised to semitones</td></tr>
+          <tr><th>CV In 2</th><td>Added to Main (randomness)</td></tr>
+          <tr><th>Pulse In 1</th><td>Clock; Y sets an internal clock when unplugged</td></tr>
+          <tr><th>Pulse In 2</th><td>Fires both envelopes</td></tr>
+          <tr><th>Audio In 1, 2</th><td>Not used</td></tr>
+          <tr class="grp"><th colspan="2">Outputs</th></tr>
+          <tr><th>Audio Out 1</th><td>The voice</td></tr>
+          <tr><th>Audio Out 2</th><td>Filter envelope, 0 to about +6 V</td></tr>
+          <tr><th>CV Out 1</th><td>Osc 1 pitch, calibrated 1 V/oct (MIDI note 60 = 0 V), with glide</td></tr>
+          <tr><th>CV Out 2</th><td>Volume envelope, 0 to about +6 V</td></tr>
+          <tr><th>Pulse Out 1</th><td>Trigger whenever the envelopes fire</td></tr>
+          <tr><th>Pulse Out 2</th><td>Trigger on every clock step</td></tr>
+        </table>
+      </section>
 
-    <section class="card">
-      <h2>Inputs &amp; outputs</h2>
-      <table class="jacks">
-        <tr class="grp"><th colspan="2">Inputs</th></tr>
-        <tr><th>CV In 1</th><td>Pitch, 1 V/oct, quantised to semitones</td></tr>
-        <tr><th>CV In 2</th><td>Added to Main (randomness)</td></tr>
-        <tr><th>Pulse In 1</th><td>Clock; Y sets an internal clock when unplugged</td></tr>
-        <tr><th>Pulse In 2</th><td>Fires both envelopes</td></tr>
-        <tr><th>Audio In 1, 2</th><td>Not used</td></tr>
-        <tr class="grp"><th colspan="2">Outputs</th></tr>
-        <tr><th>Audio Out 1</th><td>The voice</td></tr>
-        <tr><th>Audio Out 2</th><td>Filter envelope, 0 to about +6 V</td></tr>
-        <tr><th>CV Out 1</th><td>Osc 1 pitch, calibrated 1 V/oct (MIDI note 60 = 0 V), with glide</td></tr>
-        <tr><th>CV Out 2</th><td>Volume envelope, 0 to about +6 V</td></tr>
-        <tr><th>Pulse Out 1</th><td>Trigger whenever the envelopes fire</td></tr>
-        <tr><th>Pulse Out 2</th><td>Trigger on every clock step</td></tr>
-      </table>
-    </section>
-
-    <section class="card">
-      <h2>Panel</h2>
-      <table class="jacks">
-        <tr><th>Main</th><td>Randomness: noon random, fully clockwise locked, fully anticlockwise locked and inverting (repeats at twice the loop length). With the switch up, Main chooses the layout instead</td></tr>
-        <tr><th>X</th><td>Transpose, 0 to +24 semitones</td></tr>
-        <tr><th>Y</th><td>Internal clock, about 1 to 16 steps a second</td></tr>
-        <tr><th>Pick up</th><td>After this page sets a knob's value, the knob does nothing until it reaches (or passes) that value, so nothing jumps. The dotted box and the orange line show a knob that is waiting, and where it is; LED 5 blinks fast on the module.</td></tr>
-        <tr><th>Switch</th><td>Up locks every loop; middle runs; down scrambles every bit inside a loop</td></tr>
-        <tr><th>Layouts</th><td>With the switch up, Main chooses one of six layout slots: six zones from fully anticlockwise (slot 1) to fully clockwise (slot 6). Flicking the switch up just shows the playing slot on the LEDs; a layout loads once you turn Main into another slot's zone. The chosen slot's LED lights for 1.5 s, and blinks if the slot is empty (nothing loads). Back in the middle, Main picks up its randomness setting again. The card starts up with the slot it last played</td></tr>
-        <tr><th>LEDs</th><td>LEDs 0-3 show register bits 0-3, LED 4 the clock, LED 5 the volume envelope (blinking fast while a knob is waiting)</td></tr>
-      </table>
-      <div class="notes"><p>Use Chrome or Edge with a USB-C data cable, plugged into the Computer's USB socket; close other apps using the card. Choose <b>Allow</b> when the browser asks about MIDI devices. iOS can't do WebMIDI.</p></div>
-    </section>
-  </aside>
+      <section class="card">
+        <h2>Panel</h2>
+        <table class="jacks">
+          <tr><th>Main</th><td>Randomness: noon random, fully clockwise locked, fully anticlockwise locked and inverting (repeats at twice the loop length). With the switch up, Main chooses the layout instead</td></tr>
+          <tr><th>X</th><td>Transpose, 0 to +24 semitones</td></tr>
+          <tr><th>Y</th><td>Internal clock, about 1 to 16 steps a second</td></tr>
+          <tr><th>Pick up</th><td>After this page sets a knob's value, the knob does nothing until it reaches (or passes) that value, so nothing jumps. The dotted box and the orange line show a knob that is waiting, and where it is; LED 5 blinks fast on the module.</td></tr>
+          <tr><th>Switch</th><td>Up locks every loop; middle runs; down scrambles every bit inside a loop</td></tr>
+          <tr><th>Layouts</th><td>With the switch up, Main chooses one of six layout slots: six zones from fully anticlockwise (slot 1) to fully clockwise (slot 6). Flicking the switch up just shows the playing slot on the LEDs; a layout loads once you turn Main into another slot's zone. The chosen slot's LED lights for 1.5 s, and blinks if the slot is empty (nothing loads). Back in the middle, Main picks up its randomness setting again. The card starts up with the slot it last played</td></tr>
+          <tr><th>LEDs</th><td>LEDs 0-3 show register bits 0-3, LED 4 the clock, LED 5 the volume envelope (blinking fast while a knob is waiting)</td></tr>
+        </table>
+        <div class="notes"><p>Use Chrome or Edge with a USB-C data cable, plugged into the Computer's USB socket; close other apps using the card. Choose <b>Allow</b> when the browser asks about MIDI devices. iOS can't do WebMIDI.</p></div>
+      </section>
+    </div>
 </main>
 
 <script>
@@ -874,6 +903,7 @@ function renderInspector() {
   el.style.setProperty('--c', colorOf(i));
   el.innerHTML = `
     <div class="insp-head"><span class="sw"></span><h3>${P.name}</h3></div>
+    <div class="word" id="word" aria-label="${P.name}: its bits in the register, live"></div>
     <p class="desc">${P.desc}</p>
     <div class="dirs" style="margin:0 0 10px">
       <span class="k">Read as</span>
@@ -900,7 +930,7 @@ function renderInspector() {
     </div>
     <dl class="kv">
       <dt>Min</dt><dd id="roMin"></dd><dt>Max</dt><dd id="roMax"></dd>
-      <dt>Bits</dt><dd id="roBits"></dd><dt>Now</dt><dd id="roNow"></dd>
+      <dt>Now</dt><dd id="roNow"></dd>
       <dt>Steps</dt><dd id="roSteps"></dd>
     </dl>`;
   $('mBin').onclick = () => { p.popcount = false; changed(); };
@@ -928,14 +958,38 @@ function updateInspectorLive() {
   $('rlive').style.left = pos(v) + '%';
   $('roMin').textContent = `${p.min} · ${fmt(i, p.min)}`;
   $('roMax').textContent = `${p.max} · ${fmt(i, p.max)}`;
+  renderWord(i);
   if (p.enabled) {
-    let s = ''; for (let j = p.width - 1; j >= 0; j--) s += bits[p.start + j];
-    $('roBits').textContent = `${p.start}–${p.start + p.width - 1}: ${s} (${p.popcount ? s.split('').filter((c) => c === '1').length + ' set' : rawBits(p)})`;
     const n = p.popcount ? p.width + 1 : 2 ** p.width;
     $('roSteps').textContent = `${n} possible values${loopsTouched(p)}`;
-  } else { $('roBits').textContent = 'unassigned'; $('roSteps').textContent = 'fixed at Min'; }
+  } else { $('roSteps').textContent = 'fixed at Min'; }
   $('roNow').textContent = `${v} · ${fmt(i, v)}`;
 }
+// The selected parameter's word: its bits as cells, in the grid's order
+// (start bit, the least significant, on the left), what they read as, and
+// the value that gives. Rebuilt only when the word's position changes.
+function renderWord(i) {
+  const el = $('word'), p = cfg.params[i];
+  if (!el) return;
+  if (!p.enabled) {
+    if (!el.classList.contains('unassigned')) { el.className = 'word unassigned'; el.innerHTML = 'Unassigned: no bits, fixed at Min.'; }
+    return;
+  }
+  const key = p.start + ':' + p.width;
+  if (el.dataset.key !== key || el.classList.contains('unassigned')) {
+    el.className = 'word'; el.dataset.key = key;
+    let h = '<div class="cells">';
+    for (let j = 0; j < p.width; j++) h += '<div class="cell"><i></i><span>' + (p.start + j) + '</span></div>';
+    el.innerHTML = h + '</div><div class="sum"></div>';
+  }
+  el.querySelectorAll('.cell').forEach((c, j) => { c.classList.toggle('on', !!bits[p.start + j]); c.classList.toggle('flip', !!flipped[p.start + j]); });
+  let set = 0; for (let j = 0; j < p.width; j++) set += bits[p.start + j];
+  const read = p.popcount ? `<b>${set}</b> of ${p.width} set` : `<b>${rawBits(p)}</b> of ${2 ** p.width - 1}`;
+  const live = liveValue(i), shown = paramValue(i);
+  el.querySelector('.sum').innerHTML = read + (p.invert ? ', inverted' : '') + ' → <b>' + fmt(i, live) + '</b>'
+    + (p.hold && shown !== live ? ' <span class="heldv">held at ' + fmt(i, shown) + '</span>' : '');
+}
+
 function loopsTouched(p) {
   const s = loopStarts(), hit = [];
   cfg.loops.forEach((l, i) => { if (p.start < s[i] + l.length && p.start + p.width > s[i]) hit.push('L' + (i + 1)); });
