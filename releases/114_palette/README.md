@@ -170,6 +170,9 @@ layout when it connects, then shows the card's register, knobs and switch about 
 * The dashed box above the grid (the tray) holds any unassigned parameters, as small chips: drag
   one onto the grid to give it bits, or drag a bar into the tray to unassign it. Drag a bar to
   move it, or its ends to resize it. Drag on an empty lane to draw a range.
+* Lanes come in groups: Notes, Oscillators, FM, Filter, Volume, Pitch envelopes, LFOs and
+  Outputs. Click a group's name to fold it to one row (its bars stay visible, in miniature), or use
+  *Fold all* / *Unfold all*. The editor remembers which groups are folded.
 * The **pause button**, beside each parameter's name, holds it at its current value; its bar greys
   out. Click again to let the register move it. The parameter panel has the same Hold button.
 * Click a parameter's name to select it. The *Parameter* card beside the grid shows its own bits

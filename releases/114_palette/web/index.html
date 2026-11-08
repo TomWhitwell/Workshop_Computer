@@ -220,6 +220,15 @@
   .bar.one .eh::after { left: 1px; }
   .bar .eh.l { left: 0; } .bar .eh.r { right: 0; }
   .bar .eh::after { content: ""; position: absolute; top: 5px; bottom: 5px; left: 3px; width: 2px; border-radius: 1px; background: currentColor; opacity: .6; }
+  /* Lane groups: a header row each, foldable. Folded, its track shows the
+     group's bars in miniature */
+  .ghead > .lab { cursor: pointer; font-weight: 600; color: var(--ink); background: var(--track); gap: 6px; font-size: 12px; }
+  .ghead > .lab .chev { display: inline-block; width: 10px; color: var(--muted); transition: transform .15s; }
+  .ghead.folded > .lab .chev { transform: rotate(-90deg); }
+  .ghead > .lab .cnt { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 11px; }
+  .ghead > .trk { height: 22px; border-bottom: 1px solid var(--line); background: var(--track); cursor: pointer; }
+  .ghead .mini { position: absolute; height: 6px; border-radius: 2px; background: var(--c); opacity: .85; }
+  .ghead .mini.held { opacity: .3; }
   .lane .placeholder { position: absolute; inset: 0; display: flex; align-items: center; padding-left: 8px; font-size: 11px; color: var(--muted); pointer-events: none; }
 
   /* Parameter inspector */
@@ -349,6 +358,12 @@
     <section class="card area-reg">
       <h2>Register</h2>
       <div class="tray" id="tray" aria-label="Unassigned parameters"></div>
+      <div class="dirs" style="margin-top:8px">
+        <span class="k">Lane groups</span>
+        <button class="small" id="foldAll" title="Fold every group of lanes to one row">Fold all</button>
+        <button class="small" id="unfoldAll" title="Show every lane">Unfold all</button>
+        <span class="info">Click a group's name to fold or unfold it.</span>
+      </div>
       <div class="gridwrap" id="gridwrap">
         <div class="grid" id="grid">
           <div class="row ruler"><div class="lab">bit</div><div class="trk" id="ruler"></div></div>
@@ -812,17 +827,17 @@ function buildStatic() {
     bt.appendChild(d);
   }
   const lanes = $('lanes');
-  PARAMS.forEach((P, i) => {
-    const row = document.createElement('div'); row.className = 'row lane'; row.style.setProperty('--c', colorOf(i)); row.dataset.i = i;
-    row.innerHTML = `<div class="lab" role="button" tabindex="0"><span class="sw"></span><span class="nm" title="${P.name}">${P.name}</span><span class="val"></span>
-      <button class="hold" type="button" aria-pressed="false" aria-label="Hold ${P.name}">${PAUSE_ICON}</button>
-      <div class="meter"><div class="win"></div><div class="pos"></div></div></div><div class="trk cols8"></div>`;
-    row.querySelector('.hold').addEventListener('click', (e) => { e.stopPropagation(); setHold(i, !cfg.params[i].hold); });
-    row.querySelector('.lab').addEventListener('click', () => select(i));
-    row.querySelector('.lab').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(i); } });
-    attachLaneDrag(row.querySelector('.trk'), i);
-    lanes.appendChild(row);
+  LANE_GROUPS.forEach((g, gi) => {
+    const head = document.createElement('div'); head.className = 'row ghead'; head.dataset.g = gi;
+    head.innerHTML = `<div class="lab" role="button" tabindex="0" aria-expanded="true"><span class="chev">▾</span><span>${g.name}</span><span class="cnt"></span></div><div class="trk cols8"></div>`;
+    const toggle = () => setFold(gi, !foldedGroups.has(g.name));
+    head.querySelector('.lab').addEventListener('click', toggle);
+    head.querySelector('.trk').addEventListener('click', toggle);
+    head.querySelector('.lab').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    lanes.appendChild(head);
+    g.members.forEach((i) => buildLane(lanes, i, gi));
   });
+  LANE_GROUPS.forEach((g, gi) => setFold(gi, foldedGroups.has(g.name), false));
   // Keys and selects for the scale
   const keys = $('keys');
   for (let n = 0; n < 12; n++) {
@@ -874,6 +889,69 @@ function renderLoops() {
   $('bitTrk').childNodes.forEach((d, b) => d.classList.toggle('fixed', !used2.has(b)));
 }
 
+// Lanes are shown in groups, each with a header row that folds it away
+const LANE_GROUPS = [
+  { name: 'Notes', ids: ['trig', 'pitch1', 'pitch2', 'slew'] },
+  { name: 'Oscillators', ids: ['shape1', 'shape2', 'mix', 'sync'] },
+  { name: 'FM', ids: ['fmon', 'fmoffset', 'fmenvamt', 'fmatk', 'fmdec'] },
+  { name: 'Filter', ids: ['cutoff', 'res', 'envamt', 'fatk', 'fdec', 'fshape'] },
+  { name: 'Volume', ids: ['vatk', 'vdec', 'vshape'] },
+  { name: 'Pitch envelopes', ids: ['p1amt', 'p1atk', 'p1dec', 'p1shape', 'p2amt', 'p2atk', 'p2dec', 'p2shape'] },
+  { name: 'LFOs', ids: ['l1rate', 'l1shape', 'l1sync', 'l1depth', 'l2rate', 'l2shape', 'l2sync', 'l2depth', 'l3rate', 'l3shape', 'l3sync', 'l3depth'] },
+  { name: 'Outputs', ids: ['outa2', 'outcv1', 'outcv2', 'outp1', 'outp2'] },
+];
+LANE_GROUPS.forEach((g) => { g.members = g.ids.map((id) => PARAMS.findIndex((P) => P.id === id)).filter((i) => i >= 0); });
+{ // any parameter left out of the groups still gets a lane
+  const seen = new Set(LANE_GROUPS.flatMap((g) => g.members));
+  const rest = PARAMS.map((_, i) => i).filter((i) => !seen.has(i));
+  if (rest.length) LANE_GROUPS.push({ name: 'Other', ids: [], members: rest });
+}
+const groupOf = (i) => LANE_GROUPS.findIndex((g) => g.members.includes(i));
+let foldedGroups = new Set();
+try { foldedGroups = new Set(JSON.parse(localStorage.getItem('palette.lanegroups.v1') || '[]')); } catch (e) { /* private window */ }
+
+function buildLane(lanes, i, gi) {
+  const P = PARAMS[i];
+  const row = document.createElement('div'); row.className = 'row lane'; row.style.setProperty('--c', colorOf(i)); row.dataset.i = i; row.dataset.g = gi;
+  row.innerHTML = `<div class="lab" role="button" tabindex="0"><span class="sw"></span><span class="nm" title="${P.name}">${P.name}</span><span class="val"></span>
+      <button class="hold" type="button" aria-pressed="false" aria-label="Hold ${P.name}">${PAUSE_ICON}</button>
+      <div class="meter"><div class="win"></div><div class="pos"></div></div></div><div class="trk cols8"></div>`;
+  row.querySelector('.hold').addEventListener('click', (e) => { e.stopPropagation(); setHold(i, !cfg.params[i].hold); });
+  row.querySelector('.lab').addEventListener('click', () => select(i));
+  row.querySelector('.lab').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(i); } });
+  attachLaneDrag(row.querySelector('.trk'), i);
+  lanes.appendChild(row);
+}
+
+function setFold(gi, folded, save = true) {
+  const g = LANE_GROUPS[gi];
+  folded ? foldedGroups.add(g.name) : foldedGroups.delete(g.name);
+  const head = document.querySelector(`.ghead[data-g="${gi}"]`);
+  head.classList.toggle('folded', folded);
+  head.querySelector('.lab').setAttribute('aria-expanded', String(!folded));
+  head.title = (folded ? 'Show ' : 'Fold ') + g.name;
+  document.querySelectorAll(`.lane[data-g="${gi}"]`).forEach((r) => { r.hidden = folded; });
+  if (save) { try { localStorage.setItem('palette.lanegroups.v1', JSON.stringify([...foldedGroups])); } catch (e) { /* private window */ } }
+  renderGroupHeads();
+}
+
+// Each header: how many of its lanes are assigned, and, folded, the
+// group's bars in miniature on its track
+function renderGroupHeads() {
+  LANE_GROUPS.forEach((g, gi) => {
+    const head = document.querySelector(`.ghead[data-g="${gi}"]`); if (!head) return;
+    const on = g.members.filter((i) => cfg.params[i].enabled);
+    head.querySelector('.cnt').textContent = on.length + '/' + g.members.length;
+    const trk = head.querySelector('.trk');
+    if (!foldedGroups.has(g.name)) { trk.innerHTML = ''; return; }
+    trk.innerHTML = on.map((i, k) => {
+      const p = cfg.params[i], top = 3 + (k % 3) * 6;
+      const dim = p.hold || (PARAMS[i].out && !usesRegister(i));
+      return `<div class="mini${dim ? ' held' : ''}" style="--c:${colorOf(i)};left:calc(${p.start / REG * 100}% + 1px);width:calc(${p.width / REG * 100}% - 2px);top:${top}px" title="${PARAMS[i].name}: bits ${p.start}–${p.start + p.width - 1}"></div>`;
+    }).join('');
+  });
+}
+
 function renderLanes() {
   document.querySelectorAll('.lane').forEach((row) => {
     const i = +row.dataset.i, p = cfg.params[i], trk = row.querySelector('.trk');
@@ -902,6 +980,7 @@ function renderLanes() {
     const a = (Math.min(p.min, p.max) - P.lo) / span, b = (Math.max(p.min, p.max) - P.lo) / span;
     const w = row.querySelector('.meter .win'); w.style.left = (a * 100) + '%'; w.style.width = Math.max(1, (b - a) * 100) + '%';
   });
+  renderGroupHeads();
 }
 
 function renderTray() {
@@ -1068,7 +1147,9 @@ function renderLive() {
   renderKnobs();
 }
 
-function select(i) { selected = i; renderLanes(); renderInspector(); }
+function select(i) {
+  const gi = groupOf(i);
+  if (gi >= 0 && foldedGroups.has(LANE_GROUPS[gi].name)) setFold(gi, false); selected = i; renderLanes(); renderInspector(); }
 
 // ---------------------------------------------------------------- envelope drawing (same curve as firmware)
 function curve(p, c) { // p 0..1, c -512..511
@@ -1162,10 +1243,11 @@ function attachChipDrag(chip, i) {
       if (!ghost) return; // a click: just selected
       const g = $('grid').getBoundingClientRect();
       if (ev.clientX >= g.left && ev.clientX <= g.right && ev.clientY >= g.top && ev.clientY <= g.bottom) {
-        const trk = laneTrk(), r = trk.getBoundingClientRect();
+        const ruler = $('ruler'), r = ruler.getBoundingClientRect(); // the lane may be folded away: the ruler has the same columns
         if (ev.clientX >= r.left) {
           const p = cfg.params[i];
-          p.width = PARAMS[i].w; p.start = clamp(bitAt(ev.clientX, trk), 0, REG - p.width); p.enabled = true;
+          p.width = PARAMS[i].w; p.start = clamp(bitAt(ev.clientX, ruler), 0, REG - p.width); p.enabled = true;
+          const gi = groupOf(i); if (gi >= 0) setFold(gi, false);
           changed();
           laneTrk().scrollIntoView({ block: 'nearest' });
         }
@@ -1446,6 +1528,8 @@ function wire() {
   $('sim-play').onclick = () => { simRunning = !simRunning; $('sim-play').textContent = simRunning ? 'Pause' : 'Play'; };
   $('sim-lock').onclick = () => { simLock = !simLock; renderKnobs(); };
   $('sim-scramble').onclick = () => { const used = usedBits(); for (let b = 0; b < used; b++) bits[b] = Math.random() < 0.5 ? 1 : 0; flipped.fill(0); renderLive(); };
+  $('foldAll').onclick = () => LANE_GROUPS.forEach((_, gi) => setFold(gi, true));
+  $('unfoldAll').onclick = () => LANE_GROUPS.forEach((_, gi) => setFold(gi, false));
   $('addLoop').onclick = () => { const free = REG - usedBits(); if (free > 0) { cfg.loops.push({ length: Math.min(free, 16), divider: 1, chaos: 100 }); changed(); } };
   document.querySelectorAll('[data-preset]').forEach((b) => b.onclick = () => {
     const n = +b.dataset.preset, old = cfg.loops;
