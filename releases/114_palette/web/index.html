@@ -67,16 +67,20 @@
   main {
     display: grid; gap: 16px; padding: 0 16px 24px; align-items: start;
     grid-template-columns: minmax(0, 1fr) 340px;
-    grid-template-areas: "knobs scale" "reg param" "left right";
+    grid-template-areas: "knobs scale" "reg right" "left right";
+    /* the tall right-hand column's extra height goes to the last row, so
+       Loops stays right under the register */
+    grid-template-rows: auto auto 1fr;
   }
   .area-knobs { grid-area: knobs; } .area-scale { grid-area: scale; } .area-reg { grid-area: reg; }
-  .area-param { grid-area: param; align-self: stretch; min-width: 0; }
-  .area-left { grid-area: left; } .area-right { grid-area: right; }
-  /* The parameter card stays in view beside the register grid as the page scrolls */
-  #param-card { position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow-y: auto; }
+  .area-left { grid-area: left; } .area-right { grid-area: right; align-self: stretch; }
+  /* The parameter card stays in view beside the register grid as the page
+     scrolls; the cards after it slide up underneath it */
+  #param-card { position: sticky; top: 8px; z-index: 5; max-height: calc(100vh - 16px); overflow-y: auto;
+    box-shadow: 0 6px 16px -8px rgba(0,0,0,.35); }
   @media (max-width: 960px) {
-    main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "knobs" "reg" "param" "scale" "left" "right"; }
-    #param-card { position: static; max-height: none; }
+    main { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "knobs" "scale" "reg" "left" "right"; }
+    #param-card { position: static; max-height: none; box-shadow: var(--shadow); }
   }
   .col { display: grid; gap: 16px; align-content: start; min-width: 0; }
   /* Every card can fold down to its heading (buildCollapsers) */
@@ -298,9 +302,10 @@
 <div id="msg"></div>
 
 <main>
-  <!-- Rows, so each card lines up with its neighbour: knobs | scale, then
-       the register grid | the selected parameter (which stays in view while
-       the grid scrolls past), then everything else -->
+  <!-- Knobs | scale on top; below, the register grid and loops on the left,
+       and on the right the selected parameter (level with the grid, and
+       pinned while the page scrolls) with the other cards following on
+       beneath it, sliding up under it as you scroll -->
     <section class="card area-knobs">
       <h2>Knobs &amp; clock</h2>
       <div class="readouts">
@@ -350,9 +355,6 @@
       </div>
     </section>
 
-    <div class="area-param">
-      <section class="card" id="param-card"><h2>Parameter</h2><div id="inspector" aria-live="polite"></div></section>
-    </div>
 
     <div class="col area-left">
       <section class="card">
@@ -370,6 +372,7 @@
     </div>
 
     <div class="col area-right">
+      <section class="card" id="param-card"><h2>Parameter</h2><div id="inspector" aria-live="polite"></div></section>
       <section class="card">
         <h2>Envelopes</h2>
         <canvas id="envs" width="600" height="240" aria-label="The filter, volume, FM and pitch envelopes as the register sets them now"></canvas>
