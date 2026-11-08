@@ -2,11 +2,14 @@
 
 A self-playing ambient ensemble for the Workshop Computer. Choose the
 original Bells ensemble or warmer Wood Chimes at startup.
+Stable **0.5.1** lowers the pads by approximately **2.18 dB** compared with 0.5.0,
+giving the melody more room during overlapping pad swells. Melody and bass
+levels retain their established balance.
 See the [archive](archive/README.md) for earlier releases and original experiments.
 
 ## Install and choose a sound
 
-Flash [Departures_0.5.0.uf2](uf2/Departures_0.5.0.uf2)
+Flash [Departures_0.5.1.uf2](uf2/Departures_0.5.1.uf2)
 using BOOTSEL. It fits both 2MB and 16MB program cards.
 
 1. **Hold Z Down while powering on or pressing reset**, and keep holding it.
@@ -24,6 +27,7 @@ using BOOTSEL. It fits both 2MB and 16MB program cards.
 
 **Normal boot without holding Down always selects Bells**, regardless of Main's
 position. The choice lasts until reset and is not saved to flash.
+
 ## What Wood Chimes changes
 
 - The four phrase voices use a rounded fundamental with a rapidly damped upper

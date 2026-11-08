@@ -1,6 +1,6 @@
 # Attribution and dependency inventory
 
-Applies to the stable Departures 0.5.0 source and firmware. Original notices
+Applies to the stable Departures 0.5.1 source and firmware. Original notices
 for previous versions are preserved with their archived bundles.
 
 The card application is original, AI-assisted work by Adrian Vos, licensed under
