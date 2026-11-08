@@ -1,0 +1,126 @@
+draft: false
+Name: Departures
+short-description: A generative ambient ensemble of breathing pads, interlocking bells or wood chimes, and gliding bass.
+summary: >-
+  Departures creates a slowly evolving ambient piece from three breathing chord
+  voices, four independent melody loops and a gliding bass, surrounded by stereo
+  echoes and reverb. Choose shimmering bells or warmer, percussive wood chimes.
+  Shared notes carry through chord changes while accented phrases, occasional
+  octave answers, layer rests and a slow musical tide keep the ensemble moving.
+  Let it play on its own, or use CV to select one of seven scales and prepare
+  chord destinations to commit with a trigger. External clocking, pitch and
+  trigger outputs let the ensemble play alongside other modules, and external
+  audio can join its stereo effects. Main sets activity and internal tempo,
+  X shapes the colour, and Y controls the space.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Adrian Vos
+Version: "0.5.0"
+Status: Released
+License: MIT
+date-created: 2026-11-08
+date-updated: 2026-11-08
+uf2:
+  - path: uf2/Departures_0.5.0.uf2
+    name: Departures 0.5.0 — Bells / Wood Chimes
+tags:
+  - generative
+  - synthesizer
+  - ambient
+  - polyphonic
+  - cv
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Space In L
+      type: audio
+      description: External audio into the effects only; raise Y to hear it.
+    - id: AudioIn2
+      name: Space In R
+      type: audio
+      description: External audio into the effects only; raise Y to hear it.
+    - id: CVIn1
+      name: Scale Select
+      type: cv
+      description: Approximately 0 to 5V selects seven fixed-D scales directly. LEDs 1 to 3 show the active scale. Unpatched defaults to Dorian; no key transposition in this build.
+    - id: CVIn2
+      name: Chord Destination
+      type: cv
+      description: Approximately 0 to 5V selects one of seven chord degrees in the active scale without changing harmony. Pulse In 2 commits it; patching this input pauses automatic chord changes.
+    - id: PulseIn1
+      name: Beat Clock
+      type: pulse
+      description: One rising edge per beat; replaces the internal clock while connected.
+    - id: PulseIn2
+      name: Commit Chord
+      type: pulse
+      description: Commits the CV In 2 destination on a rising edge, including in Hold. With CV In 2 unpatched, advances the normal sequence.
+  outputs:
+    - id: AudioOut1
+      name: Left
+      type: audio
+      description: Stereo ensemble and effects, left.
+    - id: AudioOut2
+      name: Right
+      type: audio
+      description: Stereo ensemble and effects, right.
+    - id: CVOut1
+      name: Melody Pitch
+      type: cv
+      description: Most recent melody pitch, 1V/octave with 0V at MIDI 36.
+    - id: CVOut2
+      name: Bass Pitch
+      type: cv
+      description: Bass target pitch, 1V/octave with 0V at MIDI 36.
+    - id: PulseOut1
+      name: Melody Trigger
+      type: pulse
+      description: 10ms trigger after approximately 1ms of CV settling; simultaneous notes merge.
+    - id: PulseOut2
+      name: Bass Trigger
+      type: pulse
+      description: 10ms trigger after approximately 1ms of CV settling.
+controls:
+  switch:
+    up:
+      name: Hold
+      description: Holds automatic harmony and mutations; prevents new rests and octave answers. External scale changes and chord commits still work; existing rests/answers finish.
+    middle:
+      name: Evolve
+      description: Harmony moves every 24 beats when CV In 2 is unpatched. With CV In 2 patched, harmony waits for a commit; phrase evolution continues.
+    down:
+      name: Advance
+      description: During playback, advances harmony once on entry. Hold Down during boot to choose Bells or Wood Chimes with Main; release to confirm without advancing harmony.
+  knobs:
+    - main:
+        name: Activity
+        description: Activity and internal tempo, approximately 36 to 82 BPM. In the Z-down startup selector only, left chooses Bells and right chooses Wood Chimes.
+      x:
+        name: Colour
+        description: Pad harmonics and note brightness; in Wood Chimes the strongest change is in the strike resonance.
+      y:
+        name: Space
+        description: Echo and reverb blend with longer feedback tails.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Scale Bit 1 / Pad Breath 1
+          description: Physical LED 1. With CV1 patched, weight 1 in scale code 1 to 7; otherwise brightness follows pad voice 1. During startup selection, lit for Bells.
+        - id: LED1
+          name: Scale Bit 2 / Pad Breath 2
+          description: Physical LED 2. With CV1 patched, weight 2 in scale code 1 to 7; otherwise brightness follows pad voice 2. During startup selection, lit for Wood Chimes.
+        - id: LED2
+          name: Scale Bit 4 / Pad Breath 3
+          description: Physical LED 3. With CV1 patched, weight 4 in scale code 1 to 7; otherwise brightness follows pad voice 3. During startup selection, lit for Bells.
+        - id: LED3
+          name: Melody Activity
+          description: Physical LED 4, middle right. Flashes on melody activity during playback; lit for Wood Chimes in the startup selector.
+        - id: LED4
+          name: Hold / External Clock
+          description: Physical LED 5, bottom left. Bright in Hold, otherwise dim with external clock; off during startup selection.
+        - id: LED5
+          name: Timing Warning
+          description: Physical LED 6, bottom right. Latches if the audio callback reaches 18 microseconds; reset clears it.
+contact:
+  social:
+    github: https://github.com/soveda
