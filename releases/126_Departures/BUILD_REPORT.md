@@ -2,7 +2,8 @@
 
 Promoted 8 November 2026 after Adrian reported the experimental hardware tests
 passed. Stable 0.5.0 preserves the tested 0.5 experimental UF2 bytes exactly.
-Previous stable 0.4.1 and the original experiment are preserved in `archive/`.
+Previous stable 0.4.1 and the original experiment are preserved on the development
+branch; see [the archive index](archive/README.md).
 Host results and ARM timing measurements below are from the tested source;
 these estimates are distinct from the user-reported hardware pass.
 
@@ -122,3 +123,7 @@ ASan/UBSan host checks, including the palette suite, passed again from the
 promoted source. Strict catalogue metadata validation passed with zero errors
 and warnings. The 33 tracked files of previous stable 0.4.1 were archived with
 every file hash unchanged. The original 0.5 experimental snapshot is also retained.
+
+The upstream submission includes only `uf2/Departures_0.5.0.uf2`. Historical
+source and firmware bundles are retained on the fork rather than shipped in the
+release; their preservation checks above describe the original promotion.

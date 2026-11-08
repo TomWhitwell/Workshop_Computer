@@ -2,7 +2,7 @@
 
 Adrian reported these hardware tests passed on 8 November 2026. The tested image
 is promoted unchanged to stable 0.5.0. Repeat this protocol for future changes;
-previous stable 0.4.1 remains available in `archive/0.4.1/`.
+previous stable 0.4.1 remains available through the [archive index](archive/README.md).
 
 1. **Normal boot:** start/reset in Middle with Main on either side. It should
    always start Bells and retain the familiar 0.4.1 sound and control behaviour.

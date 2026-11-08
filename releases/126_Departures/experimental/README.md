@@ -8,6 +8,7 @@ user's hardware tests and was promoted unchanged to stable 0.5.0 on 8 November 2
 Hold Z Down at boot to choose a palette; see the stable operating instructions.
 
 Completed source, original documentation, firmware and test records remain in the
-[archive](../archive/README.md), including the
-[original 0.5 experiment](../archive/experimental/0.5/README.md).
+[development archive](../archive/README.md), including the
+[original 0.5 experiment](https://github.com/soveda/Workshop_Computer/tree/3e8807e8/releases/126_Departures/archive/experimental/0.5/README.md).
+These historical bundles are excluded from the upstream release.
 Archived documents retain their original experimental status as historical records.

@@ -36,9 +36,15 @@ its bytes. A fresh build from the promoted source reproduces the tested UF2.
 ## 0.3.0 — 8 November 2026
 
 Previous stable bell-phrasing release. Original public documentation and firmware
-are preserved in [archive/0.3.0/](archive/0.3.0/README.md).
+are preserved in [development archive](https://github.com/soveda/Workshop_Computer/tree/3e8807e8/releases/126_Departures/archive/0.3.0/README.md).
 
 ## Earlier versions
 
 See the [archive index](archive/README.md) for 0.1.0 and all experimental firmware,
 including the accepted 0.2.2 balance and original 0.3, 0.4 and 0.4.1 source bundles.
+
+## Upstream release packaging
+
+Include only the current stable UF2 and source bundle. Earlier stable and
+experimental bundles remain preserved on the development branch; the local
+archive index links to those original snapshots.
