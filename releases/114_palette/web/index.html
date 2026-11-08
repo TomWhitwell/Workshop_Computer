@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Palette editor</title>
+<title>Turing's Palette editor</title>
 <!--
-  PALETTE - web editor for the Music Thing Modular Workshop Computer card.
+  TURING'S PALETTE - web editor for the Music Thing Modular Workshop Computer card.
   One static file, no network needed. Talks to the card over WebMIDI + SysEx
   (protocol: ../sysex.h). The card works without this page; the page lays out
   the shift register's loops, assigns the synth parameters and the outputs to bits, and
@@ -305,7 +305,7 @@
 </head>
 <body>
 <header>
-  <h1>Palette</h1>
+  <h1>Turing’s Palette</h1>
   <div class="status"><span id="dot" class="dot"></span><span id="status-text">Not connected</span></div>
   <div class="spacer"></div>
   <button id="btn-connect" class="primary">Connect card</button>
@@ -420,7 +420,7 @@
           <input type="file" id="importFile" accept=".json,application/json" hidden>
           <button class="small" id="importJson">Load from box</button>
         </div>
-        <textarea id="json" spellcheck="false" aria-label="Layout JSON" placeholder="Paste a Palette layout here, then Load from box."></textarea>
+        <textarea id="json" spellcheck="false" aria-label="Layout JSON" placeholder="Paste a Turing’s Palette layout here, then Load from box."></textarea>
         <div class="caption">A layout as a file, to keep or pass on. Loading one sends it to a connected card, but doesn't save it into a slot.</div>
       </section>
 
@@ -463,7 +463,7 @@
 <script>
 'use strict';
 /*
-  Palette editor.
+  Turing's Palette editor.
   The firmware (main.cpp) is the source of truth; the tables and the byte
   layout below mirror it exactly. Change both together.
 */
@@ -1342,7 +1342,7 @@ function toJSON() {
 }
 function fromJSON(text) {
   const j = JSON.parse(text);
-  if (j.format !== 'palette') throw new Error('This is not a Palette layout (missing "format": "palette").');
+  if (j.format !== 'palette') throw new Error('This is not a Turing’s Palette layout (missing "format": "palette").');
   const d = defaultConfig();
   const c = {
     loops: Array.isArray(j.loops) ? j.loops.map((l) => ({ length: +l.length, divider: +l.divider || 1, chaos: l.chaos ?? 100 })) : d.loops,
@@ -1405,13 +1405,13 @@ function scanPorts() {
   if (link.cardOnline) {
     link.pingTimer = setInterval(() => sendRaw(sysex(CMD.PING, [])), 1000);
     sendRaw(sysex(CMD.PING, []));
-    setStatus('ok', 'Palette card');
+    setStatus('ok', 'Turing’s Palette card');
     if (!wasOnline) { say('Card connected. Reading its layouts…'); sendRaw(sysex(CMD.HELLO, [])); } // the card is the source of truth: read it
   } else {
     knobs.waiting = [false, false, false]; knobs.notes = null; knobs.mainSlot = false;
     slots.list = null; slots.current = -1; slots.announced = -1;
     setStatus('warn', 'No card found');
-    say('No “Palette” card found. Use a USB data cable into the Computer’s USB socket, close other apps using it, and power-cycle the module after plugging in.' + note, true);
+    say('No “Turing’s Palette” card found. Use a USB data cable into the Computer’s USB socket, close other apps using it, and power-cycle the module after plugging in.' + note, true);
   }
   render();
   renderSlots();
@@ -1543,7 +1543,7 @@ function wire() {
   };
   $('downloadJson').onclick = () => {
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([toJSON()], { type: 'application/json' }));
-    a.download = 'palette-layout.json'; document.body.appendChild(a); a.click(); a.remove();
+    a.download = 'turings-palette-layout.json'; document.body.appendChild(a); a.click(); a.remove();
   };
   $('importBtn').onclick = () => $('importFile').click();
   $('importFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { fromJSON(await f.text()); say('Layout loaded.'); } catch (err) { say(err.message, true); } e.target.value = ''; };

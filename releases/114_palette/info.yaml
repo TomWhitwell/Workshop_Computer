@@ -1,5 +1,5 @@
 draft: false
-Name: Palette
+Name: "Turing's Palette"
 short-description: A synth voice whose every parameter is read from a Turing-Machine-style shift register
 Language: C++ (Pico SDK + ComputerCard)
 Creator: XponentOneAudio

@@ -24,7 +24,7 @@ enum {
 char const *string_desc_arr[] = {
 	(const char[]){ 0x09, 0x04 }, // 0: is supported language is English (0x0409)
 	"Music Thing", // 1: Manufacturer
-	"Palette", // 2: Product
+	"Turing's Palette", // 2: Product (the editor looks for "Palette")
 	NULL, // 3: Serial number, using flash chip ID
 };
 

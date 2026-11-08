@@ -1,4 +1,4 @@
-# Palette
+# Turing's Palette
 
 An experiment for a larger card: a simple synth voice where **every** parameter is
 read from a Turing-Machine-style shift register.
@@ -192,7 +192,7 @@ layout when it connects, then shows the card's register, knobs and switch about 
 ## SysEx protocol
 
 Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> … F7`
-(`50` is 'P'); the card shows up as a MIDI device named **Palette**.
+(`50` is 'P'); the card shows up as a MIDI device named **Turing's Palette**.
 
 | Cmd | Direction | Data |
 |---|---|---|

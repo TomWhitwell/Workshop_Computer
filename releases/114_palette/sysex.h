@@ -1,4 +1,4 @@
-// SysEx protocol between the Palette card and its web editor (web/index.html),
+// SysEx protocol between the Turing's Palette card and its web editor (web/index.html),
 // used when a computer is plugged into the Computer's USB socket and the card
 // is acting as a USB MIDI device.  Same shape as the CVSeq and WaveSeq cards.
 //

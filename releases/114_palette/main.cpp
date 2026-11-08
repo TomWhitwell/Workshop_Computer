@@ -1,5 +1,5 @@
 /*
-  Palette — Workshop Computer program card
+  Turing's Palette — Workshop Computer program card
   ============================================
 
   An experiment: a simple monophonic synth voice where EVERY synthesis
