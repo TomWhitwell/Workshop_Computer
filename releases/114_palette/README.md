@@ -6,7 +6,7 @@ read from a Turing-Machine-style shift register.
 The register is 64 bits long. In the [web editor](web/index.html) you split it into
 1–8 loops (one 64-bit loop, four 16-bit loops, 20 + 12 + 16 + 16, anything that adds up
 to 64 or less). Each loop rotates on its own clock divider, and each has a chaos amount
-that scales how often the Main knob flips its bits. Then you drag each of the 30
+that scales how often the Main knob flips its bits. Then you drag each of the synth
 synthesis parameters onto any window of 1–16 bits and give it an output range.
 Windows may overlap, and may straddle two loops.
 
@@ -47,6 +47,32 @@ pitch envelope for each oscillator. All but the FM one have a curve control.
 | 22–24 | Osc 1 P.Env Attack / Decay / Shape | 0–1023 | 1 ms – 4 s; shape: slow start ↔ linear ↔ snappy |
 | 25–28 | Osc 2 P.Env Amt / Attack / Decay / Shape | as Osc 1 | With FM on, sweeping Osc 2 sweeps the FM ratio |
 | 29 | Sync | 0–2 | 0 off, 1 soft, 2 hard. Osc 2 follows Osc 1: each time Osc 1 starts a cycle (either way round, with through-zero FM), hard sync restarts Osc 2's cycle, so it plays at Osc 1's pitch with Osc 2's pitch setting the brightness; soft sync reverses Osc 2's direction instead, a gentler version. Sweep Osc 2's pitch or pitch envelope for the classic sync sound |
+| 30–33 | Pitch LFO Rate / Shape / Sync / Depth | 0–1023, Sync 0–1 | Vibrato on both oscillators, depth up to ±12 semitones |
+| 34–37 | Vol LFO Rate / Shape / Sync / Depth | as above | Tremolo: the LFO's lower half pulls the level down, by up to all of it |
+| 38–41 | Filter LFO Rate / Shape / Sync / Depth | Depth −1023…+1023 | Moves the cutoff either way, in cutoff units |
+| 42–44 | Audio Out 2, CV Out 1, CV Out 2 | −1023…+1023 (−5…+5 V) | Output lanes, see *Outputs* below |
+| 45–46 | Pulse Out 1, Pulse Out 2 | 0–1 | Output lanes, see *Outputs* below |
+
+### LFOs
+
+Three LFOs, each with Rate, Shape, Sync and Depth lanes. **Rate** runs from about 0.02 Hz to 50 Hz;
+with **Sync** on it chooses a length in clock steps instead (1/4, 1/2, 1, 2, 3, 4, 6, 8, 12, 16, 32 or
+64 steps per cycle, from the measured clock, internal or Pulse In 1) and the LFO restarts on the
+right step. **Shape** morphs sine → triangle → saw → square, and its top tenth is random: a new
+level held for each cycle (sample and hold). Depth 0 (the default) leaves the sound untouched.
+
+### Outputs
+
+Audio Out 2, CV Out 1, CV Out 2 and both pulse outs each have a lane, and a **Sends** choice on its
+Parameter card:
+
+| Output | Can send | Default |
+|---|---|---|
+| Audio Out 2, CV Out 1, CV Out 2 | its register value raw (−1023…+1023 = −5…+5 V) or quantised to the scale (1 V/oct); Osc 1 or Osc 2 pitch (1 V/oct, MIDI note 60 = 0 V); the filter, volume, FM or either pitch envelope (0…+5 V); the pitch, volume or filter LFO (±5 V) | Filter env, Osc 1 pitch, volume env |
+| Pulse Out 1, Pulse Out 2 | a register gate (high while the lane reads 1), a register trigger (5 ms on each step where it reads 1, if its bits moved), the envelope trigger, the clock | Envelope trigger, clock |
+
+The CV outs are calibrated; Audio Out 2 is not (about ±6 V across its range). An output's lane only
+matters while it sends its register; otherwise its bar greys out.
 
 ### How bits become values
 
@@ -94,11 +120,11 @@ Bits outside every loop never move. Assignments can still read them, as fixed va
 | CV In 1 | 1V/oct pitch, semitone quantised |
 | CV In 2 | Added to Main |
 | Audio Out 1 | Voice |
-| Audio Out 2 | Filter envelope |
-| CV Out 1 | Osc 1 pitch, calibrated 1V/oct, MIDI note 60 = 0 V |
-| CV Out 2 | Volume envelope |
-| Pulse Out 1 | Envelope trigger |
-| Pulse Out 2 | Clock |
+| Audio Out 2 | Its output lane (default: filter envelope) |
+| CV Out 1 | Its output lane (default: Osc 1 pitch, calibrated 1V/oct, MIDI note 60 = 0 V) |
+| CV Out 2 | Its output lane (default: volume envelope), calibrated |
+| Pulse Out 1 | Its output lane (default: envelope trigger) |
+| Pulse Out 2 | Its output lane (default: clock) |
 | LEDs 0–3 | Register bits 0–3 |
 | LED 4 | Clock |
 | LED 5 | Volume envelope; blinks fast while a knob is waiting to pick up |
@@ -168,8 +194,8 @@ Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> …
 | Cmd | Direction | Data |
 |---|---|---|
 | `01` HELLO | editor → card | card replies with STATE and SLOTS |
-| `02` STATE | card → editor | protocol version, layout (269 bytes as nibbles), Main/X/Y settings, each parameter's value in use (14-bit, offset by 8192) |
-| `03` SET_CONFIG | editor → card | protocol version, layout (269 bytes as nibbles) |
+| `02` STATE | card → editor | protocol version, layout (405 bytes as nibbles), Main/X/Y settings, each parameter's value in use (14-bit, offset by 8192) |
+| `03` SET_CONFIG | editor → card | protocol version, layout (405 bytes as nibbles) |
 | `04` SAVE | editor → card | slot, name (16 bytes): save the playing layout and register into a slot and play from it; card replies SAVED (`08`, slot) and SLOTS |
 | `05` SET_REG | editor → card | the register, 8 bytes little endian, as nibbles |
 | `06` RESET | editor → card | factory layout; card replies with STATE |
@@ -182,10 +208,10 @@ Documented in full in [`sysex.h`](sysex.h). Every message is `F0 7D 50 <cmd> …
 | `0E` SLOTS | card → editor | count, playing slot, then per slot: used, number of loops, 8 loop lengths, name (16) |
 | `0F` RENAME_SLOT | editor → card | slot, name (16) |
 
-Layout byte layout (`CONFIG_FORMAT` 5): `[0]` format, `[1]` number of loops,
+Layout byte layout (`CONFIG_FORMAT` 6): `[0]` format, `[1]` number of loops,
 `[2..25]` 8 × (length, divider, chaos), `[26..27]` scale mask (bit n = n semitones above root),
-`[28]` root MIDI note, `[29..268]` 30 × (enabled, start, width, flags, min lo, min hi, max lo, max hi)
-with flags bit 0 = count mode, bit 1 = invert, bit 2 = hold, and min/max as signed 16-bit little endian.
+`[28]` root MIDI note, `[29..404]` 47 × (enabled, start, width, flags, min lo, min hi, max lo, max hi)
+with flags bit 0 = count mode, bit 1 = invert, bit 2 = hold, bits 3–7 = source (output lanes), and min/max as signed 16-bit little endian.
 
 ## Building
 
@@ -201,10 +227,11 @@ Builds against Pico SDK 2.1.1.
 the Computer's knob and CV readings get mixed up. So no sample does a burst of work: after a
 clock step the loops shift one per sample and the parameters are re-read one per sample; a
 layout from the editor is prepared on the USB core and swapped in by pointer; pitch, smoothing,
-pitch envelopes, knobs, LEDs and the editor snapshot each run on their own staggered samples. Measured in an
+pitch envelopes, LFOs, outputs, knobs, LEDs and the editor snapshot each run on their own staggered
+samples. Measured in an
 emulated Cortex-M (QEMU, instruction counts, hardware divider modelled) the worst sample is
-about 1,650 instructions and the average about 1,150, with FM at full depth, hard sync
-and both pitch envelopes running. It has not yet
+about 1,650 instructions and the average about 1,150, with FM at full depth, hard sync,
+both pitch envelopes, all three LFOs and quantised outputs running. It has not yet
 been timed on hardware;
 if you change the audio path, check it with a scope on a spare GPIO.
 

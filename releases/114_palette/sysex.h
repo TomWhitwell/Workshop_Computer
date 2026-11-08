@@ -10,7 +10,7 @@
 //
 // Web -> card
 //   HELLO      01                         card replies with STATE and SLOTS
-//   SET_CONFIG 03 version cfg[269 x 2]    the whole layout (see main.cpp
+//   SET_CONFIG 03 version cfg[405 x 2]    the whole layout (see main.cpp
 //                                         Serialise), applied at once
 //   SAVE       04 slot name[16]           save the playing layout + register
 //                                         into a slot (0-5) with a name (7-bit
@@ -33,7 +33,7 @@
 //                                         pings keep arriving
 //
 // Card -> web
-//   STATE      02 version cfg[269 x 2] settings[3 x 2] values[30 x 2]
+//   STATE      02 version cfg[405 x 2] settings[3 x 2] values[47 x 2]
 //              values: each parameter's value in use, offset by 8192
 //   STATUS     07 reg[8 x 2] tick trig flags settings[3 x 2] knobs[3 x 2]
 //                 prob note1 note2 slot used
@@ -65,7 +65,7 @@ namespace sysex
 
 static constexpr uint8_t kMfr = 0x7D;
 static constexpr uint8_t kProduct = 0x50;
-static constexpr uint8_t kVersion = 8;
+static constexpr uint8_t kVersion = 9;
 
 enum Cmd : uint8_t
 {
@@ -91,7 +91,7 @@ enum Cmd : uint8_t
 // then in cmd, payload and length.
 struct Parser
 {
-	static constexpr int kMax = 640;
+	static constexpr int kMax = 1024;
 	uint8_t buf[kMax];
 	int n = 0;
 	bool in = false;

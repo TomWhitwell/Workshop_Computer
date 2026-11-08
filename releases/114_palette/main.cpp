@@ -49,6 +49,18 @@
     29 Sync             0 off, 1 soft, 2 hard: Osc 2 follows Osc 1. Each
                         time Osc 1 starts a cycle, hard sync restarts Osc 2's
                         cycle; soft sync reverses its direction instead
+    30-33 Pitch LFO     Rate, Shape, Sync, Depth (vibrato, both oscillators,
+                        up to ±12 semitones)
+    34-37 Vol LFO       Rate, Shape, Sync, Depth (tremolo, none to full)
+    38-41 Filter LFO    Rate, Shape, Sync, Depth (bipolar, cutoff units)
+                        Rate: free ~0.02-50 Hz; with Sync on, a length in
+                        clock steps from 1/4 to 64. Shape: sine, triangle,
+                        saw, square, then random (sample and hold) at the top
+    42 Audio Out 2      Output lanes. Each has a source (in its flags): its
+    43 CV Out 1         own register value, raw or quantised to the scale,
+    44 CV Out 2         an oscillator's pitch, an envelope or an LFO
+    45 Pulse Out 1      Pulse lanes: a register gate or trigger, the
+    46 Pulse Out 2      envelope trigger, or the clock
 
   Panel
     Main knob   Randomness (Turing): noon = random, CW = locked,
@@ -66,7 +78,7 @@
     CV In 1     Pitch, 1V/oct (quantised to semitones)
     CV In 2     Added to the Main knob (randomness)
     Audio Out 1 The voice
-    Audio Out 2 Filter envelope
+    Audio Out 2 Its output lane's source (default: filter envelope)
     CV Out 1    Osc 1 pitch, calibrated 1V/oct (MIDI note 60 = 0 V)
     CV Out 2    Volume envelope
     Pulse Out 1 Envelope trigger
@@ -95,11 +107,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Firmware / protocol versions
 
-constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 8, FW_PATCH = 0;
-constexpr uint8_t CONFIG_FORMAT = 5;   // bump when the serialised layout changes
+constexpr uint8_t FW_MAJOR = 0, FW_MINOR = 9, FW_PATCH = 0;
+constexpr uint8_t CONFIG_FORMAT = 6;   // bump when the serialised layout changes
 
 constexpr int MAX_LOOPS = 8;
-constexpr int NUM_PARAMS = 30;
+constexpr int NUM_PARAMS = 47;
 constexpr int REG_BITS = 64;
 constexpr int MAX_WIDTH = 16;
 
@@ -109,7 +121,31 @@ enum ParamId
 	P_CUTOFF, P_RES, P_ENVAMT, P_FATK, P_FDEC, P_FSHAPE, P_VATK, P_VDEC, P_VSHAPE,
 	P_FMON, P_FMOFF, P_FMENVAMT, P_FMATK, P_FMDEC,
 	P_P1AMT, P_P1ATK, P_P1DEC, P_P1SHAPE, P_P2AMT, P_P2ATK, P_P2DEC, P_P2SHAPE,
-	P_SYNC
+	P_SYNC,
+	P_LFO1RATE, P_LFO1SHAPE, P_LFO1SYNC, P_LFO1DEPTH,   // pitch LFO
+	P_LFO2RATE, P_LFO2SHAPE, P_LFO2SYNC, P_LFO2DEPTH,   // volume LFO
+	P_LFO3RATE, P_LFO3SHAPE, P_LFO3SYNC, P_LFO3DEPTH,   // filter LFO
+	P_OUTA2, P_OUTCV1, P_OUTCV2, P_OUTP1, P_OUTP2       // output lanes
+};
+
+// Where an output lane's output comes from: bits 3-7 of its flags
+constexpr int SOURCE_SHIFT = 3;
+enum CvSource : uint8_t   // Audio Out 2, CV Out 1, CV Out 2
+{
+	SRC_REG_RAW,     // the lane's register value, -1023..1023 = -5..+5 V
+	SRC_REG_QUANT,   // the same, snapped to the scale (1 V/oct)
+	SRC_OSC1, SRC_OSC2,                               // pitch, 1 V/oct, MIDI 60 = 0 V
+	SRC_FLTENV, SRC_VOLENV, SRC_FMENV, SRC_P1ENV, SRC_P2ENV,  // 0 to +5 V
+	SRC_LFOPITCH, SRC_LFOVOL, SRC_LFOFILT,            // -5 to +5 V
+	NUM_CV_SOURCES
+};
+enum PulseSource : uint8_t  // Pulse Out 1, Pulse Out 2
+{
+	PSRC_GATE,       // high while the lane's value is 1
+	PSRC_TRIG,       // 5 ms trigger on each step where the lane's value is 1
+	PSRC_ENVTRIG,    // 5 ms trigger whenever the envelopes fire
+	PSRC_CLOCK,      // 5 ms trigger on every clock step
+	NUM_PULSE_SOURCES
 };
 
 // Native range of each parameter. The editor mirrors this table; Min/Max
@@ -135,6 +171,11 @@ static const ParamRange paramRange[NUM_PARAMS] = {
 	{-1023, 1023}, {0, 1023}, {0, 1023}, {0, 1023},  // Osc 1 pitch env: amount, A, D, shape
 	{-1023, 1023}, {0, 1023}, {0, 1023}, {0, 1023},  // Osc 2 pitch env
 	{0, 2},         // Sync: off, soft, hard
+	{0, 1023}, {0, 1023}, {0, 1}, {0, 1023},       // pitch LFO: rate, shape, sync, depth
+	{0, 1023}, {0, 1023}, {0, 1}, {0, 1023},       // volume LFO
+	{0, 1023}, {0, 1023}, {0, 1}, {-1023, 1023},   // filter LFO (bipolar depth)
+	{-1023, 1023}, {-1023, 1023}, {-1023, 1023},   // Audio Out 2, CV Out 1, CV Out 2
+	{0, 1}, {0, 1},                                // Pulse Out 1, 2
 };
 
 // Assignment flags
@@ -171,7 +212,7 @@ struct Config
 };
 
 // Serialised size: see Serialise() for the byte layout
-constexpr int CONFIG_BYTES = 2 + MAX_LOOPS * 3 + 3 + NUM_PARAMS * 8; // 269
+constexpr int CONFIG_BYTES = 2 + MAX_LOOPS * 3 + 3 + NUM_PARAMS * 8; // 405
 
 static void DefaultConfig(Config &c)
 {
@@ -219,6 +260,20 @@ static void DefaultConfig(Config &c)
 	c.params[P_P2DEC]   = {0,  0, 1, 0,         350,  350};
 	c.params[P_P2SHAPE] = {0,  0, 1, 0,         900,  900};
 	c.params[P_SYNC]    = {0,  0, 1, 0,           0,    0};  // off until assigned
+	// LFOs: unassigned, depth 0, so they do nothing until given some
+	for (int l = 0; l < 3; l++)
+	{
+		c.params[P_LFO1RATE + 4 * l]  = {0, 0, 1, 0, 500, 500};  // ~1 Hz
+		c.params[P_LFO1SHAPE + 4 * l] = {0, 0, 1, 0,   0,   0};  // sine
+		c.params[P_LFO1SYNC + 4 * l]  = {0, 0, 1, 0,   0,   0};  // free
+		c.params[P_LFO1DEPTH + 4 * l] = {0, 0, 1, 0,   0,   0};
+	}
+	// Outputs: unassigned, sending what the card always has
+	c.params[P_OUTA2]  = {0, 0, 1, uint8_t(SRC_FLTENV << SOURCE_SHIFT), 0, 0};
+	c.params[P_OUTCV1] = {0, 0, 1, uint8_t(SRC_OSC1 << SOURCE_SHIFT), 0, 0};
+	c.params[P_OUTCV2] = {0, 0, 1, uint8_t(SRC_VOLENV << SOURCE_SHIFT), 0, 0};
+	c.params[P_OUTP1]  = {0, 0, 1, uint8_t(PSRC_ENVTRIG << SOURCE_SHIFT), 0, 0};
+	c.params[P_OUTP2]  = {0, 0, 1, uint8_t(PSRC_CLOCK << SOURCE_SHIFT), 0, 0};
 }
 
 static int32_t Clamp(int32_t v, int32_t lo, int32_t hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -254,7 +309,11 @@ static void ValidateConfig(Config &c)
 		p.start = Clamp(p.start, 0, REG_BITS - 1);
 		p.width = Clamp(p.width, 1, MAX_WIDTH);
 		if (p.start + p.width > REG_BITS) p.width = REG_BITS - p.start;
+		// Output lanes keep a source in the flags' top bits
+		int src = p.flags >> SOURCE_SHIFT;
 		p.flags &= (FLAG_POPCOUNT | FLAG_INVERT | FLAG_HOLD);
+		if (i >= P_OUTA2)
+			p.flags |= uint8_t(Clamp(src, 0, (i >= P_OUTP1 ? int(NUM_PULSE_SOURCES) : int(NUM_CV_SOURCES)) - 1) << SOURCE_SHIFT);
 		p.min = Clamp(p.min, paramRange[i].lo, paramRange[i].hi);
 		p.max = Clamp(p.max, paramRange[i].lo, paramRange[i].hi);
 	}
@@ -264,8 +323,9 @@ static void ValidateConfig(Config &c)
 //   [0]  CONFIG_FORMAT            [1] numLoops
 //   [2..25]  8 x (length, divider, chaos)
 //   [26,27] scaleMask (lo, hi)    [28] root
-//   [29..268] 30 x (enabled, start, width, flags, minLo, minHi, maxLo, maxHi)
-//   flags: bit 0 count mode, bit 1 invert, bit 2 hold
+//   [29..404] 47 x (enabled, start, width, flags, minLo, minHi, maxLo, maxHi)
+//   flags: bit 0 count mode, bit 1 invert, bit 2 hold, bits 3-7 source
+//   (output lanes only)
 static void Serialise(const Config &c, uint8_t *b)
 {
 	int n = 0;
@@ -301,6 +361,7 @@ static int ParamsInFormat(int format)
 	case 3: return 21;  // + FM envelope
 	case 4: return 29;  // + pitch envelopes
 	case 5: return 30;  // + sync
+	case 6: return 47;  // + LFOs, output lanes
 	default: return 0;
 	}
 }
@@ -366,7 +427,7 @@ constexpr uint32_t LEGACY_MAGIC = 0x50414C34; // "PAL4"
 struct LegacyImage
 {
 	uint32_t magic;
-	uint8_t cfg[CONFIG_BYTES];
+	uint8_t cfg[261];  // a format-4 layout
 	uint8_t pad[3];
 	uint64_t reg;
 	uint32_t checksum;
@@ -407,6 +468,7 @@ static uint32_t noteInc[130];     // oscillator phase increment for MIDI notes 0
 static uint32_t envInc[1024];     // 24-bit envelope phase increment per sample
 static int32_t cutoffCoef[1024];  // SVF frequency coefficient, Q15, for 96 kHz
 static int32_t slewCoef[1024];    // one-pole glide coefficient, Q16
+static uint32_t lfoInc[1024];     // LFO phase increment, updated at 6 kHz
 
 static void BuildTables()
 {
@@ -442,6 +504,13 @@ static void BuildTables()
 		float tc = 0.0005f * exp2f(float(i) * 11.0f / 1023.0f);
 		slewCoef[i] = int32_t(65536.0f * (1.0f - expf(-1.0f / (tc * 12000.0f)))); // pitch runs at 12 kHz
 		if (slewCoef[i] < 1) slewCoef[i] = 1;
+	}
+
+	// Free-running LFO rate: ~0.02 Hz .. ~50 Hz, exponential
+	for (int i = 0; i < 1024; i++)
+	{
+		float hz = 0.02f * exp2f(float(i) * 11.3f / 1023.0f);
+		lfoInc[i] = uint32_t(hz / 6000.0f * 4294967296.0f);
 	}
 }
 
@@ -707,6 +776,16 @@ protected:
 		// The trigger is only evaluated when its own bits have moved (so a
 		// slow loop doesn't fire repeatedly on unchanged bits). Unassigned,
 		// it fires on every step if its Min is in the top half.
+		// Pulse lanes sending a register trigger: on a step where the lane
+		// reads 1 and its bits moved (unassigned: every step, if Min is 1)
+		if (stepped)
+			for (int k = 0; k < 2; k++)
+			{
+				const ParamCfg &o = eng->cfg.params[P_OUTP1 + k];
+				bool moved = (o.enabled && !(o.flags & FLAG_HOLD)) ? (refreshMoved & eng->paramMask[P_OUTP1 + k]) != 0 : true;
+				if (moved && paramVal[P_OUTP1 + k] >= 1) regTrig[k] = 240;
+			}
+
 		// Held, it is like a fixed setting: fire on every step, or never.
 		if (stepped)
 		{
@@ -751,6 +830,12 @@ protected:
 		shiftMoved = 0;
 		clockPulse = 240;
 		tickCount++;
+
+		// How long a step is, for tempo-synced LFOs (64 samples to 8 s)
+		uint32_t gap = frame - lastTickFrame;
+		lastTickFrame = frame;
+		if (gap >= 64 && gap <= 384000) tickInterval = int32_t(gap);
+		lfoTick = true;
 	}
 
 	// Shift one loop, if its clock divider is due
@@ -818,16 +903,18 @@ protected:
 		else RefreshStep();
 
 		// Control-rate jobs, each on its own sample
-		switch (slot & 3)
+		switch (slot & 7)
 		{
-		case 0: UpdatePitch(); break;                     // 12 kHz
-		case 1:
+		case 0: case 4: UpdatePitch(); break;             // 12 kHz
+		case 1: case 5:
 			HandleKnob((frame >> 2) % 3);                 // each knob at 4 kHz
 			if (slot == 1) PublishSnapshot();             // 1.5 kHz
 			else if (slot == 5) UpdateLeds();             // 1.5 kHz
 			break;
-		case 2: UpdateSmoothing(); break;                 // 12 kHz
-		default: UpdatePitchEnvelopes(); break;           // 12 kHz
+		case 2: UpdateSmoothing(); break;                 // 6 kHz
+		case 3: UpdatePitchEnvelopes(); break;            // 6 kHz
+		case 6: UpdateLfos(); break;                      // 6 kHz
+		default: UpdateOutputs(); break;                  // 6 kHz
 		}
 
 		// Oscillators. Osc 2 first: it is the FM modulator. With soft sync
@@ -875,9 +962,11 @@ protected:
 		int32_t fe = fltEnv.Process(paramVal[P_FATK], paramVal[P_FDEC], paramVal[P_FSHAPE]);
 		int32_t ve = volEnv.Process(paramVal[P_VATK], paramVal[P_VDEC], paramVal[P_VSHAPE]);
 		volLevel = ve;
+		ve = int32_t((uint32_t(ve) * uint32_t(volGain)) >> 16);  // volume LFO (tremolo)
 
-		// Filter: Chamberlin state-variable low-pass, run twice per sample
-		int32_t cut = Clamp((smooth[3] >> 8) + (((smooth[5] >> 8) * fe) >> 16), 0, 1023);
+		// Filter: Chamberlin state-variable low-pass, run twice per sample.
+		// Cutoff + filter envelope + filter LFO.
+		int32_t cut = Clamp((smooth[3] >> 8) + (((smooth[5] >> 8) * fe) >> 16) + lfoCut, 0, 1023);
 		int32_t f = cutoffCoef[cut];
 		int32_t q = 32768 - (smooth[4] >> 8) * 31; // damping, Q14: 2.0 (none) .. ~0.06 (screaming)
 		for (int n = 0; n < 2; n++)
@@ -896,27 +985,142 @@ protected:
 		// the output never reaches the DAC's limit and hard-clips.
 		int32_t y = Mul64(svfLow, ve, 16) * 7 >> 6; // ±16384 nominal -> ±1792
 		AudioOut1(SoftClip(y));
-		AudioOut2(fe >> 5);
-		CVOut2(ve >> 5);
 
-		// Pulse outs: envelope trigger and clock, 5 ms each
-		PulseOut1(trigPulse > 0);
-		PulseOut2(clockPulse > 0);
+		// Pulse outs, from their lanes' sources (Audio Out 2 and the CV outs
+		// are set in UpdateOutputs)
+		PulseOut1(PulseOn(P_OUTP1, 0));
+		PulseOut2(PulseOn(P_OUTP2, 1));
 		if (trigPulse) trigPulse--;
 		if (clockPulse) clockPulse--;
+		if (regTrig[0]) regTrig[0]--;
+		if (regTrig[1]) regTrig[1]--;
 	}
 
-	// Every 4th sample: smoothing and the internal clock rate
+	bool PulseOn(int id, int k)
+	{
+		switch (eng->cfg.params[id].flags >> SOURCE_SHIFT)
+		{
+		case PSRC_GATE: return paramVal[id] >= 1;
+		case PSRC_TRIG: return regTrig[k] > 0;
+		case PSRC_ENVTRIG: return trigPulse > 0;
+		default: return clockPulse > 0;
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	// LFOs, every 8th sample (6 kHz)
+
+	// Tempo-synced lengths, in quarter steps: 1/4, 1/2, 1, 2, 3, 4, 6, 8,
+	// 12, 16, 32, 64 clock steps per cycle
+	static constexpr uint16_t kSyncQuarters[12] = {1, 2, 4, 8, 12, 16, 24, 32, 48, 64, 128, 256};
+
+	struct Lfo
+	{
+		uint32_t phase = 0;
+		int32_t out = 0;   // -32767..32767
+		int32_t held = 0;  // the random shape's held value
+	};
+
+	void UpdateLfos()
+	{
+		bool tick = lfoTick;
+		lfoTick = false;
+		for (int l = 0; l < 3; l++)
+		{
+			Lfo &o = lfo[l];
+			int rate = paramVal[P_LFO1RATE + 4 * l];
+			int shape = paramVal[P_LFO1SHAPE + 4 * l];
+			uint32_t inc;
+			if (paramVal[P_LFO1SYNC + 4 * l])
+			{
+				// A whole number of quarter steps per cycle, from the measured
+				// clock; cycles of a step or more restart on the right step
+				int q = kSyncQuarters[(rate * 12) >> 10];
+				uint32_t perSample = 0xFFFFFFFFu / uint32_t(tickInterval);  // tickInterval >= 64
+				inc = (perSample * 32) / uint32_t(q);                        // 8 samples per update, 4 quarters a step
+				if (tick && (q <= 4 || (tickCount % uint32_t(q >> 2)) == 0)) o.phase = 0;
+			}
+			else inc = lfoInc[rate];
+			uint32_t was = o.phase;
+			o.phase += inc;
+			if (shape >= 921)
+			{
+				// Random: a new value each cycle, held (sample and hold)
+				if (o.phase < was) o.held = int32_t(Rand() >> 16) - 32768;
+				o.out = o.held;
+			}
+			else o.out = Wave(o.phase, Clamp((shape * 1140) >> 10, 0, 1023));
+		}
+		// Pitch: up to ±12 semitones (769 = 12 st / 1023 in Q16)
+		lfoPitch = ((paramVal[P_LFO1DEPTH] * lfo[0].out) >> 15) * 769;
+		// Volume: the LFO's lower half pulls the level down, by up to all of it
+		volGain = 65535 - ((paramVal[P_LFO2DEPTH] * (lfo[1].out + 32768)) >> 10);
+		// Filter: bipolar, in cutoff units
+		lfoCut = (paramVal[P_LFO3DEPTH] * lfo[2].out) >> 15;
+	}
+
+	////////////////////////////////////////////////////////////////////////////
+	// Outputs: Audio Out 2 and the CV outs, every 8th sample (6 kHz)
+
+	void UpdateOutputs()
+	{
+		// Audio Out 2 is uncalibrated: about ±6 V across ±2047
+		AudioOut2(int16_t(Clamp((SourceMv(P_OUTA2) * 349) >> 10, -2047, 2047)));
+		CVOut1Millivolts(SourceMv(P_OUTCV1));
+		CVOut2Millivolts(SourceMv(P_OUTCV2));
+	}
+
+	// The voltage (mV) an output lane's source gives now
+	int32_t SourceMv(int id)
+	{
+		int32_t v = paramVal[id];
+		switch (eng->cfg.params[id].flags >> SOURCE_SHIFT)
+		{
+		case SRC_REG_RAW: return (v * 5005) >> 10;
+		case SRC_REG_QUANT: return QuantiseMv((v * 5005) >> 10);
+		case SRC_OSC1: return int32_t((int64_t(pitch1 - (60 << 16)) * 5333) >> 22);
+		case SRC_OSC2: return int32_t((int64_t(pitch2 - (60 << 16)) * 5333) >> 22);
+		case SRC_FLTENV: return (fltEnv.level * 5000) >> 16;
+		case SRC_VOLENV: return (volEnv.level * 5000) >> 16;
+		case SRC_FMENV: return (fmEnv.level * 5000) >> 16;
+		case SRC_P1ENV: return (pEnv1.level * 5000) >> 16;
+		case SRC_P2ENV: return (pEnv2.level * 5000) >> 16;
+		case SRC_LFOPITCH: return (lfo[0].out * 5000) >> 15;
+		case SRC_LFOVOL: return (lfo[1].out * 5000) >> 15;
+		default: return (lfo[2].out * 5000) >> 15;
+		}
+	}
+
+	// Snap a voltage to the nearest note of the scale, 1 V/oct (C = 0 V,
+	// the scale's root wherever the layout puts it)
+	int32_t QuantiseMv(int32_t mv)
+	{
+		int32_t n = (mv * 12 + (mv >= 0 ? 500 : -500)) / 1000;  // nearest semitone
+		uint16_t mask = eng->cfg.scaleMask;
+		int32_t rootPc = eng->cfg.root % 12;
+		for (int dn = 0; dn <= 6; dn++)
+		{
+			for (int sgn = -1; sgn <= 1; sgn += 2)
+			{
+				int32_t m = n + sgn * dn;
+				int32_t pc = ((m - rootPc) % 12 + 12) % 12;
+				if ((mask >> pc) & 1) return (m * 1000) / 12;
+			}
+		}
+		return (n * 1000) / 12;
+	}
+
+	// Every 8th sample: smoothing and the internal clock rate
 	void UpdateSmoothing()
 	{
 		// Smooth the continuous parameters (they jump on each step) to avoid
-		// zipper clicks: ~3 ms one-pole, values kept at 8 extra bits.
+		// zipper clicks: ~3 ms one-pole at 6 kHz, values kept at 8 extra bits.
 		for (int j = 0; j < NUM_SMOOTHED; j++)
-			smooth[j] += ((paramVal[smoothedIds[j]] << 8) - smooth[j]) >> 5;
+			smooth[j] += ((paramVal[smoothedIds[j]] << 8) - smooth[j]) >> 4;
 		// FM fades in and out over ~3 ms when FM On changes, so switching
 		// it never clicks
 		int32_t gateTarget = paramVal[P_FMON] ? 256 : 0;
-		fmGate += ((gateTarget << 8) - fmGate) >> 5;
+		fmGate += ((gateTarget << 8) - fmGate) >> 4;
 
 		// Y: ~1 Hz (CCW) to ~16 Hz (CW), exponential
 		int32_t yq = settings[KY] * 4;
@@ -924,13 +1128,13 @@ protected:
 		clockPeriod = base - ((base * (yq & 4095)) >> 13);
 	}
 
-	// Every 4th sample: the two pitch envelopes, at 12 kHz. Env Amt is
+	// Every 8th sample: the two pitch envelopes, at 6 kHz. Env Amt is
 	// ±1023 for ±48 semitones, unquantised, added on top of the (quantised)
 	// note by UpdatePitch.
 	void UpdatePitchEnvelopes()
 	{
-		int32_t pe1 = pEnv1.Process(paramVal[P_P1ATK], paramVal[P_P1DEC], paramVal[P_P1SHAPE], 2);
-		int32_t pe2 = pEnv2.Process(paramVal[P_P2ATK], paramVal[P_P2DEC], paramVal[P_P2SHAPE], 2);
+		int32_t pe1 = pEnv1.Process(paramVal[P_P1ATK], paramVal[P_P1DEC], paramVal[P_P1SHAPE], 3);
+		int32_t pe2 = pEnv2.Process(paramVal[P_P2ATK], paramVal[P_P2DEC], paramVal[P_P2SHAPE], 3);
 		sweep1 = (((smooth[8] >> 8) * pe1) >> 16) * 3075;  // 3075 = 48 st / 1023 in Q16
 		sweep2 = (((smooth[9] >> 8) * pe2) >> 16) * 3075;
 	}
@@ -949,11 +1153,9 @@ protected:
 		pitch2 += Mul64((curNote2 << 16) - pitch2, k, 16);
 
 		// Add the pitch envelopes' sweeps (worked out on another sample)
-		inc1 = PitchToInc(Clamp(pitch1 + sweep1, 0, 127 << 16));
-		inc2 = PitchToInc(Clamp(pitch2 + sweep2, 0, 127 << 16));
-
-		// Calibrated pitch out (MIDI 60 = 0 V)
-		CVOut1Millivolts(int32_t((int64_t(pitch1 - (60 << 16)) * 5333) >> 22));
+		// and the pitch LFO (vibrato, both oscillators)
+		inc1 = PitchToInc(Clamp(pitch1 + sweep1 + lfoPitch, 0, 127 << 16));
+		inc2 = PitchToInc(Clamp(pitch2 + sweep2 + lfoPitch, 0, 127 << 16));
 	}
 
 	// LEDs: bits 0..3 of the register, clock, volume envelope.
@@ -1166,19 +1368,23 @@ private:
 		}
 	}
 
-	// Slots saved by firmware 0.6, whose layouts held 29 parameters (format
-	// 4): carry them over, each layout read as format 4 and stored again in
-	// today's format. The flash itself is rewritten at the next save.
+	// Slots saved by earlier firmware (layout formats 4 and up, each with
+	// fewer parameters): carry them over, each layout read in its old format
+	// and stored again in today's. The flash is rewritten at the next save.
 	bool MigrateStore()
 	{
-		constexpr int kOldCfg = 2 + MAX_LOOPS * 3 + 3 + 29 * 8;  // 261
-		constexpr int kOldSlot = 1 + NAME_LEN + kOldCfg + 8;      // 286
-		constexpr int kOldChecksumAt = 8 + NUM_SLOTS * kOldSlot;   // 1724
 		const uint8_t *f = reinterpret_cast<const uint8_t *>(XIP_BASE + FLASH_OFFSET);
-		uint32_t magic, sum;
+		uint32_t magic;
 		memcpy(&magic, f, 4);
-		memcpy(&sum, f + kOldChecksumAt, 4);
-		if (magic != STORE_MAGIC || f[4] != 4 || f[5] >= NUM_SLOTS || sum != Checksum(f, kOldChecksumAt)) return false;
+		int fmt = f[4];
+		if (magic != STORE_MAGIC || fmt < 4 || fmt >= CONFIG_FORMAT || f[5] >= NUM_SLOTS) return false;
+		const int oldCfg = 2 + MAX_LOOPS * 3 + 3 + ParamsInFormat(fmt) * 8;
+		const int oldSlot = 1 + NAME_LEN + oldCfg + 8;
+		const int sumAt = (8 + NUM_SLOTS * oldSlot + 3) & ~3;  // the checksum is 4-byte aligned
+		if (sumAt + 4 > int(FLASH_SECTOR_SIZE)) return false;
+		uint32_t sum;
+		memcpy(&sum, f + sumAt, 4);
+		if (sum != Checksum(f, sumAt)) return false;
 
 		memset(&store, 0, sizeof(Store));
 		store.magic = STORE_MAGIC;
@@ -1186,11 +1392,13 @@ private:
 		store.current = f[5];
 		for (int s = 0; s < NUM_SLOTS; s++)
 		{
-			const uint8_t *o = f + 8 + s * kOldSlot;
+			const uint8_t *o = f + 8 + s * oldSlot;
+			uint8_t b[CONFIG_BYTES];
+			memcpy(b, o + 1 + NAME_LEN, oldCfg);
 			Config c;
-			if (!o[0] || !Deserialise(c, o + 1 + NAME_LEN)) continue;
+			if (!o[0] || !Deserialise(c, b)) continue;
 			uint64_t r = 0;
-			for (int i = 7; i >= 0; i--) r = (r << 8) | o[1 + NAME_LEN + kOldCfg + i];
+			for (int i = 7; i >= 0; i--) r = (r << 8) | o[1 + NAME_LEN + oldCfg + i];
 			PutSlot(store.slots[s], c, r);
 			memcpy(store.slots[s].name, o + 1, NAME_LEN);
 		}
@@ -1505,6 +1713,14 @@ private:
 	int32_t svfLow = 0, svfBand = 0;
 	Envelope fltEnv, volEnv, fmEnv, pEnv1, pEnv2;
 	int32_t sweep1 = 0, sweep2 = 0;  // pitch envelope sweeps, Q16 semitones
+	Lfo lfo[3];                      // pitch, volume, filter
+	int32_t lfoPitch = 0;            // Q16 semitones
+	int32_t volGain = 65535;         // tremolo, 0..65535
+	int32_t lfoCut = 0;              // cutoff units
+	bool lfoTick = false;            // a clock step since the last LFO update
+	uint32_t lastTickFrame = 0;
+	int32_t tickInterval = 6000;     // samples per clock step, measured
+	uint32_t regTrig[2] = {};        // register triggers for the pulse lanes
 	static constexpr int32_t kFmEnvShape = 896; // fixed curve: snappy, like a struck bell
 	int32_t volLevel = 0;
 	int32_t clockCount = 0, clockPeriod = 6000;
