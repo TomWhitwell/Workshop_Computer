@@ -588,7 +588,8 @@ public:
             auto &p = pads_[i];
             p.phase += p.inc;
             int v = Sin(p.phase) + Mul(Sin(p.phase * 2), padHarmonics_);
-            v = Mul(v, p.level) / 7;
+            // Pad-only gain: 7/9 of stable 0.5.0, approximately -2.18 dB.
+            v = Mul(v, p.level) / 9;
             left += Mul(v, 28000 - i * 6000);
             right += Mul(v, 16000 + i * 6000);
         }

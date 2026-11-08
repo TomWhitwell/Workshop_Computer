@@ -25,6 +25,6 @@ check: host_tests audio_input phrasing destinations scales palettes
 	./palettes
 preview: render
 	mkdir -p out
-	./render out/Departures_0.5.0.wav 180
-	./render out/Departures_0.5.0_wood.wav 180 2300 2048 wood
+	./render out/Departures_0.5.1.wav 180
+	./render out/Departures_0.5.1_wood.wav 180 2300 2048 wood
 .PHONY: all check preview

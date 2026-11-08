@@ -1,4 +1,4 @@
-Departures 0.5.0 — source and firmware notices
+Departures 0.5.1 — source and firmware notices
 
 Original, AI-assisted instrument implementation and documentation: Adrian Vos,
 2026, MIT. AMB-1 by Charles Vestal inspired the musical design. No AMB-1 code,
