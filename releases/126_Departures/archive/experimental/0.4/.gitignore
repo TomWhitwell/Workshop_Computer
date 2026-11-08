@@ -1,0 +1,8 @@
+/build/
+/build-bench/
+/test/host_tests
+/test/render
+/test/audio_input
+/test/phrasing
+/test/destinations
+/test/out/

@@ -1,0 +1,128 @@
+draft: true
+Name: Departures 0.4 experiment
+short-description: CV-selected D Dorian chord destinations committed by an external trigger.
+summary: >-
+  Prepare a harmonic destination with CV In 2 and commit it with Pulse In 2.
+  CV In 1 remains transposition. Automatic chord changes pause while CV In 2
+  is patched. Built on stable 0.3 with breathing chord voices, four bell phrases
+  of unequal length and a gliding bass, through dark echoes and stereo reverb.
+  Bells keep repeating accent shapes, occasionally answer in another octave,
+  and mutate by small scale steps. Shared chord tones continue while other
+  voices fade into new notes. Bell
+  loops or bass occasionally rest, one layer at a time, while a slow tide
+  moves density, tone and space. Hold the harmony or advance it
+  with the switch. Melody and bass pitch CVs and triggers invite the rest of
+  the Workshop System into the composition. An original instrument inspired
+  by Charles Vestal's AMB-1; no AMB-1 code or assets are used.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Adrian Vos
+Version: "0.4.0-experimental"
+Status: WIP
+License: MIT
+date-created: 2026-11-08
+date-updated: 2026-11-08
+uf2:
+  - path: uf2/Departures_0.4.0-experimental.uf2
+    name: Departures 0.4.0 experimental
+tags:
+  - generative
+  - synthesizer
+  - ambient
+  - polyphonic
+  - cv
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Space In L
+      type: audio
+      description: External audio into the effects only; raise Y to hear it.
+    - id: AudioIn2
+      name: Space In R
+      type: audio
+      description: External audio into the effects only; raise Y to hear it.
+    - id: CVIn1
+      name: Transpose
+      type: cv
+      description: Approximate 1V/octave quantized transposition, limited to plus or minus one octave.
+    - id: CVIn2
+      name: Chord Destination
+      type: cv
+      description: Approximately 0 to 5V selects one of seven D Dorian triads without changing harmony. Pulse In 2 commits it; patching this input pauses automatic chord changes.
+    - id: PulseIn1
+      name: Beat Clock
+      type: pulse
+      description: One rising edge per beat; replaces the internal clock while connected.
+    - id: PulseIn2
+      name: Commit Chord
+      type: pulse
+      description: Commits the CV In 2 destination on a rising edge, including in Hold. With CV In 2 unpatched, advances the normal sequence.
+  outputs:
+    - id: AudioOut1
+      name: Left
+      type: audio
+      description: Stereo ensemble and effects, left.
+    - id: AudioOut2
+      name: Right
+      type: audio
+      description: Stereo ensemble and effects, right.
+    - id: CVOut1
+      name: Melody Pitch
+      type: cv
+      description: Most recent bell pitch, 1V/octave with 0V at MIDI 36.
+    - id: CVOut2
+      name: Bass Pitch
+      type: cv
+      description: Bass target pitch, 1V/octave with 0V at MIDI 36.
+    - id: PulseOut1
+      name: Melody Trigger
+      type: pulse
+      description: 10ms trigger after approximately 1ms of CV settling; simultaneous notes merge.
+    - id: PulseOut2
+      name: Bass Trigger
+      type: pulse
+      description: 10ms trigger after approximately 1ms of CV settling.
+controls:
+  switch:
+    up:
+      name: Hold
+      description: Holds harmony and mutations; prevents new rests and octave answers. Existing rests and answers finish, while the tide continues.
+    middle:
+      name: Evolve
+      description: Harmony moves every 24 beats when CV In 2 is unpatched. With CV In 2 patched, harmony waits for a commit; phrase evolution continues.
+    down:
+      name: Advance
+      description: Advances harmony once on entry, then continues evolving.
+  knobs:
+    - main:
+        name: Activity
+        description: Density, phrase evolution and internal tempo, approximately 36 to 82 BPM. CV In 2 no longer modulates Activity.
+      x:
+        name: Colour
+        description: Pad harmonics and bell brightness.
+      y:
+        name: Space
+        description: Echo and reverb blend with longer feedback tails.
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Pad Breath 1
+          description: Physical LED 1, top left. Brightness follows the first pad voice.
+        - id: LED1
+          name: Pad Breath 2
+          description: Physical LED 2, top right. Brightness follows the second pad voice.
+        - id: LED2
+          name: Pad Breath 3
+          description: Physical LED 3, middle left. Brightness follows the third pad voice.
+        - id: LED3
+          name: Melody Activity
+          description: Physical LED 4, middle right. Flashes on melody activity.
+        - id: LED4
+          name: Hold / External Clock
+          description: Physical LED 5, bottom left. Bright in Hold, otherwise dim with an external clock connected, otherwise off.
+        - id: LED5
+          name: Timing Warning
+          description: Physical LED 6, bottom right. Latches if the audio callback reaches 18 microseconds; reset clears it.
+contact:
+  social:
+    github: https://github.com/soveda
