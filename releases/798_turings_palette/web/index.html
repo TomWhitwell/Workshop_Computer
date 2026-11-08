@@ -1,0 +1,1578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Turing's Palette editor</title>
+<!--
+  TURING'S PALETTE - web editor for the Music Thing Modular Workshop Computer card.
+  One static file, no network needed. Talks to the card over WebMIDI + SysEx
+  (protocol: ../sysex.h). The card works without this page; the page lays out
+  the shift register's loops, assigns the synth parameters and the outputs to bits, and
+  shows the card's register, knobs and switch live.
+
+  The parameter table, the byte layout, the bit-to-value mapping and the clock
+  and flip-probability maths mirror ../main.cpp. Visual style shared with the
+  CVSeq and WaveSeq editors.
+-->
+<style>
+  :root {
+    --bg: #f4f2ee; --panel: #ffffff; --ink: #1c1b19; --muted: #6a675f; --line: #d9d5cc;
+    --wave-bg: #fbfaf7; --grid: #e6e2d8;
+    --accent: #0b7d78; --accent-soft: #cfe9e6; --warm: #b5560a; --warm-soft: #f6dcc6;
+    --ok: #2b7a2b; --bad: #b3261e; --track: #e3dfd5; --shadow: 0 1px 2px rgba(0,0,0,.08);
+    --s0: #0b7d78; --s1: #3a6fb0; --s2: #7a55b0; --s3: #b0457a;
+    --s4: #b5560a; --s5: #8a7a12; --s6: #3f8a3a; --s7: #5a6470;
+    --label-w: 188px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141514; --panel: #1e201f; --ink: #ecebe6; --muted: #9a978d; --line: #34362f;
+      --wave-bg: #171918; --grid: #2a2d29;
+      --accent: #4fd1c5; --accent-soft: #1d3d3a; --warm: #f0a35e; --warm-soft: #4a3320;
+      --ok: #7ed37e; --bad: #ff8a80; --track: #33352f; --shadow: none;
+      --s0: #4fd1c5; --s1: #7aa8f0; --s2: #b49af0; --s3: #f08ab8;
+      --s4: #f0a35e; --s5: #d8c85a; --s6: #84d07c; --s7: #a8b2bc;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .02em; }
+  h2 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .status { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warm); } .dot.bad { background: var(--bad); }
+  .spacer { flex: 1; }
+  header > button { padding: 5px 10px; font-size: 13px; }
+  button {
+    font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+  button.small { padding: 3px 8px; font-size: 12px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #msg { padding: 6px 16px; min-height: 1.4em; color: var(--muted); }
+  #msg.err { color: var(--bad); }
+  main {
+    display: grid; gap: 16px; padding: 0 16px 24px; align-items: start;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas: "knobs scale" "reg right" "left right";
+    /* the tall right-hand column's extra height goes to the last row, so
+       Loops stays right under the register */
+    grid-template-rows: auto auto 1fr;
+  }
+  .area-knobs { grid-area: knobs; } .area-scale { grid-area: scale; } .area-reg { grid-area: reg; }
+  .area-left { grid-area: left; } .area-right { grid-area: right; align-self: stretch; }
+  /* The right-hand column (Parameter, then the other cards) stays in view
+     beside the register grid as the page scrolls; when it is taller than
+     the window it scrolls on its own, Parameter always at its top */
+  .right-stack {
+    position: sticky; top: 8px; max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain;
+    display: grid; gap: 16px; align-content: start; min-width: 0;
+    scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+    padding-bottom: 2px; /* room for the last card's shadow */
+  }
+  @media (max-width: 960px) {
+    main { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "knobs" "scale" "reg" "left" "right"; }
+    .right-stack { position: static; max-height: none; overflow: visible; }
+  }
+  .col { display: grid; gap: 16px; align-content: start; min-width: 0; }
+  /* Every card can fold down to its heading (buildCollapsers) */
+  .card > h2 { display: flex; align-items: center; gap: 8px; }
+  .card > h2 .fold { margin-left: auto; padding: 0 7px; min-width: 26px; height: 22px; line-height: 1; font-size: 14px;
+    color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .card > h2 .fold:hover { color: var(--ink); border-color: var(--accent); }
+  .card.folded > :not(h2) { display: none; }
+  .card.folded > h2 { margin-bottom: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: var(--shadow); min-width: 0; }
+  canvas { display: block; width: 100%; border-radius: 6px; background: var(--wave-bg); }
+  .howto { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 6px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .howto b { color: var(--ink); font-weight: 600; }
+  .caption { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .info { font-size: 12px; color: var(--muted); }
+  .dirs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+  .dirs .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-right: 4px; }
+  .jacks { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.4; }
+  .jacks th, .jacks td { text-align: left; vertical-align: top; padding: 4px 0; border-top: 1px solid var(--line); }
+  .jacks th { white-space: nowrap; padding-right: 10px; font-weight: 600; }
+  .jacks td { color: var(--muted); }
+  .jacks tr.grp th { border-top: 0; padding-top: 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .jacks tr.grp:first-child th { padding-top: 0; }
+  .notes { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .notes p { margin: 6px 0 0; }
+  .notes b { color: var(--ink); font-weight: 600; }
+
+  /* Knobs: one readout per knob, with an editable slider */
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .readout { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+  .readout.waiting { outline: 2px dotted var(--warm); outline-offset: 2px; }
+  .readout .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .readout .v { font-size: 16px; font-variant-numeric: tabular-nums; }
+  .readout .sub { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 1.4em; }
+  .kslot { position: relative; margin-top: 4px; }
+  .kslot input[type=range] { width: 100%; margin: 0; accent-color: var(--accent); cursor: pointer; }
+  .kslot .ghost { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 2px dashed var(--warm); pointer-events: none; }
+  .led { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--line); background: var(--track); vertical-align: -1px; }
+  .led.on { background: var(--warm); border-color: var(--warm); }
+  .swpos { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; font-size: 12px; }
+  .swpos span { padding: 2px 7px; color: var(--muted); }
+  .swpos span.on { background: var(--accent-soft); color: var(--ink); }
+
+  /* Tray of unassigned parameters */
+  .tray {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 38px; margin-top: 10px;
+    padding: 6px 8px; border: 1px dashed var(--line); border-radius: 6px;
+  }
+  .tray.over { border-color: var(--warm); background: var(--warm-soft); }
+  .tray .empty { color: var(--muted); font-size: 12px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 6px; border-radius: 6px;
+    background: var(--panel); border: 1px solid var(--line); cursor: grab; touch-action: none; user-select: none; font-size: 12px;
+  }
+  .chip:hover { border-color: var(--accent); }
+  .chip .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+  .ghostchip { position: fixed; pointer-events: none; z-index: 50; opacity: .9; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+
+  /* Register grid */
+  .gridwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--wave-bg); margin-top: 10px; }
+  .grid { min-width: calc(var(--label-w) + 64 * 12px); }
+  .row { display: flex; align-items: stretch; }
+  .row > .lab {
+    position: sticky; left: 0; z-index: 2; flex: 0 0 var(--label-w); width: var(--label-w);
+    background: var(--panel); border-right: 1px solid var(--line); padding: 3px 8px;
+    display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; color: var(--muted);
+  }
+  .row > .trk { position: relative; flex: 1 1 auto; min-width: 0; }
+  .ruler .trk { height: 20px; }
+  .ruler .tick { position: absolute; top: 3px; font-size: 10px; color: var(--muted); transform: translateX(2px); font-variant-numeric: tabular-nums; }
+  .cols8 {
+    background-image:
+      repeating-linear-gradient(to right, transparent 0, transparent calc(100%/8 - 1px), var(--line) calc(100%/8 - 1px), var(--line) calc(100%/8)),
+      repeating-linear-gradient(to right, transparent 0, transparent calc(100%/64 - 1px), var(--grid) calc(100%/64 - 1px), var(--grid) calc(100%/64));
+  }
+  .loops .trk { height: 34px; border-top: 1px solid var(--line); }
+  .loopseg {
+    position: absolute; top: 3px; bottom: 3px; border-radius: 4px; border: 1px solid var(--accent);
+    background: var(--accent-soft); font-size: 11px; padding: 2px 6px; overflow: hidden; white-space: nowrap;
+    display: flex; align-items: center; gap: 6px; color: var(--ink);
+  }
+  .loopseg.alt { background: var(--panel); }
+  .loopseg b { font-weight: 600; }
+  .loopseg .ret { color: var(--muted); }
+  .unusedseg {
+    position: absolute; top: 3px; bottom: 3px; border-radius: 4px; font-size: 11px; color: var(--muted);
+    display: flex; align-items: center; padding: 0 6px; overflow: hidden; white-space: nowrap;
+    background: repeating-linear-gradient(135deg, transparent 0 5px, var(--line) 5px 6px);
+  }
+  .handle {
+    position: absolute; top: 0; bottom: 0; width: 14px; margin-left: -7px; z-index: 3; cursor: ew-resize; touch-action: none;
+    display: flex; justify-content: center;
+  }
+  .handle::after { content: ""; width: 4px; margin-block: 6px; border-radius: 2px; background: var(--accent); }
+  /* At the right edge of the register the handle sits inside the grid, so it doesn't widen it */
+  .handle.end { margin-left: -14px; justify-content: flex-end; }
+  .bits .trk { height: 28px; display: flex; border-top: 1px solid var(--line); border-bottom: 2px solid var(--line); }
+  .bit { flex: 1 1 0; min-width: 0; border-right: 1px solid var(--grid); background: var(--panel); cursor: pointer; position: relative; }
+  .bit:nth-child(8n) { border-right-color: var(--line); }
+  .bit.on { background: var(--ink); }
+  .bit.fixed { opacity: .45; }
+  .bit.flip::after { content: ""; position: absolute; inset: 40% 30%; border-radius: 50%; background: var(--warm); }
+  .lane .trk { height: 26px; border-bottom: 1px solid var(--grid); cursor: crosshair; touch-action: none; }
+  .lane.sel > .lab { box-shadow: inset 3px 0 0 var(--c); color: var(--ink); }
+  .lane.sel .trk { background-color: var(--accent-soft); }
+  .lane .lab { cursor: pointer; }
+  .lane .lab .sw { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+  .lane .lab .nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .lane .lab .val { flex: 0 0 auto; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lane.fire .lab .val { color: var(--warm); font-weight: 600; }
+  .lane .meter { position: absolute; left: 8px; right: 8px; bottom: 1px; height: 2px; }
+  .meter .win { position: absolute; top: 0; bottom: 0; background: var(--c); opacity: .45; }
+  .meter .pos { position: absolute; top: -1px; width: 2px; height: 4px; background: var(--c); }
+  .bar {
+    position: absolute; top: 3px; bottom: 3px; border-radius: 4px; background: var(--c); color: var(--panel);
+    font-size: 11px; font-weight: 600; display: flex; align-items: center; padding: 0; overflow: hidden; white-space: nowrap;
+    cursor: grab; touch-action: none;
+  }
+  /* Padding sits on the label, not the bar, so a 1-bit bar can be as narrow as its bit */
+  .bar .bl { padding: 0 10px; pointer-events: none; }
+  /* Held: the bar greys out (striped), the value stays put */
+  .bar.held { background: repeating-linear-gradient(135deg, var(--track) 0 5px, var(--line) 5px 10px); color: var(--muted); }
+  .lane.held .lab .val { color: var(--warm); }
+  .lane.held .meter .pos { background: var(--warm); }
+  .hold { flex: 0 0 auto; width: 20px; height: 18px; padding: 0; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); background: transparent; border: 1px solid var(--line); }
+  .hold svg, #holdBtn svg { display: block; width: 8px; height: 10px; fill: currentColor; }
+  #holdBtn { display: inline-flex; align-items: center; gap: 5px; }
+  .hold[aria-pressed="true"] { background: var(--warm); border-color: var(--warm); color: var(--panel); }
+  .hold:disabled { opacity: .3; }
+  .bar .eh { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
+  .bar.one .eh { width: 4px; }
+  .bar.one .eh::after { left: 1px; }
+  .bar .eh.l { left: 0; } .bar .eh.r { right: 0; }
+  .bar .eh::after { content: ""; position: absolute; top: 5px; bottom: 5px; left: 3px; width: 2px; border-radius: 1px; background: currentColor; opacity: .6; }
+  /* Lane groups: a header row each, foldable. Folded, its track shows the
+     group's bars in miniature */
+  .ghead > .lab { cursor: pointer; font-weight: 600; color: var(--ink); background: var(--track); gap: 6px; font-size: 12px; }
+  .ghead > .lab .chev { display: inline-block; width: 10px; color: var(--muted); transition: transform .15s; }
+  .ghead.folded > .lab .chev { transform: rotate(-90deg); }
+  .ghead > .lab .cnt { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 11px; }
+  .ghead > .trk { height: 22px; border-bottom: 1px solid var(--line); background: var(--track); cursor: pointer; }
+  .ghead .mini { position: absolute; height: 6px; border-radius: 2px; background: var(--c); opacity: .85; }
+  .ghead .mini.held { opacity: .3; }
+  .lane .placeholder { position: absolute; inset: 0; display: flex; align-items: center; padding-left: 8px; font-size: 11px; color: var(--muted); pointer-events: none; }
+
+  /* Parameter inspector */
+  .insp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .insp-head .sw { width: 14px; height: 14px; border-radius: 4px; background: var(--c); }
+  .insp-head h3 { margin: 0; font-size: 16px; }
+  /* The selected parameter's own bits, live, in grid order */
+  .word { margin: 4px 0 10px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--wave-bg); }
+  .word .cells { display: flex; gap: 2px; }
+  .word .cell { flex: 1 1 0; min-width: 0; max-width: 26px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .word .cell i { display: block; width: 100%; height: 22px; border: 1px solid var(--c); border-radius: 3px; background: var(--panel); position: relative; }
+  .word .cell.on i { background: var(--c); }
+  .word .cell.flip i::after { content: ""; position: absolute; inset: 35% 30%; border-radius: 50%; background: var(--warm); }
+  .word .cell span { font-size: 9px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .word .sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .word .sum b { font-size: 15px; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .word .sum .heldv { color: var(--warm); }
+  .word.unassigned { font-size: 12px; color: var(--muted); }
+  .desc { color: var(--muted); font-size: 12px; margin: 0 0 10px; line-height: 1.5; }
+  .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .field { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .field input, .field select { font: inherit; font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; width: 100%; }
+  .opt.on { background: var(--warm-soft); border-color: var(--warm); }
+  .range { margin: 6px 0 4px; }
+  .range .rtrack { position: relative; height: 34px; touch-action: none; }
+  .range .rbase { position: absolute; left: 0; right: 0; top: 14px; height: 6px; border-radius: 3px; background: var(--track); }
+  .range .rwin { position: absolute; top: 12px; height: 10px; border-radius: 3px; background: var(--c); opacity: .5; }
+  .range .rlive { position: absolute; top: 6px; width: 2px; height: 22px; background: var(--warm); margin-left: -1px; }
+  .range .thumb {
+    position: absolute; top: 7px; width: 18px; height: 20px; margin-left: -9px; border-radius: 4px; background: var(--panel);
+    border: 2px solid var(--c); cursor: ew-resize; display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: var(--ink);
+  }
+  .range .thresh { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--muted); }
+  .range .rlabels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 12px; margin: 8px 0 0; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+  /* Loops table */
+  .tablewrap { overflow-x: auto; }
+  table.loops-t { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .loops-t th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 4px 6px; }
+  .loops-t td { padding: 4px 6px; border-top: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .loops-t input { font: inherit; width: 64px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 5px; }
+
+  /* Scale */
+  .keys { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; margin-bottom: 10px; }
+  .key { min-width: 0; height: 46px; padding: 0 0 4px; border-radius: 4px; display: flex; align-items: flex-end; justify-content: center; font-size: 10px; }
+  .key.blk { background: var(--track); }
+  .key[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+  #envs { height: 120px; }
+
+  /* Layout slots on the card */
+  .slots { display: grid; gap: 6px; margin-top: 8px; }
+  .slot { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+  .slot.cur { border-color: var(--accent); background: var(--accent-soft); }
+  .slot .num { grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--track); color: var(--muted); }
+  .slot.cur .num { background: var(--accent); color: var(--panel); }
+  .slot .nm { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+  .slot .nm b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slot .nm .tag { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .slot.empty .nm b { font-weight: 400; color: var(--muted); }
+  .slot .strip { display: flex; height: 8px; border-radius: 3px; overflow: hidden; background: var(--track); }
+  .slot .strip span { height: 100%; border-right: 1px solid var(--panel); background: var(--accent); opacity: .55; }
+  .slot .strip span:nth-child(2n) { opacity: .3; }
+  .slot .acts { grid-column: 2; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .slot .acts button { padding: 2px 8px; font-size: 12px; }
+  .slot .acts button.sure { border-color: var(--bad); color: var(--bad); }
+  #slot-name { font: inherit; width: 100%; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+  textarea#json { width: 100%; min-height: 90px; font: 11px ui-monospace, monospace; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px; margin-top: 8px; }
+  @media (max-width: 600px) { :root { --label-w: 124px; } :root .lane .lab .val { max-width: 44px; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Turing’s Palette</h1>
+  <div class="status"><span id="dot" class="dot"></span><span id="status-text">Not connected</span></div>
+  <div class="spacer"></div>
+  <button id="btn-connect" class="primary">Connect card</button>
+  <button id="btn-rescan" hidden>Rescan</button>
+  <button id="btn-read" disabled>Read from card</button>
+  <button id="btn-send" disabled>Send to card</button>
+  <button id="btn-save" disabled title="Save the layout and register pattern into the slot that is playing, so they come back after power-off">Save to card</button>
+  <button id="btn-reset" title="The factory layout">Reset</button>
+</header>
+<div id="msg"></div>
+
+<main>
+  <!-- Knobs | scale on top; below, the register grid and loops on the left,
+       and on the right the selected parameter, level with the grid, with
+       the other cards beneath it. That right-hand column moves as one: it
+       stays in view as the page scrolls, and scrolls on its own when it is
+       taller than the window, so no card ever covers another -->
+    <section class="card area-knobs">
+      <h2>Knobs &amp; clock</h2>
+      <div class="readouts">
+        <div class="readout" id="rk0"><div class="k">Main · Randomness</div><div class="v" id="kv0">-</div>
+          <div class="kslot"><input type="range" id="knob0" min="0" max="4095" value="2048" aria-label="Main: randomness"><span class="ghost" id="kg0" hidden></span></div><div class="sub" id="ks0"></div></div>
+        <div class="readout" id="rk1"><div class="k">X · Transpose</div><div class="v" id="kv1">-</div>
+          <div class="kslot"><input type="range" id="knob1" min="0" max="4095" value="0" aria-label="X: transpose"><span class="ghost" id="kg1" hidden></span></div><div class="sub" id="ks1"></div></div>
+        <div class="readout" id="rk2"><div class="k">Y · Clock</div><div class="v" id="kv2">-</div>
+          <div class="kslot"><input type="range" id="knob2" min="0" max="4095" value="3000" aria-label="Y: clock rate"><span class="ghost" id="kg2" hidden></span></div><div class="sub" id="ks2"></div></div>
+        <div class="readout"><div class="k">Notes</div><div class="v" id="ro-notes">-</div><div class="sub" id="ro-trig"><span class="led" id="led-clock" title="Clock"></span> clock <span class="led" id="led-trig" title="Envelope trigger"></span> trigger</div></div>
+      </div>
+      <div class="dirs">
+        <span class="k">Switch</span>
+        <span class="swpos" id="swpos"><span data-sw="2">Up · lock</span><span data-sw="1">Middle · run</span><span data-sw="0">Down · scramble</span></span>
+        <span class="k" style="margin-left:10px" id="sim-k">Simulation</span>
+        <button class="small" id="sim-play">Pause</button>
+        <button class="small opt" id="sim-lock" title="As the switch up: no bits flip">Lock</button>
+        <button class="small" id="sim-scramble" title="As the switch down: every bit inside a loop at random">Scramble</button>
+      </div>
+      <div class="caption" id="knob-line"></div>
+    </section>
+
+    <section class="card area-scale">
+      <h2>Scale</h2>
+      <div class="keys" id="keys"></div>
+      <div class="fields">
+        <label class="field">Root note<select id="root"></select></label>
+        <label class="field">Preset<select id="scalePreset"></select></label>
+      </div>
+      <div class="caption">Both oscillators are quantised to these notes. Osc 1 Pitch counts scale degrees up from the root; Osc 2 Pitch counts degrees up or down from Osc 1.</div>
+    </section>
+
+    <section class="card area-reg">
+      <h2>Register</h2>
+      <div class="tray" id="tray" aria-label="Unassigned parameters"></div>
+      <div class="dirs" style="margin-top:8px">
+        <span class="k">Lane groups</span>
+        <button class="small" id="foldAll" title="Fold every group of lanes to one row">Fold all</button>
+        <button class="small" id="unfoldAll" title="Show every lane">Unfold all</button>
+        <span class="info">Click a group's name to fold or unfold it.</span>
+      </div>
+      <div class="gridwrap" id="gridwrap">
+        <div class="grid" id="grid">
+          <div class="row ruler"><div class="lab">bit</div><div class="trk" id="ruler"></div></div>
+          <div class="row loops"><div class="lab">loops</div><div class="trk" id="loopTrk"></div></div>
+          <div class="row bits"><div class="lab">state</div><div class="trk" id="bitTrk"></div></div>
+          <div id="lanes"></div>
+        </div>
+      </div>
+      <div class="howto">
+        <b>Bits move left to right</b> on each step. The bit leaving a loop's right end comes back at its left end, flipped at random by Main and the loop's chaos.<br>
+        The dashed box above the grid holds any <b>unassigned</b> parameters; drag one onto the grid to give it bits, or drag a bar into the box to unassign it. <b>Drag a bar</b> to move it, or its ends to resize it. <b>Drag on an empty lane</b> to draw a range. The <b>pause button</b> beside a parameter holds it at its current value (its bar greys out). <b>Click a state bit</b> to flip it.
+      </div>
+    </section>
+
+
+    <div class="col area-left">
+      <section class="card">
+        <h2>Loops</h2>
+        <div class="tablewrap"><table class="loops-t" id="loopTable"></table></div>
+        <div class="dirs">
+          <button class="small" id="addLoop">Add loop</button>
+          <span class="k" style="margin-left:10px">Layout</span>
+          <button class="small" data-preset="1">1 × 64</button>
+          <button class="small" data-preset="2">2 × 32</button>
+          <button class="small" data-preset="4">4 × 16</button>
+          <button class="small" data-preset="8">8 × 8</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="area-right">
+     <div class="right-stack" id="right-stack">
+      <section class="card" id="param-card"><h2>Parameter</h2><div id="inspector" aria-live="polite"></div></section>
+      <section class="card">
+        <h2>Envelopes</h2>
+        <canvas id="envs" width="600" height="240" aria-label="The filter, volume, FM and pitch envelopes as the register sets them now"></canvas>
+        <div class="caption"><span style="color:var(--s0)">■</span> filter <span style="color:var(--s5)">■</span> volume <span style="color:var(--s3)">■</span> FM <span style="color:var(--s6)">■</span> pitch (Osc 2 dashed) · full width <span id="envSpan"></span></div>
+      </section>
+
+      <section class="card">
+        <h2>Layouts on the card</h2>
+        <label class="field">Name for saving<input id="slot-name" maxlength="16" placeholder="e.g. Bells" autocomplete="off"></label>
+        <div class="slots" id="slot-list"></div>
+        <div class="caption" id="slot-caption"></div>
+      </section>
+
+      <section class="card">
+        <h2>Share a layout</h2>
+        <label class="field" style="margin-bottom:8px">Layout name<input id="layoutName" maxlength="16" placeholder="e.g. Bells" autocomplete="off"></label>
+        <div class="dirs" style="margin-top:0">
+          <button class="small" id="exportJson">Show JSON</button>
+          <button class="small" id="copyJson">Copy</button>
+          <button class="small" id="downloadJson">Export</button>
+          <button class="small" id="importBtn">Import</button>
+          <input type="file" id="importFile" accept=".json,application/json" hidden>
+          <button class="small" id="importJson">Load from box</button>
+        </div>
+        <textarea id="json" spellcheck="false" aria-label="Layout JSON" placeholder="Paste a Turing’s Palette layout here, then Load from box."></textarea>
+        <div class="caption">A layout as a file, to keep or pass on. Loading one sends it to a connected card, but doesn't save it into a slot.</div>
+      </section>
+
+      <section class="card">
+        <h2>Inputs &amp; outputs</h2>
+        <table class="jacks">
+          <tr class="grp"><th colspan="2">Inputs</th></tr>
+          <tr><th>CV In 1</th><td>Pitch, 1 V/oct, quantised to semitones</td></tr>
+          <tr><th>CV In 2</th><td>Added to Main (randomness)</td></tr>
+          <tr><th>Pulse In 1</th><td>Clock; Y sets an internal clock when unplugged</td></tr>
+          <tr><th>Pulse In 2</th><td>Fires both envelopes</td></tr>
+          <tr><th>Audio In 1, 2</th><td>Not used</td></tr>
+          <tr class="grp"><th colspan="2">Outputs</th></tr>
+          <tr><th>Audio Out 1</th><td>The voice</td></tr>
+          <tr><th>Audio Out 2</th><td>Its output lane chooses: filter envelope unless changed (any envelope, LFO, oscillator pitch, or its own register value)</td></tr>
+          <tr><th>CV Out 1</th><td>Its output lane chooses: Osc 1 pitch unless changed, calibrated 1 V/oct (MIDI note 60 = 0 V)</td></tr>
+          <tr><th>CV Out 2</th><td>Its output lane chooses: volume envelope unless changed, calibrated</td></tr>
+          <tr><th>Pulse Out 1</th><td>Its output lane chooses: envelope trigger unless changed (or clock, register gate, register trigger)</td></tr>
+          <tr><th>Pulse Out 2</th><td>Its output lane chooses: clock unless changed</td></tr>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Panel</h2>
+        <table class="jacks">
+          <tr><th>Main</th><td>Randomness: noon random, fully clockwise locked, fully anticlockwise locked and inverting (repeats at twice the loop length). With the switch up, Main chooses the layout instead</td></tr>
+          <tr><th>X</th><td>Transpose, 0 to +24 semitones</td></tr>
+          <tr><th>Y</th><td>Internal clock, about 1 to 16 steps a second</td></tr>
+          <tr><th>Pick up</th><td>After this page sets a knob's value, the knob does nothing until it reaches (or passes) that value, so nothing jumps. The dotted box and the orange line show a knob that is waiting, and where it is; LED 5 blinks fast on the module.</td></tr>
+          <tr><th>Switch</th><td>Up locks every loop; middle runs; down scrambles every bit inside a loop</td></tr>
+          <tr><th>Layouts</th><td>With the switch up, Main chooses one of six layout slots: six zones from fully anticlockwise (slot 1) to fully clockwise (slot 6). Flicking the switch up just shows the playing slot on the LEDs; a layout loads once you turn Main into another slot's zone. The chosen slot's LED lights for 1.5 s, and blinks if the slot is empty (nothing loads). Back in the middle, Main picks up its randomness setting again. The card starts up with the slot it last played</td></tr>
+          <tr><th>LEDs</th><td>LEDs 0-3 show register bits 0-3, LED 4 the clock, LED 5 the volume envelope (blinking fast while a knob is waiting)</td></tr>
+        </table>
+        <div class="notes"><p>Use Chrome or Edge with a USB-C data cable, plugged into the Computer's USB socket; close other apps using the card. Choose <b>Allow</b> when the browser asks about MIDI devices. iOS can't do WebMIDI.</p></div>
+      </section>
+     </div>
+    </div>
+</main>
+
+<script>
+'use strict';
+/*
+  Turing's Palette editor.
+  The firmware (main.cpp) is the source of truth; the tables and the byte
+  layout below mirror it exactly. Change both together.
+*/
+
+// ---------------------------------------------------------------- parameters
+const GROUP_COLOR = { trig: '--s4', pitch: '--s1', osc: '--s2', filter: '--s0', amp: '--s5', fm: '--s3', penv: '--s6', out: '--s7' };
+// Output lanes: what each can send (the order is main.cpp's CvSource and PulseSource)
+const CV_SOURCES = ['Register, raw', 'Register, quantised', 'Osc 1 pitch', 'Osc 2 pitch', 'Filter envelope', 'Volume envelope', 'FM envelope', 'Osc 1 pitch envelope', 'Osc 2 pitch envelope', 'Pitch LFO', 'Volume LFO', 'Filter LFO'];
+const PULSE_SOURCES = ['Register gate', 'Register trigger', 'Envelope trigger', 'Clock'];
+const usesRegister = (i) => !PARAMS[i].out || (cfg.params[i].source || 0) <= 1;
+const sourceName = (i) => (PARAMS[i].out === 'pulse' ? PULSE_SOURCES : CV_SOURCES)[cfg.params[i].source || 0];
+const SYNC_STEPS = ['1/4 step', '1/2 step', '1 step', '2 steps', '3 steps', '4 steps', '6 steps', '8 steps', '12 steps', '16 steps', '32 steps', '64 steps'];
+const PARAMS = [
+  { id: 'trig',   name: 'Env Trigger',    short: 'Trig',   group: 'trig',   lo: 0,     hi: 1023, w: 1, desc: 'Fires both envelopes when the value is in the top half. Only checked on steps where its own bits move. Unassigned, it fires on every clock step if Min is 512 or more.' },
+  { id: 'pitch1', name: 'Osc 1 Pitch',    short: 'Pitch 1', group: 'pitch', lo: 0,     hi: 48,   w: 5, desc: 'Scale degrees above the root note, quantised to the scale.' },
+  { id: 'pitch2', name: 'Osc 2 Pitch',    short: 'Pitch 2', group: 'pitch', lo: -24,   hi: 24,   w: 3, desc: 'Scale degrees relative to Osc 1, in the same scale. 0 = unison.' },
+  { id: 'slew',   name: 'Slew',           short: 'Slew',   group: 'pitch',  lo: 0,     hi: 1023, w: 3, desc: 'Pitch glide time for both oscillators. 0 = no glide.' },
+  { id: 'shape1', name: 'Osc 1 Shape',    short: 'Shape 1', group: 'osc',   lo: 0,     hi: 1023, w: 4, desc: 'Morphs sine → triangle → saw → square.' },
+  { id: 'shape2', name: 'Osc 2 Shape',    short: 'Shape 2', group: 'osc',   lo: 0,     hi: 1023, w: 4, desc: 'Morphs sine → triangle → saw → square.' },
+  { id: 'mix',    name: 'Osc Mix',        short: 'Mix',    group: 'osc',    lo: 0,     hi: 1023, w: 4, desc: 'Balance between Osc 1 (low) and Osc 2 (high).' },
+  { id: 'cutoff', name: 'Cutoff',         short: 'Cutoff', group: 'filter', lo: 0,     hi: 1023, w: 6, desc: 'Low-pass filter cutoff, 20 Hz to 14.5 kHz on an exponential scale.' },
+  { id: 'res',    name: 'Resonance',      short: 'Res',    group: 'filter', lo: 0,     hi: 1023, w: 3, desc: 'Filter resonance, up to self-oscillation near the top.' },
+  { id: 'envamt', name: 'Cutoff Env Amt', short: 'Env Amt', group: 'filter', lo: -1023, hi: 1023, w: 4, desc: 'How far the filter envelope moves the cutoff. Negative values close the filter.' },
+  { id: 'fatk',   name: 'Filter Attack',  short: 'F Atk',  group: 'filter', lo: 0,     hi: 1023, w: 2, desc: 'Filter envelope attack, 1 ms to 4 s.' },
+  { id: 'fdec',   name: 'Filter Decay',   short: 'F Dec',  group: 'filter', lo: 0,     hi: 1023, w: 3, desc: 'Filter envelope decay, 1 ms to 4 s.' },
+  { id: 'fshape', name: 'Filter Shape',   short: 'F Shape', group: 'filter', lo: 0,    hi: 1023, w: 2, desc: 'Filter envelope curve: slow start (low), linear (middle), snappy (high).' },
+  { id: 'vatk',   name: 'Vol Attack',     short: 'V Atk',  group: 'amp',    lo: 0,     hi: 1023, w: 2, desc: 'Volume envelope attack, 1 ms to 4 s.' },
+  { id: 'vdec',   name: 'Vol Decay',      short: 'V Dec',  group: 'amp',    lo: 0,     hi: 1023, w: 4, desc: 'Volume envelope decay, 1 ms to 4 s.' },
+  { id: 'vshape', name: 'Vol Shape',      short: 'V Shape', group: 'amp',   lo: 0,     hi: 1023, w: 2, desc: 'Volume envelope curve: slow start (low), linear (middle), snappy (high).' },
+  { id: 'fmon',   name: 'FM On',          short: 'FM',     group: 'fm',     lo: 0,     hi: 1,    w: 1, desc: 'Osc 2 frequency-modulates Osc 1 when the value is 1. The FM depth glides in and out over a few milliseconds, so switching never clicks.' },
+  { id: 'fmoffset', name: 'FM Offset',    short: 'FM Off', group: 'fm',     lo: 0,     hi: 1023, w: 4, desc: 'The base through-zero FM index, 0 to 4 (256 = index 1), before the FM envelope. Above index 1, Osc 1’s frequency swings through zero and runs backwards for part of each cycle, which keeps the pitch centred however deep the FM goes. Osc 2’s pitch and shape set the FM ratio and colour.' },
+  { id: 'fmenvamt', name: 'FM Env Amt',   short: 'FM Env', group: 'fm',     lo: -1023, hi: 1023, w: 4, desc: 'How far the FM envelope moves the FM index from the offset: 256 adds index 1 at the envelope’s peak. Negative values dip the FM instead. The total stays between index 0 and 4.' },
+  { id: 'fmatk',  name: 'FM Attack',      short: 'FM Atk', group: 'fm',     lo: 0,     hi: 1023, w: 2, desc: 'FM envelope attack, 1 ms to 4 s. The FM envelope fires with the other two, and has a fixed snappy curve.' },
+  { id: 'fmdec',  name: 'FM Decay',       short: 'FM Dec', group: 'fm',     lo: 0,     hi: 1023, w: 3, desc: 'FM envelope decay, 1 ms to 4 s. A short decay gives struck, bell-like attacks; a long one a slowly mellowing tone.' },
+  { id: 'p1amt',  name: 'Osc 1 P.Env Amt', short: 'P1 Env', group: 'penv', lo: -1023, hi: 1023, w: 3, desc: 'How far Osc 1’s pitch envelope bends its pitch: ±1023 is ±48 semitones, so 256 is an octave. The sweep is smooth, not quantised; it starts from and returns to the scale note. Positive sweeps down from above, negative up from below (with an instant attack).' },
+  { id: 'p1atk',  name: 'Osc 1 P.Env Atk', short: 'P1 Atk', group: 'penv', lo: 0,     hi: 1023, w: 2, desc: 'Osc 1 pitch envelope attack, 1 ms to 4 s. Short for zaps and drum toms; long for risers.' },
+  { id: 'p1dec',  name: 'Osc 1 P.Env Dec', short: 'P1 Dec', group: 'penv', lo: 0,     hi: 1023, w: 3, desc: 'Osc 1 pitch envelope decay, 1 ms to 4 s.' },
+  { id: 'p1shape', name: 'Osc 1 P.Env Shape', short: 'P1 Shp', group: 'penv', lo: 0,   hi: 1023, w: 2, desc: 'Osc 1 pitch envelope curve: slow start (low), linear (middle), snappy (high). Snappy gives the classic fast drop of a drum or zap.' },
+  { id: 'p2amt',  name: 'Osc 2 P.Env Amt', short: 'P2 Env', group: 'penv', lo: -1023, hi: 1023, w: 3, desc: 'How far Osc 2’s pitch envelope bends its pitch: ±1023 is ±48 semitones. With FM on, sweeping Osc 2 sweeps the FM ratio.' },
+  { id: 'p2atk',  name: 'Osc 2 P.Env Atk', short: 'P2 Atk', group: 'penv', lo: 0,     hi: 1023, w: 2, desc: 'Osc 2 pitch envelope attack, 1 ms to 4 s.' },
+  { id: 'p2dec',  name: 'Osc 2 P.Env Dec', short: 'P2 Dec', group: 'penv', lo: 0,     hi: 1023, w: 3, desc: 'Osc 2 pitch envelope decay, 1 ms to 4 s.' },
+  { id: 'p2shape', name: 'Osc 2 P.Env Shape', short: 'P2 Shp', group: 'penv', lo: 0,   hi: 1023, w: 2, desc: 'Osc 2 pitch envelope curve: slow start (low), linear (middle), snappy (high).' },
+  { id: 'sync',   name: 'Sync',           short: 'Sync',   group: 'osc',    lo: 0,     hi: 2,    w: 2, desc: 'Osc 2 follows Osc 1. Hard (2): each time Osc 1 starts a cycle, Osc 2 starts its cycle again, so it plays at Osc 1’s pitch with Osc 2’s pitch setting the brightness. Soft (1): Osc 2 reverses direction instead, a gentler version. Off (0): independent. Sweep Osc 2’s pitch or pitch envelope for the classic sync sound.' },
+  { id: 'l1rate',  name: 'Pitch LFO Rate',  short: 'LFO Rate', group: 'pitch', lo: 0, hi: 1023, w: 3, desc: 'How fast the pitch lfo runs: about 0.02 to 50 Hz. With its Sync on, a length in clock steps instead: 1/4, 1/2, 1, 2, 3, 4, 6, 8, 12, 16, 32 or 64 steps.' },
+  { id: 'l1shape', name: 'Pitch LFO Shape', short: 'LFO Shape', group: 'pitch', lo: 0, hi: 1023, w: 2, desc: 'Sine, then triangle, saw and square, then at the very top random: a new level held for each cycle (sample and hold).' },
+  { id: 'l1sync',  name: 'Pitch LFO Sync',  short: 'LFO Sync', group: 'pitch', lo: 0, hi: 1, w: 1, desc: 'On (1): the pitch lfo follows the clock, its Rate choosing a length in steps, and restarts on the step. Off (0): free-running.' },
+  { id: 'l1depth', name: 'Pitch LFO Depth', short: 'LFO Depth', group: 'pitch', lo: 0, hi: 1023, w: 3, desc: 'How much the pitch LFO bends both oscillators: up to ±12 semitones (vibrato at small depths).' },
+  { id: 'l2rate',  name: 'Vol LFO Rate',  short: 'LFO Rate', group: 'amp', lo: 0, hi: 1023, w: 3, desc: 'How fast the vol lfo runs: about 0.02 to 50 Hz. With its Sync on, a length in clock steps instead: 1/4, 1/2, 1, 2, 3, 4, 6, 8, 12, 16, 32 or 64 steps.' },
+  { id: 'l2shape', name: 'Vol LFO Shape', short: 'LFO Shape', group: 'amp', lo: 0, hi: 1023, w: 2, desc: 'Sine, then triangle, saw and square, then at the very top random: a new level held for each cycle (sample and hold).' },
+  { id: 'l2sync',  name: 'Vol LFO Sync',  short: 'LFO Sync', group: 'amp', lo: 0, hi: 1, w: 1, desc: 'On (1): the vol lfo follows the clock, its Rate choosing a length in steps, and restarts on the step. Off (0): free-running.' },
+  { id: 'l2depth', name: 'Vol LFO Depth', short: 'LFO Depth', group: 'amp', lo: 0, hi: 1023, w: 3, desc: 'How much the volume LFO pulls the level down on its lower half: none to all of it (tremolo).' },
+  { id: 'l3rate',  name: 'Filter LFO Rate',  short: 'LFO Rate', group: 'filter', lo: 0, hi: 1023, w: 3, desc: 'How fast the filter lfo runs: about 0.02 to 50 Hz. With its Sync on, a length in clock steps instead: 1/4, 1/2, 1, 2, 3, 4, 6, 8, 12, 16, 32 or 64 steps.' },
+  { id: 'l3shape', name: 'Filter LFO Shape', short: 'LFO Shape', group: 'filter', lo: 0, hi: 1023, w: 2, desc: 'Sine, then triangle, saw and square, then at the very top random: a new level held for each cycle (sample and hold).' },
+  { id: 'l3sync',  name: 'Filter LFO Sync',  short: 'LFO Sync', group: 'filter', lo: 0, hi: 1, w: 1, desc: 'On (1): the filter lfo follows the clock, its Rate choosing a length in steps, and restarts on the step. Off (0): free-running.' },
+  { id: 'l3depth', name: 'Filter LFO Depth', short: 'LFO Depth', group: 'filter', lo: -1023, hi: 1023, w: 3, desc: 'How far the filter LFO moves the cutoff, either way: ±1023 is the cutoff’s whole range.' },
+  { id: 'outa2',  name: 'Audio Out 2', short: 'Audio 2', group: 'out', lo: -1023, hi: 1023, w: 4, out: 'cv', desc: 'What Audio Out 2 sends (about ±6 V, uncalibrated). Choose with Sends. When it sends its register value, these bits give it: −1023 to +1023 is −5 to +5 V, raw or snapped to the scale.' },
+  { id: 'outcv1', name: 'CV Out 1', short: 'CV 1', group: 'out', lo: -1023, hi: 1023, w: 4, out: 'cv', desc: 'What CV Out 1 sends (calibrated). Choose with Sends. When it sends its register value, these bits give it: −1023 to +1023 is −5 to +5 V, raw or snapped to the scale (1 V/oct).' },
+  { id: 'outcv2', name: 'CV Out 2', short: 'CV 2', group: 'out', lo: -1023, hi: 1023, w: 4, out: 'cv', desc: 'What CV Out 2 sends (calibrated). Choose with Sends. When it sends its register value, these bits give it: −1023 to +1023 is −5 to +5 V, raw or snapped to the scale (1 V/oct).' },
+  { id: 'outp1',  name: 'Pulse Out 1', short: 'Pulse 1', group: 'out', lo: 0, hi: 1, w: 1, out: 'pulse', desc: 'What Pulse Out 1 sends. Choose with Sends. A register gate is high while these bits read 1; a register trigger gives a 5 ms pulse on each step where they read 1.' },
+  { id: 'outp2',  name: 'Pulse Out 2', short: 'Pulse 2', group: 'out', lo: 0, hi: 1, w: 1, out: 'pulse', desc: 'What Pulse Out 2 sends. Choose with Sends. A register gate is high while these bits read 1; a register trigger gives a 5 ms pulse on each step where they read 1.' },
+];
+const MAX_LOOPS = 8, REG = 64, MAX_W = 16, CONFIG_FORMAT = 6, CONFIG_BYTES = 29 + 8 * PARAMS.length; // 405
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const SCALES = [
+  ['Chromatic', 0xFFF], ['Major', 0xAB5], ['Natural minor', 0x5AD], ['Dorian', 0x6AD],
+  ['Major pentatonic', 0x295], ['Minor pentatonic', 0x4A9], ['Blues', 0x4E9], ['Whole tone', 0x555],
+  ['Harmonic minor', 0x9AD], ['Fifths', 0x081], ['Octaves', 0x001],
+];
+
+function defaultConfig() {
+  const P = (start, width, min, max, popcount = false, invert = false) => ({ enabled: true, start, width, popcount, invert, min, max });
+  const U = (min, source = 0) => ({ enabled: false, start: 0, width: 1, popcount: false, invert: false, min, max: min, source }); // unassigned: fixed at min
+  return {
+    loops: [16, 16, 16, 16].map((length, i) => ({ length, divider: [1, 2, 4, 8][i], chaos: 100 })),
+    scaleMask: 0x4A9, root: 48,
+    params: [
+      P(0, 1, 0, 1023), P(1, 5, 0, 10), P(20, 2, 0, 5), P(26, 3, 0, 350),
+      P(32, 4, 0, 1023), P(36, 4, 0, 1023, false, true), P(22, 4, 200, 800, true), P(6, 6, 300, 800),
+      P(40, 3, 100, 850), P(44, 4, 0, 700), P(48, 2, 0, 300), P(50, 3, 250, 750),
+      P(53, 2, 512, 1023), P(56, 2, 0, 250), P(58, 4, 300, 800), P(62, 2, 512, 1023),
+      P(47, 1, 0, 1), P(16, 4, 0, 256), P(24, 4, 0, 700), U(0), P(28, 3, 250, 750),
+      P(33, 2, 0, 256), U(0), U(350), U(900), U(0), U(0), U(350), U(900),
+      U(0),
+      U(500), U(0), U(0), U(0), U(500), U(0), U(0), U(0), U(500), U(0), U(0), U(0),   // LFOs: depth 0
+      U(0, 4), U(0, 2), U(0, 5), U(0, 2), U(0, 3),   // outputs: filter env, osc 1 pitch, vol env, env trigger, clock
+    ],
+  };
+}
+
+// ---------------------------------------------------------------- state
+let cfg = defaultConfig();
+let bits = new Uint8Array(REG);
+for (let i = 0; i < REG; i++) bits[i] = Math.random() < 0.5 ? 1 : 0;
+let flipped = new Uint8Array(REG);
+let selected = 1;               // selected parameter index
+let dirty = false;              // edited since last read/send
+let loopCounters = new Array(MAX_LOOPS).fill(0);
+let firedAt = 0, clockAt = 0;
+// The three knob settings (0-4095), as the card uses them: Main randomness,
+// X transpose, Y clock rate. phys = where the module's knobs are, waiting =
+// the knob hasn't picked up its setting yet. sw: 0 down, 1 middle, 2 up.
+const knobs = { set: [2048, 0, 3000], phys: [-1, -1, -1], waiting: [false, false, false], sw: 1, ext: false, notes: null, dragging: -1 };
+let simLock = false;
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const $ = (id) => document.getElementById(id);
+const colorOf = (i) => `var(${GROUP_COLOR[PARAMS[i].group]})`;
+
+function loopStarts() { const s = []; let o = 0; for (const l of cfg.loops) { s.push(o); o += l.length; } return s; }
+function usedBits() { return cfg.loops.reduce((a, l) => a + l.length, 0); }
+
+function validate() {
+  cfg.loops = cfg.loops.slice(0, MAX_LOOPS);
+  let used = 0;
+  cfg.loops = cfg.loops.filter((l) => {
+    l.length = clamp(Math.round(l.length) || 1, 1, REG); l.divider = clamp(Math.round(l.divider) || 1, 1, 32); l.chaos = clamp(Math.round(l.chaos), 0, 100);
+    if (used + l.length > REG) l.length = REG - used;
+    if (l.length < 1) return false;
+    used += l.length; return true;
+  });
+  if (!cfg.loops.length) cfg.loops = [{ length: 64, divider: 1, chaos: 100 }];
+  cfg.scaleMask &= 0xFFF; if (!cfg.scaleMask) cfg.scaleMask = 0xFFF;
+  cfg.root = clamp(cfg.root | 0, 0, 96);
+  cfg.params.forEach((p, i) => {
+    p.start = clamp(p.start | 0, 0, REG - 1); p.width = clamp(p.width | 0, 1, MAX_W);
+    if (p.start + p.width > REG) p.width = REG - p.start;
+    p.min = clamp(p.min | 0, PARAMS[i].lo, PARAMS[i].hi); p.max = clamp(p.max | 0, PARAMS[i].lo, PARAMS[i].hi);
+  });
+}
+
+// ---------------------------------------------------------------- mapping (mirrors firmware ParamValue)
+function rawBits(p) { let v = 0; for (let j = 0; j < p.width; j++) v += bits[p.start + j] * 2 ** j; return v; }
+// Held parameters keep the value they had when held (or that the card says
+// it is using, from STATE). heldVal[i] is undefined until first needed.
+const heldVal = [];
+function paramValue(i) {
+  const p = cfg.params[i];
+  if (!p.enabled) return p.min;
+  if (p.hold) { if (heldVal[i] === undefined) heldVal[i] = liveValue(i); return heldVal[i]; }
+  return liveValue(i);
+}
+// The value the register gives now (as main.cpp ParamValue)
+function liveValue(i) {
+  const p = cfg.params[i];
+  const v = rawBits(p);
+  let x;
+  if (p.popcount) { let c = 0; for (let j = 0; j < p.width; j++) c += bits[p.start + j]; x = Math.floor(c * 65535 / p.width); }
+  else x = p.width === 16 ? v : Math.floor(v * 65535 / (2 ** p.width - 1));
+  if (p.invert) x = 65535 - x;
+  return p.min + Math.floor(((p.max - p.min) * x + 32768) / 65536);
+}
+// Hold's icon: pause, two bars
+const PAUSE_ICON = '<svg viewBox="0 0 8 10" aria-hidden="true"><rect x="0" y="0" width="3" height="10" rx="0.6"/><rect x="5" y="0" width="3" height="10" rx="0.6"/></svg>';
+function setHold(i, on) {
+  const p = cfg.params[i];
+  if (!p.enabled) return;
+  heldVal[i] = on ? liveValue(i) : undefined;
+  p.hold = on;
+  changed();
+  say(on ? PARAMS[i].name + ' held at ' + fmt(i, heldVal[i]) + '.' : PARAMS[i].name + ' follows the register again.');
+}
+function scaleNotes() { const s = []; for (let n = 0; n < 12; n++) if (cfg.scaleMask & (1 << n)) s.push(n); return s; }
+function degreeToNote(deg) {
+  const s = scaleNotes(), k = s.length;
+  const oct = Math.floor(deg / k), idx = ((deg % k) + k) % k;
+  return cfg.root + oct * 12 + s[idx];
+}
+const noteName = (n) => NOTE_NAMES[((n % 12) + 12) % 12] + (Math.floor(n / 12) - 1);
+const ms = (v) => 2 ** (v * 12 / 1023);
+const fmtMs = (t) => t < 1000 ? `${t < 10 ? t.toFixed(1) : Math.round(t)} ms` : `${(t / 1000).toFixed(2)} s`;
+function shapeName(v) {
+  const names = ['sine', 'tri', 'saw', 'square'];
+  const u = v * 3 / 1024, seg = Math.min(2, Math.floor(u)), t = Math.round((u - seg) * 100);
+  if (t <= 2) return names[seg]; if (t >= 98) return names[seg + 1];
+  return `${names[seg]}→${names[seg + 1]} ${t}%`;
+}
+function curveName(v) { const c = v - 512; return Math.abs(c) < 25 ? 'linear' : (c > 0 ? `snappy ${Math.round(c / 5.11)}%` : `slow ${Math.round(-c / 5.12)}%`); }
+
+// Human-readable value, in the parameter's own units
+function fmt(i, v, short = false) {
+  switch (PARAMS[i].id) {
+    case 'trig': return v >= 512 ? 'fire' : 'rest';
+    case 'pitch1': { const n = degreeToNote(v); return short ? noteName(n) : `${v} deg · ${noteName(n)}`; }
+    case 'pitch2': { const s = (v > 0 ? '+' : '') + v; if (short) return s; const n = degreeToNote(paramValue(1) + v); return `${s} deg · ${noteName(n)}`; }
+    case 'slew': return v === 0 ? 'off' : fmtMs(0.5 * 2 ** (v * 11 / 1023));
+    case 'shape1': case 'shape2': return shapeName(v);
+    case 'mix': return short ? `${Math.round(v / 10.23)}%` : `${Math.round(100 - v / 10.23)}% O1 / ${Math.round(v / 10.23)}% O2`;
+    case 'cutoff': { const hz = 20 * 2 ** (v * 9.5 / 1023); return hz >= 1000 ? `${(hz / 1000).toFixed(1)} kHz` : `${Math.round(hz)} Hz`; }
+    case 'res': return `${Math.round(v / 10.23)}%`;
+    case 'envamt': return `${v > 0 ? '+' : ''}${Math.round(v / 10.23)}%`;
+    case 'fatk': case 'fdec': case 'vatk': case 'vdec': return fmtMs(ms(v));
+    case 'fshape': case 'vshape': return curveName(v);
+    case 'fmon': return v >= 1 ? 'on' : 'off';
+    case 'fmoffset': { const ix = v / 256; return short ? '×' + ix.toFixed(1) : `index ${ix.toFixed(2)}${ix > 1 ? ', through zero' : ''}`; }
+    case 'fmenvamt': { const ix = v / 256; return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(ix).toFixed(short ? 1 : 2) + (short ? '' : ' index at peak'); }
+    case 'fmatk': case 'fmdec': case 'p1atk': case 'p1dec': case 'p2atk': case 'p2dec': return fmtMs(ms(v));
+    case 'p1amt': case 'p2amt': { const st = v * 48 / 1023; return (st > 0 ? '+' : st < 0 ? '−' : '') + Math.abs(st).toFixed(st && Math.abs(st) < 10 ? 1 : 0) + (short ? '' : ' semitones at peak'); }
+    case 'p1shape': case 'p2shape': return curveName(v);
+    case 'sync': return ['off', 'soft', 'hard'][v] || 'off';
+    case 'l1rate': case 'l2rate': case 'l3rate': {
+      const l = +PARAMS[i].id[1] - 1, synced = paramValue(32 + 4 * l) >= 1;
+      if (synced) return SYNC_STEPS[(v * 12) >> 10];
+      const hz = 0.02 * 2 ** (v * 11.3 / 1023); return hz < 1 ? hz.toFixed(2) + ' Hz' : hz.toFixed(hz < 10 ? 1 : 0) + ' Hz';
+    }
+    case 'l1shape': case 'l2shape': case 'l3shape': return v >= 921 ? 'random' : shapeName(Math.min(1023, (v * 1140) >> 10));
+    case 'l1sync': case 'l2sync': case 'l3sync': return v >= 1 ? 'on' : 'off';
+    case 'l1depth': return '±' + (v * 12 / 1023).toFixed(v && v < 853 ? 1 : 0) + (short ? '' : ' semitones');
+    case 'l2depth': return Math.round(v / 10.23) + '%';
+    case 'l3depth': return (v > 0 ? '±' : v < 0 ? '∓' : '') + Math.round(Math.abs(v) / 10.23) + '%';
+    case 'outa2': case 'outcv1': case 'outcv2': {
+      if (!usesRegister(i)) return short ? sourceName(i).replace(' envelope', ' env').replace('Volume', 'Vol') : 'sends ' + sourceName(i);
+      const mv = v * 5000 / 1023; return (mv >= 0 ? '+' : '−') + Math.abs(mv / 1000).toFixed(2) + ' V' + ((cfg.params[i].source || 0) === 1 && !short ? ' before snapping to the scale' : '');
+    }
+    case 'outp1': case 'outp2': return usesRegister(i) ? (v >= 1 ? 'high' : 'low') : (short ? sourceName(i).replace('Envelope trigger', 'env trig') : 'sends ' + sourceName(i));
+  }
+  return String(v);
+}
+
+// ---------------------------------------------------------------- simulation (mirrors firmware Tick)
+// Flip probability from Main (k, 0-4095), as main.cpp: below 150 always, above 3945 never
+function flipProbOf(k) { if (k < 150) return 1; if (k > 3945) return 0; return (3945 - k) / 3795; }
+function flipProb() { return (link.cardOnline ? knobs.sw === 2 : simLock) ? 0 : flipProbOf(knobs.set[0]); }
+function simTick() {
+  const p = flipProb();
+  const starts = loopStarts();
+  const movedMask = new Uint8Array(REG);
+  flipped.fill(0);
+  cfg.loops.forEach((l, i) => {
+    if (++loopCounters[i] < l.divider) return;
+    loopCounters[i] = 0;
+    const o = starts[i], n = l.length;
+    let top = bits[o + n - 1];
+    if (Math.random() < p * l.chaos / 100) { top ^= 1; flipped[o] = 1; }
+    for (let j = n - 1; j > 0; j--) bits[o + j] = bits[o + j - 1];
+    bits[o] = top;
+    for (let j = 0; j < n; j++) movedMask[o + j] = 1;
+  });
+  clockAt = performance.now();
+  const t = cfg.params[0];
+  let relevant = true;
+  if (t.enabled && !t.hold) { relevant = false; for (let j = 0; j < t.width; j++) if (movedMask[t.start + j]) relevant = true; }
+  if (relevant && paramValue(0) >= 512) firedAt = performance.now();
+  renderLive();
+}
+
+function clockHz(y) { // mirrors firmware: period in samples from the Y setting
+  const yq = y * 4, base = 48000 >> (yq >> 12), period = base - ((base * (yq & 4095)) >> 13);
+  return 48000 / period;
+}
+let simRunning = true, simAcc = 0, lastFrame = performance.now();
+function frame(now) {
+  const dt = Math.min(0.25, (now - lastFrame) / 1000); lastFrame = now;
+  if (simRunning && !link.cardOnline) {
+    simAcc += dt * clockHz(knobs.set[2]);
+    while (simAcc >= 1) { simAcc -= 1; simTick(); }
+  }
+  $('led-clock').classList.toggle('on', now - clockAt < 60);
+  $('led-trig').classList.toggle('on', now - firedAt < 90);
+  document.querySelectorAll('.lane')[0]?.classList.toggle('fire', now - firedAt < 120);
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- knobs
+const transposeOf = (v) => (v * 25) >> 12;               // as main.cpp: 0 to +24 semitones
+function knobText(i, v) {
+  if (i === 0) { const p = flipProbOf(v); return p === 0 ? 'locked' : p === 1 ? 'locked, inverting' : Math.round(p * 100) + '% flip'; }
+  if (i === 1) return '+' + transposeOf(v) + ' semitones';
+  return clockHz(v).toFixed(1) + ' steps/s';
+}
+function renderKnobs() {
+  const on = link.cardOnline;
+  for (let i = 0; i < 3; i++) {
+    const v = knobs.set[i], w = on && knobs.waiting[i];
+    const slotMode = i === 0 && on && knobs.mainSlot;
+    $('kv' + i).textContent = slotMode ? 'Layout ' + (slots.current + 1) + ((slots.list && slots.list[slots.current] && slots.list[slots.current].name) ? ' · ' + slots.list[slots.current].name : '')
+      : (i === 2 && on && knobs.ext) ? 'Pulse In 1 clock' : knobText(i, v);
+    if (knobs.dragging !== i) $('knob' + i).value = v;
+    const box = $('rk' + i);
+    if (box.classList.contains('waiting') !== w) { box.classList.toggle('waiting', w); box.title = w ? 'The knob is waiting: turn it to (or past) this value to pick it up' : ''; }
+    const g = $('kg' + i), ph = knobs.phys[i];
+    g.hidden = !w || ph < 0;
+    if (!g.hidden) g.style.left = (ph / 4095 * 100) + '%';
+    $('ks' + i).textContent = slotMode ? 'switch up: Main chooses the layout' : w ? 'knob at ' + knobText(i, ph) + ', turn to pick up' : '';
+  }
+  document.querySelectorAll('#swpos span').forEach((s) => s.classList.toggle('on', on ? +s.dataset.sw === knobs.sw : (+s.dataset.sw === (simLock ? 2 : 1))));
+  ['sim-k', 'sim-play', 'sim-lock', 'sim-scramble'].forEach((id) => { $(id).hidden = on; });
+  $('sim-lock').classList.toggle('on', simLock);
+  let n1, n2;
+  if (on && knobs.notes) [n1, n2] = knobs.notes;
+  else { const t = transposeOf(knobs.set[1]), d = paramValue(1); n1 = degreeToNote(d) + t; n2 = degreeToNote(d + paramValue(2)) + t; }
+  $('ro-notes').textContent = noteName(n1) + ' · ' + noteName(n2);
+  $('knob-line').textContent = on
+    ? (knobs.waiting.some(Boolean) ? 'A knob is waiting to pick up the value set here. The orange line shows where the module’s knob is: turn it to (or past) the slider’s value.' : 'The sliders follow the module’s knobs. Moving one here sets that value on the card; the knob then picks up from it.')
+    : 'Simulating: the sliders stand in for the module’s knobs.';
+}
+
+// ---------------------------------------------------------------- layout slots on the card
+function renderSlots() {
+  const el = $('slot-list'), on = link.cardOnline && slots.list;
+  $('slot-name').disabled = !on;
+  if (!on) {
+    el.innerHTML = '<div class="caption">' + (link.cardOnline ? 'Reading the card’s layouts…' : 'Connect the card to see the six layouts saved on it.') + '</div>';
+    $('slot-caption').textContent = '';
+    return;
+  }
+  el.innerHTML = '';
+  slots.list.forEach((sl, i) => {
+    const cur = i === slots.current;
+    const row = document.createElement('div');
+    row.className = 'slot' + (cur ? ' cur' : '') + (sl.used ? '' : ' empty');
+    const strip = sl.used ? '<div class="strip" title="' + sl.loops.length + ' loop' + (sl.loops.length === 1 ? '' : 's') + ': ' + sl.loops.join(' + ') + ' bits">'
+      + sl.loops.map(n => '<span style="width:' + (n / REG * 100) + '%"></span>').join('') + '</div>' : '<div class="strip"></div>';
+    const tag = cur ? (sl.used ? (slots.edited ? 'playing, edited' : 'playing') : 'playing, not saved') : '';
+    row.innerHTML = '<span class="num" title="LED ' + i + ' on the module">' + (i + 1) + '</span>'
+      + '<div class="nm"><b></b><span class="tag">' + tag + '</span></div>'
+      + strip
+      + '<div class="acts">'
+      + (sl.used ? '<button data-a="load"' + (cur && !slots.edited ? ' disabled' : '') + ' title="Play this layout and its saved register pattern">' + (cur ? 'Reload' : 'Load') + '</button>' : '')
+      + '<button data-a="save" title="Save what is playing into this slot, with the name above">Save here</button>'
+      + (sl.used ? '<button data-a="rename" title="Give this slot the name above">Rename</button>' : '')
+      + (sl.used ? '<button data-a="clear" class="' + (slots.confirmClear === i ? 'sure' : '') + '">' + (slots.confirmClear === i ? 'Clear: sure?' : 'Clear') + '</button>' : '')
+      + '</div>';
+    row.querySelector('.nm b').textContent = sl.used ? (sl.name || 'Layout ' + (i + 1)) : 'Empty';
+    row.querySelectorAll('button').forEach((b) => b.onclick = () => slotAction(b.dataset.a, i));
+    el.appendChild(row);
+  });
+  $('slot-caption').textContent = 'With the switch up, Main chooses between these on the module. Save here keeps the layout and register pattern playing now, under the name above.';
+}
+
+function saveSlot(i) {
+  sendConfig(); // the card saves what it is playing: make sure it has the latest edits
+  sendRaw(sysex(CMD.SAVE, [i, ...nameBytes($('slot-name').value.trim())]));
+  say('Saving into slot ' + (i + 1) + '…');
+}
+
+function slotAction(a, i) {
+  if (a !== 'clear') slots.confirmClear = -1;
+  if (a === 'load') { sendRaw(sysex(CMD.LOAD_SLOT, [i])); say('Loading slot ' + (i + 1) + '…'); }
+  else if (a === 'save') saveSlot(i);
+  else if (a === 'rename') {
+    const n = $('slot-name').value.trim();
+    if (!n) { say('Type a name above first.', true); return; }
+    sendRaw(sysex(CMD.RENAME_SLOT, [i, ...nameBytes(n)]));
+  } else if (a === 'clear') {
+    // Two clicks: the first asks, the second clears
+    if (slots.confirmClear !== i) { slots.confirmClear = i; renderSlots(); setTimeout(() => { if (slots.confirmClear === i) { slots.confirmClear = -1; renderSlots(); } }, 3000); return; }
+    slots.confirmClear = -1;
+    sendRaw(sysex(CMD.CLEAR_SLOT, [i]));
+    say('Cleared slot ' + (i + 1) + '.' + (i === slots.current ? ' Its layout keeps playing until you load another.' : ''));
+  }
+}
+
+// ---------------------------------------------------------------- rendering
+function buildStatic() {
+  const ruler = $('ruler');
+  for (let b = 0; b < REG; b += 8) { const t = document.createElement('span'); t.className = 'tick mono'; t.style.left = (b / REG * 100) + '%'; t.textContent = b; ruler.appendChild(t); }
+  const bt = $('bitTrk');
+  for (let b = 0; b < REG; b++) {
+    const d = document.createElement('div'); d.className = 'bit'; d.title = `bit ${b}`;
+    d.addEventListener('click', () => { bits[b] ^= 1; flipped.fill(0); if (link.cardOnline) sendReg(); renderLive(); });
+    bt.appendChild(d);
+  }
+  const lanes = $('lanes');
+  LANE_GROUPS.forEach((g, gi) => {
+    const head = document.createElement('div'); head.className = 'row ghead'; head.dataset.g = gi;
+    head.innerHTML = `<div class="lab" role="button" tabindex="0" aria-expanded="true"><span class="chev">▾</span><span>${g.name}</span><span class="cnt"></span></div><div class="trk cols8"></div>`;
+    const toggle = () => setFold(gi, !foldedGroups.has(g.name));
+    head.querySelector('.lab').addEventListener('click', toggle);
+    head.querySelector('.trk').addEventListener('click', toggle);
+    head.querySelector('.lab').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    lanes.appendChild(head);
+    g.members.forEach((i) => buildLane(lanes, i, gi));
+  });
+  LANE_GROUPS.forEach((g, gi) => setFold(gi, foldedGroups.has(g.name), false));
+  // Keys and selects for the scale
+  const keys = $('keys');
+  for (let n = 0; n < 12; n++) {
+    const k = document.createElement('button'); k.className = 'key' + ([1, 3, 6, 8, 10].includes(n) ? ' blk' : ''); k.textContent = NOTE_NAMES[n];
+    k.title = `${n} semitones above the root`;
+    k.addEventListener('click', () => { if (n === 0) return say('The root is always in the scale.'); cfg.scaleMask ^= (1 << n); changed(); });
+    keys.appendChild(k);
+  }
+  const root = $('root');
+  for (let n = 24; n <= 84; n++) { const o = document.createElement('option'); o.value = n; o.textContent = noteName(n); root.appendChild(o); }
+  root.addEventListener('change', () => { cfg.root = +root.value; changed(); });
+  const sp = $('scalePreset');
+  sp.innerHTML = '<option value="">Custom</option>' + SCALES.map(([n, m]) => `<option value="${m}">${n}</option>`).join('');
+  sp.addEventListener('change', () => { if (sp.value) { cfg.scaleMask = +sp.value; changed(); } });
+}
+
+function render() {
+  validate();
+  renderLoops(); renderLanes(); renderTray(); renderLoopTable(); renderScale(); renderInspector(); renderLive();
+}
+
+function renderLoops() {
+  const trk = $('loopTrk'); trk.innerHTML = '';
+  const starts = loopStarts();
+  cfg.loops.forEach((l, i) => {
+    const s = document.createElement('div'); s.className = 'loopseg' + (i % 2 ? ' alt' : '');
+    s.style.left = `calc(${starts[i] / REG * 100}% + 1px)`; s.style.width = `calc(${l.length / REG * 100}% - 2px)`;
+    s.title = `Loop ${i + 1}: bits ${starts[i]}–${starts[i] + l.length - 1}, steps every ${l.divider} clock${l.divider > 1 ? 's' : ''}, chaos ${l.chaos}%`;
+    s.innerHTML = `<b>L${i + 1}</b><span class="mono">${l.length}b ÷${l.divider}</span><span class="ret">${l.chaos < 100 ? 'chaos ' + l.chaos + '%' : ''}</span>`;
+    trk.appendChild(s);
+  });
+  const used = usedBits();
+  if (used < REG) {
+    const u = document.createElement('div'); u.className = 'unusedseg';
+    u.style.left = (used / REG * 100) + '%'; u.style.width = ((REG - used) / REG * 100) + '%';
+    u.textContent = `${REG - used} fixed bits`; u.title = 'Bits outside every loop never move. Assignments can still read them.';
+    trk.appendChild(u);
+  }
+  // Boundary handles: between loops, and at the end of the last loop
+  cfg.loops.forEach((l, i) => {
+    const h = document.createElement('div'); h.className = 'handle';
+    h.style.left = ((starts[i] + l.length) / REG * 100) + '%';
+    if (starts[i] + l.length === REG) h.classList.add('end');
+    h.title = i < cfg.loops.length - 1 ? `Drag to move the boundary between L${i + 1} and L${i + 2}` : `Drag to change the length of L${i + 1}`;
+    attachBoundaryDrag(h, i);
+    trk.appendChild(h);
+  });
+  const used2 = new Set(); cfg.loops.forEach((l, i) => { for (let j = 0; j < l.length; j++) used2.add(starts[i] + j); });
+  $('bitTrk').childNodes.forEach((d, b) => d.classList.toggle('fixed', !used2.has(b)));
+}
+
+// Lanes are shown in groups, each with a header row that folds it away
+const LANE_GROUPS = [
+  { name: 'Notes', ids: ['trig', 'pitch1', 'pitch2', 'slew'] },
+  { name: 'Oscillators', ids: ['shape1', 'shape2', 'mix', 'sync'] },
+  { name: 'FM', ids: ['fmon', 'fmoffset', 'fmenvamt', 'fmatk', 'fmdec'] },
+  { name: 'Filter', ids: ['cutoff', 'res', 'envamt', 'fatk', 'fdec', 'fshape'] },
+  { name: 'Volume', ids: ['vatk', 'vdec', 'vshape'] },
+  { name: 'Pitch envelopes', ids: ['p1amt', 'p1atk', 'p1dec', 'p1shape', 'p2amt', 'p2atk', 'p2dec', 'p2shape'] },
+  { name: 'LFOs', ids: ['l1rate', 'l1shape', 'l1sync', 'l1depth', 'l2rate', 'l2shape', 'l2sync', 'l2depth', 'l3rate', 'l3shape', 'l3sync', 'l3depth'] },
+  { name: 'Outputs', ids: ['outa2', 'outcv1', 'outcv2', 'outp1', 'outp2'] },
+];
+LANE_GROUPS.forEach((g) => { g.members = g.ids.map((id) => PARAMS.findIndex((P) => P.id === id)).filter((i) => i >= 0); });
+{ // any parameter left out of the groups still gets a lane
+  const seen = new Set(LANE_GROUPS.flatMap((g) => g.members));
+  const rest = PARAMS.map((_, i) => i).filter((i) => !seen.has(i));
+  if (rest.length) LANE_GROUPS.push({ name: 'Other', ids: [], members: rest });
+}
+const groupOf = (i) => LANE_GROUPS.findIndex((g) => g.members.includes(i));
+let foldedGroups = new Set();
+try { foldedGroups = new Set(JSON.parse(localStorage.getItem('palette.lanegroups.v1') || '[]')); } catch (e) { /* private window */ }
+
+function buildLane(lanes, i, gi) {
+  const P = PARAMS[i];
+  const row = document.createElement('div'); row.className = 'row lane'; row.style.setProperty('--c', colorOf(i)); row.dataset.i = i; row.dataset.g = gi;
+  row.innerHTML = `<div class="lab" role="button" tabindex="0"><span class="sw"></span><span class="nm" title="${P.name}">${P.name}</span><span class="val"></span>
+      <button class="hold" type="button" aria-pressed="false" aria-label="Hold ${P.name}">${PAUSE_ICON}</button>
+      <div class="meter"><div class="win"></div><div class="pos"></div></div></div><div class="trk cols8"></div>`;
+  row.querySelector('.hold').addEventListener('click', (e) => { e.stopPropagation(); setHold(i, !cfg.params[i].hold); });
+  row.querySelector('.lab').addEventListener('click', () => select(i));
+  row.querySelector('.lab').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(i); } });
+  attachLaneDrag(row.querySelector('.trk'), i);
+  lanes.appendChild(row);
+}
+
+function setFold(gi, folded, save = true) {
+  const g = LANE_GROUPS[gi];
+  folded ? foldedGroups.add(g.name) : foldedGroups.delete(g.name);
+  const head = document.querySelector(`.ghead[data-g="${gi}"]`);
+  head.classList.toggle('folded', folded);
+  head.querySelector('.lab').setAttribute('aria-expanded', String(!folded));
+  head.title = (folded ? 'Show ' : 'Fold ') + g.name;
+  document.querySelectorAll(`.lane[data-g="${gi}"]`).forEach((r) => { r.hidden = folded; });
+  if (save) { try { localStorage.setItem('palette.lanegroups.v1', JSON.stringify([...foldedGroups])); } catch (e) { /* private window */ } }
+  renderGroupHeads();
+}
+
+// Each header: how many of its lanes are assigned, and, folded, the
+// group's bars in miniature on its track
+function renderGroupHeads() {
+  LANE_GROUPS.forEach((g, gi) => {
+    const head = document.querySelector(`.ghead[data-g="${gi}"]`); if (!head) return;
+    const on = g.members.filter((i) => cfg.params[i].enabled);
+    head.querySelector('.cnt').textContent = on.length + '/' + g.members.length;
+    const trk = head.querySelector('.trk');
+    if (!foldedGroups.has(g.name)) { trk.innerHTML = ''; return; }
+    trk.innerHTML = on.map((i, k) => {
+      const p = cfg.params[i], top = 3 + (k % 3) * 6;
+      const dim = p.hold || (PARAMS[i].out && !usesRegister(i));
+      return `<div class="mini${dim ? ' held' : ''}" style="--c:${colorOf(i)};left:calc(${p.start / REG * 100}% + 1px);width:calc(${p.width / REG * 100}% - 2px);top:${top}px" title="${PARAMS[i].name}: bits ${p.start}–${p.start + p.width - 1}"></div>`;
+    }).join('');
+  });
+}
+
+function renderLanes() {
+  document.querySelectorAll('.lane').forEach((row) => {
+    const i = +row.dataset.i, p = cfg.params[i], trk = row.querySelector('.trk');
+    row.classList.toggle('sel', i === selected);
+    const held = p.enabled && !!p.hold;
+    row.classList.toggle('held', held);
+    const unused = p.enabled && !usesRegister(i);  // an output sending something else
+    const hb = row.querySelector('.hold');
+    hb.setAttribute('aria-pressed', String(held)); hb.disabled = !p.enabled;
+    hb.title = !p.enabled ? 'Unassigned parameters are fixed at their Min already' : held ? 'Held at ' + fmt(i, paramValue(i)) + ': click to let the register move it again' : 'Hold: keep this parameter at its current value';
+    trk.innerHTML = '';
+    if (p.enabled) {
+      const bar = document.createElement('div'); bar.className = 'bar' + (held || unused ? ' held' : '');
+      bar.style.left = `calc(${p.start / REG * 100}% + 1px)`; bar.style.width = `calc(${p.width / REG * 100}% - 2px)`;
+      bar.classList.toggle('one', p.width === 1);
+      const label = (p.width > 2 ? PARAMS[i].short : '') + (p.popcount && p.width > 4 ? ' Σ' : '') + (p.invert && p.width > 5 ? ' ¬' : '');
+      // A 1-bit bar gets one slim handle (drag right to widen), leaving its body to grab and move
+      bar.innerHTML = (p.width > 1 ? '<span class="eh l"></span>' : '') + (label ? `<span class="bl">${label}</span>` : '') + '<span class="eh r"></span>';
+      bar.title = `${PARAMS[i].name}: bits ${p.start}–${p.start + p.width - 1}${p.popcount ? ', count of set bits' : ''}${p.invert ? ', inverted' : ''}${held ? ', held at ' + fmt(i, paramValue(i)) : ''}${unused ? '. Not used: this output sends ' + sourceName(i) : ''}`;
+      trk.appendChild(bar);
+    } else {
+      const ph = document.createElement('div'); ph.className = 'placeholder'; ph.textContent = PARAMS[i].out && !usesRegister(i) ? `sends ${sourceName(i)}. Choose what it sends in its Parameter card` : `unassigned: fixed at ${fmt(i, p.min)}. Drag here to draw a range`;
+      trk.appendChild(ph);
+    }
+    const P = PARAMS[i], span = P.hi - P.lo;
+    const a = (Math.min(p.min, p.max) - P.lo) / span, b = (Math.max(p.min, p.max) - P.lo) / span;
+    const w = row.querySelector('.meter .win'); w.style.left = (a * 100) + '%'; w.style.width = Math.max(1, (b - a) * 100) + '%';
+  });
+  renderGroupHeads();
+}
+
+function renderTray() {
+  const tray = $('tray'); tray.innerHTML = '';
+  const un = cfg.params.map((p, i) => i).filter((i) => !cfg.params[i].enabled);
+  if (!un.length) { tray.innerHTML = '<span class="empty">Unassigned parameters wait here. All ' + PARAMS.length + ' are assigned now: drag a bar from the grid into this box to unassign it.</span>'; return; }
+  un.forEach((i) => {
+    const c = document.createElement('span'); c.className = 'chip'; c.style.setProperty('--c', colorOf(i)); c.tabIndex = 0;
+    c.innerHTML = `<span class="sw"></span>${PARAMS[i].name}`;
+    c.title = 'Drag onto the register to assign';
+    attachChipDrag(c, i);
+    c.addEventListener('keydown', (e) => { if (e.key === 'Enter') { select(i); } });
+    tray.appendChild(c);
+  });
+}
+
+function renderLoopTable() {
+  const t = $('loopTable'), starts = loopStarts();
+  t.innerHTML = `<thead><tr><th>Loop</th><th>Bits</th><th>Length</th><th>Clock ÷</th><th>Chaos %</th><th></th></tr></thead>`;
+  const tb = document.createElement('tbody');
+  cfg.loops.forEach((l, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><b>L${i + 1}</b></td><td class="mono">${starts[i]}–${starts[i] + l.length - 1}</td>
+      <td><input type="number" min="1" max="64" value="${l.length}" data-k="length" id="loop${i}len" aria-label="Loop ${i + 1} length"></td>
+      <td><input type="number" min="1" max="32" value="${l.divider}" data-k="divider" id="loop${i}div" aria-label="Loop ${i + 1} clock divider"></td>
+      <td><input type="number" min="0" max="100" value="${l.chaos}" data-k="chaos" id="loop${i}chaos" aria-label="Loop ${i + 1} chaos"></td>
+      <td><button class="small" data-a="split" ${l.length < 2 || cfg.loops.length >= MAX_LOOPS ? 'disabled' : ''}>Split</button>
+          <button class="small" data-a="merge" ${i === cfg.loops.length - 1 ? 'disabled' : ''}>Merge →</button>
+          <button class="small" data-a="del" ${cfg.loops.length < 2 ? 'disabled' : ''}>Remove</button></td>`;
+    tr.querySelectorAll('input').forEach((inp) => inp.addEventListener('change', () => {
+      const k = inp.dataset.k, v = +inp.value;
+      if (k === 'length') { const others = usedBits() - l.length; l.length = clamp(v, 1, REG - others); } else l[k] = v;
+      changed();
+    }));
+    tr.querySelector('[data-a=split]').addEventListener('click', () => { const a = Math.ceil(l.length / 2); cfg.loops.splice(i + 1, 0, { length: l.length - a, divider: l.divider, chaos: l.chaos }); l.length = a; changed(); });
+    tr.querySelector('[data-a=merge]').addEventListener('click', () => { l.length += cfg.loops[i + 1].length; cfg.loops.splice(i + 1, 1); changed(); });
+    tr.querySelector('[data-a=del]').addEventListener('click', () => { cfg.loops.splice(i, 1); changed(); });
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+  const free = REG - usedBits();
+  $('addLoop').disabled = free < 1 || cfg.loops.length >= MAX_LOOPS;
+  $('addLoop').textContent = free ? `Add loop (${free} free bits)` : 'Add loop';
+}
+
+function renderScale() {
+  $('keys').childNodes.forEach((k, n) => k.setAttribute('aria-pressed', String(!!(cfg.scaleMask & (1 << n)))));
+  $('root').value = cfg.root;
+  const m = SCALES.find(([, mask]) => mask === cfg.scaleMask);
+  $('scalePreset').value = m ? m[1] : '';
+}
+
+function renderInspector() {
+  const i = selected, P = PARAMS[i], p = cfg.params[i], el = $('inspector');
+  el.style.setProperty('--c', colorOf(i));
+  el.innerHTML = `
+    <div class="insp-head"><span class="sw"></span><h3>${P.name}</h3></div>
+    <div class="word" id="word" aria-label="${P.name}: its bits in the register, live"></div>
+    <p class="desc">${P.desc}</p>
+    ${P.out ? `<label class="field" style="margin-bottom:10px">Sends<select id="fSource">${(P.out === 'pulse' ? PULSE_SOURCES : CV_SOURCES).map((n, k) => `<option value="${k}" ${k === (p.source || 0) ? 'selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
+    ${P.out && !usesRegister(i) ? '<p class="caption" style="margin:-4px 0 10px">The settings below are for when it sends its register: they do nothing now.</p>' : ''}
+    <div class="dirs" style="margin:0 0 10px">
+      <span class="k">Read as</span>
+      <button class="small opt ${p.popcount ? '' : 'on'}" id="mBin" aria-pressed="${!p.popcount}" title="Read the bits as a binary number">Binary</button>
+      <button class="small opt ${p.popcount ? 'on' : ''}" id="mPop" aria-pressed="${p.popcount}" title="Count how many bits are set">Count</button>
+      <button class="small opt ${p.invert ? 'on' : ''}" id="inv" aria-pressed="${p.invert}" title="Turn the value upside down">Invert</button>
+      <button class="small opt ${p.hold ? 'on' : ''}" id="holdBtn" aria-pressed="${!!p.hold}" ${p.enabled ? '' : 'disabled'} title="Keep this parameter at its current value while the register moves">${PAUSE_ICON}Hold</button>
+      ${p.enabled ? '<button class="small" id="unassign">Unassign</button>' : '<button class="small" id="assign">Assign</button>'}
+    </div>
+    <div class="fields">
+      <label class="field">Start bit<input type="number" id="fStart" min="0" max="63" value="${p.start}" ${p.enabled ? '' : 'disabled'}></label>
+      <label class="field">Width (bits)<input type="number" id="fWidth" min="1" max="16" value="${p.width}" ${p.enabled ? '' : 'disabled'}></label>
+      <label class="field">Min<input type="number" id="fMin" min="${P.lo}" max="${P.hi}" value="${p.min}"></label>
+      <label class="field">Max<input type="number" id="fMax" min="${P.lo}" max="${P.hi}" value="${p.max}"></label>
+    </div>
+    <div class="range" id="range">
+      <div class="rtrack" id="rtrack">
+        <div class="rbase"></div><div class="rwin" id="rwin"></div>
+        ${P.id === 'trig' ? `<div class="thresh" style="left:${(512 - P.lo) / (P.hi - P.lo) * 100}%" title="fires above this line"></div>` : ''}
+        <div class="rlive" id="rlive"></div>
+        <div class="thumb" id="thMin" title="Min" tabindex="-1">▾</div><div class="thumb" id="thMax" title="Max" tabindex="-1">▴</div>
+      </div>
+      <div class="rlabels"><span>${fmt(i, P.lo, true)}</span><span>${fmt(i, P.hi, true)}</span></div>
+    </div>
+    <dl class="kv">
+      <dt>Min</dt><dd id="roMin"></dd><dt>Max</dt><dd id="roMax"></dd>
+      <dt>Now</dt><dd id="roNow"></dd>
+      <dt>Steps</dt><dd id="roSteps"></dd>
+    </dl>`;
+  $('mBin').onclick = () => { p.popcount = false; changed(); };
+  $('mPop').onclick = () => { p.popcount = true; changed(); };
+  $('inv').onclick = () => { p.invert = !p.invert; changed(); };
+  $('holdBtn').onclick = () => setHold(i, !p.hold);
+  if ($('fSource')) $('fSource').onchange = (e) => { p.source = +e.target.value; changed(); };
+  if ($('unassign')) $('unassign').onclick = () => { p.enabled = false; changed(); };
+  if ($('assign')) $('assign').onclick = () => { p.enabled = true; changed(); };
+  const num = (id, fn) => { $(id).onchange = (e) => { fn(+e.target.value); changed(); }; };
+  num('fStart', (v) => { p.start = clamp(v, 0, REG - p.width); });
+  num('fWidth', (v) => { p.width = clamp(v, 1, Math.min(MAX_W, REG - p.start)); });
+  num('fMin', (v) => { p.min = v; });
+  num('fMax', (v) => { p.max = v; });
+  attachRangeDrag(i);
+  updateInspectorLive();
+}
+
+function updateInspectorLive() {
+  const i = selected, P = PARAMS[i], p = cfg.params[i];
+  if (!$('rwin')) return;
+  const pos = (v) => (v - P.lo) / (P.hi - P.lo) * 100;
+  const a = Math.min(p.min, p.max), b = Math.max(p.min, p.max), v = paramValue(i);
+  $('rwin').style.left = pos(a) + '%'; $('rwin').style.width = Math.max(0.5, pos(b) - pos(a)) + '%';
+  $('thMin').style.left = pos(p.min) + '%'; $('thMax').style.left = pos(p.max) + '%';
+  $('rlive').style.left = pos(v) + '%';
+  $('roMin').textContent = `${p.min} · ${fmt(i, p.min)}`;
+  $('roMax').textContent = `${p.max} · ${fmt(i, p.max)}`;
+  renderWord(i);
+  if (p.enabled) {
+    const n = p.popcount ? p.width + 1 : 2 ** p.width;
+    $('roSteps').textContent = `${n} possible values${loopsTouched(p)}`;
+  } else { $('roSteps').textContent = 'fixed at Min'; }
+  $('roNow').textContent = `${v} · ${fmt(i, v)}`;
+}
+// The selected parameter's word: its bits as cells, in the grid's order
+// (start bit, the least significant, on the left), what they read as, and
+// the value that gives. Rebuilt only when the word's position changes.
+function renderWord(i) {
+  const el = $('word'), p = cfg.params[i];
+  if (!el) return;
+  if (!p.enabled) {
+    if (!el.classList.contains('unassigned')) { el.className = 'word unassigned'; el.innerHTML = 'Unassigned: no bits, fixed at Min.'; }
+    return;
+  }
+  const key = p.start + ':' + p.width;
+  if (el.dataset.key !== key || el.classList.contains('unassigned')) {
+    el.className = 'word'; el.dataset.key = key;
+    let h = '<div class="cells">';
+    for (let j = 0; j < p.width; j++) h += '<div class="cell"><i></i><span>' + (p.start + j) + '</span></div>';
+    el.innerHTML = h + '</div><div class="sum"></div>';
+  }
+  el.querySelectorAll('.cell').forEach((c, j) => { c.classList.toggle('on', !!bits[p.start + j]); c.classList.toggle('flip', !!flipped[p.start + j]); });
+  let set = 0; for (let j = 0; j < p.width; j++) set += bits[p.start + j];
+  const read = p.popcount ? `<b>${set}</b> of ${p.width} set` : `<b>${rawBits(p)}</b> of ${2 ** p.width - 1}`;
+  const live = liveValue(i), shown = paramValue(i);
+  el.querySelector('.sum').innerHTML = read + (p.invert ? ', inverted' : '') + ' → <b>' + fmt(i, live) + '</b>'
+    + (p.hold && shown !== live ? ' <span class="heldv">held at ' + fmt(i, shown) + '</span>' : '');
+}
+
+function loopsTouched(p) {
+  const s = loopStarts(), hit = [];
+  cfg.loops.forEach((l, i) => { if (p.start < s[i] + l.length && p.start + p.width > s[i]) hit.push('L' + (i + 1)); });
+  if (p.start + p.width > usedBits()) hit.push('fixed bits');
+  return hit.length ? `, reads ${hit.join(' + ')}` : '';
+}
+
+function renderLive() {
+  $('bitTrk').childNodes.forEach((d, b) => { d.classList.toggle('on', !!bits[b]); d.classList.toggle('flip', !!flipped[b]); });
+  document.querySelectorAll('.lane').forEach((row) => {
+    const i = +row.dataset.i, P = PARAMS[i], v = paramValue(i);
+    row.querySelector('.val').textContent = fmt(i, v, true);
+    row.querySelector('.meter .pos').style.left = `calc(${(v - P.lo) / (P.hi - P.lo) * 100}% - 1px)`;
+  });
+  updateInspectorLive();
+  drawEnvs();
+  renderKnobs();
+}
+
+function select(i) {
+  const gi = groupOf(i);
+  if (gi >= 0 && foldedGroups.has(LANE_GROUPS[gi].name)) setFold(gi, false); selected = i; renderLanes(); renderInspector(); }
+
+// ---------------------------------------------------------------- envelope drawing (same curve as firmware)
+function curve(p, c) { // p 0..1, c -512..511
+  const cube = p * p * p, snappy = 1 - (1 - p) ** 3;
+  return c >= 0 ? p + (snappy - p) * c / 512 : p + (cube - p) * (-c) / 512;
+}
+function drawEnvs() {
+  const cv = $('envs'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+  const css = getComputedStyle(document.documentElement);
+  ctx.clearRect(0, 0, W, H);
+  const v = PARAMS.map((_, i) => paramValue(i));
+  // filter, volume, FM (fixed shape 896, as main.cpp kFmEnvShape), and the
+  // two pitch envelopes when their amount isn't zero (Osc 2's dashed)
+  const envs = [[v[10], v[11], v[12], css.getPropertyValue('--s0')], [v[13], v[14], v[15], css.getPropertyValue('--s5')], [v[19], v[20], 896, css.getPropertyValue('--s3')]];
+  if (v[21]) envs.push([v[22], v[23], v[24], css.getPropertyValue('--s6')]);
+  if (v[25]) envs.push([v[26], v[27], v[28], css.getPropertyValue('--s6'), true]);
+  const total = Math.max(...envs.map(([a, d]) => ms(a) + ms(d)));
+  $('envSpan').textContent = fmtMs(total);
+  ctx.strokeStyle = css.getPropertyValue('--grid'); ctx.lineWidth = 1;
+  for (let g = 1; g < 4; g++) { ctx.beginPath(); ctx.moveTo(0, H * g / 4); ctx.lineTo(W, H * g / 4); ctx.stroke(); }
+  const pad = 8;
+  envs.forEach(([a, d, s, col, dashed], k) => {
+    const ta = ms(a), td = ms(d), c = s - 512;
+    ctx.beginPath(); ctx.strokeStyle = col.trim(); ctx.lineWidth = k === 1 ? 2.5 : 2; ctx.setLineDash(dashed ? [6, 4] : []);
+    for (let x = 0; x <= W; x++) {
+      const t = x / W * total; let y;
+      if (t < ta) y = curve(t / ta, c); else if (t < ta + td) y = 1 - curve((t - ta) / td, c); else y = 0;
+      const py = H - pad - y * (H - 2 * pad);
+      x ? ctx.lineTo(x, py) : ctx.moveTo(x, py);
+    }
+    ctx.stroke();
+  });
+}
+
+// ---------------------------------------------------------------- dragging
+function bitAt(clientX, el, round = false) {
+  const r = el.getBoundingClientRect(), f = (clientX - r.left) / r.width * REG;
+  return round ? clamp(Math.round(f), 0, REG) : clamp(Math.floor(f), 0, REG - 1);
+}
+function overTray(x, y) { const r = $('tray').getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; }
+
+function attachLaneDrag(trk, i) {
+  trk.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const p = cfg.params[i];
+    select(i);
+    const b0 = bitAt(e.clientX, trk);
+    let mode, grab = 0, anchor = b0, end = p.start + p.width;
+    if (e.target.closest('.eh.l')) mode = 'left';
+    else if (e.target.closest('.eh.r')) mode = 'right';
+    else if (e.target.closest('.bar')) { mode = 'move'; grab = b0 - p.start; }
+    else { mode = 'draw'; p.enabled = true; p.start = b0; p.width = 1; renderLanes(); renderTray(); }
+    trk.setPointerCapture(e.pointerId);
+    const move = (ev) => {
+      const b = bitAt(ev.clientX, trk);
+      if (mode === 'move') p.start = clamp(b - grab, 0, REG - p.width);
+      else if (mode === 'left') { const s = clamp(b, end - MAX_W, end - 1); p.start = Math.max(0, s); p.width = end - p.start; }
+      else if (mode === 'right') p.width = clamp(b - p.start + 1, 1, Math.min(MAX_W, REG - p.start));
+      else { const w = Math.min(MAX_W, Math.abs(b - anchor) + 1); p.width = w; p.start = b < anchor ? anchor - w + 1 : anchor; }
+      $('tray').classList.toggle('over', mode === 'move' && overTray(ev.clientX, ev.clientY));
+      renderLanes(); renderLive(); updateInspectorFields();
+    };
+    const up = (ev) => {
+      trk.removeEventListener('pointermove', move); trk.removeEventListener('pointerup', up); trk.removeEventListener('pointercancel', up);
+      $('tray').classList.remove('over');
+      if (mode === 'move' && overTray(ev.clientX, ev.clientY)) p.enabled = false;
+      changed();
+    };
+    trk.addEventListener('pointermove', move); trk.addEventListener('pointerup', up); trk.addEventListener('pointercancel', up);
+  });
+}
+function updateInspectorFields() { const p = cfg.params[selected]; if ($('fStart')) { $('fStart').value = p.start; $('fWidth').value = p.width; } }
+
+function attachChipDrag(chip, i) {
+  chip.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    select(i);
+    let ghost = null; const x0 = e.clientX, y0 = e.clientY;
+    chip.setPointerCapture(e.pointerId);
+    const laneTrk = () => document.querySelector(`.lane[data-i="${i}"] .trk`);
+    const move = (ev) => {
+      if (!ghost && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 4) return;
+      if (!ghost) { ghost = chip.cloneNode(true); ghost.classList.add('ghostchip'); document.body.appendChild(ghost); }
+      ghost.style.left = (ev.clientX + 8) + 'px'; ghost.style.top = (ev.clientY + 8) + 'px';
+    };
+    const up = (ev) => {
+      chip.removeEventListener('pointermove', move); chip.removeEventListener('pointerup', up); chip.removeEventListener('pointercancel', up);
+      if (ghost) ghost.remove();
+      if (!ghost) return; // a click: just selected
+      const g = $('grid').getBoundingClientRect();
+      if (ev.clientX >= g.left && ev.clientX <= g.right && ev.clientY >= g.top && ev.clientY <= g.bottom) {
+        const ruler = $('ruler'), r = ruler.getBoundingClientRect(); // the lane may be folded away: the ruler has the same columns
+        if (ev.clientX >= r.left) {
+          const p = cfg.params[i];
+          p.width = PARAMS[i].w; p.start = clamp(bitAt(ev.clientX, ruler), 0, REG - p.width); p.enabled = true;
+          const gi = groupOf(i); if (gi >= 0) setFold(gi, false);
+          changed();
+          laneTrk().scrollIntoView({ block: 'nearest' });
+        }
+      }
+    };
+    chip.addEventListener('pointermove', move); chip.addEventListener('pointerup', up); chip.addEventListener('pointercancel', up);
+  });
+}
+
+function attachBoundaryDrag(h, i) {
+  h.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const trk = $('loopTrk'); // handles are rebuilt while dragging, so capture on the track
+    trk.setPointerCapture(e.pointerId);
+    const move = (ev) => {
+      const starts = loopStarts(), s = starts[i], last = i === cfg.loops.length - 1;
+      const limit = last ? REG : starts[i + 1] + cfg.loops[i + 1].length - 1;
+      const pos = clamp(bitAt(ev.clientX, trk, true), s + 1, limit);
+      const delta = pos - (s + cfg.loops[i].length);
+      if (!delta) return;
+      cfg.loops[i].length += delta;
+      if (!last) cfg.loops[i + 1].length -= delta;
+      renderLoops(); renderLoopTable(); renderLive();
+    };
+    const up = () => { trk.removeEventListener('pointermove', move); trk.removeEventListener('pointerup', up); trk.removeEventListener('pointercancel', up); changed(); };
+    trk.addEventListener('pointermove', move); trk.addEventListener('pointerup', up); trk.addEventListener('pointercancel', up);
+  });
+}
+
+function attachRangeDrag(i) {
+  const trk = $('rtrack'), P = PARAMS[i], p = cfg.params[i];
+  trk.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const r = trk.getBoundingClientRect();
+    const val = (x) => clamp(Math.round(P.lo + (x - r.left) / r.width * (P.hi - P.lo)), P.lo, P.hi);
+    const v0 = val(e.clientX);
+    // Grab whichever end is nearer (the thumbs can cross: Min above Max reverses the mapping)
+    const key = e.target.id === 'thMin' ? 'min' : e.target.id === 'thMax' ? 'max' : (Math.abs(v0 - p.min) <= Math.abs(v0 - p.max) ? 'min' : 'max');
+    trk.setPointerCapture(e.pointerId);
+    const move = (ev) => { p[key] = val(ev.clientX); $('fMin').value = p.min; $('fMax').value = p.max; renderLanes(); renderLive(); };
+    move(e);
+    const up = () => { trk.removeEventListener('pointermove', move); trk.removeEventListener('pointerup', up); trk.removeEventListener('pointercancel', up); changed(); };
+    trk.addEventListener('pointermove', move); trk.addEventListener('pointerup', up); trk.addEventListener('pointercancel', up);
+  });
+}
+
+// ---------------------------------------------------------------- change handling
+let sendTimer = 0;
+function changed() {
+  dirty = true;
+  if (!slots.edited && slots.list) { slots.edited = true; requestAnimationFrame(renderSlots); }
+  render();
+  // Every edit goes to a connected card straight away (batched while dragging)
+  if (link.cardOnline) { clearTimeout(sendTimer); sendTimer = setTimeout(sendConfig, 60); }
+}
+
+// ---------------------------------------------------------------- serialisation (byte layout = firmware Serialise)
+function serialise() {
+  validate();
+  const b = [CONFIG_FORMAT, cfg.loops.length];
+  for (let i = 0; i < MAX_LOOPS; i++) { const l = cfg.loops[i] || { length: 8, divider: 1, chaos: 100 }; b.push(l.length, l.divider, l.chaos); }
+  b.push(cfg.scaleMask & 0xFF, cfg.scaleMask >> 8, cfg.root);
+  cfg.params.forEach((p) => {
+    const mn = p.min & 0xFFFF, mx = p.max & 0xFFFF;
+    b.push(p.enabled ? 1 : 0, p.start, p.width, (p.popcount ? 1 : 0) | (p.invert ? 2 : 0) | (p.hold ? 4 : 0) | ((p.source || 0) << 3), mn & 0xFF, mn >> 8, mx & 0xFF, mx >> 8);
+  });
+  return b;
+}
+function deserialise(b) {
+  if (b.length !== CONFIG_BYTES || b[0] !== CONFIG_FORMAT) return null;
+  const s16 = (lo, hi) => { const v = lo | (hi << 8); return v >= 0x8000 ? v - 0x10000 : v; };
+  const c = { loops: [], params: [] };
+  const n = b[1];
+  for (let i = 0; i < MAX_LOOPS; i++) { const o = 2 + i * 3; if (i < n) c.loops.push({ length: b[o], divider: b[o + 1], chaos: b[o + 2] }); }
+  c.scaleMask = b[26] | (b[27] << 8); c.root = b[28];
+  for (let i = 0; i < PARAMS.length; i++) {
+    const o = 29 + i * 8;
+    c.params.push({ enabled: !!b[o], start: b[o + 1], width: b[o + 2], popcount: !!(b[o + 3] & 1), invert: !!(b[o + 3] & 2), hold: !!(b[o + 3] & 4), source: b[o + 3] >> 3, min: s16(b[o + 4], b[o + 5]), max: s16(b[o + 6], b[o + 7]) });
+  }
+  return c;
+}
+const toNib = (b) => b.flatMap((x) => [x >> 4, x & 15]);
+const fromNib = (n) => { const o = []; for (let i = 0; i + 1 < n.length; i += 2) o.push(((n[i] & 15) << 4) | (n[i + 1] & 15)); return o; };
+
+// The layout's name, kept in exported files: the Layout name box, or else
+// the name of the slot the card is playing
+function layoutName() {
+  return $('layoutName').value.trim() || (slots.list && slots.list[slots.current] && slots.list[slots.current].name) || '';
+}
+function setLayoutName(n) { $('layoutName').value = n; $('slot-name').value = n; }
+
+function toJSON() {
+  validate();
+  return JSON.stringify({
+    format: 'palette', version: 1, name: layoutName(),
+    loops: cfg.loops, scale: cfg.scaleMask.toString(2).padStart(12, '0').split('').reverse().map(Number), root: cfg.root,
+    params: Object.fromEntries(cfg.params.map((p, i) => [PARAMS[i].id, { ...p }])),
+  }, null, 1);
+}
+// fallbackName: used when the file has no name (e.g. the file's own name)
+function fromJSON(text, fallbackName = '') {
+  const j = JSON.parse(text);
+  if (j.format !== 'palette') throw new Error('This is not a Turing’s Palette layout (missing "format": "palette").');
+  const d = defaultConfig();
+  const c = {
+    loops: Array.isArray(j.loops) ? j.loops.map((l) => ({ length: +l.length, divider: +l.divider || 1, chaos: l.chaos ?? 100 })) : d.loops,
+    scaleMask: Array.isArray(j.scale) ? j.scale.reduce((m, v, n) => m | (v ? 1 << n : 0), 0) : d.scaleMask,
+    root: j.root ?? d.root,
+    // 'fmamt' was FM Offset's name before the FM envelope arrived
+    params: PARAMS.map((P, i) => ({ ...d.params[i], ...(j.params?.[P.id] || (P.id === 'fmoffset' ? j.params?.fmamt : null) || {}) })),
+  };
+  cfg = c; heldVal.length = 0;
+  const name = String(j.name ?? fallbackName).replace(/[^\x20-\x7e]/g, '').slice(0, 16).trim();
+  setLayoutName(name);
+  changed();
+  return name;
+}
+
+// ---------------------------------------------------------------- WebMIDI (protocol: ../sysex.h)
+const SYSEX_MFR = 0x7D, SYSEX_PRODUCT = 0x50, PROTOCOL_VERSION = 9;
+const CMD = { HELLO: 1, STATE: 2, SET_CONFIG: 3, SAVE: 4, SET_REG: 5, RESET: 6, STATUS: 7, SAVED: 8, PING: 9, KNOB: 10,
+  LOAD_SLOT: 11, CLEAR_SLOT: 12, GET_SLOTS: 13, SLOTS: 14, RENAME_SLOT: 15 };
+const NUM_SLOTS = 6, NAME_LEN = 16;
+// The card's layout slots, from its SLOTS messages (null until it sends them)
+const slots = { list: null, current: -1, edited: false, confirmClear: -1, announced: -1, justSaved: false };
+// Names travel as 16 bytes of printable 7-bit ASCII
+function nameBytes(t) { const b = []; for (const ch of (t || '').slice(0, NAME_LEN)) { const c = ch.charCodeAt(0); b.push(c >= 32 && c < 127 ? c : 63); } while (b.length < NAME_LEN) b.push(0); return b; }
+const link = { access: null, card: { in: null, out: null }, cardOnline: false, pingTimer: 0, sysexOn: false, sysexBuf: [], lastStatus: 0, lastTick: -1 };
+
+function say(text, isErr) { const m = $('msg'); m.textContent = text || ''; m.className = isErr ? 'err' : ''; }
+function setStatus(kind, text) { $('dot').className = 'dot ' + kind; $('status-text').textContent = text; }
+const sysex = (cmd, payload) => [0xF0, SYSEX_MFR, SYSEX_PRODUCT, cmd, ...payload, 0xF7];
+function sendRaw(bytes) { if (link.cardOnline && link.card.out) { try { link.card.out.send(bytes); } catch (e) { console.warn(e); } } }
+const put14 = (v) => [(v >> 7) & 0x7F, v & 0x7F];
+const get14 = (p, i) => ((p[i] & 0x7F) << 7) | (p[i + 1] & 0x7F);
+function sendConfig() { sendRaw(sysex(CMD.SET_CONFIG, [PROTOCOL_VERSION, ...toNib(serialise())])); dirty = false; }
+function sendReg() { const b = []; for (let k = 0; k < 8; k++) { let v = 0; for (let j = 0; j < 8; j++) v |= bits[k * 8 + j] << j; b.push(v); } sendRaw(sysex(CMD.SET_REG, toNib(b))); }
+function sendKnob(i, v) { sendRaw(sysex(CMD.KNOB, [i, ...put14(v)])); }
+
+const isCardName = (n) => /palette/i.test(n || '');
+
+async function connect() {
+  if (!navigator.requestMIDIAccess) { say('This browser has no WebMIDI. Use Chrome or Edge on a computer.', true); return; }
+  say('The browser will ask to use MIDI devices with SysEx: choose Allow.');
+  try { link.access = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { say('MIDI access was refused (' + (e && e.message || e) + '). Allow MIDI with SysEx for this page, then try again.', true); return; }
+  link.access.onstatechange = () => scanPorts();
+  $('btn-connect').hidden = true; $('btn-rescan').hidden = false;
+  scanPorts();
+}
+
+function scanPorts() {
+  const acc = link.access; if (!acc) return;
+  const ins = [...acc.inputs.values()].filter(p => p.state !== 'disconnected');
+  const outs = [...acc.outputs.values()].filter(p => p.state !== 'disconnected');
+  const cardIn = ins.find(p => isCardName(p.name)) || null, cardOut = outs.find(p => isCardName(p.name)) || null;
+  for (const p of ins) p.onmidimessage = null;
+  if (cardIn) cardIn.onmidimessage = (ev) => onCardBytes(ev.data);
+  const wasOnline = link.cardOnline;
+  link.card.in = cardIn; link.card.out = cardOut;
+  link.cardOnline = !!(cardIn && cardOut);
+  link.sysexBuf = []; link.sysexOn = false;
+  $('btn-read').disabled = $('btn-send').disabled = $('btn-save').disabled = !link.cardOnline;
+  clearInterval(link.pingTimer);
+  const others = ins.filter(p => p !== cardIn);
+  const note = others.length ? ' Other MIDI inputs: ' + others.map(p => '“' + (p.name || '?') + '”').join(', ') + '.' : '';
+  if (link.cardOnline) {
+    link.pingTimer = setInterval(() => sendRaw(sysex(CMD.PING, [])), 1000);
+    sendRaw(sysex(CMD.PING, []));
+    setStatus('ok', 'Turing’s Palette card');
+    if (!wasOnline) { say('Card connected. Reading its layouts…'); sendRaw(sysex(CMD.HELLO, [])); } // the card is the source of truth: read it
+  } else {
+    knobs.waiting = [false, false, false]; knobs.notes = null; knobs.mainSlot = false;
+    slots.list = null; slots.current = -1; slots.announced = -1;
+    setStatus('warn', 'No card found');
+    say('No “Turing’s Palette” card found. Use a USB data cable into the Computer’s USB socket, close other apps using it, and power-cycle the module after plugging in.' + note, true);
+  }
+  render();
+  renderSlots();
+}
+
+function onCardBytes(d) {
+  for (const b of d) {
+    if (b === 0xF0) { link.sysexOn = true; link.sysexBuf = []; continue; }
+    if (!link.sysexOn) continue;
+    if (b === 0xF7) { link.sysexOn = false; handleCardMessage(link.sysexBuf); link.sysexBuf = []; continue; }
+    if (b & 0x80) { if (b < 0xF8) link.sysexOn = false; continue; }
+    if (link.sysexBuf.length < 1200) link.sysexBuf.push(b); else link.sysexOn = false;
+  }
+}
+
+let lastTrig = -1;
+function handleCardMessage(m) {
+  if (m.length < 3 || m[0] !== SYSEX_MFR || m[1] !== SYSEX_PRODUCT) return;
+  const cmd = m[2], p = m.slice(3);
+  if (cmd === CMD.STATE) {
+    if (p[0] !== PROTOCOL_VERSION) { say('The card speaks protocol version ' + p[0] + ' but this page speaks ' + PROTOCOL_VERSION + '. Use the matching editor and firmware.', true); return; }
+    if (p.length !== 1 + 2 * CONFIG_BYTES + 6 + 2 * PARAMS.length) { say('The card sent a state message of an unexpected size: is its firmware a different version?', true); return; }
+    const c = deserialise(fromNib(p.slice(1, 1 + 2 * CONFIG_BYTES)));
+    if (!c) { say('Could not read the card’s layout.', true); return; }
+    cfg = c; dirty = false; slots.edited = false;
+    for (let i = 0; i < 3; i++) knobs.set[i] = get14(p, 1 + 2 * CONFIG_BYTES + 2 * i);
+    // The values the card is using: the held ones can't be worked out from the register
+    heldVal.length = 0;
+    PARAMS.forEach((_, i) => { if (c.params[i].hold) heldVal[i] = get14(p, 1 + 2 * CONFIG_BYTES + 6 + 2 * i) - 8192; });
+    say('Read the layout from the card.');
+    render();
+  } else if (cmd === CMD.STATUS && p.length >= 34) {
+    // The register, 30 times a second
+    const b = fromNib(p.slice(0, 16));
+    for (let i = 0; i < REG; i++) bits[i] = (b[i >> 3] >> (i & 7)) & 1;
+    flipped.fill(0);
+    if (p[16] !== link.lastTick) { if (link.lastTick >= 0) clockAt = performance.now(); link.lastTick = p[16]; }
+    if (p[17] !== lastTrig) { if (lastTrig >= 0) firedAt = performance.now(); lastTrig = p[17]; }
+    knobs.sw = p[18] & 3; knobs.ext = !!(p[18] & 4);
+    knobs.waiting = [!!(p[18] & 8), !!(p[18] & 16), !!(p[18] & 32)];
+    for (let i = 0; i < 3; i++) { if (knobs.dragging !== i) knobs.set[i] = get14(p, 19 + 2 * i); knobs.phys[i] = get14(p, 25 + 2 * i); }
+    knobs.notes = [p[32], p[33]];
+    knobs.mainSlot = !!(p[18] & 64);
+    if (p.length >= 36 && slots.list && p[34] !== slots.current) { slots.current = p[34]; renderSlots(); }
+    renderLive();
+  } else if (cmd === CMD.SAVED) {
+    slots.edited = false; slots.justSaved = true;
+    const sl = slots.list && slots.list[p[0]], nm = $('slot-name').value.trim() || (sl && sl.name);
+    say('Saved into slot ' + (p[0] + 1) + (nm ? ', “' + nm + '”' : '') + '. The card keeps it, and starts with it, after power-off.');
+  } else if (cmd === CMD.SLOTS && p.length >= 2 + NUM_SLOTS * (2 + 8 + NAME_LEN)) {
+    const had = !!slots.list, moved = p[1] !== slots.announced;
+    slots.current = p[1];
+    slots.list = [];
+    for (let i = 0; i < p[0] && i < NUM_SLOTS; i++) {
+      const o = 2 + i * (2 + 8 + NAME_LEN);
+      const name = String.fromCharCode(...p.slice(o + 10, o + 10 + NAME_LEN).filter(c => c)).trim();
+      slots.list.push({ used: !!p[o], loops: p.slice(o + 2, o + 2 + p[o + 1]), name });
+    }
+    // Say when the card moves to another slot (Main with the switch up, or
+    // a Load), whichever order its messages arrive in; a save says so itself
+    if (had && slots.current !== slots.announced && !slots.justSaved) {
+      const sl = slots.list[slots.current];
+      say('The card is playing slot ' + (slots.current + 1) + (sl && sl.name ? ', “' + sl.name + '”' : '') + '.');
+    }
+    slots.announced = slots.current; slots.justSaved = false;
+    if (!$('slot-name').value || document.activeElement !== $('slot-name')) $('slot-name').value = (slots.list[slots.current] || {}).name || '';
+    // The layout name follows the slot that is playing, when that changes
+    if ((moved || !$('layoutName').value) && document.activeElement !== $('layoutName')) $('layoutName').value = (slots.list[slots.current] || {}).name || '';
+    renderSlots();
+  }
+}
+
+// ---------------------------------------------------------------- folding cards (as CVSeq)
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private window */ } },
+};
+function buildCollapsers() {
+  const folded = new Set(store.get('palette.folded.v1', []) || []);
+  document.querySelectorAll('section.card').forEach((card) => {
+    const h = card.querySelector(':scope > h2'); if (!h) return;
+    const name = h.textContent.trim();
+    const b = document.createElement('button'); b.className = 'fold'; b.type = 'button';
+    const show = (f) => {
+      card.classList.toggle('folded', f);
+      b.textContent = f ? '+' : '−';
+      b.title = (f ? 'Show ' : 'Hide ') + name; b.setAttribute('aria-label', b.title);
+      b.setAttribute('aria-expanded', String(!f));
+    };
+    show(folded.has(name));
+    b.addEventListener('click', () => { const f = !card.classList.contains('folded'); show(f); f ? folded.add(name) : folded.delete(name); store.set('palette.folded.v1', [...folded]); });
+    h.appendChild(b);
+  });
+}
+
+// ---------------------------------------------------------------- wiring
+function wire() {
+  $('btn-connect').onclick = connect;
+  $('btn-rescan').onclick = scanPorts;
+  $('btn-read').onclick = () => sendRaw(sysex(CMD.HELLO, []));
+  $('btn-send').onclick = () => { sendConfig(); say('Sent the layout to the card.'); };
+  $('btn-save').onclick = () => saveSlot(slots.current >= 0 ? slots.current : 0);
+  $('btn-reset').onclick = () => {
+    cfg = defaultConfig(); dirty = false; heldVal.length = 0;
+    if (link.cardOnline) sendRaw(sysex(CMD.RESET, [])); // the card replies with its new state
+    render(); say('Factory layout loaded.');
+  };
+  // Knob sliders: in simulation they stand in for the knobs; with a card they
+  // set the value, and the module's knob then picks up from it
+  for (let i = 0; i < 3; i++) {
+    const s = $('knob' + i);
+    s.addEventListener('input', () => { knobs.dragging = i; knobs.set[i] = +s.value; if (link.cardOnline) sendKnob(i, knobs.set[i]); renderKnobs(); });
+    s.addEventListener('change', () => { knobs.dragging = -1; });
+    s.addEventListener('pointerup', () => { knobs.dragging = -1; });
+  }
+  $('sim-play').onclick = () => { simRunning = !simRunning; $('sim-play').textContent = simRunning ? 'Pause' : 'Play'; };
+  $('sim-lock').onclick = () => { simLock = !simLock; renderKnobs(); };
+  $('sim-scramble').onclick = () => { const used = usedBits(); for (let b = 0; b < used; b++) bits[b] = Math.random() < 0.5 ? 1 : 0; flipped.fill(0); renderLive(); };
+  $('foldAll').onclick = () => LANE_GROUPS.forEach((_, gi) => setFold(gi, true));
+  $('unfoldAll').onclick = () => LANE_GROUPS.forEach((_, gi) => setFold(gi, false));
+  $('addLoop').onclick = () => { const free = REG - usedBits(); if (free > 0) { cfg.loops.push({ length: Math.min(free, 16), divider: 1, chaos: 100 }); changed(); } };
+  document.querySelectorAll('[data-preset]').forEach((b) => b.onclick = () => {
+    const n = +b.dataset.preset, old = cfg.loops;
+    cfg.loops = Array.from({ length: n }, (_, i) => ({ length: REG / n, divider: old[i]?.divider ?? 1, chaos: old[i]?.chaos ?? 100 }));
+    loopCounters.fill(0); changed();
+  });
+  $('exportJson').onclick = () => { $('json').value = toJSON(); };
+  $('copyJson').onclick = () => {
+    const text = toJSON(); $('json').value = text;
+    navigator.clipboard?.writeText(text).then(() => say('Copied the layout as JSON.'), () => { $('json').select(); say('Press Ctrl+C to copy the selected JSON.'); });
+  };
+  $('downloadJson').onclick = () => {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([toJSON()], { type: 'application/json' }));
+    const slug = layoutName().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'layout';
+    a.download = 'turings-palette-' + slug + '.json'; document.body.appendChild(a); a.click(); a.remove();
+  };
+  $('importBtn').onclick = () => $('importFile').click();
+  const loaded = (name) => say('Layout loaded' + (name ? ': “' + name + '”' : '') + (link.cardOnline ? '. It is playing on the card; Save here in Layouts on the card keeps it in a slot, under this name.' : '.'));
+  // A file without a name inside takes its file name (less the usual prefix)
+  $('importFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { loaded(fromJSON(await f.text(), f.name.replace(/\.json$/i, '').replace(/^turings-palette-/, ''))); } catch (err) { say(err.message, true); } e.target.value = ''; };
+  $('importJson').onclick = () => { try { loaded(fromJSON($('json').value)); } catch (err) { say(err.message.startsWith('This') ? err.message : 'That text is not valid JSON.', true); } };
+  // Connect straight away if the browser already allows MIDI for this page
+  navigator.permissions?.query({ name: 'midi', sysex: true }).then((s) => { if (s.state === 'granted') connect(); }).catch(() => {});
+  if (!navigator.requestMIDIAccess) say('This browser can’t do WebMIDI, so it can’t reach the card. You can still design layouts here and watch them simulated.');
+  else say('Simulating. Connect the card to edit it live.');
+}
+
+buildStatic(); buildCollapsers(); wire(); render(); renderSlots(); setStatus('', 'Not connected'); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
