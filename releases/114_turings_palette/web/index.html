@@ -412,6 +412,7 @@
 
       <section class="card">
         <h2>Share a layout</h2>
+        <label class="field" style="margin-bottom:8px">Layout name<input id="layoutName" maxlength="16" placeholder="e.g. Bells" autocomplete="off"></label>
         <div class="dirs" style="margin-top:0">
           <button class="small" id="exportJson">Show JSON</button>
           <button class="small" id="copyJson">Copy</button>
@@ -1332,15 +1333,23 @@ function deserialise(b) {
 const toNib = (b) => b.flatMap((x) => [x >> 4, x & 15]);
 const fromNib = (n) => { const o = []; for (let i = 0; i + 1 < n.length; i += 2) o.push(((n[i] & 15) << 4) | (n[i + 1] & 15)); return o; };
 
+// The layout's name, kept in exported files: the Layout name box, or else
+// the name of the slot the card is playing
+function layoutName() {
+  return $('layoutName').value.trim() || (slots.list && slots.list[slots.current] && slots.list[slots.current].name) || '';
+}
+function setLayoutName(n) { $('layoutName').value = n; $('slot-name').value = n; }
+
 function toJSON() {
   validate();
   return JSON.stringify({
-    format: 'palette', version: 1,
+    format: 'palette', version: 1, name: layoutName(),
     loops: cfg.loops, scale: cfg.scaleMask.toString(2).padStart(12, '0').split('').reverse().map(Number), root: cfg.root,
     params: Object.fromEntries(cfg.params.map((p, i) => [PARAMS[i].id, { ...p }])),
   }, null, 1);
 }
-function fromJSON(text) {
+// fallbackName: used when the file has no name (e.g. the file's own name)
+function fromJSON(text, fallbackName = '') {
   const j = JSON.parse(text);
   if (j.format !== 'palette') throw new Error('This is not a Turing’s Palette layout (missing "format": "palette").');
   const d = defaultConfig();
@@ -1351,7 +1360,11 @@ function fromJSON(text) {
     // 'fmamt' was FM Offset's name before the FM envelope arrived
     params: PARAMS.map((P, i) => ({ ...d.params[i], ...(j.params?.[P.id] || (P.id === 'fmoffset' ? j.params?.fmamt : null) || {}) })),
   };
-  cfg = c; heldVal.length = 0; changed();
+  cfg = c; heldVal.length = 0;
+  const name = String(j.name ?? fallbackName).replace(/[^\x20-\x7e]/g, '').slice(0, 16).trim();
+  setLayoutName(name);
+  changed();
+  return name;
 }
 
 // ---------------------------------------------------------------- WebMIDI (protocol: ../sysex.h)
@@ -1462,7 +1475,7 @@ function handleCardMessage(m) {
     const sl = slots.list && slots.list[p[0]], nm = $('slot-name').value.trim() || (sl && sl.name);
     say('Saved into slot ' + (p[0] + 1) + (nm ? ', “' + nm + '”' : '') + '. The card keeps it, and starts with it, after power-off.');
   } else if (cmd === CMD.SLOTS && p.length >= 2 + NUM_SLOTS * (2 + 8 + NAME_LEN)) {
-    const had = !!slots.list;
+    const had = !!slots.list, moved = p[1] !== slots.announced;
     slots.current = p[1];
     slots.list = [];
     for (let i = 0; i < p[0] && i < NUM_SLOTS; i++) {
@@ -1478,6 +1491,8 @@ function handleCardMessage(m) {
     }
     slots.announced = slots.current; slots.justSaved = false;
     if (!$('slot-name').value || document.activeElement !== $('slot-name')) $('slot-name').value = (slots.list[slots.current] || {}).name || '';
+    // The layout name follows the slot that is playing, when that changes
+    if ((moved || !$('layoutName').value) && document.activeElement !== $('layoutName')) $('layoutName').value = (slots.list[slots.current] || {}).name || '';
     renderSlots();
   }
 }
@@ -1543,11 +1558,14 @@ function wire() {
   };
   $('downloadJson').onclick = () => {
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([toJSON()], { type: 'application/json' }));
-    a.download = 'turings-palette-layout.json'; document.body.appendChild(a); a.click(); a.remove();
+    const slug = layoutName().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'layout';
+    a.download = 'turings-palette-' + slug + '.json'; document.body.appendChild(a); a.click(); a.remove();
   };
   $('importBtn').onclick = () => $('importFile').click();
-  $('importFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { fromJSON(await f.text()); say('Layout loaded.'); } catch (err) { say(err.message, true); } e.target.value = ''; };
-  $('importJson').onclick = () => { try { fromJSON($('json').value); say('Layout loaded.'); } catch (err) { say(err.message.startsWith('This') ? err.message : 'That text is not valid JSON.', true); } };
+  const loaded = (name) => say('Layout loaded' + (name ? ': “' + name + '”' : '') + (link.cardOnline ? '. It is playing on the card; Save here in Layouts on the card keeps it in a slot, under this name.' : '.'));
+  // A file without a name inside takes its file name (less the usual prefix)
+  $('importFile').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; try { loaded(fromJSON(await f.text(), f.name.replace(/\.json$/i, '').replace(/^turings-palette-/, ''))); } catch (err) { say(err.message, true); } e.target.value = ''; };
+  $('importJson').onclick = () => { try { loaded(fromJSON($('json').value)); } catch (err) { say(err.message.startsWith('This') ? err.message : 'That text is not valid JSON.', true); } };
   // Connect straight away if the browser already allows MIDI for this page
   navigator.permissions?.query({ name: 'midi', sysex: true }).then((s) => { if (s.state === 'granted') connect(); }).catch(() => {});
   if (!navigator.requestMIDIAccess) say('This browser can’t do WebMIDI, so it can’t reach the card. You can still design layouts here and watch them simulated.');
