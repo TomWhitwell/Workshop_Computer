@@ -31,7 +31,7 @@ Direct audio-interrupt timing has not been measured; see
 
 ## Firmware and supported card
 
-Flash `UF2/temperance.0.1.0-flash-exp.2.16mb.uf2` onto a **16MB Winbond
+Flash `UF2/temperance0.1.0.16mb.uf2` onto a **16MB Winbond
 W25Q128 program card**. The processor runs at **192MHz / 1.15V**, as in
 the original Temperance. The binary checks the JEDEC manufacturer and
 capacity before allowing any recording writes; a 2MB card or an unrecognised
@@ -145,7 +145,7 @@ cmake -S . -B /tmp/temperance-16mb-build \
 cmake --build /tmp/temperance-16mb-build -j2
 ```
 
-The output is `/tmp/temperance-16mb-build/Temperance_16MB_FLASH_EXPERIMENTAL.uf2`.
+The output is `/tmp/temperance-16mb-build/temperance0.1.0.16mb.uf2`.
 The entire runtime image is copied to RAM. `PICO_FLASH_SIZE_BYTES` is 16MiB.
 The initial build used Pico SDK 2.3.0 and ARM GNU 15.2.1; see
 [VALIDATION.md](VALIDATION.md) for the recorded build result and outstanding

@@ -14,7 +14,7 @@
 # Setup (once):   python3 -m venv venv && venv/bin/pip install unicorn capstone
 # Build:          cmake -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DTEMPERANCE_BENCH=ON
 #                 cmake --build build-bench
-# Run:            venv/bin/python tools/bench/cycles.py build-bench/Temperance_16MB_FLASH_EXPERIMENTAL.elf 1.0 4000
+# Run:            venv/bin/python tools/bench/cycles.py build-bench/temperance0.1.0.16mb.elf 1.0 4000
 #                 (args: ELF, legacy scale argument, CPU cycles per sample;
 #                  scenario lengths are fixed; use 4000 at 192MHz)
 # The fixture is emulator-only: do not flash its UF2.

@@ -17,6 +17,7 @@ add_executable(${PROJECT_NAME}
     src/main.cpp
     src/FlashStore.cpp
 )
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "temperance0.1.0.16mb")
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/src

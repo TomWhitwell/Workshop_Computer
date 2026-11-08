@@ -58,6 +58,15 @@ phasing or SSI/flash timing. The user-reported functional hardware pass is
 recorded above. A direct measurement of complete audio-interrupt duration
 remains outstanding; the 17.2us result is an emulator estimate.
 
+## Output naming — 2026-11-08
+
+CMake now sets the output basename to `temperance0.1.0.16mb`, producing matching
+UF2, ELF, BIN and HEX filenames. The packaged UF2 was renamed without changing
+its bytes. A release rebuild using the new basename passed; its only byte
+change from the tested package was the embedded Nov 7 to Nov 8 build date.
+The executable code, embedded experimental version and licence credits remain
+unchanged. Both packaged firmware checksums were verified.
+
 ## Reproducing the timing check
 
 Install `unicorn` and `capstone` into an isolated Python environment, then:
@@ -68,7 +77,7 @@ cmake -S . -B /tmp/temperance-16mb-bench \
   -DTEMPERANCE_BENCH=ON
 cmake --build /tmp/temperance-16mb-bench -j2
 python tools/bench/cycles.py \
-  /tmp/temperance-16mb-bench/Temperance_16MB_FLASH_EXPERIMENTAL.elf 1 4000
+  /tmp/temperance-16mb-bench/temperance0.1.0.16mb.elf 1 4000
 ```
 
 The bench fixture enables playback using synthetic ADPCM flash. Its binary is

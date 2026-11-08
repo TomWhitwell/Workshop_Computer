@@ -2,8 +2,10 @@
 
 ## Current test build
 
-Use **`temperance.0.1.0-flash-exp.2.16mb.uf2`**. Functional hardware tests
+Use **`temperance0.1.0.16mb.uf2`**. Functional hardware tests
 were reported as passing on 2026-11-07. It requires a 16MB Winbond card.
+The embedded version remains `0.1.0-flash-exp.2` for traceability; only the
+distributed filename and CMake output basename have been simplified.
 
 The exp.1 UF2 is retained for history; it has the known 48kHz parameter-change
 freeze corrected in exp.2. `SHA256SUMS.txt` covers both files.
@@ -23,4 +25,4 @@ notice and the other upstream notices remain preserved separately.
 Corresponding source for this UF2 is in the parent experimental directory;
 its unchanged ComputerCard dependency is in `../../../lib/`.
 
-`picotool info -a temperance.0.1.0-flash-exp.2.16mb.uf2` displays embedded credits.
+`picotool info -a temperance0.1.0.16mb.uf2` displays embedded credits.
