@@ -80,11 +80,11 @@ The host-test command and original validation history follow below.
 
 ---
 
-# Validation — 0.1.0-flash-exp.1
+## Historical record — 0.1.0-flash-exp.1
 
 Date: 2026-11-04. Status: experimental; physical hardware validation pending.
 
-## Completed
+### Checks completed for exp.1
 
 - Release firmware built successfully with Pico SDK 2.3.0, ARM GNU 15.2.1,
   `copy_to_ram`, a 16MiB board configuration and a 192MHz processor clock.
@@ -126,7 +126,7 @@ were changed. The host invocation was:
 The firmware CMake configuration additionally used
 `-DCMAKE_MAKE_PROGRAM=/Library/Developer/CommandLineTools/usr/bin/make`.
 
-## Physical checks still required
+### Physical checks outstanding at the exp.1 stage
 
 1. Confirm JEDEC acceptance on the intended 16MB Winbond card, normal startup
    and repeatable startup after a reset. Check that a 2MB card is refused.

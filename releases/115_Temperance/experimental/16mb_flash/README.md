@@ -23,7 +23,7 @@ loop capacities are retained. The previous exp.1 UF2 remains in `UF2/`.
 
 The old tested long-loop crossfade exceeded the sample deadline (about 24us
 in the initial model). The stricter exp.2 model includes the normalisation
-probe and estimates about 17.3us in its worst tested seam/crossfade case. This
+probe and estimates about 17.2us in its worst tested seam/crossfade case. This
 model excludes real bus contention. The user subsequently confirmed that the
 Main-max/X/Y retest and the recommended functional hardware checks pass.
 Direct audio-interrupt timing has not been measured; see

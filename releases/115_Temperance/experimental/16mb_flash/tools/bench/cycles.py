@@ -14,10 +14,10 @@
 # Setup (once):   python3 -m venv venv && venv/bin/pip install unicorn capstone
 # Build:          cmake -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DTEMPERANCE_BENCH=ON
 #                 cmake --build build-bench
-# Run:            venv/bin/python tools/bench/cycles.py build-bench/Temperance.elf 1.0 4000
-#                 (args: ELF, scenario length scale, CPU cycles per sample:
-#                  3000 at 144MHz, 4000 at 192MHz)
-# Setup: the venv from Constancy works (../constancy/venv/bin/python).
+# Run:            venv/bin/python tools/bench/cycles.py build-bench/Temperance_16MB_FLASH_EXPERIMENTAL.elf 1.0 4000
+#                 (args: ELF, legacy scale argument, CPU cycles per sample;
+#                  scenario lengths are fixed; use 4000 at 192MHz)
+# The fixture is emulator-only: do not flash its UF2.
 #
 # Cycle model (Cortex-M0+ TRM): loads/stores 2, taken branch 2, BL 3,
 # push/pop 1+n, MULS 1 (RP2040), hardware divider ~24 per call, +2 per
@@ -280,7 +280,7 @@ for scenario in range(8):
         if sample_cost > worst_cost:
             worst_cost, worst_profile = sample_cost, PROFILE
         call(SERVICE)
-    # Exclude initial cache misses: include the warmed speed-change path by
+    # Include initial cache loading above and the warmed speed-change path below by
     # re-preparing after caches have filled, then measuring its first 256 ticks.
     call(PREPARE, scenario)
     for i in range(512):
