@@ -114,4 +114,3 @@ static void __not_in_flash_func(flash_program_page)(uint32_t off, const uint8_t 
 	if (!diagnostics.hardwareFault) { s_rom_flush(); s_rom_enter_xip(); }
 	restore_interrupts(ints);
 }
-

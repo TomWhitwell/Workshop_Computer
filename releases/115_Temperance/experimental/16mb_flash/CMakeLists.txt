@@ -77,4 +77,3 @@ if(TEMPERANCE_BENCH)
         -Wl,--undefined=bench_prepare -Wl,--undefined=bench_service)
     target_link_options(${PROJECT_NAME} PRIVATE -Wl,--undefined=bench_norm_offset)
 endif()
-
