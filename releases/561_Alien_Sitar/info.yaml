@@ -16,10 +16,6 @@ Version: "1.0"
 Status: Beta
 License: MIT
 Editor: "none"
-repository: https://github.com/mcmadhatter/Workshop_Computer/tree/feature/alien-sitar-source/releases/561_Alien_Sitar
-contact:
-  social:
-    github: https://github.com/mcmadhatter
 tags:
   - synthesizer
   - resonator
@@ -30,7 +26,7 @@ date-updated: "2026-11-11"
 
 uf2:
   - path: alien_sitar.uf2
-    name: Alien Sitar - RP2040
+    name: Alien Sitar
 
 panel:
   inputs:
@@ -202,9 +198,6 @@ controls:
 
 host:
   notes: >-
-    No runtime USB MIDI, USB audio or web editor is provided. Use the
-    manufacturer's RP2040 ROM bootloader procedure to load the UF2 onto a
-    spare program card via USB-C. The module needs its normal rack/system
-    power; the front USB socket does not power it. Secondary settings are
-    retained only until reboot; this firmware writes no settings or
+    No runtime USB MIDI, USB audio or web editor is provided. 
+     This firmware writes no settings or
     calibration data to flash or EEPROM.
