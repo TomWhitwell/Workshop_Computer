@@ -1,6 +1,6 @@
 # Code attribution and license scope
 
-Temperance 16MB flash experiment, **0.1.0-flash-exp.2**.
+Temperance Flash auto-detecting 2MB/16MB experiment, **0.1.1-flash-exp.1**.
 Attribution audit: 2026-11-04. This is a derivative of Matt Allison's
 Temperance, with flash recording adapted from Dune Desormeaux's work.
 It is not an original instrument implementation by Codex.
@@ -96,8 +96,9 @@ Dattorro authored the Temperance source file.
 ## Raspberry Pi — Pico SDK
 
 The build uses the Raspberry Pi Pico SDK. `pico_sdk_import.cmake` comes from
-the SDK via Temperance. `boards/temperance_16mb.h` includes the SDK's Pico board
-definition and changes the flash capacity.
+the SDK via Temperance. `boards/temperance_flash.h` includes the SDK's Pico board
+definition and uses a minimum 2MB link configuration; actual recording capacity
+is detected at startup. The earlier `temperance_16mb.h` is retained for history.
 
 The SDK's BSD-3-Clause notice, copyright 2020 Raspberry Pi (Trading) Ltd., is
 preserved verbatim in `LICENSES/Pico-SDK-BSD-3-Clause.txt`. SDK components
@@ -108,7 +109,8 @@ are external build dependencies rather than vendored source in this folder.
 
 The flash page format, independent queues, cache integration, long-position
 changes, tests and experimental documentation were generated with OpenAI Codex
-at the user's direction on 2026-11-04. This describes the modification process;
+at the user's direction starting on 2026-11-04. Auto-detecting geometry, range
+checks and dual-size tests were added on 2026-11-11. This describes the modification process;
 it does not transfer credit for the upstream source to Codex or imply upstream
 authors endorse this derivative.
 

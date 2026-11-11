@@ -12,13 +12,16 @@
 extern "C" __attribute__((used)) const uint32_t bench_norm_offset =
     offsetof(ComputerCard, useNormProbe);
 extern "C" tem::Temperance *bench_instrument();
-extern "C" void bench_flash_prepare(uint32_t);
+extern "C" void bench_flash_prepare(uint32_t, uint32_t);
+static int32_t initialPosition;
 
 extern "C" void bench_prepare(uint32_t scenario) {
     auto &t = *bench_instrument();
     uint32_t mode = scenario & 3u;
-    constexpr uint32_t length = 10000001;
-    bench_flash_prepare(length);
+    const uint32_t bytes = scenario & 8u ? temflash::kMinFlashBytes : temflash::kMaxFlashBytes;
+    const uint32_t length = scenario & 8u ? 1000001u : 10000001u;
+    initialPosition = (scenario & 4u) ? 0 : length;
+    bench_flash_prepare(length, bytes);
     for (auto &p : t.params_) {
         p.running = true;
         p.clockStep = 0;
@@ -37,6 +40,14 @@ extern "C" void bench_prepare(uint32_t scenario) {
             (l == &t.loopB_ ? 131072 : tem::kZoneSpeed[t.params_[0].zone[0]]);
         l->ghostGain_ = 0;
         l->inGain_ = 65536;
+        l->request_[0] = l->request_[1] = {};
+        l->playingReady_ = false;
     }
 }
 extern "C" void bench_service() { temflash::Service(nullptr); }
+extern "C" uint32_t bench_status() {
+    const auto &t = *bench_instrument();
+    return (temflash::Healthy() ? 1u : 0u) |
+        (t.loopA_.head_.pos != initialPosition ? 2u : 0u) |
+        (t.loopB_.head_.pos != initialPosition ? 4u : 0u);
+}

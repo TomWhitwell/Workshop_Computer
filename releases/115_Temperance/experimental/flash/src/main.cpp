@@ -1,3 +1,4 @@
+// 2026-11-11: automatic 2MB/16MB geometry; original RAM release unchanged.
 // 2026-11-07: exp.2 audio-deadline fix; upstream notices retained below.
 /*
  * Adapted from Temperance 0.1.0 by Matt Allison.
@@ -7,7 +8,7 @@
  * See ../ATTRIBUTION.md and ../LICENSES/Temperance-MIT.txt.
  */
 /*
-  Temperance -- a Workshop Computer program card.
+  Temperance Flash -- auto-detecting 2MB/16MB Workshop Computer program card.
 
   Two micro loopers sharing one clock, feeding a bit crusher and a plate
   reverb. The clock sets the sample rate of everything before the reverb:

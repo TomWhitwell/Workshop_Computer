@@ -4,6 +4,13 @@ TEST_BIN ?= /tmp/temperance-16mb-flash-tests
 
 test:
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) flash_tests.cpp ../src/FlashStore.cpp -o $(TEST_BIN)
-	$(TEST_BIN)
+	$(TEST_BIN) 2
+	$(TEST_BIN) 16
+	$(TEST_BIN) 2 bad-range
+	$(TEST_BIN) 16 bad-range
+	$(TEST_BIN) 2 end-range 0
+	$(TEST_BIN) 2 end-range 1
+	$(TEST_BIN) 16 end-range 0
+	$(TEST_BIN) 16 end-range 1
 
 .PHONY: test

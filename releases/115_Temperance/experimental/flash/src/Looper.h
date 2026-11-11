@@ -1,3 +1,4 @@
+// 2026-11-11: automatic 2MB/16MB geometry; original RAM release unchanged.
 // 2026-11-07: exp.2 audio-deadline fix; upstream notices retained below.
 /*
  * Adapted from Temperance 0.1.0 by Matt Allison.
@@ -28,7 +29,6 @@ public:
         reader_[1] = temflash::Reader(channel, 1);
     }
     static constexpr int32_t kSeam = 256;
-    static constexpr int32_t kMaxLen = temflash::kCapacity;
     static constexpr int32_t kMinLen = 2 * kSeam;
 
 	// A record tap (the switch or this looper's Pulse in). `now` counts
@@ -64,7 +64,7 @@ public:
                 Stop(clockStep);
                 return 0;
             }
-			if (++w_ >= kMaxLen)
+			if ((uint32_t)++w_ >= temflash::CapacitySamples())
 				Stop(clockStep); // the buffer is full: play what we have
 		}
 		else if (tail_ < seam_ && state_ == kPlaying)

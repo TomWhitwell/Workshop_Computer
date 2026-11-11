@@ -1,3 +1,4 @@
+// 2026-11-11: automatic 2MB/16MB geometry; original RAM release unchanged.
 // 2026-11-07: exp.2 audio-deadline fix; upstream notices retained below.
 /*
  * Temperance 16MB flash experiment, 2026-11-04.
@@ -14,14 +15,20 @@
 // Goldfish-style SPSC page queues and core-1 erase-suspend I/O. Unlike
 // Goldfish's shared stereo timeline, each channel has its own queue/session.
 namespace temflash {
-constexpr uint32_t kFlashBytes = 16u * 1024 * 1024;
+constexpr uint32_t kMinFlashBytes = 2u * 1024 * 1024;
+constexpr uint32_t kMaxFlashBytes = 16u * 1024 * 1024;
 constexpr uint32_t kReserve = 512u * 1024;
-constexpr uint32_t kRegionBytes = (kFlashBytes - kReserve) / 2;
 constexpr uint32_t kPageBytes = 256;
 // Four bytes of decoder state + 252 bytes of ADPCM, independently seekable.
 constexpr uint32_t kBlockSamples = 504;
-constexpr uint32_t kCapacity = (kRegionBytes / kPageBytes) * kBlockSamples;
 constexpr uint32_t kQueuePages = 32;
+
+// Written once during Init, before either core starts processing audio.
+struct Geometry {
+    uint32_t flashBytes = 0, regionBytes = 0, capacitySamples = 0;
+};
+extern Geometry geometry;
+inline uint32_t CapacitySamples() { return geometry.capacitySamples; }
 
 struct CachedBlock {
     volatile uint32_t sequence = 0, generation = 0, block = ~0u, start = ~0u;
@@ -106,8 +113,8 @@ __attribute__((always_inline)) inline bool ReadNext(PlaybackReader &r, uint32_t 
 }
 
 
-// Init probes JEDEC once, before core 1 starts. Only 16MB Winbond parts
-// supporting 0x75/0x7A are accepted. No flash writes at startup.
+// Init probes JEDEC once, before core 1 starts. Only supported 2MB/16MB
+// Winbond parts are accepted. Unknown identification never guesses a size.
 bool Init();
 bool Healthy();
 void Start(unsigned channel); // core 0; old queued pages drain in order
@@ -126,6 +133,8 @@ void Service(void (*controlHook)());
 #ifdef TEMPERANCE_HOST_TEST
 const uint8_t *TestFlash();
 void TestFlashSize(uint32_t bytes);
+void TestJedec(uint8_t manufacturer, uint8_t type, uint8_t capacity);
+void TestQueuedBlock(unsigned channel, uint32_t block);
 void TestProgramDelay(void (*hook)());
 #endif
 }

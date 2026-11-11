@@ -1,7 +1,11 @@
 # Temperance: original versus 16MB flash experiment
 
-Versions: original **0.1.0** and experimental **0.1.0-flash-exp.2**.
-Status: protocol prepared on 2026-11-04; user reported functional hardware tests pass on 2026-11-07. See VALIDATION.md for scope and unmeasured checks.
+Versions: original RAM **0.1.0**, previous 16MB flash **0.1.0-flash-exp.2**,
+and current universal flash **0.1.1-flash-exp.1**.
+Status: earlier 16MB-only exp.2 hardware checks passed on 2026-11-07.
+On 2026-11-11 the user confirmed that the new universal build passes
+functional hardware tests on both 2MB and 16MB cards.
+Use T12 and see VALIDATION.md for the reported scope and software results.
 
 ## What changes
 
@@ -289,3 +293,29 @@ playheads keep responding, audio keeps playing, and there is no freeze, reset
 or all-LED storage-fault indication. The exp.1 hardware freeze is a known
 failure; the user reported that the exp.2 physical retest passes on 2026-11-07.
 The procedure remains here for repeat testing and additional cards.
+
+## T12 — automatic card-size detection (0.1.1-flash-exp.1)
+
+Use exactly the same `temperance0.1.1.flash.uf2` on both physical card sizes.
+The 2026-11-07 hardware pass applies to 16MB-only exp.2. A new universal-build
+pass was confirmed on 2026-11-11 for both 2MB and 16MB cards.
+
+1. On a 2MB Winbond card, boot/reset repeatedly. Check the normal startup
+   indication and no all-LED refusal/fault pattern.
+2. Select 48kHz/normal playback and record both loops until automatic stop
+   around **32.256s**. Check both endings, forward/reverse playback and seams.
+   Repeat to exercise erasing already-written flash.
+3. Record independent lengths and play A at reverse/double speed with full wash
+   while B records to capacity. Swap roles. Repeat the Main-max/X/Y lock-up
+   regression. Check dry bypass, pickup and CV/pulse behaviour.
+4. Optionally verify the 2MB 2kHz limit, **12m 54.144s per loop**.
+5. On a 16MB Winbond card, use the same UF2 and repeat. Its 48kHz limit must
+   remain **5m 33.312s per loop**, with the same controls and effects.
+6. Reset both cards: loops should be empty and new recording should work.
+   Unsupported/missing chip identification should be refused; do not bypass
+   the guard or force a card-size setting.
+
+Pass: correct per-size capacity, no lock-up, audio corruption, stale ending or
+storage fault. If a debugger is available, check `temflash::geometry` reports
+the right flash/region/sample sizes and zero fault/queue-overrun counts.
+Direct complete-interrupt timing on hardware remains an additional measurement.

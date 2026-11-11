@@ -264,8 +264,8 @@ SERVICE = sym("bench_service")
 PREPARE = sym("bench_prepare")
 labels = ["both forward x2", "A half, B x2", "A reverse x2, B x2", "direction crossfades"]
 failed = False
-for scenario in range(8):
-    label = labels[scenario & 3] + (" at seam" if scenario & 4 else " mid-loop")
+for scenario in range(16):
+    label = ("2MB " if scenario & 8 else "16MB ") + labels[scenario & 3] + (" at seam" if scenario & 4 else " mid-loop")
     call(PREPARE, scenario)
     values = []
     worst_profile = {}
@@ -294,6 +294,9 @@ for scenario in range(8):
             worst_cost, worst_profile = sample_cost, PROFILE
         call(SERVICE)
     total = max(values) + OVERHEAD
+    call(sym("bench_status"))
+    if mu.reg_read(UC_ARM_REG_R0) != 7:
+        raise RuntimeError("timing fixture faulted or a playhead stopped advancing")
     print(f"{label}: max ProcessSample {max(values)}; including overhead {total} cycles ({100*total/BUDGET:.1f}%), {total / 192:.2f}us", flush=True)
     import bisect
     names = sorted((address, name) for name, address in dem.items() if 0x20000000 <= address < 0x20010000)

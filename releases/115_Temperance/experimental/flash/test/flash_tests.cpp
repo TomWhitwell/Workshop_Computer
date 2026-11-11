@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <vector>
 
 using namespace temflash;
@@ -165,18 +166,30 @@ static void Instrument() {
 }
 
 static void FullCapacity() {
-    Start(0);
-    for (unsigned i = 0; i < kCapacity; ++i) {
-        assert(Record(0, 600));
-        if (i % 504 == 0) Service(nullptr);
+    const uint32_t capacity = CapacitySamples();
+    tem::Looper a, b;
+    a.Channel(0); b.Channel(1);
+    a.Tap(0, 0); b.Tap(0, 0);
+    for (unsigned i = 0; i < capacity; ++i) {
+        a.Tick(600, 65536, 0);
+        b.Tick(-600, 65536, 0);
+        if (i % kBlockSamples == 0) Service(nullptr);
     }
-    assert(!Record(0, 600));
-    Stop(0);
-    Flush(0);
-    CheckRead(0, kCapacity - 1, kCapacity, 600, -1);
-    assert(kReserve + kRegionBytes * 2 == kFlashBytes);
+    assert(a.State() == tem::Looper::kPlaying && b.State() == tem::Looper::kPlaying);
+    assert(a.Len() == (int32_t)capacity && b.Len() == (int32_t)capacity);
+    assert(!Record(0, 600) && !Record(1, -600));
+    Flush(0); Flush(1);
+    CheckRead(0, capacity - 1, capacity, 600, -1);
+    Request(1, 0, capacity - 1, -1, capacity, true);
+    for (unsigned i = 0; i < 5; ++i) Service(nullptr);
+    assert(Available(1, 0, capacity - 1));
+    int32_t last = Read(1, 0, capacity - 1);
+    assert(std::abs(last + 600) <= 1);
+    assert(kReserve + geometry.regionBytes * 2 == geometry.flashBytes);
+    const uint8_t *data = TestFlash();
+    assert(std::all_of(data, data + kReserve, [](uint8_t v) { return v == 0xff; }));
     assert(Healthy());
-    std::printf("PASS complete %u-sample capacity, final flash page, full-buffer stop\n", kCapacity);
+    std::printf("PASS both loops: %u samples, automatic stop, final flash pages, reserve intact\n", capacity);
 }
 
 static void ParameterChangeRegression() {
@@ -295,12 +308,55 @@ static void Overflow() {
     std::puts("PASS storage fault leaves clean dry audio and control updates running");
 }
 
-int main() {
-    TestFlashSize(2u * 1024 * 1024);
-    assert(!Init());
-    assert(!Record(0, 100));
-    TestFlashSize(kFlashBytes);
+static void RejectedIdentification() {
+    const uint8_t bad[][3] = {
+        {0, 0, 0}, {0xff, 0xff, 0xff}, {0xc8, 0x40, 0x15},
+        {0xef, 0, 0x15}, {0xef, 0xff, 0x18},
+        {0xef, 0x40, 0}, {0xef, 0x40, 0x14}, {0xef, 0x40, 0x16},
+        {0xef, 0x40, 0x17}, {0xef, 0x40, 0x19}, {0xef, 0x40, 0xff}
+    };
+    for (const auto &id : bad) {
+        TestJedec(id[0], id[1], id[2]);
+        assert(!Init() && !Healthy());
+        assert(geometry.flashBytes == 0 && CapacitySamples() == 0);
+        assert(!Record(0, 100));
+        Service(nullptr);
+        assert(diagnostics.erases == 0 && diagnostics.programs == 0);
+    }
+    std::puts("PASS unknown manufacturer, missing/unsupported capacity: no fallback, no writes");
+}
+
+static void MalformedPage(unsigned channel, bool end) {
+    Start(channel);
+    for (unsigned i = 0; i < kBlockSamples; ++i) assert(Record(channel, 600));
+    // Corrupt the queued index: worker must validate BEFORE erasing or adding
+    // an offset, including overflow and the first block beyond the region.
+    TestQueuedBlock(channel, end ? geometry.regionBytes / kPageBytes : 0xffffffffu);
+    Service(nullptr);
+    assert(diagnostics.hardwareFault == 5 && !Healthy());
+    assert(diagnostics.erases == 0 && diagnostics.programs == 0);
+    std::puts("PASS malformed block rejected before any erase/program");
+}
+
+int main(int argc, char **argv) {
+    unsigned mb = argc > 1 ? std::strtoul(argv[1], nullptr, 10) : 16;
+    assert(mb == 2 || mb == 16);
+    const uint32_t bytes = mb * 1024u * 1024u;
+    TestFlashSize(bytes);
+    RejectedIdentification();
+    TestFlashSize(bytes);
     assert(Init());
+    assert(geometry.flashBytes == bytes);
+    assert(geometry.regionBytes == (bytes - kReserve) / 2);
+    assert(CapacitySamples() == (mb == 2 ? 1548288u : 15998976u));
+    TestJedec(0xef, 0x70, mb == 2 ? 0x15 : 0x18);
+    assert(Init() && geometry.flashBytes == bytes);
+    if (argc > 2) {
+        unsigned channel = argc > 3 ? std::strtoul(argv[3], nullptr, 10) : 0;
+        assert(channel < 2);
+        MalformedPage(channel, argv[2][0] == 'e');
+        return 0;
+    }
     IndependentRecordings();
     LooperControls();
     Instrument();
@@ -310,5 +366,5 @@ int main() {
     ConcurrentProducer();
     assert(diagnostics.maxQueued <= kQueuePages);
     Overflow();
-    std::puts("All flash experiment tests passed.");
+    std::printf("All %uMB flash experiment tests passed.\n", mb);
 }

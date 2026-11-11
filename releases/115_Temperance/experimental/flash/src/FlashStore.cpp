@@ -1,3 +1,4 @@
+// 2026-11-11: automatic 2MB/16MB geometry; original RAM release unchanged.
 // 2026-11-07: exp.2 audio-deadline fix; upstream notices retained below.
 /*
  * Temperance 16MB flash experiment, 2026-11-04.
@@ -26,6 +27,7 @@
 
 namespace temflash {
 Diagnostics diagnostics;
+Geometry geometry;
 namespace {
 struct Page {
     uint32_t generation, block, usedBytes;
@@ -52,13 +54,37 @@ struct Channel {
 Channel channels[2];
 bool enabled = false;
 void (*controls)() = nullptr;
-constexpr uint32_t Base(unsigned c) { return kReserve + c * kRegionBytes; }
+uint32_t Base(unsigned c) { return kReserve + c * geometry.regionBytes; }
 static_assert(kQueuePages && !(kQueuePages & (kQueuePages - 1)), "power of two queue");
-static_assert(kRegionBytes % 4096 == 0, "sector aligned regions");
+
+bool DetectGeometry(uint8_t manufacturer, uint8_t type, uint8_t capacity) {
+    geometry = {};
+    // Winbond W25Q16/W25Q128 families used by the supported program cards.
+    // IQ/JQ and IM/JM identifiers. Do not treat an unknown/missing type or
+    // capacity byte as a usable card; these parts support erase suspend.
+    if (manufacturer != 0xef || (type != 0x40 && type != 0x70) ||
+        (capacity != 0x15 && capacity != 0x18)) return false;
+    geometry.flashBytes = 1u << capacity;
+    geometry.regionBytes = ((geometry.flashBytes - kReserve) / 2u) & ~4095u;
+    geometry.capacitySamples = (geometry.regionBytes / kPageBytes) * kBlockSamples;
+    return true;
+}
+
+bool AudioRange(uint32_t offset, uint32_t bytes) {
+    return offset >= kReserve && offset < geometry.flashBytes &&
+        bytes <= geometry.flashBytes - offset;
+}
+
+bool ValidPage(unsigned channel, const Page &p) {
+    if (p.block >= geometry.regionBytes / kPageBytes || p.usedBytes < 4 ||
+        p.usedBytes > kPageBytes) return false;
+    return AudioRange(Base(channel) + p.block * kPageBytes, kPageBytes);
+}
 
 #ifdef TEMPERANCE_HOST_TEST
-std::vector<uint8_t> flash(kFlashBytes, 0xff);
-uint32_t testFlashSize = kFlashBytes;
+std::vector<uint8_t> flash;
+uint32_t testFlashSize = kMaxFlashBytes;
+uint8_t testJedec[3] = {0xef, 0x40, 0x18};
 void (*programDelay)() = nullptr;
 const uint8_t *FlashAt(uint32_t offset) { return flash.data() + offset; }
 void Program(uint32_t offset, const uint8_t *data) {
@@ -96,6 +122,10 @@ bool DrainErased(bool commandMode) {
         if (c.read == c.write) continue;
         __dmb();
         Page &p = c.pages[c.read & (kQueuePages - 1)];
+        if (!ValidPage(n, p)) {
+            diagnostics.hardwareFault = 5;
+            return did;
+        }
         uint32_t offset = Base(n) + p.block * kPageBytes;
         if (p.generation != c.ioGeneration || offset >= c.nextErase) continue;
         // Final-page padding belongs on core 1, away from the audio deadline.
@@ -115,7 +145,12 @@ bool DrainErased(bool commandMode) {
 }
 
 void Erase(uint32_t offset) {
+    if ((offset & 4095u) || !AudioRange(offset, 4096)) {
+        diagnostics.hardwareFault = 5;
+        return;
+    }
 #ifdef TEMPERANCE_HOST_TEST
+    assert(offset <= flash.size() && 4096 <= flash.size() - offset);
     std::memset(flash.data() + offset, 0xff, 4096);
     DrainErased(false);
     Refill();
@@ -196,6 +231,10 @@ void Refill() {
             __dmb();
             if ((seq & 1u) || seq != config.sequence || !active || !len ||
                 gen != c.flushedGeneration || pos >= len) continue;
+            if (len > CapacitySamples()) {
+                diagnostics.hardwareFault = 5;
+                return;
+            }
             uint32_t blocks = (len + kBlockSamples - 1) / kBlockSamples;
             uint32_t block = pos / kBlockSamples;
             // Current block, next block in direction, then one more runway.
@@ -242,13 +281,13 @@ void Refill() {
 
 bool Init() {
 #ifdef TEMPERANCE_HOST_TEST
-    enabled = testFlashSize == kFlashBytes;
+    enabled = DetectGeometry(testJedec[0], testJedec[1], testJedec[2]);
+    flash.assign(testFlashSize, 0xff);
 #else
     qspi_rom_init();
     uint8_t tx[4] = {0x9f, 0, 0, 0}, rx[4] = {};
     flash_do_cmd(tx, rx, 4);
-    // Winbond W25Q128, 16MiB. No permissive size fallback for a recording build.
-    enabled = rx[1] == 0xef && rx[3] == 0x18;
+    enabled = DetectGeometry(rx[1], rx[2], rx[3]);
 #endif
     return enabled;
 }
@@ -257,14 +296,22 @@ bool Healthy() { return enabled && !diagnostics.hardwareFault && !diagnostics.qu
 
 #ifdef TEMPERANCE_BENCH
 // Emulator fixture: flash is mapped to zero-filled ADPCM pages by the driver.
-extern "C" void bench_flash_prepare(uint32_t length) {
-    enabled = true;
+extern "C" void bench_flash_prepare(uint32_t length, uint32_t flashBytes) {
+    bool changed = geometry.flashBytes != flashBytes;
+    enabled = DetectGeometry(0xef, 0x40, flashBytes == kMinFlashBytes ? 0x15 : 0x18);
     for (unsigned n = 0; n < 2; ++n) {
         Channel &c = channels[n];
         c.generation = c.flushedGeneration = c.ioGeneration = 1;
         c.samples = length;
         c.flushedBlocks = (length + kBlockSamples - 1) / kBlockSamples;
         for (auto &h : c.heads) {
+            if (changed) {
+                h.config.active = false;
+                h.reader.reading = nullptr;
+                for (auto &b : h.cache) {
+                    b.generation = 0; b.block = b.start = ~0u; b.sequence = 0;
+                }
+            }
             h.reader.generation = 1; h.reader.cache = h.cache; h.reader.config = &h.config;
         }
     }
@@ -288,7 +335,7 @@ void Start(unsigned n) {
 
 bool Record(unsigned n, int32_t sample) {
     Channel &c = channels[n];
-    if (!c.recording || !Healthy() || c.samples >= kCapacity) return false;
+    if (!c.recording || !Healthy() || c.samples >= CapacitySamples()) return false;
     if (c.fill == 0 && c.write - c.read >= kQueuePages) {
         ++diagnostics.queueOverruns;
         c.recording = false;
@@ -381,6 +428,10 @@ void Service(void (*hook)()) {
         if (c.read == c.write) continue;
         __dmb();
         const Page &p = c.pages[c.read & (kQueuePages - 1)];
+        if (!ValidPage(n, p)) {
+            diagnostics.hardwareFault = 5;
+            return;
+        }
         if (c.ioGeneration != p.generation) {
             c.ioGeneration = p.generation;
             c.nextErase = Base(n);
@@ -390,7 +441,7 @@ void Service(void (*hook)()) {
         uint32_t target = Base(n) + p.block * kPageBytes;
         // One extra erased sector provides Goldfish-style write runway.
         uint32_t ahead = (target & ~4095u) + 8192;
-        if (ahead > Base(n) + kRegionBytes) ahead = Base(n) + kRegionBytes;
+        if (ahead > Base(n) + geometry.regionBytes) ahead = Base(n) + geometry.regionBytes;
         while (c.nextErase < ahead && Healthy()) {
             Erase(c.nextErase);
             c.nextErase += 4096;
@@ -405,7 +456,19 @@ void Service(void (*hook)()) {
 
 #ifdef TEMPERANCE_HOST_TEST
 const uint8_t *TestFlash() { return flash.data(); }
-void TestFlashSize(uint32_t bytes) { testFlashSize = bytes; }
+void TestFlashSize(uint32_t bytes) {
+    testFlashSize = bytes;
+    testJedec[0] = 0xef; testJedec[1] = 0x40;
+    testJedec[2] = bytes == kMinFlashBytes ? 0x15 : bytes == kMaxFlashBytes ? 0x18 : 0;
+}
+void TestJedec(uint8_t manufacturer, uint8_t type, uint8_t capacity) {
+    testJedec[0] = manufacturer; testJedec[1] = type; testJedec[2] = capacity;
+}
+void TestQueuedBlock(unsigned n, uint32_t block) {
+    auto &c = channels[n];
+    assert(c.read != c.write);
+    c.pages[c.read & (kQueuePages - 1)].block = block;
+}
 void TestProgramDelay(void (*hook)()) { programDelay = hook; }
 #endif
 }

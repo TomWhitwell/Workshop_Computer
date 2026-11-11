@@ -3,8 +3,8 @@
 # See ATTRIBUTION.md and LICENSES/Temperance-MIT.txt.
 cmake_minimum_required(VERSION 3.13)
 
-set(PICO_BOARD temperance_16mb CACHE STRING "Board")
-set(PICO_FLASH_SIZE_BYTES 16777216 CACHE STRING "16MiB flash address space")
+set(PICO_BOARD temperance_flash CACHE STRING "Board")
+set(PICO_FLASH_SIZE_BYTES 2097152 CACHE STRING "Minimum supported flash size; recording geometry is detected at boot")
 list(APPEND PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/boards)
 include(pico_sdk_import.cmake)
 
@@ -17,7 +17,7 @@ add_executable(${PROJECT_NAME}
     src/main.cpp
     src/FlashStore.cpp
 )
-set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "temperance0.1.0.16mb")
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "temperance0.1.1.flash")
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/src
@@ -65,8 +65,8 @@ pico_enable_stdio_usb(${PROJECT_NAME} 0)
 pico_enable_stdio_uart(${PROJECT_NAME} 0)
 
 pico_add_extra_outputs(${PROJECT_NAME})
-pico_set_program_name(${PROJECT_NAME} "Temperance 16MB Flash Experimental")
-pico_set_program_version(${PROJECT_NAME} "0.1.0-flash-exp.2")
+pico_set_program_name(${PROJECT_NAME} "Temperance Flash 2MB/16MB Experimental")
+pico_set_program_version(${PROJECT_NAME} "0.1.1-flash-exp.1")
 
 option(TEMPERANCE_BENCH "Build emulator-only timing hooks; do not flash" OFF)
 if(TEMPERANCE_BENCH)
@@ -77,4 +77,5 @@ if(TEMPERANCE_BENCH)
         -Wl,--undefined=bench_offsets -Wl,--undefined=bench_control_tick
         -Wl,--undefined=bench_prepare -Wl,--undefined=bench_service)
     target_link_options(${PROJECT_NAME} PRIVATE -Wl,--undefined=bench_norm_offset)
+    target_link_options(${PROJECT_NAME} PRIVATE -Wl,--undefined=bench_status)
 endif()
