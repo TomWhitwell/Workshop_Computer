@@ -41,6 +41,21 @@ export function releaseCards() {
     .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
 }
 
+/** Every card discovery.yml lists by ID, as [{ id, location }]. */
+export function discoveryCardReferences(discovery) {
+  const references = [];
+  const addCards = (values, location) => {
+    if (!Array.isArray(values)) return;
+    for (const id of values) references.push({ id: String(id), location });
+  };
+  addCards(discovery?.hero?.featured, 'discovery.yml: hero.featured');
+  for (const [name, embed] of Object.entries(discovery?.embeds || {})) addCards(embed?.cards, `discovery.yml: embeds.${name}.cards`);
+  for (const [index, shelf] of (Array.isArray(discovery?.shelves) ? discovery.shelves : []).entries()) {
+    addCards(shelf?.cards, `discovery.yml: shelves[${index}].cards`);
+  }
+  return references;
+}
+
 export function validate(flairs, discovery, cards) {
   const errors = [];
   const warnings = [];
@@ -108,17 +123,10 @@ export function validate(flairs, discovery, cards) {
     }
   }
 
-  const referencedCards = [];
-  const addCards = (values, location) => {
-    if (!Array.isArray(values)) return;
-    for (const id of values) referencedCards.push({ id: String(id), location });
-  };
-  addCards(discovery?.hero?.featured, 'discovery.yml: hero.featured');
   if (discovery?.hero?.layout && !VALID_LAYOUTS.has(discovery.hero.layout)) errors.push(`discovery.yml: hero has unknown layout "${discovery.hero.layout}"`);
   for (const flair of discovery?.hero?.hide_flairs || []) {
     if (!vocabulary.has(slugify(flair))) errors.push(`discovery.yml: hero.hide_flairs uses unknown flair "${flair}"`);
   }
-  for (const [name, embed] of Object.entries(discovery?.embeds || {})) addCards(embed?.cards, `discovery.yml: embeds.${name}.cards`);
 
   const shelfIds = new Set();
   if (discovery?.shelves != null && !Array.isArray(discovery.shelves)) errors.push('discovery.yml: shelves must be a list');
@@ -133,7 +141,6 @@ export function validate(flairs, discovery, cards) {
     shelfIds.add(shelf.id);
     if (Array.isArray(shelf.cards) && Array.isArray(shelf.cards_from_flairs)) errors.push(`${location} cannot use both cards and cards_from_flairs`);
     if (!Array.isArray(shelf.cards) && !Array.isArray(shelf.cards_from_flairs)) errors.push(`${location} must use cards or cards_from_flairs`);
-    addCards(shelf.cards, `${location}.cards`);
     for (const flair of shelf.cards_from_flairs || []) {
       if (!vocabulary.has(slugify(flair))) errors.push(`${location}.cards_from_flairs uses unknown flair "${flair}"`);
     }
@@ -144,7 +151,7 @@ export function validate(flairs, discovery, cards) {
     if (shelf.limit != null && (!Number.isInteger(shelf.limit) || shelf.limit < 1)) errors.push(`${location}.limit must be a positive integer`);
     if (shelf.link != null && (typeof shelf.link?.text !== 'string' || !shelf.link.text || typeof shelf.link.href !== 'string' || !shelf.link.href)) errors.push(`${location}.link needs text and href`);
   }
-  for (const reference of referencedCards) {
+  for (const reference of discoveryCardReferences(discovery)) {
     if (!cardIds.has(reference.id)) errors.push(`${reference.location} references unknown card ${reference.id}`);
   }
 
