@@ -128,9 +128,10 @@ the new universal build merely because the earlier 16MB build passed.
 
 ## Previous builds and attribution
 
-`UF2/temperance0.1.0.16mb.uf2` is the previously tested **16MB-only** exp.2
-build. The older exp.1 binary is retained as history and has a known 48kHz
-parameter-change freeze. `SHA256SUMS.txt` covers all packaged firmware.
+Superseded experimental UF2s have been removed; their binaries and sources
+remain in Git history (`85f0fa9c` for 16MB-only exp.2, `f17dad15` for exp.1).
+Exp.1 had a known 48kHz parameter-change freeze. `SHA256SUMS.txt` covers the
+current packaged firmware.
 
 This is **Matt Allison's Temperance**, adapted with flash-recording techniques
 and QSPI code from **Dune Desormeaux's Goldfish**, and the ADPCM implementation

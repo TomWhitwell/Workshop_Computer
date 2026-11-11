@@ -8,13 +8,9 @@ loops to the actual chip. This universal build has passed software tests;
 the user confirmed functional hardware tests pass on both 2MB and 16MB cards
 on 2026-11-11.
 
-- `temperance0.1.0.16mb.uf2`: previous 16MB-only exp.2, user-reported hardware
-  checks passed on 2026-11-07. It refuses a 2MB card.
-- `temperance.0.1.0-flash-exp.1.16mb.uf2`: historical first experiment with a
-  known 48kHz parameter-change freeze.
-
-Historical corresponding sources are retained in Git: `85f0fa9c` for the
-16MB-only exp.2 build and `f17dad15` for exp.1.
+Superseded experimental binaries have been removed from this folder. They
+remain in Git history: `85f0fa9c` for the 16MB-only exp.2 build and
+`f17dad15` for exp.1 (which had a known parameter-change freeze).
 
 `SHA256SUMS.txt` covers all packaged files. The original RAM version remains
 at `../../../UF2/temperance.0.1.0.uf2`.

@@ -11,13 +11,20 @@ summary: |
   moves at each start of Loop A, made to patch into CV In 1 and jump the clock; CV Out 2 a smooth random voltage
   (0 to 5V) that glides over each pass of Loop B, made for CV In 2 and the wash. Pulse Out 1 fires at random, Pulse
   Out 2 at each start of Loop B.
+
+  **Firmware options:** Original RAM version by Matt Allison (MIT): 0.83 seconds per loop at 48kHz,
+  up to 20 seconds at 2kHz. Experimental flash adaptation using Goldfish/MLRws code by Dune Desormeaux
+  (GPL-3.0 overall): automatically detects supported 2MB or 16MB cards, giving 32.26 seconds or
+  5 minutes 33 seconds per loop at 48kHz respectively. Both card sizes passed user-reported hardware tests.
+  See the [flash documentation](https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/115_Temperance/experimental/flash)
+  for attribution, licences and operating differences.
 Language: C++ (Pico SDK)
 Creator: Matt Allison
 Version: "0.1.0"
 Status: Released
-License: MIT
+License: "MIT (original RAM); GPL-3.0 (experimental flash)"
 date-created: 2026-11-02
-date-updated: 2026-11-04
+date-updated: 2026-11-11
 
 contact:
   social:
@@ -25,7 +32,9 @@ contact:
 
 uf2:
   - path: UF2/temperance.0.1.0.uf2
-    name: Temperance 0.1.0
+    name: Temperance 0.1.0 — Original RAM version
+  - path: experimental/flash/UF2/temperance0.1.1.flash.uf2
+    name: Temperance 0.1.1 — Experimental flash version (2MB/16MB)
 
 tags:
   - looper
