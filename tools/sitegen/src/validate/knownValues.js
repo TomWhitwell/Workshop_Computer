@@ -6,8 +6,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import { collectKnownValues } from '../utils/similarValues.js';
+import { findInfoFileSync } from '../utils/infoFile.js';
 
-/** Read every `<releasesDir>/<card>/info.yaml` as `[{ id, file, source, data }]`. */
+/** Read every `<releasesDir>/<card>/info.yaml` (or info.yml) as `[{ id, file, source, data }]`. */
 export function readReleaseInfos(releasesDir) {
   let folders = [];
   try {
@@ -17,8 +18,8 @@ export function readReleaseInfos(releasesDir) {
   }
   const out = [];
   for (const id of folders) {
-    const file = path.join(releasesDir, id, 'info.yaml');
-    if (!fs.existsSync(file)) continue;
+    const file = findInfoFileSync(path.join(releasesDir, id));
+    if (!file) continue;
     const source = fs.readFileSync(file, 'utf8');
     let data = null;
     try {

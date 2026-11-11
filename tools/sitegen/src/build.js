@@ -27,6 +27,7 @@ import { ogImageOptionsForCard, ogImageOptionsForSite, writeOgPng } from './rend
 import { validateInfoFile } from './validate/validateFile.js';
 import { loadKnownValues } from './validate/knownValues.js';
 import { reportText } from './validate/reporters/index.js';
+import { findInfoFile } from './utils/infoFile.js';
 
 // ========== Path & Globals ==========
 const __filename = fileURLToPath(import.meta.url);
@@ -249,8 +250,8 @@ Run <code>npm run dev</code> to preview the whole site, including the home page 
   }));
 
   console.log(`Built releases/${folder} -> ${path.join(OUT_DIR, 'programs', rel.slug)}`);
-  const infoFile = path.join(RELEASES_DIR, folder, 'info.yaml');
-  if (await fs.stat(infoFile).catch(() => null)) {
+  const infoFile = await findInfoFile(path.join(RELEASES_DIR, folder));
+  if (infoFile) {
     console.log(reportText([await validateInfoFile(infoFile, { root: ROOT, knownValues: loadKnownValues(RELEASES_DIR) })]));
   }
   reportPanelValidation((rel.panelDiagnostics || []).map(diagnostic => ({ ...diagnostic, file: `releases/${folder}/${diagnostic.path || 'panels'}` })));
@@ -314,7 +315,7 @@ async function build({ incrementalRelease = '', incrementalCuration = '' } = {})
   // discovery so near-duplicate checks can compare against every card.
   const knownValues = collectKnownValues(releases.filter(rel => rel.rawInfoSource).map(rel => ({ id: rel.folderName, data: rel.rawYaml })));
   for (const rel of releases.filter(rel => rel.rawInfoSource && foldersToDiscover.includes(rel.folderName))) {
-    const source = parseSource(rel.rawInfoSource, `releases/${rel.folderName}/info.yaml`);
+    const source = parseSource(rel.rawInfoSource, rel.card?.source_file || `releases/${rel.folderName}/info.yaml`);
     validationResults.push(validateInfoYaml(source, { knownValues }));
   }
 
@@ -744,7 +745,7 @@ function reportValidation(results) {
   }
   console.log(`info.yaml validation (non-fatal): ${errorCount} error(s), ${warningCount} warning(s) across ${results.length} card(s).`);
   if (failing.length) {
-    console.log(`  ${failing.length} card(s) with errors: ${failing.map(r => r.file.replace(/^releases\//, '').replace(/\/info\.yaml$/, '')).join(', ')}`);
+    console.log(`  ${failing.length} card(s) with errors: ${failing.map(r => r.file.replace(/^releases\//, '').replace(/\/info\.ya?ml$/, '')).join(', ')}`);
     console.log('  Run `npm run validate-info` for details.');
   }
 }
