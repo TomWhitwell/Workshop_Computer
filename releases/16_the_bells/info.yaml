@@ -1,9 +1,11 @@
 draft: false
 Name: The Bells
-short-description: Bellringing methods sequencer — 12 change-ringing methods with tempo and jitter, quantised to six scales
+short-description: Bellringing methods sequencer — any 12 change-ringing methods (up to Maximus) from the CCCBR library and six editable scales, set in a web editor, with tempo and jitter
 summary: |
-  A bellringing methods sequencer: plays 12 traditional English change-ringing methods
-  (Plain Hunt Minimus through Plain Bob Triples, 4-7 bells), sending each row of the
+  A bellringing methods sequencer: plays 12 English change-ringing methods — by
+  default Plain Hunt Minimus through Plain Bob Triples, and from v1.2 any method up
+  to 12 bells, chosen in the web editor from the CCCBR collection or written as place
+  notation — sending each row of the
   method as a v/oct pitch sequence quantised to one of six scales, with a synchronised
   gate pulse per bell strike. Intended to drive oscillators or other CV inputs that can
   respond to permutation patterns.
@@ -13,11 +15,15 @@ summary: |
   releasing Z returns to Play/Stop with the new parameter applied.
 Language: C++ (Pico SDK + ComputerCard)
 Creator: James Saunders
-Version: 1.0.0
+Version: 1.4.0
 Status: Released
+License: MIT
+Editor: web
 demo-link: https://youtu.be/jAWV7_NaBM0?si=06GFGjHGklVmo8Ig
 date-created: 2026-06-27
-date-updated: 2026-06-30
+date-updated: 2026-11-11
+contact:
+  website: https://www.james-saunders.com
 tags:
   - sequencer
   - bellringing
@@ -37,7 +43,7 @@ panel:
       description: Sample playback of bell recordings alternating with AudioOut1
     - id: CVOut1
       name: Pitch
-      description: Calibrated v/oct output, one bell at a time, quantised to the active scale (tenor bell = root note)
+      description: Calibrated v/oct output, one bell at a time, pitched by the active scale (tenor = the scale's first pitch)
     - id: PulseOut1
       name: Bell Gate
       description: ~10ms trigger pulse on each bell strike
@@ -53,7 +59,7 @@ controls:
         description: Random timing variation, 0-40% of the beat gap
       y:
         name: Covering Tenor
-        description: CCW half = off, CW half = on — adds an extra covering bell above the method's bells
+        description: CCW half = off, CW half = on — adds a covering bell behind methods on an odd number of bells (Doubles, Triples, Caters, Cinques)
     - when: { z: middle }
       main:
         name: Tempo
@@ -67,13 +73,13 @@ controls:
     - when: { z: down }
       main:
         name: Method Select
-        description: Chooses one of 12 change-ringing methods (see manual for full list); takes effect at the next row boundary
+        description: Chooses one of the 12 method slots (set in the web editor); takes effect when the current course comes round
       x:
         name: Clock Divide/Multiply
         description: Seven steps, /8 /4 /2 x1 x2 x4 x8, applied to the tempo
       y:
         name: Scale Select
-        description: Six scales — Major, Minor, Pentatonic Major, Pentatonic Minor, Blues, Chromatic
+        description: Six scale slots, set in the web editor (any scale on any note, or your own pitches); factory — Major, Minor, Pentatonic Major, Pentatonic Minor, Blues, Chromatic
 
   switch:
     up:

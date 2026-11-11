@@ -27,12 +27,45 @@ For questions or support, email [jamessaundersalloneword@gmail.com](mailto:james
 |  | PLAY/STOP MODES |  | EDIT MODE   |  |
 | MAIN | Changes raw tempo from 5-300 BPM |  | Select method  |  |
 | X | Sets jitter between 0-40% of  |  | Select clock divide amount from /8 to x8  |  |
-| Y | Turns covering tenor off (CCW-12) or on (12-CW) |  | Select scale |  |
+| Y | Turns covering tenor off (CCW-12) or on (12-CW) for odd-bell methods |  | Select scale (1-6, set in the web editor) |  |
 |   **LEDs**  |  |  |  |  |
 
 <img src="images/leds.svg" width="600">
 
+**WEB EDITOR**
+
+From v1.2 the twelve method slots can hold any method, up to Maximus (12 bells). Connect the card by USB, open the editor in Chrome or Edge and click *Connect to card*.
+
+- **The Library** holds the Central Council (CCCBR) method collection — over 22,000 methods. Commonly rung methods are listed first; the rest follow by the year of their first tower peal. Search by name, or filter by number of bells and kind (Bob, Surprise, Delight, Treble Bob, Place).
+- **Write your own** takes any place notation, e.g. -16-16-16,12 for Plain Bob Minor.
+- Click a method to see its plain course with the treble and any other bell's line drawn through it, and a check that its lead head matches the CCCBR record. Then *Write into slot*.
+- *Choose on the card* does the same as Z down + Main. While the card is ringing, the editor follows the current row.
+- Methods are stored on the card once it is stopped. *Save to file* / *Load from file* keep sets of twelve.
+
+The card rings each method from rounds, lead after lead, until it comes back to rounds (the plain course), then starts again. Bells 1–6 play the recordings; bells 7–12 and the covering tenor sound on CV Out 1 and Pulse Out 1 only.
+
+**SCALES**
+
+The six scales chosen with Z down + Y can be changed in the web editor (*The Scales*). The factory scales are the original six — Major, Minor, Pentatonic major, Pentatonic minor, Blues, Chromatic — with the tenor on C4 (0 V).
+
+- **From the library**: over 40 scales and modes (church modes, harmonic and melodic minor, diminished, whole tone, Japanese pentatonics, Hungarian minor, double harmonic, arpeggios, stacked fourths and fifths, the harmonic series…) on any tenor note.
+- **Your own**: type the pitches from the tenor up, e.g. `C#5 E5 G#4 Bb3` (C4 = middle C = 0 V). They needn't go upwards. Choose what happens when a method has more bells than pitches: start again an octave higher, higher by any number of semitones, or round again at the same pitches.
+- The editor shows the pitch and voltage of every bell for any number of bells, and *Hear rounds* plays it.
+
+Scales change CV Out 1 only; the recorded bells keep their own pitch.
+
 **UPDATES**
+
+v1.4 (11.11.26)
+- The six scales can be set from the web editor: any library scale on any note, or your own list of pitches. The factory scales are unchanged.
+
+v1.3 (11.11.26)
+- Fixed repeated pitches on 12 bells: the scales now extend upwards for as many bells as needed, so every bell has its own pitch.
+- The covering tenor (Y) is now only rung behind methods on an odd number of bells (Doubles, Triples, Caters, Cinques), as in ringing. Even-bell methods such as Minor and Maximus ring without it.
+
+v1.2 (06.11.26)
+- Any method in any of the twelve slots, set from the web editor. The card controls are unchanged.
+- The factory slots are the same twelve methods, now stored as place notation and checked against the CCCBR collection. Reverse Canterbury Pleasure Place Doubles is corrected: the old version came back to rounds one row early.
 
 v1.1 (30.06.26)
 - First main update adds sampled bells from my local tower, recorded last night wiht thanks to Will Rogers. Patch audio out 1 and 2 to the mixer (either channels 1 and 2 pr use a stackable to send them to the same channel), or via processing. Select the method in the normal way and click Z up to play the chosen methd with sampled bells. The tempo, jitter and covering tenor settings all work, but the scale has no effect (samples, not CV). Note it only currently works with six bells as our twoer is only a ring of six - I'll record a ring of eight when I get a moment so all the methods will work.
