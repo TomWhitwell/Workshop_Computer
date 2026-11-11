@@ -1,7 +1,4 @@
-# Schema: https://github.com/TomWhitwell/Workshop_Computer/blob/1b15edbc26ca17ff21ac1609e037ad432fc90e4f/documentation/info.yaml.md
-# Asset paths are relative to this card folder. Version identifies the firmware
-# checkpoint, rather than a new semantic version assigned to unchanged firmware.
-draft: true
+draft: false
 Name: Alien Sitar
 short-description: Sitar-inspired plucks with jawari buzz and blooming sympathetic strings.
 summary: >-
@@ -11,18 +8,29 @@ summary: >-
   PulseIn1 to pluck; hold Down and deliberately move a knob to edit Sympathy,
   octave or Pick. Switch Up uses incoming audio to excite the string and halo.
   Start with Jawari and Swell near 65%, String near 80%, and AudioOut1 connected
-  to a mixer. The default unpatched note is D3. 
+  to a mixer. The default unpatched note is D3. CVOut1 provides played pitch
+  with bend and octave edits; PulseOut2 responds to a rising sympathetic halo.
 Language: C++ (Pico SDK)
 Creator: mcmadhatter
-Version: "db4b402"
-Status: WIP
+Version: "1.0"
+Status: Beta
+License: MIT
 Editor: "none"
+repository: https://github.com/mcmadhatter/Workshop_Computer/tree/feature/alien-sitar-source/releases/561_Alien_Sitar
+contact:
+  social:
+    github: https://github.com/mcmadhatter
 tags:
   - synthesizer
   - resonator
   - effect
-date-created: 2026-11-10
-date-updated: 2026-11-10
+
+date-created: "2026-11-10"
+date-updated: "2026-11-11"
+
+uf2:
+  - path: alien_sitar.uf2
+    name: Alien Sitar - RP2040
 
 panel:
   inputs:
@@ -92,9 +100,14 @@ panel:
       type: audio
       description: Sympathetic bank alone, with its audible level controlled by Sympathy.
     - id: CVOut1
-      name: Melody Level
+      name: Played Pitch
       type: cv
-      description: Melody amplitude follower, nominal 0-5 V; not a separate programmed envelope.
+      description: >-
+        Nominal melody pitch, 1 V/oct with 0 V=C4, including model slew,
+        meend and octave offset. Default unpatched D3 gives -0.833 V;
+        patched 0 V at octave -1 gives -1 V out. Approximate range -2.71
+        to +2.93 V. Model state, not an audio pitch tracker; accuracy depends
+        on input and CV-output calibration.
     - id: CVOut2
       name: Halo Level
       type: cv
@@ -106,9 +119,13 @@ panel:
         A 5 ms pulse when a manual or external pluck is accepted. Audio follows
         after buffering and filter delay.
     - id: PulseOut2
-      name: Halo Active
+      name: Halo Bloom
       type: pulse
-      description: Gate high while the halo exceeds its activity threshold; hysteresis prevents chatter.
+      description: >-
+        A 5 ms pulse on a sustained rise in the audible halo, including
+        external excitation. Not a delayed pluck or a pulse per note;
+        overlapping swells can merge. Hysteresis and a 200 ms holdoff
+        reject chatter. Damping and queue faults inhibit detection.
 
 controls:
   switch:
@@ -180,13 +197,13 @@ controls:
           name: Timing Fault
           description: Bottom left; latches on a queue or audio-handler timing fault and should stay off during playing.
         - id: LED5
-          name: Inputs Uncalibrated
-          description: Bottom right; lit when input calibration is unavailable and nominal scaling is used.
+          name: Calibration Missing
+          description: Bottom right; lit when input or CV-output calibration is unavailable and nominal scaling is used.
 
 host:
   notes: >-
     No runtime USB MIDI, USB audio or web editor is provided. Use the
-    normal procedure to load the UF2 onto a
+    manufacturer's RP2040 ROM bootloader procedure to load the UF2 onto a
     spare program card via USB-C. The module needs its normal rack/system
     power; the front USB socket does not power it. Secondary settings are
     retained only until reboot; this firmware writes no settings or
