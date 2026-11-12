@@ -195,6 +195,11 @@ static uint8_t __attribute__((aligned(4))) ringBuf[ringSize];
 static volatile uint32_t ringWritePos = 0; // bytes ever put into ringBuf
 static volatile uint32_t ringReadPos = 0;  // bytes ever taken out of ringBuf
 
+// Loop-window progress for the bottom two LEDs, computed by core 0 at control
+// rate and rendered by core 1. 0..4095 = position within the live loop window;
+// the direction is implicit in how it moves over time.
+static volatile int32_t ledProgressQ12 = 0;
+
 // Watchdog liveness. Core 1 bumps this every audio sample; core 0 feeds the
 // hardware watchdog only while it is advancing, so a hang on either core resets
 // the card within about a second instead of freezing it.
@@ -1022,6 +1027,7 @@ public:
 
 	int32_t xrunLedTimer = 0;
 	int32_t levelHold = 0;     // 12-bit peak with slow decay, for the level meter
+	int32_t progressShown = 0; // frozen loop-window position while playback stops
 	int32_t stationFlash = 0; // counts down while LED 3 shows a station change
 	int32_t bankLed = -1;     // >=0 while the switch-up bank selector is active
 	int32_t fadeGain = 0;     // 0..4096 output envelope for seam/station fades
@@ -1662,8 +1668,6 @@ public:
 			if (levelHold < 0) levelHold = 0;
 		}
 
-		const Scan s = scanState;
-
 		// While a stick is present but its filesystem is not yet readable, blink
 		// all six LEDs (~0.34s on, ~0.34s off) so the card clearly shows it is
 		// waiting for the drive. This takes over the panel and returns.
@@ -1717,8 +1721,7 @@ public:
 		}
 
 		// Normal display: LEDs 0-3 are a four-step level meter (roughly -30, -18,
-		// -6 and 0 dBFS); LED 4 is the mounted indicator and LED 5 carries the
-		// underrun / mount-fault state.
+		// -6 and 0 dBFS); LEDs 4-5 are the loop-window progress bar.
 		int32_t steps = 0;
 		if (levelHold >= 2048) steps = 4;      // about 0 dBFS
 		else if (levelHold >= 1024) steps = 3; // about -6 dB
@@ -1729,26 +1732,27 @@ public:
 			LedOn(i, i < steps);
 		}
 
-		LedOn(4, stickMounted);
-		if (xrunLedTimer > 0)
+		// Progress: latch the core-0 value while a pass is playing, and freeze it
+		// otherwise, so a one-shot that finishes leaves the bar where it stopped.
+		if (mode == Mode::Play)
 		{
-			xrunLedTimer--;
+			progressShown = ledProgressQ12;
 		}
-		// LED 5: underrun while playing; a steady mount/unplayable fault otherwise.
-		// Quiet LED mode leaves it dark.
-		const bool verbose = (cfgLed == LedMode::Verbose);
-		if (xrunLedTimer > 0)
+		uint16_t b4 = 0, b5 = 0;
+		int32_t p = progressShown;
+		if (p < 0) p = 0;
+		if (p > 4095) p = 4095;
+		if (p <= 2048)
 		{
-			LedOn(5, true);
-		}
-		else if (verbose)
-		{
-			LedOn(5, s == Scan::MountFailed || s == Scan::Unplayable);
+			b4 = (uint16_t)std::min<int32_t>(p * 2, 4095);
 		}
 		else
 		{
-			LedOff(5);
+			b4 = 4095;
+			b5 = (uint16_t)std::min<int32_t>((p - 2048) * 2, 4095);
 		}
+		LedBrightness(4, b4);
+		LedBrightness(5, b5);
 	}
 
 	// Called at 48kHz
@@ -2154,7 +2158,8 @@ static bool ParseWav(FIL *fil, WavFormat &fmt)
 // start. Core 0 has one job while this runs: keep the ring buffer full. On
 // return, normOut is the proportional position (0..4095) when playback stopped,
 // for the synchronised jump to the next station.
-static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, int32_t &normOut, bool reverse)
+static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, int32_t winStartQ12,
+                           int32_t &normOut, bool reverse)
 {
 	normOut = 0;
 	if (f_open(&wavFile, name, FA_READ) != FR_OK)
@@ -2189,10 +2194,38 @@ static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, i
 
 	uint32_t total = (uint32_t)(endFrame - startFrame) * fmt.blockAlign;
 
+	// Loop-window progress for the bottom two LEDs. base/span are the pass in
+	// window-relative 0..4095 units; direction follows the pass (forward is +,
+	// reverse is -). Core 0 publishes ledProgressQ12 at control rate; core 1 only
+	// renders it, so the audio ISR stays division-free.
+	const int32_t passFrames = (int32_t)(endFrame - startFrame);
+	int32_t windowWidth = endQ12 - winStartQ12;
+	if (windowWidth <= 0) windowWidth = 1;
+	int32_t spanQ12 = (int32_t)(((int64_t)(endQ12 - startQ12) << 12) / windowWidth);
+	if (spanQ12 < 1) spanQ12 = 1;
+	if (spanQ12 > 4096) spanQ12 = 4096;
+	int32_t baseQ12;
+	if (reverse)
+	{
+		baseQ12 = (int32_t)(((int64_t)(endQ12 - winStartQ12) << 12) / windowWidth);
+	}
+	else
+	{
+		baseQ12 = (int32_t)(((int64_t)(startQ12 - winStartQ12) << 12) / windowWidth);
+	}
+	if (baseQ12 < 0) baseQ12 = 0;
+	if (baseQ12 > 4095) baseQ12 = 4095;
+	const int32_t dir = reverse ? -1 : 1;
+
+	// Publish the pass start before core 1 sees Play, so it never renders a stale
+	// position from the previous file.
+	ledProgressQ12 = baseQ12;
+	__dmb();
+
 	// Start core 1 playing. It sets the ring buffer positions to zero, so byte x
 	// of the sample data (from startFrame on) goes at ringBuf[x % ringSize].
 	f_lseek(&wavFile, fmt.dataOffset + (FSIZE_t)startFrame * fmt.blockAlign);
-	SetMode(Mode::Play, fmt.channels, fmt.sampleRate, (int32_t)(endFrame - startFrame));
+	SetMode(Mode::Play, fmt.channels, fmt.sampleRate, passFrames);
 
 	PlayResult result = PlayResult::Error;
 
@@ -2203,6 +2236,17 @@ static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, i
 		while (tuh_msc_mounted(1))
 		{
 			FeedWatchdog();
+			{
+				const int32_t played = (int32_t)(ringReadPos / fmt.blockAlign);
+				int32_t p = baseQ12 + dir * (int32_t)(((int64_t)played * spanQ12) / passFrames);
+				if (p < 0) p = 0;
+				if (p > 4095) p = 4095;
+				if (p != ledProgressQ12)
+				{
+					ledProgressQ12 = p;
+					__dmb();
+				}
+			}
 			if (request != Request::None)
 			{
 				result = PlayResult::Interrupted;
@@ -2256,6 +2300,17 @@ static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, i
 		while (tuh_msc_mounted(1))
 		{
 			FeedWatchdog();
+			{
+				const int32_t played = (int32_t)(ringReadPos / fmt.blockAlign);
+				int32_t p = baseQ12 + dir * (int32_t)(((int64_t)played * spanQ12) / passFrames);
+				if (p < 0) p = 0;
+				if (p > 4095) p = 4095;
+				if (p != ledProgressQ12)
+				{
+					ledProgressQ12 = p;
+					__dmb();
+				}
+			}
 			if (request != Request::None)
 			{
 				result = PlayResult::Interrupted;
@@ -2899,7 +2954,7 @@ static void RunStick()
 		snprintf(path, sizeof(path), "%s%s", bankPaths[bank], stationNames[index]);
 
 		curStation = index;
-		PlayResult r = PlayFile(path, startQ12, winEnd, lastNorm, reversePass);
+		PlayResult r = PlayFile(path, startQ12, winEnd, winStart, lastNorm, reversePass);
 
 		if (r == PlayResult::Interrupted)
 		{
