@@ -2213,6 +2213,7 @@ static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, i
 		// tuh_msc_mounted() goes false if the stick is pulled out
 		while (tuh_msc_mounted(1))
 		{
+			FeedWatchdog();
 			if (request != Request::None)
 			{
 				result = PlayResult::Interrupted;
@@ -2265,6 +2266,7 @@ static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, i
 
 		while (tuh_msc_mounted(1))
 		{
+			FeedWatchdog();
 			if (request != Request::None)
 			{
 				result = PlayResult::Interrupted;
