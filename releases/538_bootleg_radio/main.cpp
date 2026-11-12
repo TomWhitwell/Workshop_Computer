@@ -111,6 +111,11 @@ Settings
   LED mode.  It is read once when the stick mounts; with no file the card behaves
   exactly as described above.  See the Settings section in README.md.
 
+  An original Music Thing Radio Music settings.txt is safe to use. The parser
+  accepts its formatting (comments after values, spaces inside keys, CRLF, a BOM,
+  and files larger than 1 KB) and ignores keys it does not know. Only loopMode has
+  an equivalent: RM's 0/1/2 map to one-shot/loop/ping-pong.
+
 How it works
 
   Core 0 runs main().  It handles USB (TinyUSB), the filesystem (FatFs), and
@@ -147,6 +152,7 @@ it acts on the request.
 */
 
 #include "ComputerCard.h"
+#include "settings_line.h"
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 #include "hardware/clocks.h"
@@ -2319,12 +2325,19 @@ static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, i
 // Settings
 //
 // Optional /settings.txt in the stick's root, read once when the stick is
-// mounted (on core 0). It is a plain text file of "key = value" lines; "#"
-// starts a comment, blank lines and unknown keys are ignored, and keys are
+// mounted (on core 0). It is a plain text file of "key = value" lines; "#" and
+// ";" start a comment, blank lines and unknown keys are ignored, and keys are
 // case-insensitive. If the file is absent, or a value is not understood, the
 // default is kept, so the card behaves exactly as before without a settings
 // file. The integer parser is hand-rolled: pulling in atoi/strtol would drag
 // newlib's reentrancy machinery (and several KB of RAM) into the build.
+//
+// This deliberately accepts the formatting of an original Music Thing Radio
+// Music settings.txt: comments after values, spaces inside key names, CRLF line
+// endings, a UTF-8 BOM and files larger than 1 KB. Only loopMode has a real
+// equivalent (RM 0/1/2 = one-shot/loop/ping-pong); every other RM key is ignored
+// because the card's feature set is different. Lines are parsed by
+// settings_line.h, which is also exercised by tests/test_settings_line.cpp.
 
 static constexpr int kMaxBanks = 32;
 // A bank path is "/" (root) or "/name/" where name can be a long filename, so
@@ -2334,22 +2347,13 @@ static constexpr int kBankPathLen = 260;
 static constexpr int kMaxStations = 64;
 static constexpr int kStationNameLen = 256;
 
-static char *Trim(char *s)
-{
-	while (*s == ' ' || *s == '\t') s++;
-	char *end = s + strlen(s);
-	while (end > s && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\r' || end[-1] == '\n')) end--;
-	*end = 0;
-	return s;
-}
-
 static bool EqualsIgnoreCase(const char *a, const char *b)
 {
 	return strcasecmp(a, b) == 0;
 }
 
-// Parse a decimal integer, clamped to [lo, hi]. Returns false if there are no
-// digits, so a missing or malformed value can keep the default.
+// Parse a decimal integer in [lo, hi]. Returns false if there are no digits, or
+// the value is out of range, so a missing or malformed value keeps the default.
 static bool ParseInt(const char *s, int lo, int hi, int &out)
 {
 	while (*s == ' ' || *s == '\t') s++;
@@ -2366,14 +2370,15 @@ static bool ParseInt(const char *s, int lo, int hi, int &out)
 		s++;
 	}
 	if (neg) v = -v;
-	if (v < lo) v = lo;
-	if (v > hi) v = hi;
+	if (v < lo || v > hi) return false;
 	out = (int)v;
 	return true;
 }
 
-// Apply one "key = value" pair. Unknown keys and values are ignored.
-static void ApplySetting(char *key, char *val)
+// Apply one "key = value" pair. Keys arrive lower-case and without spaces.
+// Unknown keys and values are ignored, which is what makes an RM settings file
+// safe: it contains many keys this card does not implement.
+static void ApplySetting(const char *key, const char *val)
 {
 	if (EqualsIgnoreCase(key, "mode"))
 	{
@@ -2424,14 +2429,22 @@ static void ApplySetting(char *key, char *val)
 		else if (EqualsIgnoreCase(val, "fine")) cfgSpeedRange = SpeedRange::Fine;
 		else if (EqualsIgnoreCase(val, "off")) cfgSpeedRange = SpeedRange::Off;
 	}
-	else if (EqualsIgnoreCase(key, "loopMode"))
+	else if (EqualsIgnoreCase(key, "loopmode"))
 	{
-		if (EqualsIgnoreCase(val, "loop")) cfgLoopMode = LoopMode::Loop;
+		// Radio Music uses 0/1/2 for no-loop/loop/ping-pong. Accept those as well
+		// as the card's word forms, so an RM settings file does the obvious thing.
+		const int n = ParseLoopModeNumber(val);
+		if (n == 0) cfgLoopMode = LoopMode::OneShot;
+		else if (n == 1) cfgLoopMode = LoopMode::Loop;
+		else if (n == 2) cfgLoopMode = LoopMode::PingPong;
+		else if (EqualsIgnoreCase(val, "loop")) cfgLoopMode = LoopMode::Loop;
 		else if (EqualsIgnoreCase(val, "one-shot") ||
 		         EqualsIgnoreCase(val, "oneshot") ||
+		         EqualsIgnoreCase(val, "one shot") ||
 		         EqualsIgnoreCase(val, "off")) cfgLoopMode = LoopMode::OneShot;
 		else if (EqualsIgnoreCase(val, "ping-pong") ||
-		         EqualsIgnoreCase(val, "pingpong")) cfgLoopMode = LoopMode::PingPong;
+		         EqualsIgnoreCase(val, "pingpong") ||
+		         EqualsIgnoreCase(val, "ping pong")) cfgLoopMode = LoopMode::PingPong;
 	}
 	else if (EqualsIgnoreCase(key, "performanceMode"))
 	{
@@ -2448,8 +2461,9 @@ static void ApplySetting(char *key, char *val)
 	}
 	else if (EqualsIgnoreCase(key, "static"))
 	{
-		if (EqualsIgnoreCase(val, "on")) cfgStaticOn = true;
-		else if (EqualsIgnoreCase(val, "off")) cfgStaticOn = false;
+		// Accept RM-style numeric booleans too.
+		if (EqualsIgnoreCase(val, "on") || EqualsIgnoreCase(val, "1")) cfgStaticOn = true;
+		else if (EqualsIgnoreCase(val, "off") || EqualsIgnoreCase(val, "0")) cfgStaticOn = false;
 	}
 	else if (EqualsIgnoreCase(key, "staticLevel"))
 	{
@@ -2474,37 +2488,59 @@ static void __attribute__((noinline)) LoadSettings()
 		return; // no settings file: keep the defaults
 	}
 
-	// settings.txt is small; read it whole, then walk it line by line.
-	static char buf[1024];
+	// Stream the file in small chunks and assemble one line at a time. This is
+	// deliberately not limited to the old 1 KB read: an RM2 settings.txt with its
+	// comments is larger than that, and keys near the end must still be seen.
+	static char chunk[256];
+	static char line[256];
+	size_t lineLen = 0;
+	bool overflow = false;
+
 	UINT br = 0;
-	if (f_read(&settingsFile, buf, sizeof(buf) - 1, &br) == FR_OK)
+	while (f_read(&settingsFile, chunk, sizeof(chunk), &br) == FR_OK && br > 0)
 	{
-		buf[br] = 0;
-		char *p = buf;
-		while (*p)
+		for (UINT i = 0; i < br; i++)
 		{
-			char *nl = strchr(p, '\n');
-			if (nl)
+			const char c = chunk[i];
+			if (c == '\n')
 			{
-				*nl = 0;
-			}
-			char *s = Trim(p);
-			if (*s != 0 && *s != '#' && *s != ';')
-			{
-				char *eq = strchr(s, '=');
-				if (eq)
+				if (!overflow)
 				{
-					*eq = 0;
-					ApplySetting(Trim(s), Trim(eq + 1));
+					line[lineLen] = 0;
+					SettingLine parsed;
+					if (ParseSettingLine(line, parsed))
+					{
+						ApplySetting(parsed.key, parsed.value);
+					}
+				}
+				lineLen = 0;
+				overflow = false;
+			}
+			else if (c != '\r')
+			{
+				if (lineLen < sizeof(line) - 1)
+				{
+					line[lineLen++] = c;
+				}
+				else
+				{
+					overflow = true; // long line: ignore it, but keep scanning
 				}
 			}
-			if (!nl)
-			{
-				break;
-			}
-			p = nl + 1;
 		}
 	}
+
+	// A final line without a trailing newline still counts.
+	if (!overflow && lineLen > 0)
+	{
+		line[lineLen] = 0;
+		SettingLine parsed;
+		if (ParseSettingLine(line, parsed))
+		{
+			ApplySetting(parsed.key, parsed.value);
+		}
+	}
+
 	f_close(&settingsFile);
 }
 

@@ -429,6 +429,28 @@ Rules and defaults:
   hold changes the running static; it is not written back, and a settings reload
   that sets `static` overrides it. Neither remote change is written to the file.
 
+### Using a Radio Music settings.txt
+
+An original Music Thing Radio Music `settings.txt` is safe to leave on the stick.
+The parser accepts Radio Music's formatting — comments after values, spaces
+inside key names, CRLF line endings, a UTF-8 BOM, and files larger than 1 KB — and
+silently ignores keys it does not know.
+
+Only **`loopMode`** has a real equivalent:
+
+| Radio Music | Bootleg Radio |
+|---|---|
+| `loopMode = 0` | `one-shot` |
+| `loopMode = 1` | `loop` |
+| `loopMode = 2` | `ping-pong` |
+
+The card's own word forms still work, and later lines win if a file contains
+both. Everything else is ignored: `speedMode`, `tunerMode`, `pulseMode`,
+`showMeter`, `crossfadeTime`, `radioStart`, `startCVDivider`, and the rest.
+Only the root `settings.txt` is read; a `settings.txt` inside a bank folder is
+ignored. Bank-folder rules, AIFF/RAW files and Radio Music's subfolder semantics
+are also not adopted — see [Banks](#banks).
+
 ## LEDs
 
 | LED | Meaning |
@@ -522,6 +544,10 @@ build outside the repo dev container, point CMake at a newer TinyUSB with
 
 - `main.cpp` — core 1 runs the 48 kHz audio and knob/CV/switch handling; core 0
   runs USB, FatFs and WAV parsing, and fills the ring buffer.
+- `settings_line.h` — hardware-independent parser for one `settings.txt` line.
+  `tests/test_settings_line.cpp` and `tests/fixtures/` exercise it on a host:
+  `c++ -std=c++17 -Wall -Wextra tests/test_settings_line.cpp -o tests/test_settings_line`
+  then `./tests/test_settings_line`.
 - `diskio.c`, `fatfs/` — FatFs glue for a TinyUSB host mass-storage device
   (built with `FF_LBA64 = 1` and a 4k `FF_MAX_SS` so GPT and 4096-byte-sector
   sticks mount).

@@ -3,12 +3,12 @@ Name: Bootleg Radio
 short-description: "A lo-fi bootleg tribute to Music Thing's Radio Music: tune through WAV files on a USB stick, like a pirate station"
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
-Version: "1.1.0"
+Version: "1.2.0"
 Status: Released
 License: MIT
 Editor: none
 date-created: 2026-10-03
-date-updated: 2026-11-01
+date-updated: 2026-11-12
 
 contact:
   email: joep@joep-i.nl
@@ -23,7 +23,7 @@ contact:
 
 uf2:
   - path: UF2/bootleg_radio.uf2
-    name: Bootleg Radio 1.1.0
+    name: Bootleg Radio 1.2.0
 
 tags:
   - sampler
@@ -281,6 +281,9 @@ host:
     performance clock divider, start bank, speed range, internal clock tempo,
     triangle rate, the two pulse-output modes, the LED mode, the Pulse In 2 remote
     mode and the tuning-static settings; it is read once per mount, and a missing
-    or malformed value falls back to the default. The 8mu's B4 tap and B2/B3 holds change the running mode and static
+    or malformed value falls back to the default. An original Music Thing Radio
+    Music settings.txt is safe to use: its formatting is accepted, only loopMode
+    is mapped (0/1/2 = one-shot/loop/ping-pong), and all other RM keys are ignored.
+    Per-bank settings.txt files are not read. The 8mu's B4 tap and B2/B3 holds change the running mode and static
     without writing the file; a later settings reload re-applies mode, and a
     static value there overrides a B2/B3 change.

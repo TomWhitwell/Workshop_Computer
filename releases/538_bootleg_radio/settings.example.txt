@@ -4,8 +4,14 @@
 # It is read once each time the stick is mounted, after the filesystem mounts.
 # Every line is optional; delete or comment out anything you do not want to
 # change, and the card keeps its default. Lines starting with # or ; are
-# comments. Keys are case-insensitive. The values below are all the defaults, so
-# this file as-is changes nothing.
+# comments, and a # or ; also starts a comment after a value. Keys are
+# case-insensitive and spaces inside key names are ignored. The values below are
+# all the defaults, so this file as-is changes nothing.
+#
+# An original Music Thing Radio Music settings.txt is safe to use. Only its
+# loopMode key has an equivalent here (0 = one-shot, 1 = loop, 2 = ping-pong);
+# every other RM key is ignored. Only this root settings.txt is read; a
+# settings.txt inside a bank folder is ignored.
 
 # Power-on "tune" mode: loop | sync
 #   loop  a new station starts at its loop start point
@@ -17,6 +23,8 @@ mode = sync
 #   loop       wrap back to the loop start (default)
 #   one-shot   play once and stop until retriggered
 #   ping-pong  alternate forward and reverse passes
+# Radio Music's numeric values are also accepted:
+#   0 = one-shot, 1 = loop, 2 = ping-pong
 loopMode = loop
 
 # F7 performance mode: off | scan | repeat

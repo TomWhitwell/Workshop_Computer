@@ -1,0 +1,84 @@
+# Radio Music v2 settings file (fixture for Bootleg Radio's parser)
+#
+# This file deliberately mimics the shape of an original Radio Music settings.txt:
+# lots of comments, keys this card does not implement, and a key near the end
+# that must still be found even though the file is larger than 1 KB.
+#
+# The point is not that Bootleg Radio should emulate every Radio Music feature.
+# The point is that an RM file must be safe to leave on the stick: the parser
+# must not choke on its comments, spaces, CRLF line endings, or unknown keys.
+#
+# Loop mode: 0 = files do not loop, 1 = files loop in radio mode, 2 = ping-pong
+loopMode = 1
+#
+# Crossfade time in ms
+crossfadeTime = 25
+#
+# Tuner mode: 0 = 'sharp' switch with crossfade
+#             1 = 'smooth' continuous fade
+#             2 = radio noise emulation mode
+tunerMode = 0
+#
+# Minimum radio station strength (0-256).
+# In 'Radio' tuner mode, sets strength of distant signals.
+# 0 = Stations randomly distributed between inaudible and full strength.
+# 256 = All stations at full strength.
+minRadioStationStrength = 128
+#
+# Radio mode single side band (SSB) pitch shift effect (0=off, 1=on).
+ssbEffect = 0
+#
+# Radio mode whistle volume (0-100).
+whistleVol = 50
+#
+# Radio mode noise volume (0-100).
+noiseVol = 50
+#
+# Speed mode: 0 = 'tape mode' - continuous linear speed control
+#             1 = 'notes mode' - exponential pitch control
+#             2 = '90s mode' - timestretch effect
+speedMode = 0
+#
+# Fade mode: 0 = constant power, 1 = linear.
+fadeMode = 0
+#
+# Pulse out mode: 0 = off (reset in); positive = multiplier; negative = divisor.
+pulseMode = 0
+#
+# Immediacy options. These are all Radio Music features that Bootleg Radio does
+# not implement, but they must be ignored cleanly.
+stationPotImmediate = 1
+stationCVImmediate = 1
+startPotImmediate = 0
+startCVImmediate = 0
+pitchPotImmediate = 1
+pitchCVImmediate = 1
+startCVDivider = 2
+#
+# Playback speed ranges.
+pitchKnobLinearSpeedMin = -100
+pitchKnobLinearSpeedMax = 100
+pitchCVLinearSpeedMin = -100
+pitchCVLinearSpeedMax = 100
+pitchKnobMin = -12
+pitchKnobMax = 12
+quantisePitchPot = 1
+quantisePitchCV = 1
+#
+# LED UI options.
+showMeter = 1
+meterHide = 2000
+highQuality = 1
+pulseOutDividesCustomLoop = 1
+reselectSubdirOnStationChange = 0
+resetDelay = 0
+resetJackPauses = 0
+radioStart = 1
+#
+# A few lines with spaces inside the key, as Radio Music explicitly allows.
+start pot immediate = 1
+start cv immediate = 0
+#
+# Bootleg Radio's own key near the end of the file. The old 1 KB parser would
+# not have seen this line.
+loopMode = 0
