@@ -157,6 +157,7 @@ it acts on the request.
 #include "pico/multicore.h"
 #include "hardware/clocks.h"
 #include "hardware/pio.h"
+#include "hardware/watchdog.h"
 #include "midi_rx.pio.h"
 #include "tusb.h" // TinyUSB
 #include "ff.h"   // FatFs
@@ -193,6 +194,21 @@ static uint8_t __attribute__((aligned(4))) ringBuf[ringSize];
 
 static volatile uint32_t ringWritePos = 0; // bytes ever put into ringBuf
 static volatile uint32_t ringReadPos = 0;  // bytes ever taken out of ringBuf
+
+// Watchdog liveness. Core 1 bumps this every audio sample; core 0 feeds the
+// hardware watchdog only while it is advancing, so a hang on either core resets
+// the card within about a second instead of freezing it.
+static volatile uint32_t core1Ticks = 0;
+static uint32_t lastCore1Ticks = 0;
+static void FeedWatchdog()
+{
+	const uint32_t t = core1Ticks;
+	if (t == 0 || t != lastCore1Ticks)
+	{
+		lastCore1Ticks = t;
+		watchdog_update();
+	}
+}
 
 enum class Mode
 {
@@ -1626,12 +1642,133 @@ public:
 	}
 
 public:
+	// Render the six LEDs from the playback/scan state. Extracted from
+	// ProcessSample so the display can be reworked incrementally without
+	// touching the audio path.
+	void RenderLeds(int32_t left, int32_t right)
+	{
+		// LED 0/1: output level.
+		LedBrightness(0, (uint16_t)std::min<int32_t>(std::abs(left) * 2, 4095));
+		LedBrightness(1, (uint16_t)std::min<int32_t>(std::abs(right) * 2, 4095));
+
+		const Scan s = scanState;
+
+		// While a stick is present but its filesystem is not yet readable, blink
+		// all six LEDs (~0.34s on, ~0.34s off) so the card clearly shows it is
+		// waiting for the drive. This takes over the panel and returns.
+		if (waitingForDrive)
+		{
+			waitPhase++;
+			const bool on = (waitPhase >> 14) & 1;
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, on);
+			}
+			return;
+		}
+
+		// Mode-toggle feedback takes over all six LEDs for a moment: the whole
+		// panel blinks 2 times for Loop mode, 3 times for Sync mode.
+		if (modeBlink > 0)
+		{
+			modeBlink--;
+			const bool on = (modeBlink >> 12) & 1;
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, on);
+			}
+			return;
+		}
+
+		// Static on/off feedback: one all-LED flash for off, four for on. It
+		// starts after any mode blink has finished, so the two never mix.
+		if (staticBlink > 0)
+		{
+			staticBlink--;
+			const bool on = (staticBlink >> 12) & 1;
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, on);
+			}
+			return;
+		}
+
+		// While the switch-up bank selector is active, LEDs 0-4 show the target
+		// bank in binary. Bank 0 is all off; LED 5 stays dark.
+		if (bankLed >= 0)
+		{
+			for (int i = 0; i < 5; i++)
+			{
+				LedOn(i, ((bankLed >> i) & 1) != 0);
+			}
+			LedOff(5);
+			return;
+		}
+
+		// LED 2 shows both "playing" and the tune mode: off when idle, steady
+		// while playing in Sync mode, and slowly blinking while playing in Loop
+		// mode. (The panel-wide mode-toggle blink above is the momentary cue.)
+		led2Phase++;
+		const bool playing = (mode == Mode::Play) && (frame < numFrames);
+		if (!playing)
+		{
+			LedOff(2);
+		}
+		else if (playMode == PlayMode::Loop)
+		{
+			LedOn(2, (led2Phase >> 14) & 1); // ~0.34s on, ~0.34s off (~1.5Hz)
+		}
+		else
+		{
+			LedOn(2, true); // Sync: steady
+		}
+
+		// LED 3: station-change blink when it happens; a steady "no files" or
+		// "unplayable" fault otherwise. Quiet LED mode leaves it dark.
+		const bool verbose = (cfgLed == LedMode::Verbose);
+		if (!verbose)
+		{
+			stationFlash = 0;
+			LedOff(3);
+		}
+		else if (stationFlash > 0)
+		{
+			stationFlash--;
+			LedOn(3, (stationFlash >> 12) & 1); // slow blink, so a change is obvious
+		}
+		else
+		{
+			LedOn(3, s == Scan::NoFiles || s == Scan::Unplayable);
+		}
+
+		LedOn(4, stickMounted);
+		if (xrunLedTimer > 0)
+		{
+			xrunLedTimer--;
+		}
+		// LED 5: underrun while playing; a steady mount/unplayable fault otherwise.
+		// Quiet LED mode leaves it dark.
+		if (xrunLedTimer > 0)
+		{
+			LedOn(5, true);
+		}
+		else if (verbose)
+		{
+			LedOn(5, s == Scan::MountFailed || s == Scan::Unplayable);
+		}
+		else
+		{
+			LedOff(5);
+		}
+	}
+
 	// Called at 48kHz
 	virtual void ProcessSample()
 	{
 		// Start the PIO UART receiver once, after ComputerCard::Init() has
 		// configured the pulse pins, so our pin mux is not overwritten.
 		midiNow++;
+		core1Ticks++;
 		if (!midiStarted)
 		{
 			midiStarted = true;
@@ -1880,125 +2017,7 @@ public:
 		PulseOut1(out1);
 		PulseOut2(out2);
 
-		// LEDs. Show levels, and status. There is no serial console on a
-		// USB-host card, so these carry the diagnosis when a stick misbehaves:
-		//   LED 4           USB stick detected
-		//   LED 4 + LED 5   filesystem would not mount
-		//   LED 4 + LED 3   mounted, but no .wav files found
-		//   LED 4 + 3 + 5   files found, but none could be opened/parsed
-		//   LED 4 + LED 2   playing
-		LedBrightness(0, (uint16_t)std::min<int32_t>(std::abs(left) * 2, 4095));
-		LedBrightness(1, (uint16_t)std::min<int32_t>(std::abs(right) * 2, 4095));
-
-		const Scan s = scanState;
-
-		// While a stick is present but its filesystem is not yet readable, blink
-		// all six LEDs (~0.34s on, ~0.34s off) so the card clearly shows it is
-		// waiting for the drive. This takes over the panel and returns.
-		if (waitingForDrive)
-		{
-			waitPhase++;
-			const bool on = (waitPhase >> 14) & 1;
-			for (int i = 0; i < 6; i++)
-			{
-				LedOn(i, on);
-			}
-			return;
-		}
-
-		// Mode-toggle feedback takes over all six LEDs for a moment: the whole
-		// panel blinks 2 times for Loop mode, 3 times for Sync mode.
-		if (modeBlink > 0)
-		{
-			modeBlink--;
-			const bool on = (modeBlink >> 12) & 1;
-			for (int i = 0; i < 6; i++)
-			{
-				LedOn(i, on);
-			}
-			return;
-		}
-
-		// Static on/off feedback: one all-LED flash for off, four for on. It
-		// starts after any mode blink has finished, so the two never mix.
-		if (staticBlink > 0)
-		{
-			staticBlink--;
-			const bool on = (staticBlink >> 12) & 1;
-			for (int i = 0; i < 6; i++)
-			{
-				LedOn(i, on);
-			}
-			return;
-		}
-
-		// While the switch-up bank selector is active, LEDs 0-4 show the target
-		// bank in binary. Bank 0 is all off; LED 5 stays dark.
-		if (bankLed >= 0)
-		{
-			for (int i = 0; i < 5; i++)
-			{
-				LedOn(i, ((bankLed >> i) & 1) != 0);
-			}
-			LedOff(5);
-			return;
-		}
-
-		// LED 2 shows both "playing" and the tune mode: off when idle, steady
-		// while playing in Sync mode, and slowly blinking while playing in Loop
-		// mode. (The panel-wide mode-toggle blink above is the momentary cue.)
-		led2Phase++;
-		const bool playing = (mode == Mode::Play) && (frame < numFrames);
-		if (!playing)
-		{
-			LedOff(2);
-		}
-		else if (playMode == PlayMode::Loop)
-		{
-			LedOn(2, (led2Phase >> 14) & 1); // ~0.34s on, ~0.34s off (~1.5Hz)
-		}
-		else
-		{
-			LedOn(2, true); // Sync: steady
-		}
-
-		// LED 3: station-change blink when it happens; a steady "no files" or
-		// "unplayable" fault otherwise. Quiet LED mode leaves it dark.
-		const bool verbose = (cfgLed == LedMode::Verbose);
-		if (!verbose)
-		{
-			stationFlash = 0;
-			LedOff(3);
-		}
-		else if (stationFlash > 0)
-		{
-			stationFlash--;
-			LedOn(3, (stationFlash >> 12) & 1); // slow blink, so a change is obvious
-		}
-		else
-		{
-			LedOn(3, s == Scan::NoFiles || s == Scan::Unplayable);
-		}
-
-		LedOn(4, stickMounted);
-		if (xrunLedTimer > 0)
-		{
-			xrunLedTimer--;
-		}
-		// LED 5: underrun while playing; a steady mount/unplayable fault otherwise.
-		// Quiet LED mode leaves it dark.
-		if (xrunLedTimer > 0)
-		{
-			LedOn(5, true);
-		}
-		else if (verbose)
-		{
-			LedOn(5, s == Scan::MountFailed || s == Scan::Unplayable);
-		}
-		else
-		{
-			LedOff(5);
-		}
+		RenderLeds(left, right);
 	}
 };
 
@@ -2788,6 +2807,7 @@ static void RunStick()
 
 	while (tuh_msc_mounted(1))
 	{
+		FeedWatchdog();
 		// Servicing a request here (not only after a file plays) is what keeps
 		// the card alive when every file fails: a fresh request clears the
 		// failure count and gives the card another go, instead of freezing.
@@ -2964,8 +2984,12 @@ int main()
 	};
 	tusb_init(BOARD_TUH_RHPORT, &hostInit);
 
+	// A hang on either core reboots the card rather than freezing it.
+	watchdog_enable(1000, 1);
+
 	while (true)
 	{
+		FeedWatchdog();
 		// tuh_task() runs the USB stack: enumeration of newly plugged devices,
 		// and completion of transfers. It must be called often.
 		tuh_task();
@@ -2995,6 +3019,7 @@ int main()
 		absolute_time_t mountDeadline = make_timeout_time_ms(5000);
 		while (tuh_msc_mounted(1) && !time_reached(mountDeadline))
 		{
+			FeedWatchdog();
 			if (tuh_msc_ready(1))
 			{
 				fr = f_mount(&fatFs, "", 1);
@@ -3033,6 +3058,7 @@ int main()
 		// Wait for removal before trying again
 		while (tuh_msc_mounted(1))
 		{
+			FeedWatchdog();
 			tuh_task();
 		}
 		stickMounted = false;
