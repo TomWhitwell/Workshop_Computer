@@ -1021,6 +1021,7 @@ public:
 	bool selectionReady = false;
 
 	int32_t xrunLedTimer = 0;
+	int32_t levelHold = 0;     // 12-bit peak with slow decay, for the level meter
 	int32_t stationFlash = 0; // counts down while LED 3 shows a station change
 	int32_t bankLed = -1;     // >=0 while the switch-up bank selector is active
 	int32_t fadeGain = 0;     // 0..4096 output envelope for seam/station fades
@@ -1647,9 +1648,19 @@ public:
 	// touching the audio path.
 	void RenderLeds(int32_t left, int32_t right)
 	{
-		// LED 0/1: output level.
-		LedBrightness(0, (uint16_t)std::min<int32_t>(std::abs(left) * 2, 4095));
-		LedBrightness(1, (uint16_t)std::min<int32_t>(std::abs(right) * 2, 4095));
+		// Peak level with fast attack and a slow (~200ms) decay, in 12-bit units.
+		const int32_t peak = std::max(std::abs(left), std::abs(right));
+		if (peak > levelHold)
+		{
+			levelHold = peak;
+		}
+		else
+		{
+			int32_t drop = levelHold >> 12;
+			if (drop < 1) drop = 1;
+			levelHold -= drop;
+			if (levelHold < 0) levelHold = 0;
+		}
 
 		const Scan s = scanState;
 
@@ -1705,40 +1716,17 @@ public:
 			return;
 		}
 
-		// LED 2 shows both "playing" and the tune mode: off when idle, steady
-		// while playing in Sync mode, and slowly blinking while playing in Loop
-		// mode. (The panel-wide mode-toggle blink above is the momentary cue.)
-		led2Phase++;
-		const bool playing = (mode == Mode::Play) && (frame < numFrames);
-		if (!playing)
+		// Normal display: LEDs 0-3 are a four-step level meter (roughly -30, -18,
+		// -6 and 0 dBFS); LED 4 is the mounted indicator and LED 5 carries the
+		// underrun / mount-fault state.
+		int32_t steps = 0;
+		if (levelHold >= 2048) steps = 4;      // about 0 dBFS
+		else if (levelHold >= 1024) steps = 3; // about -6 dB
+		else if (levelHold >= 256) steps = 2;  // about -18 dB
+		else if (levelHold >= 64) steps = 1;   // about -30 dB
+		for (int i = 0; i < 4; i++)
 		{
-			LedOff(2);
-		}
-		else if (playMode == PlayMode::Loop)
-		{
-			LedOn(2, (led2Phase >> 14) & 1); // ~0.34s on, ~0.34s off (~1.5Hz)
-		}
-		else
-		{
-			LedOn(2, true); // Sync: steady
-		}
-
-		// LED 3: station-change blink when it happens; a steady "no files" or
-		// "unplayable" fault otherwise. Quiet LED mode leaves it dark.
-		const bool verbose = (cfgLed == LedMode::Verbose);
-		if (!verbose)
-		{
-			stationFlash = 0;
-			LedOff(3);
-		}
-		else if (stationFlash > 0)
-		{
-			stationFlash--;
-			LedOn(3, (stationFlash >> 12) & 1); // slow blink, so a change is obvious
-		}
-		else
-		{
-			LedOn(3, s == Scan::NoFiles || s == Scan::Unplayable);
+			LedOn(i, i < steps);
 		}
 
 		LedOn(4, stickMounted);
@@ -1748,6 +1736,7 @@ public:
 		}
 		// LED 5: underrun while playing; a steady mount/unplayable fault otherwise.
 		// Quiet LED mode leaves it dark.
+		const bool verbose = (cfgLed == LedMode::Verbose);
 		if (xrunLedTimer > 0)
 		{
 			LedOn(5, true);
