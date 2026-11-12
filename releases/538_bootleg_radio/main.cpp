@@ -200,6 +200,10 @@ static volatile uint32_t ringReadPos = 0;  // bytes ever taken out of ringBuf
 // the direction is implicit in how it moves over time.
 static volatile int32_t ledProgressQ12 = 0;
 
+// Fault display mask, computed by core 0 (which has time_us_32) at control rate
+// and rendered verbatim by core 1: bit i = LED i on. 0 when the card is ready.
+static volatile uint8_t ledFaultMask = 0;
+
 // Watchdog liveness. Core 1 bumps this every audio sample; core 0 feeds the
 // hardware watchdog only while it is advancing, so a hang on either core resets
 // the card within about a second instead of freezing it.
@@ -376,6 +380,47 @@ enum class Scan : uint8_t
 	Ready         // mounted with at least one playable file
 };
 static volatile Scan scanState = Scan::NoStick;
+
+// Compute the fault/startup LED pattern for the current scan state and publish it
+// as a 6-bit mask. Called from core 0's loops at control rate, so core 1's ISR
+// just renders the mask with no timing or division of its own.
+static void UpdateFaultDisplay()
+{
+	const uint32_t ms = time_us_32() / 1000;
+	uint8_t mask = 0;
+	const Scan s = scanState;
+
+	if (waitingForDrive || s == Scan::Mounting)
+	{
+		// All six blink slowly (~0.5s period) while the stick is not yet readable.
+		if ((ms / 250) & 1) mask = 0x3F;
+	}
+	else if (s == Scan::NoStick)
+	{
+		// One LED walks slowly around the block (~1.2s cycle).
+		mask = (uint8_t)(1u << ((ms / 200) % 6));
+	}
+	else if (s == Scan::MountFailed)
+	{
+		// Rapid triple blink, then a pause (~2s cycle).
+		const uint32_t t = ms % 2000;
+		if (t < 83 || (t >= 166 && t < 249) || (t >= 332 && t < 415)) mask = 0x3F;
+	}
+	else if (s == Scan::NoFiles)
+	{
+		// One LED walks fast (~0.4s cycle).
+		mask = (uint8_t)(1u << ((ms / 66) % 6));
+	}
+	else if (s == Scan::Unplayable)
+	{
+		// Two adjacent LEDs walk fast (~0.3s cycle).
+		const uint32_t pair = (ms / 100) % 3;
+		mask = (uint8_t)((1u << (2 * pair)) | (1u << (2 * pair + 1)));
+	}
+
+	ledFaultMask = mask;
+	__dmb();
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1668,16 +1713,17 @@ public:
 			if (levelHold < 0) levelHold = 0;
 		}
 
-		// While a stick is present but its filesystem is not yet readable, blink
-		// all six LEDs (~0.34s on, ~0.34s off) so the card clearly shows it is
-		// waiting for the drive. This takes over the panel and returns.
-		if (waitingForDrive)
+		// Startup and media faults show a motion pattern precomputed by core 0,
+		// rendered verbatim here. Deliberate confirmations and bank selection
+		// still take over below.
+		const Scan s = scanState;
+		const bool mediaDown = (waitingForDrive || s == Scan::Mounting ||
+		                        s == Scan::NoStick || s == Scan::MountFailed);
+		if (mediaDown)
 		{
-			waitPhase++;
-			const bool on = (waitPhase >> 14) & 1;
 			for (int i = 0; i < 6; i++)
 			{
-				LedOn(i, on);
+				LedOn(i, (ledFaultMask >> i) & 1);
 			}
 			return;
 		}
@@ -1717,6 +1763,16 @@ public:
 				LedOn(i, ((bankLed >> i) & 1) != 0);
 			}
 			LedOff(5);
+			return;
+		}
+
+		// Mounted, but this bank has nothing playable: show the fault motion.
+		if (s == Scan::NoFiles || s == Scan::Unplayable)
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, (ledFaultMask >> i) & 1);
+			}
 			return;
 		}
 
@@ -2859,6 +2915,7 @@ static void RunStick()
 	while (tuh_msc_mounted(1))
 	{
 		FeedWatchdog();
+		UpdateFaultDisplay();
 		// Servicing a request here (not only after a file plays) is what keeps
 		// the card alive when every file fails: a fresh request clears the
 		// failure count and gives the card another go, instead of freezing.
@@ -3038,6 +3095,7 @@ int main()
 	while (true)
 	{
 		FeedWatchdog();
+		UpdateFaultDisplay();
 		// tuh_task() runs the USB stack: enumeration of newly plugged devices,
 		// and completion of transfers. It must be called often.
 		tuh_task();
@@ -3068,6 +3126,7 @@ int main()
 		while (tuh_msc_mounted(1) && !time_reached(mountDeadline))
 		{
 			FeedWatchdog();
+			UpdateFaultDisplay();
 			if (tuh_msc_ready(1))
 			{
 				fr = f_mount(&fatFs, "", 1);
@@ -3107,6 +3166,7 @@ int main()
 		while (tuh_msc_mounted(1))
 		{
 			FeedWatchdog();
+			UpdateFaultDisplay();
 			tuh_task();
 		}
 		stickMounted = false;
