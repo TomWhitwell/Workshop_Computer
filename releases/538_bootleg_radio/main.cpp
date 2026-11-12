@@ -2021,6 +2021,11 @@ public:
 static FATFS fatFs; // the mounted filesystem
 static FIL wavFile; // the file being played
 static RadioComputer *card = nullptr;
+// The card lives in static storage, not on core 0's stack: it is ~1 KB (the
+// speed table) and core 0's stack is only 2 KB. A file-scope object is
+// constructed before main() with no thread-safety guard, unlike a
+// function-local static.
+static RadioComputer player;
 
 // Run on core 1. ComputerCard::Run() doesn't return.
 static void Core1Entry()
@@ -2950,7 +2955,8 @@ static void RunStick()
 		LoopWindow(winStart, winEnd);
 
 		// Build the full path for this station (the bank path always ends in '/').
-		char path[kBankPathLen + kStationNameLen];
+		// Static storage: keep the 516-byte buffer off core 0's small stack.
+		static char path[kBankPathLen + kStationNameLen];
 		snprintf(path, sizeof(path), "%s%s", bankPaths[bank], stationNames[index]);
 
 		curStation = index;
@@ -3010,11 +3016,7 @@ static bool __attribute__((noinline)) RootIsReadable()
 
 int main()
 {
-	// The card is constructed here on core 0, so that it exists before core 1
-	// starts running it. (It is a plain local, not a function-level static:
-	// main() never returns, and a static would add a thread-safe initialisation
-	// guard, which drags a lot of C++ exception code into the binary.)
-	RadioComputer player;
+	// The card is constructed before main() in static storage (see above).
 	card = &player;
 
 	// The normalisation probe lets ProcessSample tell whether a CV jack is
