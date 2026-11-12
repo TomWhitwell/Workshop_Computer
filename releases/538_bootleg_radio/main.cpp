@@ -1307,7 +1307,7 @@ public:
 					if (desired != curStation && RequestIdle())
 					{
 						QueueRequest(Request::Station, desired);
-						stationHoldTimer = 48000;
+						stationHoldTimer = 14400; // ~300ms
 						stationHoldValue = desired;
 					}
 				}
@@ -1605,7 +1605,7 @@ public:
 					{
 						// Only a real change in the selector asks for a new station.
 						QueueRequest(Request::Station, desired);
-						stationHoldTimer = 48000;
+						stationHoldTimer = 14400; // ~300ms
 						stationHoldValue = desired;
 						lastDesired = desired;
 					}
@@ -2034,7 +2034,7 @@ public:
 						int32_t next = curStation + 1;
 						if (next >= numFiles) next = 0;
 						QueueRequest(Request::Station, next);
-						stationHoldTimer = 48000;
+						stationHoldTimer = 14400; // ~300ms
 						stationHoldValue = next;
 					}
 					else if (perf == PerformanceMode::Repeat && RequestIdle())
