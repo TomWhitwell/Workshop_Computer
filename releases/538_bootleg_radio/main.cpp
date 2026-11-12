@@ -1073,8 +1073,11 @@ public:
 	int32_t xrunLedTimer = 0;
 	int32_t levelHold = 0;     // 12-bit peak with slow decay, for the level meter
 	int32_t progressShown = 0; // frozen loop-window position while playback stops
-	int32_t stationFlash = 0; // counts down while LED 3 shows a station change
-	int32_t bankLed = -1;     // >=0 while the switch-up bank selector is active
+	int32_t stationHoldTimer = 0;  // show the station number in binary while >0
+	int32_t stationHoldValue = 0;  // station index to display
+	int32_t bankLed = -1;          // >=0 while the switch-up bank selector is active
+	int32_t bankHoldTimer = 0;     // show the bank for ~1s after release
+	int32_t bankHoldValue = 0;
 	int32_t fadeGain = 0;     // 0..4096 output envelope for seam/station fades
 	Request pendingRequest = Request::None; // request waiting for the fade to finish
 	int32_t pendingStation = 0;
@@ -1304,7 +1307,8 @@ public:
 					if (desired != curStation && RequestIdle())
 					{
 						QueueRequest(Request::Station, desired);
-						stationFlash = 24000;
+						stationHoldTimer = 48000;
+						stationHoldValue = desired;
 					}
 				}
 				else
@@ -1323,7 +1327,6 @@ public:
 		if (remoteNewTakeover)
 		{
 			remoteNewTakeover = false;
-			stationFlash = 24000; // brief LED 3 flash: the remote owns something
 		}
 
 		// B4 tap: a deliberate mode choice, exactly like the panel switch's
@@ -1542,7 +1545,6 @@ public:
 			if (downHeld < kModeHoldSamples && RequestIdle())
 			{
 				QueueRequest(Request::Retrigger);
-				stationFlash = 24000;
 			}
 			downHeld = 0;
 		}
@@ -1567,7 +1569,6 @@ public:
 				else if (wantBank != lastBankDesired && RequestIdle())
 				{
 					QueueRequest(Request::Bank, wantBank);
-					stationFlash = 24000;
 					lastBankDesired = wantBank;
 					upBankMoved = true; // a bank change cancels the release gesture
 				}
@@ -1604,7 +1605,8 @@ public:
 					{
 						// Only a real change in the selector asks for a new station.
 						QueueRequest(Request::Station, desired);
-						stationFlash = 24000; // half a second at 48kHz
+						stationHoldTimer = 48000;
+						stationHoldValue = desired;
 						lastDesired = desired;
 					}
 				}
@@ -1635,6 +1637,13 @@ public:
 
 		adoptSelection = false;
 
+		// Show the selected bank for a moment after the switch is released.
+		if (wasSelectingBank && !selectingBank)
+		{
+			bankHoldTimer = 48000;
+			bankHoldValue = (lastBankDesired >= 0) ? lastBankDesired : curBank;
+		}
+
 		wasSelectingBank = selectingBank;
 
 		// 8mu button 4: release everything back to the panel/settings.
@@ -1656,7 +1665,8 @@ public:
 				if (target != curBank)
 				{
 					QueueRequest(Request::Bank, target);
-					stationFlash = 24000;
+					bankHoldTimer = 48000;
+					bankHoldValue = target;
 				}
 			}
 		}
@@ -1672,7 +1682,6 @@ public:
 		if (retrigger && RequestIdle())
 		{
 			QueueRequest(Request::Retrigger);
-			stationFlash = 24000;
 		}
 		if (retrigger)
 		{
@@ -1688,7 +1697,6 @@ public:
 			{
 				remoteLoopEditPending = false;
 				QueueRequest(Request::Retrigger);
-				stationFlash = 24000;
 			}
 		}
 	}
@@ -1699,6 +1707,10 @@ public:
 	// touching the audio path.
 	void RenderLeds(int32_t left, int32_t right)
 	{
+		// Timers tick at 48kHz regardless of which pattern is shown.
+		if (stationHoldTimer > 0) stationHoldTimer--;
+		if (bankHoldTimer > 0) bankHoldTimer--;
+
 		// Peak level with fast attack and a slow (~200ms) decay, in 12-bit units.
 		const int32_t peak = std::max(std::abs(left), std::abs(right));
 		if (peak > levelHold)
@@ -1754,15 +1766,34 @@ public:
 			return;
 		}
 
-		// While the switch-up bank selector is active, LEDs 0-4 show the target
-		// bank in binary. Bank 0 is all off; LED 5 stays dark.
+		// While the switch-up bank selector is active, all six LEDs show the bank
+		// in 6-bit binary (LED 0 = least significant bit).
 		if (bankLed >= 0)
 		{
-			for (int i = 0; i < 5; i++)
+			for (int i = 0; i < 6; i++)
 			{
 				LedOn(i, ((bankLed >> i) & 1) != 0);
 			}
-			LedOff(5);
+			return;
+		}
+
+		// While tuning, show the station number in 6-bit binary (LED 0 = bit 0).
+		if (stationHoldTimer > 0)
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, ((stationHoldValue >> i) & 1) != 0);
+			}
+			return;
+		}
+
+		// Show the selected bank for a moment after the switch is released.
+		if (bankHoldTimer > 0)
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, ((bankHoldValue >> i) & 1) != 0);
+			}
 			return;
 		}
 
@@ -2003,12 +2034,12 @@ public:
 						int32_t next = curStation + 1;
 						if (next >= numFiles) next = 0;
 						QueueRequest(Request::Station, next);
-						stationFlash = 24000;
+						stationHoldTimer = 48000;
+						stationHoldValue = next;
 					}
 					else if (perf == PerformanceMode::Repeat && RequestIdle())
 					{
 						QueueRequest(Request::Retrigger);
-						stationFlash = 24000;
 					}
 				}
 			}
