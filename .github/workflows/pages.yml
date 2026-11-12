@@ -48,7 +48,7 @@ jobs:
         run: bash .github/scripts/collect-pr-previews.sh "$RUNNER_TEMP/pr-previews"
 
       - name: Upload PR previews
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-previews
           path: ${{ runner.temp }}/pr-previews
@@ -89,7 +89,7 @@ jobs:
       - name: Add PR previews
         if: needs.previews.result == 'success'
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pr-previews
           path: site/pr
