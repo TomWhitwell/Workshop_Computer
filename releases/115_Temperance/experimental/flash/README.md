@@ -1,18 +1,44 @@
 # Temperance Flash — automatic 2MB / 16MB detection
 
-**Version 0.1.1-flash-exp.1. One UF2 for supported 2MB and 16MB Winbond cards.**
-Build and software tests pass. On 2026-11-11 the user confirmed that this
-auto-detecting version passes functional hardware tests on **both 2MB and
-16MB cards**. The earlier 16MB-only exp.2 build passed user-reported
-functional tests on 2026-11-07.
+**Version 0.2.0-flash-exp.1. One UF2 for supported 2MB and 16MB Winbond cards.**
+This adds Matt Allison's Temperance 0.2.0 gate-recording mode, adapted to
+flash storage, with a fix for delayed edges crossing a mode change.
+This new binary needs physical retesting on both sizes. The preceding
+`temperance0.1.1.flash.uf2` passed user-reported hardware tests on both
+sizes on 2026-11-11 and remains available as the last hardware-tested build.
 
-Flash **`UF2/temperance0.1.1.flash.uf2`**. Capacity is identified at startup;
+Flash **`UF2/temperance0.2.0.flash.uf2`**. Capacity is identified at startup;
 there is no menu, jumper or separate card-size build. This is the flash-recording
-variant on both sizes, not the original RAM micro looper. Matt Allison's
-original source, metadata, manual, MIT licence and UF2 remain unchanged.
+variant on both sizes. The separate RAM release is kept exactly as supplied
+by upstream; this integration does not modify its source or firmware.
 
 Overall licence: **GNU GPL version 3 (GPL-3.0)**; see [LICENSE](LICENSE),
 [ATTRIBUTION.md](ATTRIBUTION.md) and [LICENSES/](LICENSES/).
+
+## Gate recording (from Matt Allison 0.2.0)
+
+Trigger mode remains the power-on default. **Flick Up twice within 400ms**
+(at least 50ms apart) to toggle both pulse inputs between triggers and gates.
+The switch still taps both loopers in either mode; ordinary knob layers remain.
+
+- Trigger: rising edges toggle recording; a second tap within 300ms clears.
+- Gate: a rise starts recording and a fall stops it and plays the loop.
+  A gate rise can take over a recording started by the switch.
+- A switch tap takes ownership away from the gate, so the old gate's fall
+  cannot stop a later switch recording.
+- Gates shorter than 512 sample-clock ticks leave the loop empty (10.67ms at
+  48kHz, 256ms at 2kHz). Gates above that minimum but below 20ms still work.
+- A held gate stops automatically at the detected capacity. Its eventual
+  fall leaves playback running. Pulling out a high gate ends recording.
+- A gate high when entering gate mode waits for a new rise. Pending edges
+  from the previous mode cannot start a recording after the mode change.
+- Mode resets at power-on. A 1.5-second overlay shows all LEDs for gates,
+  top row only for triggers. Empty loops glow dimly in gate mode.
+
+The gate delay packs both inputs into one 240-byte ring. Only the selected
+input detector runs. On a mode change, trigger timers reset and stale gate
+rises are suppressed while the delay warms; new edges keep their matched
+20ms audio delay. Flash faults retain priority over the mode LED display.
 
 ## Detection and storage
 
@@ -103,7 +129,7 @@ cmake -S . -B /tmp/temperance-universal-build \
 cmake --build /tmp/temperance-universal-build -j2
 ```
 
-The output is `/tmp/temperance-universal-build/temperance0.1.1.flash.uf2`.
+The output is `/tmp/temperance-universal-build/temperance0.2.0.flash.uf2`.
 Use a fresh build directory so old 16MB-specific CMake cache settings are not
 reused. See [VALIDATION.md](VALIDATION.md) for software results and required
 physical checks, and [TEST_PROTOCOL.md](TEST_PROTOCOL.md) for the test procedure.

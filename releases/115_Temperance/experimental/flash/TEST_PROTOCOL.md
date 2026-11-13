@@ -1,3 +1,31 @@
+# Gate-mode retest — 0.2.0-flash-exp.1
+
+The 2026-11-11 hardware pass applies to the preceding 0.1.1 flash build.
+Run these checks on both 2MB and 16MB using `temperance0.2.0.flash.uf2`:
+
+1. Trigger mode at boot: verify previous switch/pulse recording and controls.
+2. Double-flick Up toggles gate mode; confirm all-LED overlay, empty-loop glow,
+   and that moving between ordinary knob layers preserves pickup.
+3. Record different overlapping gate lengths on A/B. Test 15ms gates at 48kHz,
+   below-minimum gates, and rapid repeated gates into already-used flash.
+4. Hold a gate high before changing mode, including within 20ms of the toggle.
+   No new recording should start from that old rise. Lower it and raise again
+   immediately after mode entry; the new gate must record normally.
+5. In both modes, try a rising edge close to a mode change. It must not act
+   later under the new mode. A recording already started before the mode
+   changes continues; changing mode alone does not stop it.
+6. Check switch takeover during a high gate, and gate takeover of a switch
+   recording. Unplug a high gate and confirm recording ends without retriggers.
+7. Fill both loops while gates remain high, then lower them: playback continues.
+   Repeat the Main-max/X/Y/full-wash lock-up regression and playback of one
+   loop while re-recording the other. Include reverse and direction changes.
+8. Reset: trigger mode returns. Flash-fault LED indication retains priority.
+
+No physical pass is claimed for this new build. Direct interrupt timing and
+physical bus contention remain hardware measurements, separate from simulation.
+
+---
+
 # Temperance: original versus 16MB flash experiment
 
 Versions: original RAM **0.1.0**, previous 16MB flash **0.1.0-flash-exp.2**,

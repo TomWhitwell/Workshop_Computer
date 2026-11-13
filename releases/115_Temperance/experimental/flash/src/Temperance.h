@@ -1,3 +1,4 @@
+// 2026-11-13: Matt Allison 0.2.0 gate mode, adapted for flash; see ATTRIBUTION.md.
 // 2026-11-07: exp.2 checks storage health once per clock tick; dry path stays live.
 /*
  * Adapted from Temperance 0.1.0 by Matt Allison.
@@ -164,7 +165,7 @@ public:
 			loopA_.Tap(now, p.clockStep);
 		if (tapB)
 			loopB_.Tap(now, p.clockStep);
-		if (gate)
+		if (gateEdges)
 		{
 			Gate(loopA_, open_[0], gateEdges, 1u, now, p.clockStep);
 			Gate(loopB_, open_[1], gateEdges, 2u, now, p.clockStep);

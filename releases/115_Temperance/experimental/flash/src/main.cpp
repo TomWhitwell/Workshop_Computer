@@ -1,3 +1,4 @@
+// 2026-11-13: Matt Allison 0.2.0 gate mode, adapted for flash; see ATTRIBUTION.md.
 // 2026-11-11: automatic 2MB/16MB geometry; original RAM release unchanged.
 // 2026-11-07: exp.2 audio-deadline fix; upstream notices retained below.
 /*

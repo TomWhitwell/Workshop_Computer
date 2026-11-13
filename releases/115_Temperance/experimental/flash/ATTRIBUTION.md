@@ -1,6 +1,6 @@
 # Code attribution and license scope
 
-Temperance Flash auto-detecting 2MB/16MB experiment, **0.1.1-flash-exp.1**.
+Temperance Flash auto-detecting 2MB/16MB experiment, **0.2.0-flash-exp.1**.
 Attribution audit: 2026-11-04. This is a derivative of Matt Allison's
 Temperance, with flash recording adapted from Dune Desormeaux's work.
 It is not an original instrument implementation by Codex.
@@ -44,6 +44,25 @@ The original MIT notice is preserved verbatim in
 `LICENSES/Temperance-MIT.txt`. It applies to the upstream Temperance code.
 The experiment's top-level `LICENSE` contains GNU GPL version 3 for the
 combined derivative; it does not replace the original release's MIT licence.
+
+## Matt Allison — Temperance 0.2.0 gate-mode integration
+
+Gate mode is adapted from Matt's MIT-licensed commit
+[`e9ffbc3f`](https://github.com/mrmattallison/Workshop_Computer/commit/e9ffbc3ffca009e062c210b80a6631cf4827c524),
+now also upstream as `6d47f07b` (PR #558). The additions to `Params.h`,
+`Ui.h`, `main.cpp`, and the recording methods in `Looper.h` originate there.
+`Temperance.h` retains Matt's gate ownership and switch takeover logic while
+preserving the experimental storage guards. `Clock.h` adapts his bit-delay
+approach into one packed two-input ring to reduce audio-thread overhead.
+The mode-change pending-edge fix and detector scheduling are experimental
+integration changes, not claims about Matt's original implementation.
+
+`test/GateSim.h` and the baseline gate cases in `test/gate_tests.cpp` adapt
+Matt's `test/Sim.h` and `GateTests` from 0.2.0. Additional transition,
+independent-gate, takeover and repeated-flash-recording cases were added
+with OpenAI Codex on 2026-11-13. The original MIT notice remains bundled in
+`LICENSES/Temperance-MIT.txt`; the combined flash derivative stays GPL-3.0.
+The RAM release is left exactly as imported from upstream.
 
 ## Dune Desormeaux — Goldfish 2.0 and MLRws
 

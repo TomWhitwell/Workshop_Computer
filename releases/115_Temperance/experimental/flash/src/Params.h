@@ -1,3 +1,4 @@
+// 2026-11-13: Matt Allison 0.2.0 gate mode, adapted for flash; see ATTRIBUTION.md.
 /*
  * Copied from Temperance 0.1.0 by Matt Allison.
  * Copyright (c) 2026 Matt Allison. Original code: MIT license.

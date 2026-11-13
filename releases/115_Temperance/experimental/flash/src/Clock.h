@@ -1,3 +1,4 @@
+// 2026-11-13: Matt Allison 0.2.0 gate mode, adapted for flash; see ATTRIBUTION.md.
 /*
  * Copied from Temperance 0.1.0 by Matt Allison.
  * Copyright (c) 2026 Matt Allison. Original code: MIT license.
@@ -94,12 +95,12 @@ public:
         uint32_t &word = bits_[r >> 4];
         uint32_t shift = (r & 15) * 2;
         uint32_t late = (word >> shift) & 3u;
-        uint32_t patched = uint32_t(patchedA) | (uint32_t(patchedB) << 1);
-        uint32_t high = (uint32_t(highA) | (uint32_t(highB) << 1)) & patched;
+        uint32_t high = uint32_t(highA && patchedA) | (uint32_t(highB && patchedB) << 1);
         if (high != late) word ^= (late ^ high) << shift;
         uint32_t changed = late ^ last_;
         if (!changed) return 0;
         last_ = late;
+        uint32_t patched = uint32_t(patchedA) | (uint32_t(patchedB) << 1);
         return (changed & late & patched) | ((changed & ~late) << 2);
     }
 
