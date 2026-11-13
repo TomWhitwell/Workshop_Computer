@@ -169,7 +169,7 @@ static void FullCapacity() {
     const uint32_t capacity = CapacitySamples();
     tem::Looper a, b;
     a.Channel(0); b.Channel(1);
-    a.Tap(0, 0); b.Tap(0, 0);
+    a.Record(0, 0); b.Record(0, 0);
     for (unsigned i = 0; i < capacity; ++i) {
         a.Tick(600, 65536, 0);
         b.Tick(-600, 65536, 0);
@@ -177,6 +177,8 @@ static void FullCapacity() {
     }
     assert(a.State() == tem::Looper::kPlaying && b.State() == tem::Looper::kPlaying);
     assert(a.Len() == (int32_t)capacity && b.Len() == (int32_t)capacity);
+    a.Release(0); b.Release(0); // held-high gate filled the card: fall is harmless
+    assert(a.State() == tem::Looper::kPlaying && b.State() == tem::Looper::kPlaying);
     assert(!Record(0, 600) && !Record(1, -600));
     Flush(0); Flush(1);
     CheckRead(0, capacity - 1, capacity, 600, -1);

@@ -47,6 +47,21 @@ public:
 			Start(now, clockStep);
 	}
 
+	// Gate mode (a Pulse in's gate): the gate's rise records, over a
+	// playing loop too; already recording, it carries on.
+	void Record(uint32_t now, int32_t clockStep)
+	{
+		if (state_ != kRecording)
+			Start(now, clockStep);
+	}
+
+	// The gate's fall: stop and play. Never a clear, however short the gate.
+	void Release(int32_t clockStep)
+	{
+		if (state_ == kRecording)
+			Stop(clockStep);
+	}
+
 	// One clock tick: record `in` (if recording), move the read heads at
 	// `speed` (16.16 samples per tick) and return the loop's output.
 	// `clockStep` sets the seam's length, if the buffer fills this tick.
@@ -190,8 +205,9 @@ private:
 		stops_++;
 		if (w_ < kMinLen)
 		{
-			// Too short to loop (only possible if the clock moved a long way
-			// mid-recording; a double tap clears before it gets here).
+			// Too short to loop: a gate shorter than 512 ticks (11ms at
+			// 48kHz, 256ms at 2kHz), or the clock moved a long way
+			// mid-recording. (A double tap clears before it gets here.)
 			state_ = kEmpty;
 			return;
 		}

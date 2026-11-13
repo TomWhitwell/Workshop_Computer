@@ -61,6 +61,7 @@ private:
 class RecordPulse
 {
 public:
+    void Reset() { wait_ = 0; }
 	// `rise`: a rising edge this sample. `patched`: the jack has a cable in
 	// it, as ComputerCard sees it now. True when a confirmed edge is due.
 	bool Process(bool rise, bool patched)
@@ -74,6 +75,37 @@ public:
 
 private:
 	int32_t wait_ = 0;
+};
+
+// ---- A record gate on a Pulse in (core 0, every sample) ----------------------
+//
+// Matt Allison's delayed gate approach, adapted to pack both inputs in
+// one ring. Delays both edges by 20ms, so gates shorter than that survive.
+// Rises require a still-patched jack; falls always count so unplugging ends
+// recording. Each stored input is gated by its patch status.
+// Both jacks share the delay index. Packing their levels together avoids
+// calculating the same ring position twice in the 48kHz interrupt.
+class RecordGates
+{
+public:
+    // Bits 0/1: rises on A/B. Bits 2/3: falls on A/B.
+    uint32_t Process(bool highA, bool patchedA, bool highB, bool patchedB, int32_t r)
+    {
+        uint32_t &word = bits_[r >> 4];
+        uint32_t shift = (r & 15) * 2;
+        uint32_t late = (word >> shift) & 3u;
+        uint32_t patched = uint32_t(patchedA) | (uint32_t(patchedB) << 1);
+        uint32_t high = (uint32_t(highA) | (uint32_t(highB) << 1)) & patched;
+        if (high != late) word ^= (late ^ high) << shift;
+        uint32_t changed = late ^ last_;
+        if (!changed) return 0;
+        last_ = late;
+        return (changed & late & patched) | ((changed & ~late) << 2);
+    }
+
+private:
+    uint32_t last_ = 0;
+    uint32_t bits_[(kEventDelay + 15) / 16] = {};
 };
 
 } // namespace tem

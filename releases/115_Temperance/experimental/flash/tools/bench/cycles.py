@@ -264,8 +264,9 @@ SERVICE = sym("bench_service")
 PREPARE = sym("bench_prepare")
 labels = ["both forward x2", "A half, B x2", "A reverse x2, B x2", "direction crossfades"]
 failed = False
-for scenario in range(16):
-    label = ("2MB " if scenario & 8 else "16MB ") + labels[scenario & 3] + (" at seam" if scenario & 4 else " mid-loop")
+scenarios = [int(x) for x in sys.argv[4].split(",")] if len(sys.argv) > 4 else range(32)
+for scenario in scenarios:
+    label = ("gate " if scenario & 16 else "trigger ") + ("2MB " if scenario & 8 else "16MB ") + labels[scenario & 3] + (" at seam" if scenario & 4 else " mid-loop")
     call(PREPARE, scenario)
     values = []
     worst_profile = {}

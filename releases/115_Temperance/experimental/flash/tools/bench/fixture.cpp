@@ -24,6 +24,7 @@ extern "C" void bench_prepare(uint32_t scenario) {
     bench_flash_prepare(length, bytes);
     for (auto &p : t.params_) {
         p.running = true;
+        p.gate = (scenario & 16u) != 0;
         p.clockStep = 0;
         p.zone[0] = mode == 0 ? 5 : mode == 1 ? 3 : 0;
         p.zone[1] = 5;

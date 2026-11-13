@@ -17,7 +17,7 @@ add_executable(${PROJECT_NAME}
     src/main.cpp
     src/FlashStore.cpp
 )
-set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "temperance0.1.1.flash")
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "temperance0.2.0.flash")
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/src
@@ -66,7 +66,7 @@ pico_enable_stdio_uart(${PROJECT_NAME} 0)
 
 pico_add_extra_outputs(${PROJECT_NAME})
 pico_set_program_name(${PROJECT_NAME} "Temperance Flash 2MB/16MB Experimental")
-pico_set_program_version(${PROJECT_NAME} "0.1.1-flash-exp.1")
+pico_set_program_version(${PROJECT_NAME} "0.2.0-flash-exp.1")
 
 option(TEMPERANCE_BENCH "Build emulator-only timing hooks; do not flash" OFF)
 if(TEMPERANCE_BENCH)

@@ -22,6 +22,7 @@ namespace tem
 //   Play (switch middle)  Main = clock, X = Loop A speed, Y = Loop B speed.
 //   Alt  (switch up)      Main = wash, X = dry level, Y = crush.
 //   Down (a tap)          start recording both loops; tap again to play.
+//   Up twice, quickly     the Pulse ins' record mode: trigger <-> gate.
 //
 // Each setting keeps its value while its knob does the other job, and
 // waits for the knob to come back to it before following (pickup), so
@@ -90,6 +91,27 @@ private:
 			lastTapMs_ = ms_;
 			p.tapSerial++;
 		}
+		// Two flicks up, the second arriving 50 to 400ms after the first,
+		// switch the Pulse ins between trigger and gate mode. Up and middle
+		// only change layer, so the gesture never touches a recording, and
+		// unmoved knobs pick straight back up. (Under 50ms is the switch
+		// bouncing; a third flick starts a new pair.)
+		if (s.sw == kSwitchUp)
+		{
+			uint32_t gap = ms_ - lastUpMs_;
+			if (flicked_ && gap >= kBounceMs && gap <= kFlickMs)
+			{
+				gate_ = !gate_;
+				flicked_ = false;
+				modeViewUntil_ = ms_ + kModeViewMs;
+			}
+			else if (!flicked_ || gap > kFlickMs)
+			{
+				flicked_ = true;
+				lastUpMs_ = ms_;
+			}
+		}
+		p.gate = gate_;
 		// Down is a tap on the Play layer; only up changes layer.
 		int32_t layer = s.sw == kSwitchUp ? kAltLayer : kPlayLayer;
 		if (layer != layer_)
@@ -317,6 +339,7 @@ private:
 	static constexpr int32_t kCountsPerVolt = 341; // 2048 counts is about 6V
 	static constexpr int32_t kCvHysteresis = 256;	 // three quarters of a volt
 	static constexpr uint32_t kBounceMs = 50;
+	static constexpr uint32_t kFlickMs = 400;
 
 	// ---- The LEDs ----------------------------------------------------------
 	//
@@ -324,8 +347,9 @@ private:
 	//   2 3    Loop A speed     Loop B speed
 	//   4 5    Loop A playhead  Loop B playhead
 	//
-	// Overlays, highest first: event flashes, the clock view (for 1.5s after
-	// Main turns), the alt view (switch up), then the home view above.
+	// Overlays, highest first: the mode view (for 1.5s after the record
+	// mode changes), event flashes, the clock view (for 1.5s after Main
+	// turns), the alt view (switch up), then the home view above.
 
 	void DrawLeds(const Status &s, const EngineParams &p, int32_t led[6])
 	{
@@ -334,6 +358,15 @@ private:
 		{
 			// Boot: one slow chase down the grid, 0 to 5.
 			led[(ms_ - 1) * 6 / kBootMs] = 4095;
+			return;
+		}
+		if (ms_ < modeViewUntil_)
+		{
+			// The record mode, shaped like the signal it expects: trigger
+			// lights the top row only, a short blip; gate lights both
+			// columns, a level held high.
+			for (int i = 0; i < 6; i++)
+				led[i] = (gate_ || i < 2) ? 4095 : 0;
 			return;
 		}
 		if (ms_ < clockViewUntil_)
@@ -388,12 +421,14 @@ private:
 		for (int k = 0; k < 2; k++)
 		{
 			const LoopStatus &l = s.loop[k];
-			// Top: off when empty, a fast blink (6Hz) while recording, on
-			// while playing.
+			// Top: off when empty (a dim glow in gate mode: waiting for a
+			// gate), a fast blink (6Hz) while recording, on while playing.
 			if (l.state == Looper::kRecording)
 				led[k] = (ms_ - blinkFrom_[k]) % kBlinkMs < kBlinkMs / 2 ? 4095 : 0;
 			else if (l.state == Looper::kPlaying)
 				led[k] = kSolid;
+			else if (gate_)
+				led[k] = kGlow;
 
 			// Middle: the speed. 25% at x1/2, 60% at x1, full at x2.
 			static constexpr int32_t kSpeedLed[kSpeedZones] = {4095, 2458, 1024, 1024, 2458, 4095};
@@ -457,10 +492,12 @@ private:
 	static constexpr int32_t kHalf = 2048;
 	static constexpr int32_t kSolid = 3000; // playing: on, but leaves room for the stop flash
 	static constexpr int32_t kDim = 900;
+	static constexpr int32_t kGlow = 1000; // gate mode, empty: about 6% after squaring
 	static constexpr uint32_t kBlinkMs = 166; // 6Hz
 	static constexpr uint32_t kStopFlashMs = 80;
 	static constexpr uint32_t kClipFlashMs = 100;
 	static constexpr uint32_t kClockViewMs = 1500;
+	static constexpr uint32_t kModeViewMs = 1500;
 	static constexpr uint32_t kBootMs = 720; // 120ms an LED
 
 	bool started_ = false;
@@ -468,6 +505,12 @@ private:
 	int32_t lastSwitch_ = kSwitchMiddle;
 	int32_t layer_ = kPlayLayer;
 	uint32_t lastTapMs_ = 0;
+	// The record mode: false is trigger (the default at power-on), true is
+	// gate. Not saved: every power-on starts in trigger mode.
+	bool gate_ = false;
+	bool flicked_ = false; // one flick up, waiting for a second
+	uint32_t lastUpMs_ = 0;
+	uint32_t modeViewUntil_ = 0;
 	// hook_[layer][knob]: each layer's three settings, starting at their
 	// defaults: 48kHz, both loops forward at half speed; a little wash, the
 	// dry input at unity, no crush.
