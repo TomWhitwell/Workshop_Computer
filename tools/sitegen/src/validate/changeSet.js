@@ -20,18 +20,19 @@ import { evaluatePrRules, summarizePrTrigger } from './prRules.js';
 // as introduced.
 const RELEASE_STATE_RULES = new Set([
   'draft-card-changed',
+  'duplicate-info-file',
   'release-readme-recommended',
   'custom-panels',
   'uf2-required',
   'pico-xosc64-recommended',
 ]);
 
-/** The info.yaml files a change set validates: added, modified, or renamed under releases/. */
+/** The info.yaml / info.yml files a change set validates: added, modified, or renamed under releases/. */
 export function infoFilesToValidate(changes) {
   const selected = new Map();
   for (const change of changes) {
     if (!/^[ACMR]/.test(change.status)) continue;
-    if (!/^releases\/(?:.+\/)?info\.yaml$/.test(change.path)) continue;
+    if (!/^releases\/(?:.+\/)?info\.ya?ml$/.test(change.path)) continue;
     selected.set(change.path, change);
   }
   return [...selected.values()];
