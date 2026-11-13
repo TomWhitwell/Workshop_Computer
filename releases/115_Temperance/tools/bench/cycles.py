@@ -313,6 +313,16 @@ def cvs(i):
     state["cv"] = [int(1500 * math.sin(i * 0.0003)), int(1000 * math.sin(i * 0.0002))]
 run("clock sweep 48k to 2k, CV ins moving", 96000, both(ins, cvs, sweep(0, 4095, 0, 96000)))
 run("back to 48kHz, full wash, x2 both", 48000, both(ins, sweep(0, 0, 4095, 4800)))
+def flick(i):
+    # Two flicks up, 200ms apart: the Pulse ins switch to gate mode.
+    state["sw"] = 2 if (i < 4800 or 9600 <= i < 14400) else 1
+def gates(level):
+    def f(i):
+        state["pulse"] = [level, level]
+    return f
+run("double flick up: gate mode", 19200 / SCALE, both(ins, flick))
+run("gates high: re-record over playing loops", 24000, both(ins, gates(1)))
+run("gates low: playing, first pass", 48000, both(ins, gates(0)))
 worst.sort(key=lambda w: -w[0])
 print(f"\nper-sample ProcessSample cycles (budget {BUDGET} total, {BUDGET - OVERHEAD} after overhead):")
 for phase, v in results.items():

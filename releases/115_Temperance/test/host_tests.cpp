@@ -712,12 +712,160 @@ static void LedTests()
 	});
 }
 
+// ---- Gate mode: the Pulse ins record while high ------------------------------
+
+// Run `ms` with the normalisation probe's pattern on Pulse in 1's level
+// (it changes every 16 samples), as an empty jack reads on the hardware.
+static void Probe(Sim &s, int ms)
+{
+	for (int i = 0; i < ms * 48; i++)
+	{
+		s.pulseIn[0] = (s.t / 16) & 1;
+		s.Step();
+	}
+}
+
+static void GateTests()
+{
+	Test("gate: two quick flicks up switch the mode, and back", [] {
+		Sim s;
+		CHECK(!s.inst->Params().gate); // trigger at power-on
+		s.FlickUp();
+		CHECK(s.inst->Params().gate);
+		s.FlickUp();
+		CHECK(!s.inst->Params().gate);
+		s.FlickUp(400); // the second flick 500ms after the first: too slow
+		CHECK(!s.inst->Params().gate);
+	});
+
+	Test("gate: the mode shows for 1.5s, then a glow on empty loops", [] {
+		Sim s;
+		s.FlickUp();
+		for (int i = 0; i < 6; i++)
+			CHECK(s.led[i] == 4095); // gate: both columns
+		s.RunMs(1500);
+		CHECK(s.led[0] == 1000 && s.led[1] == 1000); // empty, waiting for a gate
+		s.FlickUp();
+		CHECK(s.led[0] == 4095 && s.led[1] == 4095); // trigger: the top row only
+		CHECK(s.led[2] == 0 && s.led[3] == 0 && s.led[4] == 0 && s.led[5] == 0);
+		s.RunMs(1500);
+		CHECK(s.led[0] == 0 && s.led[1] == 0); // empty, trigger mode: off
+	});
+
+	Test("gate: a loop is as long as its gate, from its rise", [] {
+		Sim s(4095, 3072);
+		s.FlickUp();
+		uint64_t edge = s.t;
+		s.source[0] = [edge](uint64_t t) { return t == edge + 4800 ? 2000 : 0; };
+		s.Gate(0, 500);
+		const Looper &l = s.inst->Loop(0);
+		CHECK(l.State() == Looper::kPlaying);
+		CHECK(l.Len() == 24000);
+		CHECK(l.Peek(4800) == 2000);
+		CHECK(s.inst->Loop(1).State() == Looper::kEmpty);
+	});
+
+	Test("gate: a short gate makes a short loop, not a clear", [] {
+		Sim s;
+		s.FlickUp();
+		s.Gate(0, 100);
+		CHECK(s.inst->Loop(0).State() == Looper::kPlaying);
+		CHECK(s.inst->Loop(0).Len() == 4800);
+		// Shorter than the 20ms wait: both edges still come through.
+		s.Gate(1, 15);
+		CHECK(s.inst->Loop(1).State() == Looper::kPlaying);
+		CHECK(s.inst->Loop(1).Len() == 720);
+	});
+
+	Test("gate: a gate too short to loop leaves it empty", [] {
+		Sim s;
+		s.FlickUp();
+		s.Gate(0, 5); // 240 ticks at 48kHz; a loop needs 512
+		CHECK(s.inst->Loop(0).State() == Looper::kEmpty);
+	});
+
+	Test("gate: a gate over a playing loop records a new one", [] {
+		Sim s;
+		s.source[0] = Tone;
+		s.FlickUp();
+		s.Gate(0, 500);
+		s.Gate(0, 200);
+		CHECK(s.inst->Loop(0).State() == Looper::kPlaying);
+		CHECK(s.inst->Loop(0).Len() == 9600);
+	});
+
+	Test("gate: the switch still taps both loops", [] {
+		Sim s;
+		s.FlickUp();
+		s.Tap();
+		CHECK(s.inst->Loop(0).State() == Looper::kRecording);
+		s.RunMs(465);
+		s.Tap();
+		CHECK(s.inst->Loop(0).State() == Looper::kPlaying);
+		CHECK(s.inst->Loop(1).State() == Looper::kPlaying);
+	});
+
+	Test("gate: pulling the cable out of a high gate ends the recording there", [] {
+		Sim s;
+		s.FlickUp();
+		s.in.pulsePatched[0] = true;
+		s.pulseIn[0] = true;
+		s.RunMs(300);
+		Probe(s, 11); // pulled out: the probe's pattern, still "patched"
+		s.in.pulsePatched[0] = false;
+		Probe(s, 100); // declared empty; the probe carries on
+		const Looper &l = s.inst->Loop(0);
+		CHECK(l.State() == Looper::kPlaying);
+		CHECK(std::abs(l.Len() - 14400) <= 32);
+	});
+
+	Test("gate: the probe on an empty jack never records, or stops the switch", [] {
+		Sim s;
+		s.FlickUp();
+		Probe(s, 200);
+		CHECK(s.inst->Loop(0).State() == Looper::kEmpty);
+		s.in.sw = kSwitchDown;
+		Probe(s, 30);
+		s.in.sw = kSwitchMiddle;
+		Probe(s, 500);
+		CHECK(s.inst->Loop(0).State() == Looper::kRecording);
+	});
+
+	Test("gate: a gate already high when the mode changes waits for its next rise", [] {
+		Sim s;
+		s.in.pulsePatched[0] = true;
+		s.pulseIn[0] = true;
+		s.RunMs(50); // in trigger mode: that rise started a recording
+		CHECK(s.inst->Loop(0).State() == Looper::kRecording);
+		s.Tap(); // within 300ms of the pulse's start: a clear
+		CHECK(s.inst->Loop(0).State() == Looper::kEmpty);
+		s.FlickUp();
+		s.RunMs(100);
+		CHECK(s.inst->Loop(0).State() == Looper::kEmpty);
+		s.pulseIn[0] = false;
+		s.RunMs(50);
+		s.Gate(0, 300);
+		CHECK(s.inst->Loop(0).State() == Looper::kPlaying);
+		CHECK(s.inst->Loop(0).Len() == 14400);
+	});
+
+	Test("gate: back in trigger mode, a pulse toggles again", [] {
+		Sim s;
+		s.FlickUp();
+		s.FlickUp();
+		s.Pulse(0);
+		s.RunMs(20);
+		CHECK(s.inst->Loop(0).State() == Looper::kRecording);
+	});
+}
+
 int main()
 {
 	StorageTests();
 	LooperTests();
 	ClockTests();
 	RecordTests();
+	GateTests();
 	AltTests();
 	PlateTests();
 	OutputTests();

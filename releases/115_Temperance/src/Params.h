@@ -60,6 +60,7 @@ struct EngineParams
 	int32_t clockStep = 0;					   // 0 (48kHz) .. 9 (2kHz)
 	int32_t zone[2] = {kDefaultZone, kDefaultZone}; // Loop A, B speed zone
 	uint32_t tapSerial = 0;					   // +1: the switch was tapped (both loops)
+	bool gate = false;						   // Pulse ins record as gates, not triggers
 
 	int32_t crushBits = 12; // 12 (clean) down to 4
 
