@@ -7,7 +7,8 @@ summary: |
   sample-and-hold grit. The dry input bypasses the effects, clean, at its own level. **Tap** down to record both loops, tap again to play; two quick taps clear. **X** and **Y** set each loop's
   speed and direction (reverse or forward, double, normal or half speed). Switch up for the **Wash** (a Dattorro plate
   at a fixed 24kHz: send, decay and damping in one knob), the **dry level** and the **crush** (12 bits to 4).
-  Pulse In 1 and 2 record each loop on its own. CV Out 1 is a stepped random voltage (whole volts, -2 to +2V) that
+  Pulse In 1 and 2 record each loop on its own, as triggers (the default) or as gates (the loop records while the
+  gate is high): flick the switch up twice, quickly, to change mode. CV Out 1 is a stepped random voltage (whole volts, -2 to +2V) that
   moves at each start of Loop A, made to patch into CV In 1 and jump the clock; CV Out 2 a smooth random voltage
   (0 to 5V) that glides over each pass of Loop B, made for CV In 2 and the wash. Pulse Out 1 fires at random, Pulse
   Out 2 at each start of Loop B.
@@ -20,19 +21,21 @@ summary: |
   for attribution, licences and operating differences.
 Language: C++ (Pico SDK)
 Creator: Matt Allison
-Version: "0.1.0"
+Version: "0.2.0"
 Status: Released
 License: "MIT (original RAM); GPL-3.0 (experimental flash)"
 date-created: 2026-11-02
-date-updated: 2026-11-11
+date-updated: 2026-11-13
 
 contact:
   social:
     github: https://github.com/mrmattallison
 
 uf2:
+  - path: UF2/temperance.0.2.0.uf2
+    name: Temperance 0.2.0 — RAM version (triggers and gates)
   - path: UF2/temperance.0.1.0.uf2
-    name: Temperance 0.1.0 — Original RAM version
+    name: Temperance 0.1.0 — Original RAM version (triggers only)
   - path: experimental/flash/UF2/temperance0.1.1.flash.uf2
     name: Temperance 0.1.1 — Experimental flash version (2MB/16MB)
 
@@ -63,11 +66,11 @@ panel:
     - id: PulseIn1
       name: Record A
       type: pulse
-      description: Start or stop recording Loop A on its own. Acts 20ms after the edge, with the loop's input delayed to match
+      description: Record Loop A on its own. Trigger mode, a rising edge starts or stops recording; gate mode, it records while the gate is high. Edges act 20ms late, with the loop's input delayed to match
     - id: PulseIn2
       name: Record B
       type: pulse
-      description: Start or stop recording Loop B on its own
+      description: Record Loop B on its own, as a trigger or a gate, the same as Pulse In 1
   outputs:
     - id: AudioOut1
       name: Left
@@ -98,7 +101,7 @@ controls:
   switch:
     up:
       name: Alt
-      description: Main = wash, X = dry level, Y = crush
+      description: Main = wash, X = dry level, Y = crush. Flick up twice within 400ms to switch Pulse In 1 and 2 between trigger and gate mode
     middle:
       name: Play
       description: Main = clock, X = Loop A speed, Y = Loop B speed
@@ -119,7 +122,7 @@ controls:
   leds:
     - display: list
       items:
-        - { id: LED0, name: State A (top left), description: "Off empty, fast blink recording, on playing; flashes on stop" }
+        - { id: LED0, name: State A (top left), description: "Off empty (a dim glow in gate mode), fast blink recording, on playing; flashes on stop" }
         - { id: LED1, name: State B (top right) }
         - { id: LED2, name: Speed A (middle left), description: "Dim at x1/2, brighter at x1, full at x2" }
         - { id: LED3, name: Speed B (middle right) }
@@ -128,6 +131,7 @@ controls:
     - display: list
       items:
         - { id: LED0, name: Clock view, description: "For 1.5s after Main turns: fills from the bottom row up, one LED at 48kHz to five and a half at 2kHz" }
+        - { id: LED1, name: Mode view, description: "For 1.5s after two flicks up: the top row alone for trigger mode, both columns for gate mode" }
     - when: { z: up }
       display: list
       items:
