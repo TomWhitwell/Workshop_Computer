@@ -1017,7 +1017,8 @@ private:
 
 		if (blink)
 		{
-			modeBlink = 16384; // all-LED blink, the same language as a mode toggle
+			walkTimer = 12288;  // reverse walk: the remote has let go
+			walkReverse = true;
 		}
 	}
 
@@ -1078,6 +1079,11 @@ public:
 	int32_t bankLed = -1;          // >=0 while the switch-up bank selector is active
 	int32_t bankHoldTimer = 0;     // show the bank for ~1s after release
 	int32_t bankHoldValue = 0;
+	int32_t walkTimer = 0;         // 8mu takeover/release walk (one LED, ~256ms)
+	bool walkReverse = false;
+	int32_t readyCueTimer = 0;     // all-six flash after a wait or fault
+	uint32_t notReadySamples = 0;
+	Scan lastScan = Scan::NoStick;
 	int32_t fadeGain = 0;     // 0..4096 output envelope for seam/station fades
 	Request pendingRequest = Request::None; // request waiting for the fade to finish
 	int32_t pendingStation = 0;
@@ -1327,6 +1333,8 @@ public:
 		if (remoteNewTakeover)
 		{
 			remoteNewTakeover = false;
+			walkTimer = 12288;  // forward walk: the remote has taken something over
+			walkReverse = false;
 		}
 
 		// B4 tap: a deliberate mode choice, exactly like the panel switch's
@@ -1710,6 +1718,9 @@ public:
 		// Timers tick at 48kHz regardless of which pattern is shown.
 		if (stationHoldTimer > 0) stationHoldTimer--;
 		if (bankHoldTimer > 0) bankHoldTimer--;
+		if (xrunLedTimer > 0) xrunLedTimer--;
+		if (walkTimer > 0) walkTimer--;
+		if (readyCueTimer > 0) readyCueTimer--;
 
 		// Peak level with fast attack and a slow (~200ms) decay, in 12-bit units.
 		const int32_t peak = std::max(std::abs(left), std::abs(right));
@@ -1729,6 +1740,22 @@ public:
 		// rendered verbatim here. Deliberate confirmations and bank selection
 		// still take over below.
 		const Scan s = scanState;
+
+		// A ready flash only after the card spent noticeable time waiting/faulty.
+		if (s == Scan::Ready && lastScan != Scan::Ready)
+		{
+			if (notReadySamples >= 24000) // 0.5s at 48kHz
+			{
+				readyCueTimer = 12000; // 250ms all-six flash
+			}
+			notReadySamples = 0;
+		}
+		else if (s != Scan::Ready)
+		{
+			if (notReadySamples < 480000) notReadySamples++;
+		}
+		lastScan = s;
+
 		const bool mediaDown = (waitingForDrive || s == Scan::Mounting ||
 		                        s == Scan::NoStick || s == Scan::MountFailed);
 		if (mediaDown)
@@ -1777,6 +1804,20 @@ public:
 			return;
 		}
 
+		// 8mu takeover/release: one LED walks 0->5 (takeover) or 5->0 (release).
+		if (walkTimer > 0)
+		{
+			const int32_t elapsed = 12288 - walkTimer;
+			int32_t step = elapsed >> 11; // 2048 samples per step -> 0..5
+			if (step > 5) step = 5;
+			if (walkReverse) step = 5 - step;
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, i == step);
+			}
+			return;
+		}
+
 		// While tuning, show the station number in 6-bit binary (LED 0 = bit 0).
 		if (stationHoldTimer > 0)
 		{
@@ -1804,6 +1845,20 @@ public:
 			{
 				LedOn(i, (ledFaultMask >> i) & 1);
 			}
+			return;
+		}
+
+		// Recovery flash after a noticeable wait or fault.
+		if (readyCueTimer > 0)
+		{
+			for (int i = 0; i < 6; i++) LedOn(i, true);
+			return;
+		}
+
+		// Buffer underrun: brief all-six flash.
+		if (xrunLedTimer > 0)
+		{
+			for (int i = 0; i < 6; i++) LedOn(i, true);
 			return;
 		}
 
