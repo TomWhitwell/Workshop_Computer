@@ -3,12 +3,12 @@ Name: Bootleg Radio
 short-description: "A lo-fi bootleg tribute to Music Thing's Radio Music: tune through WAV files on a USB stick, like a pirate station"
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
-Version: "1.2.0"
+Version: "1.3.0"
 Status: Released
 License: MIT
 Editor: none
 date-created: 2026-10-03
-date-updated: 2026-11-12
+date-updated: 2026-11-14
 
 contact:
   email: joep@joep-i.nl
@@ -23,7 +23,7 @@ contact:
 
 uf2:
   - path: UF2/bootleg_radio.uf2
-    name: Bootleg Radio 1.2.0
+    name: Bootleg Radio 1.3.0
 
 tags:
   - sampler
@@ -230,33 +230,32 @@ controls:
     - display: list
       items:
         - id: LED0
-          name: Left Level
-          description: Brightness follows the left output level.
+          name: Level Meter 1 / 4
+          description: Top-left segment of the level meter, roughly -30 dBFS.
         - id: LED1
-          name: Right Level
-          description: Brightness follows the right output level.
+          name: Level Meter 2 / 4
+          description: Top-right segment of the level meter, roughly -18 dBFS.
         - id: LED2
-          name: Playing / Mode
-          description: >
-            Off when idle. Steady while a station is playing in Sync mode, and
-            slowly blinking while playing in Loop mode, so it shows both the
-            play state and the current tune mode.
+          name: Level Meter 3 / 4
+          description: Middle-left segment of the level meter, roughly -6 dBFS.
         - id: LED3
-          name: Station Change / No Files
+          name: Level Meter 4 / 4
           description: >
-            Blinks for about half a second when the station changes. Lights
-            steadily (with LED 4) if a mounted stick has no WAV files in the
-            selected bank, or if none of the files found could be played. Dark in
-            the "quiet" LED mode (settings.txt).
+            Middle-right segment of the level meter, roughly 0 dBFS. The meter
+            uses the louder channel, attacks quickly and decays over about 200 ms.
         - id: LED4
-          name: USB Mounted
-          description: Lit while a USB stick is detected.
-        - id: LED5
-          name: Underrun / Mount Fault
+          name: Loop Progress (first half)
           description: >
-            Flashes if the stick cannot feed the buffer fast enough. Lights
-            steadily (with LED 4) if the filesystem on a detected stick could
-            not be mounted. Dark in the "quiet" LED mode (settings.txt).
+            Brightens over the first half of the current loop window, then stays
+            full while the second half plays.
+        - id: LED5
+          name: Loop Progress (second half)
+          description: >
+            Brightens over the second half of the loop window. Forward playback
+            fills left to right, reverse drains back, and ping-pong follows the
+            current pass. Startup and fault states use motion patterns (no stick,
+            mounting, mount failure, no files, unplayable), and an underrun gives
+            a brief all-six flash.
 
 host:
   usb:

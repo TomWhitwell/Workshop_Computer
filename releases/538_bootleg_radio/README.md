@@ -25,8 +25,9 @@ expect character rather than fidelity — which is rather the point.
    This needs a **Rev 1.1 or later** board (the Computer acts as USB host), and
    nothing else may share that socket.
 4. Insert the card and power up. While a stick is present but not yet readable,
-   **all six LEDs blink** together; once the filesystem is readable they stop and
-   **LED 4** lights. (Reading the stick can take a moment after it enumerates.)
+   **all six LEDs blink** together. Once the card is ready, the top four LEDs
+   become a level meter and the bottom two show progress through the loop.
+   (Reading the stick can take a moment after it enumerates.)
 5. Turn **Main** (and/or patch **CV in 1**) to pick a station. Hold the switch
    **up** to change bank, or flick it **down** to retrigger the loop.
 
@@ -142,7 +143,8 @@ the top two faders are the speed pair. Clock BPM and pulse out 2 live in
   - F2: speed range — off (8–37), fine (38–67), ±1 octave (68–97), ±2 octaves
     (98–127).
   - F6: loop mode — one-shot (8–47), loop (48–87), ping-pong (88–127).
-  - F7: performance mode — scan (8–27), beat-repeat (28–47), off (48–127).
+  - F7: performance mode — scan (8–27), beat-repeat (28–47), slice/off (48–127;
+    slice is accepted but currently behaves as off).
   - F8: pulse out 1 mode — gate (8–37), tick (38–67), clock (68–97), off
     (98–127). Pulse out 2 mode and clock BPM stay in `settings.txt`.
 - **F7 Scan** advances the station on the clock; **F7 Beat-repeat** retriggers
@@ -190,9 +192,9 @@ A gate is very unlikely to produce a valid MIDI status byte, so patched clocks
 and gates still work in `auto`. If you want to be certain the jack never changes
 function, use `on` or `off`.
 
-The LEDs give a short flash of LED 3 when a fader first takes over, and the
-usual all-LED blink when the remote is released. There is no persistent "remote
-active" light.
+The LEDs give a short forward walk when a fader first takes over, and a short
+reverse walk when the remote is released. There is no persistent "remote active"
+light.
 
 ### Setting it up
 
@@ -274,9 +276,12 @@ Files are organised into **banks**: the **root directory is bank 0**, and each
   moves. Release the switch to go back to selecting stations.
 - With the **8mu station fader (F5)** active, a bank change keeps the fader's
   relative position instead of starting at station 0; see the remote section.
-- While the switch is up, **LEDs 0–4 show the selected bank in binary** (bank 0
-  is all off, LED 5 stays dark). Release the switch to go back to the normal LED
-  display.
+- While the switch is up, **all six LEDs show the selected bank in 6-bit binary**
+  (LED 0 is the least significant bit; bank 0 is all off). The bank stays on
+  display for about a second after release, then the normal display returns.
+- While you turn Main/CV in 1 to pick a station, **all six LEDs show the station
+  number in 6-bit binary** for about a third of a second, then return to the
+  level/progress display.
 - The card powers up on the **`bank` setting** from `settings.txt` (default 0 =
   the root), and starts on that bank's **first station**. The Main knob does not
   override the start bank until you actually turn it.
@@ -381,7 +386,7 @@ listed); all lines are optional:
 # settings.txt - all lines optional
 mode = sync        # power-on tune mode: loop | sync
 loopMode = loop    # station end: loop | one-shot | ping-pong
-performanceMode = off # F7 performance: off | scan | repeat
+performanceMode = off # F7 performance: off | scan | repeat | slice
 perfDiv = 1        # clock pulses per scan/repeat step (1-16)
 bank = 0           # bank to start on (0-31)
 speedRange = 2oct  # speed range: 2oct | 1oct | fine | off
@@ -389,7 +394,7 @@ clockBpm = 120     # internal clock tempo (30-240)
 triPulses = 40     # clock pulses per triangle cycle (1-256)
 pulse1 = gate      # Pulse out 1: gate | tick | clock | off
 pulse2 = tick      # Pulse out 2: gate | tick | clock | off
-led = verbose      # LED mode: verbose | quiet
+led = auto         # LED mode: auto | quiet (verbose is an alias for auto)
 remote = auto      # Pulse in 2: auto | on | off (8mu remote)
 static = off       # tuning static: off | on
 staticLevel = 50   # static level (0-100)
@@ -411,14 +416,18 @@ Rules and defaults:
   `fine` is about ±1 semitone; `off` fixes playback at 1× and the speed controls
   do nothing. The 8mu's F2 overrides this while it is above its dead zone.
 - **Performance mode:** `off` is normal playback; `scan` advances the station on
-  the clock; `repeat` retriggers the current loop on the clock. `perfDiv` divides
+  the clock; `repeat` retriggers the current loop on the clock; `slice` is
+  accepted but currently behaves as off. `perfDiv` divides
   the clock by 1–16. The 8mu's F7 overrides this while it is above its dead zone.
 - **Clock:** `clockBpm` sets the internal tempo; Pulse in 1 overrides it. The 8mu
   no longer has a clock fader; F8 is pulse out 1.
 - **Pulse-out modes:** `gate` = high while looping; `tick` = a short pulse each
   wrap; `clock` = the active clock pulse; `off` = always low.
-- **LED modes:** `verbose` shows level, playing, station-change and fault;
-  `quiet` shows only level, playing and mounted (LEDs 3 and 5 stay dark).
+- **LED modes:** `auto` is the normal display: level, loop-window progress,
+  startup/fault patterns, station/bank readouts and action feedback. `quiet` is
+  the same, but omits the station binary readout and the underrun flash; bank
+  selection, mode/static/remote confirmations and faults still show. `verbose` is
+  accepted as an alias for `auto` so older settings files keep working.
 - **Remote mode:** `auto` keeps Pulse in 2 as a retrigger until an 8mu is heard,
   then switches it to MIDI; `on` always uses the 8mu input; `off` always uses the
   external retrigger. See [TRS MIDI remote](#trs-midi-remote-8mu).
@@ -453,29 +462,55 @@ are also not adopted — see [Banks](#banks).
 
 ## LEDs
 
-| LED | Meaning |
-|-----|---------|
-| 0 | Left output level |
-| 1 | Right output level |
-| 2 | Off when idle (including after a one-shot finishes); **steady** while playing in **Sync** mode; **blinking** while playing in **Loop** mode |
-| 3 | Blinks ~0.5 s when the station changes; steady with LED 4 = no WAV files (or none playable). Dark in `quiet` LED mode |
-| 4 | USB stick detected |
-| 5 | Underrun (the stick can't keep up); steady with LED 4 = filesystem would not mount. Dark in `quiet` LED mode |
+The six LEDs are a 3×2 block: **0/1 top row, 2/3 middle row, 4/5 bottom row**.
 
-While the switch is **up**, LEDs 0–4 instead show the selected bank in binary;
-LED 5 goes dark. Bank 0 is all off.
+During normal playback:
 
-### Reading the LEDs when something is wrong
+- **LEDs 0–3** are a four-step output level meter, driven by the louder channel.
+  The steps are roughly −30, −18, −6 and 0 dBFS. It attacks fast and decays over
+  about 200 ms.
+- **LEDs 4–5** show progress through the current **loop window** (not the whole
+  file). The first half of the window fills LED 4, the second half fills LED 5.
+  Forward playback fills left to right, reverse drains back, and ping-pong follows
+  the current pass. When playback stops, the level falls dark and progress
+  freezes (full after a forward one-shot, dark after a reverse one).
 
-There is no console on a USB-host card, so the LEDs carry the diagnosis:
+Station and bank selection:
 
-- **LED 4 + 3** — mounted, but no `.wav` files were found in the selected bank.
-  (If you started on an empty bank 0, hold the switch up and turn Main to reach a
-  folder.)
-- **LED 4 + 3 + 5** — WAV files found, but none could be decoded (they must be
-  uncompressed 16-bit PCM, mono or stereo).
-- **LED 4 + 5** — the stick was detected but its filesystem would not mount.
-- **LED 4 + 2** — playing normally.
+- Turn **Main** (or **CV in 1**) to pick a station and all six LEDs show the
+  **station number in 6-bit binary** (LED 0 = bit 0) for about a third of a
+  second, then return to the level/progress display.
+- Hold the switch **up** to pick a bank and all six LEDs show the **bank number in
+  6-bit binary**; the display stays up for about a second after release.
+
+Other feedback:
+
+- **Loop/Sync** toggles blink the whole panel **2 times for Loop, 3 times for
+  Sync**. **Static** off/on gives **1 or 4** all-LED flashes.
+- The 8mu gives a **forward walk** when a fader takes over and a **reverse walk**
+  when it is released.
+- A **buffer underrun** gives a brief all-six flash.
+- After a noticeable wait or fault, one short all-six flash confirms the card is
+  ready again.
+
+`led = quiet` omits the station binary readout and the underrun flash. Faults,
+bank selection, mode/static/remote confirmations and the ready flash still show.
+
+### Startup and faults
+
+There is no console on a USB-host card, so motion carries the diagnosis:
+
+| Pattern | Meaning |
+|---|---|
+| One LED walks slowly (0→5) | No stick detected |
+| All six blink slowly | Stick present, filesystem still mounting |
+| All six rapid triple-blink, then pause | Stick detected, but its filesystem would not mount |
+| One LED walks fast | Mounted, but the selected bank has no `.wav` files |
+| Two adjacent LEDs walk fast | WAV files found, but none could be decoded (must be uncompressed 16-bit PCM, mono or stereo) |
+
+If the card starts on an empty bank 0, hold the switch up and turn Main to reach
+a folder. The fast walking LED means there is nothing to play *in that bank*, not
+that the stick is unreadable.
 
 ## Supported USB sticks
 

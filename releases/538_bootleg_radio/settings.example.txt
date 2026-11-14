@@ -27,10 +27,11 @@ mode = sync
 #   0 = one-shot, 1 = loop, 2 = ping-pong
 loopMode = loop
 
-# F7 performance mode: off | scan | repeat
+# F7 performance mode: off | scan | repeat | slice
 #   off     normal playback
 #   scan    advance station on the clock
 #   repeat  retrigger the current loop on the clock
+#   slice   accepted, but currently behaves as off
 performanceMode = off
 
 # Clock pulses per scan/repeat step, 1-16
@@ -64,10 +65,11 @@ pulse1 = gate
 # Pulse out 2: gate | tick | clock | off
 pulse2 = tick
 
-# LED display: verbose | quiet
-#   verbose  level, playing, station-change, mounted, underrun/fault
-#   quiet    level, playing and mounted only (LEDs 3 and 5 stay dark)
-led = verbose
+# LED display: auto | quiet
+#   auto   level, loop-window progress, fault patterns, station/bank readouts
+#   quiet  the same, but without the station readout and the underrun flash
+# "verbose" is still accepted as an alias for auto, so older files keep working.
+led = auto
 
 # Pulse in 2 / TRS MIDI remote: auto | on | off
 #   auto  retrigger until a Music Thing 8mu is heard, then MIDI
