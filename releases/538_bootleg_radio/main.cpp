@@ -302,13 +302,12 @@ enum class LoopMode : uint8_t
 };
 
 // What the clock does to the station/loop while the F7 performance fader is
-// active. Slice is accepted but currently behaves as off.
+// active.
 enum class PerformanceMode : uint8_t
 {
 	Off,
 	Scan,
-	Repeat,
-	Slice
+	Repeat
 };
 
 static volatile PlayMode cfgMode = PlayMode::Sync; // power-on tune mode
@@ -648,7 +647,6 @@ static void ApplyFader(uint8_t index, uint8_t value)
 			remoteHasPerformance = true;
 			if (value < 28) remotePerformance = PerformanceMode::Scan;
 			else if (value < 48) remotePerformance = PerformanceMode::Repeat;
-			else if (value < 68) remotePerformance = PerformanceMode::Slice;
 			else remotePerformance = PerformanceMode::Off;
 		}
 		break;
@@ -2069,7 +2067,7 @@ public:
 		clockPeriodQ8 += (clockTargetQ8 - clockPeriodQ8) >> kClkSlewShift;
 
 		// F7 performance: divide the shared clock and either advance station or
-		// retrigger the current loop. Slice behaves as off.
+		// retrigger the current loop.
 		const PerformanceMode perf = EffectivePerformance();
 		if (perf != lastPerf)
 		{
@@ -2669,7 +2667,6 @@ static void ApplySetting(const char *key, const char *val)
 		else if (EqualsIgnoreCase(val, "scan")) cfgPerformanceMode = PerformanceMode::Scan;
 		else if (EqualsIgnoreCase(val, "repeat") ||
 		         EqualsIgnoreCase(val, "beat-repeat")) cfgPerformanceMode = PerformanceMode::Repeat;
-		else if (EqualsIgnoreCase(val, "slice")) cfgPerformanceMode = PerformanceMode::Slice;
 	}
 	else if (EqualsIgnoreCase(key, "perfDiv"))
 	{

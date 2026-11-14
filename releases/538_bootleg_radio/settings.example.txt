@@ -27,11 +27,10 @@ mode = sync
 #   0 = one-shot, 1 = loop, 2 = ping-pong
 loopMode = loop
 
-# F7 performance mode: off | scan | repeat | slice
+# F7 performance mode: off | scan | repeat
 #   off     normal playback
 #   scan    advance station on the clock
 #   repeat  retrigger the current loop on the clock
-#   slice   accepted, but currently behaves as off
 performanceMode = off
 
 # Clock pulses per scan/repeat step, 1-16

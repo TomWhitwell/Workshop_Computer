@@ -143,8 +143,7 @@ the top two faders are the speed pair. Clock BPM and pulse out 2 live in
   - F2: speed range — off (8–37), fine (38–67), ±1 octave (68–97), ±2 octaves
     (98–127).
   - F6: loop mode — one-shot (8–47), loop (48–87), ping-pong (88–127).
-  - F7: performance mode — scan (8–27), beat-repeat (28–47), slice/off (48–127;
-    slice is accepted but currently behaves as off).
+  - F7: performance mode — scan (8–27), beat-repeat (28–47), off (48–127).
   - F8: pulse out 1 mode — gate (8–37), tick (38–67), clock (68–97), off
     (98–127). Pulse out 2 mode and clock BPM stay in `settings.txt`.
 - **F7 Scan** advances the station on the clock; **F7 Beat-repeat** retriggers
@@ -386,7 +385,7 @@ listed); all lines are optional:
 # settings.txt - all lines optional
 mode = sync        # power-on tune mode: loop | sync
 loopMode = loop    # station end: loop | one-shot | ping-pong
-performanceMode = off # F7 performance: off | scan | repeat | slice
+performanceMode = off # F7 performance: off | scan | repeat
 perfDiv = 1        # clock pulses per scan/repeat step (1-16)
 bank = 0           # bank to start on (0-31)
 speedRange = 2oct  # speed range: 2oct | 1oct | fine | off
@@ -416,8 +415,7 @@ Rules and defaults:
   `fine` is about ±1 semitone; `off` fixes playback at 1× and the speed controls
   do nothing. The 8mu's F2 overrides this while it is above its dead zone.
 - **Performance mode:** `off` is normal playback; `scan` advances the station on
-  the clock; `repeat` retriggers the current loop on the clock; `slice` is
-  accepted but currently behaves as off. `perfDiv` divides
+  the clock; `repeat` retriggers the current loop on the clock. `perfDiv` divides
   the clock by 1–16. The 8mu's F7 overrides this while it is above its dead zone.
 - **Clock:** `clockBpm` sets the internal tempo; Pulse in 1 overrides it. The 8mu
   no longer has a clock fader; F8 is pulse out 1.
