@@ -69,12 +69,15 @@ separate time-stretch or "90s mode".
 - **Audio in 2** — loop end point, as a fraction of the file. Unpatched, the end
   is the end of the file. If the end is before the start, the loop runs
   backwards.
-- **Pulse in 1** — clock for the two CV outputs. Unpatched, they use the internal
-  120 BPM clock.
+- **Pulse in 1** — clock for the two CV outputs (and F7 scan/beat-repeat).
+  Unpatched, they use the internal 120 BPM clock. Edges faster than about 20 Hz
+  are ignored, so a very fast clock is clamped instead of making the card churn.
 - **Pulse in 2** — **8mu TRS MIDI remote**, or the external retrigger when no 8mu
   is heard. With `remote = auto` (the default) a gate patched here retriggers as
   before until the card sees a valid 8mu message, then the jack becomes the MIDI
-  input. The switch down and the 8mu's top-left button also retrigger.
+  input. The switch down and the 8mu's top-left button also retrigger. **This is
+  not a clock input**: a fast clock here either stutters the retrigger or decodes
+  as phantom MIDI. Use Pulse in 1 for clocks, or set `remote = off`.
 - **Audio out 1 / 2** — left and right. Mono files appear on both.
 - **Pulse out 1** — loop gate: high while the loop plays, low during the wrap gap.
 - **Pulse out 2** — loop wrap tick: a short pulse each time the loop wraps.
@@ -187,9 +190,12 @@ not a performance move. The first deliberate single-fader move takes over.
 - `remote = on`: always the 8mu input; the retrigger jack is disabled.
 - `remote = off`: always the external retrigger; MIDI is ignored.
 
-A gate is very unlikely to produce a valid MIDI status byte, so patched clocks
-and gates still work in `auto`. If you want to be certain the jack never changes
-function, use `on` or `off`.
+A slow gate is very unlikely to produce a valid MIDI status byte, so patched
+gates still work in `auto`; a **fast pulse train is not** — it produces thousands
+of bytes a second and will eventually decode as phantom MIDI, which changes
+station, speed and performance. If you want to be certain the jack never changes
+function, use `on` or `off` — and if you are patching a clock, put it in
+**Pulse in 1**, not Pulse in 2.
 
 The LEDs give a short forward walk when a fader first takes over, and a short
 reverse walk when the remote is released. There is no persistent "remote active"
@@ -361,8 +367,10 @@ in `settings.txt` still set the power-on state and level.
 The two CV outputs are a clocked modulation pair, so you can self-patch the card
 with no external LFO. They share a clock: the internal **120 BPM** by default, or
 an external clock patched into **Pulse in 1** (the tempo glides to the new rate,
-and falls back to 120 BPM if the clock stops). They run whether or not a file is
-playing.
+and falls back to 120 BPM if the clock stops). The clock is clamped to **20 Hz**:
+edges that arrive any faster are ignored, so an audio-rate or very fast clock
+steps the CV outs, the pulse clock and F7 at 20 Hz instead of "freaking out".
+They run whether or not a file is playing.
 
 - **CV out 2** is a bipolar **triangle**, one cycle every **40 clock pulses**
   (20 seconds at 120 BPM).
@@ -417,8 +425,9 @@ Rules and defaults:
 - **Performance mode:** `off` is normal playback; `scan` advances the station on
   the clock; `repeat` retriggers the current loop on the clock. `perfDiv` divides
   the clock by 1–16. The 8mu's F7 overrides this while it is above its dead zone.
-- **Clock:** `clockBpm` sets the internal tempo; Pulse in 1 overrides it. The 8mu
-  no longer has a clock fader; F8 is pulse out 1.
+- **Clock:** `clockBpm` sets the internal tempo; Pulse in 1 overrides it (clamped
+  to 20 Hz — faster edges are ignored). The 8mu no longer has a clock fader; F8
+  is pulse out 1.
 - **Pulse-out modes:** `gate` = high while looping; `tick` = a short pulse each
   wrap; `clock` = the active clock pulse; `off` = always low.
 - **LED modes:** `auto` is the normal display: level, loop-window progress,

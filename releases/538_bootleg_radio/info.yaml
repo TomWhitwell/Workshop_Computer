@@ -3,7 +3,7 @@ Name: Bootleg Radio
 short-description: "A lo-fi bootleg tribute to Music Thing's Radio Music: tune through WAV files on a USB stick, like a pirate station"
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
-Version: "1.3.0"
+Version: "1.3.1"
 Status: Released
 License: MIT
 Editor: none
@@ -23,7 +23,7 @@ contact:
 
 uf2:
   - path: UF2/bootleg_radio.uf2
-    name: Bootleg Radio 1.3.0
+    name: Bootleg Radio 1.3.1
 
 tags:
   - sampler
@@ -126,9 +126,11 @@ panel:
       type: pulse
       description: >
         External clock for the two CV outputs (the triangle LFO and the random
-        CV). Unpatched, they run from an internal 120 BPM clock; patch a clock
-        here to drive them from it. The tempo glides to the new rate and falls
-        back to 120 BPM if the clock stops.
+        CV) and F7 scan/beat-repeat. Unpatched, they run from an internal 120 BPM
+        clock; patch a clock here to drive them from it. The tempo glides to the
+        new rate and falls back to 120 BPM if the clock stops. The clock is
+        clamped to 20 Hz: edges any faster are ignored, so a very fast clock steps
+        the CV outs and F7 at 20 Hz instead of churning.
     - id: PulseIn2
       name: TRS MIDI In / Retrigger
       type: pulse
@@ -146,7 +148,9 @@ panel:
         input: it reuses the pulse input's 100k/NPN voltage input, so there is no
         galvanic isolation, and a standard 5V current-loop MIDI output will not
         work directly. One-way only: the 8mu's TRS port cannot receive, so there
-        is no LED feedback.
+        is no LED feedback. It is not a clock input: a fast clock here either
+        stutters the retrigger or decodes as phantom MIDI, so put clocks in
+        Pulse in 1.
   outputs:
     - id: AudioOut1
       name: Audio Out 1

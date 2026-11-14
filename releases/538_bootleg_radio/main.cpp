@@ -1144,6 +1144,8 @@ public:
 	int32_t clockCount = kClockDefaultQ8;    // Q8 samples until the next pulse
 	int32_t lastActiveClockQ8 = kClockDefaultQ8; // settings or 8mu clock override
 	int32_t clkSampleCount = 0;              // samples since the last external edge
+	int32_t clkRefractory = 0;               // ignore clock edges faster than 20Hz
+	int32_t retrigRefractory = 0;            // ignore Pulse-in-2 edges faster than 20Hz
 	int32_t clkTimeout = 0;                  // counts down while external clock is live
 	bool clkHavePrev = false;                // have we seen an edge to measure from
 	uint32_t triPhase = 0;                   // Q32 triangle phase (one cycle = 2^32)
@@ -1685,11 +1687,18 @@ public:
 
 		// Retrigger: the 8mu's top-left button, or Pulse in 2 while the jack is
 		// still in retrigger service (remote off, or auto before an 8mu is seen).
+		// Pulse-in-2 edges are debounced to 20 Hz so a fast clock can't stutter
+		// the loop.
+		if (retrigRefractory > 0) retrigRefractory--;
 		bool retrigger = remoteRetrigger;
 		remoteRetrigger = false;
 		if (!retrigger && cfgRemote != RemoteMode::On && !remoteDetected && PulseIn2RisingEdge())
 		{
-			retrigger = true;
+			if (retrigRefractory <= 0)
+			{
+				retrigger = true;
+				retrigRefractory = kClockMinSamples;
+			}
 		}
 		if (retrigger && RequestIdle())
 		{
@@ -2037,20 +2046,32 @@ public:
 		clkSampleCount++;
 		bool clockTick = false;
 
+		if (clkRefractory > 0) clkRefractory--;
+
 		if (PulseIn1RisingEdge())
 		{
-			if (clkHavePrev)
+			if (clkRefractory > 0)
 			{
-				int32_t m = clkSampleCount;
-				if (m < kClockMinSamples) m = kClockMinSamples;
-				if (m > kClockMaxSamples) m = kClockMaxSamples;
-				clockTargetQ8 = m << 8;
+				// An edge inside the minimum-period window means the clock is
+				// faster than 20 Hz. Ignore it, so ticks, the CV outs, the pulse
+				// clock and F7 never fire above 20 Hz however fast the input is.
 			}
-			clkHavePrev = true;
-			clkSampleCount = 0;
-			clkTimeout = kClockTimeoutSamples;
-			clockCount = clockPeriodQ8; // resync the internal countdown
-			clockTick = true;
+			else
+			{
+				if (clkHavePrev)
+				{
+					int32_t m = clkSampleCount;
+					if (m < kClockMinSamples) m = kClockMinSamples;
+					if (m > kClockMaxSamples) m = kClockMaxSamples;
+					clockTargetQ8 = m << 8;
+				}
+				clkHavePrev = true;
+				clkSampleCount = 0;
+				clkTimeout = kClockTimeoutSamples;
+				clockCount = clockPeriodQ8; // resync the internal countdown
+				clockTick = true;
+				clkRefractory = kClockMinSamples;
+			}
 		}
 
 		if (clkTimeout > 0)
