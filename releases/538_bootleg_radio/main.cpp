@@ -269,8 +269,8 @@ enum class PulseMode : uint8_t
 
 enum class LedMode : uint8_t
 {
-	Verbose, // level, playing, station-change, mounted, underrun/fault
-	Quiet    // level, playing, mounted only (LEDs 3 and 5 stay dark)
+	Auto,  // level, progress, faults, station/bank readout and action cues
+	Quiet  // the same, but without the station readout and underrun flash
 };
 
 // How Pulse In 2 is used. Auto keeps the old external-retrigger behaviour until
@@ -317,7 +317,7 @@ static volatile int32_t cfgClockBpm = 120;         // internal clock tempo
 static volatile int32_t cfgTriPulses = 40;         // clock pulses per triangle cycle
 static volatile PulseMode cfgPulse1 = PulseMode::Gate;
 static volatile PulseMode cfgPulse2 = PulseMode::Tick;
-static volatile LedMode cfgLed = LedMode::Verbose;
+static volatile LedMode cfgLed = LedMode::Auto;
 static volatile RemoteMode cfgRemote = RemoteMode::Auto;
 static volatile SpeedRange cfgSpeedRange = SpeedRange::TwoOctaves;
 static volatile LoopMode cfgLoopMode = LoopMode::Loop;
@@ -1740,6 +1740,7 @@ public:
 		// rendered verbatim here. Deliberate confirmations and bank selection
 		// still take over below.
 		const Scan s = scanState;
+		const bool quiet = (cfgLed == LedMode::Quiet);
 
 		// A ready flash only after the card spent noticeable time waiting/faulty.
 		if (s == Scan::Ready && lastScan != Scan::Ready)
@@ -1819,7 +1820,8 @@ public:
 		}
 
 		// While tuning, show the station number in 6-bit binary (LED 0 = bit 0).
-		if (stationHoldTimer > 0)
+		// Quiet LED mode omits it.
+		if (stationHoldTimer > 0 && !quiet)
 		{
 			for (int i = 0; i < 6; i++)
 			{
@@ -1855,8 +1857,8 @@ public:
 			return;
 		}
 
-		// Buffer underrun: brief all-six flash.
-		if (xrunLedTimer > 0)
+		// Buffer underrun: brief all-six flash. Quiet LED mode omits it.
+		if (xrunLedTimer > 0 && !quiet)
 		{
 			for (int i = 0; i < 6; i++) LedOn(i, true);
 			return;
@@ -2625,8 +2627,11 @@ static void ApplySetting(const char *key, const char *val)
 	}
 	else if (EqualsIgnoreCase(key, "led"))
 	{
+		// verbose was the old full-diagnostics mode; keep it as an alias for the
+		// new auto display so existing settings files keep working.
 		if (EqualsIgnoreCase(val, "quiet")) cfgLed = LedMode::Quiet;
-		else if (EqualsIgnoreCase(val, "verbose")) cfgLed = LedMode::Verbose;
+		else if (EqualsIgnoreCase(val, "auto") ||
+		         EqualsIgnoreCase(val, "verbose")) cfgLed = LedMode::Auto;
 	}
 	else if (EqualsIgnoreCase(key, "remote"))
 	{
