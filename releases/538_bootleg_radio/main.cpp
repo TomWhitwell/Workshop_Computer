@@ -1205,7 +1205,12 @@ public:
 		pendingStation = station;
 		if (cfgStaticOn && (req == Request::Station || req == Request::Bank))
 		{
-			staticBurst = kStaticSamples;
+			// Coalesce: don't restart a burst that is already running, so a fast
+			// sweep pulses instead of pinning the crackle on continuously.
+			if (staticBurst == 0)
+			{
+				staticBurst = kStaticSamples;
+			}
 		}
 	}
 
@@ -1351,6 +1356,7 @@ public:
 		{
 			remoteStaticOff = false;
 			cfgStaticOn = false;
+			staticBurst = 0;   // drop any half-finished crackle
 			staticBlink = 8192; // one all-LED flash
 		}
 		if (remoteStaticOn)
@@ -1968,28 +1974,31 @@ public:
 		// Tuning static: a short band-passed noise burst on station/bank
 		// changes. It is added after the station fade, so it fills the reload
 		// gap and the new station rises out of it.
-		if (cfgStaticOn && staticBurst > 0)
+		if (staticBurst > 0)
 		{
 			staticBurst--;
-			const uint32_t bit = ((staticNoise >> 0) ^ (staticNoise >> 2) ^
-			                      (staticNoise >> 3) ^ (staticNoise >> 5)) & 1u;
-			staticNoise = (staticNoise >> 1) | (bit << 15);
-			const int32_t n = (int32_t)(staticNoise & 0xFFFF) - 32768;
-			staticLp += (n - staticLp) >> 2;
-			staticDc += (staticLp - staticDc) >> 6;
-			const int32_t s = staticLp - staticDc;
-
-			int32_t env = 4096;
-			if (staticBurst < kStaticSamples / 3)
+			if (cfgStaticOn)
 			{
-				env = (staticBurst * 4096) / (kStaticSamples / 3);
+				const uint32_t bit = ((staticNoise >> 0) ^ (staticNoise >> 2) ^
+				                      (staticNoise >> 3) ^ (staticNoise >> 5)) & 1u;
+				staticNoise = (staticNoise >> 1) | (bit << 15);
+				const int32_t n = (int32_t)(staticNoise & 0xFFFF) - 32768;
+				staticLp += (n - staticLp) >> 2;
+				staticDc += (staticLp - staticDc) >> 6;
+				const int32_t s = staticLp - staticDc;
+
+				int32_t env = 4096;
+				if (staticBurst < kStaticSamples / 3)
+				{
+					env = (staticBurst * 4096) / (kStaticSamples / 3);
+				}
+				const int32_t amp = (cfgStaticLevel * kStaticAmpMax) / 100;
+				const int32_t add = (int32_t)(((((int64_t)s * env) >> 12) * amp) >> 12);
+				left += add;
+				right += add;
+				if (left > 32767) left = 32767; else if (left < -32768) left = -32768;
+				if (right > 32767) right = 32767; else if (right < -32768) right = -32768;
 			}
-			const int32_t amp = (cfgStaticLevel * kStaticAmpMax) / 100;
-			const int32_t add = (int32_t)(((((int64_t)s * env) >> 12) * amp) >> 12);
-			left += add;
-			right += add;
-			if (left > 32767) left = 32767; else if (left < -32768) left = -32768;
-			if (right > 32767) right = 32767; else if (right < -32768) right = -32768;
 		}
 
 		// Once the envelope is down, hand the queued request to core 0. It keeps
