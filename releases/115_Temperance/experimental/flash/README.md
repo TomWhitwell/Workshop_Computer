@@ -4,7 +4,7 @@
 This adds Matt Allison's Temperance 0.2.0 gate-recording mode, adapted to
 flash storage, with a fix for delayed edges crossing a mode change.
 This new binary needs physical retesting on both sizes. The preceding
-`temperance0.1.1.flash.uf2` passed user-reported hardware tests on both
+[trigger-only 0.1.1 build](../flash_trigger/UF2/temperance0.1.1.flash.uf2) passed user-reported hardware tests on both
 sizes on 2026-11-11 and remains available as the last hardware-tested build.
 
 Flash **`UF2/temperance0.2.0.flash.uf2`**. Capacity is identified at startup;
@@ -14,6 +14,33 @@ by upstream; this integration does not modify its source or firmware.
 
 Overall licence: **GNU GPL version 3 (GPL-3.0)**; see [LICENSE](LICENSE),
 [ATTRIBUTION.md](ATTRIBUTION.md) and [LICENSES/](LICENSES/).
+
+## Separate source trees
+
+Both flash versions have complete buildable source, tests, board definitions,
+licence notices and their own packaged UF2:
+
+| Version | Source folder (under card 115) | Built UF2 |
+| --- | --- | --- |
+| Trigger-only 0.1.1 | [`experimental/flash_trigger/`](../flash_trigger/README.md) | `temperance0.1.1.flash.uf2` |
+| Trigger/gate 0.2.0 | `experimental/flash/` (this folder) | `temperance0.2.0.flash.uf2` |
+
+The trigger-only tree is restored from commit `9e5119e0`; it retains its
+original implementation rather than disabling gates in the new engine.
+From the card 115 directory, build each in its own fresh build directory:
+
+```sh
+cmake -S experimental/flash_trigger -B /tmp/temperance-trigger-build \
+  -DPICO_SDK_PATH=/path/to/pico-sdk -DCMAKE_BUILD_TYPE=Release
+cmake --build /tmp/temperance-trigger-build -j2
+cmake -S experimental/flash -B /tmp/temperance-gate-build \
+  -DPICO_SDK_PATH=/path/to/pico-sdk -DCMAKE_BUILD_TYPE=Release
+cmake --build /tmp/temperance-gate-build -j2
+```
+
+Both builds use the shared upstream `lib/ComputerCard.h`, as before. Their
+`test/Makefile` and `tools/bench/` live with their corresponding source tree.
+The RAM release remains separate and is not changed by this arrangement.
 
 ## Gate recording (from Matt Allison 0.2.0)
 

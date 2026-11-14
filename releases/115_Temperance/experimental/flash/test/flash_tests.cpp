@@ -41,6 +41,25 @@ static void CheckRead(unsigned channel, unsigned pos, unsigned length, int expec
     assert(Read(channel, 0, pos) == expected);
 }
 
+static void FirstSampleCodecEquivalence() {
+    for (int first = -2048; first <= 2047; ++first) {
+        Start(0);
+        adpcm_state_t ref = {0, 0};
+        uint8_t bytes[16] = {};
+        for (unsigned i = 0; i < 32; ++i) {
+            int value = i == 0 ? first : int((i * 73) % 4096) - 2048;
+            uint8_t n = adpcm_encode(int16_t(value * 16), &ref);
+            bytes[i / 2] |= n << ((i & 1) * 4);
+            assert(Record(0, value));
+        }
+        Stop(0); Flush(0);
+        const uint8_t *actual = TestFlash() + kReserve;
+        assert(actual[0] == 0 && actual[1] == 0 && actual[2] == 0);
+        assert(std::equal(bytes, bytes + 16, actual + 4));
+    }
+    std::puts("PASS reset-sample fast path: all 4096 inputs and following ADPCM stream match upstream codec");
+}
+
 static void IndependentRecordings() {
     constexpr unsigned aLen = 120123, bLen = 80617;
     auto a = Reference(aLen), b = Reference(bLen, 1);
@@ -192,6 +211,24 @@ static void FullCapacity() {
     assert(std::all_of(data, data + kReserve, [](uint8_t v) { return v == 0xff; }));
     assert(Healthy());
     std::printf("PASS both loops: %u samples, automatic stop, final flash pages, reserve intact\n", capacity);
+}
+
+static void CrossfadeAudioRegression() {
+    tem::Looper loop; loop.Channel(0); loop.Record(0, 0);
+    for (unsigned i = 0; i < 4096; ++i) {
+        loop.Tick(Tone(i), 65536, 0);
+        if ((i % 48) == 0) Service(nullptr);
+    }
+    loop.Release(0); Flush(0);
+    uint64_t hash = 1469598103934665603ull;
+    const int speeds[] = {65536, -32768, 131072, -131072, 32768, -65536};
+    for (unsigned i = 0; i < 48000; ++i) {
+        int out = loop.Tick(Tone(i + 4096), speeds[(i / 509) % 6], 0);
+        hash = (hash ^ uint32_t(out)) * 1099511628211ull;
+        Service(nullptr);
+    }
+    assert(Healthy());
+    std::printf("PASS crossfade audio reference hash: %llu\n", (unsigned long long)hash);
 }
 
 static void ParameterChangeRegression() {
@@ -359,9 +396,11 @@ int main(int argc, char **argv) {
         MalformedPage(channel, argv[2][0] == 'e');
         return 0;
     }
+    FirstSampleCodecEquivalence();
     IndependentRecordings();
     LooperControls();
     Instrument();
+    CrossfadeAudioRegression();
     ParameterChangeRegression();
     CachePublicationRegression();
     FullCapacity();

@@ -56,6 +56,12 @@ preserving the experimental storage guards. `Clock.h` adapts his bit-delay
 approach into one packed two-input ring to reduce audio-thread overhead.
 The mode-change pending-edge fix and detector scheduling are experimental
 integration changes, not claims about Matt's original implementation.
+Additional timing changes initialise reader links once, bound session-start
+invalidation, and reuse coincident read-head samples. `FlashStore.cpp` also
+specializes the reset-state first sample of Dune's ADPCM algorithm exactly;
+all 4,096 input values and subsequent encoded state are checked against the
+unchanged vendored codec. These changes are experimental integration work;
+the codec and instrument algorithm credits remain with their upstream authors.
 
 `test/GateSim.h` and the baseline gate cases in `test/gate_tests.cpp` adapt
 Matt's `test/Sim.h` and `GateTests` from 0.2.0. Additional transition,

@@ -264,14 +264,22 @@ SERVICE = sym("bench_service")
 PREPARE = sym("bench_prepare")
 labels = ["both forward x2", "A half, B x2", "A reverse x2, B x2", "direction crossfades"]
 failed = False
-scenarios = [int(x) for x in sys.argv[4].split(",")] if len(sys.argv) > 4 else range(32)
+scenarios = [int(x) for x in sys.argv[4].split(",")] if len(sys.argv) > 4 else list(range(32)) + [32, 33, 40, 41, 67, 75]
 for scenario in scenarios:
     label = ("gate " if scenario & 16 else "trigger ") + ("2MB " if scenario & 8 else "16MB ") + labels[scenario & 3] + (" at seam" if scenario & 4 else " mid-loop")
+    if scenario & 32:
+        label = ("2MB " if scenario & 8 else "16MB ") + ("A gate rise while B plays" if scenario & 1 else "both gate rises")
+    elif scenario & 64:
+        label = ("2MB " if scenario & 8 else "16MB ") + "enter gate mode during direction crossfades"
+    high = [1, 0 if scenario & 1 else 1] if scenario & 32 else ([1, 1] if scenario & 16 else [0, 0])
+    state["pulse"] = high
+    state["last"] = high
+    state["conn"] = [0, 0, 0, 0, 1, 1]
     call(PREPARE, scenario)
     values = []
     worst_profile = {}
     worst_cost = -1
-    for i in range(1200):
+    for i in range(200 if scenario & 32 else 1200):
         write_inputs(i)
         PROFILE = {}
         PROFILING = True
@@ -283,8 +291,10 @@ for scenario in scenarios:
         call(SERVICE)
     # Include initial cache loading above and the warmed speed-change path below by
     # re-preparing after caches have filled, then measuring its first 256 ticks.
+    # Gate-rise cases use 200 ticks: real ADPCM encoding and Start execute,
+    # but no complete flash page is published to the emulator-only worker.
     call(PREPARE, scenario)
-    for i in range(512):
+    for i in range(200 if scenario & 32 else 512):
         write_inputs(i)
         PROFILE = {}
         PROFILING = True
@@ -297,7 +307,9 @@ for scenario in scenarios:
     total = max(values) + OVERHEAD
     call(sym("bench_status"))
     if mu.reg_read(UC_ARM_REG_R0) != 7:
-        raise RuntimeError("timing fixture faulted or a playhead stopped advancing")
+        status = mu.reg_read(UC_ARM_REG_R0)
+        call(sym("bench_debug"))
+        raise RuntimeError(f"timing fixture faulted or a playhead stopped advancing: status={status}, debug={mu.reg_read(UC_ARM_REG_R0):x}")
     print(f"{label}: max ProcessSample {max(values)}; including overhead {total} cycles ({100*total/BUDGET:.1f}%), {total / 192:.2f}us", flush=True)
     import bisect
     names = sorted((address, name) for name, address in dem.items() if 0x20000000 <= address < 0x20010000)

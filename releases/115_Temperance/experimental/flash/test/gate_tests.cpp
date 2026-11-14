@@ -206,6 +206,12 @@ static void TransitionTests() {
   assert(s.inst->Loop(1).State()==Looper::kRecording);
   s.RunMs(300);s.Tap();s.RunMs(400);s.Tap();
  });
+ Test("gate minimum follows the slow 2kHz sample clock", [] {
+  Sim s(0);s.FlickUp();
+  s.Gate(0,200);assert(s.inst->Loop(0).State()==Looper::kEmpty);
+  s.Gate(0,300);assert(s.inst->Loop(0).State()==Looper::kPlaying);
+  assert(s.inst->Loop(0).Len()>=599 && s.inst->Loop(0).Len()<=601);
+ });
  Test("rapid short gates re-record into used flash without queue faults", [] {
   Sim s;s.FlickUp();
   for(int i=0;i<40;++i) {s.Gate(0,15,1);s.Gate(1,16,1);}

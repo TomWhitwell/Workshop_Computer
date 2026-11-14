@@ -1,3 +1,4 @@
+// 2026-11-13: initialise reader links once; bounded gate-start invalidation.
 // 2026-11-11: automatic 2MB/16MB geometry; original RAM release unchanged.
 // 2026-11-07: exp.2 audio-deadline fix; upstream notices retained below.
 /*
@@ -289,6 +290,13 @@ bool Init() {
     flash_do_cmd(tx, rx, 4);
     enabled = DetectGeometry(rx[1], rx[2], rx[3]);
 #endif
+    for (unsigned n = 0; n < 2; ++n) {
+        for (unsigned h = 0; h < 2; ++h) {
+            auto &head = channels[n].heads[h];
+            head.reader.cache = head.cache;
+            head.reader.config = &head.config;
+        }
+    }
     return enabled;
 }
 
@@ -303,6 +311,7 @@ extern "C" void bench_flash_prepare(uint32_t length, uint32_t flashBytes) {
         Channel &c = channels[n];
         c.generation = c.flushedGeneration = c.ioGeneration = 1;
         c.samples = length;
+        c.recording = false; c.fill = 0;
         c.flushedBlocks = (length + kBlockSamples - 1) / kBlockSamples;
         for (auto &h : c.heads) {
             if (changed) {
@@ -328,32 +337,51 @@ void Start(unsigned n) {
     c.recording = Healthy();
     for (unsigned h = 0; h < 2; ++h) {
         Head &head = channels[n].heads[h];
-        head.reader = {nullptr, 0, c.generation, 0, head.cache, 0, &head.config};
-        Request(n, h, 0, 1, 0, false);
+        // Deactivation changes only this atomic flag, not the worker's
+        // length/direction/generation tuple. An in-flight old decode may
+        // finish, but its generation cannot be read by the new session.
+        head.config.active = false;
+        head.reader.reading = nullptr;
+        head.reader.generation = c.generation;
+        head.reader.last = 0;
     }
+    __dmb(); // publish inactive readers before any new session pages
 }
 
 bool Record(unsigned n, int32_t sample) {
     Channel &c = channels[n];
-    if (!c.recording || !Healthy() || c.samples >= CapacitySamples()) return false;
-    if (c.fill == 0 && c.write - c.read >= kQueuePages) {
+    const uint32_t fill = c.fill, samples = c.samples;
+    if (!c.recording || !Healthy() || samples >= CapacitySamples()) return false;
+    if (fill == 0 && c.write - c.read >= kQueuePages) {
         ++diagnostics.queueOverruns;
         c.recording = false;
         return false; // stop instead of silently overwriting unconsumed audio
     }
     Page &p = c.pages[c.write & (kQueuePages - 1)];
-    if (c.fill == 0) {
+    if (fill == 0) {
         p.bytes[0] = uint8_t(c.encoder.predictor);
         p.bytes[1] = uint8_t(uint16_t(c.encoder.predictor) >> 8);
         p.bytes[2] = uint8_t(c.encoder.step_index);
         p.bytes[3] = 0;
     }
-    uint8_t nibble = adpcm_encode(int16_t(sample * 16), &c.encoder);
-    uint32_t byte = 4 + c.fill / 2;
-    if (c.fill & 1) p.bytes[byte] |= uint8_t(nibble << 4);
+    uint8_t nibble;
+    if (samples == 0) {
+        // Exact specialization of the upstream codec's reset state (step=7,
+        // predictor=0). Signed 12-bit input is scaled by 16: any nonzero
+        // first sample sets all three magnitude bits and reconstructs +/-11.
+        // Avoid the general encoder on the same tick as two gate starts.
+        nibble = sample == 0 ? 0 : sample < 0 ? 15 : 7;
+        c.encoder.predictor = sample == 0 ? 0 : sample < 0 ? -11 : 11;
+        c.encoder.step_index = sample == 0 ? 0 : 8;
+    } else {
+        nibble = adpcm_encode(int16_t(sample * 16), &c.encoder);
+    }
+    uint32_t byte = 4 + fill / 2;
+    if (fill & 1) p.bytes[byte] |= uint8_t(nibble << 4);
     else p.bytes[byte] = nibble;
-    ++c.samples;
-    if (++c.fill == kBlockSamples) Publish(c);
+    c.samples = samples + 1;
+    c.fill = fill + 1;
+    if (c.fill == kBlockSamples) Publish(c);
     return true;
 }
 

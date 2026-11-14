@@ -90,6 +90,7 @@ public:
 		}
 
         int32_t out = 0;
+        [[maybe_unused]] int32_t currentPos = -1, currentSample = 0, currentRaw = 0;
         bool ready = state_ == kPlaying &&
             (playingReady_ || (playingReady_ = temflash::Ready(channel_)));
         if (ready)
@@ -112,7 +113,10 @@ public:
 				ghostStep_ = kUnity / kSeam;
 				head_.speed = speed;
 			}
-			out = Sample(head_.pos / 2, sample);
+			currentPos = head_.pos / 2;
+            currentRaw = sample;
+            currentSample = Sample(currentPos, sample);
+            out = currentSample;
 			if (Advance(head_, len_))
 				wrapPending_ = true;
 			if (inGain_ < kUnity)
@@ -130,9 +134,21 @@ public:
 		if (ghostGain_ > 0)
 		{
 			int32_t i = ghost_.pos / 2;
-            int32_t cached;
-            ReadHead(1, i, cached);
-			int32_t g = Sample(i, cached);
+            int32_t g;
+#ifndef TEMPERANCE_DISABLE_SHARED_SAMPLE
+            // On the first speed-crossfade tick both heads are at exactly
+            // the same sample. Reuse the identical seam blend and keep the
+            // ghost's bounded-hold value current without a second cache scan.
+            if (i == currentPos) {
+                g = currentSample;
+                reader_[1]->last = currentRaw;
+            } else
+#endif
+            {
+                int32_t cached;
+                ReadHead(1, i, cached);
+                g = Sample(i, cached);
+            }
 			Advance(ghost_, ghostLen_);
 			if (state_ == kPlaying)
 				out += ((g - out) * ghostGain_) >> 16; // crossfade
@@ -185,7 +201,7 @@ private:
 		int32_t speed = 0; // 16.16 per tick, negative for reverse
 	};
 
-	void Start(uint32_t now, int32_t clockStep)
+	__attribute__((noinline)) void Start(uint32_t now, int32_t clockStep)
 	{
 		if (state_ == kPlaying)
 			FadeOut(clockStep);
