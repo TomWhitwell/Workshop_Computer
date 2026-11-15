@@ -5,23 +5,24 @@
 | Download | Recording modes | Status |
 | --- | --- | --- |
 | [temperance0.1.1.flash.uf2](../../flash_trigger/UF2/temperance0.1.1.flash.uf2) | Triggers only | Hardware tests passed on both card sizes |
-| [temperance0.2.0.flash.uf2](temperance0.2.0.flash.uf2) | Switchable triggers and gates; triggers at boot | Software tests passed; hardware retest pending |
+| [temperance0.2.0.flash.uf2](temperance0.2.0.flash.uf2) | Switchable triggers and gates; triggers at boot | Software tests and user-reported hardware tests passed on both sizes |
 
 Both UF2s automatically detect supported 2MB and 16MB cards. In 0.2.0,
 double-flick Up to change modes; the switch still taps to record in either.
 
-## Current gate-mode test build
+## Current gate-mode build
 
 Use **`temperance0.2.0.flash.uf2`**, embedded version `0.2.0-flash-exp.1`.
 It detects supported **2MB or 16MB Winbond cards**, adds Matt Allison's 0.2.0
 trigger/gate recording controls and fixes pending edges across mode changes.
-Release build, sanitizer suites and all 38 timing scenarios pass. This new
-binary still needs physical retesting on both sizes; see [TEST_PROTOCOL.md](../TEST_PROTOCOL.md).
+Release build, sanitizer suites and all 38 timing scenarios pass. On
+2026-11-15 the user confirmed functional hardware tests pass on both sizes
+using a Workshop System and an iPod; see [VALIDATION.md](../VALIDATION.md).
 
 The [trigger-only 0.1.1 build](../../flash_trigger/UF2/temperance0.1.1.flash.uf2)
 and its [complete source](../../flash_trigger/README.md) remain available, with
-user-reported hardware tests passing on both sizes on 2026-11-11. That
-hardware pass does not apply to the new gate-mode binary.
+user-reported hardware tests passing on both sizes on 2026-11-11. Each
+build has its own hardware report in the validation notes.
 
 Superseded 16MB-only experiments remain in Git history (`85f0fa9c` for exp.2,
 `f17dad15` for exp.1, which had a known parameter-change freeze).

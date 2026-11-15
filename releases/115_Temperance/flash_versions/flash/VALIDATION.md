@@ -1,17 +1,89 @@
-# Source-tree preservation check — 2026-11-13
+# Validation — flash gate mode 0.2.0-flash-exp.1
 
-The trigger-only 0.1.1 source was restored from `9e5119e0` into
-`experimental/flash_trigger/`. All source, CMake, board, test, codec and
-licence files match that revision; only documentation is annotated for the
-new location. Its packaged hardware-tested UF2 is byte-for-byte unchanged.
+Software validation: 2026-11-13. **User-reported functional hardware tests
+pass on both 2MB and 16MB cards**, confirmed on 2026-11-15 for
+`temperance0.2.0.flash.uf2` (embedded version `0.2.0-flash-exp.1`).
 
-A fresh Release build passes with Pico SDK 2.3.0 / ARM GNU 15.2.1:
-42,560 bytes of flash image and 117,264 bytes of main RAM (44.73%). The
-ASan/UBSan host suite passes on both 2MB and 16MB models, including the
-six separate malformed-region cases. These are software checks of the
-preserved source, not a new physical hardware test.
+The user tested using a Workshop System and an iPod audio source, following
+the supplied trigger/gate recording and playback checklist, then confirmed
+“both card sizes pass”. No individual measurements or audio captures were
+supplied. This records a functional test report; direct complete-interrupt
+timing and physical flash/bus timing have not been measured.
+The 2026-11-11 hardware pass below separately applies to the preceding
+trigger-only 0.1.1 universal build.
 
-The switchable gate/trigger build has its own source and UF2 in `../flash/`.
+## Integration and mode-boundary fix
+
+Matt Allison's MIT-licensed 0.2.0 gate feature is adapted from `e9ffbc3f`
+(upstream PR #558, `6d47f07b`). Only this experimental flash directory is
+changed by the integration. The RAM source, documentation and firmware remain
+exactly as imported from upstream, including its original gate implementation.
+
+Only the selected input detector runs. Switching mode resets the trigger timers
+and gate ownership; the gate delay warms for 961 samples while rejecting rises
+from the inactive/entry history. A gate high at entry cannot start recording
+when that old sample emerges. New rises after entry still receive the matching
+20ms delay. Switch taps retain independent ownership of their recordings.
+Both gate levels share one packed 240-byte delay ring.
+
+To retain timing margin, reader/cache links are initialised once at boot.
+Starting a new session deactivates each playback configuration without changing
+its length/direction/generation tuple, clears the audio reader pointer, and
+changes its generation. An in-flight old decode may finish but cannot be read
+by the new session. A barrier publishes deactivation before new pages.
+The first sample uses an exact specialization of the ADPCM encoder's reset
+state; the vendored upstream codec is unchanged. On a speed crossfade's first
+tick, coincident heads reuse the same decoded sample and seam blend.
+
+## Completed checks
+
+- Release cross-build: Pico SDK 2.3.0 / ARM GNU 15.2.1, board `temperance_flash`,
+  minimum 2MB, 192MHz, `TEMPERANCE_BENCH=OFF`. Flash image 43,624 bytes;
+  main RAM 118,616 bytes (45.25%), plus the existing 2KiB scratch stacks.
+- ASan/UBSan gate suites pass separately on simulated 2MB and 16MB flash:
+  default/toggled modes, LEDs, exact lengths, short gates, unplug/probe,
+  switch/gate takeover, independent overlapping gates, rapid re-recording,
+  2kHz minimum lengths, already-high inputs and mode boundaries at
+  1, 5, 19, 20 and 21ms. A new rise immediately after entry is accepted.
+- Removing the warm-up guard in an isolated copy makes the already-high-gate
+  regression fail, confirming the test exercises the fix.
+- Existing flash suites pass on both sizes, including complete simultaneous
+  capacity recording through the new Record/Release entry points. Capacity
+  stops playback normally and a later gate release has no effect. The existing
+  Main-max/X/Y, independent takes, reverse/long seeks, queue/cache/fault and
+  invalid geometry tests pass; corrupt region cases run in separate processes.
+- For every one of the 4,096 possible signed 12-bit first samples, the reset
+  fast path and the following 31 samples produce exactly the upstream codec's
+  encoded bytes. This checks both initial output and subsequent codec state.
+- A 48,000-tick sequence of forward/reverse speed changes produces audio hash
+  `11462512352256120198` with and without coincident-head reuse, on both sizes.
+  The reference build uses `TEMPERANCE_DISABLE_SHARED_SAMPLE`.
+- All **38** compiled Cortex-M0+ scenarios pass the unchanged 15% modeled
+  headroom target: both modes/sizes, held-high gates, full wash, speeds,
+  crossfades/seams, simultaneous gate starts, A recording while B plays,
+  and entering gate mode during direction crossfades. Worker health and
+  recording/playhead progress are asserted. Worst tested total is
+  **3,372 cycles / 17.56us (84.3%)** on each size, including 1,146 cycles of
+  modeled ComputerCard/normalisation/PWM/exception overhead.
+
+Gate-start timing fixtures run for 200 ticks after each prepare: they execute
+real session startup and ADPCM encoding, without publishing a complete flash
+page to the emulator-only worker. Host suites cover complete pages and flash
+operations. Physical SSI timing, RAM contention, interrupt phasing and erase
+latency are not simulated; these figures are not a hardware worst-case bound.
+
+## Reproduce
+
+Use a fresh build folder, then `make -C test` (ASan/UBSan). Configure a separate
+bench build with `TEMPERANCE_BENCH=ON` and run:
+
+```sh
+python tools/bench/cycles.py /path/to/bench/temperance0.2.0.flash.elf 1 4000
+```
+
+An optional fourth argument selects comma-separated scenarios for diagnosis;
+omitting it runs all 38. Unicorn and Capstone are required. Do not flash the
+bench binary. Hardware retest steps are at the top of [TEST_PROTOCOL.md](TEST_PROTOCOL.md).
 
 ---
 

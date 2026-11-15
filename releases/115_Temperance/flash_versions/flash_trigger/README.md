@@ -1,71 +1,33 @@
+# Trigger-only flash source — 0.1.1
+
+This complete source tree and packaged UF2 are preserved from commit
+`9e5119e0` (the universal 2MB/16MB trigger-only release). The C++ source,
+CMake configuration, tests, board headers and bundled licences are unchanged
+from that snapshot. The snapshot used Pico SDK 2.3.0 / ARM GNU 15.2.1;
+rebuilds can differ in embedded build dates from the hardware-tested UF2.
+
+Use a fresh build directory with this folder as the CMake source. Its output
+is `temperance0.1.1.flash.uf2`. Do not reuse a gate-version CMake cache.
+For the newer switchable trigger/gate code and its own build instructions,
+see [the separate gate source tree](../flash/README.md).
+
+---
+
 # Temperance Flash — automatic 2MB / 16MB detection
 
-**Version 0.2.0-flash-exp.1. One UF2 for supported 2MB and 16MB Winbond cards.**
-This adds Matt Allison's Temperance 0.2.0 gate-recording mode, adapted to
-flash storage, with a fix for delayed edges crossing a mode change.
-This new binary needs physical retesting on both sizes. The preceding
-[trigger-only 0.1.1 build](../flash_trigger/UF2/temperance0.1.1.flash.uf2) passed user-reported hardware tests on both
-sizes on 2026-11-11 and remains available as the last hardware-tested build.
+**Version 0.1.1-flash-exp.1. One UF2 for supported 2MB and 16MB Winbond cards.**
+Build and software tests pass. On 2026-11-11 the user confirmed that this
+auto-detecting version passes functional hardware tests on **both 2MB and
+16MB cards**. The earlier 16MB-only exp.2 build passed user-reported
+functional tests on 2026-11-07.
 
-Flash **`UF2/temperance0.2.0.flash.uf2`**. Capacity is identified at startup;
+Flash **`UF2/temperance0.1.1.flash.uf2`**. Capacity is identified at startup;
 there is no menu, jumper or separate card-size build. This is the flash-recording
-variant on both sizes. The separate RAM release is kept exactly as supplied
-by upstream; this integration does not modify its source or firmware.
+variant on both sizes, not the original RAM micro looper. Matt Allison's
+original source, metadata, manual, MIT licence and UF2 remain unchanged.
 
 Overall licence: **GNU GPL version 3 (GPL-3.0)**; see [LICENSE](LICENSE),
 [ATTRIBUTION.md](ATTRIBUTION.md) and [LICENSES/](LICENSES/).
-
-## Separate source trees
-
-Both flash versions have complete buildable source, tests, board definitions,
-licence notices and their own packaged UF2:
-
-| Version | Source folder (under card 115) | Built UF2 |
-| --- | --- | --- |
-| Trigger-only 0.1.1 | [`experimental/flash_trigger/`](../flash_trigger/README.md) | `temperance0.1.1.flash.uf2` |
-| Trigger/gate 0.2.0 | `experimental/flash/` (this folder) | `temperance0.2.0.flash.uf2` |
-
-The trigger-only tree is restored from commit `9e5119e0`; it retains its
-original implementation rather than disabling gates in the new engine.
-From the card 115 directory, build each in its own fresh build directory:
-
-```sh
-cmake -S experimental/flash_trigger -B /tmp/temperance-trigger-build \
-  -DPICO_SDK_PATH=/path/to/pico-sdk -DCMAKE_BUILD_TYPE=Release
-cmake --build /tmp/temperance-trigger-build -j2
-cmake -S experimental/flash -B /tmp/temperance-gate-build \
-  -DPICO_SDK_PATH=/path/to/pico-sdk -DCMAKE_BUILD_TYPE=Release
-cmake --build /tmp/temperance-gate-build -j2
-```
-
-Both builds use the shared upstream `lib/ComputerCard.h`, as before. Their
-`test/Makefile` and `tools/bench/` live with their corresponding source tree.
-The RAM release remains separate and is not changed by this arrangement.
-
-## Gate recording (from Matt Allison 0.2.0)
-
-Trigger mode remains the power-on default. **Flick Up twice within 400ms**
-(at least 50ms apart) to toggle both pulse inputs between triggers and gates.
-The switch still taps both loopers in either mode; ordinary knob layers remain.
-
-- Trigger: rising edges toggle recording; a second tap within 300ms clears.
-- Gate: a rise starts recording and a fall stops it and plays the loop.
-  A gate rise can take over a recording started by the switch.
-- A switch tap takes ownership away from the gate, so the old gate's fall
-  cannot stop a later switch recording.
-- Gates shorter than 512 sample-clock ticks leave the loop empty (10.67ms at
-  48kHz, 256ms at 2kHz). Gates above that minimum but below 20ms still work.
-- A held gate stops automatically at the detected capacity. Its eventual
-  fall leaves playback running. Pulling out a high gate ends recording.
-- A gate high when entering gate mode waits for a new rise. Pending edges
-  from the previous mode cannot start a recording after the mode change.
-- Mode resets at power-on. A 1.5-second overlay shows all LEDs for gates,
-  top row only for triggers. Empty loops glow dimly in gate mode.
-
-The gate delay packs both inputs into one 240-byte ring. Only the selected
-input detector runs. On a mode change, trigger timers reset and stale gate
-rises are suppressed while the delay warms; new edges keep their matched
-20ms audio delay. Flash faults retain priority over the mode LED display.
 
 ## Detection and storage
 
@@ -144,7 +106,7 @@ Use the [original manual](../../README.md) for the full panel/patch guide.
 
 ## Build and tests
 
-The flash version lives in `experimental/flash/`, alongside the unchanged
+The trigger-only flash version lives in `flash_versions/flash_trigger/`, alongside the unchanged
 original RAM release. The board configuration links for the **minimum 2MB**
 card; detected capacity governs
 all recording addresses, including on 16MB. Runtime code/constants run in RAM.
@@ -156,7 +118,7 @@ cmake -S . -B /tmp/temperance-universal-build \
 cmake --build /tmp/temperance-universal-build -j2
 ```
 
-The output is `/tmp/temperance-universal-build/temperance0.2.0.flash.uf2`.
+The output is `/tmp/temperance-universal-build/temperance0.1.1.flash.uf2`.
 Use a fresh build directory so old 16MB-specific CMake cache settings are not
 reused. See [VALIDATION.md](VALIDATION.md) for software results and required
 physical checks, and [TEST_PROTOCOL.md](TEST_PROTOCOL.md) for the test procedure.

@@ -1,6 +1,9 @@
 # Gate-mode retest — 0.2.0-flash-exp.1
 
-The 2026-11-11 hardware pass applies to the preceding 0.1.1 flash build.
+Status: user-reported functional tests of this gate-mode build pass on both
+2MB and 16MB cards as of 2026-11-15, using a Workshop System and an iPod.
+See VALIDATION.md for the reported scope. The 2026-11-11 hardware pass
+applies separately to the preceding 0.1.1 flash build.
 Run these checks on both 2MB and 16MB using `temperance0.2.0.flash.uf2`:
 
 1. Trigger mode at boot: verify previous switch/pulse recording and controls.
@@ -21,8 +24,8 @@ Run these checks on both 2MB and 16MB using `temperance0.2.0.flash.uf2`:
    loop while re-recording the other. Include reverse and direction changes.
 8. Reset: trigger mode returns. Flash-fault LED indication retains priority.
 
-No physical pass is claimed for this new build. Direct interrupt timing and
-physical bus contention remain hardware measurements, separate from simulation.
+The functional pass is user-reported. Direct interrupt timing and physical
+bus contention remain unmeasured, separate from the listening tests and simulation.
 
 ---
 

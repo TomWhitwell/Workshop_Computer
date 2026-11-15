@@ -18,8 +18,8 @@ summary: |
   (GPL-3.0 overall): automatically detects supported 2MB or 16MB cards, giving 32.26 seconds or
   5 minutes 33 seconds per loop at 48kHz respectively. Flash 0.1.1 is trigger-only and passed
   user-reported hardware tests on both sizes. Flash 0.2.0 adds switchable trigger/gate modes,
-  defaults to triggers at startup, and has passed software tests; physical retesting is pending.
-  See the [flash documentation](https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/115_Temperance/experimental/flash)
+  defaults to triggers at startup, and passed user-reported hardware tests on both sizes on 2026-11-15.
+  See the [flash documentation](https://github.com/TomWhitwell/Workshop_Computer/tree/main/releases/115_Temperance/flash_versions/flash)
   for attribution, licences and operating differences.
 Language: C++ (Pico SDK)
 Creator: Matt Allison
@@ -27,7 +27,7 @@ Version: "0.2.0"
 Status: Released
 License: "MIT (original RAM); GPL-3.0 (experimental flash)"
 date-created: 2026-11-02
-date-updated: 2026-11-13
+date-updated: 2026-11-15
 
 contact:
   social:
@@ -38,10 +38,10 @@ uf2:
     name: Temperance 0.2.0 — RAM version (triggers and gates)
   - path: UF2/temperance.0.1.0.uf2
     name: Temperance 0.1.0 — Original RAM version (triggers only)
-  - path: experimental/flash_trigger/UF2/temperance0.1.1.flash.uf2
+  - path: flash_versions/flash_trigger/UF2/temperance0.1.1.flash.uf2
     name: Temperance Flash 0.1.1 — Triggers only (2MB/16MB)
-  - path: experimental/flash/UF2/temperance0.2.0.flash.uf2
-    name: Temperance Flash 0.2.0 — Triggers and gates (2MB/16MB, test build)
+  - path: flash_versions/flash/UF2/temperance0.2.0.flash.uf2
+    name: Temperance Flash 0.2.0 — Triggers and gates (2MB/16MB)
 
 tags:
   - looper
