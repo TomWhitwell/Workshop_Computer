@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Blocks editor and manual</title>
+<style>
+:root{--bg:#fff;--fg:#1c1c1e;--mut:#6b6b70;--line:#d8d8dc;--acc:#0a6cff;--ok:#1a7f37;--bad:#c62828;--card:#f4f4f6}
+@media(prefers-color-scheme:dark){:root{--bg:#161618;--fg:#e8e8ea;--mut:#9a9aa0;--line:#38383c;--acc:#5aa2ff;--ok:#4cc46a;--bad:#ff6b6b;--card:#232326}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
+header,main{max-width:56rem;margin:0 auto;padding:0 16px}
+html{scroll-behavior:smooth}
+h1{font-size:1.5rem;margin:1rem 0 .25rem}
+h2{font-size:1.25rem;margin:1.6rem 0 .4rem;border-bottom:1px solid var(--line);padding-bottom:.2rem}
+h3{font-size:1.05rem;margin:1.2rem 0 .3rem}
+nav{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin:.5rem 0 1rem}
+nav button{background:none;border:0;border-bottom:3px solid transparent;color:var(--mut);font:inherit;padding:.5rem .8rem;cursor:pointer}
+nav button[aria-selected=true]{color:var(--fg);border-color:var(--acc)}
+button.act,label.act{background:var(--acc);color:var(--bg);border:0;border-radius:6px;padding:.5rem 1rem;font:inherit;cursor:pointer;display:inline-block}
+button.alt{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:.5rem 1rem;font:inherit;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+select{max-width:100%;font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:.3rem}
+table{border-collapse:collapse;width:100%;margin:.5rem 0;display:block;overflow-x:auto;font-size:.93rem}
+th,td{border:1px solid var(--line);padding:.25rem .5rem;text-align:left;vertical-align:top}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--card) 45%,transparent)}
+th{background:var(--card)}
+code,pre,kbd{font-family:ui-monospace,Menlo,monospace;font-size:.9em}
+kbd{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:0 .3em}
+pre{background:var(--card);padding:.6rem;overflow-x:auto;border-radius:6px}
+.st{padding:.6rem .8rem;border-radius:6px;background:var(--card);border-left:4px solid var(--mut);margin:.6rem 0}
+.st.ok{border-color:var(--ok)}.st.bad{border-color:var(--bad)}
+.row{display:grid;grid-template-columns:minmax(0,16rem) minmax(0,1fr);gap:.5rem 1rem;align-items:center;margin:.4rem 0}
+.row select{width:100%}
+@media(max-width:560px){.row{grid-template-columns:minmax(0,1fr)}}
+section[hidden]{display:none}
+#manual h3{margin:2rem 0 .4rem;padding-left:.6rem;border-left:4px solid var(--acc);scroll-margin-top:.5rem}
+#manual h3 a.up{float:right;font:.75rem/1.9 system-ui,sans-serif;color:var(--mut);text-decoration:none}
+.toc{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.6rem 1rem;margin:.6rem 0 1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:.4rem 1.5rem}
+.toc b{display:block;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-bottom:.1rem}
+.toc a{display:block;color:var(--acc);text-decoration:none;padding:.1rem 0}
+.toc a:hover,.toc a:focus-visible{text-decoration:underline}
+figure.fig{margin:.8rem 0}
+figure.fig svg{display:block;width:100%;max-width:30rem;height:auto;border-radius:12px}
+figure.fig figcaption{font-size:.88rem;color:var(--mut);margin-top:.3rem}
+.cheat td:first-child{white-space:nowrap}
+@media(max-width:560px){.cheat td:first-child{white-space:normal}}
+.vh{position:absolute;opacity:0;width:1px;height:1px}
+label.act:focus-within{outline:2px solid var(--fg);outline-offset:2px}
+li.ok::marker{color:var(--ok)}li.bad::marker{color:var(--bad)}
+@media print{
+  header,nav,.toc,.up,section:not(#manual){display:none!important}
+  #manual{display:block!important}
+  :root{--bg:#fff;--fg:#000;--line:#999;--card:#eee}
+  body{font-size:11pt}h2{break-after:avoid}table,pre{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<header>
+<h1>Blocks</h1>
+<div>A 4-track step sequencer for the Music Thing Workshop Computer, played from a Launchpad Mini MK3.</div>
+<nav role="tablist" id="tabs"></nav>
+</header>
+<main>
+
+<section id="connect">
+<h2>Connect</h2>
+<p>Plug this computer into the Workshop Computer's front USB-C port <strong>instead of the Launchpad, then power-cycle the card</strong> (Reset alone may not be enough). The card chooses its USB role at power-up: a computer means editor, a Launchpad means sequencer. Use Chrome or Edge (they have WebMIDI); this page works opened straight from disk. When connected, the status line shows the firmware version, e.g. <code>Blocks 1.0.0+a1b2c3d</code> (a release build is plain <code>1.0.0</code>).</p>
+<p><button class="act" id="btnConnect">Connect to card</button></p>
+<div class="st" id="connStatus" role="status">Not connected.</div>
+</section>
+
+<section id="backup" hidden>
+<h2>Backup</h2>
+<p>A backup is one file with all 16 patterns and the shared settings (BPM, swing, transpose, mutes, chain, the eight editor settings). It holds what the card has now, including edits not saved to flash yet.</p>
+<p><button class="act" id="btnDown">Download backup</button></p>
+<h3>Restore</h3>
+<p><label class="act">Choose a backup file… <input type="file" id="file" accept=".blk" class="vh"></label></p>
+<div id="restoreAsk" hidden class="st bad">
+  <strong id="restoreName"></strong>: restoring replaces <strong>every pattern and the settings</strong> on the card. The card must be stopped.
+  <p>After a restore or a settings write, wait a few seconds before unplugging: the card saves to flash within a few seconds (3 s, or 10 s with that Auto-save setting).</p>
+<p><button class="act" id="btnRestore">Restore now</button> <button class="alt" id="btnCancel">Cancel</button></p>
+</div>
+<ol id="results"></ol>
+<div class="st" id="backupStatus" role="status">Nothing done yet.</div>
+</section>
+
+<section id="settings" hidden>
+<h2>Settings</h2>
+<p>Eight settings that have no Launchpad gesture. The card must be stopped to write them. They are saved with the rest of the card's settings.</p>
+<div id="cfgRows"></div>
+<p><button class="alt" id="btnRead">Read from card</button> <button class="act" id="btnWrite" disabled>Write to card</button></p>
+<div class="st" id="cfgStatus" role="status">Connect first. Write unlocks once the card's settings have been read, so the defaults shown here never overwrite them.</div>
+</section>
+
+<section id="manual" hidden>
+<h2>Manual</h2>
+<nav class="toc" id="manual-top" aria-label="Manual contents"><div><b>Start</b><a href="#m-what-blocks-is">What Blocks is</a><a href="#m-quick-start">Quick start</a><a href="#m-gesture-cheat-sheet">Gesture cheat-sheet</a></div><div><b>The card</b><a href="#m-panel">Panel</a><a href="#m-knobs-and-the-z-switch">Knobs and the Z switch</a></div><div><b>The Launchpad</b><a href="#m-launchpad-layout">Launchpad layout</a><a href="#m-focus-view">Focus view</a><a href="#m-lanes-and-their-levels">Lanes and their levels</a><a href="#m-microtiming">Microtiming</a><a href="#m-overview">Overview</a><a href="#m-settings-view">Settings view</a><a href="#m-patterns">Patterns</a><a href="#m-labels-the-pads-show">Labels the pads show</a></div><div><b>Reference</b><a href="#m-saving-backup-and-restore">Saving, backup and restore</a><a href="#m-editor-settings">Editor settings</a><a href="#m-troubleshooting">Troubleshooting</a><a href="#m-credits">Credits</a></div></nav>
+
+<h3 id="m-what-blocks-is">What Blocks is <a class="up" href="#manual-top">↑ contents</a></h3>
+<p>Blocks is a program card for the Workshop Computer. A Launchpad on the front USB-C port is the editor; the Computer's knobs are the fine controls. Four tracks run at once: <strong>CV1</strong> and <strong>CV2</strong> play notes (pitch on CV Out, gate on Pulse Out), <strong>AU1</strong> and <strong>AU2</strong> output voltages or triggers on Audio Out. Each step has a gate, five lanes and a microtiming nudge. <strong>Main is always BPM</strong>, and swing is live on a knob. Sixteen patterns can be switched or chained (up to 32 entries) while playing; a switch waits for the end of the <em>longest</em> track loop, so tracks of different lengths make polyrhythms. Everything is saved to the card's flash. The Novation logo pulses to the beat.</p>
+<p>Without a Launchpad the card still runs: hold the Z switch down for 1 second to play or stop.</p>
+<p>The Launchpad Mini MK3 is verified. The Launchpad X and Pro MK3 are supported but not yet tested on hardware.</p>
+
+<h3 id="m-quick-start">Quick start <a class="up" href="#manual-top">↑ contents</a></h3>
+<ol>
+<li>Plug the Launchpad into the Computer's front USB-C port and press the Computer's <strong>Reset</strong> button. BLOCKS scrolls across the pads, then the grid appears.</li>
+<li>Patch <strong>CV Out 1</strong> to a VCO's pitch input and <strong>Pulse Out 1</strong> to an envelope or gate input.</li>
+<li>Tap a few pads on the top row: each lights a step (its gate). Tap pads lower down in the same column to set that step's note; the higher the pad, the higher the note.</li>
+<li>Press <strong>Play</strong> (top-left button). The white pad is the playhead; the Main knob sets the BPM.</li>
+<li>Try the <strong>CV2</strong> button for a second melody, or <strong>Shift + View</strong> for patterns. Stop, wait a few seconds, and your work is saved. The editor (Connect, Backup, Settings tabs) needs the computer connected instead of the Launchpad, see Connect.</li>
+</ol>
+
+<h3 id="m-gesture-cheat-sheet">Gesture cheat-sheet <a class="up" href="#manual-top">↑ contents</a></h3>
+<table class="cheat">
+<tr><th>Do this</th><th>To</th></tr>
+<tr><td>Main knob (any Z)</td><td>BPM</td></tr>
+<tr><td>Z middle: X / Y knob</td><td>note / microtiming of the selected step</td></tr>
+<tr><td>Z up: X / Y knob</td><td>transpose / swing</td></tr>
+<tr><td>Hold Z down 1 s</td><td>play / stop, no Launchpad needed (a quick tap of Z down rewinds)</td></tr>
+<tr><td>Tap a step on row 1</td><td>gate on/off and select it</td></tr>
+<tr><td>Tap a pad in rows 2-8</td><td>set the shown lane's level for that step</td></tr>
+<tr><td><kbd>Shift</kbd> + step</td><td>clear that step to its defaults</td></tr>
+<tr><td><kbd>Shift</kbd> + CV1/CV2/AU1/AU2</td><td>clear that track's steps</td></tr>
+<tr><td>OCT / <kbd>Shift</kbd> + OCT</td><td>view one octave up / down (CV tracks, note lane)</td></tr>
+<tr><td><kbd>Shift</kbd> + View</td><td>open Patterns (View returns to Focus)</td></tr>
+<tr><td>Tap a slot (Patterns)</td><td>queue that pattern for the end of the longest track loop</td></tr>
+<tr><td>Hold a slot, tap others, release</td><td>build a chain</td></tr>
+<tr><td><kbd>Shift</kbd> + slot</td><td>copy the playing pattern into that slot</td></tr>
+<tr><td>Hold D (red pad), tap slots</td><td>delete those patterns and their chain entries</td></tr>
+<tr><td>Tap / <kbd>Shift</kbd> + tap a chain entry</td><td>jump to it / remove it</td></tr>
+<tr><td><kbd>Shift</kbd> + hold a chain entry 1 s</td><td>delete the whole chain</td></tr>
+<tr><td><kbd>Shift</kbd> + Play (stopped)</td><td>save now, when auto-save is set to manual</td></tr>
+<tr><td>Overview, side buttons 1, 3, 5, 7</td><td>mute CV1, CV2, AU1, AU2</td></tr>
+</table>
+
+<h3 id="m-panel">Panel <a class="up" href="#manual-top">↑ contents</a></h3>
+<table>
+<tr><th>Row</th><th>In 1</th><th>In 2</th><th>Out 1</th><th>Out 2</th></tr>
+<tr><td>Audio</td><td>unused</td><td>unused</td><td>AU1 (track 3)</td><td>AU2 (track 4)</td></tr>
+<tr><td>CV</td><td>transpose track 1</td><td>transpose track 2</td><td>track 1 pitch</td><td>track 2 pitch</td></tr>
+<tr><td>Pulse</td><td>clock</td><td>reset (rewind)</td><td>track 1 gate</td><td>track 2 gate</td></tr>
+</table>
+<ul>
+<li><strong>Clock:</strong> a cable in Pulse In 1 switches the card to the external clock, one pulse per 1/16 note (changeable in the editor's Settings tab, see Editor settings below). Pull the cable out to return to the internal BPM. If the pulses stop, the card waits.</li>
+<li><strong>Reset:</strong> a pulse in Pulse In 2 rewinds all tracks to step 1 on the next tick. A queued pattern switch happens if the reset arrives during the last step of the longest track loop (see Patterns); otherwise the reset just restarts the current pattern and the switch keeps waiting.</li>
+<li><strong>CV In 1 / 2</strong> transpose track 1 / 2 at 1 V per octave, kept in that track's scale (in major, +2 semitones moves the note one scale step).</li>
+<li><strong>LEDs</strong> (three rows of two; left = Out 1, right = Out 2): the Audio row shows the AU1/AU2 level (dark at 0 V, bright at ±5 V); the CV row shows the pitch of track 1/2 (brighter = higher, dark while stopped); the Pulse row lights with the gates.</li>
+</ul>
+
+<h3 id="m-knobs-and-the-z-switch">Knobs and the Z switch <a class="up" href="#manual-top">↑ contents</a></h3>
+<table>
+<tr><th>Z switch</th><th>Main</th><th>X</th><th>Y</th></tr>
+<tr><td><strong>Up</strong> (perform)</td><td>BPM, 80-180 by default (range set in the editor)</td><td>transpose −12…+12 semitones (CV tracks)</td><td><strong>swing</strong> 50-71 % (the eight Settings values)</td></tr>
+<tr><td><strong>Middle</strong> (edit)</td><td>BPM, the same as in perform</td><td>the pitch lane (NTE/VAL) of the selected step</td><td><strong>microtiming</strong> of the selected step, −11…+11</td></tr>
+<tr><td><strong>Down</strong> (springs back)</td><td colspan="3">tap = rewind; hold 1 second = play / stop</td></tr>
+</table>
+<ul>
+<li>Main is always BPM. In the edit bank the X and Y knobs work only in Focus, on a selected step that is on the current page and inside the track's length. Setting a note with X also turns that step's gate on; Y (microtiming) changes neither the note nor the gate. Length, probability, ratchet and condition are set only by tapping their level rows on the pads.</li>
+<li><strong>Pickup guard:</strong> after you change bank, track, lane or step, a knob does nothing until it reaches or passes the stored value, so nothing jumps. BPM and transpose work the same way, including right after power-up, so the saved BPM and transpose are kept until you turn past them.</li>
+<li>Knob numbers appear on the pads. Turning X switches the shown lane to pitch.</li>
+<li>BPM, transpose, mutes and swing are shared by all patterns.</li>
+</ul>
+
+<h3 id="m-launchpad-layout">Launchpad layout <a class="up" href="#manual-top">↑ contents</a></h3>
+<figure class="fig">
+<svg role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 556 498" font-family="Helvetica,Arial,sans-serif">
+<title>Focus view: gates on the top row, the note lane below</title><rect width="556" height="498" rx="18" fill="#1c1c22"/>
+<circle cx="52.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="52.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">Play</text>
+<circle cx="104.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="104.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">View</text>
+<circle cx="156.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="156.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">◄</text>
+<circle cx="208.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="208.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">►</text>
+<circle cx="260.0" cy="26" r="11" fill="#ff8c1a"/>
+<text x="260.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">CV1</text>
+<circle cx="312.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="312.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">CV2</text>
+<circle cx="364.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="364.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">AU1</text>
+<circle cx="416.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="416.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">AU2</text>
+<rect x="30" y="52" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="82" y="52" width="44" height="44" rx="6" fill="#6a6a78"/>
+<rect x="134" y="52" width="44" height="44" rx="6" fill="#ff4fa3"/>
+<rect x="186" y="52" width="44" height="44" rx="6" fill="#ffffff"/>
+<rect x="238" y="52" width="44" height="44" rx="6" fill="#6a6a78"/>
+<rect x="290" y="52" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="342" y="52" width="44" height="44" rx="6" fill="#6a6a78"/>
+<rect x="394" y="52" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="30" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="82" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="186" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="238" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="104" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="342" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="156" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="82" y="156" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="156" width="44" height="44" rx="6" fill="#ff4fa3"/>
+<rect x="186" y="156" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="238" y="156" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="156" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="342" y="156" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="156" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="82" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="208" width="44" height="44" rx="6" fill="#ff4fa3"/>
+<rect x="186" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="238" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="208" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="342" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="260" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="82" y="260" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="260" width="44" height="44" rx="6" fill="#ff4fa3"/>
+<rect x="186" y="260" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="238" y="260" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="260" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="342" y="260" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="260" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="312" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="82" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="312" width="44" height="44" rx="6" fill="#ff4fa3"/>
+<rect x="186" y="312" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="238" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="312" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="342" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="364" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="82" y="364" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="364" width="44" height="44" rx="6" fill="#ff4fa3"/>
+<rect x="186" y="364" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="238" y="364" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="364" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="342" y="364" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="364" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="30" y="416" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="82" y="416" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="416" width="44" height="44" rx="6" fill="#ff4fa3"/>
+<rect x="186" y="416" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="238" y="416" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="416" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="342" y="416" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="416" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<circle cx="460" cy="74.0" r="11" fill="#2c2c35"/>
+<text x="480" y="78.0" font-size="11" fill="#9a9aa8">Shift</text>
+<circle cx="460" cy="126.0" r="11" fill="#2c2c35"/>
+<text x="480" y="130.0" font-size="11" fill="#9a9aa8">Settings</text>
+<circle cx="460" cy="178.0" r="11" fill="#ff4fa3"/>
+<text x="480" y="182.0" font-size="11" fill="#9a9aa8">NTE</text>
+<circle cx="460" cy="230.0" r="11" fill="#2c2c35"/>
+<text x="480" y="234.0" font-size="11" fill="#9a9aa8">LEN</text>
+<circle cx="460" cy="282.0" r="11" fill="#2c2c35"/>
+<text x="480" y="286.0" font-size="11" fill="#9a9aa8">PRB</text>
+<circle cx="460" cy="334.0" r="11" fill="#2c2c35"/>
+<text x="480" y="338.0" font-size="11" fill="#9a9aa8">RTG</text>
+<circle cx="460" cy="386.0" r="11" fill="#2c2c35"/>
+<text x="480" y="390.0" font-size="11" fill="#9a9aa8">CND</text>
+<circle cx="460" cy="438.0" r="11" fill="#2c2c35"/>
+<text x="480" y="442.0" font-size="11" fill="#9a9aa8">OCT</text>
+</svg>
+<figcaption>The Focus view: top row buttons Play, View, ◄, ►, CV1-AU2; the side column Shift … OCT. Row 1 of the pads holds the gates, the rows below show the selected lane (notes here) as bars. Pink = selected step, white = playhead.</figcaption>
+</figure>
+<p>Colours: hue means state. Track colours are orange (CV1), yellow (CV2), cyan (AU1), blue (AU2). <strong>Pink</strong> is the selection (the selected step, track, lane, or setting). <strong>White</strong> is the playhead. Dark grey is a step that is off but inside the length; no light is beyond the length. A lit Play button is green.</p>
+<p>The Novation logo LED pulses to the beat: a short flash on every quarter note while playing (following the BPM or the external clock), dim while stopped. Its colour is picked at random at each power-up.</p>
+
+<table>
+<tr><th>Button</th><th>Does</th></tr>
+<tr><td><strong>Play</strong></td><td>Play / stop (flashes a play or stop icon). Starting always begins on step 1 (the last step when reversed).</td></tr>
+<tr><td><strong>View</strong></td><td>Focus ⇄ Overview. From Settings or Patterns it returns to Focus. <kbd>Shift</kbd> + View opens Patterns (from Focus or Settings).</td></tr>
+<tr><td><strong>◄ ►</strong></td><td>Previous / next page of 8 steps (8 pages = 64 steps). Flashes P1-P8.</td></tr>
+<tr><td><strong>CV1 CV2 AU1 AU2</strong></td><td>Choose the track being edited (flashes its name and the jacks it drives). <kbd>Shift</kbd> + track clears that track's steps (its length, div, scale etc. stay).</td></tr>
+<tr><td><strong>Shift</strong></td><td>Held with another button or pad: clear / copy gestures (below).</td></tr>
+<tr><td><strong>Settings</strong></td><td>Toggles Settings ⇄ Focus for the current track. From Patterns it goes to Settings.</td></tr>
+<tr><td><strong>NTE LEN PRB RTG CND</strong></td><td>Choose the lane to edit; always lands in Focus (from Settings or Patterns). In Overview the side column is the mute buttons instead (see Overview), so press View first.</td></tr>
+<tr><td><strong>OCT</strong></td><td>Bottom side button, active only in Focus on CV1/CV2 in the NTE lane (lit there, dark elsewhere). Tap = view one octave up; <kbd>Shift</kbd> + tap = one down. Flashes the track's root note and octave, e.g. E1-E5 with root E (the base octave is 3; C3 with root C). The button's colour shows the octave: darkest orange at octave 1, lightest at octave 5. Each CV track remembers its own view; it is not saved and resets at power-up.</td></tr>
+</table>
+
+<h3 id="m-focus-view">Focus view (the main editor) <a class="up" href="#manual-top">↑ contents</a></h3>
+<p>Picture above: row 1 is the 8 gates of the page, rows 2-8 are bars for levels 6 (top) down to 0 (bottom).</p>
+<ul>
+<li><strong>Row 1</strong> holds the 8 gates of the current page (8 pages of 8 steps = 64 steps). Tap a step to switch its gate on or off and select it. <kbd>Shift</kbd> + tap clears the step to its defaults. Steps beyond the track's length are dark and ignored. A new or cleared step starts at the root note on CV tracks and at level 3 (0 V) on AU tracks.</li>
+<li><strong>Rows 2-8</strong> show the selected lane for those 8 steps, 7 levels (0-6). Each step with a gate shows a bar. Tap a pad to set that level: the top pad (row 2) is level 6, the bottom pad (row 8) is level 0. Tapping also turns the gate on. On the note lane the 7 rows are 7 consecutive scale degrees: one octave in a 7-note scale at range x1. Pentatonic scales and larger ranges span more.</li>
+<li><strong>Octaves (CV tracks):</strong> each step is in one of 5 octaves (−2 … +2 around the base octave 3, e.g. E3 with root E) and the OCT button moves which one the note rows show. Each step's bar is drawn in its own octave's colour, the same darkest-to-lightest scale as the OCT button (pink if selected), so a bar whose colour differs from the OCT button is in another octave. Tapping a pad or turning the X knob moves that step into the octave you are viewing. Shift + tap (one step) and Shift + track button (the whole track) reset steps to the base octave, as does restoring a backup made before octaves. AU tracks have no octaves.</li>
+<li>Bars grow from the bottom, except the AU value lane, where bipolar bars grow from the centre row (row 5, level 3 = 0 V) and trigger tracks show no bars.</li>
+</ul>
+
+<h3 id="m-lanes-and-their-levels">Lanes and their levels <a class="up" href="#manual-top">↑ contents</a></h3>
+<p>Every step has a gate and five lanes, each with a level from 0 to 6, plus its microtiming (below). A new or cleared step has pitch 0, length level 3 (50 %), probability level 6 (100 %), ratchet level 0 (1 hit), condition 0 (always).</p>
+<table>
+<tr><th>Lane (label)</th><th>Level 0 → 6</th></tr>
+<tr><td><strong>NTE</strong> pitch (CV tracks)</td><td>Scale degree above the root. The degree is the level × the track's <em>range</em> (x1-x4), so x2 gives degrees 0, 2, 4, 6, 8, 10, 12. Degrees wrap into octaves. The root C is note 48 (C3), plus the root setting, the X-knob transpose (Z switch up) and the CV-in transpose, plus the step's octave (−2 … +2, 12 semitones each).</td></tr>
+<tr><td><strong>VAL</strong> value (AU tracks)</td><td><em>Bipolar</em>: −5, −3.3, −1.7, 0, +1.7, +3.3, +5 V (about; level 3 is 0 V). <em>Unipolar</em>: 0, 0.8, 1.7, 2.5, 3.3, 4.2, 5 V (about). <em>Trigger</em>: no value; the step fires a +5 V pulse. The level holds until the next step that plays.</td></tr>
+<tr><td><strong>LEN</strong> gate length</td><td>5, 10, 25, 50, 75, 90, 98 % of each hit</td></tr>
+<tr><td><strong>PRB</strong> probability</td><td>14, 29, 43, 57, 71, 86, 100 % chance the step plays</td></tr>
+<tr><td><strong>RTG</strong> ratchet</td><td>1 to 7 equal hits inside the step</td></tr>
+<tr><td><strong>CND</strong> condition</td><td>0 always · 1 even loops (1:2) · 2 odd loops (2:2) · 3 every 3rd loop (1:3) · 4 every 4th loop (1:4) · 5 first loop only · 6 every loop but the first. A loop is one pass through the track's length, counted from 0 at play start, in any direction.</td></tr>
+</table>
+<h3 id="m-microtiming">Microtiming <a class="up" href="#manual-top">↑ contents</a></h3>
+<p>Push a step early or late for feel, flams and laid-back hi-hats. With Z in the middle, select a step and turn <strong>Y</strong>: the pads flash the offset from −11 (earliest) through 0 (on the grid, the default) to +11 (latest). One unit is 1/24 of a step at the track's own division, so ±11 is just under half a step (rounded toward zero, so on fast divisions the smallest values can round to nothing). The whole hit moves: gate length and every ratchet hit. Swing and microtiming add up.</p>
+<ul>
+<li>A gated step that is off the grid tints its gate pad: one colour for early, another for late. Pink (selected) and white (playhead) still show over it.</li>
+<li>Early steps work in every direction. After a pattern switch the early step is the first step of the <em>new</em> pattern. The first step after Play or a rewind can't play early.</li>
+<li>A step with its gate off ignores its microtiming. <kbd>Shift</kbd> + tap on a step and <kbd>Shift</kbd> + track reset it; copying a pattern keeps it.</li>
+</ul>
+<p>Order of checks when a step comes up: gate on and track not muted → condition → probability → output (ratchet and length shape the gate).</p>
+
+<h3 id="m-overview">Overview <a class="up" href="#manual-top">↑ contents</a></h3>
+<ul>
+<li>All four tracks at once, two rows each, 16 steps of the current page pair (◄ ► change page: P1-P2 show steps 1-16, P3-P4 steps 17-32, P5-P6 steps 33-48, P7-P8 steps 49-64). Tap a step to toggle its gate. White is each track's playhead; the playheads drift apart when tracks have different lengths or dividers (polymeter).</li>
+<li>The side column turns into <strong>mutes</strong>: the 1st, 3rd, 5th and 7th buttons (Shift, NTE, PRB, CND positions) mute CV1, CV2, AU1, AU2. A muted track shows dark gates and its gate is cut at once. Shift and the lane buttons do nothing here; press View to go back to Focus.</li>
+</ul>
+
+<h3 id="m-settings-view">Settings view (for the current track) <a class="up" href="#manual-top">↑ contents</a></h3>
+<p>Choose a track with its top-row button, then press Settings. Row 1 is the top row of pads.</p>
+<table>
+<tr><th>Row</th><th>Pads</th></tr>
+<tr><td>1</td><td><strong>Clock divider</strong>, pads 1-8: x2 · x1 · /2 · /3 · /4 · /6 · /8 · /16. x1 plays one step per 1/16 note.</td></tr>
+<tr><td>2</td><td>Pads 1-4: <strong>direction</strong> FWD, REV, PNG (ping-pong: 0 1 2 3 2 1 0 1 …), RND (random). Pads 5-8: on CV tracks the pitch <strong>range</strong> x1-x4; on AU tracks pads 5-7 choose the <strong>type</strong> BIP (bipolar −5…+5 V), UNI (unipolar 0…+5 V), TRG (trigger pulses).</td></tr>
+<tr><td>3</td><td><strong>Scale</strong>, pads 1-8: major · minor · dorian · mixolydian · pentatonic major · pentatonic minor · harmonic minor · chromatic.</td></tr>
+<tr><td>4-5</td><td><strong>Root</strong> as a piano. Row 4 black keys (columns 2, 3, 5, 6, 7 = C♯ D♯ F♯ G♯ A♯), row 5 white keys (columns 1-7 = C D E F G A B). Root is pink, notes in the scale are the track colour, others dark.</td></tr>
+<tr><td>6</td><td><strong>Swing</strong>, pads 1-8: 50 · 53 · 56 · 59 · 62 · 65 · 68 · 71 %. Global; delays the second 1/16 of each pair. Internal clock only. The Y knob (Z up) sets the same value live.</td></tr>
+<tr><td>7-8</td><td><strong>Length</strong>: tap the pad of the track's last step in the current page pair (the 16 pads are steps 1-16 of P1-P2, 17-32 of P3-P4, and so on; pink = last step). Use ◄ ► to reach up to 64.</td></tr>
+</table>
+<p>Each track keeps its own divider, direction, range or type, scale, root and length. Swing is the same for all.</p>
+
+<h3 id="m-patterns">Patterns <a class="up" href="#manual-top">↑ contents</a></h3>
+<p>Sixteen patterns, each holding all four tracks (up to 64 steps each). The editor always shows and edits the <em>playing</em> pattern. Open the Patterns screen with <kbd>Shift</kbd> + View (from Focus or Settings); View returns to Focus.</p>
+<figure class="fig">
+<svg role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 556 498" font-family="Helvetica,Arial,sans-serif">
+<title>Patterns screen: 16 slots, the N A I D pads and the chain page</title><rect width="556" height="498" rx="18" fill="#1c1c22"/>
+<circle cx="52.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="52.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">Play</text>
+<circle cx="104.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="104.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">View</text>
+<circle cx="156.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="156.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">◄</text>
+<circle cx="208.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="208.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">►</text>
+<circle cx="260.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="260.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">CV1</text>
+<circle cx="312.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="312.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">CV2</text>
+<circle cx="364.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="364.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">AU1</text>
+<circle cx="416.0" cy="26" r="11" fill="#2c2c35"/>
+<text x="416.0" y="14" font-size="10" fill="#9a9aa8" text-anchor="middle">AU2</text>
+<rect x="30" y="52" width="44" height="44" rx="6" fill="#ff4fa3"/>
+<rect x="82" y="52" width="44" height="44" rx="6" fill="#2ecc71"/>
+<rect x="134" y="52" width="44" height="44" rx="6" fill="#2ecc71"/>
+<rect x="186" y="52" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="238" y="52" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="290" y="52" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="342" y="52" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="52" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="104" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="82" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="186" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="238" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="342" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="104" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="156" width="44" height="44" rx="6" fill="#2ecc71"/>
+<rect x="82" y="156" width="44" height="44" rx="6" fill="#ff8c1a"/>
+<rect x="134" y="156" width="44" height="44" rx="6" fill="#3b6cff"/>
+<rect x="186" y="156" width="44" height="44" rx="6" fill="#ff3b3b"/>
+<rect x="238" y="156" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="156" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="342" y="156" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="156" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="82" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="186" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="238" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="342" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="208" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="260" width="44" height="44" rx="6" fill="#ffffff"/>
+<rect x="82" y="260" width="44" height="44" rx="6" fill="#6a6a78"/>
+<rect x="134" y="260" width="44" height="44" rx="6" fill="#ff4fa3"/>
+<rect x="186" y="260" width="44" height="44" rx="6" fill="#6a6a78"/>
+<rect x="238" y="260" width="44" height="44" rx="6" fill="#6a6a78"/>
+<rect x="290" y="260" width="44" height="44" rx="6" fill="#6a6a78"/>
+<rect x="342" y="260" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="260" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="82" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="186" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="238" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="342" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="312" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="364" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="82" y="364" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="364" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="186" y="364" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="238" y="364" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="364" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="342" y="364" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="364" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="30" y="416" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="82" y="416" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="134" y="416" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="186" y="416" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="238" y="416" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="290" y="416" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="342" y="416" width="44" height="44" rx="6" fill="#2c2c35"/>
+<rect x="394" y="416" width="44" height="44" rx="6" fill="#2c2c35"/>
+<circle cx="460" cy="74.0" r="11" fill="#ffffff"/>
+<text x="480" y="78.0" font-size="11" fill="#9a9aa8">Shift</text>
+<circle cx="460" cy="126.0" r="11" fill="#2c2c35"/>
+<text x="480" y="130.0" font-size="11" fill="#9a9aa8">Settings</text>
+<circle cx="460" cy="178.0" r="11" fill="#2c2c35"/>
+<text x="480" y="182.0" font-size="11" fill="#9a9aa8">NTE</text>
+<circle cx="460" cy="230.0" r="11" fill="#2c2c35"/>
+<text x="480" y="234.0" font-size="11" fill="#9a9aa8">LEN</text>
+<circle cx="460" cy="282.0" r="11" fill="#2c2c35"/>
+<text x="480" y="286.0" font-size="11" fill="#9a9aa8">PRB</text>
+<circle cx="460" cy="334.0" r="11" fill="#2c2c35"/>
+<text x="480" y="338.0" font-size="11" fill="#9a9aa8">RTG</text>
+<circle cx="460" cy="386.0" r="11" fill="#2c2c35"/>
+<text x="480" y="390.0" font-size="11" fill="#9a9aa8">CND</text>
+<circle cx="460" cy="438.0" r="11" fill="#2c2c35"/>
+<text x="480" y="442.0" font-size="11" fill="#9a9aa8">OCT</text>
+</svg>
+<figcaption>The Patterns screen: slots 1-16 on the top two rows, the N A I D pads on the third row, the chain page below. The side-column Shift button is white.</figcaption>
+</figure>
+<p>The top two pad rows hold slots 1-8 and 9-16:</p>
+<table>
+<tr><th>Colour</th><th>Meaning</th></tr>
+<tr><td>Pink</td><td>playing</td></tr>
+<tr><td>Blinking pink</td><td>queued: switches at the end of the longest track loop</td></tr>
+<tr><td>Green</td><td>in the current chain (or the chain you are tapping)</td></tr>
+<tr><td>Orange</td><td>has steps</td></tr>
+<tr><td>Dark</td><td>empty</td></tr>
+</table>
+<ul>
+<li><strong>Queue:</strong> tap a slot. It switches the moment the longest track loop ends. A track's loop is its length in steps times its clock division, so the switch waits for the slowest or longest track: with CV1 at 16 steps and CV2 at 8 steps of the same division, CV2 plays its loop twice and then all four tracks switch together. A shorter track whose loop doesn't divide that point is cut mid-loop. All four tracks restart together on step 1 (last step when reversed) and loop counts reset.</li>
+<li><strong>Chain (hold + tap):</strong> hold a slot, tap other slots in order (up to 32, repeats allowed, but not the held slot itself), release the held slot. Playback goes through the list, advancing at each end of the longest track loop and wrapping to the start. Releasing without tapping just queues that slot.</li>
+<li><strong>N, A, I pads</strong> (third row, left: green, orange, blue): hold one, tap slots in order, release it. Releasing without tapping does nothing.
+<ul><li><strong>N</strong> (new): the chain becomes exactly the tapped slots, repeats and a repeated first slot included.</li>
+<li><strong>A</strong> (append): the tapped slots go on the end of the chain, up to 32 entries.</li>
+<li><strong>I</strong> (insert): the tapped slots go in after the selected entry, or after the playing entry when none is selected. Nothing is added past 32 entries.</li></ul></li>
+<li><strong>The chain page:</strong> the bottom four pad rows show the chain, entry 1 at the top left, 8 entries a row, up to 32. Entries are dim, the playing one white, the selected one pink (pink shows over white when an entry is both). A chain of one slot shows nothing. While you hold an entry, its slot lights white in the top rows.
+<ul><li><strong>Tap an entry:</strong> selects it and jumps to it at the next end of the longest track loop (at once while stopped).</li>
+<li><kbd>Shift</kbd> + tap an entry: removes it; the rest close up and playback carries on. If it was the playing entry, that pattern finishes its loop and the next entry follows.</li>
+<li><kbd>Shift</kbd> + hold an entry for 1 second: deletes the whole chain. It becomes the playing pattern on its own, and playback goes on.</li></ul></li>
+<li><strong>Copy:</strong> <kbd>Shift</kbd> + tap a slot copies the <em>playing</em> pattern into it, replacing what was there, and flashes <code>C</code> + the slot number (e.g. C3, C12). Copying onto the playing slot does nothing.</li>
+<li><strong>D pad (Delete)</strong> (third row, fourth pad, red): hold it and tap one or more slots; release it. Each tapped pattern is emptied, the same as <kbd>Shift</kbd> + each of the four track buttons (its lengths, dividers, scales and other track settings stay), and every chain entry for it is removed: the rest close up, and if the playing entry goes, the next entry plays at the next loop end. If no entries are left, the playing pattern plays on its own. The slot then shows as empty. Deleting the playing pattern is allowed: it is cleared at once and keeps running, silent. The pads flash <code>D</code> + the slot number (D3, D12). Releasing D without a tap does nothing.</li>
+<li><strong>Clear one pattern's steps without deleting its slot's chain entries:</strong> <kbd>Shift</kbd> + each of the four track buttons clears the playing pattern.</li>
+<li>While stopped, a queue or chain switches at once. Pressing Stop applies a queued switch, or a new chain's first entry; a running chain stays on its current pattern. A new chain made while playing starts at its first entry at the next loop end; if that is the pattern already playing it carries on.</li>
+<li>Change a track's length or divider and the switch point follows it. A queue, jump or chain edit made in the last few ticks before the switch point, after an early (microtiming) step has already played, takes effect one switch later; a late step of a shorter track that would land after the switch point is dropped. Play, Z-down tap and Pulse In 2 rewind the current pattern only; the chain position is kept.</li>
+<li>The chain is saved with the settings and resumes at the last pattern played after power-up.</li>
+</ul>
+
+<h3 id="m-labels-the-pads-show">Labels the pads show <a class="up" href="#manual-top">↑ contents</a></h3>
+<table>
+<tr><th>Group</th><th>Labels</th></tr>
+<tr><td>Lanes</td><td>NTE LEN PRB RTG CND (VAL for the AU value lane)</td></tr>
+<tr><td>Direction</td><td>FWD REV PNG RND</td></tr>
+<tr><td>AU type</td><td>BIP UNI TRG</td></tr>
+<tr><td>Scale</td><td>MAJ MIN DOR MIX PMA PMI HMI CHR (major, minor, dorian, mixolydian, pentatonic major/minor, harmonic minor, chromatic)</td></tr>
+<tr><td>Root</td><td>C C# D D# E F F# G G# A A# B</td></tr>
+<tr><td>Pages</td><td>P1 P2 P3 P4 P5 P6 P7 P8</td></tr>
+<tr><td>Divider</td><td>x2 x1 /2 /3 /4 /6 /8 /16</td></tr>
+<tr><td>Range</td><td>x1 x2 x3 x4</td></tr>
+<tr><td>Tracks</td><td>CV1 CV2 AU1 AU2 (also shows the jacks the track drives)</td></tr>
+<tr><td>Numbers</td><td>BPM, transpose (+/−), swing %, length</td></tr>
+<tr><td>Copy</td><td>C1 … C16</td></tr>
+<tr><td>Delete</td><td>D1 … D16</td></tr>
+<tr><td>Save</td><td>OK (manual save)</td></tr>
+</table>
+<p>Play, stop, Focus and Overview flash an icon. Three-letter labels slide across the pads. On power-up, and when you replug the Launchpad, BLOCKS scrolls once; any pad skips it.</p>
+
+<h3 id="m-saving-backup-and-restore">Saving, backup and restore <a class="up" href="#manual-top">↑ contents</a></h3>
+<ul>
+<li><strong>Automatic (default):</strong> 3 seconds after you press Stop, and every 3 seconds while stopped, any changed pattern or the shared settings is written to the top 68 KB of the card's flash. Playing is never interrupted. Switching the card off <em>while playing</em> loses edits since the last Stop.</li>
+<li><strong>10 s or manual:</strong> in the editor's Settings tab. With <em>manual</em>, stop the card and press <kbd>Shift</kbd> + Play to save now; the pads flash <code>OK</code>. With the other modes Shift + Play is just Play.</li>
+<li>Flashing new firmware keeps your patterns unless the new program grows into the top 68 KB.</li>
+<li><strong>Backup / restore:</strong> use the Backup tab. Restore writes all 17 blocks (16 patterns and the settings) and tells you which were accepted. A backup from before 16 slots has only 9 blocks: it restores patterns 1-8 and the settings and leaves patterns 9-16 as they are. A block from a newer format, or a damaged one, is rejected, never half-loaded. A backup from before the editor settings existed restores fine; those settings then keep their defaults. Patterns from a backup made before 8-step pages are converted as they load, so they sound the same. Backups made before microtiming restore with every step on the grid.</li>
+</ul>
+
+<h3 id="m-editor-settings">Editor settings (defaults keep the behaviour above) <a class="up" href="#manual-top">↑ contents</a></h3>
+<table>
+<tr><th>Setting</th><th>Options (default first)</th></tr>
+<tr><td>External clock rate</td><td>4 PPQN (one pulse = 1/16) · 1 · 2 · 24 · 48 PPQN</td></tr>
+<tr><td>CV In 1 / CV In 2 transpose</td><td>in-scale · off · chromatic (plain semitones)</td></tr>
+<tr><td>Auto-save</td><td>3 s after Stop · 10 s · manual</td></tr>
+<tr><td>AU output range</td><td>±5 V · ±2.5 V · ±1 V (bipolar, unipolar and trigger all scale)</td></tr>
+<tr><td>CV1 / CV2 gate mode</td><td>length lane · trigger (fixed 10 ms, shortened when the step is shorter)</td></tr>
+<tr><td>BPM range (Main knob)</td><td>80-180 · 60-160 · 40-140 · 100-250. If the current BPM is outside the new range, the knob takes over at once.</td></tr>
+</table>
+
+<h3 id="m-troubleshooting">Troubleshooting <a class="up" href="#manual-top">↑ contents</a></h3>
+<table>
+<tr><th>Problem</th><th>Try</th></tr>
+<tr><td>The Launchpad stays dark</td><td>The USB role is chosen at power-up. Plug the Launchpad into the front USB-C port, then press the Computer's Reset button or power-cycle. Expect BLOCKS about 1 second later.</td></tr>
+<tr><td>Nothing plays</td><td>Press Play, or hold Z down for 1 second. Check the track isn't muted (Overview) and has steps with gates. If a cable is in Pulse In 1, the card follows that clock and waits when it stops.</td></tr>
+<tr><td>A knob does nothing</td><td>Check the Z position (Main is BPM in both; X and Y need the middle position), that you are in Focus, and that the selected step is on the current page and within the length. Then turn the knob past the stored value (pickup guard).</td></tr>
+<tr><td>Wrong notes</td><td>Check scale, root, range (x1-x4) and the X transpose; CV In 1/2 transposes tracks 1/2.</td></tr>
+<tr><td>A queued pattern doesn't switch</td><td>It waits for the longest track loop to finish (length × divider); a long track means a long wait. While stopped it switches at once.</td></tr>
+<tr><td>Edits lost after power-off</td><td>Saving happens after Stop (3 s or 10 s, or Shift + Play in manual mode). Stop, wait longer than the auto-save time, then power off.</td></tr>
+<tr><td>A Launchpad X or Pro MK3 stays dark</td><td>These are supported but not yet tested on hardware. Plug it into the front USB-C and press Reset; if it still stays dark, please report it (the Mini MK3 is the verified model).</td></tr>
+<tr><td>Which firmware is on the card?</td><td>Connect in the editor: the status line shows the version, e.g. <code>Blocks 1.0.0</code>.</td></tr>
+<tr><td>This page can't find the card</td><td>Use Chrome or Edge, allow MIDI access, and plug this computer into the card's front USB-C instead of the Launchpad, then <strong>power-cycle</strong> the Workshop System (Reset alone may not bring up the computer connection). macOS may list the card under an older name (such as MTWS); the page finds it anyway. Close other programs using that MIDI port.</td></tr>
+<tr><td>Write refused: busy</td><td>The card is playing. Press Stop and try again.</td></tr>
+</table>
+<h3 id="m-credits">Credits <a class="up" href="#manual-top">↑ contents</a></h3>
+<p>Blocks is MIT-licensed. It builds on ComputerCard (Chris Johnson, MIT), usb_midi_host (rppicomidi, MIT),
+TinyUSB (Ha Thach, MIT) and the Raspberry Pi Pico SDK (BSD-3-Clause), and adapts drumdrum (Moses Hoyt, MIT),
+Simple MIDI (Tom Whitwell and Chris Johnson, MIT) and the ComputerCard web_interface example. Full list:
+<code>CREDITS.md</code> in the repository.</p>
+</section>
+
+<section id="firmware" hidden>
+<h2>Firmware</h2>
+<p><strong>Back up first</strong> (Backup tab). Flashing keeps your patterns unless the new program grows into the top 68 KB of flash, but a backup is cheap.</p>
+<ol>
+<li>Connect this computer to the Workshop Computer's front USB-C port.</li>
+<li>Hold the card's <strong>boot button</strong> while powering it on, then release. The chip shows up as "RP2 Boot".</li>
+<li>From the project folder run <code>firmware/flash.sh</code> (or <code>firmware/flash.sh path/to/card.uf2</code>). It runs <code>picotool load -v -x</code>: load, verify, run. If the RPI-RP2 drive mounts instead, it copies the UF2 there.</li>
+<li>To play with the Launchpad: unplug the computer, plug the Launchpad into the same front USB-C port, and press the Computer's <strong>Reset</strong> button (a power-cycle also works). To edit again: plug the computer in and power-cycle (Reset alone may not bring up the computer connection).</li>
+</ol>
+<p>To build the UF2 yourself: <code>cmake -S firmware -B build -G Ninja &amp;&amp; ninja -C build</code> (see <code>firmware/README.md</code> for the toolchain).</p>
+</section>
+
+</main>
+<script>
+// codec-begin
+function pack7(a){const o=[];for(let i=0;i<a.length;i+=7){const g=Array.from(a.slice(i,i+7));let m=0;g.forEach((b,j)=>{m|=(b>>7)<<j});o.push(m,...g.map(b=>b&127));}return Uint8Array.from(o);}
+function unpack7(a){const o=[];for(let i=0;i<a.length;i+=8){const m=a[i],n=Math.min(7,a.length-i-1);for(let j=0;j<n;j++)o.push(a[i+1+j]|((m>>j&1)<<7));}return Uint8Array.from(o);}
+function crc32(a){let c=-1;for(const b of a){c^=b;for(let k=0;k<8;k++)c=c>>>1^(0xEDB88320&-(c&1));}return(c^-1)>>>0;}
+// codec-end
+
+const $=s=>document.querySelector(s);
+const ST=['ok','busy: the card is playing, press Stop','rejected: invalid block (damaged or newer format)','bad length','unknown command','empty block','bad settings value'];
+const why=s=>ST[s]||'unknown status '+s;
+let out=null,inp=null,wait=null,busy=false,cfgRead=false;// Write stays locked until the card's settings were read
+
+// tabs
+const TABS=[['connect','Connect'],['backup','Backup'],['settings','Settings'],['manual','Manual'],['firmware','Firmware']],ids=TABS.map(t=>t[0]);
+TABS.forEach(([id,name])=>{
+  const b=document.createElement('button');b.textContent=name;b.id='tab-'+id;b.setAttribute('role','tab');b.setAttribute('aria-controls',id);b.dataset.id=id;
+  b.onclick=()=>show(id);$('#tabs').append(b);
+  const s=$('#'+id);s.setAttribute('role','tabpanel');s.setAttribute('aria-labelledby','tab-'+id);
+});
+function show(id){
+  document.querySelectorAll('main>section').forEach(s=>s.hidden=s.id!==id);
+  document.querySelectorAll('#tabs button').forEach(b=>{const on=b.dataset.id===id;b.setAttribute('aria-selected',on);b.tabIndex=on?0:-1;});
+  if(location.hash.slice(1)!==id)history.replaceState(null,'','#'+id);// replaceState: assigning location.hash would scroll to the section
+}
+$('#tabs').onkeydown=e=>{
+  const k={ArrowRight:1,ArrowLeft:-1}[e.key];if(!k)return;
+  const t=[...$('#tabs').children],b=t[(t.indexOf(document.activeElement)+k+t.length)%t.length];
+  b.focus();show(b.dataset.id);e.preventDefault();
+};
+addEventListener('hashchange',()=>{const id=location.hash.slice(1);if(ids.includes(id))show(id);});// other hashes are the manual's own anchors
+show(ids.includes(location.hash.slice(1))?location.hash.slice(1):'connect');
+if(!navigator.requestMIDIAccess)say('#connStatus','This browser has no WebMIDI. Open this page in Chrome or Edge.','bad');
+
+// settings rows: order = config bytes ppqn, cv1, cv2, save, auRange, gate1, gate2, bpmRange
+const cv=['off','in-scale','chromatic (plain semitones)'],gt=['length lane','trigger: fixed 10 ms (cut shorter on fast ratchets)'];
+const CFG=[['External clock rate (Pulse In 1)',['1 PPQN','2 PPQN','4 PPQN','24 PPQN','48 PPQN']],
+ ['CV In 1 transpose',cv],['CV In 2 transpose',cv],
+ ['Auto-save',['3 s after Stop','10 s after Stop','manual (Shift + Play)']],
+ ['AU output range',['±5 V','±2.5 V','±1 V']],['CV1 gate mode',gt],['CV2 gate mode',gt],
+ ['BPM range (Main knob)',['80-180','60-160','40-140','100-250']]];
+const DEF=[2,1,1,0,0,0,0,0];
+CFG.forEach(([name,opts],i)=>{
+  const r=document.createElement('div');r.className='row';
+  const l=document.createElement('label');l.textContent=name;l.htmlFor='cfg'+i;
+  const s=document.createElement('select');s.id='cfg'+i;
+  opts.forEach((o,k)=>s.add(new Option(o+(k===DEF[i]?' (default)':''),k)));
+  s.value=DEF[i];r.append(l,s);$('#cfgRows').append(r);
+});
+
+function say(id,msg,cls){const e=$(id);e.textContent=msg;e.className='st '+(cls||'');}
+
+// transport: one request, one reply
+function send(cmd,data,ms=2000){
+  if(!out)throw new Error('Not connected. Use the Connect tab first.');
+  return new Promise((res,rej)=>{
+    const t=setTimeout(()=>{wait=null;rej(new Error('No reply from the card within 2 seconds.'));},ms);
+    wait={cmd:cmd|0x40,res:m=>{clearTimeout(t);res(m);}};
+    out.send([0xF0,0x7D,0x42,cmd,...pack7(data||[]),0xF7]);
+  });
+}
+function onMsg(e){
+  const d=e.data;
+  if(!wait||d.length<6||d[0]!==0xF0||d[1]!==0x7D||d[2]!==0x42||d[3]!==wait.cmd)return;
+  const w=wait;wait=null;
+  w.res({status:d[4],data:unpack7(d.subarray(5,d[d.length-1]===0xF7?d.length-1:d.length))});
+}
+async function run(statusId,fn){
+  if(busy)return;busy=true;const f=document.activeElement;document.querySelectorAll('button').forEach(b=>b.disabled=true);
+  try{await fn();}catch(e){say(statusId,e.message,'bad');}
+  busy=false;document.querySelectorAll('button').forEach(b=>b.disabled=false);$('#btnWrite').disabled=!cfgRead;
+  if(f&&!f.disabled)f.focus();// disabling dropped keyboard focus to <body>
+}
+
+// connect
+$('#btnConnect').onclick=()=>run('#connStatus',async()=>{
+  if(!navigator.requestMIDIAccess)throw new Error('This browser has no WebMIDI. Open this page in Chrome or Edge.');
+  let acc;
+  try{acc=await navigator.requestMIDIAccess({sysex:true});}
+  catch(e){throw new Error('MIDI access was denied. Allow MIDI and SysEx for this page (the lock icon in the address bar) and try again.');}
+  // Find the card by asking, not by name: macOS keeps an old port name for this USB ID (e.g. "MTWS").
+  const ins=[...acc.inputs.values()],outs=[...acc.outputs.values()],likely=p=>/blocks|mtws|mtm/i.test(p.name)?1:0;
+  let src=null;ins.forEach(i=>i.onmidimessage=e=>{const d=e.data;if(wait&&d[0]===0xF0&&d[1]===0x7D&&d[2]===0x42&&d[3]===wait.cmd)src=e.target;onMsg(e);});
+  outs.sort((a,b)=>likely(b)-likely(a));
+  let r=null;
+  for(const o of outs){out=o;try{r=await send(1,[],500);if(!r.status)break;}catch(e){}r=null;}
+  if(!r){inp=out=null;ins.forEach(i=>i.onmidimessage=null);
+    throw new Error('No Blocks card answered. Plug this computer into the card\'s front USB-C (instead of the Launchpad), then power-cycle the Workshop System (Reset alone may not be enough) and try again.');}
+  inp=src;ins.forEach(i=>{if(i!==inp)i.onmidimessage=null;});
+  acc.onstatechange=()=>{if(out&&out.state!=='connected'){inp=out=null;cfgRead=false;$('#btnWrite').disabled=true;say('#connStatus','The card was disconnected.','bad');}};
+  say('#connStatus','Connected: '+String.fromCharCode(...r.data.slice(1))+', protocol v'+r.data[0]+'.','ok');
+  try{await readCfg();say('#cfgStatus','Settings read from the card.','ok');}catch(e){say('#cfgStatus','Connected, but the settings could not be read: '+e.message+' Press Read to try again.','bad');}
+});
+
+// backup
+const date=()=>new Date().toLocaleDateString('sv');
+$('#btnDown').onclick=()=>run('#backupStatus',async()=>{
+  const parts=[];
+  for(let n=0;n<17;n++){
+    say('#backupStatus','Reading block '+(n+1)+' of 17…');
+    const r=await send(2,[n]);
+    if(r.status)throw new Error('Block '+(n+1)+': '+why(r.status));
+    if(r.data.length<12||r.data.length!==12+(r.data[6]|r.data[7]<<8))throw new Error('Block '+(n+1)+' came back damaged.');
+    parts.push(r.data);
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(parts));a.download='blocks-backup-'+date()+'.blk';a.click();
+  say('#backupStatus','Backup saved as '+a.download+'.','ok');
+});
+
+let blocks=null;
+// split-begin
+function split(b){
+  const o=[];let i=0;
+  while(i<b.length){
+    if(b.length-i<12||String.fromCharCode(...b.subarray(i,i+4))!=='BLK4')throw new Error('Not a Blocks backup file.');
+    const n=12+(b[i+6]|b[i+7]<<8);
+    if(i+n>b.length)throw new Error('The file is cut short.');
+    o.push(b.subarray(i,i+n));i+=n;
+  }
+  if(o.length!==9&&o.length!==17)throw new Error('Expected 17 blocks (or 9 from an older backup), found '+o.length+'.');
+  o.forEach((x,k)=>{// a pattern block's slot is its position, so order and kind must be exact
+    const crc=(x[8]|x[9]<<8|x[10]<<16|x[11]<<24)>>>0;
+    if(x[5]!==(k===8?1:0)||crc32(x.subarray(12))!==crc)throw new Error('This file is damaged or its blocks are out of order. Nothing was sent to the card.');
+  });
+  return o;
+}
+// split-end
+$('#file').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';blocks=null;$('#restoreAsk').hidden=true;$('#results').textContent='';
+  if(!f)return;
+  try{blocks=split(new Uint8Array(await f.arrayBuffer()));$('#restoreName').textContent=f.name;$('#restoreAsk').hidden=false;say('#backupStatus','Check the confirmation above.');}
+  catch(err){say('#backupStatus',err.message,'bad');}
+};
+$('#btnCancel').onclick=()=>{blocks=null;$('#restoreAsk').hidden=true;};
+$('#btnRestore').onclick=()=>run('#backupStatus',async()=>{
+  const bl=blocks;$('#restoreAsk').hidden=true;$('#results').textContent='';
+  let bad=0;
+  for(let n=0;n<bl.length;n++){// an old 9-block file leaves patterns 9-16 alone
+    say('#backupStatus','Writing block '+(n+1)+' of '+bl.length+'…');
+    const r=await send(3,[n,...bl[n]]);
+    if(r.status===1&&!n)throw new Error('Stop the card first. Nothing was restored.');
+    const li=document.createElement('li');li.className=r.status?'bad':'ok';
+    li.textContent=(n===8?'Settings':'Pattern '+(n<8?n+1:n))+': '+why(r.status);$('#results').append(li);
+    if(r.status)bad++;
+    if(r.status===1)break;
+  }
+  say('#backupStatus',bad?bad+' block(s) not restored.':'Restore complete.',bad?'bad':'ok');
+});
+
+// settings
+async function readCfg(){
+  const r=await send(4);
+  if(r.status)throw new Error('Read failed: '+why(r.status));
+  CFG.forEach((_,i)=>{$('#cfg'+i).value=r.data[i];});
+  cfgRead=true;
+}
+$('#btnRead').onclick=()=>run('#cfgStatus',async()=>{await readCfg();say('#cfgStatus','Settings read from the card.','ok');});
+$('#btnWrite').onclick=()=>run('#cfgStatus',async()=>{
+  const r=await send(5,CFG.map((_,i)=>+$('#cfg'+i).value));
+  if(r.status)throw new Error('Write failed: '+why(r.status));
+  say('#cfgStatus','Settings written to the card.','ok');
+});
+</script>
+</body>
+</html>

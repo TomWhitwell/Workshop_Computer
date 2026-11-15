@@ -20,6 +20,7 @@ struct Inputs
 	int32_t cv[2];		  // CV in 1 and 2: -2048..2047
 	int32_t audio[2];	  // Audio in 1 and 2: -2048..2047
 	bool rise[2];		  // a rising edge on Pulse in 1 / 2 this sample
+	bool high[2];		  // Pulse in 1 / 2 is high (for gate mode)
 	bool pulsePatched[2]; // Pulse in 1 / 2 has a cable in it
 	bool audio2Patched;	  // Audio in 2 has a cable in it
 };
@@ -97,11 +98,11 @@ public:
 		// normalling is decided on the way out, so the probe's pattern on
 		// Audio in 2 just after an unplug never reaches loop B: by the time
 		// it comes out, ComputerCard has declared the jack empty.
-		int32_t lateA = late_[0][r_], lateB2 = late_[1][r_];
-		late_[0][r_] = (int16_t)a;
-		late_[1][r_] = (int16_t)b2;
-		if (++r_ >= kEventDelay)
-			r_ = 0;
+		int32_t r = r_;
+		int32_t lateA = late_[0][r], lateB2 = late_[1][r];
+		late_[0][r] = (int16_t)a;
+		late_[1][r] = (int16_t)b2;
+		r_ = r + 1 >= kEventDelay ? 0 : r + 1;
 		int32_t lateB = in.audio2Patched ? lateB2 : lateA;
 		status_.audio[0] = lateA;
 		status_.audio[1] = lateB;
@@ -110,19 +111,37 @@ public:
 		// All of them act 20ms after they happen, in step with the late
 		// input. (Core 1 debounces the switch, so taps are always further
 		// apart than that.)
+		//
+		// The Pulse ins are read both ways all the time, as triggers and as
+		// gates, and the mode picks which one acts. So changing mode never
+		// lets a stale edge through: a gate already high when gate mode
+		// comes on waits for its next rise.
 		if (p.tapSerial != tapSeen_)
 		{
 			tapSeen_ = p.tapSerial;
 			tapWait_ = kEventDelay;
 		}
-		bool tapA = pulse_[0].Process(in.rise[0], in.pulsePatched[0]);
-		bool tapB = pulse_[1].Process(in.rise[1], in.pulsePatched[1]);
+		bool gate = p.gate;
+		bool tapA = pulse_[0].Process(in.rise[0], in.pulsePatched[0]) && !gate;
+		bool tapB = pulse_[1].Process(in.rise[1], in.pulsePatched[1]) && !gate;
+		int32_t edgeA = gate_[0].Process(in.high[0], in.pulsePatched[0], r);
+		int32_t edgeB = gate_[1].Process(in.high[1], in.pulsePatched[1], r);
 		if (tapWait_ > 0 && --tapWait_ == 0)
+		{
 			tapA = tapB = true;
+			open_[0] = open_[1] = false; // the switch takes over both loops
+		}
 		if (tapA)
 			loopA_.Tap(now, p.clockStep);
 		if (tapB)
 			loopB_.Tap(now, p.clockStep);
+		if (gate)
+		{
+			Gate(loopA_, open_[0], edgeA, now, p.clockStep);
+			Gate(loopB_, open_[1], edgeB, now, p.clockStep);
+		}
+		else
+			open_[0] = open_[1] = false;
 
 		// The clocked section, once per tick.
 		if (clock_.Process(p.clockStep))
@@ -236,6 +255,24 @@ private:
 		return (x + half) & ~((1 << shift) - 1);
 	}
 
+	// Gate mode, one loop: the gate's rise records (or takes over a
+	// recording already running), and its fall stops the recording its rise
+	// started or took over. `open` remembers that, so the fall of a gate
+	// the switch has since tapped over leaves the switch's recording alone.
+	static void Gate(Looper &l, bool &open, int32_t edge, uint32_t now, int32_t clockStep)
+	{
+		if (edge == RecordGate::kRise)
+		{
+			l.Record(now, clockStep);
+			open = true;
+		}
+		else if (edge == RecordGate::kFall && open)
+		{
+			open = false;
+			l.Release(clockStep);
+		}
+	}
+
 	// Tell core 1 what the panel is doing.
 	void Report(const Inputs &in, uint32_t now)
 	{
@@ -286,9 +323,11 @@ private:
 	int32_t r_ = 0;					 // the late input's position
 	int32_t tapWait_ = 0;			 // samples until a switch tap acts
 	uint32_t tapSeen_ = 0;
+	bool open_[2] = {false, false};	 // gate mode: this loop's gate is recording it
 	int32_t smooth_[2] = {0, 0};
 	SampleClock clock_;
 	RecordPulse pulse_[2];
+	RecordGate gate_[2];
 	uint32_t lastTick_ = 0; // core 1 only
 	SharedStatus status_;
 	EngineParams params_[2];

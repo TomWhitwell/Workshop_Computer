@@ -50,6 +50,7 @@ struct Sim
 			if (source[i])
 				in.audio[i] = source[i](t);
 			in.rise[i] = pulseIn[i] && !lastPulseIn[i] && in.pulsePatched[i];
+			in.high[i] = pulseIn[i];
 			lastPulseIn[i] = pulseIn[i];
 		}
 		inst->Audio(in, out);
@@ -97,6 +98,30 @@ struct Sim
 		pulseIn[jack] = true;
 		RunMs(5);
 		pulseIn[jack] = false;
+		RunMs(5);
+	}
+
+	// A gate `ms` long into Pulse in `jack`, patched, then `after` ms low.
+	void Gate(int jack, uint64_t ms, uint64_t after = 50)
+	{
+		in.pulsePatched[jack] = true;
+		pulseIn[jack] = true;
+		RunMs(ms);
+		pulseIn[jack] = false;
+		RunMs(after);
+	}
+
+	// Two quick flicks up (100ms up, 100ms middle, up again), then back to
+	// the middle: switches the Pulse ins between trigger and gate mode.
+	void FlickUp(uint64_t gapMs = 100)
+	{
+		in.sw = tem::kSwitchUp;
+		RunMs(100);
+		in.sw = tem::kSwitchMiddle;
+		RunMs(gapMs);
+		in.sw = tem::kSwitchUp;
+		RunMs(100);
+		in.sw = tem::kSwitchMiddle;
 		RunMs(5);
 	}
 

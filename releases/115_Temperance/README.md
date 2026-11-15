@@ -21,7 +21,8 @@ pickup, test bench and the measured lessons of their reverbs.
 
 ## Quick start
 
-1. Flash `UF2/temperance.0.1.0.uf2`.
+1. Flash `UF2/temperance.0.2.0.uf2` (release notes beside it, in
+   `UF2/temperance.0.2.0.md`).
 2. Patch a sound into **Audio In 1** and listen to **Audio Out 1 and 2**
    (stereo).
 3. **Tap the switch down** to start recording, play a phrase, **tap again**
@@ -39,6 +40,7 @@ pickup, test bench and the measured lessons of their reverbs.
 | **X** | **Loop A speed** and direction, six zones | **Dry level**: the clean input, none fully left (loops only), unity fully right |
 | **Y** | **Loop B speed** and direction, six zones | **Crush**, 12 bits fully left down to 4 fully right |
 | **Switch down** | Tap: record both loops, tap again to play | The same |
+| **Switch up twice, quickly** | Pulse In 1 and 2 switch between trigger and gate mode | |
 
 Each knob keeps one value per layer. When the switch moves, a knob does
 nothing until it passes back through its value for the new layer
@@ -58,6 +60,39 @@ nothing until it passes back through its value for the new layer
 The switch records both loops together. **Pulse In 1 and 2** start and stop
 Loop A and Loop B on their own, so the two can have different lengths and
 phase against each other.
+
+### Trigger or gate
+
+Pulse In 1 and 2 work in one of two modes, the same for both:
+
+- **Trigger** (the default at power-on): each rising edge acts like a tap.
+  One starts recording, the next stops it, and two less than 300ms apart
+  clear the loop.
+- **Gate**: the loop records while the gate is high. The rise starts
+  recording (over a playing loop too), the fall stops it and the loop plays.
+  The loop is exactly as long as the gate. A short gate makes a short loop,
+  never a clear. A gate shorter than 512 clock ticks (11ms at 48kHz, 256ms
+  at 2kHz) is too short to loop and leaves the loop empty.
+
+**Flick the switch up twice, quickly** (the second flick within 400ms of
+the first) to change mode. Up only changes the knobs' layer, so the flicks
+never touch a recording, and knobs you haven't moved pick straight back up.
+The LEDs show the new mode for 1.5 seconds, shaped like the signal it
+expects: the top row alone for trigger (a short blip), both columns for gate
+(a level held high). In gate mode, an empty loop's top LED glows dimly,
+waiting for a gate. The mode isn't saved: every power-on starts in trigger
+mode.
+
+In gate mode:
+
+- The switch still taps, as in trigger mode. A tap takes a loop over from
+  its gate, so that gate's fall no longer stops it.
+- A gate's rise during a recording the switch started takes it over, and the
+  gate's fall stops it.
+- Pulling the cable out of a high gate ends the gate there: the recording
+  stops and the loop plays.
+- A gate already high when you change mode waits for its next rise.
+- If the buffer fills while the gate is high, the loop plays on its own.
 
 A loop holds 40,000 samples. How long that is depends on the clock:
 
@@ -128,7 +163,7 @@ input is never crushed.
 | **CV In 2** | **Wash**, added to the knob. +5V is the whole knob |
 | **CV Out 1** | **Stepped random**, tied to Loop A: at each start of the loop it jumps to a new whole volt between −2V and +2V, never the same one twice running. Calibrated |
 | **CV Out 2** | **Smooth random**, tied to Loop B: at each start of the loop it picks a new level between 0V and +5V and eases there over one pass. Calibrated |
-| **Pulse In 1, 2** | Start or stop recording Loop A, B on its own. A rising edge acts 20ms later (see below), on that loop only |
+| **Pulse In 1, 2** | Record Loop A, B on its own. Trigger mode: a rising edge starts or stops recording. Gate mode: the loop records while the gate is high. Either way, edges act 20ms later (see below), on that loop only |
 | **Pulse Out 1** | A 10ms trigger at random, 200ms to 2s after the last one, loop or no loop |
 | **Pulse Out 2** | A 10ms trigger at each start of Loop B: in reverse too, and at every speed |
 
@@ -158,8 +193,8 @@ the whole volts land exactly on CV In 1's steps.
 4 5    Loop A playhead   Loop B playhead
 ```
 
-- **State** (top): off when empty, a fast blink while recording, on while
-  playing. A stop flashes it full for 80ms.
+- **State** (top): off when empty (a dim glow in gate mode), a fast blink
+  while recording, on while playing. A stop flashes it full for 80ms.
 - **Speed** (middle): dim at half speed, brighter at normal speed, full at
   double.
 - **Playhead** (bottom): bright at the loop's start, fading to its end.
@@ -172,6 +207,9 @@ the whole volts land exactly on CV In 1's steps.
 **Turn Main** and the LEDs show the clock for 1.5 seconds. They fill from
 the bottom up, half an LED per step down from 48kHz: one LED at 48kHz, five
 and a half at 2kHz. A slower clock looks heavier.
+
+**Flick up twice** and the LEDs show the Pulse ins' mode for 1.5 seconds:
+the top row alone for trigger, both columns for gate.
 
 **Switch up** and each row is a two-LED bar for one knob: wash at the top,
 dry level in the middle, crush at the bottom. The left LED covers the
@@ -226,7 +264,11 @@ start or stop a recording every time something is unplugged. So every
 record tap, from the switch or a Pulse In, acts 20ms after it happens, and
 counts only if the jack is still patched by then. The loopers hear their
 input through a matching 20ms delay, so a loop still starts and ends
-exactly where you tapped. The dry signal isn't delayed. The same wait keeps
+exactly where you tapped. The dry signal isn't delayed. In gate mode, the
+gate itself goes through a 20ms delay, a bit per sample, and its edges are
+found on the way out, so a gate shorter than the wait still starts and
+stops. A rise counts only if the jack is still patched by then; a fall always
+counts, so pulling out a high gate ends it. The same wait keeps
 the probe's pattern on Audio In 2 out of Loop B when Audio In 2 is
 unplugged.
 
@@ -255,8 +297,8 @@ at 1.15V, an officially supported RP2040 setting and a multiple of 48MHz.
 The cycle bench (`tools/bench`) runs the compiled firmware on an emulated
 Cortex-M0+ through a scripted performance. Its worst sample comes when both
 loops are on their first pass after a stop, with the plate running, all at
-48kHz. That sample uses 69% of the 192MHz budget, including ComputerCard's
-own work. At the directive's 144MHz it would be 91%.
+48kHz. That sample uses 72% of the 192MHz budget, including ComputerCard's
+own work. At the directive's 144MHz it would be 96%. Gate mode costs about the same as trigger mode.
 
 ## Where the card differs from the brief
 
@@ -278,6 +320,8 @@ here:
 - **Record taps act 20ms late**, with the loopers' input delayed to match,
   so unplugging a Pulse In never starts or stops a recording.
 - **A double tap clears a loop**, one answer to the brief's open question.
+- **Gate mode** for the Pulse ins, added after the brief: the loop records
+  while the gate is high. Two quick flicks up switch it on and off.
 - **No delay.** The original brief's clocked delay was built, then dropped after
   listening: it made the mix messy. Its 16KB, and a little of the RAM the
   brief left spare, went to the loops (59KB each, not 48KB: 20 seconds at

@@ -20,6 +20,10 @@ namespace tem
 //                        |                                   (old loop fades)
 //                        +--tap within 300ms--> empty
 //
+// In gate mode a Pulse in's gate drives Record() and Release() instead:
+// the loop records while the gate is high, and the gate's length is the
+// loop's, however short (no double-tap clear).
+//
 // The read head is 16.16 fixed point in buffer samples (unsigned, so a loop
 // can be longer than 32,768 samples), and moves by the speed zone's step
 // every tick: +-1 is the speed it was recorded at, +-2 an
@@ -73,6 +77,21 @@ public:
 		}
 		else
 			Start(now, clockStep);
+	}
+
+	// Gate mode (a Pulse in's gate): the gate's rise records, over a
+	// playing loop too; already recording, it carries on.
+	void Record(uint32_t now, int32_t clockStep)
+	{
+		if (state_ != kRecording)
+			Start(now, clockStep);
+	}
+
+	// The gate's fall: stop and play. Never a clear, however short the gate.
+	void Release(int32_t clockStep)
+	{
+		if (state_ == kRecording)
+			Stop(clockStep);
 	}
 
 	// One clock tick: record `in` (if recording), move the read heads at
@@ -172,8 +191,9 @@ private:
 		stops_++;
 		if (w_ < kMinLen)
 		{
-			// Too short to loop (only possible if the clock moved a long way
-			// mid-recording; a double tap clears before it gets here).
+			// Too short to loop: a gate shorter than 512 ticks (11ms at
+			// 48kHz, 256ms at 2kHz), or the clock moved a long way
+			// mid-recording. (A double tap clears before it gets here.)
 			state_ = kEmpty;
 			return;
 		}

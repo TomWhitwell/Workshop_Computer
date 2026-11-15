@@ -64,6 +64,8 @@ public:
 		in.audio2Patched = Connected(Input::Audio2);
 		in.rise[0] = PulseIn1RisingEdge();
 		in.rise[1] = PulseIn2RisingEdge();
+		in.high[0] = PulseIn1();
+		in.high[1] = PulseIn2();
 
 		tem::Outputs out;
 		instrument.Audio(in, out);

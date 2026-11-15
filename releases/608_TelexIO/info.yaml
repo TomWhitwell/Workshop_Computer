@@ -1,0 +1,92 @@
+draft: false
+Name: TelexIO
+short-description: "Use your workshop computer as a telex teletype expander (i2c)"
+summary: |-
+  TelexIO is a port of the open-source TelexI and TelexO expander modules (for Teletype or e.g. Crow) to the Music Thing Modular Workshop Computer.
+
+  The TELEX are a family of eurorack expanders that were designed by bpcmusic to interface with the Monome Teletype to provide additional inputs and outputs. The original Telex Expanders (documentation, hardware design files and source code) can be found here: https://github.com/bpcmusic/telex.
+Language: C++ (ComputerCard)
+Creator: tijmend
+Version: "0.2"
+Status: Released
+date-created: 2026-09-22
+date-updated: 2026-11-11
+License: MIT
+uf2:
+  - path: uf2/telexio_v0_2.uf2
+    name: TelexIO V0.2
+
+panel:
+  inputs:
+    - id: CVIn1
+      type: cv
+      name: "TI.IN 3"
+      description: maps to TI.IN 3 (calibrated)
+    - id: CVIn2
+      type: cv
+      name: "TI.IN 4"
+      description: maps to TI.IN 4 (calibrated)
+    - id: AudioIn1
+      type: cv
+      name: "TI.IN 1"
+      description: maps to TI.IN 1 (calibrated)
+    - id: AudioIn2
+      type: cv
+      name: "TI.IN 2"
+      description: maps to TI.IN 2 (calibrated)
+    - id: PulseIn1
+      type: pulse
+      name: trigger input
+      description: triggers envelope on TO 1
+    - id: PulseIn2 
+      type: pulse
+      name: trigger input
+      description: triggers envelope on TO 2
+  outputs:
+    - id: "CVOut1"
+      type: cv
+      name: TO.OSC / TO.CV 3
+      description: "Calibrated CV/oscillator output maps to TO.CV or TO.OSC 3. Note: this output is low pass filtered and best used for CV" 
+    - id: CVOut2
+      type: cv
+      name: TO.OSC / TO.CV 4
+      description: "Calibrated CV/oscillator output maps to TO.CV or TO.OSC 4. Note: this output is low pass filtered and best used for CV"
+    - id: AudioOut1
+      type: audio
+      name: TO.OSC / TO.CV 1
+      description: Uncalibrated CV/oscillator output maps TO.CV 1 or TO.OSC 1
+    - id: AudioOut2
+      type: audio
+      name: TO.OSC / TO.CV 2
+      description: Uncalibrated CV/oscillator output maps TO.CV 2 or TO.OSC 2
+    - id: PulseOut1
+      type: pulse
+      name: TO.TR 1
+      description: Digital pulse output maps to TO.TR 1
+    - id: PulseOut2
+      type: pulse
+      name: TO.TR 2
+      description: Digital pulse output maps to TO.TR 2
+
+controls:   
+  knobs:
+    - main:
+        name: TI.PARAM 1
+        description: Knob value can be read with TI.PARAM 1
+    - x:
+        name: TI.PARAM 2
+        description: Knob value can be read with TI.PARAM 2
+    - y: 
+        name: TI.PARAM 3
+        description: Knob value can be read with TI.PARAM 3
+  switch:
+    up:
+      name: "->1"
+      description: Switch maps to TI.PARAM 4 (value 1)
+    middle: 
+      name: TI.PARAM 4 -> 0
+      description: Switch maps to TI.PARAM 4 (value 0)
+    down: 
+      name: "->2"
+      description: Switch maps to TI.PARAM 4 (value 2)
+        
