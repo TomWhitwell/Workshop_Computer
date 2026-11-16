@@ -1,7 +1,8 @@
 #pragma once
 #include "fixed.hpp"
 namespace mtm {
-// 12 kHz, sixty partials. Each has two damped resonators at the same frequency.
+// 12 kHz, twelve strings with partials 1, 3, 5, 7, 2 (sixty slots total).
+// Each has two damped resonators at the same frequency.
 // Subtracting their fast/slow responses makes a causal metallic bloom. Wider
 // state coordinates keep weak tails alive without four fraction-carry loops.
 struct ModalBank {
@@ -18,14 +19,26 @@ struct ModalBank {
 private:
     Modes modes;
     uint32_t clampCount = 0;
+    int32_t durationQ8 = 100 * 256, inverseQ12 = 4096;
+    unsigned updateIndex = 0, updatesRemaining = 0;
+    uint8_t notes[12] = {61, 59, 62, 62, 64, 66, 68, 69, 71, 73, 74, 76};
+    uint8_t pending[12] = {61, 59, 62, 62, 64, 66, 68, 69, 71, 73, 74, 76};
+    // Retuning fades the existing bank to zero, replaces one mode per frame,
+    // then fades in. The last requested full snapshot wins.
+    int32_t tuningFade = 32768;
+    enum class TuningPhase { Stable, FadeOut, Replace, FadeIn } phase = TuningPhase::Stable;
+    unsigned replaceIndex = 0;
+    void replaceMode(unsigned i);
 
 public:
     ModalBank();
-    // Split wide multiplies to avoid software 64-bit products in the hot path:
-    // |x| < 2^24, |a| <= 32768, and loss <= 65535. No 64-bit hot-path helpers.
+    // Split wide multiplies as NOTES.md suggests. Products remain signed 32-bit:
+    // |x| < 2^24, |a| <= 262144, and loss <= 65535. No 64-bit hot-path helpers.
     static int32_t feedback(int32_t x, int32_t a);
     static int32_t loss(int32_t x, int32_t l);
     int32_t advance(int32_t &y1, int32_t &y2, int32_t a, int32_t l, int32_t injection);
+    void setDurationQ8(int32_t percentQ8);
+    void setNotes(const uint8_t (&value)[12]);
     int32_t next(int32_t bridge, int32_t dampQ15);
 };
 } // namespace mtm

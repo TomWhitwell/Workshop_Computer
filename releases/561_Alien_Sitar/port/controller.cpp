@@ -1,4 +1,5 @@
 #include "controller.hpp"
+#include "editor.hpp"
 
 namespace computer {
 namespace {
@@ -71,20 +72,39 @@ void Controller::updateOctave(int32_t raw) {
 }
 
 void Controller::updateHeldEdits(const int32_t (&raw)[KnobCount]) {
+    // Duplicate assignments are allowed. Main, X, Y are processed in that order,
+    // so the last armed knob wins when more than one addresses the same setting.
     for (int i = 0; i < KnobCount; ++i) {
         if (mtm::abs32(raw[i] - entry[i]) >= movement) {
             moved[i] = true;
         }
+        if (!moved[i] || heldAssignments[i] == HeldDisabled) {
+            continue;
+        }
+        const int id = heldAssignments[i];
+        if (id == HeldOctave) {
+            updateOctave(raw[i]);
+        } else if (id == HeldPick) {
+            pick = pickKnob(raw[i]);
+        } else {
+            // IDs 1 and 4..8 correspond to editor parameters 3 and 6..10.
+            const int parameter = id + 2;
+            const auto &d = editor::descriptors[parameter];
+            const int32_t value = d.minimum + raw[i] * (d.maximum - d.minimum) / potMaximum;
+            setEditorValue(parameter, value);
+        }
     }
-    if (moved[MainKnob]) {
-        sympathy = knob(raw[MainKnob]);
+}
+int32_t Controller::heldAssignment(unsigned knobIndex) const {
+    return knobIndex < KnobCount ? heldAssignments[knobIndex] : int32_t(HeldDisabled);
+}
+bool Controller::setHeldAssignment(unsigned knobIndex, int32_t assignment) {
+    if (knobIndex >= KnobCount || assignment < HeldDisabled || assignment > HeldAssignmentMax ||
+        previous == Down) {
+        return false;
     }
-    if (moved[LeftKnob]) {
-        updateOctave(raw[LeftKnob]);
-    }
-    if (moved[RightKnob]) {
-        pick = pickKnob(raw[RightKnob]);
-    }
+    heldAssignments[knobIndex] = assignment;
+    return true;
 }
 
 void Controller::updateNormalKnobs(const int32_t (&raw)[KnobCount]) {
@@ -145,9 +165,16 @@ Settings Controller::update(const Controls &controls) {
     previous = controls.position;
 
     Settings settings;
+    settings.resonatorMix = resonatorMix;
     settings.external = controls.position == Up;
+    settings.stringConnected = controls.audio1Connected;
+    settings.haloConnected = controls.audio2Connected;
     settings.params = {knob(base[RightKnob]), knob(base[MainKnob]), knob(base[LeftKnob]), sympathy,
                        pick};
+    settings.params.pickPositionPercent = pickPositionPercent;
+    settings.params.haloLevel = haloLevelPercent * 32768 / 100;
+    settings.params.melodyDecayPercent = melodyDecayPercent;
+    settings.params.sympatheticDecayPercent = sympatheticDecayPercent;
     const int32_t jawari =
         jawariCV.next(!settings.external && controls.audio1Connected, controls.audio1Mv);
     const int32_t swell =
@@ -156,7 +183,99 @@ Settings Controller::update(const Controls &controls) {
         settings.params.jawari = mtm::clip(settings.params.jawari + jawari, 0, 32767);
         settings.params.swell = mtm::clip(settings.params.swell + swell, 0, 32767);
     }
+    for (unsigned i = 0; i < 12; ++i) {
+        settings.taraf[i] = taraf[i];
+    }
     settings.pitchQ16 = mapPitch(controls);
     return settings;
+}
+bool Controller::setEditorValue(int parameter, int32_t value) {
+    if (parameter < 0 || parameter >= editor::Count) {
+        return false;
+    }
+    const auto &d = editor::descriptors[parameter];
+    if (value < d.minimum || value > d.maximum) {
+        return false;
+    }
+    if (parameter >= editor::HeldMain && parameter <= editor::HeldY) {
+        return setHeldAssignment(unsigned(parameter - editor::HeldMain), value);
+    }
+    if (parameter >= editor::Taraf1 && parameter <= editor::Taraf12) {
+        taraf[parameter - editor::Taraf1] = uint8_t(value);
+    } else if (parameter <= editor::String) {
+        const int i = parameter == editor::Jawari
+                          ? MainKnob
+                          : (parameter == editor::Swell ? LeftKnob : RightKnob);
+        base[i] = value;
+        pickup[i] = true;
+    } else if (parameter == editor::Sympathy) {
+        sympathy = value;
+    } else if (parameter == editor::Octave) {
+        octave = value;
+    } else if (parameter == editor::Pick) {
+        pick = value;
+    } else if (parameter == editor::PickPosition) {
+        pickPositionPercent = value;
+    } else if (parameter == editor::HaloLevel) {
+        haloLevelPercent = value;
+    } else if (parameter == editor::MelodyDecay) {
+        melodyDecayPercent = value;
+    } else if (parameter == editor::SympatheticDecay) {
+        sympatheticDecayPercent = value;
+    } else if (parameter == editor::PitchInOffset) {
+        pitchInputCalibration.offsetMv = value;
+    } else if (parameter == editor::PitchInScale) {
+        pitchInputCalibration.scalePpm = value;
+    } else if (parameter == editor::PitchOutOffset) {
+        pitchOutputCalibration.offsetMv = value;
+    } else if (parameter == editor::PitchOutScale) {
+        pitchOutputCalibration.scalePpm = value;
+    } else if (parameter == editor::ResonatorMix) {
+        setResonatorMix(value * 32768 / 100);
+    }
+    return true;
+}
+int32_t Controller::editorValue(int parameter) const {
+    if (parameter >= editor::Taraf1 && parameter < editor::Count) {
+        return taraf[parameter - editor::Taraf1];
+    }
+    switch (parameter) {
+    case editor::HeldMain:
+    case editor::HeldX:
+    case editor::HeldY:
+        return heldAssignment(unsigned(parameter - editor::HeldMain));
+    case editor::Jawari:
+        return base[MainKnob];
+    case editor::Swell:
+        return base[LeftKnob];
+    case editor::String:
+        return base[RightKnob];
+    case editor::Sympathy:
+        return sympathy;
+    case editor::Octave:
+        return octave;
+    case editor::Pick:
+        return pick;
+    case editor::PickPosition:
+        return pickPositionPercent;
+    case editor::HaloLevel:
+        return haloLevelPercent;
+    case editor::MelodyDecay:
+        return melodyDecayPercent;
+    case editor::SympatheticDecay:
+        return sympatheticDecayPercent;
+    case editor::PitchInOffset:
+        return pitchInputCalibration.offsetMv;
+    case editor::PitchInScale:
+        return pitchInputCalibration.scalePpm;
+    case editor::PitchOutOffset:
+        return pitchOutputCalibration.offsetMv;
+    case editor::PitchOutScale:
+        return pitchOutputCalibration.scalePpm;
+    case editor::ResonatorMix:
+        return (resonatorMix * 100 + 16384) / 32768;
+    default:
+        return 0;
+    }
 }
 } // namespace computer

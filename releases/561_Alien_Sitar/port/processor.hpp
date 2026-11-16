@@ -12,5 +12,6 @@ public:
 private:
     mtm::Voice voice;
     int32_t stringDC = 0, haloDC = 0;
+    int32_t stringGain = 0, haloGain = 0, resonatorMix = 16384;
 };
 } // namespace computer

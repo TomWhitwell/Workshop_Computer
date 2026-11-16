@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sitar · Computer live editor</title>
+<style>
+:root{color-scheme:dark;font:16px/1.5 system-ui,sans-serif;background:#171b1b;color:#edf1e9;--accent:#e8b85d;--muted:#a9b6b0}*{box-sizing:border-box}body{margin:auto;max-width:1080px;padding:35px 24px 60px}header{display:flex;gap:25px;justify-content:space-between;align-items:center;border-bottom:1px solid #49534b;padding-bottom:24px}.eyebrow{letter-spacing:.16em;text-transform:uppercase;font-size:12px;color:var(--accent)}h1{font-size:42px;line-height:1.1;margin:10px 0}h2{font-size:20px;margin:0 0 8px}p{color:var(--muted);max-width:75ch}button,input,select{font:inherit}select{width:100%;background:#151b16;border:1px solid #647166;border-radius:5px;color:inherit;padding:8px}button{cursor:pointer;border:1px solid #6b786e;border-radius:5px;color:inherit;background:#29312d;padding:9px 15px}button.primary{background:var(--accent);border-color:var(--accent);color:#211d15;font-weight:650}button:hover:enabled{filter:brightness(1.15)}button:disabled{opacity:.45;cursor:default}.status{padding:16px 0;display:flex;gap:12px;align-items:center}.dot{width:9px;height:9px;background:#77857b;border-radius:50%}.dot.connected{background:#bce59b}#error{color:#ffc2a7;white-space:pre-wrap}#error:empty{display:none}.info{background:#212925;border:1px solid #3c4940;border-radius:8px;padding:18px 22px;margin:10px 0 28px}.info p{margin:5px 0}.controls{display:grid;grid-template-columns:1fr 1fr;gap:16px}.control{border:1px solid #445147;border-radius:8px;padding:18px;background:#202723}.control label{font-size:19px;font-weight:600}.control small{display:block;color:var(--muted);font-size:12px;margin:4px 0 13px}.control input[type=range]{width:100%;accent-color:var(--accent);margin:10px 0 18px}.row{display:flex;align-items:center;gap:8px}.row input{min-width:0;width:100%;background:#151b16;border:1px solid #647166;border-radius:5px;color:inherit;padding:8px}.row button{white-space:nowrap;padding:8px 11px}.toolbar{display:flex;gap:10px;align-items:center;margin:22px 0}.empty{padding:42px 20px;text-align:center;border:1px dashed #526057;border-radius:8px;color:var(--muted)}#live{font-size:14px;color:#c7d3c8;min-height:22px}footer{margin-top:35px;border-top:1px solid #49534b;padding-top:20px;font-size:13px;color:var(--muted)}code{color:#d5dcce}.cal-row{flex-wrap:wrap}.cal-row label{width:100px;min-width:0}.cal-row input{width:100%}@media(max-width:650px){body{padding:24px 16px}header{align-items:start;flex-direction:column}.controls{grid-template-columns:1fr}h1{font-size:36px}}
+.settings-section{margin:30px 0}.section-intro{margin:0 0 18px}.held-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.choice-row{display:grid;gap:10px}.choice-actions{display:flex;gap:8px}.choice-help{min-height:4.5em}.taraf-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.tuning-group{min-width:0;margin:0;padding:12px;border:1px solid #445147;border-radius:8px}.tuning-group legend{padding:0 8px;color:var(--accent)}.tuning-group .control{margin-bottom:12px;padding:14px}.tuning-group .control:last-child{margin-bottom:0}.preset-row{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}.tuning-status{color:var(--accent)}.editor-version{font-size:12px;color:var(--muted)}select{min-width:0;max-width:100%}.toolbar{flex-wrap:wrap}.toolbar #save-status{flex-basis:100%}@media(max-width:850px){.held-grid,.taraf-groups{grid-template-columns:1fr}.choice-help{min-height:0}}
+</style>
+<header><div><div class="eyebrow">Music Thing Modular · Computer</div><h1>Sitar live editor</h1><p>Shape the instrument. Keep playing.</p></div><button id="connect" class="primary">Connect Computer</button></header>
+<div class="status" role="status"><span id="dot" class="dot"></span><span id="status">Disconnected · settings are read after connection</span></div>
+<div id="error" role="alert"></div>
+<section class="info"><h2>Connect over USB</h2><p>Use a USB-C data cable. On your Mac, open this page in Chrome or Edge and choose <strong>MTM Sitar USB editor</strong> (it may appear as Pico or a USB serial device). Close Serial Monitor/other apps using the port.</p><p>The USB editor UF2 must be on the program card. Keep the Workshop System powered through its normal supply; a laptop USB connection does not power the whole system. Safari, Firefox and iOS are not supported. Serve this page from <code>localhost</code> or HTTPS.</p></section>
+<div class="toolbar"><h2 style="margin:0;flex:1">Live settings</h2><button id="read" disabled>Read</button><button id="reset" disabled>Reset all</button></div>
+<div class="toolbar"><button id="save" disabled>Save to card</button><button id="restore" disabled>Restore saved</button><button id="defaults" disabled>Revert defaults</button><span id="save-status" role="status"></span></div>
+<p id="live">Values, ranges and defaults come from the connected firmware.</p>
+<section class="settings-section"><h2>Sound and decay</h2><p class="section-intro">Shape the plucked melody and its sympathetic halo. Apply changes the running instrument; Save to card keeps applied settings after reset.</p>
+<div id="controls" class="controls"><div class="empty" style="grid-column:1/-1">Connect to read this instrument's available controls.</div></div>
+</section>
+<section id="held-section" class="settings-section" hidden><h2>Hold Down: knob assignments</h2><p>Choose what each knob controls while the switch is held Down, then click Apply. During playing, hold Down and deliberately turn that knob to change the chosen sound setting. A tap still plucks once.</p><p>Release Down before applying webpage edits. After a held edit, return the knob through its previous normal position to regain Jawari, Swell or String control. If several moved knobs share an assignment, Y wins over X and Main. Save to card keeps your assignments after reset.</p><div id="held-controls" class="controls held-grid"></div></section>
+<section id="taraf-section" class="settings-section" hidden aria-labelledby="taraf-title">
+  <h2 id="taraf-title">Sympathetic strings (taraf)</h2>
+  <p>These twelve model strings are not plucked directly. They ring when the melody or an external input contains frequencies close to their tuned modes, creating the metallic halo. Each selector sets one string's fundamental note; its upper harmonics are generated automatically.</p>
+  <p>They keep this tuning when you change melody pitch or bend a note. Sympathy controls their level; Sympathetic duration controls how long they ring. Start with a preset, then adjust individual notes to suit your melody.</p>
+  <div class="preset-row" aria-label="Sympathetic tuning presets"><button id="yaman" disabled>Yaman in D · default</button><button id="original" disabled>Original · D minor-like</button></div>
+  <p>The Yaman preset is a twelve-string, equal-tempered adaptation of a published tuning. Its tonic (<em>Sa</em>, the home note) is <strong>D4</strong>, one octave above the default unpatched <strong>D3</strong> melody. Duplicated notes are intentional: separate strings can reinforce the same pitch. The Original preset restores our earlier tuning; it is not a documented raga.</p>
+  <p><strong>Presets apply all twelve notes immediately.</strong> Individual selectors need Apply. Retuning briefly fades and restarts the halo. Click Save to card to keep the applied tuning after reset.</p>
+  <p id="tuning-status" class="tuning-status" role="status">Connect to read the sympathetic tuning.</p>
+  <div id="taraf" class="taraf-groups"></div>
+</section>
+<section id="calibration-section" class="info settings-section" hidden><h2>Pitch CV calibration</h2><p>Factory calibration remains active; user corrections adjust CV1 input and pitch CV output. You can enter manual offset (mV) and scale (ppm) below. For a two-point correction, use a known voltage source or meter and enter two distinct measured pairs at least 1000 mV apart. Input: X is the instrument reading and Y is the known source voltage. Output: X is the voltage measured with your meter and Y is the requested output voltage. Apply the calculated offset and scale fields, then Save to card.</p><div class="row cal-row"><label>X1 <input id="cal-x1" type="number" value="0"></label><label>Y1 <input id="cal-y1" type="number" value="0"></label><label>X2 <input id="cal-x2" type="number" value="2000"></label><label>Y2 <input id="cal-y2" type="number" value="2000"></label><button id="cal-in" disabled>Calculate input</button><button id="cal-out" disabled>Calculate output</button></div><p id="cal-reading">Factory-scaled CV1 reading: —</p><p id="cal-result"></p><div id="cal-controls" class="controls"></div></section>
+<p class="editor-version">Editor layout 2 · 16 November 2026 · named assignments and grouped tuning</p>
+<footer><p>Apply changes the running instrument. Save to card explicitly writes settings to program-card flash; Restore reloads the last valid save. Revert defaults changes the running state until saved. Factory EEPROM calibration is unchanged. Save only when needed to limit flash wear.</p><p>Remote Jawari, Swell and String edits use pickup: move the corresponding knob through its displayed value to regain control. CV modulation continues. Held Down uses the assignments above; release Down before applying remote changes. Reset of a primary control returns it to the current physical knob. Other resets use the displayed default.</p><p>Pick position changes where the next pluck excites the string; Pick release changes its softness. Halo level trims the sympathetic output without changing its feedback. Optional duration and resonator controls appear only when the connected firmware implements them.</p><p>Experimental firmware: physical USB/audio deadline, noise, cable reconnect and power behaviour still require validation on a Computer. The page needs no external scripts or internet access.</p></footer>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+class SerialSession {
+  constructor(port, onLost) { this.port=port; this.onLost=onLost; this.sequence=0; this.pending=new Map(); this.closed=false; this.buffer=''; }
+  async open() {
+    await this.port.open({baudRate:115200,bufferSize:4096});
+    await this.port.setSignals({dataTerminalReady:true});
+    this.writer=this.port.writable.getWriter();
+    this.reader=this.port.readable.getReader();
+    this.reading=this.readLoop();
+  }
+  async readLoop() {
+    const decoder=new TextDecoder();
+    try {
+      while(!this.closed) {
+        const {value,done}=await this.reader.read();
+        if(done) break;
+        this.buffer+=decoder.decode(value,{stream:true});
+        if(this.buffer.length>16384) throw Error('Device response too large');
+        let end;
+        while((end=this.buffer.indexOf('\n'))>=0) {
+          const line=this.buffer.slice(0,end); this.buffer=this.buffer.slice(end+1);
+          let message; try { message=JSON.parse(line); } catch { throw Error('Invalid device response'); }
+          const request=this.pending.get(message.seq);
+          if(!request) continue;
+          clearTimeout(request.timer); this.pending.delete(message.seq);
+          if(message.protocol!==1 || message.device!=='mtm-sitar') request.reject(Error('Unsupported device or protocol version'));
+          else if(message.error!=='none') request.reject(Error(`Device: ${message.error}`));
+          else request.resolve(message);
+        }
+      }
+      if(!this.closed) throw Error('USB disconnected');
+    } catch(error) { if(!this.closed) this.onLost(error); }
+    finally { this.reader.releaseLock(); }
+  }
+  request(operation, argumentsText='') {
+    if(this.closed) return Promise.reject(Error('Disconnected'));
+    const sequence=++this.sequence;
+    return new Promise((resolve,reject)=> {
+      const timer=setTimeout(()=> {this.pending.delete(sequence);reject(Error('Device timed out. Check the selected port and editor firmware.'));},2500);
+      this.pending.set(sequence,{resolve,reject,timer});
+      this.writer.write(new TextEncoder().encode(`${operation} ${sequence}${argumentsText?' '+argumentsText:''}\n`)).catch(error=>{
+        clearTimeout(timer);this.pending.delete(sequence);reject(error);
+      });
+    });
+  }
+  async close() {
+    if(this.closed) return;
+    this.closed=true;
+    for(const request of this.pending.values()){clearTimeout(request.timer);request.reject(Error('Disconnected'));}
+    this.pending.clear();
+    try { if(this.reader) await this.reader.cancel(); } catch {}
+    try { if(this.reading) await this.reading; } catch {}
+    try { if(this.writer) this.writer.releaseLock(); } catch {}
+    try { await this.port.close(); } catch {}
+  }
+}
+let session=null, rows=new Map(), polling=null, busy=false, connecting=false;
+function errorText(error){ $('error').textContent=error ? error.message : ''; }
+function enableControls(enabled){$('read').disabled=!enabled;$('reset').disabled=!enabled;for(const id of ['save','restore','defaults','cal-in','cal-out','yaman','original'])$(id).disabled=!enabled;for(const row of rows.values())for(const el of row.elements)el.disabled=!enabled;}
+async function disconnect(error=null){
+  const previous=session;session=null;clearInterval(polling);polling=null;
+  enableControls(false);$('connect').textContent='Connect Computer';$('dot').className='dot';
+  $('status').textContent='Disconnected · displayed values are last read';errorText(error);
+  if(previous) await previous.close();
+}
+function update(message){
+  if(Number.isInteger(message.pitchInputFactoryMv)) $('cal-reading').textContent=`Factory-scaled CV1 reading: ${message.pitchInputFactoryMv} mV (connect the known source)`;
+  for(const [id,row] of rows){const value=message.values?.[id];if(Number.isInteger(value)&&!row.dirty){row.slider.value=value;row.number.value=value;if(row.describe)row.describe(value);}}
+  const tuning=Array.from({length:12},(_,i)=>message.values?.[`taraf_${i+1}`]);
+  if(tuning.every(Number.isInteger)){
+    const preset=tuning.every((n,i)=>n===yamanNotes[i])?'Yaman in D':tuning.every((n,i)=>n===originalNotes[i])?'Original (D minor-like)':'Custom';
+    $('tuning-status').textContent=`Read from card: ${preset} · ${tuning.map(noteName).join(' · ')}`;
+  }
+  const pickup=['Main / Jawari','X / Swell','Y / String'].filter((_,i)=>message.pickup&(1<<i));
+  $('live').textContent=`${message.external?'External excitation (Up)':'Internal pluck mode'}${message.held?' · Down held: remote edits paused':''}${pickup.length?' · Awaiting pickup: '+pickup.join(', '):''}. CV-modulated Jawari ${message.effective?.jawari ?? '—'}, Swell ${message.effective?.swell ?? '—'} (Q15).`;
+}
+async function command(operation,args=''){
+  if(!session) return;
+  if(busy){errorText(Error("Waiting for the current device response; try again."));return;}
+  const current=session;busy=true;errorText(null);
+  try{const message=await current.request(operation,args);if(session===current)update(message);return message;}
+  catch(error){errorText(error);if(/timed out|protocol|response|Disconnected/i.test(error.message))await disconnect(error);}
+  finally{busy=false;}
+}
+const yamanNotes=[61,59,62,62,64,66,68,69,71,73,74,76];
+const originalNotes=[50,52,53,55,57,58,60,62,64,65,69,74];
+const noteNames=['C','C♯ / D♭','D','D♯ / E♭','E','F','F♯ / G♭','G','G♯ / A♭','A','A♯ / B♭','B'];
+function noteName(midi){return noteNames[midi%12].split(' / ').map(n=>`${n}${Math.floor(midi/12)-1}`).join(' / ');}
+const heldAssignments=[
+  ['Disabled','No secondary control; tapping Down still plucks.'],
+  ['Sympathy — halo level','Changes how much sympathetic halo is heard.'],
+  ['Octave — melody transpose','Transposes the melody from −3 to +3 octaves; sympathetic tuning stays fixed.'],
+  ['Pick release — soft to sharp','Changes the softness or sharpness of the next pluck.'],
+  ['Pick position — along the string','Changes where the next pluck excites the string and its harmonic balance.'],
+  ['Halo output level','Trims the sympathetic output level without changing its feedback.'],
+  ['Melody duration','Changes the melody decay from 25% to 400% of its normal duration.'],
+  ['Sympathetic duration','Changes the halo decay from 25% to 400% of its normal duration.'],
+  ['External resonator mix','Blends the input and resonated sound in switch-Up mode.']
+];
+// Named choices still send the firmware's stable integer IDs. Pending selections
+// remain local until Apply; reads never overwrite a dirty selection.
+function choicePanel(d,parent,labelText,choices,describe){
+  const panel=document.createElement('section');panel.className='control';
+  const label=document.createElement('label');label.htmlFor=d.id;label.textContent=labelText;
+  const select=document.createElement('select');select.id=d.id;
+  for(const [value,name] of choices){const option=document.createElement('option');option.value=value;option.textContent=name;select.append(option);}
+  const hint=document.createElement('small');hint.id=`${d.id}-help`;hint.className='choice-help';select.setAttribute('aria-describedby',hint.id);
+  const apply=document.createElement('button');apply.textContent='Apply';
+  const reset=document.createElement('button');reset.textContent='Reset';
+  const row={slider:select,number:select,dirty:false,elements:[select,apply,reset],describe:value=>{hint.textContent=describe(Number(value));}};rows.set(d.id,row);
+  select.addEventListener('change',()=>{row.dirty=true;row.describe(select.value);});
+  apply.addEventListener('click',async()=>{const message=await command('SET',`${d.id} ${select.value}`);if(message){row.dirty=false;update(message);}});
+  reset.addEventListener('click',async()=>{const message=await command('RESET',d.id);if(message){row.dirty=false;update(message);}});
+  const actions=document.createElement('div');actions.className='choice-actions';actions.append(apply,reset);
+  const line=document.createElement('div');line.className='choice-row';line.append(select,actions);panel.append(label,hint,line);parent.append(panel);
+}
+function render(parameters){
+  if(!Array.isArray(parameters)||parameters.length>64)throw Error('Invalid parameter schema');
+  const area=$('controls');area.replaceChildren();$('held-controls').replaceChildren();$('held-section').hidden=true;$('taraf').replaceChildren();$('taraf-section').hidden=!parameters.some(d=>/^taraf_\d+$/.test(d.id));$('cal-controls').replaceChildren();$('calibration-section').hidden=!parameters.some(d=>/^pitch_(in|out)_/.test(d.id));rows.clear();
+  const tuningGroups=Array.from({length:3},(_,i)=>{const group=document.createElement('fieldset');group.className='tuning-group';const legend=document.createElement('legend');legend.textContent=`Strings ${i*4+1}–${i*4+4}`;group.append(legend);$('taraf').append(group);return group;});
+  for(const d of parameters){
+    if(!/^[a-z][a-z0-9_]{0,47}$/.test(d.id)||rows.has(d.id)||!Number.isInteger(d.min)||!Number.isInteger(d.max)||d.min>d.max||!Number.isInteger(d.default))throw Error('Invalid parameter schema');
+    if(['held_main','held_x','held_y'].includes(d.id)){
+      if(d.min!==0||d.max!==8)throw Error('Unsupported held assignment schema');
+      $('held-section').hidden=false;
+      const knob={held_main:['Main · big knob','Jawari'],held_x:['X · left knob','Swell'],held_y:['Y · right knob','String']}[d.id];
+      choicePanel(d,$('held-controls'),knob[0],heldAssignments.map(([name],id)=>[id,name]),value=>`Normally ${knob[1]}. While held: ${heldAssignments[value][1]}`);
+      continue;
+    }
+    if(/^taraf_\d+$/.test(d.id)){
+      const index=Number(d.id.slice(6))-1;
+      if(index<0||index>=12||d.min<0||d.max>127)throw Error('Unsupported sympathetic tuning schema');
+      const choices=Array.from({length:d.max-d.min+1},(_,i)=>[d.min+i,noteName(d.min+i)]);
+      choicePanel(d,tuningGroups[Math.floor(index/4)],`String ${index+1}`,choices,value=>`${noteName(value)} · ${(440*2**((value-69)/12)).toFixed(1)} Hz · MIDI ${value}. Apply retunes this string.`);
+      continue;
+    }
+    const panel=document.createElement('section');panel.className='control';
+    const label=document.createElement('label');label.textContent=d.label;label.htmlFor=d.id;
+    const hint=document.createElement('small');hint.textContent=`${d.min}–${d.max} ${d.unit} · ${d.timing} · reset: ${d.panelDefault?'physical knob':d.default}`;
+    const slider=document.createElement('input');slider.type='range';slider.id=d.id;slider.min=d.min;slider.max=d.max;slider.step=1;
+    const number=document.createElement('input');number.type='number';number.min=d.min;number.max=d.max;number.step=1;number.setAttribute('aria-label',d.label+' value');
+    const apply=document.createElement('button');apply.textContent='Apply';
+    const reset=document.createElement('button');reset.textContent='Reset';
+    const row={slider,number,dirty:false,elements:[slider,number,apply,reset]};rows.set(d.id,row);
+    slider.addEventListener('input',()=>{number.value=slider.value;row.dirty=true;});
+    number.addEventListener('input',()=>{slider.value=number.value;row.dirty=true;});
+    apply.addEventListener('click',async()=>{
+      const value=Number(number.value);
+      if(number.value===''||!Number.isInteger(value)||value<d.min||value>d.max){errorText(Error(`Enter a whole number from ${d.min} to ${d.max}.`));return;}
+      const message=await command('SET',`${d.id} ${value}`);if(message){row.dirty=false;update(message);}
+    });
+    reset.addEventListener('click',async()=>{const message=await command('RESET',d.id);if(message){row.dirty=false;update(message);}});
+    const line=document.createElement('div');line.className='row';line.append(number,apply,reset);panel.prepend(label,hint);panel.append(slider,line);(/^pitch_(in|out)_/.test(d.id)?$('cal-controls'):area).append(panel);
+  }
+}
+async function applyTarafPreset(values){
+  const message=await command('SET_TARAF',values.join(' '));
+  if(message){for(let i=1;i<=12;i++){const row=rows.get(`taraf_${i}`);if(row)row.dirty=false;}update(message);}
+}
+$('yaman').addEventListener('click',()=>applyTarafPreset(yamanNotes));
+$('original').addEventListener('click',()=>applyTarafPreset(originalNotes));
+$('connect').addEventListener('click',async()=>{
+  if(connecting)return;
+  if(session){await disconnect();return;}
+  if(!isSecureContext||!navigator.serial){errorText(Error('Use desktop Chrome or Edge on localhost or HTTPS. Web Serial is unavailable here.'));return;}
+  connecting=true;errorText(null);$('status').textContent='Choose MTM Sitar USB editor…';
+  try{
+    const port=await navigator.serial.requestPort({filters:[{usbVendorId:0x2e8a,usbProductId:0x000a}]});
+    const current=new SerialSession(port,error=>{if(session===current)void disconnect(error);});session=current;
+    await current.open();const hello=await current.request('HELLO');
+    if(session!==current)throw Error('Disconnected');
+    render(hello.parameters);update(hello);enableControls(true);
+    $('connect').textContent='Disconnect';$('dot').className='dot connected';$('status').textContent=`Connected · ${hello.firmware} · protocol ${hello.protocol}`;
+    polling=setInterval(()=>{if(!busy&&session)void command('GET');},500);
+  }catch(error){await disconnect(error.name==='NotFoundError'?Error('Connection cancelled. No settings changed.'):error);}
+  finally{connecting=false;}
+});
+$('read').addEventListener('click',()=>command('GET'));
+for(const [id,op] of [['save','SAVE'],['restore','RESTORE'],['defaults','DEFAULTS']]) $(id).addEventListener('click',async()=>{
+  $('save-status').textContent=op==='SAVE'?'Saving…':'';
+  const message=await command(op);
+  if(message){for(const row of rows.values())row.dirty=false;update(message);$('save-status').textContent=op==='SAVE'?'Saved to card':op==='RESTORE'?'Saved settings restored':'Defaults applied; save to keep them';}
+  else $('save-status').textContent='Operation failed';
+});
+for(const [button,prefix] of [['cal-in','pitch_in'],['cal-out','pitch_out']]) $(button).addEventListener('click',()=>{
+  const values=['cal-x1','cal-y1','cal-x2','cal-y2'].map(id=>Number($(id).value));
+  if(values.some((v,i)=>$( ['cal-x1','cal-y1','cal-x2','cal-y2'][i]).value===''||!Number.isInteger(v)||Math.abs(v)>6000)||Math.abs(values[2]-values[0])<1000){$('cal-result').textContent='Enter measured whole millivolts within ±6000, with at least 1000 mV between X points.';return;}
+  const [x1,y1,x2,y2]=values, scale=Math.trunc((y2-y1)*1000000/(x2-x1)), offset=Math.trunc(y1-x1*scale/1000000);
+  if(scale<800000||scale>1200000||offset< -500||offset>500){$('cal-result').textContent='Correction is outside supported bounds; check the source, meter, and measurements.';return;}
+  for(const [id,value] of [[prefix+'_offset_mv',offset],[prefix+'_scale_ppm',scale]]){const row=rows.get(id);if(!row){$('cal-result').textContent='Connected firmware does not support this calibration.';return;}row.number.value=value;row.slider.value=value;row.dirty=true;}
+  $('cal-result').textContent=`Calculated offset ${offset} mV and scale ${scale} ppm. Apply both fields, then Save to card.`;
+});
+$('reset').addEventListener('click',async()=>{const message=await command('RESET','all');if(message){for(const row of rows.values())row.dirty=false;update(message);}});
+if(navigator.serial)navigator.serial.addEventListener('disconnect',event=>{if(session&&event.target===session.port)void disconnect(Error('USB disconnected'));});
+</script>
+</html>

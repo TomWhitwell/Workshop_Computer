@@ -52,9 +52,18 @@ inline void decayWithRemainder(int32_t &x, uint32_t &error, int32_t loss) {
 // Direct Sitar Morph controls, unipolar Q15 except bipolar Pick.
 struct Parameters {
     int32_t string = 26214, jawari = 21299, swell = 21299, sympathy = 32767, pick = 0;
+    int32_t pickPositionPercent = 17, haloLevel = 16384;
+    int32_t melodyDecayPercent = 100, sympatheticDecayPercent = 100;
 };
 inline Parameters bounded(Parameters p) {
-    return {clip(p.string, 0, 32767), clip(p.jawari, 0, 32767), clip(p.swell, 0, 32767),
-            clip(p.sympathy, 0, 32767), clip(p.pick)};
+    return {clip(p.string, 0, 32767),
+            clip(p.jawari, 0, 32767),
+            clip(p.swell, 0, 32767),
+            clip(p.sympathy, 0, 32767),
+            clip(p.pick),
+            clip(p.pickPositionPercent, 5, 40),
+            clip(p.haloLevel, 0, 32768),
+            clip(p.melodyDecayPercent, 25, 400),
+            clip(p.sympatheticDecayPercent, 25, 400)};
 }
 } // namespace mtm

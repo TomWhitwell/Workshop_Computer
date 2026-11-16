@@ -14,8 +14,8 @@ template <class T, unsigned N = timing::queueCapacity> class Queue {
 
 public:
     static constexpr unsigned capacity = N;
-    // An empty queue can start at any unsigned sequence number. Occupancy
-    // arithmetic remains valid when the counters wrap.
+    // An empty queue can start at any sequence number. This also lets rollover
+    // tests exercise a real empty queue rather than modifying live internals.
     explicit constexpr Queue(uint32_t initialSequence = 0)
         : write(initialSequence), read(initialSequence) {}
 

@@ -1,6 +1,12 @@
 /** RP2040 ComputerCard backend. core0: hardware/control/rate conversion;
  * core1: 24k fixed-point instrument. No waiting for core1 in the audio IRQ. */
 #include "audio_backend.hpp"
+#include "../port/editor.hpp"
+#include "storage.hpp"
+#ifdef MTM_USB_EDITOR
+#include "usb_editor.hpp"
+#define COMPUTERCARD_FOREGROUND() computer::pollUsbEditor()
+#endif
 #include "../port/config.hpp"
 #include "hardware/clocks.h"
 #include "pico/multicore.h"
@@ -66,6 +72,8 @@ void worker() {
 }
 class Card final : public ComputerCard {
     computer::Controller controller;
+    computer::saved::State bootState;
+    bool bootPending = false;
     computer::Controls controls;
     computer::Settings settings;
     computer::Events events;
@@ -87,6 +95,8 @@ public:
 
 Card::Card() {
     EnableNormalisationProbe();
+    computer::storage::initialise(FlashSizeBytes());
+    bootPending = computer::storage::load(bootState);
 }
 
 void Card::updateControls() {
@@ -98,11 +108,24 @@ void Card::updateControls() {
     controls.audio1Connected = Connected(Audio1);
     controls.audio2Connected = Connected(Audio2);
     controls.pitchMv = CVInMillivolts(0);
+    controls.pitchFactoryMv = controls.pitchMv;
+    if (controls.pitchConnected) {
+        controls.pitchMv =
+            computer::saved::apply(controller.pitchInputCalibration, controls.pitchMv);
+    }
     controls.bendMv = CVInMillivolts(1);
     controls.audio1Mv = AudioIn1Millivolts();
     controls.audio2Mv = AudioIn2Millivolts();
     controls.position = static_cast<computer::Position>(SwitchVal());
-    settings = controller.update(controls);
+    if (bootPending) {
+        settings = computer::editor::restoreAtBoot(bootState, controller, controls);
+        bootPending = false;
+    } else {
+        settings = controller.update(controls);
+    }
+#ifdef MTM_USB_EDITOR
+    computer::editorBridge.service(controller, controls, settings);
+#endif
 }
 
 void Card::exchangeFrame(int32_t stringInput, int32_t haloInput) {
@@ -146,7 +169,8 @@ void Card::writeAudio(bool internal) {
 }
 
 void Card::updateIndicators() {
-    CVOut1Millivolts(auxiliary.pitchMillivolts());
+    CVOut1Millivolts(
+        computer::saved::apply(controller.pitchOutputCalibration, auxiliary.pitchMillivolts()));
     CVOut2Millivolts(auxiliary.haloMillivolts());
     LedOn(0, pluckPulse > 0);
     LedOn(1, settings.external);
@@ -203,6 +227,9 @@ void runInstrument() {
         output.push(mtm::Frame{});
     }
     multicore_launch_core1(worker);
+#ifdef MTM_USB_EDITOR
+    startUsbEditor();
+#endif
     card.Run();
 }
 } // namespace computer

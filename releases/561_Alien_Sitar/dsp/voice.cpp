@@ -5,17 +5,24 @@ Voice::Voice() {
     setPitchQ16(0);
     period = targetPeriod;
     updateCompensation();
+    decaySmoothedQ8 = decayTargetQ8;
 }
 
 void Voice::updateDecay() {
     const uint32_t tauMs = 2000u + uint32_t(target.swell) * 3000u / 32767u;
-    decayLoss =
+    // Preserve the original integer loss exactly at 100%; finer Q8 steps
+    // make changes smooth even when the original loss is only a few units.
+    int32_t legacy =
         int32_t((uint64_t(targetPeriod) * 32768u * 1000u) / (uint64_t(65536u) * RATE * tauMs));
+    decayTargetQ8 = legacy * 256 * 100 / target.melodyDecayPercent;
 }
 
 void Voice::setParameters(Parameters p) {
     p = bounded(p);
-    bool changed = p.swell != target.swell;
+    bool changed = p.swell != target.swell || p.melodyDecayPercent != target.melodyDecayPercent;
+    if (p.melodyDecayPercent != 100) {
+        decayAdjusted = true;
+    }
     target = p;
     if (changed) {
         updateDecay();
@@ -52,13 +59,21 @@ void Voice::setPitchQ16(int32_t octaves) {
 }
 
 void Voice::trigger(int32_t strength) {
+    couplingReduction = std::max(couplingReduction, recentPluck);
+    recentPluck = 32767;
+    recentPluckErr = 0;
     pluckStrength = clip(strength, 0, 32767);
     age = 0;
     length = clip((targetPeriod + 32768) >> 16, 12, 600);
-    pickPosition = clip((length * 17) / 100, 1, 255);
+    pickPosition = clip((length * target.pickPositionPercent) / 100, 1, 255);
     excitationStep = 32768 / length;
     pickWarp = target.pick;
-    early = slow = rise = 32767;
+    // Keep the existing melody rise when a new pluck enters the same string.
+    // Restarting both trajectories at unity used to erase that rise on every
+    // rapid strike while the sympathetic bank kept all of its energy.
+    const int32_t existingGrowth = slow - rise;
+    early = slow = 32767;
+    rise = 32767 - existingGrowth;
     earlyErr = slowErr = riseErr = 0;
     driveLP = previousDrive = 0;
 }
@@ -126,9 +141,15 @@ Frame Voice::next(int32_t externalString, int32_t externalHalo) {
     params.jawari = approach(params.jawari, target.jawari, 8);
     params.swell = approach(params.swell, target.swell, 8);
     params.sympathy = approach(params.sympathy, target.sympathy, 8);
+    params.haloLevel = approach(params.haloLevel, target.haloLevel, 8);
     period = approach(period, targetPeriod, 5);
+    decaySmoothedQ8 = decayAdjusted ? approach(decaySmoothedQ8, decayTargetQ8, 8) : decayTargetQ8;
+    decayLoss = (decaySmoothedQ8 + 128) >> 8;
     if ((clock++ & 31u) == 0) {
         updateCompensation();
+        sympatheticPercentQ8 =
+            approach(sympatheticPercentQ8, target.sympatheticDecayPercent * 256, 5);
+        bank.setDurationQ8(sympatheticPercentQ8);
     }
     damping = approach(damping, dampHold > 0 ? 32767 : 0, 5);
     if (dampHold > 0) {
@@ -184,8 +205,19 @@ Frame Voice::next(int32_t externalString, int32_t externalHalo) {
     contactLP += mul(force - contactLP, 6554);
     int32_t exchange = mul(motion, clip(18 * (contactLP - lastContactLP)));
     lastContactLP = contactLP;
-    int32_t bankDrive =
-        bankDown.next(clip(pickup + (5 * drive) / 2 + exchange + clip(externalHalo, -8191, 8191)));
+    // Closely spaced strokes share a finite bridge-coupling budget. Only new
+    // string energy is reduced; the resonators ring freely and external halo
+    // excitation keeps its original path. An isolated pluck is unchanged.
+    const int32_t coupling = 32768 - mul(couplingReduction, 24576);
+    int32_t coupledString = pickup + (5 * drive) / 2 + exchange;
+    if (couplingReduction) {
+        // Bound the product without changing the original external-input sum
+        // when no phrase reduction is active.
+        coupledString = mul(clip(coupledString), coupling);
+    }
+    int32_t bankDrive = bankDown.next(clip(coupledString + clip(externalHalo, -8191, 8191)));
+    decayWithRemainder(recentPluck, recentPluckErr, 2796);
+    decayWithRemainder(couplingReduction, couplingErr, 1165);
     int32_t bankSample = 0;
     if (clock & 1u) {
         bankSample = bank.next(bankDrive, damping);
@@ -197,7 +229,11 @@ Frame Voice::next(int32_t externalString, int32_t externalHalo) {
     int32_t growth = mul(slow - rise, params.swell);
     int32_t bloom = 32768 - mul(params.swell, 21299) + 2 * growth + mul(growth, 13107);
     wet = mul(wet, params.sympathy);
-    int32_t melody = mul(pickup, clip(bloom, 0, 49152));
+    // Preserve the candidate radiation blend while applying the USB halo trim.
+    wet = mul(wet, params.haloLevel);
+    radiationLP += mul(pickup - radiationLP, 6554);
+    int32_t radiation = mul(pickup, 8192) + mul(radiationLP, 24576);
+    int32_t melody = mul(radiation, clip(bloom, 0, 49152));
     decayWithRemainder(early, earlyErr, 1553);
     decayWithRemainder(slow, slowErr, 582);
     decayWithRemainder(rise, riseErr, 2796);
