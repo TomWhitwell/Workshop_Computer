@@ -1,59 +1,30 @@
 #!/usr/bin/env bash
-# Self-contained build entry point. Run --help for prerequisites and examples.
 set -euo pipefail
-card_dir="$(cd "$(dirname "$0")/.." && pwd)"
-
-usage() {
-  cat <<'HELP'
-Build Alien Sitar for a Music Thing Modular Workshop Computer program card.
-
-Prerequisites:
-  Arm GNU Embedded GCC (arm-none-eabi-gcc/g++), CMake >=3.20, Ninja, Python 3.
-  Tested with xPack ARM GCC 14.2.1-1.1 and Pico SDK 2.1.1.
-
-Obtain the SDK once (no other card repository is needed):
-  git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git /your/path/pico-sdk
-
-Build from this card folder:
-  PICO_SDK_PATH=/your/path/pico-sdk ./scripts/build.sh
-
-The firmware is written to alien_sitar.uf2 in this folder, replacing that file.
-Intermediate ELF/BIN and build files stay under the ignored build/ directory.
-To regenerate DSP coefficient tables after editing their formulas:
-  python3 tools/generate_tables.py
-
-Optional overrides:
-  ARM_TOOLCHAIN_BIN    Directory containing arm-none-eabi-gcc (otherwise PATH).
-  ALIEN_SITAR_CMAKE   CMake executable (default: cmake).
-  ALIEN_SITAR_NINJA   Ninja executable (default: ninja).
-  CMAKE_BUILD_PARALLEL_LEVEL  Concurrent build jobs (default: 4).
-HELP
-}
-
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  usage
-  exit 0
-fi
-if [[ $# -ne 0 ]]; then
-  usage >&2
-  exit 2
-fi
-if [[ -n "${ARM_TOOLCHAIN_BIN:-}" ]]; then
-  export PATH="$ARM_TOOLCHAIN_BIN:$PATH"
-fi
-cmake_bin="${ALIEN_SITAR_CMAKE:-cmake}"
-ninja_bin="${ALIEN_SITAR_NINJA:-ninja}"
-for command_name in "$cmake_bin" "$ninja_bin" arm-none-eabi-gcc arm-none-eabi-g++ python3; do
-  command -v "$command_name" >/dev/null || { echo "Missing tool: $command_name (see --help)" >&2; exit 1; }
-done
-if [[ ! -f "${PICO_SDK_PATH:-}/pico_sdk_init.cmake" ]]; then
-  echo 'Set PICO_SDK_PATH to Pico SDK 2.1.1 (see --help).' >&2
-  exit 1
-fi
-export PICO_SDK_PATH
-# Resolve the generator executable so CMake also works with a tool override.
-"$cmake_bin" -S "$card_dir" -B "$card_dir/build" -G Ninja \
-  -DCMAKE_MAKE_PROGRAM="$(command -v "$ninja_bin")" \
-  -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=Release
-"$cmake_bin" --build "$card_dir/build" --parallel "${CMAKE_BUILD_PARALLEL_LEVEL:-4}"
-python3 "$card_dir/tools/uf2.py" "$card_dir/build/alien_sitar.bin" "$card_dir/alien_sitar.uf2"
+cd "$(dirname "$0")/.."
+project_root="$(cd ../.. && pwd)"
+export PICO_SDK_PATH="${PICO_SDK_PATH:-$project_root/upstream/pico-sdk}"
+export PATH="${MTM_TOOLCHAIN_BIN:-$project_root/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin}:$PATH"
+cmake_bin="${MTM_CMAKE:-$project_root/toolchain/python/cmake/data/bin/cmake}"
+ninja_bin="${MTM_NINJA:-$project_root/toolchain/python/bin/ninja}"
+test -f "$PICO_SDK_PATH/pico_sdk_init.cmake" || { echo 'Set PICO_SDK_PATH or run ../../scripts/setup.sh'; exit 1; }
+test -f "$PICO_SDK_PATH/lib/tinyusb/src/tusb.c" || { echo 'Initialise the Pico SDK lib/tinyusb submodule or run ../../scripts/setup.sh'; exit 1; }
+python3 tools/prepare_header.py
+mkdir -p reports dist
+# Reuse the existing USB cache, explicitly enabling USB even in an older cache.
+# Internal target names do not affect the single public firmware filename.
+"$cmake_bin" -S . -B build-usb -G Ninja -DCMAKE_MAKE_PROGRAM="$ninja_bin" -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=Release -DMTM_USB_EDITOR=ON
+"$cmake_bin" --build build-usb -j4 2>&1 | tee reports/usb-build.txt
+cp build-usb/mtm_sitar.bin dist/alien_sitar.bin
+cp build-usb/mtm_sitar.elf dist/alien_sitar.elf
+python3 tools/uf2.py dist/alien_sitar.bin dist/alien_sitar.uf2
+arm-none-eabi-size dist/alien_sitar.elf | tee reports/usb-size.txt
+arm-none-eabi-nm -C dist/alien_sitar.elf | sed -n '/__aeabi_f\|__aeabi_d\|__atomic/p' > reports/soft-float-symbols.txt
+python3 tools/audit_firmware.py
+python3 tools/audit_saved_flash.py dist/alien_sitar.elf
+python3 tools/audit_usb.py
+python3 tools/source_hashes.py
+(cd dist && sha256sum alien_sitar.bin alien_sitar.elf alien_sitar.uf2 > SHA256SUMS)
+# Retire old outputs only after the new firmware passes its audits.
+rm -f dist/mtm_sitar.bin dist/mtm_sitar.elf dist/mtm_sitar.uf2 \
+      dist/mtm_sitar_usb.bin dist/mtm_sitar_usb.elf dist/mtm_sitar_usb.uf2 \
+      dist/USB-SHA256SUMS dist/size.txt

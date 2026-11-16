@@ -13,7 +13,7 @@ summary: A sitar-inspired plucked instrument with evolving jawari buzz, secondar
   Melody and sympathetic durations each cover 25–400%. The USB webpage provides tuning presets,
   held-control assignments, user pitch CV corrections, and explicit Save/Restore on the program
   card. CVOut1 follows played pitch with bend and octave edits; PulseOut2 responds to a rising
-  halo.
+  halo. This card has been developed using AI (GPT-6.1 Sol)
 Language: C++ (Pico SDK)
 Creator: mcmadhatter
 Version: "1.1.0"
@@ -28,6 +28,11 @@ tags:
 - web-serial
 date-created: '2026-11-10'
 date-updated: '2026-11-16'
+
+uf2:
+  - path: alien_sitar.uf2
+    name: Alien Sitar
+
 panel:
   inputs:
   - id: AudioIn1
@@ -192,12 +197,12 @@ controls:
 host:
   usb:
   - name: USB live editor
-    role: device
+    role: editor
     description: Web Serial control from desktop Chrome or Edge. Configure sound, duration,
       twelve sympathetic notes, held-knob assignments and pitch CV corrections. Use a USB-C
       data cable and keep the Computer powered from its normal supply.
-  notes: The USB-editor firmware provides the webpage; the standalone USB-disabled build does
-    not. Apply changes the running instrument. Save to card explicitly stores settings, assignments,
+  notes: The index.html file in the web folder contains the web panel.
+    Apply changes the running instrument. Save to card explicitly stores settings, assignments,
     sympathetic tuning and user pitch CV corrections in program-card flash. Restore saved reloads
     the last valid save. Revert defaults selects the running defaults, including 50% Halo output
     level; Save is needed to keep them after reset. Existing saved values restore unchanged.
