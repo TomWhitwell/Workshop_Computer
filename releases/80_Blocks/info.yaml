@@ -1,0 +1,65 @@
+draft: false
+Name: Blocks
+short-description: 4-track step sequencer you play on a Novation Launchpad
+summary: |
+  Turns a Novation Launchpad into a four-track step sequencer for the Workshop Computer. Plug it into the front USB-C and play two pitch-and-gate tracks and two stepped-CV tracks, with per-step probability, ratchets, conditions and microtiming, live swing, and 16 chainable patterns that switch at the end of the longest loop for polyrhythms. The Mini MK3 is verified; the Launchpad X and Pro MK3 are supported but not yet hardware-tested. A web editor (Chrome or Edge) backs up your patterns and holds the full manual.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: rafski
+Version: "1.0.0"
+Status: Beta
+License: MIT
+date-created: 2026-11-10
+date-updated: 2026-11-13
+Editor: web
+discussion: https://discord.com/channels/1210238368898879569/1569991075253321748
+uf2:
+  - path: UF2/blocks-1.0.0.uf2
+    name: Blocks 1.0.0
+tags:
+  - sequencer
+  - usb-host
+  - midi-host
+  - web-midi
+  - launchpad
+  - generative
+panel:
+  inputs:
+    - { id: PulseIn1, name: External Clock, type: pulse, description: "Patched: follows the clock (4 PPQN by default; 1/2/4/24/48 in the editor)." }
+    - { id: PulseIn2, name: Reset, type: pulse, description: Rewinds all tracks to step 1. }
+    - { id: CVIn1, name: CV1 Transpose, type: cv, description: "1 V/oct, kept in the track's scale (or chromatic/off in the editor)." }
+    - { id: CVIn2, name: CV2 Transpose, type: cv, description: Same for CV2. }
+  outputs:
+    - { id: CVOut1, name: CV1 Pitch, type: cv, description: Calibrated 1 V/oct. }
+    - { id: CVOut2, name: CV2 Pitch, type: cv }
+    - { id: PulseOut1, name: CV1 Gate, type: pulse, description: "Gate length from the length lane, or a 10 ms trigger." }
+    - { id: PulseOut2, name: CV2 Gate, type: pulse }
+    - { id: AudioOut1, name: AU1, type: cv, description: "Stepped CV: bipolar, unipolar or trigger; ±5/±2.5/±1 V." }
+    - { id: AudioOut2, name: AU2, type: cv }
+controls:
+  switch:
+    up: { name: Perform, description: "Main = BPM (80-180 by default), X = transpose." }
+    middle: { name: Edit, description: "Main = BPM, X = note of the selected step, Y = its microtiming." }
+    down: { name: Play/Stop, description: Hold 1 s to start or stop (works without a Launchpad). }
+    tap: { name: Rewind, description: Briefly press Down to rewind to step 1. }
+  knobs:
+    - when: { z: up }
+      main: { name: BPM }
+      x: { name: Transpose, description: "-12 to +12 semitones on the CV tracks." }
+      y: { name: Swing, description: "50-71 %, the eight Settings values." }
+    - when: { z: middle }
+      main: { name: BPM }
+      x: { name: Note, description: Note of the selected step. }
+      y: { name: Microtiming, description: "Push the selected step early or late, -11 to +11 (1/24 of a step each)." }
+  leds:
+    - display: list
+      items:
+        - { id: LED0, name: AU1 Level }
+        - { id: LED1, name: AU2 Level }
+        - { id: LED2, name: CV1 Pitch, description: Brighter is higher; dark while stopped. }
+        - { id: LED3, name: CV2 Pitch }
+        - { id: LED4, name: CV1 Gate }
+        - { id: LED5, name: CV2 Gate }
+host:
+  usb:
+    - { name: "Novation Launchpad (Mini MK3 verified; X and Pro MK3 not yet hardware-tested)", role: host, description: "Plug the Launchpad into the front USB-C, then power on or press Reset." }
+    - { name: Web MIDI editor, role: editor, description: "Plug a computer in instead (MIDI port \"Blocks\"; macOS may show an older name) and open the Web Editor in Chrome or Edge." }

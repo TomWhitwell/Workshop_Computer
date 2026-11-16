@@ -69,4 +69,47 @@ private:
 	int32_t wait_ = 0;
 };
 
+// ---- A record gate on a Pulse in (core 0, every sample) ----------------------
+//
+// Gate mode: the loop records while the gate is high. Both edges matter
+// here, and a gate can be shorter than the 20ms wait, so instead of
+// holding one edge at a time (as RecordPulse does) this delays the gate
+// itself by 20ms, a bit per sample, and finds its edges on the way out.
+//
+// The probe is handled the same way as before: a rise counts only if the
+// jack is still patched when it comes out of the delay, so the burst after
+// an unplug never starts a recording. A fall always counts: pulling the
+// cable out of a high gate ends it. What goes in is the gate AND "patched",
+// so once ComputerCard declares the jack empty the delayed gate is low,
+// whatever the probe is doing to the jack.
+class RecordGate
+{
+public:
+	static constexpr int32_t kRise = 1, kFall = -1;
+
+	// `high`: the jack's level now. `patched`: the jack has a cable in it,
+	// as ComputerCard sees it now. `r`: the shared position in the 20ms
+	// delay (0 .. kEventDelay - 1). Returns kRise, kFall or 0, 20ms late.
+	int32_t Process(bool high, bool patched, int32_t r)
+	{
+		uint32_t &word = bits_[r >> 5];
+		uint32_t bit = 1u << (r & 31);
+		bool late = (word & bit) != 0;
+		if (high && patched)
+			word |= bit;
+		else
+			word &= ~bit;
+		if (late == last_)
+			return 0;
+		last_ = late;
+		if (!late)
+			return kFall;
+		return patched ? kRise : 0;
+	}
+
+private:
+	bool last_ = false;
+	uint32_t bits_[(kEventDelay + 31) / 32] = {}; // 20ms of the gate, a bit a sample
+};
+
 } // namespace tem
