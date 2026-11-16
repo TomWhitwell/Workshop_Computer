@@ -1,28 +1,33 @@
+# Workshop Computer card metadata; schema: https://github.com/TomWhitwell/Workshop_Computer/blob/main/documentation/info.yaml.md
 draft: false
 Name: Alien Sitar
-short-description: Sitar-inspired plucks with jawari buzz and blooming sympathetic strings.
-summary: >-
-  A sitar-inspired instrument with evolving bridge buzz, a secondary amplitude
-  swell and twelve persistent sympathetic strings. Main controls Jawari, X
-  controls Swell and Y controls String. Tap the momentary Down switch or trigger
-  PulseIn1 to pluck; hold Down and deliberately move a knob to edit Sympathy,
-  octave or Pick. Switch Up uses incoming audio to excite the string and halo.
-  Start with Jawari and Swell near 65%, String near 80%, and AudioOut1 connected
-  to a mixer. The default unpatched note is D3. CVOut1 provides played pitch
-  with bend and octave edits; PulseOut2 responds to a rising sympathetic halo.
+short-description: Sitar-inspired plucks, jawari buzz and twelve tunable sympathetic strings.
+summary: A sitar-inspired plucked instrument with evolving jawari buzz, secondary swells and
+  twelve sympathetic strings. Main controls Jawari, X controls Swell and Y controls String.
+  Tap Down or trigger PulseIn1 to pluck. Hold Down and deliberately move a knob to edit its
+  assigned secondary setting; the webpage can reassign each knob. Switch Up uses incoming audio
+  to excite the melody string and sympathetic halo, with an adjustable dry/wet mix. Start with
+  Jawari and Swell near 65%, String near 80%, and AudioOut1 connected to a mixer. Unpatched
+  pitch is D3. The sympathetic bank defaults to a D-tonic Yaman adaptation with D4 as Sa; its
+  notes can be edited individually. Halo output level defaults to 50%, independently of Sympathy.
+  Melody and sympathetic durations each cover 25–400%. The USB webpage provides tuning presets,
+  held-control assignments, user pitch CV corrections, and explicit Save/Restore on the program
+  card. CVOut1 follows played pitch with bend and octave edits; PulseOut2 responds to a rising
+  halo. This card has been developed using AI (GPT-6.1 Sol)
 Language: C++ (Pico SDK)
 Creator: mcmadhatter
-Version: "1.0"
+Version: "1.1.0"
 Status: Beta
 License: MIT
-Editor: "none"
+Editor: web
 tags:
-  - synthesizer
-  - resonator
-  - effect
-
-date-created: "2026-11-10"
-date-updated: "2026-11-11"
+- synthesizer
+- resonator
+- plucked
+- effect
+- web-serial
+date-created: '2026-11-10'
+date-updated: '2026-11-16'
 
 uf2:
   - path: alien_sitar.uf2
@@ -30,99 +35,88 @@ uf2:
 
 panel:
   inputs:
-    - id: AudioIn1
-      name: Jawari CV
-      type: cv
-      description: >-
-        Adds to the Main knob. Nominal +/-5 V adds +/-one full control range;
-        the sum is clamped and smoothed. Unpatched or 0 V adds zero, with
-        settling and a ramp when a cable is connected.
-    - id: AudioIn2
-      name: Swell CV
-      type: cv
-      description: >-
-        Adds to the X knob. Nominal +/-5 V adds +/-one full control range;
-        the sum is clamped and smoothed. Unpatched or 0 V adds zero, with
-        settling and a ramp when a cable is connected.
-    - id: CVIn1
-      name: Pitch
-      type: cv
-      description: >-
-        Continuous 1 V/oct melody pitch. At the default octave offset of -1,
-        patched 0 V plays C3 and +1 V plays C4; unpatched pitch is D3.
-        Octave edits transpose both patched and unpatched operation. At octave
-        offset 0, patched 0 V plays C4. Pitch changes do not pluck or retune
-        the fixed sympathetic bank.
-    - id: CVIn2
-      name: Meend
-      type: cv
-      description: >-
-        Melody pitch bend. Nominal +/-5 V gives +/-2 semitones, added to Pitch
-        and the octave offset. Unpatched input adds no bend.
-    - id: PulseIn1
-      name: Pluck
-      type: pulse
-      description: Rising edge plucks once; internal plucking also works in Up mode.
-    - id: PulseIn2
-      name: Damp
-      type: pulse
-      description: Rising edge smoothly damps the instrument without abruptly clearing its buffers.
-
-    # Up changes only the audio-input roles; all other shared jacks persist.
-    - id: AudioIn1
-      when: { z: up }
-      name: String Excitation
-      type: audio
-      description: >-
-        Incoming audio excites the melody string instead of modulating Jawari.
-        PulseIn1 can still pluck internally in this mode. Input excitation
-        is DC-rejected and attenuated; a DC step can still create a transient.
-    - id: AudioIn2
-      when: { z: up }
-      name: Halo Excitation
-      type: audio
-      description: >-
-        Incoming audio excites the sympathetic bank instead of modulating
-        Swell. Input excitation is DC-rejected and attenuated; a DC step can
-        still create a transient.
-
+  - id: AudioIn1
+    name: Jawari CV
+    type: cv
+    description: Adds to the Main knob. Nominal +/-5 V adds +/-one full control range; the sum
+      is clamped and smoothed. Unpatched or 0 V adds zero, with settling and a ramp when a cable
+      is connected.
+  - id: AudioIn2
+    name: Swell CV
+    type: cv
+    description: Adds to the X knob. Nominal +/-5 V adds +/-one full control range; the sum
+      is clamped and smoothed. Unpatched or 0 V adds zero, with settling and a ramp when a cable
+      is connected.
+  - id: CVIn1
+    name: Pitch
+    type: cv
+    description: Continuous 1 V/oct melody pitch. At the default octave offset of -1, patched
+      0 V plays C3 and +1 V plays C4; unpatched pitch is D3. Octave edits transpose both patched
+      and unpatched operation. At octave offset 0, patched 0 V plays C4. Pitch changes do not
+      pluck or retune the fixed sympathetic bank. Optional user input correction applies after
+      factory calibration; both are retained.
+  - id: CVIn2
+    name: Meend
+    type: cv
+    description: Melody pitch bend. Nominal +/-5 V gives +/-2 semitones, added to Pitch and
+      the octave offset. Unpatched input adds no bend.
+  - id: PulseIn1
+    name: Pluck
+    type: pulse
+    description: Rising edge plucks once; internal plucking also works in Up mode.
+  - id: PulseIn2
+    name: Damp
+    type: pulse
+    description: Rising edge smoothly damps the instrument without abruptly clearing its buffers.
+  - id: AudioIn1
+    when:
+      z: up
+    name: String Excitation
+    type: audio
+    description: Incoming audio excites the melody string instead of modulating Jawari. PulseIn1
+      can still pluck internally in this mode. Input excitation is DC-rejected and attenuated;
+      a DC step can still create a transient.
+  - id: AudioIn2
+    when:
+      z: up
+    name: Halo Excitation
+    type: audio
+    description: Incoming audio excites the sympathetic bank instead of modulating Swell. Input
+      excitation is DC-rejected and attenuated; a DC step can still create a transient.
   outputs:
-    - id: AudioOut1
-      name: Full Instrument
-      type: audio
-      description: Complete mono sitar signal, including the sympathetic halo; main listening output.
-    - id: AudioOut2
-      name: Sympathetic Halo
-      type: audio
-      description: Sympathetic bank alone, with its audible level controlled by Sympathy.
-    - id: CVOut1
-      name: Played Pitch
-      type: cv
-      description: >-
-        Nominal melody pitch, 1 V/oct with 0 V=C4, including model slew,
-        meend and octave offset. Default unpatched D3 gives -0.833 V;
-        patched 0 V at octave -1 gives -1 V out. Approximate range -2.71
-        to +2.93 V. Model state, not an audio pitch tracker; accuracy depends
-        on input and CV-output calibration.
-    - id: CVOut2
-      name: Halo Level
-      type: cv
-      description: Sympathetic halo amplitude follower, nominal 0-5 V.
-    - id: PulseOut1
-      name: Pluck Event
-      type: pulse
-      description: >-
-        A 5 ms pulse when a manual or external pluck is accepted. Audio follows
-        after buffering and filter delay.
-    - id: PulseOut2
-      name: Halo Bloom
-      type: pulse
-      description: >-
-        A 5 ms pulse on a sustained rise in the audible halo, including
-        external excitation. Not a delayed pluck or a pulse per note;
-        overlapping swells can merge. Hysteresis and a 200 ms holdoff
-        reject chatter. Damping and queue faults inhibit detection.
-
+  - id: AudioOut1
+    name: Full Instrument
+    type: audio
+    description: Complete mono sitar signal, including the sympathetic halo; main listening
+      output.
+  - id: AudioOut2
+    name: Sympathetic Halo
+    type: audio
+    description: Sympathetic bank alone. Sympathy and the independent Halo output level control
+      its audible amount. Halo output level defaults to 50%; stored custom values restore as
+      saved.
+  - id: CVOut1
+    name: Played Pitch
+    type: cv
+    description: Nominal melody pitch, 1 V/oct with 0 V=C4, including model slew, meend and
+      octave offset. Default unpatched D3 gives -0.833 V; patched 0 V at octave -1 gives -1
+      V out. Approximate range -2.71 to +2.93 V. Model state, not an audio pitch tracker; accuracy
+      depends on input and CV-output calibration.
+  - id: CVOut2
+    name: Halo Level
+    type: cv
+    description: Sympathetic halo amplitude follower, nominal 0-5 V.
+  - id: PulseOut1
+    name: Pluck Event
+    type: pulse
+    description: A 5 ms pulse when a manual or external pluck is accepted. Audio follows after
+      buffering and filter delay.
+  - id: PulseOut2
+    name: Halo Bloom
+    type: pulse
+    description: A 5 ms pulse on a sustained rise in the audible halo, including external excitation.
+      Not a delayed pluck or a pulse per note; overlapping swells can merge. Hysteresis and
+      a 200 ms holdoff reject chatter. Damping and queue faults inhibit detection.
 controls:
   switch:
     middle:
@@ -133,71 +127,99 @@ controls:
       description: AudioIn1 excites the melody string; AudioIn2 excites the sympathetic bank.
     down:
       name: Pluck and Held Edits
-      description: >-
-        Plucks once on entry; holding does not repeat. Deliberately moving
-        Main, X or Y edits only that knob's secondary setting. Normal timbre
-        settings stay frozen; edited knobs need pickup after release.
+      description: 'Plucks once on entry; holding does not repeat. Deliberately moving a knob
+        edits its webpage-selected secondary assignment. Defaults: Main=Sympathy, X=Octave,
+        Y=Pick release. Normal timbre settings stay frozen; edited knobs need pickup after release.'
     tap:
       name: Manual Pluck
-      description: Briefly press Down to pluck once on entry; release does not create another pluck.
-
+      description: Briefly press Down to pluck once on entry; release does not create another
+        pluck.
   knobs:
-    - main:
-        name: Jawari
-        description: Bridge contact and buzz; AudioIn1 adds modulation in Middle and Down.
-      x:
-        name: Swell
-        description: Note decay and secondary amplitude rise; AudioIn2 adds modulation in Middle and Down.
-      y:
-        name: String
-        description: Playing-string propagation and tone/brightness.
-    - when: { z: down }
-      main:
-        name: Sympathy
-        description: >-
-          Edit the halo level from 0 to 1 only after deliberately moving Main
-          while Down is held. Starts at 1. Resonators keep running even when
-          muted. After release, return through the saved Jawari position to
-          pick up normal control. Resets to 1 on reboot.
-      x:
-        name: Octave
-        description: >-
-          Edit the octave offset only after deliberately moving X while Down
-          is held. Seven steps from -3 to +3, with 0 at centre; starts at -1.
-          After release, return through the saved Swell position to pick up
-          normal control. Resets to -1 on reboot.
-      y:
-        name: Pick
-        description: >-
-          Edit the next pluck's release only after deliberately moving Y while
-          Down is held. Counterclockwise is soft, centre is the original pick,
-          clockwise is sharper. After release, return through the saved String
-          position to pick up normal control. Resets to centre on reboot.
-
+  - main:
+      name: Jawari
+      description: Bridge contact and buzz; AudioIn1 adds modulation in Middle and Down.
+    x:
+      name: Swell
+      description: Note decay and secondary amplitude rise; AudioIn2 adds modulation in Middle
+        and Down.
+    y:
+      name: String
+      description: Playing-string propagation and tone/brightness.
+  - when:
+      z: down
+    main:
+      name: Held MAIN — default Sympathy
+      description: While Down is held, deliberately moving this knob edits its selected secondary
+        assignment; the default is sympathetic level from zero to full, default full. The USB
+        webpage can instead assign Disabled, Sympathy, Octave, Pick release, Pick position,
+        Halo output level, Melody duration, Sympathetic duration or External resonator mix.
+        After release, return through the previous Jawari position to regain normal control.
+        Save to card retains assignments and applied settings after reset.
+    x:
+      name: Held X — default Octave
+      description: While Down is held, deliberately moving this knob edits its selected secondary
+        assignment; the default is melody transposition from -3 to +3 octaves, default -1. The
+        USB webpage can instead assign Disabled, Sympathy, Octave, Pick release, Pick position,
+        Halo output level, Melody duration, Sympathetic duration or External resonator mix.
+        After release, return through the previous Swell position to regain normal control.
+        Save to card retains assignments and applied settings after reset.
+    y:
+      name: Held Y — default Pick release
+      description: While Down is held, deliberately moving this knob edits its selected secondary
+        assignment; the default is soft to sharp release on the next pluck, default centre.
+        The USB webpage can instead assign Disabled, Sympathy, Octave, Pick release, Pick position,
+        Halo output level, Melody duration, Sympathetic duration or External resonator mix.
+        After release, return through the previous String position to regain normal control.
+        Save to card retains assignments and applied settings after reset.
   leds:
-    - display: list
-      items:
-        - id: LED0
-          name: Pluck
-          description: Top left; lights during the accepted pluck-event pulse.
-        - id: LED1
-          name: External Mode
-          description: Top right; lit when switch Z is Up.
-        - id: LED2
-          name: Melody Level
-          description: Middle left; brightness follows melody amplitude.
-        - id: LED3
-          name: Halo Level
-          description: Middle right; brightness follows audible halo amplitude.
-        - id: LED4
-          name: Timing Fault
-          description: Bottom left; latches on a queue or audio-handler timing fault and should stay off during playing.
-        - id: LED5
-          name: Calibration Missing
-          description: Bottom right; lit when input or CV-output calibration is unavailable and nominal scaling is used.
-
+  - display: list
+    items:
+    - id: LED0
+      name: Pluck
+      description: Top left; lights during the accepted pluck-event pulse.
+    - id: LED1
+      name: External Mode
+      description: Top right; lit when switch Z is Up.
+    - id: LED2
+      name: Melody Level
+      description: Middle left; brightness follows melody amplitude.
+    - id: LED3
+      name: Halo Level
+      description: Middle right; brightness follows audible halo amplitude.
+    - id: LED4
+      name: Timing Fault
+      description: Bottom left; latches on a queue or audio-handler timing fault and should
+        stay off during playing.
+    - id: LED5
+      name: Calibration Missing
+      description: Bottom right; lit when input or CV-output calibration is unavailable and
+        nominal scaling is used.
 host:
-  notes: >-
-    No runtime USB MIDI, USB audio or web editor is provided. 
-     This firmware writes no settings or
-    calibration data to flash or EEPROM.
+  usb:
+  - name: USB live editor
+    role: editor
+    description: Web Serial control from desktop Chrome or Edge. Configure sound, duration,
+      twelve sympathetic notes, held-knob assignments and pitch CV corrections. Use a USB-C
+      data cable and keep the Computer powered from its normal supply.
+  notes: The index.html file in the web folder contains the web panel.
+    Apply changes the running instrument. Save to card explicitly stores settings, assignments,
+    sympathetic tuning and user pitch CV corrections in program-card flash. Restore saved reloads
+    the last valid save. Revert defaults selects the running defaults, including 50% Halo output
+    level; Save is needed to keep them after reset. Existing saved values restore unchanged.
+    Factory calibration remains active and its EEPROM is not written. USB MIDI and USB audio
+    are not provided. Safari, Firefox and iOS cannot run the Web Serial editor.
+readme: |
+  ## First sound
+  Connect AudioOut1 to your mixer, set Z to Middle, Main/Jawari and X/Swell near 65%, and Y/String near 80%. Tap Down to pluck. Unpatched pitch starts at D3. Halo output level defaults to 50%; Sympathy defaults to full.
+
+  ## Knobs and held controls
+  Main shapes jawari bridge buzz, X shapes decay and secondary swell, and Y shapes playing-string tone. Hold Down and deliberately turn a knob to edit its secondary assignment. Defaults are Sympathy, Octave and Pick release. Choose alternatives from the webpage’s named dropdowns. Release Down before applying webpage edits; after a held edit, move the physical knob through its previous normal position to regain control. Holding Down alone changes no secondary setting and never repeats plucks.
+
+  ## Sympathetic tuning and duration
+  The twelve taraf strings ring from related frequencies in the melody or external excitation. Their tuning stays fixed during melody pitch changes and bends. The Yaman preset is an equal-tempered twelve-string adaptation with D4 as Sa, an octave above the default D3 melody; duplicate notes are intentional. Choose individual note names or apply a preset. Presets apply all twelve notes immediately; individual selections need Apply. Retuning briefly fades and restarts the halo. Melody and sympathetic duration controls range from 25% to 400%.
+
+  ## USB editing and saving
+  Open the webpage in desktop Chrome or Edge, connect the normally powered Computer with a USB-C data cable, and choose MTM Sitar USB editor. Sound, held assignments, tuning and user CV1 input / pitch-output corrections can be edited. Apply changes the running instrument. Save to card retains applied settings across reset. Restore saved reloads them; Revert defaults changes the running settings until saved. Existing saved levels are preserved when firmware defaults change. Factory EEPROM calibration is unchanged.
+
+  ## Patching
+  CVIn1 is 1 V/oct; at default octave -1, 0 V=C3 and +1 V=C4. CVIn2 bends by ±2 semitones at ±5 V. PulseIn1 plucks; PulseIn2 smoothly damps. In Middle, AudioIn1/2 add Jawari/Swell CV; in Up they excite the melody/halo. The webpage sets Up-mode dry/wet mix. AudioOut2 is halo only. CVOut1 follows nominal played pitch at 0 V=C4, CVOut2 follows halo amplitude, PulseOut1 marks plucks, and PulseOut2 marks sustained halo rises.
