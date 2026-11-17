@@ -1,14 +1,14 @@
 # Bootleg Radio (538)
 
-A lo-fi **bootleg tribute** to Music Thing Modular's **Radio Music** — not a
-replacement, a cheaper, grubbier cousin. Load a USB stick with WAV files, plug it
+A 12 bit **bootleg tribute** to Music Thing Modular's **Radio Music** — not a
+replacement, a cheaper, less hi-fi cousin. Create a USB stick with WAV files, plug it
 into the Workshop Computer's front USB-C jack, and tune through them like radio
-stations. The name comes from **538**, the AM frequency the pirate station Radio
+stations. The number comes from **538**, the AM frequency the pirate station Radio
 Veronica used off the Dutch coast; **Bootleg** also nods to the Botlek, the
 Rotterdam docklands where sub- and pirate culture ran thick.
 
 The DAC is 12-bit and files are resampled with simple linear interpolation, so
-expect character rather than fidelity — which is rather the point.
+expect character rather than fidelity - which is rather the point.
 
 ## Quick start
 
@@ -29,7 +29,7 @@ expect character rather than fidelity — which is rather the point.
    become a level meter and the bottom two show progress through the loop.
    (Reading the stick can take a moment after it enumerates.)
 5. Turn **Main** (and/or patch **CV in 1**) to pick a station. Hold the switch
-   **up** to change bank, or flick it **down** to retrigger the loop.
+   **up** to change bank/folder, or flick it **down** to retrigger the loop.
 
 > The root directory is **always bank 0**, even if it holds no WAV files. If it
 > is empty the card starts silent — hold the switch up and turn Main to reach
@@ -37,52 +37,36 @@ expect character rather than fidelity — which is rather the point.
 
 ## Controls
 
-| Control | Function |
+| Knobs | Function |
 |---------|----------|
 | **Main** knob | Station selection in the current bank; **bank** selection while the switch is Up |
-| **CV in 1** | Station/bank selection, added to Main (patch for remote tuning) |
 | **X** knob | Tape speed: −2 to +2 octaves, exponential, centre = normal speed. Range set by `speedRange` |
-| **CV in 2** | Tape speed, added to X (same range) |
 | **Y** knob | Loop start point, as a fraction of the file |
-| **Audio in 1** | Loop start point, added to Y (DC-coupled, so it works like a CV) |
-| **Audio in 2** | Loop end point, as a fraction of the file (unpatched = end of file). If the end is before the start, playback runs backwards |
-| **Pulse in 1** | External clock for the CV outs (unpatched = internal 120 BPM) |
-| **Pulse in 2** | **8mu TRS MIDI remote**, or external retrigger when no 8mu is heard; see below |
-| **Pulse out 1** | Loop gate: high while looping, low during the wrap gap (settable) |
-| **Pulse out 2** | Loop wrap tick: a short pulse each wrap (settable) |
-| **CV out 1** | Clocked random stepped CV (new value each clock pulse) |
-| **CV out 2** | Clocked bipolar triangle LFO (one cycle per 40 clock pulses = 20 s at 120 BPM) |
 | Switch **down** | Short tap = retrigger to loop start; hold ~1 s = toggle Loop/Sync mode |
 | Switch **up** | Hold = select bank with Main/CV1 (new bank starts at its first station) |
 | Switch **middle** | Normal playback |
 
+| In | Function |
+|---------|----------|
+| **Audio in 1** | Loop start point, added to Y (DC-coupled, so it works like a CV) |
+| **Audio in 2** | Loop end point, as a fraction of the file (unpatched = end of file). If the end is before the start, playback runs backwards |
+| **CV in 1** | Station/bank selection, added to Main (patch for remote tuning) |
+| **CV in 2** | Tape speed, added to X (same range) |
+| **Pulse in 1** | External clock for the CV outs (unpatched = internal 120 BPM) |
+| **Pulse in 2** | **8mu TRS MIDI remote**, or external retrigger when no 8mu is heard; see below |
+
+
+| Out | Function |
+|---------|----------|
+| **Audio out 1** | Left channel (if file is stereo) |
+| **Audio out 2** | Right channel (if file is stereo) |
+| **Pulse out 1** | Loop gate: high while looping, low during the wrap gap (settable) |
+| **Pulse out 2** | Loop wrap tick: a short pulse each wrap (settable) |
+| **CV out 1** | Clocked random stepped CV (new value each clock pulse) |
+| **CV out 2** | Clocked bipolar triangle LFO (one cycle per 40 clock pulses = 20 s at 120 BPM) |
+
 Tape speed links pitch and time: slowing the card plays lower too. There is no
 separate time-stretch or "90s mode".
-
-## Inputs and outputs
-
-- **CV in 1** — station/bank selection, added to Main. This is how you tune by
-  voltage.
-- **CV in 2** — tape speed, added to X.
-- **Audio in 1** — loop start point, added to Y. It is DC-coupled, so a steady
-  voltage works just like a CV.
-- **Audio in 2** — loop end point, as a fraction of the file. Unpatched, the end
-  is the end of the file. If the end is before the start, the loop runs
-  backwards.
-- **Pulse in 1** — clock for the two CV outputs (and F7 scan/beat-repeat).
-  Unpatched, they use the internal 120 BPM clock. Edges faster than about 20 Hz
-  are ignored, so a very fast clock is clamped instead of making the card churn.
-- **Pulse in 2** — **8mu TRS MIDI remote**, or the external retrigger when no 8mu
-  is heard. With `remote = auto` (the default) a gate patched here retriggers as
-  before until the card sees a valid 8mu message, then the jack becomes the MIDI
-  input. The switch down and the 8mu's top-left button also retrigger. **This is
-  not a clock input**: a fast clock here either stutters the retrigger or decodes
-  as phantom MIDI. Use Pulse in 1 for clocks, or set `remote = off`.
-- **Audio out 1 / 2** — left and right. Mono files appear on both.
-- **Pulse out 1** — loop gate: high while the loop plays, low during the wrap gap.
-- **Pulse out 2** — loop wrap tick: a short pulse each time the loop wraps.
-- **CV out 1** — clocked random stepped CV.
-- **CV out 2** — clocked bipolar triangle LFO.
 
 The CV inputs are **bipolar**: a unipolar 0–10 V source reaches only the upper
 half of the range. The audio inputs used for loop start/end behave the same way.
@@ -91,10 +75,10 @@ half of the range. The audio inputs used for loop start/end behave the same way.
 
 The card can take a Music Thing **8mu** as a wired remote. The 8mu sends
 ordinary MIDI CCs out of its 3.5 mm TRS jack; the card receives them on
-**Pulse in 2**, so the USB-C socket stays free for the sample stick.
+**Pulse in 2**, so the USB-C socket can be used for the sample stick.
 
 > **This is not a MIDI input.** It reuses the Pulse in 2 voltage input; there is
-> no optocoupler and no current loop. See [It is not a MIDI input](#it-is-not-a-midi-input).
+> no optocoupler and no current loop. See [It is not really a MIDI input](#it-is-not-a-midi-input).
 
 ### Mapping
 
@@ -113,7 +97,7 @@ ordinary MIDI CCs out of its 3.5 mm TRS jack; the card receives them on
 | Button 3 | Note 60 | Bank up (tap); tuning static on (hold) |
 | Button 4 | Note 72 | Loop/Sync (tap); release the remote (hold) |
 
-The 8mu's accelerometer (CC 42–49) is ignored, and its two side buttons only
+The 8mu's accelerometer (CC 42–49) is ignored (for now), and its two side buttons only
 change its own internal banks; they do not send anything.
 
 ### Taking over and releasing
@@ -121,7 +105,7 @@ change its own internal banks; they do not send anything.
 F1–F5 are performance controls: speed, speed range, loop start, loop end and
 station. F6–F8 configure the loop mode, the performance mode and pulse out 1.
 The bottom row is therefore **STATION · LOOP MODE · PERFORM · PULSE 1**, while
-the top two faders are the speed pair. Clock BPM and pulse out 2 live in
+the first two faders are the speed pair. Clock BPM and pulse out 2 live in
 `settings.txt`; Pulse in 1 still overrides the tempo.
 
 - Moving fader 1–5 takes over that parameter. The panel knob and CV for it are
@@ -143,10 +127,10 @@ the top two faders are the speed pair. Clock BPM and pulse out 2 live in
   direction) is heard immediately instead of waiting for the old loop to end.
 - Faders 2 and 6–8 have a **leftmost dead zone (0–7)** that means "use the panel /
   `settings.txt`". Above that:
-  - F2: speed range — off (8–37), fine (38–67), ±1 octave (68–97), ±2 octaves
-    (98–127).
-  - F6: loop mode — one-shot (8–47), loop (48–87), ping-pong (88–127).
-  - F7: performance mode — scan (8–27), beat-repeat (28–47), off (48–127).
+  - F2: speed range — off (0-25%), fine (25%–50%), ±1 octave (50%–75%), ±2 octaves
+    (75%–100%).
+  - F6: loop mode — one-shot (0-33%), loop (33%-66%), ping-pong (66%–100%).
+  - F7: performance mode — scan (0-25%), beat-repeat (25%–50%), off (50%-100%).
   - F8: pulse out 1 mode — gate (8–37), tick (38–67), clock (68–97), off
     (98–127). Pulse out 2 mode and clock BPM stay in `settings.txt`.
 - **F7 Scan** advances the station on the clock; **F7 Beat-repeat** retriggers
