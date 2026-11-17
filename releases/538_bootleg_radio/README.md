@@ -1,14 +1,14 @@
 # Bootleg Radio (538)
 
-A lo-fi **bootleg tribute** to Music Thing Modular's **Radio Music** — not a
-replacement, a cheaper, grubbier cousin. Load a USB stick with WAV files, plug it
+A 12 bit DAC **bootleg tribute** to Music Thing Modular's **Radio Music** — not a
+replacement, a cheaper, less hi-fi cousin. Create a USB stick with WAV files, plug it
 into the Workshop Computer's front USB-C jack, and tune through them like radio
-stations. The name comes from **538**, the AM frequency the pirate station Radio
+stations. The number comes from **538**, the AM frequency the pirate station Radio
 Veronica used off the Dutch coast; **Bootleg** also nods to the Botlek, the
 Rotterdam docklands where sub- and pirate culture ran thick.
 
 The DAC is 12-bit and files are resampled with simple linear interpolation, so
-expect character rather than fidelity — which is rather the point.
+expect character rather than fidelity - which is rather the point.
 
 ## Quick start
 
@@ -25,10 +25,11 @@ expect character rather than fidelity — which is rather the point.
    This needs a **Rev 1.1 or later** board (the Computer acts as USB host), and
    nothing else may share that socket.
 4. Insert the card and power up. While a stick is present but not yet readable,
-   **all six LEDs blink** together; once the filesystem is readable they stop and
-   **LED 4** lights. (Reading the stick can take a moment after it enumerates.)
+   **all six LEDs blink** together. Once the card is ready, the top four LEDs
+   become a level meter and the bottom two show progress through the loop.
+   (Reading the stick can take a moment after it enumerates.)
 5. Turn **Main** (and/or patch **CV in 1**) to pick a station. Hold the switch
-   **up** to change bank, or flick it **down** to retrigger the loop.
+   **up** to change bank/folder, or flick it **down** to retrigger the loop.
 
 > The root directory is **always bank 0**, even if it holds no WAV files. If it
 > is empty the card starts silent — hold the switch up and turn Main to reach
@@ -36,49 +37,36 @@ expect character rather than fidelity — which is rather the point.
 
 ## Controls
 
-| Control | Function |
+| Knobs | Function |
 |---------|----------|
 | **Main** knob | Station selection in the current bank; **bank** selection while the switch is Up |
-| **CV in 1** | Station/bank selection, added to Main (patch for remote tuning) |
 | **X** knob | Tape speed: −2 to +2 octaves, exponential, centre = normal speed. Range set by `speedRange` |
-| **CV in 2** | Tape speed, added to X (same range) |
 | **Y** knob | Loop start point, as a fraction of the file |
-| **Audio in 1** | Loop start point, added to Y (DC-coupled, so it works like a CV) |
-| **Audio in 2** | Loop end point, as a fraction of the file (unpatched = end of file). If the end is before the start, playback runs backwards |
-| **Pulse in 1** | External clock for the CV outs (unpatched = internal 120 BPM) |
-| **Pulse in 2** | **8mu TRS MIDI remote**, or external retrigger when no 8mu is heard; see below |
-| **Pulse out 1** | Loop gate: high while looping, low during the wrap gap (settable) |
-| **Pulse out 2** | Loop wrap tick: a short pulse each wrap (settable) |
-| **CV out 1** | Clocked random stepped CV (new value each clock pulse) |
-| **CV out 2** | Clocked bipolar triangle LFO (one cycle per 40 clock pulses = 20 s at 120 BPM) |
 | Switch **down** | Short tap = retrigger to loop start; hold ~1 s = toggle Loop/Sync mode |
 | Switch **up** | Hold = select bank with Main/CV1 (new bank starts at its first station) |
 | Switch **middle** | Normal playback |
 
+| In | Function |
+|---------|----------|
+| **Audio in 1** | Loop start point, added to Y (DC-coupled, so it works like a CV) |
+| **Audio in 2** | Loop end point, as a fraction of the file (unpatched = end of file). If the end is before the start, playback runs backwards |
+| **CV in 1** | Station/bank selection, added to Main (patch for remote tuning) |
+| **CV in 2** | Tape speed, added to X (same range) |
+| **Pulse in 1** | External clock for the CV outs (unpatched = internal 120 BPM) |
+| **Pulse in 2** | **8mu TRS MIDI remote**, or external retrigger when no 8mu is heard; see below |
+
+
+| Out | Function |
+|---------|----------|
+| **Audio out 1** | Left channel (if file is stereo) |
+| **Audio out 2** | Right channel (if file is stereo) |
+| **Pulse out 1** | Loop gate: high while looping, low during the wrap gap (settable) |
+| **Pulse out 2** | Loop wrap tick: a short pulse each wrap (settable) |
+| **CV out 1** | Clocked random stepped CV (new value each clock pulse) |
+| **CV out 2** | Clocked bipolar triangle LFO (one cycle per 40 clock pulses = 20 s at 120 BPM) |
+
 Tape speed links pitch and time: slowing the card plays lower too. There is no
 separate time-stretch or "90s mode".
-
-## Inputs and outputs
-
-- **CV in 1** — station/bank selection, added to Main. This is how you tune by
-  voltage.
-- **CV in 2** — tape speed, added to X.
-- **Audio in 1** — loop start point, added to Y. It is DC-coupled, so a steady
-  voltage works just like a CV.
-- **Audio in 2** — loop end point, as a fraction of the file. Unpatched, the end
-  is the end of the file. If the end is before the start, the loop runs
-  backwards.
-- **Pulse in 1** — clock for the two CV outputs. Unpatched, they use the internal
-  120 BPM clock.
-- **Pulse in 2** — **8mu TRS MIDI remote**, or the external retrigger when no 8mu
-  is heard. With `remote = auto` (the default) a gate patched here retriggers as
-  before until the card sees a valid 8mu message, then the jack becomes the MIDI
-  input. The switch down and the 8mu's top-left button also retrigger.
-- **Audio out 1 / 2** — left and right. Mono files appear on both.
-- **Pulse out 1** — loop gate: high while the loop plays, low during the wrap gap.
-- **Pulse out 2** — loop wrap tick: a short pulse each time the loop wraps.
-- **CV out 1** — clocked random stepped CV.
-- **CV out 2** — clocked bipolar triangle LFO.
 
 The CV inputs are **bipolar**: a unipolar 0–10 V source reaches only the upper
 half of the range. The audio inputs used for loop start/end behave the same way.
@@ -87,10 +75,10 @@ half of the range. The audio inputs used for loop start/end behave the same way.
 
 The card can take a Music Thing **8mu** as a wired remote. The 8mu sends
 ordinary MIDI CCs out of its 3.5 mm TRS jack; the card receives them on
-**Pulse in 2**, so the USB-C socket stays free for the sample stick.
+**Pulse in 2**, so the USB-C socket can be used for the sample stick.
 
 > **This is not a MIDI input.** It reuses the Pulse in 2 voltage input; there is
-> no optocoupler and no current loop. See [It is not a MIDI input](#it-is-not-a-midi-input).
+> no optocoupler and no current loop. See [It is not really a MIDI input](#it-is-not-a-midi-input).
 
 ### Mapping
 
@@ -103,22 +91,22 @@ ordinary MIDI CCs out of its 3.5 mm TRS jack; the card receives them on
 | Fader 5 | CC 38 | Station |
 | Fader 6 | CC 39 | Loop mode: loop / one-shot / ping-pong |
 | Fader 7 | CC 40 | Performance mode: off / scan / beat-repeat |
-| Fader 8 | CC 41 | Pulse out 1 mode |
+| Fader 8 | CC 41 | Tempo (30–240 BPM) |
 | Button 1 | Note 36 | Retrigger (on press) |
 | Button 2 | Note 48 | Bank down (tap); tuning static off (hold) |
 | Button 3 | Note 60 | Bank up (tap); tuning static on (hold) |
 | Button 4 | Note 72 | Loop/Sync (tap); release the remote (hold) |
 
-The 8mu's accelerometer (CC 42–49) is ignored, and its two side buttons only
+The 8mu's accelerometer (CC 42–49) is ignored (for now), and its two side buttons only
 change its own internal banks; they do not send anything.
 
 ### Taking over and releasing
 
 F1–F5 are performance controls: speed, speed range, loop start, loop end and
-station. F6–F8 configure the loop mode, the performance mode and pulse out 1.
-The bottom row is therefore **STATION · LOOP MODE · PERFORM · PULSE 1**, while
-the top two faders are the speed pair. Clock BPM and pulse out 2 live in
-`settings.txt`; Pulse in 1 still overrides the tempo.
+station. F6 and F7 configure the loop mode and the performance mode; F8 sets
+the tempo. The bottom row is therefore **STATION · LOOP MODE · PERFORM ·
+TEMPO**, while the first two faders are the speed pair. Pulse out 1 and pulse
+out 2 live in `settings.txt`; Pulse in 1 still overrides the tempo.
 
 - Moving fader 1–5 takes over that parameter. The panel knob and CV for it are
   ignored from then on; **CV still adds** (station = fader + CV in 1, speed =
@@ -137,19 +125,19 @@ the top two faders are the speed pair. Clock BPM and pulse out 2 live in
 - Moving fader 3 or 4 changes the loop window. The card waits until you stop
   moving for about 250 ms, then retriggers once, so the new start/end (and the
   direction) is heard immediately instead of waiting for the old loop to end.
-- Faders 2 and 6–8 have a **leftmost dead zone (0–7)** that means "use the panel /
-  `settings.txt`". Above that:
-  - F2: speed range — off (8–37), fine (38–67), ±1 octave (68–97), ±2 octaves
-    (98–127).
-  - F6: loop mode — one-shot (8–47), loop (48–87), ping-pong (88–127).
-  - F7: performance mode — scan (8–27), beat-repeat (28–47), off (48–127).
-  - F8: pulse out 1 mode — gate (8–37), tick (38–67), clock (68–97), off
-    (98–127). Pulse out 2 mode and clock BPM stay in `settings.txt`.
+- Faders 2, 6, 7 and 8 have a **leftmost dead zone (0–7, about 0–6%)** that means
+  "use the panel / `settings.txt`". Above that:
+  - F2: speed range — off (6%–29%), fine (30%–53%), ±1 octave (54%–76%), ±2 octaves
+    (77%–100%).
+  - F6: loop mode — one-shot (6%–37%), loop (38%–68%), ping-pong (69%–100%).
+  - F7: performance mode — scan (6%–21%), beat-repeat (22%–37%), off (38%–100%).
+  - F8: tempo — 30 BPM (6%) to 240 BPM (100%); the dead zone uses `clockBpm`.
 - **F7 Scan** advances the station on the clock; **F7 Beat-repeat** retriggers
   the current loop on the clock. `perfDiv` divides the clock (1, 2, 4, 8, 16).
   The 8mu’s F7 0–7 zone uses the `performanceMode` setting.
-- Clock BPM is no longer an 8mu fader: set `clockBpm` in `settings.txt`, or patch
-  Pulse in 1. The 8mu’s F8 is now pulse out 1.
+- Clock BPM is the 8mu’s F8 again: 30–240 BPM, or `clockBpm` in `settings.txt`
+  when F8 is in its dead zone. Pulse in 1 still overrides the tempo. Pulse out 1
+  mode is set in `settings.txt`.
 - **B2/B3 tap** changes bank on release. **Hold either for about 1 second** to
   turn the tuning static off (B2) or on (B3); the bank change is suppressed.
   This is a runtime setting change, so it persists after you release the remote
@@ -186,20 +174,24 @@ not a performance move. The first deliberate single-fader move takes over.
 - `remote = on`: always the 8mu input; the retrigger jack is disabled.
 - `remote = off`: always the external retrigger; MIDI is ignored.
 
-A gate is very unlikely to produce a valid MIDI status byte, so patched clocks
-and gates still work in `auto`. If you want to be certain the jack never changes
-function, use `on` or `off`.
+A slow gate is very unlikely to produce a valid MIDI status byte, so patched
+gates still work in `auto`; a **fast pulse train is not** — it produces thousands
+of bytes a second and will eventually decode as phantom MIDI, which changes
+station, speed and performance. If you want to be certain the jack never changes
+function, use `on` or `off` — and if you are patching a clock, put it in
+**Pulse in 1**, not Pulse in 2.
 
-The LEDs give a short flash of LED 3 when a fader first takes over, and the
-usual all-LED blink when the remote is released. There is no persistent "remote
-active" light.
+The LEDs give a short forward walk when a fader first takes over, and a short
+reverse walk when the remote is released. There is no persistent "remote active"
+light.
 
 ### Setting it up
 
 1. In the 8mu editor, set the TRS mode to **Type A**. Type B puts the data on
    the ring, which is not connected by a mono jack.
 2. Use a **stereo TRS-to-TRS cable** from the 8mu's MIDI out to **Pulse in 2**.
-   Do not use a mono TS cable: it shorts the 8mu's 3.3 V source to ground.
+   Not recommended to use a mono TS cable: it can shorts the 8mu's 3.3 V source
+   to ground (but doesn't in practice).
 3. Power the 8mu from its own USB charger. The Computer's USB socket is busy
    with the sample stick.
 4. Move a fader. The first message from a performance fader takes that control
@@ -211,7 +203,7 @@ one-way remote.
 
 ### It is not a MIDI input
 
-This is a deliberate hack, not a MIDI input. The 8mu's TRS output is a **3.3 V
+This is a deliberate hack, not a real MIDI input. The 8mu's TRS output is a **3.3 V
 push-pull UART** — tip carries the data, the ring is held high — not the 5 V
 current loop a MIDI receiver expects. Pulse in 2 is the card's **100 k/NPN
 pulse input**, not an opto-isolated MIDI receiver. The card is simply reading a
@@ -244,8 +236,9 @@ A strip over the 8mu is enough. Mark the two halves clearly:
 
 `SPEED · SPEED RANGE · START · END` — the top two are the speed pair
 
-`STATION · LOOP MODE · PERFORM · PULSE 1` — F5 is performance; F6–F8 setup
-(pulse out 2 and the clock tempo live in `settings.txt`)
+`STATION · LOOP MODE · PERFORM · TEMPO` — F5 is performance; F6–F8 set
+loop mode, performance and tempo
+(pulse out 1, pulse out 2 and `clockBpm` live in `settings.txt`)
 
 and over the four buttons:
 
@@ -258,7 +251,7 @@ The B2/B3/B4 secondary actions need a hold; the slash marks the long press.
 - With the 8mu powered and idle, the tip should sit at about **3.3 V** relative
   to the sleeve. If it reads 0 V, the 8mu is in Type B, or its output is a
   current loop rather than the push-pull 3.3 V UART this input expects.
-- Confirm the cable is stereo TRS at both ends, not mono TS.
+- Confirm the cable is stereo TRS at both ends, mono not recommended (but also works).
 - Confirm the 8mu's TRS CCs really are 34–41 and the button notes 36/48/60/72.
 - Confirm the 8mu is powered; the Computer cannot power it while hosting the
   stick.
@@ -274,9 +267,12 @@ Files are organised into **banks**: the **root directory is bank 0**, and each
   moves. Release the switch to go back to selecting stations.
 - With the **8mu station fader (F5)** active, a bank change keeps the fader's
   relative position instead of starting at station 0; see the remote section.
-- While the switch is up, **LEDs 0–4 show the selected bank in binary** (bank 0
-  is all off, LED 5 stays dark). Release the switch to go back to the normal LED
-  display.
+- While the switch is up, **all six LEDs show the selected bank in 6-bit binary**
+  (LED 0 is the least significant bit; bank 0 is all off). The bank stays on
+  display for about a second after release, then the normal display returns.
+- While you turn Main/CV in 1 to pick a station, **all six LEDs show the station
+  number in 6-bit binary** for about a third of a second, then return to the
+  level/progress display.
 - The card powers up on the **`bank` setting** from `settings.txt` (default 0 =
   the root), and starts on that bank's **first station**. The Main knob does not
   override the start bank until you actually turn it.
@@ -357,8 +353,10 @@ in `settings.txt` still set the power-on state and level.
 The two CV outputs are a clocked modulation pair, so you can self-patch the card
 with no external LFO. They share a clock: the internal **120 BPM** by default, or
 an external clock patched into **Pulse in 1** (the tempo glides to the new rate,
-and falls back to 120 BPM if the clock stops). They run whether or not a file is
-playing.
+and falls back to 120 BPM if the clock stops). The clock is clamped to **20 Hz**:
+edges that arrive any faster are ignored, so an audio-rate or very fast clock
+steps the CV outs, the pulse clock and F7 at 20 Hz instead of "freaking out".
+They run whether or not a file is playing.
 
 - **CV out 2** is a bipolar **triangle**, one cycle every **40 clock pulses**
   (20 seconds at 120 BPM).
@@ -389,7 +387,7 @@ clockBpm = 120     # internal clock tempo (30-240)
 triPulses = 40     # clock pulses per triangle cycle (1-256)
 pulse1 = gate      # Pulse out 1: gate | tick | clock | off
 pulse2 = tick      # Pulse out 2: gate | tick | clock | off
-led = verbose      # LED mode: verbose | quiet
+led = auto         # LED mode: auto | quiet (verbose is an alias for auto)
 remote = auto      # Pulse in 2: auto | on | off (8mu remote)
 static = off       # tuning static: off | on
 staticLevel = 50   # static level (0-100)
@@ -408,17 +406,23 @@ Rules and defaults:
   start and loop end sets it. End after start is forward; end before start is
   reverse.
 - **Speed range:** `2oct` is the original −2..+2 octaves; `1oct` is ±1 octave;
-  `fine` is about ±1 semitone; `off` fixes playback at 1× and the speed controls
-  do nothing. The 8mu's F2 overrides this while it is above its dead zone.
+  `fine` is about ±1 semitone (nice for wow and flutter effects, like tape);
+ `off` fixes playback at 1× and the speed controls do nothing.
+  The 8mu's F2 overrides this while it is above its dead zone.
 - **Performance mode:** `off` is normal playback; `scan` advances the station on
   the clock; `repeat` retriggers the current loop on the clock. `perfDiv` divides
   the clock by 1–16. The 8mu's F7 overrides this while it is above its dead zone.
-- **Clock:** `clockBpm` sets the internal tempo; Pulse in 1 overrides it. The 8mu
-  no longer has a clock fader; F8 is pulse out 1.
+- **Clock:** `clockBpm` sets the internal tempo; Pulse in 1 overrides it (clamped
+  to 20 Hz — faster edges are ignored). The 8mu's F8 sets the tempo live from
+  30 to 240 BPM; the dead zone uses `clockBpm`.
 - **Pulse-out modes:** `gate` = high while looping; `tick` = a short pulse each
-  wrap; `clock` = the active clock pulse; `off` = always low.
-- **LED modes:** `verbose` shows level, playing, station-change and fault;
-  `quiet` shows only level, playing and mounted (LEDs 3 and 5 stay dark).
+  wrap; `clock` = the active clock pulse; `off` = always low. Both pulse outputs
+  are set here; F8 does not change them.
+- **LED modes:** `auto` is the normal display: level, loop-window progress,
+  startup/fault patterns, station/bank readouts and action feedback. `quiet` is
+  the same, but omits the station binary readout and the underrun flash; bank
+  selection, mode/static/remote confirmations and faults still show. `verbose` is
+  accepted as an alias for `auto` so older settings files keep working.
 - **Remote mode:** `auto` keeps Pulse in 2 as a retrigger until an 8mu is heard,
   then switches it to MIDI; `on` always uses the 8mu input; `off` always uses the
   external retrigger. See [TRS MIDI remote](#trs-midi-remote-8mu).
@@ -429,31 +433,79 @@ Rules and defaults:
   hold changes the running static; it is not written back, and a settings reload
   that sets `static` overrides it. Neither remote change is written to the file.
 
+### Using a Radio Music settings.txt
+
+An original Music Thing Radio Music `settings.txt` is safe to leave on the stick.
+The parser accepts Radio Music's formatting — comments after values, spaces
+inside key names, CRLF line endings, a UTF-8 BOM, and files larger than 1 KB — and
+silently ignores keys it does not know.
+
+Only **`loopMode`** has a real equivalent:
+
+| Radio Music | Bootleg Radio |
+|---|---|
+| `loopMode = 0` | `one-shot` |
+| `loopMode = 1` | `loop` |
+| `loopMode = 2` | `ping-pong` |
+
+The card's own word forms still work, and later lines win if a file contains
+both. Everything else is ignored: `speedMode`, `tunerMode`, `pulseMode`,
+`showMeter`, `crossfadeTime`, `radioStart`, `startCVDivider`, and the rest.
+Only the root `settings.txt` is read; a `settings.txt` inside a bank folder is
+ignored. Bank-folder rules, AIFF/RAW files and Radio Music's subfolder semantics
+are also not adopted — see [Banks](#banks).
+
 ## LEDs
 
-| LED | Meaning |
-|-----|---------|
-| 0 | Left output level |
-| 1 | Right output level |
-| 2 | Off when idle (including after a one-shot finishes); **steady** while playing in **Sync** mode; **blinking** while playing in **Loop** mode |
-| 3 | Blinks ~0.5 s when the station changes; steady with LED 4 = no WAV files (or none playable). Dark in `quiet` LED mode |
-| 4 | USB stick detected |
-| 5 | Underrun (the stick can't keep up); steady with LED 4 = filesystem would not mount. Dark in `quiet` LED mode |
+The six LEDs are a 3×2 block: **0/1 top row, 2/3 middle row, 4/5 bottom row**.
 
-While the switch is **up**, LEDs 0–4 instead show the selected bank in binary;
-LED 5 goes dark. Bank 0 is all off.
+During normal playback:
 
-### Reading the LEDs when something is wrong
+- **LEDs 0–3** are a four-step output level meter, driven by the louder channel.
+  The steps are roughly −30, −18, −6 and 0 dBFS. It attacks fast and decays over
+  about 200 ms.
+- **LEDs 4–5** show progress through the current **loop window** (not the whole
+  file). The first half of the window fills LED 4, the second half fills LED 5.
+  Forward playback fills left to right, reverse drains back, and ping-pong follows
+  the current pass. When playback stops, the level falls dark and progress
+  freezes (full after a forward one-shot, dark after a reverse one).
 
-There is no console on a USB-host card, so the LEDs carry the diagnosis:
+Station and bank selection:
 
-- **LED 4 + 3** — mounted, but no `.wav` files were found in the selected bank.
-  (If you started on an empty bank 0, hold the switch up and turn Main to reach a
-  folder.)
-- **LED 4 + 3 + 5** — WAV files found, but none could be decoded (they must be
-  uncompressed 16-bit PCM, mono or stereo).
-- **LED 4 + 5** — the stick was detected but its filesystem would not mount.
-- **LED 4 + 2** — playing normally.
+- Turn **Main** (or **CV in 1**) to pick a station and all six LEDs show the
+  **station number in 6-bit binary** (LED 0 = bit 0) for about a third of a
+  second, then return to the level/progress display.
+- Hold the switch **up** to pick a bank and all six LEDs show the **bank number in
+  6-bit binary**; the display stays up for about a second after release.
+
+Other feedback:
+
+- **Loop/Sync** toggles blink the whole panel **2 times for Loop, 3 times for
+  Sync**. **Static** off/on gives **1 or 4** all-LED flashes.
+- The 8mu gives a **forward walk** when a fader takes over and a **reverse walk**
+  when it is released.
+- A **buffer underrun** gives a brief all-six flash.
+- After a noticeable wait or fault, one short all-six flash confirms the card is
+  ready again.
+
+`led = quiet` omits the station binary readout and the underrun flash. Faults,
+bank selection, mode/static/remote confirmations and the ready flash still show.
+
+### Startup and faults
+
+There is no console on a USB-host card, so motion carries the diagnosis:
+
+| Pattern | Meaning |
+|---|---|
+| One LED walks slowly (0→5) | No stick detected |
+| All six blink slowly | Stick present, filesystem still mounting |
+| All six rapid triple-blink, then pause | Stick detected, but its filesystem would not mount |
+| One LED walks fast | Mounted, but the selected bank has no `.wav` files |
+| Two adjacent LEDs walk fast | WAV files found, but none could be decoded (must be uncompressed 16-bit PCM, mono or stereo) |
+
+If the card starts on an empty bank 0, hold the switch up and turn Main to reach
+a folder. The fast walking LED means there is nothing to play *in that bank*, not
+that the stick is unreadable.
 
 ## Supported USB sticks
 
@@ -487,6 +539,9 @@ Notes:
 - **Rhythmic wraps.** Patch **Pulse out 2** (wrap tick) into a percussion
   trigger, or back into **Pulse in 1** to clock the CV outs from the loop itself.
   Patch **Pulse out 1** (loop gate) into a VCA to mute the seam gap.
+- **Live tempo.** Move the 8mu's F8 to set the internal tempo from 30 to 240 BPM;
+  the CV outs, F7 scan/repeat and any pulse output set to `clock` follow it.
+  Parking F8 at the bottom returns to `clockBpm` in `settings.txt`.
 
 ## Links
 
@@ -503,28 +558,3 @@ Notes:
   example, added to the Workshop_Computer repository in **PR #437**.
   `ComputerCard.h` is © Chris Johnson, MIT licensed.
 - `fatfs/` is FatFs by **ChaN**; see `fatfs/LICENSE.txt`.
-
-## Building from source
-
-This card needs **TinyUSB 0.21 or later** (older versions read sticks too slowly
-for audio). From this folder:
-
-```bash
-make
-```
-
-The built firmware is copied to `UF2/bootleg_radio.uf2`. Flash with the usual
-Workshop Computer workflow (debug probe/OpenOCD or UF2 drag-and-drop). If you
-build outside the repo dev container, point CMake at a newer TinyUSB with
-`-DPICO_TINYUSB_PATH=/path/to/tinyusb`.
-
-## Files of interest
-
-- `main.cpp` — core 1 runs the 48 kHz audio and knob/CV/switch handling; core 0
-  runs USB, FatFs and WAV parsing, and fills the ring buffer.
-- `diskio.c`, `fatfs/` — FatFs glue for a TinyUSB host mass-storage device
-  (built with `FF_LBA64 = 1` and a 4k `FF_MAX_SS` so GPT and 4096-byte-sector
-  sticks mount).
-- `midi_rx.pio` — PIO UART receiver for the optional 8mu TRS MIDI remote.
-- `tusb_config.h` — host-only TinyUSB config (mass storage, single device).
-- `ComputerCard.h` — vendor copy of Chris Johnson's header-only card library.

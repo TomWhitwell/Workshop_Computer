@@ -3,12 +3,12 @@ Name: Bootleg Radio
 short-description: "A lo-fi bootleg tribute to Music Thing's Radio Music: tune through WAV files on a USB stick, like a pirate station"
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
-Version: "1.1.0"
+Version: "1.4.0"
 Status: Released
 License: MIT
 Editor: none
 date-created: 2026-10-03
-date-updated: 2026-11-01
+date-updated: 2026-11-17
 
 contact:
   email: joep@joep-i.nl
@@ -23,7 +23,7 @@ contact:
 
 uf2:
   - path: UF2/bootleg_radio.uf2
-    name: Bootleg Radio 1.1.0
+    name: Bootleg Radio 1.4.0
 
 tags:
   - sampler
@@ -76,7 +76,7 @@ summary: |
 
   An optional Music Thing 8mu can act as a wired remote over its TRS MIDI
   output: eight faders for speed, speed range, loop start, loop end, station,
-  loop mode, performance mode and pulse out 1 mode. Clock BPM and pulse out 2
+  loop mode, performance mode and tempo. Pulse out 1, pulse out 2 and clockBpm
   live in settings.txt. Its top-left button retriggers; the bank buttons change
   bank, and holding them turns the tuning static off or on; the fourth button
   taps Loop/Sync and, held, releases the remote. It plugs into Pulse In 2 with a
@@ -126,27 +126,33 @@ panel:
       type: pulse
       description: >
         External clock for the two CV outputs (the triangle LFO and the random
-        CV). Unpatched, they run from an internal 120 BPM clock; patch a clock
-        here to drive them from it. The tempo glides to the new rate and falls
-        back to 120 BPM if the clock stops.
+        CV) and F7 scan/beat-repeat. Unpatched, they run from an internal 120 BPM
+        clock; patch a clock here to drive them from it. The tempo glides to the
+        new rate and falls back to 120 BPM if the clock stops. The clock is
+        clamped to 20 Hz: edges any faster are ignored, so a very fast clock steps
+        the CV outs and F7 at 20 Hz instead of churning.
     - id: PulseIn2
       name: TRS MIDI In / Retrigger
       type: pulse
       description: >
         Receives a Music Thing 8mu's TRS MIDI output (Type A). Eight faders
         control speed, speed range, loop start, loop end, station, loop mode,
-        performance mode and pulse out 1 mode. The performance fader can scan
-        stations or beat-repeat the current loop on the clock; clock BPM and
-        pulse out 2 are in settings.txt. The top-left button retriggers; the bank
-        buttons change bank on a tap and turn the tuning static off/on when
-        held; the fourth button taps Loop/Sync and, held, releases the remote.
+        performance mode and tempo. The performance fader can scan stations or
+        beat-repeat the current loop on the clock; the tempo fader sets the
+        internal clock from 30 to 240 BPM. Pulse out 1, pulse out 2 and clockBpm
+        are in settings.txt.
+        The top-left button retriggers; the bank buttons change bank on a tap
+        and turn the tuning static off/on when held; the fourth button taps
+        Loop/Sync and, held, releases the remote.
         With the default <code>remote = auto</code> the jack still retriggers
         until an 8mu is heard. <code>remote = on</code> forces MIDI,
         <code>off</code> forces the retrigger. This is not an opto-isolated MIDI
         input: it reuses the pulse input's 100k/NPN voltage input, so there is no
         galvanic isolation, and a standard 5V current-loop MIDI output will not
         work directly. One-way only: the 8mu's TRS port cannot receive, so there
-        is no LED feedback.
+        is no LED feedback. It is not a clock input: a fast clock here either
+        stutters the retrigger or decodes as phantom MIDI, so put clocks in
+        Pulse in 1.
   outputs:
     - id: AudioOut1
       name: Audio Out 1
@@ -230,33 +236,32 @@ controls:
     - display: list
       items:
         - id: LED0
-          name: Left Level
-          description: Brightness follows the left output level.
+          name: Level Meter 1 / 4
+          description: Top-left segment of the level meter, roughly -30 dBFS.
         - id: LED1
-          name: Right Level
-          description: Brightness follows the right output level.
+          name: Level Meter 2 / 4
+          description: Top-right segment of the level meter, roughly -18 dBFS.
         - id: LED2
-          name: Playing / Mode
-          description: >
-            Off when idle. Steady while a station is playing in Sync mode, and
-            slowly blinking while playing in Loop mode, so it shows both the
-            play state and the current tune mode.
+          name: Level Meter 3 / 4
+          description: Middle-left segment of the level meter, roughly -6 dBFS.
         - id: LED3
-          name: Station Change / No Files
+          name: Level Meter 4 / 4
           description: >
-            Blinks for about half a second when the station changes. Lights
-            steadily (with LED 4) if a mounted stick has no WAV files in the
-            selected bank, or if none of the files found could be played. Dark in
-            the "quiet" LED mode (settings.txt).
+            Middle-right segment of the level meter, roughly 0 dBFS. The meter
+            uses the louder channel, attacks quickly and decays over about 200 ms.
         - id: LED4
-          name: USB Mounted
-          description: Lit while a USB stick is detected.
-        - id: LED5
-          name: Underrun / Mount Fault
+          name: Loop Progress (first half)
           description: >
-            Flashes if the stick cannot feed the buffer fast enough. Lights
-            steadily (with LED 4) if the filesystem on a detected stick could
-            not be mounted. Dark in the "quiet" LED mode (settings.txt).
+            Brightens over the first half of the current loop window, then stays
+            full while the second half plays.
+        - id: LED5
+          name: Loop Progress (second half)
+          description: >
+            Brightens over the second half of the loop window. Forward playback
+            fills left to right, reverse drains back, and ping-pong follows the
+            current pass. Startup and fault states use motion patterns (no stick,
+            mounting, mount failure, no files, unplayable), and an underrun gives
+            a brief all-six flash.
 
 host:
   usb:
@@ -279,8 +284,12 @@ host:
     the root directory and from each subfolder that holds WAV files. An optional
     settings.txt in the root sets the power-on mode, loop mode, performance mode,
     performance clock divider, start bank, speed range, internal clock tempo,
-    triangle rate, the two pulse-output modes, the LED mode, the Pulse In 2 remote
-    mode and the tuning-static settings; it is read once per mount, and a missing
-    or malformed value falls back to the default. The 8mu's B4 tap and B2/B3 holds change the running mode and static
+    triangle rate, the pulse-output modes, the LED mode, the
+    Pulse In 2 remote mode and the tuning-static settings; it is read once per
+    mount, and a missing or malformed value falls back to the default. An
+    original Music Thing Radio settings.txt is safe to use: its formatting is
+    accepted, only loopMode is mapped (0/1/2 = one-shot/loop/ping-pong), and all
+    other RM keys are ignored.
+    Per-bank settings.txt files are not read. The 8mu's B4 tap and B2/B3 holds change the running mode and static
     without writing the file; a later settings reload re-applies mode, and a
     static value there overrides a B2/B3 change.

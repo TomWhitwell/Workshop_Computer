@@ -65,8 +65,8 @@ Controls
   Pulse in 2       TRS MIDI input for a Music Thing 8mu remote, or an external
                    retrigger while no 8mu has been heard (remote = auto).  The
                    eight faders are speed, speed range, loop start, loop end,
-                   station, loop mode, performance mode and pulse out 1 mode.
-                   Clock BPM and pulse out 2 live in settings.txt.  B1
+                   station, loop mode, performance mode and tempo.
+                   Pulse out 1 mode and pulse out 2 live in settings.txt.  B1
                    retriggers; B2/B3 change bank, and holding them turns the
                    tuning static off/on; B4 taps Loop/Sync and holding it
                    releases the remote.  One-way only: no feedback to the 8mu.
@@ -111,6 +111,11 @@ Settings
   LED mode.  It is read once when the stick mounts; with no file the card behaves
   exactly as described above.  See the Settings section in README.md.
 
+  An original Music Thing Radio Music settings.txt is safe to use. The parser
+  accepts its formatting (comments after values, spaces inside keys, CRLF, a BOM,
+  and files larger than 1 KB) and ignores keys it does not know. Only loopMode has
+  an equivalent: RM's 0/1/2 map to one-shot/loop/ping-pong.
+
 How it works
 
   Core 0 runs main().  It handles USB (TinyUSB), the filesystem (FatFs), and
@@ -147,10 +152,12 @@ it acts on the request.
 */
 
 #include "ComputerCard.h"
+#include "settings_line.h"
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 #include "hardware/clocks.h"
 #include "hardware/pio.h"
+#include "hardware/watchdog.h"
 #include "midi_rx.pio.h"
 #include "tusb.h" // TinyUSB
 #include "ff.h"   // FatFs
@@ -187,6 +194,30 @@ static uint8_t __attribute__((aligned(4))) ringBuf[ringSize];
 
 static volatile uint32_t ringWritePos = 0; // bytes ever put into ringBuf
 static volatile uint32_t ringReadPos = 0;  // bytes ever taken out of ringBuf
+
+// Loop-window progress for the bottom two LEDs, computed by core 0 at control
+// rate and rendered by core 1. 0..4095 = position within the live loop window;
+// the direction is implicit in how it moves over time.
+static volatile int32_t ledProgressQ12 = 0;
+
+// Fault display mask, computed by core 0 (which has time_us_32) at control rate
+// and rendered verbatim by core 1: bit i = LED i on. 0 when the card is ready.
+static volatile uint8_t ledFaultMask = 0;
+
+// Watchdog liveness. Core 1 bumps this every audio sample; core 0 feeds the
+// hardware watchdog only while it is advancing, so a hang on either core resets
+// the card within about a second instead of freezing it.
+static volatile uint32_t core1Ticks = 0;
+static uint32_t lastCore1Ticks = 0;
+static void FeedWatchdog()
+{
+	const uint32_t t = core1Ticks;
+	if (t == 0 || t != lastCore1Ticks)
+	{
+		lastCore1Ticks = t;
+		watchdog_update();
+	}
+}
 
 enum class Mode
 {
@@ -238,8 +269,8 @@ enum class PulseMode : uint8_t
 
 enum class LedMode : uint8_t
 {
-	Verbose, // level, playing, station-change, mounted, underrun/fault
-	Quiet    // level, playing, mounted only (LEDs 3 and 5 stay dark)
+	Auto,  // level, progress, faults, station/bank readout and action cues
+	Quiet  // the same, but without the station readout and underrun flash
 };
 
 // How Pulse In 2 is used. Auto keeps the old external-retrigger behaviour until
@@ -271,13 +302,12 @@ enum class LoopMode : uint8_t
 };
 
 // What the clock does to the station/loop while the F7 performance fader is
-// active. Slice is accepted but currently behaves as off.
+// active.
 enum class PerformanceMode : uint8_t
 {
 	Off,
 	Scan,
-	Repeat,
-	Slice
+	Repeat
 };
 
 static volatile PlayMode cfgMode = PlayMode::Sync; // power-on tune mode
@@ -286,7 +316,7 @@ static volatile int32_t cfgClockBpm = 120;         // internal clock tempo
 static volatile int32_t cfgTriPulses = 40;         // clock pulses per triangle cycle
 static volatile PulseMode cfgPulse1 = PulseMode::Gate;
 static volatile PulseMode cfgPulse2 = PulseMode::Tick;
-static volatile LedMode cfgLed = LedMode::Verbose;
+static volatile LedMode cfgLed = LedMode::Auto;
 static volatile RemoteMode cfgRemote = RemoteMode::Auto;
 static volatile SpeedRange cfgSpeedRange = SpeedRange::TwoOctaves;
 static volatile LoopMode cfgLoopMode = LoopMode::Loop;
@@ -350,6 +380,47 @@ enum class Scan : uint8_t
 };
 static volatile Scan scanState = Scan::NoStick;
 
+// Compute the fault/startup LED pattern for the current scan state and publish it
+// as a 6-bit mask. Called from core 0's loops at control rate, so core 1's ISR
+// just renders the mask with no timing or division of its own.
+static void UpdateFaultDisplay()
+{
+	const uint32_t ms = time_us_32() / 1000;
+	uint8_t mask = 0;
+	const Scan s = scanState;
+
+	if (waitingForDrive || s == Scan::Mounting)
+	{
+		// All six blink slowly (~0.5s period) while the stick is not yet readable.
+		if ((ms / 250) & 1) mask = 0x3F;
+	}
+	else if (s == Scan::NoStick)
+	{
+		// One LED walks slowly around the block (~1.2s cycle).
+		mask = (uint8_t)(1u << ((ms / 200) % 6));
+	}
+	else if (s == Scan::MountFailed)
+	{
+		// Rapid triple blink, then a pause (~2s cycle).
+		const uint32_t t = ms % 2000;
+		if (t < 83 || (t >= 166 && t < 249) || (t >= 332 && t < 415)) mask = 0x3F;
+	}
+	else if (s == Scan::NoFiles)
+	{
+		// One LED walks fast (~0.4s cycle).
+		mask = (uint8_t)(1u << ((ms / 66) % 6));
+	}
+	else if (s == Scan::Unplayable)
+	{
+		// Two adjacent LEDs walk fast (~0.3s cycle).
+		const uint32_t pair = (ms / 100) % 3;
+		mask = (uint8_t)((1u << (2 * pair)) | (1u << (2 * pair + 1)));
+	}
+
+	ledFaultMask = mask;
+	__dmb();
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Optional TRS MIDI remote (8mu)
@@ -403,8 +474,9 @@ static bool      remoteHasEnd     = false;
 static int32_t   remoteEnd        = 4095;
 static volatile bool     remoteHasLoopMode = false;
 static volatile LoopMode remoteLoopMode   = LoopMode::Loop;
-static bool      remoteHasPulse1  = false;
-static PulseMode remotePulse1     = PulseMode::Gate;
+static bool      remoteHasClock   = false;
+static int32_t   remoteClockBpm   = 120;
+static volatile bool clockDirty   = false;
 static bool      remoteHasPerformance = false;
 static PerformanceMode remotePerformance = PerformanceMode::Off;
 static int32_t   stickyEnd        = 4095; // last remote end, kept on release
@@ -576,24 +648,29 @@ static void ApplyFader(uint8_t index, uint8_t value)
 			remoteHasPerformance = true;
 			if (value < 28) remotePerformance = PerformanceMode::Scan;
 			else if (value < 48) remotePerformance = PerformanceMode::Repeat;
-			else if (value < 68) remotePerformance = PerformanceMode::Slice;
 			else remotePerformance = PerformanceMode::Off;
 		}
 		break;
 
-	case 7: // pulse out 1 mode
+	case 7: // tempo
 		if (value <= 7)
 		{
-			remoteHasPulse1 = false;
+			if (remoteHasClock)
+			{
+				remoteHasClock = false;
+				clockDirty = true;
+			}
 		}
 		else
 		{
-			if (!remoteHasPulse1) remoteNewTakeover = true;
-			remoteHasPulse1 = true;
-			if (value < 38) remotePulse1 = PulseMode::Gate;
-			else if (value < 68) remotePulse1 = PulseMode::Tick;
-			else if (value < 98) remotePulse1 = PulseMode::Clock;
-			else remotePulse1 = PulseMode::Off;
+			if (!remoteHasClock) remoteNewTakeover = true;
+			remoteHasClock = true;
+			const int32_t bpm = 30 + ((int32_t)(value - 8) * 210) / 119;
+			if (bpm != remoteClockBpm)
+			{
+				remoteClockBpm = bpm;
+				clockDirty = true;
+			}
 		}
 		break;
 
@@ -830,15 +907,37 @@ public:
 
 private:
 	// Apply the settings.txt values that live in globals: the boot tune mode and
-	// the internal clock tempo. Called by core 1 (via settingsDirty) after core 0
-	// has read /settings.txt; never from the constructor. It writes only members
-	// and the shared clockDefaultQ8, so it is safe at a sample boundary.
+	// remote settings. The clock tempo is applied at the next sample boundary via
+	// clockDirty, so the F8 tempo override is honoured. Called by core 1 (via
+	// settingsDirty) after core 0 has read /settings.txt; never from the
+	// constructor. It writes only members and the shared clockDefaultQ8, so it is
+	// safe at a sample boundary.
 	void ApplySettings()
 	{
 		panelMode = cfgMode;
 		playMode = cfgMode;
 
-		int32_t bpm = cfgClockBpm; // already clamped by the parser, belt and braces
+		// The effective tempo is remoteClockBpm if F8 owns it, otherwise the
+		// settings value. ApplyClockTempo() recomputes the slewed clock.
+		clockDirty = true;
+
+		if (cfgRemote == RemoteMode::On)
+		{
+			remoteDetected = true;
+		}
+		else if (cfgRemote == RemoteMode::Off)
+		{
+			remoteDetected = false;
+			ReleaseRemote(false); // settings say retrigger-only: drop any takeover
+		}
+	}
+
+	// Recompute the internal clock period from the effective tempo: F8 while it
+	// is above its dead zone, otherwise clockBpm from settings.txt. Called only
+	// when the tempo changes, so the 48kHz audio path does no extra work.
+	void ApplyClockTempo()
+	{
+		int32_t bpm = remoteHasClock ? remoteClockBpm : cfgClockBpm;
 		if (bpm < 30) bpm = 30;
 		if (bpm > 240) bpm = 240;
 		clockDefaultQ8 = (int32_t)((48000LL << 8) * 60 / bpm);
@@ -850,16 +949,6 @@ private:
 		if (!clkHavePrev)
 		{
 			clockTargetQ8 = activeClock;
-		}
-
-		if (cfgRemote == RemoteMode::On)
-		{
-			remoteDetected = true;
-		}
-		else if (cfgRemote == RemoteMode::Off)
-		{
-			remoteDetected = false;
-			ReleaseRemote(false); // settings say retrigger-only: drop any takeover
 		}
 	}
 
@@ -911,7 +1000,11 @@ private:
 		}
 
 		remoteHasLoopMode = false;
-		remoteHasPulse1 = false;
+		if (remoteHasClock)
+		{
+			remoteHasClock = false;
+			clockDirty = true;
+		}
 		remoteHasPerformance = false;
 		remoteReleasePending = false;
 		remoteNewTakeover = false;
@@ -945,7 +1038,8 @@ private:
 
 		if (blink)
 		{
-			modeBlink = 16384; // all-LED blink, the same language as a mode toggle
+			walkTimer = 12288;  // reverse walk: the remote has let go
+			walkReverse = true;
 		}
 	}
 
@@ -999,8 +1093,18 @@ public:
 	bool selectionReady = false;
 
 	int32_t xrunLedTimer = 0;
-	int32_t stationFlash = 0; // counts down while LED 3 shows a station change
-	int32_t bankLed = -1;     // >=0 while the switch-up bank selector is active
+	int32_t levelHold = 0;     // 12-bit peak with slow decay, for the level meter
+	int32_t progressShown = 0; // frozen loop-window position while playback stops
+	int32_t stationHoldTimer = 0;  // show the station number in binary while >0
+	int32_t stationHoldValue = 0;  // station index to display
+	int32_t bankLed = -1;          // >=0 while the switch-up bank selector is active
+	int32_t bankHoldTimer = 0;     // show the bank for ~1s after release
+	int32_t bankHoldValue = 0;
+	int32_t walkTimer = 0;         // 8mu takeover/release walk (one LED, ~256ms)
+	bool walkReverse = false;
+	int32_t readyCueTimer = 0;     // all-six flash after a wait or fault
+	uint32_t notReadySamples = 0;
+	Scan lastScan = Scan::NoStick;
 	int32_t fadeGain = 0;     // 0..4096 output envelope for seam/station fades
 	Request pendingRequest = Request::None; // request waiting for the fade to finish
 	int32_t pendingStation = 0;
@@ -1063,6 +1167,8 @@ public:
 	int32_t clockCount = kClockDefaultQ8;    // Q8 samples until the next pulse
 	int32_t lastActiveClockQ8 = kClockDefaultQ8; // settings or 8mu clock override
 	int32_t clkSampleCount = 0;              // samples since the last external edge
+	int32_t clkRefractory = 0;               // ignore clock edges faster than 20Hz
+	int32_t retrigRefractory = 0;            // ignore Pulse-in-2 edges faster than 20Hz
 	int32_t clkTimeout = 0;                  // counts down while external clock is live
 	bool clkHavePrev = false;                // have we seen an edge to measure from
 	uint32_t triPhase = 0;                   // Q32 triangle phase (one cycle = 2^32)
@@ -1124,7 +1230,12 @@ public:
 		pendingStation = station;
 		if (cfgStaticOn && (req == Request::Station || req == Request::Bank))
 		{
-			staticBurst = kStaticSamples;
+			// Coalesce: don't restart a burst that is already running, so a fast
+			// sweep pulses instead of pinning the crackle on continuously.
+			if (staticBurst == 0)
+			{
+				staticBurst = kStaticSamples;
+			}
 		}
 	}
 
@@ -1230,7 +1341,8 @@ public:
 					if (desired != curStation && RequestIdle())
 					{
 						QueueRequest(Request::Station, desired);
-						stationFlash = 24000;
+						stationHoldTimer = 14400; // ~300ms
+						stationHoldValue = desired;
 					}
 				}
 				else
@@ -1249,7 +1361,8 @@ public:
 		if (remoteNewTakeover)
 		{
 			remoteNewTakeover = false;
-			stationFlash = 24000; // brief LED 3 flash: the remote owns something
+			walkTimer = 12288;  // forward walk: the remote has taken something over
+			walkReverse = false;
 		}
 
 		// B4 tap: a deliberate mode choice, exactly like the panel switch's
@@ -1268,6 +1381,7 @@ public:
 		{
 			remoteStaticOff = false;
 			cfgStaticOn = false;
+			staticBurst = 0;   // drop any half-finished crackle
 			staticBlink = 8192; // one all-LED flash
 		}
 		if (remoteStaticOn)
@@ -1468,7 +1582,6 @@ public:
 			if (downHeld < kModeHoldSamples && RequestIdle())
 			{
 				QueueRequest(Request::Retrigger);
-				stationFlash = 24000;
 			}
 			downHeld = 0;
 		}
@@ -1493,7 +1606,6 @@ public:
 				else if (wantBank != lastBankDesired && RequestIdle())
 				{
 					QueueRequest(Request::Bank, wantBank);
-					stationFlash = 24000;
 					lastBankDesired = wantBank;
 					upBankMoved = true; // a bank change cancels the release gesture
 				}
@@ -1530,7 +1642,8 @@ public:
 					{
 						// Only a real change in the selector asks for a new station.
 						QueueRequest(Request::Station, desired);
-						stationFlash = 24000; // half a second at 48kHz
+						stationHoldTimer = 14400; // ~300ms
+						stationHoldValue = desired;
 						lastDesired = desired;
 					}
 				}
@@ -1561,6 +1674,13 @@ public:
 
 		adoptSelection = false;
 
+		// Show the selected bank for a moment after the switch is released.
+		if (wasSelectingBank && !selectingBank)
+		{
+			bankHoldTimer = 48000;
+			bankHoldValue = (lastBankDesired >= 0) ? lastBankDesired : curBank;
+		}
+
 		wasSelectingBank = selectingBank;
 
 		// 8mu button 4: release everything back to the panel/settings.
@@ -1582,23 +1702,30 @@ public:
 				if (target != curBank)
 				{
 					QueueRequest(Request::Bank, target);
-					stationFlash = 24000;
+					bankHoldTimer = 48000;
+					bankHoldValue = target;
 				}
 			}
 		}
 
 		// Retrigger: the 8mu's top-left button, or Pulse in 2 while the jack is
 		// still in retrigger service (remote off, or auto before an 8mu is seen).
+		// Pulse-in-2 edges are debounced to 20 Hz so a fast clock can't stutter
+		// the loop.
+		if (retrigRefractory > 0) retrigRefractory--;
 		bool retrigger = remoteRetrigger;
 		remoteRetrigger = false;
 		if (!retrigger && cfgRemote != RemoteMode::On && !remoteDetected && PulseIn2RisingEdge())
 		{
-			retrigger = true;
+			if (retrigRefractory <= 0)
+			{
+				retrigger = true;
+				retrigRefractory = kClockMinSamples;
+			}
 		}
 		if (retrigger && RequestIdle())
 		{
 			QueueRequest(Request::Retrigger);
-			stationFlash = 24000;
 		}
 		if (retrigger)
 		{
@@ -1614,18 +1741,207 @@ public:
 			{
 				remoteLoopEditPending = false;
 				QueueRequest(Request::Retrigger);
-				stationFlash = 24000;
 			}
 		}
 	}
 
 public:
+	// Render the six LEDs from the playback/scan state. Extracted from
+	// ProcessSample so the display can be reworked incrementally without
+	// touching the audio path.
+	void RenderLeds(int32_t left, int32_t right)
+	{
+		// Timers tick at 48kHz regardless of which pattern is shown.
+		if (stationHoldTimer > 0) stationHoldTimer--;
+		if (bankHoldTimer > 0) bankHoldTimer--;
+		if (xrunLedTimer > 0) xrunLedTimer--;
+		if (walkTimer > 0) walkTimer--;
+		if (readyCueTimer > 0) readyCueTimer--;
+
+		// Peak level with fast attack and a slow (~200ms) decay, in 12-bit units.
+		const int32_t peak = std::max(std::abs(left), std::abs(right));
+		if (peak > levelHold)
+		{
+			levelHold = peak;
+		}
+		else
+		{
+			int32_t drop = levelHold >> 12;
+			if (drop < 1) drop = 1;
+			levelHold -= drop;
+			if (levelHold < 0) levelHold = 0;
+		}
+
+		// Startup and media faults show a motion pattern precomputed by core 0,
+		// rendered verbatim here. Deliberate confirmations and bank selection
+		// still take over below.
+		const Scan s = scanState;
+		const bool quiet = (cfgLed == LedMode::Quiet);
+
+		// A ready flash only after the card spent noticeable time waiting/faulty.
+		if (s == Scan::Ready && lastScan != Scan::Ready)
+		{
+			if (notReadySamples >= 24000) // 0.5s at 48kHz
+			{
+				readyCueTimer = 12000; // 250ms all-six flash
+			}
+			notReadySamples = 0;
+		}
+		else if (s != Scan::Ready)
+		{
+			if (notReadySamples < 480000) notReadySamples++;
+		}
+		lastScan = s;
+
+		const bool mediaDown = (waitingForDrive || s == Scan::Mounting ||
+		                        s == Scan::NoStick || s == Scan::MountFailed);
+		if (mediaDown)
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, (ledFaultMask >> i) & 1);
+			}
+			return;
+		}
+
+		// Mode-toggle feedback takes over all six LEDs for a moment: the whole
+		// panel blinks 2 times for Loop mode, 3 times for Sync mode.
+		if (modeBlink > 0)
+		{
+			modeBlink--;
+			const bool on = (modeBlink >> 12) & 1;
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, on);
+			}
+			return;
+		}
+
+		// Static on/off feedback: one all-LED flash for off, four for on. It
+		// starts after any mode blink has finished, so the two never mix.
+		if (staticBlink > 0)
+		{
+			staticBlink--;
+			const bool on = (staticBlink >> 12) & 1;
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, on);
+			}
+			return;
+		}
+
+		// While the switch-up bank selector is active, all six LEDs show the bank
+		// in 6-bit binary (LED 0 = least significant bit).
+		if (bankLed >= 0)
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, ((bankLed >> i) & 1) != 0);
+			}
+			return;
+		}
+
+		// 8mu takeover/release: one LED walks 0->5 (takeover) or 5->0 (release).
+		if (walkTimer > 0)
+		{
+			const int32_t elapsed = 12288 - walkTimer;
+			int32_t step = elapsed >> 11; // 2048 samples per step -> 0..5
+			if (step > 5) step = 5;
+			if (walkReverse) step = 5 - step;
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, i == step);
+			}
+			return;
+		}
+
+		// While tuning, show the station number in 6-bit binary (LED 0 = bit 0).
+		// Quiet LED mode omits it.
+		if (stationHoldTimer > 0 && !quiet)
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, ((stationHoldValue >> i) & 1) != 0);
+			}
+			return;
+		}
+
+		// Show the selected bank for a moment after the switch is released.
+		if (bankHoldTimer > 0)
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, ((bankHoldValue >> i) & 1) != 0);
+			}
+			return;
+		}
+
+		// Mounted, but this bank has nothing playable: show the fault motion.
+		if (s == Scan::NoFiles || s == Scan::Unplayable)
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				LedOn(i, (ledFaultMask >> i) & 1);
+			}
+			return;
+		}
+
+		// Recovery flash after a noticeable wait or fault.
+		if (readyCueTimer > 0)
+		{
+			for (int i = 0; i < 6; i++) LedOn(i, true);
+			return;
+		}
+
+		// Buffer underrun: brief all-six flash. Quiet LED mode omits it.
+		if (xrunLedTimer > 0 && !quiet)
+		{
+			for (int i = 0; i < 6; i++) LedOn(i, true);
+			return;
+		}
+
+		// Normal display: LEDs 0-3 are a four-step level meter (roughly -30, -18,
+		// -6 and 0 dBFS); LEDs 4-5 are the loop-window progress bar.
+		int32_t steps = 0;
+		if (levelHold >= 2048) steps = 4;      // about 0 dBFS
+		else if (levelHold >= 1024) steps = 3; // about -6 dB
+		else if (levelHold >= 256) steps = 2;  // about -18 dB
+		else if (levelHold >= 64) steps = 1;   // about -30 dB
+		for (int i = 0; i < 4; i++)
+		{
+			LedOn(i, i < steps);
+		}
+
+		// Progress: latch the core-0 value while a pass is playing, and freeze it
+		// otherwise, so a one-shot that finishes leaves the bar where it stopped.
+		if (mode == Mode::Play)
+		{
+			progressShown = ledProgressQ12;
+		}
+		uint16_t b4 = 0, b5 = 0;
+		int32_t p = progressShown;
+		if (p < 0) p = 0;
+		if (p > 4095) p = 4095;
+		if (p <= 2048)
+		{
+			b4 = (uint16_t)std::min<int32_t>(p * 2, 4095);
+		}
+		else
+		{
+			b4 = 4095;
+			b5 = (uint16_t)std::min<int32_t>((p - 2048) * 2, 4095);
+		}
+		LedBrightness(4, b4);
+		LedBrightness(5, b5);
+	}
+
 	// Called at 48kHz
 	virtual void ProcessSample()
 	{
 		// Start the PIO UART receiver once, after ComputerCard::Init() has
 		// configured the pulse pins, so our pin mux is not overwritten.
 		midiNow++;
+		core1Ticks++;
 		if (!midiStarted)
 		{
 			midiStarted = true;
@@ -1644,6 +1960,14 @@ public:
 
 		HandleRequests();
 		HandleControls();
+
+		// Apply a tempo change from F8 or a settings reload. This is a handful
+		// of samples after the fader moves, not per-sample work.
+		if (clockDirty)
+		{
+			clockDirty = false;
+			ApplyClockTempo();
+		}
 
 		// Output envelope. It drops for a queued station/bank/retrigger request,
 		// for the last few milliseconds of a loop window, and while core 0 is
@@ -1690,28 +2014,31 @@ public:
 		// Tuning static: a short band-passed noise burst on station/bank
 		// changes. It is added after the station fade, so it fills the reload
 		// gap and the new station rises out of it.
-		if (cfgStaticOn && staticBurst > 0)
+		if (staticBurst > 0)
 		{
 			staticBurst--;
-			const uint32_t bit = ((staticNoise >> 0) ^ (staticNoise >> 2) ^
-			                      (staticNoise >> 3) ^ (staticNoise >> 5)) & 1u;
-			staticNoise = (staticNoise >> 1) | (bit << 15);
-			const int32_t n = (int32_t)(staticNoise & 0xFFFF) - 32768;
-			staticLp += (n - staticLp) >> 2;
-			staticDc += (staticLp - staticDc) >> 6;
-			const int32_t s = staticLp - staticDc;
-
-			int32_t env = 4096;
-			if (staticBurst < kStaticSamples / 3)
+			if (cfgStaticOn)
 			{
-				env = (staticBurst * 4096) / (kStaticSamples / 3);
+				const uint32_t bit = ((staticNoise >> 0) ^ (staticNoise >> 2) ^
+				                      (staticNoise >> 3) ^ (staticNoise >> 5)) & 1u;
+				staticNoise = (staticNoise >> 1) | (bit << 15);
+				const int32_t n = (int32_t)(staticNoise & 0xFFFF) - 32768;
+				staticLp += (n - staticLp) >> 2;
+				staticDc += (staticLp - staticDc) >> 6;
+				const int32_t s = staticLp - staticDc;
+
+				int32_t env = 4096;
+				if (staticBurst < kStaticSamples / 3)
+				{
+					env = (staticBurst * 4096) / (kStaticSamples / 3);
+				}
+				const int32_t amp = (cfgStaticLevel * kStaticAmpMax) / 100;
+				const int32_t add = (int32_t)(((((int64_t)s * env) >> 12) * amp) >> 12);
+				left += add;
+				right += add;
+				if (left > 32767) left = 32767; else if (left < -32768) left = -32768;
+				if (right > 32767) right = 32767; else if (right < -32768) right = -32768;
 			}
-			const int32_t amp = (cfgStaticLevel * kStaticAmpMax) / 100;
-			const int32_t add = (int32_t)(((((int64_t)s * env) >> 12) * amp) >> 12);
-			left += add;
-			right += add;
-			if (left > 32767) left = 32767; else if (left < -32768) left = -32768;
-			if (right > 32767) right = 32767; else if (right < -32768) right = -32768;
 		}
 
 		// Once the envelope is down, hand the queued request to core 0. It keeps
@@ -1750,20 +2077,32 @@ public:
 		clkSampleCount++;
 		bool clockTick = false;
 
+		if (clkRefractory > 0) clkRefractory--;
+
 		if (PulseIn1RisingEdge())
 		{
-			if (clkHavePrev)
+			if (clkRefractory > 0)
 			{
-				int32_t m = clkSampleCount;
-				if (m < kClockMinSamples) m = kClockMinSamples;
-				if (m > kClockMaxSamples) m = kClockMaxSamples;
-				clockTargetQ8 = m << 8;
+				// An edge inside the minimum-period window means the clock is
+				// faster than 20 Hz. Ignore it, so ticks, the CV outs, the pulse
+				// clock and F7 never fire above 20 Hz however fast the input is.
 			}
-			clkHavePrev = true;
-			clkSampleCount = 0;
-			clkTimeout = kClockTimeoutSamples;
-			clockCount = clockPeriodQ8; // resync the internal countdown
-			clockTick = true;
+			else
+			{
+				if (clkHavePrev)
+				{
+					int32_t m = clkSampleCount;
+					if (m < kClockMinSamples) m = kClockMinSamples;
+					if (m > kClockMaxSamples) m = kClockMaxSamples;
+					clockTargetQ8 = m << 8;
+				}
+				clkHavePrev = true;
+				clkSampleCount = 0;
+				clkTimeout = kClockTimeoutSamples;
+				clockCount = clockPeriodQ8; // resync the internal countdown
+				clockTick = true;
+				clkRefractory = kClockMinSamples;
+			}
 		}
 
 		if (clkTimeout > 0)
@@ -1789,7 +2128,7 @@ public:
 		clockPeriodQ8 += (clockTargetQ8 - clockPeriodQ8) >> kClkSlewShift;
 
 		// F7 performance: divide the shared clock and either advance station or
-		// retrigger the current loop. Slice behaves as off.
+		// retrigger the current loop.
 		const PerformanceMode perf = EffectivePerformance();
 		if (perf != lastPerf)
 		{
@@ -1811,12 +2150,12 @@ public:
 						int32_t next = curStation + 1;
 						if (next >= numFiles) next = 0;
 						QueueRequest(Request::Station, next);
-						stationFlash = 24000;
+						stationHoldTimer = 14400; // ~300ms
+						stationHoldValue = next;
 					}
 					else if (perf == PerformanceMode::Repeat && RequestIdle())
 					{
 						QueueRequest(Request::Retrigger);
-						stationFlash = 24000;
 					}
 				}
 			}
@@ -1862,7 +2201,7 @@ public:
 		}
 		const bool loopGate = (mode == Mode::Play) && (frame < numFrames);
 		const bool wrapTick = wrapTickTimer > 0;
-		const PulseMode pm1 = remoteHasPulse1 ? remotePulse1 : cfgPulse1;
+		const PulseMode pm1 = cfgPulse1;
 		const PulseMode pm2 = cfgPulse2;
 		bool out1 = false, out2 = false;
 		if (pm1 == PulseMode::Gate) out1 = loopGate;
@@ -1874,125 +2213,7 @@ public:
 		PulseOut1(out1);
 		PulseOut2(out2);
 
-		// LEDs. Show levels, and status. There is no serial console on a
-		// USB-host card, so these carry the diagnosis when a stick misbehaves:
-		//   LED 4           USB stick detected
-		//   LED 4 + LED 5   filesystem would not mount
-		//   LED 4 + LED 3   mounted, but no .wav files found
-		//   LED 4 + 3 + 5   files found, but none could be opened/parsed
-		//   LED 4 + LED 2   playing
-		LedBrightness(0, (uint16_t)std::min<int32_t>(std::abs(left) * 2, 4095));
-		LedBrightness(1, (uint16_t)std::min<int32_t>(std::abs(right) * 2, 4095));
-
-		const Scan s = scanState;
-
-		// While a stick is present but its filesystem is not yet readable, blink
-		// all six LEDs (~0.34s on, ~0.34s off) so the card clearly shows it is
-		// waiting for the drive. This takes over the panel and returns.
-		if (waitingForDrive)
-		{
-			waitPhase++;
-			const bool on = (waitPhase >> 14) & 1;
-			for (int i = 0; i < 6; i++)
-			{
-				LedOn(i, on);
-			}
-			return;
-		}
-
-		// Mode-toggle feedback takes over all six LEDs for a moment: the whole
-		// panel blinks 2 times for Loop mode, 3 times for Sync mode.
-		if (modeBlink > 0)
-		{
-			modeBlink--;
-			const bool on = (modeBlink >> 12) & 1;
-			for (int i = 0; i < 6; i++)
-			{
-				LedOn(i, on);
-			}
-			return;
-		}
-
-		// Static on/off feedback: one all-LED flash for off, four for on. It
-		// starts after any mode blink has finished, so the two never mix.
-		if (staticBlink > 0)
-		{
-			staticBlink--;
-			const bool on = (staticBlink >> 12) & 1;
-			for (int i = 0; i < 6; i++)
-			{
-				LedOn(i, on);
-			}
-			return;
-		}
-
-		// While the switch-up bank selector is active, LEDs 0-4 show the target
-		// bank in binary. Bank 0 is all off; LED 5 stays dark.
-		if (bankLed >= 0)
-		{
-			for (int i = 0; i < 5; i++)
-			{
-				LedOn(i, ((bankLed >> i) & 1) != 0);
-			}
-			LedOff(5);
-			return;
-		}
-
-		// LED 2 shows both "playing" and the tune mode: off when idle, steady
-		// while playing in Sync mode, and slowly blinking while playing in Loop
-		// mode. (The panel-wide mode-toggle blink above is the momentary cue.)
-		led2Phase++;
-		const bool playing = (mode == Mode::Play) && (frame < numFrames);
-		if (!playing)
-		{
-			LedOff(2);
-		}
-		else if (playMode == PlayMode::Loop)
-		{
-			LedOn(2, (led2Phase >> 14) & 1); // ~0.34s on, ~0.34s off (~1.5Hz)
-		}
-		else
-		{
-			LedOn(2, true); // Sync: steady
-		}
-
-		// LED 3: station-change blink when it happens; a steady "no files" or
-		// "unplayable" fault otherwise. Quiet LED mode leaves it dark.
-		const bool verbose = (cfgLed == LedMode::Verbose);
-		if (!verbose)
-		{
-			stationFlash = 0;
-			LedOff(3);
-		}
-		else if (stationFlash > 0)
-		{
-			stationFlash--;
-			LedOn(3, (stationFlash >> 12) & 1); // slow blink, so a change is obvious
-		}
-		else
-		{
-			LedOn(3, s == Scan::NoFiles || s == Scan::Unplayable);
-		}
-
-		LedOn(4, stickMounted);
-		if (xrunLedTimer > 0)
-		{
-			xrunLedTimer--;
-		}
-		// LED 5: underrun while playing; a steady mount/unplayable fault otherwise.
-		// Quiet LED mode leaves it dark.
-		if (xrunLedTimer > 0)
-		{
-			LedOn(5, true);
-		}
-		else if (verbose)
-		{
-			LedOn(5, s == Scan::MountFailed || s == Scan::Unplayable);
-		}
-		else
-		{
-			LedOff(5);
-		}
+		RenderLeds(left, right);
 	}
 };
 
@@ -2003,6 +2224,11 @@ public:
 static FATFS fatFs; // the mounted filesystem
 static FIL wavFile; // the file being played
 static RadioComputer *card = nullptr;
+// The card lives in static storage, not on core 0's stack: it is ~1 KB (the
+// speed table) and core 0's stack is only 2 KB. A file-scope object is
+// constructed before main() with no thread-safety guard, unlike a
+// function-local static.
+static RadioComputer player;
 
 // Run on core 1. ComputerCard::Run() doesn't return.
 static void Core1Entry()
@@ -2140,7 +2366,8 @@ static bool ParseWav(FIL *fil, WavFormat &fmt)
 // start. Core 0 has one job while this runs: keep the ring buffer full. On
 // return, normOut is the proportional position (0..4095) when playback stopped,
 // for the synchronised jump to the next station.
-static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, int32_t &normOut, bool reverse)
+static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, int32_t winStartQ12,
+                           int32_t &normOut, bool reverse)
 {
 	normOut = 0;
 	if (f_open(&wavFile, name, FA_READ) != FR_OK)
@@ -2175,10 +2402,38 @@ static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, i
 
 	uint32_t total = (uint32_t)(endFrame - startFrame) * fmt.blockAlign;
 
+	// Loop-window progress for the bottom two LEDs. base/span are the pass in
+	// window-relative 0..4095 units; direction follows the pass (forward is +,
+	// reverse is -). Core 0 publishes ledProgressQ12 at control rate; core 1 only
+	// renders it, so the audio ISR stays division-free.
+	const int32_t passFrames = (int32_t)(endFrame - startFrame);
+	int32_t windowWidth = endQ12 - winStartQ12;
+	if (windowWidth <= 0) windowWidth = 1;
+	int32_t spanQ12 = (int32_t)(((int64_t)(endQ12 - startQ12) << 12) / windowWidth);
+	if (spanQ12 < 1) spanQ12 = 1;
+	if (spanQ12 > 4096) spanQ12 = 4096;
+	int32_t baseQ12;
+	if (reverse)
+	{
+		baseQ12 = (int32_t)(((int64_t)(endQ12 - winStartQ12) << 12) / windowWidth);
+	}
+	else
+	{
+		baseQ12 = (int32_t)(((int64_t)(startQ12 - winStartQ12) << 12) / windowWidth);
+	}
+	if (baseQ12 < 0) baseQ12 = 0;
+	if (baseQ12 > 4095) baseQ12 = 4095;
+	const int32_t dir = reverse ? -1 : 1;
+
+	// Publish the pass start before core 1 sees Play, so it never renders a stale
+	// position from the previous file.
+	ledProgressQ12 = baseQ12;
+	__dmb();
+
 	// Start core 1 playing. It sets the ring buffer positions to zero, so byte x
 	// of the sample data (from startFrame on) goes at ringBuf[x % ringSize].
 	f_lseek(&wavFile, fmt.dataOffset + (FSIZE_t)startFrame * fmt.blockAlign);
-	SetMode(Mode::Play, fmt.channels, fmt.sampleRate, (int32_t)(endFrame - startFrame));
+	SetMode(Mode::Play, fmt.channels, fmt.sampleRate, passFrames);
 
 	PlayResult result = PlayResult::Error;
 
@@ -2188,6 +2443,18 @@ static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, i
 		// tuh_msc_mounted() goes false if the stick is pulled out
 		while (tuh_msc_mounted(1))
 		{
+			FeedWatchdog();
+			{
+				const int32_t played = (int32_t)(ringReadPos / fmt.blockAlign);
+				int32_t p = baseQ12 + dir * (int32_t)(((int64_t)played * spanQ12) / passFrames);
+				if (p < 0) p = 0;
+				if (p > 4095) p = 4095;
+				if (p != ledProgressQ12)
+				{
+					ledProgressQ12 = p;
+					__dmb();
+				}
+			}
 			if (request != Request::None)
 			{
 				result = PlayResult::Interrupted;
@@ -2240,6 +2507,18 @@ static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, i
 
 		while (tuh_msc_mounted(1))
 		{
+			FeedWatchdog();
+			{
+				const int32_t played = (int32_t)(ringReadPos / fmt.blockAlign);
+				int32_t p = baseQ12 + dir * (int32_t)(((int64_t)played * spanQ12) / passFrames);
+				if (p < 0) p = 0;
+				if (p > 4095) p = 4095;
+				if (p != ledProgressQ12)
+				{
+					ledProgressQ12 = p;
+					__dmb();
+				}
+			}
 			if (request != Request::None)
 			{
 				result = PlayResult::Interrupted;
@@ -2319,12 +2598,19 @@ static PlayResult PlayFile(const char *name, int32_t startQ12, int32_t endQ12, i
 // Settings
 //
 // Optional /settings.txt in the stick's root, read once when the stick is
-// mounted (on core 0). It is a plain text file of "key = value" lines; "#"
-// starts a comment, blank lines and unknown keys are ignored, and keys are
+// mounted (on core 0). It is a plain text file of "key = value" lines; "#" and
+// ";" start a comment, blank lines and unknown keys are ignored, and keys are
 // case-insensitive. If the file is absent, or a value is not understood, the
 // default is kept, so the card behaves exactly as before without a settings
 // file. The integer parser is hand-rolled: pulling in atoi/strtol would drag
 // newlib's reentrancy machinery (and several KB of RAM) into the build.
+//
+// This deliberately accepts the formatting of an original Music Thing Radio
+// Music settings.txt: comments after values, spaces inside key names, CRLF line
+// endings, a UTF-8 BOM and files larger than 1 KB. Only loopMode has a real
+// equivalent (RM 0/1/2 = one-shot/loop/ping-pong); every other RM key is ignored
+// because the card's feature set is different. Lines are parsed by
+// settings_line.h, which is also exercised by tests/test_settings_line.cpp.
 
 static constexpr int kMaxBanks = 32;
 // A bank path is "/" (root) or "/name/" where name can be a long filename, so
@@ -2334,22 +2620,13 @@ static constexpr int kBankPathLen = 260;
 static constexpr int kMaxStations = 64;
 static constexpr int kStationNameLen = 256;
 
-static char *Trim(char *s)
-{
-	while (*s == ' ' || *s == '\t') s++;
-	char *end = s + strlen(s);
-	while (end > s && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\r' || end[-1] == '\n')) end--;
-	*end = 0;
-	return s;
-}
-
 static bool EqualsIgnoreCase(const char *a, const char *b)
 {
 	return strcasecmp(a, b) == 0;
 }
 
-// Parse a decimal integer, clamped to [lo, hi]. Returns false if there are no
-// digits, so a missing or malformed value can keep the default.
+// Parse a decimal integer in [lo, hi]. Returns false if there are no digits, or
+// the value is out of range, so a missing or malformed value keeps the default.
 static bool ParseInt(const char *s, int lo, int hi, int &out)
 {
 	while (*s == ' ' || *s == '\t') s++;
@@ -2366,14 +2643,15 @@ static bool ParseInt(const char *s, int lo, int hi, int &out)
 		s++;
 	}
 	if (neg) v = -v;
-	if (v < lo) v = lo;
-	if (v > hi) v = hi;
+	if (v < lo || v > hi) return false;
 	out = (int)v;
 	return true;
 }
 
-// Apply one "key = value" pair. Unknown keys and values are ignored.
-static void ApplySetting(char *key, char *val)
+// Apply one "key = value" pair. Keys arrive lower-case and without spaces.
+// Unknown keys and values are ignored, which is what makes an RM settings file
+// safe: it contains many keys this card does not implement.
+static void ApplySetting(const char *key, const char *val)
 {
 	if (EqualsIgnoreCase(key, "mode"))
 	{
@@ -2408,8 +2686,11 @@ static void ApplySetting(char *key, char *val)
 	}
 	else if (EqualsIgnoreCase(key, "led"))
 	{
+		// verbose was the old full-diagnostics mode; keep it as an alias for the
+		// new auto display so existing settings files keep working.
 		if (EqualsIgnoreCase(val, "quiet")) cfgLed = LedMode::Quiet;
-		else if (EqualsIgnoreCase(val, "verbose")) cfgLed = LedMode::Verbose;
+		else if (EqualsIgnoreCase(val, "auto") ||
+		         EqualsIgnoreCase(val, "verbose")) cfgLed = LedMode::Auto;
 	}
 	else if (EqualsIgnoreCase(key, "remote"))
 	{
@@ -2424,14 +2705,22 @@ static void ApplySetting(char *key, char *val)
 		else if (EqualsIgnoreCase(val, "fine")) cfgSpeedRange = SpeedRange::Fine;
 		else if (EqualsIgnoreCase(val, "off")) cfgSpeedRange = SpeedRange::Off;
 	}
-	else if (EqualsIgnoreCase(key, "loopMode"))
+	else if (EqualsIgnoreCase(key, "loopmode"))
 	{
-		if (EqualsIgnoreCase(val, "loop")) cfgLoopMode = LoopMode::Loop;
+		// Radio Music uses 0/1/2 for no-loop/loop/ping-pong. Accept those as well
+		// as the card's word forms, so an RM settings file does the obvious thing.
+		const int n = ParseLoopModeNumber(val);
+		if (n == 0) cfgLoopMode = LoopMode::OneShot;
+		else if (n == 1) cfgLoopMode = LoopMode::Loop;
+		else if (n == 2) cfgLoopMode = LoopMode::PingPong;
+		else if (EqualsIgnoreCase(val, "loop")) cfgLoopMode = LoopMode::Loop;
 		else if (EqualsIgnoreCase(val, "one-shot") ||
 		         EqualsIgnoreCase(val, "oneshot") ||
+		         EqualsIgnoreCase(val, "one shot") ||
 		         EqualsIgnoreCase(val, "off")) cfgLoopMode = LoopMode::OneShot;
 		else if (EqualsIgnoreCase(val, "ping-pong") ||
-		         EqualsIgnoreCase(val, "pingpong")) cfgLoopMode = LoopMode::PingPong;
+		         EqualsIgnoreCase(val, "pingpong") ||
+		         EqualsIgnoreCase(val, "ping pong")) cfgLoopMode = LoopMode::PingPong;
 	}
 	else if (EqualsIgnoreCase(key, "performanceMode"))
 	{
@@ -2439,7 +2728,6 @@ static void ApplySetting(char *key, char *val)
 		else if (EqualsIgnoreCase(val, "scan")) cfgPerformanceMode = PerformanceMode::Scan;
 		else if (EqualsIgnoreCase(val, "repeat") ||
 		         EqualsIgnoreCase(val, "beat-repeat")) cfgPerformanceMode = PerformanceMode::Repeat;
-		else if (EqualsIgnoreCase(val, "slice")) cfgPerformanceMode = PerformanceMode::Slice;
 	}
 	else if (EqualsIgnoreCase(key, "perfDiv"))
 	{
@@ -2448,8 +2736,9 @@ static void ApplySetting(char *key, char *val)
 	}
 	else if (EqualsIgnoreCase(key, "static"))
 	{
-		if (EqualsIgnoreCase(val, "on")) cfgStaticOn = true;
-		else if (EqualsIgnoreCase(val, "off")) cfgStaticOn = false;
+		// Accept RM-style numeric booleans too.
+		if (EqualsIgnoreCase(val, "on") || EqualsIgnoreCase(val, "1")) cfgStaticOn = true;
+		else if (EqualsIgnoreCase(val, "off") || EqualsIgnoreCase(val, "0")) cfgStaticOn = false;
 	}
 	else if (EqualsIgnoreCase(key, "staticLevel"))
 	{
@@ -2474,37 +2763,59 @@ static void __attribute__((noinline)) LoadSettings()
 		return; // no settings file: keep the defaults
 	}
 
-	// settings.txt is small; read it whole, then walk it line by line.
-	static char buf[1024];
+	// Stream the file in small chunks and assemble one line at a time. This is
+	// deliberately not limited to the old 1 KB read: an RM2 settings.txt with its
+	// comments is larger than that, and keys near the end must still be seen.
+	static char chunk[256];
+	static char line[256];
+	size_t lineLen = 0;
+	bool overflow = false;
+
 	UINT br = 0;
-	if (f_read(&settingsFile, buf, sizeof(buf) - 1, &br) == FR_OK)
+	while (f_read(&settingsFile, chunk, sizeof(chunk), &br) == FR_OK && br > 0)
 	{
-		buf[br] = 0;
-		char *p = buf;
-		while (*p)
+		for (UINT i = 0; i < br; i++)
 		{
-			char *nl = strchr(p, '\n');
-			if (nl)
+			const char c = chunk[i];
+			if (c == '\n')
 			{
-				*nl = 0;
-			}
-			char *s = Trim(p);
-			if (*s != 0 && *s != '#' && *s != ';')
-			{
-				char *eq = strchr(s, '=');
-				if (eq)
+				if (!overflow)
 				{
-					*eq = 0;
-					ApplySetting(Trim(s), Trim(eq + 1));
+					line[lineLen] = 0;
+					SettingLine parsed;
+					if (ParseSettingLine(line, parsed))
+					{
+						ApplySetting(parsed.key, parsed.value);
+					}
+				}
+				lineLen = 0;
+				overflow = false;
+			}
+			else if (c != '\r')
+			{
+				if (lineLen < sizeof(line) - 1)
+				{
+					line[lineLen++] = c;
+				}
+				else
+				{
+					overflow = true; // long line: ignore it, but keep scanning
 				}
 			}
-			if (!nl)
-			{
-				break;
-			}
-			p = nl + 1;
 		}
 	}
+
+	// A final line without a trailing newline still counts.
+	if (!overflow && lineLen > 0)
+	{
+		line[lineLen] = 0;
+		SettingLine parsed;
+		if (ParseSettingLine(line, parsed))
+		{
+			ApplySetting(parsed.key, parsed.value);
+		}
+	}
+
 	f_close(&settingsFile);
 }
 
@@ -2752,6 +3063,8 @@ static void RunStick()
 
 	while (tuh_msc_mounted(1))
 	{
+		FeedWatchdog();
+		UpdateFaultDisplay();
 		// Servicing a request here (not only after a file plays) is what keeps
 		// the card alive when every file fails: a fresh request clears the
 		// failure count and gives the card another go, instead of freezing.
@@ -2848,11 +3161,12 @@ static void RunStick()
 		LoopWindow(winStart, winEnd);
 
 		// Build the full path for this station (the bank path always ends in '/').
-		char path[kBankPathLen + kStationNameLen];
+		// Static storage: keep the 516-byte buffer off core 0's small stack.
+		static char path[kBankPathLen + kStationNameLen];
 		snprintf(path, sizeof(path), "%s%s", bankPaths[bank], stationNames[index]);
 
 		curStation = index;
-		PlayResult r = PlayFile(path, startQ12, winEnd, lastNorm, reversePass);
+		PlayResult r = PlayFile(path, startQ12, winEnd, winStart, lastNorm, reversePass);
 
 		if (r == PlayResult::Interrupted)
 		{
@@ -2908,11 +3222,7 @@ static bool __attribute__((noinline)) RootIsReadable()
 
 int main()
 {
-	// The card is constructed here on core 0, so that it exists before core 1
-	// starts running it. (It is a plain local, not a function-level static:
-	// main() never returns, and a static would add a thread-safe initialisation
-	// guard, which drags a lot of C++ exception code into the binary.)
-	RadioComputer player;
+	// The card is constructed before main() in static storage (see above).
 	card = &player;
 
 	// The normalisation probe lets ProcessSample tell whether a CV jack is
@@ -2928,8 +3238,13 @@ int main()
 	};
 	tusb_init(BOARD_TUH_RHPORT, &hostInit);
 
+	// A hang on either core reboots the card rather than freezing it.
+	watchdog_enable(1000, 1);
+
 	while (true)
 	{
+		FeedWatchdog();
+		UpdateFaultDisplay();
 		// tuh_task() runs the USB stack: enumeration of newly plugged devices,
 		// and completion of transfers. It must be called often.
 		tuh_task();
@@ -2959,6 +3274,8 @@ int main()
 		absolute_time_t mountDeadline = make_timeout_time_ms(5000);
 		while (tuh_msc_mounted(1) && !time_reached(mountDeadline))
 		{
+			FeedWatchdog();
+			UpdateFaultDisplay();
 			if (tuh_msc_ready(1))
 			{
 				fr = f_mount(&fatFs, "", 1);
@@ -2997,6 +3314,8 @@ int main()
 		// Wait for removal before trying again
 		while (tuh_msc_mounted(1))
 		{
+			FeedWatchdog();
+			UpdateFaultDisplay();
 			tuh_task();
 		}
 		stickMounted = false;
