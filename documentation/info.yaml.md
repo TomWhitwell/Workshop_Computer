@@ -1,6 +1,6 @@
 # `info.yaml` schema
 
-Each program card under `releases/NN_name/` includes an `info.yaml` beside `README.md` and its `.uf2` firmware. Sitegen reads these files when building the GitHub Pages site.
+Each program card under `releases/NN_name/` includes an `info.yaml` beside `README.md` and its `.uf2` firmware. Sitegen reads these files when building the GitHub Pages site. The file may also be named `info.yml`; `info.yaml` is preferred, and a card must not have both.
 
 Keys are case-insensitive. Hyphens and spaces in key names are equivalent (`audio-sample`, `Audio Sample`, and `audiosample` all map to the same field).
 

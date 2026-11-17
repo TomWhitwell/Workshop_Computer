@@ -52,7 +52,7 @@ function rebuildSite() {
     const preview = ['--prefix', 'tools/sitegen', 'run', 'build', '--', '--preview'];
     if (files.length !== 1) return preview;
     const relative = path.relative(ROOT, files[0]).replaceAll(path.sep, '/');
-    const release = relative.match(/^releases\/([^/]+)\/info\.yaml$/);
+    const release = relative.match(/^releases\/([^/]+)\/info\.ya?ml$/);
     if (release && existsSync(files[0])) {
       return [...preview, '--incremental-release', release[1]];
     }

@@ -11,6 +11,7 @@ import path from 'node:path';
 import YAML from 'yaml';
 import { discoverCustomPanels, validateCustomPanelReferences } from '../discover/customPanels.js';
 import { cardRenames } from './mergeEligibility.js';
+import { isInfoFileName, listInfoFilesSync } from '../utils/infoFile.js';
 
 const posix = value => String(value || '').replaceAll('\\', '/').replace(/^\.\//, '');
 const isUf2 = file => /\.uf2$/i.test(file);
@@ -33,7 +34,7 @@ export function summarizePrTrigger(changes) {
   const addChangedPath = (status, file) => {
     const normalized = posix(file);
     const release = releaseFromPath(normalized);
-    if (!release || normalized === `releases/${release}/info.yaml`) {
+    if (!release || (path.posix.dirname(normalized) === `releases/${release}` && isInfoFileName(path.posix.basename(normalized)))) {
       changedPaths.push({ status, path: normalized });
       return;
     }
@@ -185,13 +186,19 @@ export async function evaluatePrRules(changes, { root }) {
     const releaseDir = path.join(root, 'releases', release);
     if (!fs.existsSync(releaseDir)) continue;
     const releaseFiles = walkFiles(releaseDir);
-    const infoPath = path.join(releaseDir, 'info.yaml');
+    const infoPaths = listInfoFilesSync(releaseDir);
+    const infoPath = infoPaths[0] || path.join(releaseDir, 'info.yaml');
+    const infoFile = `releases/${release}/${path.basename(infoPath)}`;
+    if (infoPaths.length > 1) {
+      diagnostics.push(diagnostic('error', 'duplicate-info-file', infoFile,
+        `Release ${release} has both info.yaml and info.yml; keep only one (the site reads info.yaml).`));
+    }
     let rawInfo = {};
     try {
       rawInfo = YAML.parse(fs.readFileSync(infoPath, 'utf8')) || {};
     } catch {}
     if (rawInfo.draft === true) {
-      diagnostics.push(diagnostic('warning', 'draft-card-changed', `releases/${release}/info.yaml`,
+      diagnostics.push(diagnostic('warning', 'draft-card-changed', infoFile,
         `Release ${release} is marked draft: true.`));
     }
     const readme = path.join(releaseDir, 'README.md');

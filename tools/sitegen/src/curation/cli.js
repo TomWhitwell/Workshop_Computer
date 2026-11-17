@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML, { Pair, Scalar, YAMLMap } from 'yaml';
+import { findInfoFileSync } from '../utils/infoFile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../../../..');
@@ -25,12 +26,12 @@ function readDocument(file) {
 
 export function releaseCards() {
   return fs.readdirSync(RELEASES_DIR, { withFileTypes: true })
-    .filter(entry => entry.isDirectory() && fs.existsSync(path.join(RELEASES_DIR, entry.name, 'info.yaml')))
+    .filter(entry => entry.isDirectory() && findInfoFileSync(path.join(RELEASES_DIR, entry.name)))
     .map(entry => {
       const id = entry.name;
       let title = id.replaceAll('_', ' ');
       try {
-        const info = YAML.parse(fs.readFileSync(path.join(RELEASES_DIR, id, 'info.yaml'), 'utf8')) || {};
+        const info = YAML.parse(fs.readFileSync(findInfoFileSync(path.join(RELEASES_DIR, id)), 'utf8')) || {};
         title = String(info.Name || info.name || title).trim() || title;
       } catch {
         // The metadata validator reports malformed info.yaml separately. A card

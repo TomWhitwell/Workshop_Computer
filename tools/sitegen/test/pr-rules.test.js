@@ -184,6 +184,46 @@ test('changes to a draft release warn even when info.yaml is not the changed fil
     && item.severity === 'warning'));
 });
 
+test('a draft release with info.yml warns against that file', async t => {
+  const root = await fixture(t);
+  await write(root, 'releases/42_card/info.yml', 'Name: Card\ndraft: true\n');
+  await write(root, 'releases/42_card/README.md', '# Card');
+  await write(root, 'releases/42_card/card.uf2', 'firmware');
+  const diagnostics = await evaluatePrRules([
+    { status: 'A', path: 'releases/42_card/info.yml' },
+  ], { root });
+  assert.ok(diagnostics.some(item =>
+    item.ruleId === 'draft-card-changed'
+    && item.file === 'releases/42_card/info.yml'
+    && item.severity === 'warning'));
+  assert.ok(!diagnostics.some(item => item.ruleId === 'duplicate-info-file'));
+});
+
+test('a release with both info.yaml and info.yml is an error', async t => {
+  const root = await fixture(t);
+  await write(root, 'releases/42_card/info.yaml', 'Name: Card');
+  await write(root, 'releases/42_card/info.yml', 'Name: Card');
+  await write(root, 'releases/42_card/README.md', '# Card');
+  await write(root, 'releases/42_card/card.uf2', 'firmware');
+  const diagnostics = await evaluatePrRules([
+    { status: 'A', path: 'releases/42_card/info.yml' },
+  ], { root });
+  assert.ok(diagnostics.some(item =>
+    item.ruleId === 'duplicate-info-file'
+    && item.file === 'releases/42_card/info.yaml'
+    && item.severity === 'error'));
+});
+
+test('PR trigger lists a release info.yml by name rather than condensing it', () => {
+  assert.deepEqual(summarizePrTrigger([
+    { status: 'A', path: 'releases/42_card/info.yml' },
+  ]), {
+    affectedReleases: ['42_card'],
+    renamedReleases: [],
+    changedPaths: [{ status: 'A', path: 'releases/42_card/info.yml' }],
+  });
+});
+
 test('existing UF2 in a nested release subdirectory satisfies the firmware rule', async t => {
   const root = await fixture(t);
   await write(root, 'releases/42_card/info.yaml', 'Name: Card');

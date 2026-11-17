@@ -32,11 +32,14 @@ test('info.yaml selection matches added, modified, and renamed files under relea
     { status: 'M', path: 'releases/05_card/Info.yaml' },
     { status: 'M', path: 'documentation/info.yaml' },
     { status: 'M', path: 'releases/06_card/README.md' },
+    { status: 'A', path: 'releases/07_yml/info.yml' },
+    { status: 'M', path: 'releases/08_card/info.yml.bak' },
   ]);
   assert.deepEqual(selected.map(change => change.path), [
     'releases/01_new/info.yaml',
     'releases/02_card/legacy/info.yaml',
     'releases/03_new/info.yaml',
+    'releases/07_yml/info.yml',
   ]);
   assert.equal(selected[2].oldPath, 'releases/03_old/info.yaml');
 });
@@ -49,6 +52,15 @@ test('without a baseline every diagnostic is introduced', async t => {
   assert.equal(report.info[0].existing.length, 0);
   assert.ok(report.info[0].introduced.some(item => item.path === 'Creator' && item.severity === 'error'));
   assert.ok(report.rules.introduced.some(item => item.ruleId === 'uf2-required'));
+});
+
+test('info.yml is validated like info.yaml', async t => {
+  const root = await fixture(t);
+  await write(root, 'releases/42_test/info.yml', validInfo.replace('Creator: Test\n', ''));
+  const report = await evaluateChangeSet([{ status: 'A', path: 'releases/42_test/info.yml' }], { root });
+  assert.equal(report.info.length, 1);
+  assert.equal(report.info[0].file, 'releases/42_test/info.yml');
+  assert.ok(report.info[0].introduced.some(item => item.path === 'Creator' && item.severity === 'error'));
 });
 
 test('baseline diagnostics are existing, including across renames', async t => {

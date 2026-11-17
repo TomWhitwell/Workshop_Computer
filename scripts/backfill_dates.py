@@ -23,6 +23,16 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RELEASES = os.path.join(ROOT, "releases")
 
+
+def info_file(folder):
+    """The card's info.yaml (preferred) or info.yml, or None."""
+    for name in ("info.yaml", "info.yml"):
+        path = os.path.join(RELEASES, folder, name)
+        if os.path.isfile(path):
+            return path
+    return None
+
+
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 # Existing top-level date key (schema treats hyphens/spaces as equivalent and
 # maps `releasedate` -> date).
@@ -85,15 +95,12 @@ def main():
                     help="write changes (default: dry run)")
     args = ap.parse_args()
 
-    folders = sorted(
-        d for d in os.listdir(RELEASES)
-        if os.path.isfile(os.path.join(RELEASES, d, "info.yaml"))
-    )
+    folders = sorted(d for d in os.listdir(RELEASES) if info_file(d))
 
     planned = 0
     skipped = 0
     for folder in folders:
-        info_path = os.path.join(RELEASES, folder, "info.yaml")
+        info_path = info_file(folder)
         rel = os.path.relpath(info_path, ROOT)
         with open(info_path, "r", encoding="utf-8") as f:
             text = f.read()
