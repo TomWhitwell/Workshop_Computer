@@ -9,11 +9,15 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
+import { discoveryCardReferences } from '../curation/cli.js';
 import { discoverCustomPanels, validateCustomPanelReferences } from '../discover/customPanels.js';
 import { cardRenames } from './mergeEligibility.js';
 
 const posix = value => String(value || '').replaceAll('\\', '/').replace(/^\.\//, '');
 const isUf2 = file => /\.uf2$/i.test(file);
+const cardOfInfoFile = file => posix(file).match(/^releases\/([^/]+)\/info\.yaml$/)?.[1] || null;
+
+export const CURATION_DIR = 'tools/sitegen/src/curation';
 
 function releaseFromPath(file) {
   const parts = posix(file).split('/').filter(Boolean);
@@ -64,6 +68,41 @@ export function summarizePrTrigger(changes) {
   }
   changedPaths.push(...directoryChanges.values());
   return { affectedReleases: [...affectedReleases].sort(), renamedReleases, changedPaths };
+}
+
+/**
+ * Cards whose info.yaml the change set takes away, mapped to whether it moved
+ * to another card's info.yaml: a rename, which keeps the card on the site.
+ */
+function cardsLosingInfo(changes) {
+  const cards = new Map();
+  for (const change of changes) {
+    const card = cardOfInfoFile(change.oldPath || (change.status.startsWith('D') ? change.path : ''));
+    if (card) cards.set(card, Boolean(change.oldPath && cardOfInfoFile(change.path)));
+  }
+  return cards;
+}
+
+function readCuration(root, name) {
+  try {
+    return YAML.parse(fs.readFileSync(path.join(root, CURATION_DIR, name), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Where the curation files name a card, which fails `curation/cli.js` once the
+ * card is gone. They are absent from trees holding only cards.
+ */
+function curationReferences(root, card) {
+  const assigned = readCuration(root, 'flairs.yml')?.assignments?.[card];
+  return [
+    ...(assigned?.length ? ['flairs.yml: assignments'] : []),
+    ...discoveryCardReferences(readCuration(root, 'discovery.yml'))
+      .filter(reference => reference.id === card)
+      .map(reference => reference.location),
+  ];
 }
 
 function walkFiles(dir) {
@@ -179,6 +218,27 @@ export async function evaluatePrRules(changes, { root }) {
     const list = includedUf2ByRelease.get(release) || [];
     list.push(posix(change.path));
     includedUf2ByRelease.set(release, list);
+  }
+
+  for (const [card, renamed] of cardsLosingInfo(changes)) {
+    const cardDir = path.join(root, 'releases', card);
+    const file = `releases/${card}/info.yaml`;
+    if (fs.existsSync(path.join(root, file))) continue;
+    const references = curationReferences(root, card);
+    const syncFailure = references.length
+      ? ` The curation files still name this card (${references.join(', ')}), which would fail the post-merge "Synchronize repository metadata" job and skip the Pages deploy.`
+      : '';
+    if (!renamed && walkFiles(cardDir).length) {
+      // An error, not a review warning: the site lists a folder only if it has
+      // an info.yaml, so this drops the card with nothing else to show for it.
+      diagnostics.push(diagnostic('error', 'info-yaml-removed', file,
+        `This removes info.yaml but leaves other files in releases/${card}/, so the card would disappear from the site. Restore info.yaml, or delete the whole folder to remove the card.${syncFailure}`));
+    } else if (syncFailure) {
+      // A warning: removing or renaming a card is legitimate and already needs
+      // a maintainer's review, who can update the curation files in the same PR.
+      diagnostics.push(diagnostic('warning', 'curated-card-removed', file,
+        `This ${renamed ? 'renames' : 'removes'} card ${card}.${syncFailure} Update them under ${CURATION_DIR}/ in this PR.`));
+    }
   }
 
   for (const release of releases) {

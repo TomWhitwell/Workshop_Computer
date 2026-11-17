@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import YAML from 'yaml';
-import { synchronize, validate } from '../src/curation/cli.js';
+import { discoveryCardReferences, synchronize, validate } from '../src/curation/cli.js';
 
 const discovery = { shelves: [] };
 
@@ -36,4 +36,17 @@ assignments:
     deleted_curated: ['new'],
     added: [],
   });
+});
+
+test('discovery card references cover the hero, embeds and shelves, and skip malformed entries', () => {
+  assert.deepEqual(discoveryCardReferences({
+    hero: { featured: ['a'] },
+    embeds: { footer: { cards: ['b'] } },
+    shelves: ['not a shelf', { id: 'flairs', cards_from_flairs: ['new'] }, { id: 'list', cards: ['c'] }],
+  }), [
+    { id: 'a', location: 'discovery.yml: hero.featured' },
+    { id: 'b', location: 'discovery.yml: embeds.footer.cards' },
+    { id: 'c', location: 'discovery.yml: shelves[2].cards' },
+  ]);
+  for (const empty of [null, {}, { shelves: 'nope' }]) assert.deepEqual(discoveryCardReferences(empty), []);
 });
