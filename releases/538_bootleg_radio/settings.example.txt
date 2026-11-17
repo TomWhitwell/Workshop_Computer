@@ -64,6 +64,10 @@ pulse1 = gate
 # Pulse out 2: gate | tick | clock | off
 pulse2 = tick
 
+# The 8mu's F8 sets the internal tempo live from 30 to 240 BPM.
+# Its dead zone uses clockBpm above; Pulse in 1 still overrides both.
+# Pulse out 1 and pulse out 2 are set only here.
+
 # LED display: auto | quiet
 #   auto   level, loop-window progress, fault patterns, station/bank readouts
 #   quiet  the same, but without the station readout and the underrun flash

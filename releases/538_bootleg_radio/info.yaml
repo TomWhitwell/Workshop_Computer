@@ -3,12 +3,12 @@ Name: Bootleg Radio
 short-description: "A lo-fi bootleg tribute to Music Thing's Radio Music: tune through WAV files on a USB stick, like a pirate station"
 Language: C++ (Pico SDK + ComputerCard)
 Creator: Joep Vermaat
-Version: "1.3.1"
+Version: "1.4.0"
 Status: Released
 License: MIT
 Editor: none
 date-created: 2026-10-03
-date-updated: 2026-11-14
+date-updated: 2026-11-17
 
 contact:
   email: joep@joep-i.nl
@@ -23,7 +23,7 @@ contact:
 
 uf2:
   - path: UF2/bootleg_radio.uf2
-    name: Bootleg Radio 1.3.1
+    name: Bootleg Radio 1.4.0
 
 tags:
   - sampler
@@ -76,7 +76,7 @@ summary: |
 
   An optional Music Thing 8mu can act as a wired remote over its TRS MIDI
   output: eight faders for speed, speed range, loop start, loop end, station,
-  loop mode, performance mode and pulse out 1 mode. Clock BPM and pulse out 2
+  loop mode, performance mode and tempo. Pulse out 1, pulse out 2 and clockBpm
   live in settings.txt. Its top-left button retriggers; the bank buttons change
   bank, and holding them turns the tuning static off or on; the fourth button
   taps Loop/Sync and, held, releases the remote. It plugs into Pulse In 2 with a
@@ -137,11 +137,13 @@ panel:
       description: >
         Receives a Music Thing 8mu's TRS MIDI output (Type A). Eight faders
         control speed, speed range, loop start, loop end, station, loop mode,
-        performance mode and pulse out 1 mode. The performance fader can scan
-        stations or beat-repeat the current loop on the clock; clock BPM and
-        pulse out 2 are in settings.txt. The top-left button retriggers; the bank
-        buttons change bank on a tap and turn the tuning static off/on when
-        held; the fourth button taps Loop/Sync and, held, releases the remote.
+        performance mode and tempo. The performance fader can scan stations or
+        beat-repeat the current loop on the clock; the tempo fader sets the
+        internal clock from 30 to 240 BPM. Pulse out 1, pulse out 2 and clockBpm
+        are in settings.txt.
+        The top-left button retriggers; the bank buttons change bank on a tap
+        and turn the tuning static off/on when held; the fourth button taps
+        Loop/Sync and, held, releases the remote.
         With the default <code>remote = auto</code> the jack still retriggers
         until an 8mu is heard. <code>remote = on</code> forces MIDI,
         <code>off</code> forces the retrigger. This is not an opto-isolated MIDI
@@ -282,11 +284,12 @@ host:
     the root directory and from each subfolder that holds WAV files. An optional
     settings.txt in the root sets the power-on mode, loop mode, performance mode,
     performance clock divider, start bank, speed range, internal clock tempo,
-    triangle rate, the two pulse-output modes, the LED mode, the Pulse In 2 remote
-    mode and the tuning-static settings; it is read once per mount, and a missing
-    or malformed value falls back to the default. An original Music Thing Radio
-    Music settings.txt is safe to use: its formatting is accepted, only loopMode
-    is mapped (0/1/2 = one-shot/loop/ping-pong), and all other RM keys are ignored.
+    triangle rate, the pulse-output modes, the LED mode, the
+    Pulse In 2 remote mode and the tuning-static settings; it is read once per
+    mount, and a missing or malformed value falls back to the default. An
+    original Music Thing Radio settings.txt is safe to use: its formatting is
+    accepted, only loopMode is mapped (0/1/2 = one-shot/loop/ping-pong), and all
+    other RM keys are ignored.
     Per-bank settings.txt files are not read. The 8mu's B4 tap and B2/B3 holds change the running mode and static
     without writing the file; a later settings reload re-applies mode, and a
     static value there overrides a B2/B3 change.

@@ -65,8 +65,8 @@ Controls
   Pulse in 2       TRS MIDI input for a Music Thing 8mu remote, or an external
                    retrigger while no 8mu has been heard (remote = auto).  The
                    eight faders are speed, speed range, loop start, loop end,
-                   station, loop mode, performance mode and pulse out 1 mode.
-                   Clock BPM and pulse out 2 live in settings.txt.  B1
+                   station, loop mode, performance mode and tempo.
+                   Pulse out 1 mode and pulse out 2 live in settings.txt.  B1
                    retriggers; B2/B3 change bank, and holding them turns the
                    tuning static off/on; B4 taps Loop/Sync and holding it
                    releases the remote.  One-way only: no feedback to the 8mu.
@@ -474,8 +474,9 @@ static bool      remoteHasEnd     = false;
 static int32_t   remoteEnd        = 4095;
 static volatile bool     remoteHasLoopMode = false;
 static volatile LoopMode remoteLoopMode   = LoopMode::Loop;
-static bool      remoteHasPulse1  = false;
-static PulseMode remotePulse1     = PulseMode::Gate;
+static bool      remoteHasClock   = false;
+static int32_t   remoteClockBpm   = 120;
+static volatile bool clockDirty   = false;
 static bool      remoteHasPerformance = false;
 static PerformanceMode remotePerformance = PerformanceMode::Off;
 static int32_t   stickyEnd        = 4095; // last remote end, kept on release
@@ -651,19 +652,25 @@ static void ApplyFader(uint8_t index, uint8_t value)
 		}
 		break;
 
-	case 7: // pulse out 1 mode
+	case 7: // tempo
 		if (value <= 7)
 		{
-			remoteHasPulse1 = false;
+			if (remoteHasClock)
+			{
+				remoteHasClock = false;
+				clockDirty = true;
+			}
 		}
 		else
 		{
-			if (!remoteHasPulse1) remoteNewTakeover = true;
-			remoteHasPulse1 = true;
-			if (value < 38) remotePulse1 = PulseMode::Gate;
-			else if (value < 68) remotePulse1 = PulseMode::Tick;
-			else if (value < 98) remotePulse1 = PulseMode::Clock;
-			else remotePulse1 = PulseMode::Off;
+			if (!remoteHasClock) remoteNewTakeover = true;
+			remoteHasClock = true;
+			const int32_t bpm = 30 + ((int32_t)(value - 8) * 210) / 119;
+			if (bpm != remoteClockBpm)
+			{
+				remoteClockBpm = bpm;
+				clockDirty = true;
+			}
 		}
 		break;
 
@@ -900,15 +907,37 @@ public:
 
 private:
 	// Apply the settings.txt values that live in globals: the boot tune mode and
-	// the internal clock tempo. Called by core 1 (via settingsDirty) after core 0
-	// has read /settings.txt; never from the constructor. It writes only members
-	// and the shared clockDefaultQ8, so it is safe at a sample boundary.
+	// remote settings. The clock tempo is applied at the next sample boundary via
+	// clockDirty, so the F8 tempo override is honoured. Called by core 1 (via
+	// settingsDirty) after core 0 has read /settings.txt; never from the
+	// constructor. It writes only members and the shared clockDefaultQ8, so it is
+	// safe at a sample boundary.
 	void ApplySettings()
 	{
 		panelMode = cfgMode;
 		playMode = cfgMode;
 
-		int32_t bpm = cfgClockBpm; // already clamped by the parser, belt and braces
+		// The effective tempo is remoteClockBpm if F8 owns it, otherwise the
+		// settings value. ApplyClockTempo() recomputes the slewed clock.
+		clockDirty = true;
+
+		if (cfgRemote == RemoteMode::On)
+		{
+			remoteDetected = true;
+		}
+		else if (cfgRemote == RemoteMode::Off)
+		{
+			remoteDetected = false;
+			ReleaseRemote(false); // settings say retrigger-only: drop any takeover
+		}
+	}
+
+	// Recompute the internal clock period from the effective tempo: F8 while it
+	// is above its dead zone, otherwise clockBpm from settings.txt. Called only
+	// when the tempo changes, so the 48kHz audio path does no extra work.
+	void ApplyClockTempo()
+	{
+		int32_t bpm = remoteHasClock ? remoteClockBpm : cfgClockBpm;
 		if (bpm < 30) bpm = 30;
 		if (bpm > 240) bpm = 240;
 		clockDefaultQ8 = (int32_t)((48000LL << 8) * 60 / bpm);
@@ -920,16 +949,6 @@ private:
 		if (!clkHavePrev)
 		{
 			clockTargetQ8 = activeClock;
-		}
-
-		if (cfgRemote == RemoteMode::On)
-		{
-			remoteDetected = true;
-		}
-		else if (cfgRemote == RemoteMode::Off)
-		{
-			remoteDetected = false;
-			ReleaseRemote(false); // settings say retrigger-only: drop any takeover
 		}
 	}
 
@@ -981,7 +1000,11 @@ private:
 		}
 
 		remoteHasLoopMode = false;
-		remoteHasPulse1 = false;
+		if (remoteHasClock)
+		{
+			remoteHasClock = false;
+			clockDirty = true;
+		}
 		remoteHasPerformance = false;
 		remoteReleasePending = false;
 		remoteNewTakeover = false;
@@ -1938,6 +1961,14 @@ public:
 		HandleRequests();
 		HandleControls();
 
+		// Apply a tempo change from F8 or a settings reload. This is a handful
+		// of samples after the fader moves, not per-sample work.
+		if (clockDirty)
+		{
+			clockDirty = false;
+			ApplyClockTempo();
+		}
+
 		// Output envelope. It drops for a queued station/bank/retrigger request,
 		// for the last few milliseconds of a loop window, and while core 0 is
 		// reloading the file. It comes back up over the first few milliseconds of
@@ -2170,7 +2201,7 @@ public:
 		}
 		const bool loopGate = (mode == Mode::Play) && (frame < numFrames);
 		const bool wrapTick = wrapTickTimer > 0;
-		const PulseMode pm1 = remoteHasPulse1 ? remotePulse1 : cfgPulse1;
+		const PulseMode pm1 = cfgPulse1;
 		const PulseMode pm2 = cfgPulse2;
 		bool out1 = false, out2 = false;
 		if (pm1 == PulseMode::Gate) out1 = loopGate;
