@@ -8,10 +8,11 @@ Status: Released
 License: MIT
 Editor: none
 date-created: 2026-10-03
-date-updated: 2026-11-17
+date-updated: 2026-11-20
 
 contact:
   email: joep@joep-i.nl
+demo-link: https://youtu.be/_kihg1g6Z0k
 
 # Vendored, unmodified and under their own terms:
 #   ComputerCard.h
