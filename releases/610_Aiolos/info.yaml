@@ -1,0 +1,30 @@
+draft: false
+Name: Aiolos
+short-description: "An ambient wind chime instrument, and a playground of generative, physically modelled modulation."
+summary: >
+  Aiolos is a six-tube wind chime. The wind is modelled on real
+  measurements, the striker and tubes swing and collide like the real thing, and the chimes ring in a space you choose,
+  from a small porch to a galaxy. It is never the same twice.
+
+  Since this is a physical simulation, many of its inner signals are natural, organic modulation sources: the wind, each gust, how hard each tube is struck, the striker's swing, the chime turning
+  on its cord. A web editor chooses what the jacks carry. Blow into a microphone to make the wind, let a compressed day
+  of weather play out over an hour, or silence the chimes and use Aiolos as a modulation source and a reverb.
+Language: "C++ (Pico SDK + ComputerCard)"
+Creator: "Joe Hedinger (isbn)"
+Version: "1.0.0"
+Status: "Beta"
+date-created: 2026-11-20
+date-updated: 2026-11-22
+tags:
+  - generative
+  - ambient
+  - physical-modelling
+  - reverb
+  - modulation
+  - web-editor
+
+host:
+  usb:
+    - name: USB MIDI
+      role: device
+      description: The web editor talks to the card over WebMIDI (Chrome, Edge or Opera).

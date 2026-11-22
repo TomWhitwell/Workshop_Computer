@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aiolos — editor</title>
+<!--
+  Aiolos (a wind chime card) editor for the Music Thing Modular Workshop System Computer.  AI-assisted (Claude / Anthropic).
+  One file, no network, no libraries.  Talks to the card over USB-MIDI SysEx (Web MIDI: Chrome / Edge / Opera).
+  Protocol 2 (card firmware 0.6+), card/wc_sysex.h:
+    F0 7D 57 01 F7            hello  -> F0 7D 57 01 <protocol> <fw major> <fw minor> <output mode> F7
+    F0 7D 57 02 F7            get    -> F0 7D 57 02 <10 setting bytes> F7
+    F0 7D 57 03 <10 bytes> F7 set    -> F0 7D 57 03 <1 taken / 0 refused> <the card's 10 bytes> F7
+    F0 7D 57 04 F7            defaults -> as set
+  The 10 bytes (card/wc_settings.h): CV Out 1, CV Out 2, Pulse Out 1, Pulse Out 2, CV In 1, CV In 2, Pulse In 1,
+  Pulse In 2, Audio In, Audio In level (dB + 64).
+-->
+<style>
+  :root {
+    --bg: #f6f5f1; --ink: #2e3532; --soft: #7c8680; --faint: #a9b1ac; --line: #e2e3dd; --accent: #5e8a76;
+    --warn: #a0705a; --card: #fbfbf8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1c1f1e; --ink: #dfe4e0; --soft: #9aa49e; --faint: #69726d; --line: #2f3432; --accent: #8fbba6;
+            --warn: #d0a089; --card: #212524; }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { margin: 0; color: var(--ink); background: var(--bg);
+         font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { width: min(36rem, 90vw); margin: 0 auto; padding: 4.5rem 0 6rem; }
+
+  header { text-align: center; margin-bottom: 3.5rem; }
+  .chime { display: block; margin: 0 auto 1.6rem; width: 88px; height: 96px; color: var(--faint); }
+  .sub { color: var(--faint); margin: 0.35rem 0 0; font-size: 0.85rem; letter-spacing: 0.08em; }
+  h1 { font: 300 1.75rem/1.2 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; letter-spacing: 0.06em; margin: 0; }
+  .lede { color: var(--soft); margin: 0.9rem auto 0; max-width: 28rem; font-size: 0.95rem; }
+
+  .connect { display: flex; flex-direction: column; align-items: center; gap: 0.7rem; margin: 2.2rem 0 0; }
+  button { font: inherit; color: var(--ink); background: none; border: 1px solid var(--line); border-radius: 999px;
+           padding: 0.5rem 1.6rem; cursor: pointer; transition: border-color 0.5s, color 0.5s; }
+  button:hover, button:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+  button.quiet { border: none; padding: 0.2rem 0.4rem; color: var(--soft); font-size: 0.88rem; }
+  button.quiet:hover, button.quiet:focus-visible { color: var(--accent); }
+  #status { min-height: 1.6em; color: var(--soft); font-size: 0.9rem; text-align: center; transition: color 0.5s; }
+  #status.ok { color: var(--accent); }
+  #status.warn { color: var(--warn); }
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--faint); margin-right: 0.5em;
+         vertical-align: 0.12em; transition: background 0.5s; }
+  #status.ok .dot { background: var(--accent); }
+  #status.warn .dot { background: var(--warn); }
+
+  section { margin-top: 3.2rem; }
+  h2 { font: 400 0.78rem/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.22em; text-transform: uppercase;
+       color: var(--soft); margin: 0 0 0.6rem; padding-bottom: 0.9rem; border-bottom: 1px solid var(--line); }
+  .jack { padding: 1.25rem 0 1.35rem; border-bottom: 1px solid var(--line); }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+  .name { font-size: 1rem; white-space: nowrap; }
+  .name small { display: block; color: var(--faint); font-size: 0.78rem; letter-spacing: 0.02em; }
+  select { font: inherit; color: var(--ink); background: transparent; border: none; border-bottom: 1px solid transparent;
+           padding: 0.1rem 1.4rem 0.1rem 0.2rem; text-align: right; text-align-last: right; cursor: pointer;
+           appearance: none; -webkit-appearance: none; max-width: 62%;
+           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237c8680' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+           background-position: right 0.15rem center; background-size: 10px 6px; background-repeat: no-repeat;
+           transition: border-color 0.5s, color 0.5s; }
+  select:hover, select:focus-visible { border-bottom-color: var(--accent); outline: none; }
+  select option { color: #2e3532; background: #fbfbf8; }
+  .about { color: var(--soft); font-size: 0.92rem; margin: 0.65rem 0 0; max-width: 33rem; }
+  .about .try { display: block; margin-top: 0.35rem; color: var(--ink); opacity: 0.82; }
+  .about .try::before { content: "Try  "; color: var(--accent); letter-spacing: 0.06em; font-size: 0.8rem; text-transform: uppercase; }
+  .changed .about { animation: settle 1.2s ease-out; }
+  @keyframes settle { from { opacity: 0.25; } to { opacity: 1; } }
+
+  .level { display: flex; align-items: center; gap: 1rem; margin-top: 0.9rem; }
+  .level span { min-width: 4.2rem; text-align: right; color: var(--soft); font-variant-numeric: tabular-nums; font-size: 0.92rem; }
+  input[type=range] { flex: 1; -webkit-appearance: none; appearance: none; height: 1px; background: var(--line); cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+           background: var(--bg); border: 1px solid var(--soft); transition: border-color 0.4s; }
+  input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--bg); border: 1px solid var(--soft); }
+  input[type=range]:hover::-webkit-slider-thumb, input[type=range]:focus-visible::-webkit-slider-thumb { border-color: var(--accent); }
+  input[type=range]:focus-visible { outline: none; }
+
+  footer { margin-top: 3.5rem; text-align: center; color: var(--faint); font-size: 0.82rem; }
+  footer p { margin: 0.4rem 0; }
+  .note { color: var(--soft); font-size: 0.88rem; text-align: center; margin-top: 2.4rem; }
+  details { margin-top: 1rem; }
+  summary { cursor: pointer; color: var(--faint); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  #log { text-align: left; white-space: pre-wrap; font: 0.75rem/1.5 ui-monospace, Menlo, Consolas, monospace; color: var(--soft);
+         max-height: 14rem; overflow: auto; margin-top: 0.6rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg class="chime" viewBox="0 0 88 96" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">
+        <line x1="44" y1="0" x2="44" y2="6"/>
+        <g class="tubes">
+          <ellipse cx="44" cy="10" rx="26" ry="3.2"/>
+          <line x1="22" y1="12" x2="22" y2="84"/><line x1="30" y1="12" x2="30" y2="72"/><line x1="38" y1="12" x2="38" y2="62"/>
+          <line x1="50" y1="12" x2="50" y2="78"/><line x1="58" y1="12" x2="58" y2="66"/><line x1="66" y1="12" x2="66" y2="56"/>
+          <line x1="44" y1="10" x2="44" y2="50"/><circle cx="44" cy="52" r="3"/><line x1="44" y1="55" x2="44" y2="88"/>
+          <path d="M40 88 L48 88 L44 95 Z"/>
+        </g>
+      </g>
+    </svg>
+    <h1>Aiolos</h1>
+    <p class="sub">a wind chime for the Workshop System</p>
+    <p class="lede">Choose what each jack carries. Since this is a physical simulation, many of its inner signals are
+      natural, organic modulation sources.</p>
+    <div class="connect">
+      <button id="connect">Connect to the card</button>
+      <div id="status"><span class="dot"></span><span id="statusText">Not connected. You can look around; connect to change the card.</span></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>Outputs</h2>
+    <div id="outputs"></div>
+  </section>
+  <section>
+    <h2>Inputs</h2>
+    <div id="inputs"></div>
+  </section>
+
+  <p class="note">Changes are heard at once, and the card remembers them (it saves a moment after your last change).<br>
+    <button class="quiet" id="undo" hidden>Return to the settings from when you connected</button><br>
+    <button class="quiet" id="defaults">Return everything to default settings</button></p>
+
+  <footer>
+    <p id="cardInfo"></p>
+    <p>Use Chrome, Edge or Opera, with the Workshop System connected by USB. Nothing leaves this page.</p>
+    <p>Aiolos editor · AI-assisted (Claude / Anthropic)</p>
+    <details><summary>messages</summary><div id="log"></div></details>
+  </footer>
+</main>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------------------------------------------------------
+// What each jack can carry.  The order of each list is the byte value the card uses (card/wc_settings.h) - do not
+// reorder.  The descriptions quote ranges measured on the card's code (docs/DESIGN_HISTORY.md, stage 5a).
+// ---------------------------------------------------------------------------------------------------------------
+const CV_SOURCES = [
+  { name: "Wind", about: "The wind, made expressive: close to 0 V in a calm. Each gust opens it quickly and lets it close again over a moment, and every strike adds a small flick (0 to 5 V).",
+    try: "a filter’s cutoff, so the whole patch breathes with the weather." },
+  { name: "Pitch", about: "The pitch of each strike, 1 V per octave, held until the next one. (Always 1 V per octave, so it has no depth setting.)",
+    try: "an oscillator, with a pulse output into its envelope: a second voice that doubles the chime, perhaps an octave down." },
+  { name: "Strength", about: "How hard each strike was, held until the next. A breeze strikes softly (under 1 V); a gale’s hardest strikes reach 5 V.",
+    try: "a VCA or an envelope’s amount, with Pulse Out (every strike) on its gate: the chime’s own accents, on another voice." },
+  { name: "Striker swing, side to side", about: "The striker swinging left and right around where the wind holds it. Slow, organic, never repeating: close to 0 V in a breeze, about ±2.5 V at 12 o’clock, up to ±5 V in a gale.",
+    try: "stereo panning, or a delay’s time, for a gentle drift." },
+  { name: "Striker swing, front to back", about: "The same swing, front to back. With the side-to-side swing on the other output, it is an invisible hand on a joystick: two related motions that never repeat.",
+    try: "a wavefolder’s depth or a filter’s resonance, with the side-to-side swing on its cutoff." },
+  { name: "Gusts", about: "Each gust as it swells above the average wind, rising with it and fading over a second or so: near 0 V in a breeze, up to 4 V at 12 o’clock, 5 V in a gale.",
+    try: "a reverb’s send or a noise source’s level, so the room fills as each gust rolls through." },
+  { name: "Turning", about: "The whole chime turning on its cord: a slow, swaying, weighty LFO that never quite repeats (about ±1.5 V in light air, ±3 V at 12 o’clock, up to ±5 V in a gale).",
+    try: "a slow pitch bend on a drone, or a phaser’s rate." },
+  { name: "Ring", about: "How loudly the chime is ringing right now, like an envelope follower: 0 V in silence, up to 5 V when the tubes are singing.",
+    try: "opening a drone as the chime fills, or (inverted) making room for it." },
+  { name: "How many are ringing", about: "How many tubes are still ringing, 0 to 6, in steps of 5/6 V. It climbs as the chime gets busy and falls away in the lulls.",
+    try: "a quantiser into an oscillator, so a second melody rises with the weather." },
+  { name: "Which tube", about: "Which tube was struck last, 1 (the lowest) to 6 (the highest), in steps of 5/6 V.",
+    try: "a sequential switch or a quantiser: a different note, or a different sound, for each tube." },
+  { name: "Brightness", about: "Where on the tube the striker landed, which changes the tone of each strike. Steady in a breeze, spreading widely in a gale.",
+    try: "a low-pass gate or a filter on another voice, triggered by a pulse output." },
+];
+const PULSE_SOURCES = [
+  { name: "Every strike", about: "A short trigger for every strike, and every clash between tubes.",
+    try: "an envelope, or a drum: let the wind play your rhythm." },
+  { name: "Accents", about: "Only the strongest strikes. None in a breeze, frequent in a gale.",
+    try: "a kick drum, or a louder layer that only speaks when the wind does." },
+  ...[1, 2, 3, 4, 5, 6].map((t) => ({ name: `Tube ${t} only`,
+    about: `Only when tube ${t} is struck (${t === 1 ? "the lowest" : t === 6 ? "the highest" : "tube 1 is the lowest, 6 the highest"}). Which tubes get hit depends on the wind’s direction (the X knob): at some directions a tube is hardly reached.`,
+    try: "giving two tubes their own drum voices, one on each pulse output." })),
+  { name: "Clashes", about: "When two tubes knock into each other: rare and a little wild, most often when the wind’s direction is moving.",
+    try: "a short burst of noise, or a glitchy sample." },
+  { name: "Start of a phrase", about: "The first strike after a pause: the start of each little run of notes.",
+    try: "resetting a sequencer, so each phrase of the chime begins one of yours." },
+  { name: "Quiet", about: "A gate: high while the chime has been silent for three seconds, low again at the next strike.",
+    try: "fading in a pad during the lulls: a call and response with the wind." },
+  { name: "Gust arriving", about: "A trigger as each gust arrives: a few a minute at 12 o’clock, more in a gale.",
+    try: "advancing a slow sequencer, or starting a long swell." },
+];
+const JACKS = [
+  { id: "cvOut1", byte: 0, depthByte: 10, label: "CV Out 1", kind: "out", options: CV_SOURCES },
+  { id: "cvOut2", byte: 1, depthByte: 11, label: "CV Out 2", kind: "out", options: CV_SOURCES },
+  { id: "pulseOut1", byte: 2, label: "Pulse Out 1", kind: "out", options: PULSE_SOURCES },
+  { id: "pulseOut2", byte: 3, label: "Pulse Out 2", kind: "out", options: PULSE_SOURCES },
+  { id: "cvIn1", byte: 4, label: "CV In 1", kind: "in", options: [
+    { name: "Wind", about: "Adds to the Main knob (the wind): +5 V is a whole turn, −5 V takes it all away.",
+      try: "a very slow LFO, for weather that comes and goes." },
+    { name: "Key", about: "Moves the chime to another key, 1 V per octave, in semitones. The chime stays in its own range: a note an octave or more away comes back round. Strikes may wait a few milliseconds while it re-tunes.",
+      try: "a sequencer, so the chime follows the chords of your piece." },
+    { name: "Gustiness", about: "How gusty the wind is, at the same strength: +2.5 V doubles the gusts, −2.5 V halves them (from a quarter to three times).",
+      try: "an envelope, for a sudden squall that blows itself out." },
+    { name: "Space", about: "Adds to the Y knob (the space, from porch to galaxy): +5 V is a whole turn.",
+      try: "a slow LFO, drifting from the garden into the woodland and back." },
+  ]},
+  { id: "cvIn2", byte: 5, label: "CV In 2", kind: "in", options: [
+    { name: "Direction", about: "Adds to the X knob (the wind’s direction): +5 V is a whole turn. The direction glides over about half a second, so even a square wave turns the chime smoothly.",
+      try: "a slow LFO: the striker reaches different tubes as the wind comes round." },
+    { name: "Space", about: "Adds to the Y knob (the space, from porch to galaxy): +5 V is a whole turn.",
+      try: "an envelope from another voice, so the space opens when it plays." },
+    { name: "Gustiness", about: "How gusty the wind is, at the same strength: +2.5 V doubles the gusts, −2.5 V halves them (from a quarter to three times).",
+      try: "a random voltage, for weather with moods." },
+  ]},
+  { id: "pulseIn1", byte: 6, label: "Pulse In 1", kind: "in", options: [
+    { name: "Clock", about: "While a clock is running, each strike waits for the next pulse, so the chime plays in time. Stop the clock and it is free again.",
+      try: "a slow clock (a pulse every beat or two) for a chime that sits inside your rhythm." },
+    { name: "Brush", about: "Each pulse brushes the chime, like a passing hand.",
+      try: "a pulse at the start of each bar, or a button." },
+    { name: "Hold", about: "While the gate is high, hands are on the chime: it falls quiet and the tubes are stilled.",
+      try: "a gate from a sequencer, for silences in exactly the right places." },
+  ]},
+  { id: "pulseIn2", byte: 7, label: "Pulse In 2", kind: "in", options: [
+    { name: "Gust", about: "Each pulse sends a gust through the chime.",
+      try: "a trigger from a drum, so the chime answers the beat." },
+    { name: "Brush", about: "Each pulse brushes the chime, like a passing hand.", try: "a random trigger, now and then." },
+    { name: "Hold", about: "While the gate is high, hands are on the chime: it falls quiet and the tubes are stilled.",
+      try: "a gate from a sequencer, for silences in exactly the right places." },
+    { name: "Next chime", about: "Each pulse moves on to the next chime set, round all six.",
+      try: "one pulse every few minutes, for a piece that slowly changes its voice." },
+  ]},
+  { id: "audioIn", byte: 8, label: "Audio In", kind: "in", options: [
+    { name: "In the space", about: "You hear your input dry and wet together: it joins the chime in the same space, with the same reverb, from porch to galaxy.",
+      try: "a quiet drone or a voice, standing among the tubes." },
+    { name: "Reverb only", about: "The audio you hear is just the wet reverb, not the dry input signal. The difference is clearest in the small spaces (Y to the left); in the big ones, most of what you hear is reverb anyway.",
+      try: "a mixer’s send and return, with the dry sound kept on the mixer." },
+    { name: "Blows the wind (silent)", about: "Your sound becomes the wind: its loudness adds to the Main knob, and each sudden push sends a gust and a puff through the chime. The sound itself is not heard.",
+      try: "a microphone, and blow. Or a drum loop, so the chime is swept along by it." },
+    { name: "Blows the wind (heard)", about: "The same, and your sound is heard too: dry and wet, in the same space as the chime. The music plays the chime as it goes.",
+      try: "a voice or a drum loop through the Amplifier, so the chime answers every phrase and beat." },
+  ]},
+];
+const LEVEL_BYTE = 9, LEVEL_MIN = -24, LEVEL_MAX = 12, NBYTES = 13;
+const CHIME_BYTE = 12, CHIME_SILENT = 31;                  // 0..30 dB down, 31 = silent (card/wc_settings.h)
+const DEFAULTS = [0, 1, 0, 1, 0, 0, 0, 0, 0, 64, 0, 0, 0];
+const DEPTHS = ["5 V", "2 V", "1 V", "0.5 V"];             // byte 10 / 11 (card/wc_settings.h CvDepth)
+const PITCH = 1;                                           // the CV source that is always 1 V per octave
+const DEPTH_ABOUT = "How far it swings. 5 V where the input has its own knob, like an oscillator’s FM. Without one, try 1 V or less: " +
+  "an oscillator’s pitch (1 V is an octave), a filter’s cutoff, a Slope’s rate.";
+const MODES = ["Clean", "Tape (subtle)", "Tape (worn)"];
+const CARD_NAME = /aiolos|wind chime/i;                   // the USB name (cards before 0.10 were called "Wind Chime")
+const MAKER = 0x7D, DEVICE = 0x57, HELLO = 1, GET = 2, SET = 3, DEFAULT = 4, PROTOCOL = 5;
+
+// ---------------------------------------------------------------------------------------------------------------
+// The page
+// ---------------------------------------------------------------------------------------------------------------
+let settings = DEFAULTS.slice();
+const $ = (id) => document.getElementById(id);
+const hex = (d) => d.map((b) => b.toString(16).padStart(2, "0")).join(" ");
+const log = (t) => { const el = $("log"); el.textContent += t + "\n"; el.scrollTop = el.scrollHeight; };
+
+function slider(box, id, label, min, max, onValue) {     // a quiet slider row; paced sends while dragging (see the level)
+  const lv = document.createElement("div"); lv.className = "level";
+  const lab = document.createElement("label"); lab.htmlFor = id; lab.textContent = label; lab.style.color = "var(--soft)"; lab.style.fontSize = "0.92rem";
+  const r = document.createElement("input"); r.type = "range"; r.id = id; r.min = min; r.max = max; r.step = 1;
+  const v = document.createElement("span"); v.id = id + "Text";
+  let last = 0, t = null;
+  const busy = () => { levelBusyUntil = performance.now() + 600; };
+  r.onpointerdown = busy; r.onkeydown = busy;
+  r.oninput = () => {
+    busy(); onValue(+r.value);
+    const now = performance.now(); clearTimeout(t);
+    if (now - last >= 80) { last = now; send(); } else t = setTimeout(() => { last = performance.now(); send(); }, 80 - (now - last));
+  };
+  r.onchange = () => { clearTimeout(t); busy(); send(); };
+  lv.append(lab, r, v); box.append(lv);
+}
+function build() {
+  {                                                         // Audio Out: the chime's level (5i)
+    const box = document.createElement("div"); box.className = "jack"; box.id = "jack-audioOut";
+    const row = document.createElement("div"); row.className = "row";
+    const name = document.createElement("span"); name.className = "name"; name.textContent = "Audio Out";
+    row.append(name);
+    const about = document.createElement("p"); about.className = "about";
+    about.textContent = "The chime and its space. Turn the chime down, even to silent, and it keeps playing inside: every CV, pulse and light carries on, and Audio In still goes through the space.";
+    const t = document.createElement("span"); t.className = "try"; t.textContent = "silent chimes, with their wind and strikes driving the rest of your patch: a modulation source and a reverb."; about.appendChild(t);
+    box.append(row, about);
+    // (| 0: a whole number, never "-0")
+    slider(box, "chime", "Chime", -CHIME_SILENT, 0, (v) => { settings[CHIME_BYTE] = (-v) | 0; showChime(false); });
+    $("outputs").appendChild(box);
+  }
+  for (const j of JACKS) {
+    const box = document.createElement("div"); box.className = "jack"; box.id = "jack-" + j.id;
+    const row = document.createElement("div"); row.className = "row";
+    const name = document.createElement("label"); name.className = "name"; name.htmlFor = "sel-" + j.id; name.textContent = j.label;
+    const sel = document.createElement("select"); sel.id = "sel-" + j.id;
+    j.options.forEach((o, i) => { const op = document.createElement("option"); op.value = i;
+      op.textContent = o.name + (i === DEFAULTS[j.byte] ? "  ·  default" : ""); sel.appendChild(op); });
+    sel.onchange = () => { settings[j.byte] = +sel.value; show(j); box.classList.remove("changed"); void box.offsetWidth; box.classList.add("changed"); send(); };
+    row.append(name, sel);
+    const about = document.createElement("p"); about.className = "about"; about.id = "about-" + j.id; about.setAttribute("aria-live", "polite");
+    box.append(row, about);
+    if (j.depthByte !== undefined) {
+      const dr = document.createElement("div"); dr.className = "level depth"; dr.id = "depth-" + j.id;
+      const lab = document.createElement("label"); lab.htmlFor = "dsel-" + j.id; lab.textContent = "Depth";
+      lab.style.color = "var(--soft)"; lab.style.fontSize = "0.92rem"; lab.style.flex = "1";
+      const ds = document.createElement("select"); ds.id = "dsel-" + j.id; ds.style.fontSize = "0.92rem";
+      DEPTHS.forEach((d, i) => { const op = document.createElement("option"); op.value = i; op.textContent = d + (i === 0 ? "  ·  default" : ""); ds.appendChild(op); });
+      ds.onchange = () => { settings[j.depthByte] = +ds.value; send(); };
+      const hint = document.createElement("p"); hint.className = "about"; hint.style.marginTop = "0.3rem"; hint.id = "dhint-" + j.id;
+      hint.textContent = DEPTH_ABOUT;
+      dr.append(lab, ds); box.append(dr, hint);
+    }
+    if (j.id === "audioIn") {
+      const lv = document.createElement("div"); lv.className = "level";
+      const lab = document.createElement("label"); lab.htmlFor = "level"; lab.textContent = "Level"; lab.style.color = "var(--soft)"; lab.style.fontSize = "0.92rem";
+      const r = document.createElement("input"); r.type = "range"; r.id = "level"; r.min = LEVEL_MIN; r.max = LEVEL_MAX; r.step = 1;
+      const v = document.createElement("span"); v.id = "levelText";
+      // While the slider is in use, its value is the person's: replies don't move it, and sends are paced (at most
+      // one every 80 ms while dragging, and always the final value when let go).
+      let last = 0, t = null;
+      const busy = () => { levelBusyUntil = performance.now() + 600; };
+      r.onpointerdown = busy; r.onkeydown = busy;
+      r.oninput = () => {
+        busy(); settings[LEVEL_BYTE] = +r.value + 64; showLevel(false);
+        const now = performance.now(); clearTimeout(t);
+        if (now - last >= 80) { last = now; send(); } else t = setTimeout(() => { last = performance.now(); send(); }, 80 - (now - last));
+      };
+      r.onchange = () => { clearTimeout(t); busy(); send(); };
+      lv.append(lab, r, v);
+      box.append(lv);
+    }
+    $(j.kind === "out" ? "outputs" : "inputs").appendChild(box);
+  }
+  showAll();
+}
+function show(j) {
+  const o = j.options[settings[j.byte]] ?? j.options[0];
+  $("sel-" + j.id).value = settings[j.byte];
+  const p = $("about-" + j.id); p.textContent = o.about;
+  const t = document.createElement("span"); t.className = "try"; t.textContent = o.try; p.appendChild(t);
+  if (j.depthByte !== undefined) {
+    const pitch = settings[j.byte] === PITCH;
+    $("dsel-" + j.id).value = settings[j.depthByte];
+    $("depth-" + j.id).style.display = pitch ? "none" : "";
+    $("dhint-" + j.id).style.display = pitch ? "none" : "";
+  }
+}
+let levelBusyUntil = 0;
+function showLevel(moveSlider = true) {
+  const db = settings[LEVEL_BYTE] - 64;
+  if (moveSlider) $("level").value = db;
+  $("levelText").textContent = (db > 0 ? "+" : db < 0 ? "−" : "") + Math.abs(db) + " dB";
+}
+function showChime(moveSlider = true) {
+  const c = settings[CHIME_BYTE];
+  if (moveSlider) $("chime").value = -c;
+  $("chimeText").textContent = c >= CHIME_SILENT ? "silent" : c === 0 ? "0 dB" : "−" + c + " dB";
+}
+function showAll() { JACKS.forEach(show); showLevel(); showChime(); }
+function status(text, cls = "") { $("status").className = cls; $("statusText").textContent = text; }
+
+// ---------------------------------------------------------------------------------------------------------------
+// The card (Web MIDI)
+// ---------------------------------------------------------------------------------------------------------------
+let midi = null, out = null, card = null, waitHello = null, sendTimer = null, pending = false;
+let sentSets = 0, gotSets = 0;          // a reply to an older change must not undo a newer one
+let atConnect = null;                   // the card's settings when this page connected (the "return" link)
+function showUndo() { $("undo").hidden = !(card && atConnect && atConnect.some((v, i) => v !== settings[i])); }
+function valid(b) {
+  if (!Array.isArray(b) || b.length !== NBYTES) return false;
+  for (let i = 0; i < 9; i++) if (!(b[i] >= 0 && b[i] < JACKS[i].options.length)) return false;
+  if (!(b[10] >= 0 && b[10] < DEPTHS.length && b[11] >= 0 && b[11] < DEPTHS.length)) return false;
+  if (!(b[12] >= 0 && b[12] <= CHIME_SILENT)) return false;
+  return b[9] >= 64 + LEVEL_MIN && b[9] <= 64 + LEVEL_MAX;
+}
+function sendRaw(cmd, data = []) {
+  if (!out) return false;
+  const m = [0xF0, MAKER, DEVICE, cmd, ...data, 0xF7];
+  try { out.send(m); log("out " + hex(m)); return true; } catch (e) { log("send failed: " + e.message); lost(); return false; }
+}
+function send() {
+  if (!card) return;                                          // not connected: just looking around
+  if (!valid(settings)) { log("not sent: invalid settings " + settings); return; }
+  pending = true; status("Sending…", "ok");
+  if (sendRaw(SET, settings)) sentSets++;
+  clearTimeout(sendTimer);
+  sendTimer = setTimeout(() => { if (pending) { gotSets = sentSets; status("The card did not answer. Is it still connected?", "warn"); } }, 1500);
+}
+function onMessage(ev) {
+  const d = Array.from(ev.data);
+  if (d[0] !== 0xF0 || d[1] !== MAKER || d[2] !== DEVICE) return;
+  log("in  " + hex(d));
+  const cmd = d[3];
+  if (cmd === HELLO && d.length >= 9) {
+    const info = { protocol: d[4], major: d[5], minor: d[6], mode: d[7] };
+    if (waitHello) { waitHello(info); waitHello = null; }
+  } else if (cmd === GET && d.length === 5 + NBYTES) {
+    const b = d.slice(4, 4 + NBYTES);
+    if (valid(b)) { settings = b; if (!atConnect) atConnect = b.slice(); showAll(); showUndo(); status("Connected. These are the card’s settings now.", "ok"); }
+    else status("The card sent settings this page doesn’t know. Is the page out of date?", "warn");
+  } else if ((cmd === SET || cmd === DEFAULT) && d.length === 6 + NBYTES) {
+    gotSets++;
+    const latest = gotSets >= sentSets; if (latest) { gotSets = sentSets; pending = false; clearTimeout(sendTimer); }
+    const b = d.slice(5, 5 + NBYTES);
+    if (valid(b) && latest) {
+      const mine = settings[LEVEL_BYTE], mineC = settings[CHIME_BYTE];
+      settings = b;
+      const inUse = performance.now() < levelBusyUntil;
+      if (inUse) { settings[LEVEL_BYTE] = mine; settings[CHIME_BYTE] = mineC; }   // a slider is in use: keep the person's values
+      JACKS.forEach(show); showLevel(!inUse); showChime(!inUse);
+    }
+    showUndo();
+    if (!latest) return;
+    if (d[4] === 1) status(cmd === DEFAULT ? "Back to the default settings. Remembered." : "Changed. The card will remember it.", "ok");
+    else status("The card didn’t take that change, so it is shown as the card has it.", "warn");
+  }
+}
+function findCard() {
+  const outs = Array.from(midi.outputs.values());
+  return outs.find((o) => CARD_NAME.test(o.name)) ?? null;
+}
+function inputFor(o) {
+  const ins = Array.from(midi.inputs.values());
+  return ins.find((i) => i.name === o.name) ?? ins.find((i) => CARD_NAME.test(i.name)) ?? null;
+}
+function lost() { card = null; out = null; $("undo").hidden = true; status("The card went away. Connect again when it is back.", "warn"); $("cardInfo").textContent = ""; }
+async function connect() {
+  try {
+    if (!navigator.requestMIDIAccess) { status("This browser can’t talk to the card. Please use Chrome, Edge or Opera.", "warn"); return; }
+    status("Asking the browser for permission…");
+    midi = midi ?? await navigator.requestMIDIAccess({ sysex: true });
+    midi.onstatechange = (e) => { log(`${e.port.type} "${e.port.name}": ${e.port.state}`);
+      if (card && e.port.state === "disconnected" && CARD_NAME.test(e.port.name)) lost(); };
+    const o = findCard();
+    if (!o) { status("No Aiolos card found. Is the USB cable in, and the Aiolos card running?", "warn"); return; }
+    const i = inputFor(o);
+    if (!i) { status("Found the card, but can’t hear it. Try re-plugging the USB cable.", "warn"); return; }
+    for (const x of midi.inputs.values()) x.onmidimessage = null;
+    i.onmidimessage = onMessage; out = o; sentSets = gotSets = 0; atConnect = null;
+    status("Saying hello…");
+    const info = await new Promise((res) => { waitHello = res; sendRaw(HELLO); setTimeout(() => { if (waitHello) { waitHello = null; res(null); } }, 1500); });
+    if (!info) { status("The card didn’t answer. Try again, or re-plug the USB cable.", "warn"); out = null; return; }
+    $("cardInfo").textContent = `Card firmware ${info.major}.${info.minor} · output mode: ${MODES[info.mode] ?? info.mode} (changed on the card: Z middle-up-middle, twice)`;
+    if (info.protocol < PROTOCOL) { status(`This card’s firmware (${info.major}.${info.minor}) is too old for the editor. Please install the latest Aiolos firmware.`, "warn"); out = null; return; }
+    card = o; status("Connected. Reading the card’s settings…", "ok");
+    sendRaw(GET);
+    $("connect").textContent = "Connect again";
+  } catch (e) {
+    status(e && e.name === "SecurityError" ? "The browser wasn’t allowed to talk to MIDI devices. Allow it (the icon in the address bar), then try again." : (e.message || String(e)), "warn");
+  }
+}
+$("connect").onclick = connect;
+$("undo").onclick = () => {
+  if (!card || !atConnect) return;
+  settings = atConnect.slice(); showAll(); send();
+};
+$("defaults").onclick = () => {
+  if (card) { pending = true; if (sendRaw(DEFAULT)) sentSets++; clearTimeout(sendTimer); sendTimer = setTimeout(() => { if (pending) { gotSets = sentSets; status("The card did not answer. Is it still connected?", "warn"); } }, 1500); }
+  else { settings = DEFAULTS.slice(); showAll(); status("Not connected: showing the default settings."); }
+};
+build();
+</script>
+</body>
+</html>
