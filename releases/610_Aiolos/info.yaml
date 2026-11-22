@@ -28,3 +28,76 @@ host:
     - name: USB MIDI
       role: device
       description: The web editor talks to the card over WebMIDI (Chrome, Edge or Opera).
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Wind
+      type: cv
+      description: Adds to Main; +5 V is a whole turn. Changeable in the editor.
+    - id: CVIn2
+      name: Direction
+      type: cv
+      description: Adds to X, with a glide; +5 V is a whole turn. Changeable in the editor.
+    - id: PulseIn1
+      name: Clock
+      type: pulse
+      description: While pulses arrive, each strike waits for the next one. Changeable in the editor.
+    - id: PulseIn2
+      name: Gust
+      type: pulse
+      description: Each pulse sends a gust, sized to the wind. Changeable in the editor.
+    - id: AudioIn1
+      name: Audio In (left)
+      type: audio
+      description: Joins the chime in the space; or reverb only, or blows the wind (set in the editor).
+    - id: AudioIn2
+      name: Audio In (right)
+      type: audio
+      description: As Audio In 1.
+  outputs:
+    - id: AudioOut1
+      name: Chime (left)
+      type: audio
+    - id: AudioOut2
+      name: Chime (right)
+      type: audio
+    - id: CVOut1
+      name: Wind
+      type: cv
+      description: Near 0 V in a calm, opening with each gust (0 to 5 V). Eleven sources in the editor.
+    - id: CVOut2
+      name: Pitch
+      type: cv
+      description: The pitch of each strike, 1 V per octave. Eleven sources in the editor.
+    - id: PulseOut1
+      name: Strike
+      type: pulse
+      description: Every strike. Changeable in the editor.
+    - id: PulseOut2
+      name: Accent
+      type: pulse
+      description: Only the hardest strikes. Changeable in the editor.
+
+controls:
+  switch:
+    up:     { name: Chime layer, description: "Main = the chime, X = the tuning, Y = the key; the LEDs show the choice" }
+    middle: { name: Play, description: "The wind, its direction and the space" }
+    down:   { name: Hands on, description: "Hold: the chime falls quiet. Two quick taps: weather on or off" }
+    tap:    { name: Brush, description: Brush the chime like a passing hand }
+  knobs:
+    - main: { name: Wind, description: "Fully anticlockwise is still air; fully clockwise is a gale" }
+      x:    { name: Direction, description: Where the wind blows from; the chime turns with it }
+      y:    { name: Space, description: "Porch, porch and small garden, garden, woodland, dream, galaxy" }
+    - when: { z: up }
+      main: { name: Chime, description: "Aluminium, deep aluminium, brass, glass, bamboo, bell" }
+      x:    { name: Tuning, description: "Major pentatonic, minor pentatonic, C9 chord, Westminster, whole-tone, ominous" }
+      y:    { name: Key, description: Six semitones either way }
+  leds:
+    - items:
+        - { id: LED0, name: Tube 1, description: "Glows as tube 1 (the lowest) rings; the LEDs sit as the tubes hang, round the ring" }
+        - { id: LED1, name: Tube 4, description: "Glows as tube 4 rings; the LEDs sit as the tubes hang, round the ring" }
+        - { id: LED2, name: Tube 6, description: "Glows as tube 6 (the highest) rings; the LEDs sit as the tubes hang, round the ring" }
+        - { id: LED3, name: Tube 2, description: "Glows as tube 2 rings; the LEDs sit as the tubes hang, round the ring" }
+        - { id: LED4, name: Tube 3, description: "Glows as tube 3 rings; the LEDs sit as the tubes hang, round the ring" }
+        - { id: LED5, name: Tube 5, description: "Glows as tube 5 rings; the LEDs sit as the tubes hang, round the ring" }
