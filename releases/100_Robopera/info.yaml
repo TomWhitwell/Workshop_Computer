@@ -1,0 +1,28 @@
+draft: false
+Name: Robopera
+short-description: "Build singing robots with your Workshop System."
+summary: >
+  Robopera is a fun, accessible way to share the wonders of the Workshop System with children. Flash the program card,
+  connect your system to the web editor, and you'll be guided, one step at a time, from your first cable to a singing
+  robot of your very own.
+
+  Although designed for little people (supervised by an adult), Robopera is also useful for anyone just starting out
+  with the Workshop System (or anyone looking for a refresher). You can use it to check your instrument is working
+  properly, to get familiar with the modules, and to learn the basics of sound design.
+Language: "C++ (Pico SDK + ComputerCard)"
+Creator: "Joe Hedinger (isbn)"
+Version: "1.0.1"
+Status: "Beta"
+date-created: 2026-10-17
+date-updated: 2026-11-16
+tags:
+  - voice
+  - generative
+  - web-editor
+  - education
+
+host:
+  usb:
+    - name: USB MIDI
+      role: device
+      description: The web editor talks to the card over WebMIDI (Chrome, Edge or Opera).
