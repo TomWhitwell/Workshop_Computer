@@ -16,6 +16,14 @@ const urlText = {
   pattern: '^https?://\\S+$',
 };
 
+// Social contacts may be a profile URL or a bare handle: "@name", "name",
+// "name.bsky.social", or a fediverse "@name@instance.social". A single pattern
+// (rather than anyOf) keeps invalid values to one diagnostic.
+const socialContact = {
+  type: 'string',
+  pattern: '^(https?://\\S+|@?[A-Za-z0-9_.-]{1,64}(@[A-Za-z0-9.-]+\\.[A-Za-z]{2,})?)$',
+};
+
 const nonBlankText = { type: 'string', minLength: 1 };
 const description = { type: 'string' };
 const panelWhen = {
@@ -138,7 +146,7 @@ export const infoYamlJsonSchema = {
         website: urlText,
         social: {
           type: 'object',
-          additionalProperties: urlText,
+          additionalProperties: socialContact,
         },
       },
       additionalProperties: false,

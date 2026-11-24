@@ -168,6 +168,35 @@ panel:
   assert.equal(result.errorCount, 0);
 });
 
+test('contact.social entries accept a profile URL or a username/handle', () => {
+  const socialDiagnostics = social => validate(`
+Name: Test Card
+Creator: Someone
+Language: C++
+Version: "1.0"
+Status: Released
+contact:
+  social:
+${Object.entries(social).map(([k, v]) => `    ${k}: ${JSON.stringify(v)}`).join('\n')}
+`).diagnostics.filter(d => d.path.startsWith('contact.social'));
+
+  assert.deepEqual(socialDiagnostics({ discord: '@dessertplanet' }), []);
+  assert.deepEqual(socialDiagnostics({ discord: 'chrischn52' }), []);
+  assert.deepEqual(socialDiagnostics({ discord: 'some.user_name' }), []);
+  assert.deepEqual(socialDiagnostics({ discord: 'https://discord.com/channels/1/2' }), []);
+  assert.deepEqual(socialDiagnostics({
+    github: 'some-user',
+    instagram: '@plus.minus.audio',
+    bluesky: 'name.bsky.social',
+    mastodon: '@user@mastodon.social',
+    youtube: 'https://www.youtube.com/@someone',
+  }), []);
+  assert.ok(socialDiagnostics({ discord: 'not a username' }).length > 0);
+  assert.ok(socialDiagnostics({ github: 'ftp://github.com/x' }).length > 0);
+  assert.ok(socialDiagnostics({ mastodon: '@user@nodomain' }).length > 0);
+  assert.equal(socialDiagnostics({ instagram: 'has spaces in it' }).length, 1);
+});
+
 test('missing Name is an error, legacy Title satisfies it', () => {
   const missing = validate(`Creator: Someone\nLanguage: C\nVersion: "1"\nStatus: WIP\n`);
   assert.ok(missing.diagnostics.some(d =>
