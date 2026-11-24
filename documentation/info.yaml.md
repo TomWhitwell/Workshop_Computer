@@ -48,7 +48,7 @@ Optional creator/maintainer contact details. Not rendered on detail pages yet; p
 |-------|----------|------|-------------|
 | `contact.email` | no | string | Contact email address. |
 | `contact.website` | no | string (URL) | Personal or project website. |
-| `contact.social` | no | object | Map of platform name → profile URL (keys normalized to lowercase, no spaces). |
+| `contact.social` | no | object | Map of platform name → profile URL or username/handle (e.g. `@username`, `name.bsky.social`, `@user@mastodon.social`). Keys normalized to lowercase, no spaces. |
 
 ```yaml
 contact:
@@ -57,7 +57,8 @@ contact:
   social:
     instagram: https://instagram.com/username
     github: https://github.com/username
-    mastodon: https://mastodon.social/@username
+    mastodon: "@username@mastodon.social"
+    discord: "@username"
 ```
 
 ## Web editor

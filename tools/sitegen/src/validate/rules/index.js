@@ -112,7 +112,7 @@ export const contactShape = {
     }
     if (contact.social !== undefined && !isPlainObject(contact.social)) {
       out.push({ severity: 'warning', path: 'contact.social', key: 'contact',
-        message: 'contact.social should be a map of platform → profile URL.' });
+        message: 'contact.social should be a map of platform → profile URL or username.' });
     }
     return out;
   },
