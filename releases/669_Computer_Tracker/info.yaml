@@ -1,0 +1,135 @@
+# Computer Tracker – info.yaml für releases/669_computer_tracker/
+draft: false
+Name: Computer Tracker
+short-description: Tracker sequencer with 4 drum synths, 2 CV/gate tracks, 2 audio-in VCA tracks and a WebMIDI editor.
+Language: C++ (Pico SDK + ComputerCard)
+Creator: Gordon Bleu
+Version: "0.4.3"
+Status: Beta
+License: MIT
+date-created: 2026-11-15
+date-updated: 2026-11-24
+Editor: https://gordonbleu-modular.github.io/computer-tracker/
+repository: https://github.com/gordonbleu-modular/computer-tracker
+discussion: https://discord.com/channels/1210238368898879569/1574702387086622851
+contact:
+  discord: chrischn52
+  social:
+    github: https://github.com/gordonbleu-modular
+    instagram: https://www.instagram.com/gordon_bleu_modular/
+
+tags:
+  - sequencer
+  - tracker
+  - drums
+  - cv
+  - gate
+  - web-editor
+
+summary: |
+  A tracker sequencer with four on-board drum synth voices (Kick with an optional click, Karplus-Strong pluck, pitched noise, FM metal, modal resonator, a snare that morphs into a clap, and a per-voice lo-fi grit), a stereo mixer (a mute on every strip, the reverb return and the master) with a lo-fi stereo reverb on a send (with a per-step send effect), two CV/gate tracks for the Workshop System VCOs, and two IN tracks that play the VCAs on the audio inputs (where the VCO audio comes back in). Each step has a note, a velocity (drum and IN tracks) and one effect. Songs are edited in a browser (Chrome/Edge) over USB-MIDI SysEx and stored in six flash slots; without a computer the card is played from the panel (slots, next part, macros, external clock and reset).
+
+uf2:
+  - path: workshop_tracker.uf2
+    name: Workshop Tracker 0.4.3
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: IN1
+      description: Mixer channel IN1 (e.g. VCO 1) through a VCA played by the IN1 track or by CV/gate track 1
+      type: audio
+    - id: AudioIn2
+      name: IN2
+      description: Mixer channel IN2 (e.g. VCO 2) through a VCA played by the IN2 track or by CV/gate track 2
+      type: audio
+    - id: CVIn1
+      name: Transpose
+      description: Transposes both CV tracks, 1 V/oct, quantised to semitones; folded by octaves so CV out stays 0-5.92 V
+      type: cv
+    - id: CVIn2
+      name: Filter mod
+      description: Added to the master filter macro (low-pass to high-pass)
+      type: cv
+    - id: PulseIn1
+      name: Clock
+      description: One rising edge advances one row; replaces the internal clock while patched
+      type: pulse
+    - id: PulseIn2
+      name: Reset
+      description: Back to the song start (or pattern start in pattern mode)
+      type: pulse
+  outputs:
+    - id: AudioOut1
+      name: Mix L
+      description: Stereo mix (with the reverb return), left
+      type: audio
+    - id: AudioOut2
+      name: Mix R
+      description: Stereo mix (with the reverb return), right
+      type: audio
+    - id: CVOut1
+      name: Pitch 1
+      description: Calibrated 1 V/oct pitch of CV/gate track 1, C0 = 0 V to B5 = 5.92 V (positive only)
+      type: cv
+    - id: CVOut2
+      name: Pitch 2
+      description: Calibrated 1 V/oct pitch of CV/gate track 2, C0 = 0 V to B5 = 5.92 V (positive only)
+      type: cv
+    - id: PulseOut1
+      name: Gate 1
+      description: Gate of CV/gate track 1
+      type: pulse
+    - id: PulseOut2
+      name: Gate 2
+      description: Gate of CV/gate track 2
+      type: pulse
+
+controls:
+  switch:
+    up:
+      name: Select
+      description: Main = song slot (travel split evenly over the saved slots), X = tempo, Y = swing
+    middle:
+      name: Perform
+      description: Main = decay macro (drums, CV gate length, IN VCA decay), X = colour macro (drums, CV glide, IN drive), Y = master filter
+    down:
+      name: Start / next / stop
+      description: Tap to start or jump to the next part at the end of the pattern; hold 0.8 s to stop
+  knobs:
+    - main:
+        name: Decay / Slot
+        description: Decay macro on the routed drum voices, CV gate length and IN VCA decay (Perform) or song slot, travel split over the saved slots (Select)
+      x:
+        name: Colour / Tempo
+        description: Param A macro on the routed drum voices, CV glide and IN drive (Perform) or tempo 40-240 BPM (Select)
+      y:
+        name: Filter / Swing
+        description: Master filter LP-HP (Perform) or swing 50-75 % (Select)
+  leds:
+    - display: list
+      items:
+        - id: LED0
+          name: Beat
+          description: Flashes every 4 rows; blinks while a knob waits for pickup. Select page shows one LED per slot (dim = saved, bright = playing, flashing = next).
+        - id: LED1
+          name: Play
+          description: Dim while playing, blinking while a part change is queued; glows faintly while stopped and the reverb tail is still ringing
+        - id: LED2
+          name: Drum 1
+          description: Drum voice 1 hits
+        - id: LED3
+          name: Drum 2
+          description: Drum voice 2 hits
+        - id: LED4
+          name: Drum 3
+          description: Drum voice 3 hits
+        - id: LED5
+          name: Drum 4
+          description: Drum voice 4 hits
+
+host:
+  usb:
+    - name: USB MIDI device
+      role: midi
+      description: Appears as "Workshop Tracker"; the web editor (https://gordonbleu-modular.github.io/computer-tracker/) talks to it with SysEx
