@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { debugLog } from './logger.js';
+import { INFO_FILE_NAMES, isInfoFileName } from './infoFile.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,7 +59,7 @@ function releaseFolderOf(file) {
 
 function isMetadataFile(folder, file) {
   const name = file.slice(folder.length + 1);
-  return name === 'info.yaml' || name.toLowerCase() === 'readme.md';
+  return isInfoFileName(name) || name.toLowerCase() === 'readme.md';
 }
 
 /**
@@ -116,31 +117,34 @@ function getReleaseHistory() {
       const { mainline } = entry(key);
       const last = mainline[mainline.length - 1];
       if (last?.sha !== commit.sha) mainline.push({ ...commit, touchesInfo: false });
-      if (line === `${key}/info.yaml`) mainline[mainline.length - 1].touchesInfo = true;
+      if (line.startsWith(`${key}/`) && isInfoFileName(line.slice(key.length + 1))) mainline[mainline.length - 1].touchesInfo = true;
     }
 
     // Draft state can only change at a folder's first main-line commit or at a
-    // commit touching its info.yaml, so read just those revisions, all at once.
+    // commit touching its info file, so read just those revisions, all at once.
+    // Each revision asks for every accepted name and keeps the first present.
     const wanted = [];
     for (const [key, folder] of folders) {
       folder.mainline.forEach((c, i) => {
-        if (i === 0 || c.touchesInfo) wanted.push({ folder, date: c.date, rev: `${c.sha}:${key}/info.yaml` });
+        if (i === 0 || c.touchesInfo) wanted.push({ folder, date: c.date, revs: INFO_FILE_NAMES.map(name => `${c.sha}:${key}/${name}`) });
       });
       delete folder.mainline;
     }
     if (wanted.length) {
       // Batch output per object: "<oid> blob <size>\n<content>\n", or "<rev> missing\n".
-      const out = run(['cat-file', '--batch'], wanted.map(({ rev }) => `${rev}\n`).join(''));
+      const out = run(['cat-file', '--batch'], wanted.flatMap(({ revs }) => revs).map(rev => `${rev}\n`).join(''));
       let pos = 0;
-      for (const { folder, date: revDate } of wanted) {
-        const eol = out.indexOf(10, pos);
-        const header = out.toString('utf8', pos, eol).split(' ');
-        pos = eol + 1;
+      for (const { folder, date: revDate, revs } of wanted) {
         let source = null;
-        if (header[1] === 'blob') {
-          const size = Number(header[2]);
-          source = out.toString('utf8', pos, pos + size);
-          pos += size + 1;
+        for (let r = 0; r < revs.length; r++) {
+          const eol = out.indexOf(10, pos);
+          const header = out.toString('utf8', pos, eol).split(' ');
+          pos = eol + 1;
+          if (header[1] === 'blob') {
+            const size = Number(header[2]);
+            if (source == null) source = out.toString('utf8', pos, pos + size);
+            pos += size + 1;
+          }
         }
         folder.revisions.push({ date: revDate, source });
       }

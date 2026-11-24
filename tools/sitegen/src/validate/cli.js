@@ -18,6 +18,7 @@ import { fsAsync as fs, fileExists, listSubdirs } from '../utils/fs.js';
 import { validateInfoFile } from './validateFile.js';
 import { reportText, reportJson, reportGithub } from './reporters/index.js';
 import { loadKnownValues } from './knownValues.js';
+import { findInfoFile } from '../utils/infoFile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../../../..');
@@ -48,22 +49,22 @@ async function resolveInput(arg) {
     if (!(await fileExists(abs))) continue;
     const stat = await fs.stat(abs);
     if (stat.isDirectory()) {
-      const candidate = path.join(abs, 'info.yaml');
-      return (await fileExists(candidate)) ? [candidate] : [];
+      const candidate = await findInfoFile(abs);
+      return candidate ? [candidate] : [];
     }
     return [abs];
   }
   return [];
 }
 
-/** Every releases/<card>/info.yaml. */
+/** Every releases/<card>/info.yaml (or info.yml). */
 async function scanReleases() {
   const out = [];
   let folders = [];
   try { folders = await listSubdirs(RELEASES_DIR); } catch { return out; }
   for (const folder of folders) {
-    const candidate = path.join(RELEASES_DIR, folder, 'info.yaml');
-    if (await fileExists(candidate)) out.push(candidate);
+    const candidate = await findInfoFile(path.join(RELEASES_DIR, folder));
+    if (candidate) out.push(candidate);
   }
   return out;
 }

@@ -18,7 +18,7 @@ import { cardScope, evaluateMergeEligibility, measureChanges, sizeReasons, touch
 import { minifiedWebFiles } from './webCode.js';
 import { parseNameStatusZ } from './prRules.js';
 
-const releaseIndexFile = /^releases\/[^/]+\/info\.yaml$/;
+const releaseIndexFile = /^releases\/[^/]+\/info\.ya?ml$/;
 
 function diffNameStatus(cwd, base, head) {
   const result = spawnSync('git', ['diff', '--no-ext-diff', '--no-textconv', '--name-status', '-z', `${base}...${head}`], {

@@ -13,6 +13,7 @@ import { videoEmbedHtml } from '../utils/video.js';
 import { resolveAudioSamples, getAudioField } from '../utils/audio.js';
 import { buildCanonicalCardModel } from '../model/card.js';
 import { renderMarkdownBlock } from '../utils/markdown.js';
+import { findInfoFile } from '../utils/infoFile.js';
 
 // Read the top-level `uf2` field from parsed YAML, case-insensitively.
 function readUf2Field(obj) {
@@ -60,12 +61,12 @@ export async function discoverRelease(rootReleasesDir, folderName, outDirProgram
   const abs = path.join(rootReleasesDir, folderName);
   const slug = slugify(folderName);
 
-  // info.yaml
-  const infoPath = path.join(abs, 'info.yaml');
+  // info.yaml (or info.yml)
+  const infoPath = await findInfoFile(abs);
   let rawYaml = {};
   let info = { title: folderName };
   let rawInfoSource = '';
-  if (await fileExists(infoPath)) {
+  if (infoPath) {
     const raw = await fs.readFile(infoPath, 'utf8');
     rawInfoSource = raw;
     try {
@@ -147,7 +148,7 @@ export async function discoverRelease(rootReleasesDir, folderName, outDirProgram
     (rel) => resolveAudioSample(rel, repoRelBase, makeRawUrl),
   );
 
-  const sourceFile = toPosix(path.join('releases', folderName, 'info.yaml'));
+  const sourceFile = toPosix(path.join('releases', folderName, infoPath ? path.basename(infoPath) : 'info.yaml'));
   const sourceUrl = `https://github.com/${repoSlug}/tree/${refName}/releases/${folderName}`;
   const readmeRelPath = toPosix(path.join('releases', folderName, 'README.md'));
   const readmeUrl = `https://github.com/${repoSlug}/blob/${refName}/releases/${folderName}/README.md`;

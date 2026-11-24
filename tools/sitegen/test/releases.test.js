@@ -11,11 +11,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseSource } from '../src/validate/parseSource.js';
 import { validateInfoYaml } from '../src/validate/validateInfoYaml.js';
+import { findInfoFileSync } from '../src/utils/infoFile.js';
 
 const releasesDir = fileURLToPath(new URL('../../../releases/', import.meta.url));
 const infoFiles = fs.readdirSync(releasesDir)
-  .map(dir => path.join(releasesDir, dir, 'info.yaml'))
-  .filter(f => fs.existsSync(f));
+  .map(dir => findInfoFileSync(path.join(releasesDir, dir)))
+  .filter(Boolean);
 
 test('releases/ contains info.yaml files to validate', () => {
   assert.ok(infoFiles.length > 20, `only found ${infoFiles.length}`);
