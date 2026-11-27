@@ -104,7 +104,6 @@ assignments:
   "14_cvmod": []
   "15_MLRws":
     - deep
-    - toms-pick
     - classic
   "16_the_bells":
     - toms-pick
@@ -161,15 +160,18 @@ assignments:
     - instant-win
   "43_Castle_Process":
     - wild
+    - classic
   "44_Birds":
     - instant-win
-  "45_bends": []
+    - classic
+  "45_bends":
+    - classic
   "47_NZT": []
   "48_two_tracks": []
-  "49_Tape_Bias":
-    - classic
+  "49_Tape_Bias": []
   "50_flux":
     - deep
+    - classic
   "51_grains": []
   "52_F1shnet": []
   "53_glitter": []
@@ -186,7 +188,6 @@ assignments:
     - magic
     - deep
   "62_BioMimicry":
-    - toms-pick
     - wild
   "63_Nibble": []
   "64_voices_of_sid": []
@@ -208,13 +209,13 @@ assignments:
   "77_PunkConfusion": []
   "78_Talker": []
   "79_Slag": []
+  "80_Blocks":
+    - new
   "81_West_Coast_LPG": []
-  "82_Computer_Grids":
-    - classic
+  "82_Computer_Grids": []
   "83_Origami": []
   "84_CosmikC1zzl3":
     - deep
-    - classic
   "85_plant_holder":
     - useful
   "86_tesserae": []
@@ -225,8 +226,7 @@ assignments:
   "90_Pantograph": []
   "91_chorgan":
     - instant-win
-  "92_quattro_formaggio":
-    - new
+  "92_quattro_formaggio": []
   "93_Turing_Matrix": []
   "94_Ouroboros": []
   "95_offair2":
@@ -234,13 +234,16 @@ assignments:
   "96_cathode":
     - magic
     - chris-pick
+    - toms-pick
   "97_alloy": []
   "98_duo_midi":
     - useful
   "99_toolbox": []
-  "101_Gnarly_C1ZZL3": []
-  "102_Nibble-KO":
+  "100_Robopera":
+    - new
     - toms-pick
+  "101_Gnarly_C1ZZL3": []
+  "102_Nibble-KO": []
   "103_spectral": []
   "104_barbers_pole": []
   "105_voder":
@@ -249,7 +252,6 @@ assignments:
     - useful
   "107_scintillator": []
   "108_GBA":
-    - toms-pick
     - magic
     - deep
   "109_LightPen":
@@ -257,28 +259,32 @@ assignments:
   "110_Impermanence": []
   "111_8mu_cv": []
   "112_Equanimity":
-    - new
     - toms-pick
     - start-here
-  "113_Constancy":
+  "113_Constancy": []
+  "114_Workshop_Fetichist":
+    - new
+    - toms-pick
+  "115_Temperance":
     - new
   "118_JP8K": []
   "122_You_Spin_Me_Round": []
   "123_Dawn_Chorus":
-    - new
-  "124_canon":
+    - classic
+  "124_canon": []
+  "125_Pedal_Lab": []
+  "126_Departures":
     - new
   "174_Skipping_Stones": []
   "197_CosmikM1N1D": []
   "202_ScaryLingo": []
   "303_acid": []
-  "333_Spatial_Disorientation":
-    - new
+  "333_Spatial_Disorientation": []
   "355_RYK_Pitch-Vocoder": []
   "369_Asterisk":
     - chris-pick
+    - classic
   "389_Qi_Gong_Timer":
-    - new
     - useful
   "404_BlackBox":
     - deep
@@ -287,61 +293,43 @@ assignments:
     - wild
   "538_bootleg_radio":
     - magic
-  "580_Vortex_Runner":
+  "561_Alien_Sitar":
     - new
-  "662_Workshop_Scope":
+  "580_Vortex_Runner": []
+  "608_TelexIO":
     - new
+    - deep
+  "610_Aiolos":
+    - new
+  "662_Workshop_Scope": []
   "666_ws_doom":
     - toms-pick
     - magic
+  "669_Computer_Tracker":
+    - new
+    - magic
+  "798_turings_palette":
+    - new
   "799_mazerunner":
     - wild
   "800_graphic_osc": []
   "801_WaveSeq":
     - toms-pick
-  "802_CVSeq":
+  "802_CVSeq": []
+  "803_8Heads":
     - new
   "805_Fader_Footie":
-    - new
     - wild
-  "806_Weights":
-    - new
+  "806_Weights": []
   "818_Bibesque":
     - useful
-    - classic
   "833_BuzzyBee": []
-  "873_Blueberry_Smoothie":
-    - new
+  "873_Blueberry_Smoothie": []
   "877_RYK_Tape-Sampler":
     - magic
     - chris-pick
-  "907_8mu_eq":
-    - new
+  "907_8mu_eq": []
   "910_RYK_Pitched-Delay":
     - classic
   "999_Dub_Warning":
     - toms-pick
-  # Pedal Lab
-  125_Pedal_Lab: []
-  # 8Heads
-  803_8Heads: []
-  # Workshop Fetichist
-  114_Workshop_Fetichist: []
-  # Temperance
-  115_Temperance: []
-  # Turing's Palette
-  798_turings_palette: []
-  # Departures
-  126_Departures: []
-  # TelexIO
-  608_TelexIO: []
-  # Alien Sitar
-  561_Alien_Sitar: []
-  # Blocks
-  80_Blocks: []
-  # Robopera
-  100_Robopera: []
-  # Aiolos
-  610_Aiolos: []
-  # Computer Tracker
-  669_Computer_Tracker: []
