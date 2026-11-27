@@ -55,10 +55,10 @@ shelves:
     title: Essentials 
     layout: video-lead
     cards:
+      - 114_Workshop_Fetichist
       - 26_clockwork
       - 369_Asterisk
       - 22_sheep
-      - 44_Birds
       - 112_Equanimity
       - 16_the_bells
 
@@ -75,14 +75,17 @@ shelves:
       href: ?sort=created-desc
 
 
-  - id: vos-collection
-    title: The Vos collection
+
+  - id: dune-collection
+    title: The Dune collection
     layout: video-strip
     cards:
-      - 54_Tapegrade
-      - 433_sense_of_space
-      - 87_fr330hfr33
-      - 101_Gnarly_C1ZZL3
+      - 15_MLRws
+      - 41_blackbird
+      - 11_goldfish
+      - 04_BYO_Benjolin
+
+
 
 
   - id: old
@@ -111,27 +114,27 @@ shelves:
 
 
 
-
-
-  - id: vincent-collection
-    title: The Vincent collection
+  - id: vos-collection
+    title: The Vos collection
     layout: video-strip
     cards:
-      - 45_bends
-      - 50_flux
-      - 51_grains
-      - 26_clockwork
+      - 54_Tapegrade
+      - 433_sense_of_space
+      - 87_fr330hfr33
+      - 101_Gnarly_C1ZZL3
+
+
 
       
-  - id: properly-useful
-    title: Properly useful
+
+  - id: tom-picks
+    title: Tom's picks
     layout: list
     cards_from_flairs:
-      - useful
+      - toms-pick
     hide_flairs:
-      - useful
+      - toms-pick
     limit: 6
-    
     
     
     
@@ -149,17 +152,16 @@ shelves:
 
 
 
-
-
-
-  - id: dune-collection
-    title: The Dune collection
+  - id: vincent-collection
+    title: The Vincent collection
     layout: video-strip
     cards:
-      - 15_MLRws
-      - 41_blackbird
-      - 11_goldfish
-      - 04_BYO_Benjolin
+      - 45_bends
+      - 50_flux
+      - 51_grains
+      - 26_clockwork
+
+
 
 
   - id: amazing
@@ -171,6 +173,16 @@ shelves:
       - magic
     limit: 6
 
+
+
+
+  - id: vermaat-collection
+    title: The Vermaat collection 
+    layout: video-strip
+    cards:
+      - 505_dot_dash
+      - 538_bootleg_radio
+      - 71_degenerator
 
 #   - id: samples-and-found-sound
 #     title: Samples and found sound
@@ -193,3 +205,13 @@ shelves:
 #       - 83_Origami
 #       - 97_alloy
 
+
+#   - id: properly-useful
+#     title: Properly useful
+#     layout: list
+#     cards_from_flairs:
+#       - useful
+#     hide_flairs:
+#       - useful
+#     limit: 6
+#     
