@@ -1,0 +1,120 @@
+draft: false
+Name: Abeyance
+short-description: 13 loops of piano and choir drifting in and out of step across a long stereo reverb, after the tape loops of Music for Airports. Plays on its own from power-up.
+summary: |
+  Six piano phrases and seven sung choir notes, each on its own loop of 17.8 to 41.3 seconds, drift in and out of
+  step the way the tape loops of Brian Eno's *Music for Airports* do, so the pattern between them keeps changing.
+  Each loop sits in the stereo field by pitch -- the bass in the centre, higher loops further out, alternating sides
+  -- into a dark piano echo and a long plate reverb. **Drift** skips passes, jumps octaves and reverses or shortens
+  piano phrases; **Tape** runs from a quiet tape (wow, flutter, drifting hiss) to a worn record (filtered noise,
+  crackle and soft pops), and turning **Main** past two-thirds grows the reverb into an 18-second wash. Tap the
+  switch **down** (or send Pulse In 1) and the piece fades out over 15 seconds, then a **new piece** begins: a new
+  root, one of nine scales, a new tempo and every loop re-cut. Two smooth random CVs, a trigger per piano note and a
+  gate while the piano sounds come out for the rest of the system, and the audio inputs go into the reverb.
+Language: C++ (Pico SDK)
+Creator: Matt Allison
+Version: "1.0.0"
+Status: Released
+License: MIT
+date-created: 2026-11-27
+date-updated: 2026-11-28
+
+contact:
+  social:
+    github: https://github.com/mrmattallison
+
+uf2:
+  - path: UF2/abeyance.1.0.0.uf2
+    name: Abeyance 1.0.0
+
+tags:
+  - generative
+  - ambient
+  - reverb
+  - delay
+  - synthesizer
+  - polyphonic
+
+panel:
+  inputs:
+    - id: AudioIn1
+      name: Reverb In 1
+      type: audio
+      description: Halved, summed with Audio In 2 and fed to both sides of the reverb, so it comes out centred. Heard only through the reverb, so its level follows the reverb mix
+    - id: AudioIn2
+      name: Reverb In 2
+      type: audio
+      description: As Audio In 1
+    - id: CVIn1
+      name: Reverb Mix CV
+      type: cv
+      description: 0 to +5V adds 0 to 100% to the Reverb macro set by Main (switch middle), clamped at full, so it can open up the long wash too
+    - id: CVIn2
+      name: Drift CV
+      type: cv
+      description: -2.5 to +2.5V moves drift 50% down or up from X's setting (switch up), clamped at 0 and full
+    - id: PulseIn1
+      name: New Piece
+      type: pulse
+      description: A rising edge starts a new piece, as a tap down does. Counts after 20ms, and only if the cable is still in, so unplugging never triggers it
+  outputs:
+    - id: AudioOut1
+      name: Out L
+      type: audio
+      description: Left of the stereo mix -- piano, choir, piano echo and reverb
+    - id: AudioOut2
+      name: Out R
+      type: audio
+      description: Right of the stereo mix
+    - id: CVOut1
+      name: Random 1
+      type: cv
+      description: Smooth random voltage, 0 to +5V (calibrated), a new target every 3 to 12s divided by the piece's tempo
+    - id: CVOut2
+      name: Random 2
+      type: cv
+      description: Smooth random voltage, -5 to +5V (calibrated), centred on 0V, independent of CV Out 1
+    - id: PulseOut1
+      name: Piano Trigger
+      type: pulse
+      description: A 10ms trigger on every piano note, each note of a phrase included. Choir notes never trigger it
+    - id: PulseOut2
+      name: Piano Gate
+      type: pulse
+      description: High from each piano note until 1.5s (divided by tempo) after the last. The choir is ignored
+
+controls:
+  switch:
+    up:
+      name: Mix
+      description: Main = master volume, X = drift, Y = tape
+    middle:
+      name: Layers
+      description: Main = reverb mix, X = piano level, Y = choir level
+    down:
+      name: New Piece
+      description: Momentary. The knobs do nothing while it's held
+    tap:
+      name: New Piece
+      description: Everything fades to silence over 15s, the old piece playing on underneath (voices, echo and reverb), then a new piece starts in a clean room -- a new root, one of nine scales (never the one playing), a tempo from 0.7x to 1.4x and every loop re-cut. Fires on press; holding does nothing more
+  knobs:
+    - main: { name: Reverb, description: "A macro. Up to 2/3: an equal-power wet/dry mix into an 8s plate. Over the last third the plate grows to an 18s, darker wash. Plus CV In 1. Starts at 65%. Takes over only after passing its stored value" }
+      x: { name: Piano Level, description: "Squared curve. Starts at 80%. At zero, no piano reaches the echo or reverb either" }
+      y: { name: Choir Level, description: "Squared curve. Starts at 80%" }
+    - when: { z: up }
+      main: { name: Volume, description: "Master volume, squared curve. Starts at 75%" }
+      x: { name: Drift, description: "Skipped passes, octave jumps, reversed or shortened piano phrases, plus CV In 2. Starts at 30%" }
+      y: { name: Tape, description: "A macro, from quiet tape to worn record. Wow (0.23Hz, up to 11 cents), flutter (5.7Hz, 2.2 cents) and slowly drifting hiss (square law); from 50% the hiss darkens to filtered record noise; from 60% ticks and soft pops fade in. Starts at 40%" }
+    - when: { z: down }
+      main: { name: (no change), description: The knobs do nothing while the switch is held down }
+      x: { name: (no change) }
+      y: { name: (no change) }
+  leds:
+    - display: list
+      items:
+        - { id: LED0, name: Piano (left), description: "A piano strike lights the side its loop is panned to, then fades over about 3s; a centred loop lights both at half" }
+        - { id: LED1, name: Piano (right) }
+        - { id: LED2, name: Choir (left), description: "Follows each choir note's swell and fade, on the side its loop is panned to" }
+        - { id: LED3, name: Choir (right) }
+        - { id: LED4, name: CV Out 1, description: "Brightness follows the voltage" }
+        - { id: LED5, name: CV Out 2, description: "Brightness follows the distance from 0V" }
